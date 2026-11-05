@@ -55,7 +55,7 @@ beforeEach(async () => {
   mocks.toast.mockReset()
   settle.mockReset()
   vi.stubGlobal('fetch', mocks.fetch)
-  
+
   client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   client.setQueryData(habitKeys.list({}), ids.map(id => createMockHabitScheduleItem({ id })))
   client.setQueryData(profileKeys.detail(), createMockProfile())
@@ -70,6 +70,39 @@ afterEach(async () => {
 })
 
 describe('bulk gateway recovery', () => {
+  it.each(['log', 'skip'] as const)('keeps the %s replay key when a successful upstream write loses its response', async mode => {
+    const replay = new Map<string, object>()
+    const requests: { key: string | null; body: string }[] = []
+    let committed = 0
+    let lost = true
+    mocks.fetch.mockImplementation((_url, init) => {
+      const key = new Headers(init?.headers).get('Idempotency-Key')
+      if (typeof init?.body !== 'string') throw new Error('Missing bulk body')
+      requests.push({ key, body: init.body })
+      const identity = key ?? `unkeyed-${requests.length}`
+      if (!replay.has(identity)) {
+        committed += ids.length
+        replay.set(identity, { results: ids.map((habitId, index) => ({
+          index, status: 'Success', habitId, error: null, errorCode: null,
+          ...(mode === 'log' ? { logId: habitId } : {}),
+        })), ...(mode === 'log' ? { previousStreak: 0, currentStreak: 1 } : {}) })
+      }
+      return Promise.resolve(lost ? new Response('{"results":', { status: 200 }) : Response.json(replay.get(identity)))
+    })
+    await act(async () => { await (mode === 'log' ? actions.confirmBulkLog() : actions.confirmBulkSkip()) })
+    expect(selected).toEqual(new Set(ids))
+    expect(settle).not.toHaveBeenCalled()
+    const retry = mocks.toast.mock.calls.at(-1)?.[0]?.onAction as () => Promise<void>
+    expect(retry).toBeTypeOf('function')
+    lost = false
+    await act(async () => { await retry() })
+    expect(committed).toBe(10)
+    expect(requests[0]?.key).toBeTruthy()
+    expect(requests.at(-1)).toEqual(requests[0])
+    expect(selected.size).toBe(0)
+    expect(settle).toHaveBeenCalledOnce()
+  })
+
   it.each(['log', 'skip'] as const)('retries only the original uncertain middle %s chunk', async mode => {
     ids = Array.from({ length: 205 }, (_, index) => `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`)
     selected = new Set(ids)

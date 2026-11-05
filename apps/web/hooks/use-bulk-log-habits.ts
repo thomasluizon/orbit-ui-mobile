@@ -3,7 +3,7 @@
 import { captureException } from '@sentry/nextjs'
 import { useQueryClient } from '@tanstack/react-query'
 import { profileKeys,habitKeys,updateHabitListsForDate,getTodayHabitList,invalidateDerivedHabitLogQueries,goalKeys,gamificationKeys } from '@orbit/shared/query'
-import { buildUnresolvedBulkFailures,buildBulkCompletionChunks,normalizeBulkCompletionInput,isBulkGatewayFailure,type BulkCompletionInput,type BulkRetryChunk,getAccountDay,findHabitInList,buildSuccessfulLogPatch,deriveBulkLogStreakTransition,normalizeHabits,buildChildrenIndex } from '@orbit/shared/utils'
+import { ApiClientError,buildUnresolvedBulkFailures,buildBulkCompletionChunks,normalizeBulkCompletionInput,isBulkGatewayFailure,type BulkCompletionInput,type BulkRetryChunk,getAccountDay,findHabitInList,buildSuccessfulLogPatch,deriveBulkLogStreakTransition,normalizeHabits,buildChildrenIndex } from '@orbit/shared/utils'
 import { optimisticPatchHabit } from '@/lib/habit-optimistic-helpers'
 import { snapshotHabitLists,updateHabitLists,restoreHabitLists,type HabitListSnapshots } from '@/lib/habit-mutation-helpers'
 import type { BulkLogItemRequest,BulkLogResult,HabitScheduleItem } from '@orbit/shared/types/habit'
@@ -68,7 +68,8 @@ export function useBulkLogHabits() {
           results.push(...chunkResponse.results)
         } catch (error) {
           if (reportsAccountChanged(error)) throw error
-          if (isBulkGatewayFailure(error)) {
+          // WHY: Server Action transport errors can omit HTTP status: https://github.com/thomasluizon/orbit-tickets/issues/2004.
+          if (isBulkGatewayFailure(error) || !(error instanceof ApiClientError)) {
             ambiguousIds.push(...chunk.items.map(item => item.habitId))
             retryChunks.push({ items: chunk.items, idempotencyKey: chunk.idempotencyKey })
             continue

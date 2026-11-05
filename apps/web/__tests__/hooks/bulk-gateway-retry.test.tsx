@@ -11,10 +11,26 @@ import { useUIStore } from '@/stores/ui-store'
 import type { Profile } from '@orbit/shared/types/profile'
 import { useBulkActions } from '@/hooks/use-bulk-actions'
 
-const mocks = vi.hoisted(() => ({ fetch: vi.fn<typeof fetch>(), toast: vi.fn() }))
+const mocks = vi.hoisted(() => ({ fetch: vi.fn<typeof fetch>(), toast: vi.fn(), loseActionResponse: false }))
 vi.mock('@/lib/posthog', () => ({ captureHabitLogged: vi.fn(), identifyPostHogUser: vi.fn(), resetPostHogUser: vi.fn() }))
 import { ACCOUNT_A_ACCESS_TOKEN } from '@/__tests__/helpers/auth-token'
 import { useAuthStore } from '@/stores/auth-store'
+vi.mock('@/lib/actions/habits', async original => {
+  const actual = await original<typeof import('@/lib/actions/habits')>()
+  return {
+    ...actual,
+    bulkLogHabits: async (...arguments_: Parameters<typeof actual.bulkLogHabits>) => {
+      const response = await actual.bulkLogHabits(...arguments_)
+      if (mocks.loseActionResponse) throw new Error('An unexpected response was received from the server.')
+      return response
+    },
+    bulkSkipHabits: async (...arguments_: Parameters<typeof actual.bulkSkipHabits>) => {
+      const response = await actual.bulkSkipHabits(...arguments_)
+      if (mocks.loseActionResponse) throw new Error('An unexpected response was received from the server.')
+      return response
+    },
+  }
+})
 vi.mock('@/lib/auth-api', async original => ({
   ...(await original<typeof import('@/lib/auth-api')>()),
   resolveServerSession: async () => ({ token: ACCOUNT_A_ACCESS_TOKEN, refreshFailed: false }),
@@ -53,6 +69,7 @@ beforeEach(async () => {
   ids = Array.from({ length: 10 }, (_, index) => `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`)
   clearedAt = null
   useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+  mocks.loseActionResponse = false
   mocks.fetch.mockReset()
   mocks.toast.mockReset()
   settle.mockReset()
@@ -72,6 +89,39 @@ afterEach(async () => {
 })
 
 describe('bulk gateway recovery', () => {
+  it.each(['log', 'skip'] as const)('keeps the %s replay key when a successful upstream write loses its response', async mode => {
+    const replay = new Map<string, object>()
+    const requests: { key: string | null; body: string }[] = []
+    let committed = 0
+    mocks.loseActionResponse = true
+    mocks.fetch.mockImplementation((_url, init) => {
+      const key = new Headers(init?.headers).get('Idempotency-Key')
+      if (typeof init?.body !== 'string') throw new Error('Missing bulk body')
+      requests.push({ key, body: init.body })
+      const identity = key ?? `unkeyed-${requests.length}`
+      if (!replay.has(identity)) {
+        committed += ids.length
+        replay.set(identity, { results: ids.map((habitId, index) => ({
+          index, status: 'Success', habitId, error: null, errorCode: null,
+          ...(mode === 'log' ? { logId: habitId } : {}),
+        })), ...(mode === 'log' ? { previousStreak: 0, currentStreak: 1 } : {}) })
+      }
+      return Promise.resolve(Response.json(replay.get(identity)))
+    })
+    await act(async () => { await (mode === 'log' ? actions.confirmBulkLog() : actions.confirmBulkSkip()) })
+    expect(selected).toEqual(new Set(ids))
+    expect(settle).not.toHaveBeenCalled()
+    const retry = mocks.toast.mock.calls.at(-1)?.[0]?.onAction as () => Promise<void>
+    expect(retry).toBeTypeOf('function')
+    mocks.loseActionResponse = false
+    await act(async () => { await retry() })
+    expect(committed).toBe(10)
+    expect(requests[0]?.key).toBeTruthy()
+    expect(requests.at(-1)).toEqual(requests[0])
+    expect(selected.size).toBe(0)
+    expect(settle).toHaveBeenCalledOnce()
+  })
+
   it.each(['log', 'skip'] as const)('retries only the original uncertain middle %s chunk', async mode => {
     ids = Array.from({ length: 205 }, (_, index) => `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`)
     selected = new Set(ids)
