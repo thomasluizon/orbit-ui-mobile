@@ -1,0 +1,59 @@
+name: Android Startup
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/mobile/**"
+      - "packages/shared/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tools/check-android-bundle.mjs"
+      - "tools/android-boot.mjs"
+      - ".github/actions/android-boot/**"
+      - ".github/workflows/android-startup.yml"
+      - ".github/workflows/android-release.yml"
+  push:
+    branches: ["chore/ticket-1997-proof-*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-startup-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bundle:
+    name: Android Hermes module inventory
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --fund=false
+      - name: Export Android Hermes bundle and source map
+        working-directory: apps/mobile
+        env:
+          CI: "1"
+          EXPO_NO_TELEMETRY: "1"
+          EXPO_NO_METRO_WORKSPACE_ROOT: "1"
+        run: npx expo export --platform android --source-maps --output-dir ../../.artifacts/android-bundle
+      - name: Require unique bundled native modules and component names
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t maps < <(find .artifacts/android-bundle/_expo/static/js/android -name '*.map' -type f)
+          test "${#maps[@]}" -eq 1
+          node tools/check-android-bundle.mjs --map "${maps[0]}"
+      - uses: actions/upload-artifact@v7
+        if: ${{ always() }}
+        with:
+          name: android-hermes-bundle
+          path: .artifacts/android-bundle
+          include-hidden-files: true
+          if-no-files-found: error
+
