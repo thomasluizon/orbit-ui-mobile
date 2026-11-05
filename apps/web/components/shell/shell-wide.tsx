@@ -33,7 +33,8 @@ import { useModalFocusTrap } from './use-modal-focus-trap'
 import { getShellHeading } from './shell-header'
 
 function getConversationFocusTarget(container: HTMLElement): HTMLElement {
-  return container.querySelector<HTMLElement>('[data-composer-input]:not([disabled])')
+  return container.querySelector<HTMLElement>('[data-composer-collapse-row]')
+    ?? container.querySelector<HTMLElement>('[data-composer-input]:not([disabled])')
     ?? container.querySelector<HTMLElement>('[data-composer-root]')
     ?? container.querySelector<HTMLElement>('button:not([disabled])')
     ?? container
@@ -329,6 +330,14 @@ function getScrollerSpacing(hasBottomChrome: boolean, reservesComposerSpace: boo
     : { padding: 'pb-8', minimum: 'min-h-8', focusClearance }
 }
 
+function getAstraScrollerSpacing(spacing: ReturnType<typeof getScrollerSpacing>, astraButton: ReactNode, wide: boolean) {
+  if (!astraButton) return { padding: spacing.padding, focusClearance: wide ? undefined : spacing.focusClearance }
+  return {
+    padding: 'pb-[max(var(--shell-astra-clearance),var(--orbit-space-96))] lg:pb-[max(var(--shell-astra-clearance),var(--orbit-space-32))]',
+    focusClearance: 'var(--shell-astra-clearance)',
+  }
+}
+
 function getSidebarCreateRefusal(props: ResponsiveShellProps, wide: boolean, collapsed: boolean) {
   if (props.nav === false || !wide || !collapsed || !props.createRefusal) return null
   return <div className="py-4">{props.createRefusal}</div>
@@ -413,12 +422,13 @@ function ShellWideBackground({
     || props.notice !== undefined || pinnedSlot !== undefined
   const floating = props.fab !== undefined || props.fabPending === true
   const scrollerSpacing = getScrollerSpacing(hasBottomChrome, pinnedSlot !== undefined || floating, floating)
+  const astraSpacing = getAstraScrollerSpacing(scrollerSpacing, props.astraButton, wide)
   const scroller = (
     <main
       ref={registerScroller}
       data-shell-scroller=""
-      style={{ scrollPaddingBottom: wide ? undefined : scrollerSpacing.focusClearance }}
-      className={`relative overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] ${hasFlowAction ? 'h-full' : 'min-h-0 flex-1'} ${scrollerSpacing.padding}`}
+      style={{ scrollPaddingBottom: astraSpacing.focusClearance }}
+      className={`relative overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] ${hasFlowAction ? 'h-full' : 'min-h-0 flex-1'} ${astraSpacing.padding}`}
     >
       <span
         aria-hidden="true"

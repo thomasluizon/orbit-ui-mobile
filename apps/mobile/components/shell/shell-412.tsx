@@ -152,15 +152,16 @@ function ShellScrollToTopSlot({ visible, content, onHeight }: Readonly<{ visible
   return <View testID="shell-scroll-to-top" onLayout={event => onHeight(event.nativeEvent.layout.height)} pointerEvents="box-none" style={styles.scrollToTop}>{content}</View>
 }
 
-function ShellAstraEntry({ enabled, conversationOpen, fab, scrollToTop, height }: Readonly<{
+function ShellAstraEntry({ enabled, conversationOpen, fab, scrollToTop, height, onClearanceChange }: Readonly<{
   enabled?: boolean
   conversationOpen: boolean
   fab: ReactNode
   scrollToTop: ReactNode
   height: number
+  onClearanceChange: (height: number) => void
 }>) {
   if (!enabled || conversationOpen) return null
-  return <AstraButton hasFab={fab !== undefined} scrollToTopHeight={scrollToTop !== undefined ? height : 0} />
+  return <AstraButton hasFab={fab !== undefined} scrollToTopHeight={scrollToTop !== undefined ? height : 0} onClearanceChange={onClearanceChange} />
 }
 
 function useShellViewport({ navigationEnabled, hasFab, hasHeader, hasTabBar, safeTop, safeBottom, minimumBottomHeight }: Readonly<{
@@ -200,8 +201,13 @@ function ShellPageContent({ framed, navigationEnabled, safeAreaTop, children }: 
   return <ShellContent inset={framed || navigationEnabled && safeAreaTop !== false} style={styles.pageContent}>{children}</ShellContent>
 }
 
+function getScrollerClearance(astraButton: boolean | undefined, astraClearance: number, reservesSpace: boolean) {
+  return Math.max(astraButton ? astraClearance : 0, reservesSpace ? SHELL_SCROLLER_CLEARANCE : 32)
+}
+
 export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean; fabPending?: boolean; astraButton?: boolean }>) {
   const [scrollToTopHeight, setScrollToTopHeight] = useState(64)
+  const [astraClearance, setAstraClearance] = useState(176)
   const mainRef = useRef<View>(null)
   const focusTarget = useRef<number | null>(null)
   const focusElement = useRef<HostInstance | null>(null)
@@ -222,9 +228,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
     || notice !== undefined
     || pinnedSlot !== undefined
     || props.fab !== undefined
-  const scrollerClearance = pinnedSlot !== undefined || floating
-    ? SHELL_SCROLLER_CLEARANCE
-    : 32
+  const scrollerClearance = getScrollerClearance(props.astraButton, astraClearance, pinnedSlot !== undefined || floating)
   const conversationOpen = props.conversation !== undefined && props.conversationOpen !== false
   function revealListFocus(target: HostInstance, scrollBy: (offset: number) => void) {
     if (props.fab === undefined || conversationOpen) return
@@ -232,7 +236,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
       target.measureInWindow((_targetLeft, targetTop, _targetWidth, targetHeight) => {
         if (focusElement.current !== target) return
         const delta = targetTop < top ? targetTop - top
-          : Math.max(0, targetTop + targetHeight - (top + height - SHELL_SCROLLER_CLEARANCE))
+          : Math.max(0, targetTop + targetHeight - (top + height - scrollerClearance))
         if (delta !== 0) scrollBy(delta)
       })
     })
@@ -281,7 +285,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
           <View ref={mainRef} focusable testID="shell-scroller" style={[styles.scroller, floating && styles.floatingScroller, viewport.relaxedScroller && styles.flowScroller]}>
             <ShellListFocusContext.Provider value={revealListFocus}><ShellPageContent framed={header !== undefined} navigationEnabled={navigationEnabled} safeAreaTop={props.safeAreaTop}>{props.children}</ShellPageContent></ShellListFocusContext.Provider>
             <ShellScrollToTopSlot visible={!conversationOpen} content={registeredScrollToTop.content ?? props.scrollToTop} onHeight={setScrollToTopHeight} />
-            <ShellAstraEntry enabled={props.astraButton} conversationOpen={conversationOpen} fab={props.fab} scrollToTop={registeredScrollToTop.content ?? props.scrollToTop} height={scrollToTopHeight} />
+            <ShellAstraEntry enabled={props.astraButton} conversationOpen={conversationOpen} fab={props.fab} scrollToTop={registeredScrollToTop.content ?? props.scrollToTop} height={scrollToTopHeight} onClearanceChange={setAstraClearance} />
             {props.fab !== undefined ? (
               <View testID="shell-fab-band" pointerEvents="box-none" style={styles.fabBand}>
                 <ShellContent style={{ height: SHELL_SCROLLER_CLEARANCE }} pointerEvents="box-none"><View style={{ flex: 1 }} pointerEvents="box-none"><View testID="shell-fab" pointerEvents="box-none" style={styles.fab}>{props.fab}</View></View></ShellContent>

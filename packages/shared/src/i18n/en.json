@@ -224,8 +224,9 @@
   "shell": {
     "astraButton": {
       "open": "Open Astra",
-      "hint": "Drag to move, or use the Move actions.",
-      "keyboardHint": "Drag to move, or use the arrow keys.",
+      "move": "Move Astra",
+      "hint": "Press and hold to choose a position, or drag to move.",
+      "keyboardHint": "To move, right-click, press and hold, or use the arrow keys.",
       "left": "Move left",
       "right": "Move right",
       "up": "Move up",

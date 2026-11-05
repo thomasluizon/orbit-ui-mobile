@@ -523,8 +523,9 @@ export function Composer(props: Readonly<WebComposerProps>) {
     if (!props.autoFocus) return
     const composer = composerRef.current
     const input = composer?.querySelector<HTMLTextAreaElement>('[data-composer-input]:not([disabled])')
-    ;(input ?? composer)?.focus()
-    input?.setSelectionRange(input.value.length, input.value.length)
+    const expand = composer?.querySelector<HTMLButtonElement>('[data-composer-collapse-row]')
+    ;(expand ?? input ?? composer)?.focus()
+    if (!expand) input?.setSelectionRange(input.value.length, input.value.length)
   }, [props.autoFocus])
   useEffect(() => {
     if (!props.autoFocus) return

@@ -37,7 +37,8 @@ for (const viewport of shellScrollViewports) {
       await page.evaluate(() => document.fonts.ready)
       const measured = await scroller.evaluate(measureShellScrollEnd)
       await testInfo.attach('initial-scroll-extent', { body: JSON.stringify({ ...viewport, ...measured }), contentType: 'application/json' })
-      const clearance = viewport.width >= 1024 ? SPACING.s32 : SPACING.s96
+      const button = (await page.locator('[data-astra-button]').boundingBox())!
+      const clearance = Math.max(viewport.width >= 1024 ? SPACING.s32 : SPACING.s96, measured.scrollerBottom - button.y + SPACING.s16)
       expect(measured.scrollTop).toBeGreaterThan(0)
       expect(measured.scrollTop).toBe(measured.scrollHeight - measured.clientHeight)
       expect(measured.lastTop).toBeGreaterThanOrEqual(measured.scrollerTop)
@@ -55,10 +56,13 @@ for (const viewport of shellScrollViewports) {
       const afterRemoval = await scroller.evaluate(measureShellScrollEnd)
       await testInfo.attach('settled-scroll-extent', { body: JSON.stringify({ ...viewport, ...afterRemoval }), contentType: 'application/json' })
       expect(afterRemoval.lastTop).toBeGreaterThanOrEqual(afterRemoval.scrollerTop)
-      expect(afterRemoval.scrollerBottom - afterRemoval.lastBottom).toBeCloseTo(clearance, 0)
+      const restoredButton = (await page.locator('[data-astra-button]').boundingBox())!
+      const restoredClearance = Math.max(viewport.width >= 1024 ? SPACING.s32 : SPACING.s96, afterRemoval.scrollerBottom - restoredButton.y + SPACING.s16)
+      expect(afterRemoval.scrollerBottom - afterRemoval.lastBottom).toBeCloseTo(restoredClearance, 0)
+      expect(restoredButton.y - afterRemoval.lastBottom).toBeGreaterThanOrEqual(SPACING.s16 - 1)
       if (viewport.width < 1024) {
-        const divider = (await page.locator('[data-composer-root]').boundingBox())!
-        expect(divider.y - afterRemoval.lastBottom).toBeCloseTo(clearance, 0)
+        const tabs = (await page.locator('[data-shell-tab-bar]').boundingBox())!
+        expect(tabs.y - afterRemoval.lastBottom).toBeCloseTo(restoredClearance, 0)
       }
     })
   })

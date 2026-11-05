@@ -227,11 +227,17 @@ the create FAB and the measured back-to-top pill. The two FAB canvas rings retai
 separation. Position is a device preference, retained across
 launches; an outgrown position resets to the default when the viewport shrinks. Layout changes
 recheck obstacles. Sheets, selection and the conversation withhold the floating entry.
-Web keeps the button in normal tab order; Enter and Space open it and arrow keys move it.
-Android exposes four named Move accessibility actions. Initial and restored positions appear
-without entrance movement; snap animation follows a requested move. Reduced motion removes it.
+The shell reserves end-of-list clearance from the button's current position plus a 16px gap,
+so the last row scrolls fully above it after dragging, moving or resizing.
+Press and hold opens four named movement choices on both platforms; web also opens them on
+right-click or the context-menu key. Choosing a direction closes the sheet and moves the button
+without opening Astra. Web keeps the button in normal tab order; Enter and Space open it and
+arrow keys move it. Android also exposes four named Move accessibility actions. Initial and restored positions appear
+without entrance movement; snap animation follows a requested move. A new drag interrupts the snap
+at its displayed position. Reduced motion removes the snap animation.
 The conversation retains live suggestions, the draft, attachments, AI disclosure, composer
-disclosure, running reply control, queue and the proactive line's destination.
+disclosure, running reply control, queue and the proactive line's destination. Reopening a collapsed
+conversation focuses its visible expand control and preserves its draft.
 
 **Named Astra navigation rows retain `Astra`; standalone actions retain their visible action label beside the canonical glyph (#1700).** Actions drop the appended brand word, never their label. Menu items use the same full row geometry, padding, hover, press and focus as their siblings, with the label supplying the accessible name once. Habit and goal analysis, empty-list entries and reschedule retries show their short action labels. Inline form-field fill controls for emoji, date, tags and frequency remain icon-only with specific accessible names; #1701 owns those controls and their hints. Composer entry, send and disclosure retain their drawn icon controls. Suggestion chips, idea cards and proactive prose keep their useful request text without appended branding. Composer send keeps one upward arrow while a reply runs, with its localized Add to queue name and no Astra mark. Input remains editable. Up to three waiting messages appear above the composer with individual remove controls; another send retains its draft and shows the queue limit inline. Successful replies send the next waiting message in order. Failure or Stop pauses automatic sending and retains the remaining messages for individual sending or removal. A separate Stop reply control remains reachable, and the thread owns running feedback. The session queue survives screen changes and clears on sign-out. Input prompts do not repeat the brand. Keep useful action context, disabled reasons and request guards. Deterministic saves, accepting an existing proposal, static attribution, section headings and plan facts gain no mark. The wide sidebar, floating Astra button, habit-detail composer and proactive Hoje slot retain their own entries. Conversation headers, participant avatars and conversation-owned empty states keep their own rules. The owner's authority for #1700 is: "Revert this, just keep the changes that remove the bloat, be smart." The owner's copy authority for #1687 is: "i asked you to top putting Consultar astra string everywhere / what you did: removed the astra word from the app, including on the sidebar / fix this". This preserves navigation names while dropping appended branding from actions. Astra always carries the Astra mark (#1780): the Perfil Astra settings row, the Pro benefits
 Astra outcome and the lapsed-plan Astra messages line use `AstraGlyph` in place of a generic chat

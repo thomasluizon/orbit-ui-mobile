@@ -10,6 +10,7 @@ import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-f
 import { bulkSkipResultSchema, type BulkSkipItemRequest } from '@orbit/shared/types/habit'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { ShellWide } from '@/components/shell/shell-wide'
+import { AstraButton } from '@/components/shell/astra-button'
 import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
 import { ShellHeaderHostContext } from '@/components/shell/shell-header'
 import { useUIStore } from '@/stores/ui-store'
@@ -59,6 +60,7 @@ function Fixture() {
   const fabHidden = useUIStore((state) => state.todayFabHidden)
   return <ShellHeaderHostContext.Provider value={headerHost}><ShellWide items={[]} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: () => {} }} registerHeaderHost={registerHeaderHost}
     tabBar={<BottomTabBar activeId="hoje" label="Navigation" onSelect={() => {}} items={[{ id: 'hoje', href: '/', label: 'Today' }]} />}
+    astraButton={document.getElementById('root')!.hasAttribute('data-astra') ? <AstraButton /> : undefined}
     fab={selecting || fabHidden ? undefined : <button>Create</button>}
     composer={selecting ? <SelectionTray selectedCount={view.selectedHabitIds.size} allSelected={view.selection.allSelected}
       skippableCount={view.selection.skippableCount}
