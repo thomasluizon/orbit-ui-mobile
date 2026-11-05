@@ -128,7 +128,6 @@ export function MoveParentDialog({
     }
   }, [visible, inventoryState])
   const title = getMoveDialogTitle(t, selectionOnly, movingHabitCount)
-  const destinationQuestion = t('habits.moveParent.destinations', { count: movingHabitCount ?? 1 })
   async function confirmMove() {
     if (await onConfirm() === true) {
       closeSheet(hideDialog, hideDialog)
@@ -192,10 +191,10 @@ export function MoveParentDialog({
 
         <View testID="move-parent-destinations" style={styles.destinations}>
         {treeRows.length > 0 ? (
-          <Text accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.destinationQuestion}>{destinationQuestion}</Text>
+          <Text accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.destinationQuestion}>{t('habits.moveParent.destinations', { count: movingHabitCount ?? 1 })}</Text>
         ) : null}
 
-        <RadioGroup accessibilityLabel={destinationQuestion} style={{ flexShrink: 1 }}>
+        <RadioGroup accessibilityLabel={t('habits.moveParent.destinations', { count: movingHabitCount ?? 1 })} style={{ flexShrink: 1 }}>
           {rootOption ? (
             <MoveTargetRow
               option={rootOption}

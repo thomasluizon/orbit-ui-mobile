@@ -1182,6 +1182,12 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "mobile:control:wrapped.periodGroup": {
+      "targets": [
+        "mobile:control:shareCard.periodQuestion"
+      ],
+      "reason": "The share sheet period control is named by its question; the Wrapped cover keeps the period label."
+    },
     "mobile:display:about.version": {
       "targets": [
         "mobile:display:about.versionLabel"
@@ -3081,6 +3087,12 @@
         "web:content:profile.settingsRows.wrapped"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:wrapped.periodGroup": {
+      "targets": [
+        "web:control:shareCard.periodQuestion"
+      ],
+      "reason": "The share sheet period control is named by its question; the Wrapped cover keeps the period label."
     },
     "web:display:about.version": {
       "targets": [

@@ -84,7 +84,6 @@ export function MoveParentOverlay({
   const [searchQuery, setSearchQuery] = useState('')
   const hasPositionedRef = useRef(false)
   useEffect(() => { if (!open || inventoryState) hasPositionedRef.current = false }, [open, inventoryState])
-  const destinationQuestion = t('habits.moveParent.destinations', { count: movingHabitCount ?? 1 })
   const title = selectionOnly ? t('habits.form.parentHabit') : movingHabitCount === undefined ? t('habits.moveParent.title')
     : plural(t('habits.moveParent.titleMany', { count: movingHabitCount }), movingHabitCount)
   async function confirmMove() {
@@ -157,11 +156,11 @@ export function MoveParentOverlay({
 
         <div data-move-parent-destinations="" className="flex flex-col min-h-0" style={{ gap: 8 }}>
         {treeRows.length > 0 && (
-          <span data-field-question="" aria-hidden="true" className="text-sm font-medium text-[var(--fg-2)]">{destinationQuestion}</span>
+          <span data-field-question="" aria-hidden="true" className="text-sm font-medium text-[var(--fg-2)]">{t('habits.moveParent.destinations', { count: movingHabitCount ?? 1 })}</span>
         )}
 
         <RadioGroup
-          aria-label={destinationQuestion}
+          aria-label={t('habits.moveParent.destinations', { count: movingHabitCount ?? 1 })}
           className="flex flex-col min-h-0"
         >
           {rootOption && (

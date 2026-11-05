@@ -607,7 +607,7 @@
       "title": "Mover hábito",
       "description": "Escolha onde colocar \"{name}\"",
       "toRoot": "Sem hábito principal (nível raiz)",
-      "destinations": "{count, plural, one {Para onde ele vai?} other {Para onde eles vão?}}",
+      "destinations": "{count, plural, =0 {Para onde eles vão?} one {Para onde ele vai?} other {Para onde eles vão?}}",
       "searchPlaceholder": "Buscar hábitos",
       "searchQuestion": "Qual hábito você procura?",
       "currentParent": "Atual",
