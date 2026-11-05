@@ -70,5 +70,30 @@ it.each([320, 1280].flatMap((width) => [1, 2].flatMap((scale) => (['en', 'pt-BR'
       expect(title.host.props.numberOfLines).toBeUndefined()
       expect(title.left).toBeGreaterThanOrEqual(8)
       expect(title.right).toBeLessThanOrEqual(column - 8)
+      if (width === 1280) expect(title.height).toBeCloseTo(Number((title.style as { lineHeight?: number }).lineHeight) * scale, 3)
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
+it.each([320, 1280].flatMap((width) => [1, 2].flatMap((scale) => (['en', 'pt-BR'] as const).flatMap((locale) => (['dark', 'light'] as const).map((mode) => ({ width, scale, locale, mode }))))))(
+  'keeps the revealed expiry closer to its question than to the key name at $width and $scale in $locale/$mode', async ({ width, scale, locale, mode }) => {
+    await i18n.changeLanguage(locale)
+    context.theme = mode
+    __setWindowDimensions({ width: Math.min(width, 412), height: 915, scale: 1, fontScale: scale })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<ProfileApiKeys profile={createMockProfile({ hasProAccess: true })} unlocked />) })
+    try {
+      await chooseApiKeyCreation(tree, i18n.t('profile.apiKeys.create'), i18n.t('profile.apiKeys.create'))
+      const disclosure = tree.root.findAll((node: { props: { title?: string; onClick?: () => void } }) => node.props.title === i18n.t('profile.apiKeys.setExpiry') && typeof node.props.onClick === 'function')[0]!
+      TestRenderer.act(() => disclosure.props.onClick())
+      const questions = findHost(tree.toJSON(), 'api-key-questions')!
+      const bounds = measureInteractionFills(questions, Math.min(width, 412) - 32, false, scale)
+      const root = bounds.find((part) => part.host.props.testID === 'api-key-questions')!
+      const group = bounds.find((part) => part.host.props.testID === 'api-key-expiry-group')!
+      const name = bounds.find((part) => part.ancestors.at(-1) === root.slot && part.top === root.top)!
+      const [row, region] = bounds.filter((part) => part.ancestors.at(-1) === group.slot)
+      expect(region!.host.props.nativeID).toEqual(expect.any(String))
+      expect(group.top - name.bottom).toBe(16)
+      expect(region!.top - row!.bottom).toBe(8)
+      expect(region!.height).toBeGreaterThan(0)
     } finally { TestRenderer.act(() => tree.unmount()) }
   })

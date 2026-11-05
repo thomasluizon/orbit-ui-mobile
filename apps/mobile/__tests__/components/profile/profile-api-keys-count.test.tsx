@@ -481,8 +481,13 @@ it('asks for expiry only after the expiry question and keeps a hidden draft', as
   await chooseApiKeyCreation(tree, 'profile.apiKeys.create')
   expect(expiryQuestion(tree).props.expanded).toBe(false)
   expect(expiryInputs(tree)).toHaveLength(0)
+  const controls = expiryQuestion(tree).props.controls
+  expect(controls).toEqual(expect.any(String))
   TestRenderer.act(() => expiryQuestion(tree).props.onClick())
   expect(expiryQuestion(tree).props.expanded).toBe(true)
+  const region = tree.root.findAll((node: { props: { nativeID?: string } }) => node.props.nativeID === controls)
+  expect(region.length).toBeGreaterThan(0)
+  expect(region[0]!.findAllByType(Input).map((field: { props: { label: string } }) => field.props.label)).toEqual(['orbitMcp.expiresAtLabel'])
   TestRenderer.act(() => expiryInputs(tree)[0]!.props.onChange('2099-12-31T23:59'))
   TestRenderer.act(() => expiryQuestion(tree).props.onClick())
   expect(expiryInputs(tree)).toHaveLength(0)

@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { cleanup, render } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { Page } from 'playwright-core'
 import en from '@orbit/shared/i18n/en.json'
@@ -103,6 +103,39 @@ describe('input question geometry', () => {
       const edges = await readQuestionEdges(page, '[data-api-key-questions]', messages.profile.apiKeys.setExpiry)
       for (const edge of [...edges.target, ...edges.fill]) expect(Math.abs(edge)).toBeLessThanOrEqual(1)
       expect(edges.textInset).toBeGreaterThanOrEqual(8)
+    } finally { await page.close() }
+  })
+
+  it.each(CASES)('keeps the revealed expiry closer to its question than to the key name at $width and $scale in $locale/$mode', async ({ width, scale, locale, mode }) => {
+    context.locale = locale
+    const messages = locale === 'en' ? en : ptBR
+    vi.stubGlobal('fetch', vi.fn())
+    await resetAuthStore()
+    useAuthStore.getState().setAuth({ userId: 'user-1', name: 'Ada', email: 'ada@example.com' })
+    render(<QueryClientProvider client={new QueryClient()}><ProfileApiKeys profile={{ hasProAccess: true, activeApiKeyCount: 0 } as Profile} unlocked /></QueryClientProvider>)
+    await chooseApiKeyCreation(messages.profile.apiKeys.create, messages.profile.apiKeys.create)
+    fireEvent.click(screen.getByRole('button', { name: messages.profile.apiKeys.setExpiry }))
+    const markup = document.querySelector('[data-api-key-questions]')!.outerHTML
+    cleanup()
+    vi.unstubAllGlobals()
+    const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
+    try {
+      const tokens = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+      await page.setContent(`<!doctype html><style>${stylesheet}:root{${tokens};font-size:${16 * scale}px}body{margin:0;background:var(--bg)}main{padding:16px}</style><main>${markup}</main>`)
+      await loadAppFonts(page)
+      const gaps = await page.evaluate(() => {
+        const questions = document.querySelector('[data-api-key-questions]')!
+        const name = questions.querySelector('[data-input-root]')!.getBoundingClientRect()
+        const group = questions.querySelector('[data-api-key-expiry-group]')!
+        const question = group.querySelector('button[aria-expanded="true"]')!
+        const row = question.parentElement!.parentElement!.getBoundingClientRect()
+        const region = document.getElementById(question.getAttribute('aria-controls')!)!.getBoundingClientRect()
+        return { between: group.getBoundingClientRect().top - name.bottom, within: region.top - row.bottom, height: region.height }
+      })
+      expect(gaps.between).toBeCloseTo(16, 0)
+      expect(gaps.within).toBeCloseTo(8, 0)
+      expect(gaps.height).toBeGreaterThan(0)
+      expect(gaps.between).toBeGreaterThanOrEqual(gaps.within * 2)
     } finally { await page.close() }
   })
 
