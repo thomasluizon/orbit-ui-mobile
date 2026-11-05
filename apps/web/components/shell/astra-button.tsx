@@ -26,6 +26,7 @@ export function AstraButton() {
   const [placement, setPlacement] = useState<{ area: AstraButtonArea; obstacles: AstraButtonObstacle[] }>({ area: { width: 0, height: 0 }, obstacles: [] })
   const [saved, setSaved] = useState<AstraButtonPoint | null>(null)
   const [dragged, setDragged] = useState<AstraButtonPoint | null>(null)
+  const [snapping, setSnapping] = useState(false)
   const openConversation = useUIStore(state => state.setAstraConversationOpen)
   const blocked = useUIStore(state => state.showCreateModal || state.isSelectMode || state.openOverlayIds.length > 0 || state.astraConversationOpen)
   const position = dragged ?? snapAstraButton(saved, placement.area, placement.obstacles)
@@ -40,6 +41,7 @@ export function AstraButton() {
     })
     const updatePlacement = () => {
       const measured = measurePlacement(host)
+      setSnapping(false)
       setPlacement(measured)
       const previous = savedPosition.current
       const next = snapAstraButton(previous, measured.area, measured.obstacles)
@@ -60,6 +62,7 @@ export function AstraButton() {
 
   function finish(point: AstraButtonPoint) {
     const next = snapAstraButton(point, placement.area, placement.obstacles)
+    setSnapping(true)
     setDragged(null)
     savedPosition.current = next
     setSaved(next)
@@ -77,10 +80,11 @@ export function AstraButton() {
   }
   return <div ref={hostRef} data-astra-button-area="" className="pointer-events-none absolute inset-y-0 left-[var(--safe-left)] right-[var(--safe-right)] z-sticky">
     {position || placement.area.width === 0 ? <div hidden={blocked} data-astra-button-position="" className="pointer-events-auto absolute motion-safe:transition-transform motion-safe:duration-[var(--duration-normal)] ease-[var(--ease-out)]"
-      style={{ ...(position ? { left: 0, top: 0, transform: `translate(${position.x}px, ${position.y}px)` } : { right: 16, bottom: 92 }), transitionDuration: dragged ? '0ms' : undefined, width: ASTRA_BUTTON_SIZE, height: ASTRA_BUTTON_SIZE }}>
+      style={{ ...(position ? { left: 0, top: 0, transform: `translate(${position.x}px, ${position.y}px)` } : { right: 16, bottom: 92 }), transitionDuration: dragged || !snapping ? '0ms' : undefined, width: ASTRA_BUTTON_SIZE, height: ASTRA_BUTTON_SIZE }}>
       <Fab neutral label={t('shell.astraButton.open')} data-astra-button="" aria-describedby={descriptionId} style={{ touchAction: 'none' }}
         onPointerDown={event => {
           if (event.button !== 0 || !position) return
+          setSnapping(false)
           suppressClick.current = false
           const bounds = event.currentTarget.getBoundingClientRect()
           const host = hostRef.current!.getBoundingClientRect()

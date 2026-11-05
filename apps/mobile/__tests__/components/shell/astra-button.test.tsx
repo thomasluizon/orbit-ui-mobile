@@ -4,18 +4,20 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { ASTRA_POSITION_KEY } from '@orbit/shared/utils'
 import { AstraButton } from '@/components/shell/astra-button'
 import { useUIStore } from '@/stores/ui-store'
+import { Animated } from 'react-native'
 
 const storage = vi.hoisted(() => new Map<string, string>())
+const motion = vi.hoisted(() => ({ reduced: true }))
 vi.mock('@react-native-async-storage/async-storage', () => ({ default: {
   getItem: (key: string) => Promise.resolve(storage.get(key) ?? null),
   setItem: (key: string, value: string) => { storage.set(key, value); return Promise.resolve() },
 } }))
-vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => true }))
+vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => motion.reduced }))
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
 let tree: ReactTestRenderer
-beforeEach(() => { storage.clear(); useUIStore.setState(useUIStore.getInitialState()) })
-afterEach(async () => { await act(() => tree.unmount()) })
+beforeEach(() => { motion.reduced = true; storage.clear(); useUIStore.setState(useUIStore.getInitialState()) })
+afterEach(async () => { await act(() => tree.unmount()); vi.restoreAllMocks() })
 
 function host(testID: string) { return tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === testID)[0]! }
 function handler(testID: string, name: string) { return host(testID).props[name] as (event?: unknown) => unknown }
@@ -27,9 +29,9 @@ async function mount() {
   await layout()
 }
 function point() {
-  const style = host('astra-button-position').props.style as [unknown, { transform: [{ translateX: { value: number } }, { translateY: { value: number } }] }]
+  const style = host('astra-button-position').props.style as [unknown, { transform: [{ translateX: number | { value: number } }, { translateY: number | { value: number } }] }]
   const transform = style[1].transform
-  return { x: transform[0].translateX.value, y: transform[1].translateY.value }
+  return { x: typeof transform[0].translateX === 'number' ? transform[0].translateX : transform[0].translateX.value, y: typeof transform[1].translateY === 'number' ? transform[1].translateY : transform[1].translateY.value }
 }
 const touch = (pageX: number, pageY: number) => ({ nativeEvent: { pageX, pageY } })
 
@@ -38,6 +40,15 @@ it('opens the layer by tapping its named button', async () => {
   expect(host('astra-button').props.accessibilityLabel).toBe('shell.astraButton.open')
   await act(() => { handler('astra-button', 'onPress')() })
   expect(useUIStore.getState().astraConversationOpen).toBe(true)
+})
+
+it('places the initial button immediately and animates only a requested snap', async () => {
+  motion.reduced = false
+  const timing = vi.spyOn(Animated, 'timing')
+  await mount()
+  expect(timing).not.toHaveBeenCalled()
+  await act(() => { handler('astra-button', 'onAccessibilityAction')({ nativeEvent: { actionName: 'up' } }) })
+  expect(timing).toHaveBeenCalledTimes(2)
 })
 
 it('captures a drag after the threshold, snaps and restores the position across launches', async () => {

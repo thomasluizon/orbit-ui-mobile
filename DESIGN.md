@@ -227,7 +227,8 @@ the create FAB and the measured back-to-top pill. Position is a device preferenc
 launches; an outgrown position resets to the default when the viewport shrinks. Layout changes
 recheck obstacles. Sheets, selection and the conversation withhold the floating entry.
 Web keeps the button in normal tab order; Enter and Space open it and arrow keys move it.
-Android exposes four named Move accessibility actions. Reduced motion removes snap animation.
+Android exposes four named Move accessibility actions. Initial and restored positions appear
+without entrance movement; snap animation follows a requested move. Reduced motion removes it.
 The conversation retains live suggestions, the draft, attachments, AI disclosure, composer
 disclosure, running reply control, queue and the proactive line's destination.
 

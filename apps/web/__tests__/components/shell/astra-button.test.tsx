@@ -83,6 +83,14 @@ it('moves with arrow keys and resets an outgrown position when its window shrink
   expect(JSON.parse(localStorage.getItem(ASTRA_POSITION_KEY)!)).toEqual({ x: 244, y: 248 })
 })
 
+it('places the initial button immediately and animates only a requested snap', async () => {
+  mount()
+  await waitFor(() => expect(placement().style.transform).toBe('translate(336px, 448px)'))
+  expect(placement().style.transitionDuration).toBe('0ms')
+  fireEvent.keyDown(screen.getByRole('button', { name: en.shell.astraButton.open }), { key: 'ArrowUp' })
+  expect(placement().style.transitionDuration).toBe('')
+})
+
 it('withholds the button while a sheet or selection owns the surface', async () => {
   mount()
   act(() => useUIStore.getState().registerOpenOverlay('sheet'))

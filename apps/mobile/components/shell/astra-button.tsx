@@ -22,6 +22,7 @@ export function AstraButton({ hasFab, scrollToTopHeight }: Readonly<{ hasFab: bo
   const [area, setArea] = useState<AstraButtonArea>({ width: 0, height: 0 })
   const [saved, setSaved] = useState<AstraButtonPoint | null>(null)
   const [dragged, setDragged] = useState<AstraButtonPoint | null>(null)
+  const [snapping, setSnapping] = useState(false)
   const origin = useRef<{ pointer: AstraButtonPoint; button: AstraButtonPoint } | null>(null)
   const openConversation = useUIStore(state => state.setAstraConversationOpen)
   const blocked = useUIStore(state => state.showCreateModal || state.isSelectMode || state.openOverlayIds.length > 0 || state.astraConversationOpen)
@@ -51,16 +52,17 @@ export function AstraButton({ hasFab, scrollToTopHeight }: Readonly<{ hasFab: bo
   }, [saved, dragged, positionX, positionY])
   useEffect(() => {
     if (positionX === undefined || positionY === undefined) return
-    if (reducedMotion || dragged) { translation.x.stopAnimation(); translation.y.stopAnimation(); translation.x.setValue(positionX); translation.y.setValue(positionY); return }
+    if (!snapping || reducedMotion || dragged) { translation.x.stopAnimation(); translation.y.stopAnimation(); translation.x.setValue(positionX); translation.y.setValue(positionY); return }
     const animation = Animated.parallel([
       Animated.timing(translation.x, { toValue: positionX, duration: motionDurations.base, useNativeDriver: true }),
       Animated.timing(translation.y, { toValue: positionY, duration: motionDurations.base, useNativeDriver: true }),
     ])
     animation.start()
     return () => animation.stop()
-  }, [positionX, positionY, dragged, reducedMotion, translation])
+  }, [positionX, positionY, dragged, reducedMotion, snapping, translation])
   function finish(point: AstraButtonPoint) {
     const next = snapAstraButton(point, area, obstacles)
+    setSnapping(true)
     setDragged(null)
     setSaved(next)
     void AsyncStorage.setItem(ASTRA_POSITION_KEY, JSON.stringify(next)).catch(captureError)
@@ -70,7 +72,8 @@ export function AstraButton({ hasFab, scrollToTopHeight }: Readonly<{ hasFab: bo
     return clampAstraButton({ x: start.button.x + event.nativeEvent.pageX - start.pointer.x,
       y: start.button.y + event.nativeEvent.pageY - start.pointer.y }, area)
   }
-  return <View testID="astra-button-area" pointerEvents="box-none" style={[StyleSheet.absoluteFill, sideInsets]} onLayout={event => setArea(event.nativeEvent.layout)}>
+  const renderedPosition = position && (snapping && !dragged && !reducedMotion ? translation : position)
+  return <View testID="astra-button-area" pointerEvents="box-none" style={[StyleSheet.absoluteFill, sideInsets]} onLayout={event => { setSnapping(false); setArea(event.nativeEvent.layout) }}>
     {(position || area.width === 0) && !blocked ? <Animated.View testID="astra-button-position"
       onStartShouldSetResponderCapture={event => {
         origin.current = position ? { pointer: { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY }, button: position } : null
@@ -81,7 +84,7 @@ export function AstraButton({ hasFab, scrollToTopHeight }: Readonly<{ hasFab: bo
       onResponderMove={event => { if (origin.current) setDragged(gesturePoint(event)) }}
       onResponderRelease={event => { if (origin.current) finish(gesturePoint(event)); origin.current = null }}
       onResponderTerminate={() => { origin.current = null; setDragged(null) }}
-      style={[styles.position, position ? { left: 0, top: 0, transform: [{ translateX: translation.x }, { translateY: translation.y }, { scale: dragged ? 0.96 : 1 }] } : { right: 16, bottom: ASTRA_BUTTON_SIZE + 2 * ASTRA_BUTTON_GAP }]}>
+      style={[styles.position, renderedPosition ? { left: 0, top: 0, transform: [{ translateX: renderedPosition.x }, { translateY: renderedPosition.y }, { scale: dragged ? 0.96 : 1 }] } : { right: 16, bottom: ASTRA_BUTTON_SIZE + 2 * ASTRA_BUTTON_GAP }]}>
       <Fab neutral testID="astra-button" label={t('shell.astraButton.open')} accessibilityHint={t('shell.astraButton.hint')}
         accessibilityActions={(['left', 'right', 'up', 'down'] as const).map(direction => ({ name: direction, label: t(`shell.astraButton.${direction}`) }))}
         onAccessibilityAction={event => {
