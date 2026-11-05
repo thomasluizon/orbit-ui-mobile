@@ -86,7 +86,7 @@ export function ReminderSection({
       {reminderEnabled && (
         <div className="flex min-w-0 flex-col gap-6">
           <div className="flex min-w-0 flex-col gap-3">
-          <div data-reminder-chips className="flex flex-wrap gap-2 pb-2">
+          {reminderTimes.length > 0 ? <div data-reminder-chips className="flex flex-wrap gap-2 pb-2">
             {reminderTimes.map((time) => (
               <span
                 key={time}
@@ -105,7 +105,7 @@ export function ReminderSection({
                 </button>
               </span>
             ))}
-          </div>
+          </div> : null}
           {reminderTimes.length === 1 && scheduledReminderCount === 0 ? (
             <p className="text-xs leading-[1.5] text-[var(--fg-3)]">
               {t('habits.form.reminderLastRequired')}

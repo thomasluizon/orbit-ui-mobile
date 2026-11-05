@@ -86,3 +86,14 @@ it.each([320, 1280].flatMap(width => [1, 2].flatMap(scale => (['dark', 'light'] 
   expect(fill.right).toBe(width - 32)
   TestRenderer.act(() => tree!.unmount())
 })
+
+it('starts the add-time row at the group edge when only clock reminders remain', () => {
+  context.locale = 'en'
+  context.theme = 'dark'
+  let tree: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<ReminderSection tokens={createTokensV2()} reminderEnabled reminderTimes={[]} scheduledReminderCount={1} reminderLabel={String} onReminderTimesChange={vi.fn()} />) })
+  const bounds = measureInteractionFills(tree!.toJSON(), 288, true)
+  const fill = bounds.find(part => part.host.props['data-slot'] === 'list-row-body')!
+  expect(fill.top).toBeLessThanOrEqual(4)
+  TestRenderer.act(() => tree!.unmount())
+})

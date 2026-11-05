@@ -95,7 +95,7 @@ export function ReminderSection({
       {reminderEnabled && (
         <View style={{ gap: 24 }}>
           <View style={sectionStyles.body}>
-          <View style={sectionStyles.chipsRow}>
+          {reminderTimes.length > 0 ? <View style={sectionStyles.chipsRow}>
             {reminderTimes.map((time) => (
               <View key={time} style={sectionStyles.chip}>
                 <Text style={sectionStyles.chipText}>
@@ -118,7 +118,7 @@ export function ReminderSection({
                 </Pressable>
               </View>
             ))}
-          </View>
+          </View> : null}
           {reminderTimes.length === 1 && scheduledReminderCount === 0 ? (
             <Text style={sectionStyles.hintText}>
               {t("habits.form.reminderLastRequired")}
