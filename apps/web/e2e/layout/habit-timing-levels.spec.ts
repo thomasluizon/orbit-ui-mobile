@@ -8,6 +8,7 @@ import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
+import { readReminderChipGeometry } from './habit-timing-geometry'
 
 async function expectWholeCaption(control: Locator) {
   const fits = await control.locator('[data-slot="list-row-title"]').evaluate(element => {
@@ -59,32 +60,29 @@ for (const locale of ['en', 'pt-BR'] as const) {
             const add = timing.getByRole('button', { name: messages.habits.form.reminderAdd, exact: true })
             await expect(add).toHaveText(messages.habits.form.reminderAdd)
             await expectWholeCaption(add)
-            for (const label of [messages.habits.form.removeReminder, messages.habits.form.removeScheduledReminder]) {
-              const removes = timing.getByRole('button', { name: label, exact: true })
-              expect(await removes.count()).toBeGreaterThan(0)
-              for (const remove of await removes.all()) {
-                await remove.scrollIntoViewIfNeeded()
-                await remove.hover()
-                const geometry = await remove.evaluate(element => {
-                  const target = element.getBoundingClientRect()
-                  const chip = element.parentElement!.getBoundingClientRect()
-                  let bottom = Infinity
-                  for (let ancestor = element.parentElement; ancestor; ancestor = ancestor.parentElement) {
-                    if (getComputedStyle(ancestor).overflowY !== 'visible') bottom = Math.min(bottom, ancestor.getBoundingClientRect().bottom)
-                  }
-                  const frame = element.closest('fieldset')!.getBoundingClientRect()
-                  return { left: target.left - chip.left, right: chip.right - target.right, top: target.top - chip.top, bottom: chip.bottom - target.bottom, clipped: chip.bottom > bottom + 1, fits: chip.left >= frame.left - 1 && chip.right <= frame.right + 1 }
-                })
-                for (const edge of [geometry.left, geometry.right, geometry.top, geometry.bottom]) expect(edge).toBeGreaterThanOrEqual(8)
-                expect(geometry.clipped).toBe(false)
-                expect(geometry.fits).toBe(true)
-              }
+            const groups = timing.locator('[data-reminder-chips]')
+            await expect(groups).toHaveCount(2)
+            await expect(groups.nth(0).getByRole('button')).toHaveCount(habit.reminderTimes.length)
+            await expect(groups.nth(1).getByRole('button')).toHaveCount(habit.scheduledReminders!.length)
+            const chips = timing.locator('[data-reminder-chip]')
+            const captions = await chips.allTextContents()
+            for (const chip of await chips.all()) {
+              const remove = chip.getByRole('button')
+              await chip.scrollIntoViewIfNeeded()
+              await remove.hover()
+              const geometry = await remove.evaluate(readReminderChipGeometry)
+              for (const edge of [geometry.left, geometry.right, geometry.top, geometry.bottom]) expect(edge).toBeGreaterThanOrEqual(8)
+              expect(geometry.clipped).toBe(false)
+              expect(geometry.fits).toBe(true)
             }
             await reminder.click()
             await expect(timing.getByRole('radiogroup', { name: messages.habits.form.reminderKind })).toHaveCount(0)
             await reminder.click()
             await expect(timing.getByRole('radiogroup', { name: messages.habits.form.reminderKind })).toBeVisible()
-            expect(await timing.getByRole('button', { name: messages.habits.form.removeReminder, exact: true }).count()).toBe(3)
+            await expect(groups).toHaveCount(2)
+            await expect(groups.nth(0).getByRole('button')).toHaveCount(habit.reminderTimes.length)
+            await expect(groups.nth(1).getByRole('button')).toHaveCount(habit.scheduledReminders!.length)
+            await expect(chips).toHaveText(captions)
           })
         }
       }
