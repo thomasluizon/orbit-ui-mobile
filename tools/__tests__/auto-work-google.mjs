@@ -59,6 +59,36 @@ export const cases = async () => {
   let refused = false
   try { await isolated.sendDraft("draft", { person: true, classification: "billing" }) } catch { refused = true }
   T("google: unsafe sends are refused before the network", refused)
+  const pacedClock = { value: 0 }
+  const pacedWaits = []
+  const pacing = { now: () => pacedClock.value, sleep: async (milliseconds) => { pacedWaits.push(milliseconds); pacedClock.value += milliseconds }, random: () => 0.25 }
+  const readTimes = []
+  const paced = gmailClient("token", async () => { readTimes.push(pacedClock.value); return Response.json({ id: "message" }) }, pacing)
+  for (let index = 0; index < 101; index++) await paced.read(`message-${index}`)
+  T("google: full reads stay inside 6000 units per minute per user", readTimes.slice(0, 100).every((time) => time === 0) && readTimes[100] === 60_000 &&
+    pacedWaits.length === 1)
+  const limitedWaits = []
+  let limitedCalls = 0
+  const always = gmailClient("token", async () => { limitedCalls++; return Response.json({ error: { code: 403, errors: [{ domain: "usageLimits", reason: "userRateLimitExceeded" }] } }, { status: 403 }) },
+    { now: () => 0, sleep: async (milliseconds) => { limitedWaits.push(milliseconds) }, random: () => 0.999 })
+  let exhausted
+  try { await always.list({}) } catch (error) { exhausted = error.message }
+  T("google: a lasting rate limit fails after the capped attempts", exhausted === "Gmail GET failed (HTTP 403 userRateLimitExceeded) after 7 attempts" && limitedCalls === 7)
+  T("google: backoff doubles from one second with jitter under one second", limitedWaits.join(",") === "1999,2999,4999,8999,16999,32999")
+  const retryAfter = (value) => gmailClient("token", async () => new Response("Too many requests", { status: 429, headers: { "Retry-After": value } }),
+    { now: () => Date.parse("Thu, 05 Nov 2026 12:00:00 GMT"), sleep: async () => { throw new Error("slept") }, random: () => 0 })
+  let longWait
+  try { await retryAfter("7200").read("message") } catch (error) { longWait = error.message }
+  T("google: a Retry-After beyond the maximum backoff fails at once", longWait === "Gmail GET failed (HTTP 429); Gmail asks to retry after 7200 seconds")
+  let dateWait
+  try { await retryAfter("Thu, 05 Nov 2026 12:00:10 GMT").read("message") } catch (error) { dateWait = error.message }
+  T("google: an HTTP-date Retry-After is honoured", dateWait === "slept")
+  let sendCalls = 0
+  const throttledSend = gmailClient("token", async () => { sendCalls++; return new Response("Too many requests: User-rate limit exceeded (Mail sending)", { status: 429 }) },
+    { now: () => 0, sleep: async () => { throw new Error("slept") }, random: () => 0 })
+  let sendFailure
+  try { await throttledSend.sendDraft("draft", { person: true, classification: "praise", replyKind: "thanks", clear: true, concerns: [] }, { raw: "reply" }) } catch (error) { sendFailure = error.message }
+  T("google: a rate-limited send is never repeated by the client", sendCalls === 1 && sendFailure === "Gmail POST failed (HTTP 429)")
   const simple = { person: true, classification: "praise", replyKind: "thanks", clear: true, concerns: [] }
   await client.sendDraft("draft", simple, { raw: "reply", threadId: "thread" })
   T("google: an authorized send uses the discovered draft send endpoint", network.at(-1).url.endsWith("/drafts/send") && JSON.parse(network.at(-1).options.body).id === "draft")
