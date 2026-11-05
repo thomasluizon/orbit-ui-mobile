@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach, beforeAll, afterAll } from 'vitest'
 import { fireEvent, render, screen, within, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { waitForLazyContent } from '@/__tests__/support/lazy-content'
 import type { ReactNode } from 'react'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { readFileSync } from 'node:fs'
@@ -41,6 +42,7 @@ describe('HabitRow overflow menus', () => {
     const onReschedule = vi.fn()
     render(<HabitRow habit={createMockHabit({ title: 'Run', isOverdue: true })} state="overdue" actions={{ onReschedule }} />)
     fireEvent.pointerDown(screen.getByRole('button', { name: 'habits.actions.more' }), { button: 0, ctrlKey: false })
+    await waitForLazyContent()
     const item = await screen.findByRole('menuitem', { name: label })
     expect(label).toBe(_locale === 'en' ? 'Reschedule' : 'Reagendar')
     expect(item).toHaveTextContent(label)
