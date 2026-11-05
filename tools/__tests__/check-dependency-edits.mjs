@@ -3,6 +3,7 @@ import { createHash } from "node:crypto"
 import { chmodSync, cpSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs"
 import { createRequire } from "node:module"
 import { join, sep } from "node:path"
+import { runBounded } from "../lib/bounded-process.mjs"
 
 import { check, REPO_ROOT, root, stage, T } from "./_harness.mjs"
 
@@ -175,7 +176,7 @@ const esbuildPostinstallCases = () => {
   check(TOOL, "an arbitrary extra binary with valid esbuild bytes is refused", ["--root", tree.repository], { status: 1, stderr: /extra/ })
 }
 
-const expoBuildCases = () => {
+const expoBuildCases = async () => {
   for (const name of ["expo-modules-jsi", "expo-sqlite"]) {
     const built = stageExpoBuild(name, "native-outputs")
     const generated = name === "expo-modules-jsi" ? [
@@ -234,7 +235,13 @@ const expoBuildCases = () => {
       ? ["apple/Sources/extra.swift", "apple/.DerivedData-other/output.o", "apple/Products/other.framework/binary", "apple/.generated/extra.swift"]
       : ["ios/extra.swift", "ios/sqlite3.c.backup", "build/extra.js"]) {
       writeAt(join(built.packageDirectory, file), "unexpected bytes\n", at(1800))
-      check(TOOL, `${name} rejects extra ${file} outside exact output locations`, ["--root", built.repository], { status: 1, stderr: /extra:/ })
+      const refusal = await runBounded(process.execPath, [join(REPO_ROOT, "tools", TOOL), "--root", built.repository], {
+        cwd: REPO_ROOT, env: process.env, timeoutMs: 180000,
+      })
+      T(`${TOOL}: ${name} rejects extra ${file} outside exact output locations`,
+        refusal.status === 1 && !refusal.error && !refusal.timedOut && !refusal.overflowed
+          && refusal.stderr.includes(`extra: node_modules/${name}/${file}`),
+        JSON.stringify(refusal))
       rmSync(join(built.packageDirectory, file))
     }
     const archivePath = join(built.repository, "package.tgz")
@@ -251,7 +258,7 @@ const expoBuildCases = () => {
   check(TOOL, "native output rules never exempt other packages", ["--root", unrelated.repository], { status: 1, stderr: /extra:/ })
 }
 
-export const cases = () => {
+export const cases = async () => {
   if (process.platform !== "win32" && process.getuid() !== 0) {
     const unreadable = stageTree("unreadable-directory")
     const packageDirectory = stagePackage(unreadable.nodeModules, "fixture-package", { "index.js": 0 })
@@ -271,7 +278,7 @@ export const cases = () => {
   symlinkSync(join(linkedFile.packageDirectory, "README.md"), join(linkedFile.packageDirectory, "index.js"))
   check(TOOL, "symbolic file cannot evade verification", ["--root", linkedFile.repository], { status: 1, stderr: /symbolic|missing/ })
   esbuildPostinstallCases()
-  expoBuildCases()
+  await expoBuildCases()
   for (const [label, ignoreFiles] of [
     ["renamed-ignore", [".gitignore"]],
     ["npmignore-first", [".npmignore", ".gitignore"]],
