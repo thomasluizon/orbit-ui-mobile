@@ -147,7 +147,7 @@ interface ComposerFailureContext<Attempt extends ComposerAttempt<unknown, unknow
   accountChangedCode?: string
 }
 
-interface ComposerFailureHandlers<Attempt> {
+export interface ComposerFailureHandlers<Attempt> {
   handleFailedSend: (failure: Extract<ChatStreamResult, { kind: 'failed' }>['failure'], attempted: Attempt, draftMessageId: string | null) => void
   handleAllowanceExceeded: (draftMessageId: string | null) => void
   handleDailyBudgetExceeded: (draftMessageId: string | null, attempted?: Attempt) => void
