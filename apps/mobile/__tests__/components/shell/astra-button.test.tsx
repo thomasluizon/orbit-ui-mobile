@@ -18,15 +18,17 @@ beforeEach(() => { storage.clear(); useUIStore.setState(useUIStore.getInitialSta
 afterEach(async () => { await act(() => tree.unmount()) })
 
 function host(testID: string) { return tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === testID)[0]! }
+function handler(testID: string, name: string) { return host(testID).props[name] as (event?: unknown) => unknown }
 async function layout(width = 412, height = 600) {
-  await act(() => host('astra-button-area').props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width, height } } }))
+  await act(() => { handler('astra-button-area', 'onLayout')({ nativeEvent: { layout: { x: 0, y: 0, width, height } } }) })
 }
 async function mount() {
   await act(() => { tree = TestRenderer.create(<AstraButton hasFab scrollToTopHeight={64} />) })
   await layout()
 }
 function point() {
-  const transform = host('astra-button-position').props.style[1].transform
+  const style = host('astra-button-position').props.style as [unknown, { transform: [{ translateX: { value: number } }, { translateY: { value: number } }] }]
+  const transform = style[1].transform
   return { x: transform[0].translateX.value, y: transform[1].translateY.value }
 }
 const touch = (pageX: number, pageY: number) => ({ nativeEvent: { pageX, pageY } })
@@ -34,20 +36,19 @@ const touch = (pageX: number, pageY: number) => ({ nativeEvent: { pageX, pageY }
 it('opens the layer by tapping its named button', async () => {
   await mount()
   expect(host('astra-button').props.accessibilityLabel).toBe('shell.astraButton.open')
-  await act(() => host('astra-button').props.onPress())
+  await act(() => { handler('astra-button', 'onPress')() })
   expect(useUIStore.getState().astraConversationOpen).toBe(true)
 })
 
 it('captures a drag after the threshold, snaps and restores the position across launches', async () => {
   await mount()
   expect(point()).toEqual({ x: 336, y: 448 })
-  const control = host('astra-button-position')
-  expect(control.props.onStartShouldSetResponderCapture(touch(350, 460))).toBe(false)
-  expect(control.props.onMoveShouldSetResponderCapture(touch(352, 462))).toBe(false)
-  expect(control.props.onMoveShouldSetResponderCapture(touch(100, 260))).toBe(true)
-  await act(() => control.props.onResponderGrant(touch(100, 260)))
-  await act(() => host('astra-button-position').props.onResponderMove(touch(90, 240)))
-  await act(() => host('astra-button-position').props.onResponderRelease(touch(90, 240)))
+  expect(handler('astra-button-position', 'onStartShouldSetResponderCapture')(touch(350, 460))).toBe(false)
+  expect(handler('astra-button-position', 'onMoveShouldSetResponderCapture')(touch(352, 462))).toBe(false)
+  expect(handler('astra-button-position', 'onMoveShouldSetResponderCapture')(touch(100, 260))).toBe(true)
+  await act(() => { handler('astra-button-position', 'onResponderGrant')(touch(100, 260)) })
+  await act(() => { handler('astra-button-position', 'onResponderMove')(touch(90, 240)) })
+  await act(() => { handler('astra-button-position', 'onResponderRelease')(touch(90, 240)) })
   expect(point()).toEqual({ x: 16, y: 228 })
   expect(useUIStore.getState().astraConversationOpen).toBe(false)
   expect(JSON.parse(storage.get(ASTRA_POSITION_KEY)!)).toEqual(point())
@@ -60,7 +61,7 @@ it.each(['left', 'right', 'up', 'down'])('exposes and executes TalkBack Move %s'
   await mount()
   const control = host('astra-button')
   expect(control.props.accessibilityActions).toContainEqual({ name: direction, label: `shell.astraButton.${direction}` })
-  await act(() => control.props.onAccessibilityAction({ nativeEvent: { actionName: direction } }))
+  await act(() => { handler('astra-button', 'onAccessibilityAction')({ nativeEvent: { actionName: direction } }) })
   expect(storage.has(ASTRA_POSITION_KEY)).toBe(true)
   expect(useUIStore.getState().astraConversationOpen).toBe(false)
   expect(point().y).toBeGreaterThanOrEqual(88)
@@ -72,6 +73,7 @@ it('resets after shrink and stays above tab chrome and clear of the create butto
   await mount()
   await layout(320, 400)
   expect(point()).toEqual({ x: 244, y: 248 })
+  expect(JSON.parse(storage.get(ASTRA_POSITION_KEY)!)).toEqual(point())
   expect(point().y + 60 + 16).toBeLessThanOrEqual(324)
   await act(() => useUIStore.getState().registerOpenOverlay('sheet'))
   expect(tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'astra-button')).toHaveLength(0)

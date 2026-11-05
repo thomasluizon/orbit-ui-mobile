@@ -29,9 +29,9 @@ interface Shell412Base {
    * header passes nothing and the scroller takes the full height. */
   header?: React.ReactNode
   /** TRANSIENT PINNED CHROME, directly ABOVE the pinned bottom slot and never in its place. A toast
-   *  or a celebration rides here so it cannot evict Astra's front door (D69). */
+   *  or a celebration rides here so it stays separate from the floating Astra entry. */
   notice?: React.ReactNode
-  /** Floats above the composer. A screen that puts its create action in the header passes nothing. */
+  /** Floats above the bottom chrome. A screen that puts its create action in the header passes nothing. */
   fab?: React.ReactNode
   /** Hoje only: top-centre back-to-top below the pinned header, separate from the create FAB. */
   scrollToTop?: React.ReactNode
@@ -44,8 +44,8 @@ export type Shell412NavProps = Shell412Base &
     nav?: true
     /** Four destinations, never five. Required with navigation on. */
     tabBar: React.ReactNode
-    /** Astra's front door, pinned above the tab bar on Hoje only; habit detail keeps its own composer. THE COMPOSER AND
-     *  NOTHING ELSE: transient chrome goes in `notice`, above it. */
+    /** Habit detail's composer or Hoje's selection tray, pinned above the tab bar.
+     *  Transient chrome goes in `notice`, above it. */
     composer?: React.ReactNode
     /** Rejected on a destination: a flow's forward action exists only where `nav` is false. */
     action?: never

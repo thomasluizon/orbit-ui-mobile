@@ -22,6 +22,7 @@ export function AstraButton() {
   const hostRef = useRef<HTMLDivElement>(null)
   const gesture = useRef<{ pointerId: number; start: AstraButtonPoint; origin: AstraButtonPoint; moved: boolean } | null>(null)
   const suppressClick = useRef(false)
+  const savedPosition = useRef<AstraButtonPoint | null>(null)
   const [placement, setPlacement] = useState<{ area: AstraButtonArea; obstacles: AstraButtonObstacle[] }>({ area: { width: 0, height: 0 }, obstacles: [] })
   const [saved, setSaved] = useState<AstraButtonPoint | null>(null)
   const [dragged, setDragged] = useState<AstraButtonPoint | null>(null)
@@ -33,11 +34,20 @@ export function AstraButton() {
     let active = true
     void Promise.resolve().then(() => {
       if (!active) return
-      setPlacement(measurePlacement(host))
-      setSaved(parseAstraButtonPosition(localStorage.getItem(ASTRA_POSITION_KEY)))
+      savedPosition.current = parseAstraButtonPosition(localStorage.getItem(ASTRA_POSITION_KEY))
+      setSaved(savedPosition.current)
+      updatePlacement()
     })
     const updatePlacement = () => {
-      setPlacement(measurePlacement(host))
+      const measured = measurePlacement(host)
+      setPlacement(measured)
+      const previous = savedPosition.current
+      const next = snapAstraButton(previous, measured.area, measured.obstacles)
+      if (!gesture.current && previous && next && (previous.x !== next.x || previous.y !== next.y)) {
+        savedPosition.current = next
+        setSaved(next)
+        localStorage.setItem(ASTRA_POSITION_KEY, JSON.stringify(next))
+      }
       host.parentElement!.querySelectorAll<HTMLElement>('[data-shell-fab], [data-shell-scroll-to-top]').forEach(element => observer.observe(element))
     }
     const observer = new ResizeObserver(updatePlacement)
@@ -51,6 +61,7 @@ export function AstraButton() {
   function finish(point: AstraButtonPoint) {
     const next = snapAstraButton(point, placement.area, placement.obstacles)
     setDragged(null)
+    savedPosition.current = next
     setSaved(next)
     localStorage.setItem(ASTRA_POSITION_KEY, JSON.stringify(next))
   }
@@ -71,7 +82,9 @@ export function AstraButton() {
         onPointerDown={event => {
           if (event.button !== 0 || !position) return
           suppressClick.current = false
-          gesture.current = { pointerId: event.pointerId, start: { x: event.clientX, y: event.clientY }, origin: position, moved: false }
+          const bounds = event.currentTarget.getBoundingClientRect()
+          const host = hostRef.current!.getBoundingClientRect()
+          gesture.current = { pointerId: event.pointerId, start: { x: event.clientX, y: event.clientY }, origin: { x: bounds.left - host.left, y: bounds.top - host.top }, moved: false }
           event.currentTarget.setPointerCapture(event.pointerId)
         }} onPointerMove={pointerMove}
         onPointerUp={event => {

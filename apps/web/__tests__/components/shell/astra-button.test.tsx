@@ -18,7 +18,11 @@ beforeEach(() => {
   localStorage.clear()
   useUIStore.setState(useUIStore.getInitialState())
   vi.stubGlobal('PointerEvent', MouseEvent)
-  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+    if (this.hasAttribute('data-astra-button')) {
+      const [x = 0, y = 0] = [...this.parentElement!.style.transform.matchAll(/(-?\d+)px/g)].map(match => Number(match[1]))
+      return { x, y, left: x, top: y, right: x + 60, bottom: y + 60, width: 60, height: 60, toJSON: () => ({}) }
+    }
     return { x: 0, y: 0, left: 0, top: 0, right: width, bottom: height, width, height, toJSON: () => ({}) }
   })
   vi.stubGlobal('ResizeObserver', class {
@@ -74,8 +78,9 @@ it('moves with arrow keys and resets an outgrown position when its window shrink
   fireEvent.keyDown(button, { key: 'ArrowUp' })
   expect(placement().style.transform).toBe('translate(336px, 372px)')
   expect(useUIStore.getState().astraConversationOpen).toBe(false)
-  await act(() => { width = 320; height = 400; resize() })
+  act(() => { width = 320; height = 400; resize() })
   expect(placement().style.transform).toBe('translate(244px, 248px)')
+  expect(JSON.parse(localStorage.getItem(ASTRA_POSITION_KEY)!)).toEqual({ x: 244, y: 248 })
 })
 
 it('withholds the button while a sheet or selection owns the surface', async () => {
@@ -84,6 +89,6 @@ it('withholds the button while a sheet or selection owns the surface', async () 
   expect(screen.queryByRole('button')).toBeNull()
   act(() => useUIStore.getState().unregisterOpenOverlay('sheet'))
   expect(screen.getByRole('button')).toBeVisible()
-  act(() => useUIStore.setState({ isSelectMode: true }))
+  act(() => { useUIStore.setState({ isSelectMode: true }) })
   expect(screen.queryByRole('button')).toBeNull()
 })

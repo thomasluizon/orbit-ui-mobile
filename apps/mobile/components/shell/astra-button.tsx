@@ -39,6 +39,17 @@ export function AstraButton({ hasFab, scrollToTopHeight }: Readonly<{ hasFab: bo
     return () => { active = false }
   }, [])
   useEffect(() => {
+    if (dragged || !saved || positionX === undefined || positionY === undefined || saved.x === positionX && saved.y === positionY) return
+    let active = true
+    void Promise.resolve().then(() => {
+      if (!active) return
+      const next = { x: positionX, y: positionY }
+      setSaved(next)
+      return AsyncStorage.setItem(ASTRA_POSITION_KEY, JSON.stringify(next))
+    }).catch(captureError)
+    return () => { active = false }
+  }, [saved, dragged, positionX, positionY])
+  useEffect(() => {
     if (positionX === undefined || positionY === undefined) return
     if (reducedMotion || dragged) { translation.x.stopAnimation(); translation.y.stopAnimation(); translation.x.setValue(positionX); translation.y.setValue(positionY); return }
     const animation = Animated.parallel([

@@ -114,7 +114,7 @@ it.each([false, true])('hands attachment-menu focus back to the composer on Tab 
   act(() => within(menu).getByRole('menuitem', { name: attachWords.image }).focus())
   fireEvent.keyDown(document.activeElement!, { key: 'Tab', shiftKey })
   await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
-  expect(screen.getByRole('button', { name: shiftKey ? words.clear : `${words.send}` })).toHaveFocus()
+  expect(screen.getByRole('button', { name: shiftKey ? 'shell.composer.collapse' : words.send })).toHaveFocus()
   expect(useUIStore.getState().astraConversationOpen).toBe(true)
   expect(screen.getByRole('textbox', { name: words.placeholder })).toHaveValue('Keep this draft')
 })
