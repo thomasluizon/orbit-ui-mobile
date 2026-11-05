@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest'
 
 const network = vi.hoisted(() => ({ available: true, pending: [] as (() => void)[] }))
+let feedbackImported: Promise<void>
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
 beforeAll(() => { vi.useFakeTimers() })
@@ -11,9 +12,13 @@ afterAll(() => { vi.useRealTimers() })
 beforeEach(() => {
   vi.resetModules()
   network.available = true
-  vi.doMock('@/components/ui/toast', async (importOriginal) => {
-    if (!network.available) await new Promise<void>((resolve) => { network.pending.push(resolve) })
-    return importOriginal()
+  feedbackImported = new Promise<void>((resolve) => {
+    vi.doMock('@/components/ui/toast', async (importOriginal) => {
+      if (!network.available) await new Promise<void>((resume) => { network.pending.push(resume) })
+      const presentation = await importOriginal()
+      resolve()
+      return presentation
+    })
   })
 })
 
@@ -30,13 +35,18 @@ afterEach(async () => {
   vi.restoreAllMocks()
 })
 
+async function waitForFeedbackImport() {
+  await act(async () => { await feedbackImported; await vi.dynamicImportSettled() })
+  await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+}
+
 it.each(['loading', 'complete'] as const)('renders the first offline failure and action after mounting with document %s', async (readyState) => {
   vi.spyOn(document, 'readyState', 'get').mockReturnValue(readyState)
   const { AppToastHost } = await import('@/components/ui/app-toast-host')
   const { useAppToastStore } = await import('@/stores/app-toast-store')
   const retry = vi.fn()
   render(<><button type="button">Keep focus</button><AppToastHost /></>)
-  await act(async () => { await vi.dynamicImportSettled() })
+  await waitForFeedbackImport()
   expect(screen.queryByRole('status')).toBeNull()
   network.available = false
 
@@ -45,7 +55,7 @@ it.each(['loading', 'complete'] as const)('renders the first offline failure and
   })
   await act(async () => { await vi.dynamicImportSettled() })
   await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
-  expect(screen.getByText('Connection failed')).toBeVisible()
+  await vi.waitFor(() => expect(screen.getByText('Connection failed')).toBeVisible())
   fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
   expect(retry).toHaveBeenCalledOnce()
 })
@@ -55,7 +65,7 @@ it('renders the first failed-delete retry offline and pauses its deadline on hov
   const { queuePendingNotificationDelete, dismissPendingNotificationDeleteNotice, FAILED_DELETE_NOTICE_LIFE_MS } = await import('@/lib/pending-notification-deletes')
   const execute = vi.fn().mockRejectedValueOnce(new Error('Offline')).mockResolvedValueOnce(undefined)
   render(<><button type="button">Keep focus</button><NotificationDeleteNotice /></>)
-  await act(async () => { await vi.dynamicImportSettled() })
+  await waitForFeedbackImport()
   expect(screen.queryByRole('group')).toBeNull()
   network.available = false
 
@@ -87,7 +97,7 @@ it('preserves background focus through the first feedback action', async () => {
   const { useAppToastStore } = await import('@/stores/app-toast-store')
   const onUndo = vi.fn()
   render(<><button type="button">Keep focus</button><AppToastHost /><NotificationDeleteNotice /></>)
-  await act(async () => { await vi.dynamicImportSettled() })
+  await waitForFeedbackImport()
 
   const focused = screen.getByRole('button', { name: 'Keep focus' })
   focused.focus()
