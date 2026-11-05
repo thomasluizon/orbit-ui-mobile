@@ -290,7 +290,7 @@ details. General hides the dated fields and retains a reachable frequency choice
 
 The Time and reminder row summarizes the selected time and enabled reminders. Its sheet starts
 with At what time? A selected time or Any time reveals Want reminders? General starts with
-that reminder question. Existing values reveal their answered levels when editing. Set end? reveals Until when? independently; hiding the follow-up retains its value.
+that reminder question. Existing values reveal their answered levels when editing. Set end? is a disclosure that reveals Until when? independently; hiding the follow-up retains its value.
 
 Enabling reminders reveals When do you want to be reminded? At set times and Repeat every are
 plain answers with their own details. Dated items retain offset presets, custom offsets and absolute
@@ -303,7 +303,7 @@ The exclusive request contract, active window, validation and account clock conv
 the existing reminder owners. Disabling reminders hides details and retains their saved draft.
 
 Each question is a separate vertical group. Reminder kind and repeat details have a 24px group
-gap and 12px internal gaps. Switch rows reserve 8px inside their wrapper for the shared column
+gap and 12px internal gaps. Question and action rows reserve 8px inside their wrapper for the shared column
 fill, so hover and press stop at the field edge. Reminder chips wrap, reserve 8px below their
 row and 8px above and below their remove targets, and constrain growing text to the column.
 Add time is visible text. Permission feedback remains beside the reminder decision.

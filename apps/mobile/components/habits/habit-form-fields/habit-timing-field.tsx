@@ -62,7 +62,7 @@ function HabitTimeQuestions({ formHelpers, controller, showReminderQuestion, onT
   return <View style={{ gap: 12 }}>
           <TimeField disabled={disabled} label={t('habits.form.exactTime')} value={toTime24(dueTime)} onChange={guard(controller.setDueTime)} onClear={guard(controller.clearDueTime)} />
           {!dueTime ? <View style={{ paddingHorizontal: 8 }}><ListRow disabled={disabled} placement="column" title={t('habits.form.noSetTime')} expanded={showReminderQuestion} onClick={onTimeAnswered} /></View> : null}
-          {dueTime ? <View style={{ paddingHorizontal: 8 }}><ListRow disabled={disabled} placement="column" title={t('habits.form.addEndTime')} toggle={{ checked: showEndTime, onChange: guard(setShowEndTime) }} /></View> : null}
+          {dueTime ? <View style={{ paddingHorizontal: 8 }}><ListRow disabled={disabled} placement="column" title={t('habits.form.addEndTime')} expanded={showEndTime} onClick={guard(() => setShowEndTime(!showEndTime))} /></View> : null}
           {dueTime && showEndTime ? <TimeField disabled={disabled} label={t('habits.form.dueEndTime')} value={toTime24(dueEndTime)} error={endTimeError ? t(endTimeError) : undefined} onChange={guard(changeEndTime)} onClear={guard(() => changeEndTime(''))} /> : null}
         </View>
 }
