@@ -605,9 +605,10 @@ function scheduleBackoffFlush(replaceTimer?: ReturnType<typeof setTimeout>): voi
   })
 }
 
-function isTransientNetworkError(error: unknown): boolean {
+function isTransientNetworkError(error: unknown, endpoint: string): boolean {
   // WHY: Queue retries retain their broader transport policy: https://github.com/thomasluizon/orbit-tickets/issues/1980.
-  if (isBulkGatewayFailure(error)) return true
+  if ((endpoint === API.habits.bulkLog || endpoint === API.habits.bulkSkip) && isBulkGatewayFailure(error)) return true
+  if (error instanceof TypeError || isNetworkUnavailableError(error)) return true
   if (!(error instanceof Error)) return false
 
   const message = error.message.toLowerCase()
@@ -746,7 +747,7 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
     if (resolvedMutation.type === 'setTimeZone') releaseAccountTimezoneDependencies(resolvedMutation.id)
     return result
   } catch (error: unknown) {
-    if (manualRetry || !isTransientNetworkError(error) || isAutomaticReplayBlocked(resolvedMutation.type)) {
+    if (manualRetry || !isTransientNetworkError(error, resolvedMutation.endpoint) || isAutomaticReplayBlocked(resolvedMutation.type)) {
       throw error
     }
 
@@ -924,7 +925,7 @@ async function handleFlushFailure(
     }
     return { incrementFailed: true, stopReason: 'auth', dropped: null }
   }
-  const transientNetworkFailure = isTransientNetworkError(error)
+  const transientNetworkFailure = isTransientNetworkError(error, mutation.endpoint)
   const nextRetries = isAuthRefreshNetworkError(error) ? mutation.retries : mutation.retries + 1
   const dropMutation = shouldDropMutation(error, nextRetries, mutation.maxRetries)
   let dropped: DroppedMutation | null = null

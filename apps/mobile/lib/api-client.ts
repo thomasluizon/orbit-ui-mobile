@@ -124,7 +124,8 @@ async function executeRequest(
     headers: buildRequestHeaders(token, options),
   })
   let response = await send()
-  if (options.idempotencyKey && [502, 503, 504].includes(response.status)) {
+  if (options.idempotencyKey && (path === API.habits.bulkLog || path === API.habits.bulkSkip) &&
+    [502, 503, 504].includes(response.status)) {
     if (options.isCurrent?.() === false) throw new Error('Account changed')
     response = await send()
   }

@@ -73,14 +73,21 @@ vi.mock('expo-router', () => ({
 vi.stubGlobal('fetch', fetchMock)
 
 describe('mobile apiClient', () => {
-  it.each([502, 503, 504])('retries a keyed write once after %i with the same payload and key', async status => {
+  it.each([502, 503, 504].flatMap(status => [API.habits.bulkLog, API.habits.bulkSkip].map(endpoint => ({ status, endpoint }))))('retries a keyed $endpoint write once after $status with the same payload and key', async ({ status, endpoint }) => {
     getTokenMock.mockResolvedValue('token')
     fetchMock.mockResolvedValueOnce(new Response(null, { status })).mockResolvedValueOnce(Response.json({ results: [] }))
-    await apiClient(API.habits.bulkLog, { method: 'POST', body: '{"items":[]}', idempotencyKey: 'bulk-action' })
+    await apiClient(endpoint, { method: 'POST', body: '{"items":[]}', idempotencyKey: 'bulk-action' })
     expect(fetchMock).toHaveBeenCalledTimes(2)
     const requests = fetchMock.mock.calls.map(call => call[1])
     expect(requests[0]).toEqual(requests[1])
     expect(requests[0].headers['Idempotency-Key']).toBe('bulk-action')
+  })
+
+  it('does not retry a keyed POST without confirmed idempotency', async () => {
+    getTokenMock.mockResolvedValue('token')
+    fetchMock.mockImplementation(() => Promise.resolve(new Response(null, { status: 502 })))
+    await expect(apiClient(API.habits.duplicate('00000000-0000-4000-8000-000000000001'), { method: 'POST', body: 'null', idempotencyKey: 'duplicate-action' })).rejects.toMatchObject({ status: 502 })
+    expect(fetchMock).toHaveBeenCalledOnce()
   })
 
   it.each([502, 503, 504])('leaves an unkeyed write after %i for its caller to resolve', async status => {

@@ -743,6 +743,19 @@ describe('offline mutations', () => {
     )
   })
 
+  it.each([502, 503, 504])('does not queue gateway %i for an unprotected POST', async status => {
+    mocks.setOnline(true)
+    await expect(runQueuedMutation({
+      mutation: {
+        type: 'duplicateHabit', scope: 'habits', method: 'POST',
+        endpoint: API.habits.duplicate('00000000-0000-4000-8000-000000000001'), payload: null,
+        entityType: 'habit', targetEntityId: '00000000-0000-4000-8000-000000000001',
+      },
+      execute: () => Promise.reject(createApiClientError(status, null, 'Gateway unavailable')),
+    })).rejects.toMatchObject({ status })
+    expect(mocks.queued).toEqual([])
+  })
+
   it.each(['bulkLogHabits', 'bulkSkipHabits'] as const)(
     'replays %s with its original key and reports only validated successes',
     async (type) => {
@@ -831,9 +844,9 @@ describe('offline mutations', () => {
     unsubscribeB()
   })
 
-  it.each(['bulkLogHabits', 'bulkSkipHabits'] as const)(
-    'reuses the %s key after the first response is lost',
-    async (type) => {
+  it.each((['bulkLogHabits', 'bulkSkipHabits'] as const).flatMap(type => [undefined, 502, 503, 504].map(status => ({ type, status }))))(
+    'reuses the $type key after the first response is lost with status $status',
+    async ({ type, status }) => {
       mocks.setOnline(true)
       const serverWrites = new Set<string>()
       let firstKey: string | null = null
@@ -846,7 +859,7 @@ describe('offline mutations', () => {
         execute: () => {
           firstKey = consumePendingIdempotencyKey()
           if (firstKey) serverWrites.add(firstKey)
-          return Promise.reject(new TypeError('Network request failed'))
+          return Promise.reject(status === undefined ? new TypeError('Network request failed') : createApiClientError(status, null, 'Gateway unavailable'))
         },
       })
       expect(result).toMatchObject({ queued: true })
