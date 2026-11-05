@@ -57,14 +57,16 @@ names with multiple owners. Metro's virtual paths are matched against original s
 missing package sources or missing source content fail the check. This complements the lockfile
 native-copy guard by checking modules Metro actually includes.
 
-The independent boot job builds an AAB without Play credentials and exercises the same composite
-action as `android-release.yml`. Release submission follows that action unconditionally. The
+The independent boot proof job runs for gate and release-workflow changes, plus proof branch
+pushes. Other mobile pull requests run the bundle check without an emulator. The boot job builds
+an AAB without Play credentials and exercises the same composite action as `android-release.yml`.
+Release submission follows that action unconditionally. The
 action derives a universal APK from the shipping AAB with pinned, checksum-verified bundletool,
 uses a disposable installation key and compares the embedded Hermes bundle byte for byte.
 The shipping AAB is never rebuilt or replaced by the check.
 
-The runner is `ubuntu-24.04` for proof builds, with an API 35 `google_apis` x86_64 emulator
-and ARM translation. Releases use their existing Ubuntu runner. The action records the AAB ABIs
+The runner is `ubuntu-24.04` for proof builds and releases, with an API 35 `google_apis` x86_64
+emulator and ARM translation. The action records the AAB ABIs
 and requires the emulator's ABI list to include `arm64-v8a` before installation. No additional
 ABI is compiled into the release. Translation adds emulator setup and startup time; native
 compilation retains the shipping ARM slices. The emulator runs only in GitHub Actions.

@@ -24,6 +24,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  scope:
+    name: Select native boot proof
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    outputs:
+      boot: ${{ steps.paths.outputs.boot }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+      - id: paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          paths=$(git diff --name-only HEAD^1 HEAD)
+          if grep -Eq '^\.github/actions/android-boot/|^\.github/workflows/android-(release|startup)\.yml$|^tools/(android-boot|check-android-bundle)\.mjs$' <<< "$paths"; then
+            echo 'boot=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'boot=false' >> "$GITHUB_OUTPUT"
+          fi
+
   bundle:
     name: Android Hermes module inventory
     runs-on: ubuntu-24.04
@@ -61,6 +82,8 @@ jobs:
 
   boot:
     name: Android AAB first screen
+    needs: scope
+    if: ${{ github.event_name == 'push' || needs.scope.outputs.boot == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:

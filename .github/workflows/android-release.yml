@@ -55,7 +55,7 @@ concurrency:
 jobs:
   release-android:
     name: Build and publish Android app
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment:
       name: ${{ (inputs.track == 'open' || inputs.track == 'production') && 'production' || 'android-internal' }}
       deployment: false
