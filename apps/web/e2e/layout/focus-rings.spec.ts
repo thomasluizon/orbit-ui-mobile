@@ -38,8 +38,7 @@ async function focusConversationComposer(page: Page, width: number) {
   const conversation = page.locator('[data-shell-conversation="overlay"]')
   const conversationWasOpen = await conversation.isVisible()
   if (!conversationWasOpen) {
-    if (width >= 1024) await page.locator('[data-shell-astra-row]').click()
-    else await page.locator('[data-shell-pinned-slot] [data-composer-input]').focus()
+    await page.locator('[data-astra-button]').click()
   }
   await expect(conversation).toBeVisible()
   await expect(page.locator('[data-shell-pinned-slot]')).toBeHidden()

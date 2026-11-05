@@ -107,7 +107,7 @@ describe('Composer compact geometry in Chromium', () => {
     'contains the Hoje and habit disclosure in the pill at $width with a whole placeholder', async ({ width, messages }) => {
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
-        for (const collapseScope of ['today', 'habit'] as const) {
+        for (const collapseScope of ['conversation', 'habit'] as const) {
           const view = render(<Composer {...geometryProps('idle', messages, true)} collapsible collapseScope={collapseScope} />)
           try {
             await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)

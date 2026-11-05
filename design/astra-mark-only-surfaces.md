@@ -22,7 +22,7 @@ Composer send shows one upward arrow, replaced by one spinner while sending. It 
 or visible text and keeps the localized Send name. Its 48px target shares one equal gap of the shared
 fill clearance (`INTERACTION_FILL_CLEARANCE`) with the other 48px trailing targets, including the
 text-action slot or disclosure and the attach control. The composer drawing uses the matching
-`--s-1` spacing token. The shared composer owns Hoje, habit detail and the full-screen conversation.
+`--s-1` spacing token. The shared composer owns habit detail and the full-screen conversation.
 
 Other action owners retain clearance on both platforms: the emoji picker and suggestion targets
 have a 12px gap; date, tag, interpretation and analysis actions occupy separate rows; reschedule
@@ -66,14 +66,14 @@ names and settings that name the assistant retain their meaning. The summary act
 entry is the proactive line. The Perfil settings entry retains its assistant name through `PROFILE_SUBMENUS` and draws
 `AstraGlyph` as its leading icon (#1780: Astra always carries the Astra mark).
 
-Hoje and habit detail each add one disclosure control (#1796). Collapsed, it occupies one compact row with the mark.
+Conversation and habit detail each keep one disclosure control (#1796). Collapsed, it occupies one compact row with the mark.
 Expanded, the collapse icon shares the suggestion row, leaving the scroll strip room beside it.
 Without suggestions it occupies the input row's reserved text-action slot, with Clear and Paste in
 the existing actions menu. Neither placement adds a row. The compact row remains 48px at enlarged
 text. Web uses the global focus indicator; Android retains InsetFocusPressable.
 The input, attachments and requests remain
 mounted. Each surface's local UI preference persists independently through the existing device storage
-adapter. Other composer surfaces stay expanded. The shell continues to allocate the pinned content
+adapter. Hoje exposes the draggable Astra button instead of an input dock (#2005). The shell continues to allocate the pinned content
 outside the habit scroller, following the actual composer height and preserving the final content row
 in narrow and short viewports. Wide web Hoje retains its existing sidebar entry without a pinned composer.
 
@@ -126,7 +126,7 @@ among mark-only controls. It does not add an Astra route or Android tab.
 | Onboarding shell conversation row | `components/onboarding/onboarding-flow.tsx`, rendered by `components/shell/shell-wide.tsx` | No sidebar | Uses the same `nav.astra` row; selects the existing Astra onboarding entry |
 | Command palette | `components/shell/destination-shell.tsx`, `components/command/command-groups.tsx` | No command palette | No Astra conversation entry exists; the supplied destinations are Hoje, Calendário, Progresso, Perfil, Todos and Geral |
 | Perfil settings navigation | `app/(app)/profile/_components/profile-settings-content.tsx` | `app/(tabs)/profile/_components/profile-settings-content.tsx` | `PROFILE_SUBMENUS` in `packages/shared/src/utils/profile-navigation.ts` supplies `profile.groups.astra`, already `Astra` in both locales; opens `/profile/astra` settings with the `AstraGlyph` leading icon |
-| Compact Hoje and habit-detail conversation entry | `components/shell/composer.tsx` | `components/shell/composer.tsx` | Retains the mark-only composer control and contextual accessible name; this input accessory has no sibling destination names |
+| Habit-detail conversation entry | `components/shell/composer.tsx` | `components/shell/composer.tsx` | Retains the mark-only composer control and contextual accessible name; this input accessory has no sibling destination names |
 
 Android component coverage mounts Perfil with both locale catalogs, checks its visible and
 accessible `Astra` name and follows the row to `/profile/astra`. Web navigation coverage checks

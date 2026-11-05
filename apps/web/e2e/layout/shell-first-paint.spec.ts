@@ -20,7 +20,8 @@ test.describe('Hoje shell before hydration', () => {
           await expect(sidebar).toBeHidden()
           await expect(tabBar).toBeVisible()
         }
-        await expect(page.locator('[data-shell-pinned-slot]')).toHaveCount(1)
+        await expect(page.locator('[data-shell-pinned-slot]')).toHaveCount(0)
+        await expect(page.locator('[data-astra-button]')).toBeVisible()
       })
     })
   }

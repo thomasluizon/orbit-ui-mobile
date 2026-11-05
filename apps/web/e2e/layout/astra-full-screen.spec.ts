@@ -45,7 +45,7 @@ for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
           const topInset = await columnLocator.evaluate(element => parseFloat(getComputedStyle(element).paddingTop))
           expect(column).not.toBeNull()
           const pinned = page.locator('[data-shell-pinned-slot] [data-composer-root]')
-          await expect(pinned).toHaveCount(viewport.width < 1024 ? 1 : 0)
+          await expect(pinned).toHaveCount(0)
           const tabs = viewport.width < 1024 ? await page.locator('[data-shell-tab-bar]').boundingBox() : null
           await page.goto('/?astra=open')
           const conversation = page.locator('[data-shell-conversation="overlay"]')

@@ -30,7 +30,7 @@ function FirstPaint() {
 
 function TodayShell({ mounted = true }: { mounted?: boolean }) {
   const todayFabHidden = useUIStore((state) => state.todayFabHidden)
-  return <DestinationShell todayFabHidden={todayFabHidden} onCreate={() => {}} composer={<textarea aria-label="Draft" defaultValue="Keep this draft" />}><FirstPaint />{mounted ? <TodayPage /> : null}</DestinationShell>
+  return <DestinationShell todayFabHidden={todayFabHidden} onCreate={() => {}}><FirstPaint />{mounted ? <TodayPage /> : null}</DestinationShell>
 }
 
 function TodayPage() {
@@ -51,19 +51,20 @@ beforeEach(() => {
   useUIStore.setState(useUIStore.getInitialState())
 })
 
-it('retains the FAB and composer through a pending habits refresh', () => {
+it('retains the create FAB and Astra entry through a pending habits refresh', () => {
   const { rerender } = render(<TodayShell />)
   const fab = document.querySelector('[data-shell-fab] [data-fab]')
   expect(fab).not.toBeNull()
-  const composer = screen.getByRole('textbox', { name: 'Draft' })
+  const entry = screen.getByRole('button', { name: 'shell.astraButton.open' })
   state.habits = { ...state.habits, isFetching: true }
   rerender(<TodayShell />)
   expect(document.querySelector('[data-shell-fab] [data-fab]')).toBe(fab)
-  expect(screen.getByRole('textbox', { name: 'Draft' })).toBe(composer)
+  expect(screen.getByRole('button', { name: 'shell.astraButton.open' })).toBe(entry)
   state.habits = { ...state.habits, isFetching: false, showLoadError: false }
   rerender(<TodayShell />)
   expect(document.querySelector('[data-shell-fab] [data-fab]')).toBe(fab)
-  expect(composer).toHaveValue('Keep this draft')
+  expect(screen.getByRole('button', { name: 'shell.astraButton.open' })).toBe(entry)
+  expect(screen.queryByRole('textbox')).toBeNull()
 })
 
 it.each([
@@ -74,7 +75,8 @@ it.each([
   state.habits = habits
   render(<TodayShell />)
   expect(document.querySelector('[data-shell-fab] [data-fab]')).toBeNull()
-  expect(screen.getByRole('textbox', { name: 'Draft' })).toBeVisible()
+  expect(screen.queryByRole('textbox')).toBeNull()
+  expect(screen.getByRole('button', { name: 'shell.astraButton.open' })).toBeVisible()
 })
 
 it('never paints the FAB while loading an empty Today, including after returning', () => {

@@ -53,6 +53,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBR]] as const) {
             const bounds = element.getBoundingClientRect()
             const composer = element.closest('[data-composer-root]')!
             const field = composer.querySelector('[data-composer-input-row]')!.getBoundingClientRect()
+            const disclosure = composer.querySelector('[data-composer-disclosure]')!.getBoundingClientRect()
             const chips = [...element.querySelectorAll('button')].map(button => {
               const chip = button.getBoundingClientRect()
               const style = getComputedStyle(button)
@@ -61,13 +62,14 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBR]] as const) {
                 padding: parseFloat(style.paddingInlineStart) + parseFloat(style.paddingInlineEnd) }
             })
             const partial = chips.find(chip => chip.left < bounds.right && chip.right > bounds.right)
-            return { right: bounds.right, fieldRight: field.right, overflow: element.scrollWidth > element.clientWidth,
+            return { right: bounds.right, fieldRight: field.right, disclosureLeft: disclosure.left, disclosureRight: disclosure.right, overflow: element.scrollWidth > element.clientWidth,
               peek: partial ? bounds.right - partial.left : 0,
               hidden: partial ? partial.right - bounds.right : 0,
               visible: chips.filter(chip => chip.right > bounds.left && chip.left < bounds.right) }
           })
           expect(measured.visible.length).toBeGreaterThan(0)
-          expect(Math.abs(measured.right - measured.fieldRight)).toBeLessThanOrEqual(1)
+          expect(Math.abs(measured.disclosureLeft - measured.right - 12)).toBeLessThanOrEqual(1)
+          expect(Math.abs(measured.disclosureRight - measured.fieldRight)).toBeLessThanOrEqual(1)
           for (const chip of measured.visible) expect(Math.abs(chip.width - chip.content - chip.padding)).toBeLessThanOrEqual(1)
           if (measured.overflow) {
             expect(measured.peek).toBeGreaterThanOrEqual(16)

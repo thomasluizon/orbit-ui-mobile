@@ -92,7 +92,7 @@ through animation. Motion changes presentation without postponing delivery, muta
 Read refreshes and preview revisions retain their operation identity and fade their changed
 content. Block frames use library layout transitions for preview outcomes and Show more height
 changes. Composer growth and shrinkage use the same library layout timing. The shell groups the
-web composer layout identity across Hoje and the conversation; Android measures the source
+web composer layout identity across habit detail and the conversation; Android measures the source
 composer and translates its destination from that position. Draft and focus owners stay intact.
 Reduced motion removes travel, layout animation and sequencing, and settles active fades.
 

@@ -52,8 +52,8 @@ for (const locale of ['en', 'pt-BR'] as const) {
               await expect(sidebarBell).toBeHidden()
               await expect(headerBell).toBeVisible()
               await expect(page.locator('[data-shell-tab-bar]')).toBeVisible()
-              if (destination === 'today') await expect(composer).toBeVisible()
-              else await expect(composer).toHaveCount(0)
+              await expect(composer).toHaveCount(0)
+              if (destination === 'today') await expect(page.locator('[data-astra-button]')).toBeVisible()
             }
           }
           try {
@@ -93,46 +93,21 @@ for (const locale of ['en', 'pt-BR'] as const) {
 for (const locale of ['en', 'pt-BR'] as const) {
   const words = locale === 'en' ? en : ptBR
   for (const width of [412, 1000]) {
-    test.describe(`compact composer menu across the wide breakpoint from ${width}px in ${locale}`, () => {
+    test.describe(`Hoje Astra draft across the wide breakpoint from ${width}px in ${locale}`, () => {
       test.use({ appLocale: locale, viewport: { width, height: 915 } })
-
-      test('dismisses the menu and returns focus to the visible Astra entry while retaining the draft', async ({ page }) => {
+      test('retains the layer draft while Hoje has no composer', async ({ page }) => {
         await page.goto('/?astra=open')
         const conversation = page.locator('[data-shell-conversation]')
         await expect(conversation).toBeVisible()
         await conversation.locator('[data-composer-input]').fill('Retained draft')
         await conversation.getByRole('button', { name: words.common.closeConversation, exact: true }).click()
-        await expect(conversation).toHaveCount(0)
-        const composer = page.locator('[data-shell-pinned-slot] [data-composer-root]')
-        const input = composer.locator('[data-composer-input]')
-        const trigger = composer.getByRole('button', { name: words.shell.composer.actions, exact: true })
-        await expect(composer).toBeVisible()
-        await expect(input).toHaveValue('Retained draft')
-        await trigger.click()
-        const menu = page.getByRole('menu', { name: words.shell.composer.actions, exact: true })
-        await expect(menu).toBeVisible()
-        for (const label of [words.shell.composer.attach.image, words.shell.composer.attach.file]) {
-          await expect(menu.getByRole('menuitem', { name: label, exact: true })).toBeVisible()
-        }
-        await page.setViewportSize({ width: 1100, height: 915 })
-        await expect(menu).toHaveCount(0)
-        const astra = page.locator('[data-shell-astra-row]')
-        await expect(astra).toBeVisible()
-        await expect(astra).toBeFocused()
-        await expect(composer).toBeHidden()
-        await expect(composer).toHaveCount(0)
         await expect(page.locator('[data-composer-root]')).toHaveCount(0)
-        await expect(page.locator('[data-shell-pinned-slot]')).toHaveCount(0)
+        await page.setViewportSize({ width: 1100, height: 915 })
+        await expect(page.locator('[data-shell-astra-row]')).toBeVisible()
+        await page.locator('[data-astra-button]').click()
+        await expect(conversation.locator('[data-composer-input]')).toHaveValue('Retained draft')
         await page.setViewportSize({ width, height: 915 })
-        await expect(composer).toBeVisible()
-        await expect(input).toHaveValue('Retained draft')
-        await expect(menu).toHaveCount(0)
-        await expect(trigger).toHaveAttribute('aria-expanded', 'false')
-        await trigger.click()
-        await expect(menu).toBeVisible()
-        await page.keyboard.press('Escape')
-        await expect(menu).toHaveCount(0)
-        await expect(trigger).toBeFocused()
+        await expect(conversation.locator('[data-composer-input]')).toHaveValue('Retained draft')
       })
     })
   }

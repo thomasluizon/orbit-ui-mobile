@@ -45,8 +45,8 @@ function bundleConversation() {
         <DestinationShell onCreate={() => {}} conversationOpen={open} conversationLabel="Astra"
           todayFabHidden={configuration.settleToday ? todayFabHidden : undefined}
           conversation={configuration.delayed ? <Suspense fallback={null}><DeferredConversation chat={chat} /></Suspense> : <AstraConversation chat={chat} />}
-          composer={<Composer {...composerProps} onOpenConversation={onOpenConversation}
-            conversationLabel={messages.todayAstra.openConversation} />}>
+          composer={configuration.route.startsWith('/habits/') ? <Composer {...composerProps} onOpenConversation={onOpenConversation}
+            conversationLabel={messages.todayAstra.openConversation} /> : undefined}>
           <h1 className="p-4">Destination</h1>
         </DestinationShell>
       </NextIntlClientProvider>;
@@ -149,7 +149,8 @@ describe('interaction fill guard with the mounted conversation owners', () => {
         expect(before).not.toBeNull()
         await page.mouse.move(before!.x + before!.width / 2, before!.y + before!.height / 2)
         await page.mouse.down()
-        await page.locator('[data-shell-bottom-viewport][data-floating="false"]').waitFor()
+        await page.locator('[data-shell-fab]').waitFor({ state: 'detached' })
+        expect(await page.locator('[data-astra-button]').isVisible()).toBe(true)
         expect(await page.locator('[data-shell-fab]').count()).toBe(0)
         expect(await calendar.boundingBox()).toEqual(before)
         await page.mouse.up()
@@ -160,13 +161,23 @@ describe('interaction fill guard with the mounted conversation owners', () => {
 
   it.each([320, 412, 600].flatMap(width => (['en', 'pt-BR'] as const).flatMap(locale =>
     ['/', '/habits/habit-1', '/r/invalid'].flatMap(route => ['', 'Retained draft'].map(draft => ({ width, locale, route, draft }))))))(
-    'returns from a focus-opened layer at $route, $width in $locale with draft "$draft" and continues the inventory', async ({ width, locale, route, draft }) => {
+    'returns from the destination entry at $route, $width in $locale with draft "$draft" and continues the inventory', async ({ width, locale, route, draft }) => {
       const page = await mount(width, locale, route, false, draft)
       try {
         const heading = await page.getByRole('heading', { name: 'Destination' }).elementHandle()
         const create = route === '/habits/habit-1' ? null : await page.locator('[data-shell-fab] button').elementHandle()
         const context = `${route}, ${width}px, ${locale}`
-        const counts = await inspectControls(page, page.locator('[data-shell-pinned-slot] textarea'), context, INTERACTION_FILL_CLEARANCE)
+        const habit = route === '/habits/habit-1'
+        const entry = page.locator(habit ? '[data-shell-pinned-slot] textarea' : '[data-astra-button]')
+        const originalEntry = await entry.elementHandle()
+        const counts = await inspectControls(page, entry, context, INTERACTION_FILL_CLEARANCE)
+        if (!habit) {
+          await entry.click()
+          const field = page.locator('[data-shell-conversation] textarea')
+          await field.waitFor()
+          expect(await field.inputValue()).toBe(draft)
+          await page.getByRole('button', { name: (locale === 'en' ? en : ptBR).common.closeConversation, exact: true }).click()
+        }
         if (create) await page.locator('[data-shell-fab] button').waitFor({ state: 'visible' })
         await page.locator('[data-interaction-fill-probe]').evaluateAll(elements => elements.forEach(element => element.removeAttribute('data-interaction-fill-probe')))
         await inspectControls(page, page.locator('[data-shell-tab-bar] a[href], [data-shell-fab] button'), context, INTERACTION_FILL_CLEARANCE, counts)
@@ -174,7 +185,9 @@ describe('interaction fill guard with the mounted conversation owners', () => {
         expect(await heading!.evaluate(element => element.isConnected)).toBe(true)
         if (create) expect(await create.evaluate(element => element.isConnected)).toBe(false)
         expect(await page.getByRole('dialog').count()).toBe(0)
-        expect(await page.getByRole('textbox').inputValue()).toBe(draft)
+        expect(await originalEntry!.evaluate(element => element.isConnected)).toBe(true)
+        if (habit) expect(await page.getByRole('textbox').inputValue()).toBe(draft)
+        else expect(await page.getByRole('textbox').count()).toBe(0)
         expect(await page.getByRole('heading', { name: 'Destination' }).isVisible()).toBe(true)
       } finally { await page.close() }
     })
@@ -239,16 +252,18 @@ describe('interaction fill guard with the mounted conversation owners', () => {
       } finally { await page.close() }
     })
 
-  it.each((['composer', 'skip link'] as const).flatMap(entry => (['en', 'pt-BR'] as const).map(locale => ({ entry, locale }))))(
+  it.each((['habit composer', 'Astra button', 'skip link'] as const).flatMap(entry => (['en', 'pt-BR'] as const).map(locale => ({ entry, locale }))))(
     'rejects reached Composer paint within 2px of a neighbour through $entry in $locale', async ({ entry, locale }) => {
-      const route = entry === 'composer' ? '/' : '/chat'
+      const route = entry === 'habit composer' ? '/habits/habit-1' : entry === 'Astra button' ? '/' : '/chat'
       const page = await mount(320, locale, route, entry === 'skip link', '')
       try {
         await installConversationCollision(page)
-        const control = entry === 'composer' ? page.locator('[data-shell-pinned-slot] textarea')
-          : page.getByRole('link', { name: (locale === 'en' ? en : ptBR).common.skipToContent })
+        if (entry === 'Astra button') await page.locator('[data-astra-button]').click()
+        const control = entry === 'habit composer' ? page.locator('[data-shell-pinned-slot] textarea')
+          : entry === 'Astra button' ? page.locator('[data-shell-conversation] textarea')
+            : page.getByRole('link', { name: (locale === 'en' ? en : ptBR).common.skipToContent })
         await expect(inspectControls(page, control, `${route}, 320px, ${locale}`, INTERACTION_FILL_CLEARANCE))
-          .rejects.toThrow(/(?:press|focus-visible)[\s\S]*span\[field-paint-neighbour\]/)
+          .rejects.toThrow(entry === 'Astra button' ? /hover[\s\S]*span\[field-paint-neighbour\]/ : /(?:press|focus-visible)[\s\S]*span\[field-paint-neighbour\]/)
       } finally { await page.close() }
     })
 })

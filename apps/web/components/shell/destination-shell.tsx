@@ -34,6 +34,7 @@ import { useUIStore } from '@/stores/ui-store'
 import {
   resetRouteTransitionIntent,
 } from '@/lib/motion/route-intent'
+import { AstraButton } from './astra-button'
 import { ShellWide } from './shell-wide'
 import { ScrollToTopButton } from '@/components/ui/scroll-to-top-button'
 import { useShellScroller } from './shell-scroller-context'
@@ -231,7 +232,6 @@ function DestinationShellContent({
     return () => cancelAnimationFrame(frame)
   }, [pathname])
   const pinnedComposer = getPinnedComposer(notFoundVisible, registeredComposer, composer, chrome.composer)
-  const compactComposer = pathname === '/' && registeredComposer == null
   const navigationEnabled = hasPrimaryNavigation(pathname) && (wide || !chrome.flow)
   const conversationSlot = conversation !== undefined && conversationLabel
     ? { conversation, conversationOpen, conversationLabel }
@@ -332,8 +332,8 @@ function DestinationShellContent({
         notice={notice}
         registerHeaderHost={registerHeaderHost}
         scrollToTop={todayScrollToTop(pathname, notFoundVisible)}
-        composer={compactComposer ? undefined : pinnedComposer}
-        compactComposer={compactComposer ? pinnedComposer : undefined}
+        composer={pinnedComposer}
+        astraButton={pathname === '/' && !notFoundVisible ? <AstraButton /> : undefined}
         tabBar={
           !chrome.flow ? <BottomTabBar
             activeId={activeId}

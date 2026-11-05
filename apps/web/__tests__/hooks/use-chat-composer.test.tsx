@@ -1,3 +1,4 @@
+import { AstraButton } from '@/components/shell/astra-button'
 import { useChatComposerAttachments } from '@/hooks/use-chat-composer-attachments'
 import { makeApprovalPlan, makeAstraPlan } from '@orbit/shared/test-support/astra-plan-fixtures'
 import { getAccountGeneration } from '@/lib/session-epoch'
@@ -78,12 +79,12 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(mocks.searchParams),
 }))
 
-vi.mock('next/dynamic', () => ({ default: () => () => null }))
+vi.mock('next/dynamic', () => ({ default: () => (props: { chat?: ReturnType<typeof useChatComposer> }) => props.chat ? <AstraConversation chat={props.chat} /> : null }))
 vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: React.ReactNode }) => children }))
 vi.mock('@/lib/account-event-connection', () => ({ AccountEventConnection: () => null }))
 vi.mock('@/app/(app)/today-provider', () => ({ TodayProvider: ({ children }: { children: React.ReactNode }) => children, useToday: () => '2026-09-12' }))
 vi.mock('@/components/shell/destination-shell', () => ({
-  DestinationShell: ({ composer }: { composer: React.ReactNode }) => <main>{composer}</main>,
+  DestinationShell: ({ composer, conversation, conversationOpen }: { composer?: React.ReactNode; conversation: React.ReactNode; conversationOpen: boolean }) => <main>{conversationOpen ? conversation : <>{composer}{mocks.pathname === '/' ? <AstraButton /> : null}</>}</main>,
 }))
 vi.mock('@/components/command/command-palette', () => ({ CommandPaletteBackground: ({ children }: { children: React.ReactNode }) => children }))
 vi.mock('@/components/motion/route-transition-shell', () => ({ RouteTransitionShell: ({ children }: { children: React.ReactNode }) => children }))
@@ -2005,9 +2006,8 @@ describe('web useChatComposer streaming send', () => {
   })
 
   it.each([
-    ['/', 'open', undefined],
-    ['/', 'direct-send', undefined],
-  ])('captures route intent through the layout %s %s callback before the first request', async (pathname, action, expectedIntent) => {
+    ['/', undefined],
+  ])('captures route intent through the layout %s floating entry before the first request', async (pathname, expectedIntent) => {
     mocks.pathname = pathname
     useAuthStore.setState({ isAuthenticated: false, user: null, expiresAt: null })
     mocks.fetch.mockImplementation((path: string) => Promise.resolve(path === '/api/auth/session'
@@ -2016,7 +2016,7 @@ describe('web useChatComposer streaming send', () => {
     render(<AppLayout><p>Support</p></AppLayout>)
     await waitFor(() => expect(useAuthStore.getState().isAuthenticated).toBe(true))
 
-    if (action === 'open') fireEvent.click(screen.getByRole('button', { name: 'todayAstra.openConversation' }))
+    fireEvent.click(screen.getByRole('button', { name: 'shell.astraButton.open' }))
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'my streak reset' } })
     fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send' }))
 
@@ -3131,10 +3131,12 @@ describe('web useChatComposer streaming send', () => {
     mocks.state.detail = makeHabitDetail()
     answerSessionWith({ expiresAt: Date.now() + 3600000, userId: 'user-1' })
     render(<AppLayout><div>Content</div></AppLayout>)
-    expect(screen.getByRole('textbox')).toBeVisible()
     const group = screen.queryByRole('group', { name: 'shell.composer.suggestionsLabel' })
-    if (pathname === '/') expect(group).not.toBeInTheDocument()
-    else expect(group).toBeVisible()
+    if (pathname === '/') {
+      expect(screen.queryByRole('textbox')).toBeNull()
+      expect(screen.getByRole('button', { name: 'shell.astraButton.open' })).toBeVisible()
+      expect(group).not.toBeInTheDocument()
+    } else { expect(screen.getByRole('textbox')).toBeVisible(); expect(group).toBeVisible() }
   })
 
   it('queries the selected day with the visible Today general filter', () => {
