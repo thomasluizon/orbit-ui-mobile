@@ -9,7 +9,7 @@ export function Fab({ label, children, onClick, neutral = false, style, ...butto
       aria-label={label}
       onClick={onClick}
       data-fab=""
-      className={`appearance-none border-0 flex items-center justify-center ${neutral ? 'bg-[var(--bg-elev)] text-[var(--fg-1)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]' : 'bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-hover)] active:bg-[var(--primary-pressed)]'} cursor-pointer transition-[background-color,scale] [transition-duration:var(--dur-hover-control),150ms] [transition-timing-function:var(--ease-standard),var(--ease-out)] motion-safe:active:scale-[0.96]`}
+      className={`group relative appearance-none border-0 flex items-center justify-center ${neutral ? 'bg-[var(--bg-elev)] text-[var(--fg-1)]' : 'bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-hover)] active:bg-[var(--primary-pressed)]'} cursor-pointer transition-[background-color,scale] [transition-duration:var(--dur-hover-control),150ms] [transition-timing-function:var(--ease-standard),var(--ease-out)] motion-safe:active:scale-[0.96]`}
       style={{
         borderRadius: 999,
         boxShadow: '0 0 0 6px var(--bg)',
@@ -18,7 +18,8 @@ export function Fab({ label, children, onClick, neutral = false, style, ...butto
         ...style,
       }}
     >
-      {children}
+      {neutral ? <span data-press-fill="" aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-full bg-[var(--bg-hover-opaque)] opacity-0 transition-opacity duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover:opacity-100 group-active:opacity-100" /> : null}
+      <span className="relative flex items-center justify-center">{children}</span>
     </button>
   )
 }
