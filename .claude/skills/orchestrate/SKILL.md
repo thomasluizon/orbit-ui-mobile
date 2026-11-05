@@ -29,10 +29,15 @@ node tools/run-status.mjs --session "<this session id>"
 Read its one JSON object and follow `nextActions[].command` from `commandDirectory`.
 Commands use relative paths when those are shorter. The action set is closed:
 `REARM_WAIT_CI`, `VERIFY_DELIVERY`, `READ_REVIEW`, `RECORD_READINESS`, `BEHIND_BASE`,
-`CHECK_FAILED`, `MERGE_CANDIDATE`, `SLOT_FREE`, `ORPHANED_WORKER`, `NO_ACTION`.
+`CHECK_FAILED`, `MERGE_CANDIDATE`, `SLOT_FREE`, `ORPHANED_WORKER`, `INTAKE`, `NO_ACTION`.
 Delivery and readiness remain decisions of their named tools. A merge candidate calls the
 recorder again; it grants no merge authority. A foreign session has no actions. A linked
 worktree warning names the main checkout where the orchestrating run lives.
+
+An `INTAKE` action continues the current `/auto-work` run through its complete intake cycle
+after driving the preceding in-flight actions. It appears on every active auto-work wake,
+including an empty queue with an expired idle waiter. It never ends that wake as `NO_ACTION`.
+A pending relay drain suppresses intake until succession under the existing relay protocol.
 
 A `NO_ACTION` wakeup ends immediately after at most one background re-arm, using its command
 only when no live wake source remains. Do not list the board, read logs, poll review or repeat
@@ -1313,7 +1318,9 @@ watches; zero tokens burn while it waits. **With `--sleep`: go straight to the n
 
 ## Step 11. The report
 
-Once the queue is exhausted, print one summary and stop:
+With `autoWork: true` in the current run, queue exhaustion returns to
+`.claude/skills/auto-work/SKILL.md` for the next intake cycle and a registered idle waiter.
+The same run, ledger and canonical gates continue. Otherwise, print one summary and stop:
 
 - Every pull request opened, with repository, number, current base/head SHAs, advisory diff size,
   behind count and receipt verdict.
@@ -1606,7 +1613,8 @@ as a finished queue even if a fallible session clears the active list.
 match is ignored. When the queue really is done, write `remaining: []`; `pullRequests` may be empty,
 but never remove `readinessLedger`. READY receipts, merged rows, or closed rows with recorded blockers let the
 hook distinguish a completed or BLOCKED run from a mistakenly cleared queue, then the run may
-print the step 11 report.
+print the step 11 report. With `autoWork: true`, an empty queue still requires a live wake
+source; continue the auto-work skill's intake and idle path until the owner disables it.
 
 What the gate can prove is that a registered pid is still alive, which is real evidence rather than a
 claim, because only the launcher registers one. What it cannot prove is that the task will re-invoke

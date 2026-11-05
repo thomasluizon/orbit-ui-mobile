@@ -596,6 +596,13 @@ process share the same in-flight account refresh; different accounts queue their
 run one serial job per file and account. A crash leaving a `.lock` file requires checking
 that the other process has stopped before removing that lock. If rotation succeeded remotely but
 local persistence failed, obtain a fresh session through the existing authentication flow.
+Refresh submissions are never retried: transport failures, unreadable responses and HTTP 502, 503 or
+504 cannot prove that the single-use token was not consumed. These outcomes retain `.refresh-failed`
+and report `TRANSIENT_INFRASTRUCTURE` as unavailable case evidence without calling the chat provider.
+The eval credentials contain no unattended sign-in credential. Recover through the existing sign-in
+flow, replace the private credentials file and remove its markers before the gate's permitted rerun.
+For Action runs, replace `ORBIT_EVAL_CREDENTIALS_JSON` under **Settings > Environments > astra-eval >
+Environment secrets** before dispatching that rerun. Health probes remain safe to retry before submission.
 
 The hook calls `evals/astra/fixtures/reset.mjs` in process after refresh. The same executable can
 be invoked independently from `evals/astra` as `./fixtures/reset.mjs single-read-en`; standalone

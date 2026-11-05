@@ -1,3 +1,4 @@
+import { evalSnapshot } from './fixtures/eval-snapshot.mjs'
 import { afterEach, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -57,7 +58,7 @@ async function crisisAttempt(locale, fault = 'valid') {
   vi.stubGlobal('fetch', async (url, options) => {
     const path = new URL(url).pathname
     requests.push({ path, method: options.method })
-    if (path === '/api/profile/export') return Response.json(fault === 'changed-state' ? { ...state, tags: [{ id: habitId }] } : state)
+    if (path === '/api/eval/snapshot') return Response.json(evalSnapshot(fault === 'changed-state' ? { ...state, tags: [{ id: habitId }] } : state))
     expect(path).toBe('/api/chat')
     const request = new Request(url, options)
     const form = await request.formData()
@@ -94,7 +95,7 @@ it.each(['en', 'pt-BR'])('accepts the producer plain-text crisis response in %s 
   expect(verdict, verdict.reason).toMatchObject({ pass: true })
   expect(response.output.offerReadback).toMatchObject({ pass: true })
   expect(proactiveOffers(response.output, { vars })).toMatchObject({ pass: true })
-  expect(requests).toEqual([{ path: '/api/chat', method: 'POST' }, { path: '/api/profile/export', method: 'GET' }])
+  expect(requests).toEqual([{ path: '/api/chat', method: 'POST' }, { path: '/api/eval/snapshot', method: 'GET' }])
 })
 
 it.each(['absent', 'empty'])('rejects a client-renderable legacy card in a crisis HTTP response with %s parts', async (parts) => {
@@ -135,7 +136,7 @@ it.each(['valid', 'wrong-request', 'missing-trace', 'write', 'selector-timeout',
       const path = new URL(url).pathname
       requests.push({ path, method: options.method })
       if (path === `/api/habits/${habitId}`) return Response.json(state.habits[0])
-      if (path === '/api/profile/export') return Response.json(fault === 'write' ? { ...state, goals: [{ id: 'unrequested' }] } : state)
+      if (path === '/api/eval/snapshot') return Response.json(evalSnapshot(fault === 'write' ? { ...state, goals: [{ id: 'unrequested' }] } : state))
       expect(path).toBe('/api/chat')
       const request = new Request(url, options)
       expect(request.headers.get('x-orbit-eval-trace')).toBe('1')
@@ -184,7 +185,7 @@ it.each(['valid', 'invalid-kind', 'invalid-date', 'invalid-target'])(
     const path = new URL(url).pathname
     if (path === '/health') return Response.json({ status: 'Healthy', commit: null, checks: [] })
     if (path === '/api/auth/refresh') return refreshResponse()
-    if (path === '/api/profile/export') return Response.json(state)
+    if (path === '/api/eval/snapshot') return Response.json(evalSnapshot(state))
     if (path === `/api/habits/${habitId}`) return Response.json(state.habits[0])
     if (path === '/api/habits') {
       state.habits.push({ id: habitId, title: 'Breathe', isBadHabit: false, logs: [], checklistItems: [] })

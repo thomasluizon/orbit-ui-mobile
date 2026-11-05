@@ -46,9 +46,9 @@ function dailyHabit(title, dueDate) {
     checklistItems: [], tagIds: [], goalIds: [] }
 }
 async function snapshot(api) {
-  const { payload } = await api('GET', 'profile/export')
+  const { payload } = await api('GET', 'eval/snapshot')
   for (const field of ['habits', 'goals', 'tags', 'checklistTemplates']) {
-    if (!Array.isArray(payload?.[field])) throw new Error('Fixture export is missing a required collection.')
+    if (!Array.isArray(payload?.[field])) throw new Error('Fixture snapshot is missing a required collection.')
   }
   return payload
 }
@@ -93,7 +93,7 @@ async function restoreHabits(api, exported, account, fixture, today, titles) {
     await api('PUT', `habits/${id}`, { ...dailyHabit(title, start), startDate: fixture === 'overdue' ? start : dateOffset(today, -6),
       clearEndDate: true, clearParent: true, clearRepeatReminder: true, emoji: null })
     const history = exported.habits.find((habit) => habit.id === id)?.logs
-    if (!Array.isArray(history)) throw new Error('Fixture export lacks stable habit history.')
+    if (!Array.isArray(history)) throw new Error('Fixture snapshot lacks stable habit history.')
     const completed = history.filter((log) => log.value > 0)
     if (completed.some((log) => log.date < dateOffset(today, -7))) throw new Error('Positive history outside the public undo window needs a new corpus window; stable IDs cannot be recreated.')
     for (const log of completed) await api('POST', `habits/${id}/log`, { date: log.date })
@@ -177,7 +177,7 @@ async function verifyFixture(api, account, fixture, today, names) {
 }
 
 function fixtureEvidence(exported, fixture, today, account) {
-  if (!Array.isArray(exported.apiKeys)) throw new Error('Fixture export lacks API key evidence.')
+  if (!Array.isArray(exported.apiKeys)) throw new Error('Fixture snapshot lacks API key evidence.')
   return { ...Object.fromEntries(['habits', 'goals', 'tags', 'checklistTemplates', 'apiKeys', 'notifications']
     .map((field) => [field, exported[field]])),
     loggedState: { fixture, date: today, habits: exported.habits.map((habit) => ({

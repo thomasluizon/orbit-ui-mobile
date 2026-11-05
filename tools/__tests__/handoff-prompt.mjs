@@ -1,10 +1,12 @@
-import { mkdirSync } from "node:fs"
+import { mkdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { parseHandoffRequest, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "../lib/handoff-prompt.mjs"
+import * as handoff from "../lib/handoff-prompt.mjs"
 import { readRunState, writeRunState } from "../lib/run-state.mjs"
+import { appendChainEntry, closeSessionChain, confirmChainSuccessor, supersededSession } from "../lib/session-chain.mjs"
 
-import { T, root } from "./_harness.mjs"
+import { T, realOrchestratorConfig, root, run, stageWithConfig } from "./_harness.mjs"
 
 const UNIT = "lib/handoff-prompt.mjs"
 
@@ -16,12 +18,13 @@ const sleepPrompt = [
 ].join("\n")
 
 export const cases = () => {
+  T(`${UNIT}: a question mentioning handoff is not an invocation`, parseHandoffRequest("we are working always using /handoff, wrap-up, etc etc\n\nwhat happens when the spec is finished?") === null)
   T(`${UNIT}: /wrap-up --sleep records a sleep request`, JSON.stringify(parseHandoffRequest("/wrap-up --sleep")) === JSON.stringify({ command: "wrap-up", sleep: true, crank: false }))
   T(`${UNIT}: /handoff with other arguments stays attended`, parseHandoffRequest("/handoff finish the calendar")?.sleep === false)
   T(`${UNIT}: a non-handoff command records nothing`, parseHandoffRequest("/sleep") === null)
   for (const [label, prompt, expected] of [
-    ["a leading word keeps the sleep argument", "RUN /wrap-up --sleep", { command: "wrap-up", sleep: true, crank: false }],
-    ["a polite prefix is read", "please /handoff", { command: "handoff", sleep: false, crank: false }],
+    ["a leading word is a mention", "RUN /wrap-up --sleep", null],
+    ["a polite prefix is a mention", "please /handoff", null],
     ["a command on the second line is read", "Finish this task.\n/wrap-up --sleep", { command: "wrap-up", sleep: true, crank: false }],
     ["an inline code mention is ignored", "Read `/handoff --relay --sleep` in NEXT.md.", null],
     ["a longer inline delimiter is ignored", "Read ``/wrap-up --sleep `example` ``.", null],
@@ -29,28 +32,28 @@ export const cases = () => {
     ["a tilde fenced mention is ignored", "Example:\n~~~text\n/handoff --sleep\n~~~", null],
     ["an unfinished fence stays quoted", "```text\n/handoff --sleep", null],
     ["a shorter fence cannot end a longer fence", "````text\n```\n/handoff --sleep\n````", null],
-    ["a real command after a fence is read", "```text\n/wrap-up --sleep\n```\nplease /handoff", { command: "handoff", sleep: false, crank: false }],
+    ["a real command after a fence is read", "```text\n/wrap-up --sleep\n```\n/handoff", { command: "handoff", sleep: false, crank: false }],
     ["a pasted content mention is ignored", '<pasted_content source="NEXT.md">\n/handoff --relay --sleep\n</pasted_content>', null],
     ["an unfinished pasted block stays quoted", "<pasted_content>\n/wrap-up --sleep", null],
-    ["a real command after a pasted block is read", "<pasted_content>\n/wrap-up --sleep\n</pasted_content>\nplease /handoff", { command: "handoff", sleep: false, crank: false }],
+    ["a real command after a pasted block is read", "<pasted_content>\n/wrap-up --sleep\n</pasted_content>\n/handoff", { command: "handoff", sleep: false, crank: false }],
     ["a nested pasted block keeps the outer block quoted", "<pasted_content>\n<pasted_content>\nquoted\n</pasted_content>\n/handoff --sleep\n</pasted_content>", null],
     ["an unfinished outer pasted block stays quoted past a nested close", "<pasted_content>\n<pasted_content>\nquoted\n</pasted_content>\n/handoff --sleep", null],
-    ["a real command after a nested pasted block is read", "<pasted_content>\n<pasted_content>\n/wrap-up\n</pasted_content>\n/wrap-up --sleep\n</pasted_content>\nplease /handoff", { command: "handoff", sleep: false, crank: false }],
+    ["a real command after a nested pasted block is read", "<pasted_content>\n<pasted_content>\n/wrap-up\n</pasted_content>\n/wrap-up --sleep\n</pasted_content>\n/handoff", { command: "handoff", sleep: false, crank: false }],
     ["a pasted close with another id does not end the block", '<pasted_content id="a1">\n</pasted_content id="b2">\n/handoff --sleep\n</pasted_content id="a1">', null],
-    ["a real command after an id-tagged pasted block is read", '<pasted_content id="a1">\n/handoff\n</pasted_content id="a1">\nplease /wrap-up --sleep', { command: "wrap-up", sleep: true, crank: false }],
+    ["a real command after an id-tagged pasted block is read", '<pasted_content id="a1">\n/handoff\n</pasted_content id="a1">\n/wrap-up --sleep', { command: "wrap-up", sleep: true, crank: false }],
     ["a skill path is ignored", ".claude/skills/handoff/SKILL.md", null],
     ["a command-shaped path is ignored", "Read /handoff/SKILL.md and /wrap-up.md", null],
     ["a command suffix is ignored", "/handoff-extra --sleep", null],
-    ["a parenthesized command is read", "please (/handoff)", { command: "handoff", sleep: false, crank: false }],
-    ["a parenthesized sleep handoff is unattended", "please (/handoff --sleep)", { command: "handoff", sleep: true, crank: false }],
-    ["a parenthesized slash sleep wrap-up is unattended", "please (/wrap-up /sleep)", { command: "wrap-up", sleep: true, crank: false }],
-    ["a sleep option suffix stays attended", "please (/handoff --sleep-later)", { command: "handoff", sleep: false, crank: false }],
+    ["a parenthesized mention is ignored", "please (/handoff)", null],
+    ["a parenthesized sleep mention is ignored", "please (/handoff --sleep)", null],
+    ["a parenthesized wrap-up mention is ignored", "please (/wrap-up /sleep)", null],
+    ["a sleep option suffix stays attended", "/handoff --sleep-later", { command: "handoff", sleep: false, crank: false }],
     ["the first command keeps its own arguments", "/handoff then /wrap-up --sleep", { command: "handoff", sleep: false, crank: false }],
-    ["the first sleep command wins", "please /wrap-up --sleep then /handoff", { command: "wrap-up", sleep: true, crank: false }],
-    ["a mention before a real command is ignored", "`/handoff --sleep`\nplease /wrap-up", { command: "wrap-up", sleep: false, crank: false }],
+    ["the first sleep command wins", "/wrap-up --sleep then /handoff", { command: "wrap-up", sleep: true, crank: false }],
+    ["a mention before a real command is ignored", "`/handoff --sleep`\n/wrap-up", { command: "wrap-up", sleep: false, crank: false }],
     ["sleep inside code is ignored", "/handoff `--sleep`", { command: "handoff", sleep: false, crank: false }],
-    ["the slash sleep argument stays supported", "please /handoff /sleep", { command: "handoff", sleep: true, crank: false }],
-    ["another command does not hide a handoff", "/progress then /handoff", { command: "handoff", sleep: false, crank: false }],
+    ["the slash sleep argument stays supported", "/handoff /sleep", { command: "handoff", sleep: true, crank: false }],
+    ["another command keeps an inline handoff a mention", "/progress then /handoff", null],
     ["expanded command tags stay supported", "<command-name>/wrap-up</command-name>\n<command-args>--sleep</command-args>", { command: "wrap-up", sleep: true, crank: false }],
     ["pasted expanded tags are ignored", "<pasted_content><command-name>/wrap-up</command-name><command-args>--sleep</command-args></pasted_content>", null],
     ["a typed command before expanded tags wins", "/handoff\n<command-name>/wrap-up</command-name><command-args>--sleep</command-args>", { command: "handoff", sleep: false, crank: false }],
@@ -60,6 +63,8 @@ export const cases = () => {
     T(`${UNIT}: ${label}`, JSON.stringify(actual) === JSON.stringify(expected), `got=${JSON.stringify(actual)} want=${JSON.stringify(expected)}`)
   }
   T(`${UNIT}: a complete sleep prompt has no missing requirement`, validateHandoffPrompt(sleepPrompt, { sleep: true }).length === 0, JSON.stringify(validateHandoffPrompt(sleepPrompt, { sleep: true })))
+  T(`${UNIT}: auto-work refuses a sleep-only relay`, validateHandoffPrompt(sleepPrompt, { sleep: true, autoWork: true }).length > 0)
+  T(`${UNIT}: auto-work accepts its entry point`, validateHandoffPrompt(sleepPrompt.replace("/sleep\n", "/auto-work\n"), { sleep: true, autoWork: true }).length === 0)
   const parenthesizedSleep = validateHandoffPrompt(sleepPrompt, { sleep: parseHandoffRequest("please (/handoff --sleep)")?.sleep })
   T(`${UNIT}: a parenthesized sleep handoff accepts an unattended prompt`, parenthesizedSleep.length === 0, JSON.stringify(parenthesizedSleep))
   const withoutSleepLine = validateHandoffPrompt(sleepPrompt.replace("/sleep\n", "# NEXT\n"), { sleep: true })
@@ -67,7 +72,7 @@ export const cases = () => {
   const withoutSpec = validateHandoffPrompt(sleepPrompt.replace("`.claude/specs/example.md`", "the spec"), { sleep: true })
   T(`${UNIT}: the spec path must open the prompt`, withoutSpec.some((item) => item.includes(".claude/specs")), JSON.stringify(withoutSpec))
 
-  for (const invocation of ["/handoff --crank", "/wrap-up --crank", "please (/handoff /crank)", "<command-name>/handoff</command-name><command-args>--crank</command-args>"]) {
+  for (const invocation of ["/handoff --crank", "/wrap-up --crank", "/handoff /crank", "<command-name>/handoff</command-name><command-args>--crank</command-args>"]) {
     const request = parseHandoffRequest(invocation)
     T(`${UNIT}: ${invocation} enables crank and sleep`, request?.crank === true && request.sleep === true)
   }
@@ -100,4 +105,65 @@ export const cases = () => {
   T(`${UNIT}: a newer explicit request enables the matching run and preserves its lifecycle`, enabled.crank === true && enabled.sleep === false && enabled.remaining[0] === "#1" && enabled.relay.pending === false)
   recordHandoffRequest("s1", { command: "handoff", sleep: true, crank: false }, "2026-01-01T00:04:00Z", repoRoot)
   T(`${UNIT}: an ordinary handoff request never disables an active crank mode`, readRunState(repoRoot).crank === true)
+
+  for (const variant of ["successor", "unrelated prompt", "changed prompt", "unrelated run", "disabled"]) {
+    const installation = stageWithConfig(`owner-intake-${variant}`, "relay-session.mjs", realOrchestratorConfig())
+    const prompt = sleepPrompt.replace("/sleep\n", "/auto-work\n")
+    const promptPath = join(installation.base, ".claude/handoffs/NEXT.md")
+    mkdirSync(join(installation.base, ".claude/handoffs"), { recursive: true })
+    writeFileSync(promptPath, prompt)
+    const intake = { gmail: { completed: { old: { classification: "praise" } }, pending: { new: { draftId: "draft", sendAttempted: true } } },
+      play: { workflowCycle: "collection-cycle", workflowRun: 42 }, reviewReplies: { workflowCycle: "reply-cycle" } }
+    writeRunState({ sessionId: "owner-parent", sleep: false, autoWork: true, crank: false, intake }, installation.base)
+    recordHandoffRequest("owner-parent", { ...parseHandoffRequest("/handoff --sleep"), origin: "owner" }, "2026-01-01T00:00:00Z", installation.base)
+    const closed = run("relay-session.mjs", ["--close-chain"], { path: installation.path, env: { CLAUDE_CODE_SESSION_ID: "owner-parent" } })
+    T(`${UNIT}: owner handoff ${variant} prepares without an open relay chain`, closed.status === 0, closed.stderr)
+    if (variant === "changed prompt") writeFileSync(promptPath, `${prompt}\nChanged scope.\n`)
+    if (variant === "unrelated run") writeRunState({ sessionId: "another-run", sleep: true, autoWork: true }, installation.base)
+    if (variant === "disabled") writeRunState({ ...readRunState(installation.base), autoWork: false }, installation.base)
+    const adopted = handoff.adoptOwnerHandoffRun?.("owner-child", variant === "unrelated prompt" ? "/auto-work" : prompt, installation.base) ?? false
+    if (!adopted) writeRunState({ sessionId: "owner-child", sleep: true }, installation.base)
+    const successor = readRunState(installation.base)
+    if (variant === "successor") {
+      T(`${UNIT}: owner-started successor retains every intake record`, adopted && successor.sleep === true && successor.autoWork === true &&
+        successor.crank === false && JSON.stringify(successor.intake) === JSON.stringify(intake), JSON.stringify(successor))
+      writeRunState({ sessionId: "owner-child", sleep: true }, installation.base)
+      T(`${UNIT}: ordinary successor writes preserve the restored intake`, JSON.stringify(readRunState(installation.base).intake) === JSON.stringify(intake))
+      T(`${UNIT}: owner handoff cannot be adopted twice`, handoff.adoptOwnerHandoffRun?.("third-session", prompt, installation.base) === false)
+    } else T(`${UNIT}: ${variant} cannot inherit stale intake`, !adopted && successor.intake === undefined)
+  }
+
+  for (const priorChain of [false, true]) {
+    const installation = stageWithConfig(`owner-fence-${priorChain}`, "relay-session.mjs", realOrchestratorConfig())
+    const checkout = installation.base
+    const prompt = sleepPrompt.replace("/sleep\n", "/auto-work\n")
+    mkdirSync(join(checkout, ".claude/handoffs"), { recursive: true })
+    writeFileSync(join(checkout, ".claude/handoffs/NEXT.md"), prompt)
+    if (priorChain) {
+      appendChainEntry({ sessionId: "earlier-session" }, checkout)
+      confirmChainSuccessor("earlier-session", "owner-parent", "term_parent", 1, checkout)
+      closeSessionChain("owner-parent", checkout)
+    }
+    const predecessor = { sessionId: "owner-parent", sleep: false, autoWork: true,
+      intake: { gmail: { pending: { message: { sendAttempted: true } } } } }
+    writeRunState(predecessor, checkout)
+    recordHandoffRequest("owner-parent", { command: "handoff", sleep: true, origin: "owner" }, "2026-01-01T00:00:00Z", checkout)
+    T(`${UNIT}: owner fence ${priorChain} prepares`, handoff.prepareOwnerHandoffRun("owner-parent", checkout))
+    T(`${UNIT}: owner fence ${priorChain} adopts`, handoff.adoptOwnerHandoffRun("owner-child", prompt, checkout))
+    const assertFenced = (stage, successorId) => {
+      T(`${UNIT}: owner fence ${priorChain} ${stage} supersedes predecessor`, supersededSession("owner-parent", checkout)?.sessionId === successorId)
+      const successor = JSON.stringify(readRunState(checkout))
+      let failure
+      try { writeRunState({ ...predecessor, intake: {} }, checkout) } catch (error) { failure = error.message }
+      T(`${UNIT}: owner fence ${priorChain} ${stage} refuses stale write`, /superseded/.test(failure ?? ""), failure ?? "write accepted")
+      T(`${UNIT}: owner fence ${priorChain} ${stage} preserves successor and send attempt`, JSON.stringify(readRunState(checkout)) === successor)
+      if (failure === undefined) writeRunState(JSON.parse(successor), checkout)
+    }
+    assertFenced("on adoption", "owner-child")
+    writeRunState({ sessionId: "owner-child", sleep: true }, checkout)
+    assertFenced("after ordinary update", "owner-child")
+    writeRunState({ ...readRunState(checkout), sessionId: "relay-child", relay: { from: "owner-child", pending: false, successorTerminal: "term_next" } }, checkout)
+    assertFenced("after another transfer", "relay-child")
+    T(`${UNIT}: owner fence ${priorChain} keeps successor writable`, readRunState(checkout).intake.gmail.pending.message.sendAttempted === true)
+  }
 }

@@ -103,6 +103,7 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `.claude/skills/handoff/SKILL.md` | Spec-driven handoff, living work orders, in-flight inventory and session relay procedures. |
 | `.claude/skills/crank/SKILL.md` | Maximum orchestrator scheduling within existing caps and quality gates, with durable relay inheritance and an explicit disable mode. |
 | `.claude/skills/sleep/SKILL.md` | Unattended orchestrator entry, session adoption and owner reporting. |
+| `.claude/skills/auto-work/SKILL.md` | Continuous Sentry, mailbox, store-review and board intake on the canonical sleep lifecycle, with durable source marks and registered idle wakeups. |
 | `.claude/skills/wrap-up/SKILL.md` | Closes a session in one command: `/progress`, then `/questions`, then `/handoff`, with `--sleep` and `--crank` passed through to the last one. An open chain extends both reporting passes across every relay and the current session before owner handoff closes it. |
 | `.claude/skills/questions/SKILL.md` | Owner decision criteria and the procedure for unavoidable manual actions. |
 | `.claude/skills/progress/SKILL.md` | Product-level progress reporting from live delivery artifacts. |

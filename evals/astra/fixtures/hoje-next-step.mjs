@@ -25,7 +25,7 @@ export async function seedHojeNextStep(api, account, today, dailyHabit) {
       }
     }
   }
-  const { payload: exported } = await api('GET', 'profile/export')
+  const { payload: exported } = await api('GET', 'eval/snapshot')
   if (!Array.isArray(exported?.habits) || exported.habits.length !== 12
     || exported.habits.some((habit) => !Array.isArray(habit.logs)
       || (habit.id === breakfast.id

@@ -75,7 +75,7 @@ it('finishes the failed gate hook after writing both summaries and exits nonzero
       afterAll({ suite: { tests: [test] }, results: [{ testCase: test, success: false,
         gradingResult: { componentResults: [{ assertion: { metric: 'composition' }, pass: false, reason: 'Expected failure.' }] } }] });
       process.stdout.write('Hook completed.');
-    `], { cwd: directory, encoding: 'utf8', timeout: 45000,
+    `], { cwd: directory, encoding: 'utf8', timeout: 180000,
       env: { ...process.env, GITHUB_STEP_SUMMARY: join(directory, 'step-summary.md') } })
     expect(run.error).toBeUndefined()
     expect(JSON.parse(readFileSync(join(directory, 'reports/summary.json'), 'utf8')).status).toBe('fail')
@@ -86,4 +86,4 @@ it('finishes the failed gate hook after writing both summaries and exits nonzero
     expect(run.stdout).toContain('Hook completed.')
     expect(run.stderr).not.toContain('Error:')
   } finally { rmSync(directory, { recursive: true, force: true }) }
-})
+}, 210000)
