@@ -33,8 +33,11 @@ function RelatedRows() {
   return <div style={{ display: 'grid', gap: 16, padding: 16 }}>
     <PickerRow name="Picker" selected={false} disabled={false} onToggle={vi.fn()} value="Value" valueClassName="text-sm" controlClassName="orbit-list-row-body rounded-[12px] p-2" actionsClassName="flex items-center gap-2" />
     <ListRow title="Row" description="Description" onClick={vi.fn()} action={{ icon: 'trash', label: 'Delete', onPress: vi.fn() }} />
-    <HabitBlockRow title="Habit" meta="Metadata" onOpen={vi.fn()} control={<button type="button">Action</button>} />
+    <ListRow placement="column" title="Column" description="Description" onClick={vi.fn()} action={{ icon: 'trash', label: 'Delete column', onPress: vi.fn() }} />
+    <HabitBlockRow proposed title="Habit" meta="Metadata" onOpen={vi.fn()} control={<button type="button">Action</button>} />
     <CalendarSyncEventRow event={createMockCalendarSyncEvent()} weekStartDay={1} selected={false} isReviewMode suggestionId="suggestion" dismissPending={false} t={t} onToggle={vi.fn()} onDismiss={vi.fn()} />
+    <CalendarSyncEventRow event={createMockCalendarSyncEvent({ id: 'selected-event' })} weekStartDay={1} selected isReviewMode={false} suggestionId={null} dismissPending={false} t={t} onToggle={vi.fn()} onDismiss={vi.fn()} />
+    <CalendarSyncEventRow event={createMockCalendarSyncEvent({ id: 'blocked-event', isRecurring: true, recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260701T043000Z', startDate: '2026-01-01', startTime: '00:30', startUtc: '2026-01-01T05:30:00Z', recurrenceTimeZone: null })} weekStartDay={1} selected={false} isReviewMode={false} suggestionId={null} dismissPending={false} t={t} onToggle={vi.fn()} onDismiss={vi.fn()} />
   </div>
 }
 
@@ -126,7 +129,7 @@ describe('notification row targets in Chromium', () => {
         for (const control of [body!, remove!]) {
           await control.hover()
           const measured = await row.evaluate(measureNotificationFill)
-          await expect.poll(async () => (await row.evaluate(measureNotificationFill)).fill).toEqual(measured.row)
+          await expect.poll(async () => (await row.evaluate(measureNotificationFill)).fills).toEqual([measured.row])
           const colors = await row.evaluate((element) => {
             const style = getComputedStyle(element)
             const remove = element.querySelector('button:last-child')!
@@ -140,39 +143,68 @@ describe('notification row targets in Chromium', () => {
           expect(contrastOnSurface(colors.glyph, [...colors.layers, colors.actionFill])).toBeGreaterThanOrEqual(3)
           if (control === remove) expect(controlContrast(colors.glyph, colors.actionFill, colors.layers).step).toBeGreaterThanOrEqual(1.25)
           await page.mouse.down()
-          expect((await row.evaluate(measureNotificationFill)).fill).toEqual(measured.row)
+          expect((await row.evaluate(measureNotificationFill)).fills).toEqual([measured.row])
           await page.mouse.move(0, 0)
-          expect((await row.evaluate(measureNotificationFill)).fill).toEqual(measured.row)
+          expect((await row.evaluate(measureNotificationFill)).fills).toEqual([measured.row])
           await page.mouse.up()
         }
         await page.keyboard.press('Tab')
         await body!.focus()
-        expect((await row.evaluate(measureNotificationFill)).fill).toEqual((await row.evaluate(measureNotificationFill)).row)
+        await expect.poll(async () => (await row.evaluate(measureNotificationFill)).fills).toEqual([(await row.evaluate(measureNotificationFill)).row])
         await remove!.focus()
-        expect((await row.evaluate(measureNotificationFill)).fill).toEqual((await row.evaluate(measureNotificationFill)).row)
+        await expect.poll(async () => (await row.evaluate(measureNotificationFill)).fills).toEqual([(await row.evaluate(measureNotificationFill)).row])
         await remove!.evaluate((element) => element.blur())
       }
     } finally { await page.close() }
   })
 
-  it.each([320, 1352].flatMap((width) => (['light', 'dark'] as const).map((mode) => ({ width, mode }))))('fills sibling-action list surfaces at $width in $mode', async ({ width, mode }) => {
+  it.each([320, 1352].flatMap((width) => (['light', 'dark'] as const).flatMap((mode) =>
+    ['picker', 'grouped', 'column', 'habit', 'calendar', 'selected calendar'].flatMap((surface, index) =>
+      (['hover', 'press', 'focus'] as const).map((state) => ({ width, mode, surface, index, state }))))))('fills only the whole $surface row while $state at $width in $mode', async ({ width, mode, index, state }) => {
     const { container } = render(<NextIntlClientProvider locale="en" messages={en}><RelatedRows /></NextIntlClientProvider>)
     const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'reduce' })
     try {
       const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([name, value]) => `${name}:${value}`).join(';')
       await page.setContent(`<style>${stylesheet} :root { ${theme} }</style><div class="${mode}">${container.innerHTML}</div>`)
-      const rows = await page.locator('.orbit-list-row-shell, [data-habit-block-row], .orbit-list-row-column, [data-picker-row]').all()
-      expect(rows).toHaveLength(4)
-      for (const row of rows) {
-        const body = row.locator('button').first()
+      const rows = page.locator('.orbit-list-row-shell, [data-habit-block-row], .orbit-list-row-column, [data-picker-row]')
+      expect(await rows.count()).toBe(7)
+      const row = rows.nth(index)
+      const body = row.locator('button').first()
+      const resting = await row.evaluate(measureNotificationFill)
+      if (state === 'focus') {
+        await page.keyboard.press('Tab')
+        await body.focus()
+      } else {
         await body.hover()
-        await expect.poll(async () => (await row.evaluate(measureNotificationFill)).fill).toEqual((await row.evaluate(measureNotificationFill)).row)
-        await page.mouse.down()
-        expect((await row.evaluate(measureNotificationFill)).fill).toEqual((await row.evaluate(measureNotificationFill)).row)
-        await page.mouse.move(0, 0)
-        expect((await row.evaluate(measureNotificationFill)).fill).toEqual((await row.evaluate(measureNotificationFill)).row)
-        await page.mouse.up()
+        if (state === 'press') await page.mouse.down()
       }
+      await expect.poll(async () => (await row.evaluate(measureNotificationFill)).fills).toEqual([resting.row])
+      expect((await row.evaluate(measureNotificationFill)).bodyPaints).toEqual(resting.bodyPaints)
+      if (state === 'press') {
+        await page.mouse.move(0, 0)
+        expect((await row.evaluate(measureNotificationFill)).fills).toEqual([resting.row])
+      }
+    } finally { await page.mouse.up(); await page.close() }
+  })
+
+  it.each(['light', 'dark'] as const)('preserves blocked calendar fill beneath sibling feedback in %s', async (mode) => {
+    const { container } = render(<NextIntlClientProvider locale="en" messages={en}><RelatedRows /></NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width: 412, height: 915 }, reducedMotion: 'reduce' })
+    try {
+      const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([name, value]) => `${name}:${value}`).join(';')
+      await page.setContent(`<style>${stylesheet} :root { ${theme} }</style><div class="${mode}">${container.innerHTML}</div>`)
+      const row = page.locator('.orbit-list-row-column').last()
+      const body = row.locator('button').first()
+      expect(await body.isDisabled()).toBe(true)
+      const resting = await row.evaluate(measureNotificationFill)
+      expect(resting.fills).toEqual([])
+      expect(resting.bodyPaints).toHaveLength(1)
+      await body.hover()
+      expect((await row.evaluate(measureNotificationFill)).fills).toEqual([])
+      const details = row.locator('button').last()
+      await details.hover()
+      await expect.poll(async () => (await row.evaluate(measureNotificationFill)).fills).toEqual([resting.row])
+      expect((await row.evaluate(measureNotificationFill)).bodyPaints).toEqual(resting.bodyPaints)
     } finally { await page.close() }
   })
 

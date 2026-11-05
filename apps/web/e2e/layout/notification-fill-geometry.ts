@@ -19,9 +19,17 @@ export function measureNotificationFill(row: Element) {
         radius: style.borderTopLeftRadius,
       }]
     })
-  }).sort((left, right) => right.width * right.height - left.width * left.height)
+  })
+  const bodyPaints = [...row.querySelectorAll('.orbit-list-row-body, .orbit-list-row-outset, .orbit-notification-row:not(.orbit-notification-delete)')].flatMap((element) =>
+    [null, '::before', '::after'].flatMap((pseudo) => {
+      const style = getComputedStyle(element, pseudo)
+      if (pseudo && ['none', 'normal'].includes(style.content)) return []
+      if (/^(transparent|rgba\([^)]*,\s*0\))$/.test(style.backgroundColor) && style.backgroundImage === 'none') return []
+      return [{ background: style.backgroundColor, image: style.backgroundImage, pseudo }]
+    }))
   return {
     row: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height, radius: getComputedStyle(row).borderTopLeftRadius },
-    fill: paints[0] ?? null,
+    fills: paints,
+    bodyPaints,
   }
 }

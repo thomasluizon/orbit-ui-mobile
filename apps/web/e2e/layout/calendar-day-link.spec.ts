@@ -12,6 +12,7 @@ import { expectCalendarDayLinkFocus } from './calendar-day-link-focus'
 import { expectFillShape, expectInteractionFill } from './label-interaction-fill'
 import { setLayoutProfileSession } from './profile-session'
 import { readControlPaint } from './control-paint'
+import { measureNotificationFill } from './notification-fill-geometry'
 import { test } from './upgrade-fixtures'
 
 const selectedDate = '2026-09-04'
@@ -51,9 +52,9 @@ async function expectTouchPressFill(control: Locator, separateBody?: Locator) {
     await expect(control).not.toHaveAttribute('data-test-touch-held')
     await session.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: ['active'] })
     await expect.poll(async () => {
-      const expected = await control.evaluate(() => {
+      const expected = await control.evaluate((element) => {
       const probe = document.createElement('span')
-      probe.style.background = 'var(--bg-hover)'
+      probe.style.background = element.matches('.orbit-list-row-action') ? 'var(--bg-row-action)' : 'var(--bg-hover)'
       probe.style.position = 'fixed'
       probe.style.pointerEvents = 'none'
       document.body.append(probe)
@@ -62,9 +63,14 @@ async function expectTouchPressFill(control: Locator, separateBody?: Locator) {
       return color
       })
       return (await control.evaluate(readControlPaint)).background === expected
-    }, { message: 'touch press paints --bg-hover without hover media support' }).toBe(true)
+    }, { message: 'touch press paints its feedback token without hover media support' }).toBe(true)
     await expectFillShape(control, 'touch press')
-    if (separateBody) await expect(separateBody).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+    if (separateBody) {
+      await expect(separateBody).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+      const measured = await control.locator('..').evaluate(measureNotificationFill)
+      expect(measured.fills).toEqual([measured.row])
+      expect(measured.bodyPaints).toEqual([])
+    }
   } finally {
     await session.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: [] })
     await session.detach()

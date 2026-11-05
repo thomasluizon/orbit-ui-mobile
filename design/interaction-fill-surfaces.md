@@ -247,6 +247,13 @@ PickerRow covers linked habits, goals and tags, plus contextual picker controls 
 Astra HabitBlockRow covers answer options, habit lists, day summaries, rankings and period insights.
 Their body feedback includes the supplied trailing control or metric.
 
+Full-row feedback is the sole interaction overlay. Legacy body backgrounds, body pseudo-elements
+and column outset layers do not add hover, press or focus paint beneath it. Calendar selection
+and blocked-event fills retain their resting colors while the full row owns feedback. The keyboard focus
+perimeter belongs to the whole row, and web focus scrolling reveals that complete perimeter.
+Geometry coverage compares every hover-colored paint with the row box and rejects additional
+body paint in grouped lists, column lists, pickers, habit blocks and calendar import rows.
+
 The main HabitRow already replaces the complete row surface and retains independent completion,
 disclosure and overflow feedback. EventRow has either one complete body control or static text
 with a trailing action in its current consumers. Personal CheckRow retains its distinct disclosure

@@ -19,6 +19,7 @@ import { DestinationIcon } from '@/components/navigation/destination-icon'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { inspectInteractionFill } from '@/e2e/layout/interaction-fill-geometry'
+import { measureNotificationFill } from '@/e2e/layout/notification-fill-geometry'
 import { readControlHitArea } from '@/test-support/control-hit-area'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -30,7 +31,8 @@ const cases = [320, 412, 600, 1024, 1352].flatMap((width) => (['en', 'pt-BR'] as
 const composerValues = { composer: 'Message', composerPaste: '' }
 
 function focusIndicators(element: Element) {
-  return [element, ...element.querySelectorAll('*')].flatMap((owner) =>
+  const surface = element.matches('.orbit-list-row-body') ? element.closest('.orbit-list-action-surface') ?? element : element
+  return [surface, ...surface.querySelectorAll('*')].flatMap((owner) =>
     [null, '::before', '::after'].filter((pseudo) => {
       const style = getComputedStyle(owner, pseudo)
       return (!pseudo || !['none', 'normal'].includes(style.content)) && style.outlineStyle !== 'none' && parseFloat(style.outlineWidth) > 0
@@ -44,6 +46,21 @@ async function reachState(page: Page, control: Locator, state: 'hover' | 'press'
   } else {
     await control.hover()
     if (state === 'press') await page.mouse.down()
+  }
+}
+
+async function expectRowFill(control: Locator, result: ReturnType<typeof inspectInteractionFill>, target: { x: number; y: number; width: number; height: number }, forcedColors: string) {
+  if (!await control.evaluate((element) => element.classList.contains('orbit-list-row-body'))) return
+  expect(result.hasFill, result.control).toBe(true)
+  const wholeRow = await control.evaluate((element) => !!element.closest('.orbit-list-action-surface'))
+  if (wholeRow) {
+    const measured = await control.locator('..').evaluate(measureNotificationFill)
+    if (forcedColors === 'none') expect(measured.fills).toEqual([measured.row])
+    expect(measured.bodyPaints).toEqual([])
+    const row = await control.locator('..').boundingBox()
+    expect(result.fill).toEqual({ left: row!.x, right: row!.x + row!.width, top: row!.y, bottom: row!.y + row!.height })
+  } else {
+    for (const gap of [result.fill.left - target.x, target.x + target.width - result.fill.right, result.fill.top - target.y, target.y + target.height - result.fill.bottom]) expect(gap).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
   }
 }
 
@@ -173,10 +190,7 @@ describe('shared interaction fill owners in Chromium', () => {
         await control.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())))
         const result = await control.evaluate(inspectInteractionFill, INTERACTION_FILL_CLEARANCE)
         expect(result.violations, result.control).toEqual([])
-        if (surface === 'rows' && await control.evaluate((element) => element.classList.contains('orbit-list-row-body'))) {
-          expect(result.hasFill, result.control).toBe(true)
-          for (const gap of [result.fill.left - target.x, target.x + target.width - result.fill.right, result.fill.top - target.y, target.y + target.height - result.fill.bottom]) expect(gap).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
-        }
+        if (surface === 'rows') await expectRowFill(control, result, target, forcedColors)
         if (state === 'focus') {
           expect(await control.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
           const indicators = await control.evaluate(focusIndicators)

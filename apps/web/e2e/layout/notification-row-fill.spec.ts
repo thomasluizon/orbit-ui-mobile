@@ -26,12 +26,13 @@ for (const mode of ['light', 'dark'] as const) {
             await control.hover()
             await expect.poll(async () => {
               const measured = await row.evaluate(measureNotificationFill)
-              return measured.fill
-            }).toEqual((await row.evaluate(measureNotificationFill)).row)
+              expect(measured.bodyPaints).toEqual([])
+              return measured.fills
+            }).toEqual([(await row.evaluate(measureNotificationFill)).row])
             await page.mouse.down()
-            expect((await row.evaluate(measureNotificationFill)).fill).toEqual((await row.evaluate(measureNotificationFill)).row)
+            expect((await row.evaluate(measureNotificationFill)).fills).toEqual([(await row.evaluate(measureNotificationFill)).row])
             await page.mouse.move(0, 0)
-            expect((await row.evaluate(measureNotificationFill)).fill).toEqual((await row.evaluate(measureNotificationFill)).row)
+            expect((await row.evaluate(measureNotificationFill)).fills).toEqual([(await row.evaluate(measureNotificationFill)).row])
             await page.mouse.up()
           }
         }
