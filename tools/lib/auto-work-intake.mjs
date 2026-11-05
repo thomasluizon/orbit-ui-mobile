@@ -1,5 +1,17 @@
 import { readRunState, writeRunState, REPO_ROOT } from "./run-state.mjs"
 
+const carryingTicket = (ticket) => /^https:\/\/github\.com\/thomasluizon\/orbit-tickets\/issues\/\d+$/.test(ticket ?? "")
+
+/** Semantic classification belongs to the skill; every send boundary enforces this allowlist. */
+export const replyDisposition = (receipt) => {
+  if (receipt?.person === false) return "none"
+  if (receipt?.person !== true || receipt.clear !== true || !Array.isArray(receipt.concerns) || receipt.concerns.length) return "draft"
+  if (receipt.classification === "praise" && receipt.replyKind === "thanks") return "send"
+  if (receipt.classification === "bug" && receipt.replyKind === "known bug" && carryingTicket(receipt.ticket)) return "send"
+  if (receipt.classification === "question" && receipt.replyKind === "supported how-to" && typeof receipt.evidence === "string" && receipt.evidence.trim()) return "send"
+  return "draft"
+}
+
 export const intakeRun = (repoRoot = REPO_ROOT) => {
   const state = readRunState(repoRoot)
   if (!state?.sessionId || !state.sleep || !state.autoWork ||
@@ -23,12 +35,14 @@ export const acknowledgeIntake = (source, receipt, repoRoot = REPO_ROOT) => {
   const item = current.pending[receipt?.id]
   if (!item) throw new Error("No pending item matches the receipt")
   if (!["bug", "feature request", "question", "billing", "praise", "spam", "noise"].includes(receipt.classification)) throw new Error("Unknown intake classification")
-  if (["bug", "feature request"].includes(receipt.classification) && !/^https:\/\/github\.com\/thomasluizon\/orbit-tickets\/issues\/\d+$/.test(receipt.ticket ?? "")) throw new Error("A bug or request needs its carrying ticket")
+  if (["bug", "feature request"].includes(receipt.classification) && !carryingTicket(receipt.ticket)) throw new Error("A bug or request needs its carrying ticket")
   if (typeof receipt.person !== "boolean") throw new Error("Classify whether a person needs a reply")
-  if (receipt.person && source === "gmail" && !item.draftId) throw new Error("Create the Gmail reply draft before acknowledging")
+  if (receipt.person && source === "gmail" && !item.draftId && !item.sentId) throw new Error("Save the Gmail reply before acknowledging")
+  if (receipt.person && replyDisposition(receipt) === "send" && !(source === "gmail" ? item.sentId : item.replyPosted)) throw new Error("Confirm the simple reply was sent before acknowledging")
   if (receipt.person && source !== "gmail" && (typeof receipt.reply !== "string" || !receipt.reply.trim())) throw new Error("Save the review reply in the receipt")
   const pending = { ...current.pending }
   delete pending[receipt.id]
   return saveIntakeSource(source, { ...current, pending,
-    completed: { ...current.completed, [receipt.id]: { ...receipt, ...(item.draftId ? { draftId: item.draftId } : {}), completedAt: new Date().toISOString() } } }, repoRoot)
+    completed: { ...current.completed, [receipt.id]: { ...receipt, ...(item.draftId ? { draftId: item.draftId } : {}),
+      ...(item.sentId ? { sentId: item.sentId } : {}), ...(item.replyPosted ? { replyPosted: item.replyPosted } : {}), completedAt: new Date().toISOString() } } }, repoRoot)
 }

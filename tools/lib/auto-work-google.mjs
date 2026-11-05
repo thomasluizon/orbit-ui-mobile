@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process"
+import { replyDisposition } from "./auto-work-intake.mjs"
 
 export const MAILBOX = "contact@useorbit.org"
 export const GMAIL_SCOPES = ["https://www.googleapis.com/auth/gmail.readonly", "https://www.googleapis.com/auth/gmail.compose"]
@@ -35,11 +36,11 @@ export const googleToken = async (parameters, request = fetch) => {
   return token
 }
 
-/** Only these Gmail reads and draft creation can reach the network. */
+/** Sending an existing draft requires a clear, authorized disposition. */
 export const gmailClient = (accessToken, request = fetch) => {
   const call = async (method, path, parameters = {}, body) => {
-    const allowed = method === "GET" && /^(profile|messages|messages\/[^/?]+|drafts)$/.test(path) || method === "POST" && path === "drafts"
-    if (!allowed) throw new Error("Gmail operation is outside the draft-only client")
+    const allowed = method === "GET" && /^(profile|messages|messages\/[^/?]+|drafts)$/.test(path) || method === "POST" && ["drafts", "drafts/send"].includes(path)
+    if (!allowed) throw new Error("Gmail operation is outside the reply client")
     const url = new URL(`https://gmail.googleapis.com/gmail/v1/users/${MAILBOX}/${path}`)
     url.search = new URLSearchParams(parameters).toString()
     const response = await request(url, { method, headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
@@ -53,6 +54,10 @@ export const gmailClient = (accessToken, request = fetch) => {
     read: (id) => call("GET", `messages/${encodeURIComponent(id)}`, { format: "full" }),
     listDrafts: (parameters) => call("GET", "drafts", parameters),
     createDraft: (message) => call("POST", "drafts", {}, { message }),
+    sendDraft: (id, receipt) => {
+      if (replyDisposition(receipt) !== "send") throw new Error("This reply must remain a draft for the owner")
+      return call("POST", "drafts/send", {}, { id })
+    },
   })
 }
 

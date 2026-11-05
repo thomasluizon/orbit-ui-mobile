@@ -1,23 +1,27 @@
 #!/usr/bin/env node
 import { pathToFileURL } from "node:url"
 import { authenticatedGmail, MAILBOX } from "./lib/auto-work-google.mjs"
-import { acknowledgeIntake, intakeSource, saveIntakeSource } from "./lib/auto-work-intake.mjs"
+import { acknowledgeIntake, intakeSource, replyDisposition, saveIntakeSource } from "./lib/auto-work-intake.mjs"
 import { REPO_ROOT } from "./lib/run-state.mjs"
 
-const USAGE = `usage: orbit-mail.mjs <--collect | --draft | --ack>
-Read the Orbit mailbox or create a reply draft. There is no send operation.
+const USAGE = `usage: orbit-mail.mjs <--collect | --draft | --reply | --ack>
+Read the Orbit mailbox, draft replies or send clear replies under the auto-work policy.
 --collect paginates all received mail, including spam and trash, then reads only unseen ids.
 Pending messages are cached in run state; completed message ids are the durable high-water mark.
 --draft stdin JSON: {id, text}; replies to that pending message using its headers and thread.
+--reply stdin JSON: {id, text, classification, person, clear, concerns, replyKind, ticket?, evidence?}.
+Only clear thanks, ticketed known bugs and verified supported how-to replies can send.
+Billing, refunds, complaints, account, data and unclear cases remain drafts.
 --ack stdin JSON: {id, classification, person, ticket?}; bugs and feature requests need a ticket URL.
 A person needs a saved reply draft before acknowledgement. Classifications: bug, feature request,
-question, billing, praise, spam, noise. Outputs pending messages, draft id or acknowledged id.
+question, billing, praise, spam, noise. Outputs pending messages, reply ids or acknowledged id.
 Tokens remain in Keychain and memory. No secret stdin or argv is accepted.
 --help, -h print usage
 exit codes: 0 success; 1 API, state or receipt failure; 2 invalid arguments or stdin`
 
 export const mailHeader = (message, name) => message.payload?.headers?.find((header) => header.name.toLowerCase() === name.toLowerCase())?.value ?? ""
 const cleanHeader = (value) => value.replace(/[\r\n]+[ \t]+/g, " ")
+const replyMarker = (id) => `<auto-work.${Buffer.from(id).toString("hex")}@useorbit.org>`
 const messageBodies = (part) => [part?.body?.data ? { mimeType: part.mimeType, text: Buffer.from(part.body.data, "base64url").toString("utf8") } : null,
   ...(part?.parts ?? []).flatMap(messageBodies)].filter(Boolean)
 
@@ -46,7 +50,7 @@ export const draftReply = async (client, { id, text }, repoRoot = REPO_ROOT) => 
   const item = current.pending[id]
   if (!item || typeof text !== "string" || !text.trim()) throw new Error("A pending message and reply text are required")
   if (item.draftId) return item.draftId
-  const marker = `<auto-work.${Buffer.from(id).toString("hex")}@useorbit.org>`
+  const marker = replyMarker(id)
   const existing = await client.listDrafts({ q: `rfc822msgid:${marker.slice(1, -1)}`, maxResults: "1" })
   let draftId = existing.drafts?.[0]?.id
   if (!draftId) {
@@ -64,10 +68,34 @@ export const draftReply = async (client, { id, text }, repoRoot = REPO_ROOT) => 
   return draftId
 }
 
+export const replyToMail = async (client, receipt, repoRoot = REPO_ROOT) => {
+  let current = intakeSource("gmail", repoRoot)
+  let item = current.pending[receipt.id]
+  if (!item) throw new Error("A pending message is required")
+  const disposition = replyDisposition(receipt)
+  if (disposition === "none") return { disposition }
+  if (item.sentId) return { disposition: "sent", sentId: item.sentId }
+  if (disposition === "draft") return { disposition, draftId: await draftReply(client, receipt, repoRoot) }
+  const sent = await client.list({ q: `in:sent rfc822msgid:${replyMarker(receipt.id).slice(1, -1)}`, maxResults: "1" })
+  let sentId = sent.messages?.[0]?.id
+  if (!sentId) {
+    if (item.sendAttempted) throw new Error("Previous send is unconfirmed; retain the item for owner review instead of sending twice")
+    const draftId = await draftReply(client, receipt, repoRoot)
+    current = intakeSource("gmail", repoRoot)
+    item = current.pending[receipt.id]
+    saveIntakeSource("gmail", { ...current, pending: { ...current.pending, [receipt.id]: { ...item, sendAttempted: true, replyReceipt: receipt } } }, repoRoot)
+    sentId = (await client.sendDraft(draftId, receipt)).id
+  }
+  if (typeof sentId !== "string" || !sentId) throw new Error("Gmail did not confirm the sent message")
+  current = intakeSource("gmail", repoRoot)
+  saveIntakeSource("gmail", { ...current, pending: { ...current.pending, [receipt.id]: { ...current.pending[receipt.id], sentId } } }, repoRoot)
+  return { disposition: "sent", sentId }
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const args = process.argv.slice(2)
   if (args.includes("--help") || args.includes("-h")) { console.log(USAGE); process.exit(0) }
-  if (args.length !== 1 || !["--collect", "--draft", "--ack"].includes(args[0])) { console.error(USAGE); process.exit(2) }
+  if (args.length !== 1 || !["--collect", "--draft", "--reply", "--ack"].includes(args[0])) { console.error(USAGE); process.exit(2) }
   let input
   if (args[0] !== "--collect") {
     try { let body = ""; for await (const chunk of process.stdin) body += chunk; input = JSON.parse(body) } catch { console.error("Expected JSON on stdin"); process.exit(2) }
@@ -77,7 +105,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     else {
       intakeSource("gmail")
       const client = await authenticatedGmail()
-      console.log(JSON.stringify(args[0] === "--collect" ? await collectMail(client) : { draftId: await draftReply(client, input) }))
+      console.log(JSON.stringify(args[0] === "--collect" ? await collectMail(client) : args[0] === "--reply" ? await replyToMail(client, input) : { draftId: await draftReply(client, input) }))
     }
   } catch (error) { console.error(error.message); process.exit(1) }
 }

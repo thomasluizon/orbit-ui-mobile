@@ -30,7 +30,7 @@ export const cases = async () => {
   const client = await authenticatedGmail({ read: () => credential, store: (value) => { rotated = value }, request })
   T("google: refresh uses the token endpoint and persists rotation", network[0].url === "https://oauth2.googleapis.com/token" &&
     network[0].options.body.get("refresh_token") === "refresh" && rotated.refresh_token === "rotated")
-  T("google: public client exposes only read and draft operations", Object.keys(client).sort().join(",") === "createDraft,list,listDrafts,profile,read")
+  T("google: public client exposes reads, drafts and a guarded send", Object.keys(client).sort().join(",") === "createDraft,list,listDrafts,profile,read,sendDraft")
   await client.list({ maxResults: "500" }); await client.read("message-1"); await client.listDrafts({ q: "rfc822msgid:test" }); await client.createDraft({ raw: "body" })
   T("google: every reachable Gmail write creates a draft, never sends", network.slice(1).every(({ url, options }) =>
     !/\/(messages|drafts)\/send(?:\?|$)/.test(url) && (options.method === "GET" || options.method === "POST" && new URL(url).pathname.endsWith("/drafts"))))
@@ -50,8 +50,10 @@ export const cases = async () => {
     request: async (url) => Response.json(String(url).includes("/profile") ? { emailAddress: MAILBOX } : { access_token: "access", refresh_token: 42 }) }) } catch { invalidRotationRefused = true }
   T("google: an invalid token rotation cannot overwrite Keychain", invalidRotationRefused && !invalidRotationStored)
   const isolated = gmailClient("token", async () => Response.json({}))
-  T("google: sending cannot be selected through the client", isolated.send === undefined && isolated.messages === undefined && isolated.drafts === undefined)
-  for (const relative of ["../lib/auto-work-google.mjs", "../orbit-mail.mjs", "../authorize-orbit-mail.mjs"]) {
-    T(`google: ${relative} contains no Gmail send call`, !/(?:messages|drafts)(?:\.|\/)send\b/.test(readFileSync(new URL(relative, import.meta.url), "utf8")))
-  }
+  let refused = false
+  try { await isolated.sendDraft("draft", { person: true, classification: "billing" }) } catch { refused = true }
+  T("google: unsafe sends are refused before the network", refused)
+  const simple = { person: true, classification: "praise", replyKind: "thanks", clear: true, concerns: [] }
+  await client.sendDraft("draft", simple)
+  T("google: an authorized send uses the discovered draft send endpoint", network.at(-1).url.endsWith("/drafts/send") && JSON.parse(network.at(-1).options.body).id === "draft")
 }

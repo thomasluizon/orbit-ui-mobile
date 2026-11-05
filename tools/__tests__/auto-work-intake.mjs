@@ -3,8 +3,22 @@ import { join } from "node:path"
 import { acknowledgeIntake, intakeSource, saveIntakeSource } from "../lib/auto-work-intake.mjs"
 import { readRunState, writeRunState } from "../lib/run-state.mjs"
 import { T, root } from "./_harness.mjs"
+import * as intake from "../lib/auto-work-intake.mjs"
 
 export const cases = () => {
+  const simple = { person: true, clear: true, concerns: [], classification: "praise", replyKind: "thanks" }
+  for (const receipt of [simple,
+    { ...simple, classification: "bug", replyKind: "known bug", ticket: "https://github.com/thomasluizon/orbit-tickets/issues/1" },
+    { ...simple, classification: "question", replyKind: "supported how-to", evidence: "FEATURES.md" }]) {
+    T("intake: clear authorized replies are sent", intake.replyDisposition?.(receipt) === "send")
+  }
+  for (const receipt of [
+    ...["billing", "feature request", "spam", "noise", "unknown"].map((classification) => ({ ...simple, classification })),
+    ...["billing", "refund", "complaint", "account", "data", "unclear"].map((concern) => ({ ...simple, concerns: [concern] })),
+    { ...simple, clear: false }, { ...simple, concerns: undefined }, { ...simple, replyKind: "unclear" },
+    { ...simple, classification: "bug", replyKind: "known bug" },
+    { ...simple, classification: "question", replyKind: "supported how-to" },
+  ]) T("intake: every other reply remains a draft", intake.replyDisposition?.(receipt) === "draft")
   const checkout = join(root, "intake")
   mkdirSync(join(checkout, ".git"), { recursive: true })
   writeRunState({ sessionId: "parent", sleep: true, autoWork: true }, checkout)
