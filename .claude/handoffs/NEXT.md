@@ -26,12 +26,12 @@ Finish the spec: an empty board except `#33`, `#1560`, `#1563` and `#1861`, with
 
 ## In flight
 
-UI `main` `117bb6d68` (`ui#2339` flakes and `ui#2327` `#2000` merged after the web release), API `main` `0645f0692`, landing `main` `2ee5b1f`. Production and staging web `28bd8accc`; production and staging API `f84ab32cf` (the production env group holds the 0.50 eval ceiling since a targeted apply; the next API release applies it); Android Open 1.3.143 (203) dispatched from `28bd8accc` (run 42077921045). Sentry unresolved: `ORBIT-MOBILE-P`, `ORBIT-WEB-1B`, `ORBIT-WEB-1C`. No worker is running.
+UI `main` `117bb6d68` (`ui#2339` flakes and `ui#2327` `#2000` merged after the web release), API `main` `0645f0692`, landing `main` `2ee5b1f`. Production and staging web `28bd8accc`; production and staging API `f84ab32cf` (the production env group holds the 0.50 eval ceiling since a targeted apply; the next API release applies it); Android Open 1.3.143 (203) from `28bd8accc` FAILED the boot gate (run 42077921045). Sentry unresolved: `ORBIT-MOBILE-P`, `ORBIT-WEB-1B`, `ORBIT-WEB-1C`. No worker is running.
 
 | Item | Disposition |
 | --- | --- |
 | `#2036` (owner order, live defect) | Astra fails on his cinema ticket screenshot plus "cria pra mim": production logged `TaskCanceledException`, not retried, at 16:10:52 UTC. Launch a deep worker FIRST: reproduce red, fix the cause, the create preview with date 7 Nov 21:15, test, API release. |
-| Android Open 1.3.143 | Run 42077921045 (`--workflow android`). On success close `#1994` and `#1999`. |
+| Android Open 1.3.143 | Run 42077921045 FAILED in the boot gate ("Require the shipping AAB to reach its first screen": "signed-out first screen did not render within 90 seconds"); nothing reached Play. Diagnose from the run artifacts and logcat before any rerun (a boot regression on `28bd8accc` or a slow runner); fix at the cause; then release Open from `main` (1.3.143, 203 is unused on Play) and close `#1994` and `#1999`. |
 | `ui#2338` (`#2029`) | Round 2 committed, NOT pushed, in worktree `ticket-2029-claude-workers`: `b11129723` (merge of `main`) and `568192c23` (22 files). Read the `568192c23` diff, build the body from the newest `#2029` worker log in the launcher log directory, resolve `PRRT_kwDOR5Siws60IqD7`, merge-tree check, push; CI, fresh review, merge, then `git checkout -- .claude/orchestrator.json` in the relay checkout. |
 | `ui#2332` (`#2005`) | CI fix round 6 committed, NOT pushed: `58feb24b5` (test file split for the 260 s budget). Read, body, push; CI, fresh approval, the `/second-opinion` copy approval of `shell.astraButton.*`, merge. |
 | `orbit-api#1083` (`#2031`) | Round 1 hit its 45 minute ceiling after committing `0945fcbce` (NOT pushed, worktree `ticket-2031-month-days`). Salvage: read it, `dotnet build`, `dotnet test`, report from the worker log, resolve `PRRT_kwDORKgXhc60I6O_`, push; then CI, review, merge, fresh Render export, staging then production API; then `#2032`. |
@@ -49,7 +49,7 @@ Inventory: open pull requests ui `#1989` (relay docs, carries this file), `#2331
 ## Then, in this order
 
 1. Answer any owner message first, in his language, and give each order a ticket or a rescope before the turn ends. A status question gets the status only.
-2. Re-arm `wait-ci` on `orbit-api#1086`; `wait-release` on Android run 42077921045.
+2. Re-arm `wait-ci` on `orbit-api#1086`; diagnose the Android boot gate failure (run 42077921045).
 3. Push the three carried rounds (`ui#2338`, `ui#2332`, `orbit-api#1083`) after reading each diff; launch the `#1996` fix round.
 4. Merge each pull request the moment it meets the bar (explicit clean `--subject` and `--body`); release (web staging then production; one Android Open release batching the merged Android fixes; the API release of `main` after `orbit-api#1086`, never with a production web release).
 5. `#2035` drift; `#2030` signed-in reproduction; `#1561` App Store Connect; `#2001` and `#2002`; `#2032` after `#2031`; the gate fix rounds; then the rest of `## The order`, with the auto-work cycle on an empty queue.
