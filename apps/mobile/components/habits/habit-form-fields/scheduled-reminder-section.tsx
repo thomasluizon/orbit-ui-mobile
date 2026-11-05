@@ -124,7 +124,7 @@ export function ScheduledReminderSection({
                     {scheduledReminderLabel(sr)}
                   </Text>
                   <Pressable disabled={disabled}
-                    style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, minWidth: TOUCH_TARGET_MIN, flexShrink: 0, borderRadius: 999, backgroundColor: pressed ? tokens.bgHover : undefined, alignItems: 'center', justifyContent: 'center', transform: [{ scale: pressed ? 0.96 : 1 }] })}
+                    style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, minWidth: TOUCH_TARGET_MIN, flexShrink: 0, borderRadius: 999, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : undefined, alignItems: 'center', justifyContent: 'center', transform: [{ scale: pressed ? 0.96 : 1 }] })}
                     accessibilityRole="button"
                     accessibilityLabel={t("habits.form.removeScheduledReminder")}
                     onPress={() => removeScheduledReminder(idx)}
