@@ -26,7 +26,7 @@ Finish the spec: an empty board except `#33`, `#1560`, `#1563` and `#1861`, with
 
 ## In flight
 
-UI `main` `28bd8accc`, API `main` `0645f0692`, landing `main` `2ee5b1f`. Production and staging web `28bd8accc`; production and staging API `f84ab32cf` (the production env group holds the 0.50 eval ceiling since a targeted apply; the next API release applies it); Android Open 1.3.143 (203) dispatched from `28bd8accc` (run 42077921045). Sentry unresolved: `ORBIT-MOBILE-P`, `ORBIT-WEB-1B`, `ORBIT-WEB-1C`. No worker is running.
+UI `main` `117bb6d68` (`ui#2339` flakes and `ui#2327` `#2000` merged after the web release), API `main` `0645f0692`, landing `main` `2ee5b1f`. Production and staging web `28bd8accc`; production and staging API `f84ab32cf` (the production env group holds the 0.50 eval ceiling since a targeted apply; the next API release applies it); Android Open 1.3.143 (203) dispatched from `28bd8accc` (run 42077921045). Sentry unresolved: `ORBIT-MOBILE-P`, `ORBIT-WEB-1B`, `ORBIT-WEB-1C`. No worker is running.
 
 | Item | Disposition |
 | --- | --- |
@@ -35,24 +35,23 @@ UI `main` `28bd8accc`, API `main` `0645f0692`, landing `main` `2ee5b1f`. Product
 | `ui#2332` (`#2005`) | CI fix round 6 committed, NOT pushed: `58feb24b5` (test file split for the 260 s budget). Read, body, push; CI, fresh approval, the `/second-opinion` copy approval of `shell.astraButton.*`, merge. |
 | `orbit-api#1083` (`#2031`) | Round 1 hit its 45 minute ceiling after committing `0945fcbce` (NOT pushed, worktree `ticket-2031-month-days`). Salvage: read it, `dotnet build`, `dotnet test`, report from the worker log, resolve `PRRT_kwDORKgXhc60I6O_`, push; then CI, review, merge, fresh Render export, staging then production API; then `#2032`. |
 | `orbit-api#1086` (`#2003`) | Opened by round 3, diff NOT read, `wait-ci` armed. Read the diff and the body's numbers, CI, review, merge; then one API release of `main` (staging, then production; never alongside a production web release; it also applies the 0.50 ceiling); 24-hour watch; close. |
-| `ui#2339` (`#315`) | Three CI timing flake fixes, diff NOT read, `wait-ci` armed. Read, CI, review, merge. |
 | `orbit-api#1085` (`#2035`) | Pullfrog COMMENTED: the monitor's plan step exits 0; the job fails in `check-production-plan.mjs` on guarded drift. Read run 42073522324 (dispatched after the 0.50 restore), fix what drift remains at its source, keep or close `#1085` on that evidence. |
-| `ui#2327` (`#2000`) | Timing reds in untouched files rerun once (run 42062363350); `wait-ci` armed. Green CI, fresh approval, merge; then `#2001` and `#2002`. |
+| `#2000` | Merged as `ui#2327` (`117bb6d68`). Web staging then production release of `main` (it also carries `ui#2339`), Android Open; close. Launch `#2001` and `#2002` now. |
 | `#2030` update sheet | Throwaway AVD `orbit-repro-2030` runs as `emulator-5590` (DNS 8.8.8.8). Built APK `repro-2030-staging.apk` (staging API, 1.3.142, public client variables) in the predecessor scratchpad; helpers `repro-2030-signin.sh`, `tap-node.sh`, `repro-2030-variant.sh`, `repro-2030-read.sh`, `build-repro-2030-staging.sh` there. Signed-in run blocked at the staging code send ("O código não foi enviado"); read the staging API log for its cause. The worktree `ticket-2030-update-sheet-actions` still holds the UNCOMMITTED temporary switch (3 files). Findings are on the spec's `#2030` bullet. |
 | `#1996` | Auto-work enabled (`autoWork: true`). Collect fails on Gmail's per-minute quota (403 `rateLimitExceeded`); launch the fix round, then the live collect and the first full auto-work cycle; close. |
 | `#1561` | App Store Connect setup in the owner's signed-in Chrome through `claude-in-chrome` (app records, API key and `.p8`, products, Services ID and keys, API configuration, `APPLE_TEAM_ID`, TestFlight). |
 | `#2034` | The attribution `Guards` step in `orbit-api` and `orbit-landing-page` (port `tools/check-attribution.mjs` from `ui#2338` once it merges) and the first Claude review log. |
 | Gate (`#315`) | Verdict FAIL (155 pass, 32 fail, 18 incomplete): fix rounds offline with `node evals/astra/replay.mjs`. |
 
-Inventory: open pull requests ui `#1989` (relay docs, carries this file), `#2327`, `#2331`, `#2332`, `#2338`, `#2339`; api `#1083`, `#1085`, `#1086`; landing none. Unpushed commits: `ui#2338` (2), `ui#2332` (1), `orbit-api#1083` (1). Uncommitted: the `#2030` switch (3 files) and the relay checkout's transient `.claude/orchestrator.json`. Stashes: none. Running workers: none. Waiting on the owner: nothing.
+Inventory: open pull requests ui `#1989` (relay docs, carries this file), `#2331`, `#2332`, `#2338`; api `#1083`, `#1085`, `#1086`; landing none. Unpushed commits: `ui#2338` (2), `ui#2332` (1), `orbit-api#1083` (1). Uncommitted: the `#2030` switch (3 files) and the relay checkout's transient `.claude/orchestrator.json`. Stashes: none. Running workers: none. Waiting on the owner: nothing.
 
 ## Then, in this order
 
 1. Answer any owner message first, in his language, and give each order a ticket or a rescope before the turn ends. A status question gets the status only.
-2. Re-arm `wait-ci` on `ui#2327`, `ui#2339`, `orbit-api#1086`; `wait-release` on Android run 42077921045.
+2. Re-arm `wait-ci` on `orbit-api#1086`; `wait-release` on Android run 42077921045.
 3. Push the three carried rounds (`ui#2338`, `ui#2332`, `orbit-api#1083`) after reading each diff; launch the `#1996` fix round.
 4. Merge each pull request the moment it meets the bar (explicit clean `--subject` and `--body`); release (web staging then production; one Android Open release batching the merged Android fixes; the API release of `main` after `orbit-api#1086`, never with a production web release).
-5. `#2035` drift; `#2030` signed-in reproduction; `#1561` App Store Connect; `#2001` and `#2002` after `#2000`; `#2032` after `#2031`; the gate fix rounds; then the rest of `## The order`, with the auto-work cycle on an empty queue.
+5. `#2035` drift; `#2030` signed-in reproduction; `#1561` App Store Connect; `#2001` and `#2002`; `#2032` after `#2031`; the gate fix rounds; then the rest of `## The order`, with the auto-work cycle on an empty queue.
 
 ## Crank
 
