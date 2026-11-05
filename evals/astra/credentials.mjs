@@ -6,6 +6,25 @@ const readiness = new Map()
 const credentialHistory = new Set()
 const refreshes = new Map()
 const refreshQueues = new Map()
+const refreshBackoffMilliseconds = [250, 500]
+
+class TransientRefreshError extends Error {}
+
+async function requestRefresh(url, options) {
+  for (let attempt = 0; ; attempt++) {
+    let response
+    let failure
+    try { response = await fetch(url, { ...options, signal: AbortSignal.timeout(120000) }) } catch {
+      failure = 'Refresh transport failed'
+    }
+    if (response && ![502, 503, 504].includes(response.status)) return response
+    failure ??= `Refresh rejected with HTTP ${response.status}`
+    if (attempt === refreshBackoffMilliseconds.length) {
+      throw new TransientRefreshError(`${failure} after ${attempt + 1} attempts; a later case may retry.`)
+    }
+    await new Promise((resolve) => setTimeout(resolve, refreshBackoffMilliseconds[attempt]))
+  }
+}
 
 async function waitForHealthyApi(origin) {
   const deadline = Date.now() + 180000
@@ -133,14 +152,15 @@ async function rotateCredential(key) {
       const refreshUrl = `${apiOrigin()}/api/auth/refresh`
       const refreshOptions = {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'api-version': '2.0' },
-        body: JSON.stringify({ refreshToken: account.refreshToken }), redirect: 'error', signal: AbortSignal.timeout(120000),
+        body: JSON.stringify({ refreshToken: account.refreshToken }), redirect: 'error',
       }
       writeFileSync(`${path}.refresh-failed`, '', { mode: 0o600, flag: 'wx' })
       let response
       try {
-        response = await fetch(refreshUrl, refreshOptions)
-      } catch {
-        throw new Error('Refresh transport failed; recover the session before another run.')
+        response = await requestRefresh(refreshUrl, refreshOptions)
+      } catch (error) {
+        if (error instanceof TransientRefreshError) unlinkSync(`${path}.refresh-failed`)
+        throw error
       }
       if (!response.ok) throw new Error(`Refresh rejected with HTTP ${response.status}.`)
       let session

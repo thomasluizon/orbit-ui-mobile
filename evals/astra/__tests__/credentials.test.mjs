@@ -7,6 +7,7 @@ import { beforeEach } from '../hooks.mjs'
 
 const directories = []
 afterEach(() => {
+  vi.useRealTimers()
   vi.unstubAllGlobals()
   vi.unstubAllEnvs()
   for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true })
@@ -38,12 +39,11 @@ it('refreshes before an attempt and durably rotates only the selected account', 
   expect(JSON.parse(readFileSync(path, 'utf8')).ORBIT_EVAL_TOKEN.refreshToken).toBe('rotated-refresh')
   expect(statSync(path).mode & 0o777).toBe(0o600)
 })
-it.each(['missing', 'permissions', 'rejected', 'malformed', 'network'])('stops before chat when refresh is %s', async (failure) => {
+it.each(['missing', 'permissions', 'rejected', 'malformed'])('stops before chat when refresh is %s', async (failure) => {
   const path = credentials(failure === 'permissions' ? 0o644 : 0o600)
   if (failure === 'missing') writeFileSync(path, '{}')
   const request = vi.fn(async (url) => {
     expect(url).toContain('/api/auth/refresh')
-    if (failure === 'network') throw new Error('SECRET_REFRESH_TOKEN')
     return failure === 'malformed' ? Response.json({ token: 'secret' }) : Response.json({ error: 'SECRET' }, { status: 401 })
   })
   vi.stubGlobal('fetch', (url, options) => new URL(url).pathname === '/health'
@@ -53,8 +53,8 @@ it.each(['missing', 'permissions', 'rejected', 'malformed', 'network'])('stops b
   expect(test.vars.preconditionFailure).not.toContain('SECRET')
   expect(process.env.ORBIT_EVAL_TOKEN).toBeUndefined()
   if (['missing', 'permissions'].includes(failure)) expect(request).not.toHaveBeenCalled()
-  expect(existsSync(`${path}.refresh-failed`)).toBe(['rejected', 'malformed', 'network'].includes(failure))
-  if (['rejected', 'malformed', 'network'].includes(failure)) {
+  expect(existsSync(`${path}.refresh-failed`)).toBe(['rejected', 'malformed'].includes(failure))
+  if (['rejected', 'malformed'].includes(failure)) {
     await expect(refreshCredential('ORBIT_EVAL_TOKEN')).rejects.toThrow('A refresh already failed')
     expect(request).toHaveBeenCalledTimes(1)
     expect(JSON.parse(readFileSync(path, 'utf8')).ORBIT_EVAL_TOKEN.refreshToken).toBe('old-refresh')
@@ -113,8 +113,8 @@ it('rejects a concurrent rotation and never reveals transport secrets', async ()
   expect(existsSync(`${path}.refresh-failed`)).toBe(false)
   rmSync(`${path}.lock`)
   await expect(refreshCredential('ORBIT_EVAL_TOKEN')).rejects.toThrow('Refresh transport failed')
-  expect(request).toHaveBeenCalledTimes(1)
-  expect(existsSync(`${path}.refresh-failed`)).toBe(true)
+  expect(request).toHaveBeenCalledTimes(3)
+  expect(existsSync(`${path}.refresh-failed`)).toBe(false)
   expect(process.env.ORBIT_EVAL_TOKEN).toBeUndefined()
 })
 
@@ -233,4 +233,74 @@ it('blocks an interrupted submission without making another request', async () =
   await expect(refreshCredential('ORBIT_EVAL_TOKEN')).rejects.toThrow('A refresh already failed')
   expect(request).not.toHaveBeenCalled()
   expect(existsSync(`${path}.refresh-failed`)).toBe(true)
+})
+
+it.each([502, 503, 504, 'network'])('recovers a single transient refresh %s before continuing the attempt', async (failure) => {
+  const path = credentials()
+  vi.useFakeTimers()
+  const submissions = []
+  vi.stubGlobal('fetch', async (url, options) => {
+    if (new URL(url).pathname === '/health') return Response.json({ status: 'Healthy', commit: null, checks: [] })
+    submissions.push({ at: Date.now(), token: JSON.parse(options.body).refreshToken, signal: options.signal })
+    if (submissions.length === 1) {
+      if (failure === 'network') throw new TypeError('SECRET_REFRESH_TOKEN')
+      return new Response(null, { status: failure })
+    }
+    return Response.json({ token: 'recovered-access', refreshToken: 'recovered-refresh' })
+  })
+  const pending = beforeEach(attempt())
+  await vi.advanceTimersByTimeAsync(750)
+  expect((await pending).test.vars).not.toHaveProperty('preconditionFailure')
+  expect(submissions).toHaveLength(2)
+  expect(submissions[1].at - submissions[0].at).toBe(250)
+  expect(submissions.map(({ token }) => token)).toEqual(['old-refresh', 'old-refresh'])
+  expect(submissions[0].signal).not.toBe(submissions[1].signal)
+  expect(process.env.ORBIT_EVAL_TOKEN).toBe('recovered-access')
+  expect(JSON.parse(readFileSync(path, 'utf8')).ORBIT_EVAL_TOKEN.refreshToken).toBe('recovered-refresh')
+  expect(existsSync(`${path}.refresh-failed`)).toBe(false)
+})
+
+it.each([502, 503, 504, 'network'])('bounds repeated transient refresh %s to one case and lets the next case recover', async (failure) => {
+  const path = credentials()
+  vi.useFakeTimers()
+  const submissions = []
+  let recovering = false
+  vi.stubGlobal('fetch', async (url) => {
+    if (new URL(url).pathname === '/health') return Response.json({ status: 'Healthy', commit: null, checks: [] })
+    submissions.push(Date.now())
+    if (recovering) return Response.json({ token: 'recovered-access', refreshToken: 'recovered-refresh' })
+    if (failure === 'network') throw new TypeError('SECRET_REFRESH_TOKEN')
+    return new Response(null, { status: failure })
+  })
+  const pending = beforeEach(attempt())
+  await vi.advanceTimersByTimeAsync(750)
+  const failed = (await pending).test
+  expect(failed.vars.preconditionFailure).toContain('after 3 attempts')
+  expect(failed.vars.preconditionFailure).not.toContain('SECRET')
+  expect(submissions.map((instant) => instant - submissions[0])).toEqual([0, 250, 750])
+  expect(process.env.ORBIT_EVAL_TOKEN).toBeUndefined()
+  expect(JSON.parse(readFileSync(path, 'utf8')).ORBIT_EVAL_TOKEN.refreshToken).toBe('old-refresh')
+  expect(existsSync(`${path}.refresh-failed`)).toBe(false)
+  expect(existsSync(`${path}.lock`)).toBe(false)
+  expect(existsSync(`${path}.rotated`)).toBe(false)
+  recovering = true
+  const next = (await beforeEach(attempt())).test
+  expect(next.vars).not.toHaveProperty('preconditionFailure')
+  expect(failed.vars.preconditionFailure).toContain('after 3 attempts')
+  expect(submissions).toHaveLength(4)
+  expect(process.env.ORBIT_EVAL_TOKEN).toBe('recovered-access')
+  expect(JSON.parse(readFileSync(path, 'utf8')).ORBIT_EVAL_TOKEN.refreshToken).toBe('recovered-refresh')
+})
+
+it.each([400, 401])('keeps HTTP %s fatal without retrying or letting a later case submit', async (status) => {
+  const path = credentials()
+  const request = vi.fn(async (url) => new URL(url).pathname === '/health'
+    ? Response.json({ status: 'Healthy', commit: null, checks: [] }) : new Response(null, { status }))
+  vi.stubGlobal('fetch', request)
+  expect((await beforeEach(attempt())).test.vars.preconditionFailure).toContain(`HTTP ${status}`)
+  const submitted = request.mock.calls.length
+  expect(existsSync(`${path}.refresh-failed`)).toBe(true)
+  expect((await beforeEach(attempt())).test.vars.preconditionFailure).toContain('A refresh already failed')
+  expect(request).toHaveBeenCalledTimes(submitted)
+  expect(process.env.ORBIT_EVAL_TOKEN).toBeUndefined()
 })
