@@ -106,7 +106,7 @@ function SuggestionStrip({
           accessibilityLabel={label}
           showsHorizontalScrollIndicator={false}
           style={{ flexGrow: 0 }}
-          contentContainerStyle={[styles.suggestions, { gap: layout.gap }]}
+          contentContainerStyle={[styles.suggestions, { gap: layout.gap, paddingStart: layout.paddingStart }]}
         >
           {suggestions.map(suggestion => (
             <InsetFocusPressable

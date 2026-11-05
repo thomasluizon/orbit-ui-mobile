@@ -88,7 +88,7 @@ function AttachmentTray({
 
 function SuggestionStrip({ suggestions, label, disclosure }: Readonly<Pick<ComposerProps, 'suggestions'> & { label: string; disclosure?: React.ReactNode }>) {
   const layoutRef = useRef<HTMLDivElement>(null)
-  const [layout, setLayout] = useState({ availableWidth: 0, gap: COMPOSER_CHIP_GAP })
+  const [layout, setLayout] = useState({ availableWidth: 0, gap: COMPOSER_CHIP_GAP, paddingStart: 0 })
   useEffect(() => {
     const host = layoutRef.current!
     const observer = new ResizeObserver(() => {
@@ -98,7 +98,7 @@ function SuggestionStrip({ suggestions, label, disclosure }: Readonly<Pick<Compo
         return content.getBoundingClientRect().width + Number.parseFloat(buttonStyle.paddingInlineStart) + Number.parseFloat(buttonStyle.paddingInlineEnd)
       })
       const next = { availableWidth, ...resolveComposerStripLayout(availableWidth, chipWidths) }
-      setLayout(previous => previous.availableWidth === next.availableWidth && previous.gap === next.gap ? previous : next)
+      setLayout(previous => previous.availableWidth === next.availableWidth && previous.gap === next.gap && previous.paddingStart === next.paddingStart ? previous : next)
     })
     observer.observe(host)
     host.querySelectorAll('[data-suggestion-content]').forEach(content => observer.observe(content))
@@ -113,7 +113,7 @@ function SuggestionStrip({ suggestions, label, disclosure }: Readonly<Pick<Compo
           role="group"
           data-focus-inset=""
           onFocusCapture={revealFocusedControl}
-          style={{ gap: layout.gap }}
+          style={{ gap: layout.gap, paddingInlineStart: layout.paddingStart }}
           className="flex min-w-0 items-start overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {suggestions.map(suggestion => (

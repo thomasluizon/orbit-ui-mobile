@@ -283,16 +283,16 @@ describe('composer chips', () => {
 describe('composer strip layout', () => {
   it('keeps the drawn gap when chips fit or measurements are still arriving', () => {
     for (const widths of [[80, 80, 80], [80, 0, 80], []]) {
-      expect(resolveComposerStripLayout(320, widths)).toEqual({ gap: 8 })
+      expect(resolveComposerStripLayout(320, widths)).toEqual({ gap: 8, paddingStart: 0 })
     }
   })
 
   it('keeps a short first chip at its content width when the natural cut misses the peek', () => {
     const naturalWidths = [111, 154, 105]
-    expect(resolveComposerStripLayout(288, naturalWidths)).toEqual({ gap: 48 })
-    expect(resolveComposerStripLayout(427, naturalWidths)).toEqual({ gap: 8 })
+    expect(resolveComposerStripLayout(288, naturalWidths)).toEqual({ gap: 48, paddingStart: 0 })
+    expect(resolveComposerStripLayout(427, naturalWidths)).toEqual({ gap: 8, paddingStart: 0 })
     for (const width of [288, 427, 288, 427]) {
-      expect(resolveComposerStripLayout(width, naturalWidths)).toEqual({ gap: width === 288 ? 48 : 8 })
+      expect(resolveComposerStripLayout(width, naturalWidths)).toEqual({ gap: width === 288 ? 48 : 8, paddingStart: 0 })
       expect(naturalWidths).toEqual([111, 154, 105])
     }
   })
@@ -304,16 +304,16 @@ describe('composer strip layout', () => {
     const widths = [111, 154, 105]
     const hidden = widths[0]! + rejectedGap + widths[1]! - available
     expect(hidden).toBe(1)
-    expect(resolveComposerStripLayout(available, widths)).toEqual({ gap: 48 })
+    expect(resolveComposerStripLayout(available, widths)).toEqual({ gap: 48, paddingStart: 0 })
   })
 
   it('accepts exactly sixteen hidden pixels and advances the gap below that boundary', () => {
-    expect(resolveComposerStripLayout(312, [140, 180, 160])).toEqual({ gap: 8 })
-    expect(resolveComposerStripLayout(313, [140, 180, 160])).toEqual({ gap: 12 })
+    expect(resolveComposerStripLayout(312, [140, 180, 160])).toEqual({ gap: 8, paddingStart: 0 })
+    expect(resolveComposerStripLayout(313, [140, 180, 160])).toEqual({ gap: 12, paddingStart: 0 })
   })
 
   it('keeps the drawn gap when the natural cut already shows readable content', () => {
-    expect(resolveComposerStripLayout(320, [80, 180, 160])).toEqual({ gap: 8 })
+    expect(resolveComposerStripLayout(320, [80, 180, 160])).toEqual({ gap: 8, paddingStart: 0 })
   })
 
   it('keeps the gutter and a readable next chip across supported widths without allocating chip widths', () => {
@@ -323,8 +323,9 @@ describe('composer strip layout', () => {
         const chipWidths = naturalWidths.map(size => Math.min(size * scale, available - 32))
         const total = chipWidths.reduce((sum, size) => sum + size, (chipWidths.length - 1) * 8)
         const layout = resolveComposerStripLayout(available, chipWidths)
-        expect(Object.keys(layout)).toEqual(['gap'])
+        expect(Object.keys(layout)).toEqual(['gap', 'paddingStart'])
         expect([8, 12, 16, 24, 32, 48]).toContain(layout.gap)
+        expect(layout.paddingStart).toBe(0)
         if (total <= available) {
           expect(layout.gap).toBe(8)
           continue
@@ -336,6 +337,30 @@ describe('composer strip layout', () => {
         expect(starts[partial]! + chipWidths[partial]! - available).toBeGreaterThanOrEqual(16)
         expect(chipWidths.every(size => size <= available)).toBe(true)
       }
+    }
+  })
+
+  it('keeps a readable cut beside disclosure with uncapped measured labels and enlarged text', () => {
+    const measurements = [
+      [209.65625, 175.140625, 210.296875, 165.65625, 196.453125, 182.421875],
+      [207, 174, 209, 165, 196, 181],
+      [267, 350, 261, 276, 351, 300],
+    ]
+    for (let width = 320; width <= 1352; width++) for (const scale of [1, 2]) for (const measured of measurements) {
+      const available = width - 32 - 48 - 12
+      const chipWidths = measured.map(size => size * scale)
+      const layout = resolveComposerStripLayout(available, chipWidths)
+      expect([8, 12, 16, 24, 32, 48]).toContain(layout.gap)
+      expect([0, 8, 12, 16, 24, 32, 48]).toContain(layout.paddingStart)
+      const starts = chipWidths.map((_, index) => layout.paddingStart + chipWidths.slice(0, index).reduce((sum, size) => sum + size + layout.gap, 0))
+      if (starts.at(-1)! + chipWidths.at(-1)! <= available) {
+        expect(layout).toEqual({ gap: 8, paddingStart: 0 })
+        continue
+      }
+      const partial = starts.findIndex((start, index) => start < available && start + chipWidths[index]! > available)
+      expect(partial).toBeGreaterThanOrEqual(0)
+      expect(available - starts[partial]!).toBeGreaterThanOrEqual(16)
+      expect(starts[partial]! + chipWidths[partial]! - available).toBeGreaterThanOrEqual(16)
     }
   })
 })
