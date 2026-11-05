@@ -27,10 +27,11 @@ the next intake cycle, defaulting to fifteen minutes, and exits when the owning 
 | Intake tool | Purpose | Usage |
 |---|---|---|
 | `authorize-orbit-mail.mjs` | One-time Internal Desktop OAuth consent for the Orbit mailbox with loopback state and PKCE; pipes the refresh credential into macOS Keychain and verifies the write. | `node tools/authorize-orbit-mail.mjs --client-file <absolute OAuth client JSON>` |
-| `orbit-mail.mjs` | Paginates received mail, caches pending messages across relays, creates idempotent reply drafts and acknowledges classified messages. Exposes no send operation. | `node tools/orbit-mail.mjs --collect`, `--draft` or `--ack` with JSON stdin |
+| `orbit-mail.mjs` | Paginates received mail, retains pending messages across relays, drafts personal replies and sends only clear authorized cases with durable confirmation. | `node tools/orbit-mail.mjs --collect`, `--draft`, `--reply` or `--ack` with JSON stdin |
 | `orbit-play-reviews.mjs` | Collects production reviews on Actions with the existing publishing secret, imports the artifact, and records classifications and unposted replies in run state. | `node tools/orbit-play-reviews.mjs --collect --output <absolute file>`, `--import <absolute file>` or `--ack` with JSON stdin |
 | `orbit-app-store-reviews.mjs` | Collects customer reviews once the iOS app is configured, using existing release credentials on Actions; imports versioned reviews and retains unposted replies. | `node tools/orbit-app-store-reviews.mjs --collect --output <absolute file>`, `--import <absolute file>` or `--ack` with JSON stdin |
-| `lib/auto-work-google.mjs` | Keychain credential transport, Google token exchange and the closed Gmail read and draft client. | imported, not invoked |
+| `orbit-review-replies.mjs` | Prepares clear store replies, posts them through Actions with existing store credentials and imports matching confirmations; preserves changed reviews and existing owner replies. | `node tools/orbit-review-replies.mjs --prepare`, `--post --output <absolute file>` or `--import <absolute file>` |
+| `lib/auto-work-google.mjs` | Keychain credential transport, Google token exchange and Gmail reads, drafts and policy-guarded sending. | imported, not invoked |
 | `lib/auto-work-intake.mjs` | Durable pending items, source high-water marks and receipts requiring their carrying ticket and person reply before acknowledgement. | imported, not invoked |
 
 | Tool | What it does | Usage |

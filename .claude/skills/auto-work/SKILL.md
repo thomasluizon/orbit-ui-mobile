@@ -14,10 +14,12 @@ relaxes a quality gate or changes merge and release authority.
 
 Read `.claude/skills/sleep/SKILL.md` and enter through that skill, including relay adoption,
 the initial write and readback, the scratchpad decision log and canonical orchestrator entry.
+After its initial state write or adoption, enable this mode before canonical queue selection
+or dispatch, so a fresh session with an empty board still reaches the first intake cycle.
 An existing run keeps its admitted queue, readiness ledger, relay and decision log. With no
 focus, use `/sleep`'s `/orchestrate --auto` entry. Adopt a nominated relay before changing mode.
 
-Then run `node tools/auto-work-state.mjs --enable` in the orchestrating checkout. Read the state
+Run `node tools/auto-work-state.mjs --enable` in the orchestrating checkout. Read the state
 back with `readRunState` from `tools/lib/run-state.mjs`, confirming this session and
 `autoWork: true`. Preserve `intake` on every write. `writeRunState` carries both forward within
 the session and into a relay successor. Each intake writer also reads its write back.
@@ -129,18 +131,46 @@ write, including after an interrupted cycle. Record that id in the ticket or com
 relay can recover a successful write whose local receipt was lost. Work the carrying ticket
 through the ordinary board path. Preserve owner-only product decisions under `/sleep`.
 
-For each person, write the reply in their language, following the brand's voice. A mailbox
-reply is saved with `node tools/orbit-mail.mjs --draft`, stdin `{ "id": "<message id>", "text": "<reply>" }`.
-Its deterministic Message-ID recovers an already-created draft after an interrupted receipt
-write. A review reply is saved in the decision log and the acknowledgement's `reply` field.
-Never send an email or post a review reply without an explicit owner order. The Gmail client
-exposes list, read and draft creation only, despite the compose scope's broader permission.
+For each person, write the reply in their language, following the brand's voice. The owner
+authorizes sending simple replies: thanks or praise, acknowledgement of a known bug with its
+carrying ticket filed, and how-to answers verified against supported product behavior.
+Billing, refunds, complaints, account or data requests, mixed concerns and anything unclear
+stay as drafts for the owner. Never call a complaint a simple bug acknowledgement just because
+it also mentions a known defect. Classification uses the whole message or review.
 
-After ticketing and drafting, acknowledge through `orbit-mail.mjs --ack` or
+Record `person`, `classification`, `clear`, `concerns` and `replyKind`. Sending requires
+`person: true`, `clear: true`, an explicitly empty `concerns` array and one exact pair:
+`praise` with `thanks`, `bug` with `known bug` and its `ticket`, or `question` with
+`supported how-to` and `evidence` pointing to the product support verified in source.
+Use `concerns` values such as `billing`, `refund`, `complaint`, `account`, `data` or `unclear`
+when present. Every other combination routes to a draft through `replyDisposition` in
+`tools/lib/auto-work-intake.mjs`; missing evidence never grants send authority.
+
+For mail, call `node tools/orbit-mail.mjs --reply` with that receipt plus `id` and `text` on
+stdin. The tool drafts all personal replies and sends only the allowed simple cases.
+Its deterministic Message-ID recovers created drafts and confirmed sends after an interrupted
+receipt write. An unconfirmed send attempt stays pending for inspection; never resend blindly.
+Gmail drafts for owner review remain in `contact@useorbit.org`.
+
+For a review, retain the reply in the decision log and receipt's `reply` field. For a simple
+case, pass the receipt plus `source: "play"` or `"appStore"` to
+`node tools/orbit-review-replies.mjs --prepare` on stdin. This retains a prepared request in
+the pending source item and prints a batch. Save that JSON in a private scratchpad file and
+dispatch `orbit-play-reviews.yml` on `main` with `-f cycle=<unique reply cycle>` and
+`-F replies=@<absolute batch file>`. Track this workflow's exact cycle and run in
+`intake.reviewReplies`, separately from the read workflow, with the same registered file-waiter
+and exact-run download procedure above. Import its `orbit-review-replies` artifact through
+`node tools/orbit-review-replies.mjs --import <absolute artifact JSON path>` before acknowledging.
+The job revalidates the reply policy and current review version, preserves an existing
+different reply, and recovers an identical posted reply without posting again. Credentials
+stay in Actions. Complex review replies stay in the run log for the owner, with no dispatch.
+
+After ticketing and confirming the required send or draft, acknowledge through `orbit-mail.mjs --ack` or
 `orbit-play-reviews.mjs --ack` using stdin `{ "id": "<source id>", "classification": "bug",
 "person": true, "ticket": "https://github.com/thomasluizon/orbit-tickets/issues/<number>" }`;
-reviews also include `reply`. The tool requires the carrying ticket for bugs and requests,
-and the saved reply for a person. Receipts, pending items and high-water marks live in the
+reviews also include `reply`. Include the same reply policy fields used for disposition.
+The tool requires the carrying ticket for bugs and requests and a saved reply for a person;
+a simple reply also requires durable send confirmation. Receipts, pending items and high-water marks live in the
 untracked run state's `intake`. Never clear completed ids to shorten a relay.
 
 ## Idle and relay
@@ -182,7 +212,7 @@ lifetime: revocation, a Gmail password change, inactivity and Workspace policies
 them. Internal audience avoids the External Testing seven-day token restriction. On a revoked
 grant, report the failure and repeat the one-time consent, preserving all intake cursors.
 
-In Play Console, the existing publishing service account needs review access for both packages.
+In Play Console, the existing publishing service account needs Reply to reviews permission for both packages.
 Verify the manual workflow produces `orbit-play-reviews.json` and no credential artifact.
 No new secret is required. App Store review setup remains with `#1561` until the app exists:
 reuse `ORBIT_IOS_APP_STORE_ID`, `APP_STORE_CONNECT_API_KEY_ID`, `APP_STORE_CONNECT_API_ISSUER_ID`

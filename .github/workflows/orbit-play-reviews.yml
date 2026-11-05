@@ -8,6 +8,11 @@ on:
         description: Durable auto-work cycle identifier
         required: true
         type: string
+      replies:
+        description: Optional prepared simple reply batch JSON
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
@@ -18,7 +23,7 @@ concurrency:
 
 jobs:
   reviews:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && inputs.replies == ''
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -41,7 +46,7 @@ jobs:
           if-no-files-found: error
           retention-days: 1
   app-store-reviews:
-    if: github.ref == 'refs/heads/main' && vars.ORBIT_IOS_APP_STORE_ID != ''
+    if: github.ref == 'refs/heads/main' && inputs.replies == '' && vars.ORBIT_IOS_APP_STORE_ID != ''
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -63,5 +68,33 @@ jobs:
         with:
           name: orbit-app-store-reviews
           path: ${{ runner.temp }}/orbit-app-store-reviews.json
+          if-no-files-found: error
+          retention-days: 1
+  replies:
+    if: github.ref == 'refs/heads/main' && inputs.replies != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Post clear store replies
+        env:
+          REVIEW_REPLIES: ${{ inputs.replies }}
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          ORBIT_IOS_APP_STORE_ID: ${{ vars.ORBIT_IOS_APP_STORE_ID }}
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          APP_STORE_CONNECT_API_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}
+          REVIEW_OUTPUT: ${{ runner.temp }}/orbit-review-replies.json
+        run: printf '%s' "$REVIEW_REPLIES" | node tools/orbit-review-replies.mjs --post --output "$REVIEW_OUTPUT"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: orbit-review-replies
+          path: ${{ runner.temp }}/orbit-review-replies.json
           if-no-files-found: error
           retention-days: 1

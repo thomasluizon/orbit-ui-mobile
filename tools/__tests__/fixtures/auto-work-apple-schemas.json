@@ -169,6 +169,164 @@
       "required": [
         "paging"
       ]
+    },
+    "CustomerReviewResponseV1CreateRequest": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "customerReviewResponses"
+              ]
+            },
+            "attributes": {
+              "type": "object",
+              "properties": {
+                "responseBody": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "responseBody"
+              ]
+            },
+            "relationships": {
+              "type": "object",
+              "properties": {
+                "review": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "customerReviews"
+                          ]
+                        },
+                        "id": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "type"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              },
+              "required": [
+                "review"
+              ]
+            }
+          },
+          "required": [
+            "relationships",
+            "attributes",
+            "type"
+          ]
+        }
+      },
+      "required": [
+        "data"
+      ]
+    },
+    "CustomerReviewResponseV1": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "customerReviewResponses"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "attributes": {
+          "type": "object",
+          "properties": {
+            "responseBody": {
+              "type": "string"
+            },
+            "lastModifiedDate": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "state": {
+              "type": "string",
+              "enum": [
+                "PUBLISHED",
+                "PENDING_PUBLISH"
+              ]
+            }
+          }
+        },
+        "relationships": {
+          "type": "object",
+          "properties": {
+            "review": {
+              "type": "object",
+              "properties": {
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "customerReviews"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "links": {
+          "$ref": "#/components/schemas/ResourceLinks"
+        }
+      },
+      "required": [
+        "id",
+        "type"
+      ]
+    },
+    "CustomerReviewResponseV1Response": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/components/schemas/CustomerReviewResponseV1"
+        },
+        "included": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/CustomerReview"
+          }
+        },
+        "links": {
+          "$ref": "#/components/schemas/DocumentLinks"
+        }
+      },
+      "required": [
+        "data",
+        "links"
+      ]
     }
   }
 }

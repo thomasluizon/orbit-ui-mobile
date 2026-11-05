@@ -27,6 +27,8 @@ Your first action must write the run state through `writeRunState` with this ses
 `sleep: true`. Do this before queue work or log setup. A record with a different `sessionId` makes
 the Stop guard inert until this write replaces it. Read the state back with `readRunState`, and
 confirm the session id and `sleep: true` before the first turn ends.
+When entered through `/auto-work`, enable that mode immediately after the initial write or
+relay adoption and before queue selection; then continue this same lifecycle.
 
 First call `adoptRelayRun(sessionId)` from `tools/lib/session-chain.mjs`. When it returns true,
 the relay tool nominated this successor and the function already wrote the inherited run

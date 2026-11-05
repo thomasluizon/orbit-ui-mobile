@@ -170,6 +170,18 @@
         },
         "type": "object"
       }
+    },
+    "methods": {
+      "sendDraft": {
+        "path": "gmail/v1/users/{userId}/drafts/send",
+        "httpMethod": "POST",
+        "request": {
+          "$ref": "Draft"
+        },
+        "response": {
+          "$ref": "Message"
+        }
+      }
     }
   },
   "play": {
@@ -287,6 +299,36 @@
           },
           "nextPageToken": {
             "type": "string"
+          }
+        }
+      },
+      "DeveloperComment": {
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "lastModified": {
+            "$ref": "Timestamp"
+          }
+        },
+        "id": "DeveloperComment",
+        "type": "object"
+      },
+      "ReviewsReplyRequest": {
+        "type": "object",
+        "id": "ReviewsReplyRequest",
+        "properties": {
+          "replyText": {
+            "type": "string"
+          }
+        }
+      },
+      "ReviewsReplyResponse": {
+        "id": "ReviewsReplyResponse",
+        "type": "object",
+        "properties": {
+          "result": {
+            "$ref": "ReviewReplyResult"
           }
         }
       }

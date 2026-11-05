@@ -58,7 +58,9 @@ export const cases = async () => {
   })
   T("play: JWT requests publishing scope without mailbox impersonation", access === "access" && claims.sub === undefined && claims.exp - claims.iat === 3600 && claims.scope === "https://www.googleapis.com/auth/androidpublisher")
   const workflow = yaml.load(readFileSync(join(REPO_ROOT, ".github/workflows/orbit-play-reviews.yml"), "utf8"))
-  T("play: workflow is manual and trusts only main", Object.keys(workflow.on).join(",") === "workflow_dispatch" && workflow.jobs.reviews.if === "github.ref == 'refs/heads/main'")
+  T("play: workflow is manual and trusts only main", Object.keys(workflow.on).join(",") === "workflow_dispatch" &&
+    Object.values(workflow.jobs).every((job) => job.if.startsWith("github.ref == 'refs/heads/main'")) &&
+    workflow.jobs.reviews.if.includes("inputs.replies == ''") && workflow.jobs.replies.if.includes("inputs.replies != ''"))
   T("play: key stays in the collection step and artifact expires", workflow.jobs.reviews.steps.filter((step) => step.env?.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON).length === 1 &&
     workflow.jobs.reviews.steps.at(-1).with["retention-days"] === 1 && workflow.permissions.contents === "read")
 }

@@ -1,5 +1,5 @@
 {
-  "calibratedAt": "2026-11-04",
+  "calibratedAt": "2026-11-05",
   "classifier": {
     "model": "claude-sonnet-5-5",
     "promptDigest": "780092b4659dfd6e",
@@ -178,8 +178,8 @@
     ".claude/skills/auto-work/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "77a448afd4434026",
-      "calibratedAt": "2026-11-04",
+      "digest": "4a64b3a15d12df3a",
+      "calibratedAt": "2026-11-05",
       "verdict": "undeclared, inherits the session: runs continuous source intake through the existing sleep lifecycle, classifies feedback and preserves independent crank and relay state without changing model or effort routing."
     },
     ".claude/skills/crank/SKILL.md": {
@@ -304,8 +304,8 @@
     ".claude/skills/sleep/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "f00be2b1481369b1",
-      "calibratedAt": "2026-11-04",
+      "digest": "15a5536a18c5d69d",
+      "calibratedAt": "2026-11-05",
       "verdict": "undeclared, inherits the session: it makes overnight queue decisions, including whether configured lanes are available."
     },
     ".claude/skills/ticket/SKILL.md": {
