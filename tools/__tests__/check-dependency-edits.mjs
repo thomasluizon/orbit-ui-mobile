@@ -239,7 +239,7 @@ const expoBuildCases = async () => {
         cwd: REPO_ROOT, env: process.env, timeoutMs: 180000,
       })
       T(`${TOOL}: ${name} rejects extra ${file} outside exact output locations`,
-        refusal.status === 1 && !refusal.error && !refusal.timedOut && !refusal.overflowed
+        refusal.status === 1 && refusal.signal === null && !refusal.error && !refusal.overflowed
           && refusal.stderr.includes(`extra: node_modules/${name}/${file}`),
         JSON.stringify(refusal))
       rmSync(join(built.packageDirectory, file))
