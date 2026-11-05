@@ -185,7 +185,7 @@ function SupportForm({
           </Text>
         ) : null}
       </View>
-      <Input
+      {subject !== null || message !== '' || messageError ? <Input
         label={t('profile.support.message')}
         required
         value={message}
@@ -200,7 +200,7 @@ function SupportForm({
         autoComplete="off"
         focusRequest={messageFocusRequest}
         onBlur={onMessageBlur}
-      />
+      /> : null}
       <SupportReplyEmail email={email} />
       {appVersion ? (
         <Text style={[styles.versionIncluded, { color: tokens.fg3 }]}>

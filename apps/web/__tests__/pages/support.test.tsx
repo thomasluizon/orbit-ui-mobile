@@ -136,6 +136,7 @@ describe('SupportPage', () => {
   it('announces required subject and message before validation while reply email stays optional', () => {
     render(<SupportPage />)
     expect(screen.getByRole('radiogroup', { name: 'profile.support.subject' })).toHaveAttribute('aria-required', 'true')
+    fireEvent.click(screen.getAllByRole('radio')[0]!)
     expect(messageField()).toBeRequired()
     expect(messageField()).toHaveAttribute('required')
     expect(messageField()).not.toHaveAttribute('aria-invalid')
@@ -158,8 +159,8 @@ describe('SupportPage', () => {
     vi.stubEnv('NEXT_PUBLIC_WEB_COMMIT_SHA', '')
     render(<SupportPage />)
     expect(screen.queryByText(/profile.support.versionIncluded/)).not.toBeInTheDocument()
-    expect(messageField()).toHaveAttribute('maxlength', '5000')
     fireEvent.click(screen.getAllByRole('radio')[0]!)
+    expect(messageField()).toHaveAttribute('maxlength', '5000')
     fireEvent.change(messageField(), { target: { value: 'm'.repeat(5000) } })
     fireEvent.click(sendButton())
     await waitFor(() => expect(mockSendSupportMessage).toHaveBeenCalledWith(expect.objectContaining({ message: 'm'.repeat(5000) }), null))
@@ -178,18 +179,34 @@ describe('SupportPage', () => {
 
   it('orders subject, message, and read-only reply email', () => {
     render(<SupportPage />)
+    fireEvent.click(screen.getAllByRole('radio')[0]!)
     const controls = [screen.getByRole('radiogroup'), messageField(), emailField()]
     expect(controls[0]!.compareDocumentPosition(controls[1]!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
     expect(controls[1]!.compareDocumentPosition(controls[2]!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
     expect(emailField()).toBeEnabled()
   })
 
-  it('shows both field errors when the empty controls lose focus', () => {
+  it('shows each field error when its empty control loses focus', () => {
     render(<SupportPage />)
     fireEvent.blur(screen.getByRole('radiogroup'))
-    fireEvent.blur(messageField())
     expect(screen.getByText('profile.support.subjectRequired')).toBeInTheDocument()
+    fireEvent.click(screen.getAllByRole('radio')[0]!)
+    fireEvent.blur(messageField())
     expect(screen.getByText('profile.support.messageRequired')).toBeInTheDocument()
+  })
+
+  it('asks what happened only after the subject is answered', () => {
+    render(<SupportPage />)
+    expect(screen.queryByRole('textbox', { name: 'profile.support.message' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('profile.support.subjects.account.label'))
+    expect(messageField()).toBeVisible()
+    expect(screen.getByRole('radiogroup').compareDocumentPosition(messageField())).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+  })
+
+  it('keeps a restored message visible when its draft has no subject', () => {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ subject: null, message: 'Saved message' }))
+    render(<SupportPage />)
+    expect(messageField()).toHaveValue('Saved message')
   })
 
   it('shows an explicit offline state and disables sending when offline', () => {
@@ -263,6 +280,7 @@ describe('SupportPage', () => {
 
   it('uses a six-row message and a read-only account email display', () => {
     render(<SupportPage />)
+    fireEvent.click(screen.getAllByRole('radio')[0]!)
 
     expect(messageField()).toHaveAttribute('rows', '6')
     expect(messageField().closest('[data-multiline]')).toHaveAttribute('data-multiline', '')
@@ -287,8 +305,8 @@ describe('SupportPage', () => {
   })
 
   it('shows the required subject error beside the picker', async () => {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ subject: null, message: 'Message' }))
     render(<SupportPage />)
-    fireEvent.change(messageField(), { target: { value: 'Message' } })
 
     fireEvent.click(sendButton())
 
@@ -311,13 +329,15 @@ describe('SupportPage', () => {
   })
 
   it('keeps Send enabled as subject and message validity changes', () => {
-    render(<SupportPage />)
+    const view = render(<SupportPage />)
 
     const reason = screen.getByText('profile.support.sendIncomplete')
     expect(sendButton()).toBeEnabled()
     expect(sendButton()).toHaveAttribute('aria-describedby', reason.id)
+    view.unmount()
 
-    fireEvent.change(messageField(), { target: { value: 'Message' } })
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ subject: null, message: 'Message' }))
+    render(<SupportPage />)
     expect(screen.getByText('profile.support.sendNeedsSubject')).toBeInTheDocument()
     fireEvent.click(screen.getByText('profile.support.subjects.problem.label'))
     expect(sendButton()).toBeEnabled()
@@ -333,10 +353,10 @@ describe('SupportPage', () => {
     render(<SupportPage />)
 
     const message = 'm'.repeat(getSupportMessageMaxLength(getAppVersion()))
-    expect(messageField()).toHaveAttribute('maxlength', String(getSupportMessageMaxLength(getAppVersion())))
     expect(screen.getByText(`profile.support.versionIncluded(${getAppVersion()})`)).toBeInTheDocument()
 
     fireEvent.click(screen.getByText('profile.support.subjects.problem.label'))
+    expect(messageField()).toHaveAttribute('maxlength', String(getSupportMessageMaxLength(getAppVersion())))
     fireEvent.change(messageField(), { target: { value: message } })
     fireEvent.click(sendButton())
 
@@ -572,7 +592,7 @@ describe('SupportPage', () => {
       await replaceAccount('user-2')
 
       expect(localStorage.getItem(DRAFT_KEY)).toBeNull()
-      expect(messageField()).toHaveValue('')
+      expect(screen.queryByRole('textbox', { name: 'profile.support.message' })).not.toBeInTheDocument()
       expect(
         screen.getAllByRole('radio').every((radio) => radio.getAttribute('aria-checked') === 'false'),
       ).toBe(true)
@@ -582,10 +602,11 @@ describe('SupportPage', () => {
       signInAndType('you charged me twice on the 14th, card ending 4242')
 
       await replaceAccount('user-2')
+      fireEvent.click(screen.getByText('profile.support.subjects.problem.label'))
       fireEvent.change(messageField(), { target: { value: 'my streak reset overnight' } })
 
       expect(JSON.parse(localStorage.getItem(DRAFT_KEY) ?? '{}')).toEqual({
-        subject: null,
+        subject: 'problem',
         message: 'my streak reset overnight',
       })
     })

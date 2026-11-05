@@ -120,11 +120,9 @@ describe.each([412, 840, 1200, 1352, 1600])('sub-screen start edges at %ipx', (w
     const tree = await renderScreen(<SupportScreen />, width)
     try {
       const subject = tree.root.findAll((node) => node.type === Pressable && node.props.accessibilityRole === 'radio')[0]!
+      await TestRenderer.act(() => { (subject.props.onPress as () => void)() })
       const message = tree.root.findAll((node) => node.props.accessibilityLabel === 'profile.support.message' && typeof node.props.onChangeText === 'function')[0]!
-      await TestRenderer.act(() => {
-        ;(subject.props.onPress as () => void)()
-        ;(message.props.onChangeText as (value: string) => void)('Support request')
-      })
+      await TestRenderer.act(() => { (message.props.onChangeText as (value: string) => void)('Support request') })
       const send = tree.root.findAll((node) => node.props.testID === 'button-primary-md')[0]!
       await TestRenderer.act(async () => {
         ;(send.props.onPress as () => void)()

@@ -46,6 +46,7 @@ vi.mock('@/hooks/use-api-key-management', () => ({
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: undefined }) }))
 
 import { ProfileApiKeys } from '@/components/profile/profile-api-keys'
+import { SupportForm } from '@/app/(app)/support/_components/support-form'
 import { useAuthStore } from '@/stores/auth-store'
 import { resetAuthStore } from '@/__tests__/support/account-change'
 
@@ -102,6 +103,35 @@ describe('input question geometry', () => {
       const edges = await readQuestionEdges(page, '[data-api-key-questions]', messages.profile.apiKeys.setExpiry)
       for (const edge of [...edges.target, ...edges.fill]) expect(Math.abs(edge)).toBeLessThanOrEqual(1)
       expect(edges.textInset).toBeGreaterThanOrEqual(8)
+    } finally { await page.close() }
+  })
+
+  it.each(CASES)('reveals the support message one group below the subject at $width and $scale in $locale/$mode', async ({ width, scale, locale, mode }) => {
+    context.locale = locale
+    const messages = locale === 'en' ? en : ptBR
+    const form = (subject: 'problem' | null) => <SupportForm email="ada@example.com" subject={subject} message="" appVersion={null} messageMaxLength={5000} messageOverLimitHint={null} error={null} subjectError={null} messageError={null}
+      isSending={false} isOnline disabled={false} disabledReason={null} subjectFocusRequest={0} messageFocusRequest={0} onSubjectChange={vi.fn()} onMessageChange={vi.fn()} onSubjectBlur={vi.fn()} onMessageBlur={vi.fn()} onSend={vi.fn()} />
+    const { container, rerender } = render(form(null))
+    expect(container.querySelector('textarea')).toBeNull()
+    rerender(form('problem'))
+    const markup = container.innerHTML
+    cleanup()
+    const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
+    try {
+      const tokens = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+      await page.setContent(`<!doctype html><style>${stylesheet}:root{${tokens};font-size:${16 * scale}px}body{margin:0;background:var(--bg)}main{padding:16px}</style><main>${markup}</main>`)
+      await loadAppFonts(page)
+      const geometry = await page.evaluate((question) => {
+        const column = document.querySelector('main')!.getBoundingClientRect()
+        const group = document.querySelector('[role="radiogroup"]')!.parentElement!.getBoundingClientRect()
+        const field = document.querySelector('textarea')!
+        const label = [...document.querySelectorAll('label, span')].find((element) => element.textContent.trim().startsWith(question))!.getBoundingClientRect()
+        const box = field.getBoundingClientRect()
+        return { gap: label.top - group.bottom, left: box.left - column.left - 16, right: column.right - 16 - box.right }
+      }, messages.profile.support.message)
+      expect(geometry.gap).toBeCloseTo(24, 0)
+      expect(geometry.left).toBeGreaterThanOrEqual(-1)
+      expect(geometry.right).toBeGreaterThanOrEqual(-1)
     } finally { await page.close() }
   })
 })

@@ -125,7 +125,7 @@ export function SupportForm({
           </p>
         ) : null}
       </div>
-      <Input
+      {subject !== null || message !== '' || messageError ? <Input
         label={t('profile.support.message')}
         required
         name="message"
@@ -141,7 +141,7 @@ export function SupportForm({
         rows={6}
         focusRequest={messageFocusRequest}
         onBlur={onMessageBlur}
-      />
+      /> : null}
       <SupportReplyEmail email={email} />
       {appVersion ? (
         <p className="text-pretty text-sm leading-[1.5] text-[var(--fg-3)]">
