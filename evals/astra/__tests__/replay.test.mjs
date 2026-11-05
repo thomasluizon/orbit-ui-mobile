@@ -90,3 +90,22 @@ it('removes a false completed-goal pass when the saved main query only read acti
   expect(audit.results[0]).toMatchObject({ before: 'pass', after: 'fail' })
   expect(audit.results[0].notes.join(' ')).toContain('An active-only query cannot prove completed-goal exclusion')
 })
+
+const gateFourteen = JSON.parse(readFileSync(new URL('./fixtures/gate-fourteen.json', import.meta.url), 'utf8'))
+
+it('regrades the recorded relative historical read and keeps the unrecorded offer checks incomplete', async () => {
+  const source = window([gateFourteen.find((entry) => entry.caseId === 'offers-due-log-pt-BR')])
+  const [verdict] = await replayWindow(source, `${directory}/output`)
+  expect(verdict.before).toBe('fail')
+  expect(verdict.after).toBe('incomplete')
+  expect(verdict.notes.join(' ')).toContain('partial-scope')
+})
+
+it('keeps a recorded historical read of another day failed', async () => {
+  const attempt = structuredClone(gateFourteen.find((entry) => entry.caseId === 'offers-due-log-pt-BR'))
+  attempt.offerReadback.turns[0].toolCalls[0].arguments.relative_period = 'today'
+  const source = window([attempt])
+  const [verdict] = await replayWindow(source, `${directory}/output`)
+  expect(verdict.after).toBe('fail')
+  expect(verdict.notes.join(' ')).toContain('Historical read scope: Missing tool or incorrect arguments/result: query_habits')
+})

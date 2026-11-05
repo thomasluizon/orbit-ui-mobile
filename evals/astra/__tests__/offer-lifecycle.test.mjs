@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest'
 import { checkSuppression, checkReadScopes, checkPreviewRejection, checkActionLifecycle } from '../offer-lifecycle.mjs'
+import { toolBehavior } from '../assertions.mjs'
 import { preview } from './fixtures/producer.mjs'
 
 const baseline = () => ({ habits: [], goals: [], tags: [], checklistTemplates: [] })
@@ -53,6 +54,24 @@ it.each(['valid', 'historical-log', 'partial-offer', 'write'])('replays historic
   const promise = checkReadScopes(api, varsFor(), turn)
   if (fault === 'valid') { await promise; expect(calls).toBe(2) }
   else await expect(promise).rejects.toThrow()
+})
+
+const historicalCall = (args) => ({ name: 'query_habits', resultStatus: 'Succeeded',
+  result: { success: true, error: null, payload: {} }, arguments: { relative_period: null, date: null, ...args } })
+
+it.each([
+  ['the named date', { date: '2031-06-09' }, true],
+  ['the server-resolved yesterday', { relative_period: 'yesterday' }, true],
+  ['yesterday beside its named date', { relative_period: 'yesterday', date: '2031-06-09' }, true],
+  ['another date', { date: '2031-06-08' }, false],
+  ['today overriding the named date', { relative_period: 'today', date: '2031-06-09' }, false],
+  ['an unscoped list', {}, false],
+])('accepts only the requested historical day on the real behavior grade: %s', async (_name, args, accepted) => {
+  const policies = []
+  const turn = async (_input, policy) => { policies.push(policy); return answer(undefined) }
+  await checkReadScopes(async () => ({ payload: baseline() }), { ...varsFor(), offerBaseline: baseline() }, turn)
+  const verdict = toolBehavior([historicalCall(args)], policies[0].expectations)
+  expect(verdict.pass).toBe(accepted)
 })
 
 function reminderPreview() {
