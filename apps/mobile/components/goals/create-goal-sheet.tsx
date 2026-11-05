@@ -84,10 +84,10 @@ export function CreateGoalSheet(props: Readonly<CreateGoalSheetProps>) {
       >
         <View style={styles.form}>
           <Text style={styles.explainer}>{t('goals.form.habitsExplainer')}</Text>
+          <GoalTypeSelector styles={styles} goalType={goalType} onTypeChange={(type) => { revealFollowUps(); handleTypeChange(type) }} />
           <GoalTitleQuestion styles={styles} tokens={tokens} inputRef={descriptionRef} value={description} onChange={setDescription} isStreak={isStreak} error={fieldErrors.description} />
 
           {showFollowUps ? <View testID="goal-follow-ups" style={styles.form}>
-            <GoalTypeSelector styles={styles} goalType={goalType} onTypeChange={handleTypeChange} />
             <GoalTargetFields targetRef={targetRef} unitRef={unitRef} tokens={tokens} styles={styles} isStreak={isStreak} targetValue={targetValue} unit={unit} fieldErrors={fieldErrors} onChangeTarget={setTargetValue} onChangeUnit={setUnit} />
             <GoalDeadlineField tokens={tokens} styles={styles} deadline={deadline} onChangeDeadline={setDeadline} />
           </View> : null}

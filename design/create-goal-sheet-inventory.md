@@ -9,11 +9,12 @@
 | Progresso with goals | `progress-content`, Metas action | Opens the same sheet; new goals remain visible through the all-goals filter |
 | Habit create and edit | `goal-linking-field` | Empty and populated goal pickers open the same sheet; creation selects the new goal |
 | Habit detail | `habit-detail-screen`, `edit-habit-modal`, `goal-linking-field` | The pencil opens the full editor, whose goal picker seeds the current habit; read facts open linked goals |
-| Create goal sheet | `goals/create-goal-sheet` | Title, type, target, unit, optional deadline, linked habits; validation, pending, failed save, dismissal and discard |
+| Create goal sheet | `goals/create-goal-sheet` | Type, title, target, unit, optional deadline, linked habits; validation, pending, failed save, dismissal and discard |
 | Linked habit picker | `goals/goal-habits-field` | Loading, failure and retry, habit creation and return with the goal draft retained, selection, capacity, long lists and search |
 
-The sheet asks What do you want to reach? first. Its answer, a saved target, unit or deadline, or a
-submit attempt reveals the type, target and deadline questions; they stay revealed and keep their
+The sheet asks How do you want to track it? first and What do you want to reach? second, so the
+goal text placeholder always follows a visible type. A type choice, the goal text, a saved target,
+unit or deadline, or a submit attempt reveals the target and deadline questions; they stay revealed and keep their
 values if the title is cleared. Linked habits stay visible for every entry. Add deadline is a visible
 field row. Edit goal and progress entry use the same question labels.
 

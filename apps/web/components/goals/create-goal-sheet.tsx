@@ -65,7 +65,8 @@ export function CreateGoalSheet(props: Readonly<CreateGoalSheetProps & { restore
       >
         <form id={formId} onSubmit={(event) => { event.preventDefault(); event.stopPropagation(); revealFollowUps(); void onSubmit() }} noValidate>
           <p className="max-w-prose pb-4 text-sm leading-[1.55] text-pretty text-[var(--fg-2)]">{t('goals.form.habitsExplainer')}</p>
-          <div>
+          <GoalTypeSelector goalType={goalType} onTypeChange={(type) => { revealFollowUps(); handleTypeChange(type) }} />
+          <div style={{ padding: "var(--orbit-space-16) var(--orbit-space-0) var(--orbit-space-0)" }}>
             <FieldWell
               inputRef={descriptionRef}
               label={t('goals.form.title')}
@@ -85,10 +86,6 @@ export function CreateGoalSheet(props: Readonly<CreateGoalSheetProps & { restore
           </div>
 
           {showFollowUps ? <div data-goal-follow-ups="">
-          <div style={{ padding: "var(--orbit-space-16) var(--orbit-space-0) var(--orbit-space-0)" }}>
-            <GoalTypeSelector goalType={goalType} onTypeChange={handleTypeChange} />
-          </div>
-
           <GoalTargetFields
             targetRef={targetRef}
             unitRef={unitRef}

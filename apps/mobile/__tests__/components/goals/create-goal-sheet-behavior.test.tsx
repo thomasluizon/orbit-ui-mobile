@@ -151,10 +151,13 @@ describe('goal creation with habits', () => {
     await TestRenderer.act(() => tree.unmount())
   })
 
-  it('asks the title first, reveals the follow-up questions from its answer and retains them', async () => {
+  it('asks the type before the title, reveals the follow-up questions from the title answer and retains them', async () => {
     const tree = await mount()
     const input = (label: string) => tree.root.findAll((node) => node.type === 'GoalInput' && node.props.accessibilityLabel === label)
     const followUps = () => tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'goal-follow-ups')
+    const questions = tree.root.findAll((node) => node.type === 'Text' && ['goals.form.typeQuestion', 'goals.form.title'].includes(String(node.props.children))).map((node) => node.props.children)
+    expect(questions).toEqual(['goals.form.typeQuestion', 'goals.form.title'])
+    expect(input('goals.form.title')[0]!.props.placeholder).toBe('goals.form.descriptionPlaceholder')
     expect(input('goals.form.title')).toHaveLength(1)
     expect(followUps()).toHaveLength(0)
     expect(input('goals.form.targetValueQuestion')).toHaveLength(0)
@@ -164,6 +167,18 @@ describe('goal creation with habits', () => {
     await TestRenderer.act(() => input('goals.form.targetValueQuestion')[0]!.props.onChangeText('12'))
     await TestRenderer.act(() => input('goals.form.title')[0]!.props.onChangeText(''))
     expect(input('goals.form.targetValueQuestion')[0]!.props.value).toBe('12')
+  })
+
+  it('reveals the follow-up questions from a type answer and matches the placeholder to the type', async () => {
+    const tree = await mount()
+    const input = (label: string) => tree.root.findAll((node) => node.type === 'GoalInput' && node.props.accessibilityLabel === label)
+    const segment = (type: string) => tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === `segment-${type}-unselected-enabled`)[0]!
+    await TestRenderer.act(() => segment('Streak').props.onPress())
+    expect(input('goals.form.streakTarget')).toHaveLength(1)
+    expect(input('goals.form.title')[0]!.props.placeholder).toBe('goals.form.streakDescriptionPlaceholder')
+    await TestRenderer.act(() => segment('Standard').props.onPress())
+    expect(input('goals.form.targetValueQuestion')).toHaveLength(1)
+    expect(input('goals.form.title')[0]!.props.placeholder).toBe('goals.form.descriptionPlaceholder')
   })
 
   it('reveals the hidden goal questions when an empty form is submitted', async () => {

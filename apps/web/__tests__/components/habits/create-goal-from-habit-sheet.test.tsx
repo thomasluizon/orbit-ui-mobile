@@ -64,11 +64,13 @@ describe('CreateGoalSheet', () => {
     expect(container.innerHTML).toBe('')
   })
 
-  it('asks the title first and reveals the follow-up questions from its answer', () => {
+  it('asks the type before the title and reveals the follow-up questions from the title answer', () => {
     render(<CreateGoalSheet open={true} onClose={vi.fn()} />)
-    expect(screen.getByLabelText('goals.form.title')).toBeInTheDocument()
+    const type = screen.getByRole('radio', { name: /goals.form.typeStreak/ })
+    const title = screen.getByLabelText('goals.form.title')
+    expect(type.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(title).toHaveAttribute('placeholder', 'goals.form.descriptionPlaceholder')
     expect(screen.queryByLabelText('goals.form.targetValueQuestion')).toBeNull()
-    expect(screen.queryByRole('radio', { name: /goals.form.typeStandard/ })).toBeNull()
     expect(screen.getByRole('button', { name: /goals.linkedHabits/ })).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('goals.form.title'), { target: { value: 'Read more books' } })
     expect(screen.getByLabelText('goals.form.targetValueQuestion')).toBeInTheDocument()
@@ -76,6 +78,16 @@ describe('CreateGoalSheet', () => {
     fireEvent.change(screen.getByLabelText('goals.form.targetValueQuestion'), { target: { value: '12' } })
     fireEvent.change(screen.getByLabelText('goals.form.title'), { target: { value: '' } })
     expect(screen.getByLabelText('goals.form.targetValueQuestion')).toHaveValue(12)
+  })
+
+  it('reveals the follow-up questions from a type answer and matches the placeholder to the type', () => {
+    render(<CreateGoalSheet open={true} onClose={vi.fn()} />)
+    fireEvent.click(screen.getByRole('radio', { name: /goals.form.typeStreak/ }))
+    expect(screen.getByLabelText('goals.form.streakTarget')).toBeInTheDocument()
+    expect(screen.getByLabelText('goals.form.title')).toHaveAttribute('placeholder', 'goals.form.streakDescriptionPlaceholder')
+    fireEvent.click(screen.getByRole('radio', { name: /goals.form.typeStandard/ }))
+    expect(screen.getByLabelText('goals.form.targetValueQuestion')).toBeInTheDocument()
+    expect(screen.getByLabelText('goals.form.title')).toHaveAttribute('placeholder', 'goals.form.descriptionPlaceholder')
   })
 
   it('reveals the hidden questions when an empty form is submitted', () => {
