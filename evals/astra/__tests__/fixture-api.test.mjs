@@ -197,7 +197,7 @@ it.each([
   ['tags/22222222-2222-4222-8222-222222222222/assign', 'tags/{id}/assign'],
   ['habits/retrospective?period=month', 'habits/retrospective'],
   ['habits/bulk', 'habits/bulk'],
-  ['profile/export', 'profile/export'],
+  ['eval/snapshot', 'eval/snapshot'],
 ])('names %s as %s, replacing only the GUID segments', async (path, route) => {
   const request = vi.fn().mockRejectedValue(new TypeError('Private details'))
   vi.stubGlobal('fetch', request)
@@ -209,7 +209,7 @@ it('retries a safe response body transport failure', async () => {
     start(controller) { controller.error(new TypeError('Connection closed')) },
   }))).mockImplementation(success)
   vi.stubGlobal('fetch', request)
-  expect(await outcome(api('GET', 'profile/export'))).toEqual({ value: { status: 204, payload: null } })
+  expect(await outcome(api('GET', 'eval/snapshot'))).toEqual({ value: { status: 204, payload: null } })
   expect(request).toHaveBeenCalledTimes(2)
 })
 
@@ -218,8 +218,8 @@ it.each(['TimeoutError', 'TypeError'])('classifies a response body %s failure af
     start(controller) { controller.error(new DOMException('Private body details', name)) },
   })))
   vi.stubGlobal('fetch', request)
-  expect(await outcome(api('GET', 'profile/export'))).toEqual({
-    error: `Fixture API GET profile/export failed: ${name === 'TimeoutError' ? 'timeout' : 'network'}.`,
+  expect(await outcome(api('GET', 'eval/snapshot'))).toEqual({
+    error: `Fixture API GET eval/snapshot failed: ${name === 'TimeoutError' ? 'timeout' : 'network'}.`,
   })
   expect(request).toHaveBeenCalledTimes(2)
 })

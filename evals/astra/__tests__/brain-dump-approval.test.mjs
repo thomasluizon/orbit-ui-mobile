@@ -1,3 +1,4 @@
+import { evalSnapshot } from './fixtures/eval-snapshot.mjs'
 import { ATTEMPTS_PER_CASE } from '../attempts.mjs'
 import { afterEach, expect, it, vi } from 'vitest'
 import { deferredCreationCall } from './fixtures/producer.mjs'
@@ -35,9 +36,9 @@ function approvalApi(source, failure) {
     const method = request.method
     requests.push({ path, method })
     if (path === 'chat') return Response.json(attempt.response, { headers: { 'x-orbit-request-id': attempt.test.vars.evalRequestId } })
-    if (path === 'profile/export') {
+    if (path === 'eval/snapshot') {
       if (!approved && failure === 'early-write') habits[0].title = 'Changed before approval'
-      return Response.json({ habits })
+      return Response.json(evalSnapshot({ habits }))
     }
     if (path === 'eval/pending-operations') {
       if (method === 'DELETE') { const cancelledCount = pendingCount; pendingCount = 0; return Response.json({ cancelledCount }) }

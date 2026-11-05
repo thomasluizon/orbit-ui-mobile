@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { evalSnapshot, snapshotFixture } from './eval-snapshot.mjs'
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 
@@ -49,9 +50,9 @@ export function fixtureFetch(getState) {
     })
     if (path === 'profile' && method === 'GET') return Response.json({ email, hasProAccess: pro, hasGoogleConnection: false,
       weekStartDay: 1, aiMessagesUsed: exhausted ? 50 : 0, aiMessagesLimit: 50 })
-    if (path === 'profile/export') return Response.json({ exportedAtUtc: '2026-10-24T12:00:00Z', account: {}, settings: {}, subscription: {},
-      habits: habits.filter((habit) => !habit.deleted).map(({ deleted, startDate, ...habit }) => habit), goals, tags, checklistTemplates: templates,
-      notifications: [], achievements: [], streakFreezes: [], referrals: [], apiKeys: [], friendships: [], cheers: [], blockedUsers: [], reports: [], friendFeedEvents: [], proactiveItems: [], notionConnection: null, notionTasks: [], conversations: [] })
+    if (path === 'eval/snapshot') return Response.json(evalSnapshot({
+      habits: habits.filter((habit) => !habit.deleted).map((habit) => Object.fromEntries(Object.keys(snapshotFixture.habit)
+        .map((field) => [field, habit[field]]))), goals, tags, checklistTemplates: templates }))
     if (path === 'habits/retrospective' && method === 'GET') {
       const query = new URL(url).searchParams
       if (query.get('period') !== 'month' || !['en', 'pt-BR'].includes(query.get('language'))) throw new Error('Expected localized rolling month retrospective.')

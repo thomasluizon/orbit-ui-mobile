@@ -1,3 +1,4 @@
+import { evalSnapshot } from './fixtures/eval-snapshot.mjs'
 import { afterEach, expect, it, vi } from 'vitest'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -39,7 +40,7 @@ function dismissal() {
     const path = new URL(url).pathname
     if (path === '/health') return Response.json({ status: 'Healthy', commit: null, checks: [] })
     if (path === '/api/auth/refresh') return refreshResponse()
-    if (path === '/api/profile/export') return Response.json(state)
+    if (path === '/api/eval/snapshot') return Response.json(evalSnapshot(state))
     if (path === '/api/habits' && options.method === 'POST') {
       state.habits.push({ id: habitId, title: 'Breathe', logs: [], checklistItems: [] })
       return Response.json({ id: habitId }, { status: 201 })

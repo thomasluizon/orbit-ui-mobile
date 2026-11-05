@@ -1,3 +1,4 @@
+import { evalSnapshot } from './fixtures/eval-snapshot.mjs'
 import { ATTEMPTS_PER_CASE } from '../attempts.mjs'
 import { afterEach, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
@@ -25,7 +26,7 @@ it.each(['en', 'pt-BR'])('prepares the shared client kinds for %s offer requests
   vi.stubGlobal('fetch', async (url) => {
     const path = new URL(url).pathname
     if (path === '/health') return Response.json({ status: 'Healthy', commit: null, checks: [] })
-    if (path === '/api/profile/export') return Response.json({ habits: [], goals: [], tags: [], checklistTemplates: [] })
+    if (path === '/api/eval/snapshot') return Response.json(evalSnapshot({ habits: [], goals: [], tags: [], checklistTemplates: [] }))
     return refreshResponse()
   })
   const { test } = await beforeEach({ test: scenario })
@@ -62,8 +63,8 @@ it.each(['valid', 'wrong-trace', 'wrong-offer', 'dismiss-failed', 'fixture-faile
       const path = new URL(url).pathname
       if (path === '/health') return Response.json({ status: 'Healthy', commit: null, checks: [] })
       if (path === '/api/auth/refresh') return refreshResponse()
-      if (path === '/api/profile/export') return Response.json(fault === 'fixture-failed' ? {}
-        : { habits: [], goals: [], tags: [], checklistTemplates: [] })
+      if (path === '/api/eval/snapshot') return Response.json(fault === 'fixture-failed' ? {}
+        : evalSnapshot())
       if (path === '/api/chat/offers/dismiss') {
         const body = JSON.parse(options.body)
         expect(body.conversationId).toBe(conversations.at(-1))

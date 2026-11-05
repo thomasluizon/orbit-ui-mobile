@@ -1,3 +1,4 @@
+import { evalSnapshot } from './fixtures/eval-snapshot.mjs'
 import { afterEach, expect, it, vi } from 'vitest'
 import * as grades from '../assertions.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
@@ -70,7 +71,7 @@ function approvalServer(output, action = 'saveTask', mutate = () => {}, beforeMu
       if (options.method === 'DELETE') pending = false
       return Response.json(options.method === 'DELETE' ? { cancelledCount: count } : { pendingCount: count })
     }
-    if (path === '/api/profile/export') {
+    if (path === '/api/eval/snapshot') {
       const habits = [structuredClone(original)]
       if (executed) {
         if (action === 'saveTask') habits.push({ ...structuredClone(original), id: savedId, title: step,
@@ -78,7 +79,7 @@ function approvalServer(output, action = 'saveTask', mutate = () => {}, beforeMu
         else habits[0].checklistItems.push({ text: step, isChecked: false })
         mutate(habits)
       } else beforeMutate(habits)
-      return Response.json({ habits })
+      return Response.json(evalSnapshot({ habits }))
     }
     if (path.endsWith('/confirm')) {
       if (!pending) return Response.json({ errorCode: 'PENDING_OPERATION_NOT_FOUND' }, { status: 404 })
@@ -111,9 +112,9 @@ it.each(['saveTask', 'saveChecklistItem'])('finishes %s approval and readback be
   expect(grade.pass, grade.reason).toBe(true)
   expect(received.output.savedStepReadback).toEqual(grade)
   expect(requests).toEqual(afterReset)
-  expect(requests).toEqual(['POST /api/chat', 'GET /api/profile/export',
+  expect(requests).toEqual(['POST /api/chat', 'GET /api/eval/snapshot',
     `POST /api/ai/pending-operations/${preview().id}/confirm`,
-    `POST /api/ai/pending-operations/${preview().id}/execute`, 'GET /api/profile/export', 'provider returned',
+    `POST /api/ai/pending-operations/${preview().id}/execute`, 'GET /api/eval/snapshot', 'provider returned',
     'DELETE /api/eval/pending-operations', 'GET /api/eval/pending-operations'])
 })
 
@@ -132,8 +133,8 @@ it.each(['saveTask', 'saveChecklistItem'])('approves %s only after a held previe
   const received = await providerAttempt(context)
   const grade = await grades.savedStep(received.output, context)
   expect(grade.pass, grade.reason).toBe(true)
-  expect(requests).toEqual(['POST /api/chat', 'GET /api/profile/export', `POST /api/ai/pending-operations/${preview().id}/confirm`,
-    `POST /api/ai/pending-operations/${preview().id}/execute`, 'GET /api/profile/export'])
+  expect(requests).toEqual(['POST /api/chat', 'GET /api/eval/snapshot', `POST /api/ai/pending-operations/${preview().id}/confirm`,
+    `POST /api/ai/pending-operations/${preview().id}/execute`, 'GET /api/eval/snapshot'])
   expect(grade.metadata.savedStep).toMatchObject({ approved: true, unchangedBeforeApproval: true, title: action === 'saveTask' ? step : original.title })
   expect(JSON.stringify(grade)).not.toContain('private-confirmation')
 })
@@ -161,7 +162,7 @@ it.each(['saveTask', 'saveChecklistItem'])('rejects %s if the proposal already c
   const received = await providerAttempt(context)
   expect((await grades.savedStep(received.output, context)).pass).toBe(false)
   expect(received.output.savedStepReadback.reason).toBe('Habits changed before approval.')
-  expect(requests).toEqual(['POST /api/chat', 'GET /api/profile/export'])
+  expect(requests).toEqual(['POST /api/chat', 'GET /api/eval/snapshot'])
 })
 
 it.each([
