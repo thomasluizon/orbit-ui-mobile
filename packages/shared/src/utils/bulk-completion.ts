@@ -60,11 +60,11 @@ class BulkCompletionReplay {
     for (const chunk of retryChunks) {
       if (!chunk.items.some(item => this.chunksByItem.has(bulkItemIdentity(item)))) retained.add(chunk)
     }
-    const chunks = buildBulkCompletionChunks({ items, retryChunks: [...retained] }, createIdempotencyKey)
-    for (const chunk of chunks) {
-      for (const item of chunk.items) this.chunksByItem.set(bulkItemIdentity(item), chunk)
-    }
-    return chunks
+    return buildBulkCompletionChunks({ items, retryChunks: [...retained] }, createIdempotencyKey)
+  }
+
+  markAttempted(chunk: BulkRetryChunk<BulkCompletionItem>): void {
+    for (const item of chunk.items) this.chunksByItem.set(bulkItemIdentity(item), chunk)
   }
 
   resolve(idempotencyKey: string): void {

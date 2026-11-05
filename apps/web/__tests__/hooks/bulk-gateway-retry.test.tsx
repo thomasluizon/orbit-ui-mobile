@@ -89,6 +89,37 @@ afterEach(async () => {
 })
 
 describe('bulk gateway recovery', () => {
+  it('sends only the new selection from an unattempted suffix after a definitive first-chunk rejection', async () => {
+    ids = Array.from({ length: 205 }, (_, index) => `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`)
+    selected = new Set(ids)
+    client.setQueryData(habitKeys.list({}), ids.map(id => createMockHabitScheduleItem({ id })))
+    await act(() => tree.update(<QueryClientProvider client={client}><Owner /></QueryClientProvider>))
+    const requests: { key: string | null; items: { habitId: string; date: string }[] }[] = []
+    mocks.fetch.mockImplementation((_url, init) => {
+      if (typeof init?.body !== 'string') throw new Error('Missing bulk body')
+      const { items } = JSON.parse(init.body) as { items: { habitId: string; date: string }[] }
+      requests.push({ key: new Headers(init.headers).get('Idempotency-Key'), items })
+      return Promise.resolve(requests.length === 1 ? new Response(null, { status: 400 }) : Response.json({
+        results: items.map(({ habitId }, index) => ({ index, status: 'Success', habitId, logId: habitId, error: null, errorCode: null })),
+      }))
+    })
+    await act(async () => { await actions.confirmBulkLog() })
+    expect(requests).toHaveLength(1)
+    expect(requests[0]?.items).toHaveLength(100)
+    expect(selected).toEqual(new Set(ids))
+
+    selected = new Set([ids[100]!])
+    await act(() => tree.update(<QueryClientProvider client={client}><Owner /></QueryClientProvider>))
+    await act(async () => { await actions.confirmBulkLog() })
+    expect(requests).toHaveLength(2)
+    expect(requests[1]?.items).toHaveLength(1)
+    expect(requests[1]?.items).toEqual([{ habitId: ids[100], date }])
+    expect(requests[1]?.key).toBeTruthy()
+    expect(requests[1]?.key).not.toBe(requests[0]?.key)
+    expect(selected.size).toBe(0)
+    expect(settle).toHaveBeenCalledExactlyOnceWith([{ habitId: ids[100], mode: 'log' }], date)
+  })
+
   it.each((['log', 'skip'] as const).flatMap(mode => (['toast', 'toolbar', 'remount'] as const).map(recovery => ({ mode, recovery }))))('keeps the $mode replay key after response loss through $recovery', async ({ mode, recovery }) => {
     const replay = new Map<string, object>()
     const requests: { key: string | null; body: string }[] = []
@@ -137,7 +168,7 @@ describe('bulk gateway recovery', () => {
     }
   })
 
-  it.each(['log', 'skip'] as const)('retries only the original uncertain middle %s chunk', async mode => {
+  it.each((['log', 'skip'] as const).flatMap(mode => (['toast', 'toolbar'] as const).map(recovery => ({ mode, recovery }))))('retries only the original uncertain middle $mode chunk through $recovery', async ({ mode, recovery }) => {
     ids = Array.from({ length: 205 }, (_, index) => `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`)
     selected = new Set(ids)
     client.setQueryData(habitKeys.list({}), ids.map(id => createMockHabitScheduleItem({ id })))
@@ -166,7 +197,14 @@ describe('bulk gateway recovery', () => {
     const middle = requests.find(request => (JSON.parse(request.body) as { items: { habitId: string }[] }).items[0]?.habitId === ids[100])!
     const retry = mocks.toast.mock.calls.at(-1)?.[0]?.onAction as () => Promise<void>
     unavailable = false
-    await act(async () => { await retry() })
+    if (recovery === 'toolbar') {
+      selected = new Set([ids[100]!])
+      await act(() => tree.update(<QueryClientProvider client={client}><Owner /></QueryClientProvider>))
+    }
+    await act(async () => {
+      if (recovery === 'toast') await retry()
+      else await (mode === 'log' ? actions.confirmBulkLog() : actions.confirmBulkSkip())
+    })
     expect(requests.at(-1)).toEqual(middle)
     expect(requests.filter(request => request.key !== middle.key)).toHaveLength(2)
     expect(committed).toBe(205)

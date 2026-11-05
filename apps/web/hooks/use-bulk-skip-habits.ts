@@ -31,6 +31,7 @@ export function useBulkSkipHabits() {
       for (const chunk of replay.prepare(input, () => crypto.randomUUID())) {
         if (!account.stillCurrent()) break
         try {
+          replay.markAttempted(chunk)
           const response = await bulkSkipHabitsAction(chunk.items, intendedAccountId, chunk.idempotencyKey)
           replay.resolve(chunk.idempotencyKey)
           results.push(...response.results.map((result) => ({ ...result, index: chunk.indices[result.index]! })))

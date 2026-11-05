@@ -60,6 +60,7 @@ export function useBulkLogHabits() {
       for (const chunk of replay.prepare(input, () => crypto.randomUUID())) {
         if (!account.stillCurrent()) break
         try {
+          replay.markAttempted(chunk)
           const response = await bulkLogHabitsAction(
             chunk.items,
             intendedAccountId,

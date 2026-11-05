@@ -140,6 +140,7 @@ function createBulkLogHabitsMutationFn(context: ReturnType<typeof useBulkLogHabi
       for (const chunk of replay.prepare({ ...normalizeBulkCompletionInput(input), items }, randomUUID)) {
         if (!account.stillCurrent()) break
         try {
+          replay.markAttempted(chunk)
           const response = await performQueuedApiMutation<BulkLogResult, BulkLogResult & QueuedMarker>({
             isCurrent: account.stillCurrent,
             manualRetry: options.manualRetry,

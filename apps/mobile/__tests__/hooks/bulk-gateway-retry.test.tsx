@@ -120,7 +120,7 @@ describe('bulk gateway recovery', () => {
     }
   })
 
-  it.each(['log', 'skip'] as const)('retries only the original uncertain middle %s chunk', async mode => {
+  it.each((['log', 'skip'] as const).flatMap(mode => (['toast', 'toolbar'] as const).map(recovery => ({ mode, recovery }))))('retries only the original uncertain middle $mode chunk through $recovery', async ({ mode, recovery }) => {
     ids = Array.from({ length: 205 }, (_, index) => `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`)
     selected = new Set(ids)
     client.setQueryData(habitKeys.list({}), ids.map(id => createMockHabitScheduleItem({ id })))
@@ -149,7 +149,14 @@ describe('bulk gateway recovery', () => {
     const middle = requests.find(request => (JSON.parse(request.body) as { items: { habitId: string }[] }).items[0]?.habitId === ids[100])!
     const retry = mocks.toast.mock.calls.at(-1)?.[0]?.onAction as () => Promise<void>
     unavailable = false
-    await act(async () => { await retry() })
+    if (recovery === 'toolbar') {
+      selected = new Set([ids[100]!])
+      await act(() => tree.update(<QueryClientProvider client={client}><Owner /></QueryClientProvider>))
+    }
+    await act(async () => {
+      if (recovery === 'toast') await retry()
+      else await (mode === 'log' ? actions.confirmBulkLog() : actions.confirmBulkSkip())
+    })
     expect(requests.at(-1)).toEqual(middle)
     expect(requests.filter(request => request.key !== middle.key)).toHaveLength(2)
     expect(committed).toBe(205)

@@ -49,8 +49,10 @@ it('owns unresolved replay across callers, selection changes and unrelated reque
   const original = [{ habitId: 'first', date: '2026-09-12' }, { habitId: 'second', date: '2026-09-12' }]
   const log = getBulkCompletionReplay(owner, 1, 'log')
   const chunk = log.prepare(original, randomUUID)[0]!
+  log.markAttempted(chunk)
   const nextDate = { ...original[0]!, date: '2026-09-13' }
   const unrelated = log.prepare([nextDate], randomUUID)[0]!
+  log.markAttempted(unrelated)
   const recovery = getBulkCompletionReplay(owner, 1, 'log').prepare([original[1]!], randomUUID)
   expect(recovery).toEqual([{ ...chunk, indices: [-1, 0] }])
   expect(getBulkCompletionReplay(owner, 1, 'log').prepare([], randomUUID)).toEqual([])
@@ -65,6 +67,22 @@ it('owns unresolved replay across callers, selection changes and unrelated reque
   expect(log.prepare(original, randomUUID)[0]?.idempotencyKey).not.toBe(chunk.idempotencyKey)
   const nextAccount = getBulkCompletionReplay(owner, 2, 'log').prepare(original, randomUUID)[0]!
   expect(nextAccount.idempotencyKey).not.toBe(chunk.idempotencyKey)
+})
+
+it.each(['log', 'skip'] as const)('does not retain unattempted %s suffixes after a definitive first-chunk rejection', async mode => {
+  const { getBulkCompletionReplay } = await import('../utils/bulk-completion')
+  const replay = getBulkCompletionReplay({}, 1, mode)
+  const items = Array.from({ length: 205 }, (_, index) => ({ habitId: `habit-${index}`, date: '2026-09-12' }))
+  const chunks = replay.prepare(items, randomUUID)
+  replay.markAttempted(chunks[0]!)
+  replay.resolve(chunks[0]!.idempotencyKey)
+
+  const selection = [items[100]!]
+  const next = replay.prepare(selection, randomUUID)
+  expect(next).toHaveLength(1)
+  expect(next[0]?.items).toHaveLength(1)
+  expect(next[0]?.items).toEqual(selection)
+  expect(next[0]?.idempotencyKey).not.toBe(chunks[1]!.idempotencyKey)
 })
 
 it.each([502, 503, 504])('recognizes gateway %i as recoverable', async status => {

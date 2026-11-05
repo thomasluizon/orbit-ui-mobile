@@ -58,6 +58,7 @@ export function useBulkSkipHabits(options: { suppressParentSettlement?: boolean;
       for (const chunk of replay.prepare({ ...normalizeBulkCompletionInput(input), items }, randomUUID)) {
         if (!account.stillCurrent()) break
         try {
+          replay.markAttempted(chunk)
           const response = await performQueuedApiMutation<BulkSkipResult, BulkSkipResult & QueuedMarker>({
             manualRetry: options.manualRetry,
             idempotencyKey: chunk.idempotencyKey,
