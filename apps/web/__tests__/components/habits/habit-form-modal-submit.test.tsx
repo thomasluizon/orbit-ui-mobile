@@ -122,7 +122,7 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
     expect(screen.queryByRole('button', { name: 'habits.form.suggestDate' })).toBeNull()
     expect(screen.getByRole('radio', { name: expected.isFlexible ? 'habits.form.timesPerUnit' : 'habits.form.every' })).toBeChecked()
     expect(screen.getByRole('radio', { name: expected.frequencyUnit === 'Week' ? 'habits.form.unitWeek' : 'habits.form.unitDay' })).toBeChecked()
-    expect(screen.getByRole('spinbutton', { name: /^habits\.form\.(everyCount|timesCount)$/ })).toHaveValue(expected.frequencyQuantity)
+    expect(screen.getByRole('spinbutton', { name: /^habits\.form\.(everyCount|timesCount)\b/ })).toHaveValue(expected.frequencyQuantity)
     for (const day of expected.days) expect(screen.getByRole('button', { name: `dates.daysLong.${day.toLowerCase()}` })).toHaveAttribute('aria-pressed', 'true')
     expect(mutation()).not.toHaveBeenCalled()
     await submit()

@@ -44,7 +44,7 @@ export function HabitScheduleFields({ unit, quantity, flexible, disabled, onChan
       <Proposed keepMounted inset proposed={proposed} scope="field" label={t('habits.detail.proposed')}>
         <Input
           proposed={proposed}
-          label={t(flexible ? 'habits.form.timesCount' : 'habits.form.everyCount')}
+          label={flexible ? t('habits.form.timesCount') : t('habits.form.everyCount', { unit: unit ?? 'Day' })}
           name="frequencyQuantity"
           autoComplete="off"
           kind="number"

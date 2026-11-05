@@ -155,7 +155,7 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
     if (owner === 'create') fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
     if (flexible) fireEvent.click(screen.getByRole('radio', { name: 'habits.form.timesPerUnit' }))
     fireEvent.click(screen.getByRole('radio', { name: 'habits.form.unitMonth' }))
-    fireEvent.change(screen.getByRole('spinbutton', { name: /^habits\.form\.(everyCount|timesCount)$/ }), { target: { value: '2' } })
+    fireEvent.change(screen.getByRole('spinbutton', { name: /^habits\.form\.(everyCount|timesCount)\b/ }), { target: { value: '2' } })
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.repeatMore' }))
     fireEvent.change(phraseInput(), { target: { value: 'tomorrow' } })
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.addEndDate' }))
@@ -167,7 +167,7 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
     fireEvent.click(screen.getByRole('radio', { name: /^habits.form.typeHabit/ }))
     if (editAfterReturn) {
       fireEvent.click(screen.getByRole('radio', { name: 'habits.form.unitYear' }))
-      fireEvent.change(screen.getByRole('spinbutton', { name: /^habits\.form\.(everyCount|timesCount)$/ }), { target: { value: '4' } })
+      fireEvent.change(screen.getByRole('spinbutton', { name: /^habits\.form\.(everyCount|timesCount)\b/ }), { target: { value: '4' } })
     }
     fireEvent.click(screen.getByRole('button', { name: /habits.form.habitStartDate/ }))
     fireEvent.click(document.querySelector<HTMLButtonElement>('button[data-day="2026-10-21"]')!)
