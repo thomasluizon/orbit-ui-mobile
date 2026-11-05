@@ -210,6 +210,7 @@ The Astra block-first overhaul leads this batch (owner order): every Astra answe
 
 Defects a person hits in the shipped build today. They target `main`; an Android fix is followed by `/android-release` to the open track.
 
+- `#2036` Astra fails on an image of a ticket and creates nothing (owner report, live production defect, first in the queue): production API logged `AI attempt 1 failed (TaskCanceledException); retriable: False` then `AI completion failed at completion with cancelled` at 16:10:52 UTC for his cinema ticket screenshot plus "cria pra mim"; which deadline fired is not yet verified. Next: reproduce red on the real path, fix the cause, the create preview with the right date and time, a red-then-green test, API release; file the UI double error surface as a `repo:ui` ticket once the cause is proven.
 - `#2022` Treat gateway errors on the account event ticket as a retryable outage (Sentry `ORBIT-WEB-1B`, `ORBIT-WEB-1C`): merged as `ui#2336` (`c5b07380f`); live on staging and production web `28bd8accc`. Next: resolve both Sentry issues after an event-free day; close.
 - `#1994` Avisos rows light only the body on hover and press: merged as `ui#2324`; live on production web `28bd8accc`; Android Open 1.3.143 (203) from `28bd8accc` was dispatched (run 42077921045). Next: read that run's result; close.
 - `#1999` Skipping a parent with its sub-habits showed "Algo deu errado": the bulk recovery (`ui#2330`) is live on production web `28bd8accc` and rides Android Open 1.3.143 (run 42077921045). Close after that run succeeds.
