@@ -25,6 +25,16 @@ const replyMarker = (id) => `<auto-work.${Buffer.from(id).toString("hex")}@useor
 const messageBodies = (part) => [part?.body?.data ? { mimeType: part.mimeType, text: Buffer.from(part.body.data, "base64url").toString("utf8") } : null,
   ...(part?.parts ?? []).flatMap(messageBodies)].filter(Boolean)
 
+const replyMessage = (item, text) => {
+  if (typeof text !== "string" || !text.trim()) throw new Error("Reply text is required")
+  const headers = { From: MAILBOX, To: cleanHeader(item.replyTo), Subject: `=?UTF-8?B?${Buffer.from(item.subject).toString("base64")}?=`,
+    "Message-ID": replyMarker(item.id), "In-Reply-To": cleanHeader(item.messageId), References: cleanHeader(`${item.references} ${item.messageId}`),
+    "MIME-Version": "1.0", "Content-Type": "text/plain; charset=UTF-8", "Content-Transfer-Encoding": "base64" }
+  if (Object.values(headers).some((value) => /[\r\n]/.test(value))) throw new Error("Invalid reply header")
+  const body = Buffer.from(text).toString("base64").match(/.{1,76}/g).join("\r\n")
+  return { threadId: item.threadId, raw: Buffer.from(Object.entries(headers).map(([name, value]) => `${name}: ${value}`).join("\r\n") + "\r\n\r\n" + body).toString("base64url") }
+}
+
 export const collectMail = async (client, repoRoot = REPO_ROOT) => {
   let current = intakeSource("gmail", repoRoot)
   let pageToken
@@ -54,13 +64,7 @@ export const draftReply = async (client, { id, text }, repoRoot = REPO_ROOT) => 
   const existing = await client.listDrafts({ q: `rfc822msgid:${marker.slice(1, -1)}`, maxResults: "1" })
   let draftId = existing.drafts?.[0]?.id
   if (!draftId) {
-    const headers = { From: MAILBOX, To: cleanHeader(item.replyTo), Subject: `=?UTF-8?B?${Buffer.from(item.subject).toString("base64")}?=`,
-      "Message-ID": marker, "In-Reply-To": cleanHeader(item.messageId), References: cleanHeader(`${item.references} ${item.messageId}`),
-      "MIME-Version": "1.0", "Content-Type": "text/plain; charset=UTF-8", "Content-Transfer-Encoding": "base64" }
-    if (Object.values(headers).some((value) => /[\r\n]/.test(value))) throw new Error("Invalid reply header")
-    const body = Buffer.from(text).toString("base64").match(/.{1,76}/g).join("\r\n")
-    const raw = Buffer.from(Object.entries(headers).map(([name, value]) => `${name}: ${value}`).join("\r\n") + "\r\n\r\n" + body).toString("base64url")
-    const draft = await client.createDraft({ threadId: item.threadId, raw })
+    const draft = await client.createDraft(replyMessage(item, text))
     draftId = draft.id
   }
   if (typeof draftId !== "string" || !draftId) throw new Error("Gmail did not return a draft id")
@@ -76,6 +80,7 @@ export const replyToMail = async (client, receipt, repoRoot = REPO_ROOT) => {
   if (disposition === "none") return { disposition }
   if (item.sentId) return { disposition: "sent", sentId: item.sentId }
   if (disposition === "draft") return { disposition, draftId: await draftReply(client, receipt, repoRoot) }
+  const message = replyMessage(item, receipt.text)
   const sent = await client.list({ q: `in:sent rfc822msgid:${replyMarker(receipt.id).slice(1, -1)}`, maxResults: "1" })
   let sentId = sent.messages?.[0]?.id
   if (!sentId) {
@@ -84,7 +89,7 @@ export const replyToMail = async (client, receipt, repoRoot = REPO_ROOT) => {
     current = intakeSource("gmail", repoRoot)
     item = current.pending[receipt.id]
     saveIntakeSource("gmail", { ...current, pending: { ...current.pending, [receipt.id]: { ...item, sendAttempted: true, replyReceipt: receipt } } }, repoRoot)
-    sentId = (await client.sendDraft(draftId, receipt)).id
+    sentId = (await client.sendDraft(draftId, receipt, message)).id
   }
   if (typeof sentId !== "string" || !sentId) throw new Error("Gmail did not confirm the sent message")
   current = intakeSource("gmail", repoRoot)

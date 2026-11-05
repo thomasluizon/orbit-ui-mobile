@@ -54,9 +54,10 @@ export const gmailClient = (accessToken, request = fetch) => {
     read: (id) => call("GET", `messages/${encodeURIComponent(id)}`, { format: "full" }),
     listDrafts: (parameters) => call("GET", "drafts", parameters),
     createDraft: (message) => call("POST", "drafts", {}, { message }),
-    sendDraft: (id, receipt) => {
+    sendDraft: (id, receipt, message) => {
       if (replyDisposition(receipt) !== "send") throw new Error("This reply must remain a draft for the owner")
-      return call("POST", "drafts/send", {}, { id })
+      if (typeof message?.raw !== "string" || !message.raw) throw new Error("An exact classified reply is required")
+      return call("POST", "drafts/send", {}, { id, message })
     },
   })
 }

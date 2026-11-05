@@ -69,9 +69,10 @@ export const cases = async () => {
   T("mail: an injected header is refused before draft creation", unsafeRefused && !unsafePost)
   let sends = 0
   let sentVisible = false
+  let sentMessage
   const sendingClient = gmailClient("access", async (address, options) => {
     const url = new URL(address)
-    if (url.pathname.endsWith("/drafts/send")) { sends++; sentVisible = true; return Response.json({ id: "sent-1", threadId: "t1", labelIds: ["SENT"] }) }
+    if (url.pathname.endsWith("/drafts/send")) { sends++; sentVisible = true; sentMessage = JSON.parse(options.body).message; return Response.json({ id: "sent-1", threadId: "t1", labelIds: ["SENT"] }) }
     if (url.pathname.endsWith("/messages")) return Response.json(sentVisible ? { messages: [{ id: "sent-1", threadId: "t1" }] } : {})
     return request(address, options)
   })
@@ -79,6 +80,8 @@ export const cases = async () => {
   const result = await replyToMail(sendingClient, simple, checkout)
   await replyToMail(sendingClient, simple, checkout)
   T("mail: a clear reply sends once and persists confirmation", result.disposition === "sent" && sends === 1 && intakeSource("gmail", checkout).pending.m1.sentId === "sent-1")
+  const sentMime = sentMessage?.raw ? Buffer.from(sentMessage.raw, "base64url").toString("utf8") : ""
+  T("mail: sending replaces an old draft with the exact classified reply", sentMessage?.threadId === "t1" && Buffer.from(sentMime.split("\r\n\r\n")[1] ?? "", "base64").toString("utf8") === simple.text)
   const lost = intakeSource("gmail", checkout)
   delete lost.pending.m1.sentId
   writeRunState({ sessionId: "mail-child", sleep: true, intake: { gmail: lost } }, checkout)

@@ -54,6 +54,6 @@ export const cases = async () => {
   try { await isolated.sendDraft("draft", { person: true, classification: "billing" }) } catch { refused = true }
   T("google: unsafe sends are refused before the network", refused)
   const simple = { person: true, classification: "praise", replyKind: "thanks", clear: true, concerns: [] }
-  await client.sendDraft("draft", simple)
+  await client.sendDraft("draft", simple, { raw: "reply", threadId: "thread" })
   T("google: an authorized send uses the discovered draft send endpoint", network.at(-1).url.endsWith("/drafts/send") && JSON.parse(network.at(-1).options.body).id === "draft")
 }
