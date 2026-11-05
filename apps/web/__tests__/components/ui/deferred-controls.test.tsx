@@ -1,9 +1,12 @@
 import React from 'react'
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest'
 
 const network = vi.hoisted(() => ({ available: true, pending: [] as (() => void)[] }))
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+
+beforeAll(() => { vi.useFakeTimers() })
+afterAll(() => { vi.useRealTimers() })
 
 beforeEach(() => {
   vi.resetModules()
@@ -23,7 +26,7 @@ afterEach(async () => {
   useAppToastStore.setState({ currentToast: null, queue: [] })
   const { resetPendingNotificationDeletesForTests } = await import('@/lib/pending-notification-deletes')
   resetPendingNotificationDeletesForTests()
-  vi.useRealTimers()
+  await act(async () => { await vi.runAllTimersAsync() })
   vi.restoreAllMocks()
 })
 
@@ -41,7 +44,8 @@ it.each(['loading', 'complete'] as const)('renders the first offline failure and
     useAppToastStore.getState().showToast({ kind: 'neutral', message: 'Connection failed', actionLabel: 'Retry', onAction: retry })
   })
   await act(async () => { await vi.dynamicImportSettled() })
-  await waitFor(() => expect(screen.getByText('Connection failed')).toBeVisible())
+  await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+  expect(screen.getByText('Connection failed')).toBeVisible()
   fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
   expect(retry).toHaveBeenCalledOnce()
 })
@@ -54,7 +58,6 @@ it('renders the first failed-delete retry offline and pauses its deadline on hov
   await act(async () => { await vi.dynamicImportSettled() })
   expect(screen.queryByRole('group')).toBeNull()
   network.available = false
-  vi.useFakeTimers()
 
   act(() => {
     queuePendingNotificationDelete('notification', execute)
@@ -92,7 +95,9 @@ it('preserves background focus through the first feedback action', async () => {
     useAppToastStore.getState().showQueued('Saved', 'Undo', onUndo)
     await vi.dynamicImportSettled()
   })
-  const undo = await screen.findByRole('button', { name: 'Undo' })
+  await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+  const undo = screen.getByRole('button', { name: 'Undo' })
+  expect(undo).toBeVisible()
   expect(focused).toHaveFocus()
   fireEvent.click(undo)
   expect(onUndo).toHaveBeenCalledOnce()
