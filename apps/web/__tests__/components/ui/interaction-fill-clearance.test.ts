@@ -52,6 +52,7 @@ describe('interaction clearance inspector in Chromium', () => {
   let browser: Browser
   let stylesheet: string
   registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
+  beforeAll(async () => { await (await browser.newPage()).close() })
   beforeAll(async () => {
     const source = resolve('app/globals.css')
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css

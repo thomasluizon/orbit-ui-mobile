@@ -29,13 +29,27 @@ async function closeChromeServer(server: BrowserServer): Promise<void> {
   if (!gracefullyClosed) await server.kill()
 }
 
+function withinLaunchBudget(serverLaunch: Promise<BrowserServer>): Promise<BrowserServer> {
+  let launchTimer: ReturnType<typeof setTimeout> | undefined
+  let expired = false
+  const budget = new Promise<never>((_, reject) => {
+    launchTimer = setTimeout(() => {
+      expired = true
+      reject(new Error(`Chrome server launch exceeded ${CHROME_LAUNCH_TIMEOUT_MS}ms.`))
+    }, CHROME_LAUNCH_TIMEOUT_MS)
+  })
+  void serverLaunch.then(async (server) => { if (expired) await server.kill() }, () => undefined)
+  return Promise.race([serverLaunch, budget]).finally(() => { clearTimeout(launchTimer) })
+}
+
 export function launchChrome(options?: Parameters<typeof chromium.launchServer>[0]): BrowserLaunch {
-  const serverLaunch = chromium.launchServer({
+  // WHY: launchServer runs its launch without a deadline and ignores this timeout. https://github.com/thomasluizon/orbit-tickets/issues/315
+  const serverLaunch = withinLaunchBudget(chromium.launchServer({
     ...options,
     channel: 'chrome',
     host: '127.0.0.1',
     timeout: CHROME_LAUNCH_TIMEOUT_MS,
-  })
+  }))
   const browserLaunch = serverLaunch.then(async (server) => {
     try {
       return await chromium.connect(server.wsEndpoint(), {
@@ -61,6 +75,16 @@ export function launchChrome(options?: Parameters<typeof chromium.launchServer>[
       return shutdown
     },
   })
+}
+
+// WHY: a fresh runner's first Chrome start can stall past a suite's launch hook, so it is paid once before suites start. https://github.com/thomasluizon/orbit-tickets/issues/315
+export async function warmChrome(): Promise<void> {
+  try {
+    const browser = await chromium.launch({ channel: 'chrome', timeout: CHROME_LAUNCH_TIMEOUT_MS })
+    await browser.close()
+  } catch (cause) {
+    process.stderr.write(`Chrome warm start failed: ${cause instanceof Error ? cause.message : String(cause)}\n`)
+  }
 }
 
 export function registerChromeLaunchHook(

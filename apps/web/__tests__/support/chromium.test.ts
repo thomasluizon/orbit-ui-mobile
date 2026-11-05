@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import vitestConfig from '../../vitest.config'
+import { setup as chromiumGlobalSetup } from './chromium-global-setup'
 
-const mocks = vi.hoisted(() => ({ launchServer: vi.fn(), connect: vi.fn() }))
+const mocks = vi.hoisted(() => ({ launchServer: vi.fn(), connect: vi.fn(), launch: vi.fn() }))
 
 vi.mock('@playwright/test', () => ({ chromium: mocks }))
 
@@ -10,6 +11,7 @@ import {
   CHROME_LAUNCH_HOOK_TIMEOUT_MS,
   launchChrome,
   registerChromeLaunchHook,
+  warmChrome,
   type Browser,
   type HookRegistrar,
 } from './chromium'
@@ -28,6 +30,7 @@ describe('Chromium test lifecycle', () => {
     server.kill.mockResolvedValue(undefined)
     mocks.launchServer.mockResolvedValue(server)
     mocks.connect.mockResolvedValue(browser)
+    mocks.launch.mockResolvedValue(browser)
   })
 
   it('keeps jsdom before Chromium even when the worker limit resolves to one', () => {
@@ -94,6 +97,69 @@ describe('Chromium test lifecycle', () => {
     } finally {
       await closeChrome(browserLaunch)
       vi.useRealTimers()
+    }
+  })
+
+  it('rejects a stalled server launch at its budget and still releases teardown', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    mocks.launchServer.mockReturnValueOnce(new Promise(() => undefined))
+    const browserLaunch = launchChrome()
+    const outcome = browserLaunch.then(() => 'connected', (error: Error) => `${error.message} ${(error.cause as Error).message}`)
+
+    try {
+      await vi.advanceTimersByTimeAsync(29_999)
+      await expect(Promise.race([outcome, Promise.resolve('pending')])).resolves.toBe('pending')
+      await vi.advanceTimersByTimeAsync(1)
+      await expect(outcome).resolves.toBe('Chrome launch failed for the installed chrome channel. Chrome server launch exceeded 30000ms.')
+      await expect(closeChrome(browserLaunch)).resolves.toBeUndefined()
+      expect(mocks.connect).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('kills a server that finishes launching after its budget expired', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    let finishLaunch!: (launched: typeof server) => void
+    mocks.launchServer.mockReturnValueOnce(new Promise((resolve) => { finishLaunch = resolve }))
+    const browserLaunch = launchChrome()
+    const outcome = browserLaunch.then(() => 'connected', (error: Error) => `${error.message} ${(error.cause as Error).message}`)
+
+    try {
+      await vi.advanceTimersByTimeAsync(30_000)
+      await expect(outcome).resolves.toMatch(/exceeded 30000ms/)
+      finishLaunch(server)
+      await vi.advanceTimersByTimeAsync(0)
+      expect(server.kill).toHaveBeenCalledOnce()
+      expect(mocks.connect).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('pays the runner first Chrome start before any Chromium suite timer starts', async () => {
+    const chromium = vitestConfig.test?.projects
+      ?.flatMap((project) => typeof project === 'object' && 'test' in project ? [project.test] : [])
+      .find((project) => project?.name === 'chromium')
+
+    expect(chromium?.globalSetup).toEqual(['./__tests__/support/chromium-global-setup.ts'])
+    expect(chromiumGlobalSetup).toBe(warmChrome)
+    await warmChrome()
+
+    expect(mocks.launch).toHaveBeenCalledWith({ channel: 'chrome', timeout: 30_000 })
+    expect(browser.close).toHaveBeenCalledOnce()
+    expect(mocks.launchServer).not.toHaveBeenCalled()
+  })
+
+  it('reports a stalled warm start and leaves each suite its own launch', async () => {
+    const write = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+    mocks.launch.mockRejectedValueOnce(new Error('browserType.launch: Timeout 30000ms exceeded.'))
+
+    try {
+      await expect(warmChrome()).resolves.toBeUndefined()
+      expect(write).toHaveBeenCalledWith(expect.stringContaining('Chrome warm start failed: browserType.launch: Timeout 30000ms exceeded.'))
+    } finally {
+      write.mockRestore()
     }
   })
 

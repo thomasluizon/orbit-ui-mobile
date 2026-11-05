@@ -1,5 +1,5 @@
+import { ListRow } from '@/components/ui/list-row'
 import { MAX_REMINDERS_PER_HABIT, MIN_RELATIVE_REMINDER_MINUTES, MAX_RELATIVE_REMINDER_MINUTES } from '@orbit/shared/validation'
-import { IconButton } from '@/components/ui/icon-button'
 import { PillButton } from '@/components/ui/pill-button'
 import { useState, useMemo, type ReactNode } from 'react'
 import { X, Plus } from '@/components/ui/icons'
@@ -84,19 +84,20 @@ export function ReminderSection({
   return (
     <div className="flex flex-col gap-3">
       {reminderEnabled && (
-        <div className="flex flex-col gap-2">
-          <div className="flex flex-wrap gap-2">
+        <div className="flex min-w-0 flex-col gap-6">
+          <div className="flex min-w-0 flex-col gap-3">
+          {reminderTimes.length > 0 ? <div data-reminder-chips className="flex flex-wrap gap-2 pb-2">
             {reminderTimes.map((time) => (
               <span
                 key={time}
-                className="inline-flex items-center gap-1 rounded-full bg-[rgba(var(--primary-rgb),0.12)] px-3 py-1 text-[var(--fg-1)]"
-                style={{ fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500 }}
+                data-reminder-chip className="inline-flex max-w-full items-center gap-1 rounded-[12px] bg-[rgba(var(--primary-rgb),0.12)] px-3 py-2 text-[var(--fg-1)]"
+                style={{ fontFamily: 'var(--font-sans)', fontSize: '0.75rem', fontWeight: 500 }}
               >
-                {reminderLabel(time)}
+                <span className="min-w-0 break-words">{reminderLabel(time)}</span>
                 <button
                   type="button"
                   aria-label={t('habits.form.removeReminder')}
-                  className={`grid place-items-center min-h-[var(--touch-min)] min-w-[var(--touch-min)] rounded-full hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${reminderTimes.length + scheduledReminderCount <= 1 ? 'opacity-30 cursor-not-allowed' : 'hover:text-[var(--fg-2)]'}`}
+                  className={`grid shrink-0 place-items-center min-h-[var(--touch-min)] min-w-[var(--touch-min)] rounded-full hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${reminderTimes.length + scheduledReminderCount <= 1 ? 'opacity-30 cursor-not-allowed' : 'hover:text-[var(--fg-2)]'}`}
                   disabled={reminderTimes.length + scheduledReminderCount <= 1}
                   onClick={() => removeReminder(time)}
                 >
@@ -104,7 +105,7 @@ export function ReminderSection({
                 </button>
               </span>
             ))}
-          </div>
+          </div> : null}
           {reminderTimes.length === 1 && scheduledReminderCount === 0 ? (
             <p className="text-xs leading-[1.5] text-[var(--fg-3)]">
               {t('habits.form.reminderLastRequired')}
@@ -112,9 +113,9 @@ export function ReminderSection({
           ) : null}
 
           <div className="relative">
-            {atLimit ? <p className="text-[14px] text-[var(--fg-3)]">{t('habits.form.relativeReminderMax', { count: MAX_REMINDERS_PER_HABIT })}</p> : null}
+            {atLimit ? <p className="text-sm text-[var(--fg-3)]">{t('habits.form.relativeReminderMax', { count: MAX_REMINDERS_PER_HABIT })}</p> : null}
             {!atLimit ? <>
-            <IconButton label={t('habits.form.reminderAdd')} aria-expanded={showAddReminder} onClick={() => { setShowAddReminder(!showAddReminder); setShowCustomInput(false) }}><Plus size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
+            <div><ListRow wrapTitle placement="field" title={t('habits.form.reminderAdd')} icon="plus" expanded={showAddReminder} onClick={() => { setShowAddReminder(!showAddReminder); setShowCustomInput(false) }} /></div>
 
             {showAddReminder && (
               <div className="mt-2 rounded-[14px] bg-[var(--bg-sheet)] shadow-[var(--shadow-2),inset_0_0_0_1px_var(--hairline)] p-1">
@@ -122,7 +123,7 @@ export function ReminderSection({
                   <button
                     key={preset.value}
                     type="button"
-                    className="flex min-h-[var(--touch-min)] w-full items-center px-3 py-2 text-left rounded-[12px] text-[14px] text-[var(--fg-1)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
+                    className="flex min-h-[var(--touch-min)] w-full items-center px-3 py-2 text-left rounded-[12px] text-sm text-[var(--fg-1)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
                     onClick={() => addPreset(preset.value)}
                   >
                     {t(preset.key as Parameters<typeof t>[0])}
@@ -130,7 +131,7 @@ export function ReminderSection({
                 ))}
                 {showCustomInput && (
                   <div className="flex flex-wrap items-end gap-2 px-3 py-2">
-                    <label className="flex flex-col gap-2 text-[14px] font-medium text-[var(--fg-2)]">
+                    <label className="flex flex-col gap-2 text-sm font-medium text-[var(--fg-2)]">
                       {t('habits.form.reminderCustomLabel')}
                       <input
                         value={customValue ?? ''}
@@ -141,13 +142,13 @@ export function ReminderSection({
                         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomReminder() } }}
                       />
                     </label>
-                    <Select
+                    <div className="flex min-w-0 flex-col gap-2"><span className="text-sm font-medium text-[var(--fg-2)]">{t('habits.form.reminderCustomUnit')}</span><Select
                       value={customUnit}
                       options={reminderUnitOptions}
-                      label={t('habits.form.reminderCustom')}
+                      label={t('habits.form.reminderCustomUnit')}
                       onChange={(val) => setCustomUnit(val as 'min' | 'hours' | 'days')}
-                    />
-                    <Select
+                    /></div>
+                    <div className="flex min-w-0 flex-col gap-2"><span className="text-sm font-medium text-[var(--fg-2)]">{t('habits.form.reminderDirection')}</span><Select
                       value={customDirection}
                       options={[
                         { value: 'before', label: t('habits.form.reminderBefore') },
@@ -155,7 +156,7 @@ export function ReminderSection({
                       ]}
                       label={t('habits.form.reminderDirection')}
                       onChange={(value) => setCustomDirection(value as 'before' | 'after')}
-                    />
+                    /></div>
                     <div className="flex min-h-12 min-w-12 items-center justify-center [&_button]:scroll-m-1">
                       <PillButton variant="ghost" size="sm" iconOnly label={t('common.add')} onClick={addCustomReminder}><Plus size={20} aria-hidden="true" /></PillButton>
                     </div>
@@ -163,7 +164,7 @@ export function ReminderSection({
                 )}
                 <button
                   type="button"
-                  className="flex min-h-[var(--touch-min)] w-full items-center px-3 py-2 text-left rounded-[12px] text-[14px] text-[var(--fg-1)] font-medium enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
+                  className="flex min-h-[var(--touch-min)] w-full items-center px-3 py-2 text-left rounded-[12px] text-sm text-[var(--fg-1)] font-medium enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
                   onClick={() => setShowCustomInput(!showCustomInput)}
                 >
                   {t('habits.form.reminderCustom')}
@@ -171,6 +172,7 @@ export function ReminderSection({
               </div>
             )}
             </> : null}
+          </div>
           </div>
           {children}
         </div>

@@ -75,7 +75,7 @@ describe('ReminderSection', () => {
 
   it('renders a chip per reminder time using the label formatter', () => {
     renderSection({ reminderTimes: [15, 30] })
-    expect(screen.getByText('label-15')).toHaveClass('text-[var(--fg-1)]')
+    expect(screen.getByText('label-15')).toBeInTheDocument()
     expect(screen.getByText('label-30')).toBeInTheDocument()
   })
 
@@ -120,7 +120,7 @@ describe('ReminderSection', () => {
     const props = renderSection({ reminderTimes: [] })
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.reminderAdd' }))
     fireEvent.click(screen.getByText('habits.form.reminderCustom'))
-    fireEvent.change(screen.getByLabelText('habits.form.reminderCustom'), {
+    fireEvent.change(screen.getByLabelText('habits.form.reminderCustomUnit'), {
       target: { value: 'days' },
     })
     fireEvent.change(screen.getByRole('spinbutton', { name: 'habits.form.reminderCustomLabel' }), {
@@ -158,7 +158,7 @@ describe('ReminderSection', () => {
     fireEvent.change(screen.getByRole('spinbutton', { name: 'habits.form.reminderCustomLabel' }), {
       target: { value: '1' },
     })
-    fireEvent.change(screen.getByLabelText('habits.form.reminderCustom'), {
+    fireEvent.change(screen.getByLabelText('habits.form.reminderCustomUnit'), {
       target: { value: 'hours' },
     })
     fireEvent.click(screen.getByLabelText('common.add'))

@@ -80,12 +80,14 @@ for (const locale of ['en', 'pt-BR'] as const) {
           const sheet = page.getByRole('dialog', { name: messages.habits.form.timingAndReminder, exact: true })
           await expect(sheet.getByRole('textbox', { name: messages.habits.form.dueEndTime, exact: true })).toHaveCount(0)
           await sheet.getByRole('textbox', { name: messages.habits.form.exactTime, exact: true }).fill('08:00')
+          await expect(sheet.getByRole('textbox', { name: messages.habits.form.dueEndTime, exact: true })).toHaveCount(0)
+          await sheet.getByRole('button', { name: messages.habits.form.addEndTime, exact: true }).click()
           await expect(sheet.getByRole('textbox', { name: messages.habits.form.dueEndTime, exact: true })).toBeVisible()
           const enabled = sheet.getByRole('switch', { name: messages.habits.form.reminder, exact: true })
           if (await enabled.getAttribute('aria-checked') !== 'true') await enabled.click()
           await expect(sheet.getByRole('radio', { name: messages.habits.form.definedTimes, exact: true })).toBeChecked()
           await sheet.getByRole('radio', { name: messages.habits.form.repeatEvery, exact: true }).click()
-          await expect(sheet.getByRole('combobox', { name: messages.habits.form.repeatEvery, exact: true })).toBeVisible()
+          await expect(sheet.getByRole('combobox', { name: messages.habits.form.repeatInterval, exact: true })).toBeVisible()
           const bounds = await sheet.evaluate((element) => {
             const box = element.getBoundingClientRect()
             return { left: box.left, right: box.right, scrollWidth: document.documentElement.scrollWidth }

@@ -154,6 +154,8 @@ describe('habit end time', () => {
     openTiming()
     expect(screen.queryByLabelText('habits.form.dueEndTime')).toBeNull()
     fireEvent.change(start(), { target: { value: '08:00' } })
+    expect(screen.queryByLabelText('habits.form.dueEndTime')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.addEndTime' }))
     expect(end()).toBeEnabled()
     fireEvent.change(end(), { target: { value: '09:00' } })
     fireEvent.blur(end())
