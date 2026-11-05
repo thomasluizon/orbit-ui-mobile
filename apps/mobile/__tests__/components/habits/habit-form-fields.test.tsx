@@ -1555,6 +1555,7 @@ it('edits end times, reports ordering errors, and disables the field after clear
   openTiming(tree)
   expect(tree.root.findAllByProps({ label: 'habits.form.dueEndTime' })).toHaveLength(0)
   await refresh(() => field('habits.form.exactTime').props.onChange('08:00'))
+  TestRenderer.act(() => tree.root.findAllByType(ListRow).find((node: { props: { title: string } }) => node.props.title === 'habits.form.addEndTime')!.props.onClick())
   expect(field('habits.form.dueEndTime').props.disabled).toBe(false)
   await refresh(() => field('habits.form.dueEndTime').props.onChange('09:00'))
   expect(helpers.form.getValues('dueEndTime')).toBe('09:00')
@@ -2514,6 +2515,8 @@ it('keeps native Task copy, a compact description and conditional end time throu
   expect(tree.root.findAllByProps({ label: 'habits.form.dueEndTime' })).toHaveLength(0)
   const exactTime = tree.root.findAllByType('TimeField').find((node: { props: { label: string } }) => node.props.label === 'habits.form.exactTime')!
   await TestRenderer.act(() => exactTime.props.onChange('08:00'))
+  expect(tree.root.findAllByType('TimeField').some((node: { props: { label: string } }) => node.props.label === 'habits.form.dueEndTime')).toBe(false)
+  await TestRenderer.act(() => tree.root.findAllByType(ListRow).find((node: { props: { title: string } }) => node.props.title === 'habits.form.addEndTime')!.props.onClick())
   expect(tree.root.findAllByType('TimeField').some((node: { props: { label: string } }) => node.props.label === 'habits.form.dueEndTime')).toBe(true)
 })
 
@@ -2565,4 +2568,72 @@ it('guards captured end-time changes and clears while the native form is frozen'
   expect(helpers.form.getValues('dueEndTime')).toBe('10:00')
   await TestRenderer.act(() => clear())
   expect(helpers.form.getValues('dueEndTime')).toBe('')
+})
+
+it('reveals native timing questions in levels and retains hidden values', () => {
+  formLocale.realController = false
+  useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])
+  const helpers = createFormHelpers({ title: 'Read' })
+  const element = () => <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[15]} onReminderTimesChange={vi.fn()} />
+  let tree: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(element()) })
+  openTiming(tree)
+  const rows = (title: string) => tree.root.findAllByType(ListRow).filter((node: { props: { title: string } }) => node.props.title === title)
+  const fields = (label: string) => tree.root.findAll((node: UnderstandingTestNode) => node.props.label === label && typeof node.props.onChange === 'function')
+  const toggle = (title: string) => TestRenderer.act(() => rows(title)[0]!.props.toggle.onChange(!rows(title)[0]!.props.toggle.checked))
+  const discloseEndTime = () => TestRenderer.act(() => rows('habits.form.addEndTime')[0]!.props.onClick())
+  const refresh = () => TestRenderer.act(() => tree.update(element()))
+  expect(rows('habits.form.reminder')).toHaveLength(0)
+  TestRenderer.act(() => fields('habits.form.exactTime')[0]!.props.onChange('08:00'))
+  refresh()
+  expect(fields('habits.form.dueEndTime')).toHaveLength(0)
+  discloseEndTime()
+  TestRenderer.act(() => fields('habits.form.dueEndTime')[0]!.props.onChange('09:00'))
+  refresh()
+  discloseEndTime()
+  expect(fields('habits.form.dueEndTime')).toHaveLength(0)
+  expect(helpers.form.getValues('dueEndTime')).toBe('09:00')
+  discloseEndTime()
+  expect(fields('habits.form.dueEndTime')[0]!.props.value).toBe('09:00')
+  toggle('habits.form.reminder')
+  refresh()
+  const repeat = tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.repeatEvery')[0]!
+  TestRenderer.act(() => repeat.props.onPress())
+  refresh()
+  const saved = helpers.form.getValues('repeatReminder')
+  toggle('habits.form.reminder')
+  refresh()
+  expect(fields('habits.form.repeatStart')).toHaveLength(0)
+  expect(helpers.form.getValues('repeatReminder')).toEqual(saved)
+  toggle('habits.form.reminder')
+  refresh()
+  expect(fields('habits.form.repeatStart')).not.toHaveLength(0)
+})
+
+it('keeps a prefilled native end-time question open after clearing its value', () => {
+  formLocale.realController = false
+  useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])
+  const helpers = createFormHelpers({ title: 'Read', dueTime: '08:00', dueEndTime: '09:00' })
+  const element = () => <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />
+  let tree: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(element()) })
+  openTiming(tree)
+  const endQuestion = tree.root.findAllByType(ListRow).find((node: { props: { title: string } }) => node.props.title === 'habits.form.addEndTime')!
+  expect(endQuestion.props.expanded).toBe(true)
+  expect(endQuestion.props.toggle).toBeUndefined()
+  const fields = () => tree.root.findAll((node: UnderstandingTestNode) => node.props.label === 'habits.form.dueEndTime' && typeof node.props.onClear === 'function')
+  TestRenderer.act(() => fields()[0]!.props.onClear())
+  TestRenderer.act(() => tree.update(element()))
+  expect(fields()).not.toHaveLength(0)
+  expect(fields()[0]!.props.value).toBe('')
+  expect(helpers.form.getValues('dueEndTime')).toBe('')
+})
+
+it('leaves the timing entry caption free to grow', () => {
+  formLocale.realController = false
+  useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])
+  let tree: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers({ title: 'Read' })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />) })
+  const title = tree!.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && node.props['data-slot'] === 'list-row-title' && node.props.children === 'habits.form.timingAndReminder')[0]!
+  expect(title.props.numberOfLines).toBeUndefined()
 })

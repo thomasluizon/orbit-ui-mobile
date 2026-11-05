@@ -80,15 +80,15 @@ export function ScheduledReminderSection({
       {reminderEnabled && (
         <div className="flex flex-col gap-2">
           {(scheduledReminders?.length ?? 0) > 0 && (
-            <div className="flex flex-wrap gap-2">
+            <div data-reminder-chips className="flex flex-wrap gap-2 pb-2">
               {(scheduledReminders ?? []).map((sr, idx) => (
                 <span
                   key={`${sr.when}-${sr.time}`}
-                  className="inline-flex items-center gap-1 rounded-full bg-[rgba(var(--primary-rgb),0.12)] px-3 py-1 text-[var(--fg-1)]"
-                  style={{ fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500 }}
+                  data-reminder-chip className="inline-flex max-w-full items-center gap-1 rounded-[12px] bg-[rgba(var(--primary-rgb),0.12)] px-3 py-2 text-[var(--fg-1)]"
+                  style={{ fontFamily: 'var(--font-sans)', fontSize: '0.75rem', fontWeight: 500 }}
                 >
-                  {scheduledReminderLabel(sr)}
-                  <button type="button" aria-label={t('habits.form.removeScheduledReminder')} className="grid place-items-center min-h-[var(--touch-min)] min-w-[var(--touch-min)] hover:text-[var(--fg-2)] transition-colors" onClick={() => removeScheduledReminder(idx)}>
+                  <span className="min-w-0 break-words">{scheduledReminderLabel(sr)}</span>
+                  <button type="button" aria-label={t('habits.form.removeScheduledReminder')} className="grid shrink-0 rounded-full hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] place-items-center min-h-[var(--touch-min)] min-w-[var(--touch-min)] hover:text-[var(--fg-2)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" onClick={() => removeScheduledReminder(idx)}>
                     <X size={16} strokeWidth={2.2} aria-hidden="true" />
                   </button>
                 </span>
@@ -98,12 +98,12 @@ export function ScheduledReminderSection({
 
           <div>
             {atLimit && (
-              <p className="text-[14px] text-[var(--fg-3)]">{atRelativeLimit ? t('habits.form.relativeReminderMax', { count: MAX_REMINDERS_PER_HABIT }) : t('habits.form.scheduledReminderMax')}</p>
+              <p className="text-sm text-[var(--fg-3)]">{atRelativeLimit ? t('habits.form.relativeReminderMax', { count: MAX_REMINDERS_PER_HABIT }) : t('habits.form.scheduledReminderMax')}</p>
             )}
 
             {!atLimit && (
               <div className="flex flex-col gap-2">
-                <RadioGroup className="flex gap-2" aria-label={t('habits.form.scheduledReminder')}>
+                <h4 className="text-sm font-medium text-[var(--fg-2)]">{t('habits.form.scheduledReminder')}</h4><RadioGroup className="flex flex-wrap gap-2" aria-label={t('habits.form.scheduledReminder')}>
                   {!hideDayBefore ? <ReminderWhenOption label={t('habits.form.scheduledReminderDayBefore')} selected={when === 'day_before'} onSelect={() => setWhen('day_before')} /> : null}
                   <ReminderWhenOption label={t('habits.form.scheduledReminderSameDay')} selected={when === 'same_day'} onSelect={() => setWhen('same_day')} />
                 </RadioGroup>

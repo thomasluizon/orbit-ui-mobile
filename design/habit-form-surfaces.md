@@ -288,15 +288,25 @@ More details. Description remains directly under the title under #1607 and start
 row. The frequency choices, understanding and weekday corrections stay visible before optional
 details. General hides the dated fields and retains a reachable frequency choice.
 
-The Time and reminder row summarizes the selected time and enabled reminders. Its sheet contains
-exact time, an end time after an exact time exists, then one Remind me switch. At set times and
-Repeat every are radio choices. Dated items retain offset presets, custom offsets and absolute
-clock reminders in the first choice. The clock field keeps typing as a draft until blur or Enter; picker Done commits its selection.
-Each commit adds one reminder and resets the Time / Horário field; HH:MM remains a placeholder.
+The Time and reminder row summarizes the selected time and enabled reminders. Its sheet starts
+with At what time? A selected time or Any time reveals Want reminders? General starts with
+that reminder question. Existing values reveal their answered levels when editing. Set end? is a disclosure that reveals Until when? independently; hiding the follow-up retains its value.
+
+Enabling reminders reveals When do you want to be reminded? At set times and Repeat every are
+plain answers with their own details. Dated items retain offset presets, custom offsets and absolute
+clock reminders in the first answer. The clock field keeps typing as a draft until blur or Enter;
+picker Done commits its selection. Each commit adds one reminder and resets the reminder clock
+field. HH:MM remains a placeholder. Any time retains absolute reminders without a habit time.
 Only a task due today hides the day-before choice, without deleting an existing reminder.
-A habit starting today retains the day-before choice for subsequent occurrences. General retains its repeat-only reminder model. Repeat remains
-available for every task and cadence. Its exclusive request contract, active window and account
-clock conversion stay with the existing reminder owners.
+General retains its repeat-only model. Repeat remains available for every task and cadence.
+The exclusive request contract, active window, validation and account clock conversion stay with
+the existing reminder owners. Disabling reminders hides details and retains their saved draft.
+
+Each question is a separate vertical group. Reminder kind and repeat details have a 24px group
+gap and 12px internal gaps. Question and action rows use ListRow's field placement, with 8px inside the row for text and
+full-column targets and feedback. Hover and press stop at the field edge. Reminder chips wrap, reserve 8px below their
+row and 8px above and below their remove targets, and constrain growing text to the column.
+Add time is visible text. Its caption and the timing entry wrap as text grows. Permission feedback remains beside the reminder decision.
 
 More details groups Steps, Avoid, Organize and End. Steps retains checklist templates and the
 sub-item editor, labelled Subtasks for Task. Avoid retains the slip alert and its plan boundary.

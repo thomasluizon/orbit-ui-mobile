@@ -46,41 +46,59 @@ function FixedReminderEditors({ general, dueTime, enabled, offsets, clockCount, 
   return <ReminderSection tokens={tokens} reminderEnabled={enabled} reminderTimes={offsets} onReminderTimesChange={onOffsetsChange} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, t)} scheduledReminderCount={clockCount} onValidationError={onError} >{children}</ReminderSection>
 }
 
-export function HabitTimingField({ formHelpers, controller, reminderTimes, onReminderTimesChange, showError, tokens }: Readonly<HabitTimingFieldProps>) {
+function HabitTimeQuestions({ formHelpers, controller, showReminderQuestion, onTimeAnswered }: Readonly<Pick<HabitTimingFieldProps, 'formHelpers' | 'controller'> & { showReminderQuestion: boolean; onTimeAnswered: () => void }>) {
   const { t } = useTranslation()
   const { disabled, guard } = useHabitFormInteraction()
+  const { form } = formHelpers
+  const dueTime = useWatch({ control: form.control, name: 'dueTime' }) ?? ''
+  const dueEndTime = useWatch({ control: form.control, name: 'dueEndTime' }) ?? ''
+  const [endTimeExpanded, setShowEndTime] = useState<boolean | null>(null)
+  const showEndTime = endTimeExpanded ?? Boolean(dueEndTime)
+  const endTimeError = validateEndTime(dueTime, dueEndTime)
+  const changeEndTime = (value: string) => {
+    setShowEndTime(true)
+    form.setValue('dueEndTime', value, { shouldDirty: true })
+  }
+  return <View style={{ gap: 12 }}>
+          <TimeField disabled={disabled} label={t('habits.form.exactTime')} value={toTime24(dueTime)} onChange={guard(controller.setDueTime)} onClear={guard(controller.clearDueTime)} />
+          {!dueTime ? <View><ListRow disabled={disabled} placement="field" title={t('habits.form.noSetTime')} expanded={showReminderQuestion} onClick={onTimeAnswered} /></View> : null}
+          {dueTime ? <View><ListRow disabled={disabled} placement="field" title={t('habits.form.addEndTime')} expanded={showEndTime} onClick={guard(() => setShowEndTime(!showEndTime))} /></View> : null}
+          {dueTime && showEndTime ? <TimeField disabled={disabled} label={t('habits.form.dueEndTime')} value={toTime24(dueEndTime)} error={endTimeError ? t(endTimeError) : undefined} onChange={guard(changeEndTime)} onClear={guard(() => changeEndTime(''))} /> : null}
+        </View>
+}
+
+export function HabitTimingField({ formHelpers, controller, reminderTimes, onReminderTimesChange, showError, tokens }: Readonly<HabitTimingFieldProps>) {
+  const { t } = useTranslation()
+  const { disabled } = useHabitFormInteraction()
   const { profile } = useProfile()
   const { displayTime } = useTimeFormat()
   const { form, isGeneral } = formHelpers
   const dueTime = useWatch({ control: form.control, name: 'dueTime' }) ?? ''
-  const dueEndTime = useWatch({ control: form.control, name: 'dueEndTime' }) ?? ''
   const reminderEnabled = useWatch({ control: form.control, name: 'reminderEnabled' }) ?? false
   const repeatReminder = useWatch({ control: form.control, name: 'repeatReminder' })
   const scheduledReminders = useWatch({ control: form.control, name: 'scheduledReminders' }) ?? []
   const dueDate = useWatch({ control: form.control, name: 'dueDate' })
   const itemType = useWatch({ control: form.control, name: 'itemType' })
   const [open, setOpen] = useState(false)
+  const [timeAnswered, setTimeAnswered] = useState(false)
+  const showReminderQuestion = isGeneral || Boolean(dueTime) || timeAnswered || reminderEnabled
   const { sheetRef, closeSheet } = useSheetHost()
-  const endTimeError = validateEndTime(dueTime, dueEndTime)
   const toggle = () => controller.setReminderEnabled(!reminderEnabled)
   const summary = buildHabitTimingSummary({ ...form.getValues(), isGeneral }, reminderTimes, displayTime, t)
   const clockReminders = <ScheduledReminderSection tokens={tokens} reminderEnabled={reminderEnabled} scheduledReminders={scheduledReminders} offsetReminderCount={dueTime ? reminderTimes.length : 0} hideDayBefore={itemType === 'task' && dueDate === getAccountDay(new Date(), profile?.timeZone)} onSetScheduledReminders={(items) => form.setValue('scheduledReminders', items, { shouldDirty: true })} onValidationError={showError} />
   return <>
     {/* eslint-disable-next-line local/max-button-words -- #1922 explicitly approves this timing-sheet entry label. */}
-    <ListRow icon="bell" title={t('habits.form.timingAndReminder')} description={summary} placement="column" disabled={disabled} onClick={() => setOpen(true)} />
+    <ListRow wrapTitle icon="bell" title={t('habits.form.timingAndReminder')} description={summary} placement="column" disabled={disabled} onClick={() => setOpen(true)} />
     {open ? <Sheet ref={sheetRef} open title={t('habits.form.timingAndReminder')} onClose={() => setOpen(false)} actions={<PillButton size="sm" onClick={() => closeSheet()}>{t('common.done')}</PillButton>}>
-      <View style={{ gap: 24 }}>
-        {!isGeneral ? <View style={{ gap: 16 }}>
-          <TimeField disabled={disabled} label={t('habits.form.exactTime')} value={toTime24(dueTime)} onChange={guard(controller.setDueTime)} onClear={guard(controller.clearDueTime)} />
-          {dueTime ? <TimeField disabled={disabled} label={t('habits.form.dueEndTime')} value={toTime24(dueEndTime)} error={endTimeError ? t(endTimeError) : undefined} onChange={guard((value) => form.setValue('dueEndTime', value, { shouldDirty: true }))} onClear={guard(() => form.setValue('dueEndTime', '', { shouldDirty: true }))} /> : null}
-        </View> : null}
-        <RepeatReminderSection value={repeatReminder} enabled={reminderEnabled} general={isGeneral} timeZone={profile?.timeZone} onToggle={toggle} onChange={(value) => {
+      <View testID="timing-levels" style={{ gap: 24, paddingBottom: 8 }}>
+        {!isGeneral ? <HabitTimeQuestions formHelpers={formHelpers} controller={controller} showReminderQuestion={showReminderQuestion} onTimeAnswered={() => setTimeAnswered(true)} /> : null}
+        {showReminderQuestion ? <RepeatReminderSection value={repeatReminder} enabled={reminderEnabled} general={isGeneral} timeZone={profile?.timeZone} onToggle={toggle} onChange={(value) => {
           form.setValue('repeatReminder', value, { shouldDirty: true })
           onReminderTimesChange(value ? [] : [...DEFAULT_REMINDER_TIMES])
           if (value) form.setValue('scheduledReminders', [], { shouldDirty: true })
         }}>
           <FixedReminderEditors general={isGeneral} dueTime={dueTime} enabled={reminderEnabled} offsets={reminderTimes} clockCount={scheduledReminders.length} onOffsetsChange={onReminderTimesChange} onError={showError} tokens={tokens}>{clockReminders}</FixedReminderEditors>
-        </RepeatReminderSection>
+        </RepeatReminderSection> : null}
       </View>
     </Sheet> : null}
   </>

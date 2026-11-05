@@ -7,6 +7,7 @@ import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { readControlHitArea } from '@/test-support/control-hit-area'
+import { readReminderChipGeometry } from '@/e2e/layout/habit-timing-geometry'
 
 function bundleRepeatSurfaces() {
   const contents = `import React, { useState } from 'react';
@@ -27,8 +28,9 @@ function bundleRepeatSurfaces() {
     const locale = root.dataset.locale;
     function TimingSheet() {
       const t = useTranslations();
-      const [offsets, setOffsets] = useState([0, 15]);
-      const [clocks, setClocks] = useState([]);
+      const [offsets, setOffsets] = useState([0, 15, 30]);
+      const [clocks, setClocks] = useState([{ when: 'day_before', time: '18:00' }]);
+      const [enabled, setEnabled] = useState(true);
       const { sheetRef, closeSheet } = useSheetHost();
       return <Sheet ref={sheetRef} open title={t('habits.form.timingAndReminder')} onClose={() => {}}
         actions={<PillButton onClick={() => closeSheet()}>{t('common.done')}</PillButton>}>
@@ -37,10 +39,10 @@ function bundleRepeatSurfaces() {
             <TimeField label={t('habits.form.exactTime')} value="08:00" onChange={() => {}} />
             <TimeField label={t('habits.form.dueEndTime')} value="" onChange={() => {}} />
           </div>
-          <RepeatReminderSection value={null} enabled general={false} onChange={() => {}} onToggle={() => {}}>
-            <ReminderSection reminderEnabled reminderTimes={offsets} onReminderTimesChange={setOffsets}
+          <RepeatReminderSection value={null} enabled={enabled} general={false} onChange={() => {}} onToggle={() => setEnabled(!enabled)}>
+            <ReminderSection reminderEnabled={enabled} reminderTimes={offsets} onReminderTimesChange={setOffsets}
               reminderLabel={minutes => formatHabitReminderLabel(minutes, t)} scheduledReminderCount={clocks.length} t={t}>
-              <ScheduledReminderSection reminderEnabled scheduledReminders={clocks} offsetReminderCount={offsets.length} onSetScheduledReminders={setClocks} t={t} />
+              <ScheduledReminderSection reminderEnabled={enabled} scheduledReminders={clocks} offsetReminderCount={offsets.length} onSetScheduledReminders={setClocks} t={t} />
             </ReminderSection>
           </RepeatReminderSection>
         </fieldset>
@@ -76,6 +78,50 @@ describe('repeat reminder compact surfaces', () => {
   beforeAll(async () => { stylesheet = await compileHabitRowStylesheet(); bundle = bundleRepeatSurfaces() })
   afterAll(async () => { await closeChrome(launch) })
 
+  it.each([320, 1280].flatMap(width => [1, 2].flatMap(scale => (['en', 'pt-BR'] as const).flatMap(locale => (['light', 'dark'] as const).map(mode => ({ width, scale, locale, mode }))))))(
+    'keeps every reminder chip visible in the fixed sheet at $width and $scale in $locale/$mode', async ({ width, scale, locale, mode }) => {
+    const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
+    try {
+      const tokens = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+      await page.setContent(`<!doctype html><style>${stylesheet}:root{${tokens};font-size:${16 * scale}px}body{margin:0;background:var(--bg)}</style><div id="root" data-locale="${locale}" data-timing="true"></div>`)
+      await loadAppFonts(page)
+      await page.addScriptTag({ content: bundle })
+      const messages = locale === 'en' ? en : ptBR
+      const timing = page.getByRole('dialog', { name: messages.habits.form.timingAndReminder, exact: true })
+      const groups = timing.locator('[data-reminder-chips]')
+      await expect.poll(() => groups.count()).toBe(2)
+      expect(await groups.nth(0).getByRole('button').count()).toBe(3)
+      expect(await groups.nth(1).getByRole('button').count()).toBe(1)
+      expect(await timing.getByRole('button', { name: messages.habits.form.removeReminder, exact: true }).count()).toBe(4)
+      const chips = timing.locator('[data-reminder-chip]')
+      const captions = await chips.allTextContents()
+      for (const chip of await chips.all()) {
+        const remove = chip.getByRole('button')
+        await chip.scrollIntoViewIfNeeded()
+        await remove.hover()
+        const geometry = await remove.evaluate(readReminderChipGeometry)
+        for (const edge of [geometry.left, geometry.right, geometry.top, geometry.bottom]) expect(edge).toBeGreaterThanOrEqual(8)
+        expect(geometry.clipped).toBe(false)
+        expect(geometry.fits).toBe(true)
+      }
+      const reminder = timing.getByRole('switch', { name: messages.habits.form.reminder, exact: true })
+      await reminder.click()
+      expect(await chips.count()).toBe(0)
+      await reminder.click()
+      expect(await chips.allTextContents()).toEqual(captions)
+      expect(await groups.nth(0).getByRole('button').count()).toBe(3)
+      expect(await groups.nth(1).getByRole('button').count()).toBe(1)
+      const chip = chips.first()
+      await chip.scrollIntoViewIfNeeded()
+      await chip.evaluate(element => {
+        const row = element.parentElement!
+        row.style.height = `${element.getBoundingClientRect().height - 8}px`
+        row.style.overflow = 'hidden'
+      })
+      expect((await chip.getByRole('button').evaluate(readReminderChipGeometry)).clipped).toBe(true)
+    } finally { await page.close() }
+  })
+
   it.each([412, 1280])('keeps the custom reminder Add target reachable in the timing sheet at %spx', async (width) => {
     const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
     try {
@@ -84,6 +130,13 @@ describe('repeat reminder compact surfaces', () => {
       await loadAppFonts(page)
       await page.addScriptTag({ content: bundle })
       const timing = page.getByRole('dialog', { name: ptBR.habits.form.timingAndReminder, exact: true })
+      const edges = await timing.getByRole('switch', { name: ptBR.habits.form.reminder, exact: true }).evaluate(element => {
+        const column = element.closest('[data-timing-row]')!.getBoundingClientRect()
+        const target = element.getBoundingClientRect()
+        const fill = element.querySelector('[data-press-fill]')!.getBoundingClientRect()
+        return [target.left - column.left, column.right - target.right, fill.left - column.left, column.right - fill.right]
+      })
+      for (const edge of edges) expect(Math.abs(edge)).toBeLessThanOrEqual(1)
       await timing.getByRole('button', { name: ptBR.habits.form.reminderAdd, exact: true }).click()
       await timing.getByRole('button', { name: ptBR.habits.form.reminderCustom, exact: true }).click()
       await timing.getByRole('spinbutton', { name: ptBR.habits.form.reminderCustomLabel }).fill('45')
@@ -115,7 +168,7 @@ describe('repeat reminder compact surfaces', () => {
         await page.waitForFunction(() => document.querySelectorAll('[data-testid="habit-row"]').length === 2)
         await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
         const messages = locale === 'en' ? en : ptBR
-        const interval = page.getByRole('combobox', { name: messages.habits.form.repeatEvery, exact: true })
+        const interval = page.getByRole('combobox', { name: messages.habits.form.repeatInterval, exact: true })
         await page.keyboard.press('Tab')
         await interval.focus()
         await page.waitForFunction(() => [...document.querySelectorAll('[role="combobox"]')].some(element => element.matches(':focus-visible') && getComputedStyle(element).boxShadow.includes('2px')))

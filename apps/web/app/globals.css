@@ -323,6 +323,12 @@ select[aria-hidden="true"] {
   transition: background-color var(--dur-hover) var(--ease-standard);
 }
 
+.orbit-list-row-field .orbit-list-row-body::before,
+.orbit-list-row-field .orbit-list-row-body::after,
+.orbit-list-row-field .orbit-list-row-outset {
+  inset-inline: 0;
+}
+
 .orbit-list-row-column .orbit-list-row-body:not(:where(.orbit-list-action-surface *)):is(:active, :focus-visible):not(:disabled):not(:has(:is(button, a, [role="button"]):active)) {
   background: transparent;
   outline: none;

@@ -32,8 +32,8 @@ function alignsFirstLine({ textMode, description, value, toggle, trailing, readO
   return !!toggle || (textMode === 'label' && !!(description || value || (trailing && !readOnly)))
 }
 
-function getBodyStyle(hasDescription: boolean, column: boolean) {
-  return [styles.body, column ? styles.columnBody : styles.insetBody, hasDescription ? styles.descriptionBody : null]
+function getBodyStyle(hasDescription: boolean, column: boolean, field: boolean) {
+  return [styles.body, column ? styles.columnBody : styles.insetBody, field ? styles.fieldBody : null, hasDescription ? styles.descriptionBody : null]
 }
 
 function RowValue({ value, hidden, wrap, color, personal, expanded, label }: Readonly<{ value: ListRowProps['value']; hidden?: boolean; wrap: boolean; color: string; personal?: boolean; expanded?: boolean; label?: boolean }>) {
@@ -126,19 +126,19 @@ function rowAccessibilityState(props: ListRowProps) {
 }
 
 function RowFill({ props, interaction, tokens }: Readonly<{ props: ListRowProps; interaction?: ReturnType<typeof useRowFeedback>; tokens?: ReturnType<typeof createTokensV2> }>) {
-  const column = props.placement === 'column'
+  const column = props.placement !== undefined
   if (props.action || (!column && !interaction)) return null
   const highlightedStyle = interaction && tokens ? { backgroundColor: interaction.highlighted ? tokens.bgHover : 'transparent', outlineWidth: interaction.focused ? 2 : 0, outlineColor: tokens.fg1, outlineOffset: -2, outlineStyle: 'solid' as const } : null
-  return <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" data-slot={column ? 'list-row-body' : 'list-row-fill'} style={[column ? styles.outset : styles.insetFill, column && hasSupportingLine(props) ? styles.descriptionBody : null, highlightedStyle]} />
+  return <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" data-slot={column ? 'list-row-body' : 'list-row-fill'} style={[column ? styles.outset : styles.insetFill, props.placement === 'field' ? styles.fieldFill : null, column && hasSupportingLine(props) ? styles.descriptionBody : null, highlightedStyle]} />
 }
 
 function RowControl({ ref, props, bodyStyle, interaction, tokens, children }: Readonly<{ ref?: Ref<View>; props: ListRowProps; bodyStyle: ReturnType<typeof getBodyStyle>; interaction: ReturnType<typeof useRowFeedback>; tokens: ReturnType<typeof createTokensV2>; children: ReactNode }>) {
-  const column = props.placement === 'column'
+  const column = props.placement !== undefined
   const slot = column ? undefined : 'list-row-body'
   if (props.readOnly || (!props.onClick && !props.toggle)) return <View data-slot={slot} style={bodyStyle}><RowFill props={props} />{children}</View>
   const toggle = props.toggle
   const disabled = Boolean(props.disabled || toggle?.pending)
-  const control = <NativePressable data-slot={slot} ref={ref} hitSlop={column ? { left: 16, right: 16 } : undefined}
+  const control = <NativePressable data-slot={slot} ref={ref} hitSlop={props.placement === 'column' ? { left: 16, right: 16 } : undefined}
     accessibilityRole={toggle ? "switch" : "button"} accessibilityLabel={toggle ? props.accessibilityLabel ?? props.title : props.accessibilityLabel}
     accessibilityState={rowAccessibilityState(props)} disabled={disabled}
     onPress={toggle ? undefined : props.onClick}
@@ -212,8 +212,8 @@ export function ListRow({ ref, ...original }: Readonly<ListRowProps & { ref?: Re
   const { interaction, actionFeedback, highlighted } = useListRowFeedback(Boolean(disabled || props.toggle?.pending))
   const rowColors = { iconColor: danger ? tokens.statusBad : tokens.fg1 }
   const titleColor = danger ? tokens.statusBadText : tokens.fg1
-  const column = props.placement === 'column'
-  const bodyStyle = getBodyStyle(hasSupportingLine(props), column)
+  const column = props.placement !== undefined
+  const bodyStyle = getBodyStyle(hasSupportingLine(props), column, props.placement === 'field')
   const rowTrailing = rowAccessory(props)
   const switchLine = accessoryLineStyle(props, labelWrapped, titleLayout.height)
   const body: ReactNode = (
@@ -244,6 +244,8 @@ const styles = StyleSheet.create({
   insetFill: { position: 'absolute', top: INTERACTION_FILL_CLEARANCE, bottom: INTERACTION_FILL_CLEARANCE, left: INTERACTION_FILL_CLEARANCE, right: INTERACTION_FILL_CLEARANCE, borderRadius: 12 },
   insetBody: { paddingHorizontal: PADDING.rowInline, overflow: 'hidden' },
   columnBody: { position: 'relative' },
+  fieldBody: { paddingHorizontal: SPACING.s8 },
+  fieldFill: { left: SPACING.s0, right: SPACING.s0 },
   outset: { minHeight: 52, paddingVertical: PADDING.rowBlock, position: 'absolute', top: 0, bottom: 0, left: INTERACTION_FILL_CLEARANCE - PADDING.rowInline, right: INTERACTION_FILL_CLEARANCE - PADDING.rowInline, borderRadius: 12 },
   descriptionBody: { minHeight: 68 },
   bodyContent: { minHeight: 24, flex: 1, minWidth: 0, gap: 12, flexDirection: 'row', alignItems: 'center' },
