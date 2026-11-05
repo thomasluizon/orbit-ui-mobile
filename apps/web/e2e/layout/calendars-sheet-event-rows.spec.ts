@@ -69,9 +69,11 @@ for (const width of [412, 1352]) {
         await expect(selected).toBeFocused()
         const selectedRow = rows[1]!
         await expect.poll(() => readOutlineVisibility(selectedRow, '::before')).toMatchObject({ visible: true, width: 2, offset: -2, clippedBy: [] })
-        const focused = await selectedRow.evaluate(measureNotificationFill)
-        expect(focused.fills).toEqual([focused.row])
-        expect(focused.bodyPaints).toHaveLength(1)
+        await expect(async () => {
+          const focused = await selectedRow.evaluate(measureNotificationFill)
+          expect(focused.fills).toEqual([focused.row])
+          expect(focused.bodyPaints).toHaveLength(1)
+        }).toPass({ timeout: 5000 })
         const details = rows[2]!.getByRole('button', { name: ptBR.contextMenu.viewDetails, exact: true })
         await details.focus()
         await expect(details).toBeFocused()
