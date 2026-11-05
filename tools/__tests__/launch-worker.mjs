@@ -5,7 +5,7 @@ import { dirname, join } from "node:path"
 import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR, WORKER_CONFIG_DIRECTORY, WORKER_CONFIG_DIRECTORY_VARIABLE } from "./_harness.mjs"
 import { clearWorkerLaunchReservation, readWakeSourceStates, recordReservedWorkerPid, reserveWorkerLaunch, writeRunState } from "../lib/run-state.mjs"
 import { cases as lifecycleCases, cleanupLifecycleLaunch, launcherResult } from "./launch-worker-lifecycle.mjs"
-import { LIMIT_TEXT, resultLine } from "./claude-usage-limit.mjs"
+import { TRANSIENT_TEXT, limitResultLine, resultLine } from "./claude-usage-limit.mjs"
 
 const TOOL = "launch-worker.mjs"
 
@@ -254,7 +254,7 @@ const checkWorkerAccount = async () => {
     launchedResult.account === "worker" && launchedResult.attempts?.length === 1 && /-worker-account\.log$/.test(launchedResult.logFile ?? ""),
     JSON.stringify({ account: launchedResult.account, logFile: launchedResult.logFile, attempts: launchedResult.attempts?.length }))
 
-  const limited = accountStub("account-limit", { workerOutput: `${resultLine(LIMIT_TEXT)}\n` })
+  const limited = accountStub("account-limit", { workerOutput: `${limitResultLine()}\n` })
   const limitedLaunch = accountLaunch("worker-account-limit", limited)
   const fellBack = limitedLaunch.run("a worker stopped at its usage limit is relaunched and the launch exits 0", { status: 0, stderr: /relaunching it once on the main account/ })
   const fellBackResult = JSON.parse(fellBack.stdout || "{}")
@@ -275,14 +275,14 @@ const checkWorkerAccount = async () => {
       /-worker-account\.log$/.test(firstAttempt.logFile) && /-main-account\.log$/.test(secondAttempt.logFile) && fellBackResult.logFile === secondAttempt.logFile,
     JSON.stringify(fellBackResult.attempts))
 
-  const exhausted = accountStub("account-limit-both", { workerOutput: `${resultLine(LIMIT_TEXT)}\n`, mainOutput: `${resultLine(LIMIT_TEXT)}\n` })
+  const exhausted = accountStub("account-limit-both", { workerOutput: `${limitResultLine()}\n`, mainOutput: `${limitResultLine()}\n` })
   const exhaustedResult = JSON.parse(accountLaunch("worker-account-limit-both", exhausted).run("both accounts at their limit still end the launch", { status: 0 }).stdout || "{}")
   discardAttemptLogs(JSON.stringify(exhaustedResult))
   T(`${TOOL}: the main account at its limit is not relaunched again`,
     exhausted.runs().length === 2 && exhaustedResult.attempts?.length === 2 && exhaustedResult.usageLimitReached === true,
     JSON.stringify(exhaustedResult.attempts))
 
-  const transient = accountStub("account-transient", { workerOutput: `${resultLine("API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited")}\n` })
+  const transient = accountStub("account-transient", { workerOutput: `${resultLine(TRANSIENT_TEXT)}\n` })
   const transientResult = JSON.parse(accountLaunch("worker-account-transient", transient).run("a worker that fails for another reason ends the launch", { status: 0 }).stdout || "{}")
   discardAttemptLogs(JSON.stringify(transientResult))
   T(`${TOOL}: any other failure is not relaunched on the main account`,

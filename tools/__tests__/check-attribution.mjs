@@ -1,4 +1,4 @@
-import { check, stage, stageRepo } from "./_harness.mjs"
+import { check, stageRepo } from "./_harness.mjs"
 
 const TOOL = "check-attribution.mjs"
 
@@ -20,35 +20,25 @@ const commitRange = (label, messages) => {
   return { root: repo.path, range: `${base}..${head}` }
 }
 
-let bodyFiles = 0
-const guard = (fixture, body) => [
-  "--root", fixture.root, "--range", fixture.range,
-  ...(body === undefined ? [] : ["--body-file", stage(`check-attribution/body-${++bodyFiles}.md`, body)]),
-]
+const guard = (fixture) => ["--root", fixture.root, "--range", fixture.range]
 
 export const cases = () => {
   const clean = commitRange("clean", [
     "feat(tools): add the attribution guard\n\nThe guard refuses a co-author trailer and a generated-with line.",
     "docs: state the rule\n\nNever add a `Co-Authored-By:` trailer or a \"Generated with\" line to a commit.",
   ])
-  check(TOOL, "clean commits and a body that names the rule pass", guard(clean, "## Summary\n\nThe guard refuses a `Co-Authored-By:` trailer and a \"Generated with\" line.\n"), { status: 0, stdout: /Attribution guard passed/ })
-  check(TOOL, "clean commits pass without a body", guard(clean), { status: 0 })
+  check(TOOL, "clean commits that name the rule pass", guard(clean), { status: 0, stdout: /Attribution guard passed/ })
 
   const trailer = commitRange("trailer", ["feat: one", `fix: two\n\nBody text.\n\n${TRAILER}`])
-  check(TOOL, "a co-author trailer in any commit fails and names the commit line", guard(trailer, "clean body\n"),
+  check(TOOL, "a co-author trailer in any commit fails and names the commit line", guard(trailer),
     { status: 1, stderr: /commit [0-9a-f]{12} line 5: a co-author trailer: Co-Authored-By: Claude/ })
   const lowercase = commitRange("lowercase", [`fix: three\n\n${TRAILER.toLowerCase()}`])
   check(TOOL, "a trailer in lower case fails", guard(lowercase), { status: 1, stderr: /a co-author trailer/ })
   const generated = commitRange("generated", [`feat: four\n\n${GENERATED}`])
   check(TOOL, "a generated-with line after an emoji fails", guard(generated), { status: 1, stderr: /a generated-with line/ })
 
-  check(TOOL, "a co-author trailer in the pull request body fails", guard(clean, `## Summary\n\nWork.\n\n${TRAILER}\n`),
-    { status: 1, stderr: /pull request body line 5: a co-author trailer/ })
-  check(TOOL, "a generated-with line in the pull request body fails", guard(clean, `Work.\n\n${GENERATED}\n`),
-    { status: 1, stderr: /pull request body line 3: a generated-with line/ })
-
   check(TOOL, "a missing range is a usage error", ["--root", clean.root], { status: 2, stderr: /--range is required/ })
   check(TOOL, "a symmetric range is a usage error", ["--root", clean.root, "--range", "main...HEAD"], { status: 2, stderr: /--range must be/ })
   check(TOOL, "a range git cannot read is a usage error", ["--root", clean.root, "--range", "missing..HEAD"], { status: 2, stderr: /git log missing\.\.HEAD failed/ })
-  check(TOOL, "an unreadable body file is a usage error", [...guard(clean), "--body-file", `${clean.root}/absent.md`], { status: 2, stderr: /could not read --body-file/ })
+  check(TOOL, "the removed body flag is a usage error", [...guard(clean), "--body-file", `${clean.root}/body.md`], { status: 2, stderr: /unknown argument: --body-file/ })
 }

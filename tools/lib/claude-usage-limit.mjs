@@ -3,10 +3,10 @@
 import { closeSync, openSync, readSync, statSync } from "node:fs"
 
 /**
- * The message prefixes the installed claude CLI (2.1.318) itself classifies as a reached usage
- * limit, copied from its source. A subscriber 429 with rate-limit headers becomes a message that
- * starts with one of these, and the CLI tags that message `usage_limit_reached`. A transient 429
- * ("Server is temporarily limiting requests (not your usage limit)") and an overload notice do not.
+ * The prefixes the installed claude CLI (2.1.318) classifies as a reached usage limit, copied from
+ * its `var Gwo=["You've hit your"` list and the pattern after it. The CLI tags such a subscriber 429
+ * `apiError:"usage_limit_reached"`; a transient 429 does not match. The evidence and its locator
+ * command live in `tools/__tests__/claude-usage-limit.mjs`.
  */
 const LIMIT_PREFIXES = [
   "You've hit your",
@@ -28,9 +28,9 @@ export const isUsageLimitMessage = (text) =>
   typeof text === "string" && (LIMIT_PREFIXES.some((prefix) => text.startsWith(prefix)) || LIMIT_PATTERNS.some((pattern) => pattern.test(text)))
 
 /**
- * True when the log's final `result` record is an error whose text is a usage-limit message. In
- * `-p --output-format stream-json`, the CLI ends a run with one `type: "result"` line; on an API
- * error it carries `is_error: true` and the error text in `result`.
+ * True when the log's final `result` record is an error whose text is a usage-limit message. The
+ * CLI ends a `-p --output-format stream-json` run with one `type: "result"` line, which carries
+ * `is_error: true` and the error text in `result` when the last assistant message is an API error.
  */
 export const reachedUsageLimit = (logText) => {
   let verdict = false

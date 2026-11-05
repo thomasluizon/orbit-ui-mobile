@@ -57,7 +57,7 @@ export const cases = () => {
   }
   const rangeStep = (range) => ({ jobs: { existing: { steps: [
     { name: "Resolve pull request changed paths", if: "github.event_name == 'pull_request'", env: { BASE_REF: "${{ github.base_ref }}" }, run: 'bash .github/scripts/changed-paths.sh "$BASE_REF" "$RUNNER_TEMP"' },
-    { run: `node tools/check-existing.mjs --range ${range} --body-file "$RUNNER_TEMP/pull-request-body.md"` },
+    { run: `node tools/check-existing.mjs --range ${range}` },
   ] } } })
   check("check-gate-charter.mjs", "accepts a gate that reads only the pull request commit range",
     ["--root", stageRepository("pull-request-range", completeCharter(), { guardWorkflow: yaml.dump(rangeStep('"$PULL_REQUEST_RANGE"')) })], { status: 0 })

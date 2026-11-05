@@ -99,6 +99,7 @@ const CASE_MODULES = [
   ["orbit-app-store-reviews.mjs", "orbit-app-store-reviews"],
   ["orbit-review-replies.mjs", "orbit-review-replies"],
   ["lib/admission.mjs", "admission"],
+  ["lib/attribution-lines.mjs", "attribution-lines"],
   ["lib/claude-usage-limit.mjs", "claude-usage-limit"],
   ["lib/cloud-worker.mjs", "cloud-worker"],
   ["lib/orchestrator-config.mjs", "orchestrator-config"],
