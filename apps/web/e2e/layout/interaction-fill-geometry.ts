@@ -1,5 +1,9 @@
 export function inspectInteractionFill(control: Element, clearance: number) {
   function paintOwner(control: Element) {
+    if (control.matches('.orbit-list-row-body, .orbit-notification-row:not(.orbit-notification-delete)')) {
+      const row = control.closest('.orbit-list-action-surface, .orbit-notification-surface')
+      if (row) return row
+    }
     return control.matches('[data-composer-input-row] textarea[data-composer-input]') ? control.closest('[data-composer-input-row]')! : control
   }
   const element = paintOwner(control)

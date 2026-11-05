@@ -95,8 +95,8 @@ function discFill(node: StyledNode) {
   return StyleSheet.flatten(node.findAllByProps({ testID: 'day-disc' })[0]!.props.style as StyleProp<ViewStyle>).backgroundColor
 }
 
-function calendarEventFill(tree: TestTree) {
-  return StyleSheet.flatten(tree.root.findAllByProps({ testID: 'calendar-event-fill' })[0]!.props.style as StyleProp<ViewStyle>)
+function calendarEventFill(tree: TestTree, feedback = false) {
+  return StyleSheet.flatten(tree.root.findAllByProps({ testID: feedback ? 'calendar-event-feedback' : 'calendar-event-fill' })[0]!.props.style as StyleProp<ViewStyle>)
 }
 
 function numeralColor(node: StyledNode) {
@@ -148,14 +148,17 @@ describe('pressed hit area shapes', () => {
     })
   })
 
-  it('insets the rounded ListRow fill and fills its round action', () => {
+  it('fills the complete ListRow and its independent round action', () => {
     const row = <ListRow title="Account" accessibilityLabel="Account" onClick={() => {}} action={{ icon: 'download', label: 'More', onPress: () => {} }} />
     withTree(row, (tree) => {
       const control = findPressable(tree, 'Account')
-      expect(rowFill(control, true)).toMatchObject({ borderRadius: 12, top: 8, bottom: 8, left: 8, right: 8, backgroundColor: tokens.bgHover })
-      expect(rowFill(control, false).backgroundColor).toBe('transparent')
+      pressedFill(control, true)
+      const fill = () => StyleSheet.flatten(tree.root.findAllByProps({ 'data-slot': 'list-row-fill' })[0]!.props.style as StyleProp<ViewStyle>)
+      expect(fill()).toMatchObject({ borderRadius: 12, top: 0, bottom: 0, left: 0, right: 0, backgroundColor: tokens.bgHover })
+      pressedFill(control, false)
+      expect(fill().backgroundColor).toBe('transparent')
     })
-    expect(pressedStyle(row, 'More')).toMatchObject({ borderRadius: 999, overflow: 'hidden', backgroundColor: tokens.bgHover })
+    expect(pressedStyle(row, 'More')).toMatchObject({ borderRadius: 999, overflow: 'hidden', backgroundColor: tokens.bgRowAction })
   })
 
   it('keeps compact and regular ListRow targets at their drawn floors', () => {
@@ -262,7 +265,7 @@ describe('pressed hit area shapes', () => {
       const control = tree.root.findAllByType(Pressable)[0]!
       expect(control.props.hitSlop).toMatchObject({ left: 16, right: 16 })
       renderer.act(() => control.props.onPressIn?.())
-      expect(calendarEventFill(tree)).toMatchObject({ borderRadius: 12, overflow: 'hidden', left: -12, right: -12, backgroundColor: tokens.bgHover })
+      expect(calendarEventFill(tree, true)).toMatchObject({ position: 'absolute', borderRadius: 12, top: 0, bottom: 0, left: 0, right: 0, backgroundColor: tokens.bgHover })
       renderer.act(() => control.props.onPressOut?.())
       expect(calendarEventFill(tree).backgroundColor).toBe('transparent')
     })
@@ -273,7 +276,7 @@ describe('pressed hit area shapes', () => {
     withTree(<CalendarSyncEventRow event={event} weekStartDay={1} selected={false} isReviewMode suggestionId="suggestion-1" dismissPending={dismissPending} styles={createCalendarSyncStyles()} tokens={tokens} t={((key: string) => key) as never} onToggle={() => {}} onDismiss={() => {}} />, (tree) => {
       const control = findPressable(tree, 'calendar.autoSync.dismissSuggestion')
       expect(control.props.hitSlop).toBeUndefined()
-      expect(pressedFill(control, true)).toMatchObject({ width: 48, height: 48, backgroundColor: tokens.bgHover, borderRadius: 999, ...(dismissPending ? { opacity: 0.6 } : {}) })
+      expect(pressedFill(control, true)).toMatchObject({ width: 48, height: 48, backgroundColor: dismissPending ? 'transparent' : tokens.bgRowAction, borderRadius: 999, ...(dismissPending ? { opacity: 0.6 } : {}) })
       expect(pressedFill(control, false).backgroundColor).toBe('transparent')
     })
   })

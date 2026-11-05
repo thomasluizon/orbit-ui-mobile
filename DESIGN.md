@@ -845,6 +845,7 @@ Every value is derived in OKLCH against the canvas and measured. Do not eyeball 
 --bg-elev         #1C1C1E                     /* OPAQUE. Overlay panel, menus, popovers */
 --bg-elev-2       rgba(250,250,250,0.12)      /* the highest inline step -> #262628 */
 --bg-hover        rgba(250,250,250,0.13)      /* THE hover surface -> #28282A. 1.26:1 against the resting card */
+--bg-row-action   #09090B                    /* opaque action feedback on a lit row; preserves status-bad contrast */
 --bg-hover-opaque rgba(250,250,250,0.13)      /* overlay on an opaque control -> #39393B over elev. 1.477:1 step */
 --bg-sunk         rgba(0,0,0,0.28)            /* recessed wells -> #060608 */
 --hairline        rgba(255,255,255,0.08)      /* separator: divides content */
@@ -897,6 +898,7 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 --bg-field #FFFFFF · --bg-well rgba(9,9,11,0.04)
 --bg-sunk rgba(9,9,11,0.04)
 --bg-hover rgba(9,9,11,0.11) /* #E4E4E4 over white, 1.271:1 step; #DFDFE0 over canvas, 1.276:1 step */
+--bg-row-action #FFFFFF /* opaque action feedback on a lit row; preserves status-bad contrast */
 --bg-hover-opaque rgba(9,9,11,0.11) /* overlay on an opaque control -> #E4E4E4 over white. 1.271:1 step */
 --status-done var(--fg-1) · empty var(--track-empty) · frozen var(--fg-2)
 --status-overdue #7D5700   /* 6.219:1 on canvas, 4.510:1 on well hover. White on it 6.491:1 */
@@ -1025,10 +1027,11 @@ The five-step card ranking remains distinct: dark 16.89, 11.23, 5.76, 5.46 and 2
 1. **Replacement, the normal case.** One element carries `--bg-card` at rest and `--bg-hover` on
    hover. CSS `background-color` and React Native `backgroundColor` swap the value; neither
    composites. The stack is `--bg` under `--bg-hover`, `#28282A`, and `--fg-3` measures **4.57**.
-2. **Child over parent, one shipped case.** A hover child painted inside a card wrapper composites:
+2. **Row overlay over its resting card.** A hover child painted inside a card wrapper composites:
    `--bg` under `--bg-card` under `--bg-hover`, `#313133`. `--fg-3` measures **4.03** there and does
-   NOT clear the text floor. The unread notification row is that case, on both platforms: the
-   wrapper carries `--bg-card` and the inner control hovers.
+   NOT clear the text floor. The unread notification row uses this stack on both platforms: the
+   wrapper carries `--bg-card` and its full-row overlay paints hover, press and focus, including
+   behind the independent delete control.
 
 3. **Layer over an opaque control.** Keep the resting fill and composite `--bg-hover-opaque`
    (`bgHoverOpaque` on Android) above it. Dark uses the existing hover value, alpha 0.13 over
@@ -1038,7 +1041,7 @@ The five-step card ranking remains distinct: dark 16.89, 11.23, 5.76, 5.46 and 2
    `--fg-2` measures **6.974:1 dark** and **7.858:1 light**; dark `--fg-3` falls below 4.5.
 
 **On a hover child inside a card, supporting text is `--fg-2` or lighter.** `--fg-2` measures 7.86 on that
-stack, `--fg-1` 11.82. The unread notification row already obeys this. Prefer replacement when you
+stack, `--fg-1` 11.82. The unread notification row obeys this with a full-row overlay. Its sibling delete paints a 44px circle on top using `--bg-row-action` (`bgRowAction` on Android): canvas ink `#09090B` in dark and white `#FFFFFF` in light. This opaque feedback preserves the `--status-bad` glyph above 3:1; another hover overlay would fail that floor in both themes. Prefer replacement when you
 build a new hover surface; compositing costs a whole neutral step and buys nothing.
 
 0.12 was also the exact value of `--bg-elev-2`, which the hover rule below forbids on its own.
@@ -1394,7 +1397,7 @@ All eight, by name: default · hover · focus · active · disabled · loading �
 - **Variants:** `primary` (accent fill, `--fg-on-primary` text, no glow), `secondary` (fg-1 fill, canvas text), `ghost` (transparent, inset 1.5px hairline-strong ring), `destructive` (status-bad fill), `caution` (status-overdue fill). `ConfirmDialog` builds its action row from `PillButton`, never a hand-rolled pill.
 - **Sizes:** `sm` is the default for every pill. Explicit `md` is reserved for the single primary action that ends a flow: a form submit, a Wrapped player action, or the full-width action of a mobile overlay. At most one `md` pill renders per view. A size keeps its visible height plus horizontal padding plus label, icon and gap. Small pills extend their hit area to 48px around their existing visible box. Keep the visible edges and action-row gaps unchanged; give clipping or native hit-testing parents room for the extension, and never overlap another target. Never hand-tune per call.
 - **Action rows:** two or more pills acting on the same section render through one `ActionRow`, in one size, on one line at the trailing edge with a 12px gap. Ghost actions precede the filled action. Wrap only when the row cannot fit, and retain the trailing edge on every wrapped line. Sheet footers apply this same rule.
-- **Per-item actions:** an action on one list item belongs in that row's own trailing action slot, never in a pill stacked under the item.
+- **Per-item actions:** body feedback fills the complete rounded row, including behind sibling trailing actions. Each trailing action retains its own feedback on top. Notifications keep the row lit through hover, press and keyboard focus on either the body or delete. An action on one list item belongs in that row's own trailing action slot, never in a pill stacked under the item.
 - **Width, hug by default.** A lone CTA in a wide container caps at about 360px and never spans a desktop content column. Full-width is sanctioned ONLY in: the single primary action of a mobile overlay, a form submit at or below the mobile breakpoint, and a full-screen empty-state primary CTA.
 - **Empty-state actions** follow the same action-row rule and hug their labels.
 - **Labels are verb-first and 1 to 2 words.** Strip words the surrounding title already carries. A confirmation button repeats the consequence, so the dialog is answerable without reading the body: "Delete habit", never "Yes".

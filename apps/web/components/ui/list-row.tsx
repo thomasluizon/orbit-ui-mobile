@@ -186,7 +186,7 @@ export function ListRow(original: Readonly<WebListRowProps>) {
   const actionBody = rowControl(props, content, bodyStyle)
 
   return (
-    <div data-text-mode={props.textMode} className={`orbit-list-row-shell flex items-stretch ${props.placement === 'column' ? 'orbit-list-row-column' : ''}`} style={{ minHeight: 52 }}>
+    <div data-text-mode={props.textMode} className={`orbit-list-row-shell ${action ? 'orbit-list-action-surface' : ''} flex items-stretch ${props.placement === 'column' ? 'orbit-list-row-column' : ''}`} style={{ minHeight: 52, marginBlock: action ? SPACING.s4 : undefined }}>
       {(props.textMode === 'personal' || props.valueTextMode === 'personal') && props.personalExpanded !== undefined && !readOnly && (href || onClick) ? <PersonalTextAction className="flex-1" label={accessibilityLabel ?? rowAccessibleText(props)} contentClassName="flex min-w-0 flex-1 items-center" contentStyle={{ ...bodyStyle, opacity: props.disabled ? 0.5 : undefined }} control={actionBody} /> : actionBody}
       {action ? (
         <button type="button" aria-label={action.label} onClick={action.onPress} className="orbit-list-row-action flex size-[var(--touch-min)] shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent active:scale-[0.96]" style={getActionStyle(!!props.description)}>

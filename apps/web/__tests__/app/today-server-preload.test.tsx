@@ -1,4 +1,5 @@
 import React from 'react'
+import { phaseTimings } from '@/__tests__/support/phase-timings'
 import { act, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -101,6 +102,20 @@ function createTodayTree(client: QueryClient, items: HabitScheduleItem[] = [], a
       </TestIntlProvider>
     </QueryClientProvider>
   )
+}
+
+function respondWithTodayAccount(userId: string) {
+  respondWithAccount(userId)
+  const fetchSession = vi.mocked(globalThis.fetch).getMockImplementation()!
+  vi.mocked(globalThis.fetch).mockImplementation((input, init) => {
+    if (input === '/api/auth/session') return fetchSession(input, init)
+    if (input === '/api/habits/count') return Promise.resolve(Response.json({ count: 1 }))
+    if (typeof input === 'string' && input.startsWith('/api/habits?')) {
+      return Promise.resolve(Response.json({ items: [], page: 1, pageSize: 50, totalCount: 0, totalPages: 0 }))
+    }
+    if (input === '/api/profile') return Promise.resolve(Response.json(profileFixture))
+    throw new Error('Unexpected Today request', { cause: input })
+  })
 }
 
 function createTestQueryClient() {
@@ -285,7 +300,9 @@ describe('Today server preload', () => {
   })
 
   it('keeps the first opened row menu and preloaded queries after confirming the rendered account', async () => {
+    const phase = phaseTimings('Today account preload')
     await retireHeldAccount()
+    respondWithTodayAccount('user-1')
     const queryClient = getQueryClient()
     queryClient.clear()
     const date = formatAPIDate(new Date())
@@ -296,6 +313,7 @@ describe('Today server preload', () => {
     const serverClient = createTestQueryClient()
     const container = document.createElement('div')
     container.innerHTML = renderToString(createTodayTree(serverClient, [habit], 'user-1'))
+    phase('server render')
     document.body.append(container)
     let root: ReturnType<typeof hydrateRoot> | undefined
 
@@ -303,14 +321,18 @@ describe('Today server preload', () => {
       await act(async () => {
         root = hydrateRoot(container, createTodayTree(queryClient, [habit], 'user-1'))
       })
+      phase('hydrate')
       const menu = container.querySelector<HTMLButtonElement>('button[data-habit-row-control="menu"]')
       expect(menu).not.toBeNull()
       fireEvent.click(menu!)
       expect(menu).toHaveAttribute('aria-expanded', 'true')
 
-      respondWithAccount('user-1')
+      respondWithTodayAccount('user-1')
       await act(async () => { await useAuthStore.getState().checkSession() })
 
+      await vi.waitFor(() => expect(queryClient.getQueryData(habitKeys.count())).toBe(1))
+      phase('session and query settlement')
+      expect(queryClient.isFetching({ queryKey: habitKeys.all })).toBe(0)
       expect(menu).toHaveAttribute('aria-expanded', 'true')
       expect(container.querySelector('[aria-busy="true"]')).toBeNull()
       const accountRequests = vi.mocked(globalThis.fetch).mock.calls.filter(([url]) =>
@@ -331,6 +353,7 @@ describe('Today server preload', () => {
 
   it('keeps an optimistic log through the first check for the rendered account', async () => {
     await retireHeldAccount()
+    respondWithTodayAccount('user-1')
     const queryClient = getQueryClient()
     queryClient.clear()
     const date = formatAPIDate(new Date())
@@ -358,11 +381,12 @@ describe('Today server preload', () => {
       await vi.waitFor(() => expect(logHabitAction).toHaveBeenCalledOnce())
       expect(ring?.getAttribute('aria-label')).toContain(en.habits.statusDot.done)
 
-      respondWithAccount('user-1')
+      respondWithTodayAccount('user-1')
       const fetchSession = vi.mocked(globalThis.fetch).getMockImplementation()!
       vi.mocked(globalThis.fetch).mockImplementation((input, init) => {
         if (input === '/api/auth/session') return fetchSession(input, init)
-        if (typeof input === 'string' && input.startsWith('/api/habits')) {
+        if (input === '/api/habits/count') return Promise.resolve(Response.json({ count: 1 }))
+        if (typeof input === 'string' && input.startsWith('/api/habits?')) {
           habitListFetches += 1
           return Promise.resolve({
             ok: true, status: 200,
@@ -394,6 +418,7 @@ describe('Today server preload', () => {
     const documentFocus = vi.spyOn(document, 'hasFocus').mockReturnValue(true)
     const user = userEvent.setup()
     await retireHeldAccount()
+    respondWithTodayAccount('user-1')
     const queryClient = getQueryClient()
     queryClient.clear()
     const date = formatAPIDate(new Date())
@@ -414,7 +439,7 @@ describe('Today server preload', () => {
       const row = container.querySelector<HTMLButtonElement>('[data-habit-row-body]')
       expect(row).not.toBeNull()
       await user.pointer({ target: row!, keys: '[MouseLeft>]' })
-      respondWithAccount('user-1')
+      respondWithTodayAccount('user-1')
       await act(async () => { await useAuthStore.getState().checkSession() })
       await user.pointer({ target: row!, keys: '[/MouseLeft]' })
 

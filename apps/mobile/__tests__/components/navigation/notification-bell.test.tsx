@@ -73,7 +73,7 @@ vi.mock('@/lib/api-client', () => ({
 
 type Node = {
   type: unknown
-  props: { onClose?: () => void; title?: string; accessibilityLabel?: string; accessibilityRole?: string; accessible?: boolean; testID?: string; children?: unknown; style?: unknown; size?: number; color?: string; onFocus?: () => void; onBlur?: () => void; onHoverIn?: () => void; onHoverOut?: () => void; onPress?: () => void; accessibilityState?: { busy?: boolean } }
+  props: { onClose?: () => void; title?: string; accessibilityLabel?: string; accessibilityRole?: string; accessible?: boolean; testID?: string; children?: unknown; style?: unknown; size?: number; color?: string; onPressIn?: () => void; onPressOut?: () => void; onFocus?: () => void; onBlur?: () => void; onHoverIn?: () => void; onHoverOut?: () => void; onPress?: () => void; accessibilityState?: { busy?: boolean } }
   parent: Node | null
   findAll: (predicate: (node: Node) => boolean) => Node[]
 }
@@ -255,38 +255,31 @@ describe('mobile alerts', () => {
     seed(1)
     const tree = render()
     const row = () => hosts(tree, 'Pressable', 'Alert 0. unread. Progress')[0]!
-    const rowStyle = (pressed = false) => {
-      const style = row().props.style
-      return StyleSheet.flatten(typeof style === 'function' ? style({ pressed }) : style)
-    }
-    const restingStyle = rowStyle()
+    const fillStyle = () => StyleSheet.flatten(testId(tree, 'notification-row-feedback')[0]!.props.style as StyleProp<ViewStyle>)
+    const restingStyle = fillStyle()
     expect(restingStyle.outlineWidth).toBeUndefined()
     TestRenderer.act(() => row().props.onFocus?.())
     const tokens = createTokensV2('purple', mode)
-    expect(rowStyle().outlineColor, 'Focus must retain the accent semantic').toBe(tokens.primary)
-    expect(rowStyle().borderColor, 'Focus companion must be a solid border on Android API 24 and later').toBe(tokens.fg1)
-    expect(rowStyle()).toMatchObject({
-      outlineWidth: 2, outlineOffset: -3, outlineStyle: 'solid',
-      borderWidth: 4, borderStyle: 'solid', padding: 12,
+    expect(fillStyle()).toMatchObject({
+      position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, borderRadius: 12,
+      outlineWidth: 2, outlineOffset: -3, outlineStyle: 'solid', outlineColor: tokens.primary,
+      borderWidth: 4, borderStyle: 'solid', borderColor: tokens.fg1,
     })
-    expect(rowStyle().boxShadow).toBeUndefined()
-    expect(restingStyle).toMatchObject({ borderWidth: 4, borderColor: 'transparent', padding: 12 })
-    const companion = rowStyle().borderColor as string
-    expect(contrastOnSurface(rowStyle().outlineColor, [companion])).toBeGreaterThanOrEqual(3)
-    expect(contrastOnSurface(companion, [tokens.bg])).toBeGreaterThanOrEqual(3)
+    expect(fillStyle().boxShadow).toBeUndefined()
+    expect(StyleSheet.flatten(row().props.style as StyleProp<ViewStyle>)).toMatchObject({ padding: 16 })
+    expect(contrastOnSurface(tokens.primary, [tokens.fg1])).toBeGreaterThanOrEqual(3)
     for (const pressed of [false, true]) {
-      const focusedStyle = rowStyle(pressed)
-      expect(focusedStyle.borderColor).toBe(companion)
+      TestRenderer.act(() => { if (pressed) row().props.onPressIn?.(); else row().props.onPressOut?.() })
+      const focusedStyle = fillStyle()
+      expect(focusedStyle.borderColor).toBe(tokens.fg1)
       expect(focusedStyle.boxShadow).toBeUndefined()
       for (const layers of [[tokens.bg], [tokens.bg, tokens.bgCard]]) {
-        if (focusedStyle.backgroundColor) layers.push(focusedStyle.backgroundColor)
-        expect.soft(contrastOnSurface(companion, layers)).toBeGreaterThanOrEqual(3)
+        layers.push(tokens.bgHover)
+        expect.soft(contrastOnSurface(tokens.fg1, layers)).toBeGreaterThanOrEqual(3)
       }
     }
-    TestRenderer.act(() => row().props.onBlur?.())
-    expect(rowStyle().outlineWidth).toBeUndefined()
-    expect(rowStyle().boxShadow).toBeUndefined()
-    expect(rowStyle()).toEqual(restingStyle)
+    TestRenderer.act(() => { row().props.onPressOut?.(); row().props.onBlur?.() })
+    expect(fillStyle()).toEqual(restingStyle)
   })
 
   it.each([
@@ -562,7 +555,7 @@ describe('mobile alerts', () => {
     expect(remove.parent?.parent).toBe(body.parent?.parent)
     const style = remove.props.style
     expect(StyleSheet.flatten(typeof style === 'function' ? style({ pressed: false }) : style))
-      .toMatchObject({ width: 48, minHeight: 48, flexShrink: 0 })
+      .toMatchObject({ width: 48, height: 48, flexShrink: 0 })
     press(tree, deleteLabel)
     expect(text(tree, messages.notifications.markAsRead)).toHaveLength(0)
     expect(hosts(tree, 'Pressable', siblingLabel)).toHaveLength(1)
@@ -725,17 +718,19 @@ it.each(['dark', 'light'] as const)('keeps the row delete focus and pressed feed
   seed(2)
   const tree = render()
   const button = () => hosts(tree, 'Pressable', 'Delete: Alert 0')[0]!
-  const style = (pressed: boolean) => {
-    const current = button().props.style
-    return StyleSheet.flatten(typeof current === 'function' ? current({ pressed }) : current)
-  }
+  const fillStyle = () => StyleSheet.flatten(testId(tree, 'notification-delete-feedback')[0]!.props.style as StyleProp<ViewStyle>)
+  const rowFill = () => StyleSheet.flatten(testId(tree, 'notification-row-feedback')[0]!.props.style as StyleProp<ViewStyle>)
   const tokens = createTokensV2('purple', mode)
-  expect(style(false).outlineWidth).toBeUndefined()
+  expect(fillStyle().outlineWidth).toBeUndefined()
   TestRenderer.act(() => button().props.onFocus?.())
-  expect(style(false)).toMatchObject({ outlineWidth: 2, outlineColor: tokens.primary, borderColor: tokens.fg1 })
-  expect(style(true).backgroundColor).toBe(tokens.bgHover)
+  expect(fillStyle()).toMatchObject({ outlineWidth: 2, outlineColor: tokens.primary, borderColor: tokens.fg1, width: 44, height: 44 })
+  TestRenderer.act(() => button().props.onPressIn?.())
+  expect(fillStyle().backgroundColor).toBe(tokens.bgRowAction)
+  expect(rowFill().backgroundColor).toBe(tokens.bgHover)
   expect(contrastOnSurface(tokens.primary, [tokens.fg1])).toBeGreaterThanOrEqual(3)
-  expect(contrastOnSurface(tokens.statusBad, [tokens.bg, tokens.bgCard, tokens.bgHover])).toBeGreaterThanOrEqual(3)
-  TestRenderer.act(() => button().props.onBlur?.())
-  expect(style(false).outlineWidth).toBeUndefined()
+  expect(contrastOnSurface(tokens.statusBad, [tokens.bg, tokens.bgCard, tokens.bgHover, tokens.bgRowAction])).toBeGreaterThanOrEqual(3)
+  TestRenderer.act(() => { button().props.onPressOut?.(); button().props.onBlur?.() })
+  expect(fillStyle().outlineWidth).toBeUndefined()
+  expect(fillStyle().backgroundColor).toBe('transparent')
+  expect(rowFill().backgroundColor).toBe('transparent')
 })

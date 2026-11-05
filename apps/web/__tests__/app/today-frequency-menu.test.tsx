@@ -10,6 +10,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { TodayDateControl } from '@/app/(app)/today-shell'
 import { useUIStore } from '@/stores/ui-store'
+import { waitForLazyContent } from '@/__tests__/support/lazy-content'
 
 vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => ({ currentTheme: 'dark', toggleTheme: vi.fn() }) }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
@@ -36,6 +37,7 @@ it.each([['en', en], ['pt-BR', ptBr]] as const)('opens the %s frequency sheet af
   const rendered = renderControl(locale, words)
   const openFrequencies = async () => {
     fireEvent.pointerDown(screen.getByRole('button', { name: words.habits.listOptions }), { button: 0, ctrlKey: false })
+    await waitForLazyContent()
     fireEvent.click(await screen.findByRole('menuitem', { name: words.habits.frequencyFilter }))
     expect(await screen.findByRole('dialog', { name: words.habits.frequencyFilter })).toBeVisible()
     expect(document.querySelector('.orbit-sheet-title')).toHaveTextContent(words.common.options)
@@ -55,6 +57,7 @@ it.each([['en', en], ['pt-BR', ptBr]] as const)('opens the %s frequency sheet af
 it.each([0, 44])('keeps every landscape menu choice reachable inside safe inset %s', async (inset) => {
   renderControl('en', en)
   fireEvent.pointerDown(screen.getByRole('button', { name: en.habits.listOptions }), { button: 0, ctrlKey: false })
+  await waitForLazyContent()
   const options = await screen.findByRole('dialog', { name: en.habits.listOptions })
   const optionsHtml = options.outerHTML
   fireEvent.click(screen.getByRole('menuitem', { name: en.habits.frequencyFilter }))

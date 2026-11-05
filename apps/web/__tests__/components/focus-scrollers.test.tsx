@@ -9,6 +9,7 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { ReactNode } from 'react'
+import type { Locator } from '@playwright/test'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { goalKeys } from '@orbit/shared/query'
@@ -23,6 +24,7 @@ import { YearPicker } from '@/components/ui/year-picker'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { revealFocusedControl } from '@/lib/focus-scroll'
 import { inspectFocusedRing, readOutlineVisibility } from '@/e2e/layout/focus-indicators'
+import { measureNotificationFill } from '@/e2e/layout/notification-fill-geometry'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLocale: () => 'en' }))
@@ -33,6 +35,19 @@ vi.mock('@/components/ui/sheet', () => ({
 }))
 
 const cases = [412, 1352].flatMap((width) => ['dark', 'light'].map((mode) => ({ width, mode: mode as 'dark' | 'light' })))
+
+function expectFocusScroll(control: Element) {
+  const scrolling = vi.spyOn(control.closest('.orbit-list-action-surface') ?? control, 'scrollIntoView')
+  scrolling.mockClear()
+  fireEvent.focus(control)
+  expect(scrolling).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest' })
+  scrolling.mockRestore()
+}
+
+async function expectFocusPerimeter(control: Locator, context?: string) {
+  const rowOwnsFocus = await control.evaluate((element) => element.classList.contains('orbit-list-row-body') && !!element.closest('.orbit-list-action-surface'))
+  expect(await readOutlineVisibility(rowOwnsFocus ? control.locator('..') : control, rowOwnsFocus ? '::before' : undefined), context).toMatchObject({ visible: true, clippedBy: [] })
+}
 
 function mountSurface(surface: string) {
   if (surface === 'years') return render(<YearPicker selectedYear={2025} onSelectYear={vi.fn()} />)
@@ -96,7 +111,7 @@ describe('other clipped control containers in Chromium', () => {
   })
   afterAll(async () => { vi.unstubAllGlobals(); await closeChrome(browserLaunch) }, 30_000)
 
-  it.each(cases)('goal picker fills only the hovered control at $width in $mode', async ({ width, mode }) => {
+  it.each(cases)('goal picker fills the whole row from its body and keeps separate disclosure feedback at $width in $mode', async ({ width, mode }) => {
     const restoreMeasurement = measureClampedPersonalText()
     const { container, unmount } = mountSurface('goal picker')
     const page = await browser.newPage({ viewport: { width, height: 915 } })
@@ -115,7 +130,10 @@ describe('other clipped control containers in Chromium', () => {
       const restingToggle = await background('button[aria-pressed]')
       await toggle.hover()
       expect(await background('')).toBe(restingRow)
-      expect(await background('button[aria-pressed]')).not.toBe(restingToggle)
+      const measured = await row.evaluate(measureNotificationFill)
+      expect(measured.fills).toEqual([measured.row])
+      expect(measured.bodyPaints).toEqual([])
+      expect(await background('button[aria-pressed]')).toBe(restingToggle)
       await disclosure.hover()
       expect(await background('')).toBe(restingRow)
       expect(await background('button[aria-pressed]')).toBe(restingToggle)
@@ -130,12 +148,7 @@ describe('other clipped control containers in Chromium', () => {
     it.each(cases)(`${surface} has complete perimeters at $width in $mode`, async ({ width, mode }) => {
       const { container, unmount } = mountSurface(surface)
       if (surface !== 'checklist' && surface !== 'calendar controls') {
-        const control = container.querySelector(selector)!
-        const scrolling = vi.spyOn(control, 'scrollIntoView')
-        scrolling.mockClear()
-        fireEvent.focus(control)
-        expect(scrolling).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest' })
-        scrolling.mockRestore()
+        expectFocusScroll(container.querySelector(selector)!)
       }
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
@@ -154,7 +167,7 @@ describe('other clipped control containers in Chromium', () => {
           expect(await control.evaluate((element) => element === document.activeElement)).toBe(true)
           expect((await inspectFocusedRing(page))?.indicators).toHaveLength(1)
           const geometry = await control.evaluate((element) => ({ label: element.textContent, bounds: element.getBoundingClientRect().toJSON(), parent: element.parentElement!.getBoundingClientRect().toJSON() }))
-          expect(await readOutlineVisibility(control), JSON.stringify({ index, geometry })).toMatchObject({ visible: true, clippedBy: [] })
+          await expectFocusPerimeter(control, JSON.stringify({ index, geometry }))
           if (surface === 'calendar controls' && await control.getAttribute('data-testid') === 'time-grid-event') {
             const contentClearance = await control.evaluate((element) => {
               const style = getComputedStyle(element)
@@ -181,7 +194,7 @@ describe('other clipped control containers in Chromium', () => {
             await page.keyboard.press('Shift+Tab')
             await page.keyboard.press('Tab')
             expect((await inspectFocusedRing(page))?.indicators).toHaveLength(1)
-            expect(await readOutlineVisibility(control)).toMatchObject({ visible: true, clippedBy: [] })
+            await expectFocusPerimeter(control)
           }
         }
       } finally { await page.close(); unmount() }

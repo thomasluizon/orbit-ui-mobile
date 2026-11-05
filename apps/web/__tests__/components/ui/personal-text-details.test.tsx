@@ -1,13 +1,21 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
+import { waitForLazyContent } from '@/__tests__/support/lazy-content'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
-const sheetModule = vi.hoisted(() => ({ load: vi.fn() }))
+const sheetModule = vi.hoisted(() => {
+  let resolve!: () => void
+  let reject!: (error: unknown) => void
+  const ready = new Promise<void>((complete, fail) => { resolve = complete; reject = fail })
+  return { load: vi.fn(), ready, resolve, reject }
+})
 vi.mock('@/components/ui/sheet', async (importOriginal) => {
   sheetModule.load()
-  return importOriginal<typeof import('@/components/ui/sheet')>()
+  const loading = importOriginal<typeof import('@/components/ui/sheet')>()
+  void loading.then(sheetModule.resolve, sheetModule.reject)
+  return loading
 })
 
 let clipped = false
@@ -31,7 +39,8 @@ describe('personal text font measurements', () => {
     rerender(<PersonalTextDetails key="icon" iconOnly clamped>{label}</PersonalTextDetails>)
     expect(sheetModule.load).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'common.showFullText' }))
-    const dialog = await screen.findByRole('dialog', { name: label }, { timeout: 5000 })
+    await waitForLazyContent(sheetModule.ready)
+    const dialog = await screen.findByRole('dialog', { name: label })
     expect(dialog.querySelector('[data-personal-text-expanded]')).toHaveTextContent(label)
     expect(sheetModule.load).toHaveBeenCalledOnce()
     fireEvent.click(screen.getByRole('button', { name: 'common.close' }))

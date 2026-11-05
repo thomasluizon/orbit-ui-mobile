@@ -252,13 +252,13 @@ describe('personal ListRow text in Chromium', () => {
         await session.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: ['active'] })
         await expect.poll(() => control.evaluate((element, pseudo) => {
           const probe = document.createElement('span')
-          probe.style.background = 'var(--bg-hover)'
+          probe.style.background = pseudo ? 'var(--bg-hover)' : 'var(--bg-row-action)'
           probe.style.position = 'fixed'
           probe.style.pointerEvents = 'none'
           document.body.append(probe)
           const expected = getComputedStyle(probe).backgroundColor
           probe.remove()
-          return getComputedStyle(element, pseudo).backgroundColor === expected
+          return getComputedStyle(pseudo ? element.closest('.orbit-list-row-shell')! : element, pseudo).backgroundColor === expected
         }, kind === 'body' ? '::before' : null), { message: 'touch press paints --bg-hover without hover media support' }).toBe(true)
         const corners = await control.evaluate((element) => {
           const style = getComputedStyle(element)
