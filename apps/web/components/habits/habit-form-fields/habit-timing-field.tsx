@@ -51,11 +51,15 @@ function HabitTimeQuestions({ formHelpers, controller, showReminderQuestion, onT
   const [endTimeExpanded, setShowEndTime] = useState<boolean | null>(null)
   const showEndTime = endTimeExpanded ?? Boolean(dueEndTime)
   const endTimeError = validateEndTime(dueTime, dueEndTime)
+  const changeEndTime = (value: string) => {
+    setShowEndTime(true)
+    form.setValue('dueEndTime', value, { shouldDirty: true })
+  }
   return <div className="flex min-w-0 flex-col gap-3">
           <TimeField label={t('habits.form.exactTime')} value={toTime24(dueTime)} onChange={controller.setDueTime} onClear={controller.clearDueTime} />
           {!dueTime ? <div className="px-2"><ListRow placement="column" title={t('habits.form.noSetTime')} expanded={showReminderQuestion} onClick={onTimeAnswered} /></div> : null}
           {dueTime ? <div className="px-2"><ListRow placement="column" title={t('habits.form.addEndTime')} toggle={{ checked: showEndTime, onChange: setShowEndTime }} /></div> : null}
-          {dueTime && showEndTime ? <TimeField label={t('habits.form.dueEndTime')} value={toTime24(dueEndTime)} error={endTimeError ? t(endTimeError) : undefined} onChange={(value) => form.setValue('dueEndTime', value, { shouldDirty: true })} onClear={() => form.setValue('dueEndTime', '', { shouldDirty: true })} /> : null}
+          {dueTime && showEndTime ? <TimeField label={t('habits.form.dueEndTime')} value={toTime24(dueEndTime)} error={endTimeError ? t(endTimeError) : undefined} onChange={changeEndTime} onClear={() => changeEndTime('')} /> : null}
         </div>
 }
 

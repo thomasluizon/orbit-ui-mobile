@@ -55,11 +55,15 @@ function HabitTimeQuestions({ formHelpers, controller, showReminderQuestion, onT
   const [endTimeExpanded, setShowEndTime] = useState<boolean | null>(null)
   const showEndTime = endTimeExpanded ?? Boolean(dueEndTime)
   const endTimeError = validateEndTime(dueTime, dueEndTime)
+  const changeEndTime = (value: string) => {
+    setShowEndTime(true)
+    form.setValue('dueEndTime', value, { shouldDirty: true })
+  }
   return <View style={{ gap: 12 }}>
           <TimeField disabled={disabled} label={t('habits.form.exactTime')} value={toTime24(dueTime)} onChange={guard(controller.setDueTime)} onClear={guard(controller.clearDueTime)} />
           {!dueTime ? <View style={{ paddingHorizontal: 8 }}><ListRow disabled={disabled} placement="column" title={t('habits.form.noSetTime')} expanded={showReminderQuestion} onClick={onTimeAnswered} /></View> : null}
           {dueTime ? <View style={{ paddingHorizontal: 8 }}><ListRow disabled={disabled} placement="column" title={t('habits.form.addEndTime')} toggle={{ checked: showEndTime, onChange: guard(setShowEndTime) }} /></View> : null}
-          {dueTime && showEndTime ? <TimeField disabled={disabled} label={t('habits.form.dueEndTime')} value={toTime24(dueEndTime)} error={endTimeError ? t(endTimeError) : undefined} onChange={guard((value) => form.setValue('dueEndTime', value, { shouldDirty: true }))} onClear={guard(() => form.setValue('dueEndTime', '', { shouldDirty: true }))} /> : null}
+          {dueTime && showEndTime ? <TimeField disabled={disabled} label={t('habits.form.dueEndTime')} value={toTime24(dueEndTime)} error={endTimeError ? t(endTimeError) : undefined} onChange={guard(changeEndTime)} onClear={guard(() => changeEndTime(''))} /> : null}
         </View>
 }
 

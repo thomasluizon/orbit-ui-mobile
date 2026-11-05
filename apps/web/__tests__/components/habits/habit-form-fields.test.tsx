@@ -842,3 +842,14 @@ it('reaches reminders without assigning a habit time', () => {
   expect(screen.getByRole('switch', { name: 'habits.form.reminder' })).toBeInTheDocument()
   expect(helpers.form.getValues('dueTime')).toBe('')
 })
+
+it('keeps a prefilled end-time question open after clearing its value', () => {
+  const helpers = createFormHelpers({ title: 'Read', dueTime: '08:00', dueEndTime: '09:00' })
+  const view = renderForm(helpers)
+  fireEvent.click(screen.getByRole('button', { name: /habits.form.timingAndReminder/ }))
+  const end = screen.getByLabelText('habits.form.dueEndTime')
+  fireEvent.click(within(end.parentElement!).getByRole('button', { name: 'common.clear' }))
+  view.rerenderForm()
+  expect(screen.getByLabelText('habits.form.dueEndTime')).toHaveValue('')
+  expect(helpers.form.getValues('dueEndTime')).toBe('')
+})

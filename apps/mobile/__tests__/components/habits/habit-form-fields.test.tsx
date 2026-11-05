@@ -2608,3 +2608,19 @@ it('reveals native timing questions in levels and retains hidden values', () => 
   refresh()
   expect(fields('habits.form.repeatStart')).not.toHaveLength(0)
 })
+
+it('keeps a prefilled native end-time question open after clearing its value', () => {
+  formLocale.realController = false
+  useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])
+  const helpers = createFormHelpers({ title: 'Read', dueTime: '08:00', dueEndTime: '09:00' })
+  const element = () => <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />
+  let tree: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(element()) })
+  openTiming(tree)
+  const fields = () => tree.root.findAll((node: UnderstandingTestNode) => node.props.label === 'habits.form.dueEndTime' && typeof node.props.onClear === 'function')
+  TestRenderer.act(() => fields()[0]!.props.onClear())
+  TestRenderer.act(() => tree.update(element()))
+  expect(fields()).not.toHaveLength(0)
+  expect(fields()[0]!.props.value).toBe('')
+  expect(helpers.form.getValues('dueEndTime')).toBe('')
+})
