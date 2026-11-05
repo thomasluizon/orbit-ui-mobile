@@ -114,6 +114,7 @@ export interface AppTokensV2 {
   bgElev2: string
   bgHover: string
   bgHoverOpaque: string
+  bgRowAction: string
   bgElevHover: string
   /** Solid sheet/dialog panel — elev alpha pre-blended over the canvas. */
   bgSheet: string
@@ -203,6 +204,7 @@ export function createTokensV2(
     bgElev2: neutral.bgElev2,
     bgHover: neutral.bgHover,
     bgHoverOpaque: neutral.bgHoverOpaque,
+    bgRowAction: neutral.bgRowAction,
     bgElevHover: elevatedControlHoverFill(themeMode),
     bgSheet: neutral.bgElev,
     bgSunk: neutral.bgSunk,

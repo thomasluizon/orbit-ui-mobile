@@ -9,6 +9,7 @@ import { Sheet } from '@/components/ui/sheet'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
+import { measureNotificationFill } from '@/e2e/layout/notification-fill-geometry'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import type { CalendarSyncEvent } from '@orbit/shared'
 import en from '@orbit/shared/i18n/en.json'
@@ -393,24 +394,19 @@ describe('CalendarSyncPage', () => {
       }
     }
 
-    async function expectInteractivePaint(row: Locator, state: string, blocked: boolean) {
+    async function expectInteractivePaint(row: Locator, state: string, blocked: boolean, restingPaints: ReturnType<typeof measureNotificationFill>['bodyPaints']) {
       const shape = await row.locator('[data-press-fill]').evaluate((element) => {
         const style = getComputedStyle(element)
         return { radius: style.borderRadius, overflowX: style.overflowX, overflowY: style.overflowY }
       })
       expect(shape).toEqual({ radius: '12px', overflowX: 'hidden', overflowY: 'hidden' })
+      const surface = row.locator('xpath=ancestor::*[@data-focus-inset][1]')
+      const measured = await surface.evaluate(measureNotificationFill)
+      expect(measured.bodyPaints).toEqual(restingPaints)
       if (state === 'rest' || blocked) return
-      const fills = await row.evaluate((element) => {
-        const reference = document.createElement('span')
-        reference.style.backgroundColor = 'var(--bg-hover)'
-        element.append(reference)
-        const fills = { actual: getComputedStyle(element.querySelector('[data-press-fill]')!).backgroundColor, expected: getComputedStyle(reference).backgroundColor }
-        reference.remove()
-        return fills
-      })
-      expect(fills.actual).toBe(fills.expected)
+      await expect.poll(async () => (await surface.evaluate(measureNotificationFill)).fills).toEqual([measured.row])
       const clearance = await row.evaluate((element) => {
-        const fill = element.querySelector('[data-press-fill]')!.getBoundingClientRect()
+        const fill = element.closest('.orbit-list-action-surface')!.getBoundingClientRect()
         const content = element.parentElement!.querySelector('[data-slot="list-row-content"]')!.getBoundingClientRect()
         return { leading: content.left - fill.left, trailing: fill.right - element.getBoundingClientRect().right }
       })
@@ -433,6 +429,7 @@ describe('CalendarSyncPage', () => {
         const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([name, value]) => `${name}:${value}`).join(';')
         await page.setContent(`<style>${stylesheet} :root { ${theme} }</style><div class="${mode}" style="background:var(--bg-sheet)">${container.innerHTML}</div>`)
         const paintedRow = page.getByRole('button', { name: new RegExp('Planning the weekly training') })
+        const restingPaints = (await paintedRow.locator('xpath=ancestor::*[@data-focus-inset][1]').evaluate(measureNotificationFill)).bodyPaints
         for (const state of ['rest', 'hover', 'press']) {
           if (state !== 'rest') await paintedRow.hover()
           if (state === 'press') {
@@ -447,7 +444,7 @@ describe('CalendarSyncPage', () => {
           await paintedRow.evaluate(async (element) => {
             await Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished))
           })
-          await expectInteractivePaint(paintedRow, state, blocked)
+          await expectInteractivePaint(paintedRow, state, blocked, restingPaints)
           const pairs = await paintedRow.evaluate((element) => {
             const content = element.parentElement!.querySelector('[data-personal-text-content]')!
             return Array.from(content.querySelectorAll('span'))
@@ -457,6 +454,7 @@ describe('CalendarSyncPage', () => {
               for (let surface: HTMLElement | null = field; surface; surface = surface.parentElement) {
                 layers.unshift(getComputedStyle(surface).backgroundColor)
                 if (surface === element.parentElement) layers.unshift(getComputedStyle(element.querySelector('[data-press-fill]')!).backgroundColor)
+                if (surface === element.closest('.orbit-list-action-surface')) layers.splice(1, 0, getComputedStyle(surface, '::before').backgroundColor)
               }
               return { text: field.textContent, color: getComputedStyle(field).color, layers }
             })

@@ -168,7 +168,7 @@ describe('web theme variables', () => {
     expect(stylesheet).toContain(
       '.icon-btn:not(:disabled):hover,\n  .icon-btn-well:not(:disabled):hover {\n    background: var(--bg-hover);',
     )
-    expect(stylesheet).not.toContain('.icon-btn:hover,')
+    expect(stylesheet).not.toMatch(/^\s*\.icon-btn:hover,/m)
     expect(stylesheet).toContain(
       '.orbit-menu-item:hover:not(:disabled) {\n    background: var(--bg-hover);',
     )

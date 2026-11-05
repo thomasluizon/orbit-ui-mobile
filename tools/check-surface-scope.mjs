@@ -950,14 +950,16 @@ function openingSurfaces(opening, sourceFile, state, openings) {
 
 function measureOpeningSurfaces(opening, sourceFile, state, openings) {
   const surfaces = new Set()
+  const css = matchingCssProperties(opening, sourceFile, state, openings)
+  const background = css.get("background-color") ?? css.get("background")
   for (const attribute of opening.attributes.properties) {
     if (!ts.isJsxAttribute(attribute) || !["className", "style", "backgroundStyle", "backgroundColor", "background"].includes(propertyName(attribute.name))) continue
+    if (propertyName(attribute.name) === "className" && background === "transparent") continue
     for (const surface of expressionSurfaces(attribute, sourceFile, state)) surfaces.add(surface)
     if (attribute.initializer && ts.isJsxExpression(attribute.initializer) && attribute.initializer.expression) {
       for (const surface of localExpressionSurfaces(attribute.initializer.expression, sourceFile, state)) surfaces.add(surface)
     }
   }
-  const css = matchingCssProperties(opening, sourceFile, state, openings)
   for (const [name, value] of css) {
     if (!/^background(?:-color)?$/.test(name)) continue
     for (const match of tokenMatches(value)) {
@@ -1108,6 +1110,12 @@ function readCssRules(repositoryRoot) {
       if (declaration.important) important.add(declaration.prop)
     })
     if (![...properties.keys()].some((name) => name.startsWith("--") || /^(?:background(?:-color)?|opacity)$/.test(name))) return
+    if (rule.selector.includes(":has(") && rule.selector.endsWith("::before")) {
+      for (const selector of postcss.list.comma(rule.selector)) {
+        rules.push({ selector, properties, important, specificity: selectorSpecificity(selector), feedbackOverlay: true })
+      }
+      return
+    }
     const expanded = rule.selector.replace(/:is\(([^()]*)\)/g, (_, choices) => `{${choices}}`)
     const alternatives = expanded.match(/\{([^}]+)\}/)
     const selectors = alternatives
@@ -1390,7 +1398,8 @@ function inheritedGroupForeground(node, token, openings, state) {
     const groupClass = match[1] ? `group/${match[1]}` : "group"
     const groupIndex = openings.findIndex((opening) => (attributeText(opening, "className", opening.getSourceFile()) ?? "").split(/[\s"'`]+/).includes(groupClass))
     if (groupIndex < 0) continue
-    if (openings.slice(groupIndex).some((opening) => openingSurfaces(opening, opening.getSourceFile(), state).includes("hover"))) return canonicalToken(match[2])
+    if (openings.slice(groupIndex).some((opening) => openingSurfaces(opening, opening.getSourceFile(), state).includes("hover"))
+      || openings.slice(0, groupIndex).some((opening, index) => feedbackPseudoPaint(opening, state, openings.slice(0, index + 1)).includes("hover"))) return canonicalToken(match[2])
   }
   return token
 }
@@ -1418,8 +1427,41 @@ function coveringFillComponents(syntaxes) {
 const coveringPaintCache = new WeakMap()
 const coveringChildrenCache = new WeakMap()
 
+function expandInteractionSelectors(selector) {
+  const choices = selector.match(/:is\(([^()]*)\)/)
+  return choices ? postcss.list.comma(choices[1]).flatMap((choice) => expandInteractionSelectors(selector.replace(choices[0], choice))) : [selector]
+}
+
+function feedbackPseudoPaint(opening, state, openings) {
+  if (state.interaction === "rest" || !ts.isJsxOpeningElement(opening)) return []
+  const paints = new Set()
+  for (const rule of state.cssRules ?? []) {
+    if (!rule.feedbackOverlay) continue
+    const selector = rule.selector.match(/^(.*):has\((.+)\)::before$/)
+    if (!selector || !matchesSelectorAncestry(selector[1], opening, opening.getSourceFile(), state, openings)) continue
+    const controls = expandInteractionSelectors(selector[2])
+    let matched = false
+    const visit = (node) => {
+      if ((ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node))
+        && controls.some((control) => !control.startsWith(">") && matchesCompound(control, node, node.getSourceFile(), state))) matched = true
+      if (!matched) ts.forEachChild(node, visit)
+    }
+    for (const child of opening.parent.children) visit(child)
+    if (!matched) continue
+    for (const [name, value] of rule.properties) {
+      if (!/^background(?:-color)?$/.test(name)) continue
+      for (const match of tokenMatches(value)) {
+        const surface = SURFACE_TOKENS.get(match.token)
+        if (surface) paints.add(surface)
+      }
+    }
+  }
+  return [...paints]
+}
+
 function coveringPaint(opening, state, openings) {
   if (state.interaction === "rest" || !state.coverFills || !ts.isJsxOpeningElement(opening)) return []
+  const overlays = feedbackPseudoPaint(opening, state, openings)
   if (!coveringChildrenCache.has(opening)) {
     const children = opening.parent.children.flatMap((child) => {
       const cover = ts.isJsxSelfClosingElement(child) ? child : ts.isJsxElement(child) ? child.openingElement : undefined
@@ -1430,7 +1472,7 @@ function coveringPaint(opening, state, openings) {
     coveringChildrenCache.set(opening, children)
   }
   const children = coveringChildrenCache.get(opening)
-  if (children.length === 0) return []
+  if (children.length === 0) return overlays
   const key = `${surfaceStateKey(state)}:${paintPathKey(openings)}`
   const cached = coveringPaintCache.get(opening) ?? new Map()
   if (cached.has(key)) return cached.get(key)
@@ -1444,9 +1486,9 @@ function coveringPaint(opening, state, openings) {
       : Number(opacity) === 1
     return visible ? ["hover"] : []
   })
-  cached.set(key, fills)
+  cached.set(key, [...overlays, ...fills])
   coveringPaintCache.set(opening, cached)
-  return fills
+  return [...overlays, ...fills]
 }
 
 function componentIdentity(syntax, name) {

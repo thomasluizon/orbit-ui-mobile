@@ -9,6 +9,8 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { LAYOUT_ORIGIN } from '../support/env'
 import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { test } from './upgrade-fixtures'
+import { readOutlineVisibility } from './focus-indicators'
+import { measureNotificationFill } from './notification-fill-geometry'
 
 const calendars = userCalendarsSchema.parse([
   { id: 'family', name: 'Família', accessRole: 'owner', primary: false, backgroundColor: null, isSynced: true },
@@ -65,9 +67,13 @@ for (const width of [412, 1352]) {
         await page.keyboard.press('Tab')
         await selected.focus()
         await expect(selected).toBeFocused()
-        await expect(selected.locator('[data-press-fill]')).toHaveCSS('outline-style', 'solid')
-        await expect(selected.locator('[data-press-fill]')).toHaveCSS('outline-width', '2px')
-        await expect(selected.locator('[data-press-fill]')).toHaveCSS('outline-offset', '-2px')
+        const selectedRow = rows[1]!
+        await expect.poll(() => readOutlineVisibility(selectedRow, '::before')).toMatchObject({ visible: true, width: 2, offset: -2, clippedBy: [] })
+        await expect(async () => {
+          const focused = await selectedRow.evaluate(measureNotificationFill)
+          expect(focused.fills).toEqual([focused.row])
+          expect(focused.bodyPaints).toHaveLength(1)
+        }).toPass({ timeout: 5000 })
         const details = rows[2]!.getByRole('button', { name: ptBR.contextMenu.viewDetails, exact: true })
         await details.focus()
         await expect(details).toBeFocused()
