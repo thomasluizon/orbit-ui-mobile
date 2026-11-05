@@ -61,7 +61,7 @@ it.each([320, 1280].flatMap((width) => [1, 2].flatMap((scale) => (['en', 'pt-BR'
       const bounds = measureInteractionFills(questions, column, true, scale)
       const question = i18n.t('profile.apiKeys.setExpiry')
       const title = bounds.find((part) => part.host.type === 'Text' && part.host.props['data-slot'] === 'list-row-title' && part.host.children?.includes(question))!
-      const control = bounds.find((part) => part.host.type === 'Pressable' && part.host.props.accessibilityState && (part.host.props.accessibilityState as { expanded?: boolean }).expanded === false)!
+      const control = bounds.find((part) => part.host.type === 'Pressable' && (part.host.props as { accessibilityState?: { expanded?: boolean } }).accessibilityState?.expanded === false)!
       const fill = bounds.find((part) => part.host.props['data-slot'] === 'list-row-body' && part.ancestors.includes(control.slot))!
       expect(control.left).toBe(0)
       expect(control.right).toBe(column)
