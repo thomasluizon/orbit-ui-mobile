@@ -304,15 +304,36 @@ export const readRunState = (repoRoot = REPO_ROOT) => {
   }
 }
 
+/** Run ownership survives ordinary updates and later transfers, independently of reporting chains. */
+export const supersededRunSession = (sessionId, state) => {
+  if (!sessionId) return null
+  if (Object.hasOwn(state?.supersededSessions ?? {}, sessionId)) return state.supersededSessions[sessionId]
+  return state?.sleep === true && state.relay?.from === sessionId && state.sessionId !== sessionId
+    ? { sessionId: state.sessionId, terminal: state.relay.successorTerminal ?? null } : null
+}
+
 export const writeRunState = (state, repoRoot = REPO_ROOT) => {
   mkdirSync(gitDirectoryOf(repoRoot), { recursive: true })
   const previous = readRunState(repoRoot)
+  if (supersededRunSession(state?.sessionId, previous)) throw new Error("session is superseded; run state write refused")
   if (previous?.relay?.canceledByOwner && previous.relay.successorSessionId === state?.sessionId) {
     throw new Error("owner canceled this relay nominee; ordinary sleep entry is forbidden")
   }
   const sameSession = typeof state?.sessionId === "string" && state.sessionId !== "" && previous?.sessionId === state.sessionId
   const relaySuccessor = typeof previous?.sessionId === "string" && state?.relay?.from === previous.sessionId
   const preserveLedger = sameSession || relaySuccessor
+  const supersededSessions = { ...previous?.supersededSessions }
+  if (previous?.sleep === true && previous.relay?.from && previous.sessionId !== previous.relay.from) {
+    supersededSessions[previous.relay.from] = { sessionId: previous.sessionId, terminal: previous.relay.successorTerminal ?? null }
+  }
+  // Sleep entry confirms ownership; an attended nominee must still permit failed-relay cleanup.
+  if (relaySuccessor && !sameSession && state.sleep === true) {
+    const successor = { sessionId: state.sessionId, terminal: state.relay.successorTerminal ?? null }
+    for (const [predecessor, current] of Object.entries(supersededSessions)) {
+      if (current.sessionId === previous.sessionId) supersededSessions[predecessor] = successor
+    }
+    supersededSessions[previous.sessionId] = successor
+  }
   // Ledger entries come after pull request entries, so the ledger copy wins as it does in the Stop hook.
   const identities = [
     ...(preserveLedger && Array.isArray(previous?.pullRequests) ? previous.pullRequests : []),
@@ -359,7 +380,8 @@ export const writeRunState = (state, repoRoot = REPO_ROOT) => {
   const inherited = preserveLedger
     ? Object.fromEntries(["autoWork", "intake"].filter((key) => previous[key] !== undefined).map((key) => [key, previous[key]]))
     : {}
-  writeAtomicFile(runStatePath(repoRoot), `${JSON.stringify({ ...inherited, ...state, ...(pullRequests ? { pullRequests } : {}), readinessLedger }, null, 2)}\n`)
+  writeAtomicFile(runStatePath(repoRoot), `${JSON.stringify({ ...inherited, ...state, ...(pullRequests ? { pullRequests } : {}), readinessLedger,
+    ...(Object.keys(supersededSessions).length ? { supersededSessions } : {}) }, null, 2)}\n`)
 }
 
 export const processStartIdentity = (pid) => {

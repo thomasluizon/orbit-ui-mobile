@@ -4,6 +4,7 @@ import { join } from "node:path"
 import { parseHandoffRequest, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "../lib/handoff-prompt.mjs"
 import * as handoff from "../lib/handoff-prompt.mjs"
 import { readRunState, writeRunState } from "../lib/run-state.mjs"
+import { appendChainEntry, closeSessionChain, confirmChainSuccessor, supersededSession } from "../lib/session-chain.mjs"
 
 import { T, realOrchestratorConfig, root, run, stageWithConfig } from "./_harness.mjs"
 
@@ -130,5 +131,39 @@ export const cases = () => {
       T(`${UNIT}: ordinary successor writes preserve the restored intake`, JSON.stringify(readRunState(installation.base).intake) === JSON.stringify(intake))
       T(`${UNIT}: owner handoff cannot be adopted twice`, handoff.adoptOwnerHandoffRun?.("third-session", prompt, installation.base) === false)
     } else T(`${UNIT}: ${variant} cannot inherit stale intake`, !adopted && successor.intake === undefined)
+  }
+
+  for (const priorChain of [false, true]) {
+    const installation = stageWithConfig(`owner-fence-${priorChain}`, "relay-session.mjs", realOrchestratorConfig())
+    const checkout = installation.base
+    const prompt = sleepPrompt.replace("/sleep\n", "/auto-work\n")
+    mkdirSync(join(checkout, ".claude/handoffs"), { recursive: true })
+    writeFileSync(join(checkout, ".claude/handoffs/NEXT.md"), prompt)
+    if (priorChain) {
+      appendChainEntry({ sessionId: "earlier-session" }, checkout)
+      confirmChainSuccessor("earlier-session", "owner-parent", "term_parent", 1, checkout)
+      closeSessionChain("owner-parent", checkout)
+    }
+    const predecessor = { sessionId: "owner-parent", sleep: false, autoWork: true,
+      intake: { gmail: { pending: { message: { sendAttempted: true } } } } }
+    writeRunState(predecessor, checkout)
+    recordHandoffRequest("owner-parent", { command: "handoff", sleep: true, origin: "owner" }, "2026-01-01T00:00:00Z", checkout)
+    T(`${UNIT}: owner fence ${priorChain} prepares`, handoff.prepareOwnerHandoffRun("owner-parent", checkout))
+    T(`${UNIT}: owner fence ${priorChain} adopts`, handoff.adoptOwnerHandoffRun("owner-child", prompt, checkout))
+    const assertFenced = (stage, successorId) => {
+      T(`${UNIT}: owner fence ${priorChain} ${stage} supersedes predecessor`, supersededSession("owner-parent", checkout)?.sessionId === successorId)
+      const successor = JSON.stringify(readRunState(checkout))
+      let failure
+      try { writeRunState({ ...predecessor, intake: {} }, checkout) } catch (error) { failure = error.message }
+      T(`${UNIT}: owner fence ${priorChain} ${stage} refuses stale write`, /superseded/.test(failure ?? ""), failure ?? "write accepted")
+      T(`${UNIT}: owner fence ${priorChain} ${stage} preserves successor and send attempt`, JSON.stringify(readRunState(checkout)) === successor)
+      if (failure === undefined) writeRunState(JSON.parse(successor), checkout)
+    }
+    assertFenced("on adoption", "owner-child")
+    writeRunState({ sessionId: "owner-child", sleep: true }, checkout)
+    assertFenced("after ordinary update", "owner-child")
+    writeRunState({ ...readRunState(checkout), sessionId: "relay-child", relay: { from: "owner-child", pending: false, successorTerminal: "term_next" } }, checkout)
+    assertFenced("after another transfer", "relay-child")
+    T(`${UNIT}: owner fence ${priorChain} keeps successor writable`, readRunState(checkout).intake.gmail.pending.message.sendAttempted === true)
   }
 }

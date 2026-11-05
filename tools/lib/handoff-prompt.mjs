@@ -168,7 +168,7 @@ export const adoptOwnerHandoffRun = (sessionId, prompt, repoRoot = REPO_ROOT) =>
   if (!sessionId || sessionId === previous?.sessionId || previous?.autoWork !== true || record?.from !== previous?.sessionId ||
       typeof prompt !== "string" || record.promptHash !== promptHash(prompt) || readHandoffRequest(record.from, repoRoot)?.origin !== "owner") return false
   if (record.promptHash !== promptHash(readFileSync(join(repoRoot, HANDOFF_PROMPT_PATH), "utf8"))) return false
-  writeRunState({ ...previous, sessionId, sleep: true, decisionLogPath: null, relay: { pending: false },
+  writeRunState({ ...previous, sessionId, sleep: true, decisionLogPath: null, relay: { from: previous.sessionId, pending: false },
     ownerHandoff: { ...record, successorSessionId: sessionId } }, repoRoot)
   const inherited = readRunState(repoRoot)
   if (inherited.sessionId !== sessionId || JSON.stringify(inherited.intake) !== JSON.stringify(previous.intake)) throw new Error("Owner intake adoption was not confirmed")

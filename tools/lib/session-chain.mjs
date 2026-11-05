@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { randomUUID } from "node:crypto"
-import { gitDirectoryOf, REPO_ROOT, readRunState, writeRunState } from "./run-state.mjs"
+import { gitDirectoryOf, REPO_ROOT, readRunState, supersededRunSession, writeRunState } from "./run-state.mjs"
 import { syncRelayCheckout } from "./relay-checkout.mjs"
 import { readSessionMetrics } from "./session-context.mjs"
 
@@ -63,8 +63,9 @@ export const confirmChainSuccessor = (sessionId, successorSessionId, terminal, s
 /** Archived chains still guard their old terminals after the owner closes the report window. */
 export const supersededSession = (sessionId, repoRoot = REPO_ROOT) => {
   const state = readRunState(repoRoot)
+  const runSuccessor = supersededRunSession(sessionId, state)
+  if (runSuccessor) return runSuccessor
   const transferred = state?.relay?.from && state.sessionId !== state.relay.from
-  if (transferred && state.relay.from === sessionId) return { sessionId: state.sessionId, terminal: state.relay.successorTerminal }
   const chain = readSessionChain(repoRoot).chains.find((row) => row.entries.some((entry) => entry.sessionId === sessionId && entry.superseded))
   if (!chain) return null
   if (transferred && chain.currentSessionId === state.relay.from) return { sessionId: state.sessionId, terminal: state.relay.successorTerminal }

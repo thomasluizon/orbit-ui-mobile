@@ -16,13 +16,13 @@ import { checkAdminMerge, checkBroadStaging, checkEngineInvocation } from "./_li
 import { checkSleepStop } from "./_lib/rules-sleep.mjs"
 import { checkHandoffCommit, checkHandoffStop, gitCommitDirectory } from "./_lib/rules-handoff.mjs"
 import { newestCommittedPrompt, promptsForCommit } from "./_lib/handoff-git.mjs"
-import { parseHandoffRequest, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "../../tools/lib/handoff-prompt.mjs"
+import { adoptOwnerHandoffRun, parseHandoffRequest, prepareOwnerHandoffRun, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "../../tools/lib/handoff-prompt.mjs"
 import { checkDependencyCommand, checkDependencyFileWrite } from "./_lib/rules-dependencies.mjs"
 import { checkWorkerBrowser } from "./_lib/rules-worker.mjs"
 import { declaredRepoRoots } from "./_lib/repo-roots.mjs"
 import { readRunState, writeRunState } from "../../tools/lib/run-state.mjs"
 import { checkRelayStop } from "./_lib/rules-relay.mjs"
-import { adoptRelayRun, appendChainEntry, confirmChainSuccessor, openSessionChain } from "../../tools/lib/session-chain.mjs"
+import { adoptRelayRun, appendChainEntry, closeSessionChain, confirmChainSuccessor, openSessionChain } from "../../tools/lib/session-chain.mjs"
 
 const hooksDir = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(hooksDir, "..", "..")
@@ -1588,6 +1588,37 @@ T("superseded adapter: Bash is denied", deniedTool.hookSpecificOutput.permission
 T("superseded adapter: refusal names live terminal", deniedTool.hookSpecificOutput.permissionDecisionReason.includes("term_live"), true)
 T("superseded adapter: typed prompt is blocked", JSON.parse(isolatedRelayHook("forbid-superseded-session.mjs", ownerPrompt).stdout).decision, "block")
 T("superseded adapter: live successor remains usable", isolatedRelayHook("forbid-superseded-session.mjs", { ...ownerPrompt, session_id: "relay-child" }).stdout, "")
+for (const priorChain of [false, true]) {
+  const checkout = join(root, `owner-handoff-fence-${priorChain}`)
+  const hooks = join(checkout, ".claude/hooks")
+  mkdirSync(hooks, { recursive: true })
+  cpSync(join(repoRoot, "tools/lib"), join(checkout, "tools/lib"), { recursive: true })
+  cpSync(join(hooksDir, "_lib"), join(hooks, "_lib"), { recursive: true })
+  cpSync(join(hooksDir, "forbid-superseded-session.mjs"), join(hooks, "forbid-superseded-session.mjs"))
+  cpSync(join(repoRoot, ".claude/orchestrator.json"), join(checkout, ".claude/orchestrator.json"))
+  const prompt = adapterSleepPrompt.replace("/sleep\n", "/auto-work\n")
+  mkdirSync(join(checkout, ".claude/handoffs"), { recursive: true })
+  writeFileSync(join(checkout, ".claude/handoffs/NEXT.md"), prompt)
+  if (priorChain) {
+    appendChainEntry({ sessionId: "owner-ancestor" }, checkout)
+    confirmChainSuccessor("owner-ancestor", "owner-predecessor", "term_owner", 1, checkout)
+    closeSessionChain("owner-predecessor", checkout)
+  }
+  writeRunState({ sessionId: "owner-predecessor", sleep: false, autoWork: true,
+    intake: { gmail: { pending: { message: { sendAttempted: true } } } } }, checkout)
+  recordHandoffRequest("owner-predecessor", { command: "handoff", sleep: true, origin: "owner" }, "2026-01-01T00:00:00Z", checkout)
+  T(`owner fence adapter ${priorChain}: prepares`, prepareOwnerHandoffRun("owner-predecessor", checkout), true)
+  T(`owner fence adapter ${priorChain}: adopts`, adoptOwnerHandoffRun("owner-successor", prompt, checkout), true)
+  const invoke = (sessionId, event) => JSON.parse(spawnSync(process.execPath, [join(hooks, "forbid-superseded-session.mjs")], {
+    input: JSON.stringify({ session_id: sessionId, hook_event_name: event, tool_name: "Bash", tool_input: { command: "true" } }), encoding: "utf8",
+  }).stdout || "{}")
+  for (const ordinaryWrite of [false, true]) {
+    if (ordinaryWrite) writeRunState({ sessionId: "owner-successor", sleep: true }, checkout)
+    T(`owner fence adapter ${priorChain}/${ordinaryWrite}: predecessor tool is denied`, invoke("owner-predecessor", "PreToolUse").hookSpecificOutput?.permissionDecision, "deny")
+    T(`owner fence adapter ${priorChain}/${ordinaryWrite}: predecessor prompt is blocked`, invoke("owner-predecessor", "UserPromptSubmit").decision, "block")
+    T(`owner fence adapter ${priorChain}/${ordinaryWrite}: successor remains usable`, invoke("owner-successor", "PreToolUse"), {})
+  }
+}
 writeFileSync(runStatePath(wakeCheckout), JSON.stringify({ sessionId: stopPayload.session_id, sleep: true, remaining: ["ORB-2"] }))
 const wakeFile = join(wakeSourceDirectory(wakeCheckout), `${process.pid}.json`)
 const isolatedWakeStop = ({ preload = null, env = {} } = {}) => spawnSync(
