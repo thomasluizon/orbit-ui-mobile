@@ -1,6 +1,6 @@
 import React from 'react'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const network = vi.hoisted(() => ({ available: true, pending: [] as (() => void)[] }))
 let feedbackImported: Promise<void>
@@ -40,24 +40,32 @@ async function waitForFeedbackImport() {
   await act(async () => { await vi.advanceTimersByTimeAsync(0) })
 }
 
-it.each(['loading', 'complete'] as const)('renders the first offline failure and action after mounting with document %s', async (readyState) => {
-  vi.spyOn(document, 'readyState', 'get').mockReturnValue(readyState)
-  const { AppToastHost } = await import('@/components/ui/app-toast-host')
-  const { useAppToastStore } = await import('@/stores/app-toast-store')
-  const retry = vi.fn()
-  render(<><button type="button">Keep focus</button><AppToastHost /></>)
-  await waitForFeedbackImport()
-  expect(screen.queryByRole('status')).toBeNull()
-  network.available = false
+describe.each(['loading', 'complete'] as const)('document %s', (readyState) => {
+  let retry: ReturnType<typeof vi.fn>
+  let showFailure: () => void
 
-  act(() => {
-    useAppToastStore.getState().showToast({ kind: 'neutral', message: 'Connection failed', actionLabel: 'Retry', onAction: retry })
+  beforeEach(async () => {
+    vi.spyOn(document, 'readyState', 'get').mockReturnValue(readyState)
+    const { AppToastHost } = await import('@/components/ui/app-toast-host')
+    const { useAppToastStore } = await import('@/stores/app-toast-store')
+    retry = vi.fn()
+    showFailure = () => {
+      useAppToastStore.getState().showToast({ kind: 'neutral', message: 'Connection failed', actionLabel: 'Retry', onAction: retry })
+    }
+    render(<><button type="button">Keep focus</button><AppToastHost /></>)
+    await waitForFeedbackImport()
+    expect(screen.queryByRole('status')).toBeNull()
+  }, 45000)
+
+  it('renders the first offline failure and action after mounting', async () => {
+    network.available = false
+    act(showFailure)
+    await act(async () => { await vi.dynamicImportSettled() })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    await vi.waitFor(() => expect(screen.getByText('Connection failed')).toBeVisible())
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(retry).toHaveBeenCalledOnce()
   })
-  await act(async () => { await vi.dynamicImportSettled() })
-  await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
-  await vi.waitFor(() => expect(screen.getByText('Connection failed')).toBeVisible())
-  fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
-  expect(retry).toHaveBeenCalledOnce()
 })
 
 it('renders the first failed-delete retry offline and pauses its deadline on hover and focus', async () => {
