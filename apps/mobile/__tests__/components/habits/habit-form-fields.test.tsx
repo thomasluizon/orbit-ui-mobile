@@ -1449,7 +1449,7 @@ describe('manual schedule creation', () => {
     const radio = (label: string) => tree!.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === `habits.form.${label}`)[0]!
     await TestRenderer.act(() => radio('every').props.onPress())
     await TestRenderer.act(() => radio(`unit${unit}`).props.onPress())
-    const quantity = () => tree!.root.findAll((node: UnderstandingTestNode) => node.type === 'TextInput' && /^habits\.form\.(everyCount|timesCount)$/.test(String(node.props.accessibilityLabel)))[0]!
+    const quantity = () => tree!.root.findAll((node: UnderstandingTestNode) => node.type === 'TextInput' && /^habits\.form\.(everyCount|timesCount)\b/.test(String(node.props.accessibilityLabel)))[0]!
     await TestRenderer.act(() => quantity().props.onChangeText('12'))
     expect(helpers.form.getValues()).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 12, isFlexible: false, days: [] })
     await TestRenderer.act(() => tree!.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityLabel === 'habits.form.repeatMore')[0]!.props.onPress())
@@ -1496,7 +1496,7 @@ describe('manual schedule creation', () => {
       })
       expect(helpers.form.getValues('days')).toEqual(['Monday'])
       await TestRenderer.act(() => tree.root.findAllByType(ListRow).find((node: { props: { title: string } }) => node.props.title === 'habits.form.moreDetails')!.props.onClick())
-      const quantity = () => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'TextInput' && /^habits\.form\.(everyCount|timesCount)$/.test(String(node.props.accessibilityLabel)))[0]!
+      const quantity = () => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'TextInput' && /^habits\.form\.(everyCount|timesCount)\b/.test(String(node.props.accessibilityLabel)))[0]!
       for (const control of [quantity(), host('habits.form.every', 'radio'), host('habits.form.unitDay', 'radio'), host(helpers.daysList.find((day) => day.value === 'Monday')!.accessibleLabel, 'button')]) expect(proposed(control)).toBe(true)
       expect(quantity().props.value).toBe('1')
       const tokens = createTokensV2('orange', 'dark')
@@ -2240,7 +2240,7 @@ describe.each(['create', 'edit'] as const)('actual native %s modal submit feedba
     if (owner === 'create') await TestRenderer.act(() => tree.root.findAllByType(ListRow).find((node: { props: { title: string } }) => node.props.title === 'habits.form.moreDetails')!.props.onClick())
     if (flexible) await TestRenderer.act(() => radio('timesPerUnit').props.onPress())
     await TestRenderer.act(() => radio('unitMonth').props.onPress())
-    await TestRenderer.act(() => input(flexible ? 'habits.form.timesCount' : 'habits.form.everyCount').props.onChangeText('2'))
+    await TestRenderer.act(() => input(flexible ? 'habits.form.timesCount' : 'habits.form.everyCount:{"unit":"Month"}').props.onChangeText('2'))
     await TestRenderer.act(() => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.repeatMore')[0]!.props.onPress())
     await TestRenderer.act(() => phraseInput().props.onChangeText('tomorrow'))
     await TestRenderer.act(() => tree.root.findAllByType(ListRow).find((node: { props: { title: string } }) => node.props.title === 'habits.form.addEndDate')!.props.onClick())
@@ -2252,7 +2252,7 @@ describe.each(['create', 'edit'] as const)('actual native %s modal submit feedba
     await TestRenderer.act(() => radio('typeHabit').props.onPress())
     if (editAfterReturn) {
       await TestRenderer.act(() => radio('unitYear').props.onPress())
-      await TestRenderer.act(() => input(flexible ? 'habits.form.timesCount' : 'habits.form.everyCount').props.onChangeText('4'))
+      await TestRenderer.act(() => input(flexible ? 'habits.form.timesCount' : 'habits.form.everyCount:{"unit":"Year"}').props.onChangeText('4'))
     }
     await TestRenderer.act(() => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && String(node.props.accessibilityLabel).startsWith('habits.form.habitStartDate,'))[0]!.props.onPress())
     const startDateLabel = formatLocaleDate('2026-10-21', 'en', { month: 'long', day: 'numeric', year: 'numeric' })
@@ -2640,7 +2640,7 @@ it('leaves the timing entry caption free to grow', () => {
 })
 
 it.each([
-  { isFlexible: false, frequencyUnit: 'Day', frequencyQuantity: 2, countQuestion: 'habits.form.everyCount' },
+  { isFlexible: false, frequencyUnit: 'Week', frequencyQuantity: 2, countQuestion: 'habits.form.everyCount:{"unit":"Week"}' },
   { isFlexible: true, frequencyUnit: 'Week', frequencyQuantity: 3, countQuestion: 'habits.form.timesCount' },
 ])('asks each native frequency question in its own 24px group, flexible $isFlexible', ({ countQuestion, ...schedule }) => {
   formLocale.realController = false
@@ -2676,11 +2676,30 @@ it('reveals the native end date question from its answer and retains the hidden 
   expect(question()).toHaveLength(1)
   TestRenderer.act(() => { helpers.form.setValue('endDate', '2026-12-31') })
   refresh()
+  expect(row().props.value).toBeUndefined()
   TestRenderer.act(() => row().props.onClick())
   expect(question()).toHaveLength(0)
   expect(helpers.form.getValues('endDate')).toBe('2026-12-31')
+  expect(row().props.value).toBe(formatLocaleDate('2026-12-31', 'en'))
   TestRenderer.act(() => row().props.onClick())
+  expect(row().props.value).toBeUndefined()
   expect(tree.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityLabel === 'habits.form.removeEndDate').length).toBeGreaterThan(0)
+})
+
+it('guards the native end date question while the form is frozen', () => {
+  formLocale.realController = false
+  useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])
+  const helpers = createFormHelpers({ title: 'Run', itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1, endDate: '2026-12-31' })
+  const form = (disabled: boolean) => <HabitFormInteractionProvider disabled={disabled}><HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded /></HabitFormInteractionProvider>
+  let tree!: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(form(true)) })
+  const row = () => tree.root.findAllByType(ListRow).find((node: { props: { title: string } }) => node.props.title === 'habits.form.addEndDate')!
+  const remove = () => tree.root.findAllByType(PillButton).find((node: { props: { label?: string } }) => node.props.label === 'habits.form.removeEndDate')!
+  expect(row().props.disabled).toBe(true)
+  TestRenderer.act(() => row().props.onClick())
+  expect(row().props.expanded).toBe(true)
+  TestRenderer.act(() => remove().props.onClick())
+  expect(helpers.form.getValues('endDate')).toBe('2026-12-31')
 })
 
 it('opens a saved native end date question and asks the More details questions on field rows', () => {

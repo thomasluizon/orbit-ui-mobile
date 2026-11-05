@@ -22,6 +22,7 @@ import {
   coalesceFormText,
   getFriendlyErrorMessage,
   extractBackendStatus,
+  formatLocaleDate,
   isHabitDailySchedule,
   isHabitAstraLimitReached,
   readTypedHabitPhrase,
@@ -133,6 +134,7 @@ interface EndDateEditorProps {
 
 function EndDateEditor({ visible, value, onChange, t }: Readonly<EndDateEditorProps>) {
   const { disabled, guard } = useHabitFormInteraction()
+  const { i18n } = useTranslation()
   const [focusRequest, setFocusRequest] = useState(0)
   const [endDateExpanded, setShowEndDate] = useState<boolean | null>(null)
   const showEndDate = endDateExpanded ?? Boolean(value)
@@ -140,7 +142,7 @@ function EndDateEditor({ visible, value, onChange, t }: Readonly<EndDateEditorPr
   return (
     <View testID="end-date-levels" style={{ gap: 16 }}>
       <FormSectionLabel>{t('habits.form.ending')}</FormSectionLabel>
-      <View><ListRow disabled={disabled} placement="field" title={t('habits.form.addEndDate')} expanded={showEndDate} onClick={guard(() => setShowEndDate(!showEndDate))} /></View>
+      <View><ListRow disabled={disabled} placement="field" title={t('habits.form.addEndDate')} value={value && !showEndDate ? formatLocaleDate(value, i18n.language) : undefined} expanded={showEndDate} onClick={guard(() => setShowEndDate(!showEndDate))} /></View>
       {showEndDate ? <View style={{ gap: 8 }}>
       <FormSectionLabel>{t('habits.form.endDateQuestion')}</FormSectionLabel>
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}><View style={{ flex: 1, minWidth: 0 }}><DateField disabled={disabled} label={t('habits.form.endDateQuestion')} value={value} placeholder={t('habits.form.endDatePlaceholder')} onChange={guard((next: string) => { setShowEndDate(true); onChange(next) })} focusRequest={focusRequest} /></View>

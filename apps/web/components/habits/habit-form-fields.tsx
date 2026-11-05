@@ -27,6 +27,7 @@ import {
   coalesceFormText,
   getFriendlyErrorMessage,
   extractBackendStatus,
+  formatLocaleDate,
   isHabitDailySchedule,
   isHabitAstraLimitReached,
   readTypedHabitPhrase,
@@ -115,12 +116,14 @@ interface SubHabitSectionProps {
 
 interface EndDateEditorProps {
   visible: boolean
+  disabled: boolean
   value: string
   onChange: (value: string) => void
   t: (key: string) => string
 }
 
-function EndDateEditor({ visible, value, onChange, t }: Readonly<EndDateEditorProps>) {
+function EndDateEditor({ visible, disabled, value, onChange, t }: Readonly<EndDateEditorProps>) {
+  const locale = useLocale()
   const [focusRequest, setFocusRequest] = useState(0)
   const [endDateExpanded, setShowEndDate] = useState<boolean | null>(null)
   const showEndDate = endDateExpanded ?? Boolean(value)
@@ -128,12 +131,12 @@ function EndDateEditor({ visible, value, onChange, t }: Readonly<EndDateEditorPr
   return (
     <section data-end-date-levels="" className="flex flex-col gap-4">
       <FormSectionLabel>{t('habits.form.ending')}</FormSectionLabel>
-      <div><ListRow placement="field" title={t('habits.form.addEndDate')} expanded={showEndDate} onClick={() => setShowEndDate(!showEndDate)} /></div>
+      <div><ListRow disabled={disabled} placement="field" title={t('habits.form.addEndDate')} value={value && !showEndDate ? formatLocaleDate(value, locale) : undefined} expanded={showEndDate} onClick={() => { if (!disabled) setShowEndDate(!showEndDate) }} /></div>
       {showEndDate ? <div className="flex flex-col gap-2">
       <FormSectionLabel>{t('habits.form.endDateQuestion')}</FormSectionLabel>
-      <div className="flex min-w-0 items-end gap-2"><div className="min-w-0 flex-1"><DateField label={t('habits.form.endDateQuestion')} value={value} placeholder={t('habits.form.endDatePlaceholder')} onChange={(next) => { setShowEndDate(true); onChange(next) }} focusRequest={focusRequest} /></div>
+      <div className="flex min-w-0 items-end gap-2"><div className="min-w-0 flex-1"><DateField disabled={disabled} label={t('habits.form.endDateQuestion')} value={value} placeholder={t('habits.form.endDatePlaceholder')} onChange={(next) => { setShowEndDate(true); onChange(next) }} focusRequest={focusRequest} /></div>
       {value ? <div className="shrink-0">
-        <PillButton variant="ghost" iconOnly label={t('habits.form.removeEndDate')} onClick={() => {
+        <PillButton disabled={disabled} variant="ghost" iconOnly label={t('habits.form.removeEndDate')} onClick={() => {
           setShowEndDate(true)
           onChange('')
           setFocusRequest((request) => request + 1)
@@ -571,7 +574,7 @@ export function HabitFormFields({
             </section>
 
             </section>
-            <EndDateEditor visible={showEndDate} value={endDate} onChange={(value) => setValue('endDate', value, { shouldDirty: true })} t={t} />
+            <EndDateEditor visible={showEndDate} disabled={disabled} value={endDate} onChange={(value) => { if (!disabled) setValue('endDate', value, { shouldDirty: true }) }} t={t} />
           </div>
         ) : null}
       </div>

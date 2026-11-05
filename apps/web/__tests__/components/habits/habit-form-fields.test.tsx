@@ -1,5 +1,5 @@
 import { habitFormSchema } from '@orbit/shared/validation'
-import { buildCreateHabitRequest } from '@orbit/shared/utils'
+import { buildCreateHabitRequest, formatLocaleDate } from '@orbit/shared/utils'
 import { dateInterpretationSchema } from '@orbit/shared/types/habit'
 import { formLocale, mockProfileState, mockRouterPush, setupPatch, SETUP_PROPOSAL, CHECKLIST_PROPOSAL, SUB_HABIT_PROPOSAL, COMBINED_PROPOSAL, dateRequests, createFormHelpers, createTags, renderForm } from '@/__tests__/support/habit-form-fields'
 import userEvent from '@testing-library/user-event'
@@ -89,7 +89,9 @@ describe('HabitFormFields', () => {
   it('omits an empty sub-habit section when the edit form supplies no editor', () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(<QueryClientProvider client={queryClient}><HabitFormFields formHelpers={createFormHelpers()} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded /></QueryClientProvider>)
-    expect(screen.queryByText('habits.form.subHabits')).toBeNull()
+    expect(screen.getByRole('heading', { name: 'habits.form.checklistQuestion' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'habits.form.subHabitsQuestion' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'habits.form.subTasksQuestion' })).toBeNull()
   })
 
   it.each([false, true])('keeps the sub-habit editor available with Pro access %s', (hasProAccess) => {
@@ -535,7 +537,9 @@ describe('HabitFormFields', () => {
 
     renderForm(formHelpers, undefined, true)
 
-    expect(screen.queryByText('habits.form.endDate')).toBeNull()
+    expect(screen.getByRole('heading', { name: 'habits.form.checklistQuestion' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^habits\.form\.addEndDate/ })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'habits.form.endDateQuestion' })).toBeNull()
   })
 
   it('keeps sub-habits and goals available without an upgrade row', () => {
@@ -856,7 +860,7 @@ it('keeps a prefilled end-time question open after clearing its value', () => {
 })
 
 it.each([
-  { isFlexible: false, frequencyUnit: 'Day', frequencyQuantity: 2, countQuestion: 'habits.form.everyCount' },
+  { isFlexible: false, frequencyUnit: 'Week', frequencyQuantity: 2, countQuestion: 'habits.form.everyCount:{"unit":"Week"}' },
   { isFlexible: true, frequencyUnit: 'Week', frequencyQuantity: 3, countQuestion: 'habits.form.timesCount' },
 ])('asks each frequency question in its own group with the count named by the answer, flexible $isFlexible', ({ countQuestion, ...schedule }) => {
   const { container } = renderForm(createFormHelpers({ title: 'Run', itemType: 'habit', ...schedule }))
@@ -889,8 +893,25 @@ it('reveals the end date question from its answer and retains the hidden date', 
   fireEvent.click(end())
   expect(screen.queryByRole('heading', { name: 'habits.form.endDateQuestion' })).toBeNull()
   expect(helpers.form.getValues('endDate')).toBe('2026-12-31')
-  fireEvent.click(end())
+  const collapsed = screen.getByRole('button', { name: /^habits\.form\.addEndDate/ })
+  expect(collapsed).toHaveAttribute('aria-expanded', 'false')
+  expect(within(collapsed).getByText(formatLocaleDate('2026-12-31', 'en'))).toBeInTheDocument()
+  fireEvent.click(collapsed)
+  expect(end()).toHaveAttribute('aria-expanded', 'true')
   expect(screen.getByRole('button', { name: 'habits.form.removeEndDate' })).toBeInTheDocument()
+})
+
+it('locks the end date question while the form is disabled', () => {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const helpers = createFormHelpers({ title: 'Run', itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1, endDate: '2026-12-31' })
+  render(<QueryClientProvider client={queryClient}><HabitFormFields disabled formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded /></QueryClientProvider>)
+  const row = screen.getByRole('button', { name: 'habits.form.addEndDate' })
+  expect(row).toBeDisabled()
+  fireEvent.click(row)
+  expect(row).toHaveAttribute('aria-expanded', 'true')
+  expect(screen.getByRole('button', { name: 'habits.form.removeEndDate' })).toBeDisabled()
+  fireEvent.click(screen.getByRole('button', { name: 'habits.form.removeEndDate' }))
+  expect(helpers.form.getValues('endDate')).toBe('2026-12-31')
 })
 
 it('opens a saved end date question when editing and keeps it open after removing the date', () => {
