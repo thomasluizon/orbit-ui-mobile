@@ -101,6 +101,17 @@ it('withholds the button while a sheet or selection owns the surface', async () 
   expect(screen.queryByRole('button')).toBeNull()
 })
 
+it('retains its opening control through a temporarily unavailable placement', async () => {
+  mount()
+  await waitFor(() => expect(placement().style.transform).toBe('translate(336px, 440px)'))
+  const button = screen.getByRole('button', { name: en.shell.astraButton.open })
+  act(() => { useUIStore.setState({ astraConversationOpen: true }); height = 0; resize() })
+  expect(button.isConnected).toBe(true)
+  expect(button).not.toBeVisible()
+  act(() => { height = 600; resize(); useUIStore.setState({ astraConversationOpen: false }) })
+  expect(screen.getByRole('button', { name: en.shell.astraButton.open })).toBe(button)
+})
+
 it('moves through a single-pointer action without dragging or opening Astra', async () => {
   const user = userEvent.setup()
   mount()

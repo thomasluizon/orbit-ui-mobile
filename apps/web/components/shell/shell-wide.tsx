@@ -334,7 +334,7 @@ function getAstraScrollerSpacing(spacing: ReturnType<typeof getScrollerSpacing>,
   if (!astraButton) return { padding: spacing.padding, focusClearance: wide ? undefined : spacing.focusClearance }
   return {
     padding: 'pb-[max(var(--shell-astra-clearance),var(--orbit-space-96))] lg:pb-[max(var(--shell-astra-clearance),var(--orbit-space-32))]',
-    focusClearance: 'var(--shell-astra-clearance)',
+    focusClearance: 'min(var(--shell-astra-clearance), 50%)',
   }
 }
 

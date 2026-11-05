@@ -1739,7 +1739,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
 
   button[data-variant="primary"]:enabled:hover,
-  [data-fab]:hover {
+  [data-fab]:not([data-fab="neutral"]):hover {
     background: var(--primary-hover);
   }
 

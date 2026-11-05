@@ -62,7 +62,7 @@ for (const viewport of shellScrollViewports) {
       expect(restoredButton.y - afterRemoval.lastBottom).toBeGreaterThanOrEqual(SPACING.s16 - 1)
       if (viewport.width < 1024) {
         const tabs = (await page.locator('[data-shell-tab-bar]').boundingBox())!
-        expect(tabs.y - afterRemoval.lastBottom).toBeCloseTo(restoredClearance, 0)
+        expect(tabs.y - afterRemoval.lastBottom).toBeCloseTo(restoredClearance + tabs.y - afterRemoval.scrollerBottom, 0)
       }
     })
   })

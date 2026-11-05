@@ -139,7 +139,7 @@ export function AstraButton() {
   const gesture = useAstraGesture(position, placement.area, hostRef, point => { setSnapping(false); setDragged(point) }, finish, () => setMoving(true))
   const move = (direction: AstraMoveDirection) => { if (position) finish(moveAstraButton(position, direction, placement.area)) }
   return <div ref={hostRef} data-astra-button-area="" className="pointer-events-none absolute inset-y-0 left-[var(--safe-left)] right-[var(--safe-right)] z-sticky">
-    {position || placement.area.width === 0 ? <div hidden={blocked} data-astra-button-position="" className="pointer-events-auto absolute motion-safe:transition-transform motion-safe:duration-[var(--duration-normal)] ease-[var(--ease-out)]"
+    <div hidden={blocked || !position && placement.area.width > 0} data-astra-button-position="" className="pointer-events-auto absolute motion-safe:transition-transform motion-safe:duration-[var(--duration-normal)] ease-[var(--ease-out)]"
       style={{ ...(position ? { left: 0, top: 0, transform: `translate(${position.x}px, ${position.y}px)` } : { right: ASTRA_BUTTON_GAP, bottom: ASTRA_BUTTON_SIZE + ASTRA_BUTTON_GAP + ASTRA_BUTTON_CLEARANCE }), transitionDuration: dragged || !snapping ? '0ms' : undefined, width: ASTRA_BUTTON_SIZE, height: ASTRA_BUTTON_SIZE }}>
       <Fab neutral label={t('shell.astraButton.open')} data-astra-button="" aria-describedby={descriptionId} title={t('shell.astraButton.keyboardHint')} style={{ touchAction: 'none' }} {...gesture}
         onKeyDown={event => {
@@ -149,7 +149,7 @@ export function AstraButton() {
           if (event.key === 'ContextMenu' || event.shiftKey && event.key === 'F10') { event.preventDefault(); setMoving(true) }
         }}><AstraGlyph size={24} /></Fab>
       <span id={descriptionId} className="sr-only">{t('shell.astraButton.keyboardHint')}</span>
-    </div> : null}
+    </div>
     {moving ? <AstraMoveSheet onMove={move} onClose={() => setMoving(false)} /> : null}
   </div>
 }

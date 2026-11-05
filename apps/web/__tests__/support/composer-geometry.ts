@@ -77,9 +77,21 @@ export async function compileComposerGeometry() {
     stdin: { contents: `import React, { useState } from 'react'; import { createRoot } from 'react-dom/client';
       import { Composer } from './components/shell/composer';
       import { ShellWide } from './components/shell/shell-wide';
+      import { AstraButton } from './components/shell/astra-button';
+      import { useUIStore } from './stores/ui-store';
       import { AstraConversation } from './components/chat/conversation';
       import { createChatThreadScroll } from '@orbit/shared/hooks';
       const props = JSON.parse(document.getElementById('configuration').textContent);
+      function MountedAstraShell() {
+        const open = useUIStore(state => state.astraConversationOpen);
+        return React.createElement(ShellWide, { items: [], activeId: 'hoje', navLabel: 'Navigation', astraRow: { label: 'Astra', onOpen: () => useUIStore.getState().setAstraConversationOpen(true) },
+          header: React.createElement('div', { style: { minHeight: 112 } }, 'Today'),
+          tabBar: React.createElement('nav', { style: { minHeight: 80 } }, 'Tabs'),
+          fab: open ? undefined : React.createElement('button', { style: { width: 60, height: 60 } }, 'Create'),
+          astraButton: React.createElement(AstraButton), conversationOpen: open, conversationLabel: 'Astra',
+          conversation: React.createElement('button', { style: { margin: 32, padding: 16 }, onClick: () => useUIStore.getState().setAstraConversationOpen(false) }, ${JSON.stringify(en.common.closeConversation)}),
+        }, React.createElement('button', { 'data-probe-following': '', style: { minHeight: 48, padding: 16 } }, 'Today view'), React.createElement('div', { style: { height: 1600 } }, 'Habits'));
+      }
       if (props.clipboardText) Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { readText: async () => props.clipboardText } });
       function MountedComposer({ initialProps = props }) {
         const [currentProps, setCurrentProps] = useState(initialProps);
@@ -102,6 +114,7 @@ export async function compileComposerGeometry() {
         suggestions: currentProps.suggestions.map(chip => ({ ...chip, onSelect: () => {},
           icon: React.createElement('svg', { width: 20, height: 20, 'aria-hidden': true }) }))
         };
+        if (initialProps.testSurface === 'astraEntry') return React.createElement(MountedAstraShell);
         if (initialProps.testSurface) {
           const composer = React.createElement(Composer, composerProps);
           return React.createElement(ShellWide, { items: [], activeId: 'hoje', navLabel: initialProps.words.actions,

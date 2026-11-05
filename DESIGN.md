@@ -228,7 +228,8 @@ separation. Position is a device preference, retained across
 launches; an outgrown position resets to the default when the viewport shrinks. Layout changes
 recheck obstacles. Sheets, selection and the conversation withhold the floating entry.
 The shell reserves end-of-list clearance from the button's current position plus a 16px gap,
-so the last row scrolls fully above it after dragging, moving or resizing.
+so the last row scrolls fully above it after dragging, moving or resizing. Web caps the inset used
+when scrolling to focus at half the scroller height so a short window can reveal its focused controls.
 Press and hold opens four named movement choices on both platforms; web also opens them on
 right-click or the context-menu key. Choosing a direction closes the sheet and moves the button
 without opening Astra. Web keeps the button in normal tab order; Enter and Space open it and

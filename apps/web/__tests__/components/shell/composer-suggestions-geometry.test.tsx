@@ -21,11 +21,11 @@ describe('Composer compact geometry in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each([en, ptBR])('hugs every returning conversation suggestion across supported widths', async messages => {
+  it.each([en, ptBR].flatMap(messages => [false, true].map(collapsible => ({ messages, collapsible }))))('hugs every returning conversation suggestion across supported widths with disclosure=$collapsible', async ({ messages, collapsible }) => {
     const { suggestions } = liveChipSuggestions('returning', messages)
     const page = await browser.newPage({ viewport: { width: 320, height: 740 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ state: 'idle', value: '', suggestions, words: messages.shell.composer })}</script>`)
+      await page.setContent(`<style>${stylesheet}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ state: 'idle', value: '', suggestions, words: messages.shell.composer, collapsible, collapseScope: 'conversation' })}</script>`)
       await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
       await page.addScriptTag({ content: composerScript })
       await loadAppFonts(page)
@@ -36,7 +36,11 @@ describe('Composer compact geometry in Chromium', () => {
           const measured = await strip.evaluate(element => {
             element.scrollLeft = 0
             const bounds = element.getBoundingClientRect()
+            const composer = element.closest('[data-composer-root]')!
+            const disclosure = composer.querySelector('[data-composer-disclosure]')?.getBoundingClientRect()
             return { available: element.parentElement!.getBoundingClientRect().width, viewport: bounds.width,
+              right: bounds.right, disclosureLeft: disclosure?.left, disclosureRight: disclosure?.right,
+              fieldRight: composer.querySelector('[data-composer-input-row]')!.getBoundingClientRect().right,
               chips: [...element.querySelectorAll('button')].map(button => {
                 const style = getComputedStyle(button)
                 return { label: button.textContent, width: button.getBoundingClientRect().width,
@@ -46,6 +50,10 @@ describe('Composer compact geometry in Chromium', () => {
           })
           const evidence = JSON.stringify({ width, measured })
           expect(measured.viewport, evidence).toBeCloseTo(measured.available, 1)
+          if (collapsible) {
+            expect(measured.disclosureLeft! - measured.right, evidence).toBeCloseTo(12, 1)
+            expect(measured.disclosureRight, evidence).toBeCloseTo(measured.fieldRight, 1)
+          } else expect(measured.right, evidence).toBeCloseTo(measured.fieldRight, 1)
           for (const chip of measured.chips) expect(Math.abs(chip.width - chip.content - chip.padding), evidence).toBeLessThanOrEqual(1)
         })
       }
