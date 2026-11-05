@@ -109,3 +109,18 @@ it('keeps a recorded historical read of another day failed', async () => {
   expect(verdict.after).toBe('fail')
   expect(verdict.notes.join(' ')).toContain('Historical read scope: Missing tool or incorrect arguments/result: query_habits')
 })
+
+it('reports a redacted recorded argument as a projection limit instead of a regression', async () => {
+  const source = window([gateFourteen.find((entry) => entry.caseId === 'offers-dismissal-en')])
+  const [verdict] = await replayWindow(source, `${directory}/output`)
+  expect(verdict.after).toBe('pass')
+  expect(verdict.schemas.find((schema) => !schema.pass)).toMatchObject({ name: 'get_daily_summary', redacted: true })
+  expect(readFileSync(`${directory}/output/summary.md`, 'utf8')).toContain('| offers-dismissal-en | pass | pass | unreplayable projection |')
+})
+
+it('still counts an unredacted schema failure on a passing case as a regression', async () => {
+  const attempt = structuredClone(gateFourteen.find((entry) => entry.caseId === 'offers-dismissal-en'))
+  attempt.toolCalls[0].arguments.relative_period = 'tomorrow'
+  const source = window([attempt])
+  await expect(replayWindow(source, `${directory}/output`)).rejects.toThrow('changed a previously passing case')
+})

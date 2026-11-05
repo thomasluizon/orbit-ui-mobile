@@ -103,7 +103,8 @@ function offerContextEvidence(vars, withheld) {
     if (Array.isArray(value)) return value.map(project)
     if (!value || typeof value !== 'object') return value
     return Object.fromEntries(Object.entries(value).map(([key, child]) => {
-      if (/token|credential|password|secret|cookie|authorization|cursor|revision|fingerprint|^(?:api|access|refresh)?key$|ids?$/u.test(normalizeField(key))) {
+      if (normalizeField(key) !== 'surfaceid'
+        && /token|credential|password|secret|cookie|authorization|cursor|revision|fingerprint|^(?:api|access|refresh)?key$|ids?$/u.test(normalizeField(key))) {
         collectStrings(child, withheld)
         return [key, child === null ? null : '[redacted]']
       }

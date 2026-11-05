@@ -4,7 +4,9 @@ import { normalizeField } from './trace-policy.mjs'
 import { redactCredentials } from './credentials.mjs'
 import { visiblePreview } from './visible-preview.mjs'
 
-const privateField = (key) => /(?:^id$|ids$|id$|token|credential|password|secret|cookie|authorization|cursor|revision|keyprefix|keyhash|^instruction$)/.test(normalizeField(key))
+// A card SurfaceId names a public app surface such as today or profile, not an identity.
+const privateField = (key) => normalizeField(key) !== 'surfaceid'
+  && /(?:^id$|ids$|id$|token|credential|password|secret|cookie|authorization|cursor|revision|keyprefix|keyhash|^instruction$)/.test(normalizeField(key))
 const identity = /^(?:[0-9a-f]{32}|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$/i
 
 function collectPrivate(value, withheld) {

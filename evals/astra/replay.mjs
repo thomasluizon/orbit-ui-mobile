@@ -49,6 +49,13 @@ function historicalScope(attempt, vars, assertions) {
   return 'incomplete'
 }
 
+function redactedFailure(call, verdict) {
+  const paths = [...(verdict.reason ?? '').matchAll(/"instancePath":"([^"]*)"/gu)].map((match) => match[1])
+  const value = (path) => path.split('/').slice(1).map((segment) => segment.replaceAll('~1', '/').replaceAll('~0', '~'))
+    .reduce((parent, key) => parent?.[key], call.arguments)
+  return !verdict.pass && paths.length && paths.every((path) => value(path) === '[redacted]') ? { ...verdict, redacted: true } : verdict
+}
+
 export async function replayAttempt(attempt, descriptor, recorded) {
   const before = recorded.allAttemptsPass
   const test = structuredClone(descriptor)
@@ -56,8 +63,9 @@ export async function replayAttempt(attempt, descriptor, recorded) {
   test.vars.clientContext ??= buildChatClientContext({ platform: test.metadata.platform ?? 'web', locale: test.metadata.locale ?? 'en' })
   const assertions = structuredClone(attempt.assertions)
   const notes = []
-  const schemas = await Promise.all(attempt.toolCalls.map(async (call) => ({ name: call.name,
+  const schemas = await Promise.all(attempt.toolCalls.map(async (call) => redactedFailure(call, { name: call.name,
     ...await validateToolArguments(call, declarations(test.vars), { test, vars: test.vars }) })))
+  if (schemas.some((verdict) => verdict.redacted)) notes.push('A recorded argument holds a redacted value, so its schema cannot be replayed.')
   const structure = assertions.find((assertion) => assertion.metric === 'toolStructure')
   if (structure?.pass === false && /Call to "ask" does not match schema/u.test(structure.reason)
     && schemas.length && schemas.every((verdict) => verdict.pass)) {
@@ -121,7 +129,7 @@ export async function replayWindow(source, destination) {
     throw new Error('Replay requires the complete window with one recorded attempt per case.')
   }
   const regressions = results.filter((entry) => entry.before === 'pass' && entry.after !== 'pass'
-    || entry.recordedAttemptPassed === true && entry.schemas.some((verdict) => !verdict.pass))
+    || entry.recordedAttemptPassed === true && entry.schemas.some((verdict) => !verdict.pass && !verdict.redacted))
   const counts = (key) => Object.fromEntries(['pass', 'fail', 'incomplete'].map((status) =>
     [status, results.filter((entry) => entry[key] === status).length]))
   const markdown = [
