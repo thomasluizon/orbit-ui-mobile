@@ -1,4 +1,5 @@
-import { measureClampedPersonalText } from '@/__tests__/support/personal-text'
+import { phaseTimings } from '@/__tests__/support/phase-timings'
+import { measureClampedPersonalText, personalText } from '@/__tests__/support/personal-text'
 import { createApiClientError } from '@orbit/shared/utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
@@ -15,10 +16,16 @@ vi.mock('next-intl', () => ({
     params ? `${key}(${JSON.stringify(params)})` : key,
 }))
 
-vi.mock('@/components/ui/confirm-sheet', () => ({
-  ConfirmSheet: ({ open, onConfirm, onCancel, destructive, message }: { open: boolean; onConfirm: () => void; onCancel: () => void; destructive?: boolean; message: string }) =>
-    open ? <div role="dialog" aria-label={message}><button type="button" onClick={onConfirm}>{destructive ? 'confirm-remove' : 'confirm-breakdown'}</button><button type="button" onClick={onCancel}>cancel-confirmation</button></div> : null,
-}))
+let realConfirmation = false
+
+vi.mock('@/components/ui/confirm-sheet', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/ui/confirm-sheet')>()
+  return {
+    ConfirmSheet: (props: React.ComponentProps<typeof actual.ConfirmSheet>) => realConfirmation
+      ? <actual.ConfirmSheet {...props} />
+      : props.open ? <div role="dialog" aria-label={props.message}><button type="button" onClick={props.onConfirm}>{props.destructive ? 'confirm-remove' : 'confirm-breakdown'}</button><button type="button" onClick={props.onCancel}>cancel-confirmation</button></div> : null,
+  }
+})
 
 let isPending = false
 const bulkCreate = vi.fn<(request: BulkCreateRequest) => Promise<BulkCreateResponse>>()
@@ -42,6 +49,7 @@ const defaultProps = {
 beforeEach(() => {
   vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({ matches: true, media: query, onchange: null, addEventListener: vi.fn(), removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn(), dispatchEvent: vi.fn() }))
   isPending = false
+  realConfirmation = false
   bulkCreate.mockReset()
   defaultProps.onConfirmed.mockReset()
 })
@@ -339,25 +347,38 @@ it('stops adding at 100 rows and allows adding again after removal', () => {
 })
 
 it('never submits an oversized incoming proposal until it is reduced', async () => {
+  realConfirmation = true
+  const phase = phaseTimings('breakdown oversized')
   bulkCreate.mockImplementation((request) => {
     if (request.habits.length > 100) return Promise.reject(new Error('batch size'))
     return Promise.resolve(makeBulkCreateResponse(request.habits.map(() => 'Success')))
   })
-  render(<BreakdownSuggestion {...defaultProps} subHabits={Array.from({ length: 101 }, (_, index) => ({ title: `Habit ${index}` }))} />)
-  const unrelatedRowControl = screen.getByLabelText('habits.breakdown.removeHabit({"name":"Habit 100"})')
+  const { container } = render(<BreakdownSuggestion {...defaultProps} subHabits={Array.from({ length: 101 }, (_, index) => ({ title: `Habit ${index}` }))} />)
+  phase('render')
+  const firstRow = within(screen.getByText(personalText('Habit 0'), { selector: '[data-personal-text]' }).closest<HTMLElement>('[data-proposed]')!)
+  const lastRow = within(screen.getByText(personalText('Habit 100'), { selector: '[data-personal-text]' }).closest<HTMLElement>('[data-proposed]')!)
+  const unrelatedRowControl = lastRow.getByRole('button', { name: 'habits.breakdown.removeHabit({"name":"Habit 100"})' })
+  const removeFirst = firstRow.getByRole('button', { name: 'habits.breakdown.removeHabit({"name":"Habit 0"})' })
   const computedStyle = vi.spyOn(window, 'getComputedStyle')
-  const actions = within(screen.getByRole('group', { name: '' }))
+  const actions = within(container.querySelector('[data-slot="action-row"]')!)
+  phase('control discovery')
   fireEvent.click(actions.getByRole('button', { name: 'chat.preview.approve' }))
-  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-breakdown' }))
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'chat.breakdown.confirm' }))
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  phase('reject oversized confirmation')
   expect(bulkCreate).not.toHaveBeenCalled()
   expect(defaultProps.onConfirmed).not.toHaveBeenCalled()
-  fireEvent.click(screen.getByLabelText('habits.breakdown.removeHabit({"name":"Habit 0"})'))
-  expect(screen.getByRole('dialog')).toHaveAccessibleName(/chat\.breakdown\.removeBody/)
-  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-remove' }))
+  fireEvent.click(removeFirst)
+  expect(screen.getByRole('dialog')).toHaveAccessibleName(/chat\.breakdown\.removeTitle/)
+  expect(screen.getByRole('dialog')).toHaveTextContent(/chat\.breakdown\.removeBody/)
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'chat.operation.remove' }))
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  phase('remove confirmation')
   fireEvent.click(actions.getByRole('button', { name: 'chat.preview.approve' }))
   expect(bulkCreate).not.toHaveBeenCalled()
-  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-breakdown' }))
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'chat.breakdown.confirm' }))
   await waitFor(() => expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1))
+  phase('submit reduced proposal')
   expect(bulkCreate).toHaveBeenCalledTimes(1)
   expect(bulkCreate.mock.calls[0]?.[0].habits).toHaveLength(100)
   expect(bulkCreate.mock.calls[0]?.[0].habits.map((habit) => habit.title)).toEqual(

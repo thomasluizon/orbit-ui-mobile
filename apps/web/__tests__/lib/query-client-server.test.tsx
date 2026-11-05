@@ -3,7 +3,6 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { execFile } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { promisify } from 'node:util'
 import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { habitKeys } from '@orbit/shared/query'
@@ -19,6 +18,21 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({}) }))
 vi.mock('next-intl', () => ({ useLocale: () => 'en', useTranslations: () => (key: string) => key }))
 
 const renderedClients: QueryClient[] = []
+
+function runHeapProbe(arguments_: string[]): Promise<string> {
+  const started = performance.now()
+  return new Promise((resolve, reject) => {
+    execFile(process.execPath, arguments_, { timeout: 10_000 }, (cause, stdout, stderr) => {
+      const progress = `startup: Node, tsx and probe imports\n${stderr}`
+      if (cause) {
+        reject(new Error(`Heap probe failed after ${(performance.now() - started).toFixed(1)} ms. Progress:\n${progress}`, { cause }))
+      } else {
+        if (process.env.ORBIT_TEST_PHASE_TIMINGS) process.stderr.write(progress)
+        resolve(stdout)
+      }
+    })
+  })
+}
 
 function AccountQueries() {
   const client = useQueryClient()
@@ -43,13 +57,30 @@ describe('server query lifetime', () => {
   it('releases request contexts under a production-sized heap cap', async () => {
     vi.useRealTimers()
     const probe = fileURLToPath(new URL('../../test-support/query-client-heap.ts', import.meta.url))
-    const { stdout } = await promisify(execFile)(process.execPath, [
+    const stdout = await runHeapProbe([
       '--expose-gc', '--max-old-space-size=256', '--import', 'tsx', probe,
-    ], { timeout: 10_000 })
+    ])
     const samples = JSON.parse(stdout) as { requests: number; heapBytes: number; retainedResponses: number }[]
     expect(samples.map(sample => sample.requests)).toEqual([0, 100, 200, 300, 400])
     expect(samples.map(sample => sample.retainedResponses)).toEqual([0, 0, 0, 0, 0])
     expect(samples[4]!.heapBytes - samples[0]!.heapBytes).toBeLessThan(16 * 1024 * 1024)
+  })
+
+  it('reports startup failure before the probe emits progress', async () => {
+    vi.useRealTimers()
+    await expect(runHeapProbe(['-e', 'process.exit(1)'])).rejects.toThrow('startup: Node, tsx and probe imports')
+  })
+
+  it('preserves the last probe phase when a child fails', async () => {
+    vi.useRealTimers()
+    await expect(runHeapProbe(['-e', 'process.stderr.write("measurement: 400 requests\\n"); process.exit(1)']))
+      .rejects.toThrow('measurement: 400 requests')
+  })
+
+  it('reports a stalled child phase at the subprocess deadline', async () => {
+    vi.useRealTimers()
+    await expect(runHeapProbe(['-e', 'process.stderr.write("garbage collection: 200 requests\\n"); setInterval(() => {}, 1000)']))
+      .rejects.toThrow('garbage collection: 200 requests')
   })
 
   it('creates an isolated client for each server render', () => {
