@@ -78,6 +78,7 @@ for (const width of [412, 1280] as const) {
           await conversation.getByRole('button', { name: messages.common.closeConversation }).click()
           await expect(conversation).toBeHidden()
         }
+        if (surface === 'Suporte') await page.getByRole('radio', { name: messages.profile.support.subjects.problem.label, exact: true }).click()
         const target = surface === 'Hoje'
           ? await focusConversationComposer(page, width)
           : page.locator(targetSelector).first()
