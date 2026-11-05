@@ -701,7 +701,10 @@
       "everyNMonths": "{n, plural, one {Every # month} other {Every # months}}",
       "everyNYears": "{n, plural, one {Every # year} other {Every # years}}",
       "flexibleLabel": "{n}x / {unit}",
-      "flexibleProgress": "{unit}: {done}/{target}"
+      "flexibleProgress": "{unit}: {done}/{target}",
+      "monthDay": "{day, selectordinal, one {#st} two {#nd} few {#rd} other {#th}}",
+      "onMonthDays": "On the {days}",
+      "everyNMonthsOnDays": "{n, plural, one {Every # month} other {Every # months}} on the {days}"
     },
     "form": {
       "reminderKind": "When do you want to be reminded?",
@@ -713,6 +716,11 @@
       "repeatActiveStart": "From what time should I remind you?",
       "repeatActiveEnd": "Until what time?",
       "repeatInvalid": "Choose an interval and two different times, or allow reminders all day.",
+      "monthDaysQuestion": "On which days of the month?",
+      "monthDaysShortMonth": "Short months use their last day.",
+      "understoodMonthDaysAt": "{schedule} at {time}",
+      "monthDaysInvalid": "Choose days from 1 to 31.",
+      "monthDaysOnlyForMonthly": "Month days can't skip weeks.",
       "parentHabit": "Parent habit",
       "proRequired": "This is part of Orbit Pro.",
       "capacityTitle": "Habit limit reached",
@@ -2095,6 +2103,7 @@
         "frequency_unit": "Frequency unit",
         "frequency_quantity": "Frequency count",
         "interval_weeks": "Interval in weeks",
+        "month_days": "Days of the month",
         "days": "Days",
         "due_date": "Due date",
         "end_date": "End date",

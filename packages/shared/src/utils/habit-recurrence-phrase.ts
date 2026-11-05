@@ -2,9 +2,10 @@ import type { SupportedLocale } from '../types/profile'
 import { isWeeklyRecurrencePhrase, readHabitPhrase, segmentHabitPhrase } from './habit-phrase-parser'
 
 export interface HabitRecurrence {
-  unit: 'Day' | 'Week'
+  unit: 'Day' | 'Week' | 'Month'
   quantity: number
   days: string[]
+  monthDays: number[]
   flexible: boolean
   intervalWeeks: number
 }
@@ -15,7 +16,7 @@ export interface HabitRecurrencePhrase {
 }
 
 function readSchedule(phrase: string): HabitRecurrence | null {
-  const schedule: HabitRecurrence = { unit: 'Week', quantity: 1, days: [], flexible: false, intervalWeeks: 1 }
+  const schedule: HabitRecurrence = { unit: 'Week', quantity: 1, days: [], monthDays: [], flexible: false, intervalWeeks: 1 }
   if (isWeeklyRecurrencePhrase(phrase) || /^(?:each week|cada semana|todas semanas)$/u.test(phrase)) return schedule
   if (/^(?:cada dia|a cada dia)$/u.test(phrase)) return { ...schedule, unit: 'Day' }
   if (/^(?:weekdays|every weekday|each weekday|dias uteis|todos os dias uteis)$/u.test(phrase)) {
@@ -35,6 +36,7 @@ function readParsedSchedule(phrase: string, locale: SupportedLocale, schedule: H
     ? remainder.replace(/\b(?:every|each|on|and|toda|todo|todas|todos|as|os|e)\b/gu, '')
     : remainder
   if (unread.replace(/[\s,.!?:;]+/gu, '')) return null
+  if (read.cadence === 'monthly') return { ...schedule, unit: 'Month', monthDays: read.monthDays }
   if (!read.cadence) return { ...schedule, quantity: read.intervalWeeks ?? 1 }
   return { ...schedule, unit: read.cadence === 'flexible' ? 'Week' : 'Day', quantity: read.frequencyQuantity ?? 1,
     days: read.days, flexible: read.cadence === 'flexible', intervalWeeks: read.intervalWeeks ?? 1 }

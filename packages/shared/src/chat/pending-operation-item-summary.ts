@@ -4,6 +4,7 @@ import { computeHabitFrequencyLabel } from '../utils/habit-card-helpers'
 import { formatHabitReminderLabel } from '../utils/habit-form-helpers'
 import { parseAPIDate } from '../utils/dates'
 import { formatLocaleDate } from '../utils/locale-format'
+import { isHabitMonthDay } from '../utils/month-days'
 
 export const PENDING_OPERATION_WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const
 
@@ -61,7 +62,7 @@ function summarizeHabitUpdate(
 ): string {
   const dateChange = compactDateChange(changed, translate, locale)
   if (dateChange) return dateChange
-  const changedSchedule = changed.some(field => ['frequency_unit', 'frequency_quantity', 'days', 'due_date', 'due_time', 'is_general', 'is_flexible'].includes(field.field))
+  const changedSchedule = changed.some(field => ['frequency_unit', 'frequency_quantity', 'days', 'month_days', 'due_date', 'due_time', 'is_general', 'is_flexible'].includes(field.field))
   const summarizedFields = changedSchedule ? fields.filter(field => !['habit_id', 'title', 'emoji'].includes(field.field) && (field.field !== 'is_bad_habit' || changed.includes(field))) : changed
   const before = summarizePendingOperationItem(summarizedFields.map(field => ({ ...field, oldValue: field.oldValue, newValue: field.oldValue ?? field.newValue, proposedValue: field.oldValue ?? field.proposedValue })), translate, formatTime, locale, 'scheduleDiff')
   const after = summarizePendingOperationItem(summarizedFields, translate, formatTime, locale, 'scheduleDiff')
@@ -108,10 +109,12 @@ function cadenceSummary(fields: readonly PendingOperationChange[], translate: Pr
   const days = Array.isArray(daysField?.proposedValue)
     ? daysField.proposedValue.filter((day): day is string => typeof day === 'string' && PENDING_OPERATION_WEEKDAYS.some((name) => name === day))
     : (value('days') ?? '').split(',').map((day) => day.trim()).filter((day) => PENDING_OPERATION_WEEKDAYS.some((name) => name === day))
+  const monthDaysValue = fields.find((field) => field.field === 'month_days')?.proposedValue
   return { label: computeHabitFrequencyLabel({
     isGeneral: false, frequencyUnit: unit.data,
     frequencyQuantity: value('frequency_quantity') == null ? 1 : Number(value('frequency_quantity')),
     days, isFlexible: flexible === 'true',
+    monthDays: Array.isArray(monthDaysValue) ? monthDaysValue.filter((day): day is number => typeof day === 'number' && isHabitMonthDay(day)) : [],
   }, (key, values) => translate(key, values as Record<string, string | number>)), complete: true }
 }
 

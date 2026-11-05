@@ -1,13 +1,15 @@
 import type { SupportedLocale } from '../types/profile'
 import { MAX_HABIT_INTERVAL_WEEKS } from '../types/habit'
+import { isHabitMonthDay, normalizeHabitMonthDays } from './month-days'
 
-export type HabitPhraseCadence = 'daily' | 'fixed' | 'flexible'
-export type HabitPhraseTokenKind = 'daily' | 'weekday' | 'count' | 'time' | 'interval'
+export type HabitPhraseCadence = 'daily' | 'fixed' | 'flexible' | 'monthly'
+export type HabitPhraseTokenKind = 'daily' | 'weekday' | 'count' | 'time' | 'interval' | 'monthDay'
 
 export interface HabitPhraseToken { start: number; end: number; kind: HabitPhraseTokenKind }
 export interface HabitPhraseRead {
   cadence: HabitPhraseCadence | null
   days: string[]
+  monthDays: number[]
   frequencyQuantity: number | null
   intervalWeeks: number | null
   dueTime: string | null
@@ -22,6 +24,7 @@ interface LocalePatterns {
   count: RegExp
   interval: RegExp
   weeklySuffix: RegExp
+  monthDays: RegExp[]
   times: RegExp[]
   numberWords: Readonly<Record<string, number>>
 }
@@ -36,6 +39,13 @@ const ENGLISH_NUMBERS: Readonly<Record<string, number>> = {
 }
 const PT_NUMBER = '(?:\\d{1,3}|um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|quinze|vinte)'
 const EN_NUMBER = '(?:\\d{1,3}|one|once|two|twice|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty)'
+
+const PT_MONTH_DAY = '\\d{1,2}(?![\\d:h])'
+const PT_MONTH_DAY_LIST = `${PT_MONTH_DAY}(?:(?:\\s*,\\s*(?:e\\s+)?|\\s+e\\s+)(?:(?:o\\s+)?dia\\s+)?${PT_MONTH_DAY})*`
+const PT_MONTH_SUFFIX = '\\s+(?:de cada|de todo|do|todo|a cada|cada)\\s+mes'
+const MONTH_DAY_LIST_END = '(?=\\s*(?:[,.;!?]|$|a partir\\b|comecando\\b|from\\b|starting\\b))'
+const EN_MONTH_DAY = '\\d{1,2}(?:st|nd|rd|th)'
+const EN_MONTH_DAY_LIST = `${EN_MONTH_DAY}(?:(?:\\s*,\\s*(?:and\\s+)?|\\s+and\\s+)(?:the\\s+)?${EN_MONTH_DAY})*`
 
 const WEEKDAY_NEGATIONS = new Set([
   'menos', 'exceto', 'sem', 'nao', 'nunca', 'salvo', 'tirando',
@@ -85,6 +95,11 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
     count: new RegExp(`\\b(${PT_NUMBER})\\s*(?:vez|vezes|x)\\s*(?:(?:por|na|a|em)\\s*)?semana\\b`, 'gu'),
     interval: new RegExp(`\\ba\\s+cada\\s+(${PT_NUMBER})\\s+semanas?\\b`, 'gu'),
     weeklySuffix: /^\s+((?:a cada|de cada|cada|toda|por) semana|todas as semanas)\b/u,
+    monthDays: [
+      new RegExp(`\\b(?:todo|todos os|em todo|cada|a cada)\\s+dias?\\s+${PT_MONTH_DAY_LIST}(?:${PT_MONTH_SUFFIX}(?![\\w:])|${MONTH_DAY_LIST_END})`, 'gu'),
+      new RegExp(`\\b(?:(?:no|nos|em|todo)\\s+)?dias?\\s+${PT_MONTH_DAY_LIST}${PT_MONTH_SUFFIX}(?![\\w:])`, 'gu'),
+      new RegExp(`\\b(?:todo|cada|a cada)\\s+mes,?\\s+(?:(?:no|nos|em)\\s+)?dias?\\s+${PT_MONTH_DAY_LIST}(?![\\w:])`, 'gu'),
+    ],
     times: [
       /\b(?:as|a)\s+([01]?\d|2[0-3])(?::([0-5]\d)|h([0-5]\d)?)?\b(?![:\dh]|[.,]\d)/gu,
       /(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3]):([0-5]\d)\b(?![:\d]|[.,]\d)/gu,
@@ -106,6 +121,11 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
     count: new RegExp(`\\b(?:(once|twice)|(${EN_NUMBER})\\s*(?:time|times|x))\\s*(?:(?:a|per|each)\\s*)?week\\b`, 'gu'),
     interval: new RegExp(`\\bevery\\s+(${EN_NUMBER})\\s+weeks?\\b`, 'gu'),
     weeklySuffix: /^\s+((?:every|each|per|a) week)\b/u,
+    monthDays: [
+      new RegExp(`\\b(?:on\\s+)?(?:the\\s+)?${EN_MONTH_DAY_LIST}\\s+(?:(?:of\\s+)?(?:every|each)\\s+month|monthly)\\b`, 'gu'),
+      new RegExp(`\\b(?:(?:every|each)\\s+month|monthly),?\\s+on\\s+(?:the\\s+)?${EN_MONTH_DAY_LIST}(?![\\w:])`, 'gu'),
+      new RegExp(`\\bevery\\s+${EN_MONTH_DAY_LIST}(?:\\s+of\\s+the\\s+month(?![\\w:])|${MONTH_DAY_LIST_END})`, 'gu'),
+    ],
     times: [
       /\bat\s+([01]?\d|2[0-3])(?::([0-5]\d)|h([0-5]\d)?)?\s*(am|pm)?\b(?![:\dh]|[.,]\d)/gu,
       /(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3]):([0-5]\d)\s*(am|pm)?\b(?![:\d]|[.,]\d)/gu,
@@ -208,6 +228,40 @@ function extractInterval(
     intervalWeeks,
     token: toToken(phrase, match, 'interval'),
     remaining: maskRange(remaining, match.index, match.index + match[0].length),
+  }
+}
+
+function extractMonthDays(
+  remaining: string,
+  phrase: NormalizedPhrase,
+  patterns: LocalePatterns,
+): { monthDays: number[]; token: HabitPhraseToken; remaining: string } | 'unresolved' | null {
+  const match = firstMatch(patterns.monthDays, remaining)
+  if (!match) return null
+  const monthDays = Array.from(match[0].matchAll(/\d{1,2}/gu), (day) => Number.parseInt(day[0], 10))
+  if (!monthDays.every(isHabitMonthDay)) return 'unresolved'
+  return {
+    monthDays: normalizeHabitMonthDays(monthDays),
+    token: toToken(phrase, match, 'monthDay'),
+    remaining: maskRange(remaining, match.index, match.index + match[0].length),
+  }
+}
+
+function hasOtherCadence(text: string, patterns: LocalePatterns): boolean {
+  return matchWeekdays(text, patterns).length > 0 || firstMatch([patterns.count, patterns.interval, patterns.daily], text) !== null
+}
+
+function buildMonthDayRead(
+  monthDays: NonNullable<ReturnType<typeof extractMonthDays>>,
+  patterns: LocalePatterns,
+  dueTime: string | null,
+  consumed: HabitPhraseToken[],
+): HabitPhraseRead {
+  const resolved = monthDays !== 'unresolved' && !hasOtherCadence(monthDays.remaining, patterns)
+  return {
+    cadence: resolved ? 'monthly' : null, days: [], monthDays: resolved ? monthDays.monthDays : [],
+    frequencyQuantity: null, intervalWeeks: null, dueTime,
+    consumed: resolved ? [...consumed, monthDays.token].sort((left, right) => left.start - right.start) : consumed,
   }
 }
 
@@ -393,7 +447,7 @@ function buildWeekdayExclusionRead(
 ): HabitPhraseRead {
   const resolved = exclusion !== 'unresolved'
   return {
-    cadence: resolved ? 'fixed' : null, days: resolved ? exclusion.days : [],
+    cadence: resolved ? 'fixed' : null, days: resolved ? exclusion.days : [], monthDays: [],
     frequencyQuantity: null, intervalWeeks: null, dueTime,
     consumed: resolved
       ? [...consumed, ...exclusion.consumed.flatMap((token) => subtractConsumedTokens(token, consumed))].sort((left, right) => left.start - right.start)
@@ -451,6 +505,9 @@ export function readHabitPhrase(text: string, locale: SupportedLocale): HabitPhr
   if (time.token) consumed.push(time.token)
   remaining = time.remaining
 
+  const monthDays = extractMonthDays(remaining, phrase, patterns)
+  if (monthDays) return buildMonthDayRead(monthDays, patterns, dueTime, consumed)
+
   const alternating = extractAlternatingWeekdays(remaining, phrase, patterns, locale)
   if (alternating.mixed) return buildWeekdayExclusionRead('unresolved', dueTime, consumed)
   remaining = alternating.remaining
@@ -475,6 +532,7 @@ export function readHabitPhrase(text: string, locale: SupportedLocale): HabitPhr
   return {
     cadence: cadenceRead.cadence,
     days: cadenceRead.days,
+    monthDays: [],
     frequencyQuantity: cadenceRead.frequencyQuantity,
     intervalWeeks,
     dueTime,
@@ -498,7 +556,7 @@ export function segmentHabitPhrase(text: string, consumed: readonly HabitPhraseT
 export function readTypedHabitPhrase(title: string, locale: SupportedLocale, type: 'task' | 'habit' | null | undefined, general: boolean): HabitPhraseRead {
   const read = readHabitPhrase(title, locale)
   if (!general && type !== 'task') return read
-  return { ...read, cadence: null, days: [], frequencyQuantity: null, intervalWeeks: null,
+  return { ...read, cadence: null, days: [], monthDays: [], frequencyQuantity: null, intervalWeeks: null,
     dueTime: general ? null : read.dueTime,
     consumed: general ? [] : read.consumed.filter((token) => token.kind === 'time') }
 }

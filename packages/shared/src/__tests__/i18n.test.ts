@@ -537,6 +537,7 @@ describe('counted message grammar', () => {
       'calendar.recurrenceWeeklyDays', 'onboarding.flow.when.cadence.fixed',
       'onboarding.flow.when.cadence.fixedAt',
     ],
+    formattedMonthDays: ['habits.frequency.onMonthDays'],
     suppliedUnitOrUnitlessQuantity: [
       'chat.goalList.progress', 'goals.progressOf', 'goals.detail.progressUpdated',
       'goals.detail.historyProgress', 'progressScreen.goals.progress',

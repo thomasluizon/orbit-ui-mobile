@@ -18,6 +18,7 @@ import { normalizeHabitDetailForDrill } from './drill-navigation'
 import { formatHabitReminderLabel } from './habit-form-helpers'
 import { getTodayBoundary } from './today-date'
 import { buildHabitRowDateModel } from './habit-row-status'
+import { matchesHabitMonthDays } from './month-days'
 
 export const HABIT_DETAIL_WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const
 export const HABIT_DETAIL_FREQUENCY_UNITS = ['Day', 'Week', 'Month', 'Year'] as const
@@ -33,6 +34,7 @@ interface HabitScheduleSource {
   frequencyQuantity: number | null
   frequencyUnit: string | null
   intervalWeeks?: number | null
+  monthDays?: number[] | null
   flexibleTarget?: number | null
   isBadHabit: boolean
   isGeneral: boolean
@@ -107,6 +109,14 @@ function isActiveIntervalWeek(source: HabitScheduleSource, date: Date, weekStart
   return trueModulo(weekDifference, intervalWeeks) === 0
 }
 
+/** Chosen month days follow the API rule; otherwise the anchor's day repeats, clamped to a short month. */
+function matchesMonth(monthDays: readonly number[], date: Date, anchor: Date, quantity: number): boolean {
+  const dayMatches = monthDays.length > 0
+    ? matchesHabitMonthDays(monthDays, date)
+    : date.getDate() === Math.min(anchor.getDate(), getDaysInMonth(date))
+  return dayMatches && trueModulo(monthDifference(date, anchor), quantity) === 0
+}
+
 function matchesFrequency(source: HabitScheduleSource, date: Date, anchor: Date, weekStartsOn: 0 | 1): boolean {
   if (source.days.length > 0 && !source.days.includes(HABIT_DETAIL_WEEKDAYS[date.getDay()] ?? '')) {
     return false
@@ -121,10 +131,7 @@ function matchesFrequency(source: HabitScheduleSource, date: Date, anchor: Date,
     const weekDifference = Math.trunc(differenceInCalendarDays(date, anchor) / 7)
     return date.getDay() === anchor.getDay() && trueModulo(weekDifference, quantity) === 0
   }
-  if (source.frequencyUnit === 'Month') {
-    const expectedDay = Math.min(anchor.getDate(), getDaysInMonth(date))
-    return date.getDate() === expectedDay && trueModulo(monthDifference(date, anchor), quantity) === 0
-  }
+  if (source.frequencyUnit === 'Month') return matchesMonth(source.monthDays ?? [], date, anchor, quantity)
   if (source.frequencyUnit === 'Year') {
     if (trueModulo(date.getFullYear() - anchor.getFullYear(), quantity) !== 0) return false
     if (date.getMonth() === anchor.getMonth() && date.getDate() === anchor.getDate()) return true

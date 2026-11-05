@@ -9,6 +9,7 @@ export type HabitSchedule = z.infer<typeof habitScheduleSchema>
 
 export const frequencyUnitSchema = z.enum(['Day', 'Week', 'Month', 'Year'])
 export const MAX_HABIT_INTERVAL_WEEKS = 52
+export const habitMonthDaysSchema = z.array(z.number().int().min(1).max(31))
 
 export type FrequencyUnit = z.infer<typeof frequencyUnitSchema>
 
@@ -139,6 +140,7 @@ const baseHabitFieldsSchema = z.object({
   frequencyUnit: frequencyUnitSchema.nullable(),
   frequencyQuantity: z.number().nullable(),
   intervalWeeks: z.number().int().min(1).max(MAX_HABIT_INTERVAL_WEEKS).nullable().optional(),
+  monthDays: habitMonthDaysSchema.nullish(),
   isBadHabit: z.boolean(),
   isCompleted: z.boolean(),
   isGeneral: z.boolean(),
@@ -163,6 +165,7 @@ export const habitScheduleChildSchema: z.ZodType<ChildReminderFields & SearchSta
   frequencyUnit: FrequencyUnit | null
   frequencyQuantity: number | null
   intervalWeeks?: number | null
+  monthDays?: number[] | null
   isBadHabit: boolean
   isCompleted: boolean
   isGeneral: boolean
@@ -261,6 +264,7 @@ export const habitDetailChildSchema: z.ZodType<ChildReminderFields & {
   frequencyUnit: FrequencyUnit | null
   frequencyQuantity: number | null
   intervalWeeks?: number | null
+  monthDays?: number[] | null
   isBadHabit: boolean
   isCompleted: boolean
   isGeneral: boolean
@@ -337,6 +341,7 @@ export const createHabitRequestSchema = z.object({
   frequencyUnit: frequencyUnitSchema.optional(),
   frequencyQuantity: z.number().optional(),
   intervalWeeks: z.number().int().min(1).max(MAX_HABIT_INTERVAL_WEEKS).optional(),
+  monthDays: habitMonthDaysSchema.optional(),
   days: z.array(z.string()).optional(),
   isBadHabit: z.boolean().optional(),
   isGeneral: z.boolean().optional(),
@@ -390,6 +395,7 @@ export const updateHabitRequestSchema = z.object({
   frequencyUnit: frequencyUnitSchema.optional(),
   frequencyQuantity: z.number().optional(),
   intervalWeeks: z.number().int().min(1).max(MAX_HABIT_INTERVAL_WEEKS).optional(),
+  monthDays: habitMonthDaysSchema.optional(),
   days: z.array(z.string()).optional(),
   isBadHabit: z.boolean(),
   isGeneral: z.boolean().optional(),
@@ -624,6 +630,7 @@ export const createSubHabitRequestSchema = z.object({
   frequencyUnit: frequencyUnitSchema.optional(),
   frequencyQuantity: z.number().optional(),
   intervalWeeks: z.number().int().min(1).max(MAX_HABIT_INTERVAL_WEEKS).optional(),
+  monthDays: habitMonthDaysSchema.optional(),
   days: z.array(z.string()).optional(),
   isBadHabit: z.boolean().optional(),
   dueDate: z.string().optional(),

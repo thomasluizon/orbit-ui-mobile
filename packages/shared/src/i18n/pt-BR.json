@@ -701,7 +701,10 @@
       "everyNMonths": "{n, plural, =0 {A cada # meses} one {A cada # mês} other {A cada # meses}}",
       "everyNYears": "{n, plural, =0 {A cada # anos} one {A cada # ano} other {A cada # anos}}",
       "flexibleLabel": "{n}x / {unit}",
-      "flexibleProgress": "{unit}: {done}/{target}"
+      "flexibleProgress": "{unit}: {done}/{target}",
+      "monthDay": "{day}",
+      "onMonthDays": "Todo dia {days}",
+      "everyNMonthsOnDays": "{n, plural, =0 {A cada # meses} one {A cada # mês} other {A cada # meses}}, dia {days}"
     },
     "form": {
       "reminderKind": "Quando você quer um lembrete?",
@@ -713,6 +716,11 @@
       "repeatActiveStart": "Te aviso a partir de que horas?",
       "repeatActiveEnd": "Até que horas te aviso?",
       "repeatInvalid": "Escolha um intervalo e dois horários diferentes, ou permita lembretes o dia todo.",
+      "monthDaysQuestion": "Em quais dias do mês?",
+      "monthDaysShortMonth": "Em meses curtos, vale o último dia.",
+      "understoodMonthDaysAt": "{schedule} às {time}",
+      "monthDaysInvalid": "Escolha dias de 1 a 31.",
+      "monthDaysOnlyForMonthly": "Dias do mês não pulam semanas.",
       "parentHabit": "Hábito principal",
       "proRequired": "Isso faz parte do Orbit Pro.",
       "capacityTitle": "Limite de hábitos atingido",
@@ -2095,6 +2103,7 @@
         "frequency_unit": "Unidade de frequência",
         "frequency_quantity": "Número da frequência",
         "interval_weeks": "Intervalo em semanas",
+        "month_days": "Dias do mês",
         "days": "Dias",
         "due_date": "Data prevista",
         "end_date": "Data de término",
