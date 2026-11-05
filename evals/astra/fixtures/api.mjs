@@ -69,7 +69,10 @@ export function publicApi(credentialKey) {
       if (!response.ok && !acceptedStatuses.includes(response.status) && !accepted.includes(payload?.errorCode)) {
         const errorCode = typeof payload?.errorCode === 'string' && /^[A-Z][A-Z0-9_]{0,79}$/u.test(payload.errorCode)
           ? payload.errorCode : 'none'
-        throw fixtureFailure(method, path, `HTTP ${response.status} (errorCode: ${errorCode})`)
+        // PendingOperationRevisionResult carries its snake_case reason, such as stale_preview, in error, with no errorCode.
+        const reason = errorCode === 'none' && typeof payload?.error === 'string' && /^[a-z][a-z0-9_]{0,79}$/u.test(payload.error)
+          ? `, error: ${payload.error}` : ''
+        throw fixtureFailure(method, path, `HTTP ${response.status} (errorCode: ${errorCode}${reason})`)
       }
       return { status: response.status, payload }
     }
