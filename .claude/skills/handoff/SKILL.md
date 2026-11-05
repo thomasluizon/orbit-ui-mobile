@@ -29,6 +29,11 @@ the unattended prompt starts with exactly `/auto-work` instead of `/sleep`. Reta
 section and the existing relay procedure. Carry `intake` source marks, pending items and any
 review workflow identity through run-state adoption; never copy or reset them in the prompt.
 The successor enters `/sleep` through the auto-work skill. Crank remains independently inherited.
+For an owner-started handoff, `relay-session.mjs --close-chain` prepares a durable intake carry
+even without an open reporting chain. It binds the current predecessor to the exact committed
+`NEXT.md` contents. The successor's `/sleep` entry calls `adoptOwnerHandoffRun` with its actual
+incoming prompt before any ordinary state write. The carry can be consumed once; changed
+prompts, unrelated runs and disabled auto-work cannot inherit it. Keep intake out of tracked text.
 
 `--relay` is the unattended context transition requested by `relay-at-threshold.mjs`.
 It includes `--sleep`, and `--crank` automatically when the run state has `crank: true`.

@@ -7,7 +7,9 @@ import { REPO_ROOT } from "./lib/run-state.mjs"
 const USAGE = `usage: orbit-mail.mjs <--collect | --draft | --reply | --ack>
 Read the Orbit mailbox, draft replies or send clear replies under the auto-work policy.
 --collect paginates all received mail, including spam and trash, then reads only unseen ids.
-Pending messages are cached in run state; completed message ids are the durable high-water mark.
+Complete pending messages are cached; unreadable text parts are retried without losing reply receipts.
+External text parts use Gmail attachments.get; incomplete messages can only receive drafts.
+Completed message ids are the durable high-water mark.
 --draft stdin JSON: {id, text}; replies to that pending message using its headers and thread.
 --reply stdin JSON: {id, text, classification, person, clear, concerns, replyKind, ticket?, evidence?}.
 Only clear thanks, ticketed known bugs and verified supported how-to replies can send.
@@ -22,8 +24,29 @@ exit codes: 0 success; 1 API, state or receipt failure; 2 invalid arguments or s
 export const mailHeader = (message, name) => message.payload?.headers?.find((header) => header.name.toLowerCase() === name.toLowerCase())?.value ?? ""
 const cleanHeader = (value) => value.replace(/[\r\n]+[ \t]+/g, " ")
 const replyMarker = (id) => `<auto-work.${Buffer.from(id).toString("hex")}@useorbit.org>`
-const messageBodies = (part) => [part?.body?.data ? { mimeType: part.mimeType, text: Buffer.from(part.body.data, "base64url").toString("utf8") } : null,
-  ...(part?.parts ?? []).flatMap(messageBodies)].filter(Boolean)
+const messageBodies = async (client, messageId, part) => {
+  const contents = { bodies: [], bodiesComplete: true }
+  if (part?.mimeType?.startsWith("text/")) {
+    const attachmentId = part.body?.attachmentId
+    const identity = { mimeType: part.mimeType, ...(attachmentId ? { attachmentId } : {}) }
+    try {
+      const body = attachmentId ? await client.readAttachment(messageId, attachmentId) : part.body
+      if (typeof body?.data !== "string" || !/^[A-Za-z0-9_-]*={0,2}$/.test(body.data)) throw new Error("Unreadable text body")
+      const decoded = Buffer.from(body.data, "base64url")
+      if (attachmentId && (!Number.isInteger(body.size) || body.size !== decoded.length)) throw new Error("Incomplete attachment body")
+      contents.bodies.push({ ...identity, text: decoded.toString("utf8") })
+    } catch {
+      contents.bodiesComplete = false
+      contents.bodies.push({ ...identity, unreadable: true })
+    }
+  }
+  for (const child of part?.parts ?? []) {
+    const nested = await messageBodies(client, messageId, child)
+    contents.bodies.push(...nested.bodies)
+    contents.bodiesComplete &&= nested.bodiesComplete
+  }
+  return contents
+}
 
 const replyMessage = (item, text) => {
   if (typeof text !== "string" || !text.trim()) throw new Error("Reply text is required")
@@ -41,13 +64,13 @@ export const collectMail = async (client, repoRoot = REPO_ROOT) => {
   do {
     const page = await client.list({ q: "-in:sent -in:drafts", includeSpamTrash: "true", maxResults: "500", ...(pageToken ? { pageToken } : {}) })
     for (const entry of page.messages ?? []) {
-      if (current.completed[entry.id] || current.pending[entry.id]) continue
+      if (current.completed[entry.id] || current.pending[entry.id]?.bodiesComplete === true) continue
       const message = await client.read(entry.id)
       if (typeof entry.id !== "string" || message.id !== entry.id || typeof message.threadId !== "string") throw new Error("Invalid Gmail message identity")
-      const item = { id: message.id, threadId: message.threadId, internalDate: message.internalDate,
+      const item = { ...current.pending[entry.id], id: message.id, threadId: message.threadId, internalDate: message.internalDate,
         from: mailHeader(message, "From"), replyTo: mailHeader(message, "Reply-To") || mailHeader(message, "From"),
         subject: mailHeader(message, "Subject"), messageId: mailHeader(message, "Message-ID"), references: mailHeader(message, "References"),
-        bodies: messageBodies(message.payload), snippet: message.snippet }
+        ...await messageBodies(client, message.id, message.payload), snippet: message.snippet }
       current = saveIntakeSource("gmail", { ...current, pending: { ...current.pending, [item.id]: item }, highWater: item.id }, repoRoot)
     }
     pageToken = page.nextPageToken
@@ -76,7 +99,7 @@ export const replyToMail = async (client, receipt, repoRoot = REPO_ROOT) => {
   let current = intakeSource("gmail", repoRoot)
   let item = current.pending[receipt.id]
   if (!item) throw new Error("A pending message is required")
-  const disposition = replyDisposition(receipt)
+  const disposition = replyDisposition(receipt, item)
   if (disposition === "none") return { disposition }
   if (item.sentId) return { disposition: "sent", sentId: item.sentId }
   if (disposition === "draft") return { disposition, draftId: await draftReply(client, receipt, repoRoot) }

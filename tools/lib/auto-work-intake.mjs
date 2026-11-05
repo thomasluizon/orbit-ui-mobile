@@ -3,8 +3,9 @@ import { readRunState, writeRunState, REPO_ROOT } from "./run-state.mjs"
 const carryingTicket = (ticket) => /^https:\/\/github\.com\/thomasluizon\/orbit-tickets\/issues\/\d+$/.test(ticket ?? "")
 
 /** Semantic classification belongs to the skill; every send boundary enforces this allowlist. */
-export const replyDisposition = (receipt) => {
+export const replyDisposition = (receipt, mailItem) => {
   if (receipt?.person === false) return "none"
+  if (mailItem && mailItem.bodiesComplete !== true) return "draft"
   if (receipt?.person !== true || receipt.clear !== true || !Array.isArray(receipt.concerns) || receipt.concerns.length) return "draft"
   if (receipt.classification === "praise" && receipt.replyKind === "thanks") return "send"
   if (receipt.classification === "bug" && receipt.replyKind === "known bug" && carryingTicket(receipt.ticket)) return "send"
@@ -38,7 +39,7 @@ export const acknowledgeIntake = (source, receipt, repoRoot = REPO_ROOT) => {
   if (["bug", "feature request"].includes(receipt.classification) && !carryingTicket(receipt.ticket)) throw new Error("A bug or request needs its carrying ticket")
   if (typeof receipt.person !== "boolean") throw new Error("Classify whether a person needs a reply")
   if (receipt.person && source === "gmail" && !item.draftId && !item.sentId) throw new Error("Save the Gmail reply before acknowledging")
-  if (receipt.person && replyDisposition(receipt) === "send" && !(source === "gmail" ? item.sentId : item.replyPosted)) throw new Error("Confirm the simple reply was sent before acknowledging")
+  if (receipt.person && replyDisposition(receipt, source === "gmail" ? item : undefined) === "send" && !(source === "gmail" ? item.sentId : item.replyPosted)) throw new Error("Confirm the simple reply was sent before acknowledging")
   if (receipt.person && source !== "gmail" && (typeof receipt.reply !== "string" || !receipt.reply.trim())) throw new Error("Save the review reply in the receipt")
   const pending = { ...current.pending }
   delete pending[receipt.id]

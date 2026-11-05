@@ -1,10 +1,11 @@
-import { mkdirSync } from "node:fs"
+import { mkdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { parseHandoffRequest, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "../lib/handoff-prompt.mjs"
+import * as handoff from "../lib/handoff-prompt.mjs"
 import { readRunState, writeRunState } from "../lib/run-state.mjs"
 
-import { T, root } from "./_harness.mjs"
+import { T, realOrchestratorConfig, root, run, stageWithConfig } from "./_harness.mjs"
 
 const UNIT = "lib/handoff-prompt.mjs"
 
@@ -103,4 +104,31 @@ export const cases = () => {
   T(`${UNIT}: a newer explicit request enables the matching run and preserves its lifecycle`, enabled.crank === true && enabled.sleep === false && enabled.remaining[0] === "#1" && enabled.relay.pending === false)
   recordHandoffRequest("s1", { command: "handoff", sleep: true, crank: false }, "2026-01-01T00:04:00Z", repoRoot)
   T(`${UNIT}: an ordinary handoff request never disables an active crank mode`, readRunState(repoRoot).crank === true)
+
+  for (const variant of ["successor", "unrelated prompt", "changed prompt", "unrelated run", "disabled"]) {
+    const installation = stageWithConfig(`owner-intake-${variant}`, "relay-session.mjs", realOrchestratorConfig())
+    const prompt = sleepPrompt.replace("/sleep\n", "/auto-work\n")
+    const promptPath = join(installation.base, ".claude/handoffs/NEXT.md")
+    mkdirSync(join(installation.base, ".claude/handoffs"), { recursive: true })
+    writeFileSync(promptPath, prompt)
+    const intake = { gmail: { completed: { old: { classification: "praise" } }, pending: { new: { draftId: "draft", sendAttempted: true } } },
+      play: { workflowCycle: "collection-cycle", workflowRun: 42 }, reviewReplies: { workflowCycle: "reply-cycle" } }
+    writeRunState({ sessionId: "owner-parent", sleep: false, autoWork: true, crank: false, intake }, installation.base)
+    recordHandoffRequest("owner-parent", { ...parseHandoffRequest("/handoff --sleep"), origin: "owner" }, "2026-01-01T00:00:00Z", installation.base)
+    const closed = run("relay-session.mjs", ["--close-chain"], { path: installation.path, env: { CLAUDE_CODE_SESSION_ID: "owner-parent" } })
+    T(`${UNIT}: owner handoff ${variant} prepares without an open relay chain`, closed.status === 0, closed.stderr)
+    if (variant === "changed prompt") writeFileSync(promptPath, `${prompt}\nChanged scope.\n`)
+    if (variant === "unrelated run") writeRunState({ sessionId: "another-run", sleep: true, autoWork: true }, installation.base)
+    if (variant === "disabled") writeRunState({ ...readRunState(installation.base), autoWork: false }, installation.base)
+    const adopted = handoff.adoptOwnerHandoffRun?.("owner-child", variant === "unrelated prompt" ? "/auto-work" : prompt, installation.base) ?? false
+    if (!adopted) writeRunState({ sessionId: "owner-child", sleep: true }, installation.base)
+    const successor = readRunState(installation.base)
+    if (variant === "successor") {
+      T(`${UNIT}: owner-started successor retains every intake record`, adopted && successor.sleep === true && successor.autoWork === true &&
+        successor.crank === false && JSON.stringify(successor.intake) === JSON.stringify(intake), JSON.stringify(successor))
+      writeRunState({ sessionId: "owner-child", sleep: true }, installation.base)
+      T(`${UNIT}: ordinary successor writes preserve the restored intake`, JSON.stringify(readRunState(installation.base).intake) === JSON.stringify(intake))
+      T(`${UNIT}: owner handoff cannot be adopted twice`, handoff.adoptOwnerHandoffRun?.("third-session", prompt, installation.base) === false)
+    } else T(`${UNIT}: ${variant} cannot inherit stale intake`, !adopted && successor.intake === undefined)
+  }
 }

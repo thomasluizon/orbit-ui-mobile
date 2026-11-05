@@ -21,6 +21,8 @@ A foreign session has no actions. A linked worktree names the main checkout with
 The wake-source reader removes registrations only when both recorded processes are dead.
 At most one GraphQL and one queued-runs REST read per repository, plus one REST rate_limit read.
 Errors are redacted; tokens are scoped to child environments; pull request bodies are never read.
+Active auto-work wakes append INTAKE after in-flight actions, including with an empty queue.
+Ordinary sleep keeps NO_ACTION; a pending relay drain suppresses intake.
 
   --session <id>  current orchestrating session id (required when a run exists)
   --help, -h     print this usage and exit 0
@@ -303,6 +305,7 @@ export const runStatus = async ({ repoRoot = REPO_ROOT, sessionId = "", config, 
     nextActions.push(action("SLOT_FREE", `node tools/plan-queue.mjs --tickets ${quote(state.remaining.join(","))}${state.sleep ? " --sleep" : ""}`))
   }
   const unsettled = rows.find((row) => observations.some((entry) => entry.repositoryKey === row.repositoryKey && entry.prNumber === row.prNumber && !["CLOSED", "MERGED"].includes(entry.status)))
+  if (state.autoWork === true && state.sleep === true && state.relay?.pending !== true) nextActions.push(action("INTAKE", "/auto-work"))
   if (nextActions.length === 0) nextActions.push(action("NO_ACTION", wakes.live.length > 0 || !unsettled
     ? `node tools/run-status.mjs --session ${quote(sessionId)}` : waitCommand(unsettled)))
   return { status: "CURRENT_SESSION", commandDirectory: repoRoot, settledPullRequests, wakeSources: { live: wakes.live.map(({ pid, workerPid, repositoryKey, prNumbers, what }) => ({ pid, workerPid, repositoryKey, prNumbers, what })), orphaned: wakes.orphaned.map(({ pid, workerPid }) => ({ pid, workerPid })) },

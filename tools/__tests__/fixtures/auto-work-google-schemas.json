@@ -181,6 +181,49 @@
         "response": {
           "$ref": "Message"
         }
+      },
+      "attachmentsGet": {
+        "path": "gmail/v1/users/{userId}/messages/{messageId}/attachments/{id}",
+        "id": "gmail.users.messages.attachments.get",
+        "response": {
+          "$ref": "MessagePartBody"
+        },
+        "parameterOrder": [
+          "userId",
+          "messageId",
+          "id"
+        ],
+        "scopes": [
+          "https://mail.google.com/",
+          "https://www.googleapis.com/auth/gmail.addons.current.message.action",
+          "https://www.googleapis.com/auth/gmail.addons.current.message.readonly",
+          "https://www.googleapis.com/auth/gmail.modify",
+          "https://www.googleapis.com/auth/gmail.readonly"
+        ],
+        "flatPath": "gmail/v1/users/{userId}/messages/{messageId}/attachments/{id}",
+        "description": "Gets the specified message attachment.",
+        "httpMethod": "GET",
+        "parameters": {
+          "id": {
+            "required": true,
+            "type": "string",
+            "description": "The ID of the attachment.",
+            "location": "path"
+          },
+          "userId": {
+            "description": "The user's email address. The special value `me` can be used to indicate the authenticated user.",
+            "required": true,
+            "type": "string",
+            "location": "path",
+            "default": "me"
+          },
+          "messageId": {
+            "type": "string",
+            "required": true,
+            "location": "path",
+            "description": "The ID of the message containing the attachment."
+          }
+        }
       }
     }
   },

@@ -54,6 +54,19 @@ export const cases = async () => {
   const linkedStatus = await snapshot({ repoRoot: linked })
   T("run-status: linked worktrees never read the main checkout's run", linkedStatus.mainCheckout === repo.path && linkedStatus.warning.includes("linked worktree"))
 
+  for (const [label, modes, expected] of [
+    ["plain sleep", {}, "NO_ACTION"],
+    ["auto-work idle wake", { autoWork: true }, "INTAKE"],
+    ["disabled auto-work", { autoWork: false }, "NO_ACTION"],
+    ["auto-work relay drain", { autoWork: true, relay: { pending: true } }, "NO_ACTION"],
+  ]) {
+    writeFileSync(runStatePath(repo.path), JSON.stringify({ sessionId, sleep: true, remaining: [], ...modes }))
+    const idle = await snapshot()
+    T(`run-status: ${label} selects ${expected}`, idle.nextActions.length === 1 && idle.nextActions[0].type === expected, JSON.stringify(idle.nextActions))
+    if (expected === "INTAKE") T("run-status: idle intake invokes the canonical skill", idle.nextActions[0].command === "/auto-work")
+  }
+  rmSync(runStatePath(repo.path))
+
   const number = 1459
   const receipt = (pull) => ({ issue: "#1092", repositoryKey: "ui", prNumber: number, baseBranch: pull.baseRefName,
     currentHeadSha: pull.headRefOid, currentBaseSha: pull.baseRefOid, behindBy: 0, draft: false,

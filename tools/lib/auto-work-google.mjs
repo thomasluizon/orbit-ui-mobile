@@ -39,7 +39,7 @@ export const googleToken = async (parameters, request = fetch) => {
 /** Sending an existing draft requires a clear, authorized disposition. */
 export const gmailClient = (accessToken, request = fetch) => {
   const call = async (method, path, parameters = {}, body) => {
-    const allowed = method === "GET" && /^(profile|messages|messages\/[^/?]+|drafts)$/.test(path) || method === "POST" && ["drafts", "drafts/send"].includes(path)
+    const allowed = method === "GET" && /^(profile|messages|messages\/[^/?]+(?:\/attachments\/[^/?]+)?|drafts)$/.test(path) || method === "POST" && ["drafts", "drafts/send"].includes(path)
     if (!allowed) throw new Error("Gmail operation is outside the reply client")
     const url = new URL(`https://gmail.googleapis.com/gmail/v1/users/${MAILBOX}/${path}`)
     url.search = new URLSearchParams(parameters).toString()
@@ -52,6 +52,7 @@ export const gmailClient = (accessToken, request = fetch) => {
     profile: () => call("GET", "profile"),
     list: (parameters) => call("GET", "messages", parameters),
     read: (id) => call("GET", `messages/${encodeURIComponent(id)}`, { format: "full" }),
+    readAttachment: (messageId, attachmentId) => call("GET", `messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}`),
     listDrafts: (parameters) => call("GET", "drafts", parameters),
     createDraft: (message) => call("POST", "drafts", {}, { message }),
     sendDraft: (id, receipt, message) => {

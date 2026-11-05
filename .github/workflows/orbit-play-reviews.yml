@@ -17,6 +17,9 @@ on:
 permissions:
   contents: read
 
+env:
+  SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
+
 concurrency:
   group: orbit-review-intake
   cancel-in-progress: false

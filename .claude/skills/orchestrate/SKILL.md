@@ -29,10 +29,15 @@ node tools/run-status.mjs --session "<this session id>"
 Read its one JSON object and follow `nextActions[].command` from `commandDirectory`.
 Commands use relative paths when those are shorter. The action set is closed:
 `REARM_WAIT_CI`, `VERIFY_DELIVERY`, `READ_REVIEW`, `RECORD_READINESS`, `BEHIND_BASE`,
-`CHECK_FAILED`, `MERGE_CANDIDATE`, `SLOT_FREE`, `ORPHANED_WORKER`, `NO_ACTION`.
+`CHECK_FAILED`, `MERGE_CANDIDATE`, `SLOT_FREE`, `ORPHANED_WORKER`, `INTAKE`, `NO_ACTION`.
 Delivery and readiness remain decisions of their named tools. A merge candidate calls the
 recorder again; it grants no merge authority. A foreign session has no actions. A linked
 worktree warning names the main checkout where the orchestrating run lives.
+
+An `INTAKE` action continues the current `/auto-work` run through its complete intake cycle
+after driving the preceding in-flight actions. It appears on every active auto-work wake,
+including an empty queue with an expired idle waiter. It never ends that wake as `NO_ACTION`.
+A pending relay drain suppresses intake until succession under the existing relay protocol.
 
 A `NO_ACTION` wakeup ends immediately after at most one background re-arm, using its command
 only when no live wake source remains. Do not list the board, read logs, poll review or repeat

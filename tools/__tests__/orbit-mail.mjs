@@ -2,7 +2,7 @@ import { mkdirSync } from "node:fs"
 import { join } from "node:path"
 import { collectMail, draftReply, replyToMail } from "../orbit-mail.mjs"
 import { gmailClient } from "../lib/auto-work-google.mjs"
-import { intakeSource } from "../lib/auto-work-intake.mjs"
+import { acknowledgeIntake, intakeSource } from "../lib/auto-work-intake.mjs"
 import { writeRunState } from "../lib/run-state.mjs"
 import { T, root } from "./_harness.mjs"
 
@@ -96,4 +96,42 @@ export const cases = async () => {
   const sensitive = { ...simple, concerns: ["refund"] }
   const held = await replyToMail(sendingClient, sensitive, checkout)
   T("mail: a sensitive reply stays in Gmail drafts", held.disposition === "draft" && sends === 1)
+
+  for (const variant of ["complaint", "unavailable", "malformed", "truncated"]) {
+    const attachmentCheckout = join(root, `mail-attachment-${variant}`)
+    mkdirSync(join(attachmentCheckout, ".git"), { recursive: true })
+    writeRunState({ sessionId: "attachment-mail", sleep: true, autoWork: true }, attachmentCheckout)
+    let attachmentReads = 0
+    let attachmentSends = 0
+    const attachmentClient = gmailClient("access", async (address, options) => {
+      const url = new URL(address)
+      if (url.pathname.endsWith("/attachments/external-part")) {
+        attachmentReads++
+        if (variant === "unavailable") return new Response("unavailable", { status: 503 })
+        if (variant === "malformed") return Response.json({ size: 30 })
+        return Response.json({ size: variant === "truncated" ? 100 : Buffer.byteLength("This is a complaint about billing."),
+          data: Buffer.from("This is a complaint about billing.").toString("base64url") })
+      }
+      if (url.pathname.endsWith("/messages/attachment-mail")) return Response.json({ id: "attachment-mail", threadId: "thread", snippet: "Thanks!",
+        payload: { mimeType: "multipart/mixed", headers: [{ name: "From", value: "person@example.org" }], parts: [
+          { mimeType: "text/plain", body: { size: 7, data: Buffer.from("Thanks!").toString("base64url") } },
+          { mimeType: "multipart/alternative", parts: [{ mimeType: "text/html", body: { size: 33, attachmentId: "external-part" } }] },
+        ] } })
+      if (url.pathname.endsWith("/messages")) return Response.json(url.searchParams.get("q").startsWith("in:sent") ? {} : { messages: [{ id: "attachment-mail", threadId: "thread" }] })
+      if (url.pathname.endsWith("/drafts/send")) { attachmentSends++; return Response.json({ id: "sent" }) }
+      if (url.pathname.endsWith("/drafts")) return Response.json(options.method === "POST" ? { id: "attachment-draft" } : {})
+      throw new Error(`Unexpected Gmail path ${url.pathname}`)
+    })
+    const [collected] = await collectMail(attachmentClient, attachmentCheckout)
+    const complaint = collected.bodies.some((body) => body.text?.includes("complaint"))
+    const receipt = { ...simple, id: "attachment-mail", concerns: complaint ? ["complaint", "billing"] : [] }
+    const reply = await replyToMail(attachmentClient, receipt, attachmentCheckout)
+    T(`mail: ${variant} external text part is fetched`, attachmentReads === 1)
+    T(`mail: ${variant} external text part retains its identity and completeness`, collected.bodies.some((body) => body.attachmentId === "external-part") && collected.bodiesComplete === (variant === "complaint"))
+    if (variant === "complaint") T("mail: inline thanks cannot conceal an externally stored complaint", complaint)
+    T(`mail: ${variant} external text part routes to draft without sending`, reply.disposition === "draft" && attachmentSends === 0)
+    let acknowledged = false
+    try { acknowledgeIntake("gmail", receipt, attachmentCheckout); acknowledged = true } catch {}
+    T(`mail: ${variant} draft disposition can complete without a send`, acknowledged)
+  }
 }

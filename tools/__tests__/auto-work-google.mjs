@@ -6,6 +6,10 @@ export const cases = async () => {
   const schemas = JSON.parse(readFileSync(new URL("./fixtures/auto-work-google-schemas.json", import.meta.url), "utf8"))
   T("google: Gmail fixture fields derive from the discovery response", schemas.gmail.schemas.Profile.properties.emailAddress.type === "string" &&
     schemas.gmail.schemas.ListMessagesResponse.properties.messages.items.$ref === "Message")
+  T("google: attachment contract derives from the live discovery resource", schemas.gmail.methods.attachmentsGet.httpMethod === "GET" &&
+    schemas.gmail.methods.attachmentsGet.path === "gmail/v1/users/{userId}/messages/{messageId}/attachments/{id}" &&
+    schemas.gmail.methods.attachmentsGet.response.$ref === "MessagePartBody" &&
+    Object.keys(schemas.gmail.schemas.MessagePartBody.properties).sort().join(",") === "attachmentId,data,size")
   const credential = { client_id: "client", client_secret: "secret", refresh_token: "refresh" }
   const calls = []
   const execute = (binary, args, options) => {
@@ -30,11 +34,13 @@ export const cases = async () => {
   const client = await authenticatedGmail({ read: () => credential, store: (value) => { rotated = value }, request })
   T("google: refresh uses the token endpoint and persists rotation", network[0].url === "https://oauth2.googleapis.com/token" &&
     network[0].options.body.get("refresh_token") === "refresh" && rotated.refresh_token === "rotated")
-  T("google: public client exposes reads, drafts and a guarded send", Object.keys(client).sort().join(",") === "createDraft,list,listDrafts,profile,read,sendDraft")
+  T("google: public client exposes reads, drafts and a guarded send", Object.keys(client).sort().join(",") === "createDraft,list,listDrafts,profile,read,readAttachment,sendDraft")
   await client.list({ maxResults: "500" }); await client.read("message-1"); await client.listDrafts({ q: "rfc822msgid:test" }); await client.createDraft({ raw: "body" })
   T("google: every reachable Gmail write creates a draft, never sends", network.slice(1).every(({ url, options }) =>
     !/\/(messages|drafts)\/send(?:\?|$)/.test(url) && (options.method === "GET" || options.method === "POST" && new URL(url).pathname.endsWith("/drafts"))))
   T("google: draft creation wraps the message according to the discovery schema", JSON.parse(network.at(-1).options.body).message.raw === "body" && schemas.gmail.schemas.Draft.properties.message.$ref === "Message")
+  await client.readAttachment("message/id", "part/id")
+  T("google: text attachment reads encode both identities and use GET", network.at(-1).url.endsWith("/messages/message%2Fid/attachments/part%2Fid") && network.at(-1).options.method === "GET")
   let wrongAccount = false
   try { await authenticatedGmail({ read: () => credential, request: async (url) => Response.json(String(url).includes("/profile") ? { emailAddress: "someone@example.org" } : { access_token: "access" }) }) } catch { wrongAccount = true }
   T("google: a different mailbox is refused", wrongAccount)

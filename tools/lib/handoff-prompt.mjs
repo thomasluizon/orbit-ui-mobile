@@ -1,6 +1,7 @@
 /** The handoff prompt contract, checked mechanically so a handoff cannot ignore the mode the owner asked for. */
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { createHash } from "node:crypto"
 import { join } from "node:path"
 
 import { REPO_ROOT, gitDirectoryOf, readRunState, writeRunState } from "./run-state.mjs"
@@ -144,3 +145,32 @@ export const recordHandoffRequest = (sessionId, request, recordedAt, repoRoot = 
 }
 
 export const readHandoffRequest = (sessionId, repoRoot = REPO_ROOT) => (sessionId ? readRequests(repoRoot)[sessionId] ?? null : null)
+
+const promptHash = (prompt) => createHash("sha256").update(prompt).digest("hex")
+
+/** An owner handoff binds intake to this predecessor and the exact prompt being handed over. */
+export const prepareOwnerHandoffRun = (sessionId, repoRoot = REPO_ROOT) => {
+  const state = readRunState(repoRoot)
+  if (state?.sessionId !== sessionId || state.autoWork !== true || readHandoffRequest(sessionId, repoRoot)?.origin !== "owner") return false
+  const prompt = readFileSync(join(repoRoot, HANDOFF_PROMPT_PATH), "utf8")
+  const missing = validateHandoffPrompt(prompt, { sleep: true, autoWork: true, crank: state.crank })
+  if (missing.length) throw new Error(`Owner handoff prompt misses: ${missing.join("; ")}`)
+  const ownerHandoff = { from: sessionId, promptHash: promptHash(prompt) }
+  writeRunState({ ...state, ownerHandoff }, repoRoot)
+  if (JSON.stringify(readRunState(repoRoot).ownerHandoff) !== JSON.stringify(ownerHandoff)) throw new Error("Owner intake handoff write was not confirmed")
+  return true
+}
+
+/** The actual incoming prompt, rather than a file read in its place, authorizes owner succession. */
+export const adoptOwnerHandoffRun = (sessionId, prompt, repoRoot = REPO_ROOT) => {
+  const previous = readRunState(repoRoot)
+  const record = previous?.ownerHandoff
+  if (!sessionId || sessionId === previous?.sessionId || previous?.autoWork !== true || record?.from !== previous?.sessionId ||
+      typeof prompt !== "string" || record.promptHash !== promptHash(prompt) || readHandoffRequest(record.from, repoRoot)?.origin !== "owner") return false
+  if (record.promptHash !== promptHash(readFileSync(join(repoRoot, HANDOFF_PROMPT_PATH), "utf8"))) return false
+  writeRunState({ ...previous, sessionId, sleep: true, decisionLogPath: null, relay: { pending: false },
+    ownerHandoff: { ...record, successorSessionId: sessionId } }, repoRoot)
+  const inherited = readRunState(repoRoot)
+  if (inherited.sessionId !== sessionId || JSON.stringify(inherited.intake) !== JSON.stringify(previous.intake)) throw new Error("Owner intake adoption was not confirmed")
+  return true
+}

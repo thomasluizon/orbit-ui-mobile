@@ -36,7 +36,13 @@ with `sleep: true` and `relay.from` equal to the predecessor. Read it back and c
 existing admitted queue. Adoption durably fences the predecessor immediately; reading the
 open chain reconciles an interrupted reporting write. Do not replan or hand-copy predecessor
 state. If adoption throws because the owner canceled this nominee, end without queue work
-or an ordinary run-state write. Only a false return permits the ordinary first write above.
+or an ordinary run-state write. When it returns false, call `adoptOwnerHandoffRun(sessionId,
+promptText)` from `tools/lib/handoff-prompt.mjs`, passing the actual incoming owner prompt
+verbatim as `promptText`. Never substitute a read of `NEXT.md` for that incoming prompt.
+The owner handoff's prepared record must match both the predecessor and the exact prompt
+still stored at `NEXT.md`. A true return writes the inherited run, including `intake`, mode,
+queue and ledger; read it back and continue that run. Only two false adoption results permit
+the ordinary first write above. An unrelated prompt or run never inherits that intake.
 
 If an `/orchestrate` run is active, change that run to `--sleep` in place. Do not enter the
 orchestrator again, and do not plan the queue again. Keep its admitted `remaining` queue. Preserve

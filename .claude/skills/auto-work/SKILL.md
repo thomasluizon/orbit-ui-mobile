@@ -22,7 +22,9 @@ focus, use `/sleep`'s `/orchestrate --auto` entry. Adopt a nominated relay befor
 Run `node tools/auto-work-state.mjs --enable` in the orchestrating checkout. Read the state
 back with `readRunState` from `tools/lib/run-state.mjs`, confirming this session and
 `autoWork: true`. Preserve `intake` on every write. `writeRunState` carries both forward within
-the session and into a relay successor. Each intake writer also reads its write back.
+the session and into a relay successor. An owner-started successor restores the prepared
+handoff through `/sleep` entry before any ordinary state write. Each intake writer also reads
+its write back.
 
 Default entry leaves the existing `crank` value alone. Only an explicit `/auto-work --crank`
 invokes `.claude/skills/crank/SKILL.md`; the owner's own `/crank` remains available. Never add
@@ -43,7 +45,9 @@ before any new admission; unfinished intake remains in run state for the success
    before continuing intake or queue work.
 2. Drive in-flight pull requests, reviews, releases and waiters through `/orchestrate`.
    Start each wake with `node tools/run-status.mjs --session <session id>` and act on its
-   observations. Admission caps, hard stops, quality gates and merge rules remain owned by
+   observations, then follow its `INTAKE` action through steps 3 through 7, including when the
+   idle waiter expired with an empty queue. An active auto-work run receives `INTAKE` instead
+   of `NO_ACTION`; a relay drain still takes precedence. Admission caps, hard stops, quality gates and merge rules remain owned by
    `/sleep`, `/crank` and `/orchestrate`; this mode supplies no additional authority.
 3. List every unresolved Sentry issue through the Sentry MCP in organization
    `orbit-ai-habit-tracker`, region `https://us.sentry.io`, without a project, recency or
@@ -65,7 +69,11 @@ before any new admission; unfinished intake remains in run state for the success
    as `contact@useorbit.org`; the claude.ai Gmail connection reads a different mailbox and
    cannot substitute. Exhaust all pages. The tool scans received message ids, including spam
    and trash, without an age cutoff or an ordering assumption; it fetches bodies only for ids
-   absent from both pending and completed state. This costs an id listing per mailbox page
+   absent from completed state and from completely read pending items. Every text MIME part
+   behind `attachmentId` is fetched through Gmail's attachments endpoint. Unreadable parts
+   retain their identifiers and mark the message incomplete; replies remain drafts regardless
+   of classification. The next collection retries incomplete messages while preserving reply
+   and send-attempt receipts. This costs an id listing per mailbox page
    but avoids timestamp ties, relay loss and expired history cursors. Classify every pending
    message using the disposition procedure below.
 5. Collect Play reviews using `.github/workflows/orbit-play-reviews.yml` on `main`. Before
@@ -223,6 +231,7 @@ Endpoint, scope and lifetime references: [Desktop OAuth](https://developers.goog
 [token expiry](https://developers.google.com/identity/protocols/oauth2#expiration),
 [Gmail scopes](https://developers.google.com/workspace/gmail/api/auth/scopes),
 [Gmail discovery](https://gmail.googleapis.com/$discovery/rest?version=v1),
+[Gmail attachments](https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages.attachments/get),
 [Play discovery](https://androidpublisher.googleapis.com/$discovery/rest?version=v3),
 [Play review limits](https://developers.google.com/android-publisher/reply-to-reviews),
 [App Store reviews](https://developer.apple.com/documentation/appstoreconnectapi/get-v1-apps-_id_-customerreviews),
