@@ -1,4 +1,4 @@
-import { evalSnapshot } from './fixtures/eval-snapshot.mjs'
+import { evalSnapshot, snapshotFixture } from './fixtures/eval-snapshot.mjs'
 import { afterEach, expect, it, vi } from 'vitest'
 import * as grades from '../assertions.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
@@ -24,10 +24,9 @@ const habitId = '22222222-2222-4222-8222-222222222222'
 const savedId = '33333333-3333-4333-8333-333333333333'
 const step = 'Open the book'
 // Producer: ExportedHabit, ChecklistItem and AiController.ConfirmPendingOperationResponse.
-const original = { id: habitId, title: 'Water', description: null, emoji: null, isBadHabit: false, isGeneral: false,
-  dueDate: '2026-10-28', endDate: null, frequencyUnit: 'Day', frequencyQuantity: 1, days: [],
+const original = { ...structuredClone(snapshotFixture.habit), id: habitId, dueDate: '2026-10-28',
   checklistItems: [{ text: 'Prepare water', isChecked: true }, { text: 'Fill glass', isChecked: false }],
-  createdAtUtc: '2026-10-01T00:00:00Z', logs: [], intervalWeeks: null }
+  createdAtUtc: '2026-10-01T00:00:00Z', logs: [] }
 function saveAttempt(action = 'saveTask') {
   const checklist = [...original.checklistItems, { text: step, isChecked: false }]
   const name = action === 'saveTask' ? 'create_habit' : 'update_checklist'
