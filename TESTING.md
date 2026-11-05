@@ -47,6 +47,47 @@ Happy-path-only; rubber-stamp / assertion-free; "asserts a mock was called" taut
 
 ## Suite catalog
 
+### Android startup gates
+
+`android-startup.yml` exports the production Android Hermes bundle with source maps for
+pull requests touching mobile, shared code or dependency manifests. The bundle job uses no
+emulator. `tools/check-android-bundle.mjs` inspects the exported module inventory, resolves
+original sources against installed packages and rejects native package roots or native component
+names with multiple owners. Metro's virtual paths are matched against original source bytes;
+missing package sources or missing source content fail the check. This complements the lockfile
+native-copy guard by checking modules Metro actually includes.
+
+The independent boot job builds an AAB without Play credentials and exercises the same composite
+action as `android-release.yml`. Release submission follows that action unconditionally. The
+action derives a universal APK from the shipping AAB with pinned, checksum-verified bundletool,
+uses a disposable installation key and compares the embedded Hermes bundle byte for byte.
+The shipping AAB is never rebuilt or replaced by the check.
+
+The runner is `ubuntu-24.04` for proof builds, with an API 35 `google_apis` x86_64 emulator
+and ARM translation. Releases use their existing Ubuntu runner. The action records the AAB ABIs
+and requires the emulator's ABI list to include `arm64-v8a` before installation. No additional
+ABI is compiled into the release. Translation adds emulator setup and startup time; native
+compilation retains the shipping ARM slices. The emulator runs only in GitHub Actions.
+
+`tools/android-boot.mjs` clears storage, cold starts once and waits up to 90 seconds for the
+signed-out onboarding title from either locale in a visible, enabled accessibility node owned
+by the app. It then waits 15 seconds for deferred startup work and requires the same process
+to survive. App-UID logcat must contain no native fatal, Java fatal, React Native error or
+invariant violation. A running splash process alone never passes. XML, logcat, process IDs,
+ABIs and AAB and bundle hashes are retained as `android-boot-evidence`, including on failure.
+Infrastructure adb commands before launch have three attempts with two-second delays and a
+30-second command deadline. Emulator boot has a five-minute budget. An app assertion failure
+is terminal; no failed launch is retried.
+
+The tools harness exercises source-map production through installed Metro, duplicate providers,
+accessibility ownership and geometry, fatal log classification and the release submission order.
+It does not replace the real GitHub emulator run. Push proof branches matching
+`chore/ticket-1997-proof-*` to run both independent gates without a Play submission. For a
+dependency regression proof, restore the affected package manifests and lockfile on the proof
+branch while retaining the gate. Keep the two jobs independent so a bundle rejection cannot
+skip the boot observation. Record run URLs and outcomes in the pull request before deleting
+the proof branch. The iOS startup equivalent is tracked separately in #1561.
+
 Workspace `test` tasks in `turbo.json` retain default workspace inputs, upstream builds and
 `coverage/**` outputs. Their additional inputs follow the files their suites read:
 

@@ -57,3 +57,41 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
 
+
+  boot:
+    name: Android AAB first screen
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      CI: "1"
+      EXPO_NO_TELEMETRY: "1"
+      EXPO_NO_METRO_WORKSPACE_ROOT: "1"
+      SENTRY_DISABLE_AUTO_UPLOAD: "true"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: jlumbroso/free-disk-space@ceedf095f4ec1a097402bc6bd80831f2e1a6fde6
+        with:
+          android: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c
+      - run: npm ci --prefer-offline --no-audit --fund=false
+      - name: Prepare a build without Play credentials
+        working-directory: apps/mobile
+        run: |
+          node -e 'const fs = require("node:fs"); fs.writeFileSync("google-services.json", JSON.stringify({project_info:{project_number:"123456789",project_id:"android-boot-check",storage_bucket:"android-boot-check.invalid"},client:[{client_info:{mobilesdk_app_id:"1:123456789:android:0000000000000000",android_client_info:{package_name:"org.useorbit.app"}},api_key:[{current_key:"boot-check-placeholder"}]}],configuration_version:"1"}))'
+          npx expo prebuild --platform android --no-install
+      - name: Build the release AAB
+        working-directory: apps/mobile/android
+        run: ./gradlew --no-daemon --build-cache bundleRelease
+      - name: Boot the built AAB without publishing
+        uses: ./.github/actions/android-boot
+        with:
+          aab: apps/mobile/android/app/build/outputs/bundle/release/app-release.aab
+          package: org.useorbit.app

@@ -589,6 +589,16 @@
     "snapshot": "none",
     "constants": "none"
   },
+  "tools/android-boot.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": [
+      {
+        "name": "startup, settle and infrastructure retry budgets",
+        "source": "TESTING.md Android startup gates"
+      }
+    ]
+  },
   "tools/check-native-module-copies.mjs": {
     "scope": "changed-files",
     "snapshot": "none",

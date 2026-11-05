@@ -393,11 +393,21 @@ function gateCharterRunsForPath(guardJobs, path) {
 
 function invocationScripts(value) {
   if (!value || typeof value !== "object") return []
-  return Object.entries(value).flatMap(([key, child]) => key === "run" && typeof child === "string" ? [child] : invocationScripts(child))
+  return Object.entries(value).flatMap(([key, child]) => ["run", "script"].includes(key) && typeof child === "string" ? [child] : invocationScripts(child))
 }
 
 function invokedGateTools(repositoryRoot) {
   const sources = filesIn(repositoryRoot, ".github/workflows", (name) => /\.ya?ml$/.test(name))
+  const actions = resolve(repositoryRoot, ".github/actions")
+  if (existsSync(actions)) {
+    for (const entry of readdirSync(actions, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue
+      for (const filename of ["action.yml", "action.yaml"]) {
+        const path = `.github/actions/${entry.name}/${filename}`
+        if (existsSync(resolve(repositoryRoot, path))) sources.push(path)
+      }
+    }
+  }
   if (existsSync(resolve(repositoryRoot, "lefthook.yml"))) sources.push("lefthook.yml")
   return new Set(sources.flatMap((path) => invocationScripts(yaml.load(readFileSync(resolve(repositoryRoot, path), "utf8"))))
     .flatMap(executableCommands)
@@ -410,7 +420,7 @@ function invokedGateTools(repositoryRoot) {
 
 function gateIds(repositoryRoot) {
   return [
-    ...filesIn(repositoryRoot, "tools", (name) => /^check-.*\.mjs$/.test(name)),
+    ...filesIn(repositoryRoot, "tools", (name) => /^(?:check-.*|android-boot)\.mjs$/.test(name)),
     ...filesIn(repositoryRoot, "eslint-rules", (name) => [".cjs", ".js", ".mjs"].includes(extname(name)) && !name.startsWith("_")),
     ...filesIn(repositoryRoot, ".claude/hooks", (name) => [".cjs", ".js", ".mjs"].includes(extname(name)) && name !== "test-hooks.mjs"),
     ...guardJobIds(repositoryRoot),
@@ -500,7 +510,7 @@ function run(repositoryRoot) {
   const invoked = invokedGateTools(repositoryRoot)
   for (const id of expected) {
     if (!(id in charter)) problems.push(`${id}: missing registry entry`)
-    if (/^tools\/check-.*\.mjs$/.test(id) && !invoked.has(id)) problems.push(`${id}: registered tool is not invoked by a workflow or lefthook.yml`)
+    if (/^tools\/(?:check-.*|android-boot)\.mjs$/.test(id) && !invoked.has(id)) problems.push(`${id}: registered tool is not invoked by a workflow, composite action or lefthook.yml`)
   }
   for (const id of declared) {
     if (!expected.includes(id)) problems.push(`${id}: registry entry names no gate`)

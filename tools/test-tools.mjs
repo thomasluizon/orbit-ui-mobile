@@ -46,6 +46,7 @@ const CASE_MODULES = [
   ["lib/background-runs.mjs", "background-runs"],
   ["add-ticket-to-project.mjs", "add-ticket-to-project"],
   ["android-emulator.mjs", "android-emulator"],
+  ["android-boot.mjs", "android-boot"],
   ["ios-simulator.mjs", "ios-simulator"],
   ["android-sentry-diagnostic.mjs", "android-sentry-diagnostic"],
   ["arch-map.mjs", "arch-map"],
@@ -200,6 +201,7 @@ for (const [file, module] of REPOSITORY_CASE_MODULES.filter(([, module]) => requ
 
 /** argv that must be refused before the tool does any work. One row per tools/ script. */
 const INVALID_INPUT = {
+  "android-boot.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "select-artifact-attempts.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "progress-window.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "start-relay-successor.mjs": { argv: ["--launch", "invalid"], status: 2 },

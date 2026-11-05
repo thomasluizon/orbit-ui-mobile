@@ -510,6 +510,12 @@ jobs:
             exit 1
           fi
 
+      - name: Require the shipping AAB to reach its first screen
+        uses: ./.github/actions/android-boot
+        with:
+          aab: apps/mobile/android/app/build/outputs/bundle/release/app-release.aab
+          package: ${{ env.PLAY_PACKAGE_NAME }}
+
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v7
         with:

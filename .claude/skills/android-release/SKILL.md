@@ -11,6 +11,15 @@ Dispatches `.github/workflows/android-release.yml`. It builds the embedded redes
 source maps, and **publishes to a Google Play track**. This is an outward, user-visible action, so it
 runs only after the user confirms the exact inputs.
 
+Before submission, the workflow derives an installable APK from that exact AAB and runs
+`.github/actions/android-boot` on a GitHub-hosted emulator. It compares the embedded Hermes
+bytes, clears app storage, cold starts once, requires the signed-out first screen through
+accessibility and checks process survival and app fatal logs after settling. A startup failure
+blocks Play submission. Review `android-boot-evidence` for XML, app-UID logcat, process IDs,
+ABI compatibility and artifact hashes. Never retry a failed app assertion as infrastructure.
+The separate `android-startup.yml` workflow proves the gate without Play upload credentials;
+its Hermes inventory job also rejects duplicate bundled native modules at pull request time.
+
 ## The workflow's inputs (from the workflow file, not memory)
 
 | Input | Required | Values |
