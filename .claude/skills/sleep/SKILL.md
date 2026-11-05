@@ -27,6 +27,8 @@ Your first action must write the run state through `writeRunState` with this ses
 `sleep: true`. Do this before queue work or log setup. A record with a different `sessionId` makes
 the Stop guard inert until this write replaces it. Read the state back with `readRunState`, and
 confirm the session id and `sleep: true` before the first turn ends.
+When entered through `/auto-work`, enable that mode immediately after the initial write or
+relay adoption and before queue selection; then continue this same lifecycle.
 
 First call `adoptRelayRun(sessionId)` from `tools/lib/session-chain.mjs`. When it returns true,
 the relay tool nominated this successor and the function already wrote the inherited run
@@ -34,7 +36,13 @@ with `sleep: true` and `relay.from` equal to the predecessor. Read it back and c
 existing admitted queue. Adoption durably fences the predecessor immediately; reading the
 open chain reconciles an interrupted reporting write. Do not replan or hand-copy predecessor
 state. If adoption throws because the owner canceled this nominee, end without queue work
-or an ordinary run-state write. Only a false return permits the ordinary first write above.
+or an ordinary run-state write. When it returns false, call `adoptOwnerHandoffRun(sessionId,
+promptText)` from `tools/lib/handoff-prompt.mjs`, passing the actual incoming owner prompt
+verbatim as `promptText`. Never substitute a read of `NEXT.md` for that incoming prompt.
+The owner handoff's prepared record must match both the predecessor and the exact prompt
+still stored at `NEXT.md`. A true return writes the inherited run, including `intake`, mode,
+queue and ledger; read it back and continue that run. Only two false adoption results permit
+the ordinary first write above. An unrelated prompt or run never inherits that intake.
 
 If an `/orchestrate` run is active, change that run to `--sleep` in place. Do not enter the
 orchestrator again, and do not plan the queue again. Keep its admitted `remaining` queue. Preserve
@@ -146,7 +154,9 @@ failures on 6; none is successful CI. Exit 3 is the ceiling; 1 or 2 is a read or
   cooldown. Never invoke `/questions` or ask the owner during the relay.
 - When the owner says stop, clear `sleep` for this session and report. On queue exhaustion write
   `remaining: []` and retain the ledger. Finish only with READY receipts or recorded named blockers,
-  following the canonical protocol; report blocked work as blocked.
+  following the canonical protocol; report blocked work as blocked. With `autoWork: true`,
+  queue exhaustion returns to `.claude/skills/auto-work/SKILL.md` for intake and a registered
+  idle waiter; it never ends the run. Only an explicit disable restores this completion condition.
 
 The Stop hook is a guard against missing continuation, not a scheduler. Standalone `/sleep` has no
 separate scheduler: its continuation promise applies only after the `/orchestrate --sleep` entry

@@ -9,7 +9,7 @@ import { redactSecrets } from "./lib/github-auth.mjs"
 import { readSessionContext, readSessionMetrics } from "./lib/session-context.mjs"
 import { readBackgroundRuns } from "./lib/background-runs.mjs"
 import { appendChainEntry, closeSessionChain, confirmChainSuccessor, openSessionChain, readSessionChain, refreshChainMetrics, sessionChainEntry, supersededSession, writeSessionChain } from "./lib/session-chain.mjs"
-import { HANDOFF_PROMPT_PATH, handoffCrank, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "./lib/handoff-prompt.mjs"
+import { HANDOFF_PROMPT_PATH, handoffAutoWork, handoffCrank, prepareOwnerHandoffRun, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "./lib/handoff-prompt.mjs"
 import { REPO_ROOT, acquireRelayLock, clearWakeSource, isRelayWaiter, isWakeSourceAlive, readRunState, readWakeSourceStates, readWorkerLaunches, registerWakeSource, writeRunState } from "./lib/run-state.mjs"
 
 const USAGE = `usage: relay-session.mjs [--retry-wake | --close-chain | --close-terminal <payload>]
@@ -18,7 +18,7 @@ const USAGE = `usage: relay-session.mjs [--retry-wake | --close-chain | --close-
   Reads session identity from CLAUDE_CODE_SESSION_ID, context from its transcript,
   and model and permission mode from machine observations. Accepts no model claim.
   --retry-wake   background wake source until the failed relay's ten minute retry time
-  --close-chain record the current session and close the owner's open chain
+  --close-chain prepare owner auto-work intake carry, then record and close any open chain
   --close-terminal <payload> internal detached cleanup; base64 JSON with repoRoot,
     sessionId, successorSessionId, terminal and terminalHandle; rechecks the fence
   --help, -h    print usage and exit 0
@@ -174,9 +174,9 @@ const assertDrained = (repoRoot, sessionId) => {
   if (blockersMessage.length) throw new Error(`relay drain has ${blockersMessage.join("; ")}`)
 }
 
-const provePromptPublished = (repoRoot, execute, crank) => {
+const provePromptPublished = (repoRoot, execute, crank, autoWork) => {
   const prompt = readFileSync(join(repoRoot, HANDOFF_PROMPT_PATH), "utf8")
-  const missing = validateHandoffPrompt(prompt, { sleep: true, crank })
+  const missing = validateHandoffPrompt(prompt, { sleep: true, crank, autoWork })
   if (missing.length) throw new Error(`NEXT.md misses: ${missing.join("; ")}`)
   const opening = prompt.split(/^## /m)[0]
   const specs = [...new Set(opening.match(/\.claude\/specs\/[\w.-]+\.md/g) ?? [])]
@@ -212,8 +212,9 @@ const successorCommand = (model, permissionMode, successorSessionId, repoRoot) =
 const launchSuccessor = async ({ previous, metrics, sessionId, repoRoot, execute, wait, confirmMilliseconds }) => {
   const now = new Date().toISOString()
   const crank = handoffCrank(readHandoffRequest(sessionId, repoRoot), readRunState(repoRoot))
-  recordHandoffRequest(sessionId, { command: "handoff", origin: "context-relay", sleep: true, crank }, now, repoRoot)
-  const prompt = provePromptPublished(repoRoot, execute, crank)
+  const autoWork = handoffAutoWork(readHandoffRequest(sessionId, repoRoot), readRunState(repoRoot))
+  recordHandoffRequest(sessionId, { command: "handoff", origin: "context-relay", sleep: true, crank, autoWork }, now, repoRoot)
+  const prompt = provePromptPublished(repoRoot, execute, crank, autoWork)
   const successorSessionId = randomUUID()
   const command = successorCommand(metrics.lastCall.model, previous.relay.permissionMode, successorSessionId, repoRoot)
   assertDrained(repoRoot, sessionId)
@@ -288,6 +289,7 @@ const main = async () => {
   const state = readRunState()
   if (!sessionId || state?.sessionId !== sessionId) throw new Error("no matching CLAUDE_CODE_SESSION_ID")
   if (args[0] === "--close-chain") {
+    prepareOwnerHandoffRun(sessionId)
     if (!openSessionChain(sessionId)) return
     if (readHandoffRequest(sessionId)?.origin !== "owner") throw new Error("chain closure requires an owner-origin handoff")
     appendChainEntry(await sessionChainEntry(state, state.transcriptPath ?? state.relay?.transcriptPath))

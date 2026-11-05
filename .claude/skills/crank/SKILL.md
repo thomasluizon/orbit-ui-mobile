@@ -60,5 +60,5 @@ spreads the predecessor's run state, so a successor inherits `crank: true` until
 `/crank --disable` or `/crank disable` writes false.
 
 A cranked context relay uses `/handoff --relay --sleep --crank`. Its `NEXT.md` starts with
-`/sleep` and carries a `## Crank` section telling the successor to invoke `/crank` immediately
+`/sleep`, or `/auto-work` when that mode is enabled, and carries a `## Crank` section telling the successor to invoke `/crank` immediately
 after `/sleep` entry. Read back the adopted state before queue work and apply this skill then.
