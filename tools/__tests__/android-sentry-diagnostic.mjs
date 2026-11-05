@@ -378,27 +378,29 @@ guard("no listed scope cannot authorize candidate reads", ['auth.auth_evidence.n
 
 async function timeoutCheck(subject, total) {
   const originalTimeout = AbortSignal.timeout
-  const keepAlive = setTimeout(() => {}, 1000)
   const timers = []
   let expectedReasonForwarded = false
   AbortSignal.timeout = (milliseconds) => {
-    const signal = originalTimeout(timers.length === (total ? 0 : 1) ? 10 : 100)
-    timers.push({ milliseconds, signal })
-    return signal
+    const controller = new AbortController()
+    timers.push({ milliseconds, controller })
+    return controller.signal
   }
   try {
     const result = await execute(subject, { fetchImpl: async (_url, { signal }) => new Promise((_resolve, reject) => {
       signal.addEventListener("abort", () => {
-        expectedReasonForwarded = signal.reason === timers[total ? 0 : 1].signal.reason
+        expectedReasonForwarded = signal.reason === timers[total ? 0 : 1].controller.signal.reason
         reject(new Error(SENTINEL))
       }, { once: true })
+      timers[total ? 0 : 1].controller.abort(new DOMException("Selected deadline", "TimeoutError"))
+      // A disconnected deadline must fail its mutation control without waiting for another timer.
+      if (!signal.aborted) reject(new Error(SENTINEL))
     }) })
     return expectedReasonForwarded && timers.map((timer) => timer.milliseconds).join() === "45000,10000"
+      && !timers[total ? 1 : 0].controller.signal.aborted
       && result.status === 1 && result.report.requests.length === 1
       && result.report.requests[0].outcome === (total ? "total_deadline" : "request_timeout")
   } finally {
     AbortSignal.timeout = originalTimeout
-    clearTimeout(keepAlive)
   }
 }
 guard("request deadline cancels transport", ["AbortSignal.any([timeout, totalSignal])", "AbortSignal.any([totalSignal])"], (subject) => timeoutCheck(subject, false))
