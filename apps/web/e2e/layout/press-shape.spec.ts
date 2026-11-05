@@ -209,7 +209,8 @@ for (const width of [412, 1280] as const) {
       await addCustomReminder.click()
       await expect(timing.getByText(`45 ${ptBr.habits.form.reminderMinutes}`, { exact: true })).toBeVisible()
       await timing.getByRole('button', { name: ptBr.common.done, exact: true }).click()
-      await disclosure.getByRole('button', { name: `${ptBr.habits.form.endDate}, ${ptBr.common.selectDate}`, exact: true }).click()
+      await disclosure.getByRole('button', { name: ptBr.habits.form.addEndDate, exact: true }).click()
+      await disclosure.getByRole('button', { name: `${ptBr.habits.form.endDateQuestion}, ${ptBr.common.selectDate}`, exact: true }).click()
       await expectFullTouchTarget(page.getByRole('dialog').last().getByRole('button', { name: ptBr.common.selectYear }), 8)
     })
 

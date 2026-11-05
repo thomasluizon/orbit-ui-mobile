@@ -3542,9 +3542,9 @@
       "avoidedDays": "For habits you want to avoid, progress counts the days you avoid them.",
       "loggedSlips": "For this goal, logged slips in habits you want to avoid count as progress.",
       "createError": "Could not create the goal. Try again.",
-      "title": "Title",
+      "title": "What do you want to reach?",
       "searchHabits": "Search habits",
-      "description": "Description",
+      "description": "What do you want to reach?",
       "descriptionPlaceholder": "e.g., Read 12 books this year",
       "streakDescriptionPlaceholder": "e.g., Days at the gym",
       "targetValue": "Quantity",
@@ -3570,11 +3570,17 @@
       "typeStreak": "Streak",
       "typeStreakHintGood": "Link a habit: streak grows each day you complete it. Miss a day and it resets to zero.",
       "typeStreakHintBad": "Link a habit you want to avoid. Your streak grows each day without slips. Log a slip and it resets to zero.",
-      "streakTarget": "Target days",
+      "streakTarget": "How many days in a row?",
       "streakTargetPlaceholder": "e.g. 30, 60, 90",
       "habitsError": "Could not load habits. Try again.",
       "streakUnit": "consecutive days",
-      "target": "Target"
+      "target": "Target",
+      "progressQuestion": "Where are you now?",
+      "progressNoteQuestion": "Anything to note?",
+      "typeQuestion": "How do you want to track it?",
+      "targetValueQuestion": "How much?",
+      "unitQuestion": "Of what?",
+      "deadlineQuestion": "By when?"
     },
     "streak": {
       "ofTarget": "Day {current} of {target}"

@@ -34,9 +34,9 @@ export function GoalTypeSelector({
     goalTypeOptions.find((option) => option.key === goalType) ?? goalTypeOptions[0]
   return (
     <View>
-      <Text style={styles.fieldLabel}>{t('goals.form.type')}</Text>
+      <Text style={styles.fieldLabel}>{t('goals.form.typeQuestion')}</Text>
       <SegmentedControl<GoalType>
-        label={t('goals.form.type')}
+        label={t('goals.form.typeQuestion')}
         value={goalType}
         options={[
           { value: goalTypeOptions[0].key, label: t(goalTypeOptions[0].titleKey) },

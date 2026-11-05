@@ -3542,9 +3542,9 @@
       "avoidedDays": "Nos hábitos que você quer evitar, cada dia sem praticar conta como progresso.",
       "loggedSlips": "Nesta meta, cada deslize registrado em um hábito que você quer evitar conta como progresso.",
       "createError": "Não foi possível criar a meta. Tente de novo.",
-      "title": "Título",
+      "title": "O que você quer alcançar?",
       "searchHabits": "Buscar hábitos",
-      "description": "Descrição",
+      "description": "O que você quer alcançar?",
       "descriptionPlaceholder": "ex: Ler 12 livros este ano",
       "streakDescriptionPlaceholder": "ex: Dias na academia",
       "targetValue": "Quantidade",
@@ -3570,11 +3570,17 @@
       "typeStreak": "Sequência",
       "typeStreakHintGood": "Vincule um hábito: a sequência cresce a cada dia que você concluir. Se perder um dia, ela volta a zero.",
       "typeStreakHintBad": "Vincule um hábito que você quer evitar. A sequência cresce a cada dia sem deslizes. Se registrar um deslize, ela volta a zero.",
-      "streakTarget": "Meta de dias",
+      "streakTarget": "Quantos dias seguidos?",
       "streakTargetPlaceholder": "ex: 30, 60, 90",
       "habitsError": "Não foi possível carregar os hábitos. Tente de novo.",
       "streakUnit": "dias seguidos",
-      "target": "Meta"
+      "target": "Meta",
+      "progressQuestion": "Onde você está agora?",
+      "progressNoteQuestion": "Quer anotar alguma coisa?",
+      "typeQuestion": "Como você quer acompanhar?",
+      "targetValueQuestion": "Quanto?",
+      "unitQuestion": "De quê?",
+      "deadlineQuestion": "Até quando?"
     },
     "streak": {
       "ofTarget": "Dia {current} de {target}"

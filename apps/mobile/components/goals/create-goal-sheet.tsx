@@ -1,3 +1,4 @@
+import { hasGoalFollowUpAnswer } from '@orbit/shared/utils/goal-form'
 import { useTranslation } from 'react-i18next'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
@@ -15,11 +16,40 @@ import { GoalDeadlineField } from '../habits/create-goal-from-habit/goal-deadlin
 import { GoalTargetFields } from '../habits/create-goal-from-habit/goal-target-fields'
 import { GoalTypeSelector } from '../habits/create-goal-from-habit/goal-type-selector'
 import { createStyles } from '../habits/create-goal-from-habit/styles'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Text, View } from 'react-native'
 import type { CreateGoalSheetProps } from '@orbit/shared/hooks'
 import { MAX_GOAL_TITLE_LENGTH } from '@orbit/shared/validation'
 import { useGoalCreation } from '@/hooks/use-goal-creation'
+
+function useGoalFollowUps(draft: Parameters<typeof hasGoalFollowUpAnswer>[0]) {
+  const [revealed, setRevealed] = useState(false)
+  const answered = hasGoalFollowUpAnswer(draft)
+  if (answered && !revealed) setRevealed(true)
+  return { showFollowUps: revealed || answered, revealFollowUps: () => setRevealed(true) }
+}
+
+type GoalCreation = ReturnType<typeof useGoalCreation>
+type SheetStyles = ReturnType<typeof createStyles>
+type SheetTokens = ReturnType<typeof createTokensV2>
+
+function GoalTitleQuestion({ styles, tokens, inputRef, value, onChange, isStreak, error }: Readonly<{ styles: SheetStyles; tokens: SheetTokens; inputRef: GoalCreation['descriptionRef']; value: string; onChange: (value: string) => void; isStreak: boolean; error?: string }>) {
+  const { t } = useTranslation()
+  return <View>
+    <Text style={styles.fieldLabel}>{t('goals.form.title')}</Text>
+    <BottomSheetAppTextInput
+      ref={inputRef}
+      value={value}
+      onChangeText={onChange}
+      placeholder={isStreak ? t('goals.form.streakDescriptionPlaceholder') : t('goals.form.descriptionPlaceholder')}
+      placeholderTextColor={tokens.fg3}
+      maxLength={MAX_GOAL_TITLE_LENGTH}
+      accessibilityLabel={t('goals.form.title')}
+      accessibilityHint={error ?? t('common.required')}
+    />
+    {error ? <Text style={styles.fieldError} accessibilityRole="alert">{error}</Text> : null}
+  </View>
+}
 
 export function CreateGoalSheet(props: Readonly<CreateGoalSheetProps>) {
   const { open, onClose } = props
@@ -33,6 +63,7 @@ export function CreateGoalSheet(props: Readonly<CreateGoalSheetProps>) {
   const { goalType, description, targetValue, unit, deadline, habitIds, selectingHabits, setSelectingHabits,
     fieldErrors, formError, isSubmitting, isStreak, setDescription, setTargetValue, setUnit, setDeadline,
     setHabitIds, handleTypeChange, descriptionRef, targetRef, unitRef, dismissGuard, onSubmit } = form
+  const { showFollowUps, revealFollowUps } = useGoalFollowUps({ description, targetValue, unit, deadline })
 
   return (
     <>
@@ -45,7 +76,7 @@ export function CreateGoalSheet(props: Readonly<CreateGoalSheetProps>) {
         actions={(
           <ActionRow>
             <PillButton size="sm" variant="ghost" disabled={isSubmitting} onClick={dismissGuard.requestDismiss}>{t('common.cancel')}</PillButton>
-            <PillButton size="sm" leadingIcon={<Plus size={16} strokeWidth={2} />} onClick={() => void onSubmit()} disabled={isSubmitting} loading={isSubmitting}>
+            <PillButton size="sm" leadingIcon={<Plus size={16} strokeWidth={2} />} onClick={() => { revealFollowUps(); void onSubmit() }} disabled={isSubmitting} loading={isSubmitting}>
               {t('goals.create')}
             </PillButton>
           </ActionRow>
@@ -53,57 +84,16 @@ export function CreateGoalSheet(props: Readonly<CreateGoalSheetProps>) {
       >
         <View style={styles.form}>
           <Text style={styles.explainer}>{t('goals.form.habitsExplainer')}</Text>
-          <View>
-            <Text style={styles.fieldLabel}>{t('goals.form.title')}</Text>
-            <BottomSheetAppTextInput
-              ref={descriptionRef}
-              value={description}
-              onChangeText={setDescription}
-              placeholder={
-                isStreak
-                  ? t('goals.form.streakDescriptionPlaceholder')
-                  : t('goals.form.descriptionPlaceholder')
-              }
-              placeholderTextColor={tokens.fg3}
-              maxLength={MAX_GOAL_TITLE_LENGTH}
-              accessibilityLabel={t('goals.form.title')}
-              accessibilityHint={fieldErrors.description ?? t('common.required')}
-            />
-            {fieldErrors.description ? (
-              <Text style={styles.fieldError} accessibilityRole="alert">
-                {fieldErrors.description}
-              </Text>
-            ) : null}
-          </View>
+          <GoalTitleQuestion styles={styles} tokens={tokens} inputRef={descriptionRef} value={description} onChange={setDescription} isStreak={isStreak} error={fieldErrors.description} />
 
-          <GoalTypeSelector
-            styles={styles}
-            goalType={goalType}
-            onTypeChange={handleTypeChange}
-          />
-
-          <GoalTargetFields
-            targetRef={targetRef}
-            unitRef={unitRef}
-            tokens={tokens}
-            styles={styles}
-            isStreak={isStreak}
-            targetValue={targetValue}
-            unit={unit}
-            fieldErrors={fieldErrors}
-            onChangeTarget={setTargetValue}
-            onChangeUnit={setUnit}
-          />
-
-          <GoalDeadlineField
-            tokens={tokens}
-            styles={styles}
-            deadline={deadline}
-            onChangeDeadline={setDeadline}
-          />
-          {formError ? <Text accessibilityRole="alert" style={styles.fieldError}>{formError}</Text> : null}
-          <GoalHabitsSelectionNote selectedIds={habitIds} goalType={goalType} />
+          {showFollowUps ? <View testID="goal-follow-ups" style={styles.form}>
+            <GoalTypeSelector styles={styles} goalType={goalType} onTypeChange={handleTypeChange} />
+            <GoalTargetFields targetRef={targetRef} unitRef={unitRef} tokens={tokens} styles={styles} isStreak={isStreak} targetValue={targetValue} unit={unit} fieldErrors={fieldErrors} onChangeTarget={setTargetValue} onChangeUnit={setUnit} />
+            <GoalDeadlineField tokens={tokens} styles={styles} deadline={deadline} onChangeDeadline={setDeadline} />
+          </View> : null}
           <ListRow title={t('goals.linkedHabits')} value={t('habits.form.selectedCount', { count: habitIds.length })} placement="column" disabled={isSubmitting} onClick={() => closeSheet(() => setSelectingHabits(true))} />
+          <GoalHabitsSelectionNote selectedIds={habitIds} goalType={goalType} />
+          {formError ? <Text accessibilityRole="alert" style={styles.fieldError}>{formError}</Text> : null}
         </View>
       </Sheet>) : null}
       {open && selectingHabits ? <GoalHabitsPicker selectedIds={habitIds} goalType={goalType} onChange={setHabitIds} disabled={isSubmitting} onClose={() => setSelectingHabits(false)} /> : null}

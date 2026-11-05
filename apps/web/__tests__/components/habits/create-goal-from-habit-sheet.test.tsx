@@ -64,10 +64,25 @@ describe('CreateGoalSheet', () => {
     expect(container.innerHTML).toBe('')
   })
 
-  it('renders form when open', () => {
+  it('asks the title first and reveals the follow-up questions from its answer', () => {
     render(<CreateGoalSheet open={true} onClose={vi.fn()} />)
-    expect(screen.getByLabelText('goals.form.targetValue')).toBeInTheDocument()
-    expect(screen.getByLabelText('goals.form.unit')).toBeInTheDocument()
+    expect(screen.getByLabelText('goals.form.title')).toBeInTheDocument()
+    expect(screen.queryByLabelText('goals.form.targetValueQuestion')).toBeNull()
+    expect(screen.queryByRole('radio', { name: /goals.form.typeStandard/ })).toBeNull()
+    expect(screen.getByRole('button', { name: /goals.linkedHabits/ })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('goals.form.title'), { target: { value: 'Read more books' } })
+    expect(screen.getByLabelText('goals.form.targetValueQuestion')).toBeInTheDocument()
+    expect(screen.getByLabelText('goals.form.unitQuestion')).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('goals.form.targetValueQuestion'), { target: { value: '12' } })
+    fireEvent.change(screen.getByLabelText('goals.form.title'), { target: { value: '' } })
+    expect(screen.getByLabelText('goals.form.targetValueQuestion')).toHaveValue(12)
+  })
+
+  it('reveals the hidden questions when an empty form is submitted', () => {
+    render(<CreateGoalSheet open={true} onClose={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'goals.create' }))
+    expect(screen.getByLabelText('goals.form.targetValueQuestion')).toBeInTheDocument()
+    expect(mockMutateAsync).not.toHaveBeenCalled()
   })
 
   it('renders description field', () => {
@@ -84,6 +99,7 @@ describe('CreateGoalSheet', () => {
 
   it('shows add deadline button', () => {
     render(<CreateGoalSheet open={true} onClose={vi.fn()} />)
+    fireEvent.change(screen.getByLabelText('goals.form.title'), { target: { value: 'Read more books' } })
     expect(screen.getByRole('button', { name: 'goals.form.addDeadline' })).toBeInTheDocument()
   })
 
@@ -98,7 +114,8 @@ describe('CreateGoalSheet', () => {
 
   it('shows validation error when unit is empty but target is set', () => {
     render(<CreateGoalSheet open={true} onClose={vi.fn()} />)
-    const targetInput = screen.getByLabelText('goals.form.targetValue')
+    fireEvent.change(screen.getByLabelText('goals.form.title'), { target: { value: 'Read more books' } })
+    const targetInput = screen.getByLabelText('goals.form.targetValueQuestion')
     fireEvent.change(targetInput, { target: { value: '10' } })
     fireEvent.click(screen.getByRole('button', { name: 'goals.create' }))
     expect(mockShowError).toHaveBeenCalledWith('goals.form.unitRequired')
@@ -115,8 +132,8 @@ describe('CreateGoalSheet', () => {
     fireEvent.change(screen.getByLabelText(/goals.form.title/), {
       target: { value: 'Read more books' },
     })
-    fireEvent.change(screen.getByLabelText('goals.form.targetValue'), { target: { value: '12' } })
-    fireEvent.change(screen.getByLabelText('goals.form.unit'), { target: { value: 'books' } })
+    fireEvent.change(screen.getByLabelText('goals.form.targetValueQuestion'), { target: { value: '12' } })
+    fireEvent.change(screen.getByLabelText('goals.form.unitQuestion'), { target: { value: 'books' } })
   }
 
   it('creates a standard goal and closes on success', async () => {
@@ -181,6 +198,7 @@ describe('CreateGoalSheet', () => {
 
   it('switches the goal type between standard and streak', () => {
     render(<CreateGoalSheet open={true} onClose={vi.fn()} />)
+    fireEvent.change(screen.getByLabelText('goals.form.title'), { target: { value: 'Read more books' } })
     const standard = screen.getByRole('radio', { name: /goals.form.typeStandard/ })
     const streak = screen.getByRole('radio', { name: /goals.form.typeStreak/ })
 
@@ -203,8 +221,10 @@ describe('CreateGoalSheet', () => {
 
   it('rejects an empty title after a valid target and unit', () => {
     render(<CreateGoalSheet open onClose={vi.fn()} />)
-    fireEvent.change(screen.getByLabelText('goals.form.targetValue'), { target: { value: '12' } })
-    fireEvent.change(screen.getByLabelText('goals.form.unit'), { target: { value: 'books' } })
+    fireEvent.change(screen.getByLabelText('goals.form.title'), { target: { value: 'Read more books' } })
+    fireEvent.change(screen.getByLabelText('goals.form.title'), { target: { value: '' } })
+    fireEvent.change(screen.getByLabelText('goals.form.targetValueQuestion'), { target: { value: '12' } })
+    fireEvent.change(screen.getByLabelText('goals.form.unitQuestion'), { target: { value: 'books' } })
     fireEvent.click(screen.getByRole('button', { name: 'goals.create' }))
     expect(screen.getByLabelText('goals.form.title')).toHaveAttribute('aria-invalid', 'true')
     expect(screen.getByLabelText('goals.form.title')).toHaveFocus()
@@ -273,8 +293,8 @@ describe('CreateGoalSheet across an account change', () => {
     const onClose = vi.fn()
     render(<CreateGoalSheet open onClose={onClose} />)
     fireEvent.change(screen.getByLabelText(/goals.form.title/), { target: { value: 'Read' } })
-    fireEvent.change(screen.getByLabelText('goals.form.targetValue'), { target: { value: '12' } })
-    fireEvent.change(screen.getByLabelText('goals.form.unit'), { target: { value: 'books' } })
+    fireEvent.change(screen.getByLabelText('goals.form.targetValueQuestion'), { target: { value: '12' } })
+    fireEvent.change(screen.getByLabelText('goals.form.unitQuestion'), { target: { value: 'books' } })
     fireEvent.click(screen.getByRole('button', { name: 'goals.create' }))
     expect(mockMutateAsync).toHaveBeenCalledOnce()
 

@@ -41,7 +41,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
           await expect(page.getByRole('button', { name: messages.habits.createTask, exact: true })).toBeVisible()
           const title = screen.getByRole('textbox', { name: messages.habits.form.taskDescribe, exact: true })
           await title.fill('Read')
-          const description = screen.getByRole('textbox', { name: messages.habits.form.description, exact: true })
+          const description = screen.getByRole('textbox', { name: messages.habits.form.descriptionQuestion, exact: true })
           await expect(description).toHaveAttribute('rows', '1')
           const descriptionHeight = (await description.boundingBox())!.height
           await description.fill('First line\nSecond line\nThird line\nFourth line')

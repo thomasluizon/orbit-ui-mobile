@@ -48,7 +48,7 @@ it.each(cases)('keeps the More details tag row fill on the field edge at $width 
   __setWindowDimensions({ width: width + 32, height: 915, scale: 1, fontScale: scale })
   const messages = locale === 'en' ? en : ptBR
   let tree: ReturnType<typeof TestRenderer.create>
-  TestRenderer.act(() => { tree = TestRenderer.create(<TagPickerField tags={[]} selectedIds={[]} atLimit={false} onToggle={vi.fn()} onCreate={vi.fn()} onEdit={vi.fn()} onDelete={vi.fn()} editLabel="edit" deleteLabel="delete" />) })
+  TestRenderer.act(() => { tree = TestRenderer.create(<TagPickerField tags={[]} selectedIds={[]} atLimit={false} onToggle={vi.fn()} onCreate={vi.fn()} onEdit={vi.fn()} onDelete={vi.fn()} editLabel="edit" deleteLabel="delete" disabled={false} />) })
   expectFieldFill(tree, width, scale, messages.habits.form.tags)
   TestRenderer.act(() => tree!.unmount())
 })
