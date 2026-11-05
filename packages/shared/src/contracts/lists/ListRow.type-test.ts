@@ -58,7 +58,7 @@ export type ListRowTypeAssertionsWidthAssertions = [
   Assert<IsExactWidth<ListRowProps['valueHidden'], boolean | undefined>>,
   Assert<IsExactWidth<ListRowProps['valueTextMode'], 'personal' | undefined>>,
   Assert<IsExactWidth<ListRowProps['personalExpanded'], boolean | undefined>>,
-  Assert<IsExactWidth<ListRowProps['placement'], 'column' | undefined>>,
+  Assert<IsExactWidth<ListRowProps['placement'], 'column' | 'field' | undefined>>,
   Assert<IsExactWidth<ListRowProps['toggle'], { checked: boolean; onChange: (checked: boolean) => void; pending?: boolean } | undefined>>,
   Assert<IsExactWidth<ListRowAction['icon'], string>>,
   Assert<IsExactWidth<ListRowAction['label'], string>>,

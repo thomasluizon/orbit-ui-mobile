@@ -81,6 +81,9 @@ it.each([320, 1280].flatMap(width => [1, 2].flatMap(scale => (['dark', 'light'] 
     expect(row.paddingBottom).toBeGreaterThanOrEqual(8)
   }
   const bounds = measureInteractionFills(tree!.toJSON(), width - 32, true, scale)
+  const control = bounds.find(part => 'accessibilityRole' in part.host.props && part.host.props.accessibilityRole === 'switch' && part.host.props.accessibilityLabel === en.habits.form.reminder)!
+  expect(control.left).toBe(0)
+  expect(control.right).toBe(width - 32)
   const fill = bounds.find(part => part.host.props['data-slot'] === 'list-row-body')!
   expect(fill.left).toBe(0)
   expect(fill.right).toBe(width - 32)

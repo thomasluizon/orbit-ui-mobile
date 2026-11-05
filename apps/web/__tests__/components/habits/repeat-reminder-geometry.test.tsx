@@ -84,6 +84,13 @@ describe('repeat reminder compact surfaces', () => {
       await loadAppFonts(page)
       await page.addScriptTag({ content: bundle })
       const timing = page.getByRole('dialog', { name: ptBR.habits.form.timingAndReminder, exact: true })
+      const edges = await timing.getByRole('switch', { name: ptBR.habits.form.reminder, exact: true }).evaluate(element => {
+        const column = element.closest('[data-timing-row]')!.getBoundingClientRect()
+        const target = element.getBoundingClientRect()
+        const fill = element.querySelector('[data-press-fill]')!.getBoundingClientRect()
+        return [target.left - column.left, column.right - target.right, fill.left - column.left, column.right - fill.right]
+      })
+      for (const edge of edges) expect(Math.abs(edge)).toBeLessThanOrEqual(1)
       await timing.getByRole('button', { name: ptBR.habits.form.reminderAdd, exact: true }).click()
       await timing.getByRole('button', { name: ptBR.habits.form.reminderCustom, exact: true }).click()
       await timing.getByRole('spinbutton', { name: ptBR.habits.form.reminderCustomLabel }).fill('45')

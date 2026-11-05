@@ -38,7 +38,7 @@ export function RepeatReminderSection({ value, enabled, general, timeZone, onCha
   const options = REPEAT_REMINDER_INTERVALS.map((minutes) => ({ value: String(minutes), label: minutes < 60 ? t('habits.form.repeatMinutes', { count: minutes }) : t('habits.form.repeatHours', { count: minutes / 60 }) }))
   return (
     <View style={{ gap: 24 }}>
-      <View testID="timing-row" style={{ paddingHorizontal: 8 }}><ListRow disabled={disabled} placement="column" title={t('habits.form.reminder')} toggle={{ checked: enabled, onChange: guard(() => { if (!enabled && general && !value) change({ intervalMinutes: 30, startAtUtc: new Date().toISOString() }); permission.toggleReminder() }) }} /></View>
+      <View testID="timing-row"><ListRow disabled={disabled} placement="field" title={t('habits.form.reminder')} toggle={{ checked: enabled, onChange: guard(() => { if (!enabled && general && !value) change({ intervalMinutes: 30, startAtUtc: new Date().toISOString() }); permission.toggleReminder() }) }} /></View>
       <ReminderPermissionNotice visible={permission.showNotice} tokens={tokens} onPress={permission.openSettings} />
       {enabled ? <View style={{ gap: 24 }}>
         <View style={{ gap: 12 }}><Text accessibilityRole="header" style={{ color: tokens.fg1, fontSize: 16, fontFamily: 'Geist_500Medium' }}>{t('habits.form.reminderKind')}</Text><RadioGroup accessibilityLabel={t('habits.form.reminderKind')}>
@@ -49,7 +49,7 @@ export function RepeatReminderSection({ value, enabled, general, timeZone, onCha
         {value ? <View style={{ gap: 24 }}>
           <View style={{ gap: 8 }}><Text style={{ color: tokens.fg2, fontSize: 14, fontFamily: 'Geist_500Medium' }}>{t('habits.form.repeatInterval')}</Text><Select label={t('habits.form.repeatInterval')} value={String(value.intervalMinutes)} options={options} onChange={guard((interval) => change({ ...value, intervalMinutes: Number(interval) }))} disabled={disabled} /></View>
           <TimeField label={t('habits.form.repeatStart')} value={toTime24(repeatReminderClock(start, timeZone))} onChange={guard((clock) => { const instant = repeatReminderInstant(getAccountDateTime(new Date(start), timeZone).date, clock, timeZone); if (instant) change({ ...value, startAtUtc: instant }) })} disabled={disabled} />
-          <View testID="timing-row" style={{ paddingHorizontal: 8 }}><ListRow disabled={disabled} placement="column" title={t('habits.form.repeatAllDay')} toggle={{ checked: allDay, onChange: guard((checked) => change({ ...value, activeStart: checked ? null : '', activeEnd: checked ? null : '' })) }} /></View>
+          <View testID="timing-row"><ListRow disabled={disabled} placement="field" title={t('habits.form.repeatAllDay')} toggle={{ checked: allDay, onChange: guard((checked) => change({ ...value, activeStart: checked ? null : '', activeEnd: checked ? null : '' })) }} /></View>
           {!allDay ? <View style={{ gap: 12 }}>
             <TimeField label={t('habits.form.repeatActiveStart')} value={toTime24(value.activeStart?.slice(0, 5) ?? '')} onChange={guard((activeStart) => change({ ...value, activeStart }))} disabled={disabled} />
             <TimeField label={t('habits.form.repeatActiveEnd')} value={toTime24(value.activeEnd?.slice(0, 5) ?? '')} onChange={guard((activeEnd) => change({ ...value, activeEnd }))} disabled={disabled} />

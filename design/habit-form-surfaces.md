@@ -303,8 +303,8 @@ The exclusive request contract, active window, validation and account clock conv
 the existing reminder owners. Disabling reminders hides details and retains their saved draft.
 
 Each question is a separate vertical group. Reminder kind and repeat details have a 24px group
-gap and 12px internal gaps. Question and action rows reserve 8px inside their wrapper for the shared column
-fill, so hover and press stop at the field edge. Reminder chips wrap, reserve 8px below their
+gap and 12px internal gaps. Question and action rows use ListRow's field placement, with 8px inside the row for text and
+full-column targets and feedback. Hover and press stop at the field edge. Reminder chips wrap, reserve 8px below their
 row and 8px above and below their remove targets, and constrain growing text to the column.
 Add time is visible text. Its caption and the timing entry wrap as text grows. Permission feedback remains beside the reminder decision.
 

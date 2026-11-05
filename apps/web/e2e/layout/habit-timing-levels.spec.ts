@@ -49,10 +49,13 @@ for (const locale of ['en', 'pt-BR'] as const) {
             const edge = await reminder.evaluate(element => {
               const bounds = element.closest('fieldset')!.getBoundingClientRect()
               const fill = element.querySelector('[data-press-fill]')!.getBoundingClientRect()
-              return { left: fill.left - bounds.left, right: bounds.right - fill.right }
+              const target = element.getBoundingClientRect()
+              return { left: fill.left - bounds.left, right: bounds.right - fill.right, targetLeft: target.left - bounds.left, targetRight: bounds.right - target.right }
             })
             expect(Math.abs(edge.left)).toBeLessThanOrEqual(1)
             expect(Math.abs(edge.right)).toBeLessThanOrEqual(1)
+            expect(Math.abs(edge.targetLeft)).toBeLessThanOrEqual(1)
+            expect(Math.abs(edge.targetRight)).toBeLessThanOrEqual(1)
             const add = timing.getByRole('button', { name: messages.habits.form.reminderAdd, exact: true })
             await expect(add).toHaveText(messages.habits.form.reminderAdd)
             await expectWholeCaption(add)

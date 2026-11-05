@@ -57,8 +57,8 @@ function HabitTimeQuestions({ formHelpers, controller, showReminderQuestion, onT
   }
   return <div className="flex min-w-0 flex-col gap-3">
           <TimeField label={t('habits.form.exactTime')} value={toTime24(dueTime)} onChange={controller.setDueTime} onClear={controller.clearDueTime} />
-          {!dueTime ? <div className="px-2"><ListRow placement="column" title={t('habits.form.noSetTime')} expanded={showReminderQuestion} onClick={onTimeAnswered} /></div> : null}
-          {dueTime ? <div className="px-2"><ListRow placement="column" title={t('habits.form.addEndTime')} expanded={showEndTime} onClick={() => setShowEndTime(!showEndTime)} /></div> : null}
+          {!dueTime ? <div><ListRow placement="field" title={t('habits.form.noSetTime')} expanded={showReminderQuestion} onClick={onTimeAnswered} /></div> : null}
+          {dueTime ? <div><ListRow placement="field" title={t('habits.form.addEndTime')} expanded={showEndTime} onClick={() => setShowEndTime(!showEndTime)} /></div> : null}
           {dueTime && showEndTime ? <TimeField label={t('habits.form.dueEndTime')} value={toTime24(dueEndTime)} error={endTimeError ? t(endTimeError) : undefined} onChange={changeEndTime} onClear={() => changeEndTime('')} /> : null}
         </div>
 }
