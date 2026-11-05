@@ -73,6 +73,30 @@ vi.mock('expo-router', () => ({
 vi.stubGlobal('fetch', fetchMock)
 
 describe('mobile apiClient', () => {
+  it.each([502, 503, 504].flatMap(status => [API.habits.bulkLog, API.habits.bulkSkip].map(endpoint => ({ status, endpoint }))))('retries a keyed $endpoint write once after $status with the same payload and key', async ({ status, endpoint }) => {
+    getTokenMock.mockResolvedValue('token')
+    fetchMock.mockResolvedValueOnce(new Response(null, { status })).mockResolvedValueOnce(Response.json({ results: [] }))
+    await apiClient(endpoint, { method: 'POST', body: '{"items":[]}', idempotencyKey: 'bulk-action' })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    const requests = fetchMock.mock.calls.map(call => call[1])
+    expect(requests[0]).toEqual(requests[1])
+    expect(requests[0].headers['Idempotency-Key']).toBe('bulk-action')
+  })
+
+  it('does not retry a keyed POST without confirmed idempotency', async () => {
+    getTokenMock.mockResolvedValue('token')
+    fetchMock.mockImplementation(() => Promise.resolve(new Response(null, { status: 502 })))
+    await expect(apiClient(API.habits.duplicate('00000000-0000-4000-8000-000000000001'), { method: 'POST', body: 'null', idempotencyKey: 'duplicate-action' })).rejects.toMatchObject({ status: 502 })
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
+
+  it.each([502, 503, 504])('leaves an unkeyed write after %i for its caller to resolve', async status => {
+    getTokenMock.mockResolvedValue('token')
+    fetchMock.mockResolvedValueOnce(new Response(null, { status }))
+    await expect(apiClient(API.habits.bulkLog, { method: 'POST', body: '{"items":[]}' })).rejects.toMatchObject({ status })
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
+
   it.each(proactiveApiResponses)('accepts serialized $trigger facts from the current-item endpoint', async (response) => {
     getTokenMock.mockResolvedValue('test-token')
     fetchMock.mockResolvedValue(Response.json(response))
@@ -635,7 +659,7 @@ describe('mobile apiClient', () => {
     )
   })
 
-  it('consumes a pending idempotency key once and does not leak it to the next request', async () => {
+  it.each([undefined, 'explicit-key'])('consumes a pending idempotency key once with override %s and does not leak it to the next request', async idempotencyKey => {
     getTokenMock.mockResolvedValue('token-123')
     fetchMock.mockResolvedValue({
       ok: true,
@@ -644,14 +668,14 @@ describe('mobile apiClient', () => {
     })
 
     setPendingIdempotencyKey('mutation-2')
-    await apiClient('/api/habits', { method: 'POST', body: '{}' })
+    await apiClient('/api/habits', { method: 'POST', body: '{}', idempotencyKey })
     await apiClient('/api/habits', { method: 'POST', body: '{}' })
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       `${API_BASE}/api/habits`,
       expect.objectContaining({
-        headers: expect.objectContaining({ 'Idempotency-Key': 'mutation-2' }),
+        headers: expect.objectContaining({ 'Idempotency-Key': idempotencyKey ?? 'mutation-2' }),
       }),
     )
     expect(fetchMock).toHaveBeenNthCalledWith(

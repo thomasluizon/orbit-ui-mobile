@@ -1,11 +1,12 @@
 'use client'
 
 import { settleBulkSkippedHabits,checkCompletionAfterSkip } from '@orbit/shared/query/skip-completion'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { useQueryClient } from '@tanstack/react-query'
 import { habitKeys,profileKeys,applyCachedHabitSkip } from '@orbit/shared/query'
-import { getAccountDay } from '@orbit/shared/utils'
+import { getAccountDay, getBulkCompletionReplay, normalizeBulkCompletionInput, type BulkCompletionInput, type BulkRetryChunk } from '@orbit/shared/utils'
 import { snapshotHabitLists,restoreHabitLists } from '@/lib/habit-mutation-helpers'
-import type { BulkSkipItemRequest,BulkMutationOutcome,BulkSkipResult } from '@orbit/shared/types/habit'
+import type { BulkSkipItemRequest,BulkSkipResult } from '@orbit/shared/types/habit'
 import type { Profile } from '@orbit/shared/types/profile'
 import { bulkSkipHabits as bulkSkipHabitsAction } from '@/lib/actions/habits'
 import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
@@ -19,27 +20,32 @@ export function useBulkSkipHabits() {
 
   return useAccountScopedMutation({
     mutationFn: async (
-      items: BulkSkipItemRequest[],
+      input: BulkCompletionInput<BulkSkipItemRequest>,
       intendedAccountId,
-    ): Promise<BulkMutationOutcome<BulkSkipResult>> => {
+    ): Promise<BulkSkipResult & { ambiguousIds: string[]; retryChunks: BulkRetryChunk<BulkSkipItemRequest>[] }> => {
       const account = captureAccountIntent()
+      const retryChunks: BulkRetryChunk<BulkSkipItemRequest>[] = []
       const results: BulkSkipResult['results'] = []
       const ambiguousIds: string[] = []
-      for (let index = 0;index < items.length;index += 100) {
+      const replay = getBulkCompletionReplay(queryClient, getAccountGeneration(), 'skip')
+      for (const chunk of replay.prepare(input, () => crypto.randomUUID())) {
         if (!account.stillCurrent()) break
-        const chunk = items.slice(index, index + 100)
         try {
-          const response = await bulkSkipHabitsAction(chunk, intendedAccountId)
-          results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
+          replay.markAttempted(chunk)
+          const response = await bulkSkipHabitsAction(chunk.items, intendedAccountId, chunk.idempotencyKey)
+          replay.resolve(chunk.idempotencyKey)
+          results.push(...response.results.map((result) => ({ ...result, index: chunk.indices[result.index]! })))
         } catch (error) {
           if (reportsAccountChanged(error)) throw error
-          ambiguousIds.push(...chunk.map((item) => item.habitId))
+          retryChunks.push({ items: chunk.items, idempotencyKey: chunk.idempotencyKey })
+          ambiguousIds.push(...chunk.items.map((item) => item.habitId))
         }
       }
-      return { results, ambiguousIds }
+      return { results, ambiguousIds, retryChunks }
     },
 
-    onMutate: async (items) => {
+    onMutate: async (input) => {
+      const { items } = normalizeBulkCompletionInput(input)
       const account = captureAccountIntent()
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
       if (!account.stillCurrent()) throw new Error('Account changed')
@@ -54,7 +60,8 @@ export function useBulkSkipHabits() {
       if (context?.previousLists) restoreHabitLists(queryClient, context.previousLists)
     },
 
-    onSuccess: (result, items, context) => {
+    onSuccess: (result, input, context) => {
+      const { items } = normalizeBulkCompletionInput(input)
       const acceptedIds = new Set(result.results.filter((entry) => entry.status === 'Success').map((entry) => entry.habitId))
       const rejectedIds = new Set([...result.ambiguousIds, ...items.filter((item) => !acceptedIds.has(item.habitId)).map((item) => item.habitId)])
       const confirmed = settleBulkSkippedHabits(queryClient, items, context.previousLists, rejectedIds, context.occurrenceDate)

@@ -676,6 +676,7 @@
       "partialFailure": "{count, plural, one {# selected row could not be updated.} other {# selected rows could not be updated.}}",
       "retryFailed": "Retry failed only",
       "offlineFailure": "Nothing changed because your device is offline.",
+      "connectionRetry": "The connection was interrupted. Try again to finish updating your selection.",
       "connectionRefreshed": "The connection dropped. The list was refreshed.",
       "move": "Move selected",
       "moveLimit": "{limit, plural, one {Select up to # habit to move at once.} other {Select up to # habits to move at once.}}"
