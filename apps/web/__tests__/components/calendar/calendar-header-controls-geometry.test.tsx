@@ -444,6 +444,7 @@ describe('Calendar header geometry in Chromium', () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     queryClient.setQueryData(habitKeys.list({}), [])
     render(<QueryClientProvider client={queryClient}><NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><CreateGoalSheet open onClose={vi.fn()} /></NextIntlClientProvider></QueryClientProvider>)
+    fireEvent.change(screen.getByLabelText(messages.goals.form.title), { target: { value: 'Read 12 books' } })
     const portal = document.querySelector('.orbit-sheet-portal')!
     const page = await harness.browser.newPage({ viewport: { width, height: 915 } })
     try {

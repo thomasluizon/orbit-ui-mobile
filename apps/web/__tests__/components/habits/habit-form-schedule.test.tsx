@@ -208,7 +208,7 @@ describe('restored end-date control', () => {
     expect(request.clearEndDate).toBe(true)
     expect(request.endDate).toBeUndefined()
     expect(screen.queryByRole('button', { name: 'habits.form.removeEndDate' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'habits.form.endDate, common.selectDate' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'habits.form.endDateQuestion, common.selectDate' })).toHaveFocus()
     view.unmount()
     formLocale.realDates = false
   })
