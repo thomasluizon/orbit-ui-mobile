@@ -329,7 +329,7 @@ describe('native onboarding schedule questions', () => {
     await TestRenderer.act(() => { tree = TestRenderer.create(<OnboardingCreateHabit {...base} proposed={false} correcting schedule={current} />) })
     const column = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'onboarding-questions')[0]!
     expect(column.props.style).toMatchObject({ gap: 24 })
-    const groups = column.children as Array<ReturnType<typeof TestRenderer.create>['root']>
+    const groups = column.findAll((node) => typeof node.type === 'string' && (node.props.style as { gap?: number } | undefined)?.gap === 12)
     for (const [index, key] of questions.entries()) {
       expect(groups[index]!.props.style).toMatchObject({ gap: 12 })
       expect(flattenText(groups[index]!.findAllByType(Text)[0]!)).toBe(i18n.t(`onboarding.flow.when.${key}`))
