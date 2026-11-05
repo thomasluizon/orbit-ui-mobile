@@ -1,6 +1,6 @@
 import { type HabitAccount,withAccountGuard } from './use-habit-mutation-shared'
 import type { UseMutationOptions } from '@tanstack/react-query'
-import type { ParentPromptContinuation } from '@orbit/shared/types/sync'
+import { buildBulkCompletionChunks, normalizeBulkCompletionInput, type BulkCompletionInput, type BulkRetryChunk } from '@orbit/shared/utils'
 import type { HabitListSnapshots } from '@orbit/shared/query'
 import { useQueryClient } from '@tanstack/react-query'
 import { useHabitMutation } from './use-habit-mutation'
@@ -26,13 +26,16 @@ type BulkLogMutationOutcome = OfflineBulkMutationOutcome<BulkLogResult> & {
   streakResponses: BulkLogResult[]
   hasConfirmedSuccess: boolean
   queuedIds: string[]
+  retryChunks: BulkRetryChunk<BulkLogItemRequest>[]
 }
 
 function recordBulkFailure(
   error: unknown,
   habitIds: string[],
-  failures: { ambiguousIds: string[]; offlineFailureIds: string[] },
+  failures: { ambiguousIds: string[]; offlineFailureIds: string[]; retryChunks: BulkRetryChunk<BulkLogItemRequest>[] },
+  chunk: BulkRetryChunk<BulkLogItemRequest>,
 ): void {
+  if (!(error instanceof OfflineMutationPreflightError)) failures.retryChunks.push({ items: chunk.items, idempotencyKey: chunk.idempotencyKey })
   const rejectedIds = error instanceof OfflineMutationPreflightError ? failures.offlineFailureIds : failures.ambiguousIds
   rejectedIds.push(...habitIds)
 }
@@ -54,25 +57,19 @@ function checkTodayCompletionAfterLogs(
   checkAllDoneCelebration(normalized, buildChildrenIndex(normalized), today)
 }
 
-type ParentPromptBulkInput<T> = T[] | { items: T[]; parentPromptContinuation: ParentPromptContinuation }
-
-function normalizeParentPromptBulkInput<T>(input: ParentPromptBulkInput<T>): { items: T[]; parentPromptContinuation?: ParentPromptContinuation } {
-  return Array.isArray(input) ? { items: input } : input
-}
-
 export function useBulkLogHabits(options: { suppressParentSettlement?: boolean } = {}) {
   const context = useBulkLogHabitsContext(options)
   const { queryClient } = context
   return useHabitMutation<
     BulkLogMutationOutcome,
     Error,
-    ParentPromptBulkInput<BulkLogItemRequest>,
+    BulkCompletionInput<BulkLogItemRequest>,
     { previousLists: HabitListSnapshots; occurrenceDate: string; account: HabitAccount }
   >({
     mutationFn: createBulkLogHabitsMutationFn(context),
 
     onMutate: async (input) => {
-      const { items } = normalizeParentPromptBulkInput(input)
+      const { items } = normalizeBulkCompletionInput(input)
       const occurrenceDate = getAccountDay(new Date(), queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
       return withAccountGuard(async (guardedAccount) => {
         const account = guardedAccount
@@ -121,40 +118,42 @@ function useBulkLogHabitsContext(options: { suppressParentSettlement?: boolean }
   return { queryClient, checkAllDoneCelebration, showStreakMoment, options }
 }
 
-type BulkLogOptions = UseMutationOptions<BulkLogMutationOutcome, Error, ParentPromptBulkInput<BulkLogItemRequest>, { previousLists: HabitListSnapshots; occurrenceDate: string; account: HabitAccount }>
+type BulkLogOptions = UseMutationOptions<BulkLogMutationOutcome, Error, BulkCompletionInput<BulkLogItemRequest>, { previousLists: HabitListSnapshots; occurrenceDate: string; account: HabitAccount }>
 
 function createBulkLogHabitsMutationFn(context: ReturnType<typeof useBulkLogHabitsContext>) {
   const { queryClient, options } = context
   const callback: NonNullable<BulkLogOptions['mutationFn']> = async (input) => {
     return withAccountGuard(async (guardedAccount) => {
       const account = guardedAccount
-      const { items: requestedItems, parentPromptContinuation } = normalizeParentPromptBulkInput(input)
+      const { items: requestedItems, parentPromptContinuation } = normalizeBulkCompletionInput(input)
       const occurrenceDate = requestedItems.some((item) => item.date === undefined)
         ? await resolveHabitLogDate(queryClient, new Date(), account) : undefined
       account.assertCurrent()
       const items = requestedItems.map((item) => item.date === undefined && occurrenceDate
         ? { ...item, date: occurrenceDate } : item)
+      const retryChunks: BulkRetryChunk<BulkLogItemRequest>[] = []
       const results: BulkLogResult['results'] = []
       const streakResponses: BulkLogResult[] = []
       const ambiguousIds: string[] = []
       const offlineFailureIds: string[] = []
       const queuedIds: string[] = []
       let hasConfirmedSuccess = false
-      for (let index = 0;index < items.length;index += 100) {
+      for (const chunk of buildBulkCompletionChunks({ ...normalizeBulkCompletionInput(input), items })) {
         if (!account.stillCurrent()) break
-        const chunk = items.slice(index, index + 100)
         try {
           const response = await performQueuedApiMutation<BulkLogResult, BulkLogResult & QueuedMarker>({
             isCurrent: account.stillCurrent,
+            manualRetry: true,
+            idempotencyKey: chunk.idempotencyKey,
             type: 'bulkLogHabits',
             scope: 'habits',
             suppressParentSettlement: options.suppressParentSettlement,
             parentPromptContinuation,
             endpoint: API.habits.bulkLog,
             method: 'POST',
-            payload: { items: chunk },
+            payload: { items: chunk.items },
             queuedResultFactory: (mutationId) => ({
-              results: chunk.map((item, itemIndex) => ({
+              results: chunk.items.map((item, itemIndex) => ({
                 index: itemIndex,
                 status: 'Success' as const,
                 habitId: item.habitId,
@@ -165,18 +164,18 @@ function createBulkLogHabitsMutationFn(context: ReturnType<typeof useBulkLogHabi
               queuedMutationId: mutationId,
             }),
           })
-          if (isQueuedResult(response)) queuedIds.push(...chunk.map((item) => item.habitId))
+          if (isQueuedResult(response)) queuedIds.push(...chunk.items.map((item) => item.habitId))
           if (!isQueuedResult(response) && response.results.some((result) => result.status === 'Success')) {
             hasConfirmedSuccess = true
           }
-          const chunkResponse = { ...response, results: response.results.map((result) => ({ ...result, index: result.index + index })) }
+          const chunkResponse = { ...response, results: response.results.map((result) => ({ ...result, index: chunk.indices[result.index]! })) }
           if (!isQueuedResult(response)) streakResponses.push(chunkResponse)
           results.push(...chunkResponse.results)
         } catch (error: unknown) {
-          recordBulkFailure(error, chunk.map((item) => item.habitId), { ambiguousIds, offlineFailureIds })
+          recordBulkFailure(error, chunk.items.map((item) => item.habitId), { ambiguousIds, offlineFailureIds, retryChunks }, chunk)
         }
       }
-      return { results, streakResponses, ambiguousIds, offlineFailureIds, hasConfirmedSuccess, queuedIds }
+      return { results, streakResponses, ambiguousIds, offlineFailureIds, hasConfirmedSuccess, queuedIds, retryChunks }
 
     })
   }
@@ -187,7 +186,7 @@ function createBulkLogHabitsOnSuccess(context: ReturnType<typeof useBulkLogHabit
   const { queryClient, checkAllDoneCelebration, showStreakMoment } = context
   const callback: NonNullable<BulkLogOptions['onSuccess']> = (data, input, context) => {
     if (!context.account.stillCurrent()) return
-    const { items: variables } = normalizeParentPromptBulkInput(input)
+    const { items: variables } = normalizeBulkCompletionInput(input)
     const profileRefresh = data.hasConfirmedSuccess
       ? queryClient.invalidateQueries({ queryKey: profileKeys.all }) : null
     const failedIds = new Set(

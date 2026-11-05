@@ -1,5 +1,5 @@
 import { type HabitAccount,withAccountGuard } from './use-habit-mutation-shared'
-import type { ParentPromptContinuation } from '@orbit/shared/types/sync'
+import { buildBulkCompletionChunks, normalizeBulkCompletionInput, type BulkCompletionInput, type BulkRetryChunk } from '@orbit/shared/utils'
 import { settleBulkSkippedHabits,checkCompletionAfterSkip } from '@orbit/shared/query/skip-completion'
 import type { HabitListSnapshots } from '@orbit/shared/query'
 import { useQueryClient } from '@tanstack/react-query'
@@ -21,21 +21,18 @@ type OfflineBulkMutationOutcome<TResponse> = TResponse & {
 
 type BulkSkipMutationOutcome = OfflineBulkMutationOutcome<BulkSkipResult> & {
   queuedIds: string[]
+  retryChunks: BulkRetryChunk<BulkSkipItemRequest>[]
 }
 
 function recordBulkFailure(
   error: unknown,
   habitIds: string[],
-  failures: { ambiguousIds: string[]; offlineFailureIds: string[] },
+  failures: { ambiguousIds: string[]; offlineFailureIds: string[]; retryChunks: BulkRetryChunk<BulkSkipItemRequest>[] },
+  chunk: BulkRetryChunk<BulkSkipItemRequest>,
 ): void {
+  if (!(error instanceof OfflineMutationPreflightError)) failures.retryChunks.push({ items: chunk.items, idempotencyKey: chunk.idempotencyKey })
   const rejectedIds = error instanceof OfflineMutationPreflightError ? failures.offlineFailureIds : failures.ambiguousIds
   rejectedIds.push(...habitIds)
-}
-
-type ParentPromptBulkInput<T> = T[] | { items: T[]; parentPromptContinuation: ParentPromptContinuation }
-
-function normalizeParentPromptBulkInput<T>(input: ParentPromptBulkInput<T>): { items: T[]; parentPromptContinuation?: ParentPromptContinuation } {
-  return Array.isArray(input) ? { items: input } : input
 }
 
 export function useBulkSkipHabits(options: { suppressParentSettlement?: boolean } = {}) {
@@ -44,30 +41,32 @@ export function useBulkSkipHabits(options: { suppressParentSettlement?: boolean 
   return useHabitMutation<
     BulkSkipMutationOutcome,
     Error,
-    ParentPromptBulkInput<BulkSkipItemRequest>,
+    BulkCompletionInput<BulkSkipItemRequest>,
     { previousLists: HabitListSnapshots; occurrenceDate: string; account: HabitAccount }
   >({
     mutationFn: async (input) => {
       const account = withAccountGuard(account => account)
-      const { items, parentPromptContinuation } = normalizeParentPromptBulkInput(input)
+      const { items, parentPromptContinuation } = normalizeBulkCompletionInput(input)
+      const retryChunks: BulkRetryChunk<BulkSkipItemRequest>[] = []
       const results: BulkSkipResult['results'] = []
       const ambiguousIds: string[] = []
       const offlineFailureIds: string[] = []
       const queuedIds: string[] = []
-      for (let index = 0;index < items.length;index += 100) {
+      for (const chunk of buildBulkCompletionChunks({ ...normalizeBulkCompletionInput(input), items })) {
         if (!account.stillCurrent()) break
-        const chunk = items.slice(index, index + 100)
         try {
           const response = await performQueuedApiMutation<BulkSkipResult, BulkSkipResult & QueuedMarker>({
+            manualRetry: true,
+            idempotencyKey: chunk.idempotencyKey,
             type: 'bulkSkipHabits',
             scope: 'habits',
             suppressParentSettlement: options.suppressParentSettlement,
             parentPromptContinuation,
             endpoint: API.habits.bulkSkip,
             method: 'POST',
-            payload: { items: chunk },
+            payload: { items: chunk.items },
             queuedResultFactory: (mutationId) => ({
-              results: chunk.map((item, itemIndex) => ({
+              results: chunk.items.map((item, itemIndex) => ({
                 index: itemIndex,
                 status: 'Success' as const,
                 habitId: item.habitId,
@@ -77,18 +76,18 @@ export function useBulkSkipHabits(options: { suppressParentSettlement?: boolean 
               queuedMutationId: mutationId,
             }),
           })
-          if (isQueuedResult(response)) queuedIds.push(...chunk.map((item) => item.habitId))
-          results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
+          if (isQueuedResult(response)) queuedIds.push(...chunk.items.map((item) => item.habitId))
+          results.push(...response.results.map((result) => ({ ...result, index: chunk.indices[result.index]! })))
         } catch (error: unknown) {
-          const failedIds = chunk.map((item) => item.habitId)
-          recordBulkFailure(error, failedIds, { ambiguousIds, offlineFailureIds })
+          const failedIds = chunk.items.map((item) => item.habitId)
+          recordBulkFailure(error, failedIds, { ambiguousIds, offlineFailureIds, retryChunks }, chunk)
         }
       }
-      return { results, ambiguousIds, offlineFailureIds, queuedIds }
+      return { results, ambiguousIds, offlineFailureIds, queuedIds, retryChunks }
     },
 
     onMutate: async (input) => {
-      const { items } = normalizeParentPromptBulkInput(input)
+      const { items } = normalizeBulkCompletionInput(input)
       return withAccountGuard(async (guardedAccount) => {
         const account = guardedAccount
         await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
@@ -112,7 +111,7 @@ export function useBulkSkipHabits(options: { suppressParentSettlement?: boolean 
 
     onSuccess: (data, input, context) => {
       if (!context.account.stillCurrent()) return
-      const { items } = normalizeParentPromptBulkInput(input)
+      const { items } = normalizeBulkCompletionInput(input)
       const acceptedIds = new Set(data.results.filter((entry) => entry.status === 'Success').map((entry) => entry.habitId))
       const failedIds = new Set(items.filter((item) => !acceptedIds.has(item.habitId)).map((item) => item.habitId))
       for (const habitId of data.offlineFailureIds) failedIds.add(habitId)

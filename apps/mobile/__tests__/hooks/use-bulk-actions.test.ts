@@ -625,7 +625,7 @@ describe('useBulkActions reversibility boundary', () => {
   it.each([
     ['log', bulkLog, 'confirmBulkLog'],
     ['skip', bulkSkip, 'confirmBulkSkip'],
-  ] as const)('refreshes after an ambiguous bulk %s without settling or offering a retry', async (
+  ] as const)('retains an ambiguous bulk %s and offers a retry', async (
     _mode,
     mutation,
     action,
@@ -635,7 +635,7 @@ describe('useBulkActions reversibility boundary', () => {
       ambiguousIds: ['h-1', 'h-2'],
       offlineFailureIds: [],
     })
-    const { captured, onSuccess, settleBulkHabitResolutions } = renderBulkActions(
+    const { captured, onSuccess, onPartialFailure, settleBulkHabitResolutions } = renderBulkActions(
       new Set(['h-1', 'h-2']),
     )
 
@@ -644,12 +644,15 @@ describe('useBulkActions reversibility boundary', () => {
     })
 
     expect(settleBulkHabitResolutions).not.toHaveBeenCalled()
-    expect(onSuccess).toHaveBeenCalledTimes(1)
+    expect(onSuccess).not.toHaveBeenCalled()
+    expect(onPartialFailure).toHaveBeenCalledWith(['h-1', 'h-2'])
     expect(showToast).toHaveBeenCalledWith({
       kind: 'neutral',
-      message: 'The connection dropped. The list was refreshed.',
+      message: 'The connection was interrupted. Try again to finish updating your selection.',
+      actionLabel: 'Retry failed only',
+      onAction: expect.any(Function),
     })
-    expect(showToast.mock.calls[0]?.[0]?.onAction).toBeUndefined()
+
   })
 
   it('keeps the confirmation for the irreversible bulk delete', async () => {

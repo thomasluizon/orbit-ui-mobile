@@ -2900,6 +2900,7 @@ describe('mobile habit hooks', () => {
       ambiguousIds: ['habit-1', 'habit-2'],
       offlineFailureIds: [],
       hasConfirmedSuccess: false,
+      retryChunks: [{ items: expect.any(Array), idempotencyKey: expect.any(String) }],
       queuedIds: [],
     })
     expect(getHabitList().every((habit) => !habit.isCompleted)).toBe(true)
@@ -2925,6 +2926,7 @@ describe('mobile habit hooks', () => {
       results: [],
       ambiguousIds: ['habit-1', 'habit-2'],
       offlineFailureIds: [],
+      retryChunks: [{ items: skipVariables, idempotencyKey: expect.any(String) }],
       queuedIds: [],
     })
     expect(getHabitList().every((habit) => !habit.isCompleted)).toBe(true)

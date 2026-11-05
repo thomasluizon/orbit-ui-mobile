@@ -848,3 +848,5 @@ export type { ParentPromptChain } from './parent-prompt-chain'
 
 export { SETTLE_DELAY_MS } from './engagement-prompt-timing'
 export { AuthRefreshNetworkError, isNetworkUnavailableError } from './network-error'
+export { buildBulkCompletionChunks, normalizeBulkCompletionInput, isBulkGatewayFailure } from './bulk-completion'
+export type { BulkCompletionInput, BulkRetryChunk } from './bulk-completion'

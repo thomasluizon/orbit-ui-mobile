@@ -119,10 +119,15 @@ async function executeRequest(
   delete requestOptions.skipAuthRecovery
   delete requestOptions.isCurrent
   delete requestOptions.onResponseHeaders
-  const response = await fetch(`${API_BASE}${path}`, {
+  const send = () => fetch(`${API_BASE}${path}`, {
     ...requestOptions,
     headers: buildRequestHeaders(token, options),
   })
+  let response = await send()
+  if (options.idempotencyKey && [502, 503, 504].includes(response.status)) {
+    if (options.isCurrent?.() === false) throw new Error('Account changed')
+    response = await send()
+  }
   if (response.ok) options.onResponseHeaders?.(response.headers)
 
   return {

@@ -2,7 +2,7 @@
 
 import { useCallback, useLayoutEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
-import type { HabitResolutionMode } from '@orbit/shared/utils'
+import type { BulkRetryChunk, HabitResolutionMode } from '@orbit/shared/utils'
 import { executeBulkMoveParent, getBulkActionFailures, isBulkCompletionAllowed, type BulkActionsOptions, type BulkResultItem } from '@orbit/shared/hooks'
 import { useBulkDeleteHabits } from '@/hooks/use-bulk-delete-habits'
 import { useBulkLogHabits } from '@/hooks/use-bulk-log-habits'
@@ -15,6 +15,7 @@ import { getAccountGeneration } from '@/lib/session-epoch'
 
 interface BulkActionOutcome {
   results: readonly BulkResultItem[]
+  retryChunks?: BulkRetryChunk<{ habitId: string; date?: string }>[]
   ambiguousIds?: readonly string[]
 }
 
@@ -59,15 +60,18 @@ export function useBulkActions({
     habitListRef.current?.settleBulkHabitResolutions(resolutions, date)
   }, [habitListRef])
 
-  const finish = useCallback((outcome: BulkActionOutcome, retry: (ids: string[]) => void) => {
-    const { retryIds, reasonKeys } = getBulkActionFailures(outcome.results)
-    if (outcome.ambiguousIds?.length) {
-      showToast(t('habits.bulkBar.connectionRefreshed'))
-    }
+  const finish = useCallback((outcome: BulkActionOutcome, retry: (ids: string[]) => void, completion = false) => {
+    const { retryIds: failedIds, reasonKeys } = getBulkActionFailures(outcome.results)
+    const retryIds = [...new Set([...failedIds, ...(completion ? outcome.ambiguousIds ?? [] : [])])]
+
     if (retryIds.length === 0) onSuccess()
     else onPartialFailure(retryIds)
     const messages = reasonKeys.map((key) => t(key))
-    if (retryIds.length > 0) messages.push(t('habits.bulkBar.partialFailure', { count: retryIds.length }))
+    if (outcome.ambiguousIds?.length) {
+      if (completion) messages.push(t('habits.bulkBar.connectionRetry'))
+      else showToast(t('habits.bulkBar.connectionRefreshed'))
+    }
+    if (failedIds.length > 0) messages.push(t('habits.bulkBar.partialFailure', { count: failedIds.length }))
     if (messages.length === 0) return
     const message = messages.join('\n')
     if (retryIds.length === 0) showToast(message)
@@ -91,21 +95,22 @@ export function useBulkActions({
     }
   }
 
-  async function executeCompletion(ids: string[], mode: HabitResolutionMode) {
+  async function executeCompletion(ids: string[], mode: HabitResolutionMode, retryChunks: BulkActionOutcome['retryChunks'] = []) {
     if (!isBulkCompletionAllowed(currentPermission.current, selectedDateStr, accountTimeZone)) return
     if (ids.length === 0) return
     const date = selectedDateStr
     const accountGeneration = getAccountGeneration()
     try {
+      const items = ids.map((habitId) => ({ habitId, date }))
       const result = await (mode === 'log' ? bulkLog : bulkSkip).mutateAsync(
-        ids.map((id) => ({ habitId: id, date })),
+        retryChunks.length ? { items, retryChunks } : items,
       )
       if (getAccountGeneration() !== accountGeneration) return
       applyBulkMutationSuccesses(result.results, mode, date)
       if (currentPermission.current.selectedDateStr !== date) return
       finish(result, (failedIds) => {
-        if (getAccountGeneration() === accountGeneration) void executeCompletion(failedIds, mode)
-      })
+        if (getAccountGeneration() === accountGeneration) void executeCompletion(failedIds, mode, result.retryChunks)
+      }, true)
     } catch (error) {
       if (getAccountGeneration() !== accountGeneration) return
       if (!reportAccountSwitch(error)) throw error

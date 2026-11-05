@@ -73,6 +73,23 @@ vi.mock('expo-router', () => ({
 vi.stubGlobal('fetch', fetchMock)
 
 describe('mobile apiClient', () => {
+  it.each([502, 503, 504])('retries a keyed write once after %i with the same payload and key', async status => {
+    getTokenMock.mockResolvedValue('token')
+    fetchMock.mockResolvedValueOnce(new Response(null, { status })).mockResolvedValueOnce(Response.json({ results: [] }))
+    await apiClient(API.habits.bulkLog, { method: 'POST', body: '{"items":[]}', idempotencyKey: 'bulk-action' })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    const requests = fetchMock.mock.calls.map(call => call[1])
+    expect(requests[0]).toEqual(requests[1])
+    expect(requests[0].headers['Idempotency-Key']).toBe('bulk-action')
+  })
+
+  it.each([502, 503, 504])('leaves an unkeyed write after %i for its caller to resolve', async status => {
+    getTokenMock.mockResolvedValue('token')
+    fetchMock.mockResolvedValueOnce(new Response(null, { status }))
+    await expect(apiClient(API.habits.bulkLog, { method: 'POST', body: '{"items":[]}' })).rejects.toMatchObject({ status })
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
+
   it.each(proactiveApiResponses)('accepts serialized $trigger facts from the current-item endpoint', async (response) => {
     getTokenMock.mockResolvedValue('test-token')
     fetchMock.mockResolvedValue(Response.json(response))
