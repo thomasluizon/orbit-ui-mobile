@@ -893,8 +893,14 @@ it('reveals the end date question from its answer and retains the hidden date', 
   expect(screen.getByRole('button', { name: 'habits.form.removeEndDate' })).toBeInTheDocument()
 })
 
-it('opens a saved end date question when editing', () => {
-  renderForm(createFormHelpers({ title: 'Run', itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1, endDate: '2026-12-31' }), undefined, true)
+it('opens a saved end date question when editing and keeps it open after removing the date', () => {
+  const helpers = createFormHelpers({ title: 'Run', itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1, endDate: '2026-12-31' })
+  const view = renderForm(helpers, undefined, true)
+  expect(screen.getByRole('button', { name: 'habits.form.addEndDate' })).toHaveAttribute('aria-expanded', 'true')
+  expect(screen.getByRole('heading', { name: 'habits.form.endDateQuestion' })).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'habits.form.removeEndDate' }))
+  view.rerenderForm()
+  expect(helpers.form.getValues('endDate')).toBe('')
   expect(screen.getByRole('button', { name: 'habits.form.addEndDate' })).toHaveAttribute('aria-expanded', 'true')
   expect(screen.getByRole('heading', { name: 'habits.form.endDateQuestion' })).toBeInTheDocument()
 })
