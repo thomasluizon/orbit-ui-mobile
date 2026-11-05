@@ -250,8 +250,9 @@ describe('FreshStartModal', () => {
 
     fireEvent.click(screen.getByText('profile.freshStart.reviewDeletion'))
 
-    expect(screen.getByLabelText('profile.freshStart.confirmLabel')).toBeInTheDocument()
-    expect(document.body.textContent).not.toContain('profile.freshStart.confirmInstruction')
+    const confirmField = screen.getByLabelText('profile.freshStart.confirmLabel')
+    expect(confirmField).toHaveAccessibleDescription('profile.freshStart.confirmInstruction')
+    expect(screen.getAllByText('profile.freshStart.confirmInstruction')).toHaveLength(1)
     expect(screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder')).toBeInTheDocument()
   })
 

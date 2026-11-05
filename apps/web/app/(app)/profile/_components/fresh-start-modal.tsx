@@ -347,6 +347,7 @@ function FreshStartConfirmStep({
         value={confirmText}
         onChange={onConfirmTextChange}
         placeholder={t('profile.freshStart.confirmPlaceholder')}
+        hint={t('profile.freshStart.confirmInstruction')}
         autoComplete="off"
         autoFocus
         onSubmit={() => {
