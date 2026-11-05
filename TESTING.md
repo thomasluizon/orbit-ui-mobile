@@ -7,7 +7,7 @@
 > - Chromium geometry unit cases require installed Chrome and run serially after parallel jsdom files.
 > - Label guard regressions run in Vitest Chromium against the actual helpers, including composed labels, partial painted fills and press-opened popup cleanup.
 > - The compact label guard covers app-authored labels and interaction fills at 320, 360, 384 and 412px in both locales. Native Android label geometry remains an open risk; its only instrumented host belongs to the widget module.
-> - Twelve suites: web / mobile / shared unit, desktop configuration and native context, installed desktop VM acceptance, the local Android widget host instrumented gate, web Playwright e2e (which IS the post-deploy smoke), the hermetic layout guard, the authed-Today Lighthouse budget gate, Stryker mutation, and the two harness suites (hook parity and the tools execution gate) that test the agent harness rather than the product.
+> - Suites cover web / mobile / shared unit, desktop configuration and native context, installed desktop VM acceptance, the local Android widget host instrumented gate, Android Hermes inventory and AAB startup, web Playwright e2e (which IS the post-deploy smoke), the hermetic layout guard, the authed-Today Lighthouse budget gate, Stryker mutation, and the two harness suites (hook parity and the tools execution gate) that test the agent harness rather than the product.
 > - Script guards report as named steps in the single `Guards` job.
 > - The `Tool and Hook Tests` job in `.github/workflows/test.yml` runs both harness suites on every PR to `main`, including producer-only changes. Also run `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs` locally after changing `tools/**` or `.claude/**`.
 > - There is no visual regression gate and no screenshot anywhere: #422 deleted it. The hermetic harness remains and lives under `apps/web/test-support/hermetic/`, where the Lighthouse budget gate and the layout guard both use it. Hermetic builds set both API bases to the mock and check client output for production or staging API hosts. Local layout runs use `LAYOUT_PORT` to select a free port, defaulting to 3000.
@@ -46,6 +46,63 @@ The bad status role guard in `packages/shared/src/__tests__/theme.test.ts` walks
 Happy-path-only; rubber-stamp / assertion-free; "asserts a mock was called" tautologies; over-mocked tests that exercise the mock instead of the code; implementation-coupled tests (call-order or private state); snapshot-as-crutch. The full rubric with severities is `.claude/skills/audit-tests/rubric.md`.
 
 ## Suite catalog
+
+### Android startup gates
+
+`android-startup.yml` exports the production Android Hermes bundle with source maps for
+pull requests touching mobile, shared code or dependency manifests. The bundle job uses no
+emulator. `tools/check-android-bundle.mjs` inspects the exported module inventory, resolves
+original sources against installed packages and rejects native package roots or native component
+names with multiple owners. Metro's virtual paths are matched against original source bytes;
+missing package sources or missing source content fail the check. This complements the lockfile
+native-copy guard by checking modules Metro actually includes.
+
+The independent boot proof job runs for gate and release-workflow changes, plus proof branch
+pushes. Other mobile pull requests run the bundle check without an emulator. The boot job builds
+an AAB without Play credentials and exercises the same composite action as `android-release.yml`.
+Before prebuild, it selects the newest successful `android-release.yml` run on `main` for the
+open or production track and exports its version through `ORBIT_APP_VERSION`. An unavailable or
+unrecognized release fails preparation. The release workflow retains its dispatched `app_version`.
+Release submission follows that action unconditionally. The
+action derives a universal APK from the shipping AAB with pinned, checksum-verified bundletool,
+uses a disposable installation key and compares the embedded Hermes bundle byte for byte.
+The shipping AAB is never rebuilt or replaced by the check.
+
+The runner is `ubuntu-24.04` for proof builds and releases, with an API 35 `google_apis` x86_64
+emulator. Both AAB builds compile `armeabi-v7a`, `arm64-v8a` and `x86_64`. The action requires
+the native emulator slice in the AAB and the device ABI list before installation. The additional
+slice increases native compilation time and AAB size; the installed APK still comes from the
+shipping AAB. ARM translation cannot satisfy the React Native loader's direct APK lookup with
+unextracted ARM libraries, so the gate uses native x86_64 execution. The emulator runs only in
+GitHub Actions.
+
+`tools/android-boot.mjs` clears storage, cold starts once and waits up to 90 seconds for the
+signed-out onboarding input label from either locale in a visible, enabled accessibility node
+owned by the app. The input remains visible when the keyboard clips the heading. It then waits
+15 seconds for deferred startup work and requires the same process and first screen to survive.
+The forced-update dialog fails immediately with a build-below-server-minimum verdict, including
+when it appears during settling over the first screen. App-UID logcat must contain no native fatal,
+Java fatal, fatal React Native report or
+invariant violation. A running splash process alone never passes. XML, logcat, process IDs,
+ABIs and AAB and bundle hashes are retained as `android-boot-evidence`, including on failure.
+Fatal JavaScript detection uses the native fatal channels and React Native's host-exception
+path, which destroys the runtime. An error-priority console message alone is not fatal;
+handled errors retain their ordinary application behavior and cannot substitute for a fatal report.
+Infrastructure adb commands before launch have three attempts with two-second delays and a
+30-second command deadline. Emulator boot has a five-minute budget. An app assertion failure
+is terminal; no failed launch is retried.
+
+The tools harness exercises source-map production through installed Metro, duplicate providers,
+accessibility ownership and geometry, fatal log classification and the release submission order.
+Recorded CI accessibility trees drive the boot command through keyboard-clipped onboarding and
+immediate or deferred forced updates. The harness also executes proof-version selection against
+the observed GitHub CLI response shape and loads the resulting Expo configuration.
+It does not replace the real GitHub emulator run. Push proof branches matching
+`chore/ticket-1997-proof-*` to run both independent gates without a Play submission. For a
+dependency regression proof, restore the affected package manifests and lockfile on the proof
+branch while retaining the gate. Keep the two jobs independent so a bundle rejection cannot
+skip the boot observation. Record run URLs and outcomes in the pull request before deleting
+the proof branch. The iOS startup equivalent is tracked separately in #1561.
 
 Workspace `test` tasks in `turbo.json` retain default workspace inputs, upstream builds and
 `coverage/**` outputs. Their additional inputs follow the files their suites read:
