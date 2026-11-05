@@ -90,7 +90,7 @@ for (const width of [600, 1100]) {
           layoutProfile: atLimit ? { aiMessagesUsed: 5, aiMessagesLimit: 5 } : {} })
         const words = locale === 'en' ? en : ptBR
 
-        test('keeps Hoje and habit detail on the habit column edge', async ({ page, context }) => {
+        test('keeps habit detail on the habit column edge', async ({ page, context }) => {
           await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habits }])
           await context.route(`${LAYOUT_ORIGIN}${API.habits.count}`, (route) => route.fulfill({ json: { count: schedules.length + habit.children.length } }))
           await context.route(`${LAYOUT_ORIGIN}${API.habits.get(habit.id)}`, (route) => route.fulfill({ json: habit }))
@@ -104,8 +104,8 @@ for (const width of [600, 1100]) {
           await page.evaluate(() => document.fonts.ready)
           const rowRight = await row.evaluate((element) => element.getBoundingClientRect().right)
 
-          if (width >= 1024) await expect(page.locator('[data-shell-pinned-slot] [data-composer-root]')).toHaveCount(0)
-          for (const path of width < 1024 ? ['/', `/habits/${habit.id}`] : [`/habits/${habit.id}`]) {
+          await expect(page.locator('[data-shell-pinned-slot] [data-composer-root]')).toHaveCount(0)
+          for (const path of [`/habits/${habit.id}`]) {
             if (path !== '/') {
               await page.goto(path)
               await expect(page.locator('[data-habit-detail-content] h1')).toHaveText(habit.title)

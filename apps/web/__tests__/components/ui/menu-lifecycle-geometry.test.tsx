@@ -270,31 +270,6 @@ describe('mounted headless menu lifecycle in Chromium', () => {
     await expect.poll(() => menu.count()).toBe(0)
   })
 
-  it.each(['en', 'pt-BR'] as const)('reopens the compact %s composer menu after a wide-shell replacement', async (locale) => {
-    const page = await mount('composer', locale, 412, 915)
-    const words = locale === 'en' ? en : ptBR
-    try {
-      const trigger = page.getByRole('button', { name: words.shell.composer.actions, exact: true, includeHidden: true })
-      const menu = page.getByRole('menu', { name: words.shell.composer.actions, exact: true })
-      await trigger.click()
-      await expect.poll(() => menu.isVisible()).toBe(true)
-      expect(await trigger.getAttribute('aria-expanded')).toBe('true')
-      await page.setViewportSize({ width: 1100, height: 915 })
-      await expect.poll(() => menu.count()).toBe(0)
-      await expect.poll(() => page.evaluate(() => {
-        const active = document.activeElement
-        return active?.hasAttribute('data-shell-astra-row') ? 'Astra' : `${active?.tagName}: ${active?.getAttribute('aria-label')} `
-      })).toBe('Astra')
-      await page.setViewportSize({ width: 412, height: 915 })
-      await trigger.click()
-      await expect.poll(() => menu.isVisible()).toBe(true)
-      await page.keyboard.press('Escape')
-      await expect.poll(() => menu.count()).toBe(0)
-      await expect.poll(() => trigger.evaluate((element) => element === document.activeElement)).toBe(true)
-      expect(await page.locator('[data-composer-input]').inputValue()).toBe('Retained draft')
-    } finally { await page.close() }
-  })
-
   it.each([0, 44])('keeps every frequency choice within landscape safe bounds with %ipx inline insets after scrolling', async (inlineInset) => {
     const page = await mount('frequency', 'en', 844, 390, 'dark', 'no-preference')
     try {

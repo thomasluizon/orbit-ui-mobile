@@ -223,6 +223,16 @@
     "mainNavigation": "Navegação principal"
   },
   "shell": {
+    "astraButton": {
+      "open": "Abrir Astra",
+      "move": "Mover Astra",
+      "hint": "Toque e segure para escolher a posição ou arraste o botão.",
+      "keyboardHint": "Para mudar a posição, use as setas, toque e segure ou clique com o botão direito.",
+      "left": "Mover à esquerda",
+      "right": "Mover à direita",
+      "up": "Subir",
+      "down": "Descer"
+    },
     "collapseSidebar": "Recolher menu",
     "expandSidebar": "Expandir menu",
     "composer": {

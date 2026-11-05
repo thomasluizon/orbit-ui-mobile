@@ -49,25 +49,18 @@ describe('resolveShellChrome', () => {
     expect(resolveShellChrome('/upgrade').activeId).toBe('perfil')
   })
 
-  it('shows the composer only on Hoje and habit detail', () => {
-    for (const route of ['/', '/habits/h1']) {
+  it('shows the composer only on habit detail', () => {
+    for (const route of ['/habits/h1']) {
       expect(resolveShellChrome(route).composer).toBe(true)
     }
-    for (const route of ['/calendar', '/progress', '/profile', '/search', '/about', '/support', '/notifications', '/upgrade', '/preferences', '/advanced', '/ai-settings']) {
+    for (const route of ['/', '/calendar', '/progress', '/profile', '/search', '/about', '/support', '/notifications', '/upgrade', '/preferences', '/advanced', '/ai-settings']) {
       expect(resolveShellChrome(route).composer).toBe(false)
     }
   })
 })
 
-it('keeps Hoje composer compact and habit detail composer at every width', () => {
-  expect(resolveShellChrome('/', 'hoje', false).composer).toBe(false)
-  expect(resolveShellChrome('/', 'hoje', true).composer).toBe(true)
-  expect(resolveShellChrome('/habits/h1', 'hoje', false).composer).toBe(true)
-  expect(resolveShellChrome('/habits/h1', 'hoje', true).composer).toBe(true)
-})
-
 it.each([
-  ['/', 'today'],
+  ['/', undefined],
   ['/habits/habit-1', 'habit'],
   ['/habits/new', undefined],
   ['/habits/habit-1/edit', undefined],

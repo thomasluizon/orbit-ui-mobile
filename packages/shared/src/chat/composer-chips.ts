@@ -6,20 +6,20 @@ import { getReturningInterval } from '../utils/returning-interval'
 export const COMPOSER_CHIP_GAP = 8
 export const COMPOSER_CHIP_PEEK = 24
 
-export function resolveComposerStripLayout(availableWidth: number, measuredWidths: readonly number[]): { gap: number } {
-  const chipWidths = measuredWidths.map(width => Math.min(width, Math.max(0, availableWidth - COMPOSER_CHIP_GAP - COMPOSER_CHIP_PEEK)))
-  const totalWidth = chipWidths.reduce((sum, width) => sum + width, 0)
-    + Math.max(0, chipWidths.length - 1) * COMPOSER_CHIP_GAP
-  if (chipWidths.some(width => width === 0) || totalWidth <= availableWidth) return { gap: COMPOSER_CHIP_GAP }
-  const gap = [8, 12, 16, 24, 32, 48].find(spacing => {
-    let start = 0
-    return chipWidths.some(width => {
+export function resolveComposerStripLayout(availableWidth: number, measuredWidths: readonly number[]): { gap: number; paddingStart: number } {
+  const totalWidth = measuredWidths.reduce((sum, width) => sum + width, 0)
+    + Math.max(0, measuredWidths.length - 1) * COMPOSER_CHIP_GAP
+  if (measuredWidths.some(width => width === 0) || totalWidth <= availableWidth) return { gap: COMPOSER_CHIP_GAP, paddingStart: 0 }
+  const spacings = [COMPOSER_CHIP_GAP, 12, 16, 24, 32, 48]
+  const layouts = [0, ...spacings].flatMap(paddingStart => spacings.map(gap => ({ gap, paddingStart })))
+  return layouts.find(({ gap, paddingStart }) => {
+    let start = paddingStart
+    return measuredWidths.some(width => {
       const visible = availableWidth - start
-      start += width + spacing
+      start += width + gap
       return visible >= 16 && width - visible >= 16
     })
   })!
-  return { gap }
 }
 
 export type ComposerChipSurface = 'today' | 'calendar' | 'progress' | 'profile' | 'habitDetail'
@@ -167,10 +167,6 @@ export function resolveComposerChipSurface(pathname: string): ComposerChipSurfac
   if (pathname === '/progress') return 'progress'
   if (pathname === '/profile') return 'profile'
   return 'today'
-}
-
-export function resolveComposerDockSuggestions(pathname: string, suggestions: ComposerSuggestions): ComposerSuggestions {
-  return pathname === '/' ? [] : suggestions
 }
 
 export function resolveConversationSuggestions(messageCount: number, suggestions: ComposerSuggestions): ComposerSuggestions {

@@ -46,9 +46,9 @@ for (const width of [412, 1280] as const) {
         await page.goto(path)
         if (name === 'Onboarding') await expect(page.getByRole('dialog')).toBeVisible()
         if (name === 'Habit detail') await expect(page.getByRole('heading', { name: habit.title })).toBeVisible()
-        const hasComposer = name === 'Habit detail' || (name === 'Hoje' && width < 1024)
+        const hasComposer = name === 'Habit detail'
         const hasPinnedSlot = hasComposer || name === 'Onboarding'
-        const clearance = width < 1024 && hasPinnedSlot ? 96 : 32
+        let clearance = width < 1024 && (hasPinnedSlot || name === 'Hoje') ? 96 : 32
         await expect(page.locator('[data-composer-root]')).toHaveCount(hasComposer ? 1 : 0)
         await expect(page.locator('[data-shell-pinned-slot]')).toHaveCount(hasPinnedSlot ? 1 : 0)
         await expect(page.locator('[data-flow-action]')).toHaveCount(name === 'Onboarding' ? 1 : 0)
@@ -57,6 +57,13 @@ for (const width of [412, 1280] as const) {
         await expect(scroller).toBeVisible()
         await expect(chrome).toBeAttached()
         await page.evaluate(() => document.fonts.ready)
+        if (name === 'Hoje') {
+          const button = page.getByRole('button', { name: en.shell.astraButton.open, exact: true })
+          await expect(button).toBeVisible()
+          const bounds = (await button.boundingBox())!
+          const viewport = (await scroller.boundingBox())!
+          clearance = Math.max(clearance, viewport.y + viewport.height - bounds.y + 16)
+        }
 
         const geometry = await scroller.evaluate((element) => {
           element.scrollTop = element.scrollHeight
@@ -72,8 +79,10 @@ for (const width of [412, 1280] as const) {
         })
 
         expect(geometry, `${name} has measurable shell content`).not.toBeNull()
-        expect(geometry!.padding, `${name} shell owns the clearance`).toBe(clearance)
-        expect(geometry!.clearance, `${name} last content clears pinned chrome`).toBeGreaterThanOrEqual(clearance - 1)
+        expect(geometry!.padding, `${name} shell owns the clearance`).toBeCloseTo(clearance, 0)
+        const chromeBounds = (await chrome.boundingBox())!
+        const viewport = (await scroller.boundingBox())!
+        expect(geometry!.clearance, `${name} last content clears pinned chrome`).toBeGreaterThanOrEqual(clearance + chromeBounds.y - viewport.y - viewport.height - 1)
       })
     }
 

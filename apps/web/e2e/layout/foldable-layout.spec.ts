@@ -128,7 +128,7 @@ for (const { width, height } of windows) {
         if (name === 'Habit detail') await expect(page.getByRole('heading', { name: habit.title, exact: true })).toBeVisible()
         await expect(page.locator('[aria-busy="true"]')).toHaveCount(0)
         await page.evaluate(() => document.fonts.ready)
-        const hasComposer = name === 'Habit detail' || (name === 'Hoje' && width < 1024)
+        const hasComposer = name === 'Habit detail'
         await expect(page.locator('[data-shell-pinned-slot]')).toHaveCount(hasComposer ? 1 : 0)
         await assertColumnGeometry(page, width, hasComposer)
         if (name === 'Hoje') {

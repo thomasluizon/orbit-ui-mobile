@@ -166,30 +166,6 @@ describe('Today create during first load', () => {
     else process.env.TZ = originalTimeZone
   })
 
-  it('collapses Hoje with its own persisted preference and retains its mounted draft', async () => {
-    const view = render(<QueryAppLayout><div>Today</div></QueryAppLayout>)
-    const input = screen.getByRole('textbox')
-    fireEvent.change(input, { target: { value: 'Changed Hoje draft' } })
-    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.collapse' }))
-    expect(screen.queryByRole('textbox')).toBeNull()
-    expect(input).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'shell.composer.expand' })).toHaveFocus()
-    expect(useUIStore.getState()).toMatchObject({ todayComposerCollapsed: true, habitComposerCollapsed: false })
-    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.expand' }))
-    expect(screen.getByRole('textbox')).toBe(input)
-    expect(input).toHaveValue('Changed Hoje draft')
-    expect(screen.getByRole('button', { name: 'shell.composer.collapse' })).toHaveFocus()
-    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.collapse' }))
-    view.unmount()
-    const saved = localStorage.getItem('orbit-ui-store')!
-    useUIStore.setState(useUIStore.getInitialState())
-    localStorage.setItem('orbit-ui-store', saved)
-    await useUIStore.persist.rehydrate()
-    render(<QueryAppLayout><div>Today</div></QueryAppLayout>)
-    expect(screen.getByRole('button', { name: 'shell.composer.expand' })).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.queryByRole('textbox')).toBeNull()
-  })
-
   it('keeps reload guidance in the main app layout', async () => {
     render(<QueryAppLayout><div>Today</div></QueryAppLayout>)
 

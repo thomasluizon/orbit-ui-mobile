@@ -52,7 +52,7 @@ Web `components/navigation/notification-bell.tsx` retains its existing visible-o
 | Toast text action | `components/ui/toast.tsx` | `components/ui/app-toast.tsx` | The 4px negative margin on the text action is inside the toast padding and retains clearance from adjacent content; the close control is a PillButton |
 | Login legal sentence, including the callback email step | `app/(auth)/login/email-step.tsx` | `components/auth/email-step.tsx`, `app/login-styles.ts` | Terms and privacy links share 24px line spacing; web labels stay whole so their native focus outlines cannot span neighbouring links |
 
-The composer slot reaches three surfaces on both platforms: the Hoje dock and habit detail dock
+The composer slot reaches two surfaces on both platforms: the habit detail dock
 owned by `app/(app)/layout.tsx` on web and `app/_layout.tsx` on Android, and the full-screen Astra
 conversation owned by `components/chat/conversation.tsx`. They all use `components/shell/composer.tsx`.
 The slot swaps Paste and Clear without changing the attachment tray, Send target or pill radius.

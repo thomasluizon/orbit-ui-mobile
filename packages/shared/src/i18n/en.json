@@ -223,6 +223,16 @@
     "mainNavigation": "Main navigation"
   },
   "shell": {
+    "astraButton": {
+      "open": "Open Astra",
+      "move": "Move Astra",
+      "hint": "Press and hold to choose a position, or drag to move.",
+      "keyboardHint": "To move, right-click, press and hold, or use the arrow keys.",
+      "left": "Move left",
+      "right": "Move right",
+      "up": "Move up",
+      "down": "Move down"
+    },
     "collapseSidebar": "Collapse sidebar",
     "expandSidebar": "Expand sidebar",
     "composer": {

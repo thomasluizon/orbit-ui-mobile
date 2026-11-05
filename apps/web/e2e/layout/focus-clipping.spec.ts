@@ -121,28 +121,15 @@ for (const width of [412, 1352] as const) {
         await expectCompleteTodayIndicators(page, selectionControls, 'Hoje selection control')
       })
 
-      test('pinned and conversation composers expose complete chip and control rings', async ({ page }) => {
+      test('Astra entry and conversation expose complete chip and control rings', async ({ page }) => {
         await page.goto('/')
         await expect(page.locator('html')).toHaveClass(new RegExp(mode))
         await refreshTodayHabits(page)
         const pinned = page.locator('[data-shell-pinned-slot] [data-composer-root]')
-        if (width < 1024) {
-          await expect(pinned).toBeVisible()
-          await expect(pinned.getByRole('group', { name: messages.shell.composer.suggestionsLabel })).toHaveCount(0)
-          const pinnedControls = pinned.locator('button:visible:not(:disabled)')
-          expect(await pinnedControls.count()).toBeGreaterThanOrEqual(2)
-          for (let index = 0; index < await pinnedControls.count(); index += 1) {
-            const control = pinnedControls.nth(index)
-            const enterWith = await control.getAttribute('data-open-conversation') === null ? 'Shift+Tab' : 'Tab'
-            await expectCompleteTabIndicator(page, control, `pinned composer control ${index}`, enterWith)
-          }
-          await pinned.locator('[data-composer-input]').focus()
-        } else {
-          await expect(pinned).toHaveCount(0)
-          const astra = getShellConversationEntry(page, width, messages)
-          await expectCompleteTabIndicator(page, astra, 'sidebar Astra row')
-          await astra.click()
-        }
+        await expect(pinned).toHaveCount(0)
+        const astra = getShellConversationEntry(page, width, messages)
+        await expectCompleteTabIndicator(page, astra, 'Astra entry')
+        await astra.click()
         const conversation = page.locator('[data-shell-conversation]')
         await expect(conversation).toBeVisible()
         const field = conversation.locator('[data-composer-input]')

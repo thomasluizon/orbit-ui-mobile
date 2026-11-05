@@ -1823,7 +1823,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
 
   button[data-variant="primary"]:enabled:hover,
-  [data-fab]:hover {
+  [data-fab]:not([data-fab="neutral"]):hover {
     background: var(--primary-hover);
   }
 
@@ -2877,6 +2877,10 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   --keyboard-viewport-height: 100%;
   --shell-safe-left: var(--safe-left);
   --shell-safe-right: var(--safe-right);
+}
+
+[data-shell-page] {
+  --shell-astra-clearance: calc(var(--orbit-space-96) + var(--orbit-space-64) + var(--orbit-space-16));
 }
 
 [data-shell-page-content] {

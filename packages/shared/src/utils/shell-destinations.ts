@@ -45,17 +45,16 @@ export interface ShellChrome {
   flow: boolean
 }
 
-export function resolveShellChrome(pathname: string, lastDestination: ShellDestinationId = 'hoje', compact = true): ShellChrome {
+export function resolveShellChrome(pathname: string, lastDestination: ShellDestinationId = 'hoje'): ShellChrome {
   const destination = resolveShellDestination(pathname)
   return {
     activeId: pathname === '/search' ? lastDestination : destination ?? lastDestination,
-    composer: (compact && pathname === '/') || /^\/habits\/[^/]+$/.test(pathname),
+    composer: /^\/habits\/[^/]+$/.test(pathname),
     flow: pathname === '/wrapped' || pathname === '/upgrade' || pathname === '/habits/new',
   }
 }
 
-export function resolveShellComposerScope(pathname: string): 'today' | 'habit' | undefined {
-  if (pathname === '/') return 'today'
+export function resolveShellComposerScope(pathname: string): 'habit' | undefined {
   if (/^\/habits\/[^/]+$/.test(pathname) && pathname !== '/habits/new') return 'habit'
   return undefined
 }

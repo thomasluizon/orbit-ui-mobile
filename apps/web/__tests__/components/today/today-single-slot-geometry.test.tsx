@@ -16,7 +16,6 @@ import { useTodayNavigation } from '@/app/(app)/use-today-navigation'
 import { useHabitViewSearch } from '@/hooks/use-habit-view-search'
 import type { ActiveView } from '@orbit/shared/stores'
 import { DestinationShell } from '@/components/shell/destination-shell'
-import { Composer } from '@/components/shell/composer'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -143,7 +142,7 @@ function configureSlotState(state: string, locale: 'en' | 'pt-BR') {
         mocks.lastCompletionDate = state === 'returning' ? '2000-01-01' : null
 }
 
-describe('Hoje one Astra place at each shell width', () => {
+describe('Hoje floating Astra entry and contextual actions at each shell width', () => {
   let launch: BrowserLaunch | undefined
   let browser: Browser
   let stylesheet: string
@@ -164,8 +163,7 @@ describe('Hoje one Astra place at each shell width', () => {
       for (const state of ['check-in', 'returning', 'loading', 'summary', 'error', 'free', 'none', 'all', 'general']) {
         configureSlotState(state, locale)
         const { container, unmount } = render(<NextIntlClientProvider locale={locale} messages={messages}>
-          <DestinationShell onCreate={() => {}} composer={<Composer state="idle" value="" suggestions={[]} words={messages.shell.composer}
-            onChangeValue={vi.fn()} onSend={vi.fn()} onOpenConversation={vi.fn()} conversationLabel={messages.todayAstra.openConversation} />}>
+          <DestinationShell onCreate={() => {}}>
             <TodayPageClient initialToday="2026-08-29" initialHabits={null} />
           </DestinationShell>
         </NextIntlClientProvider>)
@@ -181,6 +179,8 @@ describe('Hoje one Astra place at each shell width', () => {
             const sentence = line?.querySelector('.today-astra-sentence')
             return {
               glyphs: glyphs.length, slots: slots.length,
+              floatingButtons: [...document.querySelectorAll('[data-astra-button]')].filter(visible).length,
+              composers: document.querySelectorAll('[data-composer-root]').length,
               composerGlyphs: glyphs.filter(glyph => glyph.closest('[data-composer-root]')).length,
               entryGlyphs: glyphs.filter(glyph => glyph.closest('[data-open-conversation]')).length,
               sendGlyphs: glyphs.filter(glyph => glyph.closest('[data-composer-trailing-controls] > button')).length,
@@ -193,17 +193,11 @@ describe('Hoje one Astra place at each shell width', () => {
             }
           })
           const slotAbsent = state === 'none' || state === 'all' || state === 'general'
-          const shellGlyphs = 1
-          const composerEntries = Number(!mocks.wide)
+          const shellGlyphs = 1 + Number(mocks.wide)
           const slotCount = Number(!slotAbsent)
           expect(geometry, state).toMatchObject({ glyphs: shellGlyphs + slotCount,
-            composerGlyphs: composerEntries, entryGlyphs: composerEntries, sendGlyphs: 0,
+            floatingButtons: 1, composers: 0, composerGlyphs: 0, entryGlyphs: 0, sendGlyphs: 0,
             slots: slotCount, slotGlyphs: slotCount, overflow: false, retiredHeading: false })
-          if (!mocks.wide) {
-            const send = page.getByRole('button', { name: messages.shell.composer.send, exact: true })
-            expect(await send.textContent()).toBe('')
-            expect(await send.locator('svg.tabler-icon-arrow-up').count()).toBe(1)
-          }
           if (!slotAbsent) {
             expect(geometry.lineHeight).toBeGreaterThanOrEqual(48)
             expect(geometry.proseHeight).toBeLessThanOrEqual(geometry.proseLineHeight * 2 + 1)

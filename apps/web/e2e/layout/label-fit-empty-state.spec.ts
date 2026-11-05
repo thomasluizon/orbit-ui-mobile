@@ -83,7 +83,7 @@ for (const width of [320, 360, 384, 412]) {
 
       test('the empty Astra conversation keeps its invitation whole', async ({ page }) => {
         await page.goto('/')
-        await page.locator('[data-open-conversation]').click()
+        await page.getByRole('button', { name: words.shell.astraButton.open, exact: true }).click()
         await expectEmptyTitle(page, page, words.chat.empty.title)
       })
 

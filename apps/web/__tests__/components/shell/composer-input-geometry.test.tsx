@@ -215,11 +215,11 @@ describe('Composer compact geometry in Chromium', () => {
 
 
   it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }].flatMap(({ locale, messages }) =>
-    ['today', 'habitDetail', 'habitDetailWithoutSuggestions'].map(surface => ({ locale, messages, surface })),
+    ['habitDetail', 'habitDetailWithoutSuggestions'].map(surface => ({ locale, messages, surface })),
   ))(
     'fits the approved $locale placeholder across adjacent compact widths on $surface', async ({ messages, surface }) => {
       const configuration = { ...geometryProps('idle', messages, true), clipboardText: 'Pasted message', testSurface: surface,
-        collapsible: surface !== 'today',
+        collapsible: true,
         suggestions: surface === 'habitDetail' ? liveChipSuggestions('habitDetail', messages).suggestions : [],
       }
       const page = await browser.newPage({ viewport: { width: 320, height: 915 } })

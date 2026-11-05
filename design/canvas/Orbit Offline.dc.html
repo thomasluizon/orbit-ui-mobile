@@ -274,9 +274,8 @@ class Component extends DCLogic {
       }),
       bottom: s.gone ? null : this.toast(st === 'dropped' ? 'dropped' : st, t, D, queued,
         t.lang === 'en' ? 'Walk' : 'Caminhada'),
-      /* Hoje's composer, prop for prop: Hoje is the authority for this surface. The offline half's
-         onRetry is deliberately NOT passed: it exists for a message that failed to send, and nothing
-         has been sent on this screen, so it would be a control with nothing to retry. */
+      /* The canvas amendment moves this composer into the conversation opened by Hoje's floating
+         Astra entry. The export's offline state omits onRetry because no message has been sent. */
       composer: H(D.Composer, { state: st === 'queued' ? 'offline' : 'resting',
         chips: t.chips.slice(0, 4),
         limitReason: H('span', null, t.limit[0], mock(t.limit[1]), t.limit[2]),

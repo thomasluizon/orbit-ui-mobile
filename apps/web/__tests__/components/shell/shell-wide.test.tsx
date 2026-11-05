@@ -2,7 +2,6 @@ import { useState, useLayoutEffect, type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { Composer } from '@/components/shell/composer'
-import { useChatStore } from '@/stores/chat-store'
 import { AppToastHost } from '@/components/ui/app-toast-host'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { Fab } from '@/components/ui/fab'
@@ -48,64 +47,6 @@ describe('ShellWide', () => {
     })))
   })
 
-  it.each([412, 1000])('closes the compact composer menu at the wide breakpoint from %ipx and focuses Astra without losing the draft', async (width) => {
-    media.width = width
-    const listeners = new Set<() => void>()
-    vi.stubGlobal('matchMedia', (query: string) => ({
-      get matches() { return media.width >= Number(query.match(/min-width: (\d+)px/)?.[1]) },
-      addEventListener: (_event: string, listener: () => void) => listeners.add(listener),
-      removeEventListener: (_event: string, listener: () => void) => listeners.delete(listener),
-    }))
-    useChatStore.getState().setDraft('')
-    const onChangeValue = vi.fn((value: string) => useChatStore.getState().setDraft(value))
-    const onSend = vi.fn()
-    const onVoice = vi.fn()
-    const onAttachFile = vi.fn()
-    const onAttachImage = vi.fn()
-    function DraftComposer() {
-      const draft = useChatStore(state => state.draft)
-      return <Composer state="idle" value={draft} onChangeValue={onChangeValue} onSend={onSend} suggestions={[]}
-        words={{ placeholder: 'Ask Astra', send: 'Send', paste: 'Paste', nothingToPaste: 'Nothing to paste', clear: 'Clear message', actions: 'Attach', suggestionsLabel: 'Suggestions' }}
-        onAttachFile={onAttachFile} onAttachImage={onAttachImage}
-        attachWords={{ file: 'Document', image: 'Photo', trayLabel: 'Attachments', remove: name => `Remove ${name}` }}
-        onVoice={onVoice} voiceWords={{ start: 'Voice', stop: 'Stop', recording: 'Recording', transcribing: 'Transcribing' }} />
-    }
-    render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={items} activeId="hoje" navLabel="Main navigation"
-      compactComposer={<DraftComposer />}
-      tabBar={<nav>Tabs</nav>}><h1>Today</h1></ShellWide>)
-    const input = screen.getByRole('textbox')
-    fireEvent.change(input, { target: { value: 'Keep this draft' } })
-    expect(onChangeValue).toHaveBeenCalledExactlyOnceWith('Keep this draft')
-    onChangeValue.mockClear()
-    const trigger = screen.getByRole('button', { name: 'Attach' })
-    act(() => trigger.focus())
-    fireEvent.keyDown(trigger, { key: 'ArrowDown' })
-    const menu = await screen.findByRole('menu', { name: 'Attach' })
-    expect(within(menu).getAllByRole('menuitem').map(item => item.textContent)).toEqual(['Photo', 'Document'])
-    act(() => { media.width = 1100; listeners.forEach(listener => listener()) })
-    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Astra' })).toHaveFocus())
-    expect(document.querySelectorAll('[data-shell-pinned-slot] [data-composer-root]')).toHaveLength(0)
-    expect(document.querySelector('[data-shell-bottom]')).not.toContainElement(input)
-    expect(document.querySelectorAll('[data-composer-root]')).toHaveLength(0)
-    expect(document.querySelectorAll('[data-shell-pinned-slot]')).toHaveLength(0)
-    expect(input).not.toBeInTheDocument()
-    act(() => { media.width = width; listeners.forEach(listener => listener()) })
-    const restoredInput = screen.getByRole('textbox')
-    expect(restoredInput).toHaveValue('Keep this draft')
-    expect(restoredInput).not.toBe(input)
-    const restoredTrigger = screen.getByRole('button', { name: 'Attach' })
-    expect(restoredTrigger).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
-    act(() => restoredTrigger.focus())
-    fireEvent.click(restoredTrigger)
-    await screen.findByRole('menu', { name: 'Attach' })
-    fireEvent.keyDown(document, { key: 'Escape' })
-    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
-    await waitFor(() => expect(restoredTrigger).toHaveFocus())
-    for (const callback of [onChangeValue, onSend, onVoice, onAttachFile, onAttachImage]) expect(callback).not.toHaveBeenCalled()
-  })
-
   it('hosts the pill below the header outside the scroller and suppresses it during conversation', () => {
     const shell = (conversation?: ReactNode) => <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={items} activeId="hoje" navLabel="Main navigation"
       header={<div>Header</div>} tabBar={<nav>Tabs</nav>} fab={<button type="button">Create</button>}
@@ -122,16 +63,15 @@ describe('ShellWide', () => {
     expect(container.querySelector<HTMLElement>('[data-shell-scroll-to-top]')).toBeNull()
   })
 
-  it('unmounts the compact composer at wide widths while keeping the selection tray', () => {
+  it('keeps resting Hoje without a pinned dock and retains the selection tray', () => {
     media.width = 1352
     const props = { items, activeId: 'hoje', navLabel: 'Navigation', astraRow: { label: 'Astra', onOpen: vi.fn() } }
-    const compact = <textarea aria-label="Draft" defaultValue="Retained draft" />
-    const view = render(<ShellWide {...props} compactComposer={compact} />)
+    const view = render(<ShellWide {...props} />)
     expect(screen.queryByLabelText('Draft')).not.toBeInTheDocument()
     expect(view.container.querySelector('[data-shell-pinned-slot]')).toBeNull()
     view.rerender(<ShellWide {...props} composer={<button type="button">Selection</button>} />)
     expect(view.container.querySelector('[data-shell-pinned-slot]')).toContainElement(screen.getByRole('button', { name: 'Selection' }))
-    view.rerender(<ShellWide {...props} compactComposer={compact} />)
+    view.rerender(<ShellWide {...props} />)
     expect(view.container.querySelector('[data-shell-pinned-slot]')).toBeNull()
     expect(screen.queryByLabelText('Draft')).not.toBeInTheDocument()
     view.rerender(<ShellWide {...props} activeId="calendario" />)
