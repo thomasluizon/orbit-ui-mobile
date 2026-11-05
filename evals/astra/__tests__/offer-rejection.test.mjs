@@ -1,3 +1,4 @@
+import { evalSnapshot } from './fixtures/eval-snapshot.mjs'
 import { afterEach, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -64,7 +65,7 @@ async function rejectionAttempt(locale, fault) {
   vi.stubGlobal('fetch', async (url, options) => {
     const path = new URL(url).pathname
     requests.push({ path, method: options.method })
-    if (path === '/api/profile/export') return Response.json(state)
+    if (path === '/api/eval/snapshot') return Response.json(evalSnapshot(state))
     const revisionPath = `/api/ai/pending-operations/${original.id}`
     if (path === `${revisionPath}/confirm`) return Response.json({ error: 'pending_operation_not_found' }, { status: 404 })
     // PendingOperationRevisionService.ReviseAsync returns a preview, or cancels an empty selection.
@@ -120,9 +121,9 @@ it.each(['en', 'pt-BR'])('accepts reminder removal through main provider verific
   const { response, grade, requests } = await rejectionAttempt(locale, 'valid')
   expect(response.output.offerReadback, response.output.offerReadback.reason).toMatchObject({ pass: true })
   expect(grade, grade.reason).toMatchObject({ pass: true })
-  expect(requests.map(({ path }) => path)).toEqual(['/api/chat', '/api/chat', '/api/profile/export',
+  expect(requests.map(({ path }) => path)).toEqual(['/api/chat', '/api/chat', '/api/eval/snapshot',
     `/api/ai/pending-operations/${preview().id}/revise`, `/api/ai/pending-operations/${preview().id}/revise`,
-    `/api/ai/pending-operations/${preview().id}/confirm`, '/api/profile/export'])
+    `/api/ai/pending-operations/${preview().id}/confirm`, '/api/eval/snapshot'])
 })
 
 it.each(['en', 'pt-BR'])('requires the removable reminder group on the setup turn: %s', async (locale) => {

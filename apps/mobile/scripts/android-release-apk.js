@@ -10,8 +10,8 @@ Usage:
 
 Options:
   --emulator  Also build the x86_64 slice so the APK installs on an Android emulator.
-              Production keeps app.json's ARM-only buildArchs; this overrides the
-              generated gradle.properties for this build only.
+              Local defaults keep app.json's ARM buildArchs; this overrides the
+              generated gradle.properties for this build.
   --help, -h  Print this usage and exit 0.
 
 Exit codes:
@@ -98,7 +98,7 @@ const gradleArgs = [
 ]
 
 if (emulator) {
-  // gradle.properties documents this override; app.json stays ARM-only for Play.
+  // Keep local ARM defaults; CI also adds x86_64 to run the shipping AAB's boot gate.
   gradleArgs.push('-PreactNativeArchitectures=armeabi-v7a,arm64-v8a,x86_64')
   console.log('Emulator build: adding the x86_64 ABI on top of app.json buildArchs.')
 }

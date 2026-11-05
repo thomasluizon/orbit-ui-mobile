@@ -2805,10 +2805,6 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 .celebration-copy { min-width: min(100%, 7em); }
 .daily-streak-clip > span { grid-area: 1 / 1; }
 .daily-streak-previous { opacity: 0; }
-@keyframes celebration-ring-sweep {
-  from { stroke-dashoffset: var(--celebration-ring-length); }
-  to { stroke-dashoffset: 0; }
-}
 @keyframes daily-streak-previous {
   from { transform: translateY(0); opacity: 1; }
   to { transform: translateY(-12px); opacity: 0; }
@@ -2818,7 +2814,6 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   to { transform: translateY(0); opacity: 1; }
 }
 @media (prefers-reduced-motion: no-preference) {
-  [data-entering] .celebration-ring { animation: celebration-ring-sweep var(--dur-3) var(--ease-out); }
   [data-entering] .daily-streak-previous { animation: daily-streak-previous var(--dur-3) var(--ease-out); }
   [data-entering] .daily-streak-number { animation: daily-streak-number var(--dur-3) var(--ease-out); }
 }

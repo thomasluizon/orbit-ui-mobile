@@ -26,9 +26,11 @@ keeps its growing allocation and its ScrollView keeps symmetric 16px thread inse
 disclosure follows the action within the shared component, so its 48px outer padding no longer
 separates those two elements. Short threads scroll without clipping either end.
 
-Hoje's `HabitListAllDone` centres a still 16px monochrome Orbit mark inside a complete
-44px neutral ring, followed by a display 22px acknowledgement and one factual line paired
-with 8px. The mark, text group and optional See tomorrow ghost pill use a 24px stack,
+Under D42, the owner's order in #2008 amends the granted drawing:
+"que cacete de logo é essa, coloca a do orbit".
+Hoje's `HabitListAllDone` centres the normal still 48px monochrome `--fg-1` Orbit logo
+itself, without a surrounding ring, followed by a display 22px acknowledgement and one factual
+line paired with 8px. The mark, text group and optional See tomorrow ghost pill use a 24px stack,
 24px inline padding and symmetric 48px block padding. Completion carries no accent or
 entrance animation, including under reduced motion. Web owns it in
 `habits/habit-list/empty-state.tsx`; Android owns it in `habit-list/empty-state.tsx`.
@@ -40,8 +42,8 @@ normal line and list in the next render, without a dismissal delay.
 Web `chat-empty-state-geometry.test.tsx` mounts the conversation owner and measures the
 visible group's centre, 48px mark and 24px disclosure gap, including compact, foldable and
 740px desktop columns in both locales. `habit-list-all-done-geometry.test.tsx` measures the
-mark and ring sizes, centring, whole labels, 8px text pairing, 24px action clearance and
-the static reduced-motion state. Shared primitive geometry and behaviour tests
+normal logo paths, 48px size, absence of a second ring, centring, whole labels, 8px text pairing,
+24px action clearance and the static reduced-motion state. Shared primitive geometry and behaviour tests
 retain title fit, both identity carriers and the single supplied action.
 
 Android `astra-full-screen-geometry.test.tsx` mounts Shell412 with the conversation, measures

@@ -4,9 +4,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { refreshCredential } from '../credentials.mjs'
 import { beforeEach } from '../hooks.mjs'
+import AstraHttpProvider from '../http-provider.mjs'
+import { summarize } from '../report.mjs'
 
 const directories = []
 afterEach(() => {
+  vi.useRealTimers()
   vi.unstubAllGlobals()
   vi.unstubAllEnvs()
   for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true })
@@ -38,12 +41,11 @@ it('refreshes before an attempt and durably rotates only the selected account', 
   expect(JSON.parse(readFileSync(path, 'utf8')).ORBIT_EVAL_TOKEN.refreshToken).toBe('rotated-refresh')
   expect(statSync(path).mode & 0o777).toBe(0o600)
 })
-it.each(['missing', 'permissions', 'rejected', 'malformed', 'network'])('stops before chat when refresh is %s', async (failure) => {
+it.each(['missing', 'permissions', 'rejected', 'malformed'])('stops before chat when refresh is %s', async (failure) => {
   const path = credentials(failure === 'permissions' ? 0o644 : 0o600)
   if (failure === 'missing') writeFileSync(path, '{}')
   const request = vi.fn(async (url) => {
     expect(url).toContain('/api/auth/refresh')
-    if (failure === 'network') throw new Error('SECRET_REFRESH_TOKEN')
     return failure === 'malformed' ? Response.json({ token: 'secret' }) : Response.json({ error: 'SECRET' }, { status: 401 })
   })
   vi.stubGlobal('fetch', (url, options) => new URL(url).pathname === '/health'
@@ -53,8 +55,8 @@ it.each(['missing', 'permissions', 'rejected', 'malformed', 'network'])('stops b
   expect(test.vars.preconditionFailure).not.toContain('SECRET')
   expect(process.env.ORBIT_EVAL_TOKEN).toBeUndefined()
   if (['missing', 'permissions'].includes(failure)) expect(request).not.toHaveBeenCalled()
-  expect(existsSync(`${path}.refresh-failed`)).toBe(['rejected', 'malformed', 'network'].includes(failure))
-  if (['rejected', 'malformed', 'network'].includes(failure)) {
+  expect(existsSync(`${path}.refresh-failed`)).toBe(['rejected', 'malformed'].includes(failure))
+  if (['rejected', 'malformed'].includes(failure)) {
     await expect(refreshCredential('ORBIT_EVAL_TOKEN')).rejects.toThrow('A refresh already failed')
     expect(request).toHaveBeenCalledTimes(1)
     expect(JSON.parse(readFileSync(path, 'utf8')).ORBIT_EVAL_TOKEN.refreshToken).toBe('old-refresh')
@@ -234,3 +236,104 @@ it('blocks an interrupted submission without making another request', async () =
   expect(request).not.toHaveBeenCalled()
   expect(existsSync(`${path}.refresh-failed`)).toBe(true)
 })
+
+it.each([502, 503, 504, 'network', 'body-network'])('requires session recovery after ambiguous refresh %s even without server rotation', async (failure) => {
+  const path = credentials()
+  const request = vi.fn(async (url) => {
+    expect(new URL(url).pathname).toBe('/api/auth/refresh')
+    if (failure === 'network') throw new TypeError('SECRET_REFRESH_TOKEN')
+    if (failure === 'body-network') return new Response(new ReadableStream({
+      start(controller) { controller.error(new TypeError('SECRET_REFRESH_TOKEN')) },
+    }))
+    return new Response(null, { status: failure })
+  })
+  vi.stubGlobal('fetch', (url, options) => new URL(url).pathname === '/health'
+    ? Promise.resolve(Response.json({ status: 'Healthy', commit: null, checks: [] })) : request(url, options))
+  const failed = (await beforeEach(attempt())).test
+  expect(failed.vars.preconditionFailure).toContain('TRANSIENT_INFRASTRUCTURE')
+  expect(failed.vars.preconditionFailure).not.toContain('SECRET')
+  expect(request).toHaveBeenCalledTimes(1)
+  expect(process.env.ORBIT_EVAL_TOKEN).toBeUndefined()
+  expect(JSON.parse(readFileSync(path, 'utf8')).ORBIT_EVAL_TOKEN.refreshToken).toBe('old-refresh')
+  expect(existsSync(`${path}.refresh-failed`)).toBe(true)
+  expect(existsSync(`${path}.lock`)).toBe(false)
+  expect(existsSync(`${path}.rotated`)).toBe(false)
+  const next = (await beforeEach(attempt())).test
+  expect(next.vars.preconditionFailure).toContain('TRANSIENT_INFRASTRUCTURE')
+  expect(request).toHaveBeenCalledTimes(1)
+  expect(existsSync(`${path}.refresh-failed`)).toBe(true)
+})
+
+it.each([400, 401])('keeps HTTP %s fatal without retrying or letting a later case submit', async (status) => {
+  const path = credentials()
+  const request = vi.fn(async (url) => new URL(url).pathname === '/health'
+    ? Response.json({ status: 'Healthy', commit: null, checks: [] }) : new Response(null, { status }))
+  vi.stubGlobal('fetch', request)
+  expect((await beforeEach(attempt())).test.vars.preconditionFailure).toContain(`HTTP ${status}`)
+  const submitted = request.mock.calls.length
+  expect(existsSync(`${path}.refresh-failed`)).toBe(true)
+  expect((await beforeEach(attempt())).test.vars.preconditionFailure).toContain('A refresh already failed')
+  expect(request).toHaveBeenCalledTimes(submitted)
+  expect(process.env.ORBIT_EVAL_TOKEN).toBeUndefined()
+})
+
+it.each(['network', 'body-network', 'malformed-json', 'malformed-session', 502, 503, 504])(
+  'never replays a consumed refresh token after a lost response: %s', async (failure) => {
+    const path = credentials()
+    vi.useFakeTimers()
+    let currentToken = 'old-refresh'
+    let revoked = false
+    const submitted = []
+    vi.stubGlobal('fetch', async (url, options) => {
+      if (new URL(url).pathname === '/health') return Response.json({ status: 'Healthy', commit: null, checks: [] })
+      expect(new URL(url).pathname).toBe('/api/auth/refresh')
+      const { refreshToken } = JSON.parse(options.body)
+      submitted.push(refreshToken)
+      if (refreshToken !== currentToken) {
+        revoked = true
+        return new Response(null, { status: 401 })
+      }
+      currentToken += '-rotated'
+      if (submitted.length > 1) return Response.json({ token: 'recovered-access', refreshToken: currentToken })
+      if (failure === 'network') throw new TypeError('SECRET_REFRESH_TOKEN')
+      if (failure === 'body-network') return new Response(new ReadableStream({
+        start(controller) { controller.error(new TypeError('SECRET_REFRESH_TOKEN')) },
+      }))
+      if (failure === 'malformed-json') return new Response('{"token":')
+      if (failure === 'malformed-session') return Response.json({ token: 'SECRET_ACCESS_TOKEN' })
+      return new Response(null, { status: failure })
+    })
+    const pending = beforeEach(attempt())
+    await vi.advanceTimersByTimeAsync(1000)
+    const { test } = await pending
+    expect(submitted).toEqual(['old-refresh'])
+    expect(revoked).toBe(false)
+    expect(test.vars.preconditionFailure).toContain('TRANSIENT_INFRASTRUCTURE')
+    expect(test.vars.preconditionFailure).not.toContain('SECRET')
+    expect(process.env.ORBIT_EVAL_TOKEN).toBeUndefined()
+    expect(JSON.parse(readFileSync(path, 'utf8')).ORBIT_EVAL_TOKEN.refreshToken).toBe('old-refresh')
+    expect(existsSync(`${path}.refresh-failed`)).toBe(true)
+    expect(existsSync(`${path}.lock`)).toBe(false)
+    const provider = new AstraHttpProvider({ config: { url: 'https://astra.invalid/api/chat' } })
+    const response = await provider.callApi('Create Stretch', { vars: test.vars })
+    expect(response.error).toContain('TRANSIENT_INFRASTRUCTURE')
+    expect(provider.provider).toBeNull()
+    const summary = summarize([{ testCase: test, response, error: response.error, success: false }], [test.metadata])
+    expect(summary.cases[0]).toMatchObject({ passed: 0, unavailable: 1, allAttemptsPass: 'incomplete' })
+    expect(summary.cases[0].unavailableReasons[0]).toContain('TRANSIENT_INFRASTRUCTURE')
+    const next = (await beforeEach(attempt())).test
+    expect(next.vars.preconditionFailure).toContain('TRANSIENT_INFRASTRUCTURE')
+    expect(submitted).toEqual(['old-refresh'])
+    expect(existsSync(`${path}.refresh-failed`)).toBe(true)
+    writeFileSync(path, JSON.stringify({ ORBIT_EVAL_TOKEN: { refreshToken: 'fresh-session' } }))
+    currentToken = 'fresh-session'
+    rmSync(`${path}.refresh-failed`)
+    const recovered = (await beforeEach(attempt())).test
+    expect(recovered.vars).not.toHaveProperty('preconditionFailure')
+    expect(submitted).toEqual(['old-refresh', 'fresh-session'])
+    expect(revoked).toBe(false)
+    expect(process.env.ORBIT_EVAL_TOKEN).toBe('recovered-access')
+    expect(JSON.parse(readFileSync(path, 'utf8')).ORBIT_EVAL_TOKEN.refreshToken).toBe('fresh-session-rotated')
+    expect(existsSync(`${path}.refresh-failed`)).toBe(false)
+  },
+)

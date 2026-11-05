@@ -1,8 +1,10 @@
+import { ORBIT_MARK_PATHS } from '@orbit/shared/contracts/brand'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppState, StyleSheet, View } from 'react-native'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { useUIStore } from '@/stores/ui-store'
 import { CelebrationPanel } from '@/components/gamification/celebration-panel'
+import { OrbitMark } from '@/components/ui/orbit-mark'
 import { Shell412 } from '@/components/shell/shell-412'
 
 const TestRenderer = require('react-test-renderer')
@@ -50,8 +52,9 @@ describe('CelebrationPanel mobile', () => {
 
     expect(tree!.root.findByProps({ testID: 'celebration-panel' })).toBeTruthy()
     expect(StyleSheet.flatten(tree!.root.findByProps({ testID: 'celebration-panel' }).props.style).marginHorizontal ?? 0).toBe(0)
-    expect(tree!.root.findByProps({ testID: 'celebration-ring' })).toBeTruthy()
-    expect(tree!.root.findAllByProps({ testID: 'celebration-ring-travel' })).toHaveLength(0)
+    expect(tree!.root.findByProps({ testID: 'orbit-mark' }).props).toMatchObject({ width: 44, height: 44 })
+    expect(tree!.root.findAllByType('Path').map((path: { props: { d: string } }) => path.props.d)).toEqual(ORBIT_MARK_PATHS.map(path => path.d))
+    expect(tree!.root.findAllByType('Circle')).toHaveLength(0)
     expect(tree!.root.findAllByProps({ accessibilityViewIsModal: true })).toHaveLength(0)
     expect(tree!.root.findByProps({ testID: 'shell-background' }).props.importantForAccessibility).toBe('auto')
     expect(tree!.root.findByProps({ testID: 'shell-scroller' }).findByProps({ testID: 'habit-list' })).toBeTruthy()
@@ -177,6 +180,13 @@ it.each(['daily-streak', 'streak'] as const)('retains the actual %s queue item a
   let tree: ReturnType<typeof TestRenderer.create>
   TestRenderer.act(() => { tree = TestRenderer.create(<CelebrationPanel />) })
   try {
+    const mark = tree!.root.findByType(OrbitMark)
+    expect(mark.props).toMatchObject({ size: 44, accent: false })
+    expect(StyleSheet.flatten(mark.parent!.props.style)).toMatchObject({ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' })
+    expect(tree!.root.findAllByType('Path').map((path: { props: { d: string } }) => path.props.d)).toEqual(ORBIT_MARK_PATHS.map(path => path.d))
+    expect(tree!.root.findAllByType('Circle')).toHaveLength(0)
+    const panel = tree!.root.findByProps({ testID: kind === 'streak' ? 'celebration-panel' : 'daily-streak-moment' })
+    expect(StyleSheet.flatten(panel.props.style)).toMatchObject({ gap: kind === 'streak' ? 16 : 12, padding: kind === 'streak' ? 24 : 16 })
     const close = tree!.root.findAllByProps({ accessibilityLabel: 'celebration.close:{}' }).at(-1)!
     TestRenderer.act(() => close.props.onPress())
     expect(useUIStore.getState().activeCelebration?.id).toBe(id)

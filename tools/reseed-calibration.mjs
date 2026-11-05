@@ -73,6 +73,8 @@ const VERDICTS = {
     "undeclared, inherits the session: security findings need judgment because missed authorization gaps may be invisible in output.",
   ".claude/skills/audit-tests/SKILL.md":
     "undeclared, inherits the session: the test audit judges coverage and opens tickets.",
+  ".claude/skills/auto-work/SKILL.md":
+    "undeclared, inherits the session: runs continuous source intake through the existing sleep lifecycle, classifies feedback and preserves independent crank and relay state without changing model or effort routing.",
   ".claude/skills/crank/SKILL.md":
     "undeclared, inherits the session: toggles durable orchestrator scheduling within existing caps and quality gates, without changing model or effort routing.",
   ".claude/skills/deep-research/SKILL.md":

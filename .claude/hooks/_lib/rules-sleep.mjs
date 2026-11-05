@@ -47,6 +47,7 @@ export function checkSleepStop({ state, wakeSources = [], orphanedWakeSources = 
 
   if (remaining.length === 0 && pendingPullRequests.length === 0 && invalidPullRequestIdentities === 0) {
     if (live.length > 0) return null
+    if (state.autoWork === true) return { block: true, message: "Auto-work remains active with an empty queue. Start node tools/wait-auto-work.mjs as a background task and name its registered wake source, or honor the owner's /auto-work --disable." }
     const machinePressure = blockedPullRequests.filter(isMachinePressureBlocker)
     if (machinePressure.length > 0) {
       return {

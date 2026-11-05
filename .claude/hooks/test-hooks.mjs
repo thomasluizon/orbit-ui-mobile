@@ -16,13 +16,13 @@ import { checkAdminMerge, checkBroadStaging, checkEngineInvocation } from "./_li
 import { checkSleepStop } from "./_lib/rules-sleep.mjs"
 import { checkHandoffCommit, checkHandoffStop, gitCommitDirectory } from "./_lib/rules-handoff.mjs"
 import { newestCommittedPrompt, promptsForCommit } from "./_lib/handoff-git.mjs"
-import { parseHandoffRequest, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "../../tools/lib/handoff-prompt.mjs"
+import { adoptOwnerHandoffRun, parseHandoffRequest, prepareOwnerHandoffRun, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "../../tools/lib/handoff-prompt.mjs"
 import { checkDependencyCommand, checkDependencyFileWrite } from "./_lib/rules-dependencies.mjs"
 import { checkWorkerBrowser } from "./_lib/rules-worker.mjs"
 import { declaredRepoRoots } from "./_lib/repo-roots.mjs"
 import { readRunState, writeRunState } from "../../tools/lib/run-state.mjs"
 import { checkRelayStop } from "./_lib/rules-relay.mjs"
-import { adoptRelayRun, appendChainEntry, confirmChainSuccessor, openSessionChain } from "../../tools/lib/session-chain.mjs"
+import { adoptRelayRun, appendChainEntry, closeSessionChain, confirmChainSuccessor, openSessionChain } from "../../tools/lib/session-chain.mjs"
 
 const hooksDir = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(hooksDir, "..", "..")
@@ -590,6 +590,8 @@ T("sleep-stop: a registered but DEAD wake source is not one", blocks(stop({ stat
 T("sleep-stop: a dead launcher with a live worker is reported separately",
   checkSleepStop({ state: sleeping, orphanedWakeSources: [{ pid: 100, workerPid: 200 }], sessionId: "s1", isWakeSourceAlive: dead })?.message.includes("orphaned worker pid 200"), true)
 T("sleep-stop: an exhausted queue allows", checkSleepStop({ state: { ...sleeping, remaining: [] }, sessionId: "s1", isWakeSourceAlive: dead }), null)
+T("auto-work: empty queue still requires a wake source", blocks(stop({ state: { ...sleeping, remaining: [], autoWork: true } })), true)
+T("auto-work: disabled mode restores queue exhaustion", checkSleepStop({ state: { ...sleeping, remaining: [], autoWork: false }, sessionId: "s1", isWakeSourceAlive: dead }), null)
 const salvaged = { ...sleeping, remaining: [], pullRequests: [{ repositoryKey: "ui", prNumber: 690, receiptPath: "C:/receipt.json" }] }
 T("sleep-stop: an open pull request with no READY receipt blocks the queue from reading as done", blocks(stop({ state: salvaged })), true)
 T("sleep-stop: the refusal names the repository-qualified pull request and receipt debt", stop({ state: salvaged })?.message.includes("ui#690") && stop({ state: salvaged })?.message.includes("READY final-head receipt"), true)
@@ -1277,7 +1279,7 @@ T("relay fixture: base configuration is available", stagingGit(["update-ref", "r
 for (const name of ["relay-at-threshold.mjs", "forbid-superseded-session.mjs", "record-handoff-request.mjs", "require-handoff-prompt.mjs"]) cpSync(join(hooksDir, name), join(wakeHooks, name))
 const relayDecisionLog = join(wakeCheckout, ".git", "relay-decisions.md")
 writeFileSync(relayDecisionLog, "No open decisions.\n")
-const relayState = { sessionId: "relay-parent", sleep: true, remaining: ["#1091"], decisionLogPath: relayDecisionLog }
+const relayState = { autoWork: false, sessionId: "relay-parent", sleep: true, remaining: ["#1091"], decisionLogPath: relayDecisionLog }
 const relayOptions = { enabled: true, thresholdTokens: 400000, state: relayState, sessionId: relayState.sessionId, measuredTokens: 400000 }
 T("relay: below threshold is inert", checkRelayStop({ ...relayOptions, measuredTokens: 399999 }), null)
 T("relay: kill switch is inert", checkRelayStop({ ...relayOptions, enabled: false }), null)
@@ -1381,6 +1383,10 @@ writeRunState({ ...relayState, crank: true }, wakeCheckout)
 postToolRelay()
 T("relay crank: threshold records durable crank mode", readHandoffRequest("relay-parent", wakeCheckout)?.crank, true)
 T("relay crank: threshold preserves run mode", readRunState(wakeCheckout).crank, true)
+writeRunState({ ...relayState, autoWork: true }, wakeCheckout)
+postToolRelay()
+T("relay auto-work: threshold records durable mode", readHandoffRequest("relay-parent", wakeCheckout)?.autoWork, true)
+writeRunState({ ...readRunState(wakeCheckout), autoWork: false }, wakeCheckout)
 writeRunState(stopRelayState, wakeCheckout)
 recordHandoffRequest("relay-parent", stopRelayRequest, stopRelayRequest.recordedAt, wakeCheckout)
 const postToolCrossing = relayMeasurements.at(-1).result
@@ -1537,16 +1543,17 @@ recordHandoffRequest("relay-parent", { command: "handoff", origin: "context-rela
 rmSync(wakePromptPath)
 const relayClosure = closeOwnerChain()
 T("handoff adapter: a context relay cannot close the chain", { status: relayClosure.status, refused: relayClosure.stderr.includes("chain closure requires an owner-origin handoff") }, { status: 1, refused: true })
-const ownerPrompt = { ...relayPayload, hook_event_name: "UserPromptSubmit", prompt: "RUN /wrap-up --sleep" }
+const ownerPrompt = { ...relayPayload, hook_event_name: "UserPromptSubmit", prompt: "Finish the report.\n/wrap-up --sleep" }
 isolatedRelayHook("record-handoff-request.mjs", ownerPrompt)
 const ownerRequest = readHandoffRequest("relay-parent", wakeCheckout)
-T("relay adapter: leading-word wrap-up records the owner's sleep request", { command: ownerRequest.command, sleep: ownerRequest.sleep, origin: ownerRequest.origin }, { command: "wrap-up", sleep: true, origin: "owner" })
+T("relay adapter: own-line wrap-up records the owner's sleep request", { command: ownerRequest.command, sleep: ownerRequest.sleep, origin: ownerRequest.origin }, { command: "wrap-up", sleep: true, origin: "owner" })
 T("relay adapter: owner handoff clears drain", readRunState(wakeCheckout).relay.pending, false)
 T("relay adapter: owner handoff takes the run out of unattended mode", readRunState(wakeCheckout).sleep, false)
 T("relay adapter: owner origin supersedes machine request", readHandoffRequest("relay-parent", wakeCheckout).origin, "owner")
 const ownerClosure = closeOwnerChain()
-T("handoff adapter: leading-word wrap-up closes the owner's chain", { status: ownerClosure.status, stderr: ownerClosure.stderr, chain: openSessionChain("relay-parent", wakeCheckout) }, { status: 0, stderr: "", chain: null })
+T("handoff adapter: own-line wrap-up closes the owner's chain", { status: ownerClosure.status, stderr: ownerClosure.stderr, chain: openSessionChain("relay-parent", wakeCheckout) }, { status: 0, stderr: "", chain: null })
 for (const [index, prompt] of [
+  "we are working always using /handoff, wrap-up, etc etc\n\nwhat happens when the spec is finished?",
   "Read `/handoff --relay --sleep` and `/wrap-up` in NEXT.md.",
   "```text\n/wrap-up --sleep\n```",
   '<pasted_content source="NEXT.md">\n/handoff --relay --sleep\n</pasted_content>',
@@ -1560,9 +1567,9 @@ for (const [index, prompt] of [
   T(`handoff adapter: mention ${index} preserves the unattended drain`, { sleep: readRunState(wakeCheckout).sleep, pending: readRunState(wakeCheckout).relay.pending }, { sleep: true, pending: true })
 }
 writeRunState({ sessionId: "handoff-parenthesized", sleep: true, relay: { pending: true } }, wakeCheckout)
-isolatedRelayHook("record-handoff-request.mjs", { ...ownerPrompt, session_id: "handoff-parenthesized", prompt: "please (/handoff --sleep)" })
+isolatedRelayHook("record-handoff-request.mjs", { ...ownerPrompt, session_id: "handoff-parenthesized", prompt: "/handoff --sleep" })
 const parenthesizedRequest = readHandoffRequest("handoff-parenthesized", wakeCheckout)
-T("handoff adapter: a parenthesized sleep handoff records an unattended owner request", { command: parenthesizedRequest?.command, sleep: parenthesizedRequest?.sleep, origin: parenthesizedRequest?.origin }, { command: "handoff", sleep: true, origin: "owner" })
+T("handoff adapter: a direct sleep handoff records an unattended owner request", { command: parenthesizedRequest?.command, sleep: parenthesizedRequest?.sleep, origin: parenthesizedRequest?.origin }, { command: "handoff", sleep: true, origin: "owner" })
 writeRunState({ ...relayState, relay: { pending: true } }, wakeCheckout)
 const unreadable = isolatedRelayHook("relay-at-threshold.mjs", { ...relayPayload, transcript_path: join(wakeCheckout, "absent.jsonl") })
 T("relay adapter: unreadable transcript fails open with one stderr line", { status: unreadable.status, stdout: unreadable.stdout, lines: unreadable.stderr.trim().split("\n").length }, { status: 0, stdout: "", lines: 1 })
@@ -1581,6 +1588,37 @@ T("superseded adapter: Bash is denied", deniedTool.hookSpecificOutput.permission
 T("superseded adapter: refusal names live terminal", deniedTool.hookSpecificOutput.permissionDecisionReason.includes("term_live"), true)
 T("superseded adapter: typed prompt is blocked", JSON.parse(isolatedRelayHook("forbid-superseded-session.mjs", ownerPrompt).stdout).decision, "block")
 T("superseded adapter: live successor remains usable", isolatedRelayHook("forbid-superseded-session.mjs", { ...ownerPrompt, session_id: "relay-child" }).stdout, "")
+for (const priorChain of [false, true]) {
+  const checkout = join(root, `owner-handoff-fence-${priorChain}`)
+  const hooks = join(checkout, ".claude/hooks")
+  mkdirSync(hooks, { recursive: true })
+  cpSync(join(repoRoot, "tools/lib"), join(checkout, "tools/lib"), { recursive: true })
+  cpSync(join(hooksDir, "_lib"), join(hooks, "_lib"), { recursive: true })
+  cpSync(join(hooksDir, "forbid-superseded-session.mjs"), join(hooks, "forbid-superseded-session.mjs"))
+  cpSync(join(repoRoot, ".claude/orchestrator.json"), join(checkout, ".claude/orchestrator.json"))
+  const prompt = adapterSleepPrompt.replace("/sleep\n", "/auto-work\n")
+  mkdirSync(join(checkout, ".claude/handoffs"), { recursive: true })
+  writeFileSync(join(checkout, ".claude/handoffs/NEXT.md"), prompt)
+  if (priorChain) {
+    appendChainEntry({ sessionId: "owner-ancestor" }, checkout)
+    confirmChainSuccessor("owner-ancestor", "owner-predecessor", "term_owner", 1, checkout)
+    closeSessionChain("owner-predecessor", checkout)
+  }
+  writeRunState({ sessionId: "owner-predecessor", sleep: false, autoWork: true,
+    intake: { gmail: { pending: { message: { sendAttempted: true } } } } }, checkout)
+  recordHandoffRequest("owner-predecessor", { command: "handoff", sleep: true, origin: "owner" }, "2026-01-01T00:00:00Z", checkout)
+  T(`owner fence adapter ${priorChain}: prepares`, prepareOwnerHandoffRun("owner-predecessor", checkout), true)
+  T(`owner fence adapter ${priorChain}: adopts`, adoptOwnerHandoffRun("owner-successor", prompt, checkout), true)
+  const invoke = (sessionId, event) => JSON.parse(spawnSync(process.execPath, [join(hooks, "forbid-superseded-session.mjs")], {
+    input: JSON.stringify({ session_id: sessionId, hook_event_name: event, tool_name: "Bash", tool_input: { command: "true" } }), encoding: "utf8",
+  }).stdout || "{}")
+  for (const ordinaryWrite of [false, true]) {
+    if (ordinaryWrite) writeRunState({ sessionId: "owner-successor", sleep: true }, checkout)
+    T(`owner fence adapter ${priorChain}/${ordinaryWrite}: predecessor tool is denied`, invoke("owner-predecessor", "PreToolUse").hookSpecificOutput?.permissionDecision, "deny")
+    T(`owner fence adapter ${priorChain}/${ordinaryWrite}: predecessor prompt is blocked`, invoke("owner-predecessor", "UserPromptSubmit").decision, "block")
+    T(`owner fence adapter ${priorChain}/${ordinaryWrite}: successor remains usable`, invoke("owner-successor", "PreToolUse"), {})
+  }
+}
 writeFileSync(runStatePath(wakeCheckout), JSON.stringify({ sessionId: stopPayload.session_id, sleep: true, remaining: ["ORB-2"] }))
 const wakeFile = join(wakeSourceDirectory(wakeCheckout), `${process.pid}.json`)
 const isolatedWakeStop = ({ preload = null, env = {} } = {}) => spawnSync(
@@ -1977,15 +2015,15 @@ T("handoff request: expanded command tags are read", parseHandoffRequest("<comma
 T("handoff request: another command is not a handoff", parseHandoffRequest("/progress --full"), null)
 T("handoff request: a plain reply is not a handoff", parseHandoffRequest("proceed"), null)
 for (const [label, prompt, expected] of [
-  ["a leading word keeps the sleep argument", "RUN /wrap-up --sleep", { command: "wrap-up", sleep: true, crank: false }],
-  ["a polite prefix is read", "please /handoff", { command: "handoff", sleep: false, crank: false }],
+  ["a leading word is a mention", "RUN /wrap-up --sleep", null],
+  ["a polite prefix is a mention", "please /handoff", null],
   ["a command on the second line is read", "Finish this task.\n/wrap-up --sleep", { command: "wrap-up", sleep: true, crank: false }],
   ["an inline code mention is ignored", "Read `/handoff --relay --sleep` in NEXT.md.", null],
   ["a fenced code mention is ignored", "Example:\n```text\n/wrap-up --sleep\n```", null],
   ["a pasted content mention is ignored", '<pasted_content source="NEXT.md">\n/handoff --relay --sleep\n</pasted_content>', null],
   ["a skill path is ignored", ".claude/skills/handoff/SKILL.md", null],
   ["the first command keeps its own arguments", "/handoff then /wrap-up --sleep", { command: "handoff", sleep: false, crank: false }],
-  ["the first sleep command wins", "please /wrap-up --sleep then /handoff", { command: "wrap-up", sleep: true, crank: false }],
+  ["the first sleep command wins", "/wrap-up --sleep then /handoff", { command: "wrap-up", sleep: true, crank: false }],
 ]) T(`handoff request: ${label}`, parseHandoffRequest(prompt), expected)
 
 const goodSleepPrompt = [

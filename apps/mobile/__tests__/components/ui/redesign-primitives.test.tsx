@@ -1,4 +1,4 @@
-import { ASTRA_GLYPH_PATHS } from '@orbit/shared/contracts/brand'
+import { ASTRA_GLYPH_PATHS, ORBIT_MARK_PATHS, ORBIT_MARK_VIEW_BOX } from '@orbit/shared/contracts/brand'
 import type { ReactElement } from 'react'
 import { act, create } from 'react-test-renderer'
 import { Animated } from 'react-native'
@@ -160,13 +160,14 @@ describe('redesign primitives on mobile', () => {
     expect(onClick).toHaveBeenCalledOnce()
   })
 
-  it('selects native brand redraws and limits the mark accent to its moon', () => {
-    const tree = render(<OrbitMark size={16} />)
-    expect(tree.root.findByProps({ testID: 'orbit-mark-16' })).toBeDefined()
+  it.each([16, 20, 24, 28, 40, 44, 48, 96, 128, 512])('uses the normal Orbit drawing at %ipx and limits accent to its moon', (size) => {
+    const tree = render(<OrbitMark size={size} />)
+    expect(tree.root.findByProps({ testID: 'orbit-mark' }).props).toMatchObject({ width: size, height: size, viewBox: ORBIT_MARK_VIEW_BOX, color: tokens.fg1 })
+    expect(byType(tree.root, 'Path').map(path => prop(path, 'd'))).toEqual(ORBIT_MARK_PATHS.map(path => path.d))
     expect(prop(byType(tree.root, 'Path').at(-1)!, 'fill')).toBe('currentColor')
 
     void act(() => {
-      tree.update(<OrbitMark size={24} accent />)
+      tree.update(<OrbitMark size={size} accent />)
     })
     expect(tree.root.findByProps({ testID: 'orbit-mark-accent' })).toBeDefined()
     const paths = byType(tree.root, 'Path')
