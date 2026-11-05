@@ -94,11 +94,12 @@ export function useChatRequestPayload(i18n: ChatRequestPayloadInputs['i18n'], pr
       formData.append("message", attempted.content)
       if (attempted.blockAnswer) formData.append("blockAnswer", JSON.stringify(attempted.blockAnswer))
       if (attempted.image) {
-        formData.append(
-          "image",
-          new File(attempted.image.uri).slice(0, undefined, resolveChatImageMimeType(attempted.image) ?? undefined),
-          buildImageFileName(attempted.image),
-        )
+        const image = attempted.image
+        formData.append("image", {
+          name: buildImageFileName(image),
+          type: resolveChatImageMimeType(image) ?? undefined,
+          bytes: () => new File(image.uri).bytes(),
+        })
       }
 
       const historyMessages = useChatStore.getState().messages
