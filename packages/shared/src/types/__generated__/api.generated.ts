@@ -4979,6 +4979,13 @@ export const DeleteApiEvalPendingOperationsResponse = zod.object({
 })
 
 
+export const GetApiEvalSnapshotHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const GetApiEvalSnapshotResponse = zod.unknown()
+
+
 export const PostApiEventsTicketHeader = zod.object({
   "api-version": zod.string().optional()
 })
