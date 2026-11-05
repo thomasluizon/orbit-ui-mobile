@@ -411,7 +411,7 @@ worker that will fail.
 `conversation: {source, signals, questions}` on the admitted entry, plus a `CONVERSATION FIRST`
 warning. Pass `--sleep` to the planner when the run has it, and those tickets defer as
 `NEEDS_CONVERSATION` with their questions printed instead.
-These signals come from a Codex model call that fails closed with `CLASSIFIER_ERROR` when it cannot read the ticket.
+These signals come from a `claude -p` call on `classifier.model` that fails closed with `CLASSIFIER_ERROR` when it cannot read the ticket.
 
 The label `needs:conversation` forces it on and `needs:no-conversation` forces it off; either
 overrides the body. Use `needs:no-conversation` once the questions are already answered in a comment,
@@ -1364,118 +1364,81 @@ runs for merged tickets only, including those merged under D88/D90 standing auth
 |---|---|
 | Orchestrator | Opus 5.5 @ high, or Sol 6.1 @ high |
 | Implementer | the engine named by `worker` in `.claude/orchestrator.json`, at the order's `default`, `mechanical`, `deep` or `max` tier |
+| Reviewer | Pullfrog in GitHub Actions: `anthropic/claude-opus` at `high` effort, pinned in `.github/workflows/pullfrog.yml` |
 
-The shipped worker is `codex`: all four tiers use `gpt-6.1-sol`, with `high` reasoning effort on
+The shipped worker is `claude`: all four tiers use `claude-opus-5-5`, with `--effort high` on
 `default`, `medium` on `mechanical`, `xhigh` on `deep` and `max` on `max`. Use `default` for normal
 orders, `mechanical` for fully specified mechanical work, `deep` for a large ticket and `max` for
 a review round after one failed round. Never use `ultra`, which delegates to its own agents;
-worker orders forbid sub-agents outside the explicit UI sweep. All four `claude` fallback tiers
-use `claude-opus-5-5`.
+worker orders forbid sub-agents outside the explicit UI sweep. The installed `claude` CLI accepts
+exactly `low`, `medium`, `high`, `xhigh` and `max` for `--effort`, and it warns and runs the
+default effort on any other value.
 
-The reviewer is absent from this table because this harness launches none. Pullfrog reviews in
-GitHub Actions, and its model and effort are set in the Pullfrog console rather than in any file
-here. `launch-worker.mjs` resolves the requested worker tier; tier selection routes the resulting
-order, never the Pullfrog review itself.
+This harness launches no reviewer. `launch-worker.mjs` resolves the requested worker tier; tier
+selection routes the resulting order, never the Pullfrog review itself. The Pullfrog step pays
+with the `CLAUDE_CODE_OAUTH_TOKEN` repository secret, which is the worker account's subscription.
 
-### §5.4.1 When Codex is out of usage, Claude is the worker
+The `codex` block stays in `workers` until Pullfrog is green on Claude in all three repositories.
+A later ticket deletes it. It is not a fallback engine.
 
-**An exhausted Codex allowance is not an ending. Switch the engine and keep going.**
+### §5.4.1 The worker account
 
-`.claude/orchestrator.json` declares two engines under `workers`, and the top-level `worker` key
-chooses one. `codex` is the default. `claude` runs Claude Code headless through the same launcher,
-the same order file, the same worktree, the same timeouts and the same wake source.
+**Every worker runs under the dedicated worker account, never under the orchestrator's account.**
+`workers.claude.configDirEnv` names the variable `ORBIT_WORKER_CLAUDE_CONFIG_DIR`, and the
+owner's shell profile exports it as the Claude Code config directory of that account. The path
+lives only in the environment, never in a tracked file. For a `claude` launch, `launch-worker.mjs`
+does these steps:
+
+1. It refuses with exit 2, naming the variable, when the variable is unset or empty.
+2. It refuses with exit 2 when the variable names a path that is not an existing directory.
+3. It sets `CLAUDE_CONFIG_DIR` to that directory in the child environment.
+4. It removes `ANTHROPIC_API_KEY` and `CLAUDE_CODE_OAUTH_TOKEN` from the child environment,
+   because Claude Code ranks both above the sign-in in its config directory.
+
+Research launches through `--research` apply the same four steps. A `codex` launch reads no
+account directory and is unchanged.
 
 ```bash
-node -e "const f='.claude/orchestrator.json',c=require('./'+f);c.worker='claude';require('fs').writeFileSync(f,JSON.stringify(c,null,2)+'\n')"
 node tools/launch-worker.mjs --issue '#N' --worktree <path> --prompt <file> --dry-run
 node tools/launch-worker.mjs --issue '#N' --worktree <path> --prompt <file> --tier mechanical --dry-run
 node tools/launch-worker.mjs --issue '#N' --worktree <path> --prompt <file> --tier deep --dry-run
 node tools/launch-worker.mjs --issue '#N' --worktree <path> --prompt <file> --tier max --dry-run
-git checkout -- .claude/orchestrator.json
 ```
 
-**That `worker` edit is uncommitted and transient, and the last command is its revert.** The
-committed tree keeps `codex`, because `tools/__tests__/orchestrator-config.mjs` pins the shipped
-default implementer and a gate wins over a run (D95). Run `git checkout -- .claude/orchestrator.json`
-when the allowance resets. Nothing in a commit records which engine wrote it, so **the run report
-names the engine that produced its commits.**
+**The `--dry-run` is an argv check, not a preflight.** It resolves the executable on PATH, checks
+the account directory and prints the plan, then exits before `githubEnvironment` and before any
+spawn. It proves five things: the engine and tier resolve, the model id the launcher selected,
+the exact argv the child would receive, the command is on PATH in a shape Node can spawn without
+a shell, and `configDirectory` names the account directory the worker will run under. It proves
+nothing about whether that sign-in is valid, whether the model id is accepted, or the run. Read
+the `args` array back for all four tiers: the launcher defaults `--tier` to `default`, so the
+explicit dry runs above are needed to show `mechanical`, `deep` and `max`.
 
-**While that edit is live it exists in one checkout and in no file, so the run names it in its
-handoff inventory and in its step 11 report, beside the engine that produced its commits.** Every
-session in that checkout meets four FAILs from `node tools/test-tools.mjs` and `exit 1` from
-`node tools/check-calibration.mjs` while it stands, and a session that finds no record of why reads
-a live switch as a broken harness. The revert is worse unrecorded: run it in a checkout whose `origin/main` predates the `claude` block and it restores a config with no such block at
-all, so name the checkout too.
+**When the worker account is out of usage, no new worker starts until its reset.** Record the
+reset time in the handoff inventory and in the step 11 report, then stop new launches. Workers
+already running finish on their own. Do not fall back to the orchestrator's account: never unset
+the variable, never point it at another config directory, and never pass a credential to the
+child. Do not switch `worker` to `codex`, because its allowance is the reason the workers moved.
+The order generator, `§5.7`'s queue, the readiness loop and the open pull requests continue,
+because review and merge spend no worker allowance.
 
 **The engine's isolation flags are not decoration.** `--strict-mcp-config` with no `--mcp-config`
 beside it loads zero MCP servers, which is what stops a headless worker inheriting the user-scope
 servers in `~/.claude.json`. Those load in every project and several carry live tokens, and
 `--permission-mode bypassPermissions` removes the approval that would otherwise catch a call to one.
-`--output-format stream-json` keeps the log growing during the run, which is the second of the three
-progress signals `launch-worker.mjs:505-509` supervises on. Text output prints once at the end, so
-that signal would be dead for this engine and a quiet model turn would have to be carried by tree
-mtime or by process CPU alone. CPU does reset the clock at `:555-569`, above 1.5% of one core, so the
+`--output-format stream-json` keeps the log growing during the run, which is one of the three
+progress signals `sampleProgress` in `launch-worker.mjs` supervises. Text output prints once at the
+end, so that signal would be dead for this engine and a quiet model turn would have to be carried
+by tree mtime or by process CPU alone. CPU does reset the clock above 1.5% of one core, so the
 kill is not certain; the flags buy a live signal instead of that margin. `--verbose` is mandatory
 beside `stream-json`: the installed binary refuses the pair without it.
 
-**`assertNotStale` fires on that edit only in a worktree cut before the base ref, and stays silent in
-the main checkout.** `tools/lib/orchestrator-config.mjs:19-36` refuses a working copy that disagrees with `origin/<base>`, and `:31` returns early for a checkout that already contains `origin/main`. The main checkout contains it, so the guard stands
-aside and the edit is silent there, which is the normal case. A worktree cut before that ref does not
-contain it, so every tool that reads the config refuses with the message at `:32-35`. Merge the base
-ref first: `git fetch origin main && git merge origin/main`.
-
-**The `--dry-run` is an argv check, not a preflight.** `launch-worker.mjs:259` resolves the
-executable on PATH before the `if (dryRun)` block at `:266`, and `:268` exits before
-`githubEnvironment` at `:323` and before any spawn. So it proves four things: the engine and tier
-resolve, the model id the launcher selected, the exact argv the child would receive, and that the
-command is on PATH in a shape Node can spawn without a shell. It proves nothing about the
-credentials, nothing about whether the model id is accepted, and nothing about the run. Read the
-`args` array back for all four tiers: the launcher defaults `--tier` to `default`, so the
-explicit dry runs above are needed to show `mechanical`, `deep` and `max`.
-
-**Calibration goes stale for the duration of the switch. That is expected, and nobody reseeds to
-clear it.** `tools/__tests__/check-calibration.mjs:200-202` asserts that switching the engine without
-a fresh stamp exits 1, so `node tools/check-calibration.mjs` reports the engine mismatch while
-`worker` is `claude`. Leave it. A reseed taken in that state sets `workerMoved` true at
-`tools/reseed-calibration.mjs:195-199` and re-dates every verdict at once, which destroys the
-per-entry age backstop `check-calibration.mjs:336-349` exists to hold. Say the gate is red for this
-reason, and let the revert clear it.
-
-**`node tools/test-tools.mjs` goes red for the same duration, and those eight failures are the only ones
-the switch explains.** `tools/__tests__/_harness.mjs:127` reads the live config at test time, so with
-`worker` set to `claude` the engine under test is the claude block and exactly eight assertions fail,
-four in each of two files:
-
-- `tools/__tests__/orchestrator-config.mjs`, the shipped-default pin, which asserts
-  `gpt-6.1-sol` at high reasoning effort.
-- `tools/__tests__/orchestrator-config.mjs`, which asserts the mechanical tier keeps the
-  default tier's `gpt-6.1-sol` model at medium reasoning effort, false because all Claude tiers
-  use `claude-opus-5-5`.
-- `tools/__tests__/launch-worker.mjs`, which pins `gpt-6.1-sol` and
-  `model_reasoning_effort="high"` through `--dry-run` against the real config.
-- `tools/__tests__/launch-worker.mjs`, which pins `gpt-6.1-sol` and
-  `model_reasoning_effort="medium"` on the mechanical tier the same way.
-- `tools/__tests__/orchestrator-config.mjs`, two assertions pinning the `deep` and `max` tiers
-  to `gpt-6.1-sol` at `xhigh` and `max` reasoning effort.
-- `tools/__tests__/launch-worker.mjs`, two assertions pinning the `deep` and `max` tiers
-  to `gpt-6.1-sol` at `xhigh` and `max` reasoning effort through `--dry-run`.
-
-Expect all eight, by name. The whole gate reads `ORBIT TOOLS GATE FAILED (8)`.
-`--only orchestrator-config` cannot see the launch-worker assertions; run both, or run the whole gate.
-**None of the eight is a licence to edit a test.** Hard prohibitions forbids editing a gate to change
-what this run is judged by, an additional unexplained failure is a real defect rather than the switch,
-and the revert clears all eight.
-
-**One further FAIL is load-sensitive, and it is not the switch.** `tools/__tests__/launch-worker.mjs`
+**One FAIL is load-sensitive, and it is not a defect.** `tools/__tests__/launch-worker.mjs`
 runs `a worker burning CPU while writing nothing anywhere is NOT killed as stalled` against real
 clocks: a 0.15 minute no-progress ceiling against a 60 second busy loop, measured against the 1.5
-percent CPU floor at `tools/launch-worker.mjs:565`. On a machine already running another worker that
-floor is missed and the assertion fails on its own, with `worker` set either way.
-Check that test name first when the count does not match and rerun it on a quiet machine.
-Do not change the test in a pull request that switches the engine.
-
-Nothing else changes. The order generator, `§5.7`'s queue, the readiness loop, the caps and every
-hard prohibition apply identically, because the engine is the only variable.
+percent CPU floor, `CPU_PROGRESS_FRACTION` in `tools/launch-worker.mjs`. On a machine already running another worker that
+floor is missed and the assertion fails on its own.
+Check that test name first when an unexpected FAIL appears, and rerun it on a quiet machine.
 
 **Never substitute a Claude SUBAGENT for a worker.** A subagent lives inside the orchestrating
 session, so it dies with that session and a handoff inherits nothing: its edits sit uncommitted in a

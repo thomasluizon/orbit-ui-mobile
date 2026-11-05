@@ -279,9 +279,11 @@ lift them straight out.
 
 ## 10. Watch the allowance
 
-Codex usage meters on a rolling five hour window plus a weekly cap, shared across every surface, and
-the worker model spends it faster than the previous one. If workers start failing for quota rather
-than for code, stop spawning them, log it, and switch to work you can do without a worker.
+Workers run under the dedicated worker account, a Claude Max subscription separate from the
+orchestrator's account. Its usage meters on a rolling five hour window plus a weekly cap. If workers
+start failing for quota rather than for code, stop spawning them and log the reset time. Then switch
+to work you can do without a worker: CI waiting, review fixes and readiness checks. Never launch a
+worker on the orchestrator's account or on Codex in its place (`orchestrate/SKILL.md` §5.4.1).
 
 ## 11. The wake report
 
