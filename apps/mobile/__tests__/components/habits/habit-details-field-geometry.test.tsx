@@ -32,7 +32,7 @@ function accessibleName(host: FillHost) {
 
 function expectFieldFill(tree: ReturnType<typeof TestRenderer.create>, width: number, scale: number, label: string) {
   const bounds = measureInteractionFills(tree.toJSON(), width, true, scale)
-  const controls = bounds.filter(part => part.host.props.accessibilityRole === 'switch' || part.host.props.accessibilityRole === 'button')
+  const controls = bounds.filter(part => 'accessibilityRole' in part.host.props && (part.host.props.accessibilityRole === 'switch' || part.host.props.accessibilityRole === 'button'))
   const control = controls.find(part => accessibleName(part.host).startsWith(label))
   expect(control).toBeDefined()
   expect(control!.left).toBe(0)
