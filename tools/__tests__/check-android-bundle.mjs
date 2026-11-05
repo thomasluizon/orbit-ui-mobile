@@ -38,7 +38,7 @@ export const cases = () => {
     { status: 1, stderr: /native component RNCSafeAreaProvider/ })
   check("check-android-bundle.mjs", "ignores registration text inside comments and strings",
     stage("non-code", [[source, `${provider}\n// requireNativeComponent('FakeView')\nconst text = "requireNativeComponent('FakeView')";`]]),
-    { status: 0 })
+    { status: 0, stdout: /1 native components/ })
   const invalid = join(root, "android-bundle", "invalid.map")
   writeFileSync(invalid, "{}")
   check("check-android-bundle.mjs", "refuses absent source inventory", ["--map", invalid], { status: 2, stderr: /nonempty version 3/ })
