@@ -481,7 +481,7 @@ describe('web useChatComposer streaming send', () => {
         stream.close()
         await pending
       })
-      expect(displayed().content).toBe('chat.aiError')
+      expect(displayed().content).toBe('')
     }
     expect(displayed().plan?.steps.map(step => step.status)).toEqual(expected)
     expect(displayed().plan?.steps.at(-1)).toEqual(plan.steps.at(-1))
@@ -597,7 +597,6 @@ describe('web useChatComposer streaming send', () => {
     fireEvent.click(screen.getByRole('button', { name: words.shell.composer.send }))
     await waitFor(() => expect(screen.getAllByText(words.chat.dailyBudgetReached).filter(node => !node.closest('[inert]'))).toHaveLength(1))
     expect(screen.getByRole('textbox')).toHaveValue(draft)
-    expect(screen.queryByText(words.chat.aiError)).not.toBeInTheDocument()
     expect(screen.queryByText(words.chat.sendError)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: words.shell.composer.retry })).not.toBeInTheDocument()
     fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' })
@@ -964,8 +963,12 @@ describe('web useChatComposer streaming send', () => {
     await waitFor(() => expect(container.querySelector('[data-astra-pending]') === null).toBe(arrival !== 'text'))
     if (arrival === 'text') expect(screen.queryByText('Start with water')).not.toBeInTheDocument()
     if (arrival === 'tool') expect(screen.getByText('chat.trace.habits.read')).toBeVisible()
+    if (arrival === 'error' || arrival === 'drop' || arrival === 'incomplete') {
+      await waitFor(() => expect(screen.getAllByText('chat.sendError').some(element => !element.hidden)).toBe(true))
+      expect(screen.queryByText('chat.aiError')).not.toBeInTheDocument()
+      expect(screen.queryByText('Partial')).not.toBeInTheDocument()
+    }
     if (arrival === 'drop' || arrival === 'incomplete') {
-      expect(screen.getAllByText('chat.sendError').some(element => !element.hidden)).toBe(true)
       mocks.fetch.mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))
       fireEvent.click(screen.getByRole('button', { name: 'shell.composer.retry' }))
       await waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(3))

@@ -636,7 +636,6 @@ describe('mobile useChatComposer', () => {
     const notice = i18n.t('chat.dailyBudgetReached')
     expect(visibleComposerRoot(tree).findAllByType('Text').filter((node: { props: { children?: unknown } }) => node.props.children === notice)).toHaveLength(1)
     expect(inputHosts(tree)[0].props.value).toBe(draft)
-    expect(visibleMessageTexts(tree)).not.toContain(i18n.t('chat.aiError'))
     expect(visibleMessageTexts(tree)).not.toContain(i18n.t('chat.sendError'))
     expect(visibleComposerRoot(tree).findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === i18n.t('shell.composer.retry'))).toHaveLength(0)
     await TestRenderer.act(async () => { inputHosts(tree)[0].props.onSubmitEditing(); await Promise.resolve() })
@@ -1087,8 +1086,12 @@ describe('mobile useChatComposer', () => {
     expect(pending()).toHaveLength(arrival === 'text' ? 1 : 0)
     if (arrival === 'text') expect(visibleMessageTexts(tree)).not.toContain('Start with water')
     if (arrival === 'tool') expect(visibleMessageTexts(tree)).toContain('chat.trace.habits.read')
-    if (arrival === 'drop' || arrival === 'incomplete') {
+    if (arrival === 'error' || arrival === 'drop' || arrival === 'incomplete') {
       expect(visibleMessageTexts(tree)).toContain('chat.sendError')
+      expect(visibleMessageTexts(tree)).not.toContain('chat.aiError')
+      expect(visibleMessageTexts(tree)).not.toContain('Partial')
+    }
+    if (arrival === 'drop' || arrival === 'incomplete') {
       mocks.openChatStream.mockResolvedValueOnce(sseStreamResponse(finalFrame(makeChatResponse())))
       const retry = tree.root.findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === 'shell.composer.retry')[0]
       await TestRenderer.act(async () => { retry.props.onPress(); await Promise.resolve() })
@@ -1767,7 +1770,7 @@ describe('mobile useChatComposer', () => {
         stream.close()
         await pending
       })
-      expect(displayed().content).toBe('chat.aiError')
+      expect(displayed().content).toBe('')
     }
     expect(displayed().plan?.steps.map(step => step.status)).toEqual(expected)
     expect(displayed().plan?.steps.at(-1)).toEqual(plan.steps.at(-1))

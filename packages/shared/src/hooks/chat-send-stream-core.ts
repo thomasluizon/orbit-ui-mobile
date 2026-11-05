@@ -214,28 +214,17 @@ export function createComposerFailureHandlers<Attempt extends ComposerAttempt<un
       return
     }
 
-    if (failure.kind === 'timeout') {
-      setSendError(t('chat.timeoutError'))
-      setLastFailedSend(failedAttempt)
-    } else if (failure.kind === 'limit') {
+    if (failure.kind === 'limit') {
       handleAllowanceExceeded(draftMessageId)
       return
-    } else {
-      setSendError(t('chat.sendError'))
-      setLastFailedSend(failedAttempt)
     }
 
-    if (draftMessageId) {
-      updateMessage(draftMessageId, { content: t('chat.aiError') })
-    } else {
-      addMessage({
-        id: createMessageId(),
-        role: 'ai',
-        content: t('chat.aiError'),
-        timestamp: new Date(),
-      })
-    }
-    scrollToBottom()
+    setSendError(t(failure.kind === 'timeout' ? 'chat.timeoutError' : 'chat.sendError'))
+    setLastFailedSend(failedAttempt)
+    if (draftMessageId) setChat(state => ({ messages: state.messages.flatMap(message => {
+      if (message.id !== draftMessageId) return [message]
+      return message.plan ? [{ ...message, content: '' }] : []
+    }) }))
   }
   return { handleFailedSend, handleAllowanceExceeded, handleDailyBudgetExceeded }
 }
