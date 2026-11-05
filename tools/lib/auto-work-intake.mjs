@@ -19,7 +19,7 @@ export const intakeRun = (repoRoot = REPO_ROOT) => {
   return state
 }
 
-export const intakeSource = (source, repoRoot = REPO_ROOT) => intakeRun(repoRoot).intake?.[source] ?? { completed: {}, pending: {}, highWater: null }
+export const intakeSource = (source, repoRoot = REPO_ROOT) => ({ completed: {}, pending: {}, highWater: null, ...intakeRun(repoRoot).intake?.[source] })
 
 export const saveIntakeSource = (source, contents, repoRoot = REPO_ROOT) => {
   const state = intakeRun(repoRoot)

@@ -28,8 +28,9 @@ export const cases = async () => {
   T("play: collection is GET-only and never posts replies", network.every(({ url, options }) => options.method === "GET" && url.pathname.endsWith("/reviews")))
   const checkout = join(root, "play-intake")
   mkdirSync(join(checkout, ".git"), { recursive: true })
-  writeRunState({ sessionId: "play-parent", sleep: true, autoWork: true }, checkout)
+  writeRunState({ sessionId: "play-parent", sleep: true, autoWork: true, intake: { play: { workflowCycle: "first-cycle" } } }, checkout)
   const first = importPlayReviews(snapshot, checkout)
+  T("play: first-cycle workflow metadata initializes source maps and survives import", intakeSource("play", checkout).workflowCycle === "first-cycle" && typeof intakeSource("play", checkout).completed === "object")
   T("play: tied timestamps keep each independent review", first.pending.length === 4)
   const id = first.pending[0].id
   acknowledgeIntake("play", { id, classification: "praise", person: true, reply: "Obrigada!" }, checkout)
