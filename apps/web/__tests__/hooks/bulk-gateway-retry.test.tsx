@@ -7,6 +7,8 @@ import { createMockHabitScheduleItem, createMockProfile } from '@orbit/shared/__
 import { normalizeHabits } from '@orbit/shared/utils'
 import type { HabitScheduleItem } from '@orbit/shared/types/habit'
 import en from '@orbit/shared/i18n/en.json'
+import { useUIStore } from '@/stores/ui-store'
+import type { Profile } from '@orbit/shared/types/profile'
 import { useBulkActions } from '@/hooks/use-bulk-actions'
 
 const mocks = vi.hoisted(() => ({ fetch: vi.fn<typeof fetch>(), toast: vi.fn() }))
@@ -33,7 +35,7 @@ let actions: ReturnType<typeof useBulkActions>
 let selected: Set<string>
 let clearedAt: number | null
 const settle = vi.fn()
-const ids = Array.from({ length: 10 }, (_, index) => `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`)
+let ids = Array.from({ length: 10 }, (_, index) => `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`)
 const date = '2026-09-12'
 function Owner() {
   const bulkActions = useBulkActions({
@@ -48,7 +50,9 @@ function Owner() {
 }
 beforeEach(async () => {
   vi.setSystemTime(new Date('2026-09-12T12:00:00Z'))
+  ids = Array.from({ length: 10 }, (_, index) => `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`)
   clearedAt = null
+  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
   mocks.fetch.mockReset()
   mocks.toast.mockReset()
   settle.mockReset()
@@ -68,7 +72,44 @@ afterEach(async () => {
 })
 
 describe('bulk gateway recovery', () => {
+  it.each(['log', 'skip'] as const)('retries only the original uncertain middle %s chunk', async mode => {
+    ids = Array.from({ length: 205 }, (_, index) => `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`)
+    selected = new Set(ids)
+    client.setQueryData(habitKeys.list({}), ids.map(id => createMockHabitScheduleItem({ id })))
+    await act(() => tree.update(<QueryClientProvider client={client}><Owner /></QueryClientProvider>))
+    const replay = new Map<string, object>()
+    const requests: { key: string; body: string }[] = []
+    let committed = 0
+    let unavailable = true
+    mocks.fetch.mockImplementation((_url, init) => {
+      const key = new Headers(init?.headers).get('Idempotency-Key')
+      if (!key || typeof init?.body !== 'string') throw new Error('Missing bulk request identity')
+      requests.push({ key, body: init.body })
+      const { items } = JSON.parse(init.body) as { items: { habitId: string; date: string }[] }
+      if (!replay.has(key)) {
+        committed += items.length
+        replay.set(key, { results: items.map(({ habitId }, index) => ({
+          index, status: 'Success', habitId, error: null, errorCode: null,
+          ...(mode === 'log' ? { logId: habitId } : {}),
+        })) })
+      }
+      return Promise.resolve(unavailable && items[0]?.habitId === ids[100]
+        ? new Response(null, { status: 502 }) : Response.json(replay.get(key)))
+    })
+    await act(async () => { await (mode === 'log' ? actions.confirmBulkLog() : actions.confirmBulkSkip()) })
+    expect(selected).toEqual(new Set(ids.slice(100, 200)))
+    const middle = requests.find(request => (JSON.parse(request.body) as { items: { habitId: string }[] }).items[0]?.habitId === ids[100])!
+    const retry = mocks.toast.mock.calls.at(-1)?.[0]?.onAction as () => Promise<void>
+    unavailable = false
+    await act(async () => { await retry() })
+    expect(requests.at(-1)).toEqual(middle)
+    expect(requests.filter(request => request.key !== middle.key)).toHaveLength(2)
+    expect(committed).toBe(205)
+    expect(selected.size).toBe(0)
+  })
+
   it.each(['log', 'skip'].flatMap(mode => [502, 503, 504, 'network'].map(failure => ({ mode, failure }))))('retains selection and replays the same $mode chunk after $failure', async ({ mode, failure }) => {
+    const previousRows = client.getQueryData(habitKeys.list({}))
     const replay = new Map<string, object>()
     let committed = 0
     let unavailable = true
@@ -92,7 +133,7 @@ describe('bulk gateway recovery', () => {
     await act(async () => { await (mode === 'log' ? actions.confirmBulkLog() : actions.confirmBulkSkip()) })
     expect(selected).toEqual(new Set(ids))
     expect(settle).not.toHaveBeenCalled()
-    expect(client.getQueryData<HabitScheduleItem[]>(habitKeys.list({}))?.every(habit => !habit.isCompleted)).toBe(true)
+    expect(client.getQueryData(habitKeys.list({}))).toEqual(previousRows)
     const retry = mocks.toast.mock.calls.at(-1)?.[0]?.onAction as () => Promise<void>
     expect(retry).toBeTypeOf('function')
     expect(mocks.toast.mock.calls.at(-1)?.[0]?.message).toBe('The connection was interrupted. Try again to finish updating your selection.')
@@ -107,3 +148,38 @@ describe('bulk gateway recovery', () => {
 })
 
 
+
+describe('bulk response settlement timing', () => {
+  it.each(['log', 'skip'] as const)('clears ten %s rows at the response while profile work continues', async mode => {
+    vi.useFakeTimers()
+    const startedAt = Date.now()
+    let profileFinished = false
+    mocks.fetch.mockImplementation(async () => {
+      await new Promise(resolve => setTimeout(resolve, 120))
+      return Response.json({ results: ids.map((habitId, index) => ({
+        index, status: 'Success', habitId, error: null, errorCode: null,
+        ...(mode === 'log' ? { logId: habitId } : {}),
+      })), ...(mode === 'log' ? { previousStreak: 0, currentStreak: 1 } : {}) })
+    })
+    vi.spyOn(client, 'invalidateQueries').mockImplementation(async filters => {
+      if (filters?.queryKey?.[0] === profileKeys.all[0]) {
+        await new Promise(resolve => setTimeout(resolve, 5000))
+        client.setQueryData(profileKeys.detail(), createMockProfile({ totalXp: 200, currentStreak: 1 }))
+        profileFinished = true
+      }
+    })
+    let pending!: Promise<void>
+    await act(() => { pending = mode === 'log' ? actions.confirmBulkLog() : actions.confirmBulkSkip() })
+    await act(async () => { await vi.advanceTimersByTimeAsync(120) })
+    const selectedAtResponse = selected.size
+    if (mode === 'log') expect(client.getQueryData<HabitScheduleItem[]>(habitKeys.list({}))?.every(habit => habit.isCompleted)).toBe(true)
+    expect(profileFinished).toBe(false)
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); await pending })
+    expect(profileFinished).toBe(true)
+    expect(client.getQueryData<Profile>(profileKeys.detail())?.totalXp).toBe(200)
+    if (mode === 'log') expect(useUIStore.getState().dailyStreakMomentDate).toBe(date)
+    expect(clearedAt === null ? null : clearedAt - startedAt).toBe(120)
+    expect(selectedAtResponse).toBe(0)
+    expect(settle).toHaveBeenCalledOnce()
+  })
+})

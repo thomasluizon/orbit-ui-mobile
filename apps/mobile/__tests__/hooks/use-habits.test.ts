@@ -3559,12 +3559,14 @@ describe('account calendar streak regressions', () => {
     store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
     seedHabitState([makeHabit()])
     mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 4, timeZone: 'America/Sao_Paulo' })
+    let profileRefresh = Promise.resolve()
     mocks.queryClient.invalidateQueries.mockImplementation((filters) => {
       if (JSON.stringify(filters?.queryKey) !== JSON.stringify(profileKeys.all)) return Promise.resolve()
-      return Promise.resolve().then(() => {
+      profileRefresh = Promise.resolve().then(() => {
         if (scenario.after) vi.setSystemTime(new Date(scenario.after))
         mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 5, timeZone: 'America/Sao_Paulo' })
       })
+      return profileRefresh
     })
     const mutation = useBulkLogHabits() as unknown as MutationConfig<unknown, { habitId: string; date?: string }[], unknown>
     const variables = [{ habitId: 'habit-1', date: scenario.date }]
@@ -3572,6 +3574,7 @@ describe('account calendar streak regressions', () => {
       const context = await mutation.onMutate?.(variables)
       mocks.runQueuedMutation.mockResolvedValueOnce({ previousStreak: 4, currentStreak: 5, results: [{ index: 0, status: 'Success', habitId: 'habit-1', logId: 'confirmed-log', error: null }] })
       await Promise.resolve(mutation.onSuccess?.(await mutation.mutationFn(variables), variables, context))
+      await profileRefresh
       expect(store.getState().activeCelebration?.kind ?? null).toBe(scenario.expected ? 'daily-streak' : null)
       expect(store.getState().dailyStreakMomentDate).toBe(scenario.expected ? '2026-06-15' : '')
     } finally {
@@ -3638,7 +3641,12 @@ describe('bulk no-op streak eligibility', () => {
       const today = formatAPIDate(new Date())
       const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
       const todayKey = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true, completeDay: true })
-      client.setQueryData(todayKey, [makeHabit({ dueDate: today, scheduledDates: [today] })])
+      const scheduledHabits = [makeHabit({ dueDate: today, scheduledDates: [today] })]
+      client.setQueryData(todayKey, scheduledHabits)
+      const habitObserver = new QueryObserver(client, {
+        queryKey: todayKey, staleTime: Infinity, queryFn: () => Promise.resolve(scheduledHabits),
+      })
+      const unsubscribeHabits = habitObserver.subscribe(() => {})
       client.setQueryData(profileKeys.detail(), { currentStreak: streak - 1 })
       const observer = new QueryObserver(client, {
         queryKey: profileKeys.detail(), staleTime: Infinity,
@@ -3656,14 +3664,17 @@ describe('bulk no-op streak eligibility', () => {
         const context = await mutation.onMutate?.(variables)
         const response = await mutation.mutationFn(variables)
         await Promise.resolve(mutation.onSuccess?.(response, variables, context))
-        expect(client.getQueryData(profileKeys.detail())).toEqual({ currentStreak: streak })
-        expect(client.getQueryData<HabitScheduleItem[]>(todayKey)?.[0]?.isCompleted).toBe(true)
-        expect(store.getState().activeCelebration?.kind).toBe(created && streak === 7 ? 'streak' : 'all-done')
-        expect(store.getState().queuedCelebrations.map((item) => item.kind)).toEqual(created && streak === 7 ? ['all-done'] : [])
-        expect(store.getState().dailyStreakMomentDate).toBe(created ? today : '')
-        expect(store.getState().allDoneCelebratedDate).toBe(today)
+        await vi.waitFor(() => {
+          expect(client.getQueryData(profileKeys.detail())).toEqual({ currentStreak: streak })
+          expect(client.getQueryData<HabitScheduleItem[]>(todayKey)?.[0]?.isCompleted).toBe(true)
+          expect(store.getState().activeCelebration?.kind).toBe(created && streak === 7 ? 'streak' : 'all-done')
+          expect(store.getState().queuedCelebrations.map((item) => item.kind)).toEqual(created && streak === 7 ? ['all-done'] : [])
+          expect(store.getState().dailyStreakMomentDate).toBe(created ? today : '')
+          expect(store.getState().allDoneCelebratedDate).toBe(today)
+        })
       } finally {
         unsubscribe()
+        unsubscribeHabits()
         client.clear()
         mocks.useRealUIStore = false
       }

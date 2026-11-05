@@ -652,7 +652,7 @@ describe('mobile apiClient', () => {
     )
   })
 
-  it('consumes a pending idempotency key once and does not leak it to the next request', async () => {
+  it.each([undefined, 'explicit-key'])('consumes a pending idempotency key once with override %s and does not leak it to the next request', async idempotencyKey => {
     getTokenMock.mockResolvedValue('token-123')
     fetchMock.mockResolvedValue({
       ok: true,
@@ -661,14 +661,14 @@ describe('mobile apiClient', () => {
     })
 
     setPendingIdempotencyKey('mutation-2')
-    await apiClient('/api/habits', { method: 'POST', body: '{}' })
+    await apiClient('/api/habits', { method: 'POST', body: '{}', idempotencyKey })
     await apiClient('/api/habits', { method: 'POST', body: '{}' })
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       `${API_BASE}/api/habits`,
       expect.objectContaining({
-        headers: expect.objectContaining({ 'Idempotency-Key': 'mutation-2' }),
+        headers: expect.objectContaining({ 'Idempotency-Key': idempotencyKey ?? 'mutation-2' }),
       }),
     )
     expect(fetchMock).toHaveBeenNthCalledWith(

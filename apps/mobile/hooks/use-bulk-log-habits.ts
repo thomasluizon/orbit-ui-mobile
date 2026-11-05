@@ -14,6 +14,7 @@ import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { optimisticPatchHabit } from '@/lib/habit-optimistic-helpers'
 import { snapshotHabitLists,updateHabitLists,restoreHabitLists,restoreHabitCompletionForIds,updateHabitListsForDate,finalizeHabitMutation } from '@/lib/habit-mutation-helpers'
 import { useReviewReminderStore } from '@/stores/review-reminder-store'
+import { captureError } from '@/lib/sentry'
 import { useUIStore } from '@/stores/ui-store'
 import { resolveHabitLogDate } from './use-habit-mutation-shared'
 
@@ -31,26 +32,19 @@ type BulkLogMutationOutcome = OfflineBulkMutationOutcome<BulkLogResult> & {
 
 function recordBulkFailure(
   error: unknown,
-  habitIds: string[],
   failures: { ambiguousIds: string[]; offlineFailureIds: string[]; retryChunks: BulkRetryChunk<BulkLogItemRequest>[] },
   chunk: BulkRetryChunk<BulkLogItemRequest>,
 ): void {
   if (!(error instanceof OfflineMutationPreflightError)) failures.retryChunks.push({ items: chunk.items, idempotencyKey: chunk.idempotencyKey })
   const rejectedIds = error instanceof OfflineMutationPreflightError ? failures.offlineFailureIds : failures.ambiguousIds
-  rejectedIds.push(...habitIds)
+  rejectedIds.push(...chunk.items.map(item => item.habitId))
 }
 
 function checkTodayCompletionAfterLogs(
   queryClient: ReturnType<typeof useQueryClient>,
-  habitIds: string[],
   today: string,
   checkAllDoneCelebration: ReturnType<typeof useUIStore.getState>['checkAllDoneCelebration'],
 ): void {
-  updateHabitListsForDate(queryClient, today, (habits) =>
-    habitIds.reduce((current, id) => {
-      const habit = findHabitInList(current, id)
-      return habit ? optimisticPatchHabit(current, id, buildSuccessfulLogPatch(habit)) : current
-    }, habits))
   const habitsData = getTodayHabitList(queryClient, today)
   if (!habitsData) return
   const normalized = normalizeHabits(habitsData)
@@ -172,7 +166,7 @@ function createBulkLogHabitsMutationFn(context: ReturnType<typeof useBulkLogHabi
           if (!isQueuedResult(response)) streakResponses.push(chunkResponse)
           results.push(...chunkResponse.results)
         } catch (error: unknown) {
-          recordBulkFailure(error, chunk.items.map((item) => item.habitId), { ambiguousIds, offlineFailureIds, retryChunks }, chunk)
+          recordBulkFailure(error, { ambiguousIds, offlineFailureIds, retryChunks }, chunk)
         }
       }
       return { results, streakResponses, ambiguousIds, offlineFailureIds, hasConfirmedSuccess, queuedIds, retryChunks }
@@ -214,7 +208,12 @@ function createBulkLogHabitsOnSuccess(context: ReturnType<typeof useBulkLogHabit
     })
     const successfulIds = successfulEntries.map((entry) => entry.habitId)
     if (successfulIds.length === 0) return
-    return profileRefresh?.then(() => {
+    updateHabitListsForDate(queryClient, today, (habits) =>
+      successfulIds.reduce((current, id) => {
+        const habit = findHabitInList(current, id)
+        return habit ? optimisticPatchHabit(current, id, buildSuccessfulLogPatch(habit)) : current
+      }, habits))
+    void profileRefresh?.then(() => {
       const profile = queryClient.getQueryData<Profile>(profileKeys.detail())
       if (!profile || !context.account.stillCurrent() || today !== getAccountDay(new Date(), profile.timeZone)) return
       const { previousStreak, currentStreak, countsTowardStreak } = deriveBulkLogStreakTransition(
@@ -223,9 +222,9 @@ function createBulkLogHabitsOnSuccess(context: ReturnType<typeof useBulkLogHabit
         context.previousLists.flatMap(([, habits]) => habits ?? []),
       )
       if (currentStreak !== undefined) showStreakMoment(currentStreak, previousStreak, { date: today, timeZone: profile.timeZone, intent: 'log', countsTowardStreak })
-      checkTodayCompletionAfterLogs(queryClient, successfulIds, today,
+      checkTodayCompletionAfterLogs(queryClient, today,
         (habits, children, date) => checkAllDoneCelebration(habits, children, date, profile.timeZone))
-    })
+    }).catch((error: unknown) => captureError(error))
   }
   return callback
 }

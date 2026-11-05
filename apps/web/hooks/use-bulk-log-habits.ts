@@ -1,5 +1,6 @@
 'use client'
 
+import { captureException } from '@sentry/nextjs'
 import { useQueryClient } from '@tanstack/react-query'
 import { profileKeys,habitKeys,updateHabitListsForDate,getTodayHabitList,invalidateDerivedHabitLogQueries,goalKeys,gamificationKeys } from '@orbit/shared/query'
 import { buildUnresolvedBulkFailures,buildBulkCompletionChunks,normalizeBulkCompletionInput,isBulkGatewayFailure,type BulkCompletionInput,type BulkRetryChunk,getAccountDay,findHabitInList,buildSuccessfulLogPatch,deriveBulkLogStreakTransition,normalizeHabits,buildChildrenIndex } from '@orbit/shared/utils'
@@ -131,7 +132,7 @@ export function useBulkLogHabits() {
           const habit = findHabitInList(current, id)
           return habit ? optimisticPatchHabit(current, id, buildSuccessfulLogPatch(habit)) : current
         }, habits))
-      return profileRefresh?.then(() => {
+      void profileRefresh?.then(() => {
         const profile = queryClient.getQueryData<Profile>(profileKeys.detail())
         if (!profile || !context.account.stillCurrent() || today !== getAccountDay(new Date(), profile.timeZone)) return
         const { previousStreak, currentStreak, countsTowardStreak } = deriveBulkLogStreakTransition(
@@ -145,7 +146,7 @@ export function useBulkLogHabits() {
           const normalized = normalizeHabits(habitsData)
           checkAllDoneCelebration(normalized, buildChildrenIndex(normalized), today, profile.timeZone)
         }
-      })
+      }).catch((error: unknown) => captureException(error))
     },
 
     onSettled: () => {

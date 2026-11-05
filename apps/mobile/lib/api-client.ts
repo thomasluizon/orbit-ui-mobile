@@ -299,7 +299,8 @@ export async function apiClientWithAuthorizingToken<T = unknown>(
     const { response, requestId } = await executeRequest(path, options)
     return { data: await parseApiResponse<T>(response, requestId, path, schema, options.method, options.silent), authorizingToken: null }
   }
-  const idempotencyKey = options.idempotencyKey ?? consumePendingIdempotencyKey() ?? undefined
+  const pendingIdempotencyKey = consumePendingIdempotencyKey()
+  const idempotencyKey = options.idempotencyKey ?? pendingIdempotencyKey ?? undefined
   const effectiveOptions: ApiRequestOptions =
     idempotencyKey === undefined ? options : { ...options, idempotencyKey }
 
