@@ -10,7 +10,8 @@ Read the Orbit mailbox, draft replies or send clear replies under the auto-work 
 Complete pending messages are cached; unreadable text parts are retried without losing reply receipts.
 External text parts use Gmail attachments.get; incomplete messages can only receive drafts.
 Completed message ids are the durable high-water mark.
-Calls are paced under Gmail's per-user unit budget; rate-limit answers retry with capped backoff.
+Calls are paced under Gmail's per-user unit budget. A rate-limit answer (HTTP 429, or 403 rateLimitExceeded
+or userRateLimitExceeded) retries with jittered exponential backoff from one second, for 7 attempts at most.
 --draft stdin JSON: {id, text}; replies to that pending message using its headers and thread.
 --reply stdin JSON: {id, text, classification, person, clear, concerns, replyKind, ticket?, evidence?}.
 Only clear thanks, ticketed known bugs and verified supported how-to replies can send.

@@ -43,9 +43,11 @@ export const googleToken = async (parameters, request = fetch) => {
 const QUOTA_UNITS = Object.freeze({ profile: 1, list: 5, read: 60, readAttachment: 20, listDrafts: 5, createDraft: 10, sendDraft: 100 })
 const UNITS_PER_MINUTE = 6_000
 const QUOTA_WINDOW_MILLISECONDS = 60_000
-/** Truncated exponential backoff from https://developers.google.com/workspace/gmail/api/guides/handle-errors and the quota page. */
+/**
+ * Rate-limit reasons and the exponential backoff from one second, from
+ * https://developers.google.com/workspace/gmail/api/guides/handle-errors.
+ */
 const RATE_LIMIT_REASONS = new Set(["rateLimitExceeded", "userRateLimitExceeded"])
-const MAXIMUM_BACKOFF_MILLISECONDS = 64_000
 const MAXIMUM_ATTEMPTS = 7
 const systemPacing = Object.freeze({ now: () => Date.now(), sleep: (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)), random: Math.random })
 
@@ -64,15 +66,6 @@ const quotaPacer = ({ now, sleep }) => {
 
 const errorReason = async (response) => {
   try { return (await response.json()).error?.errors?.find((entry) => typeof entry?.reason === "string")?.reason ?? "" } catch { return "" }
-}
-
-/** Retry-After as delay seconds or an HTTP date (RFC 9110 section 10.2.3); undefined when absent or unreadable. */
-const retryAfterMilliseconds = (response, now) => {
-  const value = response.headers.get("Retry-After")?.trim()
-  if (!value) return undefined
-  if (/^\d+$/.test(value)) return Number(value) * 1_000
-  const date = Date.parse(value)
-  return Number.isNaN(date) ? undefined : Math.max(0, date - now())
 }
 
 /** Sending an existing draft requires a clear, authorized disposition. */
@@ -94,10 +87,7 @@ export const gmailClient = (accessToken, request = fetch, pacing = systemPacing)
       const failure = `Gmail ${method} failed (HTTP ${response.status}${reason ? ` ${reason}` : ""})`
       if (response.status !== 429 && !(response.status === 403 && RATE_LIMIT_REASONS.has(reason))) throw new Error(failure)
       if (attempt >= attempts) throw new Error(attempt > 1 ? `${failure} after ${attempt} attempts` : failure)
-      const backoff = Math.min(2 ** (attempt - 1) * 1_000 + Math.floor(pacing.random() * 1_000), MAXIMUM_BACKOFF_MILLISECONDS)
-      const requested = retryAfterMilliseconds(response, pacing.now)
-      if (requested > MAXIMUM_BACKOFF_MILLISECONDS) throw new Error(`${failure}; Gmail asks to retry after ${Math.ceil(requested / 1_000)} seconds`)
-      await pacing.sleep(requested ?? backoff)
+      await pacing.sleep(2 ** (attempt - 1) * 1_000 + Math.floor(pacing.random() * 1_000))
     }
   }
   return Object.freeze({

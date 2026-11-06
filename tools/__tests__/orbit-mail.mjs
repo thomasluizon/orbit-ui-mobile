@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs"
+import { mkdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { collectMail, draftReply, replyToMail } from "../orbit-mail.mjs"
 import { gmailClient } from "../lib/auto-work-google.mjs"
@@ -100,10 +100,11 @@ export const cases = async () => {
   const limitedCheckout = join(root, "mail-rate-limit")
   mkdirSync(join(limitedCheckout, ".git"), { recursive: true })
   writeRunState({ sessionId: "rate-limit-mail", sleep: true, autoWork: true }, limitedCheckout)
-  const rateLimited = (reason) => Response.json({ error: { code: 403, message: "Rate Limit Exceeded",
-    errors: [{ domain: "usageLimits", reason, message: "Rate Limit Exceeded" }] } }, { status: 403 })
-  const limitedAnswers = { r1: [() => rateLimited("rateLimitExceeded")], r2: [() => rateLimited("userRateLimitExceeded")],
-    r3: [() => new Response("Too many requests", { status: 429, headers: { "Retry-After": "3" } })] }
+  const capturedRateLimit = JSON.parse(readFileSync(new URL("./fixtures/gmail-rate-limit-403.json", import.meta.url), "utf8"))
+  const userRateLimit = structuredClone(capturedRateLimit)
+  userRateLimit.error.errors[0].reason = "userRateLimitExceeded"
+  const limitedAnswers = { r1: [() => Response.json(capturedRateLimit, { status: 403 })], r2: [() => Response.json(userRateLimit, { status: 403 })],
+    r3: [() => new Response("Too many requests: User-rate limit exceeded", { status: 429 })] }
   const limitedReads = []
   let limitedClock = 0
   const limitedWaits = []
@@ -124,7 +125,7 @@ export const cases = async () => {
   T("mail: a per-minute Gmail rate limit is retried instead of failing the collect", limitedError === undefined && limitedPending.length === 3 &&
     limitedPending.every((item) => item.bodies[0]?.text === "Oi"))
   T("mail: each rate-limited read is retried once after its backoff", limitedReads.join(",") === "r1,r1,r2,r2,r3,r3" &&
-    limitedWaits.length === 3 && limitedWaits.slice(0, 2).every((milliseconds) => milliseconds >= 1_000) && limitedWaits[2] === 3_000)
+    limitedWaits.length === 3 && limitedWaits.every((milliseconds) => milliseconds >= 1_000 && milliseconds < 2_000))
   const revokedCheckout = join(root, "mail-forbidden")
   mkdirSync(join(revokedCheckout, ".git"), { recursive: true })
   writeRunState({ sessionId: "forbidden-mail", sleep: true, autoWork: true }, revokedCheckout)
