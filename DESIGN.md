@@ -120,9 +120,12 @@ supersedes the side-by-side avatar column amendment in
 **Astra has no route and no Android tab.** The wide web sidebar's Astra row opens
 its conversation as a layer; that row is navigation chrome, not a fifth destination.
 
-1. **The front door** on Hoje is one round draggable Astra button at every width on web and
-   Android. The wide web sidebar also retains its Astra row. Hoje has no composer dock.
+1. **The front door** on Hoje is one round draggable Astra button in the compact shell only:
+   Android at every width and web below 1024. It replaces the Hoje composer. Wide web (1024
+   and above) has no floating button, and its sidebar Astra row is the only entry. Hoje has no
+   composer dock.
    The owner's order (#2005) is: "i want the astra composer to be removed on hoje. instead, put a round astra icon, similar to the + to create new habit, that opens astra. would be awesome if it could be dragged, like a floating button".
+   The owner's binding correction (#2042) is: "the astra button you can drag was supposed to be only on the mobile version, replacing the composer. there wasnt even a composer on the web" and "it doesnt even drags in the whole app, only on the habits, and it looks ugly / i want it ONLY ON THE MOBILE, replacing the composer, i want it dragable (but cant go on top of the footer navbar) / and also i want it looking good / when i say mobile, i also mean phone-width web, they are the same thing." One sentence of that message is omitted here.
    **One set of 3 to 6 suggestion chips built from live state**, never from a static list, sits
    above the conversation input: what is overdue, which streak is at risk, which habit has no goal.
    The empty state adds no opener chips; the daily limit shows none. Chips hug their labels in
@@ -152,8 +155,8 @@ client asks for them deliberately.
 
 | platform | navigation | Astra |
 |---|---|---|
-| **mobile** | bottom tab bar, **four** destinations: Hoje, Calendário, Progresso, Perfil; one row with capped labels and a full-size long-press viewer as specified below | draggable round Astra button on Hoje, above the tab bar |
-| **web** | sidebar, the same four at 1024 and above; compact tab bar below 1024 with the same label cap and long-press viewer | draggable round Astra button on Hoje at every width; sidebar Astra row on wide web |
+| **mobile** | bottom tab bar, **four** destinations: Hoje, Calendário, Progresso, Perfil; one row with capped labels and a full-size long-press viewer as specified below | draggable round Astra button on Hoje, over the whole screen above the tab bar |
+| **web** | sidebar, the same four at 1024 and above; compact tab bar below 1024 with the same label cap and long-press viewer | sidebar Astra row at 1024 and above, with no floating button; below 1024 the same draggable round Astra button on Hoje as mobile |
 
 **No navigation drawer and no hamburger on either platform.** Navigation has four destinations.
 The wide web Astra row is a button opening a layer with no route. A bottom sheet, menu or dialog
@@ -214,28 +217,43 @@ The list gap is 4. While the conversation is open, only the Astra row draws the 
 treatment: `--primary` glyph and `--primary-soft` label. The destination retains
 `aria-current="page"` because the route stays unchanged, but draws no current-position treatment.
 
-**The way in must be visible.** Hoje's Astra button reuses the create FAB's 60px circle,
-canvas occlusion ring and 0.96 press feedback, with the normal 24px Astra glyph. Its opaque
+**The way in must be visible.** In the compact shell, Hoje's Astra button uses the create FAB's
+60px circle and 0.96 press feedback, with the normal 24px Astra glyph at its centre. Its opaque
 neutral `--bg-elev` surface and `--fg-1` mark leave the next-action accent with creation.
-It starts at the trailing edge, 24px above the create FAB, and stays inside the content viewport
-above the tab bar and notice/selection slots. Wide web uses the same button inside its content
-column and keeps the sidebar row. Habit detail retains its mark-only composer entry.
+The button floats over content, so it does not use the canvas occlusion ring of the create FAB.
+It uses the lifted-surface treatment: an inset 1px `--hairline-strong` ring, sh-2 at rest and
+sh-3 while a drag holds it. A drag also removes the press scale. There is no glow, no gradient
+and no hue in the shadow.
+It starts on the create FAB's trailing edge, 24px above the create FAB. Its drag area is the whole
+compact viewport, from the top safe area down to the top edge of the tab bar. It moves over the
+Hoje header and date row, and it never covers the tab bar. A visible notice or selection slot
+raises that floor to the top of the slot. In a window shorter than the destination minimum, the
+button scrolls with the header and the tab bar, so the floor gap holds at every scroll offset.
+On web, keyboard focus reaches it after the page and before the tab bar, and it stacks above the
+bottom chrome. Wide web mounts no floating button and keeps the
+sidebar row. Habit detail retains its mark-only composer entry.
 
 A tap opens the existing conversation layer. A movement of at least 8px becomes a drag and
-never opens it. Release snaps to the nearer inline edge with 16px margins and 24px clearance from
-the create FAB and the measured back-to-top pill. The two FAB canvas rings retain 12px of visible
-separation. Position is a device preference, retained across
+never opens it. A drag reaches 16px from the screen edges. Release snaps to the nearer inline edge
+of the centred content column, capped at 740, with 16px margins. That is the create FAB's edge, so the
+button never rests outside the column on a wide compact screen. Release keeps 24px clearance from
+the create FAB and the measured back-to-top pill. The lowest position keeps 16px between the
+button and the floor. Position is a device preference, retained across
 launches; an outgrown position resets to the default when the viewport shrinks. Layout changes
 recheck obstacles. Sheets, selection and the conversation withhold the floating entry.
-The shell reserves end-of-list clearance from the button's current position plus a 16px gap,
+The shell reserves end-of-list clearance from the button's current position to the bottom of
+the page region, plus a 16px gap,
 so the last row scrolls fully above it after dragging, moving or resizing. Web caps the inset used
 when scrolling to focus at half the scroller height so a short window can reveal its focused controls.
 Press and hold opens four named movement choices on both platforms; web also opens them on
 right-click or the context-menu key. Choosing a direction closes the sheet and moves the button
 without opening Astra. Web keeps the button in normal tab order; Enter and Space open it and
 arrow keys move it. Android also exposes four named Move accessibility actions. Initial and restored positions appear
-without entrance movement; snap animation follows a requested move. A new drag interrupts the snap
-at its displayed position. Reduced motion removes the snap animation.
+without entrance movement; snap animation follows a requested move with `--ease-out` over 220ms.
+A new drag interrupts the snap
+at its displayed position. Reduced motion removes the snap animation. On web, reduced motion
+also puts the first position and each drag frame on screen in the frame they change, so the button
+never trails the pointer and its measured position is always its painted position.
 The conversation retains live suggestions, the draft, attachments, AI disclosure, composer
 disclosure, running reply control, queue and the proactive line's destination. Reopening a collapsed
 conversation focuses its visible expand control and preserves its draft.
@@ -1754,6 +1772,8 @@ feedback, including when reduced motion suppresses the scale.
 Interaction fills and focus rings stay inside the control's laid-out box. An outward extension
 may use only the gap to the nearest neighbour minus 8px. Keep at least
 8px between the painted fill and neighbouring content, including the page column edge.
+A blurred elevation shadow with zero spread is depth, not fill paint, so the guards do not
+measure it. A spread ring is fill paint.
 `INTERACTION_FILL_CLEARANCE` in `packages/shared` owns that clearance for both platform guards.
 Reserve the extension in layout; a negative inset never grants permission to overlap.
 Typed sheet titles remain plain headings while their full text fits the two-line clamp.

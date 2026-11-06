@@ -67,6 +67,7 @@ describe('app shell hydration', () => {
 
     const firstEntry = container.querySelector<HTMLButtonElement>('[data-astra-button]')!
     expect(firstEntry).not.toBeNull()
+    expect(container.querySelector('[data-astra-button-area]')).toHaveClass('lg:hidden')
     firstEntry.focus()
     const firstSidebarBell = container.querySelector('[data-shell-sidebar] button[aria-label="notifications.bell"]')
     const firstAstraRow = container.querySelector('[data-shell-astra-row]')
@@ -102,9 +103,11 @@ describe('app shell hydration', () => {
     if (width >= 1024) expect(container.querySelector('[data-shell-astra-row]')).toBe(firstAstraRow)
     expect(container.querySelectorAll('[data-root-notification-header]')).toHaveLength(width >= 1024 ? 0 : 1)
     expect(container.querySelector('[data-shell-sidebar] button[aria-label="notifications.bell"]')).toBe(firstSidebarBell)
-    expect(container.querySelectorAll('[data-astra-button]')).toHaveLength(1)
-    expect(container.querySelector('[data-astra-button]')).toBe(firstEntry)
-    expect(firstEntry).toHaveFocus()
+    expect(container.querySelectorAll('[data-astra-button]')).toHaveLength(width >= 1024 ? 0 : 1)
+    if (width < 1024) {
+      expect(container.querySelector('[data-astra-button]')).toBe(firstEntry)
+      expect(firstEntry).toHaveFocus()
+    }
     expect(container.querySelector('textarea')).toBeNull()
     expect(within(container).getByRole('button', { name: 'Voice' })).toBeVisible()
   })

@@ -12,7 +12,7 @@ registerChromeLaunchHook(beforeAll, async (pending) => { launch = pending; brows
 beforeAll(async () => { ({ stylesheet, script } = await buildHabitListScrollAssets()) }, 30_000)
 afterAll(async () => { await closeChrome(launch) })
 
-it.each([390, 840, 1100, 1440])('clears the floating Astra entry at the end of the real habit list at %ipx', async width => {
+it.each([390, 840])('clears the floating Astra entry at the end of the real habit list at %ipx', async width => {
   const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
   try {
     await page.route('https://habit-list.test/', route => route.fulfill({ contentType: 'text/html',

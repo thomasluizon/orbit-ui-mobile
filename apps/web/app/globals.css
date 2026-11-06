@@ -1941,7 +1941,8 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   }
 
   .habit-row [data-habit-row-body],
-  .habit-row [data-personal-text-content] {
+  .habit-row [data-personal-text-content],
+  [data-astra-button-position] {
     transition-duration: 0s !important;
   }
 

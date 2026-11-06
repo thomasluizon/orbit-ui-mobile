@@ -85,7 +85,7 @@ vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: React.
 vi.mock('@/lib/account-event-connection', () => ({ AccountEventConnection: () => null }))
 vi.mock('@/app/(app)/today-provider', () => ({ TodayProvider: ({ children }: { children: React.ReactNode }) => children, useToday: () => '2026-09-12' }))
 vi.mock('@/components/shell/destination-shell', () => ({
-  DestinationShell: ({ composer, conversation, conversationOpen }: { composer?: React.ReactNode; conversation: React.ReactNode; conversationOpen: boolean }) => <main>{conversationOpen ? conversation : <>{composer}{mocks.pathname === '/' ? <AstraButton /> : null}</>}</main>,
+  DestinationShell: ({ composer, conversation, conversationOpen }: { composer?: React.ReactNode; conversation: React.ReactNode; conversationOpen: boolean }) => <main>{conversationOpen ? conversation : <>{composer}<div data-shell-page=""><div data-shell-page-content="" /></div>{mocks.pathname === '/' ? <AstraButton /> : null}</>}</main>,
 }))
 vi.mock('@/components/command/command-palette', () => ({ CommandPaletteBackground: ({ children }: { children: React.ReactNode }) => children }))
 vi.mock('@/components/motion/route-transition-shell', () => ({ RouteTransitionShell: ({ children }: { children: React.ReactNode }) => children }))
