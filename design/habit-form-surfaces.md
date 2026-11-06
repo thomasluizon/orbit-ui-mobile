@@ -314,7 +314,7 @@ gap. Type, title, notes, When and start date labels are questions.
 
 More details groups Steps, Avoid, Organize and End. Steps retains checklist templates and the
 sub-item editor, asked as Break it into smaller tasks? for Task. Avoid retains the slip alert and its plan boundary.
-Organize retains tags, goal links and the edit parent picker. End asks End date? first; its answer reveals When does it end?, a saved end
+Organize retains tags, goal links and the edit parent picker. End asks Ends someday? first; its answer reveals When does it end?, a saved end
 date opens it, and hiding it retains the date and shows it as the row value. A saving form disables the row. Removing the date keeps the question open and returns
 focus to the date control. Field rows keep their paint on the field column edge. Create title and submit follow the selected type; the screen header uses
 the screen title role. The empty emoji well uses the smile glyph.
