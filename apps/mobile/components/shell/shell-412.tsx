@@ -73,6 +73,7 @@ function ShellBottomChrome({
   onSlotHeight: (height: number) => void
 }>) {
   const noticeStyle = useShellContentStyle(PADDING.screenGutter)
+  const [noticeFilled, setNoticeFilled] = useState(false)
   if (!visible) return null
   const actionMinimum = !navigationEnabled && pinnedSlot !== undefined ? BUTTON_SIZES.md.height : 0
   const minimumHeight = floating ? minimumViewportHeight : actionMinimum
@@ -88,7 +89,9 @@ function ShellBottomChrome({
     >
       <View style={[styles.bottomColumn, { minHeight: minimumHeight }, floating && styles.floatingColumn]}>
         <ShellBottomViewport floating={floating} minimumHeight={minimumHeight} onSlotHeight={onSlotHeight}>
-            {notice !== undefined ? <View testID="shell-notice" style={[styles.notice, noticeStyle]}>{notice}</View> : null}
+            {notice !== undefined ? <View testID="shell-notice" style={[styles.notice, noticeStyle, noticeFilled && styles.filledNotice]}>
+              <View testID="shell-notice-content" style={styles.noticeContent} onLayout={event => setNoticeFilled(event.nativeEvent.layout.height > 0)}>{notice}</View>
+            </View> : null}
             {pinnedSlot !== undefined ? (
               <View testID="shell-composer-band" style={[styles.composerBand, { minHeight: actionMinimum, display: conversationOpen ? 'none' : 'flex' }]}>
                 <ScrollView testID="shell-pinned-slot" scrollEnabled={!floating} nestedScrollEnabled={!floating}
@@ -415,8 +418,9 @@ const styles = StyleSheet.create({
   notice: {
     alignSelf: 'center', maxWidth: SHELL_CONTENT_MAX_WIDTH, width: '100%',
     paddingHorizontal: PADDING.screenGutter,
-    gap: SPACING.s12,
   },
+  noticeContent: { gap: SPACING.s12 },
+  filledNotice: { paddingTop: SPACING.s8, paddingBottom: SPACING.s24 },
   bottomColumn: {
     flexShrink: 1,
     minHeight: 0,
