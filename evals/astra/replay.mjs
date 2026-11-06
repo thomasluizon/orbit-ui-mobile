@@ -49,11 +49,20 @@ function historicalScope(attempt, vars, assertions) {
   return 'incomplete'
 }
 
-function redactedFailure(call, verdict) {
-  const paths = [...(verdict.reason ?? '').matchAll(/"instancePath":"([^"]*)"/gu)].map((match) => match[1])
-  const value = (path) => path.split('/').slice(1).map((segment) => segment.replaceAll('~1', '/').replaceAll('~0', '~'))
-    .reduce((parent, key) => parent?.[key], call.arguments)
-  return !verdict.pass && paths.length && paths.every((path) => value(path) === '[redacted]') ? { ...verdict, redacted: true } : verdict
+// Ajv stops at the first error, so each saved "[redacted]" field value becomes null and the call is validated again.
+// Producer schemas make every optional field nullable; a redacted array item or non-nullable field still fails.
+function withoutRedactedFields(value) {
+  if (Array.isArray(value)) return value.map((item) => item === '[redacted]' ? item : withoutRedactedFields(item))
+  if (!value || typeof value !== 'object') return value
+  return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, child === '[redacted]' ? null : withoutRedactedFields(child)]))
+}
+
+async function schemaVerdict(call, validate) {
+  const verdict = { name: call.name, ...await validate(call) }
+  if (verdict.pass) return verdict
+  const projected = withoutRedactedFields(call.arguments)
+  if (JSON.stringify(projected) === JSON.stringify(call.arguments)) return verdict
+  return (await validate({ ...call, arguments: projected })).pass ? { ...verdict, redacted: true } : verdict
 }
 
 export async function replayAttempt(attempt, descriptor, recorded) {
@@ -63,8 +72,8 @@ export async function replayAttempt(attempt, descriptor, recorded) {
   test.vars.clientContext ??= buildChatClientContext({ platform: test.metadata.platform ?? 'web', locale: test.metadata.locale ?? 'en' })
   const assertions = structuredClone(attempt.assertions)
   const notes = []
-  const schemas = await Promise.all(attempt.toolCalls.map(async (call) => redactedFailure(call, { name: call.name,
-    ...await validateToolArguments(call, declarations(test.vars), { test, vars: test.vars }) })))
+  const validate = (call) => validateToolArguments(call, declarations(test.vars), { test, vars: test.vars })
+  const schemas = await Promise.all(attempt.toolCalls.map((call) => schemaVerdict(call, validate)))
   if (schemas.some((verdict) => verdict.redacted)) notes.push('A recorded argument holds a redacted value, so its schema cannot be replayed.')
   const structure = assertions.find((assertion) => assertion.metric === 'toolStructure')
   if (structure?.pass === false && /Call to "ask" does not match schema/u.test(structure.reason)
@@ -99,7 +108,7 @@ export async function replayAttempt(attempt, descriptor, recorded) {
     const verdict = toolBehavior(attempt.setup.toolCalls, test.vars.setup.expectations)
     notes.push(`Setup outcome scope: ${verdict.reason} Preview evidence remains unavailable.`)
   }
-  if (attempt.offerReadback?.reason?.includes('HTTP 409')) notes.push('The saved conflict omits the route/code; no retry or success can be inferred.')
+  if (attempt.offerReadback?.reason?.includes('HTTP 409')) notes.push('The saved conflict keeps only its route and typed reason, when the API sent one; no retry or success can be inferred.')
   if (attempt.offerReadback?.reason?.startsWith('ask requires')) notes.push('The failing continuation trace was not recorded; its grade cannot be replayed.')
   return { caseId: attempt.caseId, repeat: attempt.repeat, recordedAttemptPassed: attempt.pass,
     before, after, assertions, schemas, notes,

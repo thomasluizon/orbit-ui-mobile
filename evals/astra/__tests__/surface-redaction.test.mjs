@@ -37,3 +37,33 @@ it('keeps a public surface name in grading facts while it withholds identities',
   expect(evidence.successfulTools[0].result).toEqual({ surfaceId: 'today', note: 'Start today.' })
   expect(JSON.stringify(evidence)).not.toMatch(/cursor-private|44444444-4444/u)
 })
+
+// Producer: orbit-api DescribeFeatureTool FeatureHelpResult, AppSurface in ChatStreamEvent camelCase, frequencies.md.
+function featureCall() {
+  const call = toolCall('describe_feature', { feature_key: 'frequencies' }, 'Succeeded', 'feature', clientContext)
+  return { ...call, resultStatus: 'Succeeded', result: { ...call.result, payload: { key: 'frequencies',
+    display_name: 'Habit Frequencies', related_capabilities: ['habits.read', 'habits.write'], related_surfaces: ['today'],
+    markdown: 'Frequencies set how often a habit repeats.', answer_scope: 'Use only documented steps.',
+    app_surfaces: [{ id: 'today', displayName: 'Today', description: 'Shows the current day.',
+      howToSteps: ['Open Today.'], notes: [], relatedCapabilityIds: ['habits.read', 'habits.daily-summary.read'],
+      relatedControllerActionKeys: ['HabitsController.GetHabits'] }] } } }
+}
+
+// Producer: orbit-api QueryHabitsTool HabitListCard with HabitListCardItem rows.
+function habitsCall() {
+  const call = toolCall('query_habits', {}, 'Succeeded', 'habits', clientContext)
+  return { ...call, resultStatus: 'Succeeded', result: { ...call.result, payload: { scope: 'today', date: today, totalCount: 1,
+    items: [{ id: habitId, title: 'Read', emoji: null, depth: 0, isBadHabit: false, status: 'today', parentHabitId: null }] } } }
+}
+
+it('keeps the facts that repeat a public surface id while it withholds habit identities', () => {
+  const output = { trace: { state: 'available', requestId, responseRequestId: requestId, calls: [featureCall(), habitsCall()] } }
+  const evidence = groundingEvidence(output, { evalRequestId: requestId })
+  const [feature, habits] = evidence.successfulTools.map((call) => call.result)
+  expect(feature).toMatchObject({ related_surfaces: ['today'], related_capabilities: ['habits.read', 'habits.write'],
+    app_surfaces: [{ displayName: 'Today', howToSteps: ['Open Today.'] }] })
+  expect(feature.app_surfaces[0]).not.toHaveProperty('id')
+  expect(habits).toMatchObject({ scope: 'today', items: [{ title: 'Read', status: 'today' }] })
+  expect(habits.items[0]).not.toHaveProperty('id')
+  expect(JSON.stringify(evidence)).not.toMatch(/44444444-4444/u)
+})

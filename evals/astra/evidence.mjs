@@ -7,6 +7,14 @@ function collectStrings(value, withheld) {
   else if (value && typeof value === 'object') Object.values(value).forEach((child) => collectStrings(child, withheld))
 }
 
+export const identity = /^(?:[0-9a-f]{32}|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$/i
+
+// An id-shaped field can hold a public name such as the surface id today, so only identity values are withheld.
+export function collectIdentities(value, withheld) {
+  if (typeof value === 'string' && identity.test(value)) withheld.add(value)
+  else if (value && typeof value === 'object') Object.values(value).forEach((child) => collectIdentities(child, withheld))
+}
+
 function bulkCreateItemSchemas(catalog) {
   return catalog.filter((tool) => tool.function.name === 'bulk_create_habits').flatMap((tool) => {
     const root = tool.function.parameters
@@ -103,9 +111,12 @@ function offerContextEvidence(vars, withheld) {
     if (Array.isArray(value)) return value.map(project)
     if (!value || typeof value !== 'object') return value
     return Object.fromEntries(Object.entries(value).map(([key, child]) => {
-      if (normalizeField(key) !== 'surfaceid'
-        && /token|credential|password|secret|cookie|authorization|cursor|revision|fingerprint|^(?:api|access|refresh)?key$|ids?$/u.test(normalizeField(key))) {
+      if (/token|credential|password|secret|cookie|authorization|cursor|revision|fingerprint|^(?:api|access|refresh)?key$/u.test(normalizeField(key))) {
         collectStrings(child, withheld)
+        return [key, child === null ? null : '[redacted]']
+      }
+      if (normalizeField(key) !== 'surfaceid' && /ids?$/u.test(normalizeField(key))) {
+        collectIdentities(child, withheld)
         return [key, child === null ? null : '[redacted]']
       }
       return [key, project(child)]

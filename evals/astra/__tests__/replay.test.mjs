@@ -118,6 +118,21 @@ it('reports a redacted recorded argument as a projection limit instead of a regr
   expect(readFileSync(`${directory}/output/summary.md`, 'utf8')).toContain('| offers-dismissal-en | pass | pass | unreplayable projection |')
 })
 
+it('does not let a redacted value excuse a later schema error on a passing case', async () => {
+  const attempt = structuredClone(gateFourteen.find((entry) => entry.caseId === 'offers-dismissal-en'))
+  expect(attempt.toolCalls[0].arguments.relative_period).toBe('[redacted]')
+  attempt.toolCalls[0].arguments.generate_narrative = 'yes'
+  const source = window([attempt])
+  await expect(replayWindow(source, `${directory}/output`)).rejects.toThrow('changed a previously passing case')
+})
+
+it('fails closed on a redacted value in a field that does not accept null', async () => {
+  const attempt = structuredClone(gateFourteen.find((entry) => entry.caseId === 'offers-dismissal-en'))
+  attempt.toolCalls[0].arguments.orbit_read_complete = '[redacted]'
+  const source = window([attempt])
+  await expect(replayWindow(source, `${directory}/output`)).rejects.toThrow('changed a previously passing case')
+})
+
 it('still counts an unredacted schema failure on a passing case as a regression', async () => {
   const attempt = structuredClone(gateFourteen.find((entry) => entry.caseId === 'offers-dismissal-en'))
   attempt.toolCalls[0].arguments.relative_period = 'tomorrow'
