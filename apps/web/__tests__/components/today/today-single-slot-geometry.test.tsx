@@ -193,10 +193,10 @@ describe('Hoje floating Astra entry and contextual actions at each shell width',
             }
           })
           const slotAbsent = state === 'none' || state === 'all' || state === 'general'
-          const shellGlyphs = 1 + Number(mocks.wide)
+          const shellGlyphs = 1
           const slotCount = Number(!slotAbsent)
           expect(geometry, state).toMatchObject({ glyphs: shellGlyphs + slotCount,
-            floatingButtons: 1, composers: 0, composerGlyphs: 0, entryGlyphs: 0, sendGlyphs: 0,
+            floatingButtons: Number(!mocks.wide), composers: 0, composerGlyphs: 0, entryGlyphs: 0, sendGlyphs: 0,
             slots: slotCount, slotGlyphs: slotCount, overflow: false, retiredHeading: false })
           if (!slotAbsent) {
             expect(geometry.lineHeight).toBeGreaterThanOrEqual(48)

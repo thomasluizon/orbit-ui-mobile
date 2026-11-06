@@ -333,7 +333,7 @@ function getScrollerSpacing(hasBottomChrome: boolean, reservesComposerSpace: boo
 function getAstraScrollerSpacing(spacing: ReturnType<typeof getScrollerSpacing>, astraButton: ReactNode, wide: boolean) {
   if (!astraButton) return { padding: spacing.padding, focusClearance: wide ? undefined : spacing.focusClearance }
   return {
-    padding: 'pb-[max(var(--shell-astra-clearance),var(--orbit-space-96))] lg:pb-[max(var(--shell-astra-clearance),var(--orbit-space-32))]',
+    padding: 'pb-[max(var(--shell-astra-clearance),var(--orbit-space-96))] lg:pb-8',
     focusClearance: 'min(var(--shell-astra-clearance), 50%)',
   }
 }
@@ -461,7 +461,6 @@ function ShellWideBackground({
                 <div data-shell-fab-content="" className="pointer-events-none mx-auto flex w-full max-w-[740px] justify-end"><div data-shell-fab="" className="pointer-events-none [&_button]:pointer-events-auto">{props.fab}</div></div>
               </div>
             ) : null}
-            {props.astraButton}
             {props.scrollToTop !== undefined && !conversationOpen ? (
               <div data-shell-scroll-to-top="" className="pointer-events-none absolute inset-x-0 top-2 z-sticky flex justify-center">
                 <div className="pointer-events-auto">{props.scrollToTop}</div>
@@ -474,6 +473,7 @@ function ShellWideBackground({
           </ShellDestinationViewport>
           {conversationOpen ? <ShellConversation conversationId={conversationId} label={props.conversationLabel} wide={wide}>{props.conversation}</ShellConversation> : null}
         </div>
+        {props.astraButton}
       </div>
     </div></ConversationComposerMotionProvider>
   )
