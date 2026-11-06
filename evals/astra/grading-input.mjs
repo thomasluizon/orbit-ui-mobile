@@ -1,11 +1,12 @@
-import { sanitizeEvidence } from './evidence.mjs'
+import { collectIdentities, identity, sanitizeEvidence } from './evidence.mjs'
 import { suggestionAnswer } from './suggestions.mjs'
 import { normalizeField } from './trace-policy.mjs'
 import { redactCredentials } from './credentials.mjs'
 import { visiblePreview } from './visible-preview.mjs'
 
-const privateField = (key) => /(?:^id$|ids$|id$|token|credential|password|secret|cookie|authorization|cursor|revision|keyprefix|keyhash|^instruction$)/.test(normalizeField(key))
-const identity = /^(?:[0-9a-f]{32}|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$/i
+const privateField = (key) => /(?:token|credential|password|secret|cookie|authorization|cursor|revision|keyprefix|keyhash|^instruction$)/.test(normalizeField(key))
+// A card SurfaceId names a public app surface such as today or profile, not an identity.
+const identityField = (key) => normalizeField(key) !== 'surfaceid' && /ids?$/.test(normalizeField(key))
 
 function collectPrivate(value, withheld) {
   if (typeof value === 'string' && value) withheld.add(value)
@@ -20,6 +21,7 @@ function publicFacts(value, withheld) {
   }
   return Object.fromEntries(Object.entries(value).flatMap(([key, child]) => {
     if (privateField(key)) { collectPrivate(child, withheld); return [] }
+    if (identityField(key)) { collectIdentities(child, withheld); return [] }
     return [[key, publicFacts(child, withheld)]]
   }))
 }

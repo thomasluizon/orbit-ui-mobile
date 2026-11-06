@@ -126,11 +126,17 @@ export async function checkActionLifecycle(api, output, vars, turn) {
   return approveOfferTask(api, approval, vars, block.suggestion.step)
 }
 
+// RelativeReadPeriod.ResolveDay lets relative_period replace date, and the named day is always the account's yesterday.
+export const historicalReadExpectations = (date) => ({ required: [{ name: 'query_habits', argumentsAnyOf: [
+  { date, relative_period: { optional: null } },
+  { relative_period: 'yesterday', date: { optional: date } },
+] }] })
+
 export async function checkReadScopes(api, vars, turn) {
   const date = new Date(Date.parse(`${vars.accountDate}T12:00:00Z`) - 86400000).toISOString().slice(0, 10)
   const locale = vars.clientContext.locale
   const historical = await turn(locale === 'pt-BR' ? `Liste meus hábitos agendados em ${date}.` : `List my habits scheduled on ${date}.`, {
-    composition: { mode: 'data', kinds: ['habitList'] }, expectations: { required: [{ name: 'query_habits', arguments: { date } }] },
+    composition: { mode: 'data', kinds: ['habitList'] }, expectations: historicalReadExpectations(date),
   })
   if (offerActions(historical.composition).some(({ action }) => ['log', 'skip', 'restart', 'smallStep'].includes(action.offerKey.split(':')[0]))) throw new Error('Historical scope received a current-day offer.')
   const partial = await turn(locale === 'pt-BR' ? 'Liste meus hábitos de hoje, apenas o primeiro resultado, com limite 1.'
