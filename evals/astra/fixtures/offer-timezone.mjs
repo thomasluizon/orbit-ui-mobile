@@ -17,10 +17,11 @@ export function goalBehindDates(instant = new Date()) {
   return { deadline: dateInTimeZone(deadlineTimeZone, instant), today, deadlineTimeZone }
 }
 
-async function setAndVerify(api, timeZone) {
+async function setAndVerify(api, vars, timeZone) {
   await api('PUT', 'profile/timezone', { timeZone })
   const { payload } = await api('GET', 'profile')
   if (payload?.timeZone !== timeZone) throw new Error('Profile timezone readback did not match the requested timezone.')
+  vars.accountTimeZone = payload.timeZone
   return dateInTimeZone(payload.timeZone)
 }
 
@@ -29,19 +30,19 @@ export async function prepareBehindDeadline(api, vars) {
   dateInTimeZone(payload?.timeZone)
   const dates = goalBehindDates()
   vars.offerOriginalTimeZone = payload.timeZone
-  const deadline = await setAndVerify(api, dates.deadlineTimeZone)
+  const deadline = await setAndVerify(api, vars, dates.deadlineTimeZone)
   if (deadline !== dates.deadline) throw new Error('Goal-behind fixture date changed during setup.')
   return deadline
 }
 
 export async function advanceBehindDate(api, vars, deadline) {
-  const today = await setAndVerify(api, 'Pacific/Kiritimati')
+  const today = await setAndVerify(api, vars, 'Pacific/Kiritimati')
   if (Date.parse(today) - Date.parse(deadline) !== 86400000) throw new Error('Goal-behind fixture is outside its local-date window.')
   vars.accountDate = today
 }
 
 export async function restoreOfferTimeZone(vars) {
   if (!Object.hasOwn(vars, 'offerOriginalTimeZone')) return
-  await setAndVerify(publicApi(vars.credentialKey), vars.offerOriginalTimeZone)
+  await setAndVerify(publicApi(vars.credentialKey), vars, vars.offerOriginalTimeZone)
   delete vars.offerOriginalTimeZone
 }

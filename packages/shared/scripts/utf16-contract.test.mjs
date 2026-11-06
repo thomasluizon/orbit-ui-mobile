@@ -4,6 +4,7 @@ import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { generate } from 'orval'
 import { expect, it } from 'vitest'
+import { repositoryRoot } from '../src/test-support/repository-root.ts'
 import { contractOptions, sharedRoot } from './contract-source.mjs'
 import { preserveUtf16Bounds } from './utf16-contract.mjs'
 
@@ -33,7 +34,7 @@ it('preserves request and response UTF-16 bounds from actual Orval output', asyn
     expect(converted).toContain("import { utf16Length } from '../../validation/utf16-length'")
     expect(preserveUtf16Bounds(converted)).toBe(converted)
     const helper = new URL('../src/validation/utf16-length.ts', import.meta.url).pathname
-    const zod = new URL('../../../node_modules/zod/index.js', import.meta.url).pathname
+    const zod = resolve(repositoryRoot, 'node_modules/zod/index.js')
     writeFileSync(target, converted.replace('../../validation/utf16-length', helper).replace("from 'zod'", `from '${zod}'`))
     const generated = await import(pathToFileURL(target).href)
     for (const validator of [generated.PostNamesBody, generated.PostNamesResponse]) {

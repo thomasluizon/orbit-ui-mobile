@@ -58,8 +58,9 @@ function QueryBlockFrame({ props, context }: Readonly<{ props: BlockFrameProps; 
   const t = useTranslations()
   const locale = useLocale()
   const offer = useContext(OfferContext)
+  const { profile } = useProfile()
   const { snapshot, pending, failure, stale, run } = context
-  const { state, message, window, canPage } = readBlockPresentation(snapshot, props.state, pending, failure, stale)
+  const { state, message, window, canPage } = readBlockPresentation(snapshot, props.state, pending, failure, stale, profile ? { timeZone: profile.timeZone } : null)
   const actions = <>
     {snapshot.kind === 'gamification' ? <IconButton label={t('blockFrame.refresh')} disabled={pending} onClick={() => { void run(false) }}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton> : null}
     {canPage && snapshot.kind !== 'gamification' ? <IconButton label={t('chat.recordList.more')} disabled={pending} onClick={() => { void run(true) }}><ChevronDown size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton> : null}

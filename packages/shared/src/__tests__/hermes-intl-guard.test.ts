@@ -2,6 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
+import { repositoryRoot } from '../test-support/repository-root'
 
 const nativeConstructors = new Set(['Collator', 'DateTimeFormat', 'NumberFormat'])
 const adapter = 'packages/shared/src/utils/conjunction-list.ts'
@@ -73,7 +74,7 @@ describe('Android Hermes Intl constructor contract', () => {
   })
 
   it('keeps shared and mobile production code within the native constructor surface', () => {
-    const repository = resolve(__dirname, '../../../..')
+    const repository = repositoryRoot
     const sources = ['packages/shared/src', 'apps/mobile/app', 'apps/mobile/components', 'apps/mobile/hooks',
       'apps/mobile/lib', 'apps/mobile/store', 'apps/mobile/stores', 'apps/mobile/modules'].flatMap((directory) =>
       productionSources(resolve(repository, directory)))

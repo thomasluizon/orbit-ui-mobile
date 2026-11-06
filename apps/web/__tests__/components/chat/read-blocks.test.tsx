@@ -6,7 +6,7 @@ import { personalText } from '@/__tests__/support/personal-text'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextIntlClientProvider } from 'next-intl'
-import { completedHabitTotalFixture, completedHabitComparisonFixture, focusedDatedHabitListFixture, skippedDatedHabitListFixture, focusedStaleRecapFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedPeriodMetricsFixture, focusedReadMetadataFixture } from '@orbit/shared/test-support/chat-fixtures'
+import { calendarReconnectReadFixture, completedHabitTotalFixture, completedHabitComparisonFixture, focusedDatedHabitListFixture, skippedDatedHabitListFixture, focusedStaleRecapFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedPeriodMetricsFixture, focusedReadMetadataFixture } from '@orbit/shared/test-support/chat-fixtures'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import { gamificationCardCases, gamificationCardFixture } from '@orbit/shared/test-support/gamification-card-fixtures'
@@ -20,7 +20,7 @@ import { refreshGamification, refreshHabitMonth, refreshReadBlock } from '@/app/
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { chatPartSchema, habitMonthCardSchema, habitMonthReadBlockResponseSchema, readBlockResponseSchema, type ReadBlockResponse } from '@orbit/shared/types/chat'
 
-const state = vi.hoisted(() => ({ isError: false, aiMessagesPeriod: 'day' as 'day' | 'week', habits: new Map<string, NormalizedHabit>(), mutate: vi.fn(), push: vi.fn() }))
+const state = vi.hoisted(() => ({ isError: false, aiMessagesPeriod: 'day' as 'day' | 'week', timeZone: 'UTC', habits: new Map<string, NormalizedHabit>(), mutate: vi.fn(), push: vi.fn() }))
 vi.mock('@/app/actions/chat', () => ({ dismissChatOffers: vi.fn(), refreshReadBlock: vi.fn(), refreshHabitMonth: vi.fn(), refreshGamification: vi.fn() }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: state.push }) }))
 vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: state.isError ? undefined : { habitsById: state.habits }, isError: state.isError, isPending: false }), useLogHabit: () => ({ mutate: state.mutate, mutateAsync: state.mutate }), useHabitMetrics: () => ({}) }))
@@ -37,7 +37,7 @@ return { useLogHabit: () => ({ mutate: state.mutate, mutateAsync: state.mutate }
 })
 vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ isPending: false }) }))
 vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({ mutateAsync: vi.fn() }) }))
-vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAccess: true, timeZone: 'UTC', aiMessagesPeriod: state.aiMessagesPeriod } }) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAccess: true, timeZone: state.timeZone, aiMessagesPeriod: state.aiMessagesPeriod } }) }))
 vi.mock('@/hooks/use-gamification', () => ({ useStreakFreeze: () => ({ streakQuery: { isPending: false } }) }))
 vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))
 vi.mock('@/hooks/use-calendar-events', () => ({ useCalendarEvents: () => ({ isPending: false }) }))
@@ -46,7 +46,7 @@ const total = { type: 'block' as const, kind: 'periodTotal' as const, block: foc
 function mount(part: Parameters<typeof ChatBlock>[0]['part'] = total, locale: 'en' | 'pt-BR' = 'en', onSendMessage?: Parameters<typeof ChatBlock>[0]['onSendMessage'], interaction?: Parameters<typeof ChatBlock>[0]['interaction']) {
   return render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt}><ChatBlock part={part} onSendMessage={onSendMessage} interaction={interaction} onActionChipClick={vi.fn()} /></NextIntlClientProvider>)
 }
-beforeEach(() => { state.isError = false; vi.mocked(refreshReadBlock).mockReset(); vi.mocked(refreshGamification).mockReset(); vi.mocked(refreshHabitMonth).mockReset(); state.habits.clear(); state.mutate.mockReset(); state.push.mockReset() })
+beforeEach(() => { state.isError = false; state.timeZone = 'UTC'; vi.mocked(refreshReadBlock).mockReset(); vi.mocked(refreshGamification).mockReset(); vi.mocked(refreshHabitMonth).mockReset(); state.habits.clear(); state.mutate.mockReset(); state.push.mockReset() })
 
 describe('gamification reads', () => {
   it.each(gamificationCardCases.flatMap(testCase => (['en', 'pt-BR'] as const).map(locale => ({ ...testCase, locale }))))(
@@ -250,6 +250,20 @@ it('withholds signed paging for a stale query', () => {
   expect(refreshReadBlock).not.toHaveBeenCalled()
 })
 
+
+it.each([
+  ['en', 'Nov 5, 2026 - Jan 4, 2027'],
+  ['pt-BR', '5 de nov. de 2026 - 4 de jan. de 2027'],
+] as const)('shows the whole account-zone calendar window and the reconnect message in %s', (locale, range) => {
+  state.timeZone = 'America/Sao_Paulo'
+  const block = { events: [], surfaceId: 'calendar', read: calendarReconnectReadFixture }
+  mount({ kind: 'calendar', block }, locale)
+  const frame = screen.getByRole('status').closest('section')!
+  expect(within(frame).getByText(range)).toBeVisible()
+  expect(within(frame).queryByText(locale === 'en' ? 'Nov 5, 2026' : '5 de nov. de 2026')).not.toBeInTheDocument()
+  expect(screen.getByRole('status')).toHaveTextContent((locale === 'en' ? en : pt).chat.readBlock.reconnect)
+  expect(screen.queryByText((locale === 'en' ? en : pt).chat.readBlock.partial)).not.toBeInTheDocument()
+})
 
 it.each(['en', 'pt-BR'] as const)('renders the calendar month with done, missed, skipped, future and today states in %s', locale => {
   const card = habitMonthCardSchema.parse(habitMonthFixture)

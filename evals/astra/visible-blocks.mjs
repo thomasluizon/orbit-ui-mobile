@@ -208,7 +208,7 @@ function projectBlock(part, options) {
   const projection = renderers[parsed.kind](parsed.block, options)
   if (!parsed.block.read) return projection
   const snapshot = { kind: parsed.kind, block: parsed.block, read: parsed.block.read }
-  const { message, window } = shared.readBlockPresentation(snapshot, 'resting', false, null)
+  const { message, window } = shared.readBlockPresentation(snapshot, 'resting', false, null, false, options.account ?? null)
   return { ...projection, window: window ? shared.formatReadWindow(window, options.locale) : projection.window,
     recovery: message ? options.t(message) : undefined }
 }

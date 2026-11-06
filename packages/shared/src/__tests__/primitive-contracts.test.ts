@@ -1,5 +1,4 @@
 import { readdirSync, readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { ButtonProps, FabProps } from '../contracts/actions'
@@ -17,6 +16,7 @@ import type {
   ProgressRingProps,
   StatTileProps,
 } from '../contracts/display'
+import { repositoryRoot } from '../test-support/repository-root'
 
 interface PrimitiveContractMap {
   StatTileProps: StatTileProps
@@ -51,7 +51,6 @@ const CONTRACT_NAMES = [
 type MissingContractName = Exclude<keyof PrimitiveContractMap, (typeof CONTRACT_NAMES)[number]>
 const ALL_CONTRACT_NAMES_ARE_LISTED: MissingContractName extends never ? true : never = true
 
-const repoRoot = fileURLToPath(new URL('../../../..', import.meta.url))
 
 function sourceFiles(root: string): string[] {
   return readdirSync(root, { withFileTypes: true }).flatMap((entry) => {
@@ -68,7 +67,7 @@ describe('primitive contracts', () => {
 
   it('declares each shared prop type outside both app component trees', () => {
     const appSources = ['apps/web/components', 'apps/mobile/components']
-      .flatMap((path) => sourceFiles(join(repoRoot, path)))
+      .flatMap((path) => sourceFiles(join(repositoryRoot, path)))
       .map((path) => ({ path, source: readFileSync(path, 'utf8') }))
 
     for (const name of CONTRACT_NAMES) {
@@ -84,7 +83,7 @@ describe('primitive contracts', () => {
   })
 
   it('uses React for types only in shared primitive contracts', () => {
-    const contractSources = sourceFiles(join(repoRoot, 'packages/shared/src/contracts'))
+    const contractSources = sourceFiles(join(repositoryRoot, 'packages/shared/src/contracts'))
       .map((path) => readFileSync(path, 'utf8'))
 
     expect(contractSources.some((source) => /import\s+(?!type\b).*from ['"]react['"]/.test(source)))

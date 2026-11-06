@@ -65,7 +65,8 @@ function StartupUpdateEvents() {
   React.useEffect(() => {
     captureAndroidUpdateCheck({ outcome: 'success', play_status: 2, available_version_code: 181,
       installed_version_code: 178, play_error_code: null })
-    captureAndroidUpdateSheetShown({ sheet: 'available', available_version_code: 181, installed_version_code: 178 })
+    captureAndroidUpdateSheetShown({ sheet: 'available', available_version_code: 181, installed_version_code: 178,
+      footer_height: 92, footer_space_height: 92, sheet_position: 492, footer_local_bottom: 376, footer_bottom: 868, window_width: 412, window_height: 892, font_scale: 1, bottom_inset: 24, footer_below_window: false })
   }, [])
   return null
 }

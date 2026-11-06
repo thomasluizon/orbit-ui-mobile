@@ -2,8 +2,9 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { typeRoles } from '../theme/type-roles'
+import { repositoryRoot } from '../test-support/repository-root'
 
-const root = resolve(import.meta.dirname, '../../../..')
+const root = repositoryRoot
 const canvas = readFileSync(resolve(root, 'design/canvas/_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/typography.css'), 'utf8')
 const web = readFileSync(resolve(root, 'apps/web/app/globals.css'), 'utf8')
 

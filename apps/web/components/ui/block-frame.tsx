@@ -13,6 +13,7 @@ import { ActionRow } from './action-row'
 
 import { Fragment, useEffect, useRef, useState } from 'react'
 import type {
+  BlockFrameItem,
   BlockFrameItemStatus,
   BlockFrameProps,
   ResolvedBlockFrameRow,
@@ -60,29 +61,41 @@ function getRowInset(indented: boolean | undefined) {
   return indented ? { paddingInlineStart: SPACING.s24 } : undefined
 }
 
+function getRowAlignment(settled: boolean, wrapLabel: boolean | undefined) {
+  if (settled) return 'flex-col'
+  return wrapLabel ? 'items-start' : 'items-center'
+}
+
+function RowWords({ item, settled, irreversibleLabel }: Readonly<{ item: BlockFrameItem; settled: boolean; irreversibleLabel?: string }>) {
+  return (
+    <div className={`flex min-w-0 flex-col gap-1 ${settled ? '' : 'flex-1'}`}>
+      <div className={`${item.wrapLabel ? 'break-words' : 'truncate'} text-sm font-medium ${item.proposed ? 'text-[var(--fg-3)]' : 'text-[var(--fg-1)]'}`}>{item.label}</div>
+      {item.meta ? <div className={`${item.wrapMeta ? 'break-words leading-[1.4]' : 'truncate'} text-xs text-[var(--fg-3)]`}>{item.meta}</div> : null}
+      {item.irreversible && irreversibleLabel ? (
+        <div className="flex items-center gap-1 text-xs text-[var(--fg-3)] uppercase">
+          <ShieldAlert aria-hidden="true" size={20} strokeWidth={1.5} />
+          <span>{irreversibleLabel}</span>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 function FrameRowContent(props: ResolvedBlockFrameRow) {
-  const { item, frameState, statusLabel, onEditItem } = props
+  const { item, frameState, stackSettled, statusLabel, onEditItem } = props
   const status = frameState === 'acting' ? 'acting' : item.status
   const isEditable = status == null && frameState !== 'stale' && item.editable !== false
-  const row = (
+  const settled = stackSettled && status != null
+  return (
     <div
-      className={`flex min-h-[52px] gap-[12px] p-3 ${item.wrapLabel ? 'items-start' : 'items-center'}`}
+      className={`flex min-h-[52px] gap-[12px] p-3 ${getRowAlignment(settled, item.wrapLabel)}`}
       data-proposed={item.proposed ? '' : undefined}
       data-status={status}
       data-indented={item.indented}
       style={getRowInset(item.indented)}
     >
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <div className={`${item.wrapLabel ? 'break-words' : 'truncate'} text-sm font-medium ${item.proposed ? 'text-[var(--fg-3)]' : 'text-[var(--fg-1)]'}`}>{item.label}</div>
-        {item.meta ? <div className={`${item.wrapMeta ? 'break-words leading-[1.4]' : 'truncate'} text-xs text-[var(--fg-3)]`}>{item.meta}</div> : null}
-        {item.irreversible && props.irreversibleLabel ? (
-          <div className="flex items-center gap-1 text-xs text-[var(--fg-3)] uppercase">
-            <ShieldAlert aria-hidden="true" size={20} strokeWidth={1.5} />
-            <span>{props.irreversibleLabel}</span>
-          </div>
-        ) : null}
-      </div>
-      <div className="flex max-w-[60%] shrink-0 flex-wrap items-center gap-[8px]">
+      <RowWords item={item} settled={settled} irreversibleLabel={props.irreversibleLabel} />
+      <div className={`flex flex-wrap items-center gap-[8px] ${settled ? 'justify-end' : 'max-w-[60%] shrink-0'}`}>
         {item.control}
         {isEditable && onEditItem && props.editLabel ? (
           <button
@@ -98,8 +111,6 @@ function FrameRowContent(props: ResolvedBlockFrameRow) {
       </div>
     </div>
   )
-
-  return row
 }
 
 function FrameRow(props: ResolvedBlockFrameRow) {

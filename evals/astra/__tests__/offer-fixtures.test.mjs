@@ -150,10 +150,12 @@ it.each([
     const provider = new AstraHttpProvider({ config: {} })
     provider.attempt = async () => {
       expect(profile.timeZone).toBe('Pacific/Kiritimati')
+      expect(test.vars.accountTimeZone).toBe('Pacific/Kiritimati')
       return { output: 'completed' }
     }
     await expect(provider.callApi('', { vars: test.vars })).resolves.toEqual({ output: 'completed' })
     expect(profile.timeZone).toBe('America/Sao_Paulo')
+    expect(test.vars.accountTimeZone).toBe('America/Sao_Paulo')
     expect(requests.filter(({ path }) => path === 'profile/timezone').map(({ body }) => body.timeZone))
       .toEqual(['Pacific/Pago_Pago', 'Pacific/Kiritimati', 'America/Sao_Paulo'])
     expect(requests.at(-1)).toMatchObject({ path: 'profile', method: 'GET' })

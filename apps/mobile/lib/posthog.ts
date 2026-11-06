@@ -133,11 +133,25 @@ export function captureAndroidUpdateCheck(properties: {
   captureAndroidUpdateWhenReady(() => { posthog?.capture('android_update_checked', properties) })
 }
 
+// WHY: PostHog's capture takes an indexed property bag, which accepts a type alias but not an interface. https://github.com/microsoft/TypeScript/issues/15300
+export type UpdateSheetFooterMeasurement = {
+  footer_height: number | null
+  footer_space_height: number | null
+  sheet_position: number | null
+  footer_local_bottom: number | null
+  footer_bottom: number | null
+  window_width: number
+  window_height: number
+  font_scale: number
+  bottom_inset: number
+  footer_below_window: boolean | null
+}
+
 export function captureAndroidUpdateSheetShown(properties: {
   sheet: 'available' | 'ready'
   available_version_code: number | null
   installed_version_code: number
-}): void {
+} & UpdateSheetFooterMeasurement): void {
   captureAndroidUpdateWhenReady(() => { posthog?.capture('android_update_sheet_shown', properties) })
 }
 

@@ -1,4 +1,4 @@
-import { makeRestartPlanPreview, makeTypedHabitsPreview, makeExistingHabitPreview, makeParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeRestartPlanPreview, makeTypedHabitsPreview, makeExistingHabitPreview, makeParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeBulkCreateExecutionResponse, makeTicketTaskPreview, TICKET_TASK_DESCRIPTION } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { makeOfferedTaskPreview } from '@orbit/shared/test-support/astra-offer-fixtures'
 import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -80,6 +80,13 @@ function textWidth(label: string, size: number): number {
   return Math.ceil(bounds.x + bounds.width + 8)
 }
 
+function regularTextWidth(label: string, size: number): number {
+  const escaped = label.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="100"><text x="0" y="40" font-family="Geist" font-size="${size}">${escaped}</text></svg>`
+  const bounds = new Resvg(svg, { font: { fontFiles: [require.resolve('@expo-google-fonts/geist/400Regular/Geist_400Regular.ttf')], loadSystemFonts: false } }).getBBox()
+  return bounds ? Math.ceil(bounds.x + bounds.width) : 0
+}
+
 function expectTrailingLines(bounds: ReturnType<ReturnType<typeof Yoga.Node.create>['getComputedLayout']>[], rowWidth: number) {
   for (const [index, bound] of bounds.entries()) {
     expect(bound.left + bound.width).toBeLessThanOrEqual(rowWidth)
@@ -108,6 +115,29 @@ describe('Pending preview geometry on Android', () => {
       expect(summary.clipped).toBe(false)
       expect(summary.left).toBeGreaterThanOrEqual(16)
       expect(summary.right).toBeLessThanOrEqual(Math.min(width, 740) - 32 - 16)
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it.each([320, 412].flatMap(width => locales.flatMap(locale => [1, 2].map(scale => ({ width, locale, scale })))))('keeps the finished task words at their pending width and breaks its summary only between words at $width in $locale with text scale $scale', async ({ width, locale, scale }) => {
+    __setWindowDimensions({ width, height: 1800, scale: 1, fontScale: scale })
+    await i18n.changeLanguage(locale)
+    const onConfirmExecute = vi.fn().mockResolvedValue({ ok: true, response: makeBulkCreateExecutionResponse(['Success']) })
+    const tree = render(<PendingOperationCard pendingOperation={makeTicketTaskPreview()} {...handlers} onConfirmExecute={onConfirmExecute} onOpenTarget={vi.fn()} />)
+    try {
+      const summaryOf = () => measureProfileRow(tree.toJSON(), Math.min(width, 740) - 32, scale).texts.find(text => text.label.includes('19:30'))!
+      const pending = summaryOf()
+      expect(pending.label.replace(/\u00a0/g, ' ')).toContain(TICKET_TASK_DESCRIPTION)
+      const approve = tree.root.findAllByType(Button).find((button: { props: { variant?: string } }) => button.props.variant === 'primary')
+      await TestRenderer.act(async () => { approve.findByType(Pressable).props.onPress(); await Promise.resolve() })
+      expect(onConfirmExecute).toHaveBeenCalledOnce()
+      expect(tree.root.findAllByProps({ testID: 'block-frame-item-0-done' }).length).toBeGreaterThan(0)
+      expect(renderedText(tree.toJSON())).toContain(i18n.t('blockFrame.status.done'))
+      expect(renderedText(tree.toJSON())).toContain(i18n.t('chat.action.open'))
+      const done = summaryOf()
+      expect(done.width).toBeGreaterThanOrEqual(pending.width - 0.5)
+      for (const word of done.label.split(' ').filter(Boolean)) {
+        expect(regularTextWidth(word, 12 * scale), word).toBeLessThanOrEqual(done.width)
+      }
     } finally { TestRenderer.act(() => tree.unmount()) }
   })
 

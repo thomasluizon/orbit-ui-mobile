@@ -1,6 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs'
-import { relative } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join, relative } from 'node:path'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 import { contrastOnSurface, withAlpha } from './contrast'
@@ -12,7 +11,7 @@ import {
   statusConstants,
 } from '../theme/neutral-ramp'
 import { resolveResponsiveTypeRole, responsiveTypeRoles, typeRoles } from '../theme/type-roles'
-const REPOSITORY_ROOT = fileURLToPath(new URL('../../../../', import.meta.url))
+import { repositoryRoot } from '../test-support/repository-root'
 
 const BAD_TEXT_SOURCE_SITES = [
   {
@@ -223,12 +222,12 @@ function productionSourceFiles(directory: string): string[] {
 
 function directBadFillReferences(): DirectBadFillReference[] {
   const sourceFiles = [
-    ...productionSourceFiles(`${REPOSITORY_ROOT}apps/mobile`),
-    ...productionSourceFiles(`${REPOSITORY_ROOT}apps/web`),
+    ...productionSourceFiles(join(repositoryRoot, 'apps/mobile')),
+    ...productionSourceFiles(join(repositoryRoot, 'apps/web')),
   ]
   return sourceFiles.flatMap((path) => {
     const source = readFileSync(path, 'utf8')
-    const repositoryPath = relative(REPOSITORY_ROOT, path).replaceAll('\\', '/')
+    const repositoryPath = relative(repositoryRoot, path).replaceAll('\\', '/')
     return directBadFillReferencesInSource(repositoryPath, source)
   })
 }
@@ -646,7 +645,7 @@ describe('byte-exact mode colors', () => {
 
 describe('bad status source roles', () => {
   it.each(BAD_TEXT_SOURCE_SITES)('$name uses the text token', ({ path, pattern }) => {
-    const source = readFileSync(`${REPOSITORY_ROOT}${path}`, 'utf8')
+    const source = readFileSync(join(repositoryRoot, path), 'utf8')
     expect(source).toMatch(pattern)
   })
 
@@ -757,7 +756,7 @@ describe('bad status source roles', () => {
   it.each(BAD_GRAPHIC_SOURCE_SITES)(
     '$name explicitly uses the fill role instead of inheriting the text role',
     ({ path, rolePattern, applicationPattern }) => {
-      const source = readFileSync(`${REPOSITORY_ROOT}${path}`, 'utf8')
+      const source = readFileSync(join(repositoryRoot, path), 'utf8')
       expect(source).toMatch(rolePattern)
       expect(source).toMatch(applicationPattern)
     },

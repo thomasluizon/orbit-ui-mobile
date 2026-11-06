@@ -8,7 +8,7 @@ import { act, create } from 'react-test-renderer'
 import type { GeometryTree } from '../../support/safe-area-geometry'
 import { renderedText } from '../../support/react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { completedHabitTotalFixture, completedHabitComparisonFixture, focusedDatedHabitListFixture, skippedDatedHabitListFixture, focusedStaleRecapFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedPeriodMetricsFixture, focusedReadMetadataFixture } from '@orbit/shared/test-support/chat-fixtures'
+import { calendarReconnectReadFixture, completedHabitTotalFixture, completedHabitComparisonFixture, focusedDatedHabitListFixture, skippedDatedHabitListFixture, focusedStaleRecapFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedPeriodMetricsFixture, focusedReadMetadataFixture } from '@orbit/shared/test-support/chat-fixtures'
 import { gamificationCardCases, gamificationCardFixture } from '@orbit/shared/test-support/gamification-card-fixtures'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
@@ -23,7 +23,7 @@ import { API } from '@orbit/shared/api'
 import { motionDurations } from '@orbit/shared/theme'
 import { chatPartSchema, habitMonthCardSchema, readBlockResponseSchema, type ReadBlockResponse } from '@orbit/shared/types/chat'
 
-const state = vi.hoisted(() => ({ isError: false, aiMessagesPeriod: 'day', locale: 'en', actualCopy: false, habits: new Map<string, NormalizedHabit>(), mutate: vi.fn(), push: vi.fn() }))
+const state = vi.hoisted(() => ({ isError: false, aiMessagesPeriod: 'day', timeZone: 'UTC', locale: 'en', actualCopy: false, habits: new Map<string, NormalizedHabit>(), mutate: vi.fn(), push: vi.fn() }))
 vi.mock('react-i18next', async importOriginal => ({ ...await importOriginal<typeof import('react-i18next')>(), useTranslation: () => ({ i18n: { language: state.locale }, t: (key: string, values?: Record<string, string | number>) => {
   if (!state.actualCopy) return key
   const message = key.split('.').reduce<unknown>((current, segment) => typeof current === 'object' && current !== null ? (current as Record<string, unknown>)[segment] : undefined, state.locale === 'en' ? en : pt)
@@ -45,7 +45,7 @@ return { useLogHabit: () => ({ mutate: state.mutate, mutateAsync: state.mutate }
 })
 vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ isPending: false }) }))
 vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({ mutateAsync: vi.fn() }) }))
-vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAccess: true, timeZone: 'UTC', aiMessagesPeriod: state.aiMessagesPeriod } }) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAccess: true, timeZone: state.timeZone, aiMessagesPeriod: state.aiMessagesPeriod } }) }))
 vi.mock('@/hooks/use-gamification', () => ({ useStreakFreeze: () => ({ streakQuery: { isPending: false } }) }))
 vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))
 vi.mock('@/hooks/use-calendar-events', () => ({ useCalendarEvents: () => ({ isPending: false }) }))
@@ -60,7 +60,7 @@ async function press(tree: GeometryTree, label: string) {
   const button = tree.root.findAll(node => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === label && typeof node.props.onPress === 'function')[0]!
   await act(() => { (button.props.onPress as () => void)() })
 }
-beforeEach(() => { state.isError = false; vi.mocked(apiClient).mockReset(); state.locale = 'en'; state.actualCopy = false; state.habits.clear(); state.mutate.mockReset(); state.push.mockReset() })
+beforeEach(() => { state.isError = false; state.timeZone = 'UTC'; vi.mocked(apiClient).mockReset(); state.locale = 'en'; state.actualCopy = false; state.habits.clear(); state.mutate.mockReset(); state.push.mockReset() })
 
 describe('gamification reads', () => {
   it.each(gamificationCardCases.flatMap(testCase => ['en', 'pt-BR'].map(locale => ({ ...testCase, locale }))))(
@@ -286,6 +286,24 @@ it('withholds signed paging for a stale query', async () => {
   await act(() => tree.unmount())
 })
 
+
+it.each([
+  ['en', 'Nov 5, 2026 - Jan 4, 2027'],
+  ['pt-BR', '5 de nov. de 2026 - 4 de jan. de 2027'],
+])('shows the whole account-zone calendar window and the reconnect message in %s', async (locale, range) => {
+  state.locale = locale
+  state.actualCopy = true
+  state.timeZone = 'America/Sao_Paulo'
+  const messages = locale === 'en' ? en : pt
+  const tree = await mount({ kind: 'calendar', block: { events: [], surfaceId: 'calendar', read: calendarReconnectReadFixture } })
+  const texts = tree.root.findAll(node => String(node.type) === 'Text' && typeof node.props.children === 'string').map(node => node.props.children as string)
+  expect(texts).toContain(range)
+  expect(texts).not.toContain(locale === 'en' ? 'Nov 5, 2026' : '5 de nov. de 2026')
+  const status = tree.root.findAll(node => String(node.type) === 'Text' && node.props.accessibilityLiveRegion === 'polite')
+  expect(status.map(node => node.props.children)).toEqual([messages.chat.readBlock.reconnect])
+  expect(renderedText(tree.toJSON())).not.toContain(messages.chat.readBlock.partial)
+  await act(() => tree.unmount())
+})
 
 it.each(['en', 'pt-BR'])('renders the shared month grid and exact day navigation in %s', async locale => {
   state.locale = locale

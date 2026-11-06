@@ -23,6 +23,7 @@ The granted Astra conversation canvas defines the item rows, action order and ou
 | Revised preview | Removal and editing update the action count, irreversible marks and deletion count from the returned items. |
 | Terminal operation outcomes | Failed, denied and policy-blocked outcomes retain their status and recovery without pending deletion marks or notes. |
 | Busy, saved and failed preview | Every mutation action disables during work, every row shows progress and the frame announces busy. Completed-target navigation and retry remain available. |
+| Settled item row | In the pending operation card and the breakdown suggestion, an acting, completed or failed row gives its title and summary the full row width. Its outcome and any Open action sit on one line below the words, at the trailing edge, inside the row. Acting and completed rows use the same layout, so the row does not move when the write completes. Pending rows keep their controls beside the title's first line. |
 | Stale preview | One sentence describes staleness, a failed refresh or an unavailable preview, with Refresh while the intent can still be previewed. |
 | Empty preview | An unsettled preview with an explicit zero target count or an empty item list without a count renders one localized notice without a frame or approval action. Settled operations retain their outcome and recovery. Previews without item details retain their plain confirmation. |
 | Repeated operation | One operation id renders once, with its original reply and saved operation state. |
@@ -85,8 +86,8 @@ The `preview item titles` amendment in
 `design/canvas/Orbit Astra Conversation.dc.html` retains full-name disclosure for
 terminal rows and the stable Proposed wrapper. The Chromium preview geometry suite
 measures the padded row inside that wrapper and includes the terminal title control
-in its bounds. The 16px frame inset, 12px header gap, 12px record-row inset, first-line action
-alignment and overflow bounds apply in every state. Android's BlockFrame style and
+in its bounds. The 16px frame inset, 12px header gap, 12px record-row inset and overflow bounds
+apply in every state. First-line action alignment applies to pending rows only. Android's BlockFrame style and
 Yoga suites retain the matching row and frame contracts.
 
 Create previews describe the proposed cadence and time with the habit row's frequency
@@ -184,8 +185,10 @@ the locale database's long generic name, falling back to the supplied id when un
 Write previews retain inline rename, editing, rejection, parent resolution and approval.
 The preview title names a create count or the habit being edited. The emoji well and
 short schedule summary share the row. Enabled reminders add one summary token with the
-supplied timing, or the reminder action when timing is absent. Summary tokens wrap only
-at their separators on both platforms. Creates omit default tracking flags and root
+supplied timing, or the reminder action when timing is absent. Summary text wraps at word
+spaces on both platforms. A number stays on the line of the word next to it, in runs of
+at most three words, so a time or a count never leaves its word. A long date can still
+wrap between its words. Creates omit default tracking flags and root
 identity; schedule edits show supplied before and after values. Proposed semantics and
 feedback remain while the dashed outline is removed from the framed rows.
 
@@ -227,3 +230,33 @@ cards supply the account day from the profile time zone and reuse the existing t
 editor and batch revision path. Shared and paired component cases cover unchanged today,
 overdue habits kept today, deferred dates, single-item reschedules and one-item editing in
 English and Brazilian Portuguese. The account-day cases run across the UTC day boundary.
+
+## Settled item rows (#2048)
+
+The paired BlockFrame owners in `components/ui/block-frame.tsx` decide the settled layout.
+A frame opts in with `stackSettledRows`. Only frames whose acting state ends in a per-row
+outcome set it: the pending operation card, through `PendingOperationFrameBase`, and the
+breakdown suggestion. In those frames, a row with an acting, done or failed status uses a
+column: the words first, then one wrapping line with the row control and the status at the
+trailing edge. Acting and the outcome use the same column, so the write does not move the
+row. A pending row keeps the row direction and its trailing group beside the first line.
+
+Read blocks, the day summary and action chips do not opt in. Their acting state returns to
+resting after a refresh, a page or a log, so their rows keep the row direction in every
+state. The BlockFrame Chromium geometry suite and the Android BlockFrame suite require that
+a plain acting row with a count stays in the row direction without the opt-in.
+
+`formatPreviewMeta` in `packages/shared/src/chat/pending-operation-card.ts` binds a number
+to the word before or after it with a no-break space. It binds at most three words, so a
+time or a count stays on the line of its word. A long date can still wrap between its words. Android
+measures text with `BREAK_STRATEGY_HIGH_QUALITY` and `HYPHENATION_FREQUENCY_NONE` by
+default, so it breaks inside a word only when an unbreakable run is wider than the line.
+A whole summary token bound with no-break spaces gave that run, and the breaks inside
+words and numbers followed.
+
+`makeTicketTaskPreview` supplies the captured ticket task. The Android geometry suite lays
+it out with Yoga and the shipped Geist metrics at 320 and 412 in both locales and at two
+text scales. The Chromium geometry suite and the `astra-preview-done-row` layout guard
+measure the same row on web. Each suite requires that the completed summary is at least
+its pending width and that each line breaks only at a space. Native text rendering on a
+device remains a release verification boundary.

@@ -8,8 +8,9 @@ import libReport from 'istanbul-lib-report'
 import reports from 'istanbul-reports'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
+import { repositoryRoot } from '../test-support/repository-root'
 
-const root = resolve(import.meta.dirname, '../../../..')
+const root = repositoryRoot
 const gitExecutable = resolve(createRequire(import.meta.url)('which').sync('git'))
 const scale = new Set([12, 14, 16, 17, 20, 22, 28, 34, 44, 60])
 const widgetDrawing = 'design/canvas/Orbit Widget Android.dc.html'
