@@ -1,10 +1,14 @@
 import type { FabProps } from '@orbit/shared/contracts/actions'
 import { Pressable, StyleSheet, type PressableProps } from 'react-native'
 import { useMemo } from 'react'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, shadowsV2, type AppShadowV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-export function Fab({ label, children, onClick, neutral = false, ...buttonProps }: Readonly<FabProps & Omit<PressableProps, 'children' | 'onPress' | 'style'> & { neutral?: boolean }>) {
+function dropShadow({ shadowOffset, shadowRadius, shadowOpacity }: AppShadowV2) {
+  return `${shadowOffset.width}px ${shadowOffset.height}px ${shadowRadius}px rgba(0, 0, 0, ${shadowOpacity})`
+}
+
+export function Fab({ label, children, onClick, neutral = false, lifted = false, ...buttonProps }: Readonly<FabProps & Omit<PressableProps, 'children' | 'onPress' | 'style'> & { neutral?: boolean; lifted?: boolean }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -22,7 +26,9 @@ export function Fab({ label, children, onClick, neutral = false, ...buttonProps 
         styles.button,
         {
           backgroundColor: neutral ? tokens.bgElev : tokens.primary,
-          boxShadow: `0 0 0 6px ${tokens.bg}`,
+          boxShadow: neutral
+            ? `inset 0 0 0 1px ${tokens.hairlineStrong}, ${dropShadow(lifted ? shadowsV2.shadow3 : shadowsV2.shadow2)}`
+            : `0 0 0 6px ${tokens.bg}`,
         },
         pressed ? styles.pressed : null,
       ]}

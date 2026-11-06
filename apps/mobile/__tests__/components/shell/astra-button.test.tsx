@@ -4,7 +4,8 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { ASTRA_POSITION_KEY } from '@orbit/shared/utils'
 import { AstraButton } from '@/components/shell/astra-button'
 import { useUIStore } from '@/stores/ui-store'
-import { Animated } from 'react-native'
+import { Animated, StyleSheet } from 'react-native'
+import { createTokensV2 } from '@/lib/theme'
 import { ListRow } from '@/components/ui/list-row'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
@@ -14,7 +15,7 @@ vi.mock('@react-native-async-storage/async-storage', () => ({ default: {
   getItem: (key: string) => Promise.resolve(storage.get(key) ?? null),
   setItem: (key: string, value: string) => { storage.set(key, value); return Promise.resolve() },
 } }))
-vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => motion.reduced }))
+vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => motion.reduced, toAnimatedEasing: () => (value: number) => value }))
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
 let tree: ReactTestRenderer
@@ -26,8 +27,9 @@ function handler(testID: string, name: string) { return host(testID).props[name]
 async function layout(width = 412, height = 600) {
   await act(() => { handler('astra-button-area', 'onLayout')({ nativeEvent: { layout: { x: 0, y: 0, width, height } } }) })
 }
-async function mount() {
-  await act(() => { tree = TestRenderer.create(<AstraButton hasFab scrollToTopHeight={64} />) })
+const FULL_AREA = { top: 0, floorInset: 0, pageInset: 0, scrollToTopTop: 8, scrollToTopHeight: 64 }
+async function mount(chrome = FULL_AREA) {
+  await act(() => { tree = TestRenderer.create(<AstraButton hasFab chrome={chrome} />) })
   await layout()
 }
 function point() {
@@ -133,11 +135,75 @@ it('offers movement choices on a long press without opening Astra', async () => 
 
 it('reports clearance from its current position so the shell can uncover the final row', async () => {
   const onClearanceChange = vi.fn()
-  await act(() => { tree = TestRenderer.create(<AstraButton hasFab scrollToTopHeight={64} onClearanceChange={onClearanceChange} />) })
+  await act(() => { tree = TestRenderer.create(<AstraButton hasFab chrome={FULL_AREA} onClearanceChange={onClearanceChange} />) })
   await layout()
   expect(onClearanceChange).toHaveBeenLastCalledWith(176)
   await act(() => { handler('astra-button', 'onAccessibilityAction')({ nativeEvent: { actionName: 'up' } }) })
   expect(onClearanceChange).toHaveBeenLastCalledWith(252)
   await act(() => useUIStore.getState().registerOpenOverlay('sheet'))
   expect(onClearanceChange).toHaveBeenLastCalledWith(0)
+})
+
+function drag(from: { x: number; y: number }, to: { x: number; y: number }) {
+  return act(() => {
+    handler('astra-button-position', 'onStartShouldSetResponderCapture')(touch(from.x, from.y))
+    expect(handler('astra-button-position', 'onMoveShouldSetResponderCapture')(touch(to.x, to.y))).toBe(true)
+    handler('astra-button-position', 'onResponderGrant')(touch(to.x, to.y))
+    handler('astra-button-position', 'onResponderRelease')(touch(to.x, to.y))
+  })
+}
+
+it('drags over the whole screen from the top safe area and stops above the tab bar', async () => {
+  const chrome = { top: 24, floorInset: 104, pageInset: 168, scrollToTopTop: 56, scrollToTopHeight: 0 }
+  await mount(chrome)
+  await layout(412, 867)
+  expect(StyleSheet.flatten(host('astra-button-area').props.style)).toMatchObject({ position: 'absolute', top: 24, bottom: 0 })
+  const start = point()
+  await drag({ x: start.x + 30, y: start.y + 30 }, { x: 0, y: -2000 })
+  expect(point()).toEqual({ x: 16, y: 16 })
+  expect(chrome.top + point().y).toBeLessThan(chrome.top + 48)
+  expect(useUIStore.getState().astraConversationOpen).toBe(false)
+  await drag({ x: 46, y: 46 }, { x: 0, y: 4000 })
+  const tabBarTop = 867 - chrome.floorInset
+  expect(tabBarTop - (point().y + 60)).toBe(16)
+  expect(useUIStore.getState().astraConversationOpen).toBe(false)
+  await act(() => { handler('astra-button', 'onPress')() })
+  expect(useUIStore.getState().astraConversationOpen).toBe(true)
+})
+
+it('stays clear of a visible notice or selection slot', async () => {
+  await mount({ top: 24, floorInset: 230, pageInset: 230, scrollToTopTop: 56, scrollToTopHeight: 0 })
+  await layout(412, 867)
+  const start = point()
+  await drag({ x: start.x + 30, y: start.y + 30 }, { x: 0, y: 4000 })
+  expect(867 - 230 - (point().y + 60)).toBe(16)
+})
+
+it.each(['light', 'dark'] as const)('floats with the hairline ring and shadow tokens, never the canvas ring, in %s', async mode => {
+  const theme = await import('@/lib/use-app-theme')
+  vi.spyOn(theme, 'useAppTheme').mockReturnValue({ currentScheme: 'orange', currentTheme: mode } as ReturnType<typeof theme.useAppTheme>)
+  const tokens = createTokensV2('orange', mode)
+  await mount()
+  const paint = () => StyleSheet.flatten((host('astra-button').props.style as (state: { pressed: boolean }) => unknown)({ pressed: false })) as { boxShadow: string; backgroundColor: string }
+  const resting = paint()
+  expect(resting.boxShadow).not.toContain('0 0 0 6px')
+  expect(resting.boxShadow).not.toContain(tokens.bg)
+  expect(resting.boxShadow).toBe(`inset 0 0 0 1px ${tokens.hairlineStrong}, 0px 4px 16px rgba(0, 0, 0, 0.28)`)
+  expect(resting.backgroundColor).toBe(tokens.bgElev)
+  const start = point()
+  await act(() => {
+    handler('astra-button-position', 'onStartShouldSetResponderCapture')(touch(start.x + 30, start.y + 30))
+    handler('astra-button-position', 'onResponderGrant')(touch(100, 100))
+  })
+  expect(paint().boxShadow).toBe(`inset 0 0 0 1px ${tokens.hairlineStrong}, 0px 12px 40px rgba(0, 0, 0, 0.45)`)
+  await act(() => { handler('astra-button-position', 'onResponderRelease')(touch(100, 100)) })
+  expect(paint().boxShadow).toBe(resting.boxShadow)
+})
+
+it('eases a requested snap with the shared enter curve', async () => {
+  motion.reduced = false
+  const timing = vi.spyOn(Animated, 'timing')
+  await mount()
+  await act(() => { handler('astra-button', 'onAccessibilityAction')({ nativeEvent: { actionName: 'up' } }) })
+  expect(timing.mock.calls.every(([, config]) => typeof config.easing === 'function')).toBe(true)
 })
