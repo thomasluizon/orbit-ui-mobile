@@ -3,6 +3,7 @@ import { IntlMessageFormat } from 'intl-messageformat'
 import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
 import { summarizePendingOperationItem } from '../chat/pending-operation-item-summary'
+import type { PendingOperationChange } from '../types/ai'
 import { habitDetailSchema, habitScheduleItemSchema, updateHabitRequestSchema, createHabitRequestSchema } from '../types/habit'
 import { createApiClientError, getFriendlyErrorKey } from '../utils/error-utils'
 import { computeHabitFrequencyLabel } from '../utils/habit-card-helpers'
@@ -183,16 +184,54 @@ describe('a habit on chosen days of the month', () => {
   it.each([
     ['moves the days', '8, 15', '[10,20]', [10, 20], 'On the 8th and 15th → On the 10th and 20th', 'Nos dias 8 e 15 → Nos dias 10 e 20'],
     ['returns to the start date', '8', '[]', [], 'On the 8th → On the same day as the start date', 'No dia 8 → No mesmo dia do início'],
-  ] as const)('summarises a staging update_habit preview that only %s', (_change, oldValue, newValue, proposedValue, englishText, portugueseText) => {
+  ] as const)('summarises an update_habit preview in the orbit-api source shape that only %s', (_change, oldValue, newValue, proposedValue, englishText, portugueseText) => {
     const fields = [change('habit_id', null, habitId, habitId), change('month_days', oldValue, newValue, [...proposedValue])]
     expect(summarizePendingOperationItem(fields, english, (value) => value, 'en', 'updateHabit')).toBe(englishText)
     expect(summarizePendingOperationItem(fields, portuguese, (value) => value, 'pt-BR', 'updateHabit')).toBe(portugueseText)
   })
 
-  it('summarises a staging bulk_update_habits preview that moves the days and the next due date', () => {
-    const fields = [change('month_days', '8, 15', '10, 20', [10, 20]), change('due_date', '2026-11-08', '2026-11-10', '2026-11-10', 'date')]
-    expect(summarizePendingOperationItem(fields, english, (value) => value, 'en', 'updateHabits')).toBe('Nov 8, 2026 · On the 8th and 15th → Nov 10, 2026 · On the 10th and 20th')
-    expect(summarizePendingOperationItem(fields, portuguese, (value) => value, 'pt-BR', 'updateHabits')).toBe('8 de nov. de 2026 · Nos dias 8 e 15 → 10 de nov. de 2026 · Nos dias 10 e 20')
+  const captured = (entityId: string, entityName: string, changes: readonly Omit<PendingOperationChange, 'entityId' | 'entityName'>[]): PendingOperationChange[] => changes.map((row) => ({ entityId, entityName, ...row }))
+
+  /** Each item below is one habit's rows from a real staging `bulk_update_habits` preview. */
+  const stagingBulkMoveRent = captured('f73a6a5e-b9f9-445b-aeea-070aad6e6621', 'Rent rb2 348ba0', [
+    { field: 'month_days', oldValue: '8, 15', newValue: '10, 20', valueType: 'text', proposedValue: [10, 20], isEditable: true, provenance: 'requested' },
+    { field: 'due_date', oldValue: '2026-11-08', newValue: '2026-11-10', valueType: 'date', proposedValue: '2026-11-10', isEditable: true, provenance: 'stored' },
+  ])
+  const stagingBulkMoveWaterBill = captured('83054d52-631e-478a-8eb7-8da811e14ac7', 'Water bill rb2 348ba0', [
+    { field: 'month_days', oldValue: '3', newValue: '10, 20', valueType: 'text', proposedValue: [10, 20], isEditable: true, provenance: 'requested' },
+    { field: 'due_date', oldValue: '2026-12-03', newValue: '2026-11-10', valueType: 'date', proposedValue: '2026-11-10', isEditable: true, provenance: 'stored' },
+  ])
+  const stagingBulkMonthToOneTime = captured('fa7d47a8-a9bf-48b2-b5e2-33437732e8b1', 'Rent rb2 0b0ff5', [
+    { field: 'frequency_unit', oldValue: 'Month', newValue: null, valueType: 'text', proposedValue: null, isEditable: true, provenance: 'requested' },
+    { field: 'frequency_quantity', oldValue: '1', newValue: null, valueType: 'number', proposedValue: null, isEditable: true, provenance: 'requested' },
+    { field: 'month_days', oldValue: '5, 25', newValue: '(none)', valueType: 'text', proposedValue: [], isEditable: false, provenance: 'stored' },
+  ])
+  const stagingBulkOneTimeToMonth = captured('6a892c6e-f411-443f-a058-4a5589938178', 'Gym fee rb2 0b0ff5', [
+    { field: 'frequency_unit', oldValue: null, newValue: 'Month', valueType: 'text', proposedValue: 'Month', isEditable: true, provenance: 'requested' },
+    { field: 'frequency_quantity', oldValue: null, newValue: '1', valueType: 'number', proposedValue: 1, isEditable: true, provenance: 'requested' },
+    { field: 'month_days', oldValue: '(none)', newValue: '5, 25', valueType: 'text', proposedValue: [5, 25], isEditable: true, provenance: 'requested' },
+    { field: 'due_date', oldValue: '2026-11-20', newValue: '2026-11-25', valueType: 'date', proposedValue: '2026-11-25', isEditable: true, provenance: 'stored' },
+  ])
+  /** The rows of a real staging `update_habit` preview that makes a monthly habit one-time. */
+  const stagingUpdateMonthToOneTime = captured('f73a6a5e-b9f9-445b-aeea-070aad6e6621', 'Rent rb2 348ba0', [
+    { field: 'frequency_unit', oldValue: 'Month', newValue: null, valueType: 'text', proposedValue: null, isEditable: true, provenance: 'stored' },
+    { field: 'habit_id', oldValue: null, newValue: 'f73a6a5e-b9f9-445b-aeea-070aad6e6621', valueType: 'text', proposedValue: 'f73a6a5e-b9f9-445b-aeea-070aad6e6621', isEditable: false, provenance: 'requested' },
+  ])
+
+  it.each([
+    ['moves the days of two named habits and their next due dates (first habit)', stagingBulkMoveRent, 'updateHabits',
+      'Nov 8, 2026 · On the 8th and 15th → Nov 10, 2026 · On the 10th and 20th', '8 de nov. de 2026 · Nos dias 8 e 15 → 10 de nov. de 2026 · Nos dias 10 e 20'],
+    ['moves the days of two named habits and their next due dates (second habit)', stagingBulkMoveWaterBill, 'updateHabits',
+      'Dec 3, 2026 · On the 3rd → Nov 10, 2026 · On the 10th and 20th', '3 de dez. de 2026 · No dia 3 → 10 de nov. de 2026 · Nos dias 10 e 20'],
+    ['makes a monthly habit one-time without a day of the month on the one-time side', stagingBulkMonthToOneTime, 'updateHabits',
+      '1 month · On the 5th and 25th → Once', '1 mês · Nos dias 5 e 25 → Uma vez'],
+    ['makes a one-time habit monthly and keeps the one-time side as one-time', stagingBulkOneTimeToMonth, 'updateHabits',
+      'Nov 20, 2026 · Once → 1 month · Nov 25, 2026 · On the 5th and 25th', '20 de nov. de 2026 · Uma vez → 1 mês · 25 de nov. de 2026 · Nos dias 5 e 25'],
+    ['makes a monthly habit one-time through update_habit', stagingUpdateMonthToOneTime, 'updateHabit',
+      'Repetition in months → Once', 'Repetição em meses → Uma vez'],
+  ] as const)('summarises a captured staging preview that %s', (_shape, fields, actionKey, englishText, portugueseText) => {
+    expect(summarizePendingOperationItem(fields, english, (value) => value, 'en', actionKey)).toBe(englishText)
+    expect(summarizePendingOperationItem(fields, portuguese, (value) => value, 'pt-BR', actionKey)).toBe(portugueseText)
   })
 
   it('reads the windowed bulk list text the API writes when a day is added after an unchanged one', () => {

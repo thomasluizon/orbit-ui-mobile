@@ -64,9 +64,15 @@ function summarizeHabitUpdate(
   if (dateChange) return dateChange
   const changedSchedule = changed.some(field => ['frequency_unit', 'frequency_quantity', 'days', 'month_days', 'due_date', 'due_time', 'is_general', 'is_flexible'].includes(field.field))
   const summarizedFields = changedSchedule ? fields.filter(field => !['habit_id', 'title', 'emoji'].includes(field.field) && (field.field !== 'is_bad_habit' || changed.includes(field))) : changed
-  const before = summarizePendingOperationItem(summarizedFields.map(field => ({ ...field, oldValue: field.oldValue, newValue: field.oldValue ?? field.newValue, proposedValue: field.oldValue ?? field.proposedValue })), translate, formatTime, locale, 'scheduleDiff')
+  const before = summarizePendingOperationItem(summarizedFields.map(beforeChange), translate, formatTime, locale, 'scheduleDiff')
   const after = summarizePendingOperationItem(summarizedFields, translate, formatTime, locale, 'scheduleDiff')
   return before === after || !before ? after : translate('chat.preview.beforeAfter', { before, after })
+}
+
+/** A null old unit is a one-time habit, so the before side keeps it; any other unread old value falls back to the new one. */
+function beforeChange(field: PendingOperationChange): PendingOperationChange {
+  if (field.field === 'frequency_unit') return { ...field, newValue: field.oldValue, proposedValue: field.oldValue }
+  return { ...field, newValue: field.oldValue ?? field.newValue, proposedValue: field.oldValue ?? field.proposedValue }
 }
 
 function compactDateChange(fields: readonly PendingOperationChange[], translate: PreviewTranslation, locale: string, today?: string): string | undefined {
@@ -139,8 +145,8 @@ function additionalChanges(
   fields: readonly PendingOperationChange[], translate: PreviewTranslation,
   formatTime: (value: string) => string, locale: string, scheduleSummarized: boolean, creating: boolean,
 ): string[] {
-  const unit = fields.find((field) => field.field === 'frequency_unit')?.newValue
-  const monthly = unit == null || unit === 'Month'
+  const unitField = fields.find((field) => field.field === 'frequency_unit')
+  const monthly = !unitField || unitField.newValue === 'Month'
   return fields.flatMap((field) => {
     if (creating && ['reminder_enabled', 'reminder_times', 'scheduled_reminders'].includes(field.field)) return []
     const createOutcome = creating ? createChange(field, translate) : undefined
