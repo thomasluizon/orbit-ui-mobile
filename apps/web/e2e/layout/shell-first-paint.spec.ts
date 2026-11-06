@@ -13,15 +13,20 @@ test.describe('Hoje shell before hydration', () => {
 
         const sidebar = page.locator('[data-shell-sidebar]')
         const tabBar = page.locator('[data-shell-tab-bar]')
+        const astraButton = page.locator('[data-astra-button]')
         if (shell === 'wide') {
           await expect(sidebar).toBeVisible()
           await expect(tabBar).toBeHidden()
+          await expect(astraButton).toBeHidden()
+          await expect(sidebar.locator('[data-shell-astra-row]')).toBeVisible()
         } else {
           await expect(sidebar).toBeHidden()
           await expect(tabBar).toBeVisible()
+          await expect(astraButton).toBeVisible()
+          const [button, tabs] = await Promise.all([astraButton.boundingBox(), tabBar.boundingBox()])
+          expect(button!.y + button!.height + 16).toBeLessThanOrEqual(tabs!.y)
         }
         await expect(page.locator('[data-shell-pinned-slot]')).toHaveCount(0)
-        await expect(page.locator('[data-astra-button]')).toBeVisible()
       })
     })
   }

@@ -6,6 +6,7 @@ import { resolve } from 'node:path'
 import { calendarAutoSyncStateSchema, calendarSyncSuggestionSchema } from '@orbit/shared/types/calendar'
 import { API } from '@orbit/shared/api'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
+import { getShellConversationEntry } from './shell-conversation-entry'
 import { makeHabitDetail, makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { calendarMonthResponseSchema, createPaginatedSchema, habitDetailSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
 import { test } from './upgrade-fixtures'
@@ -52,8 +53,8 @@ for (const width of [412, 1280] as const) {
       await expectHoverOnHitArea(destination, width === 412 ? 'pill' : 12)
 
       const composer = page.locator('[data-shell-pinned-slot]')
-      const entry = page.locator('[data-astra-button]')
-      await expectHoverOnHitArea(entry, 'pill')
+      const entry = getShellConversationEntry(page, width, ptBr)
+      await expectHoverOnHitArea(entry, width === 412 ? 'pill' : 12)
       await entry.click()
       const conversation = page.locator('[data-shell-conversation="overlay"]')
       await expect(conversation).toBeVisible()

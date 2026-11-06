@@ -415,6 +415,8 @@ describe('interaction clearance inspector in Chromium', () => {
     { paint: 'background: transparent', gap: 4, extension: 8, fails: false },
     { paint: 'background: gray; opacity: 0', gap: 4, extension: 8, fails: false },
     { paint: 'background: gray; box-shadow: 0 0 0 100px transparent', gap: 16, extension: 8, fails: false },
+    { paint: 'background: gray; box-shadow: 0 12px 40px black', gap: 16, extension: 8, fails: false },
+    { paint: 'background: gray; box-shadow: 0 0 0 8px black', gap: 16, extension: 8, fails: true },
     { paint: 'background: gray; outline: 2px solid black; outline-offset: 2px', gap: 16, extension: 8, fails: true },
   ])('measures $paint with a $gap gap and $extension extension', async ({ paint, gap, extension, fails }) => {
     await withPage({ viewport: { width: 320, height: 915 } }, async page => {

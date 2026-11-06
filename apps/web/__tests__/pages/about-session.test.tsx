@@ -60,7 +60,7 @@ vi.mock('@/lib/account-event-connection', () => ({ AccountEventConnection: () =>
 vi.mock('@/app/(app)/today-provider', () => ({ TodayProvider: ({ children }: { children: ReactNode }) => children, useToday: () => '2026-09-12' }))
 vi.mock('@/components/shell/shell-wide', () => ({
   ShellWide: ({ children, composer, astraButton, notice, onCreate }: { children: ReactNode; composer?: ReactNode; astraButton?: ReactNode; notice?: ReactNode; onCreate: () => void }) => (
-    <main aria-label="Destination shell"><nav aria-label="nav.mainNavigation" /><button onClick={onCreate}>Create habit</button>{composer}{astraButton}{children}<div data-shell-notice="">{notice}</div></main>
+    <main aria-label="Destination shell"><nav aria-label="nav.mainNavigation" /><button onClick={onCreate}>Create habit</button>{composer}<div data-shell-page=""><div data-shell-page-content="" /></div>{astraButton}{children}<div data-shell-notice="">{notice}</div></main>
   ),
 }))
 vi.mock('@/components/command/command-palette', () => ({ CommandPalette: () => null, CommandPaletteBackground: ({ children }: { children: ReactNode }) => children }))

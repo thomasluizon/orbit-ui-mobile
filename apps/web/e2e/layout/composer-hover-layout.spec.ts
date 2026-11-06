@@ -6,6 +6,7 @@ import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { hoverSettledComposerControl } from './composer-hover-state'
+import { getShellConversationEntry } from './shell-conversation-entry'
 
 for (const width of [412, 1280]) {
   for (const theme of ['dark', 'light'] as const) {
@@ -16,7 +17,7 @@ for (const width of [412, 1280]) {
       await setLayoutProfileSession(context, profile)
       await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
       await page.goto('/')
-      await page.locator('[data-astra-button]').click()
+      await getShellConversationEntry(page, width, en).click()
       const composer = page.locator('[data-shell-conversation="overlay"] [data-composer-root]')
       await expect(composer).toHaveAttribute('data-state', 'atLimit')
       expect(await page.evaluate(() => matchMedia('(hover: hover) and (pointer: fine)').matches)).toBe(true)

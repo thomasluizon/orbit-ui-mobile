@@ -5,6 +5,7 @@ import messages from '@orbit/shared/i18n/en.json'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { setLayoutProfileSession } from './profile-session'
+import { getShellConversationEntry } from './shell-conversation-entry'
 import { expectOneFieldIndicator, inspectFocusedControlRings as inspectFocusedRing } from './focus-indicators'
 
 async function expectOneRing(page: Page, surface: string, stop: number) {
@@ -38,7 +39,7 @@ async function focusConversationComposer(page: Page, width: number) {
   const conversation = page.locator('[data-shell-conversation="overlay"]')
   const conversationWasOpen = await conversation.isVisible()
   if (!conversationWasOpen) {
-    await page.locator('[data-astra-button]').click()
+    await getShellConversationEntry(page, width, messages).click()
   }
   await expect(conversation).toBeVisible()
   await expect(page.locator('[data-shell-pinned-slot]')).toBeHidden()

@@ -5,10 +5,14 @@
 
 ### Hoje floating Astra entry
 
-The owner's #2005 order replaces the Hoje composer on both platforms at every width with a
-neutral round draggable Astra button. `DESIGN.md` Information architecture specifies the 60px
-FAB geometry, stacking, snapping, device persistence and accessible movement. Habit detail and
-the conversation keep the shared composer. This amendment supersedes the Hoje dock in the drawing.
+The owner's #2005 order replaces the Hoje composer with a neutral round draggable Astra button.
+The owner's #2042 correction limits that button to the compact shell: Android at every width and
+web below 1024. Wide web shows no floating button and keeps the sidebar Astra row. The button
+drags over the whole compact screen above the tab bar and floats with the lifted-surface
+treatment, not the canvas ring. `DESIGN.md` Information architecture specifies the 60px FAB
+geometry, drag area, stacking, snapping, device persistence and accessible movement. Habit detail
+and the conversation keep the shared composer. This amendment supersedes the Hoje dock in the
+drawing and every drawing note that places the floating button at every width.
 
 ## Empty-state composition amendment (#1896)
 

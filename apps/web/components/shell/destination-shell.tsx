@@ -333,7 +333,7 @@ function DestinationShellContent({
         registerHeaderHost={registerHeaderHost}
         scrollToTop={todayScrollToTop(pathname, notFoundVisible)}
         composer={pinnedComposer}
-        astraButton={pathname === '/' && !notFoundVisible ? <AstraButton /> : undefined}
+        astraButton={pathname === '/' && !notFoundVisible && !wide ? <AstraButton /> : undefined}
         tabBar={
           !chrome.flow ? <BottomTabBar
             activeId={activeId}

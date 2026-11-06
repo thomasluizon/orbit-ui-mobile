@@ -218,7 +218,7 @@ vi.mock('@/components/shell/composer', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/components/shell/composer')>()
   return { Composer: (props: React.ComponentProps<typeof original.Composer>) => { mocks.composerProps = props; return <original.Composer {...props} /> } }
 })
-vi.mock('@/components/shell/shell-412', () => ({ Shell412: ({ composer, astraButton, conversationOpen, conversation }: { composer?: React.ReactNode; astraButton?: boolean; conversationOpen?: boolean; conversation?: React.ReactNode }) => conversationOpen ? conversation : <>{composer}{astraButton ? <AstraButton hasFab={false} scrollToTopHeight={0} /> : null}</> }))
+vi.mock('@/components/shell/shell-412', () => ({ Shell412: ({ composer, astraButton, conversationOpen, conversation }: { composer?: React.ReactNode; astraButton?: boolean; conversationOpen?: boolean; conversation?: React.ReactNode }) => conversationOpen ? conversation : <>{composer}{astraButton ? <AstraButton hasFab={false} chrome={{ top: 0, floorInset: 0, pageInset: 0, scrollToTopTop: 8, scrollToTopHeight: 0 }} /> : null}</> }))
 vi.mock('@/components/throttle-screen', () => ({ ThrottleScreen: () => null }))
 vi.mock('@/components/upgrade-required-screen', () => ({ UpgradeRequiredScreen: () => null }))
 vi.mock('@/lib/capture-mode', () => ({ captureBuildEnabled: false, captureRequestProbeIdFromUrl: () => null, captureRouteProbeId: () => 'capture-probe', shouldExposeOnboardingRoute: () => false }))

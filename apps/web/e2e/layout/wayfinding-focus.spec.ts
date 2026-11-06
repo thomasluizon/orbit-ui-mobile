@@ -11,6 +11,7 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { LAYOUT_ORIGIN } from '../support/env'
 import { readFieldIndicators, inspectFocusedControlRings as inspectFocusedRing, settleFocusAnimations } from './focus-indicators'
 import { inspectDestinationHeading } from './destination-heading'
+import { getShellConversationEntry } from './shell-conversation-entry'
 import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 
@@ -153,7 +154,7 @@ async function inspectConversation(page: Page, width: number) {
     await expectWayfindingFocus(page, heading)
     await panel.locator('[data-composer-input]').focus()
     expect((await inspectFocusedRing(page))?.indicators).toHaveLength(1)
-  }, () => page.locator('[data-astra-button]').click())
+  }, () => getShellConversationEntry(page, width, ptBR).click())
 }
 
 for (const width of [600, 1352]) {

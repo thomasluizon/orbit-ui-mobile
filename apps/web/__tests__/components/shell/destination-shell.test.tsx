@@ -98,7 +98,7 @@ function MockComposerSlot({ composer }: Readonly<{ composer?: ReactNode }>) {
 }
 
 vi.mock('@/components/shell/shell-wide', () => ({
-  ShellWide: ({ children, registerHeaderHost, header, items, activeId, onSelect, onCreate, createLabel, createRefusal, notice, composer, astraButton, scrollToTop, account, accountEmail, paletteHint, onPalette, paletteLabel, tabBar, fab, conversation, conversationOpen }: {
+  ShellWide: ({ children, registerHeaderHost, header, items, activeId, onSelect, onCreate, createLabel, createRefusal, notice, composer, astraButton, scrollToTop, account, accountEmail, paletteHint, onPalette, paletteLabel, tabBar, fab, conversation, conversationOpen, astraRow }: {
     children: ReactNode
     registerHeaderHost?: import('react').RefCallback<HTMLDivElement>
     header?: ReactNode
@@ -121,6 +121,7 @@ vi.mock('@/components/shell/shell-wide', () => ({
     fab?: ReactNode
     conversation?: ReactNode
     conversationOpen?: boolean
+    astraRow: { label: string; onOpen: () => void }
   }) => {
     const registerScroller = useShellScrollerRegistration()
     return (
@@ -131,10 +132,11 @@ vi.mock('@/components/shell/shell-wide', () => ({
       {mocks.wide && <>
         {account ? <span data-testid="wide-account">{account}</span> : <span data-shell-account="" data-loading="true" />}
         {accountEmail ? <span data-testid="wide-account-email">{accountEmail}</span> : null}
+        <button type="button" data-shell-astra-row="" onClick={astraRow.onOpen}>{astraRow.label}</button>
       </>}
       {mocks.wide && onPalette ? <button type="button" onClick={onPalette}>{paletteLabel}</button> : null}
       {mocks.wide && paletteHint ? <kbd>{paletteHint}</kbd> : null}
-      <MockComposerSlot composer={composer} />{astraButton}
+      <MockComposerSlot composer={composer} /><div data-shell-page=""><div data-shell-page-content="" /></div>{astraButton}
       {mocks.wide ? items?.map((item) => (
         <a href={item.href} key={item.id} aria-current={item.id === activeId ? 'page' : undefined} onClick={(event) => { event.preventDefault(); onSelect?.(item.id) }}>{item.label}</a>
       )) : tabBar}
@@ -856,12 +858,23 @@ describe('DestinationShell', () => {
     expect(screen.queryByText('One unread')).not.toBeInTheDocument()
   })
 
-  it.each([false, true])('replaces the Hoje composer with one Astra button at wide=%s', wide => {
-    mocks.wide = wide
+  it('replaces the Hoje composer with one Astra button in the compact shell', () => {
+    mocks.wide = false
     render(<DestinationShell onCreate={() => {}} composer={<span>Old Hoje composer</span>}><h1>Today</h1></DestinationShell>)
     expect(screen.queryByText('Old Hoje composer')).toBeNull()
     expect(screen.getAllByRole('button', { name: 'shell.astraButton.open' })).toHaveLength(1)
     fireEvent.click(screen.getByRole('button', { name: 'shell.astraButton.open' }))
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    useUIStore.getState().setAstraConversationOpen(false)
+  })
+
+  it('keeps the sidebar Astra row as the only wide entry on Hoje', () => {
+    mocks.wide = true
+    const view = render(<DestinationShell onCreate={() => {}} composer={<span>Old Hoje composer</span>}><h1>Today</h1></DestinationShell>)
+    expect(screen.queryByText('Old Hoje composer')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'shell.astraButton.open' })).toBeNull()
+    expect(view.container.querySelector('[data-astra-button-area]')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'nav.astra' }))
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
     useUIStore.getState().setAstraConversationOpen(false)
   })
