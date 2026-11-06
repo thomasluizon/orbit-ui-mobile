@@ -234,6 +234,11 @@ function hasArgumentValue(command, flag, expected) {
   })
 }
 
+/** A gate that reads only the pull request's own commit range is scoped to that pull request. */
+function commandReadsPullRequestRange(command) {
+  return hasArgumentValue(command, "--range", "$PULL_REQUEST_RANGE")
+}
+
 function commandUsesRedirectedChangedFiles(script, command) {
   if (hasArgumentValue(command, "--changed-files-file", "$RUNNER_TEMP/changed-paths.txt")) return true
   const before = script.slice(0, command.index)
@@ -288,6 +293,7 @@ function blockingRunUsesChangedFiles(script) {
   const variables = derivedVariables(script)
   return commands.every((command) =>
     /tools\/check-dashes\.mjs\s+--text\b/.test(command.line) ||
+    commandReadsPullRequestRange(command) ||
     commandUsesRedirectedChangedFiles(script, command) ||
     commandUsesChangedFilePipeline(script, command) ||
     commandIsConditionedOnChangedFiles(script, command, variables),

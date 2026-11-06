@@ -2,7 +2,7 @@ import { spawn, spawnSync } from "node:child_process"
 import { chmodSync, existsSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
-import { T, check, processIsRunning, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
+import { T, WORKER_CONFIG_DIRECTORY, check, processIsRunning, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
 import { readWakeSourceStates, wakeSourceDirectory, workerLaunchDirectory, writeRunState } from "../lib/run-state.mjs"
 
 const TOOL = "launch-worker.mjs"
@@ -24,7 +24,7 @@ const fixture = (label, command, overrides = {}) => {
 const immediateBody = `
 const fs = require('node:fs')
 const args = process.argv.slice(2)
-const snapshot = { args, directory: process.cwd(), files: fs.readdirSync(process.cwd()), credentials: Object.keys(process.env).filter(key => /^(GIT|GH_|GITHUB_|SSH_|ORCA_)/.test(key)), input: '' }
+const snapshot = { args, directory: process.cwd(), files: fs.readdirSync(process.cwd()), credentials: Object.keys(process.env).filter(key => /^(GIT|GH_|GITHUB_|SSH_|ORCA_)/.test(key)), configDirectory: process.env.CLAUDE_CONFIG_DIR ?? null, input: '' }
 process.stdin.setEncoding('utf8')
 process.stdin.on('data', chunk => { snapshot.input += chunk })
 process.stdin.on('end', () => {
@@ -149,7 +149,7 @@ const discardLog = (result) => {
 
 export const cases = async () => {
   const command = engineStub("immediate", immediateBody)
-  const staged = fixture("success", command)
+  const staged = fixture("success", command, { worker: "codex" })
   const result = run(TOOL, staged.argv, { path: staged.path, env: { GH_TOKEN: "fixture", GITHUB_TOKEN: "fixture", GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "credential.helper", GIT_CONFIG_VALUE_0: "fixture", SSH_AUTH_SOCK: "fixture" } })
   T("research: order and output start without a ticket or worktree", result.status === 0, result.stderr)
   if (result.status !== 0) return
@@ -201,6 +201,8 @@ export const cases = async () => {
   const claudeResult = run(TOOL, claude.argv, { path: claude.path })
   T("research: the configured Claude engine returns findings through stdout", claudeResult.status === 0 && discardLog(claudeResult).engine === "claude")
   const claudeObserved = JSON.parse(readFileSync(claude.output, "utf8"))
+  T("research: Claude research runs under the worker account directory", claudeObserved.configDirectory === WORKER_CONFIG_DIRECTORY, JSON.stringify(claudeObserved.configDirectory))
+  T("research: Codex research names no Claude account directory", observed.configDirectory === null, JSON.stringify(observed.configDirectory))
   T("research: Claude has only web tools and no bypass or inherited settings", claudeObserved.args[claudeObserved.args.indexOf("--tools") + 1] === "WebSearch,WebFetch" && claudeObserved.args.includes("dontAsk") && !claudeObserved.args.includes("bypassPermissions"))
   const allowedAt = claudeObserved.args.indexOf("--allowedTools")
   T("research: Claude pre-approves exactly the two web tools", allowedAt > 0 && JSON.stringify(claudeObserved.args.slice(allowedAt + 1, allowedAt + 3)) === JSON.stringify(["WebSearch", "WebFetch"]) && claudeObserved.args[allowedAt + 3].startsWith("--") && !claudeObserved.args.some((arg) => /^(Bash|Edit|Write|Read|Agent|mcp__)/.test(arg)))

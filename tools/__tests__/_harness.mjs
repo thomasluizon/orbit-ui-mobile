@@ -173,6 +173,14 @@ export const BASH = resolveBash()
  */
 export const realOrchestratorConfig = () => JSON.parse(readFileSync(join(REPO_ROOT, ".claude", "orchestrator.json"), "utf8"))
 
+/**
+ * The variable that names the claude worker's account directory. Every staged launch reads a
+ * fixture directory through it, so no gate case can start a process under the owner's real account.
+ */
+export const WORKER_CONFIG_DIRECTORY_VARIABLE = realOrchestratorConfig().workers.claude.configDirEnv
+export const WORKER_CONFIG_DIRECTORY = dirname(stage("worker-account/.claude.json", "{}\n"))
+process.env[WORKER_CONFIG_DIRECTORY_VARIABLE] = WORKER_CONFIG_DIRECTORY
+
 /** Build the REST ticket read from the same normalized issue value each case already asserts. */
 export const githubIssueReadPlan = (value, repository = "thomasluizon/orbit-tickets") => {
   const issue = typeof value === "string" ? JSON.parse(value) : value
