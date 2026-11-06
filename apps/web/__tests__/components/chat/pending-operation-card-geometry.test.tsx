@@ -1,6 +1,6 @@
 import { measureClampedPersonalText } from '@/__tests__/support/personal-text'
 import type { Page } from '@playwright/test'
-import { makeRestartPlanPreview, makeTypedHabitsPreview, makeExistingHabitPreview, makePlacementPreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeRestartPlanPreview, makeTypedHabitsPreview, makeExistingHabitPreview, makePlacementPreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeTicketTaskPreview, TICKET_TASK_DESCRIPTION } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -238,7 +238,7 @@ describe('Pending preview geometry in Chromium', () => {
     } finally { await page.close() }
   })
 
-  it.each([320, 412, 1352].flatMap(width => locales.flatMap(locale => [1, 2].flatMap(textScale => ['pending', 'done', 'acting', 'failed'].map(state => ({ width, locale, textScale, state }))))))('keeps typed item actions beside the first line at $width in $locale at text scale $textScale while $state', async ({ width, locale, textScale, state }) => {
+  it.each([320, 412, 1352].flatMap(width => locales.flatMap(locale => [1, 2].flatMap(textScale => ['pending', 'done', 'acting', 'failed'].map(state => ({ width, locale, textScale, state }))))))('keeps typed item actions beside the first line while pending and below the full-width words once settled at $width in $locale at text scale $textScale while $state', async ({ width, locale, textScale, state }) => {
     const messages = locale === 'en' ? en : pt
     const name = locale === 'en'
       ? 'Read the books I chose to learn about all the places and people around the world before breakfast every morning'
@@ -275,19 +275,28 @@ describe('Pending preview geometry in Chromium', () => {
         const trailingBounds = trailing.getBoundingClientRect()
         const status = trailing.querySelector(':scope > span') as HTMLElement | null
         const statusRight = status ? Math.max(...[status, ...status.querySelectorAll('*')].map(element => element.getBoundingClientRect().right)) : trailingBounds.right
-        return { nameLeft: labelBounds.left, metaLeft: metaBounds.left, direction: getComputedStyle(row).flexDirection, branches: row.children.length, firstLineTop: labelBounds.top, firstLineBottom: labelBounds.top + parseFloat(getComputedStyle(label).lineHeight), labelHeight: labelBounds.height, labelWidth: labelBounds.width, lineHeight: parseFloat(getComputedStyle(label).lineHeight), labelRight: labelBounds.right, disclosureLeft: disclosureBounds.left, disclosureRight: disclosureBounds.right, actionLeft: actionBounds.left, actionRight: actionBounds.right, actionCenter: actionBounds.top + actionBounds.height / 2, actionBottom: actionBounds.bottom, trailingRight: trailingBounds.right, trailingBottom: trailingBounds.bottom, statusRight, statusOverflow: status ? status.scrollWidth - status.clientWidth : 0, rowLeft: rowBounds.left, rowRight: rowBounds.right, rowBottom: rowBounds.bottom }
+        const words = row.firstElementChild!.getBoundingClientRect()
+        const rowStyle = getComputedStyle(row)
+        return { wordsWidth: words.width, wordsBottom: words.bottom, rowInner: rowBounds.width - parseFloat(rowStyle.paddingLeft) - parseFloat(rowStyle.paddingRight), trailingTop: trailingBounds.top, nameLeft: labelBounds.left, metaLeft: metaBounds.left, direction: getComputedStyle(row).flexDirection, branches: row.children.length, firstLineTop: labelBounds.top, firstLineBottom: labelBounds.top + parseFloat(getComputedStyle(label).lineHeight), labelHeight: labelBounds.height, labelWidth: labelBounds.width, lineHeight: parseFloat(getComputedStyle(label).lineHeight), labelRight: labelBounds.right, disclosureLeft: disclosureBounds.left, disclosureRight: disclosureBounds.right, actionLeft: actionBounds.left, actionRight: actionBounds.right, actionCenter: actionBounds.top + actionBounds.height / 2, actionBottom: actionBounds.bottom, trailingRight: trailingBounds.right, trailingBottom: trailingBounds.bottom, statusRight, statusOverflow: status ? status.scrollWidth - status.clientWidth : 0, rowLeft: rowBounds.left, rowRight: rowBounds.right, rowBottom: rowBounds.bottom }
       }, { name, actionName })
       expect(geometry.nameLeft).toBeCloseTo(geometry.metaLeft, 1)
-      expect(geometry.direction).toBe('row')
       expect(geometry.branches).toBe(2)
-      expect(geometry.actionCenter).toBeGreaterThanOrEqual(geometry.firstLineTop - 0.5)
-      expect(geometry.actionCenter).toBeLessThanOrEqual(geometry.firstLineBottom + 0.5)
       expect(geometry.labelHeight).toBeLessThanOrEqual(geometry.lineHeight * 2 + 0.5)
       expect(geometry.labelWidth).toBeGreaterThan(0)
       expect(geometry.labelHeight).toBeGreaterThan(0)
-      expect(geometry.labelRight).toBeLessThanOrEqual(geometry.actionLeft)
       expect(geometry.disclosureLeft).toBeGreaterThanOrEqual(geometry.rowLeft)
-      expect(geometry.disclosureRight).toBeLessThanOrEqual(geometry.actionLeft)
+      if (state === 'pending') {
+        expect(geometry.direction).toBe('row')
+        expect(geometry.actionCenter).toBeGreaterThanOrEqual(geometry.firstLineTop - 0.5)
+        expect(geometry.actionCenter).toBeLessThanOrEqual(geometry.firstLineBottom + 0.5)
+        expect(geometry.labelRight).toBeLessThanOrEqual(geometry.actionLeft)
+        expect(geometry.disclosureRight).toBeLessThanOrEqual(geometry.actionLeft)
+      } else {
+        expect(geometry.direction).toBe('column')
+        expect(geometry.wordsWidth).toBeCloseTo(geometry.rowInner, 1)
+        expect(geometry.trailingTop).toBeGreaterThanOrEqual(geometry.wordsBottom)
+        expect(geometry.disclosureRight).toBeLessThanOrEqual(geometry.rowRight)
+      }
       expect(geometry.actionRight).toBeLessThanOrEqual(geometry.rowRight)
       expect(geometry.actionBottom).toBeLessThanOrEqual(geometry.rowBottom)
       expect(geometry.trailingRight).toBeLessThanOrEqual(geometry.rowRight)
@@ -296,6 +305,49 @@ describe('Pending preview geometry in Chromium', () => {
       expect(geometry.statusRight).toBeLessThanOrEqual(geometry.trailingRight + 0.5)
       if (state === 'pending') await expectInteractionGeometry(page, name, geometry.metaLeft, 64)
     } finally { await page.close() }
+  })
+
+  it.each([320, 412].flatMap(width => locales.flatMap(locale => [1, 2].map(textScale => ({ width, locale, textScale })))))('keeps the finished task words at their pending width and breaks its summary only between words at $width in $locale at text scale $textScale', async ({ width, locale, textScale }) => {
+    const messages = locale === 'en' ? en : pt
+    const onConfirmExecute = vi.fn().mockResolvedValue({ ok: true, response: makeBulkCreateExecutionResponse(['Success']) })
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><div style={{ width: width - 32, padding: 16 }}>
+      <PendingOperationCard pendingOperation={makeTicketTaskPreview()} onRevise={vi.fn()} onOpenTarget={vi.fn()} onConfirmExecute={onConfirmExecute} onPrepareStepUp={vi.fn()} onVerifyStepUp={vi.fn()} />
+    </div></NextIntlClientProvider>)
+    const measure = async () => {
+      const page = await browser.newPage({ viewport: { width, height: 1400 } })
+      try {
+        await page.setContent(`<style>${stylesheet}\nhtml { font-size: ${16 * textScale}px; }</style><div class="dark">${container.innerHTML}</div>`)
+        await page.evaluate(() => document.fonts.ready)
+        return await page.evaluate(() => {
+          const meta = document.querySelector<HTMLElement>('[data-preview-item-meta]')!
+          const text = meta.firstChild!
+          const range = document.createRange()
+          const breaks: string[] = []
+          let previousTop: number | undefined
+          for (let index = 0; index < text.textContent!.length; index++) {
+            range.setStart(text, index)
+            range.setEnd(text, index + 1)
+            const rect = range.getClientRects()[0]
+            if (!rect) continue
+            if (previousTop !== undefined && rect.top > previousTop + 1) breaks.push(text.textContent!.slice(Math.max(0, index - 1), index + 1))
+            previousTop = rect.top
+          }
+          const card = meta.closest('section') ?? meta.parentElement!
+          return { text: meta.textContent!, width: meta.getBoundingClientRect().width, overflow: meta.scrollWidth - meta.clientWidth, cardOverflow: card.scrollWidth - card.clientWidth, breaks }
+        })
+      } finally { await page.close() }
+    }
+    const pending = await measure()
+    expect(pending.text.replace(/\u00a0/g, ' ')).toContain(TICKET_TASK_DESCRIPTION)
+    fireEvent.click(container.querySelector('button[data-variant="primary"]')!)
+    await waitFor(() => expect(screen.getByText(messages.blockFrame.status.done)).toBeInTheDocument())
+    expect(onConfirmExecute).toHaveBeenCalledOnce()
+    expect(screen.getByRole('button', { name: new IntlMessageFormat(messages.chat.action.openEntity, locale).format({ name: makeTicketTaskPreview().items![0]!.entityName }) as string })).toBeInTheDocument()
+    const done = await measure()
+    expect(done.width).toBeGreaterThanOrEqual(pending.width - 0.5)
+    expect(done.overflow).toBeLessThanOrEqual(1)
+    expect(done.cardOverflow).toBeLessThanOrEqual(1)
+    for (const pair of done.breaks) expect([' ', '\u00a0'], `line break inside ${JSON.stringify(pair)}`).toContain(pair[0])
   })
 
   it.each([320, 412, 1352].flatMap(width => locales.flatMap(locale => [1, 2].map(scale => ({ width, locale, scale })))))('fits parent choices at $width in $locale with text scale $scale', async ({ width, locale, scale }) => {
@@ -357,15 +409,18 @@ describe('Pending preview geometry in Chromium', () => {
           if (getComputedStyle(ancestor).overflowX !== 'visible') { clipLeft = Math.max(clipLeft, ancestor.getBoundingClientRect().left); clipRight = Math.min(clipRight, ancestor.getBoundingClientRect().right) }
         }
         const neighbor = row.lastElementChild!.querySelector('button') ?? row.lastElementChild!
-        const hitExtension = neighbor.matches('.orbit-pill-action') ? parseFloat(getComputedStyle(neighbor, '::after').left) : 0
-        return { nameLeft, metaLeft: meta?.getBoundingClientRect().left ?? row.getBoundingClientRect().left + 12, controlLeft: bounds.left, controlRight: bounds.right, controlHeight: bounds.height, clipLeft, clipRight, neighborLeft: neighbor.getBoundingClientRect().left + hitExtension }
+        const pill = neighbor.matches('.orbit-pill-action')
+        const hitExtension = pill ? parseFloat(getComputedStyle(neighbor, '::after').left) : 0
+        const hitTop = pill ? parseFloat(getComputedStyle(neighbor, '::after').top) : 0
+        return { nameLeft, metaLeft: meta?.getBoundingClientRect().left ?? row.getBoundingClientRect().left + 12, controlLeft: bounds.left, controlRight: bounds.right, controlBottom: bounds.bottom, controlHeight: bounds.height, clipLeft, clipRight, direction: getComputedStyle(row).flexDirection, neighborLeft: neighbor.getBoundingClientRect().left + hitExtension, neighborTop: neighbor.getBoundingClientRect().top + hitTop }
       })
       expect(geometry.nameLeft).toBeCloseTo(geometry.metaLeft, 1)
       expect(geometry.nameLeft - geometry.controlLeft).toBeCloseTo(8, 1)
       expect(geometry.controlHeight).toBeGreaterThanOrEqual(48)
       expect(geometry.controlLeft).toBeGreaterThanOrEqual(geometry.clipLeft)
       expect(geometry.controlRight).toBeLessThanOrEqual(geometry.clipRight)
-      expect(geometry.controlRight).toBeLessThanOrEqual(geometry.neighborLeft)
+      if (geometry.direction === 'column') expect(geometry.controlBottom).toBeLessThanOrEqual(geometry.neighborTop)
+      else expect(geometry.controlRight).toBeLessThanOrEqual(geometry.neighborLeft)
     } finally { await page.close() }
   })
 
