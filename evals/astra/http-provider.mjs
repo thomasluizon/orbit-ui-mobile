@@ -101,7 +101,8 @@ export default class AstraHttpProvider {
     }
     if (response.output?.composition && !response.output.error) {
       try {
-        response.output.answer = visibleAnswer(response.output.composition, context.vars.clientContext, context.vars.accountDate)
+        response.output.answer = visibleAnswer(response.output.composition, context.vars.clientContext, context.vars.accountDate,
+          context.vars.accountTimeZone)
       } catch (error) {
         const renderError = { message: error.message, blockKind: error.blockKind ?? null }
         return { ...response,

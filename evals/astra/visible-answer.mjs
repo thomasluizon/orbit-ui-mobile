@@ -37,7 +37,8 @@ function outcomeBlock(outcome, t) {
 }
 function projectionCannotWrite() { throw new Error('Visible answer projection cannot execute an operation.') }
 
-export function visibleAnswer(composition, clientContext, accountDate) {
+/** The account zone comes from the fixture that set it; an unknown zone shows no UTC window, as both clients do before the profile loads. */
+export function visibleAnswer(composition, clientContext, accountDate, accountTimeZone) {
   if (clientContext?.supportsParts !== true) return composition.aiMessage
   const locale = clientContext.locale ?? 'en'
   if (composition.parts?.some((part) => part.kind === 'oneSmallStep')) {
@@ -53,7 +54,8 @@ export function visibleAnswer(composition, clientContext, accountDate) {
     }
   }
   const t = catalogTranslator(locale)
-  const options = { t, locale, timeFormat: clientContext.timeFormat, accountDate }
+  const account = typeof accountTimeZone === 'string' ? { timeZone: accountTimeZone } : null
+  const options = { t, locale, timeFormat: clientContext.timeFormat, accountDate, account }
   const props = { message: { ...composition, role: 'ai', content: composition.aiMessage ?? '' },
     onPendingOperationConfirmExecute: projectionCannotWrite, onPendingOperationPrepareStepUp: projectionCannotWrite,
     onPendingOperationVerifyStepUp: projectionCannotWrite }

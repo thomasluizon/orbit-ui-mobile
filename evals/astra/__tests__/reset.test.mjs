@@ -33,6 +33,8 @@ it.each(['en', 'pt-BR'])('seeds missed non-daily offer occurrences and verifies 
   test.metadata.fixture = 'restart-non-daily'
   test.vars.accountDate = '2026-10-24'
   await resetFixture(test)
+  expect(requests.filter(({ path }) => path === 'profile/timezone').map(({ body }) => body.timeZone)).toEqual(['UTC'])
+  expect(test.vars.accountTimeZone).toBe('UTC')
   const active = habits.filter((habit) => !habit.deleted)
   expect(active).toHaveLength(6)
   const overdue = active.filter((habit) => habit.dueDate < test.vars.accountDate)
@@ -64,6 +66,7 @@ it('resets behind fixtures on the profile calendar day without replacing the ori
   })
   await resetFixture(test)
   expect(test.vars.accountDate).toBe('2031-06-09')
+  expect(test.vars.accountTimeZone).toBe('America/Sao_Paulo')
   expect(test.vars.fixtureEvidence.loggedState.date).toBe('2031-06-09')
   expect(requests.some(({ path }) => path === 'profile/timezone')).toBe(false)
 })

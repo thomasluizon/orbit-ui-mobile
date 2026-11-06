@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { acceptReadBlockResponse, formatReadWindow, readBlockPresentation, readBlockFailureKey, readBlockWindow } from '../chat/read-block-core'
 import { chatClientContextSchema, chatPartSchema, readBlockResponseSchema } from '../types/chat'
 import { buildChatClientContext } from '../chat/client-context'
-import { completedHabitTotalFixture, completedHabitComparisonFixture, focusedDatedHabitListFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedReadMetadataFixture } from '../test-support/chat-fixtures'
+import { calendarDayWindowScopeFixture, calendarDefaultWindowScopeFixture, calendarReconnectReadFixture, completedHabitTotalFixture, completedHabitComparisonFixture, focusedDatedHabitListFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedReadMetadataFixture } from '../test-support/chat-fixtures'
 
 const total = readBlockResponseSchema.parse({ kind: 'periodTotal', block: focusedPeriodTotalFixture, read: focusedReadMetadataFixture })
 
@@ -107,4 +107,45 @@ it('keeps query recovery distinct from live action eligibility', () => {
   expect(readBlockPresentation({ ...partial, read: { ...partial.read, recovery: null } }, 'resting', false, null).message).toBe('chat.readBlock.partial')
   const history = readBlockResponseSchema.parse({ kind: 'recordList', block: focusedHistoryFixture, read: focusedHistoryFixture.read })
   expect(readBlockPresentation(history, 'resting', false, null)).toMatchObject({ state: 'resting', message: null, window: { from: '2026-09-01', to: '2026-09-30' } })
+})
+
+describe('calendar read windows', () => {
+  const saoPaulo = { timeZone: 'America/Sao_Paulo' }
+  const calendar = readBlockResponseSchema.parse({ kind: 'calendar', block: { events: [], surfaceId: 'calendar' }, read: calendarReconnectReadFixture })
+
+  it.each([
+    ['en', 'Nov 5, 2026 - Jan 4, 2027'],
+    ['pt-BR', '5 de nov. de 2026 - 4 de jan. de 2027'],
+  ])('shows the whole default UTC window as account dates in %s', (locale, text) => {
+    const window = readBlockWindow(calendarDefaultWindowScopeFixture, saoPaulo)
+    expect(window).toEqual({ from: '2026-11-05', to: '2027-01-04' })
+    expect(formatReadWindow(window!, locale)).toBe(text)
+  })
+
+  it('does not show the day after an exclusive end at local midnight', () => {
+    expect(readBlockWindow(calendarDayWindowScopeFixture, saoPaulo)).toEqual({ from: '2026-04-01', to: '2026-04-01' })
+  })
+
+  it('reads the dates in the account time zone, not in the device or UTC zone', () => {
+    const scope = { as_of: '2026-11-06', window_from_utc: '2026-11-06T01:30:00.0000000Z', window_to_utc: '2026-11-08T01:30:00.0000000Z' }
+    expect(readBlockWindow(scope, saoPaulo)).toEqual({ from: '2026-11-05', to: '2026-11-07' })
+    expect(readBlockWindow(scope, { timeZone: 'Asia/Tokyo' })).toEqual({ from: '2026-11-06', to: '2026-11-08' })
+    expect(readBlockWindow(scope, { timeZone: null })).toEqual({ from: '2026-11-06', to: '2026-11-08' })
+  })
+
+  it('shows no UTC window until the account time zone is known, or when the window is malformed', () => {
+    expect(readBlockWindow(calendarDefaultWindowScopeFixture)).toBeNull()
+    expect(readBlockWindow(calendarDefaultWindowScopeFixture, null)).toBeNull()
+    expect(readBlockWindow({ ...calendarDefaultWindowScopeFixture, window_to_utc: '2027-01-04T14:03:11' }, saoPaulo)).toBeNull()
+    expect(readBlockWindow({ ...calendarDefaultWindowScopeFixture, window_to_utc: calendarDefaultWindowScopeFixture.window_from_utc }, saoPaulo)).toBeNull()
+    expect(readBlockWindow({ date_from: '2026-09-01', date_to: '2026-09-30' }, saoPaulo)).toEqual({ from: '2026-09-01', to: '2026-09-30' })
+  })
+
+  it('presents the account window and the reconnect recovery on a calendar read', () => {
+    expect(readBlockPresentation(calendar, 'resting', false, null, false, saoPaulo)).toMatchObject({
+      state: 'partiallyFailed', message: 'chat.readBlock.reconnect', window: { from: '2026-11-05', to: '2027-01-04' },
+    })
+    expect(readBlockPresentation(calendar, 'resting', false, null).window).toBeNull()
+    expect(readBlockPresentation(calendar, 'resting', false, 'chat.readBlock.error', false, saoPaulo).message).toBe('chat.readBlock.error')
+  })
 })

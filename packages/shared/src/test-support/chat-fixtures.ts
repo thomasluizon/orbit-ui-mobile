@@ -272,6 +272,32 @@ export const focusedReadMetadataFixture = {
   nextCursor: null, totalCount: null, recovery: null,
 }
 
+/**
+ * Producer: orbit-api ReadBlockFactory.ResolveAsync for get_calendar_overview without date_from. The as_of value is
+ * the account day, and the window runs 60 days from the read instant in the .NET "O" format.
+ */
+export const calendarDefaultWindowScopeFixture = {
+  calendar_ids: ['primary'], as_of: '2026-11-05',
+  window_from_utc: '2026-11-05T14:03:11.1234567Z', window_to_utc: '2027-01-04T14:03:11.1234567Z',
+  include_events: true, include_calendars: true, include_auto_sync_state: true, include_suggestions: true,
+}
+
+/** Producer: the same resolver with date_from in America/Sao_Paulo. The window ends at the next local midnight. */
+export const calendarDayWindowScopeFixture = {
+  date_from: '2026-04-01', calendar_ids: ['primary'], as_of: '2026-04-01',
+  window_from_utc: '2026-04-01T03:00:00.0000000Z', window_to_utc: '2026-04-02T03:00:00.0000000Z',
+  include_events: true, include_calendars: true, include_auto_sync_state: true, include_suggestions: true,
+}
+
+/**
+ * Producer: CalendarTools sets recovery "reconnect" when the calendar is not connected or needs a reconnect.
+ * ReadBlockFactory.Metadata then marks the read partial.
+ */
+export const calendarReconnectReadFixture = {
+  ...focusedReadMetadataFixture, queryFamily: 'get_calendar_overview', scope: calendarDefaultWindowScopeFixture,
+  completeness: 'partial' as const, totalCount: 0, recovery: 'reconnect',
+}
+
 export const focusedPeriodMetricsFixture = {
   window: { from: '2026-09-01', to: '2026-09-30' }, positiveLogRecords: 12,
   distinctLoggedDates: 9, metScheduledDates: 8, scheduledDates: 10, completionRate: 80,

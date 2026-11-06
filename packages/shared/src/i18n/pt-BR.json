@@ -1377,6 +1377,7 @@
       "less": "Ver menos",
       "stale": "Os registros mudaram. Atualize para ver os dados mais recentes.",
       "partial": "Alguns registros estão indisponíveis.",
+      "reconnect": "Reconecte o Google Agenda para ver estes eventos.",
       "error": "Não foi possível atualizar. Tente de novo.",
       "expired": "Faça a pergunta original de novo.",
       "metric": {
