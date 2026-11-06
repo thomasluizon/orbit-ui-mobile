@@ -1364,6 +1364,7 @@
       "less": "Show less",
       "stale": "These records changed. Refresh to see the latest.",
       "partial": "Some records are unavailable.",
+      "reconnect": "Reconnect Google Calendar to see these events.",
       "error": "Could not refresh. Try again.",
       "expired": "Ask the original question again.",
       "metric": {
