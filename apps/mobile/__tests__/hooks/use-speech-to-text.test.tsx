@@ -159,6 +159,8 @@ describe('useSpeechToText', () => {
     expect(hook.current.error).toBe('speech.micDenied')
     expect(mocks.startRecording).not.toHaveBeenCalled()
     expect(mocks.apiClient).not.toHaveBeenCalled()
+    TestRenderer.act(() => { hook.current.clearError() })
+    expect(hook.current.error).toBeNull()
   })
 
   it('auto-stops and transcribes after a silence once speech has been detected', async () => {
