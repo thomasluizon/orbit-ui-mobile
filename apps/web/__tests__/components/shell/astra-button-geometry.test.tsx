@@ -114,6 +114,35 @@ it.each([412, 840])('drags over the whole compact screen and never onto the tab 
   } finally { await page.close() }
 })
 
+it('keeps clear of the tab bar at every scroll offset of a short landscape window', async () => {
+  const page = await browser.newPage({ viewport: { width: 915, height: 412 }, reducedMotion: 'reduce' })
+  try {
+    await mountAstraEntry(page)
+    const scroll = (offset: number) => page.evaluate(top => { document.querySelector('[data-shell-destination-viewport]')!.scrollTop = top }, offset)
+    const extent = await page.evaluate(() => {
+      const viewport = document.querySelector('[data-shell-destination-viewport]')!
+      return viewport.scrollHeight - viewport.clientHeight
+    })
+    expect(extent).toBeGreaterThan(0)
+    await scroll(-10_000)
+    await page.evaluate(() => document.querySelector('[data-shell-page-content]')!.append(document.createElement('span')))
+    await settleFrames(page)
+    await dragAstraButton(page, 0, 412)
+    for (const offset of [-10_000, 0]) {
+      await scroll(offset)
+      await settleFrames(page)
+      const geometry = await page.evaluate(measureAstraBounds)
+      expect(geometry.tabsTop - geometry.bottom, JSON.stringify({ offset, ...geometry })).toBeGreaterThanOrEqual(16)
+    }
+    await dragAstraButton(page, 0, 0)
+    const top = await page.evaluate(measureAstraBounds)
+    expect(top.top).toBeLessThan(top.scrollerTop)
+    expect(top.conversations).toBe(0)
+    await page.locator('[data-astra-button]').click()
+    expect(await page.locator('[data-shell-conversation]').count()).toBe(1)
+  } finally { await page.close() }
+})
+
 it('stops above a visible notice slot', async () => {
   const page = await browser.newPage({ viewport: { width: 412, height: 915 }, reducedMotion: 'reduce' })
   try {

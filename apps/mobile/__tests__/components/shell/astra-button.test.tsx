@@ -200,6 +200,20 @@ it.each(['light', 'dark'] as const)('floats with the hairline ring and shadow to
   expect(paint().boxShadow).toBe(resting.boxShadow)
 })
 
+it('keeps the press scale for a press and drops it while a drag lifts the button', async () => {
+  await mount()
+  const paint = (pressed: boolean) => StyleSheet.flatten((host('astra-button').props.style as (state: { pressed: boolean }) => unknown)({ pressed })) as { transform?: unknown }
+  expect(paint(true).transform).toEqual([{ scale: 0.96 }])
+  const start = point()
+  await act(() => {
+    handler('astra-button-position', 'onStartShouldSetResponderCapture')(touch(start.x + 30, start.y + 30))
+    handler('astra-button-position', 'onResponderGrant')(touch(100, 100))
+  })
+  expect(paint(true).transform).toBeUndefined()
+  await act(() => { handler('astra-button-position', 'onResponderRelease')(touch(100, 100)) })
+  expect(paint(true).transform).toEqual([{ scale: 0.96 }])
+})
+
 it('eases a requested snap with the shared enter curve', async () => {
   motion.reduced = false
   const timing = vi.spyOn(Animated, 'timing')

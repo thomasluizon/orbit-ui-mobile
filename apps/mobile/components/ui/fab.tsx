@@ -30,7 +30,7 @@ export function Fab({ label, children, onClick, neutral = false, lifted = false,
             ? `inset 0 0 0 1px ${tokens.hairlineStrong}, ${dropShadow(lifted ? shadowsV2.shadow3 : shadowsV2.shadow2)}`
             : `0 0 0 6px ${tokens.bg}`,
         },
-        pressed ? styles.pressed : null,
+        pressed && !lifted ? styles.pressed : null,
       ]}
     >
       {children}

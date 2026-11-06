@@ -227,7 +227,9 @@ and no hue in the shadow.
 It starts at the trailing edge, 24px above the create FAB. Its drag and snap area is the whole
 compact viewport, from the top safe area down to the top edge of the tab bar. It moves over the
 Hoje header and date row, and it never covers the tab bar. A visible notice or selection slot
-raises that floor to the top of the slot. Wide web mounts no floating button and keeps the
+raises that floor to the top of the slot. In a window shorter than the destination minimum, the
+button scrolls with the header and the tab bar, so the floor gap holds at every scroll offset.
+Wide web mounts no floating button and keeps the
 sidebar row. Habit detail retains its mark-only composer entry.
 
 A tap opens the existing conversation layer. A movement of at least 8px becomes a drag and
