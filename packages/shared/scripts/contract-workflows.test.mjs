@@ -6,8 +6,8 @@ import yaml from 'js-yaml'
 import { afterEach, describe, expect, it } from 'vitest'
 import { contractFiles, generatedDirectory } from './contract-source.mjs'
 import sharedConfig from '../vitest.config.ts'
+import { repositoryRoot as repository } from '../src/test-support/repository-root.ts'
 
-const repository = new URL('../../../', import.meta.url).pathname
 const directory = `packages/shared/${generatedDirectory}`
 const roots = []
 const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim()

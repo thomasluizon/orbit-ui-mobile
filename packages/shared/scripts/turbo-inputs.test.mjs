@@ -2,10 +2,9 @@ import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
+import { repositoryRoot as repository } from '../src/test-support/repository-root.ts'
 
-const repository = fileURLToPath(new URL('../../../', import.meta.url))
 const turbo = resolve(repository, 'node_modules/turbo/bin/turbo')
 const configuration = readFileSync(resolve(repository, 'turbo.json'), 'utf8')
 const { packageManager } = JSON.parse(readFileSync(resolve(repository, 'package.json'), 'utf8'))
@@ -106,6 +105,8 @@ it('executes the shared guard again when another consumer task configuration cha
   symlinkSync(resolve(repository, 'node_modules'), resolve(root, 'node_modules'), 'junction')
   write(root, '.gitignore', '.turbo/\ncoverage/\nexecutions\nnode_modules/\n')
   write(root, `${consumer.workspace}/scripts/turbo-inputs.test.mjs`, readFileSync(import.meta.filename, 'utf8'))
+  write(root, `${consumer.workspace}/src/test-support/repository-root.ts`,
+    readFileSync(resolve(import.meta.dirname, '../src/test-support/repository-root.ts'), 'utf8'))
   write(root, `${consumer.workspace}/vitest.config.mjs`, `
     export default { test: { maxWorkers: 1 } }
   `)

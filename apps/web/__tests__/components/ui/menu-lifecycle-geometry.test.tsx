@@ -62,9 +62,28 @@ describe('mounted headless menu lifecycle in Chromium', () => {
     const trigger = page.locator('[data-habit-row-control="menu"]')
     await trigger.waitFor({ state: 'visible' })
     const [frames] = await Promise.all([
-      page.evaluate(() => new Promise<{ y: number; top: number; opacity: number; backdrop: number }[]>((resolve) => {
+      page.evaluate((travels) => new Promise<{ y: number; top: number; opacity: number; backdrop: number }[]>((resolve, reject) => {
         const frames: { y: number; top: number; opacity: number; backdrop: number }[] = []
-        const start = performance.now()
+        const entrance = new Set(['panel opacity', 'backdrop opacity', ...travels ? ['panel transform'] : []])
+        const started = new Set<string>()
+        let settledFrames = 0
+        const transitionOwner = (event: TransitionEvent) => {
+          const target = event.target as Element
+          const owner = target.matches('.orbit-sheet-panel') ? 'panel' : target.matches('.orbit-sheet-backdrop') ? 'backdrop' : null
+          return owner ? `${owner} ${event.propertyName}` : ''
+        }
+        const ran = (event: TransitionEvent) => { started.add(transitionOwner(event)) }
+        const ended = (event: TransitionEvent) => {
+          if (!entrance.delete(transitionOwner(event))) return
+          const missing = [...entrance].find(transition => !started.has(transition))
+          if (missing) reject(new Error(`The ${missing} entrance transition never ran`))
+        }
+        const cancelled = (event: TransitionEvent) => {
+          const transition = transitionOwner(event)
+          if (entrance.has(transition)) reject(new Error(`The ${transition} entrance transition was cancelled`))
+        }
+        const listeners = [['transitionrun', ran], ['transitionend', ended], ['transitioncancel', cancelled]] as const
+        for (const [type, listener] of listeners) document.addEventListener(type, listener)
         function sample() {
           const panel = document.querySelector('.orbit-sheet-panel')
           const backdrop = document.querySelector('.orbit-sheet-backdrop')
@@ -72,12 +91,16 @@ describe('mounted headless menu lifecycle in Chromium', () => {
             const style = getComputedStyle(panel)
             frames.push({ y: new DOMMatrixReadOnly(style.transform).m42, top: panel.getBoundingClientRect().top,
               opacity: Number(style.opacity), backdrop: Number(getComputedStyle(backdrop).opacity) })
+            if (entrance.size === 0) settledFrames += 1
           }
-          if (performance.now() - start < 700) requestAnimationFrame(sample)
-          else resolve(frames)
+          if (settledFrames < 3) requestAnimationFrame(sample)
+          else {
+            for (const [type, listener] of listeners) document.removeEventListener(type, listener)
+            resolve(frames)
+          }
         }
         requestAnimationFrame(sample)
-      })),
+      }), reducedMotion === 'no-preference'),
       trigger.click(),
     ])
     expect(frames.length).toBeGreaterThan(2)
@@ -88,6 +111,7 @@ describe('mounted headless menu lifecycle in Chromium', () => {
       expect(Math.max(...frames.map(frame => frame.top)) - frames.at(-1)!.top).toBeGreaterThan(1)
     } else expect(frames.every(frame => frame.y === 0)).toBe(true)
     expect(frames.at(-1)).toMatchObject({ y: 0, opacity: 1, backdrop: 1 })
+    expect(frames.slice(-3).every(frame => frame.y === 0 && frame.opacity === 1 && frame.backdrop === 1), JSON.stringify(frames)).toBe(true)
   })
 
   it('samples reduced anchored exit transition frames without scale or travel', async () => {
@@ -95,9 +119,26 @@ describe('mounted headless menu lifecycle in Chromium', () => {
     await page.locator('[data-habit-row-control="menu"]').click()
     await page.getByRole('menu').waitFor({ state: 'visible' })
     const [frames] = await Promise.all([
-      page.evaluate(() => new Promise<{ scaleX: number; scaleY: number; x: number; y: number; opacity: number }[]>((resolve) => {
+      page.evaluate(() => new Promise<{ scaleX: number; scaleY: number; x: number; y: number; opacity: number }[]>((resolve, reject) => {
         const frames: { scaleX: number; scaleY: number; x: number; y: number; opacity: number }[] = []
-        const start = performance.now()
+        let exit: 'pending' | 'running' | 'ended' = 'pending'
+        let failure: Error | undefined
+        const isExit = (event: AnimationEvent) => (event.target as Element).matches('.orbit-menu-panel') && event.animationName === 'orbit-menu-fade-out'
+        const started = (event: AnimationEvent) => { if (isExit(event)) exit = 'running' }
+        const ended = (event: AnimationEvent) => {
+          if (!isExit(event)) return
+          if (exit === 'pending') failure = new Error('The orbit-menu-fade-out exit animation ended before it started')
+          exit = 'ended'
+        }
+        const cancelled = (event: AnimationEvent) => {
+          if (isExit(event)) failure = new Error('The orbit-menu-fade-out exit animation was cancelled')
+        }
+        const listeners = [['animationstart', started], ['animationend', ended], ['animationcancel', cancelled]] as const
+        for (const [type, listener] of listeners) document.addEventListener(type, listener)
+        function finish(outcome: () => void) {
+          for (const [type, listener] of listeners) document.removeEventListener(type, listener)
+          outcome()
+        }
         function sample() {
           const panel = document.querySelector('.orbit-menu-panel[data-state="closed"]')
           if (panel) {
@@ -105,8 +146,11 @@ describe('mounted headless menu lifecycle in Chromium', () => {
             const matrix = new DOMMatrixReadOnly(style.transform)
             frames.push({ scaleX: matrix.m11, scaleY: matrix.m22, x: matrix.m41, y: matrix.m42, opacity: Number(style.opacity) })
           }
-          if (performance.now() - start < 500) requestAnimationFrame(sample)
-          else resolve(frames)
+          const error = failure
+          if (error) finish(() => reject(error))
+          else if (exit === 'ended') finish(() => resolve(frames))
+          else if (!document.querySelector('.orbit-menu-panel')) finish(() => reject(new Error('The menu left before its orbit-menu-fade-out exit animation ended')))
+          else requestAnimationFrame(sample)
         }
         requestAnimationFrame(sample)
       })),

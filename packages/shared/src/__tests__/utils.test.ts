@@ -106,7 +106,10 @@ describe('formatAPIDateInTimeZone', () => {
 })
 
 describe('getAccountDay', () => {
-  afterEach(() => vi.unstubAllEnvs())
+  it('runs on the America/Sao_Paulo device calendar that vitest.config.ts sets', () => {
+    expect(Intl.DateTimeFormat().resolvedOptions().timeZone).toBe('America/Sao_Paulo')
+    expect(new Date('2026-06-16T02:59:00Z').getDate()).toBe(15)
+  })
 
   it.each([
     { timeZone: undefined, expected: '2026-06-15' },
@@ -114,8 +117,6 @@ describe('getAccountDay', () => {
     { timeZone: 'America/Sao_Paulo', expected: '2026-06-15' },
     { timeZone: 'Pacific/Kiritimati', expected: '2026-06-16' },
   ])('resolves $timeZone to $expected on a different device calendar', ({ timeZone, expected }) => {
-    vi.stubEnv('TZ', 'America/Sao_Paulo')
-
     expect(getAccountDay(new Date('2026-06-16T02:59:00Z'), timeZone)).toBe(expected)
   })
 })

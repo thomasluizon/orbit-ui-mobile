@@ -1,12 +1,11 @@
 import { readFileSync, readdirSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   neutralColors,
   statusConstants,
 } from '../theme/neutral-ramp'
-
-const ROOT = fileURLToPath(new URL('../../../../', import.meta.url))
+import { repositoryRoot } from '../test-support/repository-root'
 
 function toRgb(color: string): [number, number, number] {
   if (color.startsWith('#')) {
@@ -56,7 +55,7 @@ function productionSources(directory: string): string[] {
 
 describe('main backlog ports', () => {
   it('keeps web bad-status text aligned with shared AA roles', () => {
-    const themeDom = readFileSync(`${ROOT}apps/web/lib/theme-dom.ts`, 'utf8')
+    const themeDom = readFileSync(join(repositoryRoot, 'apps/web/lib/theme-dom.ts'), 'utf8')
     expect(themeDom).toContain("'--status-bad-text': status.badText")
 
     const darkElevated = composite(neutralColors.dark.bgElev2, neutralColors.dark.bg)
@@ -64,7 +63,7 @@ describe('main backlog ports', () => {
   })
   it('uses the readable text role for the mobile remove-deadline affordance', () => {
     const source = readFileSync(
-      `${ROOT}apps/mobile/components/goals/edit-goal-modal/edit-goal-deadline-field.tsx`,
+      join(repositoryRoot, 'apps/mobile/components/goals/edit-goal-modal/edit-goal-deadline-field.tsx'),
       'utf8',
     )
     expect(source).toContain('<X size={16} color={tokens.fg3} strokeWidth={1.8} />')
@@ -77,16 +76,16 @@ describe('main backlog ports', () => {
     const sources = path.endsWith('/habit-list.tsx')
       ? [path, 'apps/web/components/habits/use-habit-list-state.ts']
       : [path]
-    const source = sources.map((owner) => readFileSync(`${ROOT}${owner}`, 'utf8')).join('\n')
+    const source = sources.map((owner) => readFileSync(join(repositoryRoot, owner), 'utf8')).join('\n')
     expect(source).toMatch(/const dndContextId = useId\(\)/)
     expect(source).toMatch(/<DndContext\s+id=\{dndContextId\}/)
   })
 
   it('contains no decorative gradient implementation', () => {
     const sources = [
-      ...productionSources(`${ROOT}apps/web`),
-      ...productionSources(`${ROOT}apps/mobile`),
-      ...productionSources(`${ROOT}packages/shared/src`),
+      ...productionSources(join(repositoryRoot, 'apps/web')),
+      ...productionSources(join(repositoryRoot, 'apps/mobile')),
+      ...productionSources(join(repositoryRoot, 'packages/shared/src')),
     ]
     const offenders = sources.filter((path) => {
       return /GradientTop|gradient-header|gradientHeader(?:From|To)|(?:linear|radial|conic)-gradient|(?:Linear|Radial)Gradient/.test(
