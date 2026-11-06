@@ -1,4 +1,5 @@
 import { createRequire } from 'node:module'
+import { IntlMessageFormat } from 'intl-messageformat'
 import { expect, it } from 'vitest'
 import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
@@ -97,4 +98,14 @@ it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('
   expect(typeof action).toBe('string')
   expect(action as string).not.toMatch(/\?/)
   expect(action).not.toBe(lookup(messages, 'chat.recordList.filter'))
+})
+
+it('asks the pt-BR API key expiry as what the key should do', () => {
+  expect(lookup(ptBR, 'orbitMcp.expiresAtLabel')).toBe('Quando ela deve expirar? (UTC)')
+})
+
+it.each([0, 1, 3])('asks the pt-BR move destination for %i habits without a gendered pronoun', (count) => {
+  const question = new IntlMessageFormat(lookup(ptBR, 'habits.moveParent.destinations') as string, 'pt-BR').format({ count }) as string
+  expect(question).toBe(count === 1 ? 'Para onde vai?' : 'Para onde vão?')
+  expect(question).not.toMatch(/\b(ele|eles|ela|elas)\b/i)
 })
