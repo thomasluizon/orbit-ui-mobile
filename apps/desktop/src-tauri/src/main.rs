@@ -205,11 +205,11 @@ fn navigate_main(
     false
 }
 
-// WKWebView reports subframe loads to on_navigation without a frame flag (#2050), so the web CSP frame-src origin stays in the webview.
+// WKWebView reports subframe loads to on_navigation without a frame flag (#2050), so the web CSP frame-src origins stay in the webview.
+const EMBEDDED_FRAME_ORIGINS: [&str; 1] = ["https://challenges.cloudflare.com"];
+
 fn is_embedded_frame(url: &tauri::Url) -> bool {
-    url.scheme() == "https"
-        && url.host_str() == Some("challenges.cloudflare.com")
-        && url.port().is_none()
+    EMBEDDED_FRAME_ORIGINS.contains(&url.origin().ascii_serialization().as_str())
 }
 
 fn open_new_window(
@@ -234,10 +234,20 @@ mod tests {
     use tauri::utils::config::{FrontendDist, WebviewUrl};
 
     #[test]
-    fn main_navigation_keeps_only_the_configured_origin_and_intercepts_sign_in() {
+    fn main_navigation_keeps_the_app_origin_and_the_csp_frame_origin_and_intercepts_sign_in() {
         let origin = "https://app.useorbit.org/".parse().unwrap();
         for (destination, accepted, external, intercepted) in [
             ("https://app.useorbit.org/calendar", true, false, false),
+            (
+                "https://challenges.cloudflare.com/cdn-cgi/challenge-platform/h/b/turnstile/f/av0/rch/frame/0x4AAAAAAA/auto/fbE/new/normal",
+                true,
+                false,
+                false,
+            ),
+            ("https://challenges.cloudflare.com.attacker.example/", false, true, false),
+            ("http://challenges.cloudflare.com/", false, true, false),
+            ("https://challenges.cloudflare.com:8443/", false, true, false),
+            ("https://cloudflare.com/", false, true, false),
             ("https://example.com/", false, true, false),
             ("http://example.com/", false, true, false),
             ("file:///private", false, false, false),
@@ -261,45 +271,11 @@ mod tests {
                         Ok(())
                     }
                 ),
-                accepted
-            );
-            assert_eq!(opened, external);
-            assert_eq!(signed_in, intercepted);
-        }
-    }
-
-    #[test]
-    fn turnstile_frame_loads_in_the_webview_while_external_links_open_in_the_browser() {
-        let origin = "https://app.useorbit.org/".parse().unwrap();
-        for (destination, accepted) in [
-            (
-                "https://challenges.cloudflare.com/cdn-cgi/challenge-platform/h/b/turnstile/f/av0/rch/frame/0x4AAAAAAA/auto/fbE/new/normal",
-                true,
-            ),
-            ("https://challenges.cloudflare.com.attacker.example/", false),
-            ("http://challenges.cloudflare.com/", false),
-            ("https://cloudflare.com/", false),
-            ("https://example.com/", false),
-        ] {
-            let mut opened = None;
-            assert_eq!(
-                super::navigate_main(
-                    &origin,
-                    &destination.parse().unwrap(),
-                    || panic!("{destination} must not start the sign-in hand-off"),
-                    |url| {
-                        opened = Some(url.to_owned());
-                        Ok(())
-                    }
-                ),
                 accepted,
                 "{destination}"
             );
-            assert_eq!(
-                opened.as_deref(),
-                (!accepted).then_some(destination),
-                "{destination}"
-            );
+            assert_eq!(opened, external, "{destination}");
+            assert_eq!(signed_in, intercepted, "{destination}");
         }
     }
 

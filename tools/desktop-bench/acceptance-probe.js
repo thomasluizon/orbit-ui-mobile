@@ -31,9 +31,8 @@
       return
     }
     if (name === 'astra') {
-      const input = await until(() => document.querySelector('[data-composer-input]:not([disabled])'), 'Astra composer')
-      input.focus()
-      document.querySelector('[data-open-conversation]')?.click()
+      const button = await until(() => document.querySelector('[data-astra-button]:not([disabled])'), 'Astra button')
+      button.click()
       await until(() => document.querySelector('[data-shell-conversation] [data-composer-input]'), 'Astra surface')
     }
     if (name === 'palette') {
@@ -98,7 +97,7 @@
     }
     if (!session.ok) throw new Error('Hoje requires an authenticated BFF session')
     if (emailLink) await report('email-completed')
-    await until(() => document.querySelector('[data-habit-id="bench-0000"]') && document.querySelector('[data-composer-input]:not([disabled])'), 'Hoje')
+    await until(() => document.querySelector('[data-habit-id="bench-0000"]') && document.querySelector('[data-astra-button]:not([disabled])'), 'Hoje')
     await report('hoje', { route: location.pathname, nativeVersion: window.__ORBIT_DESKTOP_VERSION__ })
     while (true) {
       const response = await fetch('/_bench/command')

@@ -277,6 +277,49 @@ async function sessionProbeCases() {
   }
 }
 
+async function compactHojeProbeCases() {
+  const reports = []
+  const commands = ['astra']
+  let now = 0
+  let conversation = null
+  const composer = {}
+  const astraButton = { click: () => { conversation = {} } }
+  const browserWindow = { __ORBIT_DESKTOP_VERSION__: '1.0.0' }
+  browserWindow.top = browserWindow
+  let finished
+  const done = new Promise((resolve) => { finished = resolve })
+  const context = {
+    URLSearchParams, window: browserWindow, Date: { now: () => now },
+    setTimeout: (callback, milliseconds) => { now += milliseconds; setImmediate(callback) },
+    requestAnimationFrame: (callback) => setImmediate(callback),
+    location: { pathname: '/', search: '' },
+    document: {
+      readyState: 'complete', cookie: '',
+      querySelector(selector) {
+        if (selector === '[data-habit-id="bench-0000"]') return {}
+        if (selector === '[data-astra-button]:not([disabled])') return conversation ? null : astraButton
+        if (selector === '[data-shell-conversation]') return conversation
+        if (selector === '[data-shell-conversation] [data-composer-input]') return conversation ? composer : null
+        return null
+      },
+    },
+    fetch: async (path, options) => {
+      if (path === '/_bench/events') {
+        const event = JSON.parse(options.body)
+        reports.push(event)
+        if (event.kind === 'astra' || event.kind === 'error') finished()
+        return new Response(null, { status: 204 })
+      }
+      if (path === '/_bench/command') return commands.length ? new Response(commands.shift()) : new Promise(() => {})
+      return new Response(null, { status: 200 })
+    },
+  }
+  runInNewContext(await servedProbe(true), context)
+  await done
+  T('installed acceptance reaches compact Hoje through the habit row and the Astra button, without a Hoje composer',
+    reports.map((event) => event.kind).join(',') === 'hoje,astra', JSON.stringify(reports))
+}
+
 function macKeyboardEvents() {
   const source = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-ax.m'), 'utf8')
   const keyboard = source.slice(source.indexOf('static void key('), source.indexOf('int main('))
@@ -555,6 +598,7 @@ export async function cases() {
   await installedQuitCases()
   await installedLaunchCases()
   await sessionProbeCases()
+  await compactHojeProbeCases()
   await controlledPaletteCases()
   nativePaletteFocusCases()
   const native = { denied: false, error: null, nodes: [
