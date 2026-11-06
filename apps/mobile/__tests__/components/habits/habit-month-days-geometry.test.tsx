@@ -18,7 +18,7 @@ function newStrings(): string[] {
   const days = i18n.t('listFormatting.pair', { first: [1, 8].map(day => i18n.t('habits.frequency.monthDay', { day })).join(', '), last: i18n.t('habits.frequency.monthDay', { day: 15 }) })
   return [
     i18n.t('habits.frequency.onMonthDays', { days }),
-    i18n.t('habits.frequency.everyNMonthsOnDays', { days, n: 2 }),
+    i18n.t('habits.frequency.everyNMonthsOnDays', { days, n: 2, count: 3 }),
     i18n.t('habits.form.understoodMonthDaysAt', { schedule: i18n.t('habits.frequency.onMonthDays', { days }), time: '09:00' }),
     i18n.t('habits.form.monthDaysQuestion'),
     i18n.t('habits.form.monthDaysShortMonth'),

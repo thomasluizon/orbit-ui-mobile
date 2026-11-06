@@ -704,7 +704,7 @@
       "flexibleProgress": "{unit}: {done}/{target}",
       "monthDay": "{day}",
       "onMonthDays": "Todo dia {days}",
-      "everyNMonthsOnDays": "{n, plural, =0 {A cada # meses} one {A cada # mês} other {A cada # meses}}, dia {days}"
+      "everyNMonthsOnDays": "{n, plural, =0 {A cada # meses} one {A cada # mês} other {A cada # meses}}, {count, plural, =0 {nos dias {days}} one {no dia {days}} other {nos dias {days}}}"
     },
     "form": {
       "reminderKind": "Quando você quer um lembrete?",
@@ -720,7 +720,7 @@
       "monthDaysShortMonth": "Em meses curtos, vale o último dia.",
       "understoodMonthDaysAt": "{schedule} às {time}",
       "monthDaysInvalid": "Escolha dias de 1 a 31.",
-      "monthDaysOnlyForMonthly": "Dias do mês não pulam semanas.",
+      "monthDaysOnlyForMonthly": "Volte o intervalo semanal para 1.",
       "parentHabit": "Hábito principal",
       "proRequired": "Isso faz parte do Orbit Pro.",
       "capacityTitle": "Limite de hábitos atingido",

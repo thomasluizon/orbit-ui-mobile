@@ -24,7 +24,7 @@ function newStrings(messages: typeof en): string[] {
   const days = message(messages, 'listFormatting.pair', { first: [1, 8].map(day => message(messages, 'habits.frequency.monthDay', { day })).join(', '), last: message(messages, 'habits.frequency.monthDay', { day: 15 }) })
   return [
     message(messages, 'habits.frequency.onMonthDays', { days }),
-    message(messages, 'habits.frequency.everyNMonthsOnDays', { days, n: 2 }),
+    message(messages, 'habits.frequency.everyNMonthsOnDays', { days, n: 2, count: 3 }),
     message(messages, 'habits.form.understoodMonthDaysAt', { schedule: message(messages, 'habits.frequency.onMonthDays', { days }), time: '09:00' }),
     message(messages, 'habits.form.monthDaysQuestion'),
     message(messages, 'habits.form.monthDaysShortMonth'),

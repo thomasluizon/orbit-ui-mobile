@@ -126,13 +126,16 @@ describe('a habit on chosen days of the month', () => {
     const values = formFromPhrase('todo dia 8 e 15', 'pt-BR')
     expect(validateHabitForm(values)).toBeNull()
     expect(validateHabitForm({ ...values, intervalWeeks: 2 })).toBe('habits.form.monthDaysOnlyForMonthly')
+    expect(english('habits.form.monthDaysOnlyForMonthly')).toBe('Set the week interval back to 1.')
+    expect(portuguese('habits.form.monthDaysOnlyForMonthly')).toBe('Volte o intervalo semanal para 1.')
   })
 
   it.each([
     [[8, 15], 1, 'On the 8th and 15th', 'Todo dia 8 e 15'],
     [[1, 2, 3, 22], 1, 'On the 1st, 2nd, 3rd and 22nd', 'Todo dia 1, 2, 3 e 22'],
     [[31], 1, 'On the 31st', 'Todo dia 31'],
-    [[8], 2, 'Every 2 months on the 8th', 'A cada 2 meses, dia 8'],
+    [[8], 2, 'Every 2 months on the 8th', 'A cada 2 meses, no dia 8'],
+    [[8, 15], 2, 'Every 2 months on the 8th and 15th', 'A cada 2 meses, nos dias 8 e 15'],
   ] as const)('summarises %j every %i months in both locales', (monthDays, quantity, englishText, portugueseText) => {
     const habit = createMockHabit({ frequencyUnit: 'Month', frequencyQuantity: quantity, days: [], monthDays: [...monthDays] })
     expect(computeHabitFrequencyLabel(habit, english)).toBe(englishText)

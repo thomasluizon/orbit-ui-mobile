@@ -53,5 +53,5 @@ export function formatHabitMonthDaySchedule(
   const days = formatHabitMonthDays(monthDays, translate)
   return quantity === 1
     ? translate('habits.frequency.onMonthDays', { days })
-    : translate('habits.frequency.everyNMonthsOnDays', { days, n: quantity })
+    : translate('habits.frequency.everyNMonthsOnDays', { days, n: quantity, count: normalizeHabitMonthDays(monthDays).length })
 }

@@ -704,7 +704,7 @@
       "flexibleProgress": "{unit}: {done}/{target}",
       "monthDay": "{day, selectordinal, one {#st} two {#nd} few {#rd} other {#th}}",
       "onMonthDays": "On the {days}",
-      "everyNMonthsOnDays": "{n, plural, one {Every # month} other {Every # months}} on the {days}"
+      "everyNMonthsOnDays": "{n, plural, one {Every # month} other {Every # months}} {count, plural, one {on the {days}} other {on the {days}}}"
     },
     "form": {
       "reminderKind": "When do you want to be reminded?",
@@ -720,7 +720,7 @@
       "monthDaysShortMonth": "Short months use their last day.",
       "understoodMonthDaysAt": "{schedule} at {time}",
       "monthDaysInvalid": "Choose days from 1 to 31.",
-      "monthDaysOnlyForMonthly": "Month days can't skip weeks.",
+      "monthDaysOnlyForMonthly": "Set the week interval back to 1.",
       "parentHabit": "Parent habit",
       "proRequired": "This is part of Orbit Pro.",
       "capacityTitle": "Habit limit reached",
