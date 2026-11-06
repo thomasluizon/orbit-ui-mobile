@@ -88,6 +88,7 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
       frequencyQuantity: null,
       intervalWeeks: 1,
       days: [],
+      monthDays: [],
       isBadHabit: false,
       isGeneral: false,
       isFlexible: false,

@@ -188,7 +188,7 @@ export function buildPendingOperationCardLabels(
     staleUnavailable: translate('chat.operation.staleUnavailable'),
     fieldLabels: { ...Object.fromEntries([
       'title', 'description', 'emoji', 'frequency_unit', 'frequency_quantity',
-      'interval_weeks', 'days', 'due_date', 'end_date', 'due_time',
+      'interval_weeks', 'days', 'month_days', 'due_date', 'end_date', 'due_time',
       'is_bad_habit', 'is_general', 'is_flexible', 'checklist_items',
       'sub_habits', 'date', 'enabled', 'is_completed', 'reminder_enabled',
       'repeat_reminder', 'interval_minutes', 'start_at_utc', 'items', 'text',

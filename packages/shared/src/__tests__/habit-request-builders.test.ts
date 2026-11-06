@@ -19,6 +19,7 @@ function makeFormData(overrides: Partial<HabitFormData> = {}): HabitFormData {
     frequencyUnit: null,
     frequencyQuantity: null,
     days: [],
+    monthDays: [],
     dueDate: '2026-04-08',
     dueTime: '',
     dueEndTime: '',

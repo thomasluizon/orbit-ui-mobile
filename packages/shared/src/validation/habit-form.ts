@@ -1,7 +1,7 @@
 import { REPEAT_REMINDER_INTERVALS } from '../utils/repeat-reminders'
 import { z } from 'zod'
 import { utf16Length } from './utf16-length'
-import { repeatReminderOptionsSchema, frequencyUnitSchema, MAX_HABIT_INTERVAL_WEEKS, scheduledReminderTimeRequestSchema, checklistItemSchema } from '../types/habit'
+import { repeatReminderOptionsSchema, frequencyUnitSchema, habitMonthDaysSchema, MAX_HABIT_INTERVAL_WEEKS, scheduledReminderTimeRequestSchema, checklistItemSchema } from '../types/habit'
 import {
   MAX_CHECKLIST_ITEM_LENGTH,
   MAX_CHECKLIST_ITEMS,
@@ -53,6 +53,7 @@ export const habitFormSchema = z.object({
   frequencyQuantity: z.number().int().min(1).nullable().optional(),
   intervalWeeks: z.number().int().min(1).max(MAX_HABIT_INTERVAL_WEEKS).optional(),
   days: z.array(z.string()).default([]),
+  monthDays: habitMonthDaysSchema.default([]),
   isBadHabit: z.boolean().default(false),
   isGeneral: z.boolean().default(false),
   isFlexible: z.boolean().default(false),
@@ -148,6 +149,19 @@ export function validateChecklistItems(
   }
 
   return null
+}
+
+/** Month days apply only while the month-day question shows: a monthly, non-flexible habit. */
+export function hasHabitMonthDaySchedule(data: Pick<HabitFormData, 'frequencyUnit' | 'isFlexible' | 'isGeneral'>): boolean {
+  return data.frequencyUnit === 'Month' && !data.isFlexible && !data.isGeneral
+}
+
+export function validateMonthDaysSelection(data: HabitFormData): string | null {
+  if (!hasHabitMonthDaySchedule(data) || data.monthDays.length === 0) return null
+  if (!habitMonthDaysSchema.safeParse(data.monthDays).success || new Set(data.monthDays).size !== data.monthDays.length) {
+    return 'habits.form.monthDaysInvalid'
+  }
+  return (data.intervalWeeks ?? 1) > 1 ? 'habits.form.monthDaysOnlyForMonthly' : null
 }
 
 export function validateDaysSelection(
@@ -287,6 +301,9 @@ export function validateHabitForm(data: HabitFormData): string | null {
     data.isFlexible,
   )
   if (daysErr) return daysErr
+
+  const monthDaysErr = validateMonthDaysSelection(data)
+  if (monthDaysErr) return monthDaysErr
 
   if (data.isGeneral && data.isBadHabit) {
     return 'habits.form.generalBadHabit'

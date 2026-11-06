@@ -22,7 +22,7 @@ const cases = [
 describe('When recurrence parsing', () => {
   it.each(cases)('reads the complete recurrence %s', (phrase, unit, quantity, flexible, days) => {
     for (const input of [phrase, ` ! ${phrase.toUpperCase().replaceAll(' ', '\t ')}. `]) {
-      expect(readHabitRecurrencePhrase(input)).toEqual({ schedule: { unit, quantity, flexible, days, intervalWeeks: 1 }, startPhrase: null })
+      expect(readHabitRecurrencePhrase(input)).toEqual({ schedule: { unit, quantity, flexible, days, monthDays: [], intervalWeeks: 1 }, startPhrase: null })
     }
   })
 

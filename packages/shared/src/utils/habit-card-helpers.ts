@@ -5,6 +5,7 @@ import { hasHabitScheduleOnDate, isWithinOverdueWindow } from './habits'
 import { getDayOffset } from './today-date'
 import { MAX_INSTANCE_HORIZON_DAYS } from '../api/constants'
 import { formatLocaleDate } from './locale-format'
+import { formatHabitMonthDaySchedule } from './month-days'
 
 export type HabitCardStatus = 'completed' | 'pending' | 'overdue' | 'due-today' | 'future'
 
@@ -62,12 +63,15 @@ export function computeHabitFrequencyLabel(
     | 'frequencyQuantity'
     | 'days'
     | 'isFlexible'
-  >,
+  > & Partial<Pick<NormalizedHabit, 'monthDays'>>,
   t: HabitCardTranslationAdapter,
 ): string | null {
   if (habit.isGeneral) return null
   const { frequencyUnit, frequencyQuantity, days, isFlexible } = habit
   if (!frequencyUnit) return null
+  if (frequencyUnit === 'Month' && !isFlexible && habit.monthDays?.length) {
+    return formatHabitMonthDaySchedule(habit.monthDays, frequencyQuantity ?? 1, t)
+  }
   if (isFlexible) {
     return t('habits.frequency.flexibleLabel', {
       n: frequencyQuantity ?? 1,
