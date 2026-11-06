@@ -84,7 +84,7 @@ export function useShellComposerSlot(
   }, [enabled, host, refreshKey])
 }
 
-export const DESTINATION_MAIN_CLASS_NAME = 'flex min-h-full flex-1 flex-col has-[[data-page-viewport]]:h-full'
+export const DESTINATION_MAIN_CLASS_NAME = 'flex min-h-full flex-col has-[[data-page-viewport]]:h-full'
 
 type BottomTab = 'hoje' | 'calendario' | 'progresso' | 'perfil'
 
