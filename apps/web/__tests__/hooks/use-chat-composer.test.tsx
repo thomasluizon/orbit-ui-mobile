@@ -56,6 +56,7 @@ const mocks = vi.hoisted(() => ({
   fetch: vi.fn(),
   routerPush: vi.fn(),
   toggleRecording: vi.fn(),
+  clearSpeechError: vi.fn(),
   queryClient: {
     isMutating: () => 0,
     invalidateQueries: vi.fn(async (_filters?: InvalidateQueryFilters) => {}),
@@ -84,7 +85,7 @@ vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: React.
 vi.mock('@/lib/account-event-connection', () => ({ AccountEventConnection: () => null }))
 vi.mock('@/app/(app)/today-provider', () => ({ TodayProvider: ({ children }: { children: React.ReactNode }) => children, useToday: () => '2026-09-12' }))
 vi.mock('@/components/shell/destination-shell', () => ({
-  DestinationShell: ({ composer, conversation, conversationOpen }: { composer?: React.ReactNode; conversation: React.ReactNode; conversationOpen: boolean }) => <main>{conversationOpen ? conversation : <>{composer}{mocks.pathname === '/' ? <AstraButton /> : null}</>}</main>,
+  DestinationShell: ({ composer, conversation, conversationOpen }: { composer?: React.ReactNode; conversation: React.ReactNode; conversationOpen: boolean }) => <main>{conversationOpen ? conversation : <>{composer}<div data-shell-page=""><div data-shell-page-content="" /></div>{mocks.pathname === '/' ? <AstraButton /> : null}</>}</main>,
 }))
 vi.mock('@/components/command/command-palette', () => ({ CommandPaletteBackground: ({ children }: { children: React.ReactNode }) => children }))
 vi.mock('@/components/motion/route-transition-shell', () => ({ RouteTransitionShell: ({ children }: { children: React.ReactNode }) => children }))
@@ -161,6 +162,7 @@ vi.mock('@/hooks/use-speech-to-text', () => ({
     isSupported: mocks.state.speechSupported,
     transcript: mocks.state.transcript,
     error: mocks.state.speechError,
+    clearError: mocks.clearSpeechError,
     toggleRecording: mocks.toggleRecording,
     recordingDuration: 0,
   }),
@@ -481,7 +483,7 @@ describe('web useChatComposer streaming send', () => {
         stream.close()
         await pending
       })
-      expect(displayed().content).toBe('chat.aiError')
+      expect(displayed().content).toBe('')
     }
     expect(displayed().plan?.steps.map(step => step.status)).toEqual(expected)
     expect(displayed().plan?.steps.at(-1)).toEqual(plan.steps.at(-1))
@@ -597,7 +599,6 @@ describe('web useChatComposer streaming send', () => {
     fireEvent.click(screen.getByRole('button', { name: words.shell.composer.send }))
     await waitFor(() => expect(screen.getAllByText(words.chat.dailyBudgetReached).filter(node => !node.closest('[inert]'))).toHaveLength(1))
     expect(screen.getByRole('textbox')).toHaveValue(draft)
-    expect(screen.queryByText(words.chat.aiError)).not.toBeInTheDocument()
     expect(screen.queryByText(words.chat.sendError)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: words.shell.composer.retry })).not.toBeInTheDocument()
     fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' })
@@ -964,8 +965,12 @@ describe('web useChatComposer streaming send', () => {
     await waitFor(() => expect(container.querySelector('[data-astra-pending]') === null).toBe(arrival !== 'text'))
     if (arrival === 'text') expect(screen.queryByText('Start with water')).not.toBeInTheDocument()
     if (arrival === 'tool') expect(screen.getByText('chat.trace.habits.read')).toBeVisible()
+    if (arrival === 'error' || arrival === 'drop' || arrival === 'incomplete') {
+      await waitFor(() => expect(screen.getAllByText('chat.sendError').some(element => !element.hidden)).toBe(true))
+      expect(screen.queryByText('chat.aiError')).not.toBeInTheDocument()
+      expect(screen.queryByText('Partial')).not.toBeInTheDocument()
+    }
     if (arrival === 'drop' || arrival === 'incomplete') {
-      expect(screen.getAllByText('chat.sendError').some(element => !element.hidden)).toBe(true)
       mocks.fetch.mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))
       fireEvent.click(screen.getByRole('button', { name: 'shell.composer.retry' }))
       await waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(3))
@@ -1121,6 +1126,23 @@ describe('web useChatComposer streaming send', () => {
     view.rerender(<ComposerConversationHarness />)
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(screen.getByRole('textbox')).toHaveValue('Keep my draft Voice recovered')
+  })
+
+  it.each(['speech.noSpeech', 'errors.api.transcriptionFailed', 'speech.micDenied'])('shows the failed send error with Retry after an earlier %s, and a later speech error over it', async (speechMessage) => {
+    const { result, rerender } = renderHook(() => useChatComposer())
+    mocks.state.speechError = speechMessage
+    rerender()
+    expect(result.current.composerProps.errorMessage).toBe(speechMessage)
+    act(() => { result.current.setInput('Plan my morning') })
+    mocks.fetch.mockRejectedValueOnce(new Error('network unavailable'))
+    await act(async () => { await result.current.sendMessage() })
+    expect(mocks.fetch.mock.calls[0]?.[1]?.body.get('message')).toBe('Plan my morning')
+    expect(result.current.composerProps.errorMessage).toBe('chat.sendError')
+    expect(result.current.composerProps.onRetry).toBeDefined()
+    mocks.state.speechError = speechMessage
+    rerender()
+    expect(result.current.composerProps.errorMessage).toBe(speechMessage)
+    expect(result.current.composerProps.onRetry).toBeDefined()
   })
 
   it.each(['transport', 'attachment'] as const)('preserves a %s error through speech denial and recovery', async (producer) => {
@@ -1505,6 +1527,8 @@ describe('web useChatComposer streaming send', () => {
     mocks.fetch.mockReset()
     mocks.routerPush.mockReset()
     mocks.toggleRecording.mockReset()
+    mocks.clearSpeechError.mockReset()
+    mocks.clearSpeechError.mockImplementation(() => { mocks.state.speechError = null })
     mocks.queryClient.invalidateQueries.mockReset()
     mocks.queryClient.invalidateQueries.mockResolvedValue(undefined)
     mocks.queryClient.getQueryData.mockReset()

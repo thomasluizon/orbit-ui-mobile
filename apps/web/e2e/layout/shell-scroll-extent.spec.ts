@@ -5,12 +5,22 @@ import { SPACING } from '@orbit/shared/theme'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
 import { profileSchema } from '@orbit/shared/types/profile'
-import { expect } from '@playwright/test'
+import { expect, type Page } from '@playwright/test'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_FIXED_TIME } from './clock.mjs'
 import { setLayoutFixtureSession, setLayoutProfileSession } from './profile-session'
 import { measureShellScrollEnd, shellScrollViewports } from './shell-scroll-extent'
 import { test } from './layout-test'
+
+async function floatingClearance(page: Page, width: number, scrollerBottom: number) {
+  const button = page.locator('[data-astra-button]')
+  if (width >= 1024) {
+    await expect(button).toHaveCount(0)
+    return { clearance: SPACING.s32, buttonTop: undefined }
+  }
+  const box = (await button.boundingBox())!
+  return { clearance: Math.max(SPACING.s96, scrollerBottom - box.y + SPACING.s16), buttonTop: box.y }
+}
 
 for (const viewport of shellScrollViewports) {
   test.describe(`Hoje end of list at ${viewport.width} by ${viewport.height}`, () => {
@@ -37,8 +47,7 @@ for (const viewport of shellScrollViewports) {
       await page.evaluate(() => document.fonts.ready)
       const measured = await scroller.evaluate(measureShellScrollEnd)
       await testInfo.attach('initial-scroll-extent', { body: JSON.stringify({ ...viewport, ...measured }), contentType: 'application/json' })
-      const button = (await page.locator('[data-astra-button]').boundingBox())!
-      const clearance = Math.max(viewport.width >= 1024 ? SPACING.s32 : SPACING.s96, measured.scrollerBottom - button.y + SPACING.s16)
+      const { clearance } = await floatingClearance(page, viewport.width, measured.scrollerBottom)
       expect(measured.scrollTop).toBeGreaterThan(0)
       expect(measured.scrollTop).toBe(measured.scrollHeight - measured.clientHeight)
       expect(measured.lastTop).toBeGreaterThanOrEqual(measured.scrollerTop)
@@ -56,11 +65,11 @@ for (const viewport of shellScrollViewports) {
       const afterRemoval = await scroller.evaluate(measureShellScrollEnd)
       await testInfo.attach('settled-scroll-extent', { body: JSON.stringify({ ...viewport, ...afterRemoval }), contentType: 'application/json' })
       expect(afterRemoval.lastTop).toBeGreaterThanOrEqual(afterRemoval.scrollerTop)
-      const restoredButton = (await page.locator('[data-astra-button]').boundingBox())!
-      const restoredClearance = Math.max(viewport.width >= 1024 ? SPACING.s32 : SPACING.s96, afterRemoval.scrollerBottom - restoredButton.y + SPACING.s16)
+      const restored = await floatingClearance(page, viewport.width, afterRemoval.scrollerBottom)
+      const restoredClearance = restored.clearance
       expect(afterRemoval.scrollerBottom - afterRemoval.lastBottom).toBeCloseTo(restoredClearance, 0)
-      expect(restoredButton.y - afterRemoval.lastBottom).toBeGreaterThanOrEqual(SPACING.s16 - 1)
-      if (viewport.width < 1024) {
+      if (restored.buttonTop !== undefined) {
+        expect(restored.buttonTop - afterRemoval.lastBottom).toBeGreaterThanOrEqual(SPACING.s16 - 1)
         const tabs = (await page.locator('[data-shell-tab-bar]').boundingBox())!
         expect(tabs.y - afterRemoval.lastBottom).toBeCloseTo(restoredClearance + tabs.y - afterRemoval.scrollerBottom, 0)
       }

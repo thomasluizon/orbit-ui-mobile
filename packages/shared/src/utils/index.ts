@@ -1,5 +1,5 @@
 export { loadModule, MODULE_LOAD_TIMEOUT_MS } from './load-module'
-export { ASTRA_BUTTON_SIZE, ASTRA_BUTTON_GAP, ASTRA_BUTTON_CLEARANCE, ASTRA_DRAG_THRESHOLD, ASTRA_POSITION_KEY, parseAstraButtonPosition, clampAstraButton, snapAstraButton, moveAstraButton, type AstraButtonPoint, type AstraButtonArea, type AstraButtonObstacle, type AstraMoveDirection } from './astra-button-position'
+export { ASTRA_BUTTON_SIZE, ASTRA_BUTTON_GAP, ASTRA_BUTTON_CLEARANCE, ASTRA_DRAG_THRESHOLD, ASTRA_POSITION_KEY, parseAstraButtonPosition, clampAstraButton, snapAstraButton, moveAstraButton, resolveAstraButtonArea, getAstraButtonClearance, type AstraButtonPoint, type AstraButtonArea, type AstraButtonObstacle, type AstraMoveDirection, type AstraButtonViewport } from './astra-button-position'
 export { getSegmentedControlLayout } from './segmented-control'
 export { achievementEmoji } from './achievement-emoji'
 export { createStepUpSessionState, type StepUpSessionState } from './step-up-session'
@@ -805,6 +805,18 @@ export type { DestinationIconName } from './destination-icons'
 export { updateScrollToTopState, type ScrollToTopState } from './scroll-to-top'
 
 export { formatWeekdaySchedule } from './weekday-schedule'
+export {
+  HABIT_MONTH_DAY_OPTIONS,
+  MAX_HABIT_MONTH_DAY,
+  MIN_HABIT_MONTH_DAY,
+  formatHabitMonthDays,
+  formatHabitMonthDaySchedule,
+  isHabitMonthDay,
+  matchesHabitMonthDays,
+  normalizeHabitMonthDays,
+  resolveHabitMonthDaySelection,
+  toggleHabitMonthDay,
+} from './month-days'
 
 export { resolveHabitAccessibleStatus, buildHabitRowDateModel } from './habit-row-status'
 

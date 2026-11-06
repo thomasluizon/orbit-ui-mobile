@@ -80,7 +80,7 @@ it.each([false, true])('scopes Hoje search with general habits enabled, matching
   try {
     expect(screen.getAllByTestId('habit-row')).toHaveLength(4)
     fireEvent.click(screen.getByRole('button', { name: en.habits.search.title }))
-    fireEvent.change(screen.getByRole('textbox', { name: en.habits.search.title }), { target: { value: query } })
+    fireEvent.change(screen.getByRole('textbox', { name: en.habits.search.question }), { target: { value: query } })
     await act(async () => { vi.advanceTimersByTime(300) })
     const rows = screen.queryAllByTestId('habit-row')
     expect(rows.map((row) => row.textContent)).toHaveLength(matchesDescendant ? 2 : 0)
@@ -93,7 +93,7 @@ it.each([false, true])('scopes Hoje search with general habits enabled, matching
       expect(screen.getByText((_, element) => element?.tagName === 'P' && element.textContent === `Nothing found for “${query}”`)).toBeInTheDocument()
       fireEvent.click(screen.getByRole('button', { name: en.common.clear }))
       await act(async () => { vi.advanceTimersByTime(300) })
-      expect(screen.queryByRole('textbox', { name: en.habits.search.title })).not.toBeInTheDocument()
+      expect(screen.queryByRole('textbox', { name: en.habits.search.question })).not.toBeInTheDocument()
       expect(screen.getAllByTestId('habit-row')).toHaveLength(4)
     }
     const requestedDays = boundary.fetch.mock.calls.map(([url]) => new URL(String(url), 'https://fixture.invalid').searchParams.get('dateFrom'))
@@ -146,7 +146,7 @@ it.each([
     const pager = rendered.container.querySelector('[data-today-date-row]')
     const pagerText = pager?.textContent
     fireEvent.click(screen.getByRole('button', { name: en.habits.search.title }))
-    const input = screen.getByRole('textbox', { name: en.habits.search.title })
+    const input = screen.getByRole('textbox', { name: en.habits.search.question })
     expect(input).toHaveFocus()
     fireEvent.change(input, { target: { value: query } })
     await act(async () => { vi.advanceTimersByTime(300) })

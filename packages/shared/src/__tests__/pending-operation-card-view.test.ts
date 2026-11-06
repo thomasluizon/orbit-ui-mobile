@@ -570,6 +570,28 @@ it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('
   }
 })
 
+it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('names every preview field with a noun label, never a form question, in $locale', ({ locale, messages }) => {
+  const localized = buildPendingOperationCardLabels(makePendingAgentOperation(), (key, values) => translateMessages(messages, key, values), value => value, locale)
+  for (const [field, label] of Object.entries(localized.fieldLabels)) {
+    expect.soft(label.trim(), field).not.toMatch(/\?$/)
+  }
+})
+
+it('keeps the support, API key, step-up and timing preview field labels from before the form questions', () => {
+  const english = buildPendingOperationCardLabels(makePendingAgentOperation(), (key, values) => translateMessages(en, key, values), value => value, 'en')
+  const portuguese = buildPendingOperationCardLabels(makePendingAgentOperation(), (key, values) => translateMessages(ptBR, key, values), value => value, 'pt-BR')
+  expect(english.fieldLabels).toMatchObject({
+    subject: 'What is it about', message: 'What happened', scopes: 'Scope',
+    expires_at_utc: 'Expires At (UTC, optional)', code: '6 digit code',
+    active_start: 'Active from', active_end: 'Active until', relative_reminders: 'Remind me', due_end_time: 'End Time',
+  })
+  expect(portuguese.fieldLabels).toMatchObject({
+    subject: 'Sobre o que é', message: 'O que aconteceu', scopes: 'Escopo',
+    expires_at_utc: 'Expira em (UTC, opcional)', code: 'Código de 6 dígitos',
+    active_start: 'A partir das', active_end: 'Até as', relative_reminders: 'Me lembrar', due_end_time: 'Horário final',
+  })
+})
+
 it('names every held write capability in both locales', () => {
   const ids = [
     'habits.write', 'goals.write', 'tags.write', 'profile.preferences.write',

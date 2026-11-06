@@ -58,6 +58,7 @@ export function inspectInteractionSurface(control: Element, clearance: number) {
       if (shadow === 'none' || shadow.includes('inset') || transparent(shadow.match(/(?:rgba?|hsla?|color|oklch|oklab)\([^)]*\)/)?.[0] ?? 'black')) continue
       const lengths = shadow.replace(/(?:rgba?|hsla?|color|oklch|oklab)\([^)]*\)/g, '').trim().split(/\s+/).map(pixels)
       const [x = 0, y = 0, blur = 0, spread = 0] = lengths
+      if (spread === 0 && blur > 0) continue
       const radius = spread + blur * 1.5
       extent.left = Math.min(extent.left, box.left + x - radius); extent.right = Math.max(extent.right, box.right + x + radius)
       extent.top = Math.min(extent.top, box.top + y - radius); extent.bottom = Math.max(extent.bottom, box.bottom + y + radius)

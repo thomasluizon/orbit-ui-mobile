@@ -8,7 +8,7 @@ import { MoveParentOverlay } from './habit-list/move-parent-overlay'
 export function EditorParentField({ parent, disabled, onRetryDetail }: Readonly<{ parent: ReturnType<typeof useEditorParent>; disabled: boolean; onRetryDetail: () => void }>) {
   const t = useTranslations()
   return <>
-    <ListRow title={t('habits.form.parentHabit')} accessibilityLabel={`${t('habits.form.parentHabit')}, ${parent.value}`} value={parent.value} valueTextMode="personal" wrapValue placement="column" disabled={disabled} onClick={parent.show} />
+    <ListRow title={t('habits.form.parentHabit')} accessibilityLabel={`${t('habits.form.parentHabit')}, ${parent.value}`} value={parent.value} valueTextMode="personal" wrapValue placement="field" disabled={disabled} onClick={parent.show} />
     <MoveParentOverlay t={t} open={parent.open} isMoving={false} selectionOnly
       movingHabitTitle={null} movingHabitParentId={parent.baseline}
       options={disabled ? [] : parent.options} selectedMoveParentId={parent.selected}

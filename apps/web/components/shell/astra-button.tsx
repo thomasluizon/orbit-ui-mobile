@@ -2,32 +2,49 @@
 
 import { useEffect, useLayoutEffect, useId, useRef, useState, type PointerEvent } from 'react'
 import { useTranslations } from 'next-intl'
-import { ASTRA_BUTTON_SIZE, ASTRA_BUTTON_GAP, ASTRA_BUTTON_CLEARANCE, ASTRA_DRAG_THRESHOLD, ASTRA_POSITION_KEY, clampAstraButton, moveAstraButton, parseAstraButtonPosition, snapAstraButton, type AstraButtonArea, type AstraButtonObstacle, type AstraButtonPoint, type AstraMoveDirection } from '@orbit/shared/utils'
+import { SHELL_CONTENT_MAX_WIDTH, TAB_BAR_MIN_HEIGHT } from '@orbit/shared/theme'
+import { ASTRA_BUTTON_SIZE, ASTRA_BUTTON_GAP, ASTRA_BUTTON_CLEARANCE, ASTRA_DRAG_THRESHOLD, ASTRA_POSITION_KEY, clampAstraButton, getAstraButtonClearance, moveAstraButton, parseAstraButtonPosition, resolveAstraButtonArea, snapAstraButton, type AstraButtonArea, type AstraButtonObstacle, type AstraButtonPoint, type AstraMoveDirection } from '@orbit/shared/utils'
 import { Fab } from '@/components/ui/fab'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useUIStore } from '@/stores/ui-store'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { ListRow } from '@/components/ui/list-row'
 
-function measurePlacement(host: HTMLDivElement) {
+const FLOOR_SELECTOR = '[data-shell-tab-bar], [data-shell-notice-content], [data-shell-pinned-content]'
+const OBSTACLE_SELECTOR = '[data-shell-fab], [data-shell-scroll-to-top]>div'
+
+interface AstraPlacement { area: AstraButtonArea; obstacles: AstraButtonObstacle[]; pageBottom: number }
+
+function measurePlacement(host: HTMLDivElement, shell: HTMLElement): AstraPlacement {
   const bounds = host.getBoundingClientRect()
-  const obstacles = [...host.parentElement!.querySelectorAll<HTMLElement>('[data-shell-fab], [data-shell-scroll-to-top]>div')].flatMap(element => {
+  const floors = [...shell.querySelectorAll<HTMLElement>(FLOOR_SELECTOR)].flatMap(element => {
+    const rect = element.getBoundingClientRect()
+    return rect.height ? [rect.top] : []
+  })
+  const obstacles = [...shell.querySelectorAll<HTMLElement>(OBSTACLE_SELECTOR)].flatMap(element => {
     const rect = element.getBoundingClientRect()
     return rect.width && rect.height ? [{ x: rect.left - bounds.left, y: rect.top - bounds.top, width: rect.width, height: rect.height }] : []
   })
-  return { area: { width: bounds.width, height: bounds.height }, obstacles }
+  const page = shell.querySelector('[data-shell-page]')!.getBoundingClientRect()
+  const column = shell.querySelector('[data-shell-page-content]')!.getBoundingClientRect()
+  return { area: resolveAstraButtonArea(bounds, floors, { start: column.left - bounds.left, end: column.right - bounds.left }), obstacles, pageBottom: page.bottom - bounds.top }
 }
 
-function observePlacement(host: HTMLDivElement, update: () => void) {
+function observePlacement(host: HTMLDivElement, shell: HTMLElement, update: () => void) {
   const observer = new ResizeObserver(update)
+  let observed: Element[] = []
   const observeControls = () => {
-    observer.disconnect()
-    observer.observe(host)
-    for (const element of host.parentElement!.querySelectorAll('[data-shell-fab], [data-shell-scroll-to-top]')) observer.observe(element)
+    if (!host.isConnected) return
+    const controls = [host, ...shell.querySelectorAll(`[data-shell-page], ${FLOOR_SELECTOR}, ${OBSTACLE_SELECTOR}`)]
+    if (controls.length !== observed.length || controls.some((element, index) => element !== observed[index])) {
+      observed = controls
+      observer.disconnect()
+      for (const element of controls) observer.observe(element)
+    }
     update()
   }
   const mutations = new MutationObserver(observeControls)
-  mutations.observe(host.parentElement!, { childList: true, subtree: true })
+  mutations.observe(shell, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] })
   observeControls()
   return () => { observer.disconnect(); mutations.disconnect() }
 }
@@ -90,7 +107,7 @@ export function AstraButton() {
   const descriptionId = useId()
   const hostRef = useRef<HTMLDivElement>(null)
   const savedPosition = useRef<AstraButtonPoint | null>(null)
-  const [placement, setPlacement] = useState<{ area: AstraButtonArea; obstacles: AstraButtonObstacle[] }>({ area: { width: 0, height: 0 }, obstacles: [] })
+  const [placement, setPlacement] = useState<AstraPlacement>({ area: { width: 0, height: 0, column: { start: 0, end: 0 } }, obstacles: [], pageBottom: 0 })
   const [saved, setSaved] = useState<AstraButtonPoint | null>(null)
   const [dragged, setDragged] = useState<AstraButtonPoint | null>(null)
   const [snapping, setSnapping] = useState(false)
@@ -99,9 +116,14 @@ export function AstraButton() {
   const position = dragged ?? snapAstraButton(saved, placement.area, placement.obstacles)
   useEffect(() => {
     const host = hostRef.current!
+    const shell = host.parentElement!
     let active = true
+    let previousMeasure = ''
     const updatePlacement = () => {
-      const measured = measurePlacement(host)
+      const measured = measurePlacement(host, shell)
+      const serialized = JSON.stringify(measured)
+      if (serialized === previousMeasure) return
+      previousMeasure = serialized
       setSnapping(false)
       setPlacement(measured)
       const previous = savedPosition.current
@@ -117,14 +139,14 @@ export function AstraButton() {
       if (!active) return
       savedPosition.current = parseAstraButtonPosition(localStorage.getItem(ASTRA_POSITION_KEY))
       setSaved(savedPosition.current)
-      stopObserving = observePlacement(host, updatePlacement)
+      stopObserving = observePlacement(host, shell, updatePlacement)
     })
     return () => { active = false; stopObserving?.() }
   }, [])
-  const clearance = position && !blocked ? placement.area.height - position.y + ASTRA_BUTTON_GAP : 0
+  const clearance = blocked ? 0 : getAstraButtonClearance(position, placement.pageBottom)
   useLayoutEffect(() => {
     if (placement.area.width === 0) return
-    const page = hostRef.current!.parentElement!
+    const page = hostRef.current!.parentElement!.querySelector<HTMLElement>('[data-shell-page]')!
     page.style.setProperty('--shell-astra-clearance', `${clearance}px`)
     return () => { page.style.removeProperty('--shell-astra-clearance') }
   }, [clearance, placement.area.width])
@@ -138,10 +160,10 @@ export function AstraButton() {
   }
   const gesture = useAstraGesture(position, placement.area, hostRef, point => { setSnapping(false); setDragged(point) }, finish, () => setMoving(true))
   const move = (direction: AstraMoveDirection) => { if (position) finish(moveAstraButton(position, direction, placement.area)) }
-  return <div ref={hostRef} data-astra-button-area="" className="pointer-events-none absolute inset-y-0 left-[var(--safe-left)] right-[var(--safe-right)] z-sticky">
+  return <div ref={hostRef} data-astra-button-area="" className="pointer-events-none absolute bottom-0 left-[var(--safe-left)] right-[var(--safe-right)] top-0 z-modal-backdrop lg:hidden">
     <div hidden={blocked || !position && placement.area.width > 0} data-astra-button-position="" className="pointer-events-auto absolute motion-safe:transition-transform motion-safe:duration-[var(--duration-normal)] ease-[var(--ease-out)]"
-      style={{ ...(position ? { left: 0, top: 0, transform: `translate(${position.x}px, ${position.y}px)` } : { right: ASTRA_BUTTON_GAP, bottom: ASTRA_BUTTON_SIZE + ASTRA_BUTTON_GAP + ASTRA_BUTTON_CLEARANCE }), transitionDuration: dragged || !snapping ? '0ms' : undefined, width: ASTRA_BUTTON_SIZE, height: ASTRA_BUTTON_SIZE }}>
-      <Fab neutral label={t('shell.astraButton.open')} data-astra-button="" aria-describedby={descriptionId} title={t('shell.astraButton.keyboardHint')} style={{ touchAction: 'none' }} {...gesture}
+      style={{ ...(position ? { left: 0, top: 0, transform: `translate(${position.x}px, ${position.y}px)` } : { right: `max(${ASTRA_BUTTON_GAP}px, calc((100% - ${SHELL_CONTENT_MAX_WIDTH}px) / 2 + ${ASTRA_BUTTON_GAP}px))`, bottom: `calc(max(var(--orbit-space-64), calc(1.5rem + var(--orbit-space-32))) + ${TAB_BAR_MIN_HEIGHT + ASTRA_BUTTON_SIZE + ASTRA_BUTTON_GAP + ASTRA_BUTTON_CLEARANCE}px)` }), transitionDuration: dragged || !snapping ? '0ms' : undefined, width: ASTRA_BUTTON_SIZE, height: ASTRA_BUTTON_SIZE }}>
+      <Fab neutral lifted={dragged !== null} label={t('shell.astraButton.open')} data-astra-button="" aria-describedby={descriptionId} title={t('shell.astraButton.keyboardHint')} style={{ touchAction: 'none' }} {...gesture}
         onKeyDown={event => {
           const directions: Record<string, AstraMoveDirection> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' }
           const direction = directions[event.key]

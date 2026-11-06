@@ -333,7 +333,7 @@ function getScrollerSpacing(hasBottomChrome: boolean, reservesComposerSpace: boo
 function getAstraScrollerSpacing(spacing: ReturnType<typeof getScrollerSpacing>, astraButton: ReactNode, wide: boolean) {
   if (!astraButton) return { padding: spacing.padding, focusClearance: wide ? undefined : spacing.focusClearance }
   return {
-    padding: 'pb-[max(var(--shell-astra-clearance),var(--orbit-space-96))] lg:pb-[max(var(--shell-astra-clearance),var(--orbit-space-32))]',
+    padding: 'pb-[max(var(--shell-astra-clearance),var(--orbit-space-96))] lg:pb-8',
     focusClearance: 'min(var(--shell-astra-clearance), 50%)',
   }
 }
@@ -423,21 +423,6 @@ function ShellWideBackground({
   const floating = props.fab !== undefined || props.fabPending === true
   const scrollerSpacing = getScrollerSpacing(hasBottomChrome, pinnedSlot !== undefined || floating, floating)
   const astraSpacing = getAstraScrollerSpacing(scrollerSpacing, props.astraButton, wide)
-  const scroller = (
-    <main
-      ref={registerScroller}
-      data-shell-scroller=""
-      style={{ scrollPaddingBottom: astraSpacing.focusClearance }}
-      className={`relative overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] ${hasFlowAction ? 'h-full' : 'min-h-0 flex-1'} ${astraSpacing.padding}`}
-    >
-      <span
-        aria-hidden="true"
-        data-shell-scroll-origin=""
-        className="pointer-events-none absolute left-0 top-0 h-px w-px"
-      />
-      <div data-shell-page-content="" className="mx-auto min-h-full w-full max-w-[740px] has-[[data-list-motion][inert]]:min-h-[var(--shell-scroll-min-height,100%)] has-[[data-page-viewport]]:h-full">{props.children}</div>
-    </main>
-  )
   return (
     <ConversationComposerMotionProvider><div
       className="isolate flex min-w-0 flex-1"
@@ -448,26 +433,38 @@ function ShellWideBackground({
         <div data-shell-column="" className="orbit-centred-column lg:max-w-[740px] relative flex h-full w-full min-w-0 flex-col pt-[var(--safe-top)] lg:pt-[max(var(--orbit-space-32),var(--safe-top))]">
           <ShellDestinationViewport floating={floating} hasHeader={registerHeaderHost !== undefined || props.header !== undefined} hasTabBar={navigationEnabled && props.tabBar !== undefined}>
           <div data-shell-background="" data-shell-destination="" inert={conversationOpen || undefined} aria-hidden={conversationOpen || undefined}
-            className="flex h-full w-screen min-h-0 self-center flex-col lg:w-full" style={conversationOpen ? { visibility: 'hidden' } : undefined}>
+            className="relative flex h-full w-screen min-h-0 self-center flex-col lg:w-full" style={conversationOpen ? { visibility: 'hidden' } : undefined}>
           {registerHeaderHost !== undefined || props.header !== undefined ? <div data-shell-header-surface="" data-focus-inset="" className={`flex min-h-0 flex-col has-[[data-shell-header-content]:empty]:hidden ${hasFlowAction ? 'min-h-[var(--touch-min)]' : 'shrink-0'}`}>
             <div data-shell-header="" data-shell-header-viewport="" className="mx-auto min-h-0 w-full overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
               <div ref={registerHeaderHost} data-shell-header-content="" className="w-full">{props.header}</div>
             </div>
           </div> : null}
           <div data-shell-page="" className={`relative mx-auto flex w-full flex-1 flex-col ${scrollerSpacing.minimum}`}>
-            {hasFlowAction ? <div className="min-h-0 flex-1 overflow-hidden">{scroller}</div> : scroller}
+            <main
+              ref={registerScroller}
+              data-shell-scroller=""
+              style={{ scrollPaddingBottom: astraSpacing.focusClearance }}
+              className={`relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] ${astraSpacing.padding}`}
+            >
+              <span
+                aria-hidden="true"
+                data-shell-scroll-origin=""
+                className="pointer-events-none absolute left-0 top-0 h-px w-px"
+              />
+              <div data-shell-page-content="" className="mx-auto min-h-full w-full max-w-[740px] has-[[data-list-motion][inert]]:min-h-[var(--shell-scroll-min-height,100%)] has-[[data-page-viewport]]:h-full">{props.children}</div>
+            </main>
             {props.fab !== undefined ? (
               <div data-shell-fab-clip="" className="pointer-events-none absolute inset-x-0 bottom-2 z-sticky flex justify-end overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] px-4 py-2 lg:hidden">
                 <div data-shell-fab-content="" className="pointer-events-none mx-auto flex w-full max-w-[740px] justify-end"><div data-shell-fab="" className="pointer-events-none [&_button]:pointer-events-auto">{props.fab}</div></div>
               </div>
             ) : null}
-            {props.astraButton}
             {props.scrollToTop !== undefined && !conversationOpen ? (
               <div data-shell-scroll-to-top="" className="pointer-events-none absolute inset-x-0 top-2 z-sticky flex justify-center">
                 <div className="pointer-events-auto">{props.scrollToTop}</div>
               </div>
             ) : null}
           </div>
+          {props.astraButton}
           <ShellBottomChrome props={props} conversationOpen={conversationOpen} visible={hasBottomChrome} />
           <div data-shell-create-refusal="" aria-live="polite" aria-atomic="true" className="min-h-0 overflow-y-auto px-4">{sidebarRefusal}</div>
           </div>

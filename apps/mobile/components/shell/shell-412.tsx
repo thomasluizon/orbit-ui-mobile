@@ -1,4 +1,4 @@
-import { AstraButton } from './astra-button'
+import { AstraButton, type AstraButtonChrome } from './astra-button'
 import { ConversationComposerMotionProvider } from './conversation-composer-motion'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Keyboard, ScrollView, StyleSheet, View, useWindowDimensions, type HostInstance } from 'react-native'
@@ -18,9 +18,10 @@ import { ShellContent } from './shell-content'
 import { RootScrollProvider } from './root-scroll-context'
 import { SHELL_SCROLLER_CLEARANCE, ShellScrollerClearanceContext } from './shell-scroller-clearance'
 
-function ShellBottomViewport({ floating, minimumHeight, children }: Readonly<{
+function ShellBottomViewport({ floating, minimumHeight, onSlotHeight, children }: Readonly<{
   floating: boolean
   minimumHeight: number
+  onSlotHeight: (height: number) => void
   children: ReactNode
 }>) {
   const viewportRef = useRef<ScrollView>(null)
@@ -39,7 +40,7 @@ function ShellBottomViewport({ floating, minimumHeight, children }: Readonly<{
     nestedScrollEnabled={floating}
     onLayout={event => { viewportSize.current.height = event.nativeEvent.layout.height; revealBottomControls() }}
     onContentSizeChange={(_width, height) => { viewportSize.current.contentHeight = height; revealBottomControls() }}
-  ><View style={[styles.bottomContent, !floating && styles.plainBottomContent]}>{children}</View></KeyboardAwareSheetScrollView>
+  ><View testID="shell-bottom-content" onLayout={event => onSlotHeight(event.nativeEvent.layout.height)} style={[styles.bottomContent, !floating && styles.plainBottomContent]}>{children}</View></KeyboardAwareSheetScrollView>
 }
 
 function ShellBottomChrome({
@@ -54,6 +55,8 @@ function ShellBottomChrome({
   safeAreaBottom,
   minimumViewportHeight,
   onTabBarHeight,
+  onHeight,
+  onSlotHeight,
 }: Readonly<{
   visible: boolean
   conversationOpen: boolean
@@ -66,6 +69,8 @@ function ShellBottomChrome({
   safeAreaBottom: number
   minimumViewportHeight: number
   onTabBarHeight: (height: number) => void
+  onHeight: (height: number) => void
+  onSlotHeight: (height: number) => void
 }>) {
   const noticeStyle = useShellContentStyle(PADDING.screenGutter)
   if (!visible) return null
@@ -75,13 +80,14 @@ function ShellBottomChrome({
   return (
     <View
       testID="shell-bottom"
+      onLayout={event => onHeight(event.nativeEvent.layout.height)}
       style={[
         styles.bottomChrome,
         { backgroundColor, paddingBottom: safeAreaBottom },
       ]}
     >
       <View style={[styles.bottomColumn, { minHeight: minimumHeight }, floating && styles.floatingColumn]}>
-        <ShellBottomViewport floating={floating} minimumHeight={minimumHeight}>
+        <ShellBottomViewport floating={floating} minimumHeight={minimumHeight} onSlotHeight={onSlotHeight}>
             {notice !== undefined ? <View testID="shell-notice" style={[styles.notice, noticeStyle]}>{notice}</View> : null}
             {pinnedSlot !== undefined ? (
               <View testID="shell-composer-band" style={[styles.composerBand, { minHeight: actionMinimum, display: conversationOpen ? 'none' : 'flex' }]}>
@@ -152,16 +158,15 @@ function ShellScrollToTopSlot({ visible, content, onHeight }: Readonly<{ visible
   return <View testID="shell-scroll-to-top" onLayout={event => onHeight(event.nativeEvent.layout.height)} pointerEvents="box-none" style={styles.scrollToTop}>{content}</View>
 }
 
-function ShellAstraEntry({ enabled, conversationOpen, fab, scrollToTop, height, onClearanceChange }: Readonly<{
+function ShellAstraEntry({ enabled, conversationOpen, fab, chrome, onClearanceChange }: Readonly<{
   enabled?: boolean
   conversationOpen: boolean
   fab: ReactNode
-  scrollToTop: ReactNode
-  height: number
+  chrome: AstraButtonChrome
   onClearanceChange: (height: number) => void
 }>) {
   if (!enabled || conversationOpen) return null
-  return <AstraButton hasFab={fab !== undefined} scrollToTopHeight={scrollToTop !== undefined ? height : 0} onClearanceChange={onClearanceChange} />
+  return <AstraButton hasFab={fab !== undefined} chrome={chrome} onClearanceChange={onClearanceChange} />
 }
 
 function useShellViewport({ navigationEnabled, hasFab, hasHeader, hasTabBar, safeTop, safeBottom, minimumBottomHeight }: Readonly<{
@@ -182,7 +187,7 @@ function useShellViewport({ navigationEnabled, hasFab, hasHeader, hasTabBar, saf
   const constrainedDestination = navigationEnabled && hasFab && height !== null
     && height - safeTop - safeBottom < minimumDestinationHeight
   return {
-    setHeight, setHeaderHeight, setTabBarHeight,
+    setHeight, setHeaderHeight, setTabBarHeight, headerHeight, tabBarHeight,
     scrollable: !navigationEnabled || constrainedDestination,
     constrained: constrainedFlow || constrainedDestination,
     minimumHeight: navigationEnabled ? minimumDestinationHeight - TOUCH_TARGET_MIN : minimumFlowHeight,
@@ -201,6 +206,22 @@ function ShellPageContent({ framed, navigationEnabled, safeAreaTop, children }: 
   return <ShellContent inset={framed || navigationEnabled && safeAreaTop !== false} style={styles.pageContent}>{children}</ShellContent>
 }
 
+function getAstraChrome({ viewport, bottomChromeHeight, slotHeight, hasHeader, scrollToTopHeight }: Readonly<{
+  viewport: { innerInsets: { top: number; bottom: number }; tabBarHeight: number; headerHeight: number }
+  bottomChromeHeight: number
+  slotHeight: number
+  hasHeader: boolean
+  scrollToTopHeight: number
+}>): AstraButtonChrome {
+  return {
+    top: viewport.innerInsets.top,
+    pageInset: bottomChromeHeight,
+    floorInset: slotHeight > 0 ? bottomChromeHeight : viewport.tabBarHeight + viewport.innerInsets.bottom,
+    scrollToTopTop: (hasHeader ? viewport.headerHeight : 0) + SPACING.s8,
+    scrollToTopHeight,
+  }
+}
+
 function getScrollerClearance(astraButton: boolean | undefined, astraClearance: number, reservesSpace: boolean) {
   return Math.max(astraButton ? astraClearance : 0, reservesSpace ? SHELL_SCROLLER_CLEARANCE : 32)
 }
@@ -208,6 +229,8 @@ function getScrollerClearance(astraButton: boolean | undefined, astraClearance: 
 export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean; fabPending?: boolean; astraButton?: boolean }>) {
   const [scrollToTopHeight, setScrollToTopHeight] = useState(64)
   const [astraClearance, setAstraClearance] = useState(176)
+  const [bottomChromeHeight, setBottomChromeHeight] = useState(0)
+  const [slotHeight, setSlotHeight] = useState(0)
   const mainRef = useRef<View>(null)
   const focusTarget = useRef<number | null>(null)
   const focusElement = useRef<HostInstance | null>(null)
@@ -257,6 +280,9 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
       hide.remove()
     }
   }, [])
+  const scrollToTop = registeredScrollToTop.content ?? props.scrollToTop
+  const astraChrome = getAstraChrome({ viewport, bottomChromeHeight, slotHeight, hasHeader: header !== undefined,
+    scrollToTopHeight: scrollToTop === undefined ? 0 : scrollToTopHeight })
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -284,8 +310,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
 
           <View ref={mainRef} focusable testID="shell-scroller" style={[styles.scroller, floating && styles.floatingScroller, viewport.relaxedScroller && styles.flowScroller]}>
             <ShellListFocusContext.Provider value={revealListFocus}><ShellPageContent framed={header !== undefined} navigationEnabled={navigationEnabled} safeAreaTop={props.safeAreaTop}>{props.children}</ShellPageContent></ShellListFocusContext.Provider>
-            <ShellScrollToTopSlot visible={!conversationOpen} content={registeredScrollToTop.content ?? props.scrollToTop} onHeight={setScrollToTopHeight} />
-            <ShellAstraEntry enabled={props.astraButton} conversationOpen={conversationOpen} fab={props.fab} scrollToTop={registeredScrollToTop.content ?? props.scrollToTop} height={scrollToTopHeight} onClearanceChange={setAstraClearance} />
+            <ShellScrollToTopSlot visible={!conversationOpen} content={scrollToTop} onHeight={setScrollToTopHeight} />
             {props.fab !== undefined ? (
               <View testID="shell-fab-band" pointerEvents="box-none" style={styles.fabBand}>
                 <ShellContent style={{ height: SHELL_SCROLLER_CLEARANCE }} pointerEvents="box-none"><View style={{ flex: 1 }} pointerEvents="box-none"><View testID="shell-fab" pointerEvents="box-none" style={styles.fab}>{props.fab}</View></View></ShellContent>
@@ -305,7 +330,11 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
             safeAreaBottom={viewport.innerInsets.bottom}
             minimumViewportHeight={minimumBottomHeight}
             onTabBarHeight={viewport.setTabBarHeight}
+            onHeight={setBottomChromeHeight}
+            onSlotHeight={setSlotHeight}
           />
+
+          <ShellAstraEntry enabled={props.astraButton} conversationOpen={conversationOpen} fab={props.fab} chrome={astraChrome} onClearanceChange={setAstraClearance} />
 
           {props.sheets}
         </View>

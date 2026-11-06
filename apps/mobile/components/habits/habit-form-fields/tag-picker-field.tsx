@@ -66,7 +66,7 @@ export function TagPickerField({ editorDirty = false, onDiscardEditor, tags, sel
     {suggestions}
   </>
   return <>
-    <ListRow disabled={disabled} title={t('habits.form.tags')} value={t('habits.form.selectedCount', { count: selectedIds.length })} placement="column" onClick={() => setOpen(true)} />
+    <ListRow disabled={disabled} title={t('habits.form.tags')} value={t('habits.form.selectedCount', { count: selectedIds.length })} placement="field" onClick={() => setOpen(true)} />
     <TagPreview tags={selectedTags} moreLabel={t('habits.form.moreSelected', { count: Math.max(0, selectedTags.length - 3) })} styles={styles} />
     {open ? <Sheet ref={sheetRef} open title={t('habits.form.tags')} virtualizedBody={tags.length >= 21} onClose={!disabled && dismiss.canDismiss ? finishClose : undefined} onAttemptDismiss={requestDismiss}><View style={styles.list}>
       {tags.length >= 8 ? <Text style={styles.count}>{t('habits.form.availableCount', { count: tags.length })}</Text> : null}

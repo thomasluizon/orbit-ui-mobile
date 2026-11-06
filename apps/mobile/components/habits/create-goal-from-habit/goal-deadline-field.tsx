@@ -1,7 +1,7 @@
-import { IconButton } from '@/components/ui/icon-button'
+import { ListRow } from '@/components/ui/list-row'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { Pressable, Text, View } from 'react-native'
-import { Plus, X } from '@/components/ui/icons'
+import { X } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { DateField } from '@/components/ui/date-field'
 import { formatAPIDate } from '@orbit/shared/utils/dates'
@@ -26,7 +26,7 @@ export function GoalDeadlineField({
   return (
     <View>
       <Text style={styles.fieldLabel}>
-        {t('goals.form.deadline')}{' '}
+        {t('goals.form.deadlineQuestion')}{' '}
         <Text style={styles.labelOptional}>
           ({t('goals.form.deadlineOptional')})
         </Text>
@@ -56,7 +56,7 @@ export function GoalDeadlineField({
           ) : null}
         </View>
       ) : (
-        <IconButton label={t('goals.form.addDeadline')} onPress={() => onChangeDeadline(formatAPIDate(new Date()))} hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}><Plus size={20} strokeWidth={1.5} accessible={false} /></IconButton>
+        <View><ListRow placement="field" icon="plus" title={t('goals.form.addDeadline')} onClick={() => onChangeDeadline(formatAPIDate(new Date()))} /></View>
       )}
     </View>
   )

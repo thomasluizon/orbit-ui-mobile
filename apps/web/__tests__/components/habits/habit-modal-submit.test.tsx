@@ -176,7 +176,7 @@ describe('offline habit editor', () => {
       online.mockReturnValue(false)
       globalThis.dispatchEvent(new Event('offline'))
     })
-    const description = screen.getByRole('textbox', { name: 'habits.form.description' })
+    const description = screen.getByRole('textbox', { name: 'habits.form.descriptionQuestion' })
     const checklist = screen.getAllByRole('textbox', { name: 'habits.form.checklistItemLabel' })[0]!
     const datePicker = screen.getByRole('button', { name: 'habits.form.habitStartDate, common.selectedDate' })
     expect(submit).toBeDisabled()
@@ -686,7 +686,7 @@ it('serializes explicit root independently from missing readback and ignores lat
   const { submit } = await renderSheet('edit', source)
   await chooseEditorParent('habits.moveParent.toRoot')
   editorParentState.detail = { ...editorParentState.detail!, parentId: '33333333-3333-4333-8333-333333333333' }
-  fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.description' }), { target: { value: 'Keep local root' } })
+  fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.descriptionQuestion' }), { target: { value: 'Keep local root' } })
   await act(async () => fireEvent.click(submit))
   await waitFor(() => expect(mutation).toHaveBeenCalledOnce())
   expect(mutation.mock.calls[0]![0].data).toMatchObject({ clearParent: true, description: 'Keep local root' })

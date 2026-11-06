@@ -102,9 +102,9 @@ it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('
   }
   expect(labels.fieldLabels).toMatchObject({
     tag_ids: messages.habits.form.tags, tag_names: messages.habits.form.tags,
-    target_value: messages.goals.form.targetValue, active_start: messages.habits.form.repeatActiveStart,
-    active_end: messages.habits.form.repeatActiveEnd, start_date: messages.habits.form.startDate,
-    relative_reminders: messages.habits.form.reminder, minutes_before: messages.habits.form.reminderMinutes,
+    target_value: messages.goals.form.targetValue, active_start: messages.chat.operation.field.active_start,
+    active_end: messages.chat.operation.field.active_end, start_date: messages.habits.form.startDate,
+    relative_reminders: messages.chat.operation.field.relative_reminders, minutes_before: messages.habits.form.reminderMinutes,
   })
 })
 

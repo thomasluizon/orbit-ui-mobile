@@ -75,6 +75,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
       for (const path of ['/search', '/support']) {
         test(`measures every visible field on ${path}`, async ({ page }) => {
           await page.goto(path)
+          if (path === '/support') await page.getByRole('radio', { name: messages.profile.support.subjects.problem.label, exact: true }).click()
           await expect(path === '/search' ? page.locator('[cmdk-input]') : page.getByLabel(messages.profile.support.message, { exact: true })).toBeVisible()
           await expectVisibleFieldInsets(page, messages)
         })

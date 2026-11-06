@@ -100,9 +100,20 @@ describe('OnboardingCreateHabit', () => {
 
   it('shows direct controls without Astra framing', () => {
     render(<OnboardingCreateHabit {...base} />)
-    expect(screen.getByText('Pick the days and the time.')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: en.onboarding.flow.when.direct })).toBeInTheDocument()
     expect(screen.getByTestId('time-field')).toBeInTheDocument()
     expect(screen.queryByText('Proposed by Astra')).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['flexible', schedule, en.onboarding.flow.when.frequencyUnitLabel],
+    ['fixed', everyThirdMonday, en.onboarding.flow.when.daysLabel],
+  ] as const)('asks the %s schedule as visible questions that also name their controls', (_mode, current, followUp) => {
+    render(<OnboardingCreateHabit {...base} schedule={current} />)
+    expect(screen.getByText(en.onboarding.flow.when.scheduleMode, { selector: 'span' })).toBeVisible()
+    expect(screen.getByText(followUp, { selector: 'span' })).toBeVisible()
+    expect(screen.getByRole('radiogroup', { name: en.onboarding.flow.when.scheduleMode })).toBeInTheDocument()
+    expect(screen.getByRole(current.isFlexible ? 'radiogroup' : 'group', { name: followUp })).toBeInTheDocument()
   })
 
   it('requires a tap before editing a proposed schedule', () => {
@@ -285,4 +296,24 @@ describe('OnboardingCreateHabit', () => {
     expect(onIntervalWeeksChange).toHaveBeenCalledTimes(2)
   })
 
+})
+
+describe('onboarding schedule questions', () => {
+  it.each([
+    { name: 'open', schedule, questions: ['when.scheduleMode', 'when.frequencyUnitLabel'] },
+    { name: 'fixed', schedule: everyThirdMonday, questions: ['when.scheduleMode', 'when.daysLabel'] },
+  ])('asks each $name schedule answer as its own question group', ({ schedule: current, questions }) => {
+    translations.locale = 'en'
+    translations.current = (key: string) => key
+    const { container } = render(<OnboardingCreateHabit {...base} schedule={current as OnboardingSchedule} />)
+    const groups = [...container.querySelector('[data-onboarding-questions]')!.children] as HTMLElement[]
+    for (const [index, question] of questions.entries()) {
+      expect(groups[index]!.firstElementChild).toHaveTextContent(`onboarding.flow.${question}`)
+    }
+    expect(groups.at(-1)).toContainElement(screen.getByTestId('time-field'))
+  })
+
+  it.each([['en', en], ['pt-BR', ptBR]] as const)('writes every %s schedule label as a question', (_locale, messages) => {
+    for (const key of ['scheduleMode', 'frequencyUnitLabel', 'daysLabel', 'timeLabel'] as const) expect(messages.onboarding.flow.when[key]).toMatch(/\?$/)
+  })
 })

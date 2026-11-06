@@ -56,7 +56,7 @@ for (const [locale, words] of [['en', en], ['pt-BR', ptBr]] as const) {
         const search = page.locator('[data-shell-header] [data-today-header-actions]')
           .getByRole('button', { name: words.habits.search.title, exact: true })
         await search.click()
-        const field = page.getByRole('textbox', { name: words.habits.search.title, exact: true })
+        const field = page.getByRole('textbox', { name: words.habits.search.question, exact: true })
         await expect(field).toBeFocused()
         const request = page.waitForRequest((entry) => {
           const url = new URL(entry.url())

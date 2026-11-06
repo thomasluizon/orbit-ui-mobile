@@ -74,14 +74,15 @@ async function assertRow(row: Locator) {
     const first = element.querySelector('[data-slot="list-row-icon"]') ?? title
     const last = element.querySelector('[data-slot="list-row-chevron"]') ?? element.querySelector('[data-slot="list-row-trailing"]') ?? element.querySelector('[data-slot="list-row-value"]') ?? title
     const style = getComputedStyle(body)
-    return { title: title.textContent!, start: first.getBoundingClientRect().left - bounds.left, end: bounds.right - last.getBoundingClientRect().right,
+    return { title: title.textContent!, field: element.classList.contains('orbit-list-row-field'), start: first.getBoundingClientRect().left - bounds.left, end: bounds.right - last.getBoundingClientRect().right,
       minHeight: style.minHeight, paddingStart: style.paddingBlockStart, paddingEnd: style.paddingBlockEnd, border: parseFloat(style.borderBottomWidth),
       gap: parseFloat(getComputedStyle(content).gap), descriptionGap: description ? description.getBoundingClientRect().top - title.getBoundingClientRect().bottom : null,
       chevronWidth: element.querySelector('[data-slot="list-row-chevron"]')?.getBoundingClientRect().width,
       supporting: Boolean(description) || Boolean(element.querySelector('[data-personal-text]') && element.querySelector('[data-slot="list-row-value"]')) }
   }, paint.target)
-  expect(Math.abs(geometry.start - 16), geometry.title).toBeLessThanOrEqual(0.5)
-  expect(Math.abs(geometry.end - 16), geometry.title).toBeLessThanOrEqual(0.5)
+  const inset = geometry.field ? 8 : 16
+  expect(Math.abs(geometry.start - inset), geometry.title).toBeLessThanOrEqual(0.5)
+  expect(Math.abs(geometry.end - inset), geometry.title).toBeLessThanOrEqual(0.5)
   expect(geometry).toMatchObject({ minHeight: geometry.supporting ? '68px' : '52px', paddingStart: '12px', paddingEnd: '12px', border: 0, gap: 12 })
   if (geometry.descriptionGap !== null) expect(Math.abs(geometry.descriptionGap - 4)).toBeLessThanOrEqual(0.5)
   if (geometry.chevronWidth !== undefined) expect(geometry.chevronWidth).toBe(24)
@@ -153,9 +154,10 @@ async function assertColumnRows(surface: Locator) {
     const alignment = await row.evaluate((element, fill) => {
       const content = element.getBoundingClientRect()
       const first = element.querySelector('[data-slot="list-row-icon"]') ?? element.querySelector('[data-slot="list-row-title"]')!
-      return { contentStart: first.getBoundingClientRect().left - content.left, outsetStart: content.left - fill.left, outsetEnd: fill.right - content.right }
+      return { field: element.classList.contains('orbit-list-row-field'), contentStart: first.getBoundingClientRect().left - content.left, outsetStart: content.left - fill.left, outsetEnd: fill.right - content.right }
     }, paint.target)
-    for (const [key, expected] of Object.entries({ contentStart: 0, outsetStart: 16, outsetEnd: 16 })) expect(Math.abs(alignment[key as keyof typeof alignment] - expected)).toBeLessThanOrEqual(0.5)
+    const expectedAlignment = alignment.field ? { contentStart: 8, outsetStart: 0, outsetEnd: 0 } : { contentStart: 0, outsetStart: 16, outsetEnd: 16 }
+    for (const [key, expected] of Object.entries(expectedAlignment)) expect(Math.abs(alignment[key as keyof typeof expectedAlignment] - expected)).toBeLessThanOrEqual(0.5)
   }
 }
 

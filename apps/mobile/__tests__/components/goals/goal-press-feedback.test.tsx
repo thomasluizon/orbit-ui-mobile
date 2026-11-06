@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act } from 'react-test-renderer'
+import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { formatAPIDate } from '@orbit/shared/utils'
 import { GoalLoadError } from '@/components/goals/goal-detail-drawer/goal-load-error'
 import { createStyles as createDetailStyles } from '@/components/goals/goal-detail-drawer/styles'
@@ -36,7 +37,13 @@ function expectDeadlinePress(tokens: ReturnType<typeof createTokensV2>, reducedM
   for (const deadline of ['', formatAPIDate(new Date())]) {
     const onChangeDeadline = vi.fn()
     const button = render(<GoalDeadlineField tokens={tokens} styles={createDeadlineStyles(tokens)} deadline={deadline} onChangeDeadline={onChangeDeadline} />).root.findByType('Pressable')
-    expectPressPaint(button, { fill: tokens.bgHover, borderRadius: deadline ? 999 : radius.full, scale: reducedMotion ? deadline ? 1 : null : 0.96 })
+    if (deadline) expectPressPaint(button, { fill: tokens.bgHover, borderRadius: 999, scale: reducedMotion ? 1 : 0.96 })
+    else {
+      void act(() => { (button.props.onPressIn as () => void)() })
+      const fill = button.findAll((node) => node.type === 'View' && node.props['data-slot'] === 'list-row-body')[0]!
+      expect(StyleSheet.flatten(fill.props.style as StyleProp<ViewStyle>)).toMatchObject({ backgroundColor: tokens.bgHover, borderRadius: 12, left: 0, right: 0 })
+      void act(() => { (button.props.onPressOut as () => void)() })
+    }
     void act(() => { (button.props.onPress as () => void)() })
     expect(onChangeDeadline).toHaveBeenCalledWith(deadline ? '' : formatAPIDate(new Date()))
 }

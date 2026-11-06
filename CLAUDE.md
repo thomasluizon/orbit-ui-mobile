@@ -68,6 +68,7 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `design/label-row-control-inventory.md` | Label-row inline control consumers, shared centring and first-line alignment, platform mirrors and geometry coverage. |
 | `design/field-inset-inventory.md` | Text control owners, typed foreground ownership, drawn inline padding, shared checklist add Input insets, platform mirrors and field geometry verification. |
 | `design/interaction-fill-surfaces.md` | Interaction fill owners, neighbour clearance and platform geometry coverage. |
+| `design/input-question-surfaces.md` | Input surfaces outside the habit and goal flows, their owners, status under the form rule and the remaining surfaces. |
 | `design/calendar-import-sheet-inventory.md` | Calendars sheet surfaces, platform owners, retained behavior and verification boundaries. |
 | `design/icon-action-surfaces.md` | Universal icon-action consumers, accessible names, shared target geometry and retained text boundaries on web and Android. |
 | `design/sheet-footer-inventory.md` | Sheet footer owners, platform mirrors and states covered by the trailing-action contract. |

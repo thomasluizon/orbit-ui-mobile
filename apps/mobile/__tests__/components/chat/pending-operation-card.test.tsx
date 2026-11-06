@@ -1817,7 +1817,7 @@ describe('offered preview fields on Android', () => {
     const { tree, handlers } = renderCard(operation, onRevise)
     for (const field of ['active_start', 'active_end'] as const) {
       if (field === 'active_start') await TestRenderer.act(() => press(tree, en.chat.operation.edit).props.onPress())
-      await TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: en.habits.form[field === 'active_start' ? 'repeatActiveStart' : 'repeatActiveEnd'] }).props.onChangeText(''))
+      await TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: en.chat.operation.field[field] }).props.onChangeText(''))
     }
     await TestRenderer.act(() => press(tree, en.common.save).props.onPress())
     expect(onRevise).toHaveBeenCalledWith(operation.id, { previewFingerprint: 'preview-one', items: [{ itemId: '0', edits: { repeat_reminder: { interval_minutes: 120 } } }] })

@@ -62,7 +62,7 @@ export function ShareCardSheet({ onClose }: Readonly<ShareCardSheetProps>) {
     <Sheet title={t('shareCard.share')} accessibleTitle={t('shareCard.title')} onClose={onClose} actions={actions}>
       <View>
         <View style={styles.content}>
-          <SegmentedControl label={t('wrapped.periodGroup')} value={period} options={[{ value: 'week', label: t('shareCard.periods.week') }, { value: 'month', label: t('shareCard.periods.month') }, { value: 'year', label: t('shareCard.periods.year') }]} disabled={isSharing} onChange={(value) => { resetFeedback(); setPeriod(value) }} fullWidth />
+          <View testID="share-period-question" style={styles.question}><Text accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.questionLabel, { color: tokens.fg2 }]}>{t('shareCard.periodQuestion')}</Text><SegmentedControl label={t('shareCard.periodQuestion')} value={period} options={[{ value: 'week', label: t('shareCard.periods.week') }, { value: 'month', label: t('shareCard.periods.month') }, { value: 'year', label: t('shareCard.periods.year') }]} disabled={isSharing} onChange={(value) => { resetFeedback(); setPeriod(value) }} fullWidth /></View>
           {isLoading || (!recap && !isError) ? <View accessible accessibilityRole="progressbar" accessibilityState={{ busy: true }} accessibilityLabel={t('shareCard.loading')} style={styles.loading}>
             {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} variant="stat-tile" grouped />)}
           </View> : null}
@@ -78,6 +78,8 @@ export function ShareCardSheet({ onClose }: Readonly<ShareCardSheetProps>) {
 
 const styles = StyleSheet.create({
   content: { gap: PADDING.sectionGap, minWidth: 0 },
+  question: { gap: 8 },
+  questionLabel: { fontFamily: 'Geist_500Medium', fontSize: 14 },
   loading: { minHeight: 640, gap: PADDING.sectionGap, justifyContent: 'center' },
   feedbackGroup: { paddingTop: PADDING.sectionGap },
   feedback: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24 },

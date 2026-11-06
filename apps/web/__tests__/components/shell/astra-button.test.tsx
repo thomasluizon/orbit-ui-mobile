@@ -23,6 +23,7 @@ beforeEach(() => {
       const [x = 0, y = 0] = [...this.parentElement!.style.transform.matchAll(/(-?\d+)px/g)].map(match => Number(match[1]))
       return { x, y, left: x, top: y, right: x + 60, bottom: y + 60, width: 60, height: 60, toJSON: () => ({}) }
     }
+    if (this.hasAttribute('data-shell-tab-bar')) return { x: 0, y: height, left: 0, top: height, right: width, bottom: height + 80, width, height: 80, toJSON: () => ({}) }
     return { x: 0, y: 0, left: 0, top: 0, right: width, bottom: height, width, height, toJSON: () => ({}) }
   })
   vi.stubGlobal('ResizeObserver', class {
@@ -35,7 +36,7 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 function mount(messages = en) {
-  return render(<NextIntlClientProvider locale={messages === en ? 'en' : 'pt-BR'} messages={messages}><div><AstraButton /></div></NextIntlClientProvider>)
+  return render(<NextIntlClientProvider locale={messages === en ? 'en' : 'pt-BR'} messages={messages}><div><div data-shell-page=""><div data-shell-page-content="" /></div><div data-shell-tab-bar="" /><AstraButton /></div></NextIntlClientProvider>)
 }
 function placement() { return document.querySelector<HTMLElement>('[data-astra-button-position]')! }
 
@@ -55,8 +56,11 @@ it('drags, snaps and persists without opening, then accepts a tap', async () => 
   await waitFor(() => expect(placement().style.transform).toBe('translate(336px, 440px)'))
   const button = screen.getByRole('button', { name: en.shell.astraButton.open })
   fireEvent.pointerDown(button, { button: 0, clientX: 350, clientY: 460 })
+  expect(button).not.toHaveAttribute('data-lifted')
   fireEvent.pointerMove(button, { clientX: 110, clientY: 260 })
+  expect(button).toHaveAttribute('data-lifted')
   fireEvent.pointerUp(button, { clientX: 110, clientY: 260 })
+  expect(button).not.toHaveAttribute('data-lifted')
   fireEvent.click(button, { detail: 1 })
   expect(placement().style.transform).toBe('translate(16px, 240px)')
   expect(useUIStore.getState().astraConversationOpen).toBe(false)
@@ -138,4 +142,28 @@ it('offers movement after a held pointer and suppresses its opening click', asyn
   await user.click(move)
   await waitFor(() => expect(placement().style.transform).toBe('translate(336px, 364px)'))
   expect(useUIStore.getState().astraConversationOpen).toBe(false)
+})
+
+it('reserves end-of-list clearance on the page from its current position', async () => {
+  mount()
+  await waitFor(() => expect(placement().style.transform).toBe('translate(336px, 440px)'))
+  const page = document.querySelector<HTMLElement>('[data-shell-page]')!
+  expect(page.style.getPropertyValue('--shell-astra-clearance')).toBe('176px')
+  fireEvent.keyDown(screen.getByRole('button', { name: en.shell.astraButton.open }), { key: 'ArrowUp' })
+  expect(page.style.getPropertyValue('--shell-astra-clearance')).toBe('252px')
+  act(() => useUIStore.getState().registerOpenOverlay('sheet'))
+  expect(page.style.getPropertyValue('--shell-astra-clearance')).toBe('0px')
+})
+
+it('stops measuring without an error once it leaves the shell', async () => {
+  const errors: unknown[] = []
+  const record = (event: ErrorEvent) => { errors.push(event.error); event.preventDefault() }
+  window.addEventListener('error', record)
+  try {
+    mount()
+    await waitFor(() => expect(placement().style.transform).toBe('translate(336px, 440px)'))
+    document.querySelector('[data-astra-button-area]')!.remove()
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(errors).toEqual([])
+  } finally { window.removeEventListener('error', record) }
 })

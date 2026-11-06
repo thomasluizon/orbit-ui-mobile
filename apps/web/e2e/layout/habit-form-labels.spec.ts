@@ -10,8 +10,8 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { LAYOUT_ORIGIN } from '../support/env'
 
 async function assertFieldEdges(disclosure: Locator, descriptionOwner: Locator) {
-  const fieldLabel = disclosure.getByRole('heading', { name: messages.habits.form.endDate, exact: true })
-  const descriptionLabel = descriptionOwner.locator('label').filter({ hasText: messages.habits.form.description })
+  const fieldLabel = disclosure.getByRole('heading', { name: messages.habits.form.endDateQuestion, exact: true })
+  const descriptionLabel = descriptionOwner.locator('label').filter({ hasText: messages.habits.form.descriptionQuestion })
   await expect(fieldLabel).toBeVisible()
   await expect(descriptionLabel).toHaveCount(1)
   await expect(descriptionLabel).toBeVisible()
@@ -45,7 +45,7 @@ async function assertFieldEdges(disclosure: Locator, descriptionOwner: Locator) 
 }
 
 async function assertDescriptionOrder(screen: Locator) {
-  const description = screen.getByRole('textbox', { name: messages.habits.form.description, exact: true })
+  const description = screen.getByRole('textbox', { name: messages.habits.form.descriptionQuestion, exact: true })
   await expect(description).toHaveCount(1)
   await expect(description).toBeVisible()
   await expect(description).toHaveAttribute('maxlength', '10000')
@@ -90,8 +90,9 @@ for (const width of [412, 1352]) {
       const disclosure = screen.locator('.habit-form-disclosure[data-open="true"]')
       await disclosure.getByRole('switch', { name: messages.habits.form.habitTypeAvoid }).click()
       await page.evaluate(() => document.fonts.ready)
-      await expect(disclosure.getByRole('heading', { name: messages.habits.form.slipAlert })).toBeVisible()
-      await expect(disclosure.getByRole('heading', { name: messages.habits.form.subHabits })).toBeVisible()
+      await expect(disclosure.getByRole('heading', { name: messages.habits.form.slipAlertQuestion })).toBeVisible()
+      await expect(disclosure.getByRole('heading', { name: messages.habits.form.subHabitsQuestion })).toBeVisible()
+      await disclosure.getByRole('button', { name: messages.habits.form.addEndDate, exact: true }).click()
       await assertFieldEdges(disclosure, descriptionOwner)
       await assertDescriptionOrder(screen)
       await screen.getByRole('button', { name: new RegExp(messages.habits.form.timingAndReminder) }).click()
@@ -117,6 +118,8 @@ for (const width of [412, 1352]) {
         const disclosure = editor.locator('form .habit-form-disclosure[data-open="true"]')
         await page.evaluate(() => document.fonts.ready)
         const descriptionOwner = await assertDescriptionOrder(editor)
+        const endDate = disclosure.getByRole('button', { name: messages.habits.form.addEndDate, exact: true })
+        if (await endDate.getAttribute('aria-expanded') !== 'true') await endDate.click()
         await assertFieldEdges(disclosure, descriptionOwner)
       })
     }

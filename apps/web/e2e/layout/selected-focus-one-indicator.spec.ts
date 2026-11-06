@@ -220,7 +220,7 @@ for (const width of [412, 1352]) {
           await page.getByRole('button', { name: words.habits.form.goals, exact: false }).click()
           await page.getByRole('button', { name: words.habits.form.createGoal, exact: true }).click()
           const goal = page.getByRole('dialog', { name: words.goals.create, exact: true })
-          const types = goal.getByRole('radiogroup', { name: words.goals.form.type, exact: true }).getByRole('radio')
+          const types = goal.getByRole('radiogroup', { name: words.goals.form.typeQuestion, exact: true }).getByRole('radio')
           await checkChoice(page, types.nth(0), types.nth(1))
           await goal.getByRole('button', { name: words.goals.form.addDeadline, exact: true }).click()
           await goal.locator('button[aria-haspopup="dialog"]').click()

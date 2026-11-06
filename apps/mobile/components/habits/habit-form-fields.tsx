@@ -22,13 +22,15 @@ import {
   coalesceFormText,
   getFriendlyErrorMessage,
   extractBackendStatus,
+  formatLocaleDate,
   isHabitDailySchedule,
   isHabitAstraLimitReached,
+  parseAPIDate,
   readTypedHabitPhrase,
   resolveSupportedLocale,
   shouldShowHabitAstraFallback,
 } from '@orbit/shared/utils'
-import { MAX_HABIT_DESCRIPTION_LENGTH, validateTagForm } from '@orbit/shared/validation'
+import { hasHabitMonthDaySchedule, MAX_HABIT_DESCRIPTION_LENGTH, validateTagForm } from '@orbit/shared/validation'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -48,6 +50,7 @@ import { ChecklistTemplates } from './checklist-templates'
 import { GoalLinkingField } from './goal-linking-field'
 import { HabitChecklist } from './habit-checklist'
 import { HabitScheduleFields } from './habit-form-fields/habit-schedule-fields'
+import { HabitMonthDaysField } from './habit-form-fields/habit-month-days-field'
 import { HabitUnderstanding, HabitRepeatInterval } from './habit-form-fields/habit-understanding'
 import { SlipAlertSection } from './habit-form-fields/slip-alert-section'
 import { TagEditorRow } from './habit-form-fields/tag-editor-row'
@@ -133,21 +136,26 @@ interface EndDateEditorProps {
 
 function EndDateEditor({ visible, value, onChange, t }: Readonly<EndDateEditorProps>) {
   const { disabled, guard } = useHabitFormInteraction()
+  const { i18n } = useTranslation()
   const [focusRequest, setFocusRequest] = useState(0)
+  const [endDateExpanded, setShowEndDate] = useState<boolean | null>(null)
+  const showEndDate = endDateExpanded ?? Boolean(value)
   if (!visible) return null
   return (
-    <View style={{ gap: 16 }}>
+    <View testID="end-date-levels" style={{ gap: 16 }}>
       <FormSectionLabel>{t('habits.form.ending')}</FormSectionLabel>
-      <View style={{ gap: 8 }}>
-      <FormSectionLabel>{t('habits.form.endDate')}</FormSectionLabel>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}><View style={{ flex: 1, minWidth: 0 }}><DateField disabled={disabled} label={t('habits.form.endDate')} value={value} placeholder={t('habits.form.endDatePlaceholder')} onChange={guard(onChange)} focusRequest={focusRequest} /></View>
+      <View><ListRow disabled={disabled} placement="field" title={t('habits.form.addEndDate')} value={value && !showEndDate ? formatLocaleDate(value, i18n.language) : undefined} expanded={showEndDate} onClick={guard(() => setShowEndDate(!showEndDate))} /></View>
+      {showEndDate ? <View style={{ gap: 8 }}>
+      <FormSectionLabel>{t('habits.form.endDateQuestion')}</FormSectionLabel>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}><View style={{ flex: 1, minWidth: 0 }}><DateField disabled={disabled} label={t('habits.form.endDateQuestion')} value={value} placeholder={t('habits.form.endDatePlaceholder')} onChange={guard((next: string) => { setShowEndDate(true); onChange(next) })} focusRequest={focusRequest} /></View>
       {value ? <View style={{ alignItems: 'flex-end' }}>
         <PillButton disabled={disabled} variant="ghost" iconOnly label={t('habits.form.removeEndDate')} onClick={() => {
+          setShowEndDate(true)
           onChange('')
           setFocusRequest((request) => request + 1)
         }}><X size={20} /></PillButton>
       </View> : null}</View>
-      </View>
+      </View> : null}
     </View>
   )
 }
@@ -174,7 +182,7 @@ function SlipAlertEditor({
   if (!visible) return null
   return (
     <View style={{ gap: 8 }}>
-      <FormSectionLabel>{t('habits.form.slipAlert')}</FormSectionLabel>
+      <FormSectionLabel>{t('habits.form.slipAlertQuestion')}</FormSectionLabel>
       <SlipAlertSection inline tokens={tokens} hasProAccess={hasProAccess} slipAlertEnabled={slipAlertEnabled} onToggle={onToggle} onUpgrade={onUpgrade} />
     </View>
   )
@@ -189,7 +197,7 @@ function SubHabitSection({
   if (!children) return null
   return (
     <View style={{ gap: 8 }}>
-      <FormSectionLabel>{task ? t('habits.form.subTasks') : t('habits.form.subHabits')}</FormSectionLabel>
+      <FormSectionLabel>{task ? t('habits.form.subTasksQuestion') : t('habits.form.subHabitsQuestion')}</FormSectionLabel>
       <Proposed proposed={proposed} scope="field" label={t('habits.detail.proposed')}>
         {children}
       </Proposed>
@@ -207,8 +215,7 @@ function HabitAvoidanceFields({ formHelpers, controller, hasProAccess, tokens, o
   return (
     <View style={{ gap: 16 }}>
       <FormSectionLabel>{t('habits.form.avoidGroup')}</FormSectionLabel>
-            {/* eslint-disable-next-line local/max-button-words -- Orbit Habit Create draws the avoid-habit switch label. */}
-            <ListRow disabled={disabled} placement="column" title={t('habits.form.habitTypeAvoid')} description={isBadHabit ? t('habits.form.habitTypeAvoidHint') : t('habits.form.habitTypeBuildHint')} toggle={{ checked: isBadHabit, onChange: guard((checked) => form.setValue('isBadHabit', checked, { shouldDirty: true })) }} />
+            <View><ListRow disabled={disabled} placement="field" title={t('habits.form.habitTypeAvoid')} description={isBadHabit ? t('habits.form.habitTypeAvoidHint') : t('habits.form.habitTypeBuildHint')} toggle={{ checked: isBadHabit, onChange: guard((checked) => form.setValue('isBadHabit', checked, { shouldDirty: true })) }} /></View>
 
             <SlipAlertEditor visible={isBadHabit} tokens={tokens} hasProAccess={hasProAccess} slipAlertEnabled={slipAlertEnabled} onToggle={() => controller.setSlipAlertEnabled(!slipAlertEnabled)} onUpgrade={onUpgrade} t={t} />
     </View>
@@ -270,6 +277,9 @@ export function HabitFormFields({
   const days = useMemo(() => watchedDays ?? [], [watchedDays])
   const watchedQuantity = useWatch({ control: form.control, name: 'frequencyQuantity' })
   const intervalWeeks = useWatch({ control: form.control, name: 'intervalWeeks' }) ?? 1
+  const watchedMonthDays = useWatch({ control: form.control, name: 'monthDays' })
+  const monthDays = useMemo(() => watchedMonthDays ?? [], [watchedMonthDays])
+  const startDate = useWatch({ control: form.control, name: 'dueDate' }) ?? ''
   const frequencyUnit = useWatch({ control: form.control, name: 'frequencyUnit' })
   const frequencyQuantity = watchedQuantity ?? (frequencyUnit ? 0 : 3)
   const isFlexible = useWatch({ control: form.control, name: 'isFlexible' }) ?? false
@@ -332,10 +342,12 @@ export function HabitFormFields({
   }, [dueTime, form, setValue])
 
   const sentence = useMemo(
-    () => buildHabitUnderstandingSentence(days, daysList, isFlexible, frequencyUnit, frequencyQuantity, dueTime, locale, translate, intervalWeeks),
-    [days, daysList, dueTime, frequencyQuantity, frequencyUnit, intervalWeeks, isFlexible, locale, translate],
+    () => buildHabitUnderstandingSentence(days, daysList, isFlexible, frequencyUnit, frequencyQuantity, dueTime, locale, translate, intervalWeeks,
+      hasHabitMonthDaySchedule({ frequencyUnit, isFlexible, isGeneral: formHelpers.isGeneral }) ? monthDays : []),
+    [days, daysList, dueTime, formHelpers.isGeneral, frequencyQuantity, frequencyUnit, intervalWeeks, isFlexible, locale, monthDays, translate],
   )
   const daily = isHabitDailySchedule(days, isFlexible, frequencyUnit, frequencyQuantity)
+  const monthDayAnchor = (startDate ? parseAPIDate(startDate) : new Date()).getDate()
   const allowance = profile?.aiMessagesLimit ?? 5
   const atMessageLimit = isHabitAstraLimitReached(profile?.aiMessagesUsed ?? 0, allowance)
   const astraFallbackCopy = useMemo(
@@ -462,7 +474,7 @@ export function HabitFormFields({
         error={resolveBackendFormFieldMessage(formHelpers.backendFieldErrors.title, errors.title?.message, t)}
         value={title}
       >
-        <Input disabled={disabled} label={t('habits.form.description')} error={descriptionFailure} focusRequest={backendFormFieldFocusRequest('description', formHelpers.backendFocusField, formHelpers.backendFocusRequest)} value={description} onChange={guard((value) => setValue('description', value, { shouldDirty: true }))} multiline rows={1} maxLength={MAX_HABIT_DESCRIPTION_LENGTH} />
+        <Input disabled={disabled} label={t('habits.form.descriptionQuestion')} error={descriptionFailure} focusRequest={backendFormFieldFocusRequest('description', formHelpers.backendFocusField, formHelpers.backendFocusRequest)} value={description} onChange={guard((value) => setValue('description', value, { shouldDirty: true }))} multiline rows={1} maxLength={MAX_HABIT_DESCRIPTION_LENGTH} />
       <HabitDateField onChange={() => { onSuggestionContextChange?.(); controller.clearProposal() }} lockedGeneral={lockedGeneral} formHelpers={formHelpers} onRecurrence={controller.setRecurrence} />
 
             <HabitScheduleFields
@@ -474,6 +486,15 @@ export function HabitFormFields({
               disabled={disabled || lockedGeneral === true}
               onModeChange={controller.setScheduleMode}
               onChange={controller.setSchedule}
+            />
+            <HabitMonthDaysField
+              visible={itemType !== 'task' && hasHabitMonthDaySchedule({ frequencyUnit, isFlexible, isGeneral: formHelpers.isGeneral })}
+              monthDays={monthDays}
+              anchorDay={monthDayAnchor}
+              quantity={frequencyQuantity}
+              proposed={proposal.setup}
+              disabled={disabled || lockedGeneral === true}
+              onToggle={guard((day: number) => controller.toggleMonthDay(day, monthDayAnchor, monthDays))}
             />
       </HabitUnderstanding>
       <HabitRepeatInterval visible={isFlexible || Boolean(frequencyUnit)} intervalWeeks={intervalWeeks} scheduleLocked={lockedGeneral === true} onIntervalWeeksChange={controller.setIntervalWeeks} labels={understandingLabels} />
@@ -497,7 +518,7 @@ export function HabitFormFields({
             <View style={{ gap: 16 }}>
               <FormSectionLabel>{t('habits.form.steps')}</FormSectionLabel>
             <View style={{ gap: 8 }}>
-              <FormSectionLabel>{t('habits.form.checklist')}</FormSectionLabel>
+              <FormSectionLabel>{t('habits.form.checklistQuestion')}</FormSectionLabel>
               <HabitChecklist pendingItemText={pendingChecklistItem} onPendingItemChange={onPendingChecklistItemChange} items={checklistItems} editable proposedItemCount={proposal.checklistItems} onItemsChange={controller.setChecklistItems} />
               <ChecklistTemplates items={checklistItems} onLoad={controller.setChecklistItems} />
             </View>

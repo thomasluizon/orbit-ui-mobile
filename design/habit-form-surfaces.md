@@ -9,12 +9,20 @@
 | Type | `habit-form-fields/habit-type-field.tsx` | Two vertical RadioRow choices before the focal title, visible validation and group focus |
 | Date | `habit-form-fields/habit-date-field.tsx` | When input and editable date before More details; tasks choose Do on or No date, and No date hides the phrase and picker |
 | Schedule | `habit-form-fields/habit-schedule-fields.tsx` | Fixed and count-based Habit choices; undated tasks remain in the Task date group with tree locks |
+| Days of the month | `habit-form-fields/habit-month-days-field.tsx`; shared `month-days.ts` | Under a fixed monthly schedule, asks On which days of the month? with 31 day toggles, the chosen days in one line and the start date's day as the default (#2032) |
 | Date interpretation | Shared `date-phrase-parser.ts`, `date-interpretation-session.ts`, `habit-date-editor.ts`; app `use-date-interpretation.ts` | Offline calendar arithmetic, automatic debounced interpretation, editable draft date, in-field Astra provenance, stale rejection and terminal allowance refresh |
 | Recurrence intent | Shared `habit-recurrence-phrase.ts`, `habit-phrase-parser.ts`, `habit-date-editor.ts`, `habit-form-helpers.ts`; paired date/type fields and form hooks | Bilingual daily, weekly count and weekday wording writes the existing schedule for a deliberately selected dated Habit; a single Task weekday selects its next occurrence; explicit Task repetition keeps one inline recovery toward the existing Habit choice |
 | Type readback | `habit-row-content.tsx`, `habit-detail-screen.tsx` | Whole quiet vocabulary beneath the full-width title; original controls and counts retained |
 
 All component paths above are relative to each app's `components/habits/` unless another owner is
 named. Timezone context distinguishes unloaded from known null and valid cached profile values.
+
+A monthly fixed habit sends `monthDays` only while the month-day question shows. An empty selection
+keeps the start date's day, so create omits the field and edit sends an empty list to clear stored
+days. A day that a short month lacks falls on that month's last day, as the API schedules it, and
+the question then states that rule in one line. The title phrase and the date phrase read todo dia
+8 e 15, dia 8 e dia 15 do mês and the 8th and 15th of every month as Every 1 month on those days.
+Web Chromium and native Yoga tests keep each new string on one line at 320 and 360 widths.
 
 Explicit dates remain calendar strings. Recurring/flexible root writes carry startDate; tasks and
 direct-child creation retain dueDate. General carries no date. End-date clearing carries clearEndDate.
@@ -308,10 +316,15 @@ full-column targets and feedback. Hover and press stop at the field edge. Remind
 row and 8px above and below their remove targets, and constrain growing text to the column.
 Add time is visible text. Its caption and the timing entry wrap as text grows. Permission feedback remains beside the reminder decision.
 
+How does it repeat? asks Every or Times per in its own group. The count question follows the answer:
+Every how many days? names the chosen period, or How many times? Which period? holds the four units. Each group is separate, with a 24px
+gap. Type, title, notes, When and start date labels are questions.
+
 More details groups Steps, Avoid, Organize and End. Steps retains checklist templates and the
-sub-item editor, labelled Subtasks for Task. Avoid retains the slip alert and its plan boundary.
-Organize retains tags, goal links and the edit parent picker. End retains explicit end-date clearing
-beside the selected value. Create title and submit follow the selected type; the screen header uses
+sub-item editor, asked as Break it into smaller tasks? for Task. Avoid retains the slip alert and its plan boundary.
+Organize retains tags, goal links and the edit parent picker. End asks Ends someday? first; its answer reveals When does it end?, a saved end
+date opens it, and hiding it retains the date and shows it as the row value. A saving form disables the row. Removing the date keeps the question open and returns
+focus to the date control. Field rows keep their paint on the field column edge. Create title and submit follow the selected type; the screen header uses
 the screen title role. The empty emoji well uses the smile glyph.
 
 Owning web and Android Vitest cases cover these decisions through the real form and request

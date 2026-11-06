@@ -135,7 +135,7 @@ export function ChecklistTemplates({
           icon="template"
           title={t('habits.form.useTemplate')}
           compact
-          placement="column"
+          placement="field"
           onClick={() => setOpen(true)}
         />
       </View>

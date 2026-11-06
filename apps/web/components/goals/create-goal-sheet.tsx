@@ -1,5 +1,6 @@
 'use client'
 
+
 import { useTranslations } from 'next-intl'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
@@ -33,7 +34,7 @@ export function CreateGoalSheet(props: Readonly<CreateGoalSheetProps & { restore
 
   const { goalType, description, targetValue, unit, deadline, habitIds, selectingHabits, setSelectingHabits,
     fieldErrors, formError, isSubmitting, isStreak, setDescription, setTargetValue, setUnit, setDeadline,
-    setHabitIds, handleTypeChange, descriptionRef, targetRef, unitRef, dismissGuard, onSubmit } = form
+    setHabitIds, handleTypeChange, descriptionRef, targetRef, unitRef, dismissGuard, onSubmit, showFollowUps } = form
 
   return (
     <>
@@ -55,7 +56,8 @@ export function CreateGoalSheet(props: Readonly<CreateGoalSheetProps & { restore
       >
         <form id={formId} onSubmit={(event) => { event.preventDefault(); event.stopPropagation(); void onSubmit() }} noValidate>
           <p className="max-w-prose pb-4 text-sm leading-[1.55] text-pretty text-[var(--fg-2)]">{t('goals.form.habitsExplainer')}</p>
-          <div>
+          <GoalTypeSelector goalType={goalType} onTypeChange={handleTypeChange} />
+          <div style={{ padding: "var(--orbit-space-16) var(--orbit-space-0) var(--orbit-space-0)" }}>
             <FieldWell
               inputRef={descriptionRef}
               label={t('goals.form.title')}
@@ -74,10 +76,7 @@ export function CreateGoalSheet(props: Readonly<CreateGoalSheetProps & { restore
             />
           </div>
 
-          <div style={{ padding: "var(--orbit-space-16) var(--orbit-space-0) var(--orbit-space-0)" }}>
-            <GoalTypeSelector goalType={goalType} onTypeChange={handleTypeChange} />
-          </div>
-
+          {showFollowUps ? <div data-goal-follow-ups="">
           <GoalTargetFields
             targetRef={targetRef}
             unitRef={unitRef}
@@ -90,6 +89,7 @@ export function CreateGoalSheet(props: Readonly<CreateGoalSheetProps & { restore
           />
 
           <GoalDeadlineField deadline={deadline} onChangeDeadline={setDeadline} />
+          </div> : null}
           <ListRow title={t('goals.linkedHabits')} value={t('habits.form.selectedCount', { count: habitIds.length })} placement="column" disabled={isSubmitting} onClick={() => closeSheet(() => setSelectingHabits(true))} />
           <GoalHabitsSelectionNote selectedIds={habitIds} goalType={goalType} />
           {formError ? <p role="alert" className="pt-3 text-sm text-[var(--status-bad-text)]">{formError}</p> : null}

@@ -57,9 +57,11 @@ for (const width of [412, 1280] as const) {
         await expect(scroller).toBeVisible()
         await expect(chrome).toBeAttached()
         await page.evaluate(() => document.fonts.ready)
-        if (name === 'Hoje') {
+        if (name === 'Hoje' && width >= 1024) await expect(page.locator('[data-astra-button]')).toHaveCount(0)
+        if (name === 'Hoje' && width < 1024) {
           const button = page.getByRole('button', { name: en.shell.astraButton.open, exact: true })
           await expect(button).toBeVisible()
+          await page.waitForFunction(() => document.querySelector('[data-astra-button-position]')?.getAttribute('style')?.includes('translate'))
           const bounds = (await button.boundingBox())!
           const viewport = (await scroller.boundingBox())!
           clearance = Math.max(clearance, viewport.y + viewport.height - bounds.y + 16)

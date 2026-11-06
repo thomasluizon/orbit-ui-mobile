@@ -82,7 +82,7 @@ it.each([0, 1])('opens from trigger %s, focuses the heading, and returns on Esca
   const trigger = screen.getAllByRole('button', { name: 'Browse ideas' })[index]!
   fireEvent.click(trigger)
   await waitFor(() => expect(screen.getByRole('heading', { name: 'Ideas' })).toHaveFocus())
-  fireEvent.change(screen.getByRole('searchbox', { name: 'Search ideas' }), { target: { value: 'week' } })
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Which idea are you looking for?' }), { target: { value: 'week' } })
   fireEvent.keyDown(screen.getByRole('searchbox'), { key: 'Escape' })
   await waitFor(() => expect(trigger).toHaveFocus())
   expect(screen.queryByRole('heading', { name: 'Ideas' })).toBeNull()
@@ -141,7 +141,7 @@ it('searches every category in the current language, paginates, and clears a mis
   render(<NextIntlClientProvider locale="pt-BR" messages={ptBR}><PromptLibrary onBack={vi.fn()} onSelect={vi.fn()} suggestions={[]} hasProAccess hasGoogleConnection /></NextIntlClientProvider>)
   await waitFor(() => expect(screen.getByRole('region', { name: 'Começar' })).toBeVisible())
   expect(screen.queryByRole('heading', { name: 'Entender' })).toBeNull()
-  const search = screen.getByRole('searchbox', { name: 'Buscar ideias' })
+  const search = screen.getByRole('searchbox', { name: 'Qual ideia você procura?' })
   fireEvent.change(search, { target: { value: 'congelamentos da sequencia' } })
   expect(screen.getByRole('heading', { name: 'Entender' })).toBeVisible()
   expect(screen.getByRole('button', { name: 'Entender os congelamentos' })).toBeVisible()
@@ -293,7 +293,7 @@ it('keeps live supplied icons, hides live actions during search and restores the
 it('uses the shared search field and keeps live rows free of repeated decoration', () => {
   const suggestions = toComposerSuggestions([{ id: 'live', label: 'Live suggestion', onSelect: vi.fn() }, { id: 'another', label: 'Another suggestion', onSelect: vi.fn() }])
   const { container } = render(<NextIntlClientProvider locale="en" messages={en}><PromptLibrary onBack={vi.fn()} onSelect={vi.fn()} suggestions={suggestions} hasProAccess hasGoogleConnection /></NextIntlClientProvider>)
-  const search = screen.getByRole('searchbox', { name: 'Search ideas' })
+  const search = screen.getByRole('searchbox', { name: 'Which idea are you looking for?' })
   expect(search).toHaveAttribute('placeholder', 'Search ideas')
   expect(search.closest('[data-input-root]')).not.toBeNull()
   expect(container.querySelector('[data-prompt-attribution]')).toBeNull()

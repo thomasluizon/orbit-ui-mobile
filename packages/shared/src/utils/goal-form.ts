@@ -116,3 +116,7 @@ export function isGoalDeadlinePast(
 export function isStreakGoal(type?: string): boolean {
   return type === 'Streak'
 }
+
+export function hasGoalFollowUpAnswer(draft: { description: string; targetValue: string; unit: string; deadline: string }): boolean {
+  return [draft.description.trim(), draft.targetValue, draft.unit, draft.deadline].some(Boolean)
+}
