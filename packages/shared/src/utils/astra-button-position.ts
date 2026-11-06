@@ -8,6 +8,15 @@ export interface AstraButtonPoint { x: number; y: number }
 export interface AstraButtonArea { width: number; height: number }
 export interface AstraButtonObstacle extends AstraButtonPoint, AstraButtonArea {}
 export type AstraMoveDirection = 'left' | 'right' | 'up' | 'down'
+export interface AstraButtonViewport { top: number; bottom: number; width: number }
+
+export function resolveAstraButtonArea(viewport: AstraButtonViewport, floors: readonly number[]): AstraButtonArea {
+  return { width: viewport.width, height: Math.max(0, Math.min(viewport.bottom, ...floors) - viewport.top) }
+}
+
+export function getAstraButtonClearance(position: AstraButtonPoint | null, pageBottom: number): number {
+  return position ? Math.max(0, pageBottom - position.y + ASTRA_BUTTON_GAP) : 0
+}
 
 export function parseAstraButtonPosition(stored: string | null): AstraButtonPoint | null {
   if (!stored) return null

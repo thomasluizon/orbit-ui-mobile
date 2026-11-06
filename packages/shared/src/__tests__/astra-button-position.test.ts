@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clampAstraButton, moveAstraButton, parseAstraButtonPosition, snapAstraButton } from '../utils/astra-button-position'
+import { clampAstraButton, getAstraButtonClearance, moveAstraButton, parseAstraButtonPosition, resolveAstraButtonArea, snapAstraButton } from '../utils/astra-button-position'
 
 describe('Astra button placement', () => {
   it.each([320, 412, 740, 1352])('snaps to either edge at width %i while clearing create and back-to-top', width => {
@@ -41,5 +41,34 @@ describe('Astra button placement', () => {
 
   it('withholds the control only when its container cannot fit a touch target', () => {
     expect(snapAstraButton(null, { width: 80, height: 80 }, [])).toBeNull()
+  })
+})
+
+describe('Astra button drag area', () => {
+  const viewport = { top: 24, bottom: 891, width: 412 }
+
+  it('spans the whole screen from the top safe area down to the tab bar', () => {
+    const area = resolveAstraButtonArea(viewport, [787])
+    expect(area).toEqual({ width: 412, height: 763 })
+    expect(clampAstraButton({ x: 200, y: -500 }, area).y).toBe(16)
+    const lowest = clampAstraButton({ x: 200, y: 5000 }, area)
+    expect(viewport.top + lowest.y + 60 + 16).toBe(787)
+  })
+
+  it('stops above the highest notice or selection slot while it shows', () => {
+    const area = resolveAstraButtonArea(viewport, [787, 640, 700])
+    expect(area.height).toBe(616)
+    expect(viewport.top + clampAstraButton({ x: 0, y: 5000 }, area).y + 60 + 16).toBe(640)
+  })
+
+  it('falls back to the viewport bottom and never reports a negative area', () => {
+    expect(resolveAstraButtonArea(viewport, [])).toEqual({ width: 412, height: 867 })
+    expect(resolveAstraButtonArea(viewport, [10])).toEqual({ width: 412, height: 0 })
+  })
+
+  it('reserves end-of-list clearance from the button position to the page bottom', () => {
+    expect(getAstraButtonClearance({ x: 336, y: 600 }, 680)).toBe(96)
+    expect(getAstraButtonClearance({ x: 336, y: 700 }, 680)).toBe(0)
+    expect(getAstraButtonClearance(null, 680)).toBe(0)
   })
 })
