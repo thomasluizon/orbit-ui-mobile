@@ -49,8 +49,9 @@ for (const width of [412, 840]) {
       await dragButton(page, 0, 0)
       const top = (await button.boundingBox())!
       const list = (await page.locator('[data-shell-scroller]').boundingBox())!
+      const column = (await page.locator('[data-shell-page-content]').boundingBox())!
       expect(top.y).toBeLessThan(list.y)
-      expect(top.x).toBe(16)
+      expect(top.x).toBe(column.x + 16)
       await expect(page.locator(conversation)).toHaveCount(0)
 
       await dragButton(page, 0, 915)

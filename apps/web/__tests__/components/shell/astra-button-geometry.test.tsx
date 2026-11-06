@@ -114,6 +114,68 @@ it.each([412, 840])('drags over the whole compact screen and never onto the tab 
   } finally { await page.close() }
 })
 
+interface AstraPlacementRecord { style: string; top: number; left: number }
+
+async function recordAstraPlacements(page: Page) {
+  await page.route('https://astra-entry.test/', route => route.fulfill({ contentType: 'text/html', body: `<!doctype html>${astraEntry()}` }))
+  await page.goto('https://astra-entry.test/')
+  await page.evaluate(() => {
+    const placements: AstraPlacementRecord[] = []
+    Object.assign(window, { placements })
+    new MutationObserver(() => {
+      const wrapper = document.querySelector<HTMLElement>('[data-astra-button-position]')
+      const style = wrapper?.getAttribute('style') ?? ''
+      if (!wrapper || !style.includes('translate') || placements.at(-1)?.style === style) return
+      const bounds = wrapper.getBoundingClientRect()
+      placements.push({ style, top: bounds.top, left: bounds.left })
+    }).observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ['style'] })
+  })
+  await page.addScriptTag({ content: composerScript })
+  await page.waitForFunction(() => (window as unknown as { placements: unknown[] }).placements.length > 0)
+  await settleFrames(page)
+}
+
+async function readAstraPlacements(page: Page) {
+  const placements = await page.evaluate(() => (window as unknown as { placements: AstraPlacementRecord[] }).placements)
+  return placements.map(({ style, top, left }) => {
+    const [, x, y] = style.match(/translate\(([\d.]+)px, ([\d.]+)px\)/)!
+    return { committed: { top: Number(y), left: Number(x) }, painted: { top, left } }
+  })
+}
+
+it('paints the first placement in the frame it commits under reduced motion', async () => {
+  const page = await browser.newPage({ viewport: { width: 412, height: 915 }, reducedMotion: 'reduce' })
+  try {
+    await recordAstraPlacements(page)
+    const [first] = await readAstraPlacements(page)
+    expect(first!.painted.top, JSON.stringify(first)).toBeCloseTo(first!.committed.top, 1)
+    expect(first!.painted.left, JSON.stringify(first)).toBeCloseTo(first!.committed.left, 1)
+  } finally { await page.close() }
+})
+
+it.each([412, 840])('paints every drag frame where it commits and lands on the leading column edge under reduced motion at %ipx', async width => {
+  const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
+  try {
+    await recordAstraPlacements(page)
+    const box = (await page.locator('[data-astra-button]').boundingBox())!
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(0, 0, { steps: 10 })
+    await page.mouse.up()
+    await settleFrames(page)
+    const frames = await readAstraPlacements(page)
+    expect(frames.length).toBeGreaterThan(2)
+    for (const frame of frames) {
+      expect(frame.painted.top, JSON.stringify(frame)).toBeCloseTo(frame.committed.top, 1)
+      expect(frame.painted.left, JSON.stringify(frame)).toBeCloseTo(frame.committed.left, 1)
+    }
+    const top = await page.evaluate(measureAstraBounds)
+    expect(top.top, JSON.stringify(top)).toBe(16)
+    expect(top.left).toBe(top.contentLeft + 16)
+    expect(top.conversations).toBe(0)
+  } finally { await page.close() }
+})
+
 it('keeps clear of the tab bar at every scroll offset of a short landscape window', async () => {
   const page = await browser.newPage({ viewport: { width: 915, height: 412 }, reducedMotion: 'reduce' })
   try {

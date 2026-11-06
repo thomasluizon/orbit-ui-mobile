@@ -251,7 +251,9 @@ without opening Astra. Web keeps the button in normal tab order; Enter and Space
 arrow keys move it. Android also exposes four named Move accessibility actions. Initial and restored positions appear
 without entrance movement; snap animation follows a requested move with `--ease-out` over 220ms.
 A new drag interrupts the snap
-at its displayed position. Reduced motion removes the snap animation.
+at its displayed position. Reduced motion removes the snap animation. On web, reduced motion
+also puts the first position and each drag frame on screen in the frame they change, so the button
+never trails the pointer and its measured position is always its painted position.
 The conversation retains live suggestions, the draft, attachments, AI disclosure, composer
 disclosure, running reply control, queue and the proactive line's destination. Reopening a collapsed
 conversation focuses its visible expand control and preserves its draft.
