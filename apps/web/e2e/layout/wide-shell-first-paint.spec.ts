@@ -47,6 +47,8 @@ for (const locale of ['en', 'pt-BR'] as const) {
               await expect(composer).toBeHidden()
               if (hydrated) await expect(composer).toHaveCount(0)
               await expect(page.locator('[data-shell-bottom]')).toHaveCSS('height', '0px')
+              await expect(page.locator('[data-astra-button]')).toBeHidden()
+              if (hydrated) await expect(page.locator('[data-astra-button]')).toHaveCount(0)
             } else {
               await expect(sidebar).toBeHidden()
               await expect(sidebarBell).toBeHidden()
@@ -104,7 +106,8 @@ for (const locale of ['en', 'pt-BR'] as const) {
         await expect(page.locator('[data-composer-root]')).toHaveCount(0)
         await page.setViewportSize({ width: 1100, height: 915 })
         await expect(page.locator('[data-shell-astra-row]')).toBeVisible()
-        await page.locator('[data-astra-button]').click()
+        await expect(page.locator('[data-astra-button]')).toHaveCount(0)
+        await page.locator('[data-shell-astra-row]').click()
         await expect(conversation.locator('[data-composer-input]')).toHaveValue('Retained draft')
         await page.setViewportSize({ width, height: 915 })
         await expect(conversation.locator('[data-composer-input]')).toHaveValue('Retained draft')

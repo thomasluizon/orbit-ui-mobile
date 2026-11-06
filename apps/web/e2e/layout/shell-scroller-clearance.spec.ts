@@ -57,7 +57,8 @@ for (const width of [412, 1280] as const) {
         await expect(scroller).toBeVisible()
         await expect(chrome).toBeAttached()
         await page.evaluate(() => document.fonts.ready)
-        if (name === 'Hoje') {
+        if (name === 'Hoje' && width >= 1024) await expect(page.locator('[data-astra-button]')).toHaveCount(0)
+        if (name === 'Hoje' && width < 1024) {
           const button = page.getByRole('button', { name: en.shell.astraButton.open, exact: true })
           await expect(button).toBeVisible()
           const bounds = (await button.boundingBox())!

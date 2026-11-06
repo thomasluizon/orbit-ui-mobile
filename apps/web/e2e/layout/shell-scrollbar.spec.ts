@@ -125,8 +125,12 @@ for (const width of [1352, 1100, 600]) {
       await page.goto('/')
       await expect(page.locator('[data-today-header-actions]')).toBeVisible()
       await expect(page.locator('[data-shell-pinned-slot] [data-composer-input]')).toHaveCount(0)
-      await expect(page.locator('[data-astra-button]')).toBeVisible()
-      if (width >= 1024) await expect(page.locator('[data-shell-astra-row]')).toBeVisible()
+      if (width >= 1024) {
+        await expect(page.locator('[data-shell-astra-row]')).toBeVisible()
+        await expect(page.locator('[data-astra-button]')).toHaveCount(0)
+      } else {
+        await expect(page.locator('[data-astra-button]')).toBeVisible()
+      }
       await page.evaluate(() => document.fonts.ready)
       await expectScrollbarGeometry(page)
     })
