@@ -1,4 +1,4 @@
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { parse } from 'yaml'
@@ -7,17 +7,19 @@ import { visibleBlock } from '../visible-blocks.mjs'
 import { visibleAnswer } from '../visible-answer.mjs'
 import { chatResponse, habitBlock } from './fixtures/producer.mjs'
 import { questionBlockFixture } from '../../../packages/shared/src/test-support/question-fixtures.ts'
-import { deniedBulkCreateReplyFixture, failedReadOperationFixture } from '../../../packages/shared/src/test-support/chat-fixtures.ts'
+import { calendarDayWindowScopeFixture, calendarReconnectReadFixture, deniedBulkCreateReplyFixture, failedReadOperationFixture } from '../../../packages/shared/src/test-support/chat-fixtures.ts'
+import en from '../../../packages/shared/src/i18n/en.json' with { type: 'json' }
+import pt from '../../../packages/shared/src/i18n/pt-BR.json' with { type: 'json' }
 
 const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8')).providers[0].config
-async function receive(extra, locale = 'pt-BR', supportsParts = true) {
+async function receive(extra, locale = 'pt-BR', supportsParts = true, vars = {}) {
   vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline-token')
   vi.stubGlobal('fetch', async () => Response.json({ ...chatResponse('request'), aiMessage: '', parts: [habitBlock], ...extra },
     { headers: { 'x-orbit-request-id': 'request' } }))
   const provider = new AstraHttpProvider({ config: { ...configuration, url: 'https://astra.invalid/api/chat',
     transformResponse: `file://${fileURLToPath(new URL('../response.mjs', import.meta.url))}` } })
   return provider.callApi('Show my habits.', { vars: { credentialKey: 'ORBIT_EVAL_TOKEN', evalRequestId: 'request',
-    clientContext: { supportsParts, locale }, clientContextJson: JSON.stringify({ supportsParts, locale }), historyJson: '[]' } })
+    clientContext: { supportsParts, locale }, clientContextJson: JSON.stringify({ supportsParts, locale }), historyJson: '[]', ...vars } })
 }
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 
@@ -317,4 +319,40 @@ it.each(['en', 'pt-BR'])('grades pre-habit gamification streak days as nothing d
   expect(statuses.slice(0, 12)).toEqual(Array(12).fill('calendar.dayCell.notScheduled'))
   expect(statuses.slice(12)).toHaveLength(2)
   expect(statuses.slice(12).every(status => typeof status === 'string' && status !== 'calendar.dayCell.notScheduled')).toBe(true)
+})
+
+describe('calendar read windows', () => {
+  const calendarPart = (read) => ({ type: 'block', kind: 'calendar', block: { events: [], surfaceId: 'calendar', read } })
+  const dayRead = { ...calendarReconnectReadFixture, scope: calendarDayWindowScopeFixture }
+
+  it.each([
+    ['en', 'Nov 5, 2026 - Jan 4, 2027'],
+    ['pt-BR', '5 de nov. de 2026 - 4 de jan. de 2027'],
+  ])('grades the whole default window in the fixture account zone and the reconnect message in %s', async (locale, window) => {
+    const { output } = await receive({ parts: [calendarPart(calendarReconnectReadFixture)] }, locale, true, { accountTimeZone: 'America/Sao_Paulo' })
+    const [part] = JSON.parse(output.answer).parts
+    expect(part.block).toMatchObject({ window, recovery: (locale === 'en' ? en : pt).chat.readBlock.reconnect })
+  })
+
+  it.each([
+    ['en', 'Apr 1, 2026'],
+    ['pt-BR', '1 de abr. de 2026'],
+  ])('grades a date_from window as the one account day it reads in %s', async (locale, window) => {
+    const { output } = await receive({ parts: [calendarPart(dayRead)] }, locale, true, { accountTimeZone: 'America/Sao_Paulo' })
+    expect(JSON.parse(output.answer).parts[0].block.window).toBe(window)
+  })
+
+  it('grades the account day of the fixture zone, not the UTC day of the window', () => {
+    const read = { ...calendarReconnectReadFixture, scope: { ...calendarDayWindowScopeFixture,
+      window_from_utc: '2026-11-06T01:30:00.0000000Z', window_to_utc: '2026-11-08T01:30:00.0000000Z' } }
+    const answer = (accountTimeZone) => JSON.parse(visibleAnswer({ aiMessage: '', parts: [calendarPart(read)] },
+      { supportsParts: true, locale: 'en' }, '2026-11-06', accountTimeZone)).parts[0].block.window
+    expect(answer('America/Sao_Paulo')).toBe('Nov 5, 2026 - Nov 7, 2026')
+    expect(answer('UTC')).toBe('Nov 6, 2026 - Nov 8, 2026')
+  })
+
+  it('grades no UTC window when the fixture never recorded the account zone, as both clients do before the profile loads', async () => {
+    const { output } = await receive({ parts: [calendarPart(calendarReconnectReadFixture)] }, 'en')
+    expect(JSON.parse(output.answer).parts[0].block).not.toHaveProperty('window')
+  })
 })

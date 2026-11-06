@@ -212,6 +212,7 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
     throw new Error('Fixture needs a fresh Free daily window with zero Astra messages used.')
   }
   if (!isBehindState(test.vars)) await api('PUT', 'profile/timezone', { timeZone: 'UTC' })
+  test.vars.accountTimeZone = isBehindState(test.vars) ? profile.timeZone : 'UTC'
   await api('PUT', 'profile/language', { language: test.metadata.locale ?? 'en' })
   if (fixture === 'budget-exhausted') {
     await exhaustAllowance(api, profile, test.metadata.locale)
