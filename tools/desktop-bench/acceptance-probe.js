@@ -56,13 +56,19 @@
       targetInput: event.target === input, documentFocused: document.hasFocus(), before: paletteState(),
       metaKey: event.metaKey, ctrlKey: event.ctrlKey, altKey: event.altKey, shiftKey: event.shiftKey })
   }
+  // cmdk names its input through aria-labelledby, which outranks aria-label: https://www.w3.org/TR/accname-1.2/#computation-steps
+  function accessibleName(element) {
+    const labelledBy = element?.getAttribute('aria-labelledby')?.split(/\s+/)
+      .map((id) => document.getElementById(id)?.textContent.trim()).filter(Boolean).join(' ')
+    return labelledBy || element?.getAttribute('aria-label') || null
+  }
   function paletteState() {
     const input = document.querySelector('[cmdk-input]')
     const results = [...document.querySelectorAll('[cmdk-item]:not([aria-disabled="true"])')]
     const selected = results.findIndex((result) => result.getAttribute('aria-selected') === 'true')
     return { busy: document.querySelector('[cmdk-list]')?.getAttribute('aria-busy') === 'true',
       inputFocused: document.activeElement === input, selected, results: results.map((result) => result.getAttribute('aria-label') || result.textContent.trim()),
-      inputName: input?.getAttribute('aria-label'), listId: input?.getAttribute('aria-controls'), activeDescendantId: input?.getAttribute('aria-activedescendant') }
+      inputName: accessibleName(input), listId: input?.getAttribute('aria-controls'), activeDescendantId: input?.getAttribute('aria-activedescendant') }
   }
   async function update(expected) {
     const invoke = window.__TAURI_INTERNALS__?.invoke
