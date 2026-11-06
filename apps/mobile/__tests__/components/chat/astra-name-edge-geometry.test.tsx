@@ -62,6 +62,14 @@ function stateContent(state: string) {
   return <PendingOperationCard pendingOperation={makeCreateHabitsPreview(2)} onConfirmExecute={vi.fn().mockResolvedValue({ ok: true, response: makeBulkCreateExecutionResponse(state === 'failed' ? ['Failed', 'Failed'] : ['Success', 'Success']) })} onRevise={vi.fn()} onOpenTarget={vi.fn()} onPrepareStepUp={vi.fn()} onVerifyStepUp={vi.fn()} />
 }
 
+type MeasuredControl = ReturnType<typeof measureProfileRow>['controls'][number]
+
+function expectNeighborClearance(row: Host, control: MeasuredControl, neighbor: MeasuredControl | undefined, hitPadding: number, rowWidth: number) {
+  const settled = StyleSheet.flatten(typeof row.props.style === 'function' ? row.props.style({ pressed: false }) : row.props.style).flexDirection === 'column'
+  if (neighbor && settled) expect(control.bottom).toBeLessThanOrEqual(neighbor.top - hitPadding)
+  else expect(control.right).toBeLessThanOrEqual(neighbor ? neighbor.left - hitPadding : rowWidth)
+}
+
 function expectEdges(tree: Tree, width: number, hasWell: boolean) {
   const rows = itemRows(tree.toJSON())
   expect(rows.length).toBeGreaterThan(0)
@@ -81,7 +89,7 @@ function expectEdges(tree: Tree, width: number, hasWell: boolean) {
     expect(control.left).toBeGreaterThanOrEqual(0)
     const neighbor = geometry.controls.find(candidate => candidate !== control)
     const hitPadding = itemHitPadding(row)
-    expect(control.right).toBeLessThanOrEqual(neighbor ? neighbor.left - hitPadding : Math.min(width - 32, 740) - 50)
+    expectNeighborClearance(row, control, neighbor, hitPadding, Math.min(width - 32, 740) - 50)
   }
 }
 

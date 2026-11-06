@@ -13,6 +13,7 @@ import { daySummaryCardSchema } from '@orbit/shared/types/chat'
 import { DaySummaryCard } from '@/components/chat/day-summary-card'
 import { OperationOutcomes } from '@/components/chat/operation-outcomes'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
+import { BlockFrame } from '@/components/ui/block-frame'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { readControlHitArea } from '@/test-support/control-hit-area'
@@ -100,6 +101,24 @@ describe('Block action row geometry in Chromium', () => {
       expect(Math.abs(reject!.top - approve!.top)).toBeLessThanOrEqual(0.5)
       expect(approve!.left - reject!.right).toBeCloseTo(12, 1)
       expect(approve!.height).toBe(reject!.height)
+    } finally { await page.close() }
+  })
+
+  it.each(cases)('keeps a plain acting row with a count beside its label unless the frame stacks settled rows at $width in $locale', async ({ width, locale }) => {
+    const messages = locale === 'en' ? en : pt
+    const frameItems = [{ id: 'due', label: messages.chat.daySummary.overdue, control: <span>3</span> }]
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
+      <div style={{ width: Math.min(width, 600), padding: 16 }}>
+        <BlockFrame state="acting" title={messages.chat.daySummary.title} items={frameItems} />
+        <BlockFrame state="acting" title={messages.chat.daySummary.title} items={frameItems} stackSettledRows />
+      </div>
+    </NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style><div class="dark">${container.innerHTML}</div>`)
+      await loadAppFonts(page)
+      const directions = await page.locator('[data-status="acting"]').evaluateAll(rows => rows.map(row => getComputedStyle(row).flexDirection))
+      expect(directions).toEqual(['row', 'column'])
     } finally { await page.close() }
   })
 
