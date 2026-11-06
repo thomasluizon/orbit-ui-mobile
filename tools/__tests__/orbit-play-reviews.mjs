@@ -64,11 +64,17 @@ export const cases = async () => {
     workflow.jobs.reviews.if.includes("inputs.replies == ''") && workflow.jobs.replies.if.includes("inputs.replies != ''"))
   const appStore = workflow.jobs["app-store-reviews"]
   const appStoreGate = appStore.steps[0]
-  T("app store: reviews read the app id and key from the production iOS environment", appStore.environment === "ios-production" &&
+  const readsProductionEnvironment = (job) => job.environment?.name === "ios-production" && job.environment.deployment === false
+  T("app store: reviews read the app id and key from the production iOS environment without a deployment record", readsProductionEnvironment(appStore) &&
     appStore.if === "github.ref == 'refs/heads/main' && inputs.replies == ''" &&
     appStoreGate.env?.ORBIT_IOS_APP_STORE_ID === "${{ vars.ORBIT_IOS_APP_STORE_ID }}" &&
     appStore.steps.slice(1).every((step) => step.if === `steps.${appStoreGate.id}.outputs.configured == 'true'`) &&
     appStore.steps.at(-1).with.name === "orbit-app-store-reviews")
+  const replies = workflow.jobs.replies
+  const replyStep = replies.steps.find((step) => step.env?.REVIEW_REPLIES)
+  T("app store: replies read the app id and key from the production iOS environment without a deployment record", readsProductionEnvironment(replies) &&
+    replyStep.env.ORBIT_IOS_APP_STORE_ID === "${{ vars.ORBIT_IOS_APP_STORE_ID }}" &&
+    replyStep.env.APP_STORE_CONNECT_API_PRIVATE_KEY === "${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}")
   T("play: key stays in the collection step and artifact expires", workflow.jobs.reviews.steps.filter((step) => step.env?.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON).length === 1 &&
     workflow.jobs.reviews.steps.at(-1).with["retention-days"] === 1 && workflow.permissions.contents === "read")
 }

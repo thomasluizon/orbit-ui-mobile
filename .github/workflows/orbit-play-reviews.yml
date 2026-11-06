@@ -50,8 +50,11 @@ jobs:
           retention-days: 1
   app-store-reviews:
     # A job-level if sees only repository variables; the app id lives in the ios-production environment.
+    # deployment: false keeps the environment's secrets without a deployment record on each intake run.
     if: github.ref == 'refs/heads/main' && inputs.replies == ''
-    environment: ios-production
+    environment:
+      name: ios-production
+      deployment: false
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -91,7 +94,11 @@ jobs:
           if-no-files-found: error
           retention-days: 1
   replies:
+    # App Store replies read the app id and key from ios-production, also without a deployment record.
     if: github.ref == 'refs/heads/main' && inputs.replies != ''
+    environment:
+      name: ios-production
+      deployment: false
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
