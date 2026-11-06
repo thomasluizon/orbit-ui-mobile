@@ -87,7 +87,7 @@ describe('habit suggestion actions on web', () => {
     mocks.preview.mockRejectedValueOnce(new Error('Unavailable'))
     mount(); await click('Add all'); await click(action)
     if (action === 'Tweak') {
-      fireEvent.change(screen.getByRole('textbox', { name: 'Tweak this habit...' }), { target: { value: 'one page' } })
+      fireEvent.change(screen.getByRole('textbox', { name: 'What should change?' }), { target: { value: 'one page' } })
       await click('Apply')
     }
     await click('Retry')
@@ -132,7 +132,7 @@ describe('habit suggestion actions on web', () => {
   it('Tweak sends the draft and inline instruction and replaces only that card', async () => {
     mount(); const other = screen.getByRole('button', { name: 'Stretch' })
     await click('Tweak')
-    fireEvent.change(screen.getByRole('textbox', { name: 'Tweak this habit...' }), { target: { value: 'one page' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'What should change?' }), { target: { value: 'one page' } })
     await click('Apply')
     expect(mocks.refine).toHaveBeenCalledExactlyOnceWith(draft, 'one page')
     expect(screen.getByRole('button', { name: 'Read one page' })).toBeInTheDocument()
