@@ -136,7 +136,7 @@ vi.mock('@/components/shell/shell-wide', () => ({
       </>}
       {mocks.wide && onPalette ? <button type="button" onClick={onPalette}>{paletteLabel}</button> : null}
       {mocks.wide && paletteHint ? <kbd>{paletteHint}</kbd> : null}
-      <MockComposerSlot composer={composer} />{astraButton}
+      <MockComposerSlot composer={composer} /><div data-shell-page="" />{astraButton}
       {mocks.wide ? items?.map((item) => (
         <a href={item.href} key={item.id} aria-current={item.id === activeId ? 'page' : undefined} onClick={(event) => { event.preventDefault(); onSelect?.(item.id) }}>{item.label}</a>
       )) : tabBar}

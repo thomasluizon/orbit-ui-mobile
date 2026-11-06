@@ -154,3 +154,16 @@ it('reserves end-of-list clearance on the page from its current position', async
   act(() => useUIStore.getState().registerOpenOverlay('sheet'))
   expect(page.style.getPropertyValue('--shell-astra-clearance')).toBe('0px')
 })
+
+it('stops measuring without an error once it leaves the shell', async () => {
+  const errors: unknown[] = []
+  const record = (event: ErrorEvent) => { errors.push(event.error); event.preventDefault() }
+  window.addEventListener('error', record)
+  try {
+    mount()
+    await waitFor(() => expect(placement().style.transform).toBe('translate(336px, 440px)'))
+    document.querySelector('[data-astra-button-area]')!.remove()
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(errors).toEqual([])
+  } finally { window.removeEventListener('error', record) }
+})

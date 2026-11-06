@@ -15,9 +15,8 @@ const OBSTACLE_SELECTOR = '[data-shell-fab], [data-shell-scroll-to-top]>div'
 
 interface AstraPlacement { area: AstraButtonArea; obstacles: AstraButtonObstacle[]; pageBottom: number }
 
-function measurePlacement(host: HTMLDivElement): AstraPlacement {
+function measurePlacement(host: HTMLDivElement, shell: HTMLElement): AstraPlacement {
   const bounds = host.getBoundingClientRect()
-  const shell = host.parentElement!
   const floors = [...shell.querySelectorAll<HTMLElement>(FLOOR_SELECTOR)].flatMap(element => {
     const rect = element.getBoundingClientRect()
     return rect.height ? [rect.top] : []
@@ -30,11 +29,11 @@ function measurePlacement(host: HTMLDivElement): AstraPlacement {
   return { area: resolveAstraButtonArea(bounds, floors), obstacles, pageBottom: page.bottom - bounds.top }
 }
 
-function observePlacement(host: HTMLDivElement, update: () => void) {
-  const shell = host.parentElement!
+function observePlacement(host: HTMLDivElement, shell: HTMLElement, update: () => void) {
   const observer = new ResizeObserver(update)
   let observed: Element[] = []
   const observeControls = () => {
+    if (!host.isConnected) return
     const controls = [host, ...shell.querySelectorAll(`[data-shell-page], ${FLOOR_SELECTOR}, ${OBSTACLE_SELECTOR}`)]
     if (controls.length !== observed.length || controls.some((element, index) => element !== observed[index])) {
       observed = controls
@@ -116,10 +115,11 @@ export function AstraButton() {
   const position = dragged ?? snapAstraButton(saved, placement.area, placement.obstacles)
   useEffect(() => {
     const host = hostRef.current!
+    const shell = host.parentElement!
     let active = true
     let previousMeasure = ''
     const updatePlacement = () => {
-      const measured = measurePlacement(host)
+      const measured = measurePlacement(host, shell)
       const serialized = JSON.stringify(measured)
       if (serialized === previousMeasure) return
       previousMeasure = serialized
@@ -138,7 +138,7 @@ export function AstraButton() {
       if (!active) return
       savedPosition.current = parseAstraButtonPosition(localStorage.getItem(ASTRA_POSITION_KEY))
       setSaved(savedPosition.current)
-      stopObserving = observePlacement(host, updatePlacement)
+      stopObserving = observePlacement(host, shell, updatePlacement)
     })
     return () => { active = false; stopObserving?.() }
   }, [])

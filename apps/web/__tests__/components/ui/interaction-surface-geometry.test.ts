@@ -48,3 +48,21 @@ it('reads each normal style once per measurement while detecting a nearby painte
     await page.close()
   }
 })
+
+it.each([
+  { shadow: '0 12px 40px black', fails: false },
+  { shadow: '0 0 0 8px black', fails: true },
+])('measures a $shadow neighbour shadow as fill paint only when it spreads', async ({ shadow, fails }) => {
+  const page = await browser.newPage({ viewport: { width: 320, height: 640 } })
+  try {
+    await page.setContent(`<style>
+      body { margin: 0 }
+      button { position: absolute; left: 20px; top: 20px; width: 80px; height: 48px; border: 0; background: black }
+      #neighbour { position: absolute; left: 112px; top: 20px; width: 48px; height: 48px; background: black; box-shadow: ${shadow} }
+    </style><button>Action</button><span id="neighbour" aria-label="Neighbour"></span>`)
+    const geometry = await page.getByRole('button', { name: 'Action' }).evaluate(inspectInteractionSurface, INTERACTION_FILL_CLEARANCE)
+    expect(geometry.violations.some(violation => violation.neighbour === 'span#neighbour[Neighbour]')).toBe(fails)
+  } finally {
+    await page.close()
+  }
+})

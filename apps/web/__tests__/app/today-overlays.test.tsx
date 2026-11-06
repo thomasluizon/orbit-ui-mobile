@@ -62,7 +62,7 @@ vi.mock('@/components/shell/shell-wide', () => ({
     composer?: ReactNode
     astraButton?: ReactNode
     tabBar?: ReactNode
-  }) => <main>{header}{children}{composer}{astraButton}{tabBar}</main>,
+  }) => <main>{header}{children}{composer}<div data-shell-page="" />{astraButton}{tabBar}</main>,
 }))
 vi.mock('@/components/habits/habit-list', () => ({
   HabitList: () => <p>Morning walk</p>,
