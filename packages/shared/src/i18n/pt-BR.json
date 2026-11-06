@@ -997,7 +997,7 @@
       "addSubTask": "Adicionar subtarefa",
       "removeSubTask": "Remover subtarefa",
       "noSetTime": "Sem horário",
-      "addEndTime": "Tem fim?",
+      "addEndTime": "Tem duração?",
       "repeatInterval": "De quanto em quanto tempo?",
       "reminderCustomUnit": "Em qual unidade?",
       "descriptionQuestion": "Quer anotar alguma coisa?",
