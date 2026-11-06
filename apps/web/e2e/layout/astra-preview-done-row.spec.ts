@@ -63,7 +63,7 @@ for (const width of [412, 1280]) {
         expect(pending.text.replace(/ /g, ' ')).toContain(TICKET_TASK_DESCRIPTION)
 
         await setLayoutFixtureSession(context, [{ path: API.chat.latestConversation, body: ticketHistory(true) }])
-        await page.reload()
+        await page.goto('/?astra=open')
         await expect(summary).toHaveCount(1)
         await expect(conversation.getByText(messages.blockFrame.status.done, { exact: true })).toBeVisible()
         await expect(conversation.getByRole('button', { name: messages.chat.action.openEntity.replace('{name}', TICKET_TASK_TITLE), exact: true })).toBeVisible()
