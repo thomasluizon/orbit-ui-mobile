@@ -60,7 +60,7 @@ for (const width of [412, 1280]) {
         await expect(summary).toHaveCount(1)
         await page.evaluate(() => document.fonts.ready)
         const pending = await readSummary(summary)
-        expect(pending.text.replace(/ /g, ' ')).toContain(TICKET_TASK_DESCRIPTION)
+        expect(pending.text.replace(/\u00a0/g, ' ')).toContain(TICKET_TASK_DESCRIPTION)
 
         await setLayoutFixtureSession(context, [{ path: API.chat.latestConversation, body: ticketHistory(true) }])
         await page.goto('/?astra=open')
@@ -75,7 +75,7 @@ for (const width of [412, 1280]) {
         expect(done.trailingTop!).toBeGreaterThanOrEqual(done.wordsBottom!)
         expect(done.overflow).toBeLessThanOrEqual(1)
         expect(done.blockOverflow).toBeLessThanOrEqual(1)
-        for (const pair of done.breaks) expect([' ', ' '], `line break inside ${JSON.stringify(pair)}`).toContain(pair[0])
+        for (const pair of done.breaks) expect([' ', '\u00a0'], `line break inside ${JSON.stringify(pair)}`).toContain(pair[0])
       })
     })
   }

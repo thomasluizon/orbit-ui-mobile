@@ -36,6 +36,7 @@ const actionHitPadding = (TOUCH_TARGET_MIN - SMALL_PILL_VISIBLE_MIN) / 2
 type FrameRowProps = Readonly<{
   item: BlockFrameItem
   frameState: BlockFrameProps['state']
+  stackSettled: boolean
   statusLabel?: string
   irreversibleLabel?: string
   proposedLabel?: string
@@ -104,10 +105,10 @@ function RowWords({ item, settled, irreversibleLabel, tokens }: Readonly<{
 }
 
 function FrameRowContent(props: FrameRowProps) {
-  const { item, frameState, statusLabel, onEditItem, tokens } = props
+  const { item, frameState, stackSettled, statusLabel, onEditItem, tokens } = props
   const status = frameState === 'acting' ? 'acting' : item.status
   const isEditable = status == null && frameState !== 'stale' && item.editable !== false
-  const settled = status != null
+  const settled = stackSettled && status != null
   return (
     <View
       style={getRowStyle(item.wrapLabel, item.indented, settled)}
@@ -183,6 +184,7 @@ function FrameRows({ frameProps, tokens }: Readonly<{
         item={rowProps.item}
         onEditItem={rowProps.onEditItem}
         proposedLabel={rowProps.proposedLabel}
+        stackSettled={rowProps.stackSettled}
         statusLabel={rowProps.statusLabel}
         tokens={tokens}
       />

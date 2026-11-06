@@ -82,10 +82,10 @@ function RowWords({ item, settled, irreversibleLabel }: Readonly<{ item: BlockFr
 }
 
 function FrameRowContent(props: ResolvedBlockFrameRow) {
-  const { item, frameState, statusLabel, onEditItem } = props
+  const { item, frameState, stackSettled, statusLabel, onEditItem } = props
   const status = frameState === 'acting' ? 'acting' : item.status
   const isEditable = status == null && frameState !== 'stale' && item.editable !== false
-  const settled = status != null
+  const settled = stackSettled && status != null
   return (
     <div
       className={`flex min-h-[52px] gap-[12px] p-3 ${getRowAlignment(settled, item.wrapLabel)}`}

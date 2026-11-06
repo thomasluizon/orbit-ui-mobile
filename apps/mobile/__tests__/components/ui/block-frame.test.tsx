@@ -163,8 +163,15 @@ describe('BlockFrame on mobile', () => {
     void act(() => tree.unmount())
   })
 
+  it('keeps a plain acting row with a count beside its label when the frame does not stack settled rows', () => {
+    const tree = render(<BlockFrame {...frame({ state: 'acting', items: [{ id: 'due', label: 'Due today', control: <Text>3</Text> }] })} />)
+    const row = tree.root.find((node) => node.type === 'View' && prop(node, 'testID') === 'block-frame-item-due-acting')
+    expect(StyleSheet.flatten(prop<ViewStyle>(row, 'style')).flexDirection).toBe('row')
+    void act(() => tree.unmount())
+  })
+
   it.each(['done', 'acting', 'failed'] as const)('gives the words the full row width and moves the %s outcome and action below them', status => {
-    const tree = render(<BlockFrame {...frame({ items: [
+    const tree = render(<BlockFrame {...frame({ stackSettledRows: true, items: [
       { id: 'settled', wrapLabel: true, wrapMeta: true, label: 'Concert ticket', meta: 'Doors at 19:30', status, control: <Button size="sm" variant="ghost" onPress={vi.fn()}>Open</Button> },
       { id: 'waiting', wrapLabel: true, label: 'Water', control: <Pressable accessibilityLabel="Remove item"><Text>Remove</Text></Pressable> },
     ] })} />)

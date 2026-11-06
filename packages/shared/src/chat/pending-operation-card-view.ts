@@ -78,6 +78,7 @@ interface PendingOperationFrameBase<Node> {
   title: string
   wrapTitle?: boolean
   focusTitleOnMount?: boolean
+  stackSettledRows: true
   body?: Node
   count?: number
   items: readonly {
@@ -479,6 +480,7 @@ function previewFrame<Node>(
     title: previewItems ? labels.name : labels.pendingTitle,
     wrapTitle: true,
     focusTitleOnMount: card.focusTitleOnMount,
+    stackSettledRows: true,
     body: frameBody(pendingOperation, card, labels, render),
     count: pendingOperation.changeTargetCount ?? undefined,
     items: previewItems ?? [{

@@ -6,10 +6,12 @@
 ### Settled preview row amendment (#2048)
 
 Under D42, the owner's #2048 order amends the `preview refresh` note in
-`Orbit Astra Conversation.dc.html`. On an acting, completed or failed preview row, the
-outcome and the Open action move below the title and summary, inside the row, at the
-trailing edge. The words keep the full row width. Pending rows keep their actions beside
-the title's first line. The paired owners and verification live in
+`Orbit Astra Conversation.dc.html`. On an acting, completed or failed row of a write
+preview, the outcome and the Open action move below the title and summary, inside the
+row, at the trailing edge. The words keep the full row width. The write previews are the
+pending operation card and the breakdown suggestion. Pending rows keep their actions
+beside the title's first line. Read blocks, the day summary and action chips keep their
+row layout while they refresh or log. The paired owners and verification live in
 [the preview inventory](../astra-preview-surfaces.md).
 
 ### Hoje floating Astra entry
