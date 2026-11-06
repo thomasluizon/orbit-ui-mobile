@@ -88,6 +88,7 @@ const mocks = vi.hoisted(() => {
     launchImageLibraryAsync: vi.fn(),
     routerPush: vi.fn(),
     toggleRecording: vi.fn(),
+    clearSpeechError: vi.fn(),
     useQueryClient: vi.fn(() => queryClient),
   }
 })
@@ -273,6 +274,7 @@ vi.mock('@/hooks/use-speech-to-text', () => ({
     isSupported: mocks.state.speechSupported,
     transcript: mocks.state.transcript,
     error: mocks.state.speechError,
+    clearError: mocks.clearSpeechError,
     startRecording: vi.fn(),
     stopRecording: vi.fn(),
     toggleRecording: mocks.toggleRecording,
@@ -1299,6 +1301,25 @@ describe('mobile useChatComposer', () => {
     expect(inputHosts(tree)[0].props.value).toBe('Keep my draft Voice recovered')
   })
 
+  it.each(['speech.noSpeech', 'errors.api.transcriptionFailed', 'speech.micDenied'])('shows the failed send error with Retry after an earlier %s, and a later speech error over it', async (speechMessage) => {
+    const composer = await renderComposer()
+    mocks.state.speechError = speechMessage
+    await TestRenderer.act(async () => { composer.rerender(); await Promise.resolve() })
+    expect(composer.current.composerProps.errorMessage).toBe(speechMessage)
+    TestRenderer.act(() => { composer.current.setInput('Plan my morning') })
+    mocks.openChatStream.mockRejectedValueOnce(new Error('network unavailable'))
+    await TestRenderer.act(async () => { await composer.current.sendMessage() })
+    expect(useChatStore.getState().messages.find(message => message.role === 'user')?.content).toBe('Plan my morning')
+    expect(composer.current.composerProps.errorMessage).toBe('chat.sendError')
+    expect(composer.current.composerProps.errorRecovery).toBeUndefined()
+    expect(composer.current.composerProps.onRetry).toBeDefined()
+    mocks.state.speechError = speechMessage
+    await TestRenderer.act(async () => { composer.rerender(); await Promise.resolve() })
+    expect(composer.current.composerProps.errorMessage).toBe(speechMessage)
+    expect(composer.current.composerProps.errorRecovery?.label).toBe(speechMessage === 'speech.micDenied' ? 'common.openSettings' : undefined)
+    expect(composer.current.composerProps.onRetry).toBeDefined()
+  })
+
   it.each(['transport', 'attachment'] as const)('preserves a %s error through speech denial and recovery', async (producer) => {
     const composer = await renderComposer()
     if (producer === 'transport') {
@@ -1687,6 +1708,8 @@ describe('mobile useChatComposer', () => {
     mocks.launchImageLibraryAsync.mockReset()
     mocks.routerPush.mockReset()
     mocks.toggleRecording.mockReset()
+    mocks.clearSpeechError.mockReset()
+    mocks.clearSpeechError.mockImplementation(() => { mocks.state.speechError = null })
     mocks.queryClient.invalidateQueries.mockReset()
     mocks.queryClient.invalidateQueries.mockResolvedValue(undefined)
     mocks.queryClient.getQueryData.mockReset()

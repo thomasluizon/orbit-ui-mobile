@@ -56,6 +56,7 @@ const mocks = vi.hoisted(() => ({
   fetch: vi.fn(),
   routerPush: vi.fn(),
   toggleRecording: vi.fn(),
+  clearSpeechError: vi.fn(),
   queryClient: {
     isMutating: () => 0,
     invalidateQueries: vi.fn(async (_filters?: InvalidateQueryFilters) => {}),
@@ -161,6 +162,7 @@ vi.mock('@/hooks/use-speech-to-text', () => ({
     isSupported: mocks.state.speechSupported,
     transcript: mocks.state.transcript,
     error: mocks.state.speechError,
+    clearError: mocks.clearSpeechError,
     toggleRecording: mocks.toggleRecording,
     recordingDuration: 0,
   }),
@@ -1126,6 +1128,23 @@ describe('web useChatComposer streaming send', () => {
     expect(screen.getByRole('textbox')).toHaveValue('Keep my draft Voice recovered')
   })
 
+  it.each(['speech.noSpeech', 'errors.api.transcriptionFailed', 'speech.micDenied'])('shows the failed send error with Retry after an earlier %s, and a later speech error over it', async (speechMessage) => {
+    const { result, rerender } = renderHook(() => useChatComposer())
+    mocks.state.speechError = speechMessage
+    rerender()
+    expect(result.current.composerProps.errorMessage).toBe(speechMessage)
+    act(() => { result.current.setInput('Plan my morning') })
+    mocks.fetch.mockRejectedValueOnce(new Error('network unavailable'))
+    await act(async () => { await result.current.sendMessage() })
+    expect(mocks.fetch.mock.calls[0]?.[1]?.body.get('message')).toBe('Plan my morning')
+    expect(result.current.composerProps.errorMessage).toBe('chat.sendError')
+    expect(result.current.composerProps.onRetry).toBeDefined()
+    mocks.state.speechError = speechMessage
+    rerender()
+    expect(result.current.composerProps.errorMessage).toBe(speechMessage)
+    expect(result.current.composerProps.onRetry).toBeDefined()
+  })
+
   it.each(['transport', 'attachment'] as const)('preserves a %s error through speech denial and recovery', async (producer) => {
     const { result, rerender } = renderHook(() => useChatComposer())
     if (producer === 'transport') {
@@ -1508,6 +1527,8 @@ describe('web useChatComposer streaming send', () => {
     mocks.fetch.mockReset()
     mocks.routerPush.mockReset()
     mocks.toggleRecording.mockReset()
+    mocks.clearSpeechError.mockReset()
+    mocks.clearSpeechError.mockImplementation(() => { mocks.state.speechError = null })
     mocks.queryClient.invalidateQueries.mockReset()
     mocks.queryClient.invalidateQueries.mockResolvedValue(undefined)
     mocks.queryClient.getQueryData.mockReset()
