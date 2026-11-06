@@ -259,6 +259,8 @@ export function useSpeechToText() {
 
   useResetOnAccountChange(discardRecording)
 
+  const clearError = useCallback(() => { setError(null) }, [setError])
+
   const toggleRecording = useCallback(() => {
     if (isRecording) stopRecording()
     else void startRecording()
@@ -281,6 +283,7 @@ export function useSpeechToText() {
     isSupported,
     transcript,
     error,
+    clearError,
     startRecording,
     stopRecording,
     toggleRecording,

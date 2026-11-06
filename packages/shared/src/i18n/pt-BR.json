@@ -1640,7 +1640,6 @@
     "dailyBudgetReached": "A Astra chegou ao limite de hoje. Você pode usar a Astra de novo amanhã.",
     "limitReachedError": "Você usou as mensagens de hoje com a Astra. Elas voltam à meia-noite, no seu fuso horário.",
     "limitReachedErrorWeekly": "Você usou as mensagens da semana com a Astra.",
-    "aiError": "Desculpe, algo deu errado. Tente de novo.",
     "operationFailed": "Não funcionou. Tente de novo.",
     "action": {
       "changes": "Alterações",

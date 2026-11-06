@@ -277,6 +277,8 @@ describe('useSpeechToText', () => {
 
       expect(result.current.error).toBe('speech.micDenied')
       expect(result.current.isRecording).toBe(false)
+      act(() => { result.current.clearError() })
+      expect(result.current.error).toBeNull()
     })
 
     it('auto-stops and transcribes after a silence once speech is detected', async () => {
