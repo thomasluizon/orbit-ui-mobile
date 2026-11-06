@@ -90,6 +90,7 @@ const mocks = vi.hoisted(() => {
     launchImageLibraryAsync: vi.fn(),
     routerPush: vi.fn(),
     toggleRecording: vi.fn(),
+    clearSpeechError: vi.fn(),
     useQueryClient: vi.fn(() => queryClient),
   }
 })
@@ -319,6 +320,7 @@ vi.mock('@/hooks/use-speech-to-text', () => ({
     isSupported: mocks.state.speechSupported,
     transcript: mocks.state.transcript,
     error: mocks.state.speechError,
+    clearError: mocks.clearSpeechError,
     startRecording: vi.fn(),
     stopRecording: vi.fn(),
     toggleRecording: mocks.toggleRecording,
@@ -682,7 +684,6 @@ describe('mobile useChatComposer', () => {
     const notice = i18n.t('chat.dailyBudgetReached')
     expect(visibleComposerRoot(tree).findAllByType('Text').filter((node: { props: { children?: unknown } }) => node.props.children === notice)).toHaveLength(1)
     expect(inputHosts(tree)[0].props.value).toBe(draft)
-    expect(visibleMessageTexts(tree)).not.toContain(i18n.t('chat.aiError'))
     expect(visibleMessageTexts(tree)).not.toContain(i18n.t('chat.sendError'))
     expect(visibleComposerRoot(tree).findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === i18n.t('shell.composer.retry'))).toHaveLength(0)
     await TestRenderer.act(async () => { inputHosts(tree)[0].props.onSubmitEditing(); await Promise.resolve() })
@@ -1131,8 +1132,12 @@ describe('mobile useChatComposer', () => {
     expect(pending()).toHaveLength(arrival === 'text' ? 1 : 0)
     if (arrival === 'text') expect(visibleMessageTexts(tree)).not.toContain('Start with water')
     if (arrival === 'tool') expect(visibleMessageTexts(tree)).toContain('chat.trace.habits.read')
-    if (arrival === 'drop' || arrival === 'incomplete') {
+    if (arrival === 'error' || arrival === 'drop' || arrival === 'incomplete') {
       expect(visibleMessageTexts(tree)).toContain('chat.sendError')
+      expect(visibleMessageTexts(tree)).not.toContain('chat.aiError')
+      expect(visibleMessageTexts(tree)).not.toContain('Partial')
+    }
+    if (arrival === 'drop' || arrival === 'incomplete') {
       mocks.openChatStream.mockResolvedValueOnce(sseStreamResponse(finalFrame(makeChatResponse())))
       const retry = tree.root.findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === 'shell.composer.retry')[0]
       await TestRenderer.act(async () => { retry.props.onPress(); await Promise.resolve() })
@@ -1338,6 +1343,25 @@ describe('mobile useChatComposer', () => {
     await TestRenderer.act(async () => { tree.update(<ComposerConversationHarness />); await Promise.resolve() })
     expect(visibleMessageTexts(tree)).not.toContain('speech.micDenied')
     expect(inputHosts(tree)[0].props.value).toBe('Keep my draft Voice recovered')
+  })
+
+  it.each(['speech.noSpeech', 'errors.api.transcriptionFailed', 'speech.micDenied'])('shows the failed send error with Retry after an earlier %s, and a later speech error over it', async (speechMessage) => {
+    const composer = await renderComposer()
+    mocks.state.speechError = speechMessage
+    await TestRenderer.act(async () => { composer.rerender(); await Promise.resolve() })
+    expect(composer.current.composerProps.errorMessage).toBe(speechMessage)
+    TestRenderer.act(() => { composer.current.setInput('Plan my morning') })
+    mocks.openChatStream.mockRejectedValueOnce(new Error('network unavailable'))
+    await TestRenderer.act(async () => { await composer.current.sendMessage() })
+    expect(useChatStore.getState().messages.find(message => message.role === 'user')?.content).toBe('Plan my morning')
+    expect(composer.current.composerProps.errorMessage).toBe('chat.sendError')
+    expect(composer.current.composerProps.errorRecovery).toBeUndefined()
+    expect(composer.current.composerProps.onRetry).toBeDefined()
+    mocks.state.speechError = speechMessage
+    await TestRenderer.act(async () => { composer.rerender(); await Promise.resolve() })
+    expect(composer.current.composerProps.errorMessage).toBe(speechMessage)
+    expect(composer.current.composerProps.errorRecovery?.label).toBe(speechMessage === 'speech.micDenied' ? 'common.openSettings' : undefined)
+    expect(composer.current.composerProps.onRetry).toBeDefined()
   })
 
   it.each(['transport', 'attachment'] as const)('preserves a %s error through speech denial and recovery', async (producer) => {
@@ -1728,6 +1752,8 @@ describe('mobile useChatComposer', () => {
     mocks.launchImageLibraryAsync.mockReset()
     mocks.routerPush.mockReset()
     mocks.toggleRecording.mockReset()
+    mocks.clearSpeechError.mockReset()
+    mocks.clearSpeechError.mockImplementation(() => { mocks.state.speechError = null })
     mocks.queryClient.invalidateQueries.mockReset()
     mocks.queryClient.invalidateQueries.mockResolvedValue(undefined)
     mocks.queryClient.getQueryData.mockReset()
@@ -1811,7 +1837,7 @@ describe('mobile useChatComposer', () => {
         stream.close()
         await pending
       })
-      expect(displayed().content).toBe('chat.aiError')
+      expect(displayed().content).toBe('')
     }
     expect(displayed().plan?.steps.map(step => step.status)).toEqual(expected)
     expect(displayed().plan?.steps.at(-1)).toEqual(plan.steps.at(-1))

@@ -29,6 +29,7 @@ import { getAccountGeneration } from '@/lib/session-epoch'
 import type { useChatComposerAttachments } from './use-chat-composer-attachments'
 import type { ChatComposerState,useChatComposerScroll,useChatComposerSession,useChatComposerAvailability } from './use-chat-composer-state'
 import type { AttemptedSend } from './use-chat-composer-types'
+import type { useSpeechToText } from '@/hooks/use-speech-to-text'
 
 function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError'
@@ -130,20 +131,21 @@ export function useChatStream(inputs: ChatStreamInputs) {
   return { runStreamingSend }
 }
 
-type ChatSendQueueInputs = Pick<ChatComposerState, 'threadScroll' | 'chatContainerRef' | 'activeStepsRef' | 'setActiveSteps' | 'setSendError' | 'setLastFailedSend' | 'setIsTyping' | 'blockSubmission' | 'locale' | 'queryClient' | 't' | 'allowanceText' | 'setInput'> & Pick<ReturnType<typeof useChatComposerScroll>, 'scrollToBottom'> & Pick<ReturnType<typeof useChatStream>, 'runStreamingSend'> & Pick<ReturnType<typeof useChatSendFailure>, 'handleFailedSend' | 'handleAllowanceExceeded' | 'handleDailyBudgetExceeded'> & Pick<ReturnType<typeof useChatComposerSession>, 'isOnline'> & Pick<ReturnType<typeof useChatComposerAvailability>, 'atMessageLimit' | 'dailyBudgetReached' | 'isSending' | 'aiMessagesLimit'> & Pick<ReturnType<typeof useChatComposerAttachments>, 'clearImage' | 'removeTextFile'>
+type ChatSendQueueInputs = Pick<ChatComposerState, 'threadScroll' | 'chatContainerRef' | 'activeStepsRef' | 'setActiveSteps' | 'setSendError' | 'setLastFailedSend' | 'setIsTyping' | 'blockSubmission' | 'locale' | 'queryClient' | 't' | 'allowanceText' | 'setInput'> & Pick<ReturnType<typeof useChatComposerScroll>, 'scrollToBottom'> & Pick<ReturnType<typeof useChatStream>, 'runStreamingSend'> & Pick<ReturnType<typeof useChatSendFailure>, 'handleFailedSend' | 'handleAllowanceExceeded' | 'handleDailyBudgetExceeded'> & Pick<ReturnType<typeof useChatComposerSession>, 'isOnline'> & Pick<ReturnType<typeof useChatComposerAvailability>, 'atMessageLimit' | 'dailyBudgetReached' | 'isSending' | 'aiMessagesLimit'> & Pick<ReturnType<typeof useChatComposerAttachments>, 'clearImage' | 'removeTextFile'> & { clearSpeechError: ReturnType<typeof useSpeechToText>['clearError'] }
 
-export function useChatSendQueue(threadScroll: ChatSendQueueInputs['threadScroll'], chatContainerRef: ChatSendQueueInputs['chatContainerRef'], activeStepsRef: ChatSendQueueInputs['activeStepsRef'], setActiveSteps: ChatSendQueueInputs['setActiveSteps'], setSendError: ChatSendQueueInputs['setSendError'], setLastFailedSend: ChatSendQueueInputs['setLastFailedSend'], scrollToBottom: ChatSendQueueInputs['scrollToBottom'], setIsTyping: ChatSendQueueInputs['setIsTyping'], runStreamingSend: ChatSendQueueInputs['runStreamingSend'], handleFailedSend: ChatSendQueueInputs['handleFailedSend'], blockSubmission: ChatSendQueueInputs['blockSubmission'], isOnline: ChatSendQueueInputs['isOnline'], atMessageLimit: ChatSendQueueInputs['atMessageLimit'], dailyBudgetReached: ChatSendQueueInputs['dailyBudgetReached'], handleAllowanceExceeded: ChatSendQueueInputs['handleAllowanceExceeded'], handleDailyBudgetExceeded: ChatSendQueueInputs['handleDailyBudgetExceeded'], locale: ChatSendQueueInputs['locale'], queryClient: ChatSendQueueInputs['queryClient'], t: ChatSendQueueInputs['t'], isSending: ChatSendQueueInputs['isSending'], aiMessagesLimit: ChatSendQueueInputs['aiMessagesLimit'], allowanceText: ChatSendQueueInputs['allowanceText'], setInput: ChatSendQueueInputs['setInput'], clearImage: ChatSendQueueInputs['clearImage'], removeTextFile: ChatSendQueueInputs['removeTextFile']) {
+export function useChatSendQueue(threadScroll: ChatSendQueueInputs['threadScroll'], chatContainerRef: ChatSendQueueInputs['chatContainerRef'], activeStepsRef: ChatSendQueueInputs['activeStepsRef'], setActiveSteps: ChatSendQueueInputs['setActiveSteps'], setSendError: ChatSendQueueInputs['setSendError'], setLastFailedSend: ChatSendQueueInputs['setLastFailedSend'], scrollToBottom: ChatSendQueueInputs['scrollToBottom'], setIsTyping: ChatSendQueueInputs['setIsTyping'], runStreamingSend: ChatSendQueueInputs['runStreamingSend'], handleFailedSend: ChatSendQueueInputs['handleFailedSend'], blockSubmission: ChatSendQueueInputs['blockSubmission'], isOnline: ChatSendQueueInputs['isOnline'], atMessageLimit: ChatSendQueueInputs['atMessageLimit'], dailyBudgetReached: ChatSendQueueInputs['dailyBudgetReached'], handleAllowanceExceeded: ChatSendQueueInputs['handleAllowanceExceeded'], handleDailyBudgetExceeded: ChatSendQueueInputs['handleDailyBudgetExceeded'], locale: ChatSendQueueInputs['locale'], queryClient: ChatSendQueueInputs['queryClient'], t: ChatSendQueueInputs['t'], isSending: ChatSendQueueInputs['isSending'], aiMessagesLimit: ChatSendQueueInputs['aiMessagesLimit'], allowanceText: ChatSendQueueInputs['allowanceText'], setInput: ChatSendQueueInputs['setInput'], clearImage: ChatSendQueueInputs['clearImage'], removeTextFile: ChatSendQueueInputs['removeTextFile'], clearSpeechError: ChatSendQueueInputs['clearSpeechError']) {
   const beginSend = useCallback(() => {
     useChatStore.getState().beginReply()
     threadScroll.followLatest(chatContainerRef.current?.scrollTop)
     activeStepsRef.current = []
     setActiveSteps([])
     setSendError(null)
+    clearSpeechError()
     setLastFailedSend(null)
     scrollToBottom()
     setIsTyping(true)
     scrollToBottom()
-  }, [threadScroll, chatContainerRef, activeStepsRef, setActiveSteps, setSendError, setLastFailedSend, scrollToBottom, setIsTyping])
+  }, [threadScroll, chatContainerRef, activeStepsRef, setActiveSteps, setSendError, setLastFailedSend, scrollToBottom, setIsTyping, clearSpeechError])
 
   const performSend = useCallback((attempted: AttemptedSend, isRetry: boolean) => sendChatPrompt(attempted, isRetry, {
     conversation: useUIStore.getState(), getChat: useChatStore.getState, getAccountGeneration,

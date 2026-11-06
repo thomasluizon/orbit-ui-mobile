@@ -175,6 +175,8 @@ export function useSpeechToText() {
     }
   }, [clearTimer, handleAnalysis, startNativeRecording, startTimer, t])
 
+  const clearError = useCallback(() => { setError(null) }, [])
+
   const toggleRecording = useCallback(() => {
     if (isRecordingRef.current) {
       void stopRecording()
@@ -196,6 +198,7 @@ export function useSpeechToText() {
     isSupported,
     transcript,
     error,
+    clearError,
     startRecording,
     stopRecording,
     toggleRecording,

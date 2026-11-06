@@ -143,6 +143,42 @@ describe('shared composer recovery', () => {
     context.queryClient.clear()
   })
 
+  it.each([
+    { failure: 'generic', status: 503, reason: 'chat.sendError', draft: false },
+    { failure: 'generic', status: 503, reason: 'chat.sendError', draft: true },
+    { failure: 'timeout', status: 408, reason: 'chat.timeoutError', draft: false },
+    { failure: 'timeout', status: 408, reason: 'chat.timeoutError', draft: true },
+  ])('reports a $failure failure once in the composer with retry (draft reply: $draft)', ({ status, reason, draft }) => {
+    const { context } = composerHarness()
+    const setSendError = vi.fn()
+    const setLastFailedSend = vi.fn()
+    const restoreImage = vi.fn()
+    const handlers = createComposerFailureHandlers({ ...context, restoreImage, restoreTextFile: vi.fn(),
+      setDailyBudgetDate: vi.fn(), today: '2026-09-16', setSendError, setLastFailedSend, setInput: context.getChat().setDraft })
+    context.getChat().addMessage({ id: 'question', role: 'user', content: 'Read', timestamp: new Date() })
+    if (draft) context.getChat().addMessage({ id: 'draft-reply', role: 'ai', content: 'Partial', timestamp: new Date() })
+    handlers.handleFailedSend({ status, code: null, error: 'Unavailable' }, attemptedSend(), draft ? 'draft-reply' : null)
+    expect(setSendError.mock.calls).toEqual([[reason]])
+    expect(context.getChat().messages.map(message => message.id)).toEqual(['question'])
+    expect(context.getChat().messages.some(message => message.content === 'chat.aiError')).toBe(false)
+    expect(context.getChat().draft).toBe('Read')
+    expect(setLastFailedSend).toHaveBeenCalledWith(expect.objectContaining({ content: 'Read', image: 'image', preview: 'preview', restoreDraftOnFailure: false }))
+    context.queryClient.clear()
+  })
+
+  it('keeps a failed reply plan and drops its partial text without a second error', () => {
+    const { context } = composerHarness()
+    const setSendError = vi.fn()
+    const handlers = createComposerFailureHandlers({ ...context, restoreImage: vi.fn(), restoreTextFile: vi.fn(),
+      setDailyBudgetDate: vi.fn(), today: '2026-09-16', setSendError, setLastFailedSend: vi.fn(), setInput: context.getChat().setDraft })
+    const plan = makeAstraPlan()
+    context.getChat().addMessage({ id: 'draft-reply', role: 'ai', content: 'Partial', plan, timestamp: new Date() })
+    handlers.handleFailedSend({ status: 503, code: null, error: 'Unavailable' }, attemptedSend(), 'draft-reply')
+    expect(setSendError.mock.calls).toEqual([['chat.sendError']])
+    expect(context.getChat().messages).toEqual([expect.objectContaining({ id: 'draft-reply', content: '', plan })])
+    context.queryClient.clear()
+  })
+
   it.each(['new draft', 'new account', 'matching revision'] as const)('clears only the matching retry draft: %s', async scenario => {
     const { context, replaceAccount } = composerHarness()
     context.getChat().setDraft('Read')

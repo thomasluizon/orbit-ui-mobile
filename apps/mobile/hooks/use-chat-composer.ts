@@ -52,6 +52,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     isSupported: speechSupported,
     transcript,
     error: speechError,
+    clearError: clearSpeechError,
     toggleRecording,
     recordingDuration,
   } = useSpeechToText()
@@ -78,7 +79,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
   const { applyFinalResponse } = useChatResponseSettlement({ activeStepsRef, setActiveSteps, threadScroll, queryClient, updateMessage, addMessage, setIsTyping, setStreamingMessageId, scrollToBottom })
   const { buildChatFormData } = useChatRequestPayload(i18n, profile)
   const { runStreamingSend } = useChatStream({ t, turnReconciliation, activeStepsRef, setActiveSteps, queryClient, allowanceText, updateMessage, addMessage, setIsTyping, setStreamingMessageId, stopReply, appendToMessageContent, scrollToBottom, buildChatFormData, applyFinalResponse })
-  const { blockAnswerInteraction, reportHistoryFailure, sendPreparedAttempt, performSend } = useChatSendQueue(threadScroll, activeStepsRef, setActiveSteps, setSendError, setLastFailedSend, scrollToBottom, setIsTyping, runStreamingSend, handleFailedSend, blockSubmission, isOnline, atMessageLimit, dailyBudgetReached, handleAllowanceExceeded, handleDailyBudgetExceeded, i18n, queryClient, t, isSending, aiMessagesLimit, allowanceText, setInput, setSelectedImage, setImagePreview, setSelectedTextFile, imageSelectionVersionRef)
+  const { blockAnswerInteraction, reportHistoryFailure, sendPreparedAttempt, performSend } = useChatSendQueue(threadScroll, activeStepsRef, setActiveSteps, setSendError, setLastFailedSend, scrollToBottom, setIsTyping, runStreamingSend, handleFailedSend, blockSubmission, isOnline, atMessageLimit, dailyBudgetReached, handleAllowanceExceeded, handleDailyBudgetExceeded, i18n, queryClient, t, isSending, aiMessagesLimit, allowanceText, setInput, setSelectedImage, setImagePreview, setSelectedTextFile, imageSelectionVersionRef, clearSpeechError)
   const { sendMessage } = useChatSendMessage(input, selectedTextFile, t, attachments, isOnline, setSendError, dailyBudgetReached, atMessageLimit, addMessage, allowanceText, scrollToBottom, reportHistoryFailure, selectedImage, imagePreview, sendPreparedAttempt)
   const { canRetryLastSend, retryLastSend, sendQueuedPrompt } = useChatSendRetry(isOnline, atMessageLimit, queryClient, isSending, queuePaused, queueReady, queuedPrompts, lastFailedSend, setSendError, offlineTitle, performSend, setInput)
   const speechRecovery = useMemo(() => speechError === t('speech.micDenied') ? { errorRecovery: { label: t('common.openSettings'), onSelect: () => { void Linking.openSettings() } } } : {}, [speechError, t])

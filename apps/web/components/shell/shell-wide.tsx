@@ -423,21 +423,6 @@ function ShellWideBackground({
   const floating = props.fab !== undefined || props.fabPending === true
   const scrollerSpacing = getScrollerSpacing(hasBottomChrome, pinnedSlot !== undefined || floating, floating)
   const astraSpacing = getAstraScrollerSpacing(scrollerSpacing, props.astraButton, wide)
-  const scroller = (
-    <main
-      ref={registerScroller}
-      data-shell-scroller=""
-      style={{ scrollPaddingBottom: astraSpacing.focusClearance }}
-      className={`relative overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] ${hasFlowAction ? 'h-full' : 'min-h-0 flex-1'} ${astraSpacing.padding}`}
-    >
-      <span
-        aria-hidden="true"
-        data-shell-scroll-origin=""
-        className="pointer-events-none absolute left-0 top-0 h-px w-px"
-      />
-      <div data-shell-page-content="" className="mx-auto min-h-full w-full max-w-[740px] has-[[data-list-motion][inert]]:min-h-[var(--shell-scroll-min-height,100%)] has-[[data-page-viewport]]:h-full">{props.children}</div>
-    </main>
-  )
   return (
     <ConversationComposerMotionProvider><div
       className="isolate flex min-w-0 flex-1"
@@ -455,7 +440,19 @@ function ShellWideBackground({
             </div>
           </div> : null}
           <div data-shell-page="" className={`relative mx-auto flex w-full flex-1 flex-col ${scrollerSpacing.minimum}`}>
-            {hasFlowAction ? <div className="min-h-0 flex-1 overflow-hidden">{scroller}</div> : scroller}
+            <main
+              ref={registerScroller}
+              data-shell-scroller=""
+              style={{ scrollPaddingBottom: astraSpacing.focusClearance }}
+              className={`relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] ${astraSpacing.padding}`}
+            >
+              <span
+                aria-hidden="true"
+                data-shell-scroll-origin=""
+                className="pointer-events-none absolute left-0 top-0 h-px w-px"
+              />
+              <div data-shell-page-content="" className="mx-auto min-h-full w-full max-w-[740px] has-[[data-list-motion][inert]]:min-h-[var(--shell-scroll-min-height,100%)] has-[[data-page-viewport]]:h-full">{props.children}</div>
+            </main>
             {props.fab !== undefined ? (
               <div data-shell-fab-clip="" className="pointer-events-none absolute inset-x-0 bottom-2 z-sticky flex justify-end overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] px-4 py-2 lg:hidden">
                 <div data-shell-fab-content="" className="pointer-events-none mx-auto flex w-full max-w-[740px] justify-end"><div data-shell-fab="" className="pointer-events-none [&_button]:pointer-events-auto">{props.fab}</div></div>
