@@ -1234,19 +1234,33 @@ try {
   rmSync(join(tmpdir(), "claude", "orbit-hooks-gate-project"), { recursive: true, force: true })
 }
 
+/**
+ * The ledger cases run the real hook from an isolated checkout, because the ledger lives in the
+ * checkout's .git directory. A review sandbox can mount this checkout's .git read-only, and the
+ * ledger write then fails quietly, so the cases would prove nothing about the hook.
+ */
 const { identifierLedgerPath, recordObservedIdentifiers } = await import("../../tools/lib/identifier-ledger.mjs")
-const ledgerPath = identifierLedgerPath(repoRoot)
-const priorLedger = existsSync(ledgerPath) ? readFileSync(ledgerPath, "utf8") : null
-try {
-  recordObservedIdentifiers([INVENTED], { repoRoot, tool: "test-hooks.mjs", runIdentifier: "an-earlier-session" })
-  T("adapter identifier: an id recorded by an earlier run -> 2", runHook(IDENT_HOOK, identPayload(resolveCommand(INVENTED))), 2)
-  recordObservedIdentifiers([INVENTED], { repoRoot, tool: "test-hooks.mjs", runIdentifier: IDENT_SESSION })
-  T("adapter identifier: an id recorded by this run -> 0", runHook(IDENT_HOOK, identPayload(resolveCommand(INVENTED))), 0)
-} finally {
-  if (priorLedger === null) rmSync(ledgerPath, { force: true })
-  else writeFileSync(ledgerPath, priorLedger)
-}
-T("adapter identifier: the ledger is restored, so the id blocks again -> 2", runHook(IDENT_HOOK, identPayload(resolveCommand(INVENTED))), 2)
+const ledgerCheckout = join(root, "identifier-ledger")
+const ledgerHooks = join(ledgerCheckout, ".claude", "hooks")
+mkdirSync(ledgerHooks, { recursive: true })
+T("ledger fixture: repository initializes", stagingGit(["init", "--initial-branch=main"], ledgerCheckout).status, 0)
+cpSync(join(repoRoot, "tools", "lib"), join(ledgerCheckout, "tools", "lib"), { recursive: true })
+cpSync(join(hooksDir, "_lib"), join(ledgerHooks, "_lib"), { recursive: true })
+cpSync(join(hooksDir, IDENT_HOOK), join(ledgerHooks, IDENT_HOOK))
+writeFileSync(join(ledgerCheckout, ".claude", "orchestrator.json"), `${JSON.stringify({ repos: { ui: "." } })}\n`)
+const runLedgerHook = () => spawnSync(process.execPath, [join(ledgerHooks, IDENT_HOOK)], {
+  input: JSON.stringify({ ...identPayload(resolveCommand(INVENTED)), cwd: ledgerCheckout }),
+  encoding: "utf8",
+  env: { ...process.env, ORBIT_LAUNCH_WORKER: "" },
+}).status
+const recordInLedger = (runIdentifier) => recordObservedIdentifiers([INVENTED], { repoRoot: ledgerCheckout, tool: "test-hooks.mjs", runIdentifier })
+T("adapter identifier: an empty ledger -> 2", runLedgerHook(), 2)
+T("ledger fixture: an earlier run's id is written", recordInLedger("an-earlier-session"), identifierLedgerPath(ledgerCheckout))
+T("adapter identifier: an id recorded by an earlier run -> 2", runLedgerHook(), 2)
+T("ledger fixture: this run's id is written", recordInLedger(IDENT_SESSION), identifierLedgerPath(ledgerCheckout))
+T("adapter identifier: an id recorded by this run -> 0", runLedgerHook(), 0)
+rmSync(identifierLedgerPath(ledgerCheckout), { force: true })
+T("adapter identifier: a removed ledger blocks the id again -> 2", runLedgerHook(), 2)
 
 /**
  * The Stop adapter reads THIS checkout's real run record, because that is the only path a live run

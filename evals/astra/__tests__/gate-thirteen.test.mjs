@@ -101,7 +101,7 @@ it('retains route and typed code on a non-retryable preview conflict', async () 
     pendingOperationId: null, preview: null, cancelled: false }, { status: 409 }))
   vi.stubGlobal('fetch', request)
   await expect(publicApi('ORBIT_EVAL_TOKEN')('POST', 'ai/pending-operations/11111111-1111-4111-8111-111111111111/revise', {}))
-    .rejects.toThrow('Fixture API POST ai/pending-operations/{id}/revise failed: HTTP 409 (errorCode: none).')
+    .rejects.toThrow('Fixture API POST ai/pending-operations/{id}/revise failed: HTTP 409 (errorCode: none, error: revision_conflict).')
   expect(request).toHaveBeenCalledTimes(1)
 })
 
@@ -197,7 +197,9 @@ it.each(['future-start', 'completed', 'missing', 'skipped'])(
         }
         return response
       })
-      if (['missing', 'skipped'].includes(fault)) await expect(resetFixture(test)).rejects.toThrow('Restart fixture needs all six unfinished habits due today or overdue.')
+      const population = { missing: 'total 5, items 5, missing 1, unexpected 0, duplicate 0, completed 0, logged 0, skipped 0',
+        skipped: 'total 6, items 6, missing 0, unexpected 0, duplicate 0, completed 0, logged 0, skipped 1' }[fault]
+      if (population) await expect(resetFixture(test)).rejects.toThrow(`Restart fixture needs all six unfinished habits due today or overdue (${population}).`)
       else await expect(resetFixture(test)).resolves.toBeUndefined()
       expect(checked).toBe(true)
     } finally { vi.useRealTimers() }

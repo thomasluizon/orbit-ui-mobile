@@ -1,8 +1,8 @@
-import { mkdirSync, readFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync } from "node:fs"
 import { spawnSync } from "node:child_process"
 import { join } from "node:path"
 import yaml from "js-yaml"
-import { fatalLogcat, firstScreenRendered } from "../android-boot.mjs"
+import { fatalLogcat, firstScreenRendered, notRespondingProcess, notRespondingWaitControl } from "../android-boot.mjs"
 import { BASH, REPO_ROOT, root, stage, T, toolPath } from "./_harness.mjs"
 
 const packageName = "org.useorbit.app"
@@ -19,9 +19,13 @@ function hierarchy(text, overrides = {}) {
 }
 
 // Accessibility XML from Android Startup run 41954728677, with its update dialog also removed.
-function replayBoot(name, screens, logcat = "I ReactNativeJS: Running application") {
+// An Application Not Responding dialog stays on top until a tap lands inside its Wait control.
+// The focus line follows AOSP android15-release: DisplayContent.dump prints "  mCurrentFocus=" + WindowState.toString(),
+// which is "Window{<hash> u<user> <title>}", and AppNotRespondingDialog titles its window "Application Not Responding: " + processName.
+function replayBoot(name, screens, logcat = "I ReactNativeJS: Running application", anr = null) {
   const output = join(root, name)
   const launches = stage(`${name}/launches`, "")
+  const taps = stage(`${name}/taps`, "")
   const preload = stage(`${name}/adb-replay.mjs`, `
     import childProcess from 'node:child_process'
     import timers from 'node:timers/promises'
@@ -32,6 +36,8 @@ function replayBoot(name, screens, logcat = "I ReactNativeJS: Running applicatio
     Date.now = () => elapsed
     timers.setTimeout = async (milliseconds) => { elapsed += milliseconds }
     const screens = ${JSON.stringify(screens)}
+    const anr = ${JSON.stringify(anr)}
+    let dialogOpen = Boolean(anr)
     childProcess.spawnSync = (command, args) => {
       if (command !== 'adb') throw new Error('unexpected command: ' + command)
       const invocation = args.join(' ')
@@ -41,7 +47,16 @@ function replayBoot(name, screens, logcat = "I ReactNativeJS: Running applicatio
       if (invocation === 'shell cmd package list packages --user 0 -U org.useorbit.app') stdout = 'package:org.useorbit.app uid:10123'
       if (invocation === 'shell pidof -s org.useorbit.app') stdout = '1234'
       if (args[0] === 'logcat' && args[1] === '-d') stdout = ${JSON.stringify(logcat)}
-      if (args[0] === 'exec-out') stdout = screens[Math.min(captures++, screens.length - 1)]
+      if (args[0] === 'exec-out') stdout = dialogOpen ? anr.dialog : screens[Math.min(captures++, screens.length - 1)]
+      if (invocation === 'shell dumpsys window displays') {
+        stdout = 'WINDOW MANAGER DISPLAY CONTENTS (dumpsys window displays)\\n  mCurrentFocus=' +
+          (dialogOpen ? 'Window{8c3a1f2 u0 Application Not Responding: ' + anr.process + '}' : 'Window{4d2e9b0 u0 org.useorbit.app/org.useorbit.app.MainActivity}') + '\\n'
+      }
+      if (args[0] === 'shell' && args[1] === 'input') {
+        appendFileSync(${JSON.stringify(taps)}, invocation + '\\n')
+        const [x, y] = [Number(args[3]), Number(args[4])]
+        if (dialogOpen && args[2] === 'tap' && x > 16 && x < 304 && y > 355 && y < 403) dialogOpen = anr.reopens
+      }
       if (invocation.startsWith('shell am start ')) appendFileSync(${JSON.stringify(launches)}, 'launch\\n')
       return { status: 0, stdout, stderr: '' }
     }
@@ -49,7 +64,11 @@ function replayBoot(name, screens, logcat = "I ReactNativeJS: Running applicatio
   `)
   const result = spawnSync(process.execPath, ["--import", preload, toolPath("android-boot.mjs"),
     "--apk", join(root, "universal.apk"), "--package", packageName, "--output", output], { encoding: "utf8", timeout: 10000 })
-  return { ...result, verdict: readFileSync(join(output, "verdict.txt"), "utf8"), launches: readFileSync(launches, "utf8").trim().split("\n").length }
+  const dismissals = join(output, "anr-dismissals.txt")
+  return {
+    ...result, verdict: readFileSync(join(output, "verdict.txt"), "utf8"), launches: readFileSync(launches, "utf8").trim().split("\n").length,
+    taps: readFileSync(taps, "utf8").trim().split("\n").filter(Boolean), dismissals: existsSync(dismissals) ? readFileSync(dismissals, "utf8").trim().split("\n") : [],
+  }
 }
 
 function checkRecordedStartup() {
@@ -65,6 +84,37 @@ function checkRecordedStartup() {
   }
   const fatal = replayBoot("fatal", [onboarding], "E ReactNativeJS: Invariant Violation: Tried to register two views with the same name RNCSafeAreaProvider")
   T("android-boot: duplicate provider still fails before accepting onboarding", fatal.status === 1 && fatal.verdict.includes("fatal startup error") && fatal.launches === 1, fatal.stderr)
+  checkApplicationNotResponding(onboarding)
+}
+
+// Accessibility XML from Android Release run 42077921045: a launcher ANR dialog covers the drawing app.
+function checkApplicationNotResponding(onboarding) {
+  const dialog = readFileSync(join(REPO_ROOT, "tools/__tests__/fixtures/android-startup-anr-dialog.xml"), "utf8")
+  const wait = notRespondingWaitControl(dialog)
+  T("android-boot: finds the recorded dialog's Wait control centre", wait?.x === 160 && wait?.y === 379, JSON.stringify(wait))
+  T("android-boot: the first screen has no ANR Wait control", notRespondingWaitControl(onboarding) === null)
+  T("android-boot: a disabled Wait control is not tapped", notRespondingWaitControl(dialog.replace(/(resource-id="android:id\/aerr_wait"[^>]*?)enabled="true"/, '$1enabled="false"')) === null)
+  T("android-boot: an app node named like the Wait control is not tapped", notRespondingWaitControl(hierarchy("Wait", { "resource-id": "android:id/aerr_wait" })) === null)
+  for (const [name, dump, expected] of [
+    ["another process", "  mCurrentFocus=Window{8c3a1f2 u0 Application Not Responding: com.google.android.apps.nexuslauncher}", "com.google.android.apps.nexuslauncher"],
+    ["an exiting dialog", "  mCurrentFocus=Window{8c3a1f2 u0 Application Not Responding: org.useorbit.app EXITING}", "org.useorbit.app"],
+    ["the app activity", "  mCurrentFocus=Window{4d2e9b0 u0 org.useorbit.app/org.useorbit.app.MainActivity}", null],
+    ["no focus", "  mCurrentFocus=null", null],
+    ["the focused app line", "  mFocusedApp=ActivityRecord{1 u0 Application Not Responding: com.example t1}", null],
+  ]) T(`android-boot: focus process for ${name}`, notRespondingProcess(`WINDOW MANAGER DISPLAY CONTENTS (dumpsys window displays)\n${dump}\n`) === expected)
+  const launcher = replayBoot("anr-launcher", [onboarding], undefined, { process: "com.google.android.apps.nexuslauncher", dialog, reopens: false })
+  T("android-boot: another process's ANR dialog is dismissed and the first screen passes", launcher.status === 0 && launcher.verdict.trim() === "passed", launcher.verdict + launcher.stderr)
+  T("android-boot: the dismissal taps the dialog's own Wait control once", launcher.taps.length === 1 && launcher.taps[0] === "shell input tap 160 379", launcher.taps.join("|"))
+  T("android-boot: the dismissal is recorded in the evidence", launcher.dismissals.length === 1 && launcher.dismissals[0].includes("Application Not Responding: com.google.android.apps.nexuslauncher"), launcher.dismissals.join("|"))
+  T("android-boot: a dismissed ANR dialog never retries the launch", launcher.launches === 1)
+  const own = replayBoot("anr-own", [onboarding], undefined, { process: packageName, dialog, reopens: false })
+  T("android-boot: the app's own ANR dialog fails with its own verdict", own.status === 1 && own.verdict.trim() === "app is not responding before its first screen", own.verdict + own.stderr)
+  T("android-boot: the app's own ANR dialog is never dismissed", own.taps.length === 0 && own.dismissals.length === 0, own.taps.join("|"))
+  const secondary = replayBoot("anr-own-process", [onboarding], undefined, { process: `${packageName}:background`, dialog, reopens: false })
+  T("android-boot: an ANR dialog for another app process fails as the app", secondary.status === 1 && secondary.verdict.trim() === "app is not responding before its first screen" && secondary.taps.length === 0, secondary.verdict)
+  const persistent = replayBoot("anr-persistent", [onboarding], undefined, { process: "com.google.android.apps.nexuslauncher", dialog, reopens: true })
+  T("android-boot: a returning ANR dialog keeps the 90 second deadline", persistent.status === 1 && persistent.verdict.trim() === "signed-out first screen did not render within 90 seconds", persistent.verdict)
+  T("android-boot: each returning ANR dialog dismissal is recorded", persistent.dismissals.length > 1 && persistent.dismissals.length === persistent.taps.length && persistent.launches === 1, `${persistent.dismissals.length}/${persistent.taps.length}`)
 }
 
 function checkProofVersion(startup) {

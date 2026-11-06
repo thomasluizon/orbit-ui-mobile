@@ -1,7 +1,7 @@
 /** A checkout behind its configured base must not launch with a stale orchestrator config. */
 
 import { spawnSync } from "node:child_process"
-import { readFileSync } from "node:fs"
+import { existsSync, readFileSync, statSync } from "node:fs"
 import { dirname, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -191,4 +191,70 @@ export const resolveWorkerInvocation = (engineName, engine, tier = "default", { 
     throw new Error(`worker engine "${engineName}" models.${tier}.args must be an array of strings`)
   }
   return { tier, model: entry.model, args: [...engine.args, ...(allowSubagents ? [] : subagentOffArgs), ...(entry.args ?? []), "--model", entry.model] }
+}
+
+/**
+ * Every variable the installed claude CLI (2.1.318) selects ahead of the sign-in in its config
+ * directory, copied from its source: its credential list, OAuth refresh variable, credential file
+ * descriptors, authorization headers, and the provider selectors that leave the Anthropic account.
+ */
+export const CLAUDE_ACCOUNT_OVERRIDE_KEYS = [
+  "ANTHROPIC_API_KEY",
+  "ANTHROPIC_AUTH_TOKEN",
+  "CLAUDE_CODE_OAUTH_TOKEN",
+  "AWS_BEARER_TOKEN_BEDROCK",
+  "ANTHROPIC_FOUNDRY_API_KEY",
+  "ANTHROPIC_FOUNDRY_AUTH_TOKEN",
+  "ANTHROPIC_AWS_API_KEY",
+  "CLAUDE_CODE_OAUTH_REFRESH_TOKEN",
+  "CLAUDE_CODE_OAUTH_TOKEN_FILE_DESCRIPTOR",
+  "CLAUDE_CODE_API_KEY_FILE_DESCRIPTOR",
+  "CLAUDE_CODE_GATEWAY_TOKEN_FILE_DESCRIPTOR",
+  "CLAUDE_CODE_WEBSOCKET_AUTH_FILE_DESCRIPTOR",
+  "CCR_AGENT_PROXY_TOKEN_FILE_DESCRIPTOR",
+  "ANTHROPIC_CUSTOM_HEADERS",
+  "CLAUDE_CODE_USE_BEDROCK",
+  "CLAUDE_CODE_USE_VERTEX",
+  "CLAUDE_CODE_USE_FOUNDRY",
+  "CLAUDE_CODE_USE_ANTHROPIC_AWS",
+  "CLAUDE_CODE_USE_ANTHROPIC_GOOGLE_CLOUD",
+  "CLAUDE_CODE_USE_MANTLE",
+]
+
+/**
+ * The claude worker signs in from its own config directory, so a worker never spends the
+ * orchestrator's account. The config names only the variable; the path lives in the environment.
+ * Returns null for an engine that has no account directory.
+ */
+export const workerConfigDirectory = (engineName, engine, environment = process.env) => {
+  if (engineName !== "claude") return null
+  const variable = nonEmptyString(engine?.configDirEnv, `workers.${engineName}.configDirEnv`)
+  const directory = environment[variable]
+  if (typeof directory !== "string" || directory.trim() === "") {
+    throw new Error(`${variable} is unset; export it as the worker account's Claude config directory before a claude launch`)
+  }
+  const resolved = resolve(directory)
+  if (!existsSync(resolved) || !statSync(resolved).isDirectory()) {
+    throw new Error(`${variable} names ${resolved}, which is not an existing directory`)
+  }
+  return resolved
+}
+
+/** The worker account's directory, and the main account: the orchestrator's default Claude config. */
+export const WORKER_ACCOUNT = "worker"
+export const MAIN_ACCOUNT = "main"
+
+/**
+ * The environment a claude child runs under for one account. Every inherited override is removed,
+ * so the sign-in in the chosen config directory is the only credential the child can select. The
+ * worker account names its directory; the main account removes CLAUDE_CONFIG_DIR, so the child
+ * reads the default Claude config. A null account is an engine with no Claude account.
+ */
+export const workerAccountEnvironment = (environment, account) => {
+  if (account === null) return environment
+  const scoped = { ...environment }
+  for (const key of CLAUDE_ACCOUNT_OVERRIDE_KEYS) delete scoped[key]
+  if (account.name === WORKER_ACCOUNT) scoped.CLAUDE_CONFIG_DIR = account.configDirectory
+  else delete scoped.CLAUDE_CONFIG_DIR
+  return scoped
 }

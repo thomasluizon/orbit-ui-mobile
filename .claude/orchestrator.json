@@ -1,5 +1,5 @@
 {
-  "worker": "codex",
+  "worker": "claude",
   "relay": { "enabled": true, "thresholdTokens": 400000 },
   "workers": {
     "codex": {
@@ -45,6 +45,7 @@
     },
     "claude": {
       "command": "claude",
+      "configDirEnv": "ORBIT_WORKER_CLAUDE_CONFIG_DIR",
       "args": [
         "-p",
         "--output-format",
@@ -57,16 +58,20 @@
       "subagentOffArgs": ["--disallowed-tools", "Task"],
       "models": {
         "default": {
-          "model": "claude-opus-5-5"
+          "model": "claude-opus-5-5",
+          "args": ["--effort", "high"]
         },
         "mechanical": {
-          "model": "claude-opus-5-5"
+          "model": "claude-opus-5-5",
+          "args": ["--effort", "high"]
         },
         "deep": {
-          "model": "claude-opus-5-5"
+          "model": "claude-opus-5-5",
+          "args": ["--effort", "high"]
         },
         "max": {
-          "model": "claude-opus-5-5"
+          "model": "claude-opus-5-5",
+          "args": ["--effort", "high"]
         }
       }
     }

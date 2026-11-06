@@ -106,6 +106,7 @@ These back required CI checks. They fail a merge.
 
 | Tool | What it does | Usage |
 |---|---|---|
+| `check-attribution.mjs` | Fails when a pull request commit carries a co-author trailer or a generated-with line. A sentence that names either string passes. `PR Metadata` checks the pull request body with the same matcher, so an edit of the body runs it again. | `node tools/check-attribution.mjs --range <base>..<head>` |
 | `check-calibration.mjs` | Reports stale agent, skill, worker and ticket classifier model or prompt calibration. The classifier stamp carries its model, prompt digest, verdict and date. | `node tools/check-calibration.mjs` |
 | `check-dashes.mjs` | Fails on an em dash or en dash in a changed file, a PR title, or a PR body. Backs `Dash Ban`. Its baseline may only shrink and cannot name missing files. | `node tools/check-dashes.mjs --files <path>... \| --check-baseline \| --write-baseline \| --text "<string>"` |
 | `check-timeless.mjs` | Rejects machine paths, owner attributions, dated anecdotes and long code comments. Backs `Timeless Text`; reviewed exceptions live in `tools/timeless-allowlist.json`. | `node tools/check-timeless.mjs --all \| --base <ref> \| --staged \| --hook` |
@@ -125,7 +126,7 @@ These back required CI checks. They fail a merge.
 | `check-workspace-overrides.mjs` | Fails when an npm workspace declares an `overrides` key that npm would ignore. Backs `Root Allowlist`. | `node tools/check-workspace-overrides.mjs` |
 | `check-native-module-copies.mjs` | Discovers native packages from installed Android, iOS and Expo sources and rejects multiple lockfile paths, including copies of the same version. Run after `npm ci`. Backs `Dependency Audit`. | `node tools/check-native-module-copies.mjs` |
 | `check-android-bundle.mjs` | Inspects the Android Hermes export for native package roots and native component names with multiple owners. | `node tools/check-android-bundle.mjs --map <exported-map>` |
-| `android-boot.mjs` | Cold starts the AAB-derived APK in CI, requires the signed-out first screen and a surviving process, and rejects app fatal logs. | `node tools/android-boot.mjs --apk <apk> --package <id> --output <directory>` |
+| `android-boot.mjs` | Cold starts the AAB-derived APK in CI, requires the signed-out first screen and a surviving process, rejects app fatal logs, and dismisses another process's Application Not Responding dialog. | `node tools/android-boot.mjs --apk <apk> --package <id> --output <directory>` |
 | `check-docker-registries.mjs` | Requires explicit registry hosts in tracked Dockerfile FROM images and workflow build-args overriding global image ARGs, and rejects quoted build-args forms and CSV-quoted build-args entries it cannot decode. Allows scratch, earlier stages and global ARG defaults with explicit hosts. Requires disabled provenance on workflow pushes using the docker driver. Backs `Root Allowlist`. | `node tools/check-docker-registries.mjs [--root <path>]` |
 
 ## Architecture map and visual evidence

@@ -74,8 +74,15 @@ before any new admission; unfinished intake remains in run state for the success
    retain their identifiers and mark the message incomplete; replies remain drafts regardless
    of classification. The next collection retries incomplete messages while preserving reply
    and send-attempt receipts. This costs an id listing per mailbox page
-   but avoids timestamp ties, relay loss and expired history cursors. Classify every pending
-   message using the disposition procedure below.
+   but avoids timestamp ties, relay loss and expired history cursors. The client paces calls
+   under Gmail's 6,000 quota units per minute per user (a full message read costs 60), so a
+   first collection reads about 100 messages per minute. Run a large collection in the
+   background or with a 600000 ms timeout. A rate-limit answer retries with jittered
+   exponential backoff from one second, for 7 attempts at most. Two failures stop the
+   collection: a rate limit that is still present after the last attempt, and any other
+   failed list or message read. A failed attachment read does not stop it; that message
+   becomes incomplete, as above. Classify every pending message using the disposition
+   procedure below.
 5. Collect Play reviews using `.github/workflows/orbit-play-reviews.yml` on `main`. Before
    dispatch, persist a unique cycle string in `intake.play.workflowCycle`; preserve it across
    relays. Use `gh workflow run orbit-play-reviews.yml --ref main -f cycle=<cycle>` and rely

@@ -7,6 +7,7 @@ import { validateToolArguments } from './tool-validation.mjs'
 import { tools, legacyTools, offerTools, observableSchema } from './trace-policy.mjs'
 import { configureOffers } from './offer-context.mjs'
 import { toolBehavior } from './assertions.mjs'
+import { historicalReadExpectations } from './offer-lifecycle.mjs'
 import parseResponse from './response.mjs'
 import { tsImport } from 'tsx/esm/api'
 
@@ -34,6 +35,36 @@ function restartPopulation(attempt, vars) {
   }
 }
 
+function historicalScope(attempt, vars, assertions) {
+  const offers = assertions.find((assertion) => assertion.metric === 'proactiveOffers')
+  const turns = attempt.offerReadback?.turns
+  const accountDate = attempt.groundingEvidence?.fixture?.loggedState?.date
+  if (vars.offerFamily !== 'due-log' || offers?.pass !== false || turns?.length !== 1
+    || turns[0].assertions?.find((assertion) => assertion.metric === 'behavior')?.pass !== false
+    || !/^\d{4}-\d{2}-\d{2}$/u.test(accountDate ?? '')) return
+  const date = new Date(Date.parse(`${accountDate}T12:00:00Z`) - 86400000).toISOString().slice(0, 10)
+  const verdict = toolBehavior(turns[0].toolCalls, historicalReadExpectations(date))
+  if (!verdict.pass) return `Historical read scope: ${verdict.reason}`
+  Object.assign(offers, { reason: 'Historical read scope matched; its offer check and the partial-scope turn were never recorded.' })
+  return 'incomplete'
+}
+
+// Ajv stops at the first error, so each saved "[redacted]" field value becomes null and the call is validated again.
+// Producer schemas make every optional field nullable; a redacted array item or non-nullable field still fails.
+function withoutRedactedFields(value) {
+  if (Array.isArray(value)) return value.map((item) => item === '[redacted]' ? item : withoutRedactedFields(item))
+  if (!value || typeof value !== 'object') return value
+  return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, child === '[redacted]' ? null : withoutRedactedFields(child)]))
+}
+
+async function schemaVerdict(call, validate) {
+  const verdict = { name: call.name, ...await validate(call) }
+  if (verdict.pass) return verdict
+  const projected = withoutRedactedFields(call.arguments)
+  if (JSON.stringify(projected) === JSON.stringify(call.arguments)) return verdict
+  return (await validate({ ...call, arguments: projected })).pass ? { ...verdict, redacted: true } : verdict
+}
+
 export async function replayAttempt(attempt, descriptor, recorded) {
   const before = recorded.allAttemptsPass
   const test = structuredClone(descriptor)
@@ -41,8 +72,9 @@ export async function replayAttempt(attempt, descriptor, recorded) {
   test.vars.clientContext ??= buildChatClientContext({ platform: test.metadata.platform ?? 'web', locale: test.metadata.locale ?? 'en' })
   const assertions = structuredClone(attempt.assertions)
   const notes = []
-  const schemas = await Promise.all(attempt.toolCalls.map(async (call) => ({ name: call.name,
-    ...await validateToolArguments(call, declarations(test.vars), { test, vars: test.vars }) })))
+  const validate = (call) => validateToolArguments(call, declarations(test.vars), { test, vars: test.vars })
+  const schemas = await Promise.all(attempt.toolCalls.map((call) => schemaVerdict(call, validate)))
+  if (schemas.some((verdict) => verdict.redacted)) notes.push('A recorded argument holds a redacted value, so its schema cannot be replayed.')
   const structure = assertions.find((assertion) => assertion.metric === 'toolStructure')
   if (structure?.pass === false && /Call to "ask" does not match schema/u.test(structure.reason)
     && schemas.length && schemas.every((verdict) => verdict.pass)) {
@@ -58,7 +90,10 @@ export async function replayAttempt(attempt, descriptor, recorded) {
       ? `Completed-goal coverage: ${verdict.reason} An active-only query cannot prove completed-goal exclusion; the revised case needs fresh evidence.`
       : `Outcome scope: ${verdict.reason}`)
   }
+  const historical = historicalScope(attempt, test.vars, assertions)
   let after = before
+  if (historical === 'incomplete') { after = 'incomplete'; notes.push('The historical read now matches its requested day; the unrecorded offer and partial-scope checks need a new attempt.') }
+  else if (historical) notes.push(historical)
   if (completedGoal && behavior?.pass === false) after = 'fail'
   if (before === 'fail' && assertions.length && assertions.every((assertion) => assertion.pass)) after = 'pass'
   if (recorded.latency?.status === 'fail') { after = 'fail'; notes.push('The recorded read latency still exceeds its budget.') }
@@ -73,7 +108,7 @@ export async function replayAttempt(attempt, descriptor, recorded) {
     const verdict = toolBehavior(attempt.setup.toolCalls, test.vars.setup.expectations)
     notes.push(`Setup outcome scope: ${verdict.reason} Preview evidence remains unavailable.`)
   }
-  if (attempt.offerReadback?.reason?.includes('HTTP 409')) notes.push('The saved conflict omits the route/code; no retry or success can be inferred.')
+  if (attempt.offerReadback?.reason?.includes('HTTP 409')) notes.push('The saved conflict keeps only its route and typed reason, when the API sent one; no retry or success can be inferred.')
   if (attempt.offerReadback?.reason?.startsWith('ask requires')) notes.push('The failing continuation trace was not recorded; its grade cannot be replayed.')
   return { caseId: attempt.caseId, repeat: attempt.repeat, recordedAttemptPassed: attempt.pass,
     before, after, assertions, schemas, notes,
@@ -103,7 +138,7 @@ export async function replayWindow(source, destination) {
     throw new Error('Replay requires the complete window with one recorded attempt per case.')
   }
   const regressions = results.filter((entry) => entry.before === 'pass' && entry.after !== 'pass'
-    || entry.recordedAttemptPassed === true && entry.schemas.some((verdict) => !verdict.pass))
+    || entry.recordedAttemptPassed === true && entry.schemas.some((verdict) => !verdict.pass && !verdict.redacted))
   const counts = (key) => Object.fromEntries(['pass', 'fail', 'incomplete'].map((status) =>
     [status, results.filter((entry) => entry[key] === status).length]))
   const markdown = [

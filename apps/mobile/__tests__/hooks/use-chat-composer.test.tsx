@@ -10,6 +10,8 @@ import { AstraButton } from '@/components/shell/astra-button'
 import { useChatComposerAttachments } from '@/hooks/use-chat-composer-attachments'
 import Animated from 'react-native-reanimated'
 import { afterEach,beforeEach,describe,expect,it,onTestFinished,vi } from 'vitest'
+import { installFormDataPatch } from 'expo/src/winter/FormData'
+import { convertFormDataAsync } from 'expo/src/winter/fetch/convertFormData'
 import { API } from '@orbit/shared/api'
 import { buildChatClientContext,buildComposerChips,CHAT_STREAM_IDLE_TIMEOUT_MS,createConversationHistory } from '@orbit/shared/chat'
 import { createMockHabit,createMockProfile,createMockProactiveItem } from '@orbit/shared/__tests__/factories'
@@ -241,17 +243,61 @@ vi.mock('expo-document-picker', () => ({
 }))
 
 vi.mock('expo-file-system', () => ({
-  File: class MockFile extends Blob {
+  File: class MockFile {
     constructor(uri: string) {
-      super(['x'.repeat(mocks.fileSize)])
       mocks.fileUris.push(uri)
+    }
+
+    get size(): number {
+      return mocks.fileSize
+    }
+
+    bytesSync(): Uint8Array {
+      return new TextEncoder().encode('x'.repeat(mocks.fileSize))
+    }
+
+    bytes(): Promise<Uint8Array> {
+      return Promise.resolve(this.bytesSync())
     }
 
     text(): Promise<string> {
       return mocks.readFileText()
     }
+
+    /** Mirrors expo-file-system src/File.ts slice(), which builds the Blob from a typed array that the React Native Blob typings omit. */
+    slice(start?: number, end?: number, contentType?: string): Blob {
+      return new Blob([this.bytesSync().slice(start, end)] as unknown as Blob[], { type: contentType } as ConstructorParameters<typeof Blob>[1])
+    }
   },
 }))
+
+/** React Native Libraries/Blob/BlobManager.js createFromParts rejects typed-array parts. */
+class ReactNativeBlob extends Blob {
+  constructor(parts: unknown[] = [], options?: ConstructorParameters<typeof Blob>[1]) {
+    if (parts.some(part => part instanceof ArrayBuffer || ArrayBuffer.isView(part))) {
+      throw new Error("Creating blobs from 'ArrayBuffer' and 'ArrayBufferView' are not supported")
+    }
+    super(parts as (string | Blob)[], options)
+  }
+}
+
+/** React Native Libraries/Network/FormData.js stores each appended pair in _parts; expo/src/winter/runtime.native.ts then installs the Expo patch on it. */
+class ReactNativeFormData {
+  _parts: [string, unknown][] = []
+
+  append(name: string, value: unknown): void {
+    this._parts.push([name, value])
+  }
+}
+
+vi.stubGlobal('Blob', ReactNativeBlob)
+vi.stubGlobal('FormData', installFormDataPatch(ReactNativeFormData as unknown as typeof FormData))
+
+async function encodeImagePart(payload: unknown): Promise<string | undefined> {
+  const boundary = 'orbit-test-boundary'
+  const { body } = await convertFormDataAsync(payload as FormData, boundary)
+  return new TextDecoder().decode(body).split(`--${boundary}\r\n`).find(part => part.startsWith('content-disposition: form-data; name="image"'))
+}
 
 vi.mock('@/hooks/use-habit-queries', async (importOriginal) => {
 
@@ -715,11 +761,9 @@ describe('mobile useChatComposer', () => {
     for (const call of mocks.openChatStream.mock.calls) {
       const payload = call[0] as { get(name: string): string | Blob | null }
       expect(payload.get('message')).toBe(message)
-      const sentImage = payload.get('image')
-      if (draftKind === 'image-plus-text') {
-        expect(sentImage).toBeInstanceOf(Blob)
-        expect((sentImage as File).name).toBe('pic.jpg')
-      } else expect(sentImage).toBeNull()
+      const imagePart = await encodeImagePart(payload)
+      if (draftKind === 'image-plus-text') expect(imagePart).toContain('name="image"; filename="pic.jpg"')
+      else expect(imagePart).toBeUndefined()
     }
     expect(composer.current.input).toBe('')
     expect(composer.current.composerProps.attachments).toHaveLength(0)
@@ -2953,11 +2997,9 @@ describe('mobile useChatComposer', () => {
 
     expect(mocks.openChatStream).toHaveBeenCalledTimes(resend ? 2 : 1)
     expect(appendFormPart).toHaveBeenCalledWith('message', 'log my walk')
-    expect(appendFormPart).toHaveBeenCalledWith('image', expect.any(Blob), 'pic.jpg')
-    const payload = mocks.openChatStream.mock.calls[0]?.[0] as { get(name: string): Blob }
-    const image = payload.get('image')
-    expect(image.type).toBe('image/jpeg')
-    expect(image.size).toBe(mocks.fileSize)
+    expect(composer.current.sendError).toBeNull()
+    const payload = mocks.openChatStream.mock.calls[0]?.[0]
+    expect(await encodeImagePart(payload)).toBe(`content-disposition: form-data; name="image"; filename="pic.jpg"\r\ncontent-type: image/jpeg\r\n\r\n${'x'.repeat(mocks.fileSize)}\r\n`)
     if (resend) expect(mocks.openChatStream.mock.calls[1]?.[0]).toBe(payload)
     appendFormPart.mockRestore()
   })
