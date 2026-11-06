@@ -49,17 +49,33 @@ jobs:
           if-no-files-found: error
           retention-days: 1
   app-store-reviews:
-    if: github.ref == 'refs/heads/main' && inputs.replies == '' && vars.ORBIT_IOS_APP_STORE_ID != ''
+    # A job-level if sees only repository variables; the app id lives in the ios-production environment.
+    if: github.ref == 'refs/heads/main' && inputs.replies == ''
+    environment: ios-production
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Check the App Store app id
+        id: app-store
+        env:
+          ORBIT_IOS_APP_STORE_ID: ${{ vars.ORBIT_IOS_APP_STORE_ID }}
+        run: |
+          if [ -n "$ORBIT_IOS_APP_STORE_ID" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::ORBIT_IOS_APP_STORE_ID is empty in ios-production; App Store reviews are not read."
+          fi
       - uses: actions/checkout@v7
+        if: steps.app-store.outputs.configured == 'true'
         with:
           persist-credentials: false
       - uses: actions/setup-node@v7
+        if: steps.app-store.outputs.configured == 'true'
         with:
           node-version: '22'
       - name: Read App Store customer reviews
+        if: steps.app-store.outputs.configured == 'true'
         env:
           ORBIT_IOS_APP_STORE_ID: ${{ vars.ORBIT_IOS_APP_STORE_ID }}
           APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
@@ -68,6 +84,7 @@ jobs:
           REVIEW_OUTPUT: ${{ runner.temp }}/orbit-app-store-reviews.json
         run: node tools/orbit-app-store-reviews.mjs --collect --output "$REVIEW_OUTPUT"
       - uses: actions/upload-artifact@v7
+        if: steps.app-store.outputs.configured == 'true'
         with:
           name: orbit-app-store-reviews
           path: ${{ runner.temp }}/orbit-app-store-reviews.json
