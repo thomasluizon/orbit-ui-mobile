@@ -57,7 +57,7 @@ export function NotificationInbox() {
           if (id === 'read') markAllAsRead.mutate()
           else if (id === 'clear') setConfirmOpen(true)
         }} />
-      <ShellContent style={{ flex: 1, maxWidth: undefined }}><ScrollView style={styles.scroller} contentContainerStyle={{ paddingBottom: clearance }}>
+      <ShellContent style={{ flex: 1, maxWidth: undefined }}><ScrollView testID="notification-scroller" style={styles.scroller} contentContainerStyle={{ flexGrow: 1, paddingBottom: clearance }}>
         <NotificationList items={inbox.visibleNotifications} isLoading={inbox.isLoading} isError={inbox.isError}
           onRetry={() => void inbox.refetch()} onDelete={requestDeleteNotification}
           onOpen={(item) => { setSelected(item); setDetailOpen(true) }} />

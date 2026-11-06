@@ -1,5 +1,6 @@
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
+import { ShellCentredRegion } from '@/components/shell/shell-centred-region'
 import { useContentFrameStyle } from '@/hooks/use-content-frame-style'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { View, Text, StyleSheet } from 'react-native'
@@ -35,7 +36,7 @@ export function NotificationList({ items, isLoading, isError, onRetry, onOpen, o
             </View>
           </View>
         )) : (
-          <View style={styles.empty}>
+          <ShellCentredRegion><View testID="notification-empty" style={styles.empty}>
             {isError ? <>
               <Text style={[styles.copy, { color: tokens.fg3 }]}>{t('notifications.loadError')}</Text>
               <IconButton label={t('common.retry')} onPress={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
@@ -43,14 +44,14 @@ export function NotificationList({ items, isLoading, isError, onRetry, onOpen, o
               <OrbitMark size={96} />
               <Text style={[styles.copy, { color: tokens.fg3 }]}>{t('notifications.empty')}</Text>
             </>}
-          </View>
+          </View></ShellCentredRegion>
         )}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  list: { paddingVertical: SPACING.s16, gap: 8 },
+  list: { flexGrow: 1, paddingVertical: SPACING.s16, gap: 8 },
   skeletonRow: { flexDirection: 'row', gap: 12, padding: SPACING.s16, borderRadius: 12 },
   dotColumn: { width: 8 },
   skeletonContent: { flex: 1, gap: 8 },
