@@ -201,27 +201,35 @@ export const cases = async () => {
       JSON.stringify(invocation.args) === JSON.stringify([...engine.args, ...(engine.subagentOffArgs ?? []), ...(engine.models.default.args ?? []), "--model", engine.models.default.model]),
     JSON.stringify(invocation),
   )
+  /** The installed claude CLI accepts exactly low, medium, high, xhigh and max for --effort. */
+  const effortOf = (args) => {
+    const index = args.indexOf("--effort")
+    return index === -1 || args.indexOf("--effort", index + 1) !== -1 ? null : args[index + 1]
+  }
   T(
-    `${NAME}: the shipped default implementer is gpt-6.1-sol at high reasoning effort`,
-    invocation.model === "gpt-6.1-sol" && invocation.args.includes('model_reasoning_effort="high"'),
-    `.claude/orchestrator.json resolved ${invocation.model} with ${JSON.stringify(invocation.args)}`,
+    `${NAME}: the shipped worker engine is claude`,
+    engineName === "claude" && engine.command === "claude",
+    `.claude/orchestrator.json names worker ${JSON.stringify(engineName)} with command ${JSON.stringify(engine.command)}`,
   )
-  const mechanicalInvocation = resolveWorkerInvocation(engineName, engine, "mechanical")
   T(
-    `${NAME}: the shipped mechanical implementer keeps the model and lowers reasoning effort`,
-    mechanicalInvocation.model === "gpt-6.1-sol" && mechanicalInvocation.model === invocation.model && mechanicalInvocation.args.includes('model_reasoning_effort="medium"'),
-    JSON.stringify(mechanicalInvocation),
+    `${NAME}: the claude engine names its worker account by variable, never by path`,
+    engine.configDirEnv === "ORBIT_WORKER_CLAUDE_CONFIG_DIR",
+    JSON.stringify(engine.configDirEnv),
   )
+  /** Owner order on #2029: every tier is Opus 5.5 at high effort. The tier names stay as routing labels. */
+  for (const tier of ["default", "mechanical", "deep", "max"]) {
+    const resolved = resolveWorkerInvocation(engineName, engine, tier)
+    T(`${NAME}: the shipped ${tier} implementer is claude-opus-5-5 at high effort`,
+      resolved.model === "claude-opus-5-5" && effortOf(resolved.args) === "high",
+      `.claude/orchestrator.json resolved ${resolved.model} with ${JSON.stringify(resolved.args)}`)
+  }
 
   const engineFailures = []
-  for (const [tier, effort] of [["deep", "xhigh"], ["max", "max"]]) {
-    const message = thrown(() => {
-      const resolved = resolveWorkerInvocation(engineName, engine, tier)
-      if (resolved.model !== "gpt-6.1-sol" || !resolved.args.includes(`model_reasoning_effort="${effort}"`)) {
-        throw new Error(JSON.stringify(resolved))
-      }
-    })
-    T(`${NAME}: the shipped ${tier} implementer is gpt-6.1-sol at ${effort} reasoning effort`, message === null, message)
+  const codexEngine = real.workers.codex
+  for (const [tier, effort] of [["default", "high"], ["mechanical", "medium"], ["deep", "xhigh"], ["max", "max"]]) {
+    const resolved = resolveWorkerInvocation("codex", codexEngine, tier)
+    T(`${NAME}: the retained codex ${tier} profile is gpt-6.1-sol at ${effort} reasoning effort`,
+      resolved.model === "gpt-6.1-sol" && resolved.args.includes(`model_reasoning_effort="${effort}"`), JSON.stringify(resolved))
   }
   for (const [declaredName, declaredEngine] of Object.entries(real.workers)) {
     T(`${NAME}: ${declaredName} declares exactly the four worker tiers`,
@@ -273,7 +281,7 @@ export const cases = async () => {
 
   const fallback = real.workers.claude ?? {}
   T(
-    `${NAME}: the claude fallback engine runs claude with opus 5.5 on all four tiers`,
+    `${NAME}: the claude engine runs claude with opus 5.5 on all four tiers`,
     fallback.command === "claude" &&
       ["default", "mechanical", "deep", "max"].every((tier) => fallback.models?.[tier]?.model === "claude-opus-5-5"),
     `.claude/orchestrator.json declares command ${JSON.stringify(fallback.command)} with ${JSON.stringify(fallback.models)}`,

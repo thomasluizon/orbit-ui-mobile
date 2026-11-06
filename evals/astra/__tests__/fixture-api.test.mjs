@@ -316,3 +316,14 @@ it('retains a committed fixture log when its response is lost', async () => {
   expect(request).toHaveBeenCalledTimes(2)
   expect(completions).toBe(1)
 })
+
+it.each([
+  [{ isSuccess: false, error: 'stale_preview', pendingOperationId: null, preview: null }, 'HTTP 409 (errorCode: none, error: stale_preview)'],
+  [{ isSuccess: false, error: 'revision_conflict' }, 'HTTP 409 (errorCode: none, error: revision_conflict)'],
+  [{ error: 'Habit Read Bible for Ana was not found.' }, 'HTTP 409 (errorCode: none)'],
+  [{ errorCode: 'HABIT_NOT_FOUND', error: 'habit_missing' }, 'HTTP 409 (errorCode: HABIT_NOT_FOUND)'],
+])('names a pending revision code without echoing a free-text error: %j', async (body, cause) => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status: 409 })))
+  expect(await outcome(api('POST', 'ai/pending-operations/11111111-1111-4111-8111-111111111111/revise', {})))
+    .toEqual({ error: `Fixture API POST ai/pending-operations/{id}/revise failed: ${cause}.` })
+})

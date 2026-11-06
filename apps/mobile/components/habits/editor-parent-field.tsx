@@ -6,7 +6,7 @@ import { MoveParentDialog } from '../habit-list/move-parent-dialog'
 export function EditorParentField({ parent, disabled, onRetryDetail }: Readonly<{ parent: ReturnType<typeof useEditorParent>; disabled: boolean; onRetryDetail: () => void }>) {
   const { t } = useTranslation()
   return <>
-    <ListRow title={t('habits.form.parentHabit')} accessibilityLabel={`${t('habits.form.parentHabit')}, ${parent.value}`} value={parent.value} valueTextMode="personal" wrapValue placement="column" disabled={disabled} onClick={parent.show} />
+    <ListRow title={t('habits.form.parentHabit')} accessibilityLabel={`${t('habits.form.parentHabit')}, ${parent.value}`} value={parent.value} valueTextMode="personal" wrapValue placement="field" disabled={disabled} onClick={parent.show} />
     <MoveParentDialog t={t} visible={parent.open} isPending={false} selectionOnly
       movingHabitTitle={null} movingHabitParentId={parent.baseline}
       options={disabled ? [] : parent.options} selectedMoveParentId={parent.selected}

@@ -123,7 +123,7 @@ function resolveComposerStreamFailure(
   }, draftMessageId }
 }
 
-export async function settleComposerResponse(...args: Parameters<typeof import('./chat-stream-execution-core').settleComposerResponse>) {
+export async function settleComposerResponse(...args: Parameters<typeof import('./chat-stream-execution-core').settleComposerResponse>): Promise<void> {
   const { settleComposerResponse: settle } = await loadModule(() => import('./chat-stream-execution-core'), args[0].onModuleLoadError)
   return settle(...args)
 }
@@ -147,7 +147,13 @@ interface ComposerFailureContext<Attempt extends ComposerAttempt<unknown, unknow
   accountChangedCode?: string
 }
 
-export function createComposerFailureHandlers<Attempt extends ComposerAttempt<unknown, unknown>>({ restoreImage, restoreTextFile, setDailyBudgetDate, today, setSendError, setLastFailedSend, allowanceText, updateMessage, addMessage, scrollToBottom, activeStepsRef, setActiveSteps, setIsTyping, setInput, t, getChat, setChat, createMessageId, accountChangedCode }: ComposerFailureContext<Attempt>) {
+export interface ComposerFailureHandlers<Attempt> {
+  handleFailedSend: (failure: Extract<ChatStreamResult, { kind: 'failed' }>['failure'], attempted: Attempt, draftMessageId: string | null) => void
+  handleAllowanceExceeded: (draftMessageId: string | null) => void
+  handleDailyBudgetExceeded: (draftMessageId: string | null, attempted?: Attempt) => void
+}
+
+export function createComposerFailureHandlers<Attempt extends ComposerAttempt<unknown, unknown>>({ restoreImage, restoreTextFile, setDailyBudgetDate, today, setSendError, setLastFailedSend, allowanceText, updateMessage, addMessage, scrollToBottom, activeStepsRef, setActiveSteps, setIsTyping, setInput, t, getChat, setChat, createMessageId, accountChangedCode }: ComposerFailureContext<Attempt>): ComposerFailureHandlers<Attempt> {
   const handleDailyBudgetExceeded = (draftMessageId: string | null, attempted?: Attempt) => {
     if (attempted?.clearDraftOnSuccess && attempted.restoredDraftRevision === getChat().draftRevision) {
       restoreImage(attempted.image, attempted.preview)
@@ -214,33 +220,22 @@ export function createComposerFailureHandlers<Attempt extends ComposerAttempt<un
       return
     }
 
-    if (failure.kind === 'timeout') {
-      setSendError(t('chat.timeoutError'))
-      setLastFailedSend(failedAttempt)
-    } else if (failure.kind === 'limit') {
+    if (failure.kind === 'limit') {
       handleAllowanceExceeded(draftMessageId)
       return
-    } else {
-      setSendError(t('chat.sendError'))
-      setLastFailedSend(failedAttempt)
     }
 
-    if (draftMessageId) {
-      updateMessage(draftMessageId, { content: t('chat.aiError') })
-    } else {
-      addMessage({
-        id: createMessageId(),
-        role: 'ai',
-        content: t('chat.aiError'),
-        timestamp: new Date(),
-      })
-    }
-    scrollToBottom()
+    setSendError(t(failure.kind === 'timeout' ? 'chat.timeoutError' : 'chat.sendError'))
+    setLastFailedSend(failedAttempt)
+    if (draftMessageId) setChat(state => ({ messages: state.messages.flatMap(message => {
+      if (message.id !== draftMessageId) return [message]
+      return message.plan ? [{ ...message, content: '' }] : []
+    }) }))
   }
   return { handleFailedSend, handleAllowanceExceeded, handleDailyBudgetExceeded }
 }
 
-export async function retryComposerSend<Attempt extends Pick<ComposerAttempt<unknown, unknown>, 'clearDraftOnSuccess' | 'restoredDraftRevision'>>(attempted: Attempt | null, performSend: (attempt: Attempt, isRetry: boolean) => Promise<boolean>, getChat: () => ChatStoreState, getAccountGeneration: () => number, clearDraft: () => void) {
+export async function retryComposerSend<Attempt extends Pick<ComposerAttempt<unknown, unknown>, 'clearDraftOnSuccess' | 'restoredDraftRevision'>>(attempted: Attempt | null, performSend: (attempt: Attempt, isRetry: boolean) => Promise<boolean>, getChat: () => ChatStoreState, getAccountGeneration: () => number, clearDraft: () => void): Promise<void> {
   const sendState = getChat()
   if (!attempted || sendState.isTyping || sendState.streamingMessageId !== null) return
   const startingAccountGeneration = getAccountGeneration()

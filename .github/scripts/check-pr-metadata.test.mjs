@@ -70,6 +70,17 @@ test("text checks retain dash rejection, including on body-only edits", () => {
   check("A bot \u2014 body", [], [], 0, { checkDashes: "false" })
 })
 
+test("body checks reject attribution lines, including on body-only edits", () => {
+  // Built from parts, so this source file never holds an attribution line of its own.
+  const trailer = ["Co", "Authored", "By: Claude Opus 5.5 <noreply@anthropic.com>"].join("-")
+  const generated = `\u{1F916} ${["Generated", "with"].join(" ")} [Claude Code](https://claude.com/claude-code)`
+  check("## Summary\n\nThe guard refuses a `Co-Authored-By:` trailer and a \"Generated with\" line.", [], [], 0)
+  check(`## Summary\n\nWork.\n\n${trailer}`, [], [], 1)
+  check(`## Summary\n\nWork.\n\n${trailer.toLowerCase()}`, [], [], 1)
+  check(`Work.\n\n${generated}`, [], [], 1)
+  check(`Work.\n\n${trailer}`, [], [], 1, { checkDashes: "false" })
+})
+
 test("parity checks reject removed exemptions and require a specific justification", () => {
   const web = ["apps/web/components/control.tsx"]
   check("", [], web, 1)

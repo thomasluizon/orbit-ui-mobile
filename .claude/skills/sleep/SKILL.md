@@ -279,9 +279,13 @@ lift them straight out.
 
 ## 10. Watch the allowance
 
-Codex usage meters on a rolling five hour window plus a weekly cap, shared across every surface, and
-the worker model spends it faster than the previous one. If workers start failing for quota rather
-than for code, stop spawning them, log it, and switch to work you can do without a worker.
+Workers run under the dedicated worker account, a Claude Max subscription separate from the
+orchestrator's account. Its usage meters on a rolling five hour window plus a weekly cap. When a
+worker stops at that limit, `launch-worker.mjs` relaunches it once on the main account, the
+orchestrator's default Claude config (`orchestrate/SKILL.md` §5.4.1). If the main account also
+reaches its limit, stop spawning workers and log the reset time. Then switch to work you can do
+without a worker: CI waiting, review fixes and readiness checks. Never launch a worker on Codex in
+its place.
 
 ## 11. The wake report
 

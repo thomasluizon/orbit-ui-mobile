@@ -90,3 +90,52 @@ it('removes a false completed-goal pass when the saved main query only read acti
   expect(audit.results[0]).toMatchObject({ before: 'pass', after: 'fail' })
   expect(audit.results[0].notes.join(' ')).toContain('An active-only query cannot prove completed-goal exclusion')
 })
+
+const gateFourteen = JSON.parse(readFileSync(new URL('./fixtures/gate-fourteen.json', import.meta.url), 'utf8'))
+
+it('regrades the recorded relative historical read and keeps the unrecorded offer checks incomplete', async () => {
+  const source = window([gateFourteen.find((entry) => entry.caseId === 'offers-due-log-pt-BR')])
+  const [verdict] = await replayWindow(source, `${directory}/output`)
+  expect(verdict.before).toBe('fail')
+  expect(verdict.after).toBe('incomplete')
+  expect(verdict.notes.join(' ')).toContain('partial-scope')
+})
+
+it('keeps a recorded historical read of another day failed', async () => {
+  const attempt = structuredClone(gateFourteen.find((entry) => entry.caseId === 'offers-due-log-pt-BR'))
+  attempt.offerReadback.turns[0].toolCalls[0].arguments.relative_period = 'today'
+  const source = window([attempt])
+  const [verdict] = await replayWindow(source, `${directory}/output`)
+  expect(verdict.after).toBe('fail')
+  expect(verdict.notes.join(' ')).toContain('Historical read scope: Missing tool or incorrect arguments/result: query_habits')
+})
+
+it('reports a redacted recorded argument as a projection limit instead of a regression', async () => {
+  const source = window([gateFourteen.find((entry) => entry.caseId === 'offers-dismissal-en')])
+  const [verdict] = await replayWindow(source, `${directory}/output`)
+  expect(verdict.after).toBe('pass')
+  expect(verdict.schemas.find((schema) => !schema.pass)).toMatchObject({ name: 'get_daily_summary', redacted: true })
+  expect(readFileSync(`${directory}/output/summary.md`, 'utf8')).toContain('| offers-dismissal-en | pass | pass | unreplayable projection |')
+})
+
+it('does not let a redacted value excuse a later schema error on a passing case', async () => {
+  const attempt = structuredClone(gateFourteen.find((entry) => entry.caseId === 'offers-dismissal-en'))
+  expect(attempt.toolCalls[0].arguments.relative_period).toBe('[redacted]')
+  attempt.toolCalls[0].arguments.generate_narrative = 'yes'
+  const source = window([attempt])
+  await expect(replayWindow(source, `${directory}/output`)).rejects.toThrow('changed a previously passing case')
+})
+
+it('fails closed on a redacted value in a field that does not accept null', async () => {
+  const attempt = structuredClone(gateFourteen.find((entry) => entry.caseId === 'offers-dismissal-en'))
+  attempt.toolCalls[0].arguments.orbit_read_complete = '[redacted]'
+  const source = window([attempt])
+  await expect(replayWindow(source, `${directory}/output`)).rejects.toThrow('changed a previously passing case')
+})
+
+it('still counts an unredacted schema failure on a passing case as a regression', async () => {
+  const attempt = structuredClone(gateFourteen.find((entry) => entry.caseId === 'offers-dismissal-en'))
+  attempt.toolCalls[0].arguments.relative_period = 'tomorrow'
+  const source = window([attempt])
+  await expect(replayWindow(source, `${directory}/output`)).rejects.toThrow('changed a previously passing case')
+})

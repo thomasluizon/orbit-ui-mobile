@@ -1,10 +1,10 @@
 'use client'
 
-import { IconButton } from '@/components/ui/icon-button'
+import { ListRow } from '@/components/ui/list-row'
 
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
-import { Plus, X } from '@/components/ui/icons'
+import { X } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { DateField } from '@/components/ui/date-field'
 import { formatAPIDate } from '@orbit/shared/utils/dates'
@@ -24,7 +24,7 @@ export function GoalDeadlineField({
   return (
     <>
       <GoalGroupLabel top={SPACING.s16}>
-        {t('goals.form.deadline')}{' '}
+        {t('goals.form.deadlineQuestion')}{' '}
         <span style={{ color: 'var(--fg-3)', fontWeight: 400 }}>
           ({t('goals.form.deadlineOptional')})
         </span>
@@ -50,7 +50,7 @@ export function GoalDeadlineField({
             </button>
           </div>
         ) : (
-          <IconButton label={t('goals.form.addDeadline')} onClick={() => onChangeDeadline(formatAPIDate(new Date()))}><Plus size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
+          <div><ListRow placement="field" icon="plus" title={t('goals.form.addDeadline')} onClick={() => onChangeDeadline(formatAPIDate(new Date()))} /></div>
         )}
         {deadline && isGoalDeadlinePast(deadline) && (
           <p

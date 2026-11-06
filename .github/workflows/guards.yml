@@ -229,6 +229,12 @@ jobs:
             echo "Surface manifest skipped: no owned path changed."
           fi
         if: ${{ !cancelled() }}
+      - id: attribution__1
+        name: "Attribution: Pull request commits carry no attribution lines"
+        if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
+        env:
+          PULL_REQUEST_RANGE: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
+        run: node tools/check-attribution.mjs --range "$PULL_REQUEST_RANGE"
       - id: gate-charter__1
         name: "Gate Charter: Changed gates obey the charter"
         run: |

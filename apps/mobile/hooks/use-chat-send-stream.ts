@@ -20,6 +20,7 @@ import type { ChatStoreState } from "@orbit/shared/stores"
 import { useUIStore } from "@/stores/ui-store"
 import { getAccountGeneration } from "@/lib/session-epoch"
 import type { ByteStream,AttemptedSend,UseChatComposerOptions } from './use-chat-composer-types'
+import type { useSpeechToText } from '@/hooks/use-speech-to-text'
 import { type useChatComposerAttachmentState,buildImageFileName } from './use-chat-composer-attachments'
 import type { ChatComposerState,useChatComposerScroll,useChatComposerAvailability } from './use-chat-composer-state'
 
@@ -94,11 +95,12 @@ export function useChatRequestPayload(i18n: ChatRequestPayloadInputs['i18n'], pr
       formData.append("message", attempted.content)
       if (attempted.blockAnswer) formData.append("blockAnswer", JSON.stringify(attempted.blockAnswer))
       if (attempted.image) {
-        formData.append(
-          "image",
-          new File(attempted.image.uri).slice(0, undefined, resolveChatImageMimeType(attempted.image) ?? undefined),
-          buildImageFileName(attempted.image),
-        )
+        const image = attempted.image
+        formData.append("image", {
+          name: buildImageFileName(image),
+          type: resolveChatImageMimeType(image) ?? undefined,
+          bytes: () => new File(image.uri).bytes(),
+        })
       }
 
       const historyMessages = useChatStore.getState().messages
@@ -134,20 +136,21 @@ export function useChatStream(inputs: ChatStreamInputs) {
   return { runStreamingSend }
 }
 
-type ChatSendQueueInputs = Pick<ChatComposerState, 'threadScroll' | 'activeStepsRef' | 'setActiveSteps' | 'setSendError' | 'setLastFailedSend' | 'setIsTyping' | 'blockSubmission' | 'i18n' | 'queryClient' | 't' | 'allowanceText' | 'setInput'> & Pick<ReturnType<typeof useChatComposerScroll>, 'scrollToBottom'> & Pick<ReturnType<typeof useChatStream>, 'runStreamingSend'> & Pick<ReturnType<typeof useChatSendFailure>, 'handleFailedSend' | 'handleAllowanceExceeded' | 'handleDailyBudgetExceeded'> & Pick<UseChatComposerOptions, 'isOnline'> & Pick<ReturnType<typeof useChatComposerAvailability>, 'atMessageLimit' | 'dailyBudgetReached' | 'isSending' | 'aiMessagesLimit'> & Pick<ReturnType<typeof useChatComposerAttachmentState>, 'setSelectedImage' | 'setImagePreview' | 'setSelectedTextFile' | 'imageSelectionVersionRef'>
+type ChatSendQueueInputs = Pick<ChatComposerState, 'threadScroll' | 'activeStepsRef' | 'setActiveSteps' | 'setSendError' | 'setLastFailedSend' | 'setIsTyping' | 'blockSubmission' | 'i18n' | 'queryClient' | 't' | 'allowanceText' | 'setInput'> & Pick<ReturnType<typeof useChatComposerScroll>, 'scrollToBottom'> & Pick<ReturnType<typeof useChatStream>, 'runStreamingSend'> & Pick<ReturnType<typeof useChatSendFailure>, 'handleFailedSend' | 'handleAllowanceExceeded' | 'handleDailyBudgetExceeded'> & Pick<UseChatComposerOptions, 'isOnline'> & Pick<ReturnType<typeof useChatComposerAvailability>, 'atMessageLimit' | 'dailyBudgetReached' | 'isSending' | 'aiMessagesLimit'> & Pick<ReturnType<typeof useChatComposerAttachmentState>, 'setSelectedImage' | 'setImagePreview' | 'setSelectedTextFile' | 'imageSelectionVersionRef'> & { clearSpeechError: ReturnType<typeof useSpeechToText>['clearError'] }
 
-export function useChatSendQueue(threadScroll: ChatSendQueueInputs['threadScroll'], activeStepsRef: ChatSendQueueInputs['activeStepsRef'], setActiveSteps: ChatSendQueueInputs['setActiveSteps'], setSendError: ChatSendQueueInputs['setSendError'], setLastFailedSend: ChatSendQueueInputs['setLastFailedSend'], scrollToBottom: ChatSendQueueInputs['scrollToBottom'], setIsTyping: ChatSendQueueInputs['setIsTyping'], runStreamingSend: ChatSendQueueInputs['runStreamingSend'], handleFailedSend: ChatSendQueueInputs['handleFailedSend'], blockSubmission: ChatSendQueueInputs['blockSubmission'], isOnline: ChatSendQueueInputs['isOnline'], atMessageLimit: ChatSendQueueInputs['atMessageLimit'], dailyBudgetReached: ChatSendQueueInputs['dailyBudgetReached'], handleAllowanceExceeded: ChatSendQueueInputs['handleAllowanceExceeded'], handleDailyBudgetExceeded: ChatSendQueueInputs['handleDailyBudgetExceeded'], i18n: ChatSendQueueInputs['i18n'], queryClient: ChatSendQueueInputs['queryClient'], t: ChatSendQueueInputs['t'], isSending: ChatSendQueueInputs['isSending'], aiMessagesLimit: ChatSendQueueInputs['aiMessagesLimit'], allowanceText: ChatSendQueueInputs['allowanceText'], setInput: ChatSendQueueInputs['setInput'], setSelectedImage: ChatSendQueueInputs['setSelectedImage'], setImagePreview: ChatSendQueueInputs['setImagePreview'], setSelectedTextFile: ChatSendQueueInputs['setSelectedTextFile'], imageSelectionVersionRef: ChatSendQueueInputs['imageSelectionVersionRef']) {
+export function useChatSendQueue(threadScroll: ChatSendQueueInputs['threadScroll'], activeStepsRef: ChatSendQueueInputs['activeStepsRef'], setActiveSteps: ChatSendQueueInputs['setActiveSteps'], setSendError: ChatSendQueueInputs['setSendError'], setLastFailedSend: ChatSendQueueInputs['setLastFailedSend'], scrollToBottom: ChatSendQueueInputs['scrollToBottom'], setIsTyping: ChatSendQueueInputs['setIsTyping'], runStreamingSend: ChatSendQueueInputs['runStreamingSend'], handleFailedSend: ChatSendQueueInputs['handleFailedSend'], blockSubmission: ChatSendQueueInputs['blockSubmission'], isOnline: ChatSendQueueInputs['isOnline'], atMessageLimit: ChatSendQueueInputs['atMessageLimit'], dailyBudgetReached: ChatSendQueueInputs['dailyBudgetReached'], handleAllowanceExceeded: ChatSendQueueInputs['handleAllowanceExceeded'], handleDailyBudgetExceeded: ChatSendQueueInputs['handleDailyBudgetExceeded'], i18n: ChatSendQueueInputs['i18n'], queryClient: ChatSendQueueInputs['queryClient'], t: ChatSendQueueInputs['t'], isSending: ChatSendQueueInputs['isSending'], aiMessagesLimit: ChatSendQueueInputs['aiMessagesLimit'], allowanceText: ChatSendQueueInputs['allowanceText'], setInput: ChatSendQueueInputs['setInput'], setSelectedImage: ChatSendQueueInputs['setSelectedImage'], setImagePreview: ChatSendQueueInputs['setImagePreview'], setSelectedTextFile: ChatSendQueueInputs['setSelectedTextFile'], imageSelectionVersionRef: ChatSendQueueInputs['imageSelectionVersionRef'], clearSpeechError: ChatSendQueueInputs['clearSpeechError']) {
   const beginSend = useCallback(() => {
     useChatStore.getState().beginReply()
     threadScroll.followLatest()
     activeStepsRef.current = []
     setActiveSteps([])
     setSendError(null)
+    clearSpeechError()
     setLastFailedSend(null)
     scrollToBottom()
     setIsTyping(true)
     scrollToBottom()
-  }, [threadScroll, activeStepsRef, setActiveSteps, setSendError, setLastFailedSend, scrollToBottom, setIsTyping])
+  }, [threadScroll, activeStepsRef, setActiveSteps, setSendError, setLastFailedSend, scrollToBottom, setIsTyping, clearSpeechError])
 
   const performSend = useCallback((attempted: AttemptedSend, isRetry: boolean) => sendChatPrompt(attempted, isRetry, {
     conversation: useUIStore.getState(), getChat: useChatStore.getState, getAccountGeneration,

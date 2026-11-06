@@ -36,29 +36,71 @@ export const googleToken = async (parameters, request = fetch) => {
   return token
 }
 
+/**
+ * Gmail quota units per method and the per-user budget, from
+ * https://developers.google.com/workspace/gmail/api/reference/quota (messages.get costs 60 with format full).
+ */
+const QUOTA_UNITS = Object.freeze({ profile: 1, list: 5, read: 60, readAttachment: 20, listDrafts: 5, createDraft: 10, sendDraft: 100 })
+const UNITS_PER_MINUTE = 6_000
+const QUOTA_WINDOW_MILLISECONDS = 60_000
+/**
+ * Rate-limit reasons and the exponential backoff from one second, from
+ * https://developers.google.com/workspace/gmail/api/guides/handle-errors.
+ */
+const RATE_LIMIT_REASONS = new Set(["rateLimitExceeded", "userRateLimitExceeded"])
+const MAXIMUM_ATTEMPTS = 7
+const systemPacing = Object.freeze({ now: () => Date.now(), sleep: (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)), random: Math.random })
+
+/** Spends quota units inside a sliding minute, so sequential reads stay under the per-user budget. */
+const quotaPacer = ({ now, sleep }) => {
+  const spent = []
+  return async (units) => {
+    for (;;) {
+      while (spent.length && now() - spent[0].at >= QUOTA_WINDOW_MILLISECONDS) spent.shift()
+      if (spent.reduce((total, entry) => total + entry.units, 0) + units <= UNITS_PER_MINUTE) break
+      await sleep(spent[0].at + QUOTA_WINDOW_MILLISECONDS - now())
+    }
+    spent.push({ at: now(), units })
+  }
+}
+
+const errorReason = async (response) => {
+  try { return (await response.json()).error?.errors?.find((entry) => typeof entry?.reason === "string")?.reason ?? "" } catch { return "" }
+}
+
 /** Sending an existing draft requires a clear, authorized disposition. */
-export const gmailClient = (accessToken, request = fetch) => {
-  const call = async (method, path, parameters = {}, body) => {
+export const gmailClient = (accessToken, request = fetch, pacing = systemPacing) => {
+  const spend = quotaPacer(pacing)
+  const call = async (operation, method, path, parameters = {}, body) => {
     const allowed = method === "GET" && /^(profile|messages|messages\/[^/?]+(?:\/attachments\/[^/?]+)?|drafts)$/.test(path) || method === "POST" && ["drafts", "drafts/send"].includes(path)
     if (!allowed) throw new Error("Gmail operation is outside the reply client")
     const url = new URL(`https://gmail.googleapis.com/gmail/v1/users/${MAILBOX}/${path}`)
     url.search = new URLSearchParams(parameters).toString()
-    const response = await request(url, { method, headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-      ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(30_000) })
-    if (!response.ok) throw new Error(`Gmail ${method} failed (HTTP ${response.status})`)
-    return response.json()
+    // A send is never repeated here: Gmail can accept a send before it reports the limit, and replyToMail owns send recovery.
+    const attempts = operation === "sendDraft" ? 1 : MAXIMUM_ATTEMPTS
+    for (let attempt = 1; ; attempt++) {
+      await spend(QUOTA_UNITS[operation])
+      const response = await request(url, { method, headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(30_000) })
+      if (response.ok) return response.json()
+      const reason = response.status === 403 || response.status === 429 ? await errorReason(response) : ""
+      const failure = `Gmail ${method} failed (HTTP ${response.status}${reason ? ` ${reason}` : ""})`
+      if (response.status !== 429 && !(response.status === 403 && RATE_LIMIT_REASONS.has(reason))) throw new Error(failure)
+      if (attempt >= attempts) throw new Error(attempt > 1 ? `${failure} after ${attempt} attempts` : failure)
+      await pacing.sleep(2 ** (attempt - 1) * 1_000 + Math.floor(pacing.random() * 1_000))
+    }
   }
   return Object.freeze({
-    profile: () => call("GET", "profile"),
-    list: (parameters) => call("GET", "messages", parameters),
-    read: (id) => call("GET", `messages/${encodeURIComponent(id)}`, { format: "full" }),
-    readAttachment: (messageId, attachmentId) => call("GET", `messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}`),
-    listDrafts: (parameters) => call("GET", "drafts", parameters),
-    createDraft: (message) => call("POST", "drafts", {}, { message }),
+    profile: () => call("profile", "GET", "profile"),
+    list: (parameters) => call("list", "GET", "messages", parameters),
+    read: (id) => call("read", "GET", `messages/${encodeURIComponent(id)}`, { format: "full" }),
+    readAttachment: (messageId, attachmentId) => call("readAttachment", "GET", `messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}`),
+    listDrafts: (parameters) => call("listDrafts", "GET", "drafts", parameters),
+    createDraft: (message) => call("createDraft", "POST", "drafts", {}, { message }),
     sendDraft: (id, receipt, message) => {
       if (replyDisposition(receipt) !== "send") throw new Error("This reply must remain a draft for the owner")
       if (typeof message?.raw !== "string" || !message.raw) throw new Error("An exact classified reply is required")
-      return call("POST", "drafts/send", {}, { id, message })
+      return call("sendDraft", "POST", "drafts/send", {}, { id, message })
     },
   })
 }

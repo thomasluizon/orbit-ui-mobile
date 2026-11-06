@@ -286,3 +286,23 @@ describe('OnboardingCreateHabit', () => {
   })
 
 })
+
+describe('onboarding schedule questions', () => {
+  it.each([
+    { name: 'open', schedule, questions: ['when.scheduleMode', 'when.frequencyUnitLabel'] },
+    { name: 'fixed', schedule: everyThirdMonday, questions: ['when.scheduleMode', 'when.daysLabel'] },
+  ])('asks each $name schedule answer as its own question group', ({ schedule: current, questions }) => {
+    translations.locale = 'en'
+    translations.current = (key: string) => key
+    const { container } = render(<OnboardingCreateHabit {...base} schedule={current as OnboardingSchedule} />)
+    const groups = [...container.querySelector('[data-onboarding-questions]')!.children] as HTMLElement[]
+    for (const [index, question] of questions.entries()) {
+      expect(groups[index]!.firstElementChild).toHaveTextContent(`onboarding.flow.${question}`)
+    }
+    expect(groups.at(-1)).toContainElement(screen.getByTestId('time-field'))
+  })
+
+  it.each([['en', en], ['pt-BR', ptBR]] as const)('writes every %s schedule label as a question', (_locale, messages) => {
+    for (const key of ['scheduleMode', 'frequencyUnitLabel', 'daysLabel', 'timeLabel'] as const) expect(messages.onboarding.flow.when[key]).toMatch(/\?$/)
+  })
+})

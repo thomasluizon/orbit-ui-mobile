@@ -35,7 +35,7 @@ export function EditGoalTargetFields({
         <Text nativeID="edit-goal-target-label" style={styles.fieldLabel}>
           {isStreak
             ? t('goals.form.streakTarget')
-            : t('goals.form.targetValue')}
+            : t('goals.form.targetValueQuestion')}
         </Text>
         <BottomSheetAppTextInput
           ref={targetRef}
@@ -45,7 +45,7 @@ export function EditGoalTargetFields({
           accessibilityLabel={
             isStreak
               ? t('goals.form.streakTarget')
-              : t('goals.form.targetValue')
+              : t('goals.form.targetValueQuestion')
           }
           accessibilityLabelledBy="edit-goal-target-label"
           accessibilityHint={[t('common.required'), fieldErrors.targetValue].filter(Boolean).join('. ')}
@@ -58,13 +58,13 @@ export function EditGoalTargetFields({
       </View>
       {!isStreak ? (
         <View style={styles.halfField}>
-          <Text nativeID="edit-goal-unit-label" style={styles.fieldLabel}>{t('goals.form.unit')}</Text>
+          <Text nativeID="edit-goal-unit-label" style={styles.fieldLabel}>{t('goals.form.unitQuestion')}</Text>
           <BottomSheetAppTextInput
             ref={unitRef}
             value={unit}
             onChangeText={onChangeUnit}
             maxLength={MAX_GOAL_UNIT_LENGTH}
-            accessibilityLabel={t('goals.form.unit')}
+            accessibilityLabel={t('goals.form.unitQuestion')}
             accessibilityLabelledBy="edit-goal-unit-label"
             accessibilityHint={[t('common.required'), fieldErrors.unit].filter(Boolean).join('. ')}
           />

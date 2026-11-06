@@ -330,7 +330,7 @@ describe('controlled full editor checklist', () => {
       return Promise.resolve()
     })
     const textHosts = form.findAll((node) => String(node.type) === 'TextInput')
-    expect(textHosts.map((node) => node.props.accessibilityLabel)).toEqual(expect.arrayContaining(['habits.form.describe', 'habits.form.datePhrase', 'habits.form.frequency', 'habits.form.exactTime', 'habits.form.dueEndTime', 'habits.form.checklistItemLabel', 'habits.form.description']))
+    expect(textHosts.map((node) => node.props.accessibilityLabel)).toEqual(expect.arrayContaining(['habits.form.describe', 'habits.form.datePhrase', 'habits.form.timesCount', 'habits.form.exactTime', 'habits.form.dueEndTime', 'habits.form.checklistItemLabel', 'habits.form.descriptionQuestion']))
     await pressSubmit(submit)
     await settleMutation()
     expect(mutation).toHaveBeenCalledOnce()
@@ -353,7 +353,7 @@ describe('controlled full editor checklist', () => {
     let reject!: (error: unknown) => void
     mutation.mockImplementation(() => new Promise((resolve, rejectRequest) => { finish = resolve; reject = rejectRequest }))
     const { tree, title, submit, onClose, onSaved } = await renderSheet('edit', editedHabit)
-    const description = tree.root.findAll((node) => String(node.type) === 'TextInput' && node.props.accessibilityLabel === 'habits.form.description')[0]!
+    const description = tree.root.findAll((node) => String(node.type) === 'TextInput' && node.props.accessibilityLabel === 'habits.form.descriptionQuestion')[0]!
     const checklist = inputs(tree)[0]!
     const hosts = [title, description, checklist]
     const values = ['Submitted title', 'Submitted description', 'Submitted item']
@@ -426,7 +426,7 @@ describe('controlled full editor checklist', () => {
     let finish!: () => void
     mutation.mockImplementation(() => new Promise<void>((resolve) => { finish = resolve }))
     const { tree, title, submit, onClose, onSaved } = await renderSheet('edit', editedHabit)
-    const description = tree.root.findAll((node) => String(node.type) === 'TextInput' && node.props.accessibilityLabel === 'habits.form.description')[0]!
+    const description = tree.root.findAll((node) => String(node.type) === 'TextInput' && node.props.accessibilityLabel === 'habits.form.descriptionQuestion')[0]!
     const checklist = inputs(tree)[0]!
     const hosts = { title, description, checklist }
     await changeTitle(title, 'Ready to save')

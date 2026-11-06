@@ -22,6 +22,7 @@ import {
   coalesceFormText,
   getFriendlyErrorMessage,
   extractBackendStatus,
+  formatLocaleDate,
   isHabitDailySchedule,
   isHabitAstraLimitReached,
   parseAPIDate,
@@ -135,21 +136,26 @@ interface EndDateEditorProps {
 
 function EndDateEditor({ visible, value, onChange, t }: Readonly<EndDateEditorProps>) {
   const { disabled, guard } = useHabitFormInteraction()
+  const { i18n } = useTranslation()
   const [focusRequest, setFocusRequest] = useState(0)
+  const [endDateExpanded, setShowEndDate] = useState<boolean | null>(null)
+  const showEndDate = endDateExpanded ?? Boolean(value)
   if (!visible) return null
   return (
-    <View style={{ gap: 16 }}>
+    <View testID="end-date-levels" style={{ gap: 16 }}>
       <FormSectionLabel>{t('habits.form.ending')}</FormSectionLabel>
-      <View style={{ gap: 8 }}>
-      <FormSectionLabel>{t('habits.form.endDate')}</FormSectionLabel>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}><View style={{ flex: 1, minWidth: 0 }}><DateField disabled={disabled} label={t('habits.form.endDate')} value={value} placeholder={t('habits.form.endDatePlaceholder')} onChange={guard(onChange)} focusRequest={focusRequest} /></View>
+      <View><ListRow disabled={disabled} placement="field" title={t('habits.form.addEndDate')} value={value && !showEndDate ? formatLocaleDate(value, i18n.language) : undefined} expanded={showEndDate} onClick={guard(() => setShowEndDate(!showEndDate))} /></View>
+      {showEndDate ? <View style={{ gap: 8 }}>
+      <FormSectionLabel>{t('habits.form.endDateQuestion')}</FormSectionLabel>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}><View style={{ flex: 1, minWidth: 0 }}><DateField disabled={disabled} label={t('habits.form.endDateQuestion')} value={value} placeholder={t('habits.form.endDatePlaceholder')} onChange={guard((next: string) => { setShowEndDate(true); onChange(next) })} focusRequest={focusRequest} /></View>
       {value ? <View style={{ alignItems: 'flex-end' }}>
         <PillButton disabled={disabled} variant="ghost" iconOnly label={t('habits.form.removeEndDate')} onClick={() => {
+          setShowEndDate(true)
           onChange('')
           setFocusRequest((request) => request + 1)
         }}><X size={20} /></PillButton>
       </View> : null}</View>
-      </View>
+      </View> : null}
     </View>
   )
 }
@@ -176,7 +182,7 @@ function SlipAlertEditor({
   if (!visible) return null
   return (
     <View style={{ gap: 8 }}>
-      <FormSectionLabel>{t('habits.form.slipAlert')}</FormSectionLabel>
+      <FormSectionLabel>{t('habits.form.slipAlertQuestion')}</FormSectionLabel>
       <SlipAlertSection inline tokens={tokens} hasProAccess={hasProAccess} slipAlertEnabled={slipAlertEnabled} onToggle={onToggle} onUpgrade={onUpgrade} />
     </View>
   )
@@ -191,7 +197,7 @@ function SubHabitSection({
   if (!children) return null
   return (
     <View style={{ gap: 8 }}>
-      <FormSectionLabel>{task ? t('habits.form.subTasks') : t('habits.form.subHabits')}</FormSectionLabel>
+      <FormSectionLabel>{task ? t('habits.form.subTasksQuestion') : t('habits.form.subHabitsQuestion')}</FormSectionLabel>
       <Proposed proposed={proposed} scope="field" label={t('habits.detail.proposed')}>
         {children}
       </Proposed>
@@ -209,8 +215,7 @@ function HabitAvoidanceFields({ formHelpers, controller, hasProAccess, tokens, o
   return (
     <View style={{ gap: 16 }}>
       <FormSectionLabel>{t('habits.form.avoidGroup')}</FormSectionLabel>
-            {/* eslint-disable-next-line local/max-button-words -- Orbit Habit Create draws the avoid-habit switch label. */}
-            <ListRow disabled={disabled} placement="column" title={t('habits.form.habitTypeAvoid')} description={isBadHabit ? t('habits.form.habitTypeAvoidHint') : t('habits.form.habitTypeBuildHint')} toggle={{ checked: isBadHabit, onChange: guard((checked) => form.setValue('isBadHabit', checked, { shouldDirty: true })) }} />
+            <View><ListRow disabled={disabled} placement="field" title={t('habits.form.habitTypeAvoid')} description={isBadHabit ? t('habits.form.habitTypeAvoidHint') : t('habits.form.habitTypeBuildHint')} toggle={{ checked: isBadHabit, onChange: guard((checked) => form.setValue('isBadHabit', checked, { shouldDirty: true })) }} /></View>
 
             <SlipAlertEditor visible={isBadHabit} tokens={tokens} hasProAccess={hasProAccess} slipAlertEnabled={slipAlertEnabled} onToggle={() => controller.setSlipAlertEnabled(!slipAlertEnabled)} onUpgrade={onUpgrade} t={t} />
     </View>
@@ -469,7 +474,7 @@ export function HabitFormFields({
         error={resolveBackendFormFieldMessage(formHelpers.backendFieldErrors.title, errors.title?.message, t)}
         value={title}
       >
-        <Input disabled={disabled} label={t('habits.form.description')} error={descriptionFailure} focusRequest={backendFormFieldFocusRequest('description', formHelpers.backendFocusField, formHelpers.backendFocusRequest)} value={description} onChange={guard((value) => setValue('description', value, { shouldDirty: true }))} multiline rows={1} maxLength={MAX_HABIT_DESCRIPTION_LENGTH} />
+        <Input disabled={disabled} label={t('habits.form.descriptionQuestion')} error={descriptionFailure} focusRequest={backendFormFieldFocusRequest('description', formHelpers.backendFocusField, formHelpers.backendFocusRequest)} value={description} onChange={guard((value) => setValue('description', value, { shouldDirty: true }))} multiline rows={1} maxLength={MAX_HABIT_DESCRIPTION_LENGTH} />
       <HabitDateField onChange={() => { onSuggestionContextChange?.(); controller.clearProposal() }} lockedGeneral={lockedGeneral} formHelpers={formHelpers} onRecurrence={controller.setRecurrence} />
 
             <HabitScheduleFields
@@ -513,7 +518,7 @@ export function HabitFormFields({
             <View style={{ gap: 16 }}>
               <FormSectionLabel>{t('habits.form.steps')}</FormSectionLabel>
             <View style={{ gap: 8 }}>
-              <FormSectionLabel>{t('habits.form.checklist')}</FormSectionLabel>
+              <FormSectionLabel>{t('habits.form.checklistQuestion')}</FormSectionLabel>
               <HabitChecklist pendingItemText={pendingChecklistItem} onPendingItemChange={onPendingChecklistItemChange} items={checklistItems} editable proposedItemCount={proposal.checklistItems} onItemsChange={controller.setChecklistItems} />
               <ChecklistTemplates items={checklistItems} onLoad={controller.setChecklistItems} />
             </View>

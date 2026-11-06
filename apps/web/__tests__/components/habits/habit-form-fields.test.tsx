@@ -1,5 +1,5 @@
 import { habitFormSchema } from '@orbit/shared/validation'
-import { buildCreateHabitRequest } from '@orbit/shared/utils'
+import { buildCreateHabitRequest, formatLocaleDate } from '@orbit/shared/utils'
 import { dateInterpretationSchema } from '@orbit/shared/types/habit'
 import { formLocale, mockProfileState, mockRouterPush, setupPatch, SETUP_PROPOSAL, CHECKLIST_PROPOSAL, SUB_HABIT_PROPOSAL, COMBINED_PROPOSAL, dateRequests, createFormHelpers, createTags, renderForm } from '@/__tests__/support/habit-form-fields'
 import userEvent from '@testing-library/user-event'
@@ -70,10 +70,10 @@ describe('HabitFormFields', () => {
     renderForm(helpers, undefined, expanded)
     const fields = screen.getAllByRole('textbox')
     expect(fields[0]).toHaveAccessibleName('habits.form.describe')
-    expect(fields[1]).toHaveAccessibleName('habits.form.description')
+    expect(fields[1]).toHaveAccessibleName('habits.form.descriptionQuestion')
     expect(fields[1]).toHaveValue(description)
     expect(fields[1]).toHaveAttribute('maxlength', '10000')
-    expect(screen.getAllByRole('textbox', { name: 'habits.form.description' })).toHaveLength(1)
+    expect(screen.getAllByRole('textbox', { name: 'habits.form.descriptionQuestion' })).toHaveLength(1)
     fireEvent.change(fields[1]!, { target: { value: 'Edited description' } })
     expect(helpers.form.getValues('description')).toBe('Edited description')
   })
@@ -89,7 +89,9 @@ describe('HabitFormFields', () => {
   it('omits an empty sub-habit section when the edit form supplies no editor', () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(<QueryClientProvider client={queryClient}><HabitFormFields formHelpers={createFormHelpers()} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded /></QueryClientProvider>)
-    expect(screen.queryByText('habits.form.subHabits')).toBeNull()
+    expect(screen.getByRole('heading', { name: 'habits.form.checklistQuestion' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'habits.form.subHabitsQuestion' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'habits.form.subTasksQuestion' })).toBeNull()
   })
 
   it.each([false, true])('keeps the sub-habit editor available with Pro access %s', (hasProAccess) => {
@@ -503,8 +505,8 @@ describe('HabitFormFields', () => {
 
   it('names the description field once in the owning form', () => {
     renderForm(createFormHelpers({ title: 'Run' }), undefined, true)
-    expect(screen.getAllByText('habits.form.description')).toHaveLength(1)
-    expect(screen.getByRole('textbox', { name: 'habits.form.description' })).toBeInTheDocument()
+    expect(screen.getAllByText('habits.form.descriptionQuestion')).toHaveLength(1)
+    expect(screen.getByRole('textbox', { name: 'habits.form.descriptionQuestion' })).toBeInTheDocument()
   })
 
   it('hides slip alerts for a positive habit', () => {
@@ -535,7 +537,9 @@ describe('HabitFormFields', () => {
 
     renderForm(formHelpers, undefined, true)
 
-    expect(screen.queryByText('habits.form.endDate')).toBeNull()
+    expect(screen.getByRole('heading', { name: 'habits.form.checklistQuestion' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^habits\.form\.addEndDate/ })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'habits.form.endDateQuestion' })).toBeNull()
   })
 
   it('keeps sub-habits and goals available without an upgrade row', () => {
@@ -711,11 +715,11 @@ it('focuses the visible description failure without opening details', () => {
   helpers.backendFocusField = 'description'
   helpers.backendFocusRequest = 1
   const view = renderForm(helpers)
-  expect(screen.getByLabelText('habits.form.description')).toHaveFocus()
+  expect(screen.getByLabelText('habits.form.descriptionQuestion')).toHaveFocus()
   expect(screen.getByRole('button', { name: 'habits.form.moreDetails' })).toHaveAttribute('aria-expanded', 'false')
   helpers.backendFocusRequest = 2
   view.rerenderForm()
-  expect(screen.getByLabelText('habits.form.description')).toHaveFocus()
+  expect(screen.getByLabelText('habits.form.descriptionQuestion')).toHaveFocus()
 })
 
 
@@ -753,7 +757,7 @@ it('keeps the type-driven decision order and conditional end time in the owning 
   render(<QueryClientProvider client={client}><OwningForm /></QueryClientProvider>)
   expect(screen.getByRole('radio', { name: /^habits.form.typeTask/ })).toBeChecked()
   const title = screen.getByRole('textbox', { name: 'habits.form.taskDescribe' })
-  const description = screen.getByRole('textbox', { name: 'habits.form.description' })
+  const description = screen.getByRole('textbox', { name: 'habits.form.descriptionQuestion' })
   const when = screen.getByRole('textbox', { name: 'habits.form.datePhrase' })
   const timing = screen.getByRole('button', { name: /habits.form.timingAndReminder/ })
   expect(description).toHaveAttribute('rows', '1')
@@ -854,3 +858,82 @@ it('keeps a prefilled end-time question open after clearing its value', () => {
   expect(screen.getByLabelText('habits.form.dueEndTime')).toHaveValue('')
   expect(helpers.form.getValues('dueEndTime')).toBe('')
 })
+
+it.each([
+  { isFlexible: false, frequencyUnit: 'Week', frequencyQuantity: 2, countQuestion: 'habits.form.everyCount:{"unit":"Week"}' },
+  { isFlexible: true, frequencyUnit: 'Week', frequencyQuantity: 3, countQuestion: 'habits.form.timesCount' },
+])('asks each frequency question in its own group with the count named by the answer, flexible $isFlexible', ({ countQuestion, ...schedule }) => {
+  const { container } = renderForm(createFormHelpers({ title: 'Run', itemType: 'habit', ...schedule }))
+  const questions = container.querySelector('[data-schedule-questions]')!
+  const groups = [...questions.children]
+  expect(groups).toHaveLength(3)
+  expect(within(groups[0] as HTMLElement).getByRole('heading', { name: 'habits.form.frequency' })).toBeInTheDocument()
+  expect(within(groups[0] as HTMLElement).getAllByRole('radio')).toHaveLength(2)
+  expect(within(groups[1] as HTMLElement).getByRole('spinbutton', { name: countQuestion })).toHaveValue(schedule.frequencyQuantity)
+  expect(within(groups[2] as HTMLElement).getByRole('radiogroup', { name: 'habits.form.unit' })).toBeInTheDocument()
+  for (const group of groups) expect(within(group as HTMLElement).queryAllByRole('radio').length).toBeLessThanOrEqual(4)
+})
+
+it('reveals the end date question from its answer and retains the hidden date', () => {
+  const helpers = createFormHelpers({ title: 'Run', itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1 })
+  const view = renderForm(helpers, undefined, true)
+  const end = () => screen.getByRole('button', { name: 'habits.form.addEndDate' })
+  expect(end()).toHaveAttribute('aria-expanded', 'false')
+  expect(screen.queryByRole('heading', { name: 'habits.form.endDateQuestion' })).toBeNull()
+  fireEvent.click(end())
+  expect(end()).toHaveAttribute('aria-expanded', 'true')
+  expect(screen.getByRole('heading', { name: 'habits.form.endDateQuestion' })).toBeInTheDocument()
+  helpers.form.setValue('endDate', '2026-12-31')
+  view.rerenderForm()
+  fireEvent.click(screen.getByRole('button', { name: 'habits.form.removeEndDate' }))
+  view.rerenderForm()
+  expect(screen.getByRole('heading', { name: 'habits.form.endDateQuestion' })).toBeInTheDocument()
+  helpers.form.setValue('endDate', '2026-12-31')
+  view.rerenderForm()
+  fireEvent.click(end())
+  expect(screen.queryByRole('heading', { name: 'habits.form.endDateQuestion' })).toBeNull()
+  expect(helpers.form.getValues('endDate')).toBe('2026-12-31')
+  const collapsed = screen.getByRole('button', { name: /^habits\.form\.addEndDate/ })
+  expect(collapsed).toHaveAttribute('aria-expanded', 'false')
+  expect(within(collapsed).getByText(formatLocaleDate('2026-12-31', 'en'))).toBeInTheDocument()
+  fireEvent.click(collapsed)
+  expect(end()).toHaveAttribute('aria-expanded', 'true')
+  expect(screen.getByRole('button', { name: 'habits.form.removeEndDate' })).toBeInTheDocument()
+})
+
+it('locks the end date question while the form is disabled', () => {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const helpers = createFormHelpers({ title: 'Run', itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1, endDate: '2026-12-31' })
+  render(<QueryClientProvider client={queryClient}><HabitFormFields disabled formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded /></QueryClientProvider>)
+  const row = screen.getByRole('button', { name: 'habits.form.addEndDate' })
+  expect(row).toBeDisabled()
+  fireEvent.click(row)
+  expect(row).toHaveAttribute('aria-expanded', 'true')
+  expect(screen.getByRole('button', { name: 'habits.form.removeEndDate' })).toBeDisabled()
+  fireEvent.click(screen.getByRole('button', { name: 'habits.form.removeEndDate' }))
+  expect(helpers.form.getValues('endDate')).toBe('2026-12-31')
+})
+
+it('opens a saved end date question when editing and keeps it open after removing the date', () => {
+  const helpers = createFormHelpers({ title: 'Run', itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1, endDate: '2026-12-31' })
+  const view = renderForm(helpers, undefined, true)
+  expect(screen.getByRole('button', { name: 'habits.form.addEndDate' })).toHaveAttribute('aria-expanded', 'true')
+  expect(screen.getByRole('heading', { name: 'habits.form.endDateQuestion' })).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'habits.form.removeEndDate' }))
+  view.rerenderForm()
+  expect(helpers.form.getValues('endDate')).toBe('')
+  expect(screen.getByRole('button', { name: 'habits.form.addEndDate' })).toHaveAttribute('aria-expanded', 'true')
+  expect(screen.getByRole('heading', { name: 'habits.form.endDateQuestion' })).toBeInTheDocument()
+})
+
+it('asks the More details questions with field rows that keep their fills on the column edge', () => {
+  const { container } = renderForm(createFormHelpers({ title: 'Run', itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1, isBadHabit: true }), undefined, true)
+  for (const key of ['checklistQuestion', 'slipAlertQuestion', 'subHabitsQuestion']) expect(screen.getByRole('heading', { name: `habits.form.${key}` })).toBeInTheDocument()
+  const avoid = screen.getByRole('switch', { name: 'habits.form.habitTypeAvoid' })
+  expect(avoid.closest('.orbit-list-row-field')).not.toBeNull()
+  expect(end(container).closest('.orbit-list-row-field')).not.toBeNull()
+})
+
+function end(container: HTMLElement) {
+  return within(container).getByRole('button', { name: 'habits.form.addEndDate' })
+}

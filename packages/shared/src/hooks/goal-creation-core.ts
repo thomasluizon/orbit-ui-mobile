@@ -1,6 +1,6 @@
 import type { CreateGoalRequest, GoalType } from '../types/goal'
 import { validateGoalForm } from '../validation/goal-form'
-import { buildGoalTitle, getFirstGoalDraftFieldError, getGoalDraftFieldErrorKeys, parseGoalTargetValue } from '../utils/goal-form'
+import { buildGoalTitle, getFirstGoalDraftFieldError, getGoalDraftFieldErrorKeys, hasGoalFollowUpAnswer, parseGoalTargetValue } from '../utils/goal-form'
 import { getFriendlyErrorMessage } from '../utils/error-utils'
 import type { StateHook, StateSetter } from './state-adapter'
 
@@ -68,6 +68,7 @@ export interface GoalCreationState<Input> extends GoalDraft {
   isSubmitting: boolean
   isStreak: boolean
   isDirty: boolean
+  showFollowUps: boolean
   dismiss: () => void
   onSubmit: () => Promise<void>
   setDescription: (value: string) => void
@@ -117,6 +118,11 @@ export function createUseGoalCreation<Input extends FocusTarget>({ useState, use
     const [submitted, setSubmitted] = useState(false)
     const [formError, setFormError] = useState('')
     const [focusRequest, setFocusRequest] = useState<{ field: GoalField } | null>(null)
+    const [showFollowUps, setShowFollowUps] = useState(false)
+    const updateDraft = (change: Partial<GoalDraft>) => {
+      setDraft((current) => ({ ...current, ...change }))
+      if (hasGoalFollowUpAnswer({ ...draft, ...change })) setShowFollowUps(true)
+    }
     const descriptionRef = useRef(null)
     const targetRef = useRef(null)
     const unitRef = useRef(null)
@@ -132,6 +138,7 @@ export function createUseGoalCreation<Input extends FocusTarget>({ useState, use
       setDraft(createGoalDraft(initialHabitIds))
       setSubmitted(false)
       setFormError('')
+      setShowFollowUps(false)
       backend.clearBackendErrors()
     }
     const dismiss = () => {
@@ -144,6 +151,7 @@ export function createUseGoalCreation<Input extends FocusTarget>({ useState, use
     }
     const onSubmit = async () => {
       setSubmitted(true)
+      setShowFollowUps(true)
       setFormError('')
       if (error) {
         showError(translate(error.key))
@@ -173,13 +181,16 @@ export function createUseGoalCreation<Input extends FocusTarget>({ useState, use
       descriptionRef, targetRef, unitRef, dismissGuard,
       ...draft, selectingHabits, setSelectingHabits, focusRequest, fieldErrors, formError,
       isSubmitting: mutation.isPending, isStreak: draft.goalType === 'Streak',
-      isDirty, dismiss, onSubmit,
-      setDescription: (description: string) => setDraft((current) => ({ ...current, description })),
-      setTargetValue: (targetValue: string) => setDraft((current) => ({ ...current, targetValue })),
-      setUnit: (unit: string) => setDraft((current) => ({ ...current, unit })),
-      setDeadline: (deadline: string) => setDraft((current) => ({ ...current, deadline })),
+      isDirty, showFollowUps, dismiss, onSubmit,
+      setDescription: (description: string) => updateDraft({ description }),
+      setTargetValue: (targetValue: string) => updateDraft({ targetValue }),
+      setUnit: (unit: string) => updateDraft({ unit }),
+      setDeadline: (deadline: string) => updateDraft({ deadline }),
       setHabitIds: (habitIds: string[]) => setDraft((current) => ({ ...current, habitIds })),
-      handleTypeChange: (goalType: GoalType) => setDraft((current) => ({ ...current, goalType, unit: goalType === 'Streak' ? translate('goals.form.streakUnit') : '' })),
+      handleTypeChange: (goalType: GoalType) => {
+        setShowFollowUps(true)
+        setDraft((current) => ({ ...current, goalType, unit: goalType === 'Streak' ? translate('goals.form.streakUnit') : '' }))
+      },
     }
   }
 }

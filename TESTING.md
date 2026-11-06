@@ -928,8 +928,10 @@ Offer continuation evidence is captured before verification, including failing t
 turn retains its arguments, statuses, result projection, answer and assertion verdicts. Only
 valid request UUIDs retain their identity; account identifiers and private fields remain
 sanitized. Successful offer setup evidence is retained as well. Fixture HTTP failures name
-the method, sanitized route and typed `errorCode` when available. Preview revisions with a
-fingerprint conflict are not replayed automatically: they are not idempotent replacements.
+the method, sanitized route and typed `errorCode` when available. With no `errorCode`, they
+also name a snake_case `error` reason, such as `stale_preview`, and never echo free text.
+Preview revisions with a fingerprint conflict are not replayed automatically: they are not
+idempotent replacements.
 
 For an offline assertion audit, run `node evals/astra/replay.mjs <source-window> <separate-output>`.
 The source window must contain `summary.json` and one saved attempt per case. The audit reads
@@ -938,7 +940,11 @@ calls the chat provider or rubric judge. It replays available argument schemas a
 outcome scopes, retaining other verdicts explicitly. Older projections omit identities, full
 compositions and some tool results; missing continuation or fixture evidence cannot become a
 pass. A reset fix requires a fresh attempt. Recorded latency failures remain failures, and any
-previously passing schema that regresses stops the audit. This report is not a launch gate.
+schema failure on a previously passing case stops the audit. A `[redacted]` value excuses only
+its own error. The audit sets each redacted field value to `null` and validates the call again.
+Only a pass of that copy marks the call as an unreplayable projection. A redacted array item, or
+a redacted value in a field that does not accept `null`, still stops the audit. This report is
+not a launch gate.
 
 Successful reads require `Succeeded` and `result.success: true`. Current write cases require
 `PendingConfirmation`, `result.success: true` and `result.payload.status: awaiting_confirmation`.

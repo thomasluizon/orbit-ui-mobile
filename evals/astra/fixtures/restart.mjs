@@ -19,6 +19,24 @@ export async function readRestartSnapshot(api) {
   return snapshot.toSorted((left, right) => left.habit.id.localeCompare(right.habit.id))
 }
 
+function duePopulationFailure(due, ids) {
+  const items = Array.isArray(due?.items) ? due.items : []
+  const returned = items.map((habit) => habit.id)
+  const counts = {
+    total: Number.isInteger(due?.totalCount) ? due.totalCount : 'missing',
+    items: Array.isArray(due?.items) ? items.length : 'missing',
+    missing: ids.filter((id) => !returned.includes(id)).length,
+    unexpected: returned.filter((id) => !ids.includes(id)).length,
+    duplicate: returned.length - new Set(returned).size,
+    completed: items.filter((habit) => habit.isCompleted !== false).length,
+    logged: items.filter((habit) => habit.isLoggedInRange !== false).length,
+    skipped: items.filter((habit) => habit.isSkippedOnDate !== false).length,
+  }
+  const failed = counts.total !== ids.length || counts.items !== ids.length
+    || ['missing', 'unexpected', 'duplicate', 'completed', 'logged', 'skipped'].some((key) => counts[key] > 0)
+  return failed ? Object.entries(counts).map(([key, value]) => `${key} ${value}`).join(', ') : null
+}
+
 export async function seedRestart(api, account, today, titles, dailyHabit, dateOffset, nonDaily = false) {
   const ids = [account.habitId, account.secondHabitId]
   for (const title of titles.slice(2)) {
@@ -36,12 +54,8 @@ export async function seedRestart(api, account, today, titles, dailyHabit, dateO
       checklistItems: [{ text: titles[index], isChecked: false }], clearEndDate: true, clearParent: true })
   }
   const { payload: due } = await api('GET', `habits?dateFrom=${today}&dateTo=${today}&includeOverdue=true&isCompleted=false&page=1&pageSize=50`)
-  if (due?.totalCount !== ids.length || !Array.isArray(due.items) || due.items.length !== ids.length
-    || new Set(due.items.map((habit) => habit.id)).size !== ids.length
-    || due.items.some((habit) => !ids.includes(habit.id) || habit.isCompleted !== false
-      || habit.isLoggedInRange !== false || habit.isSkippedOnDate !== false)) {
-    throw new Error('Restart fixture needs all six unfinished habits due today or overdue.')
-  }
+  const population = duePopulationFailure(due, ids)
+  if (population) throw new Error(`Restart fixture needs all six unfinished habits due today or overdue (${population}).`)
   const baseline = await readRestartSnapshot(api)
   for (const [index, id] of ids.entries()) {
     const entry = baseline.find(({ habit }) => habit.id === id)
