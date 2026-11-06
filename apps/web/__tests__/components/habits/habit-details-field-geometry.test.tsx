@@ -15,6 +15,7 @@ function bundleDetailRows() {
     import ptBR from '../../packages/shared/src/i18n/pt-BR.json';
     import { SlipAlertSection } from './components/habits/habit-form-fields/slip-alert-section';
     import { TagPickerField } from './components/habits/habit-form-fields/tag-picker-field';
+    import { ChecklistTemplates } from './components/habits/checklist-templates';
     const root = document.getElementById('root');
     const locale = root.dataset.locale;
     function Details() {
@@ -22,6 +23,7 @@ function bundleDetailRows() {
       return <main style={{ paddingInline: 16 }}><div data-field-column="" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
         <SlipAlertSection inline hasProAccess slipAlertEnabled={false} onToggle={() => {}} t={t} />
         <TagPickerField tags={[]} selectedIds={[]} atLimit={false} onToggle={() => {}} onCreate={() => {}} onEdit={() => {}} onDelete={() => {}} editLabel="edit" deleteLabel="delete" />
+        <ChecklistTemplates items={[]} onLoad={() => {}} />
       </div></main>;
     }
     createRoot(root).render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR} timeZone="UTC"><Details /></NextIntlClientProvider>);`
@@ -29,8 +31,13 @@ function bundleDetailRows() {
   const script = `import { build } from 'esbuild';
     const options = ${JSON.stringify(options)};
     options.plugins = [{ name: 'detail-boundaries', setup(build) {
-      build.onResolve({ filter: /^next\\/navigation$/ }, args => ({ path: args.path, namespace: 'detail-boundary' }));
-      build.onLoad({ filter: /.*/, namespace: 'detail-boundary' }, () => ({ loader: 'js', contents: 'export const useRouter = () => ({ push() {} }); export const usePathname = () => "/";' }));
+      const stubs = {
+        'next/navigation': 'export const useRouter = () => ({ push() {} }); export const usePathname = () => "/";',
+        '@/hooks/use-checklist-templates': 'export const useChecklistTemplates = () => ({ data: [] }); export const useCreateChecklistTemplate = () => ({ mutate() {}, isPending: false }); export const useDeleteChecklistTemplate = () => ({ mutate() {} });',
+        '@/hooks/use-app-toast': 'export const useAppToast = () => ({ showError() {}, showSuccess() {}, showInfo() {} });',
+      };
+      build.onResolve({ filter: /^(next\\/navigation|@\\/hooks\\/use-checklist-templates|@\\/hooks\\/use-app-toast)$/ }, args => ({ path: args.path, namespace: 'detail-boundary' }));
+      build.onLoad({ filter: /.*/, namespace: 'detail-boundary' }, args => ({ loader: 'js', contents: stubs[args.path] }));
     }}];
     const result = await build(options); process.stdout.write(result.outputFiles[0].text);`
   return execFileSync(process.execPath, ['--input-type=module', '-e', script], { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 })
@@ -42,7 +49,8 @@ function readFieldFill(control: Element) {
   const fill = shell.querySelector('.orbit-list-row-outset')!
   const bounds = fill.getBoundingClientRect()
   const target = control.getBoundingClientRect()
-  return { fillLeft: bounds.left - column.left, fillRight: column.right - bounds.right, targetLeft: target.left - column.left, targetRight: column.right - target.right, background: getComputedStyle(fill).backgroundColor }
+  const content = (shell.querySelector('[data-slot="list-row-icon"]') ?? shell.querySelector('[data-slot="list-row-title"]'))!.getBoundingClientRect()
+  return { fillLeft: bounds.left - column.left, fillRight: column.right - bounds.right, targetLeft: target.left - column.left, targetRight: column.right - target.right, contentLeft: content.left - column.left, background: getComputedStyle(fill).backgroundColor }
 }
 
 describe('More details field rows', () => {
@@ -66,6 +74,7 @@ describe('More details field rows', () => {
       const controls = [
         page.getByRole('switch', { name: messages.habits.form.slipAlert }),
         page.getByRole('button', { name: new RegExp(`^${messages.habits.form.tags}`) }),
+        page.getByRole('button', { name: messages.habits.form.useTemplate, exact: true }),
       ]
       for (const control of controls) {
         await expect.poll(() => control.count()).toBe(1)
@@ -79,6 +88,7 @@ describe('More details field rows', () => {
         expect(pressed.fillRight).toBeCloseTo(0, 0)
         expect(pressed.targetLeft).toBeCloseTo(0, 0)
         expect(pressed.targetRight).toBeCloseTo(0, 0)
+        expect(pressed.contentLeft).toBeCloseTo(8, 0)
         expect(pressed.background).not.toBe('rgba(0, 0, 0, 0)')
       }
     } finally { await page.close() }

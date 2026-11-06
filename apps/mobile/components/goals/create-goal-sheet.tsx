@@ -1,4 +1,3 @@
-import { hasGoalFollowUpAnswer } from '@orbit/shared/utils/goal-form'
 import { useTranslation } from 'react-i18next'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
@@ -16,18 +15,11 @@ import { GoalDeadlineField } from '../habits/create-goal-from-habit/goal-deadlin
 import { GoalTargetFields } from '../habits/create-goal-from-habit/goal-target-fields'
 import { GoalTypeSelector } from '../habits/create-goal-from-habit/goal-type-selector'
 import { createStyles } from '../habits/create-goal-from-habit/styles'
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Text, View } from 'react-native'
 import type { CreateGoalSheetProps } from '@orbit/shared/hooks'
 import { MAX_GOAL_TITLE_LENGTH } from '@orbit/shared/validation'
 import { useGoalCreation } from '@/hooks/use-goal-creation'
-
-function useGoalFollowUps(draft: Parameters<typeof hasGoalFollowUpAnswer>[0]) {
-  const [revealed, setRevealed] = useState(false)
-  const answered = hasGoalFollowUpAnswer(draft)
-  if (answered && !revealed) setRevealed(true)
-  return { showFollowUps: revealed || answered, revealFollowUps: () => setRevealed(true) }
-}
 
 type GoalCreation = ReturnType<typeof useGoalCreation>
 type SheetStyles = ReturnType<typeof createStyles>
@@ -62,8 +54,7 @@ export function CreateGoalSheet(props: Readonly<CreateGoalSheetProps>) {
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const { goalType, description, targetValue, unit, deadline, habitIds, selectingHabits, setSelectingHabits,
     fieldErrors, formError, isSubmitting, isStreak, setDescription, setTargetValue, setUnit, setDeadline,
-    setHabitIds, handleTypeChange, descriptionRef, targetRef, unitRef, dismissGuard, onSubmit } = form
-  const { showFollowUps, revealFollowUps } = useGoalFollowUps({ description, targetValue, unit, deadline })
+    setHabitIds, handleTypeChange, descriptionRef, targetRef, unitRef, dismissGuard, onSubmit, showFollowUps } = form
 
   return (
     <>
@@ -76,7 +67,7 @@ export function CreateGoalSheet(props: Readonly<CreateGoalSheetProps>) {
         actions={(
           <ActionRow>
             <PillButton size="sm" variant="ghost" disabled={isSubmitting} onClick={dismissGuard.requestDismiss}>{t('common.cancel')}</PillButton>
-            <PillButton size="sm" leadingIcon={<Plus size={16} strokeWidth={2} />} onClick={() => { revealFollowUps(); void onSubmit() }} disabled={isSubmitting} loading={isSubmitting}>
+            <PillButton size="sm" leadingIcon={<Plus size={16} strokeWidth={2} />} onClick={() => { void onSubmit() }} disabled={isSubmitting} loading={isSubmitting}>
               {t('goals.create')}
             </PillButton>
           </ActionRow>
@@ -84,7 +75,7 @@ export function CreateGoalSheet(props: Readonly<CreateGoalSheetProps>) {
       >
         <View style={styles.form}>
           <Text style={styles.explainer}>{t('goals.form.habitsExplainer')}</Text>
-          <GoalTypeSelector styles={styles} goalType={goalType} onTypeChange={(type) => { revealFollowUps(); handleTypeChange(type) }} />
+          <GoalTypeSelector styles={styles} goalType={goalType} onTypeChange={handleTypeChange} />
           <GoalTitleQuestion styles={styles} tokens={tokens} inputRef={descriptionRef} value={description} onChange={setDescription} isStreak={isStreak} error={fieldErrors.description} />
 
           {showFollowUps ? <View testID="goal-follow-ups" style={styles.form}>

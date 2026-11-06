@@ -1,6 +1,5 @@
 'use client'
 
-import { hasGoalFollowUpAnswer } from '@orbit/shared/utils/goal-form'
 
 import { useTranslations } from 'next-intl'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
@@ -16,17 +15,10 @@ import { FieldWell } from '@/components/goals/field-well'
 import { GoalDeadlineField } from '../habits/create-goal-from-habit/goal-deadline-field'
 import { GoalTargetFields } from '../habits/create-goal-from-habit/goal-target-fields'
 import { GoalTypeSelector } from '../habits/create-goal-from-habit/goal-type-selector'
-import { useId, useRef, useState } from 'react'
+import { useId, useRef } from 'react'
 import type { CreateGoalSheetProps } from '@orbit/shared/hooks'
 import { MAX_GOAL_TITLE_LENGTH } from '@orbit/shared/validation'
 import { useGoalCreation } from '@/hooks/use-goal-creation'
-
-function useGoalFollowUps(draft: Parameters<typeof hasGoalFollowUpAnswer>[0]) {
-  const [revealed, setRevealed] = useState(false)
-  const answered = hasGoalFollowUpAnswer(draft)
-  if (answered && !revealed) setRevealed(true)
-  return { showFollowUps: revealed || answered, revealFollowUps: () => setRevealed(true) }
-}
 
 export function CreateGoalSheet(props: Readonly<CreateGoalSheetProps & { restoreFocusOnCreate?: boolean }>) {
   const { open, onClose } = props
@@ -42,8 +34,7 @@ export function CreateGoalSheet(props: Readonly<CreateGoalSheetProps & { restore
 
   const { goalType, description, targetValue, unit, deadline, habitIds, selectingHabits, setSelectingHabits,
     fieldErrors, formError, isSubmitting, isStreak, setDescription, setTargetValue, setUnit, setDeadline,
-    setHabitIds, handleTypeChange, descriptionRef, targetRef, unitRef, dismissGuard, onSubmit } = form
-  const { showFollowUps, revealFollowUps } = useGoalFollowUps({ description, targetValue, unit, deadline })
+    setHabitIds, handleTypeChange, descriptionRef, targetRef, unitRef, dismissGuard, onSubmit, showFollowUps } = form
 
   return (
     <>
@@ -63,9 +54,9 @@ export function CreateGoalSheet(props: Readonly<CreateGoalSheetProps & { restore
           </ActionRow>
         )}
       >
-        <form id={formId} onSubmit={(event) => { event.preventDefault(); event.stopPropagation(); revealFollowUps(); void onSubmit() }} noValidate>
+        <form id={formId} onSubmit={(event) => { event.preventDefault(); event.stopPropagation(); void onSubmit() }} noValidate>
           <p className="max-w-prose pb-4 text-sm leading-[1.55] text-pretty text-[var(--fg-2)]">{t('goals.form.habitsExplainer')}</p>
-          <GoalTypeSelector goalType={goalType} onTypeChange={(type) => { revealFollowUps(); handleTypeChange(type) }} />
+          <GoalTypeSelector goalType={goalType} onTypeChange={handleTypeChange} />
           <div style={{ padding: "var(--orbit-space-16) var(--orbit-space-0) var(--orbit-space-0)" }}>
             <FieldWell
               inputRef={descriptionRef}
