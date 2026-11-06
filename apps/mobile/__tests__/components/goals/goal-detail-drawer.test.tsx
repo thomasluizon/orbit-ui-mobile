@@ -284,9 +284,9 @@ describe('GoalDetailDrawer', () => {
     const tree = renderDrawer(onClose)
     press(tree, 'goals.updateProgress')
     expect(sheetTestControls.isDismissPending).toBe(true)
-    expect(tree.root.findAll((node: { props: { accessibilityLabel?: string; onChangeText?: unknown } }) => node.props.accessibilityLabel === 'goals.progress' && typeof node.props.onChangeText === 'function')).toHaveLength(0)
+    expect(tree.root.findAll((node: { props: { accessibilityLabel?: string; onChangeText?: unknown } }) => node.props.accessibilityLabel === 'goals.form.progressQuestion' && typeof node.props.onChangeText === 'function')).toHaveLength(0)
     TestRenderer.act(() => sheetTestControls.completeDismissal())
-    expect(tree.root.findAll((node: { props: { accessibilityLabel?: string; onChangeText?: unknown } }) => node.props.accessibilityLabel === 'goals.progress' && typeof node.props.onChangeText === 'function').length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node: { props: { accessibilityLabel?: string; onChangeText?: unknown } }) => node.props.accessibilityLabel === 'goals.form.progressQuestion' && typeof node.props.onChangeText === 'function').length).toBeGreaterThan(0)
     expect(onClose).not.toHaveBeenCalled()
     expect(collectText(tree.toJSON())).toContain('common.cancel')
     press(tree, 'common.cancel')
@@ -304,8 +304,8 @@ describe('GoalDetailDrawer', () => {
     expect(tree.root.findAll((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === 'goals.updateProgress').length).toBeGreaterThan(0)
     press(tree, 'common.cancel')
     press(tree, 'goals.updateProgress')
-    changeEntry(tree, 'goals.progress', '6')
-    changeEntry(tree, 'goals.progressNote', 'Inline note')
+    changeEntry(tree, 'goals.form.progressQuestion', '6')
+    changeEntry(tree, 'goals.form.progressNoteQuestion', 'Inline note')
     await TestRenderer.act(async () => { press(tree, 'common.save'); await Promise.resolve() })
     expect(updateProgressMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ data: { currentValue: 6, note: 'Inline note' } }))
     expect(onClose).not.toHaveBeenCalled()
@@ -317,7 +317,7 @@ describe('GoalDetailDrawer', () => {
     const tree = renderDrawer()
     press(tree, 'goals.updateProgress')
     expect(tree.root.findAll((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === 'goals.form.streakTarget')).toHaveLength(0)
-    expect(tree.root.findAll((node: { props: { accessibilityLabel?: string; onChangeText?: unknown } }) => node.props.accessibilityLabel === 'goals.progress' && typeof node.props.onChangeText === 'function').length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node: { props: { accessibilityLabel?: string; onChangeText?: unknown } }) => node.props.accessibilityLabel === 'goals.form.progressQuestion' && typeof node.props.onChangeText === 'function').length).toBeGreaterThan(0)
   })
 
   function changeEntry(tree: ReturnType<typeof TestRenderer.create>, label: string, value: string) {
@@ -330,8 +330,8 @@ describe('GoalDetailDrawer', () => {
   it.each(['', '  ', '-1', 'abc', 'Infinity'])('rejects invalid manual progress %j without losing the note', async (value) => {
     const tree = renderDrawer()
     press(tree, 'goals.updateProgress')
-    changeEntry(tree, 'goals.progress', value)
-    changeEntry(tree, 'goals.progressNote', 'Keep this note')
+    changeEntry(tree, 'goals.form.progressQuestion', value)
+    changeEntry(tree, 'goals.form.progressNoteQuestion', 'Keep this note')
     await TestRenderer.act(async () => { press(tree, 'common.save'); await Promise.resolve() })
     expect(collectText(tree.toJSON())).toContain('goals.form.progressValueInvalid')
     expect(updateProgressMutateAsync).not.toHaveBeenCalled()
@@ -341,7 +341,7 @@ describe('GoalDetailDrawer', () => {
   it.each(['0', '100'])('caps manual progress %s and permits an omitted note', async (value) => {
     const tree = renderDrawer()
     press(tree, 'goals.updateProgress')
-    changeEntry(tree, 'goals.progress', value)
+    changeEntry(tree, 'goals.form.progressQuestion', value)
     if (value === '100') expect(collectText(tree.toJSON())).toContain('goals.form.progressExceedsTarget')
     await TestRenderer.act(async () => { press(tree, 'common.save'); await Promise.resolve() })
     expect(updateProgressMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ data: { currentValue: Math.min(Number(value), 12) } }))
@@ -351,8 +351,8 @@ describe('GoalDetailDrawer', () => {
     updateProgressMutateAsync.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(undefined)
     const tree = renderDrawer()
     press(tree, 'goals.updateProgress')
-    changeEntry(tree, 'goals.progress', '8')
-    changeEntry(tree, 'goals.progressNote', 'Saved note')
+    changeEntry(tree, 'goals.form.progressQuestion', '8')
+    changeEntry(tree, 'goals.form.progressNoteQuestion', 'Saved note')
     await TestRenderer.act(async () => { press(tree, 'common.save'); await Promise.resolve() })
     expect(tree.root.findAllByProps({ value: '8' }).length).toBeGreaterThan(0)
     expect(tree.root.findAllByProps({ value: 'Saved note' }).length).toBeGreaterThan(0)
@@ -378,7 +378,7 @@ describe('GoalDetailDrawer', () => {
     try {
       const tree = renderDrawer()
       press(tree, 'goals.updateProgress')
-      changeEntry(tree, 'goals.progress', '7')
+      changeEntry(tree, 'goals.form.progressQuestion', '7')
       await TestRenderer.act(async () => { press(tree, 'common.save'); await Promise.resolve() })
       expect(client.getQueryState(goalKeys.detail('1'))?.fetchStatus).toBe('paused')
       expect(query).not.toHaveBeenCalled()
@@ -399,16 +399,16 @@ describe('GoalDetailDrawer', () => {
   it('bounds progress notes and retains an over-limit draft for correction', async () => {
     const tree = renderDrawer()
     press(tree, 'goals.updateProgress')
-    const note = tree.root.findAll((node: { props: { accessibilityLabel?: string; onChangeText?: unknown } }) => node.props.accessibilityLabel === 'goals.progressNote' && typeof node.props.onChangeText === 'function')[0]
-    changeEntry(tree, 'goals.progress', '7.5')
-    changeEntry(tree, 'goals.progressNote', 'a'.repeat(MAX_GOAL_PROGRESS_NOTE_LENGTH + 1))
+    const note = tree.root.findAll((node: { props: { accessibilityLabel?: string; onChangeText?: unknown } }) => node.props.accessibilityLabel === 'goals.form.progressNoteQuestion' && typeof node.props.onChangeText === 'function')[0]
+    changeEntry(tree, 'goals.form.progressQuestion', '7.5')
+    changeEntry(tree, 'goals.form.progressNoteQuestion', 'a'.repeat(MAX_GOAL_PROGRESS_NOTE_LENGTH + 1))
     await TestRenderer.act(async () => { press(tree, 'common.save'); await Promise.resolve() })
     expect(updateProgressMutateAsync).not.toHaveBeenCalled()
     expect(note.props.value).toBe('a'.repeat(MAX_GOAL_PROGRESS_NOTE_LENGTH + 1))
     expect(note.props.accessibilityHint).toContain('goals.form.progressNoteTooLong')
     expect(collectText(tree.toJSON())).toContain('goals.form.progressNoteTooLong')
     const validNote = 'a'.repeat(MAX_GOAL_PROGRESS_NOTE_LENGTH)
-    changeEntry(tree, 'goals.progressNote', validNote)
+    changeEntry(tree, 'goals.form.progressNoteQuestion', validNote)
     await TestRenderer.act(async () => { press(tree, 'common.save'); await Promise.resolve() })
     expect(updateProgressMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ data: { currentValue: 7.5, note: validNote } }))
   })
@@ -418,15 +418,15 @@ describe('GoalDetailDrawer', () => {
     updateProgressMutateAsync.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve }))
     const tree = renderDrawer()
     press(tree, 'goals.updateProgress')
-    changeEntry(tree, 'goals.progress', '7')
-    changeEntry(tree, 'goals.progressNote', 'One history entry')
+    changeEntry(tree, 'goals.form.progressQuestion', '7')
+    changeEntry(tree, 'goals.form.progressNoteQuestion', 'One history entry')
     sheetTestControls.defer(true)
     const button = tree.root.findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === 'common.save')[0]
     const submit = button.props.onPress
     TestRenderer.act(() => { submit(); submit() })
     expect(button.props.disabled).toBe(true)
     expect(button.props.accessibilityState.busy).toBe(true)
-    for (const label of ['goals.progress', 'goals.progressNote']) {
+    for (const label of ['goals.form.progressQuestion', 'goals.form.progressNoteQuestion']) {
       const input = tree.root.findAll((node: { props: { accessibilityLabel?: string; editable?: boolean } }) => node.props.accessibilityLabel === label && node.props.editable === false)
       expect(input.length).toBeGreaterThan(0)
     }
@@ -438,7 +438,7 @@ describe('GoalDetailDrawer', () => {
       expect(updateProgressMutateAsync).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ data: { currentValue: 7, note: 'One history entry' } }))
       expect(button.props.disabled).toBe(true)
       expect(button.props.accessibilityState.busy).toBe(true)
-      for (const label of ['goals.progress', 'goals.progressNote']) {
+      for (const label of ['goals.form.progressQuestion', 'goals.form.progressNoteQuestion']) {
         expect(tree.root.findAll((node: { props: { accessibilityLabel?: string; editable?: boolean } }) => node.props.accessibilityLabel === label && node.props.editable === false).length).toBeGreaterThan(0)
       }
     } finally {
@@ -469,8 +469,8 @@ describe('GoalDetailDrawer', () => {
       const input = tree.root.findAll((node: { props: { accessibilityLabel?: string; onChangeText?: unknown } }) => node.props.accessibilityLabel === label && typeof node.props.onChangeText === 'function')[0]
       input.props.onChangeText(value)
     })
-    change('goals.progress', '7.5')
-    change('goals.progressNote', '  Finished a chapter  ')
+    change('goals.form.progressQuestion', '7.5')
+    change('goals.form.progressNoteQuestion', '  Finished a chapter  ')
     await TestRenderer.act(async () => { press(tree, 'common.save'); await Promise.resolve() })
     expect(updateProgressMutateAsync).toHaveBeenCalledWith({
       goalId: '1', data: { currentValue: 7.5, note: 'Finished a chapter' },

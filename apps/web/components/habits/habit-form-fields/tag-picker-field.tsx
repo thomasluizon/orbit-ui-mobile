@@ -95,7 +95,7 @@ export function TagPickerField({ editorDirty = false, onDiscardEditor, tags, sel
 
   return (
     <>
-      <ListRow title={t('habits.form.tags')} value={t('habits.form.selectedCount', { count: selectedIds.length })} placement="column" onClick={() => setOpen(true)} />
+      <ListRow title={t('habits.form.tags')} value={t('habits.form.selectedCount', { count: selectedIds.length })} placement="field" onClick={() => setOpen(true)} />
       <TagPreview tags={selectedTags} moreLabel={t('habits.form.moreSelected', { count: Math.max(0, selectedTags.length - 3) })} />
       {open ? <Sheet ref={sheetRef} open virtualizedBody={tags.length >= 21} title={t('habits.form.tags')} onClose={!disabled && dismiss.canDismiss ? finishClose : undefined} onAttemptDismiss={requestDismiss}>
         <TagPickerList tags={tags} selectedIds={selectedSet} atLimit={atLimit} disabled={disabled} editor={editor} suggestions={suggestions} onToggle={onToggle} onCreate={onCreate} onEdit={onEdit} onDelete={onDelete} editLabel={editLabel} deleteLabel={deleteLabel} />

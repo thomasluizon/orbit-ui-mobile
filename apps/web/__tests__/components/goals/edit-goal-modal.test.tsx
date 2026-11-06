@@ -73,13 +73,13 @@ describe('EditGoalModal', () => {
     expect(screen.getByDisplayValue('km')).toBeInTheDocument()
     expect(screen.getByDisplayValue('Run 100km')).toBeInTheDocument()
     expect(screen.getByLabelText('goals.form.description')).not.toBeRequired()
-    expect(screen.getByLabelText('goals.form.targetValue')).toBeRequired()
-    expect(screen.getByLabelText('goals.form.unit')).toBeRequired()
+    expect(screen.getByLabelText('goals.form.targetValueQuestion')).toBeRequired()
+    expect(screen.getByLabelText('goals.form.unitQuestion')).toBeRequired()
   })
 
   it('shows validation error when target is 0', () => {
     render(<EditGoalModal open={true} onOpenChange={vi.fn()} goal={mockGoal} />)
-    const targetInput = screen.getByLabelText('goals.form.targetValue')
+    const targetInput = screen.getByLabelText('goals.form.targetValueQuestion')
     fireEvent.change(targetInput, { target: { value: '0' } })
     const form = targetInput.closest('form')
     fireEvent.submit(form!)
@@ -89,7 +89,7 @@ describe('EditGoalModal', () => {
 
   it('shows validation error when unit is empty', () => {
     render(<EditGoalModal open={true} onOpenChange={vi.fn()} goal={mockGoal} />)
-    const unitInput = screen.getByLabelText('goals.form.unit')
+    const unitInput = screen.getByLabelText('goals.form.unitQuestion')
     fireEvent.change(unitInput, { target: { value: '' } })
     const form = unitInput.closest('form')
     fireEvent.submit(form!)
@@ -100,8 +100,8 @@ describe('EditGoalModal', () => {
   it('links every inline error and focuses each first remaining invalid field', async () => {
     render(<EditGoalModal open={true} onOpenChange={vi.fn()} goal={mockGoal} />)
     const descriptionInput = screen.getByLabelText('goals.form.description')
-    const targetInput = screen.getByLabelText('goals.form.targetValue')
-    const unitInput = screen.getByLabelText('goals.form.unit')
+    const targetInput = screen.getByLabelText('goals.form.targetValueQuestion')
+    const unitInput = screen.getByLabelText('goals.form.unitQuestion')
     fireEvent.change(descriptionInput, { target: { value: '' } })
     fireEvent.change(targetInput, { target: { value: '' } })
     fireEvent.change(unitInput, { target: { value: '' } })
@@ -185,7 +185,7 @@ describe('EditGoalModal', () => {
     const onOpenChange = vi.fn()
     render(<EditGoalModal open={true} onOpenChange={onOpenChange} goal={mockGoal} />)
 
-    const form = screen.getByLabelText('goals.form.targetValue').closest('form')
+    const form = screen.getByLabelText('goals.form.targetValueQuestion').closest('form')
     fireEvent.submit(form!)
 
     await waitFor(() => {
@@ -206,7 +206,7 @@ it('places legacy server validation beside each edited goal field and clears onl
   mockMutateAsync.mockRejectedValue(createApiClientError(400, { errors: { Title: ['Server title failure'], Unit: ['Server unit failure'] } }, 'Fallback'))
   render(<EditGoalModal open onOpenChange={vi.fn()} goal={mockGoal} />)
   const title = screen.getByLabelText('goals.form.description')
-  const unit = screen.getByLabelText('goals.form.unit')
+  const unit = screen.getByLabelText('goals.form.unitQuestion')
   fireEvent.submit(title.closest('form')!)
   await waitFor(() => {
     expect(title).toHaveAccessibleDescription('Server title failure')
@@ -225,7 +225,7 @@ it('focuses the mapped goal field while retaining general failures in a mixed re
   mockMutateAsync.mockRejectedValue(createApiClientError(400, { errors: { Unit: ['Server unit failure'], HabitIds: ['Server linked habit failure'] } }, 'Fallback'))
   const onOpenChange = vi.fn()
   render(<EditGoalModal open onOpenChange={onOpenChange} goal={mockGoal} />)
-  const unit = screen.getByLabelText('goals.form.unit')
+  const unit = screen.getByLabelText('goals.form.unitQuestion')
   fireEvent.submit(unit.closest('form')!)
   await waitFor(() => {
     expect(unit).toHaveAccessibleDescription('Server unit failure')

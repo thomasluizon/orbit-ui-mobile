@@ -37,7 +37,7 @@ export function GoalTargetFields({
         <Text style={styles.fieldLabel}>
           {isStreak
             ? t('goals.form.streakTarget')
-            : t('goals.form.targetValue')}
+            : t('goals.form.targetValueQuestion')}
         </Text>
         <BottomSheetAppTextInput
           ref={targetRef}
@@ -50,7 +50,7 @@ export function GoalTargetFields({
           accessibilityLabel={
             isStreak
               ? t('goals.form.streakTarget')
-              : t('goals.form.targetValue')
+              : t('goals.form.targetValueQuestion')
           }
         />
         {fieldErrors.targetValue ? (
@@ -61,7 +61,7 @@ export function GoalTargetFields({
       </View>
       {!isStreak ? (
         <View style={styles.halfField}>
-          <Text style={styles.fieldLabel}>{t('goals.form.unit')}</Text>
+          <Text style={styles.fieldLabel}>{t('goals.form.unitQuestion')}</Text>
           <BottomSheetAppTextInput
             ref={unitRef}
             accessibilityHint={fieldErrors.unit ?? t('common.required')}
@@ -70,7 +70,7 @@ export function GoalTargetFields({
             placeholder={t('goals.form.unitPlaceholder')}
             placeholderTextColor={tokens.fg3}
             maxLength={MAX_GOAL_UNIT_LENGTH}
-            accessibilityLabel={t('goals.form.unit')}
+            accessibilityLabel={t('goals.form.unitQuestion')}
           />
           {fieldErrors.unit ? (
             <Text style={styles.fieldError} accessibilityRole="alert">

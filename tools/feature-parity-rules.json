@@ -453,6 +453,36 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "mobile:control:goals.form.targetValue": {
+      "targets": [
+        "mobile:control:goals.form.targetValueQuestion"
+      ],
+      "reason": "The same input is asked as a question; its label moved to the question key and the control, value and validation are unchanged."
+    },
+    "mobile:control:goals.form.type": {
+      "targets": [
+        "mobile:control:goals.form.typeQuestion"
+      ],
+      "reason": "The same input is asked as a question; its label moved to the question key and the control, value and validation are unchanged."
+    },
+    "mobile:control:goals.form.unit": {
+      "targets": [
+        "mobile:control:goals.form.unitQuestion"
+      ],
+      "reason": "The same input is asked as a question; its label moved to the question key and the control, value and validation are unchanged."
+    },
+    "mobile:control:goals.progress": {
+      "targets": [
+        "mobile:control:goals.form.progressQuestion"
+      ],
+      "reason": "The same input is asked as a question; its label moved to the question key and the control, value and validation are unchanged."
+    },
+    "mobile:control:goals.progressNote": {
+      "targets": [
+        "mobile:control:goals.form.progressNoteQuestion"
+      ],
+      "reason": "The same input is asked as a question; its label moved to the question key and the control, value and validation are unchanged."
+    },
     "mobile:control:goals.reorderHint": {
       "targets": [
         "mobile:content:progressScreen.goals.position"
@@ -596,9 +626,15 @@
       ],
       "reason": "The empty-title guidance remains the Create action hint and visible reason in HabitCreateActions; the shared guidance value now selects the task or habit copy once."
     },
+    "mobile:control:habits.form.description": {
+      "targets": [
+        "mobile:control:habits.form.descriptionQuestion"
+      ],
+      "reason": "The same input is asked as a question; its label moved to the question key and the control, value and validation are unchanged."
+    },
     "mobile:control:habits.form.descriptionPlaceholder": {
       "targets": [
-        "mobile:control:habits.form.description"
+        "mobile:control:habits.form.descriptionQuestion"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
@@ -608,6 +644,12 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "mobile:control:habits.form.endDate": {
+      "targets": [
+        "mobile:control:habits.form.endDateQuestion"
+      ],
+      "reason": "The same input is asked as a question; its label moved to the question key and the control, value and validation are unchanged."
+    },
     "mobile:control:habits.form.endTimeRequiresStart": {
       "targets": [
         "mobile:control:habits.form.dueEndTime"
@@ -616,6 +658,13 @@
         "apps/mobile/components/habits/habit-form-fields/habit-timing-field.tsx"
       ],
       "reason": "The end-time field follows an exact time in the timing sheet. Shared validateEndTime rejects a missing start at submission; clearing the start clears the end, and native end-time edits use the form interaction guard."
+    },
+    "mobile:control:habits.form.frequency": {
+      "targets": [
+        "mobile:control:habits.form.everyCount",
+        "mobile:control:habits.form.timesCount"
+      ],
+      "reason": "The same input is asked as a question; its label moved to the question key and the control, value and validation are unchanged."
     },
     "mobile:control:habits.form.habitTypeBuild": {
       "targets": [
@@ -1327,9 +1376,15 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "mobile:display:goals.form.targetValue": {
+      "targets": [
+        "mobile:display:goals.form.targetValueQuestion"
+      ],
+      "reason": "The same input is asked as a question; its label moved to the question key and the control, value and validation are unchanged."
+    },
     "mobile:display:goals.form.type": {
       "targets": [
-        "mobile:control:goals.form.type"
+        "mobile:control:goals.form.typeQuestion"
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
     },
@@ -1389,7 +1444,7 @@
     },
     "mobile:display:habits.detail.endsOn": {
       "targets": [
-        "mobile:control:habits.form.endDate"
+        "mobile:control:habits.form.endDateQuestion"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
@@ -1458,6 +1513,18 @@
         "mobile:control:habits.form.scheduledReminderSameDay"
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:habits.form.subHabits": {
+      "targets": [
+        "mobile:display:habits.form.subHabitsQuestion"
+      ],
+      "reason": "The same input is asked as a question; its label moved to the question key and the control, value and validation are unchanged."
+    },
+    "mobile:display:habits.form.subTasks": {
+      "targets": [
+        "mobile:display:habits.form.subTasksQuestion"
+      ],
+      "reason": "The same input is asked as a question; its label moved to the question key and the control, value and validation are unchanged."
     },
     "mobile:display:habits.form.timesPerUnit": {
       "targets": [
@@ -2284,6 +2351,36 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "web:control:goals.form.targetValue": {
+      "targets": [
+        "web:control:goals.form.targetValueQuestion"
+      ],
+      "reason": "The same input is asked as a question; its label moved to the question key and the control, value and validation are unchanged."
+    },
+    "web:control:goals.form.type": {
+      "targets": [
+        "web:control:goals.form.typeQuestion"
+      ],
+      "reason": "The same input is asked as a question; its label moved to the question key and the control, value and validation are unchanged."
+    },
+    "web:control:goals.form.unit": {
+      "targets": [
+        "web:control:goals.form.unitQuestion"
+      ],
+      "reason": "The same input is asked as a question; its label moved to the question key and the control, value and validation are unchanged."
+    },
+    "web:control:goals.progress": {
+      "targets": [
+        "web:control:goals.form.progressQuestion"
+      ],
+      "reason": "The same input is asked as a question; its label moved to the question key and the control, value and validation are unchanged."
+    },
+    "web:control:goals.progressNote": {
+      "targets": [
+        "web:control:goals.form.progressNoteQuestion"
+      ],
+      "reason": "The same input is asked as a question; its label moved to the question key and the control, value and validation are unchanged."
+    },
     "web:control:goals.progressOf": {
       "targets": [
         "web:control:progressScreen.goals.progress"
@@ -2380,7 +2477,7 @@
     },
     "web:control:habits.detail.endsOn": {
       "targets": [
-        "web:control:habits.form.endDate"
+        "web:control:habits.form.endDateQuestion"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
@@ -2432,12 +2529,18 @@
     },
     "web:control:habits.form.createSubHabitDescription": {
       "targets": [
-        "web:display:habits.form.subHabits"
+        "web:display:habits.form.subHabitsQuestion"
       ],
       "owners": [
         "apps/web/components/habits/habit-form-fields.tsx"
       ],
-      "reason": "The Sub-habits heading and its editor retain the sub-item creation entry inside the Steps disclosure; tasks use the corresponding Subtasks heading."
+      "reason": "The Break it into smaller habits? question and its editor retain the sub-item creation entry inside the Steps disclosure; tasks use the corresponding smaller tasks question."
+    },
+    "web:control:habits.form.description": {
+      "targets": [
+        "web:control:habits.form.descriptionQuestion"
+      ],
+      "reason": "The same input is asked as a question; its label moved to the question key and the control, value and validation are unchanged."
     },
     "web:control:habits.form.dueTime": {
       "targets": [
@@ -2466,6 +2569,12 @@
       ],
       "reason": "The restored label reaches rendered output through its component or bound control."
     },
+    "web:control:habits.form.endDate": {
+      "targets": [
+        "web:control:habits.form.endDateQuestion"
+      ],
+      "reason": "The same input is asked as a question; its label moved to the question key and the control, value and validation are unchanged."
+    },
     "web:control:habits.form.endTimeRequiresStart": {
       "targets": [
         "web:control:habits.form.dueEndTime"
@@ -2474,6 +2583,13 @@
         "apps/web/components/habits/habit-form-fields/habit-timing-field.tsx"
       ],
       "reason": "The end-time field follows an exact time in the timing sheet. Shared validateEndTime rejects a missing start at submission; clearing the start clears the end, and native end-time edits use the form interaction guard."
+    },
+    "web:control:habits.form.frequency": {
+      "targets": [
+        "web:control:habits.form.everyCount",
+        "web:control:habits.form.timesCount"
+      ],
+      "reason": "The same input is asked as a question; its label moved to the question key and the control, value and validation are unchanged."
     },
     "web:control:habits.form.habitTypeBuild": {
       "targets": [
@@ -3307,7 +3423,7 @@
     },
     "web:display:goals.form.type": {
       "targets": [
-        "web:control:goals.form.type"
+        "web:control:goals.form.typeQuestion"
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
     },
@@ -3430,6 +3546,18 @@
         "web:control:habits.form.scheduledReminderSameDay"
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:habits.form.subHabits": {
+      "targets": [
+        "web:display:habits.form.subHabitsQuestion"
+      ],
+      "reason": "The same input is asked as a question; its label moved to the question key and the control, value and validation are unchanged."
+    },
+    "web:display:habits.form.subTasks": {
+      "targets": [
+        "web:display:habits.form.subTasksQuestion"
+      ],
+      "reason": "The same input is asked as a question; its label moved to the question key and the control, value and validation are unchanged."
     },
     "web:display:habits.form.suggestTags": {
       "targets": [

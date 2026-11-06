@@ -1,0 +1,198 @@
+[
+  {
+    "caseId": "offers-due-log-pt-BR",
+    "repeat": 1,
+    "pass": false,
+    "httpStatus": 200,
+    "assertions": [
+      {
+        "metric": "toolStructure",
+        "pass": true,
+        "reason": "Assertion passed"
+      },
+      {
+        "metric": "toolBehavior",
+        "pass": true,
+        "reason": "Required tools, arguments and results matched."
+      },
+      {
+        "metric": "composition",
+        "pass": true,
+        "reason": "Composition structure and negotiated capabilities matched."
+      },
+      {
+        "metric": "savedStep",
+        "pass": true,
+        "reason": "No saved-step approval requested."
+      },
+      {
+        "metric": "proactiveOffers",
+        "pass": false,
+        "reason": "Missing tool or incorrect arguments/result: query_habits"
+      },
+      {
+        "metric": "finalAnswer",
+        "pass": true,
+        "reason": "O bloco está em português, preserva os títulos e mostra três dos 12 hábitos confirmados. Meals está pendente e não pulado em 05/11/2026, permitindo o registro oferecido."
+      }
+    ],
+    "toolCalls": [
+      {
+        "name": "query_habits",
+        "arguments": {
+          "orbit_read_complete": true,
+          "orbit_dismissed_offer_keys": [],
+          "orbit_offer_intent": "none",
+          "for_selection": false,
+          "relative_period": "today",
+          "search": null,
+          "date": null,
+          "include_overdue": true,
+          "is_general": null,
+          "is_completed": null,
+          "is_bad_habit": null,
+          "frequency": null,
+          "tag": null,
+          "include_sub_habits": true,
+          "include_metrics": false,
+          "offset": 0,
+          "limit": 50
+        },
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ],
+    "groundingEvidence": {
+      "fixture": {
+        "loggedState": {
+          "fixture": "hoje-next-step",
+          "date": "2026-11-05"
+        }
+      }
+    },
+    "offerReadback": {
+      "pass": false,
+      "score": 0,
+      "reason": "Missing tool or incorrect arguments/result: query_habits",
+      "turns": [
+        {
+          "assertions": [
+            {
+              "metric": "structural",
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "is-valid-openai-tools-call"
+              }
+            },
+            {
+              "metric": "behavior",
+              "pass": false,
+              "score": 0,
+              "reason": "Missing tool or incorrect arguments/result: query_habits",
+              "metadata": {}
+            }
+          ],
+          "httpStatus": 200,
+          "toolCalls": [
+            {
+              "name": "query_habits",
+              "arguments": {
+                "orbit_read_complete": true,
+                "orbit_dismissed_offer_keys": [],
+                "orbit_offer_intent": "none",
+                "for_selection": false,
+                "relative_period": "yesterday",
+                "search": null,
+                "date": null,
+                "include_overdue": false,
+                "is_general": null,
+                "is_completed": null,
+                "is_bad_habit": null,
+                "frequency": null,
+                "tag": null,
+                "include_sub_habits": true,
+                "include_metrics": false,
+                "offset": 0,
+                "limit": 50
+              },
+              "resultStatus": "Succeeded",
+              "result": {
+                "success": true,
+                "error": null,
+                "payload": {}
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "offers-dismissal-en",
+    "repeat": 1,
+    "pass": true,
+    "httpStatus": 200,
+    "assertions": [
+      {
+        "metric": "toolStructure",
+        "pass": true,
+        "reason": "Assertion passed"
+      },
+      {
+        "metric": "toolBehavior",
+        "pass": true,
+        "reason": "Required tools, arguments and results matched."
+      },
+      {
+        "metric": "composition",
+        "pass": true,
+        "reason": "Composition structure and negotiated capabilities matched."
+      },
+      {
+        "metric": "savedStep",
+        "pass": true,
+        "reason": "No saved-step approval requested."
+      },
+      {
+        "metric": "proactiveOffers",
+        "pass": true,
+        "reason": "Typed actions, provenance, removal groups and persisted state matched."
+      },
+      {
+        "metric": "finalAnswer",
+        "pass": true,
+        "reason": "The English empty-state block matches the account date and grounded zero overdue count, with no duplicate prose, dismissed offer, or question."
+      }
+    ],
+    "toolCalls": [
+      {
+        "name": "get_daily_summary",
+        "arguments": {
+          "orbit_read_complete": true,
+          "orbit_dismissed_offer_keys": [
+            "smallStep:account:2026-11-05"
+          ],
+          "orbit_offer_intent": "none",
+          "relative_period": "[redacted]",
+          "period_count": null,
+          "generate_narrative": true,
+          "date_from": null,
+          "date_to": null,
+          "language": "en"
+        },
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ]
+  }
+]

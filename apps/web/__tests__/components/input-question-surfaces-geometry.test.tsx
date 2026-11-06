@@ -60,10 +60,10 @@ function childGaps(page: Page, selector: string) {
   }, selector)
 }
 
-function questionGaps(page: Page, selector: string) {
-  return page.evaluate((root) => [...document.querySelector(root)!.querySelectorAll('[data-field-question]')]
+function questionGaps(page: Page, selector: string, labelSelector = '[data-field-question]') {
+  return page.evaluate(({ root, label: labels }) => [...document.querySelector(root)!.querySelectorAll(labels)]
     .filter((label) => label.nextElementSibling)
-    .map((label) => ({ question: label.textContent, gap: label.nextElementSibling!.getBoundingClientRect().top - label.getBoundingClientRect().bottom })), selector)
+    .map((label) => ({ question: label.textContent, gap: label.nextElementSibling!.getBoundingClientRect().top - label.getBoundingClientRect().bottom })), { root: selector, label: labelSelector })
 }
 
 describe('input question surface geometry', () => {
@@ -88,14 +88,14 @@ describe('input question surface geometry', () => {
       const page = await openPage(browser, stylesheet, markup, { width, scale, mode })
       try {
         const levels = await childGaps(page, '[data-onboarding-questions]')
-        expect(levels).toHaveLength(2)
+        expect(levels).toHaveLength(schedule === 'fixed' ? 3 : 2)
         for (const gap of levels) expect(gap).toBeCloseTo(24, 0)
         const followUp = await childGaps(page, '[data-onboarding-questions] > :nth-child(2)')
         for (const gap of followUp) expect(gap).toBeCloseTo(12, 0)
-        const questions = await questionGaps(page, '[data-onboarding-questions]')
-        const expected = [messages.onboarding.flow.when.scheduleMode, schedule === 'fixed' ? messages.onboarding.flow.when.daysQuestion : messages.onboarding.flow.when.frequencyUnitLabel]
+        const questions = await questionGaps(page, '[data-onboarding-questions]', ':scope > div > span:first-child')
+        const expected = [messages.onboarding.flow.when.scheduleMode, schedule === 'fixed' ? messages.onboarding.flow.when.daysLabel : messages.onboarding.flow.when.frequencyUnitLabel]
         expect(questions.map((entry) => entry.question)).toEqual(expected)
-        for (const entry of questions) expect(entry.gap).toBeCloseTo(8, 0)
+        for (const entry of questions) expect(entry.gap).toBeCloseTo(12, 0)
         for (const gap of levels) expect(gap).toBeGreaterThanOrEqual(2 * Math.max(...followUp, ...questions.map((entry) => entry.gap)))
       } finally { await page.close() }
     })

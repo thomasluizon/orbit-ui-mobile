@@ -37,9 +37,9 @@ export function GoalTypeSelector({
 
   return (
     <>
-      <GoalGroupLabel>{t('goals.form.type')}</GoalGroupLabel>
+      <GoalGroupLabel>{t('goals.form.typeQuestion')}</GoalGroupLabel>
       <SegmentedControl<GoalType>
-        label={t('goals.form.type')}
+        label={t('goals.form.typeQuestion')}
         value={goalType}
         options={[
           { value: goalTypeOptions[0].key, label: t(goalTypeOptions[0].titleKey) },

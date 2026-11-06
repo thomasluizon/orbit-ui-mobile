@@ -70,20 +70,16 @@ it.each(CASES.flatMap((matrix) => (['fixed', 'flexible', 'interval'] as const).m
       const parts = measureInteractionFills(findHost(tree.toJSON(), 'onboarding-questions')!, column, false, scale)
       const root = parts.find((part) => part.host.props.testID === 'onboarding-questions')!
       const levels = children(parts, root)
-      expect(levels).toHaveLength(3)
-      expect(levels.at(-1)!.host.props.accessibilityLabel).toBe(i18n.t('onboarding.flow.when.timeQuestion'))
+      expect(levels).toHaveLength(schedule === 'fixed' ? 4 : 3)
+      expect(levels.at(-1)!.host.props.accessibilityLabel).toBe(i18n.t('onboarding.flow.when.timeLabel'))
       for (const gap of gaps(levels)) expect(gap).toBeCloseTo(24, 3)
       const followUp = children(parts, levels[1]!)
-      expect(followUp).toHaveLength(2)
-      expect(gaps(followUp)).toEqual([expect.closeTo(12, 3)])
-      const questions = parts.filter((part) => part.host.props.testID === 'field-question')
-      const expected = [i18n.t('onboarding.flow.when.scheduleMode'), i18n.t(schedule === 'fixed' ? 'onboarding.flow.when.daysQuestion' : 'onboarding.flow.when.frequencyUnitLabel')]
-      expect(questions.map((question) => labelText(children(parts, question)[0]!))).toEqual(expected)
-      for (const question of questions) {
-        const [label, control] = children(parts, question)
-        expect((label!.host.props as { importantForAccessibility?: string }).importantForAccessibility).toBe('no-hide-descendants')
-        expect(control!.top - label!.bottom).toBeCloseTo(8, 3)
-      }
+      expect(followUp).toHaveLength(schedule === 'fixed' ? 2 : 3)
+      for (const gap of gaps(followUp)) expect(gap).toBeCloseTo(12, 3)
+      const expected = [i18n.t('onboarding.flow.when.scheduleMode'), i18n.t(schedule === 'fixed' ? 'onboarding.flow.when.daysLabel' : 'onboarding.flow.when.frequencyUnitLabel')]
+      const questions = levels.slice(0, 2).map((level) => children(parts, level))
+      expect(questions.map(([label]) => labelText(label!))).toEqual(expected)
+      for (const [label, control] of questions) expect(control!.top - label!.bottom).toBeCloseTo(12, 3)
     } finally { TestRenderer.act(() => tree.unmount()) }
   })
 

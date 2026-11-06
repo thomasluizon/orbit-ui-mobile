@@ -52,6 +52,7 @@ export function useChatComposer(options: UseChatComposerOptions = {}) {
     isSupported: speechSupported,
     transcript,
     error: speechError,
+    clearError: clearSpeechError,
     toggleRecording,
     recordingDuration,
   } = useSpeechToText()
@@ -74,7 +75,7 @@ export function useChatComposer(options: UseChatComposerOptions = {}) {
   useChatDraftPersistence(draftHydrated, composerInputId, hydrateDraft, input, isRecording, pendingVoiceCommitRef, transcript, setInput)
   const { buildChatFormData } = useChatRequestPayload(locale, profile)
   const { runStreamingSend } = useChatStream({ turnReconciliation, activeStepsRef, setActiveSteps, queryClient, allowanceText, updateMessage, addMessage, setIsTyping, t, setStreamingMessageId, stopReply, appendToMessageContent, scrollToBottom, buildChatFormData, applyFinalResponse })
-  const { blockAnswerInteraction, reportHistoryFailure, sendPreparedAttempt, performSend } = useChatSendQueue(threadScroll, chatContainerRef, activeStepsRef, setActiveSteps, setSendError, setLastFailedSend, scrollToBottom, setIsTyping, runStreamingSend, handleFailedSend, blockSubmission, isOnline, atMessageLimit, dailyBudgetReached, handleAllowanceExceeded, handleDailyBudgetExceeded, locale, queryClient, t, isSending, aiMessagesLimit, allowanceText, setInput, clearImage, removeTextFile)
+  const { blockAnswerInteraction, reportHistoryFailure, sendPreparedAttempt, performSend } = useChatSendQueue(threadScroll, chatContainerRef, activeStepsRef, setActiveSteps, setSendError, setLastFailedSend, scrollToBottom, setIsTyping, runStreamingSend, handleFailedSend, blockSubmission, isOnline, atMessageLimit, dailyBudgetReached, handleAllowanceExceeded, handleDailyBudgetExceeded, locale, queryClient, t, isSending, aiMessagesLimit, allowanceText, setInput, clearImage, removeTextFile, clearSpeechError)
   const { sendMessage } = useChatSendMessage(input, selectedTextFile, t, attachments, isOnline, setSendError, dailyBudgetReached, atMessageLimit, addMessage, allowanceText, scrollToBottom, reportHistoryFailure, selectedImage, imagePreview, sendPreparedAttempt)
   const { canRetryLastSend, retryLastSend, sendQueuedPrompt } = useChatSendRetry(isOnline, atMessageLimit, queryClient, isSending, queuePaused, queueReady, queuedPrompts, lastFailedSend, performSend, setInput)
   const { queue, usageMessage, renewalHint, allowanceReason, composerSuggestions, messageLimitPlaceholder, messageLimitReason } = buildComposerSuggestions({ surface, habitsQuery, detailQuery, calendarHasError, selectedDate, today, profile, contextualSuggestion, t, sendMessage, aiMessagesLimit, aiMessagesUsed, dailyBudgetReached, allowanceText, queuedPrompts, queuePaused, isSending, isOnline, atMessageLimit, setSendError, sendQueuedPrompt, totalHabitCount: options.totalHabitCount, getChat: useChatStore.getState })

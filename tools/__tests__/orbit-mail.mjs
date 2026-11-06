@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs"
+import { mkdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { collectMail, draftReply, replyToMail } from "../orbit-mail.mjs"
 import { gmailClient } from "../lib/auto-work-google.mjs"
@@ -96,6 +96,53 @@ export const cases = async () => {
   const sensitive = { ...simple, concerns: ["refund"] }
   const held = await replyToMail(sendingClient, sensitive, checkout)
   T("mail: a sensitive reply stays in Gmail drafts", held.disposition === "draft" && sends === 1)
+
+  const limitedCheckout = join(root, "mail-rate-limit")
+  mkdirSync(join(limitedCheckout, ".git"), { recursive: true })
+  writeRunState({ sessionId: "rate-limit-mail", sleep: true, autoWork: true }, limitedCheckout)
+  const capturedRateLimit = JSON.parse(readFileSync(new URL("./fixtures/gmail-rate-limit-403.json", import.meta.url), "utf8"))
+  const userRateLimit = structuredClone(capturedRateLimit)
+  userRateLimit.error.errors[0].reason = "userRateLimitExceeded"
+  const limitedAnswers = { r1: [() => Response.json(capturedRateLimit, { status: 403 })], r2: [() => Response.json(userRateLimit, { status: 403 })],
+    r3: [() => new Response("Too many requests: User-rate limit exceeded", { status: 429 })] }
+  const limitedReads = []
+  let limitedClock = 0
+  const limitedWaits = []
+  const limitedPacing = { now: () => limitedClock, sleep: async (milliseconds) => { limitedWaits.push(milliseconds); limitedClock += milliseconds }, random: () => 0.5 }
+  const limitedClient = gmailClient("access", async (address) => {
+    const url = new URL(address)
+    if (url.pathname.endsWith("/messages")) return Response.json({ messages: ["r1", "r2", "r3"].map((id) => ({ id, threadId: `t-${id}` })) })
+    const id = url.pathname.split("/").at(-1)
+    limitedReads.push(id)
+    const answer = limitedAnswers[id]?.shift()
+    if (answer) return answer()
+    return Response.json({ id, threadId: `t-${id}`, snippet: "Oi", payload: { mimeType: "text/plain", headers: [{ name: "From", value: "person@example.org" }],
+      body: { size: 2, data: Buffer.from("Oi").toString("base64url") } } })
+  }, limitedPacing)
+  let limitedError
+  let limitedPending = []
+  try { limitedPending = await collectMail(limitedClient, limitedCheckout) } catch (error) { limitedError = error.message }
+  T("mail: a per-minute Gmail rate limit is retried instead of failing the collect", limitedError === undefined && limitedPending.length === 3 &&
+    limitedPending.every((item) => item.bodies[0]?.text === "Oi"))
+  T("mail: each rate-limited read is retried once after its backoff", limitedReads.join(",") === "r1,r1,r2,r2,r3,r3" &&
+    limitedWaits.length === 3 && limitedWaits.every((milliseconds) => milliseconds >= 1_000 && milliseconds < 2_000))
+  const revokedCheckout = join(root, "mail-forbidden")
+  mkdirSync(join(revokedCheckout, ".git"), { recursive: true })
+  writeRunState({ sessionId: "forbidden-mail", sleep: true, autoWork: true }, revokedCheckout)
+  let forbiddenReads = 0
+  const forbiddenWaits = []
+  const forbiddenClient = gmailClient("access", async (address) => {
+    const url = new URL(address)
+    if (url.pathname.endsWith("/messages")) return Response.json({ messages: [{ id: "f1", threadId: "t-f1" }] })
+    forbiddenReads++
+    return Response.json({ error: { code: 403, message: "Request had insufficient authentication scopes.",
+      errors: [{ domain: "global", reason: "insufficientPermissions", message: "Insufficient Permission" }] } }, { status: 403 })
+  }, { now: () => 0, sleep: async (milliseconds) => { forbiddenWaits.push(milliseconds) }, random: () => 0.5 })
+  let forbiddenError
+  try { await collectMail(forbiddenClient, revokedCheckout) } catch (error) { forbiddenError = error.message }
+  T("mail: a 403 that is not a rate limit fails at once with its reason", forbiddenError === "Gmail GET failed (HTTP 403 insufficientPermissions)" &&
+    forbiddenReads === 1 && forbiddenWaits.length === 0)
+  T("mail: a failed read leaves no pending item for the unread message", intakeSource("gmail", revokedCheckout).pending.f1 === undefined)
 
   for (const variant of ["complaint", "unavailable", "malformed", "truncated"]) {
     const attachmentCheckout = join(root, `mail-attachment-${variant}`)

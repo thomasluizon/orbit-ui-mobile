@@ -82,7 +82,7 @@ describe('native weekday surface geometry', () => {
           expect(text).toBeDefined()
           expect(text!.width).toBeLessThanOrEqual(control.width + 0.01)
         })
-        const row = tree.root.findAll(node => String(node.type) === 'View' && node.props.accessibilityLabel === (surface === 'form' ? i18n.t('habits.form.activeDays') : surface === 'astra' ? i18n.t('chat.operation.field.days') : i18n.t('onboarding.flow.when.daysQuestion')))[0]
+        const row = tree.root.findAll(node => String(node.type) === 'View' && node.props.accessibilityLabel === (surface === 'form' ? i18n.t('habits.form.activeDays') : surface === 'astra' ? i18n.t('chat.operation.field.days') : i18n.t('onboarding.flow.when.daysLabel')))[0]
         expect(row).toBeDefined()
         expect((StyleSheet.flatten(row!.props.style) as ViewStyle).flexWrap).toBe('nowrap')
         const initials = dayOptions.map(day => day.label.charAt(0))

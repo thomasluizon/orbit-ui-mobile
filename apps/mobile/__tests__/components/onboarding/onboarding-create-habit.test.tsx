@@ -183,18 +183,17 @@ describe('OnboardingCreateHabit data', () => {
 
   it.each([
     ['flexible', schedule, 'onboarding.flow.when.frequencyUnitLabel'],
-    ['fixed', everyThirdMonday, 'onboarding.flow.when.daysQuestion'],
-  ] as const)('asks the %s schedule as visible questions named once for assistive technology', async (_mode, current, followUp) => {
+    ['fixed', everyThirdMonday, 'onboarding.flow.when.daysLabel'],
+  ] as const)('asks the %s schedule as visible questions that also name their controls', async (_mode, current, followUp) => {
     let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => {
       tree = TestRenderer.create(<OnboardingCreateHabit {...base} proposed={false} correcting schedule={current} />)
     })
-    const questions = tree.root.findAll((node) => node.props.testID === 'field-question' && typeof node.type === 'string')
-    const labels = questions.map((question) => question.findAll((node) => (node.type as unknown) === Text)[0]!)
-    expect(labels.map((label) => flattenText(label.props.children))).toEqual([i18n.t('onboarding.flow.when.scheduleMode'), i18n.t(followUp)])
-    for (const label of labels) expect(label.props.importantForAccessibility).toBe('no-hide-descendants')
+    const visibleText = tree.root.findAll((node) => (node.type as unknown) === Text).map((node) => flattenText(node.props.children))
+    expect(visibleText).toEqual(expect.arrayContaining([i18n.t('onboarding.flow.when.scheduleMode'), i18n.t(followUp)]))
     expect(tree.root.findAll((node) => node.props.label === i18n.t('onboarding.flow.when.scheduleMode') && node.props.value !== undefined).length).toBeGreaterThan(0)
-    expect(tree.root.findAll((node) => node.props.label === i18n.t('onboarding.flow.when.timeQuestion')).length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node) => node.props.label === i18n.t(followUp)).length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node) => node.props.label === i18n.t('onboarding.flow.when.timeLabel')).length).toBeGreaterThan(0)
   })
 
   it('gives every weekday chip its full localized name', async () => {
@@ -332,5 +331,24 @@ describe('OnboardingCreateHabit data', () => {
       )
     })
     expect(tree.root.findAll((node) => node.props.testID === 'segment-oneTime-selected-enabled')).not.toHaveLength(0)
+  })
+})
+
+describe('native onboarding schedule questions', () => {
+  it.each([
+    { name: 'open', current: schedule, questions: ['scheduleMode', 'frequencyUnitLabel'] },
+    { name: 'fixed', current: everyThirdMonday, questions: ['scheduleMode', 'daysLabel'] },
+  ])('asks each $name schedule answer as its own 12px question group inside a 24px column', async ({ current, questions }) => {
+    await i18n.changeLanguage('en')
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(<OnboardingCreateHabit {...base} proposed={false} correcting schedule={current} />) })
+    const column = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'onboarding-questions')[0]!
+    expect(column.props.style).toMatchObject({ gap: 24 })
+    const groups = column.findAll((node) => typeof node.type === 'string' && (node.props.style as { gap?: number } | undefined)?.gap === 12)
+    for (const [index, key] of questions.entries()) {
+      expect(groups[index]!.props.style).toMatchObject({ gap: 12 })
+      expect(flattenText(groups[index]!.findAllByType(Text)[0]!)).toBe(i18n.t(`onboarding.flow.when.${key}`))
+    }
+    await TestRenderer.act(() => tree.unmount())
   })
 })
