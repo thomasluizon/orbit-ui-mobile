@@ -464,7 +464,7 @@ describe('CreateHabitModal (mobile)', () => {
       <CreateHabitModal open onClose={vi.fn()} parentHabit={parentHabit} />,
     )
     expect(hasText(tree.root, 'habits.createSubHabit')).toBe(true)
-    expect(hasText(tree.root, 'habits.form.subHabits')).toBe(false)
+    expect(hasText(tree.root, 'habits.form.subHabitsQuestion')).toBe(false)
   })
 
   it('shows the ungated sub-habit editor in habit mode', () => {

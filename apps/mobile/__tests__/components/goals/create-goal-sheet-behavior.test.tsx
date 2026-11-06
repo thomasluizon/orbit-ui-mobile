@@ -62,7 +62,7 @@ function button(tree: TestTree, label: string) {
 }
 
 async function fillGoal(tree: TestTree) {
-  for (const [label, value] of [['goals.form.title', 'Read every day'], ['goals.form.targetValue', '12'], ['goals.form.unit', 'books']]) {
+  for (const [label, value] of [['goals.form.title', 'Read every day'], ['goals.form.targetValueQuestion', '12'], ['goals.form.unitQuestion', 'books']]) {
     await TestRenderer.act(() => tree.root.findAll((node) => node.type === 'GoalInput' && node.props.accessibilityLabel === label)[0]!.props.onChangeText(value!))
   }
 }
@@ -80,8 +80,10 @@ async function openHabitPicker(tree: TestTree) {
 describe('goal creation with habits', () => {
   it.each(['Standard', 'Streak'])('explains selected bad habits for %s goals', async (goalType) => {
     const habit = createMockHabit({ id: 'habit-caffeine', title: 'Caffeine', isBadHabit: true })
+    const answerTitle = (tree: TestTree) => TestRenderer.act(() => tree.root.findAll((node) => node.type === 'GoalInput' && node.props.accessibilityLabel === 'goals.form.title')[0]!.props.onChangeText('Avoid caffeine'))
     mocks.habits.data.habitsById.set(habit.id, habit)
     const tree = await mount()
+    await answerTitle(tree)
     const text = (key: string) => tree.root.findAll((node) => node.type === 'Text' && node.props.children === key)
     const note = goalType === 'Streak' ? 'goals.form.avoidedDays' : 'goals.form.loggedSlips'
     const excluded = goalType === 'Streak' ? 'goals.form.loggedSlips' : 'goals.form.avoidedDays'
@@ -103,8 +105,10 @@ describe('goal creation with habits', () => {
 
   it('updates bad-habit guidance when the goal type changes', async () => {
     const habit = createMockHabit({ id: 'habit-caffeine', title: 'Caffeine', isBadHabit: true })
+    const answerTitle = (tree: TestTree) => TestRenderer.act(() => tree.root.findAll((node) => node.type === 'GoalInput' && node.props.accessibilityLabel === 'goals.form.title')[0]!.props.onChangeText('Avoid caffeine'))
     mocks.habits.data.habitsById.set(habit.id, habit)
     const tree = await mount()
+    await answerTitle(tree)
     const text = (key: string) => tree.root.findAll((node) => node.type === 'Text' && node.props.children === key)
     await openHabitPicker(tree)
     await TestRenderer.act(() => tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === habit.title)[0]!.props.onPress())
@@ -147,10 +151,47 @@ describe('goal creation with habits', () => {
     await TestRenderer.act(() => tree.unmount())
   })
 
+  it('asks the type before the title, reveals the follow-up questions from the title answer and retains them', async () => {
+    const tree = await mount()
+    const input = (label: string) => tree.root.findAll((node) => node.type === 'GoalInput' && node.props.accessibilityLabel === label)
+    const followUps = () => tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'goal-follow-ups')
+    const questions = tree.root.findAll((node) => node.type === 'Text' && ['goals.form.typeQuestion', 'goals.form.title'].includes(String(node.props.children))).map((node) => node.props.children)
+    expect(questions).toEqual(['goals.form.typeQuestion', 'goals.form.title'])
+    expect(input('goals.form.title')[0]!.props.placeholder).toBe('goals.form.descriptionPlaceholder')
+    expect(input('goals.form.title')).toHaveLength(1)
+    expect(followUps()).toHaveLength(0)
+    expect(input('goals.form.targetValueQuestion')).toHaveLength(0)
+    expect(tree.root.findAllByType(ListRow).some((node) => node.props.title === 'goals.linkedHabits')).toBe(true)
+    await TestRenderer.act(() => input('goals.form.title')[0]!.props.onChangeText('Read every day'))
+    expect(followUps()).toHaveLength(1)
+    await TestRenderer.act(() => input('goals.form.targetValueQuestion')[0]!.props.onChangeText('12'))
+    await TestRenderer.act(() => input('goals.form.title')[0]!.props.onChangeText(''))
+    expect(input('goals.form.targetValueQuestion')[0]!.props.value).toBe('12')
+  })
+
+  it('reveals the follow-up questions from a type answer and matches the placeholder to the type', async () => {
+    const tree = await mount()
+    const input = (label: string) => tree.root.findAll((node) => node.type === 'GoalInput' && node.props.accessibilityLabel === label)
+    const segment = (type: string) => tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === `segment-${type}-unselected-enabled`)[0]!
+    await TestRenderer.act(() => segment('Streak').props.onPress())
+    expect(input('goals.form.streakTarget')).toHaveLength(1)
+    expect(input('goals.form.title')[0]!.props.placeholder).toBe('goals.form.streakDescriptionPlaceholder')
+    await TestRenderer.act(() => segment('Standard').props.onPress())
+    expect(input('goals.form.targetValueQuestion')).toHaveLength(1)
+    expect(input('goals.form.title')[0]!.props.placeholder).toBe('goals.form.descriptionPlaceholder')
+  })
+
+  it('reveals the hidden goal questions when an empty form is submitted', async () => {
+    const tree = await mount()
+    await TestRenderer.act(async () => { await button(tree, 'goals.create').props.onClick() })
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'goal-follow-ups')).toHaveLength(1)
+    expect(mocks.create).not.toHaveBeenCalled()
+  })
+
   it('rejects empty, negative and nonnumeric targets, missing units and missing titles', async () => {
     for (const [target, unit, title] of [['', 'books', 'Read'], ['-1', 'books', 'Read'], ['abc', 'books', 'Read'], ['2', '', 'Read'], ['2', 'books', '']]) {
       const tree = await mount()
-      for (const [label, value] of [['goals.form.title', title], ['goals.form.targetValue', target], ['goals.form.unit', unit]]) {
+      for (const [label, value] of [['goals.form.title', 'Read'], ['goals.form.targetValueQuestion', target], ['goals.form.unitQuestion', unit], ['goals.form.title', title]]) {
         await TestRenderer.act(() => tree.root.findAll((node) => node.type === 'GoalInput' && node.props.accessibilityLabel === label)[0]!.props.onChangeText(value!))
       }
       await TestRenderer.act(async () => { await button(tree, 'goals.create').props.onClick() })
@@ -173,8 +214,9 @@ describe('goal creation with habits', () => {
     await TestRenderer.act(() => habitRow.props.onPress())
     await TestRenderer.act(() => tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === secondHabit.title)[0]!.props.onPress())
     await TestRenderer.act(() => tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'attempt-dismiss').at(-1)!.props.onPress())
-    const addDeadline = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'goals.form.addDeadline')[0]!
-    await TestRenderer.act(() => addDeadline.props.onPress())
+    const addDeadline = tree.root.findAllByType(ListRow).find((node) => node.props.title === 'goals.form.addDeadline')!
+    expect(addDeadline.props.placement).toBe('field')
+    await TestRenderer.act(() => addDeadline.props.onClick())
     await TestRenderer.act(() => tree.root.findAll((node) => node.type === 'DateField')[0]!.props.onChange('2099-12-01'))
     sheetTestControls.defer(true)
     await TestRenderer.act(async () => { await button(tree, 'goals.create').props.onClick() })

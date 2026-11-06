@@ -889,7 +889,7 @@ describe('mobile ProgressContent', () => {
     const tree = await renderProgress(undefined, 'goals')
     if (entry === 'populated') await selectGoalFilter(tree, 'completed')
     await TestRenderer.act(() => { (findPill(tree.root, entry === 'populated' ? 'goals.create' : 'progressScreen.goals.createAction').props.onPress as () => void)() })
-    for (const [label, value] of [['goals.form.title', 'Walk 100 km'], ['goals.form.targetValue', '100'], ['goals.form.unit', 'km']]) {
+    for (const [label, value] of [['goals.form.title', 'Walk 100 km'], ['goals.form.targetValueQuestion', '100'], ['goals.form.unitQuestion', 'km']]) {
       await TestRenderer.act(() => {
         const input = tree.root.findAll((node) => node.type === 'TextInput' && node.props.accessibilityLabel === label)[0]!
         ;(input.props.onChangeText as (value: string) => void)(value!)

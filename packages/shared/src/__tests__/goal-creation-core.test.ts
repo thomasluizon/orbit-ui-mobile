@@ -3,6 +3,8 @@ import { createUseGoalCreation, type GoalCreationOptions } from '../hooks/goal-c
 import type { CreateGoalRequest } from '../types/goal'
 import { createHookStateHarness } from '../test-support/hook-state'
 
+type GoalForm = ReturnType<ReturnType<typeof setup>['render']>
+
 function setup(initialHabitIds: string[] = []) {
   const harness = createHookStateHarness()
   let generation = 0
@@ -112,6 +114,33 @@ describe('shared goal creation', () => {
     expect(context.options.onClose).not.toHaveBeenCalled()
     expect(context.options.onCreated).not.toHaveBeenCalled()
     expect(context.backend.reportBackendErrors).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { answer: 'title', act: (form: GoalForm) => form.setDescription('Read') },
+    { answer: 'target', act: (form: GoalForm) => form.setTargetValue('3') },
+    { answer: 'unit', act: (form: GoalForm) => form.setUnit('books') },
+    { answer: 'deadline', act: (form: GoalForm) => form.setDeadline('2099-12-01') },
+    { answer: 'goal type', act: (form: GoalForm) => form.handleTypeChange('Standard') },
+    { answer: 'submit attempt', act: (form: GoalForm) => { void form.onSubmit() } },
+  ])('asks the follow-up questions after the $answer answer and keeps them open', ({ act }) => {
+    const context = setup()
+    context.render().setHabitIds(['habit-reading'])
+    expect(context.render().showFollowUps).toBe(false)
+    act(context.render())
+    expect(context.render().showFollowUps).toBe(true)
+    context.render().setDescription('')
+    context.render().setTargetValue('')
+    expect(context.render().showFollowUps).toBe(true)
+  })
+
+  it('asks only the first questions again after the draft resets', () => {
+    const context = setup()
+    context.render().setDescription('Read')
+    context.render().dismiss()
+    expect(context.render().showFollowUps).toBe(true)
+    context.finishDismiss()
+    expect(context.render().showFollowUps).toBe(false)
   })
 
   it('resets only after a current-account dismissal', () => {

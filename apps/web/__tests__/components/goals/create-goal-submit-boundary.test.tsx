@@ -66,7 +66,7 @@ function renderUnderHabitForm(child: ReactNode) {
 
 function assertPortalForm(parentForm: HTMLFormElement) {
   const dialog = screen.getByRole('dialog', { name: en.goals.create })
-  const title = within(dialog).getByLabelText('Title') as HTMLInputElement
+  const title = within(dialog).getByLabelText('What do you want to reach?') as HTMLInputElement
   const submit = within(dialog).getByRole('button', { name: en.goals.create }) as HTMLButtonElement
   expect(title.form).not.toBeNull()
   expect(parentForm).not.toContainElement(title.form)
@@ -77,9 +77,9 @@ function assertPortalForm(parentForm: HTMLFormElement) {
 }
 
 async function fillGoal(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByLabelText('Title'), 'Read every day')
-  await user.type(screen.getByLabelText('Quantity'), '12')
-  await user.type(screen.getByLabelText('Unit'), 'books')
+  await user.type(screen.getByLabelText('What do you want to reach?'), 'Read every day')
+  await user.type(screen.getByLabelText('How much?'), '12')
+  await user.type(screen.getByLabelText('Of what?'), 'books')
 }
 
 async function openLinkedGoal(habitId?: string, populated = false) {
@@ -94,7 +94,7 @@ async function openLinkedGoal(habitId?: string, populated = false) {
   if (populated) expect(within(picker).getByRole('button', { name: 'Existing goal', pressed: true })).toBeEnabled()
   else expect(within(picker).getByText(en.habits.form.goalInvitation)).toBeInTheDocument()
   await harness.user.click(within(picker).getByRole('button', { name: en.goals.create }))
-  await screen.findByLabelText('Title')
+  await screen.findByLabelText('What do you want to reach?')
   assertPortalForm(harness.parentForm)
   expect(harness.parentSubmit).not.toHaveBeenCalled()
   expect(mocks.create).not.toHaveBeenCalled()
@@ -131,7 +131,7 @@ describe('goal submit ownership through the sheet portal', () => {
     const picker = await openHabitPicker(user)
     expect(within(picker).getByRole('button', { name: 'Read', pressed: Boolean(habitId) })).toBeEnabled()
     await user.click(within(picker).getByRole('button', { name: 'Done' }))
-    await screen.findByLabelText('Title')
+    await screen.findByLabelText('What do you want to reach?')
     await user.click(screen.getByRole('button', { name: en.goals.create }))
     await waitFor(() => expect(onGoalCreated).toHaveBeenCalledExactlyOnceWith('created-goal'))
     expect(mocks.create).toHaveBeenCalledExactlyOnceWith({ title: 'Read every day', type: 'Standard', targetValue: 12, unit: 'books', habitIds: habitId ? [habitId] : [] })
@@ -142,7 +142,7 @@ describe('goal submit ownership through the sheet portal', () => {
 
   it('focuses each invalid goal field without submitting a valid parent draft', async () => {
     const { user, parentSubmit, onGoalCreated } = await openLinkedGoal(readingId)
-    for (const [label, value] of [['Quantity', '12'], ['Unit', 'books'], ['Title', 'Read every day']]) {
+    for (const [label, value] of [['How much?', '12'], ['Of what?', 'books'], ['What do you want to reach?', 'Read every day']]) {
       await user.click(screen.getByRole('button', { name: en.goals.create }))
       const invalid = screen.getByLabelText(label!)
       await waitFor(() => expect(invalid).toHaveFocus())
@@ -161,9 +161,9 @@ describe('goal submit ownership through the sheet portal', () => {
     await fillGoal(user)
     await user.click(screen.getByRole('button', { name: en.goals.create }))
     expect(await screen.findByRole('alert')).toHaveTextContent(en.goals.form.createError)
-    expect(screen.getByLabelText('Title')).toHaveValue('Read every day')
-    expect(screen.getByLabelText('Quantity')).toHaveValue(12)
-    expect(screen.getByLabelText('Unit')).toHaveValue('books')
+    expect(screen.getByLabelText('What do you want to reach?')).toHaveValue('Read every day')
+    expect(screen.getByLabelText('How much?')).toHaveValue(12)
+    expect(screen.getByLabelText('Of what?')).toHaveValue('books')
     expect(mocks.create).toHaveBeenCalledTimes(1)
     expect(onGoalCreated).not.toHaveBeenCalled()
     expect(parentSubmit).not.toHaveBeenCalled()
@@ -184,12 +184,12 @@ describe('goal submit ownership through the sheet portal', () => {
     const discard = await screen.findByRole('dialog', { name: en.common.discardChangesTitle })
     await user.click(within(discard).getByRole('button', { name: en.common.keepEditing }))
     await waitFor(() => expect(screen.queryByRole('dialog', { name: en.common.discardChangesTitle })).not.toBeInTheDocument())
-    expect(screen.getByLabelText('Title')).toHaveValue('Read every day')
+    expect(screen.getByLabelText('What do you want to reach?')).toHaveValue('Read every day')
     const picker = await openHabitPicker(user)
     expect(within(picker).getByRole('button', { name: 'Read', pressed: true })).toBeEnabled()
     await user.click(within(picker).getByRole('button', { name: 'Walk', pressed: false }))
     await user.click(within(picker).getByRole('button', { name: 'Done' }))
-    await screen.findByLabelText('Title')
+    await screen.findByLabelText('What do you want to reach?')
     await user.click(screen.getByRole('button', { name: en.common.cancel }))
     const confirmation = await screen.findByRole('dialog', { name: en.common.discardChangesTitle })
     await user.click(within(confirmation).getByRole('button', { name: en.common.discardChangesAction }))
@@ -205,7 +205,7 @@ describe('goal submit ownership through the sheet portal', () => {
     const picker = await openHabitPicker(user)
     await user.click(within(picker).getByRole('button', { name: 'Read', pressed: true }))
     await user.click(within(picker).getByRole('button', { name: 'Done' }))
-    await screen.findByLabelText('Title')
+    await screen.findByLabelText('What do you want to reach?')
     await user.click(screen.getByRole('button', { name: en.goals.create }))
     await waitFor(() => expect(screen.queryByRole('dialog', { name: en.goals.create })).not.toBeInTheDocument())
     expect(mocks.create).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ habitIds: [] }))
@@ -220,8 +220,8 @@ describe('goal submit ownership through the sheet portal', () => {
     const onClose = vi.fn()
     render(<CreateGoalSheet open onClose={onClose} />)
     await user.type(screen.getByLabelText(messages.goals.form.title), 'Read every day')
-    await user.type(screen.getByLabelText(messages.goals.form.targetValue), '12')
-    await user.type(screen.getByLabelText(messages.goals.form.unit), 'books')
+    await user.type(screen.getByLabelText(messages.goals.form.targetValueQuestion), '12')
+    await user.type(screen.getByLabelText(messages.goals.form.unitQuestion), 'books')
     const submit = screen.getByRole('button', { name: messages.goals.create }) as HTMLButtonElement
     expect(submit.form).toBe((screen.getByLabelText(messages.goals.form.title) as HTMLInputElement).form)
     submit.focus()

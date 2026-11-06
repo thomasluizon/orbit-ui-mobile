@@ -29,7 +29,8 @@ export function HabitScheduleFields({ unit, quantity, flexible, disabled, onChan
   }
   if (hidden) return null
   return (
-    <View style={styles.container}>
+    <View testID="schedule-questions" style={styles.container}>
+      <View style={styles.group}>
       <FormSectionLabel>{t('habits.form.frequency')}</FormSectionLabel>
       <RadioGroup accessibilityLabel={t('habits.form.frequency')}>
         <Proposed keepMounted inset proposed={proposed && (Boolean(unit) && !flexible)} scope="row" label={t('habits.detail.proposed')}>
@@ -39,10 +40,11 @@ export function HabitScheduleFields({ unit, quantity, flexible, disabled, onChan
           <RadioRow proposed={proposed && flexible} label={t('habits.form.timesPerUnit')} selected={flexible} {...availability} onSelect={() => { if (!locked) onModeChange(true) }} />
         </Proposed>
       </RadioGroup>
+      </View>
       <Proposed keepMounted inset proposed={proposed} scope="field" label={t('habits.detail.proposed')}>
         <Input
           proposed={proposed}
-          label={t('habits.form.frequency')}
+          label={flexible ? t('habits.form.timesCount') : t('habits.form.everyCount', { unit: unit ?? 'Day' })}
           name="frequencyQuantity"
           autoComplete="off"
           kind="number"
@@ -63,14 +65,14 @@ export function HabitScheduleFields({ unit, quantity, flexible, disabled, onChan
             </Proposed>
           ))}
         </RadioGroup>
+        {flexible && unit && quantity !== null && !invalid ? <Text style={[styles.hint, { color: tokens.fg3 }]}>{t('habits.form.flexibleDescription', { n: quantity, unit })}</Text> : null}
       </View>
-      {flexible && unit && quantity !== null && !invalid ? <Text style={[styles.hint, { color: tokens.fg3 }]}>{t('habits.form.flexibleDescription', { n: quantity, unit })}</Text> : null}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { gap: 16 },
+  container: { gap: 24 },
   group: { gap: 8 },
   label: { fontFamily: 'Geist_500Medium', fontSize: 14 },
   hint: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },

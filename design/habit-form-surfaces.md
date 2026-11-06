@@ -308,10 +308,15 @@ full-column targets and feedback. Hover and press stop at the field edge. Remind
 row and 8px above and below their remove targets, and constrain growing text to the column.
 Add time is visible text. Its caption and the timing entry wrap as text grows. Permission feedback remains beside the reminder decision.
 
+How does it repeat? asks Every or Times per in its own group. The count question follows the answer:
+Every how many days? names the chosen period, or How many times? Which period? holds the four units. Each group is separate, with a 24px
+gap. Type, title, notes, When and start date labels are questions.
+
 More details groups Steps, Avoid, Organize and End. Steps retains checklist templates and the
-sub-item editor, labelled Subtasks for Task. Avoid retains the slip alert and its plan boundary.
-Organize retains tags, goal links and the edit parent picker. End retains explicit end-date clearing
-beside the selected value. Create title and submit follow the selected type; the screen header uses
+sub-item editor, asked as Break it into smaller tasks? for Task. Avoid retains the slip alert and its plan boundary.
+Organize retains tags, goal links and the edit parent picker. End asks Ends someday? first; its answer reveals When does it end?, a saved end
+date opens it, and hiding it retains the date and shows it as the row value. A saving form disables the row. Removing the date keeps the question open and returns
+focus to the date control. Field rows keep their paint on the field column edge. Create title and submit follow the selected type; the screen header uses
 the screen title role. The empty emoji well uses the smile glyph.
 
 Owning web and Android Vitest cases cover these decisions through the real form and request

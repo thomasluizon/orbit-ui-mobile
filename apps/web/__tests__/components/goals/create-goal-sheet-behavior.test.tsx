@@ -41,9 +41,9 @@ beforeEach(() => {
 })
 
 function fillGoal() {
-  fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Read every day' } })
-  fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '12' } })
-  fireEvent.change(screen.getByLabelText('Unit'), { target: { value: 'books' } })
+  fireEvent.change(screen.getByLabelText('What do you want to reach?'), { target: { value: 'Read every day' } })
+  fireEvent.change(screen.getByLabelText('How much?'), { target: { value: '12' } })
+  fireEvent.change(screen.getByLabelText('Of what?'), { target: { value: 'books' } })
 }
 
 async function openHabitPicker() {
@@ -65,6 +65,7 @@ describe('goal creation with habits', () => {
     const habit = createMockHabit({ id: 'habit-caffeine', title: 'Caffeine', isBadHabit: true })
     mocks.habits.data.habitsById.set(habit.id, habit)
     render(<CreateGoalSheet open onClose={vi.fn()} />)
+    fireEvent.change(screen.getByLabelText(messages.goals.form.title), { target: { value: 'Avoid caffeine' } })
     expect(screen.getByText(messages.goals.form.habitsExplainer)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('radio', { name: goalType === 'Streak' ? messages.goals.form.typeStreak : messages.goals.form.typeStandard }))
     fireEvent.click(screen.getByRole('button', { name: new RegExp(messages.goals.linkedHabits) }))
@@ -88,6 +89,7 @@ describe('goal creation with habits', () => {
     const habit = createMockHabit({ id: 'habit-caffeine', title: 'Caffeine', isBadHabit: true })
     mocks.habits.data.habitsById.set(habit.id, habit)
     render(<CreateGoalSheet open onClose={vi.fn()} />)
+    fireEvent.change(screen.getByLabelText(messages.goals.form.title), { target: { value: 'Avoid caffeine' } })
     fireEvent.click(screen.getByRole('button', { name: new RegExp(messages.goals.linkedHabits) }))
     let picker = await screen.findByRole('dialog', { name: messages.goals.linkedHabits })
     fireEvent.click(within(picker).getByRole('button', { name: habit.title, pressed: false }))
@@ -123,7 +125,7 @@ describe('goal creation with habits', () => {
     await act(async () => { finishLoad(); await import('@/components/habits/create-habit-modal') })
     fireEvent.click(await screen.findByRole('button', { name: 'Finish habit creation' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Done' }))
-    expect(await screen.findByLabelText('Title')).toHaveValue('Read every day')
+    expect(await screen.findByLabelText('What do you want to reach?')).toHaveValue('Read every day')
     expect(mocks.create).not.toHaveBeenCalled()
   })
 
@@ -134,7 +136,7 @@ describe('goal creation with habits', () => {
     fillGoal()
     fireEvent.click(screen.getByRole('button', { name: 'Create goal' }))
     expect(await screen.findByRole('alert')).toHaveTextContent(en.goals.form.createError)
-    expect(screen.getByLabelText('Title')).toHaveValue('Read every day')
+    expect(screen.getByLabelText('What do you want to reach?')).toHaveValue('Read every day')
     expect(onClose).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Create goal' }))
     await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
@@ -189,7 +191,7 @@ describe('goal creation with habits', () => {
     const picker = await openHabitPicker()
     fireEvent.click(within(picker).getByRole('button', { name: 'Read', pressed: true }))
     fireEvent.click(within(picker).getByRole('button', { name: 'Done' }))
-    await screen.findByLabelText('Title')
+    await screen.findByLabelText('What do you want to reach?')
     fireEvent.click(screen.getByRole('button', { name: 'Create goal' }))
     await waitFor(() => expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ habitIds: [] })))
   })
@@ -207,7 +209,7 @@ describe('goal creation with habits', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
     expect(mocks.habits.refetch).toHaveBeenCalledOnce()
     fireEvent.click(screen.getByRole('button', { name: 'Done' }))
-    await waitFor(() => expect(screen.getByLabelText('Title')).toHaveValue('Read every day'))
+    await waitFor(() => expect(screen.getByLabelText('What do you want to reach?')).toHaveValue('Read every day'))
   })
 
   it.each(['en', 'pt-BR'])('keeps the submit label and disables it while saving in %s', (locale) => {

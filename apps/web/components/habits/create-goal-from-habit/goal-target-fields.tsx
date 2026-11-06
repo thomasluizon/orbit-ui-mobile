@@ -31,7 +31,7 @@ export function GoalTargetFields({
   return (
     <div className={isStreak ? '' : 'grid grid-cols-2'} style={{ padding: "var(--orbit-space-8) var(--orbit-space-0) var(--orbit-space-0)", gap: 12 }}>
       <FieldWell
-        label={isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
+        label={isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValueQuestion')}
         id="create-goal-target"
         inputRef={targetRef}
         type="number"
@@ -44,7 +44,7 @@ export function GoalTargetFields({
       />
       {!isStreak && (
         <FieldWell
-          label={t('goals.form.unit')}
+          label={t('goals.form.unitQuestion')}
           id="create-goal-unit"
           inputRef={unitRef}
           type="text"
