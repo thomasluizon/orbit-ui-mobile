@@ -8,6 +8,7 @@ import { captureAndroidUpdateSheetShown } from '@/lib/posthog'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTranslation } from 'react-i18next'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { useUpdateSheetFooterReport, type ReportUpdateSheetFooter } from '@/components/version-update-footer-report'
 import { PillButton } from '@/components/ui/pill-button'
 import {
   startAndroidUpdate,
@@ -88,11 +89,14 @@ interface VersionUpdateSheetProps {
   styles: ReturnType<typeof createStyles>
   onAction: () => void
   onLater: () => void
-  onDidPresent?: () => void
+  onDidPresent?: () => ReportUpdateSheetFooter
 }
 
-function VersionUpdateSheet({
-  open,
+function VersionUpdateSheet({ open, ...sheet }: Readonly<VersionUpdateSheetProps>) {
+  return open ? <OpenVersionUpdateSheet {...sheet} /> : null
+}
+
+function OpenVersionUpdateSheet({
   title,
   description,
   actionLabel,
@@ -100,13 +104,13 @@ function VersionUpdateSheet({
   onAction,
   onLater,
   onDidPresent,
-}: Readonly<VersionUpdateSheetProps>) {
+}: Readonly<Omit<VersionUpdateSheetProps, 'open'>>) {
   const { t } = useTranslation()
   const { sheetRef, closeSheet } = useSheetHost()
-  if (!open) return null
+  const footerReport = useUpdateSheetFooterReport(onDidPresent)
 
   return (
-    <Sheet ref={sheetRef} open onClose={onLater} onDidPresent={onDidPresent} title={title} actions={
+    <Sheet ref={sheetRef} open onClose={onLater} onDidPresent={footerReport.onDidPresent} footerProbe={footerReport.footerProbe} title={title} actions={
       <View style={styles.buttons}><ActionRow>
         <PillButton size="sm" variant="ghost" onClick={() => closeSheet()}>{t('versionUpdate.laterCta')}</PillButton>
         <PillButton size="sm" onClick={() => closeSheet(onAction)}>{actionLabel}</PillButton>
@@ -174,10 +178,11 @@ export function VersionUpdateDrawer() {
   const androidReady = androidDownloaded || androidUpdateReady
   const androidSoftOpen = updateAvailable && !forceUpdate && snoozeLoaded && !isSnoozed && !dismissedForSession && !androidRequested
   const offeredCode = androidCheck && 'versionCode' in androidCheck.other ? androidCheck.other.versionCode : null
-  const handleAndroidPresented = useCallback(() => {
-    captureAndroidUpdateSheetShown({
-      sheet: androidReady ? 'ready' : 'available', available_version_code: offeredCode, installed_version_code: Number(nativeBuildVersion),
-    })
+  const handleAndroidPresented = useCallback((): ReportUpdateSheetFooter => {
+    const shown = {
+      sheet: androidReady ? 'ready' as const : 'available' as const, available_version_code: offeredCode, installed_version_code: Number(nativeBuildVersion),
+    }
+    return (footer) => captureAndroidUpdateSheetShown({ ...shown, ...footer })
   }, [androidReady, offeredCode])
 
   if (Platform.OS === 'android') {
@@ -207,7 +212,7 @@ function AndroidVersionUpdateSheet({ ready, softOpen, restartDismissed, styles, 
   ready: boolean; softOpen: boolean; restartDismissed: boolean
   styles: ReturnType<typeof createStyles>
   install: () => void; request: () => void; later: () => void; restartLater: () => void
-  onDidPresent: () => void
+  onDidPresent: () => ReportUpdateSheetFooter
 }>) {
   const { t } = useTranslation()
   return <VersionUpdateSheet open={ready ? !restartDismissed : softOpen}

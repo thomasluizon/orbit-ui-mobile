@@ -1,6 +1,7 @@
 import { PostHog } from 'posthog-react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as Sentry from '@sentry/react-native'
+import type { UpdateSheetFooterMeasurement } from '@/components/version-update-footer-report'
 
 const key = process.env.EXPO_PUBLIC_POSTHOG_KEY
 const PREFERENCE_KEY = 'analytics-opt-out'
@@ -137,7 +138,7 @@ export function captureAndroidUpdateSheetShown(properties: {
   sheet: 'available' | 'ready'
   available_version_code: number | null
   installed_version_code: number
-}): void {
+} & UpdateSheetFooterMeasurement): void {
   captureAndroidUpdateWhenReady(() => { posthog?.capture('android_update_sheet_shown', properties) })
 }
 

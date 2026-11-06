@@ -6,7 +6,7 @@ import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { PADDING, SPACING, SHEET_BODY_INSETS, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import { getPrefersReducedMotion, usePrefersReducedMotion } from '@/lib/motion'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
-import { AccessibilityInfo, StyleSheet, Text, View, useWindowDimensions, type ScrollView, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native'
+import { AccessibilityInfo, StyleSheet, Text, View, useWindowDimensions, type LayoutChangeEvent, type ScrollView, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native'
 import { useOverlayFocus } from './focus-provenance-view'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -55,6 +55,13 @@ export function useSheetHost() {
   return { sheetRef, closeSheet }
 }
 
+/** Reads the footer and its reserved space as they lay out, for the Android update sheet footer report (#2030). */
+export interface SheetFooterProbe {
+  footerRef: RefObject<View | null>
+  onFooterLayout: (height: number) => void
+  onFooterSpaceLayout: (height: number) => void
+}
+
 interface MobileSheetProps extends SheetProps {
   initialFocus?: RefObject<View | null>
   onDidPresent?: () => void
@@ -63,6 +70,7 @@ interface MobileSheetProps extends SheetProps {
   ref?: Ref<SheetHandle>
   /** Lets a child FlatList own scrolling, so large picker collections stay virtualized. */
   virtualizedBody?: boolean
+  footerProbe?: SheetFooterProbe
 }
 
 /** The native overlay surface. Callers mount it only while it is open. */
@@ -80,6 +88,7 @@ export function Sheet({
   virtualizedBody = false,
   initialFocus,
   onDidPresent,
+  footerProbe,
   children,
   ref,
 }: Readonly<MobileSheetProps>) {
@@ -195,7 +204,8 @@ export function Sheet({
   const expandedTitle = title && titleExpanded && titleMode === 'typed' ? <PersonalText expanded selectable style={styles.fullTitle}>{title}</PersonalText> : null
 
   const showSheetError = topOverlayId === sheetId && modalError !== undefined
-  const footer = renderSheetFooter(actions, showSheetError, sheetId, styles, setFooterHeight)
+  const footer = renderSheetFooter(actions, showSheetError, sheetId, styles, setFooterHeight, footerProbe)
+  const handleFooterSpaceLayout = footerSpaceLayoutHandler(footerProbe)
   // WHY: Native padding owns the footer inset, so the measured child height needs no inset subtraction. https://github.com/lodev09/react-native-true-sheet/blob/v4.0.1/common/cpp/react/renderer/components/TrueSheetSpec/TrueSheetFooterViewShadowNode.cpp#L36-L56
   const reservedFooterHeight = footer ? footerHeight : 0
   const maxBodyHeight = Math.max(0, height * MAX_HEIGHT_RATIO - SCROLL_EDGE_PEEK - headerHeight - bottomInset)
@@ -240,7 +250,7 @@ export function Sheet({
         <View testID="sheet-virtualized-body" style={[bodyStyle, virtualizedBodyStyle(maxBodyHeight, Boolean(footer))]}>
           {expandedTitle}
           {children}
-          <View testID="sheet-footer-space" style={{ height: reservedFooterHeight }} />
+          <View testID="sheet-footer-space" onLayout={handleFooterSpaceLayout} style={{ height: reservedFooterHeight }} />
         </View>
       ) : (
         <>
@@ -258,7 +268,7 @@ export function Sheet({
             {expandedTitle}
             {children}
           </KeyboardAwareSheetScrollView>
-          <View testID="sheet-footer-space" style={{ height: reservedFooterHeight }} />
+          <View testID="sheet-footer-space" onLayout={handleFooterSpaceLayout} style={{ height: reservedFooterHeight }} />
         </>
       )}
     </TrueSheet>
@@ -309,14 +319,24 @@ function renderSheetFooter(
   sheetId: string,
   styles: ReturnType<typeof createStyles>,
   setFooterHeight: (height: number) => void,
+  footerProbe: SheetFooterProbe | undefined,
 ) {
   if (!actions && !showSheetError) return undefined
+  const handleFooterLayout = (event: LayoutChangeEvent) => {
+    setFooterHeight(event.nativeEvent.layout.height)
+    footerProbe?.onFooterLayout(event.nativeEvent.layout.height)
+  }
   return (
-    <View style={styles.footer} onLayout={(event) => setFooterHeight(event.nativeEvent.layout.height)}>
+    <View ref={footerProbe?.footerRef} testID="sheet-footer" style={styles.footer} onLayout={handleFooterLayout}>
       {showSheetError ? <View style={styles.notice}><AppToast placement="sheet" sheetId={sheetId} /></View> : null}
       {actions ? <View style={styles.actions}><ActionRow>{actions}</ActionRow></View> : null}
     </View>
   )
+}
+
+function footerSpaceLayoutHandler(footerProbe: SheetFooterProbe | undefined) {
+  if (!footerProbe) return undefined
+  return (event: LayoutChangeEvent) => footerProbe.onFooterSpaceLayout(event.nativeEvent.layout.height)
 }
 
 function virtualizedBodyStyle(maxHeight: number, hasFooter: boolean) {
