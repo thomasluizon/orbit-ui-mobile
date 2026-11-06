@@ -1833,6 +1833,7 @@
       "moreError": "Não foi possível carregar mais registros. Tente de novo.",
       "more": "Mostrar mais",
       "filter": "O que você procura?",
+      "filterAction": "Filtrar lista",
       "noMatches": "Nenhum registro carregado corresponde a “{query}”.",
       "clearFilter": "Limpar filtro"
     },

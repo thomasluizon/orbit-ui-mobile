@@ -343,6 +343,29 @@ describe('SupportScreen', () => {
     expect(findInputByLabel(tree.root, 'profile.support.message')!.props.value).toBe('Saved message')
   })
 
+  it('keeps the restored message field mounted and focused after its text is cleared', async () => {
+    mocks.getItem.mockResolvedValue(JSON.stringify({ subject: null, message: 'X' }))
+    const tree = await renderScreen()
+    const controlBorder = () => StyleSheet.flatten(tree.root.findAll((node) => node.props.testID === 'input-control' && node.type === View)[0]!.props.style as ViewStyle).borderWidth
+    await TestRenderer.act(async () => {
+      ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onFocus as () => void)()
+      await Promise.resolve()
+    })
+    expect(controlBorder()).toBe(2)
+    await TestRenderer.act(async () => {
+      ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onChangeText as (value: string) => void)('')
+      await Promise.resolve()
+    })
+    expect(findInputByLabel(tree.root, 'profile.support.message')!.props.value).toBe('')
+    expect(controlBorder()).toBe(2)
+    await TestRenderer.act(async () => {
+      ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onBlur as () => void)()
+      await Promise.resolve()
+    })
+    expect(findInputByLabel(tree.root, 'profile.support.message')).toBeDefined()
+    expect(tree.root.findAll((node) => node.props.children === 'profile.support.messageRequired')).not.toHaveLength(0)
+  })
+
   it('hydrates the form from a persisted draft', async () => {
     mocks.getItem.mockResolvedValue(JSON.stringify({ subject: 'Bug', message: 'It broke' }))
     const tree = await renderScreen()

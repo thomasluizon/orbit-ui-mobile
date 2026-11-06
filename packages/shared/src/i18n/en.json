@@ -1833,6 +1833,7 @@
       "moreError": "Couldn't load more records. Try again.",
       "more": "Show more",
       "filter": "What are you looking for?",
+      "filterAction": "Filter list",
       "noMatches": "No loaded records match “{query}”.",
       "clearFilter": "Clear filter"
     },

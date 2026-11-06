@@ -209,6 +209,19 @@ describe('SupportPage', () => {
     expect(messageField()).toHaveValue('Saved message')
   })
 
+  it('keeps the restored message field mounted and focused after its text is cleared', () => {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ subject: null, message: 'X' }))
+    render(<SupportPage />)
+    const field = messageField()
+    act(() => field.focus())
+    fireEvent.change(field, { target: { value: '' } })
+    expect(messageField()).toBe(field)
+    expect(document.activeElement).toBe(field)
+    fireEvent.blur(field)
+    expect(messageField()).toBe(field)
+    expect(screen.getByText('profile.support.messageRequired')).toBeInTheDocument()
+  })
+
   it('shows an explicit offline state and disables sending when offline', () => {
     mockIsOnline = false
     render(<SupportPage />)

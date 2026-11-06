@@ -67,6 +67,7 @@ export default function SupportPage() {
   const draftRef = useRef(initialDraft)
   const [subject, setSubject] = useState(initialDraft.subject)
   const [message, setMessage] = useState(initialDraft.message)
+  const [messageAsked, setMessageAsked] = useState(initialDraft.subject !== null || initialDraft.message !== '')
   const [isSending, setIsSending] = useState(false)
   const [success, setSuccess] = useState(false)
   const [validationMessage, setValidationMessage] = useState<string | null>(null)
@@ -80,6 +81,7 @@ export default function SupportPage() {
     draftRef.current = { subject: null, message: '' }
     setSubject(null)
     setMessage('')
+    setMessageAsked(false)
     setSuccess(false)
     setError(null)
     setValidationMessage(null)
@@ -118,6 +120,7 @@ export default function SupportPage() {
       : messageOverLimitHint
     setSubjectError(nextSubjectError)
     setMessageError(nextMessageError)
+    setMessageAsked(true)
     if (nextSubjectError) setSubjectFocusRequest((request) => request + 1)
     else if (nextMessageError) setMessageFocusRequest((request) => request + 1)
     return !nextSubjectError && !nextMessageError
@@ -150,6 +153,7 @@ export default function SupportPage() {
       draftRef.current = { subject: null, message: '' }
       setSubject(null)
       setMessage('')
+      setMessageAsked(false)
       forgetStoredSupportDraft()
     } catch (err: unknown) {
       const subjectFailure = getBackendFieldError(err, 'Subject')
@@ -195,6 +199,7 @@ export default function SupportPage() {
                 email={resolvedEmail}
                 subject={subject}
                 message={message}
+                messageAsked={messageAsked}
                 appVersion={appVersion}
                 messageMaxLength={messageMaxLength}
                 messageOverLimitHint={messageOverLimitHint}
@@ -211,6 +216,7 @@ export default function SupportPage() {
                 onSubjectChange={(next) => {
                   setSubject(next)
                   setSubjectError(null)
+                  setMessageAsked(true)
                   persistDraft({ subject: next })
                 }}
                 onSubjectBlur={() => {

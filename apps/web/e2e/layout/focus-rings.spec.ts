@@ -197,6 +197,7 @@ for (const width of [412, 1280] as const) {
       await expectOneFieldIndicator(page, search, 'div.relative', `search forced colors ${width}px`, { forcedColors: true, includeDescendants: true })
 
       await page.goto('/support')
+      await page.getByRole('radio', { name: messages.profile.support.subjects.problem.label, exact: true }).click()
       const message = page.locator('form textarea').first()
       await expectOneFieldIndicator(page, message, '[data-input-root]', `support forced colors ${width}px`, { forcedColors: true })
 

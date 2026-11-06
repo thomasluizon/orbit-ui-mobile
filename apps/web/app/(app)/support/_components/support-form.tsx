@@ -16,6 +16,7 @@ interface SupportFormProps {
   email: string
   subject: SupportSubjectId | null
   message: string
+  messageAsked: boolean
   appVersion: string | null
   messageMaxLength: number
   messageOverLimitHint: string | null
@@ -40,6 +41,7 @@ export function SupportForm({
   email,
   subject,
   message,
+  messageAsked,
   appVersion,
   messageMaxLength,
   messageOverLimitHint,
@@ -125,7 +127,7 @@ export function SupportForm({
           </p>
         ) : null}
       </div>
-      {subject !== null || message !== '' || messageError ? <Input
+      {messageAsked ? <Input
         label={t('profile.support.message')}
         required
         name="message"

@@ -142,7 +142,7 @@ describe('input question geometry', () => {
   it.each(CASES)('reveals the support message one group below the subject at $width and $scale in $locale/$mode', async ({ width, scale, locale, mode }) => {
     context.locale = locale
     const messages = locale === 'en' ? en : ptBR
-    const form = (subject: 'problem' | null) => <SupportForm email="ada@example.com" subject={subject} message="" appVersion={null} messageMaxLength={5000} messageOverLimitHint={null} error={null} subjectError={null} messageError={null}
+    const form = (subject: 'problem' | null) => <SupportForm email="ada@example.com" subject={subject} message="" messageAsked={subject !== null} appVersion={null} messageMaxLength={5000} messageOverLimitHint={null} error={null} subjectError={null} messageError={null}
       isSending={false} isOnline disabled={false} disabledReason={null} subjectFocusRequest={0} messageFocusRequest={0} onSubjectChange={vi.fn()} onMessageChange={vi.fn()} onSubjectBlur={vi.fn()} onMessageBlur={vi.fn()} onSend={vi.fn()} />
     const { container, rerender } = render(form(null))
     expect(container.querySelector('textarea')).toBeNull()

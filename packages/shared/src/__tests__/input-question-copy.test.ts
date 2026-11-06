@@ -91,3 +91,10 @@ it.each(ROW_LABEL_KEYS.flatMap((key) => [{ key, locale: 'en', messages: en }, { 
   expect(count).toBeGreaterThan(0)
   expect(count).toBeLessThanOrEqual(2)
 })
+
+it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('names the Astra record filter icon by its action, apart from the field question, in $locale', ({ messages }) => {
+  const action = lookup(messages, 'chat.recordList.filterAction')
+  expect(typeof action).toBe('string')
+  expect(action as string).not.toMatch(/\?/)
+  expect(action).not.toBe(lookup(messages, 'chat.recordList.filter'))
+})
