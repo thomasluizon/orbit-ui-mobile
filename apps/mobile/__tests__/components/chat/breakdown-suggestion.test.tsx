@@ -329,7 +329,7 @@ it('keeps multiple added drafts distinct and retries the failed named row after 
   await approveBreakdown(tree)
   const failed = tree.root.findAll(node => typeof node.type === 'string' && String(node.props.testID).endsWith('-failed'))
   expect(failed).toHaveLength(1)
-  expect(renderedText(failed[0]!.props.children)).toContain('Sweep')
+  expect(renderedText(failed[0]!.children)).toContain('Sweep')
   expect(defaultProps.onConfirmed).not.toHaveBeenCalled()
   expect(press(tree, 'habits.breakdown.addHabit')).toBeUndefined()
   await act(() => { press(tree, 'chat.batch.retry').props.onPress() })
