@@ -166,7 +166,8 @@ Calendário, Progresso and Perfil clear the tab bar or the wide column bottom wi
 Hoje's selection tray stays pinned at both widths while selection is active, with exit, select-all,
 delete, log, skip and move controls. It occupies
 the destination's bottom slot, named `composer` in the shell reference contract, at every width. Resting wide Hoje
-passes no bottom content. Transient notices keep the separate `notice` slot.
+passes no bottom content. Transient notices keep the separate `notice` slot. A visible notice
+ends 24px above the next bottom chrome, the tab bar or the pinned slot, so a toast never touches it (#2051).
 
 **The conversation opens full screen on both platforms.** In the compact shell it covers the whole
 screen, including the tab bar. On wide web the sidebar stays visible and the conversation replaces

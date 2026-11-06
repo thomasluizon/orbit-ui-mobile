@@ -18,6 +18,18 @@ Paths below are relative to each platform's `components/` directory unless state
 | Empty linked-habit picker | `goals/goal-habits-field.tsx` | `goals/goal-habits-field.tsx` | Orbit mark, title and create action |
 | Linked-habit search miss | Same picker owner | Same picker owner | Orbit mark, query-miss title and close action |
 | Empty share card | `share/share-card-sheet.tsx` | `share/share-card-sheet.tsx` | Orbit mark and existing title |
+| Empty and failed Avisos inbox | `navigation/notification-list.tsx` | `navigation/notification-list.tsx` | 96px Orbit mark and one line, or the load error and retry |
+
+A full-screen empty state centres its group vertically in the free height of the compact shell
+scroller, between the shell header and the bottom chrome (#2051). `shell/shell-centred-region.tsx`
+on each platform owns this. It fills the rest of the scroll content and mirrors the shell's bottom
+scroller clearance as its top padding. The Avisos inbox and the Progresso Metas subscreen use it.
+Empty states inside other content keep their place: the Progresso window and achievements sections,
+the goal list section of the Progresso overview, the calendar import sheet, the linked-habit picker,
+the share card sheet, and Hoje. Web `notification-empty-centre-geometry.test.tsx` and
+`progress-goals-empty-centre-geometry.test.tsx` measure the group centre within 1px of the free
+area centre at compact widths in both themes. The Android tests of the same names measure the same
+centre in Shell412.
 
 Astra centres the visible mark-to-disclosure group within the thread above the complete
 composer block, including its live chips and any notices. The web empty owner itself carries
