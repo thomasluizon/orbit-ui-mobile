@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { ASTRA_POSITION_KEY } from '@orbit/shared/utils'
 import { AstraButton } from '@/components/shell/astra-button'
 import { useUIStore } from '@/stores/ui-store'
+import * as ReactNative from 'react-native'
 import { Animated, StyleSheet } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { ListRow } from '@/components/ui/list-row'
@@ -70,6 +71,14 @@ it('captures a drag after the threshold, snaps and restores the position across 
   await act(() => tree.unmount())
   await mount()
   expect(point()).toEqual({ x: 16, y: 220 })
+})
+
+it('paints the first frame on the content column lane of a wide window before layout', async () => {
+  vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width: 900, height: 600, scale: 1, fontScale: 1 })
+  await act(() => { tree = TestRenderer.create(<AstraButton hasFab chrome={FULL_AREA} />) })
+  const fallback = (host('astra-button-position').props.style as [unknown, { right: number }])[1]
+  await layout(900, 600)
+  expect(fallback.right).toBe(900 - point().x - 60)
 })
 
 it('rests on the create FAB trailing edge and snaps to the content column on a wide compact screen', async () => {

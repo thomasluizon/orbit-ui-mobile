@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Animated, StyleSheet, View, type GestureResponderEvent } from 'react-native'
+import { Animated, StyleSheet, View, useWindowDimensions, type GestureResponderEvent } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTranslation } from 'react-i18next'
 import { ASTRA_BUTTON_SIZE, ASTRA_BUTTON_GAP, ASTRA_BUTTON_CLEARANCE, ASTRA_DRAG_THRESHOLD, ASTRA_POSITION_KEY, clampAstraButton, getAstraButtonClearance, moveAstraButton, parseAstraButtonPosition, resolveAstraButtonArea, snapAstraButton, type AstraButtonArea, type AstraButtonPoint, type AstraMoveDirection } from '@orbit/shared/utils'
@@ -29,6 +29,8 @@ export function AstraButton({ hasFab, chrome, onClearanceChange }: Readonly<{ ha
   const tokens = createTokensV2(currentScheme, currentTheme)
   const reducedMotion = usePrefersReducedMotion()
   const sideInsets = useShellSideInsets()
+  const windowWidth = useWindowDimensions().width
+  const fallbackRight = ASTRA_BUTTON_GAP + Math.max(0, (windowWidth - sideInsets.left - sideInsets.right - SHELL_CONTENT_MAX_WIDTH) / 2)
   const [viewport, setViewport] = useState({ width: 0, height: 0 })
   const columnStart = (viewport.width - Math.min(viewport.width, SHELL_CONTENT_MAX_WIDTH)) / 2
   const area = resolveAstraButtonArea({ top: 0, bottom: viewport.height, width: viewport.width }, [viewport.height - chrome.floorInset],
@@ -79,7 +81,7 @@ export function AstraButton({ hasFab, chrome, onClearanceChange }: Readonly<{ ha
   return <View testID="astra-button-area" pointerEvents="box-none" style={[styles.area, { top: chrome.top }, sideInsets]} onLayout={event => { setSnapping(false); setViewport(event.nativeEvent.layout) }}>
     {(position || area.width === 0) && !blocked ? <Animated.View testID="astra-button-position"
       {...gesture}
-      style={[styles.position, renderedPosition ? { left: 0, top: 0, transform: [{ translateX: renderedPosition.x }, { translateY: renderedPosition.y }] } : { right: ASTRA_BUTTON_GAP, bottom: chrome.pageInset + ASTRA_BUTTON_SIZE + ASTRA_BUTTON_GAP + ASTRA_BUTTON_CLEARANCE }]}>
+      style={[styles.position, renderedPosition ? { left: 0, top: 0, transform: [{ translateX: renderedPosition.x }, { translateY: renderedPosition.y }] } : { right: fallbackRight, bottom: chrome.pageInset + ASTRA_BUTTON_SIZE + ASTRA_BUTTON_GAP + ASTRA_BUTTON_CLEARANCE }]}>
       <Fab neutral lifted={dragged !== null} testID="astra-button" label={t('shell.astraButton.open')} accessibilityHint={t('shell.astraButton.hint')}
         accessibilityActions={(['left', 'right', 'up', 'down'] as const).map(direction => ({ name: direction, label: t(`shell.astraButton.${direction}`) }))}
         onAccessibilityAction={event => {

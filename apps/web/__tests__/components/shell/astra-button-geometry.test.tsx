@@ -348,6 +348,22 @@ it.each([320, 412, 840].flatMap(width => (['light', 'dark'] as const).flatMap(mo
   } finally { await page.close() }
 })
 
+it('paints the server fallback one bottom inset higher when the floating shell reserves that inset', async () => {
+  const markup = renderToString(<ShellWide items={[]} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: () => {} }}
+    header={<div style={{ minHeight: 48 }}>Today</div>} tabBar={<nav style={{ minHeight: 80 }}>Tabs</nav>}
+    scrollToTop={<button style={{ minHeight: 48 }}>Back to top</button>} astraButton={<AstraButton />}
+    fab={<Fab label="Create" onClick={() => {}}>+</Fab>}><div style={{ height: 1600 }}>Habits</div></ShellWide>)
+  const page = await browser.newPage({ viewport: { width: 412, height: 915 }, reducedMotion: 'reduce' })
+  try {
+    const fallbackTop = async (inset: number) => {
+      await page.setContent(`<html style="--safe-bottom:${inset}px"><style>${stylesheet}</style>${markup}</html>`)
+      return page.evaluate(() => document.querySelector('[data-astra-button]')!.getBoundingClientRect().top)
+    }
+    const withoutInset = await fallbackTop(0)
+    expect(await fallbackTop(34)).toBe(withoutInset - 34)
+  } finally { await page.close() }
+})
+
 it.each([1024, 1280, 1352])('draws no floating button in the wide shell at %ipx before or after hydration', async width => {
   const markup = renderToString(<ShellWide items={[]} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: () => {} }}
     header={<div style={{ minHeight: 48 }}>Today</div>} astraButton={<AstraButton />}><div style={{ height: 1600 }}>Habits</div></ShellWide>)
