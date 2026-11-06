@@ -1,23 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useWindowDimensions, type View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import type { DidPresentEvent } from '@lodev09/react-native-true-sheet'
 import * as Sentry from '@sentry/react-native'
 import type { SheetFooterProbe } from '@/components/ui/sheet'
+import type { UpdateSheetFooterMeasurement } from '@/lib/posthog'
 
 const FOOTER_LAYOUT_WAIT_MS = 1000
 const PIXEL_ROUNDING_TOLERANCE = 1
-
-// WHY: PostHog's capture takes an indexed property bag, which accepts a type alias but not an interface. https://github.com/microsoft/TypeScript/issues/15300
-export type UpdateSheetFooterMeasurement = {
-  footer_height: number | null
-  footer_space_height: number | null
-  footer_bottom: number | null
-  window_width: number
-  window_height: number
-  font_scale: number
-  bottom_inset: number
-  footer_below_window: boolean | null
-}
 
 export type ReportUpdateSheetFooter = (measurement: UpdateSheetFooterMeasurement) => void
 
@@ -28,15 +18,22 @@ interface FooterViewport {
   bottomInset: number
 }
 
-function describeFooter(
-  viewport: FooterViewport,
-  footerHeight: number | null,
-  footerSpaceHeight: number | null,
-  footerBottom: number | null,
-): UpdateSheetFooterMeasurement {
+interface FooterReading {
+  footerHeight: number | null
+  footerSpaceHeight: number | null
+  sheetPosition: number | null
+  footerLocalBottom: number | null
+}
+
+function describeFooter(viewport: FooterViewport, reading: FooterReading): UpdateSheetFooterMeasurement {
+  const { sheetPosition, footerLocalBottom } = reading
+  // WHY: measureInWindow stops at the TrueSheetView root node, so its y is local to the sheet container; onDidPresent's position places that container in the window frame. https://github.com/lodev09/react-native-true-sheet/blob/v4.0.1/common/cpp/react/renderer/components/TrueSheetSpec/TrueSheetViewShadowNode.h#L25-L29
+  const footerBottom = sheetPosition === null || footerLocalBottom === null ? null : sheetPosition + footerLocalBottom
   return {
-    footer_height: footerHeight,
-    footer_space_height: footerSpaceHeight,
+    footer_height: reading.footerHeight,
+    footer_space_height: reading.footerSpaceHeight,
+    sheet_position: sheetPosition,
+    footer_local_bottom: footerLocalBottom,
     footer_bottom: footerBottom,
     window_width: viewport.width,
     window_height: viewport.height,
@@ -65,6 +62,7 @@ export function useUpdateSheetFooterReport(onDidPresent: (() => ReportUpdateShee
   const footerRef = useRef<View>(null)
   const footerHeightRef = useRef<number | null>(null)
   const footerSpaceHeightRef = useRef<number | null>(null)
+  const sheetPositionRef = useRef<number | null>(null)
   const pendingReportRef = useRef<ReportUpdateSheetFooter | null>(null)
   const presentedRef = useRef(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -75,12 +73,17 @@ export function useUpdateSheetFooterReport(onDidPresent: (() => ReportUpdateShee
     viewportRef.current = { width, height, fontScale, bottomInset: bottom }
   }, [width, height, fontScale, bottom])
 
-  const settle = useCallback((footerBottom: number | null) => {
+  const settle = useCallback((footerLocalBottom: number | null) => {
     const report = pendingReportRef.current
     if (!report) return
     pendingReportRef.current = null
     clearTimeout(timerRef.current)
-    const measurement = describeFooter(viewportRef.current, footerHeightRef.current, footerSpaceHeightRef.current, footerBottom)
+    const measurement = describeFooter(viewportRef.current, {
+      footerHeight: footerHeightRef.current,
+      footerSpaceHeight: footerSpaceHeightRef.current,
+      sheetPosition: sheetPositionRef.current,
+      footerLocalBottom,
+    })
     report(measurement)
     warnWhenFooterHidden(measurement)
   }, [])
@@ -104,9 +107,10 @@ export function useUpdateSheetFooterReport(onDidPresent: (() => ReportUpdateShee
 
   useEffect(() => () => settle(null), [settle])
 
-  const handleDidPresent = useCallback(() => {
+  const handleDidPresent = useCallback((event: DidPresentEvent) => {
     if (!onDidPresent || presentedRef.current) return
     presentedRef.current = true
+    sheetPositionRef.current = event.nativeEvent.position
     pendingReportRef.current = onDidPresent()
     timerRef.current = setTimeout(measure, FOOTER_LAYOUT_WAIT_MS)
     measureWhenLaidOut()

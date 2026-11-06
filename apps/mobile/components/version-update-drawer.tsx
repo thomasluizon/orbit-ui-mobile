@@ -8,7 +8,7 @@ import { captureAndroidUpdateSheetShown } from '@/lib/posthog'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTranslation } from 'react-i18next'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
-import { useUpdateSheetFooterReport, type ReportUpdateSheetFooter } from '@/components/version-update-footer-report'
+import { useUpdateSheetFooterReport, type ReportUpdateSheetFooter } from '@/hooks/use-update-sheet-footer-report'
 import { PillButton } from '@/components/ui/pill-button'
 import {
   startAndroidUpdate,

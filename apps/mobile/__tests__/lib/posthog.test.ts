@@ -75,7 +75,7 @@ describe('mobile PostHog adapter', () => {
       ...result, installed_version_code: 178,
     }
     const sheet = { sheet: 'available' as const, available_version_code: 181, installed_version_code: 178,
-      footer_height: 92, footer_space_height: 92, footer_bottom: 892, window_width: 412, window_height: 892, font_scale: 1, bottom_inset: 0, footer_below_window: false }
+      footer_height: 92, footer_space_height: 92, sheet_position: 492, footer_local_bottom: 376, footer_bottom: 868, window_width: 412, window_height: 892, font_scale: 1, bottom_inset: 24, footer_below_window: false }
     await analytics.applyPostHogGate(false)
     analytics.captureAndroidUpdateCheck(check)
     analytics.captureAndroidUpdateSheetShown(sheet)
@@ -100,7 +100,7 @@ describe('mobile PostHog adapter', () => {
     const check = { outcome: 'success' as const, play_status: 2, available_version_code: 181,
       installed_version_code: 178, play_error_code: null }
     const sheet = { sheet: 'available' as const, available_version_code: 181, installed_version_code: 178,
-      footer_height: 92, footer_space_height: 92, footer_bottom: 892, window_width: 412, window_height: 892, font_scale: 1, bottom_inset: 0, footer_below_window: false }
+      footer_height: 92, footer_space_height: 92, sheet_position: 492, footer_local_bottom: 376, footer_bottom: 868, window_width: 412, window_height: 892, font_scale: 1, bottom_inset: 24, footer_below_window: false }
     analytics.captureAndroidUpdateCheck(check)
     analytics.captureAndroidUpdateSheetShown(sheet)
     await vi.waitFor(() => expect(storage.getItem).toHaveBeenCalledOnce())
@@ -120,7 +120,7 @@ describe('mobile PostHog adapter', () => {
     analytics.captureAndroidUpdateCheck({ outcome: 'success', play_status: 2, available_version_code: 181,
       installed_version_code: 178, play_error_code: null })
     analytics.captureAndroidUpdateSheetShown({ sheet: 'available', available_version_code: 181, installed_version_code: 178,
-      footer_height: 92, footer_space_height: 92, footer_bottom: 892, window_width: 412, window_height: 892, font_scale: 1, bottom_inset: 0, footer_below_window: false })
+      footer_height: 92, footer_space_height: 92, sheet_position: 492, footer_local_bottom: 376, footer_bottom: 868, window_width: 412, window_height: 892, font_scale: 1, bottom_inset: 24, footer_below_window: false })
     expect(analytics.posthog!.capture).not.toHaveBeenCalled()
     await analytics.applyPostHogGate(enabled)
     expect(analytics.posthog!.capture).toHaveBeenCalledTimes(enabled ? 2 : 0)
@@ -137,7 +137,7 @@ describe('mobile PostHog adapter', () => {
     analytics.captureAndroidUpdateCheck({ outcome: 'success', play_status: 2, available_version_code: 181,
       installed_version_code: 178, play_error_code: null })
     analytics.captureAndroidUpdateSheetShown({ sheet: 'available', available_version_code: 181, installed_version_code: 178,
-      footer_height: 92, footer_space_height: 92, footer_bottom: 892, window_width: 412, window_height: 892, font_scale: 1, bottom_inset: 0, footer_below_window: false })
+      footer_height: 92, footer_space_height: 92, sheet_position: 492, footer_local_bottom: 376, footer_bottom: 868, window_width: 412, window_height: 892, font_scale: 1, bottom_inset: 24, footer_below_window: false })
     await analytics.setAnalyticsOptOut(false)
     await analytics.applyPostHogGate(true)
     expect(analytics.posthog!.capture).not.toHaveBeenCalled()
@@ -168,7 +168,7 @@ describe('mobile PostHog adapter', () => {
     analytics.captureAndroidUpdateCheck({ outcome: 'success', play_status: 2, available_version_code: 181,
       installed_version_code: 178, play_error_code: null })
     analytics.captureAndroidUpdateSheetShown({ sheet: 'available', available_version_code: 181, installed_version_code: 178,
-      footer_height: 92, footer_space_height: 92, footer_bottom: 892, window_width: 412, window_height: 892, font_scale: 1, bottom_inset: 0, footer_below_window: false })
+      footer_height: 92, footer_space_height: 92, sheet_position: 492, footer_local_bottom: 376, footer_bottom: 868, window_width: 412, window_height: 892, font_scale: 1, bottom_inset: 24, footer_below_window: false })
     await vi.waitFor(() => expect(storage.getItem).toHaveBeenCalledOnce())
     if (preference === 'failure') rejectPreference(new Error('storage unavailable'))
     else resolvePreference(preference)

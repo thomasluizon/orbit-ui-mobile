@@ -5,7 +5,7 @@ import { useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, us
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { PADDING, SPACING, SHEET_BODY_INSETS, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import { getPrefersReducedMotion, usePrefersReducedMotion } from '@/lib/motion'
-import { TrueSheet } from '@lodev09/react-native-true-sheet'
+import { TrueSheet, type DidPresentEvent } from '@lodev09/react-native-true-sheet'
 import { AccessibilityInfo, StyleSheet, Text, View, useWindowDimensions, type LayoutChangeEvent, type ScrollView, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native'
 import { useOverlayFocus } from './focus-provenance-view'
 import { useTranslation } from 'react-i18next'
@@ -64,7 +64,7 @@ export interface SheetFooterProbe {
 
 interface MobileSheetProps extends SheetProps {
   initialFocus?: RefObject<View | null>
-  onDidPresent?: () => void
+  onDidPresent?: (event: DidPresentEvent) => void
   onBackPress?: () => void
   /** The handle `useSheetHost` fills in, so the host can close through the native dismissal. */
   ref?: Ref<SheetHandle>
@@ -238,8 +238,8 @@ export function Sheet({
       insetAdjustment="automatic"
       onDismissAttempt={handleDismissAttempt}
       onDidDismiss={handleDidDismiss}
-      onDidPresent={() => {
-        onDidPresent?.()
+      onDidPresent={(event) => {
+        onDidPresent?.(event)
         const target = initialFocus?.current
         if (!target) return
         target.setNativeProps({ hasTVPreferredFocus: true })
