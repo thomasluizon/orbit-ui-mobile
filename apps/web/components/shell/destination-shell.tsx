@@ -84,6 +84,8 @@ export function useShellComposerSlot(
   }, [enabled, host, refreshKey])
 }
 
+export const DESTINATION_MAIN_CLASS_NAME = 'flex min-h-full flex-1 flex-col has-[[data-page-viewport]]:h-full'
+
 type BottomTab = 'hoje' | 'calendario' | 'progresso' | 'perfil'
 
 const ROUTES: Record<BottomTab, string> = {
@@ -347,7 +349,7 @@ function DestinationShellContent({
         }
         fabPending={pathname === '/' && todayFabPending}
       >
-        <div id="orbit-main" className="flex min-h-full flex-col has-[[data-page-viewport]]:h-full">{children}</div>
+        <div id="orbit-main" className={DESTINATION_MAIN_CLASS_NAME}>{children}</div>
       </ShellWide>
       {!chrome.flow || wide ? palette : null}
     </>

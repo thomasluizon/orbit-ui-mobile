@@ -321,19 +321,22 @@ function ShellBottomChrome({ props, conversationOpen, visible }: Readonly<{
   )
 }
 
+const SCROLLER_END_PADDING = 'pb-[var(--shell-scroller-end)]'
+const RESERVED_SCROLLER_END = `[--shell-scroller-end:var(--orbit-space-96)] lg:[--shell-scroller-end:var(--orbit-space-32)] ${SCROLLER_END_PADDING}`
+
 function getScrollerSpacing(hasBottomChrome: boolean, reservesComposerSpace: boolean, floating: boolean) {
   const focusClearance = floating ? SPACING.s96 : undefined
   if (!hasBottomChrome) return { padding: '', minimum: 'min-h-0', focusClearance }
-  if (floating) return { padding: 'pb-24 lg:pb-8', minimum: 'min-h-[calc(var(--orbit-space-96)+var(--orbit-space-96))] lg:min-h-8', focusClearance }
+  if (floating) return { padding: RESERVED_SCROLLER_END, minimum: 'min-h-[calc(var(--orbit-space-96)+var(--orbit-space-96))] lg:min-h-8', focusClearance }
   return reservesComposerSpace
-    ? { padding: 'pb-24 lg:pb-8', minimum: 'min-h-24 lg:min-h-8', focusClearance }
-    : { padding: 'pb-8', minimum: 'min-h-8', focusClearance }
+    ? { padding: RESERVED_SCROLLER_END, minimum: 'min-h-24 lg:min-h-8', focusClearance }
+    : { padding: `[--shell-scroller-end:var(--orbit-space-32)] ${SCROLLER_END_PADDING}`, minimum: 'min-h-8', focusClearance }
 }
 
 function getAstraScrollerSpacing(spacing: ReturnType<typeof getScrollerSpacing>, astraButton: ReactNode, wide: boolean) {
   if (!astraButton) return { padding: spacing.padding, focusClearance: wide ? undefined : spacing.focusClearance }
   return {
-    padding: 'pb-[max(var(--shell-astra-clearance),var(--orbit-space-96))] lg:pb-8',
+    padding: `[--shell-scroller-end:max(var(--shell-astra-clearance),var(--orbit-space-96))] lg:[--shell-scroller-end:var(--orbit-space-32)] ${SCROLLER_END_PADDING}`,
     focusClearance: 'min(var(--shell-astra-clearance), 50%)',
   }
 }
@@ -451,7 +454,7 @@ function ShellWideBackground({
                 data-shell-scroll-origin=""
                 className="pointer-events-none absolute left-0 top-0 h-px w-px"
               />
-              <div data-shell-page-content="" className="mx-auto min-h-full w-full max-w-[740px] has-[[data-list-motion][inert]]:min-h-[var(--shell-scroll-min-height,100%)] has-[[data-page-viewport]]:h-full">{props.children}</div>
+              <div data-shell-page-content="" className="mx-auto flex min-h-full w-full max-w-[740px] flex-col has-[[data-list-motion][inert]]:min-h-[var(--shell-scroll-min-height,100%)] has-[[data-page-viewport]]:h-full">{props.children}</div>
             </main>
             {props.fab !== undefined ? (
               <div data-shell-fab-clip="" className="pointer-events-none absolute inset-x-0 bottom-2 z-sticky flex justify-end overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] px-4 py-2 lg:hidden">
