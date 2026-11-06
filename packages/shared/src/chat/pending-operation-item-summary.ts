@@ -139,6 +139,8 @@ function additionalChanges(
   fields: readonly PendingOperationChange[], translate: PreviewTranslation,
   formatTime: (value: string) => string, locale: string, scheduleSummarized: boolean, creating: boolean,
 ): string[] {
+  const unit = fields.find((field) => field.field === 'frequency_unit')?.newValue
+  const monthly = unit == null || unit === 'Month'
   return fields.flatMap((field) => {
     if (creating && ['reminder_enabled', 'reminder_times', 'scheduled_reminders'].includes(field.field)) return []
     const createOutcome = creating ? createChange(field, translate) : undefined
@@ -149,13 +151,13 @@ function additionalChanges(
     if (field.field === 'emoji') return field.newValue ? [] : [translate('chat.preview.summary.removeIcon')]
     if (field.field === 'frequency_quantity') return []
     if (field.field === 'frequency_unit' && !field.newValue) return [translate('habits.filter.oneTime')]
-    return [...scheduleAndListChanges(field, translate, formatTime, locale, scheduleSummarized), ...writeOutcome(field, translate, formatTime, locale)]
+    return [...scheduleAndListChanges(field, translate, formatTime, locale, scheduleSummarized, monthly), ...writeOutcome(field, translate, formatTime, locale)]
   })
 }
 
-function scheduleAndListChanges(field: PendingOperationChange, translate: PreviewTranslation, formatTime: (value: string) => string, locale: string, hasCadence: boolean): string[] {
+function scheduleAndListChanges(field: PendingOperationChange, translate: PreviewTranslation, formatTime: (value: string) => string, locale: string, hasCadence: boolean, monthly: boolean): string[] {
   if (field.field === 'days' && !hasCadence) return [weekdaySummary(field, translate)]
-  if (field.field === 'month_days' && !hasCadence) return monthDaySummary(field, translate)
+  if (field.field === 'month_days' && !hasCadence) return monthDaySummary(field, translate, monthly)
   if (['due_date', 'date', 'due_time'].includes(field.field) && !field.newValue) return [translate(`chat.preview.summary.${field.field === 'due_time' ? 'removeTime' : 'removeDate'}`)]
   if (field.field === 'end_date') return [field.newValue ? translate('chat.preview.summary.endsOn', { date: formatLocaleDate(parseAPIDate(field.newValue), locale, { dateStyle: 'medium' }) }) : translate('chat.preview.summary.removeEndDate')]
   if (['checklist_items', 'sub_habits', 'reminder_times', 'scheduled_reminders'].includes(field.field)) return [listSummary(field, translate, formatTime)]
@@ -183,10 +185,10 @@ function readMonthDays(field: PendingOperationChange): number[] | null {
   return days.every(isHabitMonthDay) ? days : null
 }
 
-function monthDaySummary(field: PendingOperationChange, translate: PreviewTranslation): string[] {
+/** No chosen day repeats a monthly habit on its start date's day; any other cadence has no day of the month to state. */
+function monthDaySummary(field: PendingOperationChange, translate: PreviewTranslation, monthly: boolean): string[] {
   const days = readMonthDays(field)
-  if (!days) return []
-  if (!days.length) return [translate('chat.preview.summary.startDateDay')]
+  if (!days || (!days.length && !monthly)) return []
   return [translate('chat.preview.summary.monthDays', { days: formatHabitMonthDays(days, translate), count: days.length })]
 }
 

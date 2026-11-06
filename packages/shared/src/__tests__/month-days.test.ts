@@ -167,18 +167,39 @@ describe('a habit on chosen days of the month', () => {
     expect(summarizePendingOperationItem(fields, portuguese, (value) => value, 'pt-BR', 'createHabit')).toBe('Todo dia 8 e 15')
   })
 
+  const habitId = '2dab1b90-8339-4086-adcd-b4c36305c7cd'
+  const change = (field: string, oldValue: string | null, newValue: string, proposedValue: unknown, valueType = 'text') => ({
+    entityId: habitId, entityName: 'Rent', field, oldValue, newValue, valueType, proposedValue, isEditable: field !== 'habit_id',
+  })
+
   it.each([
-    ['moves the day', '8', '10', [10], 'On the 8th → On the 10th', 'No dia 8 → No dia 10'],
-    ['adds a day after an unchanged one', '+1 earlier, (none)', '+1 earlier, 15', [10, 15], 'On the 10th and 15th', 'Nos dias 10 e 15'],
-    ['returns to the start date', '8', '(none)', [], "On the 8th → On the start date's day", 'No dia 8 → No dia da data de início'],
-  ] as const)('summarises an Astra update that only %s', (_change, oldValue, newValue, proposedValue, englishText, portugueseText) => {
-    const field = (name: string, before: string | null, after: string, proposed: unknown) => ({
-      entityId: '00000000-0000-0000-0000-000000000000', entityName: 'Rent', field: name,
-      oldValue: before, newValue: after, valueType: 'text', proposedValue: proposed, isEditable: true,
-    })
-    const fields = [field('habit_id', null, '00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-000000000000'), field('month_days', oldValue, newValue, [...proposedValue])]
+    ['moves the days', '8, 15', '[10,20]', [10, 20], 'On the 8th and 15th → On the 10th and 20th', 'Nos dias 8 e 15 → Nos dias 10 e 20'],
+    ['returns to the start date', '8', '[]', [], 'On the 8th → On the same day as the start date', 'No dia 8 → No mesmo dia do início'],
+  ] as const)('summarises a staging update_habit preview that only %s', (_change, oldValue, newValue, proposedValue, englishText, portugueseText) => {
+    const fields = [change('habit_id', null, habitId, habitId), change('month_days', oldValue, newValue, [...proposedValue])]
     expect(summarizePendingOperationItem(fields, english, (value) => value, 'en', 'updateHabit')).toBe(englishText)
     expect(summarizePendingOperationItem(fields, portuguese, (value) => value, 'pt-BR', 'updateHabit')).toBe(portugueseText)
+  })
+
+  it('summarises a staging bulk_update_habits preview that moves the days and the next due date', () => {
+    const fields = [change('month_days', '8, 15', '10, 20', [10, 20]), change('due_date', '2026-11-08', '2026-11-10', '2026-11-10', 'date')]
+    expect(summarizePendingOperationItem(fields, english, (value) => value, 'en', 'updateHabits')).toBe('Nov 8, 2026 · On the 8th and 15th → Nov 10, 2026 · On the 10th and 20th')
+    expect(summarizePendingOperationItem(fields, portuguese, (value) => value, 'pt-BR', 'updateHabits')).toBe('8 de nov. de 2026 · Nos dias 8 e 15 → 10 de nov. de 2026 · Nos dias 10 e 20')
+  })
+
+  it('reads the windowed bulk list text the API writes when a day is added after an unchanged one', () => {
+    const fields = [change('month_days', '+1 earlier, (none)', '+1 earlier, 15', [10, 15])]
+    expect(summarizePendingOperationItem(fields, english, (value) => value, 'en', 'updateHabits')).toBe('On the 10th and 15th')
+  })
+
+  it('never calls the old days of a daily habit the start date day when a bulk update makes it monthly', () => {
+    const fields = [change('frequency_unit', 'Day', 'Month', 'Month'), change('month_days', '(none)', '5, 25', [5, 25])]
+    expect(summarizePendingOperationItem(fields, english, (value) => value, 'en', 'updateHabits')).toBe('Repetition in days → Repetition in months · On the 5th and 25th')
+  })
+
+  it('never calls the cleared days of a habit that stops being monthly the start date day', () => {
+    const fields = [change('frequency_unit', 'Month', 'Day', 'Day'), change('month_days', '5, 25', '(none)', [])]
+    expect(summarizePendingOperationItem(fields, english, (value) => value, 'en', 'updateHabits')).toBe('Repetition in months · On the 5th and 25th → Repetition in days')
   })
 
   it('puts a missing day on the last day of a short month, as the API does', () => {
