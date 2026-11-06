@@ -4,7 +4,7 @@ import { computeHabitFrequencyLabel } from '../utils/habit-card-helpers'
 import { formatHabitReminderLabel } from '../utils/habit-form-helpers'
 import { parseAPIDate } from '../utils/dates'
 import { formatLocaleDate } from '../utils/locale-format'
-import { isHabitMonthDay } from '../utils/month-days'
+import { formatHabitMonthDays, isHabitMonthDay } from '../utils/month-days'
 
 export const PENDING_OPERATION_WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const
 
@@ -66,7 +66,7 @@ function summarizeHabitUpdate(
   const summarizedFields = changedSchedule ? fields.filter(field => !['habit_id', 'title', 'emoji'].includes(field.field) && (field.field !== 'is_bad_habit' || changed.includes(field))) : changed
   const before = summarizePendingOperationItem(summarizedFields.map(field => ({ ...field, oldValue: field.oldValue, newValue: field.oldValue ?? field.newValue, proposedValue: field.oldValue ?? field.proposedValue })), translate, formatTime, locale, 'scheduleDiff')
   const after = summarizePendingOperationItem(summarizedFields, translate, formatTime, locale, 'scheduleDiff')
-  return before === after ? after : translate('chat.preview.beforeAfter', { before, after })
+  return before === after || !before ? after : translate('chat.preview.beforeAfter', { before, after })
 }
 
 function compactDateChange(fields: readonly PendingOperationChange[], translate: PreviewTranslation, locale: string, today?: string): string | undefined {
@@ -109,12 +109,12 @@ function cadenceSummary(fields: readonly PendingOperationChange[], translate: Pr
   const days = Array.isArray(daysField?.proposedValue)
     ? daysField.proposedValue.filter((day): day is string => typeof day === 'string' && PENDING_OPERATION_WEEKDAYS.some((name) => name === day))
     : (value('days') ?? '').split(',').map((day) => day.trim()).filter((day) => PENDING_OPERATION_WEEKDAYS.some((name) => name === day))
-  const monthDaysValue = fields.find((field) => field.field === 'month_days')?.proposedValue
+  const monthDaysField = fields.find((field) => field.field === 'month_days')
   return { label: computeHabitFrequencyLabel({
     isGeneral: false, frequencyUnit: unit.data,
     frequencyQuantity: value('frequency_quantity') == null ? 1 : Number(value('frequency_quantity')),
     days, isFlexible: flexible === 'true',
-    monthDays: Array.isArray(monthDaysValue) ? monthDaysValue.filter((day): day is number => typeof day === 'number' && isHabitMonthDay(day)) : [],
+    monthDays: (monthDaysField && readMonthDays(monthDaysField)) ?? [],
   }, (key, values) => translate(key, values as Record<string, string | number>)), complete: true }
 }
 
@@ -155,6 +155,7 @@ function additionalChanges(
 
 function scheduleAndListChanges(field: PendingOperationChange, translate: PreviewTranslation, formatTime: (value: string) => string, locale: string, hasCadence: boolean): string[] {
   if (field.field === 'days' && !hasCadence) return [weekdaySummary(field, translate)]
+  if (field.field === 'month_days' && !hasCadence) return monthDaySummary(field, translate)
   if (['due_date', 'date', 'due_time'].includes(field.field) && !field.newValue) return [translate(`chat.preview.summary.${field.field === 'due_time' ? 'removeTime' : 'removeDate'}`)]
   if (field.field === 'end_date') return [field.newValue ? translate('chat.preview.summary.endsOn', { date: formatLocaleDate(parseAPIDate(field.newValue), locale, { dateStyle: 'medium' }) }) : translate('chat.preview.summary.removeEndDate')]
   if (['checklist_items', 'sub_habits', 'reminder_times', 'scheduled_reminders'].includes(field.field)) return [listSummary(field, translate, formatTime)]
@@ -171,6 +172,22 @@ function createReminderSummary(fields: readonly PendingOperationChange[], transl
 
 function weekdaySummary(field: PendingOperationChange, translate: PreviewTranslation): string {
   return PENDING_OPERATION_WEEKDAYS.filter((day) => Array.isArray(field.proposedValue) ? field.proposedValue.includes(day) : field.newValue?.split(',').some((name) => name.trim() === day)).map((day) => translate(`dates.daysShort.${day.toLowerCase()}`)).join(', ') || translate('chat.preview.summary.clearDays')
+}
+
+/** The API sends the full new list as `proposedValue`; an old value is list text, unreadable once it is windowed. */
+function readMonthDays(field: PendingOperationChange): number[] | null {
+  if (Array.isArray(field.proposedValue)) return field.proposedValue.filter((day): day is number => typeof day === 'number' && isHabitMonthDay(day))
+  if (typeof field.proposedValue !== 'string') return null
+  if (field.proposedValue === '(none)') return []
+  const days = field.proposedValue.split(', ').map(Number)
+  return days.every(isHabitMonthDay) ? days : null
+}
+
+function monthDaySummary(field: PendingOperationChange, translate: PreviewTranslation): string[] {
+  const days = readMonthDays(field)
+  if (!days) return []
+  if (!days.length) return [translate('chat.preview.summary.startDateDay')]
+  return [translate('chat.preview.summary.monthDays', { days: formatHabitMonthDays(days, translate), count: days.length })]
 }
 
 function listSummary(field: PendingOperationChange, translate: PreviewTranslation, formatTime: (value: string) => string): string {

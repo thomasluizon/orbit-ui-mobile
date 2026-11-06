@@ -167,6 +167,20 @@ describe('a habit on chosen days of the month', () => {
     expect(summarizePendingOperationItem(fields, portuguese, (value) => value, 'pt-BR', 'createHabit')).toBe('Todo dia 8 e 15')
   })
 
+  it.each([
+    ['moves the day', '8', '10', [10], 'On the 8th → On the 10th', 'No dia 8 → No dia 10'],
+    ['adds a day after an unchanged one', '+1 earlier, (none)', '+1 earlier, 15', [10, 15], 'On the 10th and 15th', 'Nos dias 10 e 15'],
+    ['returns to the start date', '8', '(none)', [], "On the 8th → On the start date's day", 'No dia 8 → No dia da data de início'],
+  ] as const)('summarises an Astra update that only %s', (_change, oldValue, newValue, proposedValue, englishText, portugueseText) => {
+    const field = (name: string, before: string | null, after: string, proposed: unknown) => ({
+      entityId: '00000000-0000-0000-0000-000000000000', entityName: 'Rent', field: name,
+      oldValue: before, newValue: after, valueType: 'text', proposedValue: proposed, isEditable: true,
+    })
+    const fields = [field('habit_id', null, '00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-000000000000'), field('month_days', oldValue, newValue, [...proposedValue])]
+    expect(summarizePendingOperationItem(fields, english, (value) => value, 'en', 'updateHabit')).toBe(englishText)
+    expect(summarizePendingOperationItem(fields, portuguese, (value) => value, 'pt-BR', 'updateHabit')).toBe(portugueseText)
+  })
+
   it('puts a missing day on the last day of a short month, as the API does', () => {
     expect(matchesHabitMonthDays([8, 31], parseAPIDate('2027-02-28'))).toBe(true)
     expect(matchesHabitMonthDays([8, 31], parseAPIDate('2027-02-27'))).toBe(false)

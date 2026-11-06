@@ -1984,6 +1984,8 @@
         "repeatInMonths": "Repetition in months",
         "repeatInYears": "Repetition in years",
         "repeatInterval": "Frequency: {count}",
+        "monthDays": "{count, plural, one {On the {days}} other {On the {days}}}",
+        "startDateDay": "On the start date's day",
         "clearDays": "Clear the selected days",
         "removeDate": "Remove the date",
         "removeTime": "Remove the time",
