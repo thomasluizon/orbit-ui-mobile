@@ -282,35 +282,41 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
           </View>
         ) : (
           <View style={styles.body}>
-            <Text
-              style={[
-                styles.modalDescription,
-                { color: tokens.fg2, textAlign: 'center' },
-              ]}
-            >
-              {t('profile.freshStart.confirmInstruction')}
-            </Text>
-            <Text style={[styles.confirmLabel, { color: tokens.fg2 }]}>
-              {t('profile.freshStart.confirmLabel')}
-            </Text>
-            <AppTextInput
-              style={styles.confirmInput}
-              value={resetConfirmText}
-              onChangeText={setResetConfirmText}
-              placeholder={t('profile.freshStart.confirmPlaceholder')}
-              accessibilityLabel={t('profile.freshStart.confirmLabel')}
-              placeholderTextColor={tokens.fg3}
-              autoCapitalize="characters"
-              autoCorrect={false}
-              autoFocus
-              textAlign="center"
-              returnKeyType="done"
-              onSubmitEditing={() => {
-                if (isResetConfirmed && !resetLoading) {
-                  void handleResetAccount()
-                }
-              }}
-            />
+            <View style={styles.confirmField}>
+              <Text
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+                style={[styles.confirmLabel, { color: tokens.fg2 }]}
+              >
+                {t('profile.freshStart.confirmLabel')}
+              </Text>
+              <AppTextInput
+                style={styles.confirmInput}
+                value={resetConfirmText}
+                onChangeText={setResetConfirmText}
+                placeholder={t('profile.freshStart.confirmPlaceholder')}
+                accessibilityLabel={t('profile.freshStart.confirmLabel')}
+                accessibilityHint={t('profile.freshStart.confirmInstruction')}
+                placeholderTextColor={tokens.fg3}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                autoFocus
+                textAlign="center"
+                returnKeyType="done"
+                onSubmitEditing={() => {
+                  if (isResetConfirmed && !resetLoading) {
+                    void handleResetAccount()
+                  }
+                }}
+              />
+              <Text
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+                style={[styles.confirmHint, { color: tokens.fg2 }]}
+              >
+                {t('profile.freshStart.confirmInstruction')}
+              </Text>
+            </View>
           </View>
         )}
       </Sheet>) : null}
@@ -375,9 +381,16 @@ const styles = StyleSheet.create({
     fontFamily: 'GeistMono_500Medium',
     fontSize: 16,
   },
+  confirmField: {
+    gap: 8,
+  },
   confirmLabel: {
     fontFamily: 'Geist_500Medium',
     fontSize: 14,
+  },
+  confirmHint: {
+    fontFamily: 'Geist_400Regular',
+    fontSize: 12,
   },
   errorTextSmall: {
     fontFamily: 'Geist_400Regular',

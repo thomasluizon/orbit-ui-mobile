@@ -106,7 +106,7 @@ describe('habit suggestion actions on Android', () => {
     mocks.preview.mockRejectedValueOnce(new Error('Unavailable'))
     await mount(); await press('Add all'); await press(action)
     if (action === 'Tweak') {
-      const field = tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLabel === en.chat.habitSuggestions.prompt && typeof node.props.onChangeText === 'function')[0]!
+      const field = tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLabel === en.chat.habitSuggestions.promptQuestion && typeof node.props.onChangeText === 'function')[0]!
       await renderer.act(() => { (field.props.onChangeText as (value: string) => void)('one page') })
       await press('Apply')
     }
@@ -152,7 +152,7 @@ describe('habit suggestion actions on Android', () => {
   it('Tweak sends the inline instruction and replaces only that card', async () => {
     await mount(); const other = buttons('Stretch')[0]
     await press('Tweak')
-    const field = tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLabel === en.chat.habitSuggestions.prompt && typeof node.props.onChangeText === 'function')[0]!
+    const field = tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLabel === en.chat.habitSuggestions.promptQuestion && typeof node.props.onChangeText === 'function')[0]!
     await renderer.act(() => { (field.props.onChangeText as (value: string) => void)('one page') })
     await press('Apply')
     expect(mocks.refine).toHaveBeenCalledExactlyOnceWith(draft, 'one page')

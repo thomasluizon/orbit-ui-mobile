@@ -181,6 +181,21 @@ describe('OnboardingCreateHabit data', () => {
     expect(renderedText).toContain(sentence)
   })
 
+  it.each([
+    ['flexible', schedule, 'onboarding.flow.when.frequencyUnitLabel'],
+    ['fixed', everyThirdMonday, 'onboarding.flow.when.daysLabel'],
+  ] as const)('asks the %s schedule as visible questions that also name their controls', async (_mode, current, followUp) => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<OnboardingCreateHabit {...base} proposed={false} correcting schedule={current} />)
+    })
+    const visibleText = tree.root.findAll((node) => (node.type as unknown) === Text).map((node) => flattenText(node.props.children))
+    expect(visibleText).toEqual(expect.arrayContaining([i18n.t('onboarding.flow.when.scheduleMode'), i18n.t(followUp)]))
+    expect(tree.root.findAll((node) => node.props.label === i18n.t('onboarding.flow.when.scheduleMode') && node.props.value !== undefined).length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node) => node.props.label === i18n.t(followUp)).length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node) => node.props.label === i18n.t('onboarding.flow.when.timeLabel')).length).toBeGreaterThan(0)
+  })
+
   it('gives every weekday chip its full localized name', async () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => {

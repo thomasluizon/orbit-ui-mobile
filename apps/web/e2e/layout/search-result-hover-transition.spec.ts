@@ -30,7 +30,7 @@ async function setupSearch(page: Page, context: BrowserContext, locale: 'en' | '
   await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habits }])
   await page.goto('/search')
   const surface = page.locator('#orbit-main')
-  const input = surface.getByRole('combobox', { name: messages.habits.search.title })
+  const input = surface.getByRole('combobox', { name: messages.habits.search.question })
   await input.fill('walk')
   const options = surface.getByRole('option')
   await expect(options).toHaveCount(2)

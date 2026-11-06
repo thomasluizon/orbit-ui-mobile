@@ -114,7 +114,7 @@ vi.mock('@/components/ui/offline-unavailable-state', () => ({
 }))
 
 async function renderScreen() {
-  let tree: { root: TestNode; update: (element: React.ReactElement) => void } | undefined
+  let tree: { root: TestNode; update: (element: React.ReactElement) => void; unmount: () => void } | undefined
   await TestRenderer.act(async () => {
     tree = TestRenderer.create(withFocusProvenance(<SupportScreen />))
     await Promise.resolve()
@@ -275,7 +275,7 @@ describe('SupportScreen', () => {
     const choices = findSubjectChoices(tree.root)
     expect(choices).toHaveLength(4)
     expect(choices.every((choice) => choice.props.accessibilityHint === requiredSubjectHint)).toBe(true)
-    expect(findInputByLabel(tree.root, 'profile.support.message')!.props.accessibilityHint).toBe(messages.common.required)
+    expect(findInputByLabel(tree.root, 'profile.support.message')).toBeUndefined()
     expect(findReplyEmail(tree.root)!.props.accessibilityHint).toContain('profile.support.emailLockedReason')
     expect(tree.root.findAll((node) => node.props.children === 'profile.support.subjectRequired')).toHaveLength(0)
     expect(tree.root.findAll((node) => node.props.children === 'profile.support.messageRequired')).toHaveLength(0)
@@ -296,6 +296,7 @@ describe('SupportScreen', () => {
 
   it('orders subject, message, and read-only reply email', async () => {
     const tree = await renderScreen()
+    await selectSubject(tree.root)
     const controls = tree.root.findAll((node) =>
       node.props.accessibilityRole === 'radiogroup'
       || (node.type === Pressable && String(node.props.accessibilityLabel).startsWith('profile.support.email'))
@@ -311,18 +312,58 @@ describe('SupportScreen', () => {
     expect(findReplyEmail(tree.root)!.props.disabled).toBe(false)
   })
 
-  it('shows both field errors when the empty controls lose focus', async () => {
+  it('shows each field error when its empty control loses focus', async () => {
     const tree = await renderScreen()
     await TestRenderer.act(async () => {
       const group = tree.root.findAll((node) => node.props.accessibilityRole === 'radiogroup')[0]!
       ;(group.props.onBlur as () => void)()
-      ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onBlur as () => void)()
       await Promise.resolve()
     })
     expect(tree.root.findAll((node) => node.props.children === 'profile.support.subjectRequired'))
       .not.toHaveLength(0)
+    await selectSubject(tree.root)
+    await TestRenderer.act(async () => {
+      ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onBlur as () => void)()
+      await Promise.resolve()
+    })
     expect(tree.root.findAll((node) => node.props.children === 'profile.support.messageRequired'))
       .not.toHaveLength(0)
+  })
+
+  it('asks what happened only after the subject is answered', async () => {
+    const tree = await renderScreen()
+    expect(findInputByLabel(tree.root, 'profile.support.message')).toBeUndefined()
+    await selectSubject(tree.root, 2)
+    expect(findInputByLabel(tree.root, 'profile.support.message')).toBeDefined()
+  })
+
+  it('keeps a restored message visible when its draft has no subject', async () => {
+    mocks.getItem.mockResolvedValue(JSON.stringify({ subject: null, message: 'Saved message' }))
+    const tree = await renderScreen()
+    expect(findInputByLabel(tree.root, 'profile.support.message')!.props.value).toBe('Saved message')
+  })
+
+  it('keeps the restored message field mounted and focused after its text is cleared', async () => {
+    mocks.getItem.mockResolvedValue(JSON.stringify({ subject: null, message: 'X' }))
+    const tree = await renderScreen()
+    const controlBorder = () => StyleSheet.flatten(tree.root.findAll((node) => node.props.testID === 'input-control' && node.type === View)[0]!.props.style as ViewStyle).borderWidth
+    await TestRenderer.act(async () => {
+      ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onFocus as () => void)()
+      await Promise.resolve()
+    })
+    expect(controlBorder()).toBe(2)
+    await TestRenderer.act(async () => {
+      ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onChangeText as (value: string) => void)('')
+      await Promise.resolve()
+    })
+    expect(findInputByLabel(tree.root, 'profile.support.message')!.props.value).toBe('')
+    expect(controlBorder()).toBe(2)
+    await TestRenderer.act(async () => {
+      ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onBlur as () => void)()
+      await Promise.resolve()
+    })
+    expect(findInputByLabel(tree.root, 'profile.support.message')).toBeDefined()
+    expect(tree.root.findAll((node) => node.props.children === 'profile.support.messageRequired')).not.toHaveLength(0)
   })
 
   it('hydrates the form from a persisted draft', async () => {
@@ -350,6 +391,7 @@ describe('SupportScreen', () => {
 
   it('uses a six-row message and a read-only account email display', async () => {
     const tree = await renderScreen()
+    await selectSubject(tree.root)
 
     expect(
       tree.root.findAll((node) => node.props['data-multiline'] === '').length,
@@ -382,6 +424,9 @@ describe('SupportScreen', () => {
 
     await TestRenderer.act(async () => {
       ;(choices[0]!.props.onPress as () => void)()
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
       ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onChangeText as (value: string) => void)('The log disappeared')
       await Promise.resolve()
     })
@@ -473,11 +518,8 @@ describe('SupportScreen', () => {
   })
 
   it('shows the required subject error beside the picker', async () => {
+    mocks.getItem.mockResolvedValue(JSON.stringify({ subject: null, message: 'Message' }))
     const tree = await renderScreen()
-    await TestRenderer.act(async () => {
-      ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onChangeText as (value: string) => void)('Message')
-      await Promise.resolve()
-    })
     await TestRenderer.act(async () => {
       ;(findSendButton(tree.root)!.props.onPress as () => void)()
       await Promise.resolve()
@@ -512,24 +554,23 @@ describe('SupportScreen', () => {
     expect(findSendButton(tree.root)!.props.accessibilityHint).toBe(
       'profile.support.sendIncomplete',
     )
+    TestRenderer.act(() => tree.unmount())
 
-    await TestRenderer.act(async () => {
-      ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onChangeText as (value: string) => void)('Message')
-      await Promise.resolve()
-    })
-    expect(findSendButton(tree.root)!.props.accessibilityHint).toBe(
+    mocks.getItem.mockResolvedValue(JSON.stringify({ subject: null, message: 'Message' }))
+    const restored = await renderScreen()
+    expect(findSendButton(restored.root)!.props.accessibilityHint).toBe(
       'profile.support.sendNeedsSubject',
     )
-    await selectSubject(tree.root)
-    expect(findSendButton(tree.root)!.props.disabled).toBe(false)
-    expect(findSendButton(tree.root)!.props.accessibilityHint).toBeUndefined()
+    await selectSubject(restored.root)
+    expect(findSendButton(restored.root)!.props.disabled).toBe(false)
+    expect(findSendButton(restored.root)!.props.accessibilityHint).toBeUndefined()
 
     await TestRenderer.act(async () => {
-      ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onChangeText as (value: string) => void)('   ')
+      ;(findInputByLabel(restored.root, 'profile.support.message')!.props.onChangeText as (value: string) => void)('   ')
       await Promise.resolve()
     })
-    expect(findSendButton(tree.root)!.props.disabled).toBe(false)
-    expect(findSendButton(tree.root)!.props.accessibilityHint).toBe(
+    expect(findSendButton(restored.root)!.props.disabled).toBe(false)
+    expect(findSendButton(restored.root)!.props.accessibilityHint).toBe(
       'profile.support.sendNeedsMessage',
     )
   })
@@ -552,16 +593,15 @@ describe('SupportScreen', () => {
 
   it('accepts the API message length boundary', async () => {
     const tree = await renderScreen()
-    const messageInput = findInputByLabel(tree.root, 'profile.support.message')!
     const message = 'm'.repeat(4987)
-
-    expect(messageInput.props.maxLength).toBe(4987)
     expect(
       tree.root.findAll(
         (node) => node.props.children === 'profile.support.versionIncluded({"version":"1.1.4"})',
       ),
     ).not.toHaveLength(0)
     await selectSubject(tree.root)
+    const messageInput = findInputByLabel(tree.root, 'profile.support.message')!
+    expect(messageInput.props.maxLength).toBe(4987)
     await TestRenderer.act(async () => {
       ;(messageInput.props.onChangeText as (value: string) => void)(message)
       await Promise.resolve()
@@ -605,10 +645,7 @@ describe('SupportScreen', () => {
   it('reserves no room and sends no suffix when the app version is absent', async () => {
     mocks.expoVersion = undefined
     const tree = await renderScreen()
-    const messageInput = findInputByLabel(tree.root, 'profile.support.message')!
     const message = 'm'.repeat(5000)
-
-    expect(messageInput.props.maxLength).toBe(5000)
     expect(
       tree.root.findAll((node) =>
         typeof node.props.children === 'string'
@@ -616,6 +653,8 @@ describe('SupportScreen', () => {
       ),
     ).toHaveLength(0)
     await selectSubject(tree.root)
+    const messageInput = findInputByLabel(tree.root, 'profile.support.message')!
+    expect(messageInput.props.maxLength).toBe(5000)
     await TestRenderer.act(async () => {
       ;(messageInput.props.onChangeText as (value: string) => void)(message)
       await Promise.resolve()
@@ -632,11 +671,11 @@ describe('SupportScreen', () => {
   it('sends the loaded profile contact details after hydration', async () => {
     mocks.profile = null
     const tree = await renderScreen()
+    await selectSubject(tree.root)
     await TestRenderer.act(async () => {
       ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onChangeText as (value: string) => void)('Message')
       await Promise.resolve()
     })
-    await selectSubject(tree.root)
     expect(findSendButton(tree.root)!.props.disabled).toBe(false)
 
     mocks.profile = { ...createMockProfile(), name: 'Profile User', email: 'profile@example.com' }

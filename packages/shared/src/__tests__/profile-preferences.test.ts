@@ -70,10 +70,10 @@ describe('deriveProfileAstraFeatures', () => {
 it('builds the inline picker labels from the active locale', () => {
   const labels = buildProfilePickerLabels((key) => `translated:${key}`)
   expect(labels.pickerTitles).toEqual({
-    language: 'translated:profile.language.title',
-    timeZone: 'translated:profile.settingsRows.timezone',
-    weekStart: 'translated:settings.weekStartDay.title',
-    clock: 'translated:settings.clock.title',
+    language: 'translated:profile.language.question',
+    timeZone: 'translated:profile.timezonePicker.question',
+    weekStart: 'translated:settings.weekStartDay.question',
+    clock: 'translated:settings.clock.question',
   })
   expect(labels.clockFormatOptions).toEqual([
     { value: '24h', label: 'translated:settings.clock.hour24' },
@@ -83,6 +83,6 @@ it('builds the inline picker labels from the active locale', () => {
     { value: 1, label: 'translated:settings.weekStartDay.monday' },
     { value: 0, label: 'translated:settings.weekStartDay.sunday' },
   ])
-  expect(labels.pickerDescriptions.language).toBe('translated:profile.language.description')
+  expect(labels.pickerDescriptions).toEqual({ weekStart: 'translated:settings.weekStartDay.description' })
   expect(labels.timeZoneShowMoreLabel).toBe('translated:profile.timezonePicker.showMore')
 })

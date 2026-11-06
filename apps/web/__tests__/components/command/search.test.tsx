@@ -145,7 +145,7 @@ describe('habit search', () => {
       createMockHabit({ id: 'run', title: 'Run', searchMatches: [{ field: 'description', value: null }] }),
     ]))
     const page = render(<NextIntlClientProvider locale={locale} messages={messages}><SearchPage /></NextIntlClientProvider>)
-    const input = screen.getByRole('combobox', { name: messages.habits.search.title })
+    const input = screen.getByRole('combobox', { name: messages.habits.search.question })
     expect(input).toHaveAttribute('placeholder', messages.habits.search.title)
     expect(page.container.querySelectorAll('[data-command-group]')).toHaveLength(0)
     expect(page.container.querySelectorAll('kbd')).toHaveLength(0)
@@ -181,7 +181,7 @@ describe('habit search', () => {
     expect(await screen.findByText('1 habit')).toBeInTheDocument()
     mocks.wide = true
     page.rerender(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
-    const wideInput = screen.getByRole<HTMLInputElement>('combobox', { name: en.habits.search.title })
+    const wideInput = screen.getByRole<HTMLInputElement>('combobox', { name: en.habits.search.question })
     expect(wideInput).toHaveValue('walk')
     expect(wideInput).toHaveFocus()
     expect([wideInput.selectionStart, wideInput.selectionEnd]).toEqual([1, 3])
@@ -205,7 +205,7 @@ describe('habit search', () => {
     mocks.wide = true
     page.rerender(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
     expect(backButton).toHaveFocus()
-    expect(screen.getByRole('combobox', { name: en.habits.search.title })).not.toHaveFocus()
+    expect(screen.getByRole('combobox', { name: en.habits.search.question })).not.toHaveFocus()
   })
 
   it.each([['', true], ['walk', false]] as const)('shows one loading indicator for query "%s"', (query, skeleton) => {
@@ -226,7 +226,7 @@ describe('habit search', () => {
       mocks.wide = wide
       mocks.query.mockReturnValue(result([], true))
       const page = render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
-      fireEvent.change(screen.getByRole('combobox', { name: en.habits.search.title }), { target: { value: 'walk' } })
+      fireEvent.change(screen.getByRole('combobox', { name: en.habits.search.question }), { target: { value: 'walk' } })
       act(() => { vi.advanceTimersByTime(301) })
       expect(screen.getByRole('status')).toHaveTextContent('Searching')
       expect(page.container.querySelector('.skeleton-pulse')).toBeNull()
@@ -300,7 +300,7 @@ describe('habit search', () => {
   it('keeps pointer movement separate from keyboard selection when search results load', async () => {
     mocks.query.mockReturnValue(result([], true))
     const view = render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
-    const input = screen.getByRole('combobox', { name: en.habits.search.title })
+    const input = screen.getByRole('combobox', { name: en.habits.search.question })
     fireEvent.change(input, { target: { value: 'walk' } })
     expect(screen.queryByRole('option')).toBeNull()
     mocks.query.mockReturnValue(result([

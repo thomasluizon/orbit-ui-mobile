@@ -21,7 +21,7 @@ function supportMarkup(locale: 'en' | 'pt-BR', email: string) {
   return renderToStaticMarkup(
     <NextIntlClientProvider locale={locale} messages={locale === 'pt-BR' ? ptBR : en}>
       <SupportForm
-        email={email} subject={null} message="" appVersion={null}
+        email={email} subject={null} message="" messageAsked={false} appVersion={null}
         messageMaxLength={5000} messageOverLimitHint={null} error={null}
         subjectError={null} messageError={null} isSending={false} isOnline
         disabled={false} disabledReason={null} subjectFocusRequest={0} messageFocusRequest={0}

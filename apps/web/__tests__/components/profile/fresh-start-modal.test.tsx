@@ -250,8 +250,9 @@ describe('FreshStartModal', () => {
 
     fireEvent.click(screen.getByText('profile.freshStart.reviewDeletion'))
 
-    expect(screen.getByText('profile.freshStart.confirmInstruction')).toBeInTheDocument()
-    expect(screen.getByLabelText('profile.freshStart.confirmLabel')).toBeInTheDocument()
+    const confirmField = screen.getByLabelText('profile.freshStart.confirmLabel')
+    expect(confirmField).toHaveAccessibleDescription('profile.freshStart.confirmInstruction')
+    expect(screen.getAllByText('profile.freshStart.confirmInstruction')).toHaveLength(1)
     expect(screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder')).toBeInTheDocument()
   })
 
@@ -455,7 +456,6 @@ describe('FreshStartModal', () => {
     )
 
     fireEvent.click(screen.getByText('profile.freshStart.reviewDeletion'))
-    expect(screen.getByText('profile.freshStart.confirmInstruction')).toBeInTheDocument()
     expect(screen.getByLabelText('profile.freshStart.confirmLabel')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'close-overlay' }))

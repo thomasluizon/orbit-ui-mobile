@@ -59,7 +59,7 @@ describe('Astra record list on mobile', () => {
     await TestRenderer.act(async () => { more.props.onPress(); await Promise.resolve() })
     expect(tree.root.findAll((node: any) => node.type === View && node.props?.testID === 'record-row')).toHaveLength(20)
     const filter = tree.root.findAll((node: any) => node.props.accessibilityLabel === 'chat.recordList.filter' && typeof node.props.onChangeText === 'function')[0]!
-    const filterTrigger = tree.root.findAll((node: any) => node.type === Pressable && controlName(node) === 'chat.recordList.filter')[0]
+    const filterTrigger = tree.root.findAll((node: any) => node.type === Pressable && controlName(node) === 'chat.recordList.filterAction')[0]
     const filterPaint = StyleSheet.flatten(filterTrigger.props.style({ pressed: false }))
     expect(filterPaint).toMatchObject({ width: 44, height: 44 })
     expect(filterPaint.width + 2 * filterTrigger.props.hitSlop).toBeGreaterThanOrEqual(48)
@@ -72,6 +72,15 @@ describe('Astra record list on mobile', () => {
     TestRenderer.act(() => clear.props.onPress())
     expect(tree.root.findAll((node: any) => node.type === View && node.props?.testID === 'record-row')).toHaveLength(20)
     expect(mocks.push).not.toHaveBeenCalled()
+  })
+
+  it('names the filter icon by its action and the filter field by its question', () => {
+    const tree = render(<RecordListCard recordList={{ kind: 'keys', totalCount: 21, items: [{ id: 'key-1', title: 'Key' }] }} />)
+    const pressables = tree.root.findAll((node: any) => node.type === Pressable)
+    expect(pressables.map((node: any) => controlName(node))).toContain('chat.recordList.filterAction')
+    expect(pressables.filter((node: any) => controlName(node) === 'chat.recordList.filter')).toHaveLength(0)
+    const fields = tree.root.findAll((node: any) => typeof node.props.onChangeText === 'function')
+    expect(fields.map((node: any) => node.props.accessibilityLabel)).toContain('chat.recordList.filter')
   })
 
   it('shows no tag destination chip', () => {

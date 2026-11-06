@@ -126,6 +126,8 @@ function ApiKeyList({ apiKeys, isLoading, loadError, onRevoke, onRetry }: Readon
   )
 }
 
+const API_KEY_EXPIRY_REGION = 'api-key-expiry'
+
 interface CreateKeySheetProps {
   scoped: boolean
   busy: boolean
@@ -159,6 +161,8 @@ function CreateKeySheet({
   const [name, setName] = useState('')
   const [nameFocusRequest, setNameFocusRequest] = useState(0)
   const [expiryFocusRequest, setExpiryFocusRequest] = useState(0)
+  const [expiryExpanded, setExpiryExpanded] = useState<boolean | null>(null)
+  const showExpiry = expiryExpanded ?? expiresAt !== ''
   const expiryError = expiryFocusRequest > 0 && !validateApiKeyExpiry(expiresAt).valid
   const nameError = nameFocusRequest > 0 ? getApiKeyNameError(name) : null
   const dismissGuard = useDismissGuard({
@@ -170,7 +174,10 @@ function CreateKeySheet({
     const form = apiKeyFormSchema.safeParse({ name, expiresAt })
     if (!form.success) {
       if (getApiKeyNameError(name)) setNameFocusRequest((request) => request + 1)
-      else setExpiryFocusRequest((request) => request + 1)
+      else {
+        setExpiryExpanded(true)
+        setExpiryFocusRequest((request) => request + 1)
+      }
       return
     }
     const trimmedScope = scope.trim()
@@ -196,7 +203,7 @@ function CreateKeySheet({
           </ActionRow>
         )}
       >
-        <View style={{ gap: 16 }}>
+        <View testID="api-key-questions" style={{ gap: 16 }}>
           <Input
             label={t('orbitMcp.keyName')}
             placeholder={t('orbitMcp.keyNamePlaceholder')}
@@ -211,20 +218,23 @@ function CreateKeySheet({
             focusRequest={nameFocusRequest}
             onSubmit={() => void submit()}
           />
-          <Input
-            label={t('orbitMcp.expiresAtLabel')}
-            name="api-key-expiry"
-            value={expiresAt}
-            onChange={onExpiryChange}
-            placeholder={t('common.never')}
-            hint={t('orbitMcp.expiryFormatExample')}
-            error={expiryError ? t('orbitMcp.invalidExpiry') : undefined}
-            focusRequest={expiryFocusRequest}
-            autoComplete="off"
-            mono
-            disabled={busy}
-            onSubmit={() => void submit()}
-          />
+          <View testID="api-key-expiry-group" style={{ gap: 8 }}>
+            <View><ListRow wrapTitle placement="field" title={t('profile.apiKeys.setExpiry')} expanded={showExpiry} controls={API_KEY_EXPIRY_REGION} disabled={busy} onClick={() => setExpiryExpanded(!showExpiry)} /></View>
+            {showExpiry ? <View nativeID={API_KEY_EXPIRY_REGION}><Input
+              label={t('orbitMcp.expiresAtLabel')}
+              name="api-key-expiry"
+              value={expiresAt}
+              onChange={onExpiryChange}
+              placeholder={t('common.never')}
+              hint={t('orbitMcp.expiryFormatExample')}
+              error={expiryError ? t('orbitMcp.invalidExpiry') : undefined}
+              focusRequest={expiryFocusRequest}
+              autoComplete="off"
+              mono
+              disabled={busy}
+              onSubmit={() => void submit()}
+            /></View> : null}
+          </View>
           {scoped ? (
             <Input
               label={t('profile.apiKeys.scopeLabel')}

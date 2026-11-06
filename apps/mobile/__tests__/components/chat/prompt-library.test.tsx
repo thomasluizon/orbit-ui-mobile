@@ -88,7 +88,7 @@ function ideaActions() { return hosts().filter(node => node.props.testID === 'pr
 function button(label: string) { return hosts().find(node => node.props.accessibilityRole === 'button' && (node.props.accessibilityLabel === label || text(node).includes(label)))! }
 function text(node: ReactTestInstance): string { return node.children.map(child => typeof child === 'string' ? child : text(child)).join('') }
 function press(label: string) { act(() => { const target = button(label); (target.props.onPress ?? target.props.onPressIn)!() }) }
-function search(query: string) { act(() => hosts().find(node => node.props.accessibilityLabel === 'Buscar ideias')!.props.onChangeText(query)) }
+function search(query: string) { act(() => hosts().find(node => node.props.accessibilityLabel === 'Qual ideia você procura?')!.props.onChangeText(query)) }
 function library(options: Partial<Parameters<typeof PromptLibrary>[0]> = {}) {
   act(() => { tree = create(<PromptLibrary onBack={vi.fn()} onSelect={vi.fn()} suggestions={[]} hasProAccess hasGoogleConnection {...options} />) })
 }
@@ -578,7 +578,7 @@ it('uses the app heading type, shared search field and a persistent category scr
   library()
   const heading = hosts().find(node => node.props.accessibilityRole === 'header' && text(node) === 'Ideias')!
   expect(actionStyle(heading)).toMatchObject({ fontFamily: 'Geist_500Medium', fontSize: 22 })
-  const search = hosts().find(node => node.props.accessibilityLabel === 'Buscar ideias')!
+  const search = hosts().find(node => node.props.accessibilityLabel === 'Qual ideia você procura?')!
   expect(search.props).toMatchObject({ placeholder: 'Buscar ideias' })
   expect(actionStyle(search)).toMatchObject({ minHeight: 54, paddingHorizontal: 16 })
   expect(hosts().filter(node => typeof node.type === 'string' && text(node) === 'Buscar ideias')).toHaveLength(0)
