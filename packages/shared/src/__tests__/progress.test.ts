@@ -1,4 +1,6 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import type { Achievement } from '../types/gamification'
 import type { Goal } from '../types/goal'
@@ -15,6 +17,17 @@ import {
   formatStreakDate,
   formatStreakRepairDates,
 } from '../utils/progress'
+
+/** Stryker runs a copy of this package one level deeper, so a fixed `../` depth misses the repository root. */
+function findRepositoryRoot(directory: string): string {
+  const manifest = join(directory, 'package.json')
+  if (existsSync(manifest) && 'workspaces' in JSON.parse(readFileSync(manifest, 'utf8'))) return directory
+  const parent = dirname(directory)
+  if (parent === directory) throw new Error('No package.json with workspaces above the test file')
+  return findRepositoryRoot(parent)
+}
+
+const repositoryRoot = findRepositoryRoot(dirname(fileURLToPath(import.meta.url)))
 
 function goal(id: string, status: Goal['status'], position: number): Goal {
   return {
@@ -175,8 +188,8 @@ describe('progress surface models', () => {
     expect(achievementGlyphKey('perfect_day')).toBe('sun')
 
     for (const platform of ['web', 'mobile']) {
-      const icons = readFileSync(new URL(`../../../../apps/${platform}/components/ui/icons.ts`, import.meta.url), 'utf8')
-      const mark = readFileSync(new URL(`../../../../apps/${platform}/components/gamification/achievement-mark.tsx`, import.meta.url), 'utf8')
+      const icons = readFileSync(join(repositoryRoot, `apps/${platform}/components/ui/icons.ts`), 'utf8')
+      const mark = readFileSync(join(repositoryRoot, `apps/${platform}/components/gamification/achievement-mark.tsx`), 'utf8')
       for (const glyph of [nightGlyph, morningGlyph]) {
         const symbol = glyph[0]!.toUpperCase() + glyph.slice(1)
         expect(icons).toMatch(new RegExp(`\\bIcon${symbol} as ${symbol}\\b`))

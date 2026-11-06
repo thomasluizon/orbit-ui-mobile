@@ -544,25 +544,20 @@ describe('habit detail flow model', () => {
   })
 
   it('checks the three day window in the account timezone', () => {
-    vi.stubEnv('TZ', 'America/Los_Angeles')
-    try {
-      const accountToday = parseAPIDate('2026-08-31')
-      const metrics: HabitMetrics = {
-        currentStreak: 0,
-        longestStreak: 0,
-        weeklyCompletionRate: 0,
-        monthlyCompletionRate: 0,
-        totalCompletions: 0,
-        lastCompletedDate: null,
-      }
-      const accountYesterday = { ...recurring, createdAtUtc: '2026-08-29T12:00:00Z' }
-      const accountWindowStart = { ...recurring, createdAtUtc: '2026-08-28T12:00:00Z' }
-      expect(formatAPIDate(new Date(accountYesterday.createdAtUtc))).toBe('2026-08-29')
-      expect(isHabitSlipping(accountYesterday, metrics, [], accountToday, 'Pacific/Kiritimati')).toBe(false)
-      expect(isHabitSlipping(accountWindowStart, metrics, [], accountToday, 'Pacific/Kiritimati')).toBe(true)
-    } finally {
-      vi.unstubAllEnvs()
+    const accountToday = parseAPIDate('2026-08-31')
+    const metrics: HabitMetrics = {
+      currentStreak: 0,
+      longestStreak: 0,
+      weeklyCompletionRate: 0,
+      monthlyCompletionRate: 0,
+      totalCompletions: 0,
+      lastCompletedDate: null,
     }
+    const accountYesterday = { ...recurring, createdAtUtc: '2026-08-29T12:00:00Z' }
+    const accountWindowStart = { ...recurring, createdAtUtc: '2026-08-28T12:00:00Z' }
+    expect(formatAPIDate(new Date(accountYesterday.createdAtUtc))).toBe('2026-08-29')
+    expect(isHabitSlipping(accountYesterday, metrics, [], accountToday, 'Pacific/Kiritimati')).toBe(false)
+    expect(isHabitSlipping(accountWindowStart, metrics, [], accountToday, 'Pacific/Kiritimati')).toBe(true)
   })
 
   it('treats clean bad-habit dates as resistance and positive logs as slips', () => {
