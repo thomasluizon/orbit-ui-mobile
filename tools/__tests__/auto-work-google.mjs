@@ -4,6 +4,7 @@ import { T } from "./_harness.mjs"
 
 export const cases = async () => {
   const schemas = JSON.parse(readFileSync(new URL("./fixtures/auto-work-google-schemas.json", import.meta.url), "utf8"))
+  const capturedRateLimit = JSON.parse(readFileSync(new URL("./fixtures/gmail-rate-limit-403.json", import.meta.url), "utf8"))
   T("google: Gmail fixture fields derive from the discovery response", schemas.gmail.schemas.Profile.properties.emailAddress.type === "string" &&
     schemas.gmail.schemas.ListMessagesResponse.properties.messages.items.$ref === "Message")
   T("google: attachment contract derives from the live discovery resource", schemas.gmail.methods.attachmentsGet.httpMethod === "GET" &&
@@ -59,6 +60,37 @@ export const cases = async () => {
   let refused = false
   try { await isolated.sendDraft("draft", { person: true, classification: "billing" }) } catch { refused = true }
   T("google: unsafe sends are refused before the network", refused)
+  const pacedClock = { value: 0 }
+  const pacedWaits = []
+  const pacing = { now: () => pacedClock.value, sleep: async (milliseconds) => { pacedWaits.push(milliseconds); pacedClock.value += milliseconds }, random: () => 0.25 }
+  const readTimes = []
+  const paced = gmailClient("token", async () => { readTimes.push(pacedClock.value); return Response.json({ id: "message" }) }, pacing)
+  for (let index = 0; index < 101; index++) await paced.read(`message-${index}`)
+  T("google: full reads stay inside 6000 units per minute per user", readTimes.slice(0, 100).every((time) => time === 0) && readTimes[100] === 60_000 &&
+    pacedWaits.length === 1)
+  const limitedWaits = []
+  let limitedCalls = 0
+  const always = gmailClient("token", async () => { limitedCalls++; return Response.json(capturedRateLimit, { status: 403 }) },
+    { now: () => 0, sleep: async (milliseconds) => { limitedWaits.push(milliseconds) }, random: () => 0.999 })
+  let exhausted
+  try { await always.list({}) } catch (error) { exhausted = error.message }
+  T("google: a lasting captured rate limit fails after the capped attempts", exhausted === "Gmail GET failed (HTTP 403 rateLimitExceeded) after 7 attempts" && limitedCalls === 7)
+  T("google: backoff doubles from one second with the largest jitter under one second", limitedWaits.join(",") === "1999,2999,4999,8999,16999,32999")
+  const userLimit = structuredClone(capturedRateLimit)
+  userLimit.error.errors[0].reason = "userRateLimitExceeded"
+  const tooManyWaits = []
+  const tooManyAnswers = [() => new Response("Too many requests: User-rate limit exceeded", { status: 429 }), () => Response.json(userLimit, { status: 403 })]
+  const tooMany = gmailClient("token", async () => tooManyAnswers.shift()?.() ?? Response.json({ id: "message" }),
+    { now: () => 0, sleep: async (milliseconds) => { tooManyWaits.push(milliseconds) }, random: () => 0 })
+  const recovered = await tooMany.read("message")
+  T("google: a 429 and a user rate limit retry with backoff from exactly one second", recovered.id === "message" && tooManyWaits.join(",") === "1000,2000")
+  let sendCalls = 0
+  const sendWaits = []
+  const throttledSend = gmailClient("token", async () => { sendCalls++; return new Response("Too many requests: User-rate limit exceeded (Mail sending)", { status: 429 }) },
+    { now: () => 0, sleep: async (milliseconds) => { sendWaits.push(milliseconds) }, random: () => 0 })
+  let sendFailure
+  try { await throttledSend.sendDraft("draft", { person: true, classification: "praise", replyKind: "thanks", clear: true, concerns: [] }, { raw: "reply" }) } catch (error) { sendFailure = error.message }
+  T("google: a rate-limited send is never repeated or delayed by the client", sendCalls === 1 && sendWaits.length === 0 && sendFailure === "Gmail POST failed (HTTP 429)")
   const simple = { person: true, classification: "praise", replyKind: "thanks", clear: true, concerns: [] }
   await client.sendDraft("draft", simple, { raw: "reply", threadId: "thread" })
   T("google: an authorized send uses the discovered draft send endpoint", network.at(-1).url.endsWith("/drafts/send") && JSON.parse(network.at(-1).options.body).id === "draft")
