@@ -1293,7 +1293,10 @@ it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('
     recommendation: 'Astra sugere: Item do checklist de Morning routine. Você já tem 4 itens no checklist aqui.',
     rejected: 'As 2 mudanças foram rejeitadas. Nada foi salvo.', more: 'e mais 3', open: 'Abrir detalhes: Water',
   })
-  expect(formatPreviewMeta('Every day · at 08:00')).toBe('Every\u00a0day · at\u00a008:00')
+  expect(formatPreviewMeta('Every day · at 08:00')).toBe('Every day · at\u00a008:00')
+  expect(formatPreviewMeta('14 de nov. de 2026 · às 20:00 · Ingresso: Setor B, fila 7, assento 12. Portas às 19:30. · Lembrar 15 min antes'))
+    .toBe('14\u00a0de nov. de\u00a02026 · às\u00a020:00 · Ingresso: Setor B, fila\u00a07, assento\u00a012. Portas às\u00a019:30. · Lembrar\u00a015\u00a0min antes')
+  expect(formatPreviewMeta('at 8:15 AM · seat 4 row 12 gate 3')).toBe('at\u00a08:15\u00a0AM · seat\u00a04\u00a0row 12\u00a0gate\u00a03')
 })
 
 it.each([false, true])('passes the preview offer through the frame with busy=%s', busy => {

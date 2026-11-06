@@ -163,6 +163,29 @@ describe('BlockFrame on mobile', () => {
     void act(() => tree.unmount())
   })
 
+  it.each(['done', 'acting', 'failed'] as const)('gives the words the full row width and moves the %s outcome and action below them', status => {
+    const tree = render(<BlockFrame {...frame({ items: [
+      { id: 'settled', wrapLabel: true, wrapMeta: true, label: 'Concert ticket', meta: 'Doors at 19:30', status, control: <Button size="sm" variant="ghost" onPress={vi.fn()}>Open</Button> },
+      { id: 'waiting', wrapLabel: true, label: 'Water', control: <Pressable accessibilityLabel="Remove item"><Text>Remove</Text></Pressable> },
+    ] })} />)
+    const config = Yoga.Config.create()
+    const nodes = new Map<string, YogaNode>()
+    const layout = buildActionLayout(tree.toJSON(), nodes, config)
+    try {
+      layout.calculateLayout(412 - 32, 'auto', Yoga.DIRECTION_LTR)
+      const settled = nodes.get(`block-frame-item-settled-${status}`)!
+      const waiting = nodes.get('block-frame-item-waiting-pending')!
+      const words = settled.getChild(0)
+      const trailing = settled.getChild(1)
+      expect(StyleSheet.flatten(prop<ViewStyle>(tree.root.findByProps({ testID: `block-frame-item-settled-${status}` }), 'style')).flexDirection).toBe('column')
+      expect(StyleSheet.flatten(prop<ViewStyle>(tree.root.findByProps({ testID: 'block-frame-item-waiting-pending' }), 'style')).flexDirection).toBe('row')
+      expect(words.getComputedWidth()).toBeCloseTo(settled.getComputedWidth() - 24, 1)
+      expect(absoluteTop(trailing)).toBeGreaterThanOrEqual(absoluteTop(words) + words.getComputedHeight())
+      expect(absoluteLeft(trailing) + trailing.getComputedWidth()).toBeCloseTo(absoluteLeft(settled) + settled.getComputedWidth() - 12, 1)
+      expect(waiting.getChild(0).getComputedWidth()).toBeLessThan(waiting.getComputedWidth() - 24)
+    } finally { layout.freeRecursive(); config.free(); void act(() => tree.unmount()) }
+  })
+
   it('moves accessibility focus to a preview heading after layout', () => {
     const findNode = vi.spyOn(ReactNative, 'findNodeHandle').mockReturnValue(42)
     const focus = vi.fn()

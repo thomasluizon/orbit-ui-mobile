@@ -1640,7 +1640,7 @@ describe('placement states (mobile)', () => {
 })
 
 
-it.each((['en', 'pt-BR'] as const).flatMap(locale => (['enabled', 'atTime', 'before', 'scheduled', 'disabled'] as const).map(reminder => ({ locale, reminder }))))('keeps the $reminder reminder and whole schedule tokens in the create preview in $locale', ({ locale, reminder }) => {
+it.each((['en', 'pt-BR'] as const).flatMap(locale => (['enabled', 'atTime', 'before', 'scheduled', 'disabled'] as const).map(reminder => ({ locale, reminder }))))('keeps the $reminder reminder and each time bound to its words in the create preview in $locale', ({ locale, reminder }) => {
   visibleLocale.actual = true
   visibleLocale.language = locale
   const operation = makeReminderHabitPreview(reminder)
@@ -1654,7 +1654,8 @@ it.each((['en', 'pt-BR'] as const).flatMap(locale => (['enabled', 'atTime', 'bef
   expect.soft(tokens.filter(token => token === expected)).toHaveLength(reminder === 'disabled' ? 0 : 1)
   expect.soft(tokens).toHaveLength(reminder === 'disabled' ? 2 : 3)
   expect(meta).toContain(locale === 'en' ? 'at\u00a08:15\u00a0AM' : 'às\u00a08:15\u00a0AM')
-  for (const token of meta.split(' · ')) expect(token).not.toContain(' ')
+  expect(meta).toContain(locale === 'en' ? 'Every day' : 'Todo dia')
+  for (const run of meta.split(' ')) expect(run.split('\u00a0').length).toBeLessThanOrEqual(3)
   TestRenderer.act(() => tree.unmount())
 })
 
