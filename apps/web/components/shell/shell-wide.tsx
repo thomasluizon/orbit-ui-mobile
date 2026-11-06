@@ -303,7 +303,7 @@ function ShellBottomChrome({ props, conversationOpen, visible }: Readonly<{
       <div className={`relative mx-auto flex w-full flex-col ${columnMinimum}`} style={{ minHeight: actionMinimum }}>
         <ShellBottomViewport floating={floating} minimumHeight={actionMinimum}>
           {props.notice !== undefined ? (
-            <div data-shell-notice="" className={`pointer-events-none ${scrollOwner} px-4 has-[>div>:not(:empty)]:pt-[calc(var(--sh-2-blur)-var(--sh-2-offset-y))] has-[>div>:not(:empty)]:pb-[calc(var(--sh-2-blur)+var(--sh-2-offset-y))]`}>
+            <div data-shell-notice="" className={`pointer-events-none ${scrollOwner} px-4 has-[>div>:not(:empty)]:pt-[calc(var(--sh-2-blur)-var(--sh-2-offset-y))] has-[>div>:not(:empty)]:pb-6`}>
               <div data-shell-notice-content="" className="pointer-events-auto mx-auto flex w-full max-w-[740px] flex-col gap-3 [&>:empty]:contents">{props.notice}</div>
             </div>
           ) : null}
