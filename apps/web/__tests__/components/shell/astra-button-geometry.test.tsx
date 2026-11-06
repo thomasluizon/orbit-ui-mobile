@@ -114,6 +114,32 @@ it.each([412, 840])('drags over the whole compact screen and never onto the tab 
   } finally { await page.close() }
 })
 
+it.each([412, 840])('runs the resting compact Hoje list down to the tab bar at %ipx', async width => {
+  const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
+  try {
+    await mountAstraEntry(page, { emptyNotice: true })
+    const bounds = await page.evaluate(() => {
+      const rect = (selector: string) => document.querySelector(selector)!.getBoundingClientRect()
+      return { scrollerBottom: rect('[data-shell-scroller]').bottom, bottomTop: rect('[data-shell-bottom]').top, tabsTop: rect('[data-shell-tab-bar]').top }
+    })
+    expect(bounds.scrollerBottom, JSON.stringify(bounds)).toBe(bounds.tabsTop)
+    expect(bounds.bottomTop).toBe(bounds.tabsTop)
+  } finally { await page.close() }
+})
+
+it('keeps the compact bottom minimum no taller than a visible notice', async () => {
+  const page = await browser.newPage({ viewport: { width: 412, height: 915 }, reducedMotion: 'reduce' })
+  try {
+    await mountAstraEntry(page, { notice: 'Saved' })
+    const bounds = await page.evaluate(() => {
+      const viewport = document.querySelector<HTMLElement>('[data-shell-bottom-viewport]')!
+      return { minimum: Number.parseFloat(getComputedStyle(viewport).minHeight), content: viewport.firstElementChild!.getBoundingClientRect().height }
+    })
+    expect(bounds.content, JSON.stringify(bounds)).toBeGreaterThan(0)
+    expect(bounds.minimum, JSON.stringify(bounds)).toBe(Math.min(64, bounds.content))
+  } finally { await page.close() }
+})
+
 interface AstraPlacementRecord { style: string; top: number; left: number }
 
 async function recordAstraPlacements(page: Page) {

@@ -87,7 +87,7 @@ export async function compileComposerGeometry() {
         return React.createElement(ShellWide, { items: [], activeId: 'hoje', navLabel: 'Navigation', astraRow: { label: 'Astra', onOpen: () => useUIStore.getState().setAstraConversationOpen(true) },
           header: React.createElement('div', { style: { minHeight: 112 } }, 'Today'),
           tabBar: React.createElement('nav', { style: { minHeight: 80 } }, React.createElement('button', { 'data-probe-tab': '', style: { minHeight: 48 } }, 'Tabs')),
-          notice: props.notice ? React.createElement('div', { 'data-probe-notice': '', style: { minHeight: 56 } }, props.notice) : undefined,
+          notice: props.notice ? React.createElement('div', { 'data-probe-notice': '', style: { minHeight: 56 } }, props.notice) : props.emptyNotice ? React.createElement(React.Fragment, null, React.createElement('div', { 'data-probe-empty-notice': '' })) : undefined,
           fab: open ? undefined : React.createElement('button', { style: { width: 60, height: 60 } }, 'Create'),
           astraButton: React.createElement(AstraButton), conversationOpen: open, conversationLabel: 'Astra',
           conversation: React.createElement('button', { style: { margin: 32, padding: 16 }, onClick: () => useUIStore.getState().setAstraConversationOpen(false) }, ${JSON.stringify(en.common.closeConversation)}),

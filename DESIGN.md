@@ -165,8 +165,10 @@ below 1024) it is the default home for that content. The floating Astra entry st
 Calendário, Progresso and Perfil clear the tab bar or the wide column bottom without a composer dock.
 Hoje's selection tray stays pinned at both widths while selection is active, with exit, select-all,
 delete, log, skip and move controls. It occupies
-the destination's bottom slot, named `composer` in the shell reference contract, at every width. Resting wide Hoje
-passes no bottom content. Transient notices keep the separate `notice` slot.
+the destination's bottom slot, named `composer` in the shell reference contract, at every width. Resting Hoje
+passes no bottom content at any width. Transient notices keep the separate `notice` slot. In the compact
+shell, the bottom viewport is never taller than what it shows. On resting Hoje with no notice, the habit
+list ends at the top edge of the tab bar, with no empty band where the composer was.
 
 **The conversation opens full screen on both platforms.** In the compact shell it covers the whole
 screen, including the tab bar. On wide web the sidebar stays visible and the conversation replaces

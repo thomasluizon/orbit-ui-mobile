@@ -256,13 +256,16 @@ function getPinnedSlot(props: ResponsiveShellProps) {
   return props.composer
 }
 
-function ShellBottomViewport({ floating, minimumHeight, children }: Readonly<{ floating: boolean; minimumHeight?: number; children: ReactNode }>) {
+function ShellBottomViewport({ floating, hasPinnedSlot, minimumHeight, children }: Readonly<{ floating: boolean; hasPinnedSlot: boolean; minimumHeight?: number; children: ReactNode }>) {
   const viewportRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const viewport = viewportRef.current
     const content = viewport?.firstElementChild
     if (!floating || !viewport || !content) return
-    const revealBottomControls = () => { viewport.scrollTop = Math.max(0, viewport.scrollHeight - viewport.clientHeight) }
+    const revealBottomControls = () => {
+      viewport.style.setProperty('--shell-bottom-content-height', `${content.getBoundingClientRect().height}px`)
+      viewport.scrollTop = Math.max(0, viewport.scrollHeight - viewport.clientHeight)
+    }
     const observer = new ResizeObserver(revealBottomControls)
     observer.observe(viewport)
     observer.observe(content)
@@ -270,7 +273,7 @@ function ShellBottomViewport({ floating, minimumHeight, children }: Readonly<{ f
     return () => observer.disconnect()
   }, [floating])
   return <div ref={viewportRef} data-shell-bottom-viewport="" data-floating={floating}
-    className={floating ? 'min-h-[max(var(--orbit-space-64),calc(1.5rem+var(--orbit-space-32)))] overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-gutter:stable] lg:contents lg:overflow-visible' : 'contents'}
+    className={floating ? `${hasPinnedSlot ? 'min-h-[max(var(--orbit-space-64),calc(1.5rem+var(--orbit-space-32)))]' : 'min-h-[min(max(var(--orbit-space-64),calc(1.5rem+var(--orbit-space-32))),var(--shell-bottom-content-height,0px))]'} overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-gutter:stable] lg:contents lg:overflow-visible` : 'contents'}
     style={{ minHeight: minimumHeight }}>
     <div className={floating ? 'lg:contents' : 'contents'}><div className="relative flex min-h-0 flex-col">{children}</div></div>
   </div>
@@ -301,7 +304,7 @@ function ShellBottomChrome({ props, conversationOpen, visible }: Readonly<{
       style={actionMinimum === undefined ? undefined : { minHeight: `calc(${actionMinimum}px + ${safeBottom})` }}
     >
       <div className={`relative mx-auto flex w-full flex-col ${columnMinimum}`} style={{ minHeight: actionMinimum }}>
-        <ShellBottomViewport floating={floating} minimumHeight={actionMinimum}>
+        <ShellBottomViewport floating={floating} hasPinnedSlot={pinnedSlot !== undefined} minimumHeight={actionMinimum}>
           {props.notice !== undefined ? (
             <div data-shell-notice="" className={`pointer-events-none ${scrollOwner} px-4 has-[>div>:not(:empty)]:pt-[calc(var(--sh-2-blur)-var(--sh-2-offset-y))] has-[>div>:not(:empty)]:pb-[calc(var(--sh-2-blur)+var(--sh-2-offset-y))]`}>
               <div data-shell-notice-content="" className="pointer-events-auto mx-auto flex w-full max-w-[740px] flex-col gap-3 [&>:empty]:contents">{props.notice}</div>
