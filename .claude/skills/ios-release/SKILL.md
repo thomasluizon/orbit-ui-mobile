@@ -40,9 +40,9 @@ The Google web OAuth client must allow that variant's HTTPS `/auth-callback` red
 Enrollment and signing are prerequisites for an upload, not for the unsigned compile job.
 Do not request enrollment while compilation and repository tests can still proceed.
 Once enrolled, enable Push Notifications and Associated Domains for both app bundle identifiers,
-create their App Store Connect records, and replace `APPLE_TEAM_ID` in
-`apps/web/public/.well-known/apple-app-site-association` with the enrolled application identifier
-prefix. Verify both web hosts serve it as JSON with status 200 and no redirect. In App Store
+and create their App Store Connect records. The application identifier prefix in
+`apps/web/public/.well-known/apple-app-site-association` is the enrolled team `BD7JH468F7`; keep it
+equal to `ORBIT_APPLE_TEAM_ID`. Verify both web hosts serve it as JSON with status 200 and no redirect. In App Store
 Connect > Pricing and Availability > iPhone and iPad Apps on Apple Silicon Mac, opt out of Mac
 availability before distribution. Keep testers internal; this workflow does not submit for review.
 
