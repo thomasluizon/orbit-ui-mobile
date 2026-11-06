@@ -1,5 +1,5 @@
 import { PortalHost } from '@rn-primitives/portal'
-import { chooseApiKeyCreation } from '@/__tests__/support/api-key-creation'
+import { chooseApiKeyCreation, revealApiKeyExpiry } from '@/__tests__/support/api-key-creation'
 import React from 'react'
 import type { ReactTestInstance } from 'react-test-renderer'
 import * as Clipboard from 'expo-clipboard'
@@ -553,6 +553,11 @@ function nodeText(node: unknown): string {
   if (typeof node === 'string' || typeof node === 'number') return String(node)
   if (!node || typeof node !== 'object' || !('children' in node)) return ''
   return (node as { children: unknown[] }).children.map(nodeText).join('')
+}
+
+function expiryInput(tree: ReturnType<typeof TestRenderer.create>) {
+  revealApiKeyExpiry(tree)
+  return tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' })
 }
 
 async function nameAndCreateApiKey(tree: ReturnType<typeof TestRenderer.create>) {
@@ -1521,7 +1526,7 @@ describe('ProfileScreen', () => {
     mockApiClient.mockResolvedValueOnce({ id: 'key-2', key: 'orb_secret' })
     const tree = await renderProfileSubscreen('astra')
     await chooseApiKeyCreation(tree, 'profile.apiKeys.create')
-    const field = tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' })
+    const field = expiryInput(tree)
     expect(field.props.placeholder).toBe('common.never')
     TestRenderer.act(() => field.props.onChangeText(expiry))
     await nameAndCreateApiKey(tree)
@@ -1539,10 +1544,11 @@ describe('ProfileScreen', () => {
     const tree = await renderProfileSubscreen('astra')
     await chooseApiKeyCreation(tree, mode === 'simple' ? 'profile.apiKeys.create' : 'profile.apiKeys.createScoped')
     if (mode === 'scoped') TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' }).props.onChangeText('read_habits'))
-    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.onChangeText(expiry))
+    const expiryField = expiryInput(tree)
+    TestRenderer.act(() => expiryField.props.onChangeText(expiry))
     await nameAndCreateApiKey(tree)
     expect(nodeText(tree.root)).toContain('orbitMcp.invalidExpiry')
-    expect(tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.accessibilityHint).toContain('orbitMcp.invalidExpiry')
+    expect(expiryInput(tree).props.accessibilityHint).toContain('orbitMcp.invalidExpiry')
     expect(tree.root.findByProps({ accessibilityLabel: 'orbitMcp.keyName' }).props.value).toBe('Personal key')
     expect(mockApiClient).not.toHaveBeenCalled()
     expect(mockCreateGrant.consumed).toBe(false)
@@ -1555,13 +1561,14 @@ describe('ProfileScreen', () => {
     mockStepUpVerified.current = true
     const tree = await renderProfileSubscreen('astra')
     await chooseApiKeyCreation(tree, 'profile.apiKeys.createScoped')
-    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.onChangeText('2099-12-31T23:59'))
+    const expiryField = expiryInput(tree)
+    TestRenderer.act(() => expiryField.props.onChangeText('2099-12-31T23:59'))
     TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' }).props.onChangeText('habits:read'))
     const clock = vi.spyOn(Date, 'now').mockReturnValue(new Date('2100-01-01T00:00:00Z').getTime())
     try {
       await nameAndCreateApiKey(tree)
       expect(tree.root.findAll((node: { type: unknown; props: { title?: string } }) => node.type === 'SheetStub' && node.props.title === 'profile.apiKeys.scopeTitle')).toHaveLength(1)
-      const field = tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' })
+      const field = expiryInput(tree)
       expect(field.props.accessibilityHint).toContain('orbitMcp.invalidExpiry')
       expect(field.props.value).toBe('2099-12-31T23:59')
       expect(mockApiClient).not.toHaveBeenCalled()
@@ -1581,7 +1588,7 @@ describe('ProfileScreen', () => {
     const tree = await renderProfileSubscreen('astra')
     await chooseApiKeyCreation(tree, 'profile.apiKeys.create')
     await nameAndCreateApiKey(tree)
-    expect(tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.editable).toBe(false)
+    expect(expiryInput(tree).props.editable).toBe(false)
     expect(findButtonByName(tree, 'profile.apiKeys.create').props.accessibilityState.disabled).toBe(true)
     await TestRenderer.act(async () => { finish(); await Promise.resolve() })
   })
@@ -1601,7 +1608,8 @@ describe('ProfileScreen', () => {
     TestRenderer.act(() => tree.root.findByProps({ accessibilityRole: 'switch', accessibilityLabel: 'orbitMcp.readOnlyKeyLabel' }).props.onPress())
 
     await chooseApiKeyCreation(tree, 'profile.apiKeys.createScoped')
-    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.onChangeText('2099-12-31T23:59'))
+    const expiryField = expiryInput(tree)
+    TestRenderer.act(() => expiryField.props.onChangeText('2099-12-31T23:59'))
     const firstInput = tree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' })
     await TestRenderer.act(async () => {
       firstInput.props.onChangeText('stale:scope')
@@ -1623,8 +1631,9 @@ describe('ProfileScreen', () => {
     await chooseApiKeyCreation(tree, 'profile.apiKeys.createScoped')
     expect(tree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' }).props.value).toBe('')
     expect(tree.root.findByProps({ accessibilityLabel: 'orbitMcp.keyName' }).props.value).toBe('')
-    expect(tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.value).toBe('')
-    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.onChangeText('2099-12-31T23:59'))
+    const freshExpiryField = expiryInput(tree)
+    expect(freshExpiryField.props.value).toBe('')
+    TestRenderer.act(() => freshExpiryField.props.onChangeText('2099-12-31T23:59'))
     expect(nodeText(tree.root)).not.toContain('orbitMcp.createKeyError')
     await TestRenderer.act(async () => {
       tree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' }).props.onChangeText('fresh:scope')
@@ -1665,7 +1674,8 @@ describe('ProfileScreen', () => {
     const tree = await renderProfileSubscreen('astra')
 
     await chooseApiKeyCreation(tree, 'profile.apiKeys.create')
-    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.onChangeText('2099-12-31T23:59'))
+    const expiryField = expiryInput(tree)
+    TestRenderer.act(() => expiryField.props.onChangeText('2099-12-31T23:59'))
     await nameAndCreateApiKey(tree)
     const copyFailure = new Error('Clipboard unavailable')
     vi.mocked(captureError).mockClear()
@@ -1693,7 +1703,7 @@ describe('ProfileScreen', () => {
     mockCreateGrant.consumed = false
     const secondTree = await renderProfileSubscreen('astra')
     await chooseApiKeyCreation(secondTree, mode === 'simple' ? 'profile.apiKeys.create' : 'profile.apiKeys.createScoped')
-    expect(secondTree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.value).toBe('2099-12-31T23:59')
+    expect(expiryInput(secondTree).props.value).toBe('2099-12-31T23:59')
     if (mode === 'scoped') {
       TestRenderer.act(() => secondTree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' }).props.onChangeText('read_habits'))
     }
@@ -1724,8 +1734,8 @@ describe('ProfileScreen', () => {
       if (mode === 'scoped') {
         TestRenderer.act(() => view.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' }).props.onChangeText('read_habits'))
       }
-      if (view === tree) TestRenderer.act(() => view.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.onChangeText('2099-12-31T23:59'))
-      else expect(view.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.value).toBe('2099-12-31T23:59')
+      if (view === tree) { const field = expiryInput(view); TestRenderer.act(() => field.props.onChangeText('2099-12-31T23:59')) }
+      else expect(expiryInput(view).props.value).toBe('2099-12-31T23:59')
       await nameAndCreateApiKey(view)
     }
     await submit(tree)
@@ -1759,7 +1769,8 @@ describe('ProfileScreen', () => {
       : Promise.resolve(undefined))
     const tree = await renderProfileSubscreen('astra')
     await chooseApiKeyCreation(tree, mode === 'simple' ? 'profile.apiKeys.create' : 'profile.apiKeys.createScoped')
-    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.onChangeText('2099-12-31T23:59'))
+    const expiryField = expiryInput(tree)
+    TestRenderer.act(() => expiryField.props.onChangeText('2099-12-31T23:59'))
     if (mode === 'scoped') {
       TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' }).props.onChangeText('read_habits'))
     }
@@ -1782,7 +1793,7 @@ describe('ProfileScreen', () => {
     expect(tree.root.findAllByProps({ accessibilityLabel: 'orbitMcp.keyName' })).toHaveLength(0)
     await chooseApiKeyCreation(tree, 'profile.apiKeys.create')
     expect(tree.root.findByProps({ accessibilityLabel: 'orbitMcp.keyName' }).props.value).toBe('')
-    expect(tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.value).toBe('')
+    expect(expiryInput(tree).props.value).toBe('')
   })
 
   it('revalidates retained expiry after verification and allows clearing it to never', async () => {
@@ -1793,7 +1804,8 @@ describe('ProfileScreen', () => {
     mockApiClient.mockRejectedValueOnce(createApiClientError(428, { errorCode: 'API_KEY_CREATION_CHALLENGE_REQUIRED' }, 'Challenge required'))
     const tree = await renderProfileSubscreen('astra')
     await chooseApiKeyCreation(tree, 'profile.apiKeys.create')
-    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.onChangeText('2099-12-31T23:59'))
+    const expiryField = expiryInput(tree)
+    TestRenderer.act(() => expiryField.props.onChangeText('2099-12-31T23:59'))
     await nameAndCreateApiKey(tree)
     expect(mockRouterPush).toHaveBeenCalledWith('/step-up?operation=keys')
     tree.unmount()
@@ -1804,9 +1816,10 @@ describe('ProfileScreen', () => {
       const secondTree = await renderProfileSubscreen('astra')
       await chooseApiKeyCreation(secondTree, 'profile.apiKeys.create')
       await nameAndCreateApiKey(secondTree)
-      expect(secondTree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.accessibilityHint).toContain('orbitMcp.invalidExpiry')
+      expect(expiryInput(secondTree).props.accessibilityHint).toContain('orbitMcp.invalidExpiry')
       expect(mockApiClient).not.toHaveBeenCalled()
-      TestRenderer.act(() => secondTree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.onChangeText(''))
+      const secondExpiryField = expiryInput(secondTree)
+      TestRenderer.act(() => secondExpiryField.props.onChangeText(''))
       mockApiClient.mockResolvedValueOnce({ id: 'key-1', key: 'orb_secret' })
       await nameAndCreateApiKey(secondTree)
       expect(nodeText(secondTree.root)).toContain('orb_secret')

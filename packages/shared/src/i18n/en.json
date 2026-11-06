@@ -51,13 +51,14 @@
     "clock": {
       "title": "Clock",
       "hour24": "24 hour",
-      "hour12": "12 hour"
+      "hour12": "12 hour",
+      "question": "How do you want to see the time?"
     },
     "weekStartDay": {
-      "title": "First day",
-      "description": "Choose which day your week begins. This affects all calendars and day pickers.",
+      "description": "This applies to every calendar and date picker.",
       "monday": "Monday",
-      "sunday": "Sunday"
+      "sunday": "Sunday",
+      "question": "When does your week start?"
     },
     "theme": {
       "switchToLight": "Light mode",
@@ -472,7 +473,7 @@
     },
     "signIn": "Sign in",
     "enterCode": "Enter the code",
-    "email": "Email",
+    "email": "What is your email?",
     "emailPlaceholder": "name@example.com",
     "sendCode": "Continue",
     "turnstileLabel": "Security check",
@@ -482,7 +483,7 @@
     "turnstileRetry": "Try again",
     "codeSent": "Code sent.",
     "codeSentTo": "We sent a 6-digit code to {email}.",
-    "verificationCode": "6 digit code",
+    "verificationCode": "What code did you get?",
     "verify": "Sign in",
     "resendCode": "Resend code",
     "resendIn": "You can ask for another code in {time}",
@@ -568,6 +569,7 @@
       "matchChild": "inside",
       "screenTitle": "Search",
       "title": "Search habits",
+      "question": "What are you looking for?",
       "searching": "Searching",
       "emptyTitle": "Nothing found for <queryText>“{query}”</queryText>",
       "emptyBody": "No habit with that name, that description or that tag.",
@@ -615,8 +617,9 @@
       "title": "Move habit",
       "description": "Choose where to place \"{name}\"",
       "toRoot": "No parent (top level)",
-      "destinations": "Destinations",
+      "destinations": "{count, plural, one {Where should it go?} other {Where should they go?}}",
       "searchPlaceholder": "Search habits",
+      "searchQuestion": "Which habit are you looking for?",
       "currentParent": "Current",
       "confirm": "Move",
       "noSearchResults": "No habits match your search",
@@ -701,7 +704,10 @@
       "everyNMonths": "{n, plural, one {Every # month} other {Every # months}}",
       "everyNYears": "{n, plural, one {Every # year} other {Every # years}}",
       "flexibleLabel": "{n}x / {unit}",
-      "flexibleProgress": "{unit}: {done}/{target}"
+      "flexibleProgress": "{unit}: {done}/{target}",
+      "monthDay": "{day, selectordinal, one {#st} two {#nd} few {#rd} other {#th}}",
+      "onMonthDays": "On the {days}",
+      "everyNMonthsOnDays": "{n, plural, one {Every # month} other {Every # months}} {count, plural, one {on the {days}} other {on the {days}}}"
     },
     "form": {
       "reminderKind": "When do you want to be reminded?",
@@ -713,6 +719,12 @@
       "repeatActiveStart": "From what time should I remind you?",
       "repeatActiveEnd": "Until what time?",
       "repeatInvalid": "Choose an interval and two different times, or allow reminders all day.",
+      "monthDaysQuestion": "On which days of the month?",
+      "monthDaysShortMonth": "Short months use their last day.",
+      "understoodMonthDaysAt": "{schedule} at {time}",
+      "monthDaysInvalid": "Choose days from 1 to 31.",
+      "monthDaysOnlyForMonthly": "Set the week interval back to 1.",
+      "monthDaysNeedMonthly": "To choose days of the month, the habit must repeat monthly, with no weekdays and no week interval.",
       "parentHabit": "Parent habit",
       "proRequired": "This is part of Orbit Pro.",
       "capacityTitle": "Habit limit reached",
@@ -1313,6 +1325,7 @@
       "swap": "Swap",
       "addAll": "Add all",
       "prompt": "Tweak this habit...",
+      "promptQuestion": "What should change?",
       "apply": "Apply",
       "existing": "Already exists",
       "current": "Current",
@@ -1386,7 +1399,7 @@
     "choice": {
       "submit": "Send",
       "review": "Review",
-      "freeText": "Your answer",
+      "freeText": "Want to answer in your own words?",
       "answered": "You chose {options}",
       "closed": "This question is closed.",
       "alreadyAnswered": "This question was already answered.",
@@ -1410,6 +1423,7 @@
       "browse": "Browse ideas",
       "back": "Back to conversation",
       "search": "Search ideas",
+      "searchQuestion": "Which idea are you looking for?",
       "forYou": "For you now",
       "noMatches": "No ideas for “{query}”.",
       "clearSearch": "Clear search",
@@ -1832,7 +1846,8 @@
       "markReadError": "Couldn't mark that alert read. Try again.",
       "moreError": "Couldn't load more records. Try again.",
       "more": "Show more",
-      "filter": "Filter list",
+      "filter": "What are you looking for?",
+      "filterAction": "Filter list",
       "noMatches": "No loaded records match “{query}”.",
       "clearFilter": "Clear filter"
     },
@@ -1981,6 +1996,7 @@
         "repeatInMonths": "Repetition in months",
         "repeatInYears": "Repetition in years",
         "repeatInterval": "Frequency: {count}",
+        "monthDays": "{count, plural, =0 {On the same day as the start date} other {On the {days}}}",
         "clearDays": "Clear the selected days",
         "removeDate": "Remove the date",
         "removeTime": "Remove the time",
@@ -2100,6 +2116,7 @@
         "frequency_unit": "Frequency unit",
         "frequency_quantity": "Frequency count",
         "interval_weeks": "Interval in weeks",
+        "month_days": "Days of the month",
         "days": "Days",
         "due_date": "Due date",
         "end_date": "End date",
@@ -2124,7 +2141,16 @@
         "interval_minutes": "Interval in minutes",
         "start_at_utc": "First reminder",
         "items": "Items",
-        "text": "Text"
+        "text": "Text",
+        "subject": "What is it about",
+        "message": "What happened",
+        "scopes": "Scope",
+        "expires_at_utc": "Expires At (UTC, optional)",
+        "code": "6 digit code",
+        "active_start": "Active from",
+        "active_end": "Active until",
+        "relative_reminders": "Remind me",
+        "due_end_time": "End Time"
       },
       "confirmTitle": "Approve this change?",
       "confirm": "Approve",
@@ -2556,7 +2582,8 @@
       "create": "Create key",
       "createScoped": "Create a scoped key",
       "scopeTitle": "Scoped key",
-      "scopeLabel": "Scope",
+      "scopeLabel": "What can it access?",
+      "setExpiry": "Set expiry?",
       "scopeAction": "Create",
       "mcpTitle": "Connect over MCP",
       "stepUpBody": "To change keys or delete the account, sign in again. Orbit never asks for your password inside a conversation.",
@@ -2568,7 +2595,8 @@
     "timezonePicker": {
       "search": "Search timezones",
       "noResults": "No timezones found",
-      "showMore": "Show more timezones"
+      "showMore": "Show more timezones",
+      "question": "Which time zone are you in?"
     },
     "loading": "Loading profile",
     "sections": {
@@ -2578,7 +2606,7 @@
     },
     "editName": {
       "title": "Edit name",
-      "label": "Name",
+      "label": "What should we call you?",
       "required": "Enter a name.",
       "tooLong": "Use 50 characters or fewer.",
       "errorGeneric": "Something went wrong. Please try again."
@@ -2586,7 +2614,7 @@
     "language": {
       "title": "Language",
       "brazilianPortuguese": "Brazilian Portuguese",
-      "description": "Select your preferred language"
+      "question": "Which language do you prefer?"
     },
     "aiSummary": {
       "title": "Daily recap"
@@ -2606,8 +2634,8 @@
       "rowTitle": "Help and support",
       "description": "Tell us what happened. The more concrete it is, the faster we can fix it.",
       "email": "Reply to",
-      "subject": "What is it about",
-      "message": "What happened",
+      "subject": "What is it about?",
+      "message": "What happened?",
       "messagePlaceholder": "I logged the walk and it went back to pending after I closed the app.",
       "send": "Send",
       "success": "Your message arrived",
@@ -2689,8 +2717,8 @@
       "preserveAccount": "Your account (email and name)",
       "preserveSubscription": "Pro subscription status",
       "preservePreferences": "Theme, language, and timezone",
-      "confirmInstruction": "Type ORBIT below to confirm this action.",
-      "confirmLabel": "Confirmation",
+      "confirmInstruction": "Type ORBIT to confirm.",
+      "confirmLabel": "Ready to start over?",
       "confirmPlaceholder": "ORBIT",
       "errorGeneric": "Something went wrong. Please try again."
     },
@@ -2753,6 +2781,7 @@
     "empty": "Log a few habits first to build a card worth sharing.",
     "error": "Couldn't load your recap. Please try again.",
     "share": "Share",
+    "periodQuestion": "Which period do you want to share?",
     "download": "Download",
     "scanToJoin": "Scan to join Orbit",
     "shareTitle": "My Orbit progress",
@@ -3000,7 +3029,7 @@
       "createFailed": "The habit was not created. Check the connection and try again.",
       "what": {
         "title": "What do you want to keep doing?",
-        "label": "Tell Astra in your own words",
+        "label": "How would you tell Astra?",
         "placeholder": "Walk every Monday and Thursday at 18:00",
         "marksLabel": "Words Orbit understood",
         "startersTitle": "If you want a start",
@@ -3015,7 +3044,7 @@
       },
       "when": {
         "astraRead": "This is how I read it. Correct anything that is wrong.",
-        "direct": "Pick the days and the time.",
+        "direct": "When do you want to do it?",
         "proposedBy": "Proposed by Astra",
         "emojiLabel": "Emoji proposed by Astra",
         "correctSchedule": "Correct schedule",
@@ -3981,7 +4010,7 @@
     "eyebrow": "Confirming: {operation}",
     "title": "Enter the code we sent",
     "body": "We sent 6 digits to {email}. It confirms this one action.",
-    "codeLabel": "6 digit code",
+    "codeLabel": "What code did you get?",
     "codeHint": "The code lasts 10 minutes.",
     "confirm": "Confirm",
     "checking": "Checking",
@@ -4019,7 +4048,7 @@
     "createHeading": "Create API Key",
     "revealHeading": "API Key Created",
     "noKeys": "No API keys yet",
-    "keyName": "Key name",
+    "keyName": "Where will you use it?",
     "keyNamePlaceholder": "e.g. Claude Desktop",
     "keyNameRequired": "Key name is required",
     "keyNameMaxLength": "Key name must be 50 characters or less",
@@ -4057,7 +4086,7 @@
     "permReadWrite": "Read/write",
     "expiresOn": "Expires {date}",
     "readOnlyKeyLabel": "Read-only key",
-    "expiresAtLabel": "Expires At (UTC, optional)",
+    "expiresAtLabel": "When should it expire? (UTC)",
     "expiryFormatExample": "2099-12-31T23:59",
     "invalidExpiry": "Enter a valid future expiry date."
   },

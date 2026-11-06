@@ -88,6 +88,7 @@ interface SupportFormProps {
   email: string
   subject: SupportSubjectId | null
   message: string
+  messageAsked: boolean
   appVersion: string | null
   messageMaxLength: number
   messageOverLimitHint: string | null
@@ -113,6 +114,7 @@ function SupportForm({
   email,
   subject,
   message,
+  messageAsked,
   appVersion,
   messageMaxLength,
   messageOverLimitHint,
@@ -185,7 +187,7 @@ function SupportForm({
           </Text>
         ) : null}
       </View>
-      <Input
+      {messageAsked ? <Input
         label={t('profile.support.message')}
         required
         value={message}
@@ -200,7 +202,7 @@ function SupportForm({
         autoComplete="off"
         focusRequest={messageFocusRequest}
         onBlur={onMessageBlur}
-      />
+      /> : null}
       <SupportReplyEmail email={email} />
       {appVersion ? (
         <Text style={[styles.versionIncluded, { color: tokens.fg3 }]}>
@@ -252,6 +254,7 @@ export default function SupportScreen() {
   const draftChangedRef = useRef(false)
   const [subject, setSubject] = useState<SupportSubjectId | null>(null)
   const [message, setMessage] = useState('')
+  const [messageAsked, setMessageAsked] = useState(false)
   const [sending, setSending] = useState(false)
   const [success, setSuccess] = useState(false)
   const [validationMessage, setValidationMessage] = useState<string | null>(null)
@@ -292,6 +295,7 @@ export default function SupportScreen() {
           draftRef.current = restoredDraft
           setSubject(restoredDraft.subject)
           setMessage(restoredDraft.message)
+          setMessageAsked(restoredDraft.subject !== null || restoredDraft.message !== '')
         } catch {
           void forgetStoredSupportDraft()
         }
@@ -315,6 +319,7 @@ export default function SupportScreen() {
       : messageOverLimitHint
     setSubjectError(nextSubjectError)
     setMessageError(nextMessageError)
+    setMessageAsked(true)
     if (nextSubjectError) setSubjectFocusRequest((request) => request + 1)
     else if (nextMessageError) setMessageFocusRequest((request) => request + 1)
     return !nextSubjectError && !nextMessageError
@@ -346,6 +351,7 @@ export default function SupportScreen() {
       draftRef.current = { subject: null, message: '' }
       setSubject(null)
       setMessage('')
+      setMessageAsked(false)
       void forgetStoredSupportDraft()
     } catch (err: unknown) {
       const subjectFailure = getBackendFieldError(err, 'Subject')
@@ -403,6 +409,7 @@ export default function SupportScreen() {
             email={resolvedEmail}
             subject={subject}
             message={message}
+            messageAsked={messageAsked}
             appVersion={appVersion}
             messageMaxLength={messageMaxLength}
             messageOverLimitHint={messageOverLimitHint}
@@ -417,6 +424,7 @@ export default function SupportScreen() {
             onChangeSubject={(next) => {
               setSubject(next)
               setSubjectError(null)
+              setMessageAsked(true)
               persistDraft({ subject: next })
             }}
             onSubjectBlur={() => {

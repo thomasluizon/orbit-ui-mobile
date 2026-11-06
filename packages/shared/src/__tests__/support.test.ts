@@ -30,7 +30,8 @@ describe('support copy', () => {
   it('keeps the form labels, validation, and reply reason aligned in both locales', () => {
     expect(en.profile.support).toMatchObject({
       description: 'Tell us what happened. The more concrete it is, the faster we can fix it.',
-      message: 'What happened',
+      subject: 'What is it about?',
+      message: 'What happened?',
       email: 'Reply to',
       emailLockedReason: 'Managed by your account.',
       subjectRequired: 'Pick a subject so we can route it properly.',
@@ -38,7 +39,8 @@ describe('support copy', () => {
     })
     expect(ptBR.profile.support).toMatchObject({
       description: 'Conte o que aconteceu. Quanto mais concreto, mais rápido a gente resolve.',
-      message: 'O que aconteceu',
+      subject: 'Sobre o que é?',
+      message: 'O que aconteceu?',
       email: 'Resposta para',
       emailLockedReason: 'Definido pela sua conta.',
       subjectRequired: 'Escolha um assunto para a gente encaminhar certo.',

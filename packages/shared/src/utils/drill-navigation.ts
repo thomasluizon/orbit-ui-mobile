@@ -208,6 +208,7 @@ export function normalizeDrillDetailChild(
     frequencyUnit: child.frequencyUnit,
     frequencyQuantity: child.frequencyQuantity,
     intervalWeeks: child.intervalWeeks,
+    monthDays: child.monthDays,
     isBadHabit: child.isBadHabit,
     isCompleted: child.isCompleted,
     isGeneral: child.isGeneral,

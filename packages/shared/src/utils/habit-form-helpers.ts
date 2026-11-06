@@ -1,5 +1,6 @@
 import type { HabitRecurrence } from './habit-recurrence-phrase'
 import { formatWeekdaySchedule } from './weekday-schedule'
+import { formatHabitMonthDaySchedule, toggleHabitMonthDay } from './month-days'
 import { MAX_HABIT_INTERVAL_WEEKS, type ChecklistItem, type FrequencyUnit, type HabitSetupSuggestion, type NormalizedHabit } from '../types/habit'
 import type { HabitPhraseRead, HabitPhraseToken } from './habit-phrase-parser'
 import type { HabitFormData } from '../validation/habit-form'
@@ -68,6 +69,7 @@ export function normalizeHabitFormData(values: Partial<HabitFormData>): HabitFor
     frequencyQuantity: values.frequencyQuantity ?? null,
     intervalWeeks: values.intervalWeeks ?? 1,
     days: values.days ?? [],
+    monthDays: values.monthDays ?? [],
     isBadHabit: values.isBadHabit ?? false,
     isGeneral: values.isGeneral ?? false,
     isFlexible: values.isFlexible ?? false,
@@ -333,14 +335,14 @@ export async function requestHabitFormProposal(
   return action()
 }
 
-type PhraseField = 'days' | 'dueTime' | 'frequencyQuantity' | 'frequencyUnit' | 'intervalWeeks'
+type PhraseField = 'days' | 'dueTime' | 'frequencyQuantity' | 'frequencyUnit' | 'intervalWeeks' | 'monthDays'
 
 export interface HabitPhraseFormTarget {
   setOneTime: () => void
   setRecurring: () => void
   setFlexible: () => void
   setGeneral: () => void
-  setField: (field: PhraseField, value: string | number | string[]) => void
+  setField: (field: PhraseField, value: string | number | string[] | number[]) => void
 }
 
 export interface HabitPhraseFormOwnership {
@@ -415,6 +417,7 @@ export interface HabitFormController {
   setEmoji: (emoji: string) => void
   setIntervalWeeks: (intervalWeeks: number) => void
   toggleDay: (day: string, daily?: boolean, selectedDays?: readonly string[]) => void
+  toggleMonthDay: (day: number, anchorDay: number, selectedMonthDays: readonly number[]) => void
   setQuantity: (quantity: number) => void
   setScheduleMode: (flexible: boolean) => void
   setSchedule: (unit: FrequencyUnit, quantity: number | null, flexible: boolean) => void
@@ -501,6 +504,12 @@ export function createHabitFormController({
       }
       if (applyHabitDayCorrection(lockedGeneral, target)) target.toggleDay(day, daily)
     },
+    toggleMonthDay: (day, anchorDay, selectedMonthDays): void => {
+      if (lockedGeneral === true) return
+      resolveSection('setup')
+      releaseOwnership('cadence')
+      target.setField('monthDays', toggleHabitMonthDay(selectedMonthDays, day, anchorDay))
+    },
     setQuantity: (quantity: number): void => {
       resolveSection('setup')
       releaseOwnership('cadence')
@@ -517,6 +526,7 @@ export function createHabitFormController({
       target.setField('frequencyUnit', schedule.unit)
       target.setField('frequencyQuantity', schedule.quantity)
       target.setField('days', schedule.days)
+      target.setField('monthDays', schedule.monthDays)
       target.setField('intervalWeeks', schedule.intervalWeeks)
     },
     setSchedule: (unit, quantity, flexible): void => {
@@ -608,6 +618,14 @@ export function applyHabitPhraseRead(
     target.setField('frequencyUnit', 'Week')
     target.setField('frequencyQuantity', read.frequencyQuantity!)
     target.setField('days', [])
+    return nextOwnership
+  }
+  if (read.cadence === 'monthly') {
+    target.setRecurring()
+    target.setField('frequencyUnit', 'Month')
+    target.setField('frequencyQuantity', 1)
+    target.setField('days', [])
+    target.setField('monthDays', read.monthDays)
     return nextOwnership
   }
 
@@ -716,6 +734,29 @@ export function buildHabitUnderstandingSentence(
   locale: string,
   translate: UnderstandingTranslator,
   intervalWeeks = 1,
+  monthDays: readonly number[] = [],
+): string | null {
+  const chosenMonthDays = !isFlexible && frequencyUnit === 'Month' && Number.isInteger(quantity) && quantity >= 1 && monthDays.length > 0
+  return chosenMonthDays
+    ? buildMonthDayUnderstandingSentence(monthDays, quantity, dueTime, translate)
+    : buildCadenceUnderstandingSentence(days, dayOptions, isFlexible, frequencyUnit, quantity, dueTime, locale, translate, intervalWeeks)
+}
+
+function buildMonthDayUnderstandingSentence(monthDays: readonly number[], quantity: number, dueTime: string, translate: UnderstandingTranslator): string {
+  const schedule = formatHabitMonthDaySchedule(monthDays, quantity, translate)
+  return dueTime ? translate('habits.form.understoodMonthDaysAt', { schedule, time: dueTime }) : schedule
+}
+
+function buildCadenceUnderstandingSentence(
+  days: string[],
+  dayOptions: { value: string; label: string }[],
+  isFlexible: boolean,
+  frequencyUnit: FrequencyUnit | null | undefined,
+  quantity: number,
+  dueTime: string,
+  locale: string,
+  translate: UnderstandingTranslator,
+  intervalWeeks: number,
 ): string | null {
   if ((isFlexible || frequencyUnit) && (!Number.isInteger(quantity) || quantity < 1)) return ''
   let key: string

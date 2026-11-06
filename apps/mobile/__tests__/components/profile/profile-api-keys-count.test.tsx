@@ -1,4 +1,4 @@
-import { chooseApiKeyCreation } from '@/__tests__/support/api-key-creation'
+import { chooseApiKeyCreation, revealApiKeyExpiry } from '@/__tests__/support/api-key-creation'
 import React from 'react'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { Pressable, StyleSheet, Text } from 'react-native'
@@ -96,6 +96,7 @@ it.each([
   let tree!: ReturnType<typeof TestRenderer.create>
   TestRenderer.act(() => { tree = TestRenderer.create(<ProfileApiKeys profile={{ hasProAccess: true } as Profile} unlocked />) })
   await chooseApiKeyCreation(tree, 'profile.apiKeys.createScoped')
+  revealApiKeyExpiry(tree)
   const expiryField = tree.root.findAllByType(Input).find((field: { props: { label: string } }) => field.props.label === 'orbitMcp.expiresAtLabel')!
   TestRenderer.act(() => expiryField.props.onChange(expiry))
   TestRenderer.act(() => tree.root.findAllByType(Input).find((field: { props: { label: string } }) => field.props.label === 'orbitMcp.keyName')!.props.onChange('Personal key'))
@@ -356,6 +357,7 @@ it.each([
     await chooseApiKeyCreation(returned, 'profile.apiKeys.create')
     await submitNamedKey(returned)
   }
+  revealApiKeyExpiry(returned)
   expect(returned.root.findByProps({ label: 'orbitMcp.expiresAtLabel' }).props.value).toBe('2099-12-31T23:59')
   expect(mocks.create).toHaveBeenLastCalledWith({ name: 'Personal key', isReadOnly: true, expiresAtUtc: '2099-12-31T23:59:00.000Z', ...(mode === 'scoped' ? { scopes: ['habits:read'] } : {}) }, expect.any(Function))
   TestRenderer.act(() => returned.unmount())
@@ -462,4 +464,58 @@ it('localizes Android key details and dates in Brazilian Portuguese', async () =
   expect(text).toContain('Expira em 5 de abr. de 2027')
   TestRenderer.act(() => tree.unmount())
   await i18n.changeLanguage('en')
+})
+
+function expiryQuestion(tree: ReturnType<typeof TestRenderer.create>) {
+  return tree.root.findAllByType(ListRow).find((row: { props: { title?: string } }) => row.props.title === 'profile.apiKeys.setExpiry')!
+}
+
+function expiryInputs(tree: ReturnType<typeof TestRenderer.create>) {
+  return tree.root.findAllByType(Input).filter((field: { props: { label: string } }) => field.props.label === 'orbitMcp.expiresAtLabel')
+}
+
+it('asks for expiry only after the expiry question and keeps a hidden draft', async () => {
+  mocks.create.mockClear()
+  mocks.create.mockResolvedValue(null)
+  const tree = renderUnlockedKeys()
+  await chooseApiKeyCreation(tree, 'profile.apiKeys.create')
+  expect(expiryQuestion(tree).props.expanded).toBe(false)
+  expect(expiryInputs(tree)).toHaveLength(0)
+  const controls = expiryQuestion(tree).props.controls
+  expect(controls).toEqual(expect.any(String))
+  TestRenderer.act(() => expiryQuestion(tree).props.onClick())
+  expect(expiryQuestion(tree).props.expanded).toBe(true)
+  const region = tree.root.findAll((node: { props: { nativeID?: string } }) => node.props.nativeID === controls)
+  expect(region.length).toBeGreaterThan(0)
+  expect(region[0]!.findAllByType(Input).map((field: { props: { label: string } }) => field.props.label)).toEqual(['orbitMcp.expiresAtLabel'])
+  TestRenderer.act(() => expiryInputs(tree)[0]!.props.onChange('2099-12-31T23:59'))
+  TestRenderer.act(() => expiryQuestion(tree).props.onClick())
+  expect(expiryInputs(tree)).toHaveLength(0)
+  TestRenderer.act(() => expiryQuestion(tree).props.onClick())
+  expect(expiryInputs(tree)[0]!.props.value).toBe('2099-12-31T23:59')
+  TestRenderer.act(() => expiryQuestion(tree).props.onClick())
+  await submitNamedKey(tree)
+  expect(mocks.create).toHaveBeenLastCalledWith({ name: 'Personal key', isReadOnly: false, expiresAtUtc: '2099-12-31T23:59:00.000Z' }, expect.any(Function))
+})
+
+it('reveals a hidden invalid expiry with its correction instead of creating the key', async () => {
+  mocks.create.mockClear()
+  const tree = renderUnlockedKeys()
+  await chooseApiKeyCreation(tree, 'profile.apiKeys.create')
+  TestRenderer.act(() => expiryQuestion(tree).props.onClick())
+  TestRenderer.act(() => expiryInputs(tree)[0]!.props.onChange('tomorrow'))
+  TestRenderer.act(() => expiryQuestion(tree).props.onClick())
+  await submitNamedKey(tree)
+  expect(expiryQuestion(tree).props.expanded).toBe(true)
+  expect(expiryInputs(tree)[0]!.props.error).toBe('orbitMcp.invalidExpiry')
+  expect(mocks.create).not.toHaveBeenCalled()
+})
+
+it('opens the expiry question already answered for a retained expiry draft', async () => {
+  bindStepUpStateToAccount('user-1')
+  retainApiKeyExpiryDraft('2099-12-31T23:59')
+  const tree = renderUnlockedKeys()
+  await chooseApiKeyCreation(tree, 'profile.apiKeys.create')
+  expect(expiryQuestion(tree).props.expanded).toBe(true)
+  expect(expiryInputs(tree)[0]!.props.value).toBe('2099-12-31T23:59')
 })

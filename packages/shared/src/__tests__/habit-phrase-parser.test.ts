@@ -70,7 +70,7 @@ it('preserves complete reads from the existing corpus across normalized variants
     `  ${input}  `, `🧘 ${input}`,
   ].map((variant) => ({ input: variant, locale, read: readHabitPhrase(variant, locale) })))
   expect(reads).toHaveLength(248)
-  expect(createHash('sha256').update(JSON.stringify(reads)).digest('hex')).toMatchInlineSnapshot(`"12555b713cff953f06d325d56678c7baf57ddf4f8fd362961a46be9f75a81292"`)
+  expect(createHash('sha256').update(JSON.stringify(reads)).digest('hex')).toMatchInlineSnapshot(`"b8a861bba12f2641c37058334ad6ae2e1c35745bdd99cffa26218b37161f5384"`)
 })
 
 it.each([

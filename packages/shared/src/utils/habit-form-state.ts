@@ -65,6 +65,7 @@ export function buildEmptyHabitFormValues(initialDate?: string | null): HabitFor
     frequencyQuantity: null,
     intervalWeeks: 1,
     days: [],
+    monthDays: [],
     isBadHabit: false,
     isGeneral: false,
     isFlexible: false,
@@ -152,6 +153,7 @@ export function buildParentHabitFormState(
       frequencyQuantity: parent.frequencyQuantity,
       intervalWeeks: parent.intervalWeeks ?? 1,
       days: [...parent.days],
+      monthDays: [...(parent.monthDays ?? [])],
       isBadHabit: parent.isBadHabit,
       isGeneral: parent.isGeneral,
       isFlexible: parent.isFlexible,
@@ -188,6 +190,7 @@ export function buildEditHabitFormState(
       frequencyQuantity: habit.frequencyQuantity,
       intervalWeeks: detail?.intervalWeeks ?? habit.intervalWeeks ?? 1,
       days: [...habit.days],
+      monthDays: [...(detail?.monthDays ?? habit.monthDays ?? [])],
       isBadHabit: habit.isBadHabit,
       isGeneral: habit.isGeneral,
       isFlexible: habit.isFlexible,
@@ -215,7 +218,7 @@ export function selectHabitGoal(goalIds: string[], goalId: string): string[] {
   return goalIds.includes(goalId) ? goalIds : [...goalIds, goalId]
 }
 
-const MODE_FIELDS = ['frequencyUnit', 'frequencyQuantity', 'intervalWeeks', 'days', 'isGeneral', 'isFlexible', 'dueDate', 'datePhrase', 'dateIssue', 'dueTime', 'dueEndTime', 'endDate', 'repeatReminder', 'reminderEnabled', 'scheduledReminders', 'isBadHabit', 'slipAlertEnabled'] as const
+const MODE_FIELDS = ['frequencyUnit', 'frequencyQuantity', 'intervalWeeks', 'days', 'monthDays', 'isGeneral', 'isFlexible', 'dueDate', 'datePhrase', 'dateIssue', 'dueTime', 'dueEndTime', 'endDate', 'repeatReminder', 'reminderEnabled', 'scheduledReminders', 'isBadHabit', 'slipAlertEnabled'] as const
 
 export class HabitModeDrafts {
   habitMode: 'recurring' | 'flexible' = 'recurring'

@@ -241,7 +241,7 @@ for (const width of [412, 1352]) {
         const consent = page.getByRole('dialog', { name: messages.marketingConsent.prompt.title })
         await consent.getByRole('button', { name: messages.common.close, exact: true }).click()
         await expect(consent).toHaveCount(0)
-        await page.getByRole('combobox', { name: messages.habits.search.title }).fill('Read')
+        await page.getByRole('combobox', { name: messages.habits.search.question }).fill('Read')
         const main = page.getByRole('main')
         const next = main.getByRole('button', { name: messages.habits.search.next, exact: true })
         const previous = main.getByRole('button', { name: messages.habits.search.previous, exact: true })

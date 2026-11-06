@@ -69,6 +69,7 @@ describe('Portuguese ICU zero plurals', () => {
   })).filter(({ elements }) => allMessageElements(elements).some(isPluralElement))
   const customZeroMessages = new Map([
     ['habits.count', 'nenhum hábito'],
+    ['chat.preview.summary.monthDays', 'No mesmo dia do início'],
     ['habits.deleteListConfirmMessage', 'name sai da sua lista. Você pode desfazer pela mensagem que aparece.'],
     ['habits.breakdown.createCount', 'nenhum hábito'],
     ['habits.breakdown.createdSuccess', 'nenhum hábito criado'],
@@ -537,6 +538,7 @@ describe('counted message grammar', () => {
       'calendar.recurrenceWeeklyDays', 'onboarding.flow.when.cadence.fixed',
       'onboarding.flow.when.cadence.fixedAt',
     ],
+    formattedMonthDays: ['habits.frequency.onMonthDays'],
     suppliedUnitOrUnitlessQuantity: [
       'chat.goalList.progress', 'goals.progressOf', 'goals.detail.progressUpdated',
       'goals.detail.historyProgress', 'progressScreen.goals.progress',

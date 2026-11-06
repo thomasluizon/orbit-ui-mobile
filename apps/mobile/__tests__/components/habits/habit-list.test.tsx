@@ -902,7 +902,7 @@ describe('HabitList', () => {
       expect(options.find((option) => option.id === id)?.disabled).toBe(true)
     expect(picker().props.movingHabitParentId).toBe(sourceId === 'source' ? null : 'current-parent')
     if (sourceId === 'nested-source') expect(options.find((option) => option.id === 'current-parent')?.disabled).toBe(true)
-    const input = tree!.root.findAll((node: { props: { label?: string; onChange?: unknown } }) => node.props.label === 'habits.moveParent.searchPlaceholder' && typeof node.props.onChange === 'function')[0]!
+    const input = tree!.root.findAll((node: { props: { label?: string; onChange?: unknown } }) => node.props.label === 'habits.moveParent.searchQuestion' && typeof node.props.onChange === 'function')[0]!
     TestRenderer.act(() => input.props.onChange('ACAO FUTURA'))
     const text = flattenRenderedText(tree!.toJSON())
     expect(text).toContain('General two')
@@ -1067,7 +1067,7 @@ describe('HabitList', () => {
     const picker = () => tree!.root.findByType(MoveParentDialog)
     await vi.waitFor(() => expect(picker().props.inventoryState).toBeUndefined())
     const search = () => tree!.root.findAll((node: { props: { label?: string; onChange?: unknown } }) =>
-      node.props.label === 'habits.moveParent.searchPlaceholder' && typeof node.props.onChange === 'function')[0]!
+      node.props.label === 'habits.moveParent.searchQuestion' && typeof node.props.onChange === 'function')[0]!
     TestRenderer.act(() => { search().props.onChange('Future page'); picker().props.onSelectOption('future') })
     TestRenderer.act(() => { pressConfirm(tree, 'habits.moveParent.confirm') })
     expect(onBulkMove).toHaveBeenCalledExactlyOnceWith(['source', 'past'], 'future')

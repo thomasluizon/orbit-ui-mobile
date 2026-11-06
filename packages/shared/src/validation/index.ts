@@ -24,6 +24,7 @@ export {
 export {
   habitFormSchema,
   habitFormSchemaForType,
+  hasHabitMonthDaySchedule,
   type HabitFormData,
   validateEndTime,
   validateTime,

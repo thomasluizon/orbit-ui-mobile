@@ -131,6 +131,7 @@ describe('habit-form-state', () => {
       frequencyQuantity: null,
       intervalWeeks: 1,
       days: [],
+      monthDays: [],
       isBadHabit: false,
       isGeneral: false,
       isFlexible: false,

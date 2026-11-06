@@ -6,7 +6,7 @@ import type {
   UpdateHabitRequest,
   RelativeReminderTime,
 } from '../types/habit'
-import type { HabitFormData } from '../validation'
+import { hasHabitMonthDaySchedule, type HabitFormData } from '../validation'
 
 export type { HabitFormData }
 
@@ -39,6 +39,7 @@ function applyScheduleFields(
     req.frequencyUnit = data.frequencyUnit
     req.frequencyQuantity = data.frequencyQuantity ?? undefined
     if (data.days.length) req.days = data.days
+    if (hasHabitMonthDaySchedule(data) && data.monthDays.length) req.monthDays = data.monthDays
   }
 }
 
@@ -153,6 +154,7 @@ function applyUpdateScheduleFields(
   request.frequencyQuantity = data.frequencyQuantity ?? undefined
   if (data.isFlexible || data.frequencyUnit) request.intervalWeeks = data.intervalWeeks ?? 1
   if (data.days.length) request.days = data.days
+  if (hasHabitMonthDaySchedule(data)) request.monthDays = data.monthDays
 }
 
 /**

@@ -57,7 +57,7 @@ function HabitSearch({ search, onCreateHabit }: Readonly<{ search: ReturnType<ty
     setInputModality('keyboard')
     setSelectedValue(value)
   }
-  return <Command shouldFilter={false} disablePointerSelection value={selectedValue} onValueChange={changeSelection} label={t('habits.search.title')} data-input-modality={inputModality} className="group/search flex flex-col gap-4">
+  return <Command shouldFilter={false} disablePointerSelection value={selectedValue} onValueChange={changeSelection} label={t('habits.search.question')} data-input-modality={inputModality} className="group/search flex flex-col gap-4">
     <CommandSearchField search={search.text} setSearch={search.changeText} activePageLabel={null} onBack={() => {}} searchMode />
     {hasQuery && <CommandList label={t('habits.search.title')} aria-busy={search.busy} className="px-4 py-2">
       {search.showLoading && <Searching />}

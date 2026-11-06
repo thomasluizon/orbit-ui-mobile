@@ -30,11 +30,12 @@ import {
   formatLocaleDate,
   isHabitDailySchedule,
   isHabitAstraLimitReached,
+  parseAPIDate,
   readTypedHabitPhrase,
   resolveSupportedLocale,
   shouldShowHabitAstraFallback,
 } from '@orbit/shared/utils'
-import { validateTagForm } from '@orbit/shared/validation'
+import { hasHabitMonthDaySchedule, validateTagForm } from '@orbit/shared/validation'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useHasProAccess, useProfile } from '@/hooks/use-profile'
 import { useCreateTag, useDeleteTag, useSuggestTags, useTags, useUpdateTag } from '@/hooks/use-tags'
@@ -53,6 +54,7 @@ import { ChecklistTemplates } from './checklist-templates'
 import { GoalLinkingField } from './goal-linking-field'
 import { HabitChecklist } from './habit-checklist'
 import { HabitScheduleFields } from './habit-form-fields/habit-schedule-fields'
+import { HabitMonthDaysField } from './habit-form-fields/habit-month-days-field'
 import { HabitUnderstanding, HabitRepeatInterval } from './habit-form-fields/habit-understanding'
 import { SlipAlertSection } from './habit-form-fields/slip-alert-section'
 import { TagEditorRow } from './habit-form-fields/tag-editor-row'
@@ -257,6 +259,9 @@ export function HabitFormFields({
   const watchedDays = watch('days')
   const days = useMemo(() => watchedDays ?? [], [watchedDays])
   const intervalWeeks = watch('intervalWeeks') ?? 1
+  const watchedMonthDays = watch('monthDays')
+  const monthDays = useMemo(() => watchedMonthDays ?? [], [watchedMonthDays])
+  const startDate = watch('dueDate') ?? ''
   const frequencyUnit = watch('frequencyUnit')
   const frequencyQuantity = watch('frequencyQuantity') ?? (frequencyUnit ? 0 : 3)
   const isFlexible = watch('isFlexible') ?? false
@@ -314,10 +319,12 @@ export function HabitFormFields({
   }, [dueTime, form, setValue])
 
   const sentence = useMemo(
-    () => buildHabitUnderstandingSentence(days, daysList, isFlexible, frequencyUnit, frequencyQuantity, dueTime, locale, translate, intervalWeeks),
-    [days, daysList, dueTime, frequencyQuantity, frequencyUnit, intervalWeeks, isFlexible, locale, translate],
+    () => buildHabitUnderstandingSentence(days, daysList, isFlexible, frequencyUnit, frequencyQuantity, dueTime, locale, translate, intervalWeeks,
+      hasHabitMonthDaySchedule({ frequencyUnit, isFlexible, isGeneral: formHelpers.isGeneral }) ? monthDays : []),
+    [days, daysList, dueTime, formHelpers.isGeneral, frequencyQuantity, frequencyUnit, intervalWeeks, isFlexible, locale, monthDays, translate],
   )
   const daily = isHabitDailySchedule(days, isFlexible, frequencyUnit, frequencyQuantity)
+  const monthDayAnchor = (startDate ? parseAPIDate(startDate) : new Date()).getDate()
   const allowance = profile?.aiMessagesLimit ?? 5
   const atMessageLimit = isHabitAstraLimitReached(profile?.aiMessagesUsed ?? 0, allowance)
   const understandingLabels = useMemo(() => buildHabitUnderstandingLabels(translate, itemType), [translate, itemType])
@@ -461,6 +468,15 @@ export function HabitFormFields({
               disabled={lockedGeneral === true}
               onModeChange={controller.setScheduleMode}
               onChange={controller.setSchedule}
+            />
+            <HabitMonthDaysField
+              visible={itemType !== 'task' && hasHabitMonthDaySchedule({ frequencyUnit, isFlexible, isGeneral: formHelpers.isGeneral })}
+              monthDays={monthDays}
+              anchorDay={monthDayAnchor}
+              quantity={frequencyQuantity}
+              proposed={proposal.setup}
+              disabled={lockedGeneral === true}
+              onToggle={(day) => controller.toggleMonthDay(day, monthDayAnchor, monthDays)}
             />
       </HabitUnderstanding>
       <HabitRepeatInterval visible={isFlexible || Boolean(frequencyUnit)} intervalWeeks={intervalWeeks} scheduleLocked={lockedGeneral === true} onIntervalWeeksChange={controller.setIntervalWeeks} labels={understandingLabels} />

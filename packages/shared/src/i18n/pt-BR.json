@@ -51,13 +51,14 @@
     "clock": {
       "title": "Relógio",
       "hour24": "24 horas",
-      "hour12": "12 horas"
+      "hour12": "12 horas",
+      "question": "Como você prefere ver as horas?"
     },
     "weekStartDay": {
-      "title": "Primeiro dia",
-      "description": "Escolha em que dia sua semana começa. Vale para os calendários e seletores.",
+      "description": "Vale para todos os calendários e seletores de data.",
       "monday": "Segunda-feira",
-      "sunday": "Domingo"
+      "sunday": "Domingo",
+      "question": "Em que dia começa a sua semana?"
     },
     "theme": {
       "switchToLight": "Modo claro",
@@ -472,7 +473,7 @@
     },
     "signIn": "Entrar",
     "enterCode": "Digite o código",
-    "email": "E-mail",
+    "email": "Qual é o seu e-mail?",
     "emailPlaceholder": "nome@exemplo.com",
     "sendCode": "Continuar",
     "turnstileLabel": "Verificação de segurança",
@@ -482,7 +483,7 @@
     "turnstileRetry": "Tentar novamente",
     "codeSent": "Código enviado.",
     "codeSentTo": "Enviamos um código de 6 dígitos para {email}.",
-    "verificationCode": "Código de 6 dígitos",
+    "verificationCode": "Qual código você recebeu?",
     "verify": "Entrar",
     "resendCode": "Reenviar código",
     "resendIn": "Você pode pedir outro código em {time}",
@@ -568,6 +569,7 @@
       "matchChild": "dentro de",
       "screenTitle": "Busca",
       "title": "Buscar hábitos",
+      "question": "O que você procura?",
       "searching": "Buscando",
       "emptyTitle": "Nada encontrado para <queryText>“{query}”</queryText>",
       "emptyBody": "Nenhum hábito com esse nome, essa descrição ou essa tag.",
@@ -615,8 +617,9 @@
       "title": "Mover hábito",
       "description": "Escolha onde colocar \"{name}\"",
       "toRoot": "Sem hábito principal (nível raiz)",
-      "destinations": "Destinos",
+      "destinations": "{count, plural, =0 {Para onde vão?} one {Para onde vai?} other {Para onde vão?}}",
       "searchPlaceholder": "Buscar hábitos",
+      "searchQuestion": "Qual hábito você procura?",
       "currentParent": "Atual",
       "confirm": "Mover",
       "noSearchResults": "Nenhum hábito corresponde à busca",
@@ -701,7 +704,10 @@
       "everyNMonths": "{n, plural, =0 {A cada # meses} one {A cada # mês} other {A cada # meses}}",
       "everyNYears": "{n, plural, =0 {A cada # anos} one {A cada # ano} other {A cada # anos}}",
       "flexibleLabel": "{n}x / {unit}",
-      "flexibleProgress": "{unit}: {done}/{target}"
+      "flexibleProgress": "{unit}: {done}/{target}",
+      "monthDay": "{day}",
+      "onMonthDays": "Todo dia {days}",
+      "everyNMonthsOnDays": "{n, plural, =0 {A cada # meses} one {A cada # mês} other {A cada # meses}}, {count, plural, =0 {nos dias {days}} one {no dia {days}} other {nos dias {days}}}"
     },
     "form": {
       "reminderKind": "Quando você quer um lembrete?",
@@ -713,6 +719,12 @@
       "repeatActiveStart": "Te aviso a partir de que horas?",
       "repeatActiveEnd": "Até que horas te aviso?",
       "repeatInvalid": "Escolha um intervalo e dois horários diferentes, ou permita lembretes o dia todo.",
+      "monthDaysQuestion": "Em quais dias do mês?",
+      "monthDaysShortMonth": "Em meses curtos, vale o último dia.",
+      "understoodMonthDaysAt": "{schedule} às {time}",
+      "monthDaysInvalid": "Escolha dias de 1 a 31.",
+      "monthDaysOnlyForMonthly": "Volte o intervalo semanal para 1.",
+      "monthDaysNeedMonthly": "Para escolher dias do mês, o hábito precisa se repetir todo mês, sem dias da semana e sem intervalo de semanas.",
       "parentHabit": "Hábito principal",
       "proRequired": "Isso faz parte do Orbit Pro.",
       "capacityTitle": "Limite de hábitos atingido",
@@ -1313,6 +1325,7 @@
       "swap": "Trocar",
       "addAll": "Adicionar todos",
       "prompt": "Ajustar este hábito...",
+      "promptQuestion": "O que você quer mudar?",
       "apply": "Aplicar",
       "existing": "Já existe",
       "current": "Atual",
@@ -1386,7 +1399,7 @@
     "choice": {
       "submit": "Enviar",
       "review": "Revisar",
-      "freeText": "Sua resposta",
+      "freeText": "Quer responder com suas palavras?",
       "answered": "Você escolheu {options}",
       "closed": "Essa pergunta foi encerrada.",
       "alreadyAnswered": "Essa pergunta já foi respondida.",
@@ -1410,6 +1423,7 @@
       "browse": "Ver ideias",
       "back": "Voltar à conversa",
       "search": "Buscar ideias",
+      "searchQuestion": "Qual ideia você procura?",
       "forYou": "Para você agora",
       "noMatches": "Nenhuma ideia para “{query}”.",
       "clearSearch": "Limpar busca",
@@ -1832,7 +1846,8 @@
       "markReadError": "Não foi possível marcar o aviso como lido. Tente de novo.",
       "moreError": "Não foi possível carregar mais registros. Tente de novo.",
       "more": "Mostrar mais",
-      "filter": "Filtrar lista",
+      "filter": "O que você procura?",
+      "filterAction": "Filtrar lista",
       "noMatches": "Nenhum registro carregado corresponde a “{query}”.",
       "clearFilter": "Limpar filtro"
     },
@@ -1981,6 +1996,7 @@
         "repeatInMonths": "Repetição em meses",
         "repeatInYears": "Repetição em anos",
         "repeatInterval": "Frequência: {count}",
+        "monthDays": "{count, plural, =0 {No mesmo dia do início} one {No dia {days}} other {Nos dias {days}}}",
         "clearDays": "Limpar os dias escolhidos",
         "removeDate": "Remover a data",
         "removeTime": "Remover a hora",
@@ -2100,6 +2116,7 @@
         "frequency_unit": "Unidade de frequência",
         "frequency_quantity": "Número da frequência",
         "interval_weeks": "Intervalo em semanas",
+        "month_days": "Dias do mês",
         "days": "Dias",
         "due_date": "Data prevista",
         "end_date": "Data de término",
@@ -2124,7 +2141,16 @@
         "interval_minutes": "Intervalo em minutos",
         "start_at_utc": "Primeiro lembrete",
         "items": "Itens",
-        "text": "Texto"
+        "text": "Texto",
+        "subject": "Sobre o que é",
+        "message": "O que aconteceu",
+        "scopes": "Escopo",
+        "expires_at_utc": "Expira em (UTC, opcional)",
+        "code": "Código de 6 dígitos",
+        "active_start": "A partir das",
+        "active_end": "Até as",
+        "relative_reminders": "Me lembrar",
+        "due_end_time": "Horário final"
       },
       "confirmTitle": "Aprovar esta mudança?",
       "confirm": "Aprovar",
@@ -2556,7 +2582,8 @@
       "create": "Criar chave",
       "createScoped": "Criar chave com escopo",
       "scopeTitle": "Chave com escopo",
-      "scopeLabel": "Escopo",
+      "scopeLabel": "O que ela pode acessar?",
+      "setExpiry": "Definir validade?",
       "scopeAction": "Criar",
       "mcpTitle": "Conectar por MCP",
       "stepUpBody": "Para mexer em chaves ou apagar a conta, entre de novo. O Orbit nunca pede a sua senha dentro de uma conversa.",
@@ -2568,7 +2595,8 @@
     "timezonePicker": {
       "search": "Buscar fusos horários",
       "noResults": "Nenhum fuso horário encontrado",
-      "showMore": "Mostrar mais fusos horários"
+      "showMore": "Mostrar mais fusos horários",
+      "question": "Em qual fuso horário você está?"
     },
     "loading": "Carregando perfil",
     "sections": {
@@ -2578,7 +2606,7 @@
     },
     "editName": {
       "title": "Editar nome",
-      "label": "Nome",
+      "label": "Como podemos te chamar?",
       "required": "Digite um nome.",
       "tooLong": "Use no máximo 50 caracteres.",
       "errorGeneric": "Algo deu errado. Tente de novo."
@@ -2586,7 +2614,7 @@
     "language": {
       "title": "Idioma",
       "brazilianPortuguese": "Português do Brasil",
-      "description": "Escolha seu idioma"
+      "question": "Qual idioma você prefere?"
     },
     "aiSummary": {
       "title": "Resumo diário"
@@ -2606,8 +2634,8 @@
       "rowTitle": "Ajuda e suporte",
       "description": "Conte o que aconteceu. Quanto mais concreto, mais rápido a gente resolve.",
       "email": "Resposta para",
-      "subject": "Sobre o que é",
-      "message": "O que aconteceu",
+      "subject": "Sobre o que é?",
+      "message": "O que aconteceu?",
       "messagePlaceholder": "Registrei a caminhada e ela voltou para pendente depois de fechar o app.",
       "send": "Enviar",
       "success": "A sua mensagem chegou",
@@ -2689,8 +2717,8 @@
       "preserveAccount": "Sua conta (e-mail e nome)",
       "preserveSubscription": "O status da assinatura Pro",
       "preservePreferences": "Tema, idioma e fuso horário",
-      "confirmInstruction": "Digite ORBIT abaixo para confirmar.",
-      "confirmLabel": "Confirmação",
+      "confirmInstruction": "Digite ORBIT para confirmar.",
+      "confirmLabel": "Quer mesmo começar do zero?",
       "confirmPlaceholder": "ORBIT",
       "errorGeneric": "Algo deu errado. Tente de novo."
     },
@@ -2753,6 +2781,7 @@
     "empty": "Registre alguns hábitos primeiro para criar um card que valha a pena compartilhar.",
     "error": "Não foi possível carregar seu resumo. Tente novamente.",
     "share": "Compartilhar",
+    "periodQuestion": "Qual período você quer compartilhar?",
     "download": "Baixar",
     "scanToJoin": "Escaneie para entrar no Orbit",
     "shareTitle": "Meu progresso no Orbit",
@@ -3000,7 +3029,7 @@
       "createFailed": "O hábito não foi criado. Verifique a conexão e tente de novo.",
       "what": {
         "title": "O que você quer transformar em hábito?",
-        "label": "Conte à Astra do seu jeito",
+        "label": "Como você contaria para a Astra?",
         "placeholder": "Caminhar toda segunda e quinta às 18:00",
         "marksLabel": "Palavras que o Orbit entendeu",
         "startersTitle": "Ideias para começar",
@@ -3015,7 +3044,7 @@
       },
       "when": {
         "astraRead": "Entendi assim. Se algo estiver errado, é só corrigir.",
-        "direct": "Escolha os dias e a hora.",
+        "direct": "Quando você quer fazer isso?",
         "proposedBy": "Proposto pela Astra",
         "emojiLabel": "Emoji proposto pela Astra",
         "correctSchedule": "Corrigir frequência",
@@ -3981,7 +4010,7 @@
     "eyebrow": "Confirmar: {operation}",
     "title": "Digite o código que enviamos",
     "body": "Enviamos um código de 6 dígitos para {email}. Ele vale só para esta ação.",
-    "codeLabel": "Código de 6 dígitos",
+    "codeLabel": "Qual código você recebeu?",
     "codeHint": "O código vale por 10 minutos.",
     "confirm": "Confirmar",
     "checking": "Conferindo",
@@ -4019,7 +4048,7 @@
     "createHeading": "Criar chave de API",
     "revealHeading": "Chave de API criada",
     "noKeys": "Nenhuma chave de API ainda",
-    "keyName": "Nome da chave",
+    "keyName": "Onde você vai usar a chave?",
     "keyNamePlaceholder": "ex: Claude Desktop",
     "keyNameRequired": "Dê um nome à chave",
     "keyNameMaxLength": "O nome da chave pode ter no máximo 50 caracteres",
@@ -4057,7 +4086,7 @@
     "permReadWrite": "Leitura e escrita",
     "expiresOn": "Expira em {date}",
     "readOnlyKeyLabel": "Chave somente leitura",
-    "expiresAtLabel": "Expira em (UTC, opcional)",
+    "expiresAtLabel": "Quando ela deve expirar? (UTC)",
     "expiryFormatExample": "2099-12-31T23:59",
     "invalidExpiry": "Informe uma data de expiração futura válida."
   },

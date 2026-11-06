@@ -76,7 +76,7 @@ Drawn references: [Astra conversation](canvas/Orbit%20Astra%20Conversation.dc.ht
 | [apps/mobile/components/chat/prompt-library.tsx:94](../apps/mobile/components/chat/prompt-library.tsx#L94) | `{t('chat.templates.more')}` | ChevronRight |
 | [apps/mobile/components/chat/read-block-frame.tsx:59](../apps/mobile/components/chat/read-block-frame.tsx#L59) | `{t('chat.recordList.more')}` | ChevronDown |
 | [apps/mobile/components/chat/read-block-frame.tsx:60](../apps/mobile/components/chat/read-block-frame.tsx#L60) | `{t('blockFrame.refresh')}` | RefreshCw |
-| [apps/mobile/components/chat/record-list-card.tsx:112](../apps/mobile/components/chat/record-list-card.tsx#L112) | `{t('chat.recordList.filter')}` | Filter |
+| [apps/mobile/components/chat/record-list-card.tsx:112](../apps/mobile/components/chat/record-list-card.tsx#L112) | `{t('chat.recordList.filterAction')}` | Filter |
 | [apps/mobile/components/chat/record-list-card.tsx:112](../apps/mobile/components/chat/record-list-card.tsx#L112) | `{t('chat.recordList.clearFilter')}` | X |
 | [apps/mobile/components/chat/record-list-card.tsx:113](../apps/mobile/components/chat/record-list-card.tsx#L113) | `{t('chat.recordList.more')}` | ChevronDown |
 | [apps/mobile/components/goals/create-goal-sheet.tsx:47](../apps/mobile/components/goals/create-goal-sheet.tsx#L47) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |

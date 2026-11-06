@@ -243,6 +243,16 @@ describe('FreshStartModal', () => {
     await press(buttonWithLabel(tree, 'profile.freshStart.reviewDeletion')!)
     const modal = tree.root.findAll((node) => node.type === 'Sheet')[0]!
     expect(modal.props.title).toBe('profile.freshStart.confirmHeading')
+    const visibleLabels = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'profile.freshStart.confirmLabel')
+    const visibleHints = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'profile.freshStart.confirmInstruction')
+    expect(visibleLabels).toHaveLength(1)
+    expect(visibleHints).toHaveLength(1)
+    for (const text of [...visibleLabels, ...visibleHints]) {
+      expect(text.props.importantForAccessibility).toBe('no-hide-descendants')
+      expect(text.props.accessibilityElementsHidden).toBe(true)
+    }
+    expect(input(tree).props.accessibilityLabel).toBe('profile.freshStart.confirmLabel')
+    expect(input(tree).props.accessibilityHint).toBe('profile.freshStart.confirmInstruction')
   })
 
   it('moves focus to the confirm field, never leaving it on the disabled Delete data', async () => {

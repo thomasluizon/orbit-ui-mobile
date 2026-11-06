@@ -805,6 +805,18 @@ export type { DestinationIconName } from './destination-icons'
 export { updateScrollToTopState, type ScrollToTopState } from './scroll-to-top'
 
 export { formatWeekdaySchedule } from './weekday-schedule'
+export {
+  HABIT_MONTH_DAY_OPTIONS,
+  MAX_HABIT_MONTH_DAY,
+  MIN_HABIT_MONTH_DAY,
+  formatHabitMonthDays,
+  formatHabitMonthDaySchedule,
+  isHabitMonthDay,
+  matchesHabitMonthDays,
+  normalizeHabitMonthDays,
+  resolveHabitMonthDaySelection,
+  toggleHabitMonthDay,
+} from './month-days'
 
 export { resolveHabitAccessibleStatus, buildHabitRowDateModel } from './habit-row-status'
 

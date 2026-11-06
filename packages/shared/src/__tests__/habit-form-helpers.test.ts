@@ -49,7 +49,7 @@ describe('habit form helpers', () => {
       setRecurring: () => { values.isFlexible = false },
       setField: (field, value) => { Object.assign(values, { [field]: value }) },
     } })
-    controller.setRecurrence({ unit: 'Week', quantity: 1, days: [], flexible: false, intervalWeeks: 1 })
+    controller.setRecurrence({ unit: 'Week', quantity: 1, days: [], flexible: false, intervalWeeks: 1, monthDays: [] })
     expect(values).toMatchObject({ title: 'Read', description: 'Retain this', dueDate: '2026-10-20', endDate: '2026-12-01', dueTime: '08:00' })
     if (lockedGeneral) {
       expect(values).toMatchObject({ frequencyUnit: 'Month', frequencyQuantity: 3, intervalWeeks: 4, days: ['Monday'], isFlexible: true })
@@ -93,7 +93,7 @@ describe('habit form helpers', () => {
     const values = normalizeHabitFormData({ title, emoji: '🌱' })
     const target = {
       setOneTime: vi.fn(), setRecurring: vi.fn(), setFlexible: vi.fn(), setGeneral: vi.fn(),
-      setField: (field: string, value: string | number | string[]) => { Object.assign(values, { [field]: value }) },
+      setField: (field: string, value: string | number | string[] | number[]) => { Object.assign(values, { [field]: value }) },
     }
     const read = readHabitPhrase(title, locale)
     applyHabitPhraseRead(true, read, false, { cadence: false, dueTime: false }, target)
@@ -276,11 +276,12 @@ describe('habit form helpers', () => {
 
   it('applies a time-only phrase as a one-time schedule', () => {
     const calls: string[] = []
-    const fields: Record<string, string | number | string[]> = {}
+    const fields: Record<string, string | number | string[] | number[]> = {}
 
     const ownership = applyHabitPhraseRead(true, {
       cadence: null,
       days: [],
+      monthDays: [],
       frequencyQuantity: null,
       intervalWeeks: null,
       dueTime: '15:00',
@@ -300,11 +301,12 @@ describe('habit form helpers', () => {
 
   it('preserves a locked General schedule during phrase application', () => {
     const calls: string[] = []
-    const fields: Record<string, string | number | string[]> = {}
+    const fields: Record<string, string | number | string[] | number[]> = {}
 
     const ownership = applyHabitPhraseRead(true, {
       cadence: 'fixed',
       days: ['Monday'],
+      monthDays: [],
       frequencyQuantity: null,
       intervalWeeks: null,
       dueTime: '08:00',
@@ -625,6 +627,7 @@ describe('habit form helpers', () => {
     controller.readPhrase(true, {
       cadence: null,
       days: [],
+      monthDays: [],
       frequencyQuantity: null,
       intervalWeeks: null,
       dueTime: '15:00',
@@ -745,6 +748,7 @@ describe('habit form helpers', () => {
     {
       cadence: 'daily' as const,
       days: [],
+      monthDays: [],
       frequencyQuantity: null,
       intervalWeeks: null,
       expectedMode: 'recurring',
@@ -758,6 +762,7 @@ describe('habit form helpers', () => {
     {
       cadence: 'fixed' as const,
       days: ['Wednesday', 'Thursday'],
+      monthDays: [],
       frequencyQuantity: null,
       intervalWeeks: 2,
       expectedMode: 'recurring',
@@ -771,6 +776,7 @@ describe('habit form helpers', () => {
     {
       cadence: 'flexible' as const,
       days: [],
+      monthDays: [],
       frequencyQuantity: 12,
       intervalWeeks: 3,
       expectedMode: 'flexible',
@@ -790,10 +796,11 @@ describe('habit form helpers', () => {
     expectedFields,
   }) => {
     const calls: string[] = []
-    const fields: Record<string, string | number | string[]> = {}
+    const fields: Record<string, string | number | string[] | number[]> = {}
     const ownership = applyHabitPhraseRead(true, {
       cadence,
       days,
+      monthDays: [],
       frequencyQuantity,
       intervalWeeks,
       dueTime: null,
@@ -816,7 +823,7 @@ describe('habit form helpers', () => {
     { phrase: 'Read 10 minutes every day at 21h', locale: 'en' as const, messages: en, sentence: 'every day at 21:00' },
   ])('keeps a daily phrase daily through the form, request, and understanding in $locale', ({ phrase, locale, messages, sentence }) => {
     const read = readHabitPhrase(phrase, locale)
-    const fields: Record<string, string | number | string[]> = {}
+    const fields: Record<string, string | number | string[] | number[]> = {}
     applyHabitPhraseRead(true, read, false, { cadence: false, dueTime: false }, {
       setOneTime: () => {},
       setRecurring: () => {},

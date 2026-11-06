@@ -78,6 +78,7 @@ for (const width of [412, 1280] as const) {
           await conversation.getByRole('button', { name: messages.common.closeConversation }).click()
           await expect(conversation).toBeHidden()
         }
+        if (surface === 'Suporte') await page.getByRole('radio', { name: messages.profile.support.subjects.problem.label, exact: true }).click()
         const target = surface === 'Hoje'
           ? await focusConversationComposer(page, width)
           : page.locator(targetSelector).first()
@@ -197,6 +198,7 @@ for (const width of [412, 1280] as const) {
       await expectOneFieldIndicator(page, search, 'div.relative', `search forced colors ${width}px`, { forcedColors: true, includeDescendants: true })
 
       await page.goto('/support')
+      await page.getByRole('radio', { name: messages.profile.support.subjects.problem.label, exact: true }).click()
       const message = page.locator('form textarea').first()
       await expectOneFieldIndicator(page, message, '[data-input-root]', `support forced colors ${width}px`, { forcedColors: true })
 

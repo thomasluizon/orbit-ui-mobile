@@ -7,7 +7,7 @@ import { PADDING, SPACING } from '@orbit/shared/theme'
 
 import { ActionRow } from '@/components/ui/action-row'
 
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useId, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
@@ -152,6 +152,9 @@ function CreateKeySheet({
   const [name, setName] = useAccountScopedState('')
   const [nameFocusRequest, setNameFocusRequest] = useAccountScopedState(0)
   const [expiryFocusRequest, setExpiryFocusRequest] = useAccountScopedState(0)
+  const [expiryExpanded, setExpiryExpanded] = useAccountScopedState<boolean | null>(null)
+  const showExpiry = expiryExpanded ?? expiresAt !== ''
+  const expiryRegionId = useId()
   const expiryError = expiryFocusRequest > 0 && !validateApiKeyExpiry(expiresAt).valid
   const nameError = nameFocusRequest > 0 ? getApiKeyNameError(name) : null
   const dismissGuard = useDismissGuard({
@@ -163,7 +166,10 @@ function CreateKeySheet({
     const form = apiKeyFormSchema.safeParse({ name, expiresAt })
     if (!form.success) {
       if (getApiKeyNameError(name)) setNameFocusRequest((request) => request + 1)
-      else setExpiryFocusRequest((request) => request + 1)
+      else {
+        setExpiryExpanded(true)
+        setExpiryFocusRequest((request) => request + 1)
+      }
       return
     }
     const trimmedScope = scope.trim()
@@ -189,7 +195,7 @@ function CreateKeySheet({
           </ActionRow>
         )}
       >
-        <div className="flex flex-col" style={{ gap: 16 }}>
+        <div data-api-key-questions className="flex min-w-0 flex-col" style={{ gap: 16 }}>
           <Input
             label={t('orbitMcp.keyName')}
             placeholder={t('orbitMcp.keyNamePlaceholder')}
@@ -204,20 +210,23 @@ function CreateKeySheet({
             focusRequest={nameFocusRequest}
             onSubmit={() => void submit()}
           />
-          <Input
-            label={t('orbitMcp.expiresAtLabel')}
-            name="api-key-expiry"
-            value={expiresAt}
-            onChange={onExpiryChange}
-            placeholder={t('common.never')}
-            hint={t('orbitMcp.expiryFormatExample')}
-            error={expiryError ? t('orbitMcp.invalidExpiry') : undefined}
-            focusRequest={expiryFocusRequest}
-            autoComplete="off"
-            mono
-            disabled={busy}
-            onSubmit={() => void submit()}
-          />
+          <div data-api-key-expiry-group className="flex min-w-0 flex-col" style={{ gap: 8 }}>
+            <div><ListRow wrapTitle placement="field" title={t('profile.apiKeys.setExpiry')} expanded={showExpiry} controls={expiryRegionId} disabled={busy} onClick={() => setExpiryExpanded(!showExpiry)} /></div>
+            <div id={expiryRegionId} hidden={!showExpiry}>{showExpiry ? <Input
+              label={t('orbitMcp.expiresAtLabel')}
+              name="api-key-expiry"
+              value={expiresAt}
+              onChange={onExpiryChange}
+              placeholder={t('common.never')}
+              hint={t('orbitMcp.expiryFormatExample')}
+              error={expiryError ? t('orbitMcp.invalidExpiry') : undefined}
+              focusRequest={expiryFocusRequest}
+              autoComplete="off"
+              mono
+              disabled={busy}
+              onSubmit={() => void submit()}
+            /> : null}</div>
+          </div>
           {scoped ? (
             <Input
               label={t('profile.apiKeys.scopeLabel')}

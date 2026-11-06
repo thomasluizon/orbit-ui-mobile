@@ -2714,3 +2714,75 @@ it('opens a saved native end date question and asks the More details questions o
     expect(tree!.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === `habits.form.${key}`)).toHaveLength(1)
   }
 })
+
+describe('the month-day question on Android', () => {
+  beforeEach(async () => {
+    formLocale.language = 'en'
+    mockProfileState.aiMessagesUsed = 0
+    const { useWatch } = await vi.importActual<typeof import('react-hook-form')>('react-hook-form')
+    useWatchMock.mockImplementation(useWatch)
+  })
+
+  async function renderOwningForm(initialData: Partial<import('@orbit/shared/validation').HabitFormData>) {
+    let helpers!: HabitFormHelpers
+    function OwningForm() {
+      helpers = useHabitForm({ initialData })
+      return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} readPhraseLocally />
+    }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(<OwningForm />) })
+    const questionRow = () => tree.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityLabel === 'habits.form.monthDaysQuestion')[0]
+    const day = (value: number) => tree.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === String(value))[0]!
+    const dayButtons = () => tree.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && /^\d+$/.test(String(node.props.accessibilityLabel)))
+    const radio = (label: string) => tree.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === `habits.form.${label}`)[0]!
+    return { tree, helpers: () => helpers, questionRow, day, dayButtons, radio }
+  }
+
+  it('saves monthDays [8, 15] from "todo dia 8 e dia 15 do mês"', async () => {
+    formLocale.language = 'pt-BR'
+    const view = await renderOwningForm({ itemType: 'habit', title: '', dueDate: '2026-11-05' })
+    await TestRenderer.act(() => view.tree.root.findByType(HabitUnderstanding).props.onValueChange('Pagar o cartão todo dia 8 e dia 15 do mês'))
+    expect(view.helpers().form.getValues()).toMatchObject({ frequencyUnit: 'Month', frequencyQuantity: 1, monthDays: [8, 15], days: [] })
+    expect(buildCreateHabitRequest(habitFormSchema.parse(view.helpers().form.getValues()), [], [], [], [])).toMatchObject({ frequencyUnit: 'Month', frequencyQuantity: 1, monthDays: [8, 15] })
+    expect(view.day(8).props.accessibilityState).toMatchObject({ selected: true })
+    expect(view.day(15).props.accessibilityState).toMatchObject({ selected: true })
+    expect(view.day(5).props.accessibilityState).toMatchObject({ selected: false })
+    await TestRenderer.act(() => view.tree.unmount())
+  })
+
+  it('asks the question only under a monthly fixed schedule and defaults to the start date day', async () => {
+    const view = await renderOwningForm({ itemType: 'habit', title: 'Pay rent', dueDate: '2026-09-02' })
+    await TestRenderer.act(() => view.tree.root.findAllByType(ListRow).find((node: { props: { title: string } }) => node.props.title === 'habits.form.moreDetails')!.props.onClick())
+    await TestRenderer.act(() => view.radio('every').props.onPress())
+    await TestRenderer.act(() => view.radio('unitWeek').props.onPress())
+    expect(view.questionRow()).toBeUndefined()
+    await TestRenderer.act(() => view.radio('unitMonth').props.onPress())
+    expect(view.dayButtons()).toHaveLength(31)
+    expect(view.day(2).props.accessibilityState).toMatchObject({ selected: true })
+    expect(buildCreateHabitRequest(habitFormSchema.parse(view.helpers().form.getValues()), [], [], [], [])).not.toHaveProperty('monthDays')
+
+    await TestRenderer.act(() => view.day(15).props.onPress())
+    expect(view.helpers().form.getValues('monthDays')).toEqual([2, 15])
+    expect(buildCreateHabitRequest(habitFormSchema.parse(view.helpers().form.getValues()), [], [], [], [])).toMatchObject({ frequencyUnit: 'Month', monthDays: [2, 15] })
+
+    await TestRenderer.act(() => view.day(31).props.onPress())
+    expect(view.tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && node.props.children === 'habits.form.monthDaysShortMonth')).toHaveLength(1)
+
+    await TestRenderer.act(() => view.radio('timesPerUnit').props.onPress())
+    expect(view.questionRow()).toBeUndefined()
+    expect(buildCreateHabitRequest(habitFormSchema.parse(view.helpers().form.getValues()), [], [], [], [])).not.toHaveProperty('monthDays')
+    await TestRenderer.act(() => view.tree.unmount())
+  })
+
+  it('edits stored month days and clears them back to the start date day', async () => {
+    const habit = createMockHabit({ frequencyUnit: 'Month', frequencyQuantity: 1, days: [], monthDays: [8, 15], startDate: '2026-11-08' })
+    const { buildEditHabitFormState } = await import('@orbit/shared/utils')
+    const view = await renderOwningForm(buildEditHabitFormState(habit).formValues)
+    expect(view.day(15).props.accessibilityState).toMatchObject({ selected: true })
+    await TestRenderer.act(() => view.day(15).props.onPress())
+    expect(view.helpers().form.getValues('monthDays')).toEqual([])
+    expect(view.day(8).props.accessibilityState).toMatchObject({ selected: true })
+    expect(buildUpdateHabitRequest(habitFormSchema.parse(view.helpers().form.getValues()), false, '', [], [])).toMatchObject({ frequencyUnit: 'Month', monthDays: [] })
+    await TestRenderer.act(() => view.tree.unmount())
+  })
+})

@@ -72,7 +72,7 @@ export function PromptLibrary(props: Readonly<PromptLibraryProps>) {
     <ShellContent style={{ flex: 1 }}>
     <KeyboardAwareScrollView avoidKeyboard={false} style={{ flexGrow: 0 }} containerStyle={{ flex: 0, flexShrink: 1 }} contentContainerStyle={styles.controls}>
       {props.disabledReason ? <CapacityNotice message={props.disabledReason} /> : null}
-      <Input kind="search" autoComplete="off" hideLabel label={t('chat.templates.search')} placeholder={t('chat.templates.search')} value={query} onChange={value => dispatch({ type: 'query', query: value })} />
+      <Input kind="search" autoComplete="off" hideLabel label={t('chat.templates.searchQuestion')} placeholder={t('chat.templates.search')} value={query} onChange={value => dispatch({ type: 'query', query: value })} />
       <ScrollView horizontal persistentScrollbar showsHorizontalScrollIndicator style={{ flexGrow: 0 }} testID="prompt-categories" contentContainerStyle={styles.categories} keyboardShouldPersistTaps="handled">
         {categories.map(item => <Chip key={item} active={item === activeCategory && !query.trim()} onPress={() => { dispatch({ type: 'category', category: item }) }}>{t(`chat.templates.categories.${item}`)}</Chip>)}
       </ScrollView>

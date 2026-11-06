@@ -73,7 +73,7 @@ it.each([600, 1100, 1352].flatMap((width) => ['today', 'all', 'general'].flatMap
     for (let activation = 0; activation < 2; activation++) {
       if (view !== 'today') fireEvent.click(screen.getByRole('radio', { name: view === 'all' ? 'habits.viewAll' : 'habits.viewGeneral' }))
       fireEvent.click(screen.getByRole('button', { name: 'habits.search.title' }))
-      fireEvent.change(screen.getByRole('textbox', { name: 'habits.search.title' }), { target: { value: 'needle' } })
+      fireEvent.change(screen.getByRole('textbox', { name: 'habits.search.question' }), { target: { value: 'needle' } })
       await act(async () => { await new Promise((resolve) => setTimeout(resolve, 310)) })
       fireEvent.click(screen.getByRole('button', { name: 'habits.listOptions' }))
       await act(async () => { await vi.dynamicImportSettled() })
@@ -93,7 +93,7 @@ it.each([600, 1100, 1352].flatMap((width) => ['today', 'all', 'general'].flatMap
       expect.soft(list).toHaveAttribute('data-date', expectedDate)
       expect.soft(list).toHaveAttribute('data-search', '')
       expect.soft(list).toHaveAttribute('data-completed', 'false')
-      expect.soft(screen.queryByRole('textbox', { name: 'habits.search.title' })).not.toBeInTheDocument()
+      expect.soft(screen.queryByRole('textbox', { name: 'habits.search.question' })).not.toBeInTheDocument()
       expect.soft(screen.queryByRole('menu')).not.toBeInTheDocument()
       expect.soft(useUIStore.getState().activeFilters).toEqual({})
       expect.soft(useUIStore.getState().isSelectMode).toBe(false)

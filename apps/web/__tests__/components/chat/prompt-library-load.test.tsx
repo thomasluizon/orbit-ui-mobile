@@ -121,7 +121,7 @@ it.each(['en', 'pt-BR'] as const)('keeps Back available through a retry and load
   expect(screen.getByRole('button', { name: messages.chat.templates.back })).toBeEnabled()
   expect(screen.getByRole('heading', { name: messages.chat.templates.title })).toBe(heading)
   await act(async () => { finishImport() })
-  expect(await screen.findByRole('searchbox', { name: messages.chat.templates.search })).toBeEnabled()
+  expect(await screen.findByRole('searchbox', { name: messages.chat.templates.searchQuestion })).toBeEnabled()
   expect(screen.queryByRole('alert')).toBeNull()
   await waitFor(() => expect(screen.getByRole('heading', { name: messages.chat.templates.title })).toHaveFocus())
 })
