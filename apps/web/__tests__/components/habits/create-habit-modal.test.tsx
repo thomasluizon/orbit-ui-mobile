@@ -1033,7 +1033,7 @@ describe('CreateHabitModal', () => {
       <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
     )
     expect(screen.getByRole('button', { name: 'habits.form.addSubHabit' })).toBeDefined()
-    expect(screen.queryByText('habits.form.subHabits')).toBeNull()
+    expect(screen.queryByText('habits.form.subHabitsQuestion')).toBeNull()
   })
 
   it('hides sub-habits section when in sub-habit mode', () => {
@@ -1045,7 +1045,7 @@ describe('CreateHabitModal', () => {
         parentHabit={parent}
       />,
     )
-    expect(screen.queryByText('habits.form.subHabits')).toBeNull()
+    expect(screen.queryByText('habits.form.subHabitsQuestion')).toBeNull()
     expect(screen.queryByText('habits.form.addSubHabit')).toBeNull()
   })
 

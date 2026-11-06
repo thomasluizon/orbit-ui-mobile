@@ -238,7 +238,9 @@ describe('canonical row geometry in Yoga', () => {
       const geometry = assertComposition(form.toJSON(), width, scale, 16)
       const leading = geometry.parts.filter((part) => part.slot === 'list-row-title')
       expect(leading.find((part) => part.left === 56)).toBeDefined()
-      expect(geometry.parts.filter((part) => part.slot === 'list-row-body').some((body) => body.left === 24)).toBe(true)
+      const bodies = geometry.parts.filter((part) => part.slot === 'list-row-body')
+      expect(bodies.some((body) => body.left === 32)).toBe(true)
+      expect(bodies.some((body) => body.left === 24)).toBe(false)
     } finally { await act(() => form.update(<></>)); queryClient.clear() }
     const habit = createMockHabit({ isBadHabit: true })
     const detail = await mount(<QueryClientProvider client={queryClient}><View style={{ paddingHorizontal: 16 }}><HabitDetailFields habit={habit} summary="Every day" /></View></QueryClientProvider>)

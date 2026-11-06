@@ -250,6 +250,10 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width)
       onSelectInterval={vi.fn()} onCheckout={vi.fn()} onRetry={vi.fn()} t={i18n.t.bind(i18n)} tokens={tokens} />
   let tree!: SegmentTree
   await TestRenderer.act(() => { tree = TestRenderer.create(<QueryClientProvider client={queryClient}>{element}</QueryClientProvider>) as typeof tree })
+  if (surface === 'goal') {
+    const answerTitle = tree.root.findAll((node) => node.props.accessibilityLabel === messages.goals.form.title && typeof node.props.onChangeText === 'function')[0]!.props.onChangeText as (value: string) => void
+    await TestRenderer.act(() => answerTitle('Read 12 books'))
+  }
   const { layout, labels, radios, groups } = await measureSegments(tree, width, fontScale)
   try {
     layout.calculateLayout(width, undefined, Yoga.DIRECTION_LTR)

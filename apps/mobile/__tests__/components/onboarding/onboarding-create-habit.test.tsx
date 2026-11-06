@@ -318,3 +318,22 @@ describe('OnboardingCreateHabit data', () => {
     expect(tree.root.findAll((node) => node.props.testID === 'segment-oneTime-selected-enabled')).not.toHaveLength(0)
   })
 })
+
+describe('native onboarding schedule questions', () => {
+  it.each([
+    { name: 'open', current: schedule, questions: ['scheduleMode', 'frequencyUnitLabel'] },
+    { name: 'fixed', current: everyThirdMonday, questions: ['scheduleMode', 'daysLabel'] },
+  ])('asks each $name schedule answer as its own 12px question group inside a 24px column', async ({ current, questions }) => {
+    await i18n.changeLanguage('en')
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(<OnboardingCreateHabit {...base} proposed={false} correcting schedule={current} />) })
+    const column = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'onboarding-questions')[0]!
+    expect(column.props.style).toMatchObject({ gap: 24 })
+    const groups = column.findAll((node) => typeof node.type === 'string' && (node.props.style as { gap?: number } | undefined)?.gap === 12)
+    for (const [index, key] of questions.entries()) {
+      expect(groups[index]!.props.style).toMatchObject({ gap: 12 })
+      expect(flattenText(groups[index]!.findAllByType(Text)[0]!)).toBe(i18n.t(`onboarding.flow.when.${key}`))
+    }
+    await TestRenderer.act(() => tree.unmount())
+  })
+})

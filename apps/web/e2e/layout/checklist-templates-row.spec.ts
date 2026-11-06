@@ -7,7 +7,7 @@ for (const width of [412, 1280] as const) {
   test.describe(`checklist templates row at ${width}px`, () => {
     test.use({ viewport: { width, height: 915 } })
 
-    test('keeps its hover fill rounded, aligned, and below the checklist input', async ({ page }) => {
+    test('keeps its hover fill rounded, on the field column edge, and below the checklist input', async ({ page }) => {
       await page.goto('/habits/new')
       const screen = page.locator('[data-habit-create-screen]')
       await expect(screen).toBeVisible()
@@ -41,9 +41,10 @@ for (const width of [412, 1280] as const) {
       const paint = await button.evaluate(readControlPaint)
       const fillBox = { x: paint.target.left, width: paint.target.right - paint.target.left }
       const contentBox = (await first.boundingBox())!
-      expect(contentBox.x).toBeCloseTo(inputBlockBox.x, 1)
-      expect(fillBox.x).toBeCloseTo(inputBlockBox.x - 16, 1)
-      expect(fillBox.x + fillBox.width).toBeCloseTo(inputBlockBox.x + inputBlockBox.width + 16, 1)
+      await expect(row).toHaveClass(/orbit-list-row-field/)
+      expect(contentBox.x).toBeCloseTo(inputBlockBox.x + 8, 1)
+      expect(fillBox.x).toBeCloseTo(inputBlockBox.x, 1)
+      expect(fillBox.x + fillBox.width).toBeCloseTo(inputBlockBox.x + inputBlockBox.width, 1)
       await expect(fill).toHaveCSS('padding-block', '12px')
       await expect.poll(() => fill.evaluate((element) => getComputedStyle(element).backgroundColor))
         .not.toBe('rgba(0, 0, 0, 0)')
