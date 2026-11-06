@@ -29,8 +29,10 @@ export function AstraButton({ hasFab, chrome, onClearanceChange }: Readonly<{ ha
   const tokens = createTokensV2(currentScheme, currentTheme)
   const reducedMotion = usePrefersReducedMotion()
   const sideInsets = useShellSideInsets()
-  const [viewport, setViewport] = useState<AstraButtonArea>({ width: 0, height: 0 })
-  const area = resolveAstraButtonArea({ top: 0, bottom: viewport.height, width: viewport.width }, [viewport.height - chrome.floorInset])
+  const [viewport, setViewport] = useState({ width: 0, height: 0 })
+  const columnStart = (viewport.width - Math.min(viewport.width, SHELL_CONTENT_MAX_WIDTH)) / 2
+  const area = resolveAstraButtonArea({ top: 0, bottom: viewport.height, width: viewport.width }, [viewport.height - chrome.floorInset],
+    { start: columnStart, end: viewport.width - columnStart })
   const pageBottom = viewport.height - chrome.pageInset
   const [saved, setSaved] = useState<AstraButtonPoint | null>(null)
   const [dragged, setDragged] = useState<AstraButtonPoint | null>(null)
@@ -39,7 +41,7 @@ export function AstraButton({ hasFab, chrome, onClearanceChange }: Readonly<{ ha
   const openConversation = useUIStore(state => state.setAstraConversationOpen)
   const blocked = useUIStore(state => state.showCreateModal || state.isSelectMode || state.openOverlayIds.length > 0 || state.astraConversationOpen)
   const obstacles = [
-    ...(hasFab ? [{ x: (area.width + Math.min(area.width, SHELL_CONTENT_MAX_WIDTH)) / 2 - 76, y: pageBottom - 76, width: 60, height: 60 }] : []),
+    ...(hasFab ? [{ x: area.column.end - ASTRA_BUTTON_SIZE - ASTRA_BUTTON_GAP, y: pageBottom - 76, width: 60, height: 60 }] : []),
     ...(chrome.scrollToTopHeight ? [{ x: 0, y: chrome.scrollToTopTop, width: area.width, height: chrome.scrollToTopHeight }] : []),
   ]
   const position = dragged ?? snapAstraButton(saved, area, obstacles)

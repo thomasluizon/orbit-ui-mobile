@@ -89,7 +89,7 @@ function measureAstraBounds() {
   const rect = (selector: string) => document.querySelector(selector)!.getBoundingClientRect()
   const button = rect('[data-astra-button]')
   return { top: button.top, bottom: button.bottom, left: button.left, right: button.right, scrollerTop: rect('[data-shell-scroller]').top,
-    headerTop: rect('[data-shell-header]').top, tabsTop: rect('[data-shell-tab-bar]').top, conversations: document.querySelectorAll('[data-shell-conversation]').length }
+    headerTop: rect('[data-shell-header]').top, tabsTop: rect('[data-shell-tab-bar]').top, contentLeft: rect('[data-shell-page-content]').left, conversations: document.querySelectorAll('[data-shell-conversation]').length }
 }
 
 it.each([412, 840])('drags over the whole compact screen and never onto the tab bar at %ipx', async width => {
@@ -100,14 +100,14 @@ it.each([412, 840])('drags over the whole compact screen and never onto the tab 
     await dragAstraButton(page, 0, 0)
     const top = await page.evaluate(measureAstraBounds)
     expect(top.top, JSON.stringify(top)).toBe(16)
-    expect(top.left).toBe(16)
+    expect(top.left).toBe(top.contentLeft + 16)
     expect(top.top).toBeLessThan(top.scrollerTop)
     expect(top.bottom).toBeGreaterThan(top.headerTop)
     expect(top.conversations).toBe(0)
     await dragAstraButton(page, 0, 915)
     const bottom = await page.evaluate(measureAstraBounds)
     expect(bottom.tabsTop - bottom.bottom, JSON.stringify(bottom)).toBe(16)
-    expect(bottom.left).toBe(16)
+    expect(bottom.left).toBe(bottom.contentLeft + 16)
     expect(bottom.conversations).toBe(0)
     await control.click()
     expect(await page.locator('[data-shell-conversation]').count()).toBe(1)
@@ -140,6 +140,49 @@ it('keeps clear of the tab bar at every scroll offset of a short landscape windo
     expect(top.conversations).toBe(0)
     await page.locator('[data-astra-button]').click()
     expect(await page.locator('[data-shell-conversation]').count()).toBe(1)
+  } finally { await page.close() }
+})
+
+it.each([412, 600, 740, 840, 1000])('rests on the create FAB trailing edge and snaps to the content column edges at %ipx', async width => {
+  const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
+  try {
+    await mountAstraEntry(page)
+    const edges = () => page.evaluate(() => {
+      const rect = (selector: string) => document.querySelector(selector)!.getBoundingClientRect()
+      return { button: rect('[data-astra-button]'), fab: rect('[data-shell-fab] button'), column: rect('[data-shell-column]'), content: rect('[data-shell-page-content]') }
+    })
+    const resting = await edges()
+    expect(resting.button.right, JSON.stringify(resting)).toBe(resting.fab.right)
+    expect(resting.button.bottom + 24).toBeLessThanOrEqual(resting.fab.top)
+    expect(resting.button.right).toBeLessThanOrEqual(resting.column.right)
+    await dragAstraButton(page, width, 300, false)
+    expect((await edges()).button.right).toBe(width - 16)
+    await page.mouse.up()
+    await settleFrames(page)
+    expect((await edges()).button.right).toBe(resting.fab.right)
+    await dragAstraButton(page, 0, 300)
+    const leading = await edges()
+    expect(leading.button.left).toBe(leading.content.left + 16)
+    expect(leading.button.left).toBeGreaterThanOrEqual(leading.column.left)
+    expect(await page.locator('[data-shell-conversation]').count()).toBe(0)
+  } finally { await page.close() }
+})
+
+it.each([[740, 360], [915, 412], [840, 900]])('leaves the tab bar in view after every column control scrolls into view at %ix%i', async (width, height) => {
+  const page = await browser.newPage({ viewport: { width, height }, reducedMotion: 'reduce' })
+  try {
+    await mountAstraEntry(page)
+    const geometry = await page.evaluate(() => {
+      const column = document.querySelector('[data-shell-column]')!
+      const controls = [...column.querySelectorAll<HTMLElement>('button')].filter(control => control.getBoundingClientRect().width > 1)
+      for (const control of controls) control.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' })
+      const button = document.querySelector('[data-astra-button]')!.getBoundingClientRect()
+      return { controls: controls.map(control => control.textContent || control.getAttribute('aria-label')), tabsBottom: document.querySelector('[data-shell-bottom]')!.getBoundingClientRect().bottom,
+        buttonRight: button.right, columnRight: column.getBoundingClientRect().right }
+    })
+    expect(geometry.controls).toContain('shell.astraButton.open')
+    expect(geometry.tabsBottom, JSON.stringify(geometry)).toBeLessThanOrEqual(height)
+    expect(geometry.buttonRight).toBeLessThanOrEqual(geometry.columnRight)
   } finally { await page.close() }
 })
 

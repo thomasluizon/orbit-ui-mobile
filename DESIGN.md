@@ -224,16 +224,19 @@ The button floats over content, so it does not use the canvas occlusion ring of 
 It uses the lifted-surface treatment: an inset 1px `--hairline-strong` ring, sh-2 at rest and
 sh-3 while a drag holds it. A drag also removes the press scale. There is no glow, no gradient
 and no hue in the shadow.
-It starts at the trailing edge, 24px above the create FAB. Its drag and snap area is the whole
+It starts on the create FAB's trailing edge, 24px above the create FAB. Its drag area is the whole
 compact viewport, from the top safe area down to the top edge of the tab bar. It moves over the
 Hoje header and date row, and it never covers the tab bar. A visible notice or selection slot
 raises that floor to the top of the slot. In a window shorter than the destination minimum, the
 button scrolls with the header and the tab bar, so the floor gap holds at every scroll offset.
-Wide web mounts no floating button and keeps the
+On web, keyboard focus reaches it after the page and before the tab bar, and it stacks above the
+bottom chrome. Wide web mounts no floating button and keeps the
 sidebar row. Habit detail retains its mark-only composer entry.
 
 A tap opens the existing conversation layer. A movement of at least 8px becomes a drag and
-never opens it. Release snaps to the nearer inline edge with 16px margins and 24px clearance from
+never opens it. A drag reaches 16px from the screen edges. Release snaps to the nearer inline edge
+of the centred content column, capped at 740, with 16px margins. That is the create FAB's edge, so the
+button never rests outside the column on a wide compact screen. Release keeps 24px clearance from
 the create FAB and the measured back-to-top pill. The lowest position keeps 16px between the
 button and the floor. Position is a device preference, retained across
 launches; an outgrown position resets to the default when the viewport shrinks. Layout changes

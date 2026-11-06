@@ -86,7 +86,7 @@ export async function compileComposerGeometry() {
         const open = useUIStore(state => state.astraConversationOpen);
         return React.createElement(ShellWide, { items: [], activeId: 'hoje', navLabel: 'Navigation', astraRow: { label: 'Astra', onOpen: () => useUIStore.getState().setAstraConversationOpen(true) },
           header: React.createElement('div', { style: { minHeight: 112 } }, 'Today'),
-          tabBar: React.createElement('nav', { style: { minHeight: 80 } }, 'Tabs'),
+          tabBar: React.createElement('nav', { style: { minHeight: 80 } }, React.createElement('button', { 'data-probe-tab': '', style: { minHeight: 48 } }, 'Tabs')),
           notice: props.notice ? React.createElement('div', { 'data-probe-notice': '', style: { minHeight: 56 } }, props.notice) : undefined,
           fab: open ? undefined : React.createElement('button', { style: { width: 60, height: 60 } }, 'Create'),
           astraButton: React.createElement(AstraButton), conversationOpen: open, conversationLabel: 'Astra',

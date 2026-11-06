@@ -36,7 +36,7 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 function mount(messages = en) {
-  return render(<NextIntlClientProvider locale={messages === en ? 'en' : 'pt-BR'} messages={messages}><div><div data-shell-page="" /><div data-shell-tab-bar="" /><AstraButton /></div></NextIntlClientProvider>)
+  return render(<NextIntlClientProvider locale={messages === en ? 'en' : 'pt-BR'} messages={messages}><div><div data-shell-page=""><div data-shell-page-content="" /></div><div data-shell-tab-bar="" /><AstraButton /></div></NextIntlClientProvider>)
 }
 function placement() { return document.querySelector<HTMLElement>('[data-astra-button-position]')! }
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useId, useRef, useState, type PointerEvent } from 'react'
 import { useTranslations } from 'next-intl'
-import { TAB_BAR_MIN_HEIGHT } from '@orbit/shared/theme'
+import { SHELL_CONTENT_MAX_WIDTH, TAB_BAR_MIN_HEIGHT } from '@orbit/shared/theme'
 import { ASTRA_BUTTON_SIZE, ASTRA_BUTTON_GAP, ASTRA_BUTTON_CLEARANCE, ASTRA_DRAG_THRESHOLD, ASTRA_POSITION_KEY, clampAstraButton, getAstraButtonClearance, moveAstraButton, parseAstraButtonPosition, resolveAstraButtonArea, snapAstraButton, type AstraButtonArea, type AstraButtonObstacle, type AstraButtonPoint, type AstraMoveDirection } from '@orbit/shared/utils'
 import { Fab } from '@/components/ui/fab'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
@@ -26,7 +26,8 @@ function measurePlacement(host: HTMLDivElement, shell: HTMLElement): AstraPlacem
     return rect.width && rect.height ? [{ x: rect.left - bounds.left, y: rect.top - bounds.top, width: rect.width, height: rect.height }] : []
   })
   const page = shell.querySelector('[data-shell-page]')!.getBoundingClientRect()
-  return { area: resolveAstraButtonArea(bounds, floors), obstacles, pageBottom: page.bottom - bounds.top }
+  const column = shell.querySelector('[data-shell-page-content]')!.getBoundingClientRect()
+  return { area: resolveAstraButtonArea(bounds, floors, { start: column.left - bounds.left, end: column.right - bounds.left }), obstacles, pageBottom: page.bottom - bounds.top }
 }
 
 function observePlacement(host: HTMLDivElement, shell: HTMLElement, update: () => void) {
@@ -106,7 +107,7 @@ export function AstraButton() {
   const descriptionId = useId()
   const hostRef = useRef<HTMLDivElement>(null)
   const savedPosition = useRef<AstraButtonPoint | null>(null)
-  const [placement, setPlacement] = useState<AstraPlacement>({ area: { width: 0, height: 0 }, obstacles: [], pageBottom: 0 })
+  const [placement, setPlacement] = useState<AstraPlacement>({ area: { width: 0, height: 0, column: { start: 0, end: 0 } }, obstacles: [], pageBottom: 0 })
   const [saved, setSaved] = useState<AstraButtonPoint | null>(null)
   const [dragged, setDragged] = useState<AstraButtonPoint | null>(null)
   const [snapping, setSnapping] = useState(false)
@@ -159,9 +160,9 @@ export function AstraButton() {
   }
   const gesture = useAstraGesture(position, placement.area, hostRef, point => { setSnapping(false); setDragged(point) }, finish, () => setMoving(true))
   const move = (direction: AstraMoveDirection) => { if (position) finish(moveAstraButton(position, direction, placement.area)) }
-  return <div ref={hostRef} data-astra-button-area="" className="pointer-events-none absolute bottom-0 left-[var(--safe-left)] right-[var(--safe-right)] top-0 z-sticky lg:hidden">
+  return <div ref={hostRef} data-astra-button-area="" className="pointer-events-none absolute bottom-0 left-[var(--safe-left)] right-[var(--safe-right)] top-0 z-modal-backdrop lg:hidden">
     <div hidden={blocked || !position && placement.area.width > 0} data-astra-button-position="" className="pointer-events-auto absolute motion-safe:transition-transform motion-safe:duration-[var(--duration-normal)] ease-[var(--ease-out)]"
-      style={{ ...(position ? { left: 0, top: 0, transform: `translate(${position.x}px, ${position.y}px)` } : { right: ASTRA_BUTTON_GAP, bottom: `calc(var(--safe-bottom) + max(var(--orbit-space-64), calc(1.5rem + var(--orbit-space-32))) + ${TAB_BAR_MIN_HEIGHT + ASTRA_BUTTON_SIZE + ASTRA_BUTTON_GAP + ASTRA_BUTTON_CLEARANCE}px)` }), transitionDuration: dragged || !snapping ? '0ms' : undefined, width: ASTRA_BUTTON_SIZE, height: ASTRA_BUTTON_SIZE }}>
+      style={{ ...(position ? { left: 0, top: 0, transform: `translate(${position.x}px, ${position.y}px)` } : { right: `max(${ASTRA_BUTTON_GAP}px, calc((100% - ${SHELL_CONTENT_MAX_WIDTH}px) / 2 + ${ASTRA_BUTTON_GAP}px))`, bottom: `calc(var(--safe-bottom) + max(var(--orbit-space-64), calc(1.5rem + var(--orbit-space-32))) + ${TAB_BAR_MIN_HEIGHT + ASTRA_BUTTON_SIZE + ASTRA_BUTTON_GAP + ASTRA_BUTTON_CLEARANCE}px)` }), transitionDuration: dragged || !snapping ? '0ms' : undefined, width: ASTRA_BUTTON_SIZE, height: ASTRA_BUTTON_SIZE }}>
       <Fab neutral lifted={dragged !== null} label={t('shell.astraButton.open')} data-astra-button="" aria-describedby={descriptionId} title={t('shell.astraButton.keyboardHint')} style={{ touchAction: 'none' }} {...gesture}
         onKeyDown={event => {
           const directions: Record<string, AstraMoveDirection> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' }

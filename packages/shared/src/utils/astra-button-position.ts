@@ -5,13 +5,19 @@ export const ASTRA_DRAG_THRESHOLD = 8
 export const ASTRA_POSITION_KEY = 'orbit-astra-button-position'
 
 export interface AstraButtonPoint { x: number; y: number }
-export interface AstraButtonArea { width: number; height: number }
-export interface AstraButtonObstacle extends AstraButtonPoint, AstraButtonArea {}
+export interface AstraButtonColumn { start: number; end: number }
+export interface AstraButtonArea { width: number; height: number; column: AstraButtonColumn }
+export interface AstraButtonObstacle extends AstraButtonPoint { width: number; height: number }
 export type AstraMoveDirection = 'left' | 'right' | 'up' | 'down'
 export interface AstraButtonViewport { top: number; bottom: number; width: number }
 
-export function resolveAstraButtonArea(viewport: AstraButtonViewport, floors: readonly number[]): AstraButtonArea {
-  return { width: viewport.width, height: Math.max(0, Math.min(viewport.bottom, ...floors) - viewport.top) }
+export function resolveAstraButtonArea(viewport: AstraButtonViewport, floors: readonly number[], column: AstraButtonColumn): AstraButtonArea {
+  return { width: viewport.width, height: Math.max(0, Math.min(viewport.bottom, ...floors) - viewport.top), column }
+}
+
+function snapEdges(area: AstraButtonArea): [number, number] {
+  return [clampAstraButton({ x: area.column.start + ASTRA_BUTTON_GAP, y: 0 }, area).x,
+    clampAstraButton({ x: area.column.end - ASTRA_BUTTON_SIZE - ASTRA_BUTTON_GAP, y: 0 }, area).x]
 }
 
 export function getAstraButtonClearance(position: AstraButtonPoint | null, pageBottom: number): number {
@@ -44,10 +50,11 @@ function overlaps(point: AstraButtonPoint, obstacle: AstraButtonObstacle) {
 export function snapAstraButton(requested: AstraButtonPoint | null, area: AstraButtonArea, obstacles: readonly AstraButtonObstacle[]): AstraButtonPoint | null {
   if (area.width < ASTRA_BUTTON_SIZE + 2 * ASTRA_BUTTON_GAP || area.height < ASTRA_BUTTON_SIZE + 2 * ASTRA_BUTTON_GAP) return null
   const maximum = clampAstraButton({ x: area.width, y: area.height }, area)
+  const edges = snapEdges(area)
   const fits = requested && requested.x <= maximum.x && requested.y <= maximum.y
-  const point = fits ? clampAstraButton(requested, area) : { x: maximum.x, y: maximum.y - ASTRA_BUTTON_SIZE - ASTRA_BUTTON_CLEARANCE }
+  const point = fits ? clampAstraButton(requested, area) : { x: edges[1], y: maximum.y - ASTRA_BUTTON_SIZE - ASTRA_BUTTON_CLEARANCE }
   const heights = [point.y, ASTRA_BUTTON_GAP, maximum.y, ...obstacles.flatMap(obstacle => [obstacle.y - ASTRA_BUTTON_SIZE - ASTRA_BUTTON_CLEARANCE, obstacle.y + obstacle.height + ASTRA_BUTTON_CLEARANCE])]
-  const candidates = [ASTRA_BUTTON_GAP, maximum.x].flatMap(x => heights.map(y => clampAstraButton({ x, y }, area)))
+  const candidates = edges.flatMap(x => heights.map(y => clampAstraButton({ x, y }, area)))
     .filter(candidate => !obstacles.some(obstacle => overlaps(candidate, obstacle)))
   candidates.sort((first, second) => Math.abs(first.x - point.x) - Math.abs(second.x - point.x) || Math.abs(first.y - point.y) - Math.abs(second.y - point.y))
   return candidates[0] ?? null
@@ -55,6 +62,7 @@ export function snapAstraButton(requested: AstraButtonPoint | null, area: AstraB
 
 export function moveAstraButton(point: AstraButtonPoint, direction: AstraMoveDirection, area: AstraButtonArea): AstraButtonPoint {
   const step = ASTRA_BUTTON_SIZE + ASTRA_BUTTON_GAP
-  return clampAstraButton({ x: direction === 'left' ? ASTRA_BUTTON_GAP : direction === 'right' ? area.width : point.x,
+  const [leading, trailing] = snapEdges(area)
+  return clampAstraButton({ x: direction === 'left' ? leading : direction === 'right' ? trailing : point.x,
     y: point.y + (direction === 'up' ? -step : direction === 'down' ? step : 0) }, area)
 }

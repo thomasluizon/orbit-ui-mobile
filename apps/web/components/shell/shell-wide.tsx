@@ -467,9 +467,9 @@ function ShellWideBackground({
               </div>
             ) : null}
           </div>
+          {props.astraButton}
           <ShellBottomChrome props={props} conversationOpen={conversationOpen} visible={hasBottomChrome} />
           <div data-shell-create-refusal="" aria-live="polite" aria-atomic="true" className="min-h-0 overflow-y-auto px-4">{sidebarRefusal}</div>
-          {props.astraButton}
           </div>
           </ShellDestinationViewport>
           {conversationOpen ? <ShellConversation conversationId={conversationId} label={props.conversationLabel} wide={wide}>{props.conversation}</ShellConversation> : null}

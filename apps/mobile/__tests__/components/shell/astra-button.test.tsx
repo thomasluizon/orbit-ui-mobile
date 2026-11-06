@@ -72,6 +72,30 @@ it('captures a drag after the threshold, snaps and restores the position across 
   expect(point()).toEqual({ x: 16, y: 220 })
 })
 
+it('rests on the create FAB trailing edge and snaps to the content column on a wide compact screen', async () => {
+  await mount()
+  await layout(900, 600)
+  expect(point()).toEqual({ x: 744, y: 440 })
+  const start = point()
+  await act(() => {
+    handler('astra-button-position', 'onStartShouldSetResponderCapture')(touch(start.x + 30, start.y + 30))
+    handler('astra-button-position', 'onResponderGrant')(touch(start.x + 30, start.y + 30))
+  })
+  await act(() => { handler('astra-button-position', 'onResponderMove')(touch(2000, 230)) })
+  expect(point()).toEqual({ x: 824, y: 200 })
+  await act(() => { handler('astra-button-position', 'onResponderRelease')(touch(2000, 230)) })
+  expect(point()).toEqual({ x: 744, y: 200 })
+  await act(() => {
+    handler('astra-button-position', 'onStartShouldSetResponderCapture')(touch(774, 230))
+    handler('astra-button-position', 'onResponderGrant')(touch(774, 230))
+  })
+  await act(() => { handler('astra-button-position', 'onResponderRelease')(touch(0, 230)) })
+  expect(point()).toEqual({ x: 96, y: 200 })
+  await act(() => { handler('astra-button', 'onAccessibilityAction')({ nativeEvent: { actionName: 'right' } }) })
+  expect(point()).toEqual({ x: 744, y: 200 })
+  expect(useUIStore.getState().astraConversationOpen).toBe(false)
+})
+
 it.each(['left', 'right', 'up', 'down'])('exposes and executes TalkBack Move %s', async direction => {
   await mount()
   const control = host('astra-button')
