@@ -198,11 +198,18 @@ fn navigate_main(
         sign_in();
         return false;
     }
-    if url.origin() == origin.origin() {
+    if url.origin() == origin.origin() || is_embedded_frame(url) {
         return true;
     }
     open_new_window(url.clone(), open);
     false
+}
+
+// WKWebView reports subframe loads to on_navigation without a frame flag (#2050), so the web CSP frame-src origin stays in the webview.
+fn is_embedded_frame(url: &tauri::Url) -> bool {
+    url.scheme() == "https"
+        && url.host_str() == Some("challenges.cloudflare.com")
+        && url.port().is_none()
 }
 
 fn open_new_window(
@@ -258,6 +265,41 @@ mod tests {
             );
             assert_eq!(opened, external);
             assert_eq!(signed_in, intercepted);
+        }
+    }
+
+    #[test]
+    fn turnstile_frame_loads_in_the_webview_while_external_links_open_in_the_browser() {
+        let origin = "https://app.useorbit.org/".parse().unwrap();
+        for (destination, accepted) in [
+            (
+                "https://challenges.cloudflare.com/cdn-cgi/challenge-platform/h/b/turnstile/f/av0/rch/frame/0x4AAAAAAA/auto/fbE/new/normal",
+                true,
+            ),
+            ("https://challenges.cloudflare.com.attacker.example/", false),
+            ("http://challenges.cloudflare.com/", false),
+            ("https://cloudflare.com/", false),
+            ("https://example.com/", false),
+        ] {
+            let mut opened = None;
+            assert_eq!(
+                super::navigate_main(
+                    &origin,
+                    &destination.parse().unwrap(),
+                    || panic!("{destination} must not start the sign-in hand-off"),
+                    |url| {
+                        opened = Some(url.to_owned());
+                        Ok(())
+                    }
+                ),
+                accepted,
+                "{destination}"
+            );
+            assert_eq!(
+                opened.as_deref(),
+                (!accepted).then_some(destination),
+                "{destination}"
+            );
         }
     }
 
