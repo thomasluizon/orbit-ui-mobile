@@ -62,9 +62,27 @@ describe('mounted headless menu lifecycle in Chromium', () => {
     const trigger = page.locator('[data-habit-row-control="menu"]')
     await trigger.waitFor({ state: 'visible' })
     const [frames] = await Promise.all([
-      page.evaluate(() => new Promise<{ y: number; top: number; opacity: number; backdrop: number }[]>((resolve) => {
+      page.evaluate((travels) => new Promise<{ y: number; top: number; opacity: number; backdrop: number }[]>((resolve, reject) => {
         const frames: { y: number; top: number; opacity: number; backdrop: number }[] = []
-        const start = performance.now()
+        const entrance = new Set(['panel opacity', 'backdrop opacity', ...travels ? ['panel transform'] : []])
+        const started = new Set<string>()
+        const transitionOwner = (event: TransitionEvent) => {
+          const target = event.target as Element
+          const owner = target.matches('.orbit-sheet-panel') ? 'panel' : target.matches('.orbit-sheet-backdrop') ? 'backdrop' : null
+          return owner ? `${owner} ${event.propertyName}` : ''
+        }
+        const ran = (event: TransitionEvent) => { started.add(transitionOwner(event)) }
+        const ended = (event: TransitionEvent) => {
+          if (!entrance.delete(transitionOwner(event))) return
+          const missing = [...entrance].find(transition => !started.has(transition))
+          if (missing) reject(new Error(`The ${missing} entrance transition never ran`))
+        }
+        const cancelled = (event: TransitionEvent) => {
+          const transition = transitionOwner(event)
+          if (entrance.has(transition)) reject(new Error(`The ${transition} entrance transition was cancelled`))
+        }
+        const listeners = [['transitionrun', ran], ['transitionend', ended], ['transitioncancel', cancelled]] as const
+        for (const [type, listener] of listeners) document.addEventListener(type, listener)
         function sample() {
           const panel = document.querySelector('.orbit-sheet-panel')
           const backdrop = document.querySelector('.orbit-sheet-backdrop')
@@ -73,11 +91,14 @@ describe('mounted headless menu lifecycle in Chromium', () => {
             frames.push({ y: new DOMMatrixReadOnly(style.transform).m42, top: panel.getBoundingClientRect().top,
               opacity: Number(style.opacity), backdrop: Number(getComputedStyle(backdrop).opacity) })
           }
-          if (performance.now() - start < 700) requestAnimationFrame(sample)
-          else resolve(frames)
+          if (entrance.size > 0) requestAnimationFrame(sample)
+          else {
+            for (const [type, listener] of listeners) document.removeEventListener(type, listener)
+            resolve(frames)
+          }
         }
         requestAnimationFrame(sample)
-      })),
+      }), reducedMotion === 'no-preference'),
       trigger.click(),
     ])
     expect(frames.length).toBeGreaterThan(2)
