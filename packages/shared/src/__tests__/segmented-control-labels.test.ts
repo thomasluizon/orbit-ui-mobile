@@ -16,6 +16,7 @@ describe.each(['web', 'mobile'] as const)('SegmentedControl labels on %s', (plat
     expect(sites.map((site) => site.path).sort((left, right) => left.localeCompare(right))).toEqual([
       ...SEGMENT_GEOMETRY_OWNERS,
       'components/onboarding/onboarding-create-habit.tsx',
+      'components/onboarding/onboarding-create-habit.tsx',
       calendar,
     ].sort((left, right) => left.localeCompare(right)))
     expect(SEGMENT_ROW_ALLOWLIST.every((entry) => entry.reason.length > 0)).toBe(true)
