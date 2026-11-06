@@ -1,6 +1,5 @@
-import { existsSync, readFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { Achievement } from '../types/gamification'
 import type { Goal } from '../types/goal'
@@ -17,17 +16,7 @@ import {
   formatStreakDate,
   formatStreakRepairDates,
 } from '../utils/progress'
-
-/** Stryker runs a copy of this package one level deeper, so a fixed `../` depth misses the repository root. */
-function findRepositoryRoot(directory: string): string {
-  const manifest = join(directory, 'package.json')
-  if (existsSync(manifest) && 'workspaces' in JSON.parse(readFileSync(manifest, 'utf8'))) return directory
-  const parent = dirname(directory)
-  if (parent === directory) throw new Error('No package.json with workspaces above the test file')
-  return findRepositoryRoot(parent)
-}
-
-const repositoryRoot = findRepositoryRoot(dirname(fileURLToPath(import.meta.url)))
+import { repositoryRoot } from '../test-support/repository-root'
 
 function goal(id: string, status: Goal['status'], position: number): Goal {
   return {

@@ -1,9 +1,11 @@
 import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { parse } from 'yaml'
 import { z } from 'zod'
 import en from '../i18n/en.json'
 import pt from '../i18n/pt-BR.json'
 import { describe, expect, it } from 'vitest'
+import { repositoryRoot } from '../test-support/repository-root'
 import {
   getAgentCapabilityLabelKey,
   getAgentOperationLabelKey,
@@ -64,7 +66,7 @@ const catalogToolSchema = z.object({ writes: z.boolean(), function: z.object({ n
 const catalog = z.object({
   tools: z.array(catalogToolSchema), legacyTools: z.array(catalogToolSchema),
   postReadTools: z.array(catalogToolSchema), habitSetupTools: z.array(catalogToolSchema),
-}).parse(parse(readFileSync(new URL('../../../../evals/astra/catalog.yaml', import.meta.url), 'utf8')))
+}).parse(parse(readFileSync(join(repositoryRoot, 'evals/astra/catalog.yaml'), 'utf8')))
 const writeSources = [...new Set(Object.values(catalog).flat().filter(tool => tool.writes).map(tool => tool.function.name))]
 
 it.each(writeSources)('localizes the pinned write source %s in both languages', source => {

@@ -1,10 +1,8 @@
-import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
 import { collectSegmentCallSites, segmentTranslation, SEGMENT_GEOMETRY_OWNERS, SEGMENT_ROW_ALLOWLIST } from '../test-support/segmented-control-inventory'
-
-const repositoryRoot = fileURLToPath(new URL('../../../../', import.meta.url))
+import { repositoryRoot } from '../test-support/repository-root'
 
 describe.each(['web', 'mobile'] as const)('SegmentedControl labels on %s', (platform) => {
   const sites = collectSegmentCallSites(repositoryRoot, platform)

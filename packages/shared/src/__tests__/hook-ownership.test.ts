@@ -1,9 +1,11 @@
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect,it } from 'vitest'
 import ts from 'typescript'
+import { repositoryRoot } from '../test-support/repository-root'
 
 it('resolves both platform parent prompt transitions to the same shared implementation', () => {
-  const paths = ['web', 'mobile'].map(platform => fileURLToPath(new URL(`../../../../apps/${platform}/components/habits/use-parent-prompt-queue.ts`, import.meta.url)))
+  const paths = ['web', 'mobile'].map(platform => join(repositoryRoot, `apps/${platform}/components/habits/use-parent-prompt-queue.ts`))
   const program = ts.createProgram(paths, { module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Bundler, target: ts.ScriptTarget.ESNext })
   const checker = program.getTypeChecker()
   for (const name of ['createParentPromptQueue', 'transitionParentPromptQueue']) {
@@ -22,8 +24,8 @@ it('resolves both platform parent prompt transitions to the same shared implemen
 
 it('resolves both calendar range hooks to the same query-state owner', () => {
   const paths = [
-    fileURLToPath(new URL('../../../../apps/web/app/(app)/calendar/_components/use-calendar-screen-state.tsx', import.meta.url)),
-    fileURLToPath(new URL('../../../../apps/mobile/app/(tabs)/calendar/_components/use-calendar-screen-state.tsx', import.meta.url)),
+    join(repositoryRoot, 'apps/web/app/(app)/calendar/_components/use-calendar-screen-state.tsx'),
+    join(repositoryRoot, 'apps/mobile/app/(tabs)/calendar/_components/use-calendar-screen-state.tsx'),
   ]
   const program = ts.createProgram(paths, { module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Bundler, target: ts.ScriptTarget.ESNext, jsx: ts.JsxEmit.ReactJSX })
   const checker = program.getTypeChecker()
