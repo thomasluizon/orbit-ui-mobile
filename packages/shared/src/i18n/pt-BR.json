@@ -721,6 +721,7 @@
       "understoodMonthDaysAt": "{schedule} às {time}",
       "monthDaysInvalid": "Escolha dias de 1 a 31.",
       "monthDaysOnlyForMonthly": "Volte o intervalo semanal para 1.",
+      "monthDaysNeedMonthly": "Para escolher dias do mês, o hábito precisa se repetir todo mês, sem dias da semana e sem intervalo de semanas.",
       "parentHabit": "Hábito principal",
       "proRequired": "Isso faz parte do Orbit Pro.",
       "capacityTitle": "Limite de hábitos atingido",

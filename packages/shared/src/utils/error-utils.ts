@@ -370,7 +370,7 @@ export const ERROR_CODE_TO_KEY: Record<string, string> = {
   FREQUENCY_QUANTITY_INVALID: 'habits.form.frequencyRequired',
   DAYS_REQUIRE_QUANTITY_ONE: 'habits.form.daysOnlyForDaily',
   MONTH_DAYS_INVALID: 'habits.form.monthDaysInvalid',
-  MONTH_DAYS_REQUIRE_MONTH: 'habits.form.monthDaysOnlyForMonthly',
+  MONTH_DAYS_REQUIRE_MONTH: 'habits.form.monthDaysNeedMonthly',
   MAX_SCHEDULED_REMINDERS: 'habits.form.scheduledReminderMax',
   DUPLICATE_SCHEDULED_REMINDERS: 'habits.form.duplicateScheduledReminder',
   UNIT_REQUIRED: 'goals.form.unitRequired',

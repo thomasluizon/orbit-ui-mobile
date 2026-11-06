@@ -721,6 +721,7 @@
       "understoodMonthDaysAt": "{schedule} at {time}",
       "monthDaysInvalid": "Choose days from 1 to 31.",
       "monthDaysOnlyForMonthly": "Set the week interval back to 1.",
+      "monthDaysNeedMonthly": "To choose days of the month, the habit must repeat monthly, with no weekdays and no week interval.",
       "parentHabit": "Parent habit",
       "proRequired": "This is part of Orbit Pro.",
       "capacityTitle": "Habit limit reached",

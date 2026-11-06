@@ -130,6 +130,11 @@ describe('a habit on chosen days of the month', () => {
     expect(portuguese('habits.form.monthDaysOnlyForMonthly')).toBe('Volte o intervalo semanal para 1.')
   })
 
+  it('explains every API month-day condition apart from the form week interval line', () => {
+    expect(english('habits.form.monthDaysNeedMonthly')).toBe('To choose days of the month, the habit must repeat monthly, with no weekdays and no week interval.')
+    expect(portuguese('habits.form.monthDaysNeedMonthly')).toBe('Para escolher dias do mês, o hábito precisa se repetir todo mês, sem dias da semana e sem intervalo de semanas.')
+  })
+
   it.each([
     [[8, 15], 1, 'On the 8th and 15th', 'Todo dia 8 e 15'],
     [[1, 2, 3, 22], 1, 'On the 1st, 2nd, 3rd and 22nd', 'Todo dia 1, 2, 3 e 22'],
@@ -231,7 +236,7 @@ describe('a habit on chosen days of the month', () => {
 
   it.each([
     ['MONTH_DAYS_INVALID', 'habits.form.monthDaysInvalid'],
-    ['MONTH_DAYS_REQUIRE_MONTH', 'habits.form.monthDaysOnlyForMonthly'],
+    ['MONTH_DAYS_REQUIRE_MONTH', 'habits.form.monthDaysNeedMonthly'],
   ])('localizes the API code %s', (code, key) => {
     const error = createApiClientError(400, { error: 'Month days rejected.', errorCode: code }, 'Request failed')
     expect(getFriendlyErrorKey(error, 'errors.generic', 'habit')).toBe(key)
