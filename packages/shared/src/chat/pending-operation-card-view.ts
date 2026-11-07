@@ -361,7 +361,7 @@ function previewRows<Node>(
             onSave: (title: string) => revision.renameItem!(item.itemId, title),
             onDraftChange: (title: string | undefined) => revision.setTitleDraft?.(item.itemId, title) } : undefined,
       body: previewItemBody(item, parentChoice, firstParentChoiceId, card, labels, render),
-      meta: edited ? `${labels.edited} · ${summary}` : summary,
+      meta: edited ? [labels.edited, summary].filter(Boolean).join(' · ') : summary,
       status,
       irreversible: item.removesData === true && card.status == null,
       proposed: card.status == null && !edited,

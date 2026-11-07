@@ -1461,3 +1461,19 @@ it.each(['done', 'failed'] as const)('shows no pending copy on the settled %s ro
     pendingOperation: { ...makeCreateHabitsPreview(0), changeTargetCount: null, changes: [] } })
   expect(record.frame?.items[0]?.meta).toBe('')
 })
+
+it.each([undefined, 'done', 'failed'] as const)('shows only the edited label on an edited row with nothing to summarize (status %s)', status => {
+  const operation = makePendingAgentOperation({ capabilityId: 'chat.changes', actionKey: 'applyAccountChanges', changeTargetCount: 1, changes: [],
+    items: [{ itemId: '0', entityId: null, entityName: 'Read', stateFingerprint: 'state-0',
+      fields: [{ entityId: '', entityName: 'Read', field: 'title', oldValue: null, newValue: 'Read', proposedValue: 'Read', valueType: 'string' }] }] })
+  const localized = buildPendingOperationCardLabels(operation, translateEnglish, value => value)
+  const card = { ...createCard(), status }
+  card.revision = {
+    operation, canRevise: true, items: operation.items!, editingItem: undefined,
+    draft: {}, editedItemIds: ['0'], busy: false, stale: false, canRefresh: false, refresh: vi.fn(), rejected: false, error: undefined,
+    setDraftField: vi.fn(), closeEdit: vi.fn(), startEdit: vi.fn(), saveEdit: vi.fn(), rejectItem: vi.fn(), rejectAll: vi.fn(),
+  }
+  const { record, render } = createRenderers()
+  renderPendingOperationCard({ card, labels: localized, render, pendingOperation: operation, onVerifyStepUp: vi.fn() })
+  expect(record.frame?.items[0]?.meta).toBe(status == null ? `${localized.edited} · ${localized.pending}` : localized.edited)
+})
