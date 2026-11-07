@@ -273,7 +273,7 @@ function ShellBottomViewport({ floating, hasPinnedSlot, minimumHeight, children 
     return () => observer.disconnect()
   }, [floating])
   return <div ref={viewportRef} data-shell-bottom-viewport="" data-floating={floating}
-    className={floating ? `${hasPinnedSlot ? 'min-h-[max(var(--orbit-space-64),calc(1.5rem+var(--orbit-space-32)))]' : 'min-h-[min(max(var(--orbit-space-64),calc(1.5rem+var(--orbit-space-32))),var(--shell-bottom-content-height,0px))]'} overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-gutter:stable] lg:contents lg:overflow-visible` : 'contents'}
+    className={floating ? `${hasPinnedSlot ? 'min-h-[max(var(--orbit-space-64),calc(1.5rem+var(--orbit-space-32)))]' : 'min-h-[min(max(var(--orbit-space-64),calc(1.5rem+var(--orbit-space-32))),var(--shell-bottom-content-height))]'} overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-gutter:stable] lg:contents lg:overflow-visible` : 'contents'}
     style={{ minHeight: minimumHeight }}>
     <div className={floating ? 'lg:contents' : 'contents'}><div className="relative flex min-h-0 flex-col">{children}</div></div>
   </div>
