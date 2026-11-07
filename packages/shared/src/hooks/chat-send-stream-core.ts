@@ -8,6 +8,7 @@ import { loadModule } from '../utils/load-module'
 import { classifySendFailure,reconcileAgentQueries } from './chat-composer-core'
 import type { createChatThreadScroll } from './chat-thread-scroll-core'
 import { getFriendlyErrorMessage } from '../utils/error-utils'
+import { hasComposerContent, type ComposerAttachment } from '../contracts/composer'
 
 export interface ComposerAttempt<Image, Payload> {
   turn?: PreparedChatTurn<Payload>
@@ -233,6 +234,22 @@ export function createComposerFailureHandlers<Attempt extends ComposerAttempt<un
     }) }))
   }
   return { handleFailedSend, handleAllowanceExceeded, handleDailyBudgetExceeded }
+}
+
+export interface ComposerRetryDraft {
+  draft: string
+  draftRevision: number
+  attachments: readonly ComposerAttachment[]
+}
+
+function attachmentIdentity(composer: ComposerRetryDraft): string {
+  return composer.attachments.map(attachment => `${attachment.id}:${attachment.name}`).join('\n')
+}
+
+export function canRetryComposerSend(attempted: object | null, atFailure: ComposerRetryDraft, current: ComposerRetryDraft & { isSending: boolean }): boolean {
+  if (!attempted || current.isSending) return false
+  if (!hasComposerContent(current.draft, current.attachments)) return true
+  return current.draftRevision === atFailure.draftRevision && attachmentIdentity(current) === attachmentIdentity(atFailure)
 }
 
 export async function retryComposerSend<Attempt extends Pick<ComposerAttempt<unknown, unknown>, 'clearDraftOnSuccess' | 'restoredDraftRevision'>>(attempted: Attempt | null, performSend: (attempt: Attempt, isRetry: boolean) => Promise<boolean>, getChat: () => ChatStoreState, getAccountGeneration: () => number, clearDraft: () => void): Promise<void> {

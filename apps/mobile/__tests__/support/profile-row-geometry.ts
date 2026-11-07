@@ -1,11 +1,11 @@
-import { StyleSheet, type TextStyle, type ViewStyle } from 'react-native'
+import { StyleSheet, type PressableProps, type TextStyle, type ViewStyle } from 'react-native'
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { Resvg } from '@resvg/resvg-js'
 import { act, type ReactTestRenderer } from 'react-test-renderer'
 
 interface HostRow {
   type: string
-  props: { accessible?: boolean; style?: ViewStyle | ((state: { pressed: boolean }) => ViewStyle); numberOfLines?: number; accessibilityLabel?: string; 'data-slot'?: string; contentContainerStyle?: ViewStyle; testID?: string }
+  props: { accessible?: boolean; style?: ViewStyle | ((state: { pressed: boolean }) => ViewStyle); numberOfLines?: number; accessibilityLabel?: string; 'data-slot'?: string; contentContainerStyle?: ViewStyle; testID?: string; hitSlop?: PressableProps['hitSlop'] }
   children: (HostRow | string)[] | null
 }
 
@@ -116,12 +116,10 @@ function position(node: YogaNode): { left: number; top: number; right: number; b
   return { left, top, right: left + node.getComputedWidth(), bottom: top + node.getComputedHeight(), width: node.getComputedWidth(), height: node.getComputedHeight() }
 }
 
-function hitExtension(props: HostRow['props']) {
-  const reach: unknown = Reflect.get(props, 'hitSlop')
-  if (typeof reach === 'number') return { hitWidth: reach * 2, hitHeight: reach * 2 }
-  if (!reach || typeof reach !== 'object') return { hitWidth: 0, hitHeight: 0 }
-  return { hitWidth: Number(Reflect.get(reach, 'left') ?? 0) + Number(Reflect.get(reach, 'right') ?? 0),
-    hitHeight: Number(Reflect.get(reach, 'top') ?? 0) + Number(Reflect.get(reach, 'bottom') ?? 0) }
+function hitExtension({ hitSlop }: HostRow['props']) {
+  if (typeof hitSlop === 'number') return { hitWidth: hitSlop * 2, hitHeight: hitSlop * 2 }
+  if (!hitSlop) return { hitWidth: 0, hitHeight: 0 }
+  return { hitWidth: (hitSlop.left ?? 0) + (hitSlop.right ?? 0), hitHeight: (hitSlop.top ?? 0) + (hitSlop.bottom ?? 0) }
 }
 
 export function measureProfileRow(host: HostRow, width: number, scale: number, scaledPixels = (size: number) => size * scale) {

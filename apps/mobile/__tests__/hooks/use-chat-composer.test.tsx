@@ -523,8 +523,12 @@ describe('mobile useChatComposer', () => {
       queueReady: true, queuedPrompts: [], lastFailedSend: attempted, performSend, setInput, setSendError: vi.fn(), queryClient: mocks.queryClient as never }
     useChatStore.setState({ draft: 'Newer text', draftRevision: 2, isTyping: false, streamingMessageId: null })
     let retry!: ReturnType<typeof useChatSendRetry>
-    function Harness() { retry = useChatSendRetry(inputs.isOnline, inputs.atMessageLimit, inputs.queryClient, inputs.isSending, inputs.queuePaused, inputs.queueReady, inputs.queuedPrompts, inputs.lastFailedSend, inputs.setSendError, inputs.offlineTitle, inputs.performSend, inputs.setInput); return null }
-    await TestRenderer.act(async () => { mountedTrees.push(TestRenderer.create(<Harness />)); await Promise.resolve() })
+    function Harness({ draft, draftRevision }: Readonly<{ draft: string; draftRevision: number }>) { retry = useChatSendRetry(inputs.isOnline, inputs.atMessageLimit, inputs.queryClient, inputs.isSending, inputs.queuePaused, inputs.queueReady, inputs.queuedPrompts, inputs.lastFailedSend, inputs.setSendError, inputs.offlineTitle, inputs.performSend, inputs.setInput, { draft, draftRevision, attachments: [] }); return null }
+    let harness!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => { harness = TestRenderer.create(<Harness draft="Retry this" draftRevision={1} />); mountedTrees.push(harness); await Promise.resolve() })
+    expect(retry.canRetryLastSend).toBe(true)
+    TestRenderer.act(() => harness.update(<Harness draft="Newer text" draftRevision={2} />))
+    expect(retry.canRetryLastSend).toBe(false)
     await TestRenderer.act(async () => { await retry.retryLastSend() })
     expect(performSend).toHaveBeenCalledWith(attempted, true)
     expect(setInput).not.toHaveBeenCalled()
