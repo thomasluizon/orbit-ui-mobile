@@ -67,16 +67,16 @@ export function MilestoneSharePrompt() {
 
   const armedKey = armedPrompt?.kind === 'milestone-share' ? armedPrompt.milestoneKey : null
 
-  const [visibleKey, setVisibleKey] = useAccountScopedState<string | null>(null)
+  const [shown, setShown] = useAccountScopedState<MilestoneShareVariant | null>(null)
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const wasVisibleRef = useRef(false)
   useEffect(() => {
-    if (visibleKey) wasVisibleRef.current = true
+    if (shown) wasVisibleRef.current = true
     else if (wasVisibleRef.current) {
       wasVisibleRef.current = false
       unregisterOpenOverlay(promptId)
     }
-  }, [visibleKey, promptId, unregisterOpenOverlay])
+  }, [shown, promptId, unregisterOpenOverlay])
   useEffect(() => () => unregisterOpenOverlay(promptId), [promptId, unregisterOpenOverlay])
   const retiredPromptRef = useRef<typeof armedPrompt>(null)
   /**
@@ -90,11 +90,12 @@ export function MilestoneSharePrompt() {
   })
 
   useEffect(() => {
-    if (visibleKey || !armedKey || celebrationInFlight || anotherOverlayOpen || armedPrompt === retiredPromptRef.current) return
+    if (shown || !armedKey || celebrationInFlight || anotherOverlayOpen || armedPrompt === retiredPromptRef.current) return
 
     const profile = queryClient.getQueryData<GamificationProfile>(gamificationKeys.profile())
+    const variant = resolveVariant(armedKey, profile)
     if (
-      !resolveVariant(armedKey, profile) ||
+      !variant ||
       !canPromptEngagement(
         useEngagementPromptStore.getState(),
         armedKey,
@@ -108,7 +109,7 @@ export function MilestoneSharePrompt() {
     settleTimerRef.current = setTimeout(() => {
       if (!useUIStore.getState().tryReservePromptOverlay(promptId)) return
       markEngagementPrompted(armedKey, new Date().toISOString())
-      setVisibleKey(armedKey)
+      setShown(variant)
     }, SETTLE_DELAY_MS)
 
     return () => {
@@ -120,19 +121,17 @@ export function MilestoneSharePrompt() {
     celebrationInFlight,
     anotherOverlayOpen,
     promptId,
-    visibleKey,
+    shown,
     queryClient,
     markEngagementPrompted,
     clearArmedMilestone,
-    setVisibleKey,
+    setShown,
   ])
 
-  const profile = queryClient.getQueryData<GamificationProfile>(gamificationKeys.profile())
-  const variant = visibleKey ? resolveVariant(visibleKey, profile) : null
 
   function dismiss() {
     resetFeedback()
-    closeSheet(() => setVisibleKey(null))
+    closeSheet(() => setShown(null))
   }
 
   function handleShare() {
@@ -144,7 +143,7 @@ export function MilestoneSharePrompt() {
   }
 
   return (
-    variant !== null ? (<Sheet
+    shown !== null ? (<Sheet
       ref={sheetRef}
       open
       onAttemptDismiss={dismiss}
@@ -176,7 +175,7 @@ export function MilestoneSharePrompt() {
       )}
     >
       <div className="flex flex-col items-center" style={{ gap: 16 }}>
-          <MilestoneShareCard key={referralUrl ? 'referral' : 'plain'} ref={captureRef} qrRef={referralUrl ? qrRef : undefined} onQrError={reportCaptureError} variant={variant} referralUrl={referralUrl} />
+          <MilestoneShareCard key={referralUrl ? 'referral' : 'plain'} ref={captureRef} qrRef={referralUrl ? qrRef : undefined} onQrError={reportCaptureError} variant={shown} referralUrl={referralUrl} />
 
           <p
             style={{

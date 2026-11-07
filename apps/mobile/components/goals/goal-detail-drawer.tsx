@@ -6,6 +6,7 @@ import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import { AccessibilityInfo, BackHandler, StyleSheet, View } from 'react-native'
 import { formatLocaleDateTime, getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { prepareChatRequest } from '@orbit/shared/stores'
+import { createUseRetainedGoal } from '@orbit/shared/hooks'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import { AppBar } from '@/components/ui/app-bar'
@@ -33,6 +34,8 @@ interface GoalDetailDrawerProps {
   onClose: () => void
 }
 
+const useRetainedGoal = createUseRetainedGoal(useState)
+
 export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Readonly<GoalDetailDrawerProps>) {
   const { t, i18n } = useTranslation()
   const navigate = useChatNavigation()
@@ -44,10 +47,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
   const { data: goalsData } = useGoals()
   const { data: detailData, isLoading, isError, refetch } = useGoalDetail(open ? goalId : null)
   const goal = detailData?.goal ?? goalsData?.goalsById.get(goalId) ?? null
-  const [heldGoal, setHeldGoal] = useState(goal)
-  if (goal !== null && goal !== heldGoal) setHeldGoal(goal)
-  /** The edit and progress sheets keep the last goal they showed, so a refresh that drops it never unmounts a presented sheet. */
-  const sheetGoal = heldGoal?.id === goalId ? heldGoal : null
+  const sheetGoal = useRetainedGoal(goal, goalId)
   const astraConversationOpen = useUIStore(state => state.astraConversationOpen)
   const draftHydrated = useChatStore(state => state.draftHydrated)
   const deleteGoal = useDeleteGoal()
