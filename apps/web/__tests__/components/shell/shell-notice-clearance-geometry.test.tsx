@@ -39,7 +39,7 @@ describe('Shell notice clearance geometry', () => {
     const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width: 412, height: 915 } })
     try {
       const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
-      await page.setContent(`<html class="${mode}" style="${theme}"><style>${stylesheet}</style><body>${view.container.innerHTML}</body></html>`)
+      await page.setContent(`<!DOCTYPE html><html class="${mode}" style="${theme}"><style>${stylesheet}</style><body>${view.container.innerHTML}</body></html>`)
       const geometry = await page.evaluate(() => {
         const box = (selector: string) => document.querySelector(selector)?.getBoundingClientRect()
         return {

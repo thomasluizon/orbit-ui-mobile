@@ -66,7 +66,7 @@ describe('Avisos empty state centring in Chromium', () => {
     const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
     try {
       const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
-      await page.setContent(`<html class="${mode}" style="${theme}"><style>${stylesheet}</style><body>${view.container.innerHTML}</body></html>`)
+      await page.setContent(`<!DOCTYPE html><html class="${mode}" style="${theme}"><style>${stylesheet}</style><body>${view.container.innerHTML}</body></html>`)
       const geometry = await page.evaluate((copy) => {
         const header = document.querySelector('[data-shell-header] [data-page-header]')!.getBoundingClientRect()
         const tabs = document.querySelector('[data-shell-tab-bar]')!.getBoundingClientRect()

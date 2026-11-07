@@ -420,7 +420,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: PADDING.screenGutter,
   },
   noticeContent: { gap: SPACING.s12 },
-  filledNotice: { paddingTop: SPACING.s8, paddingBottom: SPACING.s24 },
+  filledNotice: { paddingTop: SPACING.s12, paddingBottom: SPACING.s24 },
   bottomColumn: {
     flexShrink: 1,
     minHeight: 0,

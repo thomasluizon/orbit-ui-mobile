@@ -45,6 +45,7 @@ it.each([412, 840])('ends the toast the shared gap above the tab bar at %ipx', a
   await mountShell(width, false, toast)
   const boxes = measure(width)
   expect(boxes.get('shell-tab-bar')!.top - boxes.get('toast-neutral')!.bottom).toBeGreaterThanOrEqual(SHARED_GAP)
+  expect(boxes.get('toast-neutral')!.top - boxes.get('shell-notice')!.top).toBe(SPACING.s12)
 })
 
 it('keeps the toast clear of the tab bar, the create button and the Astra button on Hoje', async () => {

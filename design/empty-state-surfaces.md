@@ -24,6 +24,8 @@ A full-screen empty state centres its group vertically in the free height of the
 scroller, between the shell header and the bottom chrome (#2051). `shell/shell-centred-region.tsx`
 on each platform owns this. It fills the rest of the scroll content and mirrors the shell's bottom
 scroller clearance as its top padding. The Avisos inbox and the Progresso Metas subscreen use it.
+On web, `[data-shell-page-content]` becomes a flex column when it holds a centred region or a flow
+shell, so the fill chain also resolves in a standards-mode document.
 Empty states inside other content keep their place: the Progresso window and achievements sections,
 the goal list section of the Progresso overview, the calendar import sheet, the linked-habit picker,
 the share card sheet, and Hoje. Web `notification-empty-centre-geometry.test.tsx` and

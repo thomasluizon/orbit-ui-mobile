@@ -2890,6 +2890,11 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   transition-property: none;
 }
 
+[data-shell-page-content]:has(> [data-shell="flow"], [data-shell-centred-region]) {
+  display: flex;
+  flex-direction: column;
+}
+
 [data-shell-column],
 [data-shell-page] {
   max-width: calc(740px + var(--shell-safe-left, 0px) + var(--shell-safe-right, 0px));
