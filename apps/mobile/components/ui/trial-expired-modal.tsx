@@ -18,7 +18,8 @@ import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { ActionRow } from '@/components/ui/action-row'
 import { SettingsGroup } from '@/components/ui/settings-group'
 import { ListRow } from '@/components/ui/list-row'
-import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { Sheet } from '@/components/ui/sheet'
+import { useSheetPresence } from '@/components/ui/sheet-presence'
 
 const STORAGE_KEY = TRIAL_EXPIRED_SEEN_KEY
 
@@ -29,7 +30,8 @@ const PAUSED_FEATURES = [
   'trial.expired.proactiveAstra',
 ] as const
 
-export function TrialExpiredModal() {
+/** `suppressed` holds the notice back while onboarding owns the screen; the notice stays mounted so a presented sheet closes through its dismissal. */
+export function TrialExpiredModal({ suppressed = false }: Readonly<{ suppressed?: boolean }>) {
   const { t } = useTranslation()
   const router = useRouter()
   const pathname = usePathname()
@@ -39,7 +41,6 @@ export function TrialExpiredModal() {
     [currentScheme, currentTheme],
   )
   const styles = useMemo(createStyles, [])
-  const { sheetRef, closeSheet } = useSheetHost()
   const trialExpired = useTrialExpired()
   const accountId = useAuthStore((state) => state.user?.userId ?? null)
   const accountGeneration = useAccountGeneration()
@@ -84,10 +85,10 @@ export function TrialExpiredModal() {
   }, [accountId, scopedKey])
 
   const isOpen =
-    pathname !== '/upgrade' && !currentNoticeState.dismissed && trialExpired &&
+    !suppressed && pathname !== '/upgrade' && !currentNoticeState.dismissed && trialExpired &&
     !currentNoticeState.alreadySeen
   const reserved = openOverlayIds.includes(reservationId)
-  const presented = isOpen && reserved
+  const { mounted, sheetKey, sheetRef, closeSheet } = useSheetPresence(isOpen && reserved)
   useEffect(() => {
     if (!isOpen) {
       if (reserved) unregisterOpenOverlay(reservationId)
@@ -107,10 +108,11 @@ export function TrialExpiredModal() {
     if (scopedKey !== null) void AsyncStorage.setItem(scopedKey, '1')
   }, [accountGeneration, accountId, scopedKey])
 
-  if (!presented) return null
+  if (!mounted) return null
 
   return (
     <Sheet
+      key={sheetKey}
       ref={sheetRef}
       open
       onClose={hide}
