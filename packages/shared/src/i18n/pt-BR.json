@@ -4118,7 +4118,8 @@
     "downloading": "Baixando a atualização...",
     "installing": "Instalando a atualização...",
     "failed": "Não foi possível concluir a atualização. Tente de novo.",
-    "required": "Esta versão do Orbit precisa ser atualizada. No menu do app, escolha Buscar atualizações e depois Reiniciar para atualizar."
+    "required": "Esta versão do Orbit precisa ser atualizada. No menu do app, escolha Buscar atualizações e depois Reiniciar para atualizar.",
+    "signInRequired": "Atualize o Orbit para entrar. No menu do app, escolha Buscar atualizações e depois Reiniciar para atualizar."
   },
   "forceUpdate": {
     "title": "Esta versão do Orbit parou de funcionar",

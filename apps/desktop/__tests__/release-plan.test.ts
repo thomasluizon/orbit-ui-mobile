@@ -4,7 +4,8 @@ import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
-import { channelVersion, planShellRelease } from '../scripts/release-plan.ts'
+import { channelVersion, planShellRelease, shellFloor } from '../scripts/release-plan.ts'
+import compatibility from '../../web/web-compatibility.json'
 import channel from '../__fixtures__/channel-staging.json'
 
 // WHY: Git-driven cases can exceed five seconds on Windows runners; allow headroom for process startup (#1818).
@@ -144,3 +145,9 @@ it('rejects requested non-increasing versions and source outside the published l
   expect(() => planShellRelease('staging', ancestor, '0.2.0', [], '0.0.0', '0.3.0')).toThrow('must descend')
   expect(planShellRelease('staging', ancestor, '0.2.0', [], '0.0.0', '0.3.0', true)).toBe('0.3.0')
 }, gitTestTimeout)
+
+it('publishes at least the web sign-in floor so web never gates sign-in on an unpublished shell', () => {
+  expect(shellFloor(compatibility)).toBe(compatibility.signInMinimumShellVersion)
+  expect(shellFloor({ minimumShellVersion: '0.0.0', signInMinimumShellVersion: '0.1.26' })).toBe('0.1.26')
+  expect(shellFloor({ minimumShellVersion: '1.0.0', signInMinimumShellVersion: '0.1.26' })).toBe('1.0.0')
+})

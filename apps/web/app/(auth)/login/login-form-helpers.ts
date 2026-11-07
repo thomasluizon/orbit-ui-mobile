@@ -14,6 +14,7 @@ import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { hydrateProfilePresentation } from '@/lib/profile-presentation'
 import type { LoginResponse } from '@orbit/shared/types/auth'
 import { withCookieSettingLogin } from '@/stores/auth-store'
+import { blockDesktopWebReload } from '@/lib/web-reload-state'
 
 class AuthFetchError extends Error {
   status: number
@@ -118,7 +119,9 @@ export async function fetchAuthEndpoint(
     if (attempt) await attempt.onSuccess(payload)
     return payload
   }
-  return url === '/api/auth/verify-code' ? withCookieSettingLogin(request) : request()
+  const releaseReload = blockDesktopWebReload()
+  try { return await (url === '/api/auth/verify-code' ? withCookieSettingLogin(request) : request()) }
+  finally { releaseReload() }
 }
 
 export async function handleVerifySuccess(

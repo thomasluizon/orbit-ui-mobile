@@ -205,11 +205,13 @@ fn navigate_main(
     false
 }
 
-// WKWebView reports subframe loads to on_navigation without a frame flag (#2050), so the web CSP frame-src origins stay in the webview.
+// WKWebView reports subframe loads to on_navigation without a frame flag (#2050), so the web CSP frame-src origins and the Turnstile challenge documents stay in the webview (#2056).
 const EMBEDDED_FRAME_ORIGINS: [&str; 1] = ["https://challenges.cloudflare.com"];
+const EMBEDDED_FRAME_DOCUMENTS: [&str; 2] = ["about:srcdoc", "about:blank"];
 
 fn is_embedded_frame(url: &tauri::Url) -> bool {
-    EMBEDDED_FRAME_ORIGINS.contains(&url.origin().ascii_serialization().as_str())
+    EMBEDDED_FRAME_DOCUMENTS.contains(&url.as_str())
+        || EMBEDDED_FRAME_ORIGINS.contains(&url.origin().ascii_serialization().as_str())
 }
 
 fn open_new_window(
@@ -238,6 +240,13 @@ mod tests {
         let origin = "https://app.useorbit.org/".parse().unwrap();
         for (destination, accepted, external, intercepted) in [
             ("https://app.useorbit.org/calendar", true, false, false),
+            ("about:srcdoc", true, false, false),
+            ("about:blank", true, false, false),
+            ("about:blank#frame", false, false, false),
+            ("about:srcdoc?frame", false, false, false),
+            ("about:config", false, false, false),
+            ("data:text/html,frame", false, false, false),
+            ("javascript:alert(1)", false, false, false),
             (
                 "https://challenges.cloudflare.com/cdn-cgi/challenge-platform/h/b/turnstile/f/av0/rch/frame/0x4AAAAAAA/auto/fbE/new/normal",
                 true,

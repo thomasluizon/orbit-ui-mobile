@@ -29,13 +29,18 @@ export function shellSupportsWeb(version: string, minimum: string): boolean {
   return changed === -1 || current[changed]! > required[changed]!
 }
 
+function holdsUnsavedInput(element: Element) {
+  return !element.closest('[data-desktop-reload-safe]')
+}
+
 export function canReloadDesktopWeb() {
   const chat = useChatStore.getState()
   const ui = useUIStore.getState()
-  const editing = document.activeElement?.matches('input, textarea, select, [contenteditable="true"]')
+  const focused = document.activeElement
+  const editing = focused?.matches('input, textarea, select, [contenteditable="true"]') && holdsUnsavedInput(focused)
   return navigator.onLine && !chat.isTyping && chat.streamingMessageId === null && !hasWebReloadBlockers()
     && getQueryClient().isMutating() === 0 && !ui.showCreateModal && ui.openOverlayIds.length === 0
-    && ui.selectedHabitIds.size === 0 && !editing && !document.querySelector('form')
+    && ui.selectedHabitIds.size === 0 && !editing && ![...document.querySelectorAll('form')].some(holdsUnsavedInput)
 }
 
 export async function reloadDesktopWeb(reload: () => void | Promise<void>, persistent = false) {
