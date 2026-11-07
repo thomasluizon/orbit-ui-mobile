@@ -52,9 +52,9 @@ async function expectTouchPressFill(control: Locator, separateBody?: Locator) {
     await expect(control).not.toHaveAttribute('data-test-touch-held')
     await session.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: ['active'] })
     await expect.poll(async () => {
-      const expected = await control.evaluate((element) => {
+      const expected = await page.evaluate(() => {
       const probe = document.createElement('span')
-      probe.style.background = element.matches('.orbit-list-row-action') ? 'var(--bg-row-action)' : 'var(--bg-hover)'
+      probe.style.background = 'var(--bg-hover)'
       probe.style.position = 'fixed'
       probe.style.pointerEvents = 'none'
       document.body.append(probe)
