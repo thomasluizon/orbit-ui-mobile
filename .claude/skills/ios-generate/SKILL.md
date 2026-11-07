@@ -31,6 +31,19 @@ with local ad hoc signing. This retains the app and widget Keychain entitlements
 account, signing certificate or provisioning profile. It pins `ORBIT_APP_VARIANT=staging` and
 `EXPO_PUBLIC_API_BASE=https://api-staging.useorbit.org`, disables Sentry upload, installs
 `org.useorbit.app.staging` and launches it. JavaScript is bundled; no development server is needed.
+
+Before prebuild it exports the public build variables that `.github/workflows/ios-release.yml`
+passes for the staging variant: `EXPO_PUBLIC_TURNSTILE_SITE_KEY`,
+`EXPO_PUBLIC_APP_STORE_MONTHLY_PRODUCT_ID`, `EXPO_PUBLIC_APP_STORE_YEARLY_PRODUCT_ID`,
+`EXPO_PUBLIC_APPLE_CLIENT_ID`, `EXPO_PUBLIC_GOOGLE_CLIENT_ID`, `EXPO_PUBLIC_SENTRY_DSN`,
+`ORBIT_IOS_APP_STORE_ID`, and `EXPO_PUBLIC_POSTHOG_KEY` from `STAGING_EXPO_PUBLIC_POSTHOG_KEY`.
+A value in the caller's environment wins. Otherwise the value comes from the `ios-staging`
+GitHub environment, then from the repository, through `gh variable list --json name,value`.
+It reads GitHub variables only, never a secret. It omits the signing variables, because the
+simulator build uses local ad hoc signing. Stderr names each variable and its source, never
+its value, and names each variable that is missing everywhere. The command exits 3 before the
+build when `EXPO_PUBLIC_TURNSTILE_SITE_KEY` is missing, because staging enforces Turnstile and
+the app cannot send an e-mail sign-in code without it.
 Before prebuild it sets `ORBIT_APP_VERSION` for the child commands so both the native
 version and the bundled Expo config carry the selected version, including `X-App-Version` requests.
 It leaves `app.json` untouched, including on cancellation, and verifies the built and

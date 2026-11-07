@@ -8,13 +8,32 @@ const phoneIdentifier = "00000000-0000-0000-0000-000000000001"
 const secondIdentifier = "00000000-0000-0000-0000-000000000002"
 const deployments = JSON.parse(readFileSync(toolPath("__fixtures__/ios-staging-deployment.json"), "utf8"))
 const releaseVersion = deployments[0].payload.app_version
+const buildVariableNames = [
+  "EXPO_PUBLIC_TURNSTILE_SITE_KEY", "EXPO_PUBLIC_APP_STORE_MONTHLY_PRODUCT_ID", "EXPO_PUBLIC_APP_STORE_YEARLY_PRODUCT_ID",
+  "EXPO_PUBLIC_APPLE_CLIENT_ID", "EXPO_PUBLIC_GOOGLE_CLIENT_ID", "EXPO_PUBLIC_SENTRY_DSN", "EXPO_PUBLIC_POSTHOG_KEY",
+  "ORBIT_IOS_APP_STORE_ID",
+]
+const stagingVariables = [
+  { name: "EXPO_PUBLIC_TURNSTILE_SITE_KEY", value: "sentinel-turnstile-environment" },
+  { name: "EXPO_PUBLIC_APP_STORE_MONTHLY_PRODUCT_ID", value: "sentinel-monthly-environment" },
+  { name: "EXPO_PUBLIC_APP_STORE_YEARLY_PRODUCT_ID", value: "sentinel-yearly-environment" },
+  { name: "ORBIT_IOS_APP_STORE_ID", value: "900000001" },
+  { name: "ORBIT_APPLE_TEAM_ID", value: "sentinel-team-environment" },
+]
+const repositoryVariables = [
+  { name: "EXPO_PUBLIC_TURNSTILE_SITE_KEY", value: "sentinel-turnstile-repository" },
+  { name: "EXPO_PUBLIC_GOOGLE_CLIENT_ID", value: "sentinel-google-repository" },
+  { name: "EXPO_PUBLIC_SENTRY_DSN", value: "sentinel-sentry-repository" },
+  { name: "STAGING_EXPO_PUBLIC_POSTHOG_KEY", value: "sentinel-posthog-staging" },
+  { name: "PRODUCTION_EXPO_PUBLIC_POSTHOG_KEY", value: "sentinel-posthog-production" },
+]
 const phone = (udid, state) => ({
   dataPath: "<simulator data path>", dataPathSize: 18337792, logPath: "<simulator log path>",
   udid, isAvailable: true, deviceTypeIdentifier: "com.apple.CoreSimulator.SimDeviceType.iPhone-Duo",
   state, name: "iPhone Duo",
 })
 
-function exercise(label, scenario = {}, argumentsList = []) {
+function exercise(label, scenario = {}, argumentsList = [], callerEnvironment = {}) {
   const checkout = join(root, "ios-simulator", label)
   mkdirSync(join(checkout, "tools"), { recursive: true })
   mkdirSync(join(checkout, "apps", "mobile"), { recursive: true })
@@ -42,8 +61,14 @@ process.kill = () => { if (scenario.dead) throw new Error("No such process"); re
 require("node:timers/promises").setTimeout = async () => {}
 require("node:child_process").spawnSync = (command, args, options) => {
   appendFileSync(${JSON.stringify(callsPath)}, JSON.stringify({ command, args, cwd: options.cwd,
-    environment: Object.fromEntries(["DEVELOPER_DIR", "ORBIT_APP_VARIANT", "EXPO_PUBLIC_API_BASE", "SENTRY_DISABLE_AUTO_UPLOAD", "CI"].map(key => [key, options.env[key]])) }) + "\\n")
+    environment: Object.fromEntries(["DEVELOPER_DIR", "ORBIT_APP_VARIANT", "EXPO_PUBLIC_API_BASE", "SENTRY_DISABLE_AUTO_UPLOAD", "CI", "ORBIT_APPLE_TEAM_ID", ...${JSON.stringify(buildVariableNames)}].map(key => [key, options.env[key]])) }) + "\\n")
   const joined = args.join(" ")
+  if (command === "gh" && args[0] === "variable") {
+    if (scenario.variablesFail) return { status: 1, stdout: "", stderr: "HTTP 404: Not Found" }
+    if (scenario.variablesBadJson) return { status: 0, stdout: "not json sentinel-unparsed-value", stderr: "" }
+    const scoped = args.includes("--env")
+    return { status: 0, stdout: JSON.stringify(scoped ? scenario.stagingVariables ?? ${JSON.stringify(stagingVariables)} : scenario.repositoryVariables ?? ${JSON.stringify(repositoryVariables)}), stderr: "" }
+  }
   if (command === "gh") {
     if (scenario.noGh) return { status: null, error: new Error("spawnSync gh ENOENT"), stdout: "", stderr: "" }
     if (scenario.noAuth) return { status: 4, stdout: "", stderr: "not signed in" }
@@ -77,7 +102,11 @@ syncBuiltinESMExports()
 `)
   const result = spawnSync(process.execPath, ["--require", preload, join(checkout, "tools", "ios-simulator.mjs"), ...argumentsList], {
     cwd: root, encoding: "utf8", timeout: 20000,
-    env: { ...process.env, DEVELOPER_DIR: join(checkout, "Xcode", "Developer"), ORBIT_APP_VARIANT: "production", EXPO_PUBLIC_API_BASE: "https://invalid.example" },
+    env: {
+      ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !buildVariableNames.includes(key) && key !== "ORBIT_APPLE_TEAM_ID")),
+      DEVELOPER_DIR: join(checkout, "Xcode", "Developer"), ORBIT_APP_VARIANT: "production", EXPO_PUBLIC_API_BASE: "https://invalid.example",
+      ...callerEnvironment,
+    },
   })
   const entries = existsSync(callsPath) ? readFileSync(callsPath, "utf8").trim().split("\n").map((line) => JSON.parse(line)) : []
   return { ...result, calls: entries.filter((entry) => entry.command), phases: entries.filter((entry) => entry.phase), checkout }
@@ -132,8 +161,9 @@ export function cases() {
 
   const selected = exercise("selected", {}, ["--device", phoneIdentifier])
   T("ios-simulator: honors a requested shutdown iPhone", selected.status === 0 && JSON.parse(selected.stdout).udid === phoneIdentifier)
-  const overridden = exercise("override", { noGh: true }, ["--app-version", "2.4.6"])
-  T("ios-simulator: explicit version overrides the lookup without requiring gh",
+  const callerSupplied = Object.fromEntries(buildVariableNames.map((name) => [name, name === "ORBIT_IOS_APP_STORE_ID" ? "900000002" : `sentinel-caller-${name}`]))
+  const overridden = exercise("override", { noGh: true }, ["--app-version", "2.4.6"], callerSupplied)
+  T("ios-simulator: explicit version and caller build variables skip every gh lookup",
     overridden.status === 0 && JSON.parse(overridden.stdout).version === "2.4.6" &&
     !overridden.calls.some((call) => call.command === "gh") && overridden.phases.every((phase) => phase.version === "2.4.6"))
   for (const [label, argumentsList] of [
@@ -177,6 +207,77 @@ export function cases() {
   T("ios-simulator: refuses an unverifiable PID", badLaunch.status === 1 && /Cannot verify launch PID/.test(badLaunch.stderr))
   const dead = exercise("dead", { dead: true })
   T("ios-simulator: installation alone never counts as success", dead.status === 1 && /exited within five seconds/.test(dead.stderr) && dead.stdout === "")
+  buildVariableCases(successful, overridden, callerSupplied)
+
   const repeated = exercise("success")
   T("ios-simulator: releases the lock and rebuilds on repeat", repeated.status === 0 && repeated.calls.some((call) => call.args.includes("prebuild")))
+}
+
+const sentinel = /sentinel-|90000000\d/
+
+function buildVariableCases(successful, overridden, callerSupplied) {
+  const variableCalls = successful.calls.filter((call) => call.command === "gh" && call.args[0] === "variable")
+  T("ios-simulator: reads the ios-staging environment and repository variables by name and value only",
+    variableCalls.map((call) => call.args.join(" ")).join("\n") === [
+      "variable list --repo thomasluizon/orbit-ui-mobile --env ios-staging --json name,value",
+      "variable list --repo thomasluizon/orbit-ui-mobile --json name,value",
+    ].join("\n"), JSON.stringify(variableCalls.map((call) => call.args)))
+  const built = (result) => result.calls.find((call) => call.args.includes("-workspace"))?.environment ?? {}
+  const prebuilt = (result) => result.calls.find((call) => call.args.includes("prebuild"))?.environment ?? {}
+  const expected = {
+    EXPO_PUBLIC_TURNSTILE_SITE_KEY: "sentinel-turnstile-environment",
+    EXPO_PUBLIC_APP_STORE_MONTHLY_PRODUCT_ID: "sentinel-monthly-environment",
+    EXPO_PUBLIC_APP_STORE_YEARLY_PRODUCT_ID: "sentinel-yearly-environment",
+    EXPO_PUBLIC_GOOGLE_CLIENT_ID: "sentinel-google-repository",
+    EXPO_PUBLIC_SENTRY_DSN: "sentinel-sentry-repository",
+    EXPO_PUBLIC_POSTHOG_KEY: "sentinel-posthog-staging",
+    ORBIT_IOS_APP_STORE_ID: "900000001",
+  }
+  for (const [label, environment] of [["prebuild", prebuilt(successful)], ["native build", built(successful)]]) {
+    T(`ios-simulator: ${label} receives the ios-staging value before the repository value`,
+      Object.entries(expected).every(([name, value]) => environment[name] === value), JSON.stringify(environment))
+  }
+  T("ios-simulator: never passes the signing team to the ad hoc simulator build", built(successful).ORBIT_APPLE_TEAM_ID === undefined)
+  T("ios-simulator: reports a variable missing everywhere by name and still builds",
+    /EXPO_PUBLIC_APPLE_CLIENT_ID: missing/.test(successful.stderr) && built(successful).EXPO_PUBLIC_APPLE_CLIENT_ID === undefined)
+  T("ios-simulator: reports the source of each resolved variable",
+    /EXPO_PUBLIC_TURNSTILE_SITE_KEY: ios-staging environment/.test(successful.stderr) &&
+    /EXPO_PUBLIC_POSTHOG_KEY: repository STAGING_EXPO_PUBLIC_POSTHOG_KEY/.test(successful.stderr), successful.stderr)
+  T("ios-simulator: caller build variables win over every GitHub value",
+    overridden.status === 0 && buildVariableNames.every((name) => built(overridden)[name] === callerSupplied[name]) &&
+    /EXPO_PUBLIC_TURNSTILE_SITE_KEY: caller environment/.test(overridden.stderr), overridden.stderr)
+
+  const partialCaller = exercise("caller-turnstile", {}, [], { EXPO_PUBLIC_TURNSTILE_SITE_KEY: "sentinel-turnstile-caller" })
+  T("ios-simulator: one caller value wins while the others still resolve from GitHub",
+    partialCaller.status === 0 && built(partialCaller).EXPO_PUBLIC_TURNSTILE_SITE_KEY === "sentinel-turnstile-caller" &&
+    built(partialCaller).EXPO_PUBLIC_GOOGLE_CLIENT_ID === "sentinel-google-repository", partialCaller.stderr)
+  const repositoryOnly = exercise("repository-turnstile", { stagingVariables: [] })
+  T("ios-simulator: falls back to the repository value when the environment has none",
+    repositoryOnly.status === 0 && built(repositoryOnly).EXPO_PUBLIC_TURNSTILE_SITE_KEY === "sentinel-turnstile-repository", repositoryOnly.stderr)
+
+  const missingTurnstile = exercise("missing-turnstile", {
+    stagingVariables: stagingVariables.filter((entry) => entry.name !== "EXPO_PUBLIC_TURNSTILE_SITE_KEY"),
+    repositoryVariables: [...repositoryVariables.filter((entry) => entry.name !== "EXPO_PUBLIC_TURNSTILE_SITE_KEY"),
+      { name: "EXPO_PUBLIC_TURNSTILE_SITE_KEY", value: "  " }],
+  })
+  T("ios-simulator: refuses a build without the Turnstile site key before boot or build",
+    missingTurnstile.status === 3 && /EXPO_PUBLIC_TURNSTILE_SITE_KEY/.test(missingTurnstile.stderr) && /Turnstile/.test(missingTurnstile.stderr) &&
+    !missingTurnstile.calls.some((call) => call.args.includes("bootstatus") || call.args.includes("prebuild")), missingTurnstile.stderr)
+  const unreadable = exercise("variables-unreadable", { variablesFail: true })
+  T("ios-simulator: an unreadable variable list names the Turnstile key and stops",
+    unreadable.status === 3 && /cannot read the ios-staging environment variables/.test(unreadable.stderr) &&
+    /EXPO_PUBLIC_TURNSTILE_SITE_KEY: missing/.test(unreadable.stderr), unreadable.stderr)
+  const offline = exercise("variables-offline", { variablesFail: true }, [], { EXPO_PUBLIC_TURNSTILE_SITE_KEY: "sentinel-turnstile-caller" })
+  T("ios-simulator: an offline build continues with the caller Turnstile key",
+    offline.status === 0 && built(offline).EXPO_PUBLIC_TURNSTILE_SITE_KEY === "sentinel-turnstile-caller", offline.stderr)
+  const malformed = exercise("variables-bad-json", { variablesBadJson: true })
+  T("ios-simulator: a malformed variable list fails without echoing the response", malformed.status === 3, malformed.stderr)
+
+  for (const [label, result] of [
+    ["success", successful], ["caller", overridden], ["partial caller", partialCaller], ["repository", repositoryOnly],
+    ["missing Turnstile", missingTurnstile], ["unreadable", unreadable], ["offline", offline], ["malformed", malformed],
+  ]) {
+    T(`ios-simulator: no build variable value reaches stdout or stderr (${label})`,
+      !sentinel.test(result.stdout) && !sentinel.test(result.stderr), `${result.stdout}\n${result.stderr}`)
+  }
 }

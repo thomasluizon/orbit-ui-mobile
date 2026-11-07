@@ -14,6 +14,11 @@ const USAGE = `usage: node tools/ios-simulator.mjs [--device <udid>] [--app-vers
   Prefers a booted iPhone, otherwise the first available iPhone from simctl.
   Stamps the newest staging Android release version from GitHub Deployments.
   Refuses an unavailable or invalid version; never uses the checkout version implicitly.
+  Exports the public build variables of the iOS Release workflow's staging variant.
+  Each comes from the caller environment, else the ios-staging GitHub environment,
+  else the repository; only GitHub variables are read, never a secret.
+  Reports each variable name and its source on stderr, never a value.
+  Refuses to build without EXPO_PUBLIC_TURNSTILE_SITE_KEY, which staging sign-in needs.
 
   --device <udid>  select an available iPhone by its simulator identifier
   --app-version <x.y.z>  override the release version without a GitHub lookup
@@ -22,13 +27,15 @@ const USAGE = `usage: node tools/ios-simulator.mjs [--device <udid>] [--app-vers
   Requires macOS, Xcode with first-launch setup complete, an iOS runtime with an
   iPhone simulator, CocoaPods on PATH, and npm ci dependencies in this checkout.
   Requires authenticated gh access to release deployments unless --app-version is set.
+  Requires gh access to repository variables unless the caller exports every build variable.
   DEVELOPER_DIR selects Xcode; defaults to the standard Xcode application.
   Logs and DerivedData stay in apps/mobile/.artifacts/ios-simulator (ignored).
   Prints the device, installed bundle identifier, version, PID and liveness as JSON.
   Replaces generated apps/mobile/ios; preserves installed app storage on repeat runs.
   stdin: unused
   exit codes: 0 launched and alive after five seconds, 1 operation failed,
-              2 invalid arguments, 3 missing prerequisites or requested device`
+              2 invalid arguments, 3 missing prerequisites, requested device or
+              EXPO_PUBLIC_TURNSTILE_SITE_KEY`
 
 let requestedDevice
 let requestedAppVersion
@@ -76,6 +83,20 @@ const environment = {
   CI: "1",
 }
 
+const githubRepository = "thomasluizon/orbit-ui-mobile"
+const githubEnvironment = "ios-staging"
+const requiredBuildVariable = "EXPO_PUBLIC_TURNSTILE_SITE_KEY"
+const publicBuildVariables = [
+  [requiredBuildVariable, requiredBuildVariable],
+  ["EXPO_PUBLIC_APP_STORE_MONTHLY_PRODUCT_ID", "EXPO_PUBLIC_APP_STORE_MONTHLY_PRODUCT_ID"],
+  ["EXPO_PUBLIC_APP_STORE_YEARLY_PRODUCT_ID", "EXPO_PUBLIC_APP_STORE_YEARLY_PRODUCT_ID"],
+  ["EXPO_PUBLIC_APPLE_CLIENT_ID", "EXPO_PUBLIC_APPLE_CLIENT_ID"],
+  ["EXPO_PUBLIC_GOOGLE_CLIENT_ID", "EXPO_PUBLIC_GOOGLE_CLIENT_ID"],
+  ["EXPO_PUBLIC_SENTRY_DSN", "EXPO_PUBLIC_SENTRY_DSN"],
+  ["EXPO_PUBLIC_POSTHOG_KEY", "STAGING_EXPO_PUBLIC_POSTHOG_KEY"],
+  ["ORBIT_IOS_APP_STORE_ID", "ORBIT_IOS_APP_STORE_ID"],
+]
+
 function fail(message, code = 1) {
   throw Object.assign(new Error(message), { exitCode: code })
 }
@@ -110,6 +131,54 @@ function resolveAppVersion() {
     return payload.app_version
   } catch (error) {
     fail(`Cannot resolve the simulator app version: ${error.message}. Use --app-version <x.y.z> to supply it explicitly.`)
+  }
+}
+
+function readGitHubVariables(scope, label) {
+  const scopeArguments = scope === undefined ? [] : ["--env", scope]
+  let listing
+  try {
+    listing = run("gh", ["variable", "list", "--repo", githubRepository, ...scopeArguments, "--json", "name,value"])
+  } catch (error) {
+    process.stderr.write(`ios-simulator: cannot read the ${label} variables: ${error.message}\n`)
+    return new Map()
+  }
+  let entries
+  try { entries = JSON.parse(listing) } catch { entries = undefined }
+  if (!Array.isArray(entries)) {
+    process.stderr.write(`ios-simulator: cannot read the ${label} variables: gh returned an unexpected response\n`)
+    return new Map()
+  }
+  return new Map(entries
+    .filter((entry) => typeof entry?.name === "string" && typeof entry.value === "string" && entry.value.trim() !== "")
+    .map((entry) => [entry.name, entry.value]))
+}
+
+function resolveBuildVariables() {
+  const callerValue = (name) => process.env[name]?.trim() ? process.env[name] : undefined
+  const needsGitHub = publicBuildVariables.some(([name]) => callerValue(name) === undefined)
+  const scopes = needsGitHub
+    ? [[`${githubEnvironment} environment`, readGitHubVariables(githubEnvironment, `${githubEnvironment} environment`)],
+       ["repository", readGitHubVariables(undefined, "repository")]]
+    : []
+  for (const [name, githubName] of publicBuildVariables) {
+    const sourceSuffix = githubName === name ? "" : ` ${githubName}`
+    if (callerValue(name) !== undefined) {
+      process.stderr.write(`ios-simulator: build variable ${name}: caller environment\n`)
+      continue
+    }
+    const scope = scopes.find(([, values]) => values.has(githubName))
+    if (scope === undefined) {
+      process.stderr.write(`ios-simulator: build variable ${name}: missing from the caller environment, ` +
+        `the ${githubEnvironment} environment and the repository${sourceSuffix ? ` (GitHub name${sourceSuffix})` : ""}\n`)
+      continue
+    }
+    environment[name] = scope[1].get(githubName)
+    process.stderr.write(`ios-simulator: build variable ${name}: ${scope[0]}${sourceSuffix}\n`)
+  }
+  if (!environment[requiredBuildVariable]?.trim()) {
+    fail(`${requiredBuildVariable} is missing. Staging enforces Turnstile, so a build without it cannot sign in. ` +
+      `Set it in the ${githubEnvironment} GitHub environment or export it before the build.`, 3)
   }
 }
 
@@ -159,6 +228,7 @@ try {
   const version = resolveAppVersion()
   environment.ORBIT_APP_VERSION = version
   process.stderr.write(`ios-simulator: app version ${version}\n`)
+  resolveBuildVariables()
   run("xcodebuild", ["-checkFirstLaunchStatus"])
   run("pod", ["--version"])
   mkdirSync(artifacts, { recursive: true })
