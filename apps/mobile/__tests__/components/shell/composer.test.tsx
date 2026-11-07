@@ -1431,6 +1431,41 @@ describe('Composer (mobile)', () => {
     } finally { TestRenderer.act(() => tree.unmount()) }
   })
 
+  it.each([
+    ['retry over the restored draft', 'Quais habitos tenho hoje', true],
+    ['send over an edited draft', 'Quais habitos tenho amanha', false],
+  ])('moves focus to the input when %s is activated', (_case, value, retrying) => {
+    const focus = vi.fn()
+    __setFocusImpl(focus)
+    const onRetry = vi.fn()
+    const onSend = vi.fn()
+    const retryWords = { ...words, retry: ptBR.shell.composer.retry }
+    const tree = renderComposer(props({ words: retryWords, value, onSend, ...(retrying ? { onRetry } : {}) }))
+    try {
+      expect(__getFocusedNativeTag()).toBeNull()
+      pressControl(byLabel(tree.root, retrying ? retryWords.retry : words.send)[0])
+      expect(retrying ? onRetry : onSend).toHaveBeenCalledOnce()
+      expect(focus).toHaveBeenCalledWith(expect.objectContaining({ accessibilityLabel: words.placeholder }))
+      expect(__getFocusedNativeTag()).toBe(tree.root.findByType('TextInput').props.__nativeTag)
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it('retries the restored draft from a keyboard submit without a new send, and sends an edited draft', () => {
+    const onRetry = vi.fn()
+    const onSend = vi.fn()
+    const retryWords = { ...words, retry: ptBR.shell.composer.retry }
+    const tree = renderComposer(props({ words: retryWords, value: 'Quais habitos tenho hoje', onRetry, onSend }))
+    try {
+      TestRenderer.act(() => byLabel(tree.root, words.placeholder)[0].props.onSubmitEditing())
+      expect(onRetry).toHaveBeenCalledOnce()
+      expect(onSend).not.toHaveBeenCalled()
+      TestRenderer.act(() => tree.update(<Composer {...props({ words: retryWords, value: 'Quais habitos tenho amanha', onSend })} />))
+      TestRenderer.act(() => byLabel(tree.root, words.placeholder)[0].props.onSubmitEditing())
+      expect(onSend).toHaveBeenCalledOnce()
+      expect(onRetry).toHaveBeenCalledOnce()
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
   it('returns the send arrow to the send position when no retry is offered', () => {
     const retryWords = { ...words, retry: ptBR.shell.composer.retry }
     const tree = renderComposer(props({ words: retryWords, value: 'Quais habitos tenho hoje', onRetry: vi.fn() }))

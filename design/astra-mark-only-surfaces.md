@@ -29,6 +29,8 @@ After a failed send, retry takes the send position at the trailing edge of the p
 Retry stays while the draft and attachments are unchanged since the failure, or while the composer
 has no sendable content. An edit is a new send, so the send arrow returns. Offline, at limit and
 while a reply runs, the send position keeps its own control. No retry control shows below the pill.
+Enter on web and the keyboard submit on Android use the control in the send position, so a submit
+while retry shows retries the failed turn and does not send a copy. Retry moves focus to the input.
 
 Other action owners retain clearance on both platforms: the emoji picker and suggestion targets
 have a 12px gap; date, tag, interpretation and analysis actions occupy separate rows; reschedule

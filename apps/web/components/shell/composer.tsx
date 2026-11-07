@@ -12,7 +12,6 @@ import { PersonalText } from '@/components/ui/personal-text'
 
 import { useEffect, useId, useRef, useState, useSyncExternalStore, type ClipboardEventHandler } from 'react'
 import {
-  hasComposerContent,
   type ComposerAttachWords,
   type ComposerAttachment,
   type ComposerProps,
@@ -20,7 +19,7 @@ import {
 } from '@orbit/shared/contracts/composer'
 import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
 import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
-import { isComposerEditable, buildComposerPrimaryControl, buildComposerControls, selectComposerAction, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
+import { isComposerEditable, buildComposerPrimaryControl, buildComposerControls, selectComposerAction, submitComposerFromKeyboard, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
 import { ArrowUp, ChevronDown, Clipboard, FileText, Image as ImageIcon, Mic, Plus, RefreshCw, Square, X } from '@/components/ui/icons'
 import { IconButton } from '@/components/ui/icon-button'
 import * as Menu from '@/components/ui/dropdown-menu'
@@ -156,10 +155,10 @@ function VoiceStatus({ state, words }: Readonly<{ state: 'recording' | 'transcri
   )
 }
 
-function handleSendKeyDown(event: import('react').KeyboardEvent<HTMLTextAreaElement>, canSend: boolean, onSend: () => void) {
+function handleSendKeyDown(event: import('react').KeyboardEvent<HTMLTextAreaElement>, props: ComposerProps) {
   if (event.key !== 'Enter' || event.shiftKey) return
   event.preventDefault()
-  if (canSend) onSend()
+  submitComposerFromKeyboard(props)
 }
 
 function ComposerStatus({ props, disclosure }: Readonly<{ props: WebComposerProps; disclosure?: React.ReactNode }>) {
@@ -308,7 +307,7 @@ const composerInputMetrics = 'px-2 py-3 text-base'
 
 function ComposerPrimaryControl({ props, inputRef }: Readonly<{ props: ComposerProps; inputRef: React.RefObject<HTMLTextAreaElement | null> }>) {
   const action = buildComposerPrimaryControl(props)
-  if (action.kind === 'retry') return <IconButton label={action.label} onClick={action.onSelect}><RefreshCw size={20} strokeWidth={2} aria-hidden="true" /></IconButton>
+  if (action.kind === 'retry') return <IconButton label={action.label} onClick={() => { inputRef.current?.focus(); action.onSelect() }}><RefreshCw size={20} strokeWidth={2} aria-hidden="true" /></IconButton>
   const isSend = action.kind === 'send'
   const color = action.accented ? 'var(--fg-on-primary)' : 'var(--fg-3)'
   return <button type="button" aria-label={action.label} title={isSend ? undefined : action.label}
@@ -368,7 +367,6 @@ function ComposerInputRow({ props, disclosure }: Readonly<{ props: WebComposerPr
     }
   }, [props.state, props.words.placeholder])
   const inputDisabled = !isComposerEditable(props.state)
-  const canSend = (props.state === 'idle' || props.state === 'sending') && hasComposerContent(props.value, props.attachments)
   const isRecording = props.state === 'recording'
   const isTranscribing = props.state === 'transcribing'
   function clearMessage() { props.onChangeValue(''); inputRef.current?.focus() }
@@ -405,7 +403,7 @@ function ComposerInputRow({ props, disclosure }: Readonly<{ props: WebComposerPr
           placeholder={props.words.placeholder}
           value={props.value}
           onChange={(event) => props.onChangeValue(event.target.value)}
-          onKeyDown={(event) => handleSendKeyDown(event, canSend, props.onSend)}
+          onKeyDown={(event) => handleSendKeyDown(event, props)}
           onPaste={props.onPaste}
           onFocus={props.onOpenConversation}
           // eslint-disable-next-line local/require-focus-replacement -- WHY: the composer row draws the textarea focus ring, including in forced colors.

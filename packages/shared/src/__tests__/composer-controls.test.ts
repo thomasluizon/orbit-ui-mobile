@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { buildComposerControls, buildComposerPrimaryControl, selectComposerAction } from '../chat/composer-controls'
+import { buildComposerControls, buildComposerPrimaryControl, selectComposerAction, submitComposerFromKeyboard } from '../chat/composer-controls'
 import type { ComposerProps } from '../contracts/composer'
 
 function composerProps() {
@@ -136,5 +136,21 @@ describe('composer controls', () => {
   ] as const)('leaves the send position to its own control while %s', (_case, stateProps, kind) => {
     const props = { ...composerProps(), value: 'Quais habitos', words: { ...composerProps().words, retry: 'Tentar de novo' }, onRetry: vi.fn(), ...stateProps } as ComposerProps
     expect(buildComposerPrimaryControl(props).kind).toBe(kind)
+  })
+
+  it.each([
+    ['retry over the restored draft', { value: 'Quais habitos tenho hoje', onRetry: vi.fn() }, 'retry'],
+    ['send over an edited draft', { value: 'Quais habitos tenho amanha' }, 'send'],
+    ['send while a reply streams', { value: 'Quais habitos tenho amanha', state: 'sending' }, 'send'],
+    ['nothing over an empty field', { value: '' }, 'none'],
+    ['nothing over a blank field', { value: '  ' }, 'none'],
+    ['nothing offline', { value: 'Quais habitos', state: 'offline', limitReason: 'Offline' }, 'none'],
+    ['nothing while recording', { value: '', state: 'recording' }, 'none'],
+  ] as const)('submits from the keyboard through the send position: %s', (_case, overrides, expected) => {
+    const props = { ...composerProps(), words: { ...composerProps().words, retry: 'Tentar de novo' }, ...overrides } as ComposerProps
+    submitComposerFromKeyboard(props)
+    expect(props.onRetry ?? vi.fn()).toHaveBeenCalledTimes(expected === 'retry' ? 1 : 0)
+    expect(props.onSend).toHaveBeenCalledTimes(expected === 'send' ? 1 : 0)
+    expect(props.onVoice).not.toHaveBeenCalled()
   })
 })

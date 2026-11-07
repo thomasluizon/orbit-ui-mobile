@@ -36,6 +36,11 @@ export function buildComposerPrimaryControl(props: ComposerProps): {
   }
 }
 
+export function submitComposerFromKeyboard(props: ComposerProps): void {
+  const action = buildComposerPrimaryControl(props)
+  if (action.kind === 'send' || action.kind === 'retry') action.onSelect()
+}
+
 type ComposerAction = { id: string; label: string; icon: string; disabled?: boolean }
 
 export function buildComposerControls(props: ComposerProps): {

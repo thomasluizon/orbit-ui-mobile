@@ -909,6 +909,36 @@ describe('Composer', () => {
     expect(onVoice).not.toHaveBeenCalled()
   })
 
+  it.each(['click', 'keyboard'] as const)('moves focus to the input when retry is activated by %s', async activation => {
+    const onRetry = vi.fn()
+    const retryWords = { ...words, retry: ptBR.shell.composer.retry }
+    const value = 'Quais habitos tenho hoje'
+    const { rerender } = render(<Composer {...props({ words: retryWords, value, onRetry })} />)
+    const retry = screen.getByRole('button', { name: retryWords.retry })
+    act(() => retry.focus())
+    if (activation === 'click') fireEvent.click(retry)
+    else await userEvent.keyboard('{Enter}')
+    expect(onRetry).toHaveBeenCalledOnce()
+    rerender(<Composer {...props({ words: retryWords, value, state: 'sending' })} />)
+    expect(screen.queryByRole('button', { name: retryWords.retry })).not.toBeInTheDocument()
+    expect(screen.getByRole('textbox')).toHaveFocus()
+  })
+
+  it('retries the restored draft from Enter without a new send, and sends an edited draft', async () => {
+    const onRetry = vi.fn()
+    const onSend = vi.fn()
+    const retryWords = { ...words, retry: ptBR.shell.composer.retry }
+    const { rerender } = render(<Composer {...props({ words: retryWords, value: 'Quais habitos tenho hoje', onRetry, onSend })} />)
+    act(() => screen.getByRole('textbox').focus())
+    await userEvent.keyboard('{Enter}')
+    expect(onRetry).toHaveBeenCalledOnce()
+    expect(onSend).not.toHaveBeenCalled()
+    rerender(<Composer {...props({ words: retryWords, value: 'Quais habitos tenho amanha', onSend })} />)
+    await userEvent.keyboard('{Enter}')
+    expect(onSend).toHaveBeenCalledOnce()
+    expect(onRetry).toHaveBeenCalledOnce()
+  })
+
   it('returns the send arrow to the send position when no retry is offered', () => {
     const retryWords = { ...words, retry: ptBR.shell.composer.retry }
     const { container, rerender } = render(<Composer {...props({ words: retryWords, value: 'Quais habitos tenho hoje', onRetry: vi.fn() })} />)

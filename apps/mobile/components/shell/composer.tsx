@@ -7,14 +7,13 @@ import { TypedTextInput } from '@/components/ui/typed-text-input'
 import { ShellSideInsetsContext, useShellContentStyle } from './shell-side-insets'
 import { PersonalText } from '@/components/ui/personal-text'
 import {
-  hasComposerContent,
   type ComposerAttachWords,
   type ComposerAttachment,
   type ComposerProps,
   type ComposerVoiceWords,
 } from '@orbit/shared/contracts/composer'
 import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
-import { isComposerEditable, buildComposerPrimaryControl, buildComposerControls, selectComposerAction, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
+import { isComposerEditable, buildComposerPrimaryControl, buildComposerControls, selectComposerAction, submitComposerFromKeyboard, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import { AccessibilityInfo, Animated, findNodeHandle, ScrollView, StyleSheet, Text, type TextInput, type LayoutChangeEvent, View, useWindowDimensions } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
@@ -324,7 +323,6 @@ function ComposerTextInput({ props, tokens, inputRef, onFocusChange, availableWi
   const emptyHeight = composerEmptyHeight(fontScale, placeholderHeight, allowancePlaceholderHeight, Boolean(props.allowanceReason))
   const inputHeight = props.value.length === 0 ? emptyHeight : Math.min(maximumHeight, Math.max(minimumHeight, contentHeight))
   const inputDisabled = !isComposerEditable(props.state)
-  const canSend = !inputDisabled && hasComposerContent(props.value, props.attachments)
   return (
 <Reanimated.View layout={layout} testID="composer-text-slot" style={[styles.textSlot, { minHeight: inputHeight }]}>
         <Text testID="composer-input-minimum" pointerEvents="none" accessible={false}
@@ -349,9 +347,7 @@ function ComposerTextInput({ props, tokens, inputRef, onFocusChange, availableWi
             onFocusChange(false)
             props.onInputBlur?.()
           }}
-          onSubmitEditing={() => {
-            if (canSend) props.onSend()
-          }}
+          onSubmitEditing={() => submitComposerFromKeyboard(props)}
           style={[styles.inputMetrics, styles.input, { color: tokens.fg1, height: inputHeight }]}
         />
         {props.state === 'idle' ? <PasteFitMeasure props={props} availableWidth={availableWidth} onPasteFit={onPasteFit} /> : null}
@@ -470,7 +466,7 @@ function ComposerPrimaryControl({ props, tokens, onLayout, inputRef }: Readonly<
   props: ComposerProps; tokens: AppTokensV2; onLayout: (event: LayoutChangeEvent) => void; inputRef: React.RefObject<TextInput | null>
 }>) {
   const action = buildComposerPrimaryControl(props)
-  if (action.kind === 'retry') return <ThemedIconButton tokens={tokens} label={action.label} onLayout={onLayout} onClick={action.onSelect}><RefreshCw size={20} strokeWidth={2} accessible={false} /></ThemedIconButton>
+  if (action.kind === 'retry') return <ThemedIconButton tokens={tokens} label={action.label} onLayout={onLayout} onClick={() => { inputRef.current?.focus(); action.onSelect() }}><RefreshCw size={20} strokeWidth={2} accessible={false} /></ThemedIconButton>
   const testIds = {
     send: action.accented ? 'composer-send-accent' : 'composer-send-neutral',
     stop: 'composer-stop-recording', microphone: 'composer-microphone',
