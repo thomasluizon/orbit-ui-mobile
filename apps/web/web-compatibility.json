@@ -1,3 +1,4 @@
 {
-  "minimumShellVersion": "0.0.0"
+  "minimumShellVersion": "0.0.0",
+  "signInMinimumShellVersion": "0.1.26"
 }

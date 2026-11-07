@@ -44,7 +44,7 @@ afterEach(() => {
 it('publishes uncached build identity through the real route and admits legacy shells at the initial floor', async () => {
   const response = GET()
   expect(response.headers.get('cache-control')).toBe('no-store')
-  expect(desktopWebReleaseSchema.parse(await response.json())).toEqual({ commit: nextCommit, ...compatibility })
+  expect(await response.json()).toEqual({ commit: nextCommit, minimumShellVersion: compatibility.minimumShellVersion })
   expect(desktopShellVersion()).toBeNull()
   vi.stubGlobal('__TAURI_INTERNALS__', {})
   expect(desktopShellVersion()).toBe('0.0.0')
@@ -68,7 +68,7 @@ it('waits for streaming to settle and offers the update without reloading the co
   useChatStore.setState({ isTyping: false, streamingMessageId: null })
   await vi.advanceTimersByTimeAsync(5000)
   expect(reload).not.toHaveBeenCalled()
-  expect(available).toHaveBeenCalledExactlyOnceWith({ commit: nextCommit, ...compatibility })
+  expect(available).toHaveBeenCalledExactlyOnceWith({ commit: nextCommit, minimumShellVersion: compatibility.minimumShellVersion })
   expect(await reloadDesktopWeb(reload)).toBe(true)
   const checkpoint = await takeDesktopChatCheckpoint('desktop-account')
   expect(checkpoint?.conversationOpen).toBe(true)

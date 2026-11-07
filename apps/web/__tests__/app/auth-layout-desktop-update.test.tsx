@@ -89,3 +89,32 @@ it('still waits for a form outside the sign-in surface before installing', async
   await tick()
   expect(actions().filter(action => action === 'install')).toHaveLength(1)
 })
+
+it.each(['0.1.24', '0.1.25'])('replaces sign-in with the update path on a %s shell without the Turnstile frame fix', async version => {
+  vi.stubGlobal('__ORBIT_DESKTOP_VERSION__', version)
+  render(<AuthLayout><EmailStep /></AuthLayout>)
+  await tick()
+  expect(screen.getByRole('alert')).toHaveTextContent('desktopUpdate.signInRequired')
+  expect(screen.queryByRole('form', { name: 'Sign in' })).toBeNull()
+  expect(screen.queryByRole('textbox', { name: 'Email' })).toBeNull()
+  expect(useDesktopUpdateStore.getState().notice).toEqual({ kind: 'shell', phase: 'available' })
+  native.restartRequested = true
+  await tick()
+  expect(actions().filter(action => action === 'install')).toHaveLength(1)
+})
+
+it.each(['0.1.26', '0.2.0'])('keeps sign-in on a %s shell with the Turnstile frame fix', async version => {
+  vi.stubGlobal('__ORBIT_DESKTOP_VERSION__', version)
+  render(<AuthLayout><EmailStep /></AuthLayout>)
+  await tick()
+  expect(screen.getByRole('textbox', { name: 'Email' })).toBeVisible()
+  expect(screen.queryByText('desktopUpdate.signInRequired')).toBeNull()
+})
+
+it('keeps sign-in in a browser outside the desktop shell', async () => {
+  vi.stubGlobal('__TAURI_INTERNALS__', undefined)
+  Reflect.deleteProperty(window, '__TAURI_INTERNALS__')
+  render(<AuthLayout><EmailStep /></AuthLayout>)
+  await tick()
+  expect(screen.getByRole('textbox', { name: 'Email' })).toBeVisible()
+})
