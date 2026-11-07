@@ -64,6 +64,7 @@ import { useGoalDrag } from './use-goal-drag'
 import { DayStrip } from '@/components/dates/day-strip'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { EmptyState } from '@/components/ui/empty-state'
+import { ShellCentredRegion } from '@/components/shell/shell-centred-region'
 import { ErrorState } from '@/components/ui/error-state'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { FreezeBank } from '@/components/ui/freeze-bank'
@@ -636,15 +637,15 @@ function ProgressGoalsContent() {
   const empty = !loading && !error && allGoals.length === 0
   const retry = () => { void goals.refetch() }
   return (
-    <div ref={contentRef} className="mx-auto flex w-full min-w-0 max-w-[740px] flex-col">
+    <div ref={contentRef} className="mx-auto flex w-full min-w-0 max-w-[740px] flex-1 flex-col">
       {creating ? <CreateGoalSheet open restoreFocusOnCreate={false} onCreated={(goalId) => { setGoalFilter('all'); setCreatedGoalId(goalId) }} onClose={() => setCreating(false)} /> : null}
       {detailGoalId ? <div className="px-screen-gutter pt-4"><GoalDetailDrawer key={detailGoalId} inline open onOpenChange={(open) => { if (!open) setDetailGoalId(null) }} goalId={detailGoalId} /></div> : null}
-      <div hidden={detailGoalId !== null} className="flex w-full flex-col">
+      <div hidden={detailGoalId !== null} className="flex w-full flex-1 flex-col">
         <ProgressSubscreen screen="goals" hideHeader={detailGoalId !== null}>
           <p data-progress-focus tabIndex={-1} className="sr-only">{t('progressScreen.sections.goals')}</p>
           {loading ? <ProgressLoading label={t('progressScreen.loading')} screen="goals" /> : null}
           {error ? <div className="w-full"><ErrorState message={t('progressScreen.error')} action={<IconButton label={t('progressScreen.retry')} onClick={retry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} /></div> : null}
-          {empty ? <div className="pt-12"><GoalsEmptyState onCreate={openCreateGoal} /></div> : null}
+          {empty ? <ShellCentredRegion><GoalsEmptyState onCreate={openCreateGoal} /></ShellCentredRegion> : null}
           {!loading && !error && !empty ? <GoalsSection filter={goalFilter} setFilter={setGoalFilter} onCreate={openCreateGoal} onOpenGoal={setDetailGoalId} goals={allGoals} /> : null}
         </ProgressSubscreen>
       </div>

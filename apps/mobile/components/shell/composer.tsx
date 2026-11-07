@@ -7,14 +7,13 @@ import { TypedTextInput } from '@/components/ui/typed-text-input'
 import { ShellSideInsetsContext, useShellContentStyle } from './shell-side-insets'
 import { PersonalText } from '@/components/ui/personal-text'
 import {
-  hasComposerContent,
   type ComposerAttachWords,
   type ComposerAttachment,
   type ComposerProps,
   type ComposerVoiceWords,
 } from '@orbit/shared/contracts/composer'
 import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
-import { isComposerEditable, buildComposerPrimaryControl, buildComposerControls, selectComposerAction, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
+import { isComposerEditable, buildComposerPrimaryControl, buildComposerControls, selectComposerAction, submitComposerFromKeyboard, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import { AccessibilityInfo, Animated, findNodeHandle, ScrollView, StyleSheet, Text, type TextInput, type LayoutChangeEvent, View, useWindowDimensions } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
@@ -24,7 +23,8 @@ import { useAuthStore } from '@/stores/auth-store'
 import { getAccountGeneration, subscribeToAccountGeneration } from '@/lib/session-epoch'
 import { useUIStore } from '@/stores/ui-store'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
-import { ArrowUp, ChevronDown, Clipboard as ClipboardIcon, FileText, Image, Mic, Plus, Square, X } from '@/components/ui/icons'
+import { ArrowUp, ChevronDown, Clipboard as ClipboardIcon, FileText, Image, Mic, Plus, RefreshCw, Square, X } from '@/components/ui/icons'
+import { ThemedIconButton } from '@/components/ui/icon-button'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -323,7 +323,6 @@ function ComposerTextInput({ props, tokens, inputRef, onFocusChange, availableWi
   const emptyHeight = composerEmptyHeight(fontScale, placeholderHeight, allowancePlaceholderHeight, Boolean(props.allowanceReason))
   const inputHeight = props.value.length === 0 ? emptyHeight : Math.min(maximumHeight, Math.max(minimumHeight, contentHeight))
   const inputDisabled = !isComposerEditable(props.state)
-  const canSend = !inputDisabled && hasComposerContent(props.value, props.attachments)
   return (
 <Reanimated.View layout={layout} testID="composer-text-slot" style={[styles.textSlot, { minHeight: inputHeight }]}>
         <Text testID="composer-input-minimum" pointerEvents="none" accessible={false}
@@ -348,9 +347,7 @@ function ComposerTextInput({ props, tokens, inputRef, onFocusChange, availableWi
             onFocusChange(false)
             props.onInputBlur?.()
           }}
-          onSubmitEditing={() => {
-            if (canSend) props.onSend()
-          }}
+          onSubmitEditing={() => submitComposerFromKeyboard(props)}
           style={[styles.inputMetrics, styles.input, { color: tokens.fg1, height: inputHeight }]}
         />
         {props.state === 'idle' ? <PasteFitMeasure props={props} availableWidth={availableWidth} onPasteFit={onPasteFit} /> : null}
@@ -469,6 +466,7 @@ function ComposerPrimaryControl({ props, tokens, onLayout, inputRef }: Readonly<
   props: ComposerProps; tokens: AppTokensV2; onLayout: (event: LayoutChangeEvent) => void; inputRef: React.RefObject<TextInput | null>
 }>) {
   const action = buildComposerPrimaryControl(props)
+  if (action.kind === 'retry') return <ThemedIconButton tokens={tokens} label={action.label} onLayout={onLayout} onClick={() => { inputRef.current?.focus(); action.onSelect() }}><RefreshCw size={20} strokeWidth={2} accessible={false} /></ThemedIconButton>
   const testIds = {
     send: action.accented ? 'composer-send-accent' : 'composer-send-neutral',
     stop: 'composer-stop-recording', microphone: 'composer-microphone',
@@ -551,21 +549,6 @@ function ComposerError({ props, tokens }: Readonly<{ props: ComposerProps; token
   </View>
 }
 
-function RetryControl({ props, tokens }: Readonly<{ props: ComposerProps; tokens: AppTokensV2 }>) {
-  const prefersReducedMotion = usePrefersReducedMotion()
-  if (!props.onRetry) return null
-  return (
-    <InsetFocusPressable
-      accessibilityRole="button"
-      onPress={props.onRetry}
-      accessibilityLabel={props.words.retry}
-      style={({ pressed }) => [styles.iconButton, { alignSelf: 'flex-start' }, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] } : null]}
-    >
-      <AstraGlyph size={20} color={tokens.fg2} />
-    </InsetFocusPressable>
-  )
-}
-
 function ComposerDisclosure({ collapsed, tokens, onToggle, ref }: Readonly<{ collapsed: boolean; tokens: AppTokensV2; onToggle: () => void; ref: React.Ref<View> }>) {
   const { t } = useTranslation()
   return <InsetFocusPressable ref={ref} testID={collapsed ? 'composer-collapse-row' : 'composer-collapse-control'} accessibilityRole="button"
@@ -618,7 +601,6 @@ function ComposerContent({ props, tokens, focusTarget, disclosure }: Readonly<{ 
       {showAllowanceStatus ? <AllowanceStatus props={props} tokens={tokens} focusTarget={focusTarget} disclosure={disclosure} /> : <ComposerStatus props={props} tokens={tokens} focusTarget={focusTarget} disclosure={disclosure} />}
       <ComposerInputRow props={props} tokens={tokens} inputRef={focusTarget} disclosure={withSuggestions ? undefined : disclosure} />
       {!showAllowanceStatus && props.usageMessage ? <Text testID="composer-usage" style={[styles.usage, { color: tokens.fg3 }]}>{props.usageMessage}</Text> : null}
-      <RetryControl props={props} tokens={tokens} />
   </>
 }
 

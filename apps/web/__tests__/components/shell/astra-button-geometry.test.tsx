@@ -127,10 +127,12 @@ it.each([412, 840])('runs the resting compact Hoje list down to the tab bar at %
   } finally { await page.close() }
 })
 
-it.each([[88, 64], [56, 56]])('holds the compact bottom minimum under a %ipx notice at %ipx', async (noticeHeight, minimum) => {
+const NOTICE_VERTICAL_PADDING = 12 + 24
+
+it.each([[88, 64], [60, 60]])('holds the compact bottom minimum under a %ipx notice at %ipx', async (noticeHeight, minimum) => {
   const page = await browser.newPage({ viewport: { width: 412, height: 915 }, reducedMotion: 'reduce' })
   try {
-    await mountAstraEntry(page, { notice: 'Saved', noticeHeight: noticeHeight - 32 })
+    await mountAstraEntry(page, { notice: 'Saved', noticeHeight: noticeHeight - NOTICE_VERTICAL_PADDING })
     const bounds = await page.evaluate(() => {
       const viewport = document.querySelector<HTMLElement>('[data-shell-bottom-viewport]')!
       return { minimum: Number.parseFloat(getComputedStyle(viewport).minHeight), content: viewport.firstElementChild!.getBoundingClientRect().height }

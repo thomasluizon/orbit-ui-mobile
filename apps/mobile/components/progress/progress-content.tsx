@@ -55,6 +55,7 @@ import { useGoalDrag } from './use-goal-drag'
 import { DayStrip } from '@/components/dates/day-strip'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { EmptyState } from '@/components/ui/empty-state'
+import { ShellCentredRegion } from '@/components/shell/shell-centred-region'
 import { ErrorState } from '@/components/ui/error-state'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { FreezeBank } from '@/components/ui/freeze-bank'
@@ -615,12 +616,12 @@ function ProgressGoalsContent() {
     <ProgressSubscreen screen="goals" hideHeader={detailGoalId !== null}>
       {creating ? <CreateGoalSheet open onCreated={(goalId) => { setGoalFilter('all'); setCreatedGoalId(goalId) }} onClose={() => setCreating(false)} /> : null}
       {detailGoalId ? <ScrollView ref={detailScrollRef} style={[styles.root, { backgroundColor: tokens.bg }]} contentContainerStyle={[styles.sections, { paddingBottom: clearance }]}><GoalDetailDrawer key={detailGoalId} inline open onClose={() => setDetailGoalId(null)} goalId={detailGoalId} /></ScrollView> : null}
-    <NestableScrollContainer ref={scrollRef} style={[styles.root, { backgroundColor: tokens.bg }, detailGoalId ? { display: 'none' } : undefined]} contentContainerStyle={[styles.content, { paddingBottom: clearance }]} showsVerticalScrollIndicator={false}>
-      <View testID="progress-sections" style={styles.sections}>
+    <NestableScrollContainer ref={scrollRef} testID="progress-goals-scroller" style={[styles.root, { backgroundColor: tokens.bg }, detailGoalId ? { display: 'none' } : undefined]} contentContainerStyle={[styles.content, styles.fill, { paddingBottom: clearance }]} showsVerticalScrollIndicator={false}>
+      <View testID="progress-sections" style={[styles.sections, styles.fill]}>
         <ProgressPageHeading focusRef={pageHeadingRef} title={t('progressScreen.sections.goals')} />
         {loading ? <ProgressLoading label={t('progressScreen.loading')} screen="goals" /> : null}
         {error ? <View style={styles.error}><ErrorState message={t('progressScreen.error')} action={<IconButton label={t('progressScreen.retry')} onClick={retry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>} /></View> : null}
-        {empty ? <View style={styles.empty}><GoalsEmptyState onCreate={openCreateGoal} tokens={tokens} /></View> : null}
+        {empty ? <ShellCentredRegion><GoalsEmptyState onCreate={openCreateGoal} tokens={tokens} /></ShellCentredRegion> : null}
         {!loading && !error && !empty ? <GoalsSection filter={goalFilter} setFilter={setGoalFilter} onCreate={openCreateGoal} onOpenGoal={openGoal} onRegisterGoal={registerGoalCard} goals={allGoals} tokens={tokens} /> : null}
       </View>
     </NestableScrollContainer>
@@ -630,10 +631,10 @@ function ProgressGoalsContent() {
 
 const styles = StyleSheet.create({
   screenReaderTitle: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', color: 'transparent' },
-  root: { flex: 1 }, content: { gap: PADDING.sectionStackGap }, sections: { gap: PADDING.sectionStackGap, paddingHorizontal: PADDING.screenGutter, paddingTop: SPACING.s16 },
+  root: { flex: 1 }, content: { gap: PADDING.sectionStackGap }, sections: { gap: PADDING.sectionStackGap, paddingHorizontal: PADDING.screenGutter, paddingVertical: SPACING.s16 }, fill: { flexGrow: 1 },
   loading: { gap: 32 }, loadingRows: { gap: 12 },
   loadingTileRow: { flexDirection: 'row', gap: 16 }, loadingTile: { flex: 1, minWidth: 0 },
-  error: { width: '100%' }, empty: { paddingTop: SPACING.s48 },
+  error: { width: '100%' },
   section: { gap: SPACING.s16 }, sectionTitle: { fontFamily: 'Geist_500Medium', fontSize: 20, lineHeight: 24 },
   streakSection: { width: '100%', gap: 16 },
   hidden: { opacity: 0 },

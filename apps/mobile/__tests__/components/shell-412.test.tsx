@@ -63,7 +63,8 @@ describe('Shell412 mobile', () => {
       })
       const slot = findByTestId(tree, 'shell-notice')[0]!
       expect(slot.findAllByType(Toast)).toHaveLength(count)
-      expect(StyleSheet.flatten(slot.props.style)).toMatchObject({ gap: 12, paddingHorizontal: 16 })
+      expect(StyleSheet.flatten(slot.props.style)).toMatchObject({ paddingHorizontal: 16 })
+      expect(StyleSheet.flatten(findByTestId(tree, 'shell-notice-content')[0]!.props.style)).toMatchObject({ gap: 12 })
     } finally {
       await TestRenderer.act(() => tree.unmount())
       clearPendingNotificationDeletes()
@@ -85,7 +86,7 @@ describe('Shell412 mobile', () => {
       expect(slot.findAllByType(Toast).map(toast => toast.props.message)).toEqual([
         'notifications.deleteQueued', 'notifications.deleteError',
       ])
-      expect(StyleSheet.flatten(slot.props.style)).toMatchObject({ gap: 12 })
+      expect(StyleSheet.flatten(findByTestId(tree, 'shell-notice-content')[0]!.props.style)).toMatchObject({ gap: 12 })
     } finally {
       await TestRenderer.act(() => tree.unmount())
       clearPendingNotificationDeletes()

@@ -2,6 +2,7 @@
 
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
+import { ShellCentredRegion } from '@/components/shell/shell-centred-region'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { useTranslations } from 'next-intl'
 import { OrbitMark } from '@/components/ui/orbit-mark'
@@ -18,7 +19,7 @@ export function NotificationList({ items, isLoading, isError, onRetry, onOpen, o
   const t = useTranslations()
   return (
     <ul tabIndex={-1} aria-label={t('notifications.title')} aria-busy={isLoading}
-      className="orbit-content-frame m-0 flex list-none flex-col gap-2 py-4">
+      className="orbit-content-frame m-0 flex flex-1 list-none flex-col gap-2 py-4">
       {items.length > 0 ? items.map((item) => <NotificationRow key={item.id} item={item} onOpen={onOpen} onDelete={onDelete} />)
         : isLoading ? Array.from({ length: 5 }, (_, index) => (
           <li key={index} aria-hidden="true" className="flex gap-3 rounded-[var(--r-well)] p-4">
@@ -30,7 +31,7 @@ export function NotificationList({ items, isLoading, isError, onRetry, onOpen, o
             </span>
           </li>
         )) : (
-          <li className="flex flex-col items-center gap-4 rounded-[var(--r-card)] p-8 text-center">
+          <li className="flex flex-1 flex-col"><ShellCentredRegion><div className="flex flex-col items-center gap-4 rounded-[var(--r-card)] p-8 text-center">
             {isError ? <>
               <p className="text-sm text-[var(--fg-3)]">{t('notifications.loadError')}</p>
               <IconButton label={t('common.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
@@ -38,7 +39,7 @@ export function NotificationList({ items, isLoading, isError, onRetry, onOpen, o
               <OrbitMark size={96} />
               <p className="text-sm text-[var(--fg-3)]">{t('notifications.empty')}</p>
             </>}
-          </li>
+          </div></ShellCentredRegion></li>
         )}
     </ul>
   )
