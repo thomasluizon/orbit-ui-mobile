@@ -4,7 +4,7 @@ import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
-import { channelVersion, planShellRelease, sourceOnMain } from '../scripts/release-plan.ts'
+import { channelAdvance, channelVersion, planShellRelease, sourceOnMain } from '../scripts/release-plan.ts'
 import channel from '../__fixtures__/channel-staging.json'
 
 // WHY: Git-driven cases can exceed five seconds on Windows runners; allow headroom for process startup (#1818).
@@ -122,6 +122,20 @@ it('publishes a shell meeting a raised web-owned compatibility floor', () => {
   mkdirSync('apps/web', { recursive: true })
   const source = commit('apps/web/web-compatibility.json', JSON.stringify({ minimumShellVersion: '1.0.0' }))
   expect(planShellRelease('staging', source, '0.1.1', [], '1.0.0')).toBe('1.0.0')
+}, gitTestTimeout)
+
+it('refuses a source outside main that raises the web floor above the shell the channel keeps', () => {
+  const merged = repository()
+  git('update-ref', 'refs/remotes/origin/main', merged)
+  mkdirSync('apps/web', { recursive: true })
+  const source = commit('apps/web/web-compatibility.json', JSON.stringify({ minimumShellVersion: '1.0.0' }))
+  const version = planShellRelease('staging', source, '0.1.1', [], '1.0.0')
+  expect(version).toBe('1.0.0')
+  expect(() => channelAdvance(source, version, 'staging', '0.1.1', '1.0.0')).toThrow('merge the floor change to main first')
+  expect(channelAdvance(source, version, 'staging', '0.1.1', '0.1.0')).toBe(false)
+  expect(channelAdvance(source, null, 'staging', '0.1.1', '1.0.0')).toBe(false)
+  git('update-ref', 'refs/remotes/origin/main', source)
+  expect(channelAdvance(source, version, 'staging', '0.1.1', '1.0.0')).toBe(true)
 }, gitTestTimeout)
 
 it('fails if the baseline tag is unavailable or checkout is not the selected commit', () => {

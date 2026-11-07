@@ -52,6 +52,15 @@ export function sourceOnMain(source: string): boolean {
   throw new Error(`Cannot compare the desktop source with main: ${result.stderr.trim()}`)
 }
 
+export function channelAdvance(source: string, version: string | null, variant: string, previous: string | null, minimum: string): boolean {
+  if (version === null) return false
+  if (sourceOnMain(source)) return true
+  if (previous && compareVersions(previous, minimum) < 0) {
+    throw new Error(`Desktop ${variant} stays at ${previous}, below the web minimum shell version ${minimum}; merge the floor change to main first`)
+  }
+  return false
+}
+
 function assertMinimum(variant: string, version: string, minimum: string) {
   releaseSettings(variant, version)
   if (compareVersions(version, minimum) < 0) throw new Error('Desktop release must meet the web minimum shell version')
@@ -78,7 +87,7 @@ async function main() {
   const compatibility: { minimumShellVersion: string } = JSON.parse(readFileSync(new URL('../../web/web-compatibility.json', import.meta.url), 'utf8'))
   const previous = await channelVersion(variant)
   const version = planShellRelease(variant, source, previous, git('tag', '--list', `desktop-${variant}-v*`).split('\n'), compatibility.minimumShellVersion, process.env.DESKTOP_VERSION || undefined, process.env.DESKTOP_ROLLBACK === 'true')
-  const advance = version !== null && sourceOnMain(source)
+  const advance = channelAdvance(source, version, variant, previous, compatibility.minimumShellVersion)
   appendFileSync(process.env.GITHUB_OUTPUT!, `shell_changed=${version !== null}\nadvance_channel=${advance}\nversion=${version ?? ''}\n`)
   let outcome = `unchanged from ${previous}`
   if (advance) outcome = `publish ${version}`
