@@ -86,8 +86,8 @@ it.each(['connect', 'choosePages', 'reconnect'] as const)('opens the %s URL afte
   sheetTestControls.defer(false)
 })
 it.each([
-  ['the feature flag turns off', () => { mocks.enabled = false }, true],
-  ['Pro access ends', () => undefined, false],
+  ['the feature flag turns off', (): void => { mocks.enabled = false }, true],
+  ['Pro access ends', (): void => undefined, false],
 ] as const)('closes the presented Notion sheet through its native dismissal when %s', async (_reason, change, pro) => {
   mount(); await openNotion()
   expect(tree.root.findAllByType(NotionConnectionSheet)).toHaveLength(1)
