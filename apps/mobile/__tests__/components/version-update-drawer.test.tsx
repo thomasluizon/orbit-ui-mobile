@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   downloaded: true,
   forceUpdate: false,
   flexibleActive: false,
+  updateAvailable: true,
 }))
 
 vi.mock('react-i18next', () => ({
@@ -28,7 +29,7 @@ vi.mock('@/hooks/use-version-check', () => ({
   startAndroidUpdate: vi.fn(),
   useAndroidFlexibleUpdate: (active: boolean) => { mocks.flexibleActive = active; return { downloaded: mocks.downloaded, install: mocks.install } },
   useVersionCheck: () => ({
-    updateAvailable: true,
+    updateAvailable: mocks.updateAvailable,
     forceUpdate: mocks.forceUpdate,
     latestVersion: '1.4.0',
     currentVersion: '1.3.27',
@@ -89,6 +90,7 @@ describe('VersionUpdateDrawer close path', () => {
     mocks.downloaded = true
     mocks.forceUpdate = false
     mocks.flexibleActive = false
+    mocks.updateAvailable = true
     mocks.install.mockReset()
     sheetTestControls.defer(true)
   })
@@ -109,6 +111,23 @@ describe('VersionUpdateDrawer close path', () => {
     TestRenderer.act(() => {
       sheetTestControls.completeDismissal()
     })
+
+    expect(sheetCount(tree)).toBe(0)
+  })
+
+  it('keeps the iOS update sheet mounted until its native dismissal finishes when a version refresh clears the update', async () => {
+    mocks.platform = 'ios'
+    const tree = render()
+    await TestRenderer.act(async () => { await Promise.resolve() })
+    expect(sheetCount(tree)).toBe(1)
+
+    mocks.updateAvailable = false
+    TestRenderer.act(() => { tree.update(React.createElement(VersionUpdateDrawer)) })
+
+    expect(sheetCount(tree)).toBe(1)
+    expect(sheetTestControls.isDismissPending).toBe(true)
+
+    TestRenderer.act(() => { sheetTestControls.completeDismissal() })
 
     expect(sheetCount(tree)).toBe(0)
   })
