@@ -46,7 +46,7 @@ export function FlowShell({ action, children, header, mode = 'card', notice }: R
       data-shell="flow"
       data-flow-mode={flowModeName(mode)}
       data-nav={false}
-      className={contentClassName(mode)}
+      className={`flex-auto ${contentClassName(mode)}`}
     >
       <div
         data-field-surface={mode === 'card' ? 'responsive-card' : undefined}

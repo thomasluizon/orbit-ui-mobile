@@ -42,7 +42,7 @@ export function NotificationInbox() {
   }
 
   return (
-    <Menu.Root open={menuOpen} onOpenChange={setMenuOpen}><section className="flex w-full flex-col">
+    <Menu.Root open={menuOpen} onOpenChange={setMenuOpen}><section className="flex w-full flex-1 flex-col">
       <PageHeader title={t('notifications.title')} backLabel={t('common.back')}
         onBack={() => goBack('/')} action={inbox.visibleNotifications.length > 0 ? <Menu.Trigger asChild><button ref={menuAnchorRef} type="button"
           aria-label={t('notifications.options')} aria-expanded={menuOpen} aria-controls={menuId}

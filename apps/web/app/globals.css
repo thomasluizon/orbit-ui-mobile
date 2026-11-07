@@ -2882,6 +2882,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 
 [data-shell-page] {
   --shell-astra-clearance: calc(var(--orbit-space-96) + var(--orbit-space-64) + var(--orbit-space-16));
+  --shell-scroller-end: var(--orbit-space-0);
 }
 
 [data-shell-bottom-viewport] {
@@ -2891,6 +2892,11 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 [data-shell-page-content] {
   --shell-scroll-min-height: 100%;
   transition-property: none;
+}
+
+[data-shell-page-content]:has(> [data-shell="flow"], [data-shell-centred-region]) {
+  display: flex;
+  flex-direction: column;
 }
 
 [data-shell-column],

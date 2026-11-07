@@ -54,7 +54,7 @@ describe('Foldable shell geometry', () => {
     </ShellWide>)
     const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.setContent(`<!DOCTYPE html><style>${stylesheet}</style>${container.innerHTML}`)
       const geometry = await page.evaluate(() => {
         const column = document.querySelector('[data-shell-column]')!.getBoundingClientRect()
         const content = document.querySelector('[data-content-probe] p')!.getBoundingClientRect()
@@ -83,7 +83,7 @@ describe('Foldable shell geometry', () => {
     try {
       const session = await page.context().newCDPSession(page)
       await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 24, bottom: 16, left: 28, right: 64 } })
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.setContent(`<!DOCTYPE html><style>${stylesheet}</style>${container.innerHTML}`)
       const geometry = await page.evaluate(() => {
         const host = document.querySelector('[data-toast-page-host]')!
         const box = host.getBoundingClientRect()
@@ -102,7 +102,7 @@ describe('Foldable shell geometry', () => {
     const markup = renderToStaticMarkup(<GlobalError error={new Error('failed')} reset={vi.fn()} />)
     const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 900 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${markup}`)
+      await page.setContent(`<!DOCTYPE html><style>${stylesheet}</style>${markup}`)
       const geometry = await page.evaluate(() => {
         const section = document.querySelector('section')!.getBoundingClientRect()
         const first = document.querySelector('section')!.firstElementChild!.getBoundingClientRect()
@@ -121,7 +121,7 @@ describe('Foldable shell geometry', () => {
     const { container } = render(<ShellWide nav={false}><ProfileSettingsFrame isLoading={false} loadingLabel="Loading" labels={{}} rows={{}} /></ShellWide>)
     const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 900 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.setContent(`<!DOCTYPE html><style>${stylesheet}</style>${container.innerHTML}`)
       const geometry = await page.evaluate(() => {
         const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
         const frame = document.querySelector('[data-testid="profile-settings-groups"]')!.getBoundingClientRect()
@@ -157,7 +157,7 @@ describe('Foldable shell geometry', () => {
       try {
         const session = await page.context().newCDPSession(page)
         await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { top, bottom, left, right } })
-        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await page.setContent(`<!DOCTYPE html><style>${stylesheet}</style>${container.innerHTML}`)
         const geometry = await page.evaluate(() => {
           const shell = document.querySelector('[data-shell="wide"]')!.getBoundingClientRect()
           const controls = [...document.querySelectorAll('[data-shell-header] button, [data-shell-pinned-slot] button, [data-shell-tab-bar] button, [data-shell-fab] button, [data-shell-scroll-to-top] button, [data-shell-notice] [data-kind]')]
@@ -205,7 +205,7 @@ describe('Foldable shell geometry', () => {
       try {
         const session = await page.context().newCDPSession(page)
         await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { top, bottom: 34, left, right } })
-        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await page.setContent(`<!DOCTYPE html><style>${stylesheet}</style>${container.innerHTML}`)
         const geometry = await page.evaluate(() => {
           const layer = document.querySelector('[data-shell-conversation]')!.getBoundingClientRect()
           const header = document.querySelector('[data-shell-conversation] header')!.getBoundingClientRect()
@@ -248,7 +248,7 @@ describe('Foldable shell geometry', () => {
       </ShellWide>)
       const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width: 1352, height: 915 } })
       try {
-        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await page.setContent(`<!DOCTYPE html><style>${stylesheet}</style>${container.innerHTML}`)
         const geometry = await page.evaluate(() => {
           const column = document.querySelector('[data-shell-column]')!.getBoundingClientRect()
           const scroller = document.querySelector('[data-shell-scroller]')!.getBoundingClientRect()
@@ -272,7 +272,7 @@ describe('Foldable shell geometry', () => {
       const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 900 } })
       try {
         const largeText = textScale === 2 ? '[data-shell-account-name] { font-size: 28px; } [data-shell-account-email] { font-size: 24px; }' : ''
-        await page.setContent(`<style>${stylesheet}\n${largeText}</style>${container.innerHTML}`)
+        await page.setContent(`<!DOCTYPE html><style>${stylesheet}\n${largeText}</style>${container.innerHTML}`)
         const account = page.getByRole('button', { name: `${name}, ${email}`, exact: true })
         expect(await account.getAttribute('href')).toBeNull()
         expect(await account.getAttribute('aria-haspopup')).toBe('menu')
@@ -319,7 +319,7 @@ describe('Foldable shell geometry', () => {
     </ShellWide>)
     const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 120 } })
     try {
-      await page.setContent(`<style>${stylesheet}\n[data-shell-column] { padding-top: 24px; } :root { --safe-bottom: 0px; }</style>${container.innerHTML}`)
+      await page.setContent(`<!DOCTYPE html><style>${stylesheet}\n[data-shell-column] { padding-top: 24px; } :root { --safe-bottom: 0px; }</style>${container.innerHTML}`)
       const geometry = await page.evaluate(() => {
         const pinned = document.querySelector<HTMLElement>('[data-shell-pinned-slot]')!
         const button = pinned.querySelector<HTMLButtonElement>('button')!
@@ -347,7 +347,7 @@ describe('Foldable shell geometry', () => {
     </FlowShell>)
     const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 900 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.setContent(`<!DOCTYPE html><style>${stylesheet}</style>${container.innerHTML}`)
       const geometry = await page.evaluate(() => {
         const scrollerElement = document.querySelector('[data-shell-scroller]')!
         const scroller = scrollerElement.getBoundingClientRect()
@@ -375,7 +375,7 @@ describe('Foldable shell geometry', () => {
     </FlowShell>)
     const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 900 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.setContent(`<!DOCTYPE html><style>${stylesheet}</style>${container.innerHTML}`)
       const geometry = await page.evaluate(() => {
         const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
         scroller.scrollTop = scroller.scrollHeight
@@ -403,7 +403,7 @@ describe('Foldable shell geometry', () => {
     </ShellWide>)
     const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.setContent(`<!DOCTYPE html><style>${stylesheet}</style>${container.innerHTML}`)
       const bounds = await page.evaluate(() => {
         const column = document.querySelector('[data-shell-column]')!
         const rectangle = column.getBoundingClientRect()
@@ -453,7 +453,7 @@ describe('Foldable shell geometry', () => {
     </ShellWide>)
     const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width: 740, height } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.setContent(`<!DOCTYPE html><style>${stylesheet}</style>${container.innerHTML}`)
       const geometry = await page.evaluate(() => {
         const box = (selector: string) => document.querySelector(selector)!.getBoundingClientRect()
         const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
@@ -485,7 +485,7 @@ describe('Foldable shell geometry', () => {
     </ShellWide>)
     const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.setContent(`<!DOCTYPE html><style>${stylesheet}</style>${container.innerHTML}`)
       const bounds = await page.evaluate(() => {
         const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
         const column = scroller.parentElement!
@@ -529,7 +529,7 @@ describe('Foldable shell geometry', () => {
     </ShellWide>)
     const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.setContent(`<!DOCTYPE html><style>${stylesheet}</style>${container.innerHTML}`)
       const geometry = await page.evaluate(() => {
         const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
         scroller.scrollTop = scroller.scrollHeight
@@ -568,7 +568,7 @@ describe('Foldable shell geometry', () => {
     </ShellWide>)
     const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.setContent(`<!DOCTYPE html><style>${stylesheet}</style>${container.innerHTML}`)
       const geometry = await page.evaluate(() => {
         const column = document.querySelector('[data-shell-column]')!.getBoundingClientRect()
         const layer = document.querySelector('[data-shell-conversation]')!.getBoundingClientRect()
