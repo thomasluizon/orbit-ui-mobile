@@ -225,6 +225,10 @@ function getAstraChrome({ viewport, bottomChromeHeight, slotHeight, hasHeader, s
   }
 }
 
+function getBottomViewportMinimum(minimum: number, slotHeight: number, hasPinnedSlot: boolean) {
+  return hasPinnedSlot ? minimum : Math.min(minimum, slotHeight)
+}
+
 function getScrollerClearance(astraButton: boolean | undefined, astraClearance: number, reservesSpace: boolean) {
   return Math.max(astraButton ? astraClearance : 0, reservesSpace ? SHELL_SCROLLER_CLEARANCE : 32)
 }
@@ -331,7 +335,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
             tabBar={props.tabBar}
             backgroundColor={tokens.bg}
             safeAreaBottom={viewport.innerInsets.bottom}
-            minimumViewportHeight={minimumBottomHeight}
+            minimumViewportHeight={getBottomViewportMinimum(minimumBottomHeight, slotHeight, pinnedSlot !== undefined)}
             onTabBarHeight={viewport.setTabBarHeight}
             onHeight={setBottomChromeHeight}
             onSlotHeight={setSlotHeight}

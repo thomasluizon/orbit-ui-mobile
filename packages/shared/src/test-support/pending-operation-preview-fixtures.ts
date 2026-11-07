@@ -398,3 +398,22 @@ export function makeReminderHabitPreview(reminder: 'enabled' | 'atTime' | 'befor
   if (reminder === 'scheduled') fields.push({ ...item.fields[0]!, field: 'scheduled_reminders', newValue: '[{"time":"20:00","when":"day_before"}]', proposedValue: [{ when: 'day_before', time: '20:00' }] })
   return pendingAgentOperationSchema.parse({ ...operation, items: [{ ...item, fields }] })
 }
+
+export const TICKET_TASK_TITLE = 'Concerto da Orquestra Sinfônica do Estado de São Paulo'
+export const TICKET_TASK_DESCRIPTION = 'Ingresso: Setor B, fila 7, assento 12. Portas às 19:30.'
+
+export function makeTicketTaskPreview(): PendingAgentOperation {
+  const operation = makeCreateHabitsPreview(1)
+  const item = operation.items![0]!
+  const title = item.fields[0]!
+  const fields = [
+    { ...title, newValue: TICKET_TASK_TITLE, proposedValue: TICKET_TASK_TITLE },
+    { ...title, field: 'frequency_unit', newValue: 'OneTime', proposedValue: 'OneTime' },
+    { ...title, field: 'due_date', newValue: '2026-11-14', proposedValue: '2026-11-14', valueType: 'date' },
+    { ...title, field: 'due_time', newValue: '20:00', proposedValue: '20:00', valueType: 'time' },
+    { ...title, field: 'description', newValue: TICKET_TASK_DESCRIPTION, proposedValue: TICKET_TASK_DESCRIPTION },
+    { ...title, field: 'reminder_enabled', newValue: 'True', proposedValue: true, valueType: 'boolean' },
+    { ...title, field: 'reminder_times', newValue: '[15]', proposedValue: [15], valueType: 'list' },
+  ].map(field => ({ ...field, entityName: TICKET_TASK_TITLE }))
+  return pendingAgentOperationSchema.parse({ ...operation, expiresAtUtc: '2099-01-01T00:00:00Z', items: [{ ...item, entityName: TICKET_TASK_TITLE, habitType: 'Task', fields }] })
+}

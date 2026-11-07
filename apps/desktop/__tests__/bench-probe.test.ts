@@ -85,12 +85,17 @@ async function measureChat({ fragmented = false, interrupted = false, dispatchDe
     }
   }
   const textarea = new Textarea()
+  let conversationOpen = false
   class InputEvent { constructor(public type: string) {} }
   const sandbox = {
     window: browser, fetch: browser.fetch, Request, Response, ReadableStream, TransformStream, TextDecoder,
     performance, HTMLTextAreaElement: Textarea, Event: InputEvent, KeyboardEvent: InputEvent,
     document: {
-      querySelector: (selector: string) => selector === '[data-open-conversation]' ? null : textarea,
+      querySelector: (selector: string) => {
+        if (selector === '[data-astra-button]:not([disabled])') return { click: () => { conversationOpen = true } }
+        if (selector === '[data-shell-conversation] [data-composer-input]:not([disabled])') return conversationOpen ? textarea : null
+        return null
+      },
       querySelectorAll: () => rendered ? [{ innerText: rendered }] : chat.messages.map(message => ({ innerText: message.content })),
     },
     pause: async () => {}, frame: async () => {},

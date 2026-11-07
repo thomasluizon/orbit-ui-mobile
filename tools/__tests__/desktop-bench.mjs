@@ -104,14 +104,13 @@ async function probeReadiness({ viewport = [900, 600], tauri = false, resizedVie
   let elapsed = 100
   let conversation
   const close = { getAttribute: () => 'Close', click: () => { conversation = null } }
-  const composer = { getBoundingClientRect: () => ({ height: 40 }), blur() {}, focus() { calls.push(['focus', ...viewport]); document.activeElement = composer } }
+  const astraButton = { getBoundingClientRect: () => ({ height: 60 }), click() { calls.push(['open', ...viewport]); conversation = { querySelectorAll: () => [close] } } }
   const document = {
     visibilityState: 'visible', body: { innerText: '' }, querySelectorAll: () => [],
     querySelector(selector) {
       if (selector === '[data-habit-id="bench-0000"]') return { getBoundingClientRect: () => ({ height: 40 }) }
-      if (selector === '[data-composer-input]:not([disabled])') return composer
+      if (selector === '[data-astra-button]:not([disabled])') return conversation ? null : astraButton
       if (selector === '[data-shell-conversation]') return conversation
-      if (selector === '[data-open-conversation]') return { click: () => { conversation = { querySelectorAll: () => [close] } } }
       return null
     },
   }
@@ -153,9 +152,9 @@ async function probeReadinessCases() {
     T(`Tauri corrects the page viewport ${viewport} even when native frame and bounds already match`,
       invocations.length === 1 && invocations[0][1] === 'fit_bench_viewport' && invocations[0][2].viewport.join(',') === viewport.join(','), JSON.stringify(calls))
     const layoutIndex = calls.findIndex(([kind]) => kind === 'layout')
-    T('Tauri waits for the resized CSS layout before focus and usable reporting',
+    T('Tauri waits for the resized CSS layout before opening Astra and usable reporting',
       event.kind === 'usable' && event.viewport.join(',') === '900,600' && layoutIndex >= 0 &&
-      calls.findIndex(([kind]) => kind === 'focus') > layoutIndex && calls.findIndex(([kind]) => kind === 'report') > layoutIndex, JSON.stringify({ event, calls }))
+      calls.findIndex(([kind]) => kind === 'open') > layoutIndex && calls.findIndex(([kind]) => kind === 'report') > layoutIndex, JSON.stringify({ event, calls }))
   }
   const matching = await probeReadiness({ tauri: true })
   T('matching Tauri readiness obtains native geometry for subsequent measured launches',

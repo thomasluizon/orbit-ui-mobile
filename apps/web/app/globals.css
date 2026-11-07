@@ -2885,6 +2885,10 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   --shell-scroller-end: var(--orbit-space-0);
 }
 
+[data-shell-bottom-viewport] {
+  --shell-bottom-content-height: var(--orbit-space-0);
+}
+
 [data-shell-page-content] {
   --shell-scroll-min-height: 100%;
   transition-property: none;

@@ -36,6 +36,7 @@ const actionHitPadding = (TOUCH_TARGET_MIN - SMALL_PILL_VISIBLE_MIN) / 2
 type FrameRowProps = Readonly<{
   item: BlockFrameItem
   frameState: BlockFrameProps['state']
+  stackSettled: boolean
   statusLabel?: string
   irreversibleLabel?: string
   proposedLabel?: string
@@ -78,31 +79,43 @@ function MetaLine({ meta, wrap, tokens }: Readonly<{ meta: string; wrap: boolean
   return <Text numberOfLines={wrap ? undefined : 1} style={[styles.meta, { color: tokens.fg3 }, wrap && { lineHeight: 12 * 1.4 }]}>{meta}</Text>
 }
 
-function getRowStyle(wrapLabel: boolean | undefined, indented: boolean | undefined) {
-  return [styles.row, wrapLabel && { alignItems: 'flex-start' as const }, indented && { paddingStart: SPACING.s24 }]
+function getRowStyle(wrapLabel: boolean | undefined, indented: boolean | undefined, settled: boolean) {
+  return [styles.row, settled ? styles.settledRow : wrapLabel && { alignItems: 'flex-start' as const }, indented && { paddingStart: SPACING.s24 }]
+}
+
+function RowWords({ item, settled, irreversibleLabel, tokens }: Readonly<{
+  item: BlockFrameItem
+  settled: boolean
+  irreversibleLabel?: string
+  tokens: AppTokensV2
+}>) {
+  return (
+    <View style={settled ? styles.settledWords : styles.rowWords}>
+      {typeof item.label === 'string' || typeof item.label === 'number' ? (
+        <Text numberOfLines={item.wrapLabel ? undefined : 1} style={[styles.rowLabel, { color: item.proposed ? tokens.fg3 : tokens.fg1 }]}>
+          {item.label}
+        </Text>
+      ) : <View style={styles.rowLabelNode}>{item.label}</View>}
+      {item.meta ? <MetaLine meta={item.meta} wrap={item.wrapMeta === true} tokens={tokens} /> : null}
+      {item.irreversible && irreversibleLabel ? (
+        <IrreversibleMark label={irreversibleLabel} tokens={tokens} />
+      ) : null}
+    </View>
+  )
 }
 
 function FrameRowContent(props: FrameRowProps) {
-  const { item, frameState, statusLabel, onEditItem, tokens } = props
+  const { item, frameState, stackSettled, statusLabel, onEditItem, tokens } = props
   const status = frameState === 'acting' ? 'acting' : item.status
   const isEditable = status == null && frameState !== 'stale' && item.editable !== false
-  const row = (
+  const settled = stackSettled && status != null
+  return (
     <View
-      style={getRowStyle(item.wrapLabel, item.indented)}
+      style={getRowStyle(item.wrapLabel, item.indented, settled)}
       testID={`block-frame-item-${item.id}-${status ?? 'pending'}${item.proposed ? '-proposed' : ''}`}
     >
-      <View style={styles.rowWords}>
-        {typeof item.label === 'string' || typeof item.label === 'number' ? (
-          <Text numberOfLines={item.wrapLabel ? undefined : 1} style={[styles.rowLabel, { color: item.proposed ? tokens.fg3 : tokens.fg1 }]}>
-            {item.label}
-          </Text>
-        ) : <View style={styles.rowLabelNode}>{item.label}</View>}
-        {item.meta ? <MetaLine meta={item.meta} wrap={item.wrapMeta === true} tokens={tokens} /> : null}
-        {item.irreversible && props.irreversibleLabel ? (
-          <IrreversibleMark label={props.irreversibleLabel} tokens={tokens} />
-        ) : null}
-      </View>
-      <View style={styles.trailing}>
+      <RowWords item={item} settled={settled} irreversibleLabel={props.irreversibleLabel} tokens={tokens} />
+      <View style={settled ? styles.settledTrailing : styles.trailing}>
         {item.control}
         {isEditable && onEditItem && props.editLabel ? (
           <Pressable
@@ -121,8 +134,6 @@ function FrameRowContent(props: FrameRowProps) {
       </View>
     </View>
   )
-
-  return row
 }
 
 function FrameRow(props: FrameRowProps) {
@@ -173,6 +184,7 @@ function FrameRows({ frameProps, tokens }: Readonly<{
         item={rowProps.item}
         onEditItem={rowProps.onEditItem}
         proposedLabel={rowProps.proposedLabel}
+        stackSettled={rowProps.stackSettled}
         statusLabel={rowProps.statusLabel}
         tokens={tokens}
       />
@@ -321,6 +333,9 @@ const styles = StyleSheet.create({
   groupHeading: { paddingHorizontal: SPACING.s12, paddingTop: SPACING.s16, fontFamily: 'Geist_500Medium', fontSize: 14 },
   row: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 12, padding: SPACING.s12 },
   rowWords: { flex: 1, minWidth: 0 },
+  settledRow: { flexDirection: 'column', alignItems: 'stretch' },
+  settledWords: { minWidth: 0 },
+  settledTrailing: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: 8 },
   rowLabel: { fontFamily: 'Geist_500Medium', fontSize: 14 },
   rowLabelNode: { minWidth: 0 },
   meta: { fontFamily: 'Geist_400Regular', fontSize: 12 },

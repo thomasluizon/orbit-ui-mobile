@@ -252,6 +252,17 @@ export function buildPendingOperationCardLabels(
   }
 }
 
+function bindsNumber(previous: string, word: string): boolean {
+  return (/\p{L}$/u.test(previous) && /^\d/.test(word)) || (/\d$/.test(previous) && /^\p{L}/u.test(word))
+}
+
 export function formatPreviewMeta(meta: string): string {
-  return meta.split(' · ').map(token => token.replace(/ /g, '\u00a0')).join(' · ')
+  const words = meta.split(' ')
+  let boundWords = 1
+  return words.map((word, index) => {
+    if (index === 0) return word
+    const bind = boundWords < 3 && bindsNumber(words[index - 1]!, word)
+    boundWords = bind ? boundWords + 1 : 1
+    return `${bind ? '\u00a0' : ' '}${word}`
+  }).join('')
 }

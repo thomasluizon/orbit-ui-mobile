@@ -50,6 +50,7 @@ type ExpectedCommon = {
   readonly irreversibleLabel?: string
   readonly confirmNote?: string
   readonly proposedLabel?: string
+  readonly stackSettledRows?: boolean
 }
 type ExpectedStale = {
   readonly state: 'stale'
@@ -98,6 +99,7 @@ export type BlockContractWidthAssertions = [
   Assert<IsExactWidth<BlockFrameProps['actions'], React.ReactNode>>,
   Assert<IsExactWidth<BlockFrameProps['irreversibleLabel'], string | undefined>>,
   Assert<IsExactWidth<BlockFrameProps['confirmNote'], string | undefined>>,
+  Assert<IsExactWidth<BlockFrameProps['stackSettledRows'], boolean | undefined>>,
   Assert<IsExactWidth<BlockFrameProps['proposedLabel'], string | undefined>>,
   Assert<IsExactWidth<BlockFrameProps['state'], 'loading' | 'resting' | 'acting' | 'partiallyFailed' | 'stale'>>,
   Assert<IsExactWidth<BlockFrameProps['staleMessage'], string | undefined>>,

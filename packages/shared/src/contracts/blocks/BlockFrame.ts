@@ -55,6 +55,7 @@ type BlockFrameCommon = {
   readonly irreversibleLabel?: string
   readonly confirmNote?: string
   readonly proposedLabel?: string
+  readonly stackSettledRows?: boolean
 }
 
 export type BlockFrameProps = BlockFrameCommon &
@@ -64,6 +65,7 @@ export type BlockFrameProps = BlockFrameCommon &
 export type ResolvedBlockFrameRow = Readonly<{
   item: BlockFrameItem
   frameState: BlockFrameState
+  stackSettled: boolean
   statusLabel?: string
   irreversibleLabel?: string
   proposedLabel?: string
@@ -131,6 +133,7 @@ export function resolveBlockFrameRows(
   return props.items.map((item) => ({
     item,
     frameState: props.state,
+    stackSettled: props.stackSettledRows === true,
     statusLabel: resolveStatusLabel(item, props.state, labels),
     irreversibleLabel: props.irreversibleLabel,
     proposedLabel: props.proposedLabel,
