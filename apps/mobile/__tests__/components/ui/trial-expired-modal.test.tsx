@@ -60,6 +60,7 @@ function parentView(node: import('react-test-renderer').ReactTestInstance) {
 }
 
 const push = vi.hoisted(() => vi.fn())
+const profileState = vi.hoisted(() => ({ trialExpired: true }))
 
 vi.mock('expo-router', () => ({
   usePathname: () => '/',
@@ -67,7 +68,7 @@ vi.mock('expo-router', () => ({
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
-  useTrialExpired: () => true,
+  useTrialExpired: () => profileState.trialExpired,
 }))
 
 vi.mock('@/components/ui/sheet', async () =>
@@ -83,6 +84,7 @@ describe('TrialExpiredModal (mobile)', () => {
 
   beforeEach(() => {
     vi.restoreAllMocks()
+    profileState.trialExpired = true
     useUIStore.setState({ openOverlayIds: [], showCreateModal: false })
     storedFlags({})
     holdAccount('user-1')
@@ -228,5 +230,35 @@ describe('TrialExpiredModal (mobile)', () => {
     expect(renderedText(await renderModal())).not.toContain('trial.expired.astraCeiling')
     expect(setItem).toHaveBeenCalledWith(ACCOUNT_A_TRIAL_KEY, '1')
     expect(removeItem).toHaveBeenCalledWith(LEGACY_TRIAL_KEY)
+  })
+
+  it.each([
+    ['the next account signs in', () => { holdAccount('user-2') }],
+    ['a profile refresh ends the expired trial', (tree: import('react-test-renderer').ReactTestRenderer) => {
+      profileState.trialExpired = false
+      tree.update(<TrialExpiredModal />)
+    }],
+  ])('keeps the presented notice mounted until its native dismissal finishes when %s', async (_reason, change) => {
+    push.mockClear()
+    vi.spyOn(AsyncStorage, 'multiGet').mockImplementation((keys) => keys[0] === ACCOUNT_B_TRIAL_KEY
+      ? new Promise(() => {})
+      : Promise.resolve(keys.map((key): [string, string | null] => [key, null])))
+    const tree = await renderModal()
+    const noticeSheets = () => tree!.root.findAll((node) => String(node.type) === 'Sheet')
+    expect(noticeSheets()).toHaveLength(1)
+    sheetTestControls.defer(true)
+
+    await act(async () => {
+      change(tree!)
+      await Promise.resolve()
+    })
+
+    expect(noticeSheets()).toHaveLength(1)
+    expect(sheetTestControls.isDismissPending).toBe(true)
+
+    await act(() => sheetTestControls.completeDismissal())
+
+    expect(noticeSheets()).toHaveLength(0)
+    expect(push).not.toHaveBeenCalled()
   })
 })

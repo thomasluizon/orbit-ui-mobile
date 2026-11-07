@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-share-prompt'
 import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
+import { getMilestoneShareAchievementKey } from '@orbit/shared/stores'
+import { achievementSchema } from '@orbit/shared/types/gamification'
 import { expectSmallSheetActions, sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 vi.mock('react-i18next', () => ({
@@ -13,9 +15,17 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 
-vi.mock('@tanstack/react-query', () => ({
-  useQueryClient: () => ({ getQueryData: () => undefined }),
-}))
+const queryCache = vi.hoisted((): { gamificationProfile: unknown } => ({ gamificationProfile: undefined }))
+
+vi.mock('@tanstack/react-query', async () => {
+  const { gamificationKeys } = await import('@orbit/shared/query')
+  return {
+    useQueryClient: () => ({
+      getQueryData: (key: readonly unknown[]) =>
+        JSON.stringify(key) === JSON.stringify(gamificationKeys.profile()) ? queryCache.gamificationProfile : undefined,
+    }),
+  }
+})
 
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
@@ -51,6 +61,7 @@ type RenderedNode = {
 type RenderedTree = {
   root: { findAll: (predicate: (node: RenderedNode) => boolean) => RenderedNode[] }
   unmount: () => void
+  update: (element: React.ReactElement) => void
 }
 
 let currentTree: RenderedTree | null = null
@@ -73,6 +84,7 @@ describe('MilestoneSharePrompt (mobile)', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     shareCard.hasError = false
+    queryCache.gamificationProfile = undefined
     resetStores()
   })
 
@@ -133,6 +145,29 @@ describe('MilestoneSharePrompt (mobile)', () => {
     expect(useEngagementPromptStore.getState().promptedMilestoneKeys).toContain(
       'share-streak-7',
     )
+  })
+
+  it('keeps the presented achievement card while a gamification refresh drops the cached achievement', async () => {
+    const achievement = achievementSchema.parse({
+      id: 'first-week', name: 'First week', description: 'Seven days', category: 'streak', rarity: 'rare',
+      xpReward: 50, iconKey: 'flame', isEarned: true, earnedAtUtc: '2026-11-01T00:00:00Z',
+    })
+    queryCache.gamificationProfile = { achievements: [achievement] }
+    const tree = await render()
+    await armMilestoneShare(getMilestoneShareAchievementKey(achievement.id))
+    await TestRenderer.act(async () => {
+      await vi.advanceTimersByTimeAsync(500)
+    })
+    expect(findByType(tree, 'Sheet')).toHaveLength(1)
+
+    queryCache.gamificationProfile = undefined
+    await TestRenderer.act(async () => {
+      tree.update(<MilestoneSharePrompt />)
+      await Promise.resolve()
+    })
+
+    expect(findByType(tree, 'Sheet')).toHaveLength(1)
+    expect(findByType(tree, 'MilestoneShareCardStub')).toHaveLength(1)
   })
 
   it('pins Share and Later in the sheet footer, never in the scrolling body', async () => {

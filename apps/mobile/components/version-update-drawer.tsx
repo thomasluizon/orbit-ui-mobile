@@ -7,7 +7,8 @@ import { nativeBuildVersion } from 'expo-application'
 import { captureAndroidUpdateSheetShown } from '@/lib/posthog'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTranslation } from 'react-i18next'
-import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { Sheet } from '@/components/ui/sheet'
+import { useSheetPresence } from '@/components/ui/sheet-presence'
 import { useUpdateSheetFooterReport, type ReportUpdateSheetFooter } from '@/hooks/use-update-sheet-footer-report'
 import { PillButton } from '@/components/ui/pill-button'
 import {
@@ -93,7 +94,8 @@ interface VersionUpdateSheetProps {
 }
 
 function VersionUpdateSheet({ open, ...sheet }: Readonly<VersionUpdateSheetProps>) {
-  return open ? <OpenVersionUpdateSheet {...sheet} /> : null
+  const { mounted, sheetKey, sheetRef, closeSheet } = useSheetPresence(open)
+  return mounted ? <OpenVersionUpdateSheet key={sheetKey} {...sheet} sheetRef={sheetRef} closeSheet={closeSheet} /> : null
 }
 
 function OpenVersionUpdateSheet({
@@ -104,9 +106,10 @@ function OpenVersionUpdateSheet({
   onAction,
   onLater,
   onDidPresent,
-}: Readonly<Omit<VersionUpdateSheetProps, 'open'>>) {
+  sheetRef,
+  closeSheet,
+}: Readonly<Omit<VersionUpdateSheetProps, 'open'> & Pick<ReturnType<typeof useSheetPresence>, 'sheetRef' | 'closeSheet'>>) {
   const { t } = useTranslation()
-  const { sheetRef, closeSheet } = useSheetHost()
   const footerReport = useUpdateSheetFooterReport(onDidPresent)
 
   return (

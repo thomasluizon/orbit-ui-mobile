@@ -38,7 +38,7 @@ export function OverlayLayer({
   return (
     <>
       <ExpiryWarning />
-      {!onboardingOpen && pendingProLoaded ? <TrialExpiredModal /> : null}
+      <TrialExpiredModal suppressed={onboardingOpen || !pendingProLoaded} />
       {onboardingOpen ? (
         <OnboardingActionsProvider
           actions={onboardingActions}

@@ -6,6 +6,7 @@ import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import { AccessibilityInfo, BackHandler, StyleSheet, View } from 'react-native'
 import { formatLocaleDateTime, getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { prepareChatRequest } from '@orbit/shared/stores'
+import { createUseRetainedGoal } from '@orbit/shared/hooks'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import { AppBar } from '@/components/ui/app-bar'
@@ -33,6 +34,8 @@ interface GoalDetailDrawerProps {
   onClose: () => void
 }
 
+const useRetainedGoal = createUseRetainedGoal(useState)
+
 export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Readonly<GoalDetailDrawerProps>) {
   const { t, i18n } = useTranslation()
   const navigate = useChatNavigation()
@@ -44,6 +47,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
   const { data: goalsData } = useGoals()
   const { data: detailData, isLoading, isError, refetch } = useGoalDetail(open ? goalId : null)
   const goal = detailData?.goal ?? goalsData?.goalsById.get(goalId) ?? null
+  const sheetGoal = useRetainedGoal(goal, goalId)
   const astraConversationOpen = useUIStore(state => state.astraConversationOpen)
   const draftHydrated = useChatStore(state => state.draftHydrated)
   const deleteGoal = useDeleteGoal()
@@ -128,8 +132,8 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
   return (
     <>
       {open && (inline || !editingProgress) ? inline ? <><AppBar title={t('progressScreen.sections.goals')} titleIsHeading={!goal} onBack={close} backLabel={t('common.back')} />{body}</> : <Sheet ref={sheetRef} open onClose={onClose} title={t('progressScreen.sections.goals')}>{body}</Sheet> : null}
-      {open && editingProgress && goal ? <GoalProgressForm key={goalId} goal={goal} refetchDetail={refetch} onClose={() => setEditingProgress(false)} /> : null}
-      {goal ? <EditGoalModal open={editing} onClose={() => setEditing(false)} goal={goal} /> : null}
+      {open && editingProgress && sheetGoal ? <GoalProgressForm key={goalId} goal={sheetGoal} refetchDetail={refetch} onClose={() => setEditingProgress(false)} /> : null}
+      {sheetGoal ? <EditGoalModal open={editing} onClose={() => setEditing(false)} goal={sheetGoal} /> : null}
       <ConfirmSheet open={deleting} title={t('goals.detail.delete')} message={t('goals.detail.deleteNamed', { title: goal?.title ?? '' })} confirmLabel={t('goals.detail.delete')} destructive onCancel={() => setDeleting(false)} onConfirm={() => { setDeleting(false); void confirmDelete() }} />
     </>
   )
