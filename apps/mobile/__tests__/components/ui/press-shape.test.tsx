@@ -158,7 +158,7 @@ describe('pressed hit area shapes', () => {
       pressedFill(control, false)
       expect(fill().backgroundColor).toBe('transparent')
     })
-    expect(pressedStyle(row, 'More')).toMatchObject({ borderRadius: 999, overflow: 'hidden', backgroundColor: tokens.bgRowAction })
+    expect(pressedStyle(row, 'More')).toMatchObject({ borderRadius: 999, overflow: 'hidden', backgroundColor: tokens.bgHover })
   })
 
   it('keeps compact and regular ListRow targets at their drawn floors', () => {
@@ -276,7 +276,7 @@ describe('pressed hit area shapes', () => {
     withTree(<CalendarSyncEventRow event={event} weekStartDay={1} selected={false} isReviewMode suggestionId="suggestion-1" dismissPending={dismissPending} styles={createCalendarSyncStyles()} tokens={tokens} t={((key: string) => key) as never} onToggle={() => {}} onDismiss={() => {}} />, (tree) => {
       const control = findPressable(tree, 'calendar.autoSync.dismissSuggestion')
       expect(control.props.hitSlop).toBeUndefined()
-      expect(pressedFill(control, true)).toMatchObject({ width: 48, height: 48, backgroundColor: dismissPending ? 'transparent' : tokens.bgRowAction, borderRadius: 999, ...(dismissPending ? { opacity: 0.6 } : {}) })
+      expect(pressedFill(control, true)).toMatchObject({ width: 48, height: 48, backgroundColor: dismissPending ? 'transparent' : tokens.bgHover, borderRadius: 999, ...(dismissPending ? { opacity: 0.6 } : {}) })
       expect(pressedFill(control, false).backgroundColor).toBe('transparent')
     })
   })
