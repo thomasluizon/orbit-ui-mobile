@@ -4,10 +4,11 @@ import { ListRow } from '@/components/ui/list-row'
 
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 
-import { useCallback, useEffect, useRef, type MouseEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import { formatLocaleDateTime, getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { prepareChatRequest } from '@orbit/shared/stores'
+import { createUseRetainedGoal } from '@orbit/shared/hooks'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import { AppBar } from '@/components/ui/app-bar'
@@ -37,6 +38,8 @@ interface GoalDetailDrawerProps {
   initialAction?: GoalDrawerInitialAction | null
 }
 
+const useRetainedGoal = createUseRetainedGoal(useState)
+
 export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, onLinkedHabitNavigate, initialAction }: Readonly<GoalDetailDrawerProps>) {
   const t = useTranslations()
   const locale = useLocale()
@@ -46,6 +49,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
   const { data: goalsData } = useGoals()
   const { data: detailData, isLoading, isError, refetch } = useGoalDetail(open ? goalId : null)
   const goal = detailData?.goal ?? goalsData?.goalsById.get(goalId) ?? null
+  const sheetGoal = useRetainedGoal(goal, goalId)
   const draftHydrated = useChatStore(state => state.draftHydrated)
   const deleteGoal = useDeleteGoal()
   const [editing, setEditing] = useAccountScopedState(false)
@@ -144,8 +148,8 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
   return (
     <>
       {open && (inline || !editingProgress) ? inline ? <><AppBar title={t('progressScreen.sections.goals')} titleIsHeading={!goal} titleRef={barHeadingRef} onBack={() => close()} backLabel={t('common.back')} />{body}</> : <Sheet ref={sheetRef} open onClose={onClose} title={t('progressScreen.sections.goals')}>{body}</Sheet> : null}
-      {open && editingProgress && goal ? <GoalProgressForm key={goalId} goal={goal} refetchDetail={refetch} onClose={() => setEditingProgress(false)} /> : null}
-      {goal ? <EditGoalModal open={editing} onOpenChange={setEditing} goal={goal} /> : null}
+      {open && editingProgress && sheetGoal ? <GoalProgressForm key={goalId} goal={sheetGoal} refetchDetail={refetch} onClose={() => setEditingProgress(false)} /> : null}
+      {sheetGoal ? <EditGoalModal open={editing} onOpenChange={setEditing} goal={sheetGoal} /> : null}
       <ConfirmSheet open={deleting} title={t('goals.detail.delete')} message={t('goals.detail.deleteNamed', { title: goal?.title ?? '' })} confirmLabel={t('goals.detail.delete')} destructive onCancel={() => setDeleting(false)} onConfirm={() => { setDeleting(false); void confirmDelete() }} />
     </>
   )

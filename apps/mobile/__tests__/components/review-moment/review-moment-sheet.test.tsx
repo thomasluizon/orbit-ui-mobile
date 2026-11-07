@@ -92,7 +92,7 @@ describe('ReviewMomentSheet (mobile)', () => {
 
   async function render() {
     await TestRenderer.act(async () => {
-      currentTree = TestRenderer.create(<ReviewMomentSheet />)
+      currentTree = TestRenderer.create(<ReviewMomentSheet suppressed={false} />)
       await Promise.resolve()
     })
     return currentTree!

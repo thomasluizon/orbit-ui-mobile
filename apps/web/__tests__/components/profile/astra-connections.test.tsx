@@ -31,9 +31,10 @@ beforeEach(() => {
   mocks.disconnect.mockResolvedValue(undefined)
 })
 afterEach(cleanup)
+let mountedClient: QueryClient
 function mount(pro = true) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
-  return render(<QueryClientProvider client={client}><AstraConnections hasProAccess={pro} /></QueryClientProvider>)
+  mountedClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+  return render(<QueryClientProvider client={mountedClient}><AstraConnections hasProAccess={pro} /></QueryClientProvider>)
 }
 async function openNotion() {
   await screen.findByText(en.profile.connections.notConnected)
@@ -84,6 +85,26 @@ it.each(['connect', 'choosePages', 'reconnect'] as const)('opens the %s URL only
   expect(closed).toHaveBeenCalledOnce()
   expect(opened).toHaveBeenCalledExactlyOnceWith(createNotionAuthorization().authorizeUrl)
   sheetTestControls.defer(false)
+})
+it.each([
+  ['the feature flag turns off', (): void => { mocks.enabled = false }, true],
+  ['Pro access ends', (): void => undefined, false],
+] as const)('closes the open Notion sheet through its exit when %s', async (_reason, change, pro) => {
+  const { sheetTestControls } = await import('@/__tests__/support/sheet-double')
+  const notionSheet = () => screen.queryByText(en.profile.connections.notion, { selector: '[role="dialog"] h2' })
+  const view = mount(); await openNotion()
+  expect(notionSheet()).toBeInTheDocument()
+  sheetTestControls.defer(true)
+  try {
+    change()
+    view.rerender(<QueryClientProvider client={mountedClient}><AstraConnections hasProAccess={pro} /></QueryClientProvider>)
+    expect(notionSheet()).toBeInTheDocument()
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    act(() => sheetTestControls.completeDismissal())
+    expect(notionSheet()).not.toBeInTheDocument()
+  } finally {
+    sheetTestControls.defer(false)
+  }
 })
 it('shows workspace, sync time and page picker, then confirms one disconnect', async () => {
   let finishDisconnect!: () => void

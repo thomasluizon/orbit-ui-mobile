@@ -7,7 +7,9 @@ import type { Profile, ThemeMode } from '@orbit/shared/types/profile'
 import { ThemeProvider, type ThemeContextValue } from '../../lib/theme-provider'
 import { useProfile } from '@/hooks/use-profile'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
-import { getRuntimeTheme, setRuntimeTheme } from '@/lib/theme'
+import { Animated } from 'react-native'
+import { createTokensV2, easings, getRuntimeTheme, setRuntimeTheme } from '@/lib/theme'
+import { toAnimatedEasing } from '@/lib/motion'
 import { useAppTheme } from '../../lib/use-app-theme'
 import { RootNotificationHeader } from '@/components/navigation/root-notification-header'
 import { Sun, Moon } from '@/components/ui/icons'
@@ -172,4 +174,39 @@ it('persists header presses through the native theme provider and keeps the targ
   await flushNotifications()
   expect(button.props.accessibilityLabel).toBe('settings.theme.switchToLight')
   expect(client.getQueryData(profileKeys.detail())).toMatchObject({ themePreference: 'dark' })
+})
+
+it('crossfades a theme change in the provider root without presenting a native Modal', async () => {
+  const { root, chooser } = await setup('dark')
+  const frames: ((time: number) => void)[] = []
+  vi.stubGlobal('requestAnimationFrame', vi.fn((callback: (time: number) => void) => frames.push(callback)))
+  const fades: { config: Animated.TimingAnimationConfig; finish?: Animated.EndCallback }[] = []
+  const timing = vi.spyOn(Animated, 'timing').mockImplementation((_value, config) => {
+    const fade: (typeof fades)[number] = { config }
+    fades.push(fade)
+    return { start: (finish) => { fade.finish = finish }, stop: () => {}, reset: () => {} }
+  })
+  const previous = createTokensV2('orange', 'dark')
+  const findOverlay = () => root.root.findAll(
+    (node: { type: unknown; props: { pointerEvents?: string } }) => node.type === 'AnimatedView' && node.props.pointerEvents === 'none',
+  )
+
+  expect(findOverlay()).toHaveLength(0)
+  await act(() => chooser.current?.applyTheme('light'))
+
+  expect(root.root.findAllByType('Modal')).toHaveLength(0)
+  const [overlay] = findOverlay()
+  expect(overlay).toBeDefined()
+  const colours = overlay.findAllByType('View').map((node: { props: { style: { backgroundColor?: string }[] } }) => node.props.style[1]?.backgroundColor)
+  expect(colours).toEqual([previous.bg, previous.primary])
+  expect(frames).toHaveLength(1)
+  await act(() => frames[0]?.(0))
+  expect(fades).toHaveLength(1)
+  const fade = fades[0]
+  expect(fade?.config).toMatchObject({ toValue: 0, duration: 420, useNativeDriver: true })
+  expect(fade?.config.easing?.(0.5)).toBeCloseTo(toAnimatedEasing(easings.out)(0.5))
+  await act(() => fade?.finish?.({ finished: true }))
+  expect(findOverlay()).toHaveLength(0)
+  expect(root.root.findAllByType('Modal')).toHaveLength(0)
+  timing.mockRestore()
 })

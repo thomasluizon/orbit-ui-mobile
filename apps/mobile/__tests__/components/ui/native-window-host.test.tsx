@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
-import { AccessibilityInfo, Text, TextInput, View } from 'react-native'
+import { AccessibilityInfo, Platform, Text, TextInput, View } from 'react-native'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { NativeDialog } from '@/components/ui/native-dialog'
 import { OverlayHost } from '@/components/ui/overlay-host'
+import { MODAL_TRANSITION_FALLBACK_MS } from '@/components/ui/native-window-host'
 import { Sheet } from '@/components/ui/sheet'
 import { useUIStore } from '@/stores/ui-store'
 import { focusHost, withFocusProvenance } from '@/__tests__/support/focus-provenance'
@@ -37,6 +38,7 @@ beforeEach(() => {
 })
 afterEach(async () => {
   await act(() => tree.update(<></>))
+  Platform.OS = 'android'
   vi.useRealTimers()
   vi.restoreAllMocks()
 })
@@ -119,4 +121,39 @@ it('isolates background touch and accessibility, focuses on presentation and res
   expect(background.props).toMatchObject({ pointerEvents: 'auto', importantForAccessibility: 'auto', accessibilityElementsHidden: false })
   await act(async () => { await vi.advanceTimersByTimeAsync(50) })
   expect(focus).toHaveBeenLastCalledWith(trigger.props.__nativeTag)
+})
+
+it('on iOS holds the window through a running presentation or dismissal before it follows the dialogs again', async () => {
+  Platform.OS = 'ios'
+  const render = (open: boolean) => <OverlayHost>
+    <NativeDialog open={open} title="Onboarding" onOpenChange={vi.fn()}><Text>Onboarding content</Text></NativeDialog>
+  </OverlayHost>
+  await act(() => { tree = create(render(false)) })
+  expect(windowNode().props.visible).toBe(false)
+  await act(() => tree.update(render(true)))
+  expect(windowNode().props.visible).toBe(true)
+  await act(() => tree.update(render(false)))
+  expect(windowNode().props.visible).toBe(true)
+  await act(() => (windowNode().props.onShow as () => void)())
+  expect(windowNode().props.visible).toBe(false)
+  await act(() => tree.update(render(true)))
+  expect(windowNode().props.visible).toBe(false)
+  await act(() => (windowNode().props.onDismiss as () => void)())
+  expect(windowNode().props.visible).toBe(true)
+  await act(() => (windowNode().props.onShow as () => void)())
+  expect(windowNode().props.visible).toBe(true)
+})
+
+it('on iOS settles a transition that UIKit never reports after the fallback window', async () => {
+  Platform.OS = 'ios'
+  const render = (open: boolean) => <OverlayHost>
+    <NativeDialog open={open} title="Throttle" onOpenChange={vi.fn()}><Text>Throttle content</Text></NativeDialog>
+  </OverlayHost>
+  await act(() => { tree = create(render(false)) })
+  await act(() => tree.update(render(true)))
+  await act(() => tree.update(render(false)))
+  await act(async () => { await vi.advanceTimersByTimeAsync(MODAL_TRANSITION_FALLBACK_MS - 1) })
+  expect(windowNode().props.visible).toBe(true)
+  await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+  expect(windowNode().props.visible).toBe(false)
 })
