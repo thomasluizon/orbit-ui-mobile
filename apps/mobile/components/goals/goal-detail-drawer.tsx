@@ -44,6 +44,10 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
   const { data: goalsData } = useGoals()
   const { data: detailData, isLoading, isError, refetch } = useGoalDetail(open ? goalId : null)
   const goal = detailData?.goal ?? goalsData?.goalsById.get(goalId) ?? null
+  const [heldGoal, setHeldGoal] = useState(goal)
+  if (goal !== null && goal !== heldGoal) setHeldGoal(goal)
+  /** The edit and progress sheets keep the last goal they showed, so a refresh that drops it never unmounts a presented sheet. */
+  const sheetGoal = heldGoal?.id === goalId ? heldGoal : null
   const astraConversationOpen = useUIStore(state => state.astraConversationOpen)
   const draftHydrated = useChatStore(state => state.draftHydrated)
   const deleteGoal = useDeleteGoal()
@@ -128,8 +132,8 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
   return (
     <>
       {open && (inline || !editingProgress) ? inline ? <><AppBar title={t('progressScreen.sections.goals')} titleIsHeading={!goal} onBack={close} backLabel={t('common.back')} />{body}</> : <Sheet ref={sheetRef} open onClose={onClose} title={t('progressScreen.sections.goals')}>{body}</Sheet> : null}
-      {open && editingProgress && goal ? <GoalProgressForm key={goalId} goal={goal} refetchDetail={refetch} onClose={() => setEditingProgress(false)} /> : null}
-      {goal ? <EditGoalModal open={editing} onClose={() => setEditing(false)} goal={goal} /> : null}
+      {open && editingProgress && sheetGoal ? <GoalProgressForm key={goalId} goal={sheetGoal} refetchDetail={refetch} onClose={() => setEditingProgress(false)} /> : null}
+      {sheetGoal ? <EditGoalModal open={editing} onClose={() => setEditing(false)} goal={sheetGoal} /> : null}
       <ConfirmSheet open={deleting} title={t('goals.detail.delete')} message={t('goals.detail.deleteNamed', { title: goal?.title ?? '' })} confirmLabel={t('goals.detail.delete')} destructive onCancel={() => setDeleting(false)} onConfirm={() => { setDeleting(false); void confirmDelete() }} />
     </>
   )

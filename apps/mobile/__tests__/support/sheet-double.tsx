@@ -60,7 +60,6 @@ export function Sheet({ title, accessibleTitle, actions, onClose, children, ref 
   const dismissal = useMemo(() => ({ finished: false }), [])
   const requestClose = useCallback(
     (exitAction?: () => void, onRejected?: () => void) => {
-      if (dismissal.finished) return
       const finish = () => {
         dismissal.finished = true
         if (exitAction) {
