@@ -1,5 +1,5 @@
 import { restoreConversationPage } from '../chat/conversation-restore'
-import { makeRevisedConversationPage, PARTIAL_BULK_LOG_PAYLOAD, storedOperationId, UNCHANGED_BULK_LOG_EXECUTION } from '../test-support/conversation-fixtures'
+import { makeExecutedConversationPage, makeRevisedConversationPage, PARTIAL_BULK_LOG_PAYLOAD, storedOperationId, UNCHANGED_BULK_LOG_EXECUTION } from '../test-support/conversation-fixtures'
 import { astraOfferFixture, makeOfferedPreview, makeOfferedTaskPreview } from '../test-support/astra-offer-fixtures'
 import { makePlacementPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeBulkCreateExecutionResponse, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview, makeBulkUpdateHabitsPreview, makeBulkUpdateExecutionResponse } from '../test-support/pending-operation-preview-fixtures'
 import { describe, expect, it, vi } from 'vitest'
@@ -1433,4 +1433,31 @@ it.each(['approved', 'edited', 'expired'] as const)('keeps a restored revised %s
   expect(result).toBe(outcome === 'edited' ? 'chat.operation.edited' : `chat.conversation.${outcome}`)
   expect(record.frame).toBeUndefined()
   expect(record.buttons).toEqual([])
+})
+
+it('shows no pending copy on a restored done row whose revised preview kept only titles', () => {
+  const message = restoreConversationPage(makeExecutedConversationPage('titleOnlyRevised'))[1]!
+  const state = message.pendingOperationStates![storedOperationId]!
+  const operation = state.operation ?? message.pendingOperations![0]!
+  const localized = buildPendingOperationCardLabels(operation, translateEnglish, value => value)
+  const { record, render } = createRenderers()
+  renderPendingOperationCard({ card: { ...createCard(), ...state }, labels: localized, render, pendingOperation: operation, onVerifyStepUp: vi.fn() })
+  expect(record.frame?.items.map(item => ({ status: item.status, meta: item.meta }))).toEqual([{ status: 'done', meta: '' }])
+})
+
+it.each([undefined, 'done', 'failed'] as const)('keeps the pending copy only on an unsettled row with nothing to summarize (status %s)', status => {
+  const operation = makePendingAgentOperation({ capabilityId: 'chat.changes', actionKey: 'applyAccountChanges', changeTargetCount: 1, changes: [],
+    items: [{ itemId: '0', entityId: null, entityName: 'Read', stateFingerprint: 'state-0',
+      fields: [{ entityId: '', entityName: 'Read', field: 'title', oldValue: null, newValue: 'Read', proposedValue: 'Read', valueType: 'string' }] }] })
+  const localized = buildPendingOperationCardLabels(operation, translateEnglish, value => value)
+  const { record, render } = createRenderers()
+  renderPendingOperationCard({ card: { ...createCard(), status }, labels: localized, render, pendingOperation: operation, onVerifyStepUp: vi.fn() })
+  expect(record.frame?.items[0]?.meta).toBe(status == null ? localized.pending : '')
+})
+
+it.each(['done', 'failed'] as const)('shows no pending copy on the settled %s row of an operation without preview items', status => {
+  const { record, render } = createRenderers()
+  renderPendingOperationCard({ card: { ...createCard(), status }, labels, render, onVerifyStepUp: vi.fn(),
+    pendingOperation: { ...makeCreateHabitsPreview(0), changeTargetCount: null, changes: [] } })
+  expect(record.frame?.items[0]?.meta).toBe('')
 })

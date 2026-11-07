@@ -349,7 +349,7 @@ function previewRows<Node>(
       : results || card.status === 'failed' ? undefined : card.status
     const edited = revision?.editedItemIds.includes(item.itemId) === true
     const parentChoice = item.fieldOptions?.find((field) => field.field === 'parent_habit_id')
-    const summary = placementSummary(item, pendingOperation, labels, Boolean(parentChoice))
+    const summary = placementSummary(item, pendingOperation, labels, Boolean(parentChoice), card.status != null)
     const parent: PendingOperationFrame<Node>['items'][number] = {
       id: item.itemId,
       groupHeading: groupIndex === 0 ? group.heading : undefined,
@@ -396,13 +396,13 @@ const HABIT_ONLY_PREVIEW_FIELDS = new Set([
   'days', 'due_date', 'due_time', 'due_end_time', 'end_date', 'reminder_enabled', 'reminder_times', 'scheduled_reminders', 'slip_alert_enabled',
 ])
 
-function placementSummary(item: PreviewItem, operation: PendingAgentOperation, labels: PendingOperationCardLabels, parentChoice: boolean): string {
+function placementSummary(item: PreviewItem, operation: PendingAgentOperation, labels: PendingOperationCardLabels, parentChoice: boolean, settled: boolean): string {
   const placement = item.placement
   const creating = operation.actionKey === 'applyAccountChanges' && operation.capabilityId === 'chat.changes'
     && item.fields.some((field) => HABIT_ONLY_PREVIEW_FIELDS.has(field.field))
     && !item.fields.some((field) => field.field === 'habit_id' || field.oldValue != null)
   const summary = labels.summarize(item.fields.filter((field) => !(parentChoice || placement) || field.field !== 'parent_habit_id'), creating ? 'createHabit' : undefined)
-  if (!placement) return summary || labels.pending
+  if (!placement) return summary || (settled ? '' : labels.pending)
   const selected = labels.placementOption(placement.selected, placement.destinationName)
   return placement.selected === 'checklist_item' || !summary ? selected : `${selected} · ${summary}`
 }
@@ -485,7 +485,7 @@ function previewFrame<Node>(
     body: frameBody(pendingOperation, card, labels, render),
     count: pendingOperation.changeTargetCount ?? undefined,
     items: previewItems ?? [{
-      id: pendingOperation.id, label: labels.name, meta: labels.pending,
+      id: pendingOperation.id, label: labels.name, meta: card.status == null ? labels.pending : '',
       status: card.status === 'failed' ? undefined : card.status, irreversible: false,
     }],
     proposedLabel: labels.proposed,

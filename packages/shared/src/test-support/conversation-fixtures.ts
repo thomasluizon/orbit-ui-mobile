@@ -82,7 +82,9 @@ export const PARTIAL_BULK_LOG_PAYLOAD = '{"applied_count":0,"total_matched":2,"s
 
 export type StoredExecution = 'stored' | 'storedFailure' | 'truncated' | 'truncatedFailure' | 'failedWithoutPayload' | 'absent'
   | 'compact' | 'partialUpdate' | 'completeUpdate' | 'partialEmojis' | 'revised' | 'proposedOnly'
-  | 'batch' | 'batchWithRemovedItem' | 'unchangedLog' | 'partialLog'
+  | 'batch' | 'batchWithRemovedItem' | 'unchangedLog' | 'partialLog' | 'titleOnlyRevised'
+
+const REVISED_EXECUTIONS: readonly StoredExecution[] = ['revised', 'titleOnlyRevised']
 
 function storedExecution(execution: Exclude<StoredExecution, 'absent'>): AgentOperationResult {
   switch (execution) {
@@ -95,7 +97,7 @@ function storedExecution(execution: Exclude<StoredExecution, 'absent'>): AgentOp
     case 'partialUpdate': return makeBulkUpdateExecutionResponse(2, 3).operation
     case 'completeUpdate': return makeBulkUpdateExecutionResponse(3, 3).operation
     case 'partialEmojis': return makeBulkUpdateExecutionResponse(2, 3, 'bulk_update_habit_emojis').operation
-    case 'revised': case 'proposedOnly': return agentOperationResultSchema.parse(revisedCreateExecution)
+    case 'revised': case 'proposedOnly': case 'titleOnlyRevised': return agentOperationResultSchema.parse(revisedCreateExecution)
     case 'batch': return makeBulkCreateExecutionResponse(['Success', 'Success', 'Success']).operation
     case 'batchWithRemovedItem': return makeBulkCreateExecutionResponse(['Success', 'Success']).operation
     case 'unchangedLog': return agentOperationResultSchema.parse(JSON.parse(UNCHANGED_BULK_LOG_EXECUTION))
@@ -112,16 +114,25 @@ function storedPreview(execution: StoredExecution): PendingAgentOperation {
     case 'partialUpdate': case 'completeUpdate': case 'partialEmojis': return makeBulkUpdateHabitsPreview()
     case 'revised': case 'proposedOnly': return { ...makePendingAgentOperation({ capabilityId: 'habits.write', displayName: 'Create Habit', summary: 'Create Habit requested via Chat',
       riskClass: 'Low', actionKey: 'createHabit' }), ...makeRevisedCreatePreview(PROPOSED_HABIT_TITLE) }
+    case 'titleOnlyRevised': return { ...makePendingAgentOperation({ capabilityId: 'chat.changes', displayName: 'Apply changes', riskClass: 'Low',
+      actionKey: 'applyAccountChanges' }), ...makeRevisedCreatePreview(PROPOSED_HABIT_TITLE) }
     default: return makeTicketTaskPreview()
   }
 }
 
-export function makeExecutedConversationPage(execution: StoredExecution = 'stored', previewRevised: boolean | 'omitted' = execution === 'revised'): ConversationPage {
+/** The smallest tier `orbit-api` stores when a revised preview does not fit: each item keeps only its `title` field and `changes` is empty. */
+function titleOnlyRevisedPreview(): PendingOperationChangePreview {
+  const preview = makeRevisedCreatePreview()
+  return { ...preview, changes: [], items: preview.items?.map(item => ({ ...item, fields: item.fields.filter(field => field.field === 'title') })) }
+}
+
+export function makeExecutedConversationPage(execution: StoredExecution = 'stored', previewRevised: boolean | 'omitted' = REVISED_EXECUTIONS.includes(execution)): ConversationPage {
   const page = makeConversationPage()
   page.turns[1]!.responseJson = JSON.stringify({ aiMessage: '', actions: [], pendingOperations: [{ ...storedPreview(execution), id: storedOperationId, expiresAtUtc: '2099-01-01T00:00:00Z' }] })
-  page.turns[1]!.previewOutcomesJson = JSON.stringify([{ PendingOperationId: storedOperationId, Outcome: 'approved', Arguments: {}, Revision: execution === 'revised' ? 3 : 2,
+  page.turns[1]!.previewOutcomesJson = JSON.stringify([{ PendingOperationId: storedOperationId, Outcome: 'approved', Arguments: {}, Revision: REVISED_EXECUTIONS.includes(execution) ? 3 : 2,
     ...(execution === 'absent' ? {} : { Execution: storedExecution(execution) }),
     ...(execution === 'revised' ? { RevisedPreview: makeRevisedCreatePreview() } : {}),
+    ...(execution === 'titleOnlyRevised' ? { RevisedPreview: titleOnlyRevisedPreview() } : {}),
     ...(previewRevised === 'omitted' ? {} : { PreviewRevised: previewRevised }) }])
   return conversationPageSchema.parse(page)
 }

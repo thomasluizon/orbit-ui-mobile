@@ -177,6 +177,18 @@ describe('PendingOperationCard (mobile)', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
+  it('shows no pending copy on a restored done row whose revised preview kept only titles', () => {
+    visibleLocale.actual = true
+    visibleLocale.language = 'pt-BR'
+    const { tree } = renderRestored('titleOnlyRevised')
+    const text = renderedText(tree.toJSON())
+    expect(text).toContain(REVISED_HABIT_TITLE)
+    expect(rowStatuses(tree)).toEqual({ '0': 'done' })
+    expect(text).toContain(ptBR.blockFrame.status.done)
+    expect(text).not.toContain(ptBR.chat.operation.pending)
+    TestRenderer.act(() => tree.unmount())
+  })
+
   it('rebuilds a restored approval that the API marked unedited from the proposed words', () => {
     const { tree } = renderRestored('proposedOnly', false)
     expect(renderedText(tree.toJSON())).toContain(PROPOSED_HABIT_TITLE)

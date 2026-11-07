@@ -143,6 +143,16 @@ describe('PendingOperationCard', () => {
     expect(screen.queryByRole('button', { name: ptBR.chat.operation.edit })).not.toBeInTheDocument()
   })
 
+  it('shows no pending copy on a restored done row whose revised preview kept only titles', () => {
+    visibleLocale.actual = true
+    visibleLocale.language = 'pt-BR'
+    renderRestored('titleOnlyRevised')
+    const row = screen.getByText(personalText(REVISED_HABIT_TITLE)).closest('[data-status]')! as HTMLElement
+    expect(row).toHaveAttribute('data-status', 'done')
+    expect(within(row).getByText(ptBR.blockFrame.status.done)).toBeInTheDocument()
+    expect(screen.queryByText(ptBR.chat.operation.pending)).not.toBeInTheDocument()
+  })
+
   it('rebuilds a restored approval that the API marked unedited from the proposed words', () => {
     renderRestored('proposedOnly', vi.fn(), false)
     expect(screen.getByText(personalText(PROPOSED_HABIT_TITLE)).closest('[data-status]')).toHaveAttribute('data-status', 'done')
