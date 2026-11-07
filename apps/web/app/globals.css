@@ -382,15 +382,16 @@ select[aria-hidden="true"] {
   position: relative;
 }
 
-.orbit-list-action-surface:has(:is(.orbit-list-row-body, .orbit-list-row-action, .icon-btn):is(:active, :focus-visible):not(:disabled)) {
+/* WHY: only the innermost control under the pointer or finger paints a fill, so a surface lights from its body and never from a nested control (#2057). */
+.orbit-list-action-surface:has(.orbit-list-row-body:active:not(:disabled), :is(.orbit-list-row-body, .orbit-list-row-action, .icon-btn):focus-visible:not(:disabled)):not(:has(:is(.orbit-list-row-action, .icon-btn):active)) {
   --orbit-list-row-secondary: var(--fg-2);
 }
 
-.orbit-list-action-surface:not([data-habit-block-row]):has(:is(.orbit-list-row-body, .orbit-list-row-action, .icon-btn):is(:active, :focus-visible):not(:disabled)) {
+.orbit-list-action-surface:not([data-habit-block-row]):has(.orbit-list-row-body:active:not(:disabled), :is(.orbit-list-row-body, .orbit-list-row-action, .icon-btn):focus-visible:not(:disabled)):not(:has(:is(.orbit-list-row-action, .icon-btn):active)) {
   --fg-3: var(--fg-2);
 }
 
-.orbit-list-action-surface:has(:is(.orbit-list-row-body, .orbit-list-row-action, .icon-btn):is(:active, :focus-visible):not(:disabled))::before {
+.orbit-list-action-surface:has(.orbit-list-row-body:active:not(:disabled), :is(.orbit-list-row-body, .orbit-list-row-action, .icon-btn):focus-visible:not(:disabled)):not(:has(:is(.orbit-list-row-action, .icon-btn):active))::before {
   background: var(--bg-hover);
 }
 
@@ -415,15 +416,15 @@ select[aria-hidden="true"] {
     outline: none;
   }
 
-  .orbit-list-action-surface:has(:is(.orbit-list-row-body, .orbit-list-row-action, .icon-btn):hover:not(:disabled)) {
+  .orbit-list-action-surface:has(.orbit-list-row-body:hover:not(:disabled)) {
     --orbit-list-row-secondary: var(--fg-2);
   }
 
-  .orbit-list-action-surface:not([data-habit-block-row]):has(:is(.orbit-list-row-body, .orbit-list-row-action, .icon-btn):hover:not(:disabled)) {
+  .orbit-list-action-surface:not([data-habit-block-row]):has(.orbit-list-row-body:hover:not(:disabled)) {
     --fg-3: var(--fg-2);
   }
 
-  .orbit-list-action-surface:has(:is(.orbit-list-row-body, .orbit-list-row-action, .icon-btn):hover:not(:disabled))::before {
+  .orbit-list-action-surface:has(.orbit-list-row-body:hover:not(:disabled))::before {
     background: var(--bg-hover);
   }
 
@@ -2036,7 +2037,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   position: relative;
 }
 
-.orbit-notification-surface:has(> button:is(:active, :focus-visible))::before {
+.orbit-notification-surface:has(> .orbit-notification-row:not(.orbit-notification-delete):active, > button:focus-visible):not(:has(> .orbit-notification-delete:active))::before {
   background: var(--bg-hover);
 }
 
@@ -2069,7 +2070,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .orbit-notification-surface:hover::before {
+  .orbit-notification-surface:has(> .orbit-notification-row:not(.orbit-notification-delete):hover)::before {
     background: var(--bg-hover);
   }
 
