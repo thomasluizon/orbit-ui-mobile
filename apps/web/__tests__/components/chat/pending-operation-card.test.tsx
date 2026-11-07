@@ -124,8 +124,8 @@ describe('PendingOperationCard', () => {
     expect(screen.queryByRole('button', { name: 'common.retry' })).not.toBeInTheDocument()
   })
 
-  function renderRestored(execution: StoredExecution, onOpenTarget = vi.fn()) {
-    const message = restoreConversationPage(makeExecutedConversationPage(execution))[1]!
+  function renderRestored(execution: StoredExecution, onOpenTarget = vi.fn(), previewRevised?: boolean | 'omitted') {
+    const message = restoreConversationPage(makeExecutedConversationPage(execution, previewRevised))[1]!
     render(<PendingOperationCard pendingOperation={message.pendingOperations![0]!} savedState={message.pendingOperationStates![storedOperationId]} onOpenTarget={onOpenTarget} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
   }
 
@@ -143,9 +143,38 @@ describe('PendingOperationCard', () => {
     expect(screen.queryByRole('button', { name: ptBR.chat.operation.edit })).not.toBeInTheDocument()
   })
 
-  it('keeps the proposed words of a restored approval recorded without its approved preview', () => {
-    renderRestored('proposedOnly')
+  it('rebuilds a restored approval that the API marked unedited from the proposed words', () => {
+    renderRestored('proposedOnly', vi.fn(), false)
     expect(screen.getByText(personalText(PROPOSED_HABIT_TITLE)).closest('[data-status]')).toHaveAttribute('data-status', 'done')
+  })
+
+  it('rebuilds every row of a restored batch that the API marked unedited', () => {
+    renderRestored('batch', vi.fn(), false)
+    expect(document.querySelectorAll('[data-status="done"]')).toHaveLength(3)
+    expect(screen.queryByText('chat.conversation.approved')).not.toBeInTheDocument()
+  })
+
+  it.each([['batchWithRemovedItem', true], ['batchWithRemovedItem', 'omitted'], ['proposedOnly', 'omitted']] as const)(
+    'keeps the approved notice after a cold restart when the %s outcome does not prove that the rows on screen ran (PreviewRevised %s)', (execution, previewRevised) => {
+      renderRestored(execution, vi.fn(), previewRevised)
+      expect(screen.getByText('chat.conversation.approved')).toBeInTheDocument()
+      expect(screen.queryByText(personalText(execution === 'proposedOnly' ? PROPOSED_HABIT_TITLE : 'Habit 1'))).not.toBeInTheDocument()
+      expect(document.querySelector('[data-status="done"]')).toBeNull()
+      expect(screen.queryByText('blockFrame.status.done')).not.toBeInTheDocument()
+    })
+
+  it('shows a restored bulk log as done when the unapplied habit already had the requested state', () => {
+    visibleLocale.actual = true
+    renderRestored('unchangedLog')
+    expect(document.querySelectorAll('[data-status="done"]')).toHaveLength(2)
+    expect(screen.queryByText(/changes were saved/)).not.toBeInTheDocument()
+  })
+
+  it('shows the partial notice for a restored bulk log that really missed a habit', () => {
+    visibleLocale.actual = true
+    renderRestored('partialLog')
+    expect(document.querySelector('[data-status="done"]')).toBeNull()
+    expect(screen.getByText('Only 1 of 2 changes were saved. Ask Astra to try the rest.')).toBeInTheDocument()
   })
 
   it('shows each failed row of a restored compact batch', () => {

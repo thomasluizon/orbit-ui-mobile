@@ -77,8 +77,12 @@ const revisedCreateExecution = {
   policyReason: null, pendingOperationId: null, payload: null, access: 'write',
 } as const
 
+export const UNCHANGED_BULK_LOG_EXECUTION = '{"operationId":"bulk_log_habits","sourceName":"bulk_log_habits","riskClass":"Low","confirmationRequirement":"FreshConfirmation","status":"Succeeded","summary":"Bulk Log Habits requested via Chat","targetId":null,"targetName":"Logged 1 of 2 matching habit(s). 1 already in that state. Skipped 0. Complete result.","policyReason":null,"pendingOperationId":null,"payload":{"applied_count":1,"total_matched":2,"skipped_count":0,"partial":false,"unchanged_count":1},"access":"write"}'
+export const PARTIAL_BULK_LOG_PAYLOAD = '{"applied_count":0,"total_matched":2,"skipped_count":1,"partial":true,"unchanged_count":1}'
+
 export type StoredExecution = 'stored' | 'storedFailure' | 'truncated' | 'truncatedFailure' | 'failedWithoutPayload' | 'absent'
   | 'compact' | 'partialUpdate' | 'completeUpdate' | 'partialEmojis' | 'revised' | 'proposedOnly'
+  | 'batch' | 'batchWithRemovedItem' | 'unchangedLog' | 'partialLog'
 
 function storedExecution(execution: Exclude<StoredExecution, 'absent'>): AgentOperationResult {
   switch (execution) {
@@ -92,12 +96,19 @@ function storedExecution(execution: Exclude<StoredExecution, 'absent'>): AgentOp
     case 'completeUpdate': return makeBulkUpdateExecutionResponse(3, 3).operation
     case 'partialEmojis': return makeBulkUpdateExecutionResponse(2, 3, 'bulk_update_habit_emojis').operation
     case 'revised': case 'proposedOnly': return agentOperationResultSchema.parse(revisedCreateExecution)
+    case 'batch': return makeBulkCreateExecutionResponse(['Success', 'Success', 'Success']).operation
+    case 'batchWithRemovedItem': return makeBulkCreateExecutionResponse(['Success', 'Success']).operation
+    case 'unchangedLog': return agentOperationResultSchema.parse(JSON.parse(UNCHANGED_BULK_LOG_EXECUTION))
+    case 'partialLog': return agentOperationResultSchema.parse({ ...JSON.parse(UNCHANGED_BULK_LOG_EXECUTION),
+      targetName: 'Logged 0 of 2 matching habit(s). 1 already in that state. Skipped 1. Partial result.', payload: JSON.parse(PARTIAL_BULK_LOG_PAYLOAD) as unknown })
   }
 }
 
 function storedPreview(execution: StoredExecution): PendingAgentOperation {
   switch (execution) {
     case 'compact': return makeCreateHabitsPreview(100)
+    case 'batch': case 'batchWithRemovedItem': return makeCreateHabitsPreview(3)
+    case 'unchangedLog': case 'partialLog': return makeBulkUpdateHabitsPreview(2)
     case 'partialUpdate': case 'completeUpdate': case 'partialEmojis': return makeBulkUpdateHabitsPreview()
     case 'revised': case 'proposedOnly': return { ...makePendingAgentOperation({ capabilityId: 'habits.write', displayName: 'Create Habit', summary: 'Create Habit requested via Chat',
       riskClass: 'Low', actionKey: 'createHabit' }), ...makeRevisedCreatePreview(PROPOSED_HABIT_TITLE) }
@@ -105,11 +116,12 @@ function storedPreview(execution: StoredExecution): PendingAgentOperation {
   }
 }
 
-export function makeExecutedConversationPage(execution: StoredExecution = 'stored'): ConversationPage {
+export function makeExecutedConversationPage(execution: StoredExecution = 'stored', previewRevised: boolean | 'omitted' = execution === 'revised'): ConversationPage {
   const page = makeConversationPage()
   page.turns[1]!.responseJson = JSON.stringify({ aiMessage: '', actions: [], pendingOperations: [{ ...storedPreview(execution), id: storedOperationId, expiresAtUtc: '2099-01-01T00:00:00Z' }] })
   page.turns[1]!.previewOutcomesJson = JSON.stringify([{ PendingOperationId: storedOperationId, Outcome: 'approved', Arguments: {}, Revision: execution === 'revised' ? 3 : 2,
     ...(execution === 'absent' ? {} : { Execution: storedExecution(execution) }),
-    ...(execution === 'revised' ? { RevisedPreview: makeRevisedCreatePreview() } : {}) }])
+    ...(execution === 'revised' ? { RevisedPreview: makeRevisedCreatePreview() } : {}),
+    ...(previewRevised === 'omitted' ? {} : { PreviewRevised: previewRevised }) }])
   return conversationPageSchema.parse(page)
 }

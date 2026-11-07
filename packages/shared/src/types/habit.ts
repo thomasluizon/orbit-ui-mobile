@@ -577,6 +577,7 @@ export const partialBulkMutationSchema = z.object({
   partial: z.literal(true),
   applied_count: z.number().int(),
   total_matched: z.number().int(),
+  unchanged_count: z.number().int().optional(),
 })
 
 export type PartialBulkMutation = z.infer<typeof partialBulkMutationSchema>

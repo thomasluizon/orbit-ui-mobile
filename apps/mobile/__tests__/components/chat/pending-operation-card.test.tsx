@@ -148,8 +148,8 @@ describe('PendingOperationCard (mobile)', () => {
     TestRenderer.act(() => tree!.unmount())
   })
 
-  function renderRestored(execution: StoredExecution) {
-    const message = restoreConversationPage(makeExecutedConversationPage(execution))[1]!
+  function renderRestored(execution: StoredExecution, previewRevised?: boolean | 'omitted') {
+    const message = restoreConversationPage(makeExecutedConversationPage(execution, previewRevised))[1]!
     const handlers = { onConfirmExecute: vi.fn(), onPrepareStepUp: vi.fn(), onVerifyStepUp: vi.fn(), onRevise: vi.fn(), onOpenTarget: vi.fn() }
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<PendingOperationCard pendingOperation={message.pendingOperations![0]!} savedState={message.pendingOperationStates![storedOperationId]} {...handlers} />) })
@@ -177,10 +177,44 @@ describe('PendingOperationCard (mobile)', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
-  it('keeps the proposed words of a restored approval recorded without its approved preview', () => {
-    const { tree } = renderRestored('proposedOnly')
+  it('rebuilds a restored approval that the API marked unedited from the proposed words', () => {
+    const { tree } = renderRestored('proposedOnly', false)
     expect(renderedText(tree.toJSON())).toContain(PROPOSED_HABIT_TITLE)
     expect(rowStatuses(tree)).toEqual({ '0': 'done' })
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('rebuilds every row of a restored batch that the API marked unedited', () => {
+    const { tree } = renderRestored('batch', false)
+    expect(rowStatuses(tree)).toEqual({ '0': 'done', '1': 'done', '2': 'done' })
+    expect(renderedText(tree.toJSON())).not.toContain('chat.conversation.approved')
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it.each([['batchWithRemovedItem', true], ['batchWithRemovedItem', 'omitted'], ['proposedOnly', 'omitted']] as const)(
+    'keeps the approved notice after a cold restart when the %s outcome does not prove that the rows on screen ran (PreviewRevised %s)', (execution, previewRevised) => {
+      const { tree } = renderRestored(execution, previewRevised)
+      const text = renderedText(tree.toJSON())
+      expect(text).toContain('chat.conversation.approved')
+      expect(text).not.toContain(execution === 'proposedOnly' ? PROPOSED_HABIT_TITLE : 'Habit 1')
+      expect(Object.values(rowStatuses(tree))).not.toContain('done')
+      expect(text).not.toContain('blockFrame.status.done')
+      TestRenderer.act(() => tree.unmount())
+    })
+
+  it('shows a restored bulk log as done when the unapplied habit already had the requested state', () => {
+    visibleLocale.actual = true
+    const { tree } = renderRestored('unchangedLog')
+    expect(Object.values(rowStatuses(tree))).toEqual(['done', 'done'])
+    expect(renderedText(tree.toJSON())).not.toContain('changes were saved')
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('shows the partial notice for a restored bulk log that really missed a habit', () => {
+    visibleLocale.actual = true
+    const { tree } = renderRestored('partialLog')
+    expect(Object.values(rowStatuses(tree))).not.toContain('done')
+    expect(renderedText(tree.toJSON())).toContain('Only 1 of 2 changes were saved. Ask Astra to try the rest.')
     TestRenderer.act(() => tree.unmount())
   })
 

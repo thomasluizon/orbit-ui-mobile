@@ -453,7 +453,7 @@ function previewBody<Node>(
   if (card.canRetry) return render.notice(labels.failed)
   if (getPendingOperationItemResults(card.completedOperation)?.length) return render.notice(labels.batchFailed)
   const partial = getPendingOperationPartialMutation(card.completedOperation)
-  return render.notice(partial ? labels.partialApplied(partial.applied_count, partial.total_matched) : labels.unavailableRecovery)
+  return render.notice(partial ? labels.partialApplied(partial.applied_count + (partial.unchanged_count ?? 0), partial.total_matched) : labels.unavailableRecovery)
 }
 
 function targetCount(operation: PendingAgentOperation): number {

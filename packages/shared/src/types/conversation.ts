@@ -18,6 +18,7 @@ export const conversationPreviewOutcomeSchema = z.object({
   Revision: z.number().int(),
   Execution: agentOperationResultSchema.optional(),
   RevisedPreview: pendingOperationChangePreviewSchema.optional(),
+  PreviewRevised: z.boolean().optional(),
 })
 
 export const conversationDisplayTurnSchema = z.object({

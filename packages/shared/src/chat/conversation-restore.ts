@@ -14,9 +14,9 @@ function restoredExecutionState(execution: AgentOperationResult | undefined): Pe
 }
 
 function restoredApprovedState(outcome: ConversationPreviewOutcome, proposal: PendingAgentOperation | undefined): PendingOperationMessageState {
+  if (!outcome.RevisedPreview) return outcome.PreviewRevised === false ? restoredExecutionState(outcome.Execution) : { recordedOutcome: 'approved' }
   const state = restoredExecutionState(outcome.Execution)
-  return outcome.RevisedPreview && proposal && !state.recordedOutcome
-    ? { ...state, operation: revisedPendingOperation(proposal, outcome.RevisedPreview) } : state
+  return proposal && !state.recordedOutcome ? { ...state, operation: revisedPendingOperation(proposal, outcome.RevisedPreview) } : state
 }
 
 function restoredOperationState(outcome: ConversationPreviewOutcome, proposal: PendingAgentOperation | undefined): PendingOperationMessageState | undefined {

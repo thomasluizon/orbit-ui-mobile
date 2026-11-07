@@ -1,5 +1,5 @@
 import { restoreConversationPage } from '../chat/conversation-restore'
-import { makeRevisedConversationPage, storedOperationId } from '../test-support/conversation-fixtures'
+import { makeRevisedConversationPage, PARTIAL_BULK_LOG_PAYLOAD, storedOperationId, UNCHANGED_BULK_LOG_EXECUTION } from '../test-support/conversation-fixtures'
 import { astraOfferFixture, makeOfferedPreview, makeOfferedTaskPreview } from '../test-support/astra-offer-fixtures'
 import { makePlacementPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeBulkCreateExecutionResponse, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview, makeBulkUpdateHabitsPreview, makeBulkUpdateExecutionResponse } from '../test-support/pending-operation-preview-fixtures'
 import { describe, expect, it, vi } from 'vitest'
@@ -18,7 +18,7 @@ import {
 import { buildPendingOperationCardLabels, formatPreviewMeta, type PendingOperationCardLabels } from '../chat/pending-operation-card'
 import { pendingOperationSubHabits } from '../chat/pending-operation-sub-habits'
 import { pendingOperationExecutionPatch } from '../chat/pending-operation-message-state'
-import { pendingAgentOperationSchema } from '../types/ai'
+import { agentOperationResultSchema, pendingAgentOperationSchema } from '../types/ai'
 import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
 
@@ -1267,6 +1267,19 @@ describe('partial bulk update outcome', () => {
     expect(record.frame?.items.map(item => item.status)).toEqual(['done', 'done', 'done'])
     expect(record.frame?.body).toBe('')
   })
+
+  it.each([['en', 'Only 1 of 2 changes were saved. Ask Astra to try the rest.'], ['pt-BR', 'Só 1 de 2 alterações foram salvas. Peça à Astra para tentar as que faltam.']] as const)(
+    'counts a habit already in the requested state as saved in the partial notice in %s', (locale, notice) => {
+      const operation = makeBulkUpdateHabitsPreview(2)
+      const execution = agentOperationResultSchema.parse({ ...JSON.parse(UNCHANGED_BULK_LOG_EXECUTION), payload: JSON.parse(PARTIAL_BULK_LOG_PAYLOAD) })
+      const patch = pendingOperationExecutionPatch({ ok: true, response: { operation: execution } })
+      const localized = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(locale === 'en' ? en : ptBR, key, values), value => value, locale)
+      const { record, render } = createRenderers()
+      renderPendingOperationCard({ pendingOperation: operation, card: { ...createCard(), status: patch.status, completedOperation: patch.completedOperation, canRetry: patch.canRetry }, labels: localized, render, onVerifyStepUp: vi.fn() })
+      expect(record.frame?.state).toBe('partiallyFailed')
+      expect(record.frame?.items.map(item => item.status)).toEqual([undefined, undefined])
+      expect(record.frame?.body).toBe(notice)
+    })
 })
 
 it('keeps suggested fields editable and removable through the full editor', () => {

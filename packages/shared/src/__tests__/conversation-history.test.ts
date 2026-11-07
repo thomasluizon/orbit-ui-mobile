@@ -72,10 +72,29 @@ describe('conversation restoration', () => {
     expect(state?.operation?.items?.[0]?.fields.find(field => field.field === 'title')?.newValue).toBe(REVISED_HABIT_TITLE)
     expect(message.pendingOperations?.[0]?.items?.[0]?.entityName).toBe(PROPOSED_HABIT_TITLE)
   })
-  it('keeps the proposed words of an approved outcome recorded without its approved preview', () => {
-    const state = restoreConversationPage(makeExecutedConversationPage('proposedOnly'))[1]!.pendingOperationStates?.[storedOperationId]
+  it('rebuilds an approval that the API marked unedited from the proposed words', () => {
+    const state = restoreConversationPage(makeExecutedConversationPage('proposedOnly', false))[1]!.pendingOperationStates?.[storedOperationId]
     expect(state).toMatchObject({ status: 'done', canRetry: false })
     expect(state?.operation).toBeUndefined()
+  })
+  it('rebuilds every row of a batch that the API marked unedited', () => {
+    const state = restoreConversationPage(makeExecutedConversationPage('batch', false))[1]!.pendingOperationStates?.[storedOperationId]
+    expect(state).toMatchObject({ status: 'done', canRetry: false })
+    expect(getPendingOperationItemResults(state?.completedOperation)?.map(item => item.status)).toEqual(['Success', 'Success', 'Success'])
+  })
+  it.each([['batchWithRemovedItem', true], ['batchWithRemovedItem', 'omitted'], ['proposedOnly', true], ['proposedOnly', 'omitted'], ['stored', 'omitted']] as const)(
+    'keeps the approved notice when the %s outcome does not prove that the rows on screen ran (PreviewRevised %s)', (execution, previewRevised) => {
+      const state = restoreConversationPage(makeExecutedConversationPage(execution, previewRevised))[1]!.pendingOperationStates?.[storedOperationId]
+      expect(state).toEqual({ recordedOutcome: 'approved' })
+    })
+  it.each([true, 'omitted'] as const)('uses the stored approved preview whenever it exists (PreviewRevised %s)', previewRevised => {
+    const state = restoreConversationPage(makeExecutedConversationPage('revised', previewRevised))[1]!.pendingOperationStates?.[storedOperationId]
+    expect(state).toMatchObject({ status: 'done', canRetry: false })
+    expect(state?.operation?.items?.[0]?.fields.find(field => field.field === 'title')?.newValue).toBe(REVISED_HABIT_TITLE)
+  })
+  it.each([['unchangedLog', 'done'], ['partialLog', 'failed']] as const)('restores the %s bulk log execution as %s', (execution, status) => {
+    const state = restoreConversationPage(makeExecutedConversationPage(execution))[1]!.pendingOperationStates?.[storedOperationId]
+    expect(state).toMatchObject({ status, canRetry: false })
   })
   it('rebuilds each row outcome of a compact stored batch', () => {
     const state = restoreConversationPage(makeExecutedConversationPage('compact'))[1]!.pendingOperationStates?.[storedOperationId]

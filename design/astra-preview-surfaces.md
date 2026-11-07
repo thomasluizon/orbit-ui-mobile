@@ -291,18 +291,31 @@ does not record whether the operation was consumed, so `restoreConversationPage`
 `canRetry` to `false`. A restored failure shows its failed outcome and its recovery notice.
 
 The bare outcome notice stays for `edited` and `expired`, for an `approved` turn that the API
-recorded before it stored executions, and for the `bulk_create_habits` case above. A rejected
-outcome keeps its rejected notice.
+recorded before it stored executions, for the `bulk_create_habits` case above, and for an
+`approved` turn that cannot prove which rows ran (below). A rejected outcome keeps its rejected
+notice.
 
 The API does not rewrite the preview in `responseJson` when a person edits it before approval.
 When the person edits and then approves, the API stores the revised preview as `RevisedPreview`
 on the `approved` outcome. It is the exact preview object that the live revise response returned.
 `restoreConversationPage` merges it into the original proposal with `revisedPendingOperation`,
 the same merge as a live revision, and stores the result as the card's `operation`. The restored
-done block then shows the words that the person approved (#2054). An `approved` outcome without
-`RevisedPreview` (no edit, or a turn that the API recorded before it stored the preview) shows the
-words of the proposal in `responseJson`. The restore does not mark a row as edited, because the
-stored preview does not record which item the person changed.
+done block then shows the words that the person approved (#2054). The restore does not mark a
+row as edited, because the stored preview does not record which item the person changed.
+
+`RevisedPreview` can be absent after an edit: the API stores no preview that exceeds its budget.
+The proposal in `responseJson` can then show a row that the person removed, and a
+`bulk_create_habits` result index then points at the wrong row. The `approved` outcome also
+carries `PreviewRevised`. The API writes `false` when the person did not revise or refresh the
+preview, and `true` when the person did. The restore picks the rows in this order:
+
+1. `RevisedPreview` is present: merge it into the proposal and rebuild the done block.
+2. `PreviewRevised` is `false`: rebuild the done block from the proposal in `responseJson`.
+3. Any other case (`PreviewRevised` is absent, or `true` without `RevisedPreview`): show the bare
+   approved notice, which makes no claim about a row.
+
+A turn that the API recorded before it stored the flag has no `PreviewRevised`, so it keeps the
+bare approved notice.
 
 ## Partial bulk change
 
@@ -311,20 +324,31 @@ stored preview does not record which item the person changed.
 `payload.partial: true` when the API skips some of the matched habits. `bulk_create_habits` sets
 `partial` in the same payload when an item fails. These results carry no outcome for each row.
 
-`getPendingOperationExecutionStatus` reads `partial`, `applied_count` and `total_matched` through
-`partialBulkMutationSchema`. A partial result is `failed`, never `done`, with no Retry, because
-the API consumed the operation. The live card and the restored card then show:
+Each bulk mutation payload also carries `unchanged_count`, the number of matched habits that
+already had the requested state. The API counts such a habit in `unchanged_count`, not in
+`skipped_count`. `partial` is `true` only when `applied_count + unchanged_count` is not
+`total_matched`, or when a chunk stopped. So `partial: true` always means that a habit did not get
+the change. A result with `partial: false` and an `unchanged_count` above 0 is done. A payload
+from before this field still parses, because the field is optional.
+
+`getPendingOperationExecutionStatus` reads `partial`, `applied_count`, `total_matched` and
+`unchanged_count` through `partialBulkMutationSchema`. A partial result is `failed`, never `done`,
+with no Retry, because the API consumed the operation. The live card and the restored card then
+show:
 
 - the partial failure frame state,
 - no outcome glyph and no Open on a row, because the result does not name the skipped habits,
 - the notice `chat.operation.partialApplied`, for example "Only 2 of 3 changes were saved. Ask
   Astra to try the rest." ("Só 2 de 3 alterações foram salvas. Peça à Astra para tentar as que
-  faltam.").
+  faltam."). The first count is `applied_count + unchanged_count`, because a habit that already
+  had the requested state needs no new attempt. "The rest" is then only the habits that failed.
 
 A bulk create with item results keeps its row outcomes and the batch notice. A complete bulk
 change (`partial: false`) still shows every row as done.
 
 The shared restore, contract, core and view tests and both card tests cover the stored and absent
 cases, a truncated batch, a failed batch without item results, the compact 100 item batch, the
-revised words, and partial and complete bulk changes. The `astra-conversation-history` layout
+revised words, each `PreviewRevised` case (an edited batch with a removed item and no
+`RevisedPreview`, `false`, and absent), and partial and complete bulk changes, which include a
+bulk log with an unchanged habit. The `astra-conversation-history` layout
 guard measures the rebuilt row.

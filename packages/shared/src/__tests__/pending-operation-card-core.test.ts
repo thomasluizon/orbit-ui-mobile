@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { pendingOperationExecutionPatch } from '../chat/pending-operation-message-state'
 import { getPendingOperationExecutionCanRetry, getPendingOperationExecutionStatus, getPendingOperationItemResults, getPendingOperationPartialMutation } from '../hooks/pending-operation-card-core'
 import { makeBulkCreateExecutionResponse, makeBulkUpdateExecutionResponse } from '../test-support/pending-operation-preview-fixtures'
-import { COMPACT_FAILED_INDEXES, makeCompactBulkCreateExecution } from '../test-support/conversation-fixtures'
+import { COMPACT_FAILED_INDEXES, makeCompactBulkCreateExecution, PARTIAL_BULK_LOG_PAYLOAD, UNCHANGED_BULK_LOG_EXECUTION } from '../test-support/conversation-fixtures'
 import { bulkCreateResponseSchema } from '../types/habit'
+import { agentOperationResultSchema } from '../types/ai'
 
 describe('producer batch outcomes', () => {
   it('retains retry for a rolled-back creation in the message state', () => {
@@ -71,5 +72,17 @@ describe('partial bulk mutations', () => {
     const response = makeBulkUpdateExecutionResponse(5, 5, sourceName)
     expect(getPendingOperationExecutionStatus({ ok: true, response })).toBe('done')
     expect(getPendingOperationPartialMutation(response.operation)).toBeUndefined()
+  })
+
+  it('reports a bulk log as done when the unapplied habit already had the requested state', () => {
+    const operation = agentOperationResultSchema.parse(JSON.parse(UNCHANGED_BULK_LOG_EXECUTION))
+    expect(getPendingOperationExecutionStatus({ ok: true, response: { operation } })).toBe('done')
+    expect(getPendingOperationPartialMutation(operation)).toBeUndefined()
+  })
+
+  it('reports a real partial bulk log as failed and keeps its unchanged count', () => {
+    const operation = agentOperationResultSchema.parse({ ...JSON.parse(UNCHANGED_BULK_LOG_EXECUTION), payload: JSON.parse(PARTIAL_BULK_LOG_PAYLOAD) })
+    expect(getPendingOperationExecutionStatus({ ok: true, response: { operation } })).toBe('failed')
+    expect(getPendingOperationPartialMutation(operation)).toEqual({ partial: true, applied_count: 0, total_matched: 2, unchanged_count: 1 })
   })
 })
