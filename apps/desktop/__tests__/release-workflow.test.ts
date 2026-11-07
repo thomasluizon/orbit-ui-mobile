@@ -18,7 +18,7 @@ interface Step { name?: string; run?: string; if?: string; env?: Record<string, 
 interface Workflow {
   on: Record<string, unknown>
   concurrency: { 'cancel-in-progress': boolean }
-  jobs: Record<string, { needs?: string | string[]; steps: Step[]; strategy?: { matrix: { include: { target: string }[] } } }>
+  jobs: Record<string, { needs?: string | string[]; if?: string; outputs?: Record<string, string>; env?: Record<string, string>; steps: Step[]; strategy?: { matrix: { include: { target: string }[] } } }>
 }
 const workflow = load(readFileSync(new URL('../../../.github/workflows/desktop-release.yml', import.meta.url), 'utf8'))
 const publish = workflow.jobs.publish!.steps.find((step) => step.name === 'Publish versioned artifacts before advancing the channel')!.run!
@@ -135,6 +135,14 @@ it('supports pinned automatic releases and requires every target before publicat
   expect(workflow.concurrency['cancel-in-progress']).toBe(false)
   expect(workflow.jobs.build!.needs).toBe('validate')
   expect(workflow.jobs.publish!.needs).toEqual(['validate', 'build'])
+  expect(workflow.jobs.validate!.outputs).toEqual({
+    shell_changed: '${{ steps.plan.outputs.shell_changed }}',
+    advance_channel: '${{ steps.plan.outputs.advance_channel }}',
+    version: '${{ steps.plan.outputs.version }}',
+  })
+  expect(workflow.jobs.build!.if).toBe("needs.validate.outputs.shell_changed == 'true'")
+  expect(workflow.jobs.publish!.if).toBe("needs.validate.outputs.advance_channel == 'true'")
+  expect(workflow.jobs.ready!.env).toMatchObject({ ADVANCE_CHANNEL: '${{ needs.validate.outputs.advance_channel }}' })
   expect(workflow.jobs.build!.strategy!.matrix.include.map((entry) => entry.target).sort()).toEqual([
     'aarch64-apple-darwin', 'aarch64-pc-windows-msvc', 'x86_64-apple-darwin', 'x86_64-pc-windows-msvc',
   ])
@@ -179,17 +187,22 @@ publicationTest('cannot skip the version gate when a channel lookup fails transi
 })
 
 publicationTest.each([
-  { plan: 'success', changed: 'false', build: 'skipped', publish: 'skipped', accepted: true },
-  { plan: 'success', changed: 'true', build: 'success', publish: 'success', accepted: true },
-  { plan: 'failure', changed: '', build: 'skipped', publish: 'skipped', accepted: false },
-  { plan: 'success', changed: 'true', build: 'failure', publish: 'skipped', accepted: false },
-  { plan: 'success', changed: 'true', build: 'success', publish: 'failure', accepted: false },
-  { plan: 'success', changed: 'true', build: 'success', publish: 'cancelled', accepted: false },
-  { plan: 'success', changed: 'true', build: 'skipped', publish: 'skipped', accepted: false },
-])('admits web only after a valid desktop result: $plan/$changed/$build/$publish', ({ plan, changed, build, publish, accepted }) => {
+  { plan: 'success', changed: 'false', advance: 'false', build: 'skipped', publish: 'skipped', accepted: true },
+  { plan: 'success', changed: 'true', advance: 'true', build: 'success', publish: 'success', accepted: true },
+  { plan: 'success', changed: 'true', advance: 'false', build: 'success', publish: 'skipped', accepted: true },
+  { plan: 'failure', changed: '', advance: '', build: 'skipped', publish: 'skipped', accepted: false },
+  { plan: 'success', changed: 'true', advance: 'true', build: 'failure', publish: 'skipped', accepted: false },
+  { plan: 'success', changed: 'true', advance: 'true', build: 'success', publish: 'failure', accepted: false },
+  { plan: 'success', changed: 'true', advance: 'true', build: 'success', publish: 'cancelled', accepted: false },
+  { plan: 'success', changed: 'true', advance: 'true', build: 'skipped', publish: 'skipped', accepted: false },
+  { plan: 'success', changed: 'true', advance: 'true', build: 'success', publish: 'skipped', accepted: false },
+  { plan: 'success', changed: 'true', advance: 'false', build: 'failure', publish: 'skipped', accepted: false },
+  { plan: 'success', changed: 'true', advance: 'false', build: 'success', publish: 'success', accepted: false },
+  { plan: 'success', changed: 'false', advance: 'true', build: 'skipped', publish: 'skipped', accepted: false },
+])('admits web only after a valid desktop result: $plan/$changed/$advance/$build/$publish', ({ plan, changed, advance, build, publish, accepted }) => {
   const script = workflow.jobs.ready!.steps.find(step => step.name === 'Require completed desktop admission')!.run!
   const result = spawnSync('bash', ['-c', script], { env: { ...process.env,
-    PLAN_RESULT: plan, SHELL_CHANGED: changed, BUILD_RESULT: build, PUBLISH_RESULT: publish } })
+    PLAN_RESULT: plan, SHELL_CHANGED: changed, ADVANCE_CHANNEL: advance, BUILD_RESULT: build, PUBLISH_RESULT: publish } })
   expect(result.status === 0).toBe(accepted)
 })
 

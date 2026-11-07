@@ -4,7 +4,7 @@ import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
-import { channelVersion, planShellRelease } from '../scripts/release-plan.ts'
+import { channelVersion, planShellRelease, sourceOnMain } from '../scripts/release-plan.ts'
 import channel from '../__fixtures__/channel-staging.json'
 
 // WHY: Git-driven cases can exceed five seconds on Windows runners; allow headroom for process startup (#1818).
@@ -71,6 +71,24 @@ function repository() {
   git('tag', 'desktop-production-v0.1.0', source)
   return source
 }
+
+it('advances a channel only from a source that main contains, because a squash merge strands any other source', () => {
+  const merged = repository()
+  git('update-ref', 'refs/remotes/origin/main', merged)
+  const branch = commit('apps/desktop/shell.rs', 'branch shell')
+  expect(sourceOnMain(merged)).toBe(true)
+  expect(sourceOnMain(branch)).toBe(false)
+  git('tag', 'desktop-staging-v0.1.2', branch)
+  git('update-ref', 'HEAD', merged)
+  commit('web.ts', 'main moved on')
+  const squashed = commit('apps/desktop/shell.rs', 'branch shell')
+  expect(squashed).not.toBe(branch)
+  git('update-ref', 'refs/remotes/origin/main', squashed)
+  expect(() => planShellRelease('staging', squashed, '0.1.2', [])).toThrow('must descend')
+  expect(sourceOnMain(squashed)).toBe(true)
+  git('update-ref', '-d', 'refs/remotes/origin/main')
+  expect(() => sourceOnMain(squashed)).toThrow('Cannot compare the desktop source with main')
+}, gitTestTimeout)
 
 it('admits the reusable production dispatch and skips unchanged shell publication', () => {
   const require = createRequire(import.meta.url)

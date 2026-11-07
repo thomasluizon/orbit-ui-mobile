@@ -75,7 +75,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: desktop-${{ inputs.variant }}
     outputs:
-      publish: ${{ steps.plan.outputs.publish }}
+      shell_changed: ${{ steps.plan.outputs.shell_changed }}
+      advance_channel: ${{ steps.plan.outputs.advance_channel }}
       version: ${{ steps.plan.outputs.version }}
     steps:
       - uses: actions/checkout@v7
@@ -107,7 +108,7 @@ jobs:
           fi
           node --experimental-strip-types apps/desktop/scripts/release-plan.ts
       - name: Validate updater credentials
-        if: steps.plan.outputs.publish == 'true'
+        if: steps.plan.outputs.shell_changed == 'true'
         env:
           TAURI_SIGNING_PUBLIC_KEY: ${{ vars.TAURI_SIGNING_PUBLIC_KEY }}
           DESKTOP_VERSION: ${{ steps.plan.outputs.version }}
@@ -121,7 +122,7 @@ jobs:
 
   build:
     needs: validate
-    if: needs.validate.outputs.publish == 'true'
+    if: needs.validate.outputs.shell_changed == 'true'
     name: Release ${{ matrix.target }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 35
@@ -294,7 +295,7 @@ jobs:
           application="$ORBIT_APPLE_TEAM_ID.$ORBIT_MACOS_IDENTIFIER"
           for app in "${apps[0]}" "${updater_apps[0]}"; do
             codesign --verify --deep --strict --verbose=2 "$app"
-            codesign -d --entitlements :- "$app" > "$RUNNER_TEMP/entitlements.plist"
+            codesign -d --entitlements - --xml "$app" > "$RUNNER_TEMP/entitlements.plist"
             expect_value "$RUNNER_TEMP/entitlements.plist" com.apple.developer.aps-environment production
             expect_value "$RUNNER_TEMP/entitlements.plist" com.apple.application-identifier "$application"
             expect_value "$RUNNER_TEMP/entitlements.plist" com.apple.developer.team-identifier "$ORBIT_APPLE_TEAM_ID"
@@ -336,6 +337,8 @@ jobs:
 
   publish:
     needs: [validate, build]
+    # WHY: Squash merges leave a branch commit outside main, so a channel tagged on it fails every later lineage check.
+    if: needs.validate.outputs.advance_channel == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: desktop-${{ inputs.variant }}
@@ -427,7 +430,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PLAN_RESULT: ${{ needs.validate.result }}
-      SHELL_CHANGED: ${{ needs.validate.outputs.publish }}
+      SHELL_CHANGED: ${{ needs.validate.outputs.shell_changed }}
+      ADVANCE_CHANNEL: ${{ needs.validate.outputs.advance_channel }}
       BUILD_RESULT: ${{ needs.build.result }}
       PUBLISH_RESULT: ${{ needs.publish.result }}
     steps:
@@ -436,7 +440,9 @@ jobs:
           set -euo pipefail
           [ "$PLAN_RESULT" = success ]
           if [ "$SHELL_CHANGED" = false ]; then
-            [ "$BUILD_RESULT" = skipped ] && [ "$PUBLISH_RESULT" = skipped ]
-          else
+            [ "$ADVANCE_CHANNEL" = false ] && [ "$BUILD_RESULT" = skipped ] && [ "$PUBLISH_RESULT" = skipped ]
+          elif [ "$ADVANCE_CHANNEL" = true ]; then
             [ "$SHELL_CHANGED" = true ] && [ "$BUILD_RESULT" = success ] && [ "$PUBLISH_RESULT" = success ]
+          else
+            [ "$SHELL_CHANGED" = true ] && [ "$ADVANCE_CHANNEL" = false ] && [ "$BUILD_RESULT" = success ] && [ "$PUBLISH_RESULT" = skipped ]
           fi

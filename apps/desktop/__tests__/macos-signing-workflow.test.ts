@@ -29,14 +29,44 @@ const directories: string[] = []
 const shellTest = it.skipIf(process.platform === 'win32')
 afterEach(() => directories.splice(0).forEach(directory => rmSync(directory, { recursive: true, force: true })))
 
+// WHY: macOS hosts read the fixtures with the real PlistBuddy; other hosts use a reader for the same XML plist shape.
+const plistBuddy = `if (fs.existsSync('/usr/libexec/PlistBuddy')) {
+  process.exit(require('node:child_process').spawnSync('/usr/libexec/PlistBuddy', args, { stdio: 'inherit' }).status ?? 1)
+}
+const tokens = [...fs.readFileSync(args[2], 'utf8').matchAll(/<(\\/?)(dict|array|key|string|date|data|integer|true|false)(\\/?)>([^<]*)/g)]
+let position = 0
+const closes = (tag) => tokens[position][1] === '/' && tokens[position][2] === tag
+function parse() {
+  const [, , tag, empty, text] = tokens[position++]
+  if (empty) return tag === 'dict' ? {} : tag === 'array' ? [] : tag === 'true' ? true : tag === 'false' ? false : ''
+  if (tag === 'dict') {
+    const value = {}
+    while (!closes('dict')) { const key = tokens[position][4]; position += 2; value[key] = parse() }
+    position++
+    return value
+  }
+  if (tag === 'array') {
+    const value = []
+    while (!closes('array')) value.push(parse())
+    position++
+    return value
+  }
+  position++
+  return text.replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&amp;', '&')
+}
+let value = parse()
+for (const key of args[1].replace(/^Print :/, '').split(':')) value = value?.[key]
+if (typeof value !== 'string') { process.stderr.write('Print: Entry, "' + args[1] + '", Does Not Exist\\n'); process.exit(1) }
+process.stdout.write(value + '\\n')`
+
 const tools: Record<string, string> = {
-  codesign: `if (args.includes('-d')) process.stdout.write(process.env.FAKE_ENTITLEMENTS)`,
+  codesign: `if (args.includes('-d')) {
+  process.stderr.write('Executable=' + args.at(-1) + '/Contents/MacOS/orbit\\n')
+  process.stdout.write(process.env.FAKE_ENTITLEMENTS)
+}`,
   spctl: '',
   security: `process.stdout.write(fs.readFileSync(args[args.indexOf('-i') + 1]))`,
-  PlistBuddy: `let value = JSON.parse(fs.readFileSync(args[2], 'utf8'))
-for (const key of args[1].replace(/^Print :/, '').split(':')) value = value?.[key]
-if (typeof value !== 'string') process.exit(1)
-process.stdout.write(value + '\\n')`,
+  PlistBuddy: plistBuddy,
   xcrun: `if (args[0] === 'notarytool' && args[1] === 'submit') process.stdout.write(process.env.FAKE_SUBMISSION)`,
   npm: '',
 }
@@ -62,11 +92,47 @@ ${body}
   return { directory, bin, log: join(directory, 'commands.jsonl') }
 }
 
+const escapeXml = (text: string) => text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+const xmlStrings = (values: Record<string, string>, indent: string, separator: string) => Object.entries(values)
+  .map(([key, value]) => `${indent}<key>${escapeXml(key)}</key>${separator}${indent}<string>${escapeXml(value)}</string>`).join(separator)
+
+// WHY: The shape of security cms -D output for the Orbit Developer ID profiles: tab-indented XML with dates, data and arrays.
+const decodedProfile = (application: string) => `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+\t<key>AppIDName</key>
+\t<string>Orbit &amp; Desktop</string>
+\t<key>CreationDate</key>
+\t<date>2026-11-07T16:49:04Z</date>
+\t<key>Platform</key>
+\t<array>
+\t\t<string>OSX</string>
+\t</array>
+\t<key>IsXcodeManaged</key>
+\t<false/>
+\t<key>DeveloperCertificates</key>
+\t<array>
+\t\t<data>AAAA</data>
+\t</array>
+\t<key>Entitlements</key>
+\t<dict>
+${xmlStrings({ 'com.apple.developer.aps-environment': 'production', 'com.apple.application-identifier': application }, '\t\t', '\n')}
+\t\t<key>keychain-access-groups</key>
+\t\t<array>
+\t\t\t<string>${team}.*</string>
+\t\t</array>
+${xmlStrings({ 'com.apple.developer.team-identifier': team }, '\t\t', '\n')}
+\t</dict>
+</dict>
+</plist>
+`
+
 function bundleFixture(directory: string, profileApplication = `${team}.${identifier}`, dmgCount = 1) {
   const bundle = join(directory, `apps/desktop/src-tauri/target/${target}/release/bundle`)
   const contents = join(bundle, 'macos/Orbit Staging.app/Contents')
   mkdirSync(contents, { recursive: true })
-  writeFileSync(join(contents, 'embedded.provisionprofile'), JSON.stringify({ Entitlements: { 'com.apple.application-identifier': profileApplication } }))
+  writeFileSync(join(contents, 'embedded.provisionprofile'), decodedProfile(profileApplication))
   execFileSync('tar', ['-czf', 'Orbit Staging.app.tar.gz', 'Orbit Staging.app'], { cwd: join(bundle, 'macos') })
   mkdirSync(join(bundle, 'dmg'))
   for (let index = 0; index < dmgCount; index++) writeFileSync(join(bundle, 'dmg', `Orbit Staging_${index}.dmg`), 'dmg')
@@ -85,12 +151,15 @@ function run(name: string, directory: string, bin: string, log: string, env: Rec
   return { result, commands }
 }
 
-const entitlements = (overrides: Record<string, string> = {}) => JSON.stringify({
-  'com.apple.developer.aps-environment': 'production',
-  'com.apple.application-identifier': `${team}.${identifier}`,
-  'com.apple.developer.team-identifier': team,
-  ...overrides,
-})
+// WHY: The shape of codesign -d --entitlements - --xml output: one line of XML on stdout.
+const entitlements = (overrides: Record<string, string> = {}) => '<?xml version="1.0" encoding="UTF-8"?>'
+  + '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">'
+  + `<plist version="1.0"><dict>${xmlStrings({
+    'com.apple.application-identifier': `${team}.${identifier}`,
+    'com.apple.developer.aps-environment': 'production',
+    'com.apple.developer.team-identifier': team,
+    ...overrides,
+  }, '', '')}</dict></plist>`
 
 it('passes every macOS signing secret from the web release into the reusable desktop release', () => {
   const declared = workflow.on.workflow_call.secrets
@@ -163,7 +232,7 @@ shellTest.each([
   mkdirSync(join(directory, 'apps/desktop/src-tauri'), { recursive: true })
   writeFileSync(join(directory, 'apps/desktop/src-tauri', config), readFileSync(new URL(`../src-tauri/${config}`, import.meta.url)))
   const githubEnv = join(directory, 'github-env')
-  const profile = (application: string) => Buffer.from(JSON.stringify({ Entitlements: { 'com.apple.application-identifier': application } })).toString('base64')
+  const profile = (application: string) => Buffer.from(decodedProfile(application)).toString('base64')
   const base = { DESKTOP_VARIANT: variant, GITHUB_ENV: githubEnv, APP_STORE_CONNECT_API_PRIVATE_KEY: 'private key' }
   const accepted = run('Write the macOS provisioning profile and notarization key', directory, bin, log, { ...base, MACOS_PROVISIONING_PROFILE_BASE64: profile(`${team}.${expected}`) })
   expect(accepted.result.status, accepted.result.stderr).toBe(0)
@@ -218,7 +287,7 @@ shellTest('verifies the signed app, the updater archive app and the DMG', () => 
   const checks = verified.commands.filter(command => command[0] !== 'PlistBuddy')
   expect(checks).toEqual([app, updaterApp].flatMap(path => [
     ['codesign', '--verify', '--deep', '--strict', '--verbose=2', path],
-    ['codesign', '-d', '--entitlements', ':-', path],
+    ['codesign', '-d', '--entitlements', '-', '--xml', path],
     ['security', 'cms', '-D', '-i', `${path}/Contents/embedded.provisionprofile`],
     ['spctl', '--assess', '--type', 'execute', '--verbose=2', path],
     ['xcrun', 'stapler', 'validate', path],
