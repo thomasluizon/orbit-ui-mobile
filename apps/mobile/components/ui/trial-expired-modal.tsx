@@ -30,7 +30,7 @@ const PAUSED_FEATURES = [
   'trial.expired.proactiveAstra',
 ] as const
 
-/** `suppressed` holds the notice back while onboarding owns the screen; the notice stays mounted so a presented sheet closes through its dismissal. */
+/** `suppressed` holds the notice back while the person is signed out, onboarding owns the screen or the pending Pro flag is not loaded; the notice stays mounted so a presented sheet closes through its dismissal. */
 export function TrialExpiredModal({ suppressed = false }: Readonly<{ suppressed?: boolean }>) {
   const { t } = useTranslation()
   const router = useRouter()
