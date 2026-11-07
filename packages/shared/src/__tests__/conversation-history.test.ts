@@ -5,7 +5,8 @@ import { createChatStoreState } from '../stores/chat-store'
 import type { ConversationPage } from '../types/conversation'
 import { conversationPagePath, createConversationHistory, prepareConversationSend } from '../chat/conversation-history'
 import { buildChatClientContext } from '../chat/client-context'
-import { makeConversationPage, makeExecutedConversationPage, storedOperationId, storedConversationId } from '../test-support/conversation-fixtures'
+import { COMPACT_FAILED_INDEXES, makeConversationPage, makeExecutedConversationPage, PROPOSED_HABIT_TITLE, REVISED_HABIT_ID, REVISED_HABIT_TITLE, storedOperationId, storedConversationId } from '../test-support/conversation-fixtures'
+import { getPendingOperationItemResults } from '../hooks/pending-operation-card-core'
 import { pendingOperationExecutionPatch } from '../chat/pending-operation-message-state'
 import { agentOperationResultSchema } from '../types/ai'
 
@@ -61,6 +62,32 @@ describe('conversation restoration', () => {
     page.turns[1]!.previewOutcomesJson = JSON.stringify(outcomes)
     expect(restoreConversationPage(page)[1]!.pendingOperationStates?.[storedOperationId])
       .toMatchObject({ status, canRetry: false, completedOperation: { sourceName: 'create_habit', targetId: '00000000-0000-4000-8000-000000000020' } })
+  })
+  it('rebuilds the done block with the approved words of an edited preview', () => {
+    const message = restoreConversationPage(makeExecutedConversationPage('revised'))[1]!
+    const state = message.pendingOperationStates?.[storedOperationId]
+    expect(state).toMatchObject({ status: 'done', canRetry: false, completedOperation: { targetId: REVISED_HABIT_ID } })
+    expect(state?.operation).toMatchObject({ id: storedOperationId, actionKey: 'createHabit', capabilityId: 'habits.write', nextAction: null,
+      previewFingerprint: 'F8B5A0B62489C24048A0EE1EADDD42A2588779C8277CC0D4AD36C632965325D2' })
+    expect(state?.operation?.items?.[0]?.fields.find(field => field.field === 'title')?.newValue).toBe(REVISED_HABIT_TITLE)
+    expect(message.pendingOperations?.[0]?.items?.[0]?.entityName).toBe(PROPOSED_HABIT_TITLE)
+  })
+  it('keeps the proposed words of an approved outcome recorded without its approved preview', () => {
+    const state = restoreConversationPage(makeExecutedConversationPage('proposedOnly'))[1]!.pendingOperationStates?.[storedOperationId]
+    expect(state).toMatchObject({ status: 'done', canRetry: false })
+    expect(state?.operation).toBeUndefined()
+  })
+  it('rebuilds each row outcome of a compact stored batch', () => {
+    const state = restoreConversationPage(makeExecutedConversationPage('compact'))[1]!.pendingOperationStates?.[storedOperationId]
+    expect(state).toMatchObject({ status: 'failed', canRetry: false })
+    expect(state?.recordedOutcome).toBeUndefined()
+    const results = getPendingOperationItemResults(state?.completedOperation)
+    expect(results).toHaveLength(100)
+    expect(results?.filter(item => item.status === 'Failed').map(item => item.index)).toEqual(COMPACT_FAILED_INDEXES)
+  })
+  it.each([['partialUpdate', 'failed'], ['partialEmojis', 'failed'], ['completeUpdate', 'done']] as const)('restores a %s bulk execution as %s', (execution, status) => {
+    const state = restoreConversationPage(makeExecutedConversationPage(execution))[1]!.pendingOperationStates?.[storedOperationId]
+    expect(state).toMatchObject({ status, canRetry: false })
   })
   it('deduplicates simultaneous reads and pins earlier pages to their thread', async () => {
     await Promise.all([history.latest(), history.latest()])

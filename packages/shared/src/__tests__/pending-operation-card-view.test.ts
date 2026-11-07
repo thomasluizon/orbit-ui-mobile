@@ -1,7 +1,7 @@
 import { restoreConversationPage } from '../chat/conversation-restore'
 import { makeRevisedConversationPage, storedOperationId } from '../test-support/conversation-fixtures'
 import { astraOfferFixture, makeOfferedPreview, makeOfferedTaskPreview } from '../test-support/astra-offer-fixtures'
-import { makePlacementPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeBulkCreateExecutionResponse, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview } from '../test-support/pending-operation-preview-fixtures'
+import { makePlacementPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeBulkCreateExecutionResponse, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview, makeBulkUpdateHabitsPreview, makeBulkUpdateExecutionResponse } from '../test-support/pending-operation-preview-fixtures'
 import { describe, expect, it, vi } from 'vitest'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { makeAgentOperationResult, makePendingAgentOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '../test-support/chat-fixtures'
@@ -17,6 +17,7 @@ import {
 } from '../chat/pending-operation-card-view'
 import { buildPendingOperationCardLabels, formatPreviewMeta, type PendingOperationCardLabels } from '../chat/pending-operation-card'
 import { pendingOperationSubHabits } from '../chat/pending-operation-sub-habits'
+import { pendingOperationExecutionPatch } from '../chat/pending-operation-message-state'
 import { pendingAgentOperationSchema } from '../types/ai'
 import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
@@ -1239,6 +1240,32 @@ describe('typed preview rows', () => {
       ['2-child-0', undefined, true], ['2-child-1', undefined, true], ['2-child-2', undefined, true],
       ['1', 'Undated tasks', undefined],
     ])
+  })
+})
+
+describe('partial bulk update outcome', () => {
+  it.each(['en', 'pt-BR'] as const)('does not mark any row done and names the saved count in %s', locale => {
+    const operation = makeBulkUpdateHabitsPreview()
+    const response = makeBulkUpdateExecutionResponse(2, 3)
+    const patch = pendingOperationExecutionPatch({ ok: true, response })
+    const localized = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(locale === 'en' ? en : ptBR, key, values), value => value, locale)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ pendingOperation: operation, card: { ...createCard(), status: patch.status, completedOperation: patch.completedOperation, canRetry: patch.canRetry, openableCapability: true, onOpenTarget: vi.fn() }, labels: localized, render, onVerifyStepUp: vi.fn() })
+    expect(record.frame?.state).toBe('partiallyFailed')
+    expect(record.frame?.items.map(item => item.status)).toEqual([undefined, undefined, undefined])
+    expect(record.frame?.body).toBe(locale === 'en' ? 'Only 2 of 3 changes were saved. Ask Astra to try the rest.' : 'Só 2 de 3 alterações foram salvas. Peça à Astra para tentar as que faltam.')
+    expect(record.frame?.actions).toBeUndefined()
+    expect(record.buttons).toEqual([])
+  })
+
+  it('keeps every row done after a complete bulk update', () => {
+    const operation = makeBulkUpdateHabitsPreview()
+    const patch = pendingOperationExecutionPatch({ ok: true, response: makeBulkUpdateExecutionResponse(3, 3) })
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ pendingOperation: operation, card: { ...createCard(), status: patch.status, completedOperation: patch.completedOperation, canRetry: patch.canRetry }, labels, render, onVerifyStepUp: vi.fn() })
+    expect(record.frame?.state).toBe('resting')
+    expect(record.frame?.items.map(item => item.status)).toEqual(['done', 'done', 'done'])
+    expect(record.frame?.body).toBe('')
   })
 })
 

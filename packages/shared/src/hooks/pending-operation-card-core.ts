@@ -1,5 +1,5 @@
 import type { AgentExecuteOperationResponse, AgentOperationResult } from '../types/ai'
-import { bulkCreateResponseSchema, type BulkCreateResponse } from '../types/habit'
+import { bulkCreateResponseSchema, partialBulkMutationSchema, type BulkCreateResponse, type PartialBulkMutation } from '../types/habit'
 
 export type PendingOperationExecutionResult = {
   ok: boolean
@@ -69,7 +69,12 @@ export function getPendingOperationExecutionStatus(
 ): Exclude<PendingOperationCardStatus, undefined> {
   const operation = result.response?.operation
   const hasFailedItems = getPendingOperationItemResults(operation)?.some((item) => item.status === 'Failed')
-  return result.ok && operation?.status === 'Succeeded' && !hasFailedItems ? 'done' : 'failed'
+  return result.ok && operation?.status === 'Succeeded' && !hasFailedItems && !getPendingOperationPartialMutation(operation) ? 'done' : 'failed'
+}
+
+export function getPendingOperationPartialMutation(operation?: AgentOperationResult): PartialBulkMutation | undefined {
+  const parsed = partialBulkMutationSchema.safeParse(operation?.payload)
+  return parsed.success ? parsed.data : undefined
 }
 
 export function reportsPendingOperationItemResults(operation?: AgentOperationResult): operation is AgentOperationResult {

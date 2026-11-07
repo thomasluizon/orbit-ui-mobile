@@ -1,7 +1,7 @@
 import { restoreConversationPage } from '@orbit/shared/chat/conversation-restore'
-import { makeExecutedConversationPage, makeRevisedConversationPage, storedOperationId } from '@orbit/shared/test-support/conversation-fixtures'
+import { COMPACT_FAILED_INDEXES, makeExecutedConversationPage, makeRevisedConversationPage, PROPOSED_HABIT_TITLE, REVISED_HABIT_ID, REVISED_HABIT_TITLE, storedOperationId, type StoredExecution } from '@orbit/shared/test-support/conversation-fixtures'
 import { makeOfferedPreview, makeOfferedTaskPreview, makeOfferedChildPreview } from '@orbit/shared/test-support/astra-offer-fixtures'
-import { makeDatedTaskPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview, TICKET_TASK_DESCRIPTION, TICKET_TASK_TITLE } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeDatedTaskPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview, makeBulkUpdateHabitsPreview, makeBulkUpdateExecutionResponse, TICKET_TASK_DESCRIPTION, TICKET_TASK_TITLE } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { formatLocaleDate } from '@orbit/shared/utils'
 import { IntlMessageFormat } from 'intl-messageformat'
 import en from '@orbit/shared/i18n/en.json'
@@ -146,6 +146,93 @@ describe('PendingOperationCard (mobile)', () => {
     expect(text).not.toContain('blockFrame.status.done')
     expect(press(tree, 'common.retry')).toBeUndefined()
     TestRenderer.act(() => tree!.unmount())
+  })
+
+  function renderRestored(execution: StoredExecution) {
+    const message = restoreConversationPage(makeExecutedConversationPage(execution))[1]!
+    const handlers = { onConfirmExecute: vi.fn(), onPrepareStepUp: vi.fn(), onVerifyStepUp: vi.fn(), onRevise: vi.fn(), onOpenTarget: vi.fn() }
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<PendingOperationCard pendingOperation={message.pendingOperations![0]!} savedState={message.pendingOperationStates![storedOperationId]} {...handlers} />) })
+    return { tree: tree!, handlers }
+  }
+
+  function rowStatuses(tree: ReturnType<typeof TestRenderer.create>): Record<string, string> {
+    return Object.fromEntries(tree.root.findAll((node: ReactTestInstance) => typeof node.type === 'string' && typeof node.props.testID === 'string' && node.props.testID.startsWith('block-frame-item-'))
+      .map((node: ReactTestInstance) => /^block-frame-item-(.+)-(done|failed|pending)(?:-proposed)?$/.exec(node.props.testID as string)!)
+      .map((match: RegExpExecArray) => [match[1]!, match[2]!]))
+  }
+
+  it('rebuilds the restored done block with the words the person approved after an edit', () => {
+    visibleLocale.actual = true
+    visibleLocale.language = 'pt-BR'
+    const { tree, handlers } = renderRestored('revised')
+    const text = renderedText(tree.toJSON())
+    expect(text).toContain(REVISED_HABIT_TITLE)
+    expect(text).not.toContain(PROPOSED_HABIT_TITLE)
+    expect(rowStatuses(tree)).toEqual({ '0': 'done' })
+    expect(text).toContain(ptBR.blockFrame.status.done)
+    expect(press(tree, ptBR.chat.operation.edit)).toBeUndefined()
+    TestRenderer.act(() => press(tree, ptBR.chat.action.open).props.onPress())
+    expect(handlers.onOpenTarget).toHaveBeenCalledWith(REVISED_HABIT_ID, 'CreateHabit')
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('keeps the proposed words of a restored approval recorded without its approved preview', () => {
+    const { tree } = renderRestored('proposedOnly')
+    expect(renderedText(tree.toJSON())).toContain(PROPOSED_HABIT_TITLE)
+    expect(rowStatuses(tree)).toEqual({ '0': 'done' })
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('shows each failed row of a restored compact batch', () => {
+    visibleLocale.actual = true
+    const { tree } = renderRestored('compact')
+    const statuses = rowStatuses(tree)
+    expect(Object.keys(statuses)).toHaveLength(100)
+    expect(Object.entries(statuses).filter(([, status]) => status === 'failed').map(([id]) => Number(id))).toEqual(COMPACT_FAILED_INDEXES)
+    expect(statuses['0']).toBe('done')
+    const text = renderedText(tree.toJSON())
+    expect(text).not.toContain(en.chat.conversation.approved)
+    expect(text).toContain(en.chat.operation.batchFailed)
+    expect(press(tree, en.common.retry)).toBeUndefined()
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it.each(['partialUpdate', 'partialEmojis'] as const)('does not show a restored %s execution as done', execution => {
+    visibleLocale.actual = true
+    const { tree } = renderRestored(execution)
+    expect(Object.values(rowStatuses(tree))).not.toContain('done')
+    const text = renderedText(tree.toJSON())
+    expect(text).not.toContain(en.blockFrame.status.done)
+    expect(text).toContain('Only 2 of 3 changes were saved. Ask Astra to try the rest.')
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it.each([['en', 'Update 3 habits', 'Only 2 of 3 changes were saved. Ask Astra to try the rest.'], ['pt-BR', 'Alterar 3 hábitos', 'Só 2 de 3 alterações foram salvas. Peça à Astra para tentar as que faltam.']])('does not show a live partial bulk update as done in %s', async (locale, approve, notice) => {
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    const messages = locale === 'en' ? en : ptBR
+    const { tree, handlers } = renderCard(makeBulkUpdateHabitsPreview(), undefined, undefined, vi.fn())
+    handlers.onConfirmExecute.mockResolvedValue({ ok: true, response: makeBulkUpdateExecutionResponse(2, 3) })
+    await TestRenderer.act(async () => { press(tree, approve).props.onPress(); await Promise.resolve() })
+    const text = renderedText(tree.toJSON())
+    expect(text).toContain(notice)
+    expect(Object.values(rowStatuses(tree))).not.toContain('done')
+    expect(text).not.toContain(messages.blockFrame.status.done)
+    expect(press(tree, messages.chat.action.open)).toBeUndefined()
+    expect(press(tree, messages.common.retry)).toBeUndefined()
+  })
+
+  it('still shows a complete bulk update as done on the live card and after a restart', async () => {
+    visibleLocale.actual = true
+    const { tree, handlers } = renderCard(makeBulkUpdateHabitsPreview())
+    handlers.onConfirmExecute.mockResolvedValue({ ok: true, response: makeBulkUpdateExecutionResponse(3, 3) })
+    await TestRenderer.act(async () => { press(tree, 'Update 3 habits').props.onPress(); await Promise.resolve() })
+    expect(Object.values(rowStatuses(tree))).toEqual(['done', 'done', 'done'])
+    const restored = renderRestored('completeUpdate').tree
+    expect(Object.values(rowStatuses(restored))).toEqual(['done', 'done', 'done'])
+    expect(renderedText(restored.toJSON())).not.toContain('changes were saved')
+    TestRenderer.act(() => restored.unmount())
   })
 
   it.each(['approved', 'edited', 'expired'] as const)('renders a restored %s preview read-only without an execution claim', recordedOutcome => {

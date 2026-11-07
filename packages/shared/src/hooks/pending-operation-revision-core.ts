@@ -83,6 +83,10 @@ function rebaseRemovedDraftFields(draft: Readonly<Record<string, string>>, remov
     }))
 }
 
+export function revisedPendingOperation(operation: PendingAgentOperation, preview: PendingOperationChangePreview): PendingAgentOperation {
+  return { ...operation, ...preview, nextAction: null }
+}
+
 export function applyPendingOperationRevisionPreview(
   current: PendingOperationRevisionState,
   preview: PendingOperationChangePreview,
@@ -95,7 +99,7 @@ export function applyPendingOperationRevisionPreview(
   const selectedIds = new Set(selected.map(item => item.itemId))
   return {
     ...current,
-    operation: { ...current.operation, ...preview, nextAction: null },
+    operation: revisedPendingOperation(current.operation, preview),
     authorizationVersion: current.authorizationVersion + 1,
     originalItemIds: (current.operation.items ?? []).flatMap((item, index) => selectedIds.has(item.itemId) ? [current.originalItemIds[index]!] : []),
     drafts: Object.fromEntries(Object.entries(current.drafts)

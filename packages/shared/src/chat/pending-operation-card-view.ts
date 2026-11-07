@@ -6,7 +6,7 @@ import type {
   PreparedPendingOperationStepUp,
   PendingOperationExecutionResult,
 } from '../hooks/pending-operation-card-core'
-import { getPendingOperationCardPresentation, getPendingOperationItemResults } from '../hooks/pending-operation-card-core'
+import { getPendingOperationCardPresentation, getPendingOperationItemResults, getPendingOperationPartialMutation } from '../hooks/pending-operation-card-core'
 import { isPendingOperationEditableField } from '../hooks/pending-operation-revision-core'
 import type { PendingOperationCardLabels } from './pending-operation-card'
 import { getActionChipNavigation } from './action-chips'
@@ -451,8 +451,9 @@ function previewBody<Node>(
   if (card.completedOperation?.status === 'Denied') return render.notice(labels.denied(card.completedOperation))
   if (card.completedOperation?.status === 'UnsupportedByPolicy') return render.notice(labels.unsupported)
   if (card.canRetry) return render.notice(labels.failed)
-  return render.notice(getPendingOperationItemResults(card.completedOperation)?.length
-    ? labels.batchFailed : labels.unavailableRecovery)
+  if (getPendingOperationItemResults(card.completedOperation)?.length) return render.notice(labels.batchFailed)
+  const partial = getPendingOperationPartialMutation(card.completedOperation)
+  return render.notice(partial ? labels.partialApplied(partial.applied_count, partial.total_matched) : labels.unavailableRecovery)
 }
 
 function targetCount(operation: PendingAgentOperation): number {

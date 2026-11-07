@@ -1,7 +1,7 @@
 import { restoreConversationPage } from '@orbit/shared/chat/conversation-restore'
-import { makeExecutedConversationPage, makeRevisedConversationPage, storedOperationId } from '@orbit/shared/test-support/conversation-fixtures'
+import { COMPACT_FAILED_INDEXES, makeExecutedConversationPage, makeRevisedConversationPage, PROPOSED_HABIT_TITLE, REVISED_HABIT_ID, REVISED_HABIT_TITLE, storedOperationId, type StoredExecution } from '@orbit/shared/test-support/conversation-fixtures'
 import { makeOfferedPreview, makeOfferedTaskPreview, makeOfferedChildPreview } from '@orbit/shared/test-support/astra-offer-fixtures'
-import { makeDatedTaskPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview, TICKET_TASK_DESCRIPTION, TICKET_TASK_TITLE } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeDatedTaskPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview, makeBulkUpdateHabitsPreview, makeBulkUpdateExecutionResponse, TICKET_TASK_DESCRIPTION, TICKET_TASK_TITLE } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { formatLocaleDate } from '@orbit/shared/utils'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { personalText } from '@/__tests__/support/personal-text'
@@ -122,6 +122,76 @@ describe('PendingOperationCard', () => {
     expect(screen.queryByText(personalText(TICKET_TASK_TITLE))).not.toBeInTheDocument()
     expect(screen.queryByText('blockFrame.status.done')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'common.retry' })).not.toBeInTheDocument()
+  })
+
+  function renderRestored(execution: StoredExecution, onOpenTarget = vi.fn()) {
+    const message = restoreConversationPage(makeExecutedConversationPage(execution))[1]!
+    render(<PendingOperationCard pendingOperation={message.pendingOperations![0]!} savedState={message.pendingOperationStates![storedOperationId]} onOpenTarget={onOpenTarget} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+  }
+
+  it('rebuilds the restored done block with the words the person approved after an edit', () => {
+    visibleLocale.actual = true
+    visibleLocale.language = 'pt-BR'
+    const onOpenTarget = vi.fn()
+    renderRestored('revised', onOpenTarget)
+    expect(screen.queryByText(personalText(PROPOSED_HABIT_TITLE))).not.toBeInTheDocument()
+    const row = screen.getByText(personalText(REVISED_HABIT_TITLE)).closest('[data-status]')! as HTMLElement
+    expect(row).toHaveAttribute('data-status', 'done')
+    expect(within(row).getByText(ptBR.blockFrame.status.done)).toBeInTheDocument()
+    fireEvent.click(within(row).getByRole('button', { name: translateVisible('chat.action.openEntity', { name: REVISED_HABIT_TITLE }) }))
+    expect(onOpenTarget).toHaveBeenCalledWith(REVISED_HABIT_ID, 'CreateHabit')
+    expect(screen.queryByRole('button', { name: ptBR.chat.operation.edit })).not.toBeInTheDocument()
+  })
+
+  it('keeps the proposed words of a restored approval recorded without its approved preview', () => {
+    renderRestored('proposedOnly')
+    expect(screen.getByText(personalText(PROPOSED_HABIT_TITLE)).closest('[data-status]')).toHaveAttribute('data-status', 'done')
+  })
+
+  it('shows each failed row of a restored compact batch', () => {
+    visibleLocale.actual = true
+    renderRestored('compact')
+    expect(screen.queryByText(en.chat.conversation.approved)).not.toBeInTheDocument()
+    const rows = document.querySelectorAll('[data-status]')
+    expect([...rows].filter(row => row.getAttribute('data-status') === 'failed')).toHaveLength(COMPACT_FAILED_INDEXES.length)
+    for (const index of COMPACT_FAILED_INDEXES) expect(screen.getByText(personalText(`Habit ${index + 1}`)).closest('[data-status]')).toHaveAttribute('data-status', 'failed')
+    expect(screen.getByText(personalText('Habit 1')).closest('[data-status]')).toHaveAttribute('data-status', 'done')
+    expect(screen.getByText(en.chat.operation.batchFailed)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: en.common.retry })).not.toBeInTheDocument()
+  })
+
+  it.each(['partialUpdate', 'partialEmojis'] as const)('does not show a restored %s execution as done', execution => {
+    visibleLocale.actual = true
+    renderRestored(execution)
+    expect(document.querySelector('[data-status="done"]')).toBeNull()
+    expect(screen.queryByText(en.blockFrame.status.done)).not.toBeInTheDocument()
+    expect(screen.getByText('Only 2 of 3 changes were saved. Ask Astra to try the rest.')).toBeInTheDocument()
+  })
+
+  it.each([['en', 'Update 3 habits', 'Only 2 of 3 changes were saved. Ask Astra to try the rest.'], ['pt-BR', 'Alterar 3 hábitos', 'Só 2 de 3 alterações foram salvas. Peça à Astra para tentar as que faltam.']])('does not show a live partial bulk update as done in %s', async (locale, approve, notice) => {
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    const messages = locale === 'en' ? en : ptBR
+    confirm.mockResolvedValue({ ok: true, response: makeBulkUpdateExecutionResponse(2, 3) })
+    render(<PendingOperationCard pendingOperation={makeBulkUpdateHabitsPreview()} onOpenTarget={vi.fn()} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getByRole('button', { name: approve }))
+    await waitFor(() => expect(screen.getByText(notice)).toBeInTheDocument())
+    expect(document.querySelector('[data-status="done"]')).toBeNull()
+    expect(screen.queryByText(messages.blockFrame.status.done)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: messages.chat.action.open })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: messages.common.retry })).not.toBeInTheDocument()
+  })
+
+  it('still shows a complete bulk update as done on the live card and after a restart', async () => {
+    visibleLocale.actual = true
+    confirm.mockResolvedValue({ ok: true, response: makeBulkUpdateExecutionResponse(3, 3) })
+    const { unmount } = render(<PendingOperationCard pendingOperation={makeBulkUpdateHabitsPreview()} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Update 3 habits' }))
+    await waitFor(() => expect(document.querySelectorAll('[data-status="done"]')).toHaveLength(3))
+    unmount()
+    renderRestored('completeUpdate')
+    expect(document.querySelectorAll('[data-status="done"]')).toHaveLength(3)
+    expect(screen.queryByText(/changes were saved/)).not.toBeInTheDocument()
   })
 
   it.each(['approved', 'edited', 'expired'] as const)('renders a restored %s preview read-only without an execution claim', recordedOutcome => {
