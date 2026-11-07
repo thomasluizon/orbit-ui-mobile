@@ -306,7 +306,7 @@ function ShellBottomChrome({ props, conversationOpen, visible }: Readonly<{
       <div className={`relative mx-auto flex w-full flex-col ${columnMinimum}`} style={{ minHeight: actionMinimum }}>
         <ShellBottomViewport floating={floating} hasPinnedSlot={pinnedSlot !== undefined} minimumHeight={actionMinimum}>
           {props.notice !== undefined ? (
-            <div data-shell-notice="" className={`pointer-events-none ${scrollOwner} px-4 has-[>div>:not(:empty)]:pt-[calc(var(--sh-2-blur)-var(--sh-2-offset-y))] has-[>div>:not(:empty)]:pb-[calc(var(--sh-2-blur)+var(--sh-2-offset-y))]`}>
+            <div data-shell-notice="" className={`pointer-events-none ${scrollOwner} px-4 has-[>div>:not(:empty)]:pt-[calc(var(--sh-2-blur)-var(--sh-2-offset-y))] has-[>div>:not(:empty)]:pb-6`}>
               <div data-shell-notice-content="" className="pointer-events-auto mx-auto flex w-full max-w-[740px] flex-col gap-3 [&>:empty]:contents">{props.notice}</div>
             </div>
           ) : null}
@@ -324,19 +324,22 @@ function ShellBottomChrome({ props, conversationOpen, visible }: Readonly<{
   )
 }
 
+const SCROLLER_END_PADDING = 'pb-[var(--shell-scroller-end)]'
+const RESERVED_SCROLLER_END = `[--shell-scroller-end:var(--orbit-space-96)] lg:[--shell-scroller-end:var(--orbit-space-32)] ${SCROLLER_END_PADDING}`
+
 function getScrollerSpacing(hasBottomChrome: boolean, reservesComposerSpace: boolean, floating: boolean) {
   const focusClearance = floating ? SPACING.s96 : undefined
   if (!hasBottomChrome) return { padding: '', minimum: 'min-h-0', focusClearance }
-  if (floating) return { padding: 'pb-24 lg:pb-8', minimum: 'min-h-[calc(var(--orbit-space-96)+var(--orbit-space-96))] lg:min-h-8', focusClearance }
+  if (floating) return { padding: RESERVED_SCROLLER_END, minimum: 'min-h-[calc(var(--orbit-space-96)+var(--orbit-space-96))] lg:min-h-8', focusClearance }
   return reservesComposerSpace
-    ? { padding: 'pb-24 lg:pb-8', minimum: 'min-h-24 lg:min-h-8', focusClearance }
-    : { padding: 'pb-8', minimum: 'min-h-8', focusClearance }
+    ? { padding: RESERVED_SCROLLER_END, minimum: 'min-h-24 lg:min-h-8', focusClearance }
+    : { padding: `[--shell-scroller-end:var(--orbit-space-32)] ${SCROLLER_END_PADDING}`, minimum: 'min-h-8', focusClearance }
 }
 
 function getAstraScrollerSpacing(spacing: ReturnType<typeof getScrollerSpacing>, astraButton: ReactNode, wide: boolean) {
   if (!astraButton) return { padding: spacing.padding, focusClearance: wide ? undefined : spacing.focusClearance }
   return {
-    padding: 'pb-[max(var(--shell-astra-clearance),var(--orbit-space-96))] lg:pb-8',
+    padding: `[--shell-scroller-end:max(var(--shell-astra-clearance),var(--orbit-space-96))] lg:[--shell-scroller-end:var(--orbit-space-32)] ${SCROLLER_END_PADDING}`,
     focusClearance: 'min(var(--shell-astra-clearance), 50%)',
   }
 }

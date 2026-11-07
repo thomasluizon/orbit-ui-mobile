@@ -141,7 +141,7 @@ describe.each(['en', 'pt-BR'])('derived offline notice in %s', (locale) => {
     mocks.queue.pendingCount = 1
     queuePendingNotificationDelete('offline-delete', () => {})
     TestRenderer.act(() => tree.update(<Shell412 nav={false} notice={<><NotificationDeleteNotice /><OfflineNotice /></>} />))
-    const slot = tree.root.findAllByProps({ testID: 'shell-notice' })[0]!
+    const slot = tree.root.findAllByProps({ testID: 'shell-notice-content' })[0]!
     expect(StyleSheet.flatten(slot.props.style)).toMatchObject({ gap: 12 })
     expect(tree.root.findAllByType(Toast)).toHaveLength(2)
     expect(tree.root.findAllByType('View').filter((node) => node.props.testID === 'offline-notice')).toHaveLength(1)

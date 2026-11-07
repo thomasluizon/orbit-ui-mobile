@@ -2,14 +2,14 @@
 
 import { reportModuleLoadError } from '@/lib/report-module-load-error'
 
-import { retryComposerSend } from '@orbit/shared/hooks'
+import { canRetryComposerSend, retryComposerSend, type ComposerRetryDraft } from '@orbit/shared/hooks'
 import { createComposerFailureHandlers } from '@orbit/shared/hooks'
 import { runComposerStream,settleComposerResponse } from '@orbit/shared/hooks'
 
 import { isChatReplyActive,prepareConversationSend,resolveChatRequestContext } from '@orbit/shared/chat'
 import { conversationHistory } from '@/lib/conversation-history'
 import { useThrottleStore } from '@/stores/throttle-store'
-import { useCallback,useEffect } from 'react'
+import { useCallback,useEffect,useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { habitKeys,profileKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
@@ -274,9 +274,9 @@ export function useChatSendMessage(input: ChatSendMessageInputs['input'], select
   return { sendMessage }
 }
 
-type ChatSendRetryInputs = Pick<ReturnType<typeof useChatComposerSession>, 'isOnline'> & Pick<ReturnType<typeof useChatComposerAvailability>, 'atMessageLimit' | 'isSending'> & Pick<ChatComposerState, 'queryClient' | 'queuePaused' | 'queueReady' | 'queuedPrompts' | 'lastFailedSend' | 'setInput'> & Pick<ReturnType<typeof useChatSendQueue>, 'performSend'>
+type ChatSendRetryInputs = Pick<ReturnType<typeof useChatComposerSession>, 'isOnline'> & Pick<ReturnType<typeof useChatComposerAvailability>, 'atMessageLimit' | 'isSending'> & Pick<ChatComposerState, 'queryClient' | 'queuePaused' | 'queueReady' | 'queuedPrompts' | 'lastFailedSend' | 'setInput'> & Pick<ReturnType<typeof useChatSendQueue>, 'performSend'> & { retryComposer: ComposerRetryDraft }
 
-export function useChatSendRetry(isOnline: ChatSendRetryInputs['isOnline'], atMessageLimit: ChatSendRetryInputs['atMessageLimit'], queryClient: ChatSendRetryInputs['queryClient'], isSending: ChatSendRetryInputs['isSending'], queuePaused: ChatSendRetryInputs['queuePaused'], queueReady: ChatSendRetryInputs['queueReady'], queuedPrompts: ChatSendRetryInputs['queuedPrompts'], lastFailedSend: ChatSendRetryInputs['lastFailedSend'], performSend: ChatSendRetryInputs['performSend'], setInput: ChatSendRetryInputs['setInput']) {
+export function useChatSendRetry(isOnline: ChatSendRetryInputs['isOnline'], atMessageLimit: ChatSendRetryInputs['atMessageLimit'], queryClient: ChatSendRetryInputs['queryClient'], isSending: ChatSendRetryInputs['isSending'], queuePaused: ChatSendRetryInputs['queuePaused'], queueReady: ChatSendRetryInputs['queueReady'], queuedPrompts: ChatSendRetryInputs['queuedPrompts'], lastFailedSend: ChatSendRetryInputs['lastFailedSend'], performSend: ChatSendRetryInputs['performSend'], setInput: ChatSendRetryInputs['setInput'], retryComposer: ChatSendRetryInputs['retryComposer']) {
   const sendQueuedPrompt = useCallback((id: string) => sendQueuedChatPrompt(
     useChatStore.getState(), id, isOnline && !atMessageLimit, queryClient.getQueryData<Profile>(profileKeys.detail()),
   ), [atMessageLimit, isOnline, queryClient])
@@ -292,7 +292,9 @@ export function useChatSendRetry(isOnline: ChatSendRetryInputs['isOnline'], atMe
     await retryComposerSend(lastFailedSend, performSend, useChatStore.getState, getAccountGeneration, () => { setInput(''); globalThis.localStorage.removeItem(CHAT_DRAFT_STORAGE_KEY) })
   }, [lastFailedSend, performSend, setInput])
 
-  const canRetryLastSend = lastFailedSend !== null && !isSending
+  const [failure, setFailure] = useState({ attempt: lastFailedSend, composer: retryComposer })
+  if (failure.attempt !== lastFailedSend) setFailure({ attempt: lastFailedSend, composer: retryComposer })
+  const canRetryLastSend = canRetryComposerSend(lastFailedSend, failure.attempt === lastFailedSend ? failure.composer : retryComposer, { ...retryComposer, isSending })
   return { sendQueuedPrompt, canRetryLastSend, retryLastSend }
 }
 

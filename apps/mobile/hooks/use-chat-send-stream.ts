@@ -1,10 +1,10 @@
 import { captureError } from '@/lib/sentry'
-import { retryComposerSend,createComposerFailureHandlers,runComposerStream,settleComposerResponse,CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
+import { canRetryComposerSend,retryComposerSend,type ComposerRetryDraft,createComposerFailureHandlers,runComposerStream,settleComposerResponse,CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { isChatReplyActive,prepareConversationSend,resolveChatRequestContext } from '@orbit/shared/chat'
 import { conversationHistory } from '@/lib/conversation-history'
 import { buildRecentChatHistory } from '@orbit/shared/utils'
 import { randomUUID } from 'expo-crypto'
-import { useCallback,useEffect } from "react"
+import { useCallback,useEffect,useState } from "react"
 import * as ImagePicker from "expo-image-picker"
 import { File } from "expo-file-system"
 import AsyncStorage from "@react-native-async-storage/async-storage"
@@ -280,9 +280,9 @@ export function useChatSendMessage(input: ChatSendMessageInputs['input'], select
   return { sendMessage }
 }
 
-type ChatSendRetryInputs = Pick<UseChatComposerOptions, 'isOnline' | 'offlineTitle'> & Pick<ReturnType<typeof useChatComposerAvailability>, 'atMessageLimit' | 'isSending'> & Pick<ChatComposerState, 'queryClient' | 'queuePaused' | 'queueReady' | 'queuedPrompts' | 'lastFailedSend' | 'setSendError' | 'setInput'> & Pick<ReturnType<typeof useChatSendQueue>, 'performSend'>
+type ChatSendRetryInputs = Pick<UseChatComposerOptions, 'isOnline' | 'offlineTitle'> & Pick<ReturnType<typeof useChatComposerAvailability>, 'atMessageLimit' | 'isSending'> & Pick<ChatComposerState, 'queryClient' | 'queuePaused' | 'queueReady' | 'queuedPrompts' | 'lastFailedSend' | 'setSendError' | 'setInput'> & Pick<ReturnType<typeof useChatSendQueue>, 'performSend'> & { retryComposer: ComposerRetryDraft }
 
-export function useChatSendRetry(isOnline: ChatSendRetryInputs['isOnline'], atMessageLimit: ChatSendRetryInputs['atMessageLimit'], queryClient: ChatSendRetryInputs['queryClient'], isSending: ChatSendRetryInputs['isSending'], queuePaused: ChatSendRetryInputs['queuePaused'], queueReady: ChatSendRetryInputs['queueReady'], queuedPrompts: ChatSendRetryInputs['queuedPrompts'], lastFailedSend: ChatSendRetryInputs['lastFailedSend'], setSendError: ChatSendRetryInputs['setSendError'], offlineTitle: ChatSendRetryInputs['offlineTitle'], performSend: ChatSendRetryInputs['performSend'], setInput: ChatSendRetryInputs['setInput']) {
+export function useChatSendRetry(isOnline: ChatSendRetryInputs['isOnline'], atMessageLimit: ChatSendRetryInputs['atMessageLimit'], queryClient: ChatSendRetryInputs['queryClient'], isSending: ChatSendRetryInputs['isSending'], queuePaused: ChatSendRetryInputs['queuePaused'], queueReady: ChatSendRetryInputs['queueReady'], queuedPrompts: ChatSendRetryInputs['queuedPrompts'], lastFailedSend: ChatSendRetryInputs['lastFailedSend'], setSendError: ChatSendRetryInputs['setSendError'], offlineTitle: ChatSendRetryInputs['offlineTitle'], performSend: ChatSendRetryInputs['performSend'], setInput: ChatSendRetryInputs['setInput'], retryComposer: ChatSendRetryInputs['retryComposer']) {
   const sendQueuedPrompt = useCallback((id: string) => sendQueuedChatPrompt(
     useChatStore.getState(), id, isOnline && !atMessageLimit, queryClient.getQueryData<Profile>(profileKeys.detail()),
   ), [atMessageLimit, isOnline, queryClient])
@@ -302,7 +302,9 @@ export function useChatSendRetry(isOnline: ChatSendRetryInputs['isOnline'], atMe
     await retryComposerSend(lastFailedSend, performSend, useChatStore.getState, getAccountGeneration, () => { setInput(''); void AsyncStorage.removeItem(CHAT_DRAFT_STORAGE_KEY) })
   }, [isOnline, lastFailedSend, offlineTitle, performSend, setInput, setSendError])
 
-  const canRetryLastSend = lastFailedSend !== null && !isSending
+  const [failure, setFailure] = useState({ attempt: lastFailedSend, composer: retryComposer })
+  if (failure.attempt !== lastFailedSend) setFailure({ attempt: lastFailedSend, composer: retryComposer })
+  const canRetryLastSend = canRetryComposerSend(lastFailedSend, failure.attempt === lastFailedSend ? failure.composer : retryComposer, { ...retryComposer, isSending })
   return { sendQueuedPrompt, canRetryLastSend, retryLastSend }
 }
 

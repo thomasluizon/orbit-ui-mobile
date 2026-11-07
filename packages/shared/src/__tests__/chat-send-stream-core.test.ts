@@ -5,7 +5,7 @@ import { createChatStoreState,type ChatStoreState } from '../stores/chat-store'
 import { chatResponseSchema } from '../types/chat'
 import { profileKeys } from '../query/keys'
 import {
-createComposerFailureHandlers,retryComposerSend,runComposerStream,settleComposerResponse,
+canRetryComposerSend,createComposerFailureHandlers,retryComposerSend,runComposerStream,settleComposerResponse,
 type ComposerAttempt,
 } from '../hooks/chat-send-stream-core'
 import { createChatThreadScroll } from '../hooks/chat-thread-scroll-core'
@@ -191,5 +191,24 @@ describe('shared composer recovery', () => {
     }, context.getChat, context.getAccountGeneration, clearDraft)
     expect(clearDraft).toHaveBeenCalledTimes(scenario === 'matching revision' ? 1 : 0)
     context.queryClient.clear()
+  })
+})
+
+describe('canRetryComposerSend', () => {
+  const attempted = { content: 'Quais habitos tenho hoje' }
+  const image = [{ id: 'chat-image', kind: 'image' as const, name: 'walk.png' }]
+  const restored = { draft: 'Quais habitos tenho hoje', draftRevision: 4, attachments: [] }
+  it.each([
+    ['no failed send', null, restored, { ...restored, isSending: false }, false],
+    ['a running reply', attempted, restored, { ...restored, isSending: true }, false],
+    ['the unchanged restored draft', attempted, restored, { ...restored, isSending: false }, true],
+    ['an edited restored draft', attempted, restored, { ...restored, draft: 'Quais habitos tenho amanha', draftRevision: 5, isSending: false }, false],
+    ['an attachment added to the restored draft', attempted, restored, { ...restored, attachments: image, isSending: false }, false],
+    ['an emptied composer', attempted, restored, { draft: '  ', draftRevision: 6, attachments: [], isSending: false }, true],
+    ['an unsent note the failed send left alone', attempted, { draft: 'Unsent note', draftRevision: 2, attachments: image }, { draft: 'Unsent note', draftRevision: 2, attachments: image, isSending: false }, true],
+    ['a replaced attachment', attempted, { draft: 'Olha isto', draftRevision: 2, attachments: image }, { draft: 'Olha isto', draftRevision: 2, attachments: [{ ...image[0]!, name: 'run.png' }], isSending: false }, false],
+    ['an image without text', attempted, restored, { draft: '', draftRevision: 7, attachments: image, isSending: false }, true],
+  ])('decides retry for %s', (_case, failed, atFailure, current, expected) => {
+    expect(canRetryComposerSend(failed, atFailure, current)).toBe(expected)
   })
 })

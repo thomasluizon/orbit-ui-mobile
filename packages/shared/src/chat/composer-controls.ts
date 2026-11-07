@@ -11,8 +11,11 @@ function isComposerVoiceVisible(props: ComposerProps): boolean {
 }
 
 export function buildComposerPrimaryControl(props: ComposerProps): {
-  kind: 'send' | 'stop' | 'microphone'; label: string; disabled: boolean; accented: boolean; onSelect: () => void
+  kind: 'send' | 'stop' | 'microphone' | 'retry'; label: string; disabled: boolean; accented: boolean; onSelect: () => void
 } {
+  if (props.onRetry && props.state === 'idle') {
+    return { kind: 'retry', label: props.words.retry, disabled: false, accented: false, onSelect: props.onRetry }
+  }
   if (isComposerVoiceVisible(props) && props.onVoice) {
     const onVoice = props.onVoice
     const recording = props.state === 'recording'
@@ -31,6 +34,11 @@ export function buildComposerPrimaryControl(props: ComposerProps): {
     disabled: !canSend, accented: canSend || props.state === 'sending',
     onSelect: () => { if (canSend) props.onSend() },
   }
+}
+
+export function submitComposerFromKeyboard(props: ComposerProps): void {
+  const action = buildComposerPrimaryControl(props)
+  if (action.kind === 'send' || action.kind === 'retry') action.onSelect()
 }
 
 type ComposerAction = { id: string; label: string; icon: string; disabled?: boolean }

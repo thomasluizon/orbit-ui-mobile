@@ -50,6 +50,7 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
   if (typeof style.minWidth === 'number') node.setMinWidth(style.minWidth)
   if (style.position === 'absolute') node.setPositionType(Yoga.POSITION_TYPE_ABSOLUTE)
   if (style.display === 'none') node.setDisplay(Yoga.DISPLAY_NONE)
+  if (style.display === 'contents') node.setDisplay(Yoga.DISPLAY_CONTENTS)
   applyMargins(node, style)
   for (const [property, edge] of [['top', Yoga.EDGE_TOP], ['bottom', Yoga.EDGE_BOTTOM], ['left', Yoga.EDGE_LEFT], ['right', Yoga.EDGE_RIGHT]] as const) {
     if (typeof style[property] === 'number') node.setPosition(edge, style[property])

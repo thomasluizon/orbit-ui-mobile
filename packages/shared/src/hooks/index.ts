@@ -35,7 +35,7 @@ export { createUsePendingOperationPlacement, type PendingOperationPlacementEdit 
 export { previewFieldInputs, changePreviewFieldInput, previewFieldInputLabel, type PreviewFieldInput } from './preview-field-core'
 
 export * from './parent-prompt-queue-core'
-export { createComposerFailureHandlers, retryComposerSend, runComposerStream, settleComposerResponse, type ComposerAttempt } from './chat-send-stream-core'
+export { canRetryComposerSend, createComposerFailureHandlers, retryComposerSend, runComposerStream, settleComposerResponse, type ComposerAttempt, type ComposerRetryDraft } from './chat-send-stream-core'
 export * from './chat-composer-state-core'
 export * from './calendar-screen-state-core'
 export * from './habit-list-state-core'
