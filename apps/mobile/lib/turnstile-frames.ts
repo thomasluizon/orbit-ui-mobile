@@ -11,9 +11,10 @@ function isOnOrigin(url: string, origin: string): boolean {
 }
 
 export function shouldLoadTurnstileFrame(
-  request: Readonly<{ url: string; isTopFrame: boolean }>,
+  request: Readonly<{ url: string; isTopFrame?: boolean }>,
   bridgeOrigin: string,
 ): boolean {
-  if (request.isTopFrame) return isOnOrigin(request.url, bridgeOrigin)
+  const isTopFrame = request.isTopFrame ?? true
+  if (isTopFrame) return isOnOrigin(request.url, bridgeOrigin)
   return CHALLENGE_DOCUMENTS.has(request.url) || isOnOrigin(request.url, CHALLENGE_ORIGIN)
 }

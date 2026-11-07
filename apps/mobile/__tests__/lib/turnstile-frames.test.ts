@@ -20,6 +20,16 @@ it.each([
 })
 
 it.each([
+  ['the bridge page', bridgeUrl, true],
+  ['a same-origin bridge redirect', 'https://app-staging.useorbit.org/turnstile-bridge/?siteKey=site-key', true],
+  ['the Cloudflare challenge page', 'https://challenges.cloudflare.com/cdn-cgi/challenge-platform/h/b/turnstile/if/ov2/av0/rcv0/0/abc/0x4AAA/dark/fbE/new/normal/auto/', false],
+  ['the srcdoc document', 'about:srcdoc', false],
+  ['another origin', 'https://example.org/', false],
+])('decides %s for an Android request without isTopFrame as the top frame', (_case, url, expected) => {
+  expect(shouldLoadTurnstileFrame({ url }, bridgeOrigin)).toBe(expected)
+})
+
+it.each([
   ['the Cloudflare challenge frame', 'https://challenges.cloudflare.com/cdn-cgi/challenge-platform/h/b/turnstile/if/ov2/av0/rcv0/0/abc/0x4AAA/dark/fbE/new/normal/auto/', true],
   ['the srcdoc frame', 'about:srcdoc', true],
   ['a blank frame', 'about:blank', true],
