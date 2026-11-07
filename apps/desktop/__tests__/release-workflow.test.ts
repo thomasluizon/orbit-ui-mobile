@@ -18,7 +18,7 @@ interface Step { name?: string; run?: string; if?: string; env?: Record<string, 
 interface Workflow {
   on: Record<string, unknown>
   concurrency: { 'cancel-in-progress': boolean }
-  jobs: Record<string, { needs?: string | string[]; if?: string; outputs?: Record<string, string>; env?: Record<string, string>; steps: Step[]; strategy?: { matrix: { include: { target: string }[] } } }>
+  jobs: Record<string, { needs?: string | string[]; if?: string; outputs?: Record<string, string>; env?: Record<string, string>; steps: Step[]; 'timeout-minutes'?: number | string; strategy?: { matrix: { include: { runner: string; target: string; timeout: number }[] } } }>
 }
 const workflow = load(readFileSync(new URL('../../../.github/workflows/desktop-release.yml', import.meta.url), 'utf8'))
 const publish = workflow.jobs.publish!.steps.find((step) => step.name === 'Publish versioned artifacts before advancing the channel')!.run!
@@ -146,6 +146,10 @@ it('supports pinned automatic releases and requires every target before publicat
   expect(workflow.jobs.build!.strategy!.matrix.include.map((entry) => entry.target).sort()).toEqual([
     'aarch64-apple-darwin', 'aarch64-pc-windows-msvc', 'x86_64-apple-darwin', 'x86_64-pc-windows-msvc',
   ])
+  expect(workflow.jobs.build!['timeout-minutes']).toBe('${{ matrix.timeout }}')
+  expect(Object.fromEntries(workflow.jobs.build!.strategy!.matrix.include.map((entry) => [entry.target, entry.timeout]))).toEqual({
+    'aarch64-apple-darwin': 120, 'x86_64-apple-darwin': 120, 'aarch64-pc-windows-msvc': 35, 'x86_64-pc-windows-msvc': 35,
+  })
 })
 
 publicationTest('publishes artifacts before advancing an existing channel, with its manifest last', () => {

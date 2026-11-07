@@ -125,8 +125,8 @@ jobs:
     if: needs.validate.outputs.shell_changed == 'true'
     name: Release ${{ matrix.target }}
     runs-on: ${{ matrix.runner }}
-    # WHY: notarytool waits on Apple's notarization queue; the first signed run was still waiting after 27 minutes and the old 35 minute ceiling cancelled it.
-    timeout-minutes: 120
+    # WHY: each macOS target waits on Apple's notarization queue twice (the app inside tauri bundle, then the DMG) with no notarytool --timeout, so the job ceiling is the only bound; Windows never notarizes.
+    timeout-minutes: ${{ matrix.timeout }}
     environment: desktop-${{ inputs.variant }}
     strategy:
       fail-fast: false
@@ -134,12 +134,16 @@ jobs:
         include:
           - runner: macos-15
             target: aarch64-apple-darwin
+            timeout: 120
           - runner: macos-15
             target: x86_64-apple-darwin
+            timeout: 120
           - runner: windows-2025
             target: x86_64-pc-windows-msvc
+            timeout: 35
           - runner: windows-2025
             target: aarch64-pc-windows-msvc
+            timeout: 35
     defaults:
       run:
         shell: bash
