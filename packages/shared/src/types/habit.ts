@@ -573,6 +573,14 @@ export const bulkCreateResponseSchema = z.object({
 
 export type BulkCreateResponse = z.infer<typeof bulkCreateResponseSchema>
 
+export const partialBulkMutationSchema = z.object({
+  partial: z.literal(true),
+  applied_count: z.number().int(),
+  total_matched: z.number().int(),
+})
+
+export type PartialBulkMutation = z.infer<typeof partialBulkMutationSchema>
+
 const bulkDeleteItemResultSchema = z.object({
   index: z.number(),
   status: bulkItemStatusSchema,

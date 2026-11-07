@@ -2080,6 +2080,7 @@
       "parentChoiceRequired": "Choose where each item goes before approving.",
       "batchFailed": "Some items could not be saved. Ask Astra to try only the failed items.",
       "unavailableRecovery": "That didn't work. Ask Astra for a new preview.",
+      "partialApplied": "{total, plural, one {Only {applied} of # change was saved.} other {Only {applied} of # changes were saved.}} Ask Astra to try the rest.",
       "unknown": "Astra operation",
       "changeHabits": "{count, plural, one {Change # habit} other {Change # habits}}",
       "newHabits": "{count, plural, one {New habit} other {# new habits}}",

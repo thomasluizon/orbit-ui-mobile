@@ -260,3 +260,71 @@ text scales. The Chromium geometry suite and the `astra-preview-done-row` layout
 measure the same row on web. Each suite requires that the completed summary is at least
 its pending width and that each line breaks only at a space. Native text rendering on a
 device remains a release verification boundary.
+
+## Restored done block (#2048, #2053)
+
+A reopened conversation reads each preview outcome from `previewOutcomesJson`. An `approved`
+outcome can carry `Execution`, the operation object that the live confirm response returned.
+`restoreConversationPage` in `packages/shared/src/chat/conversation-restore.ts` passes that
+object through `pendingOperationExecutionPatch`, the same patch the live confirm uses. The
+restored card then shows the same done block on web and Android: the stacked settled rows,
+the per-row outcome and Open.
+
+When an execution exceeds its stored budget, the API keeps a compact payload. A bulk result keeps
+`results[]` with `index`, `status` and `habitId` for each item, with `title`, `error` and `field`
+set to null, and the totals `partial`, `applied_count`, `total_matched` and `skipped_count`. The
+API removes `payload` only when the compact form also does not fit. The execution always keeps
+its status and its target. For most capabilities, the status is the outcome of each row, so the
+restored rows still show it, and Open shows when a target id survives.
+
+`bulk_create_habits` is different. Each row gets its outcome only from `payload.results`, and a
+partly failed batch keeps the status `Succeeded`. The compact results parse through
+`bulkCreateResponseSchema`, so a restored 100 item batch shows its failed rows, the batch notice
+and Open on each saved row. When the stored execution has no item results that the schema can
+read, the restore cannot tell which rows failed. The card then shows the bare approved notice,
+which makes no claim about a row.
+
+A restored card never shows Retry. Retry asks the API for a new confirmation of the same pending
+operation. The API refuses that confirmation after the policy consumes the operation, and after
+the operation expires (`PendingOperationTtlMinutes`, 10 minutes by default). A stored execution
+does not record whether the operation was consumed, so `restoreConversationPage` sets
+`canRetry` to `false`. A restored failure shows its failed outcome and its recovery notice.
+
+The bare outcome notice stays for `edited` and `expired`, for an `approved` turn that the API
+recorded before it stored executions, and for the `bulk_create_habits` case above. A rejected
+outcome keeps its rejected notice.
+
+The API does not rewrite the preview in `responseJson` when a person edits it before approval.
+When the person edits and then approves, the API stores the revised preview as `RevisedPreview`
+on the `approved` outcome. It is the exact preview object that the live revise response returned.
+`restoreConversationPage` merges it into the original proposal with `revisedPendingOperation`,
+the same merge as a live revision, and stores the result as the card's `operation`. The restored
+done block then shows the words that the person approved (#2054). An `approved` outcome without
+`RevisedPreview` (no edit, or a turn that the API recorded before it stored the preview) shows the
+words of the proposal in `responseJson`. The restore does not mark a row as edited, because the
+stored preview does not record which item the person changed.
+
+## Partial bulk change
+
+`bulk_update_habits`, `bulk_update_habit_emojis`, `bulk_reschedule_habits`, `bulk_log_habits`,
+`bulk_skip_habits` and `bulk_delete_habits` return the status `Succeeded` with
+`payload.partial: true` when the API skips some of the matched habits. `bulk_create_habits` sets
+`partial` in the same payload when an item fails. These results carry no outcome for each row.
+
+`getPendingOperationExecutionStatus` reads `partial`, `applied_count` and `total_matched` through
+`partialBulkMutationSchema`. A partial result is `failed`, never `done`, with no Retry, because
+the API consumed the operation. The live card and the restored card then show:
+
+- the partial failure frame state,
+- no outcome glyph and no Open on a row, because the result does not name the skipped habits,
+- the notice `chat.operation.partialApplied`, for example "Only 2 of 3 changes were saved. Ask
+  Astra to try the rest." ("Só 2 de 3 alterações foram salvas. Peça à Astra para tentar as que
+  faltam.").
+
+A bulk create with item results keeps its row outcomes and the batch notice. A complete bulk
+change (`partial: false`) still shows every row as done.
+
+The shared restore, contract, core and view tests and both card tests cover the stored and absent
+cases, a truncated batch, a failed batch without item results, the compact 100 item batch, the
+revised words, and partial and complete bulk changes. The `astra-conversation-history` layout
+guard measures the rebuilt row.
