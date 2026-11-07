@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
 import { notionConnectionSheetState } from '@orbit/shared/types/notion-connection'
@@ -46,6 +47,9 @@ export function NotionConnectionSheet({ callbackFailed, controller, onClose, onA
   const { connection, authorize, disconnect, isOnline } = controller
   const { reconnect, hasConnection, busy, disabled, actionKey, error } = notionConnectionSheetState({ ...controller, leaving, callbackFailed })
   const connect = () => onAuthorize((url) => { setLeaving(true); closeSheet(() => { onClose(); onOpenUrl(url) }) })
+  useEffect(() => {
+    if (!controller.enabled) closeSheet(onClose, onClose)
+  }, [controller.enabled, closeSheet, onClose])
   const actions = <>
     {hasConnection ? <PillButton variant="ghost" loading={disconnect.isPending} disabled={!isOnline || busy} onClick={() => setConfirming(true)}>{t('profile.connections.disconnect')}</PillButton> : null}
     {connection.isError ? <IconButton label={t('common.retry')} disabled={!isOnline || connection.isFetching} loading={connection.isFetching} onClick={() => void connection.refetch()}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>

@@ -12,6 +12,7 @@ import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 const TestRenderer = require('react-test-renderer')
 const mocks = vi.hoisted(() => ({ enabled: true, online: true, push: vi.fn(), api: vi.fn() }))
@@ -45,7 +46,7 @@ beforeEach(() => {
     return Promise.resolve(createNotionConnection())
   })
 })
-afterEach(() => { TestRenderer.act(() => tree?.unmount()); clients.splice(0).forEach((client) => client.clear()) })
+afterEach(() => { sheetTestControls.defer(false); TestRenderer.act(() => tree?.unmount()); clients.splice(0).forEach((client) => client.clear()) })
 it('opens the calendar sheet route and omits Notion when disabled', () => {
   mocks.enabled = false; mount()
   TestRenderer.act(() => row(en.profile.connections.googleCalendar).props.onClick())
@@ -83,6 +84,22 @@ it.each(['connect', 'choosePages', 'reconnect'] as const)('opens the %s URL afte
   expect(closed).toHaveBeenCalledOnce()
   expect(opened).toHaveBeenCalledExactlyOnceWith(createNotionAuthorization().authorizeUrl)
   sheetTestControls.defer(false)
+})
+it.each([
+  ['the feature flag turns off', () => { mocks.enabled = false }, true],
+  ['Pro access ends', () => undefined, false],
+] as const)('closes the presented Notion sheet through its native dismissal when %s', async (_reason, change, pro) => {
+  mount(); await openNotion()
+  expect(tree.root.findAllByType(NotionConnectionSheet)).toHaveLength(1)
+  sheetTestControls.defer(true)
+
+  change()
+  TestRenderer.act(() => { tree.update(<QueryClientProvider client={clients.at(-1)!}><AstraConnections hasProAccess={pro} /></QueryClientProvider>) })
+
+  expect(tree.root.findAllByType(NotionConnectionSheet)).toHaveLength(1)
+  expect(sheetTestControls.isDismissPending).toBe(true)
+  TestRenderer.act(() => sheetTestControls.completeDismissal())
+  expect(tree.root.findAllByType(NotionConnectionSheet)).toHaveLength(0)
 })
 it('shows the workspace and last sync, then deletes only after confirmation', async () => {
   let disconnected = false
