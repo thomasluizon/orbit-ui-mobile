@@ -26,7 +26,7 @@
       if (result) return result
       await pause(20)
     }
-    throw new Error(`Timed out: ${label}; ${JSON.stringify({ route: location.pathname, rows: document.querySelectorAll('[data-habit-id]').length, firstHabit: document.querySelector('[data-habit-id]')?.getAttribute('data-habit-id'), inputs: [...document.querySelectorAll('[data-composer-input]')].map((input) => ({ disabled: input.disabled, height: input.getBoundingClientRect().height })), composers: [...document.querySelectorAll('[data-composer-root]')].map((root) => ({ state: root.getAttribute('data-state'), collapsed: root.getAttribute('data-collapsed') })), viewport: [innerWidth, innerHeight], text: document.body.innerText.slice(0, 700) })}`)
+    throw new Error(`Timed out: ${label}; ${JSON.stringify({ route: location.pathname, rows: document.querySelectorAll('[data-habit-id]').length, firstHabit: document.querySelector('[data-habit-id]')?.getAttribute('data-habit-id'), astraButtons: [...document.querySelectorAll('[data-astra-button]')].map((button) => ({ disabled: button.disabled, height: button.getBoundingClientRect().height })), conversationInputs: [...document.querySelectorAll('[data-shell-conversation] [data-composer-input]')].map((input) => ({ disabled: input.disabled, height: input.getBoundingClientRect().height })), viewport: [innerWidth, innerHeight], text: document.body.innerText.slice(0, 700) })}`)
   }
   async function scrollList() {
     const scroller = document.querySelector('[data-shell-scroller]')
@@ -48,8 +48,7 @@
     return intervals
   }
   async function chat() {
-    document.querySelector('[data-composer-input]:not([disabled])').focus()
-    document.querySelector('[data-open-conversation]')?.click()
+    document.querySelector('[data-astra-button]:not([disabled])').click()
     const textarea = await until(() => document.querySelector('[data-shell-conversation] [data-composer-input]:not([disabled])'), 'conversation composer')
     const previousArticles = new Set(document.querySelectorAll('[role="feed"] article'))
     const replyIncludes = (text) => [...document.querySelectorAll('[role="feed"] article')].some((article) => !previousArticles.has(article) && article.innerText.includes(text))
@@ -88,20 +87,16 @@
   async function run() {
     await until(() => {
       const row = document.querySelector('[data-habit-id="bench-0000"]')
-      const input = document.querySelector('[data-composer-input]:not([disabled])')
-      document.querySelector('[data-composer-collapse-row]')?.click()
-      if (!row || !input || !row.getBoundingClientRect().height || !input.getBoundingClientRect().height) return null
-      return input
-    }, 'first interactive habit and focusable composer')
+      const button = document.querySelector('[data-astra-button]:not([disabled])')
+      if (!row || !button || !row.getBoundingClientRect().height || !button.getBoundingClientRect().height) return null
+      return button
+    }, 'first interactive habit and Astra button')
     const nativeWindow = await fitViewport()
     await until(() => {
       if (document.querySelector('[data-shell-conversation]')) return true
-      const input = document.querySelector('[data-composer-input]:not([disabled])')
-      input?.blur()
-      input?.focus({ preventScroll: true })
-      if (input && document.activeElement === input) document.querySelector('[data-open-conversation]')?.click()
+      document.querySelector('[data-astra-button]:not([disabled])')?.click()
       return false
-    }, 'hydrated composer focus response')
+    }, 'hydrated Astra button response')
     const usableEpoch = performance.timeOrigin + performance.now()
     await until(() => {
       const conversation = document.querySelector('[data-shell-conversation]')

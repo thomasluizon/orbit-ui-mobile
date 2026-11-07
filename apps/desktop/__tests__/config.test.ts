@@ -143,3 +143,17 @@ it('keeps updater archive parsing above the GHSA-m665-v7pm-7grj affected version
     expect(patched, entry).toBe(true)
   }
 })
+
+it('keeps exactly the web CSP frame-src origins inside the desktop webview', () => {
+  const policy = readFileSync(new URL('../../web/proxy.ts', import.meta.url), 'utf8')
+  const directives = [...policy.matchAll(/["'`]frame-src ([^"'`]+)["'`]/g)].map((match) => match[1]!)
+  expect(directives).toHaveLength(1)
+  const cspOrigins = directives[0]!.trim().split(/\s+/).map((source) => new URL(source).origin)
+  const entrypoint = readFileSync(new URL('../src-tauri/src/main.rs', import.meta.url), 'utf8').split('#[cfg(test)]')[0]!
+  expect(entrypoint).toMatch(/fn is_embedded_frame\(url: &tauri::Url\) -> bool \{\s*EMBEDDED_FRAME_ORIGINS\.contains\(&url\.origin\(\)\.ascii_serialization\(\)\.as_str\(\)\)\s*\}/)
+  const allowlist = entrypoint.match(/const EMBEDDED_FRAME_ORIGINS: \[&str; \d+\] = \[([^\]]*)\];/)?.[1]
+  expect(allowlist).toBeDefined()
+  const desktopOrigins = [...allowlist!.matchAll(/"([^"]+)"/g)].map((match) => match[1]!)
+  expect(cspOrigins.filter((origin) => !desktopOrigins.includes(origin))).toEqual([])
+  expect(desktopOrigins.filter((origin) => !cspOrigins.includes(origin))).toEqual([])
+})
