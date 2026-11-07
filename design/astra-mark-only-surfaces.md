@@ -24,6 +24,12 @@ fill clearance (`INTERACTION_FILL_CLEARANCE`) with the other 48px trailing targe
 text-action slot or disclosure and the attach control. The composer drawing uses the matching
 `--s-1` spacing token. The shared composer owns habit detail and the full-screen conversation.
 
+After a failed send, retry takes the send position at the trailing edge of the pill. It is the shared
+`IconButton` with `RefreshCw` and the localized `shell.composer.retry` name, and it has no Astra mark.
+Retry stays while the draft and attachments are unchanged since the failure, or while the composer
+has no sendable content. An edit is a new send, so the send arrow returns. Offline, at limit and
+while a reply runs, the send position keeps its own control. No retry control shows below the pill.
+
 Other action owners retain clearance on both platforms: the emoji picker and suggestion targets
 have a 12px gap; date, tag, interpretation and analysis actions occupy separate rows; reschedule
 and rescue retry use the 12px ActionRow gap. Menu Astra items occupy their own row, with the mark
