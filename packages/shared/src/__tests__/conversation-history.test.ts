@@ -5,7 +5,9 @@ import { createChatStoreState } from '../stores/chat-store'
 import type { ConversationPage } from '../types/conversation'
 import { conversationPagePath, createConversationHistory, prepareConversationSend } from '../chat/conversation-history'
 import { buildChatClientContext } from '../chat/client-context'
-import { makeConversationPage, storedOperationId, storedConversationId } from '../test-support/conversation-fixtures'
+import { makeConversationPage, makeExecutedConversationPage, storedOperationId, storedConversationId } from '../test-support/conversation-fixtures'
+import { pendingOperationExecutionPatch } from '../chat/pending-operation-message-state'
+import { agentOperationResultSchema } from '../types/ai'
 
 const store = createStore(createChatStoreState)
 const read = vi.fn(async (): Promise<ConversationPage | null> => makeConversationPage())
@@ -37,6 +39,26 @@ describe('conversation restoration', () => {
     else if (outcome === 'rejected') expect(state).toMatchObject({ rejected: true, dismissed: true })
     else expect(state).toMatchObject({ recordedOutcome: outcome })
     expect(state?.status).toBeUndefined()
+  })
+  it.each(['stored', 'truncated'] as const)('rebuilds the done block from an approved outcome with a %s execution', execution => {
+    const page = makeExecutedConversationPage(execution)
+    const stored = JSON.parse(page.turns[1]!.previewOutcomesJson)[0].Execution
+    const state = restoreConversationPage(page)[1]!.pendingOperationStates?.[storedOperationId]
+    expect(state).toEqual(pendingOperationExecutionPatch({ ok: true, response: { operation: agentOperationResultSchema.parse(stored) } }))
+    expect(state).toMatchObject({ status: 'done', canRetry: false, completedOperation: { status: 'Succeeded', payload: execution === 'stored' ? stored.payload : null } })
+    expect(state?.recordedOutcome).toBeUndefined()
+  })
+  it('keeps the approved notice for a turn recorded without an execution', () => {
+    const state = restoreConversationPage(makeExecutedConversationPage('absent'))[1]!.pendingOperationStates?.[storedOperationId]
+    expect(state).toEqual({ recordedOutcome: 'approved' })
+  })
+  it('restores a failed stored execution without offering a replay', () => {
+    const page = makeExecutedConversationPage()
+    const outcomes = JSON.parse(page.turns[1]!.previewOutcomesJson)
+    outcomes[0].Execution = { ...outcomes[0].Execution, status: 'Failed', payload: null, policyReason: 'unexpected_error' }
+    outcomes[0].Execution.sourceName = 'create_habit'
+    page.turns[1]!.previewOutcomesJson = JSON.stringify(outcomes)
+    expect(restoreConversationPage(page)[1]!.pendingOperationStates?.[storedOperationId]).toMatchObject({ status: 'failed', canRetry: false })
   })
   it('deduplicates simultaneous reads and pins earlier pages to their thread', async () => {
     await Promise.all([history.latest(), history.latest()])

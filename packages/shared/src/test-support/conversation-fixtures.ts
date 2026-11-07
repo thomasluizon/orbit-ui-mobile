@@ -1,5 +1,6 @@
 import { conversationPageSchema, type ConversationPage } from '../types/conversation'
 import { makePendingAgentOperation } from './chat-fixtures'
+import { makeBulkCreateExecutionResponse, makeTicketTaskPreview } from './pending-operation-preview-fixtures'
 
 export const storedConversationId = '00000000-0000-4000-8000-000000000001'
 export const storedTurnId = '00000000-0000-4000-8000-000000000002'
@@ -43,4 +44,14 @@ export function makeRevisedConversationPage(outcome: 'approved' | 'edited' | 'ex
     },
   }])
   return page
+}
+
+export function makeExecutedConversationPage(execution: 'stored' | 'truncated' | 'absent' = 'stored'): ConversationPage {
+  const operation = makeBulkCreateExecutionResponse(['Success']).operation
+  const stored = execution === 'stored' ? operation : { ...operation, payload: null }
+  const page = makeConversationPage()
+  page.turns[1]!.responseJson = JSON.stringify({ aiMessage: '', actions: [], pendingOperations: [{ ...makeTicketTaskPreview(), id: storedOperationId }] })
+  page.turns[1]!.previewOutcomesJson = JSON.stringify([{ PendingOperationId: storedOperationId, Outcome: 'approved', Arguments: {}, Revision: 2,
+    ...(execution === 'absent' ? {} : { Execution: stored }) }])
+  return conversationPageSchema.parse(page)
 }
