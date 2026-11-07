@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { pendingOperationExecutionPatch } from '../chat/pending-operation-message-state'
-import { getPendingOperationExecutionCanRetry, getPendingOperationExecutionStatus, getPendingOperationItemResults } from '../hooks/pending-operation-card-core'
-import { makeBulkCreateExecutionResponse } from '../test-support/pending-operation-preview-fixtures'
+import { getPendingOperationExecutionCanRetry, getPendingOperationExecutionStatus, getPendingOperationItemResults, getPendingOperationPartialMutation } from '../hooks/pending-operation-card-core'
+import { makeBulkCreateExecutionResponse, makeBulkUpdateExecutionResponse } from '../test-support/pending-operation-preview-fixtures'
+import { COMPACT_FAILED_INDEXES, makeCompactBulkCreateExecution, PARTIAL_BULK_LOG_PAYLOAD, UNCHANGED_BULK_LOG_EXECUTION } from '../test-support/conversation-fixtures'
+import { bulkCreateResponseSchema } from '../types/habit'
+import { agentOperationResultSchema } from '../types/ai'
 
 describe('producer batch outcomes', () => {
   it('retains retry for a rolled-back creation in the message state', () => {
@@ -47,5 +50,39 @@ describe('producer batch outcomes', () => {
 
   it('retains the existing retry on a transport failure', () => {
     expect(pendingOperationExecutionPatch({ ok: false, error: 'Network failure' })).toMatchObject({ status: 'failed', canRetry: true })
+  })
+
+  it('reads each item of the compact stored bulk result', () => {
+    const operation = makeCompactBulkCreateExecution()
+    expect(bulkCreateResponseSchema.safeParse(operation.payload).success).toBe(true)
+    expect(getPendingOperationItemResults(operation)?.filter(item => item.status === 'Failed').map(item => item.index)).toEqual(COMPACT_FAILED_INDEXES)
+    expect(pendingOperationExecutionPatch({ ok: true, response: { operation } })).toMatchObject({ status: 'failed', canRetry: false })
+  })
+})
+
+describe('partial bulk mutations', () => {
+  it.each(['bulk_update_habits', 'bulk_update_habit_emojis', 'bulk_reschedule_habits', 'bulk_log_habits', 'bulk_skip_habits', 'bulk_delete_habits'])('does not report a partial %s as done', sourceName => {
+    const response = makeBulkUpdateExecutionResponse(2, 5, sourceName)
+    expect(getPendingOperationExecutionStatus({ ok: true, response })).toBe('failed')
+    expect(getPendingOperationExecutionCanRetry({ ok: true, response })).toBe(false)
+    expect(getPendingOperationPartialMutation(response.operation)).toEqual({ partial: true, applied_count: 2, total_matched: 5 })
+  })
+
+  it.each(['bulk_update_habits', 'bulk_update_habit_emojis'])('still reports a complete %s as done', sourceName => {
+    const response = makeBulkUpdateExecutionResponse(5, 5, sourceName)
+    expect(getPendingOperationExecutionStatus({ ok: true, response })).toBe('done')
+    expect(getPendingOperationPartialMutation(response.operation)).toBeUndefined()
+  })
+
+  it('reports a bulk log as done when the unapplied habit already had the requested state', () => {
+    const operation = agentOperationResultSchema.parse(JSON.parse(UNCHANGED_BULK_LOG_EXECUTION))
+    expect(getPendingOperationExecutionStatus({ ok: true, response: { operation } })).toBe('done')
+    expect(getPendingOperationPartialMutation(operation)).toBeUndefined()
+  })
+
+  it('reports a real partial bulk log as failed and keeps its unchanged count', () => {
+    const operation = agentOperationResultSchema.parse({ ...JSON.parse(UNCHANGED_BULK_LOG_EXECUTION), payload: JSON.parse(PARTIAL_BULK_LOG_PAYLOAD) })
+    expect(getPendingOperationExecutionStatus({ ok: true, response: { operation } })).toBe('failed')
+    expect(getPendingOperationPartialMutation(operation)).toEqual({ partial: true, applied_count: 0, total_matched: 2, unchanged_count: 1 })
   })
 })

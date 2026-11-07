@@ -2080,6 +2080,7 @@
       "parentChoiceRequired": "Escolha onde cada item fica antes de aprovar.",
       "batchFailed": "Alguns itens não foram salvos. Peça à Astra para tentar só os que falharam.",
       "unavailableRecovery": "Não funcionou. Peça uma nova prévia à Astra.",
+      "partialApplied": "{total, plural, =0 {Só {applied} de # alterações foram salvas.} one {Só {applied} de # alteração foi salva.} other {Só {applied} de # alterações foram salvas.}} Peça à Astra para tentar as que faltam.",
       "unknown": "Operação da Astra",
       "changeHabits": "{count, plural, =0 {Alterar # hábitos} one {Alterar # hábito} other {Alterar # hábitos}}",
       "newHabits": "{count, plural, =0 {# novos hábitos} one {Novo hábito} other {# novos hábitos}}",
