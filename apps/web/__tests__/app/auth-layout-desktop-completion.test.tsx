@@ -9,6 +9,7 @@ import { resolve } from 'node:path'
 import { API } from '@orbit/shared/api'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { applyThemeTokensToDOM } from '@/lib/theme-dom'
+import compatibility from '@/web-compatibility.json'
 
 const replace = vi.fn()
 const router = { replace }
@@ -30,6 +31,7 @@ describe('native sign-in in the auth composition', () => {
     installWebLocks()
     invoke.mockReset().mockResolvedValue(true)
     vi.stubGlobal('__TAURI_INTERNALS__', { invoke })
+    vi.stubGlobal('__ORBIT_DESKTOP_VERSION__', compatibility.signInMinimumShellVersion)
     vi.stubGlobal('__ORBIT_DESKTOP_LAUNCH__', undefined)
     useOnboardingDraftStore.setState(useOnboardingDraftStore.getInitialState())
     useOnboardingDraftStore.getState().bufferHabit({ title: 'Read', frequencyUnit: 'Day', frequencyQuantity: 1 })

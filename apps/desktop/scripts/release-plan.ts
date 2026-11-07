@@ -45,6 +45,10 @@ export function planShellRelease(variant: string, source: string, previous: stri
   return version
 }
 
+export function shellFloor(compatibility: { minimumShellVersion: string; signInMinimumShellVersion: string }): string {
+  return [compatibility.minimumShellVersion, compatibility.signInMinimumShellVersion].sort(compareVersions).at(-1)!
+}
+
 function assertMinimum(variant: string, version: string, minimum: string) {
   releaseSettings(variant, version)
   if (compareVersions(version, minimum) < 0) throw new Error('Desktop release must meet the web minimum shell version')
@@ -68,9 +72,9 @@ export async function channelVersion(variant: string): Promise<string | null> {
 async function main() {
   const variant = process.env.DESKTOP_VARIANT ?? ''
   const source = process.env.SOURCE_SHA ?? ''
-  const compatibility: { minimumShellVersion: string } = JSON.parse(readFileSync(new URL('../../web/web-compatibility.json', import.meta.url), 'utf8'))
+  const compatibility: { minimumShellVersion: string; signInMinimumShellVersion: string } = JSON.parse(readFileSync(new URL('../../web/web-compatibility.json', import.meta.url), 'utf8'))
   const previous = await channelVersion(variant)
-  const version = planShellRelease(variant, source, previous, git('tag', '--list', `desktop-${variant}-v*`).split('\n'), compatibility.minimumShellVersion, process.env.DESKTOP_VERSION || undefined, process.env.DESKTOP_ROLLBACK === 'true')
+  const version = planShellRelease(variant, source, previous, git('tag', '--list', `desktop-${variant}-v*`).split('\n'), shellFloor(compatibility), process.env.DESKTOP_VERSION || undefined, process.env.DESKTOP_ROLLBACK === 'true')
   appendFileSync(process.env.GITHUB_OUTPUT!, `publish=${version !== null}\nversion=${version ?? ''}\n`)
   appendFileSync(process.env.GITHUB_STEP_SUMMARY!, `Desktop ${variant}: ${version ? `publish ${version}` : `unchanged from ${previous}`}. Source: ${source}\n`)
 }

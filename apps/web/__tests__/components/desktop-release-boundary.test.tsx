@@ -113,8 +113,10 @@ it('hydrates server children before showing an incompatible shell update without
 
 it.each([{ messages: en, shell: shellEn }, { messages: ptBR, shell: shellPtBR }])(
   'names the installed shell update menu actions in the page copy', ({ messages, shell }) => {
-    expect(messages.desktopUpdate.required).toContain(shell.updateCheck)
-    expect(messages.desktopUpdate.required).toContain(shell.updateRestart)
+    for (const message of [messages.desktopUpdate.required, messages.desktopUpdate.signInRequired]) {
+      expect(message).toContain(shell.updateCheck)
+      expect(message).toContain(shell.updateRestart)
+    }
   },
 )
 
