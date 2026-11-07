@@ -125,7 +125,8 @@ jobs:
     if: needs.validate.outputs.shell_changed == 'true'
     name: Release ${{ matrix.target }}
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 35
+    # WHY: notarytool waits on Apple's notarization queue; the first signed run was still waiting after 27 minutes and the old 35 minute ceiling cancelled it.
+    timeout-minutes: 120
     environment: desktop-${{ inputs.variant }}
     strategy:
       fail-fast: false
