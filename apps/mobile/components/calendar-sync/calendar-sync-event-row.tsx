@@ -1,4 +1,4 @@
-import { useRowFeedback } from '@/hooks/use-row-feedback'
+import { surfaceHighlighted, useRowFeedback } from '@/hooks/use-row-feedback'
 import { PersonalText } from '@/components/ui/personal-text'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useTimeFormat } from '@/hooks/use-time-format'
@@ -43,10 +43,6 @@ function eventContentProps(expanded: boolean) {
   return expanded
     ? { pointerEvents: 'box-none' as const, importantForAccessibility: 'auto' as const }
     : { pointerEvents: 'none' as const, importantForAccessibility: 'no-hide-descendants' as const }
-}
-
-function eventRowHighlighted(hasImportIssue: boolean, body: boolean, dismiss: boolean, disclosure: boolean) {
-  return (!hasImportIssue && body) || dismiss || disclosure
 }
 
 function eventActionFill(highlighted: boolean, tokens: AppTokensV2) {
@@ -115,7 +111,7 @@ export function CalendarSyncEventRow({
   const timeLabel = event.startTime ? `${displayTime(event.startTime)}${endTimeSuffix}` : ''
   const selectedBackground = selected ? tintFromPrimary(tokens, 0.06) : 'transparent'
   const hasImportIssue = importIssue !== null
-  const highlighted = eventRowHighlighted(hasImportIssue, bodyFeedback.highlighted, dismissFeedback.highlighted, disclosureFeedback.highlighted)
+  const highlighted = surfaceHighlighted(!hasImportIssue && bodyFeedback.highlighted, [dismissFeedback, disclosureFeedback])
   const issueVisuals = importIssueVisuals(hasImportIssue, highlighted, tokens)
   const focused = bodyFeedback.focused
   const accessibleLabel = eventAccessibleLabel(event, displayDate, timeLabel, recurrenceLabel, importIssueLabel)

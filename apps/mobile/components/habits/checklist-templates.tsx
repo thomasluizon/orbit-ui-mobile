@@ -11,7 +11,7 @@ import {
 import { X } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { ChecklistTemplate } from '@orbit/shared/types/checklist-template'
-import { useRowFeedback } from '@/hooks/use-row-feedback'
+import { surfaceHighlighted, useRowFeedback } from '@/hooks/use-row-feedback'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { applyChecklistTemplate } from '@orbit/shared/utils'
 import {
@@ -220,7 +220,7 @@ function TemplateRow({ template, disabled, styles, tokens, clamped, onClampedCha
   const { t } = useTranslation()
   const bodyFeedback = useRowFeedback(disabled)
   const deleteFeedback = useRowFeedback(disabled)
-  const highlighted = bodyFeedback.highlighted || deleteFeedback.highlighted
+  const highlighted = surfaceHighlighted(bodyFeedback.highlighted, [deleteFeedback])
   return <View style={[styles.templateRow, { borderRadius: 12 }]}>
     <View pointerEvents="none" accessible={false} testID="template-row-feedback" style={[StyleSheet.absoluteFill, { borderRadius: 12, backgroundColor: highlighted ? tokens.bgHover : 'transparent', outlineWidth: bodyFeedback.focused ? 2 : 0, outlineStyle: 'solid', outlineColor: tokens.fg1, outlineOffset: -2 }]} />
     <Pressable disabled={disabled} accessibilityRole="button" accessibilityLabel={template.name} {...bodyFeedback.handlers} style={styles.templateLoad} onPress={onLoad}>

@@ -1,4 +1,4 @@
-import { useRowFeedback } from '@/hooks/use-row-feedback'
+import { surfaceHighlighted, useRowFeedback } from '@/hooks/use-row-feedback'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { PersonalText } from '@/components/ui/personal-text'
 import { INTERACTION_FILL_CLEARANCE, PADDING, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
@@ -188,7 +188,7 @@ function RowAction({ action, hasDescription, reducedMotion, tokens, feedback }: 
 function useListRowFeedback(disabled: boolean) {
   const interaction = useRowFeedback(disabled)
   const actionFeedback = useRowFeedback()
-  return { interaction, actionFeedback, highlighted: interaction.highlighted || actionFeedback.highlighted }
+  return { interaction, actionFeedback, highlighted: surfaceHighlighted(interaction.highlighted, [actionFeedback]) }
 }
 
 function listRowShellStyle(hasAction: boolean, column: boolean) {
