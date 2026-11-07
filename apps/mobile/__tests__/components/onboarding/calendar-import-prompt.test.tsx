@@ -110,6 +110,30 @@ describe('CalendarImportPrompt navigation', () => {
     expect(mocks.push).toHaveBeenCalledWith('/calendar?import=1')
     expect(mocks.push).toHaveBeenCalledTimes(1)
   })
+
+  it.each([
+    ['the route moves to the calendar', () => { mocks.pathname = '/calendar' }],
+    ['a profile refresh records the import', () => { mocks.profile = baseProfile({ hasImportedCalendar: true }) }],
+  ])('keeps the presented prompt mounted until its native dismissal finishes when %s', (_reason, change) => {
+    mocks.profile = baseProfile()
+    const tree = renderPrompt()
+    expect(sheetCount(tree)).toBe(1)
+
+    TestRenderer.act(() => {
+      change()
+      tree.update(React.createElement(CalendarImportPrompt))
+    })
+
+    expect(sheetCount(tree)).toBe(1)
+    expect(sheetTestControls.isDismissPending).toBe(true)
+
+    TestRenderer.act(() => {
+      sheetTestControls.completeDismissal()
+    })
+
+    expect(sheetCount(tree)).toBe(0)
+    expect(mocks.push).not.toHaveBeenCalled()
+  })
 })
 
 describe('CalendarImportPrompt gating', () => {

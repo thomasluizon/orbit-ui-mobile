@@ -9,7 +9,8 @@ import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { useProfile } from '@/hooks/use-profile'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
-import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { Sheet } from '@/components/ui/sheet'
+import { useSheetPresence } from '@/components/ui/sheet-presence'
 import { ActionRow } from '@/components/ui/action-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
@@ -34,7 +35,6 @@ export function AstraImportPrompt() {
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const [dismissed, setDismissed] = useState(false)
-  const { sheetRef, closeSheet } = useSheetHost()
   const pendingOnboardingAnswers = useOnboardingDraftStore((s) =>
     s.hasPendingAnswers(),
   )
@@ -58,6 +58,7 @@ export function AstraImportPrompt() {
       pathname !== '/calendar' &&
       !dismissed,
   )
+  const { mounted, sheetKey, sheetRef, closeSheet } = useSheetPresence(sheetMounted && shouldShow)
 
   const markSeen = useCallback(async () => {
     setDismissed(true)
@@ -98,10 +99,11 @@ export function AstraImportPrompt() {
     return () => unregisterOpenOverlay(promptId)
   }, [promptId, unregisterOpenOverlay])
 
-  if (!sheetMounted) return null
+  if (!mounted) return null
 
   return (
-    shouldShow ? (<Sheet
+    <Sheet
+      key={sheetKey}
       ref={sheetRef}
       open
       onClose={() => {
@@ -133,7 +135,7 @@ export function AstraImportPrompt() {
           {t('onboarding.wizard.importDescription')}
         </Text>
       </View>
-    </Sheet>) : null
+    </Sheet>
   )
 }
 

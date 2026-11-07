@@ -197,3 +197,36 @@ describe('AstraImportPrompt quiet dismissal', () => {
     expect(sheetCount(tree)).toBe(0)
   })
 })
+
+describe('AstraImportPrompt state changes while presented', () => {
+  beforeEach(() => {
+    sheetTestControls.defer(true)
+  })
+
+  afterEach(() => {
+    sheetTestControls.defer(false)
+  })
+
+  it.each([
+    ['the conversation opens', () => { useUIStore.setState({ astraConversationOpen: true }) }],
+    ['the route moves to the calendar', () => { mocks.pathname = '/calendar' }],
+  ])('keeps the prompt mounted until its native dismissal finishes when %s', async (_reason, change) => {
+    mocks.profile = baseProfile()
+    const tree = await renderPrompt()
+    expect(sheetCount(tree)).toBe(1)
+
+    TestRenderer.act(() => {
+      change()
+      tree.update(React.createElement(AstraImportPrompt))
+    })
+
+    expect(sheetCount(tree)).toBe(1)
+    expect(sheetTestControls.isDismissPending).toBe(true)
+
+    TestRenderer.act(() => {
+      sheetTestControls.completeDismissal()
+    })
+
+    expect(sheetCount(tree)).toBe(0)
+  })
+})

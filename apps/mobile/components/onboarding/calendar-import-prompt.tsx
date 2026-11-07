@@ -6,7 +6,8 @@ import { API } from '@orbit/shared/api'
 import { hasOpenPromptBlockingOverlay } from '@orbit/shared/stores'
 import { useProfile } from '@/hooks/use-profile'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
-import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { Sheet } from '@/components/ui/sheet'
+import { useSheetPresence } from '@/components/ui/sheet-presence'
 import { ActionRow } from '@/components/ui/action-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
@@ -34,7 +35,6 @@ export function CalendarImportPrompt() {
   const promptId = useId()
   const sheetMounted = useUIStore((state) => state.openOverlayIds.includes(promptId))
   const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
-  const { sheetRef, closeSheet } = useSheetHost()
 
   const shouldShow = Boolean(
     profile?.hasCompletedOnboarding &&
@@ -42,6 +42,7 @@ export function CalendarImportPrompt() {
       pathname !== '/calendar' &&
       !dismissed,
   )
+  const { mounted, sheetKey, sheetRef, closeSheet } = useSheetPresence(sheetMounted && shouldShow)
 
   const dismissPrompt = useCallback(async () => {
     setDismissed(true)
@@ -80,10 +81,11 @@ export function CalendarImportPrompt() {
     return () => unregisterOpenOverlay(promptId)
   }, [promptId, unregisterOpenOverlay])
 
-  if (!sheetMounted) return null
+  if (!mounted) return null
 
   return (
-    shouldShow ? (<Sheet
+    <Sheet
+      key={sheetKey}
       ref={sheetRef}
       open
       onClose={() => {
@@ -115,7 +117,7 @@ export function CalendarImportPrompt() {
           {t('onboarding.wizard.calendarDescription')}
         </Text>
       </View>
-    </Sheet>) : null
+    </Sheet>
   )
 }
 
