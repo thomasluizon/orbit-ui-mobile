@@ -27,7 +27,11 @@
   "bundle": {
     "active": true,
     "createUpdaterArtifacts": true,
-    "icon": ["icons/icon.png", "icons/icon.icns", "icons/icon.ico"]
+    "icon": ["icons/icon.png", "icons/icon.icns", "icons/icon.ico"],
+    "macOS": {
+      "entitlements": "native/macos/Entitlements.staging.plist",
+      "hardenedRuntime": true
+    }
   },
   "plugins": {
     "deep-link": { "desktop": { "schemes": ["org.useorbit.desktop.staging"] } },
