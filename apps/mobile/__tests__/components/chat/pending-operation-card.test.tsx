@@ -1,7 +1,7 @@
 import { restoreConversationPage } from '@orbit/shared/chat/conversation-restore'
-import { makeRevisedConversationPage, storedOperationId } from '@orbit/shared/test-support/conversation-fixtures'
+import { makeExecutedConversationPage, makeRevisedConversationPage, storedOperationId } from '@orbit/shared/test-support/conversation-fixtures'
 import { makeOfferedPreview, makeOfferedTaskPreview, makeOfferedChildPreview } from '@orbit/shared/test-support/astra-offer-fixtures'
-import { makeDatedTaskPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeDatedTaskPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview, TICKET_TASK_DESCRIPTION, TICKET_TASK_TITLE } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { formatLocaleDate } from '@orbit/shared/utils'
 import { IntlMessageFormat } from 'intl-messageformat'
 import en from '@orbit/shared/i18n/en.json'
@@ -112,6 +112,41 @@ describe('PendingOperationCard (mobile)', () => {
     expect(tree!.root.findAll((node: { type: unknown }) => node.type === 'Pressable')).toHaveLength(0)
     expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
     expect(handlers.onRevise).not.toHaveBeenCalled()
+    TestRenderer.act(() => tree!.unmount())
+  })
+
+  it.each(['stored', 'truncated'] as const)('rebuilds the done block after a cold restart from a %s execution', execution => {
+    visibleLocale.actual = true
+    visibleLocale.language = 'pt-BR'
+    const message = restoreConversationPage(makeExecutedConversationPage(execution))[1]!
+    const handlers = { onConfirmExecute: vi.fn(), onPrepareStepUp: vi.fn(), onVerifyStepUp: vi.fn(), onRevise: vi.fn(), onOpenTarget: vi.fn() }
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<PendingOperationCard pendingOperation={message.pendingOperations![0]!} savedState={message.pendingOperationStates![storedOperationId]} {...handlers} />) })
+    const text = renderedText(tree!.toJSON())
+    expect(text).not.toContain(ptBR.chat.conversation.approved)
+    const row = tree!.root.findByProps({ testID: 'block-frame-item-0-done' })
+    expect(row.findAllByType(Text).map((node: ReactTestInstance) => renderedText(node.props.children)).join(' ')).toContain(TICKET_TASK_TITLE)
+    expect(text).toContain(ptBR.blockFrame.status.done)
+    expect(text).toContain(TICKET_TASK_DESCRIPTION)
+    for (const label of [ptBR.chat.operation.edit, ptBR.common.retry]) expect(press(tree, label)).toBeUndefined()
+    const open = press(tree, ptBR.chat.action.open)
+    if (execution === 'truncated') expect(open).toBeUndefined()
+    else {
+      TestRenderer.act(() => open.props.onPress())
+      expect(handlers.onOpenTarget).toHaveBeenCalledWith('00000000-0000-4000-8000-000000000020', 'CreateHabit')
+    }
+    expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
+    TestRenderer.act(() => tree!.unmount())
+  })
+
+  it('keeps the approved notice after a cold restart when the turn has no stored execution', () => {
+    const message = restoreConversationPage(makeExecutedConversationPage('absent'))[1]!
+    const handlers = { onConfirmExecute: vi.fn(), onPrepareStepUp: vi.fn(), onVerifyStepUp: vi.fn(), onRevise: vi.fn() }
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<PendingOperationCard pendingOperation={message.pendingOperations![0]!} savedState={message.pendingOperationStates![storedOperationId]} {...handlers} />) })
+    const text = renderedText(tree!.toJSON())
+    expect(text).toContain('chat.conversation.approved')
+    expect(text).not.toContain(TICKET_TASK_TITLE)
     TestRenderer.act(() => tree!.unmount())
   })
 

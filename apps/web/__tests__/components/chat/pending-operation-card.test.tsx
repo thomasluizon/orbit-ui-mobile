@@ -1,7 +1,7 @@
 import { restoreConversationPage } from '@orbit/shared/chat/conversation-restore'
-import { makeRevisedConversationPage, storedOperationId } from '@orbit/shared/test-support/conversation-fixtures'
+import { makeExecutedConversationPage, makeRevisedConversationPage, storedOperationId } from '@orbit/shared/test-support/conversation-fixtures'
 import { makeOfferedPreview, makeOfferedTaskPreview, makeOfferedChildPreview } from '@orbit/shared/test-support/astra-offer-fixtures'
-import { makeDatedTaskPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeDatedTaskPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview, TICKET_TASK_DESCRIPTION, TICKET_TASK_TITLE } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { formatLocaleDate } from '@orbit/shared/utils'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { personalText } from '@/__tests__/support/personal-text'
@@ -96,6 +96,34 @@ describe('PendingOperationCard', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
     expect(confirm).not.toHaveBeenCalled()
     expect(revise).not.toHaveBeenCalled()
+  })
+
+  it.each(['stored', 'truncated'] as const)('rebuilds the done block after a cold restart from a %s execution', execution => {
+    visibleLocale.actual = true
+    visibleLocale.language = 'pt-BR'
+    const onOpenTarget = vi.fn()
+    const message = restoreConversationPage(makeExecutedConversationPage(execution))[1]!
+    render(<PendingOperationCard pendingOperation={message.pendingOperations![0]!} savedState={message.pendingOperationStates![storedOperationId]} onOpenTarget={onOpenTarget} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(screen.queryByText(ptBR.chat.conversation.approved)).not.toBeInTheDocument()
+    const row = screen.getByText(personalText(TICKET_TASK_TITLE)).closest('[data-status]')! as HTMLElement
+    expect(row).toHaveAttribute('data-status', 'done')
+    expect(within(row).getByText(ptBR.blockFrame.status.done)).toBeInTheDocument()
+    expect(within(row).getByText(personalText(new RegExp(TICKET_TASK_DESCRIPTION.replace(/[.]/g, '\\.'))))).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: new RegExp(`^(Criar|${ptBR.chat.operation.edit}|Recusar|${ptBR.common.retry})`) })).not.toBeInTheDocument()
+    const open = within(row).queryByRole('button', { name: translateVisible('chat.action.openEntity', { name: TICKET_TASK_TITLE }) })
+    if (execution === 'truncated') expect(open).not.toBeInTheDocument()
+    else {
+      fireEvent.click(open!)
+      expect(onOpenTarget).toHaveBeenCalledWith('00000000-0000-4000-8000-000000000020', 'CreateHabit')
+    }
+    expect(confirm).not.toHaveBeenCalled()
+  })
+
+  it('keeps the approved notice after a cold restart when the turn has no stored execution', () => {
+    const message = restoreConversationPage(makeExecutedConversationPage('absent'))[1]!
+    render(<PendingOperationCard pendingOperation={message.pendingOperations![0]!} savedState={message.pendingOperationStates![storedOperationId]} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(screen.getByText('chat.conversation.approved')).toBeInTheDocument()
+    expect(screen.queryByText(personalText(TICKET_TASK_TITLE))).not.toBeInTheDocument()
   })
 
   it.each(['approved', 'edited', 'expired'] as const)('renders a restored %s preview read-only without an execution claim', recordedOutcome => {
