@@ -35,6 +35,8 @@ export interface SheetHandle {
    * `onRejected` runs instead of either when the native dismissal rejects.
    */
   requestClose: (exitAction?: () => void, onRejected?: () => void) => void
+  /** Reports whether the native dismissal finished, so a host can unmount without a second dismissal. */
+  isDismissed: () => boolean
 }
 
 /**
@@ -73,7 +75,7 @@ interface MobileSheetProps extends SheetProps {
   footerProbe?: SheetFooterProbe
 }
 
-/** The native overlay surface. Callers mount it only while it is open. */
+/** The native overlay surface. Callers mount it only while it is open, and keep it mounted until its native dismissal finishes (`useSheetPresence`). */
 export function Sheet({
   title,
   titleMode = 'label',
@@ -176,7 +178,7 @@ export function Sheet({
     })
   }, [reducedMotion, handleDidDismiss])
 
-  const handle = useMemo<SheetHandle>(() => ({ requestClose }), [requestClose])
+  const handle = useMemo<SheetHandle>(() => ({ requestClose, isDismissed: () => closeCompletedRef.current }), [requestClose])
 
   useImperativeHandle(ref, () => handle, [handle])
 

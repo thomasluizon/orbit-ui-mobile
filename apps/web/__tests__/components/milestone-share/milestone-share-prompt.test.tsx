@@ -2,6 +2,9 @@ import type { Ref } from 'react'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
+import { gamificationKeys } from '@orbit/shared/query'
+import { getMilestoneShareAchievementKey } from '@orbit/shared/stores'
+import { achievementSchema } from '@orbit/shared/types/gamification'
 import { resolve } from 'node:path'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
@@ -24,7 +27,11 @@ vi.mock('next-intl', async (importOriginal) => {
  * object per render changes the identity of an effect dependency, which re-arms a settle timer
  * this test exists to prove stays cleared.
  */
-const queryClientDouble = { getQueryData: () => undefined }
+const queryCache: { gamificationProfile: unknown } = { gamificationProfile: undefined }
+const queryClientDouble = {
+  getQueryData: (key: readonly unknown[]) =>
+    JSON.stringify(key) === JSON.stringify(gamificationKeys.profile()) ? queryCache.gamificationProfile : undefined,
+}
 vi.mock('@tanstack/react-query', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-query')>()),
   useQueryClient: () => queryClientDouble,
@@ -94,6 +101,7 @@ describe('MilestoneSharePrompt', () => {
     translations.locale = 'keys'
     shareCard.hasError = false
     shareCard.canShareFiles = false
+    queryCache.gamificationProfile = undefined
     vi.stubGlobal('fetch', vi.fn())
     holdAccount('user-1')
     resetStores()
@@ -133,6 +141,24 @@ describe('MilestoneSharePrompt', () => {
     expect(useEngagementPromptStore.getState().promptedMilestoneKeys).toContain(
       'share-streak-7',
     )
+  })
+
+  it('keeps the open achievement card while a gamification refresh drops the cached achievement', async () => {
+    const achievement = achievementSchema.parse({
+      id: 'first-week', name: 'First week', description: 'Seven days', category: 'streak', rarity: 'rare',
+      xpReward: 50, iconKey: 'flame', isEarned: true, earnedAtUtc: '2026-11-01T00:00:00Z',
+    })
+    queryCache.gamificationProfile = { achievements: [achievement] }
+    const owner = render(<MilestoneSharePrompt />)
+    await armMilestoneShare(getMilestoneShareAchievementKey(achievement.id))
+    await settle()
+    expect(screen.getByTestId('milestone-share-card')).toBeInTheDocument()
+
+    queryCache.gamificationProfile = undefined
+    owner.rerender(<MilestoneSharePrompt />)
+
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
+    expect(screen.getByTestId('milestone-share-card')).toBeInTheDocument()
   })
 
   it('retains its consumed arm and manual lifetime across rerenders', async () => {

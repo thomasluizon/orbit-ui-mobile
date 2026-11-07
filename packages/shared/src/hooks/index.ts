@@ -26,6 +26,7 @@ export { createGoalProgressEntry, reduceGoalProgressEntry, getGoalProgressEntryR
 
 export * from './bulk-actions-core'
 export * from './goal-creation-core'
+export * from './retained-goal-core'
 export * from './goal-linking-core'
 export * from './goal-habit-picker-core'
 

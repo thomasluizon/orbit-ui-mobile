@@ -2080,6 +2080,7 @@
       "parentChoiceRequired": "Choose where each item goes before approving.",
       "batchFailed": "Some items could not be saved. Ask Astra to try only the failed items.",
       "unavailableRecovery": "That didn't work. Ask Astra for a new preview.",
+      "partialApplied": "{total, plural, one {Only {applied} of # change was saved.} other {Only {applied} of # changes were saved.}} Ask Astra to try the rest.",
       "unknown": "Astra operation",
       "changeHabits": "{count, plural, one {Change # habit} other {Change # habits}}",
       "newHabits": "{count, plural, one {New habit} other {# new habits}}",
@@ -4118,7 +4119,8 @@
     "downloading": "Downloading the update...",
     "installing": "Installing the update...",
     "failed": "The update could not be completed. Try again.",
-    "required": "This version of Orbit needs an update. In the app menu, choose Check for updates, then Restart to update."
+    "required": "This version of Orbit needs an update. In the app menu, choose Check for updates, then Restart to update.",
+    "signInRequired": "Update Orbit to sign in. In the app menu, choose Check for updates, then Restart to update."
   },
   "forceUpdate": {
     "title": "This version of Orbit has stopped working",

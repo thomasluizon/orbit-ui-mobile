@@ -178,6 +178,18 @@ describe('GoalDetailDrawer', () => {
     expect(screen.getAllByRole('dialog')).toHaveLength(1)
   })
 
+  it('keeps the open progress sheet when a refresh drops the goal', async () => {
+    const view = render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
+    fireEvent.click(screen.getByRole('button', { name: 'goals.updateProgress' }))
+    expect(await screen.findByLabelText('goals.form.progressQuestion')).toBeInTheDocument()
+
+    detailAvailable = false
+    listAvailable = false
+    view.rerender(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
+
+    expect(screen.getByLabelText('goals.form.progressQuestion')).toBeInTheDocument()
+  })
+
   it('labels unlinked streak entry as current progress', () => {
     detailGoal = { ...detailGoal, type: 'Streak' }
     render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)

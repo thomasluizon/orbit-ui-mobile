@@ -1,7 +1,7 @@
 import { restoreConversationPage } from '../chat/conversation-restore'
-import { makeRevisedConversationPage, storedOperationId } from '../test-support/conversation-fixtures'
+import { makeExecutedConversationPage, makeRevisedConversationPage, PARTIAL_BULK_LOG_PAYLOAD, storedOperationId, UNCHANGED_BULK_LOG_EXECUTION } from '../test-support/conversation-fixtures'
 import { astraOfferFixture, makeOfferedPreview, makeOfferedTaskPreview } from '../test-support/astra-offer-fixtures'
-import { makePlacementPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeBulkCreateExecutionResponse, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview } from '../test-support/pending-operation-preview-fixtures'
+import { makePlacementPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeBulkCreateExecutionResponse, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview, makeBulkUpdateHabitsPreview, makeBulkUpdateExecutionResponse } from '../test-support/pending-operation-preview-fixtures'
 import { describe, expect, it, vi } from 'vitest'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { makeAgentOperationResult, makePendingAgentOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '../test-support/chat-fixtures'
@@ -17,7 +17,8 @@ import {
 } from '../chat/pending-operation-card-view'
 import { buildPendingOperationCardLabels, formatPreviewMeta, type PendingOperationCardLabels } from '../chat/pending-operation-card'
 import { pendingOperationSubHabits } from '../chat/pending-operation-sub-habits'
-import { pendingAgentOperationSchema } from '../types/ai'
+import { pendingOperationExecutionPatch } from '../chat/pending-operation-message-state'
+import { agentOperationResultSchema, pendingAgentOperationSchema } from '../types/ai'
 import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
 
@@ -1242,6 +1243,45 @@ describe('typed preview rows', () => {
   })
 })
 
+describe('partial bulk update outcome', () => {
+  it.each(['en', 'pt-BR'] as const)('does not mark any row done and names the saved count in %s', locale => {
+    const operation = makeBulkUpdateHabitsPreview()
+    const response = makeBulkUpdateExecutionResponse(2, 3)
+    const patch = pendingOperationExecutionPatch({ ok: true, response })
+    const localized = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(locale === 'en' ? en : ptBR, key, values), value => value, locale)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ pendingOperation: operation, card: { ...createCard(), status: patch.status, completedOperation: patch.completedOperation, canRetry: patch.canRetry, openableCapability: true, onOpenTarget: vi.fn() }, labels: localized, render, onVerifyStepUp: vi.fn() })
+    expect(record.frame?.state).toBe('partiallyFailed')
+    expect(record.frame?.items.map(item => item.status)).toEqual([undefined, undefined, undefined])
+    expect(record.frame?.body).toBe(locale === 'en' ? 'Only 2 of 3 changes were saved. Ask Astra to try the rest.' : 'Só 2 de 3 alterações foram salvas. Peça à Astra para tentar as que faltam.')
+    expect(record.frame?.actions).toBeUndefined()
+    expect(record.buttons).toEqual([])
+  })
+
+  it('keeps every row done after a complete bulk update', () => {
+    const operation = makeBulkUpdateHabitsPreview()
+    const patch = pendingOperationExecutionPatch({ ok: true, response: makeBulkUpdateExecutionResponse(3, 3) })
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ pendingOperation: operation, card: { ...createCard(), status: patch.status, completedOperation: patch.completedOperation, canRetry: patch.canRetry }, labels, render, onVerifyStepUp: vi.fn() })
+    expect(record.frame?.state).toBe('resting')
+    expect(record.frame?.items.map(item => item.status)).toEqual(['done', 'done', 'done'])
+    expect(record.frame?.body).toBe('')
+  })
+
+  it.each([['en', 'Only 1 of 2 changes were saved. Ask Astra to try the rest.'], ['pt-BR', 'Só 1 de 2 alterações foram salvas. Peça à Astra para tentar as que faltam.']] as const)(
+    'counts a habit already in the requested state as saved in the partial notice in %s', (locale, notice) => {
+      const operation = makeBulkUpdateHabitsPreview(2)
+      const execution = agentOperationResultSchema.parse({ ...JSON.parse(UNCHANGED_BULK_LOG_EXECUTION), payload: JSON.parse(PARTIAL_BULK_LOG_PAYLOAD) })
+      const patch = pendingOperationExecutionPatch({ ok: true, response: { operation: execution } })
+      const localized = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(locale === 'en' ? en : ptBR, key, values), value => value, locale)
+      const { record, render } = createRenderers()
+      renderPendingOperationCard({ pendingOperation: operation, card: { ...createCard(), status: patch.status, completedOperation: patch.completedOperation, canRetry: patch.canRetry }, labels: localized, render, onVerifyStepUp: vi.fn() })
+      expect(record.frame?.state).toBe('partiallyFailed')
+      expect(record.frame?.items.map(item => item.status)).toEqual([undefined, undefined])
+      expect(record.frame?.body).toBe(notice)
+    })
+})
+
 it('keeps suggested fields editable and removable through the full editor', () => {
   const operation = makeOfferedPreview()
   const card = createCard()
@@ -1393,4 +1433,47 @@ it.each(['approved', 'edited', 'expired'] as const)('keeps a restored revised %s
   expect(result).toBe(outcome === 'edited' ? 'chat.operation.edited' : `chat.conversation.${outcome}`)
   expect(record.frame).toBeUndefined()
   expect(record.buttons).toEqual([])
+})
+
+it('shows no pending copy on a restored done row whose revised preview kept only titles', () => {
+  const message = restoreConversationPage(makeExecutedConversationPage('titleOnlyRevised'))[1]!
+  const state = message.pendingOperationStates![storedOperationId]!
+  const operation = state.operation ?? message.pendingOperations![0]!
+  const localized = buildPendingOperationCardLabels(operation, translateEnglish, value => value)
+  const { record, render } = createRenderers()
+  renderPendingOperationCard({ card: { ...createCard(), ...state }, labels: localized, render, pendingOperation: operation, onVerifyStepUp: vi.fn() })
+  expect(record.frame?.items.map(item => ({ status: item.status, meta: item.meta }))).toEqual([{ status: 'done', meta: '' }])
+})
+
+it.each([undefined, 'done', 'failed'] as const)('keeps the pending copy only on an unsettled row with nothing to summarize (status %s)', status => {
+  const operation = makePendingAgentOperation({ capabilityId: 'chat.changes', actionKey: 'applyAccountChanges', changeTargetCount: 1, changes: [],
+    items: [{ itemId: '0', entityId: null, entityName: 'Read', stateFingerprint: 'state-0',
+      fields: [{ entityId: '', entityName: 'Read', field: 'title', oldValue: null, newValue: 'Read', proposedValue: 'Read', valueType: 'string' }] }] })
+  const localized = buildPendingOperationCardLabels(operation, translateEnglish, value => value)
+  const { record, render } = createRenderers()
+  renderPendingOperationCard({ card: { ...createCard(), status }, labels: localized, render, pendingOperation: operation, onVerifyStepUp: vi.fn() })
+  expect(record.frame?.items[0]?.meta).toBe(status == null ? localized.pending : '')
+})
+
+it.each(['done', 'failed'] as const)('shows no pending copy on the settled %s row of an operation without preview items', status => {
+  const { record, render } = createRenderers()
+  renderPendingOperationCard({ card: { ...createCard(), status }, labels, render, onVerifyStepUp: vi.fn(),
+    pendingOperation: { ...makeCreateHabitsPreview(0), changeTargetCount: null, changes: [] } })
+  expect(record.frame?.items[0]?.meta).toBe('')
+})
+
+it.each([undefined, 'done', 'failed'] as const)('shows only the edited label on an edited row with nothing to summarize (status %s)', status => {
+  const operation = makePendingAgentOperation({ capabilityId: 'chat.changes', actionKey: 'applyAccountChanges', changeTargetCount: 1, changes: [],
+    items: [{ itemId: '0', entityId: null, entityName: 'Read', stateFingerprint: 'state-0',
+      fields: [{ entityId: '', entityName: 'Read', field: 'title', oldValue: null, newValue: 'Read', proposedValue: 'Read', valueType: 'string' }] }] })
+  const localized = buildPendingOperationCardLabels(operation, translateEnglish, value => value)
+  const card = { ...createCard(), status }
+  card.revision = {
+    operation, canRevise: true, items: operation.items!, editingItem: undefined,
+    draft: {}, editedItemIds: ['0'], busy: false, stale: false, canRefresh: false, refresh: vi.fn(), rejected: false, error: undefined,
+    setDraftField: vi.fn(), closeEdit: vi.fn(), startEdit: vi.fn(), saveEdit: vi.fn(), rejectItem: vi.fn(), rejectAll: vi.fn(),
+  }
+  const { record, render } = createRenderers()
+  renderPendingOperationCard({ card, labels: localized, render, pendingOperation: operation, onVerifyStepUp: vi.fn() })
+  expect(record.frame?.items[0]?.meta).toBe(status == null ? `${localized.edited} · ${localized.pending}` : localized.edited)
 })

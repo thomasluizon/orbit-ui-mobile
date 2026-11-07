@@ -321,8 +321,19 @@ impl<T> UpdateState<T> {
     }
 
     pub fn request_restart(&mut self) {
-        if !self.exiting
-            && !self.busy()
+        if self.exiting {
+            return;
+        }
+        if self.prompt_pending() {
+            // The native menu is a native confirmation, so it answers the pending dialog and drops the background download reservation (#2056).
+            let Some(version) = self.version.clone() else {
+                return;
+            };
+            self.prompted_versions.insert(version);
+            self.prompt_open = false;
+            self.install_reservation = None;
+        }
+        if !self.busy()
             && self.install_reservation.is_none()
             && !self.prompt_pending()
             && (self.version.is_some() || self.web_commit.is_some())
@@ -408,6 +419,33 @@ mod tests {
         assert!(!state.begin_scheduled_check(completed + Duration::from_secs(10)));
         assert!(state.begin_scheduled_check(completed + Duration::from_secs(60)));
         assert!(!state.begin_scheduled_check(completed + Duration::from_secs(70)));
+    }
+
+    #[test]
+    fn native_menu_restart_confirms_a_ready_package_before_or_during_its_dialog() {
+        for dialog_open in [false, true] {
+            let mut state = UpdateState::new(true);
+            state.checked(Ok(Some(("0.2.0".into(), "package"))));
+            let package = state.begin_download(RESERVATION).unwrap();
+            state.downloaded(package, true);
+            if dialog_open {
+                assert_eq!(state.take_prompt(true).as_deref(), Some("0.2.0"));
+            }
+            assert!(state.snapshot().prompt_pending);
+            state.request_restart();
+            assert!(
+                state.snapshot().restart_requested,
+                "dialog open {dialog_open}"
+            );
+            assert!(!state.snapshot().prompt_pending);
+            assert_eq!(state.take_prompt(true), None);
+            state.answer_prompt("0.2.0", false);
+            assert!(state.snapshot().restart_requested);
+            state.clear_restart();
+            let package = state.begin_download(Uuid::from_u128(2)).unwrap();
+            state.downloaded(package, true);
+            assert_eq!(state.begin_install(), Ok("package"));
+        }
     }
 
     #[test]
@@ -663,12 +701,10 @@ mod tests {
         state.downloaded(package, true);
         state.checked(Ok(Some(("0.3.0".into(), "newer package"))));
         assert_eq!(state.phase(), Phase::Downloaded);
-        state.request_restart();
-        assert!(!state.snapshot().restart_requested);
-        state.clear_restart();
         assert!(!state.begin_check());
         assert_eq!(state.version.as_deref(), Some("0.2.0"));
-        confirm_restart(&mut state);
+        state.request_restart();
+        assert!(state.snapshot().restart_requested);
         let package = state.begin_install().unwrap();
         assert_eq!(package, "accepted package");
         state.install_failed(package);

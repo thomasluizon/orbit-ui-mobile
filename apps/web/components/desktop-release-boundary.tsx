@@ -11,6 +11,7 @@ function serverShell() { return false }
 export function DesktopReleaseBoundary({ children, ...options }: Readonly<{
   children: ReactNode
   monitor?: boolean
+  signIn?: boolean
   minimum?: string
 }>) {
   const shell = useSyncExternalStore(subscribeToShell, isDesktopShell, serverShell)

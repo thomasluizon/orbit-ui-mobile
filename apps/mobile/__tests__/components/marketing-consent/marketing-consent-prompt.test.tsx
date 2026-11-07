@@ -108,7 +108,7 @@ describe('MarketingConsentPrompt (mobile)', () => {
 
   async function render() {
     await TestRenderer.act(async () => {
-      currentTree = TestRenderer.create(<MarketingConsentPrompt />)
+      currentTree = TestRenderer.create(<MarketingConsentPrompt suppressed={false} />)
       await Promise.resolve()
     })
     return currentTree!

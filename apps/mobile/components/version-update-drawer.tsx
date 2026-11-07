@@ -7,7 +7,8 @@ import { nativeBuildVersion } from 'expo-application'
 import { captureAndroidUpdateSheetShown } from '@/lib/posthog'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTranslation } from 'react-i18next'
-import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { Sheet } from '@/components/ui/sheet'
+import { useSheetPresence } from '@/components/ui/sheet-presence'
 import { useUpdateSheetFooterReport, type ReportUpdateSheetFooter } from '@/hooks/use-update-sheet-footer-report'
 import { PillButton } from '@/components/ui/pill-button'
 import {
@@ -93,7 +94,8 @@ interface VersionUpdateSheetProps {
 }
 
 function VersionUpdateSheet({ open, ...sheet }: Readonly<VersionUpdateSheetProps>) {
-  return open ? <OpenVersionUpdateSheet {...sheet} /> : null
+  const { mounted, sheetKey, sheetRef, closeSheet } = useSheetPresence(open)
+  return mounted ? <OpenVersionUpdateSheet key={sheetKey} {...sheet} sheetRef={sheetRef} closeSheet={closeSheet} /> : null
 }
 
 function OpenVersionUpdateSheet({
@@ -104,9 +106,10 @@ function OpenVersionUpdateSheet({
   onAction,
   onLater,
   onDidPresent,
-}: Readonly<Omit<VersionUpdateSheetProps, 'open'>>) {
+  sheetRef,
+  closeSheet,
+}: Readonly<Omit<VersionUpdateSheetProps, 'open'> & Pick<ReturnType<typeof useSheetPresence>, 'sheetRef' | 'closeSheet'>>) {
   const { t } = useTranslation()
-  const { sheetRef, closeSheet } = useSheetHost()
   const footerReport = useUpdateSheetFooterReport(onDidPresent)
 
   return (
@@ -121,7 +124,8 @@ function OpenVersionUpdateSheet({
   )
 }
 
-export function VersionUpdateDrawer() {
+/** `suppressed` keeps the update offer closed while signed out; a presented sheet closes through its native dismissal. */
+export function VersionUpdateDrawer({ suppressed }: Readonly<{ suppressed: boolean }>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -154,13 +158,14 @@ export function VersionUpdateDrawer() {
     useAndroidFlexibleUpdate(androidFlexibleActive, restoreAndroidAction)
 
   useEffect(() => {
-    if (Platform.OS !== 'android' || !updateAvailable || !forceUpdate) return
+    if (suppressed || Platform.OS !== 'android' || !updateAvailable || !forceUpdate) return
     if (androidImmediateStartedRef.current) return
     androidImmediateStartedRef.current = true
     void startAndroidUpdate({ immediate: true })
-  }, [updateAvailable, forceUpdate])
+  }, [suppressed, updateAvailable, forceUpdate])
 
   const shouldShowIosSheet =
+    !suppressed &&
     Platform.OS === 'ios' &&
     updateAvailable &&
     !!iosStoreUrl &&
@@ -176,7 +181,7 @@ export function VersionUpdateDrawer() {
 
   const handleAndroidLater = () => setAndroidRestartDismissed(true)
   const androidReady = androidDownloaded || androidUpdateReady
-  const androidSoftOpen = updateAvailable && !forceUpdate && snoozeLoaded && !isSnoozed && !dismissedForSession && !androidRequested
+  const androidSoftOpen = !suppressed && updateAvailable && !forceUpdate && snoozeLoaded && !isSnoozed && !dismissedForSession && !androidRequested
   const offeredCode = androidCheck && 'versionCode' in androidCheck.other ? androidCheck.other.versionCode : null
   const handleAndroidPresented = useCallback((): ReportUpdateSheetFooter => {
     const shown = {
@@ -186,7 +191,7 @@ export function VersionUpdateDrawer() {
   }, [androidReady, offeredCode])
 
   if (Platform.OS === 'android') {
-    return <AndroidVersionUpdateSheet ready={androidReady} restartDismissed={androidRestartDismissed}
+    return <AndroidVersionUpdateSheet ready={androidReady} restartDismissed={androidRestartDismissed || suppressed}
       softOpen={androidSoftOpen}
       onDidPresent={handleAndroidPresented}
       styles={styles} install={installAndroidUpdate} request={() => setAndroidRequested(true)}

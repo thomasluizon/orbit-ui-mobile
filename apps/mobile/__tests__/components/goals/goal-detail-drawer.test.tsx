@@ -56,6 +56,7 @@ let forecastMetrics: Pick<GoalDetailWithMetrics['metrics'], 'velocityPerDay' | '
 let detailLoading = false
 let detailLoadError = false
 let detailAvailable = true
+let listGoalAvailable = true
 const refetchDetail = vi.fn()
 const updateProgressMutateAsync = vi.fn()
 const mockDeleteMutateAsync = vi.fn()
@@ -137,7 +138,7 @@ vi.mock('@/hooks/use-goals', () => ({
   useGoals: () => ({
     data: {
       allGoals: [listGoal],
-      goalsById: new Map([['1', listGoal]]),
+      goalsById: new Map(listGoalAvailable ? [['1', listGoal]] : []),
     },
   }),
   useGoalDetail: (id: string | null) => ({
@@ -186,6 +187,7 @@ describe('GoalDetailDrawer', () => {
     detailLoading = false
     detailLoadError = false
     detailAvailable = true
+    listGoalAvailable = true
     refetchDetail.mockClear()
     mockDeleteMutateAsync.mockReset()
     mockDeleteMutateAsync.mockResolvedValue(undefined)
@@ -294,6 +296,21 @@ describe('GoalDetailDrawer', () => {
     TestRenderer.act(() => sheetTestControls.completeDismissal())
     expect(collectText(tree.toJSON())).toContain('Read 12 books')
     expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it.each(['progress', 'edit'] as const)('keeps the presented %s sheet when a refresh drops the goal', (sheet) => {
+    const progressInputs = (tree: any) => tree.root.findAll((node: { props: { accessibilityLabel?: string; onChangeText?: unknown } }) => node.props.accessibilityLabel === 'goals.form.progressQuestion' && typeof node.props.onChangeText === 'function')
+    const openEditSheets = (tree: any) => tree.root.findAll((node: { props: { open?: unknown; goal?: unknown } }) => node.props.open === true && node.props.goal !== undefined)
+    const tree = renderDrawer()
+    press(tree, sheet === 'progress' ? 'goals.updateProgress' : 'goals.detail.edit')
+    const presentedSheets = sheet === 'progress' ? progressInputs : openEditSheets
+    expect(presentedSheets(tree).length).toBeGreaterThan(0)
+
+    detailAvailable = false
+    listGoalAvailable = false
+    TestRenderer.act(() => { tree.update(<GoalDetailDrawer open={true} onClose={vi.fn()} goalId="1" />) })
+
+    expect(presentedSheets(tree).length).toBeGreaterThan(0)
   })
 
   it('keeps inline detail mounted through manual cancellation and saving', async () => {

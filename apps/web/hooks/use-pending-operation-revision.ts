@@ -6,7 +6,7 @@ import {
   createUsePendingOperationPlacement, type PendingOperationPlacementEdit,
   createPendingOperationRevisionState, reconcilePendingOperationRevisionState,
   selectPendingOperationRevisionItem, changePendingOperationRevisionDraft,
-  applyPendingOperationRevisionPreview,
+  applyPendingOperationRevisionPreview, revisedPendingOperation,
   type RevisePendingOperation,
   type RefreshPendingOperation,
 } from '@orbit/shared/hooks'
@@ -102,14 +102,14 @@ export function usePendingOperationRevision(
       } else if (response.result.preview) {
         const preview = response.result.preview
         setRevision((current) => current.operation.previewFingerprint === requestFingerprint
-          ? { ...createPendingOperationRevisionState({ ...current.operation, ...preview, nextAction: null }),
+          ? { ...createPendingOperationRevisionState(revisedPendingOperation(current.operation, preview)),
               sourceFingerprint: current.sourceFingerprint,
               originalItemIds: current.originalItemIds,
               authorizationVersion: current.authorizationVersion + 1 } : current)
         setTitleDrafts({})
         setStaleFingerprint(undefined)
         setRefreshUnavailableFingerprint(undefined)
-        onSettled?.({ operation: { ...operation, ...preview, nextAction: null }, editedItemIds: [], originalItemIds: [...synchronized.originalItemIds], stale: false, refreshUnavailable: false, status: undefined, completedOperation: undefined, canRetry: false })
+        onSettled?.({ operation: revisedPendingOperation(operation, preview), editedItemIds: [], originalItemIds: [...synchronized.originalItemIds], stale: false, refreshUnavailable: false, status: undefined, completedOperation: undefined, canRetry: false })
       }
     } catch {
       setRevisionError({ fingerprint: requestFingerprint, message: 'invalid', source: 'refresh' })

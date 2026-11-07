@@ -11,6 +11,7 @@ import { ReferralPrompt } from '@/components/referral/referral-prompt'
 import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 import { expectSmallSheetActions, sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 const rewardState = vi.hoisted(() => ({ locale: '', stats: undefined as { rewardType?: string; proDaysPerReferral?: number; discountPercent?: number } | undefined }))
 const testI18n = createInstance()
@@ -68,6 +69,7 @@ describe('ReferralPrompt (mobile)', () => {
   })
 
   afterEach(() => {
+    sheetTestControls.defer(false)
     if (currentTree) {
       TestRenderer.act(() => currentTree!.unmount())
       currentTree = null
@@ -78,7 +80,7 @@ describe('ReferralPrompt (mobile)', () => {
 
   async function render() {
     await TestRenderer.act(async () => {
-      currentTree = TestRenderer.create(<ReferralPrompt />)
+      currentTree = TestRenderer.create(<ReferralPrompt suppressed={false} />)
       await Promise.resolve()
     })
     return currentTree!
@@ -208,6 +210,43 @@ describe('ReferralPrompt (mobile)', () => {
     expect(findByType(tree, 'Sheet')).toHaveLength(0)
     expect(findByType(tree, 'ReferralDrawerOpen')).toHaveLength(0)
   })
+  it('closes a shown prompt through its native dismissal when the overlay layer suppresses it, and stays closed', async () => {
+    const tree = await renderArmed('streak-7')
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(500) })
+    expect(findByType(tree, 'Sheet')).toHaveLength(1)
+    sheetTestControls.defer(true)
+    await TestRenderer.act(async () => {
+      ;(tree as RenderedTree & { update: (element: React.ReactNode) => void }).update(<ReferralPrompt suppressed />)
+      await Promise.resolve()
+    })
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(findByType(tree, 'Sheet')).toHaveLength(1)
+    await TestRenderer.act(async () => { sheetTestControls.completeDismissal(); await Promise.resolve() })
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
+    expect(useUIStore.getState().openOverlayIds).toEqual([])
+    await TestRenderer.act(async () => {
+      useReferralPromptStore.getState().armReferralPrompt('level-3')
+      await vi.advanceTimersByTimeAsync(1000)
+    })
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
+  })
+
+  it('closes the referral drawer when the overlay layer suppresses the prompt', async () => {
+    const tree = await renderArmed('level-3')
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(500) })
+    const cta = findByType(tree, 'PillButtonStub').find((node) => node.props.variant !== 'ghost')
+    await TestRenderer.act(async () => {
+      ;(cta!.props.onClick as (() => void) | undefined)?.()
+      await Promise.resolve()
+    })
+    expect(findByType(tree, 'ReferralDrawerOpen')).toHaveLength(1)
+    await TestRenderer.act(async () => {
+      ;(tree as RenderedTree & { update: (element: React.ReactNode) => void }).update(<ReferralPrompt suppressed />)
+      await Promise.resolve()
+    })
+    expect(findByType(tree, 'ReferralDrawerOpen')).toHaveLength(0)
+  })
+
   it.each(referralCopyCases)('uses the cached $locale reward explanation after the real scheduling delay', async ({ locale, stats, explanation }) => {
     rewardState.locale = locale
     rewardState.stats = stats

@@ -2,6 +2,7 @@ import {
   createElement,
   useCallback,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
   type Ref,
@@ -11,6 +12,7 @@ import { ActionRow } from '@/components/ui/action-row'
 
 interface SheetHandle {
   requestClose: (exitAction?: () => void, onRejected?: () => void) => void
+  isDismissed: () => boolean
 }
 
 interface SheetDoubleProps extends SheetProps {
@@ -55,9 +57,11 @@ export const sheetTestControls = {
 
 export function Sheet({ title, accessibleTitle, actions, onClose, children, ref }: Readonly<SheetDoubleProps>) {
   const [presented, setPresented] = useState(true)
+  const dismissal = useMemo(() => ({ finished: false }), [])
   const requestClose = useCallback(
     (exitAction?: () => void, onRejected?: () => void) => {
       const finish = () => {
+        dismissal.finished = true
         if (exitAction) {
           exitAction()
           return
@@ -75,10 +79,10 @@ export function Sheet({ title, accessibleTitle, actions, onClose, children, ref 
       }
       finish()
     },
-    [onClose],
+    [dismissal, onClose],
   )
 
-  useImperativeHandle(ref, () => ({ requestClose }), [requestClose])
+  useImperativeHandle(ref, () => ({ requestClose, isDismissed: () => dismissal.finished }), [dismissal, requestClose])
 
   return createElement(
     'Sheet',
