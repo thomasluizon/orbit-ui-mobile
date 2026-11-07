@@ -32,7 +32,7 @@ export default function AuthLayout({ children }: Readonly<{ children: React.Reac
   if (!hydrated || showOnboarding) return null
   return <DesktopReleaseBoundary monitor>
     <DesktopAuthBridge />
-    <main className="flex min-h-dvh w-full flex-col items-center justify-center bg-[var(--bg)] text-[var(--fg-1)]"
+    <main data-desktop-reload-safe="" className="flex min-h-dvh w-full flex-col items-center justify-center bg-[var(--bg)] text-[var(--fg-1)]"
       style={{ paddingTop: 'var(--safe-top)', paddingBottom: 'var(--safe-bottom)', paddingLeft: 'var(--safe-left)', paddingRight: 'var(--safe-right)' }}>
       {children}
       <AppToastHost placement="page" />
