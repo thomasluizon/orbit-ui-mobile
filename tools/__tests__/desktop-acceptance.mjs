@@ -277,6 +277,49 @@ async function sessionProbeCases() {
   }
 }
 
+async function compactHojeProbeCases() {
+  const reports = []
+  const commands = ['astra']
+  let now = 0
+  let conversation = null
+  const composer = {}
+  const astraButton = { click: () => { conversation = {} } }
+  const browserWindow = { __ORBIT_DESKTOP_VERSION__: '1.0.0' }
+  browserWindow.top = browserWindow
+  let finished
+  const done = new Promise((resolve) => { finished = resolve })
+  const context = {
+    URLSearchParams, window: browserWindow, Date: { now: () => now },
+    setTimeout: (callback, milliseconds) => { now += milliseconds; setImmediate(callback) },
+    requestAnimationFrame: (callback) => setImmediate(callback),
+    location: { pathname: '/', search: '' },
+    document: {
+      readyState: 'complete', cookie: '',
+      querySelector(selector) {
+        if (selector === '[data-habit-id="bench-0000"]') return {}
+        if (selector === '[data-astra-button]:not([disabled])') return conversation ? null : astraButton
+        if (selector === '[data-shell-conversation]') return conversation
+        if (selector === '[data-shell-conversation] [data-composer-input]') return conversation ? composer : null
+        return null
+      },
+    },
+    fetch: async (path, options) => {
+      if (path === '/_bench/events') {
+        const event = JSON.parse(options.body)
+        reports.push(event)
+        if (event.kind === 'astra' || event.kind === 'error') finished()
+        return new Response(null, { status: 204 })
+      }
+      if (path === '/_bench/command') return commands.length ? new Response(commands.shift()) : new Promise(() => {})
+      return new Response(null, { status: 200 })
+    },
+  }
+  runInNewContext(await servedProbe(true), context)
+  await done
+  T('installed acceptance reaches compact Hoje through the habit row and the Astra button, without a Hoje composer',
+    reports.map((event) => event.kind).join(',') === 'hoje,astra', JSON.stringify(reports))
+}
+
 function macKeyboardEvents() {
   const source = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-ax.m'), 'utf8')
   const keyboard = source.slice(source.indexOf('static void key('), source.indexOf('int main('))
@@ -412,13 +455,14 @@ async function controlledPaletteCases() {
   const { flushSync } = await import('react-dom')
   const { Command } = await import('cmdk')
   const mount = createRoot(dom.window.document.getElementById('palette'))
-  function Palette({ loading = false }) {
+  function Palette({ loading = false, disabledIndex = 2 }) {
     const [selected, setSelected] = useState(loading ? 'create' : 'habit-1')
     const items = loading
       ? [['create', 'Create habit'], ['log', 'Log a habit'], ['skip', 'Skip a habit']].map(([value, label]) => createElement(Command.Item, { key: value, value }, label))
-      : [1, 2, 3, 4].map((index) => createElement(Command.Item, { key: index, value: `habit-${index}`, disabled: index === 2 }, `Habit ${index}`))
+      : [1, 2, 3, 4].map((index) => createElement(Command.Item, { key: index, value: `habit-${index}`, disabled: index === disabledIndex }, `Habit ${index}`))
+    // Mirrors CommandMenu and CommandSearchField: the root label names the input through cmdk's aria-labelledby, never an input aria-label.
     return createElement(Command, { shouldFilter: false, value: selected, onValueChange: setSelected, label: 'Search or run' },
-      createElement(Command.Input, { autoFocus: true, 'aria-label': 'Search or run' }),
+      createElement(Command.Input, { autoFocus: true }),
       createElement(Command.List, { 'aria-busy': loading }, items))
   }
   const reports = []
@@ -451,6 +495,7 @@ async function controlledPaletteCases() {
     }
     await paletteTimingCases(dom, context.paletteState)
     await pendingPaletteCases({ dom, context, reports, mount, Palette, createElement, flushSync })
+    macPaletteFocusCases({ dom, context, mount, Palette, createElement, flushSync })
   } finally {
     flushSync(() => mount.unmount())
     await new Promise((resolve) => setImmediate(resolve))
@@ -460,6 +505,24 @@ async function controlledPaletteCases() {
       else delete globalThis[key]
     }
   }
+}
+
+function macPaletteFocusCases({ dom, context, mount, Palette, createElement, flushSync }) {
+  const captured = JSON.parse(readFileSync(join(REPO_ROOT, 'tools/desktop-bench/__fixtures__/ax-palette-focus.json'), 'utf8'))
+  const nativeInput = captured.nodes.find((node) => node.role === 'AXComboBox')
+  flushSync(() => mount.render(createElement(Palette, { key: 'native-mac', disabledIndex: 0 })))
+  const previous = context.paletteState()
+  T('palette probe reports the input name cmdk assigns through its label, as the macOS tree exposes it',
+    previous.inputName === nativeInput.name, JSON.stringify({ probe: previous.inputName, native: nativeInput.name }))
+  const input = dom.window.document.querySelector('[cmdk-input]')
+  flushSync(() => input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'ArrowDown', code: 'ArrowDown', bubbles: true })))
+  const current = context.paletteState()
+  let failure
+  try { assertPaletteFocus(previous, current, captured) } catch (error) { failure = error }
+  T('captured macOS AX focus on the labelled palette input passes with the real cmdk probe state', !failure, failure?.message)
+  const renamed = structuredClone(captured)
+  renamed.nodes.find((node) => node.role === 'AXComboBox').name = 'Another field'
+  rejects('palette rejects macOS focus on an input with another name', () => assertPaletteFocus(previous, current, renamed))
 }
 
 function nativePaletteFocusCases() {
@@ -555,6 +618,7 @@ export async function cases() {
   await installedQuitCases()
   await installedLaunchCases()
   await sessionProbeCases()
+  await compactHojeProbeCases()
   await controlledPaletteCases()
   nativePaletteFocusCases()
   const native = { denied: false, error: null, nodes: [

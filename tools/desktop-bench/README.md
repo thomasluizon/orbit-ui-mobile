@@ -14,7 +14,7 @@ The current stable Electron version is resolved from npm and recorded in the rep
 
 The Tauri release uses `bench-loopback` and a temporary config overlay. The feature is off by
 default. Only the overlay grants local capabilities, selects the separate benchmark app identifier
-and requests a 900×600 CSS viewport, where Hoje provides its inline composer. Both shells must
+and requests a 900×600 CSS viewport. That is the compact shell, where Hoje shows the Astra button. Both shells must
 report exactly that viewport. Only the readiness launch may fit Tauri's window by the page's
 measured CSS shortfall, including insets inside the native webview frame. It returns the calibrated
 logical native size through the benchmark command. Every measured launch receives that size through
@@ -28,7 +28,7 @@ Only loopback ports 5099, 3400 and 3401 are used. Occupied ports fail before sta
 The hermetic web build and mock API use existing repository scripts. A loopback proxy supplies an
 httpOnly session from `mintHermeticJwt`, seeds 200 habits using the shared schema and fixture producer,
 and injects the same nonce-bearing probe into both shells. No regular browser or automation framework
-runs. The normal Hoje composer sends through the BFF. The mock emits the API's `started`, `delta`,
+runs. The Hoje Astra button opens the conversation, and its composer sends through the BFF. The mock emits the API's `started`, `delta`,
 `final` protocol with 80 ms pacing, only for the benchmark session when explicitly enabled.
 The API producer is `ChatController.StartEventStreamAsync`, `WriteEventAsync` and `ChatStreamEvent`;
 the shared consumer is `packages/shared/src/chat/sse-stream.ts`.
@@ -40,7 +40,7 @@ retains it after a complete process exit. Neither purges OS filesystem caches or
 prewarmed server. These are storage-cold and storage-warm launches, not cold boots. Keep the
 visible windows unobstructed during measurement.
 
-First usable means the first habit has painted and the hydrated composer accepts focus.
+First usable means the first habit and the Astra button have painted, and the hydrated Astra button opens the conversation.
 The page then waits on a long-lived command request while the host collects process-tree RSS
 at 10 seconds and 60 seconds, plus CPU-time change over the idle interval. CPU is an energy proxy,
 not watts. Raw process membership, native accounting counters and timestamps accompany every sample.
@@ -67,7 +67,7 @@ and [coalition accounting](https://github.com/apple-oss-distributions/xnu/blob/m
 
 Scrolling advances the real shell scroller 120 pixels per animation frame to the end of the
 200-habit list and verifies the last row. JSON retains every frame interval; summaries report
-the median per-run p95 and count above 16.7 ms. Streaming measures real composer submission to
+the median per-run p95 and count above 16.7 ms. Streaming measures real conversation composer submission to
 first rendered token and final rendered text; request dispatch and final-event times are retained.
 Fixture pacing measures transport and rendering, not model latency.
 
