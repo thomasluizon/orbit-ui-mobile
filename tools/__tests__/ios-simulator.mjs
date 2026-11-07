@@ -61,7 +61,7 @@ process.kill = () => { if (scenario.dead) throw new Error("No such process"); re
 require("node:timers/promises").setTimeout = async () => {}
 require("node:child_process").spawnSync = (command, args, options) => {
   appendFileSync(${JSON.stringify(callsPath)}, JSON.stringify({ command, args, cwd: options.cwd,
-    environment: Object.fromEntries(["DEVELOPER_DIR", "ORBIT_APP_VARIANT", "EXPO_PUBLIC_API_BASE", "SENTRY_DISABLE_AUTO_UPLOAD", "CI", "ORBIT_APPLE_TEAM_ID", ...${JSON.stringify(buildVariableNames)}].map(key => [key, options.env[key]])) }) + "\\n")
+    environment: Object.fromEntries(["DEVELOPER_DIR", "ORBIT_APP_VARIANT", "EXPO_PUBLIC_SENTRY_ENVIRONMENT", "EXPO_PUBLIC_API_BASE", "SENTRY_DISABLE_AUTO_UPLOAD", "CI", "ORBIT_APPLE_TEAM_ID", ...${JSON.stringify(buildVariableNames)}].map(key => [key, options.env[key]])) }) + "\\n")
   const joined = args.join(" ")
   if (command === "gh" && args[0] === "variable") {
     if (scenario.variablesFail) return { status: 1, stdout: "", stderr: "HTTP 404: Not Found" }
@@ -237,6 +237,9 @@ function buildVariableCases(successful, overridden, callerSupplied) {
     T(`ios-simulator: ${label} receives the ios-staging value before the repository value`,
       Object.entries(expected).every(([name, value]) => environment[name] === value), JSON.stringify(environment))
   }
+  T("ios-simulator: reports Sentry events from prebuild and the native build as staging",
+    prebuilt(successful).EXPO_PUBLIC_SENTRY_ENVIRONMENT === "staging" && built(successful).EXPO_PUBLIC_SENTRY_ENVIRONMENT === "staging",
+    JSON.stringify([prebuilt(successful), built(successful)]))
   T("ios-simulator: never passes the signing team to the ad hoc simulator build", built(successful).ORBIT_APPLE_TEAM_ID === undefined)
   T("ios-simulator: reports a variable missing everywhere by name and still builds",
     /EXPO_PUBLIC_APPLE_CLIENT_ID: missing/.test(successful.stderr) && built(successful).EXPO_PUBLIC_APPLE_CLIENT_ID === undefined)

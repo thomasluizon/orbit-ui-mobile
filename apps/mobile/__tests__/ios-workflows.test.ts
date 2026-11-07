@@ -21,6 +21,7 @@ describe('iOS build and release boundaries', () => {
   it('signs the containing app and widget with separate provisioning profiles', () => {
     const workflow = readWorkflow<'release'>('ios-release')
     expect(workflow.jobs.release.env.IOS_WIDGET_PROVISIONING_PROFILE_NAME).toBeDefined()
+    expect(workflow.jobs.release.env.EXPO_PUBLIC_SENTRY_ENVIRONMENT).toBe('${{ inputs.variant }}')
     const archive = workflow.jobs.release.steps.find((step) => step.name === 'Archive the embedded app')?.run
     expect(archive).not.toContain('PROVISIONING_PROFILE_SPECIFIER=')
     const install = workflow.jobs.release.steps.find((step) => step.name === 'Install signing credentials')?.run

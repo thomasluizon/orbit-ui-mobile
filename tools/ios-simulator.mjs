@@ -76,6 +76,7 @@ const environment = {
   ...process.env,
   DEVELOPER_DIR: developerDirectory,
   ORBIT_APP_VARIANT: "staging",
+  EXPO_PUBLIC_SENTRY_ENVIRONMENT: "staging",
   EXPO_PUBLIC_API_BASE: "https://api-staging.useorbit.org",
   EXPO_NO_TELEMETRY: "1",
   EXPO_NO_METRO_WORKSPACE_ROOT: "1",

@@ -28,7 +28,8 @@ with that override in the error; the checkout version is never used implicitly.
 
 Each run regenerates `apps/mobile/ios` with Expo prebuild, then compiles Release for the simulator
 with local ad hoc signing. This retains the app and widget Keychain entitlements without an Apple
-account, signing certificate or provisioning profile. It pins `ORBIT_APP_VARIANT=staging` and
+account, signing certificate or provisioning profile. It pins `ORBIT_APP_VARIANT=staging`,
+`EXPO_PUBLIC_SENTRY_ENVIRONMENT=staging` and
 `EXPO_PUBLIC_API_BASE=https://api-staging.useorbit.org`, disables Sentry upload, installs
 `org.useorbit.app.staging` and launches it. JavaScript is bundled; no development server is needed.
 
