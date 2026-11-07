@@ -333,7 +333,10 @@ describe('web useChatComposer streaming send', () => {
     const inputs = { isOnline: true, offlineTitle: 'offline', atMessageLimit: false, isSending: false, queuePaused: false,
       queueReady: true, queuedPrompts: [], lastFailedSend: attempted, performSend, setInput, setSendError: vi.fn(), queryClient: mocks.queryClient as never }
     useChatStore.setState({ draft: 'Newer text', draftRevision: 2, isTyping: false, streamingMessageId: null })
-    const { result } = renderHook(() => useChatSendRetry(inputs.isOnline, inputs.atMessageLimit, inputs.queryClient, inputs.isSending, inputs.queuePaused, inputs.queueReady, inputs.queuedPrompts, inputs.lastFailedSend, inputs.performSend, inputs.setInput))
+    const { result, rerender } = renderHook(({ draft, draftRevision }) => useChatSendRetry(inputs.isOnline, inputs.atMessageLimit, inputs.queryClient, inputs.isSending, inputs.queuePaused, inputs.queueReady, inputs.queuedPrompts, inputs.lastFailedSend, inputs.performSend, inputs.setInput, { draft, draftRevision, attachments: [] }), { initialProps: { draft: 'Retry this', draftRevision: 1 } })
+    expect(result.current.canRetryLastSend).toBe(true)
+    rerender({ draft: 'Newer text', draftRevision: 2 })
+    expect(result.current.canRetryLastSend).toBe(false)
     await act(async () => { await result.current.retryLastSend() })
     expect(performSend).toHaveBeenCalledWith(attempted, true)
     expect(setInput).not.toHaveBeenCalled()

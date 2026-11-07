@@ -114,4 +114,27 @@ describe('composer controls', () => {
     const textOnly = { words, value, onChangeValue, onSend, suggestions, state }
     for (const id of ['image', 'file', 'voice']) expect(() => selectComposerAction(textOnly, id)).not.toThrow()
   })
+
+  it.each([
+    ['an empty composer', ''],
+    ['the restored draft', 'Quais habitos tenho hoje'],
+  ])('puts retry in the send position over %s while idle', (_case, value) => {
+    const onRetry = vi.fn()
+    const props = { ...composerProps(), value, words: { ...composerProps().words, retry: 'Tentar de novo' }, onRetry } satisfies ComposerProps
+    const action = buildComposerPrimaryControl(props)
+    expect(action).toMatchObject({ kind: 'retry', label: 'Tentar de novo', disabled: false, accented: false })
+    action.onSelect()
+    expect(onRetry).toHaveBeenCalledOnce()
+    expect(props.onSend).not.toHaveBeenCalled()
+    expect(props.onVoice).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['sending', { state: 'sending' }, 'send'],
+    ['offline', { state: 'offline', limitReason: 'Offline' }, 'send'],
+    ['recording', { state: 'recording' }, 'stop'],
+  ] as const)('leaves the send position to its own control while %s', (_case, stateProps, kind) => {
+    const props = { ...composerProps(), value: 'Quais habitos', words: { ...composerProps().words, retry: 'Tentar de novo' }, onRetry: vi.fn(), ...stateProps } as ComposerProps
+    expect(buildComposerPrimaryControl(props).kind).toBe(kind)
+  })
 })

@@ -883,14 +883,49 @@ describe('Composer', () => {
     expect(container.querySelector('[data-attachment-kind="image"]')).toBeInTheDocument()
   })
 
-  it('renders and invokes retry only when present', () => {
+  it.each([
+    ['the restored draft', 'Quais habitos tenho hoje'],
+    ['an empty composer', ''],
+  ])('draws retry in the send position as the refresh action over %s', (_case, value) => {
     const onRetry = vi.fn()
-    const retryWords = { ...words, retry: 'retry sentinel' }
-    const { rerender } = render(<Composer {...props({ words: retryWords, onRetry })} />)
-    fireEvent.click(screen.getByRole('button', { name: retryWords.retry }))
+    const onSend = vi.fn()
+    const onVoice = vi.fn()
+    const retryWords = { ...words, retry: ptBR.shell.composer.retry }
+    const { container } = render(<Composer {...props({ words: retryWords, value, onRetry, onSend, onVoice, voiceWords })} />)
+    const retry = screen.getByRole('button', { name: retryWords.retry })
+    const trailing = container.querySelector('[data-composer-trailing-controls]')!
+    const pill = container.querySelector('[data-composer-input-row]')!
+    expect(screen.getAllByRole('button', { name: retryWords.retry })).toHaveLength(1)
+    expect(trailing.lastElementChild?.contains(retry)).toBe(true)
+    expect(pill.contains(retry)).toBe(true)
+    expect(retry).toHaveAttribute('title', retryWords.retry)
+    expect(retry.querySelector('svg.tabler-icon-refresh')).toBeInTheDocument()
+    expect(retry.querySelector('[data-asset="astra-mark"]')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: words.send })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: voiceWords.start })).not.toBeInTheDocument()
+    fireEvent.click(retry)
     expect(onRetry).toHaveBeenCalledOnce()
-    rerender(<Composer {...props()} />)
+    expect(onSend).not.toHaveBeenCalled()
+    expect(onVoice).not.toHaveBeenCalled()
+  })
+
+  it('returns the send arrow to the send position when no retry is offered', () => {
+    const retryWords = { ...words, retry: ptBR.shell.composer.retry }
+    const { container, rerender } = render(<Composer {...props({ words: retryWords, value: 'Quais habitos tenho hoje', onRetry: vi.fn() })} />)
+    rerender(<Composer {...props({ words: retryWords, value: 'Quais habitos tenho amanha' })} />)
+    const trailing = container.querySelector('[data-composer-trailing-controls]')!
     expect(screen.queryByRole('button', { name: retryWords.retry })).not.toBeInTheDocument()
+    expect(trailing.lastElementChild).toBe(screen.getByRole('button', { name: words.send }))
+  })
+
+  it.each([
+    ['offline', { state: 'offline', limitReason: 'offline sentinel' }],
+    ['sending', { state: 'sending' }],
+  ] as const)('keeps the send position free of retry while %s', (_state, stateProps) => {
+    const retryWords = { ...words, retry: ptBR.shell.composer.retry }
+    const { container } = render(<Composer {...props({ words: retryWords, value: 'Quais habitos tenho hoje', onRetry: vi.fn(), ...stateProps })} />)
+    expect(screen.queryByRole('button', { name: retryWords.retry })).not.toBeInTheDocument()
+    expect(container.querySelector('[data-composer-trailing-controls]')!.lastElementChild).toBe(screen.getByRole('button', { name: words.send }))
   })
 
   it('uses the placeholder word as both placeholder and accessible name', () => {

@@ -7,7 +7,7 @@ import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
 import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ArrowUp, Square } from '@/components/ui/icons'
+import { ArrowUp, RefreshCw, Square } from '@/components/ui/icons'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { useAppToastStore } from '@/stores/app-toast-store'
@@ -617,7 +617,7 @@ describe('Composer (mobile)', () => {
 
     const retry = renderComposer(props({ words: { ...words, retry: 'Retry' }, onRetry }))
     const retryControl = byLabel(retry.root, 'Retry')[0]!
-    expectPressPaint(retryControl, { fill: tokens.bgHover, borderRadius: 999, scale: reducedMotion ? 1 : 0.96 })
+    expectPressPaint(retryControl, { fill: tokens.bgHover, borderRadius: 9999, scale: reducedMotion ? null : 0.96 })
     pressControl(retryControl)
     expect(onRetry).toHaveBeenCalledOnce()
     TestRenderer.act(() => { recovery.unmount(); retry.unmount() })
@@ -1404,17 +1404,57 @@ describe('Composer (mobile)', () => {
     expect(tree.root.findByProps({ testID: 'composer-attachment-image' })).toBeDefined()
   })
 
-  it('renders and invokes retry only when present', async () => {
+  it.each([
+    ['the restored draft', 'Quais habitos tenho hoje'],
+    ['an empty composer', ''],
+  ])('draws retry in the send position as the refresh action over %s', (_case, value) => {
     const onRetry = vi.fn()
-    const retryWords = { ...words, retry: 'retry sentinel' }
-    const tree = await renderComposer(props({ words: retryWords, onRetry }))
-    const retry = tree.root.findAllByType('Pressable').find(
-      (node: { props: { onPress?: unknown } }) => node.props.onPress === onRetry,
-    )
-    if (retry) pressControl(retry)
-    expect(onRetry).toHaveBeenCalledOnce()
-    TestRenderer.act(() => tree.update(<Composer {...props()} />))
-    expect(textValues(tree.root)).not.toContain(retryWords.retry)
+    const onSend = vi.fn()
+    const onVoice = vi.fn()
+    const retryWords = { ...words, retry: ptBR.shell.composer.retry }
+    const tree = renderComposer(props({ words: retryWords, value, onRetry, onSend, onVoice, voiceWords }))
+    try {
+      const retryControls = byLabel(tree.root, retryWords.retry)
+      expect(retryControls).toHaveLength(1)
+      const retry = retryControls[0]!
+      const trailing = tree.root.findByProps({ testID: 'composer-trailing-controls' })
+      const trailingControls = trailing.findAll((node: { type?: unknown; props?: Record<string, unknown> }) => node.type === 'Pressable')
+      expect(trailingControls.at(-1)).toBe(retry)
+      expect(retry.findAllByType(RefreshCw)).toHaveLength(1)
+      expect(retry.findAllByType(AstraGlyph)).toHaveLength(0)
+      expect(byLabel(tree.root, words.send)).toHaveLength(0)
+      expect(byLabel(tree.root, voiceWords.start)).toHaveLength(0)
+      pressControl(retry)
+      expect(onRetry).toHaveBeenCalledOnce()
+      expect(onSend).not.toHaveBeenCalled()
+      expect(onVoice).not.toHaveBeenCalled()
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it('returns the send arrow to the send position when no retry is offered', () => {
+    const retryWords = { ...words, retry: ptBR.shell.composer.retry }
+    const tree = renderComposer(props({ words: retryWords, value: 'Quais habitos tenho hoje', onRetry: vi.fn() }))
+    try {
+      TestRenderer.act(() => tree.update(<Composer {...props({ words: retryWords, value: 'Quais habitos tenho amanha' })} />))
+      const trailing = tree.root.findByProps({ testID: 'composer-trailing-controls' })
+      const trailingControls = trailing.findAll((node: { type?: unknown; props?: Record<string, unknown> }) => node.type === 'Pressable')
+      expect(byLabel(tree.root, retryWords.retry)).toHaveLength(0)
+      expect(trailingControls.at(-1)?.props.accessibilityLabel).toBe(words.send)
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it.each([
+    ['offline', { state: 'offline', limitReason: 'offline sentinel' }],
+    ['sending', { state: 'sending' }],
+  ] as const)('keeps the send position free of retry while %s', (_state, stateProps) => {
+    const retryWords = { ...words, retry: ptBR.shell.composer.retry }
+    const tree = renderComposer(props({ words: retryWords, value: 'Quais habitos tenho hoje', onRetry: vi.fn(), ...stateProps }))
+    try {
+      const trailing = tree.root.findByProps({ testID: 'composer-trailing-controls' })
+      const trailingControls = trailing.findAll((node: { type?: unknown; props?: Record<string, unknown> }) => node.type === 'Pressable')
+      expect(byLabel(tree.root, retryWords.retry)).toHaveLength(0)
+      expect(trailingControls.at(-1)?.props.accessibilityLabel).toBe(words.send)
+    } finally { TestRenderer.act(() => tree.unmount()) }
   })
 
   it('uses the placeholder word as both placeholder and accessible name', async () => {

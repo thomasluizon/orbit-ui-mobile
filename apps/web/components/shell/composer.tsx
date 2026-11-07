@@ -21,7 +21,8 @@ import {
 import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
 import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { isComposerEditable, buildComposerPrimaryControl, buildComposerControls, selectComposerAction, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
-import { ArrowUp, ChevronDown, Clipboard, FileText, Image as ImageIcon, Mic, Plus, Square, X } from '@/components/ui/icons'
+import { ArrowUp, ChevronDown, Clipboard, FileText, Image as ImageIcon, Mic, Plus, RefreshCw, Square, X } from '@/components/ui/icons'
+import { IconButton } from '@/components/ui/icon-button'
 import * as Menu from '@/components/ui/dropdown-menu'
 import { Sheet } from '@/components/ui/sheet'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
@@ -307,6 +308,7 @@ const composerInputMetrics = 'px-2 py-3 text-base'
 
 function ComposerPrimaryControl({ props, inputRef }: Readonly<{ props: ComposerProps; inputRef: React.RefObject<HTMLTextAreaElement | null> }>) {
   const action = buildComposerPrimaryControl(props)
+  if (action.kind === 'retry') return <IconButton label={action.label} onClick={action.onSelect}><RefreshCw size={20} strokeWidth={2} aria-hidden="true" /></IconButton>
   const isSend = action.kind === 'send'
   const color = action.accented ? 'var(--fg-on-primary)' : 'var(--fg-3)'
   return <button type="button" aria-label={action.label} title={isSend ? undefined : action.label}
@@ -436,20 +438,6 @@ function ComposerError({ props }: Readonly<{ props: ComposerProps }>) {
   </div>
 }
 
-function RetryControl({ props }: Readonly<{ props: ComposerProps }>) {
-  if (!props.onRetry) return null
-  return (
-    <button
-      type="button"
-      onClick={props.onRetry}
-      aria-label={props.words.retry}
-      className="flex w-[48px] min-h-[48px] items-center justify-center self-start rounded-full border-0 bg-transparent text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"
-    >
-      <AstraGlyph size={20} />
-    </button>
-  )
-}
-
 function ComposerDisclosure({ collapsed, contentId, onToggle }: Readonly<{ collapsed: boolean; contentId: string; onToggle: () => void }>) {
   const t = useTranslations()
   return <button type="button" aria-label={t(collapsed ? 'shell.composer.expand' : 'shell.composer.collapse')}
@@ -497,7 +485,6 @@ function ComposerContent({ props, disclosure }: Readonly<{ props: WebComposerPro
       {showAllowanceStatus ? <AllowanceStatus props={props} disclosure={disclosure} /> : <ComposerStatus props={props} disclosure={disclosure} />}
       <ComposerInputRow props={props} disclosure={withSuggestions ? undefined : disclosure} />
       {!showAllowanceStatus && props.usageMessage ? <p data-composer-usage className="m-0 t-meta leading-[1.4]">{props.usageMessage}</p> : null}
-      <RetryControl props={props} />
   </>
 }
 

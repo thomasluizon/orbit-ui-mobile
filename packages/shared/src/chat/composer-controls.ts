@@ -11,8 +11,11 @@ function isComposerVoiceVisible(props: ComposerProps): boolean {
 }
 
 export function buildComposerPrimaryControl(props: ComposerProps): {
-  kind: 'send' | 'stop' | 'microphone'; label: string; disabled: boolean; accented: boolean; onSelect: () => void
+  kind: 'send' | 'stop' | 'microphone' | 'retry'; label: string; disabled: boolean; accented: boolean; onSelect: () => void
 } {
+  if (props.onRetry && props.state === 'idle') {
+    return { kind: 'retry', label: props.words.retry, disabled: false, accented: false, onSelect: props.onRetry }
+  }
   if (isComposerVoiceVisible(props) && props.onVoice) {
     const onVoice = props.onVoice
     const recording = props.state === 'recording'
