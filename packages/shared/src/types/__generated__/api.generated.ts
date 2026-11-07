@@ -4034,6 +4034,7 @@ export const postApiChatHabitMonthRefreshResponseBlockCalendarHabitsItemChildren
 export const postApiChatHabitMonthRefreshResponseBlockCalendarHabitsItemChildrenItemRelativeRemindersItemWhenTwoTwoMax = 2147483647;
 
 export const postApiChatHabitMonthRefreshResponseBlockCalendarHabitsItemChildrenItemRepeatReminderTwoIntervalMinutesRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatHabitMonthRefreshResponseBlockCalendarHabitsItemChildrenItemMonthDaysItemRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const postApiChatHabitMonthRefreshResponseBlockCalendarHabitsItemFlexibleTargetRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const postApiChatHabitMonthRefreshResponseBlockCalendarHabitsItemFlexibleCompletedRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const postApiChatHabitMonthRefreshResponseBlockCalendarHabitsItemInstancesItemStatusTwoMin = -2147483648;
@@ -4045,6 +4046,7 @@ export const postApiChatHabitMonthRefreshResponseBlockCalendarHabitsItemRelative
 export const postApiChatHabitMonthRefreshResponseBlockCalendarHabitsItemRelativeRemindersItemWhenTwoTwoMax = 2147483647;
 
 export const postApiChatHabitMonthRefreshResponseBlockCalendarHabitsItemRepeatReminderTwoIntervalMinutesRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatHabitMonthRefreshResponseBlockCalendarHabitsItemMonthDaysItemRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const postApiChatHabitMonthRefreshResponseBlockCalendarLogsItemValueRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$');
 export const postApiChatHabitMonthRefreshResponseBlockLanguageDefault = `en`;
 export const postApiChatHabitMonthRefreshResponseBlockSurfaceIdDefault = `calendar`;
@@ -4167,7 +4169,8 @@ export const PostApiChatHabitMonthRefreshResponse = zod.object({
 })]).optional(),
   "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish(),
   "completedOn": zod.iso.date().nullish(),
-  "isSkippedOnDate": zod.boolean().nullish()
+  "isSkippedOnDate": zod.boolean().nullish(),
+  "monthDays": zod.array(zod.union([zod.int(),zod.stringFormat('int32', postApiChatHabitMonthRefreshResponseBlockCalendarHabitsItemChildrenItemMonthDaysItemRegExpTwo)])).nullish()
 })),
   "hasSubHabits": zod.boolean(),
   "flexibleTarget": zod.union([zod.int(),zod.stringFormat('int32', postApiChatHabitMonthRefreshResponseBlockCalendarHabitsItemFlexibleTargetRegExpTwo)]).nullable(),
@@ -4201,7 +4204,8 @@ export const PostApiChatHabitMonthRefreshResponse = zod.object({
 })]).optional(),
   "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish(),
   "completedOn": zod.iso.date().nullish(),
-  "isSkippedOnDate": zod.boolean().nullish()
+  "isSkippedOnDate": zod.boolean().nullish(),
+  "monthDays": zod.array(zod.union([zod.int(),zod.stringFormat('int32', postApiChatHabitMonthRefreshResponseBlockCalendarHabitsItemMonthDaysItemRegExpTwo)])).nullish()
 })),
   "logs": zod.record(zod.string(), zod.array(zod.object({
   "id": zod.uuid(),
@@ -4979,6 +4983,13 @@ export const DeleteApiEvalPendingOperationsResponse = zod.object({
 })
 
 
+export const GetApiEvalSnapshotHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const GetApiEvalSnapshotResponse = zod.unknown()
+
+
 export const PostApiEventsTicketHeader = zod.object({
   "api-version": zod.string().optional()
 })
@@ -5390,6 +5401,7 @@ export const getApiHabitsResponseItemsItemChildrenItemRelativeRemindersItemWhenT
 export const getApiHabitsResponseItemsItemChildrenItemRelativeRemindersItemWhenTwoTwoMax = 2147483647;
 
 export const getApiHabitsResponseItemsItemChildrenItemRepeatReminderTwoIntervalMinutesRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiHabitsResponseItemsItemChildrenItemMonthDaysItemRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsResponseItemsItemFlexibleTargetRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsResponseItemsItemFlexibleCompletedRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsResponseItemsItemInstancesItemStatusTwoMin = -2147483648;
@@ -5401,6 +5413,7 @@ export const getApiHabitsResponseItemsItemRelativeRemindersItemWhenTwoTwoMin = -
 export const getApiHabitsResponseItemsItemRelativeRemindersItemWhenTwoTwoMax = 2147483647;
 
 export const getApiHabitsResponseItemsItemRepeatReminderTwoIntervalMinutesRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiHabitsResponseItemsItemMonthDaysItemRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsResponsePageRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsResponsePageSizeRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsResponseTotalCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
@@ -5515,7 +5528,8 @@ export const GetApiHabitsResponse = zod.object({
 })]).optional(),
   "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish(),
   "completedOn": zod.iso.date().nullish(),
-  "isSkippedOnDate": zod.boolean().nullish()
+  "isSkippedOnDate": zod.boolean().nullish(),
+  "monthDays": zod.array(zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsResponseItemsItemChildrenItemMonthDaysItemRegExpTwo)])).nullish()
 })),
   "hasSubHabits": zod.boolean(),
   "flexibleTarget": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsResponseItemsItemFlexibleTargetRegExpTwo)]).nullable(),
@@ -5549,7 +5563,8 @@ export const GetApiHabitsResponse = zod.object({
 })]).optional(),
   "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish(),
   "completedOn": zod.iso.date().nullish(),
-  "isSkippedOnDate": zod.boolean().nullish()
+  "isSkippedOnDate": zod.boolean().nullish(),
+  "monthDays": zod.array(zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsResponseItemsItemMonthDaysItemRegExpTwo)])).nullish()
 })),
   "page": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsResponsePageRegExpTwo)]),
   "pageSize": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsResponsePageSizeRegExpTwo)]),
@@ -5588,6 +5603,7 @@ export const postApiHabitsBodyRelativeRemindersItemWhenTwoTwoMax = 2147483647;
 
 export const postApiHabitsBodyRelativeRemindersItemWhenTwoThreeRegExp = new RegExp('^(?:same_day|day_before|[\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?:(?:[+]?0*(?:[0-9]{1,9}|1[0-9]{9}|20[0-9]{8}|21[0-3][0-9]{7}|214[0-6][0-9]{6}|2147[0-3][0-9]{5}|21474[0-7][0-9]{4}|214748[0-2][0-9]{3}|2147483[0-5][0-9]{2}|21474836[0-3][0-9]|214748364[0-7])|-0*(?:(?:[0-9]{1,9}|1[0-9]{9}|20[0-9]{8}|21[0-3][0-9]{7}|214[0-6][0-9]{6}|2147[0-3][0-9]{5}|21474[0-7][0-9]{4}|214748[0-2][0-9]{3}|2147483[0-5][0-9]{2}|21474836[0-3][0-9]|214748364[0-7])|2147483648))|(?:[Ss][Aa][Mm][Ee][Dd][Aa][Yy]|[Dd][Aa][Yy][Bb][Ee][Ff][Oo][Rr][Ee])(?:[\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*,[\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?:[Ss][Aa][Mm][Ee][Dd][Aa][Yy]|[Dd][Aa][Yy][Bb][Ee][Ff][Oo][Rr][Ee]))*(?:[\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*,)?)[\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*)(?![\\s\\S])');
 export const postApiHabitsBodyRepeatReminderTwoIntervalMinutesRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiHabitsBodyMonthDaysItemRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 
 
 export const PostApiHabitsBody = zod.object({
@@ -5630,7 +5646,8 @@ export const PostApiHabitsBody = zod.object({
   "activeStart": zod.iso.time({}).nullish(),
   "activeEnd": zod.iso.time({}).nullish(),
   "startAtUtc": zod.iso.datetime({"offset":true}).nullish()
-})]).optional()
+})]).optional(),
+  "monthDays": zod.array(zod.union([zod.int(),zod.stringFormat('int32', postApiHabitsBodyMonthDaysItemRegExpTwo)])).nullish()
 })
 
 export const PostApiHabitsResponse = zod.void()
@@ -5680,6 +5697,7 @@ export const getApiHabitsCalendarMonthResponseHabitsItemChildrenItemRelativeRemi
 export const getApiHabitsCalendarMonthResponseHabitsItemChildrenItemRelativeRemindersItemWhenTwoTwoMax = 2147483647;
 
 export const getApiHabitsCalendarMonthResponseHabitsItemChildrenItemRepeatReminderTwoIntervalMinutesRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiHabitsCalendarMonthResponseHabitsItemChildrenItemMonthDaysItemRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsCalendarMonthResponseHabitsItemFlexibleTargetRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsCalendarMonthResponseHabitsItemFlexibleCompletedRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsCalendarMonthResponseHabitsItemInstancesItemStatusTwoMin = -2147483648;
@@ -5691,6 +5709,7 @@ export const getApiHabitsCalendarMonthResponseHabitsItemRelativeRemindersItemWhe
 export const getApiHabitsCalendarMonthResponseHabitsItemRelativeRemindersItemWhenTwoTwoMax = 2147483647;
 
 export const getApiHabitsCalendarMonthResponseHabitsItemRepeatReminderTwoIntervalMinutesRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiHabitsCalendarMonthResponseHabitsItemMonthDaysItemRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsCalendarMonthResponseLogsItemValueRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$');
 
 
@@ -5802,7 +5821,8 @@ export const GetApiHabitsCalendarMonthResponse = zod.object({
 })]).optional(),
   "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish(),
   "completedOn": zod.iso.date().nullish(),
-  "isSkippedOnDate": zod.boolean().nullish()
+  "isSkippedOnDate": zod.boolean().nullish(),
+  "monthDays": zod.array(zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsCalendarMonthResponseHabitsItemChildrenItemMonthDaysItemRegExpTwo)])).nullish()
 })),
   "hasSubHabits": zod.boolean(),
   "flexibleTarget": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsCalendarMonthResponseHabitsItemFlexibleTargetRegExpTwo)]).nullable(),
@@ -5836,7 +5856,8 @@ export const GetApiHabitsCalendarMonthResponse = zod.object({
 })]).optional(),
   "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish(),
   "completedOn": zod.iso.date().nullish(),
-  "isSkippedOnDate": zod.boolean().nullish()
+  "isSkippedOnDate": zod.boolean().nullish(),
+  "monthDays": zod.array(zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsCalendarMonthResponseHabitsItemMonthDaysItemRegExpTwo)])).nullish()
 })),
   "logs": zod.record(zod.string(), zod.array(zod.object({
   "id": zod.uuid(),
@@ -5928,6 +5949,7 @@ export const getApiHabitsIdResponseChildrenItemRelativeRemindersItemWhenTwoTwoMi
 export const getApiHabitsIdResponseChildrenItemRelativeRemindersItemWhenTwoTwoMax = 2147483647;
 
 export const getApiHabitsIdResponseChildrenItemRepeatReminderTwoIntervalMinutesRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiHabitsIdResponseChildrenItemMonthDaysItemRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsIdResponseIntervalWeeksRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsIdResponseRelativeRemindersItemMinutesBeforeRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsIdResponseRelativeRemindersItemWhenTwoTwoMin = -2147483648;
@@ -5935,6 +5957,7 @@ export const getApiHabitsIdResponseRelativeRemindersItemWhenTwoTwoMax = 21474836
 
 export const getApiHabitsIdResponseOriginalDayOfMonthRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsIdResponseRepeatReminderTwoIntervalMinutesRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiHabitsIdResponseMonthDaysItemRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 
 
 export const GetApiHabitsIdResponse = zod.object({
@@ -6016,7 +6039,8 @@ export const GetApiHabitsIdResponse = zod.object({
   "activeEnd": zod.iso.time({}).nullish(),
   "startAtUtc": zod.iso.datetime({"offset":true}).nullish()
 })]).optional(),
-  "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish()
+  "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish(),
+  "monthDays": zod.array(zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdResponseChildrenItemMonthDaysItemRegExpTwo)])).nullish()
 })),
   "emoji": zod.string().nullish(),
   "intervalWeeks": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdResponseIntervalWeeksRegExpTwo)]).nullish(),
@@ -6048,7 +6072,8 @@ export const GetApiHabitsIdResponse = zod.object({
   "activeEnd": zod.iso.time({}).nullish(),
   "startAtUtc": zod.iso.datetime({"offset":true}).nullish()
 })]).optional(),
-  "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish()
+  "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish(),
+  "monthDays": zod.array(zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdResponseMonthDaysItemRegExpTwo)])).nullish()
 })
 
 
@@ -6083,6 +6108,8 @@ export const putApiHabitsIdBodyRelativeRemindersItemWhenTwoTwoMax = 2147483647;
 export const putApiHabitsIdBodyRelativeRemindersItemWhenTwoThreeRegExp = new RegExp('^(?:same_day|day_before|[\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?:(?:[+]?0*(?:[0-9]{1,9}|1[0-9]{9}|20[0-9]{8}|21[0-3][0-9]{7}|214[0-6][0-9]{6}|2147[0-3][0-9]{5}|21474[0-7][0-9]{4}|214748[0-2][0-9]{3}|2147483[0-5][0-9]{2}|21474836[0-3][0-9]|214748364[0-7])|-0*(?:(?:[0-9]{1,9}|1[0-9]{9}|20[0-9]{8}|21[0-3][0-9]{7}|214[0-6][0-9]{6}|2147[0-3][0-9]{5}|21474[0-7][0-9]{4}|214748[0-2][0-9]{3}|2147483[0-5][0-9]{2}|21474836[0-3][0-9]|214748364[0-7])|2147483648))|(?:[Ss][Aa][Mm][Ee][Dd][Aa][Yy]|[Dd][Aa][Yy][Bb][Ee][Ff][Oo][Rr][Ee])(?:[\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*,[\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?:[Ss][Aa][Mm][Ee][Dd][Aa][Yy]|[Dd][Aa][Yy][Bb][Ee][Ff][Oo][Rr][Ee]))*(?:[\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*,)?)[\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*)(?![\\s\\S])');
 export const putApiHabitsIdBodyRepeatReminderTwoIntervalMinutesRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const putApiHabitsIdBodyClearRepeatReminderDefault = false;
+export const putApiHabitsIdBodyMonthDaysItemRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+
 
 export const PutApiHabitsIdBody = zod.object({
   "title": zod.string(),
@@ -6127,7 +6154,8 @@ export const PutApiHabitsIdBody = zod.object({
   "activeEnd": zod.iso.time({}).nullish(),
   "startAtUtc": zod.iso.datetime({"offset":true}).nullish()
 })]).optional(),
-  "clearRepeatReminder": zod.boolean().default(putApiHabitsIdBodyClearRepeatReminderDefault)
+  "clearRepeatReminder": zod.boolean().default(putApiHabitsIdBodyClearRepeatReminderDefault),
+  "monthDays": zod.array(zod.union([zod.int(),zod.stringFormat('int32', putApiHabitsIdBodyMonthDaysItemRegExpTwo)])).nullish()
 })
 
 export const PutApiHabitsIdResponse = zod.void()
@@ -6182,6 +6210,7 @@ export const getApiHabitsIdDetailResponseHabitChildrenItemRelativeRemindersItemW
 export const getApiHabitsIdDetailResponseHabitChildrenItemRelativeRemindersItemWhenTwoTwoMax = 2147483647;
 
 export const getApiHabitsIdDetailResponseHabitChildrenItemRepeatReminderTwoIntervalMinutesRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiHabitsIdDetailResponseHabitChildrenItemMonthDaysItemRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsIdDetailResponseHabitIntervalWeeksRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsIdDetailResponseHabitRelativeRemindersItemMinutesBeforeRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsIdDetailResponseHabitRelativeRemindersItemWhenTwoTwoMin = -2147483648;
@@ -6189,6 +6218,7 @@ export const getApiHabitsIdDetailResponseHabitRelativeRemindersItemWhenTwoTwoMax
 
 export const getApiHabitsIdDetailResponseHabitOriginalDayOfMonthRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsIdDetailResponseHabitRepeatReminderTwoIntervalMinutesRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiHabitsIdDetailResponseHabitMonthDaysItemRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsIdDetailResponseMetricsCurrentStreakRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsIdDetailResponseMetricsLongestStreakRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiHabitsIdDetailResponseMetricsWeeklyCompletionRateRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$');
@@ -6289,7 +6319,8 @@ export const GetApiHabitsIdDetailResponse = zod.object({
   "activeEnd": zod.iso.time({}).nullish(),
   "startAtUtc": zod.iso.datetime({"offset":true}).nullish()
 })]).optional(),
-  "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish()
+  "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish(),
+  "monthDays": zod.array(zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdDetailResponseHabitChildrenItemMonthDaysItemRegExpTwo)])).nullish()
 })),
   "emoji": zod.string().nullish(),
   "intervalWeeks": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdDetailResponseHabitIntervalWeeksRegExpTwo)]).nullish(),
@@ -6321,7 +6352,8 @@ export const GetApiHabitsIdDetailResponse = zod.object({
   "activeEnd": zod.iso.time({}).nullish(),
   "startAtUtc": zod.iso.datetime({"offset":true}).nullish()
 })]).optional(),
-  "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish()
+  "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish(),
+  "monthDays": zod.array(zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdDetailResponseHabitMonthDaysItemRegExpTwo)])).nullish()
 }),
   "metrics": zod.object({
   "currentStreak": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdDetailResponseMetricsCurrentStreakRegExpTwo)]),
@@ -6566,6 +6598,7 @@ export const postApiHabitsBulkBodyHabitsItemRelativeRemindersItemWhenTwoTwoMax =
 
 export const postApiHabitsBulkBodyHabitsItemRelativeRemindersItemWhenTwoThreeRegExp = new RegExp('^(?:same_day|day_before|[\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?:(?:[+]?0*(?:[0-9]{1,9}|1[0-9]{9}|20[0-9]{8}|21[0-3][0-9]{7}|214[0-6][0-9]{6}|2147[0-3][0-9]{5}|21474[0-7][0-9]{4}|214748[0-2][0-9]{3}|2147483[0-5][0-9]{2}|21474836[0-3][0-9]|214748364[0-7])|-0*(?:(?:[0-9]{1,9}|1[0-9]{9}|20[0-9]{8}|21[0-3][0-9]{7}|214[0-6][0-9]{6}|2147[0-3][0-9]{5}|21474[0-7][0-9]{4}|214748[0-2][0-9]{3}|2147483[0-5][0-9]{2}|21474836[0-3][0-9]|214748364[0-7])|2147483648))|(?:[Ss][Aa][Mm][Ee][Dd][Aa][Yy]|[Dd][Aa][Yy][Bb][Ee][Ff][Oo][Rr][Ee])(?:[\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*,[\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?:[Ss][Aa][Mm][Ee][Dd][Aa][Yy]|[Dd][Aa][Yy][Bb][Ee][Ff][Oo][Rr][Ee]))*(?:[\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*,)?)[\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*)(?![\\s\\S])');
 export const postApiHabitsBulkBodyHabitsItemRepeatReminderTwoIntervalMinutesRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiHabitsBulkBodyHabitsItemMonthDaysItemRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const postApiHabitsBulkBodyFromSyncReviewDefault = false;
 
 export const PostApiHabitsBulkBody = zod.object({
@@ -6607,7 +6640,8 @@ export const PostApiHabitsBulkBody = zod.object({
   "activeStart": zod.iso.time({}).nullish(),
   "activeEnd": zod.iso.time({}).nullish(),
   "startAtUtc": zod.iso.datetime({"offset":true}).nullish()
-})]).optional()
+})]).optional(),
+  "monthDays": zod.array(zod.union([zod.int(),zod.stringFormat('int32', postApiHabitsBulkBodyHabitsItemMonthDaysItemRegExpTwo)])).nullish()
 })),
   "fromSyncReview": zod.boolean().default(postApiHabitsBulkBodyFromSyncReviewDefault)
 })
@@ -6768,6 +6802,7 @@ export const postApiHabitsParentIdSubHabitsBodyRelativeRemindersItemWhenTwoTwoMa
 
 export const postApiHabitsParentIdSubHabitsBodyRelativeRemindersItemWhenTwoThreeRegExp = new RegExp('^(?:same_day|day_before|[\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?:(?:[+]?0*(?:[0-9]{1,9}|1[0-9]{9}|20[0-9]{8}|21[0-3][0-9]{7}|214[0-6][0-9]{6}|2147[0-3][0-9]{5}|21474[0-7][0-9]{4}|214748[0-2][0-9]{3}|2147483[0-5][0-9]{2}|21474836[0-3][0-9]|214748364[0-7])|-0*(?:(?:[0-9]{1,9}|1[0-9]{9}|20[0-9]{8}|21[0-3][0-9]{7}|214[0-6][0-9]{6}|2147[0-3][0-9]{5}|21474[0-7][0-9]{4}|214748[0-2][0-9]{3}|2147483[0-5][0-9]{2}|21474836[0-3][0-9]|214748364[0-7])|2147483648))|(?:[Ss][Aa][Mm][Ee][Dd][Aa][Yy]|[Dd][Aa][Yy][Bb][Ee][Ff][Oo][Rr][Ee])(?:[\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*,[\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?:[Ss][Aa][Mm][Ee][Dd][Aa][Yy]|[Dd][Aa][Yy][Bb][Ee][Ff][Oo][Rr][Ee]))*(?:[\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*,)?)[\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*)(?![\\s\\S])');
 export const postApiHabitsParentIdSubHabitsBodyRepeatReminderTwoIntervalMinutesRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiHabitsParentIdSubHabitsBodyMonthDaysItemRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 
 
 export const PostApiHabitsParentIdSubHabitsBody = zod.object({
@@ -6805,7 +6840,8 @@ export const PostApiHabitsParentIdSubHabitsBody = zod.object({
   "activeStart": zod.iso.time({}).nullish(),
   "activeEnd": zod.iso.time({}).nullish(),
   "startAtUtc": zod.iso.datetime({"offset":true}).nullish()
-})]).optional()
+})]).optional(),
+  "monthDays": zod.array(zod.union([zod.int(),zod.stringFormat('int32', postApiHabitsParentIdSubHabitsBodyMonthDaysItemRegExpTwo)])).nullish()
 })
 
 export const PostApiHabitsParentIdSubHabitsResponse = zod.void()
@@ -7936,6 +7972,7 @@ export const getApiSyncV2ChangesResponseHabitsUpdatedItemRelativeRemindersItemMi
 export const getApiSyncV2ChangesResponseHabitsUpdatedItemRelativeRemindersItemWhenTwoTwoMin = -2147483648;
 export const getApiSyncV2ChangesResponseHabitsUpdatedItemRelativeRemindersItemWhenTwoTwoMax = 2147483647;
 
+export const getApiSyncV2ChangesResponseHabitsUpdatedItemMonthDaysItemRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiSyncV2ChangesResponseHabitLogsUpdatedItemValueRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$');
 export const getApiSyncV2ChangesResponseGoalsUpdatedItemTargetValueRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$');
 export const getApiSyncV2ChangesResponseGoalsUpdatedItemCurrentValueRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$');
@@ -7987,7 +8024,8 @@ export const GetApiSyncV2ChangesResponse = zod.object({
   "time": zod.iso.time({}).nullish()
 })).nullish(),
   "schedule": zod.union([zod.null(),zod.enum(['OneTime', 'Recurring', 'Flexible', 'General'])]).optional(),
-  "startDate": zod.iso.date().nullish()
+  "startDate": zod.iso.date().nullish(),
+  "monthDays": zod.array(zod.union([zod.int(),zod.stringFormat('int32', getApiSyncV2ChangesResponseHabitsUpdatedItemMonthDaysItemRegExpTwo)])).nullish()
 })),
   "deleted": zod.array(zod.object({
   "id": zod.uuid(),
