@@ -270,15 +270,26 @@ object through `pendingOperationExecutionPatch`, the same patch the live confirm
 restored card then shows the same done block on web and Android: the stacked settled rows,
 the per-row outcome and Open.
 
-The API removes `payload` from an execution that exceeds its stored budget. That execution
-keeps its status and its target, so the rows still show the outcome. Open shows only when a
-target id survives. A stored failure shows the failed outcome without Retry, as the live
-response does.
+The API removes `payload` from an execution that exceeds its stored budget. The execution
+keeps its status and its target. For most capabilities, the status is the outcome of each row,
+so the restored rows still show it, and Open shows when a target id survives.
 
-The bare outcome notice stays for `edited` and `expired`, and for an `approved` turn that the
-API recorded before it stored executions. A rejected outcome keeps its rejected notice.
+`bulk_create_habits` is different. Each row gets its outcome only from `payload.results`, and a
+partly failed batch keeps the status `Succeeded`. When the stored execution has no item results
+that `bulkCreateResponseSchema` can read, the restore cannot tell which rows failed. The card
+then shows the bare approved notice, which makes no claim about a row.
+
+A restored card never shows Retry. Retry asks the API for a new confirmation of the same pending
+operation. The API refuses that confirmation after the policy consumes the operation, and after
+the operation expires (`PendingOperationTtlMinutes`, 10 minutes by default). A stored execution
+does not record whether the operation was consumed, so `restoreConversationPage` sets
+`canRetry` to `false`. A restored failure shows its failed outcome and its recovery notice.
+
+The bare outcome notice stays for `edited` and `expired`, for an `approved` turn that the API
+recorded before it stored executions, and for the `bulk_create_habits` case above. A rejected
+outcome keeps its rejected notice.
 
 The restored rows use the preview in `responseJson`. The API does not rewrite that preview
 when a person edits it before approval, so an edited and then approved turn shows the words of
-the original proposal (#2054). The shared restore test and both card tests cover the stored, truncated
-and absent cases. The `astra-conversation-history` layout guard measures the rebuilt row.
+the original proposal (#2054). The shared restore test and both card tests cover the stored and absent cases, a truncated
+batch with a failed item, and a failed batch without item results. The `astra-conversation-history` layout guard measures the rebuilt row.

@@ -1,17 +1,22 @@
 import { z } from 'zod'
 import { API } from '../api/endpoints'
+import type { AgentOperationResult } from '../types/ai'
 import { chatResponseSchema, type ChatMessage } from '../types/chat'
 import { conversationPreviewOutcomeSchema, type ConversationPage, type ConversationPreviewOutcome } from '../types/conversation'
+import { getPendingOperationItemResults, reportsPendingOperationItemResults } from '../hooks/pending-operation-card-core'
 import { buildChatFinalMessageFields } from './final-message'
 import { pendingOperationExecutionPatch, type PendingOperationMessageState } from './pending-operation-message-state'
+
+function restoredExecutionState(execution: AgentOperationResult | undefined): PendingOperationMessageState {
+  if (!execution || (reportsPendingOperationItemResults(execution) && !getPendingOperationItemResults(execution))) return { recordedOutcome: 'approved' }
+  return { ...pendingOperationExecutionPatch({ ok: true, response: { operation: execution } }), canRetry: false }
+}
 
 function restoredOperationState(outcome: ConversationPreviewOutcome): PendingOperationMessageState | undefined {
   switch (outcome.Outcome) {
     case 'pending': return undefined
     case 'rejected': return { rejected: true, dismissed: true }
-    case 'approved': return outcome.Execution
-      ? pendingOperationExecutionPatch({ ok: true, response: { operation: outcome.Execution } })
-      : { recordedOutcome: 'approved' }
+    case 'approved': return restoredExecutionState(outcome.Execution)
     default: return { recordedOutcome: outcome.Outcome }
   }
 }

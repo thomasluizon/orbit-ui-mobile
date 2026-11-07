@@ -1,3 +1,4 @@
+import type { AgentOperationResult } from '../types/ai'
 import { conversationPageSchema, type ConversationPage } from '../types/conversation'
 import { makePendingAgentOperation } from './chat-fixtures'
 import { makeBulkCreateExecutionResponse, makeTicketTaskPreview } from './pending-operation-preview-fixtures'
@@ -46,12 +47,22 @@ export function makeRevisedConversationPage(outcome: 'approved' | 'edited' | 'ex
   return page
 }
 
-export function makeExecutedConversationPage(execution: 'stored' | 'truncated' | 'absent' = 'stored'): ConversationPage {
-  const operation = makeBulkCreateExecutionResponse(['Success']).operation
-  const stored = execution === 'stored' ? operation : { ...operation, payload: null }
+export type StoredExecution = 'stored' | 'storedFailure' | 'truncated' | 'truncatedFailure' | 'failedWithoutPayload' | 'absent'
+
+function storedExecution(execution: Exclude<StoredExecution, 'absent'>): AgentOperationResult {
+  switch (execution) {
+    case 'stored': return makeBulkCreateExecutionResponse(['Success']).operation
+    case 'storedFailure': return makeBulkCreateExecutionResponse(['Failed']).operation
+    case 'truncated': return { ...makeBulkCreateExecutionResponse(['Success']).operation, payload: null }
+    case 'truncatedFailure': return { ...makeBulkCreateExecutionResponse(['Failed']).operation, payload: null }
+    case 'failedWithoutPayload': return makeBulkCreateExecutionResponse().operation
+  }
+}
+
+export function makeExecutedConversationPage(execution: StoredExecution = 'stored'): ConversationPage {
   const page = makeConversationPage()
   page.turns[1]!.responseJson = JSON.stringify({ aiMessage: '', actions: [], pendingOperations: [{ ...makeTicketTaskPreview(), id: storedOperationId }] })
   page.turns[1]!.previewOutcomesJson = JSON.stringify([{ PendingOperationId: storedOperationId, Outcome: 'approved', Arguments: {}, Revision: 2,
-    ...(execution === 'absent' ? {} : { Execution: stored }) }])
+    ...(execution === 'absent' ? {} : { Execution: storedExecution(execution) }) }])
   return conversationPageSchema.parse(page)
 }

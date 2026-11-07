@@ -115,10 +115,10 @@ describe('PendingOperationCard (mobile)', () => {
     TestRenderer.act(() => tree!.unmount())
   })
 
-  it.each(['stored', 'truncated'] as const)('rebuilds the done block after a cold restart from a %s execution', execution => {
+  it('rebuilds the done block after a cold restart from a stored execution', () => {
     visibleLocale.actual = true
     visibleLocale.language = 'pt-BR'
-    const message = restoreConversationPage(makeExecutedConversationPage(execution))[1]!
+    const message = restoreConversationPage(makeExecutedConversationPage('stored'))[1]!
     const handlers = { onConfirmExecute: vi.fn(), onPrepareStepUp: vi.fn(), onVerifyStepUp: vi.fn(), onRevise: vi.fn(), onOpenTarget: vi.fn() }
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<PendingOperationCard pendingOperation={message.pendingOperations![0]!} savedState={message.pendingOperationStates![storedOperationId]} {...handlers} />) })
@@ -129,24 +129,22 @@ describe('PendingOperationCard (mobile)', () => {
     expect(text).toContain(ptBR.blockFrame.status.done)
     expect(text).toContain(TICKET_TASK_DESCRIPTION)
     for (const label of [ptBR.chat.operation.edit, ptBR.common.retry]) expect(press(tree, label)).toBeUndefined()
-    const open = press(tree, ptBR.chat.action.open)
-    if (execution === 'truncated') expect(open).toBeUndefined()
-    else {
-      TestRenderer.act(() => open.props.onPress())
-      expect(handlers.onOpenTarget).toHaveBeenCalledWith('00000000-0000-4000-8000-000000000020', 'CreateHabit')
-    }
+    TestRenderer.act(() => press(tree, ptBR.chat.action.open).props.onPress())
+    expect(handlers.onOpenTarget).toHaveBeenCalledWith('00000000-0000-4000-8000-000000000020', 'CreateHabit')
     expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
     TestRenderer.act(() => tree!.unmount())
   })
 
-  it('keeps the approved notice after a cold restart when the turn has no stored execution', () => {
-    const message = restoreConversationPage(makeExecutedConversationPage('absent'))[1]!
+  it.each(['absent', 'truncated', 'truncatedFailure', 'failedWithoutPayload'] as const)('keeps the approved notice after a cold restart when the %s execution cannot report each item', execution => {
+    const message = restoreConversationPage(makeExecutedConversationPage(execution))[1]!
     const handlers = { onConfirmExecute: vi.fn(), onPrepareStepUp: vi.fn(), onVerifyStepUp: vi.fn(), onRevise: vi.fn() }
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<PendingOperationCard pendingOperation={message.pendingOperations![0]!} savedState={message.pendingOperationStates![storedOperationId]} {...handlers} />) })
     const text = renderedText(tree!.toJSON())
     expect(text).toContain('chat.conversation.approved')
     expect(text).not.toContain(TICKET_TASK_TITLE)
+    expect(text).not.toContain('blockFrame.status.done')
+    expect(press(tree, 'common.retry')).toBeUndefined()
     TestRenderer.act(() => tree!.unmount())
   })
 

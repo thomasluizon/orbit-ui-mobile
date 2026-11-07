@@ -98,32 +98,30 @@ describe('PendingOperationCard', () => {
     expect(revise).not.toHaveBeenCalled()
   })
 
-  it.each(['stored', 'truncated'] as const)('rebuilds the done block after a cold restart from a %s execution', execution => {
+  it('rebuilds the done block after a cold restart from a stored execution', () => {
     visibleLocale.actual = true
     visibleLocale.language = 'pt-BR'
     const onOpenTarget = vi.fn()
-    const message = restoreConversationPage(makeExecutedConversationPage(execution))[1]!
+    const message = restoreConversationPage(makeExecutedConversationPage('stored'))[1]!
     render(<PendingOperationCard pendingOperation={message.pendingOperations![0]!} savedState={message.pendingOperationStates![storedOperationId]} onOpenTarget={onOpenTarget} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     expect(screen.queryByText(ptBR.chat.conversation.approved)).not.toBeInTheDocument()
     const row = screen.getByText(personalText(TICKET_TASK_TITLE)).closest('[data-status]')! as HTMLElement
     expect(row).toHaveAttribute('data-status', 'done')
     expect(within(row).getByText(ptBR.blockFrame.status.done)).toBeInTheDocument()
-    expect(within(row).getByText(personalText(new RegExp(TICKET_TASK_DESCRIPTION.replace(/[.]/g, '\\.'))))).toBeInTheDocument()
+    expect(row).toHaveTextContent(TICKET_TASK_DESCRIPTION)
     expect(screen.queryByRole('button', { name: new RegExp(`^(Criar|${ptBR.chat.operation.edit}|Recusar|${ptBR.common.retry})`) })).not.toBeInTheDocument()
-    const open = within(row).queryByRole('button', { name: translateVisible('chat.action.openEntity', { name: TICKET_TASK_TITLE }) })
-    if (execution === 'truncated') expect(open).not.toBeInTheDocument()
-    else {
-      fireEvent.click(open!)
-      expect(onOpenTarget).toHaveBeenCalledWith('00000000-0000-4000-8000-000000000020', 'CreateHabit')
-    }
+    fireEvent.click(within(row).getByRole('button', { name: translateVisible('chat.action.openEntity', { name: TICKET_TASK_TITLE }) }))
+    expect(onOpenTarget).toHaveBeenCalledWith('00000000-0000-4000-8000-000000000020', 'CreateHabit')
     expect(confirm).not.toHaveBeenCalled()
   })
 
-  it('keeps the approved notice after a cold restart when the turn has no stored execution', () => {
-    const message = restoreConversationPage(makeExecutedConversationPage('absent'))[1]!
+  it.each(['absent', 'truncated', 'truncatedFailure', 'failedWithoutPayload'] as const)('keeps the approved notice after a cold restart when the %s execution cannot report each item', execution => {
+    const message = restoreConversationPage(makeExecutedConversationPage(execution))[1]!
     render(<PendingOperationCard pendingOperation={message.pendingOperations![0]!} savedState={message.pendingOperationStates![storedOperationId]} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     expect(screen.getByText('chat.conversation.approved')).toBeInTheDocument()
     expect(screen.queryByText(personalText(TICKET_TASK_TITLE))).not.toBeInTheDocument()
+    expect(screen.queryByText('blockFrame.status.done')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'common.retry' })).not.toBeInTheDocument()
   })
 
   it.each(['approved', 'edited', 'expired'] as const)('renders a restored %s preview read-only without an execution claim', recordedOutcome => {

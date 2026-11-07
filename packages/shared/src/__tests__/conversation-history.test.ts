@@ -40,25 +40,27 @@ describe('conversation restoration', () => {
     else expect(state).toMatchObject({ recordedOutcome: outcome })
     expect(state?.status).toBeUndefined()
   })
-  it.each(['stored', 'truncated'] as const)('rebuilds the done block from an approved outcome with a %s execution', execution => {
+  it.each([['stored', 'done'], ['storedFailure', 'failed']] as const)('rebuilds the block from an approved outcome with a %s execution', (execution, status) => {
     const page = makeExecutedConversationPage(execution)
-    const stored = JSON.parse(page.turns[1]!.previewOutcomesJson)[0].Execution
+    const stored = agentOperationResultSchema.parse(JSON.parse(page.turns[1]!.previewOutcomesJson)[0].Execution)
     const state = restoreConversationPage(page)[1]!.pendingOperationStates?.[storedOperationId]
-    expect(state).toEqual(pendingOperationExecutionPatch({ ok: true, response: { operation: agentOperationResultSchema.parse(stored) } }))
-    expect(state).toMatchObject({ status: 'done', canRetry: false, completedOperation: { status: 'Succeeded', payload: execution === 'stored' ? stored.payload : null } })
+    expect(state).toEqual(pendingOperationExecutionPatch({ ok: true, response: { operation: stored } }))
+    expect(state).toMatchObject({ status, canRetry: false, completedOperation: { sourceName: 'bulk_create_habits', status: 'Succeeded', payload: stored.payload } })
     expect(state?.recordedOutcome).toBeUndefined()
   })
-  it('keeps the approved notice for a turn recorded without an execution', () => {
-    const state = restoreConversationPage(makeExecutedConversationPage('absent'))[1]!.pendingOperationStates?.[storedOperationId]
+  it.each(['absent', 'truncated', 'truncatedFailure', 'failedWithoutPayload'] as const)('keeps the approved notice when the %s execution cannot report each item', execution => {
+    const state = restoreConversationPage(makeExecutedConversationPage(execution))[1]!.pendingOperationStates?.[storedOperationId]
     expect(state).toEqual({ recordedOutcome: 'approved' })
   })
-  it('restores a failed stored execution without offering a replay', () => {
+  it.each([['Succeeded', 'done'], ['Failed', 'failed']] as const)('rebuilds a %s create_habit execution stored without its payload', (operationStatus, status) => {
     const page = makeExecutedConversationPage()
     const outcomes = JSON.parse(page.turns[1]!.previewOutcomesJson)
-    outcomes[0].Execution = { ...outcomes[0].Execution, status: 'Failed', payload: null, policyReason: 'unexpected_error' }
-    outcomes[0].Execution.sourceName = 'create_habit'
+    outcomes[0].Execution = { operationId: 'create_habit', sourceName: 'create_habit', riskClass: 'Low', confirmationRequirement: 'FreshConfirmation',
+      status: operationStatus, summary: null, targetId: '00000000-0000-4000-8000-000000000020', targetName: null,
+      policyReason: operationStatus === 'Failed' ? 'unexpected_error' : null, pendingOperationId: null, payload: null }
     page.turns[1]!.previewOutcomesJson = JSON.stringify(outcomes)
-    expect(restoreConversationPage(page)[1]!.pendingOperationStates?.[storedOperationId]).toMatchObject({ status: 'failed', canRetry: false })
+    expect(restoreConversationPage(page)[1]!.pendingOperationStates?.[storedOperationId])
+      .toMatchObject({ status, canRetry: false, completedOperation: { sourceName: 'create_habit', targetId: '00000000-0000-4000-8000-000000000020' } })
   })
   it('deduplicates simultaneous reads and pins earlier pages to their thread', async () => {
     await Promise.all([history.latest(), history.latest()])

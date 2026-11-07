@@ -72,15 +72,19 @@ export function getPendingOperationExecutionStatus(
   return result.ok && operation?.status === 'Succeeded' && !hasFailedItems ? 'done' : 'failed'
 }
 
+export function reportsPendingOperationItemResults(operation?: AgentOperationResult): operation is AgentOperationResult {
+  return operation?.sourceName === 'bulk_create_habits'
+}
+
 export function getPendingOperationItemResults(operation?: AgentOperationResult): BulkCreateResponse['results'] | undefined {
-  if (operation?.sourceName !== 'bulk_create_habits') return undefined
+  if (!reportsPendingOperationItemResults(operation)) return undefined
   const parsed = bulkCreateResponseSchema.safeParse(operation.payload)
   return parsed.success ? parsed.data.results : undefined
 }
 
 export function getPendingOperationExecutionCanRetry(result: PendingOperationExecutionResult): boolean {
   const operation = result.response?.operation
-  return !result.ok || (operation?.sourceName === 'bulk_create_habits'
+  return !result.ok || (reportsPendingOperationItemResults(operation)
     && operation.status === 'Failed' && operation.payload == null)
 }
 
