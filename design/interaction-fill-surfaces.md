@@ -276,7 +276,13 @@ Only the innermost control under the pointer or finger shows a hover or press fi
 card or tile lights from its own body. While a nested control is hovered or pressed, the parent
 stays at its resting background, and the nested control paints its own `bgHover` fill. The parent
 fill returns when the pointer moves from the nested control to the body. Keyboard focus keeps its
-existing rings and the parent fill.
+existing rings and the parent fill. While a nested control is hovered or pressed, the parent fill
+and its supporting text swaps stay at rest, also under keyboard focus on the body.
+
+On web, a nested control is any enabled `button`, `a[href]` or `[role="button"]` inside the surface
+other than its `.orbit-list-row-body`. Fine pointers exclude a nested `:hover` or `:active`. Coarse
+pointers exclude only a nested `:active`, because a touch browser can keep `:hover` on the last
+tapped element.
 
 | Platform | Shared owner | Consumers |
 |---|---|---|
@@ -284,12 +290,16 @@ existing rings and the parent fill.
 | Android | `surfaceHighlighted` and `nestedControlFill` in `hooks/use-row-feedback.ts` | ListRow with an action, checklist template rows, calendar import event rows and notification rows |
 
 HabitRow already lights only from its body on both platforms. PickerRow and HabitBlockRow on
-Android attach row feedback to the body alone.
+Android attach row feedback to the body alone, so a nested check, disclosure or trailing button
+never lights the row. The tag picker body has no `.orbit-list-row-body` class and paints its own
+fill, so the tag edit and delete buttons beside it are sibling fills.
 
 Web `__tests__/components/ui/nested-control-fill.test.tsx` hovers and presses each nested control
-in Chromium for the notification row, a ListRow action and a calendar import event row. It
-asserts the resting parent background, the nested `bgHover` fill and the parent fill after the
-pointer returns to the body. `e2e/layout/nested-control-fill.spec.ts` repeats these checks on the
+in Chromium for the notification row, a ListRow action, a calendar import event row and an Astra
+habit block row with its check. It asserts the resting parent background, the nested `bgHover`
+fill and the parent fill after the pointer returns to the body. It also hovers each nested control
+while the body holds keyboard focus and asserts the resting parent fill and text colours. `e2e/layout/nested-control-fill.spec.ts` repeats these checks on the
 Avisos screen, the checklist templates sheet and the calendar import sheet. Android
 `__tests__/components/ui/nested-control-press-feedback.test.tsx` drives press, hover and focus
-on the same three surfaces.
+on the same three surfaces, and `__tests__/components/habits/checklist-templates.test.tsx` presses
+and hovers the template delete.

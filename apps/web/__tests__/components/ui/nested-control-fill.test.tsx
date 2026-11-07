@@ -9,10 +9,12 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { CalendarSyncEvent } from '@orbit/shared'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
+import { makePickListLayoutBlock } from '@orbit/shared/test-support/choice-layout-fixtures'
 import en from '@orbit/shared/i18n/en.json'
 import { ListRow } from '@/components/ui/list-row'
 import { NotificationRow } from '@/components/navigation/notification-row'
 import { CalendarSyncEventRow } from '@/components/calendar-sync/calendar-sync-event-row'
+import { PickListBlock } from '@/components/chat/pick-list-block'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -35,6 +37,7 @@ interface Surface {
   parent: string
   body: string
   nested: string
+  paint?: string
 }
 
 const surfaces: Surface[] = [
@@ -47,7 +50,7 @@ const surfaces: Surface[] = [
   },
   {
     name: 'list row with a trailing action',
-    element: () => <ListRow title="Morning run" onClick={vi.fn()} action={{ icon: 'trash', label: 'Remove row', onPress: vi.fn() }} />,
+    element: () => <ListRow title="Morning run" description="Every weekday" onClick={vi.fn()} action={{ icon: 'trash', label: 'Remove row', onPress: vi.fn() }} />,
     parent: '.orbit-list-action-surface',
     body: '.orbit-list-row-body',
     nested: '.orbit-list-row-action',
@@ -59,9 +62,17 @@ const surfaces: Surface[] = [
     body: '.orbit-list-row-body',
     nested: '.icon-btn',
   },
+  {
+    name: 'Astra habit block row with a nested check',
+    element: () => <PickListBlock block={makePickListLayoutBlock('en')} />,
+    parent: '[data-habit-block-row]',
+    body: '.orbit-list-row-body',
+    nested: '[data-habit-row-control="check"]',
+    paint: '[data-habit-check]',
+  },
 ]
 
-function readFills(selectors: { parent: string; nested?: string }) {
+function readFills(selectors: { parent: string; nested?: string; paint?: string }) {
   const parent = document.querySelector(selectors.parent)!
   const probe = document.createElement('span')
   probe.style.backgroundColor = 'var(--bg-hover)'
@@ -69,9 +80,23 @@ function readFills(selectors: { parent: string; nested?: string }) {
   const hover = getComputedStyle(probe).backgroundColor
   probe.remove()
   const transparent = (color: string) => /^(transparent|rgba\([^)]*,\s*0\))$/.test(color)
-  const nested = selectors.nested ? document.querySelector(`${selectors.parent} ${selectors.nested}:hover`) : null
+  const hovered = selectors.nested ? parent.querySelector(`${selectors.nested}:hover`) : null
+  const nested = hovered && selectors.paint ? hovered.querySelector(selectors.paint) : hovered
   const nestedPaint = nested ? [getComputedStyle(nested).backgroundColor, getComputedStyle(nested, '::before').backgroundColor].find((color) => !transparent(color)) ?? null : null
   return { parent: getComputedStyle(parent, '::before').backgroundColor, hover, nestedPaint }
+}
+
+function readText(parentSelector: string) {
+  const parent = document.querySelector(parentSelector)!
+  const probe = (color: string) => {
+    const span = document.createElement('span')
+    span.style.color = color
+    parent.append(span)
+    const value = getComputedStyle(span).color
+    span.remove()
+    return value
+  }
+  return { secondary: probe('var(--orbit-list-row-secondary, var(--fg-3))'), tertiary: probe('var(--fg-3)') }
 }
 
 async function settle(page: Page) {
@@ -89,36 +114,63 @@ describe('one active fill for a nested control in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each((['dark', 'light'] as const).flatMap((mode) => surfaces.map((surface) => ({ ...surface, mode }))))('keeps the $name fill at rest under a nested control in $mode', async ({ element, parent, body, nested, mode }) => {
-    const markup = renderToStaticMarkup(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC"><main style={{ padding: 24, maxWidth: 412 }}>{element()}</main></NextIntlClientProvider>)
+  async function openSurface(element: ReactElement, mode: 'dark' | 'light') {
+    const markup = renderToStaticMarkup(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC"><main style={{ padding: 24, maxWidth: 412 }}>{element}</main></NextIntlClientProvider>)
     const page = await browser.newPage({ viewport: { width: 412, height: 915 }, reducedMotion: 'reduce' })
+    const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+    await page.setContent(`<html class="${mode}" style="${variables}"><style>${stylesheet} *, *::before, *::after { transition: none !important }</style>${markup}</html>`)
+    await page.mouse.move(0, 0)
+    await settle(page)
+    return page
+  }
+
+  it.each((['dark', 'light'] as const).flatMap((mode) => surfaces.map((surface) => ({ ...surface, mode }))))('keeps the $name fill at rest under a nested control in $mode', async ({ element, parent, body, nested, paint, mode }) => {
+    const page = await openSurface(element(), mode)
     try {
-      const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
-      await page.setContent(`<html class="${mode}" style="${variables}"><style>${stylesheet} *, *::before, *::after { transition: none !important }</style>${markup}</html>`)
-      await page.mouse.move(0, 0)
-      await settle(page)
       const resting = (await page.evaluate(readFills, { parent })).parent
-      const controls = page.locator(`${parent} ${nested}`)
+      const controls = page.locator(parent).first().locator(nested)
       expect(await controls.count()).toBeGreaterThan(0)
       for (const control of await controls.all()) {
         await control.hover()
         await settle(page)
-        const hovered = await page.evaluate(readFills, { parent, nested })
+        const hovered = await page.evaluate(readFills, { parent, nested, paint })
         expect(hovered.nestedPaint, 'nested control paints the visible neutral hover fill').toBe(hovered.hover)
         expect(hovered.parent, 'parent fill while the nested control is hovered').toBe(resting)
         await page.mouse.down()
         await settle(page)
-        const pressed = await page.evaluate(readFills, { parent, nested })
+        const pressed = await page.evaluate(readFills, { parent, nested, paint })
         expect(pressed.nestedPaint, 'nested control paints the visible neutral press fill').toBe(pressed.hover)
         expect(pressed.parent, 'parent fill while the nested control is pressed').toBe(resting)
         await page.mouse.move(0, 0)
         await page.mouse.up()
       }
       await controls.first().hover()
-      await page.locator(`${parent} ${body}`).first().hover()
+      await page.locator(parent).first().locator(body).hover()
       await settle(page)
       const returned = await page.evaluate(readFills, { parent })
       expect(returned.parent, 'parent fill after the pointer moves from the nested control to the body').toBe(returned.hover)
+    } finally { await page.close() }
+  })
+
+  it.each((['dark', 'light'] as const).flatMap((mode) => surfaces.map((surface) => ({ ...surface, mode }))))('keeps the $name fill and text at rest when a nested control is hovered over the keyboard-focused body in $mode', async ({ element, parent, body, nested, paint, mode }) => {
+    const page = await openSurface(element(), mode)
+    try {
+      const resting = { fill: (await page.evaluate(readFills, { parent })).parent, text: await page.evaluate(readText, parent) }
+      for (let step = 0; step < 10 && !(await page.evaluate((selector) => document.activeElement?.matches(selector) ?? false, `${parent} ${body}`)); step += 1) await page.keyboard.press('Tab')
+      await settle(page)
+      expect(await page.evaluate((selector) => document.activeElement?.matches(`${selector}:focus-visible`) ?? false, `${parent} ${body}`), 'the row body holds keyboard focus').toBe(true)
+      const focused = await page.evaluate(readFills, { parent })
+      expect(focused.parent, 'the keyboard-focused body lights its row').toBe(focused.hover)
+      const controls = page.locator(parent).first().locator(nested)
+      expect(await controls.count()).toBeGreaterThan(0)
+      for (const control of await controls.all()) {
+        await control.hover()
+        await settle(page)
+        const hovered = await page.evaluate(readFills, { parent, nested, paint })
+        expect(hovered.nestedPaint, 'nested control paints the visible neutral hover fill').toBe(hovered.hover)
+        expect(hovered.parent, 'parent fill while the nested control is hovered over the focused body').toBe(resting.fill)
+        expect(await page.evaluate(readText, parent), 'row text colours while the nested control is hovered over the focused body').toEqual(resting.text)
+      }
     } finally { await page.close() }
   })
 })

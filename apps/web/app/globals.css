@@ -382,17 +382,19 @@ select[aria-hidden="true"] {
   position: relative;
 }
 
-/* WHY: only the innermost control under the pointer or finger paints a fill, so a surface lights from its body and never from a nested control (#2057). */
-.orbit-list-action-surface:has(.orbit-list-row-body:active:not(:disabled), :is(.orbit-list-row-body, .orbit-list-row-action, .icon-btn):focus-visible:not(:disabled)):not(:has(:is(.orbit-list-row-action, .icon-btn):active)) {
-  --orbit-list-row-secondary: var(--fg-2);
-}
+/* WHY: only the innermost control under the pointer or finger paints a fill, so a surface lights from its body and never from any nested control (#2057). */
+@media (hover: none), (pointer: coarse), (pointer: none) {
+  .orbit-list-action-surface:has(.orbit-list-row-body:active:not(:disabled), :is(.orbit-list-row-body, .orbit-list-row-action, .icon-btn):focus-visible:not(:disabled)):not(:has(:is(button, a[href], [role="button"]):not(.orbit-list-row-body, :disabled):active)) {
+    --orbit-list-row-secondary: var(--fg-2);
+  }
 
-.orbit-list-action-surface:not([data-habit-block-row]):has(.orbit-list-row-body:active:not(:disabled), :is(.orbit-list-row-body, .orbit-list-row-action, .icon-btn):focus-visible:not(:disabled)):not(:has(:is(.orbit-list-row-action, .icon-btn):active)) {
-  --fg-3: var(--fg-2);
-}
+  .orbit-list-action-surface:not([data-habit-block-row]):has(.orbit-list-row-body:active:not(:disabled), :is(.orbit-list-row-body, .orbit-list-row-action, .icon-btn):focus-visible:not(:disabled)):not(:has(:is(button, a[href], [role="button"]):not(.orbit-list-row-body, :disabled):active)) {
+    --fg-3: var(--fg-2);
+  }
 
-.orbit-list-action-surface:has(.orbit-list-row-body:active:not(:disabled), :is(.orbit-list-row-body, .orbit-list-row-action, .icon-btn):focus-visible:not(:disabled)):not(:has(:is(.orbit-list-row-action, .icon-btn):active))::before {
-  background: var(--bg-hover);
+  .orbit-list-action-surface:has(.orbit-list-row-body:active:not(:disabled), :is(.orbit-list-row-body, .orbit-list-row-action, .icon-btn):focus-visible:not(:disabled)):not(:has(:is(button, a[href], [role="button"]):not(.orbit-list-row-body, :disabled):active))::before {
+    background: var(--bg-hover);
+  }
 }
 
 .orbit-list-action-surface .orbit-list-row-body:is(:active, :focus-visible) {
@@ -428,8 +430,16 @@ select[aria-hidden="true"] {
     background: var(--bg-hover);
   }
 
-  .orbit-list-action-surface:has(.orbit-list-row-body:active:not(:disabled), :is(.orbit-list-row-body, .orbit-list-row-action, .icon-btn):focus-visible:not(:disabled)):has(:is(.orbit-list-row-action, .icon-btn):hover)::before {
-    background: transparent;
+  .orbit-list-action-surface:has(.orbit-list-row-body:active:not(:disabled), :is(.orbit-list-row-body, .orbit-list-row-action, .icon-btn):focus-visible:not(:disabled)):not(:has(:is(button, a[href], [role="button"]):not(.orbit-list-row-body, :disabled):is(:active, :hover))) {
+    --orbit-list-row-secondary: var(--fg-2);
+  }
+
+  .orbit-list-action-surface:not([data-habit-block-row]):has(.orbit-list-row-body:active:not(:disabled), :is(.orbit-list-row-body, .orbit-list-row-action, .icon-btn):focus-visible:not(:disabled)):not(:has(:is(button, a[href], [role="button"]):not(.orbit-list-row-body, :disabled):is(:active, :hover))) {
+    --fg-3: var(--fg-2);
+  }
+
+  .orbit-list-action-surface:has(.orbit-list-row-body:active:not(:disabled), :is(.orbit-list-row-body, .orbit-list-row-action, .icon-btn):focus-visible:not(:disabled)):not(:has(:is(button, a[href], [role="button"]):not(.orbit-list-row-body, :disabled):is(:active, :hover)))::before {
+    background: var(--bg-hover);
   }
 
   .orbit-list-action-surface > .icon-btn:focus-visible:hover,
