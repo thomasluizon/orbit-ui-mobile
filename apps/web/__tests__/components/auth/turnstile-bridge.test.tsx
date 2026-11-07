@@ -26,6 +26,7 @@ it('posts widget state and tokens through the native bridge', () => {
   expect(widget.props?.language).toBe('pt-BR')
   expect(widget.props?.theme).toBe('light')
   expect(widget.props?.resetKey).toBe(0)
+  expect(widget.props?.quiet).toBe(true)
   expect(container.firstElementChild).toHaveStyle({ backgroundColor: neutralColors.light.bg, colorScheme: 'light' })
   expect(container.firstElementChild).toHaveStyle({ '--fg-2': neutralColors.light.fg2 })
 
