@@ -260,3 +260,25 @@ text scales. The Chromium geometry suite and the `astra-preview-done-row` layout
 measure the same row on web. Each suite requires that the completed summary is at least
 its pending width and that each line breaks only at a space. Native text rendering on a
 device remains a release verification boundary.
+
+## Restored done block (#2048, #2053)
+
+A reopened conversation reads each preview outcome from `previewOutcomesJson`. An `approved`
+outcome can carry `Execution`, the operation object that the live confirm response returned.
+`restoreConversationPage` in `packages/shared/src/chat/conversation-restore.ts` passes that
+object through `pendingOperationExecutionPatch`, the same patch the live confirm uses. The
+restored card then shows the same done block on web and Android: the stacked settled rows,
+the per-row outcome and Open.
+
+The API removes `payload` from an execution that exceeds its stored budget. That execution
+keeps its status and its target, so the rows still show the outcome. Open shows only when a
+target id survives. A stored failure shows the failed outcome without Retry, as the live
+response does.
+
+The bare outcome notice stays for `edited` and `expired`, and for an `approved` turn that the
+API recorded before it stored executions. A rejected outcome keeps its rejected notice.
+
+The restored rows use the preview in `responseJson`. The API does not rewrite that preview
+when a person edits it before approval, so an edited and then approved turn shows the words of
+the original proposal (#2054). The shared restore test and both card tests cover the stored, truncated
+and absent cases. The `astra-conversation-history` layout guard measures the rebuilt row.
