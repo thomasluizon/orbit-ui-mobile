@@ -7,6 +7,7 @@ import { WebView, type WebViewMessageEvent } from 'react-native-webview'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { APP_LINK_ORIGIN } from '@/lib/app-link-origin'
+import { shouldLoadTurnstileFrame, TURNSTILE_ORIGIN_ALLOWLIST } from '@/lib/turnstile-frames'
 
 type WidgetState = 'idle' | 'loading' | 'solved' | 'failed' | 'expired'
 
@@ -66,6 +67,8 @@ export function TurnstileWidget({
       <WebView
         key={`${resetKey}-${attempt}`}
         source={{ uri: bridgeUrl }}
+        originWhitelist={TURNSTILE_ORIGIN_ALLOWLIST}
+        onShouldStartLoadWithRequest={(request) => shouldLoadTurnstileFrame(request, APP_LINK_ORIGIN)}
         accessibilityLabel={t('auth.turnstileLabel')}
         containerStyle={{ width: 256, height: challengeHeight, flex: 0, backgroundColor: tokens.bg }}
         style={{ width: 256, height: challengeHeight, flex: 0, backgroundColor: tokens.bg }}

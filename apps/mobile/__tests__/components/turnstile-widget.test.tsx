@@ -2,6 +2,8 @@ import { createRequire } from 'node:module'
 import React from 'react'
 import { StyleSheet } from 'react-native'
 import { expect, it, onTestFinished, vi } from 'vitest'
+import type * as WebViewShared from 'react-native-webview/lib/WebViewShared'
+import type { ShouldStartLoadRequestEvent } from 'react-native-webview/lib/WebViewTypes'
 import { TurnstileWidget } from '@/components/auth/turnstile-widget'
 import type appJson from '../../app.json'
 
@@ -21,6 +23,9 @@ vi.mock('@/lib/use-app-theme', () => ({
 vi.mock('react-native-webview', () => ({
   WebView: (props: Record<string, unknown>) => React.createElement('WebView', props),
 }))
+const linking = vi.hoisted(() => ({ canOpenURL: vi.fn(() => Promise.resolve(true)), openURL: vi.fn(() => Promise.resolve(true)) }))
+const webViewSharedSource: string = 'react-native-webview/src/WebViewShared'
+vi.mock('react-native', async () => ({ ...(await import('../../test-mocks/react-native')), Linking: linking }))
 
 it.each(['production', 'staging'])('loads the Turnstile bridge from the %s App Link origin', async (variant) => {
   vi.stubEnv('ORBIT_APP_VARIANT', variant)
@@ -147,4 +152,43 @@ it('keeps the WebView mounted when the token callback changes', async () => {
   })
   expect(nextToken).toHaveBeenCalledWith('fresh-token')
   expect(firstToken).not.toHaveBeenCalled()
+})
+
+it('loads the iOS challenge frames and keeps the top frame on the bridge without opening another app', async () => {
+  let renderer!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(async () => {
+    renderer = TestRenderer.create(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />)
+    await Promise.resolve()
+  })
+  onTestFinished(() => TestRenderer.act(() => renderer.unmount()))
+  const webView = renderer.root.findByType('WebView').props
+  const bridgeUrl: string = webView.source.uri
+  const { createOnShouldStartLoadWithRequest, defaultOriginWhitelist } = await import(webViewSharedSource) as typeof WebViewShared
+  const loadRequest = vi.fn()
+  const decide = createOnShouldStartLoadWithRequest(loadRequest, webView.originWhitelist ?? defaultOriginWhitelist, webView.onShouldStartLoadWithRequest)
+  const challengeFrame = 'https://challenges.cloudflare.com/cdn-cgi/challenge-platform/h/b/turnstile/if/ov2/av0/rcv0/0/abc/0x4AAA/dark/fbE/new/normal/auto/'
+  const requests = [
+    { url: bridgeUrl, isTopFrame: true },
+    { url: challengeFrame, isTopFrame: false },
+    { url: 'about:srcdoc', isTopFrame: false },
+    { url: 'about:blank', isTopFrame: false },
+    { url: 'https://www.cloudflare.com/privacypolicy/', isTopFrame: true },
+    { url: 'mailto:privacy@cloudflare.com', isTopFrame: true },
+    { url: 'https://example.org/frame', isTopFrame: false },
+  ]
+  requests.forEach(({ url, isTopFrame }, lockIdentifier) => decide({ nativeEvent: {
+    url, isTopFrame, mainDocumentURL: bridgeUrl, navigationType: 'other', lockIdentifier,
+    title: '', loading: true, canGoBack: false, canGoForward: false,
+  } } as ShouldStartLoadRequestEvent))
+  expect(loadRequest.mock.calls).toEqual([
+    [true, bridgeUrl, 0],
+    [true, challengeFrame, 1],
+    [true, 'about:srcdoc', 2],
+    [true, 'about:blank', 3],
+    [false, 'https://www.cloudflare.com/privacypolicy/', 4],
+    [false, 'mailto:privacy@cloudflare.com', 5],
+    [false, 'https://example.org/frame', 6],
+  ])
+  expect(linking.canOpenURL).not.toHaveBeenCalled()
+  expect(linking.openURL).not.toHaveBeenCalled()
 })
