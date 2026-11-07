@@ -15,6 +15,7 @@ import { ListRow } from '@/components/ui/list-row'
 import { NotificationRow } from '@/components/navigation/notification-row'
 import { CalendarSyncEventRow } from '@/components/calendar-sync/calendar-sync-event-row'
 import { PickListBlock } from '@/components/chat/pick-list-block'
+import { HabitBlockRow } from '@/components/chat/habit-block-row'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -171,6 +172,34 @@ describe('one active fill for a nested control in Chromium', () => {
         expect(hovered.parent, 'parent fill while the nested control is hovered over the focused body').toBe(resting.fill)
         expect(await page.evaluate(readText, parent), 'row text colours while the nested control is hovered over the focused body').toEqual(resting.text)
       }
+    } finally { await page.close() }
+  })
+
+  it.each(['dark', 'light'] as const)('rests the proposed habit block title when a nested control is hovered over the keyboard-focused body in %s', async (mode) => {
+    const page = await openSurface(<HabitBlockRow proposed title="Walk after breakfast" control={<button type="button" aria-label="Choose walk" data-habit-row-control="check">+</button>} />, mode)
+    try {
+      const colours = () => page.evaluate(() => {
+        const parent = document.querySelector('[data-habit-block-row]')!
+        const probe = (color: string) => {
+          const span = document.createElement('span')
+          span.style.color = color
+          parent.append(span)
+          const value = getComputedStyle(span).color
+          span.remove()
+          return value
+        }
+        return { title: getComputedStyle(parent.querySelector('.orbit-list-row-body [data-personal-text]')!).color, rest: probe('var(--fg-3)'), lit: probe('var(--fg-2)') }
+      })
+      const resting = await colours()
+      expect(resting.title, 'the proposed title rests at the tertiary colour').toBe(resting.rest)
+      for (let step = 0; step < 10 && !(await page.evaluate(() => document.activeElement?.matches('[data-habit-block-row] .orbit-list-row-body') ?? false)); step += 1) await page.keyboard.press('Tab')
+      await settle(page)
+      const focused = await colours()
+      expect(focused.title, 'the keyboard-focused body lifts the proposed title').toBe(focused.lit)
+      await page.getByRole('button', { name: 'Choose walk' }).hover()
+      await settle(page)
+      const hovered = await colours()
+      expect(hovered.title, 'the proposed title follows the resting row while the nested control is hovered over the focused body').toBe(hovered.rest)
     } finally { await page.close() }
   })
 })

@@ -287,19 +287,25 @@ tapped element.
 | Platform | Shared owner | Consumers |
 |---|---|---|
 | Web | `.orbit-list-action-surface` and `.orbit-notification-surface` in `app/globals.css` | ListRow with an action, PickerRow, HabitBlockRow, checklist template rows, calendar import event rows and notification rows |
-| Android | `surfaceHighlighted` and `nestedControlFill` in `hooks/use-row-feedback.ts` | ListRow with an action, checklist template rows, calendar import event rows and notification rows |
+| Android | `surfaceHighlighted`, `nestedControlFill` and `useNestedSlotFeedback` in `hooks/use-row-feedback.ts` | ListRow with an action, PickerRow, HabitBlockRow, checklist template rows, calendar import event rows and notification rows |
 
 HabitRow already lights only from its body on both platforms. PickerRow and HabitBlockRow on
-Android attach row feedback to the body alone, so a nested check, disclosure or trailing button
-never lights the row. The tag picker body has no `.orbit-list-row-body` class and paints its own
+Android light from the body alone and read their caller-rendered controls through one slot:
+`useNestedSlotFeedback` takes the slot's bubbling touch and pointer events, so a pressed or
+hovered check, disclosure or trailing button rests the row even while the body holds keyboard
+focus. On web, the HabitBlockRow proposed title reads `--orbit-list-row-secondary`, so it swaps
+only while the row is lit. The tag picker body has no `.orbit-list-row-body` class and paints its own
 fill, so the tag edit and delete buttons beside it are sibling fills.
 
 Web `__tests__/components/ui/nested-control-fill.test.tsx` hovers and presses each nested control
 in Chromium for the notification row, a ListRow action, a calendar import event row and an Astra
 habit block row with its check. It asserts the resting parent background, the nested `bgHover`
 fill and the parent fill after the pointer returns to the body. It also hovers each nested control
-while the body holds keyboard focus and asserts the resting parent fill and text colours. `e2e/layout/nested-control-fill.spec.ts` repeats these checks on the
+while the body holds keyboard focus and asserts the resting parent fill and text colours, and the
+resting proposed habit block title. `e2e/layout/nested-control-fill.spec.ts` repeats the hover,
+press and return checks on the
 Avisos screen, the checklist templates sheet and the calendar import sheet. Android
 `__tests__/components/ui/nested-control-press-feedback.test.tsx` drives press, hover and focus
-on the same three surfaces, and `__tests__/components/habits/checklist-templates.test.tsx` presses
+on the same three surfaces, and a slot touch or pointer over the keyboard-focused body of a
+proposed HabitBlockRow and PickerRow, and `__tests__/components/habits/checklist-templates.test.tsx` presses
 and hovers the template delete.

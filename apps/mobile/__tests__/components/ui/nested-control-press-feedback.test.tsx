@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react'
-import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
+import { Pressable, StyleSheet, type StyleProp, type TextStyle } from 'react-native'
 import { act, create } from 'react-test-renderer'
 import type { TFunction } from 'i18next'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -8,6 +8,8 @@ import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import { ListRow } from '@/components/ui/list-row'
 import { NotificationRow } from '@/components/navigation/notification-row'
 import { CalendarSyncEventRow } from '@/components/calendar-sync/calendar-sync-event-row'
+import { HabitBlockRow } from '@/components/chat/habit-block-row'
+import { PickerRow } from '@/components/ui/picker-row'
 import { createStyles } from '@/components/calendar-sync/calendar-import-styles'
 import { createTokensV2 } from '@/lib/theme'
 
@@ -23,7 +25,7 @@ interface FeedbackNode {
     testID?: string
     accessibilityLabel?: string
     accessibilityRole?: string
-    style?: StyleProp<ViewStyle>
+    style?: StyleProp<TextStyle>
     'data-slot'?: string
     onPressIn?: () => void
     onPressOut?: () => void
@@ -31,6 +33,12 @@ interface FeedbackNode {
     onHoverOut?: () => void
     onFocus?: () => void
     onBlur?: () => void
+    onTouchStart?: () => void
+    onTouchEnd?: () => void
+    onTouchCancel?: () => void
+    onPointerEnter?: () => void
+    onPointerLeave?: () => void
+    children?: unknown
   }
 }
 
@@ -104,6 +112,34 @@ const surfaces: Surface[] = [
   },
 ]
 
+function slotEvent(node: FeedbackNode, handler: 'onTouchStart' | 'onTouchEnd' | 'onTouchCancel' | 'onPointerEnter' | 'onPointerLeave') {
+  void act(() => { node.props[handler]?.() })
+}
+
+function textColor(tree: FeedbackTree, text: string) {
+  const node = tree.root.findAll((candidate) => candidate.type === 'Text' && candidate.props.children === text)[0]!
+  return StyleSheet.flatten(node.props.style).color
+}
+
+const slotSurfaces = [
+  {
+    name: 'proposed Astra habit block row',
+    title: 'Walk after breakfast',
+    fillTestID: 'habit-block-feedback',
+    slotTestID: 'habit-block-control',
+    render: () => mount(<HabitBlockRow proposed title="Walk after breakfast" onOpen={vi.fn()}
+      control={<Pressable accessibilityRole="checkbox" accessibilityLabel="Choose walk" onPress={vi.fn()} />} />),
+  },
+  {
+    name: 'proposed picker row',
+    title: 'Morning',
+    fillTestID: 'picker-row-feedback',
+    slotTestID: 'picker-row-controls',
+    render: () => mount(<PickerRow proposed name="Morning" selected={false} disabled={false} onToggle={vi.fn()} value="" valueHidden valueStyle={{ color: tokens.fg2 }}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Edit tag: Morning" onPress={vi.fn()} /></PickerRow>),
+  },
+]
+
 describe('one active fill for a nested control on Android', () => {
   it.each(surfaces)('keeps the $name fill at rest while a nested control is pressed or hovered', (surface) => {
     const tree = surface.render()
@@ -138,6 +174,25 @@ describe('one active fill for a nested control on Android', () => {
     trigger(surface.body(tree), 'onHoverOut')
     trigger(surface.body(tree), 'onPressIn')
     expect(background(surface.parentFill(tree))).toBe(tokens.bgHover)
+  })
+
+  it.each(slotSurfaces)('rests the $name fill and text while a nested control is pressed or hovered over the keyboard-focused body', (surface) => {
+    const tree = surface.render()
+    const fill = () => background(tree.root.findAll((node) => node.type === 'View' && node.props.testID === surface.fillTestID)[0]!)
+    const slot = () => tree.root.findAll((node) => node.type === 'View' && node.props.testID === surface.slotTestID)[0]!
+    expect(fill()).toBe('transparent')
+    expect(textColor(tree, surface.title)).toBe(tokens.fg3)
+    trigger(pressable(tree, surface.title), 'onFocus')
+    expect(fill(), `${surface.name}: keyboard focus on the body`).toBe(tokens.bgHover)
+    expect(textColor(tree, surface.title)).toBe(tokens.fg2)
+    for (const [start, end] of [['onTouchStart', 'onTouchEnd'], ['onTouchStart', 'onTouchCancel'], ['onPointerEnter', 'onPointerLeave']] as const) {
+      slotEvent(slot(), start)
+      expect(fill(), `${surface.name}: ${start} on a nested control over the focused body`).toBe('transparent')
+      expect(textColor(tree, surface.title), `${surface.name}: proposed title under ${start}`).toBe(tokens.fg3)
+      slotEvent(slot(), end)
+      expect(fill(), `${surface.name}: ${end} returns the focused body fill`).toBe(tokens.bgHover)
+      expect(textColor(tree, surface.title)).toBe(tokens.fg2)
+    }
   })
 
   it('keeps the notification row lit for keyboard focus on delete', () => {
