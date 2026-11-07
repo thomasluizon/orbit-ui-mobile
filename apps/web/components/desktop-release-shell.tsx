@@ -18,9 +18,10 @@ import { ErrorState } from '@/components/ui/error-state'
 function subscribeToShellVersion() { return () => {} }
 function serverShellVersion() { return null }
 
-export function DesktopReleaseShell({ onUpdateRequired, monitor = false, minimum = compatibility.minimumShellVersion }: Readonly<{
+export function DesktopReleaseShell({ onUpdateRequired, monitor = false, signIn = false, minimum = signIn ? compatibility.signInMinimumShellVersion : compatibility.minimumShellVersion }: Readonly<{
   onUpdateRequired: (update: ReactNode) => void
   monitor?: boolean
+  signIn?: boolean
   minimum?: string
 }>) {
   const version = useSyncExternalStore(subscribeToShellVersion, desktopShellVersion, serverShellVersion)
@@ -28,8 +29,8 @@ export function DesktopReleaseShell({ onUpdateRequired, monitor = false, minimum
   const compatible = version === null || shellSupportsWeb(version, required)
 
   useEffect(() => {
-    onUpdateRequired(compatible ? null : <DesktopUpdateRequired />)
-  }, [compatible, onUpdateRequired])
+    onUpdateRequired(compatible ? null : <DesktopUpdateRequired signIn={signIn} />)
+  }, [compatible, onUpdateRequired, signIn])
 
   return (compatible || desktopOffersSupported()) && monitor && version !== null
     ? <DesktopReleaseMonitor version={version} requireUpgrade={setRequired} />
@@ -64,9 +65,9 @@ async function restoreDesktopCheckpoint(accountId: string, isCurrent: () => bool
   if (useUIStore.getState().astraConversationOpen === conversationOpen) useUIStore.getState().setAstraConversationOpen(checkpoint.conversationOpen)
 }
 
-function DesktopUpdateRequired() {
+function DesktopUpdateRequired({ signIn }: Readonly<{ signIn: boolean }>) {
   const t = useTranslations()
   return <main className="flex min-h-dvh items-center justify-center bg-[var(--bg)] text-[var(--fg-1)]">
-    <div className="flex max-w-[440px] flex-col gap-4 p-4"><ErrorState message={t('desktopUpdate.required')} /><UpdateAvailableBanner inset={false} /></div>
+    <div className="flex max-w-[440px] flex-col gap-4 p-4"><ErrorState message={t(signIn ? 'desktopUpdate.signInRequired' : 'desktopUpdate.required')} /><UpdateAvailableBanner inset={false} /></div>
   </main>
 }

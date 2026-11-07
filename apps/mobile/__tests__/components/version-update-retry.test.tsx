@@ -75,7 +75,7 @@ describe('Android flexible update recovery', () => {
     mocks.intentListener = null
     mocks.statusListener = null
     sheetTestControls.defer(true)
-    await TestRenderer.act(() => { tree = TestRenderer.create(<VersionUpdateDrawer />) })
+    await TestRenderer.act(() => { tree = TestRenderer.create(<VersionUpdateDrawer suppressed={false} />) })
   })
 
   afterEach(async () => {

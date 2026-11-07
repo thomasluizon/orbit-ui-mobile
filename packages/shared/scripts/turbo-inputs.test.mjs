@@ -22,6 +22,10 @@ const consumers = [
     '.github/workflows/desktop-release.yml', '.github/workflows/release.yml',
     'apps/web/components/auth/desktop-auth-bridge.tsx',
     'apps/web/lib/desktop-push.ts', 'apps/web/lib/desktop-updates.ts',
+    '.github/workflows/desktop-build.yml', '.github/workflows/release.yml',
+    'apps/mobile/lib/turnstile-frames.ts', 'apps/web/proxy.ts', 'apps/web/web-compatibility.json',
+    'apps/web/test-support/hermetic/mock-api/fixtures/chat-stream.ts', 'design/brand/orbit-mark-accent.svg',
+    'packages/shared/src/chat/stream-turn.ts', 'tools/desktop-bench/probe.js',
   ] },
   { workspace: 'apps/mobile', name: '@orbit/mobile', inputs: [
     '.github/workflows/ios-build.yml', '.github/workflows/ios-release.yml',

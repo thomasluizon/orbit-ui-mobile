@@ -230,7 +230,7 @@ vi.mock('@/components/navigation/notification-delete-notice', () => ({
 vi.mock('@/components/navigation/destination-tab-bar', () => ({
   DestinationTabBar: () => null,
 }))
-vi.mock('@/components/global-overlays', () => ({ OverlayLayer: () => null }))
+vi.mock('@/components/global-overlays', () => ({ OverlayLayer: 'OverlayLayer' }))
 vi.mock('@/components/offline-notice', () => ({ useOfflineNoticeContent: () => null }))
 vi.mock('@/components/gamification/celebration-panel', () => ({
   CelebrationPanel: () => null,
@@ -608,6 +608,23 @@ describe('Wrapped root shell', () => {
 
     expect(findByTestId(tree, 'shell-bottom')).toHaveLength(0)
     expect(findByTestId(tree, 'shell-notice')).toHaveLength(0)
+  })
+
+  it('keeps the overlay layer mounted and suppressed through sign-out so a presented sheet closes natively', async () => {
+    routeState.pathname = '/'
+    routeState.segments = ['(tabs)']
+    const tree = await renderRoot()
+    const layer = tree.root.findAll((node) => (node.type as unknown) === 'OverlayLayer')
+    expect(layer).toHaveLength(1)
+    expect(layer[0]!.props.signedIn).toBe(true)
+    authState.isAuthenticated = false
+    routeState.pathname = '/login'
+    routeState.segments = ['login']
+    await TestRenderer.act(() => { tree.update(React.createElement(RootLayout)) })
+    const signedOutLayer = tree.root.findAll((node) => (node.type as unknown) === 'OverlayLayer')
+    expect(signedOutLayer).toHaveLength(1)
+    expect(signedOutLayer[0]).toBe(layer[0])
+    expect(signedOutLayer[0]!.props.signedIn).toBe(false)
   })
 
   it('keeps an unauthenticated no-navigation route free of notices', async () => {

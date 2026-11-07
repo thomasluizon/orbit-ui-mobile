@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CalendarImportPrompt } from '@/components/onboarding/calendar-import-prompt'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 import { useUIStore } from '@/stores/ui-store'
+import { setAccountId } from '@/lib/account-scope'
+import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { expectSmallSheetActions, sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 const TestRenderer = require('react-test-renderer')
@@ -51,7 +53,7 @@ vi.mock('@/components/ui/pill-button', () => ({
 function renderPrompt() {
   let tree: any = null
   TestRenderer.act(() => {
-    tree = TestRenderer.create(React.createElement(CalendarImportPrompt))
+    tree = TestRenderer.create(React.createElement(CalendarImportPrompt, { suppressed: false }))
   })
   renderedTrees.push(tree)
   return tree!
@@ -109,6 +111,30 @@ describe('CalendarImportPrompt navigation', () => {
 
     expect(mocks.push).toHaveBeenCalledWith('/calendar?import=1')
     expect(mocks.push).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['the route moves to the calendar', () => { mocks.pathname = '/calendar' }],
+    ['a profile refresh records the import', () => { mocks.profile = baseProfile({ hasImportedCalendar: true }) }],
+  ])('keeps the presented prompt mounted until its native dismissal finishes when %s', (_reason, change) => {
+    mocks.profile = baseProfile()
+    const tree = renderPrompt()
+    expect(sheetCount(tree)).toBe(1)
+
+    TestRenderer.act(() => {
+      change()
+      tree.update(React.createElement(CalendarImportPrompt, { suppressed: false }))
+    })
+
+    expect(sheetCount(tree)).toBe(1)
+    expect(sheetTestControls.isDismissPending).toBe(true)
+
+    TestRenderer.act(() => {
+      sheetTestControls.completeDismissal()
+    })
+
+    expect(sheetCount(tree)).toBe(0)
+    expect(mocks.push).not.toHaveBeenCalled()
   })
 })
 
@@ -215,5 +241,48 @@ describe('CalendarImportPrompt quiet dismissal', () => {
     })
 
     expect(sheetCount(tree)).toBe(0)
+  })
+})
+
+describe('CalendarImportPrompt under the overlay layer', () => {
+  afterEach(() => {
+    sheetTestControls.defer(false)
+    TestRenderer.act(() => setAccountId(null))
+  })
+
+  it('closes through the native dismissal when suppressed, without dismissing the prompt', () => {
+    mocks.profile = baseProfile()
+    const tree = renderPrompt()
+    expect(sheetCount(tree)).toBe(1)
+    sheetTestControls.defer(true)
+    TestRenderer.act(() => {
+      tree.update(React.createElement(CalendarImportPrompt, { suppressed: true }))
+    })
+    expect(sheetCount(tree)).toBe(1)
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    TestRenderer.act(() => sheetTestControls.completeDismissal())
+    expect(sheetCount(tree)).toBe(0)
+    expect(performQueuedApiMutation).not.toHaveBeenCalled()
+    TestRenderer.act(() => {
+      tree.update(React.createElement(CalendarImportPrompt, { suppressed: false }))
+    })
+    expect(sheetCount(tree)).toBe(1)
+  })
+
+  it('keeps a dismissal to the account that made it while the prompt stays mounted across accounts', () => {
+    mocks.profile = baseProfile()
+    TestRenderer.act(() => setAccountId('account-a'))
+    const tree = renderPrompt()
+    const later = tree.root.findAll((node: any) => node.type === 'PillButton' && node.props.variant === 'ghost')[0]
+    TestRenderer.act(() => later.props.onPress())
+    expect(sheetCount(tree)).toBe(0)
+    TestRenderer.act(() => {
+      tree.update(React.createElement(CalendarImportPrompt, { suppressed: true }))
+      setAccountId('account-b')
+    })
+    TestRenderer.act(() => {
+      tree.update(React.createElement(CalendarImportPrompt, { suppressed: false }))
+    })
+    expect(sheetCount(tree)).toBe(1)
   })
 })

@@ -859,7 +859,7 @@ describe('Sheet close path (mobile)', () => {
 
   it.each([false, true])('reports close only once native dismissal completes with presentation pending=%s', async presentationPending => {
     const onClose = vi.fn()
-    let handle: SheetHandle | null = null
+    let handle: Pick<SheetHandle, 'requestClose'> | null = null
     let completePresentation: (() => void) | undefined
     if (presentationPending) present.mockReturnValueOnce(new Promise<void>(resolve => { completePresentation = resolve }))
 
@@ -898,7 +898,7 @@ describe('Sheet close path (mobile)', () => {
   it('runs a scheduled exit action after the dismissal, in place of onClose', async () => {
     const onClose = vi.fn()
     const navigate = vi.fn()
-    let handle: SheetHandle | null = null
+    let handle: Pick<SheetHandle, 'requestClose'> | null = null
 
     function Host() {
       const { sheetRef, closeSheet } = useSheetHost()
@@ -967,7 +967,7 @@ describe('Sheet close path (mobile)', () => {
     dismiss.mockRejectedValueOnce(new Error('dismiss failed'))
     const onClose = vi.fn()
     const navigate = vi.fn()
-    let handle: SheetHandle | null = null
+    let handle: Pick<SheetHandle, 'requestClose'> | null = null
 
     function Host() {
       const { sheetRef, closeSheet } = useSheetHost()

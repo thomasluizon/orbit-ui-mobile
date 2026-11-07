@@ -163,10 +163,22 @@ it('keeps exactly the web CSP frame-src origins inside the desktop webview', () 
   expect(directives).toHaveLength(1)
   const cspOrigins = directives[0]!.trim().split(/\s+/).map((source) => new URL(source).origin)
   const entrypoint = readFileSync(new URL('../src-tauri/src/main.rs', import.meta.url), 'utf8').split('#[cfg(test)]')[0]!
-  expect(entrypoint).toMatch(/fn is_embedded_frame\(url: &tauri::Url\) -> bool \{\s*EMBEDDED_FRAME_ORIGINS\.contains\(&url\.origin\(\)\.ascii_serialization\(\)\.as_str\(\)\)\s*\}/)
+  expect(entrypoint).toMatch(/fn is_embedded_frame\(url: &tauri::Url\) -> bool \{\s*EMBEDDED_FRAME_DOCUMENTS\.contains\(&url\.as_str\(\)\)\s*\|\| EMBEDDED_FRAME_ORIGINS\.contains\(&url\.origin\(\)\.ascii_serialization\(\)\.as_str\(\)\)\s*\}/)
   const allowlist = entrypoint.match(/const EMBEDDED_FRAME_ORIGINS: \[&str; \d+\] = \[([^\]]*)\];/)?.[1]
   expect(allowlist).toBeDefined()
   const desktopOrigins = [...allowlist!.matchAll(/"([^"]+)"/g)].map((match) => match[1]!)
   expect(cspOrigins.filter((origin) => !desktopOrigins.includes(origin))).toEqual([])
   expect(desktopOrigins.filter((origin) => !cspOrigins.includes(origin))).toEqual([])
+})
+
+it('keeps exactly the Turnstile challenge documents the iOS app loads in subframes', () => {
+  const ios = readFileSync(new URL('../../mobile/lib/turnstile-frames.ts', import.meta.url), 'utf8')
+  const iosDocuments = ios.match(/const CHALLENGE_DOCUMENTS = new Set\(\[([^\]]*)\]\)/)?.[1]
+  expect(iosDocuments).toBeDefined()
+  const entrypoint = readFileSync(new URL('../src-tauri/src/main.rs', import.meta.url), 'utf8').split('#[cfg(test)]')[0]!
+  const desktopDocuments = entrypoint.match(/const EMBEDDED_FRAME_DOCUMENTS: \[&str; \d+\] = \[([^\]]*)\];/)?.[1]
+  expect(desktopDocuments).toBeDefined()
+  const quoted = (list: string) => [...list.matchAll(/["']([^"']+)["']/g)].map((match) => match[1]!).sort()
+  expect(quoted(desktopDocuments!)).toEqual(quoted(iosDocuments!))
+  expect(quoted(desktopDocuments!)).toEqual(['about:blank', 'about:srcdoc'])
 })

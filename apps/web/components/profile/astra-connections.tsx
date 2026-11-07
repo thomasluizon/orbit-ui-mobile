@@ -53,6 +53,6 @@ export function AstraConnections({ hasProAccess }: Readonly<{ hasProAccess: bool
         onOpen={() => { controller.authorize.reset(); if (!controller.disconnect.isPending) controller.disconnect.reset(); setOpen(true) }} /> : null}
     </SettingsGroup>
     <p role="status" className="text-sm text-[var(--status-bad-text)]">{error && controller.enabled ? t('profile.connections.error') : ''}</p>
-    {open && controller.enabled ? <NotionConnectionSheet callbackFailed={callbackFailed} controller={controller} onClose={() => { controller.authorize.reset(); setOpen(false) }} onAuthorize={connect} onOpenUrl={openUrl} /> : null}
+    {open ? <NotionConnectionSheet callbackFailed={callbackFailed} controller={controller} onClose={() => { controller.authorize.reset(); setOpen(false) }} onAuthorize={connect} onOpenUrl={openUrl} /> : null}
   </section>
 }

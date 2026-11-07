@@ -24,7 +24,7 @@ import { SETTLE_DELAY_MS } from '@orbit/shared/utils'
  * Astra-branded review moment: presents once the armed review prompt's celebration has fully
  * settled, with copy referencing the streak or level that triggered it.
  */
-export function ReviewMomentSheet() {
+export function ReviewMomentSheet({ suppressed }: Readonly<{ suppressed: boolean }>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -61,7 +61,7 @@ export function ReviewMomentSheet() {
   useEffect(() => () => unregisterOpenOverlay(promptId), [promptId, unregisterOpenOverlay])
 
   useEffect(() => {
-    if (visibleKey || !armedKey || celebrationInFlight || anotherOverlayOpen) return
+    if (suppressed || visibleKey || !armedKey || celebrationInFlight || anotherOverlayOpen) return
 
     if (
       !parseReviewMomentKey(armedKey) ||
@@ -86,6 +86,7 @@ export function ReviewMomentSheet() {
       if (settleTimerRef.current) clearTimeout(settleTimerRef.current)
     }
   }, [
+    suppressed,
     armedKey,
     celebrationInFlight,
     anotherOverlayOpen,
@@ -95,6 +96,12 @@ export function ReviewMomentSheet() {
     markEngagementPrompted,
     visibleKey,
   ])
+
+  useEffect(() => {
+    if (!suppressed || visibleKey === null) return
+    const hide = () => setVisibleKey(null)
+    closeSheet(hide, hide)
+  }, [suppressed, visibleKey, closeSheet])
 
   const variant: ReviewMomentKey | null = visibleKey
     ? parseReviewMomentKey(visibleKey)

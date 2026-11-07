@@ -61,6 +61,10 @@ export function channelAdvance(source: string, version: string | null, variant: 
   return false
 }
 
+export function shellFloor(compatibility: { minimumShellVersion: string; signInMinimumShellVersion: string }): string {
+  return [compatibility.minimumShellVersion, compatibility.signInMinimumShellVersion].sort(compareVersions).at(-1)!
+}
+
 function assertMinimum(variant: string, version: string, minimum: string) {
   releaseSettings(variant, version)
   if (compareVersions(version, minimum) < 0) throw new Error('Desktop release must meet the web minimum shell version')
@@ -84,10 +88,11 @@ export async function channelVersion(variant: string): Promise<string | null> {
 async function main() {
   const variant = process.env.DESKTOP_VARIANT ?? ''
   const source = process.env.SOURCE_SHA ?? ''
-  const compatibility: { minimumShellVersion: string } = JSON.parse(readFileSync(new URL('../../web/web-compatibility.json', import.meta.url), 'utf8'))
+  const compatibility: { minimumShellVersion: string; signInMinimumShellVersion: string } = JSON.parse(readFileSync(new URL('../../web/web-compatibility.json', import.meta.url), 'utf8'))
   const previous = await channelVersion(variant)
-  const version = planShellRelease(variant, source, previous, git('tag', '--list', `desktop-${variant}-v*`).split('\n'), compatibility.minimumShellVersion, process.env.DESKTOP_VERSION || undefined, process.env.DESKTOP_ROLLBACK === 'true')
-  const advance = channelAdvance(source, version, variant, previous, compatibility.minimumShellVersion)
+  const floor = shellFloor(compatibility)
+  const version = planShellRelease(variant, source, previous, git('tag', '--list', `desktop-${variant}-v*`).split('\n'), floor, process.env.DESKTOP_VERSION || undefined, process.env.DESKTOP_ROLLBACK === 'true')
+  const advance = channelAdvance(source, version, variant, previous, floor)
   appendFileSync(process.env.GITHUB_OUTPUT!, `shell_changed=${version !== null}\nadvance_channel=${advance}\nversion=${version ?? ''}\n`)
   let outcome = `unchanged from ${previous}`
   if (advance) outcome = `publish ${version}`

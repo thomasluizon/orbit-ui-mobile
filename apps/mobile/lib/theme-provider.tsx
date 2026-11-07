@@ -12,7 +12,6 @@ import {
   // react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   Animated,
   Appearance,
-  Modal,
   StyleSheet,
   useColorScheme as useSystemColorScheme,
   View,
@@ -120,15 +119,6 @@ export function ThemeProvider({
     })
   }, [transitionOpacity])
 
-  const finishThemeTransition = useCallback(() => {
-    if (transitionFrameRef.current !== null) {
-      cancelAnimationFrame(transitionFrameRef.current)
-      transitionFrameRef.current = null
-    }
-    transitionOpacity.stopAnimation()
-    setTransitionSnapshot(null)
-  }, [transitionOpacity])
-
   useEffect(() => {
     setRuntimeTheme({ scheme: currentScheme, themeMode: currentTheme })
   }, [currentScheme, currentTheme])
@@ -228,36 +218,28 @@ export function ThemeProvider({
       <View style={styles.root}>
         {children}
         {transitionSnapshot ? (
-          <Modal
-            transparent
-            animationType="none"
-            statusBarTranslucent
-            visible
-            onRequestClose={finishThemeTransition}
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.transitionOverlay,
+              {
+                opacity: transitionOpacity,
+              },
+            ]}
           >
-            <Animated.View
-              pointerEvents="none"
+            <View
               style={[
-                styles.transitionOverlay,
-                {
-                  opacity: transitionOpacity,
-                },
+                styles.transitionBase,
+                { backgroundColor: transitionSnapshot.background },
               ]}
-            >
-              <View
-                style={[
-                  styles.transitionBase,
-                  { backgroundColor: transitionSnapshot.background },
-                ]}
-              />
-              <View
-                style={[
-                  styles.transitionTint,
-                  { backgroundColor: transitionSnapshot.accent },
-                ]}
-              />
-            </Animated.View>
-          </Modal>
+            />
+            <View
+              style={[
+                styles.transitionTint,
+                { backgroundColor: transitionSnapshot.accent },
+              ]}
+            />
+          </Animated.View>
         ) : null}
       </View>
     </ThemeContext.Provider>
