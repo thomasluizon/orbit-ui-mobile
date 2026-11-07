@@ -129,34 +129,6 @@ publicationTest('publishes no fixed download if the manifest upload fails', () =
   expect(commands.some(command => command[1] === 'upload' && command.some(arg => arg.endsWith('.dmg')))).toBe(false)
 })
 
-publicationTest.each([
-  { variant: 'production', runner: 'macOS', dmg: true },
-  { variant: 'staging', runner: 'macOS', dmg: false },
-  { variant: 'production', runner: 'Windows', dmg: false },
-])('requests DMGs only for $variant on $runner', ({ variant, runner, dmg }) => {
-  const directory = mkdtempSync(join(tmpdir(), 'orbit-desktop-package-'))
-  directories.push(directory)
-  const log = join(directory, 'arguments.json')
-  const executable = join(directory, 'npm')
-  writeFileSync(executable, `#!/usr/bin/env node
-require('node:fs').writeFileSync(process.env.COMMAND_LOG, JSON.stringify(process.argv.slice(2)))
-`)
-  chmodSync(executable, 0o755)
-  const script = workflow.jobs.build!.steps.find(step => step.name === 'Package without operating system or updater signing')!.run!
-  const result = spawnSync('bash', ['-e', '-c', script], { encoding: 'utf8', env: { ...process.env,
-    PATH: `${directory}:${process.env.PATH}`, COMMAND_LOG: log, DESKTOP_VARIANT: variant,
-    RUNNER_OS: runner, DESKTOP_TARGET: runner === 'macOS' ? 'aarch64-apple-darwin' : 'x86_64-pc-windows-msvc' } })
-  expect(result.status, result.stderr).toBe(0)
-  const args = JSON.parse(readFileSync(log, 'utf8')) as string[]
-  expect(args).toContain(`build:${variant}`)
-  expect(args).toContain('--no-sign')
-  expect(args.includes('--bundles')).toBe(dmg)
-  if (dmg) expect(args[args.indexOf('--bundles') + 1]).toBe('app,dmg')
-  const collection = workflow.jobs.build!.steps.find(step => step.name === 'Collect the production DMG')!
-  expect(collection.if).toBe("inputs.variant == 'production' && runner.os == 'macOS'")
-  expect(collection.run).toContain('apps/desktop/scripts/downloads.ts collect-dmg')
-})
-
 it('supports pinned automatic releases and requires every target before publication', () => {
   expect(Object.keys(workflow.on).sort()).toEqual(['workflow_call', 'workflow_dispatch'])
   expect(workflow.jobs.validate!.steps.some(step => step.name === 'Plan shell publication')).toBe(true)

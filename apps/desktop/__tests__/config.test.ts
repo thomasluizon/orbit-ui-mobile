@@ -92,6 +92,19 @@ describe.each(environments)('$name desktop', ({ config, origin, identifier }) =>
     expect(permissions).toEqual(['allow-commit-desktop-login', 'allow-desktop-push', 'allow-desktop-update', 'allow-desktop-launch'])
   })
 
+  it('signs macOS with the hardened runtime and the Developer ID push entitlements of its own provisioning profile', () => {
+    const macOS = (config.bundle as { macOS?: { entitlements?: string; hardenedRuntime?: boolean } }).macOS
+    expect(macOS?.hardenedRuntime).toBe(true)
+    const source = readFileSync(new URL(`../src-tauri/${macOS?.entitlements}`, import.meta.url), 'utf8')
+    const entries = Object.fromEntries([...source.matchAll(/<key>([^<]+)<\/key><string>([^<]+)<\/string>/g)].map((match) => [match[1], match[2]]))
+    expect(entries).toEqual({
+      'com.apple.application-identifier': `BD7JH468F7.${identifier}`,
+      'com.apple.developer.aps-environment': 'production',
+      'com.apple.developer.team-identifier': 'BD7JH468F7',
+    })
+    expect(source.match(/<key>/g)).toHaveLength(3)
+  })
+
   it('observes native launch intent before startup and gates window creation with it', () => {
     const entrypoint = readFileSync(new URL('../src-tauri/src/main.rs', import.meta.url), 'utf8').split('#[cfg(test)]')[0]!
     expect(entrypoint).toMatch(/\.build\(context\)[\s\S]*if let Err\(error\) = push::prepare_launch\(\)[\s\S]*Cannot observe desktop launch[\s\S]*app\.run\(handle_run_event\)/)
