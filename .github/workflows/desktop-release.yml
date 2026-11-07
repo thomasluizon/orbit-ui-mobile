@@ -30,6 +30,18 @@ on:
         required: true
       TAURI_SIGNING_PRIVATE_KEY_PASSWORD:
         required: true
+      MACOS_DEVELOPER_ID_CERTIFICATE_BASE64:
+        required: true
+      MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD:
+        required: true
+      MACOS_PROVISIONING_PROFILE_BASE64:
+        required: true
+      APP_STORE_CONNECT_API_KEY_ID:
+        required: true
+      APP_STORE_CONNECT_API_ISSUER_ID:
+        required: true
+      APP_STORE_CONNECT_API_PRIVATE_KEY:
+        required: true
     inputs:
       variant:
         required: true
@@ -172,19 +184,132 @@ jobs:
           node --experimental-strip-types apps/desktop/scripts/release.ts prepare \
             "$DESKTOP_VARIANT" "$DESKTOP_VERSION" apps/desktop/release-config.json
       - name: Package without operating system or updater signing
+        if: runner.os == 'Windows'
         run: |
-          bundle_args=()
-          if [ "$DESKTOP_VARIANT" = production ] && [ "$RUNNER_OS" = macOS ]; then
-            bundle_args=(--bundles 'app,dmg')
-          fi
           npm run "build:${DESKTOP_VARIANT}" -w @orbit/desktop -- \
-            --config release-config.json --target "$DESKTOP_TARGET" --no-sign --ci "${bundle_args[@]}" -- --locked
+            --config release-config.json --target "$DESKTOP_TARGET" --no-sign --ci -- --locked
+      - name: Compile the macOS shell without signing credentials
+        if: runner.os == 'macOS'
+        run: |
+          npm run "build:${DESKTOP_VARIANT}" -w @orbit/desktop -- \
+            --config release-config.json --target "$DESKTOP_TARGET" --no-bundle --ci -- --locked
+      - name: Write the macOS provisioning profile and notarization key
+        if: runner.os == 'macOS'
+        env:
+          MACOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.MACOS_PROVISIONING_PROFILE_BASE64 }}
+          APP_STORE_CONNECT_API_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}
+          ORBIT_APPLE_TEAM_ID: ${{ vars.ORBIT_APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          for key in MACOS_PROVISIONING_PROFILE_BASE64 APP_STORE_CONNECT_API_PRIVATE_KEY ORBIT_APPLE_TEAM_ID; do
+            if [ -z "${!key}" ]; then echo "::error::Missing $key"; exit 1; fi
+          done
+          config=apps/desktop/src-tauri/tauri.conf.json
+          if [ "$DESKTOP_VARIANT" = production ]; then config=apps/desktop/src-tauri/tauri.production.conf.json; fi
+          identifier=$(node -p 'require(process.argv[1]).identifier' "$PWD/$config")
+          signing="$RUNNER_TEMP/macos-signing"
+          mkdir -p "$signing"
+          (
+            umask 077
+            printf '%s' "$MACOS_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$signing/embedded.provisionprofile"
+            printf '%s\n' "$APP_STORE_CONNECT_API_PRIVATE_KEY" > "$signing/AuthKey.p8"
+          )
+          security cms -D -i "$signing/embedded.provisionprofile" > "$signing/profile.plist"
+          profile_application=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.application-identifier' "$signing/profile.plist")
+          if [ "$profile_application" != "$ORBIT_APPLE_TEAM_ID.$identifier" ]; then
+            echo "::error::The provisioning profile names $profile_application, not $ORBIT_APPLE_TEAM_ID.$identifier"
+            exit 1
+          fi
+          node -e 'process.stdout.write(JSON.stringify({ bundle: { macOS: { files: { "embedded.provisionprofile": process.argv[1] } } } }))' \
+            "$signing/embedded.provisionprofile" > "$signing/signing-config.json"
+          {
+            echo "ORBIT_MACOS_SIGNING=$signing"
+            echo "ORBIT_MACOS_IDENTIFIER=$identifier"
+          } >> "$GITHUB_ENV"
+      - name: Sign, notarize and staple the macOS app, then sign the DMG
+        if: runner.os == 'macOS'
+        working-directory: apps/desktop
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.MACOS_DEVELOPER_ID_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ vars.MACOS_SIGNING_IDENTITY }}
+          APPLE_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          # WHY: Without --no-sign the pinned CLI also signs the updater archive, which needs this key.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for key in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_API_KEY APPLE_API_ISSUER TAURI_SIGNING_PRIVATE_KEY; do
+            if [ -z "${!key}" ]; then echo "::error::Missing $key"; exit 1; fi
+          done
+          export APPLE_API_KEY_PATH="$ORBIT_MACOS_SIGNING/AuthKey.p8"
+          npm run "bundle:${DESKTOP_VARIANT}" -- --config release-config.json \
+            --config "$ORBIT_MACOS_SIGNING/signing-config.json" --target "$DESKTOP_TARGET" --bundles app,dmg --ci
+      - name: Notarize and staple the DMG
+        if: runner.os == 'macOS'
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          dmgs=(apps/desktop/src-tauri/target/"$DESKTOP_TARGET"/release/bundle/dmg/*.dmg)
+          if [ "${#dmgs[@]}" -ne 1 ]; then echo "::error::Expected one DMG, found ${#dmgs[@]}"; exit 1; fi
+          credentials=(--key "$ORBIT_MACOS_SIGNING/AuthKey.p8" --key-id "$APP_STORE_CONNECT_API_KEY_ID" --issuer "$APP_STORE_CONNECT_API_ISSUER_ID")
+          submission=$(xcrun notarytool submit "${dmgs[0]}" "${credentials[@]}" --wait --output-format json)
+          status=$(node -p 'JSON.parse(process.argv[1]).status' "$submission")
+          if [ "$status" != Accepted ]; then
+            echo "::error::DMG notarization finished with status $status"
+            xcrun notarytool log "$(node -p 'JSON.parse(process.argv[1]).id' "$submission")" "${credentials[@]}"
+            exit 1
+          fi
+          xcrun stapler staple "${dmgs[0]}"
+      - name: Verify macOS signatures, notarization and the push entitlement
+        if: runner.os == 'macOS'
+        env:
+          ORBIT_APPLE_TEAM_ID: ${{ vars.ORBIT_APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          bundle="apps/desktop/src-tauri/target/${DESKTOP_TARGET}/release/bundle"
+          apps=("$bundle"/macos/*.app)
+          archives=("$bundle"/macos/*.app.tar.gz)
+          dmgs=("$bundle"/dmg/*.dmg)
+          if [ "${#apps[@]}" -ne 1 ] || [ "${#archives[@]}" -ne 1 ] || [ "${#dmgs[@]}" -ne 1 ]; then
+            echo "::error::Expected one app, one updater archive and one DMG"
+            exit 1
+          fi
+          extracted="$RUNNER_TEMP/macos-updater-app"
+          rm -rf "$extracted"
+          mkdir -p "$extracted"
+          tar -xzf "${archives[0]}" -C "$extracted"
+          updater_apps=("$extracted"/*.app)
+          if [ "${#updater_apps[@]}" -ne 1 ]; then echo "::error::Expected one app in the updater archive"; exit 1; fi
+          expect_value() {
+            local actual
+            actual=$(/usr/libexec/PlistBuddy -c "Print :$2" "$1")
+            if [ "$actual" != "$3" ]; then echo "::error::$1 $2 is $actual, not $3"; exit 1; fi
+          }
+          application="$ORBIT_APPLE_TEAM_ID.$ORBIT_MACOS_IDENTIFIER"
+          for app in "${apps[0]}" "${updater_apps[0]}"; do
+            codesign --verify --deep --strict --verbose=2 "$app"
+            codesign -d --entitlements :- "$app" > "$RUNNER_TEMP/entitlements.plist"
+            expect_value "$RUNNER_TEMP/entitlements.plist" com.apple.developer.aps-environment production
+            expect_value "$RUNNER_TEMP/entitlements.plist" com.apple.application-identifier "$application"
+            expect_value "$RUNNER_TEMP/entitlements.plist" com.apple.developer.team-identifier "$ORBIT_APPLE_TEAM_ID"
+            security cms -D -i "$app/Contents/embedded.provisionprofile" > "$RUNNER_TEMP/embedded-profile.plist"
+            expect_value "$RUNNER_TEMP/embedded-profile.plist" Entitlements:com.apple.application-identifier "$application"
+            spctl --assess --type execute --verbose=2 "$app"
+            xcrun stapler validate "$app"
+          done
+          spctl --assess --type open --context context:primary-signature --verbose=2 "${dmgs[0]}"
+          xcrun stapler validate "${dmgs[0]}"
       - name: Collect the updater package
         run: |
           node --experimental-strip-types apps/desktop/scripts/release.ts collect \
             "$DESKTOP_VARIANT" "$DESKTOP_VERSION" "$DESKTOP_TARGET" \
             "apps/desktop/src-tauri/target/${DESKTOP_TARGET}/release/bundle" "$RUNNER_TEMP/desktop-assets"
-      # WHY: Production DMGs stay unsigned; landing links wait for notarization (#1563).
       - name: Collect the production DMG
         if: inputs.variant == 'production' && runner.os == 'macOS'
         run: |
