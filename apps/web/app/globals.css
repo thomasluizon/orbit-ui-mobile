@@ -2884,6 +2884,10 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   --shell-astra-clearance: calc(var(--orbit-space-96) + var(--orbit-space-64) + var(--orbit-space-16));
 }
 
+[data-shell-bottom-viewport] {
+  --shell-bottom-content-height: var(--orbit-space-0);
+}
+
 [data-shell-page-content] {
   --shell-scroll-min-height: 100%;
   transition-property: none;

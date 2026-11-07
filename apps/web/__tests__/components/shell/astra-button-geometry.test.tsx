@@ -114,6 +114,48 @@ it.each([412, 840])('drags over the whole compact screen and never onto the tab 
   } finally { await page.close() }
 })
 
+it.each([412, 840])('runs the resting compact Hoje list down to the tab bar at %ipx', async width => {
+  const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
+  try {
+    await mountAstraEntry(page, { emptyNotice: true })
+    const bounds = await page.evaluate(() => {
+      const rect = (selector: string) => document.querySelector(selector)!.getBoundingClientRect()
+      return { scrollerBottom: rect('[data-shell-scroller]').bottom, bottomTop: rect('[data-shell-bottom]').top, tabsTop: rect('[data-shell-tab-bar]').top }
+    })
+    expect(bounds.scrollerBottom, JSON.stringify(bounds)).toBe(bounds.tabsTop)
+    expect(bounds.bottomTop).toBe(bounds.tabsTop)
+  } finally { await page.close() }
+})
+
+it.each([[88, 64], [56, 56]])('holds the compact bottom minimum under a %ipx notice at %ipx', async (noticeHeight, minimum) => {
+  const page = await browser.newPage({ viewport: { width: 412, height: 915 }, reducedMotion: 'reduce' })
+  try {
+    await mountAstraEntry(page, { notice: 'Saved', noticeHeight: noticeHeight - 32 })
+    const bounds = await page.evaluate(() => {
+      const viewport = document.querySelector<HTMLElement>('[data-shell-bottom-viewport]')!
+      return { minimum: Number.parseFloat(getComputedStyle(viewport).minHeight), content: viewport.firstElementChild!.getBoundingClientRect().height }
+    })
+    expect(bounds.content, JSON.stringify(bounds)).toBe(noticeHeight)
+    expect(bounds.minimum, JSON.stringify(bounds)).toBe(minimum)
+  } finally { await page.close() }
+})
+
+it('paints the server fallback where the resting compact Hoje button settles', async () => {
+  const markup = renderToString(<ShellWide items={[]} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: () => {} }}
+    header={<div style={{ minHeight: 112 }}>Today</div>} tabBar={<nav style={{ minHeight: 80 }}><button style={{ minHeight: 48 }}>Tabs</button></nav>}
+    notice={<><div /></>} astraButton={<AstraButton />} fab={<button style={{ width: 60, height: 60 }}>Create</button>}>
+    <div style={{ height: 1600 }}>Habits</div>
+  </ShellWide>)
+  const page = await browser.newPage({ viewport: { width: 412, height: 915 }, reducedMotion: 'reduce' })
+  try {
+    const clearance = () => page.evaluate(() => document.querySelector('[data-shell-tab-bar]')!.getBoundingClientRect().top - document.querySelector('[data-astra-button]')!.getBoundingClientRect().bottom)
+    await page.setContent(`<!DOCTYPE html><style>${stylesheet}</style>${markup}`)
+    const fallback = await clearance()
+    await mountAstraEntry(page, { emptyNotice: true })
+    expect({ fallback, settled: await clearance() }).toEqual({ fallback: 100, settled: 100 })
+  } finally { await page.close() }
+})
+
 interface AstraPlacementRecord { style: string; top: number; left: number }
 
 async function recordAstraPlacements(page: Page) {
