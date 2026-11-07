@@ -36,11 +36,12 @@ vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
 afterEach(__resetTestHostConfig)
 
-type Host = Parameters<typeof measureProfileRow>[0] & { props: { hitSlop?: number } }
+type Host = Parameters<typeof measureProfileRow>[0]
 
 function itemHitPadding(host: Host): number {
   const children = (host.children ?? []).filter(child => typeof child !== 'string')
-  return Math.max(host.props.hitSlop ?? 0, ...children.map(itemHitPadding))
+  const { hitSlop } = host.props
+  return Math.max(typeof hitSlop === 'number' ? hitSlop : 0, ...children.map(itemHitPadding))
 }
 
 function itemRows(host: Host | Host[]): Host[] {

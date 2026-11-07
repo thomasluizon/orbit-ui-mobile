@@ -243,7 +243,8 @@ describe('Android interaction fill clearance', () => {
         const retries = parts.filter(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === messages.shell.composer.retry)
         expect(retries).toHaveLength(1)
         const retry = retries[0]!
-        const retryHitSlop = Number(retry.host.props.hitSlop)
+        const retryHitSlop = retry.host.props.hitSlop
+        if (typeof retryHitSlop !== 'number') throw new Error('The composer retry must extend its target with a numeric hitSlop')
         expect(retry.width + 2 * retryHitSlop).toBe(48)
         expect(retry.height + 2 * retryHitSlop).toBe(48)
         const retryContents = parts.filter(part => part.ancestors.includes(retry.slot))
