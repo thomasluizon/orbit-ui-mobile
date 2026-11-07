@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { createTranslator, NextIntlClientProvider } from 'next-intl'
+import { NextIntlClientProvider, useTranslations } from 'next-intl'
 import type { Page } from '@playwright/test'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
@@ -21,6 +21,12 @@ vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime:
 const event: CalendarSyncEvent = {
   id: 'event', title: 'Weekly planning', calendarName: 'Work calendar', description: 'Review every step.',
   startDate: '2026-07-01', startTime: '09:00', endTime: '10:00', isRecurring: false, recurrenceRule: null, reminders: [],
+}
+
+function ImportEventRow() {
+  const t = useTranslations()
+  return <CalendarSyncEventRow event={event} weekStartDay={1} selected={false} isReviewMode suggestionId="suggestion" dismissPending={false}
+    onToggle={vi.fn()} onDismiss={vi.fn()} t={t} />
 }
 
 interface Surface {
@@ -48,8 +54,7 @@ const surfaces: Surface[] = [
   },
   {
     name: 'calendar import event row',
-    element: () => <CalendarSyncEventRow event={event} weekStartDay={1} selected={false} isReviewMode suggestionId="suggestion" dismissPending={false}
-      onToggle={vi.fn()} onDismiss={vi.fn()} t={createTranslator({ locale: 'en', messages: en })} />,
+    element: () => <ImportEventRow />,
     parent: '.orbit-list-action-surface',
     body: '.orbit-list-row-body',
     nested: '.icon-btn',
@@ -99,11 +104,13 @@ describe('one active fill for a nested control in Chromium', () => {
         await control.hover()
         await settle(page)
         const hovered = await page.evaluate(readFills, { parent, nested })
-        expect(hovered.nestedPaint, 'nested control paints its own hover fill').not.toBeNull()
+        expect(hovered.nestedPaint, 'nested control paints the visible neutral hover fill').toBe(hovered.hover)
         expect(hovered.parent, 'parent fill while the nested control is hovered').toBe(resting)
         await page.mouse.down()
         await settle(page)
-        expect((await page.evaluate(readFills, { parent, nested })).parent, 'parent fill while the nested control is pressed').toBe(resting)
+        const pressed = await page.evaluate(readFills, { parent, nested })
+        expect(pressed.nestedPaint, 'nested control paints the visible neutral press fill').toBe(pressed.hover)
+        expect(pressed.parent, 'parent fill while the nested control is pressed').toBe(resting)
         await page.mouse.move(0, 0)
         await page.mouse.up()
       }

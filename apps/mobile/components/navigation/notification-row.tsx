@@ -1,7 +1,7 @@
 import { SMALL_PILL_VISIBLE_MIN, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { PersonalText } from '@/components/ui/personal-text'
 import { DestinationIcon } from '@/components/navigation/destination-icon'
-import { surfaceHighlighted, useRowFeedback } from '@/hooks/use-row-feedback'
+import { nestedControlFill, surfaceHighlighted, useRowFeedback } from '@/hooks/use-row-feedback'
 import { View, Text, Pressable, StyleSheet } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { CircleDot, Gift, Trash2 } from '@/components/ui/icons'
@@ -69,7 +69,7 @@ export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
         {...deleteFeedback.handlers}
         style={styles.deleteButton}>
         <View testID="notification-delete-feedback" pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
-          style={[styles.deleteFill, { backgroundColor: deleteFeedback.highlighted ? tokens.bgRowAction : 'transparent' },
+          style={[styles.deleteFill, { backgroundColor: nestedControlFill(deleteFeedback, tokens) },
             deleteFeedback.focused && { outlineWidth: 2, outlineStyle: 'solid', outlineColor: tokens.primary, outlineOffset: -3,
               borderWidth: 4, borderStyle: 'solid', borderColor: tokens.fg1 }]} />
         <View accessible={false} importantForAccessibility="no-hide-descendants" pointerEvents="none">

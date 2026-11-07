@@ -11,7 +11,7 @@ import {
 import { X } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { ChecklistTemplate } from '@orbit/shared/types/checklist-template'
-import { surfaceHighlighted, useRowFeedback } from '@/hooks/use-row-feedback'
+import { nestedControlFill, surfaceHighlighted, useRowFeedback } from '@/hooks/use-row-feedback'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { applyChecklistTemplate } from '@orbit/shared/utils'
 import {
@@ -230,7 +230,7 @@ function TemplateRow({ template, disabled, styles, tokens, clamped, onClampedCha
       <Icon name="template" size={20} color={tokens.fg3} />
       <Text style={[styles.templateCount, highlighted ? { color: tokens.fg2 } : null]}>{t('habits.form.templateItemCount', { count: template.items.length })}</Text>
       <PersonalTextDetails iconOnly clamped={clamped}>{template.name}</PersonalTextDetails>
-      <Pressable disabled={disabled} accessibilityRole="button" accessibilityLabel={`${t('common.delete')}: ${template.name}`} focusInset {...deleteFeedback.handlers} style={[styles.templateDelete, { backgroundColor: deleteFeedback.highlighted ? tokens.bgRowAction : 'transparent' }]} onPress={onDelete}>
+      <Pressable disabled={disabled} accessibilityRole="button" accessibilityLabel={`${t('common.delete')}: ${template.name}`} focusInset {...deleteFeedback.handlers} style={[styles.templateDelete, { backgroundColor: nestedControlFill(deleteFeedback, tokens) }]} onPress={onDelete}>
         <Icon name="trash" size={20} color={tokens.statusBad} />
       </Pressable>
     </View>

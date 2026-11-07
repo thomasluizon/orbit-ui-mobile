@@ -58,7 +58,8 @@ function background(node: FeedbackNode) {
 }
 
 function pressable(tree: FeedbackTree, label: string) {
-  return tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === label)[0]!
+  const matches = tree.root.findAll((node) => (typeof node.type === 'function' || node.type === 'Pressable') && node.props.accessibilityLabel === label)
+  return matches.find((node) => typeof node.type === 'function') ?? matches[0]!
 }
 
 interface Surface {
@@ -67,6 +68,7 @@ interface Surface {
   parentFill: (tree: FeedbackTree) => FeedbackNode
   body: (tree: FeedbackTree) => FeedbackNode
   nested: (tree: FeedbackTree) => FeedbackNode[]
+  ownFill?: (tree: FeedbackTree) => FeedbackNode
 }
 
 const notification = createMockNotification({ id: 'nested', title: 'Reminder', isRead: false })
@@ -83,6 +85,7 @@ const surfaces: Surface[] = [
     parentFill: (tree) => tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'notification-row-feedback')[0]!,
     body: (tree) => tree.root.findAll((node) => node.type === 'Pressable')[0]!,
     nested: (tree) => [pressable(tree, 'notifications.deleteNotification')],
+    ownFill: (tree) => tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'notification-delete-feedback')[0]!,
   },
   {
     name: 'list row with a trailing action',
@@ -97,7 +100,7 @@ const surfaces: Surface[] = [
       dismissPending={false} styles={createStyles()} tokens={tokens} t={((key: string) => key) as TFunction} onToggle={vi.fn()} onDismiss={vi.fn()} />),
     parentFill: (tree) => tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'calendar-event-feedback')[0]!,
     body: (tree) => tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'checkbox')[0]!,
-    nested: (tree) => tree.root.findAll((node) => (node.type === 'Pressable' || typeof node.type === 'function') && node.props.accessibilityRole === 'button' && typeof node.props.onPressIn === 'function'),
+    nested: (tree) => tree.root.findAll((node) => typeof node.type === 'function' && node.props.accessibilityRole === 'button' && typeof node.props.onPressIn === 'function'),
   },
 ]
 
@@ -108,12 +111,19 @@ describe('one active fill for a nested control on Android', () => {
     expect(nested.length).toBeGreaterThan(0)
     expect(background(surface.parentFill(tree))).toBe('transparent')
     for (const control of nested) {
+      const ownFill = () => background(surface.ownFill ? surface.ownFill(tree) : surface.nested(tree).find((node) => node.props.accessibilityLabel === control.props.accessibilityLabel)!)
       trigger(control, 'onPressIn')
       expect(background(surface.parentFill(tree)), `${surface.name}: pressed ${control.props.accessibilityLabel}`).toBe('transparent')
+      expect(ownFill(), `${surface.name}: own press fill of ${control.props.accessibilityLabel}`).toBe(tokens.bgHover)
       trigger(control, 'onPressOut')
       trigger(control, 'onHoverIn')
       expect(background(surface.parentFill(tree)), `${surface.name}: hovered ${control.props.accessibilityLabel}`).toBe('transparent')
+      expect(ownFill(), `${surface.name}: own hover fill of ${control.props.accessibilityLabel}`).toBe(tokens.bgHover)
       trigger(control, 'onHoverOut')
+      trigger(control, 'onFocus')
+      expect(background(surface.parentFill(tree)), `${surface.name}: focused ${control.props.accessibilityLabel}`).toBe(tokens.bgHover)
+      expect(ownFill(), `${surface.name}: own focus fill of ${control.props.accessibilityLabel}`).toBe(tokens.bgRowAction)
+      trigger(control, 'onBlur')
     }
   })
 

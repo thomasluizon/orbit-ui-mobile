@@ -1,4 +1,4 @@
-import { surfaceHighlighted, useRowFeedback } from '@/hooks/use-row-feedback'
+import { nestedControlFill, surfaceHighlighted, useRowFeedback } from '@/hooks/use-row-feedback'
 import { PersonalText } from '@/components/ui/personal-text'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useTimeFormat } from '@/hooks/use-time-format'
@@ -43,10 +43,6 @@ function eventContentProps(expanded: boolean) {
   return expanded
     ? { pointerEvents: 'box-none' as const, importantForAccessibility: 'auto' as const }
     : { pointerEvents: 'none' as const, importantForAccessibility: 'no-hide-descendants' as const }
-}
-
-function eventActionFill(highlighted: boolean, tokens: AppTokensV2) {
-  return { backgroundColor: highlighted ? tokens.bgRowAction : 'transparent' }
 }
 
 function EventRowFeedback({ highlighted, focused, tokens }: Readonly<{ highlighted: boolean; focused: boolean; tokens: AppTokensV2 }>) {
@@ -187,10 +183,10 @@ export function CalendarSyncEventRow({
           disabled={dismissPending}
           accessibilityRole="button"
           accessibilityLabel={t('calendar.autoSync.dismissSuggestion')}
-          style={[styles.dismissButton, eventActionFill(dismissFeedback.highlighted, tokens), dismissPending && styles.quietActionDim]}
+          style={[styles.dismissButton, { backgroundColor: nestedControlFill(dismissFeedback, tokens) }, dismissPending && styles.quietActionDim]}
         ><X size={20} color={tokens.fg3} strokeWidth={1.8} /></Pressable>
       ) : null}
-      <InsetFocusPressable {...disclosureFeedback.handlers} accessibilityRole="button" accessibilityLabel={t('contextMenu.viewDetails')} accessibilityHint={disclosureLabel} accessibilityState={{ expanded }} onPress={() => setExpanded(!expanded)} style={{ minHeight: 48, minWidth: 48, alignSelf: 'flex-start', alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', ...eventActionFill(disclosureFeedback.highlighted, tokens) }}><ChevronDown size={20} strokeWidth={1.5} color={tokens.fg3} accessible={false} /></InsetFocusPressable>
+      <InsetFocusPressable {...disclosureFeedback.handlers} accessibilityRole="button" accessibilityLabel={t('contextMenu.viewDetails')} accessibilityHint={disclosureLabel} accessibilityState={{ expanded }} onPress={() => setExpanded(!expanded)} style={{ minHeight: 48, minWidth: 48, alignSelf: 'flex-start', alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: nestedControlFill(disclosureFeedback, tokens) }}><ChevronDown size={20} strokeWidth={1.5} color={tokens.fg3} accessible={false} /></InsetFocusPressable>
       </View>
     </View>
   )

@@ -21,3 +21,8 @@ export function surfaceHighlighted(bodyHighlighted: boolean, nestedControls: rea
   const nestedFocused = nestedControls.some((control) => control.highlighted && control.focused)
   return !nestedUnderPointer && (bodyHighlighted || nestedFocused)
 }
+
+export function nestedControlFill(control: RowFeedback, fills: Readonly<{ bgHover: string; bgRowAction: string }>) {
+  if (!control.highlighted) return 'transparent'
+  return control.pressed || control.hovered ? fills.bgHover : fills.bgRowAction
+}
