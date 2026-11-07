@@ -25,7 +25,8 @@ import { ListRow } from '@/components/ui/list-row'
 import { ActionRow } from '@/components/ui/action-row'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { SectionLabel } from '@/components/ui/section-label'
-import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { Sheet } from '@/components/ui/sheet'
+import { useSheetPresence } from '@/components/ui/sheet-presence'
 import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -136,8 +137,8 @@ function LoadedContent({
   )
 }
 
-function ReferralDrawerContent({ onClose }: Readonly<Pick<ReferralDrawerProps, 'onClose'>>) {
-  const { sheetRef, closeSheet } = useSheetHost()
+function ReferralDrawerContent({ onClose, sheetRef, closeSheet }: Readonly<Pick<ReferralDrawerProps, 'onClose'>
+  & Pick<ReturnType<typeof useSheetPresence>, 'sheetRef' | 'closeSheet'>>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -227,9 +228,10 @@ function ReferralDrawerContent({ onClose }: Readonly<Pick<ReferralDrawerProps, '
   )
 }
 
-/** Referral details and sharing actions in the shared sheet composition. */
+/** Referral details and sharing actions; an owner that turns `open` false closes the sheet through its native dismissal. */
 export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>) {
-  return open ? <ReferralDrawerContent onClose={onClose} /> : null
+  const { mounted, sheetKey, sheetRef, closeSheet } = useSheetPresence(open)
+  return mounted ? <ReferralDrawerContent key={sheetKey} onClose={onClose} sheetRef={sheetRef} closeSheet={closeSheet} /> : null
 }
 
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {

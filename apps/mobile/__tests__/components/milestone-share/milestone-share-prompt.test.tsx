@@ -99,7 +99,7 @@ describe('MilestoneSharePrompt (mobile)', () => {
 
   async function render() {
     await TestRenderer.act(async () => {
-      currentTree = TestRenderer.create(<MilestoneSharePrompt />)
+      currentTree = TestRenderer.create(<MilestoneSharePrompt suppressed={false} />)
       await Promise.resolve()
     })
     return currentTree!
@@ -162,7 +162,7 @@ describe('MilestoneSharePrompt (mobile)', () => {
 
     queryCache.gamificationProfile = undefined
     await TestRenderer.act(async () => {
-      tree.update(<MilestoneSharePrompt />)
+      tree.update(<MilestoneSharePrompt suppressed={false} />)
       await Promise.resolve()
     })
 

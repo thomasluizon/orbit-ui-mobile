@@ -60,7 +60,7 @@ vi.mock('@/components/ui/pill-button', () => ({
 async function renderPrompt() {
   let tree: any = null
   await TestRenderer.act(async () => {
-    tree = TestRenderer.create(React.createElement(AstraImportPrompt))
+    tree = TestRenderer.create(React.createElement(AstraImportPrompt, { suppressed: false }))
     await Promise.resolve()
   })
   renderedTrees.push(tree)
@@ -217,7 +217,7 @@ describe('AstraImportPrompt state changes while presented', () => {
 
     TestRenderer.act(() => {
       change()
-      tree.update(React.createElement(AstraImportPrompt))
+      tree.update(React.createElement(AstraImportPrompt, { suppressed: false }))
     })
 
     expect(sheetCount(tree)).toBe(1)

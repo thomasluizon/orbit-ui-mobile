@@ -58,7 +58,7 @@ vi.mock('react-native', async () => {
 function render() {
   let tree: any
   TestRenderer.act(() => {
-    tree = TestRenderer.create(React.createElement(VersionUpdateDrawer))
+    tree = TestRenderer.create(React.createElement(VersionUpdateDrawer, { suppressed: false }))
   })
   return tree
 }
@@ -122,7 +122,7 @@ describe('VersionUpdateDrawer close path', () => {
     expect(sheetCount(tree)).toBe(1)
 
     mocks.updateAvailable = false
-    TestRenderer.act(() => { tree.update(React.createElement(VersionUpdateDrawer)) })
+    TestRenderer.act(() => { tree.update(React.createElement(VersionUpdateDrawer, { suppressed: false })) })
 
     expect(sheetCount(tree)).toBe(1)
     expect(sheetTestControls.isDismissPending).toBe(true)

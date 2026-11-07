@@ -14,12 +14,13 @@ import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
+import { useAccountId } from '@/lib/account-scope'
 
 /**
  * v8 calendar-import prompt: bottom sheet (title supplied by the sheet header)
  * with body copy, a primary CTA, and a quiet "Not now" link.
  */
-export function CalendarImportPrompt() {
+export function CalendarImportPrompt({ suppressed }: Readonly<{ suppressed: boolean }>) {
   const { t } = useTranslation()
   const router = useRouter()
   const pathname = usePathname()
@@ -30,13 +31,15 @@ export function CalendarImportPrompt() {
     [currentScheme, currentTheme],
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
-  const [dismissed, setDismissed] = useState(false)
+  const accountId = useAccountId()
+  const [dismissal, setDismissal] = useState<{ accountId: string | null } | null>(null)
+  const dismissed = dismissal !== null && dismissal.accountId === accountId
   const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
   const promptId = useId()
   const sheetMounted = useUIStore((state) => state.openOverlayIds.includes(promptId))
   const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
 
-  const shouldShow = Boolean(
+  const shouldShow = !suppressed && Boolean(
     profile?.hasCompletedOnboarding &&
       !profile.hasImportedCalendar &&
       pathname !== '/calendar' &&
@@ -45,7 +48,7 @@ export function CalendarImportPrompt() {
   const { mounted, sheetKey, sheetRef, closeSheet } = useSheetPresence(sheetMounted && shouldShow)
 
   const dismissPrompt = useCallback(async () => {
-    setDismissed(true)
+    setDismissal({ accountId })
 
     try {
       await performQueuedApiMutation({
@@ -60,7 +63,7 @@ export function CalendarImportPrompt() {
     } finally {
       invalidate()
     }
-  }, [invalidate])
+  }, [accountId, invalidate])
 
   const handleImport = useCallback(() => {
     closeSheet(() => {

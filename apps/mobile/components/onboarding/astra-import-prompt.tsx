@@ -17,6 +17,7 @@ import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
+import { useAccountId } from '@/lib/account-scope'
 
 /**
  * One-time-per-account post-login "Import from another app?" sheet. Gated on the
@@ -24,7 +25,7 @@ import { useUIStore } from '@/stores/ui-store'
  * calendar-import prompt. The CTA seeds the chat draft and routes to Astra; "Not now"
  * marks the account as having seen the prompt.
  */
-export function AstraImportPrompt() {
+export function AstraImportPrompt({ suppressed }: Readonly<{ suppressed: boolean }>) {
   const { t } = useTranslation()
   const pathname = usePathname()
   const { profile, patchProfile } = useProfile()
@@ -34,7 +35,9 @@ export function AstraImportPrompt() {
     [currentScheme, currentTheme],
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
-  const [dismissed, setDismissed] = useState(false)
+  const accountId = useAccountId()
+  const [dismissal, setDismissal] = useState<{ accountId: string | null } | null>(null)
+  const dismissed = dismissal !== null && dismissal.accountId === accountId
   const pendingOnboardingAnswers = useOnboardingDraftStore((s) =>
     s.hasPendingAnswers(),
   )
@@ -49,7 +52,7 @@ export function AstraImportPrompt() {
       !profile.hasImportedCalendar,
   )
 
-  const shouldShow = Boolean(
+  const shouldShow = !suppressed && Boolean(
     profile?.hasCompletedOnboarding &&
       !profile.hasSeenImportPrompt &&
       !calendarPromptWouldShow &&
@@ -61,7 +64,7 @@ export function AstraImportPrompt() {
   const { mounted, sheetKey, sheetRef, closeSheet } = useSheetPresence(sheetMounted && shouldShow)
 
   const markSeen = useCallback(async () => {
-    setDismissed(true)
+    setDismissal({ accountId })
     patchProfile({ hasSeenImportPrompt: true })
 
     try {
@@ -74,7 +77,7 @@ export function AstraImportPrompt() {
         dedupeKey: 'profile-import-prompt-dismiss',
       })
     } catch {}
-  }, [patchProfile])
+  }, [accountId, patchProfile])
 
   const handleImport = useCallback(async () => {
     await AsyncStorage.setItem(

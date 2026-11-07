@@ -72,6 +72,7 @@ function buildProps(
   overrides: Partial<OverlayLayerProps> = {},
 ): OverlayLayerProps {
   return {
+    signedIn: true,
     hasCompletedOnboarding: false,
     showRetainedOnboarding: false,
     onboardingActions: onboardingActionsStub,
@@ -89,20 +90,17 @@ async function renderLayer(
   return instance
 }
 
-/** The notice stays mounted under every gate, so a presented sheet closes through its native dismissal. */
-function trialNoticeSuppressed(instance: TestInstance): unknown {
-  return instance.root.findAll((node) => node.type === 'TrialExpiredModal')[0]?.props.suppressed
+interface TestRendererInstance extends TestInstance {
+  update(element: React.ReactNode): void
+}
+
+function suppression(instance: TestInstance, overlayType: string): unknown {
+  return instance.root.findAll((node) => node.type === overlayType)[0]?.props.suppressed
 }
 
 function isMounted(instance: TestInstance, overlayType: string): boolean {
   return instance.root.findAll((node) => node.type === overlayType).length > 0
 }
-
-const ALWAYS_MOUNTED = [
-  'ExpiryWarning',
-  'TrialExpiredModal',
-  'VersionUpdateDrawer',
-]
 
 const GAMIFICATION_OVERLAYS = [
   'MarketingConsentPrompt',
@@ -113,43 +111,24 @@ const GAMIFICATION_OVERLAYS = [
 
 const POST_ONBOARDING_PROMPTS = ['CalendarImportPrompt', 'AstraImportPrompt']
 
-describe('OverlayLayer mount matrix', () => {
-  it('mounts the always-on overlays regardless of onboarding state', async () => {
+const SHEET_OWNERS = ['TrialExpiredModal', ...GAMIFICATION_OVERLAYS, ...POST_ONBOARDING_PROMPTS, 'VersionUpdateDrawer']
+
+describe('OverlayLayer gates', () => {
+  it('mounts every sheet owner and the expiry warning while signed in, whatever the onboarding state', async () => {
+    for (const hasCompletedOnboarding of [false, true]) {
+      const instance = await renderLayer({ hasCompletedOnboarding })
+      for (const overlay of ['ExpiryWarning', ...SHEET_OWNERS]) expect(isMounted(instance, overlay)).toBe(true)
+      expect(suppression(instance, 'TrialExpiredModal')).toBe(false)
+      expect(suppression(instance, 'VersionUpdateDrawer')).toBe(false)
+    }
+  })
+
+  it('suppresses the first-run prompts until onboarding completes', async () => {
     const preOnboarding = await renderLayer({ hasCompletedOnboarding: false })
     const postOnboarding = await renderLayer({ hasCompletedOnboarding: true })
-
-    for (const overlay of ALWAYS_MOUNTED) {
-      expect(isMounted(preOnboarding, overlay)).toBe(true)
-      expect(isMounted(postOnboarding, overlay)).toBe(true)
-    }
-    expect(trialNoticeSuppressed(postOnboarding)).toBe(false)
-  })
-
-  it('does not mount post-onboarding prompts before onboarding completes', async () => {
-    const instance = await renderLayer({ hasCompletedOnboarding: false })
-
-    for (const overlay of POST_ONBOARDING_PROMPTS) {
-      expect(isMounted(instance, overlay)).toBe(false)
-    }
-  })
-
-  it('mounts post-onboarding prompts once onboarding completes', async () => {
-    const instance = await renderLayer({ hasCompletedOnboarding: true })
-
-    for (const overlay of POST_ONBOARDING_PROMPTS) {
-      expect(isMounted(instance, overlay)).toBe(true)
-    }
-  })
-
-  it('gates the gamification celebration cluster on onboarding completion', async () => {
-    const preOnboarding = await renderLayer({ hasCompletedOnboarding: false })
-    const postOnboarding = await renderLayer({
-      hasCompletedOnboarding: true,
-    })
-
-    for (const overlay of GAMIFICATION_OVERLAYS) {
-      expect(isMounted(preOnboarding, overlay)).toBe(false)
-      expect(isMounted(postOnboarding, overlay)).toBe(true)
+    for (const overlay of [...POST_ONBOARDING_PROMPTS, ...GAMIFICATION_OVERLAYS]) {
+      expect(suppression(preOnboarding, overlay)).toBe(true)
+      expect(suppression(postOnboarding, overlay)).toBe(false)
     }
   })
 
@@ -166,14 +145,16 @@ describe('OverlayLayer mount matrix', () => {
     const instance = await renderLayer({ hasCompletedOnboarding: true, showPendingPro: true })
     expect(instance.root.findAll((node) => node.type === 'OnboardingFlow')).toHaveLength(1)
     expect(instance.root.findAll((node) => node.type === 'OnboardingFlow')[0]!.props.finalStepOnly).toBe(true)
-    for (const overlay of [...POST_ONBOARDING_PROMPTS, ...GAMIFICATION_OVERLAYS]) expect(isMounted(instance, overlay)).toBe(false)
-    expect(trialNoticeSuppressed(instance)).toBe(true)
+    for (const overlay of [...POST_ONBOARDING_PROMPTS, ...GAMIFICATION_OVERLAYS, 'TrialExpiredModal']) {
+      expect(suppression(instance, overlay)).toBe(true)
+    }
   })
 
   it('waits for the account flag before showing another message', async () => {
     const instance = await renderLayer({ hasCompletedOnboarding: true, pendingProLoaded: false })
-    for (const overlay of [...POST_ONBOARDING_PROMPTS, ...GAMIFICATION_OVERLAYS]) expect(isMounted(instance, overlay)).toBe(false)
-    expect(trialNoticeSuppressed(instance)).toBe(true)
+    for (const overlay of [...POST_ONBOARDING_PROMPTS, ...GAMIFICATION_OVERLAYS, 'TrialExpiredModal']) {
+      expect(suppression(instance, overlay)).toBe(true)
+    }
   })
 
   it('keeps first-run prompts behind retained onboarding', async () => {
@@ -181,10 +162,36 @@ describe('OverlayLayer mount matrix', () => {
       hasCompletedOnboarding: true,
       showRetainedOnboarding: true,
     })
-    for (const overlay of [...POST_ONBOARDING_PROMPTS, ...GAMIFICATION_OVERLAYS]) {
-      expect(isMounted(instance, overlay)).toBe(false)
+    for (const overlay of [...POST_ONBOARDING_PROMPTS, ...GAMIFICATION_OVERLAYS, 'TrialExpiredModal']) {
+      expect(suppression(instance, overlay)).toBe(true)
     }
-    expect(trialNoticeSuppressed(instance)).toBe(true)
     expect(isMounted(instance, 'OnboardingFlow')).toBe(true)
+  })
+
+  it('suppresses every sheet owner after sign-out and keeps only the signed-in chrome away', async () => {
+    const instance = await renderLayer({ signedIn: false, hasCompletedOnboarding: true, showRetainedOnboarding: true })
+    for (const overlay of SHEET_OWNERS) expect(suppression(instance, overlay)).toBe(true)
+    expect(isMounted(instance, 'ExpiryWarning')).toBe(false)
+    expect(isMounted(instance, 'OnboardingFlow')).toBe(false)
+  })
+
+  it('keeps the same sheet owners mounted through retained onboarding, a pending account flag and sign-out', async () => {
+    const instance = await renderLayer({ hasCompletedOnboarding: true }) as TestRendererInstance
+    const owners = SHEET_OWNERS.map((overlay) => instance.root.findAll((node) => node.type === overlay)[0])
+    for (const gate of [
+      { showRetainedOnboarding: true },
+      { pendingProLoaded: false },
+      { signedIn: false },
+    ] satisfies Partial<OverlayLayerProps>[]) {
+      await TestRenderer.act(() => {
+        instance.update(<OverlayLayer {...buildProps({ hasCompletedOnboarding: true, ...gate })} />)
+      })
+      SHEET_OWNERS.forEach((overlay, index) => {
+        expect(instance.root.findAll((node) => node.type === overlay)[0]).toBe(owners[index])
+      })
+      for (const overlay of [...POST_ONBOARDING_PROMPTS, ...GAMIFICATION_OVERLAYS, 'TrialExpiredModal']) {
+        expect(suppression(instance, overlay)).toBe(true)
+      }
+    }
   })
 })

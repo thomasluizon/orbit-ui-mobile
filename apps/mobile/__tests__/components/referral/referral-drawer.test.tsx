@@ -10,6 +10,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { renderedText } from '../../support/react-test-renderer'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { expectSmallSheetActions, sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -146,6 +147,23 @@ describe('ReferralDrawer (mobile)', () => {
     await pressButton(slot(tree, 'SheetActions'), 'common.cancel')
     expect(onClose).toHaveBeenCalledOnce()
     expect(mocks.share).not.toHaveBeenCalled()
+  })
+
+  it('closes through its native dismissal when the owner turns open false, without running onClose', () => {
+    const onClose = vi.fn()
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<ReferralDrawer open onClose={onClose} />) })
+    sheetTestControls.defer(true)
+    try {
+      TestRenderer.act(() => { tree.update(<ReferralDrawer open={false} onClose={onClose} />) })
+      expect(sheetTestControls.isDismissPending).toBe(true)
+      expect(tree.root.findAll((node: { type: unknown }) => node.type === 'Sheet')).toHaveLength(1)
+      TestRenderer.act(() => { sheetTestControls.completeDismissal() })
+      expect(tree.root.findAll((node: { type: unknown }) => node.type === 'Sheet')).toHaveLength(0)
+      expect(onClose).not.toHaveBeenCalled()
+    } finally {
+      sheetTestControls.defer(false)
+    }
   })
 
   it.each([

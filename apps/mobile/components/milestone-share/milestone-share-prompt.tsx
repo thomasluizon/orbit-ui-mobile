@@ -43,7 +43,7 @@ function resolveVariant(
 }
 
 /** Curated milestone share nudge: shows a branded card once no celebration is in flight and the shared re-prompt guard allows it, then hands off to the native share sheet. */
-export function MilestoneSharePrompt() {
+export function MilestoneSharePrompt({ suppressed }: Readonly<{ suppressed: boolean }>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -79,7 +79,7 @@ export function MilestoneSharePrompt() {
   useEffect(() => () => unregisterOpenOverlay(promptId), [promptId, unregisterOpenOverlay])
 
   useEffect(() => {
-    if (shown || !armedKey || celebrationInFlight || anotherOverlayOpen) return
+    if (suppressed || shown || !armedKey || celebrationInFlight || anotherOverlayOpen) return
 
     const profile = queryClient.getQueryData<GamificationProfile>(gamificationKeys.profile())
     const variant = resolveVariant(armedKey, profile)
@@ -105,6 +105,7 @@ export function MilestoneSharePrompt() {
       if (settleTimerRef.current) clearTimeout(settleTimerRef.current)
     }
   }, [
+    suppressed,
     armedKey,
     celebrationInFlight,
     anotherOverlayOpen,
@@ -114,6 +115,12 @@ export function MilestoneSharePrompt() {
     markEngagementPrompted,
     clearArmedMilestone,
   ])
+
+  useEffect(() => {
+    if (!suppressed || shown === null) return
+    const hide = () => setShown(null)
+    closeSheet(hide, hide)
+  }, [suppressed, shown, closeSheet])
 
   const cachedReferral = queryClient.getQueryData<ReferralDashboard>(referralKeys.all)
   const referralUrl = buildReferralUrl(cachedReferral?.code, APP_LINK_ORIGIN)

@@ -14,6 +14,7 @@ import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { VersionUpdateDrawer } from '@/components/version-update-drawer'
 
 export interface OverlayLayerProps {
+  signedIn: boolean
   hasCompletedOnboarding: boolean
   showRetainedOnboarding: boolean
   showPendingPro?: boolean
@@ -22,23 +23,25 @@ export interface OverlayLayerProps {
 }
 
 /**
- * Presentational overlay layer for the authenticated app shell. Renders every global overlay
- * in a fixed z-order, but gates each one to mount only once its condition can first be true
- * so pre-onboarding sessions never instantiate the post-onboarding prompts (calendar-import,
- * Astra-import, gamification).
+ * Overlay layer of the app shell, in a fixed z-order. It stays mounted after sign-out: every sheet owner
+ * takes `suppressed` into its open condition, so a presented sheet closes through its native dismissal
+ * instead of an unmount, and the post-onboarding prompts stay closed until their gates allow them.
  */
 export function OverlayLayer({
+  signedIn,
   hasCompletedOnboarding,
   showRetainedOnboarding,
   showPendingPro = false,
   pendingProLoaded = true,
   onboardingActions,
 }: Readonly<OverlayLayerProps>) {
-  const onboardingOpen = showRetainedOnboarding || showPendingPro
+  const onboardingOpen = signedIn && (showRetainedOnboarding || showPendingPro)
+  const noticeSuppressed = !signedIn || onboardingOpen || !pendingProLoaded
+  const promptsSuppressed = noticeSuppressed || !hasCompletedOnboarding
   return (
     <>
-      <ExpiryWarning />
-      <TrialExpiredModal suppressed={onboardingOpen || !pendingProLoaded} />
+      {signedIn ? <ExpiryWarning /> : null}
+      <TrialExpiredModal suppressed={noticeSuppressed} />
       {onboardingOpen ? (
         <OnboardingActionsProvider
           actions={onboardingActions}
@@ -47,21 +50,13 @@ export function OverlayLayer({
           <OnboardingFlow finalStepOnly={showPendingPro} />
         </OnboardingActionsProvider>
       ) : null}
-      {hasCompletedOnboarding && !onboardingOpen && pendingProLoaded ? (
-        <>
-          <MarketingConsentPrompt />
-          <ReferralPrompt />
-          <MilestoneSharePrompt />
-          <ReviewMomentSheet />
-        </>
-      ) : null}
-      {hasCompletedOnboarding && !onboardingOpen && pendingProLoaded ? (
-        <>
-          <CalendarImportPrompt />
-          <AstraImportPrompt />
-        </>
-      ) : null}
-      <VersionUpdateDrawer />
+      <MarketingConsentPrompt suppressed={promptsSuppressed} />
+      <ReferralPrompt suppressed={promptsSuppressed} />
+      <MilestoneSharePrompt suppressed={promptsSuppressed} />
+      <ReviewMomentSheet suppressed={promptsSuppressed} />
+      <CalendarImportPrompt suppressed={promptsSuppressed} />
+      <AstraImportPrompt suppressed={promptsSuppressed} />
+      <VersionUpdateDrawer suppressed={!signedIn} />
     </>
   )
 }

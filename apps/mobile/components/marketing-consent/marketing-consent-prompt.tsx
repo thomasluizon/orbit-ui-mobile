@@ -23,7 +23,7 @@ import { SETTLE_DELAY_MS } from '@orbit/shared/utils'
  * the shared 14-day cooldown while still recording the prompt so other prompts treat it as
  * recent.
  */
-export function MarketingConsentPrompt() {
+export function MarketingConsentPrompt({ suppressed }: Readonly<{ suppressed: boolean }>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -85,7 +85,7 @@ export function MarketingConsentPrompt() {
   })
 
   useEffect(() => {
-    if (visible || !isArmed || celebrationInFlight || anotherOverlayOpen) return
+    if (suppressed || visible || !isArmed || celebrationInFlight || anotherOverlayOpen) return
 
     settleTimerRef.current = setTimeout(() => {
       if (!useUIStore.getState().tryReservePromptOverlay(promptId)) return
@@ -99,7 +99,13 @@ export function MarketingConsentPrompt() {
     return () => {
       if (settleTimerRef.current) clearTimeout(settleTimerRef.current)
     }
-  }, [isArmed, celebrationInFlight, anotherOverlayOpen, visible, markEngagementPrompted, promptId])
+  }, [suppressed, isArmed, celebrationInFlight, anotherOverlayOpen, visible, markEngagementPrompted, promptId])
+
+  useEffect(() => {
+    if (!suppressed || !visible) return
+    const hide = () => setVisible(false)
+    closeSheet(hide, hide)
+  }, [suppressed, visible, closeSheet])
 
   function answer(enabled: boolean) {
     closeSheet(() => {

@@ -22,7 +22,7 @@ import { useUIStore } from '@/stores/ui-store'
 
 
 /** One-shot milestone nudge that hands off to the referral drawer. */
-export function ReferralPrompt() {
+export function ReferralPrompt({ suppressed }: Readonly<{ suppressed: boolean }>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -50,6 +50,7 @@ export function ReferralPrompt() {
   const [visibleKey, setVisibleKey] = useState<string | null>(null)
   const { sheetRef, closeSheet } = useSheetHost()
   const [showDrawer, setShowDrawer] = useState(false)
+  if (suppressed && showDrawer) setShowDrawer(false)
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const wasVisibleRef = useRef(false)
   useEffect(() => {
@@ -62,7 +63,7 @@ export function ReferralPrompt() {
   useEffect(() => () => unregisterOpenOverlay(promptId), [promptId, unregisterOpenOverlay])
 
   useEffect(() => {
-    if (visibleKey || !armedMilestoneKey || celebrationInFlight || anotherOverlayOpen) return
+    if (suppressed || visibleKey || !armedMilestoneKey || celebrationInFlight || anotherOverlayOpen) return
 
     if (
       !canPromptReferral(
@@ -85,6 +86,7 @@ export function ReferralPrompt() {
       if (settleTimerRef.current) clearTimeout(settleTimerRef.current)
     }
   }, [
+    suppressed,
     armedMilestoneKey,
     celebrationInFlight,
     anotherOverlayOpen,
@@ -93,6 +95,12 @@ export function ReferralPrompt() {
     markEngagementPrompted,
     clearArmedMilestone,
   ])
+
+  useEffect(() => {
+    if (!suppressed || visibleKey === null) return
+    const hide = () => setVisibleKey(null)
+    closeSheet(hide, hide)
+  }, [suppressed, visibleKey, closeSheet])
 
   const milestone = visibleKey ? parseReferralMilestoneKey(visibleKey) : null
   const cached = queryClient.getQueryData<ReferralPresentationDashboard>(referralKeys.all)

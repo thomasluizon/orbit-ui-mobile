@@ -328,12 +328,8 @@ function RootLayoutNav() {
         ) : null}
       </View>
 
-      {isAuthenticated ? (
-        <>
-          <AccountAutomaticEffects profile={profile} />
-          <GlobalOverlays profile={profile} />
-        </>
-      ) : null}
+      {isAuthenticated ? <AccountAutomaticEffects profile={profile} /> : null}
+      <GlobalOverlays profile={profile} signedIn={isAuthenticated} />
       {!isAuthenticated ? <AppToast /> : null}
     </>
   )
@@ -374,8 +370,10 @@ function CaptureProbes({
 
 function GlobalOverlays({
   profile,
+  signedIn,
 }: Readonly<{
   profile: ReturnType<typeof useProfile>['profile']
+  signedIn: boolean
 }>) {
   const canViewGamification = profile?.canViewGamification ?? false
   const gamification = useGamificationProfile(canViewGamification)
@@ -461,6 +459,7 @@ function GlobalOverlays({
 
   return (
     <OverlayLayer
+      signedIn={signedIn}
       hasCompletedOnboarding={profile?.hasCompletedOnboarding ?? false}
       showRetainedOnboarding={showRetainedOnboarding}
       showPendingPro={pendingPro === true}

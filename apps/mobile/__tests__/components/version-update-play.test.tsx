@@ -133,7 +133,7 @@ async function flushQueries() {
 async function mount() {
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   await TestRenderer.act(() => {
-    tree = TestRenderer.create(<QueryClientProvider client={queryClient}><VersionUpdateDrawer /></QueryClientProvider>)
+    tree = TestRenderer.create(<QueryClientProvider client={queryClient}><VersionUpdateDrawer suppressed={false} /></QueryClientProvider>)
   })
   await flushQueries()
 }
