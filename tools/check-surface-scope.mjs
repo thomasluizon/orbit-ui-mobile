@@ -1437,9 +1437,9 @@ function feedbackPseudoPaint(opening, state, openings) {
   const paints = new Set()
   for (const rule of state.cssRules ?? []) {
     if (!rule.feedbackOverlay) continue
-    const selector = rule.selector.match(/^(.*):has\((.+)\)::before$/)
+    const selector = rule.selector.replace(/:not\(:has\(.*\)\)(?=::before$)/, "").match(/^(.*):has\((.+)\)::before$/)
     if (!selector || !matchesSelectorAncestry(selector[1], opening, opening.getSourceFile(), state, openings)) continue
-    const controls = expandInteractionSelectors(selector[2])
+    const controls = postcss.list.comma(selector[2]).flatMap(expandInteractionSelectors)
     let matched = false
     const visit = (node) => {
       if ((ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node))
