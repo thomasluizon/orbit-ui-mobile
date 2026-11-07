@@ -3,7 +3,7 @@ import { GET } from '@/app/api/desktop-release/route'
 import { getQueryClient } from '@/lib/query-client'
 import { takeDesktopChatCheckpoint, writeDesktopChatCheckpoint } from '@/lib/desktop-chat-checkpoint'
 import {
-  canReloadDesktopWeb, desktopShellVersion, desktopWebReleaseSchema,
+  canReloadDesktopWeb, desktopShellVersion,
   reloadDesktopWeb, shellSupportsWeb, watchDesktopWebRelease,
 } from '@/lib/desktop-web-release'
 import { blockDesktopWebReload, desktopChatCheckpointKey, forgetDesktopChatCheckpoint, hasWebReloadBlockers } from '@/lib/web-reload-state'

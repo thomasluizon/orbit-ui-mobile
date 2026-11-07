@@ -1,11 +1,13 @@
 import { act, cleanup, render, screen } from '@testing-library/react'
-import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, expect, it, onTestFinished, vi } from 'vitest'
 import AuthLayout from '@/app/(auth)/layout'
+import { fetchAuthEndpoint } from '@/app/(auth)/login/login-form-helpers'
 import { GET } from '@/app/api/desktop-release/route'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { useDesktopUpdateStore } from '@/stores/desktop-update-store'
 import { getHeldAccountId } from '@/stores/auth-store'
 import { resetAuthStore } from '@/__tests__/support/account-change'
+import { installWebLocks } from '@/__tests__/helpers/web-locks'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: vi.fn() }), usePathname: () => '/login', useSearchParams: () => new URLSearchParams() }))
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
@@ -86,6 +88,27 @@ it('still waits for a form outside the sign-in surface before installing', async
   expect(actions()).toContain('cancel')
   expect(actions()).not.toContain('install')
   unsaved.remove()
+  await tick()
+  expect(actions().filter(action => action === 'install')).toHaveLength(1)
+})
+
+it.each(['/api/auth/send-code', '/api/auth/verify-code'])('holds a requested restart while %s is in flight and installs after it settles', async endpoint => {
+  installWebLocks()
+  onTestFinished(() => { Reflect.deleteProperty(navigator, 'locks') })
+  let settle: (response: Response) => void = () => {}
+  vi.stubGlobal('fetch', vi.fn(async (input: string) => input === endpoint
+    ? new Promise<Response>(resolve => { settle = resolve })
+    : GET()))
+  render(<AuthLayout><EmailStep /></AuthLayout>)
+  await tick()
+  const request = fetchAuthEndpoint(endpoint, { email: 'ada@example.com', code: '123456', language: 'en' })
+  native.restartRequested = true
+  await tick()
+  expect(actions()).toContain('cancel')
+  expect(actions()).not.toContain('install')
+  settle(Response.json({}, { status: 200 }))
+  await act(async () => { await request })
+  native.restartRequested = true
   await tick()
   expect(actions().filter(action => action === 'install')).toHaveLength(1)
 })
