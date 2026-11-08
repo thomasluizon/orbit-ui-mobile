@@ -120,9 +120,6 @@ describe('TimeField scroll ownership in the web Sheet', () => {
       }))
       expect(reachable).toBe(true)
       const minutes = page.getByRole('radiogroup', { name: 'common.minutes' })
-      await minutes.getByRole('radio', { name: '59', exact: true }).hover()
-      await page.mouse.wheel(0, 600)
-      expect(await page.locator('[data-slot="sheet-body"]').evaluate((body) => body.scrollTop)).toBe(0)
       await page.getByRole('button', { name: 'common.close' }).click()
       await page.getByRole('dialog').waitFor({ state: 'detached' })
       expect(await page.locator('#committed').textContent()).toBe('')
@@ -134,6 +131,60 @@ describe('TimeField scroll ownership in the web Sheet', () => {
       await page.getByRole('button', { name: 'common.done' }).click()
       await page.getByRole('dialog').waitFor({ state: 'detached' })
       expect(await page.locator('#committed').textContent()).toBe(configuration.hourCycle === 'h12' && configuration.value !== '00:00' ? '13:13' : '01:13')
+    } finally {
+      await page.close()
+    }
+  })
+
+  it.each([
+    { width: 320, height: 240, hourCycle: 'h23', value: '23:59' },
+    { width: 915, height: 240, hourCycle: 'h12', value: '11:59' },
+  ])('keeps a wheel past the last minute out of the overflowing sheet body at $width x $height ($hourCycle)', async (configuration) => {
+    const page = await browser.newPage({ viewport: { width: configuration.width, height: configuration.height }, reducedMotion: 'reduce' })
+    page.setDefaultTimeout(5000)
+    try {
+      await page.setContent(`<style>${stylesheet}</style><div id="root"></div><output id="committed"></output><script id="configuration" type="application/json">${JSON.stringify(configuration)}</script>`)
+      await page.addScriptTag({ content: componentScript })
+      await page.getByRole('button').click()
+      await page.getByRole('dialog').waitFor()
+      const minutes = page.getByRole('radiogroup', { name: 'common.minutes' })
+      const opening = await minutes.evaluate((group) => {
+        const scroller = group.parentElement!
+        const body = document.querySelector<HTMLElement>('[data-slot="sheet-body"]')!
+        const columnBounds = scroller.getBoundingClientRect()
+        const bodyBounds = body.getBoundingClientRect()
+        const x = columnBounds.left + columnBounds.width / 2
+        const y = (Math.max(columnBounds.top, bodyBounds.top) + Math.min(columnBounds.bottom, bodyBounds.bottom)) / 2
+        return {
+          bodyTop: body.scrollTop,
+          bodyMax: body.scrollHeight - body.clientHeight,
+          columnTop: scroller.scrollTop,
+          columnMax: scroller.scrollHeight - scroller.clientHeight,
+          pointer: { x, y },
+          pointerInColumn: scroller.contains(document.elementFromPoint(x, y)),
+        }
+      })
+      expect(opening.bodyMax).toBeGreaterThan(0)
+      expect(opening.bodyTop).toBeLessThan(opening.bodyMax)
+      expect(opening.columnMax).toBeGreaterThan(0)
+      expect(opening.columnTop).toBe(opening.columnMax)
+      expect(opening.pointerInColumn).toBe(true)
+      await page.mouse.move(opening.pointer.x, opening.pointer.y)
+      await page.mouse.wheel(0, 600)
+      const heldBodyTop = await page.locator('[data-slot="sheet-body"]').evaluate(async (body, openingTop) => {
+        const nextFrame = () => new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+        for (let frame = 0; frame < 60 && body.scrollTop === openingTop; frame++) await nextFrame()
+        let previous = body.scrollTop
+        let stableFrames = 0
+        for (let frame = 0; frame < 120 && stableFrames < 4; frame++) {
+          await nextFrame()
+          stableFrames = body.scrollTop === previous ? stableFrames + 1 : 0
+          previous = body.scrollTop
+        }
+        return body.scrollTop
+      }, opening.bodyTop)
+      expect(heldBodyTop).toBe(opening.bodyTop)
+      expect(await minutes.evaluate((group) => group.parentElement!.scrollTop)).toBe(opening.columnMax)
     } finally {
       await page.close()
     }
