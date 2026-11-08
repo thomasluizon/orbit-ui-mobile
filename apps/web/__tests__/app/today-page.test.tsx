@@ -1,5 +1,5 @@
 import React from 'react'
-import { fireEvent, within, render, screen } from '@testing-library/react'
+import { act, fireEvent, within, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
@@ -117,9 +117,11 @@ vi.mock('@/components/habits/habit-list', () => ({
     onCreate?: () => void
     createRefusal?: boolean
     filters?: { tagIds?: string[] }
+    searchQuery?: string
   }) {
     return (
-      <div data-testid="today-habit-list" data-show-completed={String(props.showCompleted)} data-tag-ids={props.filters?.tagIds?.join(',') ?? ''}>
+      <div data-testid="today-habit-list" data-show-completed={String(props.showCompleted)} data-tag-ids={props.filters?.tagIds?.join(',') ?? ''} data-search-query={props.searchQuery ?? ''}>
+        <section key={props.searchQuery ?? ''} data-testid="today-habit-list-body" />
         {props.onSeeUpcoming ? (
           <button type="button" onClick={props.onSeeUpcoming}>See upcoming</button>
         ) : null}
@@ -225,6 +227,36 @@ describe('Hoje date control', () => {
     fireEvent.click(close)
     expect(screen.queryByRole('textbox')).toBeNull()
     expect(screen.getByRole('button', { name: ptBr.habits.search.title })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('keeps the scoped search input mounted and focused while each query replaces the list body', () => {
+    vi.useFakeTimers()
+    function SearchPage() {
+      const search = useHabitViewSearch('all')
+      const view = { ...createMotionView('2026-04-08'), activeView: 'all' as const, search }
+      view.nav.dateNav = { ...baseProps, shortDayName: 'Wed' }
+      view.nav.today = '2026-04-08'
+      return <><TodayHeaderRegion view={view} /><TodayHabitsPanel view={view} /></>
+    }
+    try {
+      render(<NextIntlClientProvider locale="pt-BR" messages={ptBr}><SearchPage /></NextIntlClientProvider>)
+      fireEvent.click(screen.getByRole('button', { name: ptBr.habits.search.title }))
+      const field = () => screen.getByRole('textbox', { name: ptBr.habits.search.question })
+      const input = field()
+      expect(input).toHaveFocus()
+      for (const text of ['r', 're', 'rex', 'rea']) {
+        const body = screen.getByTestId('today-habit-list-body')
+        fireEvent.change(field(), { target: { value: text } })
+        act(() => { vi.advanceTimersByTime(300) })
+        expect(screen.getByTestId('today-habit-list')).toHaveAttribute('data-search-query', text)
+        expect(screen.getByTestId('today-habit-list-body')).not.toBe(body)
+        expect(field()).toBe(input)
+        expect(input).toHaveFocus()
+        expect(input).toHaveValue(text)
+      }
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it.each(['all', 'general'] as const)('offers the saved %s view above a hidden date pager', (activeView) => {
