@@ -5,7 +5,7 @@ import { dirname, join } from "node:path"
 import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR, WORKER_CONFIG_DIRECTORY, WORKER_CONFIG_DIRECTORY_VARIABLE } from "./_harness.mjs"
 import { clearWorkerLaunchReservation, readWakeSourceStates, recordReservedWorkerPid, reserveWorkerLaunch, writeRunState } from "../lib/run-state.mjs"
 import { cases as lifecycleCases, cleanupLifecycleLaunch, launcherResult } from "./launch-worker-lifecycle.mjs"
-import { TRANSIENT_TEXT, limitResultLine, resultLine } from "./claude-usage-limit.mjs"
+import { SIGN_IN_TEXT, TRANSIENT_TEXT, limitResultLine, resultLine, signInFailureLines } from "./claude-usage-limit.mjs"
 
 const TOOL = "launch-worker.mjs"
 
@@ -224,19 +224,57 @@ const accountLaunch = (label, stub) => {
 }
 
 /**
- * The claude worker runs under the account in its own config directory. The variable is required,
- * its directory must exist, and the child sees that directory with no inherited credential.
+ * With no worker account, single-account mode runs the claude worker once on the main account's
+ * default config, with no inherited credential and no relaunch after a usage limit.
+ */
+const checkSingleAccount = () => {
+  const singleAccount = { [WORKER_CONFIG_DIRECTORY_VARIABLE]: "" }
+  const probe = accountStub("single-account-probe", { workerOutput: "worker account used" })
+  const probeLaunch = accountLaunch("single-account", probe)
+  const planned = check(TOOL, "a claude dry run with no worker account exits 0",
+    [...probeLaunch.argv, "--dry-run"], { status: 0 }, { path: probeLaunch.fixture.path, env: singleAccount })
+  const plan = JSON.parse(planned.stdout || "{}")
+  discardLog(planned.stdout)
+  T(`${TOOL}: the single-account dry run names the main account and no account directory`,
+    plan.account === "main" && plan.configDirectory === null && /-main-account\.log$/.test(plan.logFile ?? ""), JSON.stringify(plan))
+  const researchOrder = stage("launch-worker/single-account-research/order.md", "Research the account rule.\n")
+  const researchPlanned = check(TOOL, "a research dry run with no worker account exits 0",
+    ["--research", "--order", researchOrder, "--out", join(dirname(researchOrder), "findings.md"), "--dry-run"], { status: 0 },
+    { path: probeLaunch.fixture.path, env: singleAccount })
+  const researchPlan = JSON.parse(researchPlanned.stdout || "{}")
+  T(`${TOOL}: research follows the same account rule and names the main account`,
+    researchPlan.research === true && researchPlan.account === "main" && researchPlan.configDirectory === null, JSON.stringify(researchPlan))
+  const launched = probeLaunch.run("a claude launch with no worker account starts on the main account", { status: 0 }, singleAccount)
+  const launchedResult = JSON.parse(launched.stdout || "{}")
+  discardAttemptLogs(launched.stdout)
+  const [observed, extra] = probe.runs()
+  T(`${TOOL}: the single-account child runs under the default Claude config with no inherited credential`,
+    observed?.configDirectory === null && observed.overrides?.length === 0 && extra === undefined, JSON.stringify(probe.runs()))
+  T(`${TOOL}: the single-account launch JSON names the main account`,
+    launchedResult.account === "main" && launchedResult.configDirectory === null && launchedResult.attempts?.length === 1 && /-main-account\.log$/.test(launchedResult.logFile ?? ""),
+    JSON.stringify(launchedResult.attempts))
+
+  const limited = accountStub("single-account-limit", { workerOutput: "worker account used", mainOutput: `${limitResultLine()}\n` })
+  const limitedRun = accountLaunch("single-account-limit", limited).run("a single-account worker at its usage limit ends the launch", { status: 0 }, singleAccount)
+  const limitedResult = JSON.parse(limitedRun.stdout || "{}")
+  discardAttemptLogs(limitedRun.stdout)
+  T(`${TOOL}: a single-account usage limit makes one attempt and reports usageLimitReached`,
+    limited.runs().length === 1 && limitedResult.attempts?.length === 1 && limitedResult.account === "main" && limitedResult.usageLimitReached === true &&
+      limitedResult.authenticationFailed === false && !/relaunching/.test(limitedRun.stderr),
+    JSON.stringify({ runs: limited.runs(), attempts: limitedResult.attempts }))
+}
+
+/**
+ * With the variable set, the claude worker runs under the account in its own config directory. The
+ * directory must exist, and the child sees that directory with no inherited credential.
  */
 const checkWorkerAccount = async () => {
   const probe = accountStub("account-probe", { workerOutput: "" })
   const probeLaunch = accountLaunch("worker-account", probe)
   const dryRunOptions = (env) => ({ path: probeLaunch.fixture.path, env })
-  check(TOOL, "a claude launch refuses an unset worker account variable, naming it",
-    [...probeLaunch.argv, "--dry-run"], { status: 2, stderr: new RegExp(`${WORKER_CONFIG_DIRECTORY_VARIABLE} is unset`) },
-    dryRunOptions({ [WORKER_CONFIG_DIRECTORY_VARIABLE]: "" }))
   const absent = join(WORKER_CONFIG_DIRECTORY, "absent-account")
   check(TOOL, "a claude launch refuses a worker account directory that does not exist",
-    [...probeLaunch.argv, "--dry-run"], { status: 2, stderr: new RegExp(`${WORKER_CONFIG_DIRECTORY_VARIABLE} names .*absent-account, which is not an existing directory`) },
+    [...probeLaunch.argv, "--dry-run"], { status: 2, stderr: new RegExp(`${WORKER_CONFIG_DIRECTORY_VARIABLE} names .*absent-account, which is not an existing directory; unset it`) },
     dryRunOptions({ [WORKER_CONFIG_DIRECTORY_VARIABLE]: absent }))
   const notDirectory = stage("launch-worker/account-file", "not a directory\n")
   check(TOOL, "a claude launch refuses a worker account path that is a file",
@@ -288,6 +326,18 @@ const checkWorkerAccount = async () => {
   T(`${TOOL}: any other failure is not relaunched on the main account`,
     transient.runs().length === 1 && transientResult.account === "worker" && transientResult.attempts?.length === 1 && transientResult.usageLimitReached === false,
     JSON.stringify(transientResult))
+  T(`${TOOL}: any other failure keeps its error text and is not a sign-in failure`,
+    transientResult.resultError === TRANSIENT_TEXT && transientResult.authenticationFailed === false, JSON.stringify(transientResult))
+
+  const signedOut = accountStub("account-signed-out", { workerOutput: `${signInFailureLines()}\n` })
+  const signedOutRun = accountLaunch("worker-account-signed-out", signedOut).run("a worker account that cannot sign in ends the launch", { status: 0, stderr: /could not sign in on the worker account/ })
+  const signedOutResult = JSON.parse(signedOutRun.stdout || "{}")
+  discardAttemptLogs(signedOutRun.stdout)
+  T(`${TOOL}: a cancelled worker account reports a sign-in failure, not a usage limit, with no relaunch`,
+    signedOut.runs().length === 1 && signedOutResult.account === "worker" && signedOutResult.attempts?.length === 1 &&
+      signedOutResult.authenticationFailed === true && signedOutResult.usageLimitReached === false && signedOutResult.resultError === SIGN_IN_TEXT &&
+      signedOutResult.attempts[0].authenticationFailed === true,
+    JSON.stringify(signedOutResult))
 }
 
 const checkOccupiedWorktree = async () => {
@@ -733,6 +783,7 @@ export const cases = async () => {
     JSON.stringify(codexOrdinary),
   )
   await checkWorkerAccount()
+  checkSingleAccount()
   T(
     `${TOOL}: the measurement cap is longer than the ordinary one, and both are reported`,
     measuredPlan.measurement === true && ordinaryPlan.measurement === false && measuredPlan.noProgressMinutes > ordinaryPlan.noProgressMinutes,

@@ -221,28 +221,28 @@ export const CLAUDE_ACCOUNT_OVERRIDE_KEYS = [
   "CLAUDE_CODE_USE_MANTLE",
 ]
 
-/**
- * The claude worker signs in from its own config directory, so a worker never spends the
- * orchestrator's account. The config names only the variable; the path lives in the environment.
- * Returns null for an engine that has no account directory.
- */
-export const workerConfigDirectory = (engineName, engine, environment = process.env) => {
-  if (engineName !== "claude") return null
-  const variable = nonEmptyString(engine?.configDirEnv, `workers.${engineName}.configDirEnv`)
-  const directory = environment[variable]
-  if (typeof directory !== "string" || directory.trim() === "") {
-    throw new Error(`${variable} is unset; export it as the worker account's Claude config directory before a claude launch`)
-  }
-  const resolved = resolve(directory)
-  if (!existsSync(resolved) || !statSync(resolved).isDirectory()) {
-    throw new Error(`${variable} names ${resolved}, which is not an existing directory`)
-  }
-  return resolved
-}
-
 /** The worker account's directory, and the main account: the orchestrator's default Claude config. */
 export const WORKER_ACCOUNT = "worker"
 export const MAIN_ACCOUNT = "main"
+
+/**
+ * The accounts a launch runs under: the first runs the order, the second takes the one relaunch
+ * after a usage limit. The config names only the variable; the path lives in the environment. Set,
+ * it gives the worker account, then the main account. Unset or empty, single-account mode gives the
+ * main account alone. An engine with no Claude account gets an empty list.
+ */
+export const workerAccounts = (engineName, engine, environment = process.env) => {
+  if (engineName !== "claude") return []
+  const variable = nonEmptyString(engine?.configDirEnv, `workers.${engineName}.configDirEnv`)
+  const mainAccount = { name: MAIN_ACCOUNT, configDirectory: null }
+  const directory = environment[variable]
+  if (typeof directory !== "string" || directory.trim() === "") return [mainAccount]
+  const resolved = resolve(directory)
+  if (!existsSync(resolved) || !statSync(resolved).isDirectory()) {
+    throw new Error(`${variable} names ${resolved}, which is not an existing directory; unset it to run workers on the main account`)
+  }
+  return [{ name: WORKER_ACCOUNT, configDirectory: resolved }, mainAccount]
+}
 
 /**
  * The environment a claude child runs under for one account. Every inherited override is removed,
