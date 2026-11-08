@@ -1,11 +1,11 @@
 import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
 import { useRouter } from 'expo-router'
 import { WidgetInfoSheet } from '@/components/profile/advanced-sections'
-import { getWidgetCopy } from '@orbit/shared/utils/advanced-settings'
 import { Platform } from 'react-native'
 import {
   PROFILE_NAV_ITEMS,
   PROFILE_SUBMENUS,
+  getProfileNavItemTitleKey,
   getProfileProEntry,
   shouldRedirectProfileNavItem,
 } from '@orbit/shared/utils/profile-navigation'
@@ -53,7 +53,7 @@ function buildMoreRows({ context: { profile, router, t }, openWidget }: Readonly
         textMode="label"
         compact={!item.hintKey}
         icon={<ProfileNavIcon iconKey={item.iconKey} />}
-        title={t(item.action === 'openWidget' ? getWidgetCopy(Platform.OS).titleKey : item.titleKey)}
+        title={t(getProfileNavItemTitleKey(item, Platform.OS))}
         description={item.hintKey ? t(item.hintKey) : undefined}
         trailing={item.proBadge && redirectsToUpgrade ? <ProBadge alwaysVisible /> : undefined}
         chevron={!redirectsToUpgrade}

@@ -7,6 +7,7 @@ import { WidgetInfoOverlay } from '@/components/advanced/advanced-sections'
 import {
   PROFILE_NAV_ITEMS,
   PROFILE_SUBMENUS,
+  getProfileNavItemTitleKey,
   getProfileProEntry,
   shouldRedirectProfileNavItem,
 } from '@orbit/shared/utils/profile-navigation'
@@ -49,7 +50,7 @@ function buildMoreRows({ profile, t }: RowContext, openWidget: () => void) {
         textMode="label"
         compact={!item.hintKey}
         icon={<ProfileNavIcon iconKey={item.iconKey} />}
-        title={t(item.titleKey)}
+        title={t(getProfileNavItemTitleKey(item, 'web'))}
         description={item.hintKey ? t(item.hintKey) : undefined}
         trailing={item.proBadge && redirectsToUpgrade ? <ProBadge alwaysVisible /> : undefined}
         chevron={!redirectsToUpgrade}
