@@ -299,6 +299,12 @@ async function pushPhase({ proxy, native, updates, handle, executable, output, r
       return shell
     },
     stop,
+    // `launchctl print gui/<uid>` on the macos-latest image lists com.apple.notificationcenterui.agent as disabled, and
+    // `open -b` starts Notification Center by its bundle identifier.
+    async startNotificationCenter() {
+      await execute('open', ['-g', '-b', 'com.apple.notificationcenterui'])
+      await waitFor(() => execute('pgrep', ['-x', 'NotificationCenter']).then((processIds) => processIds.trim(), () => ''), 'Notification Center', 30000)
+    },
     native: (pid, command, options) => native(pid, command, undefined, options),
     async findProcesses() {
       if (windows) return (await native(0, 'process', undefined, { executable })).processIds

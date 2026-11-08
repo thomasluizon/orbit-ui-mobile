@@ -161,7 +161,10 @@ and `ApnsPushSender.CreatePayload`, with a one-use token that the mock issues.
   its value, and signs an ES256 provider token. An unsigned build without the key is a skip that names
   the missing signing material. A Developer ID signed build without the key fails the job. Output that
   `plutil` cannot parse, or an unknown key value, fails the job with the raw output lengths and first
-  bytes. The runner allows the first authorization alert through AX.
+  bytes. The runner allows the first authorization alert through AX. The macos-latest image disables
+  `com.apple.notificationcenterui.agent`, so Notification Center is not running and nothing presents the
+  alert. Before it turns on the Perfil switch, the runner starts Notification Center with
+  `open -g -b com.apple.notificationcenterui` and waits for its process.
 
 Microsoft's app notification quickstart states that app notifications are not supported for elevated
 apps. The Windows App SDK makes this decision from the token integrity level only: `AppNotificationManager::IsSupported`
@@ -173,7 +176,10 @@ launcher with `CreateProcessAsUser`, as Microsoft's
 [low integrity guide](https://learn.microsoft.com/en-us/previous-versions/dotnet/articles/bb625960(v=msdn.10))
 shows. The launcher inherits the harness desktop, so the shell stays in the runner's interactive session.
 The launcher removes the proxy variables and starts the shell, which inherits the Medium token. The shell
-writes stderr to `<launch>.log` and stdout to `<launch>.stdout.log`.
+writes stderr to `<launch>.log` and stdout to `<launch>.stdout.log`. `Add-Type` compiles through CodeDom,
+which fails at Medium integrity with "A required privilege is not held by the client". Thus the High start
+mode compiles the token helper into `OrbitIntegrity-<id>.dll` in the output directory, and the Medium
+launcher only loads that library. A launcher that cannot load it writes the error to its status file.
 
 Before each launch, the harness grants the user SID modify access to the output directory. It also gives
 the directory and every file in it an explicit, inherited Medium label with `icacls /setintegritylevel`.

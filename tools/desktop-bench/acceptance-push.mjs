@@ -203,6 +203,9 @@ function skip(io, reason) {
 }
 
 async function enablePush(io, pid) {
+  // The macos-latest image disables com.apple.notificationcenterui.agent, so nothing presents the authorization alert
+  // until Notification Center runs.
+  if (io.platform === 'darwin') await io.startNotificationCenter()
   io.proxy.send(`push-enable:${JSON.stringify(io.labels)}`)
   // A first macOS request shows the system authorization alert, which only a person or the AX reader can allow.
   // Each poll records the Notification Center tree, so every run carries a capture of the alert or of its absence.

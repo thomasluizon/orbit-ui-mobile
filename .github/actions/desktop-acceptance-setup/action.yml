@@ -16,6 +16,7 @@ runs:
       run: |
         node --import tsx tools/desktop-bench/test-acceptance.ts
         node --import tsx tools/desktop-bench/test-acceptance-push.ts
+        node --import tsx tools/desktop-bench/test-acceptance-launch.ts
     - name: Install native prerequisites
       shell: bash
       run: |

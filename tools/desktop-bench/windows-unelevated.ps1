@@ -3,7 +3,8 @@ param(
     [string]$Executable,
     [string]$Log,
     [string]$Output,
-    [string]$Status
+    [string]$Status,
+    [string]$Assembly
 )
 $ErrorActionPreference = 'Stop'
 
@@ -12,7 +13,10 @@ $ErrorActionPreference = 'Stop'
 # shell starts at Medium integrity, the level of a person's app. Microsoft's documented way to start a child at a
 # lower level duplicates the caller's token, sets TokenIntegrityLevel and calls CreateProcessAsUser:
 # https://learn.microsoft.com/en-us/previous-versions/dotnet/articles/bb625960(v=msdn.10)
-Add-Type -TypeDefinition @'
+# Add-Type compiles through CodeDom, which fails at Medium integrity with "A required privilege is not held by the
+# client" (a hosted windows-latest probe reproduced it). Thus start mode, which runs at High, compiles this type into
+# a library once, and the Medium launcher only loads that library.
+$integritySource = @'
 using System;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
@@ -172,8 +176,9 @@ function Write-Status($Entry) {
 
 switch ($Mode) {
     'run' {
-        Write-Status ([ordered]@{ kind = 'context'; context = (ConvertTo-LaunchContext ([OrbitIntegrity]::DescribeCurrent())) })
         try {
+            [void][Reflection.Assembly]::LoadFrom($Assembly)
+            Write-Status ([ordered]@{ kind = 'context'; context = (ConvertTo-LaunchContext ([OrbitIntegrity]::DescribeCurrent())) })
             # The shell reaches the hermetic origin directly, as it did before the Medium launch.
             foreach ($name in 'HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY') { Remove-Item "Env:$name" -ErrorAction SilentlyContinue }
             $process = Start-Process -FilePath $Executable -WorkingDirectory (Split-Path -Parent $Executable) -PassThru `
@@ -202,9 +207,13 @@ switch ($Mode) {
         & icacls.exe $directory /setintegritylevel '(OI)(CI)M' /T /Q | Out-Null
         if ($LASTEXITCODE -ne 0) { throw "icacls could not label $directory at Medium integrity" }
         $label = (& icacls.exe $directory | Select-String 'Mandatory Label' | ForEach-Object { $_.Line.Trim() }) -join '; '
+        # Each launch compiles its own library, because an earlier launcher can still hold its library open.
+        $assembly = Join-Path $directory ('OrbitIntegrity-{0}.dll' -f [guid]::NewGuid().ToString('N'))
+        Add-Type -TypeDefinition $integritySource -OutputAssembly $assembly -OutputType Library
+        Add-Type -Path $assembly
         $powershell = Join-Path $PSHOME 'powershell.exe'
-        $commandLine = '"{0}" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{1}" -Mode run -Executable "{2}" -Log "{3}" -Output "{4}" -Status "{5}"' -f `
-            $powershell, $PSCommandPath, $Executable, $Log, $Output, $Status
+        $commandLine = ('"{0}" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{1}" -Mode run -Executable "{2}" -Log "{3}" -Output "{4}"' +
+            ' -Status "{5}" -Assembly "{6}"') -f $powershell, $PSCommandPath, $Executable, $Log, $Output, $Status, $assembly
         $launcher = [OrbitIntegrity]::StartAtMedium($powershell, $commandLine, $directory)
         [ordered]@{ harness = (ConvertTo-LaunchContext ([OrbitIntegrity]::DescribeCurrent())); launcher = $launcher; outputLabel = $label } |
             ConvertTo-Json -Compress

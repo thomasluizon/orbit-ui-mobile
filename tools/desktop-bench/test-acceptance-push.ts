@@ -483,6 +483,7 @@ function pushHarness(platform: 'win32' | 'darwin', overrides: { logsAfterDone?: 
       reset(settings: Record<string, unknown>) { events.push(`reset ${JSON.stringify(settings)}`) },
     },
     launch: async () => { events.push('launch'); return { child: { pid: 41 } } },
+    startNotificationCenter: async () => { events.push('notification center') },
     stop: async () => { events.push('stop'); shellAlive = false },
     adopt: (pid: number) => { events.push(`adopt ${pid}`) },
     findProcesses: async () => launchedVisible ? [77] : [],
@@ -537,6 +538,8 @@ test('push acceptance proves Done once with the window hidden, then an expired-s
     const order = (event: string) => { const index = harness.events.findIndex((entry) => entry.startsWith(event)); assert.ok(index >= 0, event); return index }
     assert.ok(order('session expiring') < order('launch'))
     assert.ok(order('send push-enable:') < order('native 41 close'))
+    if (platform === 'darwin') assert.ok(order('launch') < order('notification center') && order('notification center') < order('send push-enable:'))
+    else assert.equal(harness.events.includes('notification center'), false)
     assert.ok(order('native 41 close') < order('deliver Orbit acceptance done'))
     assert.ok(order('deliver Orbit acceptance done') < order('native 41 notification invoke Done'))
     assert.ok(order('deliver Orbit acceptance expired') < order('stop'))
