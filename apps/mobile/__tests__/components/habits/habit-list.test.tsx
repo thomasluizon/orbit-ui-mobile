@@ -16,7 +16,7 @@ import { Fab } from '@/components/ui/fab'
 import { makeMonthlyChildDaySchedule } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit, createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
-import { formatAPIDate, createApiClientError, normalizeHabitQueryData } from '@orbit/shared/utils'
+import { formatAPIDate, createApiClientError, normalizeHabitQueryData, buildHabitViewFilters } from '@orbit/shared/utils'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toast } from '@/components/ui/app-toast'
 import { useAppToastStore } from '@/stores/app-toast-store'
@@ -32,7 +32,9 @@ import { optimisticInsertHabit } from '@/lib/habit-optimistic-helpers'
 import { TodayLaunchContent } from '@/components/today/today-launch-content'
 import { Checkbox } from '@/components/ui/checkbox'
 import { HabitRow } from '@/components/habits/habit-row'
-import { __resetTestHostConfig, __setMeasureInWindowImpl, __setWindowDimensions } from '@/test-mocks/react-native'
+import { __getFocusedNativeTag, __resetTestHostConfig, __setMeasureInWindowImpl, __setWindowDimensions } from '@/test-mocks/react-native'
+import { Input } from '@/components/ui/input'
+import { useHabitViewSearch } from '@/hooks/use-habit-view-search'
 import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
 import { HabitListAllDone } from '@/components/habit-list/empty-state'
 import { SearchEmpty } from '@/components/search/search-results'
@@ -1339,6 +1341,70 @@ describe('HabitList', () => {
       queryClient.clear()
       vi.useRealTimers()
     }
+  })
+
+  describe('scoped header search', () => {
+    type SearchView = 'today' | 'all' | 'general'
+    const searchFieldMounts = { count: 0 }
+    function CountedSearchField({ search }: Readonly<{ search: ReturnType<typeof useHabitViewSearch> }>) {
+      React.useEffect(() => { searchFieldMounts.count += 1 }, [])
+      return <Input label="search" hideLabel value={search.text} onChange={search.changeText} focusRequest={1} />
+    }
+    function ScopedSearchHarness({ view }: Readonly<{ view: SearchView }>) {
+      const search = useHabitViewSearch(view)
+      const filters = buildHabitViewFilters({ view, dateStr: TODAY, isTodayDate: true, searchQuery: search.query, selectedFrequency: null, selectedTagIds: [], showGeneralOnToday: false })
+      return <HabitList view={view} filters={filters} searchQuery={search.query} onClearSearch={search.close} showCompleted onCreatePress={vi.fn()}
+        listHeader={<View>{search.open ? <CountedSearchField search={search} /> : null}<View testID="search-toggle" onTouchEnd={search.toggle} /></View>} />
+    }
+
+    it.each(['today', 'all', 'general'] as const)('keeps the %s search input mounted and focused while each query loads, empties and refills the list', async (view) => {
+      const { queryClient } = await vi.importActual<typeof import('@/lib/query-client')>('@/lib/query-client')
+      vi.useFakeTimers()
+      skipFlow.active = true
+      queryClient.clear()
+      searchFieldMounts.count = 0
+      const habits = ['Read', 'Run'].map((title) => createMockHabitScheduleItem({ id: title.toLowerCase(), title, isGeneral: view === 'general', scheduledDates: [TODAY] }))
+      const pending: { url: string; resolve: (value: unknown) => void }[] = []
+      offlineMocks.apiClient.mockImplementation((url: string) => new Promise((resolve) => { pending.push({ url, resolve }) }))
+      const answer = async () => {
+        await TestRenderer.act(async () => {
+          for (const request of pending.splice(0)) {
+            const search = new URL(request.url, 'https://mobile-tests.invalid').searchParams.get('search')?.toLowerCase() ?? ''
+            const items = habits.filter((habit) => habit.title.toLowerCase().includes(search))
+            request.resolve({ items, totalCount: items.length, totalPages: 1, page: 1, pageSize: 200 })
+          }
+          await vi.advanceTimersByTimeAsync(0)
+        })
+      }
+      let tree!: ReturnType<typeof TestRenderer.create>
+      try {
+        await TestRenderer.act(() => { tree = createTestTree(<QueryClientProvider client={queryClient}><ScopedSearchHarness view={view} /></QueryClientProvider>) })
+        await answer()
+        await TestRenderer.act(() => { tree.root.findByProps({ testID: 'search-toggle' }).props.onTouchEnd() })
+        const field = () => tree.root.findAll((node: { type: unknown }) => node.type === 'TextInput')
+        expect(field()).toHaveLength(1)
+        const input = field()[0]!
+        const focusedTag = input.props.__nativeTag as number
+        expect(__getFocusedNativeTag()).toBe(focusedTag)
+        const fieldState = () => ({ fields: field().length, sameInput: field()[0] === input, focused: __getFocusedNativeTag() === focusedTag, mounts: searchFieldMounts.count })
+        const titles = () => tree.root.findAllByType(HabitRow).filter(isInteractiveRow).map((row: { props: { habit: NormalizedHabit } }) => row.props.habit.title)
+        for (const [text, expected] of [['r', ['Read', 'Run']], ['re', ['Read']], ['rex', []], ['rea', ['Read']]] as const) {
+          await TestRenderer.act(() => { field()[0]!.props.onChangeText(text) })
+          await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(300) })
+          expect(pending.length).toBeGreaterThan(0)
+          expect(fieldState()).toEqual({ fields: 1, sameInput: true, focused: true, mounts: 1 })
+          await answer()
+          expect(titles()).toEqual(expected)
+          expect(tree.root.findAllByType(SearchEmpty)).toHaveLength(expected.length === 0 ? 1 : 0)
+          expect(fieldState()).toEqual({ fields: 1, sameInput: true, focused: true, mounts: 1 })
+          expect(field()[0]!.props.value).toBe(text)
+        }
+      } finally {
+        if (tree) TestRenderer.act(() => tree.unmount())
+        queryClient.clear()
+        vi.useRealTimers()
+      }
+    })
   })
 
   it.each(['rows', 'empty', 'loading', 'error'] as const)('marks first Hoje content only after its %s surface renders', (surface) => {
