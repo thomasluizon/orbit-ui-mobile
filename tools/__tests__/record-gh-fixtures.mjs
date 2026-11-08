@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 
-import { check, githubIssueReadPlan, orcaEnv, root, T } from "./_harness.mjs"
+import { check, githubIssueReadPlan, orcaEnv, root, T, TOOLS_DIR } from "./_harness.mjs"
 import { join } from "node:path"
 
 const TOOL = "record-gh-fixtures.mjs"
@@ -122,4 +122,32 @@ export const cases = () => {
     JSON.stringify(unioned.commands.issueView.paths["$.stateReason"].types) === JSON.stringify(["null", "string"]),
     JSON.stringify(unioned.commands.issueView.paths["$.stateReason"]),
   )
+
+  /**
+   * Built from the committed recording. Only #2371 keeps its nodes, because the stub exits right
+   * after one write and a pipe holds 64 KiB; its review body carries a real em dash.
+   */
+  const recording = JSON.parse(readFileSync(join(TOOLS_DIR, "__fixtures__", "gh-review-rounds.json"), "utf8"))
+  const response = structuredClone(recording.response)
+  for (const [alias, node] of Object.entries(response.data.repository)) {
+    if (alias === "pr2371") continue
+    for (const connection of ["reviews", "reviewThreads", "timelineItems"]) node[connection] = { ...node[connection], nodes: [] }
+  }
+  const roundsOutput = join(root, "recorded-review-rounds.json")
+  const roundsPlan = (value) => orcaEnv([{ match: "query ReviewRoundsPulls(", stdout: JSON.stringify(value) }])
+  const recorded = check(TOOL, "records the raw review-rounds response for the pinned pull requests", ["--review-rounds", "--output", roundsOutput], { status: 0, stdout: /record-gh-fixtures: wrote/ }, {
+    env: roundsPlan(response),
+  })
+  if (recorded.status !== 0) return
+  const roundsText = readFileSync(roundsOutput, "utf8")
+  const written = JSON.parse(roundsText)
+  T(`${TOOL}: the review-rounds response is written verbatim`, JSON.stringify(written.response) === JSON.stringify(response) &&
+    JSON.stringify(written.generation.numbers) === JSON.stringify(recording.generation.numbers))
+  T(`${TOOL}: a recorded dash is escaped so the Dash Ban passes and the value is unchanged`,
+    !/[\u2013\u2014]/.test(roundsText) && written.response.data.repository.pr2371.reviews.nodes[0].body.includes("\u2014"))
+  const incomplete = structuredClone(response)
+  delete incomplete.data.repository.pr2338
+  check(TOOL, "refuses a review-rounds response that lacks a pinned pull request", ["--review-rounds", "--output", join(root, "incomplete-review-rounds.json")], { status: 1, stderr: /2338/ }, {
+    env: roundsPlan(incomplete),
+  })
 }
