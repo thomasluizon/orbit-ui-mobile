@@ -294,8 +294,7 @@ Android light from the body alone and read their caller-rendered controls throug
 `useNestedSlotFeedback` takes the slot's bubbling touch and pointer events, so a pressed or
 hovered check, disclosure or trailing button rests the row even while the body holds keyboard
 focus. On web, the HabitBlockRow proposed title reads `--orbit-list-row-secondary`, so it swaps
-only while the row is lit. The tag picker body has no `.orbit-list-row-body` class and paints its own
-fill, so the tag edit and delete buttons beside it are sibling fills.
+only while the row is lit.
 
 Web `__tests__/components/ui/nested-control-fill.test.tsx` hovers and presses each nested control
 in Chromium for the notification row, a ListRow action, a calendar import event row and an Astra
