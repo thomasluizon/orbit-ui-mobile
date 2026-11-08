@@ -85,7 +85,11 @@ signed-out onboarding input label from either locale in a visible, enabled acces
 owned by the app. The input remains visible when the keyboard clips the heading. It then waits
 15 seconds for deferred startup work and requires the same process and first screen to survive.
 The forced-update dialog fails immediately with a build-below-server-minimum verdict, including
-when it appears during settling over the first screen. App-UID logcat must contain no native fatal,
+when it appears during settling over the first screen. The gate taps the Wait control of an
+Application Not Responding dialog for another process during startup and during settling, then
+captures the screen again. The evidence keeps each dismissal and its dialog XML. Dismissals after
+settling have a 30-second deadline. The app's own dialog fails the boot.
+App-UID logcat must contain no native fatal,
 Java fatal, fatal React Native report or
 invariant violation. A running splash process alone never passes. XML, logcat, process IDs,
 ABIs and AAB and bundle hashes are retained as `android-boot-evidence`, including on failure.

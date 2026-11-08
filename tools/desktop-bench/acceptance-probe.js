@@ -51,8 +51,9 @@
   }
   function recordPaletteKey(event) {
     const input = document.querySelector('[cmdk-input]')
-    if (event.key !== 'ArrowDown' || !input) return
-    void report('palette-key', { key: event.key, code: event.code, trusted: event.isTrusted,
+    if (!input) return
+    // WebKit gives a key that the macOS input method claimed keyCode 229, so keyCode and composing make that case visible (#1560).
+    void report('palette-key', { key: event.key, code: event.code, keyCode: event.keyCode, composing: event.isComposing, trusted: event.isTrusted,
       targetInput: event.target === input, documentFocused: document.hasFocus(), before: paletteState(),
       metaKey: event.metaKey, ctrlKey: event.ctrlKey, altKey: event.altKey, shiftKey: event.shiftKey })
   }

@@ -1,6 +1,7 @@
-import { spawn } from "node:child_process"
-import { existsSync } from "node:fs"
+import { spawn, spawnSync } from "node:child_process"
+import { existsSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
+import { pathToFileURL } from "node:url"
 import { setTimeout as wait } from "node:timers/promises"
 import { T, realOrchestratorConfig, run, stageWithConfig } from "./_harness.mjs"
 import { isRelayWaiter, readRunState, readWakeSourceStates, wakeSourceDirectory, writeRunState } from "../lib/run-state.mjs"
@@ -34,6 +35,31 @@ export const cases = async () => {
       T(`auto-work ${mode}: clears registration`, !existsSync(join(wakeSourceDirectory(installation.base), `${child.pid}.json`)))
     } finally { child.kill("SIGKILL"); await closed; clearTimeout(watchdog) }
   }
+  const crossing = stageWithConfig("auto-work-crossing", "wait-auto-work.mjs", realOrchestratorConfig())
+  writeRunState({ sessionId: "auto", sleep: true, autoWork: true, remaining: [] }, crossing.base)
+  // Each run state read moves the waiter's clock 6 of its 10 seconds, so the loop read crosses the interval end.
+  const clock = join(crossing.base, "crossing-clock.mjs")
+  writeFileSync(clock, `import fs from "node:fs"
+import { syncBuiltinESMExports } from "node:module"
+const realNow = Date.now
+const realRead = fs.readFileSync
+let offset = 0
+Date.now = () => realNow() + offset
+fs.readFileSync = function (path, ...rest) {
+  if (String(path).endsWith("orbit-orchestrate-run.json")) offset += 6000
+  return realRead.call(this, path, ...rest)
+}
+syncBuiltinESMExports()
+`)
+  const { NODE_NO_WARNINGS: _silenced, NODE_OPTIONS: _options, ...warningEnv } = process.env
+  const crossed = spawnSync(process.execPath, ["--import", pathToFileURL(clock).href, crossing.path, "--interval-seconds", "10"],
+    { encoding: "utf8", timeout: 8000, env: { ...warningEnv, CLAUDE_CODE_SESSION_ID: "auto" } })
+  T("auto-work crossing: a state read past the interval end waits no negative delay",
+    !crossed.stderr.includes("TimeoutNegativeWarning"), crossed.stderr)
+  T("auto-work crossing: prints only its JSON result line", crossed.stderr === "" &&
+    crossed.stdout.trim().split("\n").length === 1, `${crossed.stdout}${crossed.stderr}`)
+  T("auto-work crossing: ends on the interval with code 0", crossed.status === 0 &&
+    JSON.parse(crossed.stdout).reason === "INTERVAL", `${crossed.status} ${crossed.stdout}`)
   const installation = stageWithConfig("auto-work-mode", "auto-work-state.mjs", realOrchestratorConfig())
   writeRunState({ sessionId: "auto", sleep: true, crank: true, remaining: ["#1"] }, installation.base)
   const env = { CLAUDE_CODE_SESSION_ID: "auto" }

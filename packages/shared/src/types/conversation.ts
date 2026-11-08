@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { agentOperationResultSchema, pendingOperationChangePreviewSchema } from './ai'
 import { astraPlanSchema } from './astra-plan'
 
 const conversationOrderSchema = z.union([z.number().int().safe(), z.string().regex(/^-?(?:0|[1-9]\d*)$/)])
@@ -15,6 +16,9 @@ export const conversationPreviewOutcomeSchema = z.object({
   Outcome: z.enum(['approved', 'edited', 'rejected', 'expired', 'pending']),
   Arguments: z.unknown(),
   Revision: z.number().int(),
+  Execution: agentOperationResultSchema.optional(),
+  RevisedPreview: pendingOperationChangePreviewSchema.optional(),
+  PreviewRevised: z.boolean().optional(),
 })
 
 export const conversationDisplayTurnSchema = z.object({
@@ -35,6 +39,7 @@ export const conversationPageSchema = z.object({
   beforeOrder: conversationOrderSchema.nullable(),
 })
 
+export type ConversationPreviewOutcome = z.infer<typeof conversationPreviewOutcomeSchema>
 export type ConversationImageReference = z.infer<typeof conversationImageReferenceSchema>
 export type ConversationDisplayTurn = z.infer<typeof conversationDisplayTurnSchema>
 export type ConversationPage = z.infer<typeof conversationPageSchema>

@@ -1,3 +1,4 @@
+import { getWidgetCopy } from './advanced-settings'
 import { formatLocaleDate } from './locale-format'
 import type { Profile } from '../types/profile'
 import {
@@ -78,7 +79,6 @@ interface ProfileNavItemBase {
   id: string
   section: ProfileNavSection
   iconKey: ProfileNavIconKey
-  titleKey: string
   hintKey: string | null
   variant: ProfileNavVariant
   proBadge: boolean
@@ -88,8 +88,8 @@ interface ProfileNavItemBase {
 }
 
 export type ProfileNavItem = ProfileNavItemBase & (
-  | { route: string; action?: never }
-  | { route: null; action: 'openWidget' }
+  | { route: string; action?: never; titleKey: string }
+  | { route: null; action: 'openWidget'; titleKey?: never }
 )
 
 export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
@@ -112,7 +112,6 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
     route: null,
     action: 'openWidget',
     iconKey: 'widget',
-    titleKey: 'profile.widgetTitle',
     hintKey: null,
     variant: 'default',
     proBadge: false,
@@ -160,6 +159,10 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
     entitlementMode: null,
   },
 ]
+
+export function getProfileNavItemTitleKey(item: ProfileNavItem, platform: string): string {
+  return item.action === 'openWidget' ? getWidgetCopy(platform).titleKey : item.titleKey
+}
 
 export function shouldRedirectProfileNavItem(
   item: Pick<ProfileNavItem, 'entitlementMode' | 'entitlementRequirement'>,

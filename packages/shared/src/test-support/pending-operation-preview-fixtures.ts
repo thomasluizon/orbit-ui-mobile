@@ -417,3 +417,35 @@ export function makeTicketTaskPreview(): PendingAgentOperation {
   ].map(field => ({ ...field, entityName: TICKET_TASK_TITLE }))
   return pendingAgentOperationSchema.parse({ ...operation, expiresAtUtc: '2099-01-01T00:00:00Z', items: [{ ...item, entityName: TICKET_TASK_TITLE, habitType: 'Task', fields }] })
 }
+
+export function makeBulkUpdateHabitsPreview(count = 3): PendingAgentOperation {
+  const items = Array.from({ length: count }, (_, index) => {
+    const entityId = `00000000-0000-4000-8000-${String(index + 40).padStart(12, '0')}`
+    const entityName = `Habit ${index + 1}`
+    return { itemId: entityId, entityId, entityName, stateFingerprint: `update-state-${index}`, removesData: false,
+      fields: [{ entityId, entityName, field: 'due_time', oldValue: '07:00', newValue: '08:00', valueType: 'time', proposedValue: '08:00', isEditable: false }] }
+  })
+  return pendingAgentOperationSchema.parse({
+    id: '00000000-0000-4000-8000-000000000007', capabilityId: 'habits.bulk.write',
+    displayName: 'Bulk habit changes', summary: 'Update habits', riskClass: 'Low',
+    confirmationRequirement: 'FreshConfirmation', expiresAtUtc: '2026-10-01T12:00:00Z',
+    actionKey: 'updateHabits', changes: items.flatMap((item) => item.fields),
+    changeTargetCount: count, previewFingerprint: 'update-preview', items,
+  })
+}
+
+export function makeBulkUpdateExecutionResponse(appliedCount: number, totalMatched: number, sourceName = 'bulk_update_habits'): AgentExecuteOperationResponse {
+  const skippedCount = totalMatched - appliedCount
+  const partial = appliedCount !== totalMatched
+  return agentExecuteOperationResponseSchema.parse({
+    operation: {
+      operationId: sourceName, sourceName, riskClass: 'Low', confirmationRequirement: 'FreshConfirmation',
+      status: 'Succeeded', summary: 'Update habits', targetId: null,
+      targetName: `${sourceName === 'bulk_update_habit_emojis' ? 'Updated emojis for' : 'Updated'} ${appliedCount} of ${totalMatched} matching habit(s). Skipped ${skippedCount}. ${partial ? 'Partial result.' : 'Complete result.'}`,
+      policyReason: null, pendingOperationId: null,
+      payload: { applied_count: appliedCount, total_matched: totalMatched, skipped_count: skippedCount, partial,
+        ...(sourceName === 'bulk_update_habit_emojis' ? { updated_count: appliedCount } : {}) },
+    },
+    pendingOperation: null, policyDenial: null,
+  })
+}

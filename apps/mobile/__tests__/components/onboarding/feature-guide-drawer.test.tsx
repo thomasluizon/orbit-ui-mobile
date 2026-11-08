@@ -1,5 +1,6 @@
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
+import { Platform } from 'react-native'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
@@ -108,6 +109,29 @@ describe('FeatureGuideDrawer (mobile)', () => {
     expect(JSON.stringify(tree!.toJSON())).toContain(
       'onboarding.featureGuide.widgetSection.opensTitle',
     )
+  })
+
+  it('describes the iOS widget on iOS without the Android name or refresh', () => {
+    const platform = Platform.OS
+    Platform.OS = 'ios'
+    try {
+      let tree: RenderedTree
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(<FeatureGuideDrawer open onClose={vi.fn()} />)
+      })
+      pressTab(tree!, 'onboarding.featureGuide.widget')
+      const rendered = JSON.stringify(tree!.toJSON())
+      expect(rendered).toContain('onboarding.featureGuide.widgetSection.todayDescIos')
+      expect(rendered).toContain('onboarding.featureGuide.widgetSection.opensDescIos')
+      expect(rendered).not.toContain('onboarding.featureGuide.widgetSection.todayDesc"')
+      expect(rendered).not.toContain('onboarding.featureGuide.widgetSection.opensDesc"')
+      for (const messages of [en, ptBR]) {
+        const section = messages.onboarding.featureGuide.widgetSection
+        expect(`${section.todayDescIos} ${section.opensDescIos}`).not.toMatch(/android|refresh|atualizar/i)
+      }
+    } finally {
+      Platform.OS = platform
+    }
   })
 
   it('states that the Android widget opens Orbit and never logs', () => {

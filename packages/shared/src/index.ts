@@ -166,7 +166,7 @@ export {
   getMcpEndpointUrl,
   MCP_CONFIG_TABS,
   WIDGET_FEATURES,
-  WIDGET_STEP_KEYS,
+  getWidgetCopy,
   buildFreshStartDeletedItems,
   buildFreshStartPreservedItems,
   FRESH_START_DELETED_ITEM_KEYS,
@@ -232,6 +232,7 @@ export type {
   McpConfigTab,
   WidgetFeatureDefinition,
   WidgetFeatureIconKey,
+  WidgetCopy,
 } from './utils/advanced-settings'
 export type {
   ProfileNavHintMode,

@@ -705,13 +705,14 @@ export {
   getMcpEndpointUrl,
   MCP_CONFIG_TABS,
   WIDGET_FEATURES,
-  WIDGET_STEP_KEYS,
+  getWidgetCopy,
 } from './advanced-settings'
 export type {
   AgentScopeOption,
   McpConfigTab,
   WidgetFeatureDefinition,
   WidgetFeatureIconKey,
+  WidgetCopy,
 } from './advanced-settings'
 export {
   buildFreshStartDeletedItems,

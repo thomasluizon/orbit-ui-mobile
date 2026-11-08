@@ -12,7 +12,7 @@ import { expectCalendarDayLinkFocus } from './calendar-day-link-focus'
 import { expectFillShape, expectInteractionFill } from './label-interaction-fill'
 import { setLayoutProfileSession } from './profile-session'
 import { readControlPaint } from './control-paint'
-import { measureNotificationFill } from './notification-fill-geometry'
+import { measureNotificationFill, measureOwnFill } from './notification-fill-geometry'
 import { test } from './upgrade-fixtures'
 
 const selectedDate = '2026-09-04'
@@ -52,9 +52,9 @@ async function expectTouchPressFill(control: Locator, separateBody?: Locator) {
     await expect(control).not.toHaveAttribute('data-test-touch-held')
     await session.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: ['active'] })
     await expect.poll(async () => {
-      const expected = await control.evaluate((element) => {
+      const expected = await page.evaluate(() => {
       const probe = document.createElement('span')
-      probe.style.background = element.matches('.orbit-list-row-action') ? 'var(--bg-row-action)' : 'var(--bg-hover)'
+      probe.style.background = 'var(--bg-hover)'
       probe.style.position = 'fixed'
       probe.style.pointerEvents = 'none'
       document.body.append(probe)
@@ -68,7 +68,7 @@ async function expectTouchPressFill(control: Locator, separateBody?: Locator) {
     if (separateBody) {
       await expect(separateBody).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
       const measured = await control.locator('..').evaluate(measureNotificationFill)
-      expect(measured.fills).toEqual([measured.row])
+      expect(measured.fills).toEqual([await control.evaluate(measureOwnFill)])
       expect(measured.bodyPaints).toEqual([])
     }
   } finally {

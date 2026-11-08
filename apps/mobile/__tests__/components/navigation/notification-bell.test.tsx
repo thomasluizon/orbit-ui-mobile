@@ -457,7 +457,7 @@ describe('mobile alerts', () => {
         expect(badge.top).toBe(action.top)
         expect(badge.right).toBe(action.right)
         expect(badge.width).toBeGreaterThanOrEqual(20)
-        expect(badge.height).toBeGreaterThanOrEqual(20 * scale)
+        expect(badge.height).toBe(20)
         const inset = Math.min(Number(badge.style.borderRadius), badge.width / 2, badge.height / 2) * (1 - Math.SQRT1_2)
         const corners = [badge.left + inset, badge.right - inset].flatMap((x) =>
           [badge.top + inset, badge.bottom - inset].map((y) => ({ x, y })))
@@ -473,6 +473,22 @@ describe('mobile alerts', () => {
       expect(hosts(tree, 'Pressable')).toHaveLength(1)
     },
   )
+  it.each([1, 25])('keeps the %s unread marker at its resting size and corner at double text size', (count) => {
+    state.unreadCount = count
+    const measure = (fontScale: number) => {
+      __setWindowDimensions({ width: 320, height: 900, scale: 1, fontScale })
+      const tree = render(<NotificationBell />)
+      expect(testId(tree, 'notification-count')[0]!.props).toMatchObject({ maxFontSizeMultiplier: 1 })
+      const parts = measureInteractionFills(tree.toJSON(), SMALL_PILL_VISIBLE_MIN, false, fontScale)
+      const badge = parts.find((part) => part.host.props.testID === 'notification-count')!
+      const action = parts.find((part) => part.host.type === 'Pressable')!
+      return { badge: { width: badge.width, height: badge.height }, offset: { top: badge.top - action.top, right: action.right - badge.right } }
+    }
+    const resting = measure(1)
+    const large = measure(2)
+    expect(resting.badge.height).toBe(20)
+    expect(large).toEqual(resting)
+  })
   it.each([1, 9])('shows the count %s below the cap', (count) => {
     state.unreadCount = count
     expect(testId(render(<NotificationBell />), 'notification-count')[0]!.props.children).toBe(count)
@@ -724,11 +740,14 @@ it.each(['dark', 'light'] as const)('keeps the row delete focus and pressed feed
   expect(fillStyle().outlineWidth).toBeUndefined()
   TestRenderer.act(() => button().props.onFocus?.())
   expect(fillStyle()).toMatchObject({ outlineWidth: 2, outlineColor: tokens.primary, borderColor: tokens.fg1, width: 44, height: 44 })
-  TestRenderer.act(() => button().props.onPressIn?.())
-  expect(fillStyle().backgroundColor).toBe(tokens.bgRowAction)
   expect(rowFill().backgroundColor).toBe(tokens.bgHover)
+  expect(fillStyle().backgroundColor).toBe(tokens.bgRowAction)
+  TestRenderer.act(() => button().props.onPressIn?.())
+  expect(fillStyle().backgroundColor).toBe(tokens.bgHover)
+  expect(rowFill().backgroundColor).toBe('transparent')
   expect(contrastOnSurface(tokens.primary, [tokens.fg1])).toBeGreaterThanOrEqual(3)
   expect(contrastOnSurface(tokens.statusBad, [tokens.bg, tokens.bgCard, tokens.bgHover, tokens.bgRowAction])).toBeGreaterThanOrEqual(3)
+  for (const restingRow of [[tokens.bg], [tokens.bg, tokens.bgCard]]) expect(contrastOnSurface(tokens.statusBad, [...restingRow, tokens.bgHover])).toBeGreaterThanOrEqual(3)
   TestRenderer.act(() => { button().props.onPressOut?.(); button().props.onBlur?.() })
   expect(fillStyle().outlineWidth).toBeUndefined()
   expect(fillStyle().backgroundColor).toBe('transparent')

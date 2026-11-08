@@ -1116,6 +1116,14 @@ function readCssRules(repositoryRoot) {
       }
       return
     }
+    const custom = new Map([...properties].filter(([name]) => name.startsWith("--")))
+    const stateful = rule.selector.includes(":has(") ? postcss.list.comma(rule.selector) : []
+    if (custom.size > 0 && stateful.length > 0 && stateful.every((selector) => descendantStateParts(selector))) {
+      for (const selector of stateful) {
+        rules.push({ selector, properties: custom, important, specificity: selectorSpecificity(selector), descendantState: true })
+      }
+      return
+    }
     const expanded = rule.selector.replace(/:is\(([^()]*)\)/g, (_, choices) => `{${choices}}`)
     const alternatives = expanded.match(/\{([^}]+)\}/)
     const selectors = alternatives
@@ -1258,7 +1266,8 @@ function evaluateCompound(selector, opening, syntax, state) {
   if (/:not\(:disabled\)|:enabled/.test(selector) && !enabledInState(opening, syntax, state)) return false
   selector = selector.replace(/:not\(\[[^\]]+\]\)/g, (condition) => {
     const match = condition.match(/\[([^=\]]+)(?:=["']?([^"'\]]+)["']?)?\]/)
-    return attributeText(opening, match[1], syntax) === match[2] ? "#never-matches" : ""
+    const value = attributeText(opening, match[1], syntax)
+    return (match[2] === undefined ? value !== undefined : value === match[2]) ? "#never-matches" : ""
   }).replace(/:not\([^()]*\)/g, "").replace(/:[\w-]+(?:\([^()]*\))?/g, "")
   const tag = selector.match(/^[\w-]+/)?.[0]
   if (tag && tag !== jsxTag(opening)) return false
@@ -1332,6 +1341,7 @@ function candidateCssRules(opening, syntax, state) {
   const className = opening.attributes.properties.find((property) => ts.isJsxAttribute(property) && propertyName(property.name) === "className")
   const conditionalClass = className?.initializer && !ts.isStringLiteralLike(className.initializer)
   const candidates = rules.filter((rule) => {
+    if (rule.descendantState) return false
     if (!selectorCompounds.has(rule.selector)) selectorCompounds.set(rule.selector, rule.selector.split(/\s+(?![^[]*\])/))
     const terminal = selectorCompounds.get(rule.selector).at(-1)
     if (conditionalClass && /\.[\w-]/.test(terminal)) return true
@@ -1355,10 +1365,12 @@ function matchingCssProperties(opening, syntax, state, openings) {
 function resolveCssProperties(opening, syntax, state, openings) {
   const properties = new Map()
   const winners = new Map()
-  for (const rule of candidateCssRules(opening, syntax, state)) {
+  const stateful = (state?.cssRules ?? []).filter((rule) => rule.descendantState)
+  for (const rule of [...candidateCssRules(opening, syntax, state), ...stateful]) {
     if (rule.mode && rule.mode !== state.mode) continue
-    const matched = openings ? matchesSelectorAncestry(rule.selector, opening, syntax, state, openings)
-      : selectorMatches(rule.selector, opening, syntax, state)
+    const matched = rule.descendantState ? descendantStateMatches(rule, opening, state, openings ?? paintOpenings(opening))
+      : openings ? matchesSelectorAncestry(rule.selector, opening, syntax, state, openings)
+        : selectorMatches(rule.selector, opening, syntax, state)
     if (!matched) continue
     for (const [name, value] of rule.properties) {
       const winner = winners.get(name)
@@ -1432,22 +1444,37 @@ function expandInteractionSelectors(selector) {
   return choices ? postcss.list.comma(choices[1]).flatMap((choice) => expandInteractionSelectors(selector.replace(choices[0], choice))) : [selector]
 }
 
+// A trailing `:not(:has(...))` names a nested control state the rendered states never enter, as in feedbackPseudoPaint.
+function descendantStateParts(selector) {
+  return selector.replace(/:not\(:has\(.*\)\)$/, "").match(/^([^:]*(?::not\(\[[^\]]+\]\))*):has\((.+)\)$/)
+}
+
+function descendantMatches(opening, controls, state) {
+  let matched = false
+  const visit = (node) => {
+    if ((ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node))
+      && controls.some((control) => !control.startsWith(">") && matchesCompound(control, node, node.getSourceFile(), state))) matched = true
+    if (!matched) ts.forEachChild(node, visit)
+  }
+  for (const child of opening.parent.children) visit(child)
+  return matched
+}
+
+function descendantStateMatches(rule, opening, state, openings) {
+  if (state.interaction === "rest" || !ts.isJsxOpeningElement(opening)) return false
+  const parts = descendantStateParts(rule.selector)
+  if (!matchesSelectorAncestry(parts[1], opening, opening.getSourceFile(), state, openings)) return false
+  return descendantMatches(opening, postcss.list.comma(parts[2]).flatMap(expandInteractionSelectors), state)
+}
+
 function feedbackPseudoPaint(opening, state, openings) {
   if (state.interaction === "rest" || !ts.isJsxOpeningElement(opening)) return []
   const paints = new Set()
   for (const rule of state.cssRules ?? []) {
     if (!rule.feedbackOverlay) continue
-    const selector = rule.selector.match(/^(.*):has\((.+)\)::before$/)
+    const selector = rule.selector.replace(/:not\(:has\(.*\)\)(?=::before$)/, "").match(/^(.*):has\((.+)\)::before$/)
     if (!selector || !matchesSelectorAncestry(selector[1], opening, opening.getSourceFile(), state, openings)) continue
-    const controls = expandInteractionSelectors(selector[2])
-    let matched = false
-    const visit = (node) => {
-      if ((ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node))
-        && controls.some((control) => !control.startsWith(">") && matchesCompound(control, node, node.getSourceFile(), state))) matched = true
-      if (!matched) ts.forEachChild(node, visit)
-    }
-    for (const child of opening.parent.children) visit(child)
-    if (!matched) continue
+    if (!descendantMatches(opening, postcss.list.comma(selector[2]).flatMap(expandInteractionSelectors), state)) continue
     for (const [name, value] of rule.properties) {
       if (!/^background(?:-color)?$/.test(name)) continue
       for (const match of tokenMatches(value)) {

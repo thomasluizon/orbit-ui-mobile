@@ -29,10 +29,13 @@ try {
       (process.env.CLAUDE_CODE_SESSION_ID && process.env.CLAUDE_CODE_SESSION_ID !== state.sessionId)) finish("NO_AUTO_WORK_RUN", 1)
   if (!registerWakeSource({ pid: process.pid, kind: "auto-work-waiter", sessionId: state.sessionId,
     what: "Auto-work intake cycle", startedAt: new Date().toISOString() })) finish("WAKE_REGISTRATION_FAILED", 1)
-  while (Date.now() - started < seconds * 1000) {
+  const deadline = started + seconds * 1000
+  for (;;) {
     const current = readRunState()
     if (current?.sessionId !== state.sessionId || !current.autoWork || !current.sleep || current.relay?.pending) finish("MODE_CHANGED", 0)
-    await wait(Math.min(1000, seconds * 1000 - (Date.now() - started)))
+    const remaining = deadline - Date.now()
+    if (remaining <= 0) break
+    await wait(Math.min(1000, remaining))
   }
   finish("INTERVAL", 0)
 } catch (error) { console.error(error.message); finish("READ_FAILED", 1) }

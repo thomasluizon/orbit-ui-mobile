@@ -2080,6 +2080,7 @@
       "parentChoiceRequired": "Escolha onde cada item fica antes de aprovar.",
       "batchFailed": "Alguns itens não foram salvos. Peça à Astra para tentar só os que falharam.",
       "unavailableRecovery": "Não funcionou. Peça uma nova prévia à Astra.",
+      "partialApplied": "{total, plural, =0 {Só {applied} de # alterações foram salvas.} one {Só {applied} de # alteração foi salva.} other {Só {applied} de # alterações foram salvas.}} Peça à Astra para tentar as que faltam.",
       "unknown": "Operação da Astra",
       "changeHabits": "{count, plural, =0 {Alterar # hábitos} one {Alterar # hábito} other {Alterar # hábitos}}",
       "newHabits": "{count, plural, =0 {# novos hábitos} one {Novo hábito} other {# novos hábitos}}",
@@ -2688,6 +2689,12 @@
       "feature2": "Os horários dos hábitos agendados",
       "feature3": "O progresso do checklist nos hábitos com listas",
       "feature4": "Os hábitos de amanhã, quando não há nada para hoje"
+    },
+    "widgetIos": {
+      "title": "Widget",
+      "step1": "Toque e segure numa área vazia da Tela de Início até os apps começarem a tremer",
+      "step2": "Toque em Editar e depois em Adicionar Widget (no iOS 17, toque em +) e procure por Orbit",
+      "step3": "Escolha um tamanho e toque em Adicionar Widget"
     },
     "subscription": {
       "pro": "Orbit Pro",
@@ -3312,7 +3319,9 @@
         "todayTitle": "Hoje ou amanhã",
         "todayDesc": "O widget do Android mostra os hábitos de hoje. Quando não há nada agendado para hoje, ele mostra os hábitos de amanhã.",
         "opensTitle": "Abre o Orbit",
-        "opensDesc": "O widget nunca registra um hábito. Um toque em qualquer lugar abre o Orbit, e atualizar apenas renova o widget."
+        "opensDesc": "O widget nunca registra um hábito. Um toque em qualquer lugar abre o Orbit, e atualizar apenas renova o widget.",
+        "todayDescIos": "O widget mostra os hábitos de hoje. Quando não há nada agendado para hoje, ele mostra os hábitos de amanhã.",
+        "opensDescIos": "O widget nunca registra um hábito. Um toque em qualquer lugar abre o Orbit."
       }
     }
   },

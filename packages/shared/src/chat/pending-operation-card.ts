@@ -63,6 +63,7 @@ export interface PendingOperationCardLabels {
   retry: string
   batchFailed: string
   unavailableRecovery: string
+  partialApplied: (applied: number, total: number) => string
   denied: (operation: AgentOperationResult) => string
   unsupported: string
   more: (count: number) => string
@@ -244,6 +245,7 @@ export function buildPendingOperationCardLabels(
     retry: translate('common.retry'),
     batchFailed: translate('chat.operation.batchFailed'),
     unavailableRecovery: translate('chat.operation.unavailableRecovery'),
+    partialApplied: (applied, total) => translate('chat.operation.partialApplied', { applied, total }),
     denied: (operation) => translate(getAgentOperationCopyKeys(operation).statusKey),
     unsupported: translate('chat.operation.status.UnsupportedByPolicy'),
     more: (count) => translate('chat.preview.more', { count }),
