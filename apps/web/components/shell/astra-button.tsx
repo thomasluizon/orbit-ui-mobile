@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useId, useRef, useState, type PointerEvent } from 'react'
 import { useTranslations } from 'next-intl'
 import { SHELL_CONTENT_MAX_WIDTH, TAB_BAR_MIN_HEIGHT } from '@orbit/shared/theme'
-import { ASTRA_BUTTON_SIZE, ASTRA_BUTTON_GAP, ASTRA_BUTTON_CLEARANCE, ASTRA_DRAG_THRESHOLD, ASTRA_POSITION_KEY, clampAstraButton, getAstraButtonClearance, moveAstraButton, parseAstraButtonPosition, resolveAstraButtonArea, snapAstraButton, type AstraButtonArea, type AstraButtonObstacle, type AstraButtonPoint, type AstraMoveDirection } from '@orbit/shared/utils'
+import { ASTRA_BUTTON_SIZE, ASTRA_BUTTON_GAP, ASTRA_BUTTON_CLEARANCE, ASTRA_BUTTON_AT_REST, ASTRA_POSITION_KEY, advanceAstraButtonGesture, getAstraButtonClearance, moveAstraButton, parseAstraButtonPosition, resolveAstraButtonArea, snapAstraButton, type AstraButtonArea, type AstraButtonGesture, type AstraButtonObstacle, type AstraButtonPoint, type AstraMoveDirection } from '@orbit/shared/utils'
 import { Fab } from '@/components/ui/fab'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useUIStore } from '@/stores/ui-store'
@@ -60,20 +60,20 @@ function AstraMoveSheet({ onMove, onClose }: Readonly<{ onMove: (direction: Astr
 
 function useAstraGesture(position: AstraButtonPoint | null, area: AstraButtonArea, hostRef: React.RefObject<HTMLDivElement | null>,
   onDrag: (point: AstraButtonPoint | null) => void, onFinish: (point: AstraButtonPoint) => void, onMoveMenu: () => void) {
-  const gesture = useRef<{ pointerId: number; start: AstraButtonPoint; origin: AstraButtonPoint; moved: boolean } | null>(null)
+  const gesture = useRef<{ pointerId: number; state: AstraButtonGesture } | null>(null)
   const suppressClick = useRef(false)
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   useEffect(() => () => clearTimeout(timer.current), [])
-  function pointerMove(event: PointerEvent<HTMLButtonElement>) {
+  function advance(event: PointerEvent<HTMLButtonElement>, type: 'move' | 'release') {
     const active = gesture.current
     if (!active || active.pointerId !== event.pointerId) return
-    const delta = { x: event.clientX - active.start.x, y: event.clientY - active.start.y }
-    active.moved ||= Math.hypot(delta.x, delta.y) >= ASTRA_DRAG_THRESHOLD
-    if (active.moved) {
+    active.state = advanceAstraButtonGesture(active.state, { type, pointer: { x: event.clientX, y: event.clientY } }, area)
+    if (active.state.phase === 'dragging' || active.state.phase === 'settled') {
       clearTimeout(timer.current)
       suppressClick.current = true
-      onDrag(clampAstraButton({ x: active.origin.x + delta.x, y: active.origin.y + delta.y }, area))
     }
+    if (active.state.phase === 'dragging') onDrag(active.state.point)
+    if (active.state.phase === 'settled') onFinish(active.state.point)
   }
   const cancel = () => { clearTimeout(timer.current); gesture.current = null; onDrag(null); suppressClick.current = true }
   const openMoveMenu = () => { cancel(); onMoveMenu() }
@@ -84,16 +84,16 @@ function useAstraGesture(position: AstraButtonPoint | null, area: AstraButtonAre
       suppressClick.current = false
       const bounds = event.currentTarget.getBoundingClientRect()
       const host = hostRef.current!.getBoundingClientRect()
-      gesture.current = { pointerId: event.pointerId, start: { x: event.clientX, y: event.clientY }, origin: { x: bounds.left - host.left, y: bounds.top - host.top }, moved: false }
+      const origin = { x: bounds.left - host.left, y: bounds.top - host.top }
+      gesture.current = { pointerId: event.pointerId, state: advanceAstraButtonGesture(ASTRA_BUTTON_AT_REST, { type: 'press', pointer: { x: event.clientX, y: event.clientY }, origin }, area) }
       event.currentTarget.setPointerCapture(event.pointerId)
       timer.current = setTimeout(openMoveMenu, 500)
     },
-    onPointerMove: pointerMove,
+    onPointerMove: (event: PointerEvent<HTMLButtonElement>) => advance(event, 'move'),
     onPointerUp: (event: PointerEvent<HTMLButtonElement>) => {
       clearTimeout(timer.current)
-      const active = gesture.current
-      if (!active || active.pointerId !== event.pointerId) return
-      if (active.moved) onFinish(clampAstraButton({ x: active.origin.x + event.clientX - active.start.x, y: active.origin.y + event.clientY - active.start.y }, area))
+      if (gesture.current?.pointerId !== event.pointerId) return
+      advance(event, 'release')
       gesture.current = null
     },
     onPointerCancel: cancel,

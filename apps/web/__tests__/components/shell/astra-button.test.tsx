@@ -75,6 +75,17 @@ it('drags, snaps and persists without opening, then accepts a tap', async () => 
   expect(useUIStore.getState().astraConversationOpen).toBe(true)
 })
 
+it('settles a release that crosses the drag threshold without a move and never opens Astra', async () => {
+  mount()
+  await waitFor(() => expect(placement().style.transform).toBe('translate(336px, 440px)'))
+  const button = screen.getByRole('button', { name: en.shell.astraButton.open })
+  fireEvent.pointerDown(button, { button: 0, clientX: 350, clientY: 460 })
+  fireEvent.pointerUp(button, { clientX: 110, clientY: 260 })
+  fireEvent.click(button, { detail: 1 })
+  expect(placement().style.transform).toBe('translate(16px, 240px)')
+  expect(useUIStore.getState().astraConversationOpen).toBe(false)
+})
+
 it('moves with arrow keys and resets an outgrown position when its window shrinks', async () => {
   mount()
   await waitFor(() => expect(placement().style.transform).toBe('translate(336px, 440px)'))
