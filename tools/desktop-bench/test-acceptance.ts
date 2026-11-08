@@ -15,6 +15,7 @@ import { artifactName, targets, verifyArtifact, type Manifest } from '../../apps
 import * as releaseModule from '../../apps/desktop/scripts/release'
 import { assertAccessibleTree, corruptSignature } from './acceptance-contract.mjs'
 import * as acceptanceContract from './acceptance-contract.mjs'
+import { launchStatus, launchUnelevated, takeSigningMaterial } from './acceptance-platform.mjs'
 
 const vector = JSON.parse(readFileSync(new URL('../../apps/desktop/__fixtures__/signer-vector.json', import.meta.url), 'utf8')) as { payload: string; signature: string; publicKey: string; version: string }
 const bytes = Buffer.from(vector.payload)
@@ -390,7 +391,7 @@ test('a failed capture remains a failure even when its partial tree has valid co
 
 test('surface inspection writes the entire capture before validating or failing the native command', async () => {
   const runner = readFileSync(new URL('./acceptance-runner.mjs', import.meta.url), 'utf8')
-  const inspect = runner.slice(runner.indexOf('async function inspectSurfaces'), runner.indexOf('function installedLaunch'))
+  const inspect = runner.slice(runner.indexOf('async function inspectSurfaces'), runner.indexOf('async function installedLaunch'))
   for (const failedCommand of [false, true]) {
     const snapshot = tree([{ ...button, name: '' }])
     const records: { path: string; value: unknown }[] = []
@@ -411,7 +412,7 @@ test('surface inspection writes the entire capture before validating or failing 
 
 function inspectionContext(platform: string) {
   const runner = readFileSync(new URL('./acceptance-runner.mjs', import.meta.url), 'utf8')
-  const inspect = runner.slice(runner.indexOf('async function inspectSurfaces'), runner.indexOf('function installedLaunch'))
+  const inspect = runner.slice(runner.indexOf('async function inspectSurfaces'), runner.indexOf('async function installedLaunch'))
   const host = readFileSync(new URL('./host.mjs', import.meta.url), 'utf8')
   const polling = host.slice(host.indexOf('export async function waitFor('), host.indexOf('export async function waitForHttp'))
     .replace('export async function', 'async function')
@@ -823,3 +824,174 @@ if (process.platform === 'darwin') {
     })
   }
 }
+
+test('Developer ID signing material leaves the environment and is all or nothing on macOS', () => {
+  const material = { MACOS_DEVELOPER_ID_CERTIFICATE_BASE64: 'certificate', MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD: 'password',
+    MACOS_PROVISIONING_PROFILE_BASE64: 'profile', MACOS_SIGNING_IDENTITY: 'Developer ID Application: Fixture (BD7JH468F7)' }
+  const environment: NodeJS.ProcessEnv = { PATH: '/bin', ...material }
+  assert.deepEqual(takeSigningMaterial(environment, 'darwin'), { certificate: 'certificate', password: 'password', profile: 'profile',
+    identity: 'Developer ID Application: Fixture (BD7JH468F7)' })
+  assert.deepEqual(environment, { PATH: '/bin' })
+  assert.equal(takeSigningMaterial({ PATH: '/bin' }, 'darwin'), null)
+  const windowsEnvironment: NodeJS.ProcessEnv = { ...material }
+  assert.equal(takeSigningMaterial(windowsEnvironment, 'win32'), null)
+  assert.deepEqual(windowsEnvironment, {})
+  const partial: NodeJS.ProcessEnv = { MACOS_SIGNING_IDENTITY: 'identity', MACOS_PROVISIONING_PROFILE_BASE64: '' }
+  assert.throws(() => takeSigningMaterial(partial, 'darwin'), /^Error: Developer ID signing needs MACOS_DEVELOPER_ID_CERTIFICATE_BASE64, MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD, MACOS_PROVISIONING_PROFILE_BASE64;/)
+  assert.deepEqual(partial, {})
+})
+
+test('a signed macOS acceptance build compiles without credentials and signs only the bundle with the profile and this run updater key', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'orbit-acceptance-signing-'))
+  try {
+    const output = join(directory, 'output')
+    mkdirSync(output, { recursive: true })
+    const bundle = join(directory, 'apps/desktop/src-tauri/target/aarch64-apple-darwin/release/bundle')
+    for (const [folder, name] of [['dmg', 'fixture.dmg'], ['macos', 'fixture.app.tar.gz']] as const) {
+      mkdirSync(join(bundle, folder), { recursive: true })
+      writeFileSync(join(bundle, folder, name), 'fixture')
+    }
+    const application = 'BD7JH468F7.org.useorbit.desktop.staging'
+    const named = { profile: application }
+    const calls: { command: string; args: string[]; env?: NodeJS.ProcessEnv }[] = []
+    const execute = async (command: string, args: string[], options: { env?: NodeJS.ProcessEnv } = {}) => {
+      calls.push({ command, args, env: options.env })
+      if (args[1] === 'signer' && args[2] === 'generate') writeFileSync(`${args.at(-1)}.pub`, 'fixture-public-key')
+      if (args[1] === 'signer' && args[2] === 'sign') writeFileSync(`${args.at(-1)}.sig`, 'fixture-signature')
+      if (command === 'security') return '<plist/>'
+      if (command === '/usr/libexec/PlistBuddy') return `${args[2]!.endsWith('Entitlements.staging.plist') ? application : named.profile}\n`
+      return ''
+    }
+    const source = readFileSync(new URL('./acceptance-platform.mjs', import.meta.url), 'utf8')
+    const build = producerFunction(source, 'buildInstaller', 'export async function install(', {
+      ...files, Buffer, join, require, execute, artifactName, windows: false, npmCli: () => 'npm-cli',
+      process: { execPath: 'node', env: { PATH: '/bin' }, arch: 'arm64' },
+    })
+    const signing = { certificate: 'fixture-certificate', password: 'fixture-password', profile: Buffer.from('fixture-profile').toString('base64'),
+      identity: 'Developer ID Application: Fixture (BD7JH468F7)' }
+    await build(directory, output, signing)
+    const tauri = calls.filter(({ args }) => args[0] === 'npm-cli')
+    assert.deepEqual(tauri.map(({ args }) => args[2]), ['build:staging', 'bundle:staging'])
+    const [compile, sign] = tauri as [typeof tauri[0], typeof tauri[0]]
+    assert.ok(compile.args.includes('--no-bundle') && !compile.args.includes('--no-sign') && compile.env === undefined)
+    assert.ok(!sign.args.includes('--no-sign'))
+    assert.equal(sign.args.slice(sign.args.indexOf('--bundles'), sign.args.indexOf('--bundles') + 2).join(' '), '--bundles app,dmg')
+    assert.deepEqual({ APPLE_CERTIFICATE: sign.env!.APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD: sign.env!.APPLE_CERTIFICATE_PASSWORD,
+      APPLE_SIGNING_IDENTITY: sign.env!.APPLE_SIGNING_IDENTITY, TAURI_SIGNING_PRIVATE_KEY: sign.env!.TAURI_SIGNING_PRIVATE_KEY,
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: sign.env!.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }, {
+      APPLE_CERTIFICATE: 'fixture-certificate', APPLE_CERTIFICATE_PASSWORD: 'fixture-password', APPLE_SIGNING_IDENTITY: signing.identity,
+      TAURI_SIGNING_PRIVATE_KEY: join(output, 'updater.key'), TAURI_SIGNING_PRIVATE_KEY_PASSWORD: '' })
+    const configs = sign.args.flatMap((value, index) => sign.args[index - 1] === '--config' ? [value] : [])
+    assert.equal(configs[0], join(output, 'release-config.json'))
+    const signingConfig = JSON.parse(readFileSync(configs[1]!, 'utf8')) as { bundle: { macOS: { files: Record<string, string> } } }
+    assert.deepEqual(Object.keys(signingConfig.bundle.macOS.files), ['embedded.provisionprofile'])
+    assert.equal(readFileSync(signingConfig.bundle.macOS.files['embedded.provisionprofile']!, 'utf8'), 'fixture-profile')
+    assert.ok(calls.every(({ env }) => !env || env.APPLE_CERTIFICATE === undefined || env === sign.env))
+    named.profile = 'OTHERTEAM.org.useorbit.desktop.staging'
+    await assert.rejects(() => build(directory, output, signing),
+      /^Error: The provisioning profile names OTHERTEAM\.org\.useorbit\.desktop\.staging, not BD7JH468F7\.org\.useorbit\.desktop\.staging from Entitlements\.staging\.plist$/)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+function windowsLauncher(script: { statusAfterStart?: string[]; statusAfterDelay?: string[]; alive?: boolean; failStart?: boolean }) {
+  const lines: string[] = []
+  const modes: string[] = []
+  const tracked: unknown[] = []
+  const stopped: unknown[] = []
+  let clock = 0
+  const host = {
+    copyFile: async () => {},
+    execute: async (_command: string, args: string[]) => {
+      const mode = args[args.indexOf('-Mode') + 1]!
+      modes.push(mode)
+      if (mode === 'start') { lines.push(...script.statusAfterStart ?? []); return '{"user":"RUNNER\\\\runneradmin","elevated":true}\r\n' }
+      if (mode === 'info') return '{"state":"Ready","lastTaskResult":267011}\r\n'
+      return ''
+    },
+    readFile: async () => {
+      if (!lines.length) throw Object.assign(new Error('missing status'), { code: 'ENOENT' })
+      return `﻿${lines.join('\r\n')}\r\n`
+    },
+    waitFor: async (read: () => Promise<unknown>, label: string) => {
+      const value = await read()
+      if (!value) throw new Error(`Timed out waiting for ${label}`)
+      return value
+    },
+    delay: async (milliseconds: number) => { clock += milliseconds; lines.push(...script.statusAfterDelay?.splice(0) ?? []) },
+    alive: () => script.alive ?? true, now: () => clock,
+    track: (handle: unknown) => { tracked.push(handle) }, stop: async (handle: unknown) => { stopped.push(handle) },
+  }
+  return { host, modes, tracked, stopped }
+}
+
+const context = (elevated: boolean) => JSON.stringify({ kind: 'context', user: 'RUNNER\\runneradmin', elevated })
+
+test('the Windows launcher reports the limited-token shell, waits for its recorded exit and removes its task', async () => {
+  const launch = windowsLauncher({ statusAfterStart: [context(false), JSON.stringify({ kind: 'launch', pid: 4242 })],
+    statusAfterDelay: [JSON.stringify({ kind: 'exit', code: 0 })] })
+  const handle = await launchUnelevated('/output/installed/orbit-desktop.exe', '/output', 'push', launch.host) as
+    { child: { pid: number; exitCode: number | null }; done: Promise<void>; log: string; context: unknown }
+  assert.equal(handle.child.pid, 4242)
+  assert.equal(handle.log, join('/output', 'push.log'))
+  assert.deepEqual(handle.context, { user: 'RUNNER\\runneradmin', elevated: false, harness: { user: 'RUNNER\\runneradmin', elevated: true } })
+  assert.deepEqual(launch.tracked, [handle])
+  await handle.done
+  assert.equal(handle.child.exitCode, 0)
+  assert.deepEqual(launch.modes, ['start', 'remove'])
+})
+
+test('the Windows launcher refuses an elevated shell, a failed launch, a nonzero exit and a vanished launcher', async () => {
+  const elevated = windowsLauncher({ statusAfterStart: [context(true), JSON.stringify({ kind: 'launch', pid: 7 })],
+    statusAfterDelay: [JSON.stringify({ kind: 'exit', code: 1 })] })
+  await assert.rejects(() => launchUnelevated('/output/orbit-desktop.exe', '/output', 'installed', elevated.host),
+    /^Error: The installed shell started elevated as RUNNER\\runneradmin; app notifications need a non-elevated process$/)
+  assert.equal(elevated.stopped.length, 1)
+  const failed = windowsLauncher({ statusAfterStart: [context(false), JSON.stringify({ kind: 'error', message: 'Access is denied' })] })
+  await assert.rejects(() => launchUnelevated('/output/orbit-desktop.exe', '/output', 'installed', failed.host),
+    /^Error: Unelevated launch failed: Access is denied; scheduled task OrbitDesktopAcceptance-installed-[0-9a-f-]+: \{"state":"Ready","lastTaskResult":267011\}$/)
+  assert.deepEqual(failed.modes, ['start', 'info', 'remove'])
+  const absent = windowsLauncher({})
+  await assert.rejects(() => launchUnelevated('/output/orbit-desktop.exe', '/output', 'installed', absent.host),
+    /^Error: Timed out waiting for the unelevated installed launch; scheduled task OrbitDesktopAcceptance-installed-[0-9a-f-]+: \{"state":"Ready","lastTaskResult":267011\}$/)
+  assert.deepEqual(absent.modes, ['start', 'info', 'remove'])
+  const crashed = windowsLauncher({ statusAfterStart: [context(false), JSON.stringify({ kind: 'launch', pid: 8 })],
+    statusAfterDelay: [JSON.stringify({ kind: 'exit', code: 101 })] })
+  const crashedHandle = await launchUnelevated('/output/orbit-desktop.exe', '/output', 'push', crashed.host) as { done: Promise<void>; child: { exitCode: number } }
+  await assert.rejects(() => crashedHandle.done, /exited 101; see/)
+  const vanished = windowsLauncher({ statusAfterStart: [context(false), JSON.stringify({ kind: 'launch', pid: 9 })], alive: false })
+  const vanishedHandle = await launchUnelevated('/output/orbit-desktop.exe', '/output', 'push', vanished.host) as { done: Promise<void>; child: { exitCode: number } }
+  await assert.rejects(() => vanishedHandle.done, /exited without a recorded exit code/)
+  assert.equal(vanishedHandle.child.exitCode, -1)
+  assert.deepEqual(vanished.modes, ['start', 'remove'])
+})
+
+const powershellHost = ['pwsh', 'powershell'].find((command) => spawnSync(command, ['-NoProfile', '-Command', 'exit 0']).status === 0)
+
+test('the Windows launcher script parses without errors', { skip: !powershellHost }, () => {
+  const script = fileURLToPath(new URL('./windows-unelevated.ps1', import.meta.url))
+  const result = spawnSync(powershellHost!, ['-NoProfile', '-Command',
+    `$errors = $null; [void][System.Management.Automation.Language.Parser]::ParseFile('${script}', [ref]$null, [ref]$errors); $errors.Count`], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  assert.equal(result.stdout.trim(), '0')
+})
+
+test('the Windows launcher run mode records its token, the shell pid and a real exit code', { skip: process.platform !== 'win32' }, () => {
+  const directory = mkdtempSync(join(tmpdir(), 'orbit-unelevated-'))
+  try {
+    const status = join(directory, 'status.jsonl')
+    const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File',
+      fileURLToPath(new URL('./windows-unelevated.ps1', import.meta.url)), '-Mode', 'run', '-Executable', join(process.env.SystemRoot!, 'System32', 'hostname.exe'),
+      '-Log', join(directory, 'run.log'), '-Output', join(directory, 'run.stdout.log'), '-Status', status], { encoding: 'utf8', timeout: 60000 })
+    assert.equal(result.status, 0, result.stderr)
+    const parsed = launchStatus(readFileSync(status, 'utf8'))
+    assert.equal(typeof parsed.context?.user, 'string')
+    assert.equal(typeof parsed.context?.elevated, 'boolean')
+    assert.ok(Number.isInteger(parsed.pid) && parsed.pid! > 0)
+    assert.deepEqual(parsed.exit, { kind: 'exit', code: 0 })
+    assert.ok(readFileSync(join(directory, 'run.stdout.log'), 'utf8').trim().length > 0)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})

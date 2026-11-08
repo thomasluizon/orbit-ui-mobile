@@ -226,9 +226,13 @@ test('push readiness registers on Windows, skips with a named reason, and never 
   assert.equal(windowsSkip.registration, true)
   assert.equal(windowsSkip.delivery, false)
   assert.match(windowsSkip.skipped!, /ORBIT_WNS_CLIENT_ID, ORBIT_WNS_CLIENT_SECRET/)
-  const unsigned = pushReadiness({ platform: 'darwin', credentials: apns, environment: null })
+  const unsigned = pushReadiness({ platform: 'darwin', credentials: apns, environment: null, signed: false })
   assert.equal(unsigned.registration, false)
   assert.match(unsigned.skipped!, /com\.apple\.developer\.aps-environment/)
+  assert.match(unsigned.skipped!, /the acceptance build is unsigned: the job has no Developer ID signing material, because only a same-repository macOS job receives the desktop-staging environment\.$/)
+  assert.doesNotMatch(unsigned.skipped!, /2364/)
+  assert.throws(() => pushReadiness({ platform: 'darwin', credentials: apns, environment: null, signed: true }),
+    /^Error: The Developer ID signed shell has no com\.apple\.developer\.aps-environment entitlement; see codesign-entitlements\.stdout\.log$/)
   assert.deepEqual(pushReadiness({ platform: 'darwin', credentials: apns, environment: 'production' }), { transport: 'apns', registration: true, delivery: true })
   assert.match(pushReadiness({ platform: 'darwin', credentials: {}, environment: 'development' }).skipped!, /ORBIT_APNS_KEY_ID, ORBIT_APPLE_TEAM_ID, ORBIT_APNS_PRIVATE_KEY/)
 })
@@ -434,7 +438,7 @@ test('proxy serves the sign-in report mode only to the launch that asks for it',
   assert.deepEqual(served, ['expect=true report=false', 'expect=false report=true'])
 })
 
-function pushHarness(platform: 'win32' | 'darwin', overrides: { logsAfterDone?: number; visibleAfterDone?: number; expiredLogs?: number; signIn?: boolean; credentials?: Record<string, string>; environment?: string | null } = {}) {
+function pushHarness(platform: 'win32' | 'darwin', overrides: { logsAfterDone?: number; visibleAfterDone?: number; expiredLogs?: number; signIn?: boolean; credentials?: Record<string, string>; environment?: string | null; signed?: boolean } = {}) {
   const events: string[] = []
   const records = new Map<string, unknown>()
   const logs: { habitId: string; source: string }[] = []
@@ -450,7 +454,7 @@ function pushHarness(platform: 'win32' | 'darwin', overrides: { logsAfterDone?: 
   const transport = platform === 'win32' ? 'wns' : 'apns'
   const io = {
     platform, report, labels: ['This device', 'Neste aparelho'], doneLabel: 'Done', allowLabel: 'Allow', appName: 'Orbit Staging', timeZone: 'UTC',
-    credentials: overrides.credentials ?? (platform === 'win32' ? wnsCredentials : apnsCredentials),
+    credentials: overrides.credentials ?? (platform === 'win32' ? wnsCredentials : apnsCredentials), signed: overrides.signed ?? false,
     apsEnvironment: async () => overrides.environment === undefined ? 'development' : overrides.environment,
     now: () => Date.parse('2026-11-08T12:00:00Z'),
     delay: async (milliseconds: number) => { events.push(`delay ${milliseconds}`) },
@@ -579,6 +583,10 @@ test('push acceptance reports explicit skips for an unsigned macOS shell and for
   assert.match((unsigned.report.push as { skipped: string }).skipped, /aps-environment/)
   assert.ok(!unsigned.events.includes('launch'))
   assert.ok(unsigned.events.some((event) => event.startsWith('warn ') && event.includes('aps-environment')))
+  const signedWithoutEntitlement = pushHarness('darwin', { environment: null, signed: true })
+  await assert.rejects(() => exercisePush(signedWithoutEntitlement.io), /Developer ID signed shell has no com\.apple\.developer\.aps-environment entitlement/)
+  assert.ok(!signedWithoutEntitlement.events.includes('launch'))
+  assert.ok(!signedWithoutEntitlement.events.some((event) => event.startsWith('warn ')))
   const windows = pushHarness('win32', { credentials: {} })
   await exercisePush(windows.io)
   const push = windows.report.push as { skipped: string; registration: { p256dh: string } }

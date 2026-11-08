@@ -4,7 +4,10 @@ use crate::push_state::{PendingRegistration, PushSession, PushState, Registratio
 use serde::{Deserialize, Serialize};
 use std::{
     path::PathBuf,
-    sync::{mpsc, Mutex, OnceLock},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc, Mutex, OnceLock,
+    },
     time::Duration,
 };
 use tauri::{AppHandle, Manager, WebviewWindow};
@@ -38,6 +41,7 @@ struct PushService {
 }
 
 static SERVICE: OnceLock<PushService> = OnceLock::new();
+static UNSUPPORTED_REPORTED: AtomicBool = AtomicBool::new(false);
 
 pub fn prepare_launch() -> Result<(), &'static str> {
     #[cfg(target_os = "macos")]
@@ -236,12 +240,15 @@ fn register_native(service: &PushService, prompt: bool, token: bool) -> Result<(
     let received = native_request(service, prompt, token)
         .and_then(|()| wait_for_registration(&receiver, token));
     service.response.recover_lock().take();
-    let (permission, candidate) = received?;
-    if service.session.recover_lock().account != account_before_request {
-        stop_inactive(false)?;
-        return Err("Native push account changed during request".into());
-    }
-    *service.permission.recover_lock() = permission;
+    let received = received?;
+    let account_changed = service.session.recover_lock().account != account_before_request;
+    let candidate = settle_request(
+        received,
+        token,
+        account_changed,
+        &service.permission,
+        || stop_inactive(false),
+    )?;
     if let Some(endpoint) = candidate {
         let registration = service.saved.recover_lock().registration(
             endpoint,
@@ -251,6 +258,22 @@ fn register_native(service: &PushService, prompt: bool, token: bool) -> Result<(
         *service.candidate.recover_lock() = Some(registration);
     }
     Ok(())
+}
+
+// A permission-only request registers nothing natively, so a session that changes during it keeps that answer.
+fn settle_request(
+    (permission, candidate): (&'static str, Option<String>),
+    token: bool,
+    account_changed: bool,
+    current: &Mutex<&'static str>,
+    stop: impl FnOnce() -> Result<(), String>,
+) -> Result<Option<String>, String> {
+    if token && account_changed {
+        stop()?;
+        return Err("Native push account changed during request".into());
+    }
+    *current.recover_lock() = permission;
+    Ok(candidate)
 }
 
 #[derive(Default)]
@@ -506,7 +529,12 @@ fn wait_for_registration(
             .recv_timeout(deadline.saturating_duration_since(std::time::Instant::now()))
             .map_err(|_| "Native push request timed out")?;
         match kind {
-            UNSUPPORTED => return Ok(("unsupported", None)),
+            UNSUPPORTED => {
+                if let Some(line) = unsupported_diagnostic(&UNSUPPORTED_REPORTED, &payload) {
+                    eprintln!("{line}");
+                }
+                return Ok(("unsupported", None));
+            }
             DEFAULT => return Ok(("default", None)),
             GRANTED if !token => return Ok(("granted", None)),
             DENIED => return Ok(("denied", None)),
@@ -517,12 +545,27 @@ fn wait_for_registration(
     }
 }
 
+fn unsupported_diagnostic(reported: &AtomicBool, reason: &str) -> Option<String> {
+    if reported.swap(true, Ordering::Relaxed) {
+        return None;
+    }
+    let reason = if reason.is_empty() {
+        "no native reason"
+    } else {
+        reason
+    };
+    Some(format!("Desktop push: native push unsupported: {reason}"))
+}
+
 fn native_request(_service: &PushService, prompt: bool, token: bool) -> Result<(), String> {
     #[cfg(windows)]
     {
         let object_id = option_env!("ORBIT_DESKTOP_WNS_OBJECT_ID").unwrap_or("");
         if object_id.is_empty() {
-            receive_value(UNSUPPORTED, String::new());
+            receive_value(
+                UNSUPPORTED,
+                "build has no ORBIT_DESKTOP_WNS_OBJECT_ID".into(),
+            );
             return Ok(());
         }
         uuid::Uuid::parse_str(object_id).map_err(|_| "Invalid WNS service principal object ID")?;
@@ -993,6 +1036,97 @@ mod tests {
         assert_eq!(
             result.recv().unwrap(),
             Ok(("granted", Some("restored-token".into())))
+        );
+    }
+
+    #[test]
+    fn startup_permission_refresh_keeps_native_state_when_the_session_restores_during_it() {
+        let saved = registered_state();
+        let session = std::sync::Arc::new(Mutex::new(PushSession::default()));
+        let permission = std::sync::Arc::new(Mutex::new("default"));
+        let stops = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let gate = std::sync::Arc::new(RequestGate::default());
+        let (probe_started, started) = mpsc::sync_channel(1);
+        let (native, response) = mpsc::sync_channel(1);
+        let probe = {
+            let (session, permission, stops, gate) = (
+                session.clone(),
+                permission.clone(),
+                stops.clone(),
+                gate.clone(),
+            );
+            std::thread::spawn(move || {
+                gate.run(false, || {
+                    let account_before_request = session.recover_lock().account.clone();
+                    probe_started.send(()).unwrap();
+                    let received = wait_for_registration(&response, false)?;
+                    let account_changed = session.recover_lock().account != account_before_request;
+                    settle_request(received, false, account_changed, &permission, || {
+                        stops.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                        Ok(())
+                    })
+                })
+            })
+        };
+        started.recv().unwrap();
+        session
+            .recover_lock()
+            .restore(Some("account-a".into()), &saved);
+        native.send((GRANTED, String::new())).unwrap();
+        assert_eq!(probe.join().unwrap(), Ok(None));
+        assert_eq!(*permission.recover_lock(), "granted");
+        assert_eq!(
+            stops.load(std::sync::atomic::Ordering::SeqCst),
+            0,
+            "a permission refresh paused the restored native registration"
+        );
+        let token_permission = Mutex::new("granted");
+        assert_eq!(
+            settle_request(
+                ("granted", Some("account-a-token".into())),
+                true,
+                true,
+                &token_permission,
+                || {
+                    stops.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    Ok(())
+                },
+            ),
+            Err("Native push account changed during request".into())
+        );
+        assert_eq!(stops.load(std::sync::atomic::Ordering::SeqCst), 1);
+        assert_eq!(
+            settle_request(("denied", None), true, false, &token_permission, || panic!(
+                "an unchanged account paused native push"
+            ),),
+            Ok(None)
+        );
+        assert_eq!(*token_permission.recover_lock(), "denied");
+    }
+
+    #[test]
+    fn first_unsupported_answer_names_its_native_reason_once() {
+        let reported = AtomicBool::new(false);
+        assert_eq!(
+            unsupported_diagnostic(
+                &reported,
+                "setting=Unsupported isSupported=true elevated=true"
+            )
+            .as_deref(),
+            Some("Desktop push: native push unsupported: setting=Unsupported isSupported=true elevated=true")
+        );
+        assert_eq!(unsupported_diagnostic(&reported, "manager=null"), None);
+        assert_eq!(
+            unsupported_diagnostic(&AtomicBool::new(false), "").as_deref(),
+            Some("Desktop push: native push unsupported: no native reason")
+        );
+        let (sender, receiver) = mpsc::channel();
+        sender
+            .send((UNSUPPORTED, "setting=Unsupported".into()))
+            .unwrap();
+        assert_eq!(
+            wait_for_registration(&receiver, true).unwrap(),
+            ("unsupported", None)
         );
     }
 

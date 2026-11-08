@@ -112,13 +112,41 @@ extern "C" int orbit_wns_initialize(wchar_t const* bootstrap, char const* object
     }
 }
 
+static char const* setting_name(AppNotificationSetting setting) {
+    switch (setting) {
+        case AppNotificationSetting::Enabled: return "Enabled";
+        case AppNotificationSetting::DisabledForApplication: return "DisabledForApplication";
+        case AppNotificationSetting::DisabledForUser: return "DisabledForUser";
+        case AppNotificationSetting::DisabledByGroupPolicy: return "DisabledByGroupPolicy";
+        case AppNotificationSetting::DisabledByManifest: return "DisabledByManifest";
+        case AppNotificationSetting::Unsupported: return "Unsupported";
+    }
+    return "Unknown";
+}
+
+// App notifications are unsupported in an elevated process, so each unsupported answer names the token elevation.
+static char const* elevation() {
+    HANDLE token = nullptr;
+    if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token)) return "unknown";
+    TOKEN_ELEVATION value{};
+    DWORD length = 0;
+    bool known = GetTokenInformation(token, TokenElevation, &value, sizeof(value), &length) != FALSE;
+    CloseHandle(token);
+    if (!known) return "unknown";
+    return value.TokenIsElevated ? "true" : "false";
+}
+
 extern "C" void orbit_push_request(bool prompt, bool token) {
     (void)prompt;
-    if (!manager) { emit(0); return; }
+    if (!manager) { emit(0, std::string("manager=null elevated=") + elevation()); return; }
     try {
         Apartment apartment;
         auto setting = notifications.Setting();
-        if (setting == AppNotificationSetting::Unsupported) { emit(0); return; }
+        if (setting == AppNotificationSetting::Unsupported) {
+            emit(0, std::string("setting=") + setting_name(setting) + " isSupported=" +
+                (PushNotificationManager::IsSupported() ? "true" : "false") + " elevated=" + elevation());
+            return;
+        }
         if (setting != AppNotificationSetting::Enabled) { emit(3); return; }
         if (!token) { emit(2); return; }
         if (!registered) { manager.Register(); registered = true; }

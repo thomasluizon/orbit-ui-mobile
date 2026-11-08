@@ -95,6 +95,25 @@ It reuses the benchmark build entry, process host, hermetic fixture producer, mo
 and proxy. The release build uses the same staging prepare and package commands as
 `desktop-release.yml`, with no optional Cargo features and no deployed credentials.
 
+The Windows job and a fork pull request's macOS job build with `--no-sign`. A workflow dispatch or a
+pull request from this repository runs macOS in the separate `installed-signed` job instead. That job
+takes the `desktop-staging` environment with `deployment: false`, and the Windows job takes no
+environment. GitHub passes no secrets to a workflow that a fork triggers, so a fork pull request gets
+no signing material and keeps the unsigned APNs skip. The signed build follows `desktop-release.yml`:
+
+- `tauri build --no-bundle` compiles the shell without signing credentials.
+- The harness writes the Developer ID provisioning profile into a signing config overlay. It requires
+  that the profile names the `com.apple.application-identifier` from `Entitlements.staging.plist`.
+- `tauri bundle` imports the PKCS#12 certificate, signs the app and DMG with the hardened runtime and
+  `Entitlements.staging.plist`, and signs the updater archive with this run's generated key.
+
+`acceptance.mjs` removes `MACOS_DEVELOPER_ID_CERTIFICATE_BASE64`,
+`MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD`, `MACOS_PROVISIONING_PROFILE_BASE64` and
+`MACOS_SIGNING_IDENTITY` from `process.env` first. Only the bundle step receives them, as Tauri's
+`APPLE_*` variables. Part of the set fails the job. Notarization is not part of acceptance, because
+the runner installs the app locally. `report.json` `signing` keeps the public identity or the reason
+for an unsigned build.
+
 The job generates an ephemeral root certificate and Tauri key. It maps the shell's exact web and
 update hosts to loopback, trusts the root in the VM's system store, and checks DNS before launching.
 The resolver is refreshed once after replacing hosts, then both names are polled without further
@@ -139,10 +158,25 @@ and `ApnsPushSender.CreatePayload`, with a one-use token that the mock issues.
   It sends that token only to an `https` `notify.windows.com` channel, as `WnsEndpointPolicy` does.
 - macOS: APNs needs `com.apple.developer.aps-environment` in the installed code signature. The runner
   reads it with `codesign`, parses the plist with `plutil`, selects the sandbox or production host from
-  its value, and signs an ES256 provider token. An unsigned shell, a signature without entitlements, or
-  entitlements without the key is a skip. Output that `plutil` cannot parse, or an unknown key value,
-  fails the job with the raw output lengths and first bytes. The runner allows the first authorization
-  alert through AX.
+  its value, and signs an ES256 provider token. An unsigned build without the key is a skip that names
+  the missing signing material. A Developer ID signed build without the key fails the job. Output that
+  `plutil` cannot parse, or an unknown key value, fails the job with the raw output lengths and first
+  bytes. The runner allows the first authorization alert through AX.
+
+Microsoft's app notification quickstart states that app notifications are not supported for elevated
+apps. The Windows harness runs elevated, because it edits the hosts file and the machine root store.
+Thus `windows-unelevated.ps1` starts every installed launch from a scheduled task with
+`-RunLevel Limited` and `-LogonType Interactive` for the signed-in user. A person's launch runs the
+same way. The task's PowerShell starts the shell with the user's environment, and the shell writes
+stderr to `<launch>.log` and stdout to `<launch>.stdout.log`. `<launch>-launch.jsonl` keeps the
+task's token, the shell's process ID and its exit code. `report.json` `launchContexts` keeps the user
+and elevation of each launch, and on Windows also of the harness. An elevated shell fails the job.
+
+The first unsupported push answer in each shell process writes one stderr line, which names the native
+branch: `manager=null`, or the `AppNotificationManager.Setting()` value, `PushNotificationManager.IsSupported()`
+and the token elevation. On macOS the line names the missing APNs entitlement. The runner gathers these
+lines from every launch log into `report.json` `push.nativeUnsupported`, and copies the earlier
+launches' lines into `push.log`.
 
 The runner hides the main window through its close control and invokes Done on the system
 notification through UIA or AX. If the banner is gone, the reader opens the notification list once.
@@ -167,7 +201,7 @@ Each run keeps the platform evidence that the notification readers use, also whe
 
 Push credentials come only from the job environment. `acceptance.mjs` removes them from
 `process.env` before any build or server starts, and the report keeps the WNS host or the token
-length, never the channel or token. An unsigned macOS shell, or a missing credential, is a skip with
+length, never the channel or token. An unsigned macOS build, or a missing credential, is a skip with
 its reason in `report.json` `push.skipped` and in a job warning. Windows registration runs without
 the client secret.
 

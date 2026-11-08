@@ -168,6 +168,7 @@ async function installedLaunchCases() {
   const launches = []
   const commands = []
   const pushCalls = []
+  const builtWith = []
   const events = [{ kind: 'hoje', nativeVersion: '1.0.0' }]
   let recorded
   let settings = {}
@@ -181,7 +182,7 @@ async function installedLaunchCases() {
   const context = {
     join, directory: '/fixture', windows: true, process: { platform: 'win32', arch: 'x64', stdout: { write() {} } },
     mkdir: async () => {}, existsSync: () => false, assertFree: async () => {}, startRecording: async () => Object.assign(() => {}, { startedAt: Date.now() }),
-    buildInstaller: async () => ({}), hermeticServices: async () => {}, nativeTool: async () => () => {},
+    buildInstaller: async (_repository, _output, signing) => { builtWith.push(signing); return {} }, hermeticServices: async () => {}, nativeTool: async () => () => {},
     updateServer: async () => ({ route() {}, mode() {}, cookieEvidence() {} }),
     isolateOrigins: async () => ({ restore() {} }), lookup: async () => [{ address: '127.0.0.1' }],
     startProxy: async () => proxy, install: async () => '/fixture/Orbit',
@@ -193,6 +194,23 @@ async function installedLaunchCases() {
   }
   runInNewContext(source.slice(source.indexOf('export async function acceptance')).replace('export ', '') + '\nglobalThis.acceptance = acceptance', context)
   const credentials = { ORBIT_WNS_CLIENT_SECRET: 'fixture-secret' }
+  await context.acceptance({ repository: '/fixture', output: '/output', credentials })
+  T('a Windows run builds unsigned, tells the push phase so and reports why',
+    builtWith[0] === null && pushCalls[0].options.signed === false && recorded.signing.unsigned === 'Windows packages with --no-sign')
+  const signing = { certificate: 'fixture-certificate', password: 'fixture-password', profile: 'fixture-profile', identity: 'Developer ID Application: Fixture (TEAM)' }
+  Object.assign(context, { windows: false, unsignedReason: 'fixture unsigned reason', startHttpsListener: async () => {} })
+  await context.acceptance({ repository: '/fixture', output: '/output', credentials, signing })
+  T('a signed macOS run passes the material to the build, tells the push phase and reports only the public identity',
+    builtWith[1] === signing && pushCalls[1].options.signed === true &&
+      JSON.stringify(recorded.signing) === JSON.stringify({ identity: signing.identity, entitlements: 'Entitlements.staging.plist' }))
+  await context.acceptance({ repository: '/fixture', output: '/output', credentials })
+  T('an unsigned macOS run reports the missing signing material as its reason', builtWith[2] === null && recorded.signing.unsigned === 'fixture unsigned reason')
+  Object.assign(context, { windows: true })
+  pushCalls.length = 0
+  launches.length = 0
+  events.splice(1)
+  commands.length = 0
+  settings = {}
   await context.acceptance({ repository: '/fixture', output: '/output', credentials })
   T('installed acceptance runs the push phase once, after the valid update relaunch, with the acceptance credentials and that launch',
     pushCalls.length === 1 && pushCalls[0].checks.at(-1) === 'relaunched-hoje-valid' && pushCalls[0].options.credentials === credentials &&
@@ -829,10 +847,23 @@ export async function cases() {
       env.NEXT_PUBLIC_EVENT_API_BASE === (origin ?? 'http://127.0.0.1:5099')))
   }
   const workflow = readFileSync(join(REPO_ROOT, '.github/workflows/desktop-acceptance.yml'), 'utf8')
+  const setup = readFileSync(join(REPO_ROOT, '.github/actions/desktop-acceptance-setup/action.yml'), 'utf8')
+  const job = (name) => workflow.slice(workflow.indexOf(`\n  ${name}:\n`), workflow.indexOf('\n\n  ', workflow.indexOf(`\n  ${name}:\n`) + 1) >>> 0)
+  const unsigned = job('installed')
+  const signed = job('installed-signed')
+  const sameRepository = "github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository"
   T('native acceptance retains both VMs, per-ref cancellation and always-uploaded evidence',
-    workflow.includes('runner: [macos-latest, windows-latest]') && workflow.includes('desktop-acceptance-${{ github.ref }}') && workflow.includes('if: always()'))
-  T('the native producer step runs the acceptance and push acceptance regressions',
-    ['test-acceptance.ts', 'test-acceptance-push.ts'].every((file) => workflow.includes(`node --import tsx tools/desktop-bench/${file}`)))
+    unsigned.includes(`runner: \${{ fromJSON((${sameRepository}) && '["windows-latest"]' || '["macos-latest", "windows-latest"]') }}`) &&
+      signed.includes(`if: ${sameRepository}`) && signed.includes('runs-on: macos-latest') &&
+      workflow.includes('desktop-acceptance-${{ github.ref }}') && unsigned.includes('if: always()') && signed.includes('if: always()'))
+  T('only the same-repository macOS job takes desktop-staging, without a deployment, and passes its signing material to the harness',
+    signed.includes('environment:\n      name: desktop-staging\n      deployment: false') && !unsigned.includes('environment:') && !workflow.includes('desktop-production') &&
+      ['MACOS_DEVELOPER_ID_CERTIFICATE_BASE64', 'MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD', 'MACOS_PROVISIONING_PROFILE_BASE64'].every((name) => signed.includes(`${name}: \${{ secrets.${name} }}`)) &&
+      signed.includes('MACOS_SIGNING_IDENTITY: ${{ vars.MACOS_SIGNING_IDENTITY }}') && !unsigned.includes('MACOS_') && !workflow.includes('TAURI_SIGNING_PRIVATE_KEY'))
+  T('the native producer step runs the acceptance and push acceptance regressions in both jobs',
+    ['test-acceptance.ts', 'test-acceptance-push.ts'].every((file) => setup.includes(`node --import tsx tools/desktop-bench/${file}`)) &&
+      [unsigned, signed].every((text) => text.includes('uses: ./.github/actions/desktop-acceptance-setup')) &&
+      workflow.includes("- '.github/actions/desktop-acceptance-setup/**'"))
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

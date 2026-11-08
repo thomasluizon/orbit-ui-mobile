@@ -7,6 +7,7 @@ on:
     paths:
       - 'apps/desktop/**'
       - 'tools/desktop-bench/**'
+      - '.github/actions/desktop-acceptance-setup/**'
       - '.github/workflows/desktop-acceptance.yml'
 
 permissions:
@@ -21,7 +22,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [macos-latest, windows-latest]
+        # A same-repository run signs macOS in installed-signed; a fork pull request gets no desktop-staging environment, so its macOS run stays here unsigned.
+        runner: ${{ fromJSON((github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["windows-latest"]' || '["macos-latest", "windows-latest"]') }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     defaults:
@@ -31,26 +33,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v7
-        env:
-          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci --prefer-offline --no-audit --fund=false
-      - name: Check native acceptance producers
-        run: |
-          node --import tsx tools/desktop-bench/test-acceptance.ts
-          node --import tsx tools/desktop-bench/test-acceptance-push.ts
-      - name: Install native prerequisites
-        run: |
-          rustup toolchain install stable --profile minimal
-          rustup default stable
-          if [ "$RUNNER_OS" = macOS ]; then
-            brew install ffmpeg
-          else
-            choco install ffmpeg --yes --no-progress
-          fi
+      - uses: ./.github/actions/desktop-acceptance-setup
       - name: Build, install and exercise the isolated desktop app
         env:
           ACCEPTANCE_OUTPUT: ${{ runner.temp }}/orbit-desktop-acceptance
@@ -62,6 +45,51 @@ jobs:
           ORBIT_APPLE_TEAM_ID: BD7JH468F7
           ORBIT_APNS_KEY_ID: ${{ secrets.ORBIT_APNS_KEY_ID }}
           ORBIT_APNS_PRIVATE_KEY: ${{ secrets.ORBIT_APNS_PRIVATE_KEY }}
+        run: node tools/desktop-bench/acceptance.mjs --output "$ACCEPTANCE_OUTPUT"
+      - name: Upload recording, native trees and report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-installed-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            ${{ runner.temp }}/orbit-desktop-acceptance/report.json
+            ${{ runner.temp }}/orbit-desktop-acceptance/latest.json
+            ${{ runner.temp }}/orbit-desktop-acceptance/latest.json.sig
+            ${{ runner.temp }}/orbit-desktop-acceptance/*.mp4
+            ${{ runner.temp }}/orbit-desktop-acceptance/*.log
+            ${{ runner.temp }}/orbit-desktop-acceptance/*.jsonl
+            ${{ runner.temp }}/orbit-desktop-acceptance/trees/**
+          if-no-files-found: error
+          retention-days: 14
+
+  installed-signed:
+    name: installed (macos-latest, Developer ID)
+    # GitHub passes no secrets to a fork pull request, so only this repository's runs take the signing environment.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: macos-latest
+    timeout-minutes: 60
+    environment:
+      name: desktop-staging
+      deployment: false
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/desktop-acceptance-setup
+      - name: Build, sign, install and exercise the isolated desktop app
+        env:
+          ACCEPTANCE_OUTPUT: ${{ runner.temp }}/orbit-desktop-acceptance
+          ORBIT_APPLE_TEAM_ID: ${{ vars.ORBIT_APPLE_TEAM_ID }}
+          ORBIT_APNS_KEY_ID: ${{ secrets.ORBIT_APNS_KEY_ID }}
+          ORBIT_APNS_PRIVATE_KEY: ${{ secrets.ORBIT_APNS_PRIVATE_KEY }}
+          # The harness passes these to the bundle step alone; the updater key stays the one this run generates.
+          MACOS_DEVELOPER_ID_CERTIFICATE_BASE64: ${{ secrets.MACOS_DEVELOPER_ID_CERTIFICATE_BASE64 }}
+          MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+          MACOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.MACOS_PROVISIONING_PROFILE_BASE64 }}
+          MACOS_SIGNING_IDENTITY: ${{ vars.MACOS_SIGNING_IDENTITY }}
         run: node tools/desktop-bench/acceptance.mjs --output "$ACCEPTANCE_OUTPUT"
       - name: Upload recording, native trees and report
         if: always()

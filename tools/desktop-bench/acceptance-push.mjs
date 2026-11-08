@@ -127,6 +127,7 @@ export async function sendApns({ origin, headers, body }, connectTo = connect) {
 }
 
 const apsKey = 'com.apple.developer.aps-environment'
+export const unsignedReason = 'the job has no Developer ID signing material, because only a same-repository macOS job receives the desktop-staging environment'
 
 // codesign exits 1 for an unsigned bundle and prints nothing for a signature without entitlements.
 export function apsEnvironment({ status, stdout, stderr }, entitlements) {
@@ -165,12 +166,12 @@ export async function signedApsEnvironment(application, output, run = promisify(
   return { signature, environment: apsEnvironment(signature, entitlements) }
 }
 
-export function pushReadiness({ platform, credentials, environment }) {
+export function pushReadiness({ platform, credentials, environment, signed }) {
   const transport = platform === 'win32' ? 'wns' : 'apns'
   if (transport === 'apns' && !environment) {
+    if (signed) throw new Error(`The Developer ID signed shell has no ${apsKey} entitlement; see codesign-entitlements.stdout.log`)
     return { transport, registration: false, delivery: false,
-      skipped: 'APNs acceptance skipped: the installed shell has no com.apple.developer.aps-environment entitlement. ' +
-        'The acceptance build is unsigned until Developer ID signing (ui#2364) reaches it.' }
+      skipped: `APNs acceptance skipped: the installed shell has no ${apsKey} entitlement because the acceptance build is unsigned: ${unsignedReason}.` }
   }
   const missing = credentialNames[transport].filter((name) => !credentials[name])
   if (missing.length) {
@@ -248,7 +249,7 @@ async function windowsOf(io, pid) {
 }
 
 export async function exercisePush(io) {
-  const readiness = pushReadiness({ platform: io.platform, credentials: io.credentials,
+  const readiness = pushReadiness({ platform: io.platform, credentials: io.credentials, signed: io.signed,
     environment: io.platform === 'darwin' ? await io.apsEnvironment() : null })
   io.report.push = { transport: readiness.transport }
   if (!readiness.registration) { skip(io, readiness.skipped); return }

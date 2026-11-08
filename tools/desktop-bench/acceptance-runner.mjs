@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module'
 import { existsSync } from 'node:fs'
-import { cp, mkdir, readFile, writeFile, rm } from 'node:fs/promises'
+import { appendFile, cp, mkdir, readFile, writeFile, rm } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { request as requestHttp } from 'node:http'
@@ -8,9 +8,9 @@ import { buildHermeticWeb } from './runner.mjs'
 import { readFixtures } from './build.mjs'
 import { startProxy } from './server.mjs'
 import { assertFree, delay, execute, start, stop, stopAll, waitFor, waitForHttp } from './host.mjs'
-import { buildInstaller, desktopOrigin, install, isolateOrigins, startHttpsListener, startRecording } from './acceptance-platform.mjs'
+import { buildInstaller, desktopOrigin, install, isolateOrigins, launchContext, launchUnelevated, startHttpsListener, startRecording } from './acceptance-platform.mjs'
 import { NativeTreePendingError, assertAccessibleTree, assertCookieEvidence, assertPaletteFocus, corruptSignature } from './acceptance-contract.mjs'
-import { exercisePush, pushSender, signedApsEnvironment } from './acceptance-push.mjs'
+import { exercisePush, pushSender, signedApsEnvironment, unsignedReason } from './acceptance-push.mjs'
 
 const require = createRequire(import.meta.url)
 const directory = dirname(fileURLToPath(import.meta.url))
@@ -197,10 +197,31 @@ async function traversePalette(proxy, native, handle, dump, previous, report) {
   report.paletteFocus = focus
 }
 
-function installedLaunch(executable, output, name) {
-  const environment = { ...process.env }
-  for (const key of ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'http_proxy', 'https_proxy', 'all_proxy']) delete environment[key]
-  return start(executable, [], { env: environment, log: join(output, `${name}.log`) })
+async function installedLaunch(executable, output, name, report) {
+  let handle
+  if (windows) handle = await launchUnelevated(executable, output, name)
+  else {
+    const environment = { ...process.env }
+    for (const key of ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'http_proxy', 'https_proxy', 'all_proxy']) delete environment[key]
+    handle = start(executable, [], { env: environment, log: join(output, `${name}.log`) })
+  }
+  report.launchContexts[name] = launchContext(handle)
+  return handle
+}
+
+const unsupportedLine = 'Desktop push: native push unsupported:'
+
+// Each launch reports its first unsupported push answer once, so push.log and the report gather every launch's line.
+export async function collectUnsupportedPush(output, report, read = readFile, append = appendFile) {
+  const found = []
+  for (const name of Object.keys(report.launchContexts)) {
+    let text
+    try { text = await read(join(output, `${name}.log`), 'utf8') } catch (error) { if (error.code === 'ENOENT') continue; throw error }
+    for (const line of text.split(/\r?\n/)) if (line.startsWith(unsupportedLine)) found.push({ log: `${name}.log`, line })
+  }
+  if (!found.length) return
+  report.push = { ...report.push, nativeUnsupported: found }
+  await append(join(output, 'push.log'), found.filter(({ log }) => log !== 'push.log').map(({ log, line }) => `[${log}] ${line}\n`).join(''))
 }
 
 async function quit(native, handle) {
@@ -229,7 +250,7 @@ async function catalogValue(path, read) {
   return Promise.all(['en', 'pt-BR'].map(async (locale) => read(JSON.parse(await readFile(join(directory, path, `${locale}.json`), 'utf8')))))
 }
 
-async function pushPhase({ proxy, native, updates, handle, executable, output, report, credentials, checkpoint }) {
+async function pushPhase({ proxy, native, updates, handle, executable, output, report, credentials, signed, checkpoint }) {
   // The valid-update launch waits on its restart prompt; stop it and serve no update so the push launch starts clean.
   updates.mode('off')
   await stop(handle)
@@ -238,7 +259,7 @@ async function pushPhase({ proxy, native, updates, handle, executable, output, r
   const application = windows ? null : dirname(dirname(dirname(executable)))
   let environment = null
   const io = {
-    platform: process.platform, report, credentials, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    platform: process.platform, report, credentials, signed, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     labels: await catalogValue('../../packages/shared/src/i18n', (catalog) => catalog.profile.settingsRows.alertsOnThisDevice),
     doneLabel: (await catalogValue('../../apps/desktop/locales', (catalog) => catalog.reminderDone))[0],
     // The system authorization alert follows the VM language, which is English on GitHub macOS runners.
@@ -258,7 +279,7 @@ async function pushPhase({ proxy, native, updates, handle, executable, output, r
     proxy, now: Date.now, delay, waitFor,
     async launch() {
       proxy.reset({ expectAuthenticated: true })
-      const shell = installedLaunch(executable, output, 'push')
+      const shell = await installedLaunch(executable, output, 'push', report)
       await waitFor(() => proxy.read('hoje'), 'authenticated push launch')
       checkpoint('push-hoje')
       return shell
@@ -281,6 +302,7 @@ async function pushPhase({ proxy, native, updates, handle, executable, output, r
   }
   let failure
   try { await exercisePush(io) } catch (error) { failure = error }
+  try { await collectUnsupportedPush(output, report) } catch (error) { failure ??= error }
   // A notification launch starts the shell outside the process host, so this phase stops it.
   const cleanup = []
   for (const pid of adopted) {
@@ -308,9 +330,11 @@ function menuCommands(items, enabled = true) {
     : [{ ...item, enabled: enabled && item.enabled }])
 }
 
-export async function acceptance({ repository, output, credentials = {} }) {
+export async function acceptance({ repository, output, credentials = {}, signing = null }) {
   await mkdir(join(output, 'trees'), { recursive: true })
-  const report = { platform: process.platform, architecture: process.arch, accessibility: {}, updateRequests: [], launchChecks: [], passed: false }
+  const report = { platform: process.platform, architecture: process.arch, accessibility: {}, updateRequests: [], launchChecks: [], launchContexts: {}, passed: false,
+    signing: signing ? { identity: signing.identity, entitlements: 'Entitlements.staging.plist' }
+      : { unsigned: windows ? 'Windows packages with --no-sign' : unsignedReason } }
   const nextOutput = join(repository, 'apps/web/.next')
   let finishRecording
   let isolation
@@ -324,7 +348,7 @@ export async function acceptance({ repository, output, credentials = {} }) {
     finishRecording = await startRecording(output)
     const checkpoint = (event) => report.launchChecks.push({ event, recordingSeconds: (Date.now() - finishRecording.startedAt) / 1000 })
     process.stdout.write('Building release-shaped installer and hermetic web application\n')
-    const shell = await buildInstaller(repository, output)
+    const shell = await buildInstaller(repository, output, signing)
     builtWeb = true
     await hermeticServices(repository, output)
     const native = await nativeTool(output)
@@ -334,7 +358,7 @@ export async function acceptance({ repository, output, credentials = {} }) {
     const executable = await install(shell.installer, output)
     report.install = { source: shell.installer, executable, target: shell.target, version: '1.0.0', optionalFeatures: [] }
     checkpoint('first-launch')
-    let handle = installedLaunch(executable, output, 'installed')
+    let handle = await installedLaunch(executable, output, 'installed', report)
     await waitFor(() => proxy.read('email-completed'), 'email sign-in through the BFF')
     checkpoint('email-completed')
     const hoje = await waitFor(() => proxy.read('hoje'), 'Hoje in installed shell')
@@ -357,7 +381,7 @@ export async function acceptance({ repository, output, credentials = {} }) {
       proxy.reset({ expectAuthenticated: true })
       updates.mode(mode)
       checkpoint(`relaunch-${mode}`)
-      handle = installedLaunch(executable, output, `update-${mode}`)
+      handle = await installedLaunch(executable, output, `update-${mode}`, report)
       await waitFor(() => proxy.read('hoje'), 'authenticated installed relaunch')
       checkpoint(`relaunched-hoje-${mode}`)
       proxy.send(`update-${phase}`)
@@ -370,7 +394,7 @@ export async function acceptance({ repository, output, credentials = {} }) {
       }
     }
     // A verified download opens the native restart prompt; installation is a separate acceptance concern.
-    await pushPhase({ proxy, native, updates, handle, executable, output, report, credentials, checkpoint })
+    await pushPhase({ proxy, native, updates, handle, executable, output, report, credentials, signed: Boolean(signing), checkpoint })
     report.passed = true
   } catch (error) {
     report.error = error.stack

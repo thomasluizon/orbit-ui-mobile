@@ -122,7 +122,7 @@ static void finish(UNAuthorizationStatus status, BOOL token) {
 
 void orbit_push_request(BOOL prompt, BOOL token) {
     if (@available(macOS 10.14, *)) {
-    if (!configured()) { emit(0, @""); return; }
+    if (!configured()) { emit(0, @"signature has no com.apple.developer.aps-environment entitlement"); return; }
     if (!installed) { emit(7, @""); return; }
     UNUserNotificationCenter *center = UNUserNotificationCenter.currentNotificationCenter;
     [center getNotificationSettingsWithCompletionHandler:^(UNNotificationSettings *settings) {
@@ -133,7 +133,7 @@ void orbit_push_request(BOOL prompt, BOOL token) {
             }];
         } else finish(settings.authorizationStatus, token);
     }];
-    } else { emit(0, @""); }
+    } else { emit(0, @"macOS is older than 10.14"); }
 }
 
 BOOL orbit_push_stop(void) {
