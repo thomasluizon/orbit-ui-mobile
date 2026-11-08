@@ -18,7 +18,7 @@ interface Step { name?: string; run?: string; if?: string; env?: Record<string, 
 interface Workflow {
   on: Record<string, unknown>
   concurrency: { 'cancel-in-progress': boolean }
-  jobs: Record<string, { needs?: string | string[]; if?: string; outputs?: Record<string, string>; env?: Record<string, string>; steps: Step[]; 'timeout-minutes'?: number | string; strategy?: { matrix: { include: { runner: string; target: string; timeout: number }[] } } }>
+  jobs: Record<string, { needs?: string | string[]; if?: string; outputs?: Record<string, string>; env?: Record<string, string>; steps: Step[]; 'timeout-minutes'?: number | string; strategy?: { matrix: { include: { runner: string; target: string; timeout?: number }[] } } }>
 }
 const workflow = load(readFileSync(new URL('../../../.github/workflows/desktop-release.yml', import.meta.url), 'utf8'))
 const publish = workflow.jobs.publish!.steps.find((step) => step.name === 'Publish versioned artifacts before advancing the channel')!.run!
@@ -134,7 +134,10 @@ it('supports pinned automatic releases and requires every target before publicat
   expect(workflow.jobs.validate!.steps.some(step => step.name === 'Plan shell publication')).toBe(true)
   expect(workflow.concurrency['cancel-in-progress']).toBe(false)
   expect(workflow.jobs.build!.needs).toBe('validate')
-  expect(workflow.jobs.publish!.needs).toEqual(['validate', 'build'])
+  expect(workflow.jobs.notarize!.needs).toEqual(['validate', 'build'])
+  expect(workflow.jobs.staple!.needs).toEqual(['validate', 'notarize'])
+  expect(workflow.jobs.publish!.needs).toEqual(['validate', 'build', 'staple'])
+  expect(workflow.jobs.ready!.needs).toEqual(['validate', 'build', 'notarize', 'staple', 'publish'])
   expect(workflow.jobs.validate!.outputs).toEqual({
     shell_changed: '${{ steps.plan.outputs.shell_changed }}',
     advance_channel: '${{ steps.plan.outputs.advance_channel }}',
@@ -146,10 +149,8 @@ it('supports pinned automatic releases and requires every target before publicat
   expect(workflow.jobs.build!.strategy!.matrix.include.map((entry) => entry.target).sort()).toEqual([
     'aarch64-apple-darwin', 'aarch64-pc-windows-msvc', 'x86_64-apple-darwin', 'x86_64-pc-windows-msvc',
   ])
-  expect(workflow.jobs.build!['timeout-minutes']).toBe('${{ matrix.timeout }}')
-  expect(Object.fromEntries(workflow.jobs.build!.strategy!.matrix.include.map((entry) => [entry.target, entry.timeout]))).toEqual({
-    'aarch64-apple-darwin': 120, 'x86_64-apple-darwin': 120, 'aarch64-pc-windows-msvc': 35, 'x86_64-pc-windows-msvc': 35,
-  })
+  expect(workflow.jobs.build!['timeout-minutes']).toBe(35)
+  expect(workflow.jobs.build!.strategy!.matrix.include.every((entry) => entry.timeout === undefined)).toBe(true)
 })
 
 publicationTest('publishes artifacts before advancing an existing channel, with its manifest last', () => {
@@ -203,10 +204,15 @@ publicationTest.each([
   { plan: 'success', changed: 'true', advance: 'false', build: 'failure', publish: 'skipped', accepted: false },
   { plan: 'success', changed: 'true', advance: 'false', build: 'success', publish: 'success', accepted: false },
   { plan: 'success', changed: 'false', advance: 'true', build: 'skipped', publish: 'skipped', accepted: false },
-])('admits web only after a valid desktop result: $plan/$changed/$advance/$build/$publish', ({ plan, changed, advance, build, publish, accepted }) => {
+  { plan: 'success', changed: 'true', advance: 'true', build: 'success', notarize: 'failure', staple: 'skipped', publish: 'skipped', accepted: false },
+  { plan: 'success', changed: 'true', advance: 'true', build: 'success', notarize: 'cancelled', staple: 'skipped', publish: 'skipped', accepted: false },
+  { plan: 'success', changed: 'true', advance: 'false', build: 'success', notarize: 'success', staple: 'failure', publish: 'skipped', accepted: false },
+  { plan: 'success', changed: 'true', advance: 'false', build: 'success', notarize: 'failure', staple: 'skipped', publish: 'skipped', accepted: false },
+  { plan: 'success', changed: 'false', advance: 'false', build: 'skipped', notarize: 'success', staple: 'skipped', publish: 'skipped', accepted: false },
+])('admits web only after a valid desktop result: $plan/$changed/$advance/$build/$notarize/$staple/$publish', ({ plan, changed, advance, build, publish, accepted, ...macos }) => {
   const script = workflow.jobs.ready!.steps.find(step => step.name === 'Require completed desktop admission')!.run!
-  const result = spawnSync('bash', ['-c', script], { env: { ...process.env,
-    PLAN_RESULT: plan, SHELL_CHANGED: changed, ADVANCE_CHANNEL: advance, BUILD_RESULT: build, PUBLISH_RESULT: publish } })
+  const result = spawnSync('bash', ['-c', script], { env: { ...process.env, PLAN_RESULT: plan, SHELL_CHANGED: changed, ADVANCE_CHANNEL: advance,
+    BUILD_RESULT: build, NOTARIZE_RESULT: macos.notarize ?? build, STAPLE_RESULT: macos.staple ?? build, PUBLISH_RESULT: publish } })
   expect(result.status === 0).toBe(accepted)
 })
 
