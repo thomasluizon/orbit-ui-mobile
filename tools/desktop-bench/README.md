@@ -134,6 +134,10 @@ Platform readers dump the real AX or UI Automation tree and require web content,
 controls, semantic roles and nonempty names. Palette arrows must retain DOM input focus and expose the
 next selected result in both the DOM and platform tree. Platform focus may be on the input or its
 selected active descendant inside the controlled listbox, matched by captured automation identifiers.
+The page records each keydown the palette receives. A native Down counts as sent only when the page
+records an ArrowDown. If the page records no ArrowDown within 5 seconds, the runner sends the Down again,
+up to 3 times. The report keeps each undelivered Down in `paletteUndelivered`. A step that records two
+ArrowDown keys fails. A received Down that does not move the selection still fails the focus check.
 An exact macOS access denial is recorded as
 a skip, with Windows still required. These are structural checks; a person's spoken screen reader
 pass remains separate. Reports, native trees, capture and diagnostic logs upload even on failure.
