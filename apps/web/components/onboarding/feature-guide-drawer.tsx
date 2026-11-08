@@ -6,6 +6,7 @@ import { SPACING } from '@orbit/shared/theme'
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Sheet } from '@/components/ui/sheet'
+import { getWidgetCopy, type WidgetCopy } from '@orbit/shared/utils/advanced-settings'
 
 type SectionKey =
   | 'habits'
@@ -33,7 +34,14 @@ interface SectionItem {
   descKey: string
 }
 
-const sectionItems: Record<SectionKey, SectionItem[]> = {
+function buildWidgetItems({ guideTodayKey, guideOpensKey }: WidgetCopy): SectionItem[] {
+  return [
+    { titleKey: 'onboarding.featureGuide.widgetSection.todayTitle', descKey: guideTodayKey },
+    { titleKey: 'onboarding.featureGuide.widgetSection.opensTitle', descKey: guideOpensKey },
+  ]
+}
+
+const sectionItems: Record<Exclude<SectionKey, 'widget'>, SectionItem[]> = {
   astra: [
     { titleKey: 'onboarding.featureGuide.astraSection.canDoTitle', descKey: 'onboarding.featureGuide.astraSection.canDoDesc' },
     { titleKey: 'onboarding.featureGuide.astraSection.toolsBreadthTitle', descKey: 'onboarding.featureGuide.astraSection.toolsBreadthDesc' },
@@ -99,10 +107,6 @@ const sectionItems: Record<SectionKey, SectionItem[]> = {
     { titleKey: 'onboarding.featureGuide.remindersSection.managingTitle', descKey: 'onboarding.featureGuide.remindersSection.managingDesc' },
     { titleKey: 'onboarding.featureGuide.remindersSection.configuringRemindersTitle', descKey: 'onboarding.featureGuide.remindersSection.configuringRemindersDesc' },
   ],
-  widget: [
-    { titleKey: 'onboarding.featureGuide.widgetSection.todayTitle', descKey: 'onboarding.featureGuide.widgetSection.todayDesc' },
-    { titleKey: 'onboarding.featureGuide.widgetSection.opensTitle', descKey: 'onboarding.featureGuide.widgetSection.opensDesc' },
-  ],
 }
 
 interface FeatureGuideDrawerProps {
@@ -114,7 +118,7 @@ export function FeatureGuideDrawer({ open, onOpenChange }: Readonly<FeatureGuide
   const t = useTranslations()
   const [activeSection, setActiveSection] = useState<SectionKey>('habits')
 
-  const items = sectionItems[activeSection]
+  const items = activeSection === 'widget' ? buildWidgetItems(getWidgetCopy('web')) : sectionItems[activeSection]
 
   return (
     open ? (<Sheet open onClose={() => (onOpenChange)(false)} title={t('onboarding.featureGuide.title')} titleTranslate="no">

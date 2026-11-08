@@ -9,7 +9,7 @@ import { captureError } from '@/lib/sentry'
 import { RootScrollProvider } from '@/components/shell/root-scroll-context'
 import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
 import { __setScrollToImpl, __setWindowDimensions } from '../../test-mocks/react-native'
-import { View, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
+import { Platform, View, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import Yoga from 'yoga-layout'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -2216,6 +2216,37 @@ describe('ProfileScreen', () => {
       pathname: '/upgrade',
       params: { from: '/profile' },
     })
+  })
+
+  it('names the widget row and sheet for the iOS widget on iOS', async () => {
+    const platform = Platform.OS
+    Platform.OS = 'ios'
+    try {
+      const tree = await renderProfileScreen()
+      const more = tree.root.findByProps({ testID: 'profile-settings-group-more' })
+      const labels = more.findAll((node: SettingsRowStubNode) => node.type === 'SettingsRowStub')
+        .map((node: SettingsRowStubNode) => node.props.label)
+      expect(labels).toContain('profile.widgetIos.title')
+      expect(labels).not.toContain('profile.widgetTitle')
+      await TestRenderer.act(async () => {
+        findRowByLabel(tree, 'profile.widgetIos.title').props.onPress?.()
+        await Promise.resolve()
+      })
+      const [sheet] = tree.root.findAll((node: { type: unknown; props: { title?: string } }) =>
+        node.type === 'SheetStub' && node.props.title === 'profile.widgetIos.title')
+      expect(sheet).toBeDefined()
+      const sheetText = nodeText(sheet)
+      for (const step of ['step1', 'step2', 'step3']) {
+        expect(sheetText).toContain(`profile.widgetIos.${step}`)
+        expect(sheetText).not.toContain(`profile.widgetHow.${step}`)
+      }
+      for (const messages of [en, ptBR]) {
+        expect(messages.profile.widgetIos.title).not.toMatch(/android/i)
+        expect(Object.values(messages.profile.widgetIos).join(' ')).not.toMatch(/android|"Widgets"/i)
+      }
+    } finally {
+      Platform.OS = platform
+    }
   })
 
   it('routes every More of Orbit row', async () => {

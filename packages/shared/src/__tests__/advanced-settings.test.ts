@@ -5,7 +5,7 @@ import {
   getMcpEndpointUrl,
   MCP_CONFIG_TABS,
   WIDGET_FEATURES,
-  WIDGET_STEP_KEYS,
+  getWidgetCopy,
 } from '../utils/advanced-settings'
 
 describe('advanced settings utils', () => {
@@ -60,11 +60,20 @@ describe('advanced settings utils', () => {
   })
 
   it('defines the widget steps and features', () => {
-    expect(WIDGET_STEP_KEYS).toEqual([
-      'profile.widgetHow.step1',
-      'profile.widgetHow.step2',
-      'profile.widgetHow.step3',
-    ])
+    for (const platform of ['android', 'web']) {
+      expect(getWidgetCopy(platform)).toEqual({
+        titleKey: 'profile.widgetTitle',
+        stepKeys: ['profile.widgetHow.step1', 'profile.widgetHow.step2', 'profile.widgetHow.step3'],
+        guideTodayKey: 'onboarding.featureGuide.widgetSection.todayDesc',
+        guideOpensKey: 'onboarding.featureGuide.widgetSection.opensDesc',
+      })
+    }
+    expect(getWidgetCopy('ios')).toEqual({
+      titleKey: 'profile.widgetIos.title',
+      stepKeys: ['profile.widgetIos.step1', 'profile.widgetIos.step2', 'profile.widgetIos.step3'],
+      guideTodayKey: 'onboarding.featureGuide.widgetSection.todayDescIos',
+      guideOpensKey: 'onboarding.featureGuide.widgetSection.opensDescIos',
+    })
     expect(WIDGET_FEATURES.map((feature) => feature.iconKey)).toEqual([
       'checkCircle',
       'clock',

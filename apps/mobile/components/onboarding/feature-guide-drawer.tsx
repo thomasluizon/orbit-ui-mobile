@@ -1,6 +1,7 @@
 import { SPACING } from '@orbit/shared/theme'
 import { useMemo, useState } from 'react'
 import {
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -8,6 +9,7 @@ import {
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { Sheet } from '@/components/ui/sheet'
+import { getWidgetCopy, type WidgetCopy } from '@orbit/shared/utils/advanced-settings'
 import { Chip } from '@/components/ui/chip'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -38,7 +40,14 @@ interface SectionItem {
   descKey: string
 }
 
-const sectionItems: Record<SectionKey, SectionItem[]> = {
+function buildWidgetItems({ guideTodayKey, guideOpensKey }: WidgetCopy): SectionItem[] {
+  return [
+    { titleKey: 'onboarding.featureGuide.widgetSection.todayTitle', descKey: guideTodayKey },
+    { titleKey: 'onboarding.featureGuide.widgetSection.opensTitle', descKey: guideOpensKey },
+  ]
+}
+
+const sectionItems: Record<Exclude<SectionKey, 'widget'>, SectionItem[]> = {
   astra: [
     { titleKey: 'onboarding.featureGuide.astraSection.canDoTitle', descKey: 'onboarding.featureGuide.astraSection.canDoDesc' },
     { titleKey: 'onboarding.featureGuide.astraSection.toolsBreadthTitle', descKey: 'onboarding.featureGuide.astraSection.toolsBreadthDesc' },
@@ -104,10 +113,6 @@ const sectionItems: Record<SectionKey, SectionItem[]> = {
     { titleKey: 'onboarding.featureGuide.remindersSection.managingTitle', descKey: 'onboarding.featureGuide.remindersSection.managingDesc' },
     { titleKey: 'onboarding.featureGuide.remindersSection.configuringRemindersTitle', descKey: 'onboarding.featureGuide.remindersSection.configuringRemindersDesc' },
   ],
-  widget: [
-    { titleKey: 'onboarding.featureGuide.widgetSection.todayTitle', descKey: 'onboarding.featureGuide.widgetSection.todayDesc' },
-    { titleKey: 'onboarding.featureGuide.widgetSection.opensTitle', descKey: 'onboarding.featureGuide.widgetSection.opensDesc' },
-  ],
 }
 
 interface FeatureGuideDrawerProps {
@@ -128,7 +133,7 @@ export function FeatureGuideDrawer({
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const [activeSection, setActiveSection] = useState<SectionKey>('habits')
 
-  const items = sectionItems[activeSection]
+  const items = activeSection === 'widget' ? buildWidgetItems(getWidgetCopy(Platform.OS)) : sectionItems[activeSection]
 
   return (
     open ? (<Sheet

@@ -1,7 +1,7 @@
 'use client'
 
 import { CheckCircle, Clock, List, RotateCcw } from '@/components/ui/icons'
-import { WIDGET_FEATURES, WIDGET_STEP_KEYS } from '@orbit/shared/utils/advanced-settings'
+import { WIDGET_FEATURES, getWidgetCopy } from '@orbit/shared/utils/advanced-settings'
 import { Sheet } from '@/components/ui/sheet'
 
 type TranslationFn = (key: string, params?: Record<string, string | number | Date>) => string
@@ -12,16 +12,17 @@ export function WidgetInfoOverlay({
   t,
 }: Readonly<{ open: boolean; onOpenChange: (open: boolean) => void; t: TranslationFn }>) {
   if (!open) return null
+  const copy = getWidgetCopy('web')
 
   return (
-    <Sheet open onClose={() => onOpenChange(false)} title={t('profile.widgetTitle')}>
+    <Sheet open onClose={() => onOpenChange(false)} title={t(copy.titleKey)}>
       <div className="flex flex-col gap-4">
         <div>
           <h3 className="mb-2 font-sans text-[16px] font-medium text-[var(--fg-1)]">
             {t('profile.widgetHow.title')}
           </h3>
           <ol className="flex flex-col gap-2 font-sans text-sm leading-[1.55] text-[var(--fg-2)]">
-            {WIDGET_STEP_KEYS.map((stepKey, index) => (
+            {copy.stepKeys.map((stepKey, index) => (
               <li key={stepKey} className="flex gap-2">
                 <span className="shrink-0 font-mono font-medium tabular-nums text-[var(--fg-2)]">{index + 1}.</span>
                 <span>{t(stepKey)}</span>
