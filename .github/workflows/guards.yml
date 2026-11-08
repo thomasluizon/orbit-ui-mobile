@@ -156,6 +156,12 @@ jobs:
         name: "Dash Ban: Baseline only shrinks"
         run: node tools/check-dashes.mjs --check-baseline
         if: ${{ !cancelled() }}
+      - id: handoff-size__1
+        name: "Handoff Size: Changed specs and the relay prompt stay inside their byte ceilings"
+        if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
+        run: |
+          xargs -0 --no-run-if-empty node tools/check-handoff-size.mjs --files \
+            < "$RUNNER_TEMP/changed-paths-present.nul"
       - id: sonar-paths__1
         name: "Sonar Paths: Sonar paths exist"
         run: node tools/check-sonar-paths.mjs
