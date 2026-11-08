@@ -110,16 +110,18 @@ describe('Week opening through day pane shrink in Chromium', () => {
       } else if (input === 'scrollIntoView') {
         await page.getByTestId('time-grid-hour-label').first().evaluate(element => element.scrollIntoView({ block: 'start', inline: 'nearest' }))
       }
-      const heldTop = input === 'opening' ? null : await scroller.evaluate(async element => {
+      const heldTop = input === 'opening' ? null : await scroller.evaluate(async (element, openingTop) => {
+        const nextFrame = () => new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+        for (let frame = 0; frame < 120 && element.scrollTop === openingTop; frame++) await nextFrame()
         let previous = element.scrollTop
         let stableFrames = 0
         for (let frame = 0; frame < 120 && stableFrames < 4; frame++) {
-          await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+          await nextFrame()
           stableFrames = element.scrollTop === previous ? stableFrames + 1 : 0
           previous = element.scrollTop
         }
         return element.scrollTop
-      })
+      }, openingTop)
       if (heldTop !== null) expect(heldTop).toBeLessThan(openingTop)
       await oversized.evaluate(element => {
         document.documentElement.style.fontSize = '17px'
