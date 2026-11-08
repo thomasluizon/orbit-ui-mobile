@@ -1,120 +1,53 @@
 # Orbit
 
-Personal habit tracker. Turborepo monorepo: `apps/web`, `apps/mobile` (Android, iPhone and iPad), `apps/desktop` (Tauri webview shell), `packages/shared`. Siblings `orbit-api` and `orbit-landing-page` carry their own `CLAUDE.md`, and each workspace has a scoped one, so this root holds only cross-cutting rules.
+Personal habit tracker. Turborepo monorepo: `apps/web`, `apps/mobile` (Android, iPhone and iPad), `apps/desktop` (Tauri webview shell), `packages/shared`. Siblings `orbit-api`, `orbit-landing-page` and each workspace carry their own `CLAUDE.md`; this root holds cross-cutting rules. **`.claude/docs-registry.md` lists every other doc and when to read it.**
 
 ## Maximum implementation (overrides global rule 4, "surgical changes")
 
-Something broken, stale, or wrong while you build or fix? Fix it in the same PR; never call it "out of scope" or "pre-existing." Exception: `/audit-*` reports against its rubric, it doesn't remediate mid-pass. Do everything yourself (MCP servers, CLIs, APIs); involve me only when there is genuinely no way for you to do it.
+Fix anything broken, stale, or wrong that you find in the same PR; never call it "out of scope" or "pre-existing." Exception: `/audit-*` reports against its rubric and does not fix mid-pass. Do everything yourself (MCP servers, CLIs, APIs); involve me only when no other way exists.
 
 ## The workflow (D1-D9)
 
-Every ticket lives in the private `thomasluizon/orbit-tickets` GitHub repository (D1). Exactly one `repo:ui`, `repo:api`, or `repo:landing` label routes each ticket to its code repository. The ticket is the prompt (D2); one ticket = one repo = one coherent, independently mergeable PR (D4), with file and line estimates used only as planning signals, and cross-repo work uses an API ticket blocking a UI ticket. `/orchestrate <ticket-reference>` takes exactly one migrated `ORB-N` or GitHub `#N` ticket (D5). The reviewer is never the session that wrote the code, because Pullfrog reviews every pull request from GitHub Actions.
+Tickets live in the private `thomasluizon/orbit-tickets` repository (D1); exactly one `repo:ui`, `repo:api`, or `repo:landing` label routes each one. The ticket is the prompt (D2). One ticket = one repo = one coherent, independently mergeable PR (D4); file and line estimates are planning signals only. Cross-repo work uses an API ticket blocking a UI ticket. `/orchestrate <ticket-reference>` takes exactly one `ORB-N` or `#N` ticket (D5).
 
 ## Cross-platform parity (MANDATORY)
 
-Every change lands in BOTH `apps/web` AND `apps/mobile` in the same task: logic, features, behavior, and error handling identical, reverts included. Allowed differences are platform adapters (BFF vs direct API, cookie vs SecureStore, shadcn vs React Native StyleSheet for styling, Radix Primitives vs rn-primitives with one API shape for behavior, next-intl vs i18next) and a layout-shell divergence enumerated in `DESIGN.md`, limited to navigation chrome (sidebar vs tab bar), the command palette and keyboard shortcuts, and hover affordances on that shell chrome. The desktop stats rail was a fourth and is deleted (D69). Everything below the shell, including a screen, component, data flow, error path, or behavior, remains parity-bound. i18n keys land in `en.json` AND `pt-BR.json` in the same edit. The `PR Metadata` job in `pr-metadata.yml` fails a one-sided UI change; the escape hatch is `parity:exempt` with a one-line PR-body justification naming the applicable platform adapter or enumerated layout-shell divergence.
+Every change lands in BOTH `apps/web` AND `apps/mobile` in the same task: logic, features, behavior and error handling identical, reverts included. Allowed differences: platform adapters (BFF vs direct API, cookie vs SecureStore, shadcn vs React Native StyleSheet, Radix Primitives vs rn-primitives with one API shape, next-intl vs i18next) and the layout-shell divergence `DESIGN.md` enumerates (navigation chrome, command palette and keyboard shortcuts, hover on that chrome). Everything below the shell stays parity-bound. i18n keys land in `en.json` AND `pt-BR.json` in the same edit. `PR Metadata` fails a one-sided UI change; the escape hatch is `parity:exempt` with a one-line PR-body justification naming the adapter or divergence.
 
 ## Code standards
 
-Eleven judgement rules. The mechanical ones (no `any`, no `console.log`, comments, dashes, copy) are enforced by ESLint `local/*`, `guards.yml`, and Roslyn `ORBIT0001..0005`; trust the gates rather than re-checking by eye.
+ESLint `local/*`, `guards.yml` and Roslyn `ORBIT0001..0005` enforce the mechanical rules; trust the gates. Judgement rules:
 
-1. **Root cause over workarounds.** No fallback or defensive branch for a problem owned upstream (config, type, util). An unavoidable one gets a one-line WHY comment linking the issue.
-2. **Delete unused code immediately.** No "just in case" exports, dead branches, stub functions.
-3. **No premature abstraction.** Extract on the third real use, not the second.
-4. **Function size & nesting.** Soft cap ~50 lines / ~3 levels, hard cap ~100. Beyond means split.
-5. **Error handling at boundaries only.** Validate at trust boundaries (user input, external APIs), trust your types inside, never swallow an error.
-6. **Naming.** Descriptive, no abbreviations, never `data`/`info`/`stuff`/`temp`/`obj`/`helper`/`util` as a final name.
-7. **DRY at the right level.** Cross-app duplication goes to `packages/shared`, cross-component to `apps/<platform>/components/`, never for one caller.
-8. **Never assume an external interface.** Confirm any field, flag, exit code, or response shape from a CLI, API, or library you didn't write against the real response or the installed source: not memory, not `--help`, not what it obviously should be. Never write the fixture that agrees with a guess. Can't confirm it? Don't read it. **The installed source is read-only evidence**: nothing writes inside `node_modules`, ever, and `node tools/check-dependency-edits.mjs` proves the tree you are about to cite is the one the lockfile describes.
-9. **Simplest implementation that fully meets the current requirements.** No speculative abstraction, configuration, or indirection.
-10. **Grow the system in layers.** Start from the smallest version that works end to end, then add each capability on top of something that already works. Never trade a working product for unfinished complexity.
-11. **Lean on the dependencies already here** before writing your own or adding a package; prefer an established, well-maintained library to reimplementing common functionality.
+1. **Root cause over workarounds.** No defensive branch for a problem owned upstream; an unavoidable one gets a one-line WHY comment linking the issue.
+2. **Delete unused code immediately.** No "just in case" exports, dead branches or stubs.
+3. **No premature abstraction.** Extract on the third real use.
+4. **Function size.** Soft cap ~50 lines and ~3 nesting levels, hard cap ~100.
+5. **Error handling at boundaries only.** Validate user input and external APIs, trust your types inside, never swallow an error.
+6. **Naming.** Descriptive, no abbreviations, never `data`/`info`/`temp`/`obj`/`helper`/`util` as a final name.
+7. **DRY at the right level.** Cross-app code goes to `packages/shared`, cross-component to `apps/<platform>/components/`, never for one caller.
+8. **Never assume an external interface.** Confirm a field, flag, exit code or response shape from a CLI, API or library you did not write against the real response or the installed source, never memory or `--help`. Never write the fixture that agrees with a guess; cannot confirm it, do not read it. Nothing writes inside `node_modules`; `node tools/check-dependency-edits.mjs` proves the tree matches the lockfile.
+9. **Simplest implementation** that fully meets the current requirements.
+10. **Grow the system in layers.** Start from the smallest version that works end to end, and never trade a working product for unfinished complexity.
+11. **Use the dependencies already here** before you write your own or add a package.
 
 ## Security & contracts
 
-Web cookie is httpOnly + sameSite strict + secure; mobile tokens live in SecureStore, never AsyncStorage. Contract types live in `packages/shared/src/types/*` (Zod); never invent a field the API doesn't return. Shared/DTO changes are **append-only and deploy-API-first**: add optional fields, never rename, remove, or retype a field old mobile clients still read (mobile lags via the Play store). Breaking changes use expand-contract plus the `AppConfig.MinSupportedVersion` gate, raised only once the carrying build is live in the Play fleet (#210).
+Web cookie is httpOnly + sameSite strict + secure; mobile tokens live in SecureStore, never AsyncStorage. Contract types live in `packages/shared/src/types/*` (Zod); never invent a field the API does not return. Shared/DTO changes are **append-only and deploy-API-first**: never rename, remove or retype a field old mobile clients still read. Breaking changes use expand-contract plus the `AppConfig.MinSupportedVersion` gate, raised only once the carrying build is live in the Play fleet (#210).
 
 ## Brand & design
 
-"Orbit" and "Astra" are never translated. `BRAND.md` is authoritative for audience and positioning: read it before any brand, copy, positioning or design-direction work, and before ORB-30. `DESIGN.md` (repo root) is authoritative for all UI: read it before any frontend work. **`design/canvas/` is the granted Claude Design export.** Read the drawing for the surface you are building, and its tokens. Precedence is a ladder, defined in `DESIGN.md` D42: `## Information architecture` and `## Bans` outrank every drawing, and below those two the drawing outranks `DESIGN.md` prose. A granted export never authorises a banned value. Never build from `design/canvas/superseded/`. **No decorative glow and no gradient wash anywhere**; identity comes from the orbital logo, the Astra glyph, and ring indicators. `--primary` is fill/graphic only, `--primary-soft` accent text.
+"Orbit" and "Astra" are never translated. Read `BRAND.md` before brand, copy, positioning or design-direction work. Read `DESIGN.md` before any frontend work, and the `design/canvas/` drawing for your surface (the granted export; never `superseded/`). Precedence is the `DESIGN.md` D42 ladder: `## Information architecture` and `## Bans` outrank every drawing, and a drawing outranks `DESIGN.md` prose. **No decorative glow and no gradient wash.** `--primary` is fill/graphic only, `--primary-soft` accent text.
 
-## Conventions & tooling
+## Git workflow
 
-- Feature needs backend support? Update the sibling `orbit-api` repo in the same task; it has its own history, branches, and PRs.
-- Git: one feature/fix per PR (cross-repo work opens paired, cross-linked PRs); branches `feature/`|`fix/`|`chore/`; `main` is protected (no direct or force push, enforced by `git-guardrails`); squash-merge only; never `--no-verify`/`--no-gpg-sign`; never reuse a squash-merged branch. **Admin merge is forbidden except inside the canonical `/merge-prs` skill after the owner explicitly invokes it for an already-approved frozen PR set.** That skill may use only `gh pr merge --admin --squash --match-head-commit <sha>` under its exact-head preflight. Outside it, STOP and ask the owner. Direct merge APIs remain forbidden without exception: no `PUT /repos/{owner}/{repo}/pulls/{number}/merge`, no direct GraphQL `mergePullRequest`.
-- Backport shipping fixes from long-lived branches when they land.
-- Review: Pullfrog reviews every pull request in GitHub Actions and publishes `pullfrog-approval`, a required status check on `main` in both code repositories. Its review instructions live in the Pullfrog console, server-side, so no pull request can change the rules it is judged by. A red check means you fix the code.
-- Tools follow `tools/CONVENTIONS.md`, cataloged in `tools/README.md`. After changing `tools/**` or `.claude/**`, RUN both harnesses: `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs`. Review-only evidence is insufficient.
-- Testing: Vitest unit tests only, behavior tests for every feature, no new E2E against prod. `TESTING.md` is the catalog plus how to write one.
+- Backend support: a paired, cross-linked `orbit-api` PR in the same task.
+- Branches `feature/`|`fix/`|`chore/`; `main` is protected; squash-merge only; never `--no-verify`/`--no-gpg-sign`; never reuse a squash-merged branch.
+- Backport shipping fixes from long-lived branches.
+- **Admin merge is forbidden except inside the `/merge-prs` skill after the owner invokes it** for an approved frozen PR set, with only `gh pr merge --admin --squash --match-head-commit <sha>`. Outside it, STOP and ask the owner. Never use `PUT /repos/{owner}/{repo}/pulls/{number}/merge` or GraphQL `mergePullRequest`.
+- Pullfrog, not the writer session, reviews every PR in GitHub Actions. Its `pullfrog-approval` check is required on `main` in both code repositories; no PR changes its instructions. Fix the code when it is red.
 
-## Docs registry
+## Tooling
 
-Grep a doc's `At a glance` header before loading it. Registry rows and glance headers describe stable purposes; update them only when a purpose changes. Record amendments in the document body.
-
-| Doc | Purpose |
-|---|---|
-| `BRAND.md` | Audience, positioning and principles; read before brand, copy, positioning or design-direction work, and before ORB-30. |
-| `DESIGN.md` | UI specification, authority order, information architecture and bans; read before frontend work. |
-| `questions.md` | Run-level redesign questions, decision criteria and resolved composition decisions. |
-| `design/canvas/` | Granted drawings, design tokens and surface amendments, including live Astra block actions, chart figures and feminine pt-BR stale copy. Outranks DESIGN.md prose on appearance; never its Information architecture or Bans. |
-| `design/apple-sign-in-surfaces.md` | Apple sign-in owners, rollout configuration, store purchases and verification boundaries. |
-| `design/google-sign-in-surfaces.md` | Google sign-in mark owners and theme, locale and request-state coverage. |
-| `design/habit-form-surfaces.md` | Paired create/edit type and date owners, restored production capabilities and verification boundaries. |
-| `design/habit-row-surfaces.md` | Habit row owners, rounded-square check states, per-row surfaces, retained behaviours and web and Android verification boundaries. |
-| `design/personal-text-focus-inventory.md` | Expanded typed-text owners, native action separation, overflow-only keyboard stops, unclamped rename headings and the mobile adapter. |
-| `design/calendar-day-surfaces.md` | Calendar day paint owners, full-column targets, loading geometry and platform mirrors. |
-| `design/empty-state-surfaces.md` | Shared empty-state consumers, mark size, Astra thread composition, completed-day action spacing and paired verification. |
-| `design/habit-view-surfaces.md` | Hoje, Todos and Geral surface owners, scoped header search at every width, retained actions, state coverage, long-list rendering and platform mirrors. |
-| `design/label-row-control-inventory.md` | Label-row inline control consumers, shared centring and first-line alignment, platform mirrors and geometry coverage. |
-| `design/field-inset-inventory.md` | Text control owners, typed foreground ownership, drawn inline padding, shared checklist add Input insets, platform mirrors and field geometry verification. |
-| `design/interaction-fill-surfaces.md` | Interaction fill owners, neighbour clearance and platform geometry coverage. |
-| `design/input-question-surfaces.md` | Input surfaces outside the habit and goal flows, their owners, status under the form rule and the remaining surfaces. |
-| `design/calendar-import-sheet-inventory.md` | Calendars sheet surfaces, platform owners, retained behavior and verification boundaries. |
-| `design/icon-action-surfaces.md` | Universal icon-action consumers, accessible names, shared target geometry and retained text boundaries on web and Android. |
-| `design/sheet-footer-inventory.md` | Sheet footer owners, platform mirrors and states covered by the trailing-action contract. |
-| `design/progress-grid-surfaces.md` | Responsive Progresso achievement tracks, card text, adjacent stat and goal list audit, platform owners and geometry coverage. |
-| `design/goal-forecast-surfaces.md` | Reachable goal forecast owners, supplied metrics, mirrored states and verification boundaries. |
-| `design/create-goal-sheet-inventory.md` | Direct goal creation entries, shared form states, linked-habit picker and platform coverage. |
-| `design/astra-conversation-participants.md` | Astra participant avatar owners, continuation spacing, text, block and running tool trace alignment, and pending reply replacement. |
-| `design/astra-one-small-step-surfaces.md` | Astra starting-step block owners, complete request actions, text disclosure and platform verification boundaries. |
-| `design/astra-block-copy-surfaces.md` | Astra reply code-block copy owners, independent confirmations, user and description exclusions, and platform verification boundaries. |
-| `design/astra-pending-reply-surfaces.md` | Astra pending reply owners, terminal replacements, polite announcement ownership and hermetic verification boundaries. |
-| `design/astra-mark-only-surfaces.md` | Assistant action labels, inline form-fill icons, localized prompts and habit-detail composer disclosure owners. |
-| `design/astra-preview-surfaces.md` | Astra preview item semantics, counted actions, breakdown footer disclosure, deletion confirmation, revision, terminal outcomes and responsive parity. |
-| `design/mcp-web-guide-surfaces.md` | Claude Web connection guide client selector, settings entry, OAuth steps, confirmed endpoint copy states and platform verification owners. |
-| `design/progress-surfaces.md` | Progresso overview and sub-screen owners, retained figures and actions, states and verification coverage. |
-| `design/subscription-surfaces.md` | Assinatura presentation inventory, shared frame start edge and wide shell ownership, shared purchase consumers, retained billing transitions and platform verification owners. |
-| `.claude/manifests/feature-parity.json` | Generated web and Android capability inventory, removal citations and restoration tracking; NOT committed. Run `git fetch origin main && node tools/check-feature-parity.mjs --write` to create it locally; CI regenerates and uploads the evidence artifact. |
-| `tools/feature-parity-rules.json` | Exact capability relocations, owner removal citations and restoration tickets; the checker derives completion from source. |
-| `.claude/specs/orbit-prod-release.md` | Production release rules, capability restoration scope and release verification. |
-| `AGENTS.md` | Codex's entry doc; defers to this file. |
-| `apps/web/DEPLOYMENT.md` | Web image build, GitHub settings, and production and staging Render releases. |
-| `packages/shared/CONTRACT_DRIFT.md` | Pinned API snapshot check and automated rebaseline. |
-| `.claude/skills/pr-review/rubric.md` | The dimensions `/audit-code-quality` audits against; its only consumer. |
-| `gating-matrix.json` | Generated inventory of PayGate methods, config keys, and feature flags at the `thomasluizon/orbit-api` repository root; run `node tools/gating-matrix.mjs` there to create it. |
-| `FEATURES.md` | Retained Astra and MCP tool-count inventory and social compatibility references that no generated artifact carries; verify every count against its named `orbit-api` source. |
-| `.claude/skills/flag/SKILL.md` | Inspect and change production or staging feature flags through admin Orbit MCP, with before and after verification. |
-| `.claude/skills/flag/guide.md` | Plain and version flags, account targeting, flag lifecycle, build selection, and API versioning. |
-| `TESTING.md` | Test authoring rules, suite catalog, CI ownership and local verification commands. |
-| `architecture.json` | Generated route and screen map, plus endpoints, dependencies, i18n ownership, and test coverage; NOT committed (#470). Run `node tools/arch-map.mjs` once, then read it INSTEAD of exploring the codebase; it also writes `architecture.html` and the `architecture.mmd` diagram. Its first key is a `provenance` block whose `generatedFrom` hashes every input the generator read, so a copy can be checked against the tree in front of you. |
-| `.claude/rules/core.md` | Always-loaded judgement and D89/D90 operating-contract pointers. |
-| `.claude/calibration.json` | Agent and skill model calibration, effort settings and launch contracts. |
-| `.claude/skills/ticket/SKILL.md` | GitHub ticket creation, labels, relations, and milestone rules; generated architecture maps are read locally and never committed. |
-| `.claude/skills/orchestrate/SKILL.md` | Ticket execution, worker dispatch, verification, review, readiness and session relay procedures. |
-| `.claude/skills/handoff/SKILL.md` | Spec-driven handoff, living work orders, in-flight inventory and session relay procedures. |
-| `.claude/skills/crank/SKILL.md` | Maximum orchestrator scheduling within existing caps and quality gates, with durable relay inheritance and an explicit disable mode. |
-| `.claude/skills/sleep/SKILL.md` | Unattended orchestrator entry, session adoption and owner reporting. |
-| `.claude/skills/auto-work/SKILL.md` | Continuous Sentry, mailbox, store-review and board intake on the canonical sleep lifecycle, with durable source marks and registered idle wakeups. |
-| `.claude/skills/wrap-up/SKILL.md` | Closes a session in one command: `/progress`, then `/questions`, then `/handoff`, with `--sleep` and `--crank` passed through to the last one. An open chain extends both reporting passes across every relay and the current session before owner handoff closes it. |
-| `.claude/skills/questions/SKILL.md` | Owner decision criteria and the procedure for unavoidable manual actions. |
-| `.claude/skills/progress/SKILL.md` | Product-level progress reporting from live delivery artifacts. |
-| `.claude/playbooks/redesign-screen.md` | Thirteen-screen D76 loop; D90 suspends human steps 1/3/7/8, keeps 2/4/5/6 and the ui-skills sweep. |
-| `.claude/rules/visual-delivery.md` | Visual inventory and critic gates; D90 moves human inspection to the whole-redesign review. |
-| `.claude/skills/android-generate/SKILL.md` | Local APK build, and the emulator install path. Read before building or running the Android app. |
-| `.claude/skills/ios-generate/SKILL.md` | Local staging simulator build, install, launch and process verification through Xcode Device Hub. |
-| `.claude/skills/android-release/SKILL.md` | Dispatching `android-release.yml` to a Google Play track. |
-| `.claude/skills/ios-release/SKILL.md` | Internal TestFlight releases, app and widget signing, and Apple enrollment prerequisites. |
-| `.claude/skills/release/SKILL.md` | Planning production and staging gaps, with pinned releases and live commit verification. |
-| **D1..D42 register** | Historical decision record in the brain vault: `2 Areas/20-29 Orbit Engineering/Decisions/`. Current ticket routing is defined here. |
-
-**Research reports do not live in this repo**: they go stale silently, then get cited as authority long after they expire. Durable knowledge is an ADR in the brain vault; `/deep-research` writes there.
+- Tools follow `tools/CONVENTIONS.md`, cataloged in `tools/README.md`. After you change `tools/**` or `.claude/**`, RUN `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs`.
+- Testing: Vitest unit and behavior tests for every feature, no new E2E against prod. `TESTING.md` is the catalog.
+- **Research reports do not live in this repo**: they go stale silently, then get cited as authority. Durable knowledge is an ADR in the brain vault.
