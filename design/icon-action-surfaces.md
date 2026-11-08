@@ -314,3 +314,15 @@ choices wrap within their available width. Existing action padding stays unchang
 
 The paired `ui/icon-button.tsx` owners preserve the existing ghost border for calendar
 chevrons while retaining the shared painted size and transparent target.
+
+An icon action alone below start-aligned text takes `edge="start"` on the shared `IconButton`
+(#2061). Its 44px paint moves back by the 12px side inset of its 20px glyph
+(`ICON_ACTION_START_HANG` in `packages/shared/src/theme/button.ts`), so the glyph starts on the
+text column. The glyph stays centred in its paint. The paint and the 2px hit extension sit in the
+column's gutter, as a column-placed ListRow extends only its interaction fill. The three owners
+are the paired habit search miss in `components/search/search-results.tsx`, the calendar entry
+search miss in `calendar-entry-details.tsx`, and the Ideas library miss in
+`components/chat/prompt-library.tsx`. Centred empty states, action rows and header actions keep
+the plain primitive. Web Chromium tests, the `search-empty-icon-action` layout spec and Android
+Yoga geometry tests require the glyph centre within 0.5px of its paint centre and the glyph start
+within 0.5px of the text column.
