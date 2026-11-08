@@ -835,9 +835,9 @@ if (process.argv[1]?.endsWith("worker-gate.cjs")) {
   )
   const effortOf = (args) => args?.[args.indexOf("--effort") + 1]
   T(
-    `${TOOL}: the default tier resolves claude-opus-5-5 at high effort`,
-    plan !== null && plan.engine === "claude" && plan.model === "claude-opus-5-5" && effortOf(plan.args) === "high" &&
-      plan.args.join(" ").includes("--effort high --model claude-opus-5-5"),
+    `${TOOL}: the default tier resolves claude-sonnet-5-5 at high effort`,
+    plan !== null && plan.engine === "claude" && plan.model === "claude-sonnet-5-5" && effortOf(plan.args) === "high" &&
+      plan.args.join(" ").includes("--effort high --model claude-sonnet-5-5"),
     JSON.stringify(plan?.args),
   )
   T(
@@ -845,14 +845,14 @@ if (process.argv[1]?.endsWith("worker-gate.cjs")) {
     plan !== null && plan.configDirectory === WORKER_CONFIG_DIRECTORY,
     JSON.stringify(plan?.configDirectory),
   )
-  /** Owner order on #2029: every tier is Opus 5.5 at high effort, so the tiers are routing labels. */
-  for (const tier of ["mechanical", "deep", "max"]) {
+  /** Owner order on #2067: mechanical runs Sonnet 5.5, deep and max keep Opus 5.5, all at high effort. */
+  for (const [tier, model] of [["mechanical", "claude-sonnet-5-5"], ["deep", "claude-opus-5-5"], ["max", "claude-opus-5-5"]]) {
     const result = check(TOOL, `--dry-run resolves the ${tier} tier`, [...argv, "--tier", tier, "--dry-run"], { status: 0 }, options)
     const tierPlan = result.status === 0 ? JSON.parse(result.stdout) : null
     T(
-      `${TOOL}: the ${tier} tier reports itself and resolves claude-opus-5-5 at high effort`,
-      tierPlan?.tier === tier && tierPlan.engine === "claude" && tierPlan.model === "claude-opus-5-5" &&
-        effortOf(tierPlan.args) === "high" && tierPlan.args.join(" ").includes("--effort high --model claude-opus-5-5"),
+      `${TOOL}: the ${tier} tier reports itself and resolves ${model} at high effort`,
+      tierPlan?.tier === tier && tierPlan.engine === "claude" && tierPlan.model === model &&
+        effortOf(tierPlan.args) === "high" && tierPlan.args.join(" ").includes(`--effort high --model ${model}`),
       result.stderr || JSON.stringify(tierPlan),
     )
   }
