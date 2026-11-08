@@ -36,7 +36,7 @@ it.each(['W'.repeat(60), 'Extraordinarily comprehensive internationalization res
 })
 
 
-it.each((['dark', 'light'] as const).flatMap((mode) => [false, true].map((isRead) => ({ mode, isRead }))))('paints the complete row through body and delete feedback, read=$isRead in $mode', async ({ mode, isRead }) => {
+it.each((['dark', 'light'] as const).flatMap((mode) => [false, true].map((isRead) => ({ mode, isRead }))))('paints the complete row from the body and only the delete circle under delete, read=$isRead in $mode', async ({ mode, isRead }) => {
   theme.mode = mode
   const tokens = createTokensV2('orange', mode)
   const item = createMockNotification({ isRead, habitId: 'notification-fill', url: '/habits/notification-fill' })
@@ -49,11 +49,14 @@ it.each((['dark', 'light'] as const).flatMap((mode) => [false, true].map((isRead
     await act(() => feedbackEvent(buttons()[index]!, 'onPressIn'))
     const fills = wrapper().findAll((node) => String(node.type) === 'View' && StyleSheet.flatten((node.props.style as StyleProp<ViewStyle>) ?? {}).backgroundColor === tokens.bgHover)
     expect(fills).toHaveLength(1)
-    expect(StyleSheet.flatten(fills[0]!.props.style)).toMatchObject({ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, borderRadius: 12 })
+    expect(StyleSheet.flatten(fills[0]!.props.style)).toMatchObject(index === 0
+      ? { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, borderRadius: 12 }
+      : { position: 'absolute', width: 44, height: 44, borderRadius: 999 })
     await act(() => feedbackEvent(buttons()[index]!, 'onFocus'))
     await act(() => feedbackEvent(buttons()[index]!, 'onPressOut'))
     const heldFill = wrapper().findAll((node) => String(node.type) === 'View' && StyleSheet.flatten((node.props.style as StyleProp<ViewStyle>) ?? {}).backgroundColor === tokens.bgHover)
     expect(heldFill).toHaveLength(1)
+    expect(StyleSheet.flatten(heldFill[0]!.props.style)).toMatchObject({ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, borderRadius: 12 })
     await act(() => feedbackEvent(buttons()[index]!, 'onBlur'))
     const clearedFill = wrapper().findAll((node) => String(node.type) === 'View' && StyleSheet.flatten((node.props.style as StyleProp<ViewStyle>) ?? {}).backgroundColor === tokens.bgHover)
     expect(clearedFill).toHaveLength(0)
@@ -66,6 +69,9 @@ it.each((['dark', 'light'] as const).flatMap((mode) => [false, true].map((isRead
   const action = controlContrast(tokens.statusBad, tokens.bgRowAction, layers)
   expect(action.graphic).toBeGreaterThanOrEqual(3)
   expect(action.step).toBeGreaterThanOrEqual(1.25)
+  const restingAction = controlContrast(tokens.statusBad, tokens.bgHover, [tokens.bg, ...(isRead ? [] : [tokens.bgCard])])
+  expect(restingAction.graphic).toBeGreaterThanOrEqual(3)
+  expect(restingAction.step).toBeGreaterThanOrEqual(1.25)
   await act(() => feedbackEvent(buttons()[1]!, 'onPress'))
   expect(onDelete).toHaveBeenCalledExactlyOnceWith(item)
   expect(onOpen).not.toHaveBeenCalled()

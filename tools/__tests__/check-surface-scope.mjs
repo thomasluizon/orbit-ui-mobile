@@ -316,15 +316,23 @@ export function Screen(){return <button className="${promotion} bg-[var(--bg)] h
     status: 1, stderr: /--fg-3 on hover, light ratio 4\.161, TEXT floor 4\.50/,
   })
   const proposedRowPath = "apps/web/components/chat/habit-block-row.tsx"
-  for (const [label, before, after, status] of [
+  const hoverPromotion = ".orbit-list-action-surface:has(.orbit-list-row-body:hover:not(:disabled)) {\n    --orbit-list-row-secondary: var(--fg-2);\n  }"
+  const proposedTitle = "text-[var(--orbit-list-row-secondary,var(--fg-3))]"
+  for (const [label, before, after, status, cssBefore] of [
     ["paired", undefined, undefined, 0],
-    ["missing-hover", "group-hover/habit-block:text-[var(--fg-2)]", "", 1],
-    ["missing-press", "group-active/habit-block:text-[var(--fg-2)]", "", 1],
-    ["wrong-group", "group/habit-block flex", "group/other flex", 1],
+    ["missing-hover-promotion", undefined, undefined, 1, hoverPromotion],
+    ["unset-variable", proposedTitle, "text-[var(--orbit-list-row-tertiary,var(--fg-3))]", 1],
+    ["excluded-fg-3-promotion", proposedTitle, "text-[var(--fg-3)]", 1],
   ]) {
     const repository = stageProducerRepository(`proposed-row-${label}`, [proposedRowPath],
       before ? { path: proposedRowPath, before, after } : undefined)
-    check("check-surface-scope.mjs", `pairs proposed row foreground with named group interactions: ${label}`, ["--root", repository], {
+    if (cssBefore) {
+      const cssPath = join(repository, "apps/web/app/globals.css")
+      const css = readFileSync(cssPath, "utf8")
+      if (!css.includes(cssBefore)) throw new Error("producer changed: apps/web/app/globals.css")
+      writeFileSync(cssPath, css.replace(cssBefore, ""))
+    }
+    check("check-surface-scope.mjs", `pairs proposed row foreground with its surface state variable: ${label}`, ["--root", repository], {
       status,
       ...(status === 0 ? { stdout: /Surface scope guard passed/ }
         : { stderr: /--fg-3 on card \+ hover, dark ratio 4\.029, TEXT floor 4\.50/ }),

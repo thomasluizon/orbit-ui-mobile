@@ -20,9 +20,9 @@ Web `components/navigation/notification-bell.tsx` retains its existing visible-o
 | Question scale | `components/chat/question-controls.tsx` | `components/chat/question-controls.tsx` | Five equal targets tile one row, each at least 48px wide and tall. Paint and selected or focus indicators stay inside a 4px inset on every side, retaining the shared 8px clearance between fills without gaps between targets |
 | Habit row body and sibling actions | `components/habits/habit-row.tsx`, `app/globals.css` | `components/habits/habit-row.tsx`, `habit-row-styles.ts` | Body feedback replaces the complete radius-20 row surface; at least 8px inline and 4px block content clearance, existing family neighbour gaps, independent check/disclosure/menu/selection feedback, strong body-feedback hairline, reversible web surface transition and immediate press/reduced-motion paint and a centred 28px check inside its 48px target; enlarged text and measured narrow metadata overflow retain first-title-line controls in the existing supporting-footer composition |
 | Habit detail pencil, reading heading and history | `components/habits/habit-detail-screen.tsx` | `components/habits/habit-detail-screen.tsx` | One 48px pencil owns its own fill; the static reading title retains 8px group gaps and has no rename fill. History's past, future, unavailable and loading branches share the main calendar's distributed 34px disc allocation inside unchanged full-column targets |
-| Notification rows | `components/navigation/notification-row.tsx`, `app/globals.css` | `components/navigation/notification-row.tsx` | The full radius-12 row owns hover, press and body focus feedback for read and unread records, including behind delete. Delete remains a sibling 48px target with independent 44px round feedback using `bgRowAction`; hovering, pressing or focusing delete keeps the row lit |
-| Grouped list rows | `components/ui/list-row.tsx`, `app/globals.css` | `components/ui/list-row.tsx` | Rows without a sibling action retain their 8px inset paint. With an action, the complete radius-12 row owns feedback behind both controls; 4px block margins retain 8px between neighbouring fills |
-| Column list rows and column check rows | `components/ui/list-row.tsx`, `components/ui/check-row.tsx`, `app/globals.css` | `components/ui/list-row.tsx`, `components/ui/check-row.tsx` | 8px inline extension leaves 8px inside the page inset; a trailing row action gets an 8px control gap inside one full-row feedback shape, with 8px inline content clearance |
+| Notification rows | `components/navigation/notification-row.tsx`, `app/globals.css` | `components/navigation/notification-row.tsx` | The full radius-12 row owns body hover, press and focus feedback for read and unread records, including behind delete. Delete remains a sibling 48px target with independent 44px round feedback. Hovering or pressing delete paints only its own `bgHover` circle and keeps the row at rest; the row fill returns when the pointer moves from delete to the row body. Keyboard focus on delete keeps the row lit, with a `bgRowAction` circle on top |
+| Grouped list rows | `components/ui/list-row.tsx`, `app/globals.css` | `components/ui/list-row.tsx` | Rows without a sibling action retain their 8px inset paint. With an action, the complete radius-12 row owns body feedback behind both controls. Hovering or pressing the action paints only its own round `bgHover` fill and keeps the row at rest; 4px block margins retain 8px between neighbouring fills |
+| Column list rows and column check rows | `components/ui/list-row.tsx`, `components/ui/check-row.tsx`, `app/globals.css` | `components/ui/list-row.tsx`, `components/ui/check-row.tsx` | 8px inline extension leaves 8px inside the page inset; a trailing row action gets an 8px control gap inside one full-row feedback shape that only the body lights, with 8px inline content clearance |
 | Timing sheet field rows | `components/ui/list-row.tsx`, `app/globals.css` | `components/ui/list-row.tsx` | Field placement keeps targets, hover, press and focus feedback on the field column edge, with 8px internal inline content clearance and inset focus. The timing questions, optional end disclosure and add-time action share this placement |
 | API key expiry question | `components/ui/list-row.tsx`, `app/globals.css` | `components/ui/list-row.tsx` | Set expiry? uses field placement in the API key sheet: target, hover, press and focus feedback stop at the field column edge, with 8px inline content clearance, and its title wraps at large text |
 | Habit and goal field rows | `components/ui/list-row.tsx`, `app/globals.css` | `components/ui/list-row.tsx` | The More details avoid switch, slip alert, Ends someday? disclosure, template, parent, tag and goal rows, and the goal Add deadline row use field placement, so press, hover and focus paint end on the field column edge |
@@ -45,9 +45,9 @@ Web `components/navigation/notification-bell.tsx` retains its existing visible-o
 | Unscheduled habit child explanation | `components/habits/habit-detail-screen.tsx` | `components/habits/habit-detail-screen.tsx` | Both platforms reserve 8px above the explanation, covering the menu control's outward focus indicator plus the shared clearance |
 | Progresso bar chart and Astra metrics and period insight | `components/ui/bar-chart.tsx` | `components/ui/bar-chart.tsx` | Transparent full-height columns paint feedback only on their own bar using the existing selected-bar foreground. No column background or column focus box approaches a neighbour. One inset focus indicator follows the padded moving readout and the live radio `:focus-visible` state, including a keyboard press after pointer focus and dense series; all columns remain visible without horizontal scrolling |
 | Calendar time grid | `components/calendar/calendar-time-grid.tsx` | `app/(tabs)/calendar/_components/calendar-time-grid.tsx` | Timed lanes retain 8px separation and inset focus; all-day rows retain 8px gaps and column padding; full-column date headers compose rounded hover, held press and focus paint inset by the shared 8px clearance from their cell edges and the pinned time gutter, with one inset focus indicator and press-only scale suppressed by reduced motion |
-| Picker and checklist template rows | `components/ui/picker-row.tsx`, `components/habits/checklist-templates.tsx` | Same paths | The complete radius-12 row owns body feedback behind the supporting count, disclosure and trailing action. Template delete retains its independent round feedback and loading action; template neighbours reserve 8px |
-| Astra habit block rows | `components/chat/habit-block-row.tsx` | Same path | Body feedback paints the complete radius-20 card behind the independent trailing check or supplied metric; supporting text and proposed titles retain their contrast foregrounds |
-| Calendar import selection | `components/calendar-sync/calendar-picker-section.tsx`, `components/ui/check-row.tsx` | Same paths | Shared personal rows reserve label padding and an 8px checkbox gap; event body feedback fills the complete radius-12 row behind the sibling disclosure and dismissal, with 8px inline content clearance and independent action feedback |
+| Picker and checklist template rows | `components/ui/picker-row.tsx`, `components/habits/checklist-templates.tsx` | Same paths | The complete radius-12 row owns body feedback behind the supporting count, disclosure and trailing action. Template delete retains its independent round feedback and loading action, and its hover or press keeps the row at rest; template neighbours reserve 8px |
+| Astra habit block rows | `components/chat/habit-block-row.tsx` | Same path | Body feedback paints the complete radius-20 card behind the independent trailing check or supplied metric; the check's own hover or press keeps the card at rest; supporting text and proposed titles retain their contrast foregrounds |
+| Calendar import selection | `components/calendar-sync/calendar-picker-section.tsx`, `components/ui/check-row.tsx` | Same paths | Shared personal rows reserve label padding and an 8px checkbox gap; event body feedback fills the complete radius-12 row behind the sibling disclosure and dismissal, with 8px inline content clearance and independent action feedback. Hovering or pressing the disclosure or dismissal keeps the row at rest |
 | Goal titles and expanded personal text | `components/chat/goal-list-card.tsx`, `components/ui/personal-text-details.tsx` | Same paths | The 8px negative inline margin is part of the control box; the adjacent content reserves 8px and focus stays inset |
 | Truncated sheet titles | `components/ui/sheet.tsx`, `app/globals.css` | `components/ui/sheet.tsx` | Only measured truncation creates a control. Its text box keeps the existing 8px padding and radius 12, with an inset focus indicator and the header's 16px gap before Close. Fitting headings have no interaction fill |
 | Toast text action | `components/ui/toast.tsx` | `components/ui/app-toast.tsx` | The 4px negative margin on the text action is inside the toast padding and retains clearance from adjacent content; the close control is a PillButton |
@@ -232,9 +232,13 @@ A second translucent hover overlay would drop the glyph below 3:1 in both themes
 | Light unread | `#E4E4E4` | 13.656 | 7.858 | 4.358 | 3.752 | 4.770 | 1.271 |
 | Light read | `#DFDFE0` | 13.038 | 7.502 | 4.161 | 3.582 | 4.770 | 1.332 |
 
+Under hover and press, delete paints one `bgHover` circle on the resting row, so its glyph keeps
+the values of the Delete glyph on row column. The Delete glyph on own feedback column applies to
+keyboard focus only.
+
 The mounted Chromium unit regression and the hermetic layout guard share the computed paint
 inspector. Both compare the painted box and radius to the complete read and unread row through
-body and delete hover and held press. The unit regression also covers keyboard focus and computed
+body hover and held press, and to the delete circle alone through delete hover and held press. The unit regression also covers keyboard focus and computed
 text and delete contrast in both themes and locales. The Android style regression presses both
 sibling controls in both themes and checks full-row absolute edges, radius, focus retention and
 release, independent delete activation and contrast. These checks prove style ownership and
@@ -265,3 +269,42 @@ preview titles expose text disclosure or rename fields beside static figures or 
 actions rather than a row-body surface. Tag editors and pending operation editors use input fields
 with separate save, cancel or remove actions. RecordListCard uses static record content and an
 independent mark-read action. These surfaces have no split row-body fill to replace.
+
+## One fill under the pointer (#2057)
+
+Only the innermost control under the pointer or finger shows a hover or press fill. A row,
+card or tile lights from its own body. While a nested control is hovered or pressed, the parent
+stays at its resting background, and the nested control paints its own `bgHover` fill. The parent
+fill returns when the pointer moves from the nested control to the body. Keyboard focus keeps its
+existing rings and the parent fill. While a nested control is hovered or pressed, the parent fill
+and its supporting text swaps stay at rest, also under keyboard focus on the body.
+
+On web, a nested control is any enabled `button`, `a[href]` or `[role="button"]` inside the surface
+other than its `.orbit-list-row-body`. Fine pointers exclude a nested `:hover` or `:active`. Coarse
+pointers exclude only a nested `:active`, because a touch browser can keep `:hover` on the last
+tapped element.
+
+| Platform | Shared owner | Consumers |
+|---|---|---|
+| Web | `.orbit-list-action-surface` and `.orbit-notification-surface` in `app/globals.css` | ListRow with an action, PickerRow, HabitBlockRow, checklist template rows, calendar import event rows and notification rows |
+| Android | `surfaceHighlighted`, `nestedControlFill` and `useNestedSlotFeedback` in `hooks/use-row-feedback.ts` | ListRow with an action, PickerRow, HabitBlockRow, checklist template rows, calendar import event rows and notification rows |
+
+HabitRow already lights only from its body on both platforms. PickerRow and HabitBlockRow on
+Android light from the body alone and read their caller-rendered controls through one slot:
+`useNestedSlotFeedback` takes the slot's bubbling touch and pointer events, so a pressed or
+hovered check, disclosure or trailing button rests the row even while the body holds keyboard
+focus. On web, the HabitBlockRow proposed title reads `--orbit-list-row-secondary`, so it swaps
+only while the row is lit.
+
+Web `__tests__/components/ui/nested-control-fill.test.tsx` hovers and presses each nested control
+in Chromium for the notification row, a ListRow action, a calendar import event row and an Astra
+habit block row with its check. It asserts the resting parent background, the nested `bgHover`
+fill and the parent fill after the pointer returns to the body. It also hovers each nested control
+while the body holds keyboard focus and asserts the resting parent fill and text colours, and the
+resting proposed habit block title. `e2e/layout/nested-control-fill.spec.ts` repeats the hover,
+press and return checks on the
+Avisos screen, the checklist templates sheet and the calendar import sheet. Android
+`__tests__/components/ui/nested-control-press-feedback.test.tsx` drives press, hover and focus
+on the same three surfaces, and a slot touch or pointer over the keyboard-focused body of a
+proposed HabitBlockRow and PickerRow, and `__tests__/components/habits/checklist-templates.test.tsx` presses
+and hovers the template delete.

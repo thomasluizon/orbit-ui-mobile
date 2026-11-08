@@ -33,3 +33,24 @@ export function measureNotificationFill(row: Element) {
     bodyPaints,
   }
 }
+
+export function measureOwnFill(control: Element) {
+  const box = control.getBoundingClientRect()
+  const probe = document.createElement('span')
+  probe.style.backgroundColor = 'var(--bg-hover)'
+  control.append(probe)
+  const hoverColor = getComputedStyle(probe).backgroundColor
+  probe.remove()
+  const before = getComputedStyle(control, '::before')
+  const inset = (value: string) => Number.parseFloat(value) || 0
+  if (before.content !== 'none' && before.backgroundColor === hoverColor) {
+    return {
+      x: box.x + inset(before.left),
+      y: box.y + inset(before.top),
+      width: box.width - inset(before.left) - inset(before.right),
+      height: box.height - inset(before.top) - inset(before.bottom),
+      radius: before.borderTopLeftRadius,
+    }
+  }
+  return { x: box.x, y: box.y, width: box.width, height: box.height, radius: getComputedStyle(control).borderTopLeftRadius }
+}
