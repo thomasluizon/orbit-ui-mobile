@@ -14,6 +14,7 @@ path predicts it.
 | `planning-and-artifacts.md` | `/ticket`, `/orchestrate`, ticket writing, ADRs |
 | `redesign-screen.md` | any of the thirteen redesign screens: the D76 loop and its ui-skills sweep |
 | `context-engineering.md` | authoring anything the agent reads: a rule, playbook, skill, agent, tool, ticket |
+| `operations.md` | launching a worker, waiting on CI, merging, releasing, infrastructure, a browser, console or device |
 
 ### 1. No red-capable command, no hypothesising
 
