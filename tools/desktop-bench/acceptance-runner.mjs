@@ -161,17 +161,20 @@ async function inspectSurfaces(proxy, native, handle, output, report) {
 async function traversePalette(proxy, native, handle, dump, previous, report) {
   const focus = []
   // A native Down can return without reaching WebKit, so only the probe's keydown receipt proves delivery (#1560).
-  // The receipt window is 50 times the probe's 100 ms command poll; three posts keep the worst case inside the 120 s focus wait.
+  // The probe POSTs each receipt from its keydown capture listener, so 5 s bounds one loopback request; three posts add at most 15 s of receipt waiting.
   const paletteKeyWindow = 5000
   const paletteKeyPosts = 3
   const keys = () => proxy.events().filter((event) => event.kind === 'palette-key')
-  const downKeys = () => keys().filter((event) => event.key === 'ArrowDown').length
+  // WebKit gives a Down that the macOS input method claimed keyCode 229, and cmdk ignores a composing or 229 keydown.
+  const downKeys = () => keys().filter((event) => event.key === 'ArrowDown' && event.keyCode !== 229 && !event.composing).length
   report.paletteUndelivered = []
   for (let index = 0; index < 2; index++) {
     const before = proxy.events().filter((event) => event.kind === 'focus').length
     const received = downKeys()
     for (let post = 1; downKeys() === received; post++) {
-      if (post > paletteKeyPosts) throw new Error(`Palette never received a native Down for step ${index + 1} after ${paletteKeyPosts} posts`)
+      if (post > paletteKeyPosts) {
+        throw new Error(`Palette received no usable native Down for step ${index + 1} after ${paletteKeyPosts} posts: each Down was missing or claimed by the input method (keyCode 229 or composing)`)
+      }
       const keysBefore = keys().length
       await native(handle.child.pid, 'down')
       const deadline = Date.now() + paletteKeyWindow

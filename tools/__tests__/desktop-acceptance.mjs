@@ -427,13 +427,16 @@ async function paletteDeliveryCases(dom, readState, reports) {
   const waitForSource = host.slice(host.indexOf('export async function waitFor'), host.indexOf('export async function waitForHttp')).replace('export ', '')
   const input = dom.window.document.querySelector('[cmdk-input]')
   const { flushSync } = await import('react-dom')
-  const press = (target, key) => flushSync(() => target.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key, code: key, bubbles: true })))
+  const press = (target, key, init = {}) => flushSync(() => target.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key, code: key, bubbles: true, ...init })))
   const scenarios = {
     'first-press-lost': { lost: [1] },
     'second-press-lost': { lost: [2] },
     'never-delivered': { lost: [1, 2, 3, 4, 5, 6] },
     'received-without-selection': { target: () => dom.window.document.body },
     'late-duplicate': { duplicate: [1] },
+    // WebKit delivers a Down that the macOS input method claimed as ArrowDown with keyCode 229, and cmdk ignores it.
+    'claimed-by-input-method': { init: { keyCode: 229 }, claimed: (key) => key.keyCode === 229 },
+    'composing-in-input-method': { init: { isComposing: true }, claimed: (key) => key.composing === true },
   }
   for (const [name, scenario] of Object.entries(scenarios)) {
     press(input, 'Home')
@@ -456,7 +459,7 @@ async function paletteDeliveryCases(dom, readState, reports) {
       native: async (pid, command) => {
         posts.push(command)
         if (command !== 'down' || scenario.lost?.includes(posts.length)) return
-        press(scenario.target?.() ?? input, 'ArrowDown')
+        press(scenario.target?.() ?? input, 'ArrowDown', scenario.init)
         if (scenario.duplicate?.includes(posts.length)) press(input, 'ArrowDown')
       },
       delay: async (milliseconds) => { clock += milliseconds; await new Promise((resolve) => setImmediate(resolve)) },
@@ -476,11 +479,19 @@ async function paletteDeliveryCases(dom, readState, reports) {
     }
     if (name === 'never-delivered') {
       T('palette traversal stops after a bounded number of undelivered Down posts and names the missing receipt',
-        /never received a native Down/.test(failure?.message) && posts.length === 3 && report.paletteUndelivered?.length === 3, failure?.message)
+        /no usable native Down/.test(failure?.message) && posts.length === 3 && report.paletteUndelivered?.length === 3, failure?.message)
     }
     if (name === 'received-without-selection') {
       T('a Down the page received but cmdk did not apply is never posted again and fails the focus check',
         failure?.message === 'Timed out waiting for palette result focus' && posts.length === 1, failure?.message)
+    }
+    if (scenario.claimed) {
+      const claimed = report.paletteUndelivered?.flatMap((entry) => entry.keys) ?? []
+      T(`a Down the input method claimed (${name}) counts as undelivered and ends in the bounded failure, not the focus timeout`,
+        /no usable native Down/.test(failure?.message) && /keyCode 229 or composing/.test(failure?.message) && posts.length === 3 &&
+          report.paletteUndelivered?.length === 3 && claimed.length === 3 &&
+          claimed.every((key) => key.key === 'ArrowDown' && scenario.claimed(key) && key.targetInput && key.before.selected === 0),
+        failure?.message ?? JSON.stringify({ posts, report }))
     }
     if (name === 'late-duplicate') {
       T('a step that receives two Downs fails explicitly instead of skipping a result',
