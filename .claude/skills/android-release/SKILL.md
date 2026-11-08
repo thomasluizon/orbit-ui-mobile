@@ -14,7 +14,9 @@ runs only after the user confirms the exact inputs.
 Before submission, the workflow derives an installable APK from that exact AAB and runs
 `.github/actions/android-boot` on a GitHub-hosted emulator. It compares the embedded Hermes
 bytes, clears app storage, cold starts once, requires the signed-out first screen through
-accessibility and checks process survival and app fatal logs after settling. A startup failure
+accessibility and checks process survival and app fatal logs after settling. The gate taps the
+Wait control of another process's Application Not Responding dialog before and after settling;
+the app's own dialog fails the gate. A startup failure
 blocks Play submission. Review `android-boot-evidence` for XML, app-UID logcat, process IDs,
 ABI compatibility and artifact hashes. Never retry a failed app assertion as infrastructure.
 The separate `android-startup.yml` workflow proves the gate without Play upload credentials;

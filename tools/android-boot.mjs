@@ -10,13 +10,15 @@ import { SaxesParser } from "saxes"
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const UPDATE_REQUIRED_FAILURE = "build version is below the server minimum (update-required dialog rendered)"
 const NOT_RESPONDING_FAILURE = "app is not responding before its first screen"
+const SETTLED_NOT_RESPONDING_FAILURE = "app is not responding after its first screen"
 const USAGE = `usage: android-boot.mjs --apk <universal.apk> --package <application id> --output <directory>
 
   Install an AAB-derived APK on the connected, already booted CI emulator.
   Clear app storage and cold start once. Require the signed-out first screen,
   a surviving process after a settle period and no app-UID fatal logcat entries.
   Dismiss another process's Application Not Responding dialog with its Wait
-  control inside the same deadline; the app's own dialog fails the boot.
+  control inside the startup deadline and a 30 second settle deadline; the
+  app's own dialog fails the boot.
   Retry adb infrastructure before launch only; never restart a failing app.
 
   --apk <path>       universal APK produced from the shipping AAB
@@ -129,12 +131,36 @@ function dismissNotResponding(output, process, wait, xml, count) {
   appendFileSync(join(output, "anr-dismissals.txt"), `${new Date(Date.now()).toISOString()} Application Not Responding: ${process} tapped Wait at ${wait.x},${wait.y}\n`)
 }
 
+// Another process's dialog is dismissed with its Wait control; the app's own dialog, or one for a process of the app, fails the boot.
+function answerNotResponding(dialogs, xml) {
+  const wait = notRespondingWaitControl(xml)
+  const process = wait && notRespondingProcess(requireAdb(["shell", "dumpsys", "window", "displays"]))
+  if (!process) return null
+  if (process === dialogs.packageName || process.startsWith(`${dialogs.packageName}:`)) return "app"
+  dismissNotResponding(dialogs.output, process, wait, xml, ++dialogs.dismissals)
+  return "dismissed"
+}
+
+// The settled capture must show the first screen; only a dismissed foreign dialog allows another capture before the deadline.
+async function settledScreenFailure(dialogs, labels) {
+  const deadline = Date.now() + 30000
+  for (;;) {
+    const xml = captureScreen(dialogs.output)
+    if (firstScreenRendered(xml, dialogs.packageName, labels.updateRequired)) return UPDATE_REQUIRED_FAILURE
+    if (firstScreenRendered(xml, dialogs.packageName, labels.firstScreen)) return null
+    const answer = answerNotResponding(dialogs, xml)
+    if (answer === "app") return SETTLED_NOT_RESPONDING_FAILURE
+    if (answer !== "dismissed" || Date.now() >= deadline) return "signed-out first screen unavailable after settling"
+    await setTimeout(2000)
+  }
+}
+
 async function assertApp({ package: packageName, output }, uid) {
   const labels = startupLabels()
   const deadline = Date.now() + 90000
   let firstProcess = ""
   let rendered = false
-  let dismissals = 0
+  const dialogs = { packageName, output, dismissals: 0 }
   while (Date.now() < deadline) {
     if (fatalLogcat(capture(output, uid))) return "app logcat contains a fatal startup error"
     const currentProcess = processId(packageName)
@@ -144,22 +170,17 @@ async function assertApp({ package: packageName, output }, uid) {
     const xml = captureScreen(output)
     if (firstScreenRendered(xml, packageName, labels.updateRequired)) return UPDATE_REQUIRED_FAILURE
     if (firstScreenRendered(xml, packageName, labels.firstScreen)) { rendered = true; break }
-    const wait = notRespondingWaitControl(xml)
-    const process = wait && notRespondingProcess(requireAdb(["shell", "dumpsys", "window", "displays"]))
-    if (process === packageName || process?.startsWith(`${packageName}:`)) return NOT_RESPONDING_FAILURE
-    if (process) dismissNotResponding(output, process, wait, xml, ++dismissals)
+    if (answerNotResponding(dialogs, xml) === "app") return NOT_RESPONDING_FAILURE
     await setTimeout(2000)
   }
   if (!rendered) return "signed-out first screen did not render within 90 seconds"
   await setTimeout(15000)
+  const settledScreen = await settledScreenFailure(dialogs, labels)
   const settledProcess = processId(packageName)
   writeFileSync(join(output, "process.txt"), `initial=${firstProcess}\nsettled=${settledProcess}\n`)
   if (fatalLogcat(capture(output, uid))) return "app logcat contains a fatal error after settling"
   if (!settledProcess || settledProcess !== firstProcess) return "app process exited or restarted after its first screen"
-  const settledScreen = captureScreen(output)
-  if (firstScreenRendered(settledScreen, packageName, labels.updateRequired)) return UPDATE_REQUIRED_FAILURE
-  if (!firstScreenRendered(settledScreen, packageName, labels.firstScreen)) return "signed-out first screen unavailable after settling"
-  return null
+  return settledScreen
 }
 
 async function run(options) {
