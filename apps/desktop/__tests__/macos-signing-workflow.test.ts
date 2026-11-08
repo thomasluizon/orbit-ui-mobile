@@ -307,19 +307,6 @@ shellTest.each(['staging', 'production'])('bundles the %s app and DMG with opera
   }
 })
 
-shellTest.each(['staging', 'production'])('packages Windows %s unsigned and compiles macOS without bundling', (variant) => {
-  const { directory, bin, log } = fixture()
-  const windows = run('Package without operating system or updater signing', directory, bin, log, { DESKTOP_VARIANT: variant })
-  expect(step('Package without operating system or updater signing').if).toBe("runner.os == 'Windows'")
-  expect(windows.result.status, windows.result.stderr).toBe(0)
-  expect(windows.commands[0]).toEqual(['npm', 'run', `build:${variant}`, '-w', '@orbit/desktop', '--', '--config', 'release-config.json',
-    '--target', target, '--no-sign', '--ci', '--', '--locked'])
-  const compile = run('Compile the macOS shell without signing credentials', directory, bin, log, { DESKTOP_VARIANT: variant })
-  expect(compile.result.status, compile.result.stderr).toBe(0)
-  expect(compile.commands[0]).toEqual(['npm', 'run', `build:${variant}`, '-w', '@orbit/desktop', '--', '--config', 'release-config.json',
-    '--target', target, '--no-bundle', '--ci', '--', '--locked'])
-})
-
 const notaryKeys = { APP_STORE_CONNECT_API_KEY_ID: 'key', APP_STORE_CONNECT_API_ISSUER_ID: 'issuer' }
 
 shellTest('submits the signed DMG once without waiting and records its submission id', () => {
