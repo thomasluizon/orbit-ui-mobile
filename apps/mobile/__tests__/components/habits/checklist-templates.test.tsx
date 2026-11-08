@@ -109,6 +109,19 @@ describe('ChecklistTemplates mobile', () => {
     expect(mocks.remove).not.toHaveBeenCalled()
   })
 
+  it.each(['onPressIn', 'onHoverIn'])('keeps the template row at rest while its delete is under %s', (handler) => {
+    mocks.templates = [{ id: 'template-1', name: 'Workout', items: ['Run'] }]
+    const { tree } = renderTemplates()
+    press(listRow(tree, 'habits.form.useTemplate'))
+    const remove = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'common.delete: Workout')[0]!
+    press(remove, handler)
+    const fill = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'template-row-feedback')[0]!
+    const deleteControl = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'common.delete: Workout')[0]!
+    expect(StyleSheet.flatten(fill.props.style as StyleProp<ViewStyle>).backgroundColor).toBe('transparent')
+    expect(StyleSheet.flatten(deleteControl.props.style as StyleProp<ViewStyle>).backgroundColor).toBe(createTokensV2('orange', 'light').bgHover)
+    expect(mocks.remove).not.toHaveBeenCalled()
+  })
+
   it('shows a template entry without a count', () => {
     mocks.templates = [{ id: 'template-1', name: 'Workout', items: ['Run'] }]
     const { tree } = renderTemplates()

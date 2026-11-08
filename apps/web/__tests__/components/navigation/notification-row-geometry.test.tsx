@@ -10,7 +10,7 @@ import pt from '@orbit/shared/i18n/pt-BR.json'
 import { contrastOnSurface, controlContrast } from '@orbit/shared/__tests__/contrast'
 import { createMockNotification, createMockCalendarSyncEvent } from '@orbit/shared/__tests__/factories'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
-import { measureNotificationFill } from '../../../e2e/layout/notification-fill-geometry'
+import { measureNotificationFill, measureOwnFill } from '../../../e2e/layout/notification-fill-geometry'
 import { measureTitleWords } from '../../../e2e/layout/title-word-geometry'
 import { FailureScreen } from '@/components/ui/failure-screen'
 import { NotFoundContent } from '@/components/ui/not-found-content'
@@ -116,7 +116,7 @@ describe('notification row targets in Chromium', () => {
       await page.close()
     }
   })
-  it.each(CASES)('fills the whole read and unread row at $width in $locale and $mode', async ({ width, locale, mode }) => {
+  it.each(CASES)('fills the whole read and unread row from its body only at $width in $locale and $mode', async ({ width, locale, mode }) => {
     const { container } = render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt}>
       <ul style={{ padding: 16 }}>{[false, true].map((isRead) => <NotificationRow key={String(isRead)} item={createMockNotification({ isRead, habitId: 'notification-fill', url: '/habits/notification-fill' })} onOpen={vi.fn()} onDelete={vi.fn()} />)}</ul>
     </NextIntlClientProvider>)
@@ -129,7 +129,9 @@ describe('notification row targets in Chromium', () => {
         for (const control of [body!, remove!]) {
           await control.hover()
           const measured = await row.evaluate(measureNotificationFill)
-          await expect.poll(async () => (await row.evaluate(measureNotificationFill)).fills).toEqual([measured.row])
+          const readExpected = async () => control === body ? [measured.row] : [await control.evaluate(measureOwnFill)]
+          await expect.poll(async () => JSON.stringify((await row.evaluate(measureNotificationFill)).fills) === JSON.stringify(await readExpected())).toBe(true)
+          const expectedFills = await readExpected()
           const colors = await row.evaluate((element) => {
             const style = getComputedStyle(element)
             const remove = element.querySelector('button:last-child')!
@@ -143,11 +145,15 @@ describe('notification row targets in Chromium', () => {
           expect(contrastOnSurface(colors.glyph, [...colors.layers, colors.actionFill])).toBeGreaterThanOrEqual(3)
           if (control === remove) expect(controlContrast(colors.glyph, colors.actionFill, colors.layers).step).toBeGreaterThanOrEqual(1.25)
           await page.mouse.down()
-          expect((await row.evaluate(measureNotificationFill)).fills).toEqual([measured.row])
+          expect((await row.evaluate(measureNotificationFill)).fills).toEqual(expectedFills)
           await page.mouse.move(0, 0)
-          expect((await row.evaluate(measureNotificationFill)).fills).toEqual([measured.row])
+          expect((await row.evaluate(measureNotificationFill)).fills).toEqual(expectedFills)
           await page.mouse.up()
         }
+        await remove!.hover()
+        await body!.hover()
+        await expect.poll(async () => (await row.evaluate(measureNotificationFill)).fills).toEqual([(await row.evaluate(measureNotificationFill)).row])
+        await page.mouse.move(0, 0)
         await page.keyboard.press('Tab')
         await body!.focus()
         await expect.poll(async () => (await row.evaluate(measureNotificationFill)).fills).toEqual([(await row.evaluate(measureNotificationFill)).row])
@@ -187,7 +193,7 @@ describe('notification row targets in Chromium', () => {
     } finally { await page.mouse.up(); await page.close() }
   })
 
-  it.each(['light', 'dark'] as const)('preserves blocked calendar fill beneath sibling feedback in %s', async (mode) => {
+  it.each(['light', 'dark'] as const)('keeps the blocked calendar row fill at rest beneath sibling feedback in %s', async (mode) => {
     const { container } = render(<NextIntlClientProvider locale="en" messages={en}><RelatedRows /></NextIntlClientProvider>)
     const page = await browser.newPage({ viewport: { width: 412, height: 915 }, reducedMotion: 'reduce' })
     try {
@@ -203,7 +209,7 @@ describe('notification row targets in Chromium', () => {
       expect((await row.evaluate(measureNotificationFill)).fills).toEqual([])
       const details = row.locator('button').last()
       await details.hover()
-      await expect.poll(async () => (await row.evaluate(measureNotificationFill)).fills).toEqual([resting.row])
+      await expect.poll(async () => JSON.stringify((await row.evaluate(measureNotificationFill)).fills) === JSON.stringify([await details.evaluate(measureOwnFill)])).toBe(true)
       expect((await row.evaluate(measureNotificationFill)).bodyPaints).toEqual(resting.bodyPaints)
     } finally { await page.close() }
   })

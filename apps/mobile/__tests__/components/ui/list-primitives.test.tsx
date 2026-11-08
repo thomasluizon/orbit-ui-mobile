@@ -245,9 +245,11 @@ describe('list primitives on mobile', () => {
     expect(actionPressedStyle).toMatchObject({
       transform: [{ scale: 0.96 }],
     })
-    expect(StyleSheet.flatten(rowFill(tree.root).props.style)).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgHover, borderRadius: 12 })
+    expect(StyleSheet.flatten(rowFill(tree.root).props.style)).toMatchObject({ backgroundColor: 'transparent', borderRadius: 12 })
     expect(StyleSheet.flatten(resolvePressedStyle(bodyControl))).toMatchObject({ borderRadius: 12, overflow: 'hidden' })
-    expect(StyleSheet.flatten(resolvePressedStyle(actionControl))).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgRowAction, borderRadius: 999, overflow: 'hidden' })
+    expect(StyleSheet.flatten(resolvePressedStyle(actionControl))).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgHover, borderRadius: 999, overflow: 'hidden' })
+    void act(() => { (actionControl.props.onPressOut as () => void)() })
+    expect(StyleSheet.flatten(rowFill(tree.root).props.style)).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgHover, borderRadius: 12 })
     expect(onClick).toHaveBeenCalledOnce()
     expect(onAction).toHaveBeenCalledOnce()
 

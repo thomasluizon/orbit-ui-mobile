@@ -1,4 +1,4 @@
-import { useRowFeedback } from '@/hooks/use-row-feedback'
+import { nestedControlFill, surfaceHighlighted, useRowFeedback } from '@/hooks/use-row-feedback'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { PersonalText } from '@/components/ui/personal-text'
 import { INTERACTION_FILL_CLEARANCE, PADDING, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
@@ -175,7 +175,7 @@ function RowChevron({ ChevronIcon, disabled, tokens, lineStyle }: Readonly<{
 function RowAction({ action, hasDescription, reducedMotion, tokens, feedback }: Readonly<{ action: ListRowProps['action']; hasDescription: boolean; reducedMotion: boolean; tokens: ReturnType<typeof createTokensV2>; feedback: ReturnType<typeof useRowFeedback> }>) {
   if (!action) return null
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={action.label} onPress={action.onPress} {...feedback.handlers} style={[styles.action, { marginVertical: hasDescription ? SPACING.s8 : SPACING.s4, marginEnd: SPACING.s16 }, feedback.highlighted ? { backgroundColor: tokens.bgRowAction } : null]}>
+    <Pressable accessibilityRole="button" accessibilityLabel={action.label} onPress={action.onPress} {...feedback.handlers} style={[styles.action, { marginVertical: hasDescription ? SPACING.s8 : SPACING.s4, marginEnd: SPACING.s16 }, { backgroundColor: nestedControlFill(feedback, tokens) }]}>
       {({ pressed }) => (
         <AnimatedContent style={[reducedMotion ? null : PRESS_TRANSITION, styles.control, pressed && !reducedMotion ? { transform: [{ scale: 0.96 }] } : null]}>
           <Icon name={action.icon} size={20} color={action.danger ? tokens.statusBad : tokens.fg2} />
@@ -188,7 +188,7 @@ function RowAction({ action, hasDescription, reducedMotion, tokens, feedback }: 
 function useListRowFeedback(disabled: boolean) {
   const interaction = useRowFeedback(disabled)
   const actionFeedback = useRowFeedback()
-  return { interaction, actionFeedback, highlighted: interaction.highlighted || actionFeedback.highlighted }
+  return { interaction, actionFeedback, highlighted: surfaceHighlighted(interaction.highlighted, [actionFeedback]) }
 }
 
 function listRowShellStyle(hasAction: boolean, column: boolean) {
