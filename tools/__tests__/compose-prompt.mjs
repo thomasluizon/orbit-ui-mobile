@@ -228,8 +228,7 @@ export const cases = () => {
   T(
     `${TOOL}: review batch report ends with the literal sections the orchestrator copies into the body`,
     /these literal sections, each one present even when it is empty/.test(reviewPrompt) &&
-      /`## Test evidence`, `## Assumptions` and `## Manual steps`/.test(reviewPrompt) &&
-      !/## Review harness|## UI review sweep/.test(reviewPrompt),
+      /`## Test evidence`, `## Assumptions` and `## Manual steps`/.test(reviewPrompt),
     reviewPrompt,
   )
   T(
@@ -257,11 +256,6 @@ export const cases = () => {
   for (const [index, sentence] of deliverySentences.entries()) {
     T(`${TOOL}: local delivery sentence ${index + 1} survives composition`, localFinishing.includes(sentence), localFinishing.slice(0, 600))
   }
-  T(
-    `${TOOL}: a default UI order carries no UI review sweep`,
-    !/## UI review sweep|## Review harness/.test(prompt),
-    prompt,
-  )
 
   const mainOut = join(root, "compose-prompt", "ui-main.md")
   check(
@@ -282,19 +276,9 @@ export const cases = () => {
   )
   const reviewMainPrompt = composed(reviewMainOut)
   T(
-    `${TOOL}: a main review batch carries no automatic UI sweep or evidence block`,
-    !/## UI review sweep|## Review harness|UI_SCOPE/.test(reviewMainPrompt),
-    reviewMainPrompt,
-  )
-  T(
     `${TOOL}: main delivery keeps the finishing contract before the brief`,
     mainPrompt.indexOf("## Finishing contract") < mainPrompt.indexOf("## Orchestrator's brief"),
     mainPrompt.slice(0, 800),
-  )
-  T(
-    `${TOOL}: an explicit main UI order carries no automatic UI sweep or evidence block`,
-    !/## UI review sweep|## Review harness|UI_SCOPE|npx --yes ui-skills/.test(mainPrompt),
-    mainPrompt,
   )
 
   for (const [repository, repositoryPath] of [["api", API_REPO_PATH], ["landing", LANDING_REPO_PATH]]) {
@@ -308,8 +292,8 @@ export const cases = () => {
     )
     const repositoryPrompt = composed(repositoryOut)
     T(
-      `${TOOL}: a main ${repository} order carries no UI review sweep`,
-      !repositoryPrompt.includes("## UI review sweep") && repositoryPrompt.includes(`Repository \`${repository}\` at \`${repositoryPath}\``),
+      `${TOOL}: a main ${repository} order names its repository`,
+      repositoryPrompt.includes(`Repository \`${repository}\` at \`${repositoryPath}\``),
       repositoryPrompt,
     )
     T(
@@ -352,11 +336,6 @@ export const cases = () => {
       deliverySentences.every((sentence) => !cloudPrompt.includes(sentence)),
     cloudPrompt.slice(-1200),
   )
-  T(
-    `${TOOL}: Cloud delivery carries no automatic UI sweep or local sweep handoff`,
-    !/## UI review sweep|## Review harness|orchestrator runs it locally after materialization/.test(cloudPrompt),
-    cloudPrompt,
-  )
   /**
    * One brief feeds the local, Cloud and explicit main orders, so each one is asserted separately: a
    * later split could drop the block from any single mode and the other two would stay green. Each
@@ -389,10 +368,7 @@ export const cases = () => {
     /Its final report is the batch's\s+handoff/.test(orchestrateSkill) &&
       /`## Test evidence`, `## Assumptions` and `## Manual steps`/.test(orchestrateSkill) &&
       /node tools\/merge-review-batch-body\.mjs --body-file <current-body> --report-file <worker-report> --out <merged-body>/.test(orchestrateSkill) &&
-      /gh pr edit <n> --body-file <merged-body>/.test(orchestrateSkill) &&
-      /its `## Review harness` block only when the order carried the UI review sweep and a path changed by this batch matches `UI_SCOPE` in `tools\/lib\/review-harness\.mjs`/.test(orchestrateSkill) &&
-      /For a batch with no matching path, accept a report without that block and preserve any existing PR-body block/.test(orchestrateSkill) &&
-      /For a batch with a matching path, require the complete block and replace the PR-body block/.test(orchestrateSkill),
+      /gh pr edit <n> --body-file <merged-body>/.test(orchestrateSkill),
     orchestrateSkill,
   )
   T(
