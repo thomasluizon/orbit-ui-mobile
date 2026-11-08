@@ -305,7 +305,7 @@ it('shows one category, searches across categories in Portuguese and clears a mi
   expect(button('Entender os congelamentos')).toBeDefined()
   search('sem resultado')
   expect(text(tree.root)).toContain('Nenhuma ideia para “sem resultado”.')
-  const miss = measureStartEdgeIconAction(tree.toJSON(), 412, 'Limpar busca')
+  const miss = measureStartEdgeIconAction(tree, 412, 'Limpar busca')
   expect(Math.abs((miss.glyph.left + miss.glyph.right) / 2 - (miss.paint.left + miss.paint.right) / 2), JSON.stringify(miss)).toBeLessThanOrEqual(0.5)
   expect(Math.abs(miss.glyph.left - miss.texts[0]!.left), JSON.stringify(miss)).toBeLessThanOrEqual(0.5)
   expect(miss.targetWidth).toBe(48)

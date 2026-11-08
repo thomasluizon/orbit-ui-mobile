@@ -319,10 +319,24 @@ An icon action alone below start-aligned text takes `edge="start"` on the shared
 (#2061). Its 44px paint moves back by the 12px side inset of its 20px glyph
 (`ICON_ACTION_START_HANG` in `packages/shared/src/theme/button.ts`), so the glyph starts on the
 text column. The glyph stays centred in its paint. The paint and the 2px hit extension sit in the
-column's gutter, as a column-placed ListRow extends only its interaction fill. The three owners
-are the paired habit search miss in `components/search/search-results.tsx`, the calendar entry
-search miss in `calendar-entry-details.tsx`, and the Ideas library miss in
-`components/chat/prompt-library.tsx`. Centred empty states, action rows and header actions keep
-the plain primitive. Web Chromium tests, the `search-empty-icon-action` layout spec and Android
-Yoga geometry tests require the glyph centre within 0.5px of its paint centre and the glyph start
-within 0.5px of the text column.
+column's gutter, as a column-placed ListRow extends only its interaction fill. The nearest
+ancestor that clips the action gives at least 14px of inline gutter: the 12px move plus the 2px
+hit extension.
+
+The rule applies to every lone icon action directly below start-aligned text in a column. These
+are the owners:
+
+| Surface | Web owner | Android owner | Gutter owner |
+|---|---|---|---|
+| Habit search miss | `components/search/search-results.tsx` | `components/search/search-results.tsx` | search list inset |
+| Habit search load error | `app/(app)/search/page.tsx`, `components/command/command-menu.tsx` | `app/search.tsx` | 16px search list inset; 12px alert inset in the 8px palette list |
+| Calendar entry search miss | `components/calendar/calendar-entry-details.tsx` | `app/(tabs)/calendar/_components/calendar-entry-details.tsx` | sheet body |
+| Ideas library miss | `components/chat/prompt-library.tsx` | `components/chat/prompt-library.tsx` | 16px miss inset |
+| MCP API keys load error | `components/profile/profile-api-keys.tsx` | `components/profile/profile-api-keys.tsx` | 16px content frame |
+| Goal detail load error | `components/goals/goal-detail-drawer/goal-load-error.tsx` | `components/goals/goal-detail-drawer/goal-load-error.tsx` | sheet body or 16px Progresso gutter |
+| Linked habits load error | `components/goals/goal-habits-field.tsx` | `components/goals/goal-habits-field.tsx` | sheet body |
+
+Centred empty and error states, rows, action rows and header actions keep the plain primitive.
+Web Chromium tests, the `search-empty-icon-action` layout spec and Android Yoga geometry tests
+require the glyph centre within 0.5px of its paint centre and the glyph start within 0.5px of the
+text column. The load error suites also require the 14px gutter and an unclipped hit extension.

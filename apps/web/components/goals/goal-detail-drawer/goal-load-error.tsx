@@ -25,7 +25,7 @@ export function GoalLoadError({ onRetry }: Readonly<GoalLoadErrorProps>) {
       >
         {t('goals.detail.loadError')}
       </p>
-      <IconButton label={t('common.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
+      <IconButton edge="start" label={t('common.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
     </div>
   )
 }
