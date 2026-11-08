@@ -1,6 +1,9 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises"
+import { spawnSync } from "node:child_process"
+import { createHash, randomUUID } from "node:crypto"
+import { mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { dirname, join, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 
 import { readOrchestratorConfig } from "./orchestrator-config.mjs"
 import { runBounded } from "./bounded-process.mjs"
@@ -54,10 +57,16 @@ const schema = {
   },
 }
 
+const CACHE_FILE_NAME = "orbit-ticket-executability.json"
+const CACHE_VERSION = 1
+// Read once per module instance, so each test import can name its own cache file.
+const cacheFileOverride = process.env.ORBIT_CLASSIFIER_CACHE_FILE || null
+
 const cache = new Map()
 let lastRun = Promise.resolve()
-let modelPromise
-let prompt
+let inputsPromise
+let cacheFilePath
+let storedEntriesPromise
 const collapse = (value) => value.replace(/\s+/g, " ").trim()
 const plain = (value) => typeof value === "string" && value.length <= 160 && value.length > 0
 const exactKeys = (value, keys) => value && typeof value === "object" && !Array.isArray(value) &&
@@ -88,10 +97,16 @@ const validate = (body, value) => {
   return { deferrals: unique(value.deferrals, "reason", REASONS), signals: unique(value.signals, "kind", KINDS) }
 }
 
+const classifierInputs = () => {
+  inputsPromise ??= Promise.resolve().then(async () => ({
+    model: readOrchestratorConfig().classifier.model,
+    prompt: await readFile(new URL("./ticket-classifier-prompt.md", import.meta.url), "utf8"),
+  }))
+  return inputsPromise
+}
+
 const runClaude = async (body, options = {}) => {
-  modelPromise ??= Promise.resolve().then(() => readOrchestratorConfig().classifier.model)
-  const model = await modelPromise
-  prompt ??= await readFile(new URL("./ticket-classifier-prompt.md", import.meta.url), "utf8")
+  const { model, prompt } = await classifierInputs()
   const directory = await mkdtemp(join(tmpdir(), "orbit-classifier-"))
   try {
     const args = ["-p", "--model", model, "--output-format", "json", "--json-schema", JSON.stringify(schema),
@@ -131,11 +146,79 @@ const runClaude = async (body, options = {}) => {
   }
 }
 
+/** The git common directory is shared by every worktree, so one cache serves them all. */
+const cacheFile = () => {
+  if (cacheFilePath !== undefined) return cacheFilePath
+  if (cacheFileOverride) return (cacheFilePath = cacheFileOverride)
+  const directory = dirname(fileURLToPath(import.meta.url))
+  const result = spawnSync("git", ["-C", directory, "rev-parse", "--git-common-dir"], { encoding: "utf8", windowsHide: true })
+  cacheFilePath = result.error || result.status !== 0 ? null : join(resolve(directory, result.stdout.trim()), CACHE_FILE_NAME)
+  return cacheFilePath
+}
+
+const digest = (value) => createHash("sha256").update(value).digest("hex")
+const cacheKey = (body, { model, prompt }) => digest(JSON.stringify([digest(body), model, digest(prompt), digest(JSON.stringify(schema))]))
+
+const readStore = async (file) => {
+  let text
+  try {
+    text = await readFile(file, "utf8")
+  } catch (error) {
+    if (error.code === "ENOENT") return {}
+    throw error
+  }
+  const store = JSON.parse(text)
+  if (!exactKeys(store, ["version", "entries"]) || store.version !== CACHE_VERSION || !store.entries || typeof store.entries !== "object" || Array.isArray(store.entries)) {
+    throw new Error("the file has an unexpected shape")
+  }
+  return store.entries
+}
+
+const storedEntries = (file) => {
+  storedEntriesPromise ??= readStore(file).catch((error) => {
+    console.error(`ticket classifier cache ${file} is unreadable (${error.message.slice(0, 160)}); discarding it and classifying again`)
+    return {}
+  })
+  return storedEntriesPromise
+}
+
+/** Merge into the newest file, then rename a private temporary file over it, so a reader never sees a torn write. */
+const storeEntry = async (file, key, response) => {
+  // The first read already reported an unreadable file; this write replaces it.
+  const entries = await readStore(file).catch(() => ({}))
+  entries[key] = { response }
+  const temporary = `${file}.${process.pid}.${randomUUID()}.tmp`
+  try {
+    await writeFile(temporary, `${JSON.stringify({ version: CACHE_VERSION, entries })}\n`)
+    await rename(temporary, file)
+  } catch (error) {
+    await rm(temporary, { force: true })
+    console.error(`ticket classifier cache ${file} could not be written (${error.message.slice(0, 160)}); the next run classifies this ticket again`)
+  }
+}
+
+const cachedOrClassified = async (body, options) => {
+  const file = cacheFile()
+  if (!file) return runClaude(body, options)
+  const key = cacheKey(body, await classifierInputs())
+  const stored = (await storedEntries(file))[key]
+  if (stored?.response) {
+    try {
+      return { classification: validate(body, stored.response), response: stored.response }
+    } catch {
+      // A stored answer that the current validator rejects is a miss, so the model answers again.
+    }
+  }
+  const result = await runClaude(body, options)
+  await storeEntry(file, key, result.response)
+  return result
+}
+
 const resultFor = (body, options) => {
   const text = String(body ?? "")
   if (!text) return Promise.resolve({ classification: { deferrals: [], signals: [] } })
   if (!cache.has(text)) {
-    const pending = lastRun.then(() => runClaude(text, options))
+    const pending = lastRun.then(() => cachedOrClassified(text, options))
     lastRun = pending.catch(() => {})
     cache.set(text, pending.catch((error) => ({ error: error.message.slice(0, 160) })))
   }
