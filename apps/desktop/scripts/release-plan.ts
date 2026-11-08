@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { appendFileSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -45,6 +45,22 @@ export function planShellRelease(variant: string, source: string, previous: stri
   return version
 }
 
+export function sourceOnMain(source: string): boolean {
+  const result = spawnSync('git', ['merge-base', '--is-ancestor', source, 'refs/remotes/origin/main'], { encoding: 'utf8' })
+  if (result.status === 0) return true
+  if (result.status === 1) return false
+  throw new Error(`Cannot compare the desktop source with main: ${result.stderr.trim()}`)
+}
+
+export function channelAdvance(source: string, version: string | null, variant: string, previous: string | null, minimum: string): boolean {
+  if (version === null) return false
+  if (sourceOnMain(source)) return true
+  if (previous && compareVersions(previous, minimum) < 0) {
+    throw new Error(`Desktop ${variant} stays at ${previous}, below the web minimum shell version ${minimum}; merge the floor change to main first`)
+  }
+  return false
+}
+
 export function shellFloor(compatibility: { minimumShellVersion: string; signInMinimumShellVersion: string }): string {
   return [compatibility.minimumShellVersion, compatibility.signInMinimumShellVersion].sort(compareVersions).at(-1)!
 }
@@ -74,9 +90,14 @@ async function main() {
   const source = process.env.SOURCE_SHA ?? ''
   const compatibility: { minimumShellVersion: string; signInMinimumShellVersion: string } = JSON.parse(readFileSync(new URL('../../web/web-compatibility.json', import.meta.url), 'utf8'))
   const previous = await channelVersion(variant)
-  const version = planShellRelease(variant, source, previous, git('tag', '--list', `desktop-${variant}-v*`).split('\n'), shellFloor(compatibility), process.env.DESKTOP_VERSION || undefined, process.env.DESKTOP_ROLLBACK === 'true')
-  appendFileSync(process.env.GITHUB_OUTPUT!, `publish=${version !== null}\nversion=${version ?? ''}\n`)
-  appendFileSync(process.env.GITHUB_STEP_SUMMARY!, `Desktop ${variant}: ${version ? `publish ${version}` : `unchanged from ${previous}`}. Source: ${source}\n`)
+  const floor = shellFloor(compatibility)
+  const version = planShellRelease(variant, source, previous, git('tag', '--list', `desktop-${variant}-v*`).split('\n'), floor, process.env.DESKTOP_VERSION || undefined, process.env.DESKTOP_ROLLBACK === 'true')
+  const advance = channelAdvance(source, version, variant, previous, floor)
+  appendFileSync(process.env.GITHUB_OUTPUT!, `shell_changed=${version !== null}\nadvance_channel=${advance}\nversion=${version ?? ''}\n`)
+  let outcome = `unchanged from ${previous}`
+  if (advance) outcome = `publish ${version}`
+  else if (version) outcome = `build and verify ${version} without publication, because main does not contain the source`
+  appendFileSync(process.env.GITHUB_STEP_SUMMARY!, `Desktop ${variant}: ${outcome}. Source: ${source}\n`)
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main()

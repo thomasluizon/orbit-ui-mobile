@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "build:production": "tauri build --config src-tauri/tauri.production.conf.json",
+    "bundle:production": "tauri bundle --config src-tauri/tauri.production.conf.json",
+    "bundle:staging": "tauri bundle",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
     "build:staging": "tauri build"

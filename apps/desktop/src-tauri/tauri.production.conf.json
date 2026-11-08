@@ -1,6 +1,9 @@
 {
   "productName": "Orbit",
   "identifier": "org.useorbit.desktop",
+  "bundle": {
+    "macOS": { "entitlements": "native/macos/Entitlements.production.plist" }
+  },
   "app": {
     "security": {
       "capabilities": [{
