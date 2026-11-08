@@ -1110,10 +1110,10 @@ mod tests {
         assert_eq!(
             unsupported_diagnostic(
                 &reported,
-                "setting=Unsupported isSupported=true elevated=true"
+                "setting=Unsupported isSupported=true integrity=High elevated=true tokenElevated=true"
             )
             .as_deref(),
-            Some("Desktop push: native push unsupported: setting=Unsupported isSupported=true elevated=true")
+            Some("Desktop push: native push unsupported: setting=Unsupported isSupported=true integrity=High elevated=true tokenElevated=true")
         );
         assert_eq!(unsupported_diagnostic(&reported, "manager=null"), None);
         assert_eq!(

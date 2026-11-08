@@ -164,17 +164,32 @@ and `ApnsPushSender.CreatePayload`, with a one-use token that the mock issues.
   bytes. The runner allows the first authorization alert through AX.
 
 Microsoft's app notification quickstart states that app notifications are not supported for elevated
-apps. The Windows harness runs elevated, because it edits the hosts file and the machine root store.
-Thus `windows-unelevated.ps1` starts every installed launch from a scheduled task with
-`-RunLevel Limited` and `-LogonType Interactive` for the signed-in user. A person's launch runs the
-same way. The task's PowerShell starts the shell with the user's environment, and the shell writes
-stderr to `<launch>.log` and stdout to `<launch>.stdout.log`. `<launch>-launch.jsonl` keeps the
-task's token, the shell's process ID and its exit code. `report.json` `launchContexts` keeps the user
-and elevation of each launch, and on Windows also of the harness. An elevated shell fails the job.
+apps. The Windows App SDK makes this decision from the token integrity level only: `AppNotificationManager::IsSupported`
+is false at `SECURITY_MANDATORY_HIGH_RID` or above (`dev/Common/Security.IntegrityLevel.h`). The Windows
+harness runs at High integrity, because it edits the hosts file and the machine root store. A scheduled
+task with `-RunLevel Limited` still gave the runner account a High token. Thus `windows-unelevated.ps1`
+duplicates the harness token, sets its integrity level to Medium (`S-1-16-8192`) and starts a PowerShell
+launcher with `CreateProcessAsUser`, as Microsoft's
+[low integrity guide](https://learn.microsoft.com/en-us/previous-versions/dotnet/articles/bb625960(v=msdn.10))
+shows. The launcher inherits the harness desktop, so the shell stays in the runner's interactive session.
+The launcher removes the proxy variables and starts the shell, which inherits the Medium token. The shell
+writes stderr to `<launch>.log` and stdout to `<launch>.stdout.log`.
+
+Before each launch, the harness grants the user SID modify access to the output directory. It also gives
+the directory and every file in it an explicit, inherited Medium label with `icacls /setintegritylevel`.
+Mandatory Integrity Control refuses a write from Medium to a High object, so this label lets the Medium
+launcher and shell create and append to their logs and status file. `<launch>-launch.jsonl` keeps the
+launcher's token, the shell's process ID and token, and its exit code. Each token record names the user,
+the SID, the last SID subauthority (500 for the built-in Administrator), the integrity level, the
+`TokenIsElevated` value and the session. `report.json` `launchContexts` keeps these records for the shell,
+the launcher and the harness, and the output directory label. A shell at High integrity or above fails
+the job. When the launcher cannot read the shell token, the launcher's token decides, because the shell
+inherits it.
 
 The first unsupported push answer in each shell process writes one stderr line, which names the native
-branch: `manager=null`, or the `AppNotificationManager.Setting()` value, `PushNotificationManager.IsSupported()`
-and the token elevation. On macOS the line names the missing APNs entitlement. The runner gathers these
+branch: `manager=null`, or the `AppNotificationManager.Setting()` value and `PushNotificationManager.IsSupported()`.
+The line also names the integrity level that the Windows App SDK reads, whether that level counts as
+elevated, and `TokenIsElevated`. On macOS the line names the missing APNs entitlement. The runner gathers these
 lines from every launch log into `report.json` `push.nativeUnsupported`, and copies the earlier
 launches' lines into `push.log`.
 
@@ -220,6 +235,16 @@ or a composition, and cmdk ignores it. If the page records no usable ArrowDown w
 runner sends the Down again, with at most 3 posts per step. The report keeps each undelivered Down and
 the keys the page recorded for it in `paletteUndelivered`. A step that records two usable ArrowDown keys
 fails. A received Down that does not move the selection still fails the focus check.
+
+On macOS, the AX helper sends every key as a real keyboard does. It posts the key at the HID event tap,
+where HID events enter the window server, and the window server gives it to the focused application.
+The helper first reads the focused application from the system-wide AX element. If the installed process
+is not focused, the helper requests activation and sets `AXFrontmost`, because macOS 14 lets the system
+refuse an activation request. If another process keeps keyboard focus, the helper posts no key and names
+that process. `report.json` `keyDelivery` keeps each key reply with its delivery path, its activation and
+the focused process. While Astra is open, the page records each keydown in `astra-key` events. If Astra
+does not close after the native Escape, the runner keeps those events in `report.json` `astraKeys` and
+the AX tree in `trees/astra-after-escape.json`. The error states how many Escape keydowns the page received.
 An exact macOS access denial is recorded as
 a skip, with Windows still required. These are structural checks; a person's spoken screen reader
 pass remains separate. Reports, native trees, capture and diagnostic logs upload even on failure.

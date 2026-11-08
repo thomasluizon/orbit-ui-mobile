@@ -188,7 +188,7 @@ async function installedLaunchCases() {
     startProxy: async () => proxy, install: async () => '/fixture/Orbit',
     installedLaunch: (_executable, _output, name) => { launches.push(settings.expectAuthenticated === true); return { name } },
     waitFor: async (read, label) => { const result = read(); if (!result) throw new Error(`Timed out waiting for ${label}`); return result },
-    inspectSurfaces: async () => {}, quit: async () => {},
+    inspectSurfaces: async () => {}, quit: async () => {}, recordKeys: (native) => native,
     pushPhase: async (options) => { pushCalls.push({ options, checks: options.report.launchChecks.map((checkpoint) => checkpoint.event) }) },
     readFile: async () => 'signature verification failed', record: async (_path, report) => { recorded = report }, rm: async () => {}, stopAll: async () => {},
   }
@@ -305,6 +305,7 @@ async function sessionProbeCases() {
 
 async function compactHojeProbeCases() {
   const reports = []
+  const keyListeners = []
   const commands = ['astra']
   let now = 0
   let conversation = null
@@ -321,6 +322,7 @@ async function compactHojeProbeCases() {
     location: { pathname: '/', search: '' },
     document: {
       readyState: 'complete', cookie: '',
+      addEventListener: (type, _listener, capture) => { keyListeners.push({ type, capture }) },
       querySelector(selector) {
         if (selector === '[data-habit-id="bench-0000"]') return {}
         if (selector === '[data-astra-button]:not([disabled])') return conversation ? null : astraButton
@@ -344,25 +346,23 @@ async function compactHojeProbeCases() {
   await done
   T('installed acceptance reaches compact Hoje through the habit row and the Astra button, without a Hoje composer',
     reports.map((event) => event.kind).join(',') === 'hoje,astra', JSON.stringify(reports))
+  T('installed acceptance records Astra keydowns in the capture phase once Astra is open',
+    JSON.stringify(keyListeners) === JSON.stringify([{ type: 'keydown', capture: true }]), JSON.stringify(keyListeners))
 }
 
 function macKeyboardEvents() {
   const source = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-ax.m'), 'utf8')
-  const keyboard = source.slice(source.indexOf('static void key('), source.indexOf('int main('))
+  const keyboard = source.slice(source.indexOf('static NSDictionary *key('), source.indexOf('int main('))
   const fixture = stage('palette-keyboard.m', `#import <AppKit/AppKit.h>
 #import <ApplicationServices/ApplicationServices.h>
 static NSMutableArray *events;
+static NSMutableArray *raised;
 static NSString *command;
-static pid_t targetPid;
+static pid_t focused;
+static BOOL raiseWorks;
 static CGEventFlags inheritedFlags = kCGEventFlagMaskCommand | kCGEventFlagMaskShift;
-@interface PaletteApplication : NSObject
-+ (instancetype)runningApplicationWithProcessIdentifier:(pid_t)pid;
-- (BOOL)activateWithOptions:(NSApplicationActivationOptions)options;
-@end
-@implementation PaletteApplication
-+ (instancetype)runningApplicationWithProcessIdentifier:(pid_t)pid { return [self new]; }
-- (BOOL)activateWithOptions:(NSApplicationActivationOptions)options { return YES; }
-@end
+static pid_t focusedProcess(void) { return focused; }
+static void raiseProcess(pid_t pid) { [raised addObject:@(pid)]; if (raiseWorks) focused = pid; }
 static CGEventRef inheritedKeyboardEvent(CGEventSourceRef source, CGKeyCode code, bool pressed) {
     CGEventRef event = CGEventCreateKeyboardEvent(source, code, pressed);
     CGEventSetFlags(event, inheritedFlags);
@@ -370,45 +370,64 @@ static CGEventRef inheritedKeyboardEvent(CGEventSourceRef source, CGKeyCode code
 }
 static void captureKey(CGEventTapLocation tap, CGEventRef event) {
     inheritedFlags = CGEventGetFlags(event);
-    [events addObject:@{@"command": command, @"pid": @(targetPid), @"pressed": @((BOOL)(CGEventGetType(event) == kCGEventKeyDown)),
+    [events addObject:@{@"command": command, @"tap": @(tap), @"focused": @(focused), @"pressed": @((BOOL)(CGEventGetType(event) == kCGEventKeyDown)),
         @"metaKey": @((BOOL)((inheritedFlags & kCGEventFlagMaskCommand) != 0)),
         @"shiftKey": @((BOOL)((inheritedFlags & kCGEventFlagMaskShift) != 0)),
         @"ctrlKey": @((BOOL)((inheritedFlags & kCGEventFlagMaskControl) != 0)),
         @"altKey": @((BOOL)((inheritedFlags & kCGEventFlagMaskAlternate) != 0))}];
-    targetPid = 0;
 }
 static void captureTargetedKey(pid_t pid, CGEventRef event) {
-    targetPid = pid;
-    captureKey(kCGHIDEventTap, event);
+    [events addObject:@{@"command": command, @"targeted": @(pid)}];
 }
-#define NSRunningApplication PaletteApplication
 #define CGEventCreateKeyboardEvent inheritedKeyboardEvent
 #define CGEventPost captureKey
 #define CGEventPostToPid captureTargetedKey
 #define usleep(microseconds) ((void)0)
 ${keyboard}
-int main(void) {
+int main(int argc, const char *argv[]) {
     @autoreleasepool {
+        NSString *scenario = @(argv[1]);
         events = [NSMutableArray array];
+        raised = [NSMutableArray array];
+        focused = [scenario isEqual:@"focused"] ? 1 : 2;
+        raiseWorks = [scenario isEqual:@"raised"];
+        NSMutableArray *replies = [NSMutableArray array];
+        NSMutableArray *errors = [NSMutableArray array];
         for (NSString *operation in @[@"palette", @"down", @"down", @"home", @"escape", @"quit"]) {
             command = operation;
-            key(1, operation);
+            @try { [replies addObject:key(1, operation)]; } @catch (NSException *exception) { [errors addObject:exception.reason]; }
         }
-        NSData *encoded = [NSJSONSerialization dataWithJSONObject:events options:0 error:NULL];
+        NSData *encoded = [NSJSONSerialization dataWithJSONObject:@{@"events": events, @"replies": replies, @"errors": errors, @"raised": raised}
+            options:0 error:NULL];
         fwrite(encoded.bytes, 1, encoded.length, stdout);
         return 0;
     }
 }`)
   const executable = join(root, 'palette-keyboard')
   const compilation = spawnSync('clang', ['-fobjc-arc', '-framework', 'AppKit', '-framework', 'ApplicationServices', fixture, '-o', executable], { encoding: 'utf8', timeout: 30000 })
-  T('macOS keyboard producer compiles with event posting and application activation intercepted', compilation.status === 0, compilation.stderr)
-  const capture = spawnSync(executable, [], { encoding: 'utf8', timeout: 10000 })
-  T('macOS keyboard producer captures its real event flags without opening an app', capture.status === 0, capture.stderr)
-  const events = JSON.parse(capture.stdout)
-  T('macOS keyboard producer targets both key phases at the installed process',
-    events.length === 12 && events.every((event) => event.pid === 1), JSON.stringify(events))
+  T('macOS keyboard producer compiles with event posting and keyboard focus intercepted', compilation.status === 0, compilation.stderr)
+  const run = (scenario) => {
+    const capture = spawnSync(executable, [scenario], { encoding: 'utf8', timeout: 10000 })
+    T(`macOS keyboard producer runs the ${scenario} scenario without opening an app`, capture.status === 0, capture.stderr)
+    return JSON.parse(capture.stdout)
+  }
+  const focusedRun = run('focused')
+  const { events } = focusedRun
+  T('macOS keyboard producer posts both key phases at the HID event tap, as a real keyboard enters, while the installed process has keyboard focus',
+    events.length === 12 && events.every((event) => event.tap === 0 && event.focused === 1 && event.targeted === undefined), JSON.stringify(events))
   T('macOS keyboard producer sets Command only for shortcuts and clears inherited modifiers on both key phases', events.length === 12 && events.every((event) =>
     event.metaKey === ['palette', 'quit'].includes(event.command) && !event.shiftKey && !event.ctrlKey && !event.altKey), JSON.stringify(events))
+  T('macOS keyboard producer names the HID delivery path and the focused process in every reply without raising a focused process',
+    focusedRun.raised.length === 0 && focusedRun.errors.length === 0 && focusedRun.replies.length === 6 && focusedRun.replies.every((reply) =>
+      reply.delivery === 'hid-event-tap' && reply.activation === 'focused' && reply.focusedProcess === 1), JSON.stringify(focusedRun))
+  const raisedRun = run('raised')
+  T('macOS keyboard producer raises an unfocused installed process once, then posts at the HID event tap',
+    raisedRun.raised.join(',') === '1' && raisedRun.events.length === 12 && raisedRun.events.every((event) => event.tap === 0 && event.focused === 1) &&
+      raisedRun.replies[0].activation === 'raised' && raisedRun.replies.slice(1).every((reply) => reply.activation === 'focused'), JSON.stringify(raisedRun))
+  const refusedRun = run('refused')
+  T('macOS keyboard producer posts no key while another process keeps keyboard focus and names that process',
+    refusedRun.events.length === 0 && refusedRun.replies.length === 0 && refusedRun.errors.length === 6 &&
+      refusedRun.errors[0] === 'Process 1 did not receive keyboard focus for palette; process 2 has it', JSON.stringify(refusedRun))
   return events
 }
 

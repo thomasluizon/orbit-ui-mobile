@@ -51,6 +51,7 @@
       const button = await until(() => document.querySelector('[data-astra-button]:not([disabled])'), 'Astra button')
       button.click()
       await until(() => document.querySelector('[data-shell-conversation] [data-composer-input]'), 'Astra surface')
+      document.addEventListener('keydown', recordAstraKey, true)
     }
     if (name === 'palette') {
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', code: 'KeyK', metaKey: /Mac/.test(navigator.platform), ctrlKey: !/Mac/.test(navigator.platform), bubbles: true }))
@@ -73,6 +74,13 @@
     void report('palette-key', { key: event.key, code: event.code, keyCode: event.keyCode, composing: event.isComposing, trusted: event.isTrusted,
       targetInput: event.target === input, documentFocused: document.hasFocus(), before: paletteState(),
       metaKey: event.metaKey, ctrlKey: event.ctrlKey, altKey: event.altKey, shiftKey: event.shiftKey })
+  }
+  function recordAstraKey(event) {
+    const conversation = document.querySelector('[data-shell-conversation]')
+    if (!conversation) return
+    // A receipt shows whether a native Escape reached the page while Astra was open, apart from whether Astra closed.
+    void report('astra-key', { key: event.key, code: event.code, keyCode: event.keyCode, composing: event.isComposing, trusted: event.isTrusted,
+      documentFocused: document.hasFocus(), targetComposer: event.target === conversation.querySelector('[data-composer-input]') })
   }
   // cmdk names its input through aria-labelledby, which outranks aria-label: https://www.w3.org/TR/accname-1.2/#computation-steps
   function accessibleName(element) {

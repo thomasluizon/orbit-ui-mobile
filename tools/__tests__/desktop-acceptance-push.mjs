@@ -78,7 +78,7 @@ async function unsupportedCollection(logs) {
 }
 
 export async function pushPhaseCases() {
-  const line = 'Desktop push: native push unsupported: setting=Unsupported isSupported=true elevated=true'
+  const line = 'Desktop push: native push unsupported: setting=Unsupported isSupported=true integrity=High elevated=true tokenElevated=true'
   const gathered = await unsupportedCollection({ installed: `Desktop push: cannot refresh native permission\r\n${line}\r\n`, 'update-bad': 'Cannot download desktop update\n', push: `${line}\n` })
   T('the runner gathers each launch first unsupported line into the report and copies the earlier ones into push.log',
     JSON.stringify(gathered.report.push.nativeUnsupported) === JSON.stringify([{ log: 'installed.log', line }, { log: 'push.log', line }]) &&

@@ -257,18 +257,51 @@ static NSDictionary *notification(NSString *title, NSString *label, BOOL invoke,
     return @{@"found": @YES, @"invoked": @(invoke), @"role": match[@"role"], @"action": match[@"action"], @"tree": tree};
 }
 
-static void key(pid_t processId, NSString *name) {
+// The system-wide element names the application that receives keyboard input: https://developer.apple.com/documentation/applicationservices/kaxfocusedapplicationattribute
+static pid_t focusedProcess(void) {
+    AXUIElementRef system = AXUIElementCreateSystemWide();
+    id application = softAttribute(system, kAXFocusedApplicationAttribute);
+    CFRelease(system);
+    pid_t processId = 0;
+    if (application) AXUIElementGetPid((__bridge AXUIElementRef)application, &processId);
+    return processId;
+}
+
+// The macOS 14 SDK marks NSApplicationActivateIgnoringOtherApps as having no effect, and cooperative activation lets the
+// system refuse an activation request: https://developer.apple.com/documentation/appkit/nsapplication/activate()
+// Thus a trusted AX client also sets AXFrontmost on the application.
+static void raiseProcess(pid_t processId) {
+    [[NSRunningApplication runningApplicationWithProcessIdentifier:processId] activateWithOptions:0];
+    AXUIElementRef app = AXUIElementCreateApplication(processId);
+    AXUIElementSetAttributeValue(app, kAXFrontmostAttribute, kCFBooleanTrue);
+    CFRelease(app);
+}
+
+static NSDictionary *key(pid_t processId, NSString *name) {
     NSDictionary *codes = @{@"down": @125, @"home": @115, @"escape": @53, @"quit": @12, @"palette": @40};
     NSNumber *code = codes[name];
     if (!code) @throw [NSException exceptionWithName:@"Input" reason:@"Unknown keyboard operation" userInfo:nil];
-    [[NSRunningApplication runningApplicationWithProcessIdentifier:processId] activateWithOptions:NSApplicationActivateIgnoringOtherApps];
+    NSString *activation = @"focused";
+    if (focusedProcess() != processId) {
+        activation = @"raised";
+        raiseProcess(processId);
+        for (int attempt = 0; attempt < 20 && focusedProcess() != processId; attempt++) usleep(100000);
+    }
     usleep(250000);
+    pid_t focused = focusedProcess();
+    // A real keyboard enters at the HID event tap and reaches the focused application, so a key posts there only for the installed process:
+    // https://developer.apple.com/documentation/coregraphics/cgeventtaplocation/hideventtap
+    if (focused != processId) {
+        @throw [NSException exceptionWithName:@"Input"
+            reason:[NSString stringWithFormat:@"Process %d did not receive keyboard focus for %@; process %d has it", processId, name, focused] userInfo:nil];
+    }
     for (NSNumber *pressed in @[@YES, @NO]) {
         CGEventRef event = CGEventCreateKeyboardEvent(NULL, code.unsignedShortValue, pressed.boolValue);
         CGEventSetFlags(event, ([name isEqual:@"quit"] || [name isEqual:@"palette"]) ? kCGEventFlagMaskCommand : 0);
-        CGEventPostToPid(processId, event);
+        CGEventPost(kCGHIDEventTap, event);
         CFRelease(event);
     }
+    return @{@"sent": name, @"delivery": @"hid-event-tap", @"activation": activation, @"focusedProcess": @(focused)};
 }
 
 int main(int argc, const char *argv[]) {
@@ -288,10 +321,7 @@ int main(int argc, const char *argv[]) {
             else if ([command isEqual:@"windows"]) result = listWindows(processId);
             else if ([command isEqual:@"notification"]) {
                 result = notification(@(argv[3]), @(argv[4]), atoi(argv[5]) == 1, atoi(argv[6]) == 1);
-            } else {
-                key(processId, command);
-                result = @{@"sent": command};
-            }
+            } else result = key(processId, command);
             NSData *encoded = [NSJSONSerialization dataWithJSONObject:result options:NSJSONWritingPrettyPrinted error:NULL];
             fwrite(encoded.bytes, 1, encoded.length, stdout);
             return 0;

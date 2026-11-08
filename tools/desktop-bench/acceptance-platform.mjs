@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module'
-import { X509Certificate, randomUUID } from 'node:crypto'
+import { X509Certificate } from 'node:crypto'
 import { artifactName } from '../../apps/desktop/scripts/release.ts'
 import { lookup } from 'node:dns/promises'
 import { readFile, writeFile, copyFile, readdir, stat, mkdir } from 'node:fs/promises'
@@ -131,11 +131,14 @@ const unelevatedScript = fileURLToPath(new URL('./windows-unelevated.ps1', impor
 export function launchStatus(text) {
   const entries = text.split(/\r?\n/).filter((line) => line.trim()).map((line) => JSON.parse(line.replace(/^\uFEFF/, '')))
   const error = entries.find((entry) => entry.kind === 'error')
-  if (error) throw new Error(`Unelevated launch failed: ${error.message}`)
-  const context = entries.find((entry) => entry.kind === 'context')
-  return { context: context && { user: context.user, elevated: context.elevated }, pid: entries.find((entry) => entry.kind === 'launch')?.pid,
+  if (error) throw new Error(`Medium-integrity launch failed: ${error.message}`)
+  const launch = entries.find((entry) => entry.kind === 'launch')
+  return { context: entries.find((entry) => entry.kind === 'context')?.context, pid: launch?.pid, shell: launch?.shell, shellError: launch?.shellError,
     exit: entries.find((entry) => entry.kind === 'exit') }
 }
+
+// SECURITY_MANDATORY_HIGH_RID: Security::IntegrityLevel::IsIntegrityLevelElevated in the Windows App SDK refuses this level and above.
+const highIntegrity = 0x3000
 
 // Launch context of a person's app: the shell's own token, never the elevated harness that edits hosts and the root store.
 export function launchContext(handle) {
@@ -146,25 +149,22 @@ export function launchContext(handle) {
 export async function launchUnelevated(executable, output, name, host = { execute, waitFor, delay, readFile, copyFile, alive: processAlive, now: Date.now, track, stop }) {
   const script = join(output, 'windows-unelevated.ps1')
   await host.copyFile(unelevatedScript, script)
-  const powershell = (argumentsList) => host.execute('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script, ...argumentsList])
-  const task = `OrbitDesktopAcceptance-${name}-${randomUUID()}`
   const status = join(output, `${name}-launch.jsonl`)
   const log = join(output, `${name}.log`)
-  const harness = JSON.parse(await powershell(['-Mode', 'start', '-Executable', executable, '-Log', log, '-Output', join(output, `${name}.stdout.log`),
-    '-Status', status, '-Task', task]))
+  const started = JSON.parse(await host.execute('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script,
+    '-Mode', 'start', '-Executable', executable, '-Log', log, '-Output', join(output, `${name}.stdout.log`), '-Status', status]))
   const read = async () => {
     try { return launchStatus(await host.readFile(status, 'utf8')) } catch (error) { if (error.code === 'ENOENT') return {}; throw error }
   }
-  let started
+  let launched
   try {
-    started = await host.waitFor(async () => { const value = await read(); return value.pid && value }, `the unelevated ${name} launch`, 60000)
+    launched = await host.waitFor(async () => { const value = await read(); return value.pid && value }, `the Medium-integrity ${name} launch`, 60000)
   } catch (error) {
-    let info
-    try { info = await powershell(['-Mode', 'info', '-Task', task]) } catch (infoError) { info = infoError.message }
-    try { await powershell(['-Mode', 'remove', '-Task', task]) } catch (removeError) { info += `; removal failed: ${removeError.message}` }
-    throw new Error(`${error.message}; scheduled task ${task}: ${info.trim()}`)
+    const running = host.alive(started.launcher)
+    if (running) await host.execute('taskkill.exe', ['/PID', String(started.launcher), '/T', '/F'])
+    throw new Error(`${error.message}; launcher ${started.launcher} ${running ? 'was still running and is stopped' : 'had exited'}; see ${status}`)
   }
-  const child = { pid: started.pid, exitCode: null }
+  const child = { pid: launched.pid, exitCode: null }
   const done = (async () => {
     let vanishedAt = null
     while (true) {
@@ -176,15 +176,18 @@ export async function launchUnelevated(executable, output, name, host = { execut
       else if (host.now() - vanishedAt > 10000) { child.exitCode = -1; break }
       await host.delay(250)
     }
-    await powershell(['-Mode', 'remove', '-Task', task])
     if (child.exitCode !== 0) throw new Error(`${executable} exited ${child.exitCode === -1 ? 'without a recorded exit code' : child.exitCode}; see ${log}`)
   })()
   done.catch(() => {})
-  const handle = { child, done, log, context: { ...started.context, harness } }
+  // The shell inherits the launcher's token, so the launcher's context judges a shell that exited before its token was read.
+  const shell = launched.shell ?? launched.context
+  const handle = { child, done, log, context: { ...shell, source: launched.shell ? 'shell' : 'launcher', launcher: launched.context,
+    ...(launched.shellError ? { shellError: launched.shellError } : {}), harness: started.harness, outputLabel: started.outputLabel } }
   host.track(handle)
-  if (started.context.elevated) {
+  if (!Number.isInteger(shell?.integrityRid) || shell.integrityRid >= highIntegrity) {
     await host.stop(handle)
-    throw new Error(`The ${name} shell started elevated as ${started.context.user}; app notifications need a non-elevated process`)
+    const account = shell ? `${shell.user} (user RID ${shell.rid}, TokenIsElevated ${shell.tokenIsElevated})` : 'an unknown user'
+    throw new Error(`The ${name} shell started at ${shell?.integrity ?? 'an unknown'} integrity as ${account}; app notifications need Medium integrity or below`)
   }
   return handle
 }

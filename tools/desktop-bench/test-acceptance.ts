@@ -543,6 +543,53 @@ test('surface inspection dismisses Astra and waits for its modal focus owner bef
   }
 })
 
+test('a timed-out Astra dismissal records the native tree after Escape and the page key receipts', async () => {
+  const astra = { denied: false, error: null, nodes: [
+    { ...button, id: '0', role: 'AXWebArea', interactive: false },
+    { ...button, id: '0/0', role: 'AXTextArea', name: 'Message Astra', focused: true },
+  ] }
+  for (const scenario of ['received', 'lost', 'unreadable']) {
+    const context = inspectionContext('darwin')
+    const commands: string[] = []
+    const native = async (_pid: number, command: string) => {
+      commands.push(command)
+      if (command !== 'dump') return { sent: command, delivery: 'hid-event-tap' }
+      if (scenario === 'unreadable' && commands.filter((entry) => entry === 'dump').length === 3) throw new Error('AX read failed')
+      return astra
+    }
+    const events = scenario === 'lost' ? [] : [{ kind: 'astra-key', key: 'Escape', keyCode: 27, trusted: true, targetComposer: true }]
+    const proxy = {
+      send(command: string) { commands.push(command) },
+      read(surface: string) { return surface === 'astra' && {} },
+      events: () => events,
+    }
+    const report: Record<string, unknown> = { accessibility: {} }
+    const count = scenario === 'lost' ? '0 Escape keydowns' : '1 Escape keydown'
+    await assert.rejects(() => context.inspect(proxy, native, { child: { pid: 1 } }, 'output', report),
+      new RegExp(`^Error: Timed out waiting for Astra dismissal; the page received ${count}; see trees/astra-after-escape\\.json$`))
+    assert.deepEqual(commands, ['dump', 'astra', 'dump', 'escape', 'astra-closed', 'dump'])
+    assert.deepEqual(report.astraKeys, events)
+    const capture = context.records.at(-1)!
+    assert.equal(capture.path, join('output', 'trees', 'astra-after-escape.json'))
+    assert.deepEqual(JSON.parse(JSON.stringify(capture.value)), scenario === 'unreadable' ? { denied: false, error: 'AX read failed', nodes: [] } : astra)
+  }
+})
+
+test('every native key reply joins the report with its delivery path, and other native commands do not', async () => {
+  const runner = readFileSync(new URL('./acceptance-runner.mjs', import.meta.url), 'utf8')
+  const context: Record<string, unknown> = {}
+  runInNewContext(`${sourceBlock(runner, 'const keyCommands', '\nfunction menuCommands')}\nglobalThis.recordKeys = recordKeys`, context)
+  const report: { keyDelivery?: unknown[] } = {}
+  const calls: unknown[][] = []
+  const native = (context.recordKeys as (native: unknown, report: unknown) => (...args: unknown[]) => Promise<unknown>)(
+    async (...args: unknown[]) => { calls.push(args); return args[1] === 'dump' ? { nodes: [] } : { sent: args[1], delivery: 'hid-event-tap', focusedProcess: 7 } }, report)
+  for (const command of ['dump', 'escape', 'palette', 'down', 'home', 'notification', 'windows']) await native(7, command)
+  assert.deepEqual(JSON.parse(JSON.stringify(await native(7, 'quit', 41))), { sent: 'quit', delivery: 'hid-event-tap', focusedProcess: 7 })
+  assert.deepEqual(calls.at(-1), [7, 'quit', 41])
+  assert.deepEqual(JSON.parse(JSON.stringify(report.keyDelivery)), ['escape', 'palette', 'down', 'home', 'quit'].map((command) =>
+    ({ command, sent: command, delivery: 'hid-event-tap', focusedProcess: 7 })))
+})
+
 test('the page probe waits for Astra removal before acknowledging dismissal', async () => {
   const until = probeSource.slice(probeSource.indexOf('  async function until('), probeSource.indexOf('  async function emailSignIn('))
   const screen = probeSource.slice(probeSource.indexOf('  async function screen('), probeSource.indexOf('  function paletteState('))
@@ -570,6 +617,38 @@ test('the page probe waits for Astra removal before acknowledging dismissal', as
     assert.deepEqual(keys, command === 'astra-close' ? ['Escape'] : [])
     assert.deepEqual(reports, ['astra-closed'])
   }
+})
+
+test('the page probe records each keydown while Astra is open, so a lost native Escape is visible', async () => {
+  const until = probeSource.slice(probeSource.indexOf('  async function until('), probeSource.indexOf('  async function emailSignIn('))
+  const screen = probeSource.slice(probeSource.indexOf('  async function screen('), probeSource.indexOf('  function paletteState('))
+  const composer = { name: 'composer' }
+  let conversation: { querySelector: (selector: string) => unknown } | null = null
+  const listeners: [string, (event: unknown) => void, boolean][] = []
+  const reports: { kind: string; details: Record<string, unknown> }[] = []
+  const context = { Date, Error, delay: async () => {},
+    document: {
+      hasFocus: () => true,
+      querySelector(selector: string) {
+        if (selector === '[data-astra-button]:not([disabled])') return { click() { conversation = { querySelector: () => composer } } }
+        if (selector === '[data-shell-conversation] [data-composer-input]') return conversation && composer
+        if (selector === '[data-shell-conversation]') return conversation
+        return null
+      },
+      addEventListener(type: string, listener: (event: unknown) => void, capture: boolean) { listeners.push([type, listener, capture]) },
+    },
+    report: async (kind: string, details: Record<string, unknown> = {}) => { reports.push({ kind, details }) },
+  }
+  runInNewContext(`${until}\n${screen}\nglobalThis.screen = screen`, context)
+  await (context as typeof context & { screen: (surface: string) => Promise<void> }).screen('astra')
+  const keydown = listeners.filter(([type, , capture]) => type === 'keydown' && capture)
+  assert.equal(keydown.length, 1)
+  keydown[0][1]({ key: 'Escape', code: 'Escape', keyCode: 27, isComposing: false, isTrusted: true, target: composer })
+  conversation = null
+  keydown[0][1]({ key: 'k', code: 'KeyK', keyCode: 75, isComposing: false, isTrusted: true, target: null })
+  assert.deepEqual(JSON.parse(JSON.stringify(reports.filter((entry) => entry.kind === 'astra-key'))), [{ kind: 'astra-key', details: {
+    key: 'Escape', code: 'Escape', keyCode: 27, composing: false, trusted: true, documentFocused: true, targetComposer: true } }])
+  assert.deepEqual(reports.map((entry) => entry.kind), ['astra', 'astra-key'])
 })
 
 test('acceptance cleanup records failures without replacing the original acceptance error', async () => {
@@ -895,24 +974,23 @@ test('a signed macOS acceptance build compiles without credentials and signs onl
   }
 })
 
-function windowsLauncher(script: { statusAfterStart?: string[]; statusAfterDelay?: string[]; alive?: boolean; failStart?: boolean }) {
+function windowsLauncher(script: { statusAfterStart?: string[]; statusAfterDelay?: string[]; alive?: boolean }) {
   const lines: string[] = []
-  const modes: string[] = []
+  const calls: string[][] = []
   const tracked: unknown[] = []
   const stopped: unknown[] = []
   let clock = 0
   const host = {
     copyFile: async () => {},
-    execute: async (_command: string, args: string[]) => {
-      const mode = args[args.indexOf('-Mode') + 1]!
-      modes.push(mode)
-      if (mode === 'start') { lines.push(...script.statusAfterStart ?? []); return '{"user":"RUNNER\\\\runneradmin","elevated":true}\r\n' }
-      if (mode === 'info') return '{"state":"Ready","lastTaskResult":267011}\r\n'
-      return ''
+    execute: async (command: string, args: string[]) => {
+      calls.push([command, ...args])
+      if (command !== 'powershell.exe') return ''
+      lines.push(...script.statusAfterStart ?? [])
+      return `${JSON.stringify({ harness: token('High', 0x3000, true), launcher: 31, outputLabel: 'Mandatory Label\\Medium Mandatory Level:(OI)(CI)(NW)' })}\r\n`
     },
     readFile: async () => {
       if (!lines.length) throw Object.assign(new Error('missing status'), { code: 'ENOENT' })
-      return `﻿${lines.join('\r\n')}\r\n`
+      return `\uFEFF${lines.join('\r\n')}\r\n`
     },
     waitFor: async (read: () => Promise<unknown>, label: string) => {
       const value = await read()
@@ -923,48 +1001,75 @@ function windowsLauncher(script: { statusAfterStart?: string[]; statusAfterDelay
     alive: () => script.alive ?? true, now: () => clock,
     track: (handle: unknown) => { tracked.push(handle) }, stop: async (handle: unknown) => { stopped.push(handle) },
   }
-  return { host, modes, tracked, stopped }
+  return { host, calls, tracked, stopped }
 }
 
-const context = (elevated: boolean) => JSON.stringify({ kind: 'context', user: 'RUNNER\\runneradmin', elevated })
+// The renamed built-in Administrator keeps RID 500 and, with Admin Approval Mode off for it, a High token.
+const token = (integrity: string, integrityRid: number, tokenIsElevated: boolean) =>
+  ({ user: 'RUNNER\\runneradmin', sid: 'S-1-5-21-1-2-3-500', rid: 500, integrity, integrityRid, tokenIsElevated, session: 1 })
+const medium = token('Medium', 0x2000, true)
+const high = token('High', 0x3000, true)
+const context = (value: object) => JSON.stringify({ kind: 'context', context: value })
+const exited = JSON.stringify({ kind: 'exit', code: 0 })
+const launched = (pid: number, shell?: object) => JSON.stringify({ kind: 'launch', pid, ...(shell ? { shell } : { shellError: 'Access is denied' }) })
 
-test('the Windows launcher reports the limited-token shell, waits for its recorded exit and removes its task', async () => {
-  const launch = windowsLauncher({ statusAfterStart: [context(false), JSON.stringify({ kind: 'launch', pid: 4242 })],
-    statusAfterDelay: [JSON.stringify({ kind: 'exit', code: 0 })] })
+test('the Windows launcher starts the shell at Medium integrity, reports every token and waits for its recorded exit', async () => {
+  const launch = windowsLauncher({ statusAfterStart: [context(medium), launched(4242, medium)], statusAfterDelay: [JSON.stringify({ kind: 'exit', code: 0 })] })
   const handle = await launchUnelevated('/output/installed/orbit-desktop.exe', '/output', 'push', launch.host) as
     { child: { pid: number; exitCode: number | null }; done: Promise<void>; log: string; context: unknown }
   assert.equal(handle.child.pid, 4242)
   assert.equal(handle.log, join('/output', 'push.log'))
-  assert.deepEqual(handle.context, { user: 'RUNNER\\runneradmin', elevated: false, harness: { user: 'RUNNER\\runneradmin', elevated: true } })
+  assert.deepEqual(handle.context, { ...medium, source: 'shell', launcher: medium, harness: high,
+    outputLabel: 'Mandatory Label\\Medium Mandatory Level:(OI)(CI)(NW)' })
   assert.deepEqual(launch.tracked, [handle])
   await handle.done
   assert.equal(handle.child.exitCode, 0)
-  assert.deepEqual(launch.modes, ['start', 'remove'])
+  assert.deepEqual(launch.calls, [['powershell.exe', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', join('/output', 'windows-unelevated.ps1'),
+    '-Mode', 'start', '-Executable', '/output/installed/orbit-desktop.exe', '-Log', join('/output', 'push.log'), '-Output', join('/output', 'push.stdout.log'),
+    '-Status', join('/output', 'push-launch.jsonl')]])
 })
 
-test('the Windows launcher refuses an elevated shell, a failed launch, a nonzero exit and a vanished launcher', async () => {
-  const elevated = windowsLauncher({ statusAfterStart: [context(true), JSON.stringify({ kind: 'launch', pid: 7 })],
-    statusAfterDelay: [JSON.stringify({ kind: 'exit', code: 1 })] })
-  await assert.rejects(() => launchUnelevated('/output/orbit-desktop.exe', '/output', 'installed', elevated.host),
-    /^Error: The installed shell started elevated as RUNNER\\runneradmin; app notifications need a non-elevated process$/)
-  assert.equal(elevated.stopped.length, 1)
-  const failed = windowsLauncher({ statusAfterStart: [context(false), JSON.stringify({ kind: 'error', message: 'Access is denied' })] })
+test('the Windows launcher judges the shell by integrity level, not by Administrators membership or TokenIsElevated', async () => {
+  for (const [shell, recorded, accepted] of [[medium, medium, true], [high, high, false], [token('System', 0x4000, true), medium, false],
+    [token('Low', 0x1000, false), token('Low', 0x1000, false), true], [token('MediumPlus', 0x2100, true), medium, true]] as const) {
+    const launch = windowsLauncher({ statusAfterStart: [context(recorded), launched(7, shell)], statusAfterDelay: [exited] })
+    const result = launchUnelevated('/output/orbit-desktop.exe', '/output', 'installed', launch.host)
+    if (accepted) await result
+    else {
+      await assert.rejects(() => result, new RegExp(`^Error: The installed shell started at ${shell.integrity} integrity as RUNNER\\\\runneradmin ` +
+        '\\(user RID 500, TokenIsElevated true\\); app notifications need Medium integrity or below$'))
+    }
+    assert.equal(launch.stopped.length, accepted ? 0 : 1)
+  }
+  // A shell that exits before its token is read inherited the launcher's token, so the launcher's level decides.
+  const early = windowsLauncher({ statusAfterStart: [context(high), launched(8)], statusAfterDelay: [exited] })
+  await assert.rejects(() => launchUnelevated('/output/orbit-desktop.exe', '/output', 'installed', early.host), /started at High integrity/)
+  const inherited = windowsLauncher({ statusAfterStart: [context(medium), launched(9)], statusAfterDelay: [exited] })
+  const handle = await launchUnelevated('/output/orbit-desktop.exe', '/output', 'installed', inherited.host) as { context: Record<string, unknown> }
+  assert.equal(handle.context.source, 'launcher')
+  assert.equal(handle.context.shellError, 'Access is denied')
+  const unknown = windowsLauncher({ statusAfterStart: [launched(10)], statusAfterDelay: [exited] })
+  await assert.rejects(() => launchUnelevated('/output/orbit-desktop.exe', '/output', 'installed', unknown.host),
+    /^Error: The installed shell started at an unknown integrity as an unknown user; app notifications need Medium integrity or below$/)
+})
+
+test('the Windows launcher refuses a failed launch, a missing launch, a nonzero exit and a vanished launcher', async () => {
+  const failed = windowsLauncher({ statusAfterStart: [context(medium), JSON.stringify({ kind: 'error', message: 'Access is denied' })] })
   await assert.rejects(() => launchUnelevated('/output/orbit-desktop.exe', '/output', 'installed', failed.host),
-    /^Error: Unelevated launch failed: Access is denied; scheduled task OrbitDesktopAcceptance-installed-[0-9a-f-]+: \{"state":"Ready","lastTaskResult":267011\}$/)
-  assert.deepEqual(failed.modes, ['start', 'info', 'remove'])
-  const absent = windowsLauncher({})
+    /^Error: Medium-integrity launch failed: Access is denied; launcher 31 was still running and is stopped; see .*installed-launch\.jsonl$/)
+  assert.deepEqual(failed.calls.at(-1), ['taskkill.exe', '/PID', '31', '/T', '/F'])
+  const absent = windowsLauncher({ alive: false })
   await assert.rejects(() => launchUnelevated('/output/orbit-desktop.exe', '/output', 'installed', absent.host),
-    /^Error: Timed out waiting for the unelevated installed launch; scheduled task OrbitDesktopAcceptance-installed-[0-9a-f-]+: \{"state":"Ready","lastTaskResult":267011\}$/)
-  assert.deepEqual(absent.modes, ['start', 'info', 'remove'])
-  const crashed = windowsLauncher({ statusAfterStart: [context(false), JSON.stringify({ kind: 'launch', pid: 8 })],
-    statusAfterDelay: [JSON.stringify({ kind: 'exit', code: 101 })] })
+    /^Error: Timed out waiting for the Medium-integrity installed launch; launcher 31 had exited; see .*installed-launch\.jsonl$/)
+  assert.equal(absent.calls.length, 1)
+  const crashed = windowsLauncher({ statusAfterStart: [context(medium), launched(8, medium)], statusAfterDelay: [JSON.stringify({ kind: 'exit', code: 101 })] })
   const crashedHandle = await launchUnelevated('/output/orbit-desktop.exe', '/output', 'push', crashed.host) as { done: Promise<void>; child: { exitCode: number } }
   await assert.rejects(() => crashedHandle.done, /exited 101; see/)
-  const vanished = windowsLauncher({ statusAfterStart: [context(false), JSON.stringify({ kind: 'launch', pid: 9 })], alive: false })
+  const vanished = windowsLauncher({ statusAfterStart: [context(medium), launched(9, medium)], alive: false })
   const vanishedHandle = await launchUnelevated('/output/orbit-desktop.exe', '/output', 'push', vanished.host) as { done: Promise<void>; child: { exitCode: number } }
   await assert.rejects(() => vanishedHandle.done, /exited without a recorded exit code/)
   assert.equal(vanishedHandle.child.exitCode, -1)
-  assert.deepEqual(vanished.modes, ['start', 'remove'])
+  assert.equal(vanished.calls.length, 1)
 })
 
 const powershellHost = ['pwsh', 'powershell'].find((command) => spawnSync(command, ['-NoProfile', '-Command', 'exit 0']).status === 0)
@@ -977,7 +1082,7 @@ test('the Windows launcher script parses without errors', { skip: !powershellHos
   assert.equal(result.stdout.trim(), '0')
 })
 
-test('the Windows launcher run mode records its token, the shell pid and a real exit code', { skip: process.platform !== 'win32' }, () => {
+test('the Windows launcher run mode records its integrity level, the shell token, the pid and a real exit code', { skip: process.platform !== 'win32' }, () => {
   const directory = mkdtempSync(join(tmpdir(), 'orbit-unelevated-'))
   try {
     const status = join(directory, 'status.jsonl')
@@ -986,8 +1091,13 @@ test('the Windows launcher run mode records its token, the shell pid and a real 
       '-Log', join(directory, 'run.log'), '-Output', join(directory, 'run.stdout.log'), '-Status', status], { encoding: 'utf8', timeout: 60000 })
     assert.equal(result.status, 0, result.stderr)
     const parsed = launchStatus(readFileSync(status, 'utf8'))
-    assert.equal(typeof parsed.context?.user, 'string')
-    assert.equal(typeof parsed.context?.elevated, 'boolean')
+    for (const value of [parsed.context, parsed.shell ?? parsed.context]) {
+      assert.equal(typeof value?.user, 'string')
+      assert.match(value?.sid, /^S-1-5-/)
+      assert.ok(Number.isInteger(value?.rid) && Number.isInteger(value?.integrityRid))
+      assert.match(value?.integrity, /^(Untrusted|Low|Medium|MediumPlus|High|System|ProtectedProcess|0x[0-9A-F]{4})$/)
+      assert.equal(typeof value?.tokenIsElevated, 'boolean')
+    }
     assert.ok(Number.isInteger(parsed.pid) && parsed.pid! > 0)
     assert.deepEqual(parsed.exit, { kind: 'exit', code: 0 })
     assert.ok(readFileSync(join(directory, 'run.stdout.log'), 'utf8').trim().length > 0)

@@ -143,12 +143,10 @@ async function inspectSurfaces(proxy, native, handle, output, report) {
   proxy.send('astra')
   await waitFor(() => proxy.read('astra'), 'Astra surface')
   const astraTree = await dump('astra')
-  if (astraTree.denied) proxy.send('astra-close')
-  else {
-    await native(handle.child.pid, 'escape')
-    proxy.send('astra-closed')
-  }
-  await waitFor(() => proxy.read('astra-closed'), 'Astra dismissal')
+  if (astraTree.denied) {
+    proxy.send('astra-close')
+    await waitFor(() => proxy.read('astra-closed'), 'Astra dismissal')
+  } else await dismissAstra(proxy, native, handle, output, report)
   if (astraTree.denied) proxy.send('palette')
   else {
     await native(handle.child.pid, 'palette')
@@ -159,6 +157,22 @@ async function inspectSurfaces(proxy, native, handle, output, report) {
   if (tree.denied) { report.paletteFocus = { skipped: tree.error }; return }
   await traversePalette(proxy, native, handle, dump, previous, report)
   await native(handle.child.pid, 'escape')
+}
+
+async function dismissAstra(proxy, native, handle, output, report) {
+  await native(handle.child.pid, 'escape')
+  proxy.send('astra-closed')
+  try {
+    await waitFor(() => proxy.read('astra-closed'), 'Astra dismissal')
+  } catch (error) {
+    // The page probe records every keydown while Astra is open, so a timeout tells a lost key from an unhandled one.
+    report.astraKeys = proxy.events().filter((event) => event.kind === 'astra-key')
+    let tree
+    try { tree = await native(handle.child.pid, 'dump') } catch (dumpError) { tree = { denied: false, error: dumpError.message, nodes: [] } }
+    await record(join(output, 'trees', 'astra-after-escape.json'), tree)
+    const escapes = report.astraKeys.filter((event) => event.key === 'Escape').length
+    throw new Error(`${error.message}; the page received ${escapes} Escape keydown${escapes === 1 ? '' : 's'}; see trees/astra-after-escape.json`)
+  }
 }
 
 async function traversePalette(proxy, native, handle, dump, previous, report) {
@@ -324,6 +338,19 @@ async function pushPhase({ proxy, native, updates, handle, executable, output, r
   if (cleanup.length) throw new Error(`Push acceptance cleanup failed: ${cleanup.join('; ')}`)
 }
 
+// Each native key reply names its delivery path, so report.json shows how every key reached the shell.
+const keyCommands = new Set(['escape', 'palette', 'down', 'home', 'quit'])
+function recordKeys(native, report) {
+  return async (pid, command, ...rest) => {
+    const reply = await native(pid, command, ...rest)
+    if (keyCommands.has(command)) {
+      report.keyDelivery ??= []
+      report.keyDelivery.push({ command, ...reply })
+    }
+    return reply
+  }
+}
+
 function menuCommands(items, enabled = true) {
   return items.flatMap((item) => item.children.length
     ? menuCommands(item.children, enabled && item.enabled)
@@ -351,7 +378,7 @@ export async function acceptance({ repository, output, credentials = {}, signing
     const shell = await buildInstaller(repository, output, signing)
     builtWeb = true
     await hermeticServices(repository, output)
-    const native = await nativeTool(output)
+    const native = recordKeys(await nativeTool(output), report)
     const updates = await updateServer(repository, output, shell, report)
     isolation = await isolateOrigins(output)
     proxy = await startProxy({ probePath: join(directory, 'acceptance-probe.js'), port: proxyPort, upstreamPort: 3401, tls: isolation, route: updates.route, acceptance: true })
