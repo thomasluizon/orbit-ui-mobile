@@ -86,6 +86,28 @@ it('settles a release that crosses the drag threshold without a move and never o
   expect(useUIStore.getState().astraConversationOpen).toBe(false)
 })
 
+it('returns a cancelled drag to rest, ignores the rest of that pointer and then drags again', async () => {
+  mount()
+  await waitFor(() => expect(placement().style.transform).toBe('translate(336px, 440px)'))
+  const button = screen.getByRole('button', { name: en.shell.astraButton.open })
+  fireEvent.pointerDown(button, { button: 0, clientX: 350, clientY: 460 })
+  fireEvent.pointerMove(button, { clientX: 110, clientY: 260 })
+  expect(placement().style.transform).toBe('translate(96px, 240px)')
+  fireEvent.pointerCancel(button)
+  expect(button).not.toHaveAttribute('data-lifted')
+  expect(placement().style.transform).toBe('translate(336px, 440px)')
+  fireEvent.pointerMove(button, { clientX: 110, clientY: 260 })
+  fireEvent.pointerUp(button, { clientX: 110, clientY: 260 })
+  fireEvent.click(button, { detail: 1 })
+  expect(placement().style.transform).toBe('translate(336px, 440px)')
+  expect(localStorage.getItem(ASTRA_POSITION_KEY)).toBeNull()
+  expect(useUIStore.getState().astraConversationOpen).toBe(false)
+  fireEvent.pointerDown(button, { button: 0, clientX: 350, clientY: 460 })
+  fireEvent.pointerMove(button, { clientX: 110, clientY: 260 })
+  fireEvent.pointerUp(button, { clientX: 110, clientY: 260 })
+  expect(placement().style.transform).toBe('translate(16px, 240px)')
+})
+
 it('moves with arrow keys and resets an outgrown position when its window shrinks', async () => {
   mount()
   await waitFor(() => expect(placement().style.transform).toBe('translate(336px, 440px)'))

@@ -39,6 +39,25 @@ function point() {
   return { x: typeof transform[0].translateX === 'number' ? transform[0].translateX : transform[0].translateX.value, y: typeof transform[1].translateY === 'number' ? transform[1].translateY : transform[1].translateY.value }
 }
 const touch = (pageX: number, pageY: number) => ({ nativeEvent: { pageX, pageY } })
+function mockSnapDriver(interruptedAt?: number) {
+  const native = new WeakSet<object>()
+  const queuedNativeReads: ((value: number) => void)[] = []
+  vi.spyOn(Animated, 'timing').mockImplementation((value, config) => ({
+    start: () => {
+      if (!(value instanceof Animated.Value)) return
+      const rendered = interruptedAt ?? config.toValue as number
+      if (!config.useNativeDriver) { value.setValue(rendered); return }
+      native.add(value)
+      Object.assign(value, { value: rendered })
+    }, stop: vi.fn(), reset: vi.fn(),
+  }))
+  const stopAnimation = Animated.Value.prototype.stopAnimation
+  vi.spyOn(Animated.Value.prototype, 'stopAnimation').mockImplementation(function (this: Animated.Value, callback?: (value: number) => void) {
+    if (native.has(this)) { if (callback) queuedNativeReads.push(callback); return }
+    stopAnimation.call(this, callback)
+  })
+  return queuedNativeReads
+}
 
 it('opens the layer by tapping its named button', async () => {
   await mount()
@@ -129,14 +148,10 @@ it('resets after shrink and stays above tab chrome and clear of the create butto
 
 it.each([false, true])('starts an interrupted snap from its displayed position with early release=%s', async earlyRelease => {
   motion.reduced = false
-  vi.spyOn(Animated, 'timing').mockImplementation(value => ({
-    start: () => { if (value instanceof Animated.Value) value.setValue(300) }, stop: vi.fn(), reset: vi.fn(),
-  }))
+  const queuedNativeReads = mockSnapDriver(300)
   await mount()
   await act(() => { handler('astra-button', 'onAccessibilityAction')({ nativeEvent: { actionName: 'up' } }) })
   expect(point()).toEqual({ x: 300, y: 300 })
-  const neverAnswerNativeRead = () => undefined
-  vi.spyOn(Animated.Value.prototype, 'stopAnimation').mockImplementation(neverAnswerNativeRead)
   await act(() => { handler('astra-button-position', 'onStartShouldSetResponderCapture')(touch(310, 310)) })
   expect(handler('astra-button-position', 'onMoveShouldSetResponderCapture')(touch(300, 300))).toBe(true)
   await act(() => { handler('astra-button-position', 'onResponderGrant')(touch(300, 300)) })
@@ -144,24 +159,12 @@ it.each([false, true])('starts an interrupted snap from its displayed position w
   await act(() => { handler('astra-button-position', 'onResponderRelease')(touch(300, 300)) })
   expect(JSON.parse(storage.get(ASTRA_POSITION_KEY)!)).toEqual({ x: 336, y: 290 })
   expect(useUIStore.getState().astraConversationOpen).toBe(false)
+  expect(queuedNativeReads).toEqual([])
 })
 
 it('moves on each of 20 consecutive drags from varied states after native-driven snaps', async () => {
   motion.reduced = false
-  const native = new WeakSet<object>()
-  const queuedNativeReads: ((value: number) => void)[] = []
-  vi.spyOn(Animated, 'timing').mockImplementation((value, config) => ({
-    start: () => {
-      if (!(value instanceof Animated.Value)) return
-      if (config.useNativeDriver) native.add(value)
-      value.setValue(config.toValue as number)
-    }, stop: vi.fn(), reset: vi.fn(),
-  }))
-  const stopAnimation = Animated.Value.prototype.stopAnimation
-  vi.spyOn(Animated.Value.prototype, 'stopAnimation').mockImplementation(function (this: Animated.Value, callback?: (value: number) => void) {
-    if (native.has(this)) { if (callback) queuedNativeReads.push(callback); return }
-    stopAnimation.call(this, callback)
-  })
+  const queuedNativeReads = mockSnapDriver()
   await mount()
   for (let attempt = 0; attempt < 20; attempt++) {
     if (attempt % 5 === 1) {
@@ -195,6 +198,23 @@ it('keeps a started drag from the native scroll view and from other responders',
   expect(handler('astra-button-position', 'onResponderTerminationRequest')()).toBe(false)
   await act(() => { handler('astra-button-position', 'onResponderRelease')(touch(start.x + 30, start.y - 30)) })
   expect(point()).toEqual({ x: 336, y: 380 })
+})
+
+it('returns a terminated drag to rest, ignores the rest of that touch and then drags again', async () => {
+  await mount()
+  expect(point()).toEqual({ x: 336, y: 440 })
+  await act(() => { handler('astra-button-position', 'onStartShouldSetResponderCapture')(touch(366, 470)) })
+  expect(handler('astra-button-position', 'onMoveShouldSetResponderCapture')(touch(116, 270))).toBe(true)
+  await act(() => { handler('astra-button-position', 'onResponderGrant')(touch(116, 270)) })
+  expect(point()).toEqual({ x: 86, y: 240 })
+  await act(() => { handler('astra-button-position', 'onResponderTerminate')() })
+  expect(point()).toEqual({ x: 336, y: 440 })
+  await act(() => { handler('astra-button-position', 'onResponderMove')(touch(100, 200)) })
+  await act(() => { handler('astra-button-position', 'onResponderRelease')(touch(100, 200)) })
+  expect(point()).toEqual({ x: 336, y: 440 })
+  expect(storage.has(ASTRA_POSITION_KEY)).toBe(false)
+  await drag({ x: 366, y: 470 }, { x: 116, y: 270 })
+  expect(point()).toEqual({ x: 16, y: 240 })
 })
 
 it('offers movement choices on a long press without opening Astra', async () => {

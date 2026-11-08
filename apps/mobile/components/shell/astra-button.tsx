@@ -68,7 +68,7 @@ export function AstraButton({ hasFab, chrome, onClearanceChange }: Readonly<{ ha
     }).catch(captureError)
     return () => { active = false }
   }, [saved, dragged, positionX, positionY])
-  const snapMotion = useAstraTranslation(positionX, positionY, snapping, !!dragged, reducedMotion)
+  const translation = useAstraTranslation(positionX, positionY, snapping, !!dragged, reducedMotion)
   function finish(point: AstraButtonPoint) {
     const next = snapAstraButton(point, area, obstacles)
     setSnapping(true)
@@ -76,8 +76,8 @@ export function AstraButton({ hasFab, chrome, onClearanceChange }: Readonly<{ ha
     setSaved(next)
     void AsyncStorage.setItem(ASTRA_POSITION_KEY, JSON.stringify(next)).catch(captureError)
   }
-  const { cancelGesture, ...gesture } = useAstraGesture(position, snapMotion, area, setDragged, finish)
-  const renderedPosition = position && (snapping && !dragged && !reducedMotion ? snapMotion.translation : position)
+  const { cancelGesture, ...gesture } = useAstraGesture(position, translation, area, setDragged, finish)
+  const renderedPosition = position && (snapping && !dragged && !reducedMotion ? translation : position)
   return <View testID="astra-button-area" pointerEvents="box-none" style={[styles.area, { top: chrome.top }, sideInsets]} onLayout={event => { setSnapping(false); setViewport(event.nativeEvent.layout) }}>
     {(position || area.width === 0) && !blocked ? <Animated.View testID="astra-button-position"
       {...gesture}
@@ -107,17 +107,11 @@ function AstraMoveSheet({ onMove, onClose }: Readonly<{ onMove: (direction: Astr
   </Sheet>
 }
 
-/** A native-driven value answers reads only on a later Android animation batch, so a drag could not start where an interrupted snap stopped. */
+/** A native-driven value answers `stopAnimation` only on a later Android animation batch, so a drag could not start where an interrupted snap stopped. */
 const SNAP_USES_NATIVE_DRIVER = false
 
 function useAstraTranslation(positionX: number | undefined, positionY: number | undefined, snapping: boolean, dragging: boolean, reducedMotion: boolean) {
   const translation = useMemo(() => ({ x: new Animated.Value(0), y: new Animated.Value(0) }), [])
-  const displayed = useRef<AstraButtonPoint>({ x: 0, y: 0 })
-  useEffect(() => {
-    const xListener = translation.x.addListener(({ value }) => { displayed.current = { ...displayed.current, x: value } })
-    const yListener = translation.y.addListener(({ value }) => { displayed.current = { ...displayed.current, y: value } })
-    return () => { translation.x.removeListener(xListener); translation.y.removeListener(yListener) }
-  }, [translation])
   useEffect(() => {
     if (positionX === undefined || positionY === undefined) return
     if (!snapping || reducedMotion || dragging) { translation.x.stopAnimation(); translation.y.stopAnimation(); translation.x.setValue(positionX); translation.y.setValue(positionY); return }
@@ -129,14 +123,23 @@ function useAstraTranslation(positionX: number | undefined, positionY: number | 
     animation.start()
     return () => animation.stop()
   }, [positionX, positionY, dragging, reducedMotion, snapping, translation])
-  return { translation, displayed }
+  return translation
+}
+
+type AstraTranslation = ReturnType<typeof useAstraTranslation>
+
+function stopAtDisplayed(translation: AstraTranslation): AstraButtonPoint {
+  const displayed = { x: 0, y: 0 }
+  translation.x.stopAnimation(x => { displayed.x = x })
+  translation.y.stopAnimation(y => { displayed.y = y })
+  return displayed
 }
 
 function pointerOf(event: GestureResponderEvent): AstraButtonPoint {
   return { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY }
 }
 
-function useAstraGesture(position: AstraButtonPoint | null, { translation, displayed }: ReturnType<typeof useAstraTranslation>, area: AstraButtonArea,
+function useAstraGesture(position: AstraButtonPoint | null, translation: AstraTranslation, area: AstraButtonArea,
   onDrag: (point: AstraButtonPoint | null) => void, onFinish: (point: AstraButtonPoint) => void) {
   const gesture = useRef<AstraButtonGesture>(ASTRA_BUTTON_AT_REST)
   function advance(event: AstraButtonGestureEvent) {
@@ -144,16 +147,11 @@ function useAstraGesture(position: AstraButtonPoint | null, { translation, displ
     if (gesture.current.phase === 'dragging') onDrag(gesture.current.point)
     if (gesture.current.phase === 'settled') onFinish(gesture.current.point)
   }
-  const cancelGesture = () => { gesture.current = ASTRA_BUTTON_AT_REST; onDrag(null) }
+  const cancelGesture = () => { advance({ type: 'cancel' }); onDrag(null) }
   return {
     cancelGesture,
     onStartShouldSetResponderCapture: (event: GestureResponderEvent) => {
-      gesture.current = ASTRA_BUTTON_AT_REST
-      if (position) {
-        translation.x.stopAnimation()
-        translation.y.stopAnimation()
-        gesture.current = advanceAstraButtonGesture(gesture.current, { type: 'press', pointer: pointerOf(event), origin: displayed.current }, area)
-      }
+      advance(position ? { type: 'press', pointer: pointerOf(event), origin: stopAtDisplayed(translation) } : { type: 'cancel' })
       return false
     },
     onMoveShouldSetResponderCapture: (event: GestureResponderEvent) => advanceAstraButtonGesture(gesture.current, { type: 'move', pointer: pointerOf(event) }, area).phase === 'dragging',
