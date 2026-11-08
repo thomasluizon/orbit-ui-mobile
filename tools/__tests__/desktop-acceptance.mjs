@@ -10,6 +10,7 @@ import { JSDOM } from 'jsdom'
 import { assertAccessibleTree, assertCookieEvidence, assertPaletteFocus } from '../desktop-bench/acceptance-contract.mjs'
 import { T, REPO_ROOT, check, configure, failureCount, root, stage } from './_harness.mjs'
 import { networkCases } from './desktop-acceptance-network.mjs'
+import { pushPhaseCases } from './desktop-acceptance-push.mjs'
 
 function rejects(label, operation) {
   let failure
@@ -166,6 +167,7 @@ async function installedLaunchCases() {
   const source = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-runner.mjs'), 'utf8')
   const launches = []
   const commands = []
+  const pushCalls = []
   const events = [{ kind: 'hoje', nativeVersion: '1.0.0' }]
   let recorded
   let settings = {}
@@ -183,13 +185,18 @@ async function installedLaunchCases() {
     updateServer: async () => ({ route() {}, mode() {}, cookieEvidence() {} }),
     isolateOrigins: async () => ({ restore() {} }), lookup: async () => [{ address: '127.0.0.1' }],
     startProxy: async () => proxy, install: async () => '/fixture/Orbit',
-    installedLaunch: () => { launches.push(settings.expectAuthenticated === true); return {} },
+    installedLaunch: (_executable, _output, name) => { launches.push(settings.expectAuthenticated === true); return { name } },
     waitFor: async (read, label) => { const result = read(); if (!result) throw new Error(`Timed out waiting for ${label}`); return result },
-    inspectSurfaces: async () => {}, quit: async () => {}, pushPhase: async () => {},
+    inspectSurfaces: async () => {}, quit: async () => {},
+    pushPhase: async (options) => { pushCalls.push({ options, checks: options.report.launchChecks.map((checkpoint) => checkpoint.event) }) },
     readFile: async () => 'signature verification failed', record: async (_path, report) => { recorded = report }, rm: async () => {}, stopAll: async () => {},
   }
   runInNewContext(source.slice(source.indexOf('export async function acceptance')).replace('export ', '') + '\nglobalThis.acceptance = acceptance', context)
-  await context.acceptance({ repository: '/fixture', output: '/output' })
+  const credentials = { ORBIT_WNS_CLIENT_SECRET: 'fixture-secret' }
+  await context.acceptance({ repository: '/fixture', output: '/output', credentials })
+  T('installed acceptance runs the push phase once, after the valid update relaunch, with the acceptance credentials and that launch',
+    pushCalls.length === 1 && pushCalls[0].checks.at(-1) === 'relaunched-hoje-valid' && pushCalls[0].options.credentials === credentials &&
+      pushCalls[0].options.handle.name === 'update-valid' && pushCalls[0].options.output === '/output' && recorded.passed === true, JSON.stringify(pushCalls.map((call) => call.checks)))
   T('installed updater relaunches require the persisted session after the initial email launch', JSON.stringify(launches) === '[false,true,true]', JSON.stringify(launches))
   T('installed acceptance waits for a new Hoje event after requesting an authenticated reload',
     commands.filter(command => command === 'reload').length === 1 && events.length === 2)
@@ -212,6 +219,7 @@ async function installedLaunchCases() {
     failure?.message.includes('palette result focus') && JSON.stringify(recorded.paletteInput) === JSON.stringify([palette, delivered]))
   T('a failed traversal retains completed palette focus steps for recording review',
     JSON.stringify(recorded.paletteFocus) === JSON.stringify([focus]))
+  T('a failed earlier phase never starts the push phase', pushCalls.length === 1)
 }
 
 async function servedProbe(expectAuthenticated) {
@@ -701,6 +709,7 @@ export async function cases() {
   await networkCases()
   await installedQuitCases()
   await installedLaunchCases()
+  await pushPhaseCases()
   await sessionProbeCases()
   await compactHojeProbeCases()
   await controlledPaletteCases()
@@ -747,6 +756,8 @@ export async function cases() {
   rejects('a set cookie alone cannot prove an authenticated request', () => assertCookieEvidence(cookies, false))
   const fixture = spawnSync(process.execPath, ['--import', 'tsx', join(REPO_ROOT, 'tools/desktop-bench/test-acceptance.ts')], { cwd: REPO_ROOT, encoding: 'utf8', timeout: 60000 })
   T('acceptance regressions exercise the email schema, signature verifier and native tree reader', fixture.status === 0, fixture.stderr || fixture.stdout)
+  const pushFixture = spawnSync(process.execPath, ['--import', 'tsx', join(REPO_ROOT, 'tools/desktop-bench/test-acceptance-push.ts')], { cwd: REPO_ROOT, encoding: 'utf8', timeout: 60000 })
+  T('push acceptance regressions exercise the reminder producers, mock API, push phase and native notification readers', pushFixture.status === 0, pushFixture.stderr || pushFixture.stdout)
   if (process.platform === 'darwin') {
     const compilation = spawnSync('clang', ['-fsyntax-only', '-fobjc-arc', join(REPO_ROOT, 'tools/desktop-bench/acceptance-ax.m')], { encoding: 'utf8', timeout: 30000 })
     T('macOS accessibility reader compiles against the installed SDK without opening an app', compilation.status === 0, compilation.stderr)
@@ -820,6 +831,8 @@ export async function cases() {
   const workflow = readFileSync(join(REPO_ROOT, '.github/workflows/desktop-acceptance.yml'), 'utf8')
   T('native acceptance retains both VMs, per-ref cancellation and always-uploaded evidence',
     workflow.includes('runner: [macos-latest, windows-latest]') && workflow.includes('desktop-acceptance-${{ github.ref }}') && workflow.includes('if: always()'))
+  T('the native producer step runs the acceptance and push acceptance regressions',
+    ['test-acceptance.ts', 'test-acceptance-push.ts'].every((file) => workflow.includes(`node --import tsx tools/desktop-bench/${file}`)))
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

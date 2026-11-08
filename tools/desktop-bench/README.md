@@ -138,8 +138,11 @@ and `ApnsPushSender.CreatePayload`, with a one-use token that the mock issues.
   runner sends a `wns/raw` notification with a client-credentials token for `https://wns.windows.com/.default`.
   It sends that token only to an `https` `notify.windows.com` channel, as `WnsEndpointPolicy` does.
 - macOS: APNs needs `com.apple.developer.aps-environment` in the installed code signature. The runner
-  reads it with `codesign`, selects the sandbox or production host from its value, and signs an ES256
-  provider token. The runner allows the first authorization alert through AX.
+  reads it with `codesign`, parses the plist with `plutil`, selects the sandbox or production host from
+  its value, and signs an ES256 provider token. An unsigned shell, a signature without entitlements, or
+  entitlements without the key is a skip. Output that `plutil` cannot parse, or an unknown key value,
+  fails the job with the raw output lengths and first bytes. The runner allows the first authorization
+  alert through AX.
 
 The runner hides the main window through its close control and invokes Done on the system
 notification through UIA or AX. If the banner is gone, the reader opens the notification list once.
@@ -148,8 +151,19 @@ The mock must record exactly one habit log for that habit, and the app window mu
 The second check sends another reminder and stops the shell while its notification is visible.
 From the push launch on, the mock refuses the long-lived sign-in token, so the BFF refreshes it into
 65 second tokens. After the shell stops, the mock also refuses the refresh token. A Done on that
-notification launches the shell. Its first page load finds a due token, fails the refresh and goes
-to sign-in, which must show in a visible window. The mock must record no habit log for that reminder.
+notification launches the shell. The runner finds and adopts that process before it waits for the
+sign-in page, so cleanup stops it on every outcome. Its first page load finds a due token, fails the
+refresh and goes to sign-in, which must show in a visible window. The mock must record no habit log
+for that reminder.
+
+Each run keeps the platform evidence that the notification readers use, also when a match fails:
+
+- `codesign-entitlements.stdout.log` and `codesign-entitlements.stderr.log` keep the raw macOS
+  `codesign -d --entitlements - --xml` output.
+- `trees/notification-*.json` keeps the last reply of each notification search. On Windows, a reply
+  holds the UIA candidate windows and, after a match, the UIA subtree of the toast that holds Done.
+  On macOS, a reply holds the AX tree of `com.apple.notificationcenterui`, and
+  `trees/notification-authorization.json` keeps the tree from the authorization alert search.
 
 Push credentials come only from the job environment. `acceptance.mjs` removes them from
 `process.env` before any build or server starts, and the report keeps the WNS host or the token

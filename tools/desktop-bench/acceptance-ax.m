@@ -140,10 +140,13 @@ static NSDictionary *listWindows(pid_t processId) {
     return @{@"windows": windows};
 }
 
-static NSString *labelledAction(AXUIElementRef element, NSString *label) {
+static NSArray *actionNames(AXUIElementRef element) {
     CFArrayRef names = NULL;
-    if (AXUIElementCopyActionNames(element, &names) != kAXErrorSuccess || !names) return nil;
-    NSArray *actions = CFBridgingRelease(names);
+    if (AXUIElementCopyActionNames(element, &names) != kAXErrorSuccess || !names) return @[];
+    return CFBridgingRelease(names);
+}
+
+static NSString *labelledAction(AXUIElementRef element, NSArray *actions, NSString *label) {
     // A notification may expose its buttons as custom actions on its group, named or described by the button title.
     for (NSString *action in actions) {
         if ([action isEqual:label] || [action hasPrefix:[NSString stringWithFormat:@"Name:%@\n", label]]) return action;
@@ -169,9 +172,14 @@ static void collectNodes(AXUIElementRef element, NSInteger parent, NSMutableArra
         id value = softAttribute(element, (__bridge CFStringRef)key);
         if ([value isKindOfClass:[NSString class]] && [value length]) [texts addObject:value];
     }
+    NSArray *actions = actionNames(element);
     NSMutableDictionary *node = [@{@"element": (__bridge id)element, @"parent": @(parent),
-        @"text": [texts componentsJoinedByString:@" "], @"role": role} mutableCopy];
-    NSString *action = labelledAction(element, label);
+        @"text": [texts componentsJoinedByString:@" "], @"role": role, @"actions": actions} mutableCopy];
+    for (NSString *key in @[@"AXSubrole", @"AXIdentifier"]) {
+        id value = softAttribute(element, (__bridge CFStringRef)key);
+        if ([value isKindOfClass:[NSString class]] && [value length]) node[key] = value;
+    }
+    NSString *action = labelledAction(element, actions, label);
     if (action) node[@"action"] = action;
     NSInteger index = (NSInteger)nodes.count;
     [nodes addObject:node];
@@ -206,6 +214,13 @@ static NSDictionary *notification(NSString *title, NSString *label, BOOL invoke,
     collectNodes(app, -1, nodes, label, 0);
     CFRelease(app);
     NSUInteger count = nodes.count;
+    // Every reply carries the whole Notification Center tree, so a run records the real layout whether or not it matched.
+    NSMutableArray *tree = [NSMutableArray arrayWithCapacity:count];
+    for (NSDictionary *node in nodes) {
+        NSMutableDictionary *entry = [node mutableCopy];
+        [entry removeObjectForKey:@"element"];
+        [tree addObject:entry];
+    }
     NSMutableArray *last = [NSMutableArray arrayWithCapacity:count];
     for (NSUInteger index = 0; index < count; index++) [last addObject:@(index)];
     for (NSInteger index = (NSInteger)count - 1; index > 0; index--) {
@@ -233,13 +248,13 @@ static NSDictionary *notification(NSString *title, NSString *label, BOOL invoke,
             if ([node[@"text"] length] || node[@"action"]) [seen addObject:@{@"role": node[@"role"], @"text": node[@"text"], @"action": node[@"action"] ?: @""}];
             if (seen.count >= 80) break;
         }
-        return @{@"found": @NO, @"invoked": @NO, @"nodes": seen};
+        return @{@"found": @NO, @"invoked": @NO, @"nodes": seen, @"tree": tree};
     }
     if (invoke) {
         AXError error = AXUIElementPerformAction((__bridge AXUIElementRef)match[@"element"], (__bridge CFStringRef)match[@"action"]);
         if (error != kAXErrorSuccess) failAX(error, @"AXUIElementPerformAction(notification)", @{@"id": @"notification", @"role": match[@"role"]});
     }
-    return @{@"found": @YES, @"invoked": @(invoke), @"role": match[@"role"], @"action": match[@"action"]};
+    return @{@"found": @YES, @"invoked": @(invoke), @"role": match[@"role"], @"action": match[@"action"], @"tree": tree};
 }
 
 static void key(pid_t processId, NSString *name) {

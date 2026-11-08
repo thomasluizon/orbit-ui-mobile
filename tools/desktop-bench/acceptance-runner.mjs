@@ -10,7 +10,7 @@ import { startProxy } from './server.mjs'
 import { assertFree, delay, execute, start, stop, stopAll, waitFor, waitForHttp } from './host.mjs'
 import { buildInstaller, desktopOrigin, install, isolateOrigins, startHttpsListener, startRecording } from './acceptance-platform.mjs'
 import { NativeTreePendingError, assertAccessibleTree, assertCookieEvidence, assertPaletteFocus, corruptSignature } from './acceptance-contract.mjs'
-import { apsEnvironment, exercisePush, pushSender } from './acceptance-push.mjs'
+import { exercisePush, pushSender, signedApsEnvironment } from './acceptance-push.mjs'
 
 const require = createRequire(import.meta.url)
 const directory = dirname(fileURLToPath(import.meta.url))
@@ -244,11 +244,9 @@ async function pushPhase({ proxy, native, updates, handle, executable, output, r
     // The system authorization alert follows the VM language, which is English on GitHub macOS runners.
     allowLabel: 'Allow', appName: 'Orbit Staging',
     async apsEnvironment() {
-      try {
-        environment = apsEnvironment(await execute('codesign', ['-d', '--entitlements', '-', '--xml', application]))
-      } catch (error) {
-        report.pushCodeSignature = error.message.slice(0, 500)
-      }
+      const { signature, environment: signed } = await signedApsEnvironment(application, output)
+      if (signature.status !== 0) report.pushCodeSignature = signature.stderr.slice(0, 500)
+      environment = signed
       return environment
     },
     mock: {

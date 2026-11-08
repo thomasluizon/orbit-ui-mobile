@@ -118,81 +118,6 @@ public static class OrbitForeground {
     }
 }
 '@
-function Find-Notification([string]$Title, [string]$Label, [int]$Exclude) {
-  $automation = [System.Windows.Automation.AutomationElement]
-  $scope = [System.Windows.Automation.TreeScope]
-  $buttonCondition = New-Object System.Windows.Automation.AndCondition(
-    (New-Object System.Windows.Automation.PropertyCondition($automation::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button)),
-    (New-Object System.Windows.Automation.PropertyCondition($automation::NameProperty, $Label)))
-  $walker = [System.Windows.Automation.TreeWalker]::ControlViewWalker
-  $seen = New-Object 'System.Collections.Generic.List[object]'
-  foreach ($window in $automation::RootElement.FindAll($scope::Children, [System.Windows.Automation.Condition]::TrueCondition)) {
-    if ($window.Current.ProcessId -eq $Exclude) { continue }
-    $seen.Add(@{ name = $window.Current.Name; className = $window.Current.ClassName; processId = $window.Current.ProcessId })
-    # The shell draws toast banners and the notification center in CoreWindow hosts; a full desktop walk is too slow to poll.
-    if ($window.Current.ClassName -ne 'Windows.UI.Core.CoreWindow' -and $window.Current.Name -notmatch 'notification') { continue }
-    # A toast exposes its title as a text element, or folds title and body into its own accessible name.
-    $texts = @($window.FindAll($scope::Descendants, [System.Windows.Automation.Condition]::TrueCondition) | Where-Object { $_.Current.Name -and $_.Current.Name.Contains($Title) })
-    foreach ($text in $texts) {
-      $ancestor = $text
-      while ($null -ne $ancestor) {
-        $buttons = $ancestor.FindAll($scope::Descendants, $buttonCondition)
-        if ($buttons.Count -eq 1) {
-          return @{ button = $buttons[0]; window = @{ name = $window.Current.Name; className = $window.Current.ClassName; processId = $window.Current.ProcessId } }
-        }
-        if ($buttons.Count -gt 1 -or [System.Windows.Automation.Automation]::Compare($ancestor, $window)) { break }
-        $ancestor = $walker.GetParent($ancestor)
-      }
-    }
-  }
-  return @{ button = $null; windows = $seen.ToArray() }
-}
-if ($Command -eq 'windows') {
-  @{ windows = @([OrbitForeground]::Windows($TargetProcessId)) } | ConvertTo-Json -Depth 4
-  exit 0
-}
-if ($Command -eq 'close') {
-  [OrbitForeground]::Close($TargetProcessId)
-  @{ sent = $Command } | ConvertTo-Json
-  exit 0
-}
-if ($Command -eq 'process') {
-  if (-not $Executable) { throw 'process requires -Executable' }
-  @{ processIds = @(Get-Process | Where-Object { $_.Path -eq $Executable } | ForEach-Object { $_.Id }) } | ConvertTo-Json
-  exit 0
-}
-if ($Command -eq 'notification') {
-  if (-not $Title -or -not $Label) { throw 'notification requires -Title and -Label' }
-  if ($OpenCenter) { [OrbitForeground]::OpenNotificationCenter(); Start-Sleep -Milliseconds 1000 }
-  $match = Find-Notification $Title $Label $TargetProcessId
-  if ($null -eq $match.button) {
-    @{ found = $false; invoked = $false; windows = $match.windows } | ConvertTo-Json -Depth 4
-    exit 0
-  }
-  if ($Invoke) { $match.button.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() }
-  @{ found = $true; invoked = [bool]$Invoke; window = $match.window } | ConvertTo-Json -Depth 4
-  exit 0
-}
-$condition = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $TargetProcessId)
-$window = [System.Windows.Automation.AutomationElement]::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Children, $condition)
-if ($null -eq $window) { throw "No UI Automation window for process $TargetProcessId" }
-if ($Command -eq 'menu') {
-  @{ items = @([OrbitForeground]::ReadMenu([OrbitForeground]::GetMenu($window.Current.NativeWindowHandle))) } | ConvertTo-Json -Depth 20
-  exit 0
-}
-if ($Command -eq 'quit') {
-  [OrbitForeground]::InvokeMenu($window.Current.NativeWindowHandle, $MenuCommandId)
-  @{ sent = $Command } | ConvertTo-Json
-  exit 0
-}
-if ($Command -ne 'dump') {
-  if (-not [OrbitForeground]::SetForegroundWindow($window.Current.NativeWindowHandle)) { throw 'Cannot foreground installed app' }
-  Start-Sleep -Milliseconds 250
-  $keys = @{ down = '{DOWN}'; home = '{HOME}'; escape = '{ESC}'; palette = '^k' }
-  [System.Windows.Forms.SendKeys]::SendWait($keys[$Command])
-  @{ sent = $Command } | ConvertTo-Json
-  exit 0
-}
 $nodes = New-Object 'System.Collections.Generic.List[object]'
 $interactiveRoles = @('Button', 'CheckBox', 'RadioButton', 'Edit', 'ComboBox', 'Hyperlink', 'Slider', 'MenuItem', 'TabItem', 'ListItem', 'Spinner')
 function ConvertTo-FiniteNumber([double]$value) {
@@ -225,6 +150,86 @@ function Read-Element($element, [string]$path) {
     $child = $walker.GetNextSibling($child)
     $index++
   }
+}
+function Find-Notification([string]$Title, [string]$Label, [int]$Exclude) {
+  $automation = [System.Windows.Automation.AutomationElement]
+  $scope = [System.Windows.Automation.TreeScope]
+  $buttonCondition = New-Object System.Windows.Automation.AndCondition(
+    (New-Object System.Windows.Automation.PropertyCondition($automation::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button)),
+    (New-Object System.Windows.Automation.PropertyCondition($automation::NameProperty, $Label)))
+  $walker = [System.Windows.Automation.TreeWalker]::ControlViewWalker
+  $seen = New-Object 'System.Collections.Generic.List[object]'
+  foreach ($window in $automation::RootElement.FindAll($scope::Children, [System.Windows.Automation.Condition]::TrueCondition)) {
+    if ($window.Current.ProcessId -eq $Exclude) { continue }
+    $seen.Add(@{ name = $window.Current.Name; className = $window.Current.ClassName; processId = $window.Current.ProcessId })
+    # The shell draws toast banners and the notification center in CoreWindow hosts; a full desktop walk is too slow to poll.
+    if ($window.Current.ClassName -ne 'Windows.UI.Core.CoreWindow' -and $window.Current.Name -notmatch 'notification') { continue }
+    # A toast exposes its title as a text element, or folds title and body into its own accessible name.
+    $texts = @($window.FindAll($scope::Descendants, [System.Windows.Automation.Condition]::TrueCondition) | Where-Object { $_.Current.Name -and $_.Current.Name.Contains($Title) })
+    foreach ($text in $texts) {
+      $ancestor = $text
+      while ($null -ne $ancestor) {
+        $buttons = $ancestor.FindAll($scope::Descendants, $buttonCondition)
+        if ($buttons.Count -eq 1) {
+          return @{ button = $buttons[0]; toast = $ancestor; windows = $seen.ToArray()
+            window = @{ name = $window.Current.Name; className = $window.Current.ClassName; processId = $window.Current.ProcessId } }
+        }
+        if ($buttons.Count -gt 1 -or [System.Windows.Automation.Automation]::Compare($ancestor, $window)) { break }
+        $ancestor = $walker.GetParent($ancestor)
+      }
+    }
+  }
+  return @{ button = $null; windows = $seen.ToArray() }
+}
+if ($Command -eq 'windows') {
+  @{ windows = @([OrbitForeground]::Windows($TargetProcessId)) } | ConvertTo-Json -Depth 4
+  exit 0
+}
+if ($Command -eq 'close') {
+  [OrbitForeground]::Close($TargetProcessId)
+  @{ sent = $Command } | ConvertTo-Json
+  exit 0
+}
+if ($Command -eq 'process') {
+  if (-not $Executable) { throw 'process requires -Executable' }
+  @{ processIds = @(Get-Process | Where-Object { $_.Path -eq $Executable } | ForEach-Object { $_.Id }) } | ConvertTo-Json
+  exit 0
+}
+if ($Command -eq 'notification') {
+  if (-not $Title -or -not $Label) { throw 'notification requires -Title and -Label' }
+  if ($OpenCenter) { [OrbitForeground]::OpenNotificationCenter(); Start-Sleep -Milliseconds 1000 }
+  $match = Find-Notification $Title $Label $TargetProcessId
+  if ($null -eq $match.button) {
+    @{ found = $false; invoked = $false; windows = $match.windows } | ConvertTo-Json -Depth 4
+    exit 0
+  }
+  # Invoke dismisses the toast, so its subtree is read first and the artifacts carry the layout that held the button.
+  $failure = $null
+  try { Read-Element $match.toast '0' } catch { $failure = $_.Exception.Message }
+  $toast = @{ error = $failure; nodes = @($nodes.ToArray()) }
+  if ($Invoke) { $match.button.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() }
+  @{ found = $true; invoked = [bool]$Invoke; window = $match.window; windows = $match.windows; toast = $toast } | ConvertTo-Json -Depth 8
+  exit 0
+}
+$condition = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $TargetProcessId)
+$window = [System.Windows.Automation.AutomationElement]::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Children, $condition)
+if ($null -eq $window) { throw "No UI Automation window for process $TargetProcessId" }
+if ($Command -eq 'menu') {
+  @{ items = @([OrbitForeground]::ReadMenu([OrbitForeground]::GetMenu($window.Current.NativeWindowHandle))) } | ConvertTo-Json -Depth 20
+  exit 0
+}
+if ($Command -eq 'quit') {
+  [OrbitForeground]::InvokeMenu($window.Current.NativeWindowHandle, $MenuCommandId)
+  @{ sent = $Command } | ConvertTo-Json
+  exit 0
+}
+if ($Command -ne 'dump') {
+  if (-not [OrbitForeground]::SetForegroundWindow($window.Current.NativeWindowHandle)) { throw 'Cannot foreground installed app' }
+  Start-Sleep -Milliseconds 250
+  $keys = @{ down = '{DOWN}'; home = '{HOME}'; escape = '{ESC}'; palette = '^k' }
+  [System.Windows.Forms.SendKeys]::SendWait($keys[$Command])
+  @{ sent = $Command } | ConvertTo-Json
+  exit 0
 }
 $failure = $null
 try { Read-Element $window '0' } catch { $failure = $_.Exception.Message }

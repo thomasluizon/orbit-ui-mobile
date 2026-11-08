@@ -1,5 +1,9 @@
+import { execFile } from 'node:child_process'
 import { createPrivateKey, randomUUID, sign } from 'node:crypto'
+import { writeFile } from 'node:fs/promises'
 import { connect } from 'node:http2'
+import { join } from 'node:path'
+import { promisify } from 'node:util'
 import { assertDoneDelivered, assertExpiredDone, visibleWindows } from './acceptance-contract.mjs'
 
 // Producers: orbit-api ReminderSchedulerService.Repeat.cs RecordRepeat, PushNotificationService.CreateWebPushPayload,
@@ -122,8 +126,43 @@ export async function sendApns({ origin, headers, body }, connectTo = connect) {
   }
 }
 
-export function apsEnvironment(entitlements) {
-  return /<key>com\.apple\.developer\.aps-environment<\/key>\s*<string>(development|production)<\/string>/.exec(entitlements)?.[1] ?? null
+const apsKey = 'com.apple.developer.aps-environment'
+
+// codesign exits 1 for an unsigned bundle and prints nothing for a signature without entitlements.
+export function apsEnvironment({ status, stdout, stderr }, entitlements) {
+  if (status !== 0 || !stdout.trim()) return null
+  if (entitlements === null || typeof entitlements !== 'object' || Array.isArray(entitlements)) {
+    throw new Error(`codesign entitlements output is not a parseable plist: stdout ${stdout.length} bytes starting ${JSON.stringify(stdout.slice(0, 120))}, ` +
+      `stderr ${stderr.length} bytes starting ${JSON.stringify(stderr.slice(0, 120))}`)
+  }
+  if (!Object.hasOwn(entitlements, apsKey)) return null
+  const value = entitlements[apsKey]
+  if (value !== 'development' && value !== 'production') throw new Error(`codesign entitlements carry an unknown ${apsKey} value: ${JSON.stringify(value)}`)
+  return value
+}
+
+async function capture(run, command, argumentsList) {
+  try {
+    const { stdout, stderr } = await run(command, argumentsList)
+    return { status: 0, stdout, stderr }
+  } catch (error) {
+    // execFile gives a numeric code for a nonzero exit; a string code means the command did not start.
+    if (typeof error.code !== 'number') throw error
+    return { status: error.code, stdout: error.stdout ?? '', stderr: error.stderr ?? '' }
+  }
+}
+
+export async function signedApsEnvironment(application, output, run = promisify(execFile)) {
+  const signature = await capture(run, 'codesign', ['-d', '--entitlements', '-', '--xml', application])
+  const stdoutPath = join(output, 'codesign-entitlements.stdout.log')
+  await writeFile(stdoutPath, signature.stdout)
+  await writeFile(join(output, 'codesign-entitlements.stderr.log'), signature.stderr)
+  let entitlements
+  if (signature.status === 0 && signature.stdout.trim()) {
+    const converted = await capture(run, 'plutil', ['-convert', 'json', '-o', '-', stdoutPath])
+    if (converted.status === 0) entitlements = JSON.parse(converted.stdout)
+  }
+  return { signature, environment: apsEnvironment(signature, entitlements) }
 }
 
 export function pushReadiness({ platform, credentials, environment }) {
@@ -165,10 +204,12 @@ function skip(io, reason) {
 async function enablePush(io, pid) {
   io.proxy.send(`push-enable:${JSON.stringify(io.labels)}`)
   // A first macOS request shows the system authorization alert, which only a person or the AX reader can allow.
+  // Each poll records the Notification Center tree, so every run carries a capture of the alert or of its absence.
   await io.waitFor(async () => {
-    if (io.proxy.read('push-enabled')) return true
-    if (io.platform === 'darwin') await io.native(pid, 'notification', { title: io.appName, label: io.allowLabel, invoke: true })
-    return false
+    if (io.platform === 'darwin') {
+      await io.record('notification-authorization', await io.native(pid, 'notification', { title: io.appName, label: io.allowLabel, invoke: true }))
+    }
+    return Boolean(io.proxy.read('push-enabled'))
   }, 'the Perfil notification switch to register this device', 330000)
 }
 
@@ -181,14 +222,15 @@ async function sendReminder(io, deliver, purpose) {
   return reminder
 }
 
-async function notification(io, pid, reminder, invoke) {
+async function notification(io, pid, reminder, invoke, name) {
   const label = io.platform === 'darwin' ? io.doneLabel : reminder.data.doneLabel
-  let reply
   const find = (openCenter) => {
     let open = openCenter
     return io.waitFor(async () => {
-      reply = await io.native(pid, 'notification', { title: reminder.title, label, invoke, openCenter: open })
+      const reply = await io.native(pid, 'notification', { title: reminder.title, label, invoke, openCenter: open })
       open = false
+      // Every reply carries the platform tree, so the artifacts keep the last capture whether or not it matched.
+      await io.record(name, reply)
       return reply?.found && reply
     }, `the ${reminder.title} system notification`, 20000)
   }
@@ -198,12 +240,7 @@ async function notification(io, pid, reminder, invoke) {
     if (!error.message.startsWith('Timed out')) throw error
   }
   // A missed banner moves to the notification list; the reader opens it once before the final search.
-  try {
-    return await find(true)
-  } catch (error) {
-    await io.record(`notification-${reminder.title.split(' ')[2]}`, reply)
-    throw error
-  }
+  return find(true)
 }
 
 async function windowsOf(io, pid) {
@@ -231,22 +268,23 @@ export async function exercisePush(io) {
   await io.native(pid, 'close')
   await io.waitFor(async () => await windowsOf(io, pid) === 0, 'the main window to hide', 30000)
   const completed = await sendReminder(io, deliver, 'done')
-  await notification(io, pid, completed, true)
+  await notification(io, pid, completed, true, 'notification-done')
   await io.waitFor(async () => (await io.mock.logs()).some((log) => log.habitId === completed.data.habitId), 'the Done habit log', 60000)
   // A second request would follow the shell's first response well inside this window.
   await io.delay(5000)
   io.report.push.done = assertDoneDelivered({ logs: await io.mock.logs(), habitId: completed.data.habitId, visible: await windowsOf(io, pid) })
   const expired = await sendReminder(io, deliver, 'expired')
-  await notification(io, pid, expired, false)
+  await notification(io, pid, expired, false, 'notification-expired')
   await io.stop(shell)
   await io.mock.sessionMode('expired')
   io.proxy.reset({ expectAuthenticated: false, reportSignIn: true })
   // The refreshed access token lives 65 seconds and the BFF refreshes inside 60, so 6 seconds make it due.
   await io.delay(6000)
-  await notification(io, 0, expired, true)
-  const signIn = await io.waitFor(() => io.proxy.read('sign-in'), 'the sign-in page after an expired-session Done', 120000)
+  await notification(io, 0, expired, true, 'notification-expired-signed-out')
+  // Adopt the launched shell before any later wait, so a missing sign-in page still leaves it to the phase cleanup.
   const launched = await io.waitFor(async () => (await io.findProcesses())[0], 'the notification-launched shell', 30000)
   io.adopt(launched)
+  const signIn = await io.waitFor(() => io.proxy.read('sign-in'), 'the sign-in page after an expired-session Done', 120000)
   const visible = await io.waitFor(() => windowsOf(io, launched), 'the sign-in window to show', 30000)
   await io.delay(5000)
   io.report.push.expired = assertExpiredDone({ logs: await io.mock.logs(), habitId: expired.data.habitId, visible, signIn })
