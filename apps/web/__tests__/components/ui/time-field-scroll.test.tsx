@@ -6,6 +6,7 @@ import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { readSettledScroll } from '@/__tests__/support/settled-scroll'
 
 describe('TimeField scroll ownership in the web Sheet', () => {
   let browserLaunch: BrowserLaunch | undefined
@@ -171,19 +172,8 @@ describe('TimeField scroll ownership in the web Sheet', () => {
       expect(opening.pointerInColumn).toBe(true)
       await page.mouse.move(opening.pointer.x, opening.pointer.y)
       await page.mouse.wheel(0, 600)
-      const heldBodyTop = await page.locator('[data-slot="sheet-body"]').evaluate(async (body, openingTop) => {
-        const nextFrame = () => new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
-        for (let frame = 0; frame < 60 && body.scrollTop === openingTop; frame++) await nextFrame()
-        let previous = body.scrollTop
-        let stableFrames = 0
-        for (let frame = 0; frame < 120 && stableFrames < 4; frame++) {
-          await nextFrame()
-          stableFrames = body.scrollTop === previous ? stableFrames + 1 : 0
-          previous = body.scrollTop
-        }
-        return body.scrollTop
-      }, opening.bodyTop)
-      expect(heldBodyTop).toBe(opening.bodyTop)
+      const heldBody = await page.locator('[data-slot="sheet-body"]').evaluate(readSettledScroll, { axis: 'top', movedFrom: opening.bodyTop } as const)
+      expect(heldBody.top).toBe(opening.bodyTop)
       expect(await minutes.evaluate((group) => group.parentElement!.scrollTop)).toBe(opening.columnMax)
     } finally {
       await page.close()
