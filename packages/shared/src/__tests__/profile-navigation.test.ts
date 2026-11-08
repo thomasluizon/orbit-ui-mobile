@@ -5,9 +5,11 @@ import {
   PROFILE_NAV_ITEMS,
   PROFILE_SETTINGS_GROUPS,
   PROFILE_SUBMENUS,
+  getProfileNavItemTitleKey,
   getProfileProEntry,
   shouldRedirectProfileNavItem,
 } from '../utils/profile-navigation'
+import { getWidgetCopy } from '../utils/advanced-settings'
 import { createMockProfile } from './factories'
 
 describe('profile-navigation', () => {
@@ -40,13 +42,24 @@ describe('profile-navigation', () => {
       '/about',
     ])
     expect(PROFILE_NAV_ITEMS.find((item) => item.id === 'android-widget')?.action).toBe('openWidget')
-    expect(PROFILE_NAV_ITEMS.map(({ titleKey, hintKey }) => [titleKey, hintKey])).toEqual([
+    expect(PROFILE_NAV_ITEMS.map((item) => [getProfileNavItemTitleKey(item, 'android'), item.hintKey])).toEqual([
       ['profile.settingsRows.wrapped', null],
       ['profile.widgetTitle', null],
       ['profile.calendarSync.title', null],
       ['profile.support.rowTitle', null],
       ['profile.aboutRow', null],
     ])
+  })
+
+  it('takes the widget row title only from the widget copy the sheet shows on each platform', () => {
+    const widget = PROFILE_NAV_ITEMS.find((item) => item.action === 'openWidget')
+    if (!widget) throw new Error('the Perfil widget row is missing')
+    expect('titleKey' in widget).toBe(false)
+    for (const platform of ['android', 'ios', 'web']) {
+      expect(getProfileNavItemTitleKey(widget, platform)).toBe(getWidgetCopy(platform).titleKey)
+    }
+    expect(getProfileNavItemTitleKey(widget, 'ios')).toBe('profile.widgetIos.title')
+    expect(getProfileNavItemTitleKey(widget, 'web')).toBe('profile.widgetTitle')
   })
 
   it('keeps Wrapped copy scoped to Perfil without changing Progress or notifications', () => {

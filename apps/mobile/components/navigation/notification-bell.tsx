@@ -37,7 +37,7 @@ export function NotificationBellDisplay({ count, onPress }: { count: number; onP
   const glyph = <Bell size={24} color={tokens.fg2} strokeWidth={1.8} />
   const marker = count > 0 ? <View accessible={false} importantForAccessibility="no-hide-descendants"
     pointerEvents="none" style={[styles.countMarker, onPress ? { position: 'absolute', top: 0, right: 0 } : null]}>
-    <Text accessible={false} testID="notification-count" style={styles.bellCount}>
+    <Text accessible={false} testID="notification-count" maxFontSizeMultiplier={1} style={styles.bellCount}>
       {count > 9 ? '9+' : count}
     </Text>
   </View> : null

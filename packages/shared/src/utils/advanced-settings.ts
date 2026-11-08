@@ -55,11 +55,30 @@ export function buildAgentScopeOptions(
     .sort((left, right) => left.scope.localeCompare(right.scope))
 }
 
-export const WIDGET_STEP_KEYS = [
-  'profile.widgetHow.step1',
-  'profile.widgetHow.step2',
-  'profile.widgetHow.step3',
-] as const
+export interface WidgetCopy {
+  titleKey: string
+  stepKeys: readonly string[]
+  guideTodayKey: string
+  guideOpensKey: string
+}
+
+const ANDROID_WIDGET_COPY: WidgetCopy = {
+  titleKey: 'profile.widgetTitle',
+  stepKeys: ['profile.widgetHow.step1', 'profile.widgetHow.step2', 'profile.widgetHow.step3'],
+  guideTodayKey: 'onboarding.featureGuide.widgetSection.todayDesc',
+  guideOpensKey: 'onboarding.featureGuide.widgetSection.opensDesc',
+}
+
+const IOS_WIDGET_COPY: WidgetCopy = {
+  titleKey: 'profile.widgetIos.title',
+  stepKeys: ['profile.widgetIos.step1', 'profile.widgetIos.step2', 'profile.widgetIos.step3'],
+  guideTodayKey: 'onboarding.featureGuide.widgetSection.todayDescIos',
+  guideOpensKey: 'onboarding.featureGuide.widgetSection.opensDescIos',
+}
+
+export function getWidgetCopy(platform: string): WidgetCopy {
+  return platform === 'ios' ? IOS_WIDGET_COPY : ANDROID_WIDGET_COPY
+}
 
 export type WidgetFeatureIconKey =
   | 'checkCircle'

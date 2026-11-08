@@ -77,7 +77,7 @@ describe('root bell count geometry in Chromium', () => {
         }
         const button = document.querySelector('button')!
         const count = button.querySelector('[data-notification-count]')!
-        return { control: box(button), icon: box(button.querySelector('svg')!), count: box(count), row: box(document.querySelector('[data-row]')!), text: count.textContent.trim(), radius: getComputedStyle(count).borderRadius }
+        return { control: box(button), icon: box(button.querySelector('svg')!), count: box(count), row: box(document.querySelector('[data-row]')!), text: count.textContent.trim(), radius: getComputedStyle(count).borderRadius, fontSize: getComputedStyle(count).fontSize }
       })
       expect(Math.abs(geometry.icon.left + geometry.icon.width / 2 - geometry.control.left - geometry.control.width / 2)).toBeLessThanOrEqual(0.5)
       expect(Math.abs(geometry.icon.centerY - geometry.control.centerY)).toBeLessThanOrEqual(0.5)
@@ -88,6 +88,9 @@ describe('root bell count geometry in Chromium', () => {
       expect(geometry.control.height).toBe(44)
       expect(geometry.text).toBe(count > 9 ? '9+' : String(count))
       expect(geometry.radius).toBe('8px')
+      expect(geometry.fontSize).toBe('12px')
+      expect(geometry.count.height).toBe(20)
+      expect(geometry.count.width).toBeLessThanOrEqual(geometry.icon.width)
       for (const content of [geometry.icon, geometry.count]) {
         expect(content.left).toBeGreaterThanOrEqual(geometry.control.left)
         expect(content.right).toBeLessThanOrEqual(geometry.control.right)
