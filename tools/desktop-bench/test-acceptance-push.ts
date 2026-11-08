@@ -14,7 +14,7 @@ import { createAcceptanceHandler } from './acceptance-mock'
 import { assertDoneDelivered, assertExpiredDone, visibleWindows } from './acceptance-contract.mjs'
 import { apnsPayload, apnsProviderToken, apnsRequest, apsEnvironment, exercisePush, isWnsChannel, pushReadiness, repeatReminder,
   sendApns, sendWns, signedApsEnvironment, takePushCredentials, wnsAccessToken, wnsPayload } from './acceptance-push.mjs'
-import { startPushServices } from './acceptance-platform.mjs'
+import { apsdApplication, apsdSummary, capturePushDiagnostics, startPushServices } from './acceptance-platform.mjs'
 
 // Repeat reminder push acceptance (#1861). Shapes follow orbit-api ReminderSchedulerService.Repeat.cs RecordRepeat,
 // PushNotificationService.CreateWebPushPayload, ApnsPushSender.CreatePayload and WnsPushSender.SendAsync.
@@ -286,10 +286,58 @@ test('macOS push acceptance loads apsd and Notification Center through launchd b
   await startPushServices(loaded.host, 501)
   assert.equal(loaded.calls.some((call) => call.includes('bootstrap')), false)
   assert.equal(loaded.calls.filter((call) => call.includes('kickstart')).length, 2)
-  // apsd that never reaches the courier fails the phase with a named wait, before the Perfil switch asks for a token.
+  // apsd that never reaches the courier fails the phase with a named wait, before the Perfil switch asks for a token, and the
+  // error keeps the last status apsd gave.
   const offline = pushServicesHost({ statuses: [apsdConnected.replace('Yes', 'No')] })
-  await assert.rejects(() => startPushServices(offline.host, 501), /^Error: Timed out waiting for apsd to connect to the APNs courier$/)
+  await assert.rejects(() => startPushServices(offline.host, 501), (error: Error) => {
+    assert.equal(error.message, 'Timed out waiting for apsd to connect to the APNs courier; last apsctl status: daemon status: Running; ' +
+      'connection environment: production; connection status: No; server hostname: 3-courier.push.apple.com')
+    return true
+  })
   assert.equal(offline.calls.includes('pgrep -x NotificationCenter'), false)
+  const invalid = pushServicesHost({ statuses: ['Bad response from apsd: Connection invalid'] })
+  await assert.rejects(() => startPushServices(invalid.host, 501), /^Error: Timed out waiting for apsd to connect to the APNs courier; last apsctl status: Bad response from apsd: Connection invalid$/)
+  assert.deepEqual(apsdSummary(`${'x'.repeat(400)}\n`), ['x'.repeat(300)])
+})
+
+// One application block as apsctl status prints it on macOS (local capture), under the production connection.
+const apsdStatusWithApplication = [apsdConnected,
+  '      application port name:                  com.apple.seld.aps', '         process:                             seld',
+  '         enabled topics:                      1', '            topic:                            com.apple.seld.fake',
+  '         ipc message queue status:            Ok', '            push notifications:               0',
+  '      application port name:                  org.useorbit.desktop.staging', '         process:                             orbit-desktop',
+  '         persistent connection status:        Waiting for push notifications',
+  '         token:                               Yes, {length = 80, bytes=<38c1bc94 7c0ab960 070db071>}',
+  '         enabled topics:                      1', '            topic:                            org.useorbit.desktop.staging',
+  '               status:                        Waiting for push notifications', '         ipc message queue status:            Ok',
+  '            push notifications:               0', '   courier status:                            Connected'].join('\n')
+
+test('macOS push diagnostics keep the app apsd block, the redacted status and the notification unified log', async () => {
+  assert.equal(apsdApplication(apsdStatusWithApplication, 'org.example.absent'), null)
+  const writes = new Map<string, string>()
+  const calls: { command: string; argumentsList: string[]; log?: string }[] = []
+  const host = {
+    execute: async (command: string, argumentsList: string[], options: { log?: string } = {}) => {
+      calls.push({ command, argumentsList, log: options.log })
+      return command.endsWith('/apsctl') ? apsdStatusWithApplication : ''
+    },
+    writeFile: async (path: string, text: string) => { writes.set(path, text) },
+  }
+  const since = new Date(2026, 10, 8, 20, 29, 50)
+  const result = await capturePushDiagnostics('/output', { topic: 'org.useorbit.desktop.staging', since }, host)
+  assert.deepEqual(result, { apsdStatus: 'push-apsctl-status.log', unifiedLog: 'push-unified.log', apsdApplication: [
+    'application port name: org.useorbit.desktop.staging', 'process: orbit-desktop', 'persistent connection status: Waiting for push notifications',
+    'token: Yes, {length = 80, bytes=<redacted>}', 'enabled topics: 1', 'topic: org.useorbit.desktop.staging',
+    'status: Waiting for push notifications', 'ipc message queue status: Ok', 'push notifications: 0'] })
+  const status = writes.get(join('/output', 'push-apsctl-status.log'))!
+  assert.equal(status.includes('38c1bc94'), false, 'the artifacts never store a device token')
+  assert.deepEqual(calls[1], { command: '/usr/bin/log', log: join('/output', 'push-unified.log'), argumentsList: ['show', '--start', '2026-11-08 20:29:50',
+    '--style', 'compact', '--info', '--debug', '--predicate',
+    'process == "apsd" OR process == "usernoted" OR process == "NotificationCenter" OR process == "orbit-desktop" OR subsystem == "com.apple.UserNotifications"'] })
+  // A failed log read stays in the report and never replaces the phase's own failure.
+  host.execute = async (command: string) => { if (command === '/usr/bin/log') throw new Error('log: Cannot open the log store'); return 'Bad response from apsd: Connection invalid' }
+  const failed = await capturePushDiagnostics('/output', { topic: 'org.useorbit.desktop.staging', since }, host)
+  assert.deepEqual(failed, { apsdStatus: 'push-apsctl-status.log', unifiedLog: 'push-unified.log', apsdApplication: null, unifiedError: 'log: Cannot open the log store' })
 })
 
 test('push credentials leave the environment before any build or child process inherits it', () => {
@@ -493,7 +541,7 @@ test('proxy serves the sign-in report mode only to the launch that asks for it',
   assert.deepEqual(served, ['expect=true report=false', 'expect=false report=true'])
 })
 
-function pushHarness(platform: 'win32' | 'darwin', overrides: { logsAfterDone?: number; visibleAfterDone?: number; expiredLogs?: number; signIn?: boolean; credentials?: Record<string, string>; environment?: string | null; signed?: boolean } = {}) {
+function pushHarness(platform: 'win32' | 'darwin', overrides: { authorization?: boolean; logsAfterDone?: number; visibleAfterDone?: number; expiredLogs?: number; signIn?: boolean; credentials?: Record<string, string>; environment?: string | null; signed?: boolean } = {}) {
   const events: string[] = []
   const records = new Map<string, unknown>()
   const logs: { habitId: string; source: string }[] = []
@@ -559,7 +607,10 @@ function pushHarness(platform: 'win32' | 'darwin', overrides: { logsAfterDone?: 
           : { windows: Array.from({ length: visible }, () => ({ layer: 0, onscreen: true })) }
       }
       if (command === 'notification') {
-        if (options.label === 'Allow') return { found: false, tree: [{ role: 'AXApplication', parent: -1, text: 'Notification Center' }] }
+        if (options.label === 'Allow') {
+          return overrides.authorization ? { found: true, invoked: true, role: 'AXGroup', action: 'Name:Allow\nTarget:0x0\nSelector:(null)', tree: [] }
+            : { found: false, tree: [{ role: 'AXApplication', parent: -1, text: 'Notification Center' }] }
+        }
         const toast = notified.find((entry) => entry.title === options.title)
         if (!toast) return { found: false, windows: [] }
         if (!options.invoke) return { found: true, invoked: false, title: toast.title }
@@ -607,8 +658,19 @@ test('push acceptance proves Done once with the window hidden, then an expired-s
     for (const [name, title] of [['notification-done', 'done'], ['notification-expired', 'expired'], ['notification-expired-signed-out', 'expired']]) {
       assert.match((harness.records.get(name) as { title: string }).title, new RegExp(`^Orbit acceptance ${title} `), name)
     }
-    if (platform === 'darwin') assert.deepEqual(harness.records.get('notification-authorization'), { found: false, tree: [{ role: 'AXApplication', parent: -1, text: 'Notification Center' }] })
+    if (platform === 'darwin') {
+      assert.deepEqual(harness.records.get('notification-authorization'), { found: false, tree: [{ role: 'AXApplication', parent: -1, text: 'Notification Center' }] })
+      assert.deepEqual((push as Record<string, unknown>).authorization, { found: false })
+    } else assert.equal((push as Record<string, unknown>).authorization, undefined)
   }
+})
+
+test('macOS push acceptance keeps the authorization alert it allowed, because the alert leaves the screen once allowed', async () => {
+  const harness = pushHarness('darwin', { authorization: true })
+  await exercisePush(harness.io)
+  assert.deepEqual((harness.report.push as Record<string, unknown>).authorization,
+    { found: true, invoked: true, role: 'AXGroup', action: 'Name:Allow\nTarget:0x0\nSelector:(null)' })
+  assert.deepEqual([...harness.records.keys()].slice(0, 2), ['notification-authorization', 'notification-authorization-found'])
 })
 
 test('push acceptance adopts the notification-launched shell before it waits for the sign-in page', async () => {

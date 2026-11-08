@@ -215,12 +215,68 @@ export async function startPushServices(host = { execute, waitFor }, uid = proce
     if (!await launchctl('print', service).then(() => true, () => false)) await launchctl('bootstrap', target, plist)
     await launchctl('kickstart', service)
   }
-  const status = await host.waitFor(async () => {
-    const text = await host.execute(apsctl, ['status']).catch((error) => error.message)
-    return /daemon status:\s+Running/.test(text) && /connection status:\s+Yes/.test(text) && text
-  }, 'apsd to connect to the APNs courier', 60000)
+  let last = ''
+  let status
+  try {
+    status = await host.waitFor(async () => {
+      last = await host.execute(apsctl, ['status']).catch((error) => error.message)
+      return /daemon status:\s+Running/.test(last) && /connection status:\s+Yes/.test(last) && last
+    }, 'apsd to connect to the APNs courier', 60000)
+  } catch (error) {
+    if (!error.message.startsWith('Timed out')) throw error
+    throw new Error(`${error.message}; last apsctl status: ${apsdSummary(last).join('; ')}`)
+  }
   await host.waitFor(() => host.execute('pgrep', ['-x', 'NotificationCenter']).then((processIds) => processIds.trim(), () => ''), 'Notification Center', 30000)
-  return { apsd: (status.match(apsdStatusLine) ?? []).map((line) => line.trim().replace(/\s{2,}/g, ' ')) }
+  return { apsd: apsdSummary(status) }
+}
+
+const collapse = (line) => line.trim().replace(/\s{2,}/g, ' ')
+
+// The matched status lines, or a bounded prefix of a reply that has none of them, such as "Connection invalid".
+export function apsdSummary(text) {
+  const lines = (text.match(apsdStatusLine) ?? []).map(collapse)
+  return lines.length ? lines : [collapse(text).slice(0, 300)]
+}
+
+// apsctl prints one "application port name" block per registered process, indented under its connection environment, with
+// its enabled topics, the incoming pushes per topic and the pushes apsd handed to the process.
+export function apsdApplication(text, topic) {
+  const lines = text.split(/\r?\n/)
+  const indent = (line) => line.length - line.trimStart().length
+  for (let start = 0; start < lines.length; start++) {
+    if (!/^\s*application port name:/.test(lines[start])) continue
+    let end = start + 1
+    while (end < lines.length && (!lines[end].trim() || indent(lines[end]) > indent(lines[start]))) end++
+    const block = lines.slice(start, end).filter((line) => line.trim()).map(collapse)
+    if (block.some((line) => line === `topic: ${topic}`)) return block.slice(0, 80)
+  }
+  return null
+}
+
+const notificationLogPredicate = ['apsd', 'usernoted', 'NotificationCenter', 'orbit-desktop'].map((name) => `process == "${name}"`)
+  .concat('subsystem == "com.apple.UserNotifications"').join(' OR ')
+
+function logStart(date) {
+  const pad = (value) => String(value).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+}
+
+// Device tokens stay out of the artifacts, as the registration record keeps only the token length.
+const redactTokens = (text) => text.replace(/bytes=<[0-9a-f ]+>/gi, 'bytes=<redacted>')
+
+// The push phase keeps what apsd and usernoted did with the reminder: the app's apsd block shows whether the push reached the
+// device and the process, and the unified log shows each presentation decision.
+export async function capturePushDiagnostics(output, { topic, since }, host = { execute, writeFile }) {
+  const status = redactTokens(await host.execute(apsctl, ['status']).catch((error) => error.message))
+  await host.writeFile(join(output, 'push-apsctl-status.log'), status)
+  const unifiedLog = join(output, 'push-unified.log')
+  let unifiedError = null
+  try {
+    await host.execute('/usr/bin/log', ['show', '--start', logStart(since), '--style', 'compact', '--info', '--debug', '--predicate', notificationLogPredicate],
+      { log: unifiedLog })
+  } catch (error) { unifiedError = error.message.slice(0, 500) }
+  return { apsdStatus: 'push-apsctl-status.log', apsdApplication: topic ? apsdApplication(status, topic) : null, unifiedLog: 'push-unified.log',
+    ...(unifiedError ? { unifiedError } : {}) }
 }
 
 function processAlive(pid) {

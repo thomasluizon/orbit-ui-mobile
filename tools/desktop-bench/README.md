@@ -161,21 +161,34 @@ and `ApnsPushSender.CreatePayload`, with a one-use token that the mock issues.
   its value, and signs an ES256 provider token. An unsigned build without the key is a skip that names
   the missing signing material. A Developer ID signed build without the key fails the job. Output that
   `plutil` cannot parse, or an unknown key value, fails the job with the raw output lengths and first
-  bytes. The runner allows the first authorization alert through AX. The macos-latest image disables
-  `com.apple.notificationcenterui.agent`, so Notification Center is not running and nothing presents the
-  alert. Before it turns on the Perfil switch, the runner starts Notification Center with
-  `open -g -b com.apple.notificationcenterui` and waits for its process.
+  bytes. The macos-latest image leaves `com.apple.apsd` and `com.apple.notificationcenterui.agent`
+  unloaded. Then `apsctl status` answers "Connection invalid", no authorization alert shows and no APNs
+  token arrives. An `open -b` start of Notification Center does not help, because launchd vends no
+  service for it. Thus, before it turns on the Perfil switch, `startPushServices` in
+  `acceptance-platform.mjs` loads both services through launchd, as a login does. For `com.apple.apsd`
+  in the `system` domain and `com.apple.notificationcenterui.agent` in the `gui/<uid>` domain, it runs
+  `launchctl enable`, then `bootstrap` only when `launchctl print` cannot find the service, then
+  `kickstart`. It waits until `apsctl status` shows `daemon status: Running` and `connection status: Yes`,
+  and until the `NotificationCenter` process runs. `report.json` `pushServices` keeps the apsd status
+  lines. If apsd never reaches the courier, the error keeps the last status lines instead.
+  The runner allows the first authorization alert through AX. The alert leaves the screen once it is
+  allowed, so `report.json` `push.authorization` records whether a search found and invoked it.
 
 Microsoft's app notification quickstart states that app notifications are not supported for elevated
 apps. The Windows App SDK makes this decision from the token integrity level only: `AppNotificationManager::IsSupported`
 is false at `SECURITY_MANDATORY_HIGH_RID` or above (`dev/Common/Security.IntegrityLevel.h`). The Windows
 harness runs at High integrity, because it edits the hosts file and the machine root store. A scheduled
-task with `-RunLevel Limited` still gave the runner account a High token. Thus `windows-unelevated.ps1`
-duplicates the harness token, sets its integrity level to Medium (`S-1-16-8192`) and starts a PowerShell
-launcher with `CreateProcessAsUser`, as Microsoft's
+task with `-RunLevel Limited` still gave the runner account a High token. A copy of the harness token
+with only its integrity level lowered keeps the Administrators group and the admin privileges, and
+WebView2 fails under it with "failed to create webview" and HRESULT `0x80010108`. Thus `windows-unelevated.ps1`
+computes a standard-user token from the harness token with
+[`SaferComputeTokenFromLevel`](https://learn.microsoft.com/en-us/windows/win32/api/winsafer/nf-winsafer-safercomputetokenfromlevel)
+at `SAFER_LEVELID_NORMALUSER`, as `runas /trustlevel:0x20000` does. That level makes the Administrators
+group deny-only and removes the admin privileges. The token then takes an explicit Medium label
+(`S-1-16-8192`), and `CreateProcessAsUser` starts a PowerShell launcher with it, as Microsoft's
 [low integrity guide](https://learn.microsoft.com/en-us/previous-versions/dotnet/articles/bb625960(v=msdn.10))
 shows. The launcher inherits the harness desktop, so the shell stays in the runner's interactive session.
-The launcher removes the proxy variables and starts the shell, which inherits the Medium token. The shell
+The launcher removes the proxy variables and starts the shell, which inherits the standard-user token. The shell
 writes stderr to `<launch>.log` and stdout to `<launch>.stdout.log`. `Add-Type` compiles through CodeDom,
 which fails at Medium integrity with "A required privilege is not held by the client". Thus the High start
 mode compiles the token helper into `OrbitIntegrity-<id>.dll` in the output directory, and the Medium
@@ -187,7 +200,9 @@ Mandatory Integrity Control refuses a write from Medium to a High object, so thi
 launcher and shell create and append to their logs and status file. `<launch>-launch.jsonl` keeps the
 launcher's token, the shell's process ID and token, and its exit code. Each token record names the user,
 the SID, the last SID subauthority (500 for the built-in Administrator), the integrity level, the
-`TokenIsElevated` value and the session. `report.json` `launchContexts` keeps these records for the shell,
+`TokenIsElevated` value, the state of the Administrators group (`S-1-5-32-544`: `enabled`, `denyOnly`,
+`disabled` or `absent`) and the session. `TokenIsElevated` stays true for the standard-user token of the
+built-in Administrator, so the real launch test asserts that the Administrators group is not `enabled`. `report.json` `launchContexts` keeps these records for the shell,
 the launcher and the harness, and the output directory label. A shell at High integrity or above fails
 the job. When the launcher cannot read the shell token, the launcher's token decides, because the shell
 inherits it.
@@ -219,6 +234,14 @@ Each run keeps the platform evidence that the notification readers use, also whe
   holds the UIA candidate windows and, after a match, the UIA subtree of the toast that holds Done.
   On macOS, a reply holds the AX tree of `com.apple.notificationcenterui`, and
   `trees/notification-authorization.json` keeps the tree from the authorization alert search.
+  `trees/notification-authorization-found.json` keeps the reply of the search that found the alert.
+- On macOS, after the push phase, `push-apsctl-status.log` keeps the whole `apsctl status` with the
+  device token bytes redacted. `report.json` `pushDiagnostics.apsdApplication` keeps the apsd block of the
+  application that lists the shell's topic: its enabled topics, the incoming pushes per topic and the
+  pushes that apsd gave to the process. `push-unified.log` keeps the unified log of `apsd`, `usernoted`,
+  `NotificationCenter`, `orbit-desktop` and the `com.apple.UserNotifications` subsystem from the start
+  of the phase. Together they show whether a reminder reached the device, reached the shell, or was
+  not presented.
 
 Push credentials come only from the job environment. `acceptance.mjs` removes them from
 `process.env` before any build or server starts, and the report keeps the WNS host or the token

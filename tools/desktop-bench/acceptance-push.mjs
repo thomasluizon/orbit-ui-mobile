@@ -207,10 +207,17 @@ async function enablePush(io, pid) {
   if (io.platform === 'darwin') await io.startPushServices()
   io.proxy.send(`push-enable:${JSON.stringify(io.labels)}`)
   // A first macOS request shows the system authorization alert, which only a person or the AX reader can allow.
-  // Each poll records the Notification Center tree, so every run carries a capture of the alert or of its absence.
+  // Each poll records the Notification Center tree, so every run carries a capture of the alert or of its absence. The alert
+  // leaves the screen once allowed, so the poll that found it keeps its own capture and its outcome in the report.
+  if (io.platform === 'darwin') io.report.push.authorization = { found: false }
   await io.waitFor(async () => {
     if (io.platform === 'darwin') {
-      await io.record('notification-authorization', await io.native(pid, 'notification', { title: io.appName, label: io.allowLabel, invoke: true }))
+      const reply = await io.native(pid, 'notification', { title: io.appName, label: io.allowLabel, invoke: true })
+      await io.record('notification-authorization', reply)
+      if (reply?.found && !io.report.push.authorization.found) {
+        io.report.push.authorization = { found: true, invoked: reply.invoked, role: reply.role, action: reply.action }
+        await io.record('notification-authorization-found', reply)
+      }
     }
     return Boolean(io.proxy.read('push-enabled'))
   }, 'the Perfil notification switch to register this device', 330000)

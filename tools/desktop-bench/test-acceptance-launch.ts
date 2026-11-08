@@ -19,7 +19,7 @@ function windowsLauncher(script: { statusAfterStart?: string[]; statusAfterDelay
       calls.push([command, ...args])
       if (command !== 'powershell.exe') return ''
       lines.push(...script.statusAfterStart ?? [])
-      return `${JSON.stringify({ harness: token('High', 0x3000, true), launcher: 31, outputLabel: 'Mandatory Label\\Medium Mandatory Level:(OI)(CI)(NW)' })}\r\n`
+      return `${JSON.stringify({ harness: high, launcher: 31, outputLabel: 'Mandatory Label\\Medium Mandatory Level:(OI)(CI)(NW)' })}\r\n`
     },
     readFile: async () => {
       if (!lines.length) throw Object.assign(new Error('missing status'), { code: 'ENOENT' })
@@ -38,11 +38,12 @@ function windowsLauncher(script: { statusAfterStart?: string[]; statusAfterDelay
 }
 
 // The renamed built-in Administrator keeps RID 500 and, with Admin Approval Mode off for it, a High token. The launcher
-// gives the shell a Safer standard-user token at Medium integrity, which is not elevated.
-const token = (integrity: string, integrityRid: number, tokenIsElevated: boolean) =>
-  ({ user: 'RUNNER\\runneradmin', sid: 'S-1-5-21-1-2-3-500', rid: 500, integrity, integrityRid, tokenIsElevated, session: 1 })
-const medium = token('Medium', 0x2000, false)
-const high = token('High', 0x3000, true)
+// gives the shell a Safer standard-user token at Medium integrity. TokenIsElevated stays true on that token (hosted
+// windows-latest producer run), and the Safer level leaves the Administrators group deny-only.
+const token = (integrity: string, integrityRid: number, administrators: string) =>
+  ({ user: 'RUNNER\\runneradmin', sid: 'S-1-5-21-1-2-3-500', rid: 500, integrity, integrityRid, tokenIsElevated: true, administrators, session: 1 })
+const medium = token('Medium', 0x2000, 'denyOnly')
+const high = token('High', 0x3000, 'enabled')
 const context = (value: object) => JSON.stringify({ kind: 'context', context: value })
 const exited = JSON.stringify({ kind: 'exit', code: 0 })
 const launched = (pid: number, shell?: object) => JSON.stringify({ kind: 'launch', pid, ...(shell ? { shell } : { shellError: 'Access is denied' }) })
@@ -64,8 +65,8 @@ test('the Windows launcher starts the shell at Medium integrity, reports every t
 })
 
 test('the Windows launcher judges the shell by integrity level, not by Administrators membership or TokenIsElevated', async () => {
-  for (const [shell, recorded, accepted] of [[medium, medium, true], [high, high, false], [token('System', 0x4000, true), medium, false],
-    [token('Low', 0x1000, false), token('Low', 0x1000, false), true], [token('MediumPlus', 0x2100, true), medium, true]] as const) {
+  for (const [shell, recorded, accepted] of [[medium, medium, true], [high, high, false], [token('System', 0x4000, 'enabled'), medium, false],
+    [token('Low', 0x1000, 'denyOnly'), token('Low', 0x1000, 'denyOnly'), true], [token('MediumPlus', 0x2100, 'enabled'), medium, true]] as const) {
     const launch = windowsLauncher({ statusAfterStart: [context(recorded), launched(7, shell)], statusAfterDelay: [exited] })
     const result = launchUnelevated('/output/orbit-desktop.exe', '/output', 'installed', launch.host)
     if (accepted) await result
@@ -135,10 +136,16 @@ function assertToken(value: Record<string, unknown> | undefined) {
   assert.ok(Number.isInteger(value?.rid) && Number.isInteger(value?.integrityRid))
   assert.match(String(value?.integrity), /^(Untrusted|Low|Medium|MediumPlus|High|System|ProtectedProcess|0x[0-9A-F]{4})$/)
   assert.equal(typeof value?.tokenIsElevated, 'boolean')
+  assert.ok(['absent', 'denyOnly', 'disabled', 'enabled'].includes(String(value?.administrators)), `administrators ${value?.administrators}`)
+}
+
+function launcherRunning(pid: number) {
+  try { process.kill(pid, 0); return true } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ESRCH') return false; throw error }
 }
 
 // The producer check runs in the same elevated job as the installed acceptance, so this launches a real Medium process there.
-// An elevated token lowered only to Medium keeps the admin groups, and WebView2 fails under it with 0x80010108.
+// An elevated token lowered only to Medium keeps the Administrators group enabled, and WebView2 fails under it with 0x80010108.
+// TokenIsElevated cannot tell the two apart, because it stays true for the Safer token, so only the group state is asserted.
 test('the Windows launcher start mode runs a real executable as an unelevated standard user at Medium integrity and records its exit', { skip: process.platform !== 'win32' }, async () => {
   const directory = mkdtempSync(join(tmpdir(), 'orbit-unelevated-'))
   try {
@@ -160,11 +167,14 @@ test('the Windows launcher start mode runs a real executable as an unelevated st
     assertToken(parsed.shell)
     assert.equal(integrity(parsed.context), 'Medium:8192')
     assert.equal(integrity(parsed.shell), 'Medium:8192')
-    assert.equal(parsed.context?.tokenIsElevated, false)
-    assert.equal(parsed.shell?.tokenIsElevated, false)
+    assert.notEqual(parsed.context?.administrators, 'enabled')
+    assert.notEqual(parsed.shell?.administrators, 'enabled')
     assert.ok(Number.isInteger(parsed.pid) && parsed.pid! > 0)
     assert.deepEqual(parsed.exit, { kind: 'exit', code: 0 })
     assert.ok(readFileSync(join(directory, 'hostname.stdout.log'), 'utf8').trim().length > 0)
+    // The exit line is the launcher's last statement, but PowerShell still holds the directory and its library until it ends.
+    for (let attempt = 0; attempt < 120 && launcherRunning(harness.launcher); attempt++) await new Promise((resolve) => setTimeout(resolve, 250))
+    assert.equal(launcherRunning(harness.launcher), false, `launcher ${harness.launcher} still runs 30 s after its exit line`)
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }

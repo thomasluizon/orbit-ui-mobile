@@ -30,10 +30,10 @@ using System.Text;
 
 public static class OrbitIntegrity {
     const uint TokenQuery = 0x0008;
-    const int TokenUserClass = 1, TokenSessionIdClass = 12, TokenElevationClass = 20, TokenIntegrityLevelClass = 25;
-    const uint SeGroupIntegrity = 0x20, CreateNoWindow = 0x08000000;
+    const int TokenUserClass = 1, TokenGroupsClass = 2, TokenSessionIdClass = 12, TokenElevationClass = 20, TokenIntegrityLevelClass = 25;
+    const uint SeGroupEnabled = 0x04, SeGroupUseForDenyOnly = 0x10, SeGroupIntegrity = 0x20, CreateNoWindow = 0x08000000;
     const uint SaferScopeUser = 2, SaferLevelNormalUser = 0x20000, SaferLevelOpen = 1;
-    public const string MediumSid = "S-1-16-8192";
+    public const string MediumSid = "S-1-16-8192", AdministratorsSid = "S-1-5-32-544";
 
     [StructLayout(LayoutKind.Sequential)]
     struct SidAndAttributes { public IntPtr Sid; public uint Attributes; }
@@ -54,6 +54,7 @@ public static class OrbitIntegrity {
         public uint IntegrityRid { get; set; }
         public string Integrity { get; set; }
         public bool TokenIsElevated { get; set; }
+        public string Administrators { get; set; }
         public uint Session { get; set; }
     }
 
@@ -122,6 +123,21 @@ public static class OrbitIntegrity {
         } finally { Marshal.FreeHGlobal(buffer); }
     }
 
+    // TokenElevation stays true for the Safer token of the built-in Administrator (hosted windows-latest producer run), so the
+    // Administrators group decides. A deny-only group grants nothing and only denies:
+    // https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-token_groups
+    static string AdministratorsState(IntPtr buffer) {
+        int count = Marshal.ReadInt32(buffer);
+        int size = Marshal.SizeOf(typeof(SidAndAttributes));
+        for (int index = 0; index < count; index++) {
+            var group = (SidAndAttributes)Marshal.PtrToStructure(buffer + IntPtr.Size + index * size, typeof(SidAndAttributes));
+            if (new SecurityIdentifier(group.Sid).Value != AdministratorsSid) continue;
+            if ((group.Attributes & SeGroupUseForDenyOnly) != 0) return "denyOnly";
+            return (group.Attributes & SeGroupEnabled) != 0 ? "enabled" : "disabled";
+        }
+        return "absent";
+    }
+
     public static TokenContext Describe(IntPtr process) {
         IntPtr token;
         if (!OpenProcessToken(process, TokenQuery, out token)) throw Failure("OpenProcessToken");
@@ -136,6 +152,7 @@ public static class OrbitIntegrity {
             context.IntegrityRid = Read(token, TokenIntegrityLevelClass, buffer => LastSubAuthority(Marshal.ReadIntPtr(buffer)));
             context.Integrity = IntegrityName(context.IntegrityRid);
             context.TokenIsElevated = Read(token, TokenElevationClass, buffer => Marshal.ReadInt32(buffer) != 0);
+            context.Administrators = Read<string>(token, TokenGroupsClass, AdministratorsState);
             context.Session = Read(token, TokenSessionIdClass, buffer => unchecked((uint)Marshal.ReadInt32(buffer)));
             return context;
         } finally { CloseHandle(token); }
@@ -175,7 +192,7 @@ public static class OrbitIntegrity {
 function ConvertTo-LaunchContext($Token) {
     $user = try { ([Security.Principal.SecurityIdentifier]$Token.Sid).Translate([Security.Principal.NTAccount]).Value } catch { $Token.Sid }
     [ordered]@{ user = $user; sid = $Token.Sid; rid = $Token.Rid; integrity = $Token.Integrity; integrityRid = $Token.IntegrityRid
-        tokenIsElevated = $Token.TokenIsElevated; session = $Token.Session }
+        tokenIsElevated = $Token.TokenIsElevated; administrators = $Token.Administrators; session = $Token.Session }
 }
 
 function Write-Status($Entry) {

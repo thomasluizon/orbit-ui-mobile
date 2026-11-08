@@ -8,7 +8,7 @@ import { buildHermeticWeb } from './runner.mjs'
 import { readFixtures } from './build.mjs'
 import { startProxy } from './server.mjs'
 import { assertFree, delay, execute, start, stop, stopAll, waitFor, waitForHttp } from './host.mjs'
-import { buildInstaller, desktopOrigin, install, isolateOrigins, launchContext, launchUnelevated, startHttpsListener, startPushServices, startRecording } from './acceptance-platform.mjs'
+import { buildInstaller, capturePushDiagnostics, desktopOrigin, install, isolateOrigins, launchContext, launchUnelevated, startHttpsListener, startPushServices, startRecording } from './acceptance-platform.mjs'
 import { NativeTreePendingError, assertAccessibleTree, assertCookieEvidence, assertPaletteFocus, corruptSignature } from './acceptance-contract.mjs'
 import { exercisePush, pushSender, signedApsEnvironment, unsignedReason } from './acceptance-push.mjs'
 
@@ -315,9 +315,13 @@ async function pushPhase({ proxy, native, updates, handle, executable, output, r
     record: (name, value) => record(join(output, 'trees', `${name}.json`), value),
     warn(message) { process.stdout.write(`::warning title=Desktop push acceptance::${message}\n`) },
   }
+  const since = new Date()
   let failure
   try { await exercisePush(io) } catch (error) { failure = error }
   try { await collectUnsupportedPush(output, report) } catch (error) { failure ??= error }
+  if (!windows && report.push?.registration) {
+    try { report.pushDiagnostics = await capturePushDiagnostics(output, { topic: report.push.registration.apnsTopic, since }) } catch (error) { failure ??= error }
+  }
   // A notification launch starts the shell outside the process host, so this phase stops it.
   const cleanup = []
   for (const pid of adopted) {
