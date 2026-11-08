@@ -147,6 +147,7 @@ test("Guards checks every workflow with a checksum-pinned actionlint and no base
   assert.ok(step, "workflow syntax must have a guard")
   assert.equal(step.if, "${{ !cancelled() }}")
   assert.match(step.run, /releases\/download\/v1\.7\.12\/actionlint_1\.7\.12_linux_amd64\.tar\.gz/)
+  assert.match(step.run, /curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 https:\/\/github\.com\/rhysd\/actionlint\//)
   assert.match(step.run, /8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8/)
   assert.match(step.run, /sha256sum -c/)
   assert.ok(step.run.indexOf("sha256sum -c") < step.run.indexOf("tar -xzf"))
@@ -163,6 +164,10 @@ test("script guards share one checkout and install, and run after another guard 
     assert.ok(step.name, `${step.id} must name the guard`)
     assert.match(step.if, /!cancelled\(\)/, `${step.id} must run after a previous failure`)
     assert.doesNotMatch(step.if, /success\(\)/, `${step.id} must not depend on another guard passing`)
+  }
+  const firstGuard = steps.findIndex((step) => step.id?.includes("__"))
+  for (const step of steps.slice(firstGuard + 1).filter((candidate) => !candidate.id?.includes("__"))) {
+    assert.match(step.if ?? "", /!cancelled\(\)/, `${step.name} must still run when an earlier guard fails`)
   }
 })
 
