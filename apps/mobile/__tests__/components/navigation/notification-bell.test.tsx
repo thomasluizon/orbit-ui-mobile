@@ -457,7 +457,7 @@ describe('mobile alerts', () => {
         expect(badge.top).toBe(action.top)
         expect(badge.right).toBe(action.right)
         expect(badge.width).toBeGreaterThanOrEqual(20)
-        expect(badge.height).toBeGreaterThanOrEqual(20 * scale)
+        expect(badge.height).toBe(20)
         const inset = Math.min(Number(badge.style.borderRadius), badge.width / 2, badge.height / 2) * (1 - Math.SQRT1_2)
         const corners = [badge.left + inset, badge.right - inset].flatMap((x) =>
           [badge.top + inset, badge.bottom - inset].map((y) => ({ x, y })))
@@ -473,6 +473,22 @@ describe('mobile alerts', () => {
       expect(hosts(tree, 'Pressable')).toHaveLength(1)
     },
   )
+  it.each([1, 25])('keeps the %s unread marker at its resting size and corner at double text size', (count) => {
+    state.unreadCount = count
+    const measure = (fontScale: number) => {
+      __setWindowDimensions({ width: 320, height: 900, scale: 1, fontScale })
+      const tree = render(<NotificationBell />)
+      expect(testId(tree, 'notification-count')[0]!.props).toMatchObject({ maxFontSizeMultiplier: 1 })
+      const parts = measureInteractionFills(tree.toJSON(), SMALL_PILL_VISIBLE_MIN, false, fontScale)
+      const badge = parts.find((part) => part.host.props.testID === 'notification-count')!
+      const action = parts.find((part) => part.host.type === 'Pressable')!
+      return { badge: { width: badge.width, height: badge.height }, offset: { top: badge.top - action.top, right: action.right - badge.right } }
+    }
+    const resting = measure(1)
+    const large = measure(2)
+    expect(resting.badge.height).toBe(20)
+    expect(large).toEqual(resting)
+  })
   it.each([1, 9])('shows the count %s below the cap', (count) => {
     state.unreadCount = count
     expect(testId(render(<NotificationBell />), 'notification-count')[0]!.props.children).toBe(count)
