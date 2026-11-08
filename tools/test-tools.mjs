@@ -93,6 +93,7 @@ const CASE_MODULES = [
   ["wait-auto-work.mjs", "auto-work"],
   ["lib/auto-work-google.mjs", "auto-work-google"],
   ["lib/auto-work-intake.mjs", "auto-work-intake"],
+  ["lib/auto-work-wake.mjs", "auto-work-wake"],
   ["authorize-orbit-mail.mjs", "authorize-orbit-mail"],
   ["orbit-mail.mjs", "orbit-mail"],
   ["orbit-play-reviews.mjs", "orbit-play-reviews"],
