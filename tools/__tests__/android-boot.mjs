@@ -20,7 +20,7 @@ function hierarchy(text, overrides = {}) {
 
 // Accessibility XML from Android Startup run 41954728677, with its update dialog also removed.
 // An Application Not Responding dialog stays on top until a tap lands inside its Wait control.
-// The dialog opens once anr.after screen captures have shown the replayed screens (default 0).
+// anr.after lists capture counts (default [0]); the dialog opens once per entry, when that many replayed screens have shown.
 // The focus line follows AOSP android15-release: DisplayContent.dump prints "  mCurrentFocus=" + WindowState.toString(),
 // which is "Window{<hash> u<user> <title>}", and AppNotRespondingDialog titles its window "Application Not Responding: " + processName.
 function replayBoot(name, screens, logcat = "I ReactNativeJS: Running application", anr = null) {
