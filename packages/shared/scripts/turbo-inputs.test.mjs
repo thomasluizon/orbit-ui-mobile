@@ -19,7 +19,8 @@ const consumers = [
     '.gitignore', 'apps/mobile/.gitignore', 'eslint-rules/no-comments.cjs', 'tsconfig.base.json',
   ] },
   { workspace: 'apps/desktop', name: '@orbit/desktop', inputs: [
-    '.github/workflows/desktop-release.yml', 'apps/web/components/auth/desktop-auth-bridge.tsx',
+    '.github/workflows/desktop-release.yml',
+    'apps/web/components/auth/desktop-auth-bridge.tsx',
     'apps/web/lib/desktop-push.ts', 'apps/web/lib/desktop-updates.ts',
     '.github/workflows/desktop-build.yml', '.github/workflows/release.yml',
     'apps/mobile/lib/turnstile-frames.ts', 'apps/web/proxy.ts', 'apps/web/web-compatibility.json',

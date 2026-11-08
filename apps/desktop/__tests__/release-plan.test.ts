@@ -4,7 +4,7 @@ import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
-import { channelVersion, planShellRelease, shellFloor } from '../scripts/release-plan.ts'
+import { channelAdvance, channelVersion, planShellRelease, shellFloor, sourceOnMain } from '../scripts/release-plan.ts'
 import compatibility from '../../web/web-compatibility.json'
 import channel from '../__fixtures__/channel-staging.json'
 
@@ -73,6 +73,24 @@ function repository() {
   return source
 }
 
+it('advances a channel only from a source that main contains, because a squash merge strands any other source', () => {
+  const merged = repository()
+  git('update-ref', 'refs/remotes/origin/main', merged)
+  const branch = commit('apps/desktop/shell.rs', 'branch shell')
+  expect(sourceOnMain(merged)).toBe(true)
+  expect(sourceOnMain(branch)).toBe(false)
+  git('tag', 'desktop-staging-v0.1.2', branch)
+  git('update-ref', 'HEAD', merged)
+  commit('web.ts', 'main moved on')
+  const squashed = commit('apps/desktop/shell.rs', 'branch shell')
+  expect(squashed).not.toBe(branch)
+  git('update-ref', 'refs/remotes/origin/main', squashed)
+  expect(() => planShellRelease('staging', squashed, '0.1.2', [])).toThrow('must descend')
+  expect(sourceOnMain(squashed)).toBe(true)
+  git('update-ref', '-d', 'refs/remotes/origin/main')
+  expect(() => sourceOnMain(squashed)).toThrow('Cannot compare the desktop source with main')
+}, gitTestTimeout)
+
 it('admits the reusable production dispatch and skips unchanged shell publication', () => {
   const require = createRequire(import.meta.url)
   const { load } = require('js-yaml') as { load: (source: string) => {
@@ -105,6 +123,20 @@ it('publishes a shell meeting a raised web-owned compatibility floor', () => {
   mkdirSync('apps/web', { recursive: true })
   const source = commit('apps/web/web-compatibility.json', JSON.stringify({ minimumShellVersion: '1.0.0' }))
   expect(planShellRelease('staging', source, '0.1.1', [], '1.0.0')).toBe('1.0.0')
+}, gitTestTimeout)
+
+it('refuses a source outside main that raises the web floor above the shell the channel keeps', () => {
+  const merged = repository()
+  git('update-ref', 'refs/remotes/origin/main', merged)
+  mkdirSync('apps/web', { recursive: true })
+  const source = commit('apps/web/web-compatibility.json', JSON.stringify({ minimumShellVersion: '1.0.0' }))
+  const version = planShellRelease('staging', source, '0.1.1', [], '1.0.0')
+  expect(version).toBe('1.0.0')
+  expect(() => channelAdvance(source, version, 'staging', '0.1.1', '1.0.0')).toThrow('merge the floor change to main first')
+  expect(channelAdvance(source, version, 'staging', '0.1.1', '0.1.0')).toBe(false)
+  expect(channelAdvance(source, null, 'staging', '0.1.1', '1.0.0')).toBe(false)
+  git('update-ref', 'refs/remotes/origin/main', source)
+  expect(channelAdvance(source, version, 'staging', '0.1.1', '1.0.0')).toBe(true)
 }, gitTestTimeout)
 
 it('fails if the baseline tag is unavailable or checkout is not the selected commit', () => {
