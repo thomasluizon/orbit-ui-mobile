@@ -241,7 +241,7 @@ async function pushPhase({ proxy, native, updates, handle, executable, output, r
     platform: process.platform, report, credentials, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     labels: await catalogValue('../../packages/shared/src/i18n', (catalog) => catalog.profile.settingsRows.alertsOnThisDevice),
     doneLabel: (await catalogValue('../../apps/desktop/locales', (catalog) => catalog.reminderDone))[0],
-    // The account language is English, so macOS shows its English authorization alert for the staging product name.
+    // The system authorization alert follows the VM language, which is English on GitHub macOS runners.
     allowLabel: 'Allow', appName: 'Orbit Staging',
     async apsEnvironment() {
       try {
