@@ -1384,15 +1384,16 @@ A later ticket deletes it. It is not a fallback engine.
 
 ### §5.4.1 The worker account
 
-**Every worker runs under the dedicated worker account, never under the orchestrator's account.**
-`workers.claude.configDirEnv` names the variable `ORBIT_WORKER_CLAUDE_CONFIG_DIR`, and the
-owner's shell profile exports it as the Claude Code config directory of that account. The path
-lives only in the environment, never in a tracked file. For a `claude` launch, `launch-worker.mjs`
-does these steps:
+**A worker runs under the dedicated worker account when one is configured, and under the main
+account when none is.** `workers.claude.configDirEnv` names the variable
+`ORBIT_WORKER_CLAUDE_CONFIG_DIR`. When a worker account exists, the owner's shell profile exports
+the variable as the Claude Code config directory of that account. The path lives only in the
+environment, never in a tracked file. For a `claude` launch, `launch-worker.mjs` does these steps:
 
-1. It refuses with exit 2, naming the variable, when the variable is unset or empty.
+1. When the variable is unset or empty, it uses single-account mode: the worker runs once on the
+   main account, the orchestrator's default Claude config, with `CLAUDE_CONFIG_DIR` removed.
 2. It refuses with exit 2 when the variable names a path that is not an existing directory.
-3. It sets `CLAUDE_CONFIG_DIR` to that directory in the child environment.
+3. Otherwise it sets `CLAUDE_CONFIG_DIR` to that directory in the child environment.
 4. It removes every variable in `CLAUDE_ACCOUNT_OVERRIDE_KEYS` (`tools/lib/orchestrator-config.mjs`)
    from the child environment. The installed `claude` CLI selects each one ahead of the sign-in in
    its config directory: `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN`,
@@ -1403,6 +1404,14 @@ Research launches through `--research` apply the same four steps. A `codex` laun
 account directory and is unchanged. The dry run and the launch JSON name the account as
 `account` (`worker` or `main`), and each worker log file name ends in `-worker-account.log` or
 `-main-account.log`.
+
+**On the day the worker account is cancelled, unset the variable.** Remove the
+`ORBIT_WORKER_CLAUDE_CONFIG_DIR` export from the owner's shell profile, and workers start on the
+main account. A variable that still names the cancelled account's directory stops each worker at
+sign-in. The launch JSON then shows `authenticationFailed: true`, the CLI's error text in
+`resultError` and `usageLimitReached: false`, with no relaunch. If a new worker account is added
+later, set the variable again. The fallback then moves workers between the two accounts with no
+owner action.
 
 ```bash
 node tools/launch-worker.mjs --issue '#N' --worktree <path> --prompt <file> --dry-run
@@ -1415,7 +1424,7 @@ node tools/launch-worker.mjs --issue '#N' --worktree <path> --prompt <file> --ti
 the account directory and prints the plan, then exits before `githubEnvironment` and before any
 spawn. It proves five things: the engine and tier resolve, the model id the launcher selected,
 the exact argv the child would receive, the command is on PATH in a shape Node can spawn without
-a shell, and `configDirectory` names the account directory the worker will run under. It proves
+a shell, and `account` and `configDirectory` name the account the worker will run under. It proves
 nothing about whether that sign-in is valid, whether the model id is accepted, or the run. Read
 the `args` array back for all four tiers: the launcher defaults `--tier` to `default`, so the
 explicit dry runs above are needed to show `mechanical`, `deep` and `max`.
@@ -1430,12 +1439,12 @@ launcher does these steps:
    every inherited override still removed. The order pointer tells the worker that an earlier
    worker stopped at its limit, so it reads `git log` and `git status` and keeps that work.
 2. It records both runs in `attempts` in the launch JSON, each with its `account`,
-   `configDirectory`, `logFile`, `outcome` and `usageLimitReached`. The top-level `account`,
-   `pid` and `logFile` name the run that finished the launch.
+   `configDirectory`, `logFile`, `outcome`, `usageLimitReached`, `authenticationFailed` and
+   `resultError`. The top-level `account`, `pid` and `logFile` name the run that finished the launch.
 
 Any other failure, including a transient 429 that is not a usage limit, ends the launch with no
-relaunch. A main account run that also reaches its limit is not relaunched again; the result
-shows `usageLimitReached: true`. Then record the reset time in the handoff inventory and in the
+relaunch. A main account run that reaches its limit is not relaunched again, in single-account
+mode or after the fallback; the result shows `usageLimitReached: true`. Then record the reset time in the handoff inventory and in the
 step 11 report, and stop new launches until a reset. Do not switch `worker` to `codex`, because
 its allowance is the reason the workers moved. The order generator, `§5.7`'s queue, the readiness
 loop and the open pull requests continue, because review and merge spend no worker allowance.
