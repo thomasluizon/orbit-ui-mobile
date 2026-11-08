@@ -35,7 +35,7 @@ try {
     if (current?.sessionId !== state.sessionId || !current.autoWork || !current.sleep || current.relay?.pending) finish("MODE_CHANGED", 0)
     const remaining = deadline - Date.now()
     if (remaining <= 0) break
-    await wait(Math.min(1000, Math.max(1, remaining)))
+    await wait(Math.min(1000, remaining))
   }
   finish("INTERVAL", 0)
 } catch (error) { console.error(error.message); finish("READ_FAILED", 1) }
