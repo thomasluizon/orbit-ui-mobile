@@ -107,6 +107,141 @@ static NSDictionary *captureTree(pid_t processId) {
     abort();
 }
 
+static id softAttribute(AXUIElementRef element, CFStringRef key) {
+    CFTypeRef value = NULL;
+    if (AXUIElementCopyAttributeValue(element, key, &value) != kAXErrorSuccess) return nil;
+    return CFBridgingRelease(value);
+}
+
+static NSDictionary *closeWindows(pid_t processId) {
+    AXUIElementRef app = AXUIElementCreateApplication(processId);
+    NSArray *windows = softAttribute(app, kAXWindowsAttribute) ?: @[];
+    CFRelease(app);
+    NSUInteger closed = 0;
+    for (id window in windows) {
+        id button = softAttribute((__bridge AXUIElementRef)window, kAXCloseButtonAttribute);
+        if (!button) continue;
+        AXError error = AXUIElementPerformAction((__bridge AXUIElementRef)button, kAXPressAction);
+        if (error != kAXErrorSuccess) failAX(error, @"AXUIElementPerformAction(AXPress)", @{@"id": @"window", @"role": @"AXButton"});
+        closed++;
+    }
+    if (!closed) @throw [NSException exceptionWithName:@"AXRead" reason:@"Installed app has no window to close" userInfo:nil];
+    return @{@"sent": @"close", @"closed": @(closed)};
+}
+
+static NSDictionary *listWindows(pid_t processId) {
+    NSArray *all = CFBridgingRelease(CGWindowListCopyWindowInfo(kCGWindowListOptionAll, kCGNullWindowID));
+    NSMutableArray *windows = [NSMutableArray array];
+    for (NSDictionary *window in all) {
+        if ([window[(__bridge NSString *)kCGWindowOwnerPID] intValue] != processId) continue;
+        [windows addObject:@{@"layer": window[(__bridge NSString *)kCGWindowLayer] ?: @0,
+            @"onscreen": @([window[(__bridge NSString *)kCGWindowIsOnscreen] boolValue])}];
+    }
+    return @{@"windows": windows};
+}
+
+static NSString *labelledAction(AXUIElementRef element, NSString *label) {
+    CFArrayRef names = NULL;
+    if (AXUIElementCopyActionNames(element, &names) != kAXErrorSuccess || !names) return nil;
+    NSArray *actions = CFBridgingRelease(names);
+    // A notification may expose its buttons as custom actions on its group, named or described by the button title.
+    for (NSString *action in actions) {
+        if ([action isEqual:label] || [action hasPrefix:[NSString stringWithFormat:@"Name:%@\n", label]]) return action;
+        CFStringRef description = NULL;
+        if (AXUIElementCopyActionDescription(element, (__bridge CFStringRef)action, &description) == kAXErrorSuccess && description) {
+            if ([(__bridge NSString *)description isEqual:label]) { CFRelease(description); return action; }
+            CFRelease(description);
+        }
+    }
+    NSString *title = softAttribute(element, kAXTitleAttribute);
+    if (![title length]) title = softAttribute(element, kAXDescriptionAttribute);
+    if ([softAttribute(element, kAXRoleAttribute) isEqual:@"AXButton"] && [title isEqual:label] &&
+        [actions containsObject:(__bridge NSString *)kAXPressAction]) return (__bridge NSString *)kAXPressAction;
+    return nil;
+}
+
+static void collectNodes(AXUIElementRef element, NSInteger parent, NSMutableArray *nodes, NSString *label, NSUInteger depth) {
+    if (nodes.count >= 5000 || depth > 40) return;
+    NSString *role = softAttribute(element, kAXRoleAttribute) ?: @"";
+    if ([role isEqual:@"AXMenuBar"]) return;
+    NSMutableArray *texts = [NSMutableArray array];
+    for (NSString *key in @[@"AXTitle", @"AXDescription", @"AXValue"]) {
+        id value = softAttribute(element, (__bridge CFStringRef)key);
+        if ([value isKindOfClass:[NSString class]] && [value length]) [texts addObject:value];
+    }
+    NSMutableDictionary *node = [@{@"element": (__bridge id)element, @"parent": @(parent),
+        @"text": [texts componentsJoinedByString:@" "], @"role": role} mutableCopy];
+    NSString *action = labelledAction(element, label);
+    if (action) node[@"action"] = action;
+    NSInteger index = (NSInteger)nodes.count;
+    [nodes addObject:node];
+    for (id child in softAttribute(element, kAXChildrenAttribute) ?: @[]) {
+        collectNodes((__bridge AXUIElementRef)child, index, nodes, label, depth + 1);
+    }
+}
+
+static void openNotificationCenter(void) {
+    // Clicking the menu bar clock opens Notification Center; Control Center owns that menu extra.
+    NSRunningApplication *control = [NSRunningApplication runningApplicationsWithBundleIdentifier:@"com.apple.controlcenter"].firstObject;
+    if (!control) return;
+    AXUIElementRef app = AXUIElementCreateApplication(control.processIdentifier);
+    id bar = softAttribute(app, (__bridge CFStringRef)@"AXExtrasMenuBar");
+    CFRelease(app);
+    for (id item in bar ? softAttribute((__bridge AXUIElementRef)bar, kAXChildrenAttribute) ?: @[] : @[]) {
+        NSString *identifier = softAttribute((__bridge AXUIElementRef)item, (__bridge CFStringRef)@"AXIdentifier");
+        if ([identifier rangeOfString:@"clock" options:NSCaseInsensitiveSearch].location == NSNotFound) continue;
+        AXUIElementPerformAction((__bridge AXUIElementRef)item, kAXPressAction);
+        usleep(1000000);
+        return;
+    }
+}
+
+static NSDictionary *notification(NSString *title, NSString *label, BOOL invoke, BOOL openCenter) {
+    if (!AXIsProcessTrusted()) return @{@"found": @NO, @"invoked": @NO, @"denied": @YES};
+    NSRunningApplication *center = [NSRunningApplication runningApplicationsWithBundleIdentifier:@"com.apple.notificationcenterui"].firstObject;
+    if (!center) return @{@"found": @NO, @"invoked": @NO, @"error": @"Notification Center is not running"};
+    if (openCenter) openNotificationCenter();
+    AXUIElementRef app = AXUIElementCreateApplication(center.processIdentifier);
+    NSMutableArray *nodes = [NSMutableArray array];
+    collectNodes(app, -1, nodes, label, 0);
+    CFRelease(app);
+    NSUInteger count = nodes.count;
+    NSMutableArray *last = [NSMutableArray arrayWithCapacity:count];
+    for (NSUInteger index = 0; index < count; index++) [last addObject:@(index)];
+    for (NSInteger index = (NSInteger)count - 1; index > 0; index--) {
+        NSInteger parent = [nodes[index][@"parent"] integerValue];
+        if (parent >= 0 && [last[index] integerValue] > [last[parent] integerValue]) last[parent] = last[index];
+    }
+    NSDictionary *match = nil;
+    NSUInteger matchSize = NSUIntegerMax;
+    for (NSUInteger index = 0; index < count; index++) {
+        NSUInteger end = [last[index] unsignedIntegerValue];
+        NSMutableArray *texts = [NSMutableArray array];
+        NSMutableArray *actions = [NSMutableArray array];
+        for (NSUInteger member = index; member <= end; member++) {
+            [texts addObject:nodes[member][@"text"]];
+            if (nodes[member][@"action"]) [actions addObject:nodes[member]];
+        }
+        if (actions.count != 1 || end - index >= matchSize) continue;
+        if ([[texts componentsJoinedByString:@" "] rangeOfString:title].location == NSNotFound) continue;
+        match = actions[0];
+        matchSize = end - index;
+    }
+    if (!match) {
+        NSMutableArray *seen = [NSMutableArray array];
+        for (NSDictionary *node in nodes) {
+            if ([node[@"text"] length] || node[@"action"]) [seen addObject:@{@"role": node[@"role"], @"text": node[@"text"], @"action": node[@"action"] ?: @""}];
+            if (seen.count >= 80) break;
+        }
+        return @{@"found": @NO, @"invoked": @NO, @"nodes": seen};
+    }
+    if (invoke) {
+        AXError error = AXUIElementPerformAction((__bridge AXUIElementRef)match[@"element"], (__bridge CFStringRef)match[@"action"]);
+        if (error != kAXErrorSuccess) failAX(error, @"AXUIElementPerformAction(notification)", @{@"id": @"notification", @"role": match[@"role"]});
+    }
+    return @{@"found": @YES, @"invoked": @(invoke), @"role": match[@"role"], @"action": match[@"action"]};
+}
+
 static void key(pid_t processId, NSString *name) {
     NSDictionary *codes = @{@"down": @125, @"home": @115, @"escape": @53, @"quit": @12, @"palette": @40};
     NSNumber *code = codes[name];
@@ -123,9 +258,10 @@ static void key(pid_t processId, NSString *name) {
 
 int main(int argc, const char *argv[]) {
     @autoreleasepool {
-        if (argc != 3) return 2;
+        if (argc < 3) return 2;
         pid_t processId = atoi(argv[1]);
         NSString *command = @(argv[2]);
+        if ([command isEqual:@"notification"] ? argc != 7 : argc != 3) return 2;
         @try {
             if ([command isEqual:@"terminate"]) {
                 if (![[NSRunningApplication runningApplicationWithProcessIdentifier:processId] terminate]) return 1;
@@ -133,7 +269,11 @@ int main(int argc, const char *argv[]) {
             }
             NSDictionary *result;
             if ([command isEqual:@"dump"]) result = captureTree(processId);
-            else {
+            else if ([command isEqual:@"close"]) result = closeWindows(processId);
+            else if ([command isEqual:@"windows"]) result = listWindows(processId);
+            else if ([command isEqual:@"notification"]) {
+                result = notification(@(argv[3]), @(argv[4]), atoi(argv[5]) == 1, atoi(argv[6]) == 1);
+            } else {
                 key(processId, command);
                 result = @{@"sent": command};
             }

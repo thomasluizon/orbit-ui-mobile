@@ -1284,3 +1284,140 @@ test('push acceptance reports explicit skips for an unsigned macOS shell and for
   assert.ok(windows.events.includes('stop'))
   assert.ok(!windows.events.some((event) => event.startsWith('sender')))
 })
+
+const notificationFixture = `#import <AppKit/AppKit.h>
+#import <ApplicationServices/ApplicationServices.h>
+static NSString *scenario;
+static NSMutableArray *performed;
+@interface FixtureRunning : NSObject
+@end
+@implementation FixtureRunning
+- (pid_t)processIdentifier { return 7; }
++ (NSArray *)runningApplicationsWithBundleIdentifier:(NSString *)identifier {
+    return [identifier isEqual:@"com.apple.notificationcenterui"] ? @[[self new]] : @[];
+}
++ (instancetype)runningApplicationWithProcessIdentifier:(pid_t)pid { return [self new]; }
+- (BOOL)activateWithOptions:(NSUInteger)options { return YES; }
+- (BOOL)terminate { return YES; }
+@end
+static NSDictionary *text(NSString *value) { return @{@"AXRole": @"AXStaticText", @"AXValue": value}; }
+static NSDictionary *done(NSString *identifier) { return @{@"id": identifier, @"AXRole": @"AXButton", @"AXTitle": @"Done", @"actions": @[@"AXPress"]}; }
+static AXUIElementRef fixtureApplication(pid_t pid) {
+    NSString *custom = @"Name:Done\\nTarget:0x0\\nSelector:(null)";
+    NSDictionary *other = @{@"id": @"other", @"AXRole": @"AXGroup", @"AXDescription": @"Orbit Staging, Orbit acceptance expired 0a1b2c3d",
+        @"actions": @[@"AXPress", custom]};
+    NSArray *groups = @[];
+    if ([scenario isEqual:@"custom"]) groups = @[other, @{@"id": @"first", @"AXRole": @"AXGroup",
+        @"AXDescription": @"Orbit Staging, Orbit acceptance done 6f1c2a5e, Next at 4:04 PM", @"actions": @[@"AXPress", custom]}];
+    if ([scenario isEqual:@"button"]) groups = @[@{@"id": @"first", @"AXRole": @"AXGroup", @"actions": @[@"AXPress"],
+        @"AXChildren": @[text(@"Orbit acceptance done 6f1c2a5e"), text(@"Next at 4:04 PM"), done(@"button-first")]}];
+    if ([scenario isEqual:@"description"]) groups = @[@{@"id": @"first", @"AXRole": @"AXGroup", @"AXTitle": @"Orbit acceptance done 6f1c2a5e",
+        @"actions": @[@"AXPress", @"AXCustomAction1"], @"descriptions": @{@"AXCustomAction1": @"Done", @"AXPress": @"press"}}];
+    if ([scenario isEqual:@"missing"]) groups = @[other];
+    if ([scenario isEqual:@"ambiguous"]) groups = @[@{@"id": @"first", @"AXRole": @"AXGroup",
+        @"AXChildren": @[text(@"Orbit acceptance done 6f1c2a5e"), done(@"one"), done(@"two")]}];
+    return (AXUIElementRef)CFBridgingRetain(@{@"AXRole": @"AXApplication", @"AXTitle": @"Notification Center", @"AXChildren": @[
+        @{@"AXRole": @"AXMenuBar", @"AXChildren": @[@{@"AXRole": @"AXMenuBarItem", @"AXTitle": @"Orbit acceptance done 6f1c2a5e", @"actions": @[@"AXPress"]}]},
+        @{@"AXRole": @"AXWindow", @"AXChildren": groups}]});
+}
+static AXError fixtureAttribute(AXUIElementRef element, CFStringRef key, CFTypeRef *value) {
+    id result = ((__bridge NSDictionary *)element)[(__bridge NSString *)key];
+    if (!result) return kAXErrorAttributeUnsupported;
+    *value = CFBridgingRetain(result);
+    return kAXErrorSuccess;
+}
+static AXError fixtureActions(AXUIElementRef element, CFArrayRef *names) {
+    *names = (CFArrayRef)CFBridgingRetain(((__bridge NSDictionary *)element)[@"actions"] ?: @[]);
+    return kAXErrorSuccess;
+}
+static AXError fixtureDescription(AXUIElementRef element, CFStringRef action, CFStringRef *description) {
+    NSString *value = ((__bridge NSDictionary *)element)[@"descriptions"][(__bridge NSString *)action];
+    if (!value) return kAXErrorActionUnsupported;
+    *description = (CFStringRef)CFBridgingRetain(value);
+    return kAXErrorSuccess;
+}
+static AXError fixturePerform(AXUIElementRef element, CFStringRef action) {
+    [performed addObject:@{@"id": ((__bridge NSDictionary *)element)[@"id"] ?: @"", @"action": (__bridge NSString *)action}];
+    return kAXErrorSuccess;
+}
+static Boolean fixtureTrusted(void) { return true; }
+#define NSRunningApplication FixtureRunning
+#define AXUIElementCreateApplication fixtureApplication
+#define AXUIElementCopyAttributeValue fixtureAttribute
+#define AXUIElementCopyActionNames fixtureActions
+#define AXUIElementCopyActionDescription fixtureDescription
+#define AXUIElementPerformAction fixturePerform
+#define AXIsProcessTrusted fixtureTrusted
+#define main acceptanceMain
+#include NATIVE_SOURCE
+#undef main
+int main(int argc, const char *argv[]) {
+    @autoreleasepool {
+        scenario = @(argv[1]);
+        performed = [NSMutableArray array];
+        const char *arguments[] = {"acceptance", "1", "notification", "Orbit acceptance done 6f1c2a5e", "Done", argv[2], "0"};
+        int status = acceptanceMain(7, arguments);
+        NSData *encoded = [NSJSONSerialization dataWithJSONObject:performed options:0 error:NULL];
+        fprintf(stderr, "%.*s", (int)encoded.length, (const char *)encoded.bytes);
+        return status;
+    }
+}
+`
+
+if (process.platform === 'darwin') {
+  const directory = mkdtempSync(join(tmpdir(), 'orbit-acceptance-notification-'))
+  after(() => rmSync(directory, { recursive: true, force: true }))
+  const source = join(directory, 'notification.m')
+  const executable = join(directory, 'notification')
+  writeFileSync(source, notificationFixture.replace('NATIVE_SOURCE', JSON.stringify(fileURLToPath(new URL('./acceptance-ax.m', import.meta.url)))))
+  const compilation = spawnSync('clang', ['-fobjc-arc', '-framework', 'AppKit', '-framework', 'ApplicationServices', source, '-o', executable], { encoding: 'utf8', timeout: 30000 })
+  assert.equal(compilation.status, 0, compilation.stderr)
+  const custom = 'Name:Done\nTarget:0x0\nSelector:(null)'
+  for (const [scenario, expected] of [
+    ['custom', { id: 'first', action: custom }], ['button', { id: 'button-first', action: 'AXPress' }],
+    ['description', { id: 'first', action: 'AXCustomAction1' }], ['missing', null], ['ambiguous', null],
+  ] as const) {
+    test(`native notification reader ${expected ? 'invokes only the titled notification Done' : 'refuses'} in the ${scenario} layout`, () => {
+      for (const invoke of ['1', '0']) {
+        const capture = spawnSync(executable, [scenario, invoke], { encoding: 'utf8', timeout: 10000 })
+        assert.equal(capture.status, 0, capture.stderr)
+        const reply = JSON.parse(capture.stdout) as { found: boolean; invoked: boolean; action?: string; nodes?: { role: string; text: string }[] }
+        assert.equal(reply.found, expected !== null)
+        assert.equal(reply.invoked, expected !== null && invoke === '1')
+        assert.deepEqual(JSON.parse(capture.stderr), expected && invoke === '1' ? [expected] : [])
+        if (expected) assert.equal(reply.action, expected.action)
+        else {
+          assert.ok(reply.nodes!.some(node => node.text.includes('Orbit acceptance')))
+          assert.ok(!reply.nodes!.some(node => node.role.startsWith('AXMenuBar')))
+        }
+      }
+    })
+  }
+  test('native window reader lists only the target process windows with layer and on-screen state', () => {
+    const reader = join(directory, 'reader')
+    const built = spawnSync('clang', ['-fobjc-arc', '-framework', 'AppKit', '-framework', 'ApplicationServices', fileURLToPath(new URL('./acceptance-ax.m', import.meta.url)), '-o', reader], { encoding: 'utf8', timeout: 30000 })
+    assert.equal(built.status, 0, built.stderr)
+    const capture = spawnSync(reader, [String(process.pid), 'windows'], { encoding: 'utf8', timeout: 10000 })
+    assert.equal(capture.status, 0, capture.stderr)
+    assert.deepEqual(JSON.parse(capture.stdout), { windows: [] })
+    assert.equal(spawnSync(reader, ['1', 'notification', 'title'], { encoding: 'utf8', timeout: 10000 }).status, 2)
+    assert.equal(spawnSync(reader, ['1', 'windows', 'extra'], { encoding: 'utf8', timeout: 10000 }).status, 2)
+  })
+}
+
+test('PowerShell producer lists process windows, finds the installed executable and refuses an absent notification', { skip: process.platform !== 'win32' }, () => {
+  const script = fileURLToPath(new URL('./acceptance-uia.ps1', import.meta.url))
+  const run = (...args: string[]) => {
+    const capture = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-File', script, ...args], { encoding: 'utf8', timeout: 60000 })
+    assert.equal(capture.status, 0, capture.stderr)
+    return JSON.parse(capture.stdout) as Record<string, unknown>
+  }
+  const windows = run('-TargetProcessId', String(process.pid), '-Command', 'windows').windows as { className: string; visible: boolean }[]
+  assert.ok(Array.isArray(windows))
+  assert.ok(windows.every(window => typeof window.className === 'string' && typeof window.visible === 'boolean'))
+  assert.ok((run('-TargetProcessId', '0', '-Command', 'process', '-Executable', process.execPath).processIds as number[]).includes(process.pid))
+  const absent = run('-TargetProcessId', String(process.pid), '-Command', 'notification', '-Title', `Orbit absent ${process.pid}`, '-Label', 'Done', '-Invoke')
+  assert.equal(absent.found, false)
+  assert.equal(absent.invoked, false)
+  assert.ok(Array.isArray(absent.windows))
+})

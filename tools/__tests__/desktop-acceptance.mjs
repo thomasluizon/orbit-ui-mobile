@@ -185,7 +185,7 @@ async function installedLaunchCases() {
     startProxy: async () => proxy, install: async () => '/fixture/Orbit',
     installedLaunch: () => { launches.push(settings.expectAuthenticated === true); return {} },
     waitFor: async (read, label) => { const result = read(); if (!result) throw new Error(`Timed out waiting for ${label}`); return result },
-    inspectSurfaces: async () => {}, quit: async () => {},
+    inspectSurfaces: async () => {}, quit: async () => {}, pushPhase: async () => {},
     readFile: async () => 'signature verification failed', record: async (_path, report) => { recorded = report }, rm: async () => {}, stopAll: async () => {},
   }
   runInNewContext(source.slice(source.indexOf('export async function acceptance')).replace('export ', '') + '\nglobalThis.acceptance = acceptance', context)

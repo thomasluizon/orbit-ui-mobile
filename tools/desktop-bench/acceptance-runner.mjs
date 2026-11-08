@@ -7,9 +7,10 @@ import { request as requestHttp } from 'node:http'
 import { buildHermeticWeb } from './runner.mjs'
 import { readFixtures } from './build.mjs'
 import { startProxy } from './server.mjs'
-import { assertFree, execute, start, stopAll, waitFor, waitForHttp } from './host.mjs'
+import { assertFree, delay, execute, start, stop, stopAll, waitFor, waitForHttp } from './host.mjs'
 import { buildInstaller, desktopOrigin, install, isolateOrigins, startHttpsListener, startRecording } from './acceptance-platform.mjs'
 import { NativeTreePendingError, assertAccessibleTree, assertCookieEvidence, assertPaletteFocus, corruptSignature } from './acceptance-contract.mjs'
+import { apsEnvironment, exercisePush, pushSender } from './acceptance-push.mjs'
 
 const require = createRequire(import.meta.url)
 const directory = dirname(fileURLToPath(import.meta.url))
@@ -19,11 +20,13 @@ const record = (path, value) => writeFile(path, `${JSON.stringify(value, null, 2
 async function nativeTool(output) {
   const executable = join(output, 'accessibility')
   if (!windows) await execute('clang', ['-fobjc-arc', '-framework', 'AppKit', '-framework', 'ApplicationServices', join(directory, 'acceptance-ax.m'), '-o', executable])
-  return async (pid, command, menuCommandId) => {
+  return async (pid, command, menuCommandId, { title, label, invoke = false, openCenter = false, executable: target } = {}) => {
     const reply = windows
       ? await execute('powershell.exe', ['-NoProfile', '-NonInteractive', '-File', join(directory, 'acceptance-uia.ps1'), '-TargetProcessId', String(pid), '-Command', command,
-        ...(menuCommandId === undefined ? [] : ['-MenuCommandId', String(menuCommandId)])])
-      : await execute(executable, [String(pid), command])
+        ...(menuCommandId === undefined ? [] : ['-MenuCommandId', String(menuCommandId)]),
+        ...(title === undefined ? [] : ['-Title', title, '-Label', label]), ...(invoke ? ['-Invoke'] : []), ...(openCenter ? ['-OpenCenter'] : []),
+        ...(target === undefined ? [] : ['-Executable', target])])
+      : await execute(executable, [String(pid), command, ...(title === undefined ? [] : [title, label, invoke ? '1' : '0', openCenter ? '1' : '0'])])
     return reply.trim() ? JSON.parse(reply) : null
   }
 }
@@ -215,13 +218,99 @@ async function quit(native, handle) {
   await handle.done
 }
 
+async function mockApi(method, path, body) {
+  const response = await fetch(`http://127.0.0.1:5099${path}`, { method,
+    ...(body === undefined ? {} : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }) })
+  if (!response.ok) throw new Error(`Mock API ${method} ${path} failed: HTTP ${response.status}`)
+  return response.status === 204 ? null : response.json()
+}
+
+async function catalogValue(path, read) {
+  return Promise.all(['en', 'pt-BR'].map(async (locale) => read(JSON.parse(await readFile(join(directory, path, `${locale}.json`), 'utf8')))))
+}
+
+async function pushPhase({ proxy, native, updates, handle, executable, output, report, credentials, checkpoint }) {
+  // The valid-update launch waits on its restart prompt; stop it and serve no update so the push launch starts clean.
+  updates.mode('off')
+  await stop(handle)
+  checkpoint('push')
+  const adopted = new Set()
+  const application = windows ? null : dirname(dirname(dirname(executable)))
+  let environment = null
+  const io = {
+    platform: process.platform, report, credentials, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    labels: await catalogValue('../../packages/shared/src/i18n', (catalog) => catalog.profile.settingsRows.alertsOnThisDevice),
+    doneLabel: (await catalogValue('../../apps/desktop/locales', (catalog) => catalog.reminderDone))[0],
+    // The account language is English, so macOS shows its English authorization alert for the staging product name.
+    allowLabel: 'Allow', appName: 'Orbit Staging',
+    async apsEnvironment() {
+      try {
+        environment = apsEnvironment(await execute('codesign', ['-d', '--entitlements', '-', '--xml', application]))
+      } catch (error) {
+        report.pushCodeSignature = error.message.slice(0, 500)
+      }
+      return environment
+    },
+    mock: {
+      registrations: () => mockApi('GET', '/_test/push-registrations'),
+      mintReminder: async (habitId) => (await mockApi('POST', '/_test/repeat-reminders', { habitId })).doneToken,
+      logs: () => mockApi('GET', '/_test/habit-logs'),
+      sessionMode: (mode) => mockApi('PUT', '/_test/session-mode', { mode }),
+    },
+    proxy, now: Date.now, delay, waitFor,
+    async launch() {
+      proxy.reset({ expectAuthenticated: true })
+      const shell = installedLaunch(executable, output, 'push')
+      await waitFor(() => proxy.read('hoje'), 'authenticated push launch')
+      checkpoint('push-hoje')
+      return shell
+    },
+    stop,
+    native: (pid, command, options) => native(pid, command, undefined, options),
+    async findProcesses() {
+      if (windows) return (await native(0, 'process', undefined, { executable })).processIds
+      try {
+        return (await execute('pgrep', ['-f', executable])).trim().split(/\s+/).filter(Boolean).map(Number)
+      } catch (error) {
+        report.pushProcessLookup = error.message.slice(0, 500)
+        return []
+      }
+    },
+    adopt(pid) { adopted.add(pid) },
+    sender: (transport, registration) => pushSender(transport, registration, credentials, environment),
+    record: (name, value) => record(join(output, 'trees', `${name}.json`), value),
+    warn(message) { process.stdout.write(`::warning title=Desktop push acceptance::${message}\n`) },
+  }
+  let failure
+  try { await exercisePush(io) } catch (error) { failure = error }
+  // A notification launch starts the shell outside the process host, so this phase stops it.
+  const cleanup = []
+  for (const pid of adopted) {
+    try {
+      process.kill(pid, 0)
+    } catch (error) {
+      if (error.code !== 'ESRCH') cleanup.push(error.message)
+      continue
+    }
+    try {
+      if (windows) await execute('taskkill.exe', ['/PID', String(pid), '/T', '/F'])
+      else process.kill(pid, 'SIGKILL')
+    } catch (error) {
+      cleanup.push(error.message)
+    }
+  }
+  if (cleanup.length) report.pushCleanupErrors = cleanup
+  if (failure) throw failure
+  if (cleanup.length) throw new Error(`Push acceptance cleanup failed: ${cleanup.join('; ')}`)
+}
+
 function menuCommands(items, enabled = true) {
   return items.flatMap((item) => item.children.length
     ? menuCommands(item.children, enabled && item.enabled)
     : [{ ...item, enabled: enabled && item.enabled }])
 }
 
-export async function acceptance({ repository, output }) {
+export async function acceptance({ repository, output, credentials = {} }) {
   await mkdir(join(output, 'trees'), { recursive: true })
   const report = { platform: process.platform, architecture: process.arch, accessibility: {}, updateRequests: [], launchChecks: [], passed: false }
   const nextOutput = join(repository, 'apps/web/.next')
@@ -283,6 +372,7 @@ export async function acceptance({ repository, output }) {
       }
     }
     // A verified download opens the native restart prompt; installation is a separate acceptance concern.
+    await pushPhase({ proxy, native, updates, handle, executable, output, report, credentials, checkpoint })
     report.passed = true
   } catch (error) {
     report.error = error.stack
