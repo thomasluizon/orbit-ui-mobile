@@ -4,14 +4,31 @@
   const emailLink = new URLSearchParams(location.search).has('code')
   const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))
   const report = (kind, details = {}) => fetch('/_bench/events', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind, ...details }) })
-  async function until(read, label) {
-    const deadline = Date.now() + 120000
+  const pushKey = 'orbit-acceptance-push'
+  const signInPaths = ['/login', '/auth-callback', '/onboarding']
+  async function until(read, label, timeout = 120000, detail = () => '') {
+    const deadline = Date.now() + timeout
     while (Date.now() < deadline) {
       const value = read()
       if (value) return value
       await delay(100)
     }
-    throw new Error(`Timed out waiting for ${label}; route ${location.pathname}`)
+    const context = detail()
+    throw new Error(`Timed out waiting for ${label}; route ${location.pathname}${context ? `; ${context}` : ''}`)
+  }
+  async function enablePush(labels) {
+    const toggle = () => [...document.querySelectorAll('[role="switch"]')].find((element) => labels.includes(element.getAttribute('aria-label')))
+    const status = () => document.querySelector('[data-testid="push-status"]')?.textContent.trim() ?? ''
+    const ready = await until(() => {
+      const element = toggle()
+      return element && !element.disabled && element.getAttribute('aria-busy') !== 'true' && element
+    }, 'the enabled Perfil notification switch', 120000, () => `status ${status()}`)
+    if (ready.getAttribute('aria-checked') !== 'true') ready.click()
+    // A WNS channel request may wait up to 300 seconds in the native shell (push.cpp CreateChannelAsync).
+    await until(() => toggle()?.getAttribute('aria-checked') === 'true', 'this device to register for notifications', 330000, () => `status ${status()}`)
+    sessionStorage.removeItem(pushKey)
+    await report('push-enabled', { route: location.pathname })
+    location.assign('/')
   }
   async function emailSignIn() {
     if (document.cookie.includes('auth_token=')) throw new Error('The auth cookie must be httpOnly')
@@ -89,6 +106,11 @@
     await until(() => document.readyState === 'complete', 'page load')
     let session = await fetch('/api/auth/session', { cache: 'no-store' })
     if (!session.ok && session.status !== 401) throw new Error(`BFF session check failed: HTTP ${session.status}`)
+    if (__BENCH_REPORT_SIGN_IN__) {
+      await until(() => signInPaths.includes(location.pathname), 'the sign-in page')
+      await report('sign-in', { route: location.pathname, session: session.status })
+      return
+    }
     if (__BENCH_EXPECT_AUTHENTICATED__ && !session.ok) throw new Error('Authenticated installed relaunch lost its BFF session')
     if (emailLink || location.pathname.includes('/login') || location.pathname.includes('/onboarding')) {
       if (session.ok && !emailLink) { location.assign('/'); return }
@@ -104,6 +126,8 @@
     }
     if (!session.ok) throw new Error('Hoje requires an authenticated BFF session')
     if (emailLink) await report('email-completed')
+    const pushLabels = location.pathname === '/profile/notifications' && sessionStorage.getItem(pushKey)
+    if (pushLabels) { await enablePush(JSON.parse(pushLabels)); return }
     await until(() => document.querySelector('[data-habit-id="bench-0000"]') && document.querySelector('[data-astra-button]:not([disabled])'), 'Hoje')
     await report('hoje', { route: location.pathname, nativeVersion: window.__ORBIT_DESKTOP_VERSION__ })
     while (true) {
@@ -111,6 +135,11 @@
       if (!response.ok) throw new Error(`Command request failed: ${response.status}`)
       const command = await response.text()
       if (command === 'reload') { location.reload(); return }
+      if (command.startsWith('push-enable:')) {
+        sessionStorage.setItem(pushKey, command.slice('push-enable:'.length))
+        location.assign('/profile/notifications')
+        return
+      }
       if (command.startsWith('update-')) await update(command.slice(7))
       else if (command.startsWith('focus-')) {
         await until(() => paletteState().selected === Number(command.slice(6)), 'next keyboard-selected result')

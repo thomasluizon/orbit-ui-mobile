@@ -2,7 +2,9 @@ import assert from 'node:assert/strict'
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { createRequire } from 'node:module'
-import { createHash } from 'node:crypto'
+import { createHash, generateKeyPairSync, verify } from 'node:crypto'
+import { createServer as createHttpServer } from 'node:http'
+import { EventEmitter } from 'node:events'
 import * as files from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -10,10 +12,12 @@ import { spawnSync } from 'node:child_process'
 import { runInNewContext } from 'node:vm'
 import { Readable } from 'node:stream'
 import { after, test } from 'node:test'
-import { emailReply, acceptanceEmail, acceptanceCode } from './acceptance-mock'
+import { emailReply, acceptanceEmail, acceptanceCode, createAcceptanceHandler } from './acceptance-mock'
 import { artifactName, targets, verifyArtifact, type Manifest } from '../../apps/desktop/scripts/release'
 import * as releaseModule from '../../apps/desktop/scripts/release'
-import { assertAccessibleTree, corruptSignature } from './acceptance-contract.mjs'
+import { assertAccessibleTree, assertDoneDelivered, assertExpiredDone, corruptSignature, visibleWindows } from './acceptance-contract.mjs'
+import { apnsPayload, apnsProviderToken, apnsRequest, apsEnvironment, exercisePush, isWnsChannel, pushReadiness, repeatReminder,
+  sendApns, sendWns, takePushCredentials, wnsAccessToken, wnsPayload } from './acceptance-push.mjs'
 import * as acceptanceContract from './acceptance-contract.mjs'
 
 const vector = JSON.parse(readFileSync(new URL('../../apps/desktop/__fixtures__/signer-vector.json', import.meta.url), 'utf8')) as { payload: string; signature: string; publicKey: string; version: string }
@@ -230,6 +234,7 @@ ${serialize}`
 
 const probeSource = readFileSync(new URL('./acceptance-probe.js', import.meta.url), 'utf8')
   .replaceAll('__BENCH_EXPECT_AUTHENTICATED__', 'false')
+  .replaceAll('__BENCH_REPORT_SIGN_IN__', 'false')
   .replace('run().catch', 'globalThis.completion = run().catch')
 const safariStack = 'emailSignIn@https://app-staging.useorbit.org/_bench/probe.js:22:40'
 
@@ -795,3 +800,487 @@ if (process.platform === 'darwin') {
     })
   }
 }
+
+// Repeat reminder push acceptance (#1861). Shapes follow orbit-api ReminderSchedulerService.Repeat.cs RecordRepeat,
+// PushNotificationService.CreateWebPushPayload, ApnsPushSender.CreatePayload and WnsPushSender.SendAsync.
+const pushHabit = '6f1c2a5e-7b3d-4c8e-9a10-2b3c4d5e6f70'
+const pushReminder = () => repeatReminder({ habitId: pushHabit, title: 'Water', doneToken: 'one-use-token',
+  reminderAt: new Date('2026-11-08T15:04:05.123Z'), timeZone: 'UTC' })
+
+test('repeat reminder copies the API metadata, label, tag and round-trip timestamps', () => {
+  const reminder = pushReminder()
+  assert.deepEqual(reminder, {
+    title: 'Water', body: 'Next at 4:04 PM', url: '/',
+    data: {
+      habitId: pushHabit, tag: 'orbit-repeat-6f1c2a5e7b3d4c8e9a102b3c4d5e6f70', reminderAtUtc: '2026-11-08T15:04:05.1230000Z',
+      doneExpiresAtUtc: '2026-11-08T16:04:05.1230000Z', doneToken: 'one-use-token', doneLabel: 'Done',
+    },
+  })
+  assert.equal(repeatReminder({ habitId: pushHabit, title: 'Water', doneToken: 't', reminderAt: new Date('2026-11-08T23:30:00Z'), timeZone: 'UTC' }).body, 'Next at 12:30 AM')
+  assert.equal(repeatReminder({ habitId: pushHabit, title: 'Water', doneToken: 't', reminderAt: new Date('2026-11-08T11:00:00Z'), timeZone: 'America/Sao_Paulo' }).body, 'Next at 9:00 AM')
+})
+
+test('Windows raw and APNs payloads keep the producer key order and nesting', () => {
+  const reminder = pushReminder()
+  assert.equal(wnsPayload(reminder), '{"title":"Water","body":"Next at 4:04 PM","habitId":"6f1c2a5e-7b3d-4c8e-9a10-2b3c4d5e6f70",' +
+    '"tag":"orbit-repeat-6f1c2a5e7b3d4c8e9a102b3c4d5e6f70","reminderAtUtc":"2026-11-08T15:04:05.1230000Z",' +
+    '"doneExpiresAtUtc":"2026-11-08T16:04:05.1230000Z","doneToken":"one-use-token","doneLabel":"Done","url":"/"}')
+  const apple = apnsPayload(reminder)
+  assert.deepEqual(Object.keys(apple), ['aps', 'body'])
+  assert.deepEqual(Object.keys(apple.aps), ['alert', 'sound', 'category'])
+  assert.deepEqual(apple.aps, { alert: { title: 'Water', body: 'Next at 4:04 PM' }, sound: 'default', category: 'orbit-repeat-reminder' })
+  assert.deepEqual(Object.keys(apple.body), [...Object.keys(reminder.data), 'url'])
+  assert.deepEqual(apple.body, { ...reminder.data, url: '/' })
+})
+
+test('only HTTPS notify.windows.com channels on the default port receive the WNS bearer token', () => {
+  for (const uri of ['https://dm3p.notify.windows.com/?token=channel', 'https://NOTIFY.windows.com/x', 'https://wns2-bl2p.notify.windows.com:443/w/?token=a']) {
+    assert.equal(isWnsChannel(uri), true, uri)
+  }
+  for (const uri of ['http://dm3p.notify.windows.com/?token=a', 'https://notify.windows.com.example/x', 'https://evilnotify.windows.com/x',
+    'https://dm3p.notify.windows.com:8443/x', 'https://user:pass@dm3p.notify.windows.com/x', 'https://dm3p.notify.windows.com/x#frag', 'not a url', '']) {
+    assert.equal(isWnsChannel(uri), false, uri)
+  }
+})
+
+test('WNS client credentials request the WNS scope and never echo the secret on failure', async () => {
+  const calls: { url: string; init: RequestInit }[] = []
+  const token = await wnsAccessToken({ tenantId: 'tenant id', clientId: 'client', clientSecret: 'secret-value' }, async (url: string, init: RequestInit) => {
+    calls.push({ url, init })
+    return new Response(JSON.stringify({ token_type: 'Bearer', expires_in: 3599, access_token: 'wns-access' }), { status: 200 })
+  })
+  assert.equal(token, 'wns-access')
+  assert.equal(calls[0].url, 'https://login.microsoftonline.com/tenant%20id/oauth2/v2.0/token')
+  assert.equal(calls[0].init.method, 'POST')
+  assert.deepEqual(Object.fromEntries(new URLSearchParams(String(calls[0].init.body))), {
+    grant_type: 'client_credentials', client_id: 'client', client_secret: 'secret-value', scope: 'https://wns.windows.com/.default',
+  })
+  for (const reply of [new Response('{"error":"invalid_client"}', { status: 401 }), new Response('{"access_token":" "}', { status: 200 })]) {
+    await assert.rejects(() => wnsAccessToken({ tenantId: 't', clientId: 'c', clientSecret: 'secret-value' }, async () => reply),
+      (error: Error) => /WNS authentication/.test(error.message) && !error.message.includes('secret-value'))
+  }
+})
+
+test('WNS delivery posts the raw payload with the producer headers and fails on any non-200 status', async () => {
+  const calls: { url: string; init: RequestInit }[] = []
+  const send = (status: number) => async (url: string, init: RequestInit) => { calls.push({ url, init }); return new Response(null, { status }) }
+  const payload = wnsPayload(pushReminder())
+  assert.deepEqual(await sendWns('https://dm3p.notify.windows.com/?token=channel', payload, 'wns-access', send(200)), { status: 200 })
+  assert.equal(calls[0].init.method, 'POST')
+  assert.deepEqual(calls[0].init.headers, { authorization: 'Bearer wns-access', 'x-wns-type': 'wns/raw', 'content-type': 'application/octet-stream' })
+  assert.equal(Buffer.from(calls[0].init.body as Uint8Array).toString('utf8'), payload)
+  await assert.rejects(() => sendWns('https://dm3p.notify.windows.com/?token=channel', payload, 'wns-access', send(410)), /HTTP 410/)
+  await assert.rejects(() => sendWns('https://example.invalid/?token=channel', payload, 'wns-access', send(200)), /not a WNS endpoint/)
+  assert.equal(calls.length, 2)
+})
+
+test('APNs provider token is an ES256 JWT that verifies against the key', () => {
+  const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' })
+  const pem = privateKey.export({ format: 'pem', type: 'pkcs8' }).toString()
+  const token = apnsProviderToken({ keyId: 'KEY123', teamId: 'TEAM123', privateKey: pem }, 1_800_000_000)
+  const [header, claims, signature] = token.split('.')
+  assert.deepEqual(JSON.parse(Buffer.from(header, 'base64url').toString()), { alg: 'ES256', kid: 'KEY123' })
+  assert.deepEqual(JSON.parse(Buffer.from(claims, 'base64url').toString()), { iss: 'TEAM123', iat: 1_800_000_000 })
+  assert.equal(verify('sha256', Buffer.from(`${header}.${claims}`), { key: publicKey, dsaEncoding: 'ieee-p1363' }, Buffer.from(signature, 'base64url')), true)
+})
+
+test('APNs request selects the entitlement environment and the registered desktop topic', () => {
+  for (const [environment, origin] of [['development', 'https://api.sandbox.push.apple.com'], ['production', 'https://api.push.apple.com']]) {
+    const request = apnsRequest({ deviceToken: 'ab cd', topic: 'org.useorbit.desktop.staging', environment, reminder: pushReminder(), providerToken: 'provider' })
+    assert.equal(request.origin, origin)
+    assert.deepEqual(request.headers, {
+      ':method': 'POST', ':path': '/3/device/ab%20cd', authorization: 'bearer provider', 'apns-topic': 'org.useorbit.desktop.staging',
+      'apns-push-type': 'alert', 'apns-collapse-id': 'orbit-repeat-6f1c2a5e7b3d4c8e9a102b3c4d5e6f70', 'content-type': 'application/json',
+    })
+    assert.deepEqual(JSON.parse(request.body), apnsPayload(pushReminder()))
+  }
+  assert.throws(() => apnsRequest({ deviceToken: 'a', topic: 'org.useorbit.desktop.staging', environment: 'other', reminder: pushReminder(), providerToken: 'p' }), /environment/)
+})
+
+test('APNs delivery reports success only for HTTP 200 and keeps the rejection reason', async () => {
+  const fakeConnect = (status: number, body: string) => (origin: string) => {
+    const session = Object.assign(new EventEmitter(), {
+      origin, closed: false,
+      close() { this.closed = true },
+      request(headers: Record<string, string>) {
+        const stream = Object.assign(new EventEmitter(), {
+          headers, written: '', setEncoding() {},
+          end(value: string) {
+            this.written = value
+            queueMicrotask(() => { stream.emit('response', { ':status': status }); stream.emit('data', body); stream.emit('end') })
+          },
+        })
+        sessions.push({ session, stream })
+        return stream
+      },
+    })
+    return session
+  }
+  const sessions: { session: { closed: boolean; origin: string }; stream: { headers: Record<string, string>; written: string } }[] = []
+  const request = apnsRequest({ deviceToken: 'token', topic: 'org.useorbit.desktop.staging', environment: 'development', reminder: pushReminder(), providerToken: 'provider' })
+  assert.deepEqual(await sendApns(request, fakeConnect(200, '')), { status: 200 })
+  assert.equal(sessions[0].session.origin, 'https://api.sandbox.push.apple.com')
+  assert.equal(sessions[0].stream.headers['apns-topic'], 'org.useorbit.desktop.staging')
+  assert.equal(sessions[0].stream.written, request.body)
+  assert.equal(sessions[0].session.closed, true)
+  await assert.rejects(() => sendApns(request, fakeConnect(400, '{"reason":"BadDeviceToken"}')), /HTTP 400.*BadDeviceToken/)
+  assert.equal(sessions[1].session.closed, true)
+})
+
+test('aps-environment comes only from the installed code signature entitlements', () => {
+  const plist = (value: string) => `<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>com.apple.security.app-sandbox</key><true/><key>com.apple.developer.aps-environment</key><string>${value}</string></dict></plist>`
+  assert.equal(apsEnvironment(plist('development')), 'development')
+  assert.equal(apsEnvironment(plist('production')), 'production')
+  assert.equal(apsEnvironment(plist('staging')), null)
+  assert.equal(apsEnvironment(''), null)
+  assert.equal(apsEnvironment('<key>com.apple.developer.aps-environment-other</key><string>production</string>'), null)
+})
+
+test('push readiness registers on Windows, skips with a named reason, and never skips silently', () => {
+  const wns = { ORBIT_WNS_TENANT_ID: 't', ORBIT_WNS_CLIENT_ID: 'c', ORBIT_WNS_CLIENT_SECRET: 's' }
+  const apns = { ORBIT_APNS_KEY_ID: 'k', ORBIT_APPLE_TEAM_ID: 't', ORBIT_APNS_PRIVATE_KEY: 'p' }
+  assert.deepEqual(pushReadiness({ platform: 'win32', credentials: wns, environment: null }), { transport: 'wns', registration: true, delivery: true })
+  const windowsSkip = pushReadiness({ platform: 'win32', credentials: { ORBIT_WNS_TENANT_ID: 't' }, environment: null })
+  assert.equal(windowsSkip.registration, true)
+  assert.equal(windowsSkip.delivery, false)
+  assert.match(windowsSkip.skipped!, /ORBIT_WNS_CLIENT_ID, ORBIT_WNS_CLIENT_SECRET/)
+  const unsigned = pushReadiness({ platform: 'darwin', credentials: apns, environment: null })
+  assert.equal(unsigned.registration, false)
+  assert.match(unsigned.skipped!, /com\.apple\.developer\.aps-environment/)
+  assert.deepEqual(pushReadiness({ platform: 'darwin', credentials: apns, environment: 'production' }), { transport: 'apns', registration: true, delivery: true })
+  assert.match(pushReadiness({ platform: 'darwin', credentials: {}, environment: 'development' }).skipped!, /ORBIT_APNS_KEY_ID, ORBIT_APPLE_TEAM_ID, ORBIT_APNS_PRIVATE_KEY/)
+})
+
+test('push credentials leave the environment before any build or child process inherits it', () => {
+  const environment: NodeJS.ProcessEnv = { PATH: '/bin', ORBIT_WNS_CLIENT_SECRET: 'secret', ORBIT_APNS_PRIVATE_KEY: 'key', ORBIT_WNS_TENANT_ID: '' }
+  assert.deepEqual(takePushCredentials(environment), { ORBIT_WNS_CLIENT_SECRET: 'secret', ORBIT_APNS_PRIVATE_KEY: 'key' })
+  assert.deepEqual(environment, { PATH: '/bin' })
+})
+
+const pushJwt = (claims: Record<string, unknown>) => `${Buffer.from('{"alg":"HS256","typ":"JWT"}').toString('base64url')}.${Buffer.from(JSON.stringify(claims)).toString('base64url')}.hermetic-test-signature`
+const sessionToken = pushJwt({ exp: 4102444800, hermeticFixtureSession: 'desktop-bench', 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier': 'hermetic-perf-user' })
+
+async function withAcceptanceMock(now: () => number, run: (call: (method: string, path: string, body?: unknown, token?: string) => Promise<{ status: number; body: unknown }>) => Promise<void>) {
+  const server = createHttpServer(createAcceptanceHandler(sessionToken, now))
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  const { port } = server.address() as { port: number }
+  try {
+    await run(async (method, path, body, token) => {
+      const response = await fetch(`http://127.0.0.1:${port}${path}`, { method, headers: {
+        ...(body === undefined ? {} : { 'content-type': 'application/json' }), ...(token ? { authorization: `Bearer ${token}` } : {}),
+      }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) })
+      const text = await response.text()
+      return { status: response.status, body: text ? JSON.parse(text) : null }
+    })
+  } finally {
+    server.closeAllConnections()
+    await new Promise(resolve => server.close(resolve))
+  }
+}
+
+test('mock API records the native registration and lists it with the API endpoint hash', async () => {
+  await withAcceptanceMock(() => Date.parse('2026-11-08T12:00:00Z'), async (call) => {
+    const registration = { endpoint: 'https://dm3p.notify.windows.com/?token=channel', p256dh: 'wns', auth: 'wns', deviceId: '0f8fad5b-d9cb-469f-a165-70867728950e' }
+    assert.equal((await call('POST', '/api/notifications/subscribe', registration)).status, 401)
+    assert.deepEqual(await call('POST', '/api/notifications/subscribe', registration, sessionToken), { status: 200, body: null })
+    assert.equal((await call('POST', '/api/notifications/subscribe', { endpoint: '' }, sessionToken)).status, 400)
+    const listed = await call('GET', '/api/notifications/subscriptions', undefined, sessionToken)
+    assert.equal(listed.status, 200)
+    const items = (listed.body as { items: { transport: string; endpointHash: string; createdAtUtc: string }[]; max: number })
+    assert.equal(items.max, 5)
+    assert.equal(items.items.length, 1)
+    assert.equal(items.items[0].transport, 'native')
+    assert.equal(items.items[0].endpointHash, createHash('sha256').update(registration.endpoint).digest('hex'))
+    assert.equal(items.items[0].createdAtUtc, '2026-11-08T12:00:00.000Z')
+    const recorded = await call('GET', '/_test/push-registrations')
+    assert.deepEqual((recorded.body as Record<string, unknown>[]).map(({ endpoint, p256dh, apnsTopic, deviceId }) => ({ endpoint, p256dh, apnsTopic, deviceId })),
+      [{ endpoint: registration.endpoint, p256dh: 'wns', apnsTopic: null, deviceId: registration.deviceId }])
+    assert.equal((await call('POST', '/api/notifications/unsubscribe', { endpoint: registration.endpoint, p256dh: 'wns', auth: 'wns' }, sessionToken)).status, 200)
+    assert.deepEqual((await call('GET', '/api/notifications/subscriptions', undefined, sessionToken)).body, { items: [], max: 5 })
+  })
+})
+
+test('mock API completes a one-use reminder token once and records every habit log', async () => {
+  await withAcceptanceMock(() => Date.parse('2026-11-08T12:00:00Z'), async (call) => {
+    const minted = await call('POST', '/_test/repeat-reminders', { habitId: pushHabit })
+    const { doneToken } = minted.body as { doneToken: string }
+    assert.match(doneToken, /^[A-Za-z0-9_-]{43}$/)
+    const done = await call('POST', '/api/reminders/done', { token: doneToken })
+    assert.equal(done.status, 200)
+    assert.equal((done.body as { isFirstCompletionToday: boolean }).isFirstCompletionToday, true)
+    for (const token of [doneToken, 'unknown']) {
+      assert.deepEqual(await call('POST', '/api/reminders/done', { token }), { status: 400,
+        body: { error: 'This reminder action is no longer available.', errorCode: 'INVALID_REMINDER_ACTION' } })
+    }
+    assert.equal((await call('POST', '/api/reminders/done', {})).status, 400)
+    assert.equal((await call('POST', `/api/habits/${pushHabit}/log`, {}, sessionToken)).status, 200)
+    assert.deepEqual(await call('GET', '/_test/habit-logs'), { status: 200, body: [
+      { habitId: pushHabit, source: 'reminder-done', atUtc: '2026-11-08T12:00:00.000Z' },
+      { habitId: pushHabit, source: 'habit-log', atUtc: '2026-11-08T12:00:00.000Z' },
+    ] })
+  })
+})
+
+test('mock session expiry forces a short refreshed token, then rejects the session but keeps anonymous Done', async () => {
+  let now = Date.parse('2026-11-08T12:00:00Z')
+  await withAcceptanceMock(() => now, async (call) => {
+    assert.equal((await call('GET', '/api/notifications/subscriptions', undefined, sessionToken)).status, 200)
+    assert.equal((await call('PUT', '/_test/session-mode', { mode: 'later' })).status, 400)
+    assert.equal((await call('PUT', '/_test/session-mode', { mode: 'expiring' })).status, 204)
+    assert.equal((await call('GET', '/api/notifications/subscriptions', undefined, sessionToken)).status, 401)
+    const refreshed = await call('POST', '/api/auth/refresh', { refreshToken: 'hermetic-refresh' })
+    assert.equal(refreshed.status, 200)
+    const { token, refreshToken } = refreshed.body as { token: string; refreshToken: string }
+    assert.equal(refreshToken, 'hermetic-refresh')
+    const claims = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString()) as Record<string, unknown>
+    assert.equal(claims.exp, now / 1000 + 65)
+    assert.equal(claims.hermeticFixtureSession, 'desktop-bench')
+    assert.equal((await call('GET', '/api/notifications/subscriptions', undefined, token)).status, 200)
+    const { doneToken } = (await call('POST', '/_test/repeat-reminders', { habitId: pushHabit })).body as { doneToken: string }
+    now += 1000
+    assert.equal((await call('PUT', '/_test/session-mode', { mode: 'expired' })).status, 204)
+    assert.equal((await call('GET', '/api/notifications/subscriptions', undefined, token)).status, 401)
+    assert.equal((await call('POST', '/api/auth/refresh', { refreshToken })).status, 401)
+    assert.equal((await call('POST', '/api/reminders/done', { token: doneToken })).status, 200)
+  })
+})
+
+test('Done and expired-session outcomes require the exact log count, window state and sign-in page', () => {
+  const logs = [{ habitId: pushHabit, source: 'reminder-done' }, { habitId: 'other', source: 'reminder-done' }]
+  assert.deepEqual(assertDoneDelivered({ logs, habitId: pushHabit, visible: 0 }), { logs: 1, windowVisible: false })
+  assert.throws(() => assertDoneDelivered({ logs: [], habitId: pushHabit, visible: 0 }), /exactly one.*0/)
+  assert.throws(() => assertDoneDelivered({ logs: [logs[0], logs[0]], habitId: pushHabit, visible: 0 }), /exactly one.*2/)
+  assert.throws(() => assertDoneDelivered({ logs, habitId: pushHabit, visible: 1 }), /window/)
+  const signIn = { kind: 'sign-in', route: '/login' }
+  assert.deepEqual(assertExpiredDone({ logs: [logs[1]], habitId: pushHabit, visible: 1, signIn }), { logs: 0, windowVisible: true, route: '/login' })
+  assert.throws(() => assertExpiredDone({ logs, habitId: pushHabit, visible: 1, signIn }), /no habit log/)
+  assert.throws(() => assertExpiredDone({ logs: [], habitId: pushHabit, visible: 0, signIn }), /visible/)
+  assert.throws(() => assertExpiredDone({ logs: [], habitId: pushHabit, visible: 1, signIn: { kind: 'sign-in', route: '/' } }), /sign-in page/)
+  assert.equal(visibleWindows('win32', { windows: [
+    { className: 'Tauri Window', visible: true }, { className: 'Tauri Window', visible: false }, { className: '#32770', visible: true },
+  ] }), 1)
+  assert.equal(visibleWindows('darwin', { windows: [{ layer: 0, onscreen: true }, { layer: 0, onscreen: false }, { layer: 25, onscreen: true }] }), 1)
+  assert.throws(() => visibleWindows('win32', { sent: 'windows' }), /window list/)
+})
+
+const pushProbeSource = (reportSignIn: boolean) => readFileSync(new URL('./acceptance-probe.js', import.meta.url), 'utf8')
+  .replaceAll('__BENCH_EXPECT_AUTHENTICATED__', String(!reportSignIn))
+  .replaceAll('__BENCH_REPORT_SIGN_IN__', String(reportSignIn))
+  .replace('run().catch', 'globalThis.completion = run().catch')
+
+function pushProbeContext(pathname: string, options: { checked?: boolean; storage?: Map<string, string>; status?: number; command?: string } = {}) {
+  const storage = options.storage ?? new Map<string, string>()
+  const navigations: string[] = []
+  const reports: { kind: string; route?: string; message?: string }[] = []
+  const requests: string[] = []
+  const browserWindow: { top?: unknown } = {}
+  browserWindow.top = browserWindow
+  const toggle = { disabled: false, clicks: 0, attributes: { 'aria-label': 'This device', 'aria-checked': String(options.checked === true) } as Record<string, string>,
+    getAttribute(name: string) { return this.attributes[name] ?? null },
+    click() { this.clicks++; this.attributes['aria-checked'] = 'true' } }
+  let commandServed = false
+  const context = {
+    URLSearchParams, JSON, window: browserWindow, setTimeout: (callback: () => void) => { queueMicrotask(callback) },
+    sessionStorage: { getItem: (key: string) => storage.get(key) ?? null, setItem: (key: string, value: string) => { storage.set(key, value) }, removeItem: (key: string) => { storage.delete(key) } },
+    location: { pathname, search: '', assign(url: string) { navigations.push(url) }, reload() {} },
+    document: { readyState: 'complete', cookie: '', querySelector(selector: string) {
+      if (selector === '[data-testid="push-status"]') return null
+      if (selector.startsWith('[data-habit-id')) return {}
+      if (selector.startsWith('[data-astra-button]')) return {}
+      return null
+    }, querySelectorAll(selector: string) { return selector === '[role="switch"]' ? [toggle] : [] } },
+    fetch: async (url: string, init?: { body: string }) => {
+      requests.push(url)
+      if (url === '/_bench/events') { reports.push(JSON.parse(init!.body)); return new Response(null, { status: 204 }) }
+      if (url === '/_bench/command') {
+        if (!commandServed && options.command) { commandServed = true; return new Response(options.command, { status: 200 }) }
+        return new Promise<Response>(() => {})
+      }
+      if (url === '/api/auth/session') return new Response(null, { status: options.status ?? 200 })
+      return new Response('{}', { status: 200 })
+    },
+  }
+  return { context, storage, navigations, reports, requests, toggle }
+}
+
+test('probe push command keeps the switch labels across navigation to Perfil notifications', async () => {
+  const probe = pushProbeContext('/', { command: 'push-enable:["This device","Neste aparelho"]' })
+  runInNewContext(pushProbeSource(false), probe.context)
+  for (let index = 0; index < 50 && !probe.navigations.length; index++) await new Promise(resolve => setImmediate(resolve))
+  assert.deepEqual(probe.navigations, ['/profile/notifications'])
+  assert.equal(probe.storage.get('orbit-acceptance-push'), '["This device","Neste aparelho"]')
+  assert.deepEqual(probe.reports.map(event => event.kind), ['hoje'])
+})
+
+for (const checked of [false, true]) {
+  test(`probe turns on the real Perfil switch ${checked ? 'without toggling an enabled' : 'from an off'} registration and returns to Hoje`, async () => {
+    const storage = new Map([['orbit-acceptance-push', '["This device","Neste aparelho"]']])
+    const probe = pushProbeContext('/profile/notifications', { checked, storage })
+    runInNewContext(pushProbeSource(false), probe.context)
+    await (probe.context as typeof probe.context & { completion: Promise<void> }).completion
+    assert.equal(probe.toggle.clicks, checked ? 0 : 1)
+    assert.deepEqual(probe.reports.map(event => event.kind), ['push-enabled'])
+    assert.deepEqual(probe.navigations, ['/'])
+    assert.equal(storage.has('orbit-acceptance-push'), false)
+  })
+}
+
+test('expired-session probe reports the sign-in page without signing in again', async () => {
+  const probe = pushProbeContext('/login', { status: 401 })
+  runInNewContext(pushProbeSource(true), probe.context)
+  await (probe.context as typeof probe.context & { completion: Promise<void> }).completion
+  assert.deepEqual(probe.reports, [{ kind: 'sign-in', route: '/login', session: 401 }])
+  assert.deepEqual(probe.navigations, [])
+  assert.ok(!probe.requests.some(url => /send-code|verify-code/.test(url)))
+})
+
+test('proxy serves the sign-in report mode only to the launch that asks for it', async () => {
+  const source = readFileSync(new URL('./server.mjs', import.meta.url), 'utf8')
+    .replace(/^import .*$/gm, '').replace('export async function startProxy', 'async function startProxy')
+  let handle: (incoming: unknown, response: unknown) => Promise<void> = async () => { assert.fail('Proxy handler not registered') }
+  const context = { Buffer, benchmarkViewport: [900, 600], readFile: async () => 'expect=__BENCH_EXPECT_AUTHENTICATED__ report=__BENCH_REPORT_SIGN_IN__',
+    createServer: (callback: typeof handle) => { handle = callback; return { once() {}, listen(_port: number, _host: string, ready: () => void) { ready() } } },
+  }
+  runInNewContext(`${source}\nglobalThis.startProxy = startProxy`, context)
+  const startProxy = (context as typeof context & { startProxy: (options: unknown) => Promise<{ reset: (settings: unknown) => void }> }).startProxy
+  const proxy = await startProxy({ probePath: 'probe', port: 3400, upstreamPort: 3401, acceptance: true, route: () => false })
+  const served: string[] = []
+  for (const settings of [{ expectAuthenticated: true }, { expectAuthenticated: false, reportSignIn: true }]) {
+    proxy.reset(settings)
+    await handle({ url: '/_bench/probe.js' }, { writeHead() { return this }, end(value: string) { served.push(value) } })
+  }
+  assert.deepEqual(served, ['expect=true report=false', 'expect=false report=true'])
+})
+
+function pushHarness(platform: 'win32' | 'darwin', overrides: { logsAfterDone?: number; visibleAfterDone?: number; expiredLogs?: number; credentials?: Record<string, string>; environment?: string | null } = {}) {
+  const events: string[] = []
+  const logs: { habitId: string; source: string }[] = []
+  const reminders = new Map<string, string>()
+  const proxyEvents: Record<string, unknown> = {}
+  let hidden = false
+  let launchedVisible = 0
+  let shellAlive = true
+  let notified: { title: string; doneToken: string }[] = []
+  const report: { push?: Record<string, unknown> } = {}
+  const wnsCredentials = { ORBIT_WNS_TENANT_ID: 't', ORBIT_WNS_CLIENT_ID: 'c', ORBIT_WNS_CLIENT_SECRET: 's' }
+  const apnsCredentials = { ORBIT_APNS_KEY_ID: 'k', ORBIT_APPLE_TEAM_ID: 't', ORBIT_APNS_PRIVATE_KEY: 'p' }
+  const transport = platform === 'win32' ? 'wns' : 'apns'
+  const io = {
+    platform, report, labels: ['This device', 'Neste aparelho'], doneLabel: 'Done', allowLabel: 'Allow', appName: 'Orbit Staging', timeZone: 'UTC',
+    credentials: overrides.credentials ?? (platform === 'win32' ? wnsCredentials : apnsCredentials),
+    apsEnvironment: async () => overrides.environment === undefined ? 'development' : overrides.environment,
+    now: () => Date.parse('2026-11-08T12:00:00Z'),
+    delay: async (milliseconds: number) => { events.push(`delay ${milliseconds}`) },
+    waitFor: async (read: () => Promise<unknown> | unknown, label: string) => {
+      for (let attempt = 0; attempt < 20; attempt++) {
+        const value = await read()
+        if (value) return value
+      }
+      throw new Error(`Timed out waiting for ${label}`)
+    },
+    record: async () => {},
+    warn: (message: string) => { events.push(`warn ${message}`) },
+    mock: {
+      registrations: async () => events.includes('push-enabled') ? [{ endpoint: platform === 'win32' ? 'https://dm3p.notify.windows.com/?token=c' : 'abcd', p256dh: transport, auth: transport,
+        apnsTopic: platform === 'win32' ? null : 'org.useorbit.desktop.staging', deviceId: '0f8fad5b-d9cb-469f-a165-70867728950e', receivedAtUtc: 'now' }] : [],
+      mintReminder: async (habitId: string) => { const token = `token-${reminders.size}`; reminders.set(token, habitId); return token },
+      logs: async () => logs.slice(),
+      sessionMode: async (mode: string) => { events.push(`session ${mode}`) },
+    },
+    proxy: {
+      send(command: string) {
+        events.push(`send ${command}`)
+        if (command.startsWith('push-enable:')) { events.push('push-enabled'); proxyEvents['push-enabled'] = { kind: 'push-enabled' } }
+      },
+      read: (kind: string) => proxyEvents[kind],
+      reset(settings: Record<string, unknown>) { events.push(`reset ${JSON.stringify(settings)}`) },
+    },
+    launch: async () => { events.push('launch'); return { child: { pid: 41 } } },
+    stop: async () => { events.push('stop'); shellAlive = false },
+    adopt: (pid: number) => { events.push(`adopt ${pid}`) },
+    findProcesses: async () => launchedVisible ? [77] : [],
+    sender: async (kind: string) => {
+      events.push(`sender ${kind}`)
+      return async (reminder: { title: string; data: { doneToken: string } }) => {
+        events.push(`deliver ${reminder.title}`)
+        notified.push({ title: reminder.title, doneToken: reminder.data.doneToken })
+        return { status: 200 }
+      }
+    },
+    native: async (pid: number, command: string, options: { title?: string; label?: string; invoke?: boolean; openCenter?: boolean } = {}) => {
+      events.push(`native ${pid} ${command}${options.invoke ? ' invoke' : ''}${options.label ? ` ${options.label}` : ''}`)
+      if (command === 'close') { hidden = true; return { sent: 'close' } }
+      if (command === 'windows') {
+        const visible = pid === 77 ? launchedVisible : hidden ? (proxyEvents.done ? overrides.visibleAfterDone ?? 0 : 0) : 1
+        return platform === 'win32' ? { windows: Array.from({ length: visible }, () => ({ className: 'Tauri Window', visible: true })) }
+          : { windows: Array.from({ length: visible }, () => ({ layer: 0, onscreen: true })) }
+      }
+      if (command === 'notification') {
+        if (options.label === 'Allow') return { found: false }
+        const toast = notified.find((entry) => entry.title === options.title)
+        if (!toast) return { found: false }
+        if (!options.invoke) return { found: true, invoked: false }
+        const habitId = reminders.get(toast.doneToken)!
+        if (shellAlive) {
+          proxyEvents.done = true
+          for (let index = 0; index < (overrides.logsAfterDone ?? 1); index++) logs.push({ habitId, source: 'reminder-done' })
+        } else {
+          for (let index = 0; index < (overrides.expiredLogs ?? 0); index++) logs.push({ habitId, source: 'reminder-done' })
+          launchedVisible = 1
+          proxyEvents['sign-in'] = { kind: 'sign-in', route: '/login', session: 401 }
+        }
+        return { found: true, invoked: true }
+      }
+      throw new Error(`Unexpected native command ${command}`)
+    },
+  }
+  return { io, events, report, logs }
+}
+
+test('push acceptance proves Done once with the window hidden, then an expired-session Done shows sign-in with no log', async () => {
+  for (const platform of ['win32', 'darwin'] as const) {
+    const harness = pushHarness(platform)
+    await exercisePush(harness.io)
+    const push = harness.report.push as { transport: string; registration: Record<string, unknown>; done: unknown; expired: unknown; skipped?: string }
+    assert.equal(push.transport, platform === 'win32' ? 'wns' : 'apns')
+    assert.equal(push.skipped, undefined)
+    assert.deepEqual(push.done, { logs: 1, windowVisible: false })
+    assert.deepEqual(push.expired, { logs: 0, windowVisible: true, route: '/login' })
+    assert.equal(JSON.stringify(push.registration).includes('token=c'), false, 'the report never stores the channel token')
+    const order = (event: string) => { const index = harness.events.findIndex((entry) => entry.startsWith(event)); assert.ok(index >= 0, event); return index }
+    assert.ok(order('session expiring') < order('launch'))
+    assert.ok(order('send push-enable:') < order('native 41 close'))
+    assert.ok(order('native 41 close') < order('deliver Orbit acceptance done'))
+    assert.ok(order('deliver Orbit acceptance done') < order('native 41 notification invoke Done'))
+    assert.ok(order('deliver Orbit acceptance expired') < order('stop'))
+    assert.ok(order('stop') < order('session expired'))
+    assert.ok(order('session expired') < order('reset {"expectAuthenticated":false,"reportSignIn":true}'))
+    assert.ok(order('reset {"expectAuthenticated":false,"reportSignIn":true}') < order('native 0 notification invoke Done'))
+    assert.ok(harness.events.includes('adopt 77'))
+  }
+})
+
+for (const [label, overrides, message] of [
+  ['a duplicated Done log', { logsAfterDone: 2 }, /exactly one.*2/],
+  ['a Done that opens the window', { visibleAfterDone: 1 }, /window/],
+  ['an expired-session Done that still logs', { expiredLogs: 1 }, /no habit log/],
+] as const) {
+  test(`push acceptance fails on ${label}`, async () => {
+    await assert.rejects(() => exercisePush(pushHarness('win32', overrides).io), message)
+  })
+}
+
+test('push acceptance reports explicit skips for an unsigned macOS shell and for missing WNS credentials', async () => {
+  const unsigned = pushHarness('darwin', { environment: null })
+  await exercisePush(unsigned.io)
+  assert.match((unsigned.report.push as { skipped: string }).skipped, /aps-environment/)
+  assert.ok(!unsigned.events.includes('launch'))
+  assert.ok(unsigned.events.some((event) => event.startsWith('warn ') && event.includes('aps-environment')))
+  const windows = pushHarness('win32', { credentials: {} })
+  await exercisePush(windows.io)
+  const push = windows.report.push as { skipped: string; registration: { p256dh: string } }
+  assert.match(push.skipped, /ORBIT_WNS_TENANT_ID/)
+  assert.equal(push.registration.p256dh, 'wns')
+  assert.ok(windows.events.includes('stop'))
+  assert.ok(!windows.events.some((event) => event.startsWith('sender')))
+})
