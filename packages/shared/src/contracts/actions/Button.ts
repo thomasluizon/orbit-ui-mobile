@@ -34,6 +34,7 @@ export interface LabelledButtonProps extends ButtonBase {
   accessibleName?: string
   iconOnly?: never
   label?: never
+  edge?: never
 }
 
 /** Icon-only: a glyph and nothing readable, so the name is required and comes from the caller. */
@@ -41,6 +42,8 @@ export interface IconOnlyButtonProps extends ButtonBase {
   children: React.ReactNode
   iconOnly: true
   label: string
+  /** Starts the glyph on the text column of a start-aligned stack; the paint and hit extension sit in the column's gutter. */
+  edge?: 'start'
   accessibleName?: never
   leadingIcon?: never
   brand?: never

@@ -12,6 +12,7 @@ import { PROMPT_TEMPLATES, PROMPT_PRESENTATION } from '@orbit/shared/chat/prompt
 import { CatalogIdea, PromptIdea } from '@/components/chat/prompt-idea'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
+import { measureStartEdgeIconAction } from '@/__tests__/support/start-edge-icon-action'
 import { PromptLibrary } from '@/components/chat/prompt-library'
 import { AstraConversation } from '@/components/chat/conversation'
 import { useChatStore } from '@/stores/chat-store'
@@ -304,6 +305,10 @@ it('shows one category, searches across categories in Portuguese and clears a mi
   expect(button('Entender os congelamentos')).toBeDefined()
   search('sem resultado')
   expect(text(tree.root)).toContain('Nenhuma ideia para “sem resultado”.')
+  const miss = measureStartEdgeIconAction(tree.toJSON(), 412, 'Limpar busca')
+  expect(Math.abs((miss.glyph.left + miss.glyph.right) / 2 - (miss.paint.left + miss.paint.right) / 2), JSON.stringify(miss)).toBeLessThanOrEqual(0.5)
+  expect(Math.abs(miss.glyph.left - miss.texts[0]!.left), JSON.stringify(miss)).toBeLessThanOrEqual(0.5)
+  expect(miss.targetWidth).toBe(48)
   press('Limpar busca')
   expect(button('Montar minha manhã')).toBeDefined()
   const categories = hosts().find(node => node.props.testID === 'prompt-categories')!
