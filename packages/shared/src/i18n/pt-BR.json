@@ -2693,7 +2693,7 @@
     "widgetIos": {
       "title": "Widget",
       "step1": "Toque e segure numa área vazia da Tela de Início até os apps começarem a tremer",
-      "step2": "Toque em Editar, depois em Adicionar Widget, e procure por Orbit",
+      "step2": "Toque em Editar e depois em Adicionar Widget (no iOS 17, toque em +) e procure por Orbit",
       "step3": "Escolha um tamanho e toque em Adicionar Widget"
     },
     "subscription": {
