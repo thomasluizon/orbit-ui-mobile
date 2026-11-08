@@ -52,6 +52,14 @@ jobs:
       - name: Build, install and exercise the isolated desktop app
         env:
           ACCEPTANCE_OUTPUT: ${{ runner.temp }}/orbit-desktop-acceptance
+          # Public identifiers of the "Orbit Windows Push" Entra app and the Apple team (#1861); only secrets are credentials.
+          ORBIT_DESKTOP_WNS_OBJECT_ID: a5b747ad-b169-488c-9f1a-06679cd27f7d
+          ORBIT_WNS_TENANT_ID: d0a72506-23da-4004-afff-9c077a5b72a5
+          ORBIT_WNS_CLIENT_ID: d8d3802e-fed9-4d7e-a7b9-87fdfcf2d0db
+          ORBIT_WNS_CLIENT_SECRET: ${{ secrets.ORBIT_WNS_CLIENT_SECRET }}
+          ORBIT_APPLE_TEAM_ID: BD7JH468F7
+          ORBIT_APNS_KEY_ID: ${{ secrets.ORBIT_APNS_KEY_ID }}
+          ORBIT_APNS_PRIVATE_KEY: ${{ secrets.ORBIT_APNS_PRIVATE_KEY }}
         run: node tools/desktop-bench/acceptance.mjs --output "$ACCEPTANCE_OUTPUT"
       - name: Upload recording, native trees and report
         if: always()

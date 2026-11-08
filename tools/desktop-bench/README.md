@@ -122,8 +122,40 @@ version. The update package is the built acceptance installer, signed with the n
 version to exercise the verifier. The job tests discovery and download verification; it does not
 install that update. The channel manifest also receives a detached signature. Tauri validates the
 manifest's platform signature against the downloaded bytes and signed version; its protocol does
-not consume a detached manifest signature. The final native restart prompt is left unanswered and
-that process is stopped during cleanup.
+not consume a detached manifest signature. The final native restart prompt is left unanswered. The
+push phase stops that process and serves no update before it launches the shell again.
+
+### Repeat reminder push
+
+The push phase proves the desktop Done action with a real push service. The runner relaunches the
+installed shell, and the probe turns on the real Perfil Notificações switch. The mock API records the
+registration and lists it with the API's endpoint hash, so the switch reaches its registered state.
+The runner then sends a repeat reminder to the recorded channel or device token. Its payload copies
+orbit-api `ReminderSchedulerService.Repeat.cs` `RecordRepeat`, `PushNotificationService.CreateWebPushPayload`
+and `ApnsPushSender.CreatePayload`, with a one-use token that the mock issues.
+
+- Windows: the build compiles `ORBIT_DESKTOP_WNS_OBJECT_ID`, the shell creates a WNS channel, and the
+  runner sends a `wns/raw` notification with a client-credentials token for `https://wns.windows.com/.default`.
+  It sends that token only to an `https` `notify.windows.com` channel, as `WnsEndpointPolicy` does.
+- macOS: APNs needs `com.apple.developer.aps-environment` in the installed code signature. The runner
+  reads it with `codesign`, selects the sandbox or production host from its value, and signs an ES256
+  provider token. The runner allows the first authorization alert through AX.
+
+The runner hides the main window through its close control and invokes Done on the system
+notification through UIA or AX. If the banner is gone, the reader opens the notification list once.
+The mock must record exactly one habit log for that habit, and the app window must stay hidden.
+
+The second check sends another reminder and stops the shell while its notification is visible.
+From the push launch on, the mock refuses the long-lived sign-in token, so the BFF refreshes it into
+65 second tokens. After the shell stops, the mock also refuses the refresh token. A Done on that
+notification launches the shell. Its first page load finds a due token, fails the refresh and goes
+to sign-in, which must show in a visible window. The mock must record no habit log for that reminder.
+
+Push credentials come only from the job environment. `acceptance.mjs` removes them from
+`process.env` before any build or server starts, and the report keeps the WNS host or the token
+length, never the channel or token. An unsigned macOS shell, or a missing credential, is a skip with
+its reason in `report.json` `push.skipped` and in a job warning. Windows registration runs without
+the client secret.
 
 Recording starts before native and web builds and continues through installed checks. macOS discovers
 its actual AVFoundation screen index from ffmpeg; Windows captures the desktop with gdigrab. The job
