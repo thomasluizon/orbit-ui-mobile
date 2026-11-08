@@ -2,6 +2,39 @@
 
 Read `.claude/specs/orbit-prod-release.md` before anything else: `## Standing rules`, `## The order`, `### THE REDESIGN GATE`, `## Decision pointers`, `## Current state` and `## Open questions`. The first Current state paragraph is the latest handoff. Batch history is context only, never ticket placement. Open the listed brain ADRs through Obsidian MCP, including D145, D146, D147 and D148 (`mcp__obsidian__obsidian_get_note` takes `format` and a `target` object; `format: "section"` with the `Decision` heading reads only the decision). Read `AGENTS.md` and its delegated `CLAUDE.md`; read `DESIGN.md`, `BRAND.md` and `design/canvas/README.md` before any UI diff or sweep.
 
+## Owner order, priority 1: the harness token diet
+
+This order outranks the launch board and is `### Batch T` in the spec's `## The order`. Read it there in full before any queue work.
+
+The owner ordered this ahead of the launch board. In-flight work finishes as normal (workers `#2061`, `#2062`, `#2063` and the `ui#2374` round 6 CI). Then no new board ticket is admitted until every diet ticket below is merged; after that, the Orbit launch work continues.
+
+Why: the employer contract that paid for the two Claude plans ended. On 4 December 2026 the owner cancels the second Claude account (the worker account, `ORBIT_WORKER_CLAUDE_CONFIG_DIR`). The target is that all work fits one Claude Ultra account (200 USD). If it does not fit after one month, the owner buys a Claude Max (100 USD) as the worker account. Open-weight models were evaluated and rejected for now (a quality gap of about 13 points on the Artificial Analysis Coding Agent Index; at the measured worker volume they do not cost less than Max 100). If an open-model engine is ever added, the harness is `pi`. Never route the Claude login through pi or OpenCode: Anthropic forbids it.
+
+Measured facts (transcripts of the last 30 days, at API-equivalent prices):
+
+- Total 10,895 USD. The interactive orchestrator is 8,771 USD (80%). Cache reads are 98.8% of input tokens.
+- Workers (worker account, since the account switch): 603 USD. Workflow agents: 352 USD. Subagents: 1,147 USD.
+- indinero was 16% of the main account; that work has ended.
+- The main account reached its weekly limit once.
+- Pullfrog: 521 runs in one week (399 ui, 122 api), all `workflow_dispatch`, 8 minutes on average, `anthropic/claude-opus-5-5` at `effort: xhigh`. It pays with `CLAUDE_CODE_OAUTH_TOKEN`, which is the worker account (`orchestrate/SKILL.md` §5.4.1). About 4 runs per ui pull request (399 runs, 100 pull requests).
+- Each relay re-reads about 110k tokens (spec sections plus `NEXT.md`). About 9 relays a day. The median peak context per session is 443k.
+
+Work items (file each through `/ticket`, the owner's written order is the approval; run each through `/orchestrate`):
+
+1. Spec and `NEXT.md` diet. `.claude/specs/orbit-prod-release.md` is 550,577 B: bring it to 40 KB or less. `.claude/handoffs/NEXT.md` is 54,004 B: bring it to 8 KB or less. Move `## Batch history` and the old `## Current state` paragraphs to the brain or to git history. `handoff/SKILL.md` (lines 164 to 165) already forbids dated sections, but nothing enforces it: add a mechanical size guard. Check: `wc -c`; the guard test fails at 41 KB.
+2. After item 1, lower `relay.thresholdTokens` in `.claude/orchestrator.json` from 400000 to 200000 (the validator allows 150000 or more, `tools/lib/orchestrator-config.mjs:123`). Check: `node tools/test-tools.mjs`.
+3. Fixed context per call. Turn off, for this project, the claude.ai connectors Orbit does not use (Atlassian, Granola, Slack, Supabase, Figma, Notion, Claude Docs, perssua). The deferred tool list is about 17.6k tokens on every call. Bring `CLAUDE.md` (18,041 B) to its 6,000 B target and trim `MEMORY.md` (10,706 B). Check: the first call of a fresh session.
+4. Worker tiers. Run `default` and `mechanical` on `claude-sonnet-5-5`; keep `deep` and `max` on `claude-opus-5-5`. Today all four tiers are Opus (`.claude/calibration.json`). Reseed the calibration. Evidence: Coding Agent Index Opus 5.5 61.7%, Sonnet 5.5 59.3%; the Sonnet 5.5 API price is half of Opus 5.5.
+5. Classifier and intake. `tools/lib/ticket-executability.mjs:97-110` calls Sonnet once per ticket on every `plan-queue.mjs` run with an in-memory cache only: cache the result on disk by ticket-body hash. Make the `/auto-work` intake a script that wakes the model only for a new item (`auto-work/SKILL.md:123`, `195-196`).
+6. Single-account mode. `launch-worker.mjs` refuses with exit 2 when `ORBIT_WORKER_CLAUDE_CONFIG_DIR` is unset. Add a supported way to run workers on the main account when no worker account exists. Keep the §5.4.1 fallback (worker account at its limit, relaunch on the main account) for when a second account exists, and update the §5.4.1 text.
+7. Pullfrog payer. Before 4 December 2026, move `CLAUDE_CODE_OAUTH_TOKEN` in all three repositories to the main account. Check: the next Pullfrog run is green.
+8. Review rounds. Measure rounds to approval per pull request (about 4 in ui). If a root cause shows, file a ticket.
+9. Dead text. Delete `orchestrate/SKILL.md` lines 670 to 720 (the UI review sweep that `compose-prompt.mjs` never writes) and `--allow-subagents`; fix the stale directory list at lines 309 to 312.
+
+Test plan: after the diet lands, run all work on the main account while the second account still exists as a reserve. On 4 December 2026 the owner cancels the second account; then run one month on one account. If the main account goes above about 80% of its weekly limit, the owner buys Claude Max 100 USD as the worker account, and the §5.4.1 fallback then moves workers between accounts with no owner action.
+
+Delivered to the owner: the numbered manual steps only he can do (cancel the second Claude account on 4 December 2026; check whether ChatGPT still bills him and cancel it if so, since nothing uses Codex now), and the brain records (the ADR in `2 Areas/20-29 Orbit Engineering/Decisions/` and the `hot.md` cancellation reminder).
+
 ## Entry point
 
 `/auto-work` is the entry point: it enters through `/sleep`, adopts the relay, keeps `autoWork: true` and runs the intake cycle on an empty queue. This is a context relay: `adoptRelayRun` returns true and writes the inherited run with `sleep: true` and `crank: true`; read it back, invoke `/crank`, then continue `/orchestrate` over the admitted queue (`#2057`, `#2056`, `#2030`, `#315`, `#1861`, `#1560`, `#1561`, `#1563`, `#33`, `#2061`, `#2062`, `#2063`) without replanning it. If the conversation is resumed under a new session id mid-run, move the run onto it the same way. Keep `openOwnerQuestions` as adopted: no owner question is open; the owner gave full permission for every step that needs his yes (prohibited actions stay his). The coordinator runs in the engine the owner starts it in. Workers run on Claude Code `claude-opus-5-5` at `--effort high` under the contact@ Claude Max account through the configured launcher (`CLAUDE_CONFIG_DIR=$HOME/.claude-orbit-workers`; the helper `gl.sh` exports it; `main` sets `worker: claude` with every tier at `--effort high` since `ui#2338` merged); when that account is exhausted, relaunch unfinished work on the main account. Pullfrog runs Opus 5.5 at xhigh. No Cloud Codex. Never add a `Co-Authored-By` trailer or a "Generated with" line anywhere; merge with an explicit clean `--subject` and `--body`. Read-only triage subagents are allowed; they never edit code or write to GitHub. `/second-opinion` runs when the owner names it, for copy approval and for the per-block Astra reviews.
