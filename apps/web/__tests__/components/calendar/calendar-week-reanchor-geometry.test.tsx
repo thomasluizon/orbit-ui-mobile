@@ -12,6 +12,7 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
+import { readSettledScroll } from '@/__tests__/support/settled-scroll'
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/calendar', useParams: () => ({}), useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => ({ currentTheme: 'dark', toggleTheme: vi.fn() }) }))
@@ -110,16 +111,7 @@ describe('Week opening through day pane shrink in Chromium', () => {
       } else if (input === 'scrollIntoView') {
         await page.getByTestId('time-grid-hour-label').first().evaluate(element => element.scrollIntoView({ block: 'start', inline: 'nearest' }))
       }
-      const heldTop = input === 'opening' ? null : await scroller.evaluate(async element => {
-        let previous = element.scrollTop
-        let stableFrames = 0
-        for (let frame = 0; frame < 120 && stableFrames < 4; frame++) {
-          await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
-          stableFrames = element.scrollTop === previous ? stableFrames + 1 : 0
-          previous = element.scrollTop
-        }
-        return element.scrollTop
-      })
+      const heldTop = input === 'opening' ? null : (await scroller.evaluate(readSettledScroll, { axis: 'top', movedFrom: openingTop } as const)).top
       if (heldTop !== null) expect(heldTop).toBeLessThan(openingTop)
       await oversized.evaluate(element => {
         document.documentElement.style.fontSize = '17px'
