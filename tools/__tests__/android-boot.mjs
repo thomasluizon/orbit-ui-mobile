@@ -38,8 +38,9 @@ function replayBoot(name, screens, logcat = "I ReactNativeJS: Running applicatio
     timers.setTimeout = async (milliseconds) => { elapsed += milliseconds }
     const screens = ${JSON.stringify(screens)}
     const anr = ${JSON.stringify(anr)}
+    const opensAt = anr?.after ?? [0]
     let dialogOpen = false
-    let dialogOpened = false
+    let opened = 0
     childProcess.spawnSync = (command, args) => {
       if (command !== 'adb') throw new Error('unexpected command: ' + command)
       const invocation = args.join(' ')
@@ -50,7 +51,7 @@ function replayBoot(name, screens, logcat = "I ReactNativeJS: Running applicatio
       if (invocation === 'shell pidof -s org.useorbit.app') stdout = '1234'
       if (args[0] === 'logcat' && args[1] === '-d') stdout = ${JSON.stringify(logcat)}
       if (args[0] === 'exec-out') {
-        if (anr && !dialogOpened && captures >= (anr.after ?? 0)) dialogOpen = dialogOpened = true
+        if (anr && !dialogOpen && opened < opensAt.length && captures >= opensAt[opened]) { dialogOpen = true; opened++ }
         stdout = dialogOpen ? anr.dialog : screens[Math.min(captures++, screens.length - 1)]
       }
       if (invocation === 'shell dumpsys window displays') {
@@ -125,17 +126,19 @@ function checkApplicationNotResponding(onboarding) {
 
 // Android Release run 42427948957: the first screen rendered, then the settled capture was this launcher ANR dialog.
 function checkSettledNotResponding(onboarding, dialog) {
-  const settled = replayBoot("anr-settled-launcher", [onboarding], undefined, { process: "com.google.android.apps.nexuslauncher", dialog, reopens: false, after: 1 })
+  const settled = replayBoot("anr-settled-launcher", [onboarding], undefined, { process: "com.google.android.apps.nexuslauncher", dialog, reopens: false, after: [1] })
   T("android-boot: another process's ANR dialog after the first screen is dismissed and the settled screen passes", settled.status === 0 && settled.verdict.trim() === "passed", settled.verdict + settled.stderr)
   T("android-boot: the settled dismissal taps the dialog's own Wait control once", settled.taps.length === 1 && settled.taps[0] === "shell input tap 160 379", settled.taps.join("|"))
   T("android-boot: the settled dismissal is recorded with its dialog", settled.dismissals.length === 1 && settled.dismissals[0].includes("Application Not Responding: com.google.android.apps.nexuslauncher") &&
     readFileSync(join(root, "anr-settled-launcher", "anr-dialog-1.xml"), "utf8") === dialog, settled.dismissals.join("|"))
   T("android-boot: a settled dismissal never retries the launch", settled.launches === 1)
-  const both = replayBoot("anr-settled-twice", [onboarding], undefined, { process: "com.google.android.apps.nexuslauncher", dialog, reopens: false, after: 0 })
-  T("android-boot: a startup dismissal leaves the settled check passing", both.status === 0 && both.dismissals.length === 1, both.verdict + both.stderr)
-  const own = replayBoot("anr-settled-own", [onboarding], undefined, { process: packageName, dialog, reopens: false, after: 1 })
+  const both = replayBoot("anr-settled-twice", [onboarding], undefined, { process: "com.google.android.apps.nexuslauncher", dialog, reopens: false, after: [0, 1] })
+  T("android-boot: a dialog dismissed before the first screen and again after it passes", both.status === 0 && both.verdict.trim() === "passed", both.verdict + both.stderr)
+  T("android-boot: both dismissals tap Wait and keep their own dialog evidence", both.taps.length === 2 && both.dismissals.length === 2 &&
+    ["anr-dialog-1.xml", "anr-dialog-2.xml"].every((file) => existsSync(join(root, "anr-settled-twice", file))), `${both.taps.length}/${both.dismissals.length}`)
+  const own = replayBoot("anr-settled-own", [onboarding], undefined, { process: packageName, dialog, reopens: false, after: [1] })
   T("android-boot: the app's own ANR dialog after the first screen fails as the app", own.status === 1 && own.verdict.trim() === "app is not responding after its first screen" && own.taps.length === 0 && own.dismissals.length === 0, own.verdict + own.taps.join("|"))
-  const persistent = replayBoot("anr-settled-persistent", [onboarding], undefined, { process: "com.google.android.apps.nexuslauncher", dialog, reopens: true, after: 1 })
+  const persistent = replayBoot("anr-settled-persistent", [onboarding], undefined, { process: "com.google.android.apps.nexuslauncher", dialog, reopens: true, after: [1] })
   T("android-boot: a returning ANR dialog after the first screen keeps a bounded settle deadline", persistent.status === 1 && persistent.verdict.trim() === "signed-out first screen unavailable after settling" &&
     persistent.dismissals.length > 1 && persistent.dismissals.length === persistent.taps.length, `${persistent.verdict.trim()} ${persistent.dismissals.length}/${persistent.taps.length}`)
 }
