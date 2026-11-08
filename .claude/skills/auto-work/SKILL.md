@@ -38,15 +38,18 @@ With no run there is nothing to disable. An owner stop uses `/sleep`'s stop proc
 
 ## One cycle, in order
 
-Run these steps on entry and each wake. A relay drain follows the canonical relay protocol
-before any new admission; unfinished intake remains in run state for the successor.
+Run all steps on entry and on each wake that is not an idle waiter wake. A wake from the idle
+waiter runs only the steps for the sources it names (see Idle and relay). A relay drain follows
+the canonical relay protocol before any new admission; unfinished intake remains in run state
+for the successor.
 
 1. Answer any owner message first, as `/orchestrate` requires. Apply changed instructions
    before continuing intake or queue work.
 2. Drive in-flight pull requests, reviews, releases and waiters through `/orchestrate`.
    Start each wake with `node tools/run-status.mjs --session <session id>` and act on its
-   observations, then follow its `INTAKE` action through steps 3 through 7, including when the
-   idle waiter expired with an empty queue. An active auto-work run receives `INTAKE` instead
+   observations, then follow its `INTAKE` action through steps 3 through 7. After an idle
+   waiter wake with reason `SOURCE`, the `INTAKE` action covers only the steps for the sources
+   in its `wakes` list. An active auto-work run receives `INTAKE` instead
    of `NO_ACTION`; a relay drain still takes precedence. Admission caps, hard stops, quality gates and merge rules remain owned by
    `/sleep`, `/crank` and `/orchestrate`; this mode supplies no additional authority.
 3. List every unresolved Sentry issue through the Sentry MCP in organization
@@ -91,7 +94,10 @@ before any new admission; unfinished intake remains in run state for the success
    match `displayTitle` to `Orbit review intake <cycle>` and record `databaseId`. Reuse the
    existing run when resuming; never choose an unrelated latest artifact. Drive its completion
    as an in-flight background check with `/orchestrate`'s registered file-waiter procedure.
-   Intake of other sources and board admission can proceed while the workflow runs. Download
+   Intake of other sources and board admission can proceed while the workflow runs. While the
+   session is idle, the waiter does this dispatch and the two imports itself under a
+   `wake-<timestamp>` cycle. It then clears the cycle, so a `reviews` wake already has the new
+   reviews in pending state. A cycle that the waiter left in state is resumed like any other. Download
    the exact run's artifact with `gh run download <id> --name orbit-play-reviews --dir <private scratchpad directory>`
    and run `node tools/orbit-play-reviews.mjs --import <absolute artifact JSON path>`.
    The workflow alone reads `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`, fetching all review pages for
@@ -192,11 +198,40 @@ untracked run state's `intake`. Never clear completed ids to shorten a relay.
 
 When nothing is launchable, keep `autoWork: true` and register
 `node tools/wait-auto-work.mjs` as a background task using `/orchestrate`'s wake protocol.
-Confirm the source is live and name it on the last line of the turn. Its default interval is
-fifteen minutes: at most 96 idle cycles per day, each with a Sentry listing, a board read,
-mailbox id pages and one short review workflow. This bounds model calls and Actions startup
-cost while checking new incidents within one cycle. The waiter itself makes no remote calls.
-Work already in flight keeps its own wake sources and takes priority on wake.
+Confirm the source is live and name it on the last line of the turn. At the end of each
+fifteen-minute interval, the waiter checks the sources itself, with no model call:
+
+- the board, through `node tools/plan-queue.mjs --board` (an admitted ticket or a deferred
+  ticket with its reason is one key);
+- the mailbox, through `node tools/orbit-mail.mjs --unseen` (ids absent from completed and
+  pending state);
+- the reviews, through the review workflow dispatch and the import of its artifacts (pending
+  Play and App Store review ids).
+
+A key absent from `intake.wake.seen` is new. The waiter exits only for one of these causes:
+
+- a new item;
+- a source failure with a signature that differs from `intake.wake.failures`;
+- the Sentry listing is due;
+- the owning mode changes or a relay becomes pending.
+
+An interval with nothing new does not wake the model. A repeated identical failure wakes the
+model only once. The waiter has no read-only Sentry token, so its `sentryMode` is `mcp-hourly`.
+It wakes the model once an hour after the last Sentry listing, and that wake runs step 3
+through the Sentry MCP.
+
+The waiter prints one JSON line. A `SOURCE` result has a `wakes` list, and each entry has a
+`source` (`board`, `mail`, `reviews` or `sentry`) and a `kind`:
+
+- `new` gives the new keys in `items`. Run the step for that source: `mail` runs step 4,
+  `reviews` classifies the pending reviews of steps 5 and 6, and `board` runs step 7.
+- `failure` gives the signature in `failure`. Log it once, then run the step for that source,
+  which retries the read and keeps its pending items and marks.
+- `due` (only `sentry`) runs step 3.
+
+Then register a new waiter. The waiter writes its seen keys, failure signatures and the Sentry
+listing time to `intake.wake`, so a relay or a new waiter keeps them. Work already in flight
+keeps its own wake sources and takes priority on wake.
 
 On a context relay, follow `.claude/skills/handoff/SKILL.md` with `--relay --sleep`. The adopted
 run carries `autoWork`, `intake` and its pending workflow identity; `NEXT.md` starts with exactly
