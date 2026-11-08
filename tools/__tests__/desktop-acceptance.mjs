@@ -386,7 +386,7 @@ int main(void) {
   return events
 }
 
-async function paletteTimingCases(dom, readState) {
+async function paletteTimingCases(dom, readState, reports) {
   const source = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-runner.mjs'), 'utf8')
   const traversal = source.slice(source.indexOf('  const focus = []'), source.indexOf('\n  report.paletteFocus = focus') + '\n  report.paletteFocus = focus'.length)
   const input = dom.window.document.querySelector('[cmdk-input]')
@@ -394,12 +394,13 @@ async function paletteTimingCases(dom, readState) {
   const key = (name) => flushSync(() => input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: name, bubbles: true })))
   for (const timing of ['during-input', 'after-input']) {
     key('Home')
+    const start = reports.length
     const events = [{ kind: 'focus', ...readState() }]
     const report = {}
     const captures = []
     const context = { previous: readState(), handle: { child: { pid: 321 } }, report,
       proxy: {
-        events: () => events.slice(),
+        events: () => [...events, ...reports.slice(start)],
         send: () => { if (timing === 'after-input') events.push({ kind: 'focus', ...readState() }) },
       },
       native: async () => { key('ArrowDown'); if (timing === 'during-input') events.push({ kind: 'focus', ...readState() }) },
@@ -414,6 +415,88 @@ async function paletteTimingCases(dom, readState) {
     T(`runner retains focus delivered ${timing} without consuming a stale event or skipping either result`,
       !failure && report.paletteFocus?.map((event) => event.selected).join(',') === '1,2' &&
       captures.join(',') === 'palette-result-1,palette-result-2', failure?.message)
+  }
+}
+
+// Replays the intermittent macOS failure: the native helper returns for a Down that the page never receives,
+// so the probe records no palette-key receipt and the selection never moves.
+async function paletteDeliveryCases(dom, readState, reports) {
+  const runner = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-runner.mjs'), 'utf8')
+  const traversal = runner.slice(runner.indexOf('  const focus = []'), runner.indexOf('\n  report.paletteFocus = focus') + '\n  report.paletteFocus = focus'.length)
+  const host = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/host.mjs'), 'utf8')
+  const waitForSource = host.slice(host.indexOf('export async function waitFor'), host.indexOf('export async function waitForHttp')).replace('export ', '')
+  const input = dom.window.document.querySelector('[cmdk-input]')
+  const { flushSync } = await import('react-dom')
+  const press = (target, key, init = {}) => flushSync(() => target.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key, code: key, bubbles: true, ...init })))
+  const scenarios = {
+    'first-press-lost': { lost: [1] },
+    'second-press-lost': { lost: [2] },
+    'never-delivered': { lost: [1, 2, 3, 4, 5, 6] },
+    'received-without-selection': { target: () => dom.window.document.body },
+    'late-duplicate': { duplicate: [1] },
+    // WebKit delivers a Down that the macOS input method claimed as ArrowDown with keyCode 229, and cmdk ignores it.
+    'claimed-by-input-method': { init: { keyCode: 229 }, claimed: (key) => key.keyCode === 229 },
+    'composing-in-input-method': { init: { isComposing: true }, claimed: (key) => key.composing === true },
+  }
+  for (const [name, scenario] of Object.entries(scenarios)) {
+    press(input, 'Home')
+    const start = reports.length
+    const focusEvents = []
+    const posts = []
+    const captures = []
+    const report = {}
+    let pendingFocus = null
+    let clock = 0
+    const context = { previous: readState(), handle: { child: { pid: 321 } }, report, Date: { now: () => clock },
+      // The real proxy forwards every probe report in arrival order; the probe answers focus-N only at that exact index.
+      proxy: {
+        events: () => {
+          if (pendingFocus !== null && readState().selected === pendingFocus) { focusEvents.push({ kind: 'focus', ...readState() }); pendingFocus = null }
+          return [...reports.slice(start), ...focusEvents]
+        },
+        send: (command) => { pendingFocus = Number(command.slice('focus-'.length)) },
+      },
+      native: async (pid, command) => {
+        posts.push(command)
+        if (command !== 'down' || scenario.lost?.includes(posts.length)) return
+        press(scenario.target?.() ?? input, 'ArrowDown', scenario.init)
+        if (scenario.duplicate?.includes(posts.length)) press(input, 'ArrowDown')
+      },
+      delay: async (milliseconds) => { clock += milliseconds; await new Promise((resolve) => setImmediate(resolve)) },
+      dump: async (surface) => { captures.push(surface) },
+      assertPaletteFocus: (previous, current) => {
+        if (current.selected !== previous.selected + 1) throw new Error(`Palette result order: expected ${previous.selected + 1}, received ${current.selected}`)
+      },
+    }
+    runInNewContext(`${waitForSource}\nglobalThis.traverse = async () => {${traversal}\n}`, context)
+    let failure
+    try { await context.traverse() } catch (error) { failure = error }
+    const order = report.paletteFocus?.map((event) => event.selected).join(',')
+    if (name === 'first-press-lost' || name === 'second-press-lost') {
+      T(`palette traversal posts a Down again only after the page received no Down (${name}) and still requires each result in order`,
+        !failure && order === '1,2' && captures.join(',') === 'palette-result-1,palette-result-2' && posts.length === 3 &&
+          report.paletteUndelivered?.length === 1 && report.paletteUndelivered[0].step === scenario.lost[0], failure?.message ?? JSON.stringify({ order, posts, report }))
+    }
+    if (name === 'never-delivered') {
+      T('palette traversal stops after a bounded number of undelivered Down posts and names the missing receipt',
+        /no usable native Down/.test(failure?.message) && posts.length === 3 && report.paletteUndelivered?.length === 3, failure?.message)
+    }
+    if (name === 'received-without-selection') {
+      T('a Down the page received but cmdk did not apply is never posted again and fails the focus check',
+        failure?.message === 'Timed out waiting for palette result focus' && posts.length === 1, failure?.message)
+    }
+    if (scenario.claimed) {
+      const claimed = report.paletteUndelivered?.flatMap((entry) => entry.keys) ?? []
+      T(`a Down the input method claimed (${name}) counts as undelivered and ends in the bounded failure, not the focus timeout`,
+        /no usable native Down/.test(failure?.message) && /keyCode 229 or composing/.test(failure?.message) && posts.length === 3 &&
+          report.paletteUndelivered?.length === 3 && claimed.length === 3 &&
+          claimed.every((key) => key.key === 'ArrowDown' && scenario.claimed(key) && key.targetInput && key.before.selected === 0),
+        failure?.message ?? JSON.stringify({ posts, report }))
+    }
+    if (name === 'late-duplicate') {
+      T('a step that receives two Downs fails explicitly instead of skipping a result',
+        /received 2 native Down keys/.test(failure?.message) && posts.length === 1, failure?.message)
+    }
   }
 }
 
@@ -493,7 +576,8 @@ async function controlledPaletteCases() {
         current.activeDescendantId === items[expected + 1].id, JSON.stringify(current))
       previous = current
     }
-    await paletteTimingCases(dom, context.paletteState)
+    await paletteTimingCases(dom, context.paletteState, reports)
+    await paletteDeliveryCases(dom, context.paletteState, reports)
     await pendingPaletteCases({ dom, context, reports, mount, Palette, createElement, flushSync })
     macPaletteFocusCases({ dom, context, mount, Palette, createElement, flushSync })
   } finally {

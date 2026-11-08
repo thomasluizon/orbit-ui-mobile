@@ -151,22 +151,47 @@ async function inspectSurfaces(proxy, native, handle, output, report) {
     await native(handle.child.pid, 'palette')
     proxy.send('palette-ready')
   }
-  let previous = await waitFor(() => proxy.read('palette'), 'palette surface')
+  const previous = await waitFor(() => proxy.read('palette'), 'palette surface')
   const tree = await dump('palette')
   if (tree.denied) { report.paletteFocus = { skipped: tree.error }; return }
+  await traversePalette(proxy, native, handle, dump, previous, report)
+  await native(handle.child.pid, 'escape')
+}
+
+async function traversePalette(proxy, native, handle, dump, previous, report) {
   const focus = []
+  // A native Down can return without reaching WebKit, so only the probe's keydown receipt proves delivery (#1560).
+  // The probe POSTs each receipt from its keydown capture listener, so 5 s bounds one loopback request; three posts add at most 15 s of receipt waiting.
+  const paletteKeyWindow = 5000
+  const paletteKeyPosts = 3
+  const keys = () => proxy.events().filter((event) => event.kind === 'palette-key')
+  // WebKit gives a Down that the macOS input method claimed keyCode 229, and cmdk ignores a composing or 229 keydown.
+  const downKeys = () => keys().filter((event) => event.key === 'ArrowDown' && event.keyCode !== 229 && !event.composing).length
+  report.paletteUndelivered = []
   for (let index = 0; index < 2; index++) {
     const before = proxy.events().filter((event) => event.kind === 'focus').length
-    await native(handle.child.pid, 'down')
+    const received = downKeys()
+    for (let post = 1; downKeys() === received; post++) {
+      if (post > paletteKeyPosts) {
+        throw new Error(`Palette received no usable native Down for step ${index + 1} after ${paletteKeyPosts} posts: each Down was missing or claimed by the input method (keyCode 229 or composing)`)
+      }
+      const keysBefore = keys().length
+      await native(handle.child.pid, 'down')
+      const deadline = Date.now() + paletteKeyWindow
+      await waitFor(() => downKeys() > received || Date.now() >= deadline, 'native Down receipt')
+      if (downKeys() === received) report.paletteUndelivered.push({ step: index + 1, post, keys: keys().slice(keysBefore) })
+    }
     proxy.send(`focus-${previous.selected + 1}`)
-    const current = await waitFor(() => proxy.events().filter((event) => event.kind === 'focus')[before], 'palette result focus')
+    const current = await waitFor(() => {
+      if (downKeys() > received + 1) throw new Error(`Palette step ${index + 1} received ${downKeys() - received} native Down keys`)
+      return proxy.events().filter((event) => event.kind === 'focus')[before]
+    }, 'palette result focus')
     const selectedTree = await dump(`palette-result-${index + 1}`)
     assertPaletteFocus(previous, current, selectedTree)
     focus.push(current)
     previous = current
   }
   report.paletteFocus = focus
-  await native(handle.child.pid, 'escape')
 }
 
 function installedLaunch(executable, output, name) {

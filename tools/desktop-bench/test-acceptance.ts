@@ -471,12 +471,13 @@ test('surface inspection dismisses Astra and waits for its modal focus owner bef
       const openPalette = () => (keyboard as typeof keyboard & { keydown: (event: unknown) => void }).keydown({ ctrlKey: true, key: 'k', preventDefault() {} })
       const results = ['Today', 'Astra', 'All']
       const state = () => ({ inputFocused: true, inputName: 'Search commands', results, selected })
-      const events: { kind: string }[] = []
+      const events: { kind: string; key?: string }[] = []
       const native = async (_pid: number, command: string) => {
         commands.push(command)
         if (command === 'escape') { closing = modal; palette = false }
         if (command === 'palette') openPalette()
-        if (command === 'down' && palette) selected++
+        // The page probe reports every keydown the palette input receives; the runner waits for it before the focus check.
+        if (command === 'down' && palette) { selected++; events.push({ kind: 'palette-key', key: 'ArrowDown' }) }
         if (command !== 'dump') return { sent: command }
         if (denied) return { denied: true, error: 'AX API disabled', nodes: [] }
         return { denied: false, error: null, nodes: [

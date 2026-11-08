@@ -2690,6 +2690,12 @@
       "feature3": "Checklist progress for habits with checklists",
       "feature4": "Automatically shows tomorrow's habits when today is clear"
     },
+    "widgetIos": {
+      "title": "Widget",
+      "step1": "Touch and hold an empty area of your Home Screen until the apps jiggle",
+      "step2": "Tap Edit, then Add Widget (on iOS 17, tap +), and search for Orbit",
+      "step3": "Choose a size and tap Add Widget"
+    },
     "subscription": {
       "pro": "Orbit Pro",
       "proHint": "Manage your subscription",
@@ -3313,7 +3319,9 @@
         "todayTitle": "Today or tomorrow",
         "todayDesc": "The Android widget shows today's habits. When nothing is scheduled today, it shows tomorrow's habits instead.",
         "opensTitle": "Opens Orbit",
-        "opensDesc": "The widget never logs a habit. A tap anywhere on it opens Orbit, and refresh only updates the widget."
+        "opensDesc": "The widget never logs a habit. A tap anywhere on it opens Orbit, and refresh only updates the widget.",
+        "todayDescIos": "The widget shows today's habits. When nothing is scheduled today, it shows tomorrow's habits instead.",
+        "opensDescIos": "The widget never logs a habit. A tap anywhere on it opens Orbit."
       }
     }
   },

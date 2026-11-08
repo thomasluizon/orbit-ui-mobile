@@ -5,7 +5,7 @@ import { act, type ReactTestRenderer } from 'react-test-renderer'
 
 interface HostRow {
   type: string
-  props: { accessible?: boolean; style?: ViewStyle | ((state: { pressed: boolean }) => ViewStyle); numberOfLines?: number; accessibilityLabel?: string; 'data-slot'?: string; contentContainerStyle?: ViewStyle; testID?: string; hitSlop?: PressableProps['hitSlop'] }
+  props: { accessible?: boolean; style?: ViewStyle | ((state: { pressed: boolean }) => ViewStyle); numberOfLines?: number; accessibilityLabel?: string; 'data-slot'?: string; contentContainerStyle?: ViewStyle; testID?: string; hitSlop?: PressableProps['hitSlop']; maxFontSizeMultiplier?: number | null }
   children: (HostRow | string)[] | null
 }
 
@@ -127,7 +127,7 @@ export function measureProfileRow(host: HostRow, width: number, scale: number, s
   config.setPointScaleFactor(0)
   const boxes: { node: YogaNode; testID: string }[] = []
   const parts: { node: YogaNode; slot: string; style: ViewStyle }[] = []
-  const texts: { node: YogaNode; label: string; style: TextStyle; limit: number | undefined }[] = []
+  const texts: { node: YogaNode; label: string; style: TextStyle; limit: number | undefined; textPixels: (size: number) => number }[] = []
   const controls: { node: YogaNode; labels: string[]; accessibilityLabel?: string; contentIndexes: number[]; hitWidth: number; hitHeight: number }[] = []
   function labelsOf(host: HostRow): string[] {
     return (host.children ?? []).flatMap((child) => typeof child === 'string' ? [child] : labelsOf(child))
@@ -147,13 +147,15 @@ export function measureProfileRow(host: HostRow, width: number, scale: number, s
     }
     if (host.type === 'Text') {
       const label = labelsOf(host).join('')
-      texts.push({ node, label, style, limit: host.props.numberOfLines })
+      const cap = host.props.maxFontSizeMultiplier
+      const textPixels = (size: number) => typeof cap === 'number' && cap >= 1 ? Math.min(scaledPixels(size), size * cap) : scaledPixels(size)
+      texts.push({ node, label, style, limit: host.props.numberOfLines, textPixels })
       node.setMeasureFunc((available, mode) => {
-        const textScale = scaledPixels(Number(style.fontSize ?? 17)) / Number(style.fontSize ?? 17)
+        const textScale = textPixels(Number(style.fontSize ?? 17)) / Number(style.fontSize ?? 17)
         const natural = textWidth(label, style, textScale)
         const measured = mode === Yoga.MEASURE_MODE_UNDEFINED ? natural : Math.min(natural, available)
         const lines = wrappedLines(label, measured, style, textScale)
-        return { width: measured, height: Math.min(lines, host.props.numberOfLines ?? lines) * scaledPixels(Number(style.lineHeight ?? Number(style.fontSize ?? 17) * 1.4)) }
+        return { width: measured, height: Math.min(lines, host.props.numberOfLines ?? lines) * textPixels(Number(style.lineHeight ?? Number(style.fontSize ?? 17) * 1.4)) }
       })
     } else if (host.type === 'ScrollView' && host.props.contentContainerStyle) {
       node.insertChild(layoutHost({ type: 'View', props: { style: host.props.contentContainerStyle }, children: host.children }), 0)
@@ -169,8 +171,8 @@ export function measureProfileRow(host: HostRow, width: number, scale: number, s
       const bounds = position(node)
       const content = contentIndexes.map((index) => position(node.getChild(index)))
       return { labels, accessibilityLabel, ...bounds, targetWidth: bounds.width + hitWidth, targetHeight: bounds.height + hitHeight, inlineClearance: Math.min(Math.min(...content.map((child) => child.left)) - bounds.left, bounds.right - Math.max(...content.map((child) => child.right))) }
-    }), texts: texts.map(({ node, label, style, limit }) => {
-      const lines = wrappedLines(label, node.getComputedWidth(), style, scaledPixels(Number(style.fontSize ?? 17)) / Number(style.fontSize ?? 17))
+    }), texts: texts.map(({ node, label, style, limit, textPixels }) => {
+      const lines = wrappedLines(label, node.getComputedWidth(), style, textPixels(Number(style.fontSize ?? 17)) / Number(style.fontSize ?? 17))
       return { label, ...position(node), lines: Math.min(lines, limit ?? lines), clipped: limit !== undefined && lines > limit, lineHeightRatio: Number(style.lineHeight ?? Number(style.fontSize ?? 17) * 1.4) / Number(style.fontSize) }
     }) }
   } finally { layout.freeRecursive(); config.free() }

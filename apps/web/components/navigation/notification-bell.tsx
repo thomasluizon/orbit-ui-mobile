@@ -17,8 +17,8 @@ type CountPlacement = 'inline' | 'corner'
 function NotificationBellCount({ count, corner }: Readonly<{ count: number; corner: boolean }>) {
   if (count <= 0) return null
   return <span aria-hidden="true" data-notification-count=""
-    className={`pointer-events-none min-h-[20px] min-w-[20px] shrink-0 bg-[var(--fg-1)] text-center font-mono text-xs tabular-nums text-[var(--bg)] ${corner ? 'absolute right-0 top-0' : ''}`}
-    style={{ borderRadius: 8, paddingInline: SPACING.s4, lineHeight: corner ? '1.667em' : 20 / 12, boxShadow: corner ? '0 0 0 3px var(--bg)' : undefined }}>
+    className={`pointer-events-none min-h-[20px] min-w-[20px] shrink-0 bg-[var(--fg-1)] text-center font-mono text-[12px] tabular-nums text-[var(--bg)] ${corner ? 'absolute right-0 top-0' : ''}`}
+    style={{ borderRadius: 8, paddingInline: SPACING.s4, lineHeight: '20px', boxShadow: corner ? '0 0 0 3px var(--bg)' : undefined }}>
     {count > 9 ? '9+' : count}
   </span>
 }

@@ -1,8 +1,8 @@
-import { Text, View } from 'react-native'
+import { Platform, Text, View } from 'react-native'
 import { CheckCircle, Clock, List, RotateCcw } from '@/components/ui/icons'
 import {
   WIDGET_FEATURES,
-  WIDGET_STEP_KEYS,
+  getWidgetCopy,
   type WidgetFeatureIconKey,
 } from '@orbit/shared/utils/advanced-settings'
 import { Sheet } from '@/components/ui/sheet'
@@ -33,15 +33,16 @@ export function WidgetInfoSheet({
   tokens: Tokens
 }>) {
   if (!open) return null
+  const copy = getWidgetCopy(Platform.OS)
 
   return (
-    <Sheet open onClose={onClose} title={t('profile.widgetTitle')} key="widget-info">
+    <Sheet open onClose={onClose} title={t(copy.titleKey)} key="widget-info">
       <View style={styles.widgetSheetContent}>
         <Text style={[styles.widgetHeading, { color: tokens.fg1 }]}>
           {t('profile.widgetHow.title')}
         </Text>
         <View style={styles.widgetList}>
-          {WIDGET_STEP_KEYS.map((stepKey, index) => (
+          {copy.stepKeys.map((stepKey, index) => (
             <View key={stepKey} style={styles.widgetStepRow}>
               <Text style={[styles.widgetStepNumber, { color: tokens.fg2 }]}>{`${index + 1}.`}</Text>
               <Text style={[styles.widgetItemText, { color: tokens.fg2 }]}>{t(stepKey)}</Text>

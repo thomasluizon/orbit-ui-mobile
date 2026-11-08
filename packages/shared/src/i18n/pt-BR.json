@@ -2690,6 +2690,12 @@
       "feature3": "O progresso do checklist nos hábitos com listas",
       "feature4": "Os hábitos de amanhã, quando não há nada para hoje"
     },
+    "widgetIos": {
+      "title": "Widget",
+      "step1": "Toque e segure numa área vazia da Tela de Início até os apps começarem a tremer",
+      "step2": "Toque em Editar e depois em Adicionar Widget (no iOS 17, toque em +) e procure por Orbit",
+      "step3": "Escolha um tamanho e toque em Adicionar Widget"
+    },
     "subscription": {
       "pro": "Orbit Pro",
       "proHint": "Gerencie sua assinatura",
@@ -3313,7 +3319,9 @@
         "todayTitle": "Hoje ou amanhã",
         "todayDesc": "O widget do Android mostra os hábitos de hoje. Quando não há nada agendado para hoje, ele mostra os hábitos de amanhã.",
         "opensTitle": "Abre o Orbit",
-        "opensDesc": "O widget nunca registra um hábito. Um toque em qualquer lugar abre o Orbit, e atualizar apenas renova o widget."
+        "opensDesc": "O widget nunca registra um hábito. Um toque em qualquer lugar abre o Orbit, e atualizar apenas renova o widget.",
+        "todayDescIos": "O widget mostra os hábitos de hoje. Quando não há nada agendado para hoje, ele mostra os hábitos de amanhã.",
+        "opensDescIos": "O widget nunca registra um hábito. Um toque em qualquer lugar abre o Orbit."
       }
     }
   },
