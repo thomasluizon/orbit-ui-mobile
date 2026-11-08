@@ -212,10 +212,24 @@ const KeyboardAvoidingView = createHostComponent('KeyboardAvoidingView')
 
 export const Animated = {
   Value: class AnimatedValue {
+    readonly listeners = new Map<string, (state: { value: number }) => void>()
+    nextListener = 0
+
     constructor(public value: number) {}
 
     setValue(nextValue: number) {
       this.value = nextValue
+      this.listeners.forEach(listener => listener({ value: nextValue }))
+    }
+
+    addListener(listener: (state: { value: number }) => void) {
+      const id = String(this.nextListener++)
+      this.listeners.set(id, listener)
+      return id
+    }
+
+    removeListener(id: string) {
+      this.listeners.delete(id)
     }
 
     stopAnimation(callback?: (value: number) => void) {

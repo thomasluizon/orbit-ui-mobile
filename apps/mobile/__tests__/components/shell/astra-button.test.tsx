@@ -135,19 +135,66 @@ it.each([false, true])('starts an interrupted snap from its displayed position w
   await mount()
   await act(() => { handler('astra-button', 'onAccessibilityAction')({ nativeEvent: { actionName: 'up' } }) })
   expect(point()).toEqual({ x: 300, y: 300 })
-  const callbacks: (() => void)[] = []
-  vi.spyOn(Animated.Value.prototype, 'stopAnimation').mockImplementation(callback => { if (callback) callbacks.push(() => callback(300)) })
+  const neverAnswerNativeRead = () => undefined
+  vi.spyOn(Animated.Value.prototype, 'stopAnimation').mockImplementation(neverAnswerNativeRead)
   await act(() => { handler('astra-button-position', 'onStartShouldSetResponderCapture')(touch(310, 310)) })
   expect(handler('astra-button-position', 'onMoveShouldSetResponderCapture')(touch(300, 300))).toBe(true)
   await act(() => { handler('astra-button-position', 'onResponderGrant')(touch(300, 300)) })
-  if (earlyRelease) await act(() => { handler('astra-button-position', 'onResponderRelease')(touch(300, 300)) })
-  await act(() => { callbacks.forEach(callback => callback()) })
-  if (!earlyRelease) {
-    expect(point()).toEqual({ x: 290, y: 290 })
-    await act(() => { handler('astra-button-position', 'onResponderRelease')(touch(300, 300)) })
-  }
+  if (!earlyRelease) expect(point()).toEqual({ x: 290, y: 290 })
+  await act(() => { handler('astra-button-position', 'onResponderRelease')(touch(300, 300)) })
   expect(JSON.parse(storage.get(ASTRA_POSITION_KEY)!)).toEqual({ x: 336, y: 290 })
   expect(useUIStore.getState().astraConversationOpen).toBe(false)
+})
+
+it('moves on each of 20 consecutive drags from varied states after native-driven snaps', async () => {
+  motion.reduced = false
+  const native = new WeakSet<object>()
+  const queuedNativeReads: ((value: number) => void)[] = []
+  vi.spyOn(Animated, 'timing').mockImplementation((value, config) => ({
+    start: () => {
+      if (!(value instanceof Animated.Value)) return
+      if (config.useNativeDriver) native.add(value)
+      value.setValue(config.toValue as number)
+    }, stop: vi.fn(), reset: vi.fn(),
+  }))
+  const stopAnimation = Animated.Value.prototype.stopAnimation
+  vi.spyOn(Animated.Value.prototype, 'stopAnimation').mockImplementation(function (this: Animated.Value, callback?: (value: number) => void) {
+    if (native.has(this)) { if (callback) queuedNativeReads.push(callback); return }
+    stopAnimation.call(this, callback)
+  })
+  await mount()
+  for (let attempt = 0; attempt < 20; attempt++) {
+    if (attempt % 5 === 1) {
+      await act(() => { handler('astra-button', 'onPress')() })
+      expect(useUIStore.getState().astraConversationOpen).toBe(true)
+      await act(() => { useUIStore.getState().setAstraConversationOpen(false) })
+    }
+    if (attempt % 5 === 3) await layout()
+    const start = point()
+    const delta = { x: start.x > 200 ? -250 : 250, y: attempt % 2 ? -40 : 40 }
+    const pointer = { x: start.x + 30, y: start.y + 30 }
+    await act(() => { handler('astra-button-position', 'onStartShouldSetResponderCapture')(touch(pointer.x, pointer.y)) })
+    expect(handler('astra-button-position', 'onMoveShouldSetResponderCapture')(touch(pointer.x + delta.x, pointer.y + delta.y))).toBe(true)
+    await act(() => { handler('astra-button-position', 'onResponderGrant')(touch(pointer.x + delta.x, pointer.y + delta.y)) })
+    expect({ attempt, point: point() }).toEqual({ attempt, point: { x: start.x + delta.x, y: start.y + delta.y } })
+    await act(() => { handler('astra-button-position', 'onResponderRelease')(touch(pointer.x + delta.x, pointer.y + delta.y)) })
+    expect({ attempt, x: point().x }).toEqual({ attempt, x: start.x > 200 ? 16 : 336 })
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+  }
+  expect(queuedNativeReads).toEqual([])
+})
+
+it('keeps a started drag from the native scroll view and from other responders', async () => {
+  await mount()
+  expect(host('astra-button').props.blockNativeResponder).toBe(true)
+  const start = point()
+  await act(() => { handler('astra-button-position', 'onStartShouldSetResponderCapture')(touch(start.x + 30, start.y + 30)) })
+  let blocksNative: unknown
+  await act(() => { blocksNative = handler('astra-button-position', 'onResponderGrant')(touch(start.x + 30, start.y - 30)) })
+  expect(blocksNative).toBe(true)
+  expect(handler('astra-button-position', 'onResponderTerminationRequest')()).toBe(false)
+  await act(() => { handler('astra-button-position', 'onResponderRelease')(touch(start.x + 30, start.y - 30)) })
+  expect(point()).toEqual({ x: 336, y: 380 })
 })
 
 it('offers movement choices on a long press without opening Astra', async () => {
