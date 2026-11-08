@@ -418,8 +418,8 @@ async function paletteTimingCases(dom, readState, reports) {
   }
 }
 
-// Replays the macOS failures of runs 42394404340, 42423461651 and 42436012409: the native helper returned for a
-// Down that the page never received, so the probe recorded no palette-key receipt and the selection never moved.
+// Replays the intermittent macOS failure: the native helper returns for a Down that the page never receives,
+// so the probe records no palette-key receipt and the selection never moves.
 async function paletteDeliveryCases(dom, readState, reports) {
   const runner = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-runner.mjs'), 'utf8')
   const traversal = runner.slice(runner.indexOf('  const focus = []'), runner.indexOf('\n  report.paletteFocus = focus') + '\n  report.paletteFocus = focus'.length)
