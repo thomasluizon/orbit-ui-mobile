@@ -192,6 +192,37 @@ export async function launchUnelevated(executable, output, name, host = { execut
   return handle
 }
 
+const apsctl = '/System/Library/PrivateFrameworks/ApplePushService.framework/apsctl'
+// The macos-latest image leaves com.apple.apsd and com.apple.notificationcenterui.agent unloaded: `launchctl print` finds
+// neither service, apsctl answers "Connection invalid" and usernoted cannot reach Notification Center. Then no
+// authorization alert shows and no APNs token arrives. Hosted probes loaded both through launchd, as a login does, and a
+// Developer ID signed app then got its authorization answer and an 80-byte APNs token. An `open -b` start of Notification
+// Center showed no alert, because launchd vends no service for it.
+const pushServices = [
+  { domain: 'system', label: 'com.apple.apsd', plist: '/System/Library/LaunchDaemons/com.apple.apsd.plist' },
+  { domain: 'gui', label: 'com.apple.notificationcenterui.agent', plist: '/System/Library/LaunchAgents/com.apple.notificationcenterui.plist' },
+]
+const apsdStatusLine = /^\s*(daemon status|connection environment|connection status|server hostname):.*$/gm
+
+export async function startPushServices(host = { execute, waitFor }, uid = process.getuid()) {
+  for (const { domain, label, plist } of pushServices) {
+    const target = domain === 'gui' ? `gui/${uid}` : domain
+    const service = `${target}/${label}`
+    // The system domain needs root; the gui domain belongs to the signed-in runner user.
+    const launchctl = (...argumentsList) => domain === 'system'
+      ? host.execute('sudo', ['launchctl', ...argumentsList]) : host.execute('launchctl', argumentsList)
+    await host.execute('sudo', ['launchctl', 'enable', service])
+    if (!await launchctl('print', service).then(() => true, () => false)) await launchctl('bootstrap', target, plist)
+    await launchctl('kickstart', service)
+  }
+  const status = await host.waitFor(async () => {
+    const text = await host.execute(apsctl, ['status']).catch((error) => error.message)
+    return /daemon status:\s+Running/.test(text) && /connection status:\s+Yes/.test(text) && text
+  }, 'apsd to connect to the APNs courier', 60000)
+  await host.waitFor(() => host.execute('pgrep', ['-x', 'NotificationCenter']).then((processIds) => processIds.trim(), () => ''), 'Notification Center', 30000)
+  return { apsd: (status.match(apsdStatusLine) ?? []).map((line) => line.trim().replace(/\s{2,}/g, ' ')) }
+}
+
 function processAlive(pid) {
   try { process.kill(pid, 0); return true } catch (error) { if (error.code === 'ESRCH') return false; throw error }
 }

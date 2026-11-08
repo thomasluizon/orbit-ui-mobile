@@ -10,8 +10,13 @@ $ErrorActionPreference = 'Stop'
 
 # The Windows App SDK refuses app notifications when the token integrity level is High or above
 # (AppNotificationManager::IsSupported and Security.IntegrityLevel.h in microsoft/WindowsAppSDK), so the installed
-# shell starts at Medium integrity, the level of a person's app. Microsoft's documented way to start a child at a
-# lower level duplicates the caller's token, sets TokenIntegrityLevel and calls CreateProcessAsUser:
+# shell starts with the token a person's app gets under UAC: a standard-user token at Medium integrity. A copy of the
+# elevated token with only its integrity lowered keeps the Administrators group and the admin privileges, and WebView2
+# fails to start under it (hosted windows-latest probe: "failed to create webview" with HRESULT 0x80010108 in every
+# variant). The Safer normal-user level removes them, as `runas /trustlevel:0x20000` does, and the same probe started
+# the shell with its WebView2 processes under it:
+# https://learn.microsoft.com/en-us/windows/win32/api/winsafer/nf-winsafer-safercomputetokenfromlevel
+# The token then takes an explicit Medium label, Microsoft's documented way to start a child at a lower level:
 # https://learn.microsoft.com/en-us/previous-versions/dotnet/articles/bb625960(v=msdn.10)
 # Add-Type compiles through CodeDom, which fails at Medium integrity with "A required privilege is not held by the
 # client" (a hosted windows-latest probe reproduced it). Thus start mode, which runs at High, compiles this type into
@@ -24,10 +29,10 @@ using System.Security.Principal;
 using System.Text;
 
 public static class OrbitIntegrity {
-    const uint TokenAssignPrimary = 0x0001, TokenDuplicate = 0x0002, TokenQuery = 0x0008, TokenAdjustDefault = 0x0080;
+    const uint TokenQuery = 0x0008;
     const int TokenUserClass = 1, TokenSessionIdClass = 12, TokenElevationClass = 20, TokenIntegrityLevelClass = 25;
     const uint SeGroupIntegrity = 0x20, CreateNoWindow = 0x08000000;
-    const int SecurityImpersonation = 2, TokenPrimary = 1;
+    const uint SaferScopeUser = 2, SaferLevelNormalUser = 0x20000, SaferLevelOpen = 1;
     public const string MediumSid = "S-1-16-8192";
 
     [StructLayout(LayoutKind.Sequential)]
@@ -59,7 +64,11 @@ public static class OrbitIntegrity {
     [DllImport("advapi32.dll", SetLastError = true)]
     static extern bool SetTokenInformation(IntPtr token, int kind, IntPtr buffer, int length);
     [DllImport("advapi32.dll", SetLastError = true)]
-    static extern bool DuplicateTokenEx(IntPtr token, uint access, IntPtr attributes, int impersonation, int type, out IntPtr duplicate);
+    static extern bool SaferCreateLevel(uint scope, uint level, uint flags, out IntPtr handle, IntPtr reserved);
+    [DllImport("advapi32.dll", SetLastError = true)]
+    static extern bool SaferComputeTokenFromLevel(IntPtr level, IntPtr inputToken, out IntPtr outputToken, uint flags, IntPtr reserved);
+    [DllImport("advapi32.dll", SetLastError = true)]
+    static extern bool SaferCloseLevel(IntPtr handle);
     [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     static extern bool ConvertStringSidToSidW(string text, out IntPtr sid);
     [DllImport("advapi32.dll")]
@@ -134,22 +143,21 @@ public static class OrbitIntegrity {
 
     public static TokenContext DescribeCurrent() { return Describe(GetCurrentProcess()); }
 
-    public static uint StartAtMedium(string application, string commandLine, string directory) {
-        IntPtr token = IntPtr.Zero, duplicate = IntPtr.Zero, sid = IntPtr.Zero, label = IntPtr.Zero;
+    public static uint StartAsStandardUser(string application, string commandLine, string directory) {
+        IntPtr level = IntPtr.Zero, token = IntPtr.Zero, sid = IntPtr.Zero, label = IntPtr.Zero;
         try {
-            if (!OpenProcessToken(GetCurrentProcess(), TokenDuplicate | TokenAdjustDefault | TokenQuery | TokenAssignPrimary, out token)) {
-                throw Failure("OpenProcessToken");
-            }
-            if (!DuplicateTokenEx(token, 0, IntPtr.Zero, SecurityImpersonation, TokenPrimary, out duplicate)) throw Failure("DuplicateTokenEx");
+            if (!SaferCreateLevel(SaferScopeUser, SaferLevelNormalUser, SaferLevelOpen, out level, IntPtr.Zero)) throw Failure("SaferCreateLevel");
+            // A null input token computes the restricted token from this process's own token.
+            if (!SaferComputeTokenFromLevel(level, IntPtr.Zero, out token, 0, IntPtr.Zero)) throw Failure("SaferComputeTokenFromLevel");
             if (!ConvertStringSidToSidW(MediumSid, out sid)) throw Failure("ConvertStringSidToSid");
             int size = Marshal.SizeOf(typeof(SidAndAttributes)) + GetLengthSid(sid);
             label = Marshal.AllocHGlobal(size);
             Marshal.StructureToPtr(new SidAndAttributes { Sid = sid, Attributes = SeGroupIntegrity }, label, false);
-            if (!SetTokenInformation(duplicate, TokenIntegrityLevelClass, label, size)) throw Failure("SetTokenInformation(TokenIntegrityLevel)");
+            if (!SetTokenInformation(token, TokenIntegrityLevelClass, label, size)) throw Failure("SetTokenInformation(TokenIntegrityLevel)");
             // A null desktop inherits the caller's window station and desktop, so the shell stays in the runner's interactive session.
             var startup = new StartupInfo { cb = (uint)Marshal.SizeOf(typeof(StartupInfo)) };
             ProcessInformation information;
-            if (!CreateProcessAsUserW(duplicate, application, new StringBuilder(commandLine), IntPtr.Zero, IntPtr.Zero, false, CreateNoWindow,
+            if (!CreateProcessAsUserW(token, application, new StringBuilder(commandLine), IntPtr.Zero, IntPtr.Zero, false, CreateNoWindow,
                 IntPtr.Zero, directory, ref startup, out information)) throw Failure("CreateProcessAsUser");
             CloseHandle(information.hThread);
             CloseHandle(information.hProcess);
@@ -157,8 +165,8 @@ public static class OrbitIntegrity {
         } finally {
             if (label != IntPtr.Zero) Marshal.FreeHGlobal(label);
             if (sid != IntPtr.Zero) LocalFree(sid);
-            if (duplicate != IntPtr.Zero) CloseHandle(duplicate);
             if (token != IntPtr.Zero) CloseHandle(token);
+            if (level != IntPtr.Zero) SaferCloseLevel(level);
         }
     }
 }
@@ -214,7 +222,7 @@ switch ($Mode) {
         $powershell = Join-Path $PSHOME 'powershell.exe'
         $commandLine = ('"{0}" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{1}" -Mode run -Executable "{2}" -Log "{3}" -Output "{4}"' +
             ' -Status "{5}" -Assembly "{6}"') -f $powershell, $PSCommandPath, $Executable, $Log, $Output, $Status, $assembly
-        $launcher = [OrbitIntegrity]::StartAtMedium($powershell, $commandLine, $directory)
+        $launcher = [OrbitIntegrity]::StartAsStandardUser($powershell, $commandLine, $directory)
         [ordered]@{ harness = (ConvertTo-LaunchContext ([OrbitIntegrity]::DescribeCurrent())); launcher = $launcher; outputLabel = $label } |
             ConvertTo-Json -Compress
     }

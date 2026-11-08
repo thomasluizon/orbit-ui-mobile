@@ -37,10 +37,11 @@ function windowsLauncher(script: { statusAfterStart?: string[]; statusAfterDelay
   return { host, calls, tracked, stopped }
 }
 
-// The renamed built-in Administrator keeps RID 500 and, with Admin Approval Mode off for it, a High token.
+// The renamed built-in Administrator keeps RID 500 and, with Admin Approval Mode off for it, a High token. The launcher
+// gives the shell a Safer standard-user token at Medium integrity, which is not elevated.
 const token = (integrity: string, integrityRid: number, tokenIsElevated: boolean) =>
   ({ user: 'RUNNER\\runneradmin', sid: 'S-1-5-21-1-2-3-500', rid: 500, integrity, integrityRid, tokenIsElevated, session: 1 })
-const medium = token('Medium', 0x2000, true)
+const medium = token('Medium', 0x2000, false)
 const high = token('High', 0x3000, true)
 const context = (value: object) => JSON.stringify({ kind: 'context', context: value })
 const exited = JSON.stringify({ kind: 'exit', code: 0 })
@@ -137,7 +138,8 @@ function assertToken(value: Record<string, unknown> | undefined) {
 }
 
 // The producer check runs in the same elevated job as the installed acceptance, so this launches a real Medium process there.
-test('the Windows launcher start mode runs a real executable at Medium integrity and records its exit', { skip: process.platform !== 'win32' }, async () => {
+// An elevated token lowered only to Medium keeps the admin groups, and WebView2 fails under it with 0x80010108.
+test('the Windows launcher start mode runs a real executable as an unelevated standard user at Medium integrity and records its exit', { skip: process.platform !== 'win32' }, async () => {
   const directory = mkdtempSync(join(tmpdir(), 'orbit-unelevated-'))
   try {
     const status = join(directory, 'hostname-launch.jsonl')
@@ -158,6 +160,8 @@ test('the Windows launcher start mode runs a real executable at Medium integrity
     assertToken(parsed.shell)
     assert.equal(integrity(parsed.context), 'Medium:8192')
     assert.equal(integrity(parsed.shell), 'Medium:8192')
+    assert.equal(parsed.context?.tokenIsElevated, false)
+    assert.equal(parsed.shell?.tokenIsElevated, false)
     assert.ok(Number.isInteger(parsed.pid) && parsed.pid! > 0)
     assert.deepEqual(parsed.exit, { kind: 'exit', code: 0 })
     assert.ok(readFileSync(join(directory, 'hostname.stdout.log'), 'utf8').trim().length > 0)

@@ -14,6 +14,7 @@ import { createAcceptanceHandler } from './acceptance-mock'
 import { assertDoneDelivered, assertExpiredDone, visibleWindows } from './acceptance-contract.mjs'
 import { apnsPayload, apnsProviderToken, apnsRequest, apsEnvironment, exercisePush, isWnsChannel, pushReadiness, repeatReminder,
   sendApns, sendWns, signedApsEnvironment, takePushCredentials, wnsAccessToken, wnsPayload } from './acceptance-push.mjs'
+import { startPushServices } from './acceptance-platform.mjs'
 
 // Repeat reminder push acceptance (#1861). Shapes follow orbit-api ReminderSchedulerService.Repeat.cs RecordRepeat,
 // PushNotificationService.CreateWebPushPayload, ApnsPushSender.CreatePayload and WnsPushSender.SendAsync.
@@ -235,6 +236,60 @@ test('push readiness registers on Windows, skips with a named reason, and never 
     /^Error: The Developer ID signed shell has no com\.apple\.developer\.aps-environment entitlement; see codesign-entitlements\.stdout\.log$/)
   assert.deepEqual(pushReadiness({ platform: 'darwin', credentials: apns, environment: 'production' }), { transport: 'apns', registration: true, delivery: true })
   assert.match(pushReadiness({ platform: 'darwin', credentials: {}, environment: 'development' }).skipped!, /ORBIT_APNS_KEY_ID, ORBIT_APPLE_TEAM_ID, ORBIT_APNS_PRIVATE_KEY/)
+})
+
+// apsctl status lines as a hosted macos-latest runner printed them once apsd was loaded through launchd.
+const apsdConnected = ['daemon status:                                Running', 'connection environment:                       production',
+  '   connection status:                         Yes', '            server hostname:                  3-courier.push.apple.com',
+  '   courier status:                            Unknown'].join('\n')
+
+function pushServicesHost({ loaded = [] as string[], statuses = [apsdConnected] as string[], centre = ['', '2652'] } = {}) {
+  const calls: string[] = []
+  const host = {
+    execute: async (command: string, argumentsList: string[]) => {
+      const call = [command, ...argumentsList].join(' ')
+      calls.push(call)
+      if (argumentsList.includes('print')) {
+        if (!loaded.some((service) => call.endsWith(service))) throw new Error(`Could not find service "${argumentsList.at(-1)}"`)
+        return 'state = running'
+      }
+      if (command.endsWith('/apsctl')) {
+        const status = statuses.length > 1 ? statuses.shift()! : statuses[0]!
+        if (status.startsWith('Bad response')) throw new Error(status)
+        return status
+      }
+      if (command === 'pgrep') { const ids = centre.length > 1 ? centre.shift()! : centre[0]!; if (!ids) throw new Error('exit 1'); return `${ids}\n` }
+      return ''
+    },
+    waitFor: async (read: () => Promise<unknown>, label: string) => {
+      for (let attempt = 0; attempt < 5; attempt++) { const value = await read(); if (value) return value }
+      throw new Error(`Timed out waiting for ${label}`)
+    },
+  }
+  return { host, calls }
+}
+
+test('macOS push acceptance loads apsd and Notification Center through launchd before it asks for a token', async () => {
+  const unloaded = pushServicesHost({ statuses: ['Bad response from apsd: Connection invalid', apsdConnected] })
+  const result = await startPushServices(unloaded.host, 501)
+  const apsctl = '/System/Library/PrivateFrameworks/ApplePushService.framework/apsctl status'
+  assert.deepEqual(unloaded.calls, [
+    'sudo launchctl enable system/com.apple.apsd', 'sudo launchctl print system/com.apple.apsd',
+    'sudo launchctl bootstrap system /System/Library/LaunchDaemons/com.apple.apsd.plist', 'sudo launchctl kickstart system/com.apple.apsd',
+    'sudo launchctl enable gui/501/com.apple.notificationcenterui.agent', 'launchctl print gui/501/com.apple.notificationcenterui.agent',
+    'launchctl bootstrap gui/501 /System/Library/LaunchAgents/com.apple.notificationcenterui.plist',
+    'launchctl kickstart gui/501/com.apple.notificationcenterui.agent', apsctl, apsctl, 'pgrep -x NotificationCenter', 'pgrep -x NotificationCenter'])
+  assert.deepEqual(result, { apsd: ['daemon status: Running', 'connection environment: production', 'connection status: Yes',
+    'server hostname: 3-courier.push.apple.com'] })
+  // A service that is already loaded is started again, never bootstrapped a second time.
+  const loaded = pushServicesHost({ loaded: ['system/com.apple.apsd', 'gui/501/com.apple.notificationcenterui.agent'] })
+  await startPushServices(loaded.host, 501)
+  assert.equal(loaded.calls.some((call) => call.includes('bootstrap')), false)
+  assert.equal(loaded.calls.filter((call) => call.includes('kickstart')).length, 2)
+  // apsd that never reaches the courier fails the phase with a named wait, before the Perfil switch asks for a token.
+  const offline = pushServicesHost({ statuses: [apsdConnected.replace('Yes', 'No')] })
+  await assert.rejects(() => startPushServices(offline.host, 501), /^Error: Timed out waiting for apsd to connect to the APNs courier$/)
+  assert.equal(offline.calls.includes('pgrep -x NotificationCenter'), false)
 })
 
 test('push credentials leave the environment before any build or child process inherits it', () => {
@@ -483,7 +538,7 @@ function pushHarness(platform: 'win32' | 'darwin', overrides: { logsAfterDone?: 
       reset(settings: Record<string, unknown>) { events.push(`reset ${JSON.stringify(settings)}`) },
     },
     launch: async () => { events.push('launch'); return { child: { pid: 41 } } },
-    startNotificationCenter: async () => { events.push('notification center') },
+    startPushServices: async () => { events.push('push services') },
     stop: async () => { events.push('stop'); shellAlive = false },
     adopt: (pid: number) => { events.push(`adopt ${pid}`) },
     findProcesses: async () => launchedVisible ? [77] : [],
@@ -538,8 +593,8 @@ test('push acceptance proves Done once with the window hidden, then an expired-s
     const order = (event: string) => { const index = harness.events.findIndex((entry) => entry.startsWith(event)); assert.ok(index >= 0, event); return index }
     assert.ok(order('session expiring') < order('launch'))
     assert.ok(order('send push-enable:') < order('native 41 close'))
-    if (platform === 'darwin') assert.ok(order('launch') < order('notification center') && order('notification center') < order('send push-enable:'))
-    else assert.equal(harness.events.includes('notification center'), false)
+    if (platform === 'darwin') assert.ok(order('launch') < order('push services') && order('push services') < order('send push-enable:'))
+    else assert.equal(harness.events.includes('push services'), false)
     assert.ok(order('native 41 close') < order('deliver Orbit acceptance done'))
     assert.ok(order('deliver Orbit acceptance done') < order('native 41 notification invoke Done'))
     assert.ok(order('deliver Orbit acceptance expired') < order('stop'))
