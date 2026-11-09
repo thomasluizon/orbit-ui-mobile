@@ -79,7 +79,7 @@ export const cases = () => {
   const promptAtCeiling = validateHandoffPrompt(padded(sleepPrompt, 8192), { sleep: true })
   T(`${UNIT}: a prompt of 8192 B passes`, promptAtCeiling.length === 0, JSON.stringify(promptAtCeiling))
   const promptOver = validateHandoffPrompt(padded(sleepPrompt, 8300), { sleep: true })
-  T(`${UNIT}: a prompt of 8300 B is refused with its name and size`, JSON.stringify(sizeIssues(promptOver)) === JSON.stringify(["`.claude/handoffs/NEXT.md` within 8192 B (it is 8300 B): replace the Current state paragraph and leave history to git, never append"]), JSON.stringify(promptOver))
+  T(`${UNIT}: a prompt of 8300 B is refused with its name and size`, JSON.stringify(sizeIssues(promptOver)) === JSON.stringify(["`.claude/handoffs/NEXT.md` within 8192 B (it is 8300 B): keep only the in-flight rows and the next steps, and point at the spec for the rest"]), JSON.stringify(promptOver))
   const specAtCeiling = validateHandoffPrompt(sleepPrompt, { sleep: true, specVersions: specOf(40960) })
   T(`${UNIT}: a spec of 40960 B passes`, specAtCeiling.length === 0, JSON.stringify(specAtCeiling))
   const specOver = validateHandoffPrompt(sleepPrompt, { sleep: true, specVersions: specOf(41984) })

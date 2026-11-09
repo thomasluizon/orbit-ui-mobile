@@ -92,7 +92,10 @@ export const relayDocumentOversize = (path, text) => {
   const limit = relayDocumentLimit(path)
   const bytes = Buffer.byteLength(text, "utf8")
   if (limit === null || bytes <= limit) return null
-  return `\`${path}\` within ${limit} B (it is ${bytes} B): replace the Current state paragraph and leave history to git, never append`
+  const remedy = path === HANDOFF_PROMPT_PATH
+    ? "keep only the in-flight rows and the next steps, and point at the spec for the rest"
+    : "replace the Current state paragraph and leave history to git, never append"
+  return `\`${path}\` within ${limit} B (it is ${bytes} B): ${remedy}`
 }
 
 const promptOpening = (lines) => {

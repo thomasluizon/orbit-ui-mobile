@@ -160,8 +160,9 @@ jobs:
         name: "Handoff Size: Changed specs and the relay prompt stay inside their byte ceilings"
         if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
         run: |
+          # WHY: GNU xargs reports a failed child as 123, so map every failure to the tool's own 1 (https://github.com/thomasluizon/orbit-tickets/issues/2064).
           xargs -0 --no-run-if-empty node tools/check-handoff-size.mjs --files \
-            < "$RUNNER_TEMP/changed-paths-present.nul"
+            < "$RUNNER_TEMP/changed-paths-present.nul" || exit 1
       - id: sonar-paths__1
         name: "Sonar Paths: Sonar paths exist"
         run: node tools/check-sonar-paths.mjs

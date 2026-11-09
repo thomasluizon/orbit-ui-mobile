@@ -1,6 +1,6 @@
 # Orbit prod release
 
-History: `## Batch history`, every earlier `## Current state` paragraph, the redesign gate runbook, the answered open questions and the retired rules are in git at `b40d003ed` (`git show b40d003ed:.claude/specs/orbit-prod-release.md`). This spec holds only what is in force. `node tools/check-handoff-size.mjs` keeps it at 40,960 B or less.
+History: `## Batch history`, every earlier `## Current state` paragraph, the redesign gate runbook, the answered open questions and the retired rules are in git at the tag `archive/prod-release-spec-full` (`git show archive/prod-release-spec-full:.claude/specs/orbit-prod-release.md`), which keeps the relay branch history reachable after its pull request closes. This spec holds only what is in force. `node tools/check-handoff-size.mjs` keeps it at 40,960 B or less.
 
 ## What this is
 
@@ -36,8 +36,9 @@ Operating facts for workers, CI, merges, releases, consoles and devices are in `
 
 ### Product rules no other document holds
 
-- General habits never offer Skip; dated habits keep it (`#1920`). The habit form rules are in `design/habit-form-surfaces.md`.
+- General habits never offer Skip; dated habits keep Skip (`#1920`). General items are undated one-time tasks under Task date choices; Habit frequency offers only Every and Times per, without the repeating General hint. The habit form rules are in `design/habit-form-surfaces.md`.
 - Calendário is one centred column (the month grid on top, the selected day below it, the view selector folded into the month header, 24px card padding). The Perfil Suporte row opens the support form. Sobre carries no internal naming note.
+- Owner removals that `tools/feature-parity-rules.json` cites by exact text: Perfil is grouped into sub-menus, and the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies. A floating control no drawing has (the web back-to-top button) is deleted, not restyled. `#1422`: Remove the Hoje jump pill; the centred date label returns to today across the app.
 - The floating Astra button exists only in the compact shell (Android and web below 1024), replaces the Hoje composer, and drags over the whole screen but never over the tab bar (`#2042`).
 - Every input is simple first (levels, not a wall of options), keeps correct spacing including hover spacing, and asks human questions instead of system labels. A set of options never wraps onto a second line, and every no-wrap rule has a test that fails the pull request.
 - The app feels like a native mobile app at compact widths: less on each screen, secondary content in sheets, menus and drawers, and breathing room around every group (brain ADR `Native mobile review answers on suggestion chips, the Avisos bell and long typed text.md`). `DESIGN.md` is wrong wherever it permits the opposite. Where a control sits is the run's decision.
@@ -60,17 +61,16 @@ Reconcile the open board with these batches before each handoff. Place each new 
 
 In-flight work finishes as normal. Then no new board ticket is admitted until every diet ticket below is merged. Brain ADR D149 holds the measurements and the account plan.
 
-- `#2064` Cut the production release spec to 40 KB and `NEXT.md` to 8 KB, with a size guard. Next: CI, review and merge of the clean republish (the first pull request inherited relay commits with attribution trailers); close `ui#2385` and the relay docs pull request `ui#1989`.
+- `#2064` Cut the production release spec to 40 KB and `NEXT.md` to 8 KB, with a size guard. Next: CI, review and merge of `ui#2386`; then close the relay docs pull request `ui#1989` and start the next relay branch from `main`.
 - `#2065` Lower the coordinator relay threshold to 200k tokens. Next: after `#2064` merges, `/orchestrate`.
 - `#2066` Cut fixed context per call: unused connectors off, `CLAUDE.md` to 6 KB, `MEMORY.md` trimmed. Next: CI, review, merge of `ui#2378`; then the orchestrator sets `disabledMcpServers` for this project in `~/.claude.json` and trims `MEMORY.md` to 6 KB.
-- `#2067` Run the default and mechanical worker tiers on Sonnet 5.5. Next: CI, review, merge of `ui#2379`; the first default-tier launch after the merge proves Sonnet with `--effort high`.
-- `#2068` Cache ticket classifier results on disk by body hash. Next: the review round 2 worker on `ui#2381`, then CI, review, merge.
-- `#2069` Wake the auto-work coordinator only when an intake source has a new item. Next: the review round 2 worker on `ui#2382`, then CI, review, merge.
+- `#2067` Run the default and mechanical worker tiers on Sonnet 5.5. Next: CI, review, merge of `ui#2379` (base-merged after `ui#2380`, calibration reseeded); the first default-tier launch after the merge proves Sonnet with `--effort high`.
+- `#2068` Cache ticket classifier results on disk by body hash. Next: CI, review, merge of `ui#2381`.
+- `#2069` Wake the auto-work coordinator only when an intake source has a new item. Next: CI, review, merge of `ui#2382`; then intake step 5 runs `node tools/orbit-play-reviews.mjs --cycle`.
 - `#2070` Run workers on the main account when no worker account exists. Next: CI, review, merge of `ui#2383`.
 - `#2071` Move the Pullfrog token in all three repositories to the main account, before 4 December 2026. Next: after `ui#2383` merges, the orchestrator runs `claude setup-token` and `gh secret set` from stdin, then a small worker for the skill text.
 - `#2072` Measure Pullfrog rounds to approval per pull request. Next: CI, review, merge of `ui#2384`.
-- `#2073` Delete dead orchestrate skill text: the UI review sweep, `--allow-subagents` and the stale skill list. Next: CI, review, merge of `ui#2380`.
-- `#2074` Stop Pullfrog from reviewing heads that later fail CI. Next: read it, `/orchestrate`.
+- `#2074` Stop Pullfrog from reviewing heads that later fail CI. Next: CI, review, merge of `ui#2387` after a base merge; then `npx pullfrog@latest config set review.mode none` and `review.re-review false` in all three repositories, and prove one requested review.
 
 ### Batch R: owner review findings
 
@@ -165,7 +165,7 @@ Code facts that no gate or owner document states:
 
 ## Current state
 
-Latest handoff: a relay with the chain open, the run in `/sleep` with `crank: true` and `autoWork: true`. UI `main` `501ee4411`, API `main` `3da71dcf6`, landing `main` `aab36c695`; staging web `9a964ccad`, production web `6602756f3`; staging and production API `998823218`; Android Open 1.3.149 (209); desktop production and staging 0.1.25 (0.1.26 staging run 42492679821 attempt 2 waits on Apple notarization of aarch64); TestFlight Orbit Staging 1.3.149 (4). Batch T: ten diet tickets `#2064` to `#2073` plus `#2074`; eight delivered as pull requests and in review rounds (see Batch T). Intake: Sentry `ORBIT-MOBILE-Q` only (no new event), mail 0, Play 0. The session chain ledger lives untracked at `.git/orbit-session-chain.json`.
+Latest handoff: a relay with the chain open, the run in `/sleep` with `crank: true` and `autoWork: true`. UI `main` `0e43371b0`, API `main` `3da71dcf6`, landing `main` `aab36c695`; staging web `9a964ccad`, production web `6602756f3`; staging and production API `998823218`; Android Open 1.3.149 (209); desktop production and staging 0.1.25 (0.1.26 staging run 42492679821 attempt 2 waits on Apple notarization of aarch64); TestFlight Orbit Staging 1.3.149 (4). Batch T: `#2073` merged (`ui#2380`); the other diet pull requests are in CI and review rounds (see Batch T). `ui#2375` (`#2063`) merged and waits for one Android Open release with `#2062`. Intake: Sentry `ORBIT-MOBILE-Q` only (no new event), mail 0, Play 0. The session chain ledger lives untracked at `.git/orbit-session-chain.json`.
 
 ## Open questions
 
