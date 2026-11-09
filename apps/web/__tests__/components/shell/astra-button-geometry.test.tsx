@@ -7,7 +7,7 @@ import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { expectFillShape } from '@/e2e/layout/label-interaction-fill'
 import { readControlPaint } from '@/e2e/layout/control-paint'
 import { inspectControls } from '@/e2e/layout/interaction-fill-states'
-import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, SPACING } from '@orbit/shared/theme'
 import { ASTRA_BUTTON_GAP } from '@orbit/shared/utils'
 import { compileComposerGeometry } from '@/__tests__/support/composer-geometry'
 import type { Page } from '@playwright/test'
@@ -147,7 +147,7 @@ it.each([390, 840])('scrolls the last row clear of both stacked buttons and the 
       return { lastBottom: last.bottom, astraTop: document.querySelector('[data-astra-button]')!.getBoundingClientRect().top,
         tabsTop: document.querySelector('[data-shell-tab-bar]')!.getBoundingClientRect().top }
     })
-    expect(geometry.astraTop - geometry.lastBottom, JSON.stringify(geometry)).toBeGreaterThanOrEqual(ASTRA_BUTTON_GAP)
+    expect(geometry.astraTop - geometry.lastBottom, JSON.stringify(geometry)).toBeGreaterThanOrEqual(SPACING.s16)
     expect(geometry.lastBottom).toBeLessThan(geometry.tabsTop)
   } finally { await page.close() }
 })
@@ -242,7 +242,7 @@ it('keeps the stack above a visible notice slot', async () => {
     await mountAstraEntry(page, { notice: 'Notice' })
     const geometry = await page.evaluate(() => ({ create: document.querySelector('[data-shell-fab] button')!.getBoundingClientRect().bottom,
       notice: document.querySelector('[data-shell-notice-content]')!.getBoundingClientRect().top }))
-    expect(geometry.notice - geometry.create, JSON.stringify(geometry)).toBeGreaterThanOrEqual(ASTRA_BUTTON_GAP)
+    expect(geometry.notice - geometry.create, JSON.stringify(geometry)).toBeGreaterThanOrEqual(SPACING.s16)
   } finally { await page.close() }
 })
 

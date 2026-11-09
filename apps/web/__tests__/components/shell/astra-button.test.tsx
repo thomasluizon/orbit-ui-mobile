@@ -83,9 +83,11 @@ it('stays in its column through a drag, a long press and the arrow keys, and sto
 it('withholds the button while a sheet or selection owns the surface', async () => {
   mount()
   await act(() => useUIStore.setState({ isSelectMode: true }))
-  expect(document.querySelector('[data-astra-button]')).toBeNull()
+  expect(screen.queryByRole('button', { name: en.shell.astraButton.open })).toBeNull()
   await act(() => useUIStore.setState({ isSelectMode: false, openOverlayIds: ['sheet'] }))
-  expect(document.querySelector('[data-astra-button]')).toBeNull()
+  expect(screen.queryByRole('button', { name: en.shell.astraButton.open })).toBeNull()
+  const hidden = document.querySelector('[data-astra-button]')
   await act(() => useUIStore.setState({ openOverlayIds: [] }))
   expect(openButton()).toBeVisible()
+  expect(openButton()).toBe(hidden)
 })

@@ -120,12 +120,14 @@ supersedes the side-by-side avatar column amendment in
 **Astra has no route and no Android tab.** The wide web sidebar's Astra row opens
 its conversation as a layer; that row is navigation chrome, not a fifth destination.
 
-1. **The front door** on Hoje is one round draggable Astra button in the compact shell only:
-   Android at every width and web below 1024. It replaces the Hoje composer. Wide web (1024
-   and above) has no floating button, and its sidebar Astra row is the only entry. Hoje has no
+1. **The front door** on Hoje is one fixed round Astra button in the compact shell only:
+   Android at every width and web below 1024. It sits directly above the create habit `+`
+   button and replaces the Hoje composer. It never moves and has no drag. Wide web (1024
+   and above) has no Astra button, and its sidebar Astra row is the only entry. Hoje has no
    composer dock.
    The owner's order (#2005) is: "i want the astra composer to be removed on hoje. instead, put a round astra icon, similar to the + to create new habit, that opens astra. would be awesome if it could be dragged, like a floating button".
    The owner's binding correction (#2042) is: "the astra button you can drag was supposed to be only on the mobile version, replacing the composer. there wasnt even a composer on the web" and "it doesnt even drags in the whole app, only on the habits, and it looks ugly / i want it ONLY ON THE MOBILE, replacing the composer, i want it dragable (but cant go on top of the footer navbar) / and also i want it looking good / when i say mobile, i also mean phone-width web, they are the same thing." One sentence of that message is omitted here.
+   The owner's order (#2077) replaces the drag clause of both: "the floating astra button is still buggy. being totally honest, i dont want it floating anymore. fuck it just put it on top of the + icon to create habit, and we're good".
    **One set of 3 to 6 suggestion chips built from live state**, never from a static list, sits
    above the conversation input: what is overdue, which streak is at risk, which habit has no goal.
    The empty state adds no opener chips; the daily limit shows none. Chips hug their labels in
@@ -155,13 +157,13 @@ client asks for them deliberately.
 
 | platform | navigation | Astra |
 |---|---|---|
-| **mobile** | bottom tab bar, **four** destinations: Hoje, Calendário, Progresso, Perfil; one row with capped labels and a full-size long-press viewer as specified below | draggable round Astra button on Hoje, over the whole screen above the tab bar |
-| **web** | sidebar, the same four at 1024 and above; compact tab bar below 1024 with the same label cap and long-press viewer | sidebar Astra row at 1024 and above, with no floating button; below 1024 the same draggable round Astra button on Hoje as mobile |
+| **mobile** | bottom tab bar, **four** destinations: Hoje, Calendário, Progresso, Perfil; one row with capped labels and a full-size long-press viewer as specified below | fixed round Astra button on Hoje, stacked directly above the create habit button |
+| **web** | sidebar, the same four at 1024 and above; compact tab bar below 1024 with the same label cap and long-press viewer | sidebar Astra row at 1024 and above, with no Astra button; below 1024 the same fixed round Astra button on Hoje as mobile |
 
 **No navigation drawer and no hamburger on either platform.** Navigation has four destinations.
 The wide web Astra row is a button opening a layer with no route. A bottom sheet, menu or dialog
 that holds secondary content is not navigation; in the compact shell (Android at every width, web
-below 1024) it is the default home for that content. The floating Astra entry stays visible on Hoje. Habit detail keeps its own composer at every width.
+below 1024) it is the default home for that content. The Astra button stays visible on Hoje. Habit detail keeps its own composer at every width.
 Calendário, Progresso and Perfil clear the tab bar or the wide column bottom without a composer dock.
 Hoje's selection tray stays pinned at both widths while selection is active, with exit, select-all,
 delete, log, skip and move controls. It occupies
@@ -204,7 +206,7 @@ own entry, opens this same layer. Closing it restores the underlying surface and
 | Web conversation in the compact shell and wide content column | `apps/web/components/chat/conversation.tsx`, mounted by `apps/web/app/(app)/layout.tsx` | Empty, populated, streaming, working, loading, offline, at capacity and error |
 | Android conversation at every window width | `apps/mobile/components/chat/conversation.tsx`, mounted by `apps/mobile/app/_layout.tsx` | Empty, populated, streaming, working, loading, offline, at capacity and error |
 
-Sidebar, floating Astra button, proactive line, no-habits action, habit detail, notification, import and deep-link entries
+Sidebar, Hoje Astra button, proactive line, no-habits action, habit detail, notification, import and deep-link entries
 all open these owners through the conversation store; no entry owns a separate header.
 
 **Each composer pins to the bottom of its content column.** The sidebar carries the brand row with
@@ -223,45 +225,28 @@ treatment: `--primary` glyph and `--primary-soft` label. The destination retains
 **The way in must be visible.** In the compact shell, Hoje's Astra button uses the create FAB's
 60px circle and 0.96 press feedback, with the normal 24px Astra glyph at its centre. Its opaque
 neutral `--bg-elev` surface and `--fg-1` mark leave the next-action accent with creation.
-The button floats over content, so it does not use the canvas occlusion ring of the create FAB.
-It uses the lifted-surface treatment: an inset 1px `--hairline-strong` ring, sh-2 at rest and
-sh-3 while a drag holds it. A drag also removes the press scale. There is no glow, no gradient
-and no hue in the shadow.
-It starts on the create FAB's trailing edge, 24px above the create FAB. Its drag area is the whole
-compact viewport, from the top safe area down to the top edge of the tab bar. It moves over the
-Hoje header and date row, and it never covers the tab bar. A visible notice or selection slot
-raises that floor to the top of the slot. In a window shorter than the destination minimum, the
-button scrolls with the header and the tab bar, so the floor gap holds at every scroll offset.
-On web, keyboard focus reaches it after the page and before the tab bar, and it stacks above the
-bottom chrome. Wide web mounts no floating button and keeps the
-sidebar row. Habit detail retains its mark-only composer entry.
+It uses the lifted-surface treatment, not the canvas occlusion ring of the create FAB: an inset
+1px `--hairline-strong` ring and sh-2. There is no glow, no gradient and no hue in the shadow.
+It sits in the create FAB's trailing column, directly above the create FAB and centred on it,
+with `ASTRA_BUTTON_GAP` (24px) between the two circles, so the Astra focus outline keeps the 8px
+interaction fill clearance from the create FAB's canvas ring. When the create FAB is absent, the Astra
+button takes the create FAB's own position. It never moves, never floats over content on its own,
+and it never covers the tab bar. It has no drag, no long-press move, no keyboard move and no
+stored position (#2077). On web, keyboard focus reaches it after the page and before the create
+FAB and the tab bar. Wide web mounts no Astra button and keeps the sidebar row. Habit detail
+retains its mark-only composer entry.
 
-A tap opens the existing conversation layer. A movement of at least 8px becomes a drag and
-never opens it. A drag reaches 16px from the screen edges. Release snaps to the nearer inline edge
-of the centred content column, capped at 740, with 16px margins. That is the create FAB's edge, so the
-button never rests outside the column on a wide compact screen. Release keeps 24px clearance from
-the create FAB and the measured back-to-top pill. The lowest position keeps 16px between the
-button and the floor. Position is a device preference, retained across
-launches; an outgrown position resets to the default when the viewport shrinks. Layout changes
-recheck obstacles. Sheets, selection and the conversation withhold the floating entry.
-The shell reserves end-of-list clearance from the button's current position to the bottom of
-the page region, plus a 16px gap,
-so the last row scrolls fully above it after dragging, moving or resizing. Web caps the inset used
-when scrolling to focus at half the scroller height so a short window can reveal its focused controls.
-Press and hold opens four named movement choices on both platforms; web also opens them on
-right-click or the context-menu key. Choosing a direction closes the sheet and moves the button
-without opening Astra. Web keeps the button in normal tab order; Enter and Space open it and
-arrow keys move it. Android also exposes four named Move accessibility actions. Initial and restored positions appear
-without entrance movement; snap animation follows a requested move with `--ease-out` over 220ms.
-A new drag interrupts the snap
-at its displayed position. Reduced motion removes the snap animation. On web, reduced motion
-also puts the first position and each drag frame on screen in the frame they change, so the button
-never trails the pointer and its measured position is always its painted position.
+A tap opens the existing conversation layer; web Enter and Space also open it. Sheets, selection
+and the conversation withhold the button; the create FAB keeps its position. While both buttons
+share the column, the shell reserves end-of-list clearance of 176px (the 96px create FAB
+reservation plus 64 and 16), so the last row scrolls fully above the Astra button. With the Astra
+button alone, the 96px create FAB reservation applies. Web caps the inset used when scrolling to
+focus at half the scroller height so a short window can reveal its focused controls.
 The conversation retains live suggestions, the draft, attachments, AI disclosure, composer
 disclosure, running reply control, queue and the proactive line's destination. Reopening a collapsed
 conversation focuses its visible expand control and preserves its draft.
 
-**Named Astra navigation rows retain `Astra`; standalone actions retain their visible action label beside the canonical glyph (#1700).** Actions drop the appended brand word, never their label. Menu items use the same full row geometry, padding, hover, press and focus as their siblings, with the label supplying the accessible name once. Habit and goal analysis, empty-list entries and reschedule retries show their short action labels. Inline form-field fill controls for emoji, date, tags and frequency remain icon-only with specific accessible names; #1701 owns those controls and their hints. Composer entry, send and disclosure retain their drawn icon controls. Suggestion chips, idea cards and proactive prose keep their useful request text without appended branding. Composer send keeps one upward arrow while a reply runs, with its localized Add to queue name and no Astra mark. Input remains editable. Up to three waiting messages appear above the composer with individual remove controls; another send retains its draft and shows the queue limit inline. Successful replies send the next waiting message in order. Failure or Stop pauses automatic sending and retains the remaining messages for individual sending or removal. A separate Stop reply control remains reachable, and the thread owns running feedback. The session queue survives screen changes and clears on sign-out. Input prompts do not repeat the brand. Keep useful action context, disabled reasons and request guards. Deterministic saves, accepting an existing proposal, static attribution, section headings and plan facts gain no mark. The wide sidebar, floating Astra button, habit-detail composer and proactive Hoje slot retain their own entries. Conversation headers, participant avatars and conversation-owned empty states keep their own rules. The owner's authority for #1700 is: "Revert this, just keep the changes that remove the bloat, be smart." The owner's copy authority for #1687 is: "i asked you to top putting Consultar astra string everywhere / what you did: removed the astra word from the app, including on the sidebar / fix this". This preserves navigation names while dropping appended branding from actions. Astra always carries the Astra mark (#1780): the Perfil Astra settings row, the Pro benefits
+**Named Astra navigation rows retain `Astra`; standalone actions retain their visible action label beside the canonical glyph (#1700).** Actions drop the appended brand word, never their label. Menu items use the same full row geometry, padding, hover, press and focus as their siblings, with the label supplying the accessible name once. Habit and goal analysis, empty-list entries and reschedule retries show their short action labels. Inline form-field fill controls for emoji, date, tags and frequency remain icon-only with specific accessible names; #1701 owns those controls and their hints. Composer entry, send and disclosure retain their drawn icon controls. Suggestion chips, idea cards and proactive prose keep their useful request text without appended branding. Composer send keeps one upward arrow while a reply runs, with its localized Add to queue name and no Astra mark. Input remains editable. Up to three waiting messages appear above the composer with individual remove controls; another send retains its draft and shows the queue limit inline. Successful replies send the next waiting message in order. Failure or Stop pauses automatic sending and retains the remaining messages for individual sending or removal. A separate Stop reply control remains reachable, and the thread owns running feedback. The session queue survives screen changes and clears on sign-out. Input prompts do not repeat the brand. Keep useful action context, disabled reasons and request guards. Deterministic saves, accepting an existing proposal, static attribution, section headings and plan facts gain no mark. The wide sidebar, Hoje Astra button, habit-detail composer and proactive Hoje slot retain their own entries. Conversation headers, participant avatars and conversation-owned empty states keep their own rules. The owner's authority for #1700 is: "Revert this, just keep the changes that remove the bloat, be smart." The owner's copy authority for #1687 is: "i asked you to top putting Consultar astra string everywhere / what you did: removed the astra word from the app, including on the sidebar / fix this". This preserves navigation names while dropping appended branding from actions. Astra always carries the Astra mark (#1780): the Perfil Astra settings row, the Pro benefits
 Astra outcome and the lapsed-plan Astra messages line use `AstraGlyph` in place of a generic chat
 icon, keeping the shared row anatomy, icon size and colour.
 

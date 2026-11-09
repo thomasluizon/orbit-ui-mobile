@@ -2,6 +2,8 @@ import React from 'react'
 import { View, type LayoutChangeEvent } from 'react-native'
 import { act, create, type ReactTestInstance } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ASTRA_BUTTON_GAP } from '@orbit/shared/utils'
+import { SPACING } from '@orbit/shared/theme'
 import { Shell412 } from '@/components/shell/shell-412'
 import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { useUIStore } from '@/stores/ui-store'
@@ -15,7 +17,6 @@ vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 vi.mock('@/lib/motion', async importOriginal => ({ ...await importOriginal<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => true }))
 
 const HEIGHT = 915
-const GAP = 16
 let tree: GeometryTree
 const clearances: number[] = []
 
@@ -64,7 +65,7 @@ describe.each([412, 840])('the compact Astra button at %ipx', width => {
     const create = boxes.get('create-fab')!
     expect(astra.width).toBe(60)
     expect(astra.bottom - astra.top).toBe(60)
-    expect(create.top - astra.bottom).toBe(GAP)
+    expect(create.top - astra.bottom).toBe(ASTRA_BUTTON_GAP)
     expect(astra.left + astra.width / 2).toBe(create.left + create.width / 2)
     expect(astra.bottom).toBeLessThanOrEqual(boxes.get('shell-tab-bar')!.top)
   })
@@ -85,7 +86,7 @@ describe.each([412, 840])('the compact Astra button at %ipx', width => {
     const clearance = clearances.at(-1)!
     const scrollerBottom = boxes.get('shell-scroller')!.bottom
     expect(scrollerBottom).toBeLessThanOrEqual(boxes.get('shell-tab-bar')!.top)
-    expect(scrollerBottom - clearance).toBeLessThanOrEqual(boxes.get('astra-button')!.top - GAP)
+    expect(scrollerBottom - clearance).toBeLessThanOrEqual(boxes.get('astra-button')!.top - SPACING.s16)
   })
 })
 
@@ -118,5 +119,5 @@ it('hides while selection mode owns the bottom of Hoje and returns to the stack 
   expect(hosts('astra-button')).toHaveLength(0)
   await act(() => { useUIStore.setState({ isSelectMode: false }) })
   const boxes = measure(412)
-  expect(boxes.get('create-fab')!.top - boxes.get('astra-button')!.bottom).toBe(GAP)
+  expect(boxes.get('create-fab')!.top - boxes.get('astra-button')!.bottom).toBe(ASTRA_BUTTON_GAP)
 })

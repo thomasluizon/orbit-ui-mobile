@@ -507,7 +507,7 @@ describe('Wrapped root shell', () => {
     expect(bottomViewport?.props.scrollEnabled).toBe(true)
   })
 
-  it.each([412, 1280].flatMap(width => [false, true].map(hasError => ({ width, hasError }))))('removes the FAB slot and floating viewport for settled Today at $width with load error=$hasError', async ({ width, hasError }) => {
+  it.each([412, 1280].flatMap(width => [false, true].map(hasError => ({ width, hasError }))))('removes the FAB and floating viewport and leaves the Astra button in its place for settled Today at $width with load error=$hasError', async ({ width, hasError }) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
     routeState.pathname = '/'
     routeState.segments = ['(tabs)']
@@ -517,7 +517,7 @@ describe('Wrapped root shell', () => {
     createState.profile = { hasProAccess: true }
     const tree = await renderRoot()
     expect(findByTestId(tree, 'shell-fab')).toHaveLength(0)
-    expect(findByTestId(tree, 'shell-fab-band')).toHaveLength(0)
+    expect(findByTestId(tree, 'shell-fab-column')[0]?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'astra-button')).toHaveLength(1)
     expect(findByTestId(tree, 'shell-bottom-viewport')[0]?.props.scrollEnabled).toBe(false)
   })
 
