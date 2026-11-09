@@ -1,323 +1,122 @@
-import React, { type ComponentProps } from 'react'
-import TestRenderer, { act, type ReactTestRenderer } from 'react-test-renderer'
-import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { ASTRA_POSITION_KEY } from '@orbit/shared/utils'
-import { AstraButton } from '@/components/shell/astra-button'
+import React from 'react'
+import { View, type LayoutChangeEvent } from 'react-native'
+import { act, create, type ReactTestInstance } from 'react-test-renderer'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { Shell412 } from '@/components/shell/shell-412'
+import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { useUIStore } from '@/stores/ui-store'
-import * as ReactNative from 'react-native'
-import { Animated, StyleSheet } from 'react-native'
-import { createTokensV2 } from '@/lib/theme'
-import { ListRow } from '@/components/ui/list-row'
-import { sheetTestControls } from '@/__tests__/support/sheet-double'
+import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-area-geometry'
+import { __setWindowDimensions } from '@/test-mocks/react-native'
 
-const storage = vi.hoisted(() => new Map<string, string>())
-const motion = vi.hoisted(() => ({ reduced: true }))
-vi.mock('@react-native-async-storage/async-storage', () => ({ default: {
-  getItem: (key: string) => Promise.resolve(storage.get(key) ?? null),
-  setItem: (key: string, value: string) => { storage.set(key, value); return Promise.resolve() },
-} }))
-vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => motion.reduced, toAnimatedEasing: () => (value: number) => value }))
+vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark' }) }))
+vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 24, bottom: 24, left: 0, right: 0 }) }))
+vi.mock('@react-native-async-storage/async-storage', () => ({ default: { getItem: () => Promise.resolve(null), setItem: () => Promise.resolve() } }))
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
+vi.mock('@/lib/motion', async importOriginal => ({ ...await importOriginal<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => true }))
 
-let tree: ReactTestRenderer
-beforeEach(() => { motion.reduced = true; storage.clear(); useUIStore.setState(useUIStore.getInitialState()) })
-afterEach(async () => { await act(() => tree.unmount()); vi.restoreAllMocks() })
+const HEIGHT = 915
+const GAP = 16
+let tree: GeometryTree
+const clearances: number[] = []
 
-function host(testID: string) { return tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === testID)[0]! }
-function handler(testID: string, name: string) { return host(testID).props[name] as (event?: unknown) => unknown }
-async function layout(width = 412, height = 600) {
-  await act(() => { handler('astra-button-area', 'onLayout')({ nativeEvent: { layout: { x: 0, y: 0, width, height } } }) })
-}
-const FULL_AREA = { top: 0, floorInset: 0, pageInset: 0, scrollToTopTop: 8, scrollToTopHeight: 64 }
-async function mount(chrome = FULL_AREA) {
-  await act(() => { tree = TestRenderer.create(<AstraButton hasFab chrome={chrome} />) })
-  await layout()
-}
-function point() {
-  const style = host('astra-button-position').props.style as [unknown, { transform: [{ translateX: number | { value: number } }, { translateY: number | { value: number } }] }]
-  const transform = style[1].transform
-  return { x: typeof transform[0].translateX === 'number' ? transform[0].translateX : transform[0].translateX.value, y: typeof transform[1].translateY === 'number' ? transform[1].translateY : transform[1].translateY.value }
-}
-const touch = (pageX: number, pageY: number) => ({ nativeEvent: { pageX, pageY } })
-function mockSnapDriver(interruptedAt?: number) {
-  const native = new WeakSet<object>()
-  const queuedNativeReads: ((value: number) => void)[] = []
-  vi.spyOn(Animated, 'timing').mockImplementation((value, config) => ({
-    start: () => {
-      if (!(value instanceof Animated.Value)) return
-      const rendered = interruptedAt ?? config.toValue as number
-      if (!config.useNativeDriver) { value.setValue(rendered); return }
-      native.add(value)
-      Object.assign(value, { value: rendered })
-    }, stop: vi.fn(), reset: vi.fn(),
-  }))
-  const stopAnimation = Animated.Value.prototype.stopAnimation
-  vi.spyOn(Animated.Value.prototype, 'stopAnimation').mockImplementation(function (this: Animated.Value, callback?: (value: number) => void) {
-    if (native.has(this)) { if (callback) queuedNativeReads.push(callback); return }
-    stopAnimation.call(this, callback)
-  })
-  return queuedNativeReads
-}
+beforeEach(() => { clearances.length = 0; useUIStore.setState(useUIStore.getInitialState()) })
+afterEach(async () => { await act(() => tree.unmount()) })
 
-it('opens the layer by tapping its named button', async () => {
-  await mount()
-  expect(host('astra-button').props.accessibilityLabel).toBe('shell.astraButton.open')
-  await act(() => { handler('astra-button', 'onPress')() })
-  expect(useUIStore.getState().astraConversationOpen).toBe(true)
-})
-
-it('places the initial button immediately and animates only a requested snap', async () => {
-  motion.reduced = false
-  const timing = vi.spyOn(Animated, 'timing')
-  await mount()
-  expect(timing).not.toHaveBeenCalled()
-  await act(() => { handler('astra-button', 'onAccessibilityAction')({ nativeEvent: { actionName: 'up' } }) })
-  expect(timing).toHaveBeenCalledTimes(2)
-})
-
-it('captures a drag after the threshold, snaps and restores the position across launches', async () => {
-  await mount()
-  expect(point()).toEqual({ x: 336, y: 440 })
-  expect(handler('astra-button-position', 'onStartShouldSetResponderCapture')(touch(350, 460))).toBe(false)
-  expect(handler('astra-button-position', 'onMoveShouldSetResponderCapture')(touch(352, 462))).toBe(false)
-  expect(handler('astra-button-position', 'onMoveShouldSetResponderCapture')(touch(100, 260))).toBe(true)
-  await act(() => { handler('astra-button-position', 'onResponderGrant')(touch(100, 260)) })
-  await act(() => { handler('astra-button-position', 'onResponderMove')(touch(90, 240)) })
-  await act(() => { handler('astra-button-position', 'onResponderRelease')(touch(90, 240)) })
-  expect(point()).toEqual({ x: 16, y: 220 })
-  expect(useUIStore.getState().astraConversationOpen).toBe(false)
-  expect(JSON.parse(storage.get(ASTRA_POSITION_KEY)!)).toEqual(point())
-  await act(() => tree.unmount())
-  await mount()
-  expect(point()).toEqual({ x: 16, y: 220 })
-})
-
-it('paints the first frame on the content column lane of a wide window before layout', async () => {
-  vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width: 900, height: 600, scale: 1, fontScale: 1 })
-  await act(() => { tree = TestRenderer.create(<AstraButton hasFab chrome={FULL_AREA} />) })
-  const fallback = (host('astra-button-position').props.style as [unknown, { right: number }])[1]
-  await layout(900, 600)
-  expect(fallback.right).toBe(900 - point().x - 60)
-})
-
-it('rests on the create FAB trailing edge and snaps to the content column on a wide compact screen', async () => {
-  await mount()
-  await layout(900, 600)
-  expect(point()).toEqual({ x: 744, y: 440 })
-  const start = point()
-  await act(() => {
-    handler('astra-button-position', 'onStartShouldSetResponderCapture')(touch(start.x + 30, start.y + 30))
-    handler('astra-button-position', 'onResponderGrant')(touch(start.x + 30, start.y + 30))
-  })
-  await act(() => { handler('astra-button-position', 'onResponderMove')(touch(2000, 230)) })
-  expect(point()).toEqual({ x: 824, y: 200 })
-  await act(() => { handler('astra-button-position', 'onResponderRelease')(touch(2000, 230)) })
-  expect(point()).toEqual({ x: 744, y: 200 })
-  await act(() => {
-    handler('astra-button-position', 'onStartShouldSetResponderCapture')(touch(774, 230))
-    handler('astra-button-position', 'onResponderGrant')(touch(774, 230))
-  })
-  await act(() => { handler('astra-button-position', 'onResponderRelease')(touch(0, 230)) })
-  expect(point()).toEqual({ x: 96, y: 200 })
-  await act(() => { handler('astra-button', 'onAccessibilityAction')({ nativeEvent: { actionName: 'right' } }) })
-  expect(point()).toEqual({ x: 744, y: 200 })
-  expect(useUIStore.getState().astraConversationOpen).toBe(false)
-})
-
-it.each(['left', 'right', 'up', 'down'])('exposes and executes TalkBack Move %s', async direction => {
-  await mount()
-  const control = host('astra-button')
-  expect(control.props.accessibilityActions).toContainEqual({ name: direction, label: `shell.astraButton.${direction}` })
-  await act(() => { handler('astra-button', 'onAccessibilityAction')({ nativeEvent: { actionName: direction } }) })
-  expect(storage.has(ASTRA_POSITION_KEY)).toBe(true)
-  expect(useUIStore.getState().astraConversationOpen).toBe(false)
-  expect(point().y).toBeGreaterThanOrEqual(96)
-  if (point().x === 336) expect(point().y + 60 + 24).toBeLessThanOrEqual(524)
-})
-
-it('resets after shrink and stays above tab chrome and clear of the create button', async () => {
-  storage.set(ASTRA_POSITION_KEY, JSON.stringify({ x: 336, y: 440 }))
-  await mount()
-  await layout(320, 400)
-  expect(point()).toEqual({ x: 244, y: 240 })
-  expect(JSON.parse(storage.get(ASTRA_POSITION_KEY)!)).toEqual(point())
-  expect(point().y + 60 + 24).toBeLessThanOrEqual(324)
-  await act(() => useUIStore.getState().registerOpenOverlay('sheet'))
-  expect(tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'astra-button')).toHaveLength(0)
-})
-
-it.each([false, true])('starts an interrupted snap from its displayed position with early release=%s', async earlyRelease => {
-  motion.reduced = false
-  const queuedNativeReads = mockSnapDriver(300)
-  await mount()
-  await act(() => { handler('astra-button', 'onAccessibilityAction')({ nativeEvent: { actionName: 'up' } }) })
-  expect(point()).toEqual({ x: 300, y: 300 })
-  await act(() => { handler('astra-button-position', 'onStartShouldSetResponderCapture')(touch(310, 310)) })
-  expect(handler('astra-button-position', 'onMoveShouldSetResponderCapture')(touch(300, 300))).toBe(true)
-  await act(() => { handler('astra-button-position', 'onResponderGrant')(touch(300, 300)) })
-  if (!earlyRelease) expect(point()).toEqual({ x: 290, y: 290 })
-  await act(() => { handler('astra-button-position', 'onResponderRelease')(touch(300, 300)) })
-  expect(JSON.parse(storage.get(ASTRA_POSITION_KEY)!)).toEqual({ x: 336, y: 290 })
-  expect(useUIStore.getState().astraConversationOpen).toBe(false)
-  expect(queuedNativeReads).toEqual([])
-})
-
-it('moves on each of 20 consecutive drags from varied states after native-driven snaps', async () => {
-  motion.reduced = false
-  const queuedNativeReads = mockSnapDriver()
-  await mount()
-  for (let attempt = 0; attempt < 20; attempt++) {
-    if (attempt % 5 === 1) {
-      await act(() => { handler('astra-button', 'onPress')() })
-      expect(useUIStore.getState().astraConversationOpen).toBe(true)
-      await act(() => { useUIStore.getState().setAstraConversationOpen(false) })
-    }
-    if (attempt % 5 === 3) await layout()
-    const start = point()
-    const delta = { x: start.x > 200 ? -250 : 250, y: attempt % 2 ? -40 : 40 }
-    const pointer = { x: start.x + 30, y: start.y + 30 }
-    await act(() => { handler('astra-button-position', 'onStartShouldSetResponderCapture')(touch(pointer.x, pointer.y)) })
-    expect(handler('astra-button-position', 'onMoveShouldSetResponderCapture')(touch(pointer.x + delta.x, pointer.y + delta.y))).toBe(true)
-    await act(() => { handler('astra-button-position', 'onResponderGrant')(touch(pointer.x + delta.x, pointer.y + delta.y)) })
-    expect({ attempt, point: point() }).toEqual({ attempt, point: { x: start.x + delta.x, y: start.y + delta.y } })
-    await act(() => { handler('astra-button-position', 'onResponderRelease')(touch(pointer.x + delta.x, pointer.y + delta.y)) })
-    expect({ attempt, x: point().x }).toEqual({ attempt, x: start.x > 200 ? 16 : 336 })
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+function hosts(testID: string) { return tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === testID) }
+function host(testID: string) { return hosts(testID)[0]! }
+function measure(width: number) { return measureSafeArea(tree.toJSON(), node => node.props.testID, { width, height: HEIGHT }) }
+async function reportLayouts(width: number) {
+  for (const node of tree.root.findAll(candidate => typeof candidate.type === 'string' && typeof candidate.props.onLayout === 'function' && typeof candidate.props.testID === 'string')) {
+    const box = measure(width).get(node.props.testID as string)
+    if (!box) continue
+    await act(() => (node.props.onLayout as (event: LayoutChangeEvent) => void)({ nativeEvent: { layout: { x: box.left, y: box.top, width: box.width, height: box.bottom - box.top } } } as LayoutChangeEvent))
   }
-  expect(queuedNativeReads).toEqual([])
-})
+}
+function ClearanceProbe() {
+  clearances.push(useShellScrollerClearance())
+  return <View testID="last-row" style={{ height: 56 }} />
+}
+function CreateFab() { return <View testID="create-fab" style={{ width: 60, height: 60 }} /> }
 
-it('keeps a started drag from the native scroll view and from other responders', async () => {
-  await mount()
-  expect(host('astra-button').props.blockNativeResponder).toBe(true)
-  const start = point()
-  await act(() => { handler('astra-button-position', 'onStartShouldSetResponderCapture')(touch(start.x + 30, start.y + 30)) })
-  let blocksNative: unknown
-  await act(() => { blocksNative = handler('astra-button-position', 'onResponderGrant')(touch(start.x + 30, start.y - 30)) })
-  expect(blocksNative).toBe(true)
-  expect(handler('astra-button-position', 'onResponderTerminationRequest')()).toBe(false)
-  await act(() => { handler('astra-button-position', 'onResponderRelease')(touch(start.x + 30, start.y - 30)) })
-  expect(point()).toEqual({ x: 336, y: 380 })
-})
-
-it('returns a terminated drag to rest, ignores the rest of that touch and then drags again', async () => {
-  await mount()
-  expect(point()).toEqual({ x: 336, y: 440 })
-  await act(() => { handler('astra-button-position', 'onStartShouldSetResponderCapture')(touch(366, 470)) })
-  expect(handler('astra-button-position', 'onMoveShouldSetResponderCapture')(touch(116, 270))).toBe(true)
-  await act(() => { handler('astra-button-position', 'onResponderGrant')(touch(116, 270)) })
-  expect(point()).toEqual({ x: 86, y: 240 })
-  await act(() => { handler('astra-button-position', 'onResponderTerminate')() })
-  expect(point()).toEqual({ x: 336, y: 440 })
-  await act(() => { handler('astra-button-position', 'onResponderMove')(touch(100, 200)) })
-  await act(() => { handler('astra-button-position', 'onResponderRelease')(touch(100, 200)) })
-  expect(point()).toEqual({ x: 336, y: 440 })
-  expect(storage.has(ASTRA_POSITION_KEY)).toBe(false)
-  await drag({ x: 366, y: 470 }, { x: 116, y: 270 })
-  expect(point()).toEqual({ x: 16, y: 240 })
-})
-
-it('offers movement choices on a long press without opening Astra', async () => {
-  await mount()
-  await act(() => { handler('astra-button', 'onLongPress')() })
-  const rows = tree.root.findAllByType(ListRow).map(row => row.props as ComponentProps<typeof ListRow>)
-  expect(rows.map(row => row.title)).toEqual(['left', 'right', 'up', 'down'].map(direction => `shell.astraButton.${direction}`))
-  sheetTestControls.defer(true)
-  try {
-    await act(() => { rows[0]!.onClick!() })
-    expect(sheetTestControls.isDismissPending).toBe(true)
-    expect(storage.has(ASTRA_POSITION_KEY)).toBe(false)
-    await act(() => { sheetTestControls.completeDismissal() })
-    expect(JSON.parse(storage.get(ASTRA_POSITION_KEY)!)).toEqual({ x: 16, y: 440 })
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
-  } finally { sheetTestControls.defer(false) }
-})
-
-it('reports clearance from its current position so the shell can uncover the final row', async () => {
-  const onClearanceChange = vi.fn()
-  await act(() => { tree = TestRenderer.create(<AstraButton hasFab chrome={FULL_AREA} onClearanceChange={onClearanceChange} />) })
-  await layout()
-  expect(onClearanceChange).toHaveBeenLastCalledWith(176)
-  await act(() => { handler('astra-button', 'onAccessibilityAction')({ nativeEvent: { actionName: 'up' } }) })
-  expect(onClearanceChange).toHaveBeenLastCalledWith(252)
-  await act(() => useUIStore.getState().registerOpenOverlay('sheet'))
-  expect(onClearanceChange).toHaveBeenLastCalledWith(0)
-})
-
-function drag(from: { x: number; y: number }, to: { x: number; y: number }) {
-  return act(() => {
-    handler('astra-button-position', 'onStartShouldSetResponderCapture')(touch(from.x, from.y))
-    expect(handler('astra-button-position', 'onMoveShouldSetResponderCapture')(touch(to.x, to.y))).toBe(true)
-    handler('astra-button-position', 'onResponderGrant')(touch(to.x, to.y))
-    handler('astra-button-position', 'onResponderRelease')(touch(to.x, to.y))
+async function mountShell(width: number, { fab = true, astraButton = true } = {}) {
+  __setWindowDimensions({ width, height: HEIGHT, scale: 1, fontScale: 1 })
+  await act(() => {
+    tree = create(<Shell412 astraButton={astraButton} header={<View style={{ height: 48 }} />} fab={fab ? <CreateFab /> : undefined}
+      tabBar={<View testID="tab-bar" style={{ height: 80 }} />}><ClearanceProbe /></Shell412>) as GeometryTree
   })
+  await reportLayouts(width)
 }
 
-it('drags over the whole screen from the top safe area and stops above the tab bar', async () => {
-  const chrome = { top: 24, floorInset: 104, pageInset: 168, scrollToTopTop: 56, scrollToTopHeight: 0 }
-  await mount(chrome)
-  await layout(412, 867)
-  expect(StyleSheet.flatten(host('astra-button-area').props.style)).toMatchObject({ position: 'absolute', top: 24, bottom: 0 })
-  const start = point()
-  await drag({ x: start.x + 30, y: start.y + 30 }, { x: 0, y: -2000 })
-  expect(point()).toEqual({ x: 16, y: 16 })
-  expect(chrome.top + point().y).toBeLessThan(chrome.top + 48)
-  expect(useUIStore.getState().astraConversationOpen).toBe(false)
-  await drag({ x: 46, y: 46 }, { x: 0, y: 4000 })
-  const tabBarTop = 867 - chrome.floorInset
-  expect(tabBarTop - (point().y + 60)).toBe(16)
-  expect(useUIStore.getState().astraConversationOpen).toBe(false)
-  await act(() => { handler('astra-button', 'onPress')() })
+function responderKeys(node: ReactTestInstance | null): string[] {
+  const keys: string[] = []
+  for (let current = node; current; current = current.parent) {
+    if (typeof current.type !== 'string') continue
+    keys.push(...Object.keys(current.props).filter(key => /^onResponder|ShouldSetResponder|^onLongPress$|^onAccessibilityAction$/.test(key)))
+  }
+  return keys
+}
+
+describe.each([412, 840])('the compact Astra button at %ipx', width => {
+  it('sits directly above the create habit button, centred on it, with the shared gap', async () => {
+    await mountShell(width)
+    const boxes = measure(width)
+    const astra = boxes.get('astra-button')!
+    const create = boxes.get('create-fab')!
+    expect(astra.width).toBe(60)
+    expect(astra.bottom - astra.top).toBe(60)
+    expect(create.top - astra.bottom).toBe(GAP)
+    expect(astra.left + astra.width / 2).toBe(create.left + create.width / 2)
+    expect(astra.bottom).toBeLessThanOrEqual(boxes.get('shell-tab-bar')!.top)
+  })
+
+  it('takes the create habit button position when that button is absent', async () => {
+    await mountShell(width)
+    const stacked = measure(width).get('create-fab')!
+    await act(() => tree.unmount())
+    await mountShell(width, { fab: false })
+    const alone = measure(width).get('astra-button')!
+    expect(hosts('create-fab')).toHaveLength(0)
+    expect({ left: alone.left, top: alone.top }).toEqual({ left: stacked.left, top: stacked.top })
+  })
+
+  it('keeps the last Hoje row clear of both stacked buttons and the tab bar', async () => {
+    await mountShell(width)
+    const boxes = measure(width)
+    const clearance = clearances.at(-1)!
+    const scrollerBottom = boxes.get('shell-scroller')!.bottom
+    expect(scrollerBottom).toBeLessThanOrEqual(boxes.get('shell-tab-bar')!.top)
+    expect(scrollerBottom - clearance).toBeLessThanOrEqual(boxes.get('astra-button')!.top - GAP)
+  })
+})
+
+it('opens Astra on tap and carries its accessible name', async () => {
+  await mountShell(412)
+  expect(host('astra-button').props.accessibilityLabel).toBe('shell.astraButton.open')
+  await act(() => { (host('astra-button').props.onPress as () => void)() })
   expect(useUIStore.getState().astraConversationOpen).toBe(true)
+  expect(hosts('astra-button')).toHaveLength(0)
 })
 
-it('stays clear of a visible notice or selection slot', async () => {
-  await mount({ top: 24, floorInset: 230, pageInset: 230, scrollToTopTop: 56, scrollToTopHeight: 0 })
-  await layout(412, 867)
-  const start = point()
-  await drag({ x: start.x + 30, y: start.y + 30 }, { x: 0, y: 4000 })
-  expect(867 - 230 - (point().y + 60)).toBe(16)
-})
-
-it.each(['light', 'dark'] as const)('floats with the hairline ring and shadow tokens, never the canvas ring, in %s', async mode => {
-  const theme = await import('@/lib/use-app-theme')
-  vi.spyOn(theme, 'useAppTheme').mockReturnValue({ currentScheme: 'orange', currentTheme: mode } as ReturnType<typeof theme.useAppTheme>)
-  const tokens = createTokensV2('orange', mode)
-  await mount()
-  const paint = () => StyleSheet.flatten((host('astra-button').props.style as (state: { pressed: boolean }) => unknown)({ pressed: false })) as { boxShadow: string; backgroundColor: string }
-  const resting = paint()
-  expect(resting.boxShadow).not.toContain('0 0 0 6px')
-  expect(resting.boxShadow).not.toContain(tokens.bg)
-  expect(resting.boxShadow).toBe(`inset 0 0 0 1px ${tokens.hairlineStrong}, 0px 4px 16px rgba(0, 0, 0, 0.28)`)
-  expect(resting.backgroundColor).toBe(tokens.bgElev)
-  const start = point()
+it('stays in place through a drag and offers no move gesture or action', async () => {
+  await mountShell(412)
+  const before = measure(412).get('astra-button')!
+  const button = host('astra-button')
+  expect(responderKeys(button)).toEqual([])
+  expect(button.props.accessibilityActions).toBeUndefined()
   await act(() => {
-    handler('astra-button-position', 'onStartShouldSetResponderCapture')(touch(start.x + 30, start.y + 30))
-    handler('astra-button-position', 'onResponderGrant')(touch(100, 100))
+    ;(button.props.onPressIn as () => void)()
+    ;(button.props.onPressOut as () => void)()
   })
-  expect(paint().boxShadow).toBe(`inset 0 0 0 1px ${tokens.hairlineStrong}, 0px 12px 40px rgba(0, 0, 0, 0.45)`)
-  await act(() => { handler('astra-button-position', 'onResponderRelease')(touch(100, 100)) })
-  expect(paint().boxShadow).toBe(resting.boxShadow)
+  await reportLayouts(412)
+  expect(measure(412).get('astra-button')).toEqual(before)
+  expect(useUIStore.getState().astraConversationOpen).toBe(false)
 })
 
-it('keeps the press scale for a press and drops it while a drag lifts the button', async () => {
-  await mount()
-  const paint = (pressed: boolean) => StyleSheet.flatten((host('astra-button').props.style as (state: { pressed: boolean }) => unknown)({ pressed })) as { transform?: unknown }
-  expect(paint(true).transform).toEqual([{ scale: 0.96 }])
-  const start = point()
-  await act(() => {
-    handler('astra-button-position', 'onStartShouldSetResponderCapture')(touch(start.x + 30, start.y + 30))
-    handler('astra-button-position', 'onResponderGrant')(touch(100, 100))
-  })
-  expect(paint(true).transform).toBeUndefined()
-  await act(() => { handler('astra-button-position', 'onResponderRelease')(touch(100, 100)) })
-  expect(paint(true).transform).toEqual([{ scale: 0.96 }])
-})
-
-it('eases a requested snap with the shared enter curve', async () => {
-  motion.reduced = false
-  const timing = vi.spyOn(Animated, 'timing')
-  await mount()
-  await act(() => { handler('astra-button', 'onAccessibilityAction')({ nativeEvent: { actionName: 'up' } }) })
-  expect(timing.mock.calls.every(([, config]) => typeof config.easing === 'function')).toBe(true)
+it('hides while selection mode owns the bottom of Hoje and returns to the stack after it', async () => {
+  await mountShell(412)
+  await act(() => { useUIStore.setState({ isSelectMode: true }) })
+  expect(hosts('astra-button')).toHaveLength(0)
+  await act(() => { useUIStore.setState({ isSelectMode: false }) })
+  const boxes = measure(412)
+  expect(boxes.get('create-fab')!.top - boxes.get('astra-button')!.bottom).toBe(GAP)
 })
