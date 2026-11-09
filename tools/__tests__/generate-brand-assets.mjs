@@ -29,6 +29,7 @@ const expectedAssets = [
   ["apps/web/public/og-image.png", 1200, 630],
   ["apps/web/public/pwa-192x192.png", 192, 192],
   ["apps/web/public/pwa-512x512.png", 512, 512],
+  ["apps/web/public/pwa-maskable-512x512.png", 512, 512],
 ]
 
 const fixtureRoot = (label) => {
@@ -71,7 +72,7 @@ export const cases = async () => {
     "generate-brand-assets.mjs",
     "writes the complete derived asset inventory",
     ["--write", "--root", outputRoot],
-    { status: 0, stdout: /generated 25 brand assets/ },
+    { status: 0, stdout: /generated 26 brand assets/ },
   )
 
   for (const [relativePath, width, height] of expectedAssets) {
@@ -296,6 +297,17 @@ export const cases = async () => {
       `${relativePath} unexpectedly carries an accent pixel`,
     )
   }
+
+  // apps/web/__tests__/manifest.test.ts requires the maskable PWA asset to equal the canonical
+  // platform icon byte for byte, so the generator writes it and a regeneration cannot leave it behind.
+  T(
+    "generate-brand-assets.mjs: the maskable PWA icon is byte-identical to the canonical platform icon",
+    existsSync(join(outputRoot, "apps", "web", "public", "pwa-maskable-512x512.png")) &&
+      readFileSync(join(outputRoot, "apps", "web", "public", "pwa-maskable-512x512.png")).equals(
+        readFileSync(join(outputRoot, "design", "brand", "png", "orbit-platform-icon-512.png")),
+      ),
+    "pwa-maskable-512x512.png is missing or differs from orbit-platform-icon-512.png",
+  )
 
   const icon = join(outputRoot, "apps", "mobile", "assets", "icon.png")
   const iconCorner = await pixelAt(icon, 0, 0)

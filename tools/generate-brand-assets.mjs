@@ -108,6 +108,9 @@ const generatedAssets = [
   { path: "apps/web/public/og-image.png", width: 1200, height: 630, ink: FOREGROUND, background: CANVAS, scale: 0.36, accent: true },
   { path: "apps/web/public/pwa-192x192.png", width: 192, height: 192, ink: FOREGROUND, background: CANVAS, scale: 0.6, accent: true },
   { path: "apps/web/public/pwa-512x512.png", width: 512, height: 512, ink: FOREGROUND, background: CANVAS, scale: 0.6, accent: true },
+  // apps/web/__tests__/manifest.test.ts requires this maskable copy to equal the canonical platform
+  // icon byte for byte, so it takes the same entry and a regeneration cannot leave it behind.
+  { path: "apps/web/public/pwa-maskable-512x512.png", width: 512, height: 512, ink: FOREGROUND, background: CANVAS, scale: 0.6, accent: true },
 ]
 
 function assertCanonicalSource(source, name) {
