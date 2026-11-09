@@ -5,7 +5,7 @@ import { T } from "./_harness.mjs"
 const usage = JSON.parse(readFileSync(new URL("./fixtures/session-usage.json", import.meta.url), "utf8"))
 const record = (id, context, { action, timestamp = "2026-11-01T00:00:00.000Z", sidechain = false, output = 100 } = {}) => JSON.stringify({
   type: "assistant", isSidechain: sidechain, timestamp,
-  message: { id, usage: { ...usage, input_tokens: 2, cache_creation_input_tokens: 1000, cache_read_input_tokens: context - 1002, output_tokens: output },
+  message: { id, usage: { ...usage, input_tokens: 2, cache_creation_input_tokens: 1000, cache_creation: { ...usage.cache_creation, ephemeral_1h_input_tokens: 1000 }, cache_read_input_tokens: context - 1002, output_tokens: output },
     content: action ? [{ type: "tool_use", name: "Bash", input: { command: action } }] : [] },
 })
 const secondsAfter = (seconds) => new Date(Date.parse("2026-11-01T00:00:00.000Z") + seconds * 1000).toISOString()
@@ -29,8 +29,22 @@ export const cases = async () => {
   T("relay-cost: a streamed call counts once and its last usage wins", calls.length === 1 && calls[0].contextTokens === 100500)
   T("relay-cost: a subagent call is not part of the session", !parseCalls(streamed).some((call) => call.contextTokens === 101000))
   T("relay-cost: context is input plus cache creation plus cache read", calls[0].contextTokens === 2 + 1000 + (100500 - 1002))
-  T("relay-cost: a call is priced by the published weights", callCost({ input: 2, cacheCreation: 1000, cacheRead: 100000, output: 100 }) === 2 + 1250 + 5000 + 500)
-  T("relay-cost: the weights match the Opus 5.5 price table", PRICE_WEIGHTS.output === 20 / 4 && PRICE_WEIGHTS.cacheRead === 0.2 / 4)
+  T("relay-cost: a call is priced by the published weights", callCost({ input: 2, cacheWrite5m: 1000, cacheWrite1h: 0, cacheRead: 100000, output: 100 }) === 2 + 1250 + 5000 + 500)
+  T("relay-cost: the weights match the Opus 5.5 price table", PRICE_WEIGHTS.output === 20 / 4 && PRICE_WEIGHTS.cacheRead === 0.2 / 4 && PRICE_WEIGHTS.cacheWrite5m === 5 / 4 && PRICE_WEIGHTS.cacheWrite1h === 8 / 4)
+
+  // Expected costs are literals from the price table (base input 1, 5-minute write 1.25, 1-hour write 2, read 0.05, output 5), never computed from PRICE_WEIGHTS.
+  const oneHour = parseCalls(record("hour", 101002))[0]
+  T("relay-cost: a 1-hour cache write costs twice the base input price", oneHour.cacheWrite1h === 1000 && oneHour.cacheWrite5m === 0 && callCost(oneHour) === 7502, String(callCost(oneHour)))
+  const mixedLine = JSON.parse(record("mixed", 101002))
+  mixedLine.message.usage.cache_creation = { ephemeral_1h_input_tokens: 600, ephemeral_5m_input_tokens: 400 }
+  const mixed = parseCalls(JSON.stringify(mixedLine))[0]
+  T("relay-cost: a record with both TTLs prices each part by its own multiple", mixed.cacheWrite1h === 600 && mixed.cacheWrite5m === 400 && callCost(mixed) === 7202, String(callCost(mixed)))
+  const unsplitLine = JSON.parse(record("unsplit", 101002))
+  delete unsplitLine.message.usage.cache_creation
+  const unsplit = parseCalls(JSON.stringify(unsplitLine))[0]
+  T("relay-cost: a record without the TTL split prices every created token as a 5-minute write", unsplit.cacheWrite5m === 1000 && unsplit.cacheWrite1h === 0 && callCost(unsplit) === 6752, String(callCost(unsplit)))
+  unsplitLine.message.usage.cache_creation = { ephemeral_1h_input_tokens: 300, ephemeral_5m_input_tokens: 300 }
+  T("relay-cost: a split that does not add up to the created total is not trusted", callCost(parseCalls(JSON.stringify(unsplitLine))[0]) === 6752)
 
   T("relay-cost: growth slope recovers a linear rise", Math.abs(growthSlope([1, 2, 3, 4].map((index) => ({ contextTokens: 1000 * index }))) - 1000) < 1e-9)
   T("relay-cost: one call has no growth", growthSlope([{ contextTokens: 5 }]) === 0)

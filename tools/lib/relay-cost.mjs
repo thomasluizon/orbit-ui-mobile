@@ -3,16 +3,16 @@ import { AUTO_COMPACT_TOKENS } from "./session-context.mjs"
 /**
  * The relay cost model. Every field name was read from a real transcript record: `type: "assistant"`,
  * `isSidechain`, `timestamp`, `message.id`, `message.usage.{input_tokens, cache_creation_input_tokens,
- * cache_read_input_tokens, output_tokens}` and `message.content[].{type: "tool_use", name, input}`.
+ * cache_creation.{ephemeral_5m_input_tokens, ephemeral_1h_input_tokens}, cache_read_input_tokens, output_tokens}` and `message.content[].{type: "tool_use", name, input}`.
  * The session ledger supplies `triggeredAt` and the cumulative `shipped` list.
  */
 
 /**
  * Cost of one token class as a multiple of the base input price. Source: the Claude Opus 5.5 row of
  * the model price table (input 4 USD, output 20 USD, cache read 0.20 USD per million tokens) and the
- * published cache write multiple of 1.25.
+ * published cache write multiples: 1.25 for the 5-minute TTL and 2 for the 1-hour TTL.
  */
-export const PRICE_WEIGHTS = { input: 1, cacheCreation: 1.25, cacheRead: 0.05, output: 5 }
+export const PRICE_WEIGHTS = { input: 1, cacheWrite5m: 1.25, cacheWrite1h: 2, cacheRead: 0.05, output: 5 }
 
 /** The first tool call that does real queue work. Every call before it is the successor's entry. */
 const USEFUL_ACTION = /launch-worker\.mjs|wait-ci\.mjs|wait-release\.mjs|gh (?:pr|issue) (?:create|merge|review|comment|edit|close)|create-ticket\.mjs|git worktree add|record-readiness\.mjs|verify-delivery\.mjs|complete-ticket\.mjs/
@@ -32,6 +32,18 @@ export const percentile = (values, fraction) => {
 
 const mean = (values) => values.length === 0 ? 0 : values.reduce((sum, value) => sum + value, 0) / values.length
 
+/**
+ * Splits the created tokens by cache TTL. A record whose `cache_creation` split is absent, or does not
+ * add up to `cache_creation_input_tokens`, prices every created token as a 5-minute write.
+ */
+const cacheWritesByTtl = (usage) => {
+  const total = usage.cache_creation_input_tokens
+  const oneHour = usage.cache_creation?.ephemeral_1h_input_tokens
+  const fiveMinute = usage.cache_creation?.ephemeral_5m_input_tokens
+  const split = Number.isInteger(oneHour) && Number.isInteger(fiveMinute) && oneHour >= 0 && fiveMinute >= 0 && oneHour + fiveMinute === total
+  return { cacheWrite1h: split ? oneHour : 0, cacheWrite5m: split ? fiveMinute : total }
+}
+
 /** Top-level assistant calls in order. A streamed call writes several records; the last usage wins. */
 export const parseCalls = (transcriptText) => {
   const calls = new Map()
@@ -47,7 +59,7 @@ export const parseCalls = (transcriptText) => {
     if (!fields.every((value) => Number.isInteger(value) && value >= 0)) continue
     const call = calls.get(id) ?? { actions: [], timestamp: record.timestamp }
     call.input = usage.input_tokens
-    call.cacheCreation = usage.cache_creation_input_tokens
+    Object.assign(call, cacheWritesByTtl(usage))
     call.cacheRead = usage.cache_read_input_tokens
     call.output = usage.output_tokens
     call.contextTokens = usage.input_tokens + usage.cache_creation_input_tokens + usage.cache_read_input_tokens
@@ -60,7 +72,7 @@ export const parseCalls = (transcriptText) => {
 }
 
 export const callCost = (call, weights = PRICE_WEIGHTS) =>
-  call.input * weights.input + call.cacheCreation * weights.cacheCreation + call.cacheRead * weights.cacheRead + call.output * weights.output
+  call.input * weights.input + call.cacheWrite5m * weights.cacheWrite5m + call.cacheWrite1h * weights.cacheWrite1h + call.cacheRead * weights.cacheRead + call.output * weights.output
 
 const sumCost = (calls, weights) => calls.reduce((sum, call) => sum + callCost(call, weights), 0)
 

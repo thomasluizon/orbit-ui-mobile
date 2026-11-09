@@ -1,6 +1,8 @@
-import { mkdirSync, writeFileSync } from "node:fs"
+import { spawnSync } from "node:child_process"
+import { cpSync, mkdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import { check, root } from "./_harness.mjs"
+import { appendChainEntry } from "../lib/session-chain.mjs"
+import { T, TOOLS_DIR, check, root } from "./_harness.mjs"
 import { syntheticSession } from "./relay-cost.mjs"
 
 const TOOL = "measure-relay-cost.mjs"
@@ -20,7 +22,37 @@ const ledgerOf = (label, sessions) => {
   return ledger
 }
 
+const gitEnvironment = Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith("GIT_")))
+const git = (cwd, ...args) => {
+  const result = spawnSync("git", ["-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false", ...args], { cwd, encoding: "utf8", env: gitEnvironment })
+  if (result.status !== 0) throw new Error(`git ${args.join(" ")} failed: ${result.stderr}`)
+}
+
+/** A linked worktree of a temporary repository that carries its own copy of the tool, so the tool resolves that worktree as its checkout. */
+const linkedWorktreeWithTool = () => {
+  const main = join(root, "measure-relay-cost", "linked", "main")
+  mkdirSync(main, { recursive: true })
+  git(main, "init", "-q", "-b", "main")
+  git(main, "commit", "-q", "--allow-empty", "-m", "initial")
+  const worktree = join(root, "measure-relay-cost", "linked", "worktree")
+  git(main, "worktree", "add", "-q", "-b", "feature/linked", worktree)
+  mkdirSync(join(worktree, "tools"), { recursive: true })
+  cpSync(join(TOOLS_DIR, "measure-relay-cost.mjs"), join(worktree, "tools", "measure-relay-cost.mjs"))
+  cpSync(join(TOOLS_DIR, "lib"), join(worktree, "tools", "lib"), { recursive: true })
+  return { main, worktree }
+}
+
 export const cases = () => {
+  const { main, worktree } = linkedWorktreeWithTool()
+  const session = syntheticSession()
+  const transcriptPath = join(worktree, "session.jsonl")
+  writeFileSync(transcriptPath, session.text)
+  appendChainEntry({ sessionId: "linked-session", startedAt: "2026-11-01T00:00:00.000Z", transcriptPath, triggeredAt: session.triggeredAt, forced: false, armedAt: null, shipped: [] }, worktree)
+  const linked = spawnSync(process.execPath, [join(worktree, "tools", "measure-relay-cost.mjs")], { cwd: worktree, encoding: "utf8", env: gitEnvironment })
+  T("measure-relay-cost: with no --ledger a linked worktree reads the ledger that appendChainEntry wrote there", linked.status === 0 && /sessions read: 1, usable for the model: 1/.test(linked.stdout), `status ${linked.status}\n${linked.stdout}${linked.stderr}`)
+  const fromMain = spawnSync(process.execPath, [join(worktree, "tools", "measure-relay-cost.mjs")], { cwd: main, encoding: "utf8", env: gitEnvironment })
+  T("measure-relay-cost: the default ledger does not depend on the working directory", fromMain.status === 0 && fromMain.stdout === linked.stdout, `status ${fromMain.status}\n${fromMain.stderr}`)
+
   const ledger = ledgerOf("usable", [{}, { growth: 1400 }, { growth: 1600 }])
   check(TOOL, "a ledger of three sessions prints the model and a recommendation", ["--ledger", ledger], { status: 0, stdout: /sessions read: 3, usable for the model: 3[\s\S]*recommended soft \d+, hard \d+[\s\S]*3 merged pull requests/ })
   check(TOOL, "the report sweeps the current threshold", ["--ledger", ledger], { status: 0, stdout: /threshold 200000: [\d.]+ x the minimum/ })
