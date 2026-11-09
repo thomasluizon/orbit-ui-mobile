@@ -15,7 +15,7 @@ import {
   type RefCallback,
   type CSSProperties,
 } from 'react'
-import { BUTTON_SIZES, SPACING, TAB_BAR_MIN_HEIGHT, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { BUTTON_SIZES, FAB_SIZE, SPACING, TAB_BAR_MIN_HEIGHT, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import type { ShellWideItem, ShellWideProps } from '@orbit/shared/contracts/shell'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { ASTRA_BUTTON_GAP, ASTRA_STACK_CLEARANCE } from '@orbit/shared/utils'
@@ -418,11 +418,12 @@ function ShellConversation({ conversationId, label, wide, children }: Readonly<{
           ><main className="h-full">{children}</main></motion.div>
 }
 
-function ShellFabColumn({ astraButton, fab }: Readonly<{ astraButton: ReactNode; fab: ReactNode }>) {
+function ShellFabColumn({ astraButton, fab, fabPending }: Readonly<{ astraButton: ReactNode; fab: ReactNode; fabPending: boolean }>) {
   return <div data-shell-fab-clip="" className="pointer-events-none absolute inset-x-0 bottom-2 z-sticky flex justify-end overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] px-4 py-2 lg:hidden">
     <div data-shell-fab-content="" className="pointer-events-none mx-auto flex w-full max-w-[740px] flex-col items-end" style={{ gap: ASTRA_BUTTON_GAP }}>
       {astraButton !== undefined ? <div data-shell-astra-button="" className="pointer-events-none [&_button]:pointer-events-auto">{astraButton}</div> : null}
       {fab !== undefined ? <div data-shell-fab="" className="pointer-events-none [&_button]:pointer-events-auto">{fab}</div> : null}
+      {fab === undefined && fabPending && astraButton !== undefined ? <div data-shell-fab-pending="" aria-hidden="true" inert className="pointer-events-none shrink-0" style={{ width: FAB_SIZE, height: FAB_SIZE }} /> : null}
     </div>
   </div>
 }
@@ -481,7 +482,7 @@ function ShellWideBackground({
               />
               <div data-shell-page-content="" className="mx-auto min-h-full w-full max-w-[740px] has-[[data-list-motion][inert]]:min-h-[var(--shell-scroll-min-height,100%)] has-[[data-page-viewport]]:h-full">{props.children}</div>
             </main>
-            {astraSpacing.fabColumn ? <ShellFabColumn astraButton={props.astraButton} fab={props.fab} /> : null}
+            {astraSpacing.fabColumn ? <ShellFabColumn astraButton={props.astraButton} fab={props.fab} fabPending={props.fabPending === true} /> : null}
             {props.scrollToTop !== undefined && !conversationOpen ? (
               <div data-shell-scroll-to-top="" className="pointer-events-none absolute inset-x-0 top-2 z-sticky flex justify-center">
                 <div className="pointer-events-auto">{props.scrollToTop}</div>

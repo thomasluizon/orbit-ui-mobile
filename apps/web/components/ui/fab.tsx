@@ -1,5 +1,5 @@
 import type { FabProps } from '@orbit/shared/contracts/actions'
-import { FAB_SIZE } from '@orbit/shared/utils'
+import { FAB_SIZE } from '@orbit/shared/theme'
 import type { ComponentProps } from 'react'
 
 const CANVAS_RING = '0 0 0 6px var(--bg)'

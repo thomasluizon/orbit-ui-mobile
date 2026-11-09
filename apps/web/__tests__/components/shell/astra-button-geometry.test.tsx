@@ -85,10 +85,10 @@ function measureStack() {
     conversations: document.querySelectorAll('[data-shell-conversation]').length }
 }
 
-function stackedShell(fab = true) {
+function stackedShell(fab = true, fabPending = false) {
   return renderToString(<ShellWide items={[]} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: () => {} }}
     header={<div style={{ minHeight: 48 }}>Today</div>} tabBar={<nav style={{ minHeight: 80 }}>Tabs</nav>}
-    astraButton={<AstraButton />} fab={fab ? <Fab label="Create" onClick={() => {}}>+</Fab> : undefined}>
+    astraButton={<AstraButton />} fab={fab ? <Fab label="Create" onClick={() => {}}>+</Fab> : undefined} fabPending={fabPending}>
     {Array.from({ length: 40 }, (_, index) => <div key={index} data-probe-row="" style={{ height: 56 }}>Habit {index}</div>)}
   </ShellWide>)
 }
@@ -139,6 +139,18 @@ it.each([412, 840])('takes the create button position when that button is absent
     expect({ left: alone.left, top: alone.top }).toEqual({ left: create.left, top: create.top })
     expect(alone.right, JSON.stringify({ alone, columnContentRight })).toBe(columnContentRight)
     expect(create.right).toBe(columnContentRight)
+  } finally { await page.close() }
+})
+
+it.each([412, 840])('holds the create button slot while that button is pending, so the Astra button stays put when it arrives at %ipx', async width => {
+  const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
+  try {
+    const measure = () => page.evaluate(() => ({ button: document.querySelector('[data-astra-button]')!.getBoundingClientRect().toJSON() as DOMRect,
+      padding: Number.parseFloat(getComputedStyle(document.querySelector('[data-shell-scroller]')!).paddingBottom) }))
+    await page.setContent(`<style>${stylesheet}</style>${stackedShell(false, true)}`)
+    const pending = await measure()
+    await page.setContent(`<style>${stylesheet}</style>${stackedShell()}`)
+    expect(await measure()).toEqual(pending)
   } finally { await page.close() }
 })
 

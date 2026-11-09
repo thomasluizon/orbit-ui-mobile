@@ -29,4 +29,7 @@ export const BUTTON_SIZES: Record<ButtonSize, ButtonSizeSpec> = {
   md: { height: 50, paddingX: 26, fontSize: 16, iconSize: 20, gap: 9 },
 }
 
+/** The diameter of the round floating action button: the create habit button and the Astra button. */
+export const FAB_SIZE = 60
+
 export const GOOGLE_SIGN_IN_BUTTON = { paddingX: 12, gap: 10 } as const

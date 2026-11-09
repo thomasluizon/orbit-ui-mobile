@@ -1,5 +1,5 @@
 import type { FabProps } from '@orbit/shared/contracts/actions'
-import { FAB_SIZE } from '@orbit/shared/utils'
+import { FAB_SIZE } from '@orbit/shared/theme'
 import { Pressable, StyleSheet, type PressableProps } from 'react-native'
 import { useMemo } from 'react'
 import { createTokensV2, shadowsV2, type AppShadowV2 } from '@/lib/theme'

@@ -229,7 +229,10 @@ It uses the lifted-surface treatment, not the canvas occlusion ring of the creat
 1px `--hairline-strong` ring and sh-2. There is no glow, no gradient and no hue in the shadow.
 It sits in the create FAB's trailing column, directly above the create FAB and centred on it,
 with `ASTRA_BUTTON_GAP` (24px) between the two circles, so the Astra focus outline keeps the 8px
-interaction fill clearance from the create FAB's canvas ring. When the create FAB is absent, the Astra
+interaction fill clearance from the create FAB's canvas ring. While Hoje loads the create FAB, the
+column holds the create FAB's slot with an empty spacer that is hidden from assistive technology
+and takes no focus or press, so the Astra button does not move when the create FAB arrives. When
+the create FAB is hidden on purpose (another destination, or a parent habit drill-in), the Astra
 button takes the create FAB's own position. It never moves, never floats over content on its own,
 and it never covers the tab bar. It has no drag, no long-press move, no keyboard move and no
 stored position (#2077). On web, keyboard focus reaches it after the page and before the create
@@ -241,7 +244,9 @@ and the conversation withhold the button; the create FAB keeps its position. Whi
 share the column, the shell reserves end-of-list clearance of 176px (`ASTRA_STACK_CLEARANCE`: the
 16px column inset, both 60px circles, `ASTRA_BUTTON_GAP` and the 16px row gap), so the last row
 scrolls fully above the Astra button. The shell holds that clearance while sheets, selection or the
-conversation withhold the button, so the end of the list does not move. With the Astra button alone, the 96px create FAB reservation applies. Web caps the inset used when scrolling to
+conversation withhold the button, so the end of the list does not move. The column counts as
+stacked while the create FAB is present or pending. When the create FAB is hidden on purpose, the
+Astra button stands alone and the 96px create FAB reservation applies. Web caps the inset used when scrolling to
 focus at half the scroller height so a short window can reveal its focused controls.
 The conversation retains live suggestions, the draft, attachments, AI disclosure, composer
 disclosure, running reply control, queue and the proactive line's destination. Reopening a collapsed
@@ -749,7 +754,7 @@ Identity comes from three things and nothing else:
 
 **One Orbit drawing (#2008).** The owner's order is: "que cacete de logo é essa, coloca a do orbit". `OrbitMark` uses the normal `ORBIT_MARK_PATHS` at every size on web and Android. Its shared viewBox fits the drawn bounds and centres the logo without local offsets, including at 16px in the onboarding reminder preview. Hoje's completed-day identity is the still 48px monochrome `--fg-1` logo itself, with no surrounding ring. Its 8px title/hint pairing and 24px mark, text and action gaps stay. The streak notice uses the same logo at its existing 44px footprint, without a surrounding ring or mark animation; panel and figure motion keep their existing lifecycle. All other consumers retain their sizes and colour tokens. This owner order amends the granted drawing under D42.
 
-**One Astra drawing (#1797).** The owner's order is: "i dont understand this mini astra logo that is not even centralized vertically, on the top left and on the prompt suggestions, change to the normal logo and centralize it". `AstraGlyph` uses the normal `ASTRA_GLYPH_PATHS` at every size on web and Android. The shared viewBox fits the drawn bounds, with equal vertical space after aspect-ratio fitting. Consumers centre that drawing within their row, chip, button or header, without local offsets. This applies to the conversation header, suggestion and follow-up chips, Hoje floating entry and Astra line, idea cards, proactive actions and form fill controls. The normal mark remains legible at 16px with its cropped viewBox; existing sizes and colour tokens stay. This owner order amends any small Astra variant in the granted canvas under D42.
+**One Astra drawing (#1797).** The owner's order is: "i dont understand this mini astra logo that is not even centralized vertically, on the top left and on the prompt suggestions, change to the normal logo and centralize it". `AstraGlyph` uses the normal `ASTRA_GLYPH_PATHS` at every size on web and Android. The shared viewBox fits the drawn bounds, with equal vertical space after aspect-ratio fitting. Consumers centre that drawing within their row, chip, button or header, without local offsets. This applies to the conversation header, suggestion and follow-up chips, Hoje stacked Astra button and Astra line, idea cards, proactive actions and form fill controls. The normal mark remains legible at 16px with its cropped viewBox; existing sizes and colour tokens stay. This owner order amends any small Astra variant in the granted canvas under D42.
 
 **The wordmark** is Space Grotesk 600 in natural case, `-0.02em`, `--fg-1`, carrying `translate="no"`. The horizontal lockup is a 28px mark, a 12px gap and a 22px wordmark. **The 28 measures the mark and the 12 separates ink from ink, never bounding boxes.** The 1024 art carries wide empty margin, so a literal 28 box draws ink about 8px tall beside a 15.4px cap height and the word swamps the mark; sized on the ink the mark stands 15.04px and the two read as one lockup. The lockup asset's viewBox is its ink, so clear space is the consumer's to add.
 

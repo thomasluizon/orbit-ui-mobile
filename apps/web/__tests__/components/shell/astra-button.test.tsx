@@ -13,11 +13,11 @@ vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => false }))
 
 beforeEach(() => { localStorage.clear(); useUIStore.setState(useUIStore.getInitialState()) })
 
-function mount({ messages = en, fab = true }: { messages?: typeof en; fab?: boolean } = {}) {
+function mount({ messages = en, fab = true, fabPending = false }: { messages?: typeof en; fab?: boolean; fabPending?: boolean } = {}) {
   const create: ReactNode = fab ? <button type="button">Create</button> : undefined
   return render(<NextIntlClientProvider locale={messages === en ? 'en' : 'pt-BR'} messages={messages}>
     <ShellWide items={[]} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: () => {} }}
-      tabBar={<nav>Tabs</nav>} astraButton={<AstraButton />} fab={create}><div>Habits</div></ShellWide>
+      tabBar={<nav>Tabs</nav>} astraButton={<AstraButton />} fab={create} fabPending={fabPending}><div>Habits</div></ShellWide>
   </NextIntlClientProvider>)
 }
 
@@ -90,4 +90,17 @@ it('withholds the button while a sheet or selection owns the surface', async () 
   await act(() => useUIStore.setState({ openOverlayIds: [] }))
   expect(openButton()).toBeVisible()
   expect(openButton()).toBe(hidden)
+})
+
+it('holds the pending create button slot with a hidden spacer that takes no focus or press', async () => {
+  const user = userEvent.setup()
+  mount({ fab: false, fabPending: true })
+  const slot = document.querySelector<HTMLElement>('[data-shell-fab-content] [data-shell-fab-pending]')!
+  expect(slot).toHaveAttribute('aria-hidden', 'true')
+  expect(slot).toHaveAttribute('inert')
+  expect(slot.querySelectorAll('*')).toHaveLength(0)
+  expect(openButton().compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  await user.tab()
+  expect(document.activeElement).not.toBe(slot)
+  expect(screen.getAllByRole('button').filter(button => slot.contains(button))).toEqual([])
 })

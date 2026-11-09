@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ASTRA_BUTTON_GAP, ASTRA_STACK_CLEARANCE, FAB_SIZE } from '../utils/astra-button'
+import { ASTRA_BUTTON_GAP, ASTRA_STACK_CLEARANCE } from '../utils/astra-button'
+import { FAB_SIZE } from '../theme/button'
 
 afterEach(() => {
   vi.doUnmock('../theme/spacing')
