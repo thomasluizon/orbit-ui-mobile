@@ -1,15 +1,16 @@
 import { createRequire } from 'node:module'
 import { existsSync } from 'node:fs'
-import { cp, mkdir, readFile, writeFile, rm } from 'node:fs/promises'
+import { appendFile, cp, mkdir, readFile, writeFile, rm } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { request as requestHttp } from 'node:http'
 import { buildHermeticWeb } from './runner.mjs'
 import { readFixtures } from './build.mjs'
 import { startProxy } from './server.mjs'
-import { assertFree, execute, start, stopAll, waitFor, waitForHttp } from './host.mjs'
-import { buildInstaller, desktopOrigin, install, isolateOrigins, startHttpsListener, startRecording } from './acceptance-platform.mjs'
+import { assertFree, delay, execute, start, stop, stopAll, waitFor, waitForHttp } from './host.mjs'
+import { activateUnelevated, apsdReceipt, buildInstaller, capturePushDiagnostics, desktopOrigin, install, isolateOrigins, launchContext, launchUnelevated, startHttpsListener, startPushServices, startRecording } from './acceptance-platform.mjs'
 import { NativeTreePendingError, assertAccessibleTree, assertCookieEvidence, assertPaletteFocus, corruptSignature } from './acceptance-contract.mjs'
+import { exercisePush, pushSender, signedApsEnvironment, unsignedReason } from './acceptance-push.mjs'
 
 const require = createRequire(import.meta.url)
 const directory = dirname(fileURLToPath(import.meta.url))
@@ -19,11 +20,13 @@ const record = (path, value) => writeFile(path, `${JSON.stringify(value, null, 2
 async function nativeTool(output) {
   const executable = join(output, 'accessibility')
   if (!windows) await execute('clang', ['-fobjc-arc', '-framework', 'AppKit', '-framework', 'ApplicationServices', join(directory, 'acceptance-ax.m'), '-o', executable])
-  return async (pid, command, menuCommandId) => {
+  return async (pid, command, menuCommandId, { title, label, invoke = false, openCenter = false, executable: target } = {}) => {
     const reply = windows
       ? await execute('powershell.exe', ['-NoProfile', '-NonInteractive', '-File', join(directory, 'acceptance-uia.ps1'), '-TargetProcessId', String(pid), '-Command', command,
-        ...(menuCommandId === undefined ? [] : ['-MenuCommandId', String(menuCommandId)])])
-      : await execute(executable, [String(pid), command])
+        ...(menuCommandId === undefined ? [] : ['-MenuCommandId', String(menuCommandId)]),
+        ...(title === undefined ? [] : ['-Title', title, '-Label', label]), ...(invoke ? ['-Invoke'] : []), ...(openCenter ? ['-OpenCenter'] : []),
+        ...(target === undefined ? [] : ['-Executable', target])])
+      : await execute(executable, [String(pid), command, ...(title === undefined ? [] : [title, label, invoke ? '1' : '0', openCenter ? '1' : '0'])])
     return reply.trim() ? JSON.parse(reply) : null
   }
 }
@@ -140,12 +143,10 @@ async function inspectSurfaces(proxy, native, handle, output, report) {
   proxy.send('astra')
   await waitFor(() => proxy.read('astra'), 'Astra surface')
   const astraTree = await dump('astra')
-  if (astraTree.denied) proxy.send('astra-close')
-  else {
-    await native(handle.child.pid, 'escape')
-    proxy.send('astra-closed')
-  }
-  await waitFor(() => proxy.read('astra-closed'), 'Astra dismissal')
+  if (astraTree.denied) {
+    proxy.send('astra-close')
+    await waitFor(() => proxy.read('astra-closed'), 'Astra dismissal')
+  } else await dismissAstra(proxy, native, handle, output, report)
   if (astraTree.denied) proxy.send('palette')
   else {
     await native(handle.child.pid, 'palette')
@@ -156,6 +157,22 @@ async function inspectSurfaces(proxy, native, handle, output, report) {
   if (tree.denied) { report.paletteFocus = { skipped: tree.error }; return }
   await traversePalette(proxy, native, handle, dump, previous, report)
   await native(handle.child.pid, 'escape')
+}
+
+async function dismissAstra(proxy, native, handle, output, report) {
+  await native(handle.child.pid, 'escape')
+  proxy.send('astra-closed')
+  try {
+    await waitFor(() => proxy.read('astra-closed'), 'Astra dismissal')
+  } catch (error) {
+    // The page probe records every keydown while Astra is open, so a timeout tells a lost key from an unhandled one.
+    report.astraKeys = proxy.events().filter((event) => event.kind === 'astra-key')
+    let tree
+    try { tree = await native(handle.child.pid, 'dump') } catch (dumpError) { tree = { denied: false, error: dumpError.message, nodes: [] } }
+    await record(join(output, 'trees', 'astra-after-escape.json'), tree)
+    const escapes = report.astraKeys.filter((event) => event.key === 'Escape').length
+    throw new Error(`${error.message}; the page received ${escapes} Escape keydown${escapes === 1 ? '' : 's'}; see trees/astra-after-escape.json`)
+  }
 }
 
 async function traversePalette(proxy, native, handle, dump, previous, report) {
@@ -194,10 +211,31 @@ async function traversePalette(proxy, native, handle, dump, previous, report) {
   report.paletteFocus = focus
 }
 
-function installedLaunch(executable, output, name) {
-  const environment = { ...process.env }
-  for (const key of ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'http_proxy', 'https_proxy', 'all_proxy']) delete environment[key]
-  return start(executable, [], { env: environment, log: join(output, `${name}.log`) })
+async function installedLaunch(executable, output, name, report) {
+  let handle
+  if (windows) handle = await launchUnelevated(executable, output, name)
+  else {
+    const environment = { ...process.env }
+    for (const key of ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'http_proxy', 'https_proxy', 'all_proxy']) delete environment[key]
+    handle = start(executable, [], { env: environment, log: join(output, `${name}.log`) })
+  }
+  report.launchContexts[name] = launchContext(handle)
+  return handle
+}
+
+const unsupportedLine = 'Desktop push: native push unsupported:'
+
+// Each launch reports its first unsupported push answer once, so push.log and the report gather every launch's line.
+export async function collectUnsupportedPush(output, report, read = readFile, append = appendFile) {
+  const found = []
+  for (const name of Object.keys(report.launchContexts)) {
+    let text
+    try { text = await read(join(output, `${name}.log`), 'utf8') } catch (error) { if (error.code === 'ENOENT') continue; throw error }
+    for (const line of text.split(/\r?\n/)) if (line.startsWith(unsupportedLine)) found.push({ log: `${name}.log`, line })
+  }
+  if (!found.length) return
+  report.push = { ...report.push, nativeUnsupported: found }
+  await append(join(output, 'push.log'), found.filter(({ log }) => log !== 'push.log').map(({ log, line }) => `[${log}] ${line}\n`).join(''))
 }
 
 async function quit(native, handle) {
@@ -215,15 +253,122 @@ async function quit(native, handle) {
   await handle.done
 }
 
+async function mockApi(method, path, body) {
+  const response = await fetch(`http://127.0.0.1:5099${path}`, { method,
+    ...(body === undefined ? {} : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }) })
+  if (!response.ok) throw new Error(`Mock API ${method} ${path} failed: HTTP ${response.status}`)
+  return response.status === 204 ? null : response.json()
+}
+
+async function catalogValue(path, read) {
+  return Promise.all(['en', 'pt-BR'].map(async (locale) => read(JSON.parse(await readFile(join(directory, path, `${locale}.json`), 'utf8')))))
+}
+
+async function pushPhase({ proxy, native, updates, handle, executable, output, report, credentials, signed, checkpoint }) {
+  // The valid-update launch waits on its restart prompt; stop it and serve no update so the push launch starts clean.
+  updates.mode('off')
+  await stop(handle)
+  checkpoint('push')
+  const adopted = new Set()
+  const application = windows ? null : dirname(dirname(dirname(executable)))
+  let environment = null
+  const io = {
+    platform: process.platform, report, credentials, signed, executable, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    labels: await catalogValue('../../packages/shared/src/i18n', (catalog) => catalog.profile.settingsRows.alertsOnThisDevice),
+    doneLabel: (await catalogValue('../../apps/desktop/locales', (catalog) => catalog.reminderDone))[0],
+    // The system authorization alert follows the VM language, which is English on GitHub macOS runners.
+    allowLabel: 'Allow', appName: 'Orbit Staging',
+    async apsEnvironment() {
+      const { signature, environment: signed } = await signedApsEnvironment(application, output)
+      if (signature.status !== 0) report.pushCodeSignature = signature.stderr.slice(0, 500)
+      environment = signed
+      return environment
+    },
+    mock: {
+      registrations: () => mockApi('GET', '/_test/push-registrations'),
+      mintReminder: async (habitId) => (await mockApi('POST', '/_test/repeat-reminders', { habitId })).doneToken,
+      logs: () => mockApi('GET', '/_test/habit-logs'),
+      sessionMode: (mode) => mockApi('PUT', '/_test/session-mode', { mode }),
+    },
+    proxy, now: Date.now, delay, waitFor,
+    async launch() {
+      proxy.reset({ expectAuthenticated: true })
+      const shell = await installedLaunch(executable, output, 'push', report)
+      await waitFor(() => proxy.read('hoje'), 'authenticated push launch')
+      checkpoint('push-hoje')
+      return shell
+    },
+    stop,
+    async startPushServices() { report.pushServices = await startPushServices() },
+    apsdReceipt: (topic) => apsdReceipt(topic),
+    native: (pid, command, options) => native(pid, command, undefined, options),
+    activate: ({ name, title, label }) => activateUnelevated({ executable, output, name, title, label }),
+    async findProcesses() {
+      if (windows) return (await native(0, 'process', undefined, { executable })).processIds
+      try {
+        return (await execute('pgrep', ['-f', executable])).trim().split(/\s+/).filter(Boolean).map(Number)
+      } catch (error) {
+        report.pushProcessLookup = error.message.slice(0, 500)
+        return []
+      }
+    },
+    adopt(pid) { adopted.add(pid) },
+    sender: (transport, registration) => pushSender(transport, registration, credentials, environment),
+    record: (name, value) => record(join(output, 'trees', `${name}.json`), value),
+    warn(message) { process.stdout.write(`::warning title=Desktop push acceptance::${message}\n`) },
+  }
+  const since = new Date()
+  let failure
+  try { await exercisePush(io) } catch (error) { failure = error }
+  try { await collectUnsupportedPush(output, report) } catch (error) { failure ??= error }
+  if (!windows && report.push?.registration) {
+    try { report.pushDiagnostics = await capturePushDiagnostics(output, { topic: report.push.registration.apnsTopic, since }) } catch (error) { failure ??= error }
+  }
+  // A notification launch starts the shell outside the process host, so this phase stops it.
+  const cleanup = []
+  for (const pid of adopted) {
+    try {
+      process.kill(pid, 0)
+    } catch (error) {
+      if (error.code !== 'ESRCH') cleanup.push(error.message)
+      continue
+    }
+    try {
+      if (windows) await execute('taskkill.exe', ['/PID', String(pid), '/T', '/F'])
+      else process.kill(pid, 'SIGKILL')
+    } catch (error) {
+      cleanup.push(error.message)
+    }
+  }
+  if (cleanup.length) report.pushCleanupErrors = cleanup
+  if (failure) throw failure
+  if (cleanup.length) throw new Error(`Push acceptance cleanup failed: ${cleanup.join('; ')}`)
+}
+
+// Each native key reply names its delivery path, so report.json shows how every key reached the shell.
+const keyCommands = new Set(['escape', 'palette', 'down', 'home', 'quit'])
+function recordKeys(native, report) {
+  return async (pid, command, ...rest) => {
+    const reply = await native(pid, command, ...rest)
+    if (keyCommands.has(command)) {
+      report.keyDelivery ??= []
+      report.keyDelivery.push({ command, ...reply })
+    }
+    return reply
+  }
+}
+
 function menuCommands(items, enabled = true) {
   return items.flatMap((item) => item.children.length
     ? menuCommands(item.children, enabled && item.enabled)
     : [{ ...item, enabled: enabled && item.enabled }])
 }
 
-export async function acceptance({ repository, output }) {
+export async function acceptance({ repository, output, credentials = {}, signing = null }) {
   await mkdir(join(output, 'trees'), { recursive: true })
-  const report = { platform: process.platform, architecture: process.arch, accessibility: {}, updateRequests: [], launchChecks: [], passed: false }
+  const report = { platform: process.platform, architecture: process.arch, accessibility: {}, updateRequests: [], launchChecks: [], launchContexts: {}, passed: false,
+    signing: signing ? { identity: signing.identity, entitlements: 'Entitlements.staging.plist' }
+      : { unsigned: windows ? 'Windows packages with --no-sign' : unsignedReason } }
   const nextOutput = join(repository, 'apps/web/.next')
   let finishRecording
   let isolation
@@ -237,17 +382,17 @@ export async function acceptance({ repository, output }) {
     finishRecording = await startRecording(output)
     const checkpoint = (event) => report.launchChecks.push({ event, recordingSeconds: (Date.now() - finishRecording.startedAt) / 1000 })
     process.stdout.write('Building release-shaped installer and hermetic web application\n')
-    const shell = await buildInstaller(repository, output)
+    const shell = await buildInstaller(repository, output, signing)
     builtWeb = true
     await hermeticServices(repository, output)
-    const native = await nativeTool(output)
+    const native = recordKeys(await nativeTool(output), report)
     const updates = await updateServer(repository, output, shell, report)
     isolation = await isolateOrigins(output)
     proxy = await startProxy({ probePath: join(directory, 'acceptance-probe.js'), port: proxyPort, upstreamPort: 3401, tls: isolation, route: updates.route, acceptance: true })
     const executable = await install(shell.installer, output)
     report.install = { source: shell.installer, executable, target: shell.target, version: '1.0.0', optionalFeatures: [] }
     checkpoint('first-launch')
-    let handle = installedLaunch(executable, output, 'installed')
+    let handle = await installedLaunch(executable, output, 'installed', report)
     await waitFor(() => proxy.read('email-completed'), 'email sign-in through the BFF')
     checkpoint('email-completed')
     const hoje = await waitFor(() => proxy.read('hoje'), 'Hoje in installed shell')
@@ -270,7 +415,7 @@ export async function acceptance({ repository, output }) {
       proxy.reset({ expectAuthenticated: true })
       updates.mode(mode)
       checkpoint(`relaunch-${mode}`)
-      handle = installedLaunch(executable, output, `update-${mode}`)
+      handle = await installedLaunch(executable, output, `update-${mode}`, report)
       await waitFor(() => proxy.read('hoje'), 'authenticated installed relaunch')
       checkpoint(`relaunched-hoje-${mode}`)
       proxy.send(`update-${phase}`)
@@ -283,6 +428,7 @@ export async function acceptance({ repository, output }) {
       }
     }
     // A verified download opens the native restart prompt; installation is a separate acceptance concern.
+    await pushPhase({ proxy, native, updates, handle, executable, output, report, credentials, signed: Boolean(signing), checkpoint })
     report.passed = true
   } catch (error) {
     report.error = error.stack

@@ -15,6 +15,7 @@ import { artifactName, targets, verifyArtifact, type Manifest } from '../../apps
 import * as releaseModule from '../../apps/desktop/scripts/release'
 import { assertAccessibleTree, corruptSignature } from './acceptance-contract.mjs'
 import * as acceptanceContract from './acceptance-contract.mjs'
+import { takeSigningMaterial } from './acceptance-platform.mjs'
 
 const vector = JSON.parse(readFileSync(new URL('../../apps/desktop/__fixtures__/signer-vector.json', import.meta.url), 'utf8')) as { payload: string; signature: string; publicKey: string; version: string }
 const bytes = Buffer.from(vector.payload)
@@ -23,8 +24,17 @@ assert.throws(() => verifyArtifact(bytes, corruptSignature(vector.signature), ve
 const require = createRequire(import.meta.url)
 const repository = fileURLToPath(new URL('../../', import.meta.url))
 
+// Each slice ends at the first end anchor after its own start, so an earlier copy of the anchor cannot empty it.
+function sourceBlock(source: string, start: string, end: string) {
+  const from = source.indexOf(start)
+  assert.ok(from >= 0, `Source has no ${start}`)
+  const to = source.indexOf(end, from + start.length)
+  assert.ok(to > from, `Source has no ${end} after ${start}`)
+  return source.slice(from, to)
+}
+
 function producerFunction(source: string, name: string, end: string, context: Record<string, unknown>) {
-  const body = source.slice(source.indexOf(`async function ${name}`), source.indexOf(end))
+  const body = sourceBlock(source, `async function ${name}`, end)
     .replace("await import(pathToFileURL(join(repository, 'apps/desktop/scripts/release.ts')).href)", 'releaseModule')
   runInNewContext(`${body}\nglobalThis.producer = ${name}`, context)
   return (context as typeof context & { producer: (...args: unknown[]) => Promise<unknown> }).producer
@@ -200,11 +210,29 @@ test('UIA offscreen state excludes an infinite rectangle without exempting visib
   ] }, 'darwin'), /role and name/)
 })
 
+const uiaSource = readFileSync(new URL('./acceptance-uia.ps1', import.meta.url), 'utf8')
+
+function powerShellProducerSlices(source: string) {
+  const serialize = source.lastIndexOf('@{ denied =')
+  assert.ok(serialize >= 0, 'PowerShell producer has no tree serialization')
+  return {
+    functions: sourceBlock(source, 'function ConvertTo-FiniteNumber', 'function Read-Element'),
+    appendNode: sourceBlock(source, '  $nodes.Add(@{', '  $walker ='),
+    serialize: source.slice(serialize),
+  }
+}
+
+test('PowerShell producer slices hold the function and blocks the rectangle test runs', () => {
+  const { functions, appendNode, serialize } = powerShellProducerSlices(uiaSource)
+  assert.match(functions, /^function ConvertTo-FiniteNumber\(\[double\]\$value\) \{[\s\S]*\}\s*$/)
+  assert.doesNotMatch(functions, /function Read-Element/)
+  assert.match(appendNode, /^ {2}\$nodes\.Add\(@\{[\s\S]*BoundingRectangle = @\{[\s\S]*\}\)\s*$/)
+  assert.doesNotMatch(appendNode, /\$walker/)
+  assert.match(serialize, /^@\{ denied = \$false; error = \$failure; nodes = @\(\$nodes\.ToArray\(\)\) \} \| ConvertTo-Json/)
+})
+
 test('PowerShell producer writes finite JSON for every rectangle component', { skip: process.platform !== 'win32' }, () => {
-  const source = readFileSync(new URL('./acceptance-uia.ps1', import.meta.url), 'utf8')
-  const functions = source.slice(source.indexOf('function ConvertTo-FiniteNumber'), source.indexOf('function Read-Element'))
-  const appendNode = source.slice(source.indexOf('  $nodes.Add(@{'), source.indexOf('  $walker ='))
-  const serialize = source.slice(source.lastIndexOf('@{ denied ='))
+  const { functions, appendNode, serialize } = powerShellProducerSlices(uiaSource)
   const script = `
 $ErrorActionPreference = 'Stop'
 ${functions}
@@ -230,6 +258,7 @@ ${serialize}`
 
 const probeSource = readFileSync(new URL('./acceptance-probe.js', import.meta.url), 'utf8')
   .replaceAll('__BENCH_EXPECT_AUTHENTICATED__', 'false')
+  .replaceAll('__BENCH_REPORT_SIGN_IN__', 'false')
   .replace('run().catch', 'globalThis.completion = run().catch')
 const safariStack = 'emailSignIn@https://app-staging.useorbit.org/_bench/probe.js:22:40'
 
@@ -362,7 +391,7 @@ test('a failed capture remains a failure even when its partial tree has valid co
 
 test('surface inspection writes the entire capture before validating or failing the native command', async () => {
   const runner = readFileSync(new URL('./acceptance-runner.mjs', import.meta.url), 'utf8')
-  const inspect = runner.slice(runner.indexOf('async function inspectSurfaces'), runner.indexOf('function installedLaunch'))
+  const inspect = runner.slice(runner.indexOf('async function inspectSurfaces'), runner.indexOf('async function installedLaunch'))
   for (const failedCommand of [false, true]) {
     const snapshot = tree([{ ...button, name: '' }])
     const records: { path: string; value: unknown }[] = []
@@ -383,7 +412,7 @@ test('surface inspection writes the entire capture before validating or failing 
 
 function inspectionContext(platform: string) {
   const runner = readFileSync(new URL('./acceptance-runner.mjs', import.meta.url), 'utf8')
-  const inspect = runner.slice(runner.indexOf('async function inspectSurfaces'), runner.indexOf('function installedLaunch'))
+  const inspect = runner.slice(runner.indexOf('async function inspectSurfaces'), runner.indexOf('async function installedLaunch'))
   const host = readFileSync(new URL('./host.mjs', import.meta.url), 'utf8')
   const polling = host.slice(host.indexOf('export async function waitFor('), host.indexOf('export async function waitForHttp'))
     .replace('export async function', 'async function')
@@ -514,6 +543,53 @@ test('surface inspection dismisses Astra and waits for its modal focus owner bef
   }
 })
 
+test('a timed-out Astra dismissal records the native tree after Escape and the page key receipts', async () => {
+  const astra = { denied: false, error: null, nodes: [
+    { ...button, id: '0', role: 'AXWebArea', interactive: false },
+    { ...button, id: '0/0', role: 'AXTextArea', name: 'Message Astra', focused: true },
+  ] }
+  for (const scenario of ['received', 'lost', 'unreadable']) {
+    const context = inspectionContext('darwin')
+    const commands: string[] = []
+    const native = async (_pid: number, command: string) => {
+      commands.push(command)
+      if (command !== 'dump') return { sent: command, delivery: 'hid-event-tap' }
+      if (scenario === 'unreadable' && commands.filter((entry) => entry === 'dump').length === 3) throw new Error('AX read failed')
+      return astra
+    }
+    const events = scenario === 'lost' ? [] : [{ kind: 'astra-key', key: 'Escape', keyCode: 27, trusted: true, targetComposer: true }]
+    const proxy = {
+      send(command: string) { commands.push(command) },
+      read(surface: string) { return surface === 'astra' && {} },
+      events: () => events,
+    }
+    const report: Record<string, unknown> = { accessibility: {} }
+    const count = scenario === 'lost' ? '0 Escape keydowns' : '1 Escape keydown'
+    await assert.rejects(() => context.inspect(proxy, native, { child: { pid: 1 } }, 'output', report),
+      new RegExp(`^Error: Timed out waiting for Astra dismissal; the page received ${count}; see trees/astra-after-escape\\.json$`))
+    assert.deepEqual(commands, ['dump', 'astra', 'dump', 'escape', 'astra-closed', 'dump'])
+    assert.deepEqual(report.astraKeys, events)
+    const capture = context.records.at(-1)!
+    assert.equal(capture.path, join('output', 'trees', 'astra-after-escape.json'))
+    assert.deepEqual(JSON.parse(JSON.stringify(capture.value)), scenario === 'unreadable' ? { denied: false, error: 'AX read failed', nodes: [] } : astra)
+  }
+})
+
+test('every native key reply joins the report with its delivery path, and other native commands do not', async () => {
+  const runner = readFileSync(new URL('./acceptance-runner.mjs', import.meta.url), 'utf8')
+  const context: Record<string, unknown> = {}
+  runInNewContext(`${sourceBlock(runner, 'const keyCommands', '\nfunction menuCommands')}\nglobalThis.recordKeys = recordKeys`, context)
+  const report: { keyDelivery?: unknown[] } = {}
+  const calls: unknown[][] = []
+  const native = (context.recordKeys as (native: unknown, report: unknown) => (...args: unknown[]) => Promise<unknown>)(
+    async (...args: unknown[]) => { calls.push(args); return args[1] === 'dump' ? { nodes: [] } : { sent: args[1], delivery: 'hid-event-tap', focusedProcess: 7 } }, report)
+  for (const command of ['dump', 'escape', 'palette', 'down', 'home', 'notification', 'windows']) await native(7, command)
+  assert.deepEqual(JSON.parse(JSON.stringify(await native(7, 'quit', 41))), { sent: 'quit', delivery: 'hid-event-tap', focusedProcess: 7 })
+  assert.deepEqual(calls.at(-1), [7, 'quit', 41])
+  assert.deepEqual(JSON.parse(JSON.stringify(report.keyDelivery)), ['escape', 'palette', 'down', 'home', 'quit'].map((command) =>
+    ({ command, sent: command, delivery: 'hid-event-tap', focusedProcess: 7 })))
+})
+
 test('the page probe waits for Astra removal before acknowledging dismissal', async () => {
   const until = probeSource.slice(probeSource.indexOf('  async function until('), probeSource.indexOf('  async function emailSignIn('))
   const screen = probeSource.slice(probeSource.indexOf('  async function screen('), probeSource.indexOf('  function paletteState('))
@@ -541,6 +617,38 @@ test('the page probe waits for Astra removal before acknowledging dismissal', as
     assert.deepEqual(keys, command === 'astra-close' ? ['Escape'] : [])
     assert.deepEqual(reports, ['astra-closed'])
   }
+})
+
+test('the page probe records each keydown while Astra is open, so a lost native Escape is visible', async () => {
+  const until = probeSource.slice(probeSource.indexOf('  async function until('), probeSource.indexOf('  async function emailSignIn('))
+  const screen = probeSource.slice(probeSource.indexOf('  async function screen('), probeSource.indexOf('  function paletteState('))
+  const composer = { name: 'composer' }
+  let conversation: { querySelector: (selector: string) => unknown } | null = null
+  const listeners: [string, (event: unknown) => void, boolean][] = []
+  const reports: { kind: string; details: Record<string, unknown> }[] = []
+  const context = { Date, Error, delay: async () => {},
+    document: {
+      hasFocus: () => true,
+      querySelector(selector: string) {
+        if (selector === '[data-astra-button]:not([disabled])') return { click() { conversation = { querySelector: () => composer } } }
+        if (selector === '[data-shell-conversation] [data-composer-input]') return conversation && composer
+        if (selector === '[data-shell-conversation]') return conversation
+        return null
+      },
+      addEventListener(type: string, listener: (event: unknown) => void, capture: boolean) { listeners.push([type, listener, capture]) },
+    },
+    report: async (kind: string, details: Record<string, unknown> = {}) => { reports.push({ kind, details }) },
+  }
+  runInNewContext(`${until}\n${screen}\nglobalThis.screen = screen`, context)
+  await (context as typeof context & { screen: (surface: string) => Promise<void> }).screen('astra')
+  const keydown = listeners.filter(([type, , capture]) => type === 'keydown' && capture)
+  assert.equal(keydown.length, 1)
+  keydown[0][1]({ key: 'Escape', code: 'Escape', keyCode: 27, isComposing: false, isTrusted: true, target: composer })
+  conversation = null
+  keydown[0][1]({ key: 'k', code: 'KeyK', keyCode: 75, isComposing: false, isTrusted: true, target: null })
+  assert.deepEqual(JSON.parse(JSON.stringify(reports.filter((entry) => entry.kind === 'astra-key'))), [{ kind: 'astra-key', details: {
+    key: 'Escape', code: 'Escape', keyCode: 27, composing: false, trusted: true, documentFocused: true, targetComposer: true } }])
+  assert.deepEqual(reports.map((entry) => entry.kind), ['astra', 'astra-key'])
 })
 
 test('acceptance cleanup records failures without replacing the original acceptance error', async () => {
@@ -795,3 +903,73 @@ if (process.platform === 'darwin') {
     })
   }
 }
+
+test('Developer ID signing material leaves the environment and is all or nothing on macOS', () => {
+  const material = { MACOS_DEVELOPER_ID_CERTIFICATE_BASE64: 'certificate', MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD: 'password',
+    MACOS_PROVISIONING_PROFILE_BASE64: 'profile', MACOS_SIGNING_IDENTITY: 'Developer ID Application: Fixture (BD7JH468F7)' }
+  const environment: NodeJS.ProcessEnv = { PATH: '/bin', ...material }
+  assert.deepEqual(takeSigningMaterial(environment, 'darwin'), { certificate: 'certificate', password: 'password', profile: 'profile',
+    identity: 'Developer ID Application: Fixture (BD7JH468F7)' })
+  assert.deepEqual(environment, { PATH: '/bin' })
+  assert.equal(takeSigningMaterial({ PATH: '/bin' }, 'darwin'), null)
+  const windowsEnvironment: NodeJS.ProcessEnv = { ...material }
+  assert.equal(takeSigningMaterial(windowsEnvironment, 'win32'), null)
+  assert.deepEqual(windowsEnvironment, {})
+  const partial: NodeJS.ProcessEnv = { MACOS_SIGNING_IDENTITY: 'identity', MACOS_PROVISIONING_PROFILE_BASE64: '' }
+  assert.throws(() => takeSigningMaterial(partial, 'darwin'), /^Error: Developer ID signing needs MACOS_DEVELOPER_ID_CERTIFICATE_BASE64, MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD, MACOS_PROVISIONING_PROFILE_BASE64;/)
+  assert.deepEqual(partial, {})
+})
+
+test('a signed macOS acceptance build compiles without credentials and signs only the bundle with the profile and this run updater key', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'orbit-acceptance-signing-'))
+  try {
+    const output = join(directory, 'output')
+    mkdirSync(output, { recursive: true })
+    const bundle = join(directory, 'apps/desktop/src-tauri/target/aarch64-apple-darwin/release/bundle')
+    for (const [folder, name] of [['dmg', 'fixture.dmg'], ['macos', 'fixture.app.tar.gz']] as const) {
+      mkdirSync(join(bundle, folder), { recursive: true })
+      writeFileSync(join(bundle, folder, name), 'fixture')
+    }
+    const application = 'BD7JH468F7.org.useorbit.desktop.staging'
+    const named = { profile: application }
+    const calls: { command: string; args: string[]; env?: NodeJS.ProcessEnv }[] = []
+    const execute = async (command: string, args: string[], options: { env?: NodeJS.ProcessEnv } = {}) => {
+      calls.push({ command, args, env: options.env })
+      if (args[1] === 'signer' && args[2] === 'generate') writeFileSync(`${args.at(-1)}.pub`, 'fixture-public-key')
+      if (args[1] === 'signer' && args[2] === 'sign') writeFileSync(`${args.at(-1)}.sig`, 'fixture-signature')
+      if (command === 'security') return '<plist/>'
+      if (command === '/usr/libexec/PlistBuddy') return `${args[2]!.endsWith('Entitlements.staging.plist') ? application : named.profile}\n`
+      return ''
+    }
+    const source = readFileSync(new URL('./acceptance-platform.mjs', import.meta.url), 'utf8')
+    const build = producerFunction(source, 'buildInstaller', 'export async function install(', {
+      ...files, Buffer, join, require, execute, artifactName, windows: false, npmCli: () => 'npm-cli',
+      process: { execPath: 'node', env: { PATH: '/bin' }, arch: 'arm64' },
+    })
+    const signing = { certificate: 'fixture-certificate', password: 'fixture-password', profile: Buffer.from('fixture-profile').toString('base64'),
+      identity: 'Developer ID Application: Fixture (BD7JH468F7)' }
+    await build(directory, output, signing)
+    const tauri = calls.filter(({ args }) => args[0] === 'npm-cli')
+    assert.deepEqual(tauri.map(({ args }) => args[2]), ['build:staging', 'bundle:staging'])
+    const [compile, sign] = tauri as [typeof tauri[0], typeof tauri[0]]
+    assert.ok(compile.args.includes('--no-bundle') && !compile.args.includes('--no-sign') && compile.env === undefined)
+    assert.ok(!sign.args.includes('--no-sign'))
+    assert.equal(sign.args.slice(sign.args.indexOf('--bundles'), sign.args.indexOf('--bundles') + 2).join(' '), '--bundles app,dmg')
+    assert.deepEqual({ APPLE_CERTIFICATE: sign.env!.APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD: sign.env!.APPLE_CERTIFICATE_PASSWORD,
+      APPLE_SIGNING_IDENTITY: sign.env!.APPLE_SIGNING_IDENTITY, TAURI_SIGNING_PRIVATE_KEY: sign.env!.TAURI_SIGNING_PRIVATE_KEY,
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: sign.env!.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }, {
+      APPLE_CERTIFICATE: 'fixture-certificate', APPLE_CERTIFICATE_PASSWORD: 'fixture-password', APPLE_SIGNING_IDENTITY: signing.identity,
+      TAURI_SIGNING_PRIVATE_KEY: join(output, 'updater.key'), TAURI_SIGNING_PRIVATE_KEY_PASSWORD: '' })
+    const configs = sign.args.flatMap((value, index) => sign.args[index - 1] === '--config' ? [value] : [])
+    assert.equal(configs[0], join(output, 'release-config.json'))
+    const signingConfig = JSON.parse(readFileSync(configs[1]!, 'utf8')) as { bundle: { macOS: { files: Record<string, string> } } }
+    assert.deepEqual(Object.keys(signingConfig.bundle.macOS.files), ['embedded.provisionprofile'])
+    assert.equal(readFileSync(signingConfig.bundle.macOS.files['embedded.provisionprofile']!, 'utf8'), 'fixture-profile')
+    assert.ok(calls.every(({ env }) => !env || env.APPLE_CERTIFICATE === undefined || env === sign.env))
+    named.profile = 'OTHERTEAM.org.useorbit.desktop.staging'
+    await assert.rejects(() => build(directory, output, signing),
+      /^Error: The provisioning profile names OTHERTEAM\.org\.useorbit\.desktop\.staging, not BD7JH468F7\.org\.useorbit\.desktop\.staging from Entitlements\.staging\.plist$/)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})

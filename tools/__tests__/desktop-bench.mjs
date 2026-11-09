@@ -1,9 +1,10 @@
-import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { spawnSync } from 'node:child_process'
-import { benchmarkViewport, electronInstallArguments, electronMainSource, normalizeElectronArchiveEntries, tauriBenchmarkOverlay } from '../desktop-bench/build.mjs'
+import { benchmarkViewport, cacheElectronArtifact, electronBuilderVersion, electronDownloadDelays, electronInstallArguments, electronMainSource, normalizeElectronArchiveEntries, retryableBuilderOutput, retryableDownloadFailure, runElectronBuilder, tauriBenchmarkOverlay } from '../desktop-bench/build.mjs'
 import { assertViewport, buildHermeticWeb } from '../desktop-bench/runner.mjs'
 import { T, REPO_ROOT, check, configure, failureCount, root } from './_harness.mjs'
 import { cpuSeconds, median, metrics, parseMacProcesses, percentile, processTree, summarize, markdown } from '../desktop-bench/measurements.mjs'
@@ -40,6 +41,63 @@ function electronViewportCases() {
   const windowOptions = calls[windowIndex][1]
   T('Electron requests content dimensions and permits a window larger than the runner display',
     windowOptions.width === 900 && windowOptions.height === 600 && windowOptions.useContentSize === true && windowOptions.enableLargerThanScreen === true)
+}
+
+// @electron/get 5 FetchDownloader throws HTTPError with name 'HTTPError' and the fetch Response as response.
+function httpError(status) {
+  return Object.assign(new Error(`Response code ${status} for https://github.com/electron/electron/releases/download/v45.2.3/electron-v45.2.3-win32-x64.zip`),
+    { name: 'HTTPError', response: { status } })
+}
+
+async function electronDownloadCases() {
+  const electron = mkdtempSync(join(tmpdir(), 'orbit-electron-download-'))
+  mkdirSync(join(electron, 'node_modules/electron'), { recursive: true })
+  const checksum = 'a'.repeat(64)
+  writeFileSync(join(electron, 'node_modules/electron/package.json'), JSON.stringify({ name: 'electron', version: '45.2.3' }))
+  writeFileSync(join(electron, 'node_modules/electron/checksums.json'), JSON.stringify({ 'electron-v45.2.3-win32-x64.zip': checksum, 'electron-v45.2.3-darwin-arm64.zip': 'b'.repeat(64) }))
+  const run = async (failures) => {
+    const calls = []
+    const waits = []
+    const logs = []
+    const remaining = [...failures]
+    const load = async (path) => {
+      calls.push({ path })
+      return { downloadArtifact: async (details) => {
+        calls.push(details)
+        const failure = remaining.shift()
+        if (failure) throw failure
+        return join(details.cacheRoot, 'archive.zip')
+      } }
+    }
+    let result
+    let error
+    try {
+      result = await cacheElectronArtifact(electron, { platform: 'win32', arch: 'x64', cacheBase: join(electron, 'cache'), load,
+        delay: async (milliseconds) => { waits.push(milliseconds) }, log: (line) => logs.push(line) })
+    } catch (caught) { error = caught }
+    return { calls, waits, logs, result, error }
+  }
+  const outage = await run([httpError(504), httpError(504)])
+  const downloads = outage.calls.slice(1)
+  T('Electron download loads the installed @electron/get entry', outage.calls[0].path === join(electron, 'node_modules/@electron/get/dist/index.js'))
+  T('Electron download retries a 504 with backoff and then succeeds',
+    outage.result?.attempts === 3 && downloads.length === 3 && outage.waits.join(',') === electronDownloadDelays.slice(0, 2).join(','), JSON.stringify(outage.waits))
+  T('Electron cache directory is named by the exact artifact checksum',
+    outage.result?.cacheRoot === join(electron, 'cache', checksum) && downloads.every((details) => details.cacheRoot === join(electron, 'cache', checksum)))
+  T('Electron download verifies against the installed checksums for the exact version and platform',
+    downloads.every((details) => details.version === '45.2.3' && details.artifactName === 'electron' && details.platform === 'win32' && details.arch === 'x64' &&
+      details.checksums['electron-v45.2.3-win32-x64.zip'] === checksum))
+  T('Electron download logs every retried failure', outage.logs.length === 2 && outage.logs.every((line) => line.includes('504')))
+  const missing = await run([httpError(404)])
+  T('Electron download does not retry a missing release', missing.error?.response?.status === 404 && missing.calls.length === 2 && missing.waits.length === 0)
+  const exhausted = await run(Array.from({ length: electronDownloadDelays.length + 1 }, () => httpError(504)))
+  T('Electron download stops after the last backoff', exhausted.error?.response?.status === 504 && exhausted.calls.length === electronDownloadDelays.length + 2)
+  const unknown = await cacheElectronArtifact(electron, { platform: 'linux', arch: 'x64', cacheBase: electron, load: async () => ({ downloadArtifact: async () => {} }) })
+    .then(() => null, (caught) => caught.message)
+  T('Electron download refuses an artifact without a published checksum', /no SHA-256 for electron-v45\.2\.3-linux-x64\.zip/.test(unknown ?? ''), unknown)
+  T('only server errors, rate limits and connection failures retry',
+    retryableDownloadFailure(httpError(502)) && retryableDownloadFailure(httpError(429)) && retryableDownloadFailure(new TypeError('fetch failed')) &&
+    !retryableDownloadFailure(httpError(403)) && !retryableDownloadFailure(new Error('sha256 checksum mismatch')))
 }
 
 function requestedViewportCases() {
@@ -327,9 +385,70 @@ try {
   }
 }
 
+// A benchmark run lasts about forty minutes, so a run can cross midnight in the runner's time zone, and Hoje must keep the
+// 200 habits after it.
+function fixtureDateCases() {
+  const localDate = (offset) => { const date = new Date(); date.setDate(date.getDate() + offset); return date.toLocaleDateString('en-CA') }
+  const generated = localDate(0)
+  const output = join(mkdtempSync(join(tmpdir(), 'orbit-bench-fixtures-')), 'fixtures.json')
+  const result = spawnSync(process.execPath, ['--import', 'tsx', join(REPO_ROOT, 'tools/desktop-bench/fixtures.ts'), output], { cwd: REPO_ROOT, encoding: 'utf8', timeout: 30000 })
+  T('benchmark fixtures generate', result.status === 0, result.stderr)
+  if (result.status !== 0) return
+  const habits = JSON.parse(readFileSync(output, 'utf8')).fixtures.find((fixture) => fixture.path === '/api/habits').body.items
+  // The generation day is read before the fixture runs, so a test that itself crosses midnight still has a next day to check.
+  const nextDay = localDate(generated === localDate(0) ? 1 : 0)
+  T('all 200 benchmark habits stay on Hoje when a run crosses midnight', habits.length === 200 &&
+    habits.every((habit) => habit.scheduledDates.includes(generated) && habit.scheduledDates.includes(nextDay)),
+    JSON.stringify({ generated, nextDay, sample: habits[0]?.scheduledDates }))
+}
+
+// The 504 lines are copied from the measure (windows-latest) electron-build.log of electron-builder 26.18.0.
+const builderDownloaded = '  • downloaded      label=7zip-win-x64.tar.gz progress=100%\n  • downloaded      label=nsis-3.0.4.1.7z progress=100%\n'
+const builderOutage = '  ⨯ Response code 504 (Gateway Time-out)  failedTask=build stackTrace=HTTPError: Response code 504 (Gateway Time-out)\n'
+
+async function electronBuilderRetryCases() {
+  const run = async (outputs) => {
+    let log = 'earlier Electron install output with Response code 503 (Service Unavailable)\n'
+    const waits = []
+    const lines = []
+    let runs = 0
+    let attempts
+    let error
+    try {
+      attempts = await runElectronBuilder(async () => {
+        const output = outputs[runs++]
+        log += output ?? '  • building        target=nsis\n'
+        if (output !== undefined) throw new Error('node exited 1: ; see electron-build.log')
+      }, { readLog: async () => log, delay: async (milliseconds) => { waits.push(milliseconds) }, log: (line) => lines.push(line) })
+    } catch (caught) { error = caught }
+    return { attempts, error, runs, waits, lines }
+  }
+  const outage = await run([builderDownloaded + builderOutage, builderOutage])
+  T('electron-builder reruns after a toolset download answers 504 and then succeeds',
+    outage.attempts === 3 && outage.runs === 3 && outage.waits.join(',') === electronDownloadDelays.slice(0, 2).join(','), JSON.stringify(outage))
+  T('electron-builder retry names the failed download response',
+    outage.lines.length === 2 && outage.lines.every((line) => line.includes('Response code 504 (Gateway Time-out)')), JSON.stringify(outage.lines))
+  const signing = await run(['  ⨯ cannot find specified resource "icon.ico"\n'])
+  T('electron-builder does not rerun a failure that is not a download', signing.error?.message.includes('exited 1') && signing.runs === 1 && signing.waits.length === 0)
+  const exhausted = await run(Array.from({ length: electronDownloadDelays.length + 1 }, () => builderOutage))
+  T('electron-builder stops after the last backoff', exhausted.error !== undefined && exhausted.runs === electronDownloadDelays.length + 1)
+  T('only download server errors, rate limits and connection failures rerun electron-builder',
+    retryableBuilderOutput(builderOutage) && retryableBuilderOutput('Response code 429 (Too Many Requests)') && retryableBuilderOutput('Error: read ECONNRESET') &&
+    !retryableBuilderOutput('Response code 404 (Not Found)') && !retryableBuilderOutput(builderDownloaded))
+  const workflow = readFileSync(join(REPO_ROOT, '.github/workflows/desktop-benchmark.yml'), 'utf8')
+  T('the electron-builder cache key names the installed electron-builder version',
+    workflow.includes(`key: desktop-benchmark-electron-builder-\${{ runner.os }}-\${{ runner.arch }}-${electronBuilderVersion}\n`) &&
+    electronInstallArguments('workspace', '45.1.0').includes(`electron-builder@${electronBuilderVersion}`))
+  T('the benchmark run reads the restored electron-builder cache',
+    workflow.includes('path: ${{ runner.temp }}/electron-builder-cache') && workflow.includes('ORBIT_ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/electron-builder-cache'))
+}
+
 export const cases = async () => {
+  fixtureDateCases()
   electronViewportCases()
   requestedViewportCases()
+  await electronDownloadCases()
+  await electronBuilderRetryCases()
   await probeReadinessCases()
   await runnerAccountingCases()
   nativeAccountingCases()

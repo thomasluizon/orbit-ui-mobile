@@ -105,12 +105,12 @@ describe.each(environments)('$name desktop', ({ config, origin, identifier }) =>
     expect(source.match(/<key>/g)).toHaveLength(3)
   })
 
-  it('observes native launch intent before startup and gates window creation with it', () => {
+  it('observes native launch intent before startup, gates window creation with it and restores the window on every secondary launch', () => {
     const entrypoint = readFileSync(new URL('../src-tauri/src/main.rs', import.meta.url), 'utf8').split('#[cfg(test)]')[0]!
     expect(entrypoint).toMatch(/\.build\(context\)[\s\S]*if let Err\(error\) = push::prepare_launch\(\)[\s\S]*Cannot observe desktop launch[\s\S]*app\.run\(handle_run_event\)/)
     expect(entrypoint).toMatch(/lifecycle::create_main\(\s*window_config,\s*push::notification_launch\(\)/)
     expect(entrypoint).toContain('.activate_ignoring_other_apps(false)')
-    expect(entrypoint).toContain('if !push::notification_activation(&arguments)')
+    expect(entrypoint).toMatch(/tauri_plugin_single_instance::init\(\|app, arguments, _\| \{\s*push::secondary_launch\(&arguments\);\s*if let Err\(error\) = lifecycle::show_main\(app\)/)
   })
 })
 
