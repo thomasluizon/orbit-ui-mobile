@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -322,4 +322,59 @@ test('PowerShell producer lists process windows, finds the installed executable,
   assert.equal(typeof self.elevated, 'boolean')
   assert.ok(tokens.hosts.some((host) => host.name === 'explorer'))
   assert.ok(tokens.hosts.every((host) => host.error ? host.integrity === null : level.test(String(host.integrity))))
+})
+
+// The installed acceptance reads the Orbit caption through this reader (#2084), so it runs here against a real DWM caption.
+test('Windows caption reader samples the canvas caption that DWMWA_CAPTION_COLOR paints, above the client area and above a menu bar', { skip: process.platform !== 'win32' }, () => {
+  const directory = mkdtempSync(join(tmpdir(), 'orbit-caption-'))
+  try {
+    const reader = fileURLToPath(new URL('./acceptance-caption.cs', import.meta.url))
+    const script = `
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition (Get-Content -LiteralPath '${reader}' -Raw)
+Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+public static class CaptionFixture {
+    [DllImport("dwmapi.dll")] public static extern int DwmSetWindowAttribute(IntPtr window, int attribute, ref int value, int size);
+}
+'@
+function Wait-Paint { for ($index = 0; $index -lt 10; $index++) { [System.Windows.Forms.Application]::DoEvents(); Start-Sleep -Milliseconds 50 } }
+$form = New-Object System.Windows.Forms.Form
+$form.Text = 'Orbit caption fixture'
+$form.StartPosition = 'Manual'
+$form.SetBounds(100, 100, 800, 400)
+$form.TopMost = $true
+$form.Show()
+# DWMWA_CAPTION_COLOR (35) takes a COLORREF, 0x00BBGGRR, so the dark canvas #09090B is 0x000B0909.
+$color = 0x000B0909
+$status = [CaptionFixture]::DwmSetWindowAttribute($form.Handle, 35, [ref]$color, 4)
+$form.Activate()
+Wait-Paint
+$plain = [OrbitCaptionReader]::Read($form.Handle, '${join(directory, 'plain.png')}')
+$form.Menu = New-Object System.Windows.Forms.MainMenu
+[void]$form.Menu.MenuItems.Add('File')
+Wait-Paint
+$menu = [OrbitCaptionReader]::Read($form.Handle, '${join(directory, 'menu.png')}')
+$form.Close()
+@{ status = $status; plain = $plain; menu = $menu } | ConvertTo-Json -Depth 6
+`
+    const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', timeout: 60000 })
+    assert.equal(result.status, 0, result.stderr)
+    type Caption = { frame: number[]; bottom: number; menuBar: boolean; sampled: number; colors: { color: number[]; count: number }[] }
+    const { status, plain, menu } = JSON.parse(result.stdout) as { status: number; plain: Caption; menu: Caption }
+    assert.equal(status, 0, 'the runner supports DWMWA_CAPTION_COLOR')
+    assert.deepEqual([plain.menuBar, menu.menuBar], [false, true])
+    for (const caption of [plain, menu]) {
+      assert.ok(caption.bottom > caption.frame[1]! && caption.sampled > 0, JSON.stringify(caption))
+      assert.deepEqual(caption.colors[0]!.color, [9, 9, 11], JSON.stringify(caption))
+      assert.ok(caption.colors[0]!.count >= caption.sampled * 0.9, JSON.stringify(caption))
+    }
+    // The menu bar starts below the caption, so its rows never enter the sample.
+    assert.ok(Math.abs((menu.bottom - menu.frame[1]!) - (plain.bottom - plain.frame[1]!)) <= 1, JSON.stringify({ plain, menu }))
+    for (const name of ['plain.png', 'menu.png']) assert.ok(statSync(join(directory, name)).size > 0, name)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
 })

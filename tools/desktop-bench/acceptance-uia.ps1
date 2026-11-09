@@ -1,12 +1,13 @@
 param(
   [Parameter(Mandatory = $true)][int]$TargetProcessId,
-  [Parameter(Mandatory = $true)][ValidateSet('dump', 'down', 'home', 'escape', 'palette', 'menu', 'quit', 'windows', 'close', 'notification', 'process', 'activation')][string]$Command,
+  [Parameter(Mandatory = $true)][ValidateSet('dump', 'down', 'home', 'escape', 'palette', 'menu', 'quit', 'caption', 'windows', 'close', 'notification', 'process', 'activation')][string]$Command,
   [uint32]$MenuCommandId,
   [string]$Title,
   [string]$Label,
   [switch]$Invoke,
   [switch]$OpenCenter,
-  [string]$Executable
+  [string]$Executable,
+  [string]$Capture
 )
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes, WindowsBase, System.Windows.Forms
@@ -413,6 +414,16 @@ if ($Command -eq 'menu') {
 if ($Command -eq 'quit') {
   [OrbitForeground]::InvokeMenu($window.Current.NativeWindowHandle, $MenuCommandId)
   @{ sent = $Command } | ConvertTo-Json
+  exit 0
+}
+if ($Command -eq 'caption') {
+  if (-not $Capture) { throw 'caption requires -Capture' }
+  # Only this command compiles the caption reader, so the other commands keep their start time.
+  Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'acceptance-caption.cs') -Raw)
+  # A foreground window has nothing above its caption, and its active caption is the one the owner sees.
+  if (-not [OrbitForeground]::SetForegroundWindow($window.Current.NativeWindowHandle)) { throw 'Cannot foreground installed app' }
+  Start-Sleep -Milliseconds 250
+  [OrbitCaptionReader]::Read([IntPtr]$window.Current.NativeWindowHandle, $Capture) | ConvertTo-Json -Depth 5
   exit 0
 }
 if ($Command -ne 'dump') {
