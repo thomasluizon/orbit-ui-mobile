@@ -5,7 +5,6 @@ import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import sharp from "sharp"
-import pngToIco from "png-to-ico"
 
 const USAGE = `usage: generate-brand-assets.mjs --write [--root <path>]
 
@@ -287,9 +286,10 @@ async function renderWindowsIconLayer(sources, { size, margin, radius }) {
     .toBuffer()
 }
 
-/** An ICO that stores every layer as an embedded PNG, the layout Tauri's own icon command writes.
- *  png-to-ico stores BMP layers instead, which cost more bytes at 256 and need an AND mask. The
- *  ICONDIR is 6 bytes, each ICONDIRENTRY 16 bytes, and a width or height of 0 means 256. */
+/** The one ICO writer, for favicon.ico and icon.ico. It stores every layer as an embedded PNG, the
+ *  layout Tauri's own icon command writes and every browser Orbit supports reads. A BMP layer costs
+ *  more bytes at 256 and needs an AND mask. The ICONDIR is 6 bytes, each ICONDIRENTRY 16 bytes, and
+ *  a width or height of 0 means 256. */
 function pngLayersToIco(layers) {
   const header = Buffer.alloc(6)
   header.writeUInt16LE(1, 2)
@@ -342,13 +342,14 @@ async function main() {
   }
 
   const faviconLayers = await Promise.all(
-    faviconLayerAssets.map((asset) =>
-      asset.path ? renderedAssets.get(asset.path) : renderAsset(sources, asset),
-    ),
+    faviconLayerAssets.map(async (asset) => ({
+      size: asset.width,
+      png: asset.path ? renderedAssets.get(asset.path) : await renderAsset(sources, asset),
+    })),
   )
   const faviconPath = join(repositoryRoot, "apps", "web", "app", "favicon.ico")
   await mkdir(dirname(faviconPath), { recursive: true })
-  await writeFile(faviconPath, await pngToIco(faviconLayers))
+  await writeFile(faviconPath, pngLayersToIco(faviconLayers))
 
   const windowsIconPath = join(repositoryRoot, "apps", "desktop", "src-tauri", "icons", "icon.ico")
   await mkdir(dirname(windowsIconPath), { recursive: true })
