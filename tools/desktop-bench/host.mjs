@@ -43,6 +43,12 @@ export function start(command, argumentsList, { log, ...options } = {}) {
   return handle
 }
 
+// A handle whose process is not this process's child joins the same cleanup as a spawned one.
+export function track(handle) {
+  active.add(handle)
+  handle.done.then(() => active.delete(handle), () => active.delete(handle))
+}
+
 export async function stopAll() {
   const results = await Promise.allSettled([...active].map((handle) => stop(handle)))
   const failures = results.filter((result) => result.status === 'rejected')

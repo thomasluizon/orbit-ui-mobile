@@ -80,3 +80,33 @@ export function assertCookieEvidence(cookies, authenticated) {
   }
   if (!authenticated) throw new Error('The installed webview did not send its BFF session cookie')
 }
+
+export function visibleWindows(platform, reply) {
+  if (!Array.isArray(reply?.windows)) throw new Error(`Native reader returned no window list: ${JSON.stringify(reply)}`)
+  // Tauri registers its webview windows under this class; tray and dialog windows use other classes.
+  return reply.windows.filter((window) => platform === 'win32'
+    ? window.visible === true && window.className === 'Tauri Window'
+    : window.onscreen === true && window.layer === 0).length
+}
+
+function habitLogs(logs, habitId) {
+  return logs.filter((log) => log.habitId === habitId).length
+}
+
+export function assertDoneDelivered({ logs, habitId, visible }) {
+  const count = habitLogs(logs, habitId)
+  if (count !== 1) throw new Error(`Done must record exactly one habit log; the API recorded ${count}`)
+  if (visible !== 0) throw new Error(`Done must leave the app window hidden; ${visible} window(s) became visible`)
+  return { logs: 1, windowVisible: false }
+}
+
+// Sign-in paths match apps/desktop/src-tauri/src/auth.rs is_sign_in_path.
+const signInPaths = ['/login', '/auth-callback', '/onboarding']
+
+export function assertExpiredDone({ logs, habitId, visible, signIn }) {
+  const count = habitLogs(logs, habitId)
+  if (count !== 0) throw new Error(`An expired-session Done must record no habit log; the API recorded ${count}`)
+  if (visible < 1) throw new Error('An expired-session Done must leave the sign-in window visible')
+  if (!signInPaths.includes(signIn?.route)) throw new Error(`An expired-session Done must open the sign-in page, not ${signIn?.route}`)
+  return { logs: 0, windowVisible: true, route: signIn.route }
+}

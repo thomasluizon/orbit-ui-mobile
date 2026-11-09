@@ -10,6 +10,8 @@
 #include <winrt/Windows.Foundation.Collections.h>
 #include <chrono>
 #include <string>
+#include <vector>
+#include <cstdio>
 #include <cstdlib>
 #include "channel.h"
 
@@ -112,13 +114,64 @@ extern "C" int orbit_wns_initialize(wchar_t const* bootstrap, char const* object
     }
 }
 
+static char const* setting_name(AppNotificationSetting setting) {
+    switch (setting) {
+        case AppNotificationSetting::Enabled: return "Enabled";
+        case AppNotificationSetting::DisabledForApplication: return "DisabledForApplication";
+        case AppNotificationSetting::DisabledForUser: return "DisabledForUser";
+        case AppNotificationSetting::DisabledByGroupPolicy: return "DisabledByGroupPolicy";
+        case AppNotificationSetting::DisabledByManifest: return "DisabledByManifest";
+        case AppNotificationSetting::Unsupported: return "Unsupported";
+    }
+    return "Unknown";
+}
+
+static std::string integrity_name(DWORD rid) {
+    switch (rid) {
+        case SECURITY_MANDATORY_UNTRUSTED_RID: return "Untrusted";
+        case SECURITY_MANDATORY_LOW_RID: return "Low";
+        case SECURITY_MANDATORY_MEDIUM_RID: return "Medium";
+        case SECURITY_MANDATORY_MEDIUM_PLUS_RID: return "MediumPlus";
+        case SECURITY_MANDATORY_HIGH_RID: return "High";
+        case SECURITY_MANDATORY_SYSTEM_RID: return "System";
+        case SECURITY_MANDATORY_PROTECTED_PROCESS_RID: return "ProtectedProcess";
+    }
+    char hex[16];
+    std::snprintf(hex, sizeof(hex), "0x%04lX", static_cast<unsigned long>(rid));
+    return hex;
+}
+
+// The Windows App SDK refuses app notifications at High integrity or above: Security::IntegrityLevel::IsElevated reads
+// TokenIntegrityLevel of GetCurrentThreadEffectiveToken(). Each unsupported answer names that level and the token elevation.
+static std::string elevation() {
+    HANDLE token = GetCurrentThreadEffectiveToken();
+    std::string result = "integrity=unknown";
+    DWORD length = 0;
+    GetTokenInformation(token, TokenIntegrityLevel, nullptr, 0, &length);
+    std::vector<unsigned char> label(length);
+    if (length && GetTokenInformation(token, TokenIntegrityLevel, label.data(), length, &length)) {
+        PSID sid = reinterpret_cast<TOKEN_MANDATORY_LABEL*>(label.data())->Label.Sid;
+        DWORD rid = *GetSidSubAuthority(sid, static_cast<DWORD>(*GetSidSubAuthorityCount(sid) - 1));
+        result = "integrity=" + integrity_name(rid) + " elevated=" + (rid >= SECURITY_MANDATORY_HIGH_RID ? "true" : "false");
+    }
+    TOKEN_ELEVATION value{};
+    if (GetTokenInformation(token, TokenElevation, &value, sizeof(value), &length)) {
+        result += std::string(" tokenElevated=") + (value.TokenIsElevated ? "true" : "false");
+    }
+    return result;
+}
+
 extern "C" void orbit_push_request(bool prompt, bool token) {
     (void)prompt;
-    if (!manager) { emit(0); return; }
+    if (!manager) { emit(0, "manager=null " + elevation()); return; }
     try {
         Apartment apartment;
         auto setting = notifications.Setting();
-        if (setting == AppNotificationSetting::Unsupported) { emit(0); return; }
+        if (setting == AppNotificationSetting::Unsupported) {
+            emit(0, std::string("setting=") + setting_name(setting) + " isSupported=" +
+                (PushNotificationManager::IsSupported() ? "true" : "false") + " " + elevation());
+            return;
+        }
         if (setting != AppNotificationSetting::Enabled) { emit(3); return; }
         if (!token) { emit(2); return; }
         if (!registered) { manager.Register(); registered = true; }

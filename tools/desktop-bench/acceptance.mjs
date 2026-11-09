@@ -4,8 +4,14 @@ import { fileURLToPath } from 'node:url'
 const usage = `Usage: node tools/desktop-bench/acceptance.mjs --output <absolute-directory-outside-repository>
 Run installed desktop acceptance on a disposable GitHub macOS or Windows VM.
 Builds the release shell without optional features, uses only hermetic services, records the screen,
-and writes install, email cookie, signed update and platform accessibility evidence.
---output  Artifact directory outside the repository. No stdin or credentials.
+and writes install, email cookie, signed update, repeat reminder push and platform accessibility evidence.
+--output  Artifact directory outside the repository. No stdin.
+Optional push credentials come only from ORBIT_WNS_TENANT_ID, ORBIT_WNS_CLIENT_ID, ORBIT_WNS_CLIENT_SECRET,
+ORBIT_APNS_KEY_ID, ORBIT_APPLE_TEAM_ID and ORBIT_APNS_PRIVATE_KEY; a missing one is a reported push skip.
+macOS Developer ID signing comes only from MACOS_DEVELOPER_ID_CERTIFICATE_BASE64, MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD,
+MACOS_PROVISIONING_PROFILE_BASE64 and MACOS_SIGNING_IDENTITY; none builds an unsigned shell, and part of them fails.
+Windows launches the installed shell with a Safer standard-user token at Medium integrity in the signed-in session.
+macOS loads apsd without the image keychain, and Notification Center, through launchd before the push phase.
 --help, -h  Print usage. Exit 0: passed; 1: acceptance failed; 2: invalid input.
 `
 const repository = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
@@ -21,8 +27,13 @@ try {
   if (process.env.GITHUB_ACTIONS !== 'true' || !['darwin', 'win32'].includes(process.platform)) {
     throw new Error('Acceptance requires a disposable GitHub macOS or Windows VM')
   }
+  // Push credentials and signing material leave the environment before the build, web server or shell can inherit them.
+  const { takePushCredentials } = await import('./acceptance-push.mjs')
+  const { takeSigningMaterial } = await import('./acceptance-platform.mjs')
+  const credentials = takePushCredentials(process.env)
+  const signing = takeSigningMaterial(process.env)
   const { acceptance } = await import('./acceptance-runner.mjs')
-  await acceptance({ repository, output })
+  await acceptance({ repository, output, credentials, signing })
 } catch (error) {
   process.stderr.write(`${error.stack}\n`)
   process.exitCode = 1

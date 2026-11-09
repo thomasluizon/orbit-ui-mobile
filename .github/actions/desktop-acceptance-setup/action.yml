@@ -1,0 +1,30 @@
+name: Prepare installed desktop acceptance
+description: Install dependencies, check the native acceptance producers and install the native prerequisites
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v7
+      env:
+        SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
+      with:
+        node-version: 22
+        cache: npm
+    - shell: bash
+      run: npm ci --prefer-offline --no-audit --fund=false
+    - name: Check native acceptance producers
+      shell: bash
+      run: |
+        node --import tsx tools/desktop-bench/test-acceptance.ts
+        node --import tsx tools/desktop-bench/test-acceptance-push.ts
+        node --import tsx tools/desktop-bench/test-acceptance-readers.ts
+        node --import tsx tools/desktop-bench/test-acceptance-launch.ts
+    - name: Install native prerequisites
+      shell: bash
+      run: |
+        rustup toolchain install stable --profile minimal
+        rustup default stable
+        if [ "$RUNNER_OS" = macOS ]; then
+          brew install ffmpeg
+        else
+          choco install ffmpeg --yes --no-progress
+        fi
