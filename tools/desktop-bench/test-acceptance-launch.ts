@@ -28,7 +28,7 @@ function windowsLauncher(script: { statusAfterStart?: string[]; statusAfterDelay
     },
     readFile: async () => {
       if (!lines.length) throw Object.assign(new Error('missing status'), { code: 'ENOENT' })
-      return `\uFEFF${lines.join('\r\n')}\r\n`
+      return `${lines.join('\n')}\n`
     },
     waitFor: async (read: () => Promise<unknown>, label: string) => {
       const value = await read()
@@ -128,7 +128,7 @@ function windowsActivator(status: string[], alive = true) {
     execute: async (command: string, args: string[]) => { calls.push([command, ...args]); return command === 'powershell.exe' ? `${JSON.stringify(activateStarted)}\r\n` : '' },
     readFile: async () => {
       if (!status.length) throw Object.assign(new Error('missing status'), { code: 'ENOENT' })
-      return `\uFEFF${status.join('\r\n')}\r\n`
+      return `${status.join('\n')}\n`
     },
     waitFor: async (read: () => Promise<unknown>, label: string, timeout: number) => {
       const value = await read()

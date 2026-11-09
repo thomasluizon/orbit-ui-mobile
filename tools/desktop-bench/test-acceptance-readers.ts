@@ -114,7 +114,7 @@ if (process.platform === 'darwin') {
     ['custom', { id: 'first', action: custom }], ['button', { id: 'button-first', action: 'AXPress' }],
     ['description', { id: 'first', action: 'AXCustomAction1' }], ['missing', null], ['ambiguous', null],
   ] as const) {
-    test(`native notification reader ${expected ? 'invokes only the titled notification Done' : 'refuses'} in the unconfirmed ${scenario} layout, an assumed tree until a signed macOS run records one`, () => {
+    test(`native notification reader ${expected ? 'invokes only the titled notification Done' : 'refuses'} in the ${scenario === 'custom' ? 'recorded' : 'assumed'} ${scenario} layout`, () => {
       for (const invoke of ['1', '0']) {
         const capture = spawnSync(executable, [scenario, invoke], { encoding: 'utf8', timeout: 10000 })
         assert.equal(capture.status, 0, capture.stderr)

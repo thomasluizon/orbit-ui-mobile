@@ -135,7 +135,7 @@ async function copyLauncher(output, host) {
 }
 
 export function launchStatus(text) {
-  const entries = text.split(/\r?\n/).filter((line) => line.trim()).map((line) => JSON.parse(line.replace(/^\uFEFF/, '')))
+  const entries = text.split(/\r?\n/).filter((line) => line.trim()).map((line) => JSON.parse(line))
   const error = entries.find((entry) => entry.kind === 'error')
   if (error) throw new Error(`Medium-integrity launch failed: ${error.message}`)
   const launch = entries.find((entry) => entry.kind === 'launch')
@@ -198,7 +198,7 @@ export async function launchUnelevated(executable, output, name, host = { execut
 }
 
 export function activationStatus(text) {
-  const entries = text.split(/\r?\n/).filter((line) => line.trim()).map((line) => JSON.parse(line.replace(/^﻿/, '')))
+  const entries = text.split(/\r?\n/).filter((line) => line.trim()).map((line) => JSON.parse(line))
   const failure = entries.find((entry) => entry.kind === 'error')
   const activated = entries.find((entry) => entry.kind === 'activated')
   return { context: entries.find((entry) => entry.kind === 'context')?.context, ...(activated ? { hresult: activated.hresult } : {}),
