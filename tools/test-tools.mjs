@@ -116,7 +116,6 @@ const CASE_MODULES = [
   ["lib/manual-steps.mjs", "manual-steps"],
   ["lib/readiness-receipt.mjs", "readiness-receipt"],
   ["lib/research-run.mjs", "research-run"],
-  ["lib/review-harness.mjs", "review-harness"],
   ["lib/run-state.mjs", "run-state"],
   ["lib/session-context.mjs", "session-context"],
   ["lib/session-chain.mjs", "session-chain"],
