@@ -8,6 +8,7 @@ on:
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/desktop-build.yml"
+      - ".github/actions/desktop-nsis-tools/**"
   workflow_dispatch:
   workflow_call:
     inputs:
@@ -67,6 +68,9 @@ jobs:
         with:
           path: ${{ env.ORBIT_WINDOWS_DOWNLOAD_CACHE }}
           key: ${{ runner.os }}-windows-app-sdk-${{ matrix.target }}-${{ hashFiles('apps/desktop/src-tauri/native/windows/downloads.json') }}
+      - name: Provide the NSIS bundler tools
+        if: runner.os == 'Windows'
+        uses: ./.github/actions/desktop-nsis-tools
       - name: Install Rust and compilation target
         env:
           DESKTOP_TARGET: ${{ matrix.target }}

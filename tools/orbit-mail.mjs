@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { pathToFileURL } from "node:url"
 import { authenticatedGmail, MAILBOX } from "./lib/auto-work-google.mjs"
-import { acknowledgeIntake, intakeSource, replyDisposition, saveIntakeSource } from "./lib/auto-work-intake.mjs"
+import { acknowledgeIntake, intakeSource, replyDisposition, updateIntakeSource } from "./lib/auto-work-intake.mjs"
 import { REPO_ROOT } from "./lib/run-state.mjs"
 
 const USAGE = `usage: orbit-mail.mjs <--collect | --unseen | --draft | --reply | --ack>
@@ -92,7 +92,7 @@ export const collectMail = async (client, repoRoot = REPO_ROOT) => {
         from: mailHeader(message, "From"), replyTo: mailHeader(message, "Reply-To") || mailHeader(message, "From"),
         subject: mailHeader(message, "Subject"), messageId: mailHeader(message, "Message-ID"), references: mailHeader(message, "References"),
         ...await messageBodies(client, message.id, message.payload), snippet: message.snippet }
-      current = saveIntakeSource("gmail", { ...current, pending: { ...current.pending, [item.id]: item }, highWater: item.id }, repoRoot)
+      current = updateIntakeSource("gmail", (latest) => ({ ...latest, pending: { ...latest.pending, [item.id]: item }, highWater: item.id }), repoRoot)
     }
     pageToken = page.nextPageToken
   } while (pageToken)
@@ -112,13 +112,12 @@ export const draftReply = async (client, { id, text }, repoRoot = REPO_ROOT) => 
     draftId = draft.id
   }
   if (typeof draftId !== "string" || !draftId) throw new Error("Gmail did not return a draft id")
-  saveIntakeSource("gmail", { ...current, pending: { ...current.pending, [id]: { ...item, draftId } } }, repoRoot)
+  updateIntakeSource("gmail", (latest) => ({ ...latest, pending: { ...latest.pending, [id]: { ...item, draftId } } }), repoRoot)
   return draftId
 }
 
 export const replyToMail = async (client, receipt, repoRoot = REPO_ROOT) => {
-  let current = intakeSource("gmail", repoRoot)
-  let item = current.pending[receipt.id]
+  const item = intakeSource("gmail", repoRoot).pending[receipt.id]
   if (!item) throw new Error("A pending message is required")
   const disposition = replyDisposition(receipt, item)
   if (disposition === "none") return { disposition }
@@ -130,14 +129,12 @@ export const replyToMail = async (client, receipt, repoRoot = REPO_ROOT) => {
   if (!sentId) {
     if (item.sendAttempted) throw new Error("Previous send is unconfirmed; retain the item for owner review instead of sending twice")
     const draftId = await draftReply(client, receipt, repoRoot)
-    current = intakeSource("gmail", repoRoot)
-    item = current.pending[receipt.id]
-    saveIntakeSource("gmail", { ...current, pending: { ...current.pending, [receipt.id]: { ...item, sendAttempted: true, replyReceipt: receipt } } }, repoRoot)
+    updateIntakeSource("gmail", (latest) => ({ ...latest,
+      pending: { ...latest.pending, [receipt.id]: { ...latest.pending[receipt.id], sendAttempted: true, replyReceipt: receipt } } }), repoRoot)
     sentId = (await client.sendDraft(draftId, receipt, message)).id
   }
   if (typeof sentId !== "string" || !sentId) throw new Error("Gmail did not confirm the sent message")
-  current = intakeSource("gmail", repoRoot)
-  saveIntakeSource("gmail", { ...current, pending: { ...current.pending, [receipt.id]: { ...current.pending[receipt.id], sentId } } }, repoRoot)
+  updateIntakeSource("gmail", (latest) => ({ ...latest, pending: { ...latest.pending, [receipt.id]: { ...latest.pending[receipt.id], sentId } } }), repoRoot)
   return { disposition: "sent", sentId }
 }
 
