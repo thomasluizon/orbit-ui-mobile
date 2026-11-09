@@ -10,6 +10,7 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { LAYOUT_FIXED_TIME } from './clock.mjs'
 import { setLayoutFixtureSession, setLayoutProfileSession } from './profile-session'
 import { measureShellScrollEnd, shellScrollViewports } from './shell-scroll-extent'
+import { waitForSettledAstraStack } from './shell-conversation-entry'
 import { test } from './layout-test'
 
 async function floatingClearance(page: Page, width: number) {
@@ -18,6 +19,7 @@ async function floatingClearance(page: Page, width: number) {
     await expect(button).toHaveCount(0)
     return { clearance: SPACING.s32, buttonTop: undefined }
   }
+  await waitForSettledAstraStack(page)
   const box = (await button.boundingBox())!
   const stacked = await page.locator('[data-shell-fab] button').count() > 0
   return { clearance: stacked ? ASTRA_STACK_CLEARANCE : SPACING.s96, buttonTop: box.y }

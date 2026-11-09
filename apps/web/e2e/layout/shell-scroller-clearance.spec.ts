@@ -7,6 +7,7 @@ import { habitDetailSchema, habitMetricsSchema } from '@orbit/shared/types/habit
 import { ASTRA_STACK_CLEARANCE } from '@orbit/shared/utils'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test as subscriptionTest } from './upgrade-fixtures'
+import { waitForSettledAstraStack } from './shell-conversation-entry'
 
 const habitId = 'habit-1'
 const habit = habitDetailSchema.parse(makeHabitDetail())
@@ -60,6 +61,7 @@ for (const width of [412, 1280] as const) {
         await page.evaluate(() => document.fonts.ready)
         if (name === 'Hoje' && width >= 1024) await expect(page.locator('[data-astra-button]')).toHaveCount(0)
         if (name === 'Hoje' && width < 1024) {
+          await waitForSettledAstraStack(page)
           const button = page.getByRole('button', { name: en.shell.astraButton.open, exact: true })
           await expect(button).toBeVisible()
           const bounds = (await button.boundingBox())!
