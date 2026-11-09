@@ -290,13 +290,24 @@ On Windows, right after the Done invoke, `trees/notification-done-activation.jso
 integrity and elevation of `explorer`, `ShellExperienceHost`, `sihost` and the per-user
 `WpnUserService`, and every running shell instance with its command line. `report.json`
 `push.activation` keeps a summary. A Done habit log that never arrives keeps a second capture in
-`trees/notification-done-activation-timeout.json`, and the failure names the host levels and the
-instance count. COM gives a server it launches the activator's token, and a process that UAC elevated
-does not load per-user COM classes. The Windows App SDK registers an unpackaged app's activator per
-user, and it refuses app notifications in an elevated process. Thus elevated shell hosts mean that a
-toast click cannot reach the shell. `push.log` holds the shell's own lines: `Desktop push: notification
-Done activation received` when a click reaches the running shell, and `a notification activation
-started a second process` when Windows started a new instance instead.
+`trees/notification-done-activation-timeout.json`, and the failure names the host levels, the
+instance count and the process ID and integrity level of each shell instance. `push.log` holds the
+shell's own lines: `Desktop push: notification Done activation received` when a click reaches the
+running shell, and `a notification activation started a second process` when Windows started a new
+instance instead.
+
+The Windows App SDK registers the activator of the running shell with `CoRegisterClassObject` in
+`AppNotificationManager::Register`. That registration has no APPID, so COM activates it as the
+activator, and COM uses a running activate-as-activator registration only for an activator whose token
+matches the server's token ([Activate-As-Activator activates as activator](https://learn.microsoft.com/en-us/archive/blogs/larryosterman/activate-as-activator-activates-as-activator)).
+On the hosted `windows-latest` image the runner signs in as the built-in Administrator, and
+`explorer`, `sihost` and `WpnUserService` run at High integrity. The Medium shell then logs `a
+notification activation started a second process` after the Done invoke, and no habit log arrives. A
+shell at the hosts' High integrity cannot take their place: `AppNotificationManager::IsSupported` is
+false at High integrity and above, and `Register` then returns without a registration
+(`dev/AppNotifications/AppNotificationManager.cpp` in microsoft/WindowsAppSDK). Thus a toast click
+reaches the running shell only on a machine whose shell hosts run at Medium integrity, as they do for
+a person who signs in under UAC.
 
 `mock.log` names every acceptance route that the shell or the BFF reached, with its status, such as
 `POST /api/reminders/done 200`. The harness's own `GET /_test/` polls stay out of it.

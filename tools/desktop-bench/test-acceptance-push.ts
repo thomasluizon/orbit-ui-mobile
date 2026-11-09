@@ -778,7 +778,7 @@ test('macOS push acceptance names the APNs hop when apsd never receives an accep
 test('Windows push acceptance names the shell host levels and running instances when a Done activation never logs', async () => {
   const harness = pushHarness('win32', { doneLost: true, hostIntegrity: 'High' })
   await assert.rejects(() => exercisePush(harness.io), (error: Error) => {
-    assert.equal(error.message, 'Timed out waiting for the Done habit log; shell hosts: explorer High elevated, WpnUserService_3a1f unreadable (Access is denied); running shell instances: 1')
+    assert.equal(error.message, 'Timed out waiting for the Done habit log; shell hosts: explorer High elevated, WpnUserService_3a1f unreadable (Access is denied); running shell instances: 1 (pid 41 Medium)')
     return true
   })
   assert.deepEqual([...harness.records.keys()].slice(0, 3), ['notification-done', 'notification-done-activation', 'notification-done-activation-timeout'])

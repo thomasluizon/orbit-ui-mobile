@@ -298,7 +298,10 @@ async function activationEvidence(io, pid, name) {
 
 export function describeActivation({ hosts, instances }) {
   const levels = hosts.map(({ name, integrity, elevated, error }) => `${name} ${error ? `unreadable (${error})` : `${integrity}${elevated ? ' elevated' : ''}`}`)
-  return `shell hosts: ${levels.join(', ') || 'none found'}; running shell instances: ${instances.length}`
+  // Each shell's own level sits next to the host levels, because a toast click reaches the running shell only through a
+  // COM activator registered under a token that matches the activating host's token.
+  const shells = instances.map(({ processId, integrity }) => `pid ${processId} ${integrity ?? 'unreadable'}`)
+  return `shell hosts: ${levels.join(', ') || 'none found'}; running shell instances: ${instances.length}${shells.length ? ` (${shells.join(', ')})` : ''}`
 }
 
 async function windowsOf(io, pid) {
