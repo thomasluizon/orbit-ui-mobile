@@ -30,6 +30,9 @@ const LIMIT_PATTERNS = [/^(?:Fable|Haiku|Mythos|Opus|Sonnet)(?: [^·\n]{1,40})? 
 export const isUsageLimitMessage = (text) =>
   typeof text === "string" && (LIMIT_PREFIXES.some((prefix) => text.startsWith(prefix)) || LIMIT_PATTERNS.some((pattern) => pattern.test(text)))
 
+/** The verdict for a run that did not stop at a limit or at sign-in. */
+export const NO_STOP = Object.freeze({ usageLimitReached: false, authenticationFailed: false, error: null })
+
 /**
  * The verdict of the final `type: "result"` line, which carries `is_error: true` and the error text
  * in `result` when the last assistant message is an API error; `error` is that text. The CLI tags
@@ -37,7 +40,7 @@ export const isUsageLimitMessage = (text) =>
  * a revoked token, so `authenticationFailed` reads the tag before the result.
  */
 export const finalResult = (logText) => {
-  let verdict = { usageLimitReached: false, authenticationFailed: false, error: null }
+  let verdict = NO_STOP
   let apiError = null
   for (const line of logText.split("\n")) {
     if (!line.startsWith("{")) continue
@@ -70,7 +73,7 @@ export const logFinalResult = (logFile) => {
     return finalResult(buffer.toString("utf8"))
   } catch {
     // A log that cannot be read proves no stop, and the launcher must still publish its result.
-    return { usageLimitReached: false, authenticationFailed: false, error: null }
+    return NO_STOP
   } finally {
     if (descriptor !== undefined) closeSync(descriptor)
   }

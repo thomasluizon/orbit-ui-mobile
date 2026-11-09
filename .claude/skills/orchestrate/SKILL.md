@@ -1413,6 +1413,13 @@ sign-in. The launch JSON then shows `authenticationFailed: true`, the CLI's erro
 later, set the variable again. The fallback then moves workers between the two accounts with no
 owner action.
 
+**After a launch result with `authenticationFailed: true`, start no further launch on the worker
+account.** Relaunch that order, and every later one, in single-account mode by prefixing the
+launch command with `ORBIT_WORKER_CLAUDE_CONFIG_DIR=`, with `--relaunch-reason` when the branch
+ledger needs it. Record `resultError` in the handoff inventory and the step 11 report, with the
+owner's fix: remove the export from the shell profile. Review, CI waiting and readiness work
+continue.
+
 ```bash
 node tools/launch-worker.mjs --issue '#N' --worktree <path> --prompt <file> --dry-run
 node tools/launch-worker.mjs --issue '#N' --worktree <path> --prompt <file> --tier mechanical --dry-run

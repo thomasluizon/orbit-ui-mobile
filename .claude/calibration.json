@@ -1,5 +1,5 @@
 {
-  "calibratedAt": "2026-11-05",
+  "calibratedAt": "2026-11-09",
   "classifier": {
     "model": "claude-sonnet-5-5",
     "promptDigest": "780092b4659dfd6e",
@@ -144,8 +144,8 @@
     ".claude/skills/android-release/SKILL.md": {
       "model": null,
       "effort": "low",
-      "digest": "c50ebf7d4d890b90",
-      "calibratedAt": "2026-11-05",
+      "digest": "58e6ee76a46f324d",
+      "calibratedAt": "2026-11-09",
       "verdict": "current: derives version and track from workflow runs, verifies the exact remote ref, and dispatches only after owner confirmation; its checks are procedural, so low effort remains right."
     },
     ".claude/skills/astra-eval/SKILL.md": {
@@ -186,8 +186,8 @@
     ".claude/skills/auto-work/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "8616ce90b11737ad",
-      "calibratedAt": "2026-11-05",
+      "digest": "716f7a959f781dde",
+      "calibratedAt": "2026-11-09",
       "verdict": "undeclared, inherits the session: runs continuous source intake through the existing sleep lifecycle, classifies feedback and preserves independent crank and relay state without changing model or effort routing."
     },
     ".claude/skills/crank/SKILL.md": {
@@ -242,15 +242,15 @@
     ".claude/skills/ios-generate/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "380c3a57302bae43",
-      "calibratedAt": "2026-11-05",
+      "digest": "0475a007d0a19324",
+      "calibratedAt": "2026-11-09",
       "verdict": "undeclared, inherits the session: invokes the local staging simulator build and reports installed metadata and process liveness; it declares no model or effort override."
     },
     ".claude/skills/ios-release/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "7290ce4367029ffe",
-      "calibratedAt": "2026-11-05",
+      "digest": "9a6a31fab17d64ed",
+      "calibratedAt": "2026-11-09",
       "verdict": "undeclared, inherits the session: verifies iOS signing prerequisites, release parameters and internal TestFlight processing through the manual workflow; it declares no model or effort override."
     },
     ".claude/skills/lesson/SKILL.md": {
@@ -270,8 +270,8 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "748e303e18294d0f",
-      "calibratedAt": "2026-11-05",
+      "digest": "a2d98fabf94b077b",
+      "calibratedAt": "2026-11-09",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },
     ".claude/skills/prod-readiness/SKILL.md": {
@@ -298,8 +298,8 @@
     ".claude/skills/release/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "713e04fb9e66892a",
-      "calibratedAt": "2026-11-05",
+      "digest": "565f9cf15fbcd202",
+      "calibratedAt": "2026-11-09",
       "verdict": "current: sequences production and staging releases across services, checks live deployment evidence, and stops on ambiguous runs; high effort is right for decisions that control outward dispatch."
     },
     ".claude/skills/second-opinion/SKILL.md": {
@@ -312,8 +312,8 @@
     ".claude/skills/sleep/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "72d614f3f340703a",
-      "calibratedAt": "2026-11-05",
+      "digest": "8f459738f634745f",
+      "calibratedAt": "2026-11-09",
       "verdict": "undeclared, inherits the session: it makes overnight queue decisions, including whether configured lanes are available."
     },
     ".claude/skills/ticket/SKILL.md": {

@@ -10,7 +10,7 @@ import { assertOutsideRepository, researchEnvironment, researchInvocation, resea
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { ADMISSION_REFUSED_EXIT, checkAdmission, releaseAdmission } from "./lib/admission.mjs"
 import { resolveTicket } from "./lib/github-issues.mjs"
-import { logFinalResult } from "./lib/claude-usage-limit.mjs"
+import { logFinalResult, NO_STOP } from "./lib/claude-usage-limit.mjs"
 import { readOrchestratorConfig, resolveWorkerInvocation, workerAccountEnvironment, workerAccounts } from "./lib/orchestrator-config.mjs"
 import { clearWakeSource, clearWorkerLaunchReservation, recordReservedWorkerPid, registerWakeSource, reserveWorkerLaunch, readRunState, workerLaunchDirectory } from "./lib/run-state.mjs"
 
@@ -610,7 +610,7 @@ const runAttempt = (account, attemptLogFile, attemptArgs) => new Promise((settle
     settled = true
     supervisor.stop()
     closeSync(logFd)
-    const result = account !== null && outcome === "EXITED" ? logFinalResult(attemptLogFile) : { usageLimitReached: false, authenticationFailed: false, error: null }
+    const result = account !== null && outcome === "EXITED" ? logFinalResult(attemptLogFile) : NO_STOP
     if (result.authenticationFailed) console.error(`the ${engineName} worker for ${issue} could not sign in${accountLabel(account)}: ${result.error}`)
     settle({ account: account?.name ?? null, configDirectory: account?.configDirectory ?? null, pid: attemptChild.pid ?? null, logFile: attemptLogFile, startedAt: attemptStartedAt, endedAt: new Date().toISOString(), exitCode, outcome, usageLimitReached: result.usageLimitReached, authenticationFailed: result.authenticationFailed, resultError: result.error })
   }
