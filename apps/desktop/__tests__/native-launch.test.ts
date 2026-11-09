@@ -34,7 +34,7 @@ it.skipIf(process.platform !== 'win32')('keeps the centered Windows mark above h
   try {
     const executable = join(directory, 'launch.exe')
     const compiled = spawnSync('clang++', ['-std=c++20', fileURLToPath(new URL('./native-launch.cpp', import.meta.url)), '-o', executable,
-      '-lgdiplus', '-lshlwapi', '-lcomctl32', '-lgdi32', '-ladvapi32', '-luser32'], { encoding: 'utf8' })
+      '-lgdiplus', '-lshlwapi', '-lcomctl32', '-lgdi32', '-ladvapi32', '-luser32', '-ldwmapi'], { encoding: 'utf8' })
     expect(compiled.error, compiled.stderr).toBeUndefined()
     expect(compiled.status, compiled.stderr).toBe(0)
     for (const mode of ['dark', 'light']) {

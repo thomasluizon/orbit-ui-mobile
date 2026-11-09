@@ -78,7 +78,11 @@ pub fn desktop_launch(
             mode.as_deref(),
             &crate::settings::path(window.app_handle()).map_err(|error| error.to_string())?,
             |mode| {
-                let color = canvas(mode == LaunchMode::Dark);
+                let dark = mode == LaunchMode::Dark;
+                let color = canvas(dark);
+                window
+                    .set_theme(Some(theme(dark)))
+                    .map_err(|error| error.to_string())?;
                 window
                     .set_background_color(Some(color))
                     .map_err(|error| error.to_string())?;
@@ -123,10 +127,20 @@ pub fn configure(config: &mut WindowConfig, mode: Option<LaunchMode>) {
         |mode| mode == LaunchMode::Dark,
     );
     config.background_color = Some(canvas(dark));
+    config.theme = Some(theme(dark));
 }
 
 fn system_is_dark() -> bool {
     unsafe { orbit_launch_is_dark() }
+}
+
+// The native caption, menu bar and webview colour scheme follow the page's mode, not the system's (#2084).
+fn theme(dark: bool) -> Theme {
+    if dark {
+        Theme::Dark
+    } else {
+        Theme::Light
+    }
 }
 
 pub fn canvas(dark: bool) -> Color {
@@ -195,6 +209,7 @@ mod tests {
                 restored.launch_mode,
                 |config| {
                     assert_eq!(config.background_color, Some(expected));
+                    assert_eq!(config.theme, Some(theme(mode == LaunchMode::Dark)));
                     assert_eq!(mark(config.background_color.unwrap()), png);
                     assert!(!config.visible);
                     Ok(())
