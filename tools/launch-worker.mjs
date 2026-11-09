@@ -36,8 +36,6 @@ const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> -
                      launch. For a ticket that legitimately outruns the fleet-wide default
   --tier <default|mechanical|deep|max>
                      worker profile for this order (default: default)
-  --allow-subagents  omit the engine's sub-agent off vector for a UI review sweep; requires the
-                     exact ## UI review sweep heading in the composed prompt file
   --relaunch-reason <text>
                      deliberate reason for launching after this branch reaches its configured cap
   --dry-run          print the resolved plan as JSON and exit 0, spawning nothing. The plan names
@@ -88,7 +86,6 @@ const tierValue = argOf("--tier")
 const tierArgument = tierValue ?? "default"
 const relaunchReasonArgument = argOf("--relaunch-reason")
 const measurement = process.argv.includes("--measurement")
-const allowSubagents = process.argv.includes("--allow-subagents")
 const dryRun = process.argv.includes("--dry-run")
 
 if ((process.argv.includes("--tier") && typeof tierValue !== "string") || !new Set(["default", "mechanical", "deep", "max"]).has(tierArgument)) {
@@ -107,7 +104,16 @@ if (research) {
     if (["--order", "--out"].includes(flag)) index++
   }
   try { researchPlan = researchPaths(orderArgument, outputArgument) } catch (error) { fail(2, error.message) }
-} else if (orderArgument !== null || outputArgument !== null) fail(2, "--order and --out require --research")
+} else {
+  if (orderArgument !== null || outputArgument !== null) fail(2, "--order and --out require --research")
+  const valueFlags = new Set(["--issue", "--worktree", "--prompt", "--hard-ceiling-minutes", "--tier", "--relaunch-reason"])
+  const switches = new Set(["--measurement", "--dry-run"])
+  for (let index = 2; index < process.argv.length; index++) {
+    const flag = process.argv[index]
+    if (valueFlags.has(flag)) index++
+    else if (!switches.has(flag)) fail(2, `${USAGE}\n\nunsupported option: ${flag}`)
+  }
+}
 
 let issue = research ? "research" : null
 if (!research) {
@@ -145,9 +151,6 @@ if (!existsSync(runDirectory)) fail(2, `worktree not found: ${runDirectory}`)
 const promptFile = research ? researchPlan.orderFile : resolve(promptArg)
 if (!existsSync(promptFile)) fail(2, `prompt file not found: ${promptFile}`)
 if (statSync(promptFile).size === 0) fail(2, `prompt file is empty: ${promptFile}`)
-if (allowSubagents && !/^## UI review sweep\r?$/m.test(readFileSync(promptFile, "utf8"))) {
-  fail(2, "--allow-subagents requires the ## UI review sweep heading in the prompt file")
-}
 
 const normalize = (path) => path.replaceAll("\\", "/").replace(/\/+$/, "").toLowerCase()
 if (normalize(promptFile).startsWith(`${normalize(runDirectory)}/`)) {
@@ -170,7 +173,7 @@ if (!engine.command) fail(2, `.claude/orchestrator.json names worker "${engineNa
 
 let invocation
 try {
-  invocation = resolveWorkerInvocation(engineName, engine, tierArgument, { allowSubagents })
+  invocation = resolveWorkerInvocation(engineName, engine, tierArgument)
 } catch (error) {
   fail(2, error.message)
 }

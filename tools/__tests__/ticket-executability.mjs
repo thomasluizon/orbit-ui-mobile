@@ -48,15 +48,6 @@ export const cases = async () => {
       !/A failed ticket is recorded and skipped/.test(orchestrateContract),
     "the queue contract can still abandon final-head readiness debt",
   )
-  T(
-    `${TOOL}: Cloud UI delivery runs the owed sweep locally before opening the pull request`,
-    /after materialization and\s+before opening or updating the pull request/.test(orchestrateContract) &&
-      /\.claude\/playbooks\/redesign-screen\.md/.test(orchestrateContract) &&
-      /## Review harness/.test(orchestrateContract) &&
-      /- interface-review: <what it found, or "no findings">/.test(orchestrateContract) &&
-      /- better-interface \(full mode\): <what it found, or "no findings">/.test(orchestrateContract),
-    "the Cloud handoff can still reach pull request delivery without the locally produced review evidence",
-  )
 
   for (const entry of fixtures) {
     const module = await load(entry.id)
