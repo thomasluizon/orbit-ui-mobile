@@ -61,11 +61,9 @@ Reconcile the open board with these batches before each handoff. Place each new 
 
 In-flight work finishes as normal. Then no new board ticket is admitted until every diet ticket below is merged. Brain ADR D149 holds the measurements and the account plan.
 
-- `#2065` Lower the coordinator relay threshold to 200k tokens. Next: `/orchestrate` (its blocker `#2064` merged).
-- `#2066` Cut fixed context per call: unused connectors off, `CLAUDE.md` to 6 KB, `MEMORY.md` trimmed. Next: merged as `ui#2378`; `disabledMcpServers` is set and `MEMORY.md` is 4,289 B. Prove that a fresh session lists none of the nine servers in its deferred tools, then close the ticket.
-- `#2067` Run the default and mechanical worker tiers on Sonnet 5.5. Next: base-merge `main` into `ui#2379` (`.claude/calibration.json` conflicts), reseed, CI, review, merge; the first default-tier launch after it proves Sonnet with `--effort high`.
-- `#2071` Move the Pullfrog token in all three repositories to the main account, before 4 December 2026. Next: the orchestrator runs `claude setup-token` and `gh secret set CLAUDE_CODE_OAUTH_TOKEN` from stdin in all three repositories (its blocker `ui#2383` merged), then a small worker for the skill text.
-- `#2074` Stop Pullfrog from reviewing heads that later fail CI. Next: base-merge `main` into `ui#2387` (orchestrate skill and spec conflict; its three spec Constraints lines go to `.claude/playbooks/operations.md`), CI, review, merge; then `npx pullfrog@latest config set review.mode none` and `review.re-review false` in all three repositories, and prove one requested review.
+- `#2065` Lower the coordinator relay threshold to 200k tokens. Next: the worker hit its ceiling with three commits on `chore/ticket-2065-relay-threshold` (head `87919f448`, tree clean, not pushed, no pull request): read the diff, run both harnesses, push, open the pull request (`Tracks`).
+- `#2071` Move the Pullfrog token in all three repositories to the main account, before 4 December 2026. Next: waits on the owner signing in to claude.ai in Chrome with the main account (Chrome has no claude.ai session); then the orchestrator runs `claude setup-token` through a pty with the main account config, pipes the token to `gh secret set CLAUDE_CODE_OAUTH_TOKEN` in all three repositories, and a small worker updates the skill text.
+- `#2074` Stop Pullfrog from reviewing heads that later fail CI. Next: merged as `ui#2387`; `review.mode none` and `review.re-review false` are set in all three repositories. Prove one requested review publishes `pullfrog-approval` on the next green pull request, then run the review-rounds measurement one week after the config change (dated in the ticket comment) and close.
 
 ### Batch R: owner review findings
 
@@ -79,12 +77,10 @@ The gates every later batch runs through. Re-read each ticket against the tree b
 
 An Android fix is followed by an Android Open release.
 
-- `#2077` Fix the Astra button above the create habit button and remove its drag (owner order). Next: the worker hit its 45 minute ceiling with 11 commits on `fix/ticket-2077-astra-fixed-stack` (head `96d1b4954`, tree clean, not pushed, no pull request): read the diff against the ticket, run both platforms focused suites, type checks and ESLint, then push and open the pull request, or relaunch with `--relaunch-reason` if work is missing.
-- `#2062` Keep the keyboard up while typing in habit search. Next: merged (`ui#2376`), live on staging web; ships to production web and Android Open with `#2077`, then close.
-- `#2061` Centre the clear X in the habit search empty state. Next: `ui#2377` round 3 `9519dc39c` pushed with both threads resolved; Pullfrog has not reviewed that head: request the review, CI, merge.
-- `#2057` Hovering a nested control must not keep its parent card's hover active. Next: `ui#2366` is merged; close after Android Open 1.3.148 or later and the next web release carry it.
-- `#2056` An old macOS app cannot update because the sign-in page opens Cloudflare in Chrome first. Next: `ui#2365` is merged; close once desktop 0.1.26 and the web release that carries the gate are live.
-- `#2030` Show the update and later buttons on the Android update sheet. Next: CI, a fresh review and merge of `ui#2351`, then Android Open; read `android_update_sheet_shown` from the owner's device once it runs 205 or later.
+- `#2077` Fix the Astra button above the create habit button and remove its drag (owner order). Next: `ui#2389` head `7ce726f8d` answers its four red CI jobs (the CI-fix worker hit its ceiling after committing); wait for CI, add that round's evidence from the worker log to the body, request the review, merge, then production web and Android Open with `#2062`.
+- `#2062` Keep the keyboard up while typing in habit search. Next: live in production web `0e43371b0`; ships to Android Open with `#2077`, then close.
+- `#2061` Centre the clear X in the habit search empty state. Next: `ui#2377` round 4 commit `e3d3c80b2` (local, not pushed; one inline load error primitive per platform and the Android description link retry) answers threads `PRRT_kwDOR5Siws61Ia-c` and `PRRT_kwDOR5Siws61Ia-f`; verify it against both threads, run the suites, merge the body, resolve, push once, request the review after green CI.
+- `#2030` Show the update and later buttons on the Android update sheet. Next: the owner-device probe (ticket comment) shows the footer inside the window on the unfolded Fold; workers may not start an emulator, so the orchestrator runs the AVD `orbit-repro-2030` matrix at the Fold cover screen (720x1680, density 420, pt-BR and en, font 1.0 and 1.08, light and dark, return from background, fold change while open) in worktree `ticket-2030-cover-screen`; fix only on a red condition.
 
 ### Batch 2a: the API contracts the UI waits on
 
@@ -112,9 +108,9 @@ A deletion ships as a deprecation, then a code removal, then a table drop, each 
 ### Batch 8: new platforms, iOS first, then desktop
 
 - `#1561` Ship Orbit for iPhone and iPad to TestFlight, with push and the home-screen widget. Next: CI, review and merge of `ui#2370`, which rides the next Android Open, then the real-device checks through TestFlight once the owner installs it.
-- `#1560` Ship a real native Orbit desktop app for Windows and macOS. Next: desktop 0.1.26 is signed, notarized and published on `desktop-staging` (run 42492679821, attempt 4; Apple took about 24 hours on the aarch64 submission). The production web release publishes it to `desktop-production`; then verify the shell update on the Mac and close.
-- `#1861` Add the Done action to Repeat every reminders in the macOS and Windows desktop app. Next: `ui#2374` round 8 `249eaa4d0` is pushed (fresh apsd keychain on macOS, Done taken from a collapsed Windows notification center entry, benchmark habits across midnight); its thread is resolved. Read the new Desktop Installed Acceptance and Desktop measure runs: `installed (windows-latest)` was red at the round 8 head.
-- `#1563` Show the App Store badge and the Mac and Windows downloads on the landing page. Next: merge `landing#127` after signed desktop 0.1.26 is on `desktop-production`, then release the landing; the App Store card follows the App Store listing.
+- `#1560` Ship a real native Orbit desktop app for Windows and macOS. Next: desktop 0.1.26 is on `desktop-production`. Launch the composed worker that makes every Windows `tauri build` caller read its NSIS tools from a hash-checked cache and makes `apps/desktop/scripts/release-plan.ts` read the channel manifest through the REST asset endpoint with retries (GitHub `releases/download` answered 504 for hours and failed four release attempts); worktree `ticket-1560-nsis-prefetch`. Then verify the shell update on the Mac and close.
+- `#1861` Add the Done action to Repeat every reminders in the macOS and Windows desktop app. Next: round 10 on `ui#2374` (head `3b4f192f9`): Windows `installed` now finds the notification but times out on "the Done habit log"; macOS `installed` passes Done and times out on the expired-session notification; `measure (windows-latest)` fails in `electron-build.log`. Read the artifacts of runs 42567095698 and 42567095900 and send one worker round.
+- `#1563` Show the App Store badge and the Mac and Windows downloads on the landing page. Next: `landing#127` is live in production landing `7fb212c42`; the App Store card follows the App Store listing (`#1561`).
 
 ## How the work runs
 
@@ -160,11 +156,11 @@ Code facts that no gate or owner document states:
 
 ## Current state
 
-Latest handoff: a relay with the chain open, the run in `/sleep` with `crank: true` and `autoWork: true`. UI `main` `bd8df6080`, API `main` `3da71dcf6`, landing `main` `aab36c695`; staging web `0e43371b0` and staging API `3da71dcf6` (released this relay); production web `6602756f3`, production API `998823218`; Android Open 1.3.149 (209); desktop 0.1.26 on `desktop-staging`, 0.1.25 on `desktop-production`; TestFlight Orbit Staging 1.3.149 (4). Release chain next: landing staging `aab36c695`, then production API `3da71dcf6`, web `0e43371b0` (it publishes desktop 0.1.26 production), landing; then `landing#127`. Batch T: seven of eleven merged (`ui#2380`, `#2386`, `#2384`, `#2383`, `#2382`, `#2381`, `#2378`); open `#2065`, `#2066` (proof only), `#2067`, `#2071`, `#2074`. Intake: Sentry `ORBIT-MOBILE-Q` only (no new event), mail 0, Play 0 (cycle `c3158faf-c1` complete). The session chain ledger lives untracked at `.git/orbit-session-chain.json`.
+Latest handoff: a relay with the chain open, the run in `/sleep` with `crank: true` and `autoWork: true`. UI `main` `f063561d7`, API `main` `3da71dcf6`, landing `main` `7fb212c42`; production web `0e43371b0`, production API `3da71dcf6`, production landing `7fb212c42`; staging web `0e43371b0`, staging API `3da71dcf6`, staging landing `7fb212c42`; Android Open 1.3.149 (209); desktop 0.1.26 on `desktop-staging` and `desktop-production`. Batch T: `#2066`, `#2067` and `ui#2387` (`#2074`) merged; open `#2065` (unpushed branch), `#2071` (owner sign-in) and `#2074` (proof steps). Default and mechanical workers run on `claude-sonnet-5-5`; Pullfrog reviews only on request. Intake: Sentry `ORBIT-MOBILE-Q` only (no new event), mail 0, Play 0. The session chain ledger lives untracked at .git/orbit-session-chain.json.
 
 ## Open questions
 
-No owner question is open. Owner-only steps, never reminded: cancel the second Claude account on 4 December 2026; cancel ChatGPT Plus if it still bills; open TestFlight for the `#1561` device checks; record the `#33` videos when the run asks.
+Open: the owner signs in to claude.ai in Chrome with the main account; it blocks `#2071`. Owner-only steps, never reminded: cancel the second Claude account on 4 December 2026; cancel ChatGPT Plus if it still bills; open TestFlight for the `#1561` device checks; record the `#33` videos when the run asks.
 
 Settled decisions that still bind:
 
