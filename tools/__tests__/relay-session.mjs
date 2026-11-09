@@ -14,8 +14,10 @@ const created = readFileSync(new URL("./fixtures/orca-relay-create.json", import
 const listing = JSON.parse(readFileSync(new URL("./fixtures/orca-relay-list.json", import.meta.url), "utf8"))
 const appState = JSON.parse(readFileSync(new URL("./fixtures/orca-relay-app-state.json", import.meta.url), "utf8"))
 const prompt = "/sleep\nRead .claude/specs/relay.md. Every identifier is a lead to verify.\n## Goal\nFinish the spec. gh issue list\n## In flight\nNone.\n## Sleep\nContinue.\n## Previous prompt, disposition\nCarried.\n"
+/** The shipped crossing value, so every case follows the config instead of a copy of it. */
+const relayThreshold = realOrchestratorConfig().relay.thresholdTokens
 
-const fixture = (label, { tokens = 400000, calls = 20, crank = false, crankPrompt = crank, autoWork = false } = {}) => {
+const fixture = (label, { tokens = relayThreshold, calls = 20, crank = false, crankPrompt = crank, autoWork = false } = {}) => {
   const repo = stageRepo(`relay-${label}`)
   const checkout = repo.path
   repo.git(["checkout", "-qb", "relay-docs"])
@@ -234,7 +236,7 @@ const fileWaiterCase = async () => {
 
 export const cases = async () => {
   await fileWaiterCase()
-  for (const [label, options, message] of [["below", { tokens: realOrchestratorConfig().relay.thresholdTokens - 1 }, /below threshold/], ["young", { calls: 19 }, /at least 20/]]) {
+  for (const [label, options, message] of [["below", { tokens: relayThreshold - 1 }, /below threshold/], ["young", { calls: 19 }, /at least 20/]]) {
     const staged = fixture(label, options)
     T(`relay-session: refuses ${label}`, message.test(await failure({ repoRoot: staged.checkout, sessionId: "predecessor" })))
   }
@@ -286,7 +288,7 @@ export const cases = async () => {
   T("relay-session: all relay reporting and lock release precede predecessor close", closedAfterReport)
   T("relay-session: confirms only the nominated sleep successor", result.terminal === "term_successor" && readRunState(successful.checkout).relay.from === "predecessor")
   const entry = openSessionChain(result.successorSessionId, successful.checkout).entries[0]
-  T("relay-session: chain records measured metrics, complete decisions and questions", entry.measuredTokens === 400000 && entry.assistantCalls === 20 && entry.decisions === "Decision and reasoning copied in full.\n" && entry.openOwnerQuestions[0] === "An owner question." && entry.superseded === true)
+  T("relay-session: chain records measured metrics, complete decisions and questions", entry.measuredTokens === relayThreshold && entry.assistantCalls === 20 && entry.decisions === "Decision and reasoning copied in full.\n" && entry.openOwnerQuestions[0] === "An owner question." && entry.superseded === true)
   T("relay-session: no terminal operation uses an empty handle", commands.filter((args) => ["send", "wait", "close"].includes(args[1])).every((args) => ["term_successor", "term_predecessor"].includes(args[args.indexOf("--terminal") + 1])))
   const command = commands.find((args) => args[1] === "create").at(-2)
   T("relay-session: successor command contains no evaluated source", !/eval|node -e|Buffer.from/.test(command))
