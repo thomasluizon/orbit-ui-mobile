@@ -172,5 +172,4 @@ it('lets the non-quiet challenge span the form column', async () => {
   await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
   const challenge = renderWidget.mock.calls[0]![0] as HTMLElement
   expect(challenge.className).toContain('w-full')
-  expect(challenge.parentElement!.className).toContain('items-stretch')
 })
