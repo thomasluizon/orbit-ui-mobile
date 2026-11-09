@@ -131,8 +131,14 @@ it.each([412, 840])('takes the create button position when that button is absent
     const create = await page.evaluate(() => document.querySelector('[data-shell-fab] button')!.getBoundingClientRect().toJSON() as DOMRect)
     await page.setContent(`<style>${stylesheet}</style>${stackedShell(false)}`)
     const alone = await page.evaluate(() => document.querySelector('[data-astra-button]')!.getBoundingClientRect().toJSON() as DOMRect)
+    const columnContentRight = await page.evaluate(() => {
+      const column = document.querySelector('[data-shell-fab-content]')!
+      return column.getBoundingClientRect().right - Number.parseFloat(getComputedStyle(column).paddingRight)
+    })
     expect(await page.locator('[data-shell-fab]').count()).toBe(0)
     expect({ left: alone.left, top: alone.top }).toEqual({ left: create.left, top: create.top })
+    expect(alone.right, JSON.stringify({ alone, columnContentRight })).toBe(columnContentRight)
+    expect(create.right).toBe(columnContentRight)
   } finally { await page.close() }
 })
 

@@ -33,10 +33,12 @@ function measureStack() {
   const rect = (selector: string) => document.querySelector(selector)?.getBoundingClientRect() ?? null
   const button = rect('[data-astra-button]')!
   const create = rect('[data-shell-fab] button')
-  const column = rect('[data-shell-fab-content]')!
+  const columnElement = document.querySelector('[data-shell-fab-content]')!
+  const column = columnElement.getBoundingClientRect()
+  const columnInset = Number.parseFloat(getComputedStyle(columnElement).paddingRight)
   return { top: button.top, bottom: button.bottom, left: button.left, right: button.right, width: button.width,
     createTop: create?.top ?? null, createBottom: create?.bottom ?? null, createLeft: create?.left ?? null, createRight: create?.right ?? null,
-    createWidth: create?.width ?? null, columnBottom: column.bottom, columnRight: column.right, tabsTop: rect('[data-shell-tab-bar]')!.top }
+    createWidth: create?.width ?? null, columnBottom: column.bottom, columnRight: column.right - columnInset, tabsTop: rect('[data-shell-tab-bar]')!.top }
 }
 
 for (const width of [1280, 1352]) {
