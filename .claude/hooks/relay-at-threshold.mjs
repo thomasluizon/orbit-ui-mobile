@@ -24,25 +24,29 @@ try {
     // The hook payload names the session; the hook process environment is not the confirmed source.
     const caller = { sessionId: input.session_id }
     const measuredTokens = readSessionContext(input.transcript_path)
-    if (measuredTokens >= config.relay.thresholdTokens) {
+    if (measuredTokens >= config.relay.softTokens) {
       releaseLock = acquireRelayLock()
       // Parallel tool hooks must decide from the state published by the previous lock owner.
       state = readRunState()
     }
-    if (state.relay?.fallbackUntilCompacted && measuredTokens < config.relay.thresholdTokens) {
+    if ((state.relay?.fallbackUntilCompacted || state.relay?.armed) && measuredTokens < config.relay.softTokens) {
       const decided = state
       state = updateRunState((current) => verdictStillHolds(decided, current)
-        ? { ...current, relay: { ...current.relay, fallbackUntilCompacted: false } } : undefined, undefined, caller) ?? readRunState()
+        ? { ...current, relay: { ...current.relay, fallbackUntilCompacted: false, armed: false } } : undefined, undefined, caller) ?? readRunState()
     }
     const sources = readWakeSourceStates()
-    const verdict = checkRelayStop({ ...config.relay, state, sessionId: input.session_id, measuredTokens,
+    const verdict = checkRelayStop({ ...config.relay, state, sessionId: input.session_id, measuredTokens, hookEventName: input.hook_event_name,
       wakeSources: sources.live, orphaned: sources.orphaned, backgroundRuns: readBackgroundRuns(input.session_id), stopHookActive: input.stop_hook_active === true })
     // A record that changed after the verdict skips the write and its message; the next hook decides again.
     let applied = true
+    if (verdict?.arm) {
+      applied = updateRunState((current) => verdictStillHolds(state, current)
+        ? { ...current, relay: { ...current.relay, armed: true, armedAt: new Date().toISOString(), armedTokens: measuredTokens } } : undefined, undefined, caller) !== undefined
+    }
     if (verdict?.begin) {
       const now = new Date().toISOString()
-      const begun = updateRunState((current) => verdictStillHolds(state, current) ? { ...current, relay: { pending: true, from: input.session_id, measuredTokens,
-        permissionMode: input.permission_mode, transcriptPath: input.transcript_path, triggeredAt: now } } : undefined, undefined, caller)
+      const begun = updateRunState((current) => verdictStillHolds(state, current) ? { ...current, relay: { pending: true, forced: verdict.forced, armedAt: current.relay?.armedAt,
+        armedTokens: current.relay?.armedTokens, from: input.session_id, measuredTokens, permissionMode: input.permission_mode, transcriptPath: input.transcript_path, triggeredAt: now } } : undefined, undefined, caller)
       applied = begun !== undefined
       if (applied) recordHandoffRequest(input.session_id, { command: "handoff", origin: "context-relay", sleep: true, crank: begun.crank === true, autoWork: begun.autoWork === true }, now)
     }
