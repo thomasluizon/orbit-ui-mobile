@@ -7,7 +7,7 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { setLayoutProfileSession } from './profile-session'
 import { getShellConversationEntry } from './shell-conversation-entry'
 import { expectOneFieldIndicator, inspectFocusedControlRings as inspectFocusedRing } from './focus-indicators'
-import { clickWhenHydrated, fillWhenHydrated, focusWhenHydrated } from './hydration-guard'
+import { clickWhenHydrated, fillWhenHydrated, focusWhenHydrated, waitForHydratedControl } from './hydration-guard'
 
 async function expectOneRing(page: Page, surface: string, stop: number) {
   const state = await inspectFocusedRing(page)
@@ -84,6 +84,7 @@ for (const width of [412, 1280] as const) {
           ? await focusConversationComposer(page, width)
           : page.locator(targetSelector).first()
         await expect(target).toBeVisible()
+        await waitForHydratedControl(target)
         await target.focus()
         await page.keyboard.press('Shift+Tab')
         await page.keyboard.press('Tab')
@@ -111,6 +112,7 @@ for (const width of [412, 1280] as const) {
       await page.keyboard.press('Tab')
       await expect(field).toBeFocused()
       await expectOneRing(page, `palette field ${width}px`, 0)
+      await waitForHydratedControl(field)
       await expectOneFieldIndicator(page, field, 'div.relative', `palette search ${width}px`, { includeDescendants: true })
       await inspectTabStops(page, `palette ${width}px`)
     })
@@ -142,6 +144,7 @@ for (const width of [412, 1280] as const) {
       await page.keyboard.press('Tab')
       await expect(time).toBeFocused()
       await expectOneRing(page, `create exact time ${width}px`, 0)
+      await waitForHydratedControl(time)
       await expectOneFieldIndicator(page, time, 'input[data-hour-cycle]', `create time ${width}px`)
       await inspectTabStops(page, `create timing sheet ${width}px`)
     })
@@ -181,6 +184,7 @@ for (const width of [412, 1280] as const) {
         await page.keyboard.press('Tab')
         await expect(steps.getByRole('button', { name: removeLabel, exact: true })).toBeFocused()
         await expectOneRing(page, `${subItem} remove ${width}px`, 1)
+        await waitForHydratedControl(input)
         await expectOneFieldIndicator(page, input, '[data-focus-perimeter]', `${subItem} row ${width}px`)
         await page.emulateMedia({ forcedColors: 'active' })
         await expectOneFieldIndicator(page, input, '[data-focus-perimeter]', `${subItem} row forced colors ${width}px`, { forcedColors: true })
@@ -192,25 +196,30 @@ for (const width of [412, 1280] as const) {
       await page.goto('/')
       await expect(page.getByRole('navigation', { name: messages.nav.mainNavigation })).toBeVisible()
       const composer = await focusConversationComposer(page, width)
+      await waitForHydratedControl(composer)
       await expectOneFieldIndicator(page, composer, '[data-composer-input-row]', `composer forced colors ${width}px`, { forcedColors: true })
 
       await page.goto('/search')
       const search = page.locator('[cmdk-input]').first()
+      await waitForHydratedControl(search)
       await expectOneFieldIndicator(page, search, 'div.relative', `search forced colors ${width}px`, { forcedColors: true, includeDescendants: true })
 
       await page.goto('/support')
       await clickWhenHydrated(page.getByRole('radio', { name: messages.profile.support.subjects.problem.label, exact: true }))
       const message = page.locator('form textarea').first()
+      await waitForHydratedControl(message)
       await expectOneFieldIndicator(page, message, '[data-input-root]', `support forced colors ${width}px`, { forcedColors: true })
 
       await openCreateForm(page)
       const phrase = page.locator('[data-habit-phrase-field] textarea')
       await expect(phrase).toBeVisible()
+      await waitForHydratedControl(phrase)
       await expectOneFieldIndicator(page, phrase, '[data-habit-phrase-field]', `create phrase forced colors ${width}px`, { forcedColors: true, includeDescendants: true })
       await page.getByRole('button', { name: new RegExp(messages.habits.form.timingAndReminder) }).click()
       const timing = page.getByRole('dialog', { name: messages.habits.form.timingAndReminder, exact: true })
       await expect(timing).toBeVisible()
       const time = timing.getByRole('textbox', { name: messages.habits.form.exactTime, exact: true })
+      await waitForHydratedControl(time)
       await expectOneFieldIndicator(page, time, 'input[data-hour-cycle]', `create time forced colors ${width}px`, { forcedColors: true })
     })
   })
@@ -222,6 +231,7 @@ for (const width of [412, 1280] as const) {
       await page.goto('/login')
       await expect(page.getByRole('textbox').first()).toBeVisible()
       await inspectTabStops(page, `Entrar ${width}px`)
+      await waitForHydratedControl(page.locator('input[name="email"]'))
       await expectOneFieldIndicator(page, page.locator('input[name="email"]'), '[data-input-root]', `sign-in email ${width}px`)
     })
 
@@ -233,6 +243,7 @@ for (const width of [412, 1280] as const) {
       await page.getByRole('button', { name: messages.auth.sendCode, exact: true }).click()
       const code = page.locator('input[name="verificationCode"]')
       await expect(code).toBeVisible()
+      await waitForHydratedControl(code)
       await expectOneFieldIndicator(page, code, 'form', `sign-in code ${width}px`)
     })
 
@@ -242,11 +253,13 @@ for (const width of [412, 1280] as const) {
       await completeInstallOnboarding(page)
       await page.goto('/login')
       const email = page.locator('input[name="email"]')
+      await waitForHydratedControl(email)
       await expectOneFieldIndicator(page, email, '[data-input-root]', `sign-in email forced colors ${width}px`, { forcedColors: true })
       await email.fill('focus@example.com')
       await page.getByRole('button', { name: messages.auth.sendCode, exact: true }).click()
       const code = page.locator('input[name="verificationCode"]')
       await expect(code).toBeVisible()
+      await waitForHydratedControl(code)
       await expectOneFieldIndicator(page, code, 'form', `sign-in code forced colors ${width}px`, { forcedColors: true })
     })
   })

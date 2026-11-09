@@ -3,11 +3,12 @@ import { test } from './layout-test'
 import { expectOneControlRing, expectOneFieldIndicator } from './focus-indicators'
 import en from '@orbit/shared/i18n/en.json'
 import { getShellConversationEntry } from './shell-conversation-entry'
-import { clickWhenHydrated } from './hydration-guard'
+import { clickWhenHydrated, waitForHydratedControl } from './hydration-guard'
 
 async function expectComposerKeyboardRings(page: Page, container: Locator, forcedColors: boolean): Promise<void> {
   const mode = forcedColors ? 'forced colors' : 'normal colors'
   const field = container.locator('[data-composer-input]')
+  await waitForHydratedControl(field)
   await field.fill('Draft')
   await expectOneFieldIndicator(page, field, '[data-composer-input-row]', `composer field in ${mode}`, { forcedColors })
 

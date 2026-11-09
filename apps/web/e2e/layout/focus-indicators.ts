@@ -1,5 +1,4 @@
 import { expect, type Locator, type Page } from '@playwright/test'
-import { focusWhenHydrated } from './hydration-guard'
 
 export async function readOutlineVisibility(target: Locator, pseudo?: '::before') {
   return target.evaluate(async (element, settings) => {
@@ -164,7 +163,7 @@ export async function expectOneFieldIndicator(
   options: FieldIndicatorOptions = {},
 ): Promise<void> {
   await expect(target).toBeVisible()
-  await focusWhenHydrated(target)
+  await target.focus()
   await page.keyboard.press('Shift+Tab')
   await page.keyboard.press('Tab')
   await expect(target).toBeFocused()
