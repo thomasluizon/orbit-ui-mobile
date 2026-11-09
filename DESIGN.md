@@ -1164,7 +1164,7 @@ Consequences that hold either way:
 ### Shape, shadow, motion, icons
 
 - Radii, enumerated: **0 / 8 / 12 / 16 / 20 / 28**, pill 999. Cards and habit panels 20, wells 12, fields 12, chips and badges 8, overlay panel **28 top radius**, CTAs pill.
-- **The app and store icon radius is set by the platform mask** (the iOS superellipse, the Android adaptive mask) and is the one radius outside this scale. It never appears on a UI surface.
+- **The app and store icon radius is set by the platform mask** (the iOS superellipse, the Android adaptive mask) and is the one radius outside this scale. Windows applies no mask, so the Windows desktop icon bakes its tile and radius into `icon.ico`; `windowsIconLayers` in `tools/generate-brand-assets.mjs` holds the margin and radius for each size. This radius never appears on a UI surface.
 - **The pill radius means interactive.** Radius 999 is reserved for something you can press. A static element never wears it, because a non-clickable shape identical to the buttons beside it collects dead clicks. Badges and status chips use radius 8.
 - **Habit row completion feedback** paints only inside the visible 28px radius-12 check, never a halo. The 48px target stays transparent. Empty checks retain their status border over `bg-hover`; completed checks layer `bg-hover-opaque` over their neutral fill beneath the checkmark. Leaf and parent controls share one 2px focus outline following the check with a 2px outward offset, inside the target.
 - **Nested rounded surfaces use concentric radii: outer = inner + padding.** A parent and its inset child never share a radius. Where the padding exceeds 24, treat the layers as separate surfaces and choose each radius independently.
