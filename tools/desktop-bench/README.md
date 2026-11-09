@@ -231,8 +231,9 @@ elevated, and `TokenIsElevated`. On macOS the line names the missing APNs entitl
 lines from every launch log into `report.json` `push.nativeUnsupported`, and copies the earlier
 launches' lines into `push.log`.
 
-The runner hides the main window through its close control and invokes Done on the system
-notification through UIA or AX. If the banner is gone, the reader opens the notification list once.
+The runner hides the main window through its close control. On macOS it invokes Done on the system
+notification through AX. On Windows the UIA reader only finds the toast with its Done button, and the
+activator client below makes the Done click. If the banner is gone, the reader opens the notification list once.
 On Windows, the GitHub image turns Do not disturb on, which holds every banner back, and the
 notification center lists the toast collapsed. Windows + N opens that center and moves keyboard focus
 into it. The reader searches the UIA root windows, every visible top-level window of a process that
@@ -252,7 +253,8 @@ The mock must record exactly one habit log for that habit, and the app window mu
 The second check sends another reminder and stops the shell while its notification is visible.
 From the push launch on, the mock refuses the long-lived sign-in token, so the BFF refreshes it into
 65 second tokens. After the shell stops, the mock also refuses the refresh token. A Done on that
-notification launches the shell. The runner finds and adopts that process before it waits for the
+notification launches the shell. On Windows the activator client makes that Done, and COM starts the
+shell from its `LocalServer32` command, as it does for a click while no shell runs. The runner finds and adopts that process before it waits for the
 sign-in page, so cleanup stops it on every outcome. Its first page load finds a due token, fails the
 refresh and goes to sign-in, which must show in a visible window. The mock must record no habit log
 for that reminder.
@@ -265,6 +267,9 @@ Each run keeps the platform evidence that the notification readers use, also whe
   holds the candidate windows with their source (`automation`, `system` or `focus`), the AUMID
   history and, after a match, the UIA subtree of the toast that holds Done.
   A host that shows the title without one Done action keeps its UIA subtree in `titled`.
+- On Windows, `trees/notification-done-activator.json` and `trees/notification-expired-activator.json` keep each
+  activator reply: the confirmed SDK header, the activator registration, the argument keys, the client token and the
+  `Activate` HRESULT. `notification-*-activator.jsonl` keeps the status lines of the Medium client.
   On macOS, a reply holds the AX tree of `com.apple.notificationcenterui`, and
   `trees/notification-authorization.json` keeps the tree from the authorization alert search.
   `trees/notification-authorization-found.json` keeps the reply of the search that found the alert.
@@ -301,13 +306,42 @@ The Windows App SDK registers the activator of the running shell with `CoRegiste
 activator, and COM uses a running activate-as-activator registration only for an activator whose token
 matches the server's token ([Activate-As-Activator activates as activator](https://learn.microsoft.com/en-us/archive/blogs/larryosterman/activate-as-activator-activates-as-activator)).
 On the hosted `windows-latest` image the runner signs in as the built-in Administrator, and
-`explorer`, `sihost` and `WpnUserService` run at High integrity. The Medium shell then logs `a
-notification activation started a second process` after the Done invoke, and no habit log arrives. A
+`explorer`, `sihost` and `WpnUserService` run at High integrity. A UIA click on Done then makes the Medium
+shell log `a notification activation started a second process`, and no habit log arrives. A
 shell at the hosts' High integrity cannot take their place: `AppNotificationManager::IsSupported` is
 false at High integrity and above, and `Register` then returns without a registration
 (`dev/AppNotifications/AppNotificationManager.cpp` in microsoft/WindowsAppSDK). Thus a toast click
 reaches the running shell only on a machine whose shell hosts run at Medium integrity, as they do for
 a person who signs in under UAC.
+
+Thus the Windows phase makes the call that Windows makes on a Done click, from a Medium client with the
+shell's token. The `activate` mode of `windows-unelevated.ps1` runs at High and does these steps:
+
+1. It confirms the `INotificationActivationCallback` IID of its COM type against `NotificationActivationCallback.h`
+   in every installed Windows SDK under `Windows Kits\10\Include`.
+2. It reads the activator registration that the Windows App SDK v1.7.9 writes for an unpackaged app
+   (`AppNotificationUtility.cpp`): the AUMID in the `NotificationGUID` value, the CLSID in the `CustomActivator`
+   value under `HKCU\Software\Classes\AppUserModelId\<AUMID>`, and the `LocalServer32` command of that CLSID. That
+   command must be `"<installed shell>" ----AppNotificationActivated:`.
+3. It reads the posted toast from the notification history of the AUMID and takes the `arguments` attribute of
+   its one Done action. `AppNotificationButton` writes that attribute, and a click passes it unchanged.
+4. It writes the call to `notification-*-activator-request.json`, which the artifacts never upload, because the
+   arguments hold the one-use Done token.
+5. It starts the `notify` mode with the standard-user token that the shell launch computes, with
+   `SaferComputeTokenFromLevel` and a Medium label.
+
+The `notify` mode calls `CoCreateInstance` with `CLSCTX_LOCAL_SERVER` for the CLSID. Then it calls
+`Activate` with the AUMID, the Done arguments and no user input, because the Done toast has no input
+field. The phase requires the client token to match the push shell's token in its SID, integrity
+level, Administrators group state and session. It also requires `Activate` to return `S_OK`. The
+outcome must then match macOS: exactly one Done habit log with the window hidden, and for the
+stopped shell, the sign-in page in a visible window and no habit log. A failed call names the client
+error or the HRESULT, the host levels and each shell instance, and `trees/notification-*-activator-failure.json`
+keeps that capture.
+
+This check has a limit. A hosted runner does not exercise the dispatch of the operating system
+itself, from the toast button to the activator. A click on Done on a real Windows machine, in a
+standard-user session, proves that dispatch.
 
 `mock.log` names every acceptance route that the shell or the BFF reached, with its status, such as
 `POST /api/reminders/done 200`. The harness's own `GET /_test/` polls stay out of it.
