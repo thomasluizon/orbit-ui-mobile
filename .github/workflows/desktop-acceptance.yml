@@ -8,6 +8,7 @@ on:
       - 'apps/desktop/**'
       - 'tools/desktop-bench/**'
       - '.github/workflows/desktop-acceptance.yml'
+      - '.github/actions/desktop-nsis-tools/**'
 
 permissions:
   contents: read
@@ -38,6 +39,9 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --prefer-offline --no-audit --fund=false
+      - name: Provide the NSIS bundler tools
+        if: runner.os == 'Windows'
+        uses: ./.github/actions/desktop-nsis-tools
       - name: Check native acceptance producers
         run: node --import tsx tools/desktop-bench/test-acceptance.ts
       - name: Install native prerequisites

@@ -7,6 +7,10 @@ on:
     paths:
       - 'tools/desktop-bench/**'
       - '.github/workflows/desktop-benchmark.yml'
+      - '.github/actions/desktop-nsis-tools/**'
+      - 'apps/desktop/scripts/nsis-tools.ts'
+      - 'apps/desktop/scripts/release-asset.ts'
+      - 'apps/desktop/src-tauri/native/windows/nsis-tools.json'
 
 permissions:
   contents: read
@@ -35,6 +39,9 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --prefer-offline --no-audit --fund=false
+      - name: Provide the NSIS bundler tools
+        if: runner.os == 'Windows'
+        uses: ./.github/actions/desktop-nsis-tools
       - name: Install Rust
         shell: bash
         run: |

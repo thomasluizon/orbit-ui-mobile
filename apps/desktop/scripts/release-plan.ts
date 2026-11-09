@@ -6,7 +6,7 @@ import { downloadReleaseAsset, findRelease, ReleaseAssetError, type ReleaseAsset
 import { assertReleaseCandidate, assertSourceLineage, compareVersions, releaseSettings, repository, signedManifest, tagFor, versionFromTag } from './release.ts'
 
 const shellPaths = [
-  'apps/desktop', 'apps/web/web-compatibility.json', 'package.json', 'package-lock.json',
+  'apps/desktop', '.github/actions/desktop-nsis-tools', 'apps/web/web-compatibility.json', 'package.json', 'package-lock.json',
   '.github/workflows/desktop-build.yml', '.github/workflows/desktop-release.yml',
 ]
 
