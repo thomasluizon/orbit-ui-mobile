@@ -316,18 +316,18 @@ export const supersededRunSession = (sessionId, state) => {
     ? { sessionId: state.sessionId, terminal: state.relay.successorTerminal ?? null } : null
 }
 
-export const RUN_STATE_LOCK_WAIT_MILLISECONDS = 5000
+const RUN_STATE_LOCK_WAIT_MILLISECONDS = 5000
 const RUN_STATE_LOCK_RETRY_MILLISECONDS = 10
 const lockPause = new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT))
 const heldRunStateLocks = new Set()
 
 /**
- * Serializes every run state read-change-write across processes. A nested call from the holder runs
- * inside the held lock, and a dead holder's lock is reclaimed as in acquireRelayLock.
+ * Serializes every run state read-change-write across processes. A nested call from the holder throws,
+ * because the outer write would discard it, and a dead holder's lock is reclaimed as in acquireRelayLock.
  */
 const withRunStateLock = (repoRoot, action) => {
   const gitDirectory = gitDirectoryOf(repoRoot)
-  if (heldRunStateLocks.has(gitDirectory)) return action()
+  if (heldRunStateLocks.has(gitDirectory)) throw new Error("run state lock is already held by this process; make the change inside the held update")
   const deadline = Date.now() + RUN_STATE_LOCK_WAIT_MILLISECONDS
   let release
   while (!release) {

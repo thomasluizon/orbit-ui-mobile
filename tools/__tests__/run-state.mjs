@@ -7,7 +7,7 @@ import { Worker } from "node:worker_threads"
 
 import { T, TOOLS_DIR, root } from "./_harness.mjs"
 
-const { clearWakeSource, readRunState, readWakeSources, readWorkerLaunches, registerWakeSource, reserveWorkerLaunch, runStatePath, wakeSourceDirectory, workerLaunchDirectory, writeRunState } = await import("../lib/run-state.mjs")
+const { clearWakeSource, readRunState, readWakeSources, readWorkerLaunches, registerWakeSource, reserveWorkerLaunch, runStatePath, updateRunState, wakeSourceDirectory, workerLaunchDirectory, writeRunState } = await import("../lib/run-state.mjs")
 
 const TOOL = "lib/run-state.mjs"
 
@@ -166,6 +166,18 @@ export const cases = async () => {
     JSON.stringify(raced.filter((outcome) => !outcome.exercised)))
   T(`${TOOL}: a concurrent wake save loses no disable in ${RACE_TRIALS} trials`, lost.length === 0,
     `lost ${lost.length} of ${RACE_TRIALS}: ${JSON.stringify(lost.slice(0, 3))}`)
+  const nested = stageCheckout("nested-write")
+  writeRunState({ sessionId: "s", sleep: true, autoWork: true }, nested)
+  let nestedError = null
+  try {
+    updateRunState((state) => { writeRunState({ ...state, autoWork: false }, nested); return { ...state, crank: true } }, nested)
+  } catch (error) { nestedError = error.message }
+  const afterNested = readRunState(nested)
+  T(`${TOOL}: a writer called inside a held update throws and writes nothing`,
+    nestedError?.includes("already held by this process") === true && afterNested.autoWork === true && afterNested.crank === undefined,
+    JSON.stringify({ nestedError, afterNested }))
+  writeRunState({ ...afterNested, crank: false }, nested)
+  T(`${TOOL}: the lock is released after a refused nested write`, readRunState(nested).crank === false)
   const autoCheckout = stageCheckout("auto-work")
   writeRunState({ sessionId: "auto-parent", autoWork: true, crank: false, intake: { gmail: { completed: ["message-1"] } } }, autoCheckout)
   writeRunState({ sessionId: "auto-parent", remaining: [] }, autoCheckout)

@@ -148,7 +148,7 @@ no invocation flag overrides it. Pool sizing for an enabled Cloud lane is detail
                      PRINT the adjudicated assumptions (decided at the step 7 worker-exit read,
                      never first seen here)
                      READY -> In Review.
-                     UPDATE remaining[] in .git/orbit-orchestrate-run.json
+                     UPDATE remaining[] through updateRunState (tools/lib/run-state.mjs)
                      no --sleep -> STOP and wait for `continue`  ·  --sleep -> next ticket
                      --sleep: a turn ends ONLY with a live background task, NAMED  [Stop hook]
                                         ---- end per ticket ----
@@ -1531,8 +1531,9 @@ a relay; a plain shell polling loop registers no wake source.
 
 **The gate:** `.claude/hooks/require-wake-source.mjs` runs on `Stop` and refuses the stop when the
 run record says `--sleep` with tickets remaining and no registered wake source is a live process. So
-maintain the record. Write it at step 2b and update it at step 9, in the checkout you are running
-from:
+maintain the record. Write it at step 2b and update it at step 9 through `updateRunState` in
+`tools/lib/run-state.mjs`, which reads and writes the record under one lock, in the checkout you are
+running from:
 
 ```jsonc
 // .git/orbit-orchestrate-run.json   (never committed; .git is not part of the tree)
