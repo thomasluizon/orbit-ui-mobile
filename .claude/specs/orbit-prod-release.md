@@ -39,7 +39,7 @@ Operating facts for workers, CI, merges, releases, consoles and devices are in `
 - General habits never offer Skip; dated habits keep Skip (`#1920`). General items are undated one-time tasks under Task date choices; Habit frequency offers only Every and Times per, without the repeating General hint. The habit form rules are in `design/habit-form-surfaces.md`.
 - Calendário is one centred column (the month grid on top, the selected day below it, the view selector folded into the month header, 24px card padding). The Perfil Suporte row opens the support form. Sobre carries no internal naming note.
 - Owner removals that `tools/feature-parity-rules.json` cites by exact text: Perfil is grouped into sub-menus, and the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies. A floating control no drawing has (the web back-to-top button) is deleted, not restyled. `#1422`: Remove the Hoje jump pill; the centred date label returns to today across the app.
-- The floating Astra button exists only in the compact shell (Android and web below 1024), replaces the Hoje composer, and drags over the whole screen but never over the tab bar (`#2042`).
+- The Astra button exists only in the compact shell (Android and web below 1024), replaces the Hoje composer, and sits fixed directly above the create habit `+` button, taking its position where the `+` is hidden; it never floats or drags (`#2077`, which replaces the drag of `#2005` and `#2042`).
 - Every input is simple first (levels, not a wall of options), keeps correct spacing including hover spacing, and asks human questions instead of system labels. A set of options never wraps onto a second line, and every no-wrap rule has a test that fails the pull request.
 - The app feels like a native mobile app at compact widths: less on each screen, secondary content in sheets, menus and drawers, and breathing room around every group (brain ADR `Native mobile review answers on suggestion chips, the Avisos bell and long typed text.md`). `DESIGN.md` is wrong wherever it permits the opposite. Where a control sits is the run's decision.
 - Hovering a nested control never keeps its parent card's hover active (`#2057`).
@@ -61,16 +61,11 @@ Reconcile the open board with these batches before each handoff. Place each new 
 
 In-flight work finishes as normal. Then no new board ticket is admitted until every diet ticket below is merged. Brain ADR D149 holds the measurements and the account plan.
 
-- `#2064` Cut the production release spec to 40 KB and `NEXT.md` to 8 KB, with a size guard. Next: CI, review and merge of `ui#2386`; then close the relay docs pull request `ui#1989` and start the next relay branch from `main`.
-- `#2065` Lower the coordinator relay threshold to 200k tokens. Next: after `#2064` merges, `/orchestrate`.
-- `#2066` Cut fixed context per call: unused connectors off, `CLAUDE.md` to 6 KB, `MEMORY.md` trimmed. Next: CI, review, merge of `ui#2378`; then the orchestrator sets `disabledMcpServers` for this project in `~/.claude.json` and trims `MEMORY.md` to 6 KB.
-- `#2067` Run the default and mechanical worker tiers on Sonnet 5.5. Next: CI, review, merge of `ui#2379` (base-merged after `ui#2380`, calibration reseeded); the first default-tier launch after the merge proves Sonnet with `--effort high`.
-- `#2068` Cache ticket classifier results on disk by body hash. Next: CI, review, merge of `ui#2381`.
-- `#2069` Wake the auto-work coordinator only when an intake source has a new item. Next: CI, review, merge of `ui#2382`; then intake step 5 runs `node tools/orbit-play-reviews.mjs --cycle`.
-- `#2070` Run workers on the main account when no worker account exists. Next: CI, review, merge of `ui#2383`.
-- `#2071` Move the Pullfrog token in all three repositories to the main account, before 4 December 2026. Next: after `ui#2383` merges, the orchestrator runs `claude setup-token` and `gh secret set` from stdin, then a small worker for the skill text.
-- `#2072` Measure Pullfrog rounds to approval per pull request. Next: CI, review, merge of `ui#2384`.
-- `#2074` Stop Pullfrog from reviewing heads that later fail CI. Next: CI, review, merge of `ui#2387` after a base merge; then `npx pullfrog@latest config set review.mode none` and `review.re-review false` in all three repositories, and prove one requested review.
+- `#2065` Lower the coordinator relay threshold to 200k tokens. Next: `/orchestrate` (its blocker `#2064` merged).
+- `#2066` Cut fixed context per call: unused connectors off, `CLAUDE.md` to 6 KB, `MEMORY.md` trimmed. Next: merged as `ui#2378`; `disabledMcpServers` is set and `MEMORY.md` is 4,289 B. Prove that a fresh session lists none of the nine servers in its deferred tools, then close the ticket.
+- `#2067` Run the default and mechanical worker tiers on Sonnet 5.5. Next: base-merge `main` into `ui#2379` (`.claude/calibration.json` conflicts), reseed, CI, review, merge; the first default-tier launch after it proves Sonnet with `--effort high`.
+- `#2071` Move the Pullfrog token in all three repositories to the main account, before 4 December 2026. Next: the orchestrator runs `claude setup-token` and `gh secret set CLAUDE_CODE_OAUTH_TOKEN` from stdin in all three repositories (its blocker `ui#2383` merged), then a small worker for the skill text.
+- `#2074` Stop Pullfrog from reviewing heads that later fail CI. Next: base-merge `main` into `ui#2387` (orchestrate skill and spec conflict; its three spec Constraints lines go to `.claude/playbooks/operations.md`), CI, review, merge; then `npx pullfrog@latest config set review.mode none` and `review.re-review false` in all three repositories, and prove one requested review.
 
 ### Batch R: owner review findings
 
@@ -84,9 +79,9 @@ The gates every later batch runs through. Re-read each ticket against the tree b
 
 An Android fix is followed by an Android Open release.
 
-- `#2062` Keep the keyboard up while typing in habit search. Next: `ui#2376` is green and approved; the device proof on the throwaway AVD at the owner size (red on `verify-main-501e-staging.apk`, green on `verify-branch-2376-staging.apk`), merge, Android Open.
-- `#2063` Make every drag of the floating Astra button move it. Next: `ui#2375` round 3 pushed; CI, review, the device proof (20 drags), merge, Android Open.
-- `#2061` Centre the clear X in the habit search empty state. Next: on `ui#2377`, read the unpushed round 2 commit `3712bdf65`, fix the test alias thread if it is still open, resolve both threads, push, CI, review, merge, Android Open; fold `#2075` and `#2076` into it and close them.
+- `#2077` Fix the Astra button above the create habit button and remove its drag (owner order). Next: the worker hit its 45 minute ceiling with 11 commits on `fix/ticket-2077-astra-fixed-stack` (head `96d1b4954`, tree clean, not pushed, no pull request): read the diff against the ticket, run both platforms focused suites, type checks and ESLint, then push and open the pull request, or relaunch with `--relaunch-reason` if work is missing.
+- `#2062` Keep the keyboard up while typing in habit search. Next: merged (`ui#2376`), live on staging web; ships to production web and Android Open with `#2077`, then close.
+- `#2061` Centre the clear X in the habit search empty state. Next: `ui#2377` round 3 `9519dc39c` pushed with both threads resolved; Pullfrog has not reviewed that head: request the review, CI, merge.
 - `#2057` Hovering a nested control must not keep its parent card's hover active. Next: `ui#2366` is merged; close after Android Open 1.3.148 or later and the next web release carry it.
 - `#2056` An old macOS app cannot update because the sign-in page opens Cloudflare in Chrome first. Next: `ui#2365` is merged; close once desktop 0.1.26 and the web release that carries the gate are live.
 - `#2030` Show the update and later buttons on the Android update sheet. Next: CI, a fresh review and merge of `ui#2351`, then Android Open; read `android_update_sheet_shown` from the owner's device once it runs 205 or later.
@@ -117,8 +112,8 @@ A deletion ships as a deprecation, then a code removal, then a table drop, each 
 ### Batch 8: new platforms, iOS first, then desktop
 
 - `#1561` Ship Orbit for iPhone and iPad to TestFlight, with push and the home-screen widget. Next: CI, review and merge of `ui#2370`, which rides the next Android Open, then the real-device checks through TestFlight once the owner installs it.
-- `#1560` Ship a real native Orbit desktop app for Windows and macOS. Next: `ui#2364` is merged; desktop 0.1.26 staging (run 42492679821 attempt 2 waits on Apple notarization of aarch64), then production, then the staging and production web releases; answer the three `ui#2369` threads in one round.
-- `#1861` Add the Done action to Repeat every reminders in the macOS and Windows desktop app. Next: `ui#2374` round 7 `f25ab7e4c` is pushed; read the macOS `pushDiagnostics`, `push-apsctl-status.log` and `push-unified.log` artifacts to find where the done reminder stops, fix that cause and the open `AdministratorsState` test thread in one round.
+- `#1560` Ship a real native Orbit desktop app for Windows and macOS. Next: desktop 0.1.26 is signed, notarized and published on `desktop-staging` (run 42492679821, attempt 4; Apple took about 24 hours on the aarch64 submission). The production web release publishes it to `desktop-production`; then verify the shell update on the Mac and close.
+- `#1861` Add the Done action to Repeat every reminders in the macOS and Windows desktop app. Next: `ui#2374` round 8 `249eaa4d0` is pushed (fresh apsd keychain on macOS, Done taken from a collapsed Windows notification center entry, benchmark habits across midnight); its thread is resolved. Read the new Desktop Installed Acceptance and Desktop measure runs: `installed (windows-latest)` was red at the round 8 head.
 - `#1563` Show the App Store badge and the Mac and Windows downloads on the landing page. Next: merge `landing#127` after signed desktop 0.1.26 is on `desktop-production`, then release the landing; the App Store card follows the App Store listing.
 
 ## How the work runs
@@ -165,7 +160,7 @@ Code facts that no gate or owner document states:
 
 ## Current state
 
-Latest handoff: a relay with the chain open, the run in `/sleep` with `crank: true` and `autoWork: true`. UI `main` `0e43371b0`, API `main` `3da71dcf6`, landing `main` `aab36c695`; staging web `9a964ccad`, production web `6602756f3`; staging and production API `998823218`; Android Open 1.3.149 (209); desktop production and staging 0.1.25 (0.1.26 staging run 42492679821 attempt 2 waits on Apple notarization of aarch64); TestFlight Orbit Staging 1.3.149 (4). Batch T: `#2073` merged (`ui#2380`); the other diet pull requests are in CI and review rounds (see Batch T). `ui#2375` (`#2063`) merged and waits for one Android Open release with `#2062`. Intake: Sentry `ORBIT-MOBILE-Q` only (no new event), mail 0, Play 0. The session chain ledger lives untracked at `.git/orbit-session-chain.json`.
+Latest handoff: a relay with the chain open, the run in `/sleep` with `crank: true` and `autoWork: true`. UI `main` `bd8df6080`, API `main` `3da71dcf6`, landing `main` `aab36c695`; staging web `0e43371b0` and staging API `3da71dcf6` (released this relay); production web `6602756f3`, production API `998823218`; Android Open 1.3.149 (209); desktop 0.1.26 on `desktop-staging`, 0.1.25 on `desktop-production`; TestFlight Orbit Staging 1.3.149 (4). Release chain next: landing staging `aab36c695`, then production API `3da71dcf6`, web `0e43371b0` (it publishes desktop 0.1.26 production), landing; then `landing#127`. Batch T: seven of eleven merged (`ui#2380`, `#2386`, `#2384`, `#2383`, `#2382`, `#2381`, `#2378`); open `#2065`, `#2066` (proof only), `#2067`, `#2071`, `#2074`. Intake: Sentry `ORBIT-MOBILE-Q` only (no new event), mail 0, Play 0 (cycle `c3158faf-c1` complete). The session chain ledger lives untracked at `.git/orbit-session-chain.json`.
 
 ## Open questions
 
