@@ -67,7 +67,7 @@ In-flight work finishes as normal. Then no new board ticket is admitted until ev
 
 ### Batch T addition
 
-- `#2085` Relay the coordinator at the measured cheapest moment, with a soft threshold that waits for a quiet point (owner order). Next: `ui#2395` carries the soft and hard relay design and the cost measurement tool. Review fix `448f84bb6` sets the owner's numbers (`softTokens` 350000, `hardTokens` 400000) and is committed in the `ticket-2085-relay-quiet-point` worktree, NOT pushed; its tools and hooks suites run detached. On exit 0: push, change the PR body's 330000 and 390000 to 350000 and 400000, wait on CI, request the review, merge on approval. The measurement is a comment on the ticket.
+- `#2085` Relay the coordinator at the measured cheapest moment, with a soft threshold that waits for a quiet point (owner order). Next: `ui#2395` head `448f84bb6` carries the soft and hard relay design, the cost measurement tool and the owner's numbers (`softTokens` 350000, `hardTokens` 400000; tools and hooks suites exit 0); it is pushed and the PR body says 350000 and 400000. Wait on CI, request the review, merge on approval. The measurement is a comment on the ticket.
 
 ### Batch R: owner review findings
 
@@ -80,13 +80,13 @@ A finding from an owner review or a rendered sweep that shows broken behaviour l
 
 The gates every later batch runs through. Re-read each ticket against the tree before you build it.
 
-- `#2081` Stop the auto-work waiter's run state saves from overwriting a concurrent run state write. Next: `ui#2392` head `f8581cfa2` is pushed with both Pullfrog threads resolved and the body updated; wait on CI, request the review, merge on approval.
+- `#2081` Stop the auto-work waiter's run state saves from overwriting a concurrent run state write. Next: Pullfrog COMMENTED at `ui#2392` head `f8581cfa2` with two threads (`.claude/skills/crank/SKILL.md:21`, `tools/lib/auto-work-intake.mjs:51`): the skill text tells agents to spread the record read inside the lock, which carries the current owner's `sessionId`, so the superseded-session refusal in `publishRunState` no longer stops a predecessor's writes. Compose a `--review-batch` order, fix it at the root, resolve both threads, push, request the review, merge on approval.
 
 ### Batch 0c: live defects in the shipped product, on `main`
 
 An Android fix is followed by an Android Open release.
 
-- `#2077` Fix the Astra button above the create habit button and remove its drag (owner order). Next: `ui#2389` head `4686f7094` merges `main` (`acc77afbc`, two additive theme conflicts) and makes the layout specs wait for the settled Astra stack (the empty-Hoje spec holds the habits read to prove the pending and settled slots; no product change). Wait on CI (the `Layout` jobs are the proof), request the review, merge on approval, then production web and Android Open with `#2062` and `#2061`.
+- `#2077` Fix the Astra button above the create habit button and remove its drag (owner order). Next: `ui#2389` head `4686f7094` is red in `Layout shard 1` and `Upgrade layout geometry`: `astra-button-compact.spec.ts:88` "takes the create button slot when Hoje has no create button" fails at 412px (`columnBottom - bottom` is 0, expected `FAB_SIZE + ASTRA_BUTTON_GAP` 84, while `[data-shell-fab-pending]` exists) and at 840px (`[data-shell-fab-pending]` count 0). Find whether the test or the pending slot in `ShellFabColumn` (`apps/web/components/shell/shell-wide.tsx:421`) is wrong, red then green. The local repro (`repro-2077.sh` in the scratchpad: the CI `layout-build` artifact of run 42656349155, then `run-spec.sh`) stopped at "Timed out waiting 120000ms from config.webServer"; fix that start first. Then compose the CI-fix order, wait on CI, request the review, merge on approval, then production web and Android Open with `#2062` and `#2061`.
 - `#2062` Keep the keyboard up while typing in habit search. Next: live in production web `0e43371b0`; ships to Android Open with `#2077`, then close.
 - `#2061` Centre the clear X in the habit search empty state. Next: `ui#2377` merged (`b913fa08b`); ship in the next Android Open and production web, then close.
 - `#2030` Show the update and later buttons on the Android update sheet. Next: the cover-screen AVD matrix on current `main` is green (ticket comment); close on the owner-device `android_update_sheet_shown` probe event after the next Android Open. Delete AVD `orbit-repro-2030` after the `#2077` Android proof.
@@ -101,7 +101,7 @@ Includes the packaging milestone ("Packaging: caps, quotas and tiers") and the P
 
 ### Batch 3: the landing page and the Play listing
 
-- `#2082` Put the downloads at the top of the landing page: a platform-aware hero button and a header Download link (owner order). Next: landing worktree `ticket-2082-downloads-on-top` and the composed order `order-2082.md` (scratchpad) exist; the launch was refused by a relay drain, so launch it, then the landing `/release`.
+- `#2082` Put the downloads at the top of the landing page: a platform-aware hero button and a header Download link (owner order). Next: the worker delivered `landing#128` (head `a1d231a3f`, two commits). Verify delivery, read the diff, wait on CI, request the review, merge on approval, then the landing `/release`.
 
 ### Batch 5: Astra
 
@@ -123,10 +123,10 @@ A deletion ships as a deprecation, then a code removal, then a table drop, each 
 ### Batch 8: new platforms, iOS first, then desktop
 
 - `#1561` Ship Orbit for iPhone and iPad to TestFlight, with push and the home-screen widget. Next: `ui#2370` is merged and in TestFlight build `a727bce32` (iOS Release run 42451288593); the real-device checks run through TestFlight once the owner installs it.
-- `#1560` Ship a real native Orbit desktop app for Windows and macOS. Next: `ui#2391` head `b6ed095d1` carries a merge with main (`desktop-acceptance.yml` takes main's `desktop-acceptance-setup` action plus the Windows NSIS step; `nsis-tools-workflow.test.ts` reads a `fromJSON` matrix runner string) and the review batch (body read inside the retry, lookup cache removed, `TESTING.md` desktop row); both threads are resolved. Wait on CI, request the review, merge on approval. Then add an ESLint config and `lint` script to `apps/desktop`, raise the 10 s spawn timeout at `tools/desktop-bench/test-acceptance.ts:224` in the same change, verify the shell update on the Mac and close.
+- `#1560` Ship a real native Orbit desktop app for Windows and macOS. Next: `ui#2391` (NSIS prefetch) merged as `21f6045ae`. Add an ESLint config and `lint` script to `apps/desktop`, raise the 10 s spawn timeout at `tools/desktop-bench/test-acceptance.ts:224` in the same change, verify the shell update on the Mac and close.
 - `#1861` Add the Done action to Repeat every reminders in the macOS and Windows desktop app. Next: `ui#2374` merged (`cec0da38a`); ship it in the next desktop release, then close (a real toast click on a real Windows machine stays a manual step).
-- `#2084` Replace the old-looking native Windows title bar in the desktop app (owner report). Next: worktree `ticket-2084-windows-title-bar` and the composed order `order-2084.md` (scratchpad) exist; the launch was refused by a relay drain, so launch it; ship in the next desktop release with `#1861` and `#2087`.
-- `#2087` Give the Windows desktop app a smaller, slightly rounded Orbit icon tile (owner order). Next: `ui#2394` (head `283556a73`, every `icon.ico` entry regenerated as an inset tile at 81% of the canvas with a radius of 21% of the tile, measured from the Orca icon the owner named; `icon.icns` unchanged) is in CI; request the review, merge on approval, ship in the next desktop release.
+- `#2084` Replace the old-looking native Windows title bar in the desktop app (owner report). Next: the worker delivered `ui#2397` (head `386b6fe0a`: the Windows caption matches the Orbit canvas and the page theme, with a Windows installed acceptance proof). Verify delivery, read the diff against `DESIGN.md`, wait on CI, request the review, merge on approval; ship in the next desktop release with `#1861` and `#2087`.
+- `#2087` Give the Windows desktop app a smaller, slightly rounded Orbit icon tile (owner order). Next: `ui#2394` (head `283556a73`, every `icon.ico` entry regenerated as an inset tile at 81% of the canvas with a radius of 21% of the tile, measured from the Orca icon the owner named; `icon.icns` unchanged) failed only `installed (macos-latest, Developer ID)` with "Timed out waiting for the notification-launched shell" (`acceptance-push.mjs:399`), which the icon change cannot reach; the failed job was rerun. If it fails again, fix that timing at its root in this pull request. Then request the review, merge on approval, ship in the next desktop release.
 - `#1563` Show the App Store badge and the Mac and Windows downloads on the landing page. Next: `landing#127` is live in production landing `7fb212c42`; the App Store card follows the App Store listing (`#1561`).
 
 ## How the work runs
@@ -173,7 +173,7 @@ Code facts that no gate or owner document states:
 
 ## Current state
 
-Latest handoff: a relay with the chain open, the run in `/sleep` with `crank: true` and `autoWork: true`. UI `main` `b913fa08b`, API `main` `3da71dcf6`, landing `main` `7fb212c42`; production web `0e43371b0`, production API `3da71dcf6`, production landing `7fb212c42`; Android Open 1.3.149 (209); TestFlight `a727bce32`; desktop 0.1.26 on both channels. Open ui pull requests, all in CI with no review requested yet: `ui#2396` (`#2086`), `ui#2395` (`#2085`, review fix `448f84bb6` unpushed while its suites run), `ui#2394` (`#2087`), `ui#2393` (`#2083`), `ui#2392` (`#2081`), `ui#2391` (`#1560`), `ui#2389` (`#2077`), `ui#2388` (this relay's docs). The owner filed `#2087` (Windows icon) and set the relay threshold to 350000. Sentry holds one unresolved issue (`ORBIT-MOBILE-Q`, carried by `#1561`, no new event); the mailbox and store reviews are empty. `tools/run-status.mjs` reads the ui repository as UNREADABLE ("GitHub read timed out") while `gh pr view` answers. The session chain ledger lives untracked at .git/orbit-session-chain.json.
+Latest handoff: a relay with the chain open, the run in `/sleep` with `crank: true` and `autoWork: true`. UI `main` `21f6045ae`, API `main` `3da71dcf6`, landing `main` `7fb212c42`; production web `0e43371b0`, production API `3da71dcf6`, production landing `7fb212c42`; Android Open 1.3.149 (209); TestFlight `a727bce32`; desktop 0.1.26 on both channels. `ui#2391` (`#1560`) merged. Open pull requests: `ui#2397` (`#2084`, new), `ui#2396` (`#2086`, CI), `ui#2395` (`#2085`, pushed, CI), `ui#2394` (`#2087`, macOS job rerun), `ui#2393` (`#2083`, CI), `ui#2392` (`#2081`, two Pullfrog threads), `ui#2389` (`#2077`, Layout red), `ui#2388` (this relay's docs, CI), `landing#128` (`#2082`, new). Sentry holds one unresolved issue (`ORBIT-MOBILE-Q`, carried by `#1561`, no new event); the mailbox and store reviews are empty. Record every merge sha in the run ledger at merge time: unrecorded merges grow the `run-status.mjs` GitHub query past its 3500 ms read budget and the ui repository reads UNREADABLE. The session chain ledger lives untracked at .git/orbit-session-chain.json.
 
 ## Open questions
 
