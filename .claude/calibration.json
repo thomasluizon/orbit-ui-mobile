@@ -1,5 +1,5 @@
 {
-  "calibratedAt": "2026-11-08",
+  "calibratedAt": "2026-11-09",
   "classifier": {
     "model": "claude-sonnet-5-5",
     "promptDigest": "780092b4659dfd6e",
@@ -270,8 +270,8 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "748e303e18294d0f",
-      "calibratedAt": "2026-11-08",
+      "digest": "00722922ab20f27f",
+      "calibratedAt": "2026-11-09",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },
     ".claude/skills/prod-readiness/SKILL.md": {
