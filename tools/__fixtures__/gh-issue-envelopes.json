@@ -341,6 +341,137 @@
         }
       }
     },
+    "boardState": {
+      "command": [
+        "gh",
+        "api",
+        "graphql",
+        "-F",
+        "o=thomasluizon",
+        "-F",
+        "r=orbit-tickets",
+        "-f",
+        "query=query BoardState($o: String!, $r: String!, $after: String) {\n  repository(owner: $o, name: $r) {\n    issues(states: OPEN, first: 100, after: $after, orderBy: { field: CREATED_AT, direction: ASC }) {\n      pageInfo { hasNextPage endCursor }\n      nodes {\n        number\n        updatedAt\n        projectItems(first: 10) { totalCount nodes { project { id } } }\n        blockedBy(first: 100) { totalCount nodes { number state } }\n      }\n    }\n  }\n}"
+      ],
+      "observedExitCode": 0,
+      "paths": {
+        "$": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.data": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.data.repository": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.data.repository.issues": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.data.repository.issues.pageInfo": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.data.repository.issues.pageInfo.hasNextPage": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.data.repository.issues.pageInfo.endCursor": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.data.repository.issues.nodes": {
+          "types": [
+            "array"
+          ]
+        },
+        "$.data.repository.issues.nodes[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.data.repository.issues.nodes[].number": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.data.repository.issues.nodes[].updatedAt": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.data.repository.issues.nodes[].projectItems": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.data.repository.issues.nodes[].projectItems.totalCount": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.data.repository.issues.nodes[].projectItems.nodes": {
+          "types": [
+            "array"
+          ]
+        },
+        "$.data.repository.issues.nodes[].projectItems.nodes[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.data.repository.issues.nodes[].projectItems.nodes[].project": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.data.repository.issues.nodes[].projectItems.nodes[].project.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.data.repository.issues.nodes[].blockedBy": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.data.repository.issues.nodes[].blockedBy.totalCount": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.data.repository.issues.nodes[].blockedBy.nodes": {
+          "types": [
+            "array"
+          ]
+        },
+        "$.data.repository.issues.nodes[].blockedBy.nodes[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.data.repository.issues.nodes[].blockedBy.nodes[].number": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.data.repository.issues.nodes[].blockedBy.nodes[].state": {
+          "types": [
+            "string"
+          ]
+        }
+      }
+    },
     "restIssue": {
       "command": [
         "gh",
@@ -733,11 +864,6 @@
             "string"
           ]
         },
-        "$.items[].estimate": {
-          "types": [
-            "number"
-          ]
-        },
         "$.items[].linked pull requests": {
           "types": [
             "array"
@@ -746,6 +872,11 @@
         "$.items[].linked pull requests[]": {
           "types": [
             "string"
+          ]
+        },
+        "$.items[].estimate": {
+          "types": [
+            "number"
           ]
         },
         "$.totalCount": {

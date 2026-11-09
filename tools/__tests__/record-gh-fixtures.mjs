@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 
-import { check, githubIssueReadPlan, orcaEnv, root, T } from "./_harness.mjs"
+import { check, githubIssueReadPlan, orcaEnv, root, T, TOOLS_DIR } from "./_harness.mjs"
 import { join } from "node:path"
 
 const TOOL = "record-gh-fixtures.mjs"
@@ -19,7 +19,14 @@ export const cases = () => {
     url: "https://github.com/thomasluizon/orbit-tickets/issues/221",
   })
   const issue = issueWith(null)
-  const plan = (issueEnvelope) => orcaEnv([
+  // Node shape copied from a live BoardState page of thomasluizon/orbit-tickets.
+  const boardPage = (blockers) => JSON.stringify({ data: { repository: { issues: {
+    pageInfo: { hasNextPage: false, endCursor: "Y3Vyc29yOnYyOpK0MjAyNi0xMS0wOFQyMzozMzoxNFrPAAAAAXYjtkw=" },
+    nodes: [{ number: 2065, updatedAt: "2026-11-08T22:53:42Z", projectItems: { totalCount: 1, nodes: [{ project: { id: "PVT_kwHOBE6dNc4Bfy2y" } }] },
+      blockedBy: { totalCount: blockers.length, nodes: blockers } }],
+  } } } })
+  const plan = (issueEnvelope, board = boardPage([{ number: 2064, state: "OPEN" }])) => orcaEnv([
+    { match: "api graphql -F o=thomasluizon -F r=orbit-tickets -f query=query BoardState", stdout: board },
     /** Before the generic prefix, and non-empty: the recorder refuses to write comment paths it never observed. */
     {
       match: "issue view 221 --repo thomasluizon/orbit-tickets --json comments",
@@ -112,6 +119,16 @@ export const cases = () => {
     JSON.stringify(manifest.commands.projectItemList.paths),
   )
 
+  T(
+    `${TOOL}: derives the open board state paths read by the adapter`,
+    ["number", "updatedAt", "projectItems.totalCount", "projectItems.nodes[].project.id", "blockedBy.totalCount", "blockedBy.nodes[].number", "blockedBy.nodes[].state"].every(
+      (path) => manifest.commands.boardState.paths[`$.data.repository.issues.nodes[].${path}`],
+    ) && ["hasNextPage", "endCursor"].every((path) => manifest.commands.boardState.paths[`$.data.repository.issues.pageInfo.${path}`]),
+    JSON.stringify(manifest.commands.boardState?.paths),
+  )
+  check(TOOL, "a board page with no blocker is refused, so the blocker paths are proven", ["--output", join(root, "recorded-gh-fixtures-unblocked.json")],
+    { status: 1, stderr: /boardState recorded no open ticket on the configured project with a blocker/ }, { env: plan(issue, boardPage([])) })
+
   const rerun = check(TOOL, "a re-recording unions observed types with the manifest on disk", ["--output", output], { status: 0 }, {
     env: plan(issueWith("COMPLETED")),
   })
@@ -122,4 +139,32 @@ export const cases = () => {
     JSON.stringify(unioned.commands.issueView.paths["$.stateReason"].types) === JSON.stringify(["null", "string"]),
     JSON.stringify(unioned.commands.issueView.paths["$.stateReason"]),
   )
+
+  /**
+   * Built from the committed recording. Only #2371 keeps its nodes, because the stub exits right
+   * after one write and a pipe holds 64 KiB; its review body carries a real em dash.
+   */
+  const recording = JSON.parse(readFileSync(join(TOOLS_DIR, "__fixtures__", "gh-review-rounds.json"), "utf8"))
+  const response = structuredClone(recording.response)
+  for (const [alias, node] of Object.entries(response.data.repository)) {
+    if (alias === "pr2371") continue
+    for (const connection of ["reviews", "reviewThreads", "timelineItems"]) node[connection] = { ...node[connection], nodes: [] }
+  }
+  const roundsOutput = join(root, "recorded-review-rounds.json")
+  const roundsPlan = (value) => orcaEnv([{ match: "query ReviewRoundsPulls(", stdout: JSON.stringify(value) }])
+  const recorded = check(TOOL, "records the raw review-rounds response for the pinned pull requests", ["--review-rounds", "--output", roundsOutput], { status: 0, stdout: /record-gh-fixtures: wrote/ }, {
+    env: roundsPlan(response),
+  })
+  if (recorded.status !== 0) return
+  const roundsText = readFileSync(roundsOutput, "utf8")
+  const written = JSON.parse(roundsText)
+  T(`${TOOL}: the review-rounds response is written verbatim`, JSON.stringify(written.response) === JSON.stringify(response) &&
+    JSON.stringify(written.generation.numbers) === JSON.stringify(recording.generation.numbers))
+  T(`${TOOL}: a recorded dash is escaped so the Dash Ban passes and the value is unchanged`,
+    !/[\u2013\u2014]/.test(roundsText) && written.response.data.repository.pr2371.reviews.nodes[0].body.includes("\u2014"))
+  const incomplete = structuredClone(response)
+  delete incomplete.data.repository.pr2338
+  check(TOOL, "refuses a review-rounds response that lacks a pinned pull request", ["--review-rounds", "--output", join(root, "incomplete-review-rounds.json")], { status: 1, stderr: /2338/ }, {
+    env: roundsPlan(incomplete),
+  })
 }
