@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process"
 import { existsSync, readFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
-import { PRICE_WEIGHTS, buildModel, costPerWorkCall, mergedDelta, parseCalls, percentile, recommendThresholds, splitSession } from "./lib/relay-cost.mjs"
+import { PRICE_WEIGHTS, buildModel, costPerWorkCall, mergedDelta, parseCalls, percentile, recommendThresholds, relayPolicyStats, splitSession } from "./lib/relay-cost.mjs"
 
 const USAGE = `usage: measure-relay-cost.mjs [--ledger <path>] [--since <ISO date>] [--json]
 
@@ -50,6 +50,7 @@ let ledger
 try { ledger = JSON.parse(readFileSync(ledgerPath, "utf8")) } catch (error) { fail(`ledger ${ledgerPath} is unreadable: ${error.message}`, 1) }
 
 const sessions = []
+const relayEntries = []
 for (const chain of ledger.chains ?? []) {
   let previousShipped = []
   for (const entry of chain.entries ?? []) {
@@ -58,6 +59,7 @@ for (const chain of ledger.chains ?? []) {
     previousShipped = shipped
     if (!entry.transcriptPath || !existsSync(entry.transcriptPath)) continue
     if (options.since !== null && Date.parse(entry.startedAt) < Date.parse(options.since)) continue
+    relayEntries.push(entry)
     const calls = parseCalls(readFileSync(entry.transcriptPath, "utf8"))
     if (calls.length === 0) continue
     sessions.push({ sessionId: entry.sessionId, startedAt: entry.startedAt, merged, calls: calls.length, split: splitSession(calls, entry.triggeredAt) })
@@ -77,11 +79,13 @@ const result = {
   model,
   recommendation: { soft: recommendation.soft, hard: recommendation.hard, optimum: recommendation.optimum.threshold, bandLow: recommendation.optimum.bandLow, bandHigh: recommendation.optimum.bandHigh },
   sweep,
+  policy: relayPolicyStats(relayEntries),
   observed: { weightedCostPerMergedPullRequest: totalMerged > 0 ? totalCost / totalMerged : null, mergedPullRequests: totalMerged, p90PeakContext: percentile(sessions.map((session) => session.split.peakContext), 0.9) },
 }
 
 if (options.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
 else {
+  const { policy } = result
   const rounded = Object.fromEntries(Object.entries(model).map(([key, value]) => [key, Math.round(value)]))
   process.stdout.write([
     `sessions read: ${sessions.length}, usable for the model: ${model.sessions}`,
@@ -89,6 +93,7 @@ else {
     `cheapest threshold: ${result.recommendation.optimum} tokens; within 2%: ${result.recommendation.bandLow} to ${result.recommendation.bandHigh}`,
     `recommended soft ${result.recommendation.soft}, hard ${result.recommendation.hard}`,
     ...sweep.map((point) => `  threshold ${point.threshold}: ${point.relativeCost.toFixed(3)} x the minimum cost per work call`),
+    `policy: ${policy.relays} relays, ${policy.forced} forced at the hard ceiling (${policy.forcedShare === null ? "n/a" : `${(policy.forcedShare * 100).toFixed(0)}%`}); ${policy.armed} armed, arm to relay start median ${policy.armToRelayMinutesMedian === null ? "n/a" : policy.armToRelayMinutesMedian.toFixed(1)} min, p90 ${policy.armToRelayMinutesP90 === null ? "n/a" : policy.armToRelayMinutesP90.toFixed(1)} min`,
     `observed: ${totalMerged} merged pull requests, ${result.observed.weightedCostPerMergedPullRequest === null ? "n/a" : Math.round(result.observed.weightedCostPerMergedPullRequest)} weighted cost units per merged pull request`,
     "",
   ].join("\n"))

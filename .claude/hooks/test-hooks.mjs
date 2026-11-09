@@ -1320,7 +1320,19 @@ T("relay soft: arming tells the session to finish the work in front of it", chec
 T("relay soft: an armed relay stays silent mid-turn", checkRelayStop({ ...midTurn, state: { ...relayState, relay: { armed: true } } }), null)
 T("relay soft: a turn end with a live wake source begins at the soft threshold", { begin: checkRelayStop({ ...midTurn, hookEventName: "Stop", wakeSources: launcher }).begin, forced: checkRelayStop({ ...midTurn, hookEventName: "Stop", wakeSources: launcher }).forced }, { begin: true, forced: false })
 T("relay soft: a turn end with open work and no wake source is not quiet", checkRelayStop({ ...midTurn, hookEventName: "Stop" }).arm, true)
-T("relay soft: a turn end with no open work is quiet", checkRelayStop({ ...midTurn, hookEventName: "Stop", state: { ...relayState, remaining: [] } }).begin, true)
+T("relay soft: a turn end with an empty queue and no live wake source is not quiet", { arm: checkRelayStop({ ...midTurn, hookEventName: "Stop", state: { ...relayState, remaining: [] } }).arm, begin: checkRelayStop({ ...midTurn, hookEventName: "Stop", state: { ...relayState, remaining: [] } }).begin }, { arm: true, begin: undefined })
+/** Every turn end the relay calls quiet is one the sleep gate allows. A refused stop would turn the relay into RELAY_DRAIN. */
+const openPullRequest = { repositoryKey: "ui", prNumber: 1, receiptPath: "/absent/receipt.json" }
+const quietAgreement = []
+for (const [name, state] of [["queue left", relayState], ["empty queue", { ...relayState, remaining: [] }], ["empty queue, open pull request", { ...relayState, remaining: [], pullRequests: [openPullRequest] }],
+  ["empty queue, auto-work", { ...relayState, remaining: [], autoWork: true }], ["queue left, auto-work", { ...relayState, autoWork: true }]]) {
+  for (const wakeSources of [[], launcher]) {
+    const verdict = checkRelayStop({ ...midTurn, hookEventName: "Stop", state, wakeSources })
+    if (verdict.begin) quietAgreement.push([name, wakeSources.length, Boolean(checkSleepStop({ state, wakeSources, sessionId: relayState.sessionId, isWakeSourceAlive: () => true })?.block)])
+  }
+}
+T("relay soft: a quiet point is never a stop the sleep gate refuses", quietAgreement.filter(([, , refused]) => refused), [])
+T("relay soft: the quiet points that agreed were reached with a live wake source only", quietAgreement.every(([, sources]) => sources > 0) && quietAgreement.length === 5, true)
 T("relay soft: a launcher without a wake source is not quiet", checkRelayStop({ ...midTurn, hookEventName: "Stop", wakeSources: launcher, orphaned: [{ pid: 2, workerPid: 3 }] }).arm, true)
 T("relay soft: a turn that a Stop hook keeps open is not quiet", checkRelayStop({ ...midTurn, hookEventName: "Stop", wakeSources: launcher, stopHookActive: true }).arm, true)
 T("relay hard: one token below the ceiling mid-turn only arms", checkRelayStop({ ...midTurn, measuredTokens: relayHard - 1 }).begin, undefined)
@@ -1456,7 +1468,7 @@ T("relay soft adapter: a turn end with open work and no wake source stays armed"
 registerWakeSource({ pid: process.pid, what: "Worker launcher" }, wakeCheckout)
 const quiet = stopRelay()
 T("relay soft adapter: a quiet turn end begins the relay", { pending: readRunState(wakeCheckout).relay.pending, forced: readRunState(wakeCheckout).relay.forced, quiet: JSON.parse(quiet.stdout || "{}").hookSpecificOutput?.additionalContext?.includes("quiet point") }, { pending: true, forced: false, quiet: true })
-T("relay soft adapter: the pending relay keeps the arming time", typeof readRunState(wakeCheckout).relay.armedAt, "string")
+T("relay soft adapter: the pending relay keeps the arming time and size", { armedAt: typeof readRunState(wakeCheckout).relay.armedAt, armedTokens: readRunState(wakeCheckout).relay.armedTokens }, { armedAt: "string", armedTokens: relaySoft })
 T("relay soft adapter: the quiet relay records the machine handoff request", readHandoffRequest("relay-parent", wakeCheckout).origin, "context-relay")
 clearWakeSource(process.pid, wakeCheckout)
 writeRunState({ ...relayState, relay: { armed: true, armedTokens: relaySoft } }, wakeCheckout)

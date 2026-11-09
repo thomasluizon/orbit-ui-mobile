@@ -1489,7 +1489,7 @@ Context relays are the confirmed successor exception to this invariant. The Stop
 message tells the session to finish the unit in front of it. The relay begins at the next quiet
 point, a turn end with every in-flight item waiting on a live wake source, or at the hard ceiling
 on any call. Then it writes `relay.pending`; admission refuses every new worker launch, including
-review batches. `node tools/measure-relay-cost.mjs` derives both values. Keep the admitted queue and
+review batches. The owner set both values from the cost band that `node tools/measure-relay-cost.mjs` prints. Keep the admitted queue and
 ledger. Launch nothing while existing launchers or release watchers are live. Their exits
 wake this session; finish the drain without introducing another wakeup status scan.
 

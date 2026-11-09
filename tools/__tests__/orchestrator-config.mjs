@@ -4,6 +4,7 @@ import { dirname, join, relative, resolve } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import { runInNewContext } from "node:vm"
 
+import { AUTO_COMPACT_TOKENS } from "../lib/session-context.mjs"
 import { T, root, realOrchestratorConfig, stage, toolPath } from "./_harness.mjs"
 
 const NAME = "orchestrator-config.mjs"
@@ -306,14 +307,15 @@ export const cases = async () => {
   )
 
   const readAndFail = (label, config) => thrown(() => readOrchestratorConfig(configUrl(label, JSON.stringify(config))))
-  for (const softTokens of [149999, 800001, "330000", 330000.5]) {
+  for (const softTokens of [149999, AUTO_COMPACT_TOKENS, "330000", 330000.5]) {
     T(`${NAME}: relay soft threshold ${softTokens} is refused`,
       /relay.softTokens/.test(readAndFail(`relay-soft-${softTokens}`, { ...real, relay: { enabled: true, softTokens, hardTokens: 390000 } }) ?? ""))
   }
-  for (const hardTokens of [330000, 300000, 800001, "390000", 390000.5, undefined]) {
+  for (const hardTokens of [330000, 300000, AUTO_COMPACT_TOKENS, "390000", 390000.5, undefined]) {
     T(`${NAME}: relay hard ceiling ${hardTokens} is refused`,
       /relay.hardTokens/.test(readAndFail(`relay-hard-${hardTokens}`, { ...real, relay: { enabled: true, softTokens: 330000, hardTokens } }) ?? ""))
   }
+  T(`${NAME}: a hard ceiling one token below the auto-compact point is accepted`, readAndFail("relay-hard-top", { ...real, relay: { enabled: true, softTokens: 330000, hardTokens: AUTO_COMPACT_TOKENS - 1 } }) === null)
   T(`${NAME}: a hard ceiling one token above the soft threshold is accepted`, readAndFail("relay-hard-edge", { ...real, relay: { enabled: true, softTokens: 330000, hardTokens: 330001 } }) === null)
   T(`${NAME}: relay enabled must be boolean`, /relay.enabled/.test(readAndFail("relay-enabled", { ...real, relay: { enabled: "true", softTokens: 330000, hardTokens: 390000 } }) ?? ""))
   T(

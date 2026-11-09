@@ -1,3 +1,5 @@
+import { AUTO_COMPACT_TOKENS } from "./session-context.mjs"
+
 /**
  * The relay cost model. Every field name was read from a real transcript record: `type: "assistant"`,
  * `isSidechain`, `timestamp`, `message.id`, `message.usage.{input_tokens, cache_creation_input_tokens,
@@ -11,8 +13,6 @@
  * published cache write multiple of 1.25.
  */
 export const PRICE_WEIGHTS = { input: 1, cacheCreation: 1.25, cacheRead: 0.05, output: 5 }
-
-export const HARD_LIMIT_TOKENS = 900_000
 
 /** The first tool call that does real queue work. Every call before it is the successor's entry. */
 const USEFUL_ACTION = /launch-worker\.mjs|wait-ci\.mjs|wait-release\.mjs|gh (?:pr|issue) (?:create|merge|review|comment|edit|close)|create-ticket\.mjs|git worktree add|record-readiness\.mjs|verify-delivery\.mjs|complete-ticket\.mjs/
@@ -111,6 +111,27 @@ export const mergedDelta = (shipped = [], previousShipped = []) => {
   return new Set(shipped.map(key).filter((value) => !known.has(value))).size
 }
 
+/**
+ * How the soft and hard policy behaved. A chain entry records `forced` (the hard ceiling began the relay),
+ * `armedAt` (the soft threshold armed it) and `triggeredAt` (the relay began). An entry with no
+ * `triggeredAt` never relayed. An entry with no `armedAt` began at its first quiet point without arming.
+ */
+export const relayPolicyStats = (entries) => {
+  const relays = entries.filter((entry) => Number.isFinite(Date.parse(entry.triggeredAt)) && typeof entry.forced === "boolean")
+  const delays = relays
+    .filter((entry) => Number.isFinite(Date.parse(entry.armedAt)))
+    .map((entry) => Math.max(0, (Date.parse(entry.triggeredAt) - Date.parse(entry.armedAt)) / 60_000))
+  const forced = relays.filter((entry) => entry.forced).length
+  return {
+    relays: relays.length,
+    forced,
+    forcedShare: relays.length === 0 ? null : forced / relays.length,
+    armed: delays.length,
+    armToRelayMinutesMedian: delays.length === 0 ? null : median(delays),
+    armToRelayMinutesP90: delays.length === 0 ? null : percentile(delays, 0.9),
+  }
+}
+
 /** The part of one call's cost that grows with the context: the cache read. */
 export const contextCost = (context, weights = PRICE_WEIGHTS) => context * weights.cacheRead
 
@@ -129,7 +150,7 @@ export const costPerWorkCall = (threshold, model, weights = PRICE_WEIGHTS) => {
 }
 
 /** Scans thresholds and reports the cheapest, plus the band that stays within `tolerance` of it. */
-export const optimalThreshold = (model, { low = 100_000, high = HARD_LIMIT_TOKENS, step = 1000, tolerance = 0.02, weights = PRICE_WEIGHTS } = {}) => {
+export const optimalThreshold = (model, { low = 100_000, high = AUTO_COMPACT_TOKENS, step = 1000, tolerance = 0.02, weights = PRICE_WEIGHTS } = {}) => {
   const curve = []
   for (let threshold = low; threshold <= high; threshold += step) curve.push({ threshold, cost: costPerWorkCall(threshold, model, weights) })
   const best = curve.reduce((winner, point) => point.cost < winner.cost ? point : winner)

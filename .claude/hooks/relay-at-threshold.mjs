@@ -34,7 +34,7 @@ try {
     }
     if (verdict?.begin) {
       const now = new Date().toISOString()
-      writeRunState({ ...state, relay: { pending: true, forced: verdict.forced, armedAt: state.relay?.armedAt, from: input.session_id, measuredTokens,
+      writeRunState({ ...state, relay: { pending: true, forced: verdict.forced, armedAt: state.relay?.armedAt, armedTokens: state.relay?.armedTokens, from: input.session_id, measuredTokens,
         permissionMode: input.permission_mode, transcriptPath: input.transcript_path, triggeredAt: now } })
       recordHandoffRequest(input.session_id, { command: "handoff", origin: "context-relay", sleep: true, crank: state.crank === true, autoWork: state.autoWork === true }, now)
     }

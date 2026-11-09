@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs"
-import { PRICE_WEIGHTS, buildModel, callCost, costPerWorkCall, growthSlope, mergedDelta, optimalThreshold, parseCalls, recommendThresholds, splitSession } from "../lib/relay-cost.mjs"
+import { PRICE_WEIGHTS, buildModel, callCost, costPerWorkCall, growthSlope, mergedDelta, optimalThreshold, parseCalls, recommendThresholds, relayPolicyStats, splitSession } from "../lib/relay-cost.mjs"
 import { T } from "./_harness.mjs"
 
 const usage = JSON.parse(readFileSync(new URL("./fixtures/session-usage.json", import.meta.url), "utf8"))
@@ -34,6 +34,16 @@ export const cases = async () => {
 
   T("relay-cost: growth slope recovers a linear rise", Math.abs(growthSlope([1, 2, 3, 4].map((index) => ({ contextTokens: 1000 * index }))) - 1000) < 1e-9)
   T("relay-cost: one call has no growth", growthSlope([{ contextTokens: 5 }]) === 0)
+  const policy = relayPolicyStats([
+    { triggeredAt: "2026-11-01T01:20:00.000Z", forced: false, armedAt: "2026-11-01T01:00:00.000Z" },
+    { triggeredAt: "2026-11-01T03:40:00.000Z", forced: true, armedAt: "2026-11-01T03:00:00.000Z" },
+    { triggeredAt: "2026-11-01T05:00:00.000Z", forced: false, armedAt: null },
+    { triggeredAt: null, forced: null, armedAt: null },
+    { triggeredAt: "2026-11-01T06:00:00.000Z" },
+  ])
+  T("relay-cost: the policy counts relays and the forced share, and skips sessions that never relayed", policy.relays === 3 && policy.forced === 1 && Math.abs(policy.forcedShare - 1 / 3) < 1e-9, JSON.stringify(policy))
+  T("relay-cost: the policy measures the delay from arming to the relay start", policy.armed === 2 && policy.armToRelayMinutesMedian === 30 && policy.armToRelayMinutesP90 === 40, JSON.stringify(policy))
+  T("relay-cost: no relay gives no share and no delay", relayPolicyStats([]).forcedShare === null && relayPolicyStats([]).armToRelayMinutesMedian === null)
   T("relay-cost: shipped delta counts only new pull requests", mergedDelta([{ repository: "ui", pullRequest: 1 }, { repository: "ui", pullRequest: 2 }, { repository: "api", pullRequest: 1 }], [{ repository: "ui", pullRequest: 1 }]) === 2)
 
   const session = syntheticSession()
