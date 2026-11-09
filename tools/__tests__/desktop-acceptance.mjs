@@ -794,7 +794,9 @@ export async function cases() {
   const fixture = spawnSync(process.execPath, ['--import', 'tsx', join(REPO_ROOT, 'tools/desktop-bench/test-acceptance.ts')], { cwd: REPO_ROOT, encoding: 'utf8', timeout: 60000 })
   T('acceptance regressions exercise the email schema, signature verifier and native tree reader', fixture.status === 0, fixture.stderr || fixture.stdout)
   const pushFixture = spawnSync(process.execPath, ['--import', 'tsx', join(REPO_ROOT, 'tools/desktop-bench/test-acceptance-push.ts')], { cwd: REPO_ROOT, encoding: 'utf8', timeout: 60000 })
-  T('push acceptance regressions exercise the reminder producers, mock API, push phase and native notification readers', pushFixture.status === 0, pushFixture.stderr || pushFixture.stdout)
+  T('push acceptance regressions exercise the reminder producers, mock API and push phase', pushFixture.status === 0, pushFixture.stderr || pushFixture.stdout)
+  const readerFixture = spawnSync(process.execPath, ['--import', 'tsx', join(REPO_ROOT, 'tools/desktop-bench/test-acceptance-readers.ts')], { cwd: REPO_ROOT, encoding: 'utf8', timeout: 60000 })
+  T('reader acceptance regressions exercise the native notification readers and the Windows Done activator', readerFixture.status === 0, readerFixture.stderr || readerFixture.stdout)
   const launchFixture = spawnSync(process.execPath, ['--import', 'tsx', join(REPO_ROOT, 'tools/desktop-bench/test-acceptance-launch.ts')], { cwd: REPO_ROOT, encoding: 'utf8', timeout: 60000 })
   T('launch acceptance regressions exercise the Medium-integrity Windows launcher', launchFixture.status === 0, launchFixture.stderr || launchFixture.stdout)
   if (process.platform === 'darwin') {
@@ -881,8 +883,12 @@ export async function cases() {
     signed.includes('environment:\n      name: desktop-staging\n      deployment: false') && !unsigned.includes('environment:') && !workflow.includes('desktop-production') &&
       ['MACOS_DEVELOPER_ID_CERTIFICATE_BASE64', 'MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD', 'MACOS_PROVISIONING_PROFILE_BASE64'].every((name) => signed.includes(`${name}: \${{ secrets.${name} }}`)) &&
       signed.includes('MACOS_SIGNING_IDENTITY: ${{ vars.MACOS_SIGNING_IDENTITY }}') && !unsigned.includes('MACOS_') && !workflow.includes('TAURI_SIGNING_PRIVATE_KEY'))
-  T('the native producer step runs the acceptance, push and launch acceptance regressions in both jobs',
-    ['test-acceptance.ts', 'test-acceptance-push.ts', 'test-acceptance-launch.ts'].every((file) => setup.includes(`node --import tsx tools/desktop-bench/${file}`)) &&
+  // An unsigned macOS shell skips APNs before it reads a credential (pushReadiness), so APNs values belong to the signed job alone.
+  T('APNs values reach only the signed macOS job, and WNS values only the job that runs Windows',
+    ['ORBIT_APPLE_TEAM_ID', 'ORBIT_APNS_KEY_ID', 'ORBIT_APNS_PRIVATE_KEY'].every((name) => signed.includes(`${name}: `) && !unsigned.includes(name)) &&
+      ['ORBIT_DESKTOP_WNS_OBJECT_ID', 'ORBIT_WNS_TENANT_ID', 'ORBIT_WNS_CLIENT_ID', 'ORBIT_WNS_CLIENT_SECRET'].every((name) => unsigned.includes(`${name}: `) && !signed.includes(name)))
+  T('the native producer step runs the acceptance, push, reader and launch acceptance regressions in both jobs',
+    ['test-acceptance.ts', 'test-acceptance-push.ts', 'test-acceptance-readers.ts', 'test-acceptance-launch.ts'].every((file) => setup.includes(`node --import tsx tools/desktop-bench/${file}`)) &&
       [unsigned, signed].every((text) => text.includes('uses: ./.github/actions/desktop-acceptance-setup')) &&
       workflow.includes("- '.github/actions/desktop-acceptance-setup/**'"))
 }

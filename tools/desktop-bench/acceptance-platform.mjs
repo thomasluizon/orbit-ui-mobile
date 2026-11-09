@@ -126,7 +126,13 @@ export function takeSigningMaterial(environment, platform = process.platform) {
     profile: values.MACOS_PROVISIONING_PROFILE_BASE64, identity: values.MACOS_SIGNING_IDENTITY }
 }
 
-const unelevatedScript = fileURLToPath(new URL('./windows-unelevated.ps1', import.meta.url))
+// The High modes compile the native types from windows-unelevated.cs beside the script, so both files reach the output.
+async function copyLauncher(output, host) {
+  for (const file of ['windows-unelevated.ps1', 'windows-unelevated.cs']) {
+    await host.copyFile(fileURLToPath(new URL(`./${file}`, import.meta.url)), join(output, file))
+  }
+  return join(output, 'windows-unelevated.ps1')
+}
 
 export function launchStatus(text) {
   const entries = text.split(/\r?\n/).filter((line) => line.trim()).map((line) => JSON.parse(line.replace(/^\uFEFF/, '')))
@@ -147,8 +153,7 @@ export function launchContext(handle) {
 }
 
 export async function launchUnelevated(executable, output, name, host = { execute, waitFor, delay, readFile, copyFile, alive: processAlive, now: Date.now, track, stop }) {
-  const script = join(output, 'windows-unelevated.ps1')
-  await host.copyFile(unelevatedScript, script)
+  const script = await copyLauncher(output, host)
   const status = join(output, `${name}-launch.jsonl`)
   const log = join(output, `${name}.log`)
   const started = JSON.parse(await host.execute('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script,
@@ -207,8 +212,7 @@ const activationTimeout = 150000
 // activator registration and the Done arguments of the posted toast, then the client calls Activate (windows-unelevated.ps1).
 export async function activateUnelevated({ executable, output, name, title, label },
   host = { execute, waitFor, readFile, copyFile, alive: processAlive }) {
-  const script = join(output, 'windows-unelevated.ps1')
-  await host.copyFile(unelevatedScript, script)
+  const script = await copyLauncher(output, host)
   const status = join(output, `${name}.jsonl`)
   const started = JSON.parse(await host.execute('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script,
     '-Mode', 'activate', '-Executable', executable, '-Title', title, '-Label', label, '-Status', status, '-Request', join(output, `${name}-request.json`)]))

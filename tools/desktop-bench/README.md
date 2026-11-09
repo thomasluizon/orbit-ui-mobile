@@ -208,8 +208,10 @@ shows. The launcher inherits the harness desktop, so the shell stays in the runn
 The launcher removes the proxy variables and starts the shell, which inherits the standard-user token. The shell
 writes stderr to `<launch>.log` and stdout to `<launch>.stdout.log`. `Add-Type` compiles through CodeDom,
 which fails at Medium integrity with "A required privilege is not held by the client". Thus the High start
-mode compiles the token helper into `OrbitIntegrity-<id>.dll` in the output directory, and the Medium
-launcher only loads that library. A launcher that cannot load it writes the error to its status file.
+mode compiles the token helper in `windows-unelevated.cs` into `OrbitIntegrity-<id>.dll` in the output
+directory, and the Medium launcher only loads that library. The harness copies the script and
+`windows-unelevated.cs` into the output directory. A launcher that cannot load the library writes the
+error to its status file.
 
 Before each launch, the harness grants the user SID modify access to the output directory. It also gives
 the directory and every file in it an explicit, inherited Medium label with `icacls /setintegritylevel`.
@@ -246,8 +248,8 @@ Windows reply names the `ToastNotificationManagerForUser.NotificationMode`, and 
 Each Windows reply also reads the notification history of the shell's AUMID. The Windows App SDK
 keeps an unpackaged app's AUMID in the `NotificationGUID` value under
 `HKCU\Software\Classes\AppUserModelId\<executable path with each backslash replaced by a dot>`.
-`report.json` `push.history` keeps, for each search, the first reply that found the toast in that
-history, or else the last reply, so the report says whether the shell posted the toast at all.
+The reader reads that history before it invokes Done, so `report.json` `push.history` keeps the last
+reply of each search, and the report says whether the shell posted the toast at all.
 The mock must record exactly one habit log for that habit, and the app window must stay hidden.
 
 The second check sends another reminder and stops the shell while its notification is visible.
@@ -293,7 +295,8 @@ The press toggles the center, and only the open center lists its history and the
 
 On Windows, right after the Done invoke, `trees/notification-done-activation.json` keeps the token
 integrity and elevation of `explorer`, `ShellExperienceHost`, `sihost` and the per-user
-`WpnUserService`, and every running shell instance with its command line. `report.json`
+`WpnUserService`, and every running shell instance with its command line. The UIA reader reads each
+token with `OrbitIntegrity` from `windows-unelevated.cs`, the same reader that the launcher uses. `report.json`
 `push.activation` keeps a summary. A Done habit log that never arrives keeps a second capture in
 `trees/notification-done-activation-timeout.json`, and the failure names the host levels, the
 instance count and the process ID and integrity level of each shell instance. `push.log` holds the

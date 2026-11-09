@@ -266,11 +266,11 @@ async function notification(io, pid, reminder, invoke, name) {
       await io.record(name, reply)
       // Windows names the notification mode, and a Do not disturb mode holds banners back, so the toast waits in the center.
       if (reply?.notificationMode && !io.report.push.notificationMode) io.report.push.notificationMode = reply.notificationMode
-      // The Windows reply reads the shell AUMID's notification history, which says whether the toast was posted at all. A
-      // Done removes the toast, so the first reply that saw it posted stays.
+      // The Windows reply reads the shell AUMID's notification history before any Done, so the last reply of a search says
+      // whether the toast was posted at all.
       if (reply?.history) {
         io.report.push.history ??= {}
-        if (!io.report.push.history[name]?.posted) io.report.push.history[name] = reply.history
+        io.report.push.history[name] = reply.history
       }
       return reply?.found && reply
     }, `the ${reminder.title} system notification`, 20000)

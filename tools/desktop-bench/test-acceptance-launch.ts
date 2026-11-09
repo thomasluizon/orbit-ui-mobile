@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -7,14 +7,19 @@ import { spawnSync } from 'node:child_process'
 import { test } from 'node:test'
 import { activateUnelevated, activationStatus, launchStatus, launchUnelevated } from './acceptance-platform.mjs'
 
+// The High modes compile the launcher's native types from windows-unelevated.cs beside the script, so both reach the output.
+const launcherCopies = [[fileURLToPath(new URL('./windows-unelevated.ps1', import.meta.url)), join('/output', 'windows-unelevated.ps1')],
+  [fileURLToPath(new URL('./windows-unelevated.cs', import.meta.url)), join('/output', 'windows-unelevated.cs')]]
+
 function windowsLauncher(script: { statusAfterStart?: string[]; statusAfterDelay?: string[]; alive?: boolean }) {
   const lines: string[] = []
   const calls: string[][] = []
+  const copies: string[][] = []
   const tracked: unknown[] = []
   const stopped: unknown[] = []
   let clock = 0
   const host = {
-    copyFile: async () => {},
+    copyFile: async (source: string, destination: string) => { copies.push([source, destination]) },
     execute: async (command: string, args: string[]) => {
       calls.push([command, ...args])
       if (command !== 'powershell.exe') return ''
@@ -34,7 +39,7 @@ function windowsLauncher(script: { statusAfterStart?: string[]; statusAfterDelay
     alive: () => script.alive ?? true, now: () => clock,
     track: (handle: unknown) => { tracked.push(handle) }, stop: async (handle: unknown) => { stopped.push(handle) },
   }
-  return { host, calls, tracked, stopped }
+  return { host, calls, copies, tracked, stopped }
 }
 
 // The renamed built-in Administrator keeps RID 500 and, with Admin Approval Mode off for it, a High token. The launcher
@@ -62,6 +67,7 @@ test('the Windows launcher starts the shell at Medium integrity, reports every t
   assert.deepEqual(launch.calls, [['powershell.exe', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', join('/output', 'windows-unelevated.ps1'),
     '-Mode', 'start', '-Executable', '/output/installed/orbit-desktop.exe', '-Log', join('/output', 'push.log'), '-Output', join('/output', 'push.stdout.log'),
     '-Status', join('/output', 'push-launch.jsonl')]])
+  assert.deepEqual(launch.copies, launcherCopies)
 })
 
 test('the Windows launcher judges the shell by integrity level, not by Administrators membership or TokenIsElevated', async () => {
@@ -108,15 +114,17 @@ test('the Windows launcher refuses a failed launch, a missing launch, a nonzero 
 })
 
 // windows-unelevated.ps1 activate mode prints the High context, the client pid, the confirmed header, the activator
-// registration and the argument keys; the Medium client appends its token and the Activate HRESULT to the status file.
+// registration and the argument keys; the Medium client appends its token and the Activate HRESULT to the status file. The
+// argument keys follow trees/notification-done-activator.json of run 42596523281.
 const activateStarted = { harness: high, client: 5150, header: 'C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\um\\NotificationActivationCallback.h',
   registration: { appId: '{0F8FAD5B-D9CB-469F-A165-70867728950E}', clsid: '{7D1B6A3C-5E2F-4A80-9C11-2B3C4D5E6F71}',
-    server: '"C:\\Orbit\\orbit-desktop.exe" ----AppNotificationActivated:' }, argumentKeys: ['orbitNotice', 'orbitAction'] }
+    server: '"C:\\Orbit\\orbit-desktop.exe" ----AppNotificationActivated:' }, argumentKeys: ['orbitAction', 'orbitNotice'] }
 
 function windowsActivator(status: string[], alive = true) {
   const calls: string[][] = []
+  const copies: string[][] = []
   const host = {
-    copyFile: async () => {},
+    copyFile: async (source: string, destination: string) => { copies.push([source, destination]) },
     execute: async (command: string, args: string[]) => { calls.push([command, ...args]); return command === 'powershell.exe' ? `${JSON.stringify(activateStarted)}\r\n` : '' },
     readFile: async () => {
       if (!status.length) throw Object.assign(new Error('missing status'), { code: 'ENOENT' })
@@ -129,7 +137,7 @@ function windowsActivator(status: string[], alive = true) {
     },
     alive: () => alive,
   }
-  return { host, calls }
+  return { host, calls, copies }
 }
 
 const activation = { executable: 'C:\\Orbit\\orbit-desktop.exe', output: '/output', name: 'notification-done-activator', title: 'Orbit acceptance done b7840ad1', label: 'Done' }
@@ -140,6 +148,7 @@ test('the Windows activator passes the toast title and label to the High mode an
   assert.deepEqual(activator.calls, [['powershell.exe', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', join('/output', 'windows-unelevated.ps1'),
     '-Mode', 'activate', '-Executable', 'C:\\Orbit\\orbit-desktop.exe', '-Title', 'Orbit acceptance done b7840ad1', '-Label', 'Done',
     '-Status', join('/output', 'notification-done-activator.jsonl'), '-Request', join('/output', 'notification-done-activator-request.json')]])
+  assert.deepEqual(activator.copies, launcherCopies)
 })
 
 test('the Windows activator returns a client error with the client token, and a refused Activate with its HRESULT', async () => {
@@ -162,6 +171,7 @@ test('the Windows activator stops a client that never reports and names its stat
 })
 
 const launcherScript = fileURLToPath(new URL('./windows-unelevated.ps1', import.meta.url))
+const launcherTypes = fileURLToPath(new URL('./windows-unelevated.cs', import.meta.url))
 
 // Add-Type compiles through CodeDom, which a Medium-integrity process cannot run, so only the High modes may compile.
 test('the Windows launcher compiles its native types only in the High start and activate modes', () => {
@@ -261,11 +271,12 @@ test('the Windows launcher start mode runs a real executable as an unelevated st
 test('the Administrators check fails for a token reader that never matches S-1-5-32-544', { skip: process.platform !== 'win32' }, async () => {
   const directory = mkdtempSync(join(tmpdir(), 'orbit-unelevated-'))
   try {
-    const source = readFileSync(launcherScript, 'utf8')
+    const source = readFileSync(launcherTypes, 'utf8')
     const group = 'AdministratorsSid = "S-1-5-32-544"'
     assert.ok(source.includes(group), 'the reader names the Administrators group')
     const mutated = join(directory, 'windows-unelevated.ps1')
-    writeFileSync(mutated, source.replace(group, 'AdministratorsSid = "S-1-5-32-0"'))
+    copyFileSync(launcherScript, mutated)
+    writeFileSync(join(directory, 'windows-unelevated.cs'), source.replace(group, 'AdministratorsSid = "S-1-5-32-0"'))
     const { harness } = startHostname(mutated, directory)
     assertToken(harness.harness)
     assert.equal(harness.harness.administrators, 'absent')
@@ -292,7 +303,7 @@ test('the Windows launcher run mode records a library it cannot load as a launch
 
 function launcherFunctions(names: string[]) {
   const source = readFileSync(launcherScript, 'utf8')
-  const integrity = source.slice(source.indexOf("$integritySource = @'"), source.indexOf("'@") + 2)
+  const integrity = `$integritySource = Get-Content -LiteralPath '${launcherTypes.replaceAll("'", "''")}' -Raw`
   return [integrity, ...names.map((name) => {
     const from = source.search(new RegExp(`function ${name}[ (]`))
     // A Windows checkout can carry CRLF line ends, so the closing brace of a function matches either end.
@@ -332,7 +343,7 @@ test('the Windows notify mode records a COM failure with its HRESULT for an acti
     assert.equal(compiled.status, 0, compiled.stderr)
     const request = join(directory, 'request.json')
     const clsid = '{6B0F4C29-1D7E-4E5A-8B31-0C9D2E3F4A5B}'
-    writeFileSync(request, JSON.stringify({ clsid, appId: 'Orbit.Acceptance.Absent', arguments: 'orbitNotice=x;orbitAction=done' }))
+    writeFileSync(request, JSON.stringify({ clsid, appId: 'Orbit.Acceptance.Absent', arguments: 'orbitAction=done;orbitNotice=x' }))
     const status = join(directory, 'status.jsonl')
     const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', launcherScript, '-Mode', 'notify',
       '-Status', status, '-Assembly', assembly, '-Request', request], { encoding: 'utf8', timeout: 120000 })

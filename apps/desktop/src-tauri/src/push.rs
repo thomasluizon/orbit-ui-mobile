@@ -51,19 +51,19 @@ pub fn prepare_launch() -> Result<(), &'static str> {
     Ok(())
 }
 
+// The Windows App SDK routes a toast activation into the running process through its COM registration (REGCLS_MULTIPLEUSE
+// in AppNotificationManager::RegisterComServer). Windows starts a second process with the activation flag only when it could
+// not reach that registration, and the single-instance plugin forwards that process's arguments without the activation
+// payload. Thus the click is lost, and the window restores like a failed Done.
 #[cfg(windows)]
-pub fn secondary_launch(arguments: &[String]) -> bool {
-    let launch = crate::push_action::secondary_launch(arguments);
-    if launch.lost_activation {
+pub fn secondary_launch(arguments: &[String]) {
+    if crate::push_action::notification_activation(arguments) {
         eprintln!("Desktop push: a notification activation started a second process, which exits before it can read the activation");
     }
-    launch.restore
 }
 
 #[cfg(not(windows))]
-pub fn secondary_launch(_arguments: &[String]) -> bool {
-    true
-}
+pub fn secondary_launch(_arguments: &[String]) {}
 
 pub fn notification_launch() -> bool {
     #[cfg(target_os = "macos")]

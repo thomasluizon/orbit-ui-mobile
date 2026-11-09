@@ -36,25 +36,6 @@ pub fn notification_activation(arguments: &[String]) -> bool {
         .any(|argument| argument == "----AppNotificationActivated:")
 }
 
-#[cfg(any(windows, test))]
-#[derive(Debug, PartialEq)]
-pub struct SecondaryLaunch {
-    pub restore: bool,
-    pub lost_activation: bool,
-}
-
-// The Windows App SDK routes a toast activation into the running process through its COM registration (REGCLS_MULTIPLEUSE
-// in AppNotificationManager::RegisterComServer). Windows starts a second process with the activation flag only when it could
-// not reach that registration, and the single-instance plugin forwards that process's arguments without the activation
-// payload. Thus the click is lost, and the window restores like a failed Done.
-#[cfg(any(windows, test))]
-pub fn secondary_launch(arguments: &[String]) -> SecondaryLaunch {
-    SecondaryLaunch {
-        restore: true,
-        lost_activation: notification_activation(arguments),
-    }
-}
-
 impl Reminder {
     pub fn destination(&self) -> Option<String> {
         self.habit_id
@@ -200,37 +181,6 @@ mod tests {
             assert_eq!(
                 request.body().unwrap().as_bytes().unwrap(),
                 br#"{"token":"one-use-token"}"#
-            );
-        }
-    }
-
-    #[test]
-    fn a_notification_activation_in_a_second_process_restores_the_window_like_a_failed_done() {
-        let launch = |arguments: &[&str]| {
-            secondary_launch(
-                &arguments
-                    .iter()
-                    .map(|argument| argument.to_string())
-                    .collect::<Vec<_>>(),
-            )
-        };
-        assert_eq!(
-            launch(&["Orbit.exe", "----AppNotificationActivated:"]),
-            SecondaryLaunch {
-                restore: true,
-                lost_activation: true
-            }
-        );
-        for arguments in [
-            &["Orbit.exe"][..],
-            &["Orbit.exe", "org.useorbit.desktop://app/habits/new"][..],
-        ] {
-            assert_eq!(
-                launch(arguments),
-                SecondaryLaunch {
-                    restore: true,
-                    lost_activation: false
-                }
             );
         }
     }
