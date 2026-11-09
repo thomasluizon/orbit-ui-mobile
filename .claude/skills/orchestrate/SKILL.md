@@ -28,7 +28,7 @@ node tools/run-status.mjs --session "<this session id>"
 
 Read its one JSON object and follow `nextActions[].command` from `commandDirectory`.
 Commands use relative paths when those are shorter. The action set is closed:
-`REARM_WAIT_CI`, `VERIFY_DELIVERY`, `READ_REVIEW`, `RECORD_READINESS`, `BEHIND_BASE`,
+`REARM_WAIT_CI`, `VERIFY_DELIVERY`, `READ_REVIEW`, `REQUEST_REVIEW`, `RECORD_READINESS`, `BEHIND_BASE`,
 `CHECK_FAILED`, `MERGE_CANDIDATE`, `SLOT_FREE`, `ORPHANED_WORKER`, `INTAKE`, `NO_ACTION`.
 Delivery and readiness remain decisions of their named tools. A merge candidate calls the
 recorder again; it grants no merge authority. A foreign session has no actions. A linked
@@ -125,8 +125,7 @@ no invocation flag overrides it. Pool sizing for an enabled Cloud lane is detail
                      on EVERY worker exit, DELIVERED included: read the worker log tail for
                      NEEDS_DECISION and the PR body's ## Assumptions (attended: adjudicate
                      both with the owner NOW, before step 8)
-                     anything but DELIVERED enters the bounded readiness/fixer path or a real blocker,
-                     except CI_PENDING whose only pending check is pullfrog-approval: go to step 8
+                     anything but DELIVERED enters the bounded readiness/fixer path or a real blocker
                      SALVAGE allowed: discard residue · test then commit+push what the worker
                      left · re-run a CI job proven infra. NEVER write code, revert, force, merge.
                      A SALVAGED PR RE-ENTERS HERE and runs 7, 8 and 9 like any other.
@@ -944,8 +943,11 @@ It reports `CI_PENDING` and posts nothing when CI still runs at the end of the b
 `node tools/wait-ci.mjs --repo <key> --pr <n>` in the background, then run the tool again when the
 waiter exits 0. A plain waiter does not wait for `pullfrog-approval`, so it settles before the
 review exists. Add `--require-check pullfrog-approval` only to wait for the review itself.
-`node tools/run-status.mjs` names the same request as its `REQUEST_REVIEW` action. Pass
-`--no-request` to read the review state without a request.
+`node tools/run-status.mjs` names the same request as its `REQUEST_REVIEW` action, with a 30-second
+`--wait-seconds`, so the command posts and returns. After the request, start
+`node tools/wait-ci.mjs --repo <key> --pr <n> --require-check pullfrog-approval` in the background.
+While that waiter is live, `run-status` names no second `REQUEST_REVIEW`. Pass `--no-request` to read
+the review state without a request.
 
 A pull request that this run did not open, such as a contract rebaseline pull request or one the
 owner opened, gets no automatic review either. Ask for its review with the same command.

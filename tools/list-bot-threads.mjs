@@ -34,8 +34,8 @@ safety bound, not a guaranteed review time.
 
 Prints ONE JSON object on stdout: pr, isDraft, verdict, reviewedAt, reviewState, reviewBody,
 checkConclusion, checkStatus, progressMarkers, ciGate, threads[]. Errors go to stderr. A request
-comment posted after the current head's push counts as that head's request, so a second run posts
-no second one and names it in existingRequestUrl; only --re-review asks again.
+comment of the repository owner posted after the current head's push counts as that head's request,
+so a second run posts no second one and names it in existingRequestUrl; only --re-review asks again.
 
   verdict  REVIEWED      a Pullfrog verdict OF THE CURRENT HEAD exists; threads[] may be empty,
                          and a non-null reviewBody can still carry a finding
@@ -67,7 +67,8 @@ A draft pull request is read exactly like any other one, because Pullfrog review
 Pullfrog publishes no severity, so every thread reports P1. The caller treats each finding as
 blocking until the caller triages it.
 
-  ciGate     null when the run posted no request; otherwise state (PASSED, FAILING or PENDING),
+  ciGate     null when the gate never ran (a review of this head already existed, --no-request or
+             --wait-seconds 0); otherwise the last reading: state (PASSED, FAILING or PENDING),
              failing[], pending[] and reported, the count of checks other than Pullfrog's own
 
 exit codes: 0 REVIEWED or CHANGES_REQUESTED, 1 NO_REVIEW, CHECK_FAILED, CHECK_PENDING, CI_FAILING or
@@ -170,7 +171,7 @@ const QUERY = `query($owner:String!,$repo:String!,$pr:Int!,$threadsAfter:String)
       number isDraft baseRefName baseRefOid headRefOid headRefName headRepository{nameWithOwner}
       commits(last:1){nodes{commit{oid}}}
       reviews(last:50){nodes{id author{login} state submittedAt body commit{oid}}}
-      comments(last:100){nodes{createdAt url body}}
+      comments(last:100){nodes{createdAt url body author{login}}}
       statusCheckRollup{contexts(first:100){nodes{__typename ... on CheckRun{name status conclusion startedAt completedAt checkSuite{app{databaseId}}} ... on StatusContext{context state createdAt}}}}
       reviewThreads(first:100,after:$threadsAfter){
         pageInfo{hasNextPage endCursor}
@@ -410,13 +411,15 @@ if (requestReview && !review && waitSeconds > 0) {
 
 /**
  * One request per head: a request comment posted after this head's push already asks for its review,
- * and a second one starts a second paid run. Only --re-review asks again on purpose.
+ * and a second one starts a second paid run. Only --re-review asks again on purpose. Only the
+ * repository owner's comment counts, because this tool posts with the owner's token and Pullfrog
+ * ignores a mention from a non-collaborator, so a stranger's comment is no request.
  */
 const REQUEST_BODY = "@pullfrog review"
 const openRequestOf = (payload) => {
   const boundary = payload.headActivityBoundary?.time
   if (!Number.isFinite(boundary)) return null
-  return (payload.comments?.nodes ?? []).find((comment) => comment.body?.trim() === REQUEST_BODY && Date.parse(comment.createdAt ?? "") > boundary) ?? null
+  return (payload.comments?.nodes ?? []).find((comment) => comment.author?.login?.toLowerCase() === owner.toLowerCase() && comment.body?.trim() === REQUEST_BODY && Date.parse(comment.createdAt ?? "") > boundary) ?? null
 }
 const openRequest = reReview ? null : openRequestOf(node)
 

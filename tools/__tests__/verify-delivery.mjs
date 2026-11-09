@@ -441,18 +441,17 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   writeFileSync(hermeticStaged.configPath, JSON.stringify(hermeticConfig))
 
   /**
-   * Pullfrog publishes `pullfrog-approval`, which branch protection requires on `main` and pins to
-   * Pullfrog's own app 1768019, so the review verdict reaches this tool as one more required check.
-   * An approval the rollup does not carry is CI_PENDING, and a delivery that carries it under the
-   * pinned app is DELIVERED like any other green check.
+   * Pullfrog reviews only on request, after delivery, so a required `pullfrog-approval` that the
+   * rollup does not carry yet never holds delivery. Readiness still requires it, pinned to Pullfrog's
+   * own app 1768019: record-readiness.mjs and readiness-receipt.mjs own the producer cases.
    */
   const requiredWithApproval = [{ context: "Lint", app_id: GITHUB_ACTIONS_APP }, { context: "pullfrog-approval", app_id: PULLFROG_APP }]
   const approval = checkRun("pullfrog-approval", { appId: PULLFROG_APP, startedAt: "2026-08-06T10:30:00Z" })
   check(
     TOOL,
-    "a required pullfrog-approval that has not registered is CI_PENDING",
+    "a green head whose required pullfrog-approval is not registered is DELIVERED without waiting for the review",
     ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
-    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"name": "pullfrog-approval"[\s\S]*"status": "NOT_REGISTERED"/ },
+    { status: 0, stdout: /"verdict": "DELIVERED"/ },
     { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint")], { behind_by: 0 }, requiredWithApproval) },
   )
   check(
@@ -462,66 +461,30 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     { status: 0, stdout: /"verdict": "DELIVERED"/ },
     { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint"), approval], { behind_by: 0 }, requiredWithApproval) },
   )
-
   const approvedAtHead = { reviews: [review("APPROVED", pushed.head)] }
   check(
     TOOL,
-    "an absent pullfrog-approval on a PROTECTED base is DELIVERED when an APPROVED review sits at the exact head",
+    "an absent pullfrog-approval is DELIVERED when an APPROVED review sits at the exact head",
     ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
     { status: 0, stdout: /"verdict": "DELIVERED"[\s\S]*"verdict": "APPROVED"/ },
     { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint")], { behind_by: 0 }, requiredWithApproval, approvedAtHead) },
   )
-  /** The approval is evidence about ITS head alone, so a review of an older commit excuses nothing. */
+  /** The exclusion waives an ABSENCE of the review check only, never a red check, registered or not. */
   check(
     TOOL,
-    "an APPROVED review at a DIFFERENT commit does not excuse the absent approval context",
-    ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
-    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"name": "pullfrog-approval"[\s\S]*"status": "NOT_REGISTERED"/ },
-    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint")], { behind_by: 0 }, requiredWithApproval, { reviews: [review("APPROVED", "some-older-commit")] }) },
-  )
-  for (const state of ["COMMENTED", "CHANGES_REQUESTED", "DISMISSED"]) {
-    check(
-      TOOL,
-      `a ${state} review at the head does not excuse the absent approval context`,
-      ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
-      { status: 1, stdout: /"verdict": "CI_PENDING"/ },
-      { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint")], { behind_by: 0 }, requiredWithApproval, { reviews: [review(state, pushed.head)] }) },
-    )
-  }
-  /** A human account spelled `pullfrog` is not the app, so its approval carries no excuse either. */
-  check(
-    TOOL,
-    "an APPROVED review by a non-Bot author named pullfrog does not excuse the absent approval context",
-    ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
-    { status: 1, stdout: /"verdict": "CI_PENDING"/ },
-    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint")], { behind_by: 0 }, requiredWithApproval, { reviews: [review("APPROVED", pushed.head, { typename: "User" })] }) },
-  )
-  /** An excuse waives an ABSENCE, never a red check: a failing Lint still fails alongside the review. */
-  check(
-    TOOL,
-    "an exact-head approval never waives a different check that is actually failing",
+    "an unregistered pullfrog-approval never waives a different check that is actually failing",
     ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
     { status: 1, stdout: /"verdict": "CI_FAILING"/ },
     { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint", { conclusion: "FAILURE" })], { behind_by: 0 }, requiredWithApproval, approvedAtHead) },
   )
-
-  /**
-   * THE producer case. Branch protection pins `pullfrog-approval` to app 1768019, so a SUCCESS of
-   * that exact name published by app 15368 satisfies nothing: GitHub still refuses the merge, and a
-   * reader keyed on the context alone called this pull request DELIVERED.
-   */
-  const impostorApproval = check(
+  check(
     TOOL,
-    "a SUCCESS pullfrog-approval from the WRONG app is CI_PENDING, never DELIVERED",
+    "a registered pullfrog-approval that failed is still CI_FAILING",
     ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
-    { status: 1, stdout: /"verdict": "CI_PENDING"/ },
-    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint"), checkRun("pullfrog-approval", { appId: GITHUB_ACTIONS_APP })], { behind_by: 0 }, requiredWithApproval) },
+    { status: 1, stdout: /"verdict": "CI_FAILING"[\s\S]*"name": "pullfrog-approval"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint"), checkRun("pullfrog-approval", { appId: PULLFROG_APP, conclusion: "FAILURE", startedAt: "2026-08-06T10:30:00Z" })], { behind_by: 0 }, requiredWithApproval) },
   )
-  T(
-    `${TOOL}: the wrong-producer report names the pinned app it never saw`,
-    /"name": "pullfrog-approval"[\s\S]*"status": "NOT_REGISTERED"[\s\S]*"requiredAppId": 1768019/.test(impostorApproval.stdout),
-    impostorApproval.stdout,
-  )
+
   /** `app_id: null` is GitHub's "any app may provide this check", so the same rollup delivers. */
   check(
     TOOL,
@@ -529,14 +492,6 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
     { status: 0, stdout: /"verdict": "DELIVERED"/ },
     { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint"), checkRun("pullfrog-approval", { appId: GITHUB_ACTIONS_APP })], { behind_by: 0 }, [{ context: "Lint", app_id: GITHUB_ACTIONS_APP }, { context: "pullfrog-approval", app_id: null }]) },
-  )
-  /** A StatusContext carries no producing app, so it can never satisfy a check pinned to one. */
-  check(
-    TOOL,
-    "a StatusContext cannot satisfy a required check pinned to an app",
-    ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
-    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"name": "pullfrog-approval"[\s\S]*"status": "NOT_REGISTERED"/ },
-    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint"), statusContext("pullfrog-approval", "SUCCESS")], { behind_by: 0 }, requiredWithApproval) },
   )
   /** `contexts` alone cannot decide, so a protection payload without `checks` fails closed. */
   check(

@@ -293,6 +293,11 @@ export const cases = () => {
   }
   /** Sliced by the selections that bracket it, because a nested `author{login}` defeats a [^}] scan. */
   const reviewsSelection = querySource.slice(querySource.indexOf("reviews(last:"), querySource.indexOf("comments(last:"))
+  T(
+    `${TOOL}: the GraphQL query selects the comment author, which decides whether a request comment counts`,
+    prLevelComments.includes("author{login"),
+    `pull-request-level comments selection was "${prLevelComments}"`,
+  )
   for (const field of ["submittedAt", "state", "commit"]) {
     T(
       `${TOOL}: the GraphQL query selects reviews.${field}, which the verdict reads`,
@@ -497,6 +502,16 @@ export const cases = () => {
     alreadyAsked.result.status === 1 && alreadyAsked.plan?.verdict === "NO_REVIEW" && !alreadyAsked.requested && alreadyAsked.plan.existingRequestUrl === REQUEST_URL &&
       /no second request/.test(alreadyAsked.plan.note ?? ""),
     alreadyAsked.result.stdout || alreadyAsked.result.stderr,
+  )
+  const strangerRequest = { ...requestComment("2026-08-04T22:30:00Z"), author: { login: "not-a-collaborator" } }
+  const askedByStranger = requestRun("asked-by-stranger", sequence("asked-by-stranger", [
+    payload({ checks: [ciCheck()], comments: [strangerRequest] }),
+    payload({ checks: [ciCheck(), approvalCheck("COMPLETED", "SUCCESS", "2026-08-05T10:01:00Z")], comments: [strangerRequest], reviews: [botReview("APPROVED", "2026-08-05T10:00:00Z")] }),
+  ]))
+  T(
+    `${TOOL}: a request comment from a non-collaborator is no request, because Pullfrog ignores it, so the real one is posted`,
+    askedByStranger.result.status === 0 && askedByStranger.plan?.verdict === "REVIEWED" && askedByStranger.requested && askedByStranger.plan.existingRequestUrl === undefined,
+    askedByStranger.result.stdout || askedByStranger.result.stderr,
   )
   const askedForOldHead = requestRun("asked-for-old-head", sequence("asked-for-old-head", [
     payload({ checks: [ciCheck()], comments: [requestComment("2026-08-04T21:30:00Z")] }),

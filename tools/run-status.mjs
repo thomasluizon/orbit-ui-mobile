@@ -64,7 +64,7 @@ const commandPath = (path, root) => {
 const commandFor = (tool, row) => `node tools/${tool}.mjs --repo ${quote(row.repositoryKey)} --pr ${row.prNumber}`
 const waitCommand = (row) => commandFor("wait-ci", row)
 const reviewCommand = (row) => `${commandFor("list-bot-threads", row)} --no-request --wait-seconds 0`
-const requestReviewCommand = (row) => commandFor("list-bot-threads", row)
+const requestReviewCommand = (row) => `${commandFor("list-bot-threads", row)} --wait-seconds 30`
 const deliveryCommand = (row, pull, launch, receipt) => {
   const issue = row.issue ?? launch?.issue ?? receipt?.issue ?? (/ticket-(\d+)/.exec(pull.headRefName)?.[1] ?? /ORB-\d+/i.exec(pull.headRefName)?.[0])
   const worktree = row.worktree ?? launch?.runDirectory
@@ -139,15 +139,16 @@ const observePull = (row, pull, launches, wakes) => {
     return { observation, actions }
   }
   if (!complete) return { observation, actions }
+  const waiter = wakes.live.some((source) =>
+    (source.repositoryKey === row.repositoryKey && source.prNumbers?.includes(row.prNumber)) ||
+    (source.what?.startsWith(`CI ${row.repositoryKey} pull requests `) && source.what.split(/[, ]+/).includes(`#${row.prNumber}`)))
   if (pull.mergeStateStatus === "BEHIND") add("BEHIND_BASE", deliveryCommand(row, pull, launch, receipt))
   else if (checks.failed > 0) add("CHECK_FAILED", deliveryCommand(row, pull, launch, receipt))
   // Pullfrog reviews only on request, so a green head with no review and no carried verdict asks once.
-  else if (!review && !checks.reviewVerdict && checks.total > 0 && checks.pending === 0) add("REQUEST_REVIEW", requestReviewCommand(row))
+  // A live waiter means the request is in flight: the review check exists only once Pullfrog finishes.
+  else if (!review && !checks.reviewVerdict && checks.total > 0 && checks.pending === 0 && !waiter) add("REQUEST_REVIEW", requestReviewCommand(row))
   else if (receiptStatus !== "CURRENT" && !currentDelivery) add("VERIFY_DELIVERY", deliveryCommand(row, pull, launch, receipt))
   else if (checks.total === 0 || checks.pending > 0 || !review) {
-    const waiter = wakes.live.some((source) =>
-      (source.repositoryKey === row.repositoryKey && source.prNumbers?.includes(row.prNumber)) ||
-      (source.what?.startsWith(`CI ${row.repositoryKey} pull requests `) && source.what.split(/[, ]+/).includes(`#${row.prNumber}`)))
     if (!waiter) add(checks.pending > 0 || checks.total === 0 ? "REARM_WAIT_CI" : "READ_REVIEW", checks.pending > 0 || checks.total === 0 ? waitCommand(row) : reviewCommand(row))
   } else if (!receiptCiCurrent && !currentDelivery) add("VERIFY_DELIVERY", deliveryCommand(row, pull, launch, receipt))
   else if (receiptStatus !== "CURRENT" || receiptVerdict !== "READY") {

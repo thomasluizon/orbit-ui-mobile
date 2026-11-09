@@ -134,7 +134,11 @@ export const cases = async () => {
   reset(); withoutReview(); setPull(pull)
   report = await snapshot()
   T("run-status: a green head with no review requests one through the gated request",
-    report.nextActions[0].type === "REQUEST_REVIEW" && report.nextActions[0].command === `node tools/list-bot-threads.mjs --repo 'ui' --pr ${number}`, JSON.stringify(report.nextActions))
+    report.nextActions[0].type === "REQUEST_REVIEW" && report.nextActions[0].command === `node tools/list-bot-threads.mjs --repo 'ui' --pr ${number} --wait-seconds 30`, JSON.stringify(report.nextActions))
+  registerWakeSource({ pid: process.pid, repositoryKey: "ui", prNumbers: [number], what: "CI fixture" }, repo.path)
+  report = await snapshot()
+  T("run-status: a requested review with a live waiter yields no second request", report.nextActions.length === 1 && report.nextActions[0].type === "NO_ACTION", JSON.stringify(report.nextActions))
+  clearWakeSource(process.pid, repo.path)
   reset(); withoutReview(); pull.statusCheckRollup.contexts.nodes[0].status = "IN_PROGRESS"; pull.statusCheckRollup.contexts.nodes[0].conclusion = null; setPull(pull)
   report = await snapshot()
   T("run-status: a running head with no review waits for CI and requests nothing", report.nextActions[0].type === "REARM_WAIT_CI" && !report.nextActions.some((entry) => entry.type === "REQUEST_REVIEW"), JSON.stringify(report.nextActions))
