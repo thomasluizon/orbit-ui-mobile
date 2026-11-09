@@ -152,9 +152,11 @@ also sets the page's root mode class to light and then dark, the signal the shel
 `caption` command of `acceptance-uia.ps1` captures the native caption with `acceptance-caption.cs`.
 The reader samples the middle of the caption above the menu bar and requires the `DESIGN.md` canvas
 (`#FAFAFA` light, `#09090B` dark) on at least 90% of the sampled pixels. `DWMWA_CAPTION_COLOR` paints the
-canvas whatever the window theme is, so the reader also takes the darkest and lightest pixel of the caption-button
-strip at the right edge. It requires a dark glyph on the light caption and a light glyph on the dark caption, which
-proves the window theme. `report.json` `caption` keeps the sampled colours and glyph luminance, and the `caption-light.png` and `caption-dark.png` captures upload with the job. Separate
+canvas whatever the window theme is, and the caption-button glyphs follow the caption colour. The reader therefore
+reads `DWMWA_USE_IMMERSIVE_DARK_MODE` (attribute 20, which `tao` writes on every Windows 11 build) back from the
+window with `DwmGetWindowAttribute`. The runner requires a successful read-back with flag 0 for the light mode and
+flag 1 for the dark mode, in the same poll as the canvas colour. `report.json` `caption` keeps the sampled colours,
+the flag and its HRESULT, and the `caption-light.png` and `caption-dark.png` captures upload with the job. Separate
 launches reject a cryptographically corrupted signature and download a correctly signed newer
 version. The update package is the built acceptance installer, signed with the newer advertised
 version to exercise the verifier. The job tests discovery and download verification; it does not

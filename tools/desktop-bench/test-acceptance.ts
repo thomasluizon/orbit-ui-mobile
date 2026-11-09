@@ -427,7 +427,7 @@ function inspectionContext(platform: string) {
     inspect: (context as typeof context & { inspect: (...args: unknown[]) => Promise<void> }).inspect }
 }
 
-type CaptionReading = { colors: { color: number[]; count: number }[]; sampled: number; glyphs?: { darkest: number; lightest: number } }
+type CaptionReading = { colors: { color: number[]; count: number }[]; sampled: number; darkMode?: number; darkModeStatus?: number }
 type CaptionReport = { caption: Record<string, CaptionReading & { expected: number[] }> }
 
 function captionContext(readings: Record<string, CaptionReading[]>) {
@@ -455,15 +455,14 @@ function captionContext(readings: Record<string, CaptionReading[]>) {
   return { sent, reads, elapsed: () => elapsed, run: (report: object) => inspectCaption(proxy, native, { child: { pid: 7 } }, 'output', report) }
 }
 
-// The glyph strip holds the caption colour plus the glyphs Windows draws: black on the light theme, white on the dark theme.
-const blackOnLight = { darkest: 0, lightest: 250 }
-const whiteOnDark = { darkest: 9, lightest: 255 }
-const whiteOnLight = { darkest: 250, lightest: 255 }
-const blackOnDark = { darkest: 0, lightest: 9 }
-const caption = (color: number[], count = 100, sampled = 100, glyphs = color[0]! > 128 ? blackOnLight : whiteOnDark) =>
-  ({ colors: [{ color, count }], sampled, glyphs })
+// The reader reads DWMWA_USE_IMMERSIVE_DARK_MODE back from the window: 1 for the dark window theme, 0 for the light one, and
+// its HRESULT. The default flag is the one the page mode of each canvas asks for.
+const caption = (color: number[], count = 100, sampled = 100, darkMode = color[0]! > 128 ? 0 : 1, darkModeStatus = 0) =>
+  ({ colors: [{ color, count }], sampled, darkMode, darkModeStatus })
 // The Windows 11 immersive dark caption is not the canvas, so a shell that sets only the window theme never passes.
 const immersiveDark = caption([32, 32, 32])
+// E_INVALIDARG, as the signed 32-bit integer that the reader serialises.
+const failedRead = -2147024809
 
 test('caption inspection drives both page modes and polls each until the caption shows its canvas', async () => {
   const check = captionContext({
@@ -487,7 +486,7 @@ test('caption inspection fails on a caption that never takes the canvas and keep
   for (const [readings, failed] of [
     [{ light: [caption([250, 250, 250])], dark: [immersiveDark] }, 'dark'],
     [{ light: [caption([250, 250, 250], 89)], dark: [caption([9, 9, 11])] }, 'light'],
-    [{ light: [{ colors: [], sampled: 0 }], dark: [caption([9, 9, 11])] }, 'light'],
+    [{ light: [{ colors: [], sampled: 0, darkMode: 0, darkModeStatus: 0 }], dark: [caption([9, 9, 11])] }, 'light'],
   ] as const) {
     const check = captionContext(structuredClone(readings) as Record<string, CaptionReading[]>)
     const recorded = {} as CaptionReport
@@ -498,13 +497,13 @@ test('caption inspection fails on a caption that never takes the canvas and keep
   }
 })
 
-// DWMWA_CAPTION_COLOR paints the canvas whatever the window theme is, so only the glyphs show a missing runtime theme (#2084).
-test('caption inspection fails on the canvas colour with the glyphs of the other window theme', async () => {
+// DWMWA_CAPTION_COLOR paints the canvas whatever the window theme is, so only the read-back flag shows a dropped runtime theme (#2084).
+test('caption inspection fails on the canvas colour with the wrong window theme flag or a failed read-back', async () => {
   for (const [readings, failed] of [
-    [{ light: [caption([250, 250, 250], 100, 100, whiteOnLight)], dark: [caption([9, 9, 11])] }, 'light'],
-    [{ light: [caption([250, 250, 250])], dark: [caption([9, 9, 11], 100, 100, blackOnDark)] }, 'dark'],
-    [{ light: [caption([250, 250, 250], 100, 100, { darkest: 250, lightest: 250 })], dark: [caption([9, 9, 11])] }, 'light'],
-    [{ light: [caption([250, 250, 250])], dark: [caption([9, 9, 11], 100, 100, { darkest: 9, lightest: 9 })] }, 'dark'],
+    [{ light: [caption([250, 250, 250], 100, 100, 1)], dark: [caption([9, 9, 11])] }, 'light'],
+    [{ light: [caption([250, 250, 250])], dark: [caption([9, 9, 11], 100, 100, 0)] }, 'dark'],
+    [{ light: [caption([250, 250, 250], 100, 100, 0, failedRead)], dark: [caption([9, 9, 11])] }, 'light'],
+    [{ light: [caption([250, 250, 250])], dark: [caption([9, 9, 11], 100, 100, 1, failedRead)] }, 'dark'],
     [{ light: [{ colors: [{ color: [250, 250, 250], count: 100 }], sampled: 100 }], dark: [caption([9, 9, 11])] }, 'light'],
   ] as const) {
     const check = captionContext(structuredClone(readings) as Record<string, CaptionReading[]>)
@@ -516,10 +515,10 @@ test('caption inspection fails on the canvas colour with the glyphs of the other
   }
 })
 
-test('caption inspection waits for the glyphs of the page mode inside the same poll as the canvas colour', async () => {
+test('caption inspection waits for the window theme flag of the page mode inside the same poll as the canvas colour', async () => {
   const check = captionContext({
-    light: [caption([250, 250, 250], 100, 100, whiteOnLight), caption([243, 243, 243]), caption([250, 250, 250])],
-    dark: [caption([9, 9, 11], 100, 100, blackOnDark), caption([9, 9, 11])],
+    light: [caption([250, 250, 250], 100, 100, 1), caption([243, 243, 243]), caption([250, 250, 250])],
+    dark: [caption([9, 9, 11], 100, 100, 0), caption([9, 9, 11])],
   })
   const recorded = {} as CaptionReport
   await check.run(recorded)

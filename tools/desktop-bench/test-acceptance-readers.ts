@@ -379,9 +379,10 @@ $form.Close()
   }
 })
 
-// DWMWA_CAPTION_COLOR paints the canvas whatever the window theme is, so the glyph reading is what shows the window theme (#2084).
-test('Windows caption reader reports the glyph luminance of the window theme on both Orbit canvas colours', { skip: process.platform !== 'win32' }, () => {
-  const directory = mkdtempSync(join(tmpdir(), 'orbit-caption-glyphs-'))
+// DWMWA_CAPTION_COLOR paints the canvas whatever the window theme is, so the read-back flag is what shows the window theme (#2084).
+// Microsoft documents DWMWA_USE_IMMERSIVE_DARK_MODE for DwmSetWindowAttribute, so this real window proves the read-back on the runner.
+test('Windows caption reader reads back the window theme flag on both Orbit canvas colours', { skip: process.platform !== 'win32' }, () => {
+  const directory = mkdtempSync(join(tmpdir(), 'orbit-caption-theme-'))
   try {
     const reader = fileURLToPath(new URL('./acceptance-caption.cs', import.meta.url))
     const script = `
@@ -402,7 +403,7 @@ $results = @{}
 foreach ($canvas in 'light', 'dark') {
   foreach ($theme in 'light', 'dark') {
     $form = New-Object System.Windows.Forms.Form
-    $form.Text = 'Orbit caption glyph fixture'
+    $form.Text = 'Orbit caption theme fixture'
     $form.StartPosition = 'Manual'
     $form.SetBounds(100, 100, 800, 400)
     $form.TopMost = $true
@@ -422,24 +423,21 @@ $results | ConvertTo-Json -Depth 7
 `
     const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', timeout: 120000 })
     assert.equal(result.status, 0, result.stderr)
-    type Reading = { colorStatus: number; themeStatus: number; caption: { colors: { color: number[] }[]; glyphs: { darkest: number; lightest: number } } }
+    type Reading = { colorStatus: number; themeStatus: number; caption: { colors: { color: number[] }[]; darkMode: number; darkModeStatus: number } }
     const readings = JSON.parse(result.stdout) as Record<string, Reading>
     const canvas = { light: [250, 250, 250], dark: [9, 9, 11] }
+    const hresult = (status: number) => `0x${(status >>> 0).toString(16).toUpperCase().padStart(8, '0')}`
     for (const canvasMode of ['light', 'dark'] as const) {
       for (const theme of ['light', 'dark'] as const) {
         const reading = readings[`${canvasMode}-${theme}`]!
         const label = `${canvasMode} canvas with the ${theme} window theme: ${JSON.stringify(reading)}`
-        assert.equal(reading.colorStatus, 0, 'the runner supports DWMWA_CAPTION_COLOR')
-        assert.equal(reading.themeStatus, 0, 'the runner supports DWMWA_USE_IMMERSIVE_DARK_MODE')
-        assert.deepEqual(reading.caption.colors[0]!.color, canvas[canvasMode], label)
-        // The dark window theme draws white glyphs and the light theme draws black glyphs, whatever the canvas colour is.
-        if (theme === 'dark') assert.ok(reading.caption.glyphs.lightest > 128, label)
-        else assert.ok(reading.caption.glyphs.darkest < 128, label)
+        assert.equal(reading.colorStatus, 0, `DWMWA_CAPTION_COLOR failed with HRESULT ${hresult(reading.colorStatus)}: ${label}`)
+        assert.equal(reading.themeStatus, 0, `DWMWA_USE_IMMERSIVE_DARK_MODE failed with HRESULT ${hresult(reading.themeStatus)}: ${label}`)
+        assert.equal(reading.caption.darkModeStatus, 0, `The DWMWA_USE_IMMERSIVE_DARK_MODE read-back failed with HRESULT ${hresult(reading.caption.darkModeStatus)}: ${label}`)
+        assert.equal(reading.caption.darkMode, theme === 'dark' ? 1 : 0, `The read-back flag is not the window theme that the fixture set: ${label}`)
+        assert.deepEqual(reading.caption.colors[0]!.color, canvas[canvasMode], `The caption is not the canvas colour: ${label}`)
       }
     }
-    // The light canvas with the dark theme has no dark glyph, which the installed acceptance rejects for the light page mode.
-    assert.ok(readings['light-dark']!.caption.glyphs.darkest >= 128, JSON.stringify(readings['light-dark']))
-    assert.ok(readings['dark-light']!.caption.glyphs.lightest <= 128, JSON.stringify(readings['dark-light']))
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }
