@@ -116,7 +116,7 @@ it.each([false, true])('removes the invisible widget from the form gap flow, qui
   expect(getComputedStyle(widget).position).toBe('absolute')
 })
 
-it.each([false, true])('restores visible challenge space and collapses it again, quiet %s', async (quiet) => {
+it('restores visible challenge space and collapses it again', async () => {
   let resize = () => {}
   const disconnect = vi.fn()
   vi.stubGlobal('ResizeObserver', class {
@@ -126,13 +126,12 @@ it.each([false, true])('restores visible challenge space and collapses it again,
   })
   const renderWidget = vi.fn((..._args: unknown[]) => 'resizing-widget')
   ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
-  const { container, unmount } = render(<TurnstileWidget siteKey="site-key" resetKey={0} quiet={quiet} onToken={vi.fn()} />)
+  const { container, unmount } = render(<TurnstileWidget siteKey="site-key" resetKey={0} quiet onToken={vi.fn()} />)
   await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
   const challenge = renderWidget.mock.calls[0]![0] as HTMLElement
-  let height = 160
+  let height = 65
   vi.spyOn(challenge, 'getBoundingClientRect').mockImplementation(() => ({ height }) as DOMRect)
-  const callbacks = renderWidget.mock.calls[0]![1] as { callback: (token: string) => void }
-  act(() => { callbacks.callback('fresh-token'); resize() })
+  act(() => resize())
   expect(getComputedStyle(container.firstElementChild!).position).toBe('static')
   height = 0
   act(() => resize())
@@ -182,13 +181,4 @@ it.each([false, true])('hides the challenge after it passes and shows it again w
   expect(getComputedStyle(challenge).display).toBe('none')
   act(() => callbacks['expired-callback']())
   expect(getComputedStyle(challenge).display).not.toBe('none')
-})
-
-it('lets the non-quiet challenge span the form column', async () => {
-  const renderWidget = vi.fn((..._args: unknown[]) => 'column-widget')
-  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
-  render(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />)
-  await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
-  const challenge = renderWidget.mock.calls[0]![0] as HTMLElement
-  expect(challenge.className).toContain('w-full')
 })

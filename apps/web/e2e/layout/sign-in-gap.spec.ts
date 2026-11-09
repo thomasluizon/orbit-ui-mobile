@@ -29,6 +29,19 @@ async function measureGap(form: Locator) {
   })
 }
 
+async function measureChallenge(challenge: Locator) {
+  return challenge.evaluate(frame => {
+    const form = frame.closest('form')!
+    const widget = frame.closest('form > *')!
+    const frameBox = frame.getBoundingClientRect()
+    return {
+      before: frameBox.top - form.firstElementChild!.getBoundingClientRect().bottom,
+      after: form.querySelector('button[type="submit"]')!.getBoundingClientRect().top - widget.getBoundingClientRect().bottom,
+      widthShortfall: form.getBoundingClientRect().width - frameBox.width,
+    }
+  })
+}
+
 for (const width of [320, 1440]) {
   for (const locale of ['en', 'pt-BR']) {
     test.describe(`sign-in field spacing in ${locale} at ${width}px`, () => {
@@ -62,19 +75,10 @@ for (const width of [320, 1440]) {
           const challenge = form.locator('iframe')
           await expect(challenge).toHaveCount(1)
           const quiet = await section.getAttribute('data-quiet') === 'true'
-          if (quiet) {
-            await expect.poll(() => measureGap(form)).toEqual({ distance: 24, gap: 24 })
-            await challenge.evaluate(frame => { frame.style.height = '65px'; frame.style.width = '100%' })
-            await expect.poll(() => measureGap(form)).toEqual({ distance: 24 + 65 + 24, gap: 24 })
-            const clearance = await challenge.evaluate(frame => {
-              const form = frame.closest('form')!
-              return {
-                before: frame.getBoundingClientRect().top - form.firstElementChild!.getBoundingClientRect().bottom,
-                after: form.querySelector('button[type="submit"]')!.getBoundingClientRect().top - frame.getBoundingClientRect().bottom,
-              }
-            })
-            expect(clearance).toEqual({ before: 24, after: 24 })
-          }
+          if (quiet) await expect.poll(() => measureGap(form)).toEqual({ distance: 24, gap: 24 })
+          await challenge.evaluate(frame => { frame.style.height = '65px'; frame.style.width = '100%' })
+          if (quiet) await expect.poll(() => measureGap(form)).toEqual({ distance: 24 + 65 + 24, gap: 24 })
+          await expect.poll(() => measureChallenge(challenge)).toEqual({ before: 24, after: 24, widthShortfall: 0 })
           await challenge.evaluate(frame => (frame.parentElement as HTMLElement & { solveChallenge: () => void }).solveChallenge())
           await expect.poll(() => measureGap(form)).toEqual({ distance: 24, gap: 24 })
           await challenge.evaluate(frame => { frame.style.height = '65px'; frame.style.width = '100%' })
