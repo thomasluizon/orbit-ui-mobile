@@ -33,7 +33,9 @@ review. A review still counts only when its commit is the current head. The 900-
 safety bound, not a guaranteed review time.
 
 Prints ONE JSON object on stdout: pr, isDraft, verdict, reviewedAt, reviewState, reviewBody,
-checkConclusion, checkStatus, progressMarkers, threads[]. Errors go to stderr.
+checkConclusion, checkStatus, progressMarkers, ciGate, threads[]. Errors go to stderr. A request
+comment posted after the current head's push counts as that head's request, so a second run posts
+no second one and names it in existingRequestUrl; only --re-review asks again.
 
   verdict  REVIEWED      a Pullfrog verdict OF THE CURRENT HEAD exists; threads[] may be empty,
                          and a non-null reviewBody can still carry a finding
@@ -168,7 +170,7 @@ const QUERY = `query($owner:String!,$repo:String!,$pr:Int!,$threadsAfter:String)
       number isDraft baseRefName baseRefOid headRefOid headRefName headRepository{nameWithOwner}
       commits(last:1){nodes{commit{oid}}}
       reviews(last:50){nodes{id author{login} state submittedAt body commit{oid}}}
-      comments(last:100){nodes{createdAt url}}
+      comments(last:100){nodes{createdAt url body}}
       statusCheckRollup{contexts(first:100){nodes{__typename ... on CheckRun{name status conclusion startedAt completedAt checkSuite{app{databaseId}}} ... on StatusContext{context state createdAt}}}}
       reviewThreads(first:100,after:$threadsAfter){
         pageInfo{hasNextPage endCursor}
@@ -406,10 +408,22 @@ if (requestReview && !review && waitSeconds > 0) {
   }
 }
 
+/**
+ * One request per head: a request comment posted after this head's push already asks for its review,
+ * and a second one starts a second paid run. Only --re-review asks again on purpose.
+ */
+const REQUEST_BODY = "@pullfrog review"
+const openRequestOf = (payload) => {
+  const boundary = payload.headActivityBoundary?.time
+  if (!Number.isFinite(boundary)) return null
+  return (payload.comments?.nodes ?? []).find((comment) => comment.body?.trim() === REQUEST_BODY && Date.parse(comment.createdAt ?? "") > boundary) ?? null
+}
+const openRequest = reReview ? null : openRequestOf(node)
+
 let requested = false
 let requestUrl = null
-if (requestReview && !review && waitSeconds > 0 && ciGate?.state === "PASSED") {
-  const posted = await gh(["pr", "comment", pullRequest, "--repo", repository, "--body", "@pullfrog review"], `gh pr comment ${pullRequest}`)
+if (requestReview && !review && waitSeconds > 0 && ciGate?.state === "PASSED" && !openRequest) {
+  const posted = await gh(["pr", "comment", pullRequest, "--repo", repository, "--body", REQUEST_BODY], `gh pr comment ${pullRequest}`)
   requestUrl = posted.trim().split("\n").at(-1)?.trim() || null
   requested = true
   progress(reReview ? "RE_REVIEW_REQUESTED" : "REVIEW_REQUESTED", node, startedAt, deadline)
@@ -475,6 +489,8 @@ if (!review) {
    */
   const asked = requested
     ? '"@pullfrog review" WAS posted on this run and no review arrived inside the budget, so the absence is the reviewer\'s, not ours'
+    : openRequest
+    ? `"@pullfrog review" was already posted for this head at ${openRequest.createdAt}, so this run posted no second request and no review arrived inside the budget`
     : 'no "@pullfrog review" was posted on this run, so the reviewer may simply never have been triggered'
   const activityBoundary = node.headActivityBoundary
   const ciBlocked = ciGate !== null && ciGate.state !== "PASSED"
@@ -493,7 +509,7 @@ if (!review) {
     : `no completed ${botLogin} review of this head arrived; ${asked}; do not report this pull request as clean`
   console.log(
     JSON.stringify(
-      { pr: Number(pullRequest), isDraft: Boolean(node.isDraft), verdict, reviewedAt: null, reviewState: null, baseRefOid: node.baseRefOid, headRefOid: node.headRefOid, staleReviewCommit: stale?.commit?.oid ?? null, checkConclusion, checkStatus, progressMarkers, threadsComplete: node.reviewThreads.complete === true, threads, waitedSeconds: waitSeconds, reviewRequested: requested, ciGate, note },
+      { pr: Number(pullRequest), isDraft: Boolean(node.isDraft), verdict, reviewedAt: null, reviewState: null, baseRefOid: node.baseRefOid, headRefOid: node.headRefOid, staleReviewCommit: stale?.commit?.oid ?? null, checkConclusion, checkStatus, progressMarkers, threadsComplete: node.reviewThreads.complete === true, threads, waitedSeconds: waitSeconds, reviewRequested: requested, existingRequestUrl: openRequest?.url ?? null, ciGate, note },
       null,
       2,
     ),

@@ -491,6 +491,22 @@ export const cases = () => {
     protectionDown.result.status === 2 && /required status checks/.test(protectionDown.result.stderr) && !protectionDown.requested,
     protectionDown.result.stderr || protectionDown.result.stdout,
   )
+  const alreadyAsked = requestRun("already-asked", { stdout: payload({ checks: [ciCheck()], comments: [requestComment("2026-08-04T22:30:00Z")] }) }, { waitSeconds: "2" })
+  T(
+    `${TOOL}: a request already posted after the head's push is not posted twice`,
+    alreadyAsked.result.status === 1 && alreadyAsked.plan?.verdict === "NO_REVIEW" && !alreadyAsked.requested && alreadyAsked.plan.existingRequestUrl === REQUEST_URL &&
+      /no second request/.test(alreadyAsked.plan.note ?? ""),
+    alreadyAsked.result.stdout || alreadyAsked.result.stderr,
+  )
+  const askedForOldHead = requestRun("asked-for-old-head", sequence("asked-for-old-head", [
+    payload({ checks: [ciCheck()], comments: [requestComment("2026-08-04T21:30:00Z")] }),
+    payload({ checks: [ciCheck(), approvalCheck("COMPLETED", "SUCCESS", "2026-08-05T10:01:00Z")], comments: [requestComment("2026-08-04T21:30:00Z")], reviews: [botReview("APPROVED", "2026-08-05T10:00:00Z")] }),
+  ]))
+  T(
+    `${TOOL}: a request posted before the head's push asks for the older head, so the new head is requested`,
+    askedForOldHead.result.status === 0 && askedForOldHead.plan?.verdict === "REVIEWED" && askedForOldHead.requested,
+    askedForOldHead.result.stdout || askedForOldHead.result.stderr,
+  )
   const noRequest = requestRun("no-request-flag", { stdout: payload({ checks: [ciCheck("FAILURE")] }) }, { waitSeconds: "0" })
   T(
     `${TOOL}: a zero wait still never requests and never reads branch protection`,
