@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react'
-import { View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
@@ -46,13 +46,15 @@ vi.mock('@/stores/auth-store', () => ({ useAuthStore: () => null }))
 vi.mock('@/components/ui/pro-badge', () => ({ ProBadge: () => null }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
-const goalStyles = createStyles(createTokensV2('orange', 'dark'))
+const tokens = createTokensV2('orange', 'dark')
+const goalStyles = createStyles(tokens)
 
-const owners: { name: string; texts: number; render: () => ReactElement; typeQuery?: boolean }[] = [
-  { name: 'habit search load error', texts: 1, render: () => <SearchScreen />, typeQuery: true },
-  { name: 'MCP API keys load error', texts: 1, render: () => <View style={{ paddingHorizontal: PADDING.screenGutter }}><ProfileApiKeys profile={createMockProfile({ hasProAccess: true })} unlocked /></View> },
-  { name: 'goal detail load error', texts: 1, render: () => <View style={{ paddingHorizontal: PADDING.screenGutter }}><GoalLoadError onRetry={vi.fn()} styles={goalStyles} /></View> },
-  { name: 'linked habits load error', texts: 1, render: () => <View style={{ paddingHorizontal: PADDING.sheetInline }}><GoalHabitsPicker selectedIds={[]} goalType="Standard" disabled={false} onChange={vi.fn()} onClose={vi.fn()} /></View> },
+const owners: { name: string; texts: number; render: () => ReactElement; message: string; typeQuery?: boolean; columnInset?: number }[] = [
+  { name: 'habit search load error', texts: 1, message: 'habits.search.loadError', render: () => <SearchScreen />, typeQuery: true },
+  { name: 'MCP API keys load error', texts: 1, message: 'orbitMcp.apiKeysError', render: () => <View style={{ paddingHorizontal: PADDING.screenGutter }}><ProfileApiKeys profile={createMockProfile({ hasProAccess: true })} unlocked /></View> },
+  { name: 'goal detail inline load error', texts: 1, message: 'goals.detail.loadError', render: () => <View style={{ paddingHorizontal: PADDING.screenGutter }}><View style={{ gap: 24 }}><GoalLoadError onRetry={vi.fn()} styles={goalStyles} /></View></View>, columnInset: PADDING.screenGutter },
+  { name: 'goal detail sheet load error', texts: 1, message: 'goals.detail.loadError', render: () => <View style={{ paddingHorizontal: PADDING.sheetInline }}><View style={{ gap: 24 }}><GoalLoadError onRetry={vi.fn()} styles={goalStyles} /></View></View>, columnInset: PADDING.sheetInline },
+  { name: 'linked habits load error', texts: 1, message: 'goals.form.habitsError', render: () => <View style={{ paddingHorizontal: PADDING.sheetInline }}><GoalHabitsPicker selectedIds={[]} goalType="Standard" disabled={false} onChange={vi.fn()} onClose={vi.fn()} /></View> },
 ]
 
 beforeEach(() => { vi.useFakeTimers() })
@@ -63,7 +65,7 @@ afterEach(async () => {
 
 describe('start-edge retry actions below load error text', () => {
   it.each(owners.flatMap((owner) => ([412, 1280] as const).flatMap((width) => (['en', 'pt-BR'] as const).map((locale) => ({ ...owner, width, locale })))))(
-    'centres the $name glyph and starts it on the text column at $width in $locale', async ({ render, texts, typeQuery, width, locale }) => {
+    'centres the $name glyph and starts it on the text column at $width in $locale', async ({ render, texts, message, typeQuery, columnInset, width, locale }) => {
       await i18n.changeLanguage(locale)
       let tree!: ReactTestRenderer & Parameters<typeof measureStartEdgeIconAction>[0]
       await act(() => { tree = create(render()) as typeof tree })
@@ -84,6 +86,9 @@ describe('start-edge retry actions below load error text', () => {
         expect(Math.abs(geometry.glyph.left - geometry.texts[0]!.left), detail).toBeLessThanOrEqual(0.5)
         expect(geometry.texts[0]!.left - geometry.root.left, detail).toBeGreaterThanOrEqual(14)
         expect(geometry.paint.left - hitExtension, detail).toBeGreaterThanOrEqual(geometry.root.left)
+        const text = tree.root.findAll((node) => String(node.type) === 'Text' && node.props.children === i18n.t(message))[0]!
+        expect(StyleSheet.flatten(text.props.style)).toMatchObject({ fontSize: 14, color: tokens.statusBadText })
+        if (columnInset !== undefined) expect(Math.abs(geometry.texts[0]!.left - geometry.root.left - columnInset), detail).toBeLessThanOrEqual(0.5)
       } finally { await act(() => tree.unmount()) }
     })
 })

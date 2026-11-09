@@ -20,7 +20,7 @@ export function GoalLoadError({ onRetry, styles }: Readonly<GoalLoadErrorProps>)
 
   return (
     <View>
-      <Text style={styles.warningText}>{t('goals.detail.loadError')}</Text>
+      <Text style={styles.loadErrorText}>{t('goals.detail.loadError')}</Text>
       <IconButton edge="start" label={t('common.retry')} onPress={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
     </View>
   )

@@ -6,7 +6,7 @@ export type AppTokens = ReturnType<typeof createTokensV2>
 
 export function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
-    warningText: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20, color: tokens.fg2 },
+    loadErrorText: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20, color: tokens.statusBadText },
     actions: {
       paddingBottom: SPACING.s4,
     },

@@ -15,16 +15,8 @@ export function GoalLoadError({ onRetry }: Readonly<GoalLoadErrorProps>) {
   const t = useTranslations()
 
   return (
-    <div style={{ padding: "var(--orbit-space-12) var(--orbit-space-16) var(--orbit-space-0)" }}>
-      <p
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 14,
-          color: 'var(--status-overdue-text)',
-        }}
-      >
-        {t('goals.detail.loadError')}
-      </p>
+    <div>
+      <p className="text-sm text-[var(--status-bad-text)]">{t('goals.detail.loadError')}</p>
       <IconButton edge="start" label={t('common.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
     </div>
   )

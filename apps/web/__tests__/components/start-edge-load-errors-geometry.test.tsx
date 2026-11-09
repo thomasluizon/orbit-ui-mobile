@@ -48,14 +48,14 @@ vi.mock('@/hooks/use-api-key-management', () => ({
 }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
-type Owner = { name: string; render: () => ReactElement; query?: boolean; palette?: boolean }
+type Owner = { name: string; render: () => ReactElement; query?: boolean; palette?: boolean; column?: boolean }
 
 const owners: Owner[] = [
   { name: 'habit search page load error', render: () => <SearchPage />, query: true },
   { name: 'command palette load error', render: () => <CommandPalette navItems={[]} onCreateHabit={vi.fn()} />, query: true, palette: true },
   { name: 'MCP API keys load error', render: () => <QueryClientProvider client={new QueryClient()}><div className="orbit-content-frame"><ProfileApiKeys profile={{ ...profileFixture, hasProAccess: true }} unlocked /></div></QueryClientProvider> },
-  { name: 'goal detail sheet load error', render: () => <div className="orbit-sheet-body"><GoalLoadError onRetry={vi.fn()} /></div> },
-  { name: 'goal detail inline load error', render: () => <div className="px-screen-gutter pt-4"><GoalLoadError onRetry={vi.fn()} /></div> },
+  { name: 'goal detail sheet load error', render: () => <div data-column="" className="orbit-sheet-body"><div className="flex flex-col gap-6"><GoalLoadError onRetry={vi.fn()} /></div></div>, column: true },
+  { name: 'goal detail inline load error', render: () => <div data-column="" className="px-screen-gutter pt-4"><div className="flex flex-col gap-6"><GoalLoadError onRetry={vi.fn()} /></div></div>, column: true },
   { name: 'linked habits sheet load error', render: () => <div className="orbit-sheet-body"><GoalHabitsPicker selectedIds={[]} goalType="Standard" disabled={false} onChange={vi.fn()} onClose={vi.fn()} /></div> },
 ]
 
@@ -80,7 +80,7 @@ describe('start-edge retry actions below load error text in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each(cases)('centres the $name glyph and starts it on the text column at $width px in $locale', async ({ render: owner, query, palette, width, locale, messages }) => {
+  it.each(cases)('centres the $name glyph and starts it on the text column at $width px in $locale', async ({ render: owner, query, palette, column, width, locale, messages }) => {
     useShellStore.setState({ paletteOpen: Boolean(palette) })
     const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}>{owner()}</NextIntlClientProvider>)
     if (query) {
@@ -102,6 +102,19 @@ describe('start-edge retry actions below load error text in Chromium', () => {
       expect(action.glyphTextOffset, detail).toBeLessThanOrEqual(0.5)
       expect(action.gutter, detail).toBeGreaterThanOrEqual(14)
       expect(action.targetStartClearance, detail).toBeGreaterThanOrEqual(0)
+      const text = await page.locator(`button[aria-label="${messages.common.retry}"]`).evaluate((button) => {
+        const message = button.previousElementSibling!
+        const probe = button.parentElement!.appendChild(document.createElement('span'))
+        probe.style.color = 'var(--status-bad-text)'
+        const expected = getComputedStyle(probe).color
+        probe.remove()
+        return { color: getComputedStyle(message).color, expected, fontSize: getComputedStyle(message).fontSize }
+      })
+      expect(text, JSON.stringify(text)).toEqual({ color: text.expected, expected: text.expected, fontSize: '14px' })
+      if (column) {
+        const columnLeft = await page.locator('[data-column]').evaluate((host) => host.getBoundingClientRect().left + host.clientLeft + Number.parseFloat(getComputedStyle(host).paddingLeft))
+        expect(Math.abs(action.geometry.text.left - columnLeft), JSON.stringify({ columnLeft, text: action.geometry.text })).toBeLessThanOrEqual(0.5)
+      }
     } finally { await page.close() }
   })
 })
