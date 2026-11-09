@@ -5,8 +5,8 @@ import { useUIStore } from '@/stores/ui-store'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 
-export function useAstraButtonBlocked() {
-  return useUIStore(state => state.showCreateModal || state.isSelectMode || state.openOverlayIds.length > 0 || state.astraConversationOpen)
+export function useAstraButtonBlocked(enabled: boolean) {
+  return useUIStore(state => enabled && (state.showCreateModal || state.isSelectMode || state.openOverlayIds.length > 0 || state.astraConversationOpen))
 }
 
 export function AstraButton() {

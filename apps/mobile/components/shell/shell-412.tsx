@@ -219,8 +219,9 @@ function useFabColumn({ astraButton, conversationOpen, floating, hasFab, reserve
   hasFab: boolean
   reservesSpace: boolean
 }>) {
-  const astraBlocked = useAstraButtonBlocked()
-  const astraVisible = astraButton === true && !conversationOpen && !astraBlocked
+  const astraEnabled = astraButton === true && !conversationOpen
+  const astraBlocked = useAstraButtonBlocked(astraEnabled)
+  const astraVisible = astraEnabled && !astraBlocked
   const scrollerClearance = astraVisible && floating ? SHELL_ASTRA_STACK_CLEARANCE
     : astraVisible || reservesSpace ? SHELL_SCROLLER_CLEARANCE : 32
   return { astraVisible, scrollerClearance, height: astraVisible && hasFab ? SHELL_ASTRA_STACK_CLEARANCE : SHELL_SCROLLER_CLEARANCE }
