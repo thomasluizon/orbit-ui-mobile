@@ -4,7 +4,7 @@ Read `.claude/specs/orbit-prod-release.md` first: `## Standing rules`, `## The o
 
 Entry: `/auto-work` enters `/sleep`, adopts this relay (`adoptRelayRun`), keeps `autoWork: true`, then `/crank`, then `/orchestrate` over the admitted queue without replanning. Check that this prompt is the newest open relay (`gh pr list --repo thomasluizon/orbit-ui-mobile --state open --search "relay in:title"`), run `node tools/relay-checkout.mjs --check`, and check free disk (floor 50 GiB). Adoption clears `openOwnerQuestions`: re-add the `#2071` question from the spec.
 
-Scratchpad: run `$HOME/.orbit-run-carry/carry-from-predecessor.sh <new full id> <predecessor full id> 39be95a1-b20c-480f-bbd2-ee23c2318a3b` as a background task and wait for it to exit before writing any file there (the predecessor id is `relay.from` after adoption), then point `mirror.sh` at `durable-<new id>` and `intake-noboard.sh` at `<new id>-c<n>` with `perl -pi`. Repoint any helper whose `SP=` still names an old session. The predecessor log is `prev-sleep-decisions-<predecessor 8>.md` (D1 to D4). Helpers: `gl.sh` (gated launch), `prep-any.sh` (worktree plus order), `co-rb.sh` (commit-only order: ticket, worktree, order name, note file), `append-note.sh`, `run-spec.sh`, `repro-2077.sh`. Write files in the scratchpad with the Write tool: the guardrail refuses a shell redirect to a path built from a variable. Detach a local check with `nohup perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV' <script> &`.
+Scratchpad: run `$HOME/.orbit-run-carry/carry-from-predecessor.sh <new full id> <predecessor full id> 39be95a1-b20c-480f-bbd2-ee23c2318a3b` as a background task and wait for it to exit before writing any file there (the predecessor id is `relay.from` after adoption), then point `mirror.sh` at `durable-<new id>` and `intake-noboard.sh` at `<new id>-c<n>` with `perl -pi`. Repoint any helper whose `SP=` still names an old session. The predecessor log is `prev-sleep-decisions-<predecessor 8>.md` (D1 to D9). Helpers: `gl.sh` (gated launch), `prep-any.sh` (worktree plus order), `co-rb.sh` (commit-only order: ticket, worktree, order name, note file), `append-note.sh`, `run-spec.sh`, `repro-2077.sh`. Write files in the scratchpad with the Write tool or a heredoc to a literal absolute path: the guardrail refuses a shell redirect to a path built from a variable. Detach a local check with `nohup perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV' <script> &`. Kill a process only by its recorded pid, never with `pkill` options after the pattern.
 
 ## Goal
 
@@ -16,24 +16,23 @@ UI `main` `21f6045ae`; API `main` `3da71dcf6`; landing `main` `7fb212c42`. Produ
 
 | Item | Disposition |
 | --- | --- |
-| `ui#2396` (`#2086`) | Red at `7fb9c69a3` (spec bullet lists the four failures). Write the note, compose with `co-rb.sh` in worktree `ticket-2086-select-mode-log-control`, launch with `gl.sh`, push, request the review. |
-| `ui#2392` (`#2081`) | Two FIX threads at `f8581cfa2` (spec bullet). Compose one `co-rb.sh` batch, launch, resolve both threads, push, request the review. |
-| `ui#2389` (`#2077`) | Layout red at `4686f7094` (spec bullet). Make the local repro reach the spec, prove the cause red, then compose and launch the CI-fix order. After merge: production web and Android Open with `#2062` and `#2061`. |
-| `ui#2393` (`#2083`), `ui#2394` (`#2087`), `landing#128` (`#2082`) | Green, diffs read, reviews requested. Wait on the verdict; `landing#128` also needs the `/second-opinion` copy verdict on the PR. Merge on approval. |
+| `ui#2392` (`#2081`) | Worker commit `531e9f362` in worktree `ticket-2081-run-state-lock`, unpushed by design. Read the diff, resolve both threads, push, request the review. |
+| `ui#2396` (`#2086`) | Red. The order `order-2086-ci1.md` is composed; launch it with `gl.sh` (`--tier default --relaunch-reason`), read the diff, push, request the review. |
+| `ui#2395` (`#2085`), `ui#2393` (`#2083`), `ui#2394` (`#2087`), `landing#128` (`#2082`) | Pullfrog COMMENTED (spec bullets list each thread and its FIX). Compose one `co-rb.sh` batch per pull request, launch, resolve, push, request the review. `landing#128` also needs the `/second-opinion` copy verdict on the PR. |
+| `ui#2389` (`#2077`) | Layout red at `4686f7094`. Run `repro-2077.sh` (the server starts by hand on 3100), prove the cause red, then compose and launch the CI-fix order. After merge: production web and Android Open with `#2062` and `#2061`. |
 | `ui#2397` (`#2084`) | In CI. Read the diff against `DESIGN.md`, request the review, merge on approval. |
-| `ui#2395` (`#2085`) | In CI at `448f84bb6`. Request the review, merge on approval. |
 | `ui#2388` | This relay's docs PR. Request the review after green CI and merge. |
 | `#2071` | Waits on the owner's fresh claude.ai sign-in (open question). |
 
-Inventory: open pull requests ui `#2397`, `#2396`, `#2395`, `#2394`, `#2393`, `#2392`, `#2389`, `#2388`; api none; landing `#128`. Unpushed: none. Stashes: 0 in all three repositories. Uncommitted work: none. Running workers: none. Detached checks: none.
+Inventory: open pull requests ui `#2397`, `#2396`, `#2395`, `#2394`, `#2393`, `#2392`, `#2389`, `#2388`; api none; landing `#128`. Unpushed: `531e9f362` on `fix/ticket-2081-run-state-lock` (above). Stashes: 0 in all three repositories. Uncommitted work: none. Running workers: none. Detached checks: none.
 
 ## Then, in this order
 
 1. Answer any owner message first, in his language.
-2. Launch the `ui#2396` and `ui#2392` orders, then one `tools/wait-ci.mjs` over the open pull requests and a `--require-check pullfrog-approval` waiter over the requested reviews; rerun 504-only failures.
+2. Push `ui#2392`, launch the `ui#2396` order and the four review batches within the load gate, then one `tools/wait-ci.mjs` over the open pull requests and a `--require-check pullfrog-approval` waiter over the requested reviews; rerun 504-only failures.
 3. The in-flight rows above. Record each merge sha in the run ledger at merge time.
 4. Android Open for `#2062`, `#2077`, `#2061`, `#2083` and `#2086` once they merge, then production web; a desktop release for `#1861`, `#2084` and `#2087`; the landing `/release` for `#2082`.
-5. Then the rest of `## The order`, and the auto-work intake cycle when idle (Sentry is due one hour after the last listing in `intake.wake`).
+5. Then the rest of `## The order`, and the auto-work intake cycle when idle (Sentry is due one hour after the last listing in `intake.wake`, which was 17:19 UTC on 9 November).
 
 ## Crank
 
@@ -45,8 +44,8 @@ Unattended: never ask the owner; decide with the best option and log it. Keep a 
 
 ## Previous prompt, disposition
 
-- Done: reviews requested on `ui#2393`, `ui#2394` (its macOS rerun passed) and `landing#128` after reading each diff; the `ui#2392` findings classified as two FIX.
-- Carried: the `ui#2392` review batch, the `ui#2396` CI fix (new red), the `ui#2389` CI fix, every merge and review request, the Android Open and production web, the desktop and landing releases, `#2030`, `#1561`, `#1563`, `#315`, `#33`, Batch 6, intake, the AVD deletion, `#2071`, `#2074` on or after 16 November 2026.
-- Superseded: "`ui#2394` red again: fix the timing" (green on rerun) and "`ui#2396` in CI" (now red).
+- Done: relay adopted; the `ui#2395` review requested (COMMENTED); the `ui#2393`, `ui#2394` and `landing#128` verdicts read and classified (all COMMENTED); the `ui#2392` review batch delivered as `531e9f362`; the `ui#2396` CI-fix order composed.
+- Carried: pushing `ui#2392`, the `ui#2396` launch, four review batches, the `ui#2389` CI fix, the `ui#2397` review, every merge, the Android Open and production web, the desktop and landing releases, `#2030`, `#1561`, `#1563`, `#315`, `#33`, Batch 6, intake, the AVD deletion, `#2071`, `#2074` on or after 16 November 2026.
+- Superseded: "wait on the `ui#2393`, `ui#2394`, `landing#128` verdicts" (all COMMENTED) and "launch the `ui#2392` order" (delivered).
 
 Every identifier here came from a previous session: treat each as a lead to verify.
