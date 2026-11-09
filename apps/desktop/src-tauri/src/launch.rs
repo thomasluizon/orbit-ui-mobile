@@ -170,11 +170,12 @@ mod tests {
 
     #[test]
     fn the_latest_page_mode_overrides_the_system_canvas_and_mark_before_window_creation() {
-        for (mode, reported, system, expected, png) in [
+        for (mode, reported, system, window_theme, expected, png) in [
             (
                 LaunchMode::Dark,
                 "dark",
                 Theme::Light,
+                Theme::Dark,
                 canvas(true),
                 include_bytes!("../native/launch-dark.png").as_slice(),
             ),
@@ -182,6 +183,7 @@ mod tests {
                 LaunchMode::Light,
                 "light",
                 Theme::Dark,
+                Theme::Light,
                 canvas(false),
                 include_bytes!("../native/launch-light.png").as_slice(),
             ),
@@ -209,7 +211,7 @@ mod tests {
                 restored.launch_mode,
                 |config| {
                     assert_eq!(config.background_color, Some(expected));
-                    assert_eq!(config.theme, Some(theme(mode == LaunchMode::Dark)));
+                    assert_eq!(config.theme, Some(window_theme));
                     assert_eq!(mark(config.background_color.unwrap()), png);
                     assert!(!config.visible);
                     Ok(())
