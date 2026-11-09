@@ -32,6 +32,20 @@ describe.each(rows)('habit row log control in select mode, $name', ({ hasChildre
     expect(view.container.querySelector('[data-habit-row-control="selection"]')).not.toBeNull()
   })
 
+  it('keeps an inert, empty, aria-hidden 48px slot where the trailing actions were', () => {
+    const { view, element } = renderRow(true)
+    const slot = view.container.querySelector<HTMLElement>('[data-habit-row-trailing-slot]')
+    expect(slot).not.toBeNull()
+    expect(slot!.getAttribute('aria-hidden')).toBe('true')
+    expect(slot!.style.width).toBe('48px')
+    expect(slot!.style.minHeight).toBe('48px')
+    expect(slot!.childNodes).toHaveLength(0)
+    expect(slot!.hasAttribute('role')).toBe(false)
+    expect(slot!.hasAttribute('tabindex')).toBe(false)
+    view.rerender(element(false))
+    expect(view.container.querySelector('[data-habit-row-trailing-slot]')).toBeNull()
+  })
+
   it('restores the log control after select mode ends', () => {
     const { view, element } = renderRow(true)
     view.rerender(element(false))

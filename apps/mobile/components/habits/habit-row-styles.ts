@@ -59,6 +59,10 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  trailingSlot: {
+    width: 48,
+    minHeight: 48,
+  },
   parentRingButton: {
     width: 48,
     minHeight: 48,

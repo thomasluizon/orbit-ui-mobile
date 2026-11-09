@@ -96,7 +96,7 @@ export async function assertHabitRowPreviewGeometry(browser: Browser, stylesheet
 
 export async function assertHydratedMetadataRow(row: Locator, { width, scale, locale, index, selecting }: { width: number; scale: number; locale: 'en' | 'pt-BR'; index: number; selecting: boolean }) {
   const measured = await measurePreviewRow(row)
-  const supporting = scale > 1.3 || (width === 320 && index === 3 && !selecting)
+  const supporting = scale > 1.3 || (width === 320 && index === 3)
   expect(measured.supporting).toBe(supporting)
   expect(measured.typeCount).toBe(1)
   expect(measured.type.text).toBe(locale === 'en' ? en.habits.form.typeHabit : ptBR.habits.form.typeHabit)

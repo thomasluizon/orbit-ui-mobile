@@ -239,7 +239,6 @@ for (const width of [320, 600]) {
 for (const language of ['en', 'pt-BR'] as const) for (const mode of ['dark', 'light'] as const) {
   for (const width of [320, 412, 1352]) {
     const normalSupportingTitles = width === 320 ? ['Grandchild', 'Child parent'] : []
-    const selectModeSupportingTitles = width === 320 ? ['Grandchild'] : []
     test(`Habit previews and full-row feedback at ${width}px in ${mode} ${language}`, async ({ page, context }) => {
       await page.setViewportSize({ width, height: 1200 })
       const description = language === 'en' ? 'Read two pages before breakfast.' : 'Leia duas páginas antes do café.'
@@ -268,28 +267,45 @@ for (const language of ['en', 'pt-BR'] as const) for (const mode of ['dark', 'li
         await setHabitTextScale(page, scale, visibleTitles, normalSupportingTitles)
         await expect(parent.locator('[data-habit-row-description]')).toHaveCSS('font-size', `${14 * scale}px`)
         await expect(parent.locator('[data-habit-row-heading]')).toHaveCount(scale === 2 ? 1 : 0)
-        await assertPreviewSelectionModes(page, parent, copy, scale, mode, width === 320 && scale === 2 ? 5 : 6, normalSupportingTitles, selectModeSupportingTitles)
+        await assertPreviewSelectionModes(page, parent, copy, scale, mode, width === 320 && scale === 2 ? 5 : 6, normalSupportingTitles)
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
       }
     })
   }
 }
 
-async function assertPreviewSelectionModes(page: Page, parent: Locator, copy: typeof en | typeof ptBr, scale: number, mode: 'light' | 'dark', rowCount: number, normalSupportingTitles: readonly string[], selectModeSupportingTitles: readonly string[]) {
+type RowFit = { height: number; metaLines: number; supporting: boolean }
+
+async function readRowFits(page: Page): Promise<Record<string, RowFit>> {
+  return page.getByTestId('habit-row').evaluateAll((rows) => Object.fromEntries(rows.map((row) => {
+    const meta = row.querySelector('[data-habit-row-meta]')
+    const range = document.createRange()
+    if (meta) range.selectNodeContents(meta)
+    const lineTops = new Set(meta ? Array.from(range.getClientRects()).map((box) => Math.round(box.top)) : [])
+    return [row.getAttribute('data-habit-title')!, { height: row.getBoundingClientRect().height, metaLines: lineTops.size, supporting: Boolean(row.querySelector('[data-habit-row-heading]')) }]
+  })))
+}
+
+async function assertPreviewSelectionModes(page: Page, parent: Locator, copy: typeof en | typeof ptBr, scale: number, mode: 'light' | 'dark', rowCount: number, normalSupportingTitles: readonly string[]) {
+  let normalFits: Record<string, RowFit> = {}
   for (const selecting of [false, true]) {
-    const supportingTitles = selecting ? selectModeSupportingTitles : normalSupportingTitles
     if (selecting) {
       await openTodayListOptions(page, copy.habits.listOptions)
       await page.getByRole('menuitem', { name: copy.common.select, exact: true }).click()
       await expect(page.locator('[data-habit-row-control="selection"]')).toHaveCount(rowCount)
+      await settleHabitRows(page.getByTestId('habit-row'), scale, selecting, normalSupportingTitles)
+      const selectionFits = await readRowFits(page)
+      expect(selectionFits['Child parent'], 'entering selection never changes the Child parent row height or metadata lines').toEqual(normalFits['Child parent'])
+      expect(selectionFits, 'entering selection never changes any row height, wrap or metadata line count').toEqual(normalFits)
       await parent.locator('[data-habit-row-body]').click()
       await expect(parent.locator('[data-habit-row-control="selection"]')).toHaveAttribute('aria-pressed', 'true')
       const leaf = page.locator('[data-testid="habit-row"][data-habit-title="Timed"]')
       await leaf.locator('[data-habit-row-body]').click()
       await expect(leaf.locator('[data-habit-row-control="selection"]')).toHaveAttribute('aria-pressed', 'true')
     }
-    await settleHabitRows(page.getByTestId('habit-row'), scale, selecting, supportingTitles)
-    for (const row of await page.getByTestId('habit-row').all()) await assertHabitPreviewRow(row, scale, mode, page, scale > 1.3 || supportingTitles.includes((await row.getAttribute('data-habit-title'))!), selecting)
+    await settleHabitRows(page.getByTestId('habit-row'), scale, selecting, normalSupportingTitles)
+    if (!selecting) normalFits = await readRowFits(page)
+    for (const row of await page.getByTestId('habit-row').all()) await assertHabitPreviewRow(row, scale, mode, page, scale > 1.3 || normalSupportingTitles.includes((await row.getAttribute('data-habit-title'))!), selecting)
   }
   await page.getByRole('button', { name: copy.common.cancel, exact: true }).click()
   await expect(page.locator('[data-habit-row-control="selection"]')).toHaveCount(0)

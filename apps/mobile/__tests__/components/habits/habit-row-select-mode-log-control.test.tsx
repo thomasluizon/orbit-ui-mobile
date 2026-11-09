@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { StyleSheet } from 'react-native'
 import { HabitRow } from '@/components/habits/habit-row'
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }) }))
@@ -33,6 +34,24 @@ describe.each(rows)('native habit row log control in select mode, $name', ({ has
     TestRenderer.act(() => { renderer = TestRenderer.create(element(true)) })
     expect(statusGlyphs()).toHaveLength(0)
     expect(logButtons()).toHaveLength(0)
+  })
+
+  const slots = () => renderer.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
+    typeof node.type === 'string' && node.props.testID === 'habit-row-trailing-slot')
+
+  it('keeps an inert, empty, hidden 48px slot where the trailing actions were', () => {
+    TestRenderer.act(() => { renderer = TestRenderer.create(element(true)) })
+    expect(slots()).toHaveLength(1)
+    const slot = slots()[0]
+    expect(slot.props.accessibilityElementsHidden).toBe(true)
+    expect(slot.props.importantForAccessibility).toBe('no-hide-descendants')
+    expect(slot.props.pointerEvents).toBe('none')
+    expect(slot.props.accessible).not.toBe(true)
+    expect(slot.props.accessibilityRole).toBeUndefined()
+    expect(StyleSheet.flatten(slot.props.style)).toMatchObject({ width: 48, minHeight: 48 })
+    expect(slot.children).toHaveLength(0)
+    TestRenderer.act(() => renderer.update(element(false)))
+    expect(slots()).toHaveLength(0)
   })
 
   it('restores the log control after select mode ends', () => {

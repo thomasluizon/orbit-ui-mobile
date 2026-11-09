@@ -444,7 +444,10 @@ export const HabitRow = memo(function HabitRow({
           />
         ) : null}
 
-        {isSelectMode ? null : (
+        {isSelectMode ? (
+          <View testID="habit-row-trailing-slot" accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
+            pointerEvents="none" style={styles.trailingSlot} />
+        ) : (
           <HabitRowTrailing
             habit={habit}
             hasChildren={hasChildren}

@@ -258,7 +258,9 @@ function HabitRowView({
         />
       ) : null}
 
-      {selectMode ? null : (
+      {selectMode ? (
+        <span aria-hidden="true" data-habit-row-trailing-slot="" className="pointer-events-none shrink-0" style={{ width: 48, minHeight: 48 }} />
+      ) : (
         <HabitRowTrailing
           habit={habit}
           hasChildren={hasChildren}
