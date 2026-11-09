@@ -126,6 +126,29 @@ export const cases = async () => {
   T("run-status: an unresolved Pullfrog thread requests read-only review", report.pullRequests[0].unresolved === 1 && report.nextActions.some((entry) => entry.type === "READ_REVIEW" && entry.command.includes("--no-request --wait-seconds 0")))
   T("run-status: no pull request or review bodies appear", !JSON.stringify(report).includes("reviewBody") && !JSON.stringify(report).includes('"body"'))
 
+  /** Pullfrog reviews only on request, so a green head with no review must ask for one, once. */
+  const withoutReview = () => {
+    pull.reviews.nodes = []
+    pull.statusCheckRollup.contexts.nodes = pull.statusCheckRollup.contexts.nodes.filter((check) => check.name !== "pullfrog-approval")
+  }
+  reset(); withoutReview(); setPull(pull)
+  report = await snapshot()
+  T("run-status: a green head with no review requests one through the gated request",
+    report.nextActions[0].type === "REQUEST_REVIEW" && report.nextActions[0].command === `node tools/list-bot-threads.mjs --repo 'ui' --pr ${number} --wait-seconds 30`, JSON.stringify(report.nextActions))
+  registerWakeSource({ pid: process.pid, repositoryKey: "ui", prNumbers: [number], what: "CI fixture" }, repo.path)
+  report = await snapshot()
+  T("run-status: a requested review with a live waiter yields no second request", report.nextActions.length === 1 && report.nextActions[0].type === "NO_ACTION", JSON.stringify(report.nextActions))
+  clearWakeSource(process.pid, repo.path)
+  reset(); withoutReview(); pull.statusCheckRollup.contexts.nodes[0].status = "IN_PROGRESS"; pull.statusCheckRollup.contexts.nodes[0].conclusion = null; setPull(pull)
+  report = await snapshot()
+  T("run-status: a running head with no review waits for CI and requests nothing", report.nextActions[0].type === "REARM_WAIT_CI" && !report.nextActions.some((entry) => entry.type === "REQUEST_REVIEW"), JSON.stringify(report.nextActions))
+  reset(); withoutReview(); pull.statusCheckRollup.contexts.nodes[0].conclusion = "FAILURE"; setPull(pull)
+  report = await snapshot()
+  T("run-status: a failing head with no review fixes CI and requests nothing", report.nextActions[0].type === "CHECK_FAILED" && !report.nextActions.some((entry) => entry.type === "REQUEST_REVIEW"), JSON.stringify(report.nextActions))
+  reset(); pull.reviews.nodes = []; setPull(pull)
+  report = await snapshot()
+  T("run-status: a carried pullfrog-approval verdict needs no new request", !report.nextActions.some((entry) => entry.type === "REQUEST_REVIEW"), JSON.stringify(report.nextActions))
+
   reset(); pull.mergeStateStatus = "BEHIND"; setPull(pull)
   T("run-status: behind base names the delivery decision tool", (await snapshot()).nextActions[0].type === "BEHIND_BASE")
   reset(); pull.statusCheckRollup.contexts.nodes[0].conclusion = "FAILURE"; setPull(pull)

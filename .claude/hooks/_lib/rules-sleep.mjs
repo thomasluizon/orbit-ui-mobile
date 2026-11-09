@@ -113,8 +113,10 @@ export function checkSleepStop({ state, wakeSources = [], orphanedWakeSources = 
       "exactly like a run that finished.\n\n" +
       "Start this wakeup with `node tools/run-status.mjs --session <this session id>` and follow its nextActions.\n" +
       "Launch the next ticket only when a slot is free AND the admission gate allows it.\n" +
-      "When work waits on CI or review, start `node tools/wait-ci.mjs --repo <key> --pr <n>`\n" +
-      "as a background task. It registers a live wake source until checks settle.\n\n" +
+      "When work waits on CI, start `node tools/wait-ci.mjs --repo <key> --pr <n>` as a background\n" +
+      "task. It registers a live wake source until checks settle. Pullfrog reviews only on request:\n" +
+      "when work waits on review, ask with `node tools/list-bot-threads.mjs --repo <key> --pr <n>`,\n" +
+      "then add `--require-check pullfrog-approval` to the waiter.\n\n" +
       "A pull request listed in pullRequests has not reached simultaneous final-head readiness. Run\n" +
       "the readiness loop, then drop it only after its receipt says READY. A salvaged pull request\n" +
       "is not an exception: opening it is the middle of salvage, never the end.\n\n" +

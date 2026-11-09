@@ -270,7 +270,7 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "b323c3cb503730d5",
+      "digest": "676004bcf65060f8",
       "calibratedAt": "2026-11-09",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },
@@ -312,7 +312,7 @@
     ".claude/skills/sleep/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "63ec62c165605714",
+      "digest": "ab70b6dd8eaad54a",
       "calibratedAt": "2026-11-09",
       "verdict": "undeclared, inherits the session: it makes overnight queue decisions, including whether configured lanes are available."
     },

@@ -145,6 +145,20 @@ export const cases = async () => {
   const requiredResult = run(TOOL, argumentsFor("--require-check", "pullfrog-approval"), { path: required.path, env: required.env })
   T("wait-ci: absent required check waits for completion", requiredResult.status === 0 && JSON.parse(requiredResult.stdout).reason === "SETTLED", requiredResult.stderr)
 
+  /**
+   * Pullfrog reviews on request, and the request waits for CI, so a plain waiter that also waited
+   * for the protected pullfrog-approval check would hold until its ceiling on every unreviewed head.
+   */
+  const reviewProtection = { kind: "protection", stdout: JSON.stringify({ ...confirmed.protection, contexts: ["Lint", "pullfrog-approval"], checks: [...confirmed.protection.checks, { context: "pullfrog-approval", app_id: 1768019 }] }) }
+  const beforeReview = fixture("before-review", [reviewProtection])
+  const beforeReviewResult = run(TOOL, argumentsFor(), { path: beforeReview.path, env: beforeReview.env })
+  T("wait-ci: a plain waiter settles on green CI before the protected review check exists",
+    beforeReviewResult.status === 0 && JSON.parse(beforeReviewResult.stdout).reason === "SETTLED", beforeReviewResult.stdout + beforeReviewResult.stderr)
+  const forReview = fixture("for-review", [reviewProtection])
+  const forReviewResult = run(TOOL, argumentsFor("--require-check", "pullfrog-approval", "--ceiling-minutes", "0.0001"), { path: forReview.path, env: forReview.env })
+  T("wait-ci: --require-check pullfrog-approval keeps waiting until the protected review check exists",
+    forReviewResult.status === 3 && JSON.parse(forReviewResult.stdout).reason === "CEILING", forReviewResult.stdout + forReviewResult.stderr)
+
   const movedSequence = stage("wait-ci/moved-sequence", "")
   const moved = fixture("moved", [
     { kind: "pull", stdoutSequence: [pull(SHA_A), pull(SHA_B)], sequenceFile: movedSequence },

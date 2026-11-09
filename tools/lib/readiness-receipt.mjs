@@ -277,14 +277,8 @@ export const pullRequestStateFromGraphQl = (payload) => {
   if (currentBaseSha === null) return null
   const headCommit = pullRequest.commits?.nodes?.[0]?.commit
   if (headCommit?.oid !== headRefOid) return null
-  const nodes = pullRequest.statusCheckRollup === null ? [] : pullRequest.statusCheckRollup?.contexts?.nodes
-  if (!Array.isArray(nodes)) return null
-  const statusCheckRollup = []
-  for (const node of nodes) {
-    const normalized = normalizeRollupNode(node)
-    if (!normalized || contextOf(normalized) === null) return null
-    statusCheckRollup.push(normalized)
-  }
+  const statusCheckRollup = rollupFromGraphQlNodes(pullRequest.statusCheckRollup === null ? [] : pullRequest.statusCheckRollup?.contexts?.nodes)
+  if (statusCheckRollup === null) return null
   const reviewsConnection = pullRequest.reviews
   const reviewNodes = reviewsConnection === null || reviewsConnection?.nodes === null ? [] : reviewsConnection?.nodes
   if (!Array.isArray(reviewNodes)) return null
@@ -378,6 +372,38 @@ export const readinessCiIsGreen = (rollup, requiredChecks, satisfiedOutOfBand = 
     if (!checkPasses(node)) return false
   }
   return true
+}
+
+/**
+ * The CI a review request waits on: every check except the reviewer's own, because
+ * pullfrog-approval cannot pass before the review it reports exists. It uses the readiness pass rule
+ * and newest-rerun reading, so a head that passes here is green for readiness once it is reviewed.
+ * Returns null for an unreadable rollup or required set, which the caller fails closed on.
+ */
+export const reviewRequestGate = (rollup, requiredChecks) => {
+  if (!requiredChecksAreValid(requiredChecks)) return null
+  const newest = newestChecks(rollup)
+  if (!newest) return null
+  const pending = requiredChecks
+    .filter((required) => required.appId !== REVIEW_APP_ID && required.context !== REVIEW_APP_CONTEXT && !findRegisteredCheck(newest, required))
+    .map((required) => required.context)
+  const failing = []
+  let reported = 0
+  for (const node of newest.values()) {
+    if (node.appId === REVIEW_APP_ID) continue
+    reported += 1
+    if (checkPasses(node)) continue
+    const settled = node.__typename === "StatusContext" ? !["PENDING", "EXPECTED"].includes(node.state) : node.status === "COMPLETED"
+    ;(settled ? failing : pending).push(contextOf(node))
+  }
+  const state = failing.length > 0 ? "FAILING" : pending.length > 0 || reported === 0 ? "PENDING" : "PASSED"
+  return { state, failing, pending, reported }
+}
+
+export const rollupFromGraphQlNodes = (nodes) => {
+  if (!Array.isArray(nodes)) return null
+  const rollup = nodes.map(normalizeRollupNode)
+  return rollup.every((node) => node && contextOf(node) !== null) ? rollup : null
 }
 
 /** All verdicts are reported together, because fixing OUT_OF_DATE only to discover CI_STALE on
