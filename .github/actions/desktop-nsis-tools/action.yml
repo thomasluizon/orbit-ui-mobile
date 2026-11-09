@@ -1,0 +1,27 @@
+name: Provide the NSIS bundler tools
+description: Place the pinned, hash-checked NSIS tools where the Tauri bundler looks, so a Windows bundle never downloads them from the GitHub release download path.
+
+inputs:
+  github-token:
+    description: Token that reads the public release assets with a higher rate limit.
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    - name: Point the NSIS tools cache at the bundler directory
+      if: runner.os == 'Windows'
+      shell: bash
+      run: echo "ORBIT_NSIS_TOOLS=$LOCALAPPDATA/tauri/NSIS" >> "$GITHUB_ENV"
+    - name: Cache the NSIS tools
+      if: runner.os == 'Windows'
+      uses: actions/cache@v6
+      with:
+        path: ${{ env.ORBIT_NSIS_TOOLS }}
+        key: ${{ runner.os }}-nsis-tools-${{ hashFiles('apps/desktop/src-tauri/native/windows/nsis-tools.json') }}
+    - name: Verify the NSIS tools or fetch them through the release asset endpoint
+      if: runner.os == 'Windows'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+      run: node --experimental-strip-types apps/desktop/scripts/nsis-tools.ts

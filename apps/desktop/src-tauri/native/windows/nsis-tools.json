@@ -1,0 +1,31 @@
+{
+  "archive": {
+    "repository": "tauri-apps/binary-releases",
+    "tag": "nsis-3.13",
+    "asset": "nsis-3.13.zip",
+    "sha1": "DB14F8AF2EA346B786C6AE19343F61AAF5E09B8E",
+    "directory": "nsis-3.13"
+  },
+  "executableSha1": "6D45D4E8CCF18FE1FDAC9164058F356102A2ECF2",
+  "utils": {
+    "repository": "tauri-apps/nsis-tauri-utils",
+    "tag": "nsis_tauri_utils-v0.5.3",
+    "asset": "nsis_tauri_utils.dll",
+    "sha1": "75197FEE3C6A814FE035788D1C34EAD39349B860"
+  },
+  "requiredFiles": [
+    "makensis.exe",
+    "Bin/makensis.exe",
+    "Stubs/lzma-x86-unicode",
+    "Stubs/lzma_solid-x86-unicode",
+    "Plugins/x86-unicode/additional/nsis_tauri_utils.dll",
+    "Include/MUI2.nsh",
+    "Include/FileFunc.nsh",
+    "Include/x64.nsh",
+    "Include/nsDialogs.nsh",
+    "Include/WinMessages.nsh",
+    "Include/Win/COM.nsh",
+    "Include/Win/Propkey.nsh",
+    "Include/Win/RestartManager.nsh"
+  ]
+}

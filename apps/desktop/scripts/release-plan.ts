@@ -2,10 +2,11 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { appendFileSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { downloadReleaseAsset, findRelease, type Sleep } from './release-asset.ts'
 import { assertReleaseCandidate, assertSourceLineage, compareVersions, releaseSettings, repository, signedManifest, tagFor, versionFromTag } from './release.ts'
 
 const shellPaths = [
-  'apps/desktop', 'apps/web/web-compatibility.json', 'package.json', 'package-lock.json',
+  'apps/desktop', '.github/actions/desktop-nsis-tools', 'apps/web/web-compatibility.json', 'package.json', 'package-lock.json',
   '.github/workflows/desktop-build.yml', '.github/workflows/desktop-release.yml',
 ]
 
@@ -70,19 +71,13 @@ function assertMinimum(variant: string, version: string, minimum: string) {
   if (compareVersions(version, minimum) < 0) throw new Error('Desktop release must meet the web minimum shell version')
 }
 
-export async function channelVersion(variant: string): Promise<string | null> {
+export async function channelVersion(variant: string, sleep?: Sleep): Promise<string | null> {
   const { channel } = releaseSettings(variant, '0.1.0')
-  const options = { signal: AbortSignal.timeout(30_000), headers: process.env.GH_TOKEN ? { Authorization: `Bearer ${process.env.GH_TOKEN}` } : {} }
-  const lookup = await fetch(`https://api.github.com/repos/${repository}/releases/tags/${channel}`, options)
-  if (lookup.status === 404) return null
-  if (!lookup.ok) throw new Error(`Cannot look up desktop channel: ${lookup.status}`)
-  const endpoint = `https://github.com/${repository}/releases/download/${channel}/latest.json`
-  const response = await fetch(endpoint, { signal: AbortSignal.timeout(30_000) })
-  if (!response.ok) throw new Error(`Cannot read desktop channel manifest: ${response.status}`)
-  const bytes = Buffer.from(await response.arrayBuffer())
-  const signature = await fetch(`${endpoint}.sig`, { signal: AbortSignal.timeout(30_000) })
-  if (!signature.ok) throw new Error(`Cannot read desktop channel signature: ${signature.status}`)
-  return signedManifest(bytes, await signature.text(), process.env.TAURI_SIGNING_PUBLIC_KEY ?? '').version
+  const release = await findRelease(repository, channel, sleep)
+  if (!release) return null
+  const bytes = await downloadReleaseAsset(repository, release, 'latest.json', sleep)
+  const signature = await downloadReleaseAsset(repository, release, 'latest.json.sig', sleep)
+  return signedManifest(bytes, signature.toString('utf8'), process.env.TAURI_SIGNING_PUBLIC_KEY ?? '').version
 }
 
 async function main() {

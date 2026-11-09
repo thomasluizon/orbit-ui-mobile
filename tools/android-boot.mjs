@@ -16,14 +16,17 @@ const USAGE = `usage: android-boot.mjs --apk <universal.apk> --package <applicat
   Install an AAB-derived APK on the connected, already booted CI emulator.
   Clear app storage and cold start once. Require the signed-out first screen,
   a surviving process after a settle period and no app-UID fatal logcat entries.
+  The first screen counts as rendered when its title or its input label is
+  visible, because the keyboard can clip either one.
   Dismiss another process's Application Not Responding dialog with its Wait
   control inside the startup deadline and a 30 second settle deadline; the
-  app's own dialog fails the boot.
+  app's own dialog fails the boot. A screen capture without a hierarchy root
+  counts as not rendered and retries inside the same deadlines.
   Retry adb infrastructure before launch only; never restart a failing app.
 
   --apk <path>       universal APK produced from the shipping AAB
   --package <id>     Android application id from Expo config
-  --output <path>    retained XML, app logcat, process and dismissal evidence
+  --output <path>    retained XML, failed capture text, app logcat, process and dismissal evidence
   --help, -h         print usage and exit 0
 
 exit codes: 0 first screen survived, 1 app assertion failed, 2 usage or infrastructure error`
@@ -100,7 +103,8 @@ async function infrastructure(args) {
 function startupLabels() {
   const translations = ["en", "pt-BR"].map((locale) => JSON.parse(readFileSync(join(ROOT, "packages/shared/src/i18n", `${locale}.json`), "utf8")))
   return {
-    firstScreen: translations.map((locale) => locale.onboarding.flow.what.label),
+    // The autofocused input opens the keyboard, which can clip either the title or the input label on the CI emulator.
+    firstScreen: translations.flatMap((locale) => [locale.onboarding.flow.what.title, locale.onboarding.flow.what.label]),
     updateRequired: translations.map((locale) => locale.forceUpdate.title),
   }
 }
@@ -117,12 +121,19 @@ function capture(output, uid) {
   return logcat
 }
 
+// AOSP frameworks/testing uiautomator DumpCommand prints its error and still exits 0 without writing the file, and
+// adb exec-out exits 0 whatever the remote command returns, so only text that opens the dumper's hierarchy root is a screen.
+// A failed capture returns null and keeps its text as evidence; a real dump that is malformed still throws from the parser.
 function captureScreen(output) {
   requireAdb(["shell", "rm", "-f", "/sdcard/orbit-boot.xml"])
   requireAdb(["shell", "uiautomator", "dump", "/sdcard/orbit-boot.xml"])
-  const xml = requireAdb(["exec-out", "cat", "/sdcard/orbit-boot.xml"])
-  writeFileSync(join(output, "first-screen.xml"), xml)
-  return xml
+  const dumped = requireAdb(["exec-out", "cat", "/sdcard/orbit-boot.xml"])
+  if (!/^\s*(?:<\?xml[^>]*\?>\s*)?<hierarchy[\s>]/.test(dumped)) {
+    writeFileSync(join(output, "screen-capture-failure.txt"), dumped)
+    return null
+  }
+  writeFileSync(join(output, "first-screen.xml"), dumped)
+  return dumped
 }
 
 function dismissNotResponding(output, process, wait, xml, count) {
@@ -141,11 +152,16 @@ function answerNotResponding(dialogs, xml) {
   return "dismissed"
 }
 
-// The settled capture must show the first screen; only a dismissed foreign dialog allows another capture before the deadline.
+// The settled capture must show the first screen; only a failed capture or a dismissed foreign dialog allows another capture before the deadline.
 async function settledScreenFailure(dialogs, labels) {
   const deadline = Date.now() + 30000
   for (;;) {
     const xml = captureScreen(dialogs.output)
+    if (!xml) {
+      if (Date.now() >= deadline) return "signed-out first screen unavailable after settling"
+      await setTimeout(2000)
+      continue
+    }
     if (firstScreenRendered(xml, dialogs.packageName, labels.updateRequired)) return UPDATE_REQUIRED_FAILURE
     if (firstScreenRendered(xml, dialogs.packageName, labels.firstScreen)) return null
     const answer = answerNotResponding(dialogs, xml)
@@ -168,9 +184,11 @@ async function assertApp({ package: packageName, output }, uid) {
     if (firstProcess && firstProcess !== currentProcess) return "app process restarted during startup"
     firstProcess = currentProcess
     const xml = captureScreen(output)
-    if (firstScreenRendered(xml, packageName, labels.updateRequired)) return UPDATE_REQUIRED_FAILURE
-    if (firstScreenRendered(xml, packageName, labels.firstScreen)) { rendered = true; break }
-    if (answerNotResponding(dialogs, xml) === "app") return NOT_RESPONDING_FAILURE
+    if (xml) {
+      if (firstScreenRendered(xml, packageName, labels.updateRequired)) return UPDATE_REQUIRED_FAILURE
+      if (firstScreenRendered(xml, packageName, labels.firstScreen)) { rendered = true; break }
+      if (answerNotResponding(dialogs, xml) === "app") return NOT_RESPONDING_FAILURE
+    }
     await setTimeout(2000)
   }
   if (!rendered) return "signed-out first screen did not render within 90 seconds"

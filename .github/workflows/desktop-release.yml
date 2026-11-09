@@ -173,6 +173,9 @@ jobs:
         with:
           path: ${{ env.ORBIT_WINDOWS_DOWNLOAD_CACHE }}
           key: ${{ runner.os }}-windows-app-sdk-${{ matrix.target }}-${{ hashFiles('apps/desktop/src-tauri/native/windows/downloads.json') }}
+      - name: Provide the NSIS bundler tools
+        if: runner.os == 'Windows'
+        uses: ./.github/actions/desktop-nsis-tools
       - name: Install Rust and compilation target
         run: |
           rustup toolchain install stable --profile minimal --target "$DESKTOP_TARGET"
