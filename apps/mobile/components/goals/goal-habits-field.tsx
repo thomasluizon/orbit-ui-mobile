@@ -3,7 +3,8 @@ import { SPACING } from '@orbit/shared/theme'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { lazy, Suspense, useState } from 'react'
-import { Plus, X, RefreshCw } from '@/components/ui/icons'
+import { InlineLoadError } from '@/components/ui/inline-load-error'
+import { Plus, X } from '@/components/ui/icons'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
@@ -55,7 +56,7 @@ export function GoalHabitsPicker({ selectedIds, goalType, onChange, disabled, on
   const { creatingHabit, setCreatingHabit, habitFormState, openHabitForm, habits, items } = useGoalHabitCreation(closeSheet)
   if (creatingHabit) return <Suspense fallback={null}><CreateHabitModal open onClose={() => setCreatingHabit(false)} /></Suspense>
   return <Sheet ref={sheetRef} open actions={<PillButton onClick={() => closeSheet()}>{t('common.done')}</PillButton>} title={t('goals.linkedHabits')} onClose={onClose} virtualizedBody={items.length >= 21}>
-    {habits.isLoading ? <Skeleton variant="settings" rows={3} label={t('common.loading')} /> : habits.isError ? <View accessibilityRole="alert"><Text style={{ color: tokens.fg2 }}>{t('goals.form.habitsError')}</Text><IconButton label={t('common.retry')} onClick={() => void habits.refetch()}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton></View> : <GoalHabitList items={items} selectedIds={selectedIds} onChange={onChange} disabled={disabled} onClose={() => closeSheet()} openingHabitForm={habitFormState === 'loading'} onCreateHabit={() => void openHabitForm()} />}
+    {habits.isLoading ? <Skeleton variant="settings" rows={3} label={t('common.loading')} /> : habits.isError ? <InlineLoadError message={t('goals.form.habitsError')} onRetry={() => void habits.refetch()} /> : <GoalHabitList items={items} selectedIds={selectedIds} onChange={onChange} disabled={disabled} onClose={() => closeSheet()} openingHabitForm={habitFormState === 'loading'} onCreateHabit={() => void openHabitForm()} />}
     {habitFormState === 'error' ? <Text accessibilityRole="alert" style={{ color: tokens.statusBadText }}>{t('goals.form.habitFormError')}</Text> : null}
     <GoalHabitsSelectionNote selectedIds={selectedIds} goalType={goalType} />
     {selectedIds.length >= MAX_HABITS_PER_GOAL ? <CapacityNotice message={t('goals.detail.linkedLimit', { count: MAX_HABITS_PER_GOAL })} /> : null}

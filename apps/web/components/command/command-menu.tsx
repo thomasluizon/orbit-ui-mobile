@@ -1,7 +1,8 @@
 'use client'
 
 import { IconButton } from '@/components/ui/icon-button'
-import { RefreshCw, ChevronLeft, ChevronRight } from '@/components/ui/icons'
+import { InlineLoadError } from '@/components/ui/inline-load-error'
+import { ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { ActionRow } from '@/components/ui/action-row'
 
 import { type KeyboardEvent, useEffect } from 'react'
@@ -93,7 +94,7 @@ export function CommandMenu({ navItems, onCreateHabit, onClose }: Readonly<Comma
     <CommandSearchField search={search.text} setSearch={search.changeText} activePageLabel={page === null ? null : pageLabel} onBack={back} />
     <CommandList label={t('command.title')} aria-busy={search.busy} className="h-[min(60vh,400px)] min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain p-2">
       {search.isSuccess && !search.busy && <CommandEmpty className="p-3 text-[length:var(--fs-sm)] text-[var(--fg-3)]">{t('command.empty')}</CommandEmpty>}
-      {search.isError && <div role="alert"><p>{t('habits.search.loadError')}</p><IconButton label={t('common.retry')} onClick={() => void search.refetch()}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton></div>}
+      {search.isError && <div className="p-3"><InlineLoadError message={t('habits.search.loadError')} onRetry={() => void search.refetch()} /></div>}
       <HabitSearchLoading show={search.showLoading} text={search.text} heading={t('command.groups.search')} />
       {!search.busy && !search.isError && sections.map((section) => <CommandGroup key={section.id} heading={t(section.headingKey)} className={GROUP_CLASS} data-command-group={section.id}><CommandHabitItems today={search.today} disclose={page !== null} disabled={logHabit.isPending || skipHabit.isPending} entries={section.entries} query={search.query} onSelectHabit={(habit) => chooseHabit(habit.id)} /></CommandGroup>)}
       {page === null && <CommandGroups query={search.text} navItems={navItems} onSelect={chooseCommand} onNavigate={run} createRefusal={createRefusal} />}

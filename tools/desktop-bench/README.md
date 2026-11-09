@@ -11,6 +11,17 @@ build prerequisites must be installed. macOS needs command line developer tools;
 also locates Homebrew's keg-only rustup. No signing account or key is needed.
 Electron and its packager install only in the temporary output workspace, outside the repository.
 The current stable Electron version is resolved from npm and recorded in the report.
+The Electron archive download retries GitHub server errors, rate limits and connection failures four times, after 15,
+30, 60 and 120 seconds. The archive is cached in a directory named by its SHA-256 from the electron package's
+`checksums.json`, and `@electron/get` verifies that checksum on every cache hit. The workflow restores that cache with a
+key of the resolved version, operating system and architecture, and passes `ORBIT_ELECTRON_VERSION` and
+`ORBIT_ELECTRON_CACHE` to the run.
+electron-builder 26.18.0 then downloads its 7-Zip and NSIS toolsets from GitHub releases once each. It keeps each
+archive at `<ELECTRON_BUILDER_CACHE>/<release>/<file>` and checks it against the checksum that its version pins on
+every hit. When the packager fails on a download with a server error, a rate limit or a connection failure, the run
+starts it again after the same four delays, and the new attempt reuses every archive that an earlier attempt finished.
+The workflow restores that cache with a key of the operating system, the architecture and the pinned electron-builder
+version, and passes `ORBIT_ELECTRON_BUILDER_CACHE` to the run.
 
 The Tauri release uses `bench-loopback` and a temporary config overlay. The feature is off by
 default. Only the overlay grants local capabilities, selects the separate benchmark app identifier
@@ -27,6 +38,7 @@ The Rust test rejects loopback without the feature; the tools harness guards rel
 Only loopback ports 5099, 3400 and 3401 are used. Occupied ports fail before starting processes.
 The hermetic web build and mock API use existing repository scripts. A loopback proxy supplies an
 httpOnly session from `mintHermeticJwt`, seeds 200 habits using the shared schema and fixture producer,
+schedules them on the start day and the next day, so a run that crosses midnight keeps them on Hoje,
 and injects the same nonce-bearing probe into both shells. No regular browser or automation framework
 runs. The Hoje Astra button opens the conversation, and its composer sends through the BFF. The mock emits the API's `started`, `delta`,
 `final` protocol with 80 ms pacing, only for the benchmark session when explicitly enabled.
@@ -95,6 +107,25 @@ It reuses the benchmark build entry, process host, hermetic fixture producer, mo
 and proxy. The release build uses the same staging prepare and package commands as
 `desktop-release.yml`, with no optional Cargo features and no deployed credentials.
 
+The Windows job and a fork pull request's macOS job build with `--no-sign`. A workflow dispatch or a
+pull request from this repository runs macOS in the separate `installed-signed` job instead. That job
+takes the `desktop-staging` environment with `deployment: false`, and the Windows job takes no
+environment. GitHub passes no secrets to a workflow that a fork triggers, so a fork pull request gets
+no signing material and keeps the unsigned APNs skip. The signed build follows `desktop-release.yml`:
+
+- `tauri build --no-bundle` compiles the shell without signing credentials.
+- The harness writes the Developer ID provisioning profile into a signing config overlay. It requires
+  that the profile names the `com.apple.application-identifier` from `Entitlements.staging.plist`.
+- `tauri bundle` imports the PKCS#12 certificate, signs the app and DMG with the hardened runtime and
+  `Entitlements.staging.plist`, and signs the updater archive with this run's generated key.
+
+`acceptance.mjs` removes `MACOS_DEVELOPER_ID_CERTIFICATE_BASE64`,
+`MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD`, `MACOS_PROVISIONING_PROFILE_BASE64` and
+`MACOS_SIGNING_IDENTITY` from `process.env` first. Only the bundle step receives them, as Tauri's
+`APPLE_*` variables. Part of the set fails the job. Notarization is not part of acceptance, because
+the runner installs the app locally. `report.json` `signing` keeps the public identity or the reason
+for an unsigned build.
+
 The job generates an ephemeral root certificate and Tauri key. It maps the shell's exact web and
 update hosts to loopback, trusts the root in the VM's system store, and checks DNS before launching.
 The resolver is refreshed once after replacing hosts, then both names are polled without further
@@ -122,8 +153,207 @@ version. The update package is the built acceptance installer, signed with the n
 version to exercise the verifier. The job tests discovery and download verification; it does not
 install that update. The channel manifest also receives a detached signature. Tauri validates the
 manifest's platform signature against the downloaded bytes and signed version; its protocol does
-not consume a detached manifest signature. The final native restart prompt is left unanswered and
-that process is stopped during cleanup.
+not consume a detached manifest signature. The final native restart prompt is left unanswered. The
+push phase stops that process and serves no update before it launches the shell again.
+
+### Repeat reminder push
+
+The push phase proves the desktop Done action with a real push service. The runner relaunches the
+installed shell, and the probe turns on the real Perfil Notificações switch. The mock API records the
+registration and lists it with the API's endpoint hash, so the switch reaches its registered state.
+The runner then sends a repeat reminder to the recorded channel or device token. Its payload copies
+orbit-api `ReminderSchedulerService.Repeat.cs` `RecordRepeat`, `PushNotificationService.CreateWebPushPayload`
+and `ApnsPushSender.CreatePayload`, with a one-use token that the mock issues.
+
+- Windows: the build compiles `ORBIT_DESKTOP_WNS_OBJECT_ID`, the shell creates a WNS channel, and the
+  runner sends a `wns/raw` notification with a client-credentials token for `https://wns.windows.com/.default`.
+  It sends that token only to an `https` `notify.windows.com` channel, as `WnsEndpointPolicy` does.
+- macOS: APNs needs `com.apple.developer.aps-environment` in the installed code signature. The runner
+  reads it with `codesign`, parses the plist with `plutil`, selects the sandbox or production host from
+  its value, and signs an ES256 provider token. An unsigned build without the key is a skip that names
+  the missing signing material. A Developer ID signed build without the key fails the job. Output that
+  `plutil` cannot parse, or an unknown key value, fails the job with the raw output lengths and first
+  bytes. The macos-latest image leaves `com.apple.apsd` and `com.apple.notificationcenterui.agent`
+  unloaded. Then `apsctl status` answers "Connection invalid", no authorization alert shows and no APNs
+  token arrives. An `open -b` start of Notification Center does not help, because launchd vends no
+  service for it. Thus, before it turns on the Perfil switch, `startPushServices` in
+  `acceptance-platform.mjs` loads both services through launchd, as a login does. For `com.apple.apsd`
+  in the `system` domain and `com.apple.notificationcenterui.agent` in the `gui/<uid>` domain, it runs
+  `launchctl enable`, then `bootstrap` only when `launchctl print` cannot find the service, then
+  `kickstart`. The image also keeps one apsd device identity in `/Library/Keychains/apsd.keychain`, so
+  every runner presents the same token. The courier rejects it, apsd rolls it, and the reminder push
+  then arrives for "a completely unknown token" that apsd discards. Thus apsd always starts without
+  that keychain: a loaded apsd is first stopped with `launchctl bootout`, then `sudo rm -f` removes the
+  keychain before `bootstrap`. apsd creates a new keychain and gets a new public token from the courier.
+  It waits until `apsctl status` shows `daemon status: Running` and `connection status: Yes`,
+  and until the `NotificationCenter` process runs. `report.json` `pushServices` keeps the apsd status
+  lines. If apsd never reaches the courier, the error keeps the last status lines instead.
+  The runner allows the first authorization alert through AX. The alert leaves the screen once it is
+  allowed, so `report.json` `push.authorization` records whether a search found and invoked it.
+
+Microsoft's app notification quickstart states that app notifications are not supported for elevated
+apps. The Windows App SDK makes this decision from the token integrity level only: `AppNotificationManager::IsSupported`
+is false at `SECURITY_MANDATORY_HIGH_RID` or above (`dev/Common/Security.IntegrityLevel.h`). The Windows
+harness runs at High integrity, because it edits the hosts file and the machine root store. A scheduled
+task with `-RunLevel Limited` still gave the runner account a High token. A copy of the harness token
+with only its integrity level lowered keeps the Administrators group and the admin privileges, and
+WebView2 fails under it with "failed to create webview" and HRESULT `0x80010108`. Thus `windows-unelevated.ps1`
+computes a standard-user token from the harness token with
+[`SaferComputeTokenFromLevel`](https://learn.microsoft.com/en-us/windows/win32/api/winsafer/nf-winsafer-safercomputetokenfromlevel)
+at `SAFER_LEVELID_NORMALUSER`, as `runas /trustlevel:0x20000` does. That level makes the Administrators
+group deny-only and removes the admin privileges. The token then takes an explicit Medium label
+(`S-1-16-8192`), and `CreateProcessAsUser` starts a PowerShell launcher with it, as Microsoft's
+[low integrity guide](https://learn.microsoft.com/en-us/previous-versions/dotnet/articles/bb625960(v=msdn.10))
+shows. The launcher inherits the harness desktop, so the shell stays in the runner's interactive session.
+The launcher removes the proxy variables and starts the shell, which inherits the standard-user token. The shell
+writes stderr to `<launch>.log` and stdout to `<launch>.stdout.log`. `Add-Type` compiles through CodeDom,
+which fails at Medium integrity with "A required privilege is not held by the client". Thus the High start
+mode compiles the token helper in `windows-unelevated.cs` into `OrbitIntegrity-<id>.dll` in the output
+directory, and the Medium launcher only loads that library. The harness copies the script and
+`windows-unelevated.cs` into the output directory. A launcher that cannot load the library writes the
+error to its status file.
+
+Before each launch, the harness grants the user SID modify access to the output directory. It also gives
+the directory and every file in it an explicit, inherited Medium label with `icacls /setintegritylevel`.
+Mandatory Integrity Control refuses a write from Medium to a High object, so this label lets the Medium
+launcher and shell create and append to their logs and status file. `<launch>-launch.jsonl` keeps the
+launcher's token, the shell's process ID and token, and its exit code. Each token record names the user,
+the SID, the last SID subauthority (500 for the built-in Administrator), the integrity level, the
+`TokenIsElevated` value, the state of the Administrators group (`S-1-5-32-544`: `enabled`, `denyOnly`,
+`disabled` or `absent`) and the session. `TokenIsElevated` stays true for the standard-user token of the
+built-in Administrator, so the real launch test asserts that the Administrators group is not `enabled`. `report.json` `launchContexts` keeps these records for the shell,
+the launcher and the harness, and the output directory label. A shell at High integrity or above fails
+the job. When the launcher cannot read the shell token, the launcher's token decides, because the shell
+inherits it.
+
+The first unsupported push answer in each shell process writes one stderr line, which names the native
+branch: `manager=null`, or the `AppNotificationManager.Setting()` value and `PushNotificationManager.IsSupported()`.
+The line also names the integrity level that the Windows App SDK reads, whether that level counts as
+elevated, and `TokenIsElevated`. On macOS the line names the missing APNs entitlement. The runner gathers these
+lines from every launch log into `report.json` `push.nativeUnsupported`, and copies the earlier
+launches' lines into `push.log`.
+
+The runner hides the main window through its close control. On macOS it invokes Done on the system
+notification through AX. On Windows the UIA reader only finds the toast with its Done button, and the
+activator client below makes the Done click. If the banner is gone, the reader opens the notification list once.
+On Windows, the GitHub image turns Do not disturb on, which holds every banner back, and the
+notification center lists the toast collapsed. Windows + N opens that center and moves keyboard focus
+into it. The reader searches the UIA root windows, every visible top-level window of a process that
+runs from the Windows directory, and the top-level ancestor of the focused UIA element. It walks the
+top-level windows with `FindWindowEx`, because the `EnumWindows` reference says that function lists
+only the windows of desktop apps, and the open center never appeared in an `EnumWindows` walk. Where a
+title has no Done action, it expands the collapsed entries in the toast and searches again. Each
+Windows reply names the `ToastNotificationManagerForUser.NotificationMode`, and `report.json`
+`push.notificationMode` keeps the first one.
+Each Windows reply also reads the notification history of the shell's AUMID. The Windows App SDK
+keeps an unpackaged app's AUMID in the `NotificationGUID` value under
+`HKCU\Software\Classes\AppUserModelId\<executable path with each backslash replaced by a dot>`.
+The reader reads that history before it invokes Done, so `report.json` `push.history` keeps the last
+reply of each search, and the report says whether the shell posted the toast at all.
+The mock must record exactly one habit log for that habit, and the app window must stay hidden.
+
+The second check sends another reminder and stops the shell while its notification is visible.
+From the push launch on, the mock refuses the long-lived sign-in token, so the BFF refreshes it into
+65 second tokens. After the shell stops, the mock also refuses the refresh token. A Done on that
+notification launches the shell. On Windows the activator client makes that Done, and COM starts the
+shell from its `LocalServer32` command, as it does for a click while no shell runs. The runner finds and adopts that process before it waits for the
+sign-in page, so cleanup stops it on every outcome. Its first page load finds a due token, fails the
+refresh and goes to sign-in, which must show in a visible window. The mock must record no habit log
+for that reminder.
+
+Each run keeps the platform evidence that the notification readers use, also when a match fails:
+
+- `codesign-entitlements.stdout.log` and `codesign-entitlements.stderr.log` keep the raw macOS
+  `codesign -d --entitlements - --xml` output.
+- `trees/notification-*.json` keeps the last reply of each notification search. On Windows, a reply
+  holds the candidate windows with their source (`automation`, `system` or `focus`), the AUMID
+  history and, after a match, the UIA subtree of the toast that holds Done.
+  A host that shows the title without one Done action keeps its UIA subtree in `titled`.
+- On Windows, `trees/notification-done-activator.json` and `trees/notification-expired-activator.json` keep each
+  activator reply: the confirmed SDK header, the activator registration, the argument keys, the client token and the
+  `Activate` HRESULT. `notification-*-activator.jsonl` keeps the status lines of the Medium client.
+  On macOS, a reply holds the AX tree of `com.apple.notificationcenterui`, and
+  `trees/notification-authorization.json` keeps the tree from the authorization alert search.
+  `trees/notification-authorization-found.json` keeps the reply of the search that found the alert.
+- On macOS, after the push phase, `push-apsctl-status.log` keeps the whole `apsctl status` with the
+  device token bytes redacted. `report.json` `pushDiagnostics.apsdApplication` keeps the apsd block that
+  lists the shell's topic. For an app alert topic that block is usernoted's, which opens with `process:`
+  because it has no port name. It holds the topic category, the incoming pushes per topic and the pushes
+  that apsd gave to the process. `push-unified.log` keeps the unified log of `apsd`, `usernoted`,
+  `NotificationCenter`, `orbit-desktop` and the `com.apple.UserNotifications` subsystem from the start
+  of the phase. Together they show whether a reminder reached the device, reached the shell, or was
+  not presented.
+
+On macOS, APNs answers HTTP 200 when it accepts a push, not when the device receives it. Before each
+reminder the phase reads apsd's incoming push count for the shell's topic, and after the send it waits
+up to 60 seconds for that count to rise. `report.json` `push.doneReceipt` and `push.expiredReceipt`
+keep the counts and the seconds that each push took. A push that apsd never counts fails the phase with
+the counts and the last arrival, before any Notification Center search.
+
+The macOS reader presses the menu bar clock to open Notification Center only while the center is closed.
+The press toggles the center, and only the open center lists its history and the Edit Widgets button.
+
+On Windows, right after the Done invoke, `trees/notification-done-activation.json` keeps the token
+integrity and elevation of `explorer`, `ShellExperienceHost`, `sihost` and the per-user
+`WpnUserService`, and every running shell instance with its command line. The UIA reader reads each
+token with `OrbitIntegrity` from `windows-unelevated.cs`, the same reader that the launcher uses. `report.json`
+`push.activation` keeps a summary. A Done habit log that never arrives keeps a second capture in
+`trees/notification-done-activation-timeout.json`, and the failure names the host levels, the
+instance count and the process ID and integrity level of each shell instance. `push.log` holds the
+shell's own lines: `Desktop push: notification Done activation received` when a click reaches the
+running shell, and `a notification activation started a second process` when Windows started a new
+instance instead.
+
+The Windows App SDK registers the activator of the running shell with `CoRegisterClassObject` in
+`AppNotificationManager::Register`. That registration has no APPID, so COM activates it as the
+activator, and COM uses a running activate-as-activator registration only for an activator whose token
+matches the server's token ([Activate-As-Activator activates as activator](https://learn.microsoft.com/en-us/archive/blogs/larryosterman/activate-as-activator-activates-as-activator)).
+On the hosted `windows-latest` image the runner signs in as the built-in Administrator, and
+`explorer`, `sihost` and `WpnUserService` run at High integrity. A UIA click on Done then makes the Medium
+shell log `a notification activation started a second process`, and no habit log arrives. A
+shell at the hosts' High integrity cannot take their place: `AppNotificationManager::IsSupported` is
+false at High integrity and above, and `Register` then returns without a registration
+(`dev/AppNotifications/AppNotificationManager.cpp` in microsoft/WindowsAppSDK). Thus a toast click
+reaches the running shell only on a machine whose shell hosts run at Medium integrity, as they do for
+a person who signs in under UAC.
+
+Thus the Windows phase makes the call that Windows makes on a Done click, from a Medium client with the
+shell's token. The `activate` mode of `windows-unelevated.ps1` runs at High and does these steps:
+
+1. It confirms the `INotificationActivationCallback` IID of its COM type against `NotificationActivationCallback.h`
+   in every installed Windows SDK under `Windows Kits\10\Include`.
+2. It reads the activator registration that the Windows App SDK v1.7.9 writes for an unpackaged app
+   (`AppNotificationUtility.cpp`): the AUMID in the `NotificationGUID` value, the CLSID in the `CustomActivator`
+   value under `HKCU\Software\Classes\AppUserModelId\<AUMID>`, and the `LocalServer32` command of that CLSID. That
+   command must be `"<installed shell>" ----AppNotificationActivated:`.
+3. It reads the posted toast from the notification history of the AUMID and takes the `arguments` attribute of
+   its one Done action. `AppNotificationButton` writes that attribute, and a click passes it unchanged.
+4. It writes the call to `notification-*-activator-request.json`, which the artifacts never upload, because the
+   arguments hold the one-use Done token.
+5. It starts the `notify` mode with the standard-user token that the shell launch computes, with
+   `SaferComputeTokenFromLevel` and a Medium label.
+
+The `notify` mode calls `CoCreateInstance` with `CLSCTX_LOCAL_SERVER` for the CLSID. Then it calls
+`Activate` with the AUMID, the Done arguments and no user input, because the Done toast has no input
+field. The phase requires the client token to match the push shell's token in its SID, integrity
+level, Administrators group state and session. It also requires `Activate` to return `S_OK`. The
+outcome must then match macOS: exactly one Done habit log with the window hidden, and for the
+stopped shell, the sign-in page in a visible window and no habit log. A failed call names the client
+error or the HRESULT, the host levels and each shell instance, and `trees/notification-*-activator-failure.json`
+keeps that capture.
+
+This check has a limit. A hosted runner does not exercise the dispatch of the operating system
+itself, from the toast button to the activator. A click on Done on a real Windows machine, in a
+standard-user session, proves that dispatch.
+
+`mock.log` names every acceptance route that the shell or the BFF reached, with its status, such as
+`POST /api/reminders/done 200`. The harness's own `GET /_test/` polls stay out of it.
+
+Push credentials come only from the job environment. `acceptance.mjs` removes them from
+`process.env` before any build or server starts, and the report keeps the WNS host or the token
+length, never the channel or token. An unsigned macOS build, or a missing credential, is a skip with
+its reason in `report.json` `push.skipped` and in a job warning. Windows registration runs without
+the client secret.
 
 Recording starts before native and web builds and continues through installed checks. macOS discovers
 its actual AVFoundation screen index from ffmpeg; Windows captures the desktop with gdigrab. The job
@@ -140,6 +370,16 @@ or a composition, and cmdk ignores it. If the page records no usable ArrowDown w
 runner sends the Down again, with at most 3 posts per step. The report keeps each undelivered Down and
 the keys the page recorded for it in `paletteUndelivered`. A step that records two usable ArrowDown keys
 fails. A received Down that does not move the selection still fails the focus check.
+
+On macOS, the AX helper sends every key as a real keyboard does. It posts the key at the HID event tap,
+where HID events enter the window server, and the window server gives it to the focused application.
+The helper first reads the focused application from the system-wide AX element. If the installed process
+is not focused, the helper requests activation and sets `AXFrontmost`, because macOS 14 lets the system
+refuse an activation request. If another process keeps keyboard focus, the helper posts no key and names
+that process. `report.json` `keyDelivery` keeps each key reply with its delivery path, its activation and
+the focused process. While Astra is open, the page records each keydown in `astra-key` events. If Astra
+does not close after the native Escape, the runner keeps those events in `report.json` `astraKeys` and
+the AX tree in `trees/astra-after-escape.json`. The error states how many Escape keydowns the page received.
 An exact macOS access denial is recorded as
 a skip, with Windows still required. These are structural checks; a person's spoken screen reader
 pass remains separate. Reports, native trees, capture and diagnostic logs upload even on failure.

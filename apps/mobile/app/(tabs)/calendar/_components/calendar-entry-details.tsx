@@ -34,7 +34,7 @@ export function CalendarEntryDetails({ entries, title, displayTime, onClose }: R
         <PersonalText expanded selectable style={[styles.title, { color: tokens.fg1 }]}>{entry.title}</PersonalText>
         <Text style={[styles.meta, { color: tokens.fg2 }]}>{t('calendar.entryMeta', { time: entry.dueTime ? displayTime(entry.dueTime) : t('calendar.timeGrid.noSetTime'), status: t(calendarEntryOutcome(entry).labelKey) })}</Text>
       </View>)}
-      {matching.length === 0 ? <View style={styles.searchEmpty}><Text style={[styles.empty, { color: tokens.fg2 }]}>{t('calendar.entrySearchEmpty', { query: query.trim() })}</Text><IconButton label={t('calendar.dayDetail.clearEventSearch')} onClick={() => { setQuery(''); setPage(0) }}><X size={20} strokeWidth={1.5} accessible={false} /></IconButton></View> : null}
+      {matching.length === 0 ? <View style={styles.searchEmpty}><Text style={[styles.empty, { color: tokens.fg2 }]}>{t('calendar.entrySearchEmpty', { query: query.trim() })}</Text><IconButton edge="start" label={t('calendar.dayDetail.clearEventSearch')} onClick={() => { setQuery(''); setPage(0) }}><X size={20} strokeWidth={1.5} accessible={false} /></IconButton></View> : null}
       {entries.length >= 8 ? <Text accessibilityLiveRegion="polite" style={[styles.meta, { color: tokens.fg2 }]}>{t('calendar.showingCount', { shown: visible.length, total: matching.length })}</Text> : null}
       {matching.length > 20 ? <ActionRow>
         <IconButton label={t('common.previous')} disabled={page === 0} onClick={() => setPage(page - 1)}><ChevronLeft size={20} strokeWidth={1.5} accessible={false} /></IconButton>

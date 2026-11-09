@@ -107,25 +107,226 @@ static NSDictionary *captureTree(pid_t processId) {
     abort();
 }
 
-static void key(pid_t processId, NSString *name) {
+static id softAttribute(AXUIElementRef element, CFStringRef key) {
+    CFTypeRef value = NULL;
+    if (AXUIElementCopyAttributeValue(element, key, &value) != kAXErrorSuccess) return nil;
+    return CFBridgingRelease(value);
+}
+
+static NSDictionary *closeWindows(pid_t processId) {
+    AXUIElementRef app = AXUIElementCreateApplication(processId);
+    NSArray *windows = softAttribute(app, kAXWindowsAttribute) ?: @[];
+    CFRelease(app);
+    NSUInteger closed = 0;
+    for (id window in windows) {
+        id button = softAttribute((__bridge AXUIElementRef)window, kAXCloseButtonAttribute);
+        if (!button) continue;
+        AXError error = AXUIElementPerformAction((__bridge AXUIElementRef)button, kAXPressAction);
+        if (error != kAXErrorSuccess) failAX(error, @"AXUIElementPerformAction(AXPress)", @{@"id": @"window", @"role": @"AXButton"});
+        closed++;
+    }
+    if (!closed) @throw [NSException exceptionWithName:@"AXRead" reason:@"Installed app has no window to close" userInfo:nil];
+    return @{@"sent": @"close", @"closed": @(closed)};
+}
+
+static NSDictionary *listWindows(pid_t processId) {
+    NSArray *all = CFBridgingRelease(CGWindowListCopyWindowInfo(kCGWindowListOptionAll, kCGNullWindowID));
+    NSMutableArray *windows = [NSMutableArray array];
+    for (NSDictionary *window in all) {
+        if ([window[(__bridge NSString *)kCGWindowOwnerPID] intValue] != processId) continue;
+        [windows addObject:@{@"layer": window[(__bridge NSString *)kCGWindowLayer] ?: @0,
+            @"onscreen": @([window[(__bridge NSString *)kCGWindowIsOnscreen] boolValue])}];
+    }
+    return @{@"windows": windows};
+}
+
+static NSArray *actionNames(AXUIElementRef element) {
+    CFArrayRef names = NULL;
+    if (AXUIElementCopyActionNames(element, &names) != kAXErrorSuccess || !names) return @[];
+    return CFBridgingRelease(names);
+}
+
+static NSString *labelledAction(AXUIElementRef element, NSArray *actions, NSString *label) {
+    // A notification may expose its buttons as custom actions on its group, named or described by the button title.
+    for (NSString *action in actions) {
+        if ([action isEqual:label] || [action hasPrefix:[NSString stringWithFormat:@"Name:%@\n", label]]) return action;
+        CFStringRef description = NULL;
+        if (AXUIElementCopyActionDescription(element, (__bridge CFStringRef)action, &description) == kAXErrorSuccess && description) {
+            if ([(__bridge NSString *)description isEqual:label]) { CFRelease(description); return action; }
+            CFRelease(description);
+        }
+    }
+    NSString *title = softAttribute(element, kAXTitleAttribute);
+    if (![title length]) title = softAttribute(element, kAXDescriptionAttribute);
+    if ([softAttribute(element, kAXRoleAttribute) isEqual:@"AXButton"] && [title isEqual:label] &&
+        [actions containsObject:(__bridge NSString *)kAXPressAction]) return (__bridge NSString *)kAXPressAction;
+    return nil;
+}
+
+static void collectNodes(AXUIElementRef element, NSInteger parent, NSMutableArray *nodes, NSString *label, NSUInteger depth) {
+    if (nodes.count >= 5000 || depth > 40) return;
+    NSString *role = softAttribute(element, kAXRoleAttribute) ?: @"";
+    if ([role isEqual:@"AXMenuBar"]) return;
+    NSMutableArray *texts = [NSMutableArray array];
+    for (NSString *key in @[@"AXTitle", @"AXDescription", @"AXValue"]) {
+        id value = softAttribute(element, (__bridge CFStringRef)key);
+        if ([value isKindOfClass:[NSString class]] && [value length]) [texts addObject:value];
+    }
+    NSArray *actions = actionNames(element);
+    NSMutableDictionary *node = [@{@"element": (__bridge id)element, @"parent": @(parent),
+        @"text": [texts componentsJoinedByString:@" "], @"role": role, @"actions": actions} mutableCopy];
+    for (NSString *key in @[@"AXSubrole", @"AXIdentifier"]) {
+        id value = softAttribute(element, (__bridge CFStringRef)key);
+        if ([value isKindOfClass:[NSString class]] && [value length]) node[key] = value;
+    }
+    NSString *action = labelledAction(element, actions, label);
+    if (action) node[@"action"] = action;
+    NSInteger index = (NSInteger)nodes.count;
+    [nodes addObject:node];
+    for (id child in softAttribute(element, kAXChildrenAttribute) ?: @[]) {
+        collectNodes((__bridge AXUIElementRef)child, index, nodes, label, depth + 1);
+    }
+}
+
+static void openNotificationCenter(void) {
+    // Clicking the menu bar clock opens Notification Center; Control Center owns that menu extra.
+    NSRunningApplication *control = [NSRunningApplication runningApplicationsWithBundleIdentifier:@"com.apple.controlcenter"].firstObject;
+    if (!control) return;
+    AXUIElementRef app = AXUIElementCreateApplication(control.processIdentifier);
+    id bar = softAttribute(app, (__bridge CFStringRef)@"AXExtrasMenuBar");
+    CFRelease(app);
+    for (id item in bar ? softAttribute((__bridge AXUIElementRef)bar, kAXChildrenAttribute) ?: @[] : @[]) {
+        NSString *identifier = softAttribute((__bridge AXUIElementRef)item, (__bridge CFStringRef)@"AXIdentifier");
+        if ([identifier rangeOfString:@"clock" options:NSCaseInsensitiveSearch].location == NSNotFound) continue;
+        AXUIElementPerformAction((__bridge AXUIElementRef)item, kAXPressAction);
+        usleep(1000000);
+        return;
+    }
+}
+
+static NSMutableArray *centerNodes(pid_t processId, NSString *label) {
+    AXUIElementRef app = AXUIElementCreateApplication(processId);
+    NSMutableArray *nodes = [NSMutableArray array];
+    collectNodes(app, -1, nodes, label, 0);
+    CFRelease(app);
+    return nodes;
+}
+
+// The clock press toggles Notification Center, so a press while it is open closes it. Only the open center lists its
+// notification history and the Edit Widgets button (notification-done.json and notification-expired.json on macos-latest).
+static BOOL centerOpen(NSArray *nodes) {
+    for (NSDictionary *node in nodes) {
+        if ([node[@"AXIdentifier"] isEqual:@"AXNotificationListItems"] || [node[@"AXIdentifier"] isEqual:@"widget-editor-button"]) return YES;
+    }
+    return NO;
+}
+
+static NSDictionary *notification(NSString *title, NSString *label, BOOL invoke, BOOL openCenter) {
+    if (!AXIsProcessTrusted()) return @{@"found": @NO, @"invoked": @NO, @"denied": @YES};
+    NSRunningApplication *center = [NSRunningApplication runningApplicationsWithBundleIdentifier:@"com.apple.notificationcenterui"].firstObject;
+    if (!center) return @{@"found": @NO, @"invoked": @NO, @"error": @"Notification Center is not running"};
+    NSMutableArray *nodes = centerNodes(center.processIdentifier, label);
+    if (openCenter && !centerOpen(nodes)) {
+        openNotificationCenter();
+        nodes = centerNodes(center.processIdentifier, label);
+    }
+    NSUInteger count = nodes.count;
+    // Every reply carries the whole Notification Center tree, so a run records the real layout whether or not it matched.
+    NSMutableArray *tree = [NSMutableArray arrayWithCapacity:count];
+    for (NSDictionary *node in nodes) {
+        NSMutableDictionary *entry = [node mutableCopy];
+        [entry removeObjectForKey:@"element"];
+        [tree addObject:entry];
+    }
+    NSMutableArray *last = [NSMutableArray arrayWithCapacity:count];
+    for (NSUInteger index = 0; index < count; index++) [last addObject:@(index)];
+    for (NSInteger index = (NSInteger)count - 1; index > 0; index--) {
+        NSInteger parent = [nodes[index][@"parent"] integerValue];
+        if (parent >= 0 && [last[index] integerValue] > [last[parent] integerValue]) last[parent] = last[index];
+    }
+    NSDictionary *match = nil;
+    NSUInteger matchSize = NSUIntegerMax;
+    for (NSUInteger index = 0; index < count; index++) {
+        NSUInteger end = [last[index] unsignedIntegerValue];
+        NSMutableArray *texts = [NSMutableArray array];
+        NSMutableArray *actions = [NSMutableArray array];
+        for (NSUInteger member = index; member <= end; member++) {
+            [texts addObject:nodes[member][@"text"]];
+            if (nodes[member][@"action"]) [actions addObject:nodes[member]];
+        }
+        if (actions.count != 1 || end - index >= matchSize) continue;
+        if ([[texts componentsJoinedByString:@" "] rangeOfString:title].location == NSNotFound) continue;
+        match = actions[0];
+        matchSize = end - index;
+    }
+    if (!match) {
+        NSMutableArray *seen = [NSMutableArray array];
+        for (NSDictionary *node in nodes) {
+            if ([node[@"text"] length] || node[@"action"]) [seen addObject:@{@"role": node[@"role"], @"text": node[@"text"], @"action": node[@"action"] ?: @""}];
+            if (seen.count >= 80) break;
+        }
+        return @{@"found": @NO, @"invoked": @NO, @"nodes": seen, @"tree": tree};
+    }
+    if (invoke) {
+        AXError error = AXUIElementPerformAction((__bridge AXUIElementRef)match[@"element"], (__bridge CFStringRef)match[@"action"]);
+        if (error != kAXErrorSuccess) failAX(error, @"AXUIElementPerformAction(notification)", @{@"id": @"notification", @"role": match[@"role"]});
+    }
+    return @{@"found": @YES, @"invoked": @(invoke), @"role": match[@"role"], @"action": match[@"action"], @"tree": tree};
+}
+
+// The system-wide element names the application that receives keyboard input: https://developer.apple.com/documentation/applicationservices/kaxfocusedapplicationattribute
+static pid_t focusedProcess(void) {
+    AXUIElementRef system = AXUIElementCreateSystemWide();
+    id application = softAttribute(system, kAXFocusedApplicationAttribute);
+    CFRelease(system);
+    pid_t processId = 0;
+    if (application) AXUIElementGetPid((__bridge AXUIElementRef)application, &processId);
+    return processId;
+}
+
+// The macOS 14 SDK marks NSApplicationActivateIgnoringOtherApps as having no effect, and cooperative activation lets the
+// system refuse an activation request: https://developer.apple.com/documentation/appkit/nsapplication/activate()
+// Thus a trusted AX client also sets AXFrontmost on the application.
+static void raiseProcess(pid_t processId) {
+    [[NSRunningApplication runningApplicationWithProcessIdentifier:processId] activateWithOptions:0];
+    AXUIElementRef app = AXUIElementCreateApplication(processId);
+    AXUIElementSetAttributeValue(app, kAXFrontmostAttribute, kCFBooleanTrue);
+    CFRelease(app);
+}
+
+static NSDictionary *key(pid_t processId, NSString *name) {
     NSDictionary *codes = @{@"down": @125, @"home": @115, @"escape": @53, @"quit": @12, @"palette": @40};
     NSNumber *code = codes[name];
     if (!code) @throw [NSException exceptionWithName:@"Input" reason:@"Unknown keyboard operation" userInfo:nil];
-    [[NSRunningApplication runningApplicationWithProcessIdentifier:processId] activateWithOptions:NSApplicationActivateIgnoringOtherApps];
+    NSString *activation = @"focused";
+    if (focusedProcess() != processId) {
+        activation = @"raised";
+        raiseProcess(processId);
+        for (int attempt = 0; attempt < 20 && focusedProcess() != processId; attempt++) usleep(100000);
+    }
     usleep(250000);
+    pid_t focused = focusedProcess();
+    // A real keyboard enters at the HID event tap and reaches the focused application, so a key posts there only for the installed process:
+    // https://developer.apple.com/documentation/coregraphics/cgeventtaplocation/hideventtap
+    if (focused != processId) {
+        @throw [NSException exceptionWithName:@"Input"
+            reason:[NSString stringWithFormat:@"Process %d did not receive keyboard focus for %@; process %d has it", processId, name, focused] userInfo:nil];
+    }
     for (NSNumber *pressed in @[@YES, @NO]) {
         CGEventRef event = CGEventCreateKeyboardEvent(NULL, code.unsignedShortValue, pressed.boolValue);
         CGEventSetFlags(event, ([name isEqual:@"quit"] || [name isEqual:@"palette"]) ? kCGEventFlagMaskCommand : 0);
-        CGEventPostToPid(processId, event);
+        CGEventPost(kCGHIDEventTap, event);
         CFRelease(event);
     }
+    return @{@"sent": name, @"delivery": @"hid-event-tap", @"activation": activation, @"focusedProcess": @(focused)};
 }
 
 int main(int argc, const char *argv[]) {
     @autoreleasepool {
-        if (argc != 3) return 2;
+        if (argc < 3) return 2;
         pid_t processId = atoi(argv[1]);
         NSString *command = @(argv[2]);
+        if ([command isEqual:@"notification"] ? argc != 7 : argc != 3) return 2;
         @try {
             if ([command isEqual:@"terminate"]) {
                 if (![[NSRunningApplication runningApplicationWithProcessIdentifier:processId] terminate]) return 1;
@@ -133,10 +334,11 @@ int main(int argc, const char *argv[]) {
             }
             NSDictionary *result;
             if ([command isEqual:@"dump"]) result = captureTree(processId);
-            else {
-                key(processId, command);
-                result = @{@"sent": command};
-            }
+            else if ([command isEqual:@"close"]) result = closeWindows(processId);
+            else if ([command isEqual:@"windows"]) result = listWindows(processId);
+            else if ([command isEqual:@"notification"]) {
+                result = notification(@(argv[3]), @(argv[4]), atoi(argv[5]) == 1, atoi(argv[6]) == 1);
+            } else result = key(processId, command);
             NSData *encoded = [NSJSONSerialization dataWithJSONObject:result options:NSJSONWritingPrettyPrinted error:NULL];
             fwrite(encoded.bytes, 1, encoded.length, stdout);
             return 0;

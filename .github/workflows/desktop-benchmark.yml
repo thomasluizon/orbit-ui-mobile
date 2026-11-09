@@ -40,9 +40,31 @@ jobs:
         run: |
           rustup toolchain install stable --profile minimal
           rustup default stable
+      # One resolved version names both the cache key and the install, and the cached archive sits in a directory named by
+      # its checksum, which @electron/get verifies against electron's checksums.json on every hit (tools/desktop-bench/build.mjs).
+      - name: Resolve the benchmark Electron
+        id: electron
+        shell: bash
+        run: echo "version=$(npm view electron version)" >> "$GITHUB_OUTPUT"
+      - name: Restore the Electron download
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/electron-cache
+          key: desktop-benchmark-electron-${{ runner.os }}-${{ runner.arch }}-${{ steps.electron.outputs.version }}
+      # electron-builder keeps each toolset archive at <cache>/<release>/<file> and checks it against the checksum that its
+      # version pins on every hit, so the pinned version (electronBuilderVersion in tools/desktop-bench/build.mjs) names
+      # every archive and checksum.
+      - name: Restore the electron-builder binaries
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/electron-builder-cache
+          key: desktop-benchmark-electron-builder-${{ runner.os }}-${{ runner.arch }}-26.18.0
       - name: Compare release shells on the hermetic app
         env:
           BENCHMARK_OUTPUT: ${{ runner.temp }}/orbit-desktop-benchmark
+          ORBIT_ELECTRON_VERSION: ${{ steps.electron.outputs.version }}
+          ORBIT_ELECTRON_CACHE: ${{ runner.temp }}/electron-cache
+          ORBIT_ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/electron-builder-cache
         run: node tools/desktop-bench/run.mjs --output "${{ env.BENCHMARK_OUTPUT }}"
       - name: Upload measurements
         if: always()

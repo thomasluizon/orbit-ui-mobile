@@ -99,6 +99,7 @@ impl PushSession {
             }
         };
         if saved.owner.as_deref() != Some(&notice.owner) {
+            eprintln!("Desktop push: dropped a notification activation for another account");
             return None;
         }
         self.respond(saved, notice.reminder.response(done))

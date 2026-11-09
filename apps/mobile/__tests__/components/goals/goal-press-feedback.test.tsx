@@ -2,8 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act } from 'react-test-renderer'
 import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { formatAPIDate } from '@orbit/shared/utils'
-import { GoalLoadError } from '@/components/goals/goal-detail-drawer/goal-load-error'
-import { createStyles as createDetailStyles } from '@/components/goals/goal-detail-drawer/styles'
+import { InlineLoadError } from '@/components/ui/inline-load-error'
 import { GoalProgressHistorySection } from '@/components/goals/goal-detail-sections'
 import { GoalDeadlineField } from '@/components/habits/create-goal-from-habit/goal-deadline-field'
 import { createStyles as createDeadlineStyles } from '@/components/habits/create-goal-from-habit/styles'
@@ -56,7 +55,7 @@ describe('goal control press paint', () => {
     for (const reducedMotion of [false, true]) {
       state.reducedMotion = reducedMotion
       const onRetry = vi.fn()
-      const retry = render(<GoalLoadError styles={createDetailStyles(tokens)} onRetry={onRetry} />).root.findByType('Pressable')
+      const retry = render(<InlineLoadError message="Could not load" onRetry={onRetry} />).root.findByType('Pressable')
       expectPressPaint(retry, { fill: tokens.bgHover, borderRadius: radius.full, scale: reducedMotion ? null : 0.96 })
       void act(() => { (retry.props.onPress as () => void)() })
       expect(onRetry).toHaveBeenCalledOnce()

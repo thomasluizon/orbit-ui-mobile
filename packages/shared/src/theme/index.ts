@@ -17,7 +17,7 @@ export {
 } from './neutral-ramp'
 export { typeRoles, SECONDARY_TEXT_SIZE, type TypeRole, type TypeRoleName, type TypeRoleFamily, type TypeRoleColor } from './type-roles'
 export { responsiveTypeRoles, resolveResponsiveTypeRole, RESPONSIVE_TYPE_BREAKPOINT, type ResponsiveTypeRoleName } from './type-roles'
-export { GOOGLE_SIGN_IN_BUTTON, BUTTON_SIZES, FAB_SIZE, MATCHED_PILL_WIDTH, MATCHED_PILL_MAX_WIDTH, type ButtonVariant, type ButtonSize, type ButtonSizeSpec } from './button'
+export { GOOGLE_SIGN_IN_BUTTON, ICON_ACTION_START_HANG, BUTTON_SIZES, FAB_SIZE, MATCHED_PILL_WIDTH, MATCHED_PILL_MAX_WIDTH, type ButtonVariant, type ButtonSize, type ButtonSizeSpec } from './button'
 export { zLayers, type ZLayer } from './z-layers'
 export { WIDE_DESKTOP_BREAKPOINT, SHELL_CONTENT_MAX_WIDTH, TAB_BAR_MIN_HEIGHT, TOUCH_TARGET_MIN, MONTH_GRID_TARGET_MIN, SMALL_PILL_VISIBLE_MIN } from './breakpoints'
 export { SHEET_BODY_INSETS } from './sheet'

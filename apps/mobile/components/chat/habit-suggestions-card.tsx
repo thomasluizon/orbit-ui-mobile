@@ -56,7 +56,7 @@ function SuggestionRow({ draft, view, isOnline }: Readonly<{ draft: HabitSuggest
         <View style={{ flex: 1, minWidth: 0 }}><Text style={{ fontSize: 12, color: tokens.fg2 }}>{t('chat.habitSuggestions.current')}</Text><Text style={{ fontSize: 12, color: tokens.fg3 }}>{currentSchedule}</Text></View>
         <View style={{ flex: 1, minWidth: 0 }}><Text style={{ fontSize: 12, color: tokens.fg2 }}>{t('chat.habitSuggestions.proposed')}</Text><Text style={{ fontSize: 12, color: tokens.fg3 }}>{habitSuggestionSchedule(draft, i18n.language, t, displayTime)}</Text></View>
       </View>
-      {current.isError ? <IconButton label={t('common.retry')} disabled={!isOnline} onPress={() => void current.refetch()}><RefreshCw size={20} color={tokens.fg2} /></IconButton> : null}
+      {current.isError ? <IconButton edge="start" label={t('common.retry')} disabled={!isOnline} onPress={() => void current.refetch()}><RefreshCw size={20} color={tokens.fg2} /></IconButton> : null}
     </View> : null}
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
       <IconButton label={t('chat.habitSuggestions.add')} disabled={disabled} loading={view.state.busy === draft.id && view.state.phase === 'preview'} onPress={() => void view.add(draft.id)}><Plus size={20} color={tokens.fg2} /></IconButton>
@@ -66,7 +66,7 @@ function SuggestionRow({ draft, view, isOnline }: Readonly<{ draft: HabitSuggest
       {!view.available(draft.id) ? <Text style={{ fontSize: 12, color: tokens.fg3 }}>{t('chat.habitSuggestions.review')}</Text> : null}
     </View>
     {view.state.tweaking === draft.id ? <Input autoFocus hideLabel label={t('chat.habitSuggestions.promptQuestion')} placeholder={t('chat.habitSuggestions.prompt')} value={view.state.instruction} onChange={view.controller.setInstruction} disabled={disabled} onCancel={() => view.controller.tweak(draft.id)} onSubmit={() => void view.refine(draft.id, view.state.instruction)} trailing={<IconButton label={t('chat.habitSuggestions.apply')} loading={view.state.busy === draft.id && view.state.phase === 'refine'} disabled={disabled || !view.state.instruction.trim()} onPress={() => void view.refine(draft.id, view.state.instruction)}><ArrowUp size={20} color={tokens.fg2} /></IconButton>} /> : null}
-    <View accessibilityLiveRegion="polite">{error ? <><Text style={{ fontSize: 14, color: tokens.statusBadText }}>{t(error)}</Text><IconButton label={t('common.retry')} disabled={view.disabled} onPress={() => void view.retry(draft.id)}><RefreshCw size={20} color={tokens.fg2} /></IconButton></> : null}</View>
+    <View accessibilityLiveRegion="polite">{error ? <><Text style={{ fontSize: 14, color: tokens.statusBadText }}>{t(error)}</Text><IconButton edge="start" label={t('common.retry')} disabled={view.disabled} onPress={() => void view.retry(draft.id)}><RefreshCw size={20} color={tokens.fg2} /></IconButton></> : null}</View>
   </View>
 }
 
@@ -81,7 +81,7 @@ export function HabitSuggestionsCard({ card, message, isOnline = true }: Readonl
   return <>
     <BlockFrame title={t('chat.habitSuggestions.title')} count={null} state={view.state.busy ? 'acting' : 'resting'} items={[]} body={<View style={{ minWidth: 0, gap: 16 }}>{view.drafts.map(draft => <SuggestionRow key={draft.id} draft={draft} view={view} isOnline={isOnline} />)}{!view.drafts.length ? <Text style={{ fontSize: 14, color: tokens.fg3 }}>{t('chat.habitSuggestions.added')}</Text> : null}</View>} actions={<View style={{ alignItems: 'flex-start', gap: 8 }}>
       {view.drafts.some(draft => view.available(draft.id)) ? <PillButton disabled={view.disabled} loading={view.state.busy === 'all'} onPress={() => void view.addAll()}>{t('chat.habitSuggestions.addAll')}</PillButton> : null}
-      <View accessibilityLiveRegion="polite">{error ? <><Text style={{ fontSize: 14, color: tokens.statusBadText }}>{t(error)}</Text><IconButton label={t('common.retry')} disabled={view.disabled} onPress={() => void view.retry('all')}><RefreshCw size={20} color={tokens.fg2} /></IconButton></> : null}</View>
+      <View accessibilityLiveRegion="polite">{error ? <><Text style={{ fontSize: 14, color: tokens.statusBadText }}>{t(error)}</Text><IconButton edge="start" label={t('common.retry')} disabled={view.disabled} onPress={() => void view.retry('all')}><RefreshCw size={20} color={tokens.fg2} /></IconButton></> : null}</View>
       {!isOnline ? <Text style={{ fontSize: 14, color: tokens.fg3 }}>{t('chat.habitSuggestions.offline')}</Text> : null}
     </View>} />
     {view.editing ? <Suspense fallback={null}><HabitSuggestionEditor key={view.editing.id} draft={view.editing} onClose={() => view.edit(null)} onSaved={() => view.applied(view.editing!.id)} /></Suspense> : null}

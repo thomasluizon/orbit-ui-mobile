@@ -12,7 +12,7 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native'
-import { SPACING, GOOGLE_SIGN_IN_BUTTON, BUTTON_SIZES, MATCHED_PILL_WIDTH, TOUCH_TARGET_MIN, SMALL_PILL_VISIBLE_MIN, type ButtonVariant } from '@orbit/shared/theme'
+import { SPACING, GOOGLE_SIGN_IN_BUTTON, ICON_ACTION_START_HANG, BUTTON_SIZES, MATCHED_PILL_WIDTH, TOUCH_TARGET_MIN, SMALL_PILL_VISIBLE_MIN, type ButtonVariant } from '@orbit/shared/theme'
 import { createTokensV2, mixHex, radius, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
@@ -77,6 +77,7 @@ export function ThemedButton({
   quiet = false,
   borderless = false,
   formId: _formId,
+  edge,
   ...pressableProps
 }: NativeButtonProps & { tokens: AppTokensV2 }) {
   const composedRef = useComposedRefs(ref, buttonRef)
@@ -140,7 +141,7 @@ export function ThemedButton({
         styles.base,
         retainLeadingIcon ? { maxWidth: '100%' } : null,
         iconOnly
-          ? { height: Math.max(minimumHeight ?? sizeSpec.height, SMALL_PILL_VISIBLE_MIN), width: Math.max(minimumHeight ?? sizeSpec.height, SMALL_PILL_VISIBLE_MIN), paddingHorizontal: SPACING.s0, gap: 0 }
+          ? iconOnlyStyle(Math.max(minimumHeight ?? sizeSpec.height, SMALL_PILL_VISIBLE_MIN), edge)
           : { height: minimumHeight === undefined ? Math.max(sizeSpec.height, SMALL_PILL_VISIBLE_MIN) : undefined, minHeight: Math.max(minimumHeight ?? 0, SMALL_PILL_VISIBLE_MIN), width: matchedWidth ? MATCHED_PILL_WIDTH : undefined, paddingVertical: SPACING.s4, paddingHorizontal: sizeSpec.paddingX, paddingStart: leadingIcon ? sizeSpec.paddingX - 2 : sizeSpec.paddingX, gap: sizeSpec.gap },
         brand === 'google' ? { paddingHorizontal: GOOGLE_SIGN_IN_BUTTON.paddingX, paddingStart: GOOGLE_SIGN_IN_BUTTON.paddingX, gap: GOOGLE_SIGN_IN_BUTTON.gap } : null,
         variantStyle(pressed && !disabled && !loading),
@@ -157,6 +158,10 @@ export function ThemedButton({
 /** Native navigation with the same visual contract as PillButton. */
 export function PillLink({ onPress, children }: Readonly<{ onPress: () => void; children: string }>) {
   return <Button accessibilityRole="link" onClick={onPress}>{children}</Button>
+}
+
+function iconOnlyStyle(side: number, edge: 'start' | undefined): ViewStyle {
+  return { height: side, width: side, paddingHorizontal: SPACING.s0, gap: 0, marginStart: edge === 'start' ? ICON_ACTION_START_HANG : undefined }
 }
 
 function ButtonContents({ loading, retainLeadingIcon, iconOnly, leadingGlyph, children, textColor, sizeSpec }: Readonly<Pick<ButtonProps, 'children' | 'iconOnly'> & {
