@@ -8,7 +8,7 @@ Scratchpad: run `$HOME/.orbit-run-carry/carry-from-predecessor.sh <new full id> 
 
 ## Goal
 
-Finish the spec: an empty board except `#33` and the `#2074` measurement, verified releases, every `#315` launch list ticket closed, then `#315` closed with its verdict. Re-derive what remains with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation at this handoff: 19 open, 19 placed, 0 unplaced, 0 placed twice.
+Finish the spec: an empty board except `#33` and the `#2074` measurement, verified releases, every `#315` launch list ticket closed, then `#315` closed with its verdict. Re-derive what remains with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation at this handoff: 21 open, 21 placed, 0 unplaced, 0 placed twice.
 
 ## In flight
 
@@ -21,7 +21,7 @@ UI `main` `b913fa08b`; API `main` `3da71dcf6`; landing `main` `7fb212c42`. Produ
 | `ui#2377` (`#2061`) | Merged as `b913fa08b`. Ships in the next Android Open and production web, then close `#2061`. |
 | `ui#2391` (`#1560`) | Head `b6ed095d1`, CI was running. Wait on CI, request the review, merge on approval, then the `apps/desktop` ESLint gap plus the 10 s spawn timeout at `tools/desktop-bench/test-acceptance.ts:224`. |
 | `ui#2388` | This relay's docs PR carries this handoff. Request the review after green CI and merge. |
-| `#2082`, `#2083`, `#2084` | New owner orders, filed this session and placed in the spec. Launch workers when the pool allows. |
+| `#2082`, `#2083`, `#2084`, `#2085`, `#2086` | New owner orders, filed this session and placed in the spec. Launch workers when the pool allows; `#2085` is Batch T (relay timing) and `#2086` a live defect. |
 | `#1861` | Ship in the next desktop release (with `#2084`), then close. |
 | `#2030` | Close on the owner-device probe after the next Android Open. AVD `orbit-repro-2030` stays until the `#2077` Android proof. |
 | `#2071` | Waits on the owner's fresh claude.ai sign-in (open question). Then `python3 -I token-swap.py` in the scratchpad. |
@@ -35,7 +35,7 @@ Inventory: open pull requests ui `#2392`, `#2391`, `#2389`, `#2388`; api none; l
 2. One `tools/wait-ci.mjs` over the open pull requests, then a `--require-check pullfrog-approval` waiter over the requested reviews; rerun 504-only failures.
 3. The in-flight rows above.
 4. Android Open for `#2062`, `#2077` and `#2061` once `ui#2389` merges, then production web.
-5. Then the rest of `## The order`: `#2083`, `#2081`, `#1560`, `#2084`, `#1861`, `#2030`, `#2082`, Batch 6 (`#2078`, `#2079`, `#2080`), `#1561` device checks, `#1563`, the `#315` live Astra gate window, `#33` last, and the auto-work intake cycle when idle.
+5. Then the rest of `## The order`: `#2085`, `#2086`, `#2083`, `#2081`, `#1560`, `#2084`, `#1861`, `#2030`, `#2082`, Batch 6 (`#2078`, `#2079`, `#2080`), `#1561` device checks, `#1563`, the `#315` live Astra gate window, `#33` last, and the auto-work intake cycle when idle.
 
 ## Crank
 
@@ -47,7 +47,7 @@ Unattended: never ask the owner; decide with the best option and log it. Keep a 
 
 ## Previous prompt, disposition
 
-- Done: `ui#2377` review requested, approved and merged (`b913fa08b`); `ui#2389` red layout shard read (spec cause, CI-fix order composed); owner Windows install and auto-update questions answered with live evidence; owner orders ticketed as `#2082`, `#2083`, `#2084`.
+- Done: `ui#2377` review requested, approved and merged (`b913fa08b`); `ui#2389` red layout shard read (spec cause, CI-fix order composed); owner Windows install and auto-update questions answered with live evidence; owner orders ticketed as `#2082`, `#2083`, `#2084`, `#2085`, `#2086`; the owner's relay cost question answered (200k threshold from `ui#2390`, unmeasured; `#2085` measures it).
 - Carried: the `ui#2392` push (suites running), every other merge, review requests on `ui#2389`, `ui#2391`, `ui#2388`, `#2071`, the Android Open, `#2030`, `#1561`, `#1563`, `#315`, `#33`, Batch 6, intake, the AVD deletion.
 - Superseded: "rerun `Layout shard 1` if infrastructure" (it is a real race; the CI-fix order replaces it).
 

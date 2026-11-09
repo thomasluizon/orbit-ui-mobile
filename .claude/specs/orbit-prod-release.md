@@ -64,10 +64,15 @@ In-flight work finishes as normal. Then no new board ticket is admitted until ev
 - `#2071` Move the Pullfrog token in all three repositories to the main account, before 4 December 2026. Next: Chrome holds the main org claude.ai session, but the Claude Code OAuth page redirects to `claude.ai/login?reauth=1`, so the owner signs in fresh; then run `token-swap.py` from the scratchpad (it reads the OSC 8 link target), which pipes the token to `gh secret set CLAUDE_CODE_OAUTH_TOKEN` in all three repositories, and a small worker updates the skill text.
 - `#2074` Stop Pullfrog from reviewing heads that later fail CI. It never holds the launch (owner order). Next: merged as `ui#2387`, and a requested review published `pullfrog-approval` SUCCESS on `ui#2390`. Run `tools/review-rounds.mjs` as soon as it can run, on or after 16 November 2026, whatever the launch state; if the `dismissed approval` share is not clearly below 43%, fix the cause in this ticket and measure again, then close.
 
+### Batch T addition
+
+- `#2085` Relay the coordinator at the measured cheapest moment, with a soft threshold that waits for a quiet point (owner order). Next: launch a worker on the ticket body; it measures relay cost from transcripts before it changes `relay.thresholdTokens`.
+
 ### Batch R: owner review findings
 
 A finding from an owner review or a rendered sweep that shows broken behaviour lands here.
 
+- `#2086` Hide the log control on every habit while select mode is on, instead of showing it disabled (owner report). Next: launch a worker; it identifies the control from a rendered select mode before it changes code.
 - `#2083` Show the Turnstile check full width and only when needed on sign-in, not as a boxed square (owner report from the Windows app). Next: launch a worker; `apps/web/components/auth/turnstile-widget.tsx` renders `size: 'compact'`; check the rendered result on staging (Turnstile enforces there).
 
 ### Batch 0b: the harness and the standing syncs
@@ -166,7 +171,7 @@ Code facts that no gate or owner document states:
 
 ## Current state
 
-Latest handoff: a relay with the chain open, the run in `/sleep` with `crank: true` and `autoWork: true`. UI `main` `b913fa08b` (`ui#2377` merged), API `main` `3da71dcf6`, landing `main` `7fb212c42`; production web `0e43371b0`, production API `3da71dcf6`, production landing `7fb212c42`; Android Open 1.3.149 (209); TestFlight `a727bce32`; desktop 0.1.26 on both channels, with Windows installers on `desktop-production` and the landing page, and the Tauri updater checks, downloads and prompts a restart by itself (Windows install mode passive). Open ui pull requests: `ui#2389` with two failed layout specs and a composed CI-fix order; `ui#2391` and `ui#2388` in CI; `ui#2392` with the review batch `f8581cfa2` unpushed while its tools and hooks suites run detached. The owner filed three new orders this session: `#2082`, `#2083`, `#2084`. `tools/run-status.mjs` reads the ui repository as UNREADABLE ("GitHub read timed out") while `gh pr view` answers. The session chain ledger lives untracked at .git/orbit-session-chain.json.
+Latest handoff: a relay with the chain open, the run in `/sleep` with `crank: true` and `autoWork: true`. UI `main` `b913fa08b` (`ui#2377` merged), API `main` `3da71dcf6`, landing `main` `7fb212c42`; production web `0e43371b0`, production API `3da71dcf6`, production landing `7fb212c42`; Android Open 1.3.149 (209); TestFlight `a727bce32`; desktop 0.1.26 on both channels, with Windows installers on `desktop-production` and the landing page, and the Tauri updater checks, downloads and prompts a restart by itself (Windows install mode passive). Open ui pull requests: `ui#2389` with two failed layout specs and a composed CI-fix order; `ui#2391` and `ui#2388` in CI; `ui#2392` with the review batch `f8581cfa2` unpushed while its tools and hooks suites run detached. The owner filed five new orders this session: `#2082`, `#2083`, `#2084`, `#2085`, `#2086`. `tools/run-status.mjs` reads the ui repository as UNREADABLE ("GitHub read timed out") while `gh pr view` answers. The session chain ledger lives untracked at .git/orbit-session-chain.json.
 
 ## Open questions
 
