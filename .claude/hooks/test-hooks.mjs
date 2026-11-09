@@ -1294,8 +1294,10 @@ for (const name of ["relay-at-threshold.mjs", "forbid-superseded-session.mjs", "
 const relayDecisionLog = join(wakeCheckout, ".git", "relay-decisions.md")
 writeFileSync(relayDecisionLog, "No open decisions.\n")
 const relayState = { autoWork: false, sessionId: "relay-parent", sleep: true, remaining: ["#1091"], decisionLogPath: relayDecisionLog }
-const relayOptions = { enabled: true, thresholdTokens: 400000, state: relayState, sessionId: relayState.sessionId, measuredTokens: 400000 }
-T("relay: below threshold is inert", checkRelayStop({ ...relayOptions, measuredTokens: 399999 }), null)
+/** The shipped threshold, so the crossing tests follow the real value instead of a copy of it. */
+const relayThreshold = JSON.parse(readFileSync(join(repoRoot, ".claude", "orchestrator.json"), "utf8")).relay.thresholdTokens
+const relayOptions = { enabled: true, thresholdTokens: relayThreshold, state: relayState, sessionId: relayState.sessionId, measuredTokens: relayThreshold }
+T("relay: below threshold is inert", checkRelayStop({ ...relayOptions, measuredTokens: relayThreshold - 1 }), null)
 T("relay: kill switch is inert", checkRelayStop({ ...relayOptions, enabled: false }), null)
 T("relay: attended sessions are inert", checkRelayStop({ ...relayOptions, state: { ...relayState, sleep: false } }), null)
 T("relay: another session is inert", checkRelayStop({ ...relayOptions, sessionId: "other" }), null)
@@ -1312,7 +1314,8 @@ T("relay: release watcher keeps drain waiting", checkRelayStop({ ...relayOptions
 T("relay: retry cooldown injects nothing", checkRelayStop({ ...relayOptions, state: { ...relayState, relay: { pending: true, lastAttemptAt: new Date().toISOString() } } }), null)
 T("relay: two failures near auto compact permit fallback", checkRelayStop({ ...relayOptions, measuredTokens: 950000, state: { ...relayState, relay: { pending: true, failures: 2 } } }).fallback, true)
 T("sleep: drain guidance never launches more work", checkSleepStop({ state: { ...relayState, relay: { pending: true } } }).message.includes("Launch nothing"), true)
-const relayUsage = JSON.parse(readFileSync(join(repoRoot, "tools", "__tests__", "fixtures", "session-usage.json"), "utf8"))
+/** The fixture usage with its cache read set so the call sums to the shipped threshold. The other fields sum to 670. */
+const relayUsage = { ...JSON.parse(readFileSync(join(repoRoot, "tools", "__tests__", "fixtures", "session-usage.json"), "utf8")), cache_read_input_tokens: relayThreshold - 670 }
 const relayTranscript = join(wakeCheckout, ".git", "relay-transcript.jsonl")
 const relayPayload = { session_id: "relay-parent", transcript_path: relayTranscript, cwd: wakeCheckout, permission_mode: "bypassPermissions", hook_event_name: "Stop", stop_hook_active: false, last_assistant_message: "", background_tasks: [], session_crons: [] }
 const isolatedRelayHook = (name, payload = relayPayload, timeout) => spawnSync(process.execPath, [join(wakeHooks, name)], { input: JSON.stringify(payload), encoding: "utf8", timeout })
@@ -1341,16 +1344,16 @@ let promptReadFailed = false
 try { readCommittedPrompt(root) } catch { promptReadFailed = true }
 T("handoff reader: git failure throws instead of proving no prompt", promptReadFailed, true)
 writeRunState(relayState, wakeCheckout)
-writeFileSync(relayTranscript, JSON.stringify({ type: "assistant", message: { id: "call", usage: { ...relayUsage, cache_read_input_tokens: 399329 } } }) + "\n")
-T("relay adapter: 399999 prints nothing", isolatedRelayHook("relay-at-threshold.mjs").stdout, "")
+writeFileSync(relayTranscript, JSON.stringify({ type: "assistant", message: { id: "call", usage: { ...relayUsage, cache_read_input_tokens: relayThreshold - 671 } } }) + "\n")
+T("relay adapter: one token below the threshold prints nothing", isolatedRelayHook("relay-at-threshold.mjs").stdout, "")
 writeFileSync(relayTranscript, JSON.stringify({ type: "assistant", message: { id: "call", usage: relayUsage } }) + "\n")
 T("relay adapter: concurrent wake hook never says to launch on crossing", isolatedRelayHook(WAKE_HOOK).stderr, "")
 const crossing = isolatedRelayHook("relay-at-threshold.mjs")
 const feedback = JSON.parse(crossing.stdout)
-T("relay adapter: 400000 emits documented Stop feedback", feedback.hookSpecificOutput.hookEventName, "Stop")
+T("relay adapter: the threshold emits documented Stop feedback", feedback.hookSpecificOutput.hookEventName, "Stop")
 T("relay adapter: feedback names relay", feedback.hookSpecificOutput.additionalContext.includes("relay"), true)
 T("relay adapter: machine origin enforces sleep prompt", readHandoffRequest("relay-parent", wakeCheckout).origin, "context-relay")
-T("relay adapter: measured pending state is persisted", readRunState(wakeCheckout).relay.measuredTokens, 400000)
+T("relay adapter: measured pending state is persisted", readRunState(wakeCheckout).relay.measuredTokens, relayThreshold)
 const stopRelayState = readRunState(wakeCheckout)
 const stopRelayRequest = readHandoffRequest("relay-parent", wakeCheckout)
 const postToolRelayHooks = settings.hooks.PostToolUse
@@ -1370,7 +1373,7 @@ T("relay: Stop and PostToolUse share the timeout", settings.hooks.Stop.flatMap((
   .filter((hook) => hook.command.includes("relay-at-threshold.mjs")).map((hook) => hook.timeout), [postToolRelayHooks[0].timeout])
 const postToolRelay = () => isolatedRelayHook("relay-at-threshold.mjs", postToolPayload, relayTimeoutMilliseconds)
 writeRunState(relayState, wakeCheckout)
-writeFileSync(relayTranscript, JSON.stringify({ type: "assistant", message: { id: "call", usage: { ...relayUsage, cache_read_input_tokens: 399329 } } }) + "\n")
+writeFileSync(relayTranscript, JSON.stringify({ type: "assistant", message: { id: "call", usage: { ...relayUsage, cache_read_input_tokens: relayThreshold - 671 } } }) + "\n")
 T("relay post-tool: below threshold prints nothing", postToolRelay().stdout, "")
 T("relay post-tool: below threshold preserves state", readRunState(wakeCheckout).relay, undefined)
 const transcriptPadding = JSON.stringify({ type: "user", message: { content: "x".repeat(1024 * 1024) } }) + "\n"

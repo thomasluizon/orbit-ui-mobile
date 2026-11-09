@@ -7,7 +7,7 @@ const call = (id, tokens) => JSON.stringify({ type: "assistant", timestamp: "<IS
 
 export const cases = async () => {
   const transcript = stage("session-context/calls.jsonl", `${call("first", 399999)}\n${call("last", 400000)}\n`)
-  T("session-context: last call sums to threshold", readSessionContext(transcript) === 400000)
+  T("session-context: the last assistant call sets the context size", readSessionContext(transcript) === 400000)
   const metrics = await readSessionMetrics(transcript)
   T("session-context: counts calls and growth", metrics.calls === 2 && metrics.growthPerCall[0] === 1)
   const repeated = stage("session-context/repeated.jsonl", `${call("first", 399999)}\n${call("first", 399999)}\n`)
