@@ -191,12 +191,16 @@ describe('HabitRow canonical content (mobile)', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
-  it.each([false, true])('uses the empty track for parent selection mode %s', (isSelectMode) => {
+  it.each([false, true])('uses the empty track for a parent and renders none in selection mode, selection mode %s', (isSelectMode) => {
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
       tree = TestRenderer.create(<HabitRow habit={createMockHabit()} hasChildren
         childrenDone={1} childrenTotal={2} isSelectMode={isSelectMode} />)
     })
+    if (isSelectMode) {
+      expect(tree!.root.findAllByProps({ testID: 'habit-check' })).toHaveLength(0)
+      return
+    }
     const check = tree!.root.findByProps({ testID: 'habit-check' })
     expect(StyleSheet.flatten(check.props.style).borderColor).toBe(createTokensV2('purple', 'dark').trackEmpty)
   })
@@ -254,12 +258,13 @@ describe('HabitRow canonical content (mobile)', () => {
     TestRenderer.act(() => disclosure.props.onPress())
     expect(onToggleExpand).toHaveBeenCalledOnce()
     expect(onToggleSelection).not.toHaveBeenCalled()
-    expect(renderer!.root.findAllByProps({ accessibilityLabel: 'habits.statusDot.empty, 1/2' }).length).toBeGreaterThan(0)
+    expect(renderer!.root.findAllByProps({ accessibilityLabel: 'habits.statusDot.empty, 1/2' })).toHaveLength(0)
+    expect(renderer!.root.findAllByProps({ testID: 'habit-check' })).toHaveLength(0)
     expect(renderer!.root.findAll((node: { props: { accessibilityLabel?: string; accessibilityRole?: string } }) =>
       node.props.accessibilityLabel?.startsWith('habits.statusDot.empty') && node.props.accessibilityRole === 'button')).toHaveLength(0)
   })
 
-  it('keeps selection and the status glyph without a leaf gutter', () => {
+  it('keeps selection without a status glyph or a leaf gutter', () => {
     let renderer: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
       renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Leaf' })} structuralColumn isSelectMode />)
@@ -267,12 +272,11 @@ describe('HabitRow canonical content (mobile)', () => {
     const row = renderer!.root.findByProps({ testID: 'habit-row' })
     const [body, controls] = row.children[0].children
     const selection = controls.findByProps({ accessibilityRole: 'checkbox' })
-    const trailing = controls.findAllByProps({ testID: 'habit-check' })[0]
     expect(selection.props.accessibilityState).toMatchObject({ checked: false })
-    expect(trailing).toBeDefined()
+    expect(controls.findAllByProps({ testID: 'habit-check' })).toHaveLength(0)
     expect(row.findAllByProps({ accessibilityLabel: 'common.expand' })).toHaveLength(0)
     expect(body.props.delayLongPress).toBe(500)
-    expect(renderer!.root.findAllByProps({ testID: 'habit-check' }).length).toBeGreaterThan(0)
+    expect(renderer!.root.findAllByProps({ testID: 'habit-check' })).toHaveLength(0)
   })
   it('restores descriptions while omitting retired tags from the canonical row', () => {
     const texts = renderRowText(

@@ -40,27 +40,6 @@ function showParentRing(hasChildren: boolean, childrenTotal: number, unavailable
   return hasChildren && childrenTotal > 0 && !unavailable
 }
 
-function SelectionStatusGlyph({
-  hasChildren, childrenDone, childrenTotal, dotState, isDoneForRange,
-  completionReadOnly, completionStatusUnavailable,
-}: Readonly<HabitRowTrailingProps>) {
-  const { t } = useTranslation()
-  const statusName = t(`habits.statusDot.${resolveHabitAccessibleStatus(dotState, isDoneForRange)}` as const)
-  if (showParentRing(hasChildren, childrenTotal, completionStatusUnavailable)) {
-    return (
-      <View accessibilityRole="image" accessibilityLabel={`${statusName}, ${childrenDone}/${childrenTotal}`}
-        style={[styles.parentRingButton, completionReadOnly ? { opacity: 0.4 } : null]}>
-        <HabitCheck status={dotState} progress={{ done: childrenDone, total: childrenTotal }} />
-      </View>
-    )
-  }
-  return (
-    <View style={[styles.parentRingButton, completionReadOnly ? { opacity: 0.4 } : null]}>
-      <HabitCheck status={dotState} label={statusName} unavailable={completionStatusUnavailable} />
-    </View>
-  )
-}
-
 function InteractiveParentRing({
   habit, childrenDone, childrenTotal, isDoneForRange, dotState, actions,
   completionReadOnly, completionReason, completionStatusUnavailable,
@@ -94,7 +73,6 @@ function InteractiveParentRing({
 
 function HabitRowCompletion(props: Readonly<HabitRowTrailingProps>) {
   const { t } = useTranslation()
-  if (props.isSelectMode) return <SelectionStatusGlyph {...props} />
   if (showParentRing(props.hasChildren, props.childrenTotal, props.completionStatusUnavailable)) {
     return <InteractiveParentRing {...props} />
   }
@@ -117,10 +95,11 @@ export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
   } = props
   const { t } = useTranslation()
   const [menuHovered, setMenuHovered] = useState(false)
+  if (isSelectMode) return null
   return (
     <View style={styles.trailing}>
       <HabitRowCompletion {...props} />
-      {!isSelectMode && hasMenuActions ? (
+      {hasMenuActions ? (
         <Menu.Trigger asChild>
           <Pressable
             onHoverIn={() => setMenuHovered(true)}

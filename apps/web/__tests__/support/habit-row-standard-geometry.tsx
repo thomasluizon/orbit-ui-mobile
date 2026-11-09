@@ -83,7 +83,7 @@ export async function assertHabitRowPreviewGeometry(browser: Browser, stylesheet
       const row = rows.nth(index)
       const described = Math.floor(index / 3) % 2 === 1
       const messages = locale === 'en' ? en : ptBR
-      await assertPreviewRow(row, page, scale, described, index % 3 === 1 ? messages.habits.rowTypeTask : messages.habits.form.typeHabit)
+      await assertPreviewRow(row, page, scale, described, index % 3 === 1 ? messages.habits.rowTypeTask : messages.habits.form.typeHabit, index % 3 !== 0)
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
   } finally {
@@ -96,7 +96,7 @@ export async function assertHabitRowPreviewGeometry(browser: Browser, stylesheet
 
 export async function assertHydratedMetadataRow(row: Locator, { width, scale, locale, index, selecting }: { width: number; scale: number; locale: 'en' | 'pt-BR'; index: number; selecting: boolean }) {
   const measured = await measurePreviewRow(row)
-  const supporting = scale > 1.3 || (width === 320 && index === 3)
+  const supporting = scale > 1.3 || (width === 320 && index === 3 && !selecting)
   expect(measured.supporting).toBe(supporting)
   expect(measured.typeCount).toBe(1)
   expect(measured.type.text).toBe(locale === 'en' ? en.habits.form.typeHabit : ptBR.habits.form.typeHabit)
@@ -114,11 +114,14 @@ export async function assertHydratedMetadataRow(row: Locator, { width, scale, lo
   expect(bounds.left).toBeGreaterThanOrEqual(bounds.stripLeft)
   expect(bounds.right).toBeLessThanOrEqual(bounds.stripRight + 1)
   expect(bounds.countHeight).toBeLessThanOrEqual(16.8 * scale + 1)
-  expect(Math.abs(measured.check.x - measured.target.x)).toBeLessThanOrEqual(1)
-  expect(Math.abs(measured.check.y - measured.target.y)).toBeLessThanOrEqual(1)
+  expect(measured.check === null, 'select mode renders no log control').toBe(selecting)
+  if (measured.check) {
+    expect(Math.abs(measured.check.x - measured.target.x)).toBeLessThanOrEqual(1)
+    expect(Math.abs(measured.check.y - measured.target.y)).toBeLessThanOrEqual(1)
+    expect(measured.check).toMatchObject({ width: 28, height: 28 })
+  }
   if (supporting) expect(measured.target.top).toBeCloseTo(measured.title.top, 1)
   else expect(Math.abs(measured.target.y - measured.row.y)).toBeLessThanOrEqual(1)
-  expect(measured.check).toMatchObject({ width: 28, height: 28 })
   expect(measured.target.width).toBe(48)
   expect(measured.target.height).toBeGreaterThanOrEqual(48)
   const name = await row.locator('[data-habit-row-body]').getAttribute('aria-label')
@@ -171,9 +174,9 @@ async function measurePreviewRow(row: Locator) {
     })
     const heading = element.querySelector('[data-habit-row-heading]')
     const meta = element.querySelector('[data-habit-row-meta]')!
-    const check = element.querySelector('[data-habit-check]')!
-    let target = check.parentElement!
-    while (target !== element && target.getBoundingClientRect().width !== 48) target = target.parentElement!
+    const check = element.querySelector('[data-habit-check]')
+    let target = check ? check.parentElement! : element.querySelector('[data-habit-row-control="selection"]')!
+    if (check) while (target !== element && target.getBoundingClientRect().width !== 48) target = target.parentElement!
     const reference = document.createElement('span')
     element.append(reference)
     const tokenPaint = (property: 'color' | 'background', token: string) => {
@@ -197,7 +200,7 @@ async function measurePreviewRow(row: Locator) {
       typeCount: element.querySelectorAll('[data-habit-row-type]').length, typeInHeading: Boolean(heading?.contains(type)),
       type: { ...box(type), text: type.textContent, ink: box(typeText), overflow: typeStyle.textOverflow, whiteSpace: typeStyle.whiteSpace, clamp: typeStyle.webkitLineClamp, clientWidth: type.clientWidth, scrollWidth: type.scrollWidth, clientHeight: type.clientHeight, scrollHeight: type.scrollHeight },
       preview: preview && { ...box(preview), size: getComputedStyle(preview).fontSize, weight: getComputedStyle(preview).fontWeight, family: getComputedStyle(preview).fontFamily, lineHeight: getComputedStyle(preview).lineHeight, clamp: getComputedStyle(preview).webkitLineClamp, ellipsis: getComputedStyle(preview).textOverflow, whiteSpace: getComputedStyle(preview).whiteSpace },
-      meta: box(meta), check: box(check), glyph: check.querySelector('svg') ? box(check.querySelector('svg')!) : null, target: box(target),
+      meta: box(meta), check: check ? box(check) : null, glyph: check?.querySelector('svg') ? box(check.querySelector('svg')!) : null, target: box(target),
       heading: heading && box(heading), supporting: Boolean(heading), depth: Number(element.getAttribute('data-depth')) }
   })
 }
@@ -269,8 +272,9 @@ function assertSupportingRowHeight(measured: Awaited<ReturnType<typeof measurePr
   expect(measured.row.height).toBeCloseTo(heading.height + (described ? 0 : 4) + footer.height + 8, 1)
 }
 
-async function assertPreviewRow(row: Locator, page: Page, scale: number, described: boolean, expectedType: string) {
+async function assertPreviewRow(row: Locator, page: Page, scale: number, described: boolean, expectedType: string, selecting: boolean) {
   const measured = await measurePreviewRow(row)
+  expect(measured.check === null, 'select mode renders no log control').toBe(selecting)
   if (described) expect(measured.descriptionColour).toBe(measured.descriptionRest)
   assertContentStack(measured, scale, described, expectedType)
   expect(measured.titleSize).toBe(`${(measured.depth ? 14 : 17) * scale}px`)
@@ -291,14 +295,16 @@ async function assertPreviewRow(row: Locator, page: Page, scale: number, describ
   }
   assertControlGeometry()
   function assertControlGeometry() {
-    expect(Math.abs(measured.check.x - measured.target.x)).toBeLessThanOrEqual(1)
-    expect(Math.abs(measured.check.y - measured.target.y)).toBeLessThanOrEqual(1)
+    if (measured.check) {
+      expect(Math.abs(measured.check.x - measured.target.x)).toBeLessThanOrEqual(1)
+      expect(Math.abs(measured.check.y - measured.target.y)).toBeLessThanOrEqual(1)
+    }
     if (!measured.supporting) expect(Math.abs(measured.target.y - measured.row.y)).toBeLessThanOrEqual(1)
     else expect(measured.target.top - measured.row.top).toBe(measured.depth ? 4 : 8)
     expect(measured.meta.left - measured.title.left).toBeCloseTo(0, 1)
     expect(measured.supporting).toBe(scale === 2 || measured.depth === 2 && page.viewportSize()!.width === 320)
     if (measured.supporting) expect(measured.target.top).toBeCloseTo(measured.title.top, 1)
-    if (measured.glyph) {
+    if (measured.glyph && measured.check) {
       expect(Math.abs(measured.glyph.x - measured.check.x)).toBeLessThanOrEqual(1)
       expect(Math.abs(measured.glyph.y - measured.check.y)).toBeLessThanOrEqual(1)
     }

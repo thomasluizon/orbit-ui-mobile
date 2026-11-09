@@ -88,28 +88,6 @@ interface HabitRowTrailingProps {
   completionStatusUnavailable: boolean
 }
 
-function SelectionStatusGlyph({
-  hasChildren, childProgress, state, isDone, canLog,
-  completionReadOnly, completionStatusUnavailable,
-}: Readonly<HabitRowTrailingProps>) {
-  const t = useTranslations()
-  const statusName = t(`habits.statusDot.${resolveHabitAccessibleStatus(state, isDone)}`)
-  const dimmed = completionIsDisabled(completionReadOnly, canLog, isDone)
-  if (showParentRing(hasChildren, completionStatusUnavailable)) {
-    return (
-      <span role="img" aria-label={`${statusName}, ${childProgress?.done ?? 0}/${childProgress?.total ?? 0}`}
-        className="flex min-h-[48px] w-[48px] items-center justify-center" style={{ opacity: dimmed ? 0.4 : 1 }}>
-        <HabitCheck status={state} progress={childProgress ?? { done: 0, total: 0 }} />
-      </span>
-    )
-  }
-  return (
-    <span className="flex min-h-[48px] w-[48px] items-center justify-center" style={{ opacity: dimmed ? 0.4 : 1 }}>
-      <HabitCheck status={state} label={statusName} unavailable={completionStatusUnavailable} />
-    </span>
-  )
-}
-
 function InteractiveParentRing({
   habit, childProgress, state, isDone, canLog, actions,
   completionReadOnly, completionReason, completionStatusUnavailable,
@@ -136,7 +114,6 @@ function InteractiveParentRing({
 
 function HabitRowCompletion(props: Readonly<HabitRowTrailingProps>) {
   const t = useTranslations()
-  if (props.selectMode) return <SelectionStatusGlyph {...props} />
   if (showParentRing(props.hasChildren, props.completionStatusUnavailable)) {
     return <InteractiveParentRing {...props} />
   }
@@ -180,9 +157,9 @@ export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
   const menuItems = buildMenuItems(t, actions, canSelect, canDrillInto, completionReadOnly, habit.isGeneral, state)
 
   return (
-    <Menu.Root open={menuOpen} onOpenChange={setMenuOpen}><div className="flex items-center shrink-0" style={{ gap: 8 }}>
+    <Menu.Root open={menuOpen} onOpenChange={setMenuOpen}>{selectMode ? null : <div className="flex items-center shrink-0" style={{ gap: 8 }}>
       <HabitRowCompletion {...props} />
-      {!selectMode && hasMenuActions && menuItems.length > 0 && (
+      {hasMenuActions && menuItems.length > 0 && (
         <>
           <Menu.Trigger asChild><button
             ref={menuAnchorRef}
@@ -217,6 +194,6 @@ export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
           />
         </>
       )}
-    </div></Menu.Root>
+    </div>}</Menu.Root>
   )
 }

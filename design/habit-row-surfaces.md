@@ -7,7 +7,7 @@ The owner standard in landing Figma file `aLwwyaY3Dtw1NVesAWsNO7`, rows `7:72` a
 | Hoje root and drill lists | `components/habits/habit-list.tsx` | `components/habit-list.tsx` | Root leaf, parent, inline child, deeper drill row, expanded and collapsed family |
 | Habit detail child list | `components/habits/habit-detail-screen.tsx` | `components/habits/habit-detail-screen.tsx` | Each child owns its fill and border; the group adds neither |
 | Row completion | `components/habits/habit-check.tsx`, `habit-row-check-circle.tsx`, `habit-row-trailing.tsx` | Same paths | Empty, done, overdue, bad habit slip, partial parent progress, completed parent, disabled and unavailable |
-| Selection mode | `components/habits/habit-row-trailing.tsx` | Same path | Leaf and parent status glyphs retain the shape without becoming another action |
+| Selection mode | `components/habits/habit-row-trailing.tsx` | Same path | The row renders no check, status glyph or overflow menu while selection is on; leaving selection restores them (#2086) |
 | Keyboard focus | Habit check target and `app/globals.css` | Habit check target through `components/ui/inset-focus-pressable.tsx` | One outward-offset indicator follows the 28px check perimeter inside its target |
 
 Independently bordered rows have 8px separation within a family in Hoje, Todos, Geral and search results and 12px between families. Habit detail child rows retain 12px separation. Android spacing belongs to the unpainted wrapper so it does not enlarge the bordered body.
