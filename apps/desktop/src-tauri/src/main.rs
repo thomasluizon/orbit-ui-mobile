@@ -56,10 +56,9 @@ fn desktop_builder(identifier: String) -> tauri::Builder<tauri::Wry> {
             bench_viewport::fit_bench_viewport
         ])
         .plugin(tauri_plugin_single_instance::init(|app, arguments, _| {
-            if !push::notification_activation(&arguments) {
-                if let Err(error) = lifecycle::show_main(app) {
-                    eprintln!("Cannot restore desktop window: {error}");
-                }
+            push::secondary_launch(&arguments);
+            if let Err(error) = lifecycle::show_main(app) {
+                eprintln!("Cannot restore desktop window: {error}");
             }
         }))
         .plugin(tauri_plugin_deep_link::init())

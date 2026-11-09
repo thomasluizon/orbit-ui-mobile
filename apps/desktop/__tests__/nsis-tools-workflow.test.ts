@@ -3,7 +3,7 @@ import { createRequire } from 'node:module'
 import { expect, it } from 'vitest'
 
 interface Step { name?: string; uses?: string; if?: string; run?: string }
-interface Job { 'runs-on'?: string; strategy?: { matrix?: { include?: { runner?: string }[]; runner?: string[] } }; steps?: Step[] }
+interface Job { 'runs-on'?: string; strategy?: { matrix?: { include?: { runner?: string }[]; runner?: string[] | string } }; steps?: Step[] }
 interface Workflow { jobs: Record<string, Job> }
 const require = createRequire(import.meta.url)
 const { load } = require('js-yaml') as { load: (source: string) => Workflow }
@@ -12,7 +12,9 @@ const action = './.github/actions/desktop-nsis-tools'
 const windowsBundling = /tauri\s+(build|bundle)|run\s+"?(build|bundle):[^\n]*@orbit\/desktop|desktop-bench\/(acceptance|run)\.mjs/
 
 function runsOnWindows(job: Job): boolean {
-  const runners = [job['runs-on'], ...(job.strategy?.matrix?.include?.map(entry => entry.runner) ?? []), ...(job.strategy?.matrix?.runner ?? [])]
+  // A matrix runner can be a fromJSON expression string; it runs on Windows when that expression names a Windows runner.
+  const matrixRunners = job.strategy?.matrix?.runner ?? []
+  const runners = [job['runs-on'], ...(job.strategy?.matrix?.include?.map(entry => entry.runner) ?? []), ...(Array.isArray(matrixRunners) ? matrixRunners : [matrixRunners])]
   return runners.some(runner => runner?.toLowerCase().includes('windows'))
 }
 
@@ -48,4 +50,5 @@ it('flags a Windows bundling job without the step, with it too late, or with it 
   expect(windowsBundlingJobsMissingNsisTools(job([{ uses: action, if: "runner.os == 'macOS'" }, bundle]))).toEqual(['build'])
   expect(windowsBundlingJobsMissingNsisTools({ jobs: { build: { strategy: { matrix: { include: [{ runner: 'windows-2025' }] } }, steps: [bundle] } } })).toEqual(['build'])
   expect(windowsBundlingJobsMissingNsisTools(job([bundle], 'macos-15'))).toEqual([])
+  expect(windowsBundlingJobsMissingNsisTools({ jobs: { build: { strategy: { matrix: { runner: "${{ fromJSON(github.event_name == 'push' && '[\"windows-latest\"]' || '[\"macos-latest\"]') }}" } }, steps: [bundle] } } })).toEqual(['build'])
 })

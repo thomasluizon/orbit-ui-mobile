@@ -10,6 +10,7 @@ import { JSDOM } from 'jsdom'
 import { assertAccessibleTree, assertCookieEvidence, assertPaletteFocus } from '../desktop-bench/acceptance-contract.mjs'
 import { T, REPO_ROOT, check, configure, failureCount, root, stage } from './_harness.mjs'
 import { networkCases } from './desktop-acceptance-network.mjs'
+import { pushPhaseCases } from './desktop-acceptance-push.mjs'
 
 function rejects(label, operation) {
   let failure
@@ -166,6 +167,8 @@ async function installedLaunchCases() {
   const source = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-runner.mjs'), 'utf8')
   const launches = []
   const commands = []
+  const pushCalls = []
+  const builtWith = []
   const events = [{ kind: 'hoje', nativeVersion: '1.0.0' }]
   let recorded
   let settings = {}
@@ -179,17 +182,39 @@ async function installedLaunchCases() {
   const context = {
     join, directory: '/fixture', windows: true, process: { platform: 'win32', arch: 'x64', stdout: { write() {} } },
     mkdir: async () => {}, existsSync: () => false, assertFree: async () => {}, startRecording: async () => Object.assign(() => {}, { startedAt: Date.now() }),
-    buildInstaller: async () => ({}), hermeticServices: async () => {}, nativeTool: async () => () => {},
+    buildInstaller: async (_repository, _output, signing) => { builtWith.push(signing); return {} }, hermeticServices: async () => {}, nativeTool: async () => () => {},
     updateServer: async () => ({ route() {}, mode() {}, cookieEvidence() {} }),
     isolateOrigins: async () => ({ restore() {} }), lookup: async () => [{ address: '127.0.0.1' }],
     startProxy: async () => proxy, install: async () => '/fixture/Orbit',
-    installedLaunch: () => { launches.push(settings.expectAuthenticated === true); return {} },
+    installedLaunch: (_executable, _output, name) => { launches.push(settings.expectAuthenticated === true); return { name } },
     waitFor: async (read, label) => { const result = read(); if (!result) throw new Error(`Timed out waiting for ${label}`); return result },
-    inspectSurfaces: async () => {}, quit: async () => {},
+    inspectSurfaces: async () => {}, quit: async () => {}, recordKeys: (native) => native,
+    pushPhase: async (options) => { pushCalls.push({ options, checks: options.report.launchChecks.map((checkpoint) => checkpoint.event) }) },
     readFile: async () => 'signature verification failed', record: async (_path, report) => { recorded = report }, rm: async () => {}, stopAll: async () => {},
   }
   runInNewContext(source.slice(source.indexOf('export async function acceptance')).replace('export ', '') + '\nglobalThis.acceptance = acceptance', context)
-  await context.acceptance({ repository: '/fixture', output: '/output' })
+  const credentials = { ORBIT_WNS_CLIENT_SECRET: 'fixture-secret' }
+  await context.acceptance({ repository: '/fixture', output: '/output', credentials })
+  T('a Windows run builds unsigned, tells the push phase so and reports why',
+    builtWith[0] === null && pushCalls[0].options.signed === false && recorded.signing.unsigned === 'Windows packages with --no-sign')
+  const signing = { certificate: 'fixture-certificate', password: 'fixture-password', profile: 'fixture-profile', identity: 'Developer ID Application: Fixture (TEAM)' }
+  Object.assign(context, { windows: false, unsignedReason: 'fixture unsigned reason', startHttpsListener: async () => {} })
+  await context.acceptance({ repository: '/fixture', output: '/output', credentials, signing })
+  T('a signed macOS run passes the material to the build, tells the push phase and reports only the public identity',
+    builtWith[1] === signing && pushCalls[1].options.signed === true &&
+      JSON.stringify(recorded.signing) === JSON.stringify({ identity: signing.identity, entitlements: 'Entitlements.staging.plist' }))
+  await context.acceptance({ repository: '/fixture', output: '/output', credentials })
+  T('an unsigned macOS run reports the missing signing material as its reason', builtWith[2] === null && recorded.signing.unsigned === 'fixture unsigned reason')
+  Object.assign(context, { windows: true })
+  pushCalls.length = 0
+  launches.length = 0
+  events.splice(1)
+  commands.length = 0
+  settings = {}
+  await context.acceptance({ repository: '/fixture', output: '/output', credentials })
+  T('installed acceptance runs the push phase once, after the valid update relaunch, with the acceptance credentials and that launch',
+    pushCalls.length === 1 && pushCalls[0].checks.at(-1) === 'relaunched-hoje-valid' && pushCalls[0].options.credentials === credentials &&
+      pushCalls[0].options.handle.name === 'update-valid' && pushCalls[0].options.output === '/output' && recorded.passed === true, JSON.stringify(pushCalls.map((call) => call.checks)))
   T('installed updater relaunches require the persisted session after the initial email launch', JSON.stringify(launches) === '[false,true,true]', JSON.stringify(launches))
   T('installed acceptance waits for a new Hoje event after requesting an authenticated reload',
     commands.filter(command => command === 'reload').length === 1 && events.length === 2)
@@ -212,6 +237,7 @@ async function installedLaunchCases() {
     failure?.message.includes('palette result focus') && JSON.stringify(recorded.paletteInput) === JSON.stringify([palette, delivered]))
   T('a failed traversal retains completed palette focus steps for recording review',
     JSON.stringify(recorded.paletteFocus) === JSON.stringify([focus]))
+  T('a failed earlier phase never starts the push phase', pushCalls.length === 1)
 }
 
 async function servedProbe(expectAuthenticated) {
@@ -279,6 +305,7 @@ async function sessionProbeCases() {
 
 async function compactHojeProbeCases() {
   const reports = []
+  const keyListeners = []
   const commands = ['astra']
   let now = 0
   let conversation = null
@@ -295,6 +322,7 @@ async function compactHojeProbeCases() {
     location: { pathname: '/', search: '' },
     document: {
       readyState: 'complete', cookie: '',
+      addEventListener: (type, _listener, capture) => { keyListeners.push({ type, capture }) },
       querySelector(selector) {
         if (selector === '[data-habit-id="bench-0000"]') return {}
         if (selector === '[data-astra-button]:not([disabled])') return conversation ? null : astraButton
@@ -318,25 +346,23 @@ async function compactHojeProbeCases() {
   await done
   T('installed acceptance reaches compact Hoje through the habit row and the Astra button, without a Hoje composer',
     reports.map((event) => event.kind).join(',') === 'hoje,astra', JSON.stringify(reports))
+  T('installed acceptance records Astra keydowns in the capture phase once Astra is open',
+    JSON.stringify(keyListeners) === JSON.stringify([{ type: 'keydown', capture: true }]), JSON.stringify(keyListeners))
 }
 
 function macKeyboardEvents() {
   const source = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-ax.m'), 'utf8')
-  const keyboard = source.slice(source.indexOf('static void key('), source.indexOf('int main('))
+  const keyboard = source.slice(source.indexOf('static NSDictionary *key('), source.indexOf('int main('))
   const fixture = stage('palette-keyboard.m', `#import <AppKit/AppKit.h>
 #import <ApplicationServices/ApplicationServices.h>
 static NSMutableArray *events;
+static NSMutableArray *raised;
 static NSString *command;
-static pid_t targetPid;
+static pid_t focused;
+static BOOL raiseWorks;
 static CGEventFlags inheritedFlags = kCGEventFlagMaskCommand | kCGEventFlagMaskShift;
-@interface PaletteApplication : NSObject
-+ (instancetype)runningApplicationWithProcessIdentifier:(pid_t)pid;
-- (BOOL)activateWithOptions:(NSApplicationActivationOptions)options;
-@end
-@implementation PaletteApplication
-+ (instancetype)runningApplicationWithProcessIdentifier:(pid_t)pid { return [self new]; }
-- (BOOL)activateWithOptions:(NSApplicationActivationOptions)options { return YES; }
-@end
+static pid_t focusedProcess(void) { return focused; }
+static void raiseProcess(pid_t pid) { [raised addObject:@(pid)]; if (raiseWorks) focused = pid; }
 static CGEventRef inheritedKeyboardEvent(CGEventSourceRef source, CGKeyCode code, bool pressed) {
     CGEventRef event = CGEventCreateKeyboardEvent(source, code, pressed);
     CGEventSetFlags(event, inheritedFlags);
@@ -344,45 +370,64 @@ static CGEventRef inheritedKeyboardEvent(CGEventSourceRef source, CGKeyCode code
 }
 static void captureKey(CGEventTapLocation tap, CGEventRef event) {
     inheritedFlags = CGEventGetFlags(event);
-    [events addObject:@{@"command": command, @"pid": @(targetPid), @"pressed": @((BOOL)(CGEventGetType(event) == kCGEventKeyDown)),
+    [events addObject:@{@"command": command, @"tap": @(tap), @"focused": @(focused), @"pressed": @((BOOL)(CGEventGetType(event) == kCGEventKeyDown)),
         @"metaKey": @((BOOL)((inheritedFlags & kCGEventFlagMaskCommand) != 0)),
         @"shiftKey": @((BOOL)((inheritedFlags & kCGEventFlagMaskShift) != 0)),
         @"ctrlKey": @((BOOL)((inheritedFlags & kCGEventFlagMaskControl) != 0)),
         @"altKey": @((BOOL)((inheritedFlags & kCGEventFlagMaskAlternate) != 0))}];
-    targetPid = 0;
 }
 static void captureTargetedKey(pid_t pid, CGEventRef event) {
-    targetPid = pid;
-    captureKey(kCGHIDEventTap, event);
+    [events addObject:@{@"command": command, @"targeted": @(pid)}];
 }
-#define NSRunningApplication PaletteApplication
 #define CGEventCreateKeyboardEvent inheritedKeyboardEvent
 #define CGEventPost captureKey
 #define CGEventPostToPid captureTargetedKey
 #define usleep(microseconds) ((void)0)
 ${keyboard}
-int main(void) {
+int main(int argc, const char *argv[]) {
     @autoreleasepool {
+        NSString *scenario = @(argv[1]);
         events = [NSMutableArray array];
+        raised = [NSMutableArray array];
+        focused = [scenario isEqual:@"focused"] ? 1 : 2;
+        raiseWorks = [scenario isEqual:@"raised"];
+        NSMutableArray *replies = [NSMutableArray array];
+        NSMutableArray *errors = [NSMutableArray array];
         for (NSString *operation in @[@"palette", @"down", @"down", @"home", @"escape", @"quit"]) {
             command = operation;
-            key(1, operation);
+            @try { [replies addObject:key(1, operation)]; } @catch (NSException *exception) { [errors addObject:exception.reason]; }
         }
-        NSData *encoded = [NSJSONSerialization dataWithJSONObject:events options:0 error:NULL];
+        NSData *encoded = [NSJSONSerialization dataWithJSONObject:@{@"events": events, @"replies": replies, @"errors": errors, @"raised": raised}
+            options:0 error:NULL];
         fwrite(encoded.bytes, 1, encoded.length, stdout);
         return 0;
     }
 }`)
   const executable = join(root, 'palette-keyboard')
   const compilation = spawnSync('clang', ['-fobjc-arc', '-framework', 'AppKit', '-framework', 'ApplicationServices', fixture, '-o', executable], { encoding: 'utf8', timeout: 30000 })
-  T('macOS keyboard producer compiles with event posting and application activation intercepted', compilation.status === 0, compilation.stderr)
-  const capture = spawnSync(executable, [], { encoding: 'utf8', timeout: 10000 })
-  T('macOS keyboard producer captures its real event flags without opening an app', capture.status === 0, capture.stderr)
-  const events = JSON.parse(capture.stdout)
-  T('macOS keyboard producer targets both key phases at the installed process',
-    events.length === 12 && events.every((event) => event.pid === 1), JSON.stringify(events))
+  T('macOS keyboard producer compiles with event posting and keyboard focus intercepted', compilation.status === 0, compilation.stderr)
+  const run = (scenario) => {
+    const capture = spawnSync(executable, [scenario], { encoding: 'utf8', timeout: 10000 })
+    T(`macOS keyboard producer runs the ${scenario} scenario without opening an app`, capture.status === 0, capture.stderr)
+    return JSON.parse(capture.stdout)
+  }
+  const focusedRun = run('focused')
+  const { events } = focusedRun
+  T('macOS keyboard producer posts both key phases at the HID event tap, as a real keyboard enters, while the installed process has keyboard focus',
+    events.length === 12 && events.every((event) => event.tap === 0 && event.focused === 1 && event.targeted === undefined), JSON.stringify(events))
   T('macOS keyboard producer sets Command only for shortcuts and clears inherited modifiers on both key phases', events.length === 12 && events.every((event) =>
     event.metaKey === ['palette', 'quit'].includes(event.command) && !event.shiftKey && !event.ctrlKey && !event.altKey), JSON.stringify(events))
+  T('macOS keyboard producer names the HID delivery path and the focused process in every reply without raising a focused process',
+    focusedRun.raised.length === 0 && focusedRun.errors.length === 0 && focusedRun.replies.length === 6 && focusedRun.replies.every((reply) =>
+      reply.delivery === 'hid-event-tap' && reply.activation === 'focused' && reply.focusedProcess === 1), JSON.stringify(focusedRun))
+  const raisedRun = run('raised')
+  T('macOS keyboard producer raises an unfocused installed process once, then posts at the HID event tap',
+    raisedRun.raised.join(',') === '1' && raisedRun.events.length === 12 && raisedRun.events.every((event) => event.tap === 0 && event.focused === 1) &&
+      raisedRun.replies[0].activation === 'raised' && raisedRun.replies.slice(1).every((reply) => reply.activation === 'focused'), JSON.stringify(raisedRun))
+  const refusedRun = run('refused')
+  T('macOS keyboard producer posts no key while another process keeps keyboard focus and names that process',
+    refusedRun.events.length === 0 && refusedRun.replies.length === 0 && refusedRun.errors.length === 6 &&
+      refusedRun.errors[0] === 'Process 1 did not receive keyboard focus for palette; process 2 has it', JSON.stringify(refusedRun))
   return events
 }
 
@@ -701,6 +746,7 @@ export async function cases() {
   await networkCases()
   await installedQuitCases()
   await installedLaunchCases()
+  await pushPhaseCases()
   await sessionProbeCases()
   await compactHojeProbeCases()
   await controlledPaletteCases()
@@ -747,6 +793,12 @@ export async function cases() {
   rejects('a set cookie alone cannot prove an authenticated request', () => assertCookieEvidence(cookies, false))
   const fixture = spawnSync(process.execPath, ['--import', 'tsx', join(REPO_ROOT, 'tools/desktop-bench/test-acceptance.ts')], { cwd: REPO_ROOT, encoding: 'utf8', timeout: 60000 })
   T('acceptance regressions exercise the email schema, signature verifier and native tree reader', fixture.status === 0, fixture.stderr || fixture.stdout)
+  const pushFixture = spawnSync(process.execPath, ['--import', 'tsx', join(REPO_ROOT, 'tools/desktop-bench/test-acceptance-push.ts')], { cwd: REPO_ROOT, encoding: 'utf8', timeout: 60000 })
+  T('push acceptance regressions exercise the reminder producers, mock API and push phase', pushFixture.status === 0, pushFixture.stderr || pushFixture.stdout)
+  const readerFixture = spawnSync(process.execPath, ['--import', 'tsx', join(REPO_ROOT, 'tools/desktop-bench/test-acceptance-readers.ts')], { cwd: REPO_ROOT, encoding: 'utf8', timeout: 60000 })
+  T('reader acceptance regressions exercise the native notification readers and the Windows Done activator', readerFixture.status === 0, readerFixture.stderr || readerFixture.stdout)
+  const launchFixture = spawnSync(process.execPath, ['--import', 'tsx', join(REPO_ROOT, 'tools/desktop-bench/test-acceptance-launch.ts')], { cwd: REPO_ROOT, encoding: 'utf8', timeout: 60000 })
+  T('launch acceptance regressions exercise the Medium-integrity Windows launcher', launchFixture.status === 0, launchFixture.stderr || launchFixture.stdout)
   if (process.platform === 'darwin') {
     const compilation = spawnSync('clang', ['-fsyntax-only', '-fobjc-arc', join(REPO_ROOT, 'tools/desktop-bench/acceptance-ax.m')], { encoding: 'utf8', timeout: 30000 })
     T('macOS accessibility reader compiles against the installed SDK without opening an app', compilation.status === 0, compilation.stderr)
@@ -818,8 +870,27 @@ export async function cases() {
       env.NEXT_PUBLIC_EVENT_API_BASE === (origin ?? 'http://127.0.0.1:5099')))
   }
   const workflow = readFileSync(join(REPO_ROOT, '.github/workflows/desktop-acceptance.yml'), 'utf8')
+  const setup = readFileSync(join(REPO_ROOT, '.github/actions/desktop-acceptance-setup/action.yml'), 'utf8')
+  const job = (name) => workflow.slice(workflow.indexOf(`\n  ${name}:\n`), workflow.indexOf('\n\n  ', workflow.indexOf(`\n  ${name}:\n`) + 1) >>> 0)
+  const unsigned = job('installed')
+  const signed = job('installed-signed')
+  const sameRepository = "github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository"
   T('native acceptance retains both VMs, per-ref cancellation and always-uploaded evidence',
-    workflow.includes('runner: [macos-latest, windows-latest]') && workflow.includes('desktop-acceptance-${{ github.ref }}') && workflow.includes('if: always()'))
+    unsigned.includes(`runner: \${{ fromJSON((${sameRepository}) && '["windows-latest"]' || '["macos-latest", "windows-latest"]') }}`) &&
+      signed.includes(`if: ${sameRepository}`) && signed.includes('runs-on: macos-latest') &&
+      workflow.includes('desktop-acceptance-${{ github.ref }}') && unsigned.includes('if: always()') && signed.includes('if: always()'))
+  T('only the same-repository macOS job takes desktop-staging, without a deployment, and passes its signing material to the harness',
+    signed.includes('environment:\n      name: desktop-staging\n      deployment: false') && !unsigned.includes('environment:') && !workflow.includes('desktop-production') &&
+      ['MACOS_DEVELOPER_ID_CERTIFICATE_BASE64', 'MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD', 'MACOS_PROVISIONING_PROFILE_BASE64'].every((name) => signed.includes(`${name}: \${{ secrets.${name} }}`)) &&
+      signed.includes('MACOS_SIGNING_IDENTITY: ${{ vars.MACOS_SIGNING_IDENTITY }}') && !unsigned.includes('MACOS_') && !workflow.includes('TAURI_SIGNING_PRIVATE_KEY'))
+  // An unsigned macOS shell skips APNs before it reads a credential (pushReadiness), so APNs values belong to the signed job alone.
+  T('APNs values reach only the signed macOS job, and WNS values only the job that runs Windows',
+    ['ORBIT_APPLE_TEAM_ID', 'ORBIT_APNS_KEY_ID', 'ORBIT_APNS_PRIVATE_KEY'].every((name) => signed.includes(`${name}: `) && !unsigned.includes(name)) &&
+      ['ORBIT_DESKTOP_WNS_OBJECT_ID', 'ORBIT_WNS_TENANT_ID', 'ORBIT_WNS_CLIENT_ID', 'ORBIT_WNS_CLIENT_SECRET'].every((name) => unsigned.includes(`${name}: `) && !signed.includes(name)))
+  T('the native producer step runs the acceptance, push, reader and launch acceptance regressions in both jobs',
+    ['test-acceptance.ts', 'test-acceptance-push.ts', 'test-acceptance-readers.ts', 'test-acceptance-launch.ts'].every((file) => setup.includes(`node --import tsx tools/desktop-bench/${file}`)) &&
+      [unsigned, signed].every((text) => text.includes('uses: ./.github/actions/desktop-acceptance-setup')) &&
+      workflow.includes("- '.github/actions/desktop-acceptance-setup/**'"))
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
