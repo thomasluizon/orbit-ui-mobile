@@ -1,9 +1,9 @@
 import { join } from "node:path"
 import { setTimeout as wait } from "node:timers/promises"
-import { intakeRun, pendingReviewKeys, REVIEW_RUN_SECONDS } from "./auto-work-intake.mjs"
+import { activeIntakeRun, pendingReviewKeys, REVIEW_RUN_SECONDS } from "./auto-work-intake.mjs"
 import { runBounded } from "./bounded-process.mjs"
 import { listBoardState } from "./github-issues.mjs"
-import { REPO_ROOT, writeRunState } from "./run-state.mjs"
+import { REPO_ROOT, updateRunState } from "./run-state.mjs"
 
 /**
  * No read-only Sentry token exists and no Sentry REST response has been verified, so the waiter
@@ -61,10 +61,19 @@ export const initialWakeMarks = (intake, nowMilliseconds) => {
   }
 }
 
-export const saveWakeMarks = (marks, repoRoot = REPO_ROOT) => {
-  const state = intakeRun(repoRoot)
-  writeRunState({ ...state, intake: { ...state.intake, wake: marks } }, repoRoot)
-  if (JSON.stringify(intakeRun(repoRoot).intake?.wake) !== JSON.stringify(marks)) throw new Error("Wake marks write was not confirmed")
+/**
+ * Saves the marks in one locked read-change-write. When `modeChanged` holds for the current record,
+ * nothing is written and the result is false, so a save never lands after a mode change.
+ */
+export const saveWakeMarks = (marks, repoRoot = REPO_ROOT, modeChanged = () => false) => {
+  const written = updateRunState((current) => {
+    if (modeChanged(current)) return undefined
+    const state = activeIntakeRun(current, repoRoot)
+    return { ...state, intake: { ...state.intake, wake: marks } }
+  }, repoRoot)
+  if (written === undefined) return false
+  if (JSON.stringify(written.intake?.wake) !== JSON.stringify(marks)) throw new Error("Wake marks write was not confirmed")
+  return true
 }
 
 const failureSignature = (reason) => String(reason?.message ?? reason).slice(0, 300)
