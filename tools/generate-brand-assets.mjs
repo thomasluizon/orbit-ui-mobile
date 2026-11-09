@@ -252,6 +252,63 @@ async function renderAsset(sources, asset) {
     .toBuffer()
 }
 
+// The Windows icon keeps the platform icon artwork (accent mark at 60% of the tile on CANVAS) and
+// changes only the tile: inset from the canvas edge with a little rounding, as on the Orca icon, so
+// Windows shows a tile instead of a full-bleed square. The Orca tile is 80.5% of its canvas with a
+// corner radius of 22.4% of the tile. Windows draws these layers at 1:1, so a small layer cannot
+// afford that margin: it gets the smallest whole-pixel margin that still leaves a transparent
+// ring, and a radius near 21% of its tile that rounds at least one corner pixel.
+const WINDOWS_MARK_SCALE = 0.6
+const windowsIconLayers = [
+  { size: 16, margin: 1, radius: 3 },
+  { size: 24, margin: 1, radius: 4 },
+  { size: 32, margin: 2, radius: 6 },
+  { size: 48, margin: 4, radius: 9 },
+  { size: 64, margin: 6, radius: 11 },
+  { size: 256, margin: 24, radius: 44 },
+]
+
+async function renderWindowsIconLayer(sources, { size, margin, radius }) {
+  const tile = size - 2 * margin
+  const tileSvg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><rect x="${margin}" y="${margin}" width="${tile}" height="${tile}" rx="${radius}" ry="${radius}" fill="${CANVAS}"/></svg>`
+  const { data: mark, info } = await renderAccentMark(
+    sources.markAccent,
+    FOREGROUND,
+    ACCENT,
+    Math.round(tile * WINDOWS_MARK_SCALE),
+  )
+  return sharp(Buffer.from(tileSvg))
+    .composite([{
+      input: mark,
+      left: Math.floor((size - info.width) / 2),
+      top: Math.floor((size - info.height) / 2),
+    }])
+    .png({ compressionLevel: 9 })
+    .toBuffer()
+}
+
+/** An ICO that stores every layer as an embedded PNG, the layout Tauri's own icon command writes.
+ *  png-to-ico stores BMP layers instead, which cost more bytes at 256 and need an AND mask. The
+ *  ICONDIR is 6 bytes, each ICONDIRENTRY 16 bytes, and a width or height of 0 means 256. */
+function pngLayersToIco(layers) {
+  const header = Buffer.alloc(6)
+  header.writeUInt16LE(1, 2)
+  header.writeUInt16LE(layers.length, 4)
+  let offset = header.length + 16 * layers.length
+  const entries = layers.map(({ size, png }) => {
+    const entry = Buffer.alloc(16)
+    entry.writeUInt8(size >= 256 ? 0 : size, 0)
+    entry.writeUInt8(size >= 256 ? 0 : size, 1)
+    entry.writeUInt16LE(1, 4)
+    entry.writeUInt16LE(32, 6)
+    entry.writeUInt32LE(png.length, 8)
+    entry.writeUInt32LE(offset, 12)
+    offset += png.length
+    return entry
+  })
+  return Buffer.concat([header, ...entries, ...layers.map(({ png }) => png)])
+}
+
 const faviconLayerAssets = [
   generatedAssets.find(({ path }) => path === "apps/web/public/favicon-16.png"),
   generatedAssets.find(({ path }) => path === "apps/web/public/favicon-32.png"),
@@ -293,8 +350,22 @@ async function main() {
   await mkdir(dirname(faviconPath), { recursive: true })
   await writeFile(faviconPath, await pngToIco(faviconLayers))
 
+  const windowsIconPath = join(repositoryRoot, "apps", "desktop", "src-tauri", "icons", "icon.ico")
+  await mkdir(dirname(windowsIconPath), { recursive: true })
+  await writeFile(
+    windowsIconPath,
+    pngLayersToIco(
+      await Promise.all(
+        windowsIconLayers.map(async (layer) => ({
+          size: layer.size,
+          png: await renderWindowsIconLayer(sources, layer),
+        })),
+      ),
+    ),
+  )
+
   console.log(
-    `generated ${generatedAssets.length + 1} brand assets from design/brand/orbit-mark.svg, orbit-mark-accent.svg and orbit-mark-16.svg`,
+    `generated ${generatedAssets.length + 2} brand assets from design/brand/orbit-mark.svg, orbit-mark-accent.svg and orbit-mark-16.svg`,
   )
 }
 

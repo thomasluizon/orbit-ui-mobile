@@ -57,7 +57,7 @@ export const cases = async () => {
     "generate-brand-assets.mjs",
     "writes the complete derived asset inventory",
     ["--write", "--root", outputRoot],
-    { status: 0, stdout: /generated 24 brand assets/ },
+    { status: 0, stdout: /generated 25 brand assets/ },
   )
 
   for (const [relativePath, width, height] of expectedAssets) {
@@ -118,6 +118,33 @@ export const cases = async () => {
     faviconLayerAccentPixelCount(16) === 0,
     "favicon.ico 16px layer unexpectedly carries an accent pixel",
   )
+
+  // The Windows icon keeps the platform artwork on an inset, rounded tile. A full-bleed square
+  // reads as a hard edge beside other Windows apps, so every layer keeps a transparent margin.
+  const windowsIco = readFileSync(join(outputRoot, "apps", "desktop", "src-tauri", "icons", "icon.ico"))
+  const windowsLayers = Array.from({ length: windowsIco.readUInt16LE(4) }, (_, index) => {
+    const entryOffset = 6 + index * 16
+    const dataOffset = windowsIco.readUInt32LE(entryOffset + 12)
+    return {
+      size: windowsIco.readUInt8(entryOffset) || 256,
+      png: windowsIco.subarray(dataOffset, dataOffset + windowsIco.readUInt32LE(entryOffset + 8)),
+    }
+  })
+  T(
+    "generate-brand-assets.mjs: Windows icon.ico carries PNG layers at 16, 24, 32, 48, 64 and 256",
+    JSON.stringify(windowsLayers.map(({ size }) => size)) === JSON.stringify([16, 24, 32, 48, 64, 256]) &&
+      windowsLayers.every(({ png }) => png.subarray(1, 4).toString() === "PNG"),
+    `layers ${JSON.stringify(windowsLayers.map(({ size }) => size))}`,
+  )
+  for (const { size, png } of windowsLayers) {
+    const { data } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+    const alphaAt = (x, y) => data[(y * size + x) * 4 + 3]
+    T(
+      `generate-brand-assets.mjs: Windows icon.ico ${size}px layer is an inset tile with transparent corners`,
+      alphaAt(0, 0) === 0 && alphaAt(size - 1, size - 1) === 0 && alphaAt(size >> 1, 0) === 0 && alphaAt(size >> 1, size >> 1) === 255,
+      `${size}px layer corner ${alphaAt(0, 0)}, edge ${alphaAt(size >> 1, 0)}, centre ${alphaAt(size >> 1, size >> 1)}`,
+    )
+  }
 
   const favicon16 = join(outputRoot, "apps", "web", "public", "favicon-16.png")
   const faviconCorner = await pixelAt(favicon16, 0, 0)
