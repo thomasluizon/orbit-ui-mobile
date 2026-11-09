@@ -139,3 +139,38 @@ it.each([false, true])('restores visible challenge space and collapses it again,
   unmount()
   expect(disconnect).toHaveBeenCalledOnce()
 })
+
+it.each([false, true])('renders a full-width dark challenge that only shows when interaction is needed, quiet %s', async (quiet) => {
+  const renderWidget = vi.fn((..._args: unknown[]) => 'options-widget')
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
+  render(<TurnstileWidget siteKey="site-key" resetKey={0} quiet={quiet} onToken={vi.fn()} />)
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
+  expect(renderWidget.mock.calls[0]![1]).toMatchObject({ size: 'flexible', appearance: 'interaction-only', theme: 'dark' })
+})
+
+it.each([false, true])('hides the challenge after it passes and shows it again when it needs a new pass, quiet %s', async (quiet) => {
+  const renderWidget = vi.fn((..._args: unknown[]) => 'success-widget')
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
+  render(<TurnstileWidget siteKey="site-key" resetKey={0} quiet={quiet} onToken={vi.fn()} />)
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
+  const challenge = renderWidget.mock.calls[0]![0] as HTMLElement
+  const callbacks = renderWidget.mock.calls[0]![1] as {
+    callback: (token: string) => void
+    'expired-callback': () => void
+  }
+  expect(getComputedStyle(challenge).display).not.toBe('none')
+  act(() => callbacks.callback('fresh-token'))
+  expect(getComputedStyle(challenge).display).toBe('none')
+  act(() => callbacks['expired-callback']())
+  expect(getComputedStyle(challenge).display).not.toBe('none')
+})
+
+it('lets the non-quiet challenge span the form column', async () => {
+  const renderWidget = vi.fn((..._args: unknown[]) => 'column-widget')
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
+  render(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />)
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
+  const challenge = renderWidget.mock.calls[0]![0] as HTMLElement
+  expect(challenge.className).toContain('w-full')
+  expect(challenge.parentElement!.className).toContain('items-stretch')
+})

@@ -11,8 +11,8 @@ interface TurnstileApi {
   render: (container: HTMLElement, options: {
     sitekey: string
     appearance: 'interaction-only'
-    size: 'compact'
-    theme?: 'light' | 'dark'
+    size: 'flexible'
+    theme: 'light' | 'dark'
     language: string
     callback: (token: string) => void
     'error-callback': () => boolean
@@ -73,7 +73,7 @@ export function TurnstileWidget({
   resetKey,
   onToken,
   onStateChange,
-  theme,
+  theme = 'dark',
   language,
   quiet = false,
 }: Readonly<{
@@ -123,8 +123,8 @@ export function TurnstileWidget({
       widgetIdRef.current = turnstile.render(container, {
         sitekey: siteKey,
         appearance: 'interaction-only',
-        size: 'compact',
-        ...(theme ? { theme } : {}),
+        size: 'flexible',
+        theme,
         language: challengeLanguage,
         callback: (token) => update('solved', token),
         'error-callback': () => {
@@ -165,11 +165,13 @@ export function TurnstileWidget({
 
   const statusVisible = !quiet && (state === 'loading' || state === 'failed' || state === 'expired')
   const position = challengeVisible || statusVisible ? undefined : 'absolute'
-  if (quiet) return <div ref={containerRef} style={{ position }} />
+  // WHY: Cloudflare documents no success state for interaction-only, so the form hides the passed widget itself https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/widget-configurations/
+  const challengeStyle = state === 'solved' ? { display: 'none' } : undefined
+  if (quiet) return <div ref={containerRef} style={{ position, ...challengeStyle }} />
 
   return (
-    <div className="flex flex-col items-center text-sm text-[var(--fg-2)]" style={{ gap: 8, position }}>
-      <div ref={containerRef} />
+    <div className="flex flex-col items-stretch text-center text-sm text-[var(--fg-2)]" style={{ gap: 8, position }}>
+      <div ref={containerRef} className="w-full" style={challengeStyle} />
       <p role="status" className={state === 'loading' ? '' : 'sr-only'}>
         {state === 'loading' ? t('auth.turnstileLoading') : ''}
       </p>
