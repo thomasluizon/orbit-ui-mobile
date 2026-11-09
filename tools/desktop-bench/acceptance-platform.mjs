@@ -193,26 +193,36 @@ export async function launchUnelevated(executable, output, name, host = { execut
 }
 
 const apsctl = '/System/Library/PrivateFrameworks/ApplePushService.framework/apsctl'
+// The image keychain gives every runner one apsd identity: the courier rolls that token and apsd drops the reminder as "a
+// completely unknown token". Without a keychain apsd creates one ("created keychain") and gets a new public token.
+const apsdKeychain = '/Library/Keychains/apsd.keychain'
 // The macos-latest image leaves com.apple.apsd and com.apple.notificationcenterui.agent unloaded: `launchctl print` finds
 // neither service, apsctl answers "Connection invalid" and usernoted cannot reach Notification Center. Then no
 // authorization alert shows and no APNs token arrives. Hosted probes loaded both through launchd, as a login does, and a
 // Developer ID signed app then got its authorization answer and an 80-byte APNs token. An `open -b` start of Notification
 // Center showed no alert, because launchd vends no service for it.
 const pushServices = [
-  { domain: 'system', label: 'com.apple.apsd', plist: '/System/Library/LaunchDaemons/com.apple.apsd.plist' },
+  { domain: 'system', label: 'com.apple.apsd', plist: '/System/Library/LaunchDaemons/com.apple.apsd.plist', freshKeychain: apsdKeychain },
   { domain: 'gui', label: 'com.apple.notificationcenterui.agent', plist: '/System/Library/LaunchAgents/com.apple.notificationcenterui.plist' },
 ]
 const apsdStatusLine = /^\s*(daemon status|connection environment|connection status|server hostname):.*$/gm
 
 export async function startPushServices(host = { execute, waitFor }, uid = process.getuid()) {
-  for (const { domain, label, plist } of pushServices) {
+  for (const { domain, label, plist, freshKeychain } of pushServices) {
     const target = domain === 'gui' ? `gui/${uid}` : domain
     const service = `${target}/${label}`
     // The system domain needs root; the gui domain belongs to the signed-in runner user.
     const launchctl = (...argumentsList) => domain === 'system'
       ? host.execute('sudo', ['launchctl', ...argumentsList]) : host.execute('launchctl', argumentsList)
     await host.execute('sudo', ['launchctl', 'enable', service])
-    if (!await launchctl('print', service).then(() => true, () => false)) await launchctl('bootstrap', target, plist)
+    let loaded = await launchctl('print', service).then(() => true, () => false)
+    if (freshKeychain) {
+      // A running apsd holds its identity in memory, so it stops before its keychain goes.
+      if (loaded) await launchctl('bootout', service)
+      await host.execute('sudo', ['rm', '-f', freshKeychain])
+      loaded = false
+    }
+    if (!loaded) await launchctl('bootstrap', target, plist)
     await launchctl('kickstart', service)
   }
   let last = ''

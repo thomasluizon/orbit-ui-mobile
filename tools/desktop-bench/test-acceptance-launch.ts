@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -146,16 +146,31 @@ function launcherRunning(pid: number) {
 // The producer check runs in the same elevated job as the installed acceptance, so this launches a real Medium process there.
 // An elevated token lowered only to Medium keeps the Administrators group enabled, and WebView2 fails under it with 0x80010108.
 // TokenIsElevated cannot tell the two apart, because it stays true for the Safer token, so only the group state is asserted.
+function startHostname(script: string, directory: string) {
+  const status = join(directory, 'hostname-launch.jsonl')
+  const started = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script, '-Mode', 'start',
+    '-Executable', join(process.env.SystemRoot!, 'System32', 'hostname.exe'), '-Log', join(directory, 'hostname.log'),
+    '-Output', join(directory, 'hostname.stdout.log'), '-Status', status], { encoding: 'utf8', timeout: 120000 })
+  assert.equal(started.status, 0, started.stderr)
+  return { status, harness: JSON.parse(started.stdout) as { harness: Record<string, unknown>; launcher: number; outputLabel: string } }
+}
+
+async function awaitLauncherExit(launcher: number) {
+  // The exit line is the launcher's last statement, but PowerShell still holds the directory and its library until it ends.
+  for (let attempt = 0; attempt < 120 && launcherRunning(launcher); attempt++) await new Promise((resolve) => setTimeout(resolve, 250))
+  assert.equal(launcherRunning(launcher), false, `launcher ${launcher} still runs 30 s after its exit line`)
+}
+
+// The elevated harness token holds the Administrators group enabled, so this check proves the reader can report "enabled" at
+// all; the mutation test below proves the check fails when the reader never matches the group.
+const assertAdministratorsEnabled = (value: Record<string, unknown>) => assert.equal(value.administrators, 'enabled')
+
 test('the Windows launcher start mode runs a real executable as an unelevated standard user at Medium integrity and records its exit', { skip: process.platform !== 'win32' }, async () => {
   const directory = mkdtempSync(join(tmpdir(), 'orbit-unelevated-'))
   try {
-    const status = join(directory, 'hostname-launch.jsonl')
-    const started = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', launcherScript, '-Mode', 'start',
-      '-Executable', join(process.env.SystemRoot!, 'System32', 'hostname.exe'), '-Log', join(directory, 'hostname.log'),
-      '-Output', join(directory, 'hostname.stdout.log'), '-Status', status], { encoding: 'utf8', timeout: 120000 })
-    assert.equal(started.status, 0, started.stderr)
-    const harness = JSON.parse(started.stdout) as { harness: Record<string, unknown>; launcher: number; outputLabel: string }
+    const { status, harness } = startHostname(launcherScript, directory)
     assertToken(harness.harness)
+    assertAdministratorsEnabled(harness.harness)
     assert.ok(Number.isInteger(harness.launcher) && harness.launcher > 0)
     assert.match(harness.outputLabel, /Medium Mandatory Level/)
     let parsed: ReturnType<typeof launchStatus> = {} as ReturnType<typeof launchStatus>
@@ -172,9 +187,25 @@ test('the Windows launcher start mode runs a real executable as an unelevated st
     assert.ok(Number.isInteger(parsed.pid) && parsed.pid! > 0)
     assert.deepEqual(parsed.exit, { kind: 'exit', code: 0 })
     assert.ok(readFileSync(join(directory, 'hostname.stdout.log'), 'utf8').trim().length > 0)
-    // The exit line is the launcher's last statement, but PowerShell still holds the directory and its library until it ends.
-    for (let attempt = 0; attempt < 120 && launcherRunning(harness.launcher); attempt++) await new Promise((resolve) => setTimeout(resolve, 250))
-    assert.equal(launcherRunning(harness.launcher), false, `launcher ${harness.launcher} still runs 30 s after its exit line`)
+    await awaitLauncherExit(harness.launcher)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('the Administrators check fails for a token reader that never matches S-1-5-32-544', { skip: process.platform !== 'win32' }, async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'orbit-unelevated-'))
+  try {
+    const source = readFileSync(launcherScript, 'utf8')
+    const group = 'AdministratorsSid = "S-1-5-32-544"'
+    assert.ok(source.includes(group), 'the reader names the Administrators group')
+    const mutated = join(directory, 'windows-unelevated.ps1')
+    writeFileSync(mutated, source.replace(group, 'AdministratorsSid = "S-1-5-32-0"'))
+    const { harness } = startHostname(mutated, directory)
+    assertToken(harness.harness)
+    assert.equal(harness.harness.administrators, 'absent')
+    assert.throws(() => assertAdministratorsEnabled(harness.harness), /Expected values to be strictly equal/)
+    await awaitLauncherExit(harness.launcher)
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }

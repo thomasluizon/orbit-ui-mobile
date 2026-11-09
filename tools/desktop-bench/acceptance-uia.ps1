@@ -22,6 +22,13 @@ public sealed class OrbitWindow {
     public string title;
     public bool visible;
 }
+public sealed class OrbitHostWindow {
+    public long handle;
+    public string className;
+    public string title;
+    public uint processId;
+    public string path;
+}
 public sealed class OrbitMenuItem {
     public uint id;
     public string text;
@@ -60,6 +67,43 @@ public static class OrbitForeground {
             GetClassNameW(window, className, className.Capacity);
             GetWindowTextW(window, title, title.Capacity);
             windows.Add(new OrbitWindow { handle = window.ToInt64(), className = className.ToString(), title = title.ToString(), visible = IsWindowVisible(window) });
+            return true;
+        }, IntPtr.Zero);
+        return windows.ToArray();
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)] private static extern IntPtr OpenProcess(uint access, bool inherit, uint processId);
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode, ExactSpelling = true)]
+    private static extern bool QueryFullProcessImageNameW(IntPtr process, uint flags, StringBuilder path, ref uint size);
+    [DllImport("kernel32.dll")] private static extern bool CloseHandle(IntPtr handle);
+
+    private static string ImagePath(uint processId) {
+        IntPtr process = OpenProcess(0x1000, false, processId);
+        if (process == IntPtr.Zero) return null;
+        try {
+            var path = new StringBuilder(1024);
+            uint size = (uint)path.Capacity;
+            return QueryFullProcessImageNameW(process, 0, path, ref size) ? path.ToString() : null;
+        } finally { CloseHandle(process); }
+    }
+
+    // Visible top-level windows of processes that run from the Windows directory, where the shell draws toasts and the
+    // notification center. UI Automation root children do not list an open notification center.
+    public static OrbitHostWindow[] SystemWindows(int exclude) {
+        var windows = new List<OrbitHostWindow>();
+        string system = Environment.GetFolderPath(Environment.SpecialFolder.Windows).TrimEnd('\\') + "\\";
+        EnumWindows((window, parameter) => {
+            if (!IsWindowVisible(window)) return true;
+            uint owner;
+            GetWindowThreadProcessId(window, out owner);
+            if (owner == (uint)exclude) return true;
+            string path = ImagePath(owner);
+            if (path == null || !path.StartsWith(system, StringComparison.OrdinalIgnoreCase)) return true;
+            var className = new StringBuilder(256);
+            var title = new StringBuilder(512);
+            GetClassNameW(window, className, className.Capacity);
+            GetWindowTextW(window, title, title.Capacity);
+            windows.Add(new OrbitHostWindow { handle = window.ToInt64(), className = className.ToString(), title = title.ToString(), processId = owner, path = path });
             return true;
         }, IntPtr.Zero);
         return windows.ToArray();
@@ -151,35 +195,86 @@ function Read-Element($element, [string]$path) {
     $index++
   }
 }
-function Find-Notification([string]$Title, [string]$Label, [int]$Exclude) {
+# The match rule reads the tree only through $Tree, so a test drives it with recorded layouts on any PowerShell host.
+function Find-ToastButton($HostElement, [string]$Title, [string]$Label, $Tree) {
+  # A toast exposes its title as a text element, or folds title and body into its own accessible name.
+  foreach ($text in @(& $Tree.Texts $HostElement $Title)) {
+    $ancestor = $text
+    while ($null -ne $ancestor) {
+      $atHost = & $Tree.Same $ancestor $HostElement
+      $buttons = @(& $Tree.Buttons $ancestor $Label)
+      $expanded = $false
+      # The notification center lists a toast collapsed, and its actions show only once it expands. The host itself never
+      # expands, because that would open every other entry in the center.
+      if ($buttons.Count -eq 0 -and -not $atHost) {
+        $collapsed = @(& $Tree.Collapsed $ancestor)
+        foreach ($entry in $collapsed) { & $Tree.Expand $entry }
+        if ($collapsed.Count -gt 0) { $expanded = $true; $buttons = @(& $Tree.Buttons $ancestor $Label) }
+      }
+      if ($buttons.Count -eq 1) { return @{ button = $buttons[0]; toast = $ancestor; expanded = $expanded } }
+      if ($buttons.Count -gt 1 -or $atHost) { break }
+      $ancestor = & $Tree.Parent $ancestor
+    }
+  }
+  return $null
+}
+function New-AutomationTree([string]$Label) {
   $automation = [System.Windows.Automation.AutomationElement]
   $scope = [System.Windows.Automation.TreeScope]
   $buttonCondition = New-Object System.Windows.Automation.AndCondition(
     (New-Object System.Windows.Automation.PropertyCondition($automation::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button)),
     (New-Object System.Windows.Automation.PropertyCondition($automation::NameProperty, $Label)))
+  $expandable = New-Object System.Windows.Automation.PropertyCondition($automation::IsExpandCollapsePatternAvailableProperty, $true)
+  $expandPattern = [System.Windows.Automation.ExpandCollapsePattern]::Pattern
   $walker = [System.Windows.Automation.TreeWalker]::ControlViewWalker
-  $seen = New-Object 'System.Collections.Generic.List[object]'
-  foreach ($window in $automation::RootElement.FindAll($scope::Children, [System.Windows.Automation.Condition]::TrueCondition)) {
+  return @{
+    Texts = { param($element, $title) @($element.FindAll($scope::Descendants, [System.Windows.Automation.Condition]::TrueCondition) | Where-Object { $_.Current.Name -and $_.Current.Name.Contains($title) }) }.GetNewClosure()
+    Buttons = { param($element, $label) @($element.FindAll($scope::Descendants, $buttonCondition)) }.GetNewClosure()
+    Parent = { param($element) $walker.GetParent($element) }.GetNewClosure()
+    Same = { param($first, $second) [System.Windows.Automation.Automation]::Compare($first, $second) }
+    Collapsed = { param($element) @($element.FindAll($scope::Subtree, $expandable) | Where-Object {
+      $_.GetCurrentPattern($expandPattern).Current.ExpandCollapseState -eq [System.Windows.Automation.ExpandCollapseState]::Collapsed }) }.GetNewClosure()
+    Expand = { param($element) $element.GetCurrentPattern($expandPattern).Expand(); Start-Sleep -Milliseconds 300 }.GetNewClosure()
+  }
+}
+function Get-NotificationHosts([int]$Exclude, $Seen) {
+  $automation = [System.Windows.Automation.AutomationElement]
+  $hosts = New-Object 'System.Collections.Generic.List[object]'
+  $handles = New-Object 'System.Collections.Generic.HashSet[long]'
+  foreach ($window in $automation::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, [System.Windows.Automation.Condition]::TrueCondition)) {
     if ($window.Current.ProcessId -eq $Exclude) { continue }
-    $seen.Add(@{ name = $window.Current.Name; className = $window.Current.ClassName; processId = $window.Current.ProcessId })
+    $Seen.Add(@{ name = $window.Current.Name; className = $window.Current.ClassName; processId = $window.Current.ProcessId; source = 'automation' })
     # The shell draws toast banners and the notification center in CoreWindow hosts; a full desktop walk is too slow to poll.
     if ($window.Current.ClassName -ne 'Windows.UI.Core.CoreWindow' -and $window.Current.Name -notmatch 'notification') { continue }
-    # A toast exposes its title as a text element, or folds title and body into its own accessible name.
-    $texts = @($window.FindAll($scope::Descendants, [System.Windows.Automation.Condition]::TrueCondition) | Where-Object { $_.Current.Name -and $_.Current.Name.Contains($Title) })
-    foreach ($text in $texts) {
-      $ancestor = $text
-      while ($null -ne $ancestor) {
-        $buttons = $ancestor.FindAll($scope::Descendants, $buttonCondition)
-        if ($buttons.Count -eq 1) {
-          return @{ button = $buttons[0]; toast = $ancestor; windows = $seen.ToArray()
-            window = @{ name = $window.Current.Name; className = $window.Current.ClassName; processId = $window.Current.ProcessId } }
-        }
-        if ($buttons.Count -gt 1 -or [System.Windows.Automation.Automation]::Compare($ancestor, $window)) { break }
-        $ancestor = $walker.GetParent($ancestor)
-      }
-    }
+    if ($handles.Add([long]$window.Current.NativeWindowHandle)) { $hosts.Add($window) }
   }
-  return @{ button = $null; windows = $seen.ToArray() }
+  foreach ($window in [OrbitForeground]::SystemWindows($Exclude)) {
+    $Seen.Add(@{ name = $window.title; className = $window.className; processId = $window.processId; path = $window.path; source = 'system' })
+    if (-not $handles.Add($window.handle)) { continue }
+    try { $hosts.Add($automation::FromHandle([IntPtr]$window.handle)) } catch { $Seen[$Seen.Count - 1].error = $_.Exception.Message }
+  }
+  return $hosts
+}
+function Find-Notification([string]$Title, [string]$Label, [int]$Exclude) {
+  $tree = New-AutomationTree $Label
+  $seen = New-Object 'System.Collections.Generic.List[object]'
+  $titled = $null
+  foreach ($window in (Get-NotificationHosts $Exclude $seen)) {
+    $match = Find-ToastButton $window $Title $Label $tree
+    $where = @{ name = $window.Current.Name; className = $window.Current.ClassName; processId = $window.Current.ProcessId }
+    if ($null -ne $match) {
+      return @{ button = $match.button; toast = $match.toast; expanded = $match.expanded; windows = $seen.ToArray(); window = $where }
+    }
+    if ($null -eq $titled -and @(& $tree.Texts $window $Title).Count -gt 0) { $titled = @{ element = $window; window = $where } }
+  }
+  return @{ button = $null; titled = $titled; windows = $seen.ToArray() }
+}
+# The documented per-user mode says whether Do not disturb holds banners back (ToastNotificationManagerForUser.NotificationMode).
+function Get-NotificationMode {
+  try {
+    $manager = [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]
+    return $manager::GetDefault().NotificationMode.ToString()
+  } catch { return "unavailable: $($_.Exception.Message)" }
 }
 if ($Command -eq 'windows') {
   @{ windows = @([OrbitForeground]::Windows($TargetProcessId)) } | ConvertTo-Json -Depth 4
@@ -199,8 +294,16 @@ if ($Command -eq 'notification') {
   if (-not $Title -or -not $Label) { throw 'notification requires -Title and -Label' }
   if ($OpenCenter) { [OrbitForeground]::OpenNotificationCenter(); Start-Sleep -Milliseconds 1000 }
   $match = Find-Notification $Title $Label $TargetProcessId
+  $mode = Get-NotificationMode
   if ($null -eq $match.button) {
-    @{ found = $false; invoked = $false; windows = $match.windows } | ConvertTo-Json -Depth 4
+    $reply = @{ found = $false; invoked = $false; notificationMode = $mode; windows = $match.windows }
+    # A host that shows the title without a single matching action keeps its tree, so the artifacts hold the layout that missed.
+    if ($null -ne $match.titled) {
+      $failure = $null
+      try { Read-Element $match.titled.element '0' } catch { $failure = $_.Exception.Message }
+      $reply.titled = @{ window = $match.titled.window; error = $failure; nodes = @($nodes.ToArray()) }
+    }
+    $reply | ConvertTo-Json -Depth 8
     exit 0
   }
   # Invoke dismisses the toast, so its subtree is read first and the artifacts carry the layout that held the button.
@@ -208,7 +311,8 @@ if ($Command -eq 'notification') {
   try { Read-Element $match.toast '0' } catch { $failure = $_.Exception.Message }
   $toast = @{ error = $failure; nodes = @($nodes.ToArray()) }
   if ($Invoke) { $match.button.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() }
-  @{ found = $true; invoked = [bool]$Invoke; window = $match.window; windows = $match.windows; toast = $toast } | ConvertTo-Json -Depth 8
+  @{ found = $true; invoked = [bool]$Invoke; expanded = [bool]$match.expanded; notificationMode = $mode; window = $match.window
+    windows = $match.windows; toast = $toast } | ConvertTo-Json -Depth 8
   exit 0
 }
 $condition = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $TargetProcessId)

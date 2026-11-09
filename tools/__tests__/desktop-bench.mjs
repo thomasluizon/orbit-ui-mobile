@@ -1,4 +1,5 @@
 import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
@@ -327,7 +328,25 @@ try {
   }
 }
 
+// A benchmark run lasts about forty minutes, so a run can cross midnight in the runner's time zone, and Hoje must keep the
+// 200 habits after it.
+function fixtureDateCases() {
+  const localDate = (offset) => { const date = new Date(); date.setDate(date.getDate() + offset); return date.toLocaleDateString('en-CA') }
+  const generated = localDate(0)
+  const output = join(mkdtempSync(join(tmpdir(), 'orbit-bench-fixtures-')), 'fixtures.json')
+  const result = spawnSync(process.execPath, ['--import', 'tsx', join(REPO_ROOT, 'tools/desktop-bench/fixtures.ts'), output], { cwd: REPO_ROOT, encoding: 'utf8', timeout: 30000 })
+  T('benchmark fixtures generate', result.status === 0, result.stderr)
+  if (result.status !== 0) return
+  const habits = JSON.parse(readFileSync(output, 'utf8')).fixtures.find((fixture) => fixture.path === '/api/habits').body.items
+  // The generation day is read before the fixture runs, so a test that itself crosses midnight still has a next day to check.
+  const nextDay = localDate(generated === localDate(0) ? 1 : 0)
+  T('all 200 benchmark habits stay on Hoje when a run crosses midnight', habits.length === 200 &&
+    habits.every((habit) => habit.scheduledDates.includes(generated) && habit.scheduledDates.includes(nextDay)),
+    JSON.stringify({ generated, nextDay, sample: habits[0]?.scheduledDates }))
+}
+
 export const cases = async () => {
+  fixtureDateCases()
   electronViewportCases()
   requestedViewportCases()
   await probeReadinessCases()

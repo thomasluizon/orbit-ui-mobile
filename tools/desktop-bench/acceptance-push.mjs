@@ -241,6 +241,8 @@ async function notification(io, pid, reminder, invoke, name) {
       open = false
       // Every reply carries the platform tree, so the artifacts keep the last capture whether or not it matched.
       await io.record(name, reply)
+      // Windows names the notification mode, and a Do not disturb mode holds banners back, so the toast waits in the center.
+      if (reply?.notificationMode && !io.report.push.notificationMode) io.report.push.notificationMode = reply.notificationMode
       return reply?.found && reply
     }, `the ${reminder.title} system notification`, 20000)
   }

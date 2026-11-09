@@ -269,22 +269,29 @@ function pushServicesHost({ loaded = [] as string[], statuses = [apsdConnected] 
   return { host, calls }
 }
 
-test('macOS push acceptance loads apsd and Notification Center through launchd before it asks for a token', async () => {
+// The macos-latest image ships one apsd identity in /Library/Keychains/apsd.keychain, so every runner presents the same token,
+// the courier rolls it and apsd drops the reminder as "a completely unknown token". apsd must start without that keychain.
+test('macOS push acceptance loads apsd from a fresh identity and Notification Center through launchd before it asks for a token', async () => {
   const unloaded = pushServicesHost({ statuses: ['Bad response from apsd: Connection invalid', apsdConnected] })
   const result = await startPushServices(unloaded.host, 501)
   const apsctl = '/System/Library/PrivateFrameworks/ApplePushService.framework/apsctl status'
   assert.deepEqual(unloaded.calls, [
     'sudo launchctl enable system/com.apple.apsd', 'sudo launchctl print system/com.apple.apsd',
+    'sudo rm -f /Library/Keychains/apsd.keychain',
     'sudo launchctl bootstrap system /System/Library/LaunchDaemons/com.apple.apsd.plist', 'sudo launchctl kickstart system/com.apple.apsd',
     'sudo launchctl enable gui/501/com.apple.notificationcenterui.agent', 'launchctl print gui/501/com.apple.notificationcenterui.agent',
     'launchctl bootstrap gui/501 /System/Library/LaunchAgents/com.apple.notificationcenterui.plist',
     'launchctl kickstart gui/501/com.apple.notificationcenterui.agent', apsctl, apsctl, 'pgrep -x NotificationCenter', 'pgrep -x NotificationCenter'])
   assert.deepEqual(result, { apsd: ['daemon status: Running', 'connection environment: production', 'connection status: Yes',
     'server hostname: 3-courier.push.apple.com'] })
-  // A service that is already loaded is started again, never bootstrapped a second time.
+  // A running apsd keeps its identity in memory, so it stops before its keychain goes and loads again from the fresh one. A loaded
+  // Notification Center is started again, never bootstrapped a second time.
   const loaded = pushServicesHost({ loaded: ['system/com.apple.apsd', 'gui/501/com.apple.notificationcenterui.agent'] })
   await startPushServices(loaded.host, 501)
-  assert.equal(loaded.calls.some((call) => call.includes('bootstrap')), false)
+  assert.deepEqual(loaded.calls.slice(0, 6), ['sudo launchctl enable system/com.apple.apsd', 'sudo launchctl print system/com.apple.apsd',
+    'sudo launchctl bootout system/com.apple.apsd', 'sudo rm -f /Library/Keychains/apsd.keychain',
+    'sudo launchctl bootstrap system /System/Library/LaunchDaemons/com.apple.apsd.plist', 'sudo launchctl kickstart system/com.apple.apsd'])
+  assert.equal(loaded.calls.some((call) => call.includes('bootstrap gui/501')), false)
   assert.equal(loaded.calls.filter((call) => call.includes('kickstart')).length, 2)
   // apsd that never reaches the courier fails the phase with a named wait, before the Perfil switch asks for a token, and the
   // error keeps the last status apsd gave.
@@ -682,9 +689,13 @@ test('push acceptance adopts the notification-launched shell before it waits for
 test('push acceptance records every notification capture, also the ones that never match', async () => {
   const harness = pushHarness('win32')
   harness.io.sender = async () => async () => ({ status: 200 })
+  // The Windows reader names the user's notification mode, because Do not disturb holds every banner back.
+  const native = harness.io.native
+  harness.io.native = async (...argumentsList: Parameters<typeof native>) => ({ ...await native(...argumentsList), notificationMode: 'PriorityOnly' })
   await assert.rejects(() => exercisePush(harness.io), /Timed out waiting for the Orbit acceptance done .* system notification/)
-  assert.deepEqual(harness.records.get('notification-done'), { found: false, windows: [] })
+  assert.deepEqual(harness.records.get('notification-done'), { found: false, windows: [], notificationMode: 'PriorityOnly' })
   assert.equal(harness.events.filter((event) => event === 'record notification-done').length, 40)
+  assert.equal(harness.report.push?.notificationMode, 'PriorityOnly')
 })
 
 for (const [label, overrides, message] of [
@@ -843,6 +854,60 @@ if (process.platform === 'darwin') {
   })
 }
 
+const uiaScript = fileURLToPath(new URL('./acceptance-uia.ps1', import.meta.url))
+const pwshHost = ['pwsh', 'powershell'].find((command) => spawnSync(command, ['-NoProfile', '-Command', 'exit 0']).status === 0)
+
+type Layout = { name: string; role?: string; collapsed?: boolean; children?: Layout[]; hidden?: Layout[] }
+const done = (): Layout => ({ name: 'Done', role: 'Button' })
+const title = 'Orbit acceptance done b7840ad1'
+// Under "Do not disturb is on" no Windows banner shows, and the notification center lists the toast collapsed under its app
+// group, with its action behind the expand chevron, as an installed acceptance recording showed.
+const toastLayouts: Record<string, Layout> = {
+  banner: { name: 'New notification', children: [{ name: 'toast', role: 'ListItem', children: [{ name: title }, { name: 'Next at 12:32 AM' }, done()] }] },
+  center: { name: 'Notification Center', children: [{ name: 'Orbit-desktop', role: 'Group', children: [
+    { name: 'toast', role: 'ListItem', collapsed: true, children: [{ name: title }, { name: 'Next at 12:32 AM' }], hidden: [done()] }] }] },
+  noAction: { name: 'Notification Center', children: [{ name: 'toast', role: 'ListItem', children: [{ name: title }] }] },
+  twoActions: { name: 'Notification Center', children: [{ name: 'toast', role: 'ListItem', children: [{ name: title }, done(), done()] }] },
+  absent: { name: 'Notification Center', children: [{ name: 'toast', role: 'ListItem', children: [{ name: 'Other reminder' }, done()] }] },
+}
+
+function findToast(layout: Layout) {
+  const source = readFileSync(uiaScript, 'utf8')
+  const from = source.indexOf('function Find-ToastButton(')
+  const to = source.indexOf('function New-AutomationTree(')
+  assert.ok(from >= 0 && to > from, 'the reader has a Find-ToastButton rule ahead of its automation tree')
+  const script = `$ErrorActionPreference = 'Stop'
+${source.slice(from, to)}
+function Build($layout, $parent) {
+  $node = [pscustomobject]@{ name = $layout.name; role = $layout.role; collapsed = [bool]$layout.collapsed; parent = $parent
+    children = New-Object 'System.Collections.Generic.List[object]'; hidden = @($layout.hidden) }
+  foreach ($child in @($layout.children)) { if ($null -ne $child) { $node.children.Add((Build $child $node)) } }
+  return $node
+}
+function Walk($node) { foreach ($child in $node.children) { $child; Walk $child } }
+$root = Build (ConvertFrom-Json $env:ORBIT_LAYOUT) $null
+$tree = @{
+  Texts = { param($element, $text) @(Walk $element | Where-Object { $_.name -and $_.name.Contains($text) }) }
+  Buttons = { param($element, $label) @(Walk $element | Where-Object { $_.role -eq 'Button' -and $_.name -eq $label }) }
+  Parent = { param($element) $element.parent }
+  Same = { param($first, $second) [object]::ReferenceEquals($first, $second) }
+  Collapsed = { param($element) @(@($element) + @(Walk $element) | Where-Object { $_.collapsed }) }
+  Expand = { param($element) $element.collapsed = $false; foreach ($child in $element.hidden) { if ($null -ne $child) { $element.children.Add((Build $child $element)) } } }
+}
+$match = Find-ToastButton $root '${title}' 'Done' $tree
+if ($null -eq $match) { '{"found":false}' } else { @{ found = $true; toast = $match.toast.name; expanded = [bool]$match.expanded; button = $match.button.name } | ConvertTo-Json -Compress }
+`
+  const result = spawnSync(pwshHost!, ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', timeout: 60000, env: { ...process.env, ORBIT_LAYOUT: JSON.stringify(layout) } })
+  assert.equal(result.status, 0, result.stderr)
+  return JSON.parse(result.stdout) as { found: boolean; toast?: string; expanded?: boolean; button?: string }
+}
+
+test('Windows notification reader takes the Done action from a banner and from a collapsed notification center entry', { skip: !pwshHost }, () => {
+  assert.deepEqual(findToast(toastLayouts.banner!), { found: true, toast: 'toast', expanded: false, button: 'Done' })
+  assert.deepEqual(findToast(toastLayouts.center!), { found: true, toast: 'toast', expanded: true, button: 'Done' })
+  for (const layout of ['noAction', 'twoActions', 'absent']) assert.deepEqual(findToast(toastLayouts[layout]!), { found: false }, layout)
+})
+
 test('PowerShell producer lists process windows, finds the installed executable and refuses an absent notification', { skip: process.platform !== 'win32' }, () => {
   const script = fileURLToPath(new URL('./acceptance-uia.ps1', import.meta.url))
   const run = (...args: string[]) => {
@@ -857,6 +922,8 @@ test('PowerShell producer lists process windows, finds the installed executable 
   const absent = run('-TargetProcessId', String(process.pid), '-Command', 'notification', '-Title', `Orbit absent ${process.pid}`, '-Label', 'Done', '-Invoke')
   assert.equal(absent.found, false)
   assert.equal(absent.invoked, false)
+  assert.equal(typeof absent.notificationMode, 'string')
+  assert.equal(absent.titled, undefined)
   assert.ok(Array.isArray(absent.windows))
   assert.ok((absent.windows as { className: string; processId: number }[]).every(window => typeof window.className === 'string' && window.processId !== process.pid))
   assert.equal(absent.toast, undefined)

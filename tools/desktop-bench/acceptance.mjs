@@ -11,7 +11,7 @@ ORBIT_APNS_KEY_ID, ORBIT_APPLE_TEAM_ID and ORBIT_APNS_PRIVATE_KEY; a missing one
 macOS Developer ID signing comes only from MACOS_DEVELOPER_ID_CERTIFICATE_BASE64, MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD,
 MACOS_PROVISIONING_PROFILE_BASE64 and MACOS_SIGNING_IDENTITY; none builds an unsigned shell, and part of them fails.
 Windows launches the installed shell with a Safer standard-user token at Medium integrity in the signed-in session.
-macOS loads apsd and Notification Center through launchd before the push phase.
+macOS loads apsd without the image keychain, and Notification Center, through launchd before the push phase.
 --help, -h  Print usage. Exit 0: passed; 1: acceptance failed; 2: invalid input.
 `
 const repository = resolve(dirname(fileURLToPath(import.meta.url)), '../..')

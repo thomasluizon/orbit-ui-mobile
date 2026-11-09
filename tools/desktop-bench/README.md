@@ -27,6 +27,7 @@ The Rust test rejects loopback without the feature; the tools harness guards rel
 Only loopback ports 5099, 3400 and 3401 are used. Occupied ports fail before starting processes.
 The hermetic web build and mock API use existing repository scripts. A loopback proxy supplies an
 httpOnly session from `mintHermeticJwt`, seeds 200 habits using the shared schema and fixture producer,
+schedules them on the start day and the next day, so a run that crosses midnight keeps them on Hoje,
 and injects the same nonce-bearing probe into both shells. No regular browser or automation framework
 runs. The Hoje Astra button opens the conversation, and its composer sends through the BFF. The mock emits the API's `started`, `delta`,
 `final` protocol with 80 ms pacing, only for the benchmark session when explicitly enabled.
@@ -168,7 +169,12 @@ and `ApnsPushSender.CreatePayload`, with a one-use token that the mock issues.
   `acceptance-platform.mjs` loads both services through launchd, as a login does. For `com.apple.apsd`
   in the `system` domain and `com.apple.notificationcenterui.agent` in the `gui/<uid>` domain, it runs
   `launchctl enable`, then `bootstrap` only when `launchctl print` cannot find the service, then
-  `kickstart`. It waits until `apsctl status` shows `daemon status: Running` and `connection status: Yes`,
+  `kickstart`. The image also keeps one apsd device identity in `/Library/Keychains/apsd.keychain`, so
+  every runner presents the same token. The courier rejects it, apsd rolls it, and the reminder push
+  then arrives for "a completely unknown token" that apsd discards. Thus apsd always starts without
+  that keychain: a loaded apsd is first stopped with `launchctl bootout`, then `sudo rm -f` removes the
+  keychain before `bootstrap`. apsd creates a new keychain and gets a new public token from the courier.
+  It waits until `apsctl status` shows `daemon status: Running` and `connection status: Yes`,
   and until the `NotificationCenter` process runs. `report.json` `pushServices` keeps the apsd status
   lines. If apsd never reaches the courier, the error keeps the last status lines instead.
   The runner allows the first authorization alert through AX. The alert leaves the screen once it is
@@ -216,6 +222,12 @@ launches' lines into `push.log`.
 
 The runner hides the main window through its close control and invokes Done on the system
 notification through UIA or AX. If the banner is gone, the reader opens the notification list once.
+On Windows, Do not disturb holds every banner back, and the notification center lists the toast
+collapsed. The reader searches the UIA root windows and every visible window of a process that runs
+from the Windows directory. Where a title has no Done action, it expands the collapsed entries in the
+toast and searches again. Each Windows reply names the
+`ToastNotificationManagerForUser.NotificationMode`, and `report.json` `push.notificationMode` keeps
+the first one.
 The mock must record exactly one habit log for that habit, and the app window must stay hidden.
 
 The second check sends another reminder and stops the shell while its notification is visible.
@@ -232,6 +244,7 @@ Each run keeps the platform evidence that the notification readers use, also whe
   `codesign -d --entitlements - --xml` output.
 - `trees/notification-*.json` keeps the last reply of each notification search. On Windows, a reply
   holds the UIA candidate windows and, after a match, the UIA subtree of the toast that holds Done.
+  A host that shows the title without one Done action keeps its UIA subtree in `titled`.
   On macOS, a reply holds the AX tree of `com.apple.notificationcenterui`, and
   `trees/notification-authorization.json` keeps the tree from the authorization alert search.
   `trees/notification-authorization-found.json` keeps the reply of the search that found the alert.
