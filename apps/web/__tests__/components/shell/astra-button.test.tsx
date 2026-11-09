@@ -1,202 +1,106 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import type { ReactNode } from 'react'
+import { beforeEach, expect, it, vi } from 'vitest'
 import { NextIntlClientProvider } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { ASTRA_POSITION_KEY } from '@orbit/shared/utils'
 import { AstraButton } from '@/components/shell/astra-button'
+import { ShellWide } from '@/components/shell/shell-wide'
 import { useUIStore } from '@/stores/ui-store'
 
-let width = 412
-let height = 600
-let resize: () => void
+vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => false }))
 
-beforeEach(() => {
-  width = 412
-  height = 600
-  localStorage.clear()
-  useUIStore.setState(useUIStore.getInitialState())
-  vi.stubGlobal('PointerEvent', MouseEvent)
-  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
-    if (this.hasAttribute('data-astra-button')) {
-      const [x = 0, y = 0] = [...this.parentElement!.style.transform.matchAll(/(-?\d+)px/g)].map(match => Number(match[1]))
-      return { x, y, left: x, top: y, right: x + 60, bottom: y + 60, width: 60, height: 60, toJSON: () => ({}) }
-    }
-    if (this.hasAttribute('data-shell-tab-bar')) return { x: 0, y: height, left: 0, top: height, right: width, bottom: height + 80, width, height: 80, toJSON: () => ({}) }
-    return { x: 0, y: 0, left: 0, top: 0, right: width, bottom: height, width, height, toJSON: () => ({}) }
-  })
-  vi.stubGlobal('ResizeObserver', class {
-    constructor(callback: () => void) { resize = callback }
-    observe() {}
-    disconnect() {}
-  })
-  HTMLElement.prototype.setPointerCapture = vi.fn()
-})
-afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
+beforeEach(() => { localStorage.clear(); useUIStore.setState(useUIStore.getInitialState()) })
 
-function mount(messages = en) {
-  return render(<NextIntlClientProvider locale={messages === en ? 'en' : 'pt-BR'} messages={messages}><div><div data-shell-page=""><div data-shell-page-content="" /></div><div data-shell-tab-bar="" /><AstraButton /></div></NextIntlClientProvider>)
+function mount({ messages = en, fab = true, fabPending = false }: { messages?: typeof en; fab?: boolean; fabPending?: boolean } = {}) {
+  const create: ReactNode = fab ? <button type="button">Create</button> : undefined
+  return render(<NextIntlClientProvider locale={messages === en ? 'en' : 'pt-BR'} messages={messages}>
+    <ShellWide items={[]} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: () => {} }}
+      tabBar={<nav>Tabs</nav>} astraButton={<AstraButton />} fab={create} fabPending={fabPending}><div>Habits</div></ShellWide>
+  </NextIntlClientProvider>)
 }
-function placement() { return document.querySelector<HTMLElement>('[data-astra-button-position]')! }
 
-it.each([en, ptBR])('opens Astra with its localized name in the ordinary keyboard order', async messages => {
+function openButton(messages = en) { return screen.getByRole('button', { name: messages.shell.astraButton.open }) }
+
+it.each([en, ptBR])('opens Astra with its localized name and no move description', async messages => {
   const user = userEvent.setup()
-  mount(messages)
-  await user.tab()
-  const button = screen.getByRole('button', { name: messages.shell.astraButton.open })
-  expect(button).toHaveFocus()
-  expect(button).toHaveAccessibleDescription(messages.shell.astraButton.keyboardHint)
+  mount({ messages })
+  const button = openButton(messages)
+  expect(button).not.toHaveAttribute('aria-describedby')
+  expect(button).not.toHaveAttribute('title')
+  await user.click(button)
+  expect(useUIStore.getState().astraConversationOpen).toBe(true)
+})
+
+it('opens Astra from the keyboard', async () => {
+  const user = userEvent.setup()
+  mount()
+  openButton().focus()
   await user.keyboard('{Enter}')
   expect(useUIStore.getState().astraConversationOpen).toBe(true)
 })
 
-it('drags, snaps and persists without opening, then accepts a tap', async () => {
-  const view = mount()
-  await waitFor(() => expect(placement().style.transform).toBe('translate(336px, 440px)'))
-  const button = screen.getByRole('button', { name: en.shell.astraButton.open })
-  fireEvent.pointerDown(button, { button: 0, clientX: 350, clientY: 460 })
-  expect(button).not.toHaveAttribute('data-lifted')
-  fireEvent.pointerMove(button, { clientX: 110, clientY: 260 })
-  expect(button).toHaveAttribute('data-lifted')
-  fireEvent.pointerUp(button, { clientX: 110, clientY: 260 })
-  expect(button).not.toHaveAttribute('data-lifted')
-  fireEvent.click(button, { detail: 1 })
-  expect(placement().style.transform).toBe('translate(16px, 240px)')
-  expect(useUIStore.getState().astraConversationOpen).toBe(false)
-  expect(JSON.parse(localStorage.getItem(ASTRA_POSITION_KEY)!)).toEqual({ x: 16, y: 240 })
-  view.unmount()
+it('renders in the create button column, directly before the create button', () => {
   mount()
-  await waitFor(() => expect(placement().style.transform).toBe('translate(16px, 240px)'))
-  const restored = screen.getByRole('button', { name: en.shell.astraButton.open })
-  fireEvent.pointerDown(restored, { button: 0, clientX: 25, clientY: 260 })
-  fireEvent.pointerUp(restored, { clientX: 26, clientY: 261 })
-  fireEvent.click(restored, { detail: 1 })
-  expect(useUIStore.getState().astraConversationOpen).toBe(true)
+  const column = document.querySelector('[data-shell-fab-content]')!
+  const astra = column.querySelector('[data-shell-astra-button] [data-astra-button]')
+  const create = column.querySelector('[data-shell-fab] button')
+  expect(astra).toBe(openButton())
+  expect(create).toHaveTextContent('Create')
+  expect(astra!.compareDocumentPosition(create!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(document.querySelectorAll('[data-astra-button]')).toHaveLength(1)
 })
 
-it('settles a release that crosses the drag threshold without a move and never opens Astra', async () => {
-  mount()
-  await waitFor(() => expect(placement().style.transform).toBe('translate(336px, 440px)'))
-  const button = screen.getByRole('button', { name: en.shell.astraButton.open })
-  fireEvent.pointerDown(button, { button: 0, clientX: 350, clientY: 460 })
-  fireEvent.pointerUp(button, { clientX: 110, clientY: 260 })
-  fireEvent.click(button, { detail: 1 })
-  expect(placement().style.transform).toBe('translate(16px, 240px)')
-  expect(useUIStore.getState().astraConversationOpen).toBe(false)
+it('keeps the column when the create button is absent, so the Astra button takes its place', () => {
+  mount({ fab: false })
+  expect(document.querySelector('[data-shell-fab]')).toBeNull()
+  expect(document.querySelector('[data-shell-fab-content] [data-astra-button]')).toBe(openButton())
 })
 
-it('returns a cancelled drag to rest, ignores the rest of that pointer and then drags again', async () => {
-  mount()
-  await waitFor(() => expect(placement().style.transform).toBe('translate(336px, 440px)'))
-  const button = screen.getByRole('button', { name: en.shell.astraButton.open })
-  fireEvent.pointerDown(button, { button: 0, clientX: 350, clientY: 460 })
-  fireEvent.pointerMove(button, { clientX: 110, clientY: 260 })
-  expect(placement().style.transform).toBe('translate(96px, 240px)')
-  fireEvent.pointerCancel(button)
-  expect(button).not.toHaveAttribute('data-lifted')
-  expect(placement().style.transform).toBe('translate(336px, 440px)')
-  fireEvent.pointerMove(button, { clientX: 110, clientY: 260 })
-  fireEvent.pointerUp(button, { clientX: 110, clientY: 260 })
-  fireEvent.click(button, { detail: 1 })
-  expect(placement().style.transform).toBe('translate(336px, 440px)')
-  expect(localStorage.getItem(ASTRA_POSITION_KEY)).toBeNull()
-  expect(useUIStore.getState().astraConversationOpen).toBe(false)
-  fireEvent.pointerDown(button, { button: 0, clientX: 350, clientY: 460 })
-  fireEvent.pointerMove(button, { clientX: 110, clientY: 260 })
-  fireEvent.pointerUp(button, { clientX: 110, clientY: 260 })
-  expect(placement().style.transform).toBe('translate(16px, 240px)')
-})
-
-it('moves with arrow keys and resets an outgrown position when its window shrinks', async () => {
-  mount()
-  await waitFor(() => expect(placement().style.transform).toBe('translate(336px, 440px)'))
-  const button = screen.getByRole('button', { name: en.shell.astraButton.open })
-  fireEvent.keyDown(button, { key: 'ArrowUp' })
-  expect(placement().style.transform).toBe('translate(336px, 364px)')
-  expect(useUIStore.getState().astraConversationOpen).toBe(false)
-  act(() => { width = 320; height = 400; resize() })
-  expect(placement().style.transform).toBe('translate(244px, 240px)')
-  expect(JSON.parse(localStorage.getItem(ASTRA_POSITION_KEY)!)).toEqual({ x: 244, y: 240 })
-})
-
-it('places the initial button immediately and animates only a requested snap', async () => {
-  mount()
-  await waitFor(() => expect(placement().style.transform).toBe('translate(336px, 440px)'))
-  expect(placement().style.transitionDuration).toBe('0ms')
-  fireEvent.keyDown(screen.getByRole('button', { name: en.shell.astraButton.open }), { key: 'ArrowUp' })
-  expect(placement().style.transitionDuration).toBe('')
+it('stays in its column through a drag, a long press and the arrow keys, and stores no position', async () => {
+  vi.useFakeTimers()
+  try {
+    mount()
+    const button = openButton()
+    const parent = button.parentElement
+    fireEvent.pointerDown(button, { button: 0, clientX: 350, clientY: 460 })
+    fireEvent.pointerMove(button, { clientX: 40, clientY: 40 })
+    await act(() => vi.advanceTimersByTimeAsync(800))
+    fireEvent.pointerUp(button, { clientX: 40, clientY: 40 })
+    fireEvent.contextMenu(button)
+    for (const key of ['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown']) fireEvent.keyDown(button, { key })
+    expect(openButton()).toBe(button)
+    expect(button.parentElement).toBe(parent)
+    expect(button).not.toHaveAttribute('style', expect.stringContaining('translate'))
+    expect(parent).not.toHaveAttribute('style')
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(Object.keys(localStorage).filter(key => key.includes('astra'))).toEqual([])
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+  } finally { vi.useRealTimers() }
 })
 
 it('withholds the button while a sheet or selection owns the surface', async () => {
   mount()
-  act(() => useUIStore.getState().registerOpenOverlay('sheet'))
-  expect(screen.queryByRole('button')).toBeNull()
-  act(() => useUIStore.getState().unregisterOpenOverlay('sheet'))
-  expect(screen.getByRole('button')).toBeVisible()
-  act(() => { useUIStore.setState({ isSelectMode: true }) })
-  expect(screen.queryByRole('button')).toBeNull()
+  await act(() => useUIStore.setState({ isSelectMode: true }))
+  expect(screen.queryByRole('button', { name: en.shell.astraButton.open })).toBeNull()
+  await act(() => useUIStore.setState({ isSelectMode: false, openOverlayIds: ['sheet'] }))
+  expect(screen.queryByRole('button', { name: en.shell.astraButton.open })).toBeNull()
+  const hidden = document.querySelector('[data-astra-button]')
+  await act(() => useUIStore.setState({ openOverlayIds: [] }))
+  expect(openButton()).toBeVisible()
+  expect(openButton()).toBe(hidden)
 })
 
-it('retains its opening control through a temporarily unavailable placement', async () => {
-  mount()
-  await waitFor(() => expect(placement().style.transform).toBe('translate(336px, 440px)'))
-  const button = screen.getByRole('button', { name: en.shell.astraButton.open })
-  act(() => { useUIStore.setState({ astraConversationOpen: true }); height = 0; resize() })
-  expect(button.isConnected).toBe(true)
-  expect(button).not.toBeVisible()
-  act(() => { height = 600; resize(); useUIStore.setState({ astraConversationOpen: false }) })
-  expect(screen.getByRole('button', { name: en.shell.astraButton.open })).toBe(button)
-})
-
-it('moves through a single-pointer action without dragging or opening Astra', async () => {
+it('holds the pending create button slot with a hidden spacer that takes no focus or press', async () => {
   const user = userEvent.setup()
-  mount()
-  await waitFor(() => expect(placement().style.transform).toBe('translate(336px, 440px)'))
-  const button = screen.getByRole('button', { name: en.shell.astraButton.open })
-  act(() => button.focus())
-  fireEvent.contextMenu(button)
-  await user.click(await screen.findByRole('button', { name: en.shell.astraButton.left }))
-  await waitFor(() => expect(placement().style.transform).toBe('translate(16px, 440px)'))
-  expect(JSON.parse(localStorage.getItem(ASTRA_POSITION_KEY)!)).toEqual({ x: 16, y: 440 })
-  expect(useUIStore.getState().astraConversationOpen).toBe(false)
-})
-
-it('offers movement after a held pointer and suppresses its opening click', async () => {
-  const user = userEvent.setup()
-  mount()
-  await waitFor(() => expect(placement().style.transform).toBe('translate(336px, 440px)'))
-  const button = screen.getByRole('button', { name: en.shell.astraButton.open })
-  fireEvent.pointerDown(button, { button: 0, clientX: 350, clientY: 460 })
-  const move = await screen.findByRole('button', { name: en.shell.astraButton.up })
-  fireEvent.pointerUp(button, { clientX: 350, clientY: 460 })
-  fireEvent.click(button, { detail: 1 })
-  expect(useUIStore.getState().astraConversationOpen).toBe(false)
-  await user.click(move)
-  await waitFor(() => expect(placement().style.transform).toBe('translate(336px, 364px)'))
-  expect(useUIStore.getState().astraConversationOpen).toBe(false)
-})
-
-it('reserves end-of-list clearance on the page from its current position', async () => {
-  mount()
-  await waitFor(() => expect(placement().style.transform).toBe('translate(336px, 440px)'))
-  const page = document.querySelector<HTMLElement>('[data-shell-page]')!
-  expect(page.style.getPropertyValue('--shell-astra-clearance')).toBe('176px')
-  fireEvent.keyDown(screen.getByRole('button', { name: en.shell.astraButton.open }), { key: 'ArrowUp' })
-  expect(page.style.getPropertyValue('--shell-astra-clearance')).toBe('252px')
-  act(() => useUIStore.getState().registerOpenOverlay('sheet'))
-  expect(page.style.getPropertyValue('--shell-astra-clearance')).toBe('0px')
-})
-
-it('stops measuring without an error once it leaves the shell', async () => {
-  const errors: unknown[] = []
-  const record = (event: ErrorEvent) => { errors.push(event.error); event.preventDefault() }
-  window.addEventListener('error', record)
-  try {
-    mount()
-    await waitFor(() => expect(placement().style.transform).toBe('translate(336px, 440px)'))
-    document.querySelector('[data-astra-button-area]')!.remove()
-    await new Promise(resolve => setTimeout(resolve, 0))
-    expect(errors).toEqual([])
-  } finally { window.removeEventListener('error', record) }
+  mount({ fab: false, fabPending: true })
+  const slot = document.querySelector<HTMLElement>('[data-shell-fab-content] [data-shell-fab-pending]')!
+  expect(slot).toHaveAttribute('aria-hidden', 'true')
+  expect(slot).toHaveAttribute('inert')
+  expect(slot.querySelectorAll('*')).toHaveLength(0)
+  expect(openButton().compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  await user.tab()
+  expect(document.activeElement).not.toBe(slot)
+  expect(screen.getAllByRole('button').filter(button => slot.contains(button))).toEqual([])
 })

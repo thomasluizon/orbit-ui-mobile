@@ -13,6 +13,7 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { LAYOUT_ORIGIN } from '../support/env'
 import { expectLabelsFit, markRequiredLabels } from './label-fit-contract'
 import { expectInteractionFill } from './label-interaction-fill'
+import { waitForSettledAstraStack } from './shell-conversation-entry'
 import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 
@@ -83,6 +84,7 @@ for (const width of [320, 360, 384, 412]) {
 
       test('the empty Astra conversation keeps its invitation whole', async ({ page }) => {
         await page.goto('/')
+        await waitForSettledAstraStack(page)
         await page.getByRole('button', { name: words.shell.astraButton.open, exact: true }).click()
         await expectEmptyTitle(page, page, words.chat.empty.title)
       })

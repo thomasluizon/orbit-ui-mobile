@@ -81,7 +81,7 @@ the existing actions menu. Neither placement adds a row. The compact row remains
 text. Web uses the global focus indicator; Android retains InsetFocusPressable.
 The input, attachments and requests remain
 mounted. Each surface's local UI preference persists independently through the existing device storage
-adapter. Hoje exposes the draggable Astra button instead of an input dock (#2005). The shell continues to allocate the pinned content
+adapter. Hoje exposes the fixed Astra button, stacked directly above the create habit button, instead of an input dock (#2005, #2077). The shell continues to allocate the pinned content
 outside the habit scroller, following the actual composer height and preserving the final content row
 in narrow and short viewports. Wide web Hoje retains its existing sidebar entry without a pinned composer.
 

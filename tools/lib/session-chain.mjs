@@ -112,6 +112,7 @@ export const sessionChainEntry = async (state, transcriptPath) => {
   const trigger = state.relay?.triggeredAt
   return { sessionId: state.sessionId, startedAt: metrics.startedAt, endedAt: now,
     transcriptPath, triggeredAt: trigger ?? null,
+    forced: state.relay?.forced ?? null, armedAt: state.relay?.armedAt ?? null, armedTokens: state.relay?.armedTokens ?? null,
     measuredTokens: state.relay?.measuredTokens ?? metrics.lastCall?.contextTokens,
     maximumContextTokens: metrics.maximumContextTokens, growthPerCall: metrics.growthPerCall,
     drainMinutes: trigger ? (Date.parse(now) - Date.parse(trigger)) / 60_000 : 0,

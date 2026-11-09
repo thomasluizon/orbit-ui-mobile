@@ -4,8 +4,10 @@ import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
 import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { habitDetailSchema, habitMetricsSchema } from '@orbit/shared/types/habit'
+import { ASTRA_STACK_CLEARANCE } from '@orbit/shared/utils'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test as subscriptionTest } from './upgrade-fixtures'
+import { waitForSettledAstraStack } from './shell-conversation-entry'
 
 const habitId = 'habit-1'
 const habit = habitDetailSchema.parse(makeHabitDetail())
@@ -59,12 +61,14 @@ for (const width of [412, 1280] as const) {
         await page.evaluate(() => document.fonts.ready)
         if (name === 'Hoje' && width >= 1024) await expect(page.locator('[data-astra-button]')).toHaveCount(0)
         if (name === 'Hoje' && width < 1024) {
+          await waitForSettledAstraStack(page)
           const button = page.getByRole('button', { name: en.shell.astraButton.open, exact: true })
           await expect(button).toBeVisible()
-          await page.waitForFunction(() => document.querySelector('[data-astra-button-position]')?.getAttribute('style')?.includes('translate'))
           const bounds = (await button.boundingBox())!
           const viewport = (await scroller.boundingBox())!
-          clearance = Math.max(clearance, viewport.y + viewport.height - bounds.y + 16)
+          const stackClearance = viewport.y + viewport.height - bounds.y + 16
+          if (await page.locator('[data-shell-fab] button').count() > 0) expect(stackClearance, 'Hoje measures the shared stack clearance').toBeCloseTo(ASTRA_STACK_CLEARANCE, 0)
+          clearance = Math.max(clearance, stackClearance)
         }
 
         const geometry = await scroller.evaluate((element) => {
