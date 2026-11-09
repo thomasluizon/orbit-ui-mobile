@@ -72,7 +72,7 @@ function replayBoot(name, screens, logcat = "I ReactNativeJS: Running applicatio
     "--apk", join(root, "universal.apk"), "--package", packageName, "--output", output], { encoding: "utf8", timeout: 10000 })
   const dismissals = join(output, "anr-dismissals.txt")
   return {
-    ...result, verdict: readFileSync(join(output, "verdict.txt"), "utf8"), launches: readFileSync(launches, "utf8").trim().split("\n").length,
+    ...result, verdict: existsSync(join(output, "verdict.txt")) ? readFileSync(join(output, "verdict.txt"), "utf8") : "", launches: readFileSync(launches, "utf8").trim().split("\n").length,
     taps: readFileSync(taps, "utf8").trim().split("\n").filter(Boolean), dismissals: existsSync(dismissals) ? readFileSync(dismissals, "utf8").trim().split("\n") : [],
   }
 }
@@ -91,6 +91,27 @@ function checkRecordedStartup() {
   const fatal = replayBoot("fatal", [onboarding], "E ReactNativeJS: Invariant Violation: Tried to register two views with the same name RNCSafeAreaProvider")
   T("android-boot: duplicate provider still fails before accepting onboarding", fatal.status === 1 && fatal.verdict.includes("fatal startup error") && fatal.launches === 1, fatal.stderr)
   checkApplicationNotResponding(onboarding)
+  checkFailedCapture(onboarding)
+}
+
+// Android AAB first screen run 42579171293: uiautomator dump wrote no file, so adb exec-out cat returned this text with status 0.
+const FAILED_CAPTURE = "cat: /sdcard/orbit-boot.xml: No such file or directory\n"
+
+function checkFailedCapture(onboarding) {
+  const evidence = (name, file) => existsSync(join(root, name, file)) ? readFileSync(join(root, name, file), "utf8") : null
+  const retried = replayBoot("capture-retry", [FAILED_CAPTURE, onboarding])
+  T("android-boot: a failed screen capture before the first screen retries and the first screen passes", retried.status === 0 && retried.verdict.trim() === "passed", retried.verdict + retried.stderr)
+  T("android-boot: the retried capture keeps the real first screen as XML evidence", evidence("capture-retry", "first-screen.xml") === onboarding && retried.launches === 1)
+  const missing = replayBoot("capture-missing", [FAILED_CAPTURE])
+  T("android-boot: only failed screen captures keep the 90 second first screen failure", missing.status === 1 && missing.verdict.trim() === "signed-out first screen did not render within 90 seconds", missing.verdict + missing.stderr)
+  T("android-boot: the last failed capture is kept as text, never as XML", evidence("capture-missing", "screen-capture-failure.txt") === FAILED_CAPTURE && evidence("capture-missing", "first-screen.xml") === null)
+  const settled = replayBoot("capture-settled-retry", [onboarding, FAILED_CAPTURE, onboarding])
+  T("android-boot: a failed settled capture retries and the settled screen passes", settled.status === 0 && settled.verdict.trim() === "passed", settled.verdict + settled.stderr)
+  const settledMissing = replayBoot("capture-settled-missing", [onboarding, FAILED_CAPTURE])
+  T("android-boot: only failed settled captures keep the settle failure", settledMissing.status === 1 && settledMissing.verdict.trim() === "signed-out first screen unavailable after settling", settledMissing.verdict + settledMissing.stderr)
+  T("android-boot: the last failed settled capture is kept as text", evidence("capture-settled-missing", "screen-capture-failure.txt") === FAILED_CAPTURE)
+  const malformed = replayBoot("capture-malformed", [`<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><hierarchy rotation="0"><node text="${labels[0]}"`])
+  T("android-boot: a malformed real dump never passes", malformed.status !== 0 && malformed.verdict.trim() !== "passed", malformed.verdict + malformed.stderr)
 }
 
 // Accessibility XML from Android Release run 42077921045: a launcher ANR dialog covers the drawing app.
