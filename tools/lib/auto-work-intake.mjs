@@ -13,6 +13,15 @@ export const replyDisposition = (receipt, mailItem) => {
   return "draft"
 }
 
+/** The longest wait for the exact review cycle run to complete before the cycle reports a failure. */
+export const REVIEW_RUN_SECONDS = 600
+
+/** Pending Play and App Store review ids, the keys the idle auto-work waiter compares. */
+export const pendingReviewKeys = (intake) => [
+  ...Object.keys(intake?.play?.pending ?? {}).map((id) => `play ${id}`),
+  ...Object.keys(intake?.appStore?.pending ?? {}).map((id) => `appStore ${id}`),
+]
+
 export const intakeRun = (repoRoot = REPO_ROOT) => {
   const state = readRunState(repoRoot)
   if (!state?.sessionId || !state.sleep || !state.autoWork ||

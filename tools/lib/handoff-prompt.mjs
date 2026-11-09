@@ -1,12 +1,16 @@
 /** The handoff prompt contract, checked mechanically so a handoff cannot ignore the mode the owner asked for. */
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { createHash } from "node:crypto"
 import { join } from "node:path"
 
 import { REPO_ROOT, gitDirectoryOf, readRunState, writeRunState } from "./run-state.mjs"
 
 export const HANDOFF_PROMPT_PATH = ".claude/handoffs/NEXT.md"
+// A relay re-reads the prompt and its spec in full, so both carry a byte ceiling (thomasluizon/orbit-tickets#2064).
+export const HANDOFF_PROMPT_MAX_BYTES = 8192
+export const SPEC_MAX_BYTES = 40960
+const SPEC_PATH = /\.claude\/specs\/[\w.-]+\.md/g
 const REQUEST_FILE = "orbit-handoff-request.json"
 const KEPT_REQUESTS = 20
 
@@ -77,13 +81,45 @@ const sectionBody = (lines, prefix) => {
   return lines.slice(start + 1, end < 0 ? lines.length : end).join("\n")
 }
 
-/** Every requirement the prompt misses; `sleep` true or false adds that mode's rules, undefined checks only the shared ones. */
-export const validateHandoffPrompt = (text, { sleep, crank, autoWork }) => {
+/** The byte ceiling of a relay document: NEXT.md, a spec under `.claude/specs/`, or null for any other path. */
+export const relayDocumentLimit = (path) => {
+  if (path === HANDOFF_PROMPT_PATH) return HANDOFF_PROMPT_MAX_BYTES
+  return /^\.claude\/specs\/[^/]+\.md$/.test(path) ? SPEC_MAX_BYTES : null
+}
+
+/** The requirement a relay document over its ceiling misses, naming the file and its size, or null. */
+export const relayDocumentOversize = (path, text) => {
+  const limit = relayDocumentLimit(path)
+  const bytes = Buffer.byteLength(text, "utf8")
+  if (limit === null || bytes <= limit) return null
+  const remedy = path === HANDOFF_PROMPT_PATH
+    ? "keep only the in-flight rows and the next steps, and point at the spec for the rest"
+    : "replace the Current state paragraph and leave history to git, never append"
+  return `\`${path}\` within ${limit} B (it is ${bytes} B): ${remedy}`
+}
+
+const promptOpening = (lines) => {
+  const firstHeading = lines.findIndex((line) => line.startsWith("## "))
+  return lines.slice(0, firstHeading < 0 ? lines.length : firstHeading).join("\n")
+}
+
+/** The spec paths named before the prompt's first `##` heading. */
+export const openingSpecPaths = (text) => [...new Set(promptOpening(String(text ?? "").split("\n")).match(SPEC_PATH) ?? [])]
+
+/**
+ * Every requirement the prompt misses; `sleep` true or false adds that mode's rules, undefined checks only the shared ones.
+ * `specVersions(path)` returns each version of a named spec that the caller would publish; omitted, no spec size is read.
+ */
+export const validateHandoffPrompt = (text, { sleep, crank, autoWork, specVersions }) => {
   const lines = String(text ?? "").split("\n")
   const firstNonEmptyLine = lines.find((line) => line.trim() !== "")?.trim() ?? ""
-  const firstHeading = lines.findIndex((line) => line.startsWith("## "))
-  const opening = lines.slice(0, firstHeading < 0 ? lines.length : firstHeading).join("\n")
   const missing = []
+  const promptOversize = relayDocumentOversize(HANDOFF_PROMPT_PATH, String(text ?? ""))
+  if (promptOversize) missing.push(promptOversize)
+  for (const path of specVersions ? openingSpecPaths(text) : []) {
+    const oversize = specVersions(path).map((version) => relayDocumentOversize(path, version)).find(Boolean)
+    if (oversize) missing.push(oversize)
+  }
   if (sleep === true || crank === true || autoWork === true) {
     const entry = autoWork === true ? "/auto-work" : "/sleep"
     if (lines[0].replace(/\r$/, "") !== entry) missing.push(`the first line must be exactly \`${entry}\`, so the prompt runs with nothing added`)
@@ -97,7 +133,7 @@ export const validateHandoffPrompt = (text, { sleep, crank, autoWork }) => {
       missing.push("a `## Crank` section whose body invokes `/crank` immediately after `/sleep` entry")
     }
   }
-  if (!/\.claude\/specs\/[\w.-]+\.md/.test(opening)) missing.push("the spec path `.claude/specs/<slug>.md` before the first `##` heading")
+  if (openingSpecPaths(text).length === 0) missing.push("the spec path `.claude/specs/<slug>.md` before the first `##` heading")
   const goal = sectionBody(lines, "## Goal")
   if (goal === null) missing.push("a `## Goal` section")
   else if (!goal.includes("gh issue list")) missing.push("a `gh issue list` query in `## Goal` that lists what is left")
@@ -146,6 +182,10 @@ export const recordHandoffRequest = (sessionId, request, recordedAt, repoRoot = 
 
 export const readHandoffRequest = (sessionId, repoRoot = REPO_ROOT) => (sessionId ? readRequests(repoRoot)[sessionId] ?? null : null)
 
+/** The working copy of each spec a checkout would publish; a spec the checkout lacks has no version to measure. */
+export const checkoutSpecVersions = (repoRoot) => (path) =>
+  existsSync(join(repoRoot, path)) ? [readFileSync(join(repoRoot, path), "utf8")] : []
+
 const promptHash = (prompt) => createHash("sha256").update(prompt).digest("hex")
 
 /** An owner handoff binds intake to this predecessor and the exact prompt being handed over. */
@@ -153,7 +193,7 @@ export const prepareOwnerHandoffRun = (sessionId, repoRoot = REPO_ROOT) => {
   const state = readRunState(repoRoot)
   if (state?.sessionId !== sessionId || state.autoWork !== true || readHandoffRequest(sessionId, repoRoot)?.origin !== "owner") return false
   const prompt = readFileSync(join(repoRoot, HANDOFF_PROMPT_PATH), "utf8")
-  const missing = validateHandoffPrompt(prompt, { sleep: true, autoWork: true, crank: state.crank })
+  const missing = validateHandoffPrompt(prompt, { sleep: true, autoWork: true, crank: state.crank, specVersions: checkoutSpecVersions(repoRoot) })
   if (missing.length) throw new Error(`Owner handoff prompt misses: ${missing.join("; ")}`)
   const ownerHandoff = { from: sessionId, promptHash: promptHash(prompt) }
   writeRunState({ ...state, ownerHandoff }, repoRoot)

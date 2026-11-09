@@ -103,6 +103,50 @@ for (const [jobId, stepName, path, options] of [
   })
 }
 
+test("handoff-size: the step fails an oversized changed relay document and ignores an unchanged one", () => {
+  const job = guardGroups(workflow)["handoff-size"]
+  const prepare = job.steps.find((step) => step.name === "Resolve pull request changed paths")
+  const gate = job.steps.find((step) => step.name === "Changed specs and the relay prompt stay inside their byte ceilings")
+  assert.ok(prepare?.run && gate?.run, "handoff-size must prepare changed paths and run its guard")
+  for (const [label, changes, passes] of [
+    ["an oversized changed spec fails", { ".claude/specs/grown.md": "x".repeat(41984) }, false],
+    ["an oversized changed prompt fails", { ".claude/handoffs/NEXT.md": "x".repeat(8300) }, false],
+    ["a spec at its ceiling passes", { ".claude/specs/grown.md": "x".repeat(40960) }, true],
+    ["an unchanged oversized spec elsewhere passes", { "notes.txt": "changed\n" }, true],
+  ]) {
+    const directory = mkdtempSync(join(tmpdir(), "guards-handoff-size-"))
+    try {
+      git(directory, "init", "-q")
+      git(directory, "config", "user.email", "test@example.invalid")
+      git(directory, "config", "user.name", "Test")
+      mkdirSync(join(directory, ".claude/specs"), { recursive: true })
+      writeFileSync(join(directory, ".claude/specs/legacy.md"), "x".repeat(50000))
+      git(directory, "add", ".claude/specs/legacy.md")
+      git(directory, "commit", "-qm", "base")
+      git(directory, "update-ref", "refs/remotes/origin/base", git(directory, "rev-parse", "HEAD"))
+      for (const [path, content] of Object.entries(changes)) {
+        mkdirSync(dirname(join(directory, path)), { recursive: true })
+        writeFileSync(join(directory, path), content)
+        git(directory, "add", path)
+      }
+      git(directory, "commit", "-qm", "change")
+      for (const file of [".github/scripts/changed-paths.sh", "tools/check-handoff-size.mjs", "tools/lib/handoff-prompt.mjs", "tools/lib/run-state.mjs"]) {
+        mkdirSync(dirname(join(directory, file)), { recursive: true })
+        copyFileSync(join(repositoryRoot, file), join(directory, file))
+      }
+      const environment = { ...process.env, RUNNER_TEMP: directory, BASE_REF: "base" }
+      const prepared = spawnSync("bash", ["-e", "-c", prepare.run], { cwd: directory, env: environment, encoding: "utf8" })
+      assert.equal(prepared.status, 0, `${label}: changed paths must resolve: ${prepared.stderr}`)
+      const guarded = spawnSync("bash", ["-e", "-c", gate.run], { cwd: directory, env: environment, encoding: "utf8" })
+      // WHY: GNU xargs reports a failed child as 123 and BSD xargs as 1; the step only has to fail (https://github.com/thomasluizon/orbit-tickets/issues/2064).
+      assert.equal(guarded.status === 0, passes, `${label}: exit ${guarded.status} ${guarded.stdout}${guarded.stderr}`)
+      if (!passes) assert.match(guarded.stderr, new RegExp(`\`${Object.keys(changes)[0].replaceAll(".", "\\.")}\` within \\d+ B \\(it is \\d+ B\\)`))
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  }
+})
+
 test("each diff reader resolves paths before using them", () => {
   const readers = ["mobile-styles", "root-allowlist", "dashes", "mobile-fonts", "copy", "i18n-usage",
     "expo-pin", "surface-manifest", "gate-charter"]
