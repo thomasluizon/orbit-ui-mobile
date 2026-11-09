@@ -3,6 +3,7 @@ import { existsSync, realpathSync } from 'node:fs'
 import { mkdir, readFile, writeFile, readdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { homedir } from 'node:os'
+import { pathToFileURL } from 'node:url'
 import { execute, logicalSize } from './host.mjs'
 import { median } from './measurements.mjs'
 
@@ -11,6 +12,40 @@ export const benchmarkViewport = Object.freeze([900, 600])
 
 export function electronInstallArguments(electron, version) {
   return ['install', '--prefix', electron, '--package-lock=false', '--no-audit', '--fund=false', '--save-dev', '--save-exact', `electron@${version}`, 'electron-builder@26.18.0']
+}
+
+// GitHub releases/download answers 5xx and 429 during outages, and @electron/get 5 (FetchDownloader) tries once. Its
+// HTTPError keeps the fetch Response, and a failed connection rejects fetch with a TypeError.
+export function retryableDownloadFailure(error) {
+  if (error?.name === 'HTTPError') return error.response?.status >= 500 || error.response?.status === 429
+  return error instanceof TypeError
+}
+
+export const electronDownloadDelays = Object.freeze([15000, 30000, 60000, 120000])
+
+// The electron package's install.js passes its own checksums.json and electron_config_cache to @electron/get
+// downloadArtifact, which validates every cache hit against those checksums. A cache directory named by the artifact
+// checksum is therefore keyed by the exact version and file, and a verified download here is the hit install.js reads.
+export async function cacheElectronArtifact(electron, { platform = process.platform, arch = process.arch, cacheBase,
+  load = (path) => import(pathToFileURL(path).href), delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
+  delays = electronDownloadDelays, log = (line) => process.stderr.write(`${line}\n`) } = {}) {
+  const manifest = JSON.parse(await readFile(join(electron, 'node_modules/electron/package.json'), 'utf8'))
+  const checksums = JSON.parse(await readFile(join(electron, 'node_modules/electron/checksums.json'), 'utf8'))
+  const file = `electron-v${manifest.version}-${platform}-${arch}.zip`
+  const checksum = checksums[file]
+  if (!/^[0-9a-f]{64}$/.test(checksum ?? '')) throw new Error(`electron ${manifest.version} checksums.json has no SHA-256 for ${file}`)
+  const cacheRoot = join(cacheBase, checksum)
+  const { downloadArtifact } = await load(join(electron, 'node_modules/@electron/get/dist/index.js'))
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await downloadArtifact({ version: manifest.version, artifactName: 'electron', platform, arch, cacheRoot, checksums })
+      return { version: manifest.version, file, checksum, cacheRoot, attempts: attempt + 1 }
+    } catch (error) {
+      if (attempt >= delays.length || !retryableDownloadFailure(error)) throw error
+      log(`Electron download attempt ${attempt + 1} failed: ${error.message}; retrying in ${delays[attempt] / 1000} s`)
+      await delay(delays[attempt])
+    }
+  }
 }
 
 export function normalizeElectronArchiveEntries(output) {
@@ -72,10 +107,14 @@ export async function buildShells(repository, work, environment) {
   const electron = join(work, 'electron')
   await mkdir(electron, { recursive: true })
   const npm = npmCli()
-  const version = (await execute(process.execPath, [npm, 'view', 'electron', 'version'], { cwd: work })).trim()
+  // The workflow resolves the version once, so its Electron cache key and this install name the same release.
+  const version = environment.ORBIT_ELECTRON_VERSION || (await execute(process.execPath, [npm, 'view', 'electron', 'version'], { cwd: work })).trim()
   if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error(`Expected stable Electron version, received ${version}`)
   await execute(process.execPath, [npm, ...electronInstallArguments(electron, version)], { cwd: work, log: join(work, 'electron-build.log') })
-  await execute(process.execPath, [join(electron, 'node_modules/electron/install.js')], { cwd: electron, log: join(work, 'electron-build.log') })
+  const artifact = await cacheElectronArtifact(electron, { cacheBase: environment.ORBIT_ELECTRON_CACHE || join(work, 'electron-cache') })
+  await execute(process.execPath, [join(electron, 'node_modules/electron/install.js')], {
+    cwd: electron, env: { ...environment, electron_config_cache: artifact.cacheRoot }, log: join(work, 'electron-build.log'),
+  })
   const application = join(electron, 'application')
   await mkdir(application, { recursive: true })
   await writeFile(join(application, 'package.json'), JSON.stringify({ name: 'orbit-benchmark', productName: 'Orbit Benchmark Electron', version: '0.1.0', main: 'main.cjs', description: 'Hermetic desktop measurement shell', author: 'Orbit' }))

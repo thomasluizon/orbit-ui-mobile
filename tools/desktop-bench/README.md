@@ -11,6 +11,11 @@ build prerequisites must be installed. macOS needs command line developer tools;
 also locates Homebrew's keg-only rustup. No signing account or key is needed.
 Electron and its packager install only in the temporary output workspace, outside the repository.
 The current stable Electron version is resolved from npm and recorded in the report.
+The Electron archive download retries GitHub server errors, rate limits and connection failures four times, after 15,
+30, 60 and 120 seconds. The archive is cached in a directory named by its SHA-256 from the electron package's
+`checksums.json`, and `@electron/get` verifies that checksum on every cache hit. The workflow restores that cache with a
+key of the resolved version, operating system and architecture, and passes `ORBIT_ELECTRON_VERSION` and
+`ORBIT_ELECTRON_CACHE` to the run.
 
 The Tauri release uses `bench-loopback` and a temporary config overlay. The feature is off by
 default. Only the overlay grants local capabilities, selects the separate benchmark app identifier

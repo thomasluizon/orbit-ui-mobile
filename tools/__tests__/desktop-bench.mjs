@@ -1,10 +1,10 @@
-import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { spawnSync } from 'node:child_process'
-import { benchmarkViewport, electronInstallArguments, electronMainSource, normalizeElectronArchiveEntries, tauriBenchmarkOverlay } from '../desktop-bench/build.mjs'
+import { benchmarkViewport, cacheElectronArtifact, electronDownloadDelays, electronInstallArguments, electronMainSource, normalizeElectronArchiveEntries, retryableDownloadFailure, tauriBenchmarkOverlay } from '../desktop-bench/build.mjs'
 import { assertViewport, buildHermeticWeb } from '../desktop-bench/runner.mjs'
 import { T, REPO_ROOT, check, configure, failureCount, root } from './_harness.mjs'
 import { cpuSeconds, median, metrics, parseMacProcesses, percentile, processTree, summarize, markdown } from '../desktop-bench/measurements.mjs'
@@ -41,6 +41,63 @@ function electronViewportCases() {
   const windowOptions = calls[windowIndex][1]
   T('Electron requests content dimensions and permits a window larger than the runner display',
     windowOptions.width === 900 && windowOptions.height === 600 && windowOptions.useContentSize === true && windowOptions.enableLargerThanScreen === true)
+}
+
+// @electron/get 5 FetchDownloader throws HTTPError with name 'HTTPError' and the fetch Response as response.
+function httpError(status) {
+  return Object.assign(new Error(`Response code ${status} for https://github.com/electron/electron/releases/download/v45.2.3/electron-v45.2.3-win32-x64.zip`),
+    { name: 'HTTPError', response: { status } })
+}
+
+async function electronDownloadCases() {
+  const electron = mkdtempSync(join(tmpdir(), 'orbit-electron-download-'))
+  mkdirSync(join(electron, 'node_modules/electron'), { recursive: true })
+  const checksum = 'a'.repeat(64)
+  writeFileSync(join(electron, 'node_modules/electron/package.json'), JSON.stringify({ name: 'electron', version: '45.2.3' }))
+  writeFileSync(join(electron, 'node_modules/electron/checksums.json'), JSON.stringify({ 'electron-v45.2.3-win32-x64.zip': checksum, 'electron-v45.2.3-darwin-arm64.zip': 'b'.repeat(64) }))
+  const run = async (failures) => {
+    const calls = []
+    const waits = []
+    const logs = []
+    const remaining = [...failures]
+    const load = async (path) => {
+      calls.push({ path })
+      return { downloadArtifact: async (details) => {
+        calls.push(details)
+        const failure = remaining.shift()
+        if (failure) throw failure
+        return join(details.cacheRoot, 'archive.zip')
+      } }
+    }
+    let result
+    let error
+    try {
+      result = await cacheElectronArtifact(electron, { platform: 'win32', arch: 'x64', cacheBase: join(electron, 'cache'), load,
+        delay: async (milliseconds) => { waits.push(milliseconds) }, log: (line) => logs.push(line) })
+    } catch (caught) { error = caught }
+    return { calls, waits, logs, result, error }
+  }
+  const outage = await run([httpError(504), httpError(504)])
+  const downloads = outage.calls.slice(1)
+  T('Electron download loads the installed @electron/get entry', outage.calls[0].path === join(electron, 'node_modules/@electron/get/dist/index.js'))
+  T('Electron download retries a 504 with backoff and then succeeds',
+    outage.result?.attempts === 3 && downloads.length === 3 && outage.waits.join(',') === electronDownloadDelays.slice(0, 2).join(','), JSON.stringify(outage.waits))
+  T('Electron cache directory is named by the exact artifact checksum',
+    outage.result?.cacheRoot === join(electron, 'cache', checksum) && downloads.every((details) => details.cacheRoot === join(electron, 'cache', checksum)))
+  T('Electron download verifies against the installed checksums for the exact version and platform',
+    downloads.every((details) => details.version === '45.2.3' && details.artifactName === 'electron' && details.platform === 'win32' && details.arch === 'x64' &&
+      details.checksums['electron-v45.2.3-win32-x64.zip'] === checksum))
+  T('Electron download logs every retried failure', outage.logs.length === 2 && outage.logs.every((line) => line.includes('504')))
+  const missing = await run([httpError(404)])
+  T('Electron download does not retry a missing release', missing.error?.response?.status === 404 && missing.calls.length === 2 && missing.waits.length === 0)
+  const exhausted = await run(Array.from({ length: electronDownloadDelays.length + 1 }, () => httpError(504)))
+  T('Electron download stops after the last backoff', exhausted.error?.response?.status === 504 && exhausted.calls.length === electronDownloadDelays.length + 2)
+  const unknown = await cacheElectronArtifact(electron, { platform: 'linux', arch: 'x64', cacheBase: electron, load: async () => ({ downloadArtifact: async () => {} }) })
+    .then(() => null, (caught) => caught.message)
+  T('Electron download refuses an artifact without a published checksum', /no SHA-256 for electron-v45\.2\.3-linux-x64\.zip/.test(unknown ?? ''), unknown)
+  T('only server errors, rate limits and connection failures retry',
+    retryableDownloadFailure(httpError(502)) && retryableDownloadFailure(httpError(429)) && retryableDownloadFailure(new TypeError('fetch failed')) &&
+    !retryableDownloadFailure(httpError(403)) && !retryableDownloadFailure(new Error('sha256 checksum mismatch')))
 }
 
 function requestedViewportCases() {
@@ -349,6 +406,7 @@ export const cases = async () => {
   fixtureDateCases()
   electronViewportCases()
   requestedViewportCases()
+  await electronDownloadCases()
   await probeReadinessCases()
   await runnerAccountingCases()
   nativeAccountingCases()
