@@ -147,8 +147,9 @@ export const relaySession = async ({ repoRoot = REPO_ROOT, sessionId = process.e
     releaseLock = acquireRelayLock(repoRoot)
     result = await launchSuccessor({ previous, metrics, sessionId, repoRoot, execute, wait, confirmMilliseconds })
   } catch (error) {
+    // The change checks the owner itself; no caller id keeps a superseded refusal from hiding `error`.
     const failed = releaseLock ? updateRunState((state) => state?.sessionId === sessionId && state.relay?.pending
-      ? { ...state, relay: { ...state.relay, lastAttemptAt: new Date().toISOString(), failures: (state.relay.failures ?? 0) + 1 } } : undefined, repoRoot) : undefined
+      ? { ...state, relay: { ...state.relay, lastAttemptAt: new Date().toISOString(), failures: (state.relay.failures ?? 0) + 1 } } : undefined, repoRoot, { sessionId: null }) : undefined
     if (failed) appendChainEntry({ ...(await sessionChainEntry(failed, previous.relay.transcriptPath)), failure: error.message }, repoRoot)
     throw error
   } finally { releaseLock?.() }
@@ -216,7 +217,7 @@ const launchSuccessor = async ({ previous, metrics, sessionId, repoRoot, execute
   const attempting = updateRunState((current) => {
     if (current?.sessionId !== sessionId || !current.relay?.pending) throw new Error("owner canceled the relay drain")
     return { ...current, relay: { ...current.relay, successorSessionId, lastAttemptAt: now, attempts: (current.relay.attempts ?? 0) + 1 } }
-  }, repoRoot)
+  }, repoRoot, { sessionId })
   stopRelayWaiters(sessionId, repoRoot)
   appendChainEntry(await sessionChainEntry(attempting, previous.relay.transcriptPath), repoRoot)
   let terminal = null
@@ -229,7 +230,7 @@ const launchSuccessor = async ({ previous, metrics, sessionId, repoRoot, execute
     updateRunState((nominated) => {
       if (nominated?.sessionId !== sessionId || !nominated.relay?.pending || nominated.relay.successorSessionId !== successorSessionId) throw new Error("owner canceled the relay drain")
       return { ...nominated, relay: { ...nominated.relay, successorTerminal: terminal } }
-    }, repoRoot)
+    }, repoRoot, { sessionId })
     const started = Date.now()
     try { execute(orca, ["terminal", "wait", "--terminal", terminal, "--for", "tui-idle", "--timeout-ms", "10000", "--json"], repoRoot, environment) }
     catch { execute(orca, ["terminal", "wait", "--terminal", terminal, "--for", "tui-idle", "--timeout-ms", "20000", "--json"], repoRoot, environment) }
@@ -246,6 +247,7 @@ const launchSuccessor = async ({ previous, metrics, sessionId, repoRoot, execute
     throw new Error("successor did not confirm sleep state; sent one Enter for composer stall")
   } catch (error) {
     // The adoption check and the rollback share one update, so a successor adopting in between is never rolled back.
+    // It reads the successor's adoption itself, so it passes no caller id and the superseded refusal never hides it.
     let adopted = false
     updateRunState((state) => {
       adopted = state?.sessionId === successorSessionId && state.relay?.from === sessionId && state.relay.successorTerminal === terminal
@@ -257,7 +259,7 @@ const launchSuccessor = async ({ previous, metrics, sessionId, repoRoot, execute
         return { ...attempting, relay: { ...attempting.relay, successorSessionId: null } }
       }
       return undefined
-    }, repoRoot)
+    }, repoRoot, { sessionId: null })
     if (adopted) {
       confirmChainSuccessor(sessionId, successorSessionId, terminal, null, repoRoot)
       return { successorSessionId, terminal }

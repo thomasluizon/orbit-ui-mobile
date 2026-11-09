@@ -101,7 +101,7 @@ export const adoptRelayRun = (sessionId, repoRoot = REPO_ROOT) => {
     if (!current?.relay?.pending || current.relay.successorSessionId !== sessionId) return undefined
     return { ...current, sessionId, sleep: true, decisionLogPath: null, openOwnerQuestions: [],
       relay: { from: current.sessionId, pending: false, successorTerminal: current.relay.successorTerminal } }
-  }, repoRoot) !== undefined
+  }, repoRoot, { sessionId }) !== undefined
 }
 
 export const sessionChainEntry = async (state, transcriptPath) => {

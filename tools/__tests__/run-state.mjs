@@ -178,6 +178,40 @@ export const cases = async () => {
     JSON.stringify({ nestedError, afterNested }))
   writeRunState({ ...afterNested, crank: false }, nested)
   T(`${TOOL}: the lock is released after a refused nested write`, readRunState(nested).crank === false)
+  const adopted = (label) => {
+    const repoRoot = stageCheckout(label)
+    writeRunState({ sessionId: "relay-p", sleep: true, crank: false, decisionLogPath: "/decisions/p.md" }, repoRoot)
+    writeRunState({ sessionId: "relay-s", sleep: true, crank: false, decisionLogPath: "/decisions/s.md", relay: { from: "relay-p", pending: false } }, repoRoot)
+    return repoRoot
+  }
+  const withCallerEnvironment = (sessionId, action) => {
+    const saved = process.env.CLAUDE_CODE_SESSION_ID
+    if (sessionId === undefined) delete process.env.CLAUDE_CODE_SESSION_ID
+    else process.env.CLAUDE_CODE_SESSION_ID = sessionId
+    try { return action() } catch (error) { return error } finally {
+      if (saved === undefined) delete process.env.CLAUDE_CODE_SESSION_ID
+      else process.env.CLAUDE_CODE_SESSION_ID = saved
+    }
+  }
+  const predecessorRun = adopted("superseded-environment")
+  const crankRefusal = withCallerEnvironment("relay-p", () => updateRunState((state) => ({ ...state, crank: true }), predecessorRun))
+  const logRefusal = withCallerEnvironment("relay-p", () => updateRunState((state) => ({ ...state, decisionLogPath: "/decisions/p.md" }), predecessorRun))
+  const afterRefusal = readRunState(predecessorRun)
+  T(`${TOOL}: a superseded session named by CLAUDE_CODE_SESSION_ID cannot spread its update into the successor's run`,
+    crankRefusal?.message === "session is superseded; run state write refused" && logRefusal?.message === crankRefusal.message &&
+      afterRefusal.sessionId === "relay-s" && afterRefusal.crank === false && afterRefusal.decisionLogPath === "/decisions/s.md",
+    JSON.stringify({ crankRefusal: crankRefusal?.message, logRefusal: logRefusal?.message, afterRefusal }))
+  const explicitRun = adopted("superseded-option")
+  const explicitRefusal = withCallerEnvironment("relay-s", () => updateRunState((state) => ({ ...state, crank: true }), explicitRun, { sessionId: "relay-p" }))
+  T(`${TOOL}: an explicit superseded sessionId option wins over the environment and is refused`,
+    explicitRefusal?.message === "session is superseded; run state write refused" && readRunState(explicitRun).crank === false,
+    JSON.stringify({ explicitRefusal: explicitRefusal?.message, after: readRunState(explicitRun) }))
+  const successorWrite = withCallerEnvironment("relay-s", () => updateRunState((state) => ({ ...state, crank: true, decisionLogPath: "/decisions/s2.md" }), adopted("successor-update")))
+  T(`${TOOL}: the successor itself can still update its run`,
+    successorWrite?.sessionId === "relay-s" && successorWrite.crank === true && successorWrite.decisionLogPath === "/decisions/s2.md", JSON.stringify(successorWrite))
+  const anonymousWrite = withCallerEnvironment(undefined, () => updateRunState((state) => ({ ...state, crank: true }), adopted("anonymous-update")))
+  T(`${TOOL}: an update with no caller id keeps the unchecked behaviour`,
+    anonymousWrite?.sessionId === "relay-s" && anonymousWrite.crank === true, JSON.stringify(anonymousWrite?.message ?? anonymousWrite))
   const autoCheckout = stageCheckout("auto-work")
   writeRunState({ sessionId: "auto-parent", autoWork: true, crank: false, intake: { gmail: { completed: ["message-1"] } } }, autoCheckout)
   writeRunState({ sessionId: "auto-parent", remaining: [] }, autoCheckout)

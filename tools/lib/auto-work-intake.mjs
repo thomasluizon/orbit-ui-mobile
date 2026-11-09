@@ -48,8 +48,6 @@ export const updateIntakeSource = (source, change, repoRoot = REPO_ROOT) => {
   return confirmed
 }
 
-export const saveIntakeSource = (source, contents, repoRoot = REPO_ROOT) => updateIntakeSource(source, () => contents, repoRoot)
-
 /** A completed item has both a durable disposition and the reply or ticket carrying it. */
 export const acknowledgeIntake = (source, receipt, repoRoot = REPO_ROOT) => updateIntakeSource(source, (current) => {
   const item = current.pending[receipt?.id]

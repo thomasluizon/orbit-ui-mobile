@@ -344,13 +344,19 @@ const withRunStateLock = (repoRoot, action) => {
   }
 }
 
+const SUPERSEDED_WRITE_REFUSED = "session is superseded; run state write refused"
+
 /**
- * The one atomic read-change-write. `change` receives the current record (null when none exists) and
- * returns the record to write, or undefined to write nothing. Returns the record read back after the
- * write, or undefined when nothing was written.
+ * The one atomic read-change-write: `change` gets the current record (or null) and returns the record
+ * to write, or undefined to skip; returns the read-back record or undefined. The caller is
+ * `options.sessionId`, else `CLAUDE_CODE_SESSION_ID`; a superseded caller is refused before `change`
+ * runs. No id skips the check: tests and CI set none, and the relay rollback passes `sessionId: null`.
  */
-export const updateRunState = (change, repoRoot = REPO_ROOT) => withRunStateLock(repoRoot, () => {
-  const next = change(readRunState(repoRoot))
+export const updateRunState = (change, repoRoot = REPO_ROOT, options = {}) => withRunStateLock(repoRoot, () => {
+  const callerSessionId = Object.hasOwn(options, "sessionId") ? options.sessionId : process.env.CLAUDE_CODE_SESSION_ID
+  const current = readRunState(repoRoot)
+  if (supersededRunSession(callerSessionId, current)) throw new Error(SUPERSEDED_WRITE_REFUSED)
+  const next = change(current)
   if (next === undefined) return undefined
   publishRunState(next, repoRoot)
   return readRunState(repoRoot)
@@ -361,7 +367,7 @@ export const writeRunState = (state, repoRoot = REPO_ROOT) => withRunStateLock(r
 const publishRunState = (state, repoRoot) => {
   mkdirSync(gitDirectoryOf(repoRoot), { recursive: true })
   const previous = readRunState(repoRoot)
-  if (supersededRunSession(state?.sessionId, previous)) throw new Error("session is superseded; run state write refused")
+  if (supersededRunSession(state?.sessionId, previous)) throw new Error(SUPERSEDED_WRITE_REFUSED)
   if (previous?.relay?.canceledByOwner && previous.relay.successorSessionId === state?.sessionId) {
     throw new Error("owner canceled this relay nominee; ordinary sleep entry is forbidden")
   }

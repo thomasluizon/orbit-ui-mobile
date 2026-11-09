@@ -57,8 +57,10 @@ in your system prompt. Keep it outside every repository, so no gate and no commi
 Write its exact path to `decisionLogPath` once the file exists. Keep every
 unresolved owner question in `openOwnerQuestions`, including what it blocks. Make each of these
 partial changes through `updateRunState` in `tools/lib/run-state.mjs`, which reads and writes the
-record under one lock; `writeRunState` stays for the whole-record first write above. A relay copies
-the log in full and retains those questions in the open chain.
+record under one lock; `writeRunState` stays for the whole-record first write above.
+`updateRunState` refuses the change from a superseded session with
+`session is superseded; run state write refused`, so the read-back then shows the successor's record unchanged.
+A relay copies the log in full and retains those questions in the open chain.
 
 Start it with the wake time, the head of `main`, and every open pull request with its state.
 That header is what tells you later what changed while he slept.
@@ -127,6 +129,7 @@ Follow `/orchestrate`'s "Every turn under `--sleep` ends with a live wake source
   session's record is ignored by `rules-sleep.mjs`.
 - Preserve repository-qualified `pullRequests` and the append-only `readinessLedger`, with actual
   receipt paths. Update state at step 9 through `updateRunState` as work lands. Never clear the ledger to claim completion.
+  The step 2b and step 9 updates are refused for a superseded session; read back to see the refusal.
 - While actionable work or readiness debt remains, always leave a live background wake source
   that will re-invoke this session and name it on the turn's last line.
   `tools/launch-worker.mjs`, `tools/submit-cloud-worker.mjs --watch <receiptPath>`,

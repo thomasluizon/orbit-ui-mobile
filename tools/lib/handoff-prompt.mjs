@@ -174,7 +174,7 @@ export const recordHandoffRequest = (sessionId, request, recordedAt, repoRoot = 
     .slice(0, KEPT_REQUESTS)
   mkdirSync(gitDirectoryOf(repoRoot), { recursive: true })
   writeFileSync(requestPath(repoRoot), `${JSON.stringify(Object.fromEntries(kept), null, 2)}\n`)
-  if (request.crank === true) updateRunState((state) => state?.sessionId === sessionId ? { ...state, crank: true } : undefined, repoRoot)
+  if (request.crank === true) updateRunState((state) => state?.sessionId === sessionId ? { ...state, crank: true } : undefined, repoRoot, { sessionId })
 }
 
 export const readHandoffRequest = (sessionId, repoRoot = REPO_ROOT) => (sessionId ? readRequests(repoRoot)[sessionId] ?? null : null)
@@ -195,7 +195,7 @@ export const prepareOwnerHandoffRun = (sessionId, repoRoot = REPO_ROOT) => {
     if (missing.length) throw new Error(`Owner handoff prompt misses: ${missing.join("; ")}`)
     ownerHandoff = { from: sessionId, promptHash: promptHash(prompt) }
     return { ...state, ownerHandoff }
-  }, repoRoot)
+  }, repoRoot, { sessionId })
   if (written === undefined) return false
   if (JSON.stringify(written.ownerHandoff) !== JSON.stringify(ownerHandoff)) throw new Error("Owner intake handoff write was not confirmed")
   return true
@@ -212,7 +212,7 @@ export const adoptOwnerHandoffRun = (sessionId, prompt, repoRoot = REPO_ROOT) =>
     if (record.promptHash !== promptHash(readFileSync(join(repoRoot, HANDOFF_PROMPT_PATH), "utf8"))) return undefined
     return { ...previous, sessionId, sleep: true, decisionLogPath: null, relay: { from: previous.sessionId, pending: false },
       ownerHandoff: { ...record, successorSessionId: sessionId } }
-  }, repoRoot)
+  }, repoRoot, { sessionId })
   if (inherited === undefined) return false
   if (inherited.sessionId !== sessionId || JSON.stringify(inherited.intake) !== JSON.stringify(previous.intake)) throw new Error("Owner intake adoption was not confirmed")
   return true

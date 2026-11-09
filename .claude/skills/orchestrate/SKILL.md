@@ -1533,7 +1533,9 @@ a relay; a plain shell polling loop registers no wake source.
 run record says `--sleep` with tickets remaining and no registered wake source is a live process. So
 maintain the record. Write it at step 2b and update it at step 9 through `updateRunState` in
 `tools/lib/run-state.mjs`, which reads and writes the record under one lock, in the checkout you are
-running from:
+running from. `updateRunState` refuses the change from a superseded session with
+`session is superseded; run state write refused`, so the read-back then shows the successor's record unchanged.
+The record has this shape:
 
 ```jsonc
 // .git/orbit-orchestrate-run.json   (never committed; .git is not part of the tree)

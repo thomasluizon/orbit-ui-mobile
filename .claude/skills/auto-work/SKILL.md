@@ -23,7 +23,9 @@ Run `node tools/auto-work-state.mjs --enable` in the orchestrating checkout. Rea
 back with `readRunState` from `tools/lib/run-state.mjs`, confirming this session and
 `autoWork: true`. Preserve `intake` on every write. `writeRunState` carries both forward within
 the session and into a relay successor. Change part of the record only through `updateRunState`,
-which reads and writes under one lock. An owner-started successor restores the prepared
+which reads and writes under one lock. `updateRunState` refuses the change from a superseded session with
+`session is superseded; run state write refused`, so the read-back then shows the successor's record unchanged.
+An owner-started successor restores the prepared
 handoff through `/sleep` entry before any ordinary state write. Each intake writer also reads
 its write back.
 

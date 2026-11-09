@@ -13,7 +13,8 @@ try {
   if (request) {
     recordHandoffRequest(input?.session_id ?? "", { ...request, origin: "owner" }, new Date().toISOString())
     updateRunState((state) => state?.sessionId === input?.session_id ? { ...state, sleep: false, transcriptPath: input.transcript_path,
-      ...(state.relay?.pending ? { relay: { ...state.relay, pending: false, canceledByOwner: true } } : {}) } : undefined)
+      ...(state.relay?.pending ? { relay: { ...state.relay, pending: false, canceledByOwner: true } } : {}) } : undefined,
+      undefined, { sessionId: input?.session_id })
   }
 } catch {
   // A failed record leaves the commit gate checking the requirements every prompt shares.
