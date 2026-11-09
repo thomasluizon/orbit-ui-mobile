@@ -8,7 +8,7 @@ import { buildHermeticWeb } from './runner.mjs'
 import { readFixtures } from './build.mjs'
 import { startProxy } from './server.mjs'
 import { assertFree, delay, execute, start, stop, stopAll, waitFor, waitForHttp } from './host.mjs'
-import { apsdReceipt, buildInstaller, capturePushDiagnostics, desktopOrigin, install, isolateOrigins, launchContext, launchUnelevated, startHttpsListener, startPushServices, startRecording } from './acceptance-platform.mjs'
+import { activateUnelevated, apsdReceipt, buildInstaller, capturePushDiagnostics, desktopOrigin, install, isolateOrigins, launchContext, launchUnelevated, startHttpsListener, startPushServices, startRecording } from './acceptance-platform.mjs'
 import { NativeTreePendingError, assertAccessibleTree, assertCookieEvidence, assertPaletteFocus, corruptSignature } from './acceptance-contract.mjs'
 import { exercisePush, pushSender, signedApsEnvironment, unsignedReason } from './acceptance-push.mjs'
 
@@ -302,6 +302,7 @@ async function pushPhase({ proxy, native, updates, handle, executable, output, r
     async startPushServices() { report.pushServices = await startPushServices() },
     apsdReceipt: (topic) => apsdReceipt(topic),
     native: (pid, command, options) => native(pid, command, undefined, options),
+    activate: ({ name, title, label }) => activateUnelevated({ executable, output, name, title, label }),
     async findProcesses() {
       if (windows) return (await native(0, 'process', undefined, { executable })).processIds
       try {

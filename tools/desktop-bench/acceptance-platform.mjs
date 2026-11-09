@@ -192,6 +192,42 @@ export async function launchUnelevated(executable, output, name, host = { execut
   return handle
 }
 
+export function activationStatus(text) {
+  const entries = text.split(/\r?\n/).filter((line) => line.trim()).map((line) => JSON.parse(line.replace(/^﻿/, '')))
+  const failure = entries.find((entry) => entry.kind === 'error')
+  const activated = entries.find((entry) => entry.kind === 'activated')
+  return { context: entries.find((entry) => entry.kind === 'context')?.context, ...(activated ? { hresult: activated.hresult } : {}),
+    ...(failure ? { error: failure.message } : {}) }
+}
+
+// A cold start waits for COM to start the shell from its LocalServer32 command and for the shell to register its activator.
+const activationTimeout = 150000
+
+// Drives a toast click from a Medium client with the shell's standard-user token. The High activate mode reads the shell's
+// activator registration and the Done arguments of the posted toast, then the client calls Activate (windows-unelevated.ps1).
+export async function activateUnelevated({ executable, output, name, title, label },
+  host = { execute, waitFor, readFile, copyFile, alive: processAlive }) {
+  const script = join(output, 'windows-unelevated.ps1')
+  await host.copyFile(unelevatedScript, script)
+  const status = join(output, `${name}.jsonl`)
+  const started = JSON.parse(await host.execute('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script,
+    '-Mode', 'activate', '-Executable', executable, '-Title', title, '-Label', label, '-Status', status, '-Request', join(output, `${name}-request.json`)]))
+  const read = async () => {
+    try { return activationStatus(await host.readFile(status, 'utf8')) } catch (error) { if (error.code === 'ENOENT') return {}; throw error }
+  }
+  let finished
+  try {
+    finished = await host.waitFor(async () => { const value = await read(); return (value.hresult !== undefined || value.error) && value },
+      `the Medium-integrity ${name} client`, activationTimeout)
+  } catch (error) {
+    const running = host.alive(started.client)
+    if (running) await host.execute('taskkill.exe', ['/PID', String(started.client), '/T', '/F'])
+    throw new Error(`${error.message}; client ${started.client} ${running ? 'was still running and is stopped' : 'had exited'}; see ${status}`)
+  }
+  return { ...started, context: finished.context, ...(finished.hresult !== undefined ? { hresult: finished.hresult } : {}),
+    ...(finished.error ? { error: finished.error } : {}) }
+}
+
 const apsctl = '/System/Library/PrivateFrameworks/ApplePushService.framework/apsctl'
 // The image keychain gives every runner one apsd identity: the courier rolls that token and apsd drops the reminder as "a
 // completely unknown token". Without a keychain apsd creates one ("created keychain") and gets a new public token.

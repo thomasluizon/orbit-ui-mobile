@@ -608,7 +608,18 @@ test('proxy serves the sign-in report mode only to the launch that asks for it',
   assert.deepEqual(served, ['expect=true report=false', 'expect=false report=true'])
 })
 
-function pushHarness(platform: 'win32' | 'darwin', overrides: { authorization?: boolean; logsAfterDone?: number; visibleAfterDone?: number; expiredLogs?: number; signIn?: boolean; credentials?: Record<string, string>; environment?: string | null; signed?: boolean; apnsDropped?: string; hostIntegrity?: string; doneLost?: boolean } = {}) {
+// windows-unelevated.ps1 token records: the push shell's Safer standard-user token, and the activator client's token, which
+// the same Safer computation gives the same SID, level, Administrators state and session.
+const shellToken = { user: 'RUNNER\\runneradmin', sid: 'S-1-5-21-1-2-3-500', rid: 500, integrity: 'Medium', integrityRid: 0x2000, tokenIsElevated: true,
+  administrators: 'denyOnly', session: 1 }
+const activatorReply = (context: Record<string, unknown>, hresult: number) => ({
+  harness: { ...shellToken, integrity: 'High', integrityRid: 0x3000, administrators: 'enabled' }, client: 5150,
+  header: 'C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\um\\NotificationActivationCallback.h',
+  registration: { appId: '{0F8FAD5B-D9CB-469F-A165-70867728950E}', clsid: '{7D1B6A3C-5E2F-4A80-9C11-2B3C4D5E6F71}',
+    server: '"C:\\Orbit\\orbit-desktop.exe" ----AppNotificationActivated:' },
+  argumentKeys: ['orbitNotice', 'orbitAction'], context, hresult })
+
+function pushHarness(platform: 'win32' | 'darwin', overrides: { authorization?: boolean; logsAfterDone?: number; visibleAfterDone?: number; expiredLogs?: number; signIn?: boolean; credentials?: Record<string, string>; environment?: string | null; signed?: boolean; apnsDropped?: string; hostIntegrity?: string; doneLost?: boolean; activator?: (name: string) => Record<string, unknown> | Error | undefined } = {}) {
   const events: string[] = []
   let apsdCount = 0
   const records = new Map<string, unknown>()
@@ -619,7 +630,20 @@ function pushHarness(platform: 'win32' | 'darwin', overrides: { authorization?: 
   let launchedVisible = 0
   let shellAlive = true
   let notified: { title: string; doneToken: string }[] = []
-  const report: { push?: Record<string, unknown> } = {}
+  const report: { push?: Record<string, unknown>; launchContexts: Record<string, unknown> } = { launchContexts: { push: { ...shellToken, source: 'shell' } } }
+  // The shell's response to a Done click: the running shell logs once and stays hidden, and a stopped shell starts signed out.
+  const click = (toast: { doneToken: string }) => {
+    if (overrides.doneLost) return
+    const habitId = reminders.get(toast.doneToken)!
+    if (shellAlive) {
+      proxyEvents.done = true
+      for (let index = 0; index < (overrides.logsAfterDone ?? 1); index++) logs.push({ habitId, source: 'reminder-done' })
+    } else {
+      for (let index = 0; index < (overrides.expiredLogs ?? 0); index++) logs.push({ habitId, source: 'reminder-done' })
+      launchedVisible = 1
+      if (overrides.signIn !== false) proxyEvents['sign-in'] = { kind: 'sign-in', route: '/login', session: 401 }
+    }
+  }
   const wnsCredentials = { ORBIT_WNS_TENANT_ID: 't', ORBIT_WNS_CLIENT_ID: 'c', ORBIT_WNS_CLIENT_SECRET: 's' }
   const apnsCredentials = { ORBIT_APNS_KEY_ID: 'k', ORBIT_APPLE_TEAM_ID: 't', ORBIT_APNS_PRIVATE_KEY: 'p' }
   const transport = platform === 'win32' ? 'wns' : 'apns'
@@ -692,19 +716,22 @@ function pushHarness(platform: 'win32' | 'darwin', overrides: { authorization?: 
         const toast = notified.find((entry) => entry.title === options.title)
         if (!toast) return { found: false, windows: [] }
         if (!options.invoke) return { found: true, invoked: false, title: toast.title }
-        const habitId = reminders.get(toast.doneToken)!
-        if (overrides.doneLost) return { found: true, invoked: true, title: toast.title }
-        if (shellAlive) {
-          proxyEvents.done = true
-          for (let index = 0; index < (overrides.logsAfterDone ?? 1); index++) logs.push({ habitId, source: 'reminder-done' })
-        } else {
-          for (let index = 0; index < (overrides.expiredLogs ?? 0); index++) logs.push({ habitId, source: 'reminder-done' })
-          launchedVisible = 1
-          if (overrides.signIn !== false) proxyEvents['sign-in'] = { kind: 'sign-in', route: '/login', session: 401 }
-        }
+        // A hosted Windows runner never delivers a UIA click on Done to the shell, so only macOS clicks through the reader.
+        if (platform === 'darwin') click(toast)
         return { found: true, invoked: true, title: toast.title }
       }
       throw new Error(`Unexpected native command ${command}`)
+    },
+    // windows-unelevated.ps1 activate mode: it throws when the history holds no single toast with one action of that label.
+    activate: async ({ name, title, label }: { name: string; title: string; label: string }) => {
+      events.push(`activate ${name} ${label}`)
+      const toast = notified.find((entry) => entry.title === title)
+      if (!toast || label !== 'Done') throw new Error(`Expected one ${label} action on the toast titled ${title}, found 0`)
+      const outcome = overrides.activator?.(name)
+      if (outcome instanceof Error) throw outcome
+      const reply = outcome ?? activatorReply(shellToken, 0)
+      if (reply.hresult === 0 && !reply.error) click(toast)
+      return reply
     },
   }
   return { io, events, report, logs, records }
@@ -725,18 +752,28 @@ test('push acceptance proves Done once with the window hidden, then an expired-s
     assert.ok(order('send push-enable:') < order('native 41 close'))
     if (platform === 'darwin') assert.ok(order('launch') < order('push services') && order('push services') < order('send push-enable:'))
     else assert.equal(harness.events.includes('push services'), false)
+    // macOS clicks Done through the AX reader. Windows only finds the toast with its Done button, then the activator client
+    // makes the click's Activate call, for the running shell and for the stopped one.
+    const doneClick = platform === 'darwin' ? 'native 41 notification invoke Done' : 'activate notification-done-activator Done'
+    const expiredClick = platform === 'darwin' ? 'native 0 notification invoke Done' : 'activate notification-expired-activator Done'
     assert.ok(order('native 41 close') < order('deliver Orbit acceptance done'))
-    assert.ok(order('deliver Orbit acceptance done') < order('native 41 notification invoke Done'))
+    assert.ok(order('deliver Orbit acceptance done') < order(doneClick))
+    if (platform === 'win32') {
+      assert.ok(order('deliver Orbit acceptance done') < order('native 41 notification Done') && order('native 41 notification Done') < order(doneClick))
+      assert.equal(harness.events.some((event) => event.includes('notification invoke')), false, 'no Windows UIA search invokes Done')
+    }
     assert.ok(order('deliver Orbit acceptance expired') < order('stop'))
     assert.ok(order('stop') < order('session expired'))
     assert.ok(order('session expired') < order('reset {"expectAuthenticated":false,"reportSignIn":true}'))
-    assert.ok(order('reset {"expectAuthenticated":false,"reportSignIn":true}') < order('native 0 notification invoke Done'))
-    assert.ok(order('native 0 notification invoke Done') < order('adopt 77'))
+    assert.ok(order('reset {"expectAuthenticated":false,"reportSignIn":true}') < order(expiredClick))
+    assert.ok(order(expiredClick) < order('adopt 77'))
     const records = [...harness.records.keys()]
-    assert.deepEqual(records, [...(platform === 'darwin' ? ['notification-authorization'] : []), 'notification-done',
-      ...(platform === 'win32' ? ['notification-done-activation'] : []), 'notification-expired', 'notification-expired-signed-out'])
-    for (const [name, title] of [['notification-done', 'done'], ['notification-expired', 'expired'], ['notification-expired-signed-out', 'expired']]) {
-      assert.match((harness.records.get(name) as { title: string }).title, new RegExp(`^Orbit acceptance ${title} `), name)
+    assert.deepEqual(records, platform === 'darwin'
+      ? ['notification-authorization', 'notification-done', 'notification-expired', 'notification-expired-signed-out']
+      : ['notification-done', 'notification-done-activator', 'notification-done-activation', 'notification-expired', 'notification-expired-activator'])
+    for (const [name, title] of [['notification-done', 'done'], ['notification-expired', 'expired'],
+      ...(platform === 'darwin' ? [['notification-expired-signed-out', 'expired']] : [])]) {
+      assert.match((harness.records.get(name!) as { title: string }).title, new RegExp(`^Orbit acceptance ${title} `), name)
     }
     if (platform === 'darwin') {
       assert.deepEqual((push as Record<string, unknown>).doneReceipt, { before: 0, after: 1, seconds: 0 })
@@ -747,7 +784,11 @@ test('push acceptance proves Done once with the window hidden, then an expired-s
       assert.deepEqual((push as Record<string, unknown>).activation, {
         hosts: [{ name: 'explorer', integrity: 'Medium', elevated: false }, { name: 'WpnUserService_3a1f', integrity: null, elevated: false, error: 'Access is denied' }],
         instances: [{ processId: 41, commandLine: '"C:\\Orbit\\orbit-desktop.exe"', integrity: 'Medium' }] })
-      assert.ok(order('native 41 notification invoke Done') < order('native 41 activation'))
+      assert.ok(order(doneClick) < order('native 41 activation'))
+      const activator = { hresult: 0, clsid: '{7D1B6A3C-5E2F-4A80-9C11-2B3C4D5E6F71}',
+        header: 'C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\um\\NotificationActivationCallback.h',
+        argumentKeys: ['orbitNotice', 'orbitAction'], client: { sid: 'S-1-5-21-1-2-3-500', integrity: 'Medium', administrators: 'denyOnly', session: 1 } }
+      assert.deepEqual((push as Record<string, unknown>).activator, { 'notification-done-activator': activator, 'notification-expired-activator': activator })
     }
     if (platform === 'darwin') assert.equal(harness.events.some((event) => event.includes(' activation')), false)
     if (platform === 'darwin') {
@@ -781,8 +822,48 @@ test('Windows push acceptance names the shell host levels and running instances 
     assert.equal(error.message, 'Timed out waiting for the Done habit log; shell hosts: explorer High elevated, WpnUserService_3a1f unreadable (Access is denied); running shell instances: 1 (pid 41 Medium)')
     return true
   })
-  assert.deepEqual([...harness.records.keys()].slice(0, 3), ['notification-done', 'notification-done-activation', 'notification-done-activation-timeout'])
+  assert.deepEqual([...harness.records.keys()].slice(0, 4), ['notification-done', 'notification-done-activator', 'notification-done-activation',
+    'notification-done-activation-timeout'])
   assert.equal((harness.report.push as Record<string, { instances: unknown[] }>).activationAfterTimeout.instances.length, 1)
+})
+
+const createFailure = 'CoCreateInstance({7D1B6A3C-5E2F-4A80-9C11-2B3C4D5E6F71}, CLSCTX_LOCAL_SERVER) failed with 0x80080005'
+for (const [label, activator, message] of [
+  ['a client that cannot create the activator', () => ({ ...activatorReply(shellToken, 0), hresult: undefined, error: createFailure }),
+    /: the activator client failed: CoCreateInstance\(.*\) failed with 0x80080005; shell hosts: explorer High elevated, /],
+  ['an Activate call that the shell refuses', () => activatorReply(shellToken, -2147467259),
+    /: INotificationActivationCallback::Activate returned 0x80004005; shell hosts: explorer High elevated, /],
+  ['a client token that is not the shell token', () => activatorReply({ ...shellToken, integrity: 'High', administrators: 'enabled' }, 0),
+    /: the activator client token differs from the shell token in integrity \(High against Medium\), administrators \(enabled against denyOnly\); shell hosts: /],
+  ['a client that records no token', () => ({ ...activatorReply(shellToken, 0), context: undefined }), /: the activator client reported no token; shell hosts: /],
+] as const) {
+  test(`Windows push acceptance fails the Done on ${label} and names the shell hosts`, async () => {
+    const harness = pushHarness('win32', { hostIntegrity: 'High', activator: (name) => name === 'notification-done-activator' ? activator() : undefined })
+    await assert.rejects(() => exercisePush(harness.io), (error: Error) => {
+      assert.match(error.message, /^The Orbit acceptance done [0-9a-f]{8} Done activation failed: /)
+      assert.match(error.message, message)
+      assert.match(error.message, /running shell instances: 1 \(pid 41 Medium\)$/)
+      return true
+    })
+    assert.deepEqual([...harness.records.keys()], ['notification-done', 'notification-done-activator', 'notification-done-activator-failure'])
+    assert.equal(harness.events.some((event) => event.startsWith('deliver Orbit acceptance expired')), false)
+  })
+}
+
+test('a failed expired-session activation leaves every shell that COM started to the phase cleanup', async () => {
+  const timeout = 'Timed out waiting for the Medium-integrity notification-expired-activator client; client 5150 was still running and is stopped'
+  const harness = pushHarness('win32', { activator: (name) => name === 'notification-expired-activator' ? new Error(timeout) : undefined })
+  harness.io.findProcesses = async () => [77, 78]
+  await assert.rejects(() => exercisePush(harness.io), new RegExp(`^Error: ${timeout}$`))
+  assert.deepEqual(harness.events.filter((event) => event.startsWith('adopt ')), ['adopt 77', 'adopt 78'])
+})
+
+test('Windows push acceptance gives the activator the Done label of the reminder payload, never the localized shell label', async () => {
+  const harness = pushHarness('win32')
+  Object.assign(harness.io, { doneLabel: 'Concluir' })
+  await exercisePush(harness.io)
+  assert.deepEqual(harness.events.filter((event) => event.startsWith('activate ')),
+    ['activate notification-done-activator Done', 'activate notification-expired-activator Done'])
 })
 
 test('push acceptance adopts the notification-launched shell before it waits for the sign-in page', async () => {
@@ -813,14 +894,15 @@ test('push acceptance names the installed executable to the reader and keeps the
     const reply = await native(pid, command, options)
     if (command !== 'notification') return reply
     executables.push(options.executable)
-    // The reader reads the history before it invokes Done, and the Done removes the toast from the history.
+    // The reader reads the history of the shell AUMID, which holds the toast while it is posted.
     const posted = reply.found === true
     return { ...reply, history: { appId: '{0F8FAD5B-D9CB-469F-A165-70867728950E}', posted, count: posted ? 1 : 0, titles: posted ? [options.title] : [] } }
   }
   await exercisePush(harness.io)
   assert.ok(executables.length > 0 && executables.every((value) => value === executable))
   const history = harness.report.push?.history as Record<string, { posted: boolean; titles: string[] }>
-  assert.deepEqual(Object.keys(history), ['notification-done', 'notification-expired', 'notification-expired-signed-out'])
+  // The activator client takes the expired Done from the same history, so no reader search follows the shell stop.
+  assert.deepEqual(Object.keys(history), ['notification-done', 'notification-expired'])
   for (const [name, entry] of Object.entries(history)) {
     assert.equal(entry.posted, true, name)
     assert.match(entry.titles[0]!, /^Orbit acceptance (done|expired) /, name)
@@ -1057,6 +1139,75 @@ test('Windows notification reader takes the Done action from a banner and from a
   assert.deepEqual(findToast(toastLayouts.banner!), { found: true, toast: 'toast', expanded: false, button: 'Done' })
   assert.deepEqual(findToast(toastLayouts.center!), { found: true, toast: 'toast', expanded: true, button: 'Done' })
   for (const layout of ['noAction', 'twoActions', 'absent']) assert.deepEqual(findToast(toastLayouts[layout]!), { found: false }, layout)
+})
+
+const launcherSource = readFileSync(fileURLToPath(new URL('./windows-unelevated.ps1', import.meta.url)), 'utf8')
+// AppNotificationBuilderUtility.h EncodeArgument and EncodeXml in microsoft/WindowsAppSDK v1.7.9, one character at a time.
+const percentCodes: Record<string, string> = { '%': '%25', ';': '%3B', '=': '%3D' }
+const xmlCodes: Record<string, string> = { '&': '&amp;', '"': '&quot;', '<': '&lt;', '>': '&gt;', "'": '&apos;' }
+const encodeArgument = (value: string) => [...value].map((character) => percentCodes[character] ?? xmlCodes[character] ?? character).join('')
+const encodeXml = (value: string) => [...value].map((character) => xmlCodes[character] ?? character).join('')
+// push.cpp orbit_push_show through AppNotificationBuilder GetArguments and AppNotificationButton ToString: the body click
+// carries the launch attribute, and the Done click carries the arguments attribute of its action.
+function windowsToast(title: string, activation: string, label: string) {
+  const notice = `orbitNotice=${encodeArgument(activation)}`
+  return `<toast launch='${notice}'><visual><binding template='ToastGeneric'><text>${encodeXml(title)}</text><text>Next at 1:04 PM</text></binding></visual>` +
+    `<actions><action content='${label}' arguments='${notice};orbitAction=done'/></actions></toast>`
+}
+// AppNotificationActivatedEventArgs DecodeArguments with Decode, then push.cpp activated(): the notice routes to Done only
+// with orbitAction=done, and else to the habit detail.
+function shellRoute(argument: string) {
+  const reverse: Record<string, string> = { '%25': '%', '%3B': ';', '%3D': '=' }
+  const decode = (text: string) => {
+    let result = ''
+    for (let index = 0; index < text.length;) {
+      const code = reverse[text.slice(index, index + 3)]
+      result += code ?? text[index]
+      index += code ? 3 : 1
+    }
+    return result
+  }
+  const values = new Map(argument.split(';').map((pair) => {
+    const at = pair.indexOf('=')
+    return at < 0 ? [decode(pair), ''] : [decode(pair.slice(0, at)), decode(pair.slice(at + 1))]
+  }))
+  if (!values.has('orbitNotice')) return null
+  return { route: values.get('orbitAction') === 'done' ? 'done' : 'body', notice: values.get('orbitNotice') }
+}
+// The Rust WindowsNotice from push_windows.rs show. The token holds every character that EncodeArgument rewrites.
+const activation = JSON.stringify({ owner: 'account-1', reminder: { url: '/', habitId: pushHabit, doneToken: 'a=b;c%d&e<f>\'g', doneLabel: 'Done' } })
+
+function toastAction(payloads: string[], label: string, source = launcherSource) {
+  const from = source.indexOf('function Get-ToastAction(')
+  const to = source.indexOf('# The activation type declares')
+  assert.ok(from >= 0 && to > from, 'the launcher has a Get-ToastAction rule ahead of its interface check')
+  const script = `$ErrorActionPreference = 'Stop'
+${source.slice(from, to)}
+try { @{ arguments = (Get-ToastAction @(ConvertFrom-Json $env:ORBIT_PAYLOADS) $env:ORBIT_TITLE $env:ORBIT_LABEL) } | ConvertTo-Json -Compress }
+catch { @{ error = $_.Exception.Message } | ConvertTo-Json -Compress }
+`
+  const result = spawnSync(pwshHost!, ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', timeout: 60000,
+    env: { ...process.env, ORBIT_PAYLOADS: JSON.stringify(payloads), ORBIT_TITLE: title, ORBIT_LABEL: label } })
+  assert.equal(result.status, 0, result.stderr)
+  return JSON.parse(result.stdout) as { arguments?: string; error?: string }
+}
+
+test('the Windows activator gives the shell the Done arguments of the posted toast, which the shell routes to Done', { skip: !pwshHost }, () => {
+  const other = windowsToast('Orbit acceptance expired 0d1e2f3a', activation, 'Done')
+  const chosen = toastAction([other, windowsToast(title, activation, 'Done')], 'Done')
+  assert.deepEqual(shellRoute(chosen.arguments!), { route: 'done', notice: activation })
+  assert.deepEqual(toastAction([other], 'Done'), { error: `Expected one posted toast titled ${title}, found 0 among 1` })
+  assert.deepEqual(toastAction([windowsToast(title, activation, 'Done'), windowsToast(title, activation, 'Done')], 'Done'),
+    { error: `Expected one posted toast titled ${title}, found 2 among 2` })
+  assert.deepEqual(toastAction([windowsToast(title, activation, 'Concluir')], 'Done'), { error: `Expected one Done action on the toast titled ${title}, found 0` })
+})
+
+// A client pointed at the body arguments makes the click the shell routes to the habit detail, so the Done never logs.
+test('a Windows activator that reads the toast launch arguments routes the click to the habit detail, not Done', { skip: !pwshHost }, () => {
+  const read = "$actions[0].GetAttribute('arguments')"
+  assert.ok(launcherSource.includes(read), 'the launcher reads the arguments of the Done action')
+  const body = toastAction([windowsToast(title, activation, 'Done')], 'Done', launcherSource.replace(read, "$actions[0].ParentNode.ParentNode.GetAttribute('launch')"))
+  assert.deepEqual(shellRoute(body.arguments!), { route: 'body', notice: activation })
 })
 
 test('PowerShell producer lists process windows, finds the installed executable and refuses an absent notification', { skip: process.platform !== 'win32' }, () => {

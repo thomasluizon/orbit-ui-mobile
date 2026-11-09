@@ -1,10 +1,13 @@
 param(
-    [Parameter(Mandatory = $true)][ValidateSet('start', 'run')][string]$Mode,
+    [Parameter(Mandatory = $true)][ValidateSet('start', 'run', 'activate', 'notify')][string]$Mode,
     [string]$Executable,
     [string]$Log,
     [string]$Output,
     [string]$Status,
-    [string]$Assembly
+    [string]$Assembly,
+    [string]$Title,
+    [string]$Label,
+    [string]$Request
 )
 $ErrorActionPreference = 'Stop'
 
@@ -19,8 +22,11 @@ $ErrorActionPreference = 'Stop'
 # The token then takes an explicit Medium label, Microsoft's documented way to start a child at a lower level:
 # https://learn.microsoft.com/en-us/previous-versions/dotnet/articles/bb625960(v=msdn.10)
 # Add-Type compiles through CodeDom, which fails at Medium integrity with "A required privilege is not held by the
-# client" (a hosted windows-latest probe reproduced it). Thus start mode, which runs at High, compiles this type into
-# a library once, and the Medium launcher only loads that library.
+# client" (a hosted windows-latest probe reproduced it). Thus the High modes, start and activate, compile these types
+# into a library, and the Medium modes, run and notify, only load that library.
+# Activate mode drives the Done click that a hosted runner cannot deliver: its shell hosts run at High integrity, and COM
+# never gives the activation of a High host to the running Medium shell. A Medium client with the shell's standard-user token
+# makes the same INotificationActivationCallback::Activate call through the shell's registered activator instead.
 $integritySource = @'
 using System;
 using System.ComponentModel;
@@ -187,6 +193,44 @@ public static class OrbitIntegrity {
         }
     }
 }
+
+// NotificationActivationCallback.h in the Windows SDK; activate mode confirms this IID against the installed header.
+[ComImport, Guid(OrbitActivation.CallbackInterface), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+public interface INotificationActivationCallback {
+    [PreserveSig]
+    int Activate([MarshalAs(UnmanagedType.LPWStr)] string appUserModelId, [MarshalAs(UnmanagedType.LPWStr)] string invokedArgs, IntPtr data, uint count);
+}
+
+// The call Windows makes on a toast click: CoCreateInstance of the app's activator CLSID out of process, then
+// INotificationActivationCallback::Activate with the AUMID, the clicked action's arguments and its user input. COM routes the
+// call to the running shell's class object only for a client whose token matches the shell's token, and else starts the
+// LocalServer32 command, as it does for a click while the shell is not running.
+public static class OrbitActivation {
+    public const string CallbackInterface = "53e31837-6600-4a81-9395-75cffe746f94";
+    const uint LocalServer = 0x4;
+
+    [DllImport("ole32.dll")]
+    static extern int CoCreateInstance([In] ref Guid clsid, IntPtr outer, uint context, [In] ref Guid iid,
+        [MarshalAs(UnmanagedType.IUnknown)] out object instance);
+
+    public static int Activate(string clsid, string appUserModelId, string invokedArgs) {
+        var classId = new Guid(clsid);
+        var interfaceId = new Guid(CallbackInterface);
+        object instance;
+        int created = CoCreateInstance(ref classId, IntPtr.Zero, LocalServer, ref interfaceId, out instance);
+        if (created < 0) throw new COMException("CoCreateInstance(" + clsid + ", CLSCTX_LOCAL_SERVER) failed with 0x" + created.ToString("X8"), created);
+        // The Done toast has no input field, so the click carries no user input: count 0, with a non-null zeroed entry.
+        IntPtr data = Marshal.AllocCoTaskMem(2 * IntPtr.Size);
+        try {
+            Marshal.WriteIntPtr(data, IntPtr.Zero);
+            Marshal.WriteIntPtr(data, IntPtr.Size, IntPtr.Zero);
+            return ((INotificationActivationCallback)instance).Activate(appUserModelId, invokedArgs, data, 0);
+        } finally {
+            Marshal.FreeCoTaskMem(data);
+            Marshal.ReleaseComObject(instance);
+        }
+    }
+}
 '@
 
 function ConvertTo-LaunchContext($Token) {
@@ -197,6 +241,77 @@ function ConvertTo-LaunchContext($Token) {
 
 function Write-Status($Entry) {
     [IO.File]::AppendAllText($Status, (($Entry | ConvertTo-Json -Compress) + "`n"), [Text.UTF8Encoding]::new($false))
+}
+
+# Only the High modes call this: it opens the output to the Medium processes and compiles the native types there.
+function Initialize-MediumOutput([string]$Directory) {
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    # The Medium token keeps the user SID, so an inherited grant to that SID passes the DACL check on every file the shell writes.
+    & icacls.exe $Directory /grant "*$($identity.User.Value):(OI)(CI)M" /Q | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "icacls could not grant the acceptance output to $($identity.Name)" }
+    # Mandatory Integrity Control refuses a write up from Medium to a High object, and new objects take the creator's level
+    # (https://learn.microsoft.com/en-us/windows/win32/secauthz/mandatory-integrity-control). Thus the output and every file
+    # in it, the installed shell included, carry an explicit Medium label, which new files inherit.
+    & icacls.exe $Directory /setintegritylevel '(OI)(CI)M' /T /Q | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "icacls could not label $Directory at Medium integrity" }
+    $label = (& icacls.exe $Directory | Select-String 'Mandatory Label' | ForEach-Object { $_.Line.Trim() }) -join '; '
+    # Each launch compiles its own library, because an earlier launcher can still hold its library open.
+    $assembly = Join-Path $Directory ('OrbitIntegrity-{0}.dll' -f [guid]::NewGuid().ToString('N'))
+    Add-Type -TypeDefinition $integritySource -OutputAssembly $assembly -OutputType Library
+    Add-Type -Path $assembly
+    @{ assembly = $assembly; label = $label }
+}
+
+function Start-MediumMode([string]$Directory, [string]$Arguments) {
+    $powershell = Join-Path $PSHOME 'powershell.exe'
+    $commandLine = '"{0}" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{1}" {2}' -f $powershell, $PSCommandPath, $Arguments
+    [OrbitIntegrity]::StartAsStandardUser($powershell, $commandLine, $Directory)
+}
+
+# The Windows App SDK names an unpackaged app by the NotificationGUID value under HKCU Software\Classes\AppUserModelId\<the
+# executable path with every backslash replaced by a dot>. It keeps the activator CLSID in the CustomActivator value under
+# AppUserModelId\<that AUMID>, and registers `"<executable>" ----AppNotificationActivated:` as the LocalServer32 of that CLSID
+# (AppNotificationUtility.cpp RetrieveUnpackagedNotificationAppId, GetActivatorGuid and RegisterComServer, microsoft/WindowsAppSDK v1.7.9).
+function Get-ActivatorRegistration([string]$Path) {
+    $classes = 'HKCU:\Software\Classes'
+    $appId = (Get-ItemProperty -LiteralPath "$classes\AppUserModelId\$($Path.Replace('\', '.'))" -Name NotificationGUID -ErrorAction SilentlyContinue).NotificationGUID
+    if (-not $appId) { throw "No NotificationGUID for $Path under $classes\AppUserModelId" }
+    $clsid = (Get-ItemProperty -LiteralPath "$classes\AppUserModelId\$appId" -Name CustomActivator -ErrorAction SilentlyContinue).CustomActivator
+    if (-not $clsid) { throw "No CustomActivator value for the AUMID $appId" }
+    $server = (Get-ItemProperty -LiteralPath "$classes\CLSID\$clsid\LocalServer32" -ErrorAction SilentlyContinue).'(default)'
+    $expected = '"{0}" ----AppNotificationActivated:' -f $Path
+    if ($server -ne $expected) { throw "The activator $clsid starts $(if ($server) { $server } else { 'nothing' }), not $expected" }
+    [ordered]@{ appId = $appId; clsid = $clsid; server = $server }
+}
+
+# A click passes the clicked action's arguments attribute as the posted toast XML holds it (AppNotificationButton
+# GetActivationArguments builds it), so the Done arguments come from the toast in the shell AUMID's history.
+function Get-ToastAction([string[]]$Payloads, [string]$Title, [string]$Label) {
+    $toasts = New-Object 'System.Collections.Generic.List[object]'
+    foreach ($payload in $Payloads) {
+        $document = New-Object System.Xml.XmlDocument
+        $document.LoadXml($payload)
+        if (@($document.SelectNodes('//text') | ForEach-Object { $_.InnerText }) -notcontains $Title) { continue }
+        $toasts.Add(@($document.SelectNodes('//action') | Where-Object { $_.GetAttribute('content') -eq $Label }))
+    }
+    if ($toasts.Count -ne 1) { throw "Expected one posted toast titled $Title, found $($toasts.Count) among $($Payloads.Count)" }
+    $actions = $toasts[0]
+    if ($actions.Count -ne 1) { throw "Expected one $Label action on the toast titled $Title, found $($actions.Count)" }
+    $actions[0].GetAttribute('arguments')
+}
+
+# The activation type declares the INotificationActivationCallback IID by hand, so the IID must match every installed SDK header.
+function Confirm-CallbackInterface {
+    $headers = @(Get-ChildItem -Path (Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\Include\*\um\NotificationActivationCallback.h') -ErrorAction SilentlyContinue)
+    if (-not $headers.Count) { throw 'No installed Windows SDK has NotificationActivationCallback.h, so the INotificationActivationCallback IID is unconfirmed' }
+    foreach ($header in $headers) {
+        $declared = [regex]::Match((Get-Content -LiteralPath $header.FullName -Raw), 'MIDL_INTERFACE\("([0-9a-fA-F-]{36})"\)\s*INotificationActivationCallback\b')
+        if (-not $declared.Success) { throw "$($header.FullName) declares no INotificationActivationCallback interface" }
+        if ($declared.Groups[1].Value -ne [OrbitActivation]::CallbackInterface) {
+            throw "$($header.FullName) declares INotificationActivationCallback as $($declared.Groups[1].Value), not $([OrbitActivation]::CallbackInterface)"
+        }
+    }
+    $headers[-1].FullName
 }
 
 switch ($Mode) {
@@ -220,27 +335,38 @@ switch ($Mode) {
             throw
         }
     }
+    'notify' {
+        try {
+            [void][Reflection.Assembly]::LoadFrom($Assembly)
+            Write-Status ([ordered]@{ kind = 'context'; context = (ConvertTo-LaunchContext ([OrbitIntegrity]::DescribeCurrent())) })
+            $call = Get-Content -LiteralPath $Request -Raw | ConvertFrom-Json
+            Write-Status ([ordered]@{ kind = 'activated'; hresult = [OrbitActivation]::Activate($call.clsid, $call.appId, $call.arguments) })
+        } catch {
+            # PowerShell wraps an exception from a .NET method in "Exception calling ...", so the status keeps the COM message.
+            Write-Status ([ordered]@{ kind = 'error'; message = $_.Exception.GetBaseException().Message })
+            throw
+        }
+    }
     'start' {
         $directory = Split-Path -Parent $Status
-        $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
-        # The Medium token keeps the user SID, so an inherited grant to that SID passes the DACL check on every file the shell writes.
-        & icacls.exe $directory /grant "*$($identity.User.Value):(OI)(CI)M" /Q | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw "icacls could not grant the acceptance output to $($identity.Name)" }
-        # Mandatory Integrity Control refuses a write up from Medium to a High object, and new objects take the creator's level
-        # (https://learn.microsoft.com/en-us/windows/win32/secauthz/mandatory-integrity-control). Thus the output and every file
-        # in it, the installed shell included, carry an explicit Medium label, which new files inherit.
-        & icacls.exe $directory /setintegritylevel '(OI)(CI)M' /T /Q | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw "icacls could not label $directory at Medium integrity" }
-        $label = (& icacls.exe $directory | Select-String 'Mandatory Label' | ForEach-Object { $_.Line.Trim() }) -join '; '
-        # Each launch compiles its own library, because an earlier launcher can still hold its library open.
-        $assembly = Join-Path $directory ('OrbitIntegrity-{0}.dll' -f [guid]::NewGuid().ToString('N'))
-        Add-Type -TypeDefinition $integritySource -OutputAssembly $assembly -OutputType Library
-        Add-Type -Path $assembly
-        $powershell = Join-Path $PSHOME 'powershell.exe'
-        $commandLine = ('"{0}" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{1}" -Mode run -Executable "{2}" -Log "{3}" -Output "{4}"' +
-            ' -Status "{5}" -Assembly "{6}"') -f $powershell, $PSCommandPath, $Executable, $Log, $Output, $Status, $assembly
-        $launcher = [OrbitIntegrity]::StartAsStandardUser($powershell, $commandLine, $directory)
-        [ordered]@{ harness = (ConvertTo-LaunchContext ([OrbitIntegrity]::DescribeCurrent())); launcher = $launcher; outputLabel = $label } |
+        $prepared = Initialize-MediumOutput $directory
+        $launcher = Start-MediumMode $directory ('-Mode run -Executable "{0}" -Log "{1}" -Output "{2}" -Status "{3}" -Assembly "{4}"' -f
+            $Executable, $Log, $Output, $Status, $prepared.assembly)
+        [ordered]@{ harness = (ConvertTo-LaunchContext ([OrbitIntegrity]::DescribeCurrent())); launcher = $launcher; outputLabel = $prepared.label } |
             ConvertTo-Json -Compress
+    }
+    'activate' {
+        $directory = Split-Path -Parent $Status
+        $prepared = Initialize-MediumOutput $directory
+        $header = Confirm-CallbackInterface
+        $registration = Get-ActivatorRegistration $Executable
+        $manager = [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]
+        $arguments = Get-ToastAction @($manager::History.GetHistory($registration.appId) | ForEach-Object { $_.Content.GetXml() }) $Title $Label
+        # The arguments carry the one-use Done token, so they reach the client through a file the artifacts never upload.
+        $call = [ordered]@{ clsid = $registration.clsid; appId = $registration.appId; arguments = $arguments }
+        [IO.File]::WriteAllText($Request, ($call | ConvertTo-Json -Compress), [Text.UTF8Encoding]::new($false))
+        $client = Start-MediumMode $directory ('-Mode notify -Status "{0}" -Assembly "{1}" -Request "{2}"' -f $Status, $prepared.assembly, $Request)
+        [ordered]@{ harness = (ConvertTo-LaunchContext ([OrbitIntegrity]::DescribeCurrent())); client = $client; header = $header
+            registration = $registration; argumentKeys = @($arguments.Split(';') | ForEach-Object { $_.Split('=')[0] }) } | ConvertTo-Json -Compress
     }
 }

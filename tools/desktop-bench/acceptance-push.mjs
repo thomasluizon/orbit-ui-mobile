@@ -304,6 +304,38 @@ export function describeActivation({ hosts, instances }) {
   return `shell hosts: ${levels.join(', ') || 'none found'}; running shell instances: ${instances.length}${shells.length ? ` (${shells.join(', ')})` : ''}`
 }
 
+// The client's token must be the shell's token kind, because COM routes the call to the running shell's activator only for a
+// client whose token matches the shell's token.
+const tokenFields = ['sid', 'integrity', 'administrators', 'session']
+
+export function activatorFailure(reply, shell) {
+  const client = reply.context
+  if (reply.error) return `the activator client failed: ${reply.error}`
+  if (!client) return 'the activator client reported no token'
+  const different = tokenFields.filter((field) => client[field] !== shell?.[field])
+  if (different.length) {
+    return `the activator client token differs from the shell token in ${different.map((field) => `${field} (${client[field]} against ${shell?.[field]})`).join(', ')}`
+  }
+  if (reply.hresult !== 0) return `INotificationActivationCallback::Activate returned 0x${(reply.hresult >>> 0).toString(16).toUpperCase().padStart(8, '0')}`
+  return null
+}
+
+// A hosted runner's shell hosts run at High integrity, and COM never gives their toast click to the running Medium shell. Thus
+// the Windows phase makes that click's Activate call from a Medium client with the shell's token (windows-unelevated.ps1).
+async function activateDone(io, reminder, name) {
+  const reply = await io.activate({ name, title: reminder.title, label: reminder.data.doneLabel })
+  await io.record(name, reply)
+  const shell = io.report.launchContexts?.push
+  io.report.push.activator ??= {}
+  io.report.push.activator[name] = { hresult: reply.hresult ?? null, clsid: reply.registration?.clsid ?? null, header: reply.header ?? null,
+    argumentKeys: reply.argumentKeys ?? [], client: Object.fromEntries(tokenFields.map((field) => [field, reply.context?.[field] ?? null])),
+    ...(reply.error ? { error: reply.error } : {}) }
+  const failure = activatorFailure(reply, shell)
+  if (!failure) return
+  io.report.push.activatorFailure = await activationEvidence(io, 0, `${name}-failure`)
+  throw new Error(`The ${reminder.title} Done activation failed: ${failure}; ${describeActivation(io.report.push.activatorFailure)}`)
+}
+
 async function windowsOf(io, pid) {
   return visibleWindows(io.platform, await io.native(pid, 'windows'))
 }
@@ -329,12 +361,17 @@ export async function exercisePush(io) {
   await io.native(pid, 'close')
   await io.waitFor(async () => await windowsOf(io, pid) === 0, 'the main window to hide', 30000)
   const completed = await sendReminder(io, deliver, 'done')
-  await notification(io, pid, completed, true, 'notification-done')
-  if (io.platform === 'win32') io.report.push.activation = await activationEvidence(io, pid, 'notification-done-activation')
+  const windows = io.platform === 'win32'
+  // On Windows the reader only proves that the toast shows with its Done button, and the activator client clicks Done.
+  await notification(io, pid, completed, !windows, 'notification-done')
+  if (windows) {
+    await activateDone(io, completed, 'notification-done-activator')
+    io.report.push.activation = await activationEvidence(io, pid, 'notification-done-activation')
+  }
   try {
     await io.waitFor(async () => (await io.mock.logs()).some((log) => log.habitId === completed.data.habitId), 'the Done habit log', 60000)
   } catch (error) {
-    if (io.platform !== 'win32' || !error.message.startsWith('Timed out')) throw error
+    if (!windows || !error.message.startsWith('Timed out')) throw error
     io.report.push.activationAfterTimeout = await activationEvidence(io, pid, 'notification-done-activation-timeout')
     throw new Error(`${error.message}; ${describeActivation(io.report.push.activationAfterTimeout)}`)
   }
@@ -348,7 +385,16 @@ export async function exercisePush(io) {
   io.proxy.reset({ expectAuthenticated: false, reportSignIn: true })
   // The refreshed access token lives 65 seconds and the BFF refreshes inside 60, so 6 seconds make it due.
   await io.delay(6000)
-  await notification(io, 0, expired, true, 'notification-expired-signed-out')
+  // With no shell running, COM starts the shell from its activator registration, as it does for a click.
+  if (windows) {
+    try {
+      await activateDone(io, expired, 'notification-expired-activator')
+    } catch (error) {
+      // A failed call can still leave a shell that COM started, and only an adopted shell is stopped by the phase cleanup.
+      for (const started of await io.findProcesses()) io.adopt(started)
+      throw error
+    }
+  } else await notification(io, 0, expired, true, 'notification-expired-signed-out')
   // Adopt the launched shell before any later wait, so a missing sign-in page still leaves it to the phase cleanup.
   const launched = await io.waitFor(async () => (await io.findProcesses())[0], 'the notification-launched shell', 30000)
   io.adopt(launched)
