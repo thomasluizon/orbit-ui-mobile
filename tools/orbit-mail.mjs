@@ -4,12 +4,14 @@ import { authenticatedGmail, MAILBOX } from "./lib/auto-work-google.mjs"
 import { acknowledgeIntake, intakeSource, replyDisposition, saveIntakeSource } from "./lib/auto-work-intake.mjs"
 import { REPO_ROOT } from "./lib/run-state.mjs"
 
-const USAGE = `usage: orbit-mail.mjs <--collect | --draft | --reply | --ack>
+const USAGE = `usage: orbit-mail.mjs <--collect | --unseen | --draft | --reply | --ack>
 Read the Orbit mailbox, draft replies or send clear replies under the auto-work policy.
 --collect paginates all received mail, including spam and trash, then reads only unseen ids.
 Complete pending messages are cached; unreadable text parts are retried without losing reply receipts.
 External text parts use Gmail attachments.get; incomplete messages can only receive drafts.
 Completed message ids are the durable high-water mark.
+--unseen paginates the same id listing without reading a message and prints {"unseen": [ids]}
+for ids absent from completed and pending intake state; the idle waiter uses it.
 Calls are paced under Gmail's per-user unit budget. A rate-limit answer (HTTP 429, or 403 rateLimitExceeded
 or userRateLimitExceeded) retries with jittered exponential backoff from one second, for 7 attempts at most.
 --draft stdin JSON: {id, text}; replies to that pending message using its headers and thread.
@@ -60,11 +62,28 @@ const replyMessage = (item, text) => {
   return { threadId: item.threadId, raw: Buffer.from(Object.entries(headers).map(([name, value]) => `${name}: ${value}`).join("\r\n") + "\r\n\r\n" + body).toString("base64url") }
 }
 
+const RECEIVED_MAIL = Object.freeze({ q: "-in:sent -in:drafts", includeSpamTrash: "true", maxResults: "500" })
+
+export const unseenMailIds = async (client, repoRoot = REPO_ROOT) => {
+  const current = intakeSource("gmail", repoRoot)
+  const unseen = []
+  let pageToken
+  do {
+    const page = await client.list({ ...RECEIVED_MAIL, ...(pageToken ? { pageToken } : {}) })
+    for (const entry of page.messages ?? []) {
+      if (typeof entry.id !== "string") throw new Error("Invalid Gmail message identity")
+      if (!current.completed[entry.id] && !current.pending[entry.id]) unseen.push(entry.id)
+    }
+    pageToken = page.nextPageToken
+  } while (pageToken)
+  return unseen
+}
+
 export const collectMail = async (client, repoRoot = REPO_ROOT) => {
   let current = intakeSource("gmail", repoRoot)
   let pageToken
   do {
-    const page = await client.list({ q: "-in:sent -in:drafts", includeSpamTrash: "true", maxResults: "500", ...(pageToken ? { pageToken } : {}) })
+    const page = await client.list({ ...RECEIVED_MAIL, ...(pageToken ? { pageToken } : {}) })
     for (const entry of page.messages ?? []) {
       if (current.completed[entry.id] || current.pending[entry.id]?.bodiesComplete === true) continue
       const message = await client.read(entry.id)
@@ -125,9 +144,9 @@ export const replyToMail = async (client, receipt, repoRoot = REPO_ROOT) => {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const args = process.argv.slice(2)
   if (args.includes("--help") || args.includes("-h")) { console.log(USAGE); process.exit(0) }
-  if (args.length !== 1 || !["--collect", "--draft", "--reply", "--ack"].includes(args[0])) { console.error(USAGE); process.exit(2) }
+  if (args.length !== 1 || !["--collect", "--unseen", "--draft", "--reply", "--ack"].includes(args[0])) { console.error(USAGE); process.exit(2) }
   let input
-  if (args[0] !== "--collect") {
+  if (!["--collect", "--unseen"].includes(args[0])) {
     try { let body = ""; for await (const chunk of process.stdin) body += chunk; input = JSON.parse(body) } catch { console.error("Expected JSON on stdin"); process.exit(2) }
   }
   try {
@@ -135,7 +154,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     else {
       intakeSource("gmail")
       const client = await authenticatedGmail()
-      console.log(JSON.stringify(args[0] === "--collect" ? await collectMail(client) : args[0] === "--reply" ? await replyToMail(client, input) : { draftId: await draftReply(client, input) }))
+      const outputs = { "--collect": () => collectMail(client), "--unseen": async () => ({ unseen: await unseenMailIds(client) }),
+        "--reply": () => replyToMail(client, input), "--draft": async () => ({ draftId: await draftReply(client, input) }) }
+      console.log(JSON.stringify(await outputs[args[0]]()))
     }
   } catch (error) { console.error(error.message); process.exit(1) }
 }

@@ -47,7 +47,7 @@ const stageConfigRepo = (label, { head, origin, working }) => {
 }
 
 export const cases = async () => {
-  const { readOrchestratorConfig, resolveWorkerInvocation } = await import(pathToFileURL(toolPath("lib/orchestrator-config.mjs")).href)
+  const { readOrchestratorConfig, resolveWorkerInvocation, workerAccounts } = await import(pathToFileURL(toolPath("lib/orchestrator-config.mjs")).href)
 
   for (const [name, endMarker] of [["audit", "const VERIFY_CAP"], ["prod-readiness", "const OPS_SCHEMA"]]) {
     const source = readFileSync(new URL(`../../.claude/workflows/${name}.mjs`, import.meta.url), "utf8")
@@ -109,11 +109,8 @@ export const cases = async () => {
       JSON.stringify(worker.subagentOffArgs) === JSON.stringify(offArgs))
     for (const tier of ["default", "mechanical", "deep", "max"]) {
       const disabled = resolveWorkerInvocation(name, worker, tier)
-      const allowed = resolveWorkerInvocation(name, worker, tier, { allowSubagents: true })
-      T(`${NAME}: ${name}.${tier} disables sub-agents by default`,
-        offArgs.every((argument) => disabled.args.includes(argument)), JSON.stringify(disabled))
-      T(`${NAME}: ${name}.${tier} can omit only the sub-agent off vector`,
-        JSON.stringify(allowed.args) === JSON.stringify([...worker.args, ...(worker.models[tier].args ?? []), "--model", worker.models[tier].model]), JSON.stringify(allowed))
+      T(`${NAME}: ${name}.${tier} always disables sub-agents`,
+        JSON.stringify(disabled.args) === JSON.stringify([...worker.args, ...offArgs, ...(worker.models[tier].args ?? []), "--model", worker.models[tier].model]), JSON.stringify(disabled))
     }
   }
   T(`${NAME}: a malformed sub-agent off vector is refused`,
@@ -216,6 +213,19 @@ export const cases = async () => {
     engine.configDirEnv === "ORBIT_WORKER_CLAUDE_CONFIG_DIR",
     JSON.stringify(engine.configDirEnv),
   )
+  const accountDirectory = dirname(stage("orchestrator-config/worker-account/.claude.json", "{}\n"))
+  const accountsFor = (value) => workerAccounts(engineName, engine, { [engine.configDirEnv]: value })
+  T(`${NAME}: a set worker account variable runs the worker account first, then the main account`,
+    JSON.stringify(accountsFor(accountDirectory)) === JSON.stringify([{ name: "worker", configDirectory: accountDirectory }, { name: "main", configDirectory: null }]),
+    JSON.stringify(accountsFor(accountDirectory)))
+  for (const [label, value] of [["unset", undefined], ["empty", ""], ["blank", "  "]]) {
+    T(`${NAME}: a worker account variable that is ${label} runs single-account mode on the main account alone`,
+      JSON.stringify(accountsFor(value)) === JSON.stringify([{ name: "main", configDirectory: null }]), JSON.stringify(accountsFor(value)))
+  }
+  T(`${NAME}: a worker account variable naming a missing directory is refused`,
+    /names .*absent-account, which is not an existing directory; unset it to run workers on the main account$/.test(thrown(() => accountsFor(join(accountDirectory, "absent-account"))) ?? ""))
+  T(`${NAME}: an engine with no Claude account has no accounts`,
+    JSON.stringify(workerAccounts("codex", real.workers.codex, { [engine.configDirEnv]: accountDirectory })) === "[]")
   /** Owner order on #2029: every tier is Opus 5.5 at high effort. The tier names stay as routing labels. */
   for (const tier of ["default", "mechanical", "deep", "max"]) {
     const resolved = resolveWorkerInvocation(engineName, engine, tier)

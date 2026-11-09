@@ -10,8 +10,8 @@ import { assertOutsideRepository, researchEnvironment, researchInvocation, resea
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { ADMISSION_REFUSED_EXIT, checkAdmission, releaseAdmission } from "./lib/admission.mjs"
 import { resolveTicket } from "./lib/github-issues.mjs"
-import { logReachedUsageLimit } from "./lib/claude-usage-limit.mjs"
-import { MAIN_ACCOUNT, WORKER_ACCOUNT, readOrchestratorConfig, resolveWorkerInvocation, workerAccountEnvironment, workerConfigDirectory } from "./lib/orchestrator-config.mjs"
+import { logFinalResult, NO_STOP } from "./lib/claude-usage-limit.mjs"
+import { readOrchestratorConfig, resolveWorkerInvocation, workerAccountEnvironment, workerAccounts } from "./lib/orchestrator-config.mjs"
 import { clearWakeSource, clearWorkerLaunchReservation, recordReservedWorkerPid, registerWakeSource, reserveWorkerLaunch, readRunState, workerLaunchDirectory } from "./lib/run-state.mjs"
 
 const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> --prompt <file> [options]
@@ -36,27 +36,28 @@ const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> -
                      launch. For a ticket that legitimately outruns the fleet-wide default
   --tier <default|mechanical|deep|max>
                      worker profile for this order (default: default)
-  --allow-subagents  omit the engine's sub-agent off vector for a UI review sweep; requires the
-                     exact ## UI review sweep heading in the composed prompt file
   --relaunch-reason <text>
                      deliberate reason for launching after this branch reaches its configured cap
   --dry-run          print the resolved plan as JSON and exit 0, spawning nothing. The plan names
-                     configDirectory, the account directory a claude worker runs under
+                     account and configDirectory, the account a claude worker runs under
   --help, -h         print this usage and exit 0
 
 Prints one JSON object on stdout when the worker is gone: issue, engine, tier, account, pid,
-logFile, startedAt, endedAt, exitCode, outcome, usageLimitReached and attempts, plus what the run
-left in the tree: commitsSinceLaunch, commits and treeClean. Progress goes to stderr, so stdout
-stays pipeable. A claude worker runs on the worker account. When its final result is a usage-limit
-error, the launcher relaunches the order once on the main account, the default Claude config;
-attempts names the account, log and outcome of each run, and each log file name ends in
--worker-account.log or -main-account.log.
+logFile, startedAt, endedAt, exitCode, outcome, usageLimitReached, authenticationFailed, resultError
+and attempts, plus what the run left in the tree: commitsSinceLaunch, commits and treeClean.
+Progress goes to stderr, so stdout stays pipeable. When ORBIT_WORKER_CLAUDE_CONFIG_DIR names the
+worker account's directory, a claude worker runs on that account. When its final result is a
+usage-limit error, the launcher relaunches the order once on the main account, the default Claude
+config. When the variable is unset or empty, the worker runs on the main account once, with no
+relaunch. attempts names the account, log and outcome of each run, and each log file name ends in
+-worker-account.log or -main-account.log. authenticationFailed marks a sign-in the account could
+not complete, such as a cancelled account, and resultError carries the final error text.
 outcome is EXITED, KILLED_HARD_CEILING, KILLED_NO_PROGRESS, KILLED_LOG_RUNAWAY or SPAWN_FAILED.
 Research prints research, outputFile, published, engine, model, account, pid, logFile, startedAt, endedAt,
-exitCode and outcome. It publishes only a non-empty final response from an engine that exits 0.
+exitCode, outcome, authenticationFailed and resultError. It publishes only a non-empty final response from an engine that exits 0.
 
 exit codes: 0 the worker exited on its own, 1 this launcher killed it or it never started,
-            2 usage or config error, including an unset or missing worker account directory,
+            2 usage or config error, including a worker account directory that does not exist,
             3 the worker executable could not be resolved,
             4 this launcher killed it but the tree holds commits it made, so the work may be salvageable,
             8 admission refused new ticket work before reservation
@@ -88,7 +89,6 @@ const tierValue = argOf("--tier")
 const tierArgument = tierValue ?? "default"
 const relaunchReasonArgument = argOf("--relaunch-reason")
 const measurement = process.argv.includes("--measurement")
-const allowSubagents = process.argv.includes("--allow-subagents")
 const dryRun = process.argv.includes("--dry-run")
 
 if ((process.argv.includes("--tier") && typeof tierValue !== "string") || !new Set(["default", "mechanical", "deep", "max"]).has(tierArgument)) {
@@ -107,7 +107,16 @@ if (research) {
     if (["--order", "--out"].includes(flag)) index++
   }
   try { researchPlan = researchPaths(orderArgument, outputArgument) } catch (error) { fail(2, error.message) }
-} else if (orderArgument !== null || outputArgument !== null) fail(2, "--order and --out require --research")
+} else {
+  if (orderArgument !== null || outputArgument !== null) fail(2, "--order and --out require --research")
+  const valueFlags = new Set(["--issue", "--worktree", "--prompt", "--hard-ceiling-minutes", "--tier", "--relaunch-reason"])
+  const switches = new Set(["--measurement", "--dry-run"])
+  for (let index = 2; index < process.argv.length; index++) {
+    const flag = process.argv[index]
+    if (valueFlags.has(flag)) index++
+    else if (!switches.has(flag)) fail(2, `${USAGE}\n\nunsupported option: ${flag}`)
+  }
+}
 
 let issue = research ? "research" : null
 if (!research) {
@@ -145,9 +154,6 @@ if (!existsSync(runDirectory)) fail(2, `worktree not found: ${runDirectory}`)
 const promptFile = research ? researchPlan.orderFile : resolve(promptArg)
 if (!existsSync(promptFile)) fail(2, `prompt file not found: ${promptFile}`)
 if (statSync(promptFile).size === 0) fail(2, `prompt file is empty: ${promptFile}`)
-if (allowSubagents && !/^## UI review sweep\r?$/m.test(readFileSync(promptFile, "utf8"))) {
-  fail(2, "--allow-subagents requires the ## UI review sweep heading in the prompt file")
-}
 
 const normalize = (path) => path.replaceAll("\\", "/").replace(/\/+$/, "").toLowerCase()
 if (normalize(promptFile).startsWith(`${normalize(runDirectory)}/`)) {
@@ -170,13 +176,13 @@ if (!engine.command) fail(2, `.claude/orchestrator.json names worker "${engineNa
 
 let invocation
 try {
-  invocation = resolveWorkerInvocation(engineName, engine, tierArgument, { allowSubagents })
+  invocation = resolveWorkerInvocation(engineName, engine, tierArgument)
 } catch (error) {
   fail(2, error.message)
 }
-let configDirectory
+let accounts
 try {
-  configDirectory = workerConfigDirectory(engineName, engine)
+  accounts = workerAccounts(engineName, engine)
 } catch (error) {
   fail(2, error.message)
 }
@@ -277,12 +283,12 @@ const headlessInvocation = () => {
 const { executable, scriptArgs } = headlessInvocation()
 const workerArgs = research ? null : [...scriptArgs, ...invocation.args, workerPointer(runDirectory, branch)]
 /**
- * A claude worker starts on the worker account. When that account reaches its usage limit, the one
- * relaunch runs on the main account, the orchestrator's default Claude config. Other engines have
- * no Claude account, so their account is null.
+ * A claude worker starts on the first account. With a worker account configured, the one relaunch
+ * after a usage limit runs on the main account, the orchestrator's default Claude config. In
+ * single-account mode there is no second account. Other engines have no Claude account, so their
+ * account is null.
  */
-const primaryAccount = configDirectory === null ? null : { name: WORKER_ACCOUNT, configDirectory }
-const fallbackAccount = { name: MAIN_ACCOUNT, configDirectory: null }
+const [primaryAccount = null, fallbackAccount = null] = accounts
 /** Outside every repo: a log written into the worktree lands in the worker's own diff. */
 const logDirectory = join(tmpdir(), "orbit-workers")
 mkdirSync(logDirectory, { recursive: true })
@@ -296,7 +302,7 @@ if (research) {
 }
 
 if (dryRun) {
-  console.log(JSON.stringify({ issue: research ? null : issue, research, outputFile: researchPlan?.outputFile ?? null, engine: engineName, tier: invocation.tier, model: invocation.model, account: primaryAccount?.name ?? null, configDirectory, measurement, noProgressMinutes, hardCeilingMinutes, runDirectory, branch, promptFile, executable, args: researchArgs ?? workerArgs, logFile, dryRun: true }, null, 2))
+  console.log(JSON.stringify({ issue: research ? null : issue, research, outputFile: researchPlan?.outputFile ?? null, engine: engineName, tier: invocation.tier, model: invocation.model, account: primaryAccount?.name ?? null, configDirectory: primaryAccount?.configDirectory ?? null, measurement, noProgressMinutes, hardCeilingMinutes, runDirectory, branch, promptFile, executable, args: researchArgs ?? workerArgs, logFile, dryRun: true }, null, 2))
   process.exit(0)
 }
 
@@ -607,8 +613,9 @@ const runAttempt = (account, attemptLogFile, attemptArgs) => new Promise((settle
     settled = true
     supervisor.stop()
     closeSync(logFd)
-    const usageLimitReached = account !== null && outcome === "EXITED" && logReachedUsageLimit(attemptLogFile)
-    settle({ account: account?.name ?? null, configDirectory: account?.configDirectory ?? null, pid: attemptChild.pid ?? null, logFile: attemptLogFile, startedAt: attemptStartedAt, endedAt: new Date().toISOString(), exitCode, outcome, usageLimitReached })
+    const result = account !== null && outcome === "EXITED" ? logFinalResult(attemptLogFile) : NO_STOP
+    if (result.authenticationFailed) console.error(`the ${engineName} worker for ${issue} could not sign in${accountLabel(account)}: ${result.error}`)
+    settle({ account: account?.name ?? null, configDirectory: account?.configDirectory ?? null, pid: attemptChild.pid ?? null, logFile: attemptLogFile, startedAt: attemptStartedAt, endedAt: new Date().toISOString(), exitCode, outcome, usageLimitReached: result.usageLimitReached, authenticationFailed: result.authenticationFailed, resultError: result.error })
   }
   attemptChild.on("error", (error) => {
     console.error(`could not start the ${engineName} worker: ${error.message}`)
@@ -638,13 +645,13 @@ const finish = (attempts) => {
         published = true
       } catch (error) { console.error(`could not publish research findings: ${error.message}`) }
     }
-    console.log(JSON.stringify({ research: true, outputFile: researchPlan.outputFile, published, engine: engineName, model: invocation.model, account: last.account, pid: last.pid, logFile: last.logFile, startedAt, endedAt: last.endedAt, exitCode, outcome }, null, 2))
+    console.log(JSON.stringify({ research: true, outputFile: researchPlan.outputFile, published, engine: engineName, model: invocation.model, account: last.account, pid: last.pid, logFile: last.logFile, startedAt, endedAt: last.endedAt, exitCode, outcome, authenticationFailed: last.authenticationFailed, resultError: last.resultError }, null, 2))
     process.exit(published ? 0 : 1)
   }
   const commits = startHead ? gitIn(["log", "--format=%h %s", `${startHead}..HEAD`]).split("\n").filter(Boolean) : []
   const porcelain = spawnSync("git", ["-C", runDirectory, "status", "--porcelain"], { encoding: "utf8", windowsHide: true })
   const treeClean = porcelain.status === 0 && porcelain.stdout.trim() === ""
-  const result = { launcherPid: process.pid, sessionId: launchSessionId, repositoryKey, runDirectory, branch, issue, engine: engineName, tier: invocation.tier, model: invocation.model, account: last.account, configDirectory: last.configDirectory, measurement, noProgressMinutes, hardCeilingMinutes, pid: last.pid, logFile: last.logFile, startedAt, endedAt: last.endedAt, exitCode, outcome, usageLimitReached: last.usageLimitReached, attempts, commitsSinceLaunch: commits.length, commits, treeClean }
+  const result = { launcherPid: process.pid, sessionId: launchSessionId, repositoryKey, runDirectory, branch, issue, engine: engineName, tier: invocation.tier, model: invocation.model, account: last.account, configDirectory: last.configDirectory, measurement, noProgressMinutes, hardCeilingMinutes, pid: last.pid, logFile: last.logFile, startedAt, endedAt: last.endedAt, exitCode, outcome, usageLimitReached: last.usageLimitReached, authenticationFailed: last.authenticationFailed, resultError: last.resultError, attempts, commitsSinceLaunch: commits.length, commits, treeClean }
   const directory = join(workerLaunchDirectory(), "results")
   mkdirSync(directory, { recursive: true })
   const resultPath = join(directory, `${process.pid}.json`)
@@ -658,8 +665,8 @@ const finish = (attempts) => {
 
 const attempts = [await runAttempt(primaryAccount, logFile, researchArgs ?? workerArgs)]
 // Ticket work only: research publishes one report file, and its order is rerun whole.
-if (!research && attempts[0].usageLimitReached && primaryAccount?.name === WORKER_ACCOUNT) {
-  console.error(`${issue} stopped at the worker account's usage limit; relaunching it once on the main account`)
+if (!research && attempts[0].usageLimitReached && fallbackAccount !== null) {
+  console.error(`${issue} stopped at the ${primaryAccount.name} account's usage limit; relaunching it once on the ${fallbackAccount.name} account`)
   attempts.push(await runAttempt(fallbackAccount, logFileFor(fallbackAccount), [...scriptArgs, ...invocation.args, continuationPointer(runDirectory, branch)]))
 }
 finish(attempts)

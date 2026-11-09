@@ -167,7 +167,7 @@ node tools/plan-queue.mjs        (--tickets ORB-1,ORB-2 | --board) [--format mar
 node tools/comment-ticket.mjs    --issue "<ticket-ref>" --body-file <path|->
 node tools/complete-ticket.mjs   --issue "<ticket-ref>" [--preflight]
 node tools/compose-prompt.mjs    --issue "<ticket-ref>" --repo <key> --out <file> [--worktree <p>] [--branch <b>] [--base <ref>] [--layout-guard] [--review-batch] [--cloud]
-node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical|deep|max>] [--allow-subagents] [--relaunch-reason <text>]
+node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical|deep|max>] [--relaunch-reason <text>]
 node tools/launch-worker.mjs --research --order <scratchpad order> --out <scratchpad findings>
 node tools/submit-cloud-worker.mjs --issue "<ticket-ref>" --env <id> --branch <b> --order <f> --worktree <p>
 node tools/submit-cloud-worker.mjs --watch <receiptPath>
@@ -309,10 +309,8 @@ user. So the same directory layout means opposite things for the two kinds.
 This gate exists because ORB-115, ORB-111 and ORB-118 all closed as Done with their work undone,
 invisibly, on a shadowed skill.
 
-Expected state: `~/.claude/skills/` holds exactly 16 dirs (`brain`, `brain-agenda`, `brain-capture`,
-`brain-decide`, `brain-review`, `computer-use`, `diagnosing-bugs`, `find-skills`,
-`g-best-implementation`, `g-deep-research`, `g-simplify`, `g-video`, `grilling`, `orca-cli`,
-`orchestration`, `tdd`) and none of them may also exist under `.claude/skills/`.
+Expected state: the `comm` command prints nothing. The skill names under `~/.claude/skills/` change
+per machine, so this gate checks only that no name appears in both directories.
 
 ## Step 1. Plan the queue
 
@@ -537,8 +535,7 @@ construction: the child's branch cannot exist until the parent's does.
 node tools/compose-prompt.mjs --issue "<ticket-ref>" --repo <key> --out <scratchpad>/<ticket-slug>-prompt.md \n  --worktree <worktree path> --branch <contract branch> --base <base branch>
 ```
 
-The file carries three parts. A local order puts them in the order ticket, finishing contract (with
-any redesign review sweep), brief, so the worker reads its delivery steps before the brief (#624). A
+The file carries three parts. A local order puts them in the order ticket, finishing contract, brief, so the worker reads its delivery steps before the brief (#624). A
 Cloud order keeps ticket, brief, finishing contract.
 
 For a ui ticket that requires the hermetic web layout guard, the orchestrator selects
@@ -670,58 +667,6 @@ only after receipt resolution is durable. Exit 10 with `NEEDS_DECISION` preserve
 and refuses delivery. Route its question through step 7 (under `--sleep`, log it as blocked), and
 do not run readiness or merge until the owner answers and the resulting work is verified.
 
-For a Cloud `ui` order that carries the UI review sweep, inspect the locally materialized diff for the UI scope printed in the order. When it matches, run the owed sweep locally after materialization and
-before opening or updating the pull request. This contract is rendered from
-`UI_REVIEW_SWEEP_CONTRACT` in `tools/lib/review-harness.mjs`; composer coverage refuses drift.
-
-Use `.claude/playbooks/redesign-screen.md` as the authority. Complete all three source families before starting a lane:
-
-1. Run `npx --yes ui-skills get <owner>/<name>` for each skill and verify a successful, non-empty fetch: `anthropics/frontend-design`, `jakubkrehel/make-interfaces-feel-better`, `emilkowalski/animation-vocabulary`, `raphaelsalaja/mastering-animate-presence`, `iart-ai/accessible-animation`, `ibelick/fixing-accessibility`, `wshobson/wcag-audit-patterns`.
-2. Use the GitHub Trees commands below and read every blob under each `skills/<name>/` directory: `better-ui`, `better-accessibility`, `better-layout`, `better-writing`, `better-typography`, `better-colors`, `interface-review`, `better-interface`.
-
-```bash
-gh api "repos/jakubkrehel/skills/git/trees/main?recursive=1" --jq .truncated
-gh api "repos/jakubkrehel/skills/git/trees/main?recursive=1" \
-  --jq '.tree[]|select(.type=="blob" and (.path|startswith("skills/<name>/")))|.path'
-```
-
-Stop if `truncated` is `true`. Read every printed path from `https://raw.githubusercontent.com/jakubkrehel/skills/main/<path>`.
-3. Fetch the Vercel guideline text from `https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md`.
-
-Run the four read-only lanes yourself, in this session, in order:
-
-- execution (mandatory): `anthropics/frontend-design`, `jakubkrehel/better-ui`, `jakubkrehel/make-interfaces-feel-better`
-- motion (when the change animates): `emilkowalski/animation-vocabulary`, `raphaelsalaja/mastering-animate-presence`, `iart-ai/accessible-animation`
-- gates (mandatory): `the Vercel guideline text`, `ibelick/fixing-accessibility`, `wshobson/wcag-audit-patterns`, `jakubkrehel/better-accessibility`
-- the change (mandatory): `jakubkrehel/interface-review`, `jakubkrehel/better-interface in full mode`, `jakubkrehel/better-accessibility`, `jakubkrehel/better-layout`, `jakubkrehel/better-writing`, `jakubkrehel/better-typography`, `jakubkrehel/better-colors`, `jakubkrehel/better-ui`
-
-Within the change lane, run `interface-review` before `better-interface`.
-Spawn exactly two sub-agents for the close gate:
-
-- One for `design-reviewer on the diff`, told to read `.claude/agents/design-reviewer.md`.
-- One for `completeness-critic against the surface inventory`, told to read `.claude/agents/completeness-critic.md`.
-
-Spawn no other sub-agent. If no changed path matches the sweep's scope, spawn none.
-Verify each lane's PASS, not only its findings. A routed domain marked skipped is not covered.
-Fix every in-scope finding in this pull request. Only then write:
-
-```md
-## Review harness
-
-- execution lane: <what it found, or "no findings">
-- motion lane: <what it found, "no findings", or "not applicable: no changed animation">
-- gates lane: <what it found, or "no findings">
-- interface-review: <what it found, or "no findings">
-- better-interface (full mode): <what it found, or "no findings">
-- design-reviewer: <what it found, or "no findings">
-- completeness-critic: <what it found, or "no findings">
-```
-
-A line claiming a review you did not run is forbidden.
-
-This step belongs to the local materialization
-lane because the Cloud container cannot fetch the review sources.
-
 On success, read `assumptions` using step 7's adjudication rule, and carry them verbatim into the PR
 body's `## Assumptions`. Carry `manualSteps` into `## Manual steps`, including each exact key,
 location and proof. Carry `materialized.handoff.testResults` verbatim into the eventual PR body's
@@ -765,7 +710,7 @@ a non-empty remote diff keeps the task unresolved.
 ### Local execution
 
 ```bash
-node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical|deep|max>] [--allow-subagents] [--relaunch-reason <text>]
+node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical|deep|max>] [--relaunch-reason <text>]
 node tools/launch-worker.mjs --research --order <scratchpad order> --out <scratchpad findings>
 ```
 
@@ -797,14 +742,7 @@ still needs product, design, architecture, security or ambiguous judgement uses 
 `default` or `deep` tier until a failed round requires `max`.
 The mechanical tier means the answer is fully specified; it is never a synonym for small.
 The failed-round escalation takes precedence over the other tier choices. Never use `ultra`:
-it delegates to its own agents, and worker orders forbid sub-agents outside the explicit UI sweep.
-
-Pass `--allow-subagents` exactly when `compose-prompt.mjs` included the exact `## UI review sweep`
-heading in the finishing contract. Ticket text never selects this flag, the same rule as
-`--layout-guard`. The launcher refuses the flag without that heading. All other local launches
-keep the configured sub-agent off vector on both engines. The four review lanes run in the worker
-session; only the two close-gate reviewers may be spawned. A review batch with no changed path
-matching `UI_SCOPE` skips the sweep and spawns none.
+it delegates to its own agents, and worker orders forbid sub-agents.
 
 New ticket work first passes the GitHub admission gate in `caps.maxOpenPullRequests` and
 `caps.maxQueuedRuns`. A branch with an open pull request is exempt. `ADMISSION_REFUSED` starts no
@@ -1089,19 +1027,15 @@ resolve and same-head re-review transitions without launching a worker or invent
 When the batch needs a worker, compose its order with `--review-batch`. The worker commits, runs the
 broader suite, reports the commit SHA and stops without pushing. **Its final report is the batch's
 handoff, and the orchestrator consumes it before anything else.** Read the report's
-`## Test evidence`, `## Assumptions` and `## Manual steps` sections, its `## Review harness` block only when the order carried the UI review sweep and a path changed by this batch matches `UI_SCOPE` in `tools/lib/review-harness.mjs`,
-and any `NEEDS_DECISION` line at the step 7
+`## Test evidence`, `## Assumptions` and `## Manual steps` sections and any `NEEDS_DECISION` line at the step 7
 worker-exit gate, adjudicate the assumptions there exactly as for an initial worker, and write every
 one of those sections into the existing pull request body before delivery. Merge new entries into the existing `## Test evidence`, `## Assumptions` and `## Manual steps` sections.
 An empty second batch section preserves the first batch's entries. Deduplicate repeated evidence.
 Save the current PR body from `gh pr view <n> --json body --jq .body` and the worker's final report
 to separate files. Run `node tools/merge-review-batch-body.mjs --body-file <current-body> --report-file <worker-report> --out <merged-body>`.
-Add `--ui-scope` only when a path changed by this batch's commit matches `UI_SCOPE`, so the tool
-requires and replaces the complete `## Review harness` block for a UI batch. Without it, the tool
-preserves the previous block. Then run `gh pr edit <n> --body-file <merged-body>`. Only then does
+Then run `gh pr edit <n> --body-file <merged-body>`. Only then does
 the orchestrator reply to and resolve every identified thread on that commit, then push once. A
-report that lacks the evidence the order required is a failed batch, never a push. For a batch with no matching path, accept a report without that block and preserve any existing PR-body block.
-For a batch with a matching path, require the complete block and replace the PR-body block before continuing. After that push, run
+report that lacks the evidence the order required is a failed batch, never a push. After that push, run
 `list-bot-threads.mjs`: when the CI of the new head passes, it asks Pullfrog for one review of the
 fixes and resolved threads together. A registered
 `pullfrog-approval` SUCCESS at the current head is the verdict. When that check is ABSENT from the
@@ -1398,7 +1332,7 @@ The shipped worker is `claude`. All four tiers resolve to Opus 5.5 at high effor
 run prints `--effort high --model claude-opus-5-5`. The tier names stay as routing labels: use
 `default` for normal orders, `mechanical` for fully specified mechanical work, `deep` for a large
 ticket and `max` for a review round after one failed round. Never use `ultra`, which delegates to
-its own agents; worker orders forbid sub-agents outside the explicit UI sweep. The installed
+its own agents; worker orders forbid sub-agents. The installed
 `claude` CLI accepts exactly `low`, `medium`, `high`, `xhigh` and `max` for `--effort`, and it
 warns and runs the default effort on any other value.
 
@@ -1411,15 +1345,16 @@ A later ticket deletes it. It is not a fallback engine.
 
 ### §5.4.1 The worker account
 
-**Every worker runs under the dedicated worker account, never under the orchestrator's account.**
-`workers.claude.configDirEnv` names the variable `ORBIT_WORKER_CLAUDE_CONFIG_DIR`, and the
-owner's shell profile exports it as the Claude Code config directory of that account. The path
-lives only in the environment, never in a tracked file. For a `claude` launch, `launch-worker.mjs`
-does these steps:
+**A worker runs under the dedicated worker account when one is configured, and under the main
+account when none is.** `workers.claude.configDirEnv` names the variable
+`ORBIT_WORKER_CLAUDE_CONFIG_DIR`. When a worker account exists, the owner's shell profile exports
+the variable as the Claude Code config directory of that account. The path lives only in the
+environment, never in a tracked file. For a `claude` launch, `launch-worker.mjs` does these steps:
 
-1. It refuses with exit 2, naming the variable, when the variable is unset or empty.
+1. When the variable is unset or empty, it uses single-account mode: the worker runs once on the
+   main account, the orchestrator's default Claude config, with `CLAUDE_CONFIG_DIR` removed.
 2. It refuses with exit 2 when the variable names a path that is not an existing directory.
-3. It sets `CLAUDE_CONFIG_DIR` to that directory in the child environment.
+3. Otherwise it sets `CLAUDE_CONFIG_DIR` to that directory in the child environment.
 4. It removes every variable in `CLAUDE_ACCOUNT_OVERRIDE_KEYS` (`tools/lib/orchestrator-config.mjs`)
    from the child environment. The installed `claude` CLI selects each one ahead of the sign-in in
    its config directory: `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN`,
@@ -1430,6 +1365,25 @@ Research launches through `--research` apply the same four steps. A `codex` laun
 account directory and is unchanged. The dry run and the launch JSON name the account as
 `account` (`worker` or `main`), and each worker log file name ends in `-worker-account.log` or
 `-main-account.log`.
+
+**On the day the worker account is cancelled, unset the variable.** Remove the
+`ORBIT_WORKER_CLAUDE_CONFIG_DIR` export from the owner's shell profile, and workers start on the
+main account. A variable that still names the cancelled account's directory stops each worker at
+sign-in. The launch JSON then shows `authenticationFailed: true`, the CLI's error text in
+`resultError` and `usageLimitReached: false`, with no relaunch. If a new worker account is added
+later, set the variable again. The fallback then moves workers between the two accounts with no
+owner action.
+
+**Read the launch JSON's `account` before acting on `authenticationFailed: true`.** When it is
+`worker`, start no further launch on the worker account. Relaunch that order, and every later one,
+in single-account mode by prefixing the launch command with `ORBIT_WORKER_CLAUDE_CONFIG_DIR=`, with
+`--relaunch-reason` when the branch ledger needs it. Record `resultError` in the handoff inventory
+and the step 11 report, with the owner's fix: remove the export from the shell profile. When it is
+`main` (single-account mode, or a fallback relaunch that failed sign-in), no account can run a
+worker: start no further launch and never relaunch on that account. Record `resultError` with the
+owner's fix, which is to sign in again with `/login` in an interactive `claude` session on the
+coordinator's default config.
+In both cases, review, CI waiting and readiness work continue.
 
 ```bash
 node tools/launch-worker.mjs --issue '#N' --worktree <path> --prompt <file> --dry-run
@@ -1442,7 +1396,7 @@ node tools/launch-worker.mjs --issue '#N' --worktree <path> --prompt <file> --ti
 the account directory and prints the plan, then exits before `githubEnvironment` and before any
 spawn. It proves five things: the engine and tier resolve, the model id the launcher selected,
 the exact argv the child would receive, the command is on PATH in a shape Node can spawn without
-a shell, and `configDirectory` names the account directory the worker will run under. It proves
+a shell, and `account` and `configDirectory` name the account the worker will run under. It proves
 nothing about whether that sign-in is valid, whether the model id is accepted, or the run. Read
 the `args` array back for all four tiers: the launcher defaults `--tier` to `default`, so the
 explicit dry runs above are needed to show `mechanical`, `deep` and `max`.
@@ -1457,12 +1411,12 @@ launcher does these steps:
    every inherited override still removed. The order pointer tells the worker that an earlier
    worker stopped at its limit, so it reads `git log` and `git status` and keeps that work.
 2. It records both runs in `attempts` in the launch JSON, each with its `account`,
-   `configDirectory`, `logFile`, `outcome` and `usageLimitReached`. The top-level `account`,
-   `pid` and `logFile` name the run that finished the launch.
+   `configDirectory`, `logFile`, `outcome`, `usageLimitReached`, `authenticationFailed` and
+   `resultError`. The top-level `account`, `pid` and `logFile` name the run that finished the launch.
 
 Any other failure, including a transient 429 that is not a usage limit, ends the launch with no
-relaunch. A main account run that also reaches its limit is not relaunched again; the result
-shows `usageLimitReached: true`. Then record the reset time in the handoff inventory and in the
+relaunch. A main account run that reaches its limit is not relaunched again, in single-account
+mode or after the fallback; the result shows `usageLimitReached: true`. Then record the reset time in the handoff inventory and in the
 step 11 report, and stop new launches until a reset. Do not switch `worker` to `codex`, because
 its allowance is the reason the workers moved. The order generator, `§5.7`'s queue, the readiness
 loop and the open pull requests continue, because review and merge spend no worker allowance.

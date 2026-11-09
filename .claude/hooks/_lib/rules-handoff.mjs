@@ -27,13 +27,15 @@ const modeOf = (request, state) => {
 
 /**
  * Every NEXT.md version a commit could record must comply with the recorded request.
- * `promptsForCommit` returns those versions for the commit's directory, empty when NEXT.md is unchanged.
+ * `promptsForCommit` returns those versions for the commit's directory, empty when NEXT.md is unchanged;
+ * `specsForCommit` returns every version of a named spec the commit could record.
  */
-export const checkHandoffCommit = ({ command, cwd, request, state, promptsForCommit, refreshCheckout }) => {
+export const checkHandoffCommit = ({ command, cwd, request, state, promptsForCommit, specsForCommit, refreshCheckout }) => {
   const directory = gitCommitDirectory(command, cwd)
   if (!directory) return null
   for (const text of promptsForCommit(directory)) {
-    const missing = validateHandoffPrompt(text, { sleep: request ? request.sleep === true : undefined, crank: handoffCrank(request, state), autoWork: handoffAutoWork(request, state) })
+    const missing = validateHandoffPrompt(text, { sleep: request ? request.sleep === true : undefined, crank: handoffCrank(request, state),
+      autoWork: handoffAutoWork(request, state), specVersions: specsForCommit && ((path) => specsForCommit(directory, path)) })
     if (missing.length > 0) return { block: true, message: describe(missing, modeOf(request, state)) }
   }
   try {
@@ -44,10 +46,11 @@ export const checkHandoffCommit = ({ command, cwd, request, state, promptsForCom
   return null
 }
 
-/** After a recorded request, a NEXT.md committed since that request must comply before the session may stop. */
-export const checkHandoffStop = ({ request, state, headPrompt, headPromptCommittedAt }) => {
+/** After a recorded request, a NEXT.md committed since that request, and the spec it names in that commit, must comply before the session may stop. */
+export const checkHandoffStop = ({ request, state, headPrompt, headPromptCommittedAt, headSpecVersions }) => {
   if (!request || headPrompt === null) return null
   if (!(Date.parse(headPromptCommittedAt) >= Date.parse(request.recordedAt))) return null
-  const missing = validateHandoffPrompt(headPrompt, { sleep: request.sleep === true, crank: handoffCrank(request, state), autoWork: handoffAutoWork(request, state) })
+  const missing = validateHandoffPrompt(headPrompt, { sleep: request.sleep === true, crank: handoffCrank(request, state),
+    autoWork: handoffAutoWork(request, state), specVersions: headSpecVersions })
   return missing.length === 0 ? null : { block: true, message: describe(missing, modeOf(request, state)) }
 }

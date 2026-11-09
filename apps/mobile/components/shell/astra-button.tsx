@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Animated, StyleSheet, View, useWindowDimensions, type GestureResponderEvent } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTranslation } from 'react-i18next'
-import { ASTRA_BUTTON_SIZE, ASTRA_BUTTON_GAP, ASTRA_BUTTON_CLEARANCE, ASTRA_DRAG_THRESHOLD, ASTRA_POSITION_KEY, clampAstraButton, getAstraButtonClearance, moveAstraButton, parseAstraButtonPosition, resolveAstraButtonArea, snapAstraButton, type AstraButtonArea, type AstraButtonPoint, type AstraMoveDirection } from '@orbit/shared/utils'
+import { ASTRA_BUTTON_SIZE, ASTRA_BUTTON_GAP, ASTRA_BUTTON_CLEARANCE, ASTRA_BUTTON_AT_REST, ASTRA_POSITION_KEY, advanceAstraButtonGesture, getAstraButtonClearance, moveAstraButton, parseAstraButtonPosition, resolveAstraButtonArea, snapAstraButton, type AstraButtonArea, type AstraButtonGesture, type AstraButtonGestureEvent, type AstraButtonPoint, type AstraMoveDirection } from '@orbit/shared/utils'
 import { SHELL_CONTENT_MAX_WIDTH, zLayers, motionDurations, motionEasings } from '@orbit/shared/theme'
 import { Fab } from '@/components/ui/fab'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
@@ -82,7 +82,7 @@ export function AstraButton({ hasFab, chrome, onClearanceChange }: Readonly<{ ha
     {(position || area.width === 0) && !blocked ? <Animated.View testID="astra-button-position"
       {...gesture}
       style={[styles.position, renderedPosition ? { left: 0, top: 0, transform: [{ translateX: renderedPosition.x }, { translateY: renderedPosition.y }] } : { right: fallbackRight, bottom: chrome.pageInset + ASTRA_BUTTON_SIZE + ASTRA_BUTTON_GAP + ASTRA_BUTTON_CLEARANCE }]}>
-      <Fab neutral lifted={dragged !== null} testID="astra-button" label={t('shell.astraButton.open')} accessibilityHint={t('shell.astraButton.hint')}
+      <Fab neutral blockNativeResponder lifted={dragged !== null} testID="astra-button" label={t('shell.astraButton.open')} accessibilityHint={t('shell.astraButton.hint')}
         accessibilityActions={(['left', 'right', 'up', 'down'] as const).map(direction => ({ name: direction, label: t(`shell.astraButton.${direction}`) }))}
         onAccessibilityAction={event => {
           const direction = event.nativeEvent.actionName
@@ -107,6 +107,9 @@ function AstraMoveSheet({ onMove, onClose }: Readonly<{ onMove: (direction: Astr
   </Sheet>
 }
 
+/** A native-driven value answers `stopAnimation` only on a later Android animation batch, so a drag could not start where an interrupted snap stopped. */
+const SNAP_USES_NATIVE_DRIVER = false
+
 function useAstraTranslation(positionX: number | undefined, positionY: number | undefined, snapping: boolean, dragging: boolean, reducedMotion: boolean) {
   const translation = useMemo(() => ({ x: new Animated.Value(0), y: new Animated.Value(0) }), [])
   useEffect(() => {
@@ -114,8 +117,8 @@ function useAstraTranslation(positionX: number | undefined, positionY: number | 
     if (!snapping || reducedMotion || dragging) { translation.x.stopAnimation(); translation.y.stopAnimation(); translation.x.setValue(positionX); translation.y.setValue(positionY); return }
     const easing = toAnimatedEasing(motionEasings.enter)
     const animation = Animated.parallel([
-      Animated.timing(translation.x, { toValue: positionX, duration: motionDurations.base, easing, useNativeDriver: true }),
-      Animated.timing(translation.y, { toValue: positionY, duration: motionDurations.base, easing, useNativeDriver: true }),
+      Animated.timing(translation.x, { toValue: positionX, duration: motionDurations.base, easing, useNativeDriver: SNAP_USES_NATIVE_DRIVER }),
+      Animated.timing(translation.y, { toValue: positionY, duration: motionDurations.base, easing, useNativeDriver: SNAP_USES_NATIVE_DRIVER }),
     ])
     animation.start()
     return () => animation.stop()
@@ -123,56 +126,39 @@ function useAstraTranslation(positionX: number | undefined, positionY: number | 
   return translation
 }
 
-interface AstraGesture {
-  pointer: AstraButtonPoint
-  latest: AstraButtonPoint
-  button: AstraButtonPoint | null
-  dragging: boolean
-  released: boolean
+type AstraTranslation = ReturnType<typeof useAstraTranslation>
+
+function stopAtDisplayed(translation: AstraTranslation): AstraButtonPoint {
+  const displayed = { x: 0, y: 0 }
+  translation.x.stopAnimation(x => { displayed.x = x })
+  translation.y.stopAnimation(y => { displayed.y = y })
+  return displayed
 }
 
-function useAstraGesture(position: AstraButtonPoint | null, translation: ReturnType<typeof useAstraTranslation>, area: AstraButtonArea,
+function pointerOf(event: GestureResponderEvent): AstraButtonPoint {
+  return { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY }
+}
+
+function useAstraGesture(position: AstraButtonPoint | null, translation: AstraTranslation, area: AstraButtonArea,
   onDrag: (point: AstraButtonPoint | null) => void, onFinish: (point: AstraButtonPoint) => void) {
-  const origin = useRef<AstraGesture | null>(null)
-  function continueGesture(start: AstraGesture) {
-    if (origin.current !== start || !start.button || !start.dragging) return
-    const point = clampAstraButton({ x: start.button.x + start.latest.x - start.pointer.x,
-      y: start.button.y + start.latest.y - start.pointer.y }, area)
-    if (start.released) { origin.current = null; onFinish(point) }
-    else onDrag(point)
+  const gesture = useRef<AstraButtonGesture>(ASTRA_BUTTON_AT_REST)
+  function advance(event: AstraButtonGestureEvent) {
+    gesture.current = advanceAstraButtonGesture(gesture.current, event, area)
+    if (gesture.current.phase === 'dragging') onDrag(gesture.current.point)
+    if (gesture.current.phase === 'settled') onFinish(gesture.current.point)
   }
-  function updateGesture(event: GestureResponderEvent, released = false) {
-    const start = origin.current
-    if (!start) return
-    start.latest = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY }
-    start.dragging = true
-    start.released = released
-    continueGesture(start)
-  }
-  const cancelGesture = () => { origin.current = null; onDrag(null) }
+  const cancelGesture = () => { advance({ type: 'cancel' }); onDrag(null) }
   return {
     cancelGesture,
     onStartShouldSetResponderCapture: (event: GestureResponderEvent) => {
-      const pointer = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY }
-      const start: AstraGesture | null = position ? { pointer, latest: pointer, button: null, dragging: false, released: false } : null
-      origin.current = start
-      if (start) {
-        let displayedX: number | undefined
-        let displayedY: number | undefined
-        const capture = () => {
-          if (displayedX === undefined || displayedY === undefined) return
-          start.button = { x: displayedX, y: displayedY }
-          continueGesture(start)
-        }
-        translation.x.stopAnimation(x => { displayedX = x; capture() })
-        translation.y.stopAnimation(y => { displayedY = y; capture() })
-      }
+      advance(position ? { type: 'press', pointer: pointerOf(event), origin: stopAtDisplayed(translation) } : { type: 'cancel' })
       return false
     },
-    onMoveShouldSetResponderCapture: (event: GestureResponderEvent) => !!origin.current && Math.hypot(event.nativeEvent.pageX - origin.current.pointer.x, event.nativeEvent.pageY - origin.current.pointer.y) >= ASTRA_DRAG_THRESHOLD,
-    onResponderGrant: updateGesture,
-    onResponderMove: updateGesture,
-    onResponderRelease: (event: GestureResponderEvent) => updateGesture(event, true),
+    onMoveShouldSetResponderCapture: (event: GestureResponderEvent) => advanceAstraButtonGesture(gesture.current, { type: 'move', pointer: pointerOf(event) }, area).phase === 'dragging',
+    onResponderGrant: (event: GestureResponderEvent) => { advance({ type: 'move', pointer: pointerOf(event) }); return true },
+    onResponderMove: (event: GestureResponderEvent) => advance({ type: 'move', pointer: pointerOf(event) }),
+    onResponderRelease: (event: GestureResponderEvent) => advance({ type: 'release', pointer: pointerOf(event) }),
+    onResponderTerminationRequest: () => false,
     onResponderTerminate: cancelGesture,
   }
 }
