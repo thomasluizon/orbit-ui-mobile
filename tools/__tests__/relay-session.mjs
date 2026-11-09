@@ -234,7 +234,7 @@ const fileWaiterCase = async () => {
 
 export const cases = async () => {
   await fileWaiterCase()
-  for (const [label, options, message] of [["below", { tokens: 399999 }, /below threshold/], ["young", { calls: 19 }, /at least 20/]]) {
+  for (const [label, options, message] of [["below", { tokens: realOrchestratorConfig().relay.thresholdTokens - 1 }, /below threshold/], ["young", { calls: 19 }, /at least 20/]]) {
     const staged = fixture(label, options)
     T(`relay-session: refuses ${label}`, message.test(await failure({ repoRoot: staged.checkout, sessionId: "predecessor" })))
   }
