@@ -3,14 +3,12 @@
 
 import { readFileSync, writeFileSync } from "node:fs"
 import { isAbsolute } from "node:path"
-import { reviewHarnessSectionLines, reviewEvidenceProblem } from "./lib/review-harness.mjs"
 
-const USAGE = `usage: merge-review-batch-body.mjs --body-file <absolute path> --report-file <absolute path> --out <absolute path> [--ui-scope]
+const USAGE = `usage: merge-review-batch-body.mjs --body-file <absolute path> --report-file <absolute path> --out <absolute path>
 
   --body-file   current pull request body
   --report-file review worker's final report
   --out         merged body for gh pr edit --body-file
-  --ui-scope    require complete Review harness evidence and replace the section for this batch
 
 exit codes: 0 body written, 1 missing report evidence, 2 invalid arguments`
 
@@ -26,8 +24,7 @@ const option = (flag) => {
 const bodyFile = option("--body-file")
 const reportFile = option("--report-file")
 const out = option("--out")
-const uiScope = process.argv.includes("--ui-scope")
-const allowed = new Set(["--body-file", "--report-file", "--out", "--ui-scope"])
+const allowed = new Set(["--body-file", "--report-file", "--out"])
 const flags = process.argv.slice(2).filter((arg) => arg.startsWith("--"))
 if (!bodyFile || !reportFile || !out || ![bodyFile, reportFile, out].every(isAbsolute) || flags.some((flag) => !allowed.has(flag))) {
   console.error(USAGE)
@@ -112,15 +109,6 @@ try {
     const merged = merge(existing?.body ?? "", incoming.body)
     if (existing) existing.body = merged
     else if (merged) body.sections.push({ title, body: merged })
-  }
-  if (uiScope) {
-    const incoming = section(report, "Review harness")
-    if (!incoming) throw new Error("missing ## Review harness in UI review report")
-    const detail = reviewEvidenceProblem(reviewHarnessSectionLines(`## Review harness\n\n${incoming.body}`))
-    if (detail) throw new Error(`incomplete ## Review harness in UI review report: ${detail}`)
-    const existing = section(body, "Review harness")
-    if (existing) existing.body = incoming.body
-    else body.sections.push({ title: "Review harness", body: incoming.body })
   }
   const rendered = [body.preamble, ...body.sections.map(({ title, body: content }) => `## ${title}\n\n${content}`)].filter(Boolean).join("\n\n")
   writeFileSync(out, `${rendered}\n`, "utf8")

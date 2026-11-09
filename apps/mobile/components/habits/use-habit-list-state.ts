@@ -72,11 +72,10 @@ export function useHabitListScroll({ isSelectMode, onScroll }: Pick<HabitListPro
   const bulkBarStyle = { minHeight: minimumHeight, paddingBottom: clearance + (isSelectMode ? SPACING.s24 : SPACING.s0) }
   const scrollContainerRef = useRef<GHFlatList<DragItem>>(null)
   const drillListRef = useRef<FlatList<NormalizedHabit>>(null)
-  const stateListRef = useRef<FlatList<string>>(null)
   const allListRef = useRef<FlatList<DragItem>>(null)
   const listScrollOffsets = useRef(new WeakMap<object, number>())
   const revealListFocus = useShellListFocus((delta) => {
-    const target = scrollContainerRef.current ?? allListRef.current ?? drillListRef.current ?? stateListRef.current
+    const target = scrollContainerRef.current ?? allListRef.current ?? drillListRef.current
     if (!target) return
     const offset = Math.max(0, (listScrollOffsets.current.get(target) ?? 0) + delta)
     listScrollOffsets.current.set(target, offset)
@@ -84,7 +83,7 @@ export function useHabitListScroll({ isSelectMode, onScroll }: Pick<HabitListPro
   })
   const handleListScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const target = allListRef.current ?? drillListRef.current ?? stateListRef.current
+      const target = allListRef.current ?? drillListRef.current
       if (target) listScrollOffsets.current.set(target, e.nativeEvent.contentOffset.y)
       onScroll?.(e.nativeEvent.contentOffset.y)
     },
@@ -97,7 +96,7 @@ export function useHabitListScroll({ isSelectMode, onScroll }: Pick<HabitListPro
     },
     [onScroll],
   )
-  return { reserveViewport, scrollContainerRef, allListRef, drillListRef, stateListRef, handleListScroll, revealListFocus, bulkBarStyle, handleMainListOffsetChange }
+  return { reserveViewport, scrollContainerRef, allListRef, drillListRef, handleListScroll, revealListFocus, bulkBarStyle, handleMainListOffsetChange }
 }
 
 type HabitListQueriesInputs = Pick<HabitListProps, 'filters'> & { view: NonNullable<HabitListProps['view']> } & Pick<ReturnType<typeof useHabitListAccount>, 'todayStr'>
@@ -431,7 +430,7 @@ export function useHabitListSubHabitActions({ collapsedIds }: Pick<HabitListSubH
   return { startAddSubHabit }
 }
 
-export function useHabitListHandle({ ref }: Pick<HabitListHandleInputs, 'ref'>, { allCollapsed, collapseAll, expandAll }: Pick<HabitListHandleInputs, 'allCollapsed' | 'collapseAll' | 'expandAll'>, { allLoadedIds }: Pick<HabitListHandleInputs, 'allLoadedIds'>, { markRecentlyCompleted }: Pick<HabitListHandleInputs, 'markRecentlyCompleted'>, { checkAndPromptParentLog, settleBulkHabitResolutions }: Pick<HabitListHandleInputs, 'checkAndPromptParentLog' | 'settleBulkHabitResolutions'>, { openBulkMove }: Pick<HabitListHandleInputs, 'openBulkMove'>, { refetch }: Pick<HabitListHandleInputs, 'refetch'>, { scrollContainerRef, allListRef, drillListRef, stateListRef }: Pick<HabitListHandleInputs, 'scrollContainerRef' | 'allListRef' | 'drillListRef' | 'stateListRef'>) {
+export function useHabitListHandle({ ref }: Pick<HabitListHandleInputs, 'ref'>, { allCollapsed, collapseAll, expandAll }: Pick<HabitListHandleInputs, 'allCollapsed' | 'collapseAll' | 'expandAll'>, { allLoadedIds }: Pick<HabitListHandleInputs, 'allLoadedIds'>, { markRecentlyCompleted }: Pick<HabitListHandleInputs, 'markRecentlyCompleted'>, { checkAndPromptParentLog, settleBulkHabitResolutions }: Pick<HabitListHandleInputs, 'checkAndPromptParentLog' | 'settleBulkHabitResolutions'>, { openBulkMove }: Pick<HabitListHandleInputs, 'openBulkMove'>, { refetch }: Pick<HabitListHandleInputs, 'refetch'>, { scrollContainerRef, allListRef, drillListRef }: Pick<HabitListHandleInputs, 'scrollContainerRef' | 'allListRef' | 'drillListRef'>) {
   useImperativeHandle(
     ref,
     () => ({
@@ -447,12 +446,12 @@ export function useHabitListHandle({ ref }: Pick<HabitListHandleInputs, 'ref'>, 
         void refetch()
       },
       scrollToOffset: (offset: number, animated = true) => {
-        const target = scrollContainerRef.current ?? allListRef.current ?? drillListRef.current ?? stateListRef.current
+        const target = scrollContainerRef.current ?? allListRef.current ?? drillListRef.current
         target?.scrollToOffset({ offset, animated })
       },
     }),
     // react-doctor-disable-next-line exhaustive-deps -- refetch is the extracted habitsQuery.refetch and already listed; the analyzer wants the qualified path but the alias tracks it https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    [allCollapsed, allLoadedIds, collapseAll, expandAll, markRecentlyCompleted, checkAndPromptParentLog, settleBulkHabitResolutions, openBulkMove, refetch, scrollContainerRef, allListRef, drillListRef, stateListRef],
+    [allCollapsed, allLoadedIds, collapseAll, expandAll, markRecentlyCompleted, checkAndPromptParentLog, settleBulkHabitResolutions, openBulkMove, refetch, scrollContainerRef, allListRef, drillListRef],
   )
 
 }
