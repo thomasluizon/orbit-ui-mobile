@@ -20,6 +20,11 @@ async function openHoje(page: Page) {
   await page.evaluate(() => document.fonts.ready)
 }
 
+async function openClientFetchedHojeView(page: Page) {
+  await openHoje(page)
+  await page.getByRole('radio', { name: en.habits.viewAll, exact: true }).click()
+}
+
 async function seedOneHabit(context: BrowserContext) {
   const date = getAccountDay(new Date(LAYOUT_FIXED_TIME), 'UTC')
   const item = makeHabitScheduleItem({ id: 'astra-stack-habit', title: 'Read chapter 1', position: 0,
@@ -92,7 +97,7 @@ for (const width of [412, 840]) {
         await habitsHeld
         await route.continue()
       })
-      await openHoje(page)
+      await openClientFetchedHojeView(page)
       await expect(page.getByRole('button', { name: en.shell.astraButton.open, exact: true })).toBeVisible()
       await expect(page.locator('[data-shell-fab]')).toHaveCount(0)
       await expect(page.locator('[data-shell-fab-pending]')).toHaveCount(1)
