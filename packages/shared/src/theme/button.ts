@@ -2,6 +2,8 @@
  *  (StyleSheet) mirrors. Colors resolve per-scheme at each primitive; only the
  *  scheme-independent geometry lives here so the two mirrors cannot drift.
  *  See DESIGN.md "Buttons" for the rule. */
+import { SPACING } from './spacing'
+
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'destructive' | 'caution'
 
 export type ButtonSize = 'sm' | 'md'
@@ -28,5 +30,8 @@ export const BUTTON_SIZES: Record<ButtonSize, ButtonSizeSpec> = {
   sm: { height: 40, paddingX: 18, fontSize: 14, iconSize: 16, gap: 7 },
   md: { height: 50, paddingX: 26, fontSize: 16, iconSize: 20, gap: 9 },
 }
+
+/** A start-edge icon action moves its 44px paint back by the 20px glyph's side inset, so the glyph starts on the text column. */
+export const ICON_ACTION_START_HANG = -SPACING.s12
 
 export const GOOGLE_SIGN_IN_BUTTON = { paddingX: 12, gap: 10 } as const

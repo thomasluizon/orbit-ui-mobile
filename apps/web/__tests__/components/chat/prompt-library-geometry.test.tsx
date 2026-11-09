@@ -298,3 +298,25 @@ it.each(([320, 740] as const).flatMap(width => (['en', 'pt-BR'] as const).map(lo
     expect(onSelect).not.toHaveBeenCalled()
   } finally { await page.close() }
 }, 30_000)
+
+it.each([412, 1352].flatMap(width => (['en', 'pt-BR'] as const).map(locale => ({ width, locale }))))('starts the clear search glyph on the miss text column at $width in $locale', async ({ width, locale }) => {
+  const messages = locale === 'en' ? en : pt
+  const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}>
+    <div style={{ position: 'relative', width: Math.min(width, 740), marginInline: 'auto', height: 800 }}><PromptLibrary onBack={() => {}} onSelect={() => {}} suggestions={[]} hasProAccess hasGoogleConnection /></div>
+  </NextIntlClientProvider>)
+  fireEvent.change(screen.getByRole('searchbox', { name: messages.chat.templates.searchQuestion }), { target: { value: 'zzqqxx' } })
+  const page = await browser.newPage({ viewport: { width, height: 800 } })
+  try {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.setContent(libraryMarkup(container))
+    const geometry = await page.locator(`button[aria-label="${messages.chat.templates.clearSearch}"]`).evaluate(button => {
+      const box = (element: Element) => { const bounds = element.getBoundingClientRect(); return { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom } }
+      return { text: box(button.parentElement!.querySelector('p')!), paint: box(button), glyph: box(button.querySelector('svg')!), hitExtension: Number.parseFloat(getComputedStyle(button, '::after').left) }
+    })
+    const detail = JSON.stringify(geometry)
+    expect(geometry.paint.right - geometry.paint.left - 2 * geometry.hitExtension, detail).toBe(48)
+    expect(Math.abs((geometry.glyph.left + geometry.glyph.right) / 2 - (geometry.paint.left + geometry.paint.right) / 2), detail).toBeLessThanOrEqual(0.5)
+    expect(Math.abs((geometry.glyph.top + geometry.glyph.bottom) / 2 - (geometry.paint.top + geometry.paint.bottom) / 2), detail).toBeLessThanOrEqual(0.5)
+    expect(Math.abs(geometry.glyph.left - geometry.text.left), detail).toBeLessThanOrEqual(0.5)
+  } finally { await page.close() }
+})

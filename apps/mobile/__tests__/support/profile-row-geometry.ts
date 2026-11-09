@@ -102,6 +102,7 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
     ['margin', Yoga.EDGE_ALL], ['marginHorizontal', Yoga.EDGE_HORIZONTAL],
     ['marginVertical', Yoga.EDGE_VERTICAL], ['marginTop', Yoga.EDGE_TOP],
     ['marginBottom', Yoga.EDGE_BOTTOM], ['marginLeft', Yoga.EDGE_LEFT], ['marginRight', Yoga.EDGE_RIGHT],
+    ['marginStart', Yoga.EDGE_START], ['marginEnd', Yoga.EDGE_END],
   ] as const) {
     const margin = style[property]
     if (typeof margin === 'number') node.setMargin(edge, margin)

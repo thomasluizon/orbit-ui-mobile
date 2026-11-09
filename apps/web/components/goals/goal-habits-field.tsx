@@ -5,7 +5,8 @@ import { IconButton } from '@/components/ui/icon-button'
 import { lazy, Suspense } from 'react'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
-import { Plus, RefreshCw, X } from '@/components/ui/icons'
+import { InlineLoadError } from '@/components/ui/inline-load-error'
+import { Plus, X } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { GoalHabitsSelectionNote } from './goal-habits-selection-note'
 import { createGoalHabitPicker, type GoalHabitsPickerProps } from '@orbit/shared/hooks'
@@ -32,7 +33,7 @@ export function GoalHabitsPicker({ selectedIds, goalType, onChange, disabled, on
   const atLimit = selectedIds.length >= MAX_HABITS_PER_GOAL
   if (creatingHabit) return <Suspense fallback={null}><CreateHabitModal open onOpenChange={(open) => { if (!open) setCreatingHabit(false) }} /></Suspense>
   return <Sheet ref={sheetRef} open actions={<PillButton onClick={() => closeSheet()}>{t('common.done')}</PillButton>} title={t('goals.linkedHabits')} onClose={onClose} virtualizedBody={items.length >= 21}>
-    {habits.isLoading ? <Skeleton variant="settings" rows={3} label={t('common.loading')} /> : habits.isError ? <div role="alert"><p>{t('goals.form.habitsError')}</p><IconButton label={t('common.retry')} onClick={() => void habits.refetch()}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton></div> : <PickerList inset={false} items={items} getKey={(habit) => habit.id} getName={(habit) => habit.title} searchLabel={t('goals.form.searchHabits')} empty={<EmptyState title={t('goals.form.habitsInvitation')} action={<IconButton label={t('habits.createHabit')} disabled={disabled || habitFormState === 'loading'} loading={habitFormState === 'loading'} onClick={() => void openHabitForm()}><Plus size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} />} emptySearch={<EmptyState title={t('habits.moveParent.noSearchResults')} action={<IconButton label={t('common.close')} onClick={() => closeSheet()}><X size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} />} renderRow={(habit) => {
+    {habits.isLoading ? <Skeleton variant="settings" rows={3} label={t('common.loading')} /> : habits.isError ? <InlineLoadError message={t('goals.form.habitsError')} onRetry={() => void habits.refetch()} /> : <PickerList inset={false} items={items} getKey={(habit) => habit.id} getName={(habit) => habit.title} searchLabel={t('goals.form.searchHabits')} empty={<EmptyState title={t('goals.form.habitsInvitation')} action={<IconButton label={t('habits.createHabit')} disabled={disabled || habitFormState === 'loading'} loading={habitFormState === 'loading'} onClick={() => void openHabitForm()}><Plus size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} />} emptySearch={<EmptyState title={t('habits.moveParent.noSearchResults')} action={<IconButton label={t('common.close')} onClick={() => closeSheet()}><X size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} />} renderRow={(habit) => {
       const selected = selectedIds.includes(habit.id)
       return <PickerRow name={habit.title} selected={selected} disabled={disabled || (!selected && atLimit)} onToggle={() => onChange(toggleSelectedId(selectedIds, habit.id))} value={selected ? '✓' : ''} valueHidden valueClassName="flex-1 text-sm text-[var(--fg-2)]" controlClassName="orbit-list-row-body flex min-h-12 w-full items-center rounded-[12px] px-2 py-1 text-left disabled:opacity-40" actionsClassName="flex items-center justify-between gap-2" />
     }} />}

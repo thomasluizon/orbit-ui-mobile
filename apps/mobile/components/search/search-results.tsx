@@ -45,7 +45,7 @@ export function SearchEmpty({ query, onCreate, onClearSearch }: Readonly<{ query
   return <View style={styles.empty}>
     <Text style={[styles.name, { color: tokens.fg1 }]}><Trans i18nKey="habits.search.emptyTitle" values={{ query }} components={{ queryText: <Text /> }} /></Text>
     <Text style={[styles.body, { color: tokens.fg3 }]}>{t('habits.search.emptyBody')}</Text>
-    <IconButton label={t(onClearSearch ? 'common.clear' : 'habits.search.create')} onClick={onClearSearch ?? onCreate}>{onClearSearch ? <X size={20} accessible={false} /> : <Plus size={20} accessible={false} />}</IconButton>
+    <IconButton edge="start" label={t(onClearSearch ? 'common.clear' : 'habits.search.create')} onClick={onClearSearch ?? onCreate}>{onClearSearch ? <X size={20} accessible={false} /> : <Plus size={20} accessible={false} />}</IconButton>
   </View>
 }
 

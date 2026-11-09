@@ -1,7 +1,8 @@
 'use client'
 
 import { IconButton } from '@/components/ui/icon-button'
-import { RefreshCw, ChevronLeft, ChevronRight } from '@/components/ui/icons'
+import { InlineLoadError } from '@/components/ui/inline-load-error'
+import { ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { useEffect, useState } from 'react'
 import { ActionRow } from '@/components/ui/action-row'
 
@@ -61,7 +62,7 @@ function HabitSearch({ search, onCreateHabit }: Readonly<{ search: ReturnType<ty
     <CommandSearchField search={search.text} setSearch={search.changeText} activePageLabel={null} onBack={() => {}} searchMode />
     {hasQuery && <CommandList label={t('habits.search.title')} aria-busy={search.busy} className="px-4 py-2">
       {search.showLoading && <Searching />}
-      {search.isError && <div role="alert"><p>{t('habits.search.loadError')}</p><IconButton label={t('common.retry')} onClick={() => void search.refetch()}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton></div>}
+      {search.isError && <InlineLoadError message={t('habits.search.loadError')} onRetry={() => void search.refetch()} />}
       {!search.busy && !search.isError && (entries.length > 0
         ? <SearchResults today={search.today} totalCount={search.data?.totalCount ?? 0} sections={buildSearchSections(entries)} query={search.query} onOpen={(id) => router.push(`/habits/${id}`)} />
         : <SearchEmpty query={search.query} onCreate={createHabit} createRefusal={!isOnline && createRefusal} />)}

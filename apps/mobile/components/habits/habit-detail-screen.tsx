@@ -209,7 +209,7 @@ function HabitDescription({ description, tokens }: Readonly<{ description: strin
     <Text style={[styles.sectionTitle, { color: tokens.fg2 }]}>{t('habits.form.description')}</Text>
     <Text testID="habit-description" selectable style={[styles.muted, { fontSize: 16, lineHeight: 24.8, color: tokens.fg2 }]}>{parts.some(({ href }) => href) ? parts.map(({ text, href, offset }) => href ? <Text key={offset} selectable accessibilityRole="link" accessibilityLabel={text} onPress={() => { void openLink(href) }} style={{ color: tokens.fg1, textDecorationLine: 'underline' }}>{text}</Text> : text) : description}</Text>
     <Text accessibilityLiveRegion="polite" style={failedLink ? [styles.muted, { color: tokens.statusBadText }] : { position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>{failedLink ? t('common.error') : ''}</Text>
-    {failedLink ? <View style={{ alignItems: 'flex-start' }}><IconButton label={t('common.retry')} onClick={() => { void openLink(failedLink) }}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton></View> : null}
+    {failedLink ? <View style={{ alignItems: 'flex-start' }}><IconButton edge="start" label={t('common.retry')} onClick={() => { void openLink(failedLink) }}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton></View> : null}
     <DescriptionCopyButton key={description} description={description} />
   </View>
 }

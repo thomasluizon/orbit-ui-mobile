@@ -8,13 +8,13 @@ import { actionClasses, actionStyle } from './pill-action-style'
 import { ActionRowContext } from './action-row'
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
 import { Loader2 } from '@/components/ui/icons'
-import { GOOGLE_SIGN_IN_BUTTON, BUTTON_SIZES, type ButtonSize, type ButtonVariant } from '@orbit/shared/theme'
+import { GOOGLE_SIGN_IN_BUTTON, ICON_ACTION_START_HANG, BUTTON_SIZES, type ButtonSize, type ButtonVariant } from '@orbit/shared/theme'
 
 function buttonDescriptionIds(descriptionId: string | undefined, hintId: string, hint: string | undefined) {
   return [descriptionId, hint ? hintId : undefined].filter(Boolean).join(' ') || undefined
 }
 
-function buttonStyle(size: ButtonSize, withinRow: boolean, { minimumHeight, iconOnly, matchedWidth, leadingIcon, brand, variant, quiet }: Readonly<Pick<ButtonProps, 'minimumHeight' | 'iconOnly' | 'matchedWidth' | 'leadingIcon' | 'brand' | 'variant'> & { quiet: boolean }>): CSSProperties {
+function buttonStyle(size: ButtonSize, withinRow: boolean, { minimumHeight, iconOnly, matchedWidth, leadingIcon, brand, variant, quiet, edge }: Readonly<Pick<ButtonProps, 'minimumHeight' | 'iconOnly' | 'matchedWidth' | 'leadingIcon' | 'brand' | 'variant' | 'edge'> & { quiet: boolean }>): CSSProperties {
   const sizeSpec = BUTTON_SIZES[size]
   return {
     ...actionStyle(size, iconOnly, matchedWidth, Boolean(leadingIcon), withinRow, minimumHeight),
@@ -23,6 +23,7 @@ function buttonStyle(size: ButtonSize, withinRow: boolean, { minimumHeight, icon
     minHeight: minimumHeight,
     fontSize: minimumHeight === undefined ? sizeSpec.fontSize : `${sizeSpec.fontSize / 16}rem`,
     color: variant === 'ghost' && quiet ? 'var(--fg-2)' : undefined,
+    marginInlineStart: iconOnly && edge === 'start' ? ICON_ACTION_START_HANG : undefined,
   }
 }
 
@@ -72,6 +73,7 @@ export function Button({
   ref,
   quiet = false,
   borderless = false,
+  edge,
   ...buttonProps
 }: Readonly<ButtonProps & { retainLeadingIcon?: boolean } & Omit<ComponentProps<'button'>, 'children' | 'onClick' | 'onFocus' | 'onBlur' | 'onMouseEnter' | 'onMouseLeave' | 'color'> & { buttonRef?: Ref<HTMLButtonElement>; quiet?: boolean; borderless?: boolean; expanded?: boolean; controlsId?: string; hasPopup?: false | 'menu' | 'dialog'; onFocus?: () => void; onBlur?: () => void; onMouseEnter?: () => void; onMouseLeave?: () => void }>) {
   const composedRef = useComposedRefs(ref, buttonRef)
@@ -104,7 +106,7 @@ export function Button({
       data-loading={loading || undefined}
       data-borderless={borderless || undefined}
       className={actionClasses(variant, size, 'button', loading, quiet, elevated, borderless)}
-      style={persistentButtonStyle(buttonStyle(size, withinRow, { minimumHeight, iconOnly, matchedWidth, leadingIcon, brand, variant, quiet }), retainLeadingIcon)}
+      style={persistentButtonStyle(buttonStyle(size, withinRow, { minimumHeight, iconOnly, matchedWidth, leadingIcon, brand, variant, quiet, edge }), retainLeadingIcon)}
     >
       <ButtonIcon size={size} loading={loading} retainLeadingIcon={retainLeadingIcon} iconOnly={iconOnly} leadingIcon={leadingIcon}>{children}</ButtonIcon>
       {iconOnly ? null : <span>{children}</span>}

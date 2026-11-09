@@ -34,4 +34,17 @@ describe('IconButton', () => {
       renderer.act(() => tree.unmount())
     }
   })
+
+  it('moves only a start-edge paint back by the glyph inset', () => {
+    let tree: any
+    renderer.act(() => { tree = renderer.create(<IconButton label="Clear" onClick={vi.fn()}><RefreshCw size={20} /></IconButton>) })
+    try {
+      const paint = () => Object.assign({}, ...tree.root.findByType('Pressable').props.style({ pressed: false }).flat().filter(Boolean))
+      expect(paint().marginStart).toBeUndefined()
+      renderer.act(() => tree.update(<IconButton edge="start" label="Clear" onClick={vi.fn()}><RefreshCw size={20} /></IconButton>))
+      expect(paint()).toMatchObject({ width: 44, height: 44, marginStart: -(44 - 20) / 2 })
+    } finally {
+      renderer.act(() => tree.unmount())
+    }
+  })
 })

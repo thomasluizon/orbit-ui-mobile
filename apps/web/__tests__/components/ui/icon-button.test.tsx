@@ -19,4 +19,12 @@ describe('IconButton', () => {
     fireEvent.click(button)
     expect(onClick).toHaveBeenCalledOnce()
   })
+
+  it('moves only a start-edge paint back by the glyph inset', () => {
+    const { rerender } = render(<IconButton label="Clear" onClick={vi.fn()}><RefreshCw size={20} /></IconButton>)
+    const button = screen.getByRole('button', { name: 'Clear' })
+    expect(button.style.marginInlineStart).toBe('')
+    rerender(<IconButton edge="start" label="Clear" onClick={vi.fn()}><RefreshCw size={20} /></IconButton>)
+    expect(button).toHaveStyle({ width: '44px', minHeight: '44px', marginInlineStart: `${-(44 - 20) / 2}px` })
+  })
 })

@@ -29,7 +29,7 @@ export function SearchEmpty({ query, onCreate, onClearSearch, createRefusal = fa
   return <div className="flex flex-col items-start gap-3 p-3">
     <p className="text-[length:var(--fs-md)]">{t.rich('habits.search.emptyTitle', { query, queryText: renderQueryText })}</p>
     <p className="text-[length:var(--fs-sm)] text-[var(--fg-3)]">{t('habits.search.emptyBody')}</p>
-    <IconButton label={t(onClearSearch ? 'common.clear' : 'habits.search.create')} onClick={onClearSearch ?? onCreate}>{onClearSearch ? <X size={20} aria-hidden="true" /> : <Plus size={20} aria-hidden="true" />}</IconButton>
+    <IconButton edge="start" label={t(onClearSearch ? 'common.clear' : 'habits.search.create')} onClick={onClearSearch ?? onCreate}>{onClearSearch ? <X size={20} aria-hidden="true" /> : <Plus size={20} aria-hidden="true" />}</IconButton>
     <div aria-live="polite" aria-atomic="true" className="w-full">
       {createRefusal ? <OfflineRefusal icon="create" title={t('offline.create.title')} reason={t('offline.create.reason')} /> : null}
     </div>
