@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process"
 import { existsSync, readFileSync, statSync } from "node:fs"
 import { dirname, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
+import { AUTO_COMPACT_TOKENS } from "./session-context.mjs"
 
 const isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value)
 
@@ -120,8 +121,12 @@ export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranc
   if (!isRecord(config.relay) || typeof config.relay.enabled !== "boolean") {
     throw new Error(".claude/orchestrator.json relay.enabled must be a boolean")
   }
-  if (!Number.isInteger(config.relay.thresholdTokens) || config.relay.thresholdTokens < 150000 || config.relay.thresholdTokens > 900000) {
-    throw new Error(".claude/orchestrator.json relay.thresholdTokens must be an integer from 150000 through 900000")
+  // A relay that starts at or above the auto-compact point never beats the compaction it exists to replace.
+  if (!Number.isInteger(config.relay.softTokens) || config.relay.softTokens < 150000 || config.relay.softTokens >= AUTO_COMPACT_TOKENS) {
+    throw new Error(`.claude/orchestrator.json relay.softTokens must be an integer from 150000 up to, not including, ${AUTO_COMPACT_TOKENS}`)
+  }
+  if (!Number.isInteger(config.relay.hardTokens) || config.relay.hardTokens <= config.relay.softTokens || config.relay.hardTokens >= AUTO_COMPACT_TOKENS) {
+    throw new Error(`.claude/orchestrator.json relay.hardTokens must be an integer above relay.softTokens and below ${AUTO_COMPACT_TOKENS}`)
   }
   nonEmptyString(config.classifier.model, "classifier.model")
   positive(config.timeouts?.hardCeilingMinutes, "timeouts.hardCeilingMinutes")

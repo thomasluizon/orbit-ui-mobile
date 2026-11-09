@@ -15,7 +15,7 @@ const listing = JSON.parse(readFileSync(new URL("./fixtures/orca-relay-list.json
 const appState = JSON.parse(readFileSync(new URL("./fixtures/orca-relay-app-state.json", import.meta.url), "utf8"))
 const prompt = "/sleep\nRead .claude/specs/relay.md. Every identifier is a lead to verify.\n## Goal\nFinish the spec. gh issue list\n## In flight\nNone.\n## Sleep\nContinue.\n## Previous prompt, disposition\nCarried.\n"
 /** The shipped crossing value, so every case follows the config instead of a copy of it. */
-const relayThreshold = realOrchestratorConfig().relay.thresholdTokens
+const relayThreshold = realOrchestratorConfig().relay.softTokens
 
 const fixture = (label, { tokens = relayThreshold, calls = 20, crank = false, crankPrompt = crank, autoWork = false } = {}) => {
   const repo = stageRepo(`relay-${label}`)
@@ -209,7 +209,7 @@ const fileWaiterCase = async () => {
     }
     T("relay file waiter: real registrations are live", live.length === 3)
     T("relay file waiter: explicit and run-state session ownership", live.find((source) => source.pid === current.pid)?.sessionId === "predecessor" && live.find((source) => source.pid === fallback.pid)?.sessionId === "predecessor")
-    const verdict = checkRelayStop({ enabled: true, thresholdTokens: 400000, measuredTokens: 400000,
+    const verdict = checkRelayStop({ enabled: true, softTokens: 400000, hardTokens: 500000, measuredTokens: 400000,
       state: readRunState(staged.checkout), sessionId: "predecessor", wakeSources: live })
     T("relay file waiter: live waiters do not block hook drain", verdict?.begin === false)
     const message = await failure({ repoRoot: staged.checkout, sessionId: "predecessor", execute: executeFor(staged.checkout), wait: async () => {}, confirmMilliseconds: 10 })
@@ -236,7 +236,7 @@ const fileWaiterCase = async () => {
 
 export const cases = async () => {
   await fileWaiterCase()
-  for (const [label, options, message] of [["below", { tokens: relayThreshold - 1 }, /below threshold/], ["young", { calls: 19 }, /at least 20/]]) {
+  for (const [label, options, message] of [["below", { tokens: relayThreshold - 1 }, /below the soft threshold/], ["young", { calls: 19 }, /at least 20/]]) {
     const staged = fixture(label, options)
     T(`relay-session: refuses ${label}`, message.test(await failure({ repoRoot: staged.checkout, sessionId: "predecessor" })))
   }
