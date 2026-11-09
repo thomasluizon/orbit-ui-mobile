@@ -82,6 +82,7 @@ if (reviewRounds) {
       method: "Recorded verbatim from one read-only live gh api graphql call. No value was entered by hand.",
       generator: "tools/record-gh-fixtures.mjs --review-rounds",
       producer: "pullRequestQuery(numbers) from tools/review-rounds.mjs",
+      query,
       repository: slug,
       numbers: REVIEW_ROUNDS_PULLS,
     },

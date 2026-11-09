@@ -59,9 +59,8 @@ export const cases = async () => {
   check(TOOL, "refuses a flag with no value", ["--repo"], { status: 2, stderr: /--repo requires a value/ })
   check(TOOL, "refuses an unconfigured repository", ["--repo", "nowhere"], { status: 2, stderr: /--repo must name a configured repository/ })
 
-  T(`${TOOL}: the recorder used the production selection`, fixture.generation.producer.includes("pullRequestQuery") &&
-    sameJson([...fixture.generation.numbers].sort(), Object.keys(HAND_COUNT).map(Number).sort()) &&
-    pullRequestQuery([2371]).includes('reviews(first: 100, author: "pullfrog[bot]")'))
+  T(`${TOOL}: the recorder sent the production selection`, fixture.generation.query === pullRequestQuery(fixture.generation.numbers) &&
+    sameJson([...fixture.generation.numbers].sort(), Object.keys(HAND_COUNT).map(Number).sort()))
 
   for (const number of Object.keys(HAND_COUNT).map(Number)) {
     const row = roundsOf(pull(number))

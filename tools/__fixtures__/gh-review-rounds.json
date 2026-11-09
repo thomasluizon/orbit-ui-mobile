@@ -4,6 +4,7 @@
     "method": "Recorded verbatim from one read-only live gh api graphql call. No value was entered by hand.",
     "generator": "tools/record-gh-fixtures.mjs --review-rounds",
     "producer": "pullRequestQuery(numbers) from tools/review-rounds.mjs",
+    "query": "query ReviewRoundsPulls($owner: String!, $name: String!) {\n  rateLimit { remaining resetAt }\n  repository(owner: $owner, name: $name) {\n    pr2371: pullRequest(number: 2371) { number mergedAt updatedAt\n  reviews(first: 100, author: \"pullfrog[bot]\") { pageInfo { hasNextPage endCursor } nodes { id state submittedAt body author { __typename login } commit { oid } } }\n  reviewThreads(first: 100) { pageInfo { hasNextPage endCursor } nodes { path comments(first: 1) { nodes { createdAt body author { __typename login } pullRequestReview { id } } } } }\n  timelineItems(first: 100, itemTypes: [REVIEW_DISMISSED_EVENT]) { pageInfo { hasNextPage endCursor } nodes { ... on ReviewDismissedEvent { previousReviewState review { id } } } } }\n    pr2373: pullRequest(number: 2373) { number mergedAt updatedAt\n  reviews(first: 100, author: \"pullfrog[bot]\") { pageInfo { hasNextPage endCursor } nodes { id state submittedAt body author { __typename login } commit { oid } } }\n  reviewThreads(first: 100) { pageInfo { hasNextPage endCursor } nodes { path comments(first: 1) { nodes { createdAt body author { __typename login } pullRequestReview { id } } } } }\n  timelineItems(first: 100, itemTypes: [REVIEW_DISMISSED_EVENT]) { pageInfo { hasNextPage endCursor } nodes { ... on ReviewDismissedEvent { previousReviewState review { id } } } } }\n    pr2343: pullRequest(number: 2343) { number mergedAt updatedAt\n  reviews(first: 100, author: \"pullfrog[bot]\") { pageInfo { hasNextPage endCursor } nodes { id state submittedAt body author { __typename login } commit { oid } } }\n  reviewThreads(first: 100) { pageInfo { hasNextPage endCursor } nodes { path comments(first: 1) { nodes { createdAt body author { __typename login } pullRequestReview { id } } } } }\n  timelineItems(first: 100, itemTypes: [REVIEW_DISMISSED_EVENT]) { pageInfo { hasNextPage endCursor } nodes { ... on ReviewDismissedEvent { previousReviewState review { id } } } } }\n    pr2338: pullRequest(number: 2338) { number mergedAt updatedAt\n  reviews(first: 100, author: \"pullfrog[bot]\") { pageInfo { hasNextPage endCursor } nodes { id state submittedAt body author { __typename login } commit { oid } } }\n  reviewThreads(first: 100) { pageInfo { hasNextPage endCursor } nodes { path comments(first: 1) { nodes { createdAt body author { __typename login } pullRequestReview { id } } } } }\n  timelineItems(first: 100, itemTypes: [REVIEW_DISMISSED_EVENT]) { pageInfo { hasNextPage endCursor } nodes { ... on ReviewDismissedEvent { previousReviewState review { id } } } } }\n    pr2325: pullRequest(number: 2325) { number mergedAt updatedAt\n  reviews(first: 100, author: \"pullfrog[bot]\") { pageInfo { hasNextPage endCursor } nodes { id state submittedAt body author { __typename login } commit { oid } } }\n  reviewThreads(first: 100) { pageInfo { hasNextPage endCursor } nodes { path comments(first: 1) { nodes { createdAt body author { __typename login } pullRequestReview { id } } } } }\n  timelineItems(first: 100, itemTypes: [REVIEW_DISMISSED_EVENT]) { pageInfo { hasNextPage endCursor } nodes { ... on ReviewDismissedEvent { previousReviewState review { id } } } } }\n  }\n}",
     "repository": "thomasluizon/orbit-ui-mobile",
     "numbers": [
       2371,
@@ -16,8 +17,8 @@
   "response": {
     "data": {
       "rateLimit": {
-        "remaining": 4979,
-        "resetAt": "2026-11-09T00:09:56Z"
+        "remaining": 4925,
+        "resetAt": "2026-11-09T00:38:40Z"
       },
       "repository": {
         "pr2371": {

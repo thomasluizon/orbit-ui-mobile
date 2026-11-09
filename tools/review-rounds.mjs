@@ -7,6 +7,7 @@ import { runBounded } from "./lib/bounded-process.mjs"
 import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-auth.mjs"
 import { graphqlBudgetDecision } from "./lib/github-rate-limit.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
+import { REVIEW_APP_AUTHOR_FILTER, REVIEW_APP_LOGIN } from "./lib/readiness-receipt.mjs"
 
 const USAGE = `usage: review-rounds.mjs --repo <ui|api|landing> [--limit <n>]
 
@@ -45,15 +46,19 @@ Progress events and errors go to stderr.
 exit codes: 0 report printed, 1 a GitHub read failed or returned an unexpected shape,
 2 usage or environment error`
 
-export const BOT_LOGIN = "pullfrog"
 const PAGE_SIZE = 20
 const MAX_PAGES = 200
 const MAX_LIMIT = 1000
 
+/** Each connection's arguments and node fields, written once for the first page and every later one. */
+const CONNECTION_SELECTIONS = {
+  reviews: (after) => `reviews(first: 100${after}, author: "${REVIEW_APP_AUTHOR_FILTER}") { pageInfo { hasNextPage endCursor } nodes { id state submittedAt body author { __typename login } commit { oid } } }`,
+  reviewThreads: (after) => `reviewThreads(first: 100${after}) { pageInfo { hasNextPage endCursor } nodes { path comments(first: 1) { nodes { createdAt body author { __typename login } pullRequestReview { id } } } } }`,
+  timelineItems: (after) => `timelineItems(first: 100${after}, itemTypes: [REVIEW_DISMISSED_EVENT]) { pageInfo { hasNextPage endCursor } nodes { ... on ReviewDismissedEvent { previousReviewState review { id } } } }`,
+}
+
 const PULL_FIELDS = `number mergedAt updatedAt
-  reviews(first: 100, author: "pullfrog[bot]") { pageInfo { hasNextPage endCursor } nodes { id state submittedAt body author { __typename login } commit { oid } } }
-  reviewThreads(first: 100) { pageInfo { hasNextPage endCursor } nodes { path comments(first: 1) { nodes { createdAt body author { __typename login } pullRequestReview { id } } } } }
-  timelineItems(first: 100, itemTypes: [REVIEW_DISMISSED_EVENT]) { pageInfo { hasNextPage endCursor } nodes { ... on ReviewDismissedEvent { previousReviewState review { id } } } }`
+  ${Object.values(CONNECTION_SELECTIONS).map((selection) => selection("")).join("\n  ")}`
 
 export const mergedPullsQuery = `query ReviewRounds($owner: String!, $name: String!, $after: String) {
   rateLimit { remaining resetAt }
@@ -73,18 +78,12 @@ export const pullRequestQuery = (numbers) => `query ReviewRoundsPulls($owner: St
   }
 }`
 
-const CONNECTION_SELECTIONS = {
-  reviews: `reviews(first: 100, after: $after, author: "pullfrog[bot]") { pageInfo { hasNextPage endCursor } nodes { id state submittedAt body author { __typename login } commit { oid } } }`,
-  reviewThreads: `reviewThreads(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes { path comments(first: 1) { nodes { createdAt body author { __typename login } pullRequestReview { id } } } } }`,
-  timelineItems: `timelineItems(first: 100, after: $after, itemTypes: [REVIEW_DISMISSED_EVENT]) { pageInfo { hasNextPage endCursor } nodes { ... on ReviewDismissedEvent { previousReviewState review { id } } } }`,
-}
-
 export const connectionQuery = (connection) => `query ReviewRoundsPage($owner: String!, $name: String!, $number: Int!, $after: String!) {
   rateLimit { remaining resetAt }
-  repository(owner: $owner, name: $name) { pullRequest(number: $number) { ${CONNECTION_SELECTIONS[connection]} } }
+  repository(owner: $owner, name: $name) { pullRequest(number: $number) { ${CONNECTION_SELECTIONS[connection](", after: $after")} } }
 }`
 
-const isBot = (author) => author?.__typename === "Bot" && author.login === BOT_LOGIN
+const isBot = (author) => author?.__typename === "Bot" && author.login === REVIEW_APP_LOGIN
 const timeOf = (value) => {
   const parsed = Date.parse(value ?? "")
   return Number.isFinite(parsed) ? parsed : Number.POSITIVE_INFINITY
@@ -235,7 +234,7 @@ export const collectMergedPulls = async ({ graphql, owner, name, limit }) => {
   return window
 }
 
-export const reviewRounds = async (options) => {
+const reviewRounds = async (options) => {
   const rows = (await collectMergedPulls(options)).map(roundsOf)
   return { pullRequests: rows, summary: summarize(rows) }
 }
