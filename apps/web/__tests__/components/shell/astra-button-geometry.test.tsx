@@ -85,9 +85,9 @@ function measureStack() {
     conversations: document.querySelectorAll('[data-shell-conversation]').length }
 }
 
-function stackedShell(fab = true, fabPending = false) {
+function stackedShell(fab = true, fabPending = false, headerHeight = 48) {
   return renderToString(<ShellWide items={[]} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: () => {} }}
-    header={<div style={{ minHeight: 48 }}>Today</div>} tabBar={<nav style={{ minHeight: 80 }}>Tabs</nav>}
+    header={<div style={{ minHeight: headerHeight }}>Today</div>} tabBar={<nav style={{ minHeight: 80 }}>Tabs</nav>}
     astraButton={<AstraButton />} fab={fab ? <Fab label="Create" onClick={() => {}}>+</Fab> : undefined} fabPending={fabPending}>
     {Array.from({ length: 40 }, (_, index) => <div key={index} data-probe-row="" style={{ height: 56 }}>Habit {index}</div>)}
   </ShellWide>)
@@ -268,6 +268,16 @@ it.each([[740, 360], [915, 412], [840, 900]])('leaves the tab bar in view after 
     expect(geometry.controls).toContain('shell.astraButton.open')
     expect(geometry.tabsBottom, JSON.stringify(geometry)).toBeLessThanOrEqual(height)
     expect(geometry.buttonRight).toBeLessThanOrEqual(geometry.columnRight)
+  } finally { await page.close() }
+})
+
+it.each([112, 160])('keeps the tab bar in view with only the Astra button and a %ipx header in a 740x360 window', async headerHeight => {
+  const page = await browser.newPage({ viewport: { width: 740, height: 360 }, reducedMotion: 'reduce' })
+  try {
+    await page.setContent(`<style>${stylesheet}</style>${stackedShell(false, false, headerHeight)}`)
+    const geometry = await page.evaluate(() => ({ tabsBottom: document.querySelector('[data-shell-tab-bar]')!.getBoundingClientRect().bottom,
+      pageMinimum: Number.parseFloat(getComputedStyle(document.querySelector('[data-shell-page]')!).minHeight) }))
+    expect(geometry.tabsBottom, JSON.stringify(geometry)).toBeLessThanOrEqual(360)
   } finally { await page.close() }
 })
 

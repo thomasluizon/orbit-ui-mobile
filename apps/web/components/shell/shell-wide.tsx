@@ -346,7 +346,7 @@ function getFabColumnSpacing({ hasBottomChrome, hasPinnedSlot, floating, astraBu
   wide: boolean
 }>) {
   const fabColumn = floating || astraButton
-  const spacing = getScrollerSpacing(hasBottomChrome, hasPinnedSlot || fabColumn, fabColumn)
+  const spacing = getScrollerSpacing(hasBottomChrome, hasPinnedSlot || fabColumn, floating)
   return { fabColumn, minimum: spacing.minimum, ...getAstraScrollerSpacing(spacing, floating && astraButton, wide) }
 }
 
