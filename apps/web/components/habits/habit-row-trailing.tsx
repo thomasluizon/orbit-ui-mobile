@@ -72,7 +72,6 @@ function buildMenuItems(
 
 interface HabitRowTrailingProps {
   habit: NormalizedHabit
-  selectMode: boolean
   hasChildren: boolean
   childProgress?: { done: number; total: number }
   state: HabitStatus
@@ -131,7 +130,6 @@ function HabitRowCompletion(props: Readonly<HabitRowTrailingProps>) {
 export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
   const {
   habit,
-  selectMode,
   state,
   hasMenuActions,
   canSelect,
@@ -157,43 +155,45 @@ export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
   const menuItems = buildMenuItems(t, actions, canSelect, canDrillInto, completionReadOnly, habit.isGeneral, state)
 
   return (
-    <Menu.Root open={menuOpen} onOpenChange={setMenuOpen}>{selectMode ? null : <div className="flex items-center shrink-0" style={{ gap: 8 }}>
-      <HabitRowCompletion {...props} />
-      {hasMenuActions && menuItems.length > 0 && (
-        <>
-          <Menu.Trigger asChild><button
-            ref={menuAnchorRef}
-            type="button"
-            data-habit-row-control="menu"
-            aria-label={t('habits.actions.more')}
-            aria-expanded={menuOpen}
-            aria-controls={menuId}
-            onClick={(event) => {
-              event.stopPropagation()
-            }}
-            className="touch-target appearance-none border-0 bg-transparent flex items-center justify-center rounded-full text-[var(--fg-3)] transition-[background-color,color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] cursor-pointer hover:text-[var(--fg-1)] active:scale-[0.96]"
-            style={{ width: 48, minHeight: 48 }}
-          >
-            <MoreVertical size={20} strokeWidth={1.8} />
-          </button></Menu.Trigger>
-          <Menu.Content
-            id={menuId}
+    <Menu.Root open={menuOpen} onOpenChange={setMenuOpen}>
+      <div className="flex items-center shrink-0" style={{ gap: 8 }}>
+        <HabitRowCompletion {...props} />
+        {hasMenuActions && menuItems.length > 0 && (
+          <>
+            <Menu.Trigger asChild><button
+              ref={menuAnchorRef}
+              type="button"
+              data-habit-row-control="menu"
+              aria-label={t('habits.actions.more')}
+              aria-expanded={menuOpen}
+              aria-controls={menuId}
+              onClick={(event) => {
+                event.stopPropagation()
+              }}
+              className="touch-target appearance-none border-0 bg-transparent flex items-center justify-center rounded-full text-[var(--fg-3)] transition-[background-color,color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] cursor-pointer hover:text-[var(--fg-1)] active:scale-[0.96]"
+              style={{ width: 48, minHeight: 48 }}
+            >
+              <MoreVertical size={20} strokeWidth={1.8} />
+            </button></Menu.Trigger>
+            <Menu.Content
+              id={menuId}
 
 
-            title={habit.title || t('habits.actions.menuTitle')}
-            titleMode={habit.title ? 'typed' : 'label'}
-            items={menuItems}
-            onSelect={(id) => {
-              const handlers: Record<string, (() => void) | undefined> = {
-                add: onAddSubHabit, move: onMoveParent, skip: onSkip, reschedule: onReschedule,
-                edit: onEdit, duplicate: onDuplicate, select: onEnterSelectMode,
-                drill: onDrillInto, delete: onDelete,
-              }
-              handlers[id]?.()
-            }}
-          />
-        </>
-      )}
-    </div>}</Menu.Root>
+              title={habit.title || t('habits.actions.menuTitle')}
+              titleMode={habit.title ? 'typed' : 'label'}
+              items={menuItems}
+              onSelect={(id) => {
+                const handlers: Record<string, (() => void) | undefined> = {
+                  add: onAddSubHabit, move: onMoveParent, skip: onSkip, reschedule: onReschedule,
+                  edit: onEdit, duplicate: onDuplicate, select: onEnterSelectMode,
+                  drill: onDrillInto, delete: onDelete,
+                }
+                handlers[id]?.()
+              }}
+            />
+          </>
+        )}
+      </div>
+    </Menu.Root>
   )
 }

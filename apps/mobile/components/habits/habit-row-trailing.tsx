@@ -16,7 +16,6 @@ import { styles } from './habit-row-styles'
 
 interface HabitRowTrailingProps {
   habit: NormalizedHabit
-  isSelectMode: boolean
   hasChildren: boolean
   childrenDone: number
   childrenTotal: number
@@ -89,13 +88,11 @@ function HabitRowCompletion(props: Readonly<HabitRowTrailingProps>) {
 // react-doctor-disable-next-line no-many-boolean-props -- private row-internal cluster; the flags are independent render inputs from the parent row, not a combinatorial public API https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
   const {
-  isSelectMode,
   hasMenuActions,
   tokens,
   } = props
   const { t } = useTranslation()
   const [menuHovered, setMenuHovered] = useState(false)
-  if (isSelectMode) return null
   return (
     <View style={styles.trailing}>
       <HabitRowCompletion {...props} />

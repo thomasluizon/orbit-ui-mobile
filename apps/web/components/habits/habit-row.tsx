@@ -258,23 +258,24 @@ function HabitRowView({
         />
       ) : null}
 
-      <HabitRowTrailing
-        habit={habit}
-        selectMode={selectMode}
-        hasChildren={hasChildren}
-        childProgress={childProgress}
-        state={graphicState}
-        isDone={isDone}
-        canLog={canLog}
-        hasMenuActions={hasMenuActions}
-        canSelect={canSelect}
-        canDrillInto={canDrillInto}
-        actions={actions}
-        onToggleStatus={handleToggleStatus}
-        completionReadOnly={completionReadOnly}
-        completionReason={completionReason}
-        completionStatusUnavailable={completionStatusUnavailable}
-      />
+      {selectMode ? null : (
+        <HabitRowTrailing
+          habit={habit}
+          hasChildren={hasChildren}
+          childProgress={childProgress}
+          state={graphicState}
+          isDone={isDone}
+          canLog={canLog}
+          hasMenuActions={hasMenuActions}
+          canSelect={canSelect}
+          canDrillInto={canDrillInto}
+          actions={actions}
+          onToggleStatus={handleToggleStatus}
+          completionReadOnly={completionReadOnly}
+          completionReason={completionReason}
+          completionStatusUnavailable={completionStatusUnavailable}
+        />
+      )}
     </>
   )
   const rowContents = (

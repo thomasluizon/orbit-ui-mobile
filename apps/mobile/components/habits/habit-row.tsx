@@ -444,23 +444,24 @@ export const HabitRow = memo(function HabitRow({
           />
         ) : null}
 
-        <HabitRowTrailing
+        {isSelectMode ? null : (
+          <HabitRowTrailing
             habit={habit}
-            isSelectMode={isSelectMode}
-          hasChildren={hasChildren}
-          childrenDone={childrenDone}
-          childrenTotal={childrenTotal}
-          isDoneForRange={isDoneForRange}
-          canLog={canLog}
-          dotState={dotState}
-          hasMenuActions={hasMenuActions}
-          actions={actions}
-          tokens={tokens}
-          onToggleStatus={handleToggleStatus}
-          completionReadOnly={completionReadOnly}
-          completionReason={completionReason}
-          completionStatusUnavailable={completionStatusUnavailable}
-        />
+            hasChildren={hasChildren}
+            childrenDone={childrenDone}
+            childrenTotal={childrenTotal}
+            isDoneForRange={isDoneForRange}
+            canLog={canLog}
+            dotState={dotState}
+            hasMenuActions={hasMenuActions}
+            actions={actions}
+            tokens={tokens}
+            onToggleStatus={handleToggleStatus}
+            completionReadOnly={completionReadOnly}
+            completionReason={completionReason}
+            completionStatusUnavailable={completionStatusUnavailable}
+          />
+        )}
     </>
   )
 
