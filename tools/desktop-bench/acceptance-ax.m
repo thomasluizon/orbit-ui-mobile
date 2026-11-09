@@ -204,15 +204,32 @@ static void openNotificationCenter(void) {
     }
 }
 
+static NSMutableArray *centerNodes(pid_t processId, NSString *label) {
+    AXUIElementRef app = AXUIElementCreateApplication(processId);
+    NSMutableArray *nodes = [NSMutableArray array];
+    collectNodes(app, -1, nodes, label, 0);
+    CFRelease(app);
+    return nodes;
+}
+
+// The clock press toggles Notification Center, so a press while it is open closes it. Only the open center lists its
+// notification history and the Edit Widgets button (notification-done.json and notification-expired.json on macos-latest).
+static BOOL centerOpen(NSArray *nodes) {
+    for (NSDictionary *node in nodes) {
+        if ([node[@"AXIdentifier"] isEqual:@"AXNotificationListItems"] || [node[@"AXIdentifier"] isEqual:@"widget-editor-button"]) return YES;
+    }
+    return NO;
+}
+
 static NSDictionary *notification(NSString *title, NSString *label, BOOL invoke, BOOL openCenter) {
     if (!AXIsProcessTrusted()) return @{@"found": @NO, @"invoked": @NO, @"denied": @YES};
     NSRunningApplication *center = [NSRunningApplication runningApplicationsWithBundleIdentifier:@"com.apple.notificationcenterui"].firstObject;
     if (!center) return @{@"found": @NO, @"invoked": @NO, @"error": @"Notification Center is not running"};
-    if (openCenter) openNotificationCenter();
-    AXUIElementRef app = AXUIElementCreateApplication(center.processIdentifier);
-    NSMutableArray *nodes = [NSMutableArray array];
-    collectNodes(app, -1, nodes, label, 0);
-    CFRelease(app);
+    NSMutableArray *nodes = centerNodes(center.processIdentifier, label);
+    if (openCenter && !centerOpen(nodes)) {
+        openNotificationCenter();
+        nodes = centerNodes(center.processIdentifier, label);
+    }
     NSUInteger count = nodes.count;
     // Every reply carries the whole Notification Center tree, so a run records the real layout whether or not it matched.
     NSMutableArray *tree = [NSMutableArray arrayWithCapacity:count];

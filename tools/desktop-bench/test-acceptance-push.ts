@@ -14,7 +14,7 @@ import { createAcceptanceHandler } from './acceptance-mock'
 import { assertDoneDelivered, assertExpiredDone, visibleWindows } from './acceptance-contract.mjs'
 import { apnsPayload, apnsProviderToken, apnsRequest, apsEnvironment, exercisePush, isWnsChannel, pushReadiness, repeatReminder,
   sendApns, sendWns, signedApsEnvironment, takePushCredentials, wnsAccessToken, wnsPayload } from './acceptance-push.mjs'
-import { apsdApplication, apsdSummary, capturePushDiagnostics, startPushServices } from './acceptance-platform.mjs'
+import { apsdApplication, apsdReceipt, apsdSummary, apsdTopicReceipt, capturePushDiagnostics, startPushServices } from './acceptance-platform.mjs'
 
 // Repeat reminder push acceptance (#1861). Shapes follow orbit-api ReminderSchedulerService.Repeat.cs RecordRepeat,
 // PushNotificationService.CreateWebPushPayload, ApnsPushSender.CreatePayload and WnsPushSender.SendAsync.
@@ -307,17 +307,49 @@ test('macOS push acceptance loads apsd from a fresh identity and Notification Ce
   assert.deepEqual(apsdSummary(`${'x'.repeat(400)}\n`), ['x'.repeat(300)])
 })
 
-// One application block as apsctl status prints it on macOS (local capture), under the production connection.
+// apsctl status on macOS: a named port block (local capture) and usernoted's block, which carries every app's alert topic
+// with no port name, copied from the macos-latest installed acceptance artifact push-apsctl-status.log.
+const usernotedBlock = [
+  "      process:                                usernoted",
+  "         process connection status:           Ok",
+  "         process connected:                   Nov 9, 2026 at 6:19:52 AM (67.54 seconds ago)",
+  "         user:                                501",
+  "         token:                               Yes, {length = 80, bytes=<redacted>}",
+  "         status change notifications:         Disabled",
+  "         track acitivity presence:            Disabled",
+  "         total incoming push notifications:   1",
+  "            previous hour:                    1",
+  "            previous day:                     1",
+  "            last incoming push notification:  Nov 9, 2026 at 6:19:53 AM (66.62 seconds ago)",
+  "         nonwaking topics:                    1",
+  "            topic:                            org.useorbit.desktop.staging",
+  "               status:                        Ok",
+  "               dark-wake:                     Yes",
+  "               incoming push notifications:   1",
+  "                  previous hour:              1",
+  "                  previous day:               1",
+  "                  last incoming push:         Nov 9, 2026 at 6:19:53 AM (66.62 seconds ago)",
+  "         ipc message queue status:            Ok",
+  "            push notifications:               1",
+  "            last push notification:           Nov 9, 2026 at 6:19:53 AM (66.62 seconds ago)",
+  "            last push notification topic:     org.useorbit.desktop.staging",
+  "            non-push ipc messages:            0",
+  "            last ipc action:                  Nov 9, 2026 at 6:19:55 AM (65.16 seconds ago)",
+  "            ipc messages sent:                5",
+  "            last ipc message sent:            Nov 9, 2026 at 6:19:55 AM (65.16 seconds ago)",
+  "            ipc messages queued:              5",
+  "            ipc messages waiting in queue:    0",
+  "            ipc messages skipped:             2",
+  "            ipc messages acknowledged:        5",
+  "            last ack from application:        Nov 9, 2026 at 6:19:55 AM (65.16 seconds ago)",
+  "            ipc delivery success rate:        100% (5 of 5)",
+]
 const apsdStatusWithApplication = [apsdConnected,
   '      application port name:                  com.apple.seld.aps', '         process:                             seld',
+  '         token:                               Yes, {length = 80, bytes=<38c1bc94 7c0ab960 070db071>}',
   '         enabled topics:                      1', '            topic:                            com.apple.seld.fake',
   '         ipc message queue status:            Ok', '            push notifications:               0',
-  '      application port name:                  org.useorbit.desktop.staging', '         process:                             orbit-desktop',
-  '         persistent connection status:        Waiting for push notifications',
-  '         token:                               Yes, {length = 80, bytes=<38c1bc94 7c0ab960 070db071>}',
-  '         enabled topics:                      1', '            topic:                            org.useorbit.desktop.staging',
-  '               status:                        Waiting for push notifications', '         ipc message queue status:            Ok',
-  '            push notifications:               0', '   courier status:                            Connected'].join('\n')
+  ...usernotedBlock, '   courier status:                            Connected'].join('\n')
 
 test('macOS push diagnostics keep the app apsd block, the redacted status and the notification unified log', async () => {
   assert.equal(apsdApplication(apsdStatusWithApplication, 'org.example.absent'), null)
@@ -332,10 +364,8 @@ test('macOS push diagnostics keep the app apsd block, the redacted status and th
   }
   const since = new Date(2026, 10, 8, 20, 29, 50)
   const result = await capturePushDiagnostics('/output', { topic: 'org.useorbit.desktop.staging', since }, host)
-  assert.deepEqual(result, { apsdStatus: 'push-apsctl-status.log', unifiedLog: 'push-unified.log', apsdApplication: [
-    'application port name: org.useorbit.desktop.staging', 'process: orbit-desktop', 'persistent connection status: Waiting for push notifications',
-    'token: Yes, {length = 80, bytes=<redacted>}', 'enabled topics: 1', 'topic: org.useorbit.desktop.staging',
-    'status: Waiting for push notifications', 'ipc message queue status: Ok', 'push notifications: 0'] })
+  assert.deepEqual(result, { apsdStatus: 'push-apsctl-status.log', unifiedLog: 'push-unified.log',
+    apsdApplication: usernotedBlock.map((line) => line.trim().replace(/\s{2,}/g, ' ')) })
   const status = writes.get(join('/output', 'push-apsctl-status.log'))!
   assert.equal(status.includes('38c1bc94'), false, 'the artifacts never store a device token')
   assert.deepEqual(calls[1], { command: '/usr/bin/log', log: join('/output', 'push-unified.log'), argumentsList: ['show', '--start', '2026-11-08 20:29:50',
@@ -345,6 +375,20 @@ test('macOS push diagnostics keep the app apsd block, the redacted status and th
   host.execute = async (command: string) => { if (command === '/usr/bin/log') throw new Error('log: Cannot open the log store'); return 'Bad response from apsd: Connection invalid' }
   const failed = await capturePushDiagnostics('/output', { topic: 'org.useorbit.desktop.staging', since }, host)
   assert.deepEqual(failed, { apsdStatus: 'push-apsctl-status.log', unifiedLog: 'push-unified.log', apsdApplication: null, unifiedError: 'log: Cannot open the log store' })
+})
+
+test('apsd receipt counts the incoming pushes and the last arrival for the registered topic only', async () => {
+  assert.deepEqual(apsdTopicReceipt(apsdStatusWithApplication, 'org.useorbit.desktop.staging'),
+    { count: 1, last: 'Nov 9, 2026 at 6:19:53\u202fAM (66.62 seconds ago)' })
+  assert.deepEqual(apsdTopicReceipt(apsdStatusWithApplication, 'com.apple.seld.fake'), { count: 0, last: null })
+  assert.deepEqual(apsdTopicReceipt('Bad response from apsd: Connection invalid', 'org.useorbit.desktop.staging'), { count: 0, last: null })
+  const commands: string[][] = []
+  const receipt = await apsdReceipt('org.useorbit.desktop.staging', { execute: async (command: string, argumentsList: string[]) => {
+    commands.push([command, ...argumentsList])
+    return apsdStatusWithApplication
+  } })
+  assert.equal(receipt.count, 1)
+  assert.deepEqual(commands, [['/System/Library/PrivateFrameworks/ApplePushService.framework/apsctl', 'status']])
 })
 
 test('push credentials leave the environment before any build or child process inherits it', () => {
@@ -394,6 +438,22 @@ test('mock API records the native registration and lists it with the API endpoin
     assert.equal((await call('POST', '/api/notifications/unsubscribe', { endpoint: registration.endpoint, p256dh: 'wns', auth: 'wns' }, sessionToken)).status, 200)
     assert.deepEqual((await call('GET', '/api/notifications/subscriptions', undefined, sessionToken)).body, { items: [], max: 5 })
   })
+})
+
+test('mock log names every reminder Done the shell sends, with its status, and leaves the harness state polls out', async () => {
+  const written: string[] = []
+  const write = process.stdout.write
+  process.stdout.write = ((chunk: string | Uint8Array) => { written.push(String(chunk)); return true }) as typeof process.stdout.write
+  try {
+    await withAcceptanceMock(() => Date.parse('2026-11-08T12:00:00Z'), async (call) => {
+      const { doneToken } = (await call('POST', '/_test/repeat-reminders', { habitId: pushHabit })).body as { doneToken: string }
+      await call('POST', '/api/reminders/done', { token: doneToken })
+      await call('POST', '/api/reminders/done', { token: doneToken })
+      await call('GET', '/_test/habit-logs')
+    })
+  } finally { process.stdout.write = write }
+  assert.deepEqual(written.filter((line) => line.startsWith('[mock] ')),
+    ['[mock] POST /_test/repeat-reminders 200\n', '[mock] POST /api/reminders/done 200\n', '[mock] POST /api/reminders/done 400\n'])
 })
 
 test('mock API completes a one-use reminder token once and records every habit log', async () => {
@@ -548,8 +608,9 @@ test('proxy serves the sign-in report mode only to the launch that asks for it',
   assert.deepEqual(served, ['expect=true report=false', 'expect=false report=true'])
 })
 
-function pushHarness(platform: 'win32' | 'darwin', overrides: { authorization?: boolean; logsAfterDone?: number; visibleAfterDone?: number; expiredLogs?: number; signIn?: boolean; credentials?: Record<string, string>; environment?: string | null; signed?: boolean } = {}) {
+function pushHarness(platform: 'win32' | 'darwin', overrides: { authorization?: boolean; logsAfterDone?: number; visibleAfterDone?: number; expiredLogs?: number; signIn?: boolean; credentials?: Record<string, string>; environment?: string | null; signed?: boolean; apnsDropped?: string } = {}) {
   const events: string[] = []
+  let apsdCount = 0
   const records = new Map<string, unknown>()
   const logs: { habitId: string; source: string }[] = []
   const reminders = new Map<string, string>()
@@ -594,6 +655,7 @@ function pushHarness(platform: 'win32' | 'darwin', overrides: { authorization?: 
     },
     launch: async () => { events.push('launch'); return { child: { pid: 41 } } },
     startPushServices: async () => { events.push('push services') },
+    apsdReceipt: async (topic: string) => { events.push(`apsd ${topic}`); return { count: apsdCount, last: apsdCount ? 'just now' : null } },
     stop: async () => { events.push('stop'); shellAlive = false },
     adopt: (pid: number) => { events.push(`adopt ${pid}`) },
     findProcesses: async () => launchedVisible ? [77] : [],
@@ -601,7 +663,10 @@ function pushHarness(platform: 'win32' | 'darwin', overrides: { authorization?: 
       events.push(`sender ${kind}`)
       return async (reminder: { title: string; data: { doneToken: string } }) => {
         events.push(`deliver ${reminder.title}`)
+        // A dropped push is one APNs accepted and never handed to the device, so neither apsd nor Notification Center sees it.
+        if (overrides.apnsDropped && reminder.title.startsWith(`Orbit acceptance ${overrides.apnsDropped} `)) return { status: 200 }
         notified.push({ title: reminder.title, doneToken: reminder.data.doneToken })
+        apsdCount++
         return { status: 200 }
       }
     },
@@ -666,6 +731,11 @@ test('push acceptance proves Done once with the window hidden, then an expired-s
       assert.match((harness.records.get(name) as { title: string }).title, new RegExp(`^Orbit acceptance ${title} `), name)
     }
     if (platform === 'darwin') {
+      assert.deepEqual((push as Record<string, unknown>).doneReceipt, { before: 0, after: 1, seconds: 0 })
+      assert.deepEqual((push as Record<string, unknown>).expiredReceipt, { before: 1, after: 2, seconds: 0 })
+      assert.ok(order('apsd org.useorbit.desktop.staging') < order('deliver Orbit acceptance done'))
+    } else assert.equal(harness.events.some((event) => event.startsWith('apsd ')), false)
+    if (platform === 'darwin') {
       assert.deepEqual(harness.records.get('notification-authorization'), { found: false, tree: [{ role: 'AXApplication', parent: -1, text: 'Notification Center' }] })
       assert.deepEqual((push as Record<string, unknown>).authorization, { found: false })
     } else assert.equal((push as Record<string, unknown>).authorization, undefined)
@@ -678,6 +748,16 @@ test('macOS push acceptance keeps the authorization alert it allowed, because th
   assert.deepEqual((harness.report.push as Record<string, unknown>).authorization,
     { found: true, invoked: true, role: 'AXGroup', action: 'Name:Allow\nTarget:0x0\nSelector:(null)' })
   assert.deepEqual([...harness.records.keys()].slice(0, 2), ['notification-authorization', 'notification-authorization-found'])
+})
+
+test('macOS push acceptance names the APNs hop when apsd never receives an accepted push, before it searches Notification Center', async () => {
+  const harness = pushHarness('darwin', { apnsDropped: 'expired' })
+  await assert.rejects(() => exercisePush(harness.io),
+    /^Error: APNs accepted the expired reminder with HTTP 200, but apsd counted no new push for org\.useorbit\.desktop\.staging: 1 before and 1 after 60 s, last incoming push just now$/)
+  const push = harness.report.push as Record<string, unknown>
+  assert.deepEqual(push.done, { logs: 1, windowVisible: false })
+  assert.deepEqual(push.expiredReceipt, { before: 1, after: 1, last: 'just now' })
+  assert.equal(harness.records.has('notification-expired'), false, 'the search for a push the device never received does not run')
 })
 
 test('push acceptance adopts the notification-launched shell before it waits for the sign-in page', async () => {
@@ -757,10 +837,15 @@ static NSString *scenario;
 static NSMutableArray *performed;
 @interface FixtureRunning : NSObject
 @end
-@implementation FixtureRunning
-- (pid_t)processIdentifier { return 7; }
+@implementation FixtureRunning {
+    pid_t _processIdentifier;
+}
+- (pid_t)processIdentifier { return _processIdentifier ?: 7; }
 + (NSArray *)runningApplicationsWithBundleIdentifier:(NSString *)identifier {
-    return [identifier isEqual:@"com.apple.notificationcenterui"] ? @[[self new]] : @[];
+    FixtureRunning *application = [self new];
+    if ([identifier isEqual:@"com.apple.controlcenter"]) application->_processIdentifier = 8;
+    else if (![identifier isEqual:@"com.apple.notificationcenterui"]) return @[];
+    return @[application];
 }
 + (instancetype)runningApplicationWithProcessIdentifier:(pid_t)pid { return [self new]; }
 - (BOOL)activateWithOptions:(NSUInteger)options { return YES; }
@@ -769,6 +854,9 @@ static NSMutableArray *performed;
 static NSDictionary *text(NSString *value) { return @{@"AXRole": @"AXStaticText", @"AXValue": value}; }
 static NSDictionary *done(NSString *identifier) { return @{@"id": identifier, @"AXRole": @"AXButton", @"AXTitle": @"Done", @"actions": @[@"AXPress"]}; }
 static AXUIElementRef fixtureApplication(pid_t pid) {
+    // Control Center owns the menu bar clock that toggles Notification Center.
+    if (pid == 8) return (AXUIElementRef)CFBridgingRetain(@{@"AXRole": @"AXApplication", @"AXExtrasMenuBar": @{@"AXRole": @"AXMenuBar",
+        @"AXChildren": @[@{@"id": @"clock", @"AXRole": @"AXMenuBarItem", @"AXIdentifier": @"com.apple.menuextra.clock", @"actions": @[@"AXPress"]}]}});
     NSString *custom = @"Name:Done\\nTarget:0x0\\nSelector:(null)";
     NSDictionary *other = @{@"id": @"other", @"AXRole": @"AXGroup", @"AXDescription": @"Orbit Staging, Orbit acceptance expired 0a1b2c3d",
         @"actions": @[@"AXPress", custom]};
@@ -780,6 +868,10 @@ static AXUIElementRef fixtureApplication(pid_t pid) {
     if ([scenario isEqual:@"description"]) groups = @[@{@"id": @"first", @"AXRole": @"AXGroup", @"AXTitle": @"Orbit acceptance done 6f1c2a5e",
         @"actions": @[@"AXPress", @"AXCustomAction1"], @"descriptions": @{@"AXCustomAction1": @"Done", @"AXPress": @"press"}}];
     if ([scenario isEqual:@"missing"]) groups = @[other];
+    // The open center lists its history and the Edit Widgets button; the closed one shows neither.
+    if ([scenario isEqual:@"open"]) groups = @[@{@"AXRole": @"AXGroup", @"AXIdentifier": @"AXNotificationListItems", @"AXChildren": @[other]},
+        @{@"AXRole": @"AXButton", @"AXIdentifier": @"widget-editor-button", @"AXTitle": @"Edit Widgets", @"actions": @[@"AXPress"]}];
+    if ([scenario isEqual:@"closed"]) groups = @[other];
     if ([scenario isEqual:@"ambiguous"]) groups = @[@{@"id": @"first", @"AXRole": @"AXGroup",
         @"AXChildren": @[text(@"Orbit acceptance done 6f1c2a5e"), done(@"one"), done(@"two")]}];
     return (AXUIElementRef)CFBridgingRetain(@{@"AXRole": @"AXApplication", @"AXTitle": @"Notification Center", @"AXChildren": @[
@@ -821,7 +913,7 @@ int main(int argc, const char *argv[]) {
     @autoreleasepool {
         scenario = @(argv[1]);
         performed = [NSMutableArray array];
-        const char *arguments[] = {"acceptance", "1", "notification", "Orbit acceptance done 6f1c2a5e", "Done", argv[2], "0"};
+        const char *arguments[] = {"acceptance", "1", "notification", "Orbit acceptance done 6f1c2a5e", "Done", argv[2], argc > 3 ? argv[3] : "0"};
         int status = acceptanceMain(7, arguments);
         NSData *encoded = [NSJSONSerialization dataWithJSONObject:performed options:0 error:NULL];
         fprintf(stderr, "%.*s", (int)encoded.length, (const char *)encoded.bytes);
@@ -866,6 +958,16 @@ if (process.platform === 'darwin') {
       }
     })
   }
+  test('native notification reader presses the menu bar clock only while Notification Center is closed, because the press toggles it', () => {
+    for (const [scenario, presses] of [['closed', [{ id: 'clock', action: 'AXPress' }]], ['open', []]] as const) {
+      const capture = spawnSync(executable, [scenario, '0', '1'], { encoding: 'utf8', timeout: 10000 })
+      assert.equal(capture.status, 0, capture.stderr)
+      assert.equal((JSON.parse(capture.stdout) as { found: boolean }).found, false, scenario)
+      assert.deepEqual(JSON.parse(capture.stderr), presses, scenario)
+    }
+    const unrequested = spawnSync(executable, ['closed', '0', '0'], { encoding: 'utf8', timeout: 10000 })
+    assert.deepEqual(JSON.parse(unrequested.stderr), [], 'a search without openCenter never touches the clock')
+  })
   test('native window reader lists only the target process windows with layer and on-screen state', () => {
     const reader = join(directory, 'reader')
     const built = spawnSync('clang', ['-fobjc-arc', '-framework', 'AppKit', '-framework', 'ApplicationServices', fileURLToPath(new URL('./acceptance-ax.m', import.meta.url)), '-o', reader], { encoding: 'utf8', timeout: 30000 })

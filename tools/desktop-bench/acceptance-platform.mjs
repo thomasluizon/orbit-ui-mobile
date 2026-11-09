@@ -248,19 +248,44 @@ export function apsdSummary(text) {
   return lines.length ? lines : [collapse(text).slice(0, 300)]
 }
 
-// apsctl prints one "application port name" block per registered process, indented under its connection environment, with
-// its enabled topics, the incoming pushes per topic and the pushes apsd handed to the process.
+const indent = (line) => line.length - line.trimStart().length
+
+// apsctl prints one block per registered process, indented under its connection environment, with its topics, the incoming
+// pushes per topic and the pushes apsd handed to the process. A named port opens the block with "application port name";
+// usernoted, which receives every app's alert pushes, has no port name, so its block opens with "process" (apsctl status on
+// macos-latest).
 export function apsdApplication(text, topic) {
   const lines = text.split(/\r?\n/)
-  const indent = (line) => line.length - line.trimStart().length
   for (let start = 0; start < lines.length; start++) {
-    if (!/^\s*application port name:/.test(lines[start])) continue
+    if (!/^\s*(application port name|process):/.test(lines[start])) continue
     let end = start + 1
     while (end < lines.length && (!lines[end].trim() || indent(lines[end]) > indent(lines[start]))) end++
     const block = lines.slice(start, end).filter((line) => line.trim()).map(collapse)
     if (block.some((line) => line === `topic: ${topic}`)) return block.slice(0, 80)
   }
   return null
+}
+
+// Each topic line carries its incoming push count and the time of the last one on deeper lines. A topic apsd lists for more
+// than one process counts once per listing.
+export function apsdTopicReceipt(text, topic) {
+  const lines = text.split(/\r?\n/)
+  let count = 0
+  let last = null
+  for (let start = 0; start < lines.length; start++) {
+    if (lines[start].trim().replace(/\s+/g, ' ') !== `topic: ${topic}`) continue
+    for (let line = start + 1; line < lines.length && indent(lines[line]) > indent(lines[start]); line++) {
+      const incoming = /^\s*incoming push notifications:\s+(\d+)\s*$/.exec(lines[line])
+      if (incoming) count += Number(incoming[1])
+      const received = /^\s*last incoming push:\s+(.+?)\s*$/.exec(lines[line])
+      if (received) last = received[1]
+    }
+  }
+  return { count, last }
+}
+
+export async function apsdReceipt(topic, host = { execute }) {
+  return apsdTopicReceipt(await host.execute(apsctl, ['status']), topic)
 }
 
 const notificationLogPredicate = ['apsd', 'usernoted', 'NotificationCenter', 'orbit-desktop'].map((name) => `process == "${name}"`)

@@ -223,12 +223,35 @@ async function enablePush(io, pid) {
   }, 'the Perfil notification switch to register this device', 330000)
 }
 
+// APNs answers 200 when it accepts a push, not when the device receives it. apsd counts every push it receives per topic,
+// so the macOS phase waits for that count to rise before it looks for the notification. A missing notification then names
+// the hop that dropped it: APNs to the device, or the device to Notification Center.
+async function deviceReceipt(io, topic, before, purpose) {
+  const sent = io.now()
+  let last = before
+  try {
+    await io.waitFor(async () => {
+      last = await io.apsdReceipt(topic)
+      return last.count > before.count
+    }, `apsd to receive the ${purpose} push`, 60000)
+  } catch (error) {
+    if (!error.message.startsWith('Timed out')) throw error
+    io.report.push[`${purpose}Receipt`] = { before: before.count, after: last.count, last: last.last }
+    throw new Error(`APNs accepted the ${purpose} reminder with HTTP 200, but apsd counted no new push for ${topic}: ` +
+      `${before.count} before and ${last.count} after 60 s, last incoming push ${last.last ?? 'none'}`)
+  }
+  return { before: before.count, after: last.count, seconds: (io.now() - sent) / 1000 }
+}
+
 async function sendReminder(io, deliver, purpose) {
   const habitId = randomUUID()
   const doneToken = await io.mock.mintReminder(habitId)
   const reminder = repeatReminder({ habitId, title: `Orbit acceptance ${purpose} ${habitId.slice(0, 8)}`, doneToken,
     reminderAt: new Date(io.now() - 60000), timeZone: io.timeZone })
+  const topic = io.platform === 'darwin' ? io.report.push.registration.apnsTopic : null
+  const before = topic ? await io.apsdReceipt(topic) : null
   io.report.push[`${purpose}Delivery`] = await deliver(reminder)
+  if (topic) io.report.push[`${purpose}Receipt`] = await deviceReceipt(io, topic, before, purpose)
   return reminder
 }
 

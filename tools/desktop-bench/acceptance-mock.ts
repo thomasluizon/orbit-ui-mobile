@@ -161,6 +161,9 @@ export function createAcceptanceHandler(token: string, now: () => number = Date.
     const habitLog = method === 'POST' ? /^\/api\/habits\/([^/]+)\/log$/.exec(path)?.[1] : undefined
     if (habitLog && !sessionRejected(request, path)) logs.push({ habitId: habitLog, source: 'habit-log', atUtc: timestamp() })
     route(request, response, method, path).then((handled) => {
+      // The log names every acceptance route the shell or the BFF reached, such as the reminder Done; the harness's own
+      // state polls stay out of it.
+      if (handled && !(method === 'GET' && path.startsWith('/_test/'))) process.stdout.write(`[mock] ${method} ${path} ${response.statusCode}\n`)
       if (!handled) handleRequest(request, response)
     }, (error: unknown) => {
       process.stderr.write(`[mock] ${method} ${path} rejected: ${error instanceof Error ? error.message : String(error)}\n`)

@@ -263,12 +263,25 @@ Each run keeps the platform evidence that the notification readers use, also whe
   `trees/notification-authorization.json` keeps the tree from the authorization alert search.
   `trees/notification-authorization-found.json` keeps the reply of the search that found the alert.
 - On macOS, after the push phase, `push-apsctl-status.log` keeps the whole `apsctl status` with the
-  device token bytes redacted. `report.json` `pushDiagnostics.apsdApplication` keeps the apsd block of the
-  application that lists the shell's topic: its enabled topics, the incoming pushes per topic and the
-  pushes that apsd gave to the process. `push-unified.log` keeps the unified log of `apsd`, `usernoted`,
+  device token bytes redacted. `report.json` `pushDiagnostics.apsdApplication` keeps the apsd block that
+  lists the shell's topic. For an app alert topic that block is usernoted's, which opens with `process:`
+  because it has no port name. It holds the topic category, the incoming pushes per topic and the pushes
+  that apsd gave to the process. `push-unified.log` keeps the unified log of `apsd`, `usernoted`,
   `NotificationCenter`, `orbit-desktop` and the `com.apple.UserNotifications` subsystem from the start
   of the phase. Together they show whether a reminder reached the device, reached the shell, or was
   not presented.
+
+On macOS, APNs answers HTTP 200 when it accepts a push, not when the device receives it. Before each
+reminder the phase reads apsd's incoming push count for the shell's topic, and after the send it waits
+up to 60 seconds for that count to rise. `report.json` `push.doneReceipt` and `push.expiredReceipt`
+keep the counts and the seconds that each push took. A push that apsd never counts fails the phase with
+the counts and the last arrival, before any Notification Center search.
+
+The macOS reader presses the menu bar clock to open Notification Center only while the center is closed.
+The press toggles the center, and only the open center lists its history and the Edit Widgets button.
+
+`mock.log` names every acceptance route that the shell or the BFF reached, with its status, such as
+`POST /api/reminders/done 200`. The harness's own `GET /_test/` polls stay out of it.
 
 Push credentials come only from the job environment. `acceptance.mjs` removes them from
 `process.env` before any build or server starts, and the report keeps the WNS host or the token
