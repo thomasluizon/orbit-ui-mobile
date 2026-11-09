@@ -19,29 +19,59 @@ afterEach(() => {
   directories.splice(0).forEach(directory => rmSync(directory, { recursive: true, force: true }))
 })
 
-it('reads and verifies the real published staging channel before accepting its baseline', async () => {
+const channelRelease = { assets: [{ id: 726086829, name: 'latest.json' }, { id: 726086785, name: 'latest.json.sig' }] }
+const apiRoot = 'https://api.github.com/repos/thomasluizon/orbit-ui-mobile/releases'
+const noWait = async () => {}
+
+function channelFetch(overrides: Record<string, () => Response> = {}) {
+  const routes: Record<string, () => Response> = {
+    [`${apiRoot}/tags/desktop-staging`]: () => Response.json(channelRelease),
+    [`${apiRoot}/assets/726086829`]: () => new Response(channel.manifest),
+    [`${apiRoot}/assets/726086785`]: () => new Response(channel.signature),
+    ...overrides,
+  }
+  return vi.fn(async (url: string) => {
+    if (url.startsWith('https://github.com/')) return new Response('Gateway Time-out', { status: 504 })
+    const route = routes[url]
+    if (!route) throw new Error(`Unexpected request ${url}`)
+    return route()
+  })
+}
+
+it('reads and verifies the real published staging channel through the release asset endpoint', async () => {
   vi.stubEnv('TAURI_SIGNING_PUBLIC_KEY', channel.publicKey)
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(new Response('{}'))
-    .mockResolvedValueOnce(new Response(channel.manifest)).mockResolvedValueOnce(new Response(channel.signature)))
-  expect(await channelVersion('staging')).toBe('0.1.1')
-  expect(fetch).toHaveBeenNthCalledWith(1,
-    'https://api.github.com/repos/thomasluizon/orbit-ui-mobile/releases/tags/desktop-staging', expect.objectContaining({ signal: expect.any(AbortSignal) }))
+  vi.stubGlobal('fetch', channelFetch())
+  expect(await channelVersion('staging', noWait)).toBe('0.1.1')
+  const urls = vi.mocked(fetch).mock.calls.map(([url]) => String(url))
+  expect(urls).toEqual([`${apiRoot}/tags/desktop-staging`, `${apiRoot}/assets/726086829`, `${apiRoot}/assets/726086785`])
+  expect(vi.mocked(fetch).mock.calls[1]![1]).toMatchObject({ headers: { Accept: 'application/octet-stream' } })
+})
+
+it('retries a gateway error from the asset endpoint and gives up after four attempts', async () => {
+  vi.stubEnv('TAURI_SIGNING_PUBLIC_KEY', channel.publicKey)
+  let manifestCalls = 0
+  vi.stubGlobal('fetch', channelFetch({ [`${apiRoot}/assets/726086829`]: () => (++manifestCalls < 3 ? new Response(null, { status: 504 }) : new Response(channel.manifest)) }))
+  expect(await channelVersion('staging', noWait)).toBe('0.1.1')
+  expect(manifestCalls).toBe(3)
+  vi.stubGlobal('fetch', channelFetch({ [`${apiRoot}/assets/726086829`]: () => new Response(null, { status: 504 }) }))
+  await expect(channelVersion('staging', noWait)).rejects.toThrow('manifest')
+  expect(vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith('/assets/726086829'))).toHaveLength(4)
 })
 
 it('treats only an absent channel release as a first release and rejects missing assets', async () => {
   vi.stubEnv('TAURI_SIGNING_PUBLIC_KEY', channel.publicKey)
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(new Response(null, { status: 404 })))
-  expect(await channelVersion('production')).toBeNull()
-  vi.mocked(fetch).mockResolvedValueOnce(new Response(null, { status: 503 }))
-  await expect(channelVersion('staging')).rejects.toThrow('503')
-  vi.mocked(fetch).mockResolvedValueOnce(new Response('{}')).mockResolvedValueOnce(new Response(null, { status: 404 }))
-  await expect(channelVersion('staging')).rejects.toThrow('manifest: 404')
-  vi.mocked(fetch).mockResolvedValueOnce(new Response('{}')).mockResolvedValueOnce(new Response(channel.manifest))
-    .mockResolvedValueOnce(new Response(null, { status: 404 }))
-  await expect(channelVersion('staging')).rejects.toThrow('signature: 404')
-  vi.mocked(fetch).mockResolvedValueOnce(new Response('{}')).mockResolvedValueOnce(new Response(channel.manifest.replace('0.1.1', '0.1.2')))
-    .mockResolvedValueOnce(new Response(channel.signature))
-  await expect(channelVersion('staging')).rejects.toThrow('verification failed')
+  vi.stubGlobal('fetch', channelFetch({ [`${apiRoot}/tags/desktop-staging`]: () => new Response(null, { status: 404 }) }))
+  expect(await channelVersion('staging', noWait)).toBeNull()
+  vi.stubGlobal('fetch', channelFetch({ [`${apiRoot}/tags/desktop-staging`]: () => new Response(null, { status: 403 }) }))
+  await expect(channelVersion('staging', noWait)).rejects.toThrow('403')
+  vi.stubGlobal('fetch', channelFetch({ [`${apiRoot}/assets/726086829`]: () => new Response(null, { status: 404 }) }))
+  await expect(channelVersion('staging', noWait)).rejects.toThrow('manifest: 404')
+  vi.stubGlobal('fetch', channelFetch({ [`${apiRoot}/assets/726086785`]: () => new Response(null, { status: 404 }) }))
+  await expect(channelVersion('staging', noWait)).rejects.toThrow('signature: 404')
+  vi.stubGlobal('fetch', channelFetch({ [`${apiRoot}/assets/726086829`]: () => new Response(channel.manifest.replace('0.1.1', '0.1.2')) }))
+  await expect(channelVersion('staging', noWait)).rejects.toThrow('verification failed')
+  vi.stubGlobal('fetch', channelFetch({ [`${apiRoot}/tags/desktop-staging`]: () => Response.json({ assets: [] }) }))
+  await expect(channelVersion('staging', noWait)).rejects.toThrow('manifest: 404')
 })
 
 function git(...args: string[]) {
