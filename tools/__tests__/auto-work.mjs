@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "node:child_process"
-import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
 import { setTimeout as wait } from "node:timers/promises"
@@ -29,13 +29,44 @@ const stageSources = (base) => {
   return { env: { PATH: `${bin}:${process.env.PATH}`, GH_BIN: gh }, log }
 }
 
+/**
+ * Holds the waiter's first run state publish until the test releases it, so a disable write lands
+ * exactly between the waiter's read and its write when nothing serializes the two.
+ */
+const stagePublishPause = (base) => {
+  const paused = join(base, "publish-paused")
+  const release = join(base, "publish-release")
+  const preload = join(base, "publish-pause.mjs")
+  writeFileSync(preload, `import fs from "node:fs"
+import { syncBuiltinESMExports } from "node:module"
+const realRename = fs.renameSync
+const idle = new Int32Array(new SharedArrayBuffer(4))
+let held = false
+fs.renameSync = function (from, to, ...rest) {
+  if (!held && String(to).endsWith("orbit-orchestrate-run.json")) {
+    held = true
+    fs.writeFileSync(${JSON.stringify(paused)}, "")
+    while (!fs.existsSync(${JSON.stringify(release)})) Atomics.wait(idle, 0, 0, 10)
+  }
+  return realRename.call(this, from, to, ...rest)
+}
+syncBuiltinESMExports()
+`)
+  return { args: ["--import", pathToFileURL(preload).href], paused, release }
+}
+
+const exitWithin = (child, closed, milliseconds) => child.exitCode !== null ? Promise.resolve(true)
+  : Promise.race([closed.then(() => true), wait(milliseconds).then(() => false)])
+
 export const cases = async () => {
   for (const mode of ["source", "disable", "SIGTERM"]) {
     const installation = stageWithConfig(`auto-work-${mode}`, "wait-auto-work.mjs", realOrchestratorConfig())
     const sources = stageSources(installation.base)
     writeRunState({ sessionId: "auto", sleep: true, autoWork: true, remaining: [] }, installation.base)
-    const child = spawn(process.execPath, [installation.path, "--interval-seconds", mode === "source" ? "0.3" : "10"],
-      { env: { ...process.env, ...sources.env, CLAUDE_CODE_SESSION_ID: "auto" } })
+    const pause = mode === "disable" ? stagePublishPause(installation.base) : null
+    const { NODE_OPTIONS: _options, ...childEnv } = process.env
+    const child = spawn(process.execPath, [...(pause?.args ?? []), installation.path, "--interval-seconds", mode === "source" ? "0.3" : "10"],
+      { env: { ...childEnv, ...sources.env, CLAUDE_CODE_SESSION_ID: "auto" } })
     let stdout = ""
     child.stdout.on("data", (chunk) => { stdout += chunk })
     const closed = new Promise((resolve) => child.once("close", resolve))
@@ -50,10 +81,24 @@ export const cases = async () => {
       T(`auto-work ${mode}: registers a live relay waiter`, live.some((source) => source.pid === child.pid && isRelayWaiter(source)))
       T(`auto-work ${mode}: empty queue can wait`, checkSleepStop({ state: readRunState(installation.base),
         wakeSources: live, isWakeSourceAlive: () => true }) === null)
-      if (mode === "disable") writeRunState({ ...readRunState(installation.base), autoWork: false }, installation.base)
+      if (mode === "disable") {
+        for (let tries = 0; tries < 200 && !existsSync(pause.paused); tries++) await wait(10)
+        T("auto-work disable: the waiter reached its first run state publish", existsSync(pause.paused))
+        cpSync(join(TOOLS_DIR, "auto-work-state.mjs"), join(installation.base, "tools", "auto-work-state.mjs"))
+        const disabler = spawn(process.execPath, [join(installation.base, "tools", "auto-work-state.mjs"), "--disable"],
+          { env: { ...childEnv, CLAUDE_CODE_SESSION_ID: "auto" } })
+        const disabled = new Promise((resolve) => disabler.once("close", resolve))
+        // Unserialized, the disable finishes inside the pause; serialized, it waits for the waiter's write.
+        await exitWithin(disabler, disabled, 2000)
+        writeFileSync(pause.release, "")
+        T("auto-work disable: the disable command confirms its write", await disabled === 0)
+      }
       if (mode === "SIGTERM") child.kill("SIGTERM")
       const status = await closed
-      const result = JSON.parse(stdout)
+      let result = {}
+      try { result = JSON.parse(stdout) } catch { /* the assertion below reports the raw output */ }
+      if (mode === "disable") T("auto-work disable: the disable survives the waiter's concurrent save", readRunState(installation.base).autoWork === false,
+        JSON.stringify(readRunState(installation.base)))
       T(`auto-work ${mode}: expected wake result`, status === (mode === "SIGTERM" ? 143 : 0) &&
         result.reason === ({ source: "SOURCE", disable: "MODE_CHANGED", SIGTERM: "SIGTERM" })[mode] && result.sentryMode === "mcp-hourly", stdout)
       if (mode === "source") {

@@ -19,7 +19,7 @@ const consumers = [
     '.gitignore', 'apps/mobile/.gitignore', 'eslint-rules/no-comments.cjs', 'tsconfig.base.json',
   ] },
   { workspace: 'apps/desktop', name: '@orbit/desktop', inputs: [
-    '.github/workflows/desktop-release.yml',
+    '.github/workflows/desktop-release.yml', '.github/workflows/desktop-acceptance.yml',
     'apps/web/components/auth/desktop-auth-bridge.tsx',
     'apps/web/lib/desktop-push.ts', 'apps/web/lib/desktop-updates.ts',
     '.github/workflows/desktop-build.yml', '.github/workflows/release.yml',
@@ -144,7 +144,7 @@ describe.each(consumers)('$name external test inputs', (consumer) => {
     expectRun(root, consumer.name, 0, 1)
     expect(readFileSync(resolve(root, consumer.workspace, 'coverage/result.txt'), 'utf8')).toBe('covered')
     write(root, 'unrelated-root.txt', 'unrelated')
-    write(root, '.github/workflows/unrelated.yml', 'unrelated')
+    write(root, '.github/workflows/unrelated.txt', 'unrelated')
     expectRun(root, consumer.name, 0, 1)
     write(root, `${consumer.workspace}/local-source.ts`, 'export const changed = true')
     expectRun(root, consumer.name, 0, 2)

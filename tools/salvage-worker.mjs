@@ -9,7 +9,7 @@ import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { MAX_OUTPUT_BYTES, runBounded } from "./lib/bounded-process.mjs"
 import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readinessReceiptPath } from "./lib/readiness-receipt.mjs"
-import { readRunState, writeRunState } from "./lib/run-state.mjs"
+import { updateRunState } from "./lib/run-state.mjs"
 import { resolveSpawnTarget } from "./lib/win-spawn-target.mjs"
 
 const USAGE = `usage: salvage-worker.mjs --issue <ORB-N|#N|N> --repo <key> [--pr <number>] --worktree <path> --branch <name> --run-root <path> --test-command <json> --test-receipt <path> --message <text> --path <relative-path> [--path <relative-path> ...] [--command-timeout-seconds <s>]
@@ -239,10 +239,12 @@ if (unselectedSource.length > 0) fail(2, `dirty source paths not named by --path
 
 const readinessPath = prNumber === null ? null : readinessReceiptPath(config.repos[repoKey], repoKey, prNumber)
 if (prNumber !== null) {
-  const state = readRunState(runRoot) ?? { sessionId: "salvage", sleep: false, remaining: [] }
-  const pullRequests = Array.isArray(state.pullRequests) ? state.pullRequests.filter((entry) => !(entry?.repositoryKey === repoKey && entry?.prNumber === prNumber)) : []
-  pullRequests.push({ repositoryKey: repoKey, prNumber, receiptPath: readinessPath })
-  writeRunState({ ...state, pullRequests }, runRoot)
+  updateRunState((current) => {
+    const state = current ?? { sessionId: "salvage", sleep: false, remaining: [] }
+    const pullRequests = Array.isArray(state.pullRequests) ? state.pullRequests.filter((entry) => !(entry?.repositoryKey === repoKey && entry?.prNumber === prNumber)) : []
+    pullRequests.push({ repositoryKey: repoKey, prNumber, receiptPath: readinessPath })
+    return { ...state, pullRequests }
+  }, runRoot)
 }
 
 try {

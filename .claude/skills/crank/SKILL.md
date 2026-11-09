@@ -18,7 +18,9 @@ Never create a separate loop or replace another session's run.
 This standalone entry differs from `/wrap-up --crank` and `/handoff --crank`, which only
 record successor intent when no run exists and never enter `/sleep` in the closing session.
 
-For `/crank`, call `writeRunState({ ...state, crank: true })` with the freshly read record.
+For `/crank`, call `updateRunState((state) => ({ ...state, crank: true }))`. It changes the record it reads under the run state lock.
+It identifies this session from `CLAUDE_CODE_SESSION_ID` and refuses the change when this session is superseded,
+with `session is superseded; run state write refused`. The read-back then shows the successor's record unchanged.
 For `/crank --disable` or `/crank disable`, use `crank: false` instead. Keep the same
 `sessionId` and every other field, including sleep mode, queue, relay state and readiness ledger.
 Read back with `readRunState` and confirm the session id and requested boolean.
