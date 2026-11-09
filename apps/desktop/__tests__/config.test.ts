@@ -110,7 +110,7 @@ describe.each(environments)('$name desktop', ({ config, origin, identifier }) =>
     expect(entrypoint).toMatch(/\.build\(context\)[\s\S]*if let Err\(error\) = push::prepare_launch\(\)[\s\S]*Cannot observe desktop launch[\s\S]*app\.run\(handle_run_event\)/)
     expect(entrypoint).toMatch(/lifecycle::create_main\(\s*window_config,\s*push::notification_launch\(\)/)
     expect(entrypoint).toContain('.activate_ignoring_other_apps(false)')
-    expect(entrypoint).toContain('if !push::notification_activation(&arguments)')
+    expect(entrypoint).toContain('if push::secondary_launch(&arguments)')
   })
 })
 
