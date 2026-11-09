@@ -239,6 +239,7 @@ for (const width of [320, 600]) {
 for (const language of ['en', 'pt-BR'] as const) for (const mode of ['dark', 'light'] as const) {
   for (const width of [320, 412, 1352]) {
     const normalSupportingTitles = width === 320 ? ['Grandchild', 'Child parent'] : []
+    const selectModeSupportingTitles = width === 320 ? ['Grandchild'] : []
     test(`Habit previews and full-row feedback at ${width}px in ${mode} ${language}`, async ({ page, context }) => {
       await page.setViewportSize({ width, height: 1200 })
       const description = language === 'en' ? 'Read two pages before breakfast.' : 'Leia duas páginas antes do café.'
@@ -267,15 +268,16 @@ for (const language of ['en', 'pt-BR'] as const) for (const mode of ['dark', 'li
         await setHabitTextScale(page, scale, visibleTitles, normalSupportingTitles)
         await expect(parent.locator('[data-habit-row-description]')).toHaveCSS('font-size', `${14 * scale}px`)
         await expect(parent.locator('[data-habit-row-heading]')).toHaveCount(scale === 2 ? 1 : 0)
-        await assertPreviewSelectionModes(page, parent, copy, scale, mode, width === 320 && scale === 2 ? 5 : 6, normalSupportingTitles)
+        await assertPreviewSelectionModes(page, parent, copy, scale, mode, width === 320 && scale === 2 ? 5 : 6, normalSupportingTitles, selectModeSupportingTitles)
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
       }
     })
   }
 }
 
-async function assertPreviewSelectionModes(page: Page, parent: Locator, copy: typeof en | typeof ptBr, scale: number, mode: 'light' | 'dark', rowCount: number, normalSupportingTitles: readonly string[]) {
+async function assertPreviewSelectionModes(page: Page, parent: Locator, copy: typeof en | typeof ptBr, scale: number, mode: 'light' | 'dark', rowCount: number, normalSupportingTitles: readonly string[], selectModeSupportingTitles: readonly string[]) {
   for (const selecting of [false, true]) {
+    const supportingTitles = selecting ? selectModeSupportingTitles : normalSupportingTitles
     if (selecting) {
       await openTodayListOptions(page, copy.habits.listOptions)
       await page.getByRole('menuitem', { name: copy.common.select, exact: true }).click()
@@ -286,14 +288,14 @@ async function assertPreviewSelectionModes(page: Page, parent: Locator, copy: ty
       await leaf.locator('[data-habit-row-body]').click()
       await expect(leaf.locator('[data-habit-row-control="selection"]')).toHaveAttribute('aria-pressed', 'true')
     }
-    await settleHabitRows(page.getByTestId('habit-row'), scale, selecting, normalSupportingTitles)
-    for (const row of await page.getByTestId('habit-row').all()) await assertHabitPreviewRow(row, scale, mode, page, scale > 1.3 || normalSupportingTitles.includes((await row.getAttribute('data-habit-title'))!))
+    await settleHabitRows(page.getByTestId('habit-row'), scale, selecting, supportingTitles)
+    for (const row of await page.getByTestId('habit-row').all()) await assertHabitPreviewRow(row, scale, mode, page, scale > 1.3 || supportingTitles.includes((await row.getAttribute('data-habit-title'))!), selecting)
   }
   await page.getByRole('button', { name: copy.common.cancel, exact: true }).click()
   await expect(page.locator('[data-habit-row-control="selection"]')).toHaveCount(0)
 }
 
-async function assertHabitPreviewRow(row: Locator, scale: number, mode: 'light' | 'dark', page: Page, supporting: boolean) {
+async function assertHabitPreviewRow(row: Locator, scale: number, mode: 'light' | 'dark', page: Page, supporting: boolean, selecting: boolean) {
   const geometry = await row.evaluate((element) => {
     const bounds = (node: Element) => { const box = node.getBoundingClientRect(); return { left: box.left, right: box.right, top: box.top, bottom: box.bottom, x: (box.left + box.right) / 2, y: (box.top + box.bottom) / 2, width: box.width, height: box.height } }
     const title = element.querySelector('[data-personal-text]')!
@@ -301,15 +303,20 @@ async function assertHabitPreviewRow(row: Locator, scale: number, mode: 'light' 
     const meta = element.querySelector('[data-habit-row-meta]')
     const textEdge = title.closest('div')!.getBoundingClientRect().left
     const well = Array.from(element.querySelectorAll('span')).find((node) => ['32px', '46px'].includes(getComputedStyle(node).width) && getComputedStyle(node).borderRadius === '12px')!
-    const check = element.querySelector('[data-habit-check]')!
-    let target = check.parentElement!
-    while (target !== element && target.getBoundingClientRect().width !== 48) target = target.parentElement!
+    const check = element.querySelector('[data-habit-check]')
+    const logTargets = element.querySelectorAll('[data-habit-row-control="check"]').length
+    let target: Element | null = null
+    if (check) {
+      target = check.parentElement!
+      while (target !== element && target.getBoundingClientRect().width !== 48) target = target.parentElement!
+    }
     const geometry = { row: bounds(element), frame: bounds(element.parentElement!), depth: Number(element.getAttribute('data-depth')), title: bounds(title), titleSize: getComputedStyle(title).fontSize,
       supporting: Boolean(element.querySelector('[data-habit-row-heading]')),
       parent: Boolean(element.querySelector('[data-habit-row-control="disclosure"]')),
       preview: preview && { ...bounds(preview), size: getComputedStyle(preview).fontSize, lineHeight: Number.parseFloat(getComputedStyle(preview).lineHeight) },
-      textEdge, well: bounds(well), meta: meta && bounds(meta), check: bounds(check), target: bounds(target),
-      glyph: check.querySelector('svg') ? bounds(check.querySelector('svg')!) : null,
+      textEdge, well: bounds(well), meta: meta && bounds(meta), logTargets,
+      check: check && bounds(check), target: target && bounds(target),
+      glyph: check?.querySelector('svg') ? bounds(check.querySelector('svg')!) : null,
       controls: Array.from(element.querySelectorAll('[data-habit-row-control]')).map(bounds) }
     const controlChains = Array.from(element.querySelectorAll('[data-habit-row-control]')).map((control) => {
       const chain = []
@@ -359,6 +366,19 @@ async function assertHabitPreviewRow(row: Locator, scale: number, mode: 'light' 
       expect(geometry.row.bottom - geometry.meta.bottom).toBeGreaterThanOrEqual(3.9)
     }
   }
+  function assertLogTarget(check: NonNullable<typeof geometry.check>, target: NonNullable<typeof geometry.target>) {
+    expect(target.width).toBe(48)
+    expect(target.height).toBeGreaterThanOrEqual(48)
+    expect(check.width).toBe(28)
+    expect(check.height).toBe(28)
+    expect(Math.abs(check.x - target.x)).toBeLessThanOrEqual(1)
+    expect(Math.abs(check.y - target.y)).toBeLessThanOrEqual(1)
+    if (!supporting) expect(Math.abs(target.y - geometry.row.y)).toBeLessThanOrEqual(1)
+    else {
+      expect(target.top - geometry.row.top).toBe(geometry.depth ? 4 : 8)
+      expect(target.top).toBeCloseTo(geometry.title.top, 1)
+    }
+  }
   function assertPreviewControls() {
     expect(geometry.titleSize).toBe(`${(geometry.depth ? 14 : 17) * scale}px`)
     expect(geometry.well.left - geometry.row.left).toBe(SPACING.s8)
@@ -366,18 +386,15 @@ async function assertHabitPreviewRow(row: Locator, scale: number, mode: 'light' 
     expect(geometry.row.width).toBe(geometry.frame.width - SPACING.s16 * geometry.depth)
     expect(geometry.row.right).toBe(geometry.frame.right)
     expect(geometry.supporting).toBe(supporting)
-    expect(geometry.target.width).toBe(48)
-    expect(geometry.target.height).toBeGreaterThanOrEqual(48)
-    expect(geometry.check.width).toBe(28)
-    expect(geometry.check.height).toBe(28)
-    expect(Math.abs(geometry.check.x - geometry.target.x)).toBeLessThanOrEqual(1)
-    expect(Math.abs(geometry.check.y - geometry.target.y)).toBeLessThanOrEqual(1)
-    if (!supporting) expect(Math.abs(geometry.target.y - geometry.row.y)).toBeLessThanOrEqual(1)
-    else {
-      expect(geometry.target.top - geometry.row.top).toBe(geometry.depth ? 4 : 8)
-      expect(geometry.target.top).toBeCloseTo(geometry.title.top, 1)
+    if (selecting) {
+      expect(geometry.check, 'select mode renders no log control').toBeNull()
+      expect(geometry.target).toBeNull()
+      expect(geometry.logTargets).toBe(0)
+    } else {
+      expect(geometry.check).not.toBeNull()
+      assertLogTarget(geometry.check!, geometry.target!)
     }
-    if (geometry.glyph) {
+    if (geometry.glyph && geometry.check) {
       expect(Math.abs(geometry.glyph.x - geometry.check.x)).toBeLessThanOrEqual(1)
       expect(Math.abs(geometry.glyph.y - geometry.check.y)).toBeLessThanOrEqual(1)
     }
