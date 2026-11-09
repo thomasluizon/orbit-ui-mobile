@@ -8,7 +8,7 @@ Scratchpad: run `$HOME/.orbit-run-carry/carry-from-predecessor.sh <new full id> 
 
 ## Goal
 
-Finish the spec: an empty board except `#33` and the `#2074` measurement, verified releases, every `#315` launch list ticket closed, then `#315` closed with its verdict. Re-derive what remains with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation at this handoff: 15 open, 15 placed, 0 unplaced, 0 placed twice.
+Finish the spec: an empty board except `#33` and the `#2074` measurement, verified releases, every `#315` launch list ticket closed, then `#315` closed with its verdict. Re-derive what remains with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation at this handoff: 16 open, 16 placed, 0 unplaced, 0 placed twice (`#2081` added in Batch 0b).
 
 ## In flight
 

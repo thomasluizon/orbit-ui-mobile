@@ -59,7 +59,7 @@ Reconcile the open board with these batches before each handoff. Place each new 
 
 ### Batch T: the harness token diet (owner order, priority 1)
 
-In-flight work finishes as normal. Then no new board ticket is admitted until every diet ticket below is merged; `#2074` is merged and its measurement does not hold admission. Brain ADR D149 holds the measurements and the account plan.
+In-flight work finishes as normal. Then no new board ticket is admitted until every diet ticket below is merged or waits only on the owner; `#2074` is merged and its measurement does not hold admission, and `#2071` waits only on the owner's sign-in, so it does not hold admission either. Brain ADR D149 holds the measurements and the account plan.
 
 - `#2071` Move the Pullfrog token in all three repositories to the main account, before 4 December 2026. Next: Chrome holds the main org claude.ai session, but the Claude Code OAuth page redirects to `claude.ai/login?reauth=1`, so the owner signs in fresh; then run `token-swap.py` from the scratchpad (it reads the OSC 8 link target), which pipes the token to `gh secret set CLAUDE_CODE_OAUTH_TOKEN` in all three repositories, and a small worker updates the skill text.
 - `#2074` Stop Pullfrog from reviewing heads that later fail CI. It never holds the launch (owner order). Next: merged as `ui#2387`, and a requested review published `pullfrog-approval` SUCCESS on `ui#2390`. Run `tools/review-rounds.mjs` as soon as it can run, on or after 16 November 2026, whatever the launch state; if the `dismissed approval` share is not clearly below 43%, fix the cause in this ticket and measure again, then close.
@@ -71,6 +71,8 @@ A finding from an owner review or a rendered sweep that shows broken behaviour l
 ### Batch 0b: the harness and the standing syncs
 
 The gates every later batch runs through. Re-read each ticket against the tree before you build it.
+
+- `#2081` Stop the auto-work waiter's run state saves from overwriting a concurrent run state write. Next: worker on `fix/ticket-2081-run-state-lock` (deep tier); its repro lost a concurrent `autoWork: false` write in 27 of 30 trials, and the same race fails `Tool and Hook Tests` at `tools/__tests__/auto-work.mjs:56`.
 
 ### Batch 0c: live defects in the shipped product, on `main`
 
@@ -110,7 +112,7 @@ A deletion ships as a deprecation, then a code removal, then a table drop, each 
 
 ### Batch 8: new platforms, iOS first, then desktop
 
-- `#1561` Ship Orbit for iPhone and iPad to TestFlight, with push and the home-screen widget. Next: CI, review and merge of `ui#2370`, which rides the next Android Open, then the real-device checks through TestFlight once the owner installs it.
+- `#1561` Ship Orbit for iPhone and iPad to TestFlight, with push and the home-screen widget. Next: `ui#2370` is merged and in TestFlight build `a727bce32` (iOS Release run 42451288593); the real-device checks run through TestFlight once the owner installs it.
 - `#1560` Ship a real native Orbit desktop app for Windows and macOS. Next: `ui#2391` head `0a8b7f3db` answers the first review (a failed channel read names the real last failure instead of a made-up 503, the dead `unzip` branch is gone, the desktop test inputs cover every workflow) plus a main merge, threads resolved, CI running. Request the review after green CI and merge on approval. Then add an ESLint config and `lint` script to `apps/desktop` (ticket comment: nothing lints it), verify the shell update on the Mac and close.
 - `#1861` Add the Done action to Repeat every reminders in the macOS and Windows desktop app. Next: `ui#2374` head `a6b4e6391` answers six structural Pullfrog threads (no behaviour findings); every check was green at `c2407413b`, including Windows `installed` (Done through the shell's registered activator from a Medium client, `hresult` 0, Done HTTP 200). On hosted runners the shell hosts run High, so a real toast click cannot reach the shell; the real click is a manual step on a real Windows machine. Review round 13 is delivered: `5f833e0fe` (the dead BOM strip deleted, the recorded macOS layout named) plus a main merge, pushed as `fbc6a465b`, both threads resolved, and the body quotes run 42609737130's captures. Request the review after green CI and merge on approval.
 - `#1563` Show the App Store badge and the Mac and Windows downloads on the landing page. Next: `landing#127` is live in production landing `7fb212c42`; the App Store card follows the App Store listing (`#1561`).
