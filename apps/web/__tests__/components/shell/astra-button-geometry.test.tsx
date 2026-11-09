@@ -7,7 +7,8 @@ import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { expectFillShape } from '@/e2e/layout/label-interaction-fill'
 import { readControlPaint } from '@/e2e/layout/control-paint'
 import { inspectControls } from '@/e2e/layout/interaction-fill-states'
-import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, SPACING } from '@orbit/shared/theme'
+import { ASTRA_BUTTON_GAP } from '@orbit/shared/utils'
 import { compileComposerGeometry } from '@/__tests__/support/composer-geometry'
 import type { Page } from '@playwright/test'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
@@ -46,14 +47,14 @@ it.each(['light', 'dark'] as const)('paints a distinct neutral hover and press s
   } finally { await page.close() }
 })
 
-it.each([320, 412, 600])('restores the real floating entry after pointer activation at %ipx', async width => {
+it.each([320, 412, 600])('restores the real stacked entry after pointer activation at %ipx', async width => {
   const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
   try {
     await page.setContent(`<style>${stylesheet}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ testSurface: 'astraEntry', value: '', suggestions: [], words: {} })}</script>`)
     await page.addScriptTag({ content: composerScript })
     const controls = page.locator('[data-astra-button]')
     await controls.waitFor()
-    expect(await inspectControls(page, controls, 'floating entry', INTERACTION_FILL_CLEARANCE)).toEqual({ inspectedControls: 1, skippedSentinels: 0 })
+    expect(await inspectControls(page, controls, 'stacked entry', INTERACTION_FILL_CLEARANCE)).toEqual({ inspectedControls: 1, skippedSentinels: 0 })
     expect(await page.locator('[data-shell-conversation]').count()).toBe(0)
     expect(await controls.isVisible()).toBe(true)
   } finally { await page.close() }
@@ -67,17 +68,7 @@ async function mountAstraEntry(page: Page, configuration: Record<string, unknown
   await page.route('https://astra-entry.test/', route => route.fulfill({ contentType: 'text/html', body: `<!doctype html>${wrap(astraEntry(configuration))}` }))
   await page.goto('https://astra-entry.test/')
   await page.addScriptTag({ content: composerScript })
-  await page.waitForFunction(() => document.querySelector('[data-astra-button-position]')?.getAttribute('style')?.includes('translate'))
-  await settleFrames(page)
-}
-
-async function dragAstraButton(page: Page, x: number, y: number, release = true) {
-  const box = (await page.locator('[data-astra-button]').boundingBox())!
-  await page.mouse.move(box.x + 30, box.y + 30)
-  await page.mouse.down()
-  await page.mouse.move(x, y, { steps: 8 })
-  await settleFrames(page)
-  if (release) await page.mouse.up()
+  await page.locator('[data-astra-button]').waitFor()
   await settleFrames(page)
 }
 
@@ -85,32 +76,114 @@ function settleFrames(page: Page) {
   return page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
 }
 
-function measureAstraBounds() {
+function measureStack() {
   const rect = (selector: string) => document.querySelector(selector)!.getBoundingClientRect()
   const button = rect('[data-astra-button]')
-  return { top: button.top, bottom: button.bottom, left: button.left, right: button.right, scrollerTop: rect('[data-shell-scroller]').top,
-    headerTop: rect('[data-shell-header]').top, tabsTop: rect('[data-shell-tab-bar]').top, contentLeft: rect('[data-shell-page-content]').left, conversations: document.querySelectorAll('[data-shell-conversation]').length }
+  const create = rect('[data-shell-fab] button')
+  return { top: button.top, bottom: button.bottom, left: button.left, right: button.right, width: button.width, height: button.height,
+    createTop: create.top, createLeft: create.left, createRight: create.right, createWidth: create.width, tabsTop: rect('[data-shell-tab-bar]').top,
+    conversations: document.querySelectorAll('[data-shell-conversation]').length }
 }
 
-it.each([412, 840])('drags over the whole compact screen and never onto the tab bar at %ipx', async width => {
+function stackedShell(fab = true, fabPending = false, headerHeight = 48) {
+  return renderToString(<ShellWide items={[]} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: () => {} }}
+    header={<div style={{ minHeight: headerHeight }}>Today</div>} tabBar={<nav style={{ minHeight: 80 }}>Tabs</nav>}
+    astraButton={<AstraButton />} fab={fab ? <Fab label="Create" onClick={() => {}}>+</Fab> : undefined} fabPending={fabPending}>
+    {Array.from({ length: 40 }, (_, index) => <div key={index} data-probe-row="" style={{ height: 56 }}>Habit {index}</div>)}
+  </ShellWide>)
+}
+
+it.each([320, 412, 840, 1000])('stacks directly above the create button, centred, with the shared gap at %ipx', async width => {
   const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
   try {
     await mountAstraEntry(page)
-    const control = page.locator('[data-astra-button]')
-    await dragAstraButton(page, 0, 0)
-    const top = await page.evaluate(measureAstraBounds)
-    expect(top.top, JSON.stringify(top)).toBe(16)
-    expect(top.left).toBe(top.contentLeft + 16)
-    expect(top.top).toBeLessThan(top.scrollerTop)
-    expect(top.bottom).toBeGreaterThan(top.headerTop)
-    expect(top.conversations).toBe(0)
-    await dragAstraButton(page, 0, 915)
-    const bottom = await page.evaluate(measureAstraBounds)
-    expect(bottom.tabsTop - bottom.bottom, JSON.stringify(bottom)).toBe(16)
-    expect(bottom.left).toBe(bottom.contentLeft + 16)
-    expect(bottom.conversations).toBe(0)
-    await control.click()
+    const stack = await page.evaluate(measureStack)
+    expect(stack.width).toBe(60)
+    expect(stack.height).toBe(60)
+    expect(stack.createTop - stack.bottom, JSON.stringify(stack)).toBe(ASTRA_BUTTON_GAP)
+    expect(stack.left + stack.width / 2).toBe(stack.createLeft + stack.createWidth / 2)
+    expect(stack.bottom).toBeLessThan(stack.tabsTop)
+  } finally { await page.close() }
+})
+
+it.each([412, 840])('stays in place through a drag and opens Astra on tap at %ipx', async width => {
+  const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
+  try {
+    await mountAstraEntry(page)
+    const before = await page.evaluate(measureStack)
+    await page.mouse.move(before.left + 30, before.top + 30)
+    await page.mouse.down()
+    await page.mouse.move(0, 0, { steps: 8 })
+    await settleFrames(page)
+    expect(await page.evaluate(measureStack)).toEqual(before)
+    await page.mouse.up()
+    await settleFrames(page)
+    expect(await page.evaluate(measureStack)).toEqual(before)
+    await page.locator('[data-astra-button]').click()
     expect(await page.locator('[data-shell-conversation]').count()).toBe(1)
+  } finally { await page.close() }
+})
+
+it.each([412, 840])('takes the create button position when that button is absent at %ipx', async width => {
+  const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
+  try {
+    await page.setContent(`<style>${stylesheet}</style>${stackedShell()}`)
+    const create = await page.evaluate(() => document.querySelector('[data-shell-fab] button')!.getBoundingClientRect().toJSON() as DOMRect)
+    await page.setContent(`<style>${stylesheet}</style>${stackedShell(false)}`)
+    const alone = await page.evaluate(() => document.querySelector('[data-astra-button]')!.getBoundingClientRect().toJSON() as DOMRect)
+    const columnContentRight = await page.evaluate(() => {
+      const column = document.querySelector('[data-shell-fab-content]')!
+      return column.getBoundingClientRect().right - Number.parseFloat(getComputedStyle(column).paddingRight)
+    })
+    expect(await page.locator('[data-shell-fab]').count()).toBe(0)
+    expect({ left: alone.left, top: alone.top }).toEqual({ left: create.left, top: create.top })
+    expect(alone.right, JSON.stringify({ alone, columnContentRight })).toBe(columnContentRight)
+    expect(create.right).toBe(columnContentRight)
+  } finally { await page.close() }
+})
+
+it.each([412, 840])('holds the create button slot while that button is pending, so the Astra button stays put when it arrives at %ipx', async width => {
+  const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
+  try {
+    const measure = () => page.evaluate(() => ({ button: document.querySelector('[data-astra-button]')!.getBoundingClientRect().toJSON() as DOMRect,
+      padding: Number.parseFloat(getComputedStyle(document.querySelector('[data-shell-scroller]')!).paddingBottom) }))
+    await page.setContent(`<style>${stylesheet}</style>${stackedShell(false, true)}`)
+    const pending = await measure()
+    await page.setContent(`<style>${stylesheet}</style>${stackedShell()}`)
+    expect(await measure()).toEqual(pending)
+  } finally { await page.close() }
+})
+
+it.each([412, 840])('holds the stacked end clearance while a registered sheet withholds the Astra button at %ipx', async width => {
+  const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
+  try {
+    await mountAstraEntry(page)
+    const padding = () => page.evaluate(() => Number.parseFloat(getComputedStyle(document.querySelector('[data-shell-scroller]')!).paddingBottom))
+    const stacked = await page.evaluate(() => document.querySelector('[data-shell-scroller]')!.getBoundingClientRect().bottom
+      - document.querySelector('[data-astra-button]')!.getBoundingClientRect().top + 16)
+    expect(await padding()).toBe(stacked)
+    for (const open of [true, false]) {
+      await page.evaluate(detail => document.dispatchEvent(new CustomEvent('astra-test-sheet', { detail })), open)
+      await settleFrames(page)
+      expect(await page.locator('[data-astra-button]').isVisible()).toBe(!open)
+      expect(await padding()).toBe(stacked)
+    }
+  } finally { await page.close() }
+})
+
+it.each([390, 840])('scrolls the last row clear of both stacked buttons and the tab bar at %ipx', async width => {
+  const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
+  try {
+    await page.setContent(`<style>${stylesheet}</style>${stackedShell()}`)
+    const geometry = await page.evaluate(() => {
+      const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+      scroller.scrollTop = scroller.scrollHeight
+      const last = [...document.querySelectorAll('[data-probe-row]')].at(-1)!.getBoundingClientRect()
+      return { lastBottom: last.bottom, astraTop: document.querySelector('[data-astra-button]')!.getBoundingClientRect().top,
+        tabsTop: document.querySelector('[data-shell-tab-bar]')!.getBoundingClientRect().top }
+    })
+    expect(geometry.astraTop - geometry.lastBottom, JSON.stringify(geometry)).toBeGreaterThanOrEqual(SPACING.s16)
+    expect(geometry.lastBottom).toBeLessThan(geometry.tabsTop)
   } finally { await page.close() }
 })
 
@@ -142,7 +215,7 @@ it.each([[88, 64], [60, 60]])('holds the compact bottom minimum under a %ipx not
   } finally { await page.close() }
 })
 
-it('paints the server fallback where the resting compact Hoje button settles', async () => {
+it('paints the server stack where the hydrated Hoje button sits', async () => {
   const markup = renderToString(<ShellWide items={[]} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: () => {} }}
     header={<div style={{ minHeight: 112 }}>Today</div>} tabBar={<nav style={{ minHeight: 80 }}><button style={{ minHeight: 48 }}>Tabs</button></nav>}
     notice={<><div /></>} astraButton={<AstraButton />} fab={<button style={{ width: 60, height: 60 }}>Create</button>}>
@@ -154,69 +227,7 @@ it('paints the server fallback where the resting compact Hoje button settles', a
     await page.setContent(`<!DOCTYPE html><style>${stylesheet}</style>${markup}`)
     const fallback = await clearance()
     await mountAstraEntry(page, { emptyNotice: true })
-    expect({ fallback, settled: await clearance() }).toEqual({ fallback: 100, settled: 100 })
-  } finally { await page.close() }
-})
-
-interface AstraPlacementRecord { style: string; top: number; left: number }
-
-async function recordAstraPlacements(page: Page) {
-  await page.route('https://astra-entry.test/', route => route.fulfill({ contentType: 'text/html', body: `<!doctype html>${astraEntry()}` }))
-  await page.goto('https://astra-entry.test/')
-  await page.evaluate(() => {
-    const placements: AstraPlacementRecord[] = []
-    Object.assign(window, { placements })
-    new MutationObserver(() => {
-      const wrapper = document.querySelector<HTMLElement>('[data-astra-button-position]')
-      const style = wrapper?.getAttribute('style') ?? ''
-      if (!wrapper || !style.includes('translate') || placements.at(-1)?.style === style) return
-      const bounds = wrapper.getBoundingClientRect()
-      placements.push({ style, top: bounds.top, left: bounds.left })
-    }).observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ['style'] })
-  })
-  await page.addScriptTag({ content: composerScript })
-  await page.waitForFunction(() => (window as unknown as { placements: unknown[] }).placements.length > 0)
-  await settleFrames(page)
-}
-
-async function readAstraPlacements(page: Page) {
-  const placements = await page.evaluate(() => (window as unknown as { placements: AstraPlacementRecord[] }).placements)
-  return placements.map(({ style, top, left }) => {
-    const [, x, y] = style.match(/translate\(([\d.]+)px, ([\d.]+)px\)/)!
-    return { committed: { top: Number(y), left: Number(x) }, painted: { top, left } }
-  })
-}
-
-it('paints the first placement in the frame it commits under reduced motion', async () => {
-  const page = await browser.newPage({ viewport: { width: 412, height: 915 }, reducedMotion: 'reduce' })
-  try {
-    await recordAstraPlacements(page)
-    const [first] = await readAstraPlacements(page)
-    expect(first!.painted.top, JSON.stringify(first)).toBeCloseTo(first!.committed.top, 1)
-    expect(first!.painted.left, JSON.stringify(first)).toBeCloseTo(first!.committed.left, 1)
-  } finally { await page.close() }
-})
-
-it.each([412, 840])('paints every drag frame where it commits and lands on the leading column edge under reduced motion at %ipx', async width => {
-  const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
-  try {
-    await recordAstraPlacements(page)
-    const box = (await page.locator('[data-astra-button]').boundingBox())!
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
-    await page.mouse.down()
-    await page.mouse.move(0, 0, { steps: 10 })
-    await page.mouse.up()
-    await settleFrames(page)
-    const frames = await readAstraPlacements(page)
-    expect(frames.length).toBeGreaterThan(2)
-    for (const frame of frames) {
-      expect(frame.painted.top, JSON.stringify(frame)).toBeCloseTo(frame.committed.top, 1)
-      expect(frame.painted.left, JSON.stringify(frame)).toBeCloseTo(frame.committed.left, 1)
-    }
-    const top = await page.evaluate(measureAstraBounds)
-    expect(top.top, JSON.stringify(top)).toBe(16)
-    expect(top.left).toBe(top.contentLeft + 16)
-    expect(top.conversations).toBe(0)
+    expect(await clearance()).toBe(fallback)
   } finally { await page.close() }
 })
 
@@ -230,47 +241,15 @@ it('keeps clear of the tab bar at every scroll offset of a short landscape windo
       return viewport.scrollHeight - viewport.clientHeight
     })
     expect(extent).toBeGreaterThan(0)
-    await scroll(-10_000)
-    await page.evaluate(() => document.querySelector('[data-shell-page-content]')!.append(document.createElement('span')))
-    await settleFrames(page)
-    await dragAstraButton(page, 0, 412)
-    for (const offset of [-10_000, 0]) {
+    for (const offset of [-10_000, 0, 10_000]) {
       await scroll(offset)
       await settleFrames(page)
-      const geometry = await page.evaluate(measureAstraBounds)
-      expect(geometry.tabsTop - geometry.bottom, JSON.stringify({ offset, ...geometry })).toBeGreaterThanOrEqual(16)
+      const geometry = await page.evaluate(measureStack)
+      expect(geometry.tabsTop - (geometry.createTop + 60), JSON.stringify({ offset, ...geometry })).toBeGreaterThanOrEqual(0)
+      expect(geometry.createTop - geometry.bottom).toBe(ASTRA_BUTTON_GAP)
     }
-    await dragAstraButton(page, 0, 0)
-    const top = await page.evaluate(measureAstraBounds)
-    expect(top.top).toBeLessThan(top.scrollerTop)
-    expect(top.conversations).toBe(0)
     await page.locator('[data-astra-button]').click()
     expect(await page.locator('[data-shell-conversation]').count()).toBe(1)
-  } finally { await page.close() }
-})
-
-it.each([412, 600, 740, 840, 1000])('rests on the create FAB trailing edge and snaps to the content column edges at %ipx', async width => {
-  const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
-  try {
-    await mountAstraEntry(page)
-    const edges = () => page.evaluate(() => {
-      const rect = (selector: string) => document.querySelector(selector)!.getBoundingClientRect()
-      return { button: rect('[data-astra-button]'), fab: rect('[data-shell-fab] button'), column: rect('[data-shell-column]'), content: rect('[data-shell-page-content]') }
-    })
-    const resting = await edges()
-    expect(resting.button.right, JSON.stringify(resting)).toBe(resting.fab.right)
-    expect(resting.button.bottom + 24).toBeLessThanOrEqual(resting.fab.top)
-    expect(resting.button.right).toBeLessThanOrEqual(resting.column.right)
-    await dragAstraButton(page, width, 300, false)
-    expect((await edges()).button.right).toBe(width - 16)
-    await page.mouse.up()
-    await settleFrames(page)
-    expect((await edges()).button.right).toBe(resting.fab.right)
-    await dragAstraButton(page, 0, 300)
-    const leading = await edges()
-    expect(leading.button.left).toBe(leading.content.left + 16)
-    expect(leading.button.left).toBeGreaterThanOrEqual(leading.column.left)
-    expect(await page.locator('[data-shell-conversation]').count()).toBe(0)
   } finally { await page.close() }
 })
 
@@ -292,18 +271,27 @@ it.each([[740, 360], [915, 412], [840, 900]])('leaves the tab bar in view after 
   } finally { await page.close() }
 })
 
-it('stops above a visible notice slot', async () => {
-  const page = await browser.newPage({ viewport: { width: 412, height: 915 }, reducedMotion: 'reduce' })
+it.each([112, 160])('keeps the tab bar in view with only the Astra button and a %ipx header in a 740x360 window', async headerHeight => {
+  const page = await browser.newPage({ viewport: { width: 740, height: 360 }, reducedMotion: 'reduce' })
   try {
-    await mountAstraEntry(page, { notice: 'Notice' })
-    await dragAstraButton(page, 0, 915)
-    const geometry = await page.evaluate(() => ({ button: document.querySelector('[data-astra-button]')!.getBoundingClientRect().bottom,
-      notice: document.querySelector('[data-shell-notice-content]')!.getBoundingClientRect().top }))
-    expect(geometry.notice - geometry.button, JSON.stringify(geometry)).toBe(16)
+    await page.setContent(`<style>${stylesheet}</style>${stackedShell(false, false, headerHeight)}`)
+    const geometry = await page.evaluate(() => ({ tabsBottom: document.querySelector('[data-shell-tab-bar]')!.getBoundingClientRect().bottom,
+      pageMinimum: Number.parseFloat(getComputedStyle(document.querySelector('[data-shell-page]')!).minHeight) }))
+    expect(geometry.tabsBottom, JSON.stringify(geometry)).toBeLessThanOrEqual(360)
   } finally { await page.close() }
 })
 
-it.each(['light', 'dark'] as const)('floats with the hairline ring and shadow tokens, never the canvas ring, in %s', async mode => {
+it('keeps the stack above a visible notice slot', async () => {
+  const page = await browser.newPage({ viewport: { width: 412, height: 915 }, reducedMotion: 'reduce' })
+  try {
+    await mountAstraEntry(page, { notice: 'Notice' })
+    const geometry = await page.evaluate(() => ({ create: document.querySelector('[data-shell-fab] button')!.getBoundingClientRect().bottom,
+      notice: document.querySelector('[data-shell-notice-content]')!.getBoundingClientRect().top }))
+    expect(geometry.notice - geometry.create, JSON.stringify(geometry)).toBeGreaterThanOrEqual(SPACING.s16)
+  } finally { await page.close() }
+})
+
+it.each(['light', 'dark'] as const)('rests with the hairline ring and shadow tokens, never the canvas ring, in %s', async mode => {
   const page = await browser.newPage({ viewport: { width: 412, height: 915 }, reducedMotion: 'no-preference' })
   try {
     const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
@@ -327,17 +315,16 @@ it.each(['light', 'dark'] as const)('floats with the hairline ring and shadow to
     await page.mouse.move(box.x + 30, box.y + 30)
     await page.mouse.down()
     await expect.poll(async () => (await paint()).scale).toBe('0.96')
-    await page.mouse.move(200, 300, { steps: 8 })
-    await expect.poll(async () => (await paint()).shadow).toBe('rgba(0, 0, 0, 0.45) 0px 12px 40px 0px')
-    await expect.poll(async () => (await paint()).scale).toBe('1')
+    expect((await paint()).shadow).toBe(resting.shadow)
     expect((await paint()).ring).toBe(resting.ring)
+    await page.mouse.move(0, 0)
     await page.mouse.up()
-    await expect.poll(async () => (await paint()).shadow).toBe(resting.shadow)
+    await expect.poll(async () => (await paint()).scale).not.toBe('0.96')
     expect(await page.locator('[data-shell-conversation]').count()).toBe(0)
   } finally { await page.close() }
 })
 
-it.each([740, 915])('reveals the first page control in a short %ipx window with floating clearance', async width => {
+it.each([740, 915])('reveals the first page control in a short %ipx window with stacked clearance', async width => {
   const markup = renderToString(<ShellWide items={[]} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: () => {} }}
     header={<div style={{ minHeight: 112 }}>Today</div>} tabBar={<nav style={{ minHeight: 80 }}>Tabs</nav>}
     astraButton={<AstraButton />} fab={<Fab label="Create" onClick={() => {}}>+</Fab>}>
@@ -346,11 +333,6 @@ it.each([740, 915])('reveals the first page control in a short %ipx window with 
   const page = await browser.newPage({ viewport: { width, height: 360 }, reducedMotion: 'reduce' })
   try {
     await page.setContent(`<style>${stylesheet}</style>${markup}`)
-    await page.evaluate(() => {
-      const button = document.querySelector('[data-astra-button]')!.getBoundingClientRect()
-      const page = document.querySelector<HTMLElement>('[data-shell-page]')!
-      page.style.setProperty('--shell-astra-clearance', `${Math.max(0, page.getBoundingClientRect().bottom - button.top + 16)}px`)
-    })
     const control = page.getByRole('button', { name: 'Today view' })
     await control.evaluate(element => element.scrollIntoView({ block: 'center', behavior: 'instant' }))
     const geometry = await control.evaluate(element => {
@@ -387,12 +369,12 @@ it.each([320, 412, 840].flatMap(width => (['light', 'dark'] as const).flatMap(mo
     expect(geometry.left).toBeGreaterThanOrEqual(16)
     expect(geometry.right).toBeLessThanOrEqual(width - 16)
     expect(geometry.top).toBeGreaterThanOrEqual(geometry.pillBottom)
-    expect(geometry.bottom + 24).toBeLessThanOrEqual(geometry.createTop)
+    expect(geometry.createTop - geometry.bottom).toBe(ASTRA_BUTTON_GAP)
     expect(geometry.bottom + 16).toBeLessThanOrEqual(geometry.tabsTop)
   } finally { await page.close() }
 })
 
-it('paints the server fallback one bottom inset higher when the floating shell reserves that inset', async () => {
+it('paints the server stack one bottom inset higher when the shell reserves that inset', async () => {
   const markup = renderToString(<ShellWide items={[]} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: () => {} }}
     header={<div style={{ minHeight: 48 }}>Today</div>} tabBar={<nav style={{ minHeight: 80 }}>Tabs</nav>}
     scrollToTop={<button style={{ minHeight: 48 }}>Back to top</button>} astraButton={<AstraButton />}
@@ -408,7 +390,7 @@ it('paints the server fallback one bottom inset higher when the floating shell r
   } finally { await page.close() }
 })
 
-it.each([1024, 1280, 1352])('draws no floating button in the wide shell at %ipx before or after hydration', async width => {
+it.each([1024, 1280, 1352])('draws no Astra button in the wide shell at %ipx before or after hydration', async width => {
   const markup = renderToString(<ShellWide items={[]} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: () => {} }}
     header={<div style={{ minHeight: 48 }}>Today</div>} astraButton={<AstraButton />}><div style={{ height: 1600 }}>Habits</div></ShellWide>)
   const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })

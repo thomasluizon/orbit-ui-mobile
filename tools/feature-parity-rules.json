@@ -4942,6 +4942,26 @@
       "citation": ".claude/specs/orbit-prod-release.md",
       "rule": "General items are undated one-time tasks under Task date choices; Habit frequency offers only Every and Times per, without the repeating General hint.",
       "reason": "The owner moved General to Task date choices and removed its repeating hint from Habit frequency: https://github.com/thomasluizon/orbit-tickets/issues/1922#issuecomment-6559404698"
+    },
+    "web:control:shell.astraButton.keyboardHint": {
+      "citation": ".claude/specs/orbit-prod-release.md",
+      "rule": "sits fixed directly above the create habit button, never dragged or moved",
+      "reason": "The owner replaced the draggable Astra button with a fixed stack above the create button and removed its move mode: \"i dont want it floating anymore\", \"just put it on top of the + icon to create habit\" (https://github.com/thomasluizon/orbit-tickets/issues/2077)."
+    },
+    "web:display:shell.astraButton.move": {
+      "citation": ".claude/specs/orbit-prod-release.md",
+      "rule": "sits fixed directly above the create habit button, never dragged or moved",
+      "reason": "The owner replaced the draggable Astra button with a fixed stack above the create button and removed its move mode: \"i dont want it floating anymore\", \"just put it on top of the + icon to create habit\" (https://github.com/thomasluizon/orbit-tickets/issues/2077)."
+    },
+    "mobile:control:shell.astraButton.hint": {
+      "citation": ".claude/specs/orbit-prod-release.md",
+      "rule": "sits fixed directly above the create habit button, never dragged or moved",
+      "reason": "The owner replaced the draggable Astra button with a fixed stack above the create button and removed its move mode: \"i dont want it floating anymore\", \"just put it on top of the + icon to create habit\" (https://github.com/thomasluizon/orbit-tickets/issues/2077)."
+    },
+    "mobile:display:shell.astraButton.move": {
+      "citation": ".claude/specs/orbit-prod-release.md",
+      "rule": "sits fixed directly above the create habit button, never dragged or moved",
+      "reason": "The owner replaced the draggable Astra button with a fixed stack above the create button and removed its move mode: \"i dont want it floating anymore\", \"just put it on top of the + icon to create habit\" (https://github.com/thomasluizon/orbit-tickets/issues/2077)."
     }
   },
   "tickets": {

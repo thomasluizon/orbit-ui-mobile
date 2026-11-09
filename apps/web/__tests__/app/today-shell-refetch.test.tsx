@@ -113,7 +113,9 @@ it.each([412, 1280].flatMap(width => [false, true].map(showLoadError => ({ width
     state.habits = { hasFetched: !showLoadError, habitsCount: 0, isFetching: false, showLoadError }
     const view = render(<TodayShell />)
     expect(view.container.querySelector('[data-shell-fab]')).toBeNull()
-    expect(view.container.querySelector('[data-shell-fab-clip]')).toBeNull()
+    const column = view.container.querySelector('[data-shell-fab-clip]')
+    if (width < 1024) expect(column?.querySelector('[data-shell-astra-button] [data-astra-button]')).not.toBeNull()
+    else expect(column).toBeNull()
     expect(view.container.querySelector('[data-shell-bottom-viewport]')).toHaveAttribute('data-floating', 'false')
     expect(view.container.querySelector('[data-shell-destination-viewport]')).toHaveAttribute('data-floating', 'false')
     state.habits = { ...state.habits, isFetching: true }

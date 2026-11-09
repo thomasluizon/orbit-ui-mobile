@@ -74,7 +74,6 @@ async function inspectControl(page: Page, control: Locator, context: string, cle
     const classes = [...element.classList].filter((name) => name.startsWith('orbit-')).map((name) => `.${name}`).join('')
     return `${element.tagName.toLowerCase()}${element.id ? `#${element.id}` : ''}${classes}[${element.getAttribute('aria-label') ?? element.textContent.trim().replace(/\s+/g, ' ').slice(0, 100)}]`
   }, undefined, { timeout: ACTION_TIMEOUT_MS }))
-  const dragHandle = await runAction(context, 'identify drag handle', () => control.evaluate(element => element.matches('[data-astra-button]'), undefined, { timeout: ACTION_TIMEOUT_MS }))
   context = `${context}, ${name}`
   const overlays = page.locator('[role="menu"], [role="dialog"], [role="listbox"]')
   const existingOverlays = await runAction(context, 'read overlays', async () => ({
@@ -89,7 +88,7 @@ async function inspectControl(page: Page, control: Locator, context: string, cle
       const pressed = await runAction(context, 'read pressed visibility', () => control.isVisible()) ? control : await reachedControl(page, control, context)
       await checkState(pressed, `${context} press`, clearance)
     } finally {
-      if (!dragHandle) await runAction(context, 'move before release', () => page.mouse.move(0, 0))
+      await runAction(context, 'move before release', () => page.mouse.move(0, 0))
       await runAction(context, 'release press', () => page.mouse.up())
       await dismissEnteredOverlay(page, overlays, existingOverlays, context)
     }

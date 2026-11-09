@@ -320,13 +320,14 @@ describe('Shell412 mobile', () => {
     })
     const band = StyleSheet.flatten(findByTestId(tree, 'shell-fab-band')[0]?.props.style as ViewStyle)
     expect(band).toMatchObject({ position: 'absolute', height: 96, bottom: 0, right: 0, left: 0 })
+    expect(findByTestId(tree, 'astra-button')).toHaveLength(0)
     expect(band).not.toHaveProperty('borderTopWidth')
     expect(band.backgroundColor, 'floating free space is transparent').toBeUndefined()
     expect(findByTestId(tree, 'shell-fab')[0]?.props.pointerEvents, 'overlay wrapper passes free-space touches').toBe('box-none')
     expect(findByTestId(tree, 'shell-fab-band')[0]?.props.pointerEvents).toBe('box-none')
     expect(findByTestId(tree, 'shell-scroller')[0]?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-fab')).toHaveLength(1)
     expect(StyleSheet.flatten(findByTestId(tree, 'shell-bottom')[0]?.props.style)).not.toHaveProperty('borderTopWidth')
-    expect(StyleSheet.flatten(findByTestId(tree, 'shell-fab')[0]?.props.style)).toMatchObject({ bottom: 16, right: 16 })
+    expect(StyleSheet.flatten(findByTestId(tree, 'shell-fab-column')[0]?.props.style)).toMatchObject({ bottom: 16, right: 16 })
     expect(StyleSheet.flatten(findByTestId(tree, 'scroll-surface')[0]?.props.contentContainerStyle)).toMatchObject({ paddingBottom: 96 })
     await TestRenderer.act(() => tree.update(<></>))
   })
@@ -608,7 +609,7 @@ describe('Shell412 mobile', () => {
     const composerBand = findByTestId(tree, 'shell-composer-band')[0]
     const fabBand = findByTestId(tree, 'shell-fab-band')[0]
     const tabBar = findByTestId(tree, 'shell-tab-bar')[0]
-    const fab = findByTestId(tree, 'shell-fab')[0]
+    const fab = findByTestId(tree, 'shell-fab-column')[0]
     const notice = findByTestId(tree, 'shell-notice')[0]
     expect(composerBand?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-pinned-slot')).toHaveLength(1)
     expect(composerBand?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-fab')).toHaveLength(0)
