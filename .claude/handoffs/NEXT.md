@@ -4,7 +4,7 @@ Read `.claude/specs/orbit-prod-release.md` first: `## Standing rules`, `## The o
 
 Entry: `/auto-work` enters `/sleep`, adopts this relay (`adoptRelayRun`), keeps `autoWork: true`, then `/crank`, then `/orchestrate` over the admitted queue without replanning. Check that this prompt is the newest open relay (`gh pr list --repo thomasluizon/orbit-ui-mobile --state open --search "relay in:title"`), run `node tools/relay-checkout.mjs --check`, and check free disk (floor 50 GiB). Adoption clears `openOwnerQuestions`: re-add the `#2071` question from the spec.
 
-Scratchpad: run `$HOME/.orbit-run-carry/carry-from-predecessor.sh <new full id> c86d30f5-8e14-4140-8354-b96a8c2c7d78 2030bdfa-0762-4378-8aa8-cac06c810d64` as a background task (absolute paths, no shell variable in a redirect target) before writing any file there, then point `mirror.sh` at `durable-<new id>` and `intake-noboard.sh` at `<new id>-c<n>` with `perl -pi`. The predecessor log is `sleep-decisions.md` in the `c86d30f5` scratchpad (D1 to D8). Helpers there: `gl.sh` (gated launch; a branch past its 2-launch cap needs `--relaunch-reason`), `co-rb.sh` (review-batch order), `check-icon-rows.mjs`, `threads-2391-c1.json`, `token-swap.py`.
+Scratchpad: run `$HOME/.orbit-run-carry/carry-from-predecessor.sh <new full id> 4dbef1a1-6b61-4e85-bfca-eee58602ce54 c86d30f5-8e14-4140-8354-b96a8c2c7d78` as a background task (absolute paths, no shell variable in a redirect target) before writing any file there, then point `mirror.sh` at `durable-<new id>` and `intake-noboard.sh` at `<new id>-c<n>` with `perl -pi`. The predecessor log is `sleep-decisions.md` in the `4dbef1a1` scratchpad (D1 to D5). Helpers there: `gl.sh` (gated launch; a branch past its 2-launch cap needs `--relaunch-reason`), `co-rb.sh` (review-batch order), `play-cycle.sh <label>` (detached Play review cycle that writes `play-<label>.done.json` for `tools/wait-file.mjs`), `check-icon-rows.mjs`, `token-swap.py`.
 
 ## Goal
 
@@ -16,10 +16,10 @@ UI `main` `cec0da38a`; API `main` `3da71dcf6`; landing `main` `7fb212c42`. Produ
 
 | Item | Disposition |
 | --- | --- |
-| `ui#2389` (`#2077`) | Head `6aeff28f5`, review batch delivered, threads resolved, body note answered by comment. Wait on CI, request the review, merge on approval, then Android Open with `#2062` and `#2061`, then production web. |
-| `ui#2377` (`#2061`) | Head `77ac7b6ac`, thread resolved. Wait on CI, request the review, merge on approval. |
-| `ui#2391` (`#1560`) | Head `0a8b7f3db`, Pullfrog COMMENTED: two P1 threads plus a stale catalog row (`threads-2391-c1.json`). Send a review batch, merge on approval, then the `apps/desktop` ESLint gap plus the 10 s spawn timeout at `tools/desktop-bench/test-acceptance.ts:224`. |
-| `ui#2392` (`#2081`) | Head `5ebca5fb0`, diff read and accepted. Wait on CI, request the review, merge on approval. |
+| `ui#2392` (`#2081`) | Head `5ebca5fb0` reviewed COMMENTED (2 P1 threads plus a skill-text body finding). Fix commit `f8581cfa2` is local and NOT pushed on `fix/ticket-2081-run-state-lock` (worktree `ticket-2081-run-state-lock`). Run `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs` there, edit the PR body's nested call bullet (the call now throws), re-list the threads, resolve both, push once, then wait on CI, request the review, merge on approval. |
+| `ui#2389` (`#2077`) | Head `6aeff28f5`, threads resolved. `Layout shard 1` failed (run 42647337135): read it, rerun if infrastructure, else fix the cause. Then request the review, merge on approval, then Android Open with `#2062` and `#2061`, then production web. |
+| `ui#2377` (`#2061`) | Head `77ac7b6ac`, CI green, thread resolved. Request the review, merge on approval. |
+| `ui#2391` (`#1560`) | Head `b6ed095d1`: merge with main plus the review batch, both threads resolved. Wait on CI, request the review, merge on approval, then the `apps/desktop` ESLint gap plus the 10 s spawn timeout at `tools/desktop-bench/test-acceptance.ts:224`. |
 | `ui#2388` | This relay's docs PR carries this handoff; the handoff commit moves the head. Request the review after green CI and merge. |
 | `#1861` | `ui#2374` merged (`cec0da38a`). Ship in the next desktop release, then close. |
 | `#2030` | Close on the owner-device probe after the next Android Open. AVD `orbit-repro-2030` stays until the `#2077` Android proof. |
@@ -27,7 +27,7 @@ UI `main` `cec0da38a`; API `main` `3da71dcf6`; landing `main` `7fb212c42`. Produ
 | `#2074` | Never holds the launch. Run `tools/review-rounds.mjs` on or after 16 November 2026; fix the cause if the share is not clearly below 43%. |
 | `#2078`, `#2079`, `#2080` | Batch 6; admit when Batch 0c settles (`ui#2389` and `ui#2377` merged). |
 
-Inventory: open pull requests ui `#2392`, `#2391`, `#2389`, `#2388`, `#2377`; api none; landing none. Unpushed branches: none. Stashes: 0 in all three repositories. Uncommitted work: none. Running workers: none.
+Inventory: open pull requests ui `#2392`, `#2391`, `#2389`, `#2388`, `#2377`; api none; landing none. Unpushed branches: `fix/ticket-2081-run-state-lock` (1 commit, `f8581cfa2`). Stashes: 0 in all three repositories. Uncommitted work: none. Running workers: none. Detached checks: none.
 
 ## Then, in this order
 
@@ -47,8 +47,8 @@ Unattended: never ask the owner; decide with the best option and log it. Keep a 
 
 ## Previous prompt, disposition
 
-- Done: `ui#2377` review batch (`77ac7b6ac`); `ui#2389` review batch (`6aeff28f5`); reviews requested on `ui#2391` (COMMENTED) and `ui#2374` (APPROVED, merged as `cec0da38a`); `ui#2392` diff read; intake cycle clean (Sentry no new event, mail 0, Play 0).
-- Carried: every other merge, review requests on `ui#2392`, `ui#2388`, `ui#2389`, `ui#2377`, `#2071`, the Android Open, `#2030`, `#1561`, `#1563`, `#315`, `#33`, Batch 6, intake, the AVD deletion.
-- Superseded: "request the review now" on `ui#2391` (reviewed; a review batch replaces it).
+- Done: `ui#2391` review batch and merge with main (`b6ed095d1`, threads resolved, pushed); review requested on `ui#2392` (COMMENTED; batch `f8581cfa2` committed, push carried); intake cycle clean (Sentry no new event, mail 0, Play 0); the owner's Windows install question answered (0.1.26 installers live on `desktop-production` and the landing page).
+- Carried: every merge, review requests on `ui#2377`, `ui#2389`, `ui#2391`, `ui#2388`, the `ui#2392` push, `#2071`, the Android Open, `#2030`, `#1561`, `#1563`, `#315`, `#33`, Batch 6, intake, the AVD deletion.
+- Superseded: "send a review batch" on `ui#2391` (sent); "wait on CI" on `ui#2377` (green, the review request replaces it).
 
 Every identifier here came from a previous session: treat each as a lead to verify.
