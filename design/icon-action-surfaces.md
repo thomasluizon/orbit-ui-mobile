@@ -65,10 +65,10 @@ Drawn references: [Astra conversation](canvas/Orbit%20Astra%20Conversation.dc.ht
 | [apps/mobile/components/chat/habit-list-card.tsx:61](../apps/mobile/components/chat/habit-list-card.tsx#L61) | `{t('chat.habitList.more')}` | ChevronDown |
 | [apps/mobile/components/chat/habit-ranking-card.tsx:36](../apps/mobile/components/chat/habit-ranking-card.tsx#L36) | `{t('chat.ranking.more')}` | ChevronDown |
 | [apps/mobile/components/chat/habit-ranking-card.tsx:35](../apps/mobile/components/chat/habit-ranking-card.tsx#L35) | `{t('chat.ranking.refresh')}` | RefreshCw |
-| [apps/mobile/components/chat/pending-operation-card.tsx:78](../apps/mobile/components/chat/pending-operation-card.tsx#L78) | `{labels.addListRow}` | Plus |
-| [apps/mobile/components/chat/pending-operation-card.tsx:108](../apps/mobile/components/chat/pending-operation-card.tsx#L108) | `{labels.cancel}` | Drawn ghost text (`sm`) |
+| [apps/mobile/components/chat/pending-operation-card.tsx:82](../apps/mobile/components/chat/pending-operation-card.tsx#L82) | `{labels.addListRow}` | Plus |
+| [apps/mobile/components/chat/pending-operation-card.tsx:132](../apps/mobile/components/chat/pending-operation-card.tsx#L132) | `{labels.cancel}` | Drawn ghost text (`sm`) |
 | [apps/mobile/components/chat/pending-operation-card.tsx:212](../apps/mobile/components/chat/pending-operation-card.tsx#L212) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
-| [apps/mobile/components/chat/pending-operation-card.tsx:234](../apps/mobile/components/chat/pending-operation-card.tsx#L234) | `{props.accessibleName ?? label}` | RefreshCw |
+| [apps/mobile/components/chat/pending-operation-card.tsx:286](../apps/mobile/components/chat/pending-operation-card.tsx#L286) | `{props.accessibleName ?? label}` | RefreshCw |
 | [apps/mobile/components/chat/period-insight-card.tsx:62](../apps/mobile/components/chat/period-insight-card.tsx#L62) | `{t(expanded ? 'chat.readBlock.less' : 'chat.habitList.more')}` | ChevronsUp |
 | [apps/mobile/components/chat/prompt-library.tsx:88](../apps/mobile/components/chat/prompt-library.tsx#L88) | `{t('chat.templates.clearSearch')}` | X |
 | [apps/mobile/components/chat/prompt-library.tsx:91](../apps/mobile/components/chat/prompt-library.tsx#L91) | `{t('chat.templates.previous')}` | ChevronLeft |
@@ -108,7 +108,7 @@ Drawn references: [Astra conversation](canvas/Orbit%20Astra%20Conversation.dc.ht
 | [apps/mobile/components/onboarding/onboarding-flow.tsx:124](../apps/mobile/components/onboarding/onboarding-flow.tsx#L124) | `{t('onboarding.flow.retry')}` | RefreshCw |
 | [apps/mobile/components/onboarding/onboarding-pro-step.tsx:83](../apps/mobile/components/onboarding/onboarding-pro-step.tsx#L83) | `{t('upgrade.billing.retry')}` | RefreshCw |
 | [apps/mobile/components/profile/notion-connection-sheet.tsx:55](../apps/mobile/components/profile/notion-connection-sheet.tsx#L55) | `{t('common.retry')}` | RefreshCw |
-| [apps/mobile/components/profile/preferences-sections.tsx:117](../apps/mobile/components/profile/preferences-sections.tsx#L117) | `{showMoreLabel}` | ChevronDown |
+| [apps/mobile/components/profile/preferences-sections.tsx:116](../apps/mobile/components/profile/preferences-sections.tsx#L116) | `{showMoreLabel}` | ChevronDown |
 | [apps/mobile/components/profile/profile-api-keys.tsx:197](../apps/mobile/components/profile/profile-api-keys.tsx#L197) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
 | [apps/mobile/components/profile/profile-api-keys.tsx:287](../apps/mobile/components/profile/profile-api-keys.tsx#L287) | `{copied ? t('orbitMcp.copied') : t('orbitMcp.copy')}` | Copy |
 | [apps/mobile/components/profile/profile-mcp-guide.tsx:44](../apps/mobile/components/profile/profile-mcp-guide.tsx#L44) | `{copyState === 'copied' ? t('orbitMcp.copied') : t('orbitMcp.copy')}` | Copy |
@@ -125,7 +125,7 @@ Drawn references: [Astra conversation](canvas/Orbit%20Astra%20Conversation.dc.ht
 | [apps/mobile/components/share/share-card-sheet.tsx:55](../apps/mobile/components/share/share-card-sheet.tsx#L55) | `{t('shareCard.download')}` | Download |
 | [apps/mobile/components/share/share-card-sheet.tsx:56](../apps/mobile/components/share/share-card-sheet.tsx#L56) | `{t('shareCard.share')}` | Share2 |
 | [apps/mobile/components/share/share-card-sheet.tsx:69](../apps/mobile/components/share/share-card-sheet.tsx#L69) | `{t('common.retry')}` | RefreshCw |
-| [apps/mobile/components/ui/app-toast.tsx:245](../apps/mobile/components/ui/app-toast.tsx#L245) | `{props.actionLabel}` | RefreshCw |
+| [apps/mobile/components/ui/app-toast.tsx:256](../apps/mobile/components/ui/app-toast.tsx#L256) | `{props.actionLabel}` | RefreshCw |
 | [apps/mobile/components/ui/block-copy-control.tsx:38](../apps/mobile/components/ui/block-copy-control.tsx#L38) | `{label}` | Copy |
 | [apps/mobile/components/ui/block-frame.tsx:230](../apps/mobile/components/ui/block-frame.tsx#L230) | `{frameProps.refreshLabel ?? t('blockFrame.refresh')}` | RefreshCw |
 | [apps/mobile/components/ui/expiry-warning.tsx:193](../apps/mobile/components/ui/expiry-warning.tsx#L193) | `{t('auth.refresh')}` | RefreshCw |
@@ -175,10 +175,10 @@ Drawn references: [Astra conversation](canvas/Orbit%20Astra%20Conversation.dc.ht
 | [apps/web/components/chat/habit-list-card.tsx:57](../apps/web/components/chat/habit-list-card.tsx#L57) | `{t('chat.habitList.more')}` | ChevronDown |
 | [apps/web/components/chat/habit-ranking-card.tsx:34](../apps/web/components/chat/habit-ranking-card.tsx#L34) | `{t('more')}` | ChevronDown |
 | [apps/web/components/chat/habit-ranking-card.tsx:33](../apps/web/components/chat/habit-ranking-card.tsx#L33) | `{t('refresh')}` | RefreshCw |
-| [apps/web/components/chat/pending-operation-card.tsx:81](../apps/web/components/chat/pending-operation-card.tsx#L81) | `{labels.addListRow}` | Plus |
-| [apps/web/components/chat/pending-operation-card.tsx:99](../apps/web/components/chat/pending-operation-card.tsx#L99) | `{labels.cancel}` | Drawn ghost text (`sm`) |
+| [apps/web/components/chat/pending-operation-card.tsx:84](../apps/web/components/chat/pending-operation-card.tsx#L84) | `{labels.addListRow}` | Plus |
+| [apps/web/components/chat/pending-operation-card.tsx:120](../apps/web/components/chat/pending-operation-card.tsx#L120) | `{labels.cancel}` | Drawn ghost text (`sm`) |
 | [apps/web/components/chat/pending-operation-card.tsx:200](../apps/web/components/chat/pending-operation-card.tsx#L200) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
-| [apps/web/components/chat/pending-operation-card.tsx:218](../apps/web/components/chat/pending-operation-card.tsx#L218) | `{props.accessibleName ?? label}` | RefreshCw |
+| [apps/web/components/chat/pending-operation-card.tsx:264](../apps/web/components/chat/pending-operation-card.tsx#L264) | `{props.accessibleName ?? label}` | RefreshCw |
 | [apps/web/components/chat/period-insight-card.tsx:64](../apps/web/components/chat/period-insight-card.tsx#L64) | `{t(expanded ? 'chat.readBlock.less' : 'chat.habitList.more')}` | ChevronsUp |
 | [apps/web/components/chat/prompt-library.tsx:69](../apps/web/components/chat/prompt-library.tsx#L69) | `{t('chat.templates.clearSearch')}` | X |
 | [apps/web/components/chat/prompt-library.tsx:72](../apps/web/components/chat/prompt-library.tsx#L72) | `{t('chat.templates.previous')}` | ChevronLeft |
@@ -233,7 +233,7 @@ Drawn references: [Astra conversation](canvas/Orbit%20Astra%20Conversation.dc.ht
 | [apps/web/components/ui/block-frame.tsx:166](../apps/web/components/ui/block-frame.tsx#L166) | `{frameProps.refreshLabel ?? t('refresh')}` | RefreshCw |
 | [apps/web/components/ui/inline-load-error.tsx:21](../apps/web/components/ui/inline-load-error.tsx#L21) | `{t('common.retry')}` | RefreshCw |
 | [apps/web/components/ui/scroll-to-top-button.tsx:26](../apps/web/components/ui/scroll-to-top-button.tsx#L26) | `{t('common.backToTop')}` | ArrowUp |
-| [apps/web/components/ui/toast.tsx:96](../apps/web/components/ui/toast.tsx#L96) | `{props.actionLabel}` | RefreshCw |
+| [apps/web/components/ui/toast.tsx:128](../apps/web/components/ui/toast.tsx#L128) | `{props.actionLabel}` | RefreshCw |
 | [apps/web/components/ui/update-available-banner.tsx:47](../apps/web/components/ui/update-available-banner.tsx#L47) | `{reloadReason ? t('errors.api.reload') : t('forceUpdate.refresh')}` | RefreshCw |
 | [apps/web/components/upgrade/plan-selection.tsx:153](../apps/web/components/upgrade/plan-selection.tsx#L153) | `{t('upgrade.plans.retry')}` | RefreshCw |
 | [apps/web/components/upgrade/provider-handoff.tsx:38](../apps/web/components/upgrade/provider-handoff.tsx#L38) | `{t('upgrade.billing.retry')}` | RefreshCw |
