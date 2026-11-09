@@ -10,7 +10,7 @@ import { readSessionContext, readSessionMetrics } from "./lib/session-context.mj
 import { readBackgroundRuns } from "./lib/background-runs.mjs"
 import { appendChainEntry, closeSessionChain, confirmChainSuccessor, openSessionChain, readSessionChain, refreshChainMetrics, sessionChainEntry, supersededSession, writeSessionChain } from "./lib/session-chain.mjs"
 import { HANDOFF_PROMPT_PATH, checkoutSpecVersions, handoffAutoWork, handoffCrank, openingSpecPaths, prepareOwnerHandoffRun, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "./lib/handoff-prompt.mjs"
-import { REPO_ROOT, acquireRelayLock, clearWakeSource, isRelayWaiter, isWakeSourceAlive, readRunState, readWakeSourceStates, readWorkerLaunches, registerWakeSource, writeRunState } from "./lib/run-state.mjs"
+import { REPO_ROOT, acquireRelayLock, clearWakeSource, isRelayWaiter, isWakeSourceAlive, readRunState, readWakeSourceStates, readWorkerLaunches, registerWakeSource, updateRunState } from "./lib/run-state.mjs"
 
 const USAGE = `usage: relay-session.mjs [--retry-wake | --close-chain | --close-terminal <payload>]
 
@@ -147,12 +147,9 @@ export const relaySession = async ({ repoRoot = REPO_ROOT, sessionId = process.e
     releaseLock = acquireRelayLock(repoRoot)
     result = await launchSuccessor({ previous, metrics, sessionId, repoRoot, execute, wait, confirmMilliseconds })
   } catch (error) {
-    const state = readRunState(repoRoot)
-    if (releaseLock && state?.sessionId === sessionId && state.relay?.pending) {
-      const failed = { ...state, relay: { ...state.relay, lastAttemptAt: new Date().toISOString(), failures: (state.relay.failures ?? 0) + 1 } }
-      writeRunState(failed, repoRoot)
-      appendChainEntry({ ...(await sessionChainEntry(failed, previous.relay.transcriptPath)), failure: error.message }, repoRoot)
-    }
+    const failed = releaseLock ? updateRunState((state) => state?.sessionId === sessionId && state.relay?.pending
+      ? { ...state, relay: { ...state.relay, lastAttemptAt: new Date().toISOString(), failures: (state.relay.failures ?? 0) + 1 } } : undefined, repoRoot) : undefined
+    if (failed) appendChainEntry({ ...(await sessionChainEntry(failed, previous.relay.transcriptPath)), failure: error.message }, repoRoot)
     throw error
   } finally { releaseLock?.() }
   const request = { repoRoot, sessionId, ...result, terminalHandle }
@@ -216,10 +213,10 @@ const launchSuccessor = async ({ previous, metrics, sessionId, repoRoot, execute
   const successorSessionId = randomUUID()
   const command = successorCommand(metrics.lastCall.model, previous.relay.permissionMode, successorSessionId, repoRoot)
   assertDrained(repoRoot, sessionId)
-  const current = readRunState(repoRoot)
-  if (current?.sessionId !== sessionId || !current.relay?.pending) throw new Error("owner canceled the relay drain")
-  const attempting = { ...current, relay: { ...current.relay, successorSessionId, lastAttemptAt: now, attempts: (current.relay.attempts ?? 0) + 1 } }
-  writeRunState(attempting, repoRoot)
+  const attempting = updateRunState((current) => {
+    if (current?.sessionId !== sessionId || !current.relay?.pending) throw new Error("owner canceled the relay drain")
+    return { ...current, relay: { ...current.relay, successorSessionId, lastAttemptAt: now, attempts: (current.relay.attempts ?? 0) + 1 } }
+  }, repoRoot)
   stopRelayWaiters(sessionId, repoRoot)
   appendChainEntry(await sessionChainEntry(attempting, previous.relay.transcriptPath), repoRoot)
   let terminal = null
@@ -229,9 +226,10 @@ const launchSuccessor = async ({ previous, metrics, sessionId, repoRoot, execute
     const response = JSON.parse(execute(orca, ["terminal", "create", "--worktree", `path:${repoRoot}`, "--title", "Context relay", "--command", command, "--json"], repoRoot, environment))
     terminal = response.result?.terminal?.handle
     if (typeof terminal !== "string" || !terminal) throw new Error("Orca returned no terminal handle")
-    const nominated = readRunState(repoRoot)
-    if (nominated?.sessionId !== sessionId || !nominated.relay?.pending || nominated.relay.successorSessionId !== successorSessionId) throw new Error("owner canceled the relay drain")
-    writeRunState({ ...nominated, relay: { ...nominated.relay, successorTerminal: terminal } }, repoRoot)
+    updateRunState((nominated) => {
+      if (nominated?.sessionId !== sessionId || !nominated.relay?.pending || nominated.relay.successorSessionId !== successorSessionId) throw new Error("owner canceled the relay drain")
+      return { ...nominated, relay: { ...nominated.relay, successorTerminal: terminal } }
+    }, repoRoot)
     const started = Date.now()
     try { execute(orca, ["terminal", "wait", "--terminal", terminal, "--for", "tui-idle", "--timeout-ms", "10000", "--json"], repoRoot, environment) }
     catch { execute(orca, ["terminal", "wait", "--terminal", terminal, "--for", "tui-idle", "--timeout-ms", "20000", "--json"], repoRoot, environment) }
@@ -247,16 +245,22 @@ const launchSuccessor = async ({ previous, metrics, sessionId, repoRoot, execute
     execute(orca, ["terminal", "send", "--terminal", terminal, "--enter", "--json"], repoRoot, environment)
     throw new Error("successor did not confirm sleep state; sent one Enter for composer stall")
   } catch (error) {
-    const state = readRunState(repoRoot)
-    const adopted = state?.sessionId === successorSessionId && state.relay?.from === sessionId && state.relay.successorTerminal === terminal
+    // The adoption check and the rollback share one update, so a successor adopting in between is never rolled back.
+    let adopted = false
+    updateRunState((state) => {
+      adopted = state?.sessionId === successorSessionId && state.relay?.from === sessionId && state.relay.successorTerminal === terminal
+      if (adopted) return undefined
+      if (state?.sessionId === sessionId && state.relay?.pending && state.relay.successorSessionId === successorSessionId) {
+        return { ...state, relay: { ...state.relay, successorSessionId: null, successorTerminal: null } }
+      }
+      if (state?.sessionId === successorSessionId && state.relay?.from === sessionId && !state.relay.canceledByOwner) {
+        return { ...attempting, relay: { ...attempting.relay, successorSessionId: null } }
+      }
+      return undefined
+    }, repoRoot)
     if (adopted) {
       confirmChainSuccessor(sessionId, successorSessionId, terminal, null, repoRoot)
       return { successorSessionId, terminal }
-    }
-    if (state?.sessionId === sessionId && state.relay?.pending && state.relay.successorSessionId === successorSessionId) {
-      writeRunState({ ...state, relay: { ...state.relay, successorSessionId: null, successorTerminal: null } }, repoRoot)
-    } else if (state?.sessionId === successorSessionId && state.relay?.from === sessionId && !state.relay.canceledByOwner) {
-      writeRunState({ ...attempting, relay: { ...attempting.relay, successorSessionId: null } }, repoRoot)
     }
     if (terminal) {
       const orca = orcaCommand()

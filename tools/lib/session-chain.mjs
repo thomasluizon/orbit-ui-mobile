@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { randomUUID } from "node:crypto"
-import { gitDirectoryOf, REPO_ROOT, readRunState, supersededRunSession, writeRunState } from "./run-state.mjs"
+import { gitDirectoryOf, REPO_ROOT, readRunState, supersededRunSession, updateRunState } from "./run-state.mjs"
 import { syncRelayCheckout } from "./relay-checkout.mjs"
 import { readSessionMetrics } from "./session-context.mjs"
 
@@ -95,9 +95,13 @@ export const adoptRelayRun = (sessionId, repoRoot = REPO_ROOT) => {
   }
   if (!previous?.relay?.pending || previous.relay.successorSessionId !== sessionId) return false
   syncRelayCheckout(repoRoot)
-  writeRunState({ ...previous, sessionId, sleep: true, decisionLogPath: null, openOwnerQuestions: [],
-    relay: { from: previous.sessionId, pending: false, successorTerminal: previous.relay.successorTerminal } }, repoRoot)
-  return true
+  // The checkout sync runs outside the lock, so the nomination is checked again where the adoption is written.
+  return updateRunState((current) => {
+    if (current?.relay?.successorSessionId === sessionId && current.relay.canceledByOwner) throw new Error("owner canceled this relay nominee; do not enter sleep")
+    if (!current?.relay?.pending || current.relay.successorSessionId !== sessionId) return undefined
+    return { ...current, sessionId, sleep: true, decisionLogPath: null, openOwnerQuestions: [],
+      relay: { from: current.sessionId, pending: false, successorTerminal: current.relay.successorTerminal } }
+  }, repoRoot) !== undefined
 }
 
 export const sessionChainEntry = async (state, transcriptPath) => {

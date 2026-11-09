@@ -1,12 +1,16 @@
 #!/usr/bin/env node
 import { readSessionContext } from "../../tools/lib/session-context.mjs"
 import { readOrchestratorConfig } from "../../tools/lib/orchestrator-config.mjs"
-import { acquireRelayLock, readRunState, readWakeSourceStates, writeRunState } from "../../tools/lib/run-state.mjs"
+import { acquireRelayLock, readRunState, readWakeSourceStates, updateRunState } from "../../tools/lib/run-state.mjs"
 import { recordHandoffRequest } from "../../tools/lib/handoff-prompt.mjs"
 import { appendChainEntry } from "../../tools/lib/session-chain.mjs"
 import { observeBackgroundRuns, readBackgroundRuns } from "../../tools/lib/background-runs.mjs"
 import { readStdinJson } from "./_lib/io.mjs"
 import { checkRelayStop } from "./_lib/rules-relay.mjs"
+
+/** A relay write applies only while the record still shows what its verdict read. */
+const verdictStillHolds = (decided, current) => current?.sessionId === decided.sessionId && current.sleep === decided.sleep &&
+  JSON.stringify(current.relay) === JSON.stringify(decided.relay)
 
 let releaseLock
 try {
@@ -24,23 +28,29 @@ try {
       state = readRunState()
     }
     if (state.relay?.fallbackUntilCompacted && measuredTokens < config.relay.thresholdTokens) {
-      writeRunState({ ...state, relay: { ...state.relay, fallbackUntilCompacted: false } })
+      const decided = state
+      state = updateRunState((current) => verdictStillHolds(decided, current)
+        ? { ...current, relay: { ...current.relay, fallbackUntilCompacted: false } } : undefined) ?? readRunState()
     }
     const sources = readWakeSourceStates()
     const verdict = checkRelayStop({ ...config.relay, state, sessionId: input.session_id, measuredTokens,
       wakeSources: sources.live, orphaned: sources.orphaned, backgroundRuns: readBackgroundRuns(input.session_id), stopHookActive: input.stop_hook_active === true })
+    // A record that changed after the verdict skips the write and its message; the next hook decides again.
+    let applied = true
     if (verdict?.begin) {
       const now = new Date().toISOString()
-      writeRunState({ ...state, relay: { pending: true, from: input.session_id, measuredTokens,
-        permissionMode: input.permission_mode, transcriptPath: input.transcript_path, triggeredAt: now } })
-      recordHandoffRequest(input.session_id, { command: "handoff", origin: "context-relay", sleep: true, crank: state.crank === true, autoWork: state.autoWork === true }, now)
+      const begun = updateRunState((current) => verdictStillHolds(state, current) ? { ...current, relay: { pending: true, from: input.session_id, measuredTokens,
+        permissionMode: input.permission_mode, transcriptPath: input.transcript_path, triggeredAt: now } } : undefined)
+      applied = begun !== undefined
+      if (applied) recordHandoffRequest(input.session_id, { command: "handoff", origin: "context-relay", sleep: true, crank: begun.crank === true, autoWork: begun.autoWork === true }, now)
     }
     if (verdict?.fallback) {
-      writeRunState({ ...state, relay: { ...state.relay, pending: false, fallbackUntilCompacted: true } })
-      appendChainEntry({ sessionId: state.sessionId, autoCompactFallback: true, fallbackAt: new Date().toISOString(), failures: state.relay.failures })
+      applied = updateRunState((current) => verdictStillHolds(state, current)
+        ? { ...current, relay: { ...current.relay, pending: false, fallbackUntilCompacted: true } } : undefined) !== undefined
+      if (applied) appendChainEntry({ sessionId: state.sessionId, autoCompactFallback: true, fallbackAt: new Date().toISOString(), failures: state.relay.failures })
     }
     const hookEventName = input.hook_event_name === "PostToolUse" ? "PostToolUse" : "Stop"
-    if (verdict?.message) process.stdout.write(`${JSON.stringify({ hookSpecificOutput: { hookEventName, additionalContext: verdict.message } })}\n`)
+    if (applied && verdict?.message) process.stdout.write(`${JSON.stringify({ hookSpecificOutput: { hookEventName, additionalContext: verdict.message } })}\n`)
   }
 } catch (error) {
   process.stderr.write(`Context relay skipped: ${error.message.replaceAll("\n", " ")}\n`)
