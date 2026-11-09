@@ -51,18 +51,25 @@ pub fn prepare_launch() -> Result<(), &'static str> {
     Ok(())
 }
 
-pub fn notification_activation(_arguments: &[String]) -> bool {
-    #[cfg(windows)]
-    return crate::push_action::notification_activation(_arguments);
-    #[cfg(not(windows))]
-    false
+#[cfg(windows)]
+pub fn secondary_launch(arguments: &[String]) -> bool {
+    let launch = crate::push_action::secondary_launch(arguments);
+    if launch.lost_activation {
+        eprintln!("Desktop push: a notification activation started a second process, which exits before it can read the activation");
+    }
+    launch.restore
+}
+
+#[cfg(not(windows))]
+pub fn secondary_launch(_arguments: &[String]) -> bool {
+    true
 }
 
 pub fn notification_launch() -> bool {
     #[cfg(target_os = "macos")]
     return unsafe { orbit_push_notification_launch() };
     #[cfg(windows)]
-    return notification_activation(&std::env::args().collect::<Vec<_>>());
+    return crate::push_action::notification_activation(&std::env::args().collect::<Vec<_>>());
 }
 
 pub fn page_loaded(window: &WebviewWindow, payload: tauri::webview::PageLoadPayload<'_>) {
@@ -608,6 +615,11 @@ fn receive_value(kind: i32, payload: String) {
     if kind == NOTICE {
         received_payload(service, &payload);
     } else if kind == OPEN || kind == DONE {
+        // The installed acceptance reads this line to tell a click that reached the shell from one that never arrived.
+        eprintln!(
+            "Desktop push: notification {} activation received",
+            if kind == DONE { "Done" } else { "body" }
+        );
         #[cfg(target_os = "macos")]
         {
             let destination = service.session.recover_lock().response(
