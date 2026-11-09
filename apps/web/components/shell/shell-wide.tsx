@@ -18,7 +18,7 @@ import {
 import { BUTTON_SIZES, SPACING, TAB_BAR_MIN_HEIGHT, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import type { ShellWideItem, ShellWideProps } from '@orbit/shared/contracts/shell'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
-import { ASTRA_BUTTON_GAP } from '@orbit/shared/utils'
+import { ASTRA_BUTTON_GAP, ASTRA_STACK_CLEARANCE } from '@orbit/shared/utils'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useIsClient } from '@/hooks/use-is-client'
 import { PanelLeft, PanelLeftClose, Plus, Search } from '@/components/ui/icons'
@@ -326,6 +326,7 @@ function ShellBottomChrome({ props, conversationOpen, visible }: Readonly<{
 }
 
 const SCROLLER_END_PADDING = 'pb-[var(--shell-scroller-end)]'
+const SHELL_PAGE_CLEARANCE = { '--shell-astra-clearance': `${ASTRA_STACK_CLEARANCE}px` } as CSSProperties
 const RESERVED_SCROLLER_END = `[--shell-scroller-end:var(--orbit-space-96)] lg:[--shell-scroller-end:var(--orbit-space-32)] ${SCROLLER_END_PADDING}`
 
 function getScrollerSpacing(hasBottomChrome: boolean, reservesComposerSpace: boolean, floating: boolean) {
@@ -466,7 +467,7 @@ function ShellWideBackground({
               <div ref={registerHeaderHost} data-shell-header-content="" className="w-full">{props.header}</div>
             </div>
           </div> : null}
-          <div data-shell-page="" className={`relative mx-auto flex w-full flex-1 flex-col ${astraSpacing.minimum}`}>
+          <div data-shell-page="" className={`relative mx-auto flex w-full flex-1 flex-col ${astraSpacing.minimum}`} style={SHELL_PAGE_CLEARANCE}>
             <main
               ref={registerScroller}
               data-shell-scroller=""

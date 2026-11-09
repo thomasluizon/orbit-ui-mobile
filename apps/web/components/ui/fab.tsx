@@ -1,4 +1,5 @@
 import type { FabProps } from '@orbit/shared/contracts/actions'
+import { FAB_SIZE } from '@orbit/shared/utils'
 import type { ComponentProps } from 'react'
 
 const CANVAS_RING = '0 0 0 6px var(--bg)'
@@ -15,8 +16,8 @@ export function Fab({ label, children, onClick, neutral = false, style, ...butto
       style={{
         borderRadius: 999,
         boxShadow: neutral ? 'var(--sh-2)' : CANVAS_RING,
-        height: 60,
-        width: 60,
+        height: FAB_SIZE,
+        width: FAB_SIZE,
         ...style,
       }}
     >

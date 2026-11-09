@@ -88,6 +88,18 @@ describe.each([412, 840])('the compact Astra button at %ipx', width => {
     expect(scrollerBottom).toBeLessThanOrEqual(boxes.get('shell-tab-bar')!.top)
     expect(scrollerBottom - clearance).toBeLessThanOrEqual(boxes.get('astra-button')!.top - SPACING.s16)
   })
+
+  it('holds the stacked end clearance while a registered sheet withholds the Astra button', async () => {
+    await mountShell(width)
+    const boxes = measure(width)
+    const stacked = boxes.get('shell-scroller')!.bottom - boxes.get('astra-button')!.top + SPACING.s16
+    expect(clearances.at(-1)).toBe(stacked)
+    await act(() => { useUIStore.getState().registerOpenOverlay('habit-detail') })
+    expect(hosts('astra-button')).toHaveLength(0)
+    expect(clearances.at(-1)).toBe(stacked)
+    await act(() => { useUIStore.getState().unregisterOpenOverlay('habit-detail') })
+    expect(clearances.at(-1)).toBe(stacked)
+  })
 })
 
 it('opens Astra on tap and carries its accessible name', async () => {

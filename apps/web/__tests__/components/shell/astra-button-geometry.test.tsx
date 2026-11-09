@@ -142,6 +142,23 @@ it.each([412, 840])('takes the create button position when that button is absent
   } finally { await page.close() }
 })
 
+it.each([412, 840])('holds the stacked end clearance while a registered sheet withholds the Astra button at %ipx', async width => {
+  const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
+  try {
+    await mountAstraEntry(page)
+    const padding = () => page.evaluate(() => Number.parseFloat(getComputedStyle(document.querySelector('[data-shell-scroller]')!).paddingBottom))
+    const stacked = await page.evaluate(() => document.querySelector('[data-shell-scroller]')!.getBoundingClientRect().bottom
+      - document.querySelector('[data-astra-button]')!.getBoundingClientRect().top + 16)
+    expect(await padding()).toBe(stacked)
+    for (const open of [true, false]) {
+      await page.evaluate(detail => document.dispatchEvent(new CustomEvent('astra-test-sheet', { detail })), open)
+      await settleFrames(page)
+      expect(await page.locator('[data-astra-button]').isVisible()).toBe(!open)
+      expect(await padding()).toBe(stacked)
+    }
+  } finally { await page.close() }
+})
+
 it.each([390, 840])('scrolls the last row clear of both stacked buttons and the tab bar at %ipx', async width => {
   const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
   try {

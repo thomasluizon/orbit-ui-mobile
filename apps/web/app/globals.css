@@ -2904,7 +2904,6 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 }
 
 [data-shell-page] {
-  --shell-astra-clearance: calc(var(--orbit-space-96) + var(--orbit-space-64) + var(--orbit-space-16));
   --shell-scroller-end: var(--orbit-space-0);
 }
 

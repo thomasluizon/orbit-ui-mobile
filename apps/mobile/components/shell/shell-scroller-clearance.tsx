@@ -3,8 +3,6 @@ import { createContext, useContext } from 'react'
 import type { Edge } from 'react-native-safe-area-context'
 
 export const SHELL_SCROLLER_CLEARANCE = 96
-/** The end space under the Astra button stacked on the create habit button; the web shell mirrors it as `--shell-astra-clearance`. */
-export const SHELL_ASTRA_STACK_CLEARANCE = SHELL_SCROLLER_CLEARANCE + SPACING.s64 + SPACING.s16
 export const SHELL_PAGE_END_INSET = SPACING.s24
 export const ShellScrollerClearanceContext = createContext(0)
 

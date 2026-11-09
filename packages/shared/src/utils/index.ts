@@ -1,5 +1,5 @@
 export { loadModule, MODULE_LOAD_TIMEOUT_MS } from './load-module'
-export { ASTRA_BUTTON_GAP } from './astra-button'
+export { ASTRA_BUTTON_GAP, ASTRA_STACK_CLEARANCE, FAB_SIZE } from './astra-button'
 export { getSegmentedControlLayout } from './segmented-control'
 export { achievementEmoji } from './achievement-emoji'
 export { createStepUpSessionState, type StepUpSessionState } from './step-up-session'

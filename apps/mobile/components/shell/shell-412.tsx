@@ -16,8 +16,8 @@ import { ShellFocusTargetContext, ShellListFocusContext } from './shell-focus-ta
 import { useShellContentStyle } from './shell-side-insets'
 import { ShellContent } from './shell-content'
 import { RootScrollProvider } from './root-scroll-context'
-import { ASTRA_BUTTON_GAP } from '@orbit/shared/utils'
-import { SHELL_ASTRA_STACK_CLEARANCE, SHELL_SCROLLER_CLEARANCE, ShellScrollerClearanceContext } from './shell-scroller-clearance'
+import { ASTRA_BUTTON_GAP, ASTRA_STACK_CLEARANCE } from '@orbit/shared/utils'
+import { SHELL_SCROLLER_CLEARANCE, ShellScrollerClearanceContext } from './shell-scroller-clearance'
 
 function ShellBottomViewport({ floating, minimumHeight, onSlotHeight, children }: Readonly<{
   floating: boolean
@@ -222,9 +222,9 @@ function useFabColumn({ astraButton, conversationOpen, floating, hasFab, reserve
   const astraEnabled = astraButton === true && !conversationOpen
   const astraBlocked = useAstraButtonBlocked(astraEnabled)
   const astraVisible = astraEnabled && !astraBlocked
-  const scrollerClearance = astraVisible && floating ? SHELL_ASTRA_STACK_CLEARANCE
-    : astraVisible || reservesSpace ? SHELL_SCROLLER_CLEARANCE : 32
-  return { astraVisible, scrollerClearance, height: astraVisible && hasFab ? SHELL_ASTRA_STACK_CLEARANCE : SHELL_SCROLLER_CLEARANCE }
+  const scrollerClearance = astraButton === true && floating ? ASTRA_STACK_CLEARANCE
+    : astraButton === true || reservesSpace ? SHELL_SCROLLER_CLEARANCE : 32
+  return { astraVisible, scrollerClearance, height: astraVisible && hasFab ? ASTRA_STACK_CLEARANCE : SHELL_SCROLLER_CLEARANCE }
 }
 
 export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean; fabPending?: boolean; astraButton?: boolean }>) {

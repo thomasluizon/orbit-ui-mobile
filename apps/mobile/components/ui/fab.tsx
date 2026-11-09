@@ -1,4 +1,5 @@
 import type { FabProps } from '@orbit/shared/contracts/actions'
+import { FAB_SIZE } from '@orbit/shared/utils'
 import { Pressable, StyleSheet, type PressableProps } from 'react-native'
 import { useMemo } from 'react'
 import { createTokensV2, shadowsV2, type AppShadowV2 } from '@/lib/theme'
@@ -40,8 +41,8 @@ export function Fab({ label, children, onClick, neutral = false, ...buttonProps 
 
 const styles = StyleSheet.create({
   button: {
-    width: 60,
-    height: 60,
+    width: FAB_SIZE,
+    height: FAB_SIZE,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',

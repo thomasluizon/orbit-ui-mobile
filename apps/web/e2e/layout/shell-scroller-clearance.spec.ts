@@ -2,9 +2,9 @@ import { expect } from '@playwright/test'
 import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
-import { SPACING } from '@orbit/shared/theme'
 import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { habitDetailSchema, habitMetricsSchema } from '@orbit/shared/types/habit'
+import { ASTRA_STACK_CLEARANCE } from '@orbit/shared/utils'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test as subscriptionTest } from './upgrade-fixtures'
 
@@ -62,7 +62,11 @@ for (const width of [412, 1280] as const) {
         if (name === 'Hoje' && width < 1024) {
           const button = page.getByRole('button', { name: en.shell.astraButton.open, exact: true })
           await expect(button).toBeVisible()
-          if (await page.locator('[data-shell-fab] button').count() > 0) clearance = SPACING.s96 + SPACING.s64 + SPACING.s16
+          const bounds = (await button.boundingBox())!
+          const viewport = (await scroller.boundingBox())!
+          const stackClearance = viewport.y + viewport.height - bounds.y + 16
+          if (await page.locator('[data-shell-fab] button').count() > 0) expect(stackClearance, 'Hoje measures the shared stack clearance').toBeCloseTo(ASTRA_STACK_CLEARANCE, 0)
+          clearance = Math.max(clearance, stackClearance)
         }
 
         const geometry = await scroller.evaluate((element) => {

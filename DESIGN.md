@@ -238,9 +238,10 @@ retains its mark-only composer entry.
 
 A tap opens the existing conversation layer; web Enter and Space also open it. Sheets, selection
 and the conversation withhold the button; the create FAB keeps its position. While both buttons
-share the column, the shell reserves end-of-list clearance of 176px (the 96px create FAB
-reservation plus 64 and 16), so the last row scrolls fully above the Astra button. With the Astra
-button alone, the 96px create FAB reservation applies. Web caps the inset used when scrolling to
+share the column, the shell reserves end-of-list clearance of 176px (`ASTRA_STACK_CLEARANCE`: the
+16px column inset, both 60px circles, `ASTRA_BUTTON_GAP` and the 16px row gap), so the last row
+scrolls fully above the Astra button. The shell holds that clearance while sheets, selection or the
+conversation withhold the button, so the end of the list does not move. With the Astra button alone, the 96px create FAB reservation applies. Web caps the inset used when scrolling to
 focus at half the scroller height so a short window can reveal its focused controls.
 The conversation retains live suggestions, the draft, attachments, AI disclosure, composer
 disclosure, running reply control, queue and the proactive line's destination. Reopening a collapsed

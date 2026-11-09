@@ -1,6 +1,6 @@
 import en from '@orbit/shared/i18n/en.json'
 import { API } from '@orbit/shared/api'
-import { getAccountDay } from '@orbit/shared/utils'
+import { ASTRA_STACK_CLEARANCE, getAccountDay } from '@orbit/shared/utils'
 import { SPACING } from '@orbit/shared/theme'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
@@ -20,7 +20,7 @@ async function floatingClearance(page: Page, width: number) {
   }
   const box = (await button.boundingBox())!
   const stacked = await page.locator('[data-shell-fab] button').count() > 0
-  return { clearance: stacked ? SPACING.s96 + SPACING.s64 + SPACING.s16 : SPACING.s96, buttonTop: box.y }
+  return { clearance: stacked ? ASTRA_STACK_CLEARANCE : SPACING.s96, buttonTop: box.y }
 }
 
 for (const viewport of shellScrollViewports) {
