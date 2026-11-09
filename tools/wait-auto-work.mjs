@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { boardCheck, commandRunner, initialWakeMarks, mailCheck, reviewCheck, saveWakeMarks, SENTRY_MODE, watchIntake } from "./lib/auto-work-wake.mjs"
-import { clearWakeSource, readRunState, registerWakeSource } from "./lib/run-state.mjs"
+import { REPO_ROOT, clearWakeSource, readRunState, registerWakeSource } from "./lib/run-state.mjs"
 
 const USAGE = `usage: wait-auto-work.mjs [--interval-seconds <n>]
 Register an idle wake source, then check the intake sources at the end of each interval.
@@ -38,18 +38,16 @@ try {
   if (!registerWakeSource({ pid: process.pid, kind: "auto-work-waiter", sessionId: state.sessionId,
     what: "Auto-work intake cycle", startedAt: new Date().toISOString() })) finish("WAKE_REGISTRATION_FAILED", 1)
   const run = commandRunner({ signal: commands.signal })
-  const modeChanged = () => {
-    const current = readRunState()
-    return current?.sessionId !== state.sessionId || !current.autoWork || !current.sleep || Boolean(current.relay?.pending)
-  }
+  const modeChangedIn = (current) =>
+    current?.sessionId !== state.sessionId || !current.autoWork || !current.sleep || Boolean(current.relay?.pending)
   const result = await watchIntake({
     checks: [{ source: "board", seed: true, run: boardCheck() }, { source: "mail", run: mailCheck({ run }) },
       { source: "reviews", run: reviewCheck({ run }) }],
     marks: initialWakeMarks(state.intake, started),
     intervalMilliseconds: seconds * 1000,
-    modeChanged,
-    // A mode change makes the intake write refuse; the next loop pass reports MODE_CHANGED instead.
-    saveMarks: (marks) => { if (!modeChanged()) saveWakeMarks(marks) },
+    modeChanged: () => modeChangedIn(readRunState()),
+    // The mode check and the save share one locked update; after a mode change the next loop pass reports MODE_CHANGED.
+    saveMarks: (marks) => saveWakeMarks(marks, REPO_ROOT, modeChangedIn),
   })
   finish(result.reason, 0, result.wakes)
 } catch (error) { console.error(error.message); finish("READ_FAILED", 1) }

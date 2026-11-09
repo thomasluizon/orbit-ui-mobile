@@ -1475,6 +1475,37 @@ writeRunState({ ...relayState, relay: { armed: true, armedTokens: relaySoft } },
 softCall(relaySoft - 1)
 postToolRelay()
 T("relay soft adapter: falling below the soft threshold clears the mark", readRunState(wakeCheckout).relay.armed, false)
+const changedRecordPreload = join(wakeCheckout, "changed-record-relay.mjs")
+writeFileSync(changedRecordPreload, `
+import fs from "node:fs"
+import { syncBuiltinESMExports } from "node:module"
+const originalReaddir = fs.readdirSync
+let changed = false
+fs.readdirSync = function (path, ...args) {
+  if (!changed && String(path).endsWith("orbit-wake-sources")) {
+    changed = true
+    const record = JSON.parse(fs.readFileSync(process.env.RELAY_STATE_PATH, "utf8"))
+    fs.writeFileSync(process.env.RELAY_STATE_PATH, JSON.stringify({ ...record, relay: { failures: 1 } }))
+  }
+  return originalReaddir.call(this, path, ...args)
+}
+syncBuiltinESMExports()
+`)
+const changedRecordHook = (payload) => spawnSync(process.execPath, ["--import", pathToFileURL(changedRecordPreload).href, join(wakeHooks, "relay-at-threshold.mjs")], {
+  input: JSON.stringify(payload), encoding: "utf8", timeout: relayTimeoutMilliseconds,
+  env: { ...process.env, RELAY_STATE_PATH: runStatePath(wakeCheckout) },
+})
+softCall()
+writeRunState(relayState, wakeCheckout)
+const armChanged = changedRecordHook(postToolPayload)
+T("relay soft adapter: a record that changed after the arm verdict skips the arm write and its message", { stdout: armChanged.stdout, relay: readRunState(wakeCheckout).relay }, { stdout: "", relay: { failures: 1 } })
+writeRunState({ ...relayState, relay: { armed: true, armedAt: "2026-01-01T09:00:00Z", armedTokens: relaySoft } }, wakeCheckout)
+registerWakeSource({ pid: process.pid, what: "Worker launcher" }, wakeCheckout)
+const requestBeforeBegin = readHandoffRequest("relay-parent", wakeCheckout)
+const beginChanged = changedRecordHook(relayPayload)
+T("relay soft adapter: a record that changed after the begin verdict skips the begin write, its message and its handoff request",
+  { stdout: beginChanged.stdout, relay: readRunState(wakeCheckout).relay, request: readHandoffRequest("relay-parent", wakeCheckout) }, { stdout: "", relay: { failures: 1 }, request: requestBeforeBegin })
+clearWakeSource(process.pid, wakeCheckout)
 writeRunState(hardRelayState, wakeCheckout)
 writeFileSync(relayTranscript, hardRelayTranscript)
 recordHandoffRequest("relay-parent", hardRelayRequest, hardRelayRequest.recordedAt, wakeCheckout)

@@ -354,6 +354,24 @@ export const cases = async () => {
     T("relay-session: composer stall gets one bare Enter then closes only its successor", operations.filter((args) => args[1] === "send" && !args.includes("--text")).length === 1 && operations.filter((args) => args[1] === "close").length === 1)
     T("relay-session: failure cannot retry before ten minutes", /ten minutes/.test(await failure({ repoRoot: staged.checkout, sessionId: "predecessor" })))
   }
+  const late = fixture("late-adoption")
+  const lateExecute = executeFor(late.checkout, { confirm: false })
+  const callerSession = process.env.CLAUDE_CODE_SESSION_ID
+  process.env.CLAUDE_CODE_SESSION_ID = "predecessor"
+  let lateOutcome
+  try {
+    lateOutcome = await relaySession({ repoRoot: late.checkout, sessionId: "predecessor", wait: async () => {}, confirmMilliseconds: 1,
+      execute: (binary, args, cwd, environment) => {
+        if (args[1] === "send" && !args.includes("--text")) adoptRelayRun(readRunState(late.checkout).relay.successorSessionId, late.checkout)
+        return lateExecute(binary, args, cwd, environment)
+      } })
+  } catch (error) { lateOutcome = error } finally {
+    if (callerSession === undefined) delete process.env.CLAUDE_CODE_SESSION_ID
+    else process.env.CLAUDE_CODE_SESSION_ID = callerSession
+  }
+  T("relay-session: the predecessor's rollback keeps a successor that adopted late, under the predecessor's own session id",
+    typeof lateOutcome?.successorSessionId === "string" && lateOutcome.successorSessionId === readRunState(late.checkout).sessionId,
+    JSON.stringify(lateOutcome?.message ?? lateOutcome))
   const live = fixture("live")
   registerWakeSource({ pid: process.pid, what: "Worker launcher", sessionId: "predecessor" }, live.checkout)
   mkdirSync(join(live.checkout, "tools"), { recursive: true })
