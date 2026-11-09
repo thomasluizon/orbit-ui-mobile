@@ -10,7 +10,7 @@ import { runBounded } from "./lib/bounded-process.mjs"
 import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-auth.mjs"
 import { graphqlBudgetDecision } from "./lib/github-rate-limit.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { currentBaseShaOf, newestChecks, readinessReport, PASSING_CONCLUSIONS } from "./lib/readiness-receipt.mjs"
+import { currentBaseShaOf, newestChecks, readinessReport, PASSING_CONCLUSIONS, REVIEW_APP_CONTEXT, REVIEW_APP_ID } from "./lib/readiness-receipt.mjs"
 import { gitDirectoryOf, REPO_ROOT, readRunState, readWakeSourceStates, readWorkerLaunches, workerLaunchDirectory } from "./lib/run-state.mjs"
 
 const USAGE = `usage: run-status.mjs --session <id>
@@ -64,6 +64,7 @@ const commandPath = (path, root) => {
 const commandFor = (tool, row) => `node tools/${tool}.mjs --repo ${quote(row.repositoryKey)} --pr ${row.prNumber}`
 const waitCommand = (row) => commandFor("wait-ci", row)
 const reviewCommand = (row) => `${commandFor("list-bot-threads", row)} --no-request --wait-seconds 0`
+const requestReviewCommand = (row) => commandFor("list-bot-threads", row)
 const deliveryCommand = (row, pull, launch, receipt) => {
   const issue = row.issue ?? launch?.issue ?? receipt?.issue ?? (/ticket-(\d+)/.exec(pull.headRefName)?.[1] ?? /ORB-\d+/i.exec(pull.headRefName)?.[0])
   const worktree = row.worktree ?? launch?.runDirectory
@@ -71,9 +72,10 @@ const deliveryCommand = (row, pull, launch, receipt) => {
 }
 
 const checkCounts = (rollup) => {
-  const counts = { total: 0, pending: 0, failed: 0 }
+  const counts = { total: 0, pending: 0, failed: 0, reviewVerdict: false }
   for (const check of newestChecks((rollup?.contexts?.nodes ?? []).map((check) => ({ ...check, appId: check.checkSuite?.app?.databaseId ?? null }))).values()) {
     counts.total++
+    if (check.name === REVIEW_APP_CONTEXT && check.appId === REVIEW_APP_ID) counts.reviewVerdict = true
     if (check.__typename === "StatusContext") {
       if (["ERROR", "FAILURE"].includes(check.state)) counts.failed++
       else if (check.state !== "SUCCESS") counts.pending++
@@ -139,6 +141,8 @@ const observePull = (row, pull, launches, wakes) => {
   if (!complete) return { observation, actions }
   if (pull.mergeStateStatus === "BEHIND") add("BEHIND_BASE", deliveryCommand(row, pull, launch, receipt))
   else if (checks.failed > 0) add("CHECK_FAILED", deliveryCommand(row, pull, launch, receipt))
+  // Pullfrog reviews only on request, so a green head with no review and no carried verdict asks once.
+  else if (!review && !checks.reviewVerdict && checks.total > 0 && checks.pending === 0) add("REQUEST_REVIEW", requestReviewCommand(row))
   else if (receiptStatus !== "CURRENT" && !currentDelivery) add("VERIFY_DELIVERY", deliveryCommand(row, pull, launch, receipt))
   else if (checks.total === 0 || checks.pending > 0 || !review) {
     const waiter = wakes.live.some((source) =>
