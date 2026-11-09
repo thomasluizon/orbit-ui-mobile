@@ -6,11 +6,20 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
-const USAGE = `usage: record-gh-fixtures.mjs [--output <path>]
+import { repositorySlug } from "./lib/github-auth.mjs"
+import { pullRequestQuery } from "./review-rounds.mjs"
+
+/** One round, several rounds with a dismissed approval, a re-reviewed head, unapproved, another bot. */
+const REVIEW_ROUNDS_PULLS = [2371, 2373, 2343, 2338, 2325]
+
+const USAGE = `usage: record-gh-fixtures.mjs [--review-rounds] [--output <path>]
 
   Records path and JSON-type manifests from read-only gh issue and project commands.
   Defaults to tools/__fixtures__/gh-issue-envelopes.json.
 
+  --review-rounds  instead record the raw review-rounds.mjs response for the pinned pull requests
+                   ${REVIEW_ROUNDS_PULLS.join(", ")} of the ui repository.
+                   Defaults to tools/__fixtures__/gh-review-rounds.json.
   --output <path>  write the manifest to this path
   --help, -h       print this usage and exit 0
 
@@ -22,13 +31,64 @@ if (args.includes("--help") || args.includes("-h")) {
   process.exit(0)
 }
 
-let outputPath = fileURLToPath(new URL("./__fixtures__/gh-issue-envelopes.json", import.meta.url))
+const reviewRounds = args.includes("--review-rounds")
+let outputPath = fileURLToPath(new URL(reviewRounds ? "./__fixtures__/gh-review-rounds.json" : "./__fixtures__/gh-issue-envelopes.json", import.meta.url))
 for (let index = 0; index < args.length; index++) {
+  if (args[index] === "--review-rounds") continue
   if (args[index] !== "--output" || index + 1 >= args.length || args[index + 1].startsWith("-")) {
     console.error(`record-gh-fixtures: invalid arguments: ${args.join(" ")}\n\n${USAGE}`)
     process.exit(2)
   }
   outputPath = resolve(args[++index])
+}
+
+/** Recorded bot prose can hold dashes the Dash Ban rejects; a JSON escape parses to the same value. */
+const writeJson = (value) => {
+  mkdirSync(dirname(outputPath), { recursive: true })
+  const text = JSON.stringify(value, null, 2).replaceAll("\u2014", "\\u2014").replaceAll("\u2013", "\\u2013")
+  writeFileSync(outputPath, `${text}\n`)
+  console.log(`record-gh-fixtures: wrote ${outputPath}`)
+}
+
+/**
+ * The raw response, not a path manifest, because the review-rounds cases hand count rounds and
+ * categories from real reviews. The repository comes from the ui checkout's own origin.
+ */
+if (reviewRounds) {
+  let slug
+  try {
+    slug = repositorySlug(fileURLToPath(new URL("..", import.meta.url)))
+  } catch (error) {
+    console.error(`record-gh-fixtures: ${error.message}`)
+    process.exit(1)
+  }
+  const [owner, name] = slug.split("/")
+  const query = pullRequestQuery(REVIEW_ROUNDS_PULLS)
+  const result = spawnSync(process.env.GH_BIN || "gh", ["api", "graphql", "-f", `owner=${owner}`, "-f", `name=${name}`, "-f", `query=${query}`], { encoding: "utf8", timeout: 60000, maxBuffer: 32 * 1024 * 1024, windowsHide: true })
+  let response
+  try {
+    response = JSON.parse(result.stdout)
+  } catch {
+    response = null
+  }
+  const missing = REVIEW_ROUNDS_PULLS.filter((number) => !Array.isArray(response?.data?.repository?.[`pr${number}`]?.reviews?.nodes))
+  if (result.status !== 0 || response?.errors || missing.length > 0) {
+    console.error(`record-gh-fixtures: the review-rounds query did not return every pinned pull request (${missing.join(", ") || "errors"}): ${(result.stderr || JSON.stringify(response?.errors ?? "")).trim()}`)
+    process.exit(1)
+  }
+  writeJson({
+    schemaVersion: 1,
+    generation: {
+      method: "Recorded verbatim from one read-only live gh api graphql call. No value was entered by hand.",
+      generator: "tools/record-gh-fixtures.mjs --review-rounds",
+      producer: "pullRequestQuery(numbers) from tools/review-rounds.mjs",
+      query,
+      repository: slug,
+      numbers: REVIEW_ROUNDS_PULLS,
+    },
+    response,
+  })
+  process.exit(0)
 }
 
 const config = JSON.parse(readFileSync(new URL("../.claude/orchestrator.json", import.meta.url), "utf8")).tickets
@@ -183,9 +243,7 @@ try {
     },
     commands: recorded,
   }
-  mkdirSync(dirname(outputPath), { recursive: true })
-  writeFileSync(outputPath, `${JSON.stringify(manifest, null, 2)}\n`)
-  console.log(`record-gh-fixtures: wrote ${outputPath}`)
+  writeJson(manifest)
 } catch (error) {
   console.error(`record-gh-fixtures: ${error.message}`)
   process.exit(1)
