@@ -142,7 +142,7 @@ function configureSlotState(state: string, locale: 'en' | 'pt-BR') {
         mocks.lastCompletionDate = state === 'returning' ? '2000-01-01' : null
 }
 
-describe('Hoje floating Astra entry and contextual actions at each shell width', () => {
+describe('Hoje stacked Astra button and contextual actions at each shell width', () => {
   let launch: BrowserLaunch | undefined
   let browser: Browser
   let stylesheet: string

@@ -873,7 +873,7 @@ describe('DestinationShell', () => {
     const view = render(<DestinationShell onCreate={() => {}} composer={<span>Old Hoje composer</span>}><h1>Today</h1></DestinationShell>)
     expect(screen.queryByText('Old Hoje composer')).toBeNull()
     expect(screen.queryByRole('button', { name: 'shell.astraButton.open' })).toBeNull()
-    expect(view.container.querySelector('[data-astra-button-area]')).toBeNull()
+    expect(view.container.querySelector('[data-astra-button]')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'nav.astra' }))
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
     useUIStore.getState().setAstraConversationOpen(false)

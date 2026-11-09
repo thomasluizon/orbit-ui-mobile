@@ -118,7 +118,6 @@ async function inspectDiscoveredControls(page: Page, scope: Locator, assert: typ
     for (const state of ['hover', 'press', 'focus'] as const) {
       if (!await reachInteraction(page, control, state)) continue
       await assertSurface(control, state, assert)
-      if (state === 'press' && await control.evaluate(element => element.hasAttribute('data-astra-button'))) await control.dispatchEvent('pointercancel')
       await page.mouse.move(0, 0)
       await page.mouse.up()
       await control.blur()

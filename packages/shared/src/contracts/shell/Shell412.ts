@@ -29,7 +29,7 @@ interface Shell412Base {
    * header passes nothing and the scroller takes the full height. */
   header?: React.ReactNode
   /** TRANSIENT PINNED CHROME, directly ABOVE the pinned bottom slot and never in its place. A toast
-   *  or a celebration rides here so it stays separate from the floating Astra entry. */
+   *  or a celebration rides here so it stays separate from the Astra button stacked above the create FAB. */
   notice?: React.ReactNode
   /** Floats above the bottom chrome. A screen that puts its create action in the header passes nothing. */
   fab?: React.ReactNode

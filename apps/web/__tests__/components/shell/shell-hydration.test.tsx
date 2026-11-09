@@ -67,7 +67,7 @@ describe('app shell hydration', () => {
 
     const firstEntry = container.querySelector<HTMLButtonElement>('[data-astra-button]')!
     expect(firstEntry).not.toBeNull()
-    expect(container.querySelector('[data-astra-button-area]')).toHaveClass('lg:hidden')
+    expect(container.querySelector('[data-shell-fab-clip]')).toHaveClass('lg:hidden')
     firstEntry.focus()
     const firstSidebarBell = container.querySelector('[data-shell-sidebar] button[aria-label="notifications.bell"]')
     const firstAstraRow = container.querySelector('[data-shell-astra-row]')

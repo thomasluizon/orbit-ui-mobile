@@ -1,5 +1,15 @@
-import { expect, type Page } from '@playwright/test'
+import { expect, type BrowserContext, type Page } from '@playwright/test'
+import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
+import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
+import { createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
+import { profileSchema } from '@orbit/shared/types/profile'
+import { FAB_SIZE } from '@orbit/shared/theme'
+import { ASTRA_BUTTON_GAP, getAccountDay } from '@orbit/shared/utils'
+import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
+import { LAYOUT_ORIGIN } from '../support/env'
+import { LAYOUT_FIXED_TIME } from './clock.mjs'
+import { setLayoutFixtureSession, setLayoutProfileSession } from './profile-session'
 import { test } from './layout-test'
 
 const conversation = '[data-shell-conversation="overlay"]'
@@ -10,24 +20,39 @@ async function openHoje(page: Page) {
   await page.evaluate(() => document.fonts.ready)
 }
 
-async function waitForPlacement(page: Page) {
-  await page.waitForFunction(() => document.querySelector('[data-astra-button-position]')?.getAttribute('style')?.includes('translate'))
+async function openClientFetchedHojeView(page: Page) {
+  await openHoje(page)
+  await page.getByRole('radio', { name: en.habits.viewAll, exact: true }).click()
 }
 
-async function dragButton(page: Page, x: number, y: number) {
-  const box = (await page.locator('[data-astra-button]').boundingBox())!
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
-  await page.mouse.down()
-  await page.mouse.move(x, y, { steps: 10 })
-  await page.mouse.up()
-  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+async function seedOneHabit(context: BrowserContext) {
+  const date = getAccountDay(new Date(LAYOUT_FIXED_TIME), 'UTC')
+  const item = makeHabitScheduleItem({ id: 'astra-stack-habit', title: 'Read chapter 1', position: 0,
+    dueDate: date, scheduledDates: [date], children: [], hasSubHabits: false })
+  const habits = createPaginatedSchema(habitScheduleItemSchema).parse({ items: [item], page: 1, pageSize: 1, totalCount: 1, totalPages: 1 })
+  const profile = profileSchema.parse({ ...profileFixture, language: 'en', timeZone: 'UTC' })
+  await setLayoutProfileSession(context, profile)
+  await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile },
+    { path: API.habits.count, body: { count: 1 } }, { path: API.habits.list, body: habits }])
+}
+
+function measureStack() {
+  const rect = (selector: string) => document.querySelector(selector)?.getBoundingClientRect() ?? null
+  const button = rect('[data-astra-button]')!
+  const create = rect('[data-shell-fab] button')
+  const columnElement = document.querySelector('[data-shell-fab-content]')!
+  const column = columnElement.getBoundingClientRect()
+  const columnInset = Number.parseFloat(getComputedStyle(columnElement).paddingRight)
+  return { top: button.top, bottom: button.bottom, left: button.left, right: button.right, width: button.width,
+    createTop: create?.top ?? null, createBottom: create?.bottom ?? null, createLeft: create?.left ?? null, createRight: create?.right ?? null,
+    createWidth: create?.width ?? null, columnBottom: column.bottom, columnRight: column.right - columnInset, tabsTop: rect('[data-shell-tab-bar]')!.top }
 }
 
 for (const width of [1280, 1352]) {
   test.describe(`wide Hoje Astra entry at ${width}px`, () => {
     test.use({ viewport: { width, height: 915 } })
 
-    test('renders no floating button and opens Astra from the sidebar row', async ({ page }) => {
+    test('renders no Astra button and opens Astra from the sidebar row', async ({ page }) => {
       await openHoje(page)
       await expect(page.locator('[data-astra-button]')).toHaveCount(0)
       await page.locator('[data-shell-sidebar]').getByRole('button', { name: en.nav.astra, exact: true }).click()
@@ -40,31 +65,55 @@ for (const width of [412, 840]) {
   test.describe(`compact Hoje Astra button at ${width}px`, () => {
     test.use({ viewport: { width, height: 915 } })
 
-    test('drags over the header, stops above the tab bar and opens only on a tap', async ({ page }) => {
+    test('sits directly above the create button, stays put through a drag and opens on a tap', async ({ page, context }) => {
+      await seedOneHabit(context)
       await openHoje(page)
+      await expect(page.locator('[data-shell-scroller] [data-testid="habit-row"]')).toHaveCount(1)
       const button = page.getByRole('button', { name: en.shell.astraButton.open, exact: true })
       await expect(button).toBeVisible()
-      await waitForPlacement(page)
+      await expect(page.locator('[data-shell-fab] button')).toBeVisible()
+      await expect.poll(async () => { const next = await page.evaluate(measureStack); return next.createTop! - next.bottom }).toBeCloseTo(ASTRA_BUTTON_GAP, 0)
+      const stack = await page.evaluate(measureStack)
+      expect(stack.left + stack.width / 2).toBeCloseTo(stack.createLeft! + stack.createWidth! / 2, 0)
+      expect(stack.createBottom!).toBeCloseTo(stack.columnBottom, 0)
+      expect(stack.createRight!).toBeCloseTo(stack.columnRight, 0)
+      expect(stack.columnBottom).toBeLessThanOrEqual(stack.tabsTop)
 
-      await dragButton(page, 0, 0)
-      const top = (await button.boundingBox())!
-      const list = (await page.locator('[data-shell-scroller]').boundingBox())!
-      const column = (await page.locator('[data-shell-page-content]').boundingBox())!
-      expect(top.y).toBeLessThan(list.y)
-      expect(top.x).toBe(column.x + 16)
-      await expect(page.locator(conversation)).toHaveCount(0)
-
-      await dragButton(page, 0, 915)
-      const bottom = (await button.boundingBox())!
-      const tabs = (await page.locator('[data-shell-tab-bar]').boundingBox())!
-      expect(tabs.y - (bottom.y + bottom.height)).toBeGreaterThanOrEqual(16)
+      await page.mouse.move(stack.left + 30, stack.top + 30)
+      await page.mouse.down()
+      await page.mouse.move(0, 0, { steps: 10 })
+      await page.mouse.up()
+      await expect.poll(() => page.evaluate(measureStack)).toEqual(stack)
       await expect(page.locator(conversation)).toHaveCount(0)
 
       await button.click()
       await expect(page.locator(conversation)).toBeVisible()
     })
 
-    test('floats without the canvas occlusion ring', async ({ page }) => {
+    test('takes the create button slot when Hoje has no create button', async ({ page, context }) => {
+      let releaseHabits!: () => void
+      const habitsHeld = new Promise<void>(resolve => { releaseHabits = resolve })
+      await context.route(url => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list, async route => {
+        await habitsHeld
+        await route.continue()
+      })
+      await openClientFetchedHojeView(page)
+      await expect(page.getByRole('button', { name: en.shell.astraButton.open, exact: true })).toBeVisible()
+      await expect(page.locator('[data-shell-fab]')).toHaveCount(0)
+      await expect(page.locator('[data-shell-fab-pending]')).toHaveCount(1)
+      const pending = await page.evaluate(measureStack)
+      expect(pending.columnBottom - pending.bottom).toBeCloseTo(FAB_SIZE + ASTRA_BUTTON_GAP, 0)
+
+      releaseHabits()
+      await expect(page.locator('[data-shell-fab-pending]')).toHaveCount(0)
+      await expect(page.locator('[data-shell-fab]')).toHaveCount(0)
+      const stack = await page.evaluate(measureStack)
+      expect(stack.bottom).toBeCloseTo(stack.columnBottom, 0)
+      expect(stack.right).toBeCloseTo(stack.columnRight, 0)
+      expect(stack.columnBottom).toBeLessThanOrEqual(stack.tabsTop)
+    })
+
+    test('draws no canvas occlusion ring', async ({ page }) => {
       await openHoje(page)
       const button = page.locator('[data-astra-button]')
       await expect(button).toBeVisible()

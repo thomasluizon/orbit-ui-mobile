@@ -198,7 +198,6 @@
       "m-overlay-habit-list-move-parent-dialog",
       "m-overlay-habits-habit-row",
       "m-overlay-habits-habit-row-trailing",
-      "m-overlay-shell-astra-button",
       "m-overlay-shell-composer",
       "m-overlay-today-today-date-control",
       "m-overlay-today-today-modals",
@@ -209,7 +208,6 @@
       "overlay-habit-list-confirm-dialogs",
       "overlay-habit-list-move-parent-overlay",
       "overlay-habits-habit-row-trailing",
-      "overlay-shell-astra-button",
       "overlay-shell-sidebar-account",
       "route-root"
     ],
@@ -477,6 +475,14 @@
     {
       "surfaceId": "m-overlay-components-calendar-day-detail",
       "decision": "#1858 replaces the title sheet with dated habit detail navigation; the selected-day card remains in its calendar route."
+    },
+    {
+      "surfaceId": "m-overlay-shell-astra-button",
+      "decision": "Ticket #2077: the Astra button is a fixed button in the shell create button column on Hoje, not a separate floating overlay."
+    },
+    {
+      "surfaceId": "overlay-shell-astra-button",
+      "decision": "Ticket #2077: the Astra button is a fixed button in the shell create button column on Hoje, not a separate floating overlay."
     }
   ],
   "excluded": [
@@ -502,7 +508,7 @@
     "m-overlay-progress-progress-content": "apps/mobile/components/progress/progress-content.tsx is the live body of the Progresso tab, reached from apps/mobile/app/(tabs)/progress.tsx. It reads as an overlay only because it imports ConfirmSheet directly, which is a listed overlay base.",
     "overlay-components-progress-content": "apps/web/app/(app)/progress/_components/progress-content.tsx is the live body of the /progress route, reached from apps/web/app/(app)/progress/page.tsx. It reads as an overlay only because it imports ConfirmSheet directly, which is a listed overlay base.",
     "m-overlay-navigation-destination-tab-bar": "apps/mobile/components/navigation/destination-tab-bar.tsx is the Android tab bar, mirrored by the web overlay-navigation-bottom-tab-bar in this group. It reads as an overlay only because it imports dismissAllSheets from apps/mobile/components/ui/sheet.tsx, a listed overlay base, to close open sheets before the Hoje reset.",
-    "m-overlay-habits-goal-linking-field":"Orbit Habit Detail is the representative owner for the shared goal-linking field; Orbit Habit Create also draws it in the creation flow.",
+    "m-overlay-habits-goal-linking-field": "Orbit Habit Detail is the representative owner for the shared goal-linking field; Orbit Habit Create also draws it in the creation flow.",
     "m-widget-orbit-widget": "D66 assigns the Android widget to its canvas document.",
     "overlay-app-layout": "Orbit Hoje is the representative owner for the authenticated shell shared across Hoje, Calendario, Progresso, and Perfil, as defined by DESIGN.md.",
     "overlay-shell-sidebar-account": "Orbit Hoje owns the shared wide sidebar; its account menu follows the account header and sign-out composition specified by ticket #1657.",
