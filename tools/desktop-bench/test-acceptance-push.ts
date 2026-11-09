@@ -608,7 +608,7 @@ test('proxy serves the sign-in report mode only to the launch that asks for it',
   assert.deepEqual(served, ['expect=true report=false', 'expect=false report=true'])
 })
 
-function pushHarness(platform: 'win32' | 'darwin', overrides: { authorization?: boolean; logsAfterDone?: number; visibleAfterDone?: number; expiredLogs?: number; signIn?: boolean; credentials?: Record<string, string>; environment?: string | null; signed?: boolean; apnsDropped?: string } = {}) {
+function pushHarness(platform: 'win32' | 'darwin', overrides: { authorization?: boolean; logsAfterDone?: number; visibleAfterDone?: number; expiredLogs?: number; signIn?: boolean; credentials?: Record<string, string>; environment?: string | null; signed?: boolean; apnsDropped?: string; hostIntegrity?: string; doneLost?: boolean } = {}) {
   const events: string[] = []
   let apsdCount = 0
   const records = new Map<string, unknown>()
@@ -673,6 +673,12 @@ function pushHarness(platform: 'win32' | 'darwin', overrides: { authorization?: 
     native: async (pid: number, command: string, options: { title?: string; label?: string; invoke?: boolean; openCenter?: boolean } = {}) => {
       events.push(`native ${pid} ${command}${options.invoke ? ' invoke' : ''}${options.label ? ` ${options.label}` : ''}`)
       if (command === 'close') { hidden = true; return { sent: 'close' } }
+      if (command === 'activation') {
+        // Shape of the acceptance-uia.ps1 activation reply: OrbitProcessToken fields per host and one entry per shell instance.
+        return { hosts: [{ processId: 996, name: 'explorer', integrity: overrides.hostIntegrity ?? 'Medium', elevated: overrides.hostIntegrity === 'High', error: null },
+          { processId: 1204, name: 'WpnUserService_3a1f', integrity: null, elevated: false, error: 'Access is denied' }],
+        instances: [{ processId: 41, parentProcessId: 7, commandLine: '"C:\\Orbit\\orbit-desktop.exe"', integrity: 'Medium', elevated: true, error: null }] }
+      }
       if (command === 'windows') {
         const visible = pid === 77 ? launchedVisible : hidden ? (proxyEvents.done ? overrides.visibleAfterDone ?? 0 : 0) : 1
         return platform === 'win32' ? { windows: Array.from({ length: visible }, () => ({ className: 'Tauri Window', visible: true })) }
@@ -687,6 +693,7 @@ function pushHarness(platform: 'win32' | 'darwin', overrides: { authorization?: 
         if (!toast) return { found: false, windows: [] }
         if (!options.invoke) return { found: true, invoked: false, title: toast.title }
         const habitId = reminders.get(toast.doneToken)!
+        if (overrides.doneLost) return { found: true, invoked: true, title: toast.title }
         if (shellAlive) {
           proxyEvents.done = true
           for (let index = 0; index < (overrides.logsAfterDone ?? 1); index++) logs.push({ habitId, source: 'reminder-done' })
@@ -726,7 +733,8 @@ test('push acceptance proves Done once with the window hidden, then an expired-s
     assert.ok(order('reset {"expectAuthenticated":false,"reportSignIn":true}') < order('native 0 notification invoke Done'))
     assert.ok(order('native 0 notification invoke Done') < order('adopt 77'))
     const records = [...harness.records.keys()]
-    assert.deepEqual(records, [...(platform === 'darwin' ? ['notification-authorization'] : []), 'notification-done', 'notification-expired', 'notification-expired-signed-out'])
+    assert.deepEqual(records, [...(platform === 'darwin' ? ['notification-authorization'] : []), 'notification-done',
+      ...(platform === 'win32' ? ['notification-done-activation'] : []), 'notification-expired', 'notification-expired-signed-out'])
     for (const [name, title] of [['notification-done', 'done'], ['notification-expired', 'expired'], ['notification-expired-signed-out', 'expired']]) {
       assert.match((harness.records.get(name) as { title: string }).title, new RegExp(`^Orbit acceptance ${title} `), name)
     }
@@ -734,7 +742,14 @@ test('push acceptance proves Done once with the window hidden, then an expired-s
       assert.deepEqual((push as Record<string, unknown>).doneReceipt, { before: 0, after: 1, seconds: 0 })
       assert.deepEqual((push as Record<string, unknown>).expiredReceipt, { before: 1, after: 2, seconds: 0 })
       assert.ok(order('apsd org.useorbit.desktop.staging') < order('deliver Orbit acceptance done'))
-    } else assert.equal(harness.events.some((event) => event.startsWith('apsd ')), false)
+    } else {
+      assert.equal(harness.events.some((event) => event.startsWith('apsd ')), false)
+      assert.deepEqual((push as Record<string, unknown>).activation, {
+        hosts: [{ name: 'explorer', integrity: 'Medium', elevated: false }, { name: 'WpnUserService_3a1f', integrity: null, elevated: false, error: 'Access is denied' }],
+        instances: [{ processId: 41, commandLine: '"C:\\Orbit\\orbit-desktop.exe"', integrity: 'Medium' }] })
+      assert.ok(order('native 41 notification invoke Done') < order('native 41 activation'))
+    }
+    if (platform === 'darwin') assert.equal(harness.events.some((event) => event.includes(' activation')), false)
     if (platform === 'darwin') {
       assert.deepEqual(harness.records.get('notification-authorization'), { found: false, tree: [{ role: 'AXApplication', parent: -1, text: 'Notification Center' }] })
       assert.deepEqual((push as Record<string, unknown>).authorization, { found: false })
@@ -758,6 +773,16 @@ test('macOS push acceptance names the APNs hop when apsd never receives an accep
   assert.deepEqual(push.done, { logs: 1, windowVisible: false })
   assert.deepEqual(push.expiredReceipt, { before: 1, after: 1, last: 'just now' })
   assert.equal(harness.records.has('notification-expired'), false, 'the search for a push the device never received does not run')
+})
+
+test('Windows push acceptance names the shell host levels and running instances when a Done activation never logs', async () => {
+  const harness = pushHarness('win32', { doneLost: true, hostIntegrity: 'High' })
+  await assert.rejects(() => exercisePush(harness.io), (error: Error) => {
+    assert.equal(error.message, 'Timed out waiting for the Done habit log; shell hosts: explorer High elevated, WpnUserService_3a1f unreadable (Access is denied); running shell instances: 1')
+    return true
+  })
+  assert.deepEqual([...harness.records.keys()].slice(0, 3), ['notification-done', 'notification-done-activation', 'notification-done-activation-timeout'])
+  assert.equal((harness.report.push as Record<string, { instances: unknown[] }>).activationAfterTimeout.instances.length, 1)
 })
 
 test('push acceptance adopts the notification-launched shell before it waits for the sign-in page', async () => {

@@ -280,6 +280,18 @@ the counts and the last arrival, before any Notification Center search.
 The macOS reader presses the menu bar clock to open Notification Center only while the center is closed.
 The press toggles the center, and only the open center lists its history and the Edit Widgets button.
 
+On Windows, right after the Done invoke, `trees/notification-done-activation.json` keeps the token
+integrity and elevation of `explorer`, `ShellExperienceHost`, `sihost` and the per-user
+`WpnUserService`, and every running shell instance with its command line. `report.json`
+`push.activation` keeps a summary. A Done habit log that never arrives keeps a second capture in
+`trees/notification-done-activation-timeout.json`, and the failure names the host levels and the
+instance count. COM gives a server it launches the activator's token, and a process that UAC elevated
+does not load per-user COM classes. The Windows App SDK registers an unpackaged app's activator per
+user, and it refuses app notifications in an elevated process. Thus elevated shell hosts mean that a
+toast click cannot reach the shell. `push.log` holds the shell's own lines: `Desktop push: notification
+Done activation received` when a click reaches the running shell, and `a notification activation
+started a second process` when Windows started a new instance instead.
+
 `mock.log` names every acceptance route that the shell or the BFF reached, with its status, such as
 `POST /api/reminders/done 200`. The harness's own `GET /_test/` polls stay out of it.
 

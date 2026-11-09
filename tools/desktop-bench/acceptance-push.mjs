@@ -284,6 +284,23 @@ async function notification(io, pid, reminder, invoke, name) {
   return find(true)
 }
 
+// The Windows reader names the token level of each shell host and every running shell instance. Read with the shell's log
+// line for a forwarded activation, it shows whether a toast click reached the running shell, started a second one, or
+// reached neither.
+async function activationEvidence(io, pid, name) {
+  const reply = await io.native(pid, 'activation', { executable: io.executable })
+  await io.record(name, reply)
+  return {
+    hosts: (reply?.hosts ?? []).map(({ name: host, integrity, elevated, error }) => ({ name: host, integrity, elevated, ...(error ? { error } : {}) })),
+    instances: (reply?.instances ?? []).map(({ processId, commandLine, integrity }) => ({ processId, commandLine, integrity })),
+  }
+}
+
+export function describeActivation({ hosts, instances }) {
+  const levels = hosts.map(({ name, integrity, elevated, error }) => `${name} ${error ? `unreadable (${error})` : `${integrity}${elevated ? ' elevated' : ''}`}`)
+  return `shell hosts: ${levels.join(', ') || 'none found'}; running shell instances: ${instances.length}`
+}
+
 async function windowsOf(io, pid) {
   return visibleWindows(io.platform, await io.native(pid, 'windows'))
 }
@@ -310,7 +327,14 @@ export async function exercisePush(io) {
   await io.waitFor(async () => await windowsOf(io, pid) === 0, 'the main window to hide', 30000)
   const completed = await sendReminder(io, deliver, 'done')
   await notification(io, pid, completed, true, 'notification-done')
-  await io.waitFor(async () => (await io.mock.logs()).some((log) => log.habitId === completed.data.habitId), 'the Done habit log', 60000)
+  if (io.platform === 'win32') io.report.push.activation = await activationEvidence(io, pid, 'notification-done-activation')
+  try {
+    await io.waitFor(async () => (await io.mock.logs()).some((log) => log.habitId === completed.data.habitId), 'the Done habit log', 60000)
+  } catch (error) {
+    if (io.platform !== 'win32' || !error.message.startsWith('Timed out')) throw error
+    io.report.push.activationAfterTimeout = await activationEvidence(io, pid, 'notification-done-activation-timeout')
+    throw new Error(`${error.message}; ${describeActivation(io.report.push.activationAfterTimeout)}`)
+  }
   // A second request would follow the shell's first response well inside this window.
   await io.delay(5000)
   io.report.push.done = assertDoneDelivered({ logs: await io.mock.logs(), habitId: completed.data.habitId, visible: await windowsOf(io, pid) })

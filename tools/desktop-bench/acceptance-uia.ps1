@@ -1,6 +1,6 @@
 param(
   [Parameter(Mandatory = $true)][int]$TargetProcessId,
-  [Parameter(Mandatory = $true)][ValidateSet('dump', 'down', 'home', 'escape', 'palette', 'menu', 'quit', 'windows', 'close', 'notification', 'process')][string]$Command,
+  [Parameter(Mandatory = $true)][ValidateSet('dump', 'down', 'home', 'escape', 'palette', 'menu', 'quit', 'windows', 'close', 'notification', 'process', 'activation')][string]$Command,
   [uint32]$MenuCommandId,
   [string]$Title,
   [string]$Label,
@@ -16,6 +16,74 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Text;
+public sealed class OrbitProcessToken {
+    public uint processId;
+    public string name;
+    public string integrity;
+    public bool elevated;
+    public string error;
+}
+// The integrity level and elevation of another process's token. COM gives a server it launches the activator's token, and
+// a process elevated through UAC "does not load per-user classes during COM activations"
+// (https://learn.microsoft.com/en-us/windows/win32/com/the-com-elevation-moniker), so the shell hosts' levels say whether a
+// toast activation can reach the shell's per-user activator at all.
+public static class OrbitTokens {
+    [DllImport("kernel32.dll", SetLastError = true)] private static extern IntPtr OpenProcess(uint access, bool inherit, uint processId);
+    [DllImport("kernel32.dll")] private static extern bool CloseHandle(IntPtr handle);
+    [DllImport("advapi32.dll", SetLastError = true)] private static extern bool OpenProcessToken(IntPtr process, uint access, out IntPtr token);
+    [DllImport("advapi32.dll", SetLastError = true)]
+    private static extern bool GetTokenInformation(IntPtr token, int kind, IntPtr buffer, int length, out int returned);
+    [DllImport("advapi32.dll")] private static extern IntPtr GetSidSubAuthority(IntPtr sid, uint index);
+    [DllImport("advapi32.dll")] private static extern IntPtr GetSidSubAuthorityCount(IntPtr sid);
+
+    private static IntPtr Read(IntPtr token, int kind) {
+        int length;
+        GetTokenInformation(token, kind, IntPtr.Zero, 0, out length);
+        IntPtr buffer = Marshal.AllocHGlobal(length);
+        if (GetTokenInformation(token, kind, buffer, length, out length)) return buffer;
+        int error = Marshal.GetLastWin32Error();
+        Marshal.FreeHGlobal(buffer);
+        throw new Win32Exception(error);
+    }
+
+    // Names follow Security::IntegrityLevel::ToString in the Windows App SDK, as windows-unelevated.ps1 does.
+    private static string IntegrityName(uint rid) {
+        switch (rid) {
+            case 0x0000: return "Untrusted";
+            case 0x1000: return "Low";
+            case 0x2000: return "Medium";
+            case 0x2100: return "MediumPlus";
+            case 0x3000: return "High";
+            case 0x4000: return "System";
+            case 0x5000: return "ProtectedProcess";
+        }
+        return "0x" + rid.ToString("X4");
+    }
+
+    public static OrbitProcessToken Describe(uint processId, string name) {
+        var result = new OrbitProcessToken { processId = processId, name = name };
+        IntPtr process = OpenProcess(0x1000, false, processId);
+        if (process == IntPtr.Zero) { result.error = new Win32Exception(Marshal.GetLastWin32Error()).Message; return result; }
+        IntPtr token = IntPtr.Zero;
+        try {
+            if (!OpenProcessToken(process, 0x0008, out token)) throw new Win32Exception(Marshal.GetLastWin32Error());
+            IntPtr label = Read(token, 25);
+            try {
+                IntPtr sid = Marshal.ReadIntPtr(label);
+                byte count = Marshal.ReadByte(GetSidSubAuthorityCount(sid));
+                result.integrity = IntegrityName(unchecked((uint)Marshal.ReadInt32(GetSidSubAuthority(sid, (uint)(count - 1)))));
+            } finally { Marshal.FreeHGlobal(label); }
+            IntPtr elevation = Read(token, 20);
+            try { result.elevated = Marshal.ReadInt32(elevation) != 0; } finally { Marshal.FreeHGlobal(elevation); }
+        } catch (Win32Exception error) {
+            result.error = error.Message;
+        } finally {
+            if (token != IntPtr.Zero) CloseHandle(token);
+            CloseHandle(process);
+        }
+        return result;
+    }
+}
 public sealed class OrbitWindow {
     public long handle;
     public string className;
@@ -347,6 +415,25 @@ if ($Command -eq 'close') {
 if ($Command -eq 'process') {
   if (-not $Executable) { throw 'process requires -Executable' }
   @{ processIds = @(Get-Process | Where-Object { $_.Path -eq $Executable } | ForEach-Object { $_.Id }) } | ConvertTo-Json
+  exit 0
+}
+if ($Command -eq 'activation') {
+  if (-not $Executable) { throw 'activation requires -Executable' }
+  # The toast activation runs through the shell hosts and the per-user Windows Push Notifications service; a second shell
+  # instance means Windows launched the activator instead of reaching the running one.
+  $hosts = New-Object 'System.Collections.Generic.List[object]'
+  foreach ($process in @(Get-Process -Name explorer, ShellExperienceHost, sihost -ErrorAction SilentlyContinue)) {
+    $hosts.Add([OrbitTokens]::Describe([uint32]$process.Id, $process.ProcessName))
+  }
+  foreach ($service in @(Get-CimInstance Win32_Service -Filter "Name LIKE 'WpnUserService%'" | Where-Object { $_.ProcessId -gt 0 })) {
+    $hosts.Add([OrbitTokens]::Describe([uint32]$service.ProcessId, $service.Name))
+  }
+  $instances = @(Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -eq $Executable } | ForEach-Object {
+    $token = [OrbitTokens]::Describe([uint32]$_.ProcessId, $_.Name)
+    @{ processId = $_.ProcessId; parentProcessId = $_.ParentProcessId; commandLine = $_.CommandLine; integrity = $token.integrity
+      elevated = $token.elevated; error = $token.error }
+  })
+  @{ hosts = $hosts.ToArray(); instances = $instances } | ConvertTo-Json -Depth 4
   exit 0
 }
 if ($Command -eq 'notification') {
