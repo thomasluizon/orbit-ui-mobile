@@ -4,6 +4,7 @@ import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
 import { useEffect, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
+import { useCurrentTheme } from '@/stores/theme-store'
 
 type WidgetState = 'idle' | 'loading' | 'solved' | 'failed' | 'expired'
 
@@ -73,7 +74,7 @@ export function TurnstileWidget({
   resetKey,
   onToken,
   onStateChange,
-  theme = 'dark',
+  theme,
   language,
   quiet = false,
 }: Readonly<{
@@ -89,6 +90,8 @@ export function TurnstileWidget({
   const appLocale = useLocale()
   // WHY: Cloudflare lists Orbit's pt-BR as pt-br https://developers.cloudflare.com/turnstile/reference/supported-languages/
   const challengeLanguage = (language ?? appLocale).toLowerCase()
+  const currentTheme = useCurrentTheme()
+  const challengeTheme = theme ?? currentTheme
   const { containerRef, challengeVisible } = useChallengeVisibility()
   const widgetIdRef = useRef<unknown>(null)
   const callbacksRef = useRef({ onToken, onStateChange })
@@ -124,7 +127,7 @@ export function TurnstileWidget({
         sitekey: siteKey,
         appearance: 'interaction-only',
         size: 'flexible',
-        theme,
+        theme: challengeTheme,
         language: challengeLanguage,
         callback: (token) => update('solved', token),
         'error-callback': () => {
@@ -143,7 +146,7 @@ export function TurnstileWidget({
       if (widgetId != null) getTurnstile()?.remove(widgetId)
       widgetIdRef.current = null
     }
-  }, [containerRef, siteKey, theme, challengeLanguage, attempt])
+  }, [containerRef, siteKey, challengeTheme, challengeLanguage, attempt])
 
   useEffect(() => {
     if (resetKey === 0) return

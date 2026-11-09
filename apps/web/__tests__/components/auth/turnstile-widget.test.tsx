@@ -7,6 +7,7 @@ vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLo
 
 afterEach(() => {
   delete (window as Window & { turnstile?: unknown }).turnstile
+  document.documentElement.style.removeProperty('color-scheme')
   appLocale.value = 'en'
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
@@ -140,12 +141,30 @@ it.each([false, true])('restores visible challenge space and collapses it again,
   expect(disconnect).toHaveBeenCalledOnce()
 })
 
-it.each([false, true])('renders a full-width dark challenge that only shows when interaction is needed, quiet %s', async (quiet) => {
+it.each([false, true])('renders a full-width challenge that only shows when interaction is needed, quiet %s', async (quiet) => {
   const renderWidget = vi.fn((..._args: unknown[]) => 'options-widget')
   ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
   render(<TurnstileWidget siteKey="site-key" resetKey={0} quiet={quiet} onToken={vi.fn()} />)
   await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
-  expect(renderWidget.mock.calls[0]![1]).toMatchObject({ size: 'flexible', appearance: 'interaction-only', theme: 'dark' })
+  expect(renderWidget.mock.calls[0]![1]).toMatchObject({ size: 'flexible', appearance: 'interaction-only' })
+})
+
+it.each(['light', 'dark'] as const)('follows the %s theme the page rendered when the caller omits theme', async (pageTheme) => {
+  document.documentElement.style.setProperty('color-scheme', pageTheme)
+  const renderWidget = vi.fn((..._args: unknown[]) => 'theme-widget')
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
+  render(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />)
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
+  expect(renderWidget.mock.calls[0]![1]).toMatchObject({ theme: pageTheme })
+})
+
+it('keeps the explicit theme of the caller over the page theme', async () => {
+  document.documentElement.style.setProperty('color-scheme', 'light')
+  const renderWidget = vi.fn((..._args: unknown[]) => 'explicit-theme-widget')
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
+  render(<TurnstileWidget siteKey="site-key" resetKey={0} theme="dark" onToken={vi.fn()} />)
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
+  expect(renderWidget.mock.calls[0]![1]).toMatchObject({ theme: 'dark' })
 })
 
 it.each([false, true])('hides the challenge after it passes and shows it again when it needs a new pass, quiet %s', async (quiet) => {
