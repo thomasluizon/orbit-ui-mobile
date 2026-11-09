@@ -108,11 +108,11 @@ test("handoff-size: the step fails an oversized changed relay document and ignor
   const prepare = job.steps.find((step) => step.name === "Resolve pull request changed paths")
   const gate = job.steps.find((step) => step.name === "Changed specs and the relay prompt stay inside their byte ceilings")
   assert.ok(prepare?.run && gate?.run, "handoff-size must prepare changed paths and run its guard")
-  for (const [label, changes, expected] of [
-    ["an oversized changed spec fails", { ".claude/specs/grown.md": "x".repeat(41984) }, 1],
-    ["an oversized changed prompt fails", { ".claude/handoffs/NEXT.md": "x".repeat(8300) }, 1],
-    ["a spec at its ceiling passes", { ".claude/specs/grown.md": "x".repeat(40960) }, 0],
-    ["an unchanged oversized spec elsewhere passes", { "notes.txt": "changed\n" }, 0],
+  for (const [label, changes, passes] of [
+    ["an oversized changed spec fails", { ".claude/specs/grown.md": "x".repeat(41984) }, false],
+    ["an oversized changed prompt fails", { ".claude/handoffs/NEXT.md": "x".repeat(8300) }, false],
+    ["a spec at its ceiling passes", { ".claude/specs/grown.md": "x".repeat(40960) }, true],
+    ["an unchanged oversized spec elsewhere passes", { "notes.txt": "changed\n" }, true],
   ]) {
     const directory = mkdtempSync(join(tmpdir(), "guards-handoff-size-"))
     try {
@@ -138,8 +138,9 @@ test("handoff-size: the step fails an oversized changed relay document and ignor
       const prepared = spawnSync("bash", ["-e", "-c", prepare.run], { cwd: directory, env: environment, encoding: "utf8" })
       assert.equal(prepared.status, 0, `${label}: changed paths must resolve: ${prepared.stderr}`)
       const guarded = spawnSync("bash", ["-e", "-c", gate.run], { cwd: directory, env: environment, encoding: "utf8" })
-      assert.equal(guarded.status, expected, `${label}: ${guarded.stdout}${guarded.stderr}`)
-      if (expected === 1) assert.match(guarded.stderr, new RegExp(`\`${Object.keys(changes)[0].replaceAll(".", "\\.")}\` within \\d+ B \\(it is \\d+ B\\)`))
+      // WHY: GNU xargs reports a failed child as 123 and BSD xargs as 1; the step only has to fail (https://github.com/thomasluizon/orbit-tickets/issues/2064).
+      assert.equal(guarded.status === 0, passes, `${label}: exit ${guarded.status} ${guarded.stdout}${guarded.stderr}`)
+      if (!passes) assert.match(guarded.stderr, new RegExp(`\`${Object.keys(changes)[0].replaceAll(".", "\\.")}\` within \\d+ B \\(it is \\d+ B\\)`))
     } finally {
       rmSync(directory, { recursive: true, force: true })
     }
