@@ -15,7 +15,7 @@ import { checkInventedIdentifier, extractNodeIds } from "./_lib/rules-identifier
 import { checkAdminMerge, checkBroadStaging, checkEngineInvocation } from "./_lib/rules-orchestrator.mjs"
 import { checkSleepStop } from "./_lib/rules-sleep.mjs"
 import { checkHandoffCommit, checkHandoffStop, gitCommitDirectory } from "./_lib/rules-handoff.mjs"
-import { newestCommittedPrompt, promptsForCommit } from "./_lib/handoff-git.mjs"
+import { newestCommittedPrompt, promptsForCommit, specsForCommit } from "./_lib/handoff-git.mjs"
 import { adoptOwnerHandoffRun, parseHandoffRequest, prepareOwnerHandoffRun, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "../../tools/lib/handoff-prompt.mjs"
 import { checkDependencyCommand, checkDependencyFileWrite } from "./_lib/rules-dependencies.mjs"
 import { checkWorkerBrowser } from "./_lib/rules-worker.mjs"
@@ -2082,6 +2082,34 @@ T("handoff commit: -C names the directory the commit runs in", gitCommitDirector
 T("handoff stop: a failing prompt committed after the request refuses the stop", blocks(checkHandoffStop({ request: { sleep: true, recordedAt: "2026-01-01T10:00:00Z" }, headPrompt: attendedPrompt, headPromptCommittedAt: "2026-01-01T10:05:00Z" })), true)
 T("handoff stop: a prompt committed before the request is not judged", checkHandoffStop({ request: { sleep: true, recordedAt: "2026-01-01T10:00:00Z" }, headPrompt: attendedPrompt, headPromptCommittedAt: "2026-01-01T09:00:00Z" }), null)
 T("handoff stop: no recorded request allows the stop", checkHandoffStop({ request: null, headPrompt: attendedPrompt, headPromptCommittedAt: "2026-01-01T10:05:00Z" }), null)
+
+const handoffSpecPath = ".claude/specs/orbit-prod-release.md"
+const specCommit = (versions, prompt = goodSleepPrompt) => checkHandoffCommit({ command: "git commit -m docs", cwd: "/repo", request: { sleep: true },
+  promptsForCommit: () => [prompt], specsForCommit: (directory, path) => (directory === "/repo" && path === handoffSpecPath ? versions : []) })
+T("handoff size: a commit of a 41984 B spec is refused with its name and size", /`\.claude\/specs\/orbit-prod-release\.md` within 40960 B \(it is 41984 B\)/.test(specCommit(["x".repeat(41984)])?.message ?? ""), true)
+T("handoff size: a commit of a 40960 B spec passes", specCommit(["x".repeat(40960)]), null)
+T("handoff size: an oversized working copy blocks even when the staged spec fits", blocks(specCommit(["small", "x".repeat(40961)])), true)
+T("handoff size: a commit of an 8300 B prompt is refused", /`\.claude\/handoffs\/NEXT\.md` within 8192 B \(it is 8300 B\)/.test(specCommit([], `${goodSleepPrompt}\n${"x".repeat(8299 - goodSleepPrompt.length)}`)?.message ?? ""), true)
+T("handoff size: a commit of an 8192 B prompt passes", specCommit([], `${goodSleepPrompt}\n${"x".repeat(8191 - goodSleepPrompt.length)}`), null)
+T("handoff size: a stop after an oversized committed spec is refused", blocks(checkHandoffStop({ request: { sleep: true, recordedAt: "2026-01-01T10:00:00Z" }, headPrompt: goodSleepPrompt, headPromptCommittedAt: "2026-01-01T10:05:00Z", headSpecVersions: () => ["x".repeat(41984)] })), true)
+
+const specGitRepo = mkdtempSync(join(tmpdir(), "orbit-handoff-spec-"))
+const inSpecRepo = (...args) => spawnSync("git", ["-C", specGitRepo, ...args], { encoding: "utf8" })
+inSpecRepo("init", "-q", "-b", "main")
+inSpecRepo("config", "user.email", "hooks@test.invalid")
+inSpecRepo("config", "user.name", "hooks")
+mkdirSync(join(specGitRepo, ".claude", "specs"), { recursive: true })
+mkdirSync(join(specGitRepo, ".claude", "handoffs"), { recursive: true })
+T("handoff git: a spec in neither the index nor the tree has no version", specsForCommit(specGitRepo, handoffSpecPath), [])
+writeFileSync(join(specGitRepo, handoffSpecPath), "staged\n")
+inSpecRepo("add", handoffSpecPath)
+writeFileSync(join(specGitRepo, handoffSpecPath), "working\n")
+T("handoff git: a staged spec and its working copy are both versions", specsForCommit(specGitRepo, handoffSpecPath), ["staged\n", "working\n"])
+writeFileSync(join(specGitRepo, ".claude", "handoffs", "NEXT.md"), goodSleepPrompt)
+inSpecRepo("add", ".claude")
+T("handoff fixture: the spec handoff commits", inSpecRepo("commit", "-q", "-m", "handoff").status, 0)
+T("handoff git: the committed handoff reads its spec at that commit", newestCommittedPrompt(specGitRepo).specVersions(handoffSpecPath), ["working\n"])
+T("handoff git: a spec absent at that commit has no version", newestCommittedPrompt(specGitRepo).specVersions(".claude/specs/absent.md"), [])
 
 const handoffRepo = join(root, "handoff-repo")
 mkdirSync(join(handoffRepo, ".git"), { recursive: true })

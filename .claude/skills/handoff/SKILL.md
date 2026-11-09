@@ -162,7 +162,16 @@ keep what still binds.
 - **Open questions**, each with who has to answer it and what it blocks.
 
 These seven are a floor. Add a section when something durable has no home in them. Keep exactly one
-`## Current state` section and overwrite it at each handoff. Never append a dated session section.
+`## Current state` section holding exactly one paragraph, and replace that paragraph at each handoff.
+Never append a paragraph, an "Earlier handoff" or a dated session section: git history keeps every
+earlier version, so name the commit when a reader needs one.
+
+**Size ceilings.** The spec stays at 40,960 B or less and `NEXT.md` at 8,192 B or less, because every
+relay reads both in full. The handoff commit gate and the stop check refuse a prompt or the spec its
+opening names over its ceiling, and the `Handoff Size` step in Guards fails a pull request that grows
+either (`tools/lib/handoff-prompt.mjs`, `tools/check-handoff-size.mjs`). When a file nears its ceiling,
+cut it: move a rule to the skill, playbook or doc that owns it, delete a fact that is no longer true,
+and leave history to git. Never raise the ceiling to make a handoff fit.
 
 Do not restate what a skill, a rule file or `CLAUDE.md` already says. Point at it.
 
@@ -186,8 +195,9 @@ handoff reconciles it against the live board before writing anything else:
 4. Prove it with a script that compares the two lists, and put the counts in the prompt: open,
    placed, unplaced (must be 0), placed twice (must be 0).
 
-Update the one `## Current state` section and the work order in place. The prompt points at the
-current order, never at a session record.
+Replace the one `## Current state` paragraph and update the work order in place. A work order entry
+carries the ticket title and its current next step only; the ticket body and its comments hold the
+history. The prompt points at the current order, never at a session record.
 
 ### The spec is shared state
 

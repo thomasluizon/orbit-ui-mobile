@@ -5,7 +5,7 @@
 import { handoffDocsChanged, syncRelayCheckout } from "../../tools/lib/relay-checkout.mjs"
 import { readHandoffRequest } from "../../tools/lib/handoff-prompt.mjs"
 import { REPO_ROOT, readRunState } from "../../tools/lib/run-state.mjs"
-import { newestCommittedPrompt, promptsForCommit } from "./_lib/handoff-git.mjs"
+import { newestCommittedPrompt, promptsForCommit, specsForCommit } from "./_lib/handoff-git.mjs"
 import { readStdinJson } from "./_lib/io.mjs"
 import { checkHandoffCommit, checkHandoffStop } from "./_lib/rules-handoff.mjs"
 
@@ -17,9 +17,9 @@ try {
   let verdict = null
   if (input?.hook_event_name === "Stop" && request) {
     const head = newestCommittedPrompt(REPO_ROOT)
-    verdict = checkHandoffStop({ request, state, headPrompt: head.text, headPromptCommittedAt: head.committedAt })
+    verdict = checkHandoffStop({ request, state, headPrompt: head.text, headPromptCommittedAt: head.committedAt, headSpecVersions: head.specVersions })
   } else if (typeof input?.tool_input?.command === "string") {
-    verdict = checkHandoffCommit({ command: input.tool_input.command, cwd: input?.cwd || process.cwd(), request, state, promptsForCommit,
+    verdict = checkHandoffCommit({ command: input.tool_input.command, cwd: input?.cwd || process.cwd(), request, state, promptsForCommit, specsForCommit,
       refreshCheckout: (directory) => { if (handoffDocsChanged(directory)) syncRelayCheckout(directory) },
     })
   }
