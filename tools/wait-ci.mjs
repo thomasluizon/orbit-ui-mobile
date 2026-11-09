@@ -5,13 +5,15 @@ import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-a
 import { createCiBudget } from "./lib/ci-budget.mjs"
 import { readGithub, readGithubPull } from "./lib/github-read.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { requiredChecksFromResponse } from "./lib/readiness-receipt.mjs"
+import { REVIEW_APP_CONTEXT, requiredChecksFromResponse } from "./lib/readiness-receipt.mjs"
 import { clearWakeSource, registerWakeSource, readRunState } from "./lib/run-state.mjs"
 
 const USAGE = `usage: wait-ci.mjs --repo <key> --pr <n> [--pr <n> ...] [--require-check <name> ...] [--ceiling-minutes <n>]
 
 Watch every named pull request's current head through GitHub REST checks and commit statuses.
 Exit when all checks settle, a head moves, a pull request closes, or the ceiling expires.
+A required pullfrog-approval check counts only with --require-check pullfrog-approval: Pullfrog reviews
+on request, so a plain waiter settles on the CI that must pass before that request.
 Transient GitHub errors retry until the ceiling; JSON includes their count and last text.
 Waiters in this checkout share half the live REST hourly limit per account, use conditional
 reads, and slow down when capacity is low. Budget waits remain inside the ceiling.
@@ -81,6 +83,7 @@ if (!registerWakeSource({ pid: process.pid, sessionId: process.env.CLAUDE_CODE_S
 }
 
 const requiredChecks = [...new Set(values["--require-check"])]
+const waitsForReview = requiredChecks.includes(REVIEW_APP_CONTEXT)
 const deadline = Date.now() + ceilingMinutes * 60_000
 try {
   const auth = await githubEnvironment(repositoryPath)
@@ -143,7 +146,7 @@ try {
       if (required === null) throw new Error("GitHub required checks had an unexpected shape")
       protectionByBase.set(base, required)
     }
-    const protectedChecks = protectionByBase.get(base)
+    const protectedChecks = protectionByBase.get(base).filter((required) => waitsForReview || required.context !== REVIEW_APP_CONTEXT)
     return [...protectedChecks, ...requiredChecks.filter((name) => !protectedChecks.some((required) => required.context === name)).map((context) => ({ context, appId: null }))]
   }
   const lastQuietSet = new Map()
