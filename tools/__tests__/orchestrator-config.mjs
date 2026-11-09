@@ -7,6 +7,13 @@ import { runInNewContext } from "node:vm"
 import { T, root, realOrchestratorConfig, stage, toolPath } from "./_harness.mjs"
 
 const NAME = "orchestrator-config.mjs"
+/** The shipped claude model for each worker tier, in escalation order. */
+const WORKER_TIER_MODELS = [
+  ["default", "claude-sonnet-5-5"],
+  ["mechanical", "claude-sonnet-5-5"],
+  ["deep", "claude-opus-5-5"],
+  ["max", "claude-opus-5-5"],
+]
 
 /** The message a caller would actually read, or null when the call returned. */
 const thrown = (call) => {
@@ -226,11 +233,11 @@ export const cases = async () => {
     /names .*absent-account, which is not an existing directory; unset it to run workers on the main account$/.test(thrown(() => accountsFor(join(accountDirectory, "absent-account"))) ?? ""))
   T(`${NAME}: an engine with no Claude account has no accounts`,
     JSON.stringify(workerAccounts("codex", real.workers.codex, { [engine.configDirEnv]: accountDirectory })) === "[]")
-  /** Owner order on #2029: every tier is Opus 5.5 at high effort. The tier names stay as routing labels. */
-  for (const tier of ["default", "mechanical", "deep", "max"]) {
+  /** Owner order on #2067: default and mechanical run Sonnet 5.5, deep and max keep Opus 5.5, all at high effort. */
+  for (const [tier, model] of WORKER_TIER_MODELS) {
     const resolved = resolveWorkerInvocation(engineName, engine, tier)
-    T(`${NAME}: the shipped ${tier} implementer is claude-opus-5-5 at high effort`,
-      resolved.model === "claude-opus-5-5" && effortOf(resolved.args) === "high",
+    T(`${NAME}: the shipped ${tier} implementer is ${model} at high effort`,
+      resolved.model === model && effortOf(resolved.args) === "high",
       `.claude/orchestrator.json resolved ${resolved.model} with ${JSON.stringify(resolved.args)}`)
   }
 
@@ -291,9 +298,9 @@ export const cases = async () => {
 
   const fallback = real.workers.claude ?? {}
   T(
-    `${NAME}: the claude engine runs claude with opus 5.5 on all four tiers`,
+    `${NAME}: the claude engine runs claude with sonnet 5.5 on default and mechanical and opus 5.5 on deep and max`,
     fallback.command === "claude" &&
-      ["default", "mechanical", "deep", "max"].every((tier) => fallback.models?.[tier]?.model === "claude-opus-5-5"),
+      WORKER_TIER_MODELS.every(([tier, model]) => fallback.models?.[tier]?.model === model),
     `.claude/orchestrator.json declares command ${JSON.stringify(fallback.command)} with ${JSON.stringify(fallback.models)}`,
   )
 
