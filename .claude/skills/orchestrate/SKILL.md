@@ -1413,12 +1413,16 @@ sign-in. The launch JSON then shows `authenticationFailed: true`, the CLI's erro
 later, set the variable again. The fallback then moves workers between the two accounts with no
 owner action.
 
-**After a launch result with `authenticationFailed: true`, start no further launch on the worker
-account.** Relaunch that order, and every later one, in single-account mode by prefixing the
-launch command with `ORBIT_WORKER_CLAUDE_CONFIG_DIR=`, with `--relaunch-reason` when the branch
-ledger needs it. Record `resultError` in the handoff inventory and the step 11 report, with the
-owner's fix: remove the export from the shell profile. Review, CI waiting and readiness work
-continue.
+**Read the launch JSON's `account` before acting on `authenticationFailed: true`.** When it is
+`worker`, start no further launch on the worker account. Relaunch that order, and every later one,
+in single-account mode by prefixing the launch command with `ORBIT_WORKER_CLAUDE_CONFIG_DIR=`, with
+`--relaunch-reason` when the branch ledger needs it. Record `resultError` in the handoff inventory
+and the step 11 report, with the owner's fix: remove the export from the shell profile. When it is
+`main` (single-account mode, or a fallback relaunch that failed sign-in), no account can run a
+worker: start no further launch and never relaunch on that account. Record `resultError` with the
+owner's fix, which is to sign in again with `/login` in an interactive `claude` session on the
+coordinator's default config.
+In both cases, review, CI waiting and readiness work continue.
 
 ```bash
 node tools/launch-worker.mjs --issue '#N' --worktree <path> --prompt <file> --dry-run

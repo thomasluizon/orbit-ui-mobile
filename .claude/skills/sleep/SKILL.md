@@ -287,8 +287,9 @@ the main account. If the main account reaches its limit, stop spawning workers a
 time. Then switch to work you can do
 without a worker: CI waiting, review fixes and readiness checks. Never launch a worker on Codex in
 its place.
-A launch result with `authenticationFailed: true` follows `orchestrate/SKILL.md` §5.4.1: no further
-worker-account launch, relaunches in single-account mode, and the owner's fix in the report.
+A launch result with `authenticationFailed: true` follows `orchestrate/SKILL.md` §5.4.1 by its
+`account`: on `worker`, no further worker-account launch and relaunches in single-account mode; on
+`main`, no further launch at all. Either way the owner's fix goes in the report.
 
 ## 11. The wake report
 
