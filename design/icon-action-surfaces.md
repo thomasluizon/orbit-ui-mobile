@@ -37,131 +37,127 @@ Drawn references: [Astra conversation](canvas/Orbit%20Astra%20Conversation.dc.ht
 
 | Platform and source | Localized name expression | Treatment |
 |---|---|---|
-| [apps/mobile/app/(tabs)/calendar.tsx:194](../apps/mobile/app/(tabs)/calendar.tsx#L194) | `{t('common.retry')}` | RefreshCw |
+| [apps/mobile/app/(tabs)/calendar.tsx:87](../apps/mobile/app/(tabs)/calendar.tsx#L87) | `{t('common.retry')}` | RefreshCw |
 | [apps/mobile/app/(tabs)/calendar/_components/calendar-entry-details.tsx:37](../apps/mobile/app/(tabs)/calendar/_components/calendar-entry-details.tsx#L37) | `{t('calendar.dayDetail.clearEventSearch')}` | X |
 | [apps/mobile/app/(tabs)/calendar/_components/calendar-entry-details.tsx:40](../apps/mobile/app/(tabs)/calendar/_components/calendar-entry-details.tsx#L40) | `{t('common.previous')}` | ChevronLeft |
 | [apps/mobile/app/(tabs)/calendar/_components/calendar-entry-details.tsx:41](../apps/mobile/app/(tabs)/calendar/_components/calendar-entry-details.tsx#L41) | `{t('common.next')}` | ChevronRight |
-| [apps/mobile/app/(tabs)/index.tsx:104](../apps/mobile/app/(tabs)/index.tsx#L104) | `{t('common.retry')}` | RefreshCw |
-| [apps/mobile/app/(tabs)/profile/_components/delete-account-modal.tsx:119](../apps/mobile/app/(tabs)/profile/_components/delete-account-modal.tsx#L119) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
-| [apps/mobile/app/(tabs)/profile/_components/edit-name-sheet.tsx:96](../apps/mobile/app/(tabs)/profile/_components/edit-name-sheet.tsx#L96) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
-| [apps/mobile/app/(tabs)/profile/_components/fresh-start-modal.tsx:176](../apps/mobile/app/(tabs)/profile/_components/fresh-start-modal.tsx#L176) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
-| [apps/mobile/app/(tabs)/profile/_components/fresh-start-modal.tsx:200](../apps/mobile/app/(tabs)/profile/_components/fresh-start-modal.tsx#L200) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
-| [apps/mobile/app/(tabs)/profile/_components/profile-subscreen.tsx:44](../apps/mobile/app/(tabs)/profile/_components/profile-subscreen.tsx#L44) | `{t('common.retry')}` | RefreshCw |
-| [apps/mobile/app/search.tsx:65](../apps/mobile/app/search.tsx#L65) | `{t('common.retry')}` | RefreshCw |
-| [apps/mobile/app/search.tsx:76](../apps/mobile/app/search.tsx#L76) | `{t('habits.search.previous')}` | ChevronLeft |
-| [apps/mobile/app/search.tsx:77](../apps/mobile/app/search.tsx#L77) | `{t('habits.search.next')}` | ChevronRight |
-| [apps/mobile/app/upgrade.tsx:77](../apps/mobile/app/upgrade.tsx#L77) | `{t('upgrade.billing.retry')}` | RefreshCw |
-| [apps/mobile/components/auth/turnstile-widget.tsx:84](../apps/mobile/components/auth/turnstile-widget.tsx#L84) | `{t('auth.turnstileRetry')}` | RefreshCw |
+| [apps/mobile/app/(tabs)/index.tsx:106](../apps/mobile/app/(tabs)/index.tsx#L106) | `{t('common.retry')}` | RefreshCw |
+| [apps/mobile/app/(tabs)/profile/_components/delete-account-modal.tsx:124](../apps/mobile/app/(tabs)/profile/_components/delete-account-modal.tsx#L124) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
+| [apps/mobile/app/(tabs)/profile/_components/edit-name-sheet.tsx:104](../apps/mobile/app/(tabs)/profile/_components/edit-name-sheet.tsx#L104) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
+| [apps/mobile/app/(tabs)/profile/_components/fresh-start-modal.tsx:180](../apps/mobile/app/(tabs)/profile/_components/fresh-start-modal.tsx#L180) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
+| [apps/mobile/app/(tabs)/profile/_components/fresh-start-modal.tsx:204](../apps/mobile/app/(tabs)/profile/_components/fresh-start-modal.tsx#L204) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
+| [apps/mobile/app/(tabs)/profile/_components/profile-subscreen.tsx:45](../apps/mobile/app/(tabs)/profile/_components/profile-subscreen.tsx#L45) | `{t('common.retry')}` | RefreshCw |
+| [apps/mobile/app/search.tsx:82](../apps/mobile/app/search.tsx#L82) | `{t('habits.search.previous')}` | ChevronLeft |
+| [apps/mobile/app/search.tsx:83](../apps/mobile/app/search.tsx#L83) | `{t('habits.search.next')}` | ChevronRight |
+| [apps/mobile/app/upgrade.tsx:79](../apps/mobile/app/upgrade.tsx#L79) | `{t('upgrade.billing.retry')}` | RefreshCw |
+| [apps/mobile/components/auth/turnstile-widget.tsx:90](../apps/mobile/components/auth/turnstile-widget.tsx#L90) | `{t('auth.turnstileRetry')}` | RefreshCw |
 | [apps/mobile/components/calendar-sync/calendar-import-content.tsx:496](../apps/mobile/components/calendar-sync/calendar-import-content.tsx#L496) | `{t('common.goBack')}` | ChevronLeft |
 | [apps/mobile/components/calendar-sync/calendar-import-content.tsx:549](../apps/mobile/components/calendar-sync/calendar-import-content.tsx#L549) | `{t('calendar.showMore')}` | ChevronDown |
 | [apps/mobile/components/calendar-sync/calendar-import-content.tsx:629](../apps/mobile/components/calendar-sync/calendar-import-content.tsx#L629) | `{t('common.goBack')}` | ChevronLeft |
 | [apps/mobile/components/calendar-sync/calendar-import-content.tsx:630](../apps/mobile/components/calendar-sync/calendar-import-content.tsx#L630) | `{t('calendar.retry')}` | RefreshCw |
 | [apps/mobile/components/calendar-sync/calendar-picker-section.tsx:74](../apps/mobile/components/calendar-sync/calendar-picker-section.tsx#L74) | `{t('calendar.retry')}` | RefreshCw |
 | [apps/mobile/components/calendar-sync/calendar-picker-section.tsx:108](../apps/mobile/components/calendar-sync/calendar-picker-section.tsx#L108) | `{t('calendar.showMore')}` | ChevronDown |
-| [apps/mobile/components/chat/account-rows-card.tsx:72](../apps/mobile/components/chat/account-rows-card.tsx#L72) | `{t(copied ? 'chat.account.copied' : 'chat.account.copy')}` | View |
-| [apps/mobile/components/chat/account-rows-card.tsx:75](../apps/mobile/components/chat/account-rows-card.tsx#L75) | `{t('chat.account.share')}` | Share2 |
-| [apps/mobile/components/chat/breakdown-suggestion.tsx:62](../apps/mobile/components/chat/breakdown-suggestion.tsx#L62) | `{t('chat.batch.retry', { count: card.failedIds.length })}` | RefreshCw |
-| [apps/mobile/components/chat/breakdown-suggestion.tsx:62](../apps/mobile/components/chat/breakdown-suggestion.tsx#L62) | `{t('habits.breakdown.addHabit')}` | Plus |
-| [apps/mobile/components/chat/day-summary-card.tsx:85](../apps/mobile/components/chat/day-summary-card.tsx#L85) | `{t('chat.recordList.more')}` | ChevronDown |
+| [apps/mobile/components/chat/account-rows-card.tsx:69](../apps/mobile/components/chat/account-rows-card.tsx#L69) | `{t(copied ? 'chat.account.copied' : 'chat.account.copy')}` | View |
+| [apps/mobile/components/chat/account-rows-card.tsx:72](../apps/mobile/components/chat/account-rows-card.tsx#L72) | `{t('chat.account.share')}` | Share2 |
+| [apps/mobile/components/chat/breakdown-suggestion.tsx:61](../apps/mobile/components/chat/breakdown-suggestion.tsx#L61) | `{t('chat.batch.retry', { count: card.failedIds.length })}` | RefreshCw |
+| [apps/mobile/components/chat/breakdown-suggestion.tsx:61](../apps/mobile/components/chat/breakdown-suggestion.tsx#L61) | `{t('habits.breakdown.addHabit')}` | Plus |
+| [apps/mobile/components/chat/day-summary-card.tsx:76](../apps/mobile/components/chat/day-summary-card.tsx#L76) | `{t('chat.recordList.more')}` | ChevronDown |
 | [apps/mobile/components/chat/habit-list-card.tsx:61](../apps/mobile/components/chat/habit-list-card.tsx#L61) | `{t('chat.habitList.more')}` | ChevronDown |
-| [apps/mobile/components/chat/habit-ranking-card.tsx:45](../apps/mobile/components/chat/habit-ranking-card.tsx#L45) | `{t('chat.ranking.more')}` | ChevronDown |
-| [apps/mobile/components/chat/habit-ranking-card.tsx:46](../apps/mobile/components/chat/habit-ranking-card.tsx#L46) | `{t('chat.ranking.refresh')}` | RefreshCw |
+| [apps/mobile/components/chat/habit-ranking-card.tsx:36](../apps/mobile/components/chat/habit-ranking-card.tsx#L36) | `{t('chat.ranking.more')}` | ChevronDown |
+| [apps/mobile/components/chat/habit-ranking-card.tsx:35](../apps/mobile/components/chat/habit-ranking-card.tsx#L35) | `{t('chat.ranking.refresh')}` | RefreshCw |
 | [apps/mobile/components/chat/pending-operation-card.tsx:78](../apps/mobile/components/chat/pending-operation-card.tsx#L78) | `{labels.addListRow}` | Plus |
 | [apps/mobile/components/chat/pending-operation-card.tsx:108](../apps/mobile/components/chat/pending-operation-card.tsx#L108) | `{labels.cancel}` | Drawn ghost text (`sm`) |
-| [apps/mobile/components/chat/pending-operation-card.tsx:177](../apps/mobile/components/chat/pending-operation-card.tsx#L177) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
+| [apps/mobile/components/chat/pending-operation-card.tsx:212](../apps/mobile/components/chat/pending-operation-card.tsx#L212) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
 | [apps/mobile/components/chat/pending-operation-card.tsx:234](../apps/mobile/components/chat/pending-operation-card.tsx#L234) | `{props.accessibleName ?? label}` | RefreshCw |
-| [apps/mobile/components/chat/period-insight-card.tsx:69](../apps/mobile/components/chat/period-insight-card.tsx#L69) | `{t(expanded ? 'chat.readBlock.less' : 'chat.habitList.more')}` | ChevronsUp |
-| [apps/mobile/components/chat/prompt-library.tsx:90](../apps/mobile/components/chat/prompt-library.tsx#L90) | `{t('chat.templates.clearSearch')}` | X |
-| [apps/mobile/components/chat/prompt-library.tsx:93](../apps/mobile/components/chat/prompt-library.tsx#L93) | `{t('chat.templates.previous')}` | ChevronLeft |
-| [apps/mobile/components/chat/prompt-library.tsx:94](../apps/mobile/components/chat/prompt-library.tsx#L94) | `{t('chat.templates.more')}` | ChevronRight |
-| [apps/mobile/components/chat/read-block-frame.tsx:59](../apps/mobile/components/chat/read-block-frame.tsx#L59) | `{t('chat.recordList.more')}` | ChevronDown |
-| [apps/mobile/components/chat/read-block-frame.tsx:60](../apps/mobile/components/chat/read-block-frame.tsx#L60) | `{t('blockFrame.refresh')}` | RefreshCw |
-| [apps/mobile/components/chat/record-list-card.tsx:112](../apps/mobile/components/chat/record-list-card.tsx#L112) | `{t('chat.recordList.filterAction')}` | Filter |
-| [apps/mobile/components/chat/record-list-card.tsx:112](../apps/mobile/components/chat/record-list-card.tsx#L112) | `{t('chat.recordList.clearFilter')}` | X |
-| [apps/mobile/components/chat/record-list-card.tsx:113](../apps/mobile/components/chat/record-list-card.tsx#L113) | `{t('chat.recordList.more')}` | ChevronDown |
-| [apps/mobile/components/goals/create-goal-sheet.tsx:47](../apps/mobile/components/goals/create-goal-sheet.tsx#L47) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
+| [apps/mobile/components/chat/period-insight-card.tsx:62](../apps/mobile/components/chat/period-insight-card.tsx#L62) | `{t(expanded ? 'chat.readBlock.less' : 'chat.habitList.more')}` | ChevronsUp |
+| [apps/mobile/components/chat/prompt-library.tsx:88](../apps/mobile/components/chat/prompt-library.tsx#L88) | `{t('chat.templates.clearSearch')}` | X |
+| [apps/mobile/components/chat/prompt-library.tsx:91](../apps/mobile/components/chat/prompt-library.tsx#L91) | `{t('chat.templates.previous')}` | ChevronLeft |
+| [apps/mobile/components/chat/prompt-library.tsx:92](../apps/mobile/components/chat/prompt-library.tsx#L92) | `{t('chat.templates.more')}` | ChevronRight |
+| [apps/mobile/components/chat/read-block-frame.tsx:70](../apps/mobile/components/chat/read-block-frame.tsx#L70) | `{t('chat.recordList.more')}` | ChevronDown |
+| [apps/mobile/components/chat/read-block-frame.tsx:69](../apps/mobile/components/chat/read-block-frame.tsx#L69) | `{t('blockFrame.refresh')}` | RefreshCw |
+| [apps/mobile/components/chat/record-list-card.tsx:114](../apps/mobile/components/chat/record-list-card.tsx#L114) | `{t('chat.recordList.filterAction')}` | Filter |
+| [apps/mobile/components/chat/record-list-card.tsx:114](../apps/mobile/components/chat/record-list-card.tsx#L114) | `{t('chat.recordList.clearFilter')}` | X |
+| [apps/mobile/components/chat/record-list-card.tsx:115](../apps/mobile/components/chat/record-list-card.tsx#L115) | `{t('chat.recordList.more')}` | ChevronDown |
+| [apps/mobile/components/goals/create-goal-sheet.tsx:69](../apps/mobile/components/goals/create-goal-sheet.tsx#L69) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
 | [apps/mobile/components/goals/edit-goal-modal.tsx:187](../apps/mobile/components/goals/edit-goal-modal.tsx#L187) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
 | [apps/mobile/components/goals/edit-goal-modal/edit-goal-deadline-field.tsx:59](../apps/mobile/components/goals/edit-goal-modal/edit-goal-deadline-field.tsx#L59) | `{t('goals.form.addDeadline')}` | Plus |
-| [apps/mobile/components/goals/goal-detail-drawer/goal-load-error.tsx:24](../apps/mobile/components/goals/goal-detail-drawer/goal-load-error.tsx#L24) | `{t('common.retry')}` | RefreshCw |
 | [apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx:45](../apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx#L45) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
-| [apps/mobile/components/goals/goal-habits-field.tsx:46](../apps/mobile/components/goals/goal-habits-field.tsx#L46) | `{t('habits.createHabit')}` | Plus |
-| [apps/mobile/components/goals/goal-habits-field.tsx:47](../apps/mobile/components/goals/goal-habits-field.tsx#L47) | `{t('common.close')}` | X |
-| [apps/mobile/components/goals/goal-habits-field.tsx:58](../apps/mobile/components/goals/goal-habits-field.tsx#L58) | `{t('common.retry')}` | RefreshCw |
+| [apps/mobile/components/goals/goal-habits-field.tsx:47](../apps/mobile/components/goals/goal-habits-field.tsx#L47) | `{t('habits.createHabit')}` | Plus |
+| [apps/mobile/components/goals/goal-habits-field.tsx:48](../apps/mobile/components/goals/goal-habits-field.tsx#L48) | `{t('common.close')}` | X |
 | [apps/mobile/components/habit-list/empty-state.tsx:75](../apps/mobile/components/habit-list/empty-state.tsx#L75) | `{actionLabel}` | RefreshCw |
-| [apps/mobile/components/habit-list/habit-drill.tsx:164](../apps/mobile/components/habit-list/habit-drill.tsx#L164) | `{t('common.retry')}` | RefreshCw |
+| [apps/mobile/components/habit-list/habit-drill.tsx:171](../apps/mobile/components/habit-list/habit-drill.tsx#L171) | `{t('common.retry')}` | RefreshCw |
 | [apps/mobile/components/habit-list/move-parent-dialog.tsx:79](../apps/mobile/components/habit-list/move-parent-dialog.tsx#L79) | `{t('common.retry')}` | RefreshCw |
 | [apps/mobile/components/habit-list/move-parent-dialog.tsx:158](../apps/mobile/components/habit-list/move-parent-dialog.tsx#L158) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
 | [apps/mobile/components/habits/create-goal-from-habit/goal-deadline-field.tsx:59](../apps/mobile/components/habits/create-goal-from-habit/goal-deadline-field.tsx#L59) | `{t('goals.form.addDeadline')}` | Plus |
 | [apps/mobile/components/habits/create-habit-modal/sub-habit-editor.tsx:95](../apps/mobile/components/habits/create-habit-modal/sub-habit-editor.tsx#L95) | `{t('habits.form.addSubHabit')}` | Plus |
-| [apps/mobile/components/habits/edit-habit-modal.tsx:530](../apps/mobile/components/habits/edit-habit-modal.tsx#L530) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
+| [apps/mobile/components/habits/edit-habit-modal.tsx:536](../apps/mobile/components/habits/edit-habit-modal.tsx#L536) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
 | [apps/mobile/components/habits/goal-linking-field.tsx:67](../apps/mobile/components/habits/goal-linking-field.tsx#L67) | `{t('goals.create')}` | Plus |
 | [apps/mobile/components/habits/goal-linking-field.tsx:68](../apps/mobile/components/habits/goal-linking-field.tsx#L68) | `{t('habits.form.createGoal')}` | Plus |
-| [apps/mobile/components/habits/habit-checklist.tsx:383](../apps/mobile/components/habits/habit-checklist.tsx#L383) | `{t('habits.form.clearChecklist')}` | Trash2 |
-| [apps/mobile/components/habits/habit-create-actions.tsx:33](../apps/mobile/components/habits/habit-create-actions.tsx#L33) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
-| [apps/mobile/components/habits/habit-detail-screen.tsx:120](../apps/mobile/components/habits/habit-detail-screen.tsx#L120) | `{t('habits.detail.retry')}` | RefreshCw |
-| [apps/mobile/components/habits/habit-detail-screen.tsx:207](../apps/mobile/components/habits/habit-detail-screen.tsx#L207) | `{t('common.retry')}` | RefreshCw |
-| [apps/mobile/components/habits/habit-detail-screen.tsx:409](../apps/mobile/components/habits/habit-detail-screen.tsx#L409) | `{t('habits.detail.retry')}` | RefreshCw |
-| [apps/mobile/components/habits/habit-detail-screen.tsx:574](../apps/mobile/components/habits/habit-detail-screen.tsx#L574) | `{t('habits.detail.retry')}` | RefreshCw |
-| [apps/mobile/components/habits/habit-form-fields/reminder-section.tsx:140](../apps/mobile/components/habits/habit-form-fields/reminder-section.tsx#L140) | `{t("habits.form.reminderAdd")}` | Plus |
+| [apps/mobile/components/habits/habit-checklist.tsx:392](../apps/mobile/components/habits/habit-checklist.tsx#L392) | `{t('habits.form.clearChecklist')}` | Trash2 |
+| [apps/mobile/components/habits/habit-create-actions.tsx:36](../apps/mobile/components/habits/habit-create-actions.tsx#L36) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
+| [apps/mobile/components/habits/habit-detail-screen.tsx:125](../apps/mobile/components/habits/habit-detail-screen.tsx#L125) | `{t('habits.detail.retry')}` | RefreshCw |
+| [apps/mobile/components/habits/habit-detail-screen.tsx:212](../apps/mobile/components/habits/habit-detail-screen.tsx#L212) | `{t('common.retry')}` | RefreshCw |
+| [apps/mobile/components/habits/habit-detail-screen.tsx:414](../apps/mobile/components/habits/habit-detail-screen.tsx#L414) | `{t('habits.detail.retry')}` | RefreshCw |
+| [apps/mobile/components/habits/habit-detail-screen.tsx:579](../apps/mobile/components/habits/habit-detail-screen.tsx#L579) | `{t('habits.detail.retry')}` | RefreshCw |
+| [apps/mobile/components/habits/habit-form-fields/reminder-section.tsx:129](../apps/mobile/components/habits/habit-form-fields/reminder-section.tsx#L129) | `{t("habits.form.reminderAdd")}` | Plus |
 | [apps/mobile/components/habits/habit-form-fields/scheduled-reminder-section.tsx:158](../apps/mobile/components/habits/habit-form-fields/scheduled-reminder-section.tsx#L158) | `{t(nested ? 'habits.form.reminderAddTime' : 'habits.form.scheduledReminderAdd')}` | Plus |
 | [apps/mobile/components/habits/habit-form-fields/scheduled-reminder-section.tsx:182](../apps/mobile/components/habits/habit-form-fields/scheduled-reminder-section.tsx#L182) | `{t("common.add")}` | Plus |
 | [apps/mobile/components/habits/habit-form-fields/scheduled-reminder-section.tsx:183](../apps/mobile/components/habits/habit-form-fields/scheduled-reminder-section.tsx#L183) | `{t("common.add")}` | Plus |
-| [apps/mobile/components/habits/habit-form-fields/tag-picker-field.tsx:55](../apps/mobile/components/habits/habit-form-fields/tag-picker-field.tsx#L55) | `{t('habits.form.newTag')}` | Plus |
-| [apps/mobile/components/habits/habit-form-fields/tag-picker-field.tsx:65](../apps/mobile/components/habits/habit-form-fields/tag-picker-field.tsx#L65) | `{t('habits.form.newTag')}` | Plus |
-| [apps/mobile/components/milestone-share/milestone-share-prompt.tsx:156](../apps/mobile/components/milestone-share/milestone-share-prompt.tsx#L156) | `{t('milestoneShare.share')}` | Drawn consequence text (`sm`) |
+| [apps/mobile/components/habits/habit-form-fields/tag-picker-field.tsx:64](../apps/mobile/components/habits/habit-form-fields/tag-picker-field.tsx#L64) | `{t('habits.form.newTag')}` | Plus |
+| [apps/mobile/components/habits/habit-form-fields/tag-picker-field.tsx:74](../apps/mobile/components/habits/habit-form-fields/tag-picker-field.tsx#L74) | `{t('habits.form.newTag')}` | Plus |
+| [apps/mobile/components/milestone-share/milestone-share-prompt.tsx:161](../apps/mobile/components/milestone-share/milestone-share-prompt.tsx#L161) | `{t('milestoneShare.share')}` | Drawn consequence text (`sm`) |
 | [apps/mobile/components/navigation/notification-detail-modal.tsx:87](../apps/mobile/components/navigation/notification-detail-modal.tsx#L87) | `{t('notifications.delete')}` | Drawn consequence text (`sm`) |
-| [apps/mobile/components/navigation/notification-list.tsx:41](../apps/mobile/components/navigation/notification-list.tsx#L41) | `{t('common.retry')}` | RefreshCw |
-| [apps/mobile/components/onboarding/onboarding-flow.tsx:123](../apps/mobile/components/onboarding/onboarding-flow.tsx#L123) | `{t('onboarding.flow.retry')}` | RefreshCw |
+| [apps/mobile/components/navigation/notification-list.tsx:42](../apps/mobile/components/navigation/notification-list.tsx#L42) | `{t('common.retry')}` | RefreshCw |
+| [apps/mobile/components/onboarding/onboarding-flow.tsx:124](../apps/mobile/components/onboarding/onboarding-flow.tsx#L124) | `{t('onboarding.flow.retry')}` | RefreshCw |
 | [apps/mobile/components/onboarding/onboarding-pro-step.tsx:83](../apps/mobile/components/onboarding/onboarding-pro-step.tsx#L83) | `{t('upgrade.billing.retry')}` | RefreshCw |
-| [apps/mobile/components/profile/notion-connection-sheet.tsx:51](../apps/mobile/components/profile/notion-connection-sheet.tsx#L51) | `{t('common.retry')}` | RefreshCw |
+| [apps/mobile/components/profile/notion-connection-sheet.tsx:55](../apps/mobile/components/profile/notion-connection-sheet.tsx#L55) | `{t('common.retry')}` | RefreshCw |
 | [apps/mobile/components/profile/preferences-sections.tsx:117](../apps/mobile/components/profile/preferences-sections.tsx#L117) | `{showMoreLabel}` | ChevronDown |
-| [apps/mobile/components/profile/profile-api-keys.tsx:95](../apps/mobile/components/profile/profile-api-keys.tsx#L95) | `{t('common.retry')}` | RefreshCw |
-| [apps/mobile/components/profile/profile-api-keys.tsx:194](../apps/mobile/components/profile/profile-api-keys.tsx#L194) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
-| [apps/mobile/components/profile/profile-api-keys.tsx:281](../apps/mobile/components/profile/profile-api-keys.tsx#L281) | `{copied ? t('orbitMcp.copied') : t('orbitMcp.copy')}` | Copy |
+| [apps/mobile/components/profile/profile-api-keys.tsx:197](../apps/mobile/components/profile/profile-api-keys.tsx#L197) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
+| [apps/mobile/components/profile/profile-api-keys.tsx:287](../apps/mobile/components/profile/profile-api-keys.tsx#L287) | `{copied ? t('orbitMcp.copied') : t('orbitMcp.copy')}` | Copy |
 | [apps/mobile/components/profile/profile-mcp-guide.tsx:44](../apps/mobile/components/profile/profile-mcp-guide.tsx#L44) | `{copyState === 'copied' ? t('orbitMcp.copied') : t('orbitMcp.copy')}` | Copy |
 | [apps/mobile/components/profile/push-devices-row.tsx:63](../apps/mobile/components/profile/push-devices-row.tsx#L63) | `{t('settings.notifications.openSettings')}` | Settings |
-| [apps/mobile/components/progress/progress-content.tsx:300](../apps/mobile/components/progress/progress-content.tsx#L300) | `{t('progressScreen.retry')}` | RefreshCw |
-| [apps/mobile/components/progress/progress-content.tsx:429](../apps/mobile/components/progress/progress-content.tsx#L429) | `{t('goals.create')}` | Plus |
-| [apps/mobile/components/progress/progress-content.tsx:484](../apps/mobile/components/progress/progress-content.tsx#L484) | `{t('progressScreen.retry')}` | RefreshCw |
-| [apps/mobile/components/progress/progress-content.tsx:638](../apps/mobile/components/progress/progress-content.tsx#L638) | `{t('progressScreen.retry')}` | RefreshCw |
-| [apps/mobile/components/progress/progress-content.tsx:716](../apps/mobile/components/progress/progress-content.tsx#L716) | `{t('progressScreen.retry')}` | RefreshCw |
-| [apps/mobile/components/referral/referral-drawer.tsx:200](../apps/mobile/components/referral/referral-drawer.tsx#L200) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
-| [apps/mobile/components/referral/referral-drawer.tsx:201](../apps/mobile/components/referral/referral-drawer.tsx#L201) | `{t('referral.drawer.share')}` | Drawn consequence text (`sm`) |
-| [apps/mobile/components/search/search-results.tsx:47](../apps/mobile/components/search/search-results.tsx#L47) | `{t(onClearSearch ? 'common.clear' : 'habits.search.create')}` | X |
+| [apps/mobile/components/progress/progress-content.tsx:303](../apps/mobile/components/progress/progress-content.tsx#L303) | `{t('progressScreen.retry')}` | RefreshCw |
+| [apps/mobile/components/progress/progress-content.tsx:439](../apps/mobile/components/progress/progress-content.tsx#L439) | `{t('goals.create')}` | Plus |
+| [apps/mobile/components/progress/progress-content.tsx:494](../apps/mobile/components/progress/progress-content.tsx#L494) | `{t('progressScreen.retry')}` | RefreshCw |
+| [apps/mobile/components/progress/progress-content.tsx:623](../apps/mobile/components/progress/progress-content.tsx#L623) | `{t('progressScreen.retry')}` | RefreshCw |
+| [apps/mobile/components/progress/progress-content.tsx:693](../apps/mobile/components/progress/progress-content.tsx#L693) | `{t('progressScreen.retry')}` | RefreshCw |
+| [apps/mobile/components/referral/referral-drawer.tsx:201](../apps/mobile/components/referral/referral-drawer.tsx#L201) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
+| [apps/mobile/components/referral/referral-drawer.tsx:202](../apps/mobile/components/referral/referral-drawer.tsx#L202) | `{t('referral.drawer.share')}` | Drawn consequence text (`sm`) |
+| [apps/mobile/components/search/search-results.tsx:48](../apps/mobile/components/search/search-results.tsx#L48) | `{t(onClearSearch ? 'common.clear' : 'habits.search.create')}` | X |
 | [apps/mobile/components/share/share-card-entry-button.tsx:19](../apps/mobile/components/share/share-card-entry-button.tsx#L19) | `{t('shareCard.entry')}` | Share2 |
 | [apps/mobile/components/share/share-card-sheet.tsx:55](../apps/mobile/components/share/share-card-sheet.tsx#L55) | `{t('shareCard.download')}` | Download |
 | [apps/mobile/components/share/share-card-sheet.tsx:56](../apps/mobile/components/share/share-card-sheet.tsx#L56) | `{t('shareCard.share')}` | Share2 |
 | [apps/mobile/components/share/share-card-sheet.tsx:69](../apps/mobile/components/share/share-card-sheet.tsx#L69) | `{t('common.retry')}` | RefreshCw |
 | [apps/mobile/components/ui/app-toast.tsx:245](../apps/mobile/components/ui/app-toast.tsx#L245) | `{props.actionLabel}` | RefreshCw |
 | [apps/mobile/components/ui/block-copy-control.tsx:38](../apps/mobile/components/ui/block-copy-control.tsx#L38) | `{label}` | Copy |
-| [apps/mobile/components/ui/block-frame.tsx:189](../apps/mobile/components/ui/block-frame.tsx#L189) | `{frameProps.refreshLabel ?? t('blockFrame.refresh')}` | RefreshCw |
+| [apps/mobile/components/ui/block-frame.tsx:230](../apps/mobile/components/ui/block-frame.tsx#L230) | `{frameProps.refreshLabel ?? t('blockFrame.refresh')}` | RefreshCw |
 | [apps/mobile/components/ui/expiry-warning.tsx:193](../apps/mobile/components/ui/expiry-warning.tsx#L193) | `{t('auth.refresh')}` | RefreshCw |
+| [apps/mobile/components/ui/inline-load-error.tsx:24](../apps/mobile/components/ui/inline-load-error.tsx#L24) | `{t('common.retry')}` | RefreshCw |
 | [apps/mobile/components/ui/scroll-to-top-button.tsx:13](../apps/mobile/components/ui/scroll-to-top-button.tsx#L13) | `{t('common.backToTop')}` | ArrowUp |
 | [apps/mobile/components/upgrade/plan-selection.tsx:182](../apps/mobile/components/upgrade/plan-selection.tsx#L182) | `{t('upgrade.plans.retry')}` | RefreshCw |
 | [apps/mobile/components/upgrade/provider-handoff.tsx:54](../apps/mobile/components/upgrade/provider-handoff.tsx#L54) | `{t('upgrade.billing.retry')}` | RefreshCw |
 | [apps/mobile/components/wrapped/wrapped-cover.tsx:99](../apps/mobile/components/wrapped/wrapped-cover.tsx#L99) | `{t('wrapped.retry')}` | RefreshCw |
 | [apps/mobile/components/wrapped/wrapped-slide.tsx:121](../apps/mobile/components/wrapped/wrapped-slide.tsx#L121) | `{t('wrapped.retry')}` | RefreshCw |
 | [apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx:111](../apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx#L111) | `{showMoreLabel}` | ChevronDown |
-| [apps/web/app/(app)/profile/_components/delete-account-modal.tsx:123](../apps/web/app/(app)/profile/_components/delete-account-modal.tsx#L123) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
-| [apps/web/app/(app)/profile/_components/edit-name-sheet.tsx:87](../apps/web/app/(app)/profile/_components/edit-name-sheet.tsx#L87) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
-| [apps/web/app/(app)/profile/_components/fresh-start-modal.tsx:255](../apps/web/app/(app)/profile/_components/fresh-start-modal.tsx#L255) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
-| [apps/web/app/(app)/profile/_components/fresh-start-modal.tsx:281](../apps/web/app/(app)/profile/_components/fresh-start-modal.tsx#L281) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
+| [apps/web/app/(app)/profile/_components/delete-account-modal.tsx:129](../apps/web/app/(app)/profile/_components/delete-account-modal.tsx#L129) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
+| [apps/web/app/(app)/profile/_components/edit-name-sheet.tsx:95](../apps/web/app/(app)/profile/_components/edit-name-sheet.tsx#L95) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
+| [apps/web/app/(app)/profile/_components/fresh-start-modal.tsx:258](../apps/web/app/(app)/profile/_components/fresh-start-modal.tsx#L258) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
+| [apps/web/app/(app)/profile/_components/fresh-start-modal.tsx:284](../apps/web/app/(app)/profile/_components/fresh-start-modal.tsx#L284) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
 | [apps/web/app/(app)/profile/_components/profile-astra-content.tsx:79](../apps/web/app/(app)/profile/_components/profile-astra-content.tsx#L79) | `{t('upgrade.billing.retry')}` | RefreshCw |
 | [apps/web/app/(app)/profile/_components/profile-subscreen.tsx:35](../apps/web/app/(app)/profile/_components/profile-subscreen.tsx#L35) | `{t('common.retry')}` | RefreshCw |
-| [apps/web/app/(app)/progress/_components/progress-content.tsx:358](../apps/web/app/(app)/progress/_components/progress-content.tsx#L358) | `{t('progressScreen.retry')}` | RefreshCw |
+| [apps/web/app/(app)/progress/_components/progress-content.tsx:361](../apps/web/app/(app)/progress/_components/progress-content.tsx#L361) | `{t('progressScreen.retry')}` | RefreshCw |
 | [apps/web/app/(app)/progress/_components/progress-content.tsx:498](../apps/web/app/(app)/progress/_components/progress-content.tsx#L498) | `{t('goals.create')}` | Plus |
-| [apps/web/app/(app)/progress/_components/progress-content.tsx:555](../apps/web/app/(app)/progress/_components/progress-content.tsx#L555) | `{t('progressScreen.retry')}` | RefreshCw |
-| [apps/web/app/(app)/progress/_components/progress-content.tsx:682](../apps/web/app/(app)/progress/_components/progress-content.tsx#L682) | `{t('progressScreen.retry')}` | RefreshCw |
-| [apps/web/app/(app)/progress/_components/progress-content.tsx:715](../apps/web/app/(app)/progress/_components/progress-content.tsx#L715) | `{t('progressScreen.retry')}` | RefreshCw |
-| [apps/web/app/(app)/search/page.tsx:64](../apps/web/app/(app)/search/page.tsx#L64) | `{t('common.retry')}` | RefreshCw |
-| [apps/web/app/(app)/search/page.tsx:69](../apps/web/app/(app)/search/page.tsx#L69) | `{t('habits.search.previous')}` | ChevronLeft |
-| [apps/web/app/(app)/search/page.tsx:70](../apps/web/app/(app)/search/page.tsx#L70) | `{t('habits.search.next')}` | ChevronRight |
-| [apps/web/app/(app)/today-page-client.tsx:96](../apps/web/app/(app)/today-page-client.tsx#L96) | `{t('common.retry')}` | RefreshCw |
-| [apps/web/app/(app)/upgrade/page.tsx:189](../apps/web/app/(app)/upgrade/page.tsx#L189) | `{t('upgrade.billing.retry')}` | RefreshCw |
+| [apps/web/app/(app)/progress/_components/progress-content.tsx:553](../apps/web/app/(app)/progress/_components/progress-content.tsx#L553) | `{t('progressScreen.retry')}` | RefreshCw |
+| [apps/web/app/(app)/progress/_components/progress-content.tsx:647](../apps/web/app/(app)/progress/_components/progress-content.tsx#L647) | `{t('progressScreen.retry')}` | RefreshCw |
+| [apps/web/app/(app)/progress/_components/progress-content.tsx:680](../apps/web/app/(app)/progress/_components/progress-content.tsx#L680) | `{t('progressScreen.retry')}` | RefreshCw |
+| [apps/web/app/(app)/search/page.tsx:70](../apps/web/app/(app)/search/page.tsx#L70) | `{t('habits.search.previous')}` | ChevronLeft |
+| [apps/web/app/(app)/search/page.tsx:71](../apps/web/app/(app)/search/page.tsx#L71) | `{t('habits.search.next')}` | ChevronRight |
+| [apps/web/app/(app)/today-page-client.tsx:100](../apps/web/app/(app)/today-page-client.tsx#L100) | `{t('common.retry')}` | RefreshCw |
+| [apps/web/app/(app)/upgrade/page.tsx:194](../apps/web/app/(app)/upgrade/page.tsx#L194) | `{t('upgrade.billing.retry')}` | RefreshCw |
 | [apps/web/app/(app)/wrapped/_components/wrapped-cover.tsx:89](../apps/web/app/(app)/wrapped/_components/wrapped-cover.tsx#L89) | `{t('wrapped.retry')}` | RefreshCw |
 | [apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx:125](../apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx#L125) | `{t('wrapped.retry')}` | RefreshCw |
 | [apps/web/app/(auth)/error.tsx:14](../apps/web/app/(auth)/error.tsx#L14) | `{t('common.retry')}` | RefreshCw |
-| [apps/web/components/auth/turnstile-widget.tsx:160](../apps/web/components/auth/turnstile-widget.tsx#L160) | `{t('auth.turnstileRetry')}` | RefreshCw |
+| [apps/web/components/auth/turnstile-widget.tsx:181](../apps/web/components/auth/turnstile-widget.tsx#L181) | `{t('auth.turnstileRetry')}` | RefreshCw |
 | [apps/web/components/calendar-sync/calendar-import-content.tsx:390](../apps/web/components/calendar-sync/calendar-import-content.tsx#L390) | `{t('common.goBack')}` | ChevronLeft |
 | [apps/web/components/calendar-sync/calendar-import-content.tsx:437](../apps/web/components/calendar-sync/calendar-import-content.tsx#L437) | `{t('calendar.showMore')}` | ChevronDown |
 | [apps/web/components/calendar-sync/calendar-import-content.tsx:555](../apps/web/components/calendar-sync/calendar-import-content.tsx#L555) | `{t('common.goBack')}` | ChevronLeft |
@@ -172,80 +168,78 @@ Drawn references: [Astra conversation](canvas/Orbit%20Astra%20Conversation.dc.ht
 | [apps/web/components/calendar/calendar-entry-details.tsx:40](../apps/web/components/calendar/calendar-entry-details.tsx#L40) | `{t('common.previous')}` | ChevronLeft |
 | [apps/web/components/calendar/calendar-entry-details.tsx:41](../apps/web/components/calendar/calendar-entry-details.tsx#L41) | `{t('common.next')}` | ChevronRight |
 | [apps/web/components/calendar/calendar-load-error.tsx:30](../apps/web/components/calendar/calendar-load-error.tsx#L30) | `{t('common.retry')}` | RefreshCw |
-| [apps/web/components/chat/account-rows-card.tsx:23](../apps/web/components/chat/account-rows-card.tsx#L23) | `{t(copied ? 'chat.account.copied' : 'chat.account.copy')}` | Copy |
-| [apps/web/components/chat/account-rows-card.tsx:100](../apps/web/components/chat/account-rows-card.tsx#L100) | `{t(canShare ? 'chat.account.share' : 'referral.drawer.copyLink')}` | Share2 |
-| [apps/web/components/chat/breakdown-suggestion.tsx:64](../apps/web/components/chat/breakdown-suggestion.tsx#L64) | `{t('chat.batch.retry', { count: card.failedIds.length })}` | RefreshCw |
-| [apps/web/components/chat/breakdown-suggestion.tsx:66](../apps/web/components/chat/breakdown-suggestion.tsx#L66) | `{t('habits.breakdown.addHabit')}` | Plus |
-| [apps/web/components/chat/conversation.tsx:40](../apps/web/components/chat/conversation.tsx#L40) | `{t('common.retry')}` | RefreshCw |
-| [apps/web/components/chat/day-summary-card.tsx:78](../apps/web/components/chat/day-summary-card.tsx#L78) | `{t('chat.recordList.more')}` | ChevronDown |
+| [apps/web/components/chat/account-rows-card.tsx:21](../apps/web/components/chat/account-rows-card.tsx#L21) | `{t(copied ? 'chat.account.copied' : 'chat.account.copy')}` | Copy |
+| [apps/web/components/chat/account-rows-card.tsx:97](../apps/web/components/chat/account-rows-card.tsx#L97) | `{t(canShare ? 'chat.account.share' : 'referral.drawer.copyLink')}` | Share2 |
+| [apps/web/components/chat/breakdown-suggestion.tsx:63](../apps/web/components/chat/breakdown-suggestion.tsx#L63) | `{t('chat.batch.retry', { count: card.failedIds.length })}` | RefreshCw |
+| [apps/web/components/chat/breakdown-suggestion.tsx:65](../apps/web/components/chat/breakdown-suggestion.tsx#L65) | `{t('habits.breakdown.addHabit')}` | Plus |
+| [apps/web/components/chat/conversation.tsx:50](../apps/web/components/chat/conversation.tsx#L50) | `{t('common.retry')}` | RefreshCw |
+| [apps/web/components/chat/conversation.tsx:132](../apps/web/components/chat/conversation.tsx#L132) | `{t('common.retry')}` | RefreshCw |
+| [apps/web/components/chat/day-summary-card.tsx:69](../apps/web/components/chat/day-summary-card.tsx#L69) | `{t('chat.recordList.more')}` | ChevronDown |
 | [apps/web/components/chat/habit-list-card.tsx:57](../apps/web/components/chat/habit-list-card.tsx#L57) | `{t('chat.habitList.more')}` | ChevronDown |
-| [apps/web/components/chat/habit-ranking-card.tsx:41](../apps/web/components/chat/habit-ranking-card.tsx#L41) | `{t('more')}` | ChevronDown |
-| [apps/web/components/chat/habit-ranking-card.tsx:42](../apps/web/components/chat/habit-ranking-card.tsx#L42) | `{t('refresh')}` | RefreshCw |
+| [apps/web/components/chat/habit-ranking-card.tsx:34](../apps/web/components/chat/habit-ranking-card.tsx#L34) | `{t('more')}` | ChevronDown |
+| [apps/web/components/chat/habit-ranking-card.tsx:33](../apps/web/components/chat/habit-ranking-card.tsx#L33) | `{t('refresh')}` | RefreshCw |
 | [apps/web/components/chat/pending-operation-card.tsx:81](../apps/web/components/chat/pending-operation-card.tsx#L81) | `{labels.addListRow}` | Plus |
 | [apps/web/components/chat/pending-operation-card.tsx:99](../apps/web/components/chat/pending-operation-card.tsx#L99) | `{labels.cancel}` | Drawn ghost text (`sm`) |
-| [apps/web/components/chat/pending-operation-card.tsx:168](../apps/web/components/chat/pending-operation-card.tsx#L168) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
+| [apps/web/components/chat/pending-operation-card.tsx:200](../apps/web/components/chat/pending-operation-card.tsx#L200) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
 | [apps/web/components/chat/pending-operation-card.tsx:218](../apps/web/components/chat/pending-operation-card.tsx#L218) | `{props.accessibleName ?? label}` | RefreshCw |
-| [apps/web/components/chat/period-insight-card.tsx:68](../apps/web/components/chat/period-insight-card.tsx#L68) | `{t(expanded ? 'chat.readBlock.less' : 'chat.habitList.more')}` | ChevronsUp |
+| [apps/web/components/chat/period-insight-card.tsx:64](../apps/web/components/chat/period-insight-card.tsx#L64) | `{t(expanded ? 'chat.readBlock.less' : 'chat.habitList.more')}` | ChevronsUp |
 | [apps/web/components/chat/prompt-library.tsx:69](../apps/web/components/chat/prompt-library.tsx#L69) | `{t('chat.templates.clearSearch')}` | X |
 | [apps/web/components/chat/prompt-library.tsx:72](../apps/web/components/chat/prompt-library.tsx#L72) | `{t('chat.templates.previous')}` | ChevronLeft |
 | [apps/web/components/chat/prompt-library.tsx:73](../apps/web/components/chat/prompt-library.tsx#L73) | `{t('chat.templates.more')}` | ChevronRight |
-| [apps/web/components/chat/read-block-frame.tsx:51](../apps/web/components/chat/read-block-frame.tsx#L51) | `{t('chat.recordList.more')}` | ChevronDown |
-| [apps/web/components/chat/read-block-frame.tsx:52](../apps/web/components/chat/read-block-frame.tsx#L52) | `{t('blockFrame.refresh')}` | RefreshCw |
-| [apps/web/components/chat/record-list-card.tsx:95](../apps/web/components/chat/record-list-card.tsx#L95) | `{t('chat.recordList.clearFilter')}` | X |
-| [apps/web/components/chat/record-list-card.tsx:96](../apps/web/components/chat/record-list-card.tsx#L96) | `{t('chat.recordList.more')}` | ChevronDown |
-| [apps/web/components/command/command-menu.tsx:97](../apps/web/components/command/command-menu.tsx#L97) | `{t('common.retry')}` | RefreshCw |
+| [apps/web/components/chat/read-block-frame.tsx:66](../apps/web/components/chat/read-block-frame.tsx#L66) | `{t('chat.recordList.more')}` | ChevronDown |
+| [apps/web/components/chat/read-block-frame.tsx:65](../apps/web/components/chat/read-block-frame.tsx#L65) | `{t('blockFrame.refresh')}` | RefreshCw |
+| [apps/web/components/chat/record-list-card.tsx:97](../apps/web/components/chat/record-list-card.tsx#L97) | `{t('chat.recordList.clearFilter')}` | X |
+| [apps/web/components/chat/record-list-card.tsx:98](../apps/web/components/chat/record-list-card.tsx#L98) | `{t('chat.recordList.more')}` | ChevronDown |
 | [apps/web/components/command/command-menu.tsx:102](../apps/web/components/command/command-menu.tsx#L102) | `{t('habits.search.previous')}` | ChevronLeft |
 | [apps/web/components/command/command-menu.tsx:103](../apps/web/components/command/command-menu.tsx#L103) | `{t('habits.search.next')}` | ChevronRight |
-| [apps/web/components/goals/create-goal-sheet.tsx:49](../apps/web/components/goals/create-goal-sheet.tsx#L49) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
+| [apps/web/components/goals/create-goal-sheet.tsx:50](../apps/web/components/goals/create-goal-sheet.tsx#L50) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
 | [apps/web/components/goals/edit-goal-modal.tsx:178](../apps/web/components/goals/edit-goal-modal.tsx#L178) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
 | [apps/web/components/goals/edit-goal-modal/edit-goal-deadline-field.tsx:61](../apps/web/components/goals/edit-goal-modal/edit-goal-deadline-field.tsx#L61) | `{t('goals.form.addDeadline')}` | Plus |
-| [apps/web/components/goals/goal-detail-drawer/goal-load-error.tsx:28](../apps/web/components/goals/goal-detail-drawer/goal-load-error.tsx#L28) | `{t('common.retry')}` | RefreshCw |
 | [apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx:44](../apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx#L44) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
-| [apps/web/components/goals/goal-habits-field.tsx:35](../apps/web/components/goals/goal-habits-field.tsx#L35) | `{t('common.retry')}` | RefreshCw |
-| [apps/web/components/goals/goal-habits-field.tsx:35](../apps/web/components/goals/goal-habits-field.tsx#L35) | `{t('habits.createHabit')}` | Plus |
-| [apps/web/components/goals/goal-habits-field.tsx:35](../apps/web/components/goals/goal-habits-field.tsx#L35) | `{t('common.close')}` | X |
+| [apps/web/components/goals/goal-habits-field.tsx:36](../apps/web/components/goals/goal-habits-field.tsx#L36) | `{t('habits.createHabit')}` | Plus |
+| [apps/web/components/goals/goal-habits-field.tsx:36](../apps/web/components/goals/goal-habits-field.tsx#L36) | `{t('common.close')}` | X |
 | [apps/web/components/habits/create-goal-from-habit/goal-deadline-field.tsx:53](../apps/web/components/habits/create-goal-from-habit/goal-deadline-field.tsx#L53) | `{t('goals.form.addDeadline')}` | Plus |
-| [apps/web/components/habits/create-habit-modal/sub-habit-editor.tsx:53](../apps/web/components/habits/create-habit-modal/sub-habit-editor.tsx#L53) | `{t('habits.form.addSubHabit')}` | Plus |
-| [apps/web/components/habits/edit-habit-modal.tsx:492](../apps/web/components/habits/edit-habit-modal.tsx#L492) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
+| [apps/web/components/habits/create-habit-modal/sub-habit-editor.tsx:56](../apps/web/components/habits/create-habit-modal/sub-habit-editor.tsx#L56) | `{t('habits.form.addSubHabit')}` | Plus |
+| [apps/web/components/habits/edit-habit-modal.tsx:498](../apps/web/components/habits/edit-habit-modal.tsx#L498) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
 | [apps/web/components/habits/goal-linking-field.tsx:88](../apps/web/components/habits/goal-linking-field.tsx#L88) | `{t('goals.create')}` | Plus |
 | [apps/web/components/habits/goal-linking-field.tsx:92](../apps/web/components/habits/goal-linking-field.tsx#L92) | `{t('habits.form.createGoal')}` | Plus |
-| [apps/web/components/habits/habit-checklist.tsx:232](../apps/web/components/habits/habit-checklist.tsx#L232) | `{t('habits.form.clearChecklist')}` | Trash2 |
-| [apps/web/components/habits/habit-create-actions.tsx:33](../apps/web/components/habits/habit-create-actions.tsx#L33) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
-| [apps/web/components/habits/habit-detail-screen.tsx:144](../apps/web/components/habits/habit-detail-screen.tsx#L144) | `{t('habits.detail.retry')}` | RefreshCw |
-| [apps/web/components/habits/habit-detail-screen.tsx:464](../apps/web/components/habits/habit-detail-screen.tsx#L464) | `{t('habits.detail.retry')}` | RefreshCw |
-| [apps/web/components/habits/habit-detail-screen.tsx:628](../apps/web/components/habits/habit-detail-screen.tsx#L628) | `{t('habits.detail.retry')}` | RefreshCw |
-| [apps/web/components/habits/habit-form-fields/reminder-section.tsx:126](../apps/web/components/habits/habit-form-fields/reminder-section.tsx#L126) | `{t('habits.form.reminderAdd')}` | Plus |
+| [apps/web/components/habits/habit-checklist.tsx:241](../apps/web/components/habits/habit-checklist.tsx#L241) | `{t('habits.form.clearChecklist')}` | Trash2 |
+| [apps/web/components/habits/habit-create-actions.tsx:34](../apps/web/components/habits/habit-create-actions.tsx#L34) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
+| [apps/web/components/habits/habit-detail-screen.tsx:150](../apps/web/components/habits/habit-detail-screen.tsx#L150) | `{t('habits.detail.retry')}` | RefreshCw |
+| [apps/web/components/habits/habit-detail-screen.tsx:470](../apps/web/components/habits/habit-detail-screen.tsx#L470) | `{t('habits.detail.retry')}` | RefreshCw |
+| [apps/web/components/habits/habit-detail-screen.tsx:634](../apps/web/components/habits/habit-detail-screen.tsx#L634) | `{t('habits.detail.retry')}` | RefreshCw |
+| [apps/web/components/habits/habit-form-fields/reminder-section.tsx:118](../apps/web/components/habits/habit-form-fields/reminder-section.tsx#L118) | `{t('habits.form.reminderAdd')}` | Plus |
 | [apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx:116](../apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx#L116) | `{t(nested ? 'habits.form.reminderAddTime' : 'habits.form.scheduledReminderAdd')}` | Plus |
 | [apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx:138](../apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx#L138) | `{t('common.add')}` | Plus |
-| [apps/web/components/habits/habit-form-fields/tag-picker-field.tsx:71](../apps/web/components/habits/habit-form-fields/tag-picker-field.tsx#L71) | `{t('habits.form.newTag')}` | Plus |
-| [apps/web/components/habits/habit-form-fields/tag-picker-field.tsx:74](../apps/web/components/habits/habit-form-fields/tag-picker-field.tsx#L74) | `{t('habits.form.newTag')}` | Plus |
+| [apps/web/components/habits/habit-form-fields/tag-picker-field.tsx:75](../apps/web/components/habits/habit-form-fields/tag-picker-field.tsx#L75) | `{t('habits.form.newTag')}` | Plus |
+| [apps/web/components/habits/habit-form-fields/tag-picker-field.tsx:78](../apps/web/components/habits/habit-form-fields/tag-picker-field.tsx#L78) | `{t('habits.form.newTag')}` | Plus |
 | [apps/web/components/habits/habit-list/empty-state.tsx:123](../apps/web/components/habits/habit-list/empty-state.tsx#L123) | `{actionLabel}` | RefreshCw |
-| [apps/web/components/habits/habit-list/habit-drill.tsx:141](../apps/web/components/habits/habit-list/habit-drill.tsx#L141) | `{t('common.retry')}` | RefreshCw |
-| [apps/web/components/habits/habit-list/move-parent-overlay.tsx:72](../apps/web/components/habits/habit-list/move-parent-overlay.tsx#L72) | `{t('common.retry')}` | RefreshCw |
-| [apps/web/components/habits/habit-list/move-parent-overlay.tsx:138](../apps/web/components/habits/habit-list/move-parent-overlay.tsx#L138) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
-| [apps/web/components/milestone-share/milestone-share-prompt.tsx:170](../apps/web/components/milestone-share/milestone-share-prompt.tsx#L170) | `{t('milestoneShare.download')}` | Drawn consequence text (`sm`) |
-| [apps/web/components/milestone-share/milestone-share-prompt.tsx:172](../apps/web/components/milestone-share/milestone-share-prompt.tsx#L172) | `{t('milestoneShare.share')}` | Drawn consequence text (`sm`) |
+| [apps/web/components/habits/habit-list/habit-drill.tsx:140](../apps/web/components/habits/habit-list/habit-drill.tsx#L140) | `{t('common.retry')}` | RefreshCw |
+| [apps/web/components/habits/habit-list/move-parent-overlay.tsx:62](../apps/web/components/habits/habit-list/move-parent-overlay.tsx#L62) | `{t('common.retry')}` | RefreshCw |
+| [apps/web/components/habits/habit-list/move-parent-overlay.tsx:128](../apps/web/components/habits/habit-list/move-parent-overlay.tsx#L128) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
+| [apps/web/components/milestone-share/milestone-share-prompt.tsx:169](../apps/web/components/milestone-share/milestone-share-prompt.tsx#L169) | `{t('milestoneShare.download')}` | Drawn consequence text (`sm`) |
+| [apps/web/components/milestone-share/milestone-share-prompt.tsx:171](../apps/web/components/milestone-share/milestone-share-prompt.tsx#L171) | `{t('milestoneShare.share')}` | Drawn consequence text (`sm`) |
 | [apps/web/components/navigation/notification-detail-modal.tsx:77](../apps/web/components/navigation/notification-detail-modal.tsx#L77) | `{t('notifications.delete')}` | Drawn consequence text (`sm`) |
-| [apps/web/components/navigation/notification-list.tsx:36](../apps/web/components/navigation/notification-list.tsx#L36) | `{t('common.retry')}` | RefreshCw |
-| [apps/web/components/onboarding/onboarding-flow.tsx:147](../apps/web/components/onboarding/onboarding-flow.tsx#L147) | `{t('retry')}` | RefreshCw |
+| [apps/web/components/navigation/notification-list.tsx:37](../apps/web/components/navigation/notification-list.tsx#L37) | `{t('common.retry')}` | RefreshCw |
+| [apps/web/components/onboarding/onboarding-flow.tsx:150](../apps/web/components/onboarding/onboarding-flow.tsx#L150) | `{t('retry')}` | RefreshCw |
 | [apps/web/components/onboarding/onboarding-pro-step.tsx:70](../apps/web/components/onboarding/onboarding-pro-step.tsx#L70) | `{t('upgrade.billing.retry')}` | RefreshCw |
-| [apps/web/components/profile/notion-connection-sheet.tsx:46](../apps/web/components/profile/notion-connection-sheet.tsx#L46) | `{t('common.retry')}` | RefreshCw |
-| [apps/web/components/profile/profile-api-keys.tsx:89](../apps/web/components/profile/profile-api-keys.tsx#L89) | `{t('common.retry')}` | RefreshCw |
-| [apps/web/components/profile/profile-api-keys.tsx:187](../apps/web/components/profile/profile-api-keys.tsx#L187) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
-| [apps/web/components/profile/profile-api-keys.tsx:275](../apps/web/components/profile/profile-api-keys.tsx#L275) | `{copied ? t('orbitMcp.copied') : t('orbitMcp.copy')}` | Copy |
+| [apps/web/components/profile/notion-connection-sheet.tsx:50](../apps/web/components/profile/notion-connection-sheet.tsx#L50) | `{t('common.retry')}` | RefreshCw |
+| [apps/web/components/profile/profile-api-keys.tsx:189](../apps/web/components/profile/profile-api-keys.tsx#L189) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
+| [apps/web/components/profile/profile-api-keys.tsx:280](../apps/web/components/profile/profile-api-keys.tsx#L280) | `{copied ? t('orbitMcp.copied') : t('orbitMcp.copy')}` | Copy |
 | [apps/web/components/profile/profile-mcp-guide.tsx:39](../apps/web/components/profile/profile-mcp-guide.tsx#L39) | `{copyState === 'copied' ? t('orbitMcp.copied') : t('orbitMcp.copy')}` | Copy |
 | [apps/web/components/referral/referral-drawer.tsx:179](../apps/web/components/referral/referral-drawer.tsx#L179) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
 | [apps/web/components/referral/referral-drawer.tsx:180](../apps/web/components/referral/referral-drawer.tsx#L180) | `{t('referral.drawer.share')}` | Drawn consequence text (`sm`) |
-| [apps/web/components/search/search-results.tsx:31](../apps/web/components/search/search-results.tsx#L31) | `{t(onClearSearch ? 'common.clear' : 'habits.search.create')}` | X |
+| [apps/web/components/search/search-results.tsx:32](../apps/web/components/search/search-results.tsx#L32) | `{t(onClearSearch ? 'common.clear' : 'habits.search.create')}` | X |
 | [apps/web/components/share/share-card-entry-button.tsx:18](../apps/web/components/share/share-card-entry-button.tsx#L18) | `{t('shareCard.entry')}` | Share2 |
 | [apps/web/components/share/share-card-sheet.tsx:45](../apps/web/components/share/share-card-sheet.tsx#L45) | `{t('shareCard.download')}` | Download |
 | [apps/web/components/share/share-card-sheet.tsx:46](../apps/web/components/share/share-card-sheet.tsx#L46) | `{t('shareCard.share')}` | Share2 |
 | [apps/web/components/share/share-card-sheet.tsx:59](../apps/web/components/share/share-card-sheet.tsx#L59) | `{t('common.retry')}` | RefreshCw |
 | [apps/web/components/ui/block-copy-control.tsx:33](../apps/web/components/ui/block-copy-control.tsx#L33) | `{t(status === 'copied' ? 'copied' : 'copy')}` | Copy |
-| [apps/web/components/ui/block-frame.tsx:147](../apps/web/components/ui/block-frame.tsx#L147) | `{frameProps.refreshLabel ?? t('refresh')}` | RefreshCw |
+| [apps/web/components/ui/block-frame.tsx:166](../apps/web/components/ui/block-frame.tsx#L166) | `{frameProps.refreshLabel ?? t('refresh')}` | RefreshCw |
+| [apps/web/components/ui/inline-load-error.tsx:21](../apps/web/components/ui/inline-load-error.tsx#L21) | `{t('common.retry')}` | RefreshCw |
 | [apps/web/components/ui/scroll-to-top-button.tsx:26](../apps/web/components/ui/scroll-to-top-button.tsx#L26) | `{t('common.backToTop')}` | ArrowUp |
 | [apps/web/components/ui/toast.tsx:96](../apps/web/components/ui/toast.tsx#L96) | `{props.actionLabel}` | RefreshCw |
-| [apps/web/components/ui/update-available-banner.tsx:38](../apps/web/components/ui/update-available-banner.tsx#L38) | `{reloadReason ? t('errors.api.reload') : t('forceUpdate.refresh')}` | RefreshCw |
+| [apps/web/components/ui/update-available-banner.tsx:47](../apps/web/components/ui/update-available-banner.tsx#L47) | `{reloadReason ? t('errors.api.reload') : t('forceUpdate.refresh')}` | RefreshCw |
 | [apps/web/components/upgrade/plan-selection.tsx:153](../apps/web/components/upgrade/plan-selection.tsx#L153) | `{t('upgrade.plans.retry')}` | RefreshCw |
 | [apps/web/components/upgrade/provider-handoff.tsx:38](../apps/web/components/upgrade/provider-handoff.tsx#L38) | `{t('upgrade.billing.retry')}` | RefreshCw |
 
@@ -354,10 +348,11 @@ gutter. The load error suites check the alert role, the message colour and size,
 detail message start within 0.5px of its column. The primitive suites check the role and the text
 style on each platform.
 
-On Android, React Native maps the alert role to a role description only, so TalkBack does not
-speak it. The Android primitive also sets a polite live region on the message, as `ErrorState`
-does, so TalkBack announces the message when it mounts. The Android primitive suite checks the
-live region.
+On Android, React Native maps the alert role to a role description only. The role alone does not
+make TalkBack speak. The Android primitive also sets a polite live region on the message, as
+`ErrorState` does, so the alert text mounts inside a polite live region. The Android primitive
+suite checks the live region prop. A TalkBack pass on a device confirms that the message is
+announced when it mounts. No device result is recorded here.
 
 The Astra habit suggestion errors do not use the primitive. Each is a polite status region with a
 disabled retry, not an alert load error. Each puts its message and its retry in one column inside

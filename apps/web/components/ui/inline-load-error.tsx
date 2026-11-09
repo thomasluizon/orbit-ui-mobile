@@ -10,7 +10,7 @@ export function InlineLoadError({ message, onRetry }: Readonly<InlineLoadErrorPr
   const t = useTranslations()
 
   return (
-    <div className="flex flex-col items-start" data-inline-load-error>
+    <div className="flex flex-col items-start">
       <p
         role="alert"
         className="text-sm leading-5 text-[var(--status-bad-text)]"

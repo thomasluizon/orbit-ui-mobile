@@ -13,7 +13,7 @@ export function InlineLoadError({ message, onRetry }: Readonly<InlineLoadErrorPr
   const tokens = createTokensV2(currentScheme, currentTheme)
 
   return (
-    <View style={styles.container} testID="inline-load-error">
+    <View style={styles.container}>
       <Text
         accessibilityLiveRegion="polite"
         accessibilityRole="alert"
