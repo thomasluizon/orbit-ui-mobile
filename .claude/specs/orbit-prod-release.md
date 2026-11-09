@@ -4,7 +4,7 @@ History: `## Batch history`, every earlier `## Current state` paragraph, the red
 
 ## What this is
 
-The goal is a production release with an empty ticket board, except `#33`. The move to Render and Amazon SES (Batch M) is done, and the redesign is live in production on `main` by an executed written approval: never request another redesign approval. Everything ships now, with no before-launch or after-launch split: Android, web, the landing page, desktop for Mac and Windows, iOS, and Astra with every prompt working.
+The goal is a production release with an empty ticket board, except `#33` and the `#2074` measurement, which runs on its own date and never holds the launch. The move to Render and Amazon SES (Batch M) is done, and the redesign is live in production on `main` by an executed written approval: never request another redesign approval. Everything ships now, with no before-launch or after-launch split: Android, web, the landing page, desktop for Mac and Windows, iOS, and Astra with every prompt working.
 
 ## Standing rules
 
@@ -59,11 +59,10 @@ Reconcile the open board with these batches before each handoff. Place each new 
 
 ### Batch T: the harness token diet (owner order, priority 1)
 
-In-flight work finishes as normal. Then no new board ticket is admitted until every diet ticket below is merged. Brain ADR D149 holds the measurements and the account plan.
+In-flight work finishes as normal. Then no new board ticket is admitted until every diet ticket below is merged; `#2074` is merged and its measurement does not hold admission. Brain ADR D149 holds the measurements and the account plan.
 
-- `#2065` Lower the coordinator relay threshold to 200k tokens. Next: `ui#2390` head `40a20e256` answers its one Pullfrog thread (every relay-session case reads the shipped threshold); CI green, review requested at that head: merge on approval.
 - `#2071` Move the Pullfrog token in all three repositories to the main account, before 4 December 2026. Next: Chrome holds the main org claude.ai session, but the Claude Code OAuth page redirects to `claude.ai/login?reauth=1`, so the owner signs in fresh; then run `token-swap.py` from the scratchpad (it reads the OSC 8 link target), which pipes the token to `gh secret set CLAUDE_CODE_OAUTH_TOKEN` in all three repositories, and a small worker updates the skill text.
-- `#2074` Stop Pullfrog from reviewing heads that later fail CI. Next: merged as `ui#2387`; `review.mode none` and `review.re-review false` are set in all three repositories. Prove one requested review publishes `pullfrog-approval` on the next green pull request, then run the review-rounds measurement one week after the config change (dated in the ticket comment) and close.
+- `#2074` Stop Pullfrog from reviewing heads that later fail CI. It never holds the launch (owner order). Next: merged as `ui#2387`, and a requested review published `pullfrog-approval` SUCCESS on `ui#2390`. Run `tools/review-rounds.mjs` as soon as it can run, on or after 16 November 2026, whatever the launch state; if the `dismissed approval` share is not clearly below 43%, fix the cause in this ticket and measure again, then close.
 
 ### Batch R: owner review findings
 
@@ -77,9 +76,9 @@ The gates every later batch runs through. Re-read each ticket against the tree b
 
 An Android fix is followed by an Android Open release.
 
-- `#2077` Fix the Astra button above the create habit button and remove its drag (owner order). Next: `ui#2389` head `93d906554` (layout spec now measures the stack column at its content box); only `Android release build` was red (Gradle download timeout), rerun in progress. Request the review after green CI, merge, then production web and Android Open with `#2062` and `#2061`.
+- `#2077` Fix the Astra button above the create habit button and remove its drag (owner order). Next: `ui#2389` head `cb674c5e2` answers its three Pullfrog threads (Android holds the stacked 176px clearance while the button is withheld, and one shared `ASTRA_STACK_CLEARANCE` derived from the stack replaces the hand-copied sums), threads resolved. Request the review after green CI, merge, then production web and Android Open with `#2062` and `#2061`.
 - `#2062` Keep the keyboard up while typing in habit search. Next: live in production web `0e43371b0`; ships to Android Open with `#2077`, then close.
-- `#2061` Centre the clear X in the habit search empty state. Next: `ui#2377` head `2e0aa1a8d` (round 4 primitive plus the shared text token test fix), threads resolved; failed jobs (Android release build on a GitHub 504, flaky Layout shard 3 search-empty spec) rerun. Request the review after green CI, merge, then Android Open.
+- `#2061` Centre the clear X in the habit search empty state. Next: `ui#2377` head `687a3ac78` answers its two Pullfrog threads (Android `InlineLoadError` gets a polite live region, the empty goal footer style factory is deleted), threads resolved, CI green, review requested at that head. Merge on approval, then Android Open.
 - `#2030` Show the update and later buttons on the Android update sheet. Next: the cover-screen AVD matrix on current `main` is green (ticket comment); close on the owner-device `android_update_sheet_shown` probe event after the next Android Open. Delete AVD `orbit-repro-2030` after the `#2077` Android proof.
 
 ### Batch 2a: the API contracts the UI waits on
@@ -100,6 +99,10 @@ Milestone "562 Astra" and every Astra or MCP tool ticket. After every Astra tick
 
 A deletion ships as a deprecation, then a code removal, then a table drop, each in its own release. A DTO contraction waits on the `MinSupportedVersion` raise being live in the Play fleet. Accept the SonarCloud `S1133` issues a deprecation raises with a comment naming the removal part.
 
+- `#2078` Make the date phrase parser's digit separator check linear and close the CodeQL ReDoS alert. Next: admit when Batch 0c settles (`#2071` waits on the owner and does not hold Batch T).
+- `#2079` Prove runBounded passes the program path and arguments literally and close the CodeQL shell alert. Next: admit when Batch 0c settles.
+- `#2080` Prove the cookie policy forces Secure on every cookie and dismiss the test-only CodeQL cookie alert (API). Next: admit when Batch 0c settles.
+
 ### Batch 7: the production readiness run
 
 - `#315` Run `/prod-readiness` once the board is clear. Next: Android Open 1.3.148 or later from a `main` commit whose push runs passed, then the live Astra gate window once the other tickets that change the code are done.
@@ -108,8 +111,8 @@ A deletion ships as a deprecation, then a code removal, then a table drop, each 
 ### Batch 8: new platforms, iOS first, then desktop
 
 - `#1561` Ship Orbit for iPhone and iPad to TestFlight, with push and the home-screen widget. Next: CI, review and merge of `ui#2370`, which rides the next Android Open, then the real-device checks through TestFlight once the owner installs it.
-- `#1560` Ship a real native Orbit desktop app for Windows and macOS. Next: `ui#2391` head `abaff0ab4` (hash-checked NSIS tools cache, release manifest through the asset endpoint with retries); red only on GitHub 504 outages (Android AAB Kotlin jar, Windows measure electron-builder binaries, rerun pending). Request the review after green CI, merge, then verify the shell update on the Mac and close.
-- `#1861` Add the Done action to Repeat every reminders in the macOS and Windows desktop app. Next: launch round 11 on `ui#2374` (head `0e83d9839`, macOS installed now passes) with the composed order `order-1861-r11.md`: the Windows notification hosts run High elevated while the harness starts the shell at Medium, so start the shell as a person does; cache electron-builder binaries. `Desktop aarch64-pc-windows-msvc` reruns after `ui#2391` merges.
+- `#1560` Ship a real native Orbit desktop app for Windows and macOS. Next: `ui#2391` head `6d165f6cb` also carries the Android boot gate fixes (a failed `uiautomator` dump retries inside the deadlines; the onboarding title counts as the first screen, because the autofocused input opens the keyboard and hides the input label on the CI emulator); CI green, review requested at that head. Merge on approval, then verify the shell update on the Mac and close.
+- `#1861` Add the Done action to Repeat every reminders in the macOS and Windows desktop app. Next: `ui#2374` head `a6b4e6391` answers six structural Pullfrog threads (no behaviour findings); every check was green at `c2407413b`, including Windows `installed` (Done through the shell's registered activator from a Medium client, `hresult` 0, Done HTTP 200). On hosted runners the shell hosts run High, so a real toast click cannot reach the shell; the real click is a manual step on a real Windows machine. CI green, review requested at that head: merge on approval.
 - `#1563` Show the App Store badge and the Mac and Windows downloads on the landing page. Next: `landing#127` is live in production landing `7fb212c42`; the App Store card follows the App Store listing (`#1561`).
 
 ## How the work runs
@@ -156,7 +159,7 @@ Code facts that no gate or owner document states:
 
 ## Current state
 
-Latest handoff: a relay with the chain open, the run in `/sleep` with `crank: true` and `autoWork: true`. UI `main` `f063561d7`, API `main` `3da71dcf6`, landing `main` `7fb212c42`; production web `0e43371b0`, production API `3da71dcf6`, production landing `7fb212c42`; Android Open 1.3.149 (209); desktop 0.1.26 on both channels. Open ui pull requests: `ui#2390` (`#2065`), `ui#2389` (`#2077`), `ui#2377` (`#2061`), `ui#2391` (`#1560`), `ui#2374` (`#1861`), `ui#2388` (relay docs). GitHub `releases/download` and `services.gradle.org` answer 504 or time out intermittently, so Android, iOS and Windows bundling jobs need reruns. Intake: Sentry `ORBIT-MOBILE-Q` only (no new event), mail 0, Play 0. The session chain ledger lives untracked at .git/orbit-session-chain.json.
+Latest handoff: a relay with the chain open, the run in `/sleep` with `crank: true` and `autoWork: true`. UI `main` `a72c71895`, API `main` `3da71dcf6`, landing `main` `7fb212c42`; production web `0e43371b0`, production API `3da71dcf6`, production landing `7fb212c42`; Android Open 1.3.149 (209); desktop 0.1.26 on both channels. Open ui pull requests: `ui#2389` (`#2077`), `ui#2377` (`#2061`), `ui#2391` (`#1560`), `ui#2374` (`#1861`), `ui#2388` (relay docs); reviews are requested on `ui#2377`, `ui#2391` and `ui#2374` at their green heads. GitHub `releases/download` and `services.gradle.org` still answer 504 at times, so Android and Windows jobs can need a rerun. Intake: Sentry `ORBIT-MOBILE-Q` only (no new event), mail 0, Play 0. The session chain ledger lives untracked at .git/orbit-session-chain.json.
 
 ## Open questions
 
