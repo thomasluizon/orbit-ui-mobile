@@ -16,6 +16,12 @@ The Electron archive download retries GitHub server errors, rate limits and conn
 `checksums.json`, and `@electron/get` verifies that checksum on every cache hit. The workflow restores that cache with a
 key of the resolved version, operating system and architecture, and passes `ORBIT_ELECTRON_VERSION` and
 `ORBIT_ELECTRON_CACHE` to the run.
+electron-builder 26.18.0 then downloads its 7-Zip and NSIS toolsets from GitHub releases once each. It keeps each
+archive at `<ELECTRON_BUILDER_CACHE>/<release>/<file>` and checks it against the checksum that its version pins on
+every hit. When the packager fails on a download with a server error, a rate limit or a connection failure, the run
+starts it again after the same four delays, and the new attempt reuses every archive that an earlier attempt finished.
+The workflow restores that cache with a key of the operating system, the architecture and the pinned electron-builder
+version, and passes `ORBIT_ELECTRON_BUILDER_CACHE` to the run.
 
 The Tauri release uses `bench-loopback` and a temporary config overlay. The feature is off by
 default. Only the overlay grants local capabilities, selects the separate benchmark app identifier

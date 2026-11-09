@@ -1,7 +1,7 @@
 import { createRequire } from 'node:module'
 import { existsSync, realpathSync } from 'node:fs'
 import { mkdir, readFile, writeFile, readdir } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { homedir } from 'node:os'
 import { pathToFileURL } from 'node:url'
 import { execute, logicalSize } from './host.mjs'
@@ -10,8 +10,12 @@ import { median } from './measurements.mjs'
 const require = createRequire(import.meta.url)
 export const benchmarkViewport = Object.freeze([900, 600])
 
+// The workflow's electron-builder cache key names this exact version, because the version pins every toolset archive name and
+// checksum (.github/workflows/desktop-benchmark.yml).
+export const electronBuilderVersion = '26.18.0'
+
 export function electronInstallArguments(electron, version) {
-  return ['install', '--prefix', electron, '--package-lock=false', '--no-audit', '--fund=false', '--save-dev', '--save-exact', `electron@${version}`, 'electron-builder@26.18.0']
+  return ['install', '--prefix', electron, '--package-lock=false', '--no-audit', '--fund=false', '--save-dev', '--save-exact', `electron@${version}`, `electron-builder@${electronBuilderVersion}`]
 }
 
 // GitHub releases/download answers 5xx and 429 during outages, and @electron/get 5 (FetchDownloader) tries once. Its
@@ -43,6 +47,32 @@ export async function cacheElectronArtifact(electron, { platform = process.platf
     } catch (error) {
       if (attempt >= delays.length || !retryableDownloadFailure(error)) throw error
       log(`Electron download attempt ${attempt + 1} failed: ${error.message}; retrying in ${delays[attempt] / 1000} s`)
+      await delay(delays[attempt])
+    }
+  }
+}
+
+// app-builder-lib 26.18.0 downloads each toolset (7-Zip, NSIS, NSIS resources) from GitHub releases/download once, through
+// @electron/get 3.1.0 and got 11, whose HTTPError reads "Response code 504 (Gateway Time-out)" in electron-build.log. It keeps
+// every downloaded archive at <ELECTRON_BUILDER_CACHE>/<release>/<file> and checks that archive against the checksum its
+// version pins on every hit (util/electronGet.js downloadBuilderToolset and resolveFromArchiveCache). Thus a new attempt
+// reuses each archive that an earlier attempt finished.
+export function retryableBuilderOutput(output) {
+  return /Response code (5\d\d|429)\b/.test(output) || /\b(ECONNRESET|ETIMEDOUT|EAI_AGAIN)\b|socket hang up/.test(output)
+}
+
+export async function runElectronBuilder(run, { readLog, delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
+  delays = electronDownloadDelays, log = (line) => process.stderr.write(`${line}\n`) }) {
+  for (let attempt = 0; ; attempt++) {
+    const offset = (await readLog()).length
+    try {
+      await run()
+      return attempt + 1
+    } catch (error) {
+      const output = (await readLog()).slice(offset)
+      if (attempt >= delays.length || !retryableBuilderOutput(output)) throw error
+      const reason = output.match(/Response code \d{3}[^\r\n]*?\)|\b(ECONNRESET|ETIMEDOUT|EAI_AGAIN)\b|socket hang up/)[0]
+      log(`electron-builder attempt ${attempt + 1} failed on a download (${reason}); retrying in ${delays[attempt] / 1000} s`)
       await delay(delays[attempt])
     }
   }
@@ -129,9 +159,12 @@ export async function buildShells(repository, work, environment) {
   }
   const configPath = join(work, 'electron-builder.json')
   await writeFile(configPath, JSON.stringify(builderConfig))
-  await execute(process.execPath, [join(electron, 'node_modules/electron-builder/out/cli/cli.js'), '--config', configPath, process.platform === 'darwin' ? '--mac' : '--win', '--publish', 'never', `--${process.arch}`], {
-    cwd: electron, env: { ...environment, CSC_IDENTITY_AUTO_DISCOVERY: 'false' }, log: join(work, 'electron-build.log'),
-  })
+  const electronLog = join(work, 'electron-build.log')
+  // getCacheDirectory in app-builder-lib ignores an ELECTRON_BUILDER_CACHE without a root.
+  const builderCache = resolve(environment.ORBIT_ELECTRON_BUILDER_CACHE || join(work, 'electron-builder-cache'))
+  await runElectronBuilder(() => execute(process.execPath, [join(electron, 'node_modules/electron-builder/out/cli/cli.js'), '--config', configPath, process.platform === 'darwin' ? '--mac' : '--win', '--publish', 'never', `--${process.arch}`], {
+    cwd: electron, env: { ...environment, CSC_IDENTITY_AUTO_DISCOVERY: 'false', ELECTRON_BUILDER_CACHE: builderCache }, log: electronLog,
+  }), { readLog: () => readFile(electronLog, 'utf8').catch((error) => { if (error.code === 'ENOENT') return ''; throw error }) })
   const profile = join(work, 'tauri-profile')
   const overlay = tauriBenchmarkOverlay(profile)
   const overlayPath = join(work, 'tauri-benchmark.json')

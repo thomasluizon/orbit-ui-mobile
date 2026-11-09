@@ -4,7 +4,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { spawnSync } from 'node:child_process'
-import { benchmarkViewport, cacheElectronArtifact, electronDownloadDelays, electronInstallArguments, electronMainSource, normalizeElectronArchiveEntries, retryableDownloadFailure, tauriBenchmarkOverlay } from '../desktop-bench/build.mjs'
+import { benchmarkViewport, cacheElectronArtifact, electronBuilderVersion, electronDownloadDelays, electronInstallArguments, electronMainSource, normalizeElectronArchiveEntries, retryableBuilderOutput, retryableDownloadFailure, runElectronBuilder, tauriBenchmarkOverlay } from '../desktop-bench/build.mjs'
 import { assertViewport, buildHermeticWeb } from '../desktop-bench/runner.mjs'
 import { T, REPO_ROOT, check, configure, failureCount, root } from './_harness.mjs'
 import { cpuSeconds, median, metrics, parseMacProcesses, percentile, processTree, summarize, markdown } from '../desktop-bench/measurements.mjs'
@@ -402,11 +402,53 @@ function fixtureDateCases() {
     JSON.stringify({ generated, nextDay, sample: habits[0]?.scheduledDates }))
 }
 
+// The 504 lines are copied from the measure (windows-latest) electron-build.log of electron-builder 26.18.0.
+const builderDownloaded = '  • downloaded      label=7zip-win-x64.tar.gz progress=100%\n  • downloaded      label=nsis-3.0.4.1.7z progress=100%\n'
+const builderOutage = '  ⨯ Response code 504 (Gateway Time-out)  failedTask=build stackTrace=HTTPError: Response code 504 (Gateway Time-out)\n'
+
+async function electronBuilderRetryCases() {
+  const run = async (outputs) => {
+    let log = 'earlier Electron install output with Response code 503 (Service Unavailable)\n'
+    const waits = []
+    const lines = []
+    let runs = 0
+    let attempts
+    let error
+    try {
+      attempts = await runElectronBuilder(async () => {
+        const output = outputs[runs++]
+        log += output ?? '  • building        target=nsis\n'
+        if (output !== undefined) throw new Error('node exited 1: ; see electron-build.log')
+      }, { readLog: async () => log, delay: async (milliseconds) => { waits.push(milliseconds) }, log: (line) => lines.push(line) })
+    } catch (caught) { error = caught }
+    return { attempts, error, runs, waits, lines }
+  }
+  const outage = await run([builderDownloaded + builderOutage, builderOutage])
+  T('electron-builder reruns after a toolset download answers 504 and then succeeds',
+    outage.attempts === 3 && outage.runs === 3 && outage.waits.join(',') === electronDownloadDelays.slice(0, 2).join(','), JSON.stringify(outage))
+  T('electron-builder retry names the failed download response',
+    outage.lines.length === 2 && outage.lines.every((line) => line.includes('Response code 504 (Gateway Time-out)')), JSON.stringify(outage.lines))
+  const signing = await run(['  ⨯ cannot find specified resource "icon.ico"\n'])
+  T('electron-builder does not rerun a failure that is not a download', signing.error?.message.includes('exited 1') && signing.runs === 1 && signing.waits.length === 0)
+  const exhausted = await run(Array.from({ length: electronDownloadDelays.length + 1 }, () => builderOutage))
+  T('electron-builder stops after the last backoff', exhausted.error !== undefined && exhausted.runs === electronDownloadDelays.length + 1)
+  T('only download server errors, rate limits and connection failures rerun electron-builder',
+    retryableBuilderOutput(builderOutage) && retryableBuilderOutput('Response code 429 (Too Many Requests)') && retryableBuilderOutput('Error: read ECONNRESET') &&
+    !retryableBuilderOutput('Response code 404 (Not Found)') && !retryableBuilderOutput(builderDownloaded))
+  const workflow = readFileSync(join(REPO_ROOT, '.github/workflows/desktop-benchmark.yml'), 'utf8')
+  T('the electron-builder cache key names the installed electron-builder version',
+    workflow.includes(`key: desktop-benchmark-electron-builder-\${{ runner.os }}-\${{ runner.arch }}-${electronBuilderVersion}\n`) &&
+    electronInstallArguments('workspace', '45.1.0').includes(`electron-builder@${electronBuilderVersion}`))
+  T('the benchmark run reads the restored electron-builder cache',
+    workflow.includes('path: ${{ runner.temp }}/electron-builder-cache') && workflow.includes('ORBIT_ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/electron-builder-cache'))
+}
+
 export const cases = async () => {
   fixtureDateCases()
   electronViewportCases()
   requestedViewportCases()
   await electronDownloadCases()
+  await electronBuilderRetryCases()
   await probeReadinessCases()
   await runnerAccountingCases()
   nativeAccountingCases()
