@@ -354,6 +354,11 @@ gutter. The load error suites check the alert role, the message colour and size,
 detail message start within 0.5px of its column. The primitive suites check the role and the text
 style on each platform.
 
+On Android, React Native maps the alert role to a role description only, so TalkBack does not
+speak it. The Android primitive also sets a polite live region on the message, as `ErrorState`
+does, so TalkBack announces the message when it mounts. The Android primitive suite checks the
+live region.
+
 The Astra habit suggestion errors do not use the primitive. Each is a polite status region with a
 disabled retry, not an alert load error. Each puts its message and its retry in one column inside
 that region, with the retry below the message. The habit suggestion suites check the retry below

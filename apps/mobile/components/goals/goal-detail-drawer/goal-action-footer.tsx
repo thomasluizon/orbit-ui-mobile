@@ -1,4 +1,5 @@
-import { View } from 'react-native'
+import { SPACING } from '@orbit/shared/theme'
+import { StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import {
   ArchiveX,
@@ -7,10 +8,6 @@ import {
   Trash2,
 } from '@/components/ui/icons'
 import { ListRow } from '@/components/ui/list-row'
-import type { createStyles } from './styles'
-
-type GoalDetailStyles = ReturnType<typeof createStyles>
-
 interface GoalActionFooterProps {
   isActive: boolean
   isAbandoned: boolean
@@ -21,7 +18,6 @@ interface GoalActionFooterProps {
   onReactivate: () => void
   onEdit: () => void
   onDelete: () => void
-  styles: GoalDetailStyles
 }
 
 export function GoalActionFooter({
@@ -34,7 +30,6 @@ export function GoalActionFooter({
   onReactivate,
   onEdit,
   onDelete,
-  styles,
 }: Readonly<GoalActionFooterProps>) {
   const { t } = useTranslation()
 
@@ -60,15 +55,15 @@ export function GoalActionFooter({
         />
       ) : null}
       {isActive ? (
-          <ListRow
-            compact={false}
-            title={t('goals.detail.markAbandoned')}
-            accessibilityLabel={t('goals.detail.markAbandoned')}
-            icon={<ArchiveX size={24} strokeWidth={1.5} color={defaultIconColor} />}
-            chevron={false}
-            onClick={onMarkAbandoned}
-            disabled={isUpdatingStatus}
-          />
+        <ListRow
+          compact={false}
+          title={t('goals.detail.markAbandoned')}
+          accessibilityLabel={t('goals.detail.markAbandoned')}
+          icon={<ArchiveX size={24} strokeWidth={1.5} color={defaultIconColor} />}
+          chevron={false}
+          onClick={onMarkAbandoned}
+          disabled={isUpdatingStatus}
+        />
       ) : null}
       <ListRow
         compact={false}
@@ -82,3 +77,7 @@ export function GoalActionFooter({
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  actions: { paddingBottom: SPACING.s4 },
+})

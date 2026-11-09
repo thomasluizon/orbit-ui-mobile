@@ -14,7 +14,13 @@ export function InlineLoadError({ message, onRetry }: Readonly<InlineLoadErrorPr
 
   return (
     <View style={styles.container} testID="inline-load-error">
-      <Text accessibilityRole="alert" style={[styles.message, { color: tokens.statusBadText }]}>{message}</Text>
+      <Text
+        accessibilityLiveRegion="polite"
+        accessibilityRole="alert"
+        style={[styles.message, { color: tokens.statusBadText }]}
+      >
+        {message}
+      </Text>
       <IconButton edge="start" label={t('common.retry')} onClick={onRetry}>
         <RefreshCw size={20} strokeWidth={1.5} accessible={false} />
       </IconButton>

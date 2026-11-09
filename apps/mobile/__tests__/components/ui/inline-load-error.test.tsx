@@ -14,12 +14,13 @@ async function mount(onRetry = vi.fn()) {
 }
 
 describe('InlineLoadError', () => {
-  it('announces the message as an alert in the bad status text style with its font family', async () => {
+  it('announces the message as a polite live alert in the bad status text style with its font family', async () => {
     const { tree } = await mount()
 
     const alert = tree.root.findAll((node) => String(node.type) === 'Text' && node.props.accessibilityRole === 'alert')
     expect(alert).toHaveLength(1)
     expect(alert[0]!.props.children).toBe('Could not load habits.')
+    expect(alert[0]!.props.accessibilityLiveRegion).toBe('polite')
     expect(StyleSheet.flatten(alert[0]!.props.style)).toEqual({
       fontFamily: 'Geist_400Regular',
       fontSize: 14,
