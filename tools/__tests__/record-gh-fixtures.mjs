@@ -19,7 +19,14 @@ export const cases = () => {
     url: "https://github.com/thomasluizon/orbit-tickets/issues/221",
   })
   const issue = issueWith(null)
-  const plan = (issueEnvelope) => orcaEnv([
+  // Node shape copied from a live BoardState page of thomasluizon/orbit-tickets.
+  const boardPage = (blockers) => JSON.stringify({ data: { repository: { issues: {
+    pageInfo: { hasNextPage: false, endCursor: "Y3Vyc29yOnYyOpK0MjAyNi0xMS0wOFQyMzozMzoxNFrPAAAAAXYjtkw=" },
+    nodes: [{ number: 2065, updatedAt: "2026-11-08T22:53:42Z", projectItems: { totalCount: 1, nodes: [{ project: { id: "PVT_kwHOBE6dNc4Bfy2y" } }] },
+      blockedBy: { totalCount: blockers.length, nodes: blockers } }],
+  } } } })
+  const plan = (issueEnvelope, board = boardPage([{ number: 2064, state: "OPEN" }])) => orcaEnv([
+    { match: "api graphql -F o=thomasluizon -F r=orbit-tickets -f query=query BoardState", stdout: board },
     /** Before the generic prefix, and non-empty: the recorder refuses to write comment paths it never observed. */
     {
       match: "issue view 221 --repo thomasluizon/orbit-tickets --json comments",
@@ -111,6 +118,16 @@ export const cases = () => {
     ),
     JSON.stringify(manifest.commands.projectItemList.paths),
   )
+
+  T(
+    `${TOOL}: derives the open board state paths read by the adapter`,
+    ["number", "updatedAt", "projectItems.totalCount", "projectItems.nodes[].project.id", "blockedBy.totalCount", "blockedBy.nodes[].number", "blockedBy.nodes[].state"].every(
+      (path) => manifest.commands.boardState.paths[`$.data.repository.issues.nodes[].${path}`],
+    ) && ["hasNextPage", "endCursor"].every((path) => manifest.commands.boardState.paths[`$.data.repository.issues.pageInfo.${path}`]),
+    JSON.stringify(manifest.commands.boardState?.paths),
+  )
+  check(TOOL, "a board page with no blocker is refused, so the blocker paths are proven", ["--output", join(root, "recorded-gh-fixtures-unblocked.json")],
+    { status: 1, stderr: /boardState recorded no open ticket on the configured project with a blocker/ }, { env: plan(issue, boardPage([])) })
 
   const rerun = check(TOOL, "a re-recording unions observed types with the manifest on disk", ["--output", output], { status: 0 }, {
     env: plan(issueWith("COMPLETED")),

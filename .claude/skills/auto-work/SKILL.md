@@ -86,26 +86,20 @@ for the successor.
    failed list or message read. A failed attachment read does not stop it; that message
    becomes incomplete, as above. Classify every pending message using the disposition
    procedure below.
-5. Collect Play reviews using `.github/workflows/orbit-play-reviews.yml` on `main`. Before
-   dispatch, persist a unique cycle string in `intake.play.workflowCycle`; preserve it across
-   relays. Use `gh workflow run orbit-play-reviews.yml --ref main -f cycle=<cycle>` and rely
-   only on its exit code. Find its exact run using
-   `gh run list --workflow orbit-play-reviews.yml --event workflow_dispatch --branch main --limit 100 --json databaseId,displayTitle,createdAt,status,conclusion`;
-   match `displayTitle` to `Orbit review intake <cycle>` and record `databaseId`. Reuse the
-   existing run when resuming; never choose an unrelated latest artifact. Drive its completion
-   as an in-flight background check with `/orchestrate`'s registered file-waiter procedure.
-   Intake of other sources and board admission can proceed while the workflow runs. While the
-   session is idle, the waiter does this dispatch and the two imports itself under a
-   `wake-<timestamp>` cycle. It then clears the cycle, so a `reviews` wake already has the new
-   reviews in pending state. A cycle that the waiter left in state is resumed like any other. Download
-   the exact run's artifact with `gh run download <id> --name orbit-play-reviews --dir <private scratchpad directory>`
-   and run `node tools/orbit-play-reviews.mjs --import <absolute artifact JSON path>`.
+5. Collect the store reviews with `node tools/orbit-play-reviews.mjs --cycle`. This one command
+   is the review cycle for the session and for the idle waiter. It persists a unique cycle in
+   `intake.play.workflowCycle`, dispatches `.github/workflows/orbit-play-reviews.yml` on `main`
+   with that cycle, and finds the exact run by its `displayTitle`. It imports every artifact of
+   that run, then clears the cycle. A persisted cycle survives a relay, and the next call resumes
+   it without a new dispatch. Run the command as an in-flight background task with
+   `/orchestrate`'s registered file-waiter procedure; it can wait up to 600 seconds for the run.
+   Intake of other sources and board admission can continue while it runs. It prints `keys`,
+   the `pending` reviews, `backfillRequiredSince` and, for a partial collection, `failure`.
+   A non-zero exit is a failed read: log its last stderr line and retry next cycle.
    The workflow alone reads `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`, fetching all review pages for
    `org.useorbit.app` and `org.useorbit.app.staging`. No publishing key reaches the Mac.
-   Import partial artifacts even when a package failed, log the failure once per unchanged
-   reason, and retry it next cycle without advancing its successful-collection mark.
-   Clear the completed workflow identity only after importing every available source artifact,
-   including App Store when configured, and keep all source receipts.
+   The cycle imports a partial artifact even when a package failed. Log the failure once per
+   unchanged reason; the next cycle retries it without advancing its successful-collection mark.
    Classify every pending review. Versioned review ids include modification seconds and
    nanoseconds; equal timestamps never discard different reviews. High-water timestamps are
    diagnostic marks, not a filter that could miss ties or edits.
@@ -118,8 +112,8 @@ for the successor.
    `intake.appStore.waitingOn: "#1561"` and log it once, preserving that marker across relays.
    Recheck the prerequisite each cycle without repeating the log. Once the app exists, the
    same review workflow's optional App Store job uses `ORBIT_IOS_APP_STORE_ID` and the existing
-   iOS release credentials. Download its `orbit-app-store-reviews` artifact from the exact
-   cycle run and execute `node tools/orbit-app-store-reviews.mjs --import <absolute JSON path>`.
+   iOS release credentials. The step 5 cycle imports its `orbit-app-store-reviews` artifact
+   from the same run when the artifact is present.
    The reader exhausts App Store Connect's customer reviews pagination. It retains review id,
    creation timestamp and content hash in `intake.appStore`; Apple's review schema has no
    modification timestamp, so changed content creates a new version without inventing one.
@@ -179,8 +173,11 @@ case, pass the receipt plus `source: "play"` or `"appStore"` to
 the pending source item and prints a batch. Save that JSON in a private scratchpad file and
 dispatch `orbit-play-reviews.yml` on `main` with `-f cycle=<unique reply cycle>` and
 `-F replies=@<absolute batch file>`. Track this workflow's exact cycle and run in
-`intake.reviewReplies`, separately from the read workflow, with the same registered file-waiter
-and exact-run download procedure above. Import its `orbit-review-replies` artifact through
+`intake.reviewReplies`, separately from the read workflow. Find the run whose `displayTitle` is
+`Orbit review intake <reply cycle>` with `gh run list --workflow orbit-play-reviews.yml --event workflow_dispatch --branch main --limit 100 --json databaseId,displayTitle,status,conclusion`,
+and drive it with the registered file-waiter. Download only that run's artifact with
+`gh run download <id> --name orbit-review-replies --dir <private scratchpad directory>`, and
+never an unrelated latest artifact. Import its `orbit-review-replies` artifact through
 `node tools/orbit-review-replies.mjs --import <absolute artifact JSON path>` before acknowledging.
 The job revalidates the reply policy and current review version, preserves an existing
 different reply, and recovers an identical posted reply without posting again. Credentials
@@ -201,11 +198,14 @@ When nothing is launchable, keep `autoWork: true` and register
 Confirm the source is live and name it on the last line of the turn. At the end of each
 fifteen-minute interval, the waiter checks the sources itself, with no model call:
 
-- the board, through `node tools/plan-queue.mjs --board` (an admitted ticket or a deferred
-  ticket with its reason is one key);
+- the board, through `listBoardState` in `tools/lib/github-issues.mjs`. It reads the open
+  tickets on the configured project one page of 100 at a time and calls no classifier. One key
+  is the ticket number, its `updatedAt` and its open blockers. Thus a new ticket, an edited
+  ticket or a blocker that closes is a new key. Only a successful read with no tickets is an
+  empty board.
 - the mailbox, through `node tools/orbit-mail.mjs --unseen` (ids absent from completed and
   pending state);
-- the reviews, through the review workflow dispatch and the import of its artifacts (pending
+- the reviews, through the step 5 command `node tools/orbit-play-reviews.mjs --cycle` (pending
   Play and App Store review ids).
 
 A key absent from `intake.wake.seen` is new. The waiter exits only for one of these causes:
@@ -224,7 +224,9 @@ The waiter prints one JSON line. A `SOURCE` result has a `wakes` list, and each 
 `source` (`board`, `mail`, `reviews` or `sentry`) and a `kind`:
 
 - `new` gives the new keys in `items`. Run the step for that source: `mail` runs step 4,
-  `reviews` classifies the pending reviews of steps 5 and 6, and `board` runs step 7.
+  `reviews` classifies the pending reviews of steps 5 and 6, and `board` runs step 7. The
+  waiter already ran the review cycle, so the pending reviews are in `intake.play.pending` and
+  `intake.appStore.pending`; read them with `readRunState` and do not start another cycle.
 - `failure` gives the signature in `failure`. Log it once, then run the step for that source,
   which retries the read and keeps its pending items and marks.
 - `due` (only `sentry`) runs step 3.
