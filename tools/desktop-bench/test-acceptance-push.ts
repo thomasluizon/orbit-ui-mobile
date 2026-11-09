@@ -698,6 +698,30 @@ test('push acceptance records every notification capture, also the ones that nev
   assert.equal(harness.report.push?.notificationMode, 'PriorityOnly')
 })
 
+test('push acceptance names the installed executable to the reader and keeps the history reply that saw each toast posted', async () => {
+  const harness = pushHarness('win32')
+  const executable = 'D:\\installed\\Orbit Staging\\orbit-desktop.exe'
+  Object.assign(harness.io, { executable })
+  const native = harness.io.native
+  const executables: unknown[] = []
+  harness.io.native = async (pid: number, command: string, options: Parameters<typeof native>[2] & { executable?: string } = {}) => {
+    const reply = await native(pid, command, options)
+    if (command !== 'notification') return reply
+    executables.push(options.executable)
+    // The reader reads the history before it invokes Done, and the Done removes the toast from the history.
+    const posted = reply.found === true
+    return { ...reply, history: { appId: '{0F8FAD5B-D9CB-469F-A165-70867728950E}', posted, count: posted ? 1 : 0, titles: posted ? [options.title] : [] } }
+  }
+  await exercisePush(harness.io)
+  assert.ok(executables.length > 0 && executables.every((value) => value === executable))
+  const history = harness.report.push?.history as Record<string, { posted: boolean; titles: string[] }>
+  assert.deepEqual(Object.keys(history), ['notification-done', 'notification-expired', 'notification-expired-signed-out'])
+  for (const [name, entry] of Object.entries(history)) {
+    assert.equal(entry.posted, true, name)
+    assert.match(entry.titles[0]!, /^Orbit acceptance (done|expired) /, name)
+  }
+})
+
 for (const [label, overrides, message] of [
   ['a duplicated Done log', { logsAfterDone: 2 }, /exactly one.*2/],
   ['a Done that opens the window', { visibleAfterDone: 1 }, /window/],
@@ -923,6 +947,13 @@ test('PowerShell producer lists process windows, finds the installed executable 
   assert.equal(absent.found, false)
   assert.equal(absent.invoked, false)
   assert.equal(typeof absent.notificationMode, 'string')
+  assert.deepEqual(absent.history, { appId: null, posted: false, count: 0, titles: [], error: 'no executable path' })
+  const unregistered = run('-TargetProcessId', String(process.pid), '-Command', 'notification', '-Title', `Orbit absent ${process.pid}`, '-Label', 'Done', '-Executable', process.execPath)
+  const history = unregistered.history as { appId: null; posted: boolean; error: string; registrations: string[] }
+  assert.equal(history.appId, null)
+  assert.equal(history.posted, false)
+  assert.equal(history.error, 'no NotificationGUID for the executable')
+  assert.ok(Array.isArray(history.registrations))
   assert.equal(absent.titled, undefined)
   assert.ok(Array.isArray(absent.windows))
   assert.ok((absent.windows as { className: string; processId: number }[]).every(window => typeof window.className === 'string' && window.processId !== process.pid))

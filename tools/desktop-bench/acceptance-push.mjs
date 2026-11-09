@@ -237,12 +237,18 @@ async function notification(io, pid, reminder, invoke, name) {
   const find = (openCenter) => {
     let open = openCenter
     return io.waitFor(async () => {
-      const reply = await io.native(pid, 'notification', { title: reminder.title, label, invoke, openCenter: open })
+      const reply = await io.native(pid, 'notification', { title: reminder.title, label, invoke, openCenter: open, executable: io.executable })
       open = false
       // Every reply carries the platform tree, so the artifacts keep the last capture whether or not it matched.
       await io.record(name, reply)
       // Windows names the notification mode, and a Do not disturb mode holds banners back, so the toast waits in the center.
       if (reply?.notificationMode && !io.report.push.notificationMode) io.report.push.notificationMode = reply.notificationMode
+      // The Windows reply reads the shell AUMID's notification history, which says whether the toast was posted at all. A
+      // Done removes the toast, so the first reply that saw it posted stays.
+      if (reply?.history) {
+        io.report.push.history ??= {}
+        if (!io.report.push.history[name]?.posted) io.report.push.history[name] = reply.history
+      }
       return reply?.found && reply
     }, `the ${reminder.title} system notification`, 20000)
   }

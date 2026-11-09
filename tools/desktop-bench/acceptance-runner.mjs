@@ -273,7 +273,7 @@ async function pushPhase({ proxy, native, updates, handle, executable, output, r
   const application = windows ? null : dirname(dirname(dirname(executable)))
   let environment = null
   const io = {
-    platform: process.platform, report, credentials, signed, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    platform: process.platform, report, credentials, signed, executable, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     labels: await catalogValue('../../packages/shared/src/i18n', (catalog) => catalog.profile.settingsRows.alertsOnThisDevice),
     doneLabel: (await catalogValue('../../apps/desktop/locales', (catalog) => catalog.reminderDone))[0],
     // The system authorization alert follows the VM language, which is English on GitHub macOS runners.

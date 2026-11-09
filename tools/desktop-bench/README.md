@@ -222,12 +222,20 @@ launches' lines into `push.log`.
 
 The runner hides the main window through its close control and invokes Done on the system
 notification through UIA or AX. If the banner is gone, the reader opens the notification list once.
-On Windows, Do not disturb holds every banner back, and the notification center lists the toast
-collapsed. The reader searches the UIA root windows and every visible window of a process that runs
-from the Windows directory. Where a title has no Done action, it expands the collapsed entries in the
-toast and searches again. Each Windows reply names the
-`ToastNotificationManagerForUser.NotificationMode`, and `report.json` `push.notificationMode` keeps
-the first one.
+On Windows, the GitHub image turns Do not disturb on, which holds every banner back, and the
+notification center lists the toast collapsed. Windows + N opens that center and moves keyboard focus
+into it. The reader searches the UIA root windows, every visible top-level window of a process that
+runs from the Windows directory, and the top-level ancestor of the focused UIA element. It walks the
+top-level windows with `FindWindowEx`, because the `EnumWindows` reference says that function lists
+only the windows of desktop apps, and the open center never appeared in an `EnumWindows` walk. Where a
+title has no Done action, it expands the collapsed entries in the toast and searches again. Each
+Windows reply names the `ToastNotificationManagerForUser.NotificationMode`, and `report.json`
+`push.notificationMode` keeps the first one.
+Each Windows reply also reads the notification history of the shell's AUMID. The Windows App SDK
+keeps an unpackaged app's AUMID in the `NotificationGUID` value under
+`HKCU\Software\Classes\AppUserModelId\<executable path with each backslash replaced by a dot>`.
+`report.json` `push.history` keeps, for each search, the first reply that found the toast in that
+history, or else the last reply, so the report says whether the shell posted the toast at all.
 The mock must record exactly one habit log for that habit, and the app window must stay hidden.
 
 The second check sends another reminder and stops the shell while its notification is visible.
@@ -243,7 +251,8 @@ Each run keeps the platform evidence that the notification readers use, also whe
 - `codesign-entitlements.stdout.log` and `codesign-entitlements.stderr.log` keep the raw macOS
   `codesign -d --entitlements - --xml` output.
 - `trees/notification-*.json` keeps the last reply of each notification search. On Windows, a reply
-  holds the UIA candidate windows and, after a match, the UIA subtree of the toast that holds Done.
+  holds the candidate windows with their source (`automation`, `system` or `focus`), the AUMID
+  history and, after a match, the UIA subtree of the toast that holds Done.
   A host that shows the title without one Done action keeps its UIA subtree in `titled`.
   On macOS, a reply holds the AX tree of `com.apple.notificationcenterui`, and
   `trees/notification-authorization.json` keeps the tree from the authorization alert search.

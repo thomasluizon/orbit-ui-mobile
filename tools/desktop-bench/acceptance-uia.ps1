@@ -87,25 +87,30 @@ public static class OrbitForeground {
         } finally { CloseHandle(process); }
     }
 
-    // Visible top-level windows of processes that run from the Windows directory, where the shell draws toasts and the
-    // notification center. UI Automation root children do not list an open notification center.
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, ExactSpelling = true)]
+    private static extern IntPtr FindWindowExW(IntPtr parent, IntPtr childAfter, string className, string windowName);
+
+    // Visible top-level windows of every other process, where the shell draws toasts and the notification center. The
+    // EnumWindows reference says it "enumerates only top-level windows of desktop apps" on Windows 8 and later, and a recorded
+    // run showed the open notification center missing from both EnumWindows and the UI Automation root children. FindWindowEx
+    // with a null parent and a null child "searches all top-level and message-only windows", and a message-only window is
+    // never visible. A window whose image path cannot be read keeps a null path.
     public static OrbitHostWindow[] SystemWindows(int exclude) {
         var windows = new List<OrbitHostWindow>();
-        string system = Environment.GetFolderPath(Environment.SpecialFolder.Windows).TrimEnd('\\') + "\\";
-        EnumWindows((window, parameter) => {
-            if (!IsWindowVisible(window)) return true;
+        var window = IntPtr.Zero;
+        for (int count = 0; count < 20000; count++) {
+            window = FindWindowExW(IntPtr.Zero, window, null, null);
+            if (window == IntPtr.Zero) break;
+            if (!IsWindowVisible(window)) continue;
             uint owner;
             GetWindowThreadProcessId(window, out owner);
-            if (owner == (uint)exclude) return true;
-            string path = ImagePath(owner);
-            if (path == null || !path.StartsWith(system, StringComparison.OrdinalIgnoreCase)) return true;
+            if (owner == (uint)exclude) continue;
             var className = new StringBuilder(256);
             var title = new StringBuilder(512);
             GetClassNameW(window, className, className.Capacity);
             GetWindowTextW(window, title, title.Capacity);
-            windows.Add(new OrbitHostWindow { handle = window.ToInt64(), className = className.ToString(), title = title.ToString(), processId = owner, path = path });
-            return true;
-        }, IntPtr.Zero);
+            windows.Add(new OrbitHostWindow { handle = window.ToInt64(), className = className.ToString(), title = title.ToString(), processId = owner, path = ImagePath(owner) });
+        }
         return windows.ToArray();
     }
 
@@ -248,12 +253,66 @@ function Get-NotificationHosts([int]$Exclude, $Seen) {
     if ($window.Current.ClassName -ne 'Windows.UI.Core.CoreWindow' -and $window.Current.Name -notmatch 'notification') { continue }
     if ($handles.Add([long]$window.Current.NativeWindowHandle)) { $hosts.Add($window) }
   }
+  $system = [Environment]::GetFolderPath([Environment+SpecialFolder]::Windows).TrimEnd('\') + '\'
   foreach ($window in [OrbitForeground]::SystemWindows($Exclude)) {
     $Seen.Add(@{ name = $window.title; className = $window.className; processId = $window.processId; path = $window.path; source = 'system' })
-    if (-not $handles.Add($window.handle)) { continue }
+    # The shell draws toasts and the notification center from the Windows directory, in CoreWindow hosts.
+    $shell = if ($null -eq $window.path) { $window.className -eq 'Windows.UI.Core.CoreWindow' } else { $window.path.StartsWith($system, [StringComparison]::OrdinalIgnoreCase) }
+    if (-not $shell -or -not $handles.Add($window.handle)) { continue }
     try { $hosts.Add($automation::FromHandle([IntPtr]$window.handle)) } catch { $Seen[$Seen.Count - 1].error = $_.Exception.Message }
   }
+  # Windows + N moves keyboard focus into the notification center, so the top-level ancestor of the focused element is the
+  # open center even when no window enumeration lists it.
+  $focused = Get-FocusedHost
+  if ($null -ne $focused.element -and $focused.element.Current.ProcessId -ne $Exclude) {
+    $Seen.Add(@{ name = $focused.element.Current.Name; className = $focused.element.Current.ClassName; processId = $focused.element.Current.ProcessId; source = 'focus' })
+    $handle = [long]$focused.element.Current.NativeWindowHandle
+    if ($handle -eq 0 -or $handles.Add($handle)) { $hosts.Add($focused.element) }
+  } elseif ($null -ne $focused.error) { $Seen.Add(@{ source = 'focus'; error = $focused.error }) }
   return $hosts
+}
+function Get-FocusedHost {
+  $automation = [System.Windows.Automation.AutomationElement]
+  try {
+    $element = $automation::FocusedElement
+    if ($null -eq $element) { return @{ element = $null } }
+    $walker = [System.Windows.Automation.TreeWalker]::ControlViewWalker
+    for ($depth = 0; $depth -lt 64; $depth++) {
+      $parent = $walker.GetParent($element)
+      if ($null -eq $parent -or [System.Windows.Automation.Automation]::Compare($parent, $automation::RootElement)) { break }
+      $element = $parent
+    }
+    return @{ element = $element }
+  } catch { return @{ element = $null; error = $_.Exception.Message } }
+}
+# The Windows App SDK names an unpackaged app by the NotificationGUID value under HKCU Software\Classes\AppUserModelId\<the
+# executable path with every backslash replaced by a dot> (AppNotificationUtility RetrieveUnpackagedNotificationAppId and
+# ConvertPathToKey), and its toasts stay in the notification history of that AUMID until they are removed.
+function Get-ToastHistory([string]$Path, [string]$Title) {
+  $result = @{ appId = $null; posted = $false; count = 0; titles = @() }
+  if (-not $Path) { $result.error = 'no executable path'; return $result }
+  try {
+    $key = "HKCU:\Software\Classes\AppUserModelId\$($Path.Replace('\', '.'))"
+    $appId = (Get-ItemProperty -LiteralPath $key -Name NotificationGUID -ErrorAction SilentlyContinue).NotificationGUID
+    if (-not $appId) {
+      $result.error = 'no NotificationGUID for the executable'
+      $result.registrations = @(Get-ChildItem -LiteralPath 'HKCU:\Software\Classes\AppUserModelId' -ErrorAction SilentlyContinue |
+        Where-Object { $_.PSChildName -like '*orbit-desktop.exe' } | ForEach-Object { $_.PSChildName })
+      return $result
+    }
+    $result.appId = $appId
+    $result.displayName = (Get-ItemProperty -LiteralPath "HKCU:\Software\Classes\AppUserModelId\$appId" -Name DisplayName -ErrorAction SilentlyContinue).DisplayName
+    $manager = [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]
+    $titles = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($toast in $manager::History.GetHistory($appId)) {
+      $result.count++
+      $texts = @([regex]::Matches($toast.Content.GetXml(), '<text[^>]*>([^<]*)</text>') | ForEach-Object { [System.Net.WebUtility]::HtmlDecode($_.Groups[1].Value) })
+      if ($texts.Count -gt 0) { $titles.Add($texts[0]) }
+      if ($texts -contains $Title) { $result.posted = $true }
+    }
+    $result.titles = $titles.ToArray()
+  } catch { $result.error = $_.Exception.Message }
+  return $result
 }
 function Find-Notification([string]$Title, [string]$Label, [int]$Exclude) {
   $tree = New-AutomationTree $Label
@@ -295,8 +354,9 @@ if ($Command -eq 'notification') {
   if ($OpenCenter) { [OrbitForeground]::OpenNotificationCenter(); Start-Sleep -Milliseconds 1000 }
   $match = Find-Notification $Title $Label $TargetProcessId
   $mode = Get-NotificationMode
+  $history = Get-ToastHistory $Executable $Title
   if ($null -eq $match.button) {
-    $reply = @{ found = $false; invoked = $false; notificationMode = $mode; windows = $match.windows }
+    $reply = @{ found = $false; invoked = $false; notificationMode = $mode; history = $history; windows = $match.windows }
     # A host that shows the title without a single matching action keeps its tree, so the artifacts hold the layout that missed.
     if ($null -ne $match.titled) {
       $failure = $null
@@ -311,7 +371,7 @@ if ($Command -eq 'notification') {
   try { Read-Element $match.toast '0' } catch { $failure = $_.Exception.Message }
   $toast = @{ error = $failure; nodes = @($nodes.ToArray()) }
   if ($Invoke) { $match.button.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() }
-  @{ found = $true; invoked = [bool]$Invoke; expanded = [bool]$match.expanded; notificationMode = $mode; window = $match.window
+  @{ found = $true; invoked = [bool]$Invoke; expanded = [bool]$match.expanded; notificationMode = $mode; history = $history; window = $match.window
     windows = $match.windows; toast = $toast } | ConvertTo-Json -Depth 8
   exit 0
 }
