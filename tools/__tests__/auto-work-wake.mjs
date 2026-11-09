@@ -1,6 +1,6 @@
 import { mkdirSync } from "node:fs"
 import { join } from "node:path"
-import { intakeSource, saveIntakeSource } from "../lib/auto-work-intake.mjs"
+import { intakeSource, updateIntakeSource } from "../lib/auto-work-intake.mjs"
 import { boardCheck, evaluateChecks, initialWakeMarks, mailCheck, reviewCheck, saveWakeMarks, SENTRY_DETAIL, watchIntake } from "../lib/auto-work-wake.mjs"
 import { readRunState, writeRunState } from "../lib/run-state.mjs"
 import { T, root } from "./_harness.mjs"
@@ -111,8 +111,8 @@ const watcherCases = async () => {
 
 const stateCases = () => {
   const checkout = fresh("marks")
-  saveIntakeSource("play", { completed: {}, pending: { r1: { id: "r1" } }, highWater: null }, checkout)
-  saveIntakeSource("appStore", { completed: {}, pending: { a1: { id: "a1" } }, highWater: null }, checkout)
+  updateIntakeSource("play", (play) => ({ ...play, pending: { ...play.pending, r1: { id: "r1" } } }), checkout)
+  updateIntakeSource("appStore", (appStore) => ({ ...appStore, pending: { ...appStore.pending, a1: { id: "a1" } } }), checkout)
   const marks = initialWakeMarks(readRunState(checkout).intake, Date.parse("2026-11-08T00:00:00.000Z"))
   T("wake: pending reviews the model already holds are seeded as seen", JSON.stringify(marks.seen.reviews) === JSON.stringify(["play r1", "appStore a1"]) &&
     marks.sentryListedAt === "2026-11-08T00:00:00.000Z" && marks.seen.board === undefined)

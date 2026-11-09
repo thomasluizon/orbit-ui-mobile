@@ -54,9 +54,13 @@ An unrelated session starts with its own ledger.
 
 Write the decision log to `sleep-decisions.md` in this session's scratchpad directory, the one named
 in your system prompt. Keep it outside every repository, so no gate and no commit ever sees it.
-Write its exact path to `decisionLogPath` in the run state once the file exists. Keep every
-unresolved owner question in `openOwnerQuestions`, including what it blocks. A relay copies
-the log in full and retains those questions in the open chain.
+Write its exact path to `decisionLogPath` once the file exists. Keep every
+unresolved owner question in `openOwnerQuestions`, including what it blocks. Make each of these
+partial changes through `updateRunState` in `tools/lib/run-state.mjs`, which reads and writes the
+record under one lock; `writeRunState` stays for the whole-record first write above.
+`updateRunState` refuses the change from a superseded session with
+`session is superseded; run state write refused`, so the read-back then shows the successor's record unchanged.
+A relay copies the log in full and retains those questions in the open chain.
 
 Start it with the wake time, the head of `main`, and every open pull request with its state.
 That header is what tells you later what changed while he slept.
@@ -119,12 +123,13 @@ Keep a registered wake source until the queue is complete.
 
 Follow `/orchestrate`'s "Every turn under `--sleep` ends with a live wake source, named" protocol:
 
-- At step 2b, write canonical state through `writeRunState` in `tools/lib/run-state.mjs`, from the
-  orchestrating checkout. Use this session's exact `sessionId`, `sleep: true`, and the admitted
-  `remaining` queue. Read it back with `readRunState` to confirm it before the first wait. An old
+- At step 2b, record the admitted `remaining` queue through `updateRunState` in
+  `tools/lib/run-state.mjs`, from the orchestrating checkout. Keep this session's exact `sessionId`
+  and `sleep: true`. Read it back with `readRunState` to confirm it before the first wait. An old
   session's record is ignored by `rules-sleep.mjs`.
 - Preserve repository-qualified `pullRequests` and the append-only `readinessLedger`, with actual
-  receipt paths. Update state at step 9 as work lands. Never clear the ledger to claim completion.
+  receipt paths. Update state at step 9 through `updateRunState` as work lands. Never clear the ledger to claim completion.
+  The step 2b and step 9 updates are refused for a superseded session; read back to see the refusal.
 - While actionable work or readiness debt remains, always leave a live background wake source
   that will re-invoke this session and name it on the turn's last line.
   `tools/launch-worker.mjs`, `tools/submit-cloud-worker.mjs --watch <receiptPath>`,
