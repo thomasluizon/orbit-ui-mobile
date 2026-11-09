@@ -19,7 +19,7 @@ import { EditGoalModal } from './edit-goal-modal'
 import { GoalForecast } from './goal-detail-drawer/goal-forecast'
 import { GoalActionFooter } from './goal-detail-drawer/goal-action-footer'
 import { GoalDetailCollections } from './goal-detail-drawer/goal-detail-collections'
-import { GoalLoadError } from './goal-detail-drawer/goal-load-error'
+import { InlineLoadError } from '@/components/ui/inline-load-error'
 import { GoalProgressForm } from './goal-detail-drawer/goal-progress-form'
 import { GoalProgressBlock } from './goal-detail-drawer/goal-progress-block'
 import { useGoalStatusActions } from './goal-detail-drawer/use-goal-status-actions'
@@ -42,7 +42,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
   const locale = i18n.language
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const styles = createStyles(tokens)
+  const styles = createStyles()
   const { showError } = useAppToast()
   const { data: goalsData } = useGoals()
   const { data: detailData, isLoading, isError, refetch } = useGoalDetail(open ? goalId : null)
@@ -125,7 +125,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
         <ListRow placement="column" wrapTitle icon={<AstraGlyph size={24} />} title={t('goals.detail.askAstraEyebrow')} accessibilityLabel={`${t('goals.detail.askAstraEyebrow')}: ${t('goals.detail.askAstraDefault')}`} disabled={!draftHydrated} onClick={openAstra} />
         <GoalActionFooter isActive={goal.status === 'Active'} isAbandoned={goal.status === 'Abandoned'} isUpdatingStatus={actions.isUpdatingStatus} onMarkAbandoned={() => void actions.markAbandoned()} onReactivate={() => void actions.reactivate()} onEdit={() => setEditing(true)} onDelete={() => setDeleting(true)} defaultIconColor={tokens.fg3} iconColor={tokens.statusBad} styles={styles} />
       </> : isLoading ? <Skeleton variant="settings" label={t('progressScreen.loading')} /> : null}
-      {isError ? <GoalLoadError onRetry={() => void refetch()} styles={styles} /> : null}
+      {isError ? <InlineLoadError message={t('goals.detail.loadError')} onRetry={() => void refetch()} /> : null}
     </View>
   )
 

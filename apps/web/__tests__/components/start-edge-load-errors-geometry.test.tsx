@@ -13,7 +13,7 @@ import { profileFixture } from '@/test-support/hermetic/mock-api/fixtures/profil
 import SearchPage from '@/app/(app)/search/page'
 import { CommandPalette } from '@/components/command/command-palette'
 import { ProfileApiKeys } from '@/components/profile/profile-api-keys'
-import { GoalLoadError } from '@/components/goals/goal-detail-drawer/goal-load-error'
+import { InlineLoadError } from '@/components/ui/inline-load-error'
 import { GoalHabitsPicker } from '@/components/goals/goal-habits-field'
 import { useShellStore } from '@/stores/shell-store'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
@@ -48,14 +48,15 @@ vi.mock('@/hooks/use-api-key-management', () => ({
 }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
-type Owner = { name: string; render: () => ReactElement; query?: boolean; palette?: boolean; column?: boolean }
+type Messages = typeof en
+type Owner = { name: string; render: (messages: Messages) => ReactElement; query?: boolean; palette?: boolean; column?: boolean }
 
 const owners: Owner[] = [
   { name: 'habit search page load error', render: () => <SearchPage />, query: true },
   { name: 'command palette load error', render: () => <CommandPalette navItems={[]} onCreateHabit={vi.fn()} />, query: true, palette: true },
   { name: 'MCP API keys load error', render: () => <QueryClientProvider client={new QueryClient()}><div className="orbit-content-frame"><ProfileApiKeys profile={{ ...profileFixture, hasProAccess: true }} unlocked /></div></QueryClientProvider> },
-  { name: 'goal detail sheet load error', render: () => <div data-column="" className="orbit-sheet-body"><div className="flex flex-col gap-6"><GoalLoadError onRetry={vi.fn()} /></div></div>, column: true },
-  { name: 'goal detail inline load error', render: () => <div data-column="" className="px-screen-gutter pt-4"><div className="flex flex-col gap-6"><GoalLoadError onRetry={vi.fn()} /></div></div>, column: true },
+  { name: 'goal detail sheet load error', render: (messages) => <div data-column="" className="orbit-sheet-body"><div className="flex flex-col gap-6"><InlineLoadError message={messages.goals.detail.loadError} onRetry={vi.fn()} /></div></div>, column: true },
+  { name: 'goal detail inline load error', render: (messages) => <div data-column="" className="px-screen-gutter pt-4"><div className="flex flex-col gap-6"><InlineLoadError message={messages.goals.detail.loadError} onRetry={vi.fn()} /></div></div>, column: true },
   { name: 'linked habits sheet load error', render: () => <div className="orbit-sheet-body"><GoalHabitsPicker selectedIds={[]} goalType="Standard" disabled={false} onChange={vi.fn()} onClose={vi.fn()} /></div> },
 ]
 
@@ -82,7 +83,7 @@ describe('start-edge retry actions below load error text in Chromium', () => {
 
   it.each(cases)('centres the $name glyph and starts it on the text column at $width px in $locale', async ({ render: owner, query, palette, column, width, locale, messages }) => {
     useShellStore.setState({ paletteOpen: Boolean(palette) })
-    const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}>{owner()}</NextIntlClientProvider>)
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}>{owner(messages)}</NextIntlClientProvider>)
     if (query) {
       fireEvent.change(await screen.findByRole('combobox'), { target: { value: 'walk' } })
       await screen.findByText(messages.habits.search.loadError)
@@ -111,6 +112,7 @@ describe('start-edge retry actions below load error text in Chromium', () => {
         return { color: getComputedStyle(message).color, expected, fontSize: getComputedStyle(message).fontSize }
       })
       expect(text, JSON.stringify(text)).toEqual({ color: text.expected, expected: text.expected, fontSize: '14px' })
+      expect(await page.locator(`button[aria-label="${messages.common.retry}"]`).evaluate((button) => button.previousElementSibling!.getAttribute('role'))).toBe('alert')
       if (column) {
         const columnLeft = await page.locator('[data-column]').evaluate((host) => host.getBoundingClientRect().left + host.clientLeft + Number.parseFloat(getComputedStyle(host).paddingLeft))
         expect(Math.abs(action.geometry.text.left - columnLeft), JSON.stringify({ columnLeft, text: action.geometry.text })).toBeLessThanOrEqual(0.5)

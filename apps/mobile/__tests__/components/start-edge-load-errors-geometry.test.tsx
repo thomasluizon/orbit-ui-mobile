@@ -6,8 +6,7 @@ import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { PADDING } from '@orbit/shared/theme'
 import SearchScreen from '@/app/search'
 import { ProfileApiKeys } from '@/components/profile/profile-api-keys'
-import { GoalLoadError } from '@/components/goals/goal-detail-drawer/goal-load-error'
-import { createStyles } from '@/components/goals/goal-detail-drawer/styles'
+import { InlineLoadError } from '@/components/ui/inline-load-error'
 import { GoalHabitsPicker } from '@/components/goals/goal-habits-field'
 import { createTokensV2 } from '@/lib/theme'
 import { i18n } from '@/lib/i18n'
@@ -47,13 +46,12 @@ vi.mock('@/components/ui/pro-badge', () => ({ ProBadge: () => null }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 const tokens = createTokensV2('orange', 'dark')
-const goalStyles = createStyles(tokens)
 
 const owners: { name: string; texts: number; render: () => ReactElement; message: string; typeQuery?: boolean; columnInset?: number }[] = [
   { name: 'habit search load error', texts: 1, message: 'habits.search.loadError', render: () => <SearchScreen />, typeQuery: true },
   { name: 'MCP API keys load error', texts: 1, message: 'orbitMcp.apiKeysError', render: () => <View style={{ paddingHorizontal: PADDING.screenGutter }}><ProfileApiKeys profile={createMockProfile({ hasProAccess: true })} unlocked /></View> },
-  { name: 'goal detail inline load error', texts: 1, message: 'goals.detail.loadError', render: () => <View style={{ paddingHorizontal: PADDING.screenGutter }}><View style={{ gap: 24 }}><GoalLoadError onRetry={vi.fn()} styles={goalStyles} /></View></View>, columnInset: PADDING.screenGutter },
-  { name: 'goal detail sheet load error', texts: 1, message: 'goals.detail.loadError', render: () => <View style={{ paddingHorizontal: PADDING.sheetInline }}><View style={{ gap: 24 }}><GoalLoadError onRetry={vi.fn()} styles={goalStyles} /></View></View>, columnInset: PADDING.sheetInline },
+  { name: 'goal detail inline load error', texts: 1, message: 'goals.detail.loadError', render: () => <View style={{ paddingHorizontal: PADDING.screenGutter }}><View style={{ gap: 24 }}><InlineLoadError message={i18n.t('goals.detail.loadError')} onRetry={vi.fn()} /></View></View>, columnInset: PADDING.screenGutter },
+  { name: 'goal detail sheet load error', texts: 1, message: 'goals.detail.loadError', render: () => <View style={{ paddingHorizontal: PADDING.sheetInline }}><View style={{ gap: 24 }}><InlineLoadError message={i18n.t('goals.detail.loadError')} onRetry={vi.fn()} /></View></View>, columnInset: PADDING.sheetInline },
   { name: 'linked habits load error', texts: 1, message: 'goals.form.habitsError', render: () => <View style={{ paddingHorizontal: PADDING.sheetInline }}><GoalHabitsPicker selectedIds={[]} goalType="Standard" disabled={false} onChange={vi.fn()} onClose={vi.fn()} /></View> },
 ]
 
@@ -88,6 +86,8 @@ describe('start-edge retry actions below load error text', () => {
         expect(geometry.paint.left - hitExtension, detail).toBeGreaterThanOrEqual(geometry.root.left)
         const text = tree.root.findAll((node) => String(node.type) === 'Text' && node.props.children === i18n.t(message))[0]!
         expect(StyleSheet.flatten(text.props.style)).toMatchObject({ fontSize: 14, color: tokens.statusBadText })
+        expect(text.props.accessibilityRole).toBe('alert')
+        expect(StyleSheet.flatten(text.props.style)).toMatchObject({ fontFamily: 'Geist_400Regular' })
         if (columnInset !== undefined) expect(Math.abs(geometry.texts[0]!.left - geometry.root.left - columnInset), detail).toBeLessThanOrEqual(0.5)
       } finally { await act(() => tree.unmount()) }
     })

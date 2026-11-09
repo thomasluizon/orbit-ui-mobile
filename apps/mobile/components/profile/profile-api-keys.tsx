@@ -23,7 +23,8 @@ import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { Input } from '@/components/ui/input'
-import { Key, RefreshCw, Copy, Plus } from '@/components/ui/icons'
+import { InlineLoadError } from '@/components/ui/inline-load-error'
+import { Key, Copy, Plus } from '@/components/ui/icons'
 import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { ProBadge } from '@/components/ui/pro-badge'
@@ -89,12 +90,7 @@ function ApiKeyList({ apiKeys, isLoading, loadError, onRevoke, onRetry }: Readon
     return <Text accessibilityRole="progressbar" style={[styles.message, { color: tokens.fg3 }]}>{t('common.loading')}</Text>
   }
   if (loadError) {
-    return (
-      <View style={styles.errorState}>
-        <Text accessibilityRole="alert" style={[styles.message, { color: tokens.statusBadText }]}>{t('orbitMcp.apiKeysError')}</Text>
-        <IconButton edge="start" label={t('common.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
-      </View>
-    )
+    return <InlineLoadError message={t('orbitMcp.apiKeysError')} onRetry={onRetry} />
   }
   if (apiKeys.length === 0) {
     return <Text style={[styles.message, { color: tokens.fg3 }]}>{t('orbitMcp.noKeys')}</Text>
@@ -622,7 +618,6 @@ const styles = StyleSheet.create({
   description: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },
   message: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },
   createControls: { gap: 8 },
-  errorState: { alignItems: 'flex-start', gap: 8 },
   sheetContent: { gap: 12 },
   warning: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 21 },
   keyWell: { alignItems: 'center', borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 8, padding: SPACING.s16 },

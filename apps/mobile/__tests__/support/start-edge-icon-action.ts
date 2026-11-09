@@ -13,7 +13,7 @@ function sizedGlyphs(host: Host): Host {
   return { ...host, children: host.children?.map((child) => typeof child === 'string' ? child : sizedGlyphs(child)) ?? null }
 }
 
-export function measureStartEdgeIconAction(tree: { toJSON: () => Host }, width: number, label: string) {
+export function measureStartEdgeIconAction(tree: { toJSON: () => Host }, width: number, label: string, messageText?: string) {
   const parts = measureInteractionFills(sizedGlyphs(tree.toJSON()), width, false)
   const button = parts.find((part) => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === label)!
   const column = parts.find((part) => part.slot === button.ancestors.at(-1))!
@@ -24,7 +24,7 @@ export function measureStartEdgeIconAction(tree: { toJSON: () => Host }, width: 
     column: bounds(column),
     paint: bounds(button),
     glyph: bounds(glyph),
-    texts: parts.filter((part) => part.host.type === 'Text' && part.ancestors.at(-1) === column.slot).map(bounds),
+    texts: parts.filter((part) => part.host.type === 'Text' && (messageText === undefined ? part.ancestors.at(-1) === column.slot : part.host.children?.includes(messageText))).map(bounds),
     targetWidth: button.width + 2 * (typeof hitSlop === 'number' ? hitSlop : 0),
   }
 }

@@ -22,7 +22,8 @@ import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { Input } from '@/components/ui/input'
-import { Key, RefreshCw, Copy, Plus } from '@/components/ui/icons'
+import { InlineLoadError } from '@/components/ui/inline-load-error'
+import { Key, Copy, Plus } from '@/components/ui/icons'
 import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { ProBadge } from '@/components/ui/pro-badge'
@@ -83,12 +84,7 @@ function ApiKeyList({ apiKeys, isLoading, loadError, onRevoke, onRetry }: Readon
     return <output className="block text-sm text-[var(--fg-3)]">{t('common.loading')}</output>
   }
   if (loadError) {
-    return (
-      <div className="flex flex-col items-start" style={{ gap: 8 }}>
-        <p role="alert" className="text-sm text-[var(--status-bad-text)]">{t('orbitMcp.apiKeysError')}</p>
-        <IconButton edge="start" label={t('common.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
-      </div>
-    )
+    return <InlineLoadError message={t('orbitMcp.apiKeysError')} onRetry={onRetry} />
   }
   if (apiKeys.length === 0) {
     return <p className="text-sm text-[var(--fg-3)]">{t('orbitMcp.noKeys')}</p>

@@ -333,21 +333,28 @@ are the owners:
 | Calendar entry search miss | `components/calendar/calendar-entry-details.tsx` | `app/(tabs)/calendar/_components/calendar-entry-details.tsx` | sheet body |
 | Ideas library miss | `components/chat/prompt-library.tsx` | `components/chat/prompt-library.tsx` | 16px miss inset |
 | MCP API keys load error | `components/profile/profile-api-keys.tsx` | `components/profile/profile-api-keys.tsx` | 16px content frame |
-| Goal detail load error | `components/goals/goal-detail-drawer/goal-load-error.tsx` | `components/goals/goal-detail-drawer/goal-load-error.tsx` | sheet body or 16px Progresso gutter |
+| Goal detail load error | `components/goals/goal-detail-drawer.tsx` | `components/goals/goal-detail-drawer.tsx` | sheet body or 16px Progresso gutter |
 | Astra habit suggestion row error | `components/chat/habit-suggestions-card.tsx` | `components/chat/habit-suggestions-card.tsx` | 16px BlockFrame inset |
 | Astra habit suggestion card error | `components/chat/habit-suggestions-card.tsx` | `components/chat/habit-suggestions-card.tsx` | 16px BlockFrame inset |
 | Astra habit suggestion current schedule error | `components/chat/habit-suggestions-card.tsx` | `components/chat/habit-suggestions-card.tsx` | 16px BlockFrame inset |
 | Linked habits load error | `components/goals/goal-habits-field.tsx` | `components/goals/goal-habits-field.tsx` | sheet body |
+| Habit description link retry | none: web opens description links as plain anchors | `components/habits/habit-detail-screen.tsx` | 16px `FlowShell` content padding |
 
 Centred empty and error states, rows, action rows and header actions keep the plain primitive.
 Web Chromium tests, the `search-empty-icon-action` layout spec and Android Yoga geometry tests
 require the glyph centre within 0.5px of its paint centre and the glyph start within 0.5px of the
 text column. The load error suites also require the 14px gutter and an unclipped hit extension.
 
-A load error message uses `--status-bad-text` (`statusBadText` on Android) at 14px on both
-platforms, because error words take the text role of the bad status. The goal detail message adds
-no inset of its own: it starts on the column of the sheet body or the Progresso gutter. Each Astra
-habit suggestion error puts its message and its retry in one column inside the polite status
-region, with the retry below the message. The load error suites check the message colour and size,
-and the goal detail message start within 0.5px of its column. The habit suggestion suites check the
-retry below the message and the polite region on both platforms.
+Each inline load error renders the paired `components/ui/inline-load-error.tsx` primitive, with
+its props in `packages/shared/src/contracts/feedback/InlineLoadError.ts`. The primitive owns the
+alert role on the message, the 14px bad status text with the app font family, the start-edge
+retry labelled `common.retry`, and no gap between the message and the retry. The goal detail
+message adds no inset of its own: it starts on the column of the sheet body or the Progresso
+gutter. The load error suites check the alert role, the message colour and size, and the goal
+detail message start within 0.5px of its column. The primitive suites check the role and the text
+style on each platform.
+
+The Astra habit suggestion errors do not use the primitive. Each is a polite status region with a
+disabled retry, not an alert load error. Each puts its message and its retry in one column inside
+that region, with the retry below the message. The habit suggestion suites check the retry below
+the message and the polite region on both platforms.

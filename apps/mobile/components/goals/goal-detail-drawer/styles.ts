@@ -1,12 +1,8 @@
 import { SPACING } from '@orbit/shared/theme'
 import { StyleSheet } from 'react-native'
-import { createTokensV2 } from '@/lib/theme'
 
-export type AppTokens = ReturnType<typeof createTokensV2>
-
-export function createStyles(tokens: AppTokens) {
+export function createStyles() {
   return StyleSheet.create({
-    loadErrorText: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20, color: tokens.statusBadText },
     actions: {
       paddingBottom: SPACING.s4,
     },

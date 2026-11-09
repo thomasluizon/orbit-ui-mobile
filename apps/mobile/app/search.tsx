@@ -12,7 +12,8 @@ import { PageHeader } from '@/components/ui/page-header'
 import { KeyboardAwareSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { Input } from '@/components/ui/input'
 
-import { Search, RefreshCw, ChevronLeft, ChevronRight } from '@/components/ui/icons'
+import { InlineLoadError } from '@/components/ui/inline-load-error'
+import { Search, ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SearchEmpty, Searching, SearchResult } from '@/components/search/search-results'
 import { CommandGroups } from '@/components/command/command-groups'
@@ -64,7 +65,7 @@ export default function SearchScreen() {
     </KeyboardAwareSheetScrollView>
     <ScrollView role="list" keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.list, styles.columnInset, { paddingBottom: clearance }]} accessibilityState={{ busy: search.busy }}>
       {search.showLoading && (search.text.trim() ? <Searching /> : <><Text accessibilityRole="header" style={[styles.heading, { color: tokens.fg3 }]}>{t('command.groups.search')}</Text>{[0, 1, 2].map((index) => <Skeleton key={index} variant="habit-row" label={t('habits.search.searching')} />)}</>)}
-      {search.isError && <View accessibilityRole="alert"><Text style={{ fontSize: 14, lineHeight: 20, color: tokens.statusBadText }}>{t('habits.search.loadError')}</Text><IconButton edge="start" label={t('common.retry')} onClick={() => void search.refetch()}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton></View>}
+      {search.isError && <InlineLoadError message={t('habits.search.loadError')} onRetry={() => void search.refetch()} />}
       {!search.busy && !search.isError && <>
         {entries.length > 0 && (search.query && !commandPage
           ? <Text style={[styles.count, { color: tokens.fg3 }]}>{t('habits.search.count', { count: search.data?.totalCount ?? 0 })}</Text>
