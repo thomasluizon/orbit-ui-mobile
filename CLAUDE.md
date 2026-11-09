@@ -28,11 +28,11 @@ ESLint `local/*`, `guards.yml` and Roslyn `ORBIT0001..0005` enforce the mechanic
 8. **Never assume an external interface.** Confirm a field, flag, exit code or response shape from a CLI, API or library you did not write against the real response or the installed source, never memory or `--help`. Never write the fixture that agrees with a guess; cannot confirm it, do not read it. Nothing writes inside `node_modules`; `node tools/check-dependency-edits.mjs` proves the tree matches the lockfile.
 9. **Simplest implementation** that fully meets the current requirements.
 10. **Grow the system in layers.** Start from the smallest version that works end to end, and never trade a working product for unfinished complexity.
-11. **Use the dependencies already here** before you write your own or add a package.
+11. **Use the dependencies already here**, then an established library, before you write your own.
 
 ## Security & contracts
 
-Web cookie is httpOnly + sameSite strict + secure; mobile tokens live in SecureStore, never AsyncStorage. Contract types live in `packages/shared/src/types/*` (Zod); never invent a field the API does not return. Shared/DTO changes are **append-only and deploy-API-first**: never rename, remove or retype a field old mobile clients still read. Breaking changes use expand-contract plus the `AppConfig.MinSupportedVersion` gate, raised only once the carrying build is live in the Play fleet (#210).
+Web cookie is httpOnly + sameSite strict + secure; mobile tokens live in SecureStore, never AsyncStorage. Contract types live in `packages/shared/src/types/*` (Zod); never invent a field the API does not return. Shared/DTO changes are **append-only and deploy-API-first**: add optional fields, never rename, remove or retype a field old mobile clients still read. Breaking changes use expand-contract plus the `AppConfig.MinSupportedVersion` gate, raised only once the carrying build is live in the Play fleet (#210).
 
 ## Brand & design
 

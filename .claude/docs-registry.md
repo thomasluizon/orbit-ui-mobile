@@ -5,6 +5,7 @@
 Grep a doc's `At a glance` header before loading it. Registry rows and glance headers describe stable purposes; update them only when a purpose changes. Record amendments in the document body.
 
 | Doc | Purpose |
+|---|---|
 | `BRAND.md` | Audience, positioning and principles; read before brand, copy, positioning or design-direction work, and before ORB-30. |
 | `DESIGN.md` | UI specification, authority order, information architecture and bans; read before frontend work. |
 | `questions.md` | Run-level redesign questions, decision criteria and resolved composition decisions. |
