@@ -100,9 +100,6 @@ Drawn references: [Astra conversation](canvas/Orbit%20Astra%20Conversation.dc.ht
 | [apps/mobile/components/habits/habit-detail-screen.tsx:414](../apps/mobile/components/habits/habit-detail-screen.tsx#L414) | `{t('habits.detail.retry')}` | RefreshCw |
 | [apps/mobile/components/habits/habit-detail-screen.tsx:579](../apps/mobile/components/habits/habit-detail-screen.tsx#L579) | `{t('habits.detail.retry')}` | RefreshCw |
 | [apps/mobile/components/habits/habit-form-fields/reminder-section.tsx:129](../apps/mobile/components/habits/habit-form-fields/reminder-section.tsx#L129) | `{t("habits.form.reminderAdd")}` | Plus |
-| [apps/mobile/components/habits/habit-form-fields/scheduled-reminder-section.tsx:158](../apps/mobile/components/habits/habit-form-fields/scheduled-reminder-section.tsx#L158) | `{t(nested ? 'habits.form.reminderAddTime' : 'habits.form.scheduledReminderAdd')}` | Plus |
-| [apps/mobile/components/habits/habit-form-fields/scheduled-reminder-section.tsx:182](../apps/mobile/components/habits/habit-form-fields/scheduled-reminder-section.tsx#L182) | `{t("common.add")}` | Plus |
-| [apps/mobile/components/habits/habit-form-fields/scheduled-reminder-section.tsx:183](../apps/mobile/components/habits/habit-form-fields/scheduled-reminder-section.tsx#L183) | `{t("common.add")}` | Plus |
 | [apps/mobile/components/habits/habit-form-fields/tag-picker-field.tsx:64](../apps/mobile/components/habits/habit-form-fields/tag-picker-field.tsx#L64) | `{t('habits.form.newTag')}` | Plus |
 | [apps/mobile/components/habits/habit-form-fields/tag-picker-field.tsx:74](../apps/mobile/components/habits/habit-form-fields/tag-picker-field.tsx#L74) | `{t('habits.form.newTag')}` | Plus |
 | [apps/mobile/components/milestone-share/milestone-share-prompt.tsx:161](../apps/mobile/components/milestone-share/milestone-share-prompt.tsx#L161) | `{t('milestoneShare.share')}` | Drawn consequence text (`sm`) |
@@ -209,8 +206,6 @@ Drawn references: [Astra conversation](canvas/Orbit%20Astra%20Conversation.dc.ht
 | [apps/web/components/habits/habit-detail-screen.tsx:470](../apps/web/components/habits/habit-detail-screen.tsx#L470) | `{t('habits.detail.retry')}` | RefreshCw |
 | [apps/web/components/habits/habit-detail-screen.tsx:634](../apps/web/components/habits/habit-detail-screen.tsx#L634) | `{t('habits.detail.retry')}` | RefreshCw |
 | [apps/web/components/habits/habit-form-fields/reminder-section.tsx:118](../apps/web/components/habits/habit-form-fields/reminder-section.tsx#L118) | `{t('habits.form.reminderAdd')}` | Plus |
-| [apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx:116](../apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx#L116) | `{t(nested ? 'habits.form.reminderAddTime' : 'habits.form.scheduledReminderAdd')}` | Plus |
-| [apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx:138](../apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx#L138) | `{t('common.add')}` | Plus |
 | [apps/web/components/habits/habit-form-fields/tag-picker-field.tsx:75](../apps/web/components/habits/habit-form-fields/tag-picker-field.tsx#L75) | `{t('habits.form.newTag')}` | Plus |
 | [apps/web/components/habits/habit-form-fields/tag-picker-field.tsx:78](../apps/web/components/habits/habit-form-fields/tag-picker-field.tsx#L78) | `{t('habits.form.newTag')}` | Plus |
 | [apps/web/components/habits/habit-list/empty-state.tsx:123](../apps/web/components/habits/habit-list/empty-state.tsx#L123) | `{actionLabel}` | RefreshCw |
