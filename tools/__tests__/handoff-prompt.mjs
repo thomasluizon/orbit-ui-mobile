@@ -72,6 +72,30 @@ export const cases = () => {
   const withoutSpec = validateHandoffPrompt(sleepPrompt.replace("`.claude/specs/example.md`", "the spec"), { sleep: true })
   T(`${UNIT}: the spec path must open the prompt`, withoutSpec.some((item) => item.includes(".claude/specs")), JSON.stringify(withoutSpec))
 
+  const padded = (text, bytes) => `${text}\n${"x".repeat(bytes - Buffer.byteLength(text) - 1)}`
+  const specOf = (bytes) => () => ["x".repeat(bytes)]
+  const sizeIssues = (missing) => missing.filter((item) => / within \d+ B \(it is \d+ B\)/.test(item))
+  T(`${UNIT}: the ceilings are 8192 B for the prompt and 40960 B for a spec`, handoff.HANDOFF_PROMPT_MAX_BYTES === 8192 && handoff.SPEC_MAX_BYTES === 40960)
+  const promptAtCeiling = validateHandoffPrompt(padded(sleepPrompt, 8192), { sleep: true })
+  T(`${UNIT}: a prompt of 8192 B passes`, promptAtCeiling.length === 0, JSON.stringify(promptAtCeiling))
+  const promptOver = validateHandoffPrompt(padded(sleepPrompt, 8300), { sleep: true })
+  T(`${UNIT}: a prompt of 8300 B is refused with its name and size`, JSON.stringify(sizeIssues(promptOver)) === JSON.stringify(["`.claude/handoffs/NEXT.md` within 8192 B (it is 8300 B): replace the Current state paragraph and leave history to git, never append"]), JSON.stringify(promptOver))
+  const specAtCeiling = validateHandoffPrompt(sleepPrompt, { sleep: true, specVersions: specOf(40960) })
+  T(`${UNIT}: a spec of 40960 B passes`, specAtCeiling.length === 0, JSON.stringify(specAtCeiling))
+  const specOver = validateHandoffPrompt(sleepPrompt, { sleep: true, specVersions: specOf(41984) })
+  T(`${UNIT}: a spec of 41984 B is refused with its name and size`, JSON.stringify(sizeIssues(specOver)) === JSON.stringify(["`.claude/specs/example.md` within 40960 B (it is 41984 B): replace the Current state paragraph and leave history to git, never append"]), JSON.stringify(specOver))
+  const readPaths = []
+  validateHandoffPrompt(`${sleepPrompt}\nA later \`.claude/specs/other.md\` mention is not the opening.`, { sleep: true, specVersions: (path) => { readPaths.push(path); return [] } })
+  T(`${UNIT}: only the spec its opening names is measured`, JSON.stringify(readPaths) === JSON.stringify([".claude/specs/example.md"]), JSON.stringify(readPaths))
+  T(`${UNIT}: any oversized version of the spec is refused`, sizeIssues(validateHandoffPrompt(sleepPrompt, { sleep: true, specVersions: () => ["small", "x".repeat(40961)] })).length === 1)
+  T(`${UNIT}: the ceiling counts bytes, not characters`, handoff.relayDocumentOversize(handoff.HANDOFF_PROMPT_PATH, "\u00e9".repeat(4097))?.includes("(it is 8194 B)") === true)
+  T(`${UNIT}: a document outside the relay paths has no ceiling`, handoff.relayDocumentLimit("docs/notes.md") === null && handoff.relayDocumentLimit(".claude/specs/nested/a.md") === null)
+  const specRoot = join(root, "handoff-prompt", "spec-checkout")
+  mkdirSync(join(specRoot, ".claude", "specs"), { recursive: true })
+  writeFileSync(join(specRoot, ".claude", "specs", "example.md"), "x".repeat(41984))
+  T(`${UNIT}: a checkout publishes its working copy of the spec`, handoff.checkoutSpecVersions(specRoot)(".claude/specs/example.md")[0]?.length === 41984)
+  T(`${UNIT}: a spec the checkout lacks has no version`, handoff.checkoutSpecVersions(specRoot)(".claude/specs/missing.md").length === 0)
+
   for (const invocation of ["/handoff --crank", "/wrap-up --crank", "/handoff /crank", "<command-name>/handoff</command-name><command-args>--crank</command-args>"]) {
     const request = parseHandoffRequest(invocation)
     T(`${UNIT}: ${invocation} enables crank and sleep`, request?.crank === true && request.sleep === true)
@@ -166,4 +190,16 @@ export const cases = () => {
     assertFenced("after another transfer", "relay-child")
     T(`${UNIT}: owner fence ${priorChain} keeps successor writable`, readRunState(checkout).intake.gmail.pending.message.sendAttempted === true)
   }
+
+  const oversized = stageWithConfig("owner-oversized-spec", "relay-session.mjs", realOrchestratorConfig()).base
+  mkdirSync(join(oversized, ".claude/handoffs"), { recursive: true })
+  mkdirSync(join(oversized, ".claude/specs"), { recursive: true })
+  writeFileSync(join(oversized, ".claude/handoffs/NEXT.md"), sleepPrompt.replace("/sleep\n", "/auto-work\n"))
+  writeFileSync(join(oversized, ".claude/specs/example.md"), "x".repeat(41984))
+  writeRunState({ sessionId: "oversized-parent", sleep: false, autoWork: true }, oversized)
+  recordHandoffRequest("oversized-parent", { command: "handoff", sleep: true, origin: "owner" }, "2026-01-01T00:00:00Z", oversized)
+  let refusal = ""
+  try { handoff.prepareOwnerHandoffRun("oversized-parent", oversized) } catch (error) { refusal = error.message }
+  T(`${UNIT}: an owner handoff refuses a spec over its ceiling`, refusal.includes("`.claude/specs/example.md` within 40960 B (it is 41984 B)"), refusal || "prepared")
+  T(`${UNIT}: a refused owner handoff records no handoff`, readRunState(oversized).ownerHandoff === undefined)
 }

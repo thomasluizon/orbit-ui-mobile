@@ -319,7 +319,7 @@
     ".claude/skills/ticket/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "a4cb13a5cb9d9ee4",
+      "digest": "888e164367d656e2",
       "calibratedAt": "2026-11-05",
       "verdict": "current: high effort, and it earns it: a ticket is the prompt (D2), so a shallow ticket is a shallow implementation, and the cost lands on whoever executes it."
     },

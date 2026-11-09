@@ -9,7 +9,7 @@ import { redactSecrets } from "./lib/github-auth.mjs"
 import { readSessionContext, readSessionMetrics } from "./lib/session-context.mjs"
 import { readBackgroundRuns } from "./lib/background-runs.mjs"
 import { appendChainEntry, closeSessionChain, confirmChainSuccessor, openSessionChain, readSessionChain, refreshChainMetrics, sessionChainEntry, supersededSession, writeSessionChain } from "./lib/session-chain.mjs"
-import { HANDOFF_PROMPT_PATH, handoffAutoWork, handoffCrank, prepareOwnerHandoffRun, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "./lib/handoff-prompt.mjs"
+import { HANDOFF_PROMPT_PATH, checkoutSpecVersions, handoffAutoWork, handoffCrank, openingSpecPaths, prepareOwnerHandoffRun, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "./lib/handoff-prompt.mjs"
 import { REPO_ROOT, acquireRelayLock, clearWakeSource, isRelayWaiter, isWakeSourceAlive, readRunState, readWakeSourceStates, readWorkerLaunches, registerWakeSource, writeRunState } from "./lib/run-state.mjs"
 
 const USAGE = `usage: relay-session.mjs [--retry-wake | --close-chain | --close-terminal <payload>]
@@ -176,11 +176,9 @@ const assertDrained = (repoRoot, sessionId) => {
 
 const provePromptPublished = (repoRoot, execute, crank, autoWork) => {
   const prompt = readFileSync(join(repoRoot, HANDOFF_PROMPT_PATH), "utf8")
-  const missing = validateHandoffPrompt(prompt, { sleep: true, crank, autoWork })
+  const missing = validateHandoffPrompt(prompt, { sleep: true, crank, autoWork, specVersions: checkoutSpecVersions(repoRoot) })
   if (missing.length) throw new Error(`NEXT.md misses: ${missing.join("; ")}`)
-  const opening = prompt.split(/^## /m)[0]
-  const specs = [...new Set(opening.match(/\.claude\/specs\/[\w.-]+\.md/g) ?? [])]
-  const paths = [HANDOFF_PROMPT_PATH, ...specs]
+  const paths = [HANDOFF_PROMPT_PATH, ...openingSpecPaths(prompt)]
   for (const path of paths) {
     const committed = execute("git", ["show", `HEAD:${path}`], repoRoot)
     if (committed !== readFileSync(join(repoRoot, path), "utf8").trim()) throw new Error(`${path} is not committed`)
