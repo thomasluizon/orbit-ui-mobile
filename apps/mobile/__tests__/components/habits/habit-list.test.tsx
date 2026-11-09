@@ -16,7 +16,7 @@ import { Fab } from '@/components/ui/fab'
 import { makeMonthlyChildDaySchedule } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit, createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
-import { formatAPIDate, createApiClientError, normalizeHabitQueryData } from '@orbit/shared/utils'
+import { formatAPIDate, createApiClientError, normalizeHabitQueryData, buildHabitViewFilters } from '@orbit/shared/utils'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toast } from '@/components/ui/app-toast'
 import { useAppToastStore } from '@/stores/app-toast-store'
@@ -32,9 +32,12 @@ import { optimisticInsertHabit } from '@/lib/habit-optimistic-helpers'
 import { TodayLaunchContent } from '@/components/today/today-launch-content'
 import { Checkbox } from '@/components/ui/checkbox'
 import { HabitRow } from '@/components/habits/habit-row'
-import { __resetTestHostConfig, __setMeasureInWindowImpl, __setWindowDimensions } from '@/test-mocks/react-native'
+import { __getFocusedNativeTag, __resetTestHostConfig, __setMeasureInWindowImpl, __setWindowDimensions } from '@/test-mocks/react-native'
+import { Input } from '@/components/ui/input'
+import { useHabitViewSearch } from '@/hooks/use-habit-view-search'
 import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
-import { HabitListAllDone } from '@/components/habit-list/empty-state'
+import { HabitListAllDone, HabitListEmptyState } from '@/components/habit-list/empty-state'
+import { Skeleton } from '@/components/ui/skeleton'
 import { SearchEmpty } from '@/components/search/search-results'
 import { useBulkActions } from '@/hooks/use-bulk-actions'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
@@ -1078,7 +1081,7 @@ describe('HabitList', () => {
     expect(search().props.value).toBe('Future page')
     expect(picker().props.isPending).toBe(true)
     await TestRenderer.act(async () => { releaseList(); await heldList })
-    if (outcome === 'error') await vi.waitFor(() => expect(tree!.root.findByType(FlatList).props.ListEmptyComponent.props.title).toBe('habits.loadError'))
+    if (outcome === 'error') await vi.waitFor(() => expect(tree!.root.findByType(HabitListEmptyState).props.title).toBe('habits.loadError'))
     else await vi.waitFor(() => expect(rows().some((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id === 'source')).toBe(true))
     await TestRenderer.act(async () => { await picker().props.onConfirm() })
     expect(onBulkMove).toHaveBeenCalledOnce()
@@ -1286,7 +1289,7 @@ describe('HabitList', () => {
     } finally { dimensions.mockRestore() }
   })
 
-  it('keeps the loading scroller mounted while the skeleton delay expires', async () => {
+  it('keeps the Hoje list mounted while the skeleton delay expires', async () => {
     const { queryClient } = await vi.importActual<typeof import('@/lib/query-client')>('@/lib/query-client')
     vi.useFakeTimers()
     skipFlow.active = true
@@ -1297,14 +1300,14 @@ describe('HabitList', () => {
       await TestRenderer.act(() => {
         tree = createTestTree(<QueryClientProvider client={queryClient}><HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} showCompleted onCreatePress={vi.fn()} /></QueryClientProvider>)
       })
-      const loadingList = tree!.root.findAllByType(FlatList)[0]
-      expect(loadingList).toBeDefined()
-      expect(loadingList.props.data).toEqual([])
+      const loadingList = tree!.root.findByType('DraggableFlatList')
+      expect(loadingList.props.accessibilityState).toEqual({ busy: true })
+      expect(tree!.root.findAllByType(Skeleton)).toHaveLength(0)
       await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(299) })
-      expect(loadingList.props.data).toEqual([])
+      expect(tree!.root.findAllByType(Skeleton)).toHaveLength(0)
       await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(1) })
-      expect(tree!.root.findAllByType(FlatList)[0]).toBe(loadingList)
-      expect(loadingList.props.data).toHaveLength(5)
+      expect(tree!.root.findByType('DraggableFlatList')).toBe(loadingList)
+      expect(tree!.root.findAllByType(Skeleton)).toHaveLength(5)
       expect(loadingList.props.accessibilityState).toEqual({ busy: true })
     } finally {
       if (tree) TestRenderer.act(() => tree.unmount())
@@ -1328,7 +1331,7 @@ describe('HabitList', () => {
         await Promise.resolve()
       })
       await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(59_999) })
-      expect(tree!.root.findAllByType(FlatList)[0].props.accessibilityState).toEqual({ busy: true })
+      expect(tree!.root.findByType('DraggableFlatList').props.accessibilityState).toEqual({ busy: true })
       expect(flattenText(tree!.toJSON())).not.toContain('habits.loadError')
       expect(offlineMocks.apiClient).toHaveBeenCalledOnce()
       await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(2) })
@@ -1339,6 +1342,72 @@ describe('HabitList', () => {
       queryClient.clear()
       vi.useRealTimers()
     }
+  })
+
+  describe('scoped header search', () => {
+    type SearchView = 'today' | 'all' | 'general'
+    const searchFieldMounts = { count: 0 }
+    function CountedSearchField({ search }: Readonly<{ search: ReturnType<typeof useHabitViewSearch> }>) {
+      React.useEffect(() => { searchFieldMounts.count += 1 }, [])
+      return <Input label="search" hideLabel value={search.text} onChange={search.changeText} focusRequest={1} />
+    }
+    function ScopedSearchHarness({ view }: Readonly<{ view: SearchView }>) {
+      const search = useHabitViewSearch(view)
+      const filters = buildHabitViewFilters({ view, dateStr: TODAY, isTodayDate: true, searchQuery: search.query, selectedFrequency: null, selectedTagIds: [], showGeneralOnToday: false })
+      return <HabitList view={view} filters={filters} searchQuery={search.query} onClearSearch={search.close} showCompleted onCreatePress={vi.fn()}
+        listHeader={<View>{search.open ? <CountedSearchField search={search} /> : null}<View testID="search-toggle" onTouchEnd={search.toggle} /></View>} />
+    }
+
+    it.each(['today', 'all', 'general'] as const)('keeps the %s search input mounted and focused while each query loads, empties and refills the list', async (view) => {
+      const { queryClient } = await vi.importActual<typeof import('@/lib/query-client')>('@/lib/query-client')
+      vi.useFakeTimers()
+      skipFlow.active = true
+      queryClient.clear()
+      searchFieldMounts.count = 0
+      const habits = ['Read', 'Run', 'Nap'].map((title) => createMockHabitScheduleItem({ id: title.toLowerCase(), title, isGeneral: view === 'general', scheduledDates: [TODAY], isCompleted: title === 'Nap', isLoggedInRange: title === 'Nap' }))
+      const pending: { url: string; resolve: (value: unknown) => void }[] = []
+      offlineMocks.apiClient.mockImplementation((url: string) => new Promise((resolve) => { pending.push({ url, resolve }) }))
+      const answer = async () => {
+        await TestRenderer.act(async () => {
+          for (const request of pending.splice(0)) {
+            const search = new URL(request.url, 'https://mobile-tests.invalid').searchParams.get('search')?.toLowerCase() ?? ''
+            const items = habits.filter((habit) => habit.title.toLowerCase().includes(search))
+              .map((habit) => search ? { ...habit, searchMatches: [{ field: 'title' as const, value: habit.title }] } : habit)
+            request.resolve({ items, totalCount: items.length, totalPages: 1, page: 1, pageSize: 200 })
+          }
+          await vi.advanceTimersByTimeAsync(0)
+        })
+      }
+      let tree!: ReturnType<typeof TestRenderer.create>
+      try {
+        await TestRenderer.act(() => { tree = createTestTree(<QueryClientProvider client={queryClient}><ScopedSearchHarness view={view} /></QueryClientProvider>) })
+        await answer()
+        await TestRenderer.act(() => { tree.root.findByProps({ testID: 'search-toggle' }).props.onTouchEnd() })
+        const field = () => tree.root.findAll((node: { type: unknown }) => node.type === 'TextInput')
+        expect(field()).toHaveLength(1)
+        const input = field()[0]!
+        const focusedTag = input.props.__nativeTag as number
+        expect(__getFocusedNativeTag()).toBe(focusedTag)
+        const fieldState = () => ({ fields: field().length, sameInput: field()[0] === input, focused: __getFocusedNativeTag() === focusedTag, mounts: searchFieldMounts.count })
+        const titles = () => tree.root.findAllByType(HabitRow).filter(isInteractiveRow).map((row: { props: { habit: NormalizedHabit } }) => row.props.habit.title)
+        for (const [text, expected] of [['r', ['Read', 'Run']], ['re', ['Read']], ['rex', []], ['rea', ['Read']], ['nap', ['Nap']]] as const) {
+          await TestRenderer.act(() => { field()[0]!.props.onChangeText(text) })
+          await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(300) })
+          expect(pending.length).toBeGreaterThan(0)
+          expect(fieldState()).toEqual({ fields: 1, sameInput: true, focused: true, mounts: 1 })
+          await answer()
+          expect(titles()).toEqual(expected)
+          expect(tree.root.findAllByType(SearchEmpty)).toHaveLength(expected.length === 0 ? 1 : 0)
+          expect(fieldState()).toEqual({ fields: 1, sameInput: true, focused: true, mounts: 1 })
+          expect(field()[0]!.props.value).toBe(text)
+          expect(tree.root.findAllByType(HabitListAllDone)).toHaveLength(view === 'today' && text === 'nap' ? 1 : 0)
+        }
+      } finally {
+        if (tree) TestRenderer.act(() => tree.unmount())
+        queryClient.clear()
+        vi.useRealTimers()
+      }
+    })
   })
 
   it.each(['rows', 'empty', 'loading', 'error'] as const)('marks first Hoje content only after its %s surface renders', (surface) => {
@@ -1376,10 +1445,10 @@ describe('HabitList', () => {
     })
     TestRenderer.act(() => ref.current!.scrollToOffset(0, false))
     expect(rootListScroll.scrollToOffset).toHaveBeenCalledExactlyOnceWith({ offset: 0, animated: false })
-    const list = tree!.root.findByType(surface === 'normal' ? 'DraggableFlatList' : 'FlatList')
+    const list = tree!.root.findByType(surface === 'drill' ? 'FlatList' : 'DraggableFlatList')
     TestRenderer.act(() => {
-      if (surface === 'normal') list.props.onScrollOffsetChange(700)
-      else list.props.onScroll({ nativeEvent: { contentOffset: { y: 700 } } })
+      if (surface === 'drill') list.props.onScroll({ nativeEvent: { contentOffset: { y: 700 } } })
+      else list.props.onScrollOffsetChange(700)
     })
     expect(onScroll).toHaveBeenCalledWith(700)
     expect(mockDrillState.drillReset).not.toHaveBeenCalled()
@@ -1477,7 +1546,7 @@ describe('HabitList', () => {
       })
     }
 
-    it.each(['drill', 'all', 'loading', 'error'] as const)('reveals a replacement %s list from its initial offset without a new scroll event', async (surface) => {
+    it.each(['drill', 'all'] as const)('reveals a replacement %s list from its initial offset without a new scroll event', async (surface) => {
       const { tree, todayHandle, viewport, fab } = await mountFocusList('normal')
       TestRenderer.act(() => tree.root.findByType('DraggableFlatList').props.onScrollOffsetChange(700))
       await TestRenderer.act(() => tree.update(renderFocusList(surface)))
@@ -1495,6 +1564,19 @@ describe('HabitList', () => {
       await focusListControl(tree, viewport.top + 8)
       expect(rootListScroll.scrollToOffset).not.toHaveBeenCalled()
       expect(todayHandle.scrollToOffset).not.toHaveBeenCalled()
+    })
+
+    it.each(['loading', 'error'] as const)('keeps the mounted Hoje list and its offset when the list enters %s', async (surface) => {
+      const { tree, todayHandle, viewport, fab } = await mountFocusList('normal')
+      const list = tree.root.findByType('DraggableFlatList')
+      TestRenderer.act(() => list.props.onScrollOffsetChange(700))
+      await TestRenderer.act(() => tree.update(renderFocusList(surface)))
+      expect(tree.root.findByType('DraggableFlatList')).toBe(list)
+      rootListScroll.scrollToOffset.mockClear()
+      await focusListControl(tree, fab.top + 6)
+      const delta = fab.top + 6 + 48 - (viewport.bottom - 96)
+      expect(todayHandle.scrollToOffset).toHaveBeenCalledExactlyOnceWith({ offset: 700 + delta, animated: false })
+      expect(rootListScroll.scrollToOffset).not.toHaveBeenCalled()
     })
 
     it.each(['normal', 'drill', 'all'] as const)('preserves the mounted %s list offset through an ordinary rerender', async (surface) => {

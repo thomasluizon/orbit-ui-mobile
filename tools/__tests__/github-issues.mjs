@@ -60,7 +60,7 @@ export const cases = async () => {
   T(
     `${TOOL}: exports only the ticket adapter surface`,
     Object.keys(githubIssues).sort().join(",") ===
-      "addComment,addTicketToProject,assertRepositoryLabel,cancelTicket,completeTicket,createMilestone,createTicket,editBlockers,editLabels,listLabels,listMilestones,listProjectViews,listTickets,preflightTicketCompletion,readComments,readTicket,readTickets,repairTicketStatus,resolveTicket,setProjectViewFilter,setStatus,updateBody,updateTitle",
+      "addComment,addTicketToProject,assertRepositoryLabel,cancelTicket,completeTicket,createMilestone,createTicket,editBlockers,editLabels,listBoardState,listLabels,listMilestones,listProjectViews,listTickets,preflightTicketCompletion,readComments,readTicket,readTickets,repairTicketStatus,resolveTicket,setProjectViewFilter,setStatus,updateBody,updateTitle",
     Object.keys(githubIssues).sort().join(","),
   )
 
@@ -378,6 +378,45 @@ export const cases = async () => {
     T(
       `${TOOL}: a failed GitHub issue read is reported rather than normalized`,
       /failed: HTTP 404: issue not found/.test(await messageOf(() => githubIssues.readTicket(221)) ?? ""),
+    )
+
+    // Node shapes copied from a live BoardState page of thomasluizon/orbit-tickets.
+    const boardProject = { totalCount: 1, nodes: [{ project: { id: "PVT_kwHOBE6dNc4Bfy2y" } }] }
+    const boardNode = (number, updatedAt, blockers = [], projectItems = boardProject) =>
+      ({ number, updatedAt, projectItems, blockedBy: { totalCount: blockers.length, nodes: blockers } })
+    const boardPage = (nodes, hasNextPage = false, endCursor = "Y3Vyc29yOnYyOpK0MjAyNi0xMS0wOFQyMzozMzoxNFrPAAAAAXYjtkw=") =>
+      JSON.stringify({ data: { repository: { issues: { pageInfo: { hasNextPage, endCursor }, nodes } } } })
+    const firstBoardPage = "api graphql -F o=thomasluizon -F r=orbit-tickets -f query=query BoardState"
+    applyEnvironment(
+      orcaEnv([
+        { match: firstBoardPage, ticketEnvelope: "boardState", stdout: boardPage([
+          boardNode(1563, "2026-11-07T14:43:59Z", [{ number: 1562, state: "CLOSED" }, { number: 1560, state: "OPEN" }]),
+          boardNode(1900, "2026-11-07T10:00:00Z", [], { totalCount: 0, nodes: [] }),
+        ], true, "cursor-one") },
+        { match: "api graphql -F o=thomasluizon -F r=orbit-tickets -f after=cursor-one -f query=query BoardState", ticketEnvelope: "boardState", stdout: boardPage([boardNode(2065, "2026-11-08T22:53:42Z", [{ number: 2064, state: "OPEN" }])]) },
+      ]),
+    )
+    const boardState = await githubIssues.listBoardState()
+    T(
+      `${TOOL}: listBoardState pages through open tickets on the configured project with their open blockers`,
+      JSON.stringify(boardState) === JSON.stringify([
+        { number: 1563, updatedAt: "2026-11-07T14:43:59Z", openBlockers: [1560] },
+        { number: 2065, updatedAt: "2026-11-08T22:53:42Z", openBlockers: [2064] },
+      ]),
+      JSON.stringify(boardState),
+    )
+    applyEnvironment(orcaEnv([{ match: firstBoardPage, ticketEnvelope: "boardState", stdout: boardPage([]) }]))
+    T(`${TOOL}: listBoardState reads a successful page with no nodes as an empty board`, (await githubIssues.listBoardState()).length === 0)
+    applyEnvironment(orcaEnv([{ match: firstBoardPage, ticketEnvelope: "boardState",
+      stdout: boardPage([{ ...boardNode(2065, "2026-11-08T22:53:42Z"), blockedBy: { totalCount: 101, nodes: [] } }]) }]))
+    T(
+      `${TOOL}: listBoardState refuses a blocker connection that stops short of its totalCount`,
+      (await messageOf(() => githubIssues.listBoardState())) === "gh api graphql board state returned an incomplete blockedBy connection for issue #2065",
+    )
+    applyEnvironment(orcaEnv([{ match: firstBoardPage, stdout: "", stderr: "gh: Could not resolve to a Repository", exit: 1 }]))
+    T(
+      `${TOOL}: a failed board read is reported rather than read as an empty board`,
+      /failed: gh: Could not resolve to a Repository/.test(await messageOf(() => githubIssues.listBoardState()) ?? ""),
     )
   } finally {
     restoreEnvironment()

@@ -14,6 +14,7 @@ import { RouteTransitionShell } from '@/components/motion/route-transition-shell
 import { CalendarWeekView } from '@/components/calendar/calendar-week-view'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { readSettledScroll } from '@/__tests__/support/settled-scroll'
 
 const route = vi.hoisted(() => ({ pathname: '/calendar' }))
 vi.mock('next/navigation', () => ({ usePathname: () => route.pathname, useParams: () => ({}), useRouter: () => ({ push: vi.fn() }) }))
@@ -190,16 +191,7 @@ describe('Calendar week through the destination shell and route transition', () 
       await page.addScriptTag({ content: weekScript })
       await page.locator('[data-live-week] [data-testid="time-grid-hour-scroller"]').waitFor()
       const scroller = page.getByTestId('time-grid-hour-scroller')
-      const position = () => scroller.evaluate(async (element) => {
-        let previous = element.scrollLeft
-        let stableFrames = 0
-        for (let frame = 0; frame < 120 && stableFrames < 4; frame++) {
-          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
-          stableFrames = element.scrollLeft === previous ? stableFrames + 1 : 0
-          previous = element.scrollLeft
-        }
-        return { left: element.scrollLeft, top: element.scrollTop }
-      })
+      const position = () => scroller.evaluate(readSettledScroll, { axis: 'left', movedFrom: null } as const)
       const opening = await position()
       expect(opening.left).toBeGreaterThan(100)
       if (input === 'wheel') { await scroller.hover(); await page.mouse.wheel(-400, 0) }

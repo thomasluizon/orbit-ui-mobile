@@ -28,7 +28,7 @@ node tools/run-status.mjs --session "<this session id>"
 
 Read its one JSON object and follow `nextActions[].command` from `commandDirectory`.
 Commands use relative paths when those are shorter. The action set is closed:
-`REARM_WAIT_CI`, `VERIFY_DELIVERY`, `READ_REVIEW`, `RECORD_READINESS`, `BEHIND_BASE`,
+`REARM_WAIT_CI`, `VERIFY_DELIVERY`, `READ_REVIEW`, `REQUEST_REVIEW`, `RECORD_READINESS`, `BEHIND_BASE`,
 `CHECK_FAILED`, `MERGE_CANDIDATE`, `SLOT_FREE`, `ORPHANED_WORKER`, `INTAKE`, `NO_ACTION`.
 Delivery and readiness remain decisions of their named tools. A merge candidate calls the
 recorder again; it grants no merge authority. A foreign session has no actions. A linked
@@ -129,12 +129,14 @@ no invocation flag overrides it. Pool sizing for an enabled Cloud lane is detail
                      SALVAGE allowed: discard residue · test then commit+push what the worker
                      left · re-run a CI job proven infra. NEVER write code, revert, force, merge.
                      A SALVAGED PR RE-ENTERS HERE and runs 7, 8 and 9 like any other.
- 8  CLEAR PULLFROG   Pullfrog reviews on open and re-reviews on every push. Ask for nothing.
+ 8  CLEAR PULLFROG   Pullfrog reviews only on request, and the request waits for green CI.
                      node tools/list-bot-threads.mjs --pr <n> --repo <key> -> threads[] AND reviewBody
+                     CI_FAILING -> fix CI, no review · CI_PENDING -> wait-ci, then run it again
                      FIX every finding that breaks behaviour, security or data integrity
                      FILE every other finding as an orbit-tickets issue
                      REPLY AND RESOLVE every thread you filed, with resolve-bot-thread.mjs
-                     resolve FIRST, then push. The push re-reviews both together.
+                     resolve FIRST, then push. When CI is green, the same command asks for
+                     the re-review of both together.
                      bound: caps.reviewFixAttempts commits
  9  READINESS LOOP   wait CI, the review verdict admissible on that base included · fix genuine
                      failures · merge main into branch when behind · rerun invalidated receipts
@@ -164,7 +166,7 @@ node tools/plan-queue.mjs        (--tickets ORB-1,ORB-2 | --board) [--format mar
 node tools/comment-ticket.mjs    --issue "<ticket-ref>" --body-file <path|->
 node tools/complete-ticket.mjs   --issue "<ticket-ref>" [--preflight]
 node tools/compose-prompt.mjs    --issue "<ticket-ref>" --repo <key> --out <file> [--worktree <p>] [--branch <b>] [--base <ref>] [--layout-guard] [--review-batch] [--cloud]
-node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical|deep|max>] [--allow-subagents] [--relaunch-reason <text>]
+node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical|deep|max>] [--relaunch-reason <text>]
 node tools/launch-worker.mjs --research --order <scratchpad order> --out <scratchpad findings>
 node tools/submit-cloud-worker.mjs --issue "<ticket-ref>" --env <id> --branch <b> --order <f> --worktree <p>
 node tools/submit-cloud-worker.mjs --watch <receiptPath>
@@ -306,10 +308,8 @@ user. So the same directory layout means opposite things for the two kinds.
 This gate exists because ORB-115, ORB-111 and ORB-118 all closed as Done with their work undone,
 invisibly, on a shadowed skill.
 
-Expected state: `~/.claude/skills/` holds exactly 16 dirs (`brain`, `brain-agenda`, `brain-capture`,
-`brain-decide`, `brain-review`, `computer-use`, `diagnosing-bugs`, `find-skills`,
-`g-best-implementation`, `g-deep-research`, `g-simplify`, `g-video`, `grilling`, `orca-cli`,
-`orchestration`, `tdd`) and none of them may also exist under `.claude/skills/`.
+Expected state: the `comm` command prints nothing. The skill names under `~/.claude/skills/` change
+per machine, so this gate checks only that no name appears in both directories.
 
 ## Step 1. Plan the queue
 
@@ -534,8 +534,7 @@ construction: the child's branch cannot exist until the parent's does.
 node tools/compose-prompt.mjs --issue "<ticket-ref>" --repo <key> --out <scratchpad>/<ticket-slug>-prompt.md \n  --worktree <worktree path> --branch <contract branch> --base <base branch>
 ```
 
-The file carries three parts. A local order puts them in the order ticket, finishing contract (with
-any redesign review sweep), brief, so the worker reads its delivery steps before the brief (#624). A
+The file carries three parts. A local order puts them in the order ticket, finishing contract, brief, so the worker reads its delivery steps before the brief (#624). A
 Cloud order keeps ticket, brief, finishing contract.
 
 For a ui ticket that requires the hermetic web layout guard, the orchestrator selects
@@ -557,7 +556,7 @@ on the pull request is the only runner and evidence.
 For a local review-fix worker, add `--review-batch` to the compose command. Its order stops after
 the broader suite and a tested commit. The worker reports the commit SHA and test results without
 pushing or updating the pull request. The orchestrator replies to and resolves the batch's threads,
-pushes once, and lets that push request the review.
+pushes once, and asks for the review with `list-bot-threads.mjs` after the CI of that push passes.
 
 Write it to the scratchpad. A prompt file inside the worktree gets committed by the worker.
 
@@ -667,58 +666,6 @@ only after receipt resolution is durable. Exit 10 with `NEEDS_DECISION` preserve
 and refuses delivery. Route its question through step 7 (under `--sleep`, log it as blocked), and
 do not run readiness or merge until the owner answers and the resulting work is verified.
 
-For a Cloud `ui` order that carries the UI review sweep, inspect the locally materialized diff for the UI scope printed in the order. When it matches, run the owed sweep locally after materialization and
-before opening or updating the pull request. This contract is rendered from
-`UI_REVIEW_SWEEP_CONTRACT` in `tools/lib/review-harness.mjs`; composer coverage refuses drift.
-
-Use `.claude/playbooks/redesign-screen.md` as the authority. Complete all three source families before starting a lane:
-
-1. Run `npx --yes ui-skills get <owner>/<name>` for each skill and verify a successful, non-empty fetch: `anthropics/frontend-design`, `jakubkrehel/make-interfaces-feel-better`, `emilkowalski/animation-vocabulary`, `raphaelsalaja/mastering-animate-presence`, `iart-ai/accessible-animation`, `ibelick/fixing-accessibility`, `wshobson/wcag-audit-patterns`.
-2. Use the GitHub Trees commands below and read every blob under each `skills/<name>/` directory: `better-ui`, `better-accessibility`, `better-layout`, `better-writing`, `better-typography`, `better-colors`, `interface-review`, `better-interface`.
-
-```bash
-gh api "repos/jakubkrehel/skills/git/trees/main?recursive=1" --jq .truncated
-gh api "repos/jakubkrehel/skills/git/trees/main?recursive=1" \
-  --jq '.tree[]|select(.type=="blob" and (.path|startswith("skills/<name>/")))|.path'
-```
-
-Stop if `truncated` is `true`. Read every printed path from `https://raw.githubusercontent.com/jakubkrehel/skills/main/<path>`.
-3. Fetch the Vercel guideline text from `https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md`.
-
-Run the four read-only lanes yourself, in this session, in order:
-
-- execution (mandatory): `anthropics/frontend-design`, `jakubkrehel/better-ui`, `jakubkrehel/make-interfaces-feel-better`
-- motion (when the change animates): `emilkowalski/animation-vocabulary`, `raphaelsalaja/mastering-animate-presence`, `iart-ai/accessible-animation`
-- gates (mandatory): `the Vercel guideline text`, `ibelick/fixing-accessibility`, `wshobson/wcag-audit-patterns`, `jakubkrehel/better-accessibility`
-- the change (mandatory): `jakubkrehel/interface-review`, `jakubkrehel/better-interface in full mode`, `jakubkrehel/better-accessibility`, `jakubkrehel/better-layout`, `jakubkrehel/better-writing`, `jakubkrehel/better-typography`, `jakubkrehel/better-colors`, `jakubkrehel/better-ui`
-
-Within the change lane, run `interface-review` before `better-interface`.
-Spawn exactly two sub-agents for the close gate:
-
-- One for `design-reviewer on the diff`, told to read `.claude/agents/design-reviewer.md`.
-- One for `completeness-critic against the surface inventory`, told to read `.claude/agents/completeness-critic.md`.
-
-Spawn no other sub-agent. If no changed path matches the sweep's scope, spawn none.
-Verify each lane's PASS, not only its findings. A routed domain marked skipped is not covered.
-Fix every in-scope finding in this pull request. Only then write:
-
-```md
-## Review harness
-
-- execution lane: <what it found, or "no findings">
-- motion lane: <what it found, "no findings", or "not applicable: no changed animation">
-- gates lane: <what it found, or "no findings">
-- interface-review: <what it found, or "no findings">
-- better-interface (full mode): <what it found, or "no findings">
-- design-reviewer: <what it found, or "no findings">
-- completeness-critic: <what it found, or "no findings">
-```
-
-A line claiming a review you did not run is forbidden.
-
-This step belongs to the local materialization
-lane because the Cloud container cannot fetch the review sources.
-
 On success, read `assumptions` using step 7's adjudication rule, and carry them verbatim into the PR
 body's `## Assumptions`. Carry `manualSteps` into `## Manual steps`, including each exact key,
 location and proof. Carry `materialized.handoff.testResults` verbatim into the eventual PR body's
@@ -762,7 +709,7 @@ a non-empty remote diff keeps the task unresolved.
 ### Local execution
 
 ```bash
-node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical|deep|max>] [--allow-subagents] [--relaunch-reason <text>]
+node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical|deep|max>] [--relaunch-reason <text>]
 node tools/launch-worker.mjs --research --order <scratchpad order> --out <scratchpad findings>
 ```
 
@@ -794,14 +741,7 @@ still needs product, design, architecture, security or ambiguous judgement uses 
 `default` or `deep` tier until a failed round requires `max`.
 The mechanical tier means the answer is fully specified; it is never a synonym for small.
 The failed-round escalation takes precedence over the other tier choices. Never use `ultra`:
-it delegates to its own agents, and worker orders forbid sub-agents outside the explicit UI sweep.
-
-Pass `--allow-subagents` exactly when `compose-prompt.mjs` included the exact `## UI review sweep`
-heading in the finishing contract. Ticket text never selects this flag, the same rule as
-`--layout-guard`. The launcher refuses the flag without that heading. All other local launches
-keep the configured sub-agent off vector on both engines. The four review lanes run in the worker
-session; only the two close-gate reviewers may be spawned. A review batch with no changed path
-matching `UI_SCOPE` skips the sweep and spawns none.
+it delegates to its own agents, and worker orders forbid sub-agents.
 
 New ticket work first passes the GitHub admission gate in `caps.maxOpenPullRequests` and
 `caps.maxQueuedRuns`. A branch with an open pull request is exempt. `ADMISSION_REFUSED` starts no
@@ -986,10 +926,31 @@ repositories and publishes `pullfrog-approval`, a required status check on `main
 The verdict therefore reaches readiness through the required contexts `record-readiness.mjs` already
 reads, and no receipt of this harness owns it.
 
-**Pullfrog reviews automatically when the pull request opens, and it re-reviews on every push.** The
-request comment is therefore redundant on a normal run. `list-bot-threads.mjs` still posts
-`@pullfrog review` first, and only when no review of the current head exists yet, which covers a pull
-request opened before automatic review existed. Pass `--no-request` to suppress that comment.
+**Pullfrog reviews only when somebody asks, and `list-bot-threads.mjs` asks only for a head whose CI
+passed.** The Pullfrog console settings `review.mode` `none` and `review.re-review` `false` stop the
+review on open and on push. A review of a head whose CI later fails is lost: the CI fix push
+dismisses the approval, and Pullfrog must review the same change again. The tool posts
+`@pullfrog review` only when all of these are true:
+
+1. No review of the current head exists.
+2. No `@pullfrog review` comment exists after the push of the current head.
+3. Each required check of the base, except `pullfrog-approval`, is registered on the head.
+4. No check on the head, except the checks of the Pullfrog app, is failing or still running.
+
+While CI runs, the tool waits inside its `--wait-seconds` budget. It reports `CI_FAILING` and posts
+nothing when a check failed. Send that head through the step 9 fixer, push, and run the tool again.
+It reports `CI_PENDING` and posts nothing when CI still runs at the end of the budget. Start
+`node tools/wait-ci.mjs --repo <key> --pr <n>` in the background, then run the tool again when the
+waiter exits 0. A plain waiter does not wait for `pullfrog-approval`, so it settles before the
+review exists. Add `--require-check pullfrog-approval` only to wait for the review itself.
+`node tools/run-status.mjs` names the same request as its `REQUEST_REVIEW` action, with a 30-second
+`--wait-seconds`, so the command posts and returns. After the request, start
+`node tools/wait-ci.mjs --repo <key> --pr <n> --require-check pullfrog-approval` in the background.
+While that waiter is live, `run-status` names no second `REQUEST_REVIEW`. Pass `--no-request` to read
+the review state without a request.
+
+A pull request that this run did not open, such as a contract rebaseline pull request or one the
+owner opened, gets no automatic review either. Ask for its review with the same command.
 
 Its review instructions live in the Pullfrog console, on the server, and in no file of either
 repository. That placement is the point. A pull request may edit any file on its own head, so a
@@ -1026,13 +987,15 @@ manufacture a push:
 node tools/list-bot-threads.mjs --pr <n> --repo <key> --wait-seconds 900 --re-review
 ```
 
-`--re-review` posts `@pullfrog review` even though the head is already reviewed, and it accepts
+`--re-review` waits for the same CI gate, then posts `@pullfrog review` even though the head is
+already reviewed or already requested, and it accepts
 only a review submitted AFTER the one that was present when the run started. That timestamp
 comparison is what makes it terminate: without it the run reads back the review it was sent to
 replace and reports the finding it just answered. Only a fresh `APPROVED` review of that same head
 clears `pullfrog-approval`.
 
-A body finding you FIX needs none of this. The fix moves the head, and the push re-reviews it.
+A body finding you FIX needs none of this. The fix moves the head. When the CI of the new head
+passes, `list-bot-threads.mjs` asks for its review.
 
 **Split every unresolved finding two ways, and act on both halves:**
 
@@ -1066,20 +1029,17 @@ resolve and same-head re-review transitions without launching a worker or invent
 When the batch needs a worker, compose its order with `--review-batch`. The worker commits, runs the
 broader suite, reports the commit SHA and stops without pushing. **Its final report is the batch's
 handoff, and the orchestrator consumes it before anything else.** Read the report's
-`## Test evidence`, `## Assumptions` and `## Manual steps` sections, its `## Review harness` block only when the order carried the UI review sweep and a path changed by this batch matches `UI_SCOPE` in `tools/lib/review-harness.mjs`,
-and any `NEEDS_DECISION` line at the step 7
+`## Test evidence`, `## Assumptions` and `## Manual steps` sections and any `NEEDS_DECISION` line at the step 7
 worker-exit gate, adjudicate the assumptions there exactly as for an initial worker, and write every
 one of those sections into the existing pull request body before delivery. Merge new entries into the existing `## Test evidence`, `## Assumptions` and `## Manual steps` sections.
 An empty second batch section preserves the first batch's entries. Deduplicate repeated evidence.
 Save the current PR body from `gh pr view <n> --json body --jq .body` and the worker's final report
 to separate files. Run `node tools/merge-review-batch-body.mjs --body-file <current-body> --report-file <worker-report> --out <merged-body>`.
-Add `--ui-scope` only when a path changed by this batch's commit matches `UI_SCOPE`, so the tool
-requires and replaces the complete `## Review harness` block for a UI batch. Without it, the tool
-preserves the previous block. Then run `gh pr edit <n> --body-file <merged-body>`. Only then does
+Then run `gh pr edit <n> --body-file <merged-body>`. Only then does
 the orchestrator reply to and resolve every identified thread on that commit, then push once. A
-report that lacks the evidence the order required is a failed batch, never a push. For a batch with no matching path, accept a report without that block and preserve any existing PR-body block.
-For a batch with a matching path, require the complete block and replace the PR-body block before continuing. That push starts Pullfrog's
-review with the fixes and resolved threads together. A registered
+report that lacks the evidence the order required is a failed batch, never a push. After that push, run
+`list-bot-threads.mjs`: when the CI of the new head passes, it asks Pullfrog for one review of the
+fixes and resolved threads together. A registered
 `pullfrog-approval` SUCCESS at the current head is the verdict. When that check is ABSENT from the
 rollup, a Pullfrog review with `reviewState` `APPROVED` and `reviewedCommit` equal to that head stands
 in for it. When Pullfrog produced neither, nothing else may stand in on protected `main`, because a real check exists there and only Pullfrog can publish it.
@@ -1133,9 +1093,10 @@ write unless the node's own `repository.nameWithOwner` equals what `--repo` reso
 **A permissions error on any of these is a WRONG TARGET until proven otherwise.** The tool names the
 repository the node actually resolved to. Read that name before you retry anything.
 
-**For a fix the orchestrator writes, resolve FIRST, then push.** The push fires the incremental
-re-review, which reads the fixes and resolved threads together. Use the same order for a worker's
-`--review-batch` commit: resolve its threads, then push.
+**For a fix the orchestrator writes, resolve FIRST, then push.** When the CI of the pushed head
+passes, `list-bot-threads.mjs` asks for the incremental re-review, which reads the fixes and resolved
+threads together. Use the same order for a worker's `--review-batch` commit: resolve its threads,
+then push.
 
 After the push, re-run `node tools/verify-delivery.mjs`. The fix moved the head, so the earlier
 `DELIVERED` is stale until this re-runs. `DELIVERED` continues; `STALE_PR` means the push did not
@@ -1187,7 +1148,9 @@ tied to the old head or base. Bare PR numbers are never sufficient run state.
 For each existing PR, repeat within the configured `caps.reviewFixAttempts` fixer bound:
 
 1. Read PR draft/head/base state and GitHub compare. If behind, merge current `main` into the branch
-   without rebasing or force-pushing, push normally, and invalidate all earlier receipts.
+   without rebasing or force-pushing, push normally, and invalidate all earlier receipts. Merge
+   before the first review request when the branch is already behind: a merge after an approval
+   needs one more request.
 2. Wait for all checks to settle. Preserve exact failed metadata. Rerun only a failure proven from
    its run/job steps to be infrastructure or a flake; send genuine failures through the existing
    fixer. A resulting commit invalidates every head-bound receipt.
@@ -1366,12 +1329,13 @@ runs for merged tickets only, including those merged under D88/D90 standing auth
 | Implementer | the engine named by `worker` in `.claude/orchestrator.json`, at the order's `default`, `mechanical`, `deep` or `max` tier |
 | Reviewer | Pullfrog in GitHub Actions: `anthropic/claude-opus-5-5` at `xhigh` effort, pinned in `.github/workflows/pullfrog.yml` |
 
-The shipped worker is `claude`. All four tiers resolve to Opus 5.5 at high effort:
-`claude-opus-5-5` with `--effort high` on `default`, `mechanical`, `deep` and `max`, so each dry
-run prints `--effort high --model claude-opus-5-5`. The tier names stay as routing labels: use
-`default` for normal orders, `mechanical` for fully specified mechanical work, `deep` for a large
-ticket and `max` for a review round after one failed round. Never use `ultra`, which delegates to
-its own agents; worker orders forbid sub-agents outside the explicit UI sweep. The installed
+The shipped worker is `claude`, and every tier runs `--effort high`. The `default` and `mechanical`
+tiers resolve to Sonnet 5.5, so their dry runs print `--effort high --model claude-sonnet-5-5`. The
+`deep` and `max` tiers resolve to Opus 5.5, so their dry runs print
+`--effort high --model claude-opus-5-5`. Use `default` for normal orders, `mechanical` for fully
+specified mechanical work, `deep` for a large ticket and `max` for a review round after one failed
+round, so that round always runs on Opus. Never use `ultra`, which delegates to its own agents;
+worker orders forbid sub-agents. The installed
 `claude` CLI accepts exactly `low`, `medium`, `high`, `xhigh` and `max` for `--effort`, and it
 warns and runs the default effort on any other value.
 
@@ -1384,15 +1348,16 @@ A later ticket deletes it. It is not a fallback engine.
 
 ### §5.4.1 The worker account
 
-**Every worker runs under the dedicated worker account, never under the orchestrator's account.**
-`workers.claude.configDirEnv` names the variable `ORBIT_WORKER_CLAUDE_CONFIG_DIR`, and the
-owner's shell profile exports it as the Claude Code config directory of that account. The path
-lives only in the environment, never in a tracked file. For a `claude` launch, `launch-worker.mjs`
-does these steps:
+**A worker runs under the dedicated worker account when one is configured, and under the main
+account when none is.** `workers.claude.configDirEnv` names the variable
+`ORBIT_WORKER_CLAUDE_CONFIG_DIR`. When a worker account exists, the owner's shell profile exports
+the variable as the Claude Code config directory of that account. The path lives only in the
+environment, never in a tracked file. For a `claude` launch, `launch-worker.mjs` does these steps:
 
-1. It refuses with exit 2, naming the variable, when the variable is unset or empty.
+1. When the variable is unset or empty, it uses single-account mode: the worker runs once on the
+   main account, the orchestrator's default Claude config, with `CLAUDE_CONFIG_DIR` removed.
 2. It refuses with exit 2 when the variable names a path that is not an existing directory.
-3. It sets `CLAUDE_CONFIG_DIR` to that directory in the child environment.
+3. Otherwise it sets `CLAUDE_CONFIG_DIR` to that directory in the child environment.
 4. It removes every variable in `CLAUDE_ACCOUNT_OVERRIDE_KEYS` (`tools/lib/orchestrator-config.mjs`)
    from the child environment. The installed `claude` CLI selects each one ahead of the sign-in in
    its config directory: `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN`,
@@ -1403,6 +1368,25 @@ Research launches through `--research` apply the same four steps. A `codex` laun
 account directory and is unchanged. The dry run and the launch JSON name the account as
 `account` (`worker` or `main`), and each worker log file name ends in `-worker-account.log` or
 `-main-account.log`.
+
+**On the day the worker account is cancelled, unset the variable.** Remove the
+`ORBIT_WORKER_CLAUDE_CONFIG_DIR` export from the owner's shell profile, and workers start on the
+main account. A variable that still names the cancelled account's directory stops each worker at
+sign-in. The launch JSON then shows `authenticationFailed: true`, the CLI's error text in
+`resultError` and `usageLimitReached: false`, with no relaunch. If a new worker account is added
+later, set the variable again. The fallback then moves workers between the two accounts with no
+owner action.
+
+**Read the launch JSON's `account` before acting on `authenticationFailed: true`.** When it is
+`worker`, start no further launch on the worker account. Relaunch that order, and every later one,
+in single-account mode by prefixing the launch command with `ORBIT_WORKER_CLAUDE_CONFIG_DIR=`, with
+`--relaunch-reason` when the branch ledger needs it. Record `resultError` in the handoff inventory
+and the step 11 report, with the owner's fix: remove the export from the shell profile. When it is
+`main` (single-account mode, or a fallback relaunch that failed sign-in), no account can run a
+worker: start no further launch and never relaunch on that account. Record `resultError` with the
+owner's fix, which is to sign in again with `/login` in an interactive `claude` session on the
+coordinator's default config.
+In both cases, review, CI waiting and readiness work continue.
 
 ```bash
 node tools/launch-worker.mjs --issue '#N' --worktree <path> --prompt <file> --dry-run
@@ -1415,7 +1399,7 @@ node tools/launch-worker.mjs --issue '#N' --worktree <path> --prompt <file> --ti
 the account directory and prints the plan, then exits before `githubEnvironment` and before any
 spawn. It proves five things: the engine and tier resolve, the model id the launcher selected,
 the exact argv the child would receive, the command is on PATH in a shape Node can spawn without
-a shell, and `configDirectory` names the account directory the worker will run under. It proves
+a shell, and `account` and `configDirectory` name the account the worker will run under. It proves
 nothing about whether that sign-in is valid, whether the model id is accepted, or the run. Read
 the `args` array back for all four tiers: the launcher defaults `--tier` to `default`, so the
 explicit dry runs above are needed to show `mechanical`, `deep` and `max`.
@@ -1430,12 +1414,12 @@ launcher does these steps:
    every inherited override still removed. The order pointer tells the worker that an earlier
    worker stopped at its limit, so it reads `git log` and `git status` and keeps that work.
 2. It records both runs in `attempts` in the launch JSON, each with its `account`,
-   `configDirectory`, `logFile`, `outcome` and `usageLimitReached`. The top-level `account`,
-   `pid` and `logFile` name the run that finished the launch.
+   `configDirectory`, `logFile`, `outcome`, `usageLimitReached`, `authenticationFailed` and
+   `resultError`. The top-level `account`, `pid` and `logFile` name the run that finished the launch.
 
 Any other failure, including a transient 429 that is not a usage limit, ends the launch with no
-relaunch. A main account run that also reaches its limit is not relaunched again; the result
-shows `usageLimitReached: true`. Then record the reset time in the handoff inventory and in the
+relaunch. A main account run that reaches its limit is not relaunched again, in single-account
+mode or after the fallback; the result shows `usageLimitReached: true`. Then record the reset time in the handoff inventory and in the
 step 11 report, and stop new launches until a reset. Do not switch `worker` to `codex`, because
 its allowance is the reason the workers moved. The order generator, `§5.7`'s queue, the readiness
 loop and the open pull requests continue, because review and merge spend no worker allowance.
@@ -1535,8 +1519,10 @@ finished, so nobody goes looking. A claim that CI will wake the session requires
 The CI waiter exits 0 only for a settled passing head; 4 means the head moved, 5 means the
 pull request closed, and 6 means settled failing checks. Re-read delivery on 4 or 5 and fix
 failures on 6; none is successful CI. Exit 3 is the ceiling; 1 or 2 is a read or usage error.
-When CI or review is the remaining work, start
-`node tools/wait-ci.mjs --repo <key> --pr <n> [--require-check pullfrog-approval]` in the background.
+When CI is the remaining work, start `node tools/wait-ci.mjs --repo <key> --pr <n>` in the
+background. When the review is the remaining work, first ask for it with `list-bot-threads.mjs`, then
+start the waiter with `--require-check pullfrog-approval`. Without the request, that waiter reaches
+its ceiling, because Pullfrog reviews only on request.
 The worker launcher, Cloud receipt watcher, CI waiter, release waiter, file waiter and relay tool
 each register a live wake source. For a detached local check, start
 `node tools/wait-file.mjs --file <absolute completion file> --started-at <original ISO start> --what <check label>` in the background.

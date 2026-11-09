@@ -147,17 +147,19 @@ const SKELETON_KEYS = [
 
 const KEYBOARD_SHOULD_PERSIST_TAPS = 'handled'
 
+const NO_ITEMS: DragItem[] = []
+
 function renderAllDoneListHeader(
   showAllDone: boolean,
   header: ReactElement | null,
   headerStyle: ReturnType<typeof createStyles>['allDoneHeader'],
   onAction: (() => void) | undefined,
 ): ReactElement | null {
-  if (!showAllDone) return header
+  if (!header && !showAllDone) return null
   return (
-    <View style={headerStyle}>
+    <View style={showAllDone ? headerStyle : null}>
       {header}
-      <HabitListAllDone onSeeUpcoming={onAction} />
+      {showAllDone ? <HabitListAllDone onSeeUpcoming={onAction} /> : null}
     </View>
   )
 }
@@ -205,7 +207,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const state = useHabitListModel({ view, filters, requestedDate, showCompleted, onShowCompleted, searchQuery, onClearSearch, isSelectMode, selectedHabitIds, onBulkMove, listHeader, onCreatePress, onSeeUpcoming, onDetailHabit, onEditHabit, onScrollBeginDrag, onScroll, onAllCollapsedChange, onSurfaceOpenChange, onAllLoadedIdsChange, ref })
     const { t, styles } = state.account
     const { scrollContainerRef, revealListFocus, bulkBarStyle, handleMainListOffsetChange } = state.scroll
-    const { habitsQuery, launchFromCache, isLoading, isError } = state.queries
+    const { launchFromCache } = state.queries
     const { drill } = state
     const { listExtraData } = state.selection
     const { presentation, cellMotion } = state.motion
@@ -218,9 +220,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const { isDraggingList, handleDragEnd } = state.drag
     const commonOverlays = <HabitListOverlays state={state} />
     if (drill.currentParentId) return renderHabitDrillState({ ...state, commonOverlays })
-    if (isLoading) return renderHabitLoadingState({ ...state, commonOverlays })
-    if (isError && !habitsQuery.data) return renderHabitErrorState({ ...state, commonOverlays })
     if (view === 'all') return renderHabitAllState({ ...state, commonOverlays })
+    const status = getHabitListStatus(state)
     return (
       <>
         <ContentFade key="habits" fill><KeyboardAwareScrollHost scrollRef={scrollContainerRef} contentContainerStyle={[styles.listContent, bulkBarStyle]}>{keyboard => <DraggableFlatList
@@ -230,7 +231,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           accessibilityLabel={t('habits.sectionLabel')}
           onLayout={event => { keyboard.onLayout?.(event); measureList(event) }}
           onFocus={revealListFocus}
-          data={presentation.items}
+          data={status === 'ready' ? presentation.items : NO_ITEMS}
+          accessibilityState={{ busy: status === 'loading' }}
           keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
           renderItem={renderItem}
           keyExtractor={keyExtractor}
@@ -239,7 +241,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           refreshControl={refreshControl}
           onDragEnd={(params) => void handleDragEnd(params)}
           ListHeaderComponent={activeListHeader}
-          ListEmptyComponent={<TodayLaunchContent enabled={view === 'today'} fromCache={launchFromCache} empty>{renderCurrentViewEmptyState()}</TodayLaunchContent>}
+          ListEmptyComponent={status === 'ready' ? <TodayLaunchContent enabled={view === 'today'} fromCache={launchFromCache} empty>{renderCurrentViewEmptyState()}</TodayLaunchContent> : renderHabitListStatusBody(state, status)}
           // WHY: DraggableFlatList overwrites any caller onScroll with its own reanimated handler; onScrollOffsetChange is its supported scroll-offset API https://github.com/computerjazz/react-native-draggable-flatlist/blob/v4.0.3/src/components/DraggableFlatList.tsx#L396
           onScrollOffsetChange={offset => { keyboard.onScrollOffsetChange(offset); handleMainListOffsetChange(offset) }}
           onScrollBeginDrag={onScrollBeginDrag}
@@ -254,7 +256,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
   },
 )
 
-export type HabitListHandleInputs = { ref: React.ForwardedRef<HabitListHandle> } & Pick<ReturnType<typeof useHabitListCollapse>, 'allCollapsed' | 'collapseAll' | 'expandAll'> & Pick<ReturnType<typeof useHabitListRoots>, 'allLoadedIds'> & Pick<ReturnType<typeof useHabitRecentCompletions>, 'markRecentlyCompleted'> & Pick<ReturnType<typeof useParentPromptQueue>, 'checkAndPromptParentLog'> & Pick<ReturnType<typeof useParentPromptQueue>, 'settleBulkHabitResolutions'> & Pick<ReturnType<typeof useHabitListMoveActions>, 'openBulkMove'> & Pick<ReturnType<typeof useHabitListQueries>, 'refetch'> & Pick<ReturnType<typeof useHabitListScroll>, 'scrollContainerRef' | 'allListRef' | 'drillListRef' | 'stateListRef'>
+export type HabitListHandleInputs = { ref: React.ForwardedRef<HabitListHandle> } & Pick<ReturnType<typeof useHabitListCollapse>, 'allCollapsed' | 'collapseAll' | 'expandAll'> & Pick<ReturnType<typeof useHabitListRoots>, 'allLoadedIds'> & Pick<ReturnType<typeof useHabitRecentCompletions>, 'markRecentlyCompleted'> & Pick<ReturnType<typeof useParentPromptQueue>, 'checkAndPromptParentLog'> & Pick<ReturnType<typeof useParentPromptQueue>, 'settleBulkHabitResolutions'> & Pick<ReturnType<typeof useHabitListMoveActions>, 'openBulkMove'> & Pick<ReturnType<typeof useHabitListQueries>, 'refetch'> & Pick<ReturnType<typeof useHabitListScroll>, 'scrollContainerRef' | 'allListRef' | 'drillListRef'>
 
 type HabitRowActionsInputs = Pick<ReturnType<typeof useParentPromptQueue>, 'handleDirectToggle' | 'skipHabit'> & Pick<ReturnType<typeof useHabitListModalState>, 'setHabitToReschedule' | 'setShowRescheduleSheet'> & Pick<ReturnType<typeof useHabitListCollapse>, 'toggleExpand'> & { confirmations: ReturnType<typeof useHabitListConfirmations> } & Pick<HabitListProps, 'onEditHabit' | 'isSelectMode' | 'onDetailHabit'> & Pick<ReturnType<typeof useHabitListDrill>, 'drill'> & Pick<ReturnType<typeof useHabitListMoveActions>, 'openMoveParentDialog'> & Pick<ReturnType<typeof useHabitListSubHabitActions>, 'startAddSubHabit'> & Pick<ReturnType<typeof useHabitListQueries>, 'toggleSelectMode' | 'toggleSelectionCascade'> & Pick<ReturnType<typeof useHabitListRoots>, 'getDescendantIds'>
 
@@ -379,15 +381,6 @@ type HabitListEmptyRenderingInputs = Pick<ReturnType<typeof useHabitListAccount>
 function useHabitListEmptyRendering({ styles, t }: Pick<HabitListEmptyRenderingInputs, 'styles' | 't'>, { searchQuery, onClearSearch, onCreatePress, view, listHeader }: Pick<HabitListEmptyRenderingInputs, 'searchQuery' | 'onClearSearch' | 'onCreatePress' | 'view' | 'listHeader'>) {
   const keyExtractor = useCallback((item: DragItem) => item.id, [])
 
-  const renderSkeletonItem = useCallback(
-    () => (
-      <View style={styles.sectionInset}>
-        <Skeleton variant="habit-row" label={t('common.loading')} />
-      </View>
-    ),
-    [styles, t],
-  )
-
   const renderEmptyState = useCallback(
     () => searchQuery?.trim() ? <SearchEmpty query={searchQuery.trim()} onClearSearch={onClearSearch} onCreate={onCreatePress} /> : (
       <HabitListEmptyState
@@ -410,7 +403,7 @@ function useHabitListEmptyRendering({ styles, t }: Pick<HabitListEmptyRenderingI
       ) : null,
     [listHeader, styles.sectionInset],
   )
-  return { listHeaderComponent, renderSkeletonItem, renderEmptyState, keyExtractor }
+  return { listHeaderComponent, renderEmptyState, keyExtractor }
 }
 
 type HabitListRefreshInputs = Pick<ReturnType<typeof useHabitListQueries>, 'isFetching' | 'isLoading' | 'refetch'> & Pick<ReturnType<typeof useHabitListAccount>, 'tokens'>
@@ -606,76 +599,27 @@ function renderHabitDrillState(state: Readonly<HabitListScreenState & { commonOv
   ))
 }
 
-function renderHabitLoadingState(state: Readonly<HabitListScreenState & { commonOverlays: ReactElement }>) {
-  const { onScrollBeginDrag } = state.parameters
-  const { styles } = state.account
-  const { stateListRef, handleListScroll, revealListFocus, bulkBarStyle } = state.scroll
-  const { listHeaderComponent, renderSkeletonItem } = state.empty
-  const { refreshControl } = state.refresh
-  const { commonOverlays } = state
-  return ((
-    <>
-      <ContentFade key="loading" fill><KeyboardAwareFlatList
-        ref={stateListRef}
-        onFocus={revealListFocus}
-        onScroll={handleListScroll}
-        scrollEventThrottle={16}
-        data={state.queries.habitsQuery.showLoading ? SKELETON_KEYS : []}
-        keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
-        keyExtractor={(item) => item}
-        renderItem={renderSkeletonItem}
-        ListHeaderComponent={listHeaderComponent}
-        contentContainerStyle={[
-          styles.skeletonContainer,
-          bulkBarStyle,
-        ]}
-        refreshControl={refreshControl}
-        onScrollBeginDrag={onScrollBeginDrag}
-        accessibilityState={{ busy: true }}
-        showsVerticalScrollIndicator={false}
-      /></ContentFade>
-      {commonOverlays}
-    </>
-  ))
+type HabitListStatus = 'loading' | 'error' | 'ready'
+
+function getHabitListStatus(state: Readonly<HabitListScreenState>): HabitListStatus {
+  const { habitsQuery, isLoading, isError } = state.queries
+  if (isLoading) return 'loading'
+  if (isError && !habitsQuery.data) return 'error'
+  return 'ready'
 }
 
-function renderHabitErrorState(state: Readonly<HabitListScreenState & { commonOverlays: ReactElement }>) {
-  const { onScrollBeginDrag } = state.parameters
+function renderHabitListStatusBody(state: Readonly<HabitListScreenState>, status: Exclude<HabitListStatus, 'ready'>) {
   const { t, styles } = state.account
-  const { stateListRef, handleListScroll, revealListFocus, bulkBarStyle } = state.scroll
-  const { refetch } = state.queries
-  const { listHeaderComponent } = state.empty
-  const { refreshControl } = state.refresh
-  const { commonOverlays } = state
-  return ((
-    <>
-      <KeyboardAwareFlatList
-        ref={stateListRef}
-        onFocus={revealListFocus}
-        onScroll={handleListScroll}
-        scrollEventThrottle={16}
-        data={[]}
-        keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
-        keyExtractor={() => 'load-error'}
-        renderItem={undefined}
-        ListHeaderComponent={listHeaderComponent}
-        ListEmptyComponent={
-          <HabitListEmptyState
-            title={t('habits.loadError')}
-            description=""
-            actionLabel={t('common.retry')} actionIcon="refresh"
-            onAction={() => void refetch()}
-            variant="secondary"
-          />
-        }
-        contentContainerStyle={[styles.listContent, bulkBarStyle]}
-        refreshControl={refreshControl}
-        onScrollBeginDrag={onScrollBeginDrag}
-        showsVerticalScrollIndicator={false}
-      />
-      {commonOverlays}
-    </>
-  ))
+  if (status === 'loading') return <ContentFade key="loading">{state.queries.habitsQuery.showLoading ? <View style={styles.skeletonContainer}>
+    {SKELETON_KEYS.map((key) => <Skeleton key={key} variant="habit-row" label={t('common.loading')} />)}
+  </View> : null}</ContentFade>
+  return <ContentFade key="load-error"><HabitListEmptyState
+    title={t('habits.loadError')}
+    description=""
+    actionLabel={t('common.retry')} actionIcon="refresh"
+    onAction={() => void state.queries.refetch()}
+    variant="secondary"
+  /></ContentFade>
 }
 
 function renderHabitAllState(state: Readonly<HabitListScreenState & { commonOverlays: ReactElement }>) {
@@ -690,6 +634,7 @@ function renderHabitAllState(state: Readonly<HabitListScreenState & { commonOver
   const { renderHabitCard } = state.rows
   const { renderCurrentViewEmptyState } = state.rendering
   const { commonOverlays } = state
+  const status = getHabitListStatus(state)
   return (<>
     <ContentFade key="all" fill><KeyboardAwareFlatList
       ref={allListRef}
@@ -697,7 +642,8 @@ function renderHabitAllState(state: Readonly<HabitListScreenState & { commonOver
       onFocus={revealListFocus}
       testID="habit-list-all"
       onLayout={measureList}
-      data={presentation.items}
+      data={status === 'ready' ? presentation.items : NO_ITEMS}
+      accessibilityState={{ busy: status === 'loading' }}
       keyExtractor={keyExtractor}
       renderItem={({ item, index }) => <HabitListMotionRow id={item.id} phase={presentation.rows[index]!.phase} offset={presentation.rows[index]!.offset} itemIds={presentation.itemIds} measure={presentation.measure}>
         {groupHeadings.has(item.id) ? <Text accessibilityRole="header" style={[styles.dateGroupHeading, index === 0 && { paddingTop: SPACING.s0 }]}>{groupHeadings.get(item.id)}</Text> : null}
@@ -708,7 +654,7 @@ function renderHabitAllState(state: Readonly<HabitListScreenState & { commonOver
       contentContainerStyle={[styles.listContent, bulkBarStyle]}
       refreshControl={refreshControl}
       ListHeaderComponent={listHeaderComponent}
-      ListEmptyComponent={renderCurrentViewEmptyState()}
+      ListEmptyComponent={status === 'ready' ? renderCurrentViewEmptyState() : renderHabitListStatusBody(state, status)}
       onScroll={handleListScroll}
       scrollEventThrottle={16}
       onScrollBeginDrag={onScrollBeginDrag}
