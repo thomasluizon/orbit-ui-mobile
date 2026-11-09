@@ -3,7 +3,7 @@ import { createHash, createSign } from "node:crypto"
 import { readFileSync, writeFileSync } from "node:fs"
 import { isAbsolute } from "node:path"
 import { pathToFileURL } from "node:url"
-import { acknowledgeIntake, intakeSource, saveIntakeSource } from "./lib/auto-work-intake.mjs"
+import { acknowledgeIntake, updateIntakeSource } from "./lib/auto-work-intake.mjs"
 import { REPO_ROOT } from "./lib/run-state.mjs"
 
 const USAGE = `usage: orbit-app-store-reviews.mjs <--collect --output <absolute file> | --import <absolute file> | --ack>
@@ -55,16 +55,16 @@ export const readAppStoreReviews = async (appId, token, request = fetch) => {
 
 export const importAppStoreReviews = (snapshot, repoRoot = REPO_ROOT) => {
   if (!Array.isArray(snapshot?.reviews) || !/^\d+$/.test(snapshot.appId ?? "") || !Number.isFinite(Date.parse(snapshot.collectedAt))) throw new Error("Invalid App Store artifact")
-  const current = intakeSource("appStore", repoRoot)
-  const pending = { ...current.pending }
-  let highWater = current.highWater
-  for (const item of snapshot.reviews) {
-    if (typeof item.id !== "string" || !Number.isFinite(Date.parse(item.createdAt)) || typeof item.text !== "string") throw new Error("Invalid App Store artifact review")
-    if (!current.completed?.[item.id] && !pending[item.id]) pending[item.id] = item
-    if (!highWater || item.createdAt > highWater) highWater = item.createdAt
-  }
-  saveIntakeSource("appStore", { ...current, completed: current.completed ?? {}, pending, highWater, lastCollectedAt: snapshot.collectedAt }, repoRoot)
-  return Object.values(pending)
+  return Object.values(updateIntakeSource("appStore", (current) => {
+    const pending = { ...current.pending }
+    let highWater = current.highWater
+    for (const item of snapshot.reviews) {
+      if (typeof item.id !== "string" || !Number.isFinite(Date.parse(item.createdAt)) || typeof item.text !== "string") throw new Error("Invalid App Store artifact review")
+      if (!current.completed?.[item.id] && !pending[item.id]) pending[item.id] = item
+      if (!highWater || item.createdAt > highWater) highWater = item.createdAt
+    }
+    return { ...current, completed: current.completed ?? {}, pending, highWater, lastCollectedAt: snapshot.collectedAt }
+  }, repoRoot).pending)
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

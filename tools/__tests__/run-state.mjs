@@ -1,10 +1,13 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { spawn } from "node:child_process"
 import { join } from "node:path"
+import { pathToFileURL } from "node:url"
+import { setTimeout as wait } from "node:timers/promises"
 import { Worker } from "node:worker_threads"
 
-import { T, root } from "./_harness.mjs"
+import { T, TOOLS_DIR, root } from "./_harness.mjs"
 
-const { clearWakeSource, readRunState, readWakeSources, readWorkerLaunches, registerWakeSource, reserveWorkerLaunch, runStatePath, wakeSourceDirectory, workerLaunchDirectory, writeRunState } = await import("../lib/run-state.mjs")
+const { clearWakeSource, readRunState, readWakeSources, readWorkerLaunches, registerWakeSource, reserveWorkerLaunch, runStatePath, updateRunState, wakeSourceDirectory, workerLaunchDirectory, writeRunState } = await import("../lib/run-state.mjs")
 
 const TOOL = "lib/run-state.mjs"
 
@@ -112,7 +115,103 @@ import(workerData.moduleUrl).then(({ reserveWorkerLaunch }) => {
   }))).then((reservations) => ({ reservations, barrierCalls: Atomics.load(new Int32Array(signal), 2), barrierPath: "linkSync" }))
 }
 
+const RACE_TRIALS = 30
+const RACE_BATCH = 10
+
+/**
+ * One process saves wake marks in a loop while this process writes `autoWork: false` from a read of
+ * its own. Unless the two read-change-writes are serialized, the saver writes back its stale copy.
+ */
+const raceDisableAgainstWakeSaves = async () => {
+  const saver = join(root, "run-state", "race-saver", "wake-saver.mjs")
+  mkdirSync(join(root, "run-state", "race-saver"), { recursive: true })
+  writeFileSync(saver, `import { saveWakeMarks } from ${JSON.stringify(pathToFileURL(join(TOOLS_DIR, "lib", "auto-work-wake.mjs")).href)}
+const repoRoot = process.argv[2]
+let saves = 0
+for (;;) {
+  try { saveWakeMarks({ seen: { board: [\`k\${saves}\`] }, failures: {}, sentryListedAt: null }, repoRoot) } catch (error) {
+    console.log(JSON.stringify({ saves, stop: error.message })); break
+  }
+  if (++saves === 1) console.log("SAVING")
+  if (saves > 3000) { console.log(JSON.stringify({ saves, stop: "limit" })); break }
+}
+`)
+  const trial = async (index) => {
+    const repoRoot = stageCheckout(`race-${index}`)
+    writeRunState({ sessionId: "auto", sleep: true, autoWork: true, remaining: [] }, repoRoot)
+    const child = spawn(process.execPath, [saver, repoRoot], { stdio: ["ignore", "pipe", "pipe"] })
+    let output = ""
+    const saving = new Promise((resolve) => child.stdout.on("data", (chunk) => {
+      output += chunk
+      if (output.includes("SAVING") || output.includes("stop")) resolve()
+    }))
+    const closed = new Promise((resolve) => child.once("close", resolve))
+    await Promise.race([saving, closed])
+    await wait(index % 7 * 5)
+    writeRunState({ ...readRunState(repoRoot), autoWork: false }, repoRoot)
+    await closed
+    return { exercised: output.includes("SAVING"), kept: readRunState(repoRoot).autoWork === false, output: output.trim() }
+  }
+  const outcomes = []
+  for (let start = 0; start < RACE_TRIALS; start += RACE_BATCH) {
+    outcomes.push(...await Promise.all(Array.from({ length: RACE_BATCH }, (_, offset) => trial(start + offset))))
+  }
+  return outcomes
+}
+
 export const cases = async () => {
+  const raced = await raceDisableAgainstWakeSaves()
+  const lost = raced.filter((outcome) => !outcome.kept)
+  T(`${TOOL}: every race trial saved wake marks before the disable`, raced.every((outcome) => outcome.exercised),
+    JSON.stringify(raced.filter((outcome) => !outcome.exercised)))
+  T(`${TOOL}: a concurrent wake save loses no disable in ${RACE_TRIALS} trials`, lost.length === 0,
+    `lost ${lost.length} of ${RACE_TRIALS}: ${JSON.stringify(lost.slice(0, 3))}`)
+  const nested = stageCheckout("nested-write")
+  writeRunState({ sessionId: "s", sleep: true, autoWork: true }, nested)
+  let nestedError = null
+  try {
+    updateRunState((state) => { writeRunState({ ...state, autoWork: false }, nested); return { ...state, crank: true } }, nested)
+  } catch (error) { nestedError = error.message }
+  const afterNested = readRunState(nested)
+  T(`${TOOL}: a writer called inside a held update throws and writes nothing`,
+    nestedError?.includes("already held by this process") === true && afterNested.autoWork === true && afterNested.crank === undefined,
+    JSON.stringify({ nestedError, afterNested }))
+  writeRunState({ ...afterNested, crank: false }, nested)
+  T(`${TOOL}: the lock is released after a refused nested write`, readRunState(nested).crank === false)
+  const adopted = (label) => {
+    const repoRoot = stageCheckout(label)
+    writeRunState({ sessionId: "relay-p", sleep: true, crank: false, decisionLogPath: "/decisions/p.md" }, repoRoot)
+    writeRunState({ sessionId: "relay-s", sleep: true, crank: false, decisionLogPath: "/decisions/s.md", relay: { from: "relay-p", pending: false } }, repoRoot)
+    return repoRoot
+  }
+  const withCallerEnvironment = (sessionId, action) => {
+    const saved = process.env.CLAUDE_CODE_SESSION_ID
+    if (sessionId === undefined) delete process.env.CLAUDE_CODE_SESSION_ID
+    else process.env.CLAUDE_CODE_SESSION_ID = sessionId
+    try { return action() } catch (error) { return error } finally {
+      if (saved === undefined) delete process.env.CLAUDE_CODE_SESSION_ID
+      else process.env.CLAUDE_CODE_SESSION_ID = saved
+    }
+  }
+  const predecessorRun = adopted("superseded-environment")
+  const crankRefusal = withCallerEnvironment("relay-p", () => updateRunState((state) => ({ ...state, crank: true }), predecessorRun))
+  const logRefusal = withCallerEnvironment("relay-p", () => updateRunState((state) => ({ ...state, decisionLogPath: "/decisions/p.md" }), predecessorRun))
+  const afterRefusal = readRunState(predecessorRun)
+  T(`${TOOL}: a superseded session named by CLAUDE_CODE_SESSION_ID cannot spread its update into the successor's run`,
+    crankRefusal?.message === "session is superseded; run state write refused" && logRefusal?.message === crankRefusal.message &&
+      afterRefusal.sessionId === "relay-s" && afterRefusal.crank === false && afterRefusal.decisionLogPath === "/decisions/s.md",
+    JSON.stringify({ crankRefusal: crankRefusal?.message, logRefusal: logRefusal?.message, afterRefusal }))
+  const explicitRun = adopted("superseded-option")
+  const explicitRefusal = withCallerEnvironment("relay-s", () => updateRunState((state) => ({ ...state, crank: true }), explicitRun, { sessionId: "relay-p" }))
+  T(`${TOOL}: an explicit superseded sessionId option wins over the environment and is refused`,
+    explicitRefusal?.message === "session is superseded; run state write refused" && readRunState(explicitRun).crank === false,
+    JSON.stringify({ explicitRefusal: explicitRefusal?.message, after: readRunState(explicitRun) }))
+  const successorWrite = withCallerEnvironment("relay-s", () => updateRunState((state) => ({ ...state, crank: true, decisionLogPath: "/decisions/s2.md" }), adopted("successor-update")))
+  T(`${TOOL}: the successor itself can still update its run`,
+    successorWrite?.sessionId === "relay-s" && successorWrite.crank === true && successorWrite.decisionLogPath === "/decisions/s2.md", JSON.stringify(successorWrite))
+  const anonymousWrite = withCallerEnvironment(undefined, () => updateRunState((state) => ({ ...state, crank: true }), adopted("anonymous-update")))
+  T(`${TOOL}: an update with no caller id keeps the unchecked behaviour`,
+    anonymousWrite?.sessionId === "relay-s" && anonymousWrite.crank === true, JSON.stringify(anonymousWrite?.message ?? anonymousWrite))
   const autoCheckout = stageCheckout("auto-work")
   writeRunState({ sessionId: "auto-parent", autoWork: true, crank: false, intake: { gmail: { completed: ["message-1"] } } }, autoCheckout)
   writeRunState({ sessionId: "auto-parent", remaining: [] }, autoCheckout)

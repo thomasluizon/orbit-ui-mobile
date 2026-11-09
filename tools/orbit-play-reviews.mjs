@@ -6,7 +6,7 @@ import { isAbsolute, join } from "node:path"
 import { setTimeout as wait } from "node:timers/promises"
 import { pathToFileURL } from "node:url"
 import { googleToken } from "./lib/auto-work-google.mjs"
-import { acknowledgeIntake, intakeRun, intakeSource, pendingReviewKeys, REVIEW_RUN_SECONDS, saveIntakeSource } from "./lib/auto-work-intake.mjs"
+import { acknowledgeIntake, intakeRun, intakeSource, pendingReviewKeys, REVIEW_RUN_SECONDS, updateIntakeSource } from "./lib/auto-work-intake.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { REPO_ROOT } from "./lib/run-state.mjs"
 import { importAppStoreReviews } from "./orbit-app-store-reviews.mjs"
@@ -78,19 +78,20 @@ export const playAccessToken = async (key, request = fetch) => {
 export const importPlayReviews = (snapshot, repoRoot = REPO_ROOT) => {
   if (!Array.isArray(snapshot?.reviews) || !Array.isArray(snapshot.failures) ||
       !Array.isArray(snapshot.packages) || PLAY_PACKAGES.some((name) => !snapshot.packages.includes(name)) || !Number.isFinite(Date.parse(snapshot.collectedAt))) throw new Error("Invalid review artifact")
-  const current = intakeSource("play", repoRoot)
-  const pending = { ...current.pending }
-  const highWater = { ...current.highWater }
-  for (const item of snapshot.reviews) {
-    if (!PLAY_PACKAGES.includes(item.packageName) || typeof item.id !== "string" || !/^\d+\.\d{9}$/.test(item.version) || typeof item.text !== "string") throw new Error("Invalid artifact review")
-    if (!current.completed[item.id] && !pending[item.id]) pending[item.id] = item
-    if (BigInt(item.version.replace(".", "")) > BigInt((highWater[item.packageName] ?? "0.000000000").replace(".", ""))) highWater[item.packageName] = item.version
-  }
-  const gap = current.lastCollectedAt && Date.parse(snapshot.collectedAt) - Date.parse(current.lastCollectedAt) > 7 * 86400_000
-  saveIntakeSource("play", { ...current, pending, highWater, failures: snapshot.failures,
-    ...(gap ? { backfillRequiredSince: current.lastCollectedAt } : {}),
-    ...(snapshot.failures.length === 0 ? { lastCollectedAt: snapshot.collectedAt } : {}) }, repoRoot)
-  return { pending: Object.values(pending), failures: snapshot.failures, backfillRequiredSince: intakeSource("play", repoRoot).backfillRequiredSince ?? null }
+  const saved = updateIntakeSource("play", (current) => {
+    const pending = { ...current.pending }
+    const highWater = { ...current.highWater }
+    for (const item of snapshot.reviews) {
+      if (!PLAY_PACKAGES.includes(item.packageName) || typeof item.id !== "string" || !/^\d+\.\d{9}$/.test(item.version) || typeof item.text !== "string") throw new Error("Invalid artifact review")
+      if (!current.completed[item.id] && !pending[item.id]) pending[item.id] = item
+      if (BigInt(item.version.replace(".", "")) > BigInt((highWater[item.packageName] ?? "0.000000000").replace(".", ""))) highWater[item.packageName] = item.version
+    }
+    const gap = current.lastCollectedAt && Date.parse(snapshot.collectedAt) - Date.parse(current.lastCollectedAt) > 7 * 86400_000
+    return { ...current, pending, highWater, failures: snapshot.failures,
+      ...(gap ? { backfillRequiredSince: current.lastCollectedAt } : {}),
+      ...(snapshot.failures.length === 0 ? { lastCollectedAt: snapshot.collectedAt } : {}) }
+  }, repoRoot)
+  return { pending: Object.values(saved.pending), failures: snapshot.failures, backfillRequiredSince: saved.backfillRequiredSince ?? null }
 }
 
 const lastLine = (text) => text.trim().split("\n").at(-1)?.trim() ?? ""
@@ -108,8 +109,7 @@ export const reviewCycleName = (date, suffix = randomBytes(3).toString("hex")) =
   `review-${date.toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "")}-${suffix}`
 
 const clearReviewCycle = (repoRoot) => {
-  const { workflowCycle: _cleared, ...play } = intakeSource("play", repoRoot)
-  saveIntakeSource("play", play, repoRoot)
+  updateIntakeSource("play", ({ workflowCycle: _cleared, ...play }) => play, repoRoot)
 }
 
 const findCycleRun = async ({ run, cycle, sleep, now }) => {
@@ -141,7 +141,7 @@ export const collectReviewCycle = async ({ run, repoRoot = REPO_ROOT, sleep = wa
   let cycle = intakeSource("play", repoRoot).workflowCycle
   if (!cycle) {
     cycle = reviewCycleName(new Date(now()))
-    saveIntakeSource("play", { ...intakeSource("play", repoRoot), workflowCycle: cycle }, repoRoot)
+    updateIntakeSource("play", (play) => ({ ...play, workflowCycle: cycle }), repoRoot)
     const dispatch = await run("gh", ["workflow", "run", REVIEW_WORKFLOW, "--ref", "main", "-f", `cycle=${cycle}`])
     if (dispatch.status !== 0 || dispatch.error) { clearReviewCycle(repoRoot); throw new Error(commandFailure("gh workflow run", dispatch)) }
   }

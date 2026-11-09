@@ -3,7 +3,7 @@ import { join } from "node:path"
 import { importReviewReplies, postReviewReply, prepareReviewReply } from "../orbit-review-replies.mjs"
 import { readAppStoreReviews } from "../orbit-app-store-reviews.mjs"
 import { reviewItem } from "../orbit-play-reviews.mjs"
-import { acknowledgeIntake, intakeSource, saveIntakeSource } from "../lib/auto-work-intake.mjs"
+import { acknowledgeIntake, intakeSource, updateIntakeSource } from "../lib/auto-work-intake.mjs"
 import { writeRunState } from "../lib/run-state.mjs"
 import { T, root, toolPath } from "./_harness.mjs"
 
@@ -17,7 +17,7 @@ export const cases = async () => {
   writeRunState({ sessionId: "review-parent", sleep: true, autoWork: true }, checkout)
   const review = { reviewId: "r1", authorName: "Reviewer", comments: [{ userComment: { text: "Thanks!", lastModified: { seconds: "100", nanos: 0 }, starRating: 5 } }] }
   const item = reviewItem("org.useorbit.app", review, review.comments[0].userComment)
-  saveIntakeSource("play", { completed: {}, pending: { [item.id]: item }, highWater: null }, checkout)
+  updateIntakeSource("play", (play) => ({ ...play, pending: { ...play.pending, [item.id]: item } }), checkout)
   const receipt = { source: "play", id: item.id, person: true, classification: "praise", replyKind: "thanks", clear: true, concerns: [], reply: "Thank you!" }
   const [prepared] = prepareReviewReply(receipt, checkout)
   writeRunState({ sessionId: "review-child", sleep: true, relay: { from: "review-parent" } }, checkout)

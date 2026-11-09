@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import yaml from "js-yaml"
 import { collectReviewCycle, importPlayReviews, playAccessToken, readPlayReviews, PLAY_PACKAGES } from "../orbit-play-reviews.mjs"
-import { acknowledgeIntake, intakeSource, saveIntakeSource } from "../lib/auto-work-intake.mjs"
+import { acknowledgeIntake, intakeSource, updateIntakeSource } from "../lib/auto-work-intake.mjs"
 import { writeRunState } from "../lib/run-state.mjs"
 import { T, root, REPO_ROOT } from "./_harness.mjs"
 
@@ -68,7 +68,7 @@ const cycleCases = async () => {
     intakeSource("appStore", checkout).lastCollectedAt === "2026-11-08T22:45:45.018Z", JSON.stringify(result))
 
   const resumed = cycleCheckout("resume")
-  saveIntakeSource("play", { ...intakeSource("play", resumed), workflowCycle: "4b980cf7-c1-20261108T2245" }, resumed)
+  updateIntakeSource("play", (play) => ({ ...play, workflowCycle: "4b980cf7-c1-20261108T2245" }), resumed)
   const resume = cycleRunner(resumed, play, { runs: [{ conclusion: "success", databaseId: 42531799858, displayTitle: "Orbit review intake 4b980cf7-c1-20261108T2245", status: "completed" }] })
   await collectReviewCycle({ run: resume.run, repoRoot: resumed, sleep: async () => {} })
   T("play cycle: a persisted cycle reuses its run without a dispatch", !resume.log.some((call) => call.args[0] === "workflow") &&
