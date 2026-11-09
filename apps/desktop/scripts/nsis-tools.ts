@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { downloadReleaseAsset, findRelease, type ReleaseAssets, type Sleep } from './release-asset.ts'
+import { downloadReleaseAsset, findRelease, type Sleep } from './release-asset.ts'
 
 interface Pin { repository: string; tag: string; asset: string; sha1: string }
 export interface NsisPins {
@@ -66,11 +66,8 @@ function extractZip(archive: Buffer, destination: string) {
 }
 
 export function releaseDownloader(sleep?: Sleep): NsisDependencies['download'] {
-  const releases = new Map<string, Promise<ReleaseAssets | null>>()
   return async pin => {
-    const key = `${pin.repository}@${pin.tag}`
-    if (!releases.has(key)) releases.set(key, findRelease(pin.repository, pin.tag, sleep))
-    const release = await releases.get(key)
+    const release = await findRelease(pin.repository, pin.tag, sleep)
     if (!release) throw new Error(`${pin.repository} has no release ${pin.tag}`)
     return downloadReleaseAsset(pin.repository, release, pin.asset, sleep)
   }

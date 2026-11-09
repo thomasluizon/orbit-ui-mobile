@@ -9,20 +9,27 @@ export interface ReleaseAssets {
   assets: { id: number; name: string }[]
 }
 
+interface ReleaseResponse {
+  status: number
+  ok: boolean
+  body: Buffer
+}
+
 const defaultSleep: Sleep = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds))
 
 function retryable(status: number): boolean {
   return status === 429 || status >= 500
 }
 
-async function requestWithRetries(url: string, accept: string, sleep: Sleep): Promise<Response> {
+async function requestWithRetries(url: string, accept: string, sleep: Sleep): Promise<ReleaseResponse> {
   const headers: Record<string, string> = { Accept: accept }
   if (process.env.GH_TOKEN) headers.Authorization = `Bearer ${process.env.GH_TOKEN}`
   let failure = 'no attempt ran'
   for (let attempt = 1; attempt <= attempts; attempt++) {
     try {
       const response = await fetch(url, { headers, signal: AbortSignal.timeout(requestTimeoutMilliseconds) })
-      if (!retryable(response.status)) return response
+      // WHY: the timeout and a dropped connection also cut the body short, so the body read stays inside the retry.
+      if (!retryable(response.status)) return { status: response.status, ok: response.ok, body: Buffer.from(await response.arrayBuffer()) }
       failure = `status ${response.status}`
     } catch (error) {
       failure = error instanceof Error ? error.message : String(error)
@@ -36,7 +43,7 @@ export async function findRelease(repository: string, tag: string, sleep: Sleep 
   const response = await requestWithRetries(`${apiRoot}/repos/${repository}/releases/tags/${tag}`, 'application/vnd.github+json', sleep)
   if (response.status === 404) return null
   if (!response.ok) throw new Error(`Cannot look up ${repository} release ${tag}: ${response.status}`)
-  return await response.json() as ReleaseAssets
+  return JSON.parse(response.body.toString('utf8')) as ReleaseAssets
 }
 
 export async function downloadReleaseAsset(repository: string, release: ReleaseAssets, name: string, sleep: Sleep = defaultSleep): Promise<Buffer> {
@@ -44,5 +51,5 @@ export async function downloadReleaseAsset(repository: string, release: ReleaseA
   if (!asset) throw new Error(`${repository} release has no asset ${name}`)
   const response = await requestWithRetries(`${apiRoot}/repos/${repository}/releases/assets/${asset.id}`, 'application/octet-stream', sleep)
   if (!response.ok) throw new Error(`Cannot download ${repository} asset ${name}: ${response.status}`)
-  return Buffer.from(await response.arrayBuffer())
+  return response.body
 }

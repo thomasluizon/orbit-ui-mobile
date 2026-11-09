@@ -78,6 +78,19 @@ it('downloads through the release asset endpoint while the release download path
   ])
 })
 
+it('retries an asset download whose body fails partway through', async () => {
+  let assetRequests = 0
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+    if (url.endsWith('/releases/tags/nsis_tauri_utils-v0.5.3')) return Response.json({ assets: [{ id: 345882097, name: 'nsis_tauri_utils.dll' }] })
+    if (!url.endsWith('/releases/assets/345882097')) throw new Error(`Unexpected request ${url}`)
+    assetRequests++
+    if (assetRequests > 1) return new Response('dll')
+    return new Response(new ReadableStream({ start: controller => controller.error(new TypeError('terminated')) }))
+  }))
+  expect((await releaseDownloader(async () => {})(nsisPins.utils)).toString()).toBe('dll')
+  expect(assetRequests).toBe(2)
+})
+
 it('pins the exact tools and hashes the installed Tauri CLI bundler downloads', () => {
   const cliPackages = join(import.meta.dirname, '../../../node_modules/@tauri-apps')
   const nativeBinary = readdirSync(cliPackages).filter(name => name.startsWith('cli-'))
