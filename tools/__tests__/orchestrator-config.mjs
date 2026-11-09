@@ -116,11 +116,8 @@ export const cases = async () => {
       JSON.stringify(worker.subagentOffArgs) === JSON.stringify(offArgs))
     for (const tier of ["default", "mechanical", "deep", "max"]) {
       const disabled = resolveWorkerInvocation(name, worker, tier)
-      const allowed = resolveWorkerInvocation(name, worker, tier, { allowSubagents: true })
-      T(`${NAME}: ${name}.${tier} disables sub-agents by default`,
-        offArgs.every((argument) => disabled.args.includes(argument)), JSON.stringify(disabled))
-      T(`${NAME}: ${name}.${tier} can omit only the sub-agent off vector`,
-        JSON.stringify(allowed.args) === JSON.stringify([...worker.args, ...(worker.models[tier].args ?? []), "--model", worker.models[tier].model]), JSON.stringify(allowed))
+      T(`${NAME}: ${name}.${tier} always disables sub-agents`,
+        JSON.stringify(disabled.args) === JSON.stringify([...worker.args, ...offArgs, ...(worker.models[tier].args ?? []), "--model", worker.models[tier].model]), JSON.stringify(disabled))
     }
   }
   T(`${NAME}: a malformed sub-agent off vector is refused`,

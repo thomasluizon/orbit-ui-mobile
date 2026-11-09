@@ -164,7 +164,7 @@ node tools/plan-queue.mjs        (--tickets ORB-1,ORB-2 | --board) [--format mar
 node tools/comment-ticket.mjs    --issue "<ticket-ref>" --body-file <path|->
 node tools/complete-ticket.mjs   --issue "<ticket-ref>" [--preflight]
 node tools/compose-prompt.mjs    --issue "<ticket-ref>" --repo <key> --out <file> [--worktree <p>] [--branch <b>] [--base <ref>] [--layout-guard] [--review-batch] [--cloud]
-node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical|deep|max>] [--allow-subagents] [--relaunch-reason <text>]
+node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical|deep|max>] [--relaunch-reason <text>]
 node tools/launch-worker.mjs --research --order <scratchpad order> --out <scratchpad findings>
 node tools/submit-cloud-worker.mjs --issue "<ticket-ref>" --env <id> --branch <b> --order <f> --worktree <p>
 node tools/submit-cloud-worker.mjs --watch <receiptPath>
@@ -306,10 +306,8 @@ user. So the same directory layout means opposite things for the two kinds.
 This gate exists because ORB-115, ORB-111 and ORB-118 all closed as Done with their work undone,
 invisibly, on a shadowed skill.
 
-Expected state: `~/.claude/skills/` holds exactly 16 dirs (`brain`, `brain-agenda`, `brain-capture`,
-`brain-decide`, `brain-review`, `computer-use`, `diagnosing-bugs`, `find-skills`,
-`g-best-implementation`, `g-deep-research`, `g-simplify`, `g-video`, `grilling`, `orca-cli`,
-`orchestration`, `tdd`) and none of them may also exist under `.claude/skills/`.
+Expected state: the `comm` command prints nothing. The skill names under `~/.claude/skills/` change
+per machine, so this gate checks only that no name appears in both directories.
 
 ## Step 1. Plan the queue
 
@@ -534,8 +532,7 @@ construction: the child's branch cannot exist until the parent's does.
 node tools/compose-prompt.mjs --issue "<ticket-ref>" --repo <key> --out <scratchpad>/<ticket-slug>-prompt.md \n  --worktree <worktree path> --branch <contract branch> --base <base branch>
 ```
 
-The file carries three parts. A local order puts them in the order ticket, finishing contract (with
-any redesign review sweep), brief, so the worker reads its delivery steps before the brief (#624). A
+The file carries three parts. A local order puts them in the order ticket, finishing contract, brief, so the worker reads its delivery steps before the brief (#624). A
 Cloud order keeps ticket, brief, finishing contract.
 
 For a ui ticket that requires the hermetic web layout guard, the orchestrator selects
@@ -667,58 +664,6 @@ only after receipt resolution is durable. Exit 10 with `NEEDS_DECISION` preserve
 and refuses delivery. Route its question through step 7 (under `--sleep`, log it as blocked), and
 do not run readiness or merge until the owner answers and the resulting work is verified.
 
-For a Cloud `ui` order that carries the UI review sweep, inspect the locally materialized diff for the UI scope printed in the order. When it matches, run the owed sweep locally after materialization and
-before opening or updating the pull request. This contract is rendered from
-`UI_REVIEW_SWEEP_CONTRACT` in `tools/lib/review-harness.mjs`; composer coverage refuses drift.
-
-Use `.claude/playbooks/redesign-screen.md` as the authority. Complete all three source families before starting a lane:
-
-1. Run `npx --yes ui-skills get <owner>/<name>` for each skill and verify a successful, non-empty fetch: `anthropics/frontend-design`, `jakubkrehel/make-interfaces-feel-better`, `emilkowalski/animation-vocabulary`, `raphaelsalaja/mastering-animate-presence`, `iart-ai/accessible-animation`, `ibelick/fixing-accessibility`, `wshobson/wcag-audit-patterns`.
-2. Use the GitHub Trees commands below and read every blob under each `skills/<name>/` directory: `better-ui`, `better-accessibility`, `better-layout`, `better-writing`, `better-typography`, `better-colors`, `interface-review`, `better-interface`.
-
-```bash
-gh api "repos/jakubkrehel/skills/git/trees/main?recursive=1" --jq .truncated
-gh api "repos/jakubkrehel/skills/git/trees/main?recursive=1" \
-  --jq '.tree[]|select(.type=="blob" and (.path|startswith("skills/<name>/")))|.path'
-```
-
-Stop if `truncated` is `true`. Read every printed path from `https://raw.githubusercontent.com/jakubkrehel/skills/main/<path>`.
-3. Fetch the Vercel guideline text from `https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md`.
-
-Run the four read-only lanes yourself, in this session, in order:
-
-- execution (mandatory): `anthropics/frontend-design`, `jakubkrehel/better-ui`, `jakubkrehel/make-interfaces-feel-better`
-- motion (when the change animates): `emilkowalski/animation-vocabulary`, `raphaelsalaja/mastering-animate-presence`, `iart-ai/accessible-animation`
-- gates (mandatory): `the Vercel guideline text`, `ibelick/fixing-accessibility`, `wshobson/wcag-audit-patterns`, `jakubkrehel/better-accessibility`
-- the change (mandatory): `jakubkrehel/interface-review`, `jakubkrehel/better-interface in full mode`, `jakubkrehel/better-accessibility`, `jakubkrehel/better-layout`, `jakubkrehel/better-writing`, `jakubkrehel/better-typography`, `jakubkrehel/better-colors`, `jakubkrehel/better-ui`
-
-Within the change lane, run `interface-review` before `better-interface`.
-Spawn exactly two sub-agents for the close gate:
-
-- One for `design-reviewer on the diff`, told to read `.claude/agents/design-reviewer.md`.
-- One for `completeness-critic against the surface inventory`, told to read `.claude/agents/completeness-critic.md`.
-
-Spawn no other sub-agent. If no changed path matches the sweep's scope, spawn none.
-Verify each lane's PASS, not only its findings. A routed domain marked skipped is not covered.
-Fix every in-scope finding in this pull request. Only then write:
-
-```md
-## Review harness
-
-- execution lane: <what it found, or "no findings">
-- motion lane: <what it found, "no findings", or "not applicable: no changed animation">
-- gates lane: <what it found, or "no findings">
-- interface-review: <what it found, or "no findings">
-- better-interface (full mode): <what it found, or "no findings">
-- design-reviewer: <what it found, or "no findings">
-- completeness-critic: <what it found, or "no findings">
-```
-
-A line claiming a review you did not run is forbidden.
-
-This step belongs to the local materialization
-lane because the Cloud container cannot fetch the review sources.
-
 On success, read `assumptions` using step 7's adjudication rule, and carry them verbatim into the PR
 body's `## Assumptions`. Carry `manualSteps` into `## Manual steps`, including each exact key,
 location and proof. Carry `materialized.handoff.testResults` verbatim into the eventual PR body's
@@ -762,7 +707,7 @@ a non-empty remote diff keeps the task unresolved.
 ### Local execution
 
 ```bash
-node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical|deep|max>] [--allow-subagents] [--relaunch-reason <text>]
+node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical|deep|max>] [--relaunch-reason <text>]
 node tools/launch-worker.mjs --research --order <scratchpad order> --out <scratchpad findings>
 ```
 
@@ -794,14 +739,7 @@ still needs product, design, architecture, security or ambiguous judgement uses 
 `default` or `deep` tier until a failed round requires `max`.
 The mechanical tier means the answer is fully specified; it is never a synonym for small.
 The failed-round escalation takes precedence over the other tier choices. Never use `ultra`:
-it delegates to its own agents, and worker orders forbid sub-agents outside the explicit UI sweep.
-
-Pass `--allow-subagents` exactly when `compose-prompt.mjs` included the exact `## UI review sweep`
-heading in the finishing contract. Ticket text never selects this flag, the same rule as
-`--layout-guard`. The launcher refuses the flag without that heading. All other local launches
-keep the configured sub-agent off vector on both engines. The four review lanes run in the worker
-session; only the two close-gate reviewers may be spawned. A review batch with no changed path
-matching `UI_SCOPE` skips the sweep and spawns none.
+it delegates to its own agents, and worker orders forbid sub-agents.
 
 New ticket work first passes the GitHub admission gate in `caps.maxOpenPullRequests` and
 `caps.maxQueuedRuns`. A branch with an open pull request is exempt. `ADMISSION_REFUSED` starts no
@@ -1066,19 +1004,15 @@ resolve and same-head re-review transitions without launching a worker or invent
 When the batch needs a worker, compose its order with `--review-batch`. The worker commits, runs the
 broader suite, reports the commit SHA and stops without pushing. **Its final report is the batch's
 handoff, and the orchestrator consumes it before anything else.** Read the report's
-`## Test evidence`, `## Assumptions` and `## Manual steps` sections, its `## Review harness` block only when the order carried the UI review sweep and a path changed by this batch matches `UI_SCOPE` in `tools/lib/review-harness.mjs`,
-and any `NEEDS_DECISION` line at the step 7
+`## Test evidence`, `## Assumptions` and `## Manual steps` sections and any `NEEDS_DECISION` line at the step 7
 worker-exit gate, adjudicate the assumptions there exactly as for an initial worker, and write every
 one of those sections into the existing pull request body before delivery. Merge new entries into the existing `## Test evidence`, `## Assumptions` and `## Manual steps` sections.
 An empty second batch section preserves the first batch's entries. Deduplicate repeated evidence.
 Save the current PR body from `gh pr view <n> --json body --jq .body` and the worker's final report
 to separate files. Run `node tools/merge-review-batch-body.mjs --body-file <current-body> --report-file <worker-report> --out <merged-body>`.
-Add `--ui-scope` only when a path changed by this batch's commit matches `UI_SCOPE`, so the tool
-requires and replaces the complete `## Review harness` block for a UI batch. Without it, the tool
-preserves the previous block. Then run `gh pr edit <n> --body-file <merged-body>`. Only then does
+Then run `gh pr edit <n> --body-file <merged-body>`. Only then does
 the orchestrator reply to and resolve every identified thread on that commit, then push once. A
-report that lacks the evidence the order required is a failed batch, never a push. For a batch with no matching path, accept a report without that block and preserve any existing PR-body block.
-For a batch with a matching path, require the complete block and replace the PR-body block before continuing. That push starts Pullfrog's
+report that lacks the evidence the order required is a failed batch, never a push. That push starts Pullfrog's
 review with the fixes and resolved threads together. A registered
 `pullfrog-approval` SUCCESS at the current head is the verdict. When that check is ABSENT from the
 rollup, a Pullfrog review with `reviewState` `APPROVED` and `reviewedCommit` equal to that head stands
@@ -1372,7 +1306,7 @@ tiers resolve to Sonnet 5.5, so their dry runs print `--effort high --model clau
 `--effort high --model claude-opus-5-5`. Use `default` for normal orders, `mechanical` for fully
 specified mechanical work, `deep` for a large ticket and `max` for a review round after one failed
 round, so that round always runs on Opus. Never use `ultra`, which delegates to its own agents;
-worker orders forbid sub-agents outside the explicit UI sweep. The installed
+worker orders forbid sub-agents. The installed
 `claude` CLI accepts exactly `low`, `medium`, `high`, `xhigh` and `max` for `--effort`, and it
 warns and runs the default effort on any other value.
 
