@@ -27,7 +27,10 @@ function readIconEntries(file: Buffer): IconEntry[] {
 
 async function decode({ png }: IconEntry) {
   const { data, info } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
-  const pixelAt = (x: number, y: number) => Array.from(data.subarray((y * info.width + x) * 4, (y * info.width + x) * 4 + 4))
+  const pixelAt = (x: number, y: number): [number, number, number, number] => {
+    const start = (y * info.width + x) * 4
+    return [data[start]!, data[start + 1]!, data[start + 2]!, data[start + 3]!]
+  }
   return { width: info.width, height: info.height, pixelAt }
 }
 
