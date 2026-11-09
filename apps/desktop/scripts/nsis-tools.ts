@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { downloadReleaseAsset, findRelease, ReleaseAssetError, type ReleaseAssets, type Sleep } from './release-asset.ts'
+import { downloadReleaseAsset, findRelease, type ReleaseAssets, type Sleep } from './release-asset.ts'
 
 interface Pin { repository: string; tag: string; asset: string; sha1: string }
 export interface NsisPins {
@@ -27,7 +27,7 @@ function sha1Of(path: string): string | null {
 }
 
 // WHY: tauri-bundler 2.10.4 reuses `<cache dir>/tauri/NSIS` only when these exact files and hashes are present, and downloads otherwise.
-export function nsisToolsComplete(nsisDirectory: string, pins: NsisPins = nsisPins): boolean {
+function nsisToolsComplete(nsisDirectory: string, pins: NsisPins = nsisPins): boolean {
   return pins.requiredFiles.every(file => existsSync(join(nsisDirectory, file)))
     && sha1Of(join(nsisDirectory, 'NSIS.exe')) === pins.executableSha1
     && sha1Of(join(nsisDirectory, utilsPath)) === pins.utils.sha1
@@ -56,13 +56,11 @@ export async function ensureNsisTools(toolsDirectory: string, dependencies: Nsis
   return 'installed'
 }
 
-export function extractZip(archive: Buffer, destination: string) {
+function extractZip(archive: Buffer, destination: string) {
   const file = join(destination, 'archive.zip')
   writeFileSync(file, archive)
   // WHY: Git Bash puts GNU tar first on PATH, and only the Windows bsdtar reads zip files.
-  const command = process.platform === 'win32' ? join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tar.exe') : 'unzip'
-  const args = process.platform === 'win32' ? ['-xf', file, '-C', destination] : ['-q', file, '-d', destination]
-  const result = spawnSync(command, args, { encoding: 'utf8' })
+  const result = spawnSync(join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tar.exe'), ['-xf', file, '-C', destination], { encoding: 'utf8' })
   if (result.status !== 0) throw new Error(`Cannot extract ${file}: ${result.stderr || result.error?.message}`)
   rmSync(file)
 }
@@ -73,7 +71,7 @@ export function releaseDownloader(sleep?: Sleep): NsisDependencies['download'] {
     const key = `${pin.repository}@${pin.tag}`
     if (!releases.has(key)) releases.set(key, findRelease(pin.repository, pin.tag, sleep))
     const release = await releases.get(key)
-    if (!release) throw new ReleaseAssetError(404, `${pin.repository} has no release ${pin.tag}`)
+    if (!release) throw new Error(`${pin.repository} has no release ${pin.tag}`)
     return downloadReleaseAsset(pin.repository, release, pin.asset, sleep)
   }
 }

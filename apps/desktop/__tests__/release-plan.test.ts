@@ -54,8 +54,10 @@ it('retries a gateway error from the asset endpoint and gives up after four atte
   expect(await channelVersion('staging', noWait)).toBe('0.1.1')
   expect(manifestCalls).toBe(3)
   vi.stubGlobal('fetch', channelFetch({ [`${apiRoot}/assets/726086829`]: () => new Response(null, { status: 504 }) }))
-  await expect(channelVersion('staging', noWait)).rejects.toThrow('manifest')
+  await expect(channelVersion('staging', noWait)).rejects.toThrow(`${apiRoot}/assets/726086829 failed after 4 attempts: status 504`)
   expect(vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith('/assets/726086829'))).toHaveLength(4)
+  vi.stubGlobal('fetch', channelFetch({ [`${apiRoot}/tags/desktop-staging`]: () => new Response(null, { status: 504 }) }))
+  await expect(channelVersion('staging', noWait)).rejects.toThrow(`${apiRoot}/tags/desktop-staging failed after 4 attempts: status 504`)
 })
 
 it('treats only an absent channel release as a first release and rejects missing assets', async () => {
@@ -63,15 +65,15 @@ it('treats only an absent channel release as a first release and rejects missing
   vi.stubGlobal('fetch', channelFetch({ [`${apiRoot}/tags/desktop-staging`]: () => new Response(null, { status: 404 }) }))
   expect(await channelVersion('staging', noWait)).toBeNull()
   vi.stubGlobal('fetch', channelFetch({ [`${apiRoot}/tags/desktop-staging`]: () => new Response(null, { status: 403 }) }))
-  await expect(channelVersion('staging', noWait)).rejects.toThrow('403')
+  await expect(channelVersion('staging', noWait)).rejects.toThrow('release desktop-staging: 403')
   vi.stubGlobal('fetch', channelFetch({ [`${apiRoot}/assets/726086829`]: () => new Response(null, { status: 404 }) }))
-  await expect(channelVersion('staging', noWait)).rejects.toThrow('manifest: 404')
+  await expect(channelVersion('staging', noWait)).rejects.toThrow('asset latest.json: 404')
   vi.stubGlobal('fetch', channelFetch({ [`${apiRoot}/assets/726086785`]: () => new Response(null, { status: 404 }) }))
-  await expect(channelVersion('staging', noWait)).rejects.toThrow('signature: 404')
+  await expect(channelVersion('staging', noWait)).rejects.toThrow('asset latest.json.sig: 404')
   vi.stubGlobal('fetch', channelFetch({ [`${apiRoot}/assets/726086829`]: () => new Response(channel.manifest.replace('0.1.1', '0.1.2')) }))
   await expect(channelVersion('staging', noWait)).rejects.toThrow('verification failed')
   vi.stubGlobal('fetch', channelFetch({ [`${apiRoot}/tags/desktop-staging`]: () => Response.json({ assets: [] }) }))
-  await expect(channelVersion('staging', noWait)).rejects.toThrow('manifest: 404')
+  await expect(channelVersion('staging', noWait)).rejects.toThrow('has no asset latest.json')
 })
 
 function git(...args: string[]) {

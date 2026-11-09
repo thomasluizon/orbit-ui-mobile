@@ -2,7 +2,7 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { appendFileSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { downloadReleaseAsset, findRelease, ReleaseAssetError, type ReleaseAssets, type Sleep } from './release-asset.ts'
+import { downloadReleaseAsset, findRelease, type Sleep } from './release-asset.ts'
 import { assertReleaseCandidate, assertSourceLineage, compareVersions, releaseSettings, repository, signedManifest, tagFor, versionFromTag } from './release.ts'
 
 const shellPaths = [
@@ -71,27 +71,12 @@ function assertMinimum(variant: string, version: string, minimum: string) {
   if (compareVersions(version, minimum) < 0) throw new Error('Desktop release must meet the web minimum shell version')
 }
 
-async function readChannelAsset(release: ReleaseAssets, name: string, label: string, sleep?: Sleep): Promise<Buffer> {
-  try {
-    return await downloadReleaseAsset(repository, release, name, sleep)
-  } catch (error) {
-    if (error instanceof ReleaseAssetError) throw new Error(`Cannot read desktop channel ${label}: ${error.status}`)
-    throw error
-  }
-}
-
 export async function channelVersion(variant: string, sleep?: Sleep): Promise<string | null> {
   const { channel } = releaseSettings(variant, '0.1.0')
-  let release: ReleaseAssets | null
-  try {
-    release = await findRelease(repository, channel, sleep)
-  } catch (error) {
-    if (error instanceof ReleaseAssetError) throw new Error(`Cannot look up desktop channel: ${error.status}`)
-    throw error
-  }
+  const release = await findRelease(repository, channel, sleep)
   if (!release) return null
-  const bytes = await readChannelAsset(release, 'latest.json', 'manifest', sleep)
-  const signature = await readChannelAsset(release, 'latest.json.sig', 'signature', sleep)
+  const bytes = await downloadReleaseAsset(repository, release, 'latest.json', sleep)
+  const signature = await downloadReleaseAsset(repository, release, 'latest.json.sig', sleep)
   return signedManifest(bytes, signature.toString('utf8'), process.env.TAURI_SIGNING_PUBLIC_KEY ?? '').version
 }
 
