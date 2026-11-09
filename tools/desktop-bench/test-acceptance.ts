@@ -427,7 +427,7 @@ function inspectionContext(platform: string) {
     inspect: (context as typeof context & { inspect: (...args: unknown[]) => Promise<void> }).inspect }
 }
 
-type CaptionReading = { colors: { color: number[]; count: number }[]; sampled: number }
+type CaptionReading = { colors: { color: number[]; count: number }[]; sampled: number; glyphs?: { darkest: number; lightest: number } }
 type CaptionReport = { caption: Record<string, CaptionReading & { expected: number[] }> }
 
 function captionContext(readings: Record<string, CaptionReading[]>) {
@@ -455,7 +455,13 @@ function captionContext(readings: Record<string, CaptionReading[]>) {
   return { sent, reads, elapsed: () => elapsed, run: (report: object) => inspectCaption(proxy, native, { child: { pid: 7 } }, 'output', report) }
 }
 
-const caption = (color: number[], count = 100, sampled = 100) => ({ colors: [{ color, count }], sampled })
+// The glyph strip holds the caption colour plus the glyphs Windows draws: black on the light theme, white on the dark theme.
+const blackOnLight = { darkest: 0, lightest: 250 }
+const whiteOnDark = { darkest: 9, lightest: 255 }
+const whiteOnLight = { darkest: 250, lightest: 255 }
+const blackOnDark = { darkest: 0, lightest: 9 }
+const caption = (color: number[], count = 100, sampled = 100, glyphs = color[0]! > 128 ? blackOnLight : whiteOnDark) =>
+  ({ colors: [{ color, count }], sampled, glyphs })
 // The Windows 11 immersive dark caption is not the canvas, so a shell that sets only the window theme never passes.
 const immersiveDark = caption([32, 32, 32])
 
@@ -490,6 +496,34 @@ test('caption inspection fails on a caption that never takes the canvas and keep
     const report = JSON.parse(JSON.stringify(recorded)) as CaptionReport
     assert.deepEqual(report.caption[failed], { expected: failed === 'dark' ? [9, 9, 11] : [250, 250, 250], ...readings[failed][0] })
   }
+})
+
+// DWMWA_CAPTION_COLOR paints the canvas whatever the window theme is, so only the glyphs show a missing runtime theme (#2084).
+test('caption inspection fails on the canvas colour with the glyphs of the other window theme', async () => {
+  for (const [readings, failed] of [
+    [{ light: [caption([250, 250, 250], 100, 100, whiteOnLight)], dark: [caption([9, 9, 11])] }, 'light'],
+    [{ light: [caption([250, 250, 250])], dark: [caption([9, 9, 11], 100, 100, blackOnDark)] }, 'dark'],
+    [{ light: [caption([250, 250, 250], 100, 100, { darkest: 250, lightest: 250 })], dark: [caption([9, 9, 11])] }, 'light'],
+    [{ light: [caption([250, 250, 250])], dark: [caption([9, 9, 11], 100, 100, { darkest: 9, lightest: 9 })] }, 'dark'],
+    [{ light: [{ colors: [{ color: [250, 250, 250], count: 100 }], sampled: 100 }], dark: [caption([9, 9, 11])] }, 'light'],
+  ] as const) {
+    const check = captionContext(structuredClone(readings) as Record<string, CaptionReading[]>)
+    const recorded = {} as CaptionReport
+    await assert.rejects(() => check.run(recorded), new RegExp(`Timed out waiting for ${failed} caption in the Orbit canvas colour`))
+    assert.ok(check.elapsed() >= 30000)
+    const report = JSON.parse(JSON.stringify(recorded)) as CaptionReport
+    assert.deepEqual(report.caption[failed], { expected: failed === 'dark' ? [9, 9, 11] : [250, 250, 250], ...readings[failed][0] })
+  }
+})
+
+test('caption inspection waits for the glyphs of the page mode inside the same poll as the canvas colour', async () => {
+  const check = captionContext({
+    light: [caption([250, 250, 250], 100, 100, whiteOnLight), caption([243, 243, 243]), caption([250, 250, 250])],
+    dark: [caption([9, 9, 11], 100, 100, blackOnDark), caption([9, 9, 11])],
+  })
+  const recorded = {} as CaptionReport
+  await check.run(recorded)
+  assert.equal(check.reads.length, 5)
 })
 
 test('surface inspection primes and polls the native web content without accepting browser chrome', async () => {

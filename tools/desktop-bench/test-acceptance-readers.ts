@@ -378,3 +378,69 @@ $form.Close()
     rmSync(directory, { recursive: true, force: true })
   }
 })
+
+// DWMWA_CAPTION_COLOR paints the canvas whatever the window theme is, so the glyph reading is what shows the window theme (#2084).
+test('Windows caption reader reports the glyph luminance of the window theme on both Orbit canvas colours', { skip: process.platform !== 'win32' }, () => {
+  const directory = mkdtempSync(join(tmpdir(), 'orbit-caption-glyphs-'))
+  try {
+    const reader = fileURLToPath(new URL('./acceptance-caption.cs', import.meta.url))
+    const script = `
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition (Get-Content -LiteralPath '${reader}' -Raw)
+Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+public static class CaptionFixture {
+    [DllImport("dwmapi.dll")] public static extern int DwmSetWindowAttribute(IntPtr window, int attribute, ref int value, int size);
+}
+'@
+function Wait-Paint { for ($index = 0; $index -lt 20; $index++) { [System.Windows.Forms.Application]::DoEvents(); Start-Sleep -Milliseconds 50 } }
+# DWMWA_CAPTION_COLOR (35) takes a COLORREF, 0x00BBGGRR. DWMWA_USE_IMMERSIVE_DARK_MODE (20) takes a BOOL.
+$canvases = @{ light = 0x00FAFAFA; dark = 0x000B0909 }
+$results = @{}
+foreach ($canvas in 'light', 'dark') {
+  foreach ($theme in 'light', 'dark') {
+    $form = New-Object System.Windows.Forms.Form
+    $form.Text = 'Orbit caption glyph fixture'
+    $form.StartPosition = 'Manual'
+    $form.SetBounds(100, 100, 800, 400)
+    $form.TopMost = $true
+    $form.Show()
+    $color = $canvases[$canvas]
+    $dark = if ($theme -eq 'dark') { 1 } else { 0 }
+    $colorStatus = [CaptionFixture]::DwmSetWindowAttribute($form.Handle, 35, [ref]$color, 4)
+    $themeStatus = [CaptionFixture]::DwmSetWindowAttribute($form.Handle, 20, [ref]$dark, 4)
+    $form.Activate()
+    Wait-Paint
+    $reading = [OrbitCaptionReader]::Read($form.Handle, (Join-Path '${directory}' "$canvas-$theme.png"))
+    $results["$canvas-$theme"] = @{ colorStatus = $colorStatus; themeStatus = $themeStatus; caption = $reading }
+    $form.Close()
+  }
+}
+$results | ConvertTo-Json -Depth 7
+`
+    const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', timeout: 120000 })
+    assert.equal(result.status, 0, result.stderr)
+    type Reading = { colorStatus: number; themeStatus: number; caption: { colors: { color: number[] }[]; glyphs: { darkest: number; lightest: number } } }
+    const readings = JSON.parse(result.stdout) as Record<string, Reading>
+    const canvas = { light: [250, 250, 250], dark: [9, 9, 11] }
+    for (const canvasMode of ['light', 'dark'] as const) {
+      for (const theme of ['light', 'dark'] as const) {
+        const reading = readings[`${canvasMode}-${theme}`]!
+        const label = `${canvasMode} canvas with the ${theme} window theme: ${JSON.stringify(reading)}`
+        assert.equal(reading.colorStatus, 0, 'the runner supports DWMWA_CAPTION_COLOR')
+        assert.equal(reading.themeStatus, 0, 'the runner supports DWMWA_USE_IMMERSIVE_DARK_MODE')
+        assert.deepEqual(reading.caption.colors[0]!.color, canvas[canvasMode], label)
+        // The dark window theme draws white glyphs and the light theme draws black glyphs, whatever the canvas colour is.
+        if (theme === 'dark') assert.ok(reading.caption.glyphs.lightest > 128, label)
+        else assert.ok(reading.caption.glyphs.darkest < 128, label)
+      }
+    }
+    // The light canvas with the dark theme has no dark glyph, which the installed acceptance rejects for the light page mode.
+    assert.ok(readings['light-dark']!.caption.glyphs.darkest >= 128, JSON.stringify(readings['light-dark']))
+    assert.ok(readings['dark-light']!.caption.glyphs.lightest <= 128, JSON.stringify(readings['dark-light']))
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})

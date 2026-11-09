@@ -214,6 +214,11 @@ async function traversePalette(proxy, native, handle, dump, previous, report) {
 // The DESIGN.md canvas tokens, which the shell paints into the Windows 11 caption for each page mode (#2084).
 const captionCanvas = { light: [250, 250, 250], dark: [9, 9, 11] }
 
+// DWMWA_CAPTION_COLOR paints the canvas whatever the window theme is, so the caption-button glyphs prove the theme: Windows
+// draws black glyphs on the light theme and white glyphs on the dark theme, and 128 is the midpoint of the 0..255 luminance.
+const glyphLuminanceMidpoint = 128
+const glyphsMatchMode = { light: ({ darkest }) => darkest < glyphLuminanceMidpoint, dark: ({ lightest }) => lightest > glyphLuminanceMidpoint }
+
 async function inspectCaption(proxy, native, handle, output, report) {
   report.caption = {}
   for (const mode of ['light', 'dark']) {
@@ -222,11 +227,11 @@ async function inspectCaption(proxy, native, handle, output, report) {
     const expected = captionCanvas[mode]
     let caption
     try {
-      // The shell applies a reported mode asynchronously, so the reader polls until the caption shows it.
+      // The shell applies a reported mode asynchronously, so the reader polls until the caption shows its colour and glyphs.
       await waitFor(async () => {
         caption = await native(handle.child.pid, 'caption', undefined, { capture: join(output, `caption-${mode}.png`) })
         const [dominant] = caption.colors
-        return dominant?.color.join() === expected.join() && dominant.count >= caption.sampled * 0.9
+        return dominant?.color.join() === expected.join() && dominant.count >= caption.sampled * 0.9 && Boolean(caption.glyphs) && glyphsMatchMode[mode](caption.glyphs)
       }, `${mode} caption in the Orbit canvas colour`, 30000)
     } finally {
       report.caption[mode] = { expected, ...caption }

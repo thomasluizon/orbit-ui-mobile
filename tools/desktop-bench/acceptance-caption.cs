@@ -10,12 +10,18 @@ public sealed class OrbitCaptionColor {
     public int count;
 }
 
+public sealed class OrbitCaptionGlyphs {
+    public int darkest;
+    public int lightest;
+}
+
 public sealed class OrbitCaption {
     public int[] frame;
     public int bottom;
     public bool menuBar;
     public int sampled;
     public OrbitCaptionColor[] colors;
+    public OrbitCaptionGlyphs glyphs;
 }
 
 // Windows PowerShell 5.1 compiles this file with its C# 5 compiler and default references, so it uses neither a later
@@ -38,6 +44,9 @@ public static class OrbitCaptionReader {
     private const int ExtendedFrameBounds = 9;
     private const int MenuObject = unchecked((int)0xFFFFFFFD);
     private static readonly IntPtr PerMonitorAwareV2 = new IntPtr(-4);
+    // Three caption buttons are 46 device-independent pixels wide each, and the strip stays off the frame edge.
+    private const int ButtonStripWidth = 138;
+    private const int FrameEdge = 4;
 
     // The caption spans the visible frame from its top edge to the menu bar, or to the client area without a menu bar.
     // A per-monitor aware thread reads DWMWA_EXTENDED_FRAME_BOUNDS, the menu bar and the screen in the same physical pixels.
@@ -80,8 +89,24 @@ public static class OrbitCaptionReader {
                 int color = ranked[index].Key;
                 colors.Add(new OrbitCaptionColor { color = new[] { (color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF }, count = ranked[index].Value });
             }
-            return new OrbitCaption { frame = new[] { frame.Left, frame.Top, frame.Right, frame.Bottom }, bottom = bottom,
+            return new OrbitCaption { glyphs = ReadGlyphs(bitmap, width, height), frame = new[] { frame.Left, frame.Top, frame.Right, frame.Bottom }, bottom = bottom,
                 menuBar = menuBar, sampled = sampled, colors = colors.ToArray() };
         }
+    }
+
+    // The caption buttons sit at the right edge, so their glyphs are the darkest and lightest pixels of that strip. The left edge
+    // holds the app icon, which has dark pixels in both modes. Luminance is Rec. 709 on 0..255.
+    private static OrbitCaptionGlyphs ReadGlyphs(Bitmap bitmap, int width, int height) {
+        int left = Math.Max(0, width - ButtonStripWidth - FrameEdge), right = width - FrameEdge;
+        int darkest = 255, lightest = 0;
+        for (int y = height / 4; y < height - height / 4; y++) {
+            for (int x = left; x < right; x++) {
+                Color pixel = bitmap.GetPixel(x, y);
+                int luminance = (2126 * pixel.R + 7152 * pixel.G + 722 * pixel.B) / 10000;
+                if (luminance < darkest) darkest = luminance;
+                if (luminance > lightest) lightest = luminance;
+            }
+        }
+        return new OrbitCaptionGlyphs { darkest = darkest, lightest = lightest };
     }
 }
