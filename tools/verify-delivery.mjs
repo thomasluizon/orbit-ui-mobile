@@ -7,7 +7,7 @@ import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { PASSING_CONCLUSIONS, headActivityArgv, headActivityBoundary, newestChecks, pullRequestStateArgv, pullRequestStateFromGraphQl, registrationFingerprint, requiredCheckSatisfied, requiredChecksFromResponse, resolveReviewVerdict, reviewPageArgv, reviewPageFromGraphQl, reviewSatisfiedOutOfBand } from "./lib/readiness-receipt.mjs"
+import { PASSING_CONCLUSIONS, REVIEW_APP_CONTEXT, headActivityArgv, headActivityBoundary, newestChecks, pullRequestStateArgv, pullRequestStateFromGraphQl, registrationFingerprint, requiredCheckSatisfied, requiredChecksFromResponse, resolveReviewVerdict, reviewPageArgv, reviewPageFromGraphQl } from "./lib/readiness-receipt.mjs"
 import { parityPlatform } from "./lib/parity-scope.mjs"
 import { gitDirectoryOf } from "./lib/run-state.mjs"
 
@@ -435,11 +435,13 @@ const readRollup = async () => {
       reason: "No checks reported; an empty required set is not evidence of successful CI",
     })
   }
-  /** The review fallback must also clear cached CI evidence when the pinned check is absent. */
+  /** The artifact records which review evidence stood at the head; readiness reads it. */
   const { verdict: reviewVerdict, complete: reviewComplete, reason: reviewReason } = await resolveReviewVerdict(pullRequestState, readOlderReviewPage)
-  const satisfiedOutOfBand = reviewSatisfiedOutOfBand(reviewVerdict)
   for (const required of requiredChecks) {
-    if (requiredCheckSatisfied(newestByCheck, required, satisfiedOutOfBand)) continue
+    // Pullfrog reviews only on request, after delivery, so an unregistered review check concerns
+    // readiness (record-readiness requires it) and never holds delivery. A registered one is judged below.
+    if (required.context === REVIEW_APP_CONTEXT) continue
+    if (requiredCheckSatisfied(newestByCheck, required)) continue
     pending.push({ ...checkMetadata(required.context, { status: "NOT_REGISTERED", conclusion: null }), requiredAppId: required.appId })
   }
   for (const node of newestByCheck.values()) {

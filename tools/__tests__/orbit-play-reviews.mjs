@@ -1,13 +1,104 @@
 import { generateKeyPairSync, verify } from "node:crypto"
-import { mkdirSync, readFileSync } from "node:fs"
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import yaml from "js-yaml"
-import { importPlayReviews, playAccessToken, readPlayReviews, PLAY_PACKAGES } from "../orbit-play-reviews.mjs"
-import { acknowledgeIntake, intakeSource } from "../lib/auto-work-intake.mjs"
+import { collectReviewCycle, importPlayReviews, playAccessToken, readPlayReviews, PLAY_PACKAGES } from "../orbit-play-reviews.mjs"
+import { acknowledgeIntake, intakeSource, saveIntakeSource } from "../lib/auto-work-intake.mjs"
 import { writeRunState } from "../lib/run-state.mjs"
 import { T, root, REPO_ROOT } from "./_harness.mjs"
 
+const ok = (stdout) => ({ status: 0, stdout: typeof stdout === "string" ? stdout : JSON.stringify(stdout), stderr: "", timedOut: false })
+const failed = (stderr, status = 1) => ({ status, stdout: "", stderr, timedOut: false })
+
+const cycleCheckout = (label) => {
+  const checkout = join(root, "play-cycle", label)
+  mkdirSync(join(checkout, ".git"), { recursive: true })
+  writeRunState({ sessionId: "cycle", sleep: true, autoWork: true, remaining: [] }, checkout)
+  return checkout
+}
+
+/** One Play review page through the real reader, so the artifact carries the producer's own fields. */
+const playArtifact = async (failStaging = false) => {
+  const snapshot = await readPlayReviews("access", async (address) => new URL(address).pathname.includes(".staging")
+    ? (failStaging ? new Response("denied", { status: 403 }) : Response.json({}))
+    : Response.json({ reviews: [{ reviewId: "r2", authorName: "Reviewer", comments: [{ userComment: { text: "Bom", starRating: 5, lastModified: { seconds: "1", nanos: 0 } } }] }] }))
+  return { ...snapshot, collectedAt: "2026-11-08T22:45:20.000Z" }
+}
+
+/**
+ * A gh stand-in. The run list fields and the in-progress empty conclusion, the artifact name list
+ * from the code's --jq filter, and the artifact files are copied from live orbit-play-reviews.yml runs.
+ */
+const cycleRunner = (checkout, play, { artifacts = ["orbit-app-store-reviews", "orbit-play-reviews"], dispatchStatus = 0, completed = true, runs } = {}) => {
+  const log = []
+  let cycle = null
+  const appStore = { appId: "6831372835", collectedAt: "2026-11-08T22:45:45.018Z", reviews: [] }
+  const run = async (file, args) => {
+    log.push({ file, args, workflowCycle: intakeSource("play", checkout).workflowCycle })
+    if (args[0] === "workflow") { cycle = args.at(-1).slice("cycle=".length); return dispatchStatus === 0 ? ok("") : failed("dispatch refused by the stand-in", dispatchStatus) }
+    if (args[0] === "run" && args[1] === "list") {
+      return ok(runs ?? [{ conclusion: "success", databaseId: 42516228559, displayTitle: "Orbit review intake 25768799-c1-20261108T1940", status: "completed" },
+        { conclusion: completed ? "success" : "", databaseId: 42531799858, displayTitle: `Orbit review intake ${cycle}`, status: completed ? "completed" : "in_progress" }])
+    }
+    if (args[0] === "api") return ok(artifacts)
+    if (args[0] === "run" && args[1] === "download") {
+      writeFileSync(join(args[6], `${args[4]}.json`), JSON.stringify(args[4] === "orbit-play-reviews" ? play : appStore))
+      return ok("")
+    }
+    return failed(`unexpected ${file} ${args.join(" ")}`)
+  }
+  return { run, log }
+}
+
+const cycleCases = async () => {
+  const play = await playArtifact()
+  const reviewId = play.reviews[0].id
+  const clock = Date.parse("2026-11-08T23:00:00.000Z")
+  const checkout = cycleCheckout("complete")
+  const runner = cycleRunner(checkout, play)
+  const result = await collectReviewCycle({ run: runner.run, repoRoot: checkout, sleep: async () => {}, now: () => clock })
+  const dispatch = runner.log.find((call) => call.args[0] === "workflow")
+  T("play cycle: the cycle is persisted before dispatch", /^review-20261108T230000-[0-9a-f]{6}$/.test(dispatch.workflowCycle) &&
+    JSON.stringify(dispatch.args) === JSON.stringify(["workflow", "run", "orbit-play-reviews.yml", "--ref", "main", "-f", `cycle=${dispatch.workflowCycle}`]), JSON.stringify(dispatch))
+  const downloads = runner.log.filter((call) => call.args[1] === "download")
+  T("play cycle: only the exact cycle run is downloaded, both artifacts", downloads.length === 2 && downloads.every((call) => call.args[2] === "42531799858"))
+  T("play cycle: imported reviews become keys and pending items, and the cycle clears", JSON.stringify(result.keys) === JSON.stringify([`play ${reviewId}`]) &&
+    result.pending[0].source === "play" && result.pending[0].id === reviewId && result.failure === undefined && result.backfillRequiredSince === null &&
+    intakeSource("play", checkout).workflowCycle === undefined && intakeSource("play", checkout).lastCollectedAt === "2026-11-08T22:45:20.000Z" &&
+    intakeSource("appStore", checkout).lastCollectedAt === "2026-11-08T22:45:45.018Z", JSON.stringify(result))
+
+  const resumed = cycleCheckout("resume")
+  saveIntakeSource("play", { ...intakeSource("play", resumed), workflowCycle: "4b980cf7-c1-20261108T2245" }, resumed)
+  const resume = cycleRunner(resumed, play, { runs: [{ conclusion: "success", databaseId: 42531799858, displayTitle: "Orbit review intake 4b980cf7-c1-20261108T2245", status: "completed" }] })
+  await collectReviewCycle({ run: resume.run, repoRoot: resumed, sleep: async () => {} })
+  T("play cycle: a persisted cycle reuses its run without a dispatch", !resume.log.some((call) => call.args[0] === "workflow") &&
+    resume.log.some((call) => call.args[1] === "download" && call.args[2] === "42531799858") && intakeSource("play", resumed).workflowCycle === undefined)
+
+  const partialCheckout = cycleCheckout("partial")
+  const partial = await collectReviewCycle({ run: cycleRunner(partialCheckout, await playArtifact(true)).run, repoRoot: partialCheckout, sleep: async () => {}, now: () => clock })
+  T("play cycle: a partial Play collection imports the reviews and names the failure", partial.keys.length === 1 &&
+    partial.failure === "Play review collection failed: org.useorbit.app.staging Play reviews failed (HTTP 403)", JSON.stringify(partial))
+
+  for (const [label, options, expected, keepsCycle] of [
+    ["dispatch", { dispatchStatus: 1 }, "gh workflow run failed (exit 1): dispatch refused by the stand-in", false],
+    ["artifact", { artifacts: ["orbit-app-store-reviews"] }, "The review workflow run ended success without the orbit-play-reviews artifact", false],
+    ["slow", { completed: false }, "The review workflow run did not complete within 600 seconds", true],
+    ["missing", { runs: [] }, "The review workflow run was not found within 600 seconds", false],
+  ]) {
+    const failing = cycleCheckout(label)
+    let elapsed = 0
+    let message = ""
+    try {
+      await collectReviewCycle({ run: cycleRunner(failing, play, options).run, repoRoot: failing,
+        sleep: async (milliseconds) => { elapsed += milliseconds }, now: () => clock + elapsed })
+    } catch (error) { message = error.message }
+    T(`play cycle: a ${label} failure has a stable message`, message === expected, message)
+    T(`play cycle: a ${label} failure ${keepsCycle ? "keeps" : "clears"} its cycle`, Boolean(intakeSource("play", failing).workflowCycle) === keepsCycle)
+  }
+}
+
 export const cases = async () => {
+  await cycleCases()
   const schemas = JSON.parse(readFileSync(new URL("./fixtures/auto-work-google-schemas.json", import.meta.url), "utf8"))
   T("play: fixture pagination and modification fields derive from discovery", schemas.play.schemas.ReviewsListResponse.properties.tokenPagination.$ref === "TokenPagination" &&
     schemas.play.schemas.Timestamp.properties.seconds.type === "string")

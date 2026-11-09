@@ -1,0 +1,562 @@
+{
+  "schemaVersion": 1,
+  "generation": {
+    "method": "Recorded verbatim from one read-only live gh api graphql call. No value was entered by hand.",
+    "generator": "tools/record-gh-fixtures.mjs --review-rounds",
+    "producer": "pullRequestQuery(numbers) from tools/review-rounds.mjs",
+    "query": "query ReviewRoundsPulls($owner: String!, $name: String!) {\n  rateLimit { remaining resetAt }\n  repository(owner: $owner, name: $name) {\n    pr2371: pullRequest(number: 2371) { number mergedAt updatedAt\n  reviews(first: 100, author: \"pullfrog[bot]\") { pageInfo { hasNextPage endCursor } nodes { id state submittedAt body author { __typename login } commit { oid } } }\n  reviewThreads(first: 100) { pageInfo { hasNextPage endCursor } nodes { path comments(first: 1) { nodes { createdAt body author { __typename login } pullRequestReview { id } } } } }\n  timelineItems(first: 100, itemTypes: [REVIEW_DISMISSED_EVENT]) { pageInfo { hasNextPage endCursor } nodes { ... on ReviewDismissedEvent { previousReviewState review { id } } } } }\n    pr2373: pullRequest(number: 2373) { number mergedAt updatedAt\n  reviews(first: 100, author: \"pullfrog[bot]\") { pageInfo { hasNextPage endCursor } nodes { id state submittedAt body author { __typename login } commit { oid } } }\n  reviewThreads(first: 100) { pageInfo { hasNextPage endCursor } nodes { path comments(first: 1) { nodes { createdAt body author { __typename login } pullRequestReview { id } } } } }\n  timelineItems(first: 100, itemTypes: [REVIEW_DISMISSED_EVENT]) { pageInfo { hasNextPage endCursor } nodes { ... on ReviewDismissedEvent { previousReviewState review { id } } } } }\n    pr2343: pullRequest(number: 2343) { number mergedAt updatedAt\n  reviews(first: 100, author: \"pullfrog[bot]\") { pageInfo { hasNextPage endCursor } nodes { id state submittedAt body author { __typename login } commit { oid } } }\n  reviewThreads(first: 100) { pageInfo { hasNextPage endCursor } nodes { path comments(first: 1) { nodes { createdAt body author { __typename login } pullRequestReview { id } } } } }\n  timelineItems(first: 100, itemTypes: [REVIEW_DISMISSED_EVENT]) { pageInfo { hasNextPage endCursor } nodes { ... on ReviewDismissedEvent { previousReviewState review { id } } } } }\n    pr2338: pullRequest(number: 2338) { number mergedAt updatedAt\n  reviews(first: 100, author: \"pullfrog[bot]\") { pageInfo { hasNextPage endCursor } nodes { id state submittedAt body author { __typename login } commit { oid } } }\n  reviewThreads(first: 100) { pageInfo { hasNextPage endCursor } nodes { path comments(first: 1) { nodes { createdAt body author { __typename login } pullRequestReview { id } } } } }\n  timelineItems(first: 100, itemTypes: [REVIEW_DISMISSED_EVENT]) { pageInfo { hasNextPage endCursor } nodes { ... on ReviewDismissedEvent { previousReviewState review { id } } } } }\n    pr2325: pullRequest(number: 2325) { number mergedAt updatedAt\n  reviews(first: 100, author: \"pullfrog[bot]\") { pageInfo { hasNextPage endCursor } nodes { id state submittedAt body author { __typename login } commit { oid } } }\n  reviewThreads(first: 100) { pageInfo { hasNextPage endCursor } nodes { path comments(first: 1) { nodes { createdAt body author { __typename login } pullRequestReview { id } } } } }\n  timelineItems(first: 100, itemTypes: [REVIEW_DISMISSED_EVENT]) { pageInfo { hasNextPage endCursor } nodes { ... on ReviewDismissedEvent { previousReviewState review { id } } } } }\n  }\n}",
+    "repository": "thomasluizon/orbit-ui-mobile",
+    "numbers": [
+      2371,
+      2373,
+      2343,
+      2338,
+      2325
+    ]
+  },
+  "response": {
+    "data": {
+      "rateLimit": {
+        "remaining": 4925,
+        "resetAt": "2026-11-09T00:38:40Z"
+      },
+      "repository": {
+        "pr2371": {
+          "number": 2371,
+          "mergedAt": "2026-11-08T12:51:49Z",
+          "updatedAt": "2026-11-08T12:51:50Z",
+          "reviews": {
+            "pageInfo": {
+              "hasNextPage": false,
+              "endCursor": "Y3Vyc29yOnYyOpO0MjAyNi0xMS0wOFQwNjoyMjoxNFq0MjAyNi0xMS0wOFQwNjoyMjoxM1rPAAAAAVq2pU4="
+            },
+            "nodes": [
+              {
+                "id": "PRR_kwDOR5Siws8AAAABWralTg",
+                "state": "APPROVED",
+                "submittedAt": "2026-11-08T06:22:14Z",
+                "body": "> ✅ No new issues found.\n\n**Reviewed changes**\n\nThis run reviewed the routine contract rebaseline, which moves only the pinned orbit-api producer SHA.\n\n- **Producer pin moved** \u2014 `api.spec.commit` moves from `998823218` to `3da71dcf6`. `api.generated.ts` and `api.spec.selection.json` (`orbit-http-v1-r2`, HTTP `1.0`) are unchanged.\n- **No consumed contract change** \u2014 the orbit-api compare `998823218...3da71dcf6` is a fast-forward of one commit (orbit-api #1102). It touches only `.github/scripts/mutation-matrix.mjs`, `.github/scripts/mutation-matrix.test.mjs` and `.github/workflows/mutation.yml`. No OpenAPI document or `src/Orbit.Api/OpenApi/artifacts.json` changed, so the selected document and the generated Zod output are byte-identical. No handwritten schema in `packages/shared/src/types/*` needs updating. Whether the snapshot regenerates exactly is checked by the `Contract Drift` steps in `Guards`.\n\n<!--\nPullfrog review metadata. These findings were written against 930228b;\nif commits have landed on chore/contract-snapshot since, treat every specific bug, file, or\nline callout as POTENTIALLY STALE and re-diff before acting on it.\n\n- Mode: Review (initial)\n- Files reviewed: 1\n- Commits reviewed: 1\n- Base: main (a727bce)\n- Head: chore/contract-snapshot (930228b)\n- Reviewed commits:\n  - 930228b \u2014 Update pinned API contract snapshot\n- Prior pullfrog review: none\n-->\n\n\n<!-- PULLFROG_DIVIDER_DO_NOT_REMOVE_PLZ -->\n<sup><a href=\"https://pullfrog.com\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://pullfrog.com/logos/frog-white-full-18px.png\"><img src=\"https://pullfrog.com/logos/frog-green-full-18px.png\" width=\"9px\" height=\"9px\" style=\"vertical-align: middle; \" alt=\"Pullfrog\"></picture></a>&nbsp;&nbsp;｜ [View workflow run](https://github.com/thomasluizon/orbit-ui-mobile/actions/runs/42454304586/job/128649947310) ｜ Using `claude-opus-5-5` ｜ [𝕏](https://x.com/pullfrogai)</sup>",
+                "author": {
+                  "__typename": "Bot",
+                  "login": "pullfrog"
+                },
+                "commit": {
+                  "oid": "930228b4f6a74cbc94bbcd20b6c204127045045a"
+                }
+              }
+            ]
+          },
+          "reviewThreads": {
+            "pageInfo": {
+              "hasNextPage": false,
+              "endCursor": null
+            },
+            "nodes": []
+          },
+          "timelineItems": {
+            "pageInfo": {
+              "hasNextPage": false,
+              "endCursor": null
+            },
+            "nodes": []
+          }
+        },
+        "pr2373": {
+          "number": 2373,
+          "mergedAt": "2026-11-08T14:38:32Z",
+          "updatedAt": "2026-11-08T14:38:34Z",
+          "reviews": {
+            "pageInfo": {
+              "hasNextPage": false,
+              "endCursor": "Y3Vyc29yOnYyOpO0MjAyNi0xMS0wOFQxNDowODoyOFq0MjAyNi0xMS0wOFQxNDowODoyN1rPAAAAAVrKkDM="
+            },
+            "nodes": [
+              {
+                "id": "PRR_kwDOR5Siws8AAAABWsfOsg",
+                "state": "DISMISSED",
+                "submittedAt": "2026-11-08T13:10:37Z",
+                "body": "> ✅ No new issues found.\n\n**Reviewed changes**\n\nThis review covers the test-only race fix for the flaky `wheel` case in `calendar-week-reanchor-geometry.test.tsx`.\n\n- **Movement wait before the stability loop**: the `heldTop` evaluate now receives `openingTop`. It waits up to 120 frames for `scrollTop` to leave `openingTop`, then runs the existing 4-stable-frame loop, so a wheel scroll that has not started yet no longer counts as \"stable\" at the opening position.\n- **No change to assertions**: if no scroll ever happens, the result is still `openingTop` after about 2 s, and `toBeLessThan(openingTop)` still fails. A test that passes with the bug present stays impossible.\n\nI checked these points:\n\n- **Installed source**: the race in the PR body is real. Chromium's `RawMouseImpl.wheel` in the installed `playwright-core` 1.64.1 sends one `Input.dispatchMouseEvent` and returns, and `types.d.ts` says `mouse.wheel` does not wait for the scroll.\n- **Exit condition**: `!== openingTop` cannot fire early because of the product. `open()` in `calendar-time-grid.tsx` sets the opening `scrollTop` synchronously under `page.clock.setFixedTime`, and running it again from the `ResizeObserver` gives the same value.\n- **Keyboard case**: `focus()` already moves `scrollTop` to 0, so the new loop exits at once there. The `ArrowUp` press still matters because the grid's `keydown` listener sets `hasMovedGrid`.\n\n<!--\nPullfrog review metadata. These findings were written against d0857fc;\nif commits have landed on fix/ticket-2059-reanchor-wheel since, treat every specific bug, file, or\nline callout as POTENTIALLY STALE and re-diff before acting on it.\n\n- Mode: Review (initial)\n- Files reviewed: 1\n- Commits reviewed: 1\n- Base: main (465e092)\n- Head: fix/ticket-2059-reanchor-wheel (d0857fc)\n- Reviewed commits:\n  - d0857fc \u2014 test: wait for the deliberate scroll to leave the opening position before reading the held week position\n- Prior pullfrog review: none\n-->\n\n\n<!-- PULLFROG_DIVIDER_DO_NOT_REMOVE_PLZ -->\n<sup><a href=\"https://pullfrog.com\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://pullfrog.com/logos/frog-white-full-18px.png\"><img src=\"https://pullfrog.com/logos/frog-green-full-18px.png\" width=\"9px\" height=\"9px\" style=\"vertical-align: middle; \" alt=\"Pullfrog\"></picture></a>&nbsp;&nbsp;｜ [View workflow run](https://github.com/thomasluizon/orbit-ui-mobile/actions/runs/42483299361/job/128739682176) ｜ Using `claude-opus-5-5` ｜ [𝕏](https://x.com/pullfrogai)</sup>",
+                "author": {
+                  "__typename": "Bot",
+                  "login": "pullfrog"
+                },
+                "commit": {
+                  "oid": "d0857fc3dc4258703f61ec03326eae5133c55a37"
+                }
+              },
+              {
+                "id": "PRR_kwDOR5Siws8AAAABWsiOrg",
+                "state": "COMMENTED",
+                "submittedAt": "2026-11-08T13:26:57Z",
+                "body": "> ℹ️ No critical issues. The new TimeField test does catch the bug. There is one minor inline suggestion and a stale PR body.\n\n**Reviewed changes**\n\nThis review covers `5da1045`, the only commit since the previous Pullfrog review. It changes only `time-field-scroll.test.tsx`. The reanchor fix from `d0857fc` is unchanged.\n\n- **Removed the vacuous wheel check**: the first `it.each` no longer wheels over minute 59 and reads the sheet body `scrollTop`. At those heights the body cannot overflow, so that check could never fail.\n- **Added a wheel case with an overflowing sheet body**: the new `it.each` at 320x240 and 915x240 first asserts its preconditions: the body can scroll further, the minutes column is at its maximum, and the pointer sits inside the visible column. It then wheels down 600 px, waits for movement, waits for 4 stable frames, and asserts that neither scroller moved.\n- **Ran the new case against the bug (this run)**: `npx vitest run --project chromium __tests__/components/ui/time-field-scroll.test.tsx` passed 6 of 6 on `5da1045`. With `overscroll-contain` temporarily removed from `TimeColumn` (`time-field.tsx:87`) and `-t wheel`, both new cases failed at line 186 with `expected 48 to be +0`. The temporary edit was reverted.\n\n<!--\nPullfrog review metadata. These findings were written against 5da1045;\nif commits have landed on fix/ticket-2059-reanchor-wheel since, treat every specific bug, file, or\nline callout as POTENTIALLY STALE and re-diff before acting on it.\n\n- Mode: IncrementalReview (delta against prior pullfrog review)\n- Files reviewed: 2\n- Commits reviewed: 2\n- Base: main (465e092)\n- Head: fix/ticket-2059-reanchor-wheel (5da1045)\n- Reviewed commits:\n  - 5da1045 \u2014 test: give the TimeField wheel check an overflowing sheet body and read it after the wheel settles\n  - d0857fc \u2014 test: wait for the deliberate scroll to leave the opening position before reading the held week position\n- Prior pullfrog review: d0857fc (https://github.com/thomasluizon/orbit-ui-mobile/pull/2373#pullrequestreview-5818011314)\n-->\n\n### ℹ️ The PR body still says `time-field-scroll.test.tsx` is unchanged\n\nThe `Other sites` and `Assumptions` sections say this file needs no change and that its vacuous wheel check is left to orbit-tickets#2060. But `5da1045` removes that check and adds its replacement. `Test evidence` has no run for the two new cases, and nothing in the body links #2060. So that ticket can stay open after its work merges here.\n\n<details><summary>Technical details</summary>\n\n````markdown\n# Update the PR body to match 5da1045\n\n## Affected sites\n- PR body `## Other sites`: the `time-field-scroll.test.tsx` bullet says the file \"needs no change for this race\" and points to #2060.\n- PR body `## Assumptions`: the second bullet says the file is left unchanged. The first bullet's reason, \"a shared helper would have one caller\", no longer holds now that a second copy exists.\n- PR body `## Test evidence`: there is no green run of `keeps a wheel past the last minute out of the overflowing sheet body`, and no red run with `overscroll-contain` removed from `TimeColumn`.\n\n## Required outcome\n- The body describes the TimeField change and carries both its green run and its red run.\n- The body says whether this PR resolves thomasluizon/orbit-tickets#2060.\n\n## Open questions for the human\n- Should the work for #2060 ship in this #2059 PR, or move to its own PR under the one-ticket, one-PR rule?\n````\n\n</details>\n\n\n\n<!-- PULLFROG_DIVIDER_DO_NOT_REMOVE_PLZ -->\n<sup><a href=\"https://pullfrog.com\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://pullfrog.com/logos/frog-white-full-18px.png\"><img src=\"https://pullfrog.com/logos/frog-green-full-18px.png\" width=\"9px\" height=\"9px\" style=\"vertical-align: middle; \" alt=\"Pullfrog\"></picture></a>&nbsp;&nbsp;｜ [Fix all ➔](https://pullfrog.com/trigger/thomasluizon/orbit-ui-mobile/2373?action=fix&review_id=5818060462) ｜ [Fix 👍s ➔](https://pullfrog.com/trigger/thomasluizon/orbit-ui-mobile/2373?action=fix-approved&review_id=5818060462) ｜ [View workflow run](https://github.com/thomasluizon/orbit-ui-mobile/actions/runs/42484692991/job/128743897058) ｜ Using `claude-opus-5-5` ｜ [𝕏](https://x.com/pullfrogai)</sup>",
+                "author": {
+                  "__typename": "Bot",
+                  "login": "pullfrog"
+                },
+                "commit": {
+                  "oid": "5da1045ec98947302a6a3b8bf57863360d8fabc9"
+                }
+              },
+              {
+                "id": "PRR_kwDOR5Siws8AAAABWsqQMw",
+                "state": "APPROVED",
+                "submittedAt": "2026-11-08T14:08:28Z",
+                "body": "> ✅ No new issues found. The shared sampler takes over all three stable-frame reads without changing behaviour, and the TimeField case still catches the bug.\n\n**Reviewed changes**\n\nThis review covers `b885b79`, the only commit since the previous Pullfrog review. It moves the move-then-settle loop into one helper in `__tests__/support`.\n\n- **Added `readSettledScroll`**: the new `apps/web/__tests__/support/settled-scroll.ts` waits up to 120 frames for the `axis` offset to leave `movedFrom` (skipped when `null`). It then waits for 4 stable frames and returns `{ top, left }`. The function has no outside references, so Playwright can send its source to the page. `inspectInteractionSurface` already runs through `evaluate` this way, and coverage uses the `v8` provider, so instrumentation cannot break the source text.\n- **Switched the three call sites**: the reanchor wheel read (`.top`), the TimeField body read (`.top`) and the shell-geometry `position()` read (`axis: 'left'`, `movedFrom: null`) all call the helper. Every assertion is unchanged. The `{ left, top }` key order in shell-geometry changed, but `toEqual` ignores key order. The combined scroll-and-measure evaluate at shell-geometry L102-117 rightly stays inline, because it asserts `stableFrames` from the same page task.\n- **Aligned the movement cap**: the TimeField wait went from 60 frames to the shared 120. A longer wait gives more time to see a body that moves, so the check cannot get weaker.\n- **Ran the suites on `b885b79` (this run)**: `npx vitest run --project chromium` on the three changed test files gave `Tests 78 passed (78)`. With `overscroll-contain` temporarily removed from `time-field.tsx:87` and `-t wheel`, both TimeField cases failed at L176 with `expected 48 to be +0`. The edit was reverted.\n\n<!--\nPullfrog review metadata. These findings were written against b885b79;\nif commits have landed on fix/ticket-2059-reanchor-wheel since, treat every specific bug, file, or\nline callout as POTENTIALLY STALE and re-diff before acting on it.\n\n- Mode: IncrementalReview (delta against prior pullfrog review)\n- Files reviewed: 4\n- Commits reviewed: 3\n- Base: main (67ea1b5)\n- Head: fix/ticket-2059-reanchor-wheel (b885b79)\n- Reviewed commits:\n  - b885b79 \u2014 test: share one settled scroll sampler across the calendar and TimeField geometry tests\n  - 5da1045 \u2014 test: give the TimeField wheel check an overflowing sheet body and read it after the wheel settles\n  - d0857fc \u2014 test: wait for the deliberate scroll to leave the opening position before reading the held week position\n- Prior pullfrog review: 5da1045 (https://github.com/thomasluizon/orbit-ui-mobile/pull/2373#pullrequestreview-5818060462)\n-->\n\n\n<!-- PULLFROG_DIVIDER_DO_NOT_REMOVE_PLZ -->\n<sup><a href=\"https://pullfrog.com\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://pullfrog.com/logos/frog-white-full-18px.png\"><img src=\"https://pullfrog.com/logos/frog-green-full-18px.png\" width=\"9px\" height=\"9px\" style=\"vertical-align: middle; \" alt=\"Pullfrog\"></picture></a>&nbsp;&nbsp;｜ [View workflow run](https://github.com/thomasluizon/orbit-ui-mobile/actions/runs/42487966334/job/128753896574) ｜ Using `claude-opus-5-5` ｜ [𝕏](https://x.com/pullfrogai)</sup>",
+                "author": {
+                  "__typename": "Bot",
+                  "login": "pullfrog"
+                },
+                "commit": {
+                  "oid": "b885b797f5b917dfc9dbf7f1d698e574a7f0503e"
+                }
+              }
+            ]
+          },
+          "reviewThreads": {
+            "pageInfo": {
+              "hasNextPage": false,
+              "endCursor": "Y3Vyc29yOnYyOpK0MjAyNi0xMS0wOFQxMzoyNjo1NlrOtQQngA=="
+            },
+            "nodes": [
+              {
+                "path": "apps/web/__tests__/components/ui/time-field-scroll.test.tsx",
+                "comments": {
+                  "nodes": [
+                    {
+                      "createdAt": "2026-11-08T13:26:56Z",
+                      "body": "This is a copy of the move-then-settle loop in `calendar-week-reanchor-geometry.test.tsx:113-124`, and the two copies already differ: this one waits 60 frames for movement, that one 120. The stable-frame sampler is now in three files, counting `calendar-week-shell-geometry.test.tsx:105-111` and `:194-200`. The root rule says to extract on the third real use, so the next fix to this wait should land in one place.\n\n<details><summary>Technical details</summary>\n\n````markdown\n# Extract the scroll sampler that waits for movement, then for stable frames\n\n## Affected sites\n- apps/web/__tests__/components/ui/time-field-scroll.test.tsx:174-185: waits up to 60 frames for `scrollTop` to move, then for 4 stable frames.\n- apps/web/__tests__/components/calendar/calendar-week-reanchor-geometry.test.tsx:113-124: the same loop, with a 120-frame movement wait.\n- apps/web/__tests__/components/calendar/calendar-week-shell-geometry.test.tsx:105-111 and 194-200: the stable-frame loop only, on `scrollLeft` (optional to fold in).\n\n## Required outcome\n- One in-page function under `apps/web/__tests__/support/`, called by both wheel reads through `locator.evaluate(fn, arg)`.\n- It has a single movement-wait cap, so the two call sites cannot drift apart again.\n\n## Suggested approach\n- Playwright serializes the function passed to `evaluate` with its source text. The helper must therefore be self-contained, with no module-scope references, and take `{ openingTop }` as its single argument. Add an axis field only if the `scrollLeft` sites in shell-geometry join.\n````\n\n</details>",
+                      "author": {
+                        "__typename": "Bot",
+                        "login": "pullfrog"
+                      },
+                      "pullRequestReview": {
+                        "id": "PRR_kwDOR5Siws8AAAABWsiOrg"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "timelineItems": {
+            "pageInfo": {
+              "hasNextPage": false,
+              "endCursor": "Y3Vyc29yOnYyOpPPAAABobtTe8gBqzM1NDkzNzg0OTQ0"
+            },
+            "nodes": [
+              {
+                "previousReviewState": "APPROVED",
+                "review": {
+                  "id": "PRR_kwDOR5Siws8AAAABWsfOsg"
+                }
+              }
+            ]
+          }
+        },
+        "pr2343": {
+          "number": 2343,
+          "mergedAt": "2026-11-06T10:47:41Z",
+          "updatedAt": "2026-11-06T10:47:43Z",
+          "reviews": {
+            "pageInfo": {
+              "hasNextPage": false,
+              "endCursor": "Y3Vyc29yOnYyOpO0MjAyNi0xMS0wNlQxMDoxOTowMlq0MjAyNi0xMS0wNlQxMDoxOTowMVrPAAAAAVmh2eE="
+            },
+            "nodes": [
+              {
+                "id": "PRR_kwDOR5Siws8AAAABWWK6Vg",
+                "state": "COMMENTED",
+                "submittedAt": "2026-11-06T01:37:18Z",
+                "body": "> ℹ️ Nothing blocking. There is one structural suggestion inline, and the PR body still describes copy that this branch has since replaced.\n\n**Reviewed changes**\n\nPullfrog has not reviewed this PR before (earlier runs stopped on a provider credential limit), so this run covers the whole diff, not only the commits after `0e4d69c`.\n\n- **Habit frequency levels.** Split frequency into three 24px question groups on both platforms. The count label names the chosen period through an ICU `select`, and mobile already loads `i18next-icu`.\n- **End date level.** Moved the end date behind an `End date?` field row. A hidden date shows as the row value, a saved date opens the question, Remove keeps it open, and the row is disabled while the form saves.\n- **More details rows.** Moved the avoid, slip alert, template, tag, goal and parent rows to `placement=\"field\"`. The checklist, sub-item and slip alert sections are now asked as questions.\n- **Goal creation levels.** The sheet asks the type, then the title. A title, a type choice, a saved value or a submit attempt reveals target and deadline, using the new shared `hasGoalFollowUpAnswer`.\n- **Goal edit, create from habit and progress.** Moved these forms to new question keys and left the values the Astra preview reads untouched. Add deadline is now a visible field row.\n- **Onboarding schedule.** Gave each onboarding schedule control a visible question, in 12px groups inside a 24px column.\n- **Copy, docs and parity rules.** Added every key to `en.json` and `pt-BR.json` and removed `subHabits` and `subTasks`, which have no remaining consumers. Added a shared test that checks each label is a short question and unique within its form. Recorded the label relocations in `tools/feature-parity-rules.json`.\n\n<!--\nPullfrog review metadata. These findings were written against 8988ecb;\nif commits have landed on feature/ticket-2001-habit-goal-questions since, treat every specific bug, file, or\nline callout as POTENTIALLY STALE and re-diff before acting on it.\n\n- Mode: IncrementalReview (delta against prior pullfrog review; none existed, so the full PR was reviewed)\n- Files reviewed: 71\n- Commits reviewed: 13\n- Base: main (8c9fab6)\n- Head: feature/ticket-2001-habit-goal-questions (8988ecb)\n- Reviewed commits:\n  - 8988ecb0 \u2014 test: narrow the measured Android control role before reading it\n  - 67bf965e \u2014 test: record the question key relocations and require the measured row label\n  - 9421f729 \u2014 fix: ask the goal type before the goal text\n  - 5d214446 \u2014 fix: show a hidden end date on its question row and lock it while saving\n  - e001bcf2 \u2014 fix: give each habit and goal field its own question\n  - 1b4f3aa4 \u2014 Merge remote-tracking branch 'origin/main' into feature/ticket-2001-habit-goal-questions\n  - 0e4d69c1 \u2014 test: answer the goal title and end date questions in the remaining web suites\n  - 1c0ecfc3 \u2014 test: measure the Android goal and More details rows after the question levels\n  - 0af7d647 \u2014 test: keep a saved end date question open after removing the date\n  - 86e32a68 \u2014 docs: record the habit and goal question levels\n  - 2014092e \u2014 fix: ask the onboarding schedule as question groups\n  - c9ecc567 \u2014 fix: ask goal creation, editing and progress as questions in levels\n  - c4090a09 \u2014 fix: ask the habit form as questions in levels\n- Prior pullfrog review: none\n-->\n\n### ℹ️ The PR body still describes replaced copy and the old goal order\n\nCommits `e001bcf2`, `5d214446` and `9421f729` changed the copy and the create goal order after the body was written. The copy table (which says the pt-BR is written natively) and surface rows 4, 6, 8, 11 and 13 still show the earlier strings. Row 11 also still says the title is asked first. Anyone approving copy from the body is approving strings that no longer ship.\n\n<details><summary>Technical details</summary>\n\n````markdown\n# Refresh the PR body to the shipped copy and order\n\n## Affected sites\n- Copy table: `habits.form.frequency` is now \"How does it repeat?\" / \"Como ele se repete?\"\n- Copy table: `habits.form.everyCount` is now an ICU `select` that names days, weeks, months or years\n- Copy table: `habits.form.habitTypeAvoid` is now \"Avoid habit?\" / \"Evitar hábito?\"\n- Copy table: `habits.form.addEndDate` is now \"End date?\" / \"Tem prazo?\"\n- Copy table: `habits.form.subHabitsQuestion` and `subTasksQuestion` are now \"Break it into smaller habits?\" / \"Break it into smaller tasks?\" and \"Quer dividir em hábitos menores?\" / \"Quer dividir em tarefas menores?\"\n- Copy table: the pt-BR values of `habits.form.checklistQuestion` and `slipAlertQuestion` changed\n- Copy table: `goals.form.progressQuestion` is now \"How much have you done?\" / \"Quanto você já fez?\"\n- Surface rows 4, 6, 8 and 13 still use the earlier copy\n- Surface row 11 says \"What do you want to reach?\" comes first and reveals the type question. The sheet now asks the type first, and a type choice also reveals target and deadline (see `design/create-goal-sheet-inventory.md:15-19`)\n\n## Required outcome\n- The copy table and surface rows match `packages/shared/src/i18n/en.json`, `pt-BR.json` and the current create goal sheet order on both platforms.\n````\n\n</details>\n\n<!-- PULLFROG_DIVIDER_DO_NOT_REMOVE_PLZ -->\n<sup><a href=\"https://pullfrog.com\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://pullfrog.com/logos/frog-white-full-18px.png\"><img src=\"https://pullfrog.com/logos/frog-green-full-18px.png\" width=\"9px\" height=\"9px\" style=\"vertical-align: middle; \" alt=\"Pullfrog\"></picture></a>&nbsp;&nbsp;｜ [Fix all ➔](https://pullfrog.com/trigger/thomasluizon/orbit-ui-mobile/2343?action=fix&review_id=5794609750) ｜ [Fix 👍s ➔](https://pullfrog.com/trigger/thomasluizon/orbit-ui-mobile/2343?action=fix-approved&review_id=5794609750) ｜ [View workflow run](https://github.com/thomasluizon/orbit-ui-mobile/actions/runs/42144036064/job/127651079279) ｜ Using `claude-opus-5-5` ｜ [𝕏](https://x.com/pullfrogai)</sup>",
+                "author": {
+                  "__typename": "Bot",
+                  "login": "pullfrog"
+                },
+                "commit": {
+                  "oid": "8988ecb069565efba7c57f23654268ce290a6cc0"
+                }
+              },
+              {
+                "id": "PRR_kwDOR5Siws8AAAABWYfNNQ",
+                "state": "DISMISSED",
+                "submittedAt": "2026-11-06T07:27:36Z",
+                "body": "> ✅ No new issues found. The follow-up reveal now has one account-scoped owner in the shared core. The only open item is the PR body, which still describes older copy.\n\n**Reviewed changes**\n\nThis run covers the one commit since the prior Pullfrog review (`8988ecb..f04ffb8`).\n\n- **Moved the goal follow-up reveal into `createUseGoalCreation`.** `showFollowUps` is now a slot on the injected `useAccountScopedState`, so an account change resets it along with the draft. The title, target, unit and deadline setters, `handleTypeChange` and `onSubmit` all set it, and `resetForm` clears it. Both `create-goal-sheet.tsx` files dropped their copy of `useGoalFollowUps` and the `revealFollowUps()` wrappers.\n- **Added core behaviour tests.** `goal-creation-core.test.ts` now covers each answer type revealing the follow-ups, the follow-ups staying open when answers are cleared, choosing habits not revealing them, and a dismissal reset hiding them again.\n- **Updated the field-row geometry specs.** The web More details geometry test now also mounts `ChecklistTemplates` and checks that its content starts 8px inside the field. `row-geometry.spec.ts` and `checklist-templates-row.spec.ts` now expect field rows to paint exactly to the field edge. `selected-focus-one-indicator.spec.ts` now finds the type radiogroup by `goals.form.typeQuestion`.\n\nThese tests passed locally at `f04ffb8`: the shared `goal-creation-core.test.ts` (19 tests), the mobile `create-goal-sheet-behavior.test.tsx` (15), and the web create-goal, create-from-habit and checklist template suites (63).\n\n<!--\nPullfrog review metadata. These findings were written against f04ffb8;\nif commits have landed on feature/ticket-2001-habit-goal-questions since, treat every specific bug, file, or\nline callout as POTENTIALLY STALE and re-diff before acting on it.\n\n- Mode: IncrementalReview (delta against prior pullfrog review)\n- Files reviewed: 77\n- Commits reviewed: 14\n- Base: main (8c9fab6)\n- Head: feature/ticket-2001-habit-goal-questions (f04ffb8)\n- Reviewed commits:\n  - f04ffb80 \u2014 fix: reveal the goal follow-up questions from the shared goal creation core\n- Prior pullfrog review: 8988ecb (https://github.com/thomasluizon/orbit-ui-mobile/pull/2343#pullrequestreview-5794609750)\n-->\n\n### ℹ️ The PR body still lists copy and an order that no longer ship\n\nThis was raised in the prior review. No commit or discussion has addressed it, and it still applies at `f04ffb8`. Anyone approving copy from the body sees strings that `en.json` and `pt-BR.json` no longer contain. Nothing in the code needs to change.\n\n<details><summary>Technical details</summary>\n\n````markdown\n# Refresh the PR body to the shipped copy and order\n\n## Affected sites\n- Copy table: `habits.form.frequency` says \"How often?\"; it ships \"How does it repeat?\" / \"Como ele se repete?\"\n- Copy table: `habits.form.everyCount` says \"Every how many?\"; it ships an ICU `select` naming days, weeks, months or years\n- Copy table: `habits.form.habitTypeAvoid` says \"Avoid it?\"; it ships \"Avoid habit?\" / \"Evitar hábito?\"\n- Copy table: `habits.form.addEndDate` says \"Set end?\" / \"Tem fim?\"; it ships \"End date?\" / \"Tem prazo?\"\n- Copy table: `habits.form.subHabitsQuestion` / `subTasksQuestion` ship \"Break it into smaller habits?\" / \"Break it into smaller tasks?\"\n- Copy table: pt-BR `habits.form.checklistQuestion` ships \"Tem itens para marcar?\" and `slipAlertQuestion` ships \"Quer um aviso antes de um deslize?\"\n- Copy table: `goals.form.progressQuestion` says \"Where are you now?\"; it ships \"How much have you done?\" / \"Quanto você já fez?\"\n- Surface rows 4, 6, 8 and 13 repeat the old strings; row 11 says the title is asked first, but the sheet now asks the type first\n\n## Required outcome\n- The copy table and surface rows match `packages/shared/src/i18n/en.json`, `pt-BR.json` and the current create goal order on both platforms.\n````\n\n</details>\n\n\n<!-- PULLFROG_DIVIDER_DO_NOT_REMOVE_PLZ -->\n<sup><a href=\"https://pullfrog.com\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://pullfrog.com/logos/frog-white-full-18px.png\"><img src=\"https://pullfrog.com/logos/frog-green-full-18px.png\" width=\"9px\" height=\"9px\" style=\"vertical-align: middle; \" alt=\"Pullfrog\"></picture></a>&nbsp;&nbsp;｜ [View workflow run](https://github.com/thomasluizon/orbit-ui-mobile/actions/runs/42179987050/job/127767115422) ｜ Using `claude-opus-5-5` ｜ [𝕏](https://x.com/pullfrogai)</sup>",
+                "author": {
+                  "__typename": "Bot",
+                  "login": "pullfrog"
+                },
+                "commit": {
+                  "oid": "f04ffb8030cb893e2536d671dba2ef75053a3261"
+                }
+              },
+              {
+                "id": "PRR_kwDOR5Siws8AAAABWZoO2Q",
+                "state": "COMMENTED",
+                "submittedAt": "2026-11-06T09:30:31Z",
+                "body": "> [!IMPORTANT]\n> The new pt-BR end date question reuses the end time question's words, so this PR's own copy test now fails. The fix is a single string, suggested inline.\n\n**Reviewed changes**\n\nThis run covers the one commit since the prior Pullfrog review (`f04ffb8..55a36dd`).\n\n- **Reworded the avoid toggle.** `habits.form.habitTypeAvoid` changed from \"Avoid habit?\" / \"Evitar hábito?\" to \"Quitting this?\" / \"Quer largar?\". Its only consumers are the More details switch rows on web and Android.\n- **Reworded the end date disclosure.** `habits.form.addEndDate` changed from \"End date?\" / \"Tem prazo?\" to \"Ends someday?\" / \"Tem fim?\".\n- **Updated the design records.** `design/habit-form-surfaces.md` and `design/interaction-fill-surfaces.md` now name \"Ends someday?\". A grep finds no remaining references to the old strings.\n\nThe specs that look up rows by these keys (`press-shape.spec.ts:207`, `habit-form-labels.spec.ts:95`) search inside the More details disclosure, after the timing sheet has closed, so Playwright still matches exactly one row each.\n\n<!--\nPullfrog review metadata. These findings were written against 55a36dd;\nif commits have landed on feature/ticket-2001-habit-goal-questions since, treat every specific bug, file, or\nline callout as POTENTIALLY STALE and re-diff before acting on it.\n\n- Mode: IncrementalReview (delta against prior pullfrog review)\n- Files reviewed: 4\n- Commits reviewed: 1\n- Base: main (bd04ef6)\n- Head: feature/ticket-2001-habit-goal-questions (55a36dd)\n- Reviewed commits:\n  - 55a36dd \u2014 fix: ask the end date and avoid toggles as human questions within two words\n- Prior pullfrog review: f04ffb8 (https://github.com/thomasluizon/orbit-ui-mobile/pull/2343#pullrequestreview-5797039413)\n-->\n\n\n<!-- PULLFROG_DIVIDER_DO_NOT_REMOVE_PLZ -->\n<sup><a href=\"https://pullfrog.com\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://pullfrog.com/logos/frog-white-full-18px.png\"><img src=\"https://pullfrog.com/logos/frog-green-full-18px.png\" width=\"9px\" height=\"9px\" style=\"vertical-align: middle; \" alt=\"Pullfrog\"></picture></a>&nbsp;&nbsp;｜ [Fix all ➔](https://pullfrog.com/trigger/thomasluizon/orbit-ui-mobile/2343?action=fix&review_id=5798235865) ｜ [Fix 👍s ➔](https://pullfrog.com/trigger/thomasluizon/orbit-ui-mobile/2343?action=fix-approved&review_id=5798235865) ｜ [View workflow run](https://github.com/thomasluizon/orbit-ui-mobile/actions/runs/42194788868/job/127815220425) ｜ Using `claude-opus-5-5` ｜ [𝕏](https://x.com/pullfrogai)</sup>",
+                "author": {
+                  "__typename": "Bot",
+                  "login": "pullfrog"
+                },
+                "commit": {
+                  "oid": "55a36dd2f03bb2b124a0056cabe6622be723442e"
+                }
+              },
+              {
+                "id": "PRR_kwDOR5Siws8AAAABWaHEwg",
+                "state": "COMMENTED",
+                "submittedAt": "2026-11-06T10:18:29Z",
+                "body": "",
+                "author": {
+                  "__typename": "Bot",
+                  "login": "pullfrog"
+                },
+                "commit": {
+                  "oid": "0e22c42d310ac65f519cab2b253815c68af59cea"
+                }
+              },
+              {
+                "id": "PRR_kwDOR5Siws8AAAABWaHZ4Q",
+                "state": "APPROVED",
+                "submittedAt": "2026-11-06T10:19:02Z",
+                "body": "> ✅ No new issues found. The pt-BR end date and end time questions now use different words, and the PR's copy test passes again.\n\n**Reviewed changes**\n\nThis run covers the one commit since the prior Pullfrog review (`55a36dd..0e22c42`).\n\n- **Reworded the pt-BR end time question.** `habits.form.addEndTime` in `pt-BR.json` changed from \"Tem fim?\" to \"Tem duração?\". The end date row (`addEndDate`) keeps \"Tem fim?\", so the two questions no longer match. In the timing sheet, the new wording leads into `dueEndTime`, \"Até que horas?\". The en values are unchanged (\"Set end?\" and \"Ends someday?\").\n\nThe key is consumed by the `habit-timing-field.tsx` rows on both platforms and by the unit tests and layout specs that look up `habits.form.addEndTime`. The unit tests use the key name, not the text, and the specs (`field-insets.spec.ts`, `habit-form-selectors.spec.ts`) read the value from `messages`, so nothing else needs updating. No design doc quotes the old string. `npx vitest run src/__tests__/habit-goal-question-copy.test.ts` in `packages/shared` passed 6 of 6 at `0e22c42`. CI was still running when this review was written.\n\n### ℹ️ The PR body still says the timing sheet is unchanged\n\nThe body says \"The time and reminder sheet is #2000 and is unchanged here\". That is no longer true: this commit changes the sheet's pt-BR end time question. Earlier reviews also noted that the copy table lists strings that no longer ship. Nothing in the code needs to change.\n\n<!--\nPullfrog review metadata. These findings were written against 0e22c42;\nif commits have landed on feature/ticket-2001-habit-goal-questions since, treat every specific bug, file, or\nline callout as POTENTIALLY STALE and re-diff before acting on it.\n\n- Mode: IncrementalReview (delta against prior pullfrog review)\n- Files reviewed: 1\n- Commits reviewed: 1\n- Base: main (8c9fab6)\n- Head: feature/ticket-2001-habit-goal-questions (0e22c42)\n- Reviewed commits:\n  - 0e22c42 \u2014 fix: ask the end time as its own pt-BR question\n- Prior pullfrog review: 55a36dd (https://github.com/thomasluizon/orbit-ui-mobile/pull/2343#pullrequestreview-5798235865)\n-->\n\n\n<!-- PULLFROG_DIVIDER_DO_NOT_REMOVE_PLZ -->\n<sup><a href=\"https://pullfrog.com\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://pullfrog.com/logos/frog-white-full-18px.png\"><img src=\"https://pullfrog.com/logos/frog-green-full-18px.png\" width=\"9px\" height=\"9px\" style=\"vertical-align: middle; \" alt=\"Pullfrog\"></picture></a>&nbsp;&nbsp;｜ [View workflow run](https://github.com/thomasluizon/orbit-ui-mobile/actions/runs/42201265079/job/127836844756) ｜ Using `claude-opus-5-5` ｜ [𝕏](https://x.com/pullfrogai)</sup>",
+                "author": {
+                  "__typename": "Bot",
+                  "login": "pullfrog"
+                },
+                "commit": {
+                  "oid": "0e22c42d310ac65f519cab2b253815c68af59cea"
+                }
+              }
+            ]
+          },
+          "reviewThreads": {
+            "pageInfo": {
+              "hasNextPage": false,
+              "endCursor": "Y3Vyc29yOnYyOpK0MjAyNi0xMS0wNlQwOTozMDozMFrOtHNHig=="
+            },
+            "nodes": [
+              {
+                "path": "apps/web/components/goals/create-goal-sheet.tsx",
+                "comments": {
+                  "nodes": [
+                    {
+                      "createdAt": "2026-11-06T01:37:17Z",
+                      "body": "`useGoalFollowUps` is copied word for word into both apps, and it keeps its flag in plain `useState`, outside the shared `createUseGoalCreation` core. Every piece of state in that core goes through `useAccountScopedState`. If another account replaces the tab while the sheet is open, the core clears the draft (the existing \"drops the goal the previous account described\" test) but `revealed` stays `true`. The next account then sees every follow-up question on an empty draft. The core already owns `submitted`, `resetForm` and `handleTypeChange`, so this state belongs there. Moving it also deletes both copies and the wrapper lambdas.\n\n<details><summary>Technical details</summary>\n\n````markdown\n# Move the goal follow-up reveal into the shared creation core\n\n## Affected sites\n- apps/web/components/goals/create-goal-sheet.tsx:24-29: app-local `useGoalFollowUps` built on plain `useState`\n- apps/mobile/components/goals/create-goal-sheet.tsx:25-30: an identical copy\n- apps/web/components/goals/create-goal-sheet.tsx:66 and :68, apps/mobile/components/goals/create-goal-sheet.tsx:79 and :87: `revealFollowUps()` wrappers around `onSubmit` and `handleTypeChange`\n- packages/shared/src/hooks/goal-creation-core.ts: `createUseGoalCreation` already owns `draft`, `submitted`, `resetForm` and `handleTypeChange`, and both apps inject `useAccountScopedState` as its `useState`\n\n## Required outcome\n- One owner for the reveal state, on the account-scoped `useState` adapter, so an account replacement and `resetForm` hide the follow-up questions again.\n- Both sheets read `showFollowUps` from `useGoalCreation` and pass `onSubmit` and `handleTypeChange` unwrapped.\n\n## Suggested approach\n- In the core: `const [revealed, setRevealed] = useState(false)`. Set it in `onSubmit` next to `setSubmitted(true)` and in `handleTypeChange`, clear it in `resetForm`, and expose `showFollowUps: revealed || hasGoalFollowUpAnswer(draft)` on `GoalCreationState`.\n- Add a behaviour test beside \"drops the goal the previous account described\": reveal the questions, replace the account, and expect them hidden.\n````\n\n</details>",
+                      "author": {
+                        "__typename": "Bot",
+                        "login": "pullfrog"
+                      },
+                      "pullRequestReview": {
+                        "id": "PRR_kwDOR5Siws8AAAABWWK6Vg"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "path": "packages/shared/src/i18n/pt-BR.json",
+                "comments": {
+                  "nodes": [
+                    {
+                      "createdAt": "2026-11-06T09:30:30Z",
+                      "body": "`addEndTime` (line 1000), the timing sheet's end time disclosure, already reads \"Tem fim?\", so in pt-BR the habit form now asks the end time and the end date in the same words. The English keeps them apart (\"Set end?\" and \"Ends someday?\"). The PR's own copy check fails on this: `npx vitest run src/__tests__/habit-goal-question-copy.test.ts` in `packages/shared` reports `habit form: habits.form.addEndTime repeats \"Tem fim?\" from habits.form.addEndDate`. With \"Vai terminar?\" (two words, a natural match for \"Ends someday?\") all 6 cases pass locally. The pt-BR wording is your call.\n\n```suggestion\n      \"addEndDate\": \"Vai terminar?\",\n```",
+                      "author": {
+                        "__typename": "Bot",
+                        "login": "pullfrog"
+                      },
+                      "pullRequestReview": {
+                        "id": "PRR_kwDOR5Siws8AAAABWZoO2Q"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "timelineItems": {
+            "pageInfo": {
+              "hasNextPage": false,
+              "endCursor": "Y3Vyc29yOnYyOpPPAAABobAsPmABqzM1MzMzMDk5NjAw"
+            },
+            "nodes": [
+              {
+                "previousReviewState": "APPROVED",
+                "review": {
+                  "id": "PRR_kwDOR5Siws8AAAABWYfNNQ"
+                }
+              }
+            ]
+          }
+        },
+        "pr2338": {
+          "number": 2338,
+          "mergedAt": "2026-11-05T23:51:24Z",
+          "updatedAt": "2026-11-05T23:51:26Z",
+          "reviews": {
+            "pageInfo": {
+              "hasNextPage": false,
+              "endCursor": "Y3Vyc29yOnYyOpO0MjAyNi0xMS0wNVQxODo0ODozNVq0MjAyNi0xMS0wNVQxODo0ODozNVrPAAAAAVkgC4c="
+            },
+            "nodes": [
+              {
+                "id": "PRR_kwDOR5Siws8AAAABWPTJwg",
+                "state": "CHANGES_REQUESTED",
+                "submittedAt": "2026-11-05T15:24:10Z",
+                "body": "> [!IMPORTANT]\n> Local workers can still inherit a credential that overrides the dedicated worker account. The account-isolation filter needs one correction before merging.\n\n**Reviewed changes** Read all 15 changed files covering the Claude worker migration and Pullfrog provider switch.\n\n- **Worker configuration:** Selects Claude Opus 5.5 with explicit effort tiers while retaining the Codex profiles.\n- **Account isolation:** Requires an existing worker config directory, applies it to ticket and research children, and removes two inherited credential variables.\n- **Pullfrog workflow:** Selects the Claude Opus alias with high effort using the existing OAuth secret and pinned action.\n- **Tests and operating guidance:** Adds account-directory coverage, updates quota handling, and reseeds calibration for Claude.\n\nValidation: the focused tool harness passed all 313 assertions. The hook harness exited 1 on the unchanged `adapter identifier: an id recorded by this run -> 0` assertion (`got=2 want=0`); that failure is not included as a diff finding.\n\n<!--\nPullfrog review metadata. These findings were written against 9c853c5;\nif commits have landed on chore/ticket-2029-claude-workers since, treat every specific bug, file, or\nline callout as POTENTIALLY STALE and re-diff before acting on it.\n\n- Mode: Review (initial)\n- Files reviewed: 15\n- Commits reviewed: 3\n- Base: main (ecf3380)\n- Head: chore/ticket-2029-claude-workers (9c853c5)\n- Reviewed commits:\n  - 9c853c5 \u2014 docs: name the Claude worker account as the worker engine and reseed calibration\n  - 1636fa9 \u2014 ci(pullfrog): review on Claude Opus with the Claude Code OAuth token\n  - 699bb90 \u2014 feat(tools): launch claude workers under the dedicated worker account\n- Prior pullfrog review: none\n-->\n\n<!-- PULLFROG_DIVIDER_DO_NOT_REMOVE_PLZ -->\n<sup><a href=\"https://pullfrog.com\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://pullfrog.com/logos/frog-white-full-18px.png\"><img src=\"https://pullfrog.com/logos/frog-green-full-18px.png\" width=\"9px\" height=\"9px\" style=\"vertical-align: middle; \" alt=\"Pullfrog\"></picture></a>&nbsp;&nbsp;｜ [Fix all ➔](https://pullfrog.com/trigger/thomasluizon/orbit-ui-mobile/2338?action=fix&review_id=5787404738) ｜ [Fix 👍s ➔](https://pullfrog.com/trigger/thomasluizon/orbit-ui-mobile/2338?action=fix-approved&review_id=5787404738) ｜ [View workflow run](https://github.com/thomasluizon/orbit-ui-mobile/actions/runs/42053438565/job/127335339657) ｜ Using `gpt-6.1-sol` ｜ [𝕏](https://x.com/pullfrogai)</sup>",
+                "author": {
+                  "__typename": "Bot",
+                  "login": "pullfrog"
+                },
+                "commit": {
+                  "oid": "9c853c52158c5400d6c69f7cb0eb07b990691ec5"
+                }
+              },
+              {
+                "id": "PRR_kwDOR5Siws8AAAABWSALhw",
+                "state": "COMMENTED",
+                "submittedAt": "2026-11-05T18:48:35Z",
+                "body": "> [!IMPORTANT]\n> The previous credential-isolation finding is fixed. The new usage-limit fallback still needs re-derivable CLI output evidence before approval.\n\n**Reviewed changes** Reviewed the incremental changes from `9c853c5` through `568192c`, including the resolved discussion and the new account-fallback behavior.\n\n- **Expanded account isolation:** Removed inherited bearer credentials, provider selectors and other credential overrides, with child-process regression coverage for both accounts.\n- **Added account fallback:** Relaunched ticket work once on the main account after a classified usage-limit stop, preserving the worktree and recording account-specific attempts and logs.\n- **Updated model settings:** Set every worker tier to Opus 5.5 at high effort and selected explicit Opus 5.5 at xhigh effort for Pullfrog.\n- **Added attribution enforcement:** Checked PR commits and body for attribution lines and registered the guard's commit-range scope.\n- **Isolated hook fixtures:** Moved identifier-ledger cases into a writable temporary checkout and updated operating guidance and calibration.\n\nValidation: the focused launcher, research, usage-limit, attribution and charter suites passed all 374 assertions; the hook harness passed. The separate config suite stopped with `.claude/orchestrator.json disagrees with origin/main and this checkout does not contain origin/main, so the working copy may be the stale one.` Actual quota exhaustion was not tested.\n\n<!--\nPullfrog review metadata. These findings were written against 568192c;\nif commits have landed on chore/ticket-2029-claude-workers since, treat every specific bug, file, or\nline callout as POTENTIALLY STALE and re-diff before acting on it.\n\n- Mode: IncrementalReview (delta against prior pullfrog review)\n- Files reviewed: 26\n- Commits reviewed: 5\n- Base: main (28bd8ac)\n- Head: chore/ticket-2029-claude-workers (568192c)\n- Reviewed commits:\n  - 568192c2: feat(tools): fall back to the main account at the worker usage limit\n  - b1112972: Merge remote-tracking branch 'origin/main' into chore/ticket-2029-claude-workers\n  - 9c853c52: docs: name the Claude worker account as the worker engine and reseed calibration\n  - 1636fa98: ci(pullfrog): review on Claude Opus with the Claude Code OAuth token\n  - 699bb90e: feat(tools): launch claude workers under the dedicated worker account\n- Prior pullfrog review: 9c853c5 (https://github.com/thomasluizon/orbit-ui-mobile/pull/2338#pullrequestreview-5787404738)\n-->\n\n<!-- PULLFROG_DIVIDER_DO_NOT_REMOVE_PLZ -->\n<sup><a href=\"https://pullfrog.com\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://pullfrog.com/logos/frog-white-full-18px.png\"><img src=\"https://pullfrog.com/logos/frog-green-full-18px.png\" width=\"9px\" height=\"9px\" style=\"vertical-align: middle; \" alt=\"Pullfrog\"></picture></a>&nbsp;&nbsp;｜ [Fix all ➔](https://pullfrog.com/trigger/thomasluizon/orbit-ui-mobile/2338?action=fix&review_id=5790239623) ｜ [Fix 👍s ➔](https://pullfrog.com/trigger/thomasluizon/orbit-ui-mobile/2338?action=fix-approved&review_id=5790239623) ｜ [View workflow run](https://github.com/thomasluizon/orbit-ui-mobile/actions/runs/42086575225/job/127453190404) ｜ Using `gpt-6.1-sol` ｜ [𝕏](https://x.com/pullfrogai)</sup>",
+                "author": {
+                  "__typename": "Bot",
+                  "login": "pullfrog"
+                },
+                "commit": {
+                  "oid": "568192c233411f2d8e296c266c01de49ddfedca1"
+                }
+              }
+            ]
+          },
+          "reviewThreads": {
+            "pageInfo": {
+              "hasNextPage": false,
+              "endCursor": "Y3Vyc29yOnYyOpK0MjAyNi0xMS0wNVQxODo0ODozNVrOtDeXPQ=="
+            },
+            "nodes": [
+              {
+                "path": "tools/lib/orchestrator-config.mjs",
+                "comments": {
+                  "nodes": [
+                    {
+                      "createdAt": "2026-11-05T15:24:09Z",
+                      "body": "**[P2] Remove the inherited bearer credential too.** When the orchestrator shell has `ANTHROPIC_AUTH_TOKEN` set, local workers retain it through `githubEnvironment` and this filter, and Claude selects it ahead of the dedicated directory's subscription sign-in. This lets workers use the orchestrator's credential despite `CLAUDE_CONFIG_DIR` pointing at the worker account.\n\n<details><summary>Technical details</summary>\n\n````markdown\n# Inherited bearer token bypasses worker account selection\n\n## Affected sites\n- `tools/lib/orchestrator-config.mjs:197,218-222`: the filter deletes only `ANTHROPIC_API_KEY` and `CLAUDE_CODE_OAUTH_TOKEN`.\n- `tools/lib/github-auth.mjs:34-38`: local launches copy the parent environment, preserving `ANTHROPIC_AUTH_TOKEN`.\n- `tools/launch-worker.mjs:380-384`: that environment reaches the worker gate and its Claude child.\n\n## Evidence\nA direct synthetic call to `workerAccountEnvironment` retained `ANTHROPIC_AUTH_TOKEN` unchanged. The exact CLI version cited by this PR independently confirms that it selects this credential even with an empty config directory:\n\n```sh\nenv -i PATH=\"$PATH\" HOME=\"<temporary-home>\" CLAUDE_CONFIG_DIR=\"<empty-worker-config-directory>\" ANTHROPIC_AUTH_TOKEN=synthetic-review-token npm exec --yes --package=@anthropic-ai/claude-code@2.1.318 -- claude auth status\n```\n\nComplete JSON response, with directory values replaced:\n\n```json\n{\n  \"loggedIn\": true,\n  \"authMethod\": \"oauth_token\",\n  \"apiProvider\": \"firstParty\",\n  \"analyticsDisabled\": false,\n  \"projectsDirectory\": \"<empty-worker-config-directory>/projects\",\n  \"configDirectory\": \"<empty-worker-config-directory>\",\n  \"loginExpiresAt\": null\n}\n```\n\nWithout `ANTHROPIC_AUTH_TOKEN`, the same invocation returned the same key set with `loggedIn: false` and `authMethod: \"none\"`, and exited 1. No model request or real credential was used. Anthropic's authentication-precedence reference also places this variable above subscription `/login` credentials: https://code.claude.com/docs/en/authentication#authentication-precedence.\n\n## Required outcome\n- A local worker cannot use an inherited `ANTHROPIC_AUTH_TOKEN` instead of its dedicated directory sign-in; remove or reject that credential before spawning.\n- Extend the existing child-environment regression case to supply this variable and prove it cannot reach the worker. Research already excludes it through its environment allowlist.\n````\n\n</details>",
+                      "author": {
+                        "__typename": "Bot",
+                        "login": "pullfrog"
+                      },
+                      "pullRequestReview": {
+                        "id": "PRR_kwDOR5Siws8AAAABWPTJwg"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "path": "tools/lib/claude-usage-limit.mjs",
+                "comments": {
+                  "nodes": [
+                    {
+                      "createdAt": "2026-11-05T18:48:35Z",
+                      "body": "**[P2] Supply re-derivable evidence for the usage-limit result contract.** Automatic account switching now depends on `type`, `is_error`, `result` and the limit-message format, but the PR body provides neither a complete sanitized result record nor a precise source location showing how CLI `2.1.318` constructs it. The tests construct that record themselves, so their passing cannot establish that a real subscription-limit stop will trigger fallback; the repository's external-interface evidence requirement remains unmet for this new behavior.\n\n<details><summary>Technical details</summary>\n\n````markdown\n# Usage-limit fallback depends on an unsubstantiated external record\n\n## Affected sites\n- `tools/lib/claude-usage-limit.mjs:35-41`: reads the external stream-json record and decides whether the account limit was reached.\n- `tools/lib/claude-usage-limit.mjs:11-28`: matches the external limit-message prefixes and patterns.\n- `tools/__tests__/claude-usage-limit.mjs:7-18`: claims source provenance but builds the decisive record locally without a re-derivable source citation.\n- `tools/launch-worker.mjs:610,661-663`: uses that verdict to authorize the one-time main-account relaunch.\n\n## Required outcome\n- Add the evidence to the PR body: a sanitized complete result-record key set with types, preserving the literal format of parsed values and documenting the values this reader compares.\n- Provide the exact credential-redacted invocation that produced it, or the versioned installed-source file and line/locator that constructs the record and carries the subscription-limit message into it.\n- Tie the fixture to that independently established output, distinguishing a subscription usage limit from the transient 429 case.\n- If the source emits a different record on that path, align the detector and regression fixture with the confirmed contract.\n\nNo actual serialization mismatch has been established. This does not require deliberately exhausting a real account; reproducible source evidence is sufficient.\n````\n\n</details>",
+                      "author": {
+                        "__typename": "Bot",
+                        "login": "pullfrog"
+                      },
+                      "pullRequestReview": {
+                        "id": "PRR_kwDOR5Siws8AAAABWSALhw"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "timelineItems": {
+            "pageInfo": {
+              "hasNextPage": false,
+              "endCursor": null
+            },
+            "nodes": []
+          }
+        },
+        "pr2325": {
+          "number": 2325,
+          "mergedAt": "2026-11-05T10:44:15Z",
+          "updatedAt": "2026-11-05T10:44:18Z",
+          "reviews": {
+            "pageInfo": {
+              "hasNextPage": false,
+              "endCursor": "Y3Vyc29yOnYyOpO0MjAyNi0xMS0wNVQxMDoyNzoxNVq0MjAyNi0xMS0wNVQxMDoyNzoxNFrPAAAAAVi3ynw="
+            },
+            "nodes": [
+              {
+                "id": "PRR_kwDOR5Siws8AAAABWHP9rw",
+                "state": "CHANGES_REQUESTED",
+                "submittedAt": "2026-11-05T02:23:02Z",
+                "body": "> [!IMPORTANT]\n> Continuous intake has unresolved idle-wake and owner-handoff paths, and mailbox classification can omit content before authorizing a send.\n\n**Reviewed changes**\nReviewed the full auto-work implementation, guarded reply boundaries, source imports, workflow, and sleep/handoff integration.\n\n- **Continuous intake:** Adds ordered source collection, board admission, independent crank control, explicit disable, and registered idle wakes.\n- **Mailbox replies:** Adds OAuth and Keychain transport, cached Gmail intake, policy-controlled drafts and sends, and deterministic recovery markers.\n- **Store feedback:** Adds credential-isolated Actions collection and posting, versioned review imports, saved reply requests, and matching confirmation artifacts.\n- **Session continuity:** Extends run-state and context-relay inheritance and narrows handoff command recognition to explicit invocations.\n\nValidation: the intake-focused harness passed 207 assertions. A broader focused run reported five failures in existing process/wake fixtures, and the hooks harness reported one adapter-identifier failure; these gate-owned failures are not duplicated as findings. Separate temporary reproductions confirmed the three paths described inline.\n\n<!--\nPullfrog review metadata. These findings were written against e7f1ab01;\nif commits have landed on feature/ticket-1996-auto-work since, treat every specific bug, file, or\nline callout as POTENTIALLY STALE and re-diff before acting on it.\n\n- Mode: Review (initial)\n- Files reviewed: 41\n- Commits reviewed: 12\n- Base: main (57879de2)\n- Head: feature/ticket-1996-auto-work (e7f1ab01)\n- Reviewed commits:\n  - e7f1ab01: fix: initialize review source maps beside first-cycle metadata\n  - 840b0fa3: docs: fold intake defects into the open area ticket\n  - 1636209a: fix: send the classified reply when a draft already exists\n  - b0b00416: feat: post clear store replies with existing workflow credentials\n  - 2c37e504: feat: send clear mailbox replies under the owner policy\n  - 4ac6dcfa: fix: validate token rotation and allow disabling a stopped run\n  - 9c3a8786: fix: keep credential errors private and test reply header rejection\n  - 2af99355: docs: preserve one run when auto-work replenishes the queue\n  - 46418eaf: feat: add continuous auto-work entry to the sleep lifecycle\n  - 20eebea0: feat: collect mailbox and store feedback without sending replies\n  - 67f3a478: feat: retain auto-work state and register idle wakeups\n  - 591146e2: fix: distinguish handoff invocations from sentence mentions\n- Prior pullfrog review: none\n-->\n\n<!-- PULLFROG_DIVIDER_DO_NOT_REMOVE_PLZ -->\n<sup><a href=\"https://pullfrog.com\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://pullfrog.com/logos/frog-white-full-18px.png\"><img src=\"https://pullfrog.com/logos/frog-green-full-18px.png\" width=\"9px\" height=\"9px\" style=\"vertical-align: middle; \" alt=\"Pullfrog\"></picture></a>&nbsp;&nbsp;｜ [Fix all ➔](https://pullfrog.com/trigger/thomasluizon/orbit-ui-mobile/2325?action=fix&review_id=5778963887) ｜ [Fix 👍s ➔](https://pullfrog.com/trigger/thomasluizon/orbit-ui-mobile/2325?action=fix-approved&review_id=5778963887) ｜ [View workflow run](https://github.com/thomasluizon/orbit-ui-mobile/actions/runs/41954152133/job/127004897457) ｜ Using `gpt-6.1-sol` ｜ [𝕏](https://x.com/pullfrogai)</sup>",
+                "author": {
+                  "__typename": "Bot",
+                  "login": "pullfrog"
+                },
+                "commit": {
+                  "oid": "e7f1ab01fb550b8f5057ad5aa8fac071395c1bab"
+                }
+              },
+              {
+                "id": "PRR_kwDOR5Siws8AAAABWJZ_Kg",
+                "state": "CHANGES_REQUESTED",
+                "submittedAt": "2026-11-05T07:25:57Z",
+                "body": "> [!IMPORTANT]\n> The new owner-handoff adoption path leaves the predecessor unfenced, allowing a resumed old session to overwrite the successor's intake receipts.\n\n**Reviewed changes**\nReviewed the changes from `e7f1ab01` through `30a75029`, treating the three original findings as settled by their fixes and discussion.\n\n- **Added intake continuation:** Appended `INTAKE` to active auto-work wakes and documented its dispatch, while retaining ordinary `NO_ACTION` and relay-drain behavior.\n- **Added owner adoption:** Bound an owner handoff to its predecessor and exact incoming prompt, carrying intake, queue and ledger into the successor.\n- **Retrieved external mail text:** Fetched attachment-backed text parts, retained unreadable-part evidence, and forced incomplete messages to drafts.\n- **Strengthened verification:** Added handoff, wake, mail-content and JWT regressions, plus the workflow timeout setting.\n\nValidation: the focused tools suite passed 586 assertions, and both workflow tests passed. The hooks harness reproduced the previously observed `adapter identifier` failure; it is not duplicated as a finding. An isolated reproduction confirmed the new ownership-fence issue both with and without a prior relay chain. Gmail's live discovery response confirmed the added attachment interface.\n\n<!--\nPullfrog review metadata. These findings were written against 30a75029;\nif commits have landed on feature/ticket-1996-auto-work since, treat every specific bug, file, or\nline callout as POTENTIALLY STALE and re-diff before acting on it.\n\n- Mode: IncrementalReview (delta against prior pullfrog review)\n- Files reviewed: 43 (checkout PR total; this review covered the incremental delta)\n- Commits reviewed: 13 (checkout PR total; reviewed delta listed below)\n- Base: main (57879de2)\n- Head: feature/ticket-1996-auto-work (30a75029)\n- Reviewed commits:\n  - 30a75029 \u2014 fix: preserve auto-work intake across wakes and owner handoffs\n- Prior pullfrog review: e7f1ab01 (https://github.com/thomasluizon/orbit-ui-mobile/pull/2325#pullrequestreview-5778963887)\n-->\n\n<!-- PULLFROG_DIVIDER_DO_NOT_REMOVE_PLZ -->\n<sup><a href=\"https://pullfrog.com\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://pullfrog.com/logos/frog-white-full-18px.png\"><img src=\"https://pullfrog.com/logos/frog-green-full-18px.png\" width=\"9px\" height=\"9px\" style=\"vertical-align: middle; \" alt=\"Pullfrog\"></picture></a>&nbsp;&nbsp;｜ [Fix all ➔](https://pullfrog.com/trigger/thomasluizon/orbit-ui-mobile/2325?action=fix&review_id=5781225258) ｜ [Fix 👍s ➔](https://pullfrog.com/trigger/thomasluizon/orbit-ui-mobile/2325?action=fix-approved&review_id=5781225258) ｜ [View workflow run](https://github.com/thomasluizon/orbit-ui-mobile/actions/runs/41985735318/job/127105916956) ｜ Using `gpt-6.1-sol` ｜ [𝕏](https://x.com/pullfrogai)</sup>",
+                "author": {
+                  "__typename": "Bot",
+                  "login": "pullfrog"
+                },
+                "commit": {
+                  "oid": "30a75029d5f3fa5f94b7dab0ed199041ab57ace8"
+                }
+              },
+              {
+                "id": "PRR_kwDOR5Siws8AAAABWLLg2w",
+                "state": "DISMISSED",
+                "submittedAt": "2026-11-05T10:02:14Z",
+                "body": "> No new issues found.\n\n**Reviewed changes**\nReviewed `30a75029` through `312ee0ed`, keeping findings fixed in the resolved discussions settled.\n\n- **Fenced owner transfers:** Recorded the predecessor in `relay.from` and preserved durable supersession history across ordinary updates and subsequent transfers.\n- **Rejected stale writes:** Applied the same ownership fence to run-state writes and session guards without preventing pre-adoption cancellation or failed-relay rollback.\n- **Added ownership regressions:** Exercised stale-write refusal, receipt preservation, predecessor hook denial and successor usability, with and without a prior reporting chain.\n\nValidation: the targeted handoff, session-chain and relay suite passed all 234 assertions. All new owner-fence hook cases passed; broader runs reproduced the previously observed five process/wake fixture failures and single adapter-identifier failure, which are gate-owned and not new findings.\n\n<!--\nPullfrog review metadata. These findings were written against 312ee0ed;\nif commits have landed on feature/ticket-1996-auto-work since, treat every specific bug, file, or\nline callout as POTENTIALLY STALE and re-diff before acting on it.\n\n- Mode: IncrementalReview (delta against prior pullfrog review)\n- Files reviewed: 44 (whole-PR total from checkout; this run covered the incremental delta)\n- Commits reviewed: 14 (whole-PR total from checkout; incremental commit listed below)\n- Base: main (57879de2)\n- Head: feature/ticket-1996-auto-work (312ee0ed)\n- Reviewed commits:\n  - 312ee0ed: fix: fence predecessors after owner handoff adoption\n- Prior pullfrog review: 30a75029 (https://github.com/thomasluizon/orbit-ui-mobile/pull/2325#pullrequestreview-5781225258)\n-->\n\n<!-- PULLFROG_DIVIDER_DO_NOT_REMOVE_PLZ -->\n<sup><a href=\"https://pullfrog.com\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://pullfrog.com/logos/frog-white-full-18px.png\"><img src=\"https://pullfrog.com/logos/frog-green-full-18px.png\" width=\"9px\" height=\"9px\" style=\"vertical-align: middle; \" alt=\"Pullfrog\"></picture></a>&nbsp;&nbsp;｜ [View workflow run](https://github.com/thomasluizon/orbit-ui-mobile/actions/runs/42006671692/job/127175065616) ｜ Using `gpt-6.1-sol` ｜ [𝕏](https://x.com/pullfrogai)</sup>",
+                "author": {
+                  "__typename": "Bot",
+                  "login": "pullfrog"
+                },
+                "commit": {
+                  "oid": "312ee0edae6d0325f320c682bfa2c8699a41f821"
+                }
+              },
+              {
+                "id": "PRR_kwDOR5Siws8AAAABWLfKfA",
+                "state": "APPROVED",
+                "submittedAt": "2026-11-05T10:27:15Z",
+                "body": "> ✅ No new issues found.\n\n**Reviewed changes**\nReviewed the incremental delta from `312ee0ed` through `0dfdbf4b`; it contains only calibration metadata reconciliation after merging `main`.\n\n- **Refreshed calibration metadata:** Updated skill digests and calibration timestamps without changing model routing, effort settings, or auto-work behavior.\n\nAll four prior findings remain resolved. Tests were not rerun for this metadata-only delta. This approval restores the prior disposition after the merge dismissed it.\n\n<!--\nPullfrog review metadata. These findings were written against 0dfdbf4b;\nif commits have landed on feature/ticket-1996-auto-work since, treat every specific bug, file, or\nline callout as POTENTIALLY STALE and re-diff before acting on it.\n\n- Mode: IncrementalReview (delta against prior pullfrog review)\n- Files reviewed: 44\n- Commits reviewed: 15\n- Base: main (3db07b04)\n- Head: feature/ticket-1996-auto-work (0dfdbf4b)\n- Reviewed commits:\n  - 0dfdbf4b \u2014 Merge main into feature/ticket-1996-auto-work\n- Prior pullfrog review: 312ee0ed (https://github.com/thomasluizon/orbit-ui-mobile/pull/2325#pullrequestreview-5783085275)\n-->\n\n<!-- PULLFROG_DIVIDER_DO_NOT_REMOVE_PLZ -->\n<sup><a href=\"https://pullfrog.com\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://pullfrog.com/logos/frog-white-full-18px.png\"><img src=\"https://pullfrog.com/logos/frog-green-full-18px.png\" width=\"9px\" height=\"9px\" style=\"vertical-align: middle; \" alt=\"Pullfrog\"></picture></a>&nbsp;&nbsp;｜ [View workflow run](https://github.com/thomasluizon/orbit-ui-mobile/actions/runs/42010424703/job/127187746010) ｜ Using `gpt-6.1-sol` ｜ [𝕏](https://x.com/pullfrogai)</sup>",
+                "author": {
+                  "__typename": "Bot",
+                  "login": "pullfrog"
+                },
+                "commit": {
+                  "oid": "0dfdbf4b0ad68a484a1caf9fb64746957be57623"
+                }
+              }
+            ]
+          },
+          "reviewThreads": {
+            "pageInfo": {
+              "hasNextPage": false,
+              "endCursor": "Y3Vyc29yOnYyOpK0MjAyNi0xMS0wNVQwNzoyNTo1NlrOs_aQfg=="
+            },
+            "nodes": [
+              {
+                "path": "tools/orbit-app-store-reviews.mjs",
+                "comments": {
+                  "nodes": [
+                    {
+                      "createdAt": "2026-11-05T02:19:59Z",
+                      "body": "## CodeQL / Use of password hash with insufficient computational effort\n\nPassword from [an access to APP_STORE_CONNECT_API_KEY_ID](1) is hashed insecurely.\nPassword from [an access to APP_STORE_CONNECT_API_KEY_ID](2) is hashed insecurely.\n\n[Show more details](https://github.com/thomasluizon/orbit-ui-mobile/security/code-scanning/53)",
+                      "author": {
+                        "__typename": "Bot",
+                        "login": "github-advanced-security"
+                      },
+                      "pullRequestReview": {
+                        "id": "PRR_kwDOR5Siws8AAAABWHOUiA"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "path": ".claude/skills/auto-work/SKILL.md",
+                "comments": {
+                  "nodes": [
+                    {
+                      "createdAt": "2026-11-05T02:23:01Z",
+                      "body": "[P1] Reconcile idle intake with the canonical `NO_ACTION` wake rule\n\nAfter the idle waiter expires with an empty queue, `run-status` returns only `NO_ACTION`, whose canonical handling explicitly ends the wake and forbids listing the board. This conflicts with running the remaining intake steps on every wake, so following the existing orchestrator protocol skips the next collection cycle instead of discovering new work.\n\n<details><summary>Technical details</summary>\n\n````markdown\n# Empty-queue wakes need an explicit intake continuation\n\n## Affected sites\n- `.claude/skills/auto-work/SKILL.md:39-46,178-183`: every wake starts with the snapshot, including idle expiry.\n- `.claude/skills/orchestrate/SKILL.md:29-39`: the action set is closed and NO_ACTION ends immediately without a board read.\n- `tools/run-status.mjs:302-307`: an empty queue produces no SLOT_FREE or intake action; with no unsettled PR, NO_ACTION points back to run-status itself.\n\n## Required outcome\n- Expiry of the registered auto-work waiter must unambiguously proceed to source intake while preserving ordinary NO_ACTION behavior for non-auto-work runs.\n- Exercise a complete empty-queue wake through the snapshot/dispatch decision, not only waiter registration and exit.\n\n## Suggested approach\n- Add a defined auto-work intake action or explicitly exempt the due intake wake from the canonical NO_ACTION early return.\n- Reproduced with an active autoWork run, remaining: [], no PRs and no live wakes: nextActions contains only NO_ACTION and a run-status command.\n````\n\n[Canonical wake rule](https://github.com/thomasluizon/orbit-ui-mobile/blob/e7f1ab01fb550b8f5057ad5aa8fac071395c1bab/.claude/skills/orchestrate/SKILL.md#L29-L39) · [Snapshot fallback](https://github.com/thomasluizon/orbit-ui-mobile/blob/e7f1ab01fb550b8f5057ad5aa8fac071395c1bab/tools/run-status.mjs#L302-L307)\n\n</details>",
+                      "author": {
+                        "__typename": "Bot",
+                        "login": "pullfrog"
+                      },
+                      "pullRequestReview": {
+                        "id": "PRR_kwDOR5Siws8AAAABWHP9rw"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "path": ".claude/skills/handoff/SKILL.md",
+                "comments": {
+                  "nodes": [
+                    {
+                      "createdAt": "2026-11-05T02:23:01Z",
+                      "body": "[P1] Preserve intake when an owner starts the handoff\n\nAn owner-origin `/handoff --sleep` also generates an `/auto-work` successor prompt, but that successor is not nominated for relay adoption. Its ordinary sleep-entry write discards `intake`, losing completed classifications, pending replies, unconfirmed-send protection, and workflow identities despite the instruction here to retain them through adoption.\n\n<details><summary>Technical details</summary>\n\n````markdown\n# Owner handoffs lack a receipt-preserving adoption path\n\n## Affected sites\n- `.claude/skills/handoff/SKILL.md:27-31,373-375`: auto-work changes the successor entry point and relies on run-state adoption for source continuity.\n- `.claude/hooks/record-handoff-request.mjs:15-18`: an owner command stops sleep and cancels an outstanding relay.\n- `tools/lib/session-chain.mjs:84-98`: adoption requires a pending relay with the exact nominated successorSessionId.\n- `.claude/skills/sleep/SKILL.md:33-47`: false adoption permits a new session's ordinary first write.\n- `tools/lib/run-state.mjs:313-315,359-362`: intake is inherited only within the same session or when relay.from identifies the predecessor.\n\n## Required outcome\n- A supported owner-initiated unattended handoff must retain source receipts and pending workflow/send state under the successor's ownership, without allowing arbitrary unrelated sessions to adopt a run.\n- Add coverage for owner handoff followed by fresh-session entry, in addition to the nominated automatic-relay case.\n\n## Suggested approach\n- Introduce an explicit fenced transfer for owner handoff, or otherwise persist intake independently of a fresh session's ordinary run initialization.\n- Reproduced the owner hook's stopped state followed by adoptRelayRun(newSession) returning false and the prescribed ordinary write: readRunState().intake becomes undefined.\n````\n\n[Adoption restriction](https://github.com/thomasluizon/orbit-ui-mobile/blob/e7f1ab01fb550b8f5057ad5aa8fac071395c1bab/tools/lib/session-chain.mjs#L84-L98) · [Inheritance boundary](https://github.com/thomasluizon/orbit-ui-mobile/blob/e7f1ab01fb550b8f5057ad5aa8fac071395c1bab/tools/lib/run-state.mjs#L307-L315)\n\n</details>",
+                      "author": {
+                        "__typename": "Bot",
+                        "login": "pullfrog"
+                      },
+                      "pullRequestReview": {
+                        "id": "PRR_kwDOR5Siws8AAAABWHP9rw"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "path": "tools/orbit-mail.mjs",
+                "comments": {
+                  "nodes": [
+                    {
+                      "createdAt": "2026-11-05T02:23:01Z",
+                      "body": "[P2] Retain incomplete-content evidence before classifying mail\n\nGmail can store a text MIME part behind `body.attachmentId` instead of inline `body.data`; this traversal silently drops that content and its identifier. A message with inline thanks and an externally stored complaint or refund request therefore reaches classification as thanks only, with no indication that content is missing, yet can still pass the automatic-send policy.\n\n<details><summary>Technical details</summary>\n\n````markdown\n# Whole-message classification cannot silently omit external MIME bodies\n\n## Affected sites\n- `tools/orbit-mail.mjs:25-26,47-50`: only inline data becomes a body, and no omitted-part metadata is saved.\n- `tools/lib/auto-work-google.mjs:42,52-55`: the client has no attachment-body retrieval operation.\n- `.claude/skills/auto-work/SKILL.md:134-147`: mixed concerns must remain drafts and classification must use the whole message.\n\n## Required outcome\n- Retrieve externally stored message text before automatic classification, or retain an explicit incomplete-content condition that prevents automatic sends until the content has been reviewed.\n- Cover a message with both inline text and an attachmentId-backed text part; it must not silently become eligible for an automatic thanks reply.\n\n## Evidence\n- Google's MessagePartBody contract states that data may be empty when body content is sent as a separate attachment, and that attachmentId must be retrieved with messages.attachments.get.\n- Reproduced collection of such a message: only the inline body survived, the external part ID was absent from the pending item, and replyToMail accepted a simple praise receipt and sent.\n````\n\n[Google MessagePartBody contract](https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages.attachments)\n\n</details>",
+                      "author": {
+                        "__typename": "Bot",
+                        "login": "pullfrog"
+                      },
+                      "pullRequestReview": {
+                        "id": "PRR_kwDOR5Siws8AAAABWHP9rw"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "path": "tools/lib/handoff-prompt.mjs",
+                "comments": {
+                  "nodes": [
+                    {
+                      "createdAt": "2026-11-05T07:25:56Z",
+                      "body": "[P2] Fence the predecessor when owner adoption transfers the run\n\nThis transfer records the predecessor only in `ownerHandoff` and clears `relay.from`, so the existing superseded-session guard does not recognize the old session as superseded. If that terminal resumes, it can overwrite the successor's newer intake, including `sendAttempted` protection against duplicate replies; this reproduces both with and without an earlier context-relay chain.\n\n<details><summary>Technical details</summary>\n\n````markdown\n# Owner adoption must participate in the durable ownership fence\n\n## Affected sites\n- `tools/lib/handoff-prompt.mjs:171-172`: the successor takes ownership with `relay: { pending: false }`, leaving the transfer visible only through `ownerHandoff`.\n- `tools/lib/session-chain.mjs:64-72`: `supersededSession` recognizes `relay.from` or a superseded chain entry, neither of which identifies this owner-handoff predecessor.\n- `.claude/hooks/forbid-superseded-session.mjs:9-13`: a null result permits the predecessor's tool use.\n- `tools/lib/run-state.mjs:307-362`: a later predecessor write can replace the successor's run and intake.\n\n## Evidence\n- Prepared and adopted an owner handoff with the production functions in an isolated checkout.\n- Saved `sendAttempted: true` in the successor's pending mail item.\n- `supersededSession(predecessor)` and the hook's `supersededMessage` both returned null.\n- Writing the predecessor's earlier run state succeeded, changed ownership back to the predecessor, and removed the successor's send-attempt receipt.\n- The same result occurred with an archived prior context-relay chain.\n\n## Required outcome\n- Successful owner adoption must durably fence the predecessor through the existing session-ownership guard, including after ordinary successor state writes.\n- Preserve receipts and prevent a resumed predecessor from replacing the successor's run.\n- Add regression coverage with and without a prior relay chain, asserting the predecessor's guard denial after adoption and after a successor state update.\n\n## Suggested approach\n- Reuse the canonical transfer/fence mechanism rather than maintaining an owner-transfer record invisible to `supersededSession`.\n````\n\n</details>",
+                      "author": {
+                        "__typename": "Bot",
+                        "login": "pullfrog"
+                      },
+                      "pullRequestReview": {
+                        "id": "PRR_kwDOR5Siws8AAAABWJZ_Kg"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "timelineItems": {
+            "pageInfo": {
+              "hasNextPage": false,
+              "endCursor": "Y3Vyc29yOnYyOpPPAAABoas82LABqzM1MjI4Nzg4NzE0"
+            },
+            "nodes": [
+              {
+                "previousReviewState": "APPROVED",
+                "review": {
+                  "id": "PRR_kwDOR5Siws8AAAABWLLg2w"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

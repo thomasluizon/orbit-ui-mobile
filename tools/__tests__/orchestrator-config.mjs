@@ -7,6 +7,13 @@ import { runInNewContext } from "node:vm"
 import { T, root, realOrchestratorConfig, stage, toolPath } from "./_harness.mjs"
 
 const NAME = "orchestrator-config.mjs"
+/** The shipped claude model for each worker tier, in escalation order. */
+const WORKER_TIER_MODELS = [
+  ["default", "claude-sonnet-5-5"],
+  ["mechanical", "claude-sonnet-5-5"],
+  ["deep", "claude-opus-5-5"],
+  ["max", "claude-opus-5-5"],
+]
 
 /** The message a caller would actually read, or null when the call returned. */
 const thrown = (call) => {
@@ -47,7 +54,7 @@ const stageConfigRepo = (label, { head, origin, working }) => {
 }
 
 export const cases = async () => {
-  const { readOrchestratorConfig, resolveWorkerInvocation } = await import(pathToFileURL(toolPath("lib/orchestrator-config.mjs")).href)
+  const { readOrchestratorConfig, resolveWorkerInvocation, workerAccounts } = await import(pathToFileURL(toolPath("lib/orchestrator-config.mjs")).href)
 
   for (const [name, endMarker] of [["audit", "const VERIFY_CAP"], ["prod-readiness", "const OPS_SCHEMA"]]) {
     const source = readFileSync(new URL(`../../.claude/workflows/${name}.mjs`, import.meta.url), "utf8")
@@ -109,11 +116,8 @@ export const cases = async () => {
       JSON.stringify(worker.subagentOffArgs) === JSON.stringify(offArgs))
     for (const tier of ["default", "mechanical", "deep", "max"]) {
       const disabled = resolveWorkerInvocation(name, worker, tier)
-      const allowed = resolveWorkerInvocation(name, worker, tier, { allowSubagents: true })
-      T(`${NAME}: ${name}.${tier} disables sub-agents by default`,
-        offArgs.every((argument) => disabled.args.includes(argument)), JSON.stringify(disabled))
-      T(`${NAME}: ${name}.${tier} can omit only the sub-agent off vector`,
-        JSON.stringify(allowed.args) === JSON.stringify([...worker.args, ...(worker.models[tier].args ?? []), "--model", worker.models[tier].model]), JSON.stringify(allowed))
+      T(`${NAME}: ${name}.${tier} always disables sub-agents`,
+        JSON.stringify(disabled.args) === JSON.stringify([...worker.args, ...offArgs, ...(worker.models[tier].args ?? []), "--model", worker.models[tier].model]), JSON.stringify(disabled))
     }
   }
   T(`${NAME}: a malformed sub-agent off vector is refused`,
@@ -216,11 +220,24 @@ export const cases = async () => {
     engine.configDirEnv === "ORBIT_WORKER_CLAUDE_CONFIG_DIR",
     JSON.stringify(engine.configDirEnv),
   )
-  /** Owner order on #2029: every tier is Opus 5.5 at high effort. The tier names stay as routing labels. */
-  for (const tier of ["default", "mechanical", "deep", "max"]) {
+  const accountDirectory = dirname(stage("orchestrator-config/worker-account/.claude.json", "{}\n"))
+  const accountsFor = (value) => workerAccounts(engineName, engine, { [engine.configDirEnv]: value })
+  T(`${NAME}: a set worker account variable runs the worker account first, then the main account`,
+    JSON.stringify(accountsFor(accountDirectory)) === JSON.stringify([{ name: "worker", configDirectory: accountDirectory }, { name: "main", configDirectory: null }]),
+    JSON.stringify(accountsFor(accountDirectory)))
+  for (const [label, value] of [["unset", undefined], ["empty", ""], ["blank", "  "]]) {
+    T(`${NAME}: a worker account variable that is ${label} runs single-account mode on the main account alone`,
+      JSON.stringify(accountsFor(value)) === JSON.stringify([{ name: "main", configDirectory: null }]), JSON.stringify(accountsFor(value)))
+  }
+  T(`${NAME}: a worker account variable naming a missing directory is refused`,
+    /names .*absent-account, which is not an existing directory; unset it to run workers on the main account$/.test(thrown(() => accountsFor(join(accountDirectory, "absent-account"))) ?? ""))
+  T(`${NAME}: an engine with no Claude account has no accounts`,
+    JSON.stringify(workerAccounts("codex", real.workers.codex, { [engine.configDirEnv]: accountDirectory })) === "[]")
+  /** Owner order on #2067: default and mechanical run Sonnet 5.5, deep and max keep Opus 5.5, all at high effort. */
+  for (const [tier, model] of WORKER_TIER_MODELS) {
     const resolved = resolveWorkerInvocation(engineName, engine, tier)
-    T(`${NAME}: the shipped ${tier} implementer is claude-opus-5-5 at high effort`,
-      resolved.model === "claude-opus-5-5" && effortOf(resolved.args) === "high",
+    T(`${NAME}: the shipped ${tier} implementer is ${model} at high effort`,
+      resolved.model === model && effortOf(resolved.args) === "high",
       `.claude/orchestrator.json resolved ${resolved.model} with ${JSON.stringify(resolved.args)}`)
   }
 
@@ -281,9 +298,9 @@ export const cases = async () => {
 
   const fallback = real.workers.claude ?? {}
   T(
-    `${NAME}: the claude engine runs claude with opus 5.5 on all four tiers`,
+    `${NAME}: the claude engine runs claude with sonnet 5.5 on default and mechanical and opus 5.5 on deep and max`,
     fallback.command === "claude" &&
-      ["default", "mechanical", "deep", "max"].every((tier) => fallback.models?.[tier]?.model === "claude-opus-5-5"),
+      WORKER_TIER_MODELS.every(([tier, model]) => fallback.models?.[tier]?.model === model),
     `.claude/orchestrator.json declares command ${JSON.stringify(fallback.command)} with ${JSON.stringify(fallback.models)}`,
   )
 

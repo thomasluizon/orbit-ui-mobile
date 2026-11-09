@@ -256,9 +256,9 @@ const ghEnvelopeName = (command, entry) => {
     if (!/\bapi\b/.test(command)) throw new Error(`gh fixture ${command} applies ${entry.ticketEnvelope} to a non-API command`)
     return entry.ticketEnvelope
   }
-  if (entry.ticketEnvelope === "issueProjectItems") {
-    if (!/\bapi\s+graphql\b/.test(command)) throw new Error(`gh fixture ${command} applies issueProjectItems to a non-GraphQL command`)
-    return "issueProjectItems"
+  if (entry.ticketEnvelope === "issueProjectItems" || entry.ticketEnvelope === "boardState") {
+    if (!/\bapi\s+graphql\b/.test(command)) throw new Error(`gh fixture ${command} applies ${entry.ticketEnvelope} to a non-GraphQL command`)
+    return entry.ticketEnvelope
   }
   /** Before the generic issue view; the lookahead keeps a multi-field list like `--json comments,body` out of this envelope. */
   if (/\bissue\s+view\b[\s\S]*--json\s+comments(?=\s|$)/.test(command)) return "issueViewComments"

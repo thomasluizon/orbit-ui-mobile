@@ -33,6 +33,7 @@ are read on demand by the skill or agent that needs them:
 | `planning-and-artifacts.md` | 11 | `/ticket`, `/orchestrate`, ticket writing, prototyping, ADRs, or deciding whether to hand off |
 | `redesign-screen.md` | - | building any of the thirteen redesign screens. The D76 eight-step loop, the step 6 ui-skills sweep with its fetch commands, and what the owner checks that no gate does. Cited from the always-loaded core, because the step this file exists to protect is the one an agent skips when it starts from the ticket alone |
 | `context-engineering.md` | 8 | authoring or editing anything the agent itself reads: a `CLAUDE.md`, a rule, a playbook, a skill, an agent, a tool interface, a ticket body. The 5-generation delta: constrain less, prompt the positive, design interfaces instead of writing examples, and prefer a runnable artifact over prose |
+| `operations.md` | - | launching or relaunching a worker, waiting on CI, merging, releasing, changing infrastructure, or driving a browser, a console or a device. The operating facts the orchestrate, release and Android release skills do not hold |
 
 ## How these relate to the gates
 
