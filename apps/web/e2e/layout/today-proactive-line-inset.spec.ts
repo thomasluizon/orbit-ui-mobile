@@ -10,6 +10,7 @@ import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 import { LAYOUT_FIXED_TIME } from './clock.mjs'
 import { inspectFocusedControlRings as inspectFocusedRing, readOutlineVisibility } from './focus-indicators'
+import { focusWhenHydrated } from './hydration-guard'
 
 const selectedDate = LAYOUT_FIXED_TIME.slice(0, 10)
 
@@ -50,7 +51,7 @@ for (const mode of ['dark', 'light'] as const) {
             await document.fonts.ready
           }, textScale)
           await page.evaluate(settleAnimations, undefined)
-          await line.focus()
+          await focusWhenHydrated(line)
           await page.keyboard.press('Shift+Tab')
           await page.keyboard.press('Tab')
           await expect(line).toBeFocused()

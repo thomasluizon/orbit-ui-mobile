@@ -1,4 +1,4 @@
-import { openTodayListOptions } from './hydration-guard'
+import { clickWhenHydrated, openTodayListOptions } from './hydration-guard'
 import { setLayoutFixtureSession } from './profile-session'
 import { expect } from '@playwright/test'
 import { execFileSync } from 'node:child_process'
@@ -55,7 +55,7 @@ for (const width of [412, 1280] as const) {
       const composer = page.locator('[data-shell-pinned-slot]')
       const entry = getShellConversationEntry(page, width, ptBr)
       await expectHoverOnHitArea(entry, width === 412 ? 'pill' : 12)
-      await entry.click()
+      await clickWhenHydrated(entry)
       const conversation = page.locator('[data-shell-conversation="overlay"]')
       await expect(conversation).toBeVisible()
       await expect(composer).toBeHidden()
@@ -106,7 +106,7 @@ for (const width of [412, 1280] as const) {
         const chipPseudo = await chip.evaluate((element) => getComputedStyle(element, '::after').content)
         expect(chipPseudo, 'a chip carries no hit area the fill cannot reach').toBe('none')
       }
-      await page.getByRole('button', { name: ptBr.wrapped.start, exact: true }).click()
+      await clickWhenHydrated(page.getByRole('button', { name: ptBr.wrapped.start, exact: true }))
       await expectFullTouchTarget(page.getByRole('button', { name: ptBr.wrapped.close, exact: true }), 'pill', '--bg-hover')
     })
 
@@ -156,7 +156,7 @@ for (const width of [412, 1280] as const) {
       const monthTitle = page.getByRole('button', { name: new RegExp(`, ${ptBr.calendar.monthPicker}$`) })
       await expectFullTouchTarget(monthTitle, 12, '--bg-hover')
       await expectHoverOnHitArea(page.getByRole('radiogroup').getByRole('radio', { checked: false }).first(), 8)
-      await monthTitle.click()
+      await clickWhenHydrated(monthTitle)
       const monthPicker = page.getByRole('dialog', { name: ptBr.calendar.monthPicker, exact: true })
       const yearTitle = monthPicker.getByRole('button', { name: new RegExp(`, ${ptBr.common.selectYear}$`) })
       await expectFullTouchTarget(yearTitle, 12, '--bg-hover')
@@ -174,7 +174,7 @@ for (const width of [412, 1280] as const) {
       await expect(screen).toBeVisible()
       const recurringTitleThatShowsEndDate = 'Beber água todo dia'
       const habitType = screen.getByRole('radio', { name: new RegExp(ptBr.habits.form.typeHabit) })
-      await habitType.click()
+      await clickWhenHydrated(habitType)
       await expect(habitType).toBeChecked()
       await screen.getByRole('textbox', { name: ptBr.habits.form.describe, exact: true }).fill(recurringTitleThatShowsEndDate)
       await screen.getByRole('button', { name: ptBr.habits.form.moreDetails }).click()
@@ -226,7 +226,7 @@ for (const width of [412, 1280] as const) {
         return route.fulfill({ json: calendarMonthResponseSchema.parse({ habits, logs: {} }) })
       })
       await page.goto('/calendar')
-      await page.getByRole('radio', { name: ptBr.calendar.view.week, exact: true }).click()
+      await clickWhenHydrated(page.getByRole('radio', { name: ptBr.calendar.view.week, exact: true }))
       for (const label of [ptBr.common.previousWeek, ptBr.common.nextWeek]) {
         await expectFullTouchTarget(page.getByRole('button', { name: label, exact: true }), 'pill')
       }

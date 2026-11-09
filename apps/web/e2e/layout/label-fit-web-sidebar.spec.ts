@@ -6,6 +6,7 @@ import { LAYOUT_ORIGIN } from '../support/env'
 import { expectLabelsFit, markRequiredLabels, markUserText } from './label-fit-contract'
 import { expectInteractionFill } from './label-interaction-fill'
 import { test } from './upgrade-fixtures'
+import { clickWhenHydrated } from './hydration-guard'
 
 const name = 'W'.repeat(60)
 const email = `${'W'.repeat(48)}@example.com`
@@ -54,7 +55,7 @@ for (const width of [320, 360, 384, 412, 1024, 1100, 1352, 1440]) {
         }
         await markUserText(page, [name, email])
         await expectLabelsFit(page, sidebar, [name, email])
-        await sidebar.getByRole('link', { name: words.nav.today, exact: true }).click()
+        await clickWhenHydrated(sidebar.getByRole('link', { name: words.nav.today, exact: true }))
         await expect(page).toHaveURL(`${LAYOUT_ORIGIN}/`)
         await account.click()
         await expect(page).toHaveURL(`${LAYOUT_ORIGIN}/`)

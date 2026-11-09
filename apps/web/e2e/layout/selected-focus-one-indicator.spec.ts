@@ -10,6 +10,7 @@ import { inspectControlAccentRings } from './focus-indicators'
 import { completeInstallOnboarding } from './install-onboarding'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
+import { clickWhenHydrated, focusWhenHydrated } from './hydration-guard'
 
 async function expectRings(control: Locator, count: number) {
   await expect(control).toBeVisible()
@@ -17,7 +18,7 @@ async function expectRings(control: Locator, count: number) {
 }
 
 async function keyboardFocus(page: Page, control: Locator) {
-  await control.focus()
+  await focusWhenHydrated(control)
   await page.keyboard.press('Shift+Tab')
   await page.keyboard.press('Tab')
   await expect(control).toBeFocused()
@@ -26,7 +27,7 @@ async function keyboardFocus(page: Page, control: Locator) {
 
 async function checkChoice(page: Page, control: Locator, alternative: Locator) {
   const selectionAttribute = await control.getAttribute('role') === 'radio' ? 'aria-checked' : 'aria-pressed'
-  await alternative.click()
+  await clickWhenHydrated(alternative)
   await expect(alternative).toHaveAttribute(selectionAttribute, 'true')
   await expect(control).toHaveAttribute(selectionAttribute, 'false')
   await expectRings(control, 0)
@@ -47,7 +48,7 @@ async function checkChoice(page: Page, control: Locator, alternative: Locator) {
 }
 
 async function checkToggle(page: Page, control: Locator) {
-  if (await control.getAttribute('aria-pressed') === 'true') await control.click()
+  if (await control.getAttribute('aria-pressed') === 'true') await clickWhenHydrated(control)
   await expect(control).toHaveAttribute('aria-pressed', 'false')
   await expectRings(control, 0)
   await control.hover()
@@ -121,7 +122,7 @@ for (const width of [412, 1352]) {
         test('timezone radios yield selection to focus', async ({ page }) => {
           await completeInstallOnboarding(page)
           await page.goto('/profile/preferences')
-          await page.getByRole('button', { name: words.profile.settingsRows.timezone, exact: false }).click()
+          await clickWhenHydrated(page.getByRole('button', { name: words.profile.settingsRows.timezone, exact: false }))
           const sheet = page.getByRole('dialog')
           const radios = sheet.getByRole('radio')
           await expectRings(radios.nth(1), 0)
@@ -151,7 +152,7 @@ for (const width of [412, 1352]) {
         test('habit form days, emoji choices, reminders and time options keep one ring', async ({ page }) => {
           await completeInstallOnboarding(page)
           await page.goto('/habits/new')
-          await page.getByRole('radio', { name: new RegExp(words.habits.form.typeHabit) }).click()
+          await clickWhenHydrated(page.getByRole('radio', { name: new RegExp(words.habits.form.typeHabit) }))
           await page.getByRole('textbox', { name: words.habits.form.describe, exact: true }).fill(locale === 'en' ? 'Read every Monday' : 'Ler toda segunda-feira')
           await checkToggle(page, page.getByRole('button', { name: words.dates.daysLong.monday, exact: true }))
           await page.getByRole('button', { name: words.habits.form.moreDetails, exact: true }).click()
@@ -178,7 +179,7 @@ for (const width of [412, 1352]) {
           await context.route(`${LAYOUT_ORIGIN}${API.habits.logs(habit.id)}`, (route) => route.fulfill({ json: [] }))
           await context.route(`${LAYOUT_ORIGIN}${API.habits.metrics(habit.id)}`, (route) => route.fulfill({ json: metrics }))
           await page.goto(`/habits/${habit.id}`)
-          await page.getByRole('button', { name: words.habits.editHabit, exact: true }).click()
+          await clickWhenHydrated(page.getByRole('button', { name: words.habits.editHabit, exact: true }))
           const fields = page.getByRole('dialog', { name: words.habits.editHabit, exact: true })
           await expect(fields).toBeVisible()
           const monday = fields.getByRole('button', { name: words.dates.daysLong.monday, exact: true })
@@ -216,7 +217,7 @@ for (const width of [412, 1352]) {
         test('goal type switch and DateField today keep one indicator', async ({ page }) => {
           await completeInstallOnboarding(page)
           await page.goto('/habits/new')
-          await page.getByRole('button', { name: words.habits.form.moreDetails, exact: true }).click()
+          await clickWhenHydrated(page.getByRole('button', { name: words.habits.form.moreDetails, exact: true }))
           await page.getByRole('button', { name: words.habits.form.goals, exact: false }).click()
           await page.getByRole('button', { name: words.habits.form.createGoal, exact: true }).click()
           const goal = page.getByRole('dialog', { name: words.goals.create, exact: true })

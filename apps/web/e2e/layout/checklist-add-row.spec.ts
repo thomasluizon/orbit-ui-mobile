@@ -6,6 +6,7 @@ import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixture
 import { habitDetailSchema } from '@orbit/shared/types/habit'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
+import { clickWhenHydrated } from './hydration-guard'
 
 async function expectAddGeometry(scope: Locator, messages: typeof en | typeof ptBR) {
   const input = scope.getByRole('textbox', { name: messages.habits.form.checklistPlaceholder, exact: true })
@@ -44,7 +45,7 @@ for (const width of [320, 412, 1352]) {
         test('keeps the create field separate before and after keyboard additions', async ({ page }) => {
           await page.goto('/habits/new')
           const screen = page.locator('[data-habit-create-screen]')
-          await screen.getByRole('button', { name: messages.habits.form.moreDetails }).click()
+          await clickWhenHydrated(screen.getByRole('button', { name: messages.habits.form.moreDetails }))
           const disclosure = screen.locator('.habit-form-disclosure[data-open="true"]')
           const input = disclosure.getByPlaceholder(messages.habits.form.checklistPlaceholder)
           const add = disclosure.getByRole('button', { name: messages.common.add, exact: true })
@@ -69,7 +70,7 @@ for (const width of [320, 412, 1352]) {
             (route) => route.fulfill({ json: habit }),
           )
           await page.goto(`/habits/${habit.id}`)
-          await page.getByRole('button', { name: messages.habits.editHabit }).click()
+          await clickWhenHydrated(page.getByRole('button', { name: messages.habits.editHabit }))
           const disclosure = page.getByRole('dialog', { name: messages.habits.editHabit, exact: true })
           const input = disclosure.getByPlaceholder(messages.habits.form.checklistPlaceholder)
           const add = disclosure.getByRole('button', { name: messages.common.add, exact: true })

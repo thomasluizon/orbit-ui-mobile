@@ -8,6 +8,7 @@ import { expectInteractionFill } from './label-interaction-fill'
 import { restPointerOutside } from './pointer-rest'
 import { readExpandedControlGeometry } from './expanded-control-geometry'
 import { test } from './upgrade-fixtures'
+import { clickWhenHydrated } from './hydration-guard'
 
 
 async function verifyPeriodActions(view: 'month' | 'week' | 'range' | 'agenda', locale: 'pt-BR' | 'en', words: typeof en | typeof ptBR, controls: Locator) {
@@ -31,7 +32,7 @@ for (const width of [320, 412, 1100, 1352]) {
         await page.goto('/calendar')
         let ring: string | undefined
         for (const view of ['month', 'week', 'range', 'agenda'] as const) {
-          await page.getByRole('radio', { name: words.calendar.view[view], exact: true }).click()
+          await clickWhenHydrated(page.getByRole('radio', { name: words.calendar.view[view], exact: true }))
           const header = page.getByTestId('calendar-header-group')
           const navigation = header.locator('[data-testid$="-navigation"]')
           const controls = navigation.getByRole('button')

@@ -11,6 +11,7 @@ import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-sess
 import { test } from './upgrade-fixtures'
 import { readOutlineVisibility } from './focus-indicators'
 import { measureNotificationFill } from './notification-fill-geometry'
+import { clickWhenHydrated } from './hydration-guard'
 
 const calendars = userCalendarsSchema.parse([
   { id: 'family', name: 'Família', accessRole: 'owner', primary: false, backgroundColor: null, isSynced: true },
@@ -46,7 +47,7 @@ for (const width of [412, 1352]) {
         const selected = sheet.getByRole('button', { name: /^Ler/ })
         const blocked = sheet.getByRole('button', { name: /^Planejar/ })
         await expect(plain).toHaveAttribute('aria-pressed', 'true')
-        await plain.click()
+        await clickWhenHydrated(plain)
         await expect(plain).toHaveAttribute('aria-pressed', 'false')
         await expect(selected).toHaveAttribute('aria-pressed', 'true')
         await expect(blocked).toBeDisabled()

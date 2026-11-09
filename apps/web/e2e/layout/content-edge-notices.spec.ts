@@ -7,6 +7,7 @@ import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import { notificationsResponseSchema } from '@orbit/shared/types/notification'
 import { test } from './upgrade-fixtures'
 import { measureScrollbarGutter } from './scrollbar-geometry'
+import { clickWhenHydrated } from './hydration-guard'
 
 const notification = createMockNotification({ title: 'Layout notification' })
 const notifications = notificationsResponseSchema.parse({ items: [notification], unreadCount: 1 })
@@ -41,9 +42,9 @@ for (const width of [412, 1352] as const) {
       test('aligns the queued-delete toast with shell content', async ({ page, context }) => {
         await setLayoutFixtureSession(context, [{ path: API.notifications.list, body: notifications }])
         await page.goto('/notifications')
-        await page.getByRole('button', {
+        await clickWhenHydrated(page.getByRole('button', {
           name: messages.notifications.deleteNotification.replace('{title}', notification.title), exact: true,
-        }).click()
+        }))
         const toast = page.locator('[data-shell-notice] [data-kind="neutral"]')
           .filter({ hasText: messages.notifications.deleteQueued })
         await expect(toast).toBeVisible()

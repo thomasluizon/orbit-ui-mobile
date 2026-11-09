@@ -10,6 +10,7 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { test } from './layout-test'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { setLayoutFixtureSession, setLayoutProfileSession } from './profile-session'
+import { clickWhenHydrated } from './hydration-guard'
 
 for (const width of [320, 412, 1352]) {
   for (const locale of ['en', 'pt-BR'] as const) {
@@ -52,7 +53,7 @@ for (const width of [320, 412, 1352]) {
         expect(columns.at(-1)!.right).toBeCloseTo(columns[0]!.width, 1)
         const readout = chart.locator('[data-slot="bar-chart-readout"]')
         for (const index of [0, 29]) {
-          await radios.nth(index).click()
+          await clickWhenHydrated(radios.nth(index))
           await expect(radios.nth(index)).toHaveAttribute('aria-checked', 'true')
           await expect(readout).toHaveText(await radios.nth(index).getAttribute('aria-label') as string)
           await expect(async () => {

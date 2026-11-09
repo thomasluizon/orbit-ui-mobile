@@ -5,6 +5,7 @@ import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-f
 import { calendarMonthResponseSchema } from '@orbit/shared/types/habit'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
+import { clickWhenHydrated } from './hydration-guard'
 
 const calendarMonth = calendarMonthResponseSchema.parse({
   habits: [makeHabitScheduleItem({
@@ -42,7 +43,7 @@ for (const width of [412, 1280]) {
         await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.calendarMonth,
           (route) => route.fulfill({ json: calendarMonth }))
         await page.goto('/calendar')
-        await page.getByRole('radio', { name: ptBR.calendar.view.agenda, exact: true }).click()
+        await clickWhenHydrated(page.getByRole('radio', { name: ptBR.calendar.view.agenda, exact: true }))
         const agenda = page.getByTestId('calendar-agenda-view')
         const row = agenda.getByRole('button', { name: /^Caminhar, 08:00, / })
         const time = row.locator('[data-slot="list-row-value"]')

@@ -85,7 +85,13 @@ describe('Today list options hydration', () => {
     let presses = 0
     let opening: Promise<void> | undefined
     const synchronize = async () => {
+      const hydratedIndexes = [...document.body.querySelectorAll('*')]
+        .flatMap((element, index) => Object.keys(element).some((key) => key.startsWith('__reactProps$')) ? [index] : [])
       await page.setContent(document.body.innerHTML)
+      await page.evaluate((indexes) => {
+        const elements = document.body.querySelectorAll('*')
+        for (const index of indexes) Object.defineProperty(elements[index], '__reactProps$mirrored', { value: {}, enumerable: true })
+      }, hydratedIndexes)
       await page.evaluate((label) => {
         document.addEventListener('click', (event) => {
           if (!(event.target instanceof Element) || !event.target.closest(`button[aria-label="${label}"]`)) return

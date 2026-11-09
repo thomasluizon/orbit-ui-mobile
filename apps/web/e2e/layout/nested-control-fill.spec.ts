@@ -11,6 +11,7 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { LAYOUT_ORIGIN } from '../support/env'
 import { setLayoutFixtureSession, setLayoutProfileSession } from './profile-session'
 import { test } from './upgrade-fixtures'
+import { clickWhenHydrated } from './hydration-guard'
 
 function readSurfaceFill(surface: Element) {
   const probe = document.createElement('span')
@@ -89,7 +90,7 @@ for (const width of [412, 1352]) {
         await page.goto('/habits/new')
         const screen = page.locator('[data-habit-create-screen]')
         await expect(screen).toBeVisible()
-        await screen.getByRole('button', { name: en.habits.form.moreDetails }).click()
+        await clickWhenHydrated(screen.getByRole('button', { name: en.habits.form.moreDetails }))
         await screen.locator('.habit-form-disclosure[data-open="true"]').getByRole('button', { name: en.habits.form.useTemplate }).click()
         const sheet = page.getByRole('dialog', { name: en.habits.form.templates, exact: true })
         const body = sheet.getByRole('button', { name: 'Workout', exact: true })

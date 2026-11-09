@@ -1,7 +1,7 @@
 import { expect, type Page } from '@playwright/test'
 import { test } from './layout-test'
 import { setLayoutFixtureSession } from './profile-session'
-import { openTodayListOptions } from './hydration-guard'
+import { clickWhenHydrated, openTodayListOptions } from './hydration-guard'
 import { assertHabitRows, setHabitTextScale } from './subhabit-indent-geometry'
 import { measureTitleWords } from './title-word-geometry'
 import { API } from '@orbit/shared/api'
@@ -47,7 +47,7 @@ async function openFamily(page: Page) {
   const leaf = habitRow(page, child.title)
   const disclosure = parent.locator('[data-habit-row-control="disclosure"]')
   if (!await leaf.isVisible()) {
-    await disclosure.click()
+    await clickWhenHydrated(disclosure)
     await expect(disclosure).toHaveAttribute('aria-expanded', 'true')
     await expect(leaf).toBeVisible()
   }

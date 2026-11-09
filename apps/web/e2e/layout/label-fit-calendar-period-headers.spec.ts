@@ -13,6 +13,7 @@ import { setLayoutProfileSession } from './profile-session'
 import { readExpandedControlGeometry } from './expanded-control-geometry'
 import { readCalendarPeriodGeometry } from './calendar-period-geometry'
 import { test } from './upgrade-fixtures'
+import { clickWhenHydrated } from './hydration-guard'
 
 const habitTitle = 'Caminhar pelo bairro depois do trabalho e conversar com os amigos'
 const calendarMonth = calendarMonthResponseSchema.parse({
@@ -41,7 +42,7 @@ for (const width of [320, 360, 384, 412, 600, 840]) {
 
       test('week pager precedes the last header line and retains its week while paging', async ({ page }) => {
         await page.goto('/calendar')
-        await page.getByRole('radio', { name: words.calendar.view.week, exact: true }).click()
+        await clickWhenHydrated(page.getByRole('radio', { name: words.calendar.view.week, exact: true }))
         const header = page.getByTestId('calendar-header-group')
         const selector = header.getByRole('radiogroup')
         const previous = page.getByRole('button', { name: words.common.previousWeek, exact: true })
@@ -87,7 +88,7 @@ for (const width of [320, 360, 384, 412, 600, 840]) {
 
       test('range label and both chevrons share one row and retain the range while paging', async ({ page }) => {
         await page.goto('/calendar')
-        await page.getByRole('radio', { name: words.calendar.view.range, exact: true }).click()
+        await clickWhenHydrated(page.getByRole('radio', { name: words.calendar.view.range, exact: true }))
         const previous = page.getByRole('button', { name: words.calendar.range.previous, exact: true })
         const next = page.getByRole('button', { name: words.calendar.range.next, exact: true })
         const row = page.getByTestId('calendar-range-navigation')

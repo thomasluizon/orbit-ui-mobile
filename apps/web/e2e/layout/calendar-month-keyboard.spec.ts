@@ -8,6 +8,7 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { LAYOUT_ORIGIN } from '../support/env'
 import { setLayoutProfileSession } from './profile-session'
 import { test } from './upgrade-fixtures'
+import { clickWhenHydrated } from './hydration-guard'
 
 const calendarMonth = calendarMonthResponseSchema.parse({
   habits: [makeHabitScheduleItem({ children: [], hasSubHabits: false, dueDate: '2026-09-04', scheduledDates: ['2026-09-04'] })],
@@ -27,7 +28,7 @@ for (const width of [412, 1352]) {
     test('has one tab stop and moves focus without changing selection', async ({ page }) => {
       await page.goto('/calendar')
       const monthSegment = page.getByRole('radio', { name: ptBR.calendar.view.month, exact: true })
-      await monthSegment.click()
+      await clickWhenHydrated(monthSegment)
       const grid = page.getByTestId('month-grid-days')
       const selected = grid.getByTestId('calendar-day-select-2026-09-04')
       await expect(selected).toHaveAttribute('aria-pressed', 'true')

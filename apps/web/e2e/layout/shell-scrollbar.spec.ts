@@ -9,6 +9,7 @@ import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 import { measureScrollbarGutter } from './scrollbar-geometry'
 import { measureScrollbarPaint } from './scrollbar-paint'
+import { clickWhenHydrated } from './hydration-guard'
 
 test.use({ launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'] } })
 
@@ -103,7 +104,7 @@ for (const width of [1352, 1100, 600]) {
     test('keeps the 4px gutter and paints thumbs only on hover', async ({ page }) => {
       await page.goto('/calendar')
       for (const view of ['month', 'agenda', 'range'] as const) {
-        await page.getByRole('radio', { name: ptBR.calendar.view[view], exact: true }).click()
+        await clickWhenHydrated(page.getByRole('radio', { name: ptBR.calendar.view[view], exact: true }))
         if (view === 'month') {
           await expect(page.getByTestId('calendar-day-select-2026-09-04')).toBeVisible()
           await expect(page.getByText(calendarMonth.habits[11]!.title, { exact: true }).first()).toBeAttached()

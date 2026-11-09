@@ -10,6 +10,7 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
+import { clickWhenHydrated } from './hydration-guard'
 
 const selectedDate = '2026-09-04'
 const mutationJournalUrl = 'http://127.0.0.1:5099/_test/habit-mutations'
@@ -49,7 +50,7 @@ for (const width of [412, 1280]) {
     const parent = rows.filter({ hasText: 'Rotina' })
     const disclosure = parent.locator('[data-habit-row-control="disclosure"]')
     await expect(disclosure).toBeVisible()
-    if (await disclosure.getAttribute('aria-expanded') !== 'true') await disclosure.click()
+    if (await disclosure.getAttribute('aria-expanded') !== 'true') await clickWhenHydrated(disclosure)
     await expect(rows).toHaveCount(5)
     await expect(list.locator('button button, button [role="button"], [role="button"] button, [role="button"] [role="button"]')).toHaveCount(0)
 

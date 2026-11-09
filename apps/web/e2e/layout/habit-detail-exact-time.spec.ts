@@ -9,6 +9,7 @@ import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { setLayoutProfileSession } from './profile-session'
+import { clickWhenHydrated } from './hydration-guard'
 
 const habit = habitDetailSchema.parse({ ...makeHabitDetail(), dueTime: '21:00:00' })
 const schedule = makeHabitScheduleItem({ id: habit.id, title: habit.title, dueTime: habit.dueTime })
@@ -42,7 +43,7 @@ for (const width of [412, 1280]) {
       const hit = await page.getByRole('button', { name: ptBr.habits.editHabit, exact: true }).evaluate(readExpandedControlGeometry)
       expect(hit.height).toBeGreaterThanOrEqual(48)
       expect(hit.edgeHits).toEqual([true, true, true, true])
-      await page.getByRole('button', { name: ptBr.habits.editHabit, exact: true }).click()
+      await clickWhenHydrated(page.getByRole('button', { name: ptBr.habits.editHabit, exact: true }))
       const editor = page.getByRole('dialog', { name: ptBr.habits.editHabit, exact: true })
       await editor.getByRole('button', { name: new RegExp(ptBr.habits.form.timingAndReminder) }).click()
       const timing = page.getByRole('dialog', { name: ptBr.habits.form.timingAndReminder, exact: true })

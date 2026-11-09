@@ -9,6 +9,7 @@ import { layoutRouteInventory } from './layout-route-inventory'
 import { installInteractionFillFixtures } from './interaction-fill-fixtures'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { clickWhenHydrated } from './hydration-guard'
 
 for (const width of [320, 360, 384, 412, 600, 1024, 1352]) {
   for (const locale of ['en', 'pt-BR'] as const) {
@@ -21,7 +22,7 @@ for (const width of [320, 360, 384, 412, 600, 1024, 1352]) {
           const screen = page.locator('[data-habit-create-screen]')
           const type = screen.getByRole('radiogroup', { name: words.itemType, exact: true })
           const habit = type.getByRole('radio', { name: new RegExp(words.typeHabit) })
-          await habit.click()
+          await clickWhenHydrated(habit)
           const frequency = screen.getByRole('radiogroup', { name: words.frequency, exact: true })
           const timesPer = frequency.getByRole('radio', { name: words.timesPerUnit, exact: true })
           const task = type.getByRole('radio', { name: new RegExp(words.typeTask) })
@@ -125,7 +126,7 @@ for (const width of [320, 412, 600, 1024, 1352]) {
           try {
             await inspectControls(page, controls, `${route}, ${width}px, ${locale}`, INTERACTION_FILL_CLEARANCE, counts)
             if (route === '/calendar') {
-              await page.getByRole('radio', { name: words.calendar.view.week, exact: true }).click()
+              await clickWhenHydrated(page.getByRole('radio', { name: words.calendar.view.week, exact: true }))
               const headers = page.getByTestId('time-grid-col-header')
               await expect(headers).toHaveCount(7)
               await inspectControls(page, headers, `calendar week header, ${width}px, ${locale}`, INTERACTION_FILL_CLEARANCE, counts)

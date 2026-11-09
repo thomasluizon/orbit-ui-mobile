@@ -9,6 +9,7 @@ import { createPaginatedSchema, habitDetailSchema, habitMetricsSchema, habitSche
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
+import { clickWhenHydrated } from './hydration-guard'
 
 const habitId = 'habit-1'
 const metrics = habitMetricsSchema.parse({ currentStreak: 2, longestStreak: 4, weeklyCompletionRate: 80, monthlyCompletionRate: 74.6, totalCompletions: 2, lastCompletedDate: null })
@@ -37,7 +38,7 @@ for (const width of [412, 1280]) {
           try {
             await page.goto(`/habits/${habitId}`)
             const column = page.locator('[data-habit-detail-content]')
-            await column.getByRole('button', { name: words.habits.detail.moreDetails, exact: true }).click()
+            await clickWhenHydrated(column.getByRole('button', { name: words.habits.detail.moreDetails, exact: true }))
             const card = column.locator('[data-habit-detail-stat-card]')
             await expect(card).toHaveCount(1)
             await expect(card).toBeVisible()

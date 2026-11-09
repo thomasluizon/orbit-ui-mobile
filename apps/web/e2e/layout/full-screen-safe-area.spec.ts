@@ -1,5 +1,5 @@
 import { getShellConversationEntry } from './shell-conversation-entry'
-import { openTodayListOptions } from './hydration-guard'
+import { clickWhenHydrated, openTodayListOptions } from './hydration-guard'
 import { expect, type Locator } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import messages from '@orbit/shared/i18n/en.json'
@@ -46,10 +46,10 @@ for (const width of [320, 412, 600, 844]) {
             await page.goto(`/habits/${habit.id}`)
             await expect(page.getByRole('group', { name: messages.shell.composer.suggestionsLabel, exact: true })
               .getByRole('button', { name: messages.shell.composer.chips.habitDetail.pauseThisWeek, exact: true })).toBeVisible()
-            await page.locator('#orbit-main').getByRole('button', { name: messages.habits.detail.askAstra, exact: true }).click()
+            await clickWhenHydrated(page.locator('#orbit-main').getByRole('button', { name: messages.habits.detail.askAstra, exact: true }))
           } else {
             await page.goto('/')
-            await getShellConversationEntry(page, width, messages).click()
+            await clickWhenHydrated(getShellConversationEntry(page, width, messages))
           }
           const conversation = page.locator('[data-shell-conversation="overlay"]')
           await expect(conversation).toBeVisible()
@@ -94,7 +94,7 @@ for (const width of [320, 412, 600, 844]) {
         const back = page.getByRole('button', { name: messages.common.backToProfile, exact: true })
         await expectSafeTop(back)
         expect((await back.boundingBox())!.y).toBe(top + 4)
-        await page.getByRole('button', { name: messages.wrapped.start, exact: true }).click()
+        await clickWhenHydrated(page.getByRole('button', { name: messages.wrapped.start, exact: true }))
         await expectSafeTop(page.getByTestId('wrapped-header'))
         const header = await page.getByTestId('wrapped-header').boundingBox()
         expect(header!.y).toBe(top)
@@ -128,7 +128,7 @@ for (const width of [320, 412, 600, 844]) {
             await expect(cover).toBeVisible()
             await expectSafeTop(back)
             expect((await back.boundingBox())!.y).toBe(top + 4)
-            await page.getByRole('button', { name: messages.wrapped.periods.week, exact: true }).click()
+            await clickWhenHydrated(page.getByRole('button', { name: messages.wrapped.periods.week, exact: true }))
             await page.getByRole('button', { name: messages.wrapped.start, exact: true }).click()
             expect((await page.getByTestId('wrapped-header').boundingBox())!.y).toBe(top)
             await page.getByRole('button', { name: messages.wrapped.close, exact: true }).click()

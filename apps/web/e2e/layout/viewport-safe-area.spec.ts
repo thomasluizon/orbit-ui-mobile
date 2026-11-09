@@ -1,4 +1,4 @@
-import { openTodayListOptions } from './hydration-guard'
+import { clickWhenHydrated, fillWhenHydrated, openTodayListOptions } from './hydration-guard'
 import { settleAnimations } from './settle-animations'
 import { setLayoutFixtureSession } from './profile-session'
 import { expect, type BrowserContext, type Locator, type Page } from '@playwright/test'
@@ -109,7 +109,7 @@ for (const width of [320, 412, 600]) {
           json: { retryAfterUtc: '2026-09-04T12:01:00Z' },
         }))
         await page.goto('/login')
-        await page.getByRole('textbox', { name: messages.auth.email, exact: true }).fill('layout@example.com')
+        await fillWhenHydrated(page.getByRole('textbox', { name: messages.auth.email, exact: true }), 'layout@example.com')
         await page.getByRole('button', { name: messages.auth.sendCode, exact: true }).click()
         const throttle = page.getByRole('dialog', { name: messages.errorScreen.throttleTitle })
         await expect(throttle).toBeVisible()
@@ -124,7 +124,7 @@ for (const width of [320, 412, 600]) {
       test('a queued-delete toast and notice slot stay above the bottom inset', async ({ page, context }) => {
         await setLayoutFixtureSession(context, [{ path: API.notifications.list, body: notifications }])
         await page.goto('/notifications')
-        await page.getByRole('button', { name: messages.notifications.deleteNotification.replace('{title}', notification.title), exact: true }).click()
+        await clickWhenHydrated(page.getByRole('button', { name: messages.notifications.deleteNotification.replace('{title}', notification.title), exact: true }))
         const toast = page.locator('[data-shell-notice] [data-kind="neutral"]').filter({ hasText: messages.notifications.deleteQueued })
         await expectInsideInsets(toast, top, bottom)
         await expectInsideInsets(toast.getByRole('button', { name: messages.notifications.deleteUndo, exact: true }), top, bottom)
@@ -214,7 +214,7 @@ for (const inset of [0, 44]) {
       await page.keyboard.press('Escape')
       await setLayoutFixtureSession(context, [{ path: API.notifications.list, body: notifications }])
       await page.goto('/notifications')
-      await page.getByRole('button', { name: messages.notifications.deleteNotification.replace('{title}', notification.title), exact: true }).click()
+      await clickWhenHydrated(page.getByRole('button', { name: messages.notifications.deleteNotification.replace('{title}', notification.title), exact: true }))
       const toast = page.locator('[data-shell-notice] [data-kind="neutral"]').filter({ hasText: messages.notifications.deleteQueued })
       await expectSafeBounds(toast)
       await expectSafeBounds(toast.getByRole('button', { name: messages.notifications.deleteUndo, exact: true }))
@@ -236,7 +236,7 @@ for (const inset of [0, 44]) {
       await page.goto('/login')
       const email = page.getByRole('textbox', { name: messages.auth.email, exact: true })
       await expectSafeBounds(email)
-      await email.fill('layout@example.com')
+      await fillWhenHydrated(email, 'layout@example.com')
       await page.getByRole('button', { name: messages.auth.sendCode, exact: true }).click()
       const throttle = page.getByRole('dialog', { name: messages.errorScreen.throttleTitle })
       for (const selector of ['h1', '.error-surface-body', '[role="timer"]', 'button']) {
@@ -251,7 +251,7 @@ for (const inset of [0, 44]) {
       const back = page.getByRole('button', { name: messages.common.backToProfile, exact: true })
       await expectSafeBounds(back)
       if (inset === 0) expect(await back.boundingBox()).toMatchObject({ x: 16, y: 4 })
-      await page.getByRole('button', { name: messages.wrapped.start, exact: true }).click()
+      await clickWhenHydrated(page.getByRole('button', { name: messages.wrapped.start, exact: true }))
       const player = page.getByRole('dialog', { name: messages.wrapped.title, exact: true })
       for (const control of await player.locator('button').filter({ visible: true }).all()) await expectSafeBounds(control)
       await expectSafeBounds(page.getByTestId('wrapped-header'))

@@ -10,6 +10,7 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { resolveWebThemeVariables } from '../../lib/theme-dom'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { setLayoutProfileSession } from './profile-session'
+import { clickWhenHydrated } from './hydration-guard'
 
 const recap = recapResponseSchema.parse(createMockRecap())
 const finalSlideIndex = buildWrappedSlides(recap).length - 1
@@ -71,7 +72,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
           expect(chip.ring).toBe(chip.selected ? selectedRing : unselectedRing)
           expect(chip.height).toBeGreaterThanOrEqual(44)
         }
-        await page.getByRole('button', { name: messages.wrapped.start, exact: true }).click()
+        await clickWhenHydrated(page.getByRole('button', { name: messages.wrapped.start, exact: true }))
         for (const id of ['wrapped-previous-zone', 'wrapped-next-zone']) {
           const zone = page.getByTestId(id)
           await expect(zone).toHaveAttribute('tabindex', '-1')
@@ -182,7 +183,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         expect(Math.abs(coverTitle!.x - mark!.x)).toBeLessThanOrEqual(1)
         expect(back!.x).toBeGreaterThanOrEqual(frameLeft)
 
-        await page.getByRole('button', { name: messages.wrapped.start, exact: true }).click()
+        await clickWhenHydrated(page.getByRole('button', { name: messages.wrapped.start, exact: true }))
         const frame = await page.getByTestId('wrapped-frame').boundingBox()
         expect(frame).not.toBeNull()
         expect(Math.abs(frame!.width - 900)).toBeLessThanOrEqual(1)

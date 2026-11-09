@@ -10,6 +10,7 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 import { settleAnimations } from './settle-animations'
+import { clickWhenHydrated } from './hydration-guard'
 
 for (const width of [412, 600, 1352]) {
   for (const locale of ['en', 'pt-BR'] as const) {
@@ -28,7 +29,7 @@ for (const width of [412, 600, 1352]) {
             return route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify(event)}\n\n` })
           })
           await page.goto('/')
-          await getShellConversationEntry(page, width, messages).click()
+          await clickWhenHydrated(getShellConversationEntry(page, width, messages))
           const conversation = page.locator('[data-shell-conversation="overlay"]')
           const articles = conversation.getByRole('feed').getByRole('article')
           for (const withProse of [true, false]) {

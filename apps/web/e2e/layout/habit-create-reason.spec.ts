@@ -2,6 +2,7 @@ import { expect } from '@playwright/test'
 import { test } from './upgrade-fixtures'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
+import { fillWhenHydrated } from './hydration-guard'
 
 for (const locale of ['en', 'pt-BR'] as const) {
   const messages = locale === 'en' ? en : ptBr
@@ -39,7 +40,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
           }
         }).toPass()
 
-        await page.getByRole('textbox', { name: messages.habits.form.taskDescribe, exact: true }).fill('Walk')
+        await fillWhenHydrated(page.getByRole('textbox', { name: messages.habits.form.taskDescribe, exact: true }), 'Walk')
         await expect(submit).toBeEnabled()
         await expect(submit).not.toHaveAttribute('aria-describedby')
         await expect(reason).toHaveCount(0)

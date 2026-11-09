@@ -3,6 +3,7 @@ import { test } from './layout-test'
 import { expectOneControlRing, expectOneFieldIndicator } from './focus-indicators'
 import en from '@orbit/shared/i18n/en.json'
 import { getShellConversationEntry } from './shell-conversation-entry'
+import { clickWhenHydrated } from './hydration-guard'
 
 async function expectComposerKeyboardRings(page: Page, container: Locator, forcedColors: boolean): Promise<void> {
   const mode = forcedColors ? 'forced colors' : 'normal colors'
@@ -44,7 +45,7 @@ for (const width of [412, 1280] as const) {
     test('draws one focus ring', async ({ page }) => {
       await page.goto('/')
 
-      await getShellConversationEntry(page, width, en).click()
+      await clickWhenHydrated(getShellConversationEntry(page, width, en))
       const conversation = page.locator('[data-shell-conversation="overlay"]')
       await expect(conversation).toBeVisible()
       await expect(page.locator('[data-composer-input]:visible')).toHaveCount(1)

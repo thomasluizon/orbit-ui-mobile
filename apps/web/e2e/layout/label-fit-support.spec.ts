@@ -5,6 +5,7 @@ import { LAYOUT_ORIGIN } from '../support/env'
 import { expectLabelsFit, markRequiredLabels, markUserText } from './label-fit-contract'
 import { expectInteractionFill } from './label-interaction-fill'
 import { test } from './upgrade-fixtures'
+import { clickWhenHydrated } from './hydration-guard'
 
 const replyEmail = `${'W'.repeat(48)}@example.com`
 
@@ -41,7 +42,7 @@ for (const width of [320, 360, 384, 412]) {
         })
         expect(geometry.width).toBeCloseTo(geometry.availableWidth, 0)
 
-        await subjects.getByRole('radio').first().click()
+        await clickWhenHydrated(subjects.getByRole('radio').first())
         const message = form.getByRole('textbox', { name: words.message })
         await message.fill('Saved support message')
         await reply.click()

@@ -1,4 +1,4 @@
-import { openTodayListOptions } from './hydration-guard'
+import { clickWhenHydrated, openTodayListOptions } from './hydration-guard'
 import { completeInstallOnboarding } from './install-onboarding'
 import { expect, type Locator, type Page } from '@playwright/test'
 import { test } from './layout-test'
@@ -118,7 +118,7 @@ for (const { width, height } of windows) {
         if (name === 'Calendário') {
           await expect(page.getByRole('radio', { name: en.calendar.view.month, exact: true })).toBeChecked()
           await expect(page.getByTestId('calendar-grid')).toBeVisible()
-          await page.getByTestId(`calendar-day-select-${fixtureDate}`).click()
+          await clickWhenHydrated(page.getByTestId(`calendar-day-select-${fixtureDate}`))
           await expect(page.getByText(habits.items[0]!.title, { exact: true })).toBeVisible()
         }
         if (name === 'Progresso') await expect(page.locator('a[href="/progress/goals"]')).toBeVisible()

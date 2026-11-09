@@ -8,6 +8,7 @@ import { calendarMonthResponseSchema, createPaginatedSchema, habitDetailSchema, 
 import { LAYOUT_ORIGIN } from '../support/env'
 import { LAYOUT_FIXED_TIME } from './clock.mjs'
 import { test } from './upgrade-fixtures'
+import { clickWhenHydrated } from './hydration-guard'
 
 const today = new Date(LAYOUT_FIXED_TIME).toISOString().slice(0, 10)
 function dateAtOffset(offset: number) {
@@ -47,7 +48,7 @@ for (const width of [320, 412, 600, 1352]) {
         for (const date of scheduledDates) await expectDayCircle(grid.locator(`[data-calendar-date="${date}"]`), true, date === today, true)
         const monday = dateAtOffset(-4)
         const mondayInPreviousMonth = monday.slice(0, 7) !== today.slice(0, 7)
-        if (mondayInPreviousMonth) await page.getByRole('button', { name: words.common.previousMonth, exact: true }).click()
+        if (mondayInPreviousMonth) await clickWhenHydrated(page.getByRole('button', { name: words.common.previousMonth, exact: true }))
         await expectDayCircle(grid.locator(`[data-calendar-date="${monday}"]`), true, false, true)
         if (mondayInPreviousMonth) await page.getByRole('button', { name: words.common.nextMonth, exact: true }).click()
         const partial = grid.locator(`[data-calendar-date="${dateAtOffset(-1)}"]`)
@@ -77,7 +78,7 @@ for (const width of [320, 412, 600, 1352]) {
         await page.goto(`/habits/${habitId}`)
         const details = page.getByRole('button', { name: words.habits.detail.moreDetails, exact: true })
         await expect(details).toHaveAttribute('aria-expanded', 'false')
-        await details.click()
+        await clickWhenHydrated(details)
         await expect(details).toHaveAttribute('aria-expanded', 'true')
         const history = page.getByTestId('month-grid-days')
         const historyToday = history.locator('[data-outcome][aria-current="date"]')
@@ -93,7 +94,7 @@ for (const width of [320, 412, 600, 1352]) {
           await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.calendarMonth, async (route) => { await ready; await route.fulfill({ json: calendarMonth }) })
           try {
             await page.goto('/calendar')
-            await page.getByTestId('calendar-header-group').getByRole('radio', { name: words.calendar.view[view], exact: true }).click()
+            await clickWhenHydrated(page.getByTestId('calendar-header-group').getByRole('radio', { name: words.calendar.view[view], exact: true }))
             const grid = page.locator('.orbit-calendar-grid-card [data-testid="month-grid-days"]')
             const placeholders = grid.locator('[data-variant="grid"]')
             await expect(placeholders.first()).toBeVisible()

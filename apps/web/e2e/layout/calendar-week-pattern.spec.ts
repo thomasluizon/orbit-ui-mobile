@@ -11,6 +11,7 @@ import { LAYOUT_FIXED_TIME } from './clock.mjs'
 import { expectFullTouchTarget } from './press-shape-helpers'
 import { setLayoutProfileSession } from './profile-session'
 import { test } from './upgrade-fixtures'
+import { clickWhenHydrated } from './hydration-guard'
 
 const dates = Array.from({ length: 7 }, (_, index) => {
   const date = new Date(LAYOUT_FIXED_TIME)
@@ -55,7 +56,7 @@ for (const viewport of [{ width: 1352, height: 706 }, { width: 1100, height: 726
         await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.calendarMonth,
           (route) => route.fulfill({ json: shortNameCalendar }))
         await page.goto('/calendar')
-        await page.getByRole('radio', { name: words.calendar.view.week, exact: true }).click()
+        await clickWhenHydrated(page.getByRole('radio', { name: words.calendar.view.week, exact: true }))
         const grid = page.getByTestId('calendar-time-grid')
         await expect(grid.getByTestId('time-grid-event')).toHaveCount(14)
         await page.evaluate(() => document.fonts.ready)
@@ -102,7 +103,7 @@ for (const viewport of [{ width: 1352, height: 706 }, { width: 1100, height: 726
 
       test('names entries, keeps day lanes reachable and opens at now', async ({ page }) => {
         await page.goto('/calendar')
-        await page.getByRole('radio', { name: words.calendar.view.week, exact: true }).click()
+        await clickWhenHydrated(page.getByRole('radio', { name: words.calendar.view.week, exact: true }))
         const grid = page.getByTestId('calendar-time-grid')
         await expect(grid.getByTestId('time-grid-event')).toHaveCount(14)
         const line = grid.getByRole('img', { name: words.calendar.timeGrid.now, exact: true })

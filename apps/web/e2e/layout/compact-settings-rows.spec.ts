@@ -5,6 +5,7 @@ import { expect, type Locator } from '@playwright/test'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { test } from './upgrade-fixtures'
+import { clickWhenHydrated } from './hydration-guard'
 
 async function assertCompactTarget(row: Locator) {
   const bounds = await row.evaluate((element) => {
@@ -69,7 +70,7 @@ for (const width of [412, 1280]) {
         const proEntry = navigation.getByRole('link', { name: new RegExp(`^${messages.upgrade.pitchTitle}`) })
         await expect(proEntry).toHaveAttribute('href', '/upgrade')
         await assertCompactTarget(proEntry)
-        await navigation.getByRole('link', { name: messages.profile.submenus.preferences, exact: true }).click()
+        await clickWhenHydrated(navigation.getByRole('link', { name: messages.profile.submenus.preferences, exact: true }))
         const group = page.getByTestId('profile-settings-group-preferences')
         const rows = group.locator('.orbit-list-row-shell:has([data-slot="list-row-chevron"])')
         await expect(rows).toHaveCount(4)

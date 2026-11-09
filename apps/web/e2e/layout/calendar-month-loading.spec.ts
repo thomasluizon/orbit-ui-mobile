@@ -12,6 +12,7 @@ import { test } from './upgrade-fixtures'
 import { measureCalendarMonth } from './calendar-month-geometry'
 import { LAYOUT_FIXED_TIME } from './clock.mjs'
 import { setLayoutFixtureSession } from './profile-session'
+import { clickWhenHydrated } from './hydration-guard'
 
 const selectedDate = LAYOUT_FIXED_TIME.slice(0, 10)
 const profile = profileSchema.parse({ ...profileFixture, language: 'pt-BR', weekStartDay: 1, hasProAccess: true, hasGoogleConnection: true, uses24HourClock: true })
@@ -60,7 +61,7 @@ for (const { width, slow, count, locale } of [412, 1352].flatMap((width) => [1, 
         await page.goto('/')
         await expect(page.getByTestId('habit-row')).toHaveCount(count)
         await expect(page.getByTestId('habit-row').filter({ hasText: 'Ler' })).toBeVisible()
-        await page.getByRole('navigation', { name: messages.nav.mainNavigation, exact: true }).getByRole('link', { name: messages.nav.calendar, exact: true }).click()
+        await clickWhenHydrated(page.getByRole('navigation', { name: messages.nav.mainNavigation, exact: true }).getByRole('link', { name: messages.nav.calendar, exact: true }))
         await expect(page).toHaveURL((url) => url.pathname === '/calendar')
         await monthRequested
         await page.getByRole('radio', { name: messages.calendar.view.month, exact: true }).click()

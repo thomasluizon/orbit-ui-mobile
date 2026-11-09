@@ -12,6 +12,7 @@ import { expectLabelsFit, markRequiredLabels, markUserText } from './label-fit-c
 import { expectInteractionFill } from './label-interaction-fill'
 import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { test } from './upgrade-fixtures'
+import { clickWhenHydrated } from './hydration-guard'
 
 const calendarName = 'Calendário compartilhado dos compromissos e encontros de toda a minha família'
 const calendars = userCalendarsSchema.parse([
@@ -104,7 +105,7 @@ for (const width of [320, 360, 384, 412, 600]) {
         await expectLabelsFit(page, sheet, [calendarName, 'Caminhar', 'Ler'])
         const openName = sheet.getByRole('button', { name: calendarName, exact: true })
         await expectInteractionFill(sheet.getByRole('checkbox', { name: calendarName, exact: true }))
-        await openName.click()
+        await clickWhenHydrated(openName)
         const fullName = sheet.locator(`[id="${await openName.getAttribute('aria-controls')}"][data-personal-text-expanded]`)
         await expect(fullName).toBeVisible()
         await expect(openName).toHaveAttribute('aria-expanded', 'true')

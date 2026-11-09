@@ -7,6 +7,7 @@ import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 import { measureScrollbarGutter } from './scrollbar-geometry'
 import { readExpandedControlGeometry } from './expanded-control-geometry'
+import { clickWhenHydrated } from './hydration-guard'
 
 test.use({ launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'] } })
 
@@ -103,7 +104,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
               expect(await row.evaluate((element) => Boolean(element.closest('[data-shell-scroller]')))).toBe(true)
             }
             expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
-            await bell.click()
+            await clickWhenHydrated(bell)
             await expect(page).toHaveURL(/\/notifications$/)
             await expect(page.getByRole('heading', { name: words.notifications.title, exact: true })).toBeVisible()
           }

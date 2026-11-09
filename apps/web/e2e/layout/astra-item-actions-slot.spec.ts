@@ -9,6 +9,7 @@ import { chatStreamEventSchema } from '@orbit/shared/types/chat'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 import { expectFillShape, expectInteractionFill } from './label-interaction-fill'
+import { clickWhenHydrated } from './hydration-guard'
 
 for (const width of [320, 412, 1352]) {
   for (const locale of ['en', 'pt-BR'] as const) {
@@ -27,7 +28,7 @@ for (const width of [320, 412, 1352]) {
       test('keeps the action beside the first line and reveals the full name in its editor', async ({ page, context }) => {
         await context.route(`${LAYOUT_ORIGIN}${API.chat.stream}`, route => route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify(event)}\n\n` }))
         await page.goto('/')
-        await getShellConversationEntry(page, width, messages).click()
+        await clickWhenHydrated(getShellConversationEntry(page, width, messages))
         const conversation = page.locator('[data-shell-conversation="overlay"]')
         await conversation.locator('[data-composer-input]').fill(name)
         await conversation.getByRole('button', { name: messages.shell.composer.send, exact: true }).click()
@@ -92,7 +93,7 @@ for (const width of [320, 1280]) {
       test('shows one task, icon and reminder within the preview bounds', async ({ page, context }) => {
         await context.route(`${LAYOUT_ORIGIN}${API.chat.stream}`, route => route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify(event)}\n\n` }))
         await page.goto('/')
-        await getShellConversationEntry(page, width, messages).click()
+        await clickWhenHydrated(getShellConversationEntry(page, width, messages))
         const conversation = page.locator('[data-shell-conversation="overlay"]')
         await conversation.locator('[data-composer-input]').fill(name)
         await conversation.getByRole('button', { name: messages.shell.composer.send, exact: true }).click()

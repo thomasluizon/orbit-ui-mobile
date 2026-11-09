@@ -1,4 +1,4 @@
-import { openTodayListOptions } from './hydration-guard'
+import { clickWhenHydrated, openTodayListOptions } from './hydration-guard'
 import { expect, type Locator } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
@@ -71,7 +71,7 @@ for (const width of [320, 360, 384, 412, 600]) {
           await page.goto(`/?date=${day}`)
           await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, textScale)
           const row = page.locator('[data-habit-title]').filter({ has: page.getByText(longTitle, { exact: true }) })
-          await row.getByRole('button', { name: words.habits.actions.more, exact: true }).click()
+          await clickWhenHydrated(row.getByRole('button', { name: words.habits.actions.more, exact: true }))
           const sheet = page.getByRole('dialog', { name: longTitle, exact: true })
           await expect(sheet).toBeVisible()
           const measured = await measureTitle(sheet)

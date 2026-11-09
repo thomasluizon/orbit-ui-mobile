@@ -14,6 +14,7 @@ import { inspectDestinationHeading } from './destination-heading'
 import { getShellConversationEntry } from './shell-conversation-entry'
 import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { test } from './upgrade-fixtures'
+import { clickWhenHydrated, focusWhenHydrated } from './hydration-guard'
 
 const habit = habitDetailSchema.parse({ ...makeHabitDetail(), title: 'Caminhar', dueTime: '08:00:00', children: [] })
 const schedule = makeHabitScheduleItem({ id: habit.id, title: habit.title, dueTime: habit.dueTime, scheduledDates: ['2026-09-04'], children: [], hasSubHabits: false })
@@ -52,7 +53,7 @@ async function expectWayfindingFocus(page: Page, target: Locator) {
   })
   const shadowAtRest = await target.evaluate((element) => getComputedStyle(element).boxShadow)
   const indicatorsAtRest = await readFieldIndicators(target, '[tabindex="-1"]')
-  await target.focus()
+  await focusWhenHydrated(target)
   await expect(target).toBeFocused()
   const paint = await target.evaluate((element) => {
     const style = getComputedStyle(element)
@@ -176,7 +177,7 @@ for (const width of [600, 1352]) {
         })
         await inspectConversation(page, width)
         await page.goto('/wrapped')
-        await page.getByRole('button', { name: ptBR.wrapped.start, exact: true }).click()
+        await clickWhenHydrated(page.getByRole('button', { name: ptBR.wrapped.start, exact: true }))
         await page.getByTestId('wrapped-pager').getByRole('button', { name: ptBR.wrapped.next, exact: true }).click()
         for (const forcedColors of ['none', 'active'] as const) {
           await page.emulateMedia({ forcedColors })

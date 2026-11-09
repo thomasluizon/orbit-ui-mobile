@@ -13,6 +13,7 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 import { readTargetGeometry } from './press-shape-helpers'
+import { clickWhenHydrated } from './hydration-guard'
 
 for (const width of [320, 412, 1352]) {
   for (const locale of ['en', 'pt-BR'] as const) {
@@ -33,7 +34,7 @@ for (const width of [320, 412, 1352]) {
           return route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify(event)}\n\n` })
         })
         await page.goto('/')
-        await getShellConversationEntry(page, width, messages).click()
+        await clickWhenHydrated(getShellConversationEntry(page, width, messages))
         const conversation = page.locator('[data-shell-conversation="overlay"]')
         await conversation.locator('[data-composer-input]').fill('How is my day and calendar?')
         await conversation.getByRole('button', { name: messages.shell.composer.send, exact: true }).click()

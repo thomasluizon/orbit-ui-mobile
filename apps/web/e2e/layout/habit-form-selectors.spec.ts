@@ -5,6 +5,7 @@ import { API } from '@orbit/shared/api'
 import { test } from './upgrade-fixtures'
 import { setLayoutFixtureSession } from './profile-session'
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
+import { clickWhenHydrated, fillWhenHydrated } from './hydration-guard'
 
 for (const locale of ['en', 'pt-BR'] as const) {
   for (const width of [320, 360, 384, 412, 1280]) {
@@ -15,7 +16,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
           const messages = locale === 'en' ? en : ptBR
           await setLayoutFixtureSession(context, [{ path: API.habits.list, body: emptyHabitsPageFixture }])
           await page.goto('/')
-          await page.getByRole('radiogroup', { name: messages.habits.viewsLabel }).getByRole('radio', { name: messages.habits.viewGeneral, exact: true }).click()
+          await clickWhenHydrated(page.getByRole('radiogroup', { name: messages.habits.viewsLabel }).getByRole('radio', { name: messages.habits.viewGeneral, exact: true }))
           await page.getByRole('button', { name: messages.habits.createManually, exact: true }).click()
           const screen = page.locator('[data-habit-create-screen]')
           await expect(page.getByRole('heading', { name: messages.habits.form.newTask, exact: true })).toBeVisible()
@@ -40,7 +41,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
           await expect(page.getByRole('heading', { name: messages.habits.form.newTask, exact: true })).toHaveCSS('font-size', '22px')
           await expect(page.getByRole('button', { name: messages.habits.createTask, exact: true })).toBeVisible()
           const title = screen.getByRole('textbox', { name: messages.habits.form.taskDescribe, exact: true })
-          await title.fill('Read')
+          await fillWhenHydrated(title, 'Read')
           const description = screen.getByRole('textbox', { name: messages.habits.form.descriptionQuestion, exact: true })
           await expect(description).toHaveAttribute('rows', '1')
           const descriptionHeight = (await description.boundingBox())!.height

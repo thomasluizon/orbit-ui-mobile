@@ -14,6 +14,7 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { LAYOUT_ORIGIN } from '../support/env'
 import { measureFieldInset } from './field-inset-geometry'
 import { setLayoutProfileSession } from './profile-session'
+import { clickWhenHydrated } from './hydration-guard'
 
 type Messages = typeof en | typeof ptBr
 
@@ -75,7 +76,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
       for (const path of ['/search', '/support']) {
         test(`measures every visible field on ${path}`, async ({ page }) => {
           await page.goto(path)
-          if (path === '/support') await page.getByRole('radio', { name: messages.profile.support.subjects.problem.label, exact: true }).click()
+          if (path === '/support') await clickWhenHydrated(page.getByRole('radio', { name: messages.profile.support.subjects.problem.label, exact: true }))
           await expect(path === '/search' ? page.locator('[cmdk-input]') : page.getByLabel(messages.profile.support.message, { exact: true })).toBeVisible()
           await expectVisibleFieldInsets(page, messages)
         })
@@ -104,7 +105,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         expect(entryBounds.width).toBeGreaterThanOrEqual(48)
         expect((await composer.evaluate(measureFieldInset)).pillInset).toBeCloseTo(8 + entryBounds.width + 8, 1)
         await expectVisibleFieldInsets(page, messages)
-        await page.getByRole('button', { name: messages.habits.editHabit, exact: true }).click()
+        await clickWhenHydrated(page.getByRole('button', { name: messages.habits.editHabit, exact: true }))
         const editor = page.getByRole('dialog', { name: messages.habits.editHabit, exact: true })
         await expect(editor.getByRole('textbox', { name: messages.habits.form.describe, exact: true })).toBeVisible()
         await editor.getByRole('button', { name: new RegExp(messages.habits.form.timingAndReminder) }).click()
@@ -137,7 +138,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         await page.goto('/habits/new')
         const screen = page.locator('[data-habit-create-screen]')
         await expect(screen).toBeVisible()
-        await screen.getByRole('button', { name: messages.habits.form.moreDetails }).click()
+        await clickWhenHydrated(screen.getByRole('button', { name: messages.habits.form.moreDetails }))
         await expect(screen.getByPlaceholder(messages.habits.form.checklistPlaceholder)).toBeVisible()
         await screen.getByRole('button', { name: new RegExp(messages.habits.form.timingAndReminder) }).click()
         const timing = page.getByRole('dialog', { name: messages.habits.form.timingAndReminder, exact: true })

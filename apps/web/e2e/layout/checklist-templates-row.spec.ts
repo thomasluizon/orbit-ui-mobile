@@ -2,6 +2,7 @@ import { expect } from '@playwright/test'
 import { test } from './layout-test'
 import messages from '@orbit/shared/i18n/en.json'
 import { readControlPaint } from './control-paint'
+import { clickWhenHydrated } from './hydration-guard'
 
 for (const width of [412, 1280] as const) {
   test.describe(`checklist templates row at ${width}px`, () => {
@@ -11,7 +12,7 @@ for (const width of [412, 1280] as const) {
       await page.goto('/habits/new')
       const screen = page.locator('[data-habit-create-screen]')
       await expect(screen).toBeVisible()
-      await screen.getByRole('button', { name: messages.habits.form.moreDetails }).click()
+      await clickWhenHydrated(screen.getByRole('button', { name: messages.habits.form.moreDetails }))
 
       const disclosure = screen.locator('.habit-form-disclosure[data-open="true"]')
       const input = disclosure.getByPlaceholder(messages.habits.form.checklistPlaceholder)

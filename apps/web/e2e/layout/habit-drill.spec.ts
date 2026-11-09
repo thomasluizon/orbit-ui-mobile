@@ -8,7 +8,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { test } from './upgrade-fixtures'
 import { setLayoutFixtureSession } from './profile-session'
-import { openTodayListOptions } from './hydration-guard'
+import { clickWhenHydrated, openTodayListOptions } from './hydration-guard'
 import { LAYOUT_FIXED_TIME } from './clock.mjs'
 
 const day = LAYOUT_FIXED_TIME.slice(0, 10)
@@ -42,7 +42,7 @@ for (const width of [320, 412, 1352]) {
         await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habits }])
         await context.route((url) => url.pathname === API.habits.get(parent.id), (route) => route.fulfill({ json: detail }))
         await page.goto(`/?date=${day}`)
-        await habitRow(page, parent.title).locator('[data-habit-row-control="menu"]').click()
+        await clickWhenHydrated(habitRow(page, parent.title).locator('[data-habit-row-control="menu"]'))
         const scroller = page.locator('[data-shell-scroller]')
         expect(await scroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
         await page.getByRole('menu', { name: parent.title, exact: true })

@@ -10,6 +10,7 @@ import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fix
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 import { goBackDuringSheetExit } from '../../test-support/sheet-exit'
+import { clickWhenHydrated } from './hydration-guard'
 
 async function waitForCreationGuard(page: Page) {
   await page.waitForFunction(() => Reflect.get(Object(history.state), 'orbitHabitCreateSentinel') === true)
@@ -69,7 +70,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
                 await page.goto('/habits/new?from=%2F')
               } else {
                 await page.goto('/')
-                await page.getByRole('button', { name: messages.habits.createManually, exact: true }).click()
+                await clickWhenHydrated(page.getByRole('button', { name: messages.habits.createManually, exact: true }))
                 await expect(page).toHaveURL(/\/habits\/new\?/)
               }
               const type = page.getByRole('radio', { name: new RegExp(messages.habits.form.typeHabit) })
@@ -100,7 +101,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
 
         test('preserves a dirty draft on browser Back until discard is confirmed', async ({ page }) => {
           await page.goto('/')
-          await page.getByRole('button', { name: messages.habits.createManually, exact: true }).click()
+          await clickWhenHydrated(page.getByRole('button', { name: messages.habits.createManually, exact: true }))
           const field = page.getByRole('textbox', { name: messages.habits.form.taskDescribe, exact: true })
           await field.fill('Keep this draft')
           await waitForCreationGuard(page)
@@ -121,7 +122,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
         test('handles browser Back during and after the Keep editing exit', async ({ page }) => {
           await page.emulateMedia({ reducedMotion: 'no-preference' })
           await page.goto('/')
-          await page.getByRole('button', { name: messages.habits.createManually, exact: true }).click()
+          await clickWhenHydrated(page.getByRole('button', { name: messages.habits.createManually, exact: true }))
           const field = page.getByRole('textbox', { name: messages.habits.form.taskDescribe, exact: true })
           const keepEditing = page.getByRole('button', { name: messages.common.keepEditing, exact: true })
           const discard = page.getByRole('button', { name: messages.common.discardChangesAction, exact: true })

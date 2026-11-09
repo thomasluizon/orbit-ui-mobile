@@ -8,6 +8,7 @@ import { LAYOUT_FIXED_TIME } from './clock.mjs'
 import { setLayoutFixtureSession } from './profile-session'
 import { measureToastStack } from './toast-stack-geometry'
 import { test } from './upgrade-fixtures'
+import { clickWhenHydrated } from './hydration-guard'
 
 const notifications = notificationsResponseSchema.parse({
   items: Array.from({ length: 3 }, (_, index) => createMockNotification({
@@ -29,9 +30,9 @@ for (const width of [412, 1352]) {
         const toasts = slot.locator('[data-kind]').filter({ hasText: words.notifications.deleteQueued })
         let singleHeight = 0
         for (const [index, notification] of notifications.items.entries()) {
-          await page.getByRole('button', {
+          await clickWhenHydrated(page.getByRole('button', {
             name: words.notifications.deleteNotification.replace('{title}', notification.title), exact: true,
-          }).click()
+          }))
           await expect(toasts).toHaveCount(index + 1)
           if (index === 0) await page.clock.pauseAt(new Date(LAYOUT_FIXED_TIME))
           await expect(async () => {

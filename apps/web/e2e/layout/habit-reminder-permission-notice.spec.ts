@@ -7,6 +7,7 @@ import { habitDetailSchema } from '@orbit/shared/types/habit'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 import { expectInteractionFill } from './label-interaction-fill'
+import { clickWhenHydrated } from './hydration-guard'
 
 for (const locale of ['en', 'pt-BR'] as const) {
   test.describe(`habit reminder permission notice in ${locale}`, () => {
@@ -24,7 +25,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
         await context.route(`${LAYOUT_ORIGIN}${API.habits.get(habit.id)}`, (route) => route.fulfill({ json: habit }))
         await page.goto('/habits/habit-1')
         const messages = locale === 'en' ? en : ptBr
-        await page.getByRole('button', { name: messages.habits.editHabit }).click()
+        await clickWhenHydrated(page.getByRole('button', { name: messages.habits.editHabit }))
         const fields = page.getByRole('dialog', { name: messages.habits.editHabit, exact: true })
         await fields.getByRole('button', { name: new RegExp(messages.habits.form.timingAndReminder) }).click()
         const timing = page.getByRole('dialog', { name: messages.habits.form.timingAndReminder, exact: true })

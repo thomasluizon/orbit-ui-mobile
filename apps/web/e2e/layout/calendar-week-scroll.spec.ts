@@ -11,6 +11,7 @@ import { LAYOUT_FIXED_TIME } from './clock.mjs'
 import { advanceLayoutClock } from './layout-test'
 import { setLayoutProfileSession } from './profile-session'
 import { test } from './upgrade-fixtures'
+import { clickWhenHydrated } from './hydration-guard'
 
 const dates = Array.from({ length: 7 }, (_, index) => {
   const date = new Date(LAYOUT_FIXED_TIME)
@@ -98,7 +99,7 @@ for (const viewport of [{ width: 1352, height: 726 }, { width: 1100, height: 726
 
       test('keeps one hour owner and the complete weekday header clear of options', async ({ page }) => {
         await page.goto('/calendar')
-        await page.getByRole('radio', { name: ptBR.calendar.view.week, exact: true }).click()
+        await clickWhenHydrated(page.getByRole('radio', { name: ptBR.calendar.view.week, exact: true }))
         const hour = page.getByTestId('time-grid-hour-label').first()
         const scroller = page.getByTestId('time-grid-hour-scroller')
         const header = page.getByTestId('time-grid-col-header').first().locator('..')
@@ -130,7 +131,7 @@ for (const viewport of [{ width: 1352, height: 726 }, { width: 1100, height: 726
       if (viewport.width !== 412) {
         test('keeps one scroll owner and reachable hours at 200% text', async ({ page }) => {
           await page.goto('/calendar')
-          await page.getByRole('radio', { name: ptBR.calendar.view.week, exact: true }).click()
+          await clickWhenHydrated(page.getByRole('radio', { name: ptBR.calendar.view.week, exact: true }))
           const scroller = page.getByTestId('time-grid-hour-scroller')
           const hour = page.getByTestId('time-grid-hour-label').first()
           await expect(hour).toBeAttached()
@@ -168,7 +169,7 @@ for (const viewport of [{ width: 1100, height: 726 }, { width: 840, height: 726 
       test('holds now in the upper third when an oversized day pane becomes pinned', async ({ page }) => {
         await page.goto('/calendar')
         const oversizedPane = await page.addStyleTag({ content: '[data-testid="time-grid-all-day-band"] { min-height: 300px !important; }' })
-        await page.getByRole('radio', { name: words.calendar.view.week, exact: true }).click()
+        await clickWhenHydrated(page.getByRole('radio', { name: words.calendar.view.week, exact: true }))
         const scroller = page.getByTestId('time-grid-hour-scroller')
         const pane = scroller.getByTestId('time-grid-day-pane')
         await expect(pane).toHaveAttribute('data-pinning', 'scrolling')
@@ -216,7 +217,7 @@ test.describe('calendar week scroll at 412px', () => {
         return route.fulfill({ json: calendarMonthResponseSchema.parse({ habits, logs: {} }) })
       })
       await page.goto('/calendar')
-      await page.getByRole('radio', { name: en.calendar.view.week, exact: true }).click()
+      await clickWhenHydrated(page.getByRole('radio', { name: en.calendar.view.week, exact: true }))
       const scroller = page.getByTestId('time-grid-hour-scroller')
       await expect(page.getByTestId('time-grid-all-day-event').first()).toHaveText('Opening habit 1')
       await expect.poll(() => scroller.evaluate((node) => node.scrollLeft)).toBeGreaterThan(0)

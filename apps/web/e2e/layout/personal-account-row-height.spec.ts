@@ -4,6 +4,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { test } from './upgrade-fixtures'
+import { clickWhenHydrated } from './hydration-guard'
 
 for (const width of [600, 840, 1100, 1352]) for (const locale of ['en', 'pt-BR'] as const) {
   test.describe(`personal account row height at ${width}px in ${locale}`, () => {
@@ -16,7 +17,7 @@ for (const width of [600, 840, 1100, 1352]) for (const locale of ['en', 'pt-BR']
       const navigation = page.getByRole('link', { name: words.profile.submenus.accountLabel.replace('{name}', profile.name!).replace('{email}', profile.email), exact: true })
       await expect(navigation).toBeVisible()
       const navigationHeight = await navigation.locator('..').evaluate((row) => row.getBoundingClientRect().height)
-      await navigation.click()
+      await clickWhenHydrated(navigation)
       await expect(page).toHaveURL(/\/profile\/account$/)
       const account = page.getByRole('button', { name: words.profile.settingsRows.editName.replace('{name}', profile.name!).replace('{email}', profile.email), exact: true })
       await expect(account).toBeVisible()

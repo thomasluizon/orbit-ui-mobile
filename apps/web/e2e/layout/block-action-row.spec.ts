@@ -10,6 +10,7 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 import { readTargetGeometry } from './press-shape-helpers'
+import { clickWhenHydrated } from './hydration-guard'
 
 const finalEvent = chatStreamEventSchema.parse({ type: 'final', response: {
   aiMessage: 'Podemos revisar a sua rotina.', actions: [],
@@ -27,7 +28,7 @@ for (const width of [412, 1280]) {
       test('hugs recovery actions and keeps icon rejection beside primary approval', async ({ page, context }) => {
         await context.route(`${LAYOUT_ORIGIN}${API.chat.stream}`, route => route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify(finalEvent)}\n\n` }))
         await page.goto('/')
-        await getShellConversationEntry(page, width, messages).click()
+        await clickWhenHydrated(getShellConversationEntry(page, width, messages))
         const conversation = page.locator('[data-shell-conversation="overlay"]')
         await conversation.locator('[data-composer-input]').fill('Oi, como estou hoje?')
         await conversation.getByRole('button', { name: messages.shell.composer.send, exact: true }).click()

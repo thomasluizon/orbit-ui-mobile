@@ -12,6 +12,7 @@ import { expectInteractionFill } from './label-interaction-fill'
 import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 import { composerPlaceholderFits } from './composer-column-paint'
+import { clickWhenHydrated } from './hydration-guard'
 
 const title = 'Caminhar pelo bairro e cuidar da rotina com todos os detalhes '.repeat(3)
 const habit = habitDetailSchema.parse({ ...makeHabitDetail(), title, children: [], checklistItems: [] })
@@ -37,7 +38,7 @@ for (const width of [320, 360, 384, 412]) {
         await expect(page.locator('[data-shell-bottom] [data-composer-root]')).toHaveCount(0)
         const opener = page.locator('[data-astra-button]')
         await expectInteractionFill(opener)
-        await opener.click()
+        await clickWhenHydrated(opener)
         const conversation = page.locator('[data-shell-conversation="overlay"]')
         const field = conversation.locator('[data-composer-input]')
         await markRequiredLabels(conversation.getByRole('feed').getByText(words.chat.empty.title, { exact: true }))

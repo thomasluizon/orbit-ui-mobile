@@ -7,6 +7,7 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { setLayoutProfileSession } from './profile-session'
 import { getShellConversationEntry } from './shell-conversation-entry'
 import { expectOneFieldIndicator, inspectFocusedControlRings as inspectFocusedRing } from './focus-indicators'
+import { clickWhenHydrated, fillWhenHydrated, focusWhenHydrated } from './hydration-guard'
 
 async function expectOneRing(page: Page, surface: string, stop: number) {
   const state = await inspectFocusedRing(page)
@@ -39,7 +40,7 @@ async function focusConversationComposer(page: Page, width: number) {
   const conversation = page.locator('[data-shell-conversation="overlay"]')
   const conversationWasOpen = await conversation.isVisible()
   if (!conversationWasOpen) {
-    await getShellConversationEntry(page, width, messages).click()
+    await clickWhenHydrated(getShellConversationEntry(page, width, messages))
   }
   await expect(conversation).toBeVisible()
   await expect(page.locator('[data-shell-pinned-slot]')).toBeHidden()
@@ -75,7 +76,7 @@ for (const width of [412, 1280] as const) {
         if (targetSelector === null) return
         const conversation = page.locator('[data-shell-conversation]')
         if (surface !== 'Hoje' && await conversation.isVisible()) {
-          await conversation.getByRole('button', { name: messages.common.closeConversation }).click()
+          await clickWhenHydrated(conversation.getByRole('button', { name: messages.common.closeConversation }))
           await expect(conversation).toBeHidden()
         }
         if (surface === 'Suporte') await page.getByRole('radio', { name: messages.profile.support.subjects.problem.label, exact: true }).click()
@@ -98,7 +99,7 @@ for (const width of [412, 1280] as const) {
       await page.goto('/')
       await expect(page.getByRole('navigation', { name: messages.nav.mainNavigation })).toBeVisible()
       if (width === 1280) {
-        await page.locator('[data-shell-sidebar]').getByRole('button', { name: messages.nav.search }).click()
+        await clickWhenHydrated(page.locator('[data-shell-sidebar]').getByRole('button', { name: messages.nav.search }))
       } else {
         await page.keyboard.press('Control+k')
       }
@@ -118,7 +119,7 @@ for (const width of [412, 1280] as const) {
       await openCreateForm(page)
       const phrase = page.locator('[data-habit-phrase-field] textarea')
       await expect(phrase).toBeVisible()
-      await phrase.focus()
+      await focusWhenHydrated(phrase)
       await page.keyboard.press('Shift+Tab')
       await page.keyboard.press('Tab')
       await expect(phrase).toBeFocused()
@@ -160,7 +161,7 @@ for (const width of [412, 1280] as const) {
         const screen = page.locator('[data-habit-create-screen]')
         const typeLabel = itemType === 'task' ? messages.habits.form.typeTask : messages.habits.form.typeHabit
         const type = screen.getByRole('radiogroup', { name: messages.habits.form.itemType, exact: true }).getByRole('radio', { name: new RegExp(typeLabel) })
-        if (itemType === 'habit') await type.click()
+        if (itemType === 'habit') await clickWhenHydrated(type)
         await expect(type).toBeChecked()
         await page.getByRole('button', { name: messages.habits.form.moreDetails }).click()
         const disclosure = page.locator('.habit-form-disclosure[data-open="true"]')
@@ -198,7 +199,7 @@ for (const width of [412, 1280] as const) {
       await expectOneFieldIndicator(page, search, 'div.relative', `search forced colors ${width}px`, { forcedColors: true, includeDescendants: true })
 
       await page.goto('/support')
-      await page.getByRole('radio', { name: messages.profile.support.subjects.problem.label, exact: true }).click()
+      await clickWhenHydrated(page.getByRole('radio', { name: messages.profile.support.subjects.problem.label, exact: true }))
       const message = page.locator('form textarea').first()
       await expectOneFieldIndicator(page, message, '[data-input-root]', `support forced colors ${width}px`, { forcedColors: true })
 
@@ -228,7 +229,7 @@ for (const width of [412, 1280] as const) {
       await page.route('**/api/auth/send-code', (route) => route.fulfill({ json: {} }))
       await completeInstallOnboarding(page)
       await page.goto('/login')
-      await page.locator('input[name="email"]').fill('focus@example.com')
+      await fillWhenHydrated(page.locator('input[name="email"]'), 'focus@example.com')
       await page.getByRole('button', { name: messages.auth.sendCode, exact: true }).click()
       const code = page.locator('input[name="verificationCode"]')
       await expect(code).toBeVisible()

@@ -6,6 +6,7 @@ import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-f
 import { calendarMonthResponseSchema } from '@orbit/shared/types/habit'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
+import { clickWhenHydrated } from './hydration-guard'
 
 const calendarMonth = calendarMonthResponseSchema.parse({
   habits: ['walk', 'read'].map((id) => makeHabitScheduleItem({ id, children: [], hasSubHabits: false, dueDate: '2026-09-02', scheduledDates: ['2026-09-02', '2026-09-03', '2026-09-04'] })),
@@ -31,7 +32,7 @@ for (const width of [320, 339, 340, 360, 363, 364, 365, 412, 600, 840, 1352]) {
             await page.goto('/calendar')
             const selector = page.getByTestId('calendar-header-group').getByRole('radiogroup')
             for (const view of ['month', 'range'] as const) {
-              await selector.getByRole('radio', { name: words.calendar.view[view], exact: true }).click()
+              await clickWhenHydrated(selector.getByRole('radio', { name: words.calendar.view[view], exact: true }))
               const grid = page.locator('.orbit-calendar-grid-card').locator('[data-testid="month-grid-days"], [data-cols="7"]')
               await expect(grid).toBeVisible()
               if (isLoading) await expect(grid.locator('[data-outcome]')).toHaveCount(0)

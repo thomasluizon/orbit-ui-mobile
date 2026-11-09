@@ -12,6 +12,7 @@ import { formatCatalogMessage } from '../support/messages'
 import { test } from './upgrade-fixtures'
 import { measureScrollbarGutter } from './scrollbar-geometry'
 import { measureChromePaint } from './composer-column-paint'
+import { clickWhenHydrated } from './hydration-guard'
 
 test.use({ launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'] } })
 
@@ -48,9 +49,9 @@ for (const width of [320, 1280]) {
         const notifications = notificationsResponseSchema.parse({ items: [notification], unreadCount: 1 })
         await setLayoutFixtureSession(context, [{ path: API.notifications.list, body: notifications }])
         await page.goto('/notifications')
-        await page.getByRole('button', {
+        await clickWhenHydrated(page.getByRole('button', {
           name: words.notifications.deleteNotification.replace('{title}', notification.title), exact: true,
-        }).click()
+        }))
         const toast = page.locator('[data-shell-notice] [data-kind="neutral"]')
           .filter({ hasText: words.notifications.deleteQueued })
         await expect(toast).toBeVisible()
