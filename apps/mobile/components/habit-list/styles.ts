@@ -39,9 +39,8 @@ export function createStyles(tokens: AppTokens) {
 
   return StyleSheet.create({
     skeletonContainer: {
-      paddingTop: SPACING.s8,
-      paddingHorizontal: PADDING.screenGutter,
-      gap: 12,
+      paddingTop: SPACING.s12,
+      gap: SPACING.s12,
     },
     skeletonCard: {
       backgroundColor: tokens.bgCard,
