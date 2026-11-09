@@ -9,6 +9,7 @@ on:
       - 'tools/desktop-bench/**'
       - '.github/actions/desktop-acceptance-setup/**'
       - '.github/workflows/desktop-acceptance.yml'
+      - '.github/actions/desktop-nsis-tools/**'
 
 permissions:
   contents: read
@@ -34,6 +35,9 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/desktop-acceptance-setup
+      - name: Provide the NSIS bundler tools
+        if: runner.os == 'Windows'
+        uses: ./.github/actions/desktop-nsis-tools
       - name: Build, install and exercise the isolated desktop app
         env:
           ACCEPTANCE_OUTPUT: ${{ runner.temp }}/orbit-desktop-acceptance

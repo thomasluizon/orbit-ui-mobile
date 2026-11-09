@@ -22,7 +22,10 @@ focus, use `/sleep`'s `/orchestrate --auto` entry. Adopt a nominated relay befor
 Run `node tools/auto-work-state.mjs --enable` in the orchestrating checkout. Read the state
 back with `readRunState` from `tools/lib/run-state.mjs`, confirming this session and
 `autoWork: true`. Preserve `intake` on every write. `writeRunState` carries both forward within
-the session and into a relay successor. An owner-started successor restores the prepared
+the session and into a relay successor. Change part of the record only through `updateRunState`,
+which reads and writes under one lock. `updateRunState` refuses the change from a superseded session with
+`session is superseded; run state write refused`, so the read-back then shows the successor's record unchanged.
+An owner-started successor restores the prepared
 handoff through `/sleep` entry before any ordinary state write. Each intake writer also reads
 its write back.
 
@@ -122,7 +125,7 @@ for the successor.
    Missing app credentials are a named external dependency, never an empty successful read.
 7. Read `node tools/plan-queue.mjs --board` and use `/orchestrate`'s `--auto` selection to admit
    every finishable open ticket in that order within the current run. Append newly admitted
-   tickets to `remaining` through `writeRunState` and read back the queue; never enter a second
+   tickets to `remaining` through `updateRunState` and read back the queue; never enter a second
    orchestrator or replace admitted and in-flight work. Skip only a ticket
    awaiting the owner personally or a named third party; log the reason once per ticket in
    `intake.boardBlocked`, updating it only when the reason changes. Dependency ordering and

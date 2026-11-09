@@ -2,7 +2,7 @@
 import { readFileSync, writeFileSync } from "node:fs"
 import { isAbsolute } from "node:path"
 import { pathToFileURL } from "node:url"
-import { intakeSource, replyDisposition, saveIntakeSource } from "./lib/auto-work-intake.mjs"
+import { replyDisposition, updateIntakeSource } from "./lib/auto-work-intake.mjs"
 import { PLAY_PACKAGES, playAccessToken, reviewItem } from "./orbit-play-reviews.mjs"
 import { appStoreToken, readAppStoreReviews } from "./orbit-app-store-reviews.mjs"
 import { REPO_ROOT } from "./lib/run-state.mjs"
@@ -21,12 +21,14 @@ exit codes: 0 confirmed; 1 policy, API, state or artifact failure; 2 invalid arg
 
 export const prepareReviewReply = (receipt, repoRoot = REPO_ROOT) => {
   if (!["play", "appStore"].includes(receipt?.source) || replyDisposition(receipt) !== "send" || typeof receipt.reply !== "string" || !receipt.reply.trim()) throw new Error("Only clear store replies can be prepared")
-  const current = intakeSource(receipt.source, repoRoot)
-  const item = current.pending[receipt.id]
-  if (!item) throw new Error("No pending review matches the reply")
-  if (item.replyRequest && JSON.stringify(item.replyRequest.receipt) !== JSON.stringify(receipt)) throw new Error("Resume the saved review reply before preparing another")
-  const request = item.replyRequest ?? { receipt, item: Object.fromEntries(Object.entries(item).filter(([key]) => !["replyRequest", "replyPosted"].includes(key))) }
-  saveIntakeSource(receipt.source, { ...current, pending: { ...current.pending, [receipt.id]: { ...item, replyRequest: request } } }, repoRoot)
+  let request
+  updateIntakeSource(receipt.source, (current) => {
+    const item = current.pending[receipt.id]
+    if (!item) throw new Error("No pending review matches the reply")
+    if (item.replyRequest && JSON.stringify(item.replyRequest.receipt) !== JSON.stringify(receipt)) throw new Error("Resume the saved review reply before preparing another")
+    request = item.replyRequest ?? { receipt, item: Object.fromEntries(Object.entries(item).filter(([key]) => !["replyRequest", "replyPosted"].includes(key))) }
+    return { ...current, pending: { ...current.pending, [receipt.id]: { ...item, replyRequest: request } } }
+  }, repoRoot)
   return [request]
 }
 
@@ -70,11 +72,12 @@ export const importReviewReplies = (snapshot, repoRoot = REPO_ROOT) => {
   for (const request of snapshot.posted) {
     const { source, id } = request.receipt
     if (!["play", "appStore"].includes(source)) throw new Error("Invalid reply receipt source")
-    const current = intakeSource(source, repoRoot)
-    const item = current.pending[id]
-    if (!item && current.completed[id]?.replyPosted) continue
-    if (!item?.replyRequest || JSON.stringify(item.replyRequest) !== JSON.stringify(request)) throw new Error("Reply receipt does not match the saved request")
-    saveIntakeSource(source, { ...current, pending: { ...current.pending, [id]: { ...item, replyPosted: true } } }, repoRoot)
+    updateIntakeSource(source, (current) => {
+      const item = current.pending[id]
+      if (!item && current.completed[id]?.replyPosted) return current
+      if (!item?.replyRequest || JSON.stringify(item.replyRequest) !== JSON.stringify(request)) throw new Error("Reply receipt does not match the saved request")
+      return { ...current, pending: { ...current.pending, [id]: { ...item, replyPosted: true } } }
+    }, repoRoot)
   }
   return { posted: snapshot.posted.length, failures: snapshot.failures }
 }
