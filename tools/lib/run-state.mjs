@@ -144,13 +144,17 @@ const removeStaleReclaim = (path) => {
   }
 }
 
+// A process start identity never changes, and each darwin read spawns ps, so lock owners read their own once.
+let ownProcessStartIdentity = null
+const ownProcessIdentity = () => (ownProcessStartIdentity ??= processStartIdentity(process.pid))
+
 /** The directory is only a container; a complete, exclusive owner file is the lock. */
 export const acquireRelayLock = (repoRoot = REPO_ROOT, lockName = "orbit-relay-lock") => {
   const directory = join(gitDirectoryOf(repoRoot), lockName)
   mkdirSync(directory, { recursive: true })
   const path = join(directory, "owner.json")
   const reclaimPath = `${path}.reclaim`
-  const identity = processStartIdentity(process.pid)
+  const identity = ownProcessIdentity()
   if (identity === null) throw new Error("cannot prove relay lock owner identity")
   const owner = { pid: process.pid, processStartIdentity: identity, claimId: randomUUID() }
   const occupied = () => { throw new Error("EEXIST: relay lock has a live or unproven owner") }
@@ -312,10 +316,58 @@ export const supersededRunSession = (sessionId, state) => {
     ? { sessionId: state.sessionId, terminal: state.relay.successorTerminal ?? null } : null
 }
 
-export const writeRunState = (state, repoRoot = REPO_ROOT) => {
+const RUN_STATE_LOCK_WAIT_MILLISECONDS = 5000
+const RUN_STATE_LOCK_RETRY_MILLISECONDS = 10
+const lockPause = new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT))
+const heldRunStateLocks = new Set()
+
+/**
+ * Serializes every run state read-change-write across processes. A nested call from the holder throws,
+ * because the outer write would discard it, and a dead holder's lock is reclaimed as in acquireRelayLock.
+ */
+const withRunStateLock = (repoRoot, action) => {
+  const gitDirectory = gitDirectoryOf(repoRoot)
+  if (heldRunStateLocks.has(gitDirectory)) throw new Error("run state lock is already held by this process; make the change inside the held update")
+  const deadline = Date.now() + RUN_STATE_LOCK_WAIT_MILLISECONDS
+  let release
+  while (!release) {
+    try { release = acquireRelayLock(repoRoot, "orbit-run-state-lock") } catch (error) {
+      if (!error.message.startsWith("EEXIST:")) throw error
+      if (Date.now() >= deadline) throw new Error(`run state lock stayed held for ${RUN_STATE_LOCK_WAIT_MILLISECONDS} ms`, { cause: error })
+      Atomics.wait(lockPause, 0, 0, RUN_STATE_LOCK_RETRY_MILLISECONDS)
+    }
+  }
+  heldRunStateLocks.add(gitDirectory)
+  try { return action() } finally {
+    heldRunStateLocks.delete(gitDirectory)
+    release()
+  }
+}
+
+const SUPERSEDED_WRITE_REFUSED = "session is superseded; run state write refused"
+
+/**
+ * The one atomic read-change-write: `change` gets the current record (or null) and returns the record
+ * to write, or undefined to skip; returns the read-back record or undefined. The caller is
+ * `options.sessionId`, else `CLAUDE_CODE_SESSION_ID`; a superseded caller is refused before `change`
+ * runs. No id skips the check: tests and CI set none, and the relay rollback passes `sessionId: null`.
+ */
+export const updateRunState = (change, repoRoot = REPO_ROOT, options = {}) => withRunStateLock(repoRoot, () => {
+  const callerSessionId = Object.hasOwn(options, "sessionId") ? options.sessionId : process.env.CLAUDE_CODE_SESSION_ID
+  const current = readRunState(repoRoot)
+  if (supersededRunSession(callerSessionId, current)) throw new Error(SUPERSEDED_WRITE_REFUSED)
+  const next = change(current)
+  if (next === undefined) return undefined
+  publishRunState(next, repoRoot)
+  return readRunState(repoRoot)
+})
+
+export const writeRunState = (state, repoRoot = REPO_ROOT) => withRunStateLock(repoRoot, () => publishRunState(state, repoRoot))
+
+const publishRunState = (state, repoRoot) => {
   mkdirSync(gitDirectoryOf(repoRoot), { recursive: true })
   const previous = readRunState(repoRoot)
-  if (supersededRunSession(state?.sessionId, previous)) throw new Error("session is superseded; run state write refused")
+  if (supersededRunSession(state?.sessionId, previous)) throw new Error(SUPERSEDED_WRITE_REFUSED)
   if (previous?.relay?.canceledByOwner && previous.relay.successorSessionId === state?.sessionId) {
     throw new Error("owner canceled this relay nominee; ordinary sleep entry is forbidden")
   }
