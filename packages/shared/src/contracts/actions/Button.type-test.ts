@@ -34,11 +34,13 @@ type ExpectedLabelledVariant = ExpectedButtonBase & {
   accessibleName?: string
   iconOnly?: never
   label?: never
+  edge?: never
 }
 type ExpectedIconOnlyVariant = ExpectedButtonBase & {
   children: React.ReactNode
   iconOnly: true
   label: string
+  edge?: 'start'
   accessibleName?: never
   leadingIcon?: never
   brand?: never

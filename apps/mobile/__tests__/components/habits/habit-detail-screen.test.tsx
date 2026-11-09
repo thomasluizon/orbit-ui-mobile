@@ -39,10 +39,12 @@ import { useUIStore } from '@/stores/ui-store'
 
 import { createTokensV2 } from '@/lib/theme'
 import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
+import { measureStartEdgeIconAction } from '@/__tests__/support/start-edge-icon-action'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 const externalLinks = vi.hoisted(() => ({ openURL: vi.fn().mockResolvedValue(undefined) }))
+const realPillButtons = vi.hoisted(() => ({ enabled: false }))
 vi.mock('react-native', async (importOriginal) => ({ ...await importOriginal<typeof import('react-native')>(), Linking: externalLinks }))
 vi.mock('expo-crypto', () => ({ randomUUID: () => '11111111-1111-4111-8111-111111111111' }))
 
@@ -410,7 +412,7 @@ vi.mock('@/components/ui/list-row', async (importOriginal) => {
 })
 vi.mock('@/components/ui/pill-button', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components/ui/pill-button')>()
-  return { PillButton: (props: React.ComponentProps<typeof actual.PillButton>) => props.children === 'habits.reschedule.suggestDate'
+  return { PillButton: (props: React.ComponentProps<typeof actual.PillButton>) => (realPillButtons.enabled || props.children === 'habits.reschedule.suggestDate')
     ? <actual.PillButton {...props} /> : React.createElement('PillButton', { disabled: props.disabled, label: props.label, variant: props.variant, size: props.size, loading: props.loading, onClick: props.onClick, accessibilityRole: props.accessibilityRole }, props.children) }
 })
 vi.mock('@/components/ui/stat-tile', async (importOriginal) => ({
@@ -562,6 +564,7 @@ describe('HabitDetailScreen', () => {
   })
 
   afterEach(() => {
+    realPillButtons.enabled = false
     __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 })
     vi.useRealTimers()
   })
@@ -1721,6 +1724,23 @@ describe('HabitDetailScreen', () => {
     expect(externalLinks.openURL).toHaveBeenCalledTimes(2)
     expect(textsOf(section)).not.toContain('common.error')
     expect(textsOf(section)).toContain('http://example.org/second')
+  })
+
+  it.each([320, 412, 1280])('starts the description link retry glyph on the failure text column and centres it in its paint at %s px', async (width) => {
+    externalLinks.openURL.mockReset().mockRejectedValueOnce(new Error('No activity')).mockResolvedValue(undefined)
+    mocks.detail = { ...makeDetail(), description: 'https://example.com/first' }
+    realPillButtons.enabled = true
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const link = tree.root.findByProps({ testID: 'habit-detail-description' }).findAllByType('Text').find((node: TestNode) => node.props.accessibilityLabel === 'https://example.com/first')!
+    await TestRenderer.act(async () => { await link.props.onPress() })
+    const geometry = measureStartEdgeIconAction(tree, width, 'common.retry', 'common.error')
+    const detail = JSON.stringify(geometry)
+    expect(geometry.texts, detail).toHaveLength(1)
+    expect(geometry.paint.width, detail).toBe(44)
+    expect(Math.abs((geometry.glyph.left + geometry.glyph.right) / 2 - (geometry.paint.left + geometry.paint.right) / 2), detail).toBeLessThanOrEqual(0.5)
+    expect(Math.abs((geometry.glyph.top + geometry.glyph.bottom) / 2 - (geometry.paint.top + geometry.paint.bottom) / 2), detail).toBeLessThanOrEqual(0.5)
+    expect(Math.abs(geometry.glyph.left - geometry.texts[0]!.left), detail).toBeLessThanOrEqual(0.5)
   })
 
   it.each([[false, false], [true, false], [false, true], [true, true]])('places optional tags (%s) and description (%s) below the header row', (hasTags, hasDescription) => {

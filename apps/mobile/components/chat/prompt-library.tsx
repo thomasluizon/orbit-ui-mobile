@@ -85,7 +85,7 @@ export function PromptLibrary(props: Readonly<PromptLibraryProps>) {
       {groupPromptIdeas(visible, t).map(group => <CatalogGroup key={group.category} group={group} searching={!!query.trim()} disabled={!!props.disabledReason} onSelect={(...selection) => select(() => props.onSelect(...selection))} />)}
       <View style={matches.length === 0 ? styles.empty : styles.silentStatus}>
         <Text accessibilityLiveRegion="polite" style={matches.length === 0 ? { fontFamily: 'Geist_400Regular', fontSize: 14, color: tokens.fg3 } : styles.silentStatus}>{matches.length === 0 ? t('chat.templates.noMatches', { query: query.trim() }) : ''}</Text>
-        {matches.length === 0 ? <IconButton label={t('chat.templates.clearSearch')} onClick={() => { dispatch({ type: 'query', query: '' }) }}><X size={20} strokeWidth={1.5} accessible={false} /></IconButton> : null}
+        {matches.length === 0 ? <IconButton edge="start" label={t('chat.templates.clearSearch')} onClick={() => { dispatch({ type: 'query', query: '' }) }}><X size={20} strokeWidth={1.5} accessible={false} /></IconButton> : null}
       </View>
       {lastPage > 0 ? <View style={styles.pages}><ActionRow>
         <IconButton label={t('chat.templates.previous')} disabled={currentPage === 0} onClick={() => dispatch({ type: 'page', page: currentPage - 1 })}><ChevronLeft size={20} strokeWidth={1.5} accessible={false} /></IconButton>

@@ -45,9 +45,14 @@ const BAD_TEXT_SOURCE_SITES = [
     pattern: /const titleColor = danger \? 'var\(--status-bad-text\)'/,
   },
   {
+    name: 'web inline load error primitive',
+    path: 'apps/web/components/ui/inline-load-error.tsx',
+    pattern: /role="alert"[\s\S]*?text-\[var\(--status-bad-text\)\]/,
+  },
+  {
     name: 'web API-key list load error',
     path: 'apps/web/components/profile/profile-api-keys.tsx',
-    pattern: /if \(loadError\)[\s\S]*?text-\[var\(--status-bad-text\)\][\s\S]*?\{t\('orbitMcp\.apiKeysError'\)\}/,
+    pattern: /if \(loadError\)[\s\S]*?<InlineLoadError message=\{t\('orbitMcp\.apiKeysError'\)\}/,
   },
   {
     name: 'web API-key create request error',
@@ -113,6 +118,16 @@ const BAD_TEXT_SOURCE_SITES = [
     name: 'mobile habit form error',
     path: 'apps/mobile/components/habits/habit-form-fields/styles.ts',
     pattern: /fieldError[\s\S]*?color: tokens\.statusBadText/,
+  },
+  {
+    name: 'mobile inline load error primitive',
+    path: 'apps/mobile/components/ui/inline-load-error.tsx',
+    pattern: /accessibilityRole="alert"[\s\S]*?color: tokens\.statusBadText/,
+  },
+  {
+    name: 'mobile API-key list load error',
+    path: 'apps/mobile/components/profile/profile-api-keys.tsx',
+    pattern: /if \(loadError\)[\s\S]*?<InlineLoadError message=\{t\('orbitMcp\.apiKeysError'\)\}/,
   },
   {
     name: 'mobile API-key create request error',
