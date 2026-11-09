@@ -279,13 +279,17 @@ lift them straight out.
 
 ## 10. Watch the allowance
 
-Workers run under the dedicated worker account, a Claude Max subscription separate from the
-orchestrator's account. Its usage meters on a rolling five hour window plus a weekly cap. When a
-worker stops at that limit, `launch-worker.mjs` relaunches it once on the main account, the
-orchestrator's default Claude config (`orchestrate/SKILL.md` §5.4.1). If the main account also
-reaches its limit, stop spawning workers and log the reset time. Then switch to work you can do
+Workers run under the dedicated worker account when `ORBIT_WORKER_CLAUDE_CONFIG_DIR` names one,
+and under the main account, the orchestrator's default Claude config, when it is unset
+(`orchestrate/SKILL.md` §5.4.1). Usage meters on a rolling five hour window plus a weekly cap.
+When a worker on the worker account stops at that limit, `launch-worker.mjs` relaunches it once on
+the main account. If the main account reaches its limit, stop spawning workers and log the reset
+time. Then switch to work you can do
 without a worker: CI waiting, review fixes and readiness checks. Never launch a worker on Codex in
 its place.
+A launch result with `authenticationFailed: true` follows `orchestrate/SKILL.md` §5.4.1 by its
+`account`: on `worker`, no further worker-account launch and relaunches in single-account mode; on
+`main`, no further launch at all. Either way the owner's fix goes in the report.
 
 ## 11. The wake report
 
