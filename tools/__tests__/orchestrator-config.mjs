@@ -129,7 +129,7 @@ export const cases = async () => {
   T(`${NAME}: removing the off vector is the config kill switch`,
     JSON.stringify(resolveWorkerInvocation("codex", killSwitch).args) === JSON.stringify([...killSwitch.args, ...(killSwitch.models.default.args ?? []), "--model", killSwitch.models.default.model]))
   const shipped = readOrchestratorConfig()
-  T(`${NAME}: the shipped relay arms at 330000 tokens and forces at 390000`, shipped.relay.softTokens === 330000 && shipped.relay.hardTokens === 390000, `got ${JSON.stringify(shipped.relay)}`)
+  T(`${NAME}: the shipped relay arms at 350000 tokens and forces at 400000`, shipped.relay.softTokens === 350000 && shipped.relay.hardTokens === 400000, `got ${JSON.stringify(shipped.relay)}`)
   T(`${NAME}: the shipped parallel ticket cap is 40`, real.caps.parallelTickets === 40)
   for (const name of ["parallelTickets", "maxOpenPullRequests", "maxQueuedRuns"]) {
     T(`${NAME}: the reader preserves the shipped ${name} cap`, shipped.caps[name] === real.caps[name])
