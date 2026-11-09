@@ -125,16 +125,19 @@ no invocation flag overrides it. Pool sizing for an enabled Cloud lane is detail
                      on EVERY worker exit, DELIVERED included: read the worker log tail for
                      NEEDS_DECISION and the PR body's ## Assumptions (attended: adjudicate
                      both with the owner NOW, before step 8)
-                     anything but DELIVERED enters the bounded readiness/fixer path or a real blocker
+                     anything but DELIVERED enters the bounded readiness/fixer path or a real blocker,
+                     except CI_PENDING whose only pending check is pullfrog-approval: go to step 8
                      SALVAGE allowed: discard residue · test then commit+push what the worker
                      left · re-run a CI job proven infra. NEVER write code, revert, force, merge.
                      A SALVAGED PR RE-ENTERS HERE and runs 7, 8 and 9 like any other.
- 8  CLEAR PULLFROG   Pullfrog reviews on open and re-reviews on every push. Ask for nothing.
+ 8  CLEAR PULLFROG   Pullfrog reviews only on request, and the request waits for green CI.
                      node tools/list-bot-threads.mjs --pr <n> --repo <key> -> threads[] AND reviewBody
+                     CI_FAILING -> fix CI, no review · CI_PENDING -> wait-ci, then run it again
                      FIX every finding that breaks behaviour, security or data integrity
                      FILE every other finding as an orbit-tickets issue
                      REPLY AND RESOLVE every thread you filed, with resolve-bot-thread.mjs
-                     resolve FIRST, then push. The push re-reviews both together.
+                     resolve FIRST, then push. When CI is green, the same command asks for
+                     the re-review of both together.
                      bound: caps.reviewFixAttempts commits
  9  READINESS LOOP   wait CI, the review verdict admissible on that base included · fix genuine
                      failures · merge main into branch when behind · rerun invalidated receipts
@@ -557,7 +560,7 @@ on the pull request is the only runner and evidence.
 For a local review-fix worker, add `--review-batch` to the compose command. Its order stops after
 the broader suite and a tested commit. The worker reports the commit SHA and test results without
 pushing or updating the pull request. The orchestrator replies to and resolves the batch's threads,
-pushes once, and lets that push request the review.
+pushes once, and asks for the review with `list-bot-threads.mjs` after the CI of that push passes.
 
 Write it to the scratchpad. A prompt file inside the worktree gets committed by the worker.
 
@@ -986,10 +989,28 @@ repositories and publishes `pullfrog-approval`, a required status check on `main
 The verdict therefore reaches readiness through the required contexts `record-readiness.mjs` already
 reads, and no receipt of this harness owns it.
 
-**Pullfrog reviews automatically when the pull request opens, and it re-reviews on every push.** The
-request comment is therefore redundant on a normal run. `list-bot-threads.mjs` still posts
-`@pullfrog review` first, and only when no review of the current head exists yet, which covers a pull
-request opened before automatic review existed. Pass `--no-request` to suppress that comment.
+**Pullfrog reviews only when somebody asks, and `list-bot-threads.mjs` asks only for a head whose CI
+passed.** The Pullfrog console settings `review.mode` `none` and `review.re-review` `false` stop the
+review on open and on push. A review of a head whose CI later fails is lost: the CI fix push
+dismisses the approval, and Pullfrog must review the same change again. The tool posts
+`@pullfrog review` only when all of these are true:
+
+1. No review of the current head exists.
+2. No `@pullfrog review` comment exists after the push of the current head.
+3. Each required check of the base, except `pullfrog-approval`, is registered on the head.
+4. No check on the head, except the checks of the Pullfrog app, is failing or still running.
+
+While CI runs, the tool waits inside its `--wait-seconds` budget. It reports `CI_FAILING` and posts
+nothing when a check failed. Send that head through the step 9 fixer, push, and run the tool again.
+It reports `CI_PENDING` and posts nothing when CI still runs at the end of the budget. Start
+`node tools/wait-ci.mjs --repo <key> --pr <n>` in the background, then run the tool again when the
+waiter exits 0. A plain waiter does not wait for `pullfrog-approval`, so it settles before the
+review exists. Add `--require-check pullfrog-approval` only to wait for the review itself.
+`node tools/run-status.mjs` names the same request as its `REQUEST_REVIEW` action. Pass
+`--no-request` to read the review state without a request.
+
+A pull request that this run did not open, such as a contract rebaseline pull request or one the
+owner opened, gets no automatic review either. Ask for its review with the same command.
 
 Its review instructions live in the Pullfrog console, on the server, and in no file of either
 repository. That placement is the point. A pull request may edit any file on its own head, so a
@@ -1026,13 +1047,15 @@ manufacture a push:
 node tools/list-bot-threads.mjs --pr <n> --repo <key> --wait-seconds 900 --re-review
 ```
 
-`--re-review` posts `@pullfrog review` even though the head is already reviewed, and it accepts
+`--re-review` waits for the same CI gate, then posts `@pullfrog review` even though the head is
+already reviewed or already requested, and it accepts
 only a review submitted AFTER the one that was present when the run started. That timestamp
 comparison is what makes it terminate: without it the run reads back the review it was sent to
 replace and reports the finding it just answered. Only a fresh `APPROVED` review of that same head
 clears `pullfrog-approval`.
 
-A body finding you FIX needs none of this. The fix moves the head, and the push re-reviews it.
+A body finding you FIX needs none of this. The fix moves the head. When the CI of the new head
+passes, `list-bot-threads.mjs` asks for its review.
 
 **Split every unresolved finding two ways, and act on both halves:**
 
@@ -1078,8 +1101,9 @@ requires and replaces the complete `## Review harness` block for a UI batch. Wit
 preserves the previous block. Then run `gh pr edit <n> --body-file <merged-body>`. Only then does
 the orchestrator reply to and resolve every identified thread on that commit, then push once. A
 report that lacks the evidence the order required is a failed batch, never a push. For a batch with no matching path, accept a report without that block and preserve any existing PR-body block.
-For a batch with a matching path, require the complete block and replace the PR-body block before continuing. That push starts Pullfrog's
-review with the fixes and resolved threads together. A registered
+For a batch with a matching path, require the complete block and replace the PR-body block before continuing. After that push, run
+`list-bot-threads.mjs`: when the CI of the new head passes, it asks Pullfrog for one review of the
+fixes and resolved threads together. A registered
 `pullfrog-approval` SUCCESS at the current head is the verdict. When that check is ABSENT from the
 rollup, a Pullfrog review with `reviewState` `APPROVED` and `reviewedCommit` equal to that head stands
 in for it. When Pullfrog produced neither, nothing else may stand in on protected `main`, because a real check exists there and only Pullfrog can publish it.
@@ -1133,9 +1157,10 @@ write unless the node's own `repository.nameWithOwner` equals what `--repo` reso
 **A permissions error on any of these is a WRONG TARGET until proven otherwise.** The tool names the
 repository the node actually resolved to. Read that name before you retry anything.
 
-**For a fix the orchestrator writes, resolve FIRST, then push.** The push fires the incremental
-re-review, which reads the fixes and resolved threads together. Use the same order for a worker's
-`--review-batch` commit: resolve its threads, then push.
+**For a fix the orchestrator writes, resolve FIRST, then push.** When the CI of the pushed head
+passes, `list-bot-threads.mjs` asks for the incremental re-review, which reads the fixes and resolved
+threads together. Use the same order for a worker's `--review-batch` commit: resolve its threads,
+then push.
 
 After the push, re-run `node tools/verify-delivery.mjs`. The fix moved the head, so the earlier
 `DELIVERED` is stale until this re-runs. `DELIVERED` continues; `STALE_PR` means the push did not
@@ -1187,7 +1212,9 @@ tied to the old head or base. Bare PR numbers are never sufficient run state.
 For each existing PR, repeat within the configured `caps.reviewFixAttempts` fixer bound:
 
 1. Read PR draft/head/base state and GitHub compare. If behind, merge current `main` into the branch
-   without rebasing or force-pushing, push normally, and invalidate all earlier receipts.
+   without rebasing or force-pushing, push normally, and invalidate all earlier receipts. Merge
+   before the first review request when the branch is already behind: a merge after an approval
+   needs one more request.
 2. Wait for all checks to settle. Preserve exact failed metadata. Rerun only a failure proven from
    its run/job steps to be infrastructure or a flake; send genuine failures through the existing
    fixer. A resulting commit invalidates every head-bound receipt.
@@ -1535,8 +1562,10 @@ finished, so nobody goes looking. A claim that CI will wake the session requires
 The CI waiter exits 0 only for a settled passing head; 4 means the head moved, 5 means the
 pull request closed, and 6 means settled failing checks. Re-read delivery on 4 or 5 and fix
 failures on 6; none is successful CI. Exit 3 is the ceiling; 1 or 2 is a read or usage error.
-When CI or review is the remaining work, start
-`node tools/wait-ci.mjs --repo <key> --pr <n> [--require-check pullfrog-approval]` in the background.
+When CI is the remaining work, start `node tools/wait-ci.mjs --repo <key> --pr <n>` in the
+background. When the review is the remaining work, first ask for it with `list-bot-threads.mjs`, then
+start the waiter with `--require-check pullfrog-approval`. Without the request, that waiter reaches
+its ceiling, because Pullfrog reviews only on request.
 The worker launcher, Cloud receipt watcher, CI waiter, release waiter, file waiter and relay tool
 each register a live wake source. For a detached local check, start
 `node tools/wait-file.mjs --file <absolute completion file> --started-at <original ISO start> --what <check label>` in the background.

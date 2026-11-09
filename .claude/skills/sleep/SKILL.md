@@ -138,7 +138,10 @@ Follow `/orchestrate`'s "Every turn under `--sleep` ends with a live wake source
   The CI waiter exits 0 only for a settled passing head; 4 means the head moved, 5 means the
 pull request closed, and 6 means settled failing checks. Re-read delivery on 4 or 5 and fix
 failures on 6; none is successful CI. Exit 3 is the ceiling; 1 or 2 is a read or usage error.
-  When work waits on CI or review, start `tools/wait-ci.mjs` in the background for those pull requests.
+  When work waits on CI, start `tools/wait-ci.mjs` in the background for those pull requests.
+  Pullfrog reviews only on request. When work waits on review, ask with
+  `tools/list-bot-threads.mjs --repo <key> --pr <n>`, then start the waiter with
+  `--require-check pullfrog-approval`.
   For a detached local check, start `node tools/wait-file.mjs --file <absolute completion file>
   --started-at <original ISO start> --what <check label>` in the background with a fresh completion file for that check.
   The check writes JSON `{ "exitCode": <check exit status> }` atomically on completion.
