@@ -11,6 +11,9 @@ import { shouldLoadTurnstileFrame, TURNSTILE_ORIGIN_ALLOWLIST } from '@/lib/turn
 
 type WidgetState = 'idle' | 'loading' | 'solved' | 'failed' | 'expired'
 
+// WHY: Cloudflare sizes the flexible widget at 100% width and 65px height https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/widget-configurations/
+const FLEXIBLE_CHALLENGE_HEIGHT = 65
+
 export function TurnstileWidget({
   siteKey,
   resetKey,
@@ -25,7 +28,7 @@ export function TurnstileWidget({
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
   const [state, setState] = useState<WidgetState>('idle')
   const [attempt, setAttempt] = useState(0)
-  const challengeHeight = state === 'solved' ? 0 : 160
+  const challengeHeight = state === 'solved' ? 0 : FLEXIBLE_CHALLENGE_HEIGHT
   const bridgeUrl = `${APP_LINK_ORIGIN}/turnstile-bridge?siteKey=${encodeURIComponent(siteKey)}&theme=${currentTheme}&language=${encodeURIComponent(i18n.language)}`
 
   useEffect(() => {
@@ -70,8 +73,8 @@ export function TurnstileWidget({
         originWhitelist={TURNSTILE_ORIGIN_ALLOWLIST}
         onShouldStartLoadWithRequest={(request) => shouldLoadTurnstileFrame(request, APP_LINK_ORIGIN)}
         accessibilityLabel={t('auth.turnstileLabel')}
-        containerStyle={{ width: 256, height: challengeHeight, flex: 0, backgroundColor: tokens.bg }}
-        style={{ width: 256, height: challengeHeight, flex: 0, backgroundColor: tokens.bg }}
+        containerStyle={{ width: '100%', height: challengeHeight, flex: 0, backgroundColor: tokens.bg }}
+        style={{ width: '100%', height: challengeHeight, flex: 0, backgroundColor: tokens.bg }}
         javaScriptEnabled
         domStorageEnabled
         thirdPartyCookiesEnabled

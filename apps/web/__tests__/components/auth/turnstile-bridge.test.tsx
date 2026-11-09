@@ -29,6 +29,7 @@ it('posts widget state and tokens through the native bridge', () => {
   expect(widget.props?.quiet).toBe(true)
   expect(container.firstElementChild).toHaveStyle({ backgroundColor: neutralColors.light.bg, colorScheme: 'light' })
   expect(container.firstElementChild).toHaveStyle({ '--fg-2': neutralColors.light.fg2 })
+  expect(container.firstElementChild).toHaveStyle({ alignItems: 'stretch' })
 
   const onStateChange = widget.props?.onStateChange as (state: string) => void
   const onToken = widget.props?.onToken as (token: string | null) => void

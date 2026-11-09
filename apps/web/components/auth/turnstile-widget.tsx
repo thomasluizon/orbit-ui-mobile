@@ -4,6 +4,7 @@ import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
 import { useEffect, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
+import { useCurrentTheme } from '@/stores/theme-store'
 
 type WidgetState = 'idle' | 'loading' | 'solved' | 'failed' | 'expired'
 
@@ -11,8 +12,8 @@ interface TurnstileApi {
   render: (container: HTMLElement, options: {
     sitekey: string
     appearance: 'interaction-only'
-    size: 'compact'
-    theme?: 'light' | 'dark'
+    size: 'flexible'
+    theme: 'light' | 'dark'
     language: string
     callback: (token: string) => void
     'error-callback': () => boolean
@@ -89,6 +90,8 @@ export function TurnstileWidget({
   const appLocale = useLocale()
   // WHY: Cloudflare lists Orbit's pt-BR as pt-br https://developers.cloudflare.com/turnstile/reference/supported-languages/
   const challengeLanguage = (language ?? appLocale).toLowerCase()
+  const currentTheme = useCurrentTheme()
+  const challengeTheme = theme ?? currentTheme
   const { containerRef, challengeVisible } = useChallengeVisibility()
   const widgetIdRef = useRef<unknown>(null)
   const callbacksRef = useRef({ onToken, onStateChange })
@@ -123,8 +126,8 @@ export function TurnstileWidget({
       widgetIdRef.current = turnstile.render(container, {
         sitekey: siteKey,
         appearance: 'interaction-only',
-        size: 'compact',
-        ...(theme ? { theme } : {}),
+        size: 'flexible',
+        theme: challengeTheme,
         language: challengeLanguage,
         callback: (token) => update('solved', token),
         'error-callback': () => {
@@ -143,7 +146,7 @@ export function TurnstileWidget({
       if (widgetId != null) getTurnstile()?.remove(widgetId)
       widgetIdRef.current = null
     }
-  }, [containerRef, siteKey, theme, challengeLanguage, attempt])
+  }, [containerRef, siteKey, challengeTheme, challengeLanguage, attempt])
 
   useEffect(() => {
     if (resetKey === 0) return
@@ -165,11 +168,13 @@ export function TurnstileWidget({
 
   const statusVisible = !quiet && (state === 'loading' || state === 'failed' || state === 'expired')
   const position = challengeVisible || statusVisible ? undefined : 'absolute'
-  if (quiet) return <div ref={containerRef} style={{ position }} />
+  // WHY: Cloudflare documents no success state for interaction-only, so the form hides the passed widget itself https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/widget-configurations/
+  const challengeStyle = state === 'solved' ? { display: 'none' } : undefined
+  if (quiet) return <div ref={containerRef} style={{ position, ...challengeStyle }} />
 
   return (
-    <div className="flex flex-col items-center text-sm text-[var(--fg-2)]" style={{ gap: 8, position }}>
-      <div ref={containerRef} />
+    <div className="flex flex-col items-center text-center text-sm text-[var(--fg-2)]" style={{ gap: 8, position }}>
+      <div ref={containerRef} className="w-full" style={challengeStyle} />
       <p role="status" className={state === 'loading' ? '' : 'sr-only'}>
         {state === 'loading' ? t('auth.turnstileLoading') : ''}
       </p>
