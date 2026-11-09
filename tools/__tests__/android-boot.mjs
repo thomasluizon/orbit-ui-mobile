@@ -6,7 +6,9 @@ import { fatalLogcat, firstScreenRendered, notRespondingProcess, notRespondingWa
 import { BASH, REPO_ROOT, root, stage, T, toolPath } from "./_harness.mjs"
 
 const packageName = "org.useorbit.app"
-const labels = ["en", "pt-BR"].map((locale) => JSON.parse(readFileSync(join(REPO_ROOT, "packages/shared/src/i18n", `${locale}.json`), "utf8")).onboarding.flow.what.label)
+const firstRoute = ["en", "pt-BR"].map((locale) => JSON.parse(readFileSync(join(REPO_ROOT, "packages/shared/src/i18n", `${locale}.json`), "utf8")).onboarding.flow.what)
+const labels = firstRoute.map((what) => what.label)
+const titles = firstRoute.map((what) => what.title)
 
 function hierarchy(text, overrides = {}) {
   const attributes = {
@@ -83,6 +85,11 @@ function checkRecordedStartup() {
   const blocked = screen("update-required")
   const ready = replayBoot("ready", [onboarding])
   T("android-boot: recorded onboarding survives despite the keyboard-clipped heading", ready.status === 0 && ready.verdict.trim() === "passed", ready.stderr)
+  // Android AAB first screen run 42598912752: the autofocused input opened the keyboard, which clipped the input label and kept the title visible.
+  const keyboard = screen("onboarding-keyboard")
+  T("android-boot: the recorded keyboard dump shows the title and clips the input label", firstScreenRendered(keyboard, packageName, titles) && !firstScreenRendered(keyboard, packageName, labels))
+  const titled = replayBoot("ready-keyboard", [keyboard])
+  T("android-boot: recorded onboarding survives despite the keyboard-clipped input label", titled.status === 0 && titled.verdict.trim() === "passed", titled.verdict + titled.stderr)
   for (const [name, screens] of [["update", [blocked]], ["deferred-update", [onboarding, blocked]]]) {
     const result = replayBoot(name, screens)
     T(`android-boot: ${name} reports a build below the server minimum`, result.status === 1 && result.verdict.includes("build version is below the server minimum"), result.stderr)

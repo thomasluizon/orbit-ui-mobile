@@ -81,8 +81,8 @@ unextracted ARM libraries, so the gate uses native x86_64 execution. The emulato
 GitHub Actions.
 
 `tools/android-boot.mjs` clears storage, cold starts once and waits up to 90 seconds for the
-signed-out onboarding input label from either locale in a visible, enabled accessibility node
-owned by the app. The input remains visible when the keyboard clips the heading. It then waits
+signed-out onboarding title or input label from either locale in a visible, enabled
+accessibility node owned by the app. The keyboard can clip either one, so either label passes. It then waits
 15 seconds for deferred startup work and requires the same process and first screen to survive.
 The forced-update dialog fails immediately with a build-below-server-minimum verdict, including
 when it appears during settling over the first screen. The gate taps the Wait control of an

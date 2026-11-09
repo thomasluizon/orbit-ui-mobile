@@ -16,6 +16,8 @@ const USAGE = `usage: android-boot.mjs --apk <universal.apk> --package <applicat
   Install an AAB-derived APK on the connected, already booted CI emulator.
   Clear app storage and cold start once. Require the signed-out first screen,
   a surviving process after a settle period and no app-UID fatal logcat entries.
+  The first screen counts as rendered when its title or its input label is
+  visible, because the keyboard can clip either one.
   Dismiss another process's Application Not Responding dialog with its Wait
   control inside the startup deadline and a 30 second settle deadline; the
   app's own dialog fails the boot. A screen capture without a hierarchy root
@@ -101,7 +103,8 @@ async function infrastructure(args) {
 function startupLabels() {
   const translations = ["en", "pt-BR"].map((locale) => JSON.parse(readFileSync(join(ROOT, "packages/shared/src/i18n", `${locale}.json`), "utf8")))
   return {
-    firstScreen: translations.map((locale) => locale.onboarding.flow.what.label),
+    // The autofocused input opens the keyboard, which can clip either the title or the input label on the CI emulator.
+    firstScreen: translations.flatMap((locale) => [locale.onboarding.flow.what.title, locale.onboarding.flow.what.label]),
     updateRequired: translations.map((locale) => locale.forceUpdate.title),
   }
 }
