@@ -144,13 +144,17 @@ const removeStaleReclaim = (path) => {
   }
 }
 
+// A process start identity never changes, and each darwin read spawns ps, so lock owners read their own once.
+let ownProcessStartIdentity = null
+const ownProcessIdentity = () => (ownProcessStartIdentity ??= processStartIdentity(process.pid))
+
 /** The directory is only a container; a complete, exclusive owner file is the lock. */
 export const acquireRelayLock = (repoRoot = REPO_ROOT, lockName = "orbit-relay-lock") => {
   const directory = join(gitDirectoryOf(repoRoot), lockName)
   mkdirSync(directory, { recursive: true })
   const path = join(directory, "owner.json")
   const reclaimPath = `${path}.reclaim`
-  const identity = processStartIdentity(process.pid)
+  const identity = ownProcessIdentity()
   if (identity === null) throw new Error("cannot prove relay lock owner identity")
   const owner = { pid: process.pid, processStartIdentity: identity, claimId: randomUUID() }
   const occupied = () => { throw new Error("EEXIST: relay lock has a live or unproven owner") }
@@ -312,7 +316,49 @@ export const supersededRunSession = (sessionId, state) => {
     ? { sessionId: state.sessionId, terminal: state.relay.successorTerminal ?? null } : null
 }
 
-export const writeRunState = (state, repoRoot = REPO_ROOT) => {
+export const RUN_STATE_LOCK_WAIT_MILLISECONDS = 5000
+const RUN_STATE_LOCK_RETRY_MILLISECONDS = 10
+const lockPause = new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT))
+const heldRunStateLocks = new Set()
+
+/**
+ * Serializes every run state read-change-write across processes. A nested call from the holder runs
+ * inside the held lock, and a dead holder's lock is reclaimed as in acquireRelayLock.
+ */
+const withRunStateLock = (repoRoot, action) => {
+  const gitDirectory = gitDirectoryOf(repoRoot)
+  if (heldRunStateLocks.has(gitDirectory)) return action()
+  const deadline = Date.now() + RUN_STATE_LOCK_WAIT_MILLISECONDS
+  let release
+  while (!release) {
+    try { release = acquireRelayLock(repoRoot, "orbit-run-state-lock") } catch (error) {
+      if (!error.message.startsWith("EEXIST:")) throw error
+      if (Date.now() >= deadline) throw new Error(`run state lock stayed held for ${RUN_STATE_LOCK_WAIT_MILLISECONDS} ms`, { cause: error })
+      Atomics.wait(lockPause, 0, 0, RUN_STATE_LOCK_RETRY_MILLISECONDS)
+    }
+  }
+  heldRunStateLocks.add(gitDirectory)
+  try { return action() } finally {
+    heldRunStateLocks.delete(gitDirectory)
+    release()
+  }
+}
+
+/**
+ * The one atomic read-change-write. `change` receives the current record (null when none exists) and
+ * returns the record to write, or undefined to write nothing. Returns the record read back after the
+ * write, or undefined when nothing was written.
+ */
+export const updateRunState = (change, repoRoot = REPO_ROOT) => withRunStateLock(repoRoot, () => {
+  const next = change(readRunState(repoRoot))
+  if (next === undefined) return undefined
+  publishRunState(next, repoRoot)
+  return readRunState(repoRoot)
+})
+
+export const writeRunState = (state, repoRoot = REPO_ROOT) => withRunStateLock(repoRoot, () => publishRunState(state, repoRoot))
+
+const publishRunState = (state, repoRoot) => {
   mkdirSync(gitDirectoryOf(repoRoot), { recursive: true })
   const previous = readRunState(repoRoot)
   if (supersededRunSession(state?.sessionId, previous)) throw new Error("session is superseded; run state write refused")

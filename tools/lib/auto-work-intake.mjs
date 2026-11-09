@@ -1,4 +1,4 @@
-import { readRunState, writeRunState, REPO_ROOT } from "./run-state.mjs"
+import { readRunState, updateRunState, REPO_ROOT } from "./run-state.mjs"
 
 const carryingTicket = (ticket) => /^https:\/\/github\.com\/thomasluizon\/orbit-tickets\/issues\/\d+$/.test(ticket ?? "")
 
@@ -22,26 +22,36 @@ export const pendingReviewKeys = (intake) => [
   ...Object.keys(intake?.appStore?.pending ?? {}).map((id) => `appStore ${id}`),
 ]
 
-export const intakeRun = (repoRoot = REPO_ROOT) => {
-  const state = readRunState(repoRoot)
+/** The run record itself when it is the active auto-work run this process may write intake to. */
+export const activeIntakeRun = (state, repoRoot = REPO_ROOT) => {
   if (!state?.sessionId || !state.sleep || !state.autoWork ||
       (repoRoot === REPO_ROOT && process.env.CLAUDE_CODE_SESSION_ID && process.env.CLAUDE_CODE_SESSION_ID !== state.sessionId)) throw new Error("No matching active auto-work run")
   return state
 }
 
-export const intakeSource = (source, repoRoot = REPO_ROOT) => ({ completed: {}, pending: {}, highWater: null, ...intakeRun(repoRoot).intake?.[source] })
+export const intakeRun = (repoRoot = REPO_ROOT) => activeIntakeRun(readRunState(repoRoot), repoRoot)
 
-export const saveIntakeSource = (source, contents, repoRoot = REPO_ROOT) => {
-  const state = intakeRun(repoRoot)
-  writeRunState({ ...state, intake: { ...state.intake, [source]: contents } }, repoRoot)
-  const confirmed = intakeSource(source, repoRoot)
+const intakeSourceOf = (state, source) => ({ completed: {}, pending: {}, highWater: null, ...state.intake?.[source] })
+
+export const intakeSource = (source, repoRoot = REPO_ROOT) => intakeSourceOf(intakeRun(repoRoot), source)
+
+/** One locked read-change-write of one intake source; `change` receives the source as it is now. */
+export const updateIntakeSource = (source, change, repoRoot = REPO_ROOT) => {
+  let contents
+  const written = updateRunState((current) => {
+    const state = activeIntakeRun(current, repoRoot)
+    contents = change(intakeSourceOf(state, source))
+    return { ...state, intake: { ...state.intake, [source]: contents } }
+  }, repoRoot)
+  const confirmed = intakeSourceOf(written, source)
   if (JSON.stringify(confirmed) !== JSON.stringify(contents)) throw new Error("Intake write was not confirmed")
   return confirmed
 }
 
+export const saveIntakeSource = (source, contents, repoRoot = REPO_ROOT) => updateIntakeSource(source, () => contents, repoRoot)
+
 /** A completed item has both a durable disposition and the reply or ticket carrying it. */
-export const acknowledgeIntake = (source, receipt, repoRoot = REPO_ROOT) => {
-  const current = intakeSource(source, repoRoot)
+export const acknowledgeIntake = (source, receipt, repoRoot = REPO_ROOT) => updateIntakeSource(source, (current) => {
   const item = current.pending[receipt?.id]
   if (!item) throw new Error("No pending item matches the receipt")
   if (!["bug", "feature request", "question", "billing", "praise", "spam", "noise"].includes(receipt.classification)) throw new Error("Unknown intake classification")
@@ -52,7 +62,7 @@ export const acknowledgeIntake = (source, receipt, repoRoot = REPO_ROOT) => {
   if (receipt.person && source !== "gmail" && (typeof receipt.reply !== "string" || !receipt.reply.trim())) throw new Error("Save the review reply in the receipt")
   const pending = { ...current.pending }
   delete pending[receipt.id]
-  return saveIntakeSource(source, { ...current, pending,
+  return { ...current, pending,
     completed: { ...current.completed, [receipt.id]: { ...receipt, ...(item.draftId ? { draftId: item.draftId } : {}),
-      ...(item.sentId ? { sentId: item.sentId } : {}), ...(item.replyPosted ? { replyPosted: item.replyPosted } : {}), completedAt: new Date().toISOString() } } }, repoRoot)
-}
+      ...(item.sentId ? { sentId: item.sentId } : {}), ...(item.replyPosted ? { replyPosted: item.replyPosted } : {}), completedAt: new Date().toISOString() } } }
+}, repoRoot)

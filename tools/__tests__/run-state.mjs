@@ -1,8 +1,11 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { spawn } from "node:child_process"
 import { join } from "node:path"
+import { pathToFileURL } from "node:url"
+import { setTimeout as wait } from "node:timers/promises"
 import { Worker } from "node:worker_threads"
 
-import { T, root } from "./_harness.mjs"
+import { T, TOOLS_DIR, root } from "./_harness.mjs"
 
 const { clearWakeSource, readRunState, readWakeSources, readWorkerLaunches, registerWakeSource, reserveWorkerLaunch, runStatePath, wakeSourceDirectory, workerLaunchDirectory, writeRunState } = await import("../lib/run-state.mjs")
 
@@ -112,7 +115,57 @@ import(workerData.moduleUrl).then(({ reserveWorkerLaunch }) => {
   }))).then((reservations) => ({ reservations, barrierCalls: Atomics.load(new Int32Array(signal), 2), barrierPath: "linkSync" }))
 }
 
+const RACE_TRIALS = 30
+const RACE_BATCH = 10
+
+/**
+ * One process saves wake marks in a loop while this process writes `autoWork: false` from a read of
+ * its own. Unless the two read-change-writes are serialized, the saver writes back its stale copy.
+ */
+const raceDisableAgainstWakeSaves = async () => {
+  const saver = join(root, "run-state", "race-saver", "wake-saver.mjs")
+  mkdirSync(join(root, "run-state", "race-saver"), { recursive: true })
+  writeFileSync(saver, `import { saveWakeMarks } from ${JSON.stringify(pathToFileURL(join(TOOLS_DIR, "lib", "auto-work-wake.mjs")).href)}
+const repoRoot = process.argv[2]
+let saves = 0
+for (;;) {
+  try { saveWakeMarks({ seen: { board: [\`k\${saves}\`] }, failures: {}, sentryListedAt: null }, repoRoot) } catch (error) {
+    console.log(JSON.stringify({ saves, stop: error.message })); break
+  }
+  if (++saves === 1) console.log("SAVING")
+  if (saves > 3000) { console.log(JSON.stringify({ saves, stop: "limit" })); break }
+}
+`)
+  const trial = async (index) => {
+    const repoRoot = stageCheckout(`race-${index}`)
+    writeRunState({ sessionId: "auto", sleep: true, autoWork: true, remaining: [] }, repoRoot)
+    const child = spawn(process.execPath, [saver, repoRoot], { stdio: ["ignore", "pipe", "pipe"] })
+    let output = ""
+    const saving = new Promise((resolve) => child.stdout.on("data", (chunk) => {
+      output += chunk
+      if (output.includes("SAVING") || output.includes("stop")) resolve()
+    }))
+    const closed = new Promise((resolve) => child.once("close", resolve))
+    await Promise.race([saving, closed])
+    await wait(index % 7 * 5)
+    writeRunState({ ...readRunState(repoRoot), autoWork: false }, repoRoot)
+    await closed
+    return { exercised: output.includes("SAVING"), kept: readRunState(repoRoot).autoWork === false, output: output.trim() }
+  }
+  const outcomes = []
+  for (let start = 0; start < RACE_TRIALS; start += RACE_BATCH) {
+    outcomes.push(...await Promise.all(Array.from({ length: RACE_BATCH }, (_, offset) => trial(start + offset))))
+  }
+  return outcomes
+}
+
 export const cases = async () => {
+  const raced = await raceDisableAgainstWakeSaves()
+  const lost = raced.filter((outcome) => !outcome.kept)
+  T(`${TOOL}: every race trial saved wake marks before the disable`, raced.every((outcome) => outcome.exercised),
+    JSON.stringify(raced.filter((outcome) => !outcome.exercised)))
+  T(`${TOOL}: a concurrent wake save loses no disable in ${RACE_TRIALS} trials`, lost.length === 0,
+    `lost ${lost.length} of ${RACE_TRIALS}: ${JSON.stringify(lost.slice(0, 3))}`)
   const autoCheckout = stageCheckout("auto-work")
   writeRunState({ sessionId: "auto-parent", autoWork: true, crank: false, intake: { gmail: { completed: ["message-1"] } } }, autoCheckout)
   writeRunState({ sessionId: "auto-parent", remaining: [] }, autoCheckout)
