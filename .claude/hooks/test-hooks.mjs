@@ -1294,10 +1294,10 @@ for (const name of ["relay-at-threshold.mjs", "forbid-superseded-session.mjs", "
 const relayDecisionLog = join(wakeCheckout, ".git", "relay-decisions.md")
 writeFileSync(relayDecisionLog, "No open decisions.\n")
 const relayState = { autoWork: false, sessionId: "relay-parent", sleep: true, remaining: ["#1091"], decisionLogPath: relayDecisionLog }
-/** The shipped threshold, so the crossing tests follow the real value instead of a copy of it. */
-const relayThreshold = JSON.parse(readFileSync(join(repoRoot, ".claude", "orchestrator.json"), "utf8")).relay.thresholdTokens
-const relayOptions = { enabled: true, thresholdTokens: relayThreshold, state: relayState, sessionId: relayState.sessionId, measuredTokens: relayThreshold }
-T("relay: below threshold is inert", checkRelayStop({ ...relayOptions, measuredTokens: relayThreshold - 1 }), null)
+/** The shipped thresholds, so the crossing tests follow the real values instead of a copy of them. */
+const { softTokens: relaySoft, hardTokens: relayHard } = JSON.parse(readFileSync(join(repoRoot, ".claude", "orchestrator.json"), "utf8")).relay
+const relayOptions = { enabled: true, softTokens: relaySoft, hardTokens: relayHard, state: relayState, sessionId: relayState.sessionId, measuredTokens: relayHard }
+T("relay: below the soft threshold is inert", checkRelayStop({ ...relayOptions, measuredTokens: relaySoft - 1 }), null)
 T("relay: kill switch is inert", checkRelayStop({ ...relayOptions, enabled: false }), null)
 T("relay: attended sessions are inert", checkRelayStop({ ...relayOptions, state: { ...relayState, sleep: false } }), null)
 T("relay: another session is inert", checkRelayStop({ ...relayOptions, sessionId: "other" }), null)
@@ -1313,9 +1313,25 @@ for (const type of ["workflow", "subagent"]) {
 T("relay: release watcher keeps drain waiting", checkRelayStop({ ...relayOptions, state: { ...relayState, relay: { pending: true } }, wakeSources: [{ pid: 1, what: "Release ui run 1" }] }), null)
 T("relay: retry cooldown injects nothing", checkRelayStop({ ...relayOptions, state: { ...relayState, relay: { pending: true, lastAttemptAt: new Date().toISOString() } } }), null)
 T("relay: two failures near auto compact permit fallback", checkRelayStop({ ...relayOptions, measuredTokens: 950000, state: { ...relayState, relay: { pending: true, failures: 2 } } }).fallback, true)
+const launcher = [{ pid: 1, what: "Worker launcher" }]
+const midTurn = { ...relayOptions, measuredTokens: relaySoft, hookEventName: "PostToolUse" }
+T("relay soft: mid-turn crossing arms and never begins", { arm: checkRelayStop(midTurn).arm, begin: checkRelayStop(midTurn).begin }, { arm: true, begin: undefined })
+T("relay soft: arming tells the session to finish the work in front of it", checkRelayStop(midTurn).message.includes("Finish the work"), true)
+T("relay soft: an armed relay stays silent mid-turn", checkRelayStop({ ...midTurn, state: { ...relayState, relay: { armed: true } } }), null)
+T("relay soft: a turn end with a live wake source begins at the soft threshold", { begin: checkRelayStop({ ...midTurn, hookEventName: "Stop", wakeSources: launcher }).begin, forced: checkRelayStop({ ...midTurn, hookEventName: "Stop", wakeSources: launcher }).forced }, { begin: true, forced: false })
+T("relay soft: a turn end with open work and no wake source is not quiet", checkRelayStop({ ...midTurn, hookEventName: "Stop" }).arm, true)
+T("relay soft: a turn end with no open work is quiet", checkRelayStop({ ...midTurn, hookEventName: "Stop", state: { ...relayState, remaining: [] } }).begin, true)
+T("relay soft: a launcher without a wake source is not quiet", checkRelayStop({ ...midTurn, hookEventName: "Stop", wakeSources: launcher, orphaned: [{ pid: 2, workerPid: 3 }] }).arm, true)
+T("relay soft: a turn that a Stop hook keeps open is not quiet", checkRelayStop({ ...midTurn, hookEventName: "Stop", wakeSources: launcher, stopHookActive: true }).arm, true)
+T("relay hard: one token below the ceiling mid-turn only arms", checkRelayStop({ ...midTurn, measuredTokens: relayHard - 1 }).begin, undefined)
+T("relay hard: the ceiling begins mid-turn and says it was forced", { begin: checkRelayStop({ ...midTurn, measuredTokens: relayHard }).begin, forced: checkRelayStop({ ...midTurn, measuredTokens: relayHard }).forced }, { begin: true, forced: true })
+T("relay hard: the ceiling begins even with an orphaned launcher", checkRelayStop({ ...midTurn, measuredTokens: relayHard, orphaned: [{ pid: 2, workerPid: 3 }] }).begin, true)
+T("relay hard: an armed relay still begins at the ceiling", checkRelayStop({ ...midTurn, measuredTokens: relayHard, state: { ...relayState, relay: { armed: true } } }).begin, true)
+T("relay hard: the ceiling is above the soft threshold", relayHard > relaySoft, true)
 T("sleep: drain guidance never launches more work", checkSleepStop({ state: { ...relayState, relay: { pending: true } } }).message.includes("Launch nothing"), true)
-/** The fixture usage with its cache read set so the call sums to the shipped threshold. The other fields sum to 670. */
-const relayUsage = { ...JSON.parse(readFileSync(join(repoRoot, "tools", "__tests__", "fixtures", "session-usage.json"), "utf8")), cache_read_input_tokens: relayThreshold - 670 }
+/** The fixture usage with its cache read set so the call sums to the given size. The other fields sum to 670. */
+const usageAt = (tokens) => ({ ...JSON.parse(readFileSync(join(repoRoot, "tools", "__tests__", "fixtures", "session-usage.json"), "utf8")), cache_read_input_tokens: tokens - 670 })
+const relayUsage = usageAt(relayHard)
 const relayTranscript = join(wakeCheckout, ".git", "relay-transcript.jsonl")
 const relayPayload = { session_id: "relay-parent", transcript_path: relayTranscript, cwd: wakeCheckout, permission_mode: "bypassPermissions", hook_event_name: "Stop", stop_hook_active: false, last_assistant_message: "", background_tasks: [], session_crons: [] }
 const isolatedRelayHook = (name, payload = relayPayload, timeout) => spawnSync(process.execPath, [join(wakeHooks, name)], { input: JSON.stringify(payload), encoding: "utf8", timeout })
@@ -1344,16 +1360,16 @@ let promptReadFailed = false
 try { readCommittedPrompt(root) } catch { promptReadFailed = true }
 T("handoff reader: git failure throws instead of proving no prompt", promptReadFailed, true)
 writeRunState(relayState, wakeCheckout)
-writeFileSync(relayTranscript, JSON.stringify({ type: "assistant", message: { id: "call", usage: { ...relayUsage, cache_read_input_tokens: relayThreshold - 671 } } }) + "\n")
-T("relay adapter: one token below the threshold prints nothing", isolatedRelayHook("relay-at-threshold.mjs").stdout, "")
+writeFileSync(relayTranscript, JSON.stringify({ type: "assistant", message: { id: "call", usage: { ...relayUsage, cache_read_input_tokens: relaySoft - 671 } } }) + "\n")
+T("relay adapter: one token below the soft threshold prints nothing", isolatedRelayHook("relay-at-threshold.mjs").stdout, "")
 writeFileSync(relayTranscript, JSON.stringify({ type: "assistant", message: { id: "call", usage: relayUsage } }) + "\n")
 T("relay adapter: concurrent wake hook never says to launch on crossing", isolatedRelayHook(WAKE_HOOK).stderr, "")
 const crossing = isolatedRelayHook("relay-at-threshold.mjs")
 const feedback = JSON.parse(crossing.stdout)
-T("relay adapter: the threshold emits documented Stop feedback", feedback.hookSpecificOutput.hookEventName, "Stop")
+T("relay adapter: the hard ceiling emits documented Stop feedback", feedback.hookSpecificOutput.hookEventName, "Stop")
 T("relay adapter: feedback names relay", feedback.hookSpecificOutput.additionalContext.includes("relay"), true)
 T("relay adapter: machine origin enforces sleep prompt", readHandoffRequest("relay-parent", wakeCheckout).origin, "context-relay")
-T("relay adapter: measured pending state is persisted", readRunState(wakeCheckout).relay.measuredTokens, relayThreshold)
+T("relay adapter: measured pending state is persisted", readRunState(wakeCheckout).relay.measuredTokens, relayHard)
 const stopRelayState = readRunState(wakeCheckout)
 const stopRelayRequest = readHandoffRequest("relay-parent", wakeCheckout)
 const postToolRelayHooks = settings.hooks.PostToolUse
@@ -1373,9 +1389,9 @@ T("relay: Stop and PostToolUse share the timeout", settings.hooks.Stop.flatMap((
   .filter((hook) => hook.command.includes("relay-at-threshold.mjs")).map((hook) => hook.timeout), [postToolRelayHooks[0].timeout])
 const postToolRelay = () => isolatedRelayHook("relay-at-threshold.mjs", postToolPayload, relayTimeoutMilliseconds)
 writeRunState(relayState, wakeCheckout)
-writeFileSync(relayTranscript, JSON.stringify({ type: "assistant", message: { id: "call", usage: { ...relayUsage, cache_read_input_tokens: relayThreshold - 671 } } }) + "\n")
-T("relay post-tool: below threshold prints nothing", postToolRelay().stdout, "")
-T("relay post-tool: below threshold preserves state", readRunState(wakeCheckout).relay, undefined)
+writeFileSync(relayTranscript, JSON.stringify({ type: "assistant", message: { id: "call", usage: { ...relayUsage, cache_read_input_tokens: relaySoft - 671 } } }) + "\n")
+T("relay post-tool: below the soft threshold prints nothing", postToolRelay().stdout, "")
+T("relay post-tool: below the soft threshold preserves state", readRunState(wakeCheckout).relay, undefined)
 const transcriptPadding = JSON.stringify({ type: "user", message: { content: "x".repeat(1024 * 1024) } }) + "\n"
 writeFileSync(relayTranscript, transcriptPadding.repeat(12) + JSON.stringify({ type: "assistant", message: { id: "call", usage: relayUsage } }) + "\n" + transcriptPadding)
 T("relay post-tool: performance fixture exceeds ten MiB", statSync(relayTranscript).size > 10 * 1024 * 1024, true)
@@ -1424,6 +1440,32 @@ T("relay post-tool: pending checks preserve handoff request", readHandoffRequest
 clearWakeSource(process.pid, wakeCheckout)
 T("relay post-tool: drained workers receive completion context", JSON.parse(postToolRelay().stdout || "{}").hookSpecificOutput,
   { hookEventName: "PostToolUse", additionalContext: checkRelayStop({ ...relayOptions, state: midTurnState }).message })
+const hardRelayTranscript = readFileSync(relayTranscript, "utf8")
+const hardRelayState = readRunState(wakeCheckout)
+const hardRelayRequest = readHandoffRequest("relay-parent", wakeCheckout)
+const softCall = (tokens = relaySoft) => writeFileSync(relayTranscript, JSON.stringify({ type: "assistant", message: { id: "call", usage: usageAt(tokens) } }) + "\n")
+const stopRelay = () => isolatedRelayHook("relay-at-threshold.mjs", relayPayload, relayTimeoutMilliseconds)
+softCall()
+writeRunState(relayState, wakeCheckout)
+const armed = postToolRelay()
+T("relay soft adapter: a mid-turn crossing prints the arming context", JSON.parse(armed.stdout || "{}").hookSpecificOutput?.additionalContext?.includes("armed"), true)
+T("relay soft adapter: arming persists the mark and starts no drain", { armed: readRunState(wakeCheckout).relay.armed, pending: readRunState(wakeCheckout).relay.pending, armedTokens: readRunState(wakeCheckout).relay.armedTokens }, { armed: true, pending: undefined, armedTokens: relaySoft })
+T("relay soft adapter: arming records no handoff request", readHandoffRequest("relay-parent", wakeCheckout), hardRelayRequest)
+T("relay soft adapter: a second mid-turn call stays silent", postToolRelay().stdout, "")
+T("relay soft adapter: a turn end with open work and no wake source stays armed", { stdout: stopRelay().stdout, pending: readRunState(wakeCheckout).relay.pending }, { stdout: "", pending: undefined })
+registerWakeSource({ pid: process.pid, what: "Worker launcher" }, wakeCheckout)
+const quiet = stopRelay()
+T("relay soft adapter: a quiet turn end begins the relay", { pending: readRunState(wakeCheckout).relay.pending, forced: readRunState(wakeCheckout).relay.forced, quiet: JSON.parse(quiet.stdout || "{}").hookSpecificOutput?.additionalContext?.includes("quiet point") }, { pending: true, forced: false, quiet: true })
+T("relay soft adapter: the pending relay keeps the arming time", typeof readRunState(wakeCheckout).relay.armedAt, "string")
+T("relay soft adapter: the quiet relay records the machine handoff request", readHandoffRequest("relay-parent", wakeCheckout).origin, "context-relay")
+clearWakeSource(process.pid, wakeCheckout)
+writeRunState({ ...relayState, relay: { armed: true, armedTokens: relaySoft } }, wakeCheckout)
+softCall(relaySoft - 1)
+postToolRelay()
+T("relay soft adapter: falling below the soft threshold clears the mark", readRunState(wakeCheckout).relay.armed, false)
+writeRunState(hardRelayState, wakeCheckout)
+writeFileSync(relayTranscript, hardRelayTranscript)
+recordHandoffRequest("relay-parent", hardRelayRequest, hardRelayRequest.recordedAt, wakeCheckout)
 const backgroundLaunches = JSON.parse(readFileSync(join(repoRoot, "tools", "__tests__", "fixtures", "claude-background-launches.json"), "utf8"))
 const claudeDirectory = join(wakeCheckout, ".git", "claude")
 mkdirSync(join(claudeDirectory, "sessions"), { recursive: true })

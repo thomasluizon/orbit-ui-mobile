@@ -1,6 +1,6 @@
 {
   "worker": "claude",
-  "relay": { "enabled": true, "thresholdTokens": 200000 },
+  "relay": { "enabled": true, "softTokens": 330000, "hardTokens": 390000 },
   "workers": {
     "codex": {
       "command": "codex",

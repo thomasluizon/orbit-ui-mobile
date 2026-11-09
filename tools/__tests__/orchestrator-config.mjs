@@ -129,7 +129,7 @@ export const cases = async () => {
   T(`${NAME}: removing the off vector is the config kill switch`,
     JSON.stringify(resolveWorkerInvocation("codex", killSwitch).args) === JSON.stringify([...killSwitch.args, ...(killSwitch.models.default.args ?? []), "--model", killSwitch.models.default.model]))
   const shipped = readOrchestratorConfig()
-  T(`${NAME}: the shipped relay threshold is 200000 tokens`, shipped.relay.thresholdTokens === 200000, `got ${shipped.relay.thresholdTokens}`)
+  T(`${NAME}: the shipped relay arms at 330000 tokens and forces at 390000`, shipped.relay.softTokens === 330000 && shipped.relay.hardTokens === 390000, `got ${JSON.stringify(shipped.relay)}`)
   T(`${NAME}: the shipped parallel ticket cap is 40`, real.caps.parallelTickets === 40)
   for (const name of ["parallelTickets", "maxOpenPullRequests", "maxQueuedRuns"]) {
     T(`${NAME}: the reader preserves the shipped ${name} cap`, shipped.caps[name] === real.caps[name])
@@ -306,11 +306,16 @@ export const cases = async () => {
   )
 
   const readAndFail = (label, config) => thrown(() => readOrchestratorConfig(configUrl(label, JSON.stringify(config))))
-  for (const thresholdTokens of [149999, 900001, "400000", 400000.5]) {
-    T(`${NAME}: relay threshold ${thresholdTokens} is refused`,
-      /relay.thresholdTokens/.test(readAndFail(`relay-${thresholdTokens}`, { ...real, relay: { enabled: true, thresholdTokens } }) ?? ""))
+  for (const softTokens of [149999, 800001, "330000", 330000.5]) {
+    T(`${NAME}: relay soft threshold ${softTokens} is refused`,
+      /relay.softTokens/.test(readAndFail(`relay-soft-${softTokens}`, { ...real, relay: { enabled: true, softTokens, hardTokens: 390000 } }) ?? ""))
   }
-  T(`${NAME}: relay enabled must be boolean`, /relay.enabled/.test(readAndFail("relay-enabled", { ...real, relay: { enabled: "true", thresholdTokens: 400000 } }) ?? ""))
+  for (const hardTokens of [330000, 300000, 800001, "390000", 390000.5, undefined]) {
+    T(`${NAME}: relay hard ceiling ${hardTokens} is refused`,
+      /relay.hardTokens/.test(readAndFail(`relay-hard-${hardTokens}`, { ...real, relay: { enabled: true, softTokens: 330000, hardTokens } }) ?? ""))
+  }
+  T(`${NAME}: a hard ceiling one token above the soft threshold is accepted`, readAndFail("relay-hard-edge", { ...real, relay: { enabled: true, softTokens: 330000, hardTokens: 330001 } }) === null)
+  T(`${NAME}: relay enabled must be boolean`, /relay.enabled/.test(readAndFail("relay-enabled", { ...real, relay: { enabled: "true", softTokens: 330000, hardTokens: 390000 } }) ?? ""))
   T(
     `${NAME}: a config with no workers object is refused`,
     /must declare a workers object/.test(readAndFail("no-workers", { worker: "codex" }) ?? ""),

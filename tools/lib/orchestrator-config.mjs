@@ -120,8 +120,11 @@ export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranc
   if (!isRecord(config.relay) || typeof config.relay.enabled !== "boolean") {
     throw new Error(".claude/orchestrator.json relay.enabled must be a boolean")
   }
-  if (!Number.isInteger(config.relay.thresholdTokens) || config.relay.thresholdTokens < 150000 || config.relay.thresholdTokens > 900000) {
-    throw new Error(".claude/orchestrator.json relay.thresholdTokens must be an integer from 150000 through 900000")
+  if (!Number.isInteger(config.relay.softTokens) || config.relay.softTokens < 150000 || config.relay.softTokens > 800000) {
+    throw new Error(".claude/orchestrator.json relay.softTokens must be an integer from 150000 through 800000")
+  }
+  if (!Number.isInteger(config.relay.hardTokens) || config.relay.hardTokens <= config.relay.softTokens || config.relay.hardTokens > 800000) {
+    throw new Error(".claude/orchestrator.json relay.hardTokens must be an integer above relay.softTokens and at most 800000")
   }
   nonEmptyString(config.classifier.model, "classifier.model")
   positive(config.timeouts?.hardCeilingMinutes, "timeouts.hardCeilingMinutes")

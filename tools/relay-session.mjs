@@ -136,7 +136,7 @@ export const relaySession = async ({ repoRoot = REPO_ROOT, sessionId = process.e
   if (!sessionId || previous?.sessionId !== sessionId || previous.sleep !== true || !previous.relay?.pending) throw new Error("no matching unattended relay drain")
   if (supersededSession(sessionId, repoRoot)) throw new Error("session is already superseded")
   const measuredTokens = readSessionContext(previous.relay.transcriptPath)
-  if (measuredTokens < config.relay.thresholdTokens) throw new Error(`context ${measuredTokens} is below threshold ${config.relay.thresholdTokens}`)
+  if (measuredTokens < config.relay.softTokens) throw new Error(`context ${measuredTokens} is below the soft threshold ${config.relay.softTokens}`)
   const metrics = await readSessionMetrics(previous.relay.transcriptPath)
   if (metrics.calls < 20) throw new Error(`session has ${metrics.calls} assistant calls; relay requires at least 20`)
   if (previous.relay.lastAttemptAt && Date.now() - Date.parse(previous.relay.lastAttemptAt) < 600_000) throw new Error("relay retry is not due for ten minutes")

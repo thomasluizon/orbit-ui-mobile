@@ -18,20 +18,23 @@ try {
   if (!insideSubagent && config.relay.enabled && state?.sleep === true && state.sessionId === input?.session_id) {
     observeBackgroundRuns(input)
     const measuredTokens = readSessionContext(input.transcript_path)
-    if (measuredTokens >= config.relay.thresholdTokens) {
+    if (measuredTokens >= config.relay.softTokens) {
       releaseLock = acquireRelayLock()
       // Parallel tool hooks must decide from the state published by the previous lock owner.
       state = readRunState()
     }
-    if (state.relay?.fallbackUntilCompacted && measuredTokens < config.relay.thresholdTokens) {
-      writeRunState({ ...state, relay: { ...state.relay, fallbackUntilCompacted: false } })
+    if ((state.relay?.fallbackUntilCompacted || state.relay?.armed) && measuredTokens < config.relay.softTokens) {
+      writeRunState({ ...state, relay: { ...state.relay, fallbackUntilCompacted: false, armed: false } })
     }
     const sources = readWakeSourceStates()
-    const verdict = checkRelayStop({ ...config.relay, state, sessionId: input.session_id, measuredTokens,
+    const verdict = checkRelayStop({ ...config.relay, state, sessionId: input.session_id, measuredTokens, hookEventName: input.hook_event_name,
       wakeSources: sources.live, orphaned: sources.orphaned, backgroundRuns: readBackgroundRuns(input.session_id), stopHookActive: input.stop_hook_active === true })
+    if (verdict?.arm) {
+      writeRunState({ ...state, relay: { ...state.relay, armed: true, armedAt: new Date().toISOString(), armedTokens: measuredTokens } })
+    }
     if (verdict?.begin) {
       const now = new Date().toISOString()
-      writeRunState({ ...state, relay: { pending: true, from: input.session_id, measuredTokens,
+      writeRunState({ ...state, relay: { pending: true, forced: verdict.forced, armedAt: state.relay?.armedAt, from: input.session_id, measuredTokens,
         permissionMode: input.permission_mode, transcriptPath: input.transcript_path, triggeredAt: now } })
       recordHandoffRequest(input.session_id, { command: "handoff", origin: "context-relay", sleep: true, crank: state.crank === true, autoWork: state.autoWork === true }, now)
     }
