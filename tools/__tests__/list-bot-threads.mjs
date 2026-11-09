@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs"
+import { existsSync, readFileSync, rmSync } from "node:fs"
 
 import { readObservedIdentifiers } from "../lib/identifier-ledger.mjs"
 import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
@@ -43,6 +43,7 @@ const payload = ({ isDraft = false, reviews = [], comments = [], threads = [], c
         pullRequest: {
           number: 681,
           isDraft,
+          baseRefName: "main",
           baseRefOid: BASE,
           headRefOid,
           headRefName: "fix/example",
@@ -56,6 +57,23 @@ const payload = ({ isDraft = false, reviews = [], comments = [], threads = [], c
       },
     },
   })
+
+/** Copied from the real `gh api .../branches/main/protection/required_status_checks` response, cut to two checks. */
+const REQUIRED_CHECKS = JSON.stringify({
+  url: "https://api.github.com/repos/thomasluizon/orbit-ui-mobile/branches/main/protection/required_status_checks",
+  strict: false,
+  contexts: ["Unit Tests", "pullfrog-approval"],
+  contexts_url: "https://api.github.com/repos/thomasluizon/orbit-ui-mobile/branches/main/protection/required_status_checks/contexts",
+  checks: [{ context: "Unit Tests", app_id: 15368 }, { context: "pullfrog-approval", app_id: 1768019 }],
+})
+/** The real 404 body gh prints for a branch with no protection, with exit 1. */
+const UNPROTECTED = JSON.stringify({ message: "Branch not protected", documentation_url: "https://docs.github.com/rest/branches/branch-protection#get-status-checks-protection", status: "404" })
+const requiredStub = { match: "/protection/required_status_checks", stdout: REQUIRED_CHECKS }
+const ciCheck = (conclusion = "SUCCESS", status = "COMPLETED", name = "Unit Tests") => ({
+  __typename: "CheckRun", name, status, conclusion, startedAt: "2026-08-04T22:05:00Z",
+  completedAt: status === "COMPLETED" ? "2026-08-04T22:15:00Z" : null,
+  checkSuite: { app: { databaseId: 15368 } },
+})
 
 const botReview = (state = "APPROVED", submittedAt = "2026-08-04T23:16:35Z", oid = HEAD, body = "", id = "PRR_kwDOR5Siws8AAAABNo7WdA") => ({ id, author: { login: BOT }, state, submittedAt, body, commit: { oid } })
 const ghPlan = (stdout, exit = 0, activities) => {
@@ -275,6 +293,11 @@ export const cases = () => {
   }
   /** Sliced by the selections that bracket it, because a nested `author{login}` defeats a [^}] scan. */
   const reviewsSelection = querySource.slice(querySource.indexOf("reviews(last:"), querySource.indexOf("comments(last:"))
+  T(
+    `${TOOL}: the GraphQL query selects the comment author, which decides whether a request comment counts`,
+    prLevelComments.includes("author{login"),
+    `pull-request-level comments selection was "${prLevelComments}"`,
+  )
   for (const field of ["submittedAt", "state", "commit"]) {
     T(
       `${TOOL}: the GraphQL query selects reviews.${field}, which the verdict reads`,
@@ -293,6 +316,7 @@ export const cases = () => {
     ...orcaEnv([
       { match: "auth token --user thomasluizon", stdout: "test-github-token" },
       { match: "/activity?", stdout: JSON.stringify(activity()) },
+      requiredStub,
       { match: "pr comment", stdout: REQUEST_URL },
       { match: "api graphql", stdout },
     ]),
@@ -307,15 +331,17 @@ export const cases = () => {
     ...orcaEnv([
       { match: "auth token --user thomasluizon", stdout: "test-github-token" },
       { match: "/activity?", stdout: JSON.stringify(activity()) },
+      requiredStub,
       { match: "pr comment", stdout: REQUEST_URL },
       { match: "api graphql", stdoutSequence: [
-        payload({ reviews: [botReview("COMMENTED", "2026-08-12T20:10:00Z", HEAD, COMMENTED_BODY)] }),
+        payload({ reviews: [botReview("COMMENTED", "2026-08-12T20:10:00Z", HEAD, COMMENTED_BODY)], checks: [approvalCheck(), ciCheck()] }),
         payload({
           reviews: [
             botReview("COMMENTED", "2026-08-12T20:10:00Z", HEAD, COMMENTED_BODY),
             botReview("COMMENTED", "2026-08-12T20:20:00Z", HEAD, COMMENTED_BODY),
           ],
           comments: [requestComment("2026-08-12T20:30:00Z")],
+          checks: [approvalCheck(), ciCheck()],
         }),
       ], sequenceFile: raceSequence },
     ]),
@@ -331,6 +357,7 @@ export const cases = () => {
   const answered = reReviewRun(payload({
     reviews: [botReview("APPROVED", "2026-08-12T20:35:00Z", HEAD, "")],
     comments: [requestComment("2026-08-12T20:30:00Z")],
+    checks: [approvalCheck(), ciCheck()],
   }))
   T(
     `${TOOL}: --re-review accepts the review submitted AFTER the request, which is the transition that converges`,
@@ -342,11 +369,164 @@ export const cases = () => {
   const unboundable = reReviewRun(payload({
     reviews: [botReview("APPROVED", "2026-08-12T20:35:00Z", HEAD, "")],
     comments: [],
+    checks: [approvalCheck(), ciCheck()],
   }))
   T(
     `${TOOL}: --re-review reports NO_REVIEW when its own request comment cannot be found, never a guessed pass`,
     unboundable.status === 1 && parsed(unboundable)?.verdict === "NO_REVIEW",
     unboundable.stdout || unboundable.stderr,
+  )
+
+  /**
+   * The review request waits for the head's CI, because a review of a head that later fails CI is
+   * thrown away by the CI fix push. Each case records the request comment argv, so "no request" is
+   * an observed absence rather than an assumed one.
+   */
+  const requestArgvFile = (name) => {
+    const path = stage(`list-bot-threads/request-argv-${name}.json`, "")
+    rmSync(path)
+    return path
+  }
+  const requestRun = (name, graphql, { waitSeconds = "3", required = { stdout: REQUIRED_CHECKS } } = {}) => {
+    const argvFile = requestArgvFile(name)
+    const result = run(TOOL, ["--pr", "681", "--repo", "ui", "--wait-seconds", waitSeconds, "--poll-seconds", "1"], { path: testedToolPath, env: {
+      ...orcaEnv([
+        { match: "auth token --user thomasluizon", stdout: "test-github-token" },
+        { match: "/activity?", stdout: JSON.stringify(activity()) },
+        { match: "/protection/required_status_checks", ...required },
+        { match: "pr comment", stdout: REQUEST_URL, argvFile },
+        { match: "api graphql", ...graphql },
+      ]),
+      CLAUDE_CODE_SESSION_ID: RUN_IDENTIFIER,
+      CODEX_THREAD_ID: "",
+    } })
+    return { result, plan: parsed(result), requested: existsSync(argvFile) }
+  }
+  const sequence = (name, payloads) => ({ stdoutSequence: payloads, sequenceFile: stage(`list-bot-threads/${name}-sequence`, "0") })
+
+  const failingHead = requestRun("failing", { stdout: payload({ checks: [ciCheck("FAILURE")] }) })
+  T(
+    `${TOOL}: a head whose CI failed gets no review request and reports CI_FAILING`,
+    failingHead.result.status === 1 && failingHead.plan?.verdict === "CI_FAILING" && failingHead.plan.reviewRequested === false && !failingHead.requested &&
+      failingHead.plan.ciGate?.failing.join() === "Unit Tests" && /NOT posted/.test(failingHead.plan.note ?? ""),
+    failingHead.result.stdout || failingHead.result.stderr,
+  )
+  const optionalFailing = requestRun("optional-failing", { stdout: payload({ checks: [ciCheck(), ciCheck("FAILURE", "COMPLETED", "Layout (1/4)")] }) })
+  T(
+    `${TOOL}: a failing check that branch protection does not require still blocks the request`,
+    optionalFailing.plan?.verdict === "CI_FAILING" && !optionalFailing.requested && optionalFailing.plan.ciGate?.failing.join() === "Layout (1/4)",
+    optionalFailing.result.stdout || optionalFailing.result.stderr,
+  )
+
+  const greenHead = requestRun("green", sequence("green", [
+    payload({ checks: [ciCheck()] }),
+    payload({ checks: [ciCheck(), approvalCheck("COMPLETED", "SUCCESS", "2026-08-05T10:01:00Z")], reviews: [botReview("APPROVED", "2026-08-05T10:00:00Z")] }),
+  ]))
+  T(
+    `${TOOL}: a head whose CI passed gets exactly one review request, then the review is read`,
+    greenHead.result.status === 0 && greenHead.plan?.verdict === "REVIEWED" && greenHead.requested && greenHead.plan.ciGate?.state === "PASSED" &&
+      (greenHead.result.stderr.match(/"event":"REVIEW_REQUESTED"/g) ?? []).length === 1,
+    greenHead.result.stdout || greenHead.result.stderr,
+  )
+
+  const pendingThenGreen = requestRun("pending-then-green", sequence("pending-then-green", [
+    payload({ checks: [ciCheck(null, "IN_PROGRESS")] }),
+    payload({ checks: [ciCheck()] }),
+    payload({ checks: [ciCheck(), approvalCheck("COMPLETED", "SUCCESS", "2026-08-05T10:01:00Z")], reviews: [botReview("APPROVED", "2026-08-05T10:00:00Z")] }),
+  ]), { waitSeconds: "6" })
+  const waitedAt = pendingThenGreen.result.stderr.indexOf('"event":"CI_WAITING"')
+  const requestedAt = pendingThenGreen.result.stderr.indexOf('"event":"REVIEW_REQUESTED"')
+  T(
+    `${TOOL}: a running head is requested only after its CI passes`,
+    pendingThenGreen.result.status === 0 && pendingThenGreen.plan?.verdict === "REVIEWED" && pendingThenGreen.requested && waitedAt !== -1 && requestedAt > waitedAt,
+    pendingThenGreen.result.stdout || pendingThenGreen.result.stderr,
+  )
+
+  const stillRunning = requestRun("still-running", { stdout: payload({ checks: [ciCheck(null, "QUEUED")] }) }, { waitSeconds: "2" })
+  T(
+    `${TOOL}: CI still running at the end of the budget is CI_PENDING with no request`,
+    stillRunning.result.status === 1 && stillRunning.plan?.verdict === "CI_PENDING" && !stillRunning.requested && stillRunning.plan.ciGate?.pending.join() === "Unit Tests",
+    stillRunning.result.stdout || stillRunning.result.stderr,
+  )
+  const unregistered = requestRun("unregistered", { stdout: payload({ checks: [ciCheck("SUCCESS", "COMPLETED", "PR Metadata")] }) }, { waitSeconds: "2" })
+  T(
+    `${TOOL}: a required check that is not registered yet holds the request`,
+    unregistered.plan?.verdict === "CI_PENDING" && !unregistered.requested && unregistered.plan.ciGate?.pending.join() === "Unit Tests",
+    unregistered.result.stdout || unregistered.result.stderr,
+  )
+
+  const reviewedHead = requestRun("reviewed", { stdout: payload({ checks: [ciCheck(), approvalCheck()], reviews: [botReview()] }) })
+  T(
+    `${TOOL}: a head that already has its review gets no second request`,
+    reviewedHead.result.status === 0 && reviewedHead.plan?.verdict === "REVIEWED" && !reviewedHead.requested && reviewedHead.plan.ciGate === null,
+    reviewedHead.result.stdout || reviewedHead.result.stderr,
+  )
+  const fixPush = requestRun("fix-push", sequence("fix-push", [
+    payload({ checks: [ciCheck(null, "IN_PROGRESS")], reviews: [botReview("APPROVED", "2026-08-04T21:00:00Z", OLD_HEAD)] }),
+    payload({ checks: [ciCheck()], reviews: [botReview("APPROVED", "2026-08-04T21:00:00Z", OLD_HEAD)] }),
+    payload({ checks: [ciCheck(), approvalCheck("COMPLETED", "SUCCESS", "2026-08-05T10:01:00Z")], reviews: [botReview("APPROVED", "2026-08-04T21:00:00Z", OLD_HEAD), botReview("APPROVED", "2026-08-05T10:00:00Z")] }),
+  ]), { waitSeconds: "6" })
+  T(
+    `${TOOL}: a CI fix push after a reviewed head is requested once, after its own CI passes`,
+    fixPush.result.status === 0 && fixPush.plan?.verdict === "REVIEWED" && fixPush.plan.reviewedCommit === HEAD && fixPush.requested &&
+      (fixPush.result.stderr.match(/"event":"REVIEW_REQUESTED"/g) ?? []).length === 1,
+    fixPush.result.stdout || fixPush.result.stderr,
+  )
+  const landedWhileWaiting = requestRun("landed-while-waiting", sequence("landed-while-waiting", [
+    payload({ checks: [ciCheck(null, "IN_PROGRESS")] }),
+    payload({ checks: [ciCheck(), approvalCheck("COMPLETED", "SUCCESS", "2026-08-05T10:01:00Z")], reviews: [botReview("APPROVED", "2026-08-05T10:00:00Z")] }),
+  ]), { waitSeconds: "4" })
+  T(
+    `${TOOL}: a review that lands during the CI wait is read and no request is posted`,
+    landedWhileWaiting.result.status === 0 && landedWhileWaiting.plan?.verdict === "REVIEWED" && !landedWhileWaiting.requested,
+    landedWhileWaiting.result.stdout || landedWhileWaiting.result.stderr,
+  )
+  const unprotected = requestRun("unprotected", sequence("unprotected", [
+    payload({ checks: [ciCheck("SUCCESS", "COMPLETED", "PR Metadata")] }),
+    payload({ checks: [ciCheck("SUCCESS", "COMPLETED", "PR Metadata")], reviews: [botReview("APPROVED", "2026-08-05T10:00:00Z")] }),
+  ]), { required: { stdout: UNPROTECTED, exit: 1 } })
+  T(
+    `${TOOL}: an unprotected base gates the request on its reported checks`,
+    unprotected.result.status === 0 && unprotected.plan?.verdict === "REVIEWED" && unprotected.requested,
+    unprotected.result.stdout || unprotected.result.stderr,
+  )
+  const protectionDown = requestRun("protection-down", { stdout: payload({ checks: [ciCheck()] }) }, { required: { stdout: "", stderr: "gh: Server Error (HTTP 502)", exit: 1 } })
+  T(
+    `${TOOL}: an unreadable branch protection answer is an environment error and posts nothing`,
+    protectionDown.result.status === 2 && /required status checks/.test(protectionDown.result.stderr) && !protectionDown.requested,
+    protectionDown.result.stderr || protectionDown.result.stdout,
+  )
+  const alreadyAsked = requestRun("already-asked", { stdout: payload({ checks: [ciCheck()], comments: [requestComment("2026-08-04T22:30:00Z")] }) }, { waitSeconds: "2" })
+  T(
+    `${TOOL}: a request already posted after the head's push is not posted twice`,
+    alreadyAsked.result.status === 1 && alreadyAsked.plan?.verdict === "NO_REVIEW" && !alreadyAsked.requested && alreadyAsked.plan.existingRequestUrl === REQUEST_URL &&
+      /no second request/.test(alreadyAsked.plan.note ?? ""),
+    alreadyAsked.result.stdout || alreadyAsked.result.stderr,
+  )
+  const strangerRequest = { ...requestComment("2026-08-04T22:30:00Z"), author: { login: "not-a-collaborator" } }
+  const askedByStranger = requestRun("asked-by-stranger", sequence("asked-by-stranger", [
+    payload({ checks: [ciCheck()], comments: [strangerRequest] }),
+    payload({ checks: [ciCheck(), approvalCheck("COMPLETED", "SUCCESS", "2026-08-05T10:01:00Z")], comments: [strangerRequest], reviews: [botReview("APPROVED", "2026-08-05T10:00:00Z")] }),
+  ]))
+  T(
+    `${TOOL}: a request comment from a non-collaborator is no request, because Pullfrog ignores it, so the real one is posted`,
+    askedByStranger.result.status === 0 && askedByStranger.plan?.verdict === "REVIEWED" && askedByStranger.requested && askedByStranger.plan.existingRequestUrl === undefined,
+    askedByStranger.result.stdout || askedByStranger.result.stderr,
+  )
+  const askedForOldHead = requestRun("asked-for-old-head", sequence("asked-for-old-head", [
+    payload({ checks: [ciCheck()], comments: [requestComment("2026-08-04T21:30:00Z")] }),
+    payload({ checks: [ciCheck(), approvalCheck("COMPLETED", "SUCCESS", "2026-08-05T10:01:00Z")], comments: [requestComment("2026-08-04T21:30:00Z")], reviews: [botReview("APPROVED", "2026-08-05T10:00:00Z")] }),
+  ]))
+  T(
+    `${TOOL}: a request posted before the head's push asks for the older head, so the new head is requested`,
+    askedForOldHead.result.status === 0 && askedForOldHead.plan?.verdict === "REVIEWED" && askedForOldHead.requested,
+    askedForOldHead.result.stdout || askedForOldHead.result.stderr,
+  )
+  const noRequest = requestRun("no-request-flag", { stdout: payload({ checks: [ciCheck("FAILURE")] }) }, { waitSeconds: "0" })
+  T(
+    `${TOOL}: a zero wait still never requests and never reads branch protection`,
+    noRequest.result.status === 1 && noRequest.plan?.verdict === "NO_REVIEW" && noRequest.plan.ciGate === null && !noRequest.requested,
+    noRequest.result.stdout || noRequest.result.stderr,
   )
 
   for (const incompleteState of ["PENDING", "DISMISSED"]) {
