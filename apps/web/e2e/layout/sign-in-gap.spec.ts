@@ -34,7 +34,13 @@ for (const width of [320, 1440]) {
     test.describe(`sign-in field spacing in ${locale} at ${width}px`, () => {
       test.use({ viewport: { width, height: 915 } })
       test('keeps one gap without a challenge and one on each side of a visible challenge', async ({ page }) => {
-        await page.setContent(`<!doctype html><html lang="${locale}"><head><style>${stylesheet}</style></head><body><main id="sign-in-gap-fixture"></main></body></html>`)
+        // WHY: a setContent page has an opaque origin, where document.cookie throws. https://html.spec.whatwg.org/multipage/dom.html#dom-document-cookie
+        const fixtureUrl = 'http://orbit-layout.test/sign-in-gap-fixture'
+        await page.route(fixtureUrl, route => route.fulfill({
+          contentType: 'text/html',
+          body: `<!doctype html><html lang="${locale}"><head><style>${stylesheet}</style></head><body><main id="sign-in-gap-fixture"></main></body></html>`,
+        }))
+        await page.goto(fixtureUrl)
         await page.addScriptTag({ content: `
           window.turnstile = {
             render(container, options) {
