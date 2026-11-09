@@ -29,6 +29,21 @@ const ISSUE_PROJECT_ITEMS_QUERY = `query IssueProjectItems($o: String!, $r: Stri
   }
 }`
 
+/** Open issues only, so one page per hundred open tickets reads the board at any size. */
+const BOARD_STATE_QUERY = `query BoardState($o: String!, $r: String!, $after: String) {
+  repository(owner: $o, name: $r) {
+    issues(states: OPEN, first: 100, after: $after, orderBy: { field: CREATED_AT, direction: ASC }) {
+      pageInfo { hasNextPage endCursor }
+      nodes {
+        number
+        updatedAt
+        projectItems(first: 10) { totalCount nodes { project { id } } }
+        blockedBy(first: 100) { totalCount nodes { number state } }
+      }
+    }
+  }
+}`
+
 const ticketMap = JSON.parse(readFileSync(new URL("../../.claude/linear-to-github-map.json", import.meta.url), "utf8"))
 if (ticketMap === null || typeof ticketMap !== "object" || Array.isArray(ticketMap) || ticketMap.issues === null || typeof ticketMap.issues !== "object" || Array.isArray(ticketMap.issues)) {
   throw new Error(".claude/linear-to-github-map.json must declare an issues object")
@@ -107,11 +122,42 @@ const projectItemsArgs = (tickets) => [
   "1000",
 ]
 
+const repositoryParts = (repository) => {
+  const [owner, name, ...rest] = repository.split("/")
+  if (!owner || !name || rest.length > 0) throw new Error(`Ticket repository must be owner/name, got ${JSON.stringify(repository)}`)
+  return { owner, name }
+}
+
 const issueProjectItemsArgs = (number, tickets, after = null) => {
-  const [owner, name, ...rest] = tickets.repository.split("/")
-  if (!owner || !name || rest.length > 0) throw new Error(`Ticket repository must be owner/name, got ${JSON.stringify(tickets.repository)}`)
+  const { owner, name } = repositoryParts(tickets.repository)
   const cursorArgs = after === null ? [] : ["-f", `after=${after}`]
   return ["api", "graphql", "-F", `o=${owner}`, "-F", `r=${name}`, "-F", `n=${number}`, ...cursorArgs, "-f", `query=${ISSUE_PROJECT_ITEMS_QUERY}`]
+}
+
+const boardStateArgs = (tickets, after) => {
+  const { owner, name } = repositoryParts(tickets.repository)
+  return ["api", "graphql", "-F", `o=${owner}`, "-F", `r=${name}`, ...(after === null ? [] : ["-f", `after=${after}`]), "-f", `query=${BOARD_STATE_QUERY}`]
+}
+
+/** A connection whose nodes stop short of its totalCount would hide a project or a blocker. */
+const completeNodes = (connection, name, number) => {
+  if (!Array.isArray(connection?.nodes) || connection.nodes.length !== connection.totalCount) {
+    throw new Error(`gh api graphql board state returned an incomplete ${name} connection for issue #${number}`)
+  }
+  return connection.nodes
+}
+
+const boardTicket = (node, tickets) => {
+  const number = positiveIssueNumber(node?.number)
+  if (typeof node.updatedAt !== "string" || !Number.isFinite(Date.parse(node.updatedAt))) {
+    throw new Error(`gh api graphql board state returned no updatedAt for issue #${number}`)
+  }
+  const onBoard = completeNodes(node.projectItems, "projectItems", number).some((item) => item?.project?.id === tickets.projectId)
+  const blockers = completeNodes(node.blockedBy, "blockedBy", number)
+  if (blockers.some((blocker) => !Number.isInteger(blocker?.number) || !["OPEN", "CLOSED"].includes(blocker.state))) {
+    throw new Error(`gh api graphql board state returned an invalid blocker for issue #${number}`)
+  }
+  return onBoard ? { number, updatedAt: node.updatedAt, openBlockers: blockers.filter((blocker) => blocker.state === "OPEN").map((blocker) => blocker.number) } : null
 }
 
 const projectItemsByProject = new Map()
@@ -698,6 +744,31 @@ export const repairTicketStatus = async (number) => {
   }
   await writeStatus(number, status, { allowDone: true })
   return { number: ticket.number, url: ticket.url, title: ticket.title, status, changed: true, previousStatus: ticket.status }
+}
+
+/**
+ * Every open ticket on the configured project with its last update and open blockers, read without
+ * issue bodies. A successful read with no nodes is a proven empty board.
+ */
+export const listBoardState = async () => {
+  const tickets = ticketConfiguration()
+  const board = []
+  const cursors = new Set()
+  let after = null
+  for (;;) {
+    const connection = parseGhJson("gh api graphql board state", await runGh(boardStateArgs(tickets, after)))?.data?.repository?.issues
+    if (!Array.isArray(connection?.nodes)) throw new Error("gh api graphql board state returned no issues nodes array")
+    if (typeof connection.pageInfo?.hasNextPage !== "boolean") throw new Error("gh api graphql board state returned no hasNextPage boolean")
+    for (const node of connection.nodes) {
+      const ticket = boardTicket(node, tickets)
+      if (ticket) board.push(ticket)
+    }
+    if (!connection.pageInfo.hasNextPage) return board
+    const cursor = connection.pageInfo.endCursor
+    if (typeof cursor !== "string" || cursor.length === 0 || cursors.has(cursor)) throw new Error("gh api graphql board state returned an invalid endCursor")
+    cursors.add(cursor)
+    after = cursor
+  }
 }
 
 export const listTickets = async ({ labels = [], state = "open", milestone = null } = {}) => {

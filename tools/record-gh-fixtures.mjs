@@ -119,6 +119,19 @@ const issueProjectItemsQuery = `query IssueProjectItems($o: String!, $r: String!
     }
   }
 }`
+const boardStateQuery = `query BoardState($o: String!, $r: String!, $after: String) {
+  repository(owner: $o, name: $r) {
+    issues(states: OPEN, first: 100, after: $after, orderBy: { field: CREATED_AT, direction: ASC }) {
+      pageInfo { hasNextPage endCursor }
+      nodes {
+        number
+        updatedAt
+        projectItems(first: 10) { totalCount nodes { project { id } } }
+        blockedBy(first: 100) { totalCount nodes { number state } }
+      }
+    }
+  }
+}`
 const restIssueFilter = "{number,html_url,title,body,state:(.state|ascii_upcase),state_reason:(if .state_reason==null then null else (.state_reason|ascii_upcase) end),labels:[.labels[]|{name}]}"
 const dependencySampleNumber = 318
 const [repositoryOwner, repositoryName] = config.repository.split("/")
@@ -133,6 +146,7 @@ const commands = {
    */
   issueViewComments: ["issue", "view", String(sampleNumber), "--repo", config.repository, "--json", "comments"],
   issueProjectItems: ["api", "graphql", "-F", `o=${repositoryOwner}`, "-F", `r=${repositoryName}`, "-F", `n=${sampleNumber}`, "-f", `query=${issueProjectItemsQuery}`],
+  boardState: ["api", "graphql", "-F", `o=${repositoryOwner}`, "-F", `r=${repositoryName}`, "-f", `query=${boardStateQuery}`],
   restIssue: ["api", `repos/${config.repository}/issues/${sampleNumber}`, "--jq", restIssueFilter],
   issueDependencyNumbers: ["api", "--paginate", `repos/${config.repository}/issues/${dependencySampleNumber}/dependencies/blocked_by?per_page=100`, "--jq", "[.[].number]"],
   issueList: ["issue", "list", "--repo", config.repository, "--state", "all", "--limit", "1000", "--json", issueFields, "--jq", `map(${stateReasonFilter})`],
@@ -193,6 +207,14 @@ const record = (name, command) => {
   }
   if (name === "issueProjectItems" && typeof value?.data?.repository?.issue?.projectItems?.pageInfo?.hasNextPage !== "boolean") {
     throw new Error(`issueProjectItems recorded no pagination state on issue ${sampleNumber}`)
+  }
+  if (name === "boardState") {
+    const nodes = value?.data?.repository?.issues?.nodes
+    if (typeof value?.data?.repository?.issues?.pageInfo?.hasNextPage !== "boolean" || !Array.isArray(nodes) ||
+        !nodes.some((node) => node?.projectItems?.nodes?.some((item) => item?.project?.id === config.projectId)) ||
+        !nodes.some((node) => node?.blockedBy?.nodes?.length > 0)) {
+      throw new Error("boardState recorded no open ticket on the configured project with a blocker, so its paths would be missing rather than proven")
+    }
   }
   if (name === "issueDependencyNumbers" && (!Array.isArray(value) || value.length === 0 || value.some((number) => !Number.isInteger(number)))) {
     throw new Error(`issueDependencyNumbers recorded no populated dependency array on issue ${dependencySampleNumber}`)

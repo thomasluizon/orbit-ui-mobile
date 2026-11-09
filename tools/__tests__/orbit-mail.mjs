@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
-import { collectMail, draftReply, replyToMail } from "../orbit-mail.mjs"
+import { collectMail, draftReply, replyToMail, unseenMailIds } from "../orbit-mail.mjs"
 import { gmailClient } from "../lib/auto-work-google.mjs"
 import { acknowledgeIntake, intakeSource } from "../lib/auto-work-intake.mjs"
 import { writeRunState } from "../lib/run-state.mjs"
@@ -56,6 +56,18 @@ export const cases = async () => {
   writeRunState({ sessionId: "mail-child", sleep: true, intake: { gmail: state } }, checkout)
   await draftReply(client, { id: "m1", text: "Olá" }, checkout)
   T("mail: recovery after a lost draft receipt finds the existing Message-ID", calls.filter(({ options }) => options.method === "POST").length === 1 && intakeSource("gmail", checkout).pending.m1.draftId === "draft-1")
+  const listed = calls.length
+  const unseenCheckout = join(root, "mail-unseen")
+  mkdirSync(join(unseenCheckout, ".git"), { recursive: true })
+  writeRunState({ sessionId: "unseen-mail", sleep: true, autoWork: true,
+    intake: { gmail: { completed: { m1: { id: "m1" } }, pending: {}, highWater: "m1" } } }, unseenCheckout)
+  const unseen = await unseenMailIds(client, unseenCheckout)
+  const unseenCalls = calls.slice(listed)
+  T("mail: the unseen listing returns ids absent from completed and pending state", JSON.stringify(unseen) === JSON.stringify(["m2"]))
+  T("mail: the unseen listing pages the received ids and reads no message", unseenCalls.length === 2 &&
+    unseenCalls.every(({ url }) => url.pathname.endsWith("/messages") && url.searchParams.get("q") === "-in:sent -in:drafts" &&
+      url.searchParams.get("includeSpamTrash") === "true") && unseenCalls[1].url.searchParams.get("pageToken") === "page-2")
+  T("mail: ids already pending are not unseen", (await unseenMailIds(client, checkout)).length === 0)
   const before = calls.length
   await collectMail(client, checkout)
   T("mail: cached pending messages are not read again", calls.slice(before).every(({ url }) => url.pathname.endsWith("/messages")))
