@@ -18,6 +18,7 @@ import {
 import { BUTTON_SIZES, SPACING, TAB_BAR_MIN_HEIGHT, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import type { ShellWideItem, ShellWideProps } from '@orbit/shared/contracts/shell'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { ASTRA_BUTTON_GAP } from '@orbit/shared/utils'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useIsClient } from '@/hooks/use-is-client'
 import { PanelLeft, PanelLeftClose, Plus, Search } from '@/components/ui/icons'
@@ -336,10 +337,22 @@ function getScrollerSpacing(hasBottomChrome: boolean, reservesComposerSpace: boo
     : { padding: `[--shell-scroller-end:var(--orbit-space-32)] ${SCROLLER_END_PADDING}`, minimum: 'min-h-8', focusClearance }
 }
 
-function getAstraScrollerSpacing(spacing: ReturnType<typeof getScrollerSpacing>, astraButton: ReactNode, wide: boolean) {
-  if (!astraButton) return { padding: spacing.padding, focusClearance: wide ? undefined : spacing.focusClearance }
+function getFabColumnSpacing({ hasBottomChrome, hasPinnedSlot, floating, astraButton, wide }: Readonly<{
+  hasBottomChrome: boolean
+  hasPinnedSlot: boolean
+  floating: boolean
+  astraButton: boolean
+  wide: boolean
+}>) {
+  const fabColumn = floating || astraButton
+  const spacing = getScrollerSpacing(hasBottomChrome, hasPinnedSlot || fabColumn, fabColumn)
+  return { fabColumn, minimum: spacing.minimum, ...getAstraScrollerSpacing(spacing, floating && astraButton, wide) }
+}
+
+function getAstraScrollerSpacing(spacing: ReturnType<typeof getScrollerSpacing>, stacked: boolean, wide: boolean) {
+  if (!stacked) return { padding: spacing.padding, focusClearance: wide ? undefined : spacing.focusClearance }
   return {
-    padding: `[--shell-scroller-end:max(var(--shell-astra-clearance),var(--orbit-space-96))] lg:[--shell-scroller-end:var(--orbit-space-32)] ${SCROLLER_END_PADDING}`,
+    padding: `[--shell-scroller-end:var(--shell-astra-clearance)] lg:[--shell-scroller-end:var(--orbit-space-32)] ${SCROLLER_END_PADDING}`,
     focusClearance: 'min(var(--shell-astra-clearance), 50%)',
   }
 }
@@ -404,6 +417,15 @@ function ShellConversation({ conversationId, label, wide, children }: Readonly<{
           ><main className="h-full">{children}</main></motion.div>
 }
 
+function ShellFabColumn({ astraButton, fab }: Readonly<{ astraButton: ReactNode; fab: ReactNode }>) {
+  return <div data-shell-fab-clip="" className="pointer-events-none absolute inset-x-0 bottom-2 z-sticky flex justify-end overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] px-4 py-2 lg:hidden">
+    <div data-shell-fab-content="" className="pointer-events-none mx-auto flex w-full max-w-[740px] flex-col items-end" style={{ gap: ASTRA_BUTTON_GAP }}>
+      {astraButton !== undefined ? <div data-shell-astra-button="" className="pointer-events-none [&_button]:pointer-events-auto">{astraButton}</div> : null}
+      {fab !== undefined ? <div data-shell-fab="" className="pointer-events-none [&_button]:pointer-events-auto">{fab}</div> : null}
+    </div>
+  </div>
+}
+
 function ShellWideBackground({
   props: { registerHeaderHost, ...props },
   conversationOpen,
@@ -427,8 +449,7 @@ function ShellWideBackground({
   const hasBottomChrome = (navigationEnabled && props.tabBar !== undefined)
     || props.notice !== undefined || pinnedSlot !== undefined
   const floating = props.fab !== undefined || props.fabPending === true
-  const scrollerSpacing = getScrollerSpacing(hasBottomChrome, pinnedSlot !== undefined || floating, floating)
-  const astraSpacing = getAstraScrollerSpacing(scrollerSpacing, props.astraButton, wide)
+  const astraSpacing = getFabColumnSpacing({ hasBottomChrome, hasPinnedSlot: pinnedSlot !== undefined, floating, astraButton: props.astraButton !== undefined, wide })
   return (
     <ConversationComposerMotionProvider><div
       className="isolate flex min-w-0 flex-1"
@@ -445,7 +466,7 @@ function ShellWideBackground({
               <div ref={registerHeaderHost} data-shell-header-content="" className="w-full">{props.header}</div>
             </div>
           </div> : null}
-          <div data-shell-page="" className={`relative mx-auto flex w-full flex-1 flex-col ${scrollerSpacing.minimum}`}>
+          <div data-shell-page="" className={`relative mx-auto flex w-full flex-1 flex-col ${astraSpacing.minimum}`}>
             <main
               ref={registerScroller}
               data-shell-scroller=""
@@ -459,18 +480,13 @@ function ShellWideBackground({
               />
               <div data-shell-page-content="" className="mx-auto min-h-full w-full max-w-[740px] has-[[data-list-motion][inert]]:min-h-[var(--shell-scroll-min-height,100%)] has-[[data-page-viewport]]:h-full">{props.children}</div>
             </main>
-            {props.fab !== undefined ? (
-              <div data-shell-fab-clip="" className="pointer-events-none absolute inset-x-0 bottom-2 z-sticky flex justify-end overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] px-4 py-2 lg:hidden">
-                <div data-shell-fab-content="" className="pointer-events-none mx-auto flex w-full max-w-[740px] justify-end"><div data-shell-fab="" className="pointer-events-none [&_button]:pointer-events-auto">{props.fab}</div></div>
-              </div>
-            ) : null}
+            {astraSpacing.fabColumn ? <ShellFabColumn astraButton={props.astraButton} fab={props.fab} /> : null}
             {props.scrollToTop !== undefined && !conversationOpen ? (
               <div data-shell-scroll-to-top="" className="pointer-events-none absolute inset-x-0 top-2 z-sticky flex justify-center">
                 <div className="pointer-events-auto">{props.scrollToTop}</div>
               </div>
             ) : null}
           </div>
-          {props.astraButton}
           <ShellBottomChrome props={props} conversationOpen={conversationOpen} visible={hasBottomChrome} />
           <div data-shell-create-refusal="" aria-live="polite" aria-atomic="true" className="min-h-0 overflow-y-auto px-4">{sidebarRefusal}</div>
           </div>

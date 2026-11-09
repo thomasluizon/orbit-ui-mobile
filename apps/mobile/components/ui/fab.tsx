@@ -8,7 +8,7 @@ function dropShadow({ shadowOffset, shadowRadius, shadowOpacity }: AppShadowV2) 
   return `${shadowOffset.width}px ${shadowOffset.height}px ${shadowRadius}px rgba(0, 0, 0, ${shadowOpacity})`
 }
 
-export function Fab({ label, children, onClick, neutral = false, lifted = false, ...buttonProps }: Readonly<FabProps & Omit<PressableProps, 'children' | 'onPress' | 'style'> & { neutral?: boolean; lifted?: boolean }>) {
+export function Fab({ label, children, onClick, neutral = false, ...buttonProps }: Readonly<FabProps & Omit<PressableProps, 'children' | 'onPress' | 'style'> & { neutral?: boolean }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -27,10 +27,10 @@ export function Fab({ label, children, onClick, neutral = false, lifted = false,
         {
           backgroundColor: neutral ? tokens.bgElev : tokens.primary,
           boxShadow: neutral
-            ? `inset 0 0 0 1px ${tokens.hairlineStrong}, ${dropShadow(lifted ? shadowsV2.shadow3 : shadowsV2.shadow2)}`
+            ? `inset 0 0 0 1px ${tokens.hairlineStrong}, ${dropShadow(shadowsV2.shadow2)}`
             : `0 0 0 6px ${tokens.bg}`,
         },
-        pressed && !lifted ? styles.pressed : null,
+        pressed ? styles.pressed : null,
       ]}
     >
       {children}

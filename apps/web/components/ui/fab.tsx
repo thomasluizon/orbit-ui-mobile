@@ -3,7 +3,7 @@ import type { ComponentProps } from 'react'
 
 const CANVAS_RING = '0 0 0 6px var(--bg)'
 
-export function Fab({ label, children, onClick, neutral = false, lifted = false, style, ...buttonProps }: Readonly<Omit<FabProps, 'onClick'> & ComponentProps<'button'> & { neutral?: boolean; lifted?: boolean }>) {
+export function Fab({ label, children, onClick, neutral = false, style, ...buttonProps }: Readonly<Omit<FabProps, 'onClick'> & ComponentProps<'button'> & { neutral?: boolean }>) {
   return (
     <button
       {...buttonProps}
@@ -11,14 +11,12 @@ export function Fab({ label, children, onClick, neutral = false, lifted = false,
       aria-label={label}
       onClick={onClick}
       data-fab={neutral ? 'neutral' : ''}
-      data-lifted={neutral && lifted ? '' : undefined}
       className={`group relative appearance-none border-0 flex items-center justify-center ${neutral ? 'bg-[var(--bg-elev)] text-[var(--fg-1)]' : 'bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-hover)] active:bg-[var(--primary-pressed)]'} cursor-pointer transition-[background-color,scale,box-shadow] [transition-duration:var(--dur-hover-control),var(--dur-press),var(--dur-fast)] [transition-timing-function:var(--ease-standard),var(--ease-out),var(--ease-out)] motion-safe:active:scale-[0.96]`}
       style={{
         borderRadius: 999,
-        boxShadow: neutral ? `var(${lifted ? '--sh-3' : '--sh-2'})` : CANVAS_RING,
+        boxShadow: neutral ? 'var(--sh-2)' : CANVAS_RING,
         height: 60,
         width: 60,
-        ...(neutral && lifted ? { scale: '1' } : null),
         ...style,
       }}
     >

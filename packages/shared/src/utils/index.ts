@@ -1,6 +1,5 @@
 export { loadModule, MODULE_LOAD_TIMEOUT_MS } from './load-module'
-export { ASTRA_BUTTON_SIZE, ASTRA_BUTTON_GAP, ASTRA_BUTTON_CLEARANCE, ASTRA_POSITION_KEY, parseAstraButtonPosition, snapAstraButton, moveAstraButton, resolveAstraButtonArea, getAstraButtonClearance, type AstraButtonPoint, type AstraButtonArea, type AstraButtonObstacle, type AstraMoveDirection, type AstraButtonViewport } from './astra-button-position'
-export { ASTRA_BUTTON_AT_REST, advanceAstraButtonGesture, type AstraButtonGesture, type AstraButtonGestureEvent } from './astra-button-gesture'
+export { ASTRA_BUTTON_GAP } from './astra-button'
 export { getSegmentedControlLayout } from './segmented-control'
 export { achievementEmoji } from './achievement-emoji'
 export { createStepUpSessionState, type StepUpSessionState } from './step-up-session'
