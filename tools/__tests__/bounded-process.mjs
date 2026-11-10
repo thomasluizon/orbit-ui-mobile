@@ -1,8 +1,57 @@
 import { spawnSync } from "node:child_process"
-import { readFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, symlinkSync } from "node:fs"
+import { join } from "node:path"
 
 import { runBounded } from "../lib/bounded-process.mjs"
-import { processIsRunning, T, stage } from "./_harness.mjs"
+import { processIsRunning, root, T, stage } from "./_harness.mjs"
+
+// A shell would expand, split or redirect these. The child must receive each one unchanged.
+const literalArguments = (markers) => [
+  `$(touch ${markers[0]})`,
+  "`touch " + markers[1] + "`",
+  // The redirect stays ahead of the separators, so a shell attaches it to the first command.
+  `redirect>${markers[2]}`,
+  "semicolon;value",
+  "and&&value",
+  "pipe|value",
+  "two words",
+  "first line\nsecond line",
+]
+
+const literalProgramAndArguments = async () => {
+  const directory = join(root, "bounded-process", "literal")
+  const markers = ["substitution-marker", "backtick-marker", "redirect-marker"].map((name) => join(directory, name))
+  const printArguments = stage("bounded-process/literal/print-arguments.cjs", "process.stdout.write(JSON.stringify(process.argv.slice(2)))\n")
+  const expected = literalArguments(markers)
+  const run = await runBounded(process.execPath, [printArguments, ...expected], { timeoutMs: 5000 })
+  let received = null
+  try { received = JSON.parse(run.stdout) } catch { /* the assertion below reports the raw output */ }
+  T(
+    "bounded-process.mjs: shell metacharacter arguments reach the child byte for byte",
+    run.status === 0 && JSON.stringify(received) === JSON.stringify(expected),
+    JSON.stringify({ received, expected, run }),
+  )
+  const created = markers.filter((marker) => existsSync(marker))
+  T("bounded-process.mjs: shell metacharacter arguments never execute a marker command", created.length === 0, JSON.stringify(created))
+
+  if (process.platform === "win32") return
+  // A shell would evaluate the substitution in the program path. Name the marker without a slash,
+  // and run from a clean directory, so a stray evaluation creates it inside that directory.
+  const workingDirectory = join(directory, "link-run")
+  const linkMarker = join(workingDirectory, "path-marker")
+  const linkDirectory = join(directory, "a space $(touch path-marker)")
+  mkdirSync(workingDirectory, { recursive: true })
+  mkdirSync(linkDirectory, { recursive: true })
+  const link = join(linkDirectory, "node-link")
+  symlinkSync(process.execPath, link)
+  const linked = await runBounded(link, [printArguments, "linked"], { cwd: workingDirectory, timeoutMs: 5000 })
+  T(
+    "bounded-process.mjs: a program path with a space and a substitution runs as one literal path",
+    linked.status === 0 && linked.stdout === JSON.stringify(["linked"]),
+    JSON.stringify(linked),
+  )
+  T("bounded-process.mjs: a program path never executes a marker command", !existsSync(linkMarker), linkMarker)
+}
 
 export const cases = async () => {
   const success = await runBounded(process.execPath, ["-e", "process.stdout.write('bounded-ok')"], { timeoutMs: 5000 })
@@ -36,6 +85,8 @@ setTimeout(() => process.stdout.write(bytes.subarray(bytes.length - 1)), 20)
     refused.error instanceof Error && refused.status === null && refused.stdout === "" && refused.timedOut === false,
     JSON.stringify({ error: refused.error?.code ?? null, status: refused.status }),
   )
+
+  await literalProgramAndArguments()
 
   const pidFile = stage("bounded-process/descendant.pid", "")
   const script = stage(
