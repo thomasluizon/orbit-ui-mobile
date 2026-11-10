@@ -1,10 +1,12 @@
 import { EventEmitter } from 'node:events'
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
-import { chmod, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
-import { IncomingMessage, ServerResponse } from 'node:http'
+import { chmod, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { IncomingMessage, ServerResponse, createServer, request } from 'node:http'
 import { Socket } from 'node:net'
+import { tmpdir } from 'node:os'
 import { join, win32 } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { T, REPO_ROOT, root } from './_harness.mjs'
 import { dnsCases } from './desktop-acceptance-dns.mjs'
@@ -325,7 +327,46 @@ async function proxyErrorCases() {
   }
 }
 
+async function upstreamConnectionReuseCases() {
+  const { startProxy } = await import(pathToFileURL(join(REPO_ROOT, 'tools/desktop-bench/server.mjs')).href)
+  const listen = (server) => new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(server.address().port)))
+  const served = new WeakSet()
+  const upstream = createServer((incoming, response) => {
+    // A second request on a served connection stands for the keep-alive race: the server closes an idle
+    // connection at its keep-alive timeout while the client writes the next request onto it.
+    if (served.has(incoming.socket)) { incoming.socket.destroy(); return }
+    served.add(incoming.socket)
+    incoming.resume()
+    response.writeHead(200, { 'content-type': 'text/plain' }).end('ok')
+  })
+  const upstreamPort = await listen(upstream)
+  const reserved = createServer()
+  const port = await listen(reserved)
+  await new Promise((resolve) => reserved.close(resolve))
+  const directory = await mkdtemp(join(tmpdir(), 'orbit-bench-proxy-'))
+  await writeFile(join(directory, 'probe.js'), '')
+  const proxy = await startProxy({ probePath: join(directory, 'probe.js'), port, upstreamPort })
+  const send = (method) => new Promise((resolve, reject) => {
+    // A webview asks for keep-alive, and the proxy forwards the request headers upstream.
+    const outgoing = request({ host: '127.0.0.1', port, path: '/', method, agent: false, headers: { connection: 'keep-alive' } }, (response) => {
+      response.resume()
+      response.on('end', () => resolve(response.statusCode))
+    })
+    outgoing.on('error', reject)
+    outgoing.end(method === 'POST' ? 'body' : undefined)
+  })
+  const statuses = [await send('GET'), await send('POST')]
+  const errors = proxy.events().filter((event) => event.kind === 'error')
+  T('benchmark proxy sends each request on its own upstream connection, so a keep-alive close never hangs up a POST',
+    JSON.stringify(statuses) === '[200,200]' && errors.length === 0, JSON.stringify({ statuses, errors: errors.map((event) => event.message) }))
+  await proxy.stop()
+  upstream.closeAllConnections()
+  await new Promise((resolve) => upstream.close(resolve))
+  await rm(directory, { recursive: true, force: true })
+}
+
 export async function networkCases() {
+  await upstreamConnectionReuseCases()
   await dnsCases()
   await originCheckCases()
   await hostsReplacementCases()

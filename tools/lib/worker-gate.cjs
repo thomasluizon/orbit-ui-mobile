@@ -20,6 +20,8 @@ process.once("message", ({ executable, args, directory, input, reportDescriptor 
     worker.stdin.on("error", (error) => { if (error.code !== "EPIPE") throw error })
     worker.stdin.end(input)
   }
+  // The gate outlives its worker: the launcher SIGKILLs the group as soon as the gate exits, which would cut short a worker still handling SIGTERM.
+  for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"]) process.on(signal, () => { worker.kill(signal) })
   worker.on("error", (error) => {
     console.error(error.message)
     process.exitCode = 3

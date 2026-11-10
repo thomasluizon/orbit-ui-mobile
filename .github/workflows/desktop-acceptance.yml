@@ -62,7 +62,8 @@ jobs:
             ${{ runner.temp }}/orbit-desktop-acceptance/*.jsonl
             ${{ runner.temp }}/orbit-desktop-acceptance/caption-*.png
             ${{ runner.temp }}/orbit-desktop-acceptance/trees/**
-          if-no-files-found: error
+          # A step that fails before acceptance leaves no files; that step stays the job's only red step.
+          if-no-files-found: warn
           retention-days: 14
 
   installed-signed:
@@ -106,5 +107,6 @@ jobs:
             ${{ runner.temp }}/orbit-desktop-acceptance/*.mp4
             ${{ runner.temp }}/orbit-desktop-acceptance/*.log
             ${{ runner.temp }}/orbit-desktop-acceptance/trees/**
-          if-no-files-found: error
+          # A step that fails before acceptance leaves no files; that step stays the job's only red step.
+          if-no-files-found: warn
           retention-days: 14
