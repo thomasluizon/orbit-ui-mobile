@@ -16,7 +16,6 @@ import { styles } from './habit-row-styles'
 
 interface HabitRowTrailingProps {
   habit: NormalizedHabit
-  isSelectMode: boolean
   hasChildren: boolean
   childrenDone: number
   childrenTotal: number
@@ -38,27 +37,6 @@ function completionRingLabel(unavailable: boolean, status: string, action: strin
 
 function showParentRing(hasChildren: boolean, childrenTotal: number, unavailable: boolean): boolean {
   return hasChildren && childrenTotal > 0 && !unavailable
-}
-
-function SelectionStatusGlyph({
-  hasChildren, childrenDone, childrenTotal, dotState, isDoneForRange,
-  completionReadOnly, completionStatusUnavailable,
-}: Readonly<HabitRowTrailingProps>) {
-  const { t } = useTranslation()
-  const statusName = t(`habits.statusDot.${resolveHabitAccessibleStatus(dotState, isDoneForRange)}` as const)
-  if (showParentRing(hasChildren, childrenTotal, completionStatusUnavailable)) {
-    return (
-      <View accessibilityRole="image" accessibilityLabel={`${statusName}, ${childrenDone}/${childrenTotal}`}
-        style={[styles.parentRingButton, completionReadOnly ? { opacity: 0.4 } : null]}>
-        <HabitCheck status={dotState} progress={{ done: childrenDone, total: childrenTotal }} />
-      </View>
-    )
-  }
-  return (
-    <View style={[styles.parentRingButton, completionReadOnly ? { opacity: 0.4 } : null]}>
-      <HabitCheck status={dotState} label={statusName} unavailable={completionStatusUnavailable} />
-    </View>
-  )
 }
 
 function InteractiveParentRing({
@@ -94,7 +72,6 @@ function InteractiveParentRing({
 
 function HabitRowCompletion(props: Readonly<HabitRowTrailingProps>) {
   const { t } = useTranslation()
-  if (props.isSelectMode) return <SelectionStatusGlyph {...props} />
   if (showParentRing(props.hasChildren, props.childrenTotal, props.completionStatusUnavailable)) {
     return <InteractiveParentRing {...props} />
   }
@@ -111,7 +88,6 @@ function HabitRowCompletion(props: Readonly<HabitRowTrailingProps>) {
 // react-doctor-disable-next-line no-many-boolean-props -- private row-internal cluster; the flags are independent render inputs from the parent row, not a combinatorial public API https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
   const {
-  isSelectMode,
   hasMenuActions,
   tokens,
   } = props
@@ -120,7 +96,7 @@ export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
   return (
     <View style={styles.trailing}>
       <HabitRowCompletion {...props} />
-      {!isSelectMode && hasMenuActions ? (
+      {hasMenuActions ? (
         <Menu.Trigger asChild>
           <Pressable
             onHoverIn={() => setMenuHovered(true)}

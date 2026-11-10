@@ -2,7 +2,6 @@ import { computeHabitFutureHint, getHabitChecklistProgress, getHabitRowTypeLabel
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import type { HabitRowMetaPart } from './habit-row-content'
-import type { HabitRowActions } from './habit-row'
 
 /** Maps the row's derived flags to its status-dot state. */
 export function resolveHabitRowDotState(
@@ -94,20 +93,3 @@ export function buildHabitRowAccessibilityLabel({
   return parts.join(', ')
 }
 
-/** Whether the row has any overflow-menu action available. */
-export function hasHabitRowMenuActions(
-  actions: HabitRowActions,
-  isSelectMode: boolean,
-): boolean {
-  return (
-    !!actions.onEdit ||
-    !!actions.onDuplicate ||
-    !!actions.onMoveParent ||
-    !!actions.onAddSubHabit ||
-    !!actions.onSkip ||
-    !!actions.onReschedule ||
-    !!actions.onDelete ||
-    (!isSelectMode && !!actions.onEnterSelectMode) ||
-    !!actions.onDrillInto
-  )
-}

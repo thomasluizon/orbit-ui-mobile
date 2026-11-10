@@ -64,14 +64,13 @@ describe.each(['en', 'pt-BR'] as const)('bad-habit status in %s', (language) => 
     TestRenderer.act(() => tree.unmount())
   })
 
-  it.each([false, true])('announces selection glyph status, parent=%s', (parent) => {
+  it.each([false, true])('renders no status glyph in select mode, parent=%s', (parent) => {
     locale.current = language
     for (const logged of ['none', 'completed', 'range'] as const) {
-      const status = logged !== 'none' ? (language === 'en' ? 'Slipped' : 'Deslize') : (language === 'en' ? 'Not done' : 'Não feito')
       let tree: ReturnType<typeof TestRenderer.create>
       TestRenderer.act(() => { tree = TestRenderer.create(<LoggingRow parent={parent} selectMode logged={logged} />) })
-      expect(tree!.root.findAll((node: { props: Record<string, unknown> }) =>
-        node.props.accessibilityRole === 'image' && node.props.accessibilityLabel === status + (parent ? ', 1/2' : '')).length).toBeGreaterThan(0)
+      expect(tree!.root.findAll((node: { props: Record<string, unknown> }) => node.props.accessibilityRole === 'image')).toHaveLength(0)
+      expect(tree!.root.findAllByProps({ testID: 'habit-check' })).toHaveLength(0)
       TestRenderer.act(() => tree.unmount())
     }
   })
