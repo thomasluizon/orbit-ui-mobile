@@ -399,6 +399,52 @@ function checkPinnedRelease() {
   T("production override is recorded with its reason", readFileSync(summary, "utf8").includes("force_unstaged: true") && readFileSync(summary, "utf8").includes("Staging service is unavailable"))
 }
 
+function checkAppleClientId() {
+  const read = (file) => load(readFileSync(toolPath(`../.github/workflows/${file}`), "utf8"))
+  const targets = [
+    { label: "web", steps: read("release.yml").jobs.build.steps, name: "Validate browser Apple client ID", before: ["Build and push production image", "Build and push staging image"],
+      cases: [
+        { env: { RELEASE_ENVIRONMENT: "production", PRODUCTION_CLIENT_ID: "", STAGING_CLIENT_ID: "org.example.staging" }, variable: "PRODUCTION_NEXT_PUBLIC_APPLE_CLIENT_ID" },
+        { env: { RELEASE_ENVIRONMENT: "staging", PRODUCTION_CLIENT_ID: "org.example.production", STAGING_CLIENT_ID: " \t" }, variable: "STAGING_NEXT_PUBLIC_APPLE_CLIENT_ID" },
+      ],
+      accepted: [
+        { RELEASE_ENVIRONMENT: "production", PRODUCTION_CLIENT_ID: "org.example.production", STAGING_CLIENT_ID: "" },
+        { RELEASE_ENVIRONMENT: "staging", PRODUCTION_CLIENT_ID: "", STAGING_CLIENT_ID: "org.example.staging" },
+      ],
+      wiring: { PRODUCTION_CLIENT_ID: "${{ vars.PRODUCTION_NEXT_PUBLIC_APPLE_CLIENT_ID }}", STAGING_CLIENT_ID: "${{ vars.STAGING_NEXT_PUBLIC_APPLE_CLIENT_ID }}" } },
+    { label: "android", steps: read("android-release.yml").jobs["release-android"].steps, name: "Validate Apple client ID",
+      before: ["Free disk space for the Android release build", "Submit build to Google Play"],
+      cases: [{ env: { APPLE_CLIENT_ID: "" }, variable: "EXPO_PUBLIC_APPLE_CLIENT_ID" }, { env: { APPLE_CLIENT_ID: "  " }, variable: "EXPO_PUBLIC_APPLE_CLIENT_ID" }],
+      accepted: [{ APPLE_CLIENT_ID: "org.example.app" }],
+      wiring: { APPLE_CLIENT_ID: "${{ vars.EXPO_PUBLIC_APPLE_CLIENT_ID }}" } },
+    { label: "ios", steps: read("ios-release.yml").jobs.release.steps, name: "Validate Apple client ID",
+      before: ["Install dependencies", "Install signing credentials", "Archive the embedded app"],
+      cases: [{ env: { EXPO_PUBLIC_APPLE_CLIENT_ID: "" }, variable: "EXPO_PUBLIC_APPLE_CLIENT_ID" }, { env: { EXPO_PUBLIC_APPLE_CLIENT_ID: "\t" }, variable: "EXPO_PUBLIC_APPLE_CLIENT_ID" }],
+      accepted: [{ EXPO_PUBLIC_APPLE_CLIENT_ID: "org.example.app" }] },
+  ]
+  for (const { label, steps, name, before, cases: failing, accepted, wiring } of targets) {
+    const index = steps.findIndex((step) => step.name === name)
+    T(`${label} release has an Apple client ID check`, index >= 0)
+    if (index < 0) continue
+    const step = steps[index]
+    T(`${label} Apple client ID check cannot be skipped or ignored`, !step.if && !step["continue-on-error"])
+    for (const later of before) {
+      const laterIndex = steps.findIndex((candidate) => candidate.name === later)
+      T(`${label} Apple client ID check runs before ${later}`, laterIndex > index)
+    }
+    if (wiring) T(`${label} Apple client ID check reads the Apple variables`, Object.entries(wiring).every(([key, value]) => step.env?.[key] === value))
+    for (const { env, variable } of failing) {
+      const result = spawnSync(BASH, ["-c", step.run], { encoding: "utf8", env: { PATH: process.env.PATH, ...env } })
+      T(`${label} rejects an empty Apple client ID ${JSON.stringify(env)}`, result.status === 1 &&
+        (result.stdout + result.stderr).includes(`::error::Missing`) && (result.stdout + result.stderr).includes(variable), result.stdout + result.stderr)
+    }
+    for (const env of accepted) {
+      const result = spawnSync(BASH, ["-c", step.run], { encoding: "utf8", env: { PATH: process.env.PATH, ...env } })
+      T(`${label} accepts a set Apple client ID ${JSON.stringify(env)}`, result.status === 0, result.stdout + result.stderr)
+    }
+  }
+}
+
 export async function cases() {
   T("release workflow exposes only production and staging", JSON.stringify(load(workflow).on.workflow_dispatch.inputs.environment.options) === JSON.stringify(["production", "staging"]))
   T("release selection guard is present", typeof guard === "string")
@@ -437,4 +483,5 @@ export async function cases() {
   await checkProductionSteps()
   checkPinnedRelease()
   checkSourceIdentity()
+  checkAppleClientId()
 }

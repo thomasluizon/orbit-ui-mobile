@@ -20,6 +20,7 @@ The GitHub environments `ios-staging` and `ios-production`, under Settings > Env
 | Kind | Key | Source |
 |---|---|---|
 | Variable | `ORBIT_APPLE_TEAM_ID` | Apple Developer > Membership details > Team ID |
+| Variable | `EXPO_PUBLIC_APPLE_CLIENT_ID` | Required. `org.useorbit.app` in `ios-production` and `org.useorbit.app.staging` in `ios-staging`; the release stops before it builds when the value is empty |
 | Variable | `ORBIT_IOS_APP_STORE_ID` | App Store Connect > Apps > matching app > App Information > Apple ID |
 | Variable | `IOS_PROVISIONING_PROFILE_NAME` | Apple Developer > Certificates, Identifiers & Profiles > Profiles; the matching App Store distribution profile's name |
 | Variable | `IOS_WIDGET_PROVISIONING_PROFILE_NAME` | The distribution profile name for that variant's `<bundleIdentifier>.widget` extension |

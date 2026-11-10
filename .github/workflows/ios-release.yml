@@ -54,6 +54,13 @@ jobs:
       EXPO_NO_TELEMETRY: '1'
       EXPO_NO_METRO_WORKSPACE_ROOT: '1'
     steps:
+      - name: Validate Apple client ID
+        run: |
+          set -euo pipefail
+          if [ -z "${EXPO_PUBLIC_APPLE_CLIENT_ID//[[:space:]]/}" ]; then
+            echo "::error::Missing environment variable EXPO_PUBLIC_APPLE_CLIENT_ID; Sign in with Apple ships on every release"
+            exit 1
+          fi
       - uses: actions/checkout@v7
       - name: Select Xcode
         run: |

@@ -100,6 +100,15 @@ jobs:
             echo "::error::Open and production Android releases must run from main" >&2
             exit 1
           fi
+      - name: Validate Apple client ID
+        env:
+          APPLE_CLIENT_ID: ${{ vars.EXPO_PUBLIC_APPLE_CLIENT_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${APPLE_CLIENT_ID//[[:space:]]/}" ]; then
+            echo "::error::Missing environment variable EXPO_PUBLIC_APPLE_CLIENT_ID; Sign in with Apple ships on every release" >&2
+            exit 1
+          fi
       # First step on purpose: every later step can fail, and when one does the
       # log must still say what was being shipped and how to reproduce it. Run
       # 29512207801 failed in an early guard and recorded nothing about the
