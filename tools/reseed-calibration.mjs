@@ -4,7 +4,7 @@ import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { createHash } from "node:crypto"
 
-import { resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
+import { resolveWorkerInvocation, workerAccountTiers } from "./lib/orchestrator-config.mjs"
 
 const USAGE = `usage: reseed-calibration.mjs [--root <path>]
 
@@ -170,6 +170,8 @@ const workerTiers = Object.fromEntries(Object.keys(config.workers[workerEngine].
   const invocation = resolveWorkerInvocation(workerEngine, config.workers[workerEngine], tier)
   return [tier, { model: invocation.model, args: invocation.args }]
 }))
+// The model also depends on the account that runs the order, so every tier is stamped per account.
+const workerAccountVectors = workerAccountTiers(workerEngine, config.workers[workerEngine])
 const workerTierVerdict = "default handles normal orders requiring judgment; mechanical handles merge-forward work, known conflict lists, and reviewer-directed test experiments; deep handles large tickets; max handles review rounds after one failed round; ultra is never used because it delegates to its own agents"
 
 const now = new Date()
@@ -186,6 +188,7 @@ const workerMoved =
   previous.workerEngine !== workerEngine ||
   previous.workerCommand !== workerCommand ||
   JSON.stringify(previous.workerTiers) !== JSON.stringify(workerTiers) ||
+  JSON.stringify(previous.workerAccountTiers) !== JSON.stringify(workerAccountVectors) ||
   previous.workerTierVerdict !== workerTierVerdict
 
 const entries = {}
@@ -246,9 +249,10 @@ const stamp = {
   workerEngine,
   workerCommand,
   workerTiers,
+  workerAccountTiers: workerAccountVectors,
   workerTierVerdict,
   workerModelSource:
-    "resolveWorkerInvocation(config.worker, ..., tier) in tools/lib/orchestrator-config.mjs for every configured tier, with each exact launch vector: engine args, then selected profile args, then the model",
+    "resolveWorkerInvocation(config.worker, ..., tier, account) in tools/lib/orchestrator-config.mjs for every configured tier and every account, with each exact launch vector: engine args, then selected profile args, then the model",
   entries,
 }
 

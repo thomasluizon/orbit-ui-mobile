@@ -5,7 +5,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
+import { resolveWorkerInvocation, workerAccountTiers } from "./lib/orchestrator-config.mjs"
 
 const USAGE = `usage: check-calibration.mjs [--root <path>]
 
@@ -24,9 +24,10 @@ const USAGE = `usage: check-calibration.mjs [--root <path>]
     3. each entry's recorded model and effort match what the file declares today, AND its recorded
        digest matches the file's complete normalized content, so rewriting a prompt body invalidates
        the verdict that was written about the old text
-    4. the stamp's workerCommand and every workerTiers vector match what launch-worker.mjs actually
-       resolves, taken from resolveWorkerInvocation itself rather than rebuilt here. Each args value
-       is the WHOLE vector: engine-level args, then the selected profile args, then the model
+    4. the stamp's workerCommand, every workerTiers vector and every workerAccountTiers vector (the
+       vector of each tier under each account) match what launch-worker.mjs actually resolves, taken
+       from resolveWorkerInvocation itself rather than rebuilt here. Each args value is the WHOLE
+       vector: engine-level args, then the selected profile args, then the model
     5. EVERY entry's own calibratedAt is a real date, is not in the future, is no older than the
        stamp date, and is at most 90 days old, the backstop for a model alias whose target moved
        without its declared string changing. Per entry rather than stamp-wide, because one date for
@@ -85,6 +86,20 @@ for (const [tier, profile] of Object.entries(stamp.workerTiers)) {
   }
   if (!Array.isArray(profile.args) || profile.args.some((argument) => typeof argument !== "string")) {
     fail(2, `check-calibration: workerTiers.${tier}.args must be an array of strings`)
+  }
+}
+if (stamp.workerAccountTiers === null || typeof stamp.workerAccountTiers !== "object" || Array.isArray(stamp.workerAccountTiers)) {
+  fail(2, "check-calibration: workerAccountTiers must be an object keyed by account, then by configured tier")
+}
+for (const [account, tiers] of Object.entries(stamp.workerAccountTiers)) {
+  if (tiers === null || typeof tiers !== "object" || Array.isArray(tiers)) fail(2, `check-calibration: workerAccountTiers.${account} must be an object keyed by configured tier`)
+  for (const [tier, profile] of Object.entries(tiers)) {
+    if (profile === null || typeof profile !== "object" || Array.isArray(profile) || typeof profile.model !== "string" || profile.model === "") {
+      fail(2, `check-calibration: workerAccountTiers.${account}.${tier}.model must be a non-empty string`)
+    }
+    if (!Array.isArray(profile.args) || profile.args.some((argument) => typeof argument !== "string")) {
+      fail(2, `check-calibration: workerAccountTiers.${account}.${tier}.args must be an array of strings`)
+    }
   }
 }
 if (typeof stamp.workerTierVerdict !== "string" || stamp.workerTierVerdict.trim() === "") {
@@ -201,6 +216,12 @@ try {
 } catch (error) {
   fail(2, `check-calibration: ${error.message}, so the model-match assertion has nothing to compare against`)
 }
+let configuredAccountTiers
+try {
+  configuredAccountTiers = workerAccountTiers(configuredEngine, orchestrator?.workers?.[configuredEngine])
+} catch (error) {
+  fail(2, `check-calibration: ${error.message}, so the model-match assertion has nothing to compare against`)
+}
 /**
  * The EXECUTABLE, which `resolveWorkerInvocation` does not return: `launch-worker.mjs:194` spawns
  * `engine.command` and the invocation only describes what is passed TO it. Swapping that command while
@@ -227,6 +248,31 @@ for (const tier of configuredTierNames) {
   }
   if (JSON.stringify(stamped.args) !== JSON.stringify(configured.args)) {
     problems.push(`the ${tier} tier worker args are ${JSON.stringify(configured.args)} and the stamp was taken against ${JSON.stringify(stamped.args)}; this is the whole resolved launch vector, engine args included`)
+  }
+}
+
+/** The model of a tier depends on the account that runs it, so every account is compared tier by tier. */
+const configuredAccountNames = Object.keys(configuredAccountTiers).sort()
+const stampedAccountNames = Object.keys(stamp.workerAccountTiers).sort()
+if (JSON.stringify(stampedAccountNames) !== JSON.stringify(configuredAccountNames)) {
+  problems.push(`the configured worker accounts are ${configuredAccountNames.join(", ") || "none"} and the stamp names ${stampedAccountNames.join(", ") || "none"}; recalibrate every account's launch vectors`)
+}
+for (const account of configuredAccountNames) {
+  const stampedTiers = stamp.workerAccountTiers[account]
+  if (!stampedTiers) continue
+  if (JSON.stringify(Object.keys(stampedTiers).sort()) !== JSON.stringify(configuredTierNames)) {
+    problems.push(`the configured worker tiers are ${configuredTierNames.join(", ")} and the stamp names ${Object.keys(stampedTiers).sort().join(", ") || "none"} for the ${account} account; recalibrate every selectable launch vector`)
+    continue
+  }
+  for (const tier of configuredTierNames) {
+    const configured = configuredAccountTiers[account][tier]
+    const stamped = stampedTiers[tier]
+    if (stamped.model !== configured.model) {
+      problems.push(`the ${tier} tier worker model on the ${account} account is ${configured.model} and the stamp was taken against ${stamped.model}; recalibrate in the same pull request that moved it`)
+    }
+    if (JSON.stringify(stamped.args) !== JSON.stringify(configured.args)) {
+      problems.push(`the ${tier} tier worker args on the ${account} account are ${JSON.stringify(configured.args)} and the stamp was taken against ${JSON.stringify(stamped.args)}; this is the whole resolved launch vector, engine args included`)
+    }
   }
 }
 
