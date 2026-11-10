@@ -368,6 +368,7 @@ function launchServices(copies: string[], { keepsRemoved = false, missing = [] a
       calls.push([command, ...args])
       if (command === '/usr/libexec/PlistBuddy') return 'org.useorbit.desktop.staging\n'
       if (!keepsRemoved && args[0] === '-u') copies.splice(copies.indexOf(args[1]!), 1)
+      if (args[0] === '-f' && !copies.includes(args[1]!)) copies.push(args[1]!)
       return ''
     },
     bundles: async (identifier: string) => { calls.push(['bundles', identifier]); return { copies: copies.slice(), best: copies.find((path) => !missing.includes(path)) ?? null } },
@@ -390,8 +391,17 @@ test('a notification Done can start only the installed copy, because the build c
     ['bundles', 'org.useorbit.desktop.staging'],
     [lsregister, '-u', buildApp],
     ['remove', buildApp],
+    [lsregister, '-f', installedApp],
     ['bundles', 'org.useorbit.desktop.staging'],
   ])
+})
+
+test('the launch copy check registers the installed copy, because sudo ditto leaves it to Spotlight, which a runner may not index', async () => {
+  // In run 42799395483 LaunchServices listed only the build copy, so after its removal the lookup returned no copy at all.
+  const { host, calls } = launchServices([buildApp])
+  assert.deepEqual(await keepInstalledLaunchCopy(installedApp, ['/work/orbit', '/work/_temp/output'], host),
+    { identifier: 'org.useorbit.desktop.staging', removed: [buildApp], best: installedApp })
+  assert.deepEqual(calls.slice(-2), [[lsregister, '-f', installedApp], ['bundles', 'org.useorbit.desktop.staging']])
 })
 
 test('the launch copy check leaves a vanished disk image copy alone, because lsregister -u exits 1 for a missing path', async () => {

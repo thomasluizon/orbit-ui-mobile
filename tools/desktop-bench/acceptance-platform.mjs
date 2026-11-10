@@ -4,7 +4,7 @@ import { artifactName } from '../../apps/desktop/scripts/release.ts'
 import { lookup } from 'node:dns/promises'
 import { readFile, writeFile, copyFile, readdir, stat, mkdir } from 'node:fs/promises'
 import { userInfo } from 'node:os'
-import { join } from 'node:path'
+import { join, posix } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createInterface } from 'node:readline'
 import { delay, execute, start, stop, track, waitFor } from './host.mjs'
@@ -114,13 +114,14 @@ export async function install(installer, output) {
 
 const lsregister = '/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister'
 
-// usernoted starts the app for a notification response at the copy that LaunchServices finds for the bundle identifier, and
-// NSWorkspace.h says that lookup "uses various heuristics in case multiple apps have the same bundle ID". The build output
-// registers a second copy, and in run 42704572115 the expired-session Done started it, which the installed-path lookup never
-// finds. Thus every copy in a harness directory leaves LaunchServices and the disk, and the installed copy must then rank first.
-// lsregister -u exits 1 for a path that no longer exists, such as a detached disk image, so only present copies are unregistered.
+// usernoted starts a notification response at the copy LaunchServices finds for the bundle identifier, a lookup that "uses various
+// heuristics in case multiple apps have the same bundle ID" (NSWorkspace.h). In run 42704572115 it started the build copy, so every
+// harness copy leaves LaunchServices and the disk; lsregister -u exits 1 for a vanished path, so only present copies are unregistered.
+// sudo ditto does not register the installed copy, and the lookup finds an unregistered copy only through Spotlight (lsregister
+// answers -10814 "from spotlight"), so in run 42799395483 it found none: lsregister -f registers it before the ranking is read.
+// Bundle paths are macOS paths on every host that runs this check.
 export async function keepInstalledLaunchCopy(application, harnessDirectories, host) {
-  const identifier = (await host.execute('/usr/libexec/PlistBuddy', ['-c', 'Print :CFBundleIdentifier', join(application, 'Contents/Info.plist')])).trim()
+  const identifier = (await host.execute('/usr/libexec/PlistBuddy', ['-c', 'Print :CFBundleIdentifier', posix.join(application, 'Contents/Info.plist')])).trim()
   const others = (await host.bundles(identifier)).copies.filter((path) => path !== application)
   const foreign = others.filter((path) => !harnessDirectories.some((directory) => path.startsWith(`${directory}/`)))
   if (foreign.length) throw new Error(`LaunchServices lists ${identifier} at ${foreign.join(', ')}, outside the installed app and the harness directories`)
@@ -131,6 +132,7 @@ export async function keepInstalledLaunchCopy(application, harnessDirectories, h
     await host.remove(path)
     removed.push(path)
   }
+  await host.execute(lsregister, ['-f', application])
   const { best } = await host.bundles(identifier)
   if (best !== application) throw new Error(`LaunchServices still ranks ${best} first for ${identifier}, not ${application}`)
   return { identifier, removed, best }
