@@ -261,7 +261,8 @@ The reader reads that history before it invokes Done, so `report.json` `push.his
 reply of each search, and the report says whether the shell posted the toast at all.
 The mock must record exactly one habit log for that habit, and the app window must stay hidden.
 
-The second check sends another reminder and stops the shell while its notification is visible.
+The second check uses another reminder and stops the shell while its notification is visible. macOS
+sends that reminder before the first one, as the APNs paragraph below explains.
 From the push launch on, the mock refuses the long-lived sign-in token, so the BFF refreshes it into
 65 second tokens. After the shell stops, the mock also refuses the refresh token. A Done on that
 notification launches the shell. On Windows the activator client makes that Done, and COM starts the
@@ -293,11 +294,19 @@ Each run keeps the platform evidence that the notification readers use, also whe
   of the phase. Together they show whether a reminder reached the device, reached the shell, or was
   not presented.
 
-On macOS, APNs answers HTTP 200 when it accepts a push, not when the device receives it. Before each
-reminder the phase reads apsd's incoming push count for the shell's topic, and after the send it waits
-up to 60 seconds for that count to rise. `report.json` `push.doneReceipt` and `push.expiredReceipt`
-keep the counts and the seconds that each push took. A push that apsd never counts fails the phase with
-the counts and the last arrival, before any Notification Center search.
+On macOS, APNs answers HTTP 200 when it accepts a push, not when the device receives it. usernoted lists
+the shell's topic as nonwaking, and APNs holds a push to a nonwaking topic until apsd next writes to the
+courier. The registration's filter write is the last write before the Done click. In the hosted runs
+that `#1560` names, a push sent at most 8.3 seconds after a filter write arrived in less than 0.2
+seconds. A push sent 13 to 25 seconds after a filter write waited for the next write, or never arrived.
+Thus the macOS phase sends the expired reminder and then the done reminder right after the main window
+hides. Notification Center shows the newest notification on top, so the done reminder goes last.
+Windows sends the expired reminder after the Done proof, because WNS has no such hold.
+
+Before the send, the phase reads apsd's incoming push count for the shell's topic. After the send, it
+waits up to 60 seconds for the count to rise by the number of reminders. `report.json` `push.receipt`
+keeps the counts and the seconds that the pushes took. If apsd does not count each push, the phase fails
+with the counts and the last arrival, before any Notification Center search.
 
 The macOS reader presses the menu bar clock to open Notification Center only while the center is closed.
 The press toggles the center, and only the open center lists its history and the Edit Widgets button.

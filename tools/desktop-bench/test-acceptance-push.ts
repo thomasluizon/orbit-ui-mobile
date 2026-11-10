@@ -619,7 +619,7 @@ const activatorReply = (context: Record<string, unknown>, hresult: number) => ({
     server: '"C:\\Orbit\\orbit-desktop.exe" ----AppNotificationActivated:' },
   argumentKeys: ['orbitAction', 'orbitNotice'], context, hresult })
 
-function pushHarness(platform: 'win32' | 'darwin', overrides: { authorization?: boolean; logsAfterDone?: number; visibleAfterDone?: number; expiredLogs?: number; signIn?: boolean; credentials?: Record<string, string>; environment?: string | null; signed?: boolean; apnsDropped?: string; hostIntegrity?: string; doneLost?: boolean; activator?: (name: string) => Record<string, unknown> | Error | undefined } = {}) {
+function pushHarness(platform: 'win32' | 'darwin', overrides: { authorization?: boolean; logsAfterDone?: number; visibleAfterDone?: number; expiredLogs?: number; signIn?: boolean; credentials?: Record<string, string>; environment?: string | null; signed?: boolean; apnsDropped?: string; heldAfterDoneClick?: boolean; hostIntegrity?: string; doneLost?: boolean; activator?: (name: string) => Record<string, unknown> | Error | undefined } = {}) {
   const events: string[] = []
   let apsdCount = 0
   const records = new Map<string, unknown>()
@@ -689,6 +689,9 @@ function pushHarness(platform: 'win32' | 'darwin', overrides: { authorization?: 
         events.push(`deliver ${reminder.title}`)
         // A dropped push is one APNs accepted and never handed to the device, so neither apsd nor Notification Center sees it.
         if (overrides.apnsDropped && reminder.title.startsWith(`Orbit acceptance ${overrides.apnsDropped} `)) return { status: 200 }
+        // APNs holds a push to the nonwaking Orbit topic until apsd next writes to the courier. The registration filter is the
+        // last write before the Done click, so a push sent after that click stays held (runs 42722776896, 42690962088).
+        if (overrides.heldAfterDoneClick && proxyEvents.done) return { status: 200 }
         notified.push({ title: reminder.title, doneToken: reminder.data.doneToken })
         apsdCount++
         return { status: 200 }
@@ -758,6 +761,8 @@ test('push acceptance proves Done once with the window hidden, then an expired-s
     const expiredClick = platform === 'darwin' ? 'native 0 notification invoke Done' : 'activate notification-expired-activator Done'
     assert.ok(order('native 41 close') < order('deliver Orbit acceptance done'))
     assert.ok(order('deliver Orbit acceptance done') < order(doneClick))
+    // Windows sends the expired reminder only after the Done proof, because WNS needs no early send.
+    if (platform === 'win32') assert.ok(order(doneClick) < order('deliver Orbit acceptance expired'))
     if (platform === 'win32') {
       assert.ok(order('deliver Orbit acceptance done') < order('native 41 notification Done') && order('native 41 notification Done') < order(doneClick))
       assert.equal(harness.events.some((event) => event.includes('notification invoke')), false, 'no Windows UIA search invokes Done')
@@ -776,9 +781,9 @@ test('push acceptance proves Done once with the window hidden, then an expired-s
       assert.match((harness.records.get(name!) as { title: string }).title, new RegExp(`^Orbit acceptance ${title} `), name)
     }
     if (platform === 'darwin') {
-      assert.deepEqual((push as Record<string, unknown>).doneReceipt, { before: 0, after: 1, seconds: 0 })
-      assert.deepEqual((push as Record<string, unknown>).expiredReceipt, { before: 1, after: 2, seconds: 0 })
-      assert.ok(order('apsd org.useorbit.desktop.staging') < order('deliver Orbit acceptance done'))
+      assert.deepEqual((push as Record<string, unknown>).receipt, { before: 0, after: 2, seconds: 0 })
+      assert.ok(order('apsd org.useorbit.desktop.staging') < order('deliver Orbit acceptance expired'))
+      assert.ok(order('deliver Orbit acceptance expired') < order('deliver Orbit acceptance done'))
     } else {
       assert.equal(harness.events.some((event) => event.startsWith('apsd ')), false)
       assert.deepEqual((push as Record<string, unknown>).activation, {
@@ -806,14 +811,28 @@ test('macOS push acceptance keeps the authorization alert it allowed, because th
   assert.deepEqual([...harness.records.keys()].slice(0, 2), ['notification-authorization', 'notification-authorization-found'])
 })
 
+test('macOS push acceptance sends both reminders, the expired one first, before any Done click lets the APNs courier go idle', async () => {
+  const harness = pushHarness('darwin', { heldAfterDoneClick: true })
+  await exercisePush(harness.io)
+  const push = harness.report.push as Record<string, unknown>
+  assert.deepEqual(push.done, { logs: 1, windowVisible: false })
+  assert.deepEqual(push.expired, { logs: 0, windowVisible: true, route: '/login' })
+  assert.deepEqual(push.receipt, { before: 0, after: 2, seconds: 0 })
+  const order = (event: string) => { const index = harness.events.findIndex((entry) => entry.startsWith(event)); assert.ok(index >= 0, event); return index }
+  assert.ok(order('native 41 close') < order('deliver Orbit acceptance expired'))
+  assert.ok(order('deliver Orbit acceptance expired') < order('deliver Orbit acceptance done'))
+  assert.ok(order('deliver Orbit acceptance done') < order('native 41 notification invoke Done'))
+  assert.equal(harness.events.filter((event) => event.startsWith('deliver ')).length, 2)
+})
+
 test('macOS push acceptance names the APNs hop when apsd never receives an accepted push, before it searches Notification Center', async () => {
   const harness = pushHarness('darwin', { apnsDropped: 'expired' })
   await assert.rejects(() => exercisePush(harness.io),
-    /^Error: APNs accepted the expired reminder with HTTP 200, but apsd counted no new push for org\.useorbit\.desktop\.staging: 1 before and 1 after 60 s, last incoming push just now$/)
+    /^Error: APNs accepted the expired and done reminders with HTTP 200, but apsd counted 1 of 2 new pushes for org\.useorbit\.desktop\.staging: 0 before and 1 after 60 s, last incoming push just now$/)
   const push = harness.report.push as Record<string, unknown>
-  assert.deepEqual(push.done, { logs: 1, windowVisible: false })
-  assert.deepEqual(push.expiredReceipt, { before: 1, after: 1, last: 'just now' })
-  assert.equal(harness.records.has('notification-expired'), false, 'the search for a push the device never received does not run')
+  assert.deepEqual(push.receipt, { before: 0, after: 1, last: 'just now' })
+  assert.equal(push.done, undefined)
+  assert.equal(harness.records.has('notification-done'), false, 'the search for a push the device never received does not run')
 })
 
 test('Windows push acceptance names the shell host levels and running instances when a Done activation never logs', async () => {
