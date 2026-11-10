@@ -103,6 +103,22 @@ function buildMenuItems(
   return items
 }
 
+/** Dispatches a `buildMenuItems` id to its row action; the two stay together so a new id cannot go unhandled. */
+function runMenuAction(actions: HabitRowActions, id: string): void {
+  const handlers: Record<string, (() => void) | undefined> = {
+    add: actions.onAddSubHabit,
+    move: actions.onMoveParent,
+    skip: actions.onSkip,
+    reschedule: actions.onReschedule,
+    edit: actions.onEdit,
+    duplicate: actions.onDuplicate,
+    select: actions.onEnterSelectMode,
+    drill: actions.onDrillInto,
+    delete: actions.onDelete,
+  }
+  handlers[id]?.()
+}
+
 /** Pointer-inert through an inline style, because the supporting layout's `*:pointer-events-auto` outranks a class on its children. */
 function SelectionSpacer({ width }: Readonly<{ width: number }>) {
   if (width <= 0) return null
@@ -275,6 +291,7 @@ function HabitRowView({
           isDone={isDone}
           canLog={canLog}
           menuItems={menuItems}
+          onMenuSelect={(id) => runMenuAction(actions, id)}
           actions={actions}
           onToggleStatus={handleToggleStatus}
           completionReadOnly={completionReadOnly}

@@ -53,6 +53,7 @@ interface HabitRowTrailingProps {
   isDone: boolean
   canLog: boolean
   menuItems: MenuItem[]
+  onMenuSelect: (id: string) => void
   actions: HabitRowActions
   onToggleStatus: () => void
   completionReadOnly: boolean
@@ -101,19 +102,8 @@ function HabitRowCompletion(props: Readonly<HabitRowTrailingProps>) {
 /** Trailing habit check and overflow actions. */
 // react-doctor-disable-next-line no-many-boolean-props -- these are derived per-row display flags computed once by HabitRow and passed straight through; they are not independent configuration axes and splitting the cluster adds indirection without benefit https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
-  const { habit, menuItems, actions } = props
+  const { habit, menuItems, onMenuSelect } = props
   const t = useTranslations()
-  const {
-    onEdit,
-    onDuplicate,
-    onAddSubHabit,
-    onMoveParent,
-    onSkip,
-    onReschedule,
-    onDelete,
-    onEnterSelectMode,
-    onDrillInto,
-  } = actions
   const [menuOpen, setMenuOpen] = useState(false)
   const menuAnchorRef = useRef<HTMLButtonElement>(null)
   const menuId = useId()
@@ -141,19 +131,10 @@ export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
             </button></Menu.Trigger>
             <Menu.Content
               id={menuId}
-
-
               title={habit.title || t('habits.actions.menuTitle')}
               titleMode={habit.title ? 'typed' : 'label'}
               items={menuItems}
-              onSelect={(id) => {
-                const handlers: Record<string, (() => void) | undefined> = {
-                  add: onAddSubHabit, move: onMoveParent, skip: onSkip, reschedule: onReschedule,
-                  edit: onEdit, duplicate: onDuplicate, select: onEnterSelectMode,
-                  drill: onDrillInto, delete: onDelete,
-                }
-                handlers[id]?.()
-              }}
+              onSelect={onMenuSelect}
             />
           </>
         )}
