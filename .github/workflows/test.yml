@@ -286,12 +286,16 @@ jobs:
         include:
           - workspace: mobile
             directory: apps/mobile
+            step-timeout-minutes: 22
           - workspace: desktop
             directory: apps/desktop
+            step-timeout-minutes: 5
           - workspace: shared
             directory: packages/shared
+            step-timeout-minutes: 5
           - workspace: eslint-rules
             directory: eslint-rules
+            step-timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -301,9 +305,14 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      # Completed workspace suites reach 570 seconds; setup has a separate job allowance.
+      # Step limits come from the longest successful "Run workspace with coverage thresholds" step in the
+      # last 60 test.yml runs, read from the step started_at and
+      # completed_at fields of `gh api repos/{owner}/{repo}/actions/runs/{id}/jobs`: mobile 864 s,
+      # shared 150 s, desktop 35 s, eslint-rules 17 s. Each limit is the maximum times 1.5, rounded up
+      # to whole minutes, with a 5 minute minimum. The slowest successful mobile job took 929 s in total,
+      # and its 22 minute step limit leaves the 25 minute job limit room for setup.
       - name: Run workspace with coverage thresholds
-        timeout-minutes: 15
+        timeout-minutes: ${{ matrix.step-timeout-minutes }}
         run: npx turbo run test --filter="@orbit/${{ matrix.workspace }}" --concurrency=1 -- --coverage
       # Preserve repository paths when artifacts from independent jobs are combined.
       - name: Stage workspace coverage
