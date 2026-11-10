@@ -71,7 +71,10 @@ gh workflow run ios-release.yml --ref <ref> \
   -f variant=<staging-or-production> -f app_version=<version> -f build_number=<number>
 ```
 
-Follow only the dispatched run. An upload command's successful exit proves upload acceptance;
-confirm processing finishes and the exact version and build appear in the matching app's
-TestFlight > Internal Testing screen before reporting it available to testers. Report the run URL,
-commit, variant, version, build number and processing result. Never print signing material.
+Follow only the dispatched run. After the upload, the step `Wait for processing and give the internal
+tester access` runs `tools/testflight-access.mjs`. It waits until App Store Connect lists the exact version
+and build as `VALID`, and it fails the run on `FAILED`, `INVALID` or a timeout. It then makes sure the app has
+an internal beta group with access to all builds that holds the team's account holder as a tester, and it
+creates only what is missing. The step summary shows the processing state, the group name and the tester
+count. The App Store Connect API key must hold a role that can list team users. Report the run URL, commit,
+variant, version, build number and the step summary. Never print signing material.

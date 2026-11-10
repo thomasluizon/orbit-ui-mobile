@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-import { createHash, createSign } from "node:crypto"
+import { createHash } from "node:crypto"
 import { readFileSync, writeFileSync } from "node:fs"
 import { isAbsolute } from "node:path"
 import { pathToFileURL } from "node:url"
 import { acknowledgeIntake, updateIntakeSource } from "./lib/auto-work-intake.mjs"
+import { appStoreToken } from "./lib/app-store-connect-token.mjs"
 import { REPO_ROOT } from "./lib/run-state.mjs"
 
 const USAGE = `usage: orbit-app-store-reviews.mjs <--collect --output <absolute file> | --import <absolute file> | --ack>
@@ -16,15 +17,6 @@ Classifications: bug, feature request, question, billing, praise, spam, noise.
 No review response operation exists. Prints counts or pending reviews.
 --help, -h print usage
 exit codes: 0 success; 1 API, state or receipt failure; 2 invalid arguments or stdin`
-
-export const appStoreToken = ({ keyId, issuerId, privateKey }) => {
-  if (!keyId || !issuerId || !privateKey) throw new Error("App Store Connect review credentials unavailable")
-  const encode = (value) => Buffer.from(JSON.stringify(value)).toString("base64url")
-  const issuedAt = Math.floor(Date.now() / 1000)
-  const unsigned = `${encode({ alg: "ES256", kid: keyId, typ: "JWT" })}.${encode({ iss: issuerId, iat: issuedAt, exp: issuedAt + 600, aud: "appstoreconnect-v1" })}`
-  const signature = createSign("SHA256").update(unsigned).sign({ key: privateKey, dsaEncoding: "ieee-p1363" }, "base64url")
-  return `${unsigned}.${signature}`
-}
 
 export const readAppStoreReviews = async (appId, token, request = fetch) => {
   if (!/^\d+$/.test(appId ?? "")) throw new Error("ORBIT_IOS_APP_STORE_ID is required")

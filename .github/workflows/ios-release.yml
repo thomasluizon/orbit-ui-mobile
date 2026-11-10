@@ -172,6 +172,15 @@ jobs:
           test -f "${packages[0]}"
           xcrun altool --upload-app --type ios --file "${packages[0]}" \
             --apiKey "$APP_STORE_CONNECT_API_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_API_ISSUER_ID"
+      - name: Wait for processing and give the internal tester access
+        timeout-minutes: 30
+        env:
+          APP_VERSION: ${{ inputs.app_version }}
+          IOS_BUILD_NUMBER: ${{ inputs.build_number }}
+          APP_STORE_CONNECT_API_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}
+        run: |
+          node tools/testflight-access.mjs --app-id "$ORBIT_IOS_APP_STORE_ID" \
+            --version "$APP_VERSION" --build "$IOS_BUILD_NUMBER" --timeout-minutes 25
       - name: Remove signing credentials
         if: always()
         run: |
