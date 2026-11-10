@@ -12,12 +12,12 @@ Finish the spec: an empty board except `#33` and the `#2074` measurement, verifi
 
 ## In flight
 
-UI `main` `12b135e3e`; API `main` `f418f94e7`; landing `main` `5d9971870`. Production and staging API `f418f94e7`; production web `5a9c08e0d` (desktop 0.1.28); staging web release of `6c0d4dfe8` running; Android Open 1.3.151 (211); TestFlight staging `a727bce32`, production 1.3.152 (1) uploaded.
+UI `main` `12b135e3e`; API `main` `f418f94e7`; landing `main` `5d9971870`. Production and staging API `f418f94e7`; production web `5a9c08e0d` (desktop 0.1.28); staging web `6c0d4dfe8`; Android Open 1.3.151 (211); TestFlight staging `a727bce32`, production 1.3.152 (1) uploaded.
 
 | Item | Disposition |
 | --- | --- |
 | Owner plan approval | Still unanswered. Answer his reply first, in his language. On approval: rescope `#2091` and `#2090` with `update-ticket.mjs`, file the landing interactions ticket and the app motion audit ticket with `create-ticket.mjs`, launch landing workers. Until then, hold them. |
-| Web release | Staging run 42891223021 for `6c0d4dfe8` (re-arm `wait-release.mjs --repo ui --run 42891223021 --sha 6c0d4dfe8b2f8753f5706022bb01c330589e8df8 --workflow-sha 6c0d4dfe8b2f8753f5706022bb01c330589e8df8 --service-url https://orbit-web-staging-eakn.onrender.com`). Then production from `node tools/release-plan.mjs`, verify Continue with Apple on `/login`, verify the desktop shell update on the Mac, close `#1560`. Never with an API release. |
+| Web release | Staging run 42891223021 succeeded: staging serves `6c0d4dfe8` (`/api/health` ok). The server HTML of staging `/login` carries no rendered Apple button text, so run a rendered check (headless Playwright from `apps/web`) for Continue with Apple before production; if it is missing, investigate at the root. Then production from `node tools/release-plan.mjs`, verify the desktop shell update on the Mac, close `#1560`. Never with an API release. |
 | Android Open | After web production: `/android-release` open track from `main` (carries the Apple button, `#2094`). |
 | `ui#2412` (`#2094`) | Head `fca69e908` (main merged, gates passed); CI running, review requested. Merge at a fresh approval; complete `#2094` after the release checks. |
 | `#1561` production iPhone | Run 42891265580 uploaded 1.3.152 (1) to app `6831372835`. Confirm Apple processing and add the owner to an internal testing group of the production app through the App Store Connect API in a workflow step (the key lives only in the `ios-production` environment). |
