@@ -9,10 +9,11 @@ import { processIsRunning, root, T, stage } from "./_harness.mjs"
 const literalArguments = (markers) => [
   `$(touch ${markers[0]})`,
   "`touch " + markers[1] + "`",
+  // The redirect stays ahead of the separators, so a shell attaches it to the first command.
+  `redirect>${markers[2]}`,
   "semicolon;value",
   "and&&value",
   "pipe|value",
-  `redirect>${markers[2]}`,
   "two words",
   "first line\nsecond line",
 ]
