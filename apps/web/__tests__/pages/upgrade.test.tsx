@@ -615,6 +615,24 @@ describe('UpgradePage', () => {
     expect(document.body.textContent).not.toContain('upgrade.matrix.')
   })
 
+  it('gives the stay free link the shared link hover: a colour change and an underline that grows', () => {
+    mockPlans = {
+      monthly: { unitAmount: 999 },
+      yearly: { unitAmount: 4999 },
+      currency: 'usd',
+      savingsPercent: 58,
+      couponPercentOff: null,
+    }
+    history.replaceState({}, '', '/upgrade')
+    render(<UpgradePage />)
+    const decline = screen.getByRole('link', { name: 'upgrade.convert.stayFree' })
+    const label = screen.getByText('upgrade.convert.stayFree')
+    expect(label).toHaveClass('orbit-link-action')
+    expect(decline.className).not.toContain('transition-colors')
+    expect(decline.className).not.toMatch(/(^|\s)underline(\s|$)/u)
+    expect(label.className).toContain('[@media(hover:hover)_and_(pointer:fine)]:no-underline')
+  })
+
   describe.each(['/profile', '/profile/astra'])('decline destination %s', (destination) => {
   it.each([
     { metaKey: true },
