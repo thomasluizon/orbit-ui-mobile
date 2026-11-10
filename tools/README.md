@@ -103,7 +103,6 @@ for source selection, evidence limits and Open recovery.
 |---|---|---|
 | `desktop-bench/run.mjs` | Builds unsigned Tauri and temporary Electron shells, measures cold and warm Orbit workloads, and writes JSON and Markdown summaries. | `node tools/desktop-bench/run.mjs --output <absolute-directory-outside-repository> [--runs <at-least-5>]` |
 | `desktop-bench/acceptance.mjs` | Builds and installs the release shell on disposable macOS and Windows VMs, records email cookie, updater, Windows caption colour and repeat reminder Done checks, and dumps platform accessibility trees. | `node tools/desktop-bench/acceptance.mjs --output <absolute-directory-outside-repository>` |
-| `desktop-bench/acceptance-report.mjs` | Writes `report.json` for an installed acceptance job whose acceptance step wrote none, naming the first failed step, and keeps an existing report. | `node tools/desktop-bench/acceptance-report.mjs --output <absolute-directory> [--step <name>=<outcome>]...` |
 
 ## Product gates
 

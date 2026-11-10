@@ -11,7 +11,6 @@ import { assertAccessibleTree, assertCookieEvidence, assertPaletteFocus } from '
 import { T, REPO_ROOT, check, configure, failureCount, root, stage } from './_harness.mjs'
 import { networkCases } from './desktop-acceptance-network.mjs'
 import { pushPhaseCases } from './desktop-acceptance-push.mjs'
-import { missingReportCases } from './desktop-acceptance-report.mjs'
 import { runChild } from '../desktop-bench/child-limit.mjs'
 
 function rejects(label, operation) {
@@ -802,7 +801,6 @@ export async function cases() {
   await listenerStartupCases()
   await networkCases()
   await installedQuitCases()
-  missingReportCases()
   await installedLaunchCases()
   await pushPhaseCases()
   await sessionProbeCases()
