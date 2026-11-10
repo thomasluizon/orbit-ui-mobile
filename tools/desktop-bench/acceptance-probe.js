@@ -96,6 +96,14 @@
       inputFocused: document.activeElement === input, selected, results: results.map((result) => result.getAttribute('aria-label') || result.textContent.trim()),
       inputName: accessibleName(input), listId: input?.getAttribute('aria-controls'), activeDescendantId: input?.getAttribute('aria-activedescendant') }
   }
+  // The shell reads only the root mode class, the class the theme switch writes, so the probe drives that same signal.
+  async function appearance(mode) {
+    const root = document.documentElement
+    root.classList.remove(mode === 'dark' ? 'light' : 'dark')
+    root.classList.add(mode)
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    await report(`appearance-${mode}`)
+  }
   async function update(expected) {
     const invoke = window.__TAURI_INTERNALS__?.invoke
     if (!invoke) throw new Error('Native updater bridge unavailable')
@@ -149,6 +157,7 @@
         return
       }
       if (command.startsWith('update-')) await update(command.slice(7))
+      else if (command.startsWith('appearance-')) await appearance(command.slice('appearance-'.length))
       else if (command.startsWith('focus-')) {
         await until(() => paletteState().selected === Number(command.slice(6)), 'next keyboard-selected result')
         await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
