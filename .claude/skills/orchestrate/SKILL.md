@@ -1341,10 +1341,12 @@ warns and runs the default effort on any other value.
 
 This harness launches no reviewer. `launch-worker.mjs` resolves the requested worker tier; tier
 selection routes the resulting order, never the Pullfrog review itself. The Pullfrog step pays
-with the `CLAUDE_CODE_OAUTH_TOKEN` repository secret, which is the worker account's subscription.
+with the `CLAUDE_CODE_OAUTH_TOKEN` repository secret. In all three repositories, the secret holds a
+token of the main account: the owner's Claude Max subscription, the default Claude config.
 
-The `codex` block stays in `workers` until Pullfrog is green on Claude in all three repositories.
-A later ticket deletes it. It is not a fallback engine.
+The `codex` block in `workers` serves only the Codex Cloud path. `tools/submit-cloud-worker.mjs`
+and `tools/materialize-cloud-result.mjs` read `config.workers.codex.command`. That path is off
+while `cloud.enabled` is false in `.claude/orchestrator.json`. The block is not a fallback engine.
 
 ### §5.4.1 The worker account
 
