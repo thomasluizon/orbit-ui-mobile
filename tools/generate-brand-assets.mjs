@@ -197,10 +197,23 @@ async function renderAccentMark(source, ink, accent, targetWidth) {
     .toBuffer({ resolveWithObject: true })
 }
 
+/** The CANVAS shape a transparent asset draws behind its mark: a full disc, or an inset rounded tile. */
+function backgroundShapeSvg({ width, height, disc, tile }) {
+  if (disc) {
+    return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><circle cx="${width / 2}" cy="${height / 2}" r="${width / 2}" fill="${CANVAS}"/></svg>`
+  }
+  if (tile) {
+    const side = width - 2 * tile.margin
+    return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect x="${tile.margin}" y="${tile.margin}" width="${side}" height="${side}" rx="${tile.radius}" ry="${tile.radius}" fill="${CANVAS}"/></svg>`
+  }
+  return null
+}
+
 async function renderAsset(sources, asset) {
   const source = asset.nativeMark ? sources.mark16 : asset.accent ? sources.markAccent : sources.mark
   const transparent = { r: 0, g: 0, b: 0, alpha: 0 }
-  const background = asset.disc ? transparent : asset.background ?? transparent
+  const shapeSvg = backgroundShapeSvg(asset)
+  const background = shapeSvg ? transparent : asset.background ?? transparent
   const canvas = sharp({
     create: {
       width: asset.width,
@@ -209,15 +222,7 @@ async function renderAsset(sources, asset) {
       background,
     },
   })
-  const backgroundLayers = asset.disc
-    ? [{
-        input: Buffer.from(
-          `<svg width="${asset.width}" height="${asset.height}" viewBox="0 0 ${asset.width} ${asset.height}"><circle cx="${asset.width / 2}" cy="${asset.height / 2}" r="${asset.width / 2}" fill="${CANVAS}"/></svg>`,
-        ),
-        left: 0,
-        top: 0,
-      }]
-    : []
+  const backgroundLayers = shapeSvg ? [{ input: Buffer.from(shapeSvg), left: 0, top: 0 }] : []
 
   if (!asset.ink) {
     return canvas.png({ compressionLevel: 9 }).toBuffer()
@@ -239,7 +244,8 @@ async function renderAsset(sources, asset) {
       .toBuffer()
   }
 
-  const targetWidth = Math.round(asset.width * asset.scale)
+  const markFrameWidth = asset.tile ? asset.width - 2 * asset.tile.margin : asset.width
+  const targetWidth = Math.round(markFrameWidth * asset.scale)
   const { data: mark, info } = asset.accent
     ? await renderAccentMark(source, asset.ink, ACCENT, targetWidth)
     : await renderTrimmedMark(source, asset.ink, targetWidth)
@@ -259,40 +265,16 @@ async function renderAsset(sources, asset) {
 // the tile). Windows draws these layers at 1:1, so a small layer gets the smallest whole-pixel margin
 // that leaves a transparent ring and a radius near 21% of its tile. At 16 px the 60% mark loses its
 // moon, so that layer draws the native 16 px redraw, like the 16 px favicon layer.
-const WINDOWS_MARK_SCALE = 0.6
+const windowsIconLayer = (size, margin, radius, mark = { accent: true, scale: 0.6 }) =>
+  ({ width: size, height: size, ink: FOREGROUND, tile: { margin, radius }, ...mark })
 const windowsIconLayers = [
-  { size: 16, margin: 1, radius: 3, nativeMark: true },
-  { size: 24, margin: 1, radius: 4 },
-  { size: 32, margin: 2, radius: 6 },
-  { size: 48, margin: 4, radius: 9 },
-  { size: 64, margin: 6, radius: 11 },
-  { size: 256, margin: 24, radius: 44 },
+  windowsIconLayer(16, 1, 3, { nativeMark: true }),
+  windowsIconLayer(24, 1, 4),
+  windowsIconLayer(32, 2, 6),
+  windowsIconLayer(48, 4, 9),
+  windowsIconLayer(64, 6, 11),
+  windowsIconLayer(256, 24, 44),
 ]
-
-async function renderWindowsIconLayer(sources, { size, margin, radius, nativeMark }) {
-  const tile = size - 2 * margin
-  const tileSvg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><rect x="${margin}" y="${margin}" width="${tile}" height="${tile}" rx="${radius}" ry="${radius}" fill="${CANVAS}"/></svg>`
-  if (nativeMark) {
-    return sharp(Buffer.from(tileSvg))
-      .composite([{ input: await renderNativeMark(sources.mark16, FOREGROUND, size), left: 0, top: 0 }])
-      .png({ compressionLevel: 9 })
-      .toBuffer()
-  }
-  const { data: mark, info } = await renderAccentMark(
-    sources.markAccent,
-    FOREGROUND,
-    ACCENT,
-    Math.round(tile * WINDOWS_MARK_SCALE),
-  )
-  return sharp(Buffer.from(tileSvg))
-    .composite([{
-      input: mark,
-      left: Math.floor((size - info.width) / 2),
-      top: Math.floor((size - info.height) / 2),
-    }])
-    .png({ compressionLevel: 9 })
-    .toBuffer()
-}
 
 /** The one ICO writer, for favicon.ico and icon.ico. It stores every layer as an embedded PNG, the
  *  layout Tauri's own icon command writes and every browser Orbit supports reads. A BMP layer costs
@@ -365,9 +347,9 @@ async function main() {
     windowsIconPath,
     pngLayersToIco(
       await Promise.all(
-        windowsIconLayers.map(async (layer) => ({
-          size: layer.size,
-          png: await renderWindowsIconLayer(sources, layer),
+        windowsIconLayers.map(async (asset) => ({
+          size: asset.width,
+          png: await renderAsset(sources, asset),
         })),
       ),
     ),
