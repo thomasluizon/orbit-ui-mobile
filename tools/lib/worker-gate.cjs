@@ -20,6 +20,8 @@ process.once("message", ({ executable, args, directory, input, reportDescriptor 
     worker.stdin.on("error", (error) => { if (error.code !== "EPIPE") throw error })
     worker.stdin.end(input)
   }
+  // A signal to the gate is the supported stop. Without a handler it ends the gate and leaves the worker running.
+  for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"]) process.on(signal, () => { worker.kill(signal) })
   worker.on("error", (error) => {
     console.error(error.message)
     process.exitCode = 3

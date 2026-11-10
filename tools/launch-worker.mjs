@@ -397,7 +397,7 @@ const launchEnvironment = research ? githubAuth.environment : {
 
 /** The worker spawns its own children (git, npm, subagents), and killing the parent alone leaves
  * them running against the worktree this launch is about to hand back. */
-const killTree = (pid) => {
+const killTree = (pid, signal = "SIGTERM") => {
   if (process.platform === "win32") {
     spawnSync("taskkill", ["/T", "/F", "/PID", String(pid)], { encoding: "utf8", windowsHide: true })
     return
@@ -408,7 +408,7 @@ const killTree = (pid) => {
     // a group that was never created, and the kill silently no-ops on ESRCH while a hung worker
     // outlives both clocks. detached does NOT make it fire-and-forget: this launcher never calls
     // unref(), so it still supervises the child and still exits when the child does.
-    process.kill(-pid)
+    process.kill(-pid, signal)
   } catch {
     /* a tree that is already gone still ends this launch; the exit handler reports what happened */
   }
@@ -624,7 +624,12 @@ const runAttempt = (account, attemptLogFile, attemptArgs) => new Promise((settle
   attemptChild.on("message", (message) => {
     if (message?.type === "SPAWN_FAILED") supervisor.markSpawnFailed()
   })
-  attemptChild.on("exit", (code) => end(supervisor.outcome(), code))
+  attemptChild.on("exit", (code) => {
+    // The gate's exit does not end a process it left in its group. The group id stays valid while any member lives.
+    // Windows has no group to signal, and taskkill /T cannot walk a tree whose parent is gone.
+    if (process.platform !== "win32") killTree(attemptChild.pid, "SIGKILL")
+    end(supervisor.outcome(), code)
+  })
 })
 
 const finish = (attempts) => {

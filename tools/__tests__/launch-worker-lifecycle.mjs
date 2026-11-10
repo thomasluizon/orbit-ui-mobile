@@ -1,9 +1,9 @@
-import { spawnSync } from "node:child_process"
-import { rmSync } from "node:fs"
+import { spawn, spawnSync } from "node:child_process"
+import { existsSync, readFileSync, rmSync } from "node:fs"
 import { join } from "node:path"
-import { loadavg } from "node:os"
+import { loadavg, tmpdir } from "node:os"
 
-import { processIsRunning, T, stage } from "./_harness.mjs"
+import { processIsRunning, T, stage, TOOLS_DIR } from "./_harness.mjs"
 import { readWakeSourceStates } from "../lib/run-state.mjs"
 
 const TOOL = "launch-worker.mjs"
@@ -84,6 +84,34 @@ export const cleanupLifecycleLaunch = async (launcher, fixture, { discardLog, re
 export const cases = async ({
   launch, launchConfig, stubEngine, githubAuthEnv, discardLog, readFileContents, launchAsync, IMMEDIATE, SLEEPER,
 }) => {
+  if (process.platform !== "win32") {
+    const straggler = stage("launch-worker/straggler-worker.cjs", `
+const { spawn } = require("node:child_process")
+const { writeFileSync } = require("node:fs")
+const descendant = spawn(process.execPath, ["-e", "setInterval(() => {}, 60000)"], { stdio: "ignore", env: { ...process.env, NODE_OPTIONS: "" } })
+descendant.unref()
+writeFileSync(process.env.ORBIT_TEST_STRAGGLER_MARKER, String(descendant.pid))
+`)
+    const stragglerMarker = stage("launch-worker/straggler-descendant.pid", "")
+    rmSync(stragglerMarker)
+    const stragglerLaunch = launch("straggler-group", launchConfig(stubEngine(straggler)))
+    const stragglerArgv = ["--issue", "ORB-201", "--worktree", stragglerLaunch.worktree, "--prompt", stragglerLaunch.prompt]
+    const stragglerRun = launchAsync(stragglerLaunch.path, stragglerArgv, { ...githubAuthEnv(), ORBIT_TEST_STRAGGLER_MARKER: stragglerMarker })
+    let descendantPid
+    try {
+      const completion = await launcherResult(stragglerRun)
+      descendantPid = Number(readFileContents(stragglerMarker))
+      const descendantEnded = await waitUntil(() => !processIsRunning(descendantPid), 1000)
+      discardLog(completion.stdout)
+      T(`${TOOL}: when the gate exits the attempt ends every process left in the gate group`,
+        completion.status === 0 && Number.isInteger(descendantPid) && descendantEnded,
+        JSON.stringify({ descendantPid, descendantEnded, ...completion }))
+    } finally {
+      try {
+        if (Number.isInteger(descendantPid) && processIsRunning(descendantPid)) process.kill(descendantPid, "SIGKILL")
+      } finally { await cleanupLifecycleLaunch(stragglerRun, stragglerLaunch, { discardLog, readFileContents }) }
+    }
+  }
   // Startup latency must not decide when a second launcher probes admission.
   const startupDelay = stage("launch-worker/startup-delay.cjs", `if (process.argv[1]?.endsWith("launch-worker.mjs")) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 6000)\n`)
   const startupEnvironment = () => {
@@ -173,5 +201,38 @@ setInterval(() => {}, 60000)
     try {
       if (secondOrphan) await cleanupLifecycleLaunch(secondOrphan, orphanLaunch, { discardLog, readFileContents })
     } finally { await cleanupLifecycleLaunch(releasedLaunch, orphanLaunch, { discardLog, readFileContents }) }
+  }
+}
+
+const waitUntil = async (predicate, timeoutMs) => {
+  const deadline = Date.now() + timeoutMs
+  while (!predicate() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 20))
+  return predicate()
+}
+
+/** A POSIX signal to the gate is the supported stop, so the gate must carry it to its worker. */
+export const gateSignalCases = async () => {
+  if (process.platform === "win32") return
+  const gatePath = join(TOOLS_DIR, "lib", "worker-gate.cjs")
+  for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"]) {
+    const workerPidFile = stage(`launch-worker/gate-signal-${signal}.pid`, "")
+    rmSync(workerPidFile)
+    const worker = stage(`launch-worker/gate-signal-${signal}.js`, `require("node:fs").writeFileSync(${JSON.stringify(workerPidFile)}, String(process.pid))\nsetInterval(() => {}, 60000)\n`)
+    const gate = spawn(process.execPath, [gatePath], { cwd: tmpdir(), stdio: ["ignore", "ignore", "ignore", "ipc"], detached: true })
+    const gateExit = new Promise((resolve) => gate.on("exit", (code, exitSignal) => resolve({ code, exitSignal })))
+    let workerPid
+    try {
+      gate.send({ executable: process.execPath, args: [worker], directory: tmpdir() })
+      const started = await waitUntil(() => existsSync(workerPidFile) && readFileSync(workerPidFile, "utf8") !== "", 20000)
+      workerPid = started ? Number(readFileSync(workerPidFile, "utf8")) : undefined
+      process.kill(gate.pid, signal)
+      const workerEnded = workerPid !== undefined && await waitUntil(() => !processIsRunning(workerPid), 1000)
+      const gateEnded = await Promise.race([gateExit, new Promise((resolve) => setTimeout(resolve, 1000, null))])
+      T(`worker-gate.cjs: a ${signal} to the gate ends the worker and then the gate`,
+        started && workerEnded && gateEnded !== null,
+        JSON.stringify({ started, workerPid, workerEnded, gateEnded }))
+    } finally {
+      try { process.kill(-gate.pid, "SIGKILL") } catch (error) { if (error.code !== "ESRCH") throw error }
+    }
   }
 }
