@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { captureException } from '@sentry/nextjs'
+import { isNetworkUnavailableError } from '@orbit/shared/utils'
 import { getQueryClient } from '@/lib/query-client'
 import { getHeldAccountId } from '@/stores/auth-store'
 import { useChatStore } from '@/stores/chat-store'
@@ -59,6 +60,10 @@ export async function reloadDesktopWeb(reload: () => void | Promise<void>, persi
   return true
 }
 
+function isTransportFailure(error: unknown) {
+  return (error instanceof DOMException && error.name === 'TimeoutError') || isNetworkUnavailableError(error)
+}
+
 export function watchDesktopWebRelease(version: string, commit: string | null, onAvailable: (release: z.infer<typeof desktopWebReleaseSchema>) => void) {
   let stopped = false
   let checking = false
@@ -77,7 +82,7 @@ export function watchDesktopWebRelease(version: string, commit: string | null, o
       const release = desktopWebReleaseSchema.parse(await response.json())
       if (!controller.signal.aborted) pending = release
     } catch (error) {
-      if (!controller.signal.aborted) captureException(error)
+      if (!controller.signal.aborted && !isTransportFailure(error)) captureException(error)
     } finally { checking = false }
   }
 
