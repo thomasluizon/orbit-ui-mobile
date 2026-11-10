@@ -1,9 +1,9 @@
-import { spawnSync } from "node:child_process"
-import { rmSync } from "node:fs"
+import { spawn, spawnSync } from "node:child_process"
+import { existsSync, readFileSync, rmSync } from "node:fs"
 import { join } from "node:path"
-import { loadavg } from "node:os"
+import { loadavg, tmpdir } from "node:os"
 
-import { processIsRunning, T, stage } from "./_harness.mjs"
+import { processIsRunning, T, stage, TOOLS_DIR } from "./_harness.mjs"
 import { readWakeSourceStates } from "../lib/run-state.mjs"
 
 const TOOL = "launch-worker.mjs"
@@ -84,6 +84,92 @@ export const cleanupLifecycleLaunch = async (launcher, fixture, { discardLog, re
 export const cases = async ({
   launch, launchConfig, stubEngine, githubAuthEnv, discardLog, readFileContents, launchAsync, IMMEDIATE, SLEEPER,
 }) => {
+  if (process.platform !== "win32") {
+    const straggler = stage("launch-worker/straggler-worker.cjs", `
+const { spawn } = require("node:child_process")
+const { writeFileSync } = require("node:fs")
+const descendant = spawn(process.execPath, ["-e", "setInterval(() => {}, 60000)"], { stdio: "ignore", env: { ...process.env, NODE_OPTIONS: "" } })
+descendant.unref()
+writeFileSync(process.env.ORBIT_TEST_STRAGGLER_MARKER, String(descendant.pid))
+`)
+    const stragglerMarker = stage("launch-worker/straggler-descendant.pid", "")
+    rmSync(stragglerMarker)
+    const stragglerLaunch = launch("straggler-group", launchConfig(stubEngine(straggler)))
+    const stragglerArgv = ["--issue", "ORB-201", "--worktree", stragglerLaunch.worktree, "--prompt", stragglerLaunch.prompt]
+    const stragglerRun = launchAsync(stragglerLaunch.path, stragglerArgv, { ...githubAuthEnv(), ORBIT_TEST_STRAGGLER_MARKER: stragglerMarker })
+    let descendantPid
+    try {
+      const completion = await launcherResult(stragglerRun)
+      descendantPid = Number(readFileContents(stragglerMarker))
+      const descendantEnded = await waitUntil(() => !processIsRunning(descendantPid), 1000)
+      discardLog(completion.stdout)
+      T(`${TOOL}: when the gate exits the attempt ends every process left in the gate group`,
+        completion.status === 0 && Number.isInteger(descendantPid) && descendantEnded,
+        JSON.stringify({ descendantPid, descendantEnded, ...completion }))
+    } finally {
+      try {
+        if (Number.isInteger(descendantPid) && processIsRunning(descendantPid)) process.kill(descendantPid, "SIGKILL")
+      } finally { await cleanupLifecycleLaunch(stragglerRun, stragglerLaunch, { discardLog, readFileContents }) }
+    }
+  }
+  if (process.platform !== "win32") {
+    const stubborn = stage("launch-worker/sigterm-ignoring-worker.cjs", `process.on("SIGTERM", () => {})\nsetInterval(() => {}, 60000)\n`)
+    const stubbornEnvironment = { ...githubAuthEnv(), ORBIT_TEST_KILL_GRACE_MS: "1000" }
+    for (const [label, timeouts, outcome, expectedLine] of [
+      ["hard ceiling", { hardCeilingMinutes: 0.02, noProgressMinutes: 5, pollSeconds: 0.2 }, "KILLED_HARD_CEILING", /passed the 0\.02 minute ceiling/g],
+      ["no-progress clock", { hardCeilingMinutes: 5, noProgressMinutes: 0.01, pollSeconds: 0.2 }, "KILLED_NO_PROGRESS", /has not moved HEAD/g],
+    ]) {
+      const stubbornLaunch = launch(`sigterm-ignored-${outcome}`, launchConfig({ ...stubEngine(stubborn), timeouts }))
+      const stubbornRun = launchAsync(stubbornLaunch.path, ["--issue", "ORB-201", "--worktree", stubbornLaunch.worktree, "--prompt", stubbornLaunch.prompt], stubbornEnvironment)
+      try {
+        const completion = await settleOrReport(stubbornRun, 30000)
+        discardLog(completion.stdout)
+        T(`${TOOL}: the ${label} ends a worker that ignores SIGTERM, and a kill acts once`,
+          completion.status === 1 && completion.stdout.includes(`"outcome": "${outcome}"`) && (completion.stderr.match(expectedLine) ?? []).length === 1,
+          JSON.stringify(completion))
+      } finally { await cleanupLifecycleLaunch(stubbornRun, stubbornLaunch, { discardLog, readFileContents }) }
+    }
+
+    const stoppable = stage("launch-worker/stoppable-worker.cjs", `
+const { spawn } = require("node:child_process")
+const { writeFileSync } = require("node:fs")
+const descendant = spawn(process.execPath, ["-e", "setInterval(() => {}, 60000)"], { stdio: "ignore" })
+writeFileSync(process.env.ORBIT_TEST_STOP_MARKER, process.pid + " " + descendant.pid)
+setInterval(() => {}, 60000)
+`)
+    for (const [signal, exitCode] of [["SIGTERM", 143], ["SIGINT", 130]]) {
+      const stopMarker = stage(`launch-worker/stop-${signal}.pids`, "")
+      rmSync(stopMarker)
+      const stopLaunch = launch(`stopped-by-${signal}`, launchConfig(stubEngine(stoppable)))
+      const stopRun = launchAsync(stopLaunch.path, ["--issue", "ORB-201", "--worktree", stopLaunch.worktree, "--prompt", stopLaunch.prompt], { ...githubAuthEnv(), ORBIT_TEST_STOP_MARKER: stopMarker })
+      const reservationPath = join(stopLaunch.worktree, ".git", "orbit-worker-launches", "occupied-worktree.json")
+      const wakeSourcePath = join(stopLaunch.base, ".git", "orbit-wake-sources", `${stopRun.child.pid}.json`)
+      let pids = []
+      let completion
+      try {
+        const started = await waitUntil(() => /^\d+ \d+$/.test(readFileContents(stopMarker) ?? ""), 30000)
+        pids = started ? readFileContents(stopMarker).split(" ").map(Number) : []
+        process.kill(stopRun.child.pid, signal)
+        completion = await settleOrReport(stopRun, 30000)
+        discardLog(completion.stdout)
+        const treeEnded = pids.length === 2 && await waitUntil(() => pids.every((pid) => !processIsRunning(pid)), 1000)
+        const resultPath = join(stopLaunch.base, ".git", "orbit-worker-launches", "results", `${stopRun.child.pid}.json`)
+        const published = existsSync(resultPath) ? JSON.parse(readFileSync(resultPath, "utf8")) : null
+        T(`${TOOL}: a ${signal} to the launcher ends the worker tree and publishes a STOPPED result`,
+          started && completion.status === exitCode && treeEnded && published?.outcome === "STOPPED" && published.attempts.length === 1 &&
+            !existsSync(reservationPath) && !existsSync(wakeSourcePath),
+          JSON.stringify({ started, pids, treeEnded, published: published?.outcome, reservation: existsSync(reservationPath), wakeSource: existsSync(wakeSourcePath), ...completion }))
+      } finally {
+        for (const pid of pids) if (processIsRunning(pid)) process.kill(pid, "SIGKILL")
+        // A launcher that already exited leaves a recorded gate pid the system may have reused, so only a live launcher's records are trusted.
+        if (completion?.status == null) await cleanupLifecycleLaunch(stopRun, stopLaunch, { discardLog, readFileContents })
+        else {
+          rmSync(reservationPath, { force: true })
+          rmSync(wakeSourcePath, { force: true })
+        }
+      }
+    }
+  }
   // Startup latency must not decide when a second launcher probes admission.
   const startupDelay = stage("launch-worker/startup-delay.cjs", `if (process.argv[1]?.endsWith("launch-worker.mjs")) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 6000)\n`)
   const startupEnvironment = () => {
@@ -173,5 +259,42 @@ setInterval(() => {}, 60000)
     try {
       if (secondOrphan) await cleanupLifecycleLaunch(secondOrphan, orphanLaunch, { discardLog, readFileContents })
     } finally { await cleanupLifecycleLaunch(releasedLaunch, orphanLaunch, { discardLog, readFileContents }) }
+  }
+}
+
+const settleOrReport = async (launcher, timeoutMs) => {
+  try { return await launcherResult(launcher, timeoutMs) } catch (error) { return { status: null, stdout: "", stderr: error.message } }
+}
+
+const waitUntil = async (predicate, timeoutMs) => {
+  const deadline = Date.now() + timeoutMs
+  while (!predicate() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 20))
+  return predicate()
+}
+
+/** The launcher stops a worker with a group SIGTERM and sweeps the group when the gate exits, so the gate must carry each signal to its worker and outlive it. */
+export const gateSignalCases = async () => {
+  if (process.platform === "win32") return
+  const gatePath = join(TOOLS_DIR, "lib", "worker-gate.cjs")
+  for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"]) {
+    const workerPidFile = stage(`launch-worker/gate-signal-${signal}.pid`, "")
+    rmSync(workerPidFile)
+    const worker = stage(`launch-worker/gate-signal-${signal}.js`, `require("node:fs").writeFileSync(${JSON.stringify(workerPidFile)}, String(process.pid))\nsetInterval(() => {}, 60000)\n`)
+    const gate = spawn(process.execPath, [gatePath], { cwd: tmpdir(), stdio: ["ignore", "ignore", "ignore", "ipc"], detached: true })
+    const gateExit = new Promise((resolve) => gate.on("exit", (code, exitSignal) => resolve({ code, exitSignal })))
+    let workerPid
+    try {
+      gate.send({ executable: process.execPath, args: [worker], directory: tmpdir() })
+      const started = await waitUntil(() => existsSync(workerPidFile) && readFileSync(workerPidFile, "utf8") !== "", 20000)
+      workerPid = started ? Number(readFileSync(workerPidFile, "utf8")) : undefined
+      process.kill(gate.pid, signal)
+      const workerEnded = workerPid !== undefined && await waitUntil(() => !processIsRunning(workerPid), 1000)
+      const gateEnded = await Promise.race([gateExit, new Promise((resolve) => setTimeout(resolve, 1000, null))])
+      T(`worker-gate.cjs: a ${signal} to the gate ends the worker and then the gate`,
+        started && workerEnded && gateEnded !== null,
+        JSON.stringify({ started, workerPid, workerEnded, gateEnded }))
+    } finally {
+      try { process.kill(-gate.pid, "SIGKILL") } catch (error) { if (error.code !== "ESRCH") throw error }
+    }
   }
 }

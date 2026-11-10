@@ -4,7 +4,7 @@ import { dirname, join } from "node:path"
 
 import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR, WORKER_CONFIG_DIRECTORY, WORKER_CONFIG_DIRECTORY_VARIABLE } from "./_harness.mjs"
 import { clearWorkerLaunchReservation, readWakeSourceStates, recordReservedWorkerPid, reserveWorkerLaunch, writeRunState } from "../lib/run-state.mjs"
-import { cases as lifecycleCases, cleanupLifecycleLaunch, launcherResult } from "./launch-worker-lifecycle.mjs"
+import { cases as lifecycleCases, cleanupLifecycleLaunch, gateSignalCases, launcherResult } from "./launch-worker-lifecycle.mjs"
 import { SIGN_IN_TEXT, TRANSIENT_TEXT, limitResultLine, resultLine, signInFailureLines } from "./claude-usage-limit.mjs"
 
 const TOOL = "launch-worker.mjs"
@@ -911,6 +911,7 @@ if (process.argv[1]?.endsWith("worker-gate.cjs")) {
   await lifecycleCases({
     launch, launchConfig, stubEngine, githubAuthEnv, discardLog, readFileContents, launchAsync, IMMEDIATE, SLEEPER,
   })
+  await gateSignalCases()
   await checkKilledLauncherBeforePublication()
   const cappedArgs = ["--issue", "ORB-201", "--worktree", capped.worktree, "--prompt", capped.prompt]
   const firstLaunch = check(TOOL, "the first launch below the branch cap succeeds", cappedArgs, { status: 0 }, { path: capped.path, env: githubAuthEnv() })
