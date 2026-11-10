@@ -4,13 +4,20 @@ import { renderToPipeableStream } from 'react-dom/server'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { Page } from '@playwright/test'
 import { waitForStreamedDocument } from '../../test-support/streamed-document'
+import { LAYOUT_ORIGIN } from '../../e2e/support/env'
 
 type DocumentPage = {
   clock: { setFixedTime: (instant: Date) => Promise<void> }
+  addInitScript: (script: { content: string }) => Promise<void>
   goto: Page['goto']
+  url: () => string
   evaluate: (callback: () => Promise<void>) => Promise<void>
+  waitForFunction: () => Promise<void>
 }
-type PageFixture = (input: { page: DocumentPage }, runTest: (page: DocumentPage) => Promise<void>) => Promise<void>
+type PageFixture = (
+  input: { page: DocumentPage, javaScriptEnabled?: boolean },
+  runTest: (page: DocumentPage) => Promise<void>,
+) => Promise<void>
 const registered = vi.hoisted(() => ({ page: undefined as PageFixture | undefined }))
 
 vi.mock('@playwright/test', () => ({
@@ -51,9 +58,24 @@ afterEach(() => {
 function pageForDocument(markup: string): DocumentPage {
   return {
     clock: { setFixedTime: async () => {} },
+    addInitScript: async () => {},
     goto: async () => { document.body.innerHTML = markup; return null },
+    url: () => `${LAYOUT_ORIGIN}/`,
     evaluate: async (callback) => { await callback() },
+    waitForFunction: async () => {},
   }
+}
+
+function recordedNavigation(documentUrl: string) {
+  const steps: string[] = []
+  const page: DocumentPage = {
+    ...pageForDocument('<main>Ready route</main>'),
+    addInitScript: async ({ content }) => { steps.push(content.includes('__REACT_DEVTOOLS_GLOBAL_HOOK__') ? 'probe' : 'script') },
+    goto: async () => { steps.push('goto'); document.body.innerHTML = '<main>Ready route</main>'; return null },
+    url: () => documentUrl,
+    waitForFunction: async () => { steps.push('hydration') },
+  }
+  return { page, steps }
 }
 
 describe('layout streamed route navigation', () => {
@@ -143,6 +165,22 @@ describe('layout streamed route navigation', () => {
     await rejection
     expect(inspected).toBe(false)
     expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('installs the hydration probe before navigation and waits for full hydration on an app document only', async () => {
+    const appDocument = recordedNavigation(`${LAYOUT_ORIGIN}/`)
+    await registered.page!({ page: appDocument.page, javaScriptEnabled: true }, async (page) => { await page.goto('/') })
+    expect(appDocument.steps).toEqual(['probe', 'goto', 'hydration'])
+
+    const staticFixture = recordedNavigation('http://orbit-layout.test/sign-in-gap-fixture')
+    await registered.page!({ page: staticFixture.page, javaScriptEnabled: true }, async (page) => {
+      await page.goto('http://orbit-layout.test/sign-in-gap-fixture')
+    })
+    expect(staticFixture.steps).toEqual(['probe', 'goto'])
+
+    const withoutJavaScript = recordedNavigation(`${LAYOUT_ORIGIN}/`)
+    await registered.page!({ page: withoutJavaScript.page, javaScriptEnabled: false }, async (page) => { await page.goto('/') })
+    expect(withoutJavaScript.steps).toEqual(['probe', 'goto'])
   })
 
   it('preserves a navigation failure', async () => {
