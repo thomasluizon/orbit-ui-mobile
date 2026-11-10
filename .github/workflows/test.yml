@@ -93,8 +93,36 @@ jobs:
 
       - run: npm run build
 
-  tool-hook-tests:
-    name: Tool and Hook Tests
+  # Each shard runs a deterministic share of the tools harness case modules.
+  # tools/test-tools-timings.json sizes the shards. Tool and Hook Tests below keeps the required check name.
+  tool-tests:
+    name: Tool tests (${{ matrix.shard }}/${{ matrix.total }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5]
+        total: [5]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Use the repository npm version
+        run: npm install --global "$(node -p "require('./package.json').packageManager")" --no-audit --no-fund
+
+      - run: npm ci
+
+      - name: Run tools harness shard
+        run: node tools/test-tools.mjs --shard ${{ matrix.shard }}/${{ matrix.total }}
+
+  hook-tests:
+    name: Hook and workflow tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -115,7 +143,7 @@ jobs:
         run: npm ls --all
 
       - name: Test CI workflow behavior
-        run: node --test .github/scripts/check-web-test-budget.test.mjs tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs tools/__tests__/npm-cache-workflows.test.mjs .github/scripts/check-pr-metadata.test.mjs .github/scripts/desktop-build-workflow.test.mjs .github/scripts/unit-tests-workflow.test.mjs .github/scripts/release-admission.test.mjs
+        run: node --test .github/scripts/check-web-test-budget.test.mjs tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs tools/__tests__/npm-cache-workflows.test.mjs .github/scripts/check-pr-metadata.test.mjs .github/scripts/desktop-build-workflow.test.mjs .github/scripts/unit-tests-workflow.test.mjs .github/scripts/tool-tests-workflow.test.mjs .github/scripts/release-admission.test.mjs
 
       # This step owns the full-tree graphic floor assertion outside cached unit shards.
       # Other findings stay advisory; graphic floor findings and scanner errors fail.
@@ -123,13 +151,23 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tools/check-surface-scope.mjs --graphic-floor-only
 
-      - name: Run tools harness
-        if: ${{ !cancelled() }}
-        run: node tools/test-tools.mjs
-
       - name: Run hooks harness
         if: ${{ !cancelled() }}
         run: node .claude/hooks/test-hooks.mjs
+
+  tool-hook-tests:
+    name: Tool and Hook Tests
+    if: ${{ always() }}
+    needs: [tool-tests, hook-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every tool shard and the hook tests
+        env:
+          TOOL_RESULT: ${{ needs.tool-tests.result }}
+          HOOK_RESULT: ${{ needs.hook-tests.result }}
+        run: |
+          test "$TOOL_RESULT" = success
+          test "$HOOK_RESULT" = success
 
   unit-tests:
     name: Unit Tests
