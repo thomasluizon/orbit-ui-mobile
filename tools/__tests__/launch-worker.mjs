@@ -32,6 +32,7 @@ const stubEngine = (script) => ({
       default: { model: "gate-stub", args: ["--gate-effort=high"] },
       mechanical: { model: "gate-stub", args: ["--gate-effort=medium"] },
     },
+    fableAccounts: [],
   },
 })
 
@@ -201,7 +202,7 @@ const accountStub = (label, { workerOutput, mainOutput = "" }) => {
   const script = stage(`launch-worker/${label}.js`, [
     `const fs = require("node:fs")`,
     `const overrides = ${JSON.stringify(Object.keys(INHERITED_CLAUDE_OVERRIDES))}.filter((key) => process.env[key] !== undefined)`,
-    `fs.appendFileSync(${JSON.stringify(records)}, JSON.stringify({ configDirectory: process.env.CLAUDE_CONFIG_DIR ?? null, overrides, pointer: process.argv.at(-1) }) + "\\n")`,
+    `fs.appendFileSync(${JSON.stringify(records)}, JSON.stringify({ configDirectory: process.env.CLAUDE_CONFIG_DIR ?? null, overrides, pointer: process.argv.at(-1), model: process.argv[process.argv.indexOf("--model") + 1] ?? null }) + "\\n")`,
     `const output = process.env.CLAUDE_CONFIG_DIR === undefined ? ${JSON.stringify(mainOutput)} : ${JSON.stringify(workerOutput)}`,
     `process.stdout.write(output)`,
     `process.exit(output === "" ? 0 : 1)`,
@@ -217,8 +218,8 @@ const discardAttemptLogs = (stdout) => {
   return discardLog(stdout)
 }
 
-const accountLaunch = (label, stub) => {
-  const fixture = launch(label, launchConfig(stubEngine(stub.script)))
+const accountLaunch = (label, stub, engine = stubEngine(stub.script)) => {
+  const fixture = launch(label, launchConfig(engine))
   const argv = ["--issue", "ORB-201", "--worktree", fixture.worktree, "--prompt", fixture.prompt]
   return { fixture, argv, run: (name, expected, env = {}) => check(TOOL, name, argv, expected, { path: fixture.path, env: { ...githubAuthEnv(), ...INHERITED_CLAUDE_OVERRIDES, CLAUDE_CONFIG_DIR: "/orchestrator/account", ...env } }) }
 }
@@ -312,6 +313,26 @@ const checkWorkerAccount = async () => {
       secondAttempt.account === "main" && secondAttempt.configDirectory === null && secondAttempt.usageLimitReached === false &&
       /-worker-account\.log$/.test(firstAttempt.logFile) && /-main-account\.log$/.test(secondAttempt.logFile) && fellBackResult.logFile === secondAttempt.logFile,
     JSON.stringify(fellBackResult.attempts))
+
+  /** The model of a tier follows the account: Fable on the worker account, the standard model on the main account. */
+  const modelStub = accountStub("account-model-limit", { workerOutput: `${limitResultLine()}\n` })
+  const modelEngine = { engine: { args: [modelStub.script], models: { default: { model: "standard-stub", args: [] } }, fableAccounts: ["worker"], fableModels: { default: { model: "fable-stub", args: [] } } } }
+  const modelRun = accountLaunch("worker-account-model-limit", modelStub, modelEngine).run("a Fable worker at its limit is relaunched on the main account", { status: 0 })
+  const modelResult = JSON.parse(modelRun.stdout || "{}")
+  discardAttemptLogs(modelRun.stdout)
+  const [fableRun, standardRun] = modelStub.runs()
+  T(`${TOOL}: the relaunch on the main account runs the main account's model, not the worker account's`,
+    fableRun?.model === "fable-stub" && standardRun?.model === "standard-stub" && modelStub.runs().length === 2,
+    JSON.stringify(modelStub.runs()))
+  T(`${TOOL}: the launch JSON records the model of each attempt and names the last one at the top`,
+    modelResult.attempts?.[0]?.model === "fable-stub" && modelResult.attempts?.[1]?.model === "standard-stub" && modelResult.model === "standard-stub",
+    JSON.stringify({ model: modelResult.model, attempts: modelResult.attempts?.map((attempt) => attempt.model) }))
+  const bothModelStub = accountStub("account-model-both", { workerOutput: `${limitResultLine()}\n` })
+  const bothEngine = { engine: { ...modelEngine.engine, args: [bothModelStub.script], fableAccounts: ["worker", "main"] } }
+  const bothRun = accountLaunch("worker-account-model-both", bothModelStub, bothEngine).run("a Fable worker is relaunched when both accounts run Fable", { status: 0 })
+  discardAttemptLogs(bothRun.stdout)
+  T(`${TOOL}: one edit that adds the main account to fableAccounts moves the relaunch to Fable too`,
+    bothModelStub.runs().map((run) => run.model).join() === "fable-stub,fable-stub", JSON.stringify(bothModelStub.runs()))
 
   const exhausted = accountStub("account-limit-both", { workerOutput: `${limitResultLine()}\n`, mainOutput: `${limitResultLine()}\n` })
   const exhaustedResult = JSON.parse(accountLaunch("worker-account-limit-both", exhausted).run("both accounts at their limit still end the launch", { status: 0 }).stdout || "{}")
@@ -874,14 +895,14 @@ if (process.argv[1]?.endsWith("worker-gate.cjs")) {
   )
   T(
     `${TOOL}: the engine, tier, and model come from .claude/orchestrator.json`,
-    plan !== null && plan.engine === real.worker && plan.tier === "default" && plan.model === engine.models.default.model,
+    plan !== null && plan.engine === real.worker && plan.tier === "default" && plan.model === engine.fableModels.default.model,
     JSON.stringify(plan),
   )
   const effortOf = (args) => args?.[args.indexOf("--effort") + 1]
   T(
-    `${TOOL}: the default tier resolves claude-sonnet-5-5 at high effort`,
-    plan !== null && plan.engine === "claude" && plan.model === "claude-sonnet-5-5" && effortOf(plan.args) === "high" &&
-      plan.args.join(" ").includes("--effort high --model claude-sonnet-5-5"),
+    `${TOOL}: the default tier on the worker account resolves claude-fable-5-2 at high effort`,
+    plan !== null && plan.engine === "claude" && plan.account === "worker" && plan.model === "claude-fable-5-2" && effortOf(plan.args) === "high" &&
+      plan.args.join(" ").includes("--effort high --model claude-fable-5-2"),
     JSON.stringify(plan?.args),
   )
   T(
@@ -889,15 +910,24 @@ if (process.argv[1]?.endsWith("worker-gate.cjs")) {
     plan !== null && plan.configDirectory === WORKER_CONFIG_DIRECTORY,
     JSON.stringify(plan?.configDirectory),
   )
-  /** Owner order on #2067: mechanical runs Sonnet 5.5, deep and max keep Opus 5.5, all at high effort. */
-  for (const [tier, model] of [["mechanical", "claude-sonnet-5-5"], ["deep", "claude-opus-5-5"], ["max", "claude-opus-5-5"]]) {
+  /** Owner order on #2092: the worker account runs Fable 5.2 on every tier. The main account keeps the #2067 models. */
+  const mainAccount = { ...options, env: { [WORKER_CONFIG_DIRECTORY_VARIABLE]: "" } }
+  for (const [tier, mainModel] of [["default", "claude-sonnet-5-5"], ["mechanical", "claude-sonnet-5-5"], ["deep", "claude-opus-5-5"], ["max", "claude-opus-5-5"]]) {
     const result = check(TOOL, `--dry-run resolves the ${tier} tier`, [...argv, "--tier", tier, "--dry-run"], { status: 0 }, options)
     const tierPlan = result.status === 0 ? JSON.parse(result.stdout) : null
     T(
-      `${TOOL}: the ${tier} tier reports itself and resolves ${model} at high effort`,
-      tierPlan?.tier === tier && tierPlan.engine === "claude" && tierPlan.model === model &&
-        effortOf(tierPlan.args) === "high" && tierPlan.args.join(" ").includes(`--effort high --model ${model}`),
+      `${TOOL}: the ${tier} tier reports itself and resolves claude-fable-5-2 at high effort on the worker account`,
+      tierPlan?.tier === tier && tierPlan.engine === "claude" && tierPlan.account === "worker" && tierPlan.model === "claude-fable-5-2" &&
+        effortOf(tierPlan.args) === "high" && tierPlan.args.join(" ").includes("--effort high --model claude-fable-5-2"),
       result.stderr || JSON.stringify(tierPlan),
+    )
+    const mainResult = check(TOOL, `--dry-run resolves the ${tier} tier on the main account`, [...argv, "--tier", tier, "--dry-run"], { status: 0 }, mainAccount)
+    const mainPlan = mainResult.status === 0 ? JSON.parse(mainResult.stdout) : null
+    T(
+      `${TOOL}: the ${tier} tier resolves ${mainModel} at high effort on the main account`,
+      mainPlan?.tier === tier && mainPlan.account === "main" && mainPlan.model === mainModel &&
+        effortOf(mainPlan.args) === "high" && mainPlan.args.join(" ").includes(`--effort high --model ${mainModel}`),
+      mainResult.stderr || JSON.stringify(mainPlan),
     )
   }
   T(

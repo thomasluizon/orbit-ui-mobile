@@ -30,7 +30,7 @@ const daysAgo = (days) => new Date(Date.now() - days * 86400000).toISOString().s
  * A fixture harness: two agents' worth of shape in three files, plus whatever stamp the case wants.
  * `stamp === null` writes no stamp at all, which is the unreadable case.
  */
-const stageHarness = (label, { stamp, model = "gpt-5.6-sol", classifierModel = "gpt-6-luna", engine = "codex", command = "codex", args = ['-c', 'model_reasoning_effort="high"'], engineArgs = ["exec"], extraFiles = {} } = {}) => {
+const stageHarness = (label, { stamp, model = "gpt-5.6-sol", classifierModel = "gpt-6-luna", engine = "codex", command = "codex", args = ['-c', 'model_reasoning_effort="high"'], engineArgs = ["exec"], extraFiles = {}, engineExtras = {} } = {}) => {
   const fixture = join(root, "check-calibration", label)
   write(join(fixture, ".claude", "agents", "design-reviewer.md"), AGENT)
   write(join(fixture, ".claude", "skills", "ticket", "SKILL.md"), SKILL)
@@ -41,7 +41,7 @@ const stageHarness = (label, { stamp, model = "gpt-5.6-sol", classifierModel = "
   for (const [relativePath, body] of Object.entries(extraFiles)) write(join(fixture, relativePath), body)
   write(
     join(fixture, ".claude", "orchestrator.json"),
-    `${JSON.stringify({ caps: { parallelTickets: 3 }, worker: engine, classifier: { model: classifierModel }, workers: { [engine]: { command, args: engineArgs, models: { default: { model, args }, mechanical: { model, args: ["-c", 'model_reasoning_effort="medium"'] } } } } }, null, 2)}\n`,
+    `${JSON.stringify({ caps: { parallelTickets: 3 }, worker: engine, classifier: { model: classifierModel }, workers: { [engine]: { command, args: engineArgs, models: { default: { model, args }, mechanical: { model, args: ["-c", 'model_reasoning_effort="medium"'] } }, ...engineExtras } } }, null, 2)}\n`,
   )
   if (stamp !== null) write(join(fixture, ".claude", "calibration.json"), `${JSON.stringify(stamp, null, 2)}\n`)
   return fixture
@@ -60,6 +60,7 @@ const currentStamp = (overrides = {}) => {
       default: { model: "gpt-5.6-sol", args: ["exec", "-c", 'model_reasoning_effort="high"', "--model", "gpt-5.6-sol"] },
       mechanical: { model: "gpt-5.6-sol", args: ["exec", "-c", 'model_reasoning_effort="medium"', "--model", "gpt-5.6-sol"] },
     },
+    workerAccountTiers: {},
     workerTierVerdict: "default for judgment; mechanical for specified procedures",
     workerModelSource: "resolveWorkerInvocation(config.worker, ..., tier) in tools/lib/orchestrator-config.mjs",
     entries: {
@@ -267,6 +268,48 @@ export const cases = () => {
     ],
     { status: 0 },
   )
+
+  /**
+   * The model of a tier depends on the account that runs it. The fixture is a claude engine whose
+   * worker account runs Fable and whose main account runs the standard model, and the stamp records
+   * the vector of every tier on both accounts.
+   */
+  const claudeFable = { engine: "claude", command: "claude", model: "claude-sonnet-5-5", classifierModel: "gpt-6-luna", args: ["--effort", "high"], engineArgs: ["-p"] }
+  const fableExtras = (accounts) => ({
+    fableAccounts: accounts,
+    fableModels: { default: { model: "claude-fable-5-2", args: ["--effort", "high"] }, mechanical: { model: "claude-fable-5-2", args: ["--effort", "high"] } },
+  })
+  const vector = (model, effort = "high") => ({ model, args: ["-p", "--effort", effort, "--model", model] })
+  /** The fixture's standard mechanical tier keeps the harness's own medium effort argument. */
+  const standardMechanical = { model: "claude-sonnet-5-5", args: ["-p", "-c", 'model_reasoning_effort="medium"', "--model", "claude-sonnet-5-5"] }
+  const tiersOn = (model) => ({ default: vector(model), mechanical: model === "claude-sonnet-5-5" ? standardMechanical : vector(model) })
+  const claudeStamp = (workerModel, mainModel) => currentStamp({
+    workerEngine: "claude",
+    workerCommand: "claude",
+    workerTiers: tiersOn("claude-sonnet-5-5"),
+    workerAccountTiers: { worker: tiersOn(workerModel), main: tiersOn(mainModel) },
+  })
+  const stagedClaude = (label, stamp, accounts) => stageHarness(label, { ...claudeFable, stamp, engineExtras: fableExtras(accounts) })
+  check(TOOL, "a stamp recording Fable on the worker account and the standard model on the main account passes",
+    ["--root", stagedClaude("account-models-current", claudeStamp("claude-fable-5-2", "claude-sonnet-5-5"), ["worker"])], { status: 0 })
+  check(TOOL, "turning Fable on for the worker account without a reseed exits 1 and names the account",
+    ["--root", stagedClaude("account-models-worker-stale", claudeStamp("claude-sonnet-5-5", "claude-sonnet-5-5"), ["worker"])],
+    { status: 1, stderr: /the default tier worker model on the worker account is claude-fable-5-2 and the stamp was taken against claude-sonnet-5-5/ })
+  check(TOOL, "turning Fable on for the main account without a reseed exits 1 and names the account",
+    ["--root", stagedClaude("account-models-main-stale", claudeStamp("claude-fable-5-2", "claude-sonnet-5-5"), ["worker", "main"])],
+    { status: 1, stderr: /the mechanical tier worker model on the main account is claude-fable-5-2 and the stamp was taken against claude-sonnet-5-5/ })
+  check(TOOL, "turning Fable off for the worker account without a reseed exits 1",
+    ["--root", stagedClaude("account-models-worker-off", claudeStamp("claude-fable-5-2", "claude-sonnet-5-5"), [])],
+    { status: 1, stderr: /the default tier worker model on the worker account is claude-sonnet-5-5 and the stamp was taken against claude-fable-5-2/ })
+  check(TOOL, "a changed effort on one account exits 1 and names the whole vector",
+    ["--root", stagedClaude("account-models-effort", currentStamp({ ...claudeStamp("claude-fable-5-2", "claude-sonnet-5-5"), workerAccountTiers: { worker: { default: vector("claude-fable-5-2", "xhigh"), mechanical: vector("claude-fable-5-2") }, main: tiersOn("claude-sonnet-5-5") } }), ["worker"])],
+    { status: 1, stderr: /the default tier worker args on the worker account are/ })
+  check(TOOL, "a stamp that names no account for an engine with accounts exits 1",
+    ["--root", stagedClaude("account-models-none", currentStamp({ ...claudeStamp("claude-fable-5-2", "claude-sonnet-5-5"), workerAccountTiers: {} }), ["worker"])],
+    { status: 1, stderr: /the configured worker accounts are main, worker and the stamp names none/ })
+  check(TOOL, "a stamp with no workerAccountTiers object exits 2",
+    ["--root", stagedClaude("account-models-missing", currentStamp({ ...claudeStamp("claude-fable-5-2", "claude-sonnet-5-5"), workerAccountTiers: undefined }), ["worker"])],
+    { status: 2, stderr: /workerAccountTiers must be an object keyed by account/ })
 
   // The alias backstop. A model alias can move without its declared string changing, so age is the
   // only signal left and it is not decoration.
@@ -486,7 +529,7 @@ export const cases = () => {
   )
   write(
     join(emptyTree, ".claude", "calibration.json"),
-    `${JSON.stringify({ calibratedAt: today(), workerEngine: "codex", workerCommand: "codex", workerTiers: { default: { model: "gpt-5.6-sol", args: ["--model", "gpt-5.6-sol"] } }, workerTierVerdict: "default for judgment", entries: {} }, null, 2)}\n`,
+    `${JSON.stringify({ calibratedAt: today(), workerEngine: "codex", workerCommand: "codex", workerTiers: { default: { model: "gpt-5.6-sol", args: ["--model", "gpt-5.6-sol"] } }, workerAccountTiers: {}, workerTierVerdict: "default for judgment", entries: {} }, null, 2)}\n`,
   )
   check(TOOL, "a tree with no agent and no skill exits 2 rather than reporting a vacuous green", ["--root", emptyTree], {
     status: 2,

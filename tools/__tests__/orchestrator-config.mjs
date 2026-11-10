@@ -55,7 +55,7 @@ const stageConfigRepo = (label, { head, origin, working }) => {
 }
 
 export const cases = async () => {
-  const { readOrchestratorConfig, resolveWorkerInvocation, workerAccounts } = await import(pathToFileURL(toolPath("lib/orchestrator-config.mjs")).href)
+  const { readOrchestratorConfig, resolveWorkerInvocation, workerAccountTiers, workerAccounts } = await import(pathToFileURL(toolPath("lib/orchestrator-config.mjs")).href)
 
   for (const [name, endMarker] of [["audit", "const VERIFY_CAP"], ["prod-readiness", "const OPS_SCHEMA"]]) {
     const source = readFileSync(new URL(`../../.claude/workflows/${name}.mjs`, import.meta.url), "utf8")
@@ -242,6 +242,42 @@ export const cases = async () => {
       resolved.model === model && effortOf(resolved.args) === "high",
       `.claude/orchestrator.json resolved ${resolved.model} with ${JSON.stringify(resolved.args)}`)
   }
+
+  /** Owner order on #2092: the worker account runs Fable 5.2 on every tier, the main account keeps the #2067 models. */
+  for (const [tier, mainModel] of WORKER_TIER_MODELS) {
+    const onWorker = resolveWorkerInvocation(engineName, engine, tier, "worker")
+    const onMain = resolveWorkerInvocation(engineName, engine, tier, "main")
+    T(`${NAME}: the ${tier} tier runs claude-fable-5-2 at high effort on the worker account`,
+      onWorker.model === "claude-fable-5-2" && effortOf(onWorker.args) === "high" && onWorker.args.at(-1) === "claude-fable-5-2",
+      JSON.stringify(onWorker))
+    T(`${NAME}: the ${tier} tier runs ${mainModel} at high effort on the main account`,
+      onMain.model === mainModel && effortOf(onMain.args) === "high" && onMain.args.at(-1) === mainModel,
+      JSON.stringify(onMain))
+  }
+  const fableTiers = JSON.stringify(Object.keys(engine.fableModels ?? {}).sort())
+  T(`${NAME}: fableModels declares exactly the tiers of models`,
+    fableTiers === JSON.stringify(Object.keys(engine.models).sort()), fableTiers)
+  /** One edit to fableAccounts turns Fable on or off for one account, and nothing else moves. */
+  const modelOn = (accounts, account) => resolveWorkerInvocation(engineName, { ...engine, fableAccounts: accounts }, "default", account).model
+  T(`${NAME}: adding the main account to fableAccounts turns Fable on for it and leaves the worker account on Fable`,
+    modelOn(["worker", "main"], "main") === "claude-fable-5-2" && modelOn(["worker", "main"], "worker") === "claude-fable-5-2")
+  T(`${NAME}: removing the worker account from fableAccounts returns it to the standard model`,
+    modelOn([], "worker") === "claude-sonnet-5-5" && modelOn(["main"], "worker") === "claude-sonnet-5-5" && modelOn(["main"], "main") === "claude-fable-5-2")
+  T(`${NAME}: a lookup with no account always reads the standard models`,
+    resolveWorkerInvocation(engineName, engine, "deep").model === "claude-opus-5-5")
+  const fableMessage = (patch) => thrown(() => resolveWorkerInvocation(engineName, { ...engine, ...patch }, "default", "worker")) ?? ""
+  T(`${NAME}: an unknown account in fableAccounts is refused`, /fableAccounts must be an array of unique account names from: worker, main/.test(fableMessage({ fableAccounts: ["workers"] })))
+  T(`${NAME}: a repeated account in fableAccounts is refused`, /fableAccounts must be an array of unique account names/.test(fableMessage({ fableAccounts: ["worker", "worker"] })))
+  T(`${NAME}: fableAccounts without fableModels is refused`, /fableModels must be an object keyed by tier/.test(fableMessage({ fableModels: undefined })))
+  T(`${NAME}: fableModels without fableAccounts is refused`, /fableAccounts must be an array/.test(fableMessage({ fableAccounts: undefined })))
+  T(`${NAME}: a fableModels object missing a tier is refused`,
+    /fableModels must declare every tier of models; missing: max/.test(fableMessage({ fableModels: { default: engine.fableModels.default, mechanical: engine.fableModels.mechanical, deep: engine.fableModels.deep } })))
+  const accountVectors = workerAccountTiers(engineName, engine)
+  T(`${NAME}: the stamp vectors cover every tier on the worker and main accounts`,
+    JSON.stringify(Object.keys(accountVectors).sort()) === JSON.stringify(["main", "worker"]) &&
+      WORKER_TIER_MODELS.every(([tier, mainModel]) => accountVectors.worker[tier].model === "claude-fable-5-2" && accountVectors.main[tier].model === mainModel),
+    JSON.stringify(accountVectors))
+  T(`${NAME}: an engine with no Claude account has no stamp vectors`, JSON.stringify(workerAccountTiers("codex", real.workers.codex)) === "{}")
 
   const engineFailures = []
   const codexEngine = real.workers.codex
