@@ -172,8 +172,8 @@ Leaf completion and parent progress share this shape inside a transparent 48px t
 checks use `bg-hover` while retaining their 1px status border and readable partial progress;
 completed checks layer `bg-hover-opaque` over their resting neutral fill, beneath the checkmark.
 One 2px focus outline follows the check shape with a 2px outward offset, inside the target.
-Press retains scale 0.96 when motion is enabled and stays still with reduced motion. Disabled,
-read-only and presentational selection checks add no interaction paint.
+Press retains scale 0.96 when motion is enabled and stays still with reduced motion. Disabled and
+read-only checks add no interaction paint.
 
 The clearance amendment also touches the paired `ui/pill-button`, web `ui/pill-action-style`,
 `ui/list-row`, `ui/check-row`, `ui/segmented-control`, `ui/weekday-picker`, `shell/composer`,

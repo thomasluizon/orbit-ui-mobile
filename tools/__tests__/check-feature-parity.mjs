@@ -466,7 +466,7 @@ function invocationRuleRegressions(platform, current, files, inventory, rules, o
   const mutations = [
     ['tag generation', `${prefix}habit-form-fields/tag-suggestions.tsx`, /<PillButton minimumHeight=\{48\}[\s\S]*?<\/PillButton>/g, [`${platform}:control:habits.form.suggestTags`]],
     ['reschedule retry', `${prefix}reschedule-sheet.tsx`, /<PillButton leadingIcon=\{<AstraGlyph size=\{16\} \/>\} variant=\{filledVariant\} size="sm" onClick=\{\(\) => void refetch\(\)\}>\s*\{t\('habits.reschedule.suggestDate'\)\}\s*<\/PillButton>/g, [`${platform}:control:habits.reschedule.retry`]],
-    ['reschedule menu', `${prefix}${platform === 'web' ? 'habit-row-trailing' : 'habit-row'}.tsx`, /^.*items\.push\(\{ id: 'reschedule',.*\n/gm, [`${platform}:control:habits.actions.reschedule`]],
+    ['reschedule menu', `${prefix}habit-row.tsx`, /^.*items\.push\(\{ id: 'reschedule',.*\n/gm, [`${platform}:control:habits.actions.reschedule`]],
   ]
   for (const [name, path, pattern, missingIds] of mutations) {
     const original = files[path]
@@ -477,7 +477,7 @@ function invocationRuleRegressions(platform, current, files, inventory, rules, o
     const losses = newLosses(after, before).map((entry) => entry.id).sort()
     T(`${platform} deleting ${name} blocks exactly its original obligations`, JSON.stringify(losses) === JSON.stringify([...missingIds].sort()), losses.join(', '))
     T(`${platform} deleting ${name} retains automatic dates, emoji generation and manual tag picking`, Object.values(dateOwners(platform, files, afterObservations)).every(Boolean) && afterObservations.some((entry) => entry.id === `${platform}:control:habits.form.suggestEmoji` && entry.evidence.some((item) => item.file.endsWith('habit-emoji-selector.tsx'))) && afterObservations.some((entry) => entry.id === `${platform}:control:habits.form.tags`))
-    T(`${platform} deleting ${name} preserves deterministic acceptance, recovery and other row actions`, files[`${prefix}habit-form-fields/tag-suggestions.tsx`].includes('suggestions.acceptSuggestion(suggestion)') && files[`${prefix}habit-form-fields/tag-suggestions.tsx`].includes('getFriendlyErrorMessage') && files[`${prefix}reschedule-sheet.tsx`].includes("t('habits.reschedule.dismiss')") && files[`${prefix}reschedule-sheet.tsx`].includes("t('habits.reschedule.accept')") && ['edit', 'skip', 'drill'].every((key) => files[`${prefix}${platform === 'web' ? 'habit-row-trailing' : 'habit-row'}.tsx`].includes(`id: '${key}'`)))
+    T(`${platform} deleting ${name} preserves deterministic acceptance, recovery and other row actions`, files[`${prefix}habit-form-fields/tag-suggestions.tsx`].includes('suggestions.acceptSuggestion(suggestion)') && files[`${prefix}habit-form-fields/tag-suggestions.tsx`].includes('getFriendlyErrorMessage') && files[`${prefix}reschedule-sheet.tsx`].includes("t('habits.reschedule.dismiss')") && files[`${prefix}reschedule-sheet.tsx`].includes("t('habits.reschedule.accept')") && ['edit', 'skip', 'drill'].every((key) => files[`${prefix}habit-row.tsx`].includes(`id: '${key}'`)))
     files[path] = original
     T(`${platform} restoring ${name} leaves no new invocation losses`, newLosses(compare(capabilities, scan(current, platform, rules), rules), before).length === 0)
   }
