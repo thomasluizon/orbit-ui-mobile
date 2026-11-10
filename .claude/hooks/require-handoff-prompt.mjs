@@ -20,7 +20,7 @@ try {
     verdict = checkHandoffStop({ request, state, headPrompt: head.text, headPromptCommittedAt: head.committedAt, headSpecVersions: head.specVersions })
   } else if (typeof input?.tool_input?.command === "string") {
     verdict = checkHandoffCommit({ command: input.tool_input.command, cwd: input?.cwd || process.cwd(), request, state, promptsForCommit, specsForCommit,
-      // Git refuses to merge main while a merge, cherry-pick, revert or rebase waits for its commit, and the staged docs came from that operation.
+      // Mid-operation the refresh fails (merge, cherry-pick, a rebase's detached HEAD) or drops a revert's prepared message, and the staged docs came from that operation.
       refreshCheckout: (directory) => { if (handoffDocsChanged(directory) && !operationInProgress(directory)) syncRelayCheckout(directory) },
     })
   }

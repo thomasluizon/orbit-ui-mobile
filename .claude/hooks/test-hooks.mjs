@@ -2182,40 +2182,32 @@ T("handoff size: a commit of an 8300 B prompt is refused", /`\.claude\/handoffs\
 T("handoff size: a commit of an 8192 B prompt passes", specCommit([], `${goodSleepPrompt}\n${"x".repeat(8191 - goodSleepPrompt.length)}`), null)
 T("handoff size: a stop after an oversized committed spec is refused", blocks(checkHandoffStop({ request: { sleep: true, recordedAt: "2026-01-01T10:00:00Z" }, headPrompt: goodSleepPrompt, headPromptCommittedAt: "2026-01-01T10:05:00Z", headSpecVersions: () => ["x".repeat(41984)] })), true)
 
-// A commit that concludes a conflicted merge of main stages main's own spec edits. It authors no handoff docs.
-const mergeOrigin = join(root, "merge-commit-origin.git")
-const mergeCheckout = join(root, "merge-commit-checkout")
-const inMergeCheckout = (...args) => spawnSync("git", ["-C", mergeCheckout, ...args], { encoding: "utf8" })
-const mergeSetup = [
-  () => spawnSync("git", ["init", "-q", "--bare", mergeOrigin], { encoding: "utf8" }),
-  () => spawnSync("git", ["init", "-q", "--initial-branch=main", mergeCheckout], { encoding: "utf8" }),
-  () => inMergeCheckout("config", "user.email", "hooks@example.invalid"),
-  () => inMergeCheckout("config", "user.name", "Hook Test"),
-  () => inMergeCheckout("remote", "add", "origin", mergeOrigin),
-  () => { mkdirSync(join(mergeCheckout, ".claude", "specs"), { recursive: true }); writeFileSync(join(mergeCheckout, ".claude", "specs", "merge.md"), "spec\n"); writeFileSync(join(mergeCheckout, "shared.txt"), "base\n"); return inMergeCheckout("add", ".claude/specs/merge.md", "shared.txt") },
-  () => inMergeCheckout("commit", "-qm", "base"),
-  () => inMergeCheckout("push", "-q", "-u", "origin", "main"),
-  () => inMergeCheckout("checkout", "-qb", "feature"),
-  () => { writeFileSync(join(mergeCheckout, "shared.txt"), "feature\n"); return inMergeCheckout("commit", "-qam", "feature change") },
-  () => inMergeCheckout("checkout", "-q", "main"),
-  () => { writeFileSync(join(mergeCheckout, "shared.txt"), "main\n"); writeFileSync(join(mergeCheckout, ".claude", "specs", "merge.md"), "main spec\n"); return inMergeCheckout("commit", "-qam", "main change") },
-  () => inMergeCheckout("push", "-q", "origin", "main"),
-  () => inMergeCheckout("checkout", "-q", "feature"),
+// The shared origin: a base commit, then a main commit that edits shared.txt and .claude/specs/merge.md.
+const operationOrigin = join(root, "operation-commit-origin.git")
+const originSeed = join(root, "operation-commit-seed")
+const inOriginSeed = (...args) => spawnSync("git", ["-C", originSeed, ...args], { encoding: "utf8" })
+const originSetup = [
+  () => spawnSync("git", ["init", "-q", "--bare", operationOrigin], { encoding: "utf8" }),
+  () => spawnSync("git", ["init", "-q", "--initial-branch=main", originSeed], { encoding: "utf8" }),
+  () => inOriginSeed("config", "user.email", "hooks@example.invalid"),
+  () => inOriginSeed("config", "user.name", "Hook Test"),
+  () => inOriginSeed("remote", "add", "origin", operationOrigin),
+  () => { mkdirSync(join(originSeed, ".claude", "specs"), { recursive: true }); writeFileSync(join(originSeed, ".claude", "specs", "merge.md"), "spec\n"); writeFileSync(join(originSeed, "shared.txt"), "base\n"); return inOriginSeed("add", ".claude/specs/merge.md", "shared.txt") },
+  () => inOriginSeed("commit", "-qm", "base"),
+  () => { writeFileSync(join(originSeed, "shared.txt"), "main\n"); writeFileSync(join(originSeed, ".claude", "specs", "merge.md"), "main spec\n"); return inOriginSeed("commit", "-qam", "main change") },
+  () => inOriginSeed("push", "-q", "-u", "origin", "main"),
 ]
-T("merge commit: fixture builds", mergeSetup.map((step) => step().status), mergeSetup.map(() => 0))
-T("merge commit: merging main stops on a conflict", inMergeCheckout("merge", "--no-edit", "origin/main").status, 1)
-writeFileSync(join(mergeCheckout, "shared.txt"), "resolved\n")
-T("merge commit: the resolution stages", inMergeCheckout("add", "shared.txt").status, 0)
-T("merge commit: the index holds main's spec edit", inMergeCheckout("diff", "--cached", "--name-only", "--", ".claude/specs/").stdout.trim(), ".claude/specs/merge.md")
-const mergeCommitHook = spawnSync(process.execPath, [join(hooksDir, "require-handoff-prompt.mjs")], { cwd: mergeCheckout, encoding: "utf8",
-  input: JSON.stringify({ hook_event_name: "PreToolUse", session_id: "merge-commit-fixture", cwd: mergeCheckout, tool_input: { command: "git commit --no-edit" } }) })
-T("merge commit: the commit that concludes the merge passes the handoff gate", { status: mergeCommitHook.status, stderr: mergeCommitHook.stderr }, { status: 0, stderr: "" })
+T("open operation commit: origin fixture builds", originSetup.map((step) => step().status), originSetup.map(() => 0))
 
-// A conflicted cherry-pick, revert or rebase stages a spec edit that the operation carries, and the commit that concludes
-// it authors no handoff docs. The reftable ref backend keeps CHERRY_PICK_HEAD and REVERT_HEAD in its ref store, not as
-// files, so every case runs under both backends. A rebase stop leaves HEAD detached.
+// A conflicted merge of main, cherry-pick, revert or rebase stages a spec edit that the operation carries, and the commit
+// that concludes it authors no handoff docs. The reftable ref backend keeps CHERRY_PICK_HEAD and REVERT_HEAD in its ref
+// store, not as files, so every case runs under both backends. A rebase stop leaves HEAD detached.
 const writeFixture = (checkout, files) => { for (const [path, text] of Object.entries(files)) writeFileSync(join(checkout, path), text) }
 const openOperationCases = [
+  { name: "merge", stagedSpec: ".claude/specs/merge.md", start: ["merge", "--no-edit", "origin/main"], prepare: (inCheckout, checkout) => [
+    () => inCheckout("checkout", "-qb", "feature", "origin/main~1"),
+    () => { writeFixture(checkout, { "shared.txt": "feature\n" }); return inCheckout("commit", "-qam", "feature change") },
+  ] },
   { name: "cherry-pick", stagedSpec: ".claude/specs/merge.md", start: ["cherry-pick", "release"], prepare: (inCheckout, checkout) => [
     () => inCheckout("checkout", "-qb", "release", "origin/main"),
     () => { writeFixture(checkout, { "shared.txt": "release\n", ".claude/specs/merge.md": "release spec\n" }); return inCheckout("commit", "-qam", "release fix") },
@@ -2239,7 +2231,7 @@ for (const refFormat of ["files", "reftable"]) {
     const checkout = join(root, `${name}-commit-checkout-${refFormat}`)
     const inCheckout = (...args) => spawnSync("git", ["-C", checkout, ...args], { encoding: "utf8", env: { ...process.env, GIT_EDITOR: "true" } })
     const setup = [
-      () => spawnSync("git", ["clone", "-q", `--ref-format=${refFormat}`, mergeOrigin, checkout], { encoding: "utf8" }),
+      () => spawnSync("git", ["clone", "-q", `--ref-format=${refFormat}`, operationOrigin, checkout], { encoding: "utf8" }),
       () => inCheckout("config", "user.email", "hooks@example.invalid"),
       () => inCheckout("config", "user.name", "Hook Test"),
       ...prepare(inCheckout, checkout),
