@@ -254,15 +254,14 @@ async function renderAsset(sources, asset) {
     .toBuffer()
 }
 
-// The Windows icon keeps the platform icon artwork (accent mark at 60% of the tile on CANVAS) and
-// changes only the tile: inset from the canvas edge with a little rounding, as on the Orca icon, so
-// Windows shows a tile instead of a full-bleed square. The Orca tile is 80.5% of its canvas with a
-// corner radius of 22.4% of the tile. Windows draws these layers at 1:1, so a small layer cannot
-// afford that margin: it gets the smallest whole-pixel margin that still leaves a transparent
-// ring, and a radius near 21% of its tile that rounds at least one corner pixel.
+// The Windows icon keeps the platform icon artwork (accent mark at 60% of the tile on CANVAS) on an
+// inset tile with a little rounding, as on the Orca icon (tile 80.5% of the canvas, radius 22.4% of
+// the tile). Windows draws these layers at 1:1, so a small layer gets the smallest whole-pixel margin
+// that leaves a transparent ring and a radius near 21% of its tile. At 16 px the 60% mark loses its
+// moon, so that layer draws the native 16 px redraw, like the 16 px favicon layer.
 const WINDOWS_MARK_SCALE = 0.6
 const windowsIconLayers = [
-  { size: 16, margin: 1, radius: 3 },
+  { size: 16, margin: 1, radius: 3, nativeMark: true },
   { size: 24, margin: 1, radius: 4 },
   { size: 32, margin: 2, radius: 6 },
   { size: 48, margin: 4, radius: 9 },
@@ -270,9 +269,15 @@ const windowsIconLayers = [
   { size: 256, margin: 24, radius: 44 },
 ]
 
-async function renderWindowsIconLayer(sources, { size, margin, radius }) {
+async function renderWindowsIconLayer(sources, { size, margin, radius, nativeMark }) {
   const tile = size - 2 * margin
   const tileSvg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><rect x="${margin}" y="${margin}" width="${tile}" height="${tile}" rx="${radius}" ry="${radius}" fill="${CANVAS}"/></svg>`
+  if (nativeMark) {
+    return sharp(Buffer.from(tileSvg))
+      .composite([{ input: await renderNativeMark(sources.mark16, FOREGROUND, size), left: 0, top: 0 }])
+      .png({ compressionLevel: 9 })
+      .toBuffer()
+  }
   const { data: mark, info } = await renderAccentMark(
     sources.markAccent,
     FOREGROUND,

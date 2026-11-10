@@ -65,6 +65,27 @@ describe('Windows icon.ico', () => {
     expect(pixelAt(Math.floor(size / 2), corner + 1)).toEqual(tileColour)
   })
 
+  // At 16 px the 60% accent mark is an 8 px smear, so the layer draws the native 16 px redraw instead,
+  // like the 16 px favicon layer. Every pixel the redraw covers fully must show the light ink.
+  it('draws the 16px entry with the native 16px mark', async () => {
+    const markSource = readFileSync(new URL('../../../design/brand/orbit-mark-16.svg', import.meta.url), 'utf8')
+    const { data: mark } = await sharp(Buffer.from(markSource.replaceAll('currentColor', '#FFFFFF')))
+      .resize(16, 16).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+    const { pixelAt } = await decode(entries.find(({ size }) => size === 16)!)
+    const covered: [number, number][] = []
+    for (let y = 0; y < 16; y += 1) {
+      for (let x = 0; x < 16; x += 1) {
+        if (mark[(y * 16 + x) * 4 + 3] === 255) covered.push([x, y])
+      }
+    }
+    expect(covered.length).toBeGreaterThan(0)
+    const dark = covered.filter(([x, y]) => {
+      const [red, green, , alpha] = pixelAt(x, y)
+      return alpha < 255 || red <= 160 || green <= 160
+    })
+    expect(dark).toEqual([])
+  })
+
   it('keeps the accent moon on the 256px entry', async () => {
     const { pixelAt, width } = await decode(entries.find(({ size }) => size === 256)!)
     let accent = 0

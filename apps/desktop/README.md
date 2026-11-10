@@ -110,7 +110,7 @@ Successful publication leaves four updater packages, four package signatures and
 
 `icon.png` and `icon.icns` derive from the existing web app icon with `npx tauri icon ../web/public/pwa-512x512.png --output src-tauri/icons` from this workspace. Retain only `icon.png` and `icon.icns`. That command also overwrites `icon.ico` with a full-bleed square, so run the generator below after it.
 
-`icon.ico` comes from `node tools/generate-brand-assets.mjs --write` in the repository root. It draws the same artwork on an inset, rounded tile, because Windows shows a full-bleed square as a hard edge. The window, taskbar, tray, shortcuts and `bundle.windows.nsis` installer icons all use this file. The tile margin and corner radius for each size are in `windowsIconLayers` in that script.
+`icon.ico` comes from `node tools/generate-brand-assets.mjs --write` in the repository root. It draws the same artwork on an inset, rounded tile, because Windows shows a full-bleed square as a hard edge. The 16 px layer draws the native 16 px redraw (`orbit-mark-16.svg`), as the 16 px favicon layer does. The window, taskbar, tray, shortcuts and `bundle.windows.nsis` installer icons all use this file. The tile margin and corner radius for each size are in `windowsIconLayers` in that script.
 
 ## Verification
 
