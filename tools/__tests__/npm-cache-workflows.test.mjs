@@ -39,13 +39,16 @@ test("every setup-node npm cache restore has a one-minute segment bound", () => 
 
 test("unit test steps retain their budget with setup and report time outside it", () => {
   const workflow = workflows.find(([file]) => file === "test.yml")[1]
-  for (const [jobId, name] of [
-    ["web-tests", "Run web shard with coverage"],
-    ["workspace-tests", "Run workspace with coverage thresholds"],
-  ]) {
-    const job = workflow.jobs[jobId]
-    const step = job.steps.find((candidate) => candidate.name === name)
-    assert.equal(step["timeout-minutes"], 15, `${jobId} owns a separate test budget`)
-    assert.equal(job["timeout-minutes"], 25, `${jobId} reserves ten minutes for setup and reports`)
+  const web = workflow.jobs["web-tests"]
+  assert.equal(web.steps.find((candidate) => candidate.name === "Run web shard with coverage")["timeout-minutes"], 15, "web-tests owns a separate test budget")
+  assert.equal(web["timeout-minutes"], 25, "web-tests reserves ten minutes for setup and reports")
+  const workspaces = workflow.jobs["workspace-tests"]
+  const step = workspaces.steps.find((candidate) => candidate.name === "Run workspace with coverage thresholds")
+  assert.equal(step["timeout-minutes"], "${{ matrix.step-timeout-minutes }}", "workspace-tests takes each test budget from its matrix entry")
+  assert.equal(workspaces["timeout-minutes"], 25)
+  for (const entry of workspaces.strategy.matrix.include) {
+    const minutes = entry["step-timeout-minutes"]
+    assert.ok(Number.isInteger(minutes) && minutes >= 5, `${entry.workspace} needs a whole-minute test budget of at least 5 minutes`)
+    assert.ok(workspaces["timeout-minutes"] - minutes >= 3, `${entry.workspace} must leave at least three job minutes for setup and reports`)
   }
 })

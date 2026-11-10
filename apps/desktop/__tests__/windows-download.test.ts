@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -12,8 +12,8 @@ const available = process.platform === 'win32' || spawnSync(shell, ['-NoProfile'
 const downloadTest = it.skipIf(!available)
 if (!available) process.stderr.write(`PowerShell download tests skipped: ${shell} is unavailable\n`)
 
-/** WHY: One PowerShell start took 0.34 to 2.4 s per case on healthy Windows runners and 20.6 to 22.4 s on a slow runner, so one process runs every case; 120 s is about five times the slowest start. */
-const batchTimeoutMilliseconds = 120_000
+/** WHY: One cold PowerShell start took 0.34 to 2.4 s on healthy Windows runners and 20.6 to 22.4 s on a slow runner, so every case starts at once and 120 s is about five times the slowest start. */
+const caseTimeoutMilliseconds = 120_000
 
 interface Scenario { mode: string; cached?: string; architecture?: string; artifact?: string; complete?: boolean; signature?: string; url?: string }
 interface Outcome { status: number; stdout: string; stderr: string; directory: string; attempts: number[]; delays: number[] }
@@ -33,10 +33,9 @@ const scenarios: Record<string, Scenario> = {
   ...Object.fromEntries(signers.map(signature => [`signer ${signature}`, { mode: 'success', complete: true, signature }])),
 }
 
-const batchScript = `
+const harnessScript = `
 $ErrorActionPreference = 'Stop'
 $script:attempts = 0
-$caseComplete = 'case-complete'
 function Invoke-WebRequest {
     param($Uri, $OutFile, [switch]$UseBasicParsing, $TimeoutSec)
     if ($OutFile -like "*$($env:TEST_ARTIFACT)*") {
@@ -58,7 +57,7 @@ function Expand-Archive {
     param($Path, $DestinationPath)
     if ([System.IO.File]::ReadAllText($Path) -ne 'verified package bytes') { throw 'Unverified archive reached extraction' }
     Write-Output 'verified archive reached extraction'
-    if ($env:TEST_COMPLETE -ne 'true') { throw $caseComplete }
+    if ($env:TEST_COMPLETE -ne 'true') { exit 0 }
     New-Item -ItemType Directory $DestinationPath -Force | Out-Null
 }
 function Invoke-Projection {
@@ -69,6 +68,7 @@ function Invoke-Projection {
     }
     $global:LASTEXITCODE = 0
 }
+Set-Alias -Name (Join-Path $env:TEST_ROOT 'cppwinrt/bin/cppwinrt.exe') -Value Invoke-Projection
 function Copy-Item {
     param($Path, $Destination, [switch]$Force)
     if ([System.IO.File]::ReadAllText($Path) -ne 'verified package bytes') { throw 'Unverified installer reached output' }
@@ -90,77 +90,58 @@ function Get-AuthenticodeSignature {
     $subject = if ($env:TEST_SIGNATURE -eq 'non-microsoft') { 'O=Another Corporation,' } else { 'O=Microsoft Corporation,' }
     return @{ Status = $status; SignerCertificate = @{ Subject = $subject } }
 }
-foreach ($case in (Get-Content $env:TEST_MANIFEST -Raw | ConvertFrom-Json)) {
-    $env:TEST_ROOT = $case.directory
-    $env:TEST_MODE = $case.mode
-    $env:TEST_ARCHITECTURE = $case.architecture
-    $env:TEST_ARTIFACT = $case.artifact
-    $env:TEST_COMPLETE = [string]$case.complete
-    $env:TEST_SIGNATURE = $case.signature
-    $env:TEST_URL = $case.url
-    $env:ORBIT_WINDOWS_DOWNLOAD_CACHE = $case.directory
-    $script:attempts = 0
-    $script:status = 0
-    $script:failure = ''
-    Set-Alias -Name (Join-Path $env:TEST_ROOT 'cppwinrt/bin/cppwinrt.exe') -Value Invoke-Projection
-    $records = & {
-        try {
-            if ($env:TEST_URL) {
-                . (Join-Path $env:TEST_ROOT 'download.ps1')
-                Get-VerifiedDownload $env:TEST_URL (Join-Path $env:TEST_ROOT 'sdk.zip') 'unused'
-            } else {
-                & (Join-Path $env:TEST_ROOT 'prepare.ps1') -Architecture $env:TEST_ARCHITECTURE -Output $env:TEST_ROOT
-            }
-        } catch {
-            if ($_.Exception.Message -ne $caseComplete) {
-                $script:status = 1
-                $script:failure = $_.Exception.Message
-            }
-        }
-    } *>&1
-    $stdout = (@($records | Where-Object { $_ -is [string] }) -join [Environment]::NewLine)
-    $stderr = (@($records | Where-Object { $_ -isnot [string] } | ForEach-Object { $_.ToString() }) + $script:failure) -join [Environment]::NewLine
-    [System.IO.File]::WriteAllText((Join-Path $case.directory 'result.json'), (@{ status = $script:status; stdout = $stdout; stderr = $stderr } | ConvertTo-Json -Compress))
+if ($env:TEST_URL) {
+    . (Join-Path $env:TEST_ROOT 'download.ps1')
+    Get-VerifiedDownload $env:TEST_URL (Join-Path $env:TEST_ROOT 'sdk.zip') 'unused'
+    exit 0
 }
+& (Join-Path $env:TEST_ROOT 'prepare.ps1') -Architecture $env:TEST_ARCHITECTURE -Output $env:TEST_ROOT
 `
 
 const directories: string[] = []
 afterAll(() => directories.splice(0).forEach(directory => rmSync(directory, { recursive: true, force: true })))
 
-function stage(scenario: Scenario) {
+function lines(directory: string, file: string) {
+  return existsSync(join(directory, file)) ? readFileSync(join(directory, file), 'utf8').trim().split(/\r?\n/).map(Number) : []
+}
+
+function run(scenario: Scenario): Promise<Outcome> {
   const directory = mkdtempSync(join(tmpdir(), 'orbit-windows-download-'))
   directories.push(directory)
   for (const filename of readdirSync(native).filter(filename => filename.endsWith('.ps1') || filename.endsWith('.json'))) {
     copyFileSync(join(native, filename), join(directory, filename))
   }
   if (scenario.cached !== undefined) writeFileSync(join(directory, 'sdk.zip'), scenario.cached)
-  return {
-    directory, mode: scenario.mode, architecture: scenario.architecture ?? 'x64', artifact: scenario.artifact ?? 'sdk',
-    complete: scenario.complete ?? false, signature: scenario.signature ?? 'microsoft', url: scenario.url ?? '',
-  }
-}
-
-function runScenarios(): Record<string, Outcome> {
-  const staged = Object.entries(scenarios).map(([name, scenario]) => [name, stage(scenario)] as const)
-  const batch = mkdtempSync(join(tmpdir(), 'orbit-windows-download-batch-'))
-  directories.push(batch)
-  const manifest = join(batch, 'manifest.json')
-  const harness = join(batch, 'batch.ps1')
-  writeFileSync(manifest, JSON.stringify(staged.map(([, entry]) => entry)))
-  writeFileSync(harness, batchScript)
-  const result = spawnSync(shell, ['-NoProfile', '-File', harness], {
-    encoding: 'utf8', timeout: batchTimeoutMilliseconds, env: { ...process.env, TEST_MANIFEST: manifest },
+  const harness = join(directory, 'test.ps1')
+  writeFileSync(harness, harnessScript)
+  const child = spawn(shell, ['-NoProfile', '-File', harness], {
+    timeout: caseTimeoutMilliseconds,
+    env: {
+      ...process.env, TEST_ROOT: directory, TEST_MODE: scenario.mode, TEST_ARCHITECTURE: scenario.architecture ?? 'x64',
+      TEST_ARTIFACT: scenario.artifact ?? 'sdk', TEST_COMPLETE: String(scenario.complete ?? false),
+      TEST_SIGNATURE: scenario.signature ?? 'microsoft', TEST_URL: scenario.url ?? '', ORBIT_WINDOWS_DOWNLOAD_CACHE: directory,
+    },
   })
-  if (result.status !== 0) throw new Error(`PowerShell batch exited with ${String(result.status)}: ${result.stdout}${result.stderr}${String(result.error)}`)
-  return Object.fromEntries(staged.map(([name, entry]) => {
-    const lines = (file: string) => existsSync(join(entry.directory, file)) ? readFileSync(join(entry.directory, file), 'utf8').trim().split(/\r?\n/).map(Number) : []
-    const recorded = JSON.parse(readFileSync(join(entry.directory, 'result.json'), 'utf8')) as Pick<Outcome, 'status' | 'stdout' | 'stderr'>
-    return [name, { ...recorded, directory: entry.directory, attempts: lines('attempts'), delays: lines('delays') }]
-  }))
+  let stdout = ''
+  let stderr = ''
+  child.stdout.setEncoding('utf8').on('data', (chunk: string) => { stdout += chunk })
+  child.stderr.setEncoding('utf8').on('data', (chunk: string) => { stderr += chunk })
+  return new Promise(resolve => {
+    const settle = (status: number, failure = '') => resolve({
+      status, stdout, stderr: stderr + failure, directory, attempts: lines(directory, 'attempts'), delays: lines(directory, 'delays'),
+    })
+    child.on('error', error => settle(-1, String(error)))
+    child.on('close', (status, signal) => settle(status ?? -1, signal === null ? '' : `PowerShell ended on ${signal}`))
+  })
 }
 
 let outcomes: Record<string, Outcome> = {}
-if (available) beforeAll(() => { outcomes = runScenarios() }, batchTimeoutMilliseconds + 10_000)
+if (available) {
+  beforeAll(async () => {
+    const entries = await Promise.all(Object.entries(scenarios).map(async ([name, scenario]) => [name, await run(scenario)] as const))
+    outcomes = Object.fromEntries(entries)
+  }, caseTimeoutMilliseconds + 10_000)
+}
 const outcome = (name: string) => outcomes[name]!
 
 downloadTest('prepares the SDK after two network failures with bounded backoff', () => {
