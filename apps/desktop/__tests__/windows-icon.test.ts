@@ -14,7 +14,7 @@ interface IconEntry {
   png: Buffer
 }
 
-// ICONDIR is 6 bytes and each ICONDIRENTRY is 16 bytes. A width of 0 means 256.
+/** ICONDIR is 6 bytes and each ICONDIRENTRY is 16 bytes. A width of 0 means 256. */
 function readIconEntries(file: Buffer): IconEntry[] {
   return Array.from({ length: file.readUInt16LE(4) }, (_, index) => {
     const entryOffset = 6 + index * 16
@@ -47,7 +47,7 @@ describe('Windows icon.ico', () => {
     expect([width, height]).toEqual([size, size])
 
     const last = size - 1
-    // A full-bleed square is opaque on the whole outer ring. The inset tile leaves it transparent.
+    /** A full-bleed square is opaque on the whole outer ring. The inset tile leaves it transparent. */
     for (let offset = 0; offset < size; offset += 1) {
       expect(pixelAt(offset, 0)[3], `top edge x=${offset}`).toBe(0)
       expect(pixelAt(offset, last)[3], `bottom edge x=${offset}`).toBe(0)
@@ -55,8 +55,10 @@ describe('Windows icon.ico', () => {
       expect(pixelAt(last, offset)[3], `right edge y=${offset}`).toBe(0)
     }
 
-    // The first pixel inside the margin is the tile corner. Rounding leaves it almost transparent,
-    // within anti-aliasing noise, while the middle of the tile is the unchanged near-black colour.
+    /**
+     * The first pixel inside the margin is the tile corner. Rounding leaves it almost transparent,
+     * within anti-aliasing noise, while the middle of the tile is the unchanged near-black colour.
+     */
     const corner = tileMargins[size]!
     expect(pixelAt(corner, corner)[3], 'tile corner').toBeLessThan(maxCornerAlpha)
     expect(pixelAt(last - corner, corner)[3], 'tile corner').toBeLessThan(maxCornerAlpha)
@@ -65,8 +67,10 @@ describe('Windows icon.ico', () => {
     expect(pixelAt(Math.floor(size / 2), corner + 1)).toEqual(tileColour)
   })
 
-  // At 16 px the 60% accent mark is an 8 px smear, so the layer draws the native 16 px redraw instead,
-  // like the 16 px favicon layer. Every pixel the redraw covers fully must show the light ink.
+  /**
+   * At 16 px the 60% accent mark is an 8 px smear, so the layer draws the native 16 px redraw instead,
+   * like the 16 px favicon layer. Every pixel the redraw covers fully must show the light ink.
+   */
   it('draws the 16px entry with the native 16px mark', async () => {
     const markSource = readFileSync(new URL('../../../design/brand/orbit-mark-16.svg', import.meta.url), 'utf8')
     const { data: mark } = await sharp(Buffer.from(markSource.replaceAll('currentColor', '#FFFFFF')))

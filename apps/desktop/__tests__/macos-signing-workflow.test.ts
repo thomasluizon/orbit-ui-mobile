@@ -11,9 +11,10 @@ const require = createRequire(import.meta.url)
 const { load } = require('js-yaml') as { load: (source: string) => Workflow }
 interface Step { name?: string; uses?: string; run?: string; if?: string; env?: Record<string, string>; with?: Record<string, string | boolean | number>; 'working-directory'?: string }
 interface Job {
-  steps: Step[]; secrets?: Record<string, string>; needs?: string | string[]; 'runs-on'?: string; 'timeout-minutes'?: number | string
+  steps?: Step[]; secrets?: Record<string, string>; needs?: string | string[]; 'runs-on'?: string; 'timeout-minutes'?: number | string
   environment?: string; strategy?: { matrix: { target?: string[]; include?: { runner: string; target: string }[] } }
 }
+const stepsOf = (job: Job) => job.steps ?? []
 interface Workflow {
   on: { workflow_call: { secrets: Record<string, { required: boolean }> } }
   jobs: Record<string, Job>
@@ -22,9 +23,9 @@ const read = (name: string) => readFileSync(new URL(`../../../.github/workflows/
 const source = read('desktop-release')
 const workflow = load(source)
 const jobs = workflow.jobs
-const steps = jobs.build!.steps
-const stapleSteps = jobs.staple?.steps ?? []
-const allSteps = Object.values(jobs).flatMap(job => job.steps ?? [])
+const steps = stepsOf(jobs.build!)
+const stapleSteps = stepsOf(jobs.staple!)
+const allSteps = Object.values(jobs).flatMap(stepsOf)
 const step = (name: string) => allSteps.find(entry => entry.name === name)!
 const submissionId = '2efe2717-52ef-43a5-96dc-0797e4ca1041'
 const macSecrets = [
@@ -35,11 +36,11 @@ const team = 'BD7JH468F7'
 const identifier = 'org.useorbit.desktop.staging'
 const target = 'aarch64-apple-darwin'
 const directories: string[] = []
-// WHY: The macOS build steps run in Bash with POSIX tar; Windows hosts only run the Windows packaging step.
+/** WHY: The macOS build steps run in Bash with POSIX tar; Windows hosts only run the Windows packaging step. */
 const shellTest = it.skipIf(process.platform === 'win32')
 afterEach(() => directories.splice(0).forEach(directory => rmSync(directory, { recursive: true, force: true })))
 
-// WHY: macOS hosts read the fixtures with the real PlistBuddy; other hosts use a reader for the same XML plist shape.
+/** WHY: macOS hosts read the fixtures with the real PlistBuddy; other hosts use a reader for the same XML plist shape. */
 const plistBuddy = `if (fs.existsSync('/usr/libexec/PlistBuddy')) {
   process.exit(require('node:child_process').spawnSync('/usr/libexec/PlistBuddy', args, { stdio: 'inherit' }).status ?? 1)
 }
@@ -113,7 +114,7 @@ const escapeXml = (text: string) => text.replaceAll('&', '&amp;').replaceAll('<'
 const xmlStrings = (values: Record<string, string>, indent: string, separator: string) => Object.entries(values)
   .map(([key, value]) => `${indent}<key>${escapeXml(key)}</key>${separator}${indent}<string>${escapeXml(value)}</string>`).join(separator)
 
-// WHY: The shape of security cms -D output for the Orbit Developer ID profiles: tab-indented XML with dates, data and arrays.
+/** WHY: The shape of security cms -D output for the Orbit Developer ID profiles: tab-indented XML with dates, data and arrays. */
 const decodedProfile = (application: string) => `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -171,7 +172,7 @@ function run(name: string, directory: string, bin: string, log: string, env: Rec
   return { result, commands }
 }
 
-// WHY: The shape of codesign -d --entitlements - --xml output: one line of XML on stdout.
+/** WHY: The shape of codesign -d --entitlements - --xml output: one line of XML on stdout. */
 const entitlements = (overrides: Record<string, string> = {}) => '<?xml version="1.0" encoding="UTF-8"?>'
   + '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">'
   + `<plist version="1.0"><dict>${xmlStrings({
@@ -193,11 +194,11 @@ it('passes every macOS signing secret from the web release into the reusable des
 
 const notaryInputs = ['APPLE_API_KEY', 'APPLE_API_ISSUER', 'APPLE_API_KEY_PATH', 'APPLE_ID', 'APPLE_PASSWORD', 'APPLE_TEAM_ID']
 const stapleStep = (name: string) => stapleSteps.find(entry => entry.name === name)!
-const download = (job: Job) => job.steps.find(entry => entry.uses?.startsWith('actions/download-artifact@'))!
+const download = (job: Job) => stepsOf(job).find(entry => entry.uses?.startsWith('actions/download-artifact@'))!
 
 it('keeps every Apple notarization wait off the macOS runners', () => {
   for (const job of [jobs.build!, jobs.staple!]) {
-    for (const entry of job.steps) {
+    for (const entry of stepsOf(job)) {
       expect(entry.run ?? '', entry.name).not.toMatch(/(^|\s)--wait(\s|$)/)
       expect(entry.run ?? '', entry.name).not.toMatch(/notarytool (wait|info|log)\b/)
       expect(entry.run ?? '', entry.name).not.toContain('APPLE_API_KEY_PATH')
@@ -224,7 +225,7 @@ it('signs after compilation, then submits the DMG once and hands off the signed 
   const order = [compile, step('Write the macOS provisioning profile and notarization key'), sign,
     step('Submit the DMG for notarization without waiting'), step('Archive the signed macOS bundle')].map(entry => steps.indexOf(entry))
   expect(order).toEqual([...order].sort((left, right) => left - right))
-  const submitters = Object.entries(jobs).filter(([, job]) => job.steps?.some(entry => entry.run?.includes('notarytool submit'))).map(([name]) => name)
+  const submitters = Object.entries(jobs).filter(([, job]) => stepsOf(job).some(entry => entry.run?.includes('notarytool submit'))).map(([name]) => name)
   expect(submitters).toEqual(['build'])
   const uploads = steps.filter(entry => entry.uses?.startsWith('actions/upload-artifact@'))
   expect(uploads.map(entry => [entry.if, entry.with!.name, entry.with!.path])).toEqual([
@@ -244,7 +245,7 @@ it('waits for Apple only in a Linux job that a failed-job rerun repeats from the
   expect(notarize.environment).toBe('desktop-${{ inputs.variant }}')
   expect(download(notarize).with).toEqual({ pattern: 'desktop-macos-notary-*', path: 'notary-submissions', 'merge-multiple': true })
   const poll = step('Poll Apple notarization until every submission is accepted')
-  expect(notarize.steps.indexOf(poll)).toBeGreaterThan(notarize.steps.indexOf(download(notarize)))
+  expect(stepsOf(notarize).indexOf(poll)).toBeGreaterThan(stepsOf(notarize).indexOf(download(notarize)))
   expect(poll.env).toEqual({
     APP_STORE_CONNECT_API_KEY_ID: '${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}',
     APP_STORE_CONNECT_API_ISSUER_ID: '${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}',

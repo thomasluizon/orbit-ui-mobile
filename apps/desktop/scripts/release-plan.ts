@@ -83,7 +83,7 @@ export async function channelVersion(variant: string, sleep?: Sleep): Promise<st
 async function main() {
   const variant = process.env.DESKTOP_VARIANT ?? ''
   const source = process.env.SOURCE_SHA ?? ''
-  const compatibility: { minimumShellVersion: string; signInMinimumShellVersion: string } = JSON.parse(readFileSync(new URL('../../web/web-compatibility.json', import.meta.url), 'utf8'))
+  const compatibility = JSON.parse(readFileSync(new URL('../../web/web-compatibility.json', import.meta.url), 'utf8')) as { minimumShellVersion: string; signInMinimumShellVersion: string }
   const previous = await channelVersion(variant)
   const floor = shellFloor(compatibility)
   const version = planShellRelease(variant, source, previous, git('tag', '--list', `desktop-${variant}-v*`).split('\n'), floor, process.env.DESKTOP_VERSION || undefined, process.env.DESKTOP_ROLLBACK === 'true')

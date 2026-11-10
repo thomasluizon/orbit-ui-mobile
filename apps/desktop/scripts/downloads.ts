@@ -51,11 +51,13 @@ export function prepareDownloads(version: string, directory: string, output: str
 }
 
 export function verifyDownloads(directory: string) {
-  const downloads: Download[] = JSON.parse(readFileSync(resolve(directory, 'downloads.json'), 'utf8'))
-  const expected = Object.keys(targets).map(downloadName).sort()
-  if (!Array.isArray(downloads) || JSON.stringify(downloads.map(file => file.name).sort()) !== JSON.stringify(expected)) {
-    throw new Error('Desktop download inventory does not match its targets')
-  }
+  const parsed: unknown = JSON.parse(readFileSync(resolve(directory, 'downloads.json'), 'utf8'))
+  const inventoryMismatch = 'Desktop download inventory does not match its targets'
+  if (!Array.isArray(parsed)) throw new Error(inventoryMismatch)
+  const downloads = parsed as Download[]
+  const expected = Object.keys(targets).map(downloadName).sort((left, right) => left.localeCompare(right))
+  const actual = downloads.map(file => file.name).sort((left, right) => left.localeCompare(right))
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error(inventoryMismatch)
   for (const file of downloads) {
     const bytes = readFileSync(resolve(directory, file.name))
     if (checksum(bytes) !== file.sha256 || bytes.length !== file.size) throw new Error('Desktop download checksum or size mismatch')

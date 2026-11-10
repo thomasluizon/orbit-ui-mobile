@@ -1,32 +1,39 @@
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterEach, expect, it, vi } from 'vitest'
-
-// WHY: A cold PowerShell start on hosted Windows runners can exceed the default test timeout.
-vi.setConfig({ testTimeout: 30000 })
+import { afterAll, beforeAll, expect, it } from 'vitest'
 
 const native = fileURLToPath(new URL('../src-tauri/native/windows', import.meta.url))
 const shell = process.platform === 'win32' ? 'powershell.exe' : 'pwsh'
-const available = spawnSync(shell, ['-NoProfile', '-Command', 'exit 0']).status === 0
-// WHY: Windows CI uses the build's PowerShell host; other hosts run these cases when pwsh is installed.
-const downloadTest = it.skipIf(!available && process.platform !== 'win32')
+const available = process.platform === 'win32' || spawnSync(shell, ['-NoProfile', '-Command', 'exit 0']).status === 0
+/** WHY: Windows CI uses the build's PowerShell host; other hosts run these cases when pwsh is installed. */
+const downloadTest = it.skipIf(!available)
 if (!available) process.stderr.write(`PowerShell download tests skipped: ${shell} is unavailable\n`)
-const directories: string[] = []
-afterEach(() => directories.splice(0).forEach(directory => rmSync(directory, { recursive: true, force: true })))
 
-function prepare(mode: string, cached?: string, architecture = 'x64', artifact = 'sdk', complete = false, signature = 'microsoft', url?: string) {
-  const directory = mkdtempSync(join(tmpdir(), 'orbit-windows-download-'))
-  directories.push(directory)
-  for (const filename of readdirSync(native).filter(filename => filename.endsWith('.ps1') || filename.endsWith('.json'))) {
-    copyFileSync(join(native, filename), join(directory, filename))
-  }
-  const payload = 'verified package bytes'
-  if (cached !== undefined) writeFileSync(join(directory, 'sdk.zip'), cached)
-  const harness = join(directory, 'test.ps1')
-  writeFileSync(harness, `
+/** WHY: One cold PowerShell start took 0.34 to 2.4 s on healthy Windows runners and 20.6 to 22.4 s on a slow runner, so every case starts at once and 120 s is about five times the slowest start. */
+const caseTimeoutMilliseconds = 120_000
+
+interface Scenario { mode: string; cached?: string; architecture?: string; artifact?: string; complete?: boolean; signature?: string; url?: string }
+interface Outcome { status: number; stdout: string; stderr: string; directory: string; attempts: number[]; delays: number[] }
+
+const installerScenarios = [['x64', 'sdk'], ['x64', 'cppwinrt'], ['x64', 'runtime-x64'], ['arm64', 'runtime-arm64']] as const
+const signers = ['microsoft', 'non-microsoft', 'unsigned'] as const
+const scenarios: Record<string, Scenario> = {
+  transient: { mode: 'transient' },
+  exhausted: { mode: 'always' },
+  truncated: { mode: 'wrong' },
+  cached: { mode: 'always', cached: 'verified package bytes' },
+  corrupt: { mode: 'success', cached: 'corrupt cached bytes' },
+  foreignHost: { mode: 'success', url: 'https://example.com/sdk.zip' },
+  ...Object.fromEntries(installerScenarios.map(([architecture, artifact]) => [
+    `installer ${architecture} ${artifact}`, { mode: 'transient', architecture, artifact, complete: true },
+  ])),
+  ...Object.fromEntries(signers.map(signature => [`signer ${signature}`, { mode: 'success', complete: true, signature }])),
+}
+
+const harnessScript = `
 $ErrorActionPreference = 'Stop'
 $script:attempts = 0
 function Invoke-WebRequest {
@@ -89,29 +96,67 @@ if ($env:TEST_URL) {
     exit 0
 }
 & (Join-Path $env:TEST_ROOT 'prepare.ps1') -Architecture $env:TEST_ARCHITECTURE -Output $env:TEST_ROOT
-`)
-  const result = spawnSync(shell, ['-NoProfile', '-File', harness], {
-    encoding: 'utf8', timeout: 20000,
-    env: { ...process.env, TEST_ROOT: directory, TEST_MODE: mode, TEST_ARCHITECTURE: architecture, TEST_ARTIFACT: artifact,
-      TEST_COMPLETE: String(complete), TEST_SIGNATURE: signature, TEST_URL: url ?? '', ORBIT_WINDOWS_DOWNLOAD_CACHE: directory },
-  })
-  const lines = (name: string) => existsSync(join(directory, name)) ? readFileSync(join(directory, name), 'utf8').trim().split(/\r?\n/).map(Number) : []
-  return { result, directory, attempts: lines('attempts'), delays: lines('delays') }
+`
+
+const directories: string[] = []
+afterAll(() => directories.splice(0).forEach(directory => rmSync(directory, { recursive: true, force: true })))
+
+function lines(directory: string, file: string) {
+  return existsSync(join(directory, file)) ? readFileSync(join(directory, file), 'utf8').trim().split(/\r?\n/).map(Number) : []
 }
 
+function run(scenario: Scenario): Promise<Outcome> {
+  const directory = mkdtempSync(join(tmpdir(), 'orbit-windows-download-'))
+  directories.push(directory)
+  for (const filename of readdirSync(native).filter(filename => filename.endsWith('.ps1') || filename.endsWith('.json'))) {
+    copyFileSync(join(native, filename), join(directory, filename))
+  }
+  if (scenario.cached !== undefined) writeFileSync(join(directory, 'sdk.zip'), scenario.cached)
+  const harness = join(directory, 'test.ps1')
+  writeFileSync(harness, harnessScript)
+  const child = spawn(shell, ['-NoProfile', '-File', harness], {
+    timeout: caseTimeoutMilliseconds,
+    env: {
+      ...process.env, TEST_ROOT: directory, TEST_MODE: scenario.mode, TEST_ARCHITECTURE: scenario.architecture ?? 'x64',
+      TEST_ARTIFACT: scenario.artifact ?? 'sdk', TEST_COMPLETE: String(scenario.complete ?? false),
+      TEST_SIGNATURE: scenario.signature ?? 'microsoft', TEST_URL: scenario.url ?? '', ORBIT_WINDOWS_DOWNLOAD_CACHE: directory,
+    },
+  })
+  let stdout = ''
+  let stderr = ''
+  child.stdout.setEncoding('utf8').on('data', (chunk: string) => { stdout += chunk })
+  child.stderr.setEncoding('utf8').on('data', (chunk: string) => { stderr += chunk })
+  return new Promise(resolve => {
+    const settle = (status: number, failure = '') => resolve({
+      status, stdout, stderr: stderr + failure, directory, attempts: lines(directory, 'attempts'), delays: lines(directory, 'delays'),
+    })
+    child.on('error', error => settle(-1, String(error)))
+    child.on('close', (status, signal) => settle(status ?? -1, signal === null ? '' : `PowerShell ended on ${signal}`))
+  })
+}
+
+let outcomes: Record<string, Outcome> = {}
+if (available) {
+  beforeAll(async () => {
+    const entries = await Promise.all(Object.entries(scenarios).map(async ([name, scenario]) => [name, await run(scenario)] as const))
+    outcomes = Object.fromEntries(entries)
+  }, caseTimeoutMilliseconds + 10_000)
+}
+const outcome = (name: string) => outcomes[name]!
+
 downloadTest('prepares the SDK after two network failures with bounded backoff', () => {
-  const { result, attempts, delays } = prepare('transient')
-  expect(result.status, result.stderr).toBe(0)
-  expect(result.stdout).toContain('verified archive reached extraction')
+  const { status, stderr, stdout, attempts, delays } = outcome('transient')
+  expect(status, stderr).toBe(0)
+  expect(stdout).toContain('verified archive reached extraction')
   expect(attempts).toHaveLength(3)
   expect(delays).toEqual([2, 4])
 })
 
 downloadTest('fails preparation clearly after exhausting retries and removes partial downloads', () => {
-  const { result, attempts, delays, directory } = prepare('always')
-  expect(result.status).not.toBe(0)
-  expect(result.stderr).toContain('Download failed after 4 attempts')
-  expect(result.stderr).toContain('simulated network failure')
+  const { status, stderr, attempts, delays, directory } = outcome('exhausted')
+  expect(status).not.toBe(0)
+  expect(stderr).toContain('Download failed after 4 attempts')
+  expect(stderr).toContain('simulated network failure')
   expect(attempts).toHaveLength(4)
   expect(delays).toEqual([2, 4, 8])
   expect(existsSync(join(directory, 'sdk.zip'))).toBe(false)
@@ -119,60 +164,57 @@ downloadTest('fails preparation clearly after exhausting retries and removes par
 })
 
 downloadTest('rejects a successful but truncated response before extraction', () => {
-  const { result, attempts, directory } = prepare('wrong')
-  expect(result.status).not.toBe(0)
-  expect(result.stderr).toContain('SHA-256 mismatch')
+  const { status, stderr, stdout, attempts, directory } = outcome('truncated')
+  expect(status).not.toBe(0)
+  expect(stderr).toContain('SHA-256 mismatch')
   expect(attempts).toHaveLength(4)
-  expect(result.stdout).not.toContain('verified archive reached extraction')
+  expect(stdout).not.toContain('verified archive reached extraction')
   expect(existsSync(join(directory, 'sdk.zip'))).toBe(false)
 })
 
 downloadTest('uses a verified cache entry without downloading', () => {
-  const { result, attempts } = prepare('always', 'verified package bytes')
-  expect(result.status, result.stderr).toBe(0)
-  expect(result.stdout).toContain('verified archive reached extraction')
+  const { status, stderr, stdout, attempts } = outcome('cached')
+  expect(status, stderr).toBe(0)
+  expect(stdout).toContain('verified archive reached extraction')
   expect(attempts).toHaveLength(0)
 })
 
 downloadTest('replaces a corrupt cache entry before extraction', () => {
-  const { result, attempts } = prepare('success', 'corrupt cached bytes')
-  expect(result.status, result.stderr).toBe(0)
-  expect(result.stdout).toContain('verified archive reached extraction')
+  const { status, stderr, stdout, attempts } = outcome('corrupt')
+  expect(status, stderr).toBe(0)
+  expect(stdout).toContain('verified archive reached extraction')
   expect(attempts).toHaveLength(1)
 })
 
-
-downloadTest.each([
-  ['x64', 'sdk'], ['x64', 'cppwinrt'], ['x64', 'runtime-x64'], ['arm64', 'runtime-arm64'],
-])('retries %s %s on the preparation path through installer output', (architecture, artifact) => {
-  const { result, attempts, delays } = prepare('transient', undefined, architecture, artifact, true)
-  expect(result.status, result.stderr).toBe(0)
-  expect(result.stdout).toContain('verified installer reached output')
+downloadTest.each(installerScenarios)('retries %s %s on the preparation path through installer output', (architecture, artifact) => {
+  const { status, stderr, stdout, attempts, delays } = outcome(`installer ${architecture} ${artifact}`)
+  expect(status, stderr).toBe(0)
+  expect(stdout).toContain('verified installer reached output')
   expect(attempts).toHaveLength(3)
   expect(delays).toEqual([2, 4])
 })
 
 it('keeps every real Windows download pin as a fixed SHA-256 literal', () => {
   const pins = JSON.parse(readFileSync(join(native, 'downloads.json'), 'utf8')) as Record<string, { url: string; sha256: string }>
-  expect(Object.keys(pins).sort()).toEqual(['cppwinrt', 'runtime-arm64', 'runtime-x64', 'sdk'])
+  expect(Object.keys(pins).sort((left, right) => left.localeCompare(right))).toEqual(['cppwinrt', 'runtime-arm64', 'runtime-x64', 'sdk'])
   for (const pin of Object.values(pins)) expect(pin.sha256).toMatch(/^[a-f0-9]{64}$/)
 })
 
-downloadTest.each(['microsoft', 'non-microsoft', 'unsigned'])('runs Authenticode admission for a %s signer', (signature) => {
-  const { result, directory } = prepare('success', undefined, 'x64', 'sdk', true, signature)
+downloadTest.each(signers)('runs Authenticode admission for a %s signer', (signature) => {
+  const { status, stderr, directory } = outcome(`signer ${signature}`)
   expect(existsSync(join(directory, 'signatures'))).toBe(true)
   if (signature === 'microsoft') {
-    expect(result.status, result.stderr).toBe(0)
+    expect(status, stderr).toBe(0)
     expect(readFileSync(join(directory, 'signatures'), 'utf8').trim().split(/\r?\n/)).toHaveLength(2)
   } else {
-    expect(result.status).not.toBe(0)
-    expect(result.stderr).toContain('Windows App SDK signature verification failed')
+    expect(status).not.toBe(0)
+    expect(stderr).toContain('Windows App SDK signature verification failed')
   }
 })
 
 downloadTest('refuses foreign download hosts before making a request', () => {
-  const { result, attempts } = prepare('success', undefined, 'x64', 'sdk', false, 'microsoft', 'https://example.com/sdk.zip')
-  expect(result.status).not.toBe(0)
-  expect(result.stderr).toContain('download host is not allowed')
+  const { status, stderr, attempts } = outcome('foreignHost')
+  expect(status).not.toBe(0)
+  expect(stderr).toContain('download host is not allowed')
   expect(attempts).toHaveLength(0)
 })
