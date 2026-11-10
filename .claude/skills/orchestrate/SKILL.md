@@ -1329,15 +1329,26 @@ runs for merged tickets only, including those merged under D88/D90 standing auth
 | Implementer | the engine named by `worker` in `.claude/orchestrator.json`, at the order's `default`, `mechanical`, `deep` or `max` tier |
 | Reviewer | Pullfrog in GitHub Actions: `anthropic/claude-opus-5-5` at `xhigh` effort, pinned in `.github/workflows/pullfrog.yml` |
 
-The shipped worker is `claude`, and every tier runs `--effort high`. The `default` and `mechanical`
-tiers resolve to Sonnet 5.5, so their dry runs print `--effort high --model claude-sonnet-5-5`. The
-`deep` and `max` tiers resolve to Opus 5.5, so their dry runs print
-`--effort high --model claude-opus-5-5`. Use `default` for normal orders, `mechanical` for fully
+The shipped worker is `claude`, and every tier runs `--effort high`. The model of a tier depends on
+the account that runs the worker. An account named in `workers.claude.fableAccounts` runs
+`workers.claude.fableModels`. Every other account runs `workers.claude.models`. Today
+`fableAccounts` is `["worker"]`. A worker on the worker account runs `claude-fable-5-2` on all four
+tiers, so each dry run prints `--effort high --model claude-fable-5-2`. A worker on the main
+account runs the standard models. The `default` and `mechanical` tiers resolve to Sonnet 5.5, so
+their dry runs print `--effort high --model claude-sonnet-5-5`. The `deep` and `max` tiers resolve
+to Opus 5.5, so their dry runs print `--effort high --model claude-opus-5-5`. In single-account
+mode the only account is the main account. Use `default` for normal orders, `mechanical` for fully
 specified mechanical work, `deep` for a large ticket and `max` for a review round after one failed
-round, so that round always runs on Opus. Never use `ultra`, which delegates to its own agents;
-worker orders forbid sub-agents. The installed
-`claude` CLI accepts exactly `low`, `medium`, `high`, `xhigh` and `max` for `--effort`, and it
-warns and runs the default effort on any other value.
+round. Never use `ultra`, which delegates to its own agents; worker orders forbid sub-agents. The
+installed `claude` CLI accepts exactly `low`, `medium`, `high`, `xhigh` and `max` for `--effort`,
+and it warns and runs the default effort on any other value. Start Fable 5.2 at `high`. Use
+`xhigh` only for a tier where a gain is measured.
+
+**Turn Fable on or off for one account with one edit.** Add the account name (`worker` or `main`)
+to `fableAccounts` in `.claude/orchestrator.json` to turn Fable on for that account. Remove the
+name to turn it off. Then run `node tools/reseed-calibration.mjs` in the same pull request,
+because `node tools/check-calibration.mjs` stamps the model of each tier on each account and fails
+CI on a model change with no reseed.
 
 This harness launches no reviewer. `launch-worker.mjs` resolves the requested worker tier; tier
 selection routes the resulting order, never the Pullfrog review itself. The Pullfrog step pays
@@ -1381,6 +1392,23 @@ sign-in. The launch JSON then shows `authenticationFailed: true`, the CLI's erro
 later, set the variable again. The fallback then moves workers between the two accounts with no
 owner action.
 
+**A relaunch on the main account runs the main account's model for that tier.** The launcher
+resolves the launch vector of each account before it starts. A Fable worker that stops at the
+worker account's limit relaunches on the main account with the standard model of the same tier,
+unless `fableAccounts` names `main`. Each entry in `attempts` records its `model`, and the
+top-level `model` names the run that finished the launch.
+
+**When a Fable worker stops at its account's limit, check the account's Fable reset.** Each
+account holds free Fable resets. A Fable reset refills the Fable allowance and gives back what
+Fable used on the weekly limit. It does not reset the whole week. Do these steps:
+
+1. If that account still holds a Fable reset, use it: open claude.ai, then Settings, then Usage,
+   and choose "Reset for free", signed in as that account.
+2. Relaunch the order on the same account.
+3. If the account has no reset left and its Fable allowance ends, remove the account from
+   `fableAccounts`, reseed the calibration and land that change. The account then runs the
+   previous models.
+
 **Read the launch JSON's `account` before acting on `authenticationFailed: true`.** When it is
 `worker`, start no further launch on the worker account. Relaunch that order, and every later one,
 in single-account mode by prefixing the launch command with `ORBIT_WORKER_CLAUDE_CONFIG_DIR=`, with
@@ -1418,7 +1446,7 @@ launcher does these steps:
    every inherited override still removed. The order pointer tells the worker that an earlier
    worker stopped at its limit, so it reads `git log` and `git status` and keeps that work.
 2. It records both runs in `attempts` in the launch JSON, each with its `account`,
-   `configDirectory`, `logFile`, `outcome`, `usageLimitReached`, `authenticationFailed` and
+   `configDirectory`, `model`, `logFile`, `outcome`, `usageLimitReached`, `authenticationFailed` and
    `resultError`. The top-level `account`, `pid` and `logFile` name the run that finished the launch.
 
 Any other failure, including a transient 429 that is not a usage limit, ends the launch with no
