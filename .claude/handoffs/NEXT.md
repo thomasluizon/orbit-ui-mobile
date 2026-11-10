@@ -12,11 +12,11 @@ Finish the spec: an empty board except `#33` and the `#2074` measurement, verifi
 
 ## In flight
 
-UI `main` `691323673`; API `main` `f418f94e7`; landing `main` `5d9971870`. Production and staging API `f418f94e7`; staging web `691323673`; production web `5a9c08e0d` until run 42910271885 lands `691323673`; Android Open 1.3.151 (211); TestFlight production 1.3.152 (1).
+UI `main` `691323673`; API `main` `f418f94e7`; landing `main` `5d9971870`. Production and staging API `f418f94e7`; staging web `691323673`; production web `691323673`; Android Open 1.3.151 (211); TestFlight production 1.3.152 (1).
 
 | Item | Disposition |
 | --- | --- |
-| Web production run 42910271885 (`691323673`) | Verify `/api/health` and rendered Continue with Apple on `https://orbit-web-3qmv.onrender.com/login` (`check-apple-login.cjs`); verify the desktop shell update on the Mac and close `#1560`; then `/android-release` open track from `main` (`#2094` button). |
+| Web production `691323673` (run 42910271885 succeeded) | `/api/health` ok at `691323673` and production `/login` renders Continue with Apple (verified). Next: verify the desktop shell update on the Mac and close `#1560`; then `/android-release` open track from `main` (`#2094` button). |
 | `ui#2412` (`#2094`) | Round 1 pushed `242526fd1`; round 2 review waiter running. Merge at a fresh approval and zero threads; close `#2094` after the production and Android checks. |
 | `ui#2414` (`#1561`) | Head `0bce70811`, review waiter running (branch at its 2-launch cap: the coordinator writes any review batch). After merge: production iOS Release from `main` 1.3.152 (2), read the `TestFlight access` summary. |
 | `ui#2415` (`#2098`) | Head `31c6f8c36`, review waiter running. Merge first when approved, then `main-into.sh` every open UI branch. |
