@@ -8,7 +8,9 @@ import { ThemeProvider, type ThemeContextValue } from '../../lib/theme-provider'
 import { useProfile } from '@/hooks/use-profile'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { Animated } from 'react-native'
-import { createTokensV2, easings, getRuntimeTheme, setRuntimeTheme } from '@/lib/theme'
+import { AccessibilityInfo } from '../../test-mocks/react-native'
+import { motionDurations, motionEasings } from '@orbit/shared/theme'
+import { createTokensV2, getRuntimeTheme, setRuntimeTheme } from '@/lib/theme'
 import { toAnimatedEasing } from '@/lib/motion'
 import { useAppTheme } from '../../lib/use-app-theme'
 import { RootNotificationHeader } from '@/components/navigation/root-notification-header'
@@ -203,10 +205,33 @@ it('crossfades a theme change in the provider root without presenting a native M
   await act(() => frames[0]?.(0))
   expect(fades).toHaveLength(1)
   const fade = fades[0]
-  expect(fade?.config).toMatchObject({ toValue: 0, duration: 420, useNativeDriver: true })
-  expect(fade?.config.easing?.(0.5)).toBeCloseTo(toAnimatedEasing(easings.out)(0.5))
+  expect(fade?.config).toMatchObject({ toValue: 0, duration: motionDurations.theme, useNativeDriver: true })
+  expect(fade?.config.easing?.(0.5)).toBeCloseTo(toAnimatedEasing(motionEasings.standard)(0.5))
   await act(() => fade?.finish?.({ finished: true }))
   expect(findOverlay()).toHaveLength(0)
   expect(root.root.findAllByType('Modal')).toHaveLength(0)
   timing.mockRestore()
+})
+
+it('changes the theme at once without an overlay when reduced motion is on', async () => {
+  const listeners = new Set<(enabled: boolean) => void>()
+  const subscription = vi.spyOn(AccessibilityInfo, 'addEventListener').mockImplementation((event, listener) => {
+    if (event === 'reduceMotionChanged') listeners.add(listener)
+    return { remove: () => { listeners.delete(listener) } }
+  })
+  const { root, chooser } = await setup('dark')
+  await act(() => { for (const listener of listeners) listener(true) })
+  const frames = vi.fn(() => 1)
+  vi.stubGlobal('requestAnimationFrame', frames)
+  const timing = vi.spyOn(Animated, 'timing')
+
+  await act(() => chooser.current?.applyTheme('light'))
+
+  expect(chooser.current?.currentTheme).toBe('light')
+  expect(getRuntimeTheme().themeMode).toBe('light')
+  expect(root.root.findAll((node: { type: unknown; props: { pointerEvents?: string } }) => node.type === 'AnimatedView' && node.props.pointerEvents === 'none')).toHaveLength(0)
+  expect(frames).not.toHaveBeenCalled()
+  expect(timing).not.toHaveBeenCalled()
+  timing.mockRestore()
+  subscription.mockRestore()
 })

@@ -17,7 +17,7 @@ import {
   View,
 } from 'react-native'
 import { API } from '@orbit/shared/api'
-import type { ColorScheme } from '@orbit/shared/theme'
+import { resolveMotionPreset, type ColorScheme } from '@orbit/shared/theme'
 import type { ThemeMode } from '@orbit/shared/types/profile'
 import { useProfile } from '@/hooks/use-profile'
 import { resolveActiveScheme } from './resolve-active-scheme'
@@ -25,7 +25,6 @@ import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import {
   createSurfaces,
   createTokensV2,
-  easings,
   getRuntimeTheme,
   radius,
   shadows,
@@ -34,7 +33,7 @@ import {
   type AppShadows,
   type AppSurfaces,
 } from '@/lib/theme'
-import { toAnimatedEasing } from '@/lib/motion'
+import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import { resolveAccessibleColorScheme } from '@orbit/shared/utils'
 
 export interface ThemeContextValue {
@@ -73,6 +72,7 @@ export function ThemeProvider({
   children: ReactNode
 }>) {
   const systemScheme = useSystemColorScheme()
+  const prefersReducedMotion = usePrefersReducedMotion()
   const { profile, patchProfile } = useProfile()
   const [currentScheme, setCurrentScheme] = useState<ColorScheme>(
     () => resolveActiveScheme(profile) ?? resolveAccessibleColorScheme(null, true),
@@ -100,15 +100,21 @@ export function ThemeProvider({
       transitionFrameRef.current = null
     }
 
-    setTransitionSnapshot(snapshot)
     transitionOpacity.stopAnimation()
+    if (prefersReducedMotion) {
+      setTransitionSnapshot(null)
+      return
+    }
+
+    const { enterDuration, enterEasing } = resolveMotionPreset('theme-change')
+    setTransitionSnapshot(snapshot)
     transitionOpacity.setValue(1)
 
     transitionFrameRef.current = requestAnimationFrame(() => {
       Animated.timing(transitionOpacity, {
         toValue: 0,
-        duration: 420,
-        easing: toAnimatedEasing(easings.out),
+        duration: enterDuration,
+        easing: toAnimatedEasing(enterEasing),
         useNativeDriver: true,
       }).start(({ finished }: { finished: boolean }) => {
         transitionFrameRef.current = null
@@ -117,7 +123,7 @@ export function ThemeProvider({
         }
       })
     })
-  }, [transitionOpacity])
+  }, [prefersReducedMotion, transitionOpacity])
 
   useEffect(() => {
     setRuntimeTheme({ scheme: currentScheme, themeMode: currentTheme })
