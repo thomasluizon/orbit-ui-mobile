@@ -1344,9 +1344,10 @@ selection routes the resulting order, never the Pullfrog review itself. The Pull
 with the `CLAUDE_CODE_OAUTH_TOKEN` repository secret. In all three repositories, the secret holds a
 token of the main account: the owner's Claude Max subscription, the default Claude config.
 
-The `codex` block in `workers` serves only the Codex Cloud path. `tools/submit-cloud-worker.mjs`
-and `tools/materialize-cloud-result.mjs` read `config.workers.codex.command`. That path is off
-while `cloud.enabled` is false in `.claude/orchestrator.json`. The block is not a fallback engine.
+The `codex` block in `workers` has two readers. `tools/submit-cloud-worker.mjs` and
+`tools/materialize-cloud-result.mjs` read only its `command`, for the Codex Cloud path, which is
+off while `cloud.enabled` is false in `.claude/orchestrator.json`. `launch-worker.mjs` reads the
+rest only when `worker` is `codex`. The block is not a fallback engine.
 
 ### §5.4.1 The worker account
 
