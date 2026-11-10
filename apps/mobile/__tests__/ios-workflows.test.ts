@@ -188,7 +188,7 @@ describe('iOS build and release boundaries', () => {
     const result = spawnSync('/bin/bash', ['-c', script!], {
       cwd: tmpdir(), encoding: 'utf8',
       env: {
-        PATH: process.env.PATH ?? '', ORBIT_APP_VARIANT: 'staging', GITHUB_REF: 'refs/heads/feature/release',
+        PATH: process.env.PATH ?? '', NODE_ENV: 'test', ORBIT_APP_VARIANT: 'staging', GITHUB_REF: 'refs/heads/feature/release',
         ORBIT_APPLE_TEAM_ID: 'TESTTEAM01', ORBIT_IOS_APP_STORE_ID: '1234567890',
         IOS_PROVISIONING_PROFILE_NAME: 'Orbit Distribution', EXPO_PUBLIC_GOOGLE_CLIENT_ID: 'client',
         IOS_WIDGET_PROVISIONING_PROFILE_NAME: 'Orbit Widget Distribution',
