@@ -18,8 +18,10 @@ Apple's native localized control. Android and web keep the existing login button
 
 `EXPO_PUBLIC_APPLE_CLIENT_ID` and `NEXT_PUBLIC_APPLE_CLIENT_ID` are required build variables for the
 mobile and web buttons. The web, Android and iOS release workflows stop before the build when the
-value is empty. Each value matches the API client its flow signs in with: the grouped Services ID
-(`AppleSignIn__WebClientId`) for web and Android, the bundle identifier
+value is empty. The apps read each variable only as a flag that shows or hides the button. The
+API's `AppleSignIn__WebClientId` and `AppleSignIn__NativeClientId` settings choose the `client_id`
+that goes to Apple. By convention, each value names the API client its flow signs in with: the
+grouped Services ID (`AppleSignIn__WebClientId`) for web and Android, and the bundle identifier
 (`AppleSignIn__NativeClientId`) for native iOS:
 
 | Build | Variable | Value |

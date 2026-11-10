@@ -27,7 +27,7 @@ In repository **Settings > Secrets and variables > Actions**, set the repository
 | `RENDER_WEB_STAGING_SERVICE_ID` | Render service ID for `orbit-web-staging`, used by the release workflow and planner |
 | `RENDER_WEB_SERVICE_ID` | Render service ID for `orbit-web` |
 | `PRODUCTION_WEB_HOST` | Production hostname, without `https://` or a path |
-| `STAGING_NEXT_PUBLIC_APPLE_CLIENT_ID`, `PRODUCTION_NEXT_PUBLIC_APPLE_CLIENT_ID` | Required public Apple Services ID: `org.useorbit.app.staging.web` for staging and `org.useorbit.app.web` for production. The release stops before the build when the value is empty |
+| `STAGING_NEXT_PUBLIC_APPLE_CLIENT_ID`, `PRODUCTION_NEXT_PUBLIC_APPLE_CLIENT_ID` | Required. The web app reads it only to show the Sign in with Apple button; the API's `AppleSignIn__WebClientId` sets the client ID that goes to Apple. By convention it holds that Services ID: `org.useorbit.app.staging.web` for staging and `org.useorbit.app.web` for production. The release stops before the build when the value is empty |
 | `STAGING_NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `PRODUCTION_NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Public Google OAuth web client ID |
 | `STAGING_NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `PRODUCTION_NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Public push key |
 | `STAGING_NEXT_PUBLIC_EVENT_API_BASE`, `PRODUCTION_NEXT_PUBLIC_EVENT_API_BASE` | Browser reachable API origin for event streaming |

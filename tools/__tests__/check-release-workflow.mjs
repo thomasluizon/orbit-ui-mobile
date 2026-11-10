@@ -400,52 +400,32 @@ function checkPinnedRelease() {
 }
 
 function checkAppleClientId() {
+  // Structure only. The reject-empty and accept-set behaviour of each guard lives in one suite:
+  // .github/scripts/release-admission.test.mjs (web and Android) and apps/mobile/__tests__/ios-workflows.test.ts (iOS).
   const read = (file) => load(readFileSync(toolPath(`../.github/workflows/${file}`), "utf8"))
-  const iosSettings = { ORBIT_APP_VARIANT: "staging", GITHUB_REF: "refs/heads/feature/release", ORBIT_APPLE_TEAM_ID: "team", ORBIT_IOS_APP_STORE_ID: "1",
-    IOS_PROVISIONING_PROFILE_NAME: "profile", IOS_WIDGET_PROVISIONING_PROFILE_NAME: "widget", EXPO_PUBLIC_GOOGLE_CLIENT_ID: "google", EXPO_PUBLIC_TURNSTILE_SITE_KEY: "site",
-    EXPO_PUBLIC_SENTRY_DSN: "dsn", SENTRY_AUTH_TOKEN: "token", APP_STORE_CONNECT_API_KEY_ID: "key", APP_STORE_CONNECT_API_ISSUER_ID: "issuer", APP_VERSION: "2.0.0", IOS_BUILD_NUMBER: "1" }
-  const androidSettings = Object.fromEntries(["GOOGLE_PLAY_SERVICE_ACCOUNT_JSON", "GOOGLE_SERVICES_JSON", "ANDROID_KEYSTORE_BASE64", "ANDROID_KEYSTORE_PASSWORD",
-    "ANDROID_KEY_ALIAS", "ANDROID_KEY_PASSWORD", "SENTRY_AUTH_TOKEN", "EXPO_PUBLIC_SENTRY_DSN", "EXPO_PUBLIC_APPLE_CLIENT_ID"].map((name) => [name, "set"]))
-  const webSettings = { PRODUCTION_DSN: "dsn", STAGING_DSN: "dsn", PRODUCTION_APPLE_CLIENT_ID: "org.example.production", STAGING_APPLE_CLIENT_ID: "org.example.staging" }
   const targets = [
     { label: "web", steps: read("release.yml").jobs.build.steps, name: "Validate browser build variables", before: ["Build and push production image", "Build and push staging image"],
-      cases: [
-        { env: { ...webSettings, RELEASE_ENVIRONMENT: "production", PRODUCTION_APPLE_CLIENT_ID: "" }, variable: "production NEXT_PUBLIC_APPLE_CLIENT_ID" },
-        { env: { ...webSettings, RELEASE_ENVIRONMENT: "staging", STAGING_APPLE_CLIENT_ID: " \t" }, variable: "staging NEXT_PUBLIC_APPLE_CLIENT_ID" },
-      ],
-      accepted: [{ ...webSettings, RELEASE_ENVIRONMENT: "production", STAGING_APPLE_CLIENT_ID: "" }, { ...webSettings, RELEASE_ENVIRONMENT: "staging", PRODUCTION_APPLE_CLIENT_ID: "" }],
       wiring: { PRODUCTION_APPLE_CLIENT_ID: "${{ vars.PRODUCTION_NEXT_PUBLIC_APPLE_CLIENT_ID }}", STAGING_APPLE_CLIENT_ID: "${{ vars.STAGING_NEXT_PUBLIC_APPLE_CLIENT_ID }}" } },
     { label: "android", steps: read("android-release.yml").jobs["release-android"].steps, name: "Validate release secrets",
       before: ["Resolve Google Play track", "Submit build to Google Play"],
-      cases: [{ env: { ...androidSettings, EXPO_PUBLIC_APPLE_CLIENT_ID: "" }, variable: "EXPO_PUBLIC_APPLE_CLIENT_ID" }, { env: { ...androidSettings, EXPO_PUBLIC_APPLE_CLIENT_ID: "  " }, variable: "EXPO_PUBLIC_APPLE_CLIENT_ID" }],
-      accepted: [androidSettings], jobWiring: { EXPO_PUBLIC_APPLE_CLIENT_ID: "${{ vars.EXPO_PUBLIC_APPLE_CLIENT_ID }}" }, jobEnv: read("android-release.yml").jobs["release-android"].env },
+      jobWiring: { EXPO_PUBLIC_APPLE_CLIENT_ID: "${{ vars.EXPO_PUBLIC_APPLE_CLIENT_ID }}" }, jobEnv: read("android-release.yml").jobs["release-android"].env },
     { label: "ios", steps: read("ios-release.yml").jobs.release.steps, name: "Validate the release configuration",
       before: ["Install dependencies", "Install signing credentials", "Archive the embedded app"],
-      cases: [{ env: { ...iosSettings, EXPO_PUBLIC_APPLE_CLIENT_ID: "" }, variable: "EXPO_PUBLIC_APPLE_CLIENT_ID" }, { env: { ...iosSettings, EXPO_PUBLIC_APPLE_CLIENT_ID: "\t" }, variable: "EXPO_PUBLIC_APPLE_CLIENT_ID" }],
-      accepted: [], jobWiring: { EXPO_PUBLIC_APPLE_CLIENT_ID: "${{ vars.EXPO_PUBLIC_APPLE_CLIENT_ID }}" }, jobEnv: read("ios-release.yml").jobs.release.env },
+      jobWiring: { EXPO_PUBLIC_APPLE_CLIENT_ID: "${{ vars.EXPO_PUBLIC_APPLE_CLIENT_ID }}" }, jobEnv: read("ios-release.yml").jobs.release.env },
   ]
-  for (const { label, steps, name, before, cases: failing, accepted, wiring, jobWiring, jobEnv } of targets) {
+  for (const { label, steps, name, before, wiring, jobWiring, jobEnv } of targets) {
     const index = steps.findIndex((step) => step.name === name)
     T(`${label} release guard exists`, index >= 0)
     if (index < 0) continue
     const step = steps[index]
     T(`${label} release guard cannot be skipped or ignored`, !step.if && !step["continue-on-error"])
-    T(`${label} release has no separate Apple client ID step`, steps.every((candidate) => !/Apple client ID/i.test(candidate.name ?? "")))
+    T(`${label} release guard names the Apple client ID`, /APPLE_CLIENT_ID/.test(step.run ?? ""))
     for (const later of before) {
       const laterIndex = steps.findIndex((candidate) => candidate.name === later)
       T(`${label} release guard runs before ${later}`, laterIndex > index)
     }
     if (wiring) T(`${label} release guard reads the Apple variables`, Object.entries(wiring).every(([key, value]) => step.env?.[key] === value))
     if (jobWiring) T(`${label} job passes the Apple variable to its guard`, Object.entries(jobWiring).every(([key, value]) => jobEnv?.[key] === value))
-    for (const { env, variable } of failing) {
-      const result = spawnSync(BASH, ["-c", step.run], { cwd: root, encoding: "utf8", env: { PATH: process.env.PATH, ...env } })
-      T(`${label} rejects an empty Apple client ID that names ${variable}`, result.status === 1 &&
-        (result.stdout + result.stderr).includes(variable), result.stdout + result.stderr)
-    }
-    for (const env of accepted) {
-      const result = spawnSync(BASH, ["-c", step.run], { cwd: root, encoding: "utf8", env: { PATH: process.env.PATH, ...env } })
-      T(`${label} accepts a set Apple client ID`, result.status === 0, result.stdout + result.stderr)
-    }
   }
 }
 
