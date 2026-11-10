@@ -20,6 +20,7 @@ import { adoptOwnerHandoffRun, parseHandoffRequest, prepareOwnerHandoffRun, read
 import { checkDependencyCommand, checkDependencyFileWrite } from "./_lib/rules-dependencies.mjs"
 import { checkWorkerBrowser } from "./_lib/rules-worker.mjs"
 import { declaredRepoRoots } from "./_lib/repo-roots.mjs"
+import { operationInProgress } from "../../tools/lib/relay-checkout.mjs"
 import { readRunState, writeRunState } from "../../tools/lib/run-state.mjs"
 import { checkRelayStop } from "./_lib/rules-relay.mjs"
 import { adoptRelayRun, appendChainEntry, closeSessionChain, confirmChainSuccessor, openSessionChain } from "../../tools/lib/session-chain.mjs"
@@ -2180,6 +2181,75 @@ T("handoff size: an oversized working copy blocks even when the staged spec fits
 T("handoff size: a commit of an 8300 B prompt is refused", /`\.claude\/handoffs\/NEXT\.md` within 8192 B \(it is 8300 B\)/.test(specCommit([], `${goodSleepPrompt}\n${"x".repeat(8299 - goodSleepPrompt.length)}`)?.message ?? ""), true)
 T("handoff size: a commit of an 8192 B prompt passes", specCommit([], `${goodSleepPrompt}\n${"x".repeat(8191 - goodSleepPrompt.length)}`), null)
 T("handoff size: a stop after an oversized committed spec is refused", blocks(checkHandoffStop({ request: { sleep: true, recordedAt: "2026-01-01T10:00:00Z" }, headPrompt: goodSleepPrompt, headPromptCommittedAt: "2026-01-01T10:05:00Z", headSpecVersions: () => ["x".repeat(41984)] })), true)
+
+// The shared origin: a base commit, then a main commit that edits shared.txt and .claude/specs/merge.md.
+const operationOrigin = join(root, "operation-commit-origin.git")
+const originSeed = join(root, "operation-commit-seed")
+const inOriginSeed = (...args) => spawnSync("git", ["-C", originSeed, ...args], { encoding: "utf8" })
+const originSetup = [
+  () => spawnSync("git", ["init", "-q", "--bare", operationOrigin], { encoding: "utf8" }),
+  () => spawnSync("git", ["init", "-q", "--initial-branch=main", originSeed], { encoding: "utf8" }),
+  () => inOriginSeed("config", "user.email", "hooks@example.invalid"),
+  () => inOriginSeed("config", "user.name", "Hook Test"),
+  () => inOriginSeed("remote", "add", "origin", operationOrigin),
+  () => { mkdirSync(join(originSeed, ".claude", "specs"), { recursive: true }); writeFileSync(join(originSeed, ".claude", "specs", "merge.md"), "spec\n"); writeFileSync(join(originSeed, "shared.txt"), "base\n"); return inOriginSeed("add", ".claude/specs/merge.md", "shared.txt") },
+  () => inOriginSeed("commit", "-qm", "base"),
+  () => { writeFileSync(join(originSeed, "shared.txt"), "main\n"); writeFileSync(join(originSeed, ".claude", "specs", "merge.md"), "main spec\n"); return inOriginSeed("commit", "-qam", "main change") },
+  () => inOriginSeed("push", "-q", "-u", "origin", "main"),
+]
+T("open operation commit: origin fixture builds", originSetup.map((step) => step().status), originSetup.map(() => 0))
+
+// A conflicted merge of main, cherry-pick, revert or rebase stages a spec edit that the operation carries, and the commit
+// that concludes it authors no handoff docs. The reftable ref backend keeps CHERRY_PICK_HEAD and REVERT_HEAD in its ref
+// store, not as files, so every case runs under both backends. A rebase stop leaves HEAD detached.
+const writeFixture = (checkout, files) => { for (const [path, text] of Object.entries(files)) writeFileSync(join(checkout, path), text) }
+const openOperationCases = [
+  { name: "merge", stagedSpec: ".claude/specs/merge.md", start: ["merge", "--no-edit", "origin/main"], prepare: (inCheckout, checkout) => [
+    () => inCheckout("checkout", "-qb", "feature", "origin/main~1"),
+    () => { writeFixture(checkout, { "shared.txt": "feature\n" }); return inCheckout("commit", "-qam", "feature change") },
+  ] },
+  { name: "cherry-pick", stagedSpec: ".claude/specs/merge.md", start: ["cherry-pick", "release"], prepare: (inCheckout, checkout) => [
+    () => inCheckout("checkout", "-qb", "release", "origin/main"),
+    () => { writeFixture(checkout, { "shared.txt": "release\n", ".claude/specs/merge.md": "release spec\n" }); return inCheckout("commit", "-qam", "release fix") },
+    () => inCheckout("checkout", "-qb", "backport", "origin/main"),
+    () => { writeFixture(checkout, { "shared.txt": "backport\n" }); return inCheckout("commit", "-qam", "backport work") },
+  ] },
+  { name: "revert", stagedSpec: ".claude/specs/merge.md", start: ["revert", "--no-edit", "release~1"], prepare: (inCheckout, checkout) => [
+    () => inCheckout("checkout", "-qb", "release", "origin/main"),
+    () => { writeFixture(checkout, { "shared.txt": "release\n", ".claude/specs/merge.md": "release spec\n" }); return inCheckout("commit", "-qam", "release fix") },
+    () => { writeFixture(checkout, { "shared.txt": "later\n" }); return inCheckout("commit", "-qam", "later work") },
+  ] },
+  { name: "rebase", stagedSpec: ".claude/specs/feature.md", start: ["rebase", "origin/main"], prepare: (inCheckout, checkout) => [
+    () => inCheckout("checkout", "-qb", "feature", "origin/main~1"),
+    () => { writeFixture(checkout, { "shared.txt": "feature\n", ".claude/specs/feature.md": "feature spec\n" }); return inCheckout("add", "shared.txt", ".claude/specs/feature.md") },
+    () => inCheckout("commit", "-qm", "feature work"),
+  ] },
+]
+for (const refFormat of ["files", "reftable"]) {
+  for (const { name, stagedSpec, start, prepare } of openOperationCases) {
+    const label = refFormat === "files" ? `${name} commit` : `${name} commit (reftable)`
+    const checkout = join(root, `${name}-commit-checkout-${refFormat}`)
+    const inCheckout = (...args) => spawnSync("git", ["-C", checkout, ...args], { encoding: "utf8", env: { ...process.env, GIT_EDITOR: "true" } })
+    const setup = [
+      () => spawnSync("git", ["clone", "-q", `--ref-format=${refFormat}`, operationOrigin, checkout], { encoding: "utf8" }),
+      () => inCheckout("config", "user.email", "hooks@example.invalid"),
+      () => inCheckout("config", "user.name", "Hook Test"),
+      ...prepare(inCheckout, checkout),
+    ]
+    T(`${label}: fixture builds`, setup.map((step) => step().status), setup.map(() => 0))
+    T(`${label}: the checkout uses the ${refFormat} ref backend`, inCheckout("rev-parse", "--show-ref-format").stdout.trim(), refFormat)
+    T(`${label}: the ${name} stops on a conflict`, inCheckout(...start).status, 1)
+    writeFixture(checkout, { "shared.txt": "resolved\n" })
+    T(`${label}: the resolution stages`, inCheckout("add", "shared.txt").status, 0)
+    T(`${label}: the index holds the spec edit the ${name} carries`, inCheckout("diff", "--cached", "--name-only", "--", ".claude/specs/").stdout.trim(), stagedSpec)
+    const commitHook = spawnSync(process.execPath, [join(hooksDir, "require-handoff-prompt.mjs")], { cwd: checkout, encoding: "utf8",
+      input: JSON.stringify({ hook_event_name: "PreToolUse", session_id: `${name}-commit-fixture-${refFormat}`, cwd: checkout, tool_input: { command: "git commit --no-edit" } }) })
+    T(`${label}: the commit that concludes the ${name} passes the handoff gate`, { status: commitHook.status, stderr: commitHook.stderr }, { status: 0, stderr: "" })
+    T(`${label}: the ${name} is open before it concludes`, operationInProgress(checkout), true)
+    T(`${label}: the ${name} concludes`, inCheckout(name, "--continue").status, 0)
+    T(`${label}: no operation is open after the ${name} concludes`, operationInProgress(checkout), false)
+  }
+}
 
 const specGitRepo = mkdtempSync(join(tmpdir(), "orbit-handoff-spec-"))
 const inSpecRepo = (...args) => spawnSync("git", ["-C", specGitRepo, ...args], { encoding: "utf8" })

@@ -21,11 +21,12 @@ vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key === 'h
 import { HabitRow } from '@/components/habits/habit-row'
 
 describe('Hoje parent ring track', () => {
-  it.each(['empty', 'overdue', 'bad'] as const)('uses the empty track for a %s parent, including selection mode', (state) => {
+  it.each(['empty', 'overdue', 'bad'] as const)('uses the empty track for a %s parent and renders none in selection mode', (state) => {
     for (const selectMode of [false, true]) {
       const { container, unmount } = render(<HabitRow habit={createMockHabit({ isBadHabit: state === 'bad' })}
         hasChildren childProgress={{ done: 1, total: 2 }} state={state} selectMode={selectMode} />)
-      expect(container.querySelector('[data-habit-check]')).toHaveStyle({ boxShadow: 'inset 0 0 0 1px var(--track-empty)' })
+      if (selectMode) expect(container.querySelector('[data-habit-check]')).toBeNull()
+      else expect(container.querySelector('[data-habit-check]')).toHaveStyle({ boxShadow: 'inset 0 0 0 1px var(--track-empty)' })
       unmount()
     }
   })
@@ -299,10 +300,11 @@ describe('HabitRow canonical content', () => {
     expect(onToggleExpand).toHaveBeenCalledOnce()
     expect(onToggleSelection).not.toHaveBeenCalled()
     expect(within(row).queryByRole('button', { name: /habits\.statusDot/ })).toBeNull()
-    expect(within(row).getByRole('img', { name: 'habits.statusDot.empty, 1/2' })).toBeInTheDocument()
+    expect(within(row).queryByRole('img', { name: /habits\.statusDot/ })).toBeNull()
+    expect(row.querySelector('[data-habit-check]')).toBeNull()
   })
 
-  it('keeps selection and a named status glyph without a leaf gutter', () => {
+  it('keeps selection without a status glyph or a leaf gutter', () => {
     render(<HabitRow habit={createMockHabit({ title: 'Leaf' })} structuralColumn selectMode completionReadOnly />)
     const row = screen.getByTestId('habit-row')
     const selection = within(row).getByRole('button', { name: 'Leaf, habits.form.typeHabit', pressed: false })
@@ -310,7 +312,8 @@ describe('HabitRow canonical content', () => {
     expect(selection).toHaveAttribute('data-habit-row-control', 'selection')
     expect(selection.previousElementSibling).toBeNull()
     expect(row.querySelector('[data-habit-row-control="disclosure"]')).toBeNull()
-    expect(within(row).getByRole('img', { name: 'habits.statusDot.empty' })).toBeInTheDocument()
+    expect(within(row).queryByRole('img', { name: /habits\.statusDot/ })).toBeNull()
+    expect(row.querySelector('[data-habit-check]')).toBeNull()
     expect(within(row).queryByTestId('habit-status-toggle')).toBeNull()
   })
   it('renders title, description and meta without retired tags', () => {
