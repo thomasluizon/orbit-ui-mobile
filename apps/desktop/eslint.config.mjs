@@ -79,6 +79,11 @@ export default [
     },
   },
   {
+    // WHY: build, release and test tooling runs the CI toolchain (git, gh, bash, tar, clang, xcrun) from PATH by design, and no untrusted PATH reaches it.
+    files: ["scripts/**/*.ts", "__tests__/**/*.ts"],
+    rules: { "sonarjs/no-os-command-from-path": "off" },
+  },
+  {
     ignores: ["node_modules/**", "coverage/**", "src-tauri/**", "*.config.{js,mjs,cjs,ts}"],
   },
 ]

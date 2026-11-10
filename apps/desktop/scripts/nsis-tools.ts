@@ -23,6 +23,7 @@ export const nsisPins = JSON.parse(readFileSync(pinsPath, 'utf8')) as NsisPins
 const utilsPath = 'Plugins/x86-unicode/additional/nsis_tauri_utils.dll'
 
 function sha1Of(path: string): string | null {
+  // eslint-disable-next-line sonarjs/hashing -- the Tauri bundler pins its NSIS tools by SHA-1, so this check must compute SHA-1
   return existsSync(path) ? createHash('sha1').update(readFileSync(path)).digest('hex').toUpperCase() : null
 }
 
@@ -34,6 +35,7 @@ function nsisToolsComplete(nsisDirectory: string, pins: NsisPins = nsisPins): bo
 }
 
 function verified(data: Buffer, pin: Pin): Buffer {
+  // eslint-disable-next-line sonarjs/hashing -- the Tauri bundler pins its NSIS tools by SHA-1, so this check must compute SHA-1
   const actual = createHash('sha1').update(data).digest('hex').toUpperCase()
   if (actual !== pin.sha1) throw new Error(`SHA-1 mismatch for ${pin.asset}: expected ${pin.sha1}, got ${actual}`)
   return data

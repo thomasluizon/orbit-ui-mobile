@@ -33,6 +33,7 @@ function documentLaunch({ paint = true, nested = false, url = origin, loading = 
     addEventListener: (event: string, callback: () => void) => windowEvents.set(event, [...windowEvents.get(event) ?? [], callback]),
   }
   if (!nested) window.top = window
+  // eslint-disable-next-line sonarjs/code-eval -- the test runs the repository's own injected script source, with no external input
   runInNewContext(script, {
     window, console, PerformanceObserver: PaintObserver, setTimeout: vi.fn(),
     MutationObserver: class {

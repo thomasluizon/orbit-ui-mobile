@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
 import { ensureNsisTools, nsisPins, releaseDownloader, type NsisPins } from '../scripts/nsis-tools.ts'
 
+// eslint-disable-next-line sonarjs/hashing -- the Tauri bundler pins its NSIS tools by SHA-1, so the test must compute SHA-1
 const sha1 = (data: string) => createHash('sha1').update(data).digest('hex').toUpperCase()
 const directories: string[] = []
 afterEach(() => {

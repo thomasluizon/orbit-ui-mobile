@@ -106,6 +106,7 @@ async function measureChat({ fragmented = false, interrupted = false, dispatchDe
       return result
     }, { interval: 1, timeout: 20000 }),
   }
+  // eslint-disable-next-line sonarjs/code-eval -- the test runs the repository's own injected script source, with no external input
   runInNewContext(`${chatSource}\nglobalThis.measure = chat`, sandbox)
   try {
     const measure = (sandbox as typeof sandbox & { measure: () => Promise<{ finalEventMs: number; firstTokenMs: number }> }).measure
