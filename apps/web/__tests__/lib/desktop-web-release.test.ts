@@ -99,11 +99,32 @@ it('does not reload for the same build, and retries an offline or malformed meta
   expect(reload).not.toHaveBeenCalled()
 })
 
+/** Fake timers do not drive jsdom's AbortSignal.timeout, so the next poll gets a timeout signal the test aborts. */
+function timeOutNextPoll(rejection: () => Error) {
+  const timeout = new AbortController()
+  vi.spyOn(AbortSignal, 'timeout').mockReturnValueOnce(timeout.signal)
+  vi.mocked(fetch).mockImplementationOnce((_url, init) => new Promise((_resolve, reject) => {
+    init!.signal!.addEventListener('abort', () => reject(rejection()))
+  }))
+  return () => timeout.abort(new DOMException('The operation timed out.', 'TimeoutError'))
+}
+const webKitAbort = () => new DOMException('Fetch is aborted', 'AbortError')
+
 it.each([
-  ['a timeout', () => new DOMException('signal timed out', 'TimeoutError')],
-  ['a failed fetch', () => new TypeError('Failed to fetch')],
-])('does not report %s of the release poll', async (_name, createError) => {
-  vi.mocked(fetch).mockRejectedValueOnce(createError())
+  ['WebKit', webKitAbort],
+  ['Chromium', () => new DOMException('signal timed out', 'TimeoutError')],
+])('does not report a %s timeout of the release poll', async (_engine, rejection) => {
+  const timeOut = timeOutNextPoll(rejection)
+  cleanups.push(watchDesktopWebRelease('0.1.2', currentCommit, vi.fn()))
+  await vi.advanceTimersByTimeAsync(0)
+  timeOut()
+  await vi.advanceTimersByTimeAsync(2000)
+  expect(fetch).toHaveBeenCalledOnce()
+  expect(captureException).not.toHaveBeenCalled()
+})
+
+it('does not report a failed fetch of the release poll', async () => {
+  vi.mocked(fetch).mockRejectedValueOnce(new TypeError('Failed to fetch'))
   cleanups.push(watchDesktopWebRelease('0.1.2', currentCommit, vi.fn()))
   await vi.advanceTimersByTimeAsync(2000)
   expect(fetch).toHaveBeenCalledOnce()
@@ -122,9 +143,11 @@ it.each([
 })
 
 it('offers a new release on the poll after a timeout', async () => {
-  vi.mocked(fetch).mockRejectedValueOnce(new DOMException('signal timed out', 'TimeoutError'))
+  const timeOut = timeOutNextPoll(webKitAbort)
   const available = vi.fn()
   cleanups.push(watchDesktopWebRelease('0.1.2', currentCommit, available))
+  await vi.advanceTimersByTimeAsync(0)
+  timeOut()
   await vi.advanceTimersByTimeAsync(2000)
   expect(available).not.toHaveBeenCalled()
   await vi.advanceTimersByTimeAsync(60_000)

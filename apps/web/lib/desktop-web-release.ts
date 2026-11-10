@@ -60,10 +60,6 @@ export async function reloadDesktopWeb(reload: () => void | Promise<void>, persi
   return true
 }
 
-function isTransportFailure(error: unknown) {
-  return (error instanceof DOMException && error.name === 'TimeoutError') || isNetworkUnavailableError(error)
-}
-
 export function watchDesktopWebRelease(version: string, commit: string | null, onAvailable: (release: z.infer<typeof desktopWebReleaseSchema>) => void) {
   let stopped = false
   let checking = false
@@ -74,15 +70,14 @@ export function watchDesktopWebRelease(version: string, commit: string | null, o
   async function check() {
     if (checking || stopped) return
     checking = true
+    const pollSignal = AbortSignal.any([controller.signal, AbortSignal.timeout(10_000)])
     try {
-      const response = await fetch('/api/desktop-release', {
-        cache: 'no-store', signal: AbortSignal.any([controller.signal, AbortSignal.timeout(10_000)]),
-      })
+      const response = await fetch('/api/desktop-release', { cache: 'no-store', signal: pollSignal })
       if (!response.ok) throw new Error(`Cannot check desktop web release: ${response.status}`)
       const release = desktopWebReleaseSchema.parse(await response.json())
       if (!controller.signal.aborted) pending = release
     } catch (error) {
-      if (!controller.signal.aborted && !isTransportFailure(error)) captureException(error)
+      if (!pollSignal.aborted && !isNetworkUnavailableError(error)) captureException(error)
     } finally { checking = false }
   }
 
