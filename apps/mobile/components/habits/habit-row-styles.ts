@@ -60,7 +60,6 @@ export const styles = StyleSheet.create({
     gap: 8,
   },
   trailingSlot: {
-    width: 48,
     minHeight: 48,
   },
   parentRingButton: {

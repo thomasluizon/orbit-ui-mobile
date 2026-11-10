@@ -44,7 +44,7 @@ function triggerParentCompletion(event: React.MouseEvent, disabled: boolean, isD
   parentAction?.()
 }
 
-function buildMenuItems(
+export function buildMenuItems(
   t: ReturnType<typeof useTranslations>,
   actions: HabitRowActions,
   canSelect: boolean,

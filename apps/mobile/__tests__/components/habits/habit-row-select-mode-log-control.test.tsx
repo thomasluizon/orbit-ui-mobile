@@ -39,7 +39,7 @@ describe.each(rows)('native habit row log control in select mode, $name', ({ has
   const slots = () => renderer.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
     typeof node.type === 'string' && node.props.testID === 'habit-row-trailing-slot')
 
-  it('keeps an inert, empty, hidden 48px slot where the trailing actions were', () => {
+  it('keeps an inert, empty, hidden 52px spacer so the strip keeps its 104px trailing width', () => {
     TestRenderer.act(() => { renderer = TestRenderer.create(element(true)) })
     expect(slots()).toHaveLength(1)
     const slot = slots()[0]
@@ -48,7 +48,7 @@ describe.each(rows)('native habit row log control in select mode, $name', ({ has
     expect(slot.props.pointerEvents).toBe('none')
     expect(slot.props.accessible).not.toBe(true)
     expect(slot.props.accessibilityRole).toBeUndefined()
-    expect(StyleSheet.flatten(slot.props.style)).toMatchObject({ width: 48, minHeight: 48 })
+    expect(StyleSheet.flatten(slot.props.style)).toMatchObject({ width: 52, minHeight: 48 })
     expect(slot.children).toHaveLength(0)
     TestRenderer.act(() => renderer.update(element(false)))
     expect(slots()).toHaveLength(0)
@@ -60,5 +60,32 @@ describe.each(rows)('native habit row log control in select mode, $name', ({ has
     expect(statusGlyphs().length).toBeGreaterThan(0)
     TestRenderer.act(() => renderer.update(element(true)))
     expect(statusGlyphs()).toHaveLength(0)
+  })
+})
+
+const menuActions = { onLog: vi.fn(), onEdit: vi.fn(), onToggleSelection: vi.fn() }
+const plainActions = { onLog: vi.fn(), onToggleSelection: vi.fn() }
+const spacerCases = [
+  { name: 'selection button and menu', structuralColumn: true, actions: menuActions, spacer: 52, normalMenu: 1 },
+  { name: 'selection button, no menu', structuralColumn: true, actions: plainActions, spacer: null, normalMenu: 0 },
+  { name: 'no selection button, menu', structuralColumn: false, actions: menuActions, spacer: 104, normalMenu: 1 },
+  { name: 'no selection button, no menu', structuralColumn: false, actions: plainActions, spacer: 48, normalMenu: 0 },
+] as const
+
+describe.each(spacerCases)('native habit row selection spacer, $name', ({ structuralColumn, actions, spacer, normalMenu }) => {
+  type HostNode = { type: unknown; props: Record<string, unknown> }
+  const hostNodes = (match: (props: Record<string, unknown>) => boolean) =>
+    renderer.root.findAll((node: HostNode) => typeof node.type === 'string' && match(node.props))
+
+  it('replaces exactly the width of the trailing group it hides', () => {
+    const element = (isSelectMode: boolean) => <HabitRow habit={createMockHabit({ title: 'Read' })} hasChildren
+      childrenDone={1} childrenTotal={3} structuralColumn={structuralColumn} isSelectMode={isSelectMode} actions={actions} />
+    TestRenderer.act(() => { renderer = TestRenderer.create(element(false)) })
+    expect(hostNodes((props) => props.accessibilityLabel === 'habits.actions.more')).toHaveLength(normalMenu)
+    TestRenderer.act(() => renderer.update(element(true)))
+    const slots = hostNodes((props) => props.testID === 'habit-row-trailing-slot')
+    expect(slots).toHaveLength(spacer ? 1 : 0)
+    if (spacer) expect(StyleSheet.flatten(slots[0]!.props.style)).toMatchObject({ width: spacer, minHeight: 48 })
+    expect(hostNodes((props) => props.accessibilityRole === 'checkbox')).toHaveLength(structuralColumn ? 1 : 0)
   })
 })

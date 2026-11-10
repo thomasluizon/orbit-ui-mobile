@@ -13,7 +13,7 @@ import { ChevronDown } from '@/components/ui/icons'
 import { Checkbox } from '@/components/ui/checkbox'
 import { buildHabitRowMetaTokens, HabitRowContent, MetaStrip, type HabitRowMetaToken } from './habit-row-content'
 import { HabitRowLeading } from './habit-row-leading'
-import { HabitRowTrailing } from './habit-row-trailing'
+import { buildMenuItems, HabitRowTrailing } from './habit-row-trailing'
 import { useHabitRowSupportingMeta, useHabitRowMetadataFit } from './use-habit-row-large-text'
 import { useHabitRowActivation } from './use-habit-row-activation'
 
@@ -96,6 +96,33 @@ function hasHabitMenuActions(
     canSelect ||
     canDrillInto,
   )
+}
+
+const ROW_CONTROL_WIDTH = 48
+const STRIP_GAP = 4
+const TRAILING_GAP = 8
+
+function selectionSpacerWidth(trailingHasMenu: boolean, selectionButton: boolean): number {
+  const trailingWidth = trailingHasMenu ? ROW_CONTROL_WIDTH + TRAILING_GAP + ROW_CONTROL_WIDTH : ROW_CONTROL_WIDTH
+  return selectionButton ? trailingWidth - ROW_CONTROL_WIDTH - STRIP_GAP : trailingWidth
+}
+
+function normalTrailingHasMenu(
+  t: ReturnType<typeof useTranslations>,
+  actions: HabitRowActions,
+  canDrillInto: boolean,
+  completionReadOnly: boolean,
+  isGeneral: boolean,
+  state: HabitStatus,
+): boolean {
+  const canSelect = !!actions.onEnterSelectMode
+  return hasHabitMenuActions(actions, canSelect, canDrillInto)
+    && buildMenuItems(t, actions, canSelect, canDrillInto, completionReadOnly, isGeneral, state).length > 0
+}
+
+function SelectionSpacer({ width }: Readonly<{ width: number }>) {
+  if (width <= 0) return null
+  return <span aria-hidden="true" data-habit-row-trailing-slot="" className="pointer-events-none shrink-0" style={{ width, minHeight: ROW_CONTROL_WIDTH }} />
 }
 
 function HabitRowStructuralColumn({
@@ -192,6 +219,7 @@ function HabitRowView({
 
   const isDone = state === 'done' || isHabitDoneForRange(habit)
   const graphicState = habit.isBadHabit ? 'bad' : state
+  const trailingHasMenu = normalTrailingHasMenu(t, actions, canDrillInto, completionReadOnly, habit.isGeneral, graphicState)
   const isChild = child || depth > 0
   const titleSize = isChild ? 14 : 17
   const emojiSize = isChild ? 16 : 22
@@ -258,9 +286,7 @@ function HabitRowView({
         />
       ) : null}
 
-      {selectMode ? (
-        <span aria-hidden="true" data-habit-row-trailing-slot="" className="pointer-events-none shrink-0" style={{ width: 48, minHeight: 48 }} />
-      ) : (
+      {selectMode ? <SelectionSpacer width={selectionSpacerWidth(trailingHasMenu, structuralColumn)} /> : (
         <HabitRowTrailing
           habit={habit}
           hasChildren={hasChildren}

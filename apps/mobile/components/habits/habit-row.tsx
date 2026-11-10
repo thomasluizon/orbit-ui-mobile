@@ -55,6 +55,14 @@ export interface HabitRowActions {
 }
 
 const EMPTY_HABIT_ROW_ACTIONS: HabitRowActions = {}
+const ROW_CONTROL_WIDTH = 48
+const STRIP_GAP = 4
+const TRAILING_GAP = 8
+
+function selectionSpacerWidth(trailingHasMenu: boolean, selectionButton: boolean): number {
+  const trailingWidth = trailingHasMenu ? ROW_CONTROL_WIDTH + TRAILING_GAP + ROW_CONTROL_WIDTH : ROW_CONTROL_WIDTH
+  return selectionButton ? trailingWidth - ROW_CONTROL_WIDTH - STRIP_GAP : trailingWidth
+}
 
 function buildMenuItems(
   actions: HabitRowActions,
@@ -80,6 +88,24 @@ function buildMenuItems(
     items.push({ id: 'delete', label: t('habits.actions.delete'), icon: 'trash', destructive: true })
   }
   return items
+}
+
+function normalTrailingHasMenu(
+  actions: HabitRowActions,
+  completionReadOnly: boolean,
+  isGeneral: boolean,
+  isOverdue: boolean,
+  hasSubHabits: boolean,
+  t: (key: string) => string,
+): boolean {
+  return hasHabitRowMenuActions(actions, false)
+    && buildMenuItems(actions, false, completionReadOnly, isGeneral, isOverdue, hasSubHabits, t).length > 0
+}
+
+function SelectionSpacer({ width }: Readonly<{ width: number }>) {
+  if (width <= 0) return null
+  return <View testID="habit-row-trailing-slot" accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
+    pointerEvents="none" style={[styles.trailingSlot, { width }]} />
 }
 
 function runMenuAction(actions: HabitRowActions, id: string): void {
@@ -351,6 +377,7 @@ export const HabitRow = memo(function HabitRow({
   const menuItems = buildMenuItems(actions, isSelectMode, completionReadOnly, habit.isGeneral, isOverdue, habit.hasSubHabits, t)
 
   const hasMenuActions = hasHabitRowMenuActions(actions, isSelectMode) && menuItems.length > 0
+  const trailingHasMenu = normalTrailingHasMenu(actions, completionReadOnly, habit.isGeneral, isOverdue, habit.hasSubHabits, t)
 
   const handlePress = resolveBodyPressAction(isSelectMode, actions)
   const activation = useHabitRowActivation(handlePress, isSelectMode ? undefined : actions.onLongPressCard)
@@ -444,10 +471,7 @@ export const HabitRow = memo(function HabitRow({
           />
         ) : null}
 
-        {isSelectMode ? (
-          <View testID="habit-row-trailing-slot" accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
-            pointerEvents="none" style={styles.trailingSlot} />
-        ) : (
+        {isSelectMode ? <SelectionSpacer width={selectionSpacerWidth(trailingHasMenu, structuralColumn)} /> : (
           <HabitRowTrailing
             habit={habit}
             hasChildren={hasChildren}

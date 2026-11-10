@@ -274,7 +274,7 @@ for (const language of ['en', 'pt-BR'] as const) for (const mode of ['dark', 'li
   }
 }
 
-type RowFit = { height: number; metaLines: number; supporting: boolean }
+type RowFit = { height: number; metaLines: number; supporting: boolean; controlsWidth: number; titleBlockWidth: number }
 
 async function readRowFits(page: Page): Promise<Record<string, RowFit>> {
   return page.getByTestId('habit-row').evaluateAll((rows) => Object.fromEntries(rows.map((row) => {
@@ -282,7 +282,11 @@ async function readRowFits(page: Page): Promise<Record<string, RowFit>> {
     const range = document.createRange()
     if (meta) range.selectNodeContents(meta)
     const lineTops = new Set(meta ? Array.from(range.getClientRects()).map((box) => Math.round(box.top)) : [])
-    return [row.getAttribute('data-habit-title')!, { height: row.getBoundingClientRect().height, metaLines: lineTops.size, supporting: Boolean(row.querySelector('[data-habit-row-heading]')) }]
+    const width = (selector: string) => row.querySelector(selector)!.getBoundingClientRect().width
+    return [row.getAttribute('data-habit-title')!, {
+      height: row.getBoundingClientRect().height, metaLines: lineTops.size, supporting: Boolean(row.querySelector('[data-habit-row-heading]')),
+      controlsWidth: width('[data-habit-row-controls]'), titleBlockWidth: width('[data-habit-row-title-block]'),
+    }]
   })))
 }
 
@@ -296,7 +300,8 @@ async function assertPreviewSelectionModes(page: Page, parent: Locator, copy: ty
       await settleHabitRows(page.getByTestId('habit-row'), scale, selecting, normalSupportingTitles)
       const selectionFits = await readRowFits(page)
       expect(selectionFits['Child parent'], 'entering selection never changes the Child parent row height or metadata lines').toEqual(normalFits['Child parent'])
-      expect(selectionFits, 'entering selection never changes any row height, wrap or metadata line count').toEqual(normalFits)
+      expect(Object.values(normalFits).some((fit) => fit.controlsWidth === 48 + 4 + 48 + 8 + 48), 'a parent row with the overflow menu is in the fixture').toBe(true)
+      expect(selectionFits, 'entering selection never changes any row height, wrap, metadata line count, controls strip width or title block width').toEqual(normalFits)
       await parent.locator('[data-habit-row-body]').click()
       await expect(parent.locator('[data-habit-row-control="selection"]')).toHaveAttribute('aria-pressed', 'true')
       const leaf = page.locator('[data-testid="habit-row"][data-habit-title="Timed"]')
