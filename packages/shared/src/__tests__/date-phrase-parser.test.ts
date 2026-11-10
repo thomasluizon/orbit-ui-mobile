@@ -36,8 +36,15 @@ describe('calendar date phrases', () => {
   it.each(['31 de fevereiro', 'February 31', '2026-02-29', '2026-13-01', 'dia 32', '31/2', '13/13', 'in 9999999999999999 weeks'])('rejects impossible %s', (phrase) => {
     expect(parse(phrase).status).toBe('invalid')
   })
-  it.each(['2026/03/04', '03-04'])('does not guess numeric %s', (phrase) => {
+  it.each(['2026/03/04', '03-04', '12-5-26', '1.2.3', '2026/11'])('does not guess numeric %s', (phrase) => {
     expect(parse(phrase).status).toBe('ambiguous')
+  })
+  it('parses a long digit run in linear time', () => {
+    const startedAt = performance.now()
+    const result = parse('0'.repeat(50000) + 'x')
+    const elapsedMilliseconds = performance.now() - startedAt
+    expect(result.status).toBe('unsupported')
+    expect(elapsedMilliseconds).toBeLessThan(100)
   })
   it.each(['segunda', 'segunda-feira', 'seg', 'próxima segunda', 'monday', 'mon', 'next monday'])('takes the next weekday for %s even on Monday', (phrase) => {
     expect(parse(phrase, 'pt-BR', '2026-10-26')).toEqual({ status: 'resolved', date: '2026-11-02' })
