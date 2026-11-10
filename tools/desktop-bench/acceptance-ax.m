@@ -274,6 +274,15 @@ static NSDictionary *notification(NSString *title, NSString *label, BOOL invoke,
     return @{@"found": @YES, @"invoked": @(invoke), @"role": match[@"role"], @"action": match[@"action"], @"tree": tree};
 }
 
+// LaunchServices lists every registered copy of a bundle identifier, best match first, and names the copy it launches:
+// NSWorkspace.h URLsForApplicationsWithBundleIdentifier: and URLForApplicationWithBundleIdentifier:
+static NSDictionary *bundleCopies(NSString *identifier) {
+    NSMutableArray *copies = [NSMutableArray array];
+    for (NSURL *url in [NSWorkspace.sharedWorkspace URLsForApplicationsWithBundleIdentifier:identifier]) [copies addObject:url.path];
+    NSURL *best = [NSWorkspace.sharedWorkspace URLForApplicationWithBundleIdentifier:identifier];
+    return @{@"copies": copies, @"best": best.path ?: [NSNull null]};
+}
+
 // The system-wide element names the application that receives keyboard input: https://developer.apple.com/documentation/applicationservices/kaxfocusedapplicationattribute
 static pid_t focusedProcess(void) {
     AXUIElementRef system = AXUIElementCreateSystemWide();
@@ -306,19 +315,21 @@ static NSDictionary *key(pid_t processId, NSString *name) {
     }
     usleep(250000);
     pid_t focused = focusedProcess();
-    // A real keyboard enters at the HID event tap and reaches the focused application, so a key posts there only for the installed process:
-    // https://developer.apple.com/documentation/coregraphics/cgeventtaplocation/hideventtap
+    // The key goes only to the installed process while it is the focused application, so its key window takes it as a typed key.
     if (focused != processId) {
         @throw [NSException exceptionWithName:@"Input"
             reason:[NSString stringWithFormat:@"Process %d did not receive keyboard focus for %@; process %d has it", processId, name, focused] userInfo:nil];
     }
+    // A key posted at the HID event tap gets its target process from the session's routing (CGEventTypes.h tap locations). On
+    // hosted runners that routing lost whole keys while the shell was the focused application with a key window and a blinking
+    // caret (#1560), so the key enters the shell's own event stream (CGEvent.h CGEventPostToPid).
     for (NSNumber *pressed in @[@YES, @NO]) {
         CGEventRef event = CGEventCreateKeyboardEvent(NULL, code.unsignedShortValue, pressed.boolValue);
         CGEventSetFlags(event, ([name isEqual:@"quit"] || [name isEqual:@"palette"]) ? kCGEventFlagMaskCommand : 0);
-        CGEventPost(kCGHIDEventTap, event);
+        CGEventPostToPid(processId, event);
         CFRelease(event);
     }
-    return @{@"sent": name, @"delivery": @"hid-event-tap", @"activation": activation, @"focusedProcess": @(focused)};
+    return @{@"sent": name, @"delivery": @"process-event", @"activation": activation, @"focusedProcess": @(focused)};
 }
 
 int main(int argc, const char *argv[]) {
@@ -326,7 +337,8 @@ int main(int argc, const char *argv[]) {
         if (argc < 3) return 2;
         pid_t processId = atoi(argv[1]);
         NSString *command = @(argv[2]);
-        if ([command isEqual:@"notification"] ? argc != 7 : argc != 3) return 2;
+        int arguments = [command isEqual:@"notification"] ? 7 : [command isEqual:@"bundles"] ? 4 : 3;
+        if (argc != arguments) return 2;
         @try {
             if ([command isEqual:@"terminate"]) {
                 if (![[NSRunningApplication runningApplicationWithProcessIdentifier:processId] terminate]) return 1;
@@ -336,6 +348,7 @@ int main(int argc, const char *argv[]) {
             if ([command isEqual:@"dump"]) result = captureTree(processId);
             else if ([command isEqual:@"close"]) result = closeWindows(processId);
             else if ([command isEqual:@"windows"]) result = listWindows(processId);
+            else if ([command isEqual:@"bundles"]) result = bundleCopies(@(argv[3]));
             else if ([command isEqual:@"notification"]) {
                 result = notification(@(argv[3]), @(argv[4]), atoi(argv[5]) == 1, atoi(argv[6]) == 1);
             } else result = key(processId, command);

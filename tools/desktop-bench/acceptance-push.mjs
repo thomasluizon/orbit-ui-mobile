@@ -224,35 +224,39 @@ async function enablePush(io, pid) {
 }
 
 // APNs answers 200 when it accepts a push, not when the device receives it. apsd counts every push it receives per topic,
-// so the macOS phase waits for that count to rise before it looks for the notification. A missing notification then names
+// so the macOS phase waits for that count to rise before it looks for a notification. A missing notification then names
 // the hop that dropped it: APNs to the device, or the device to Notification Center.
-async function deviceReceipt(io, topic, before, purpose) {
+async function deviceReceipt(io, topic, before, purposes) {
   const sent = io.now()
   let last = before
   try {
     await io.waitFor(async () => {
       last = await io.apsdReceipt(topic)
-      return last.count > before.count
-    }, `apsd to receive the ${purpose} push`, 60000)
+      return last.count >= before.count + purposes.length
+    }, `apsd to receive the ${purposes.join(' and ')} pushes`, 60000)
   } catch (error) {
     if (!error.message.startsWith('Timed out')) throw error
-    io.report.push[`${purpose}Receipt`] = { before: before.count, after: last.count, last: last.last }
-    throw new Error(`APNs accepted the ${purpose} reminder with HTTP 200, but apsd counted no new push for ${topic}: ` +
-      `${before.count} before and ${last.count} after 60 s, last incoming push ${last.last ?? 'none'}`)
+    io.report.push.receipt = { before: before.count, after: last.count, last: last.last }
+    throw new Error(`APNs accepted the ${purposes.join(' and ')} reminders with HTTP 200, but apsd counted ${last.count - before.count} of ` +
+      `${purposes.length} new pushes for ${topic}: ${before.count} before and ${last.count} after 60 s, last incoming push ${last.last ?? 'none'}`)
   }
   return { before: before.count, after: last.count, seconds: (io.now() - sent) / 1000 }
 }
 
-async function sendReminder(io, deliver, purpose) {
-  const habitId = randomUUID()
-  const doneToken = await io.mock.mintReminder(habitId)
-  const reminder = repeatReminder({ habitId, title: `Orbit acceptance ${purpose} ${habitId.slice(0, 8)}`, doneToken,
-    reminderAt: new Date(io.now() - 60000), timeZone: io.timeZone })
+// Sends one reminder per purpose in the given order and returns them by purpose.
+async function sendReminders(io, deliver, purposes) {
+  const reminders = {}
+  for (const purpose of purposes) {
+    const habitId = randomUUID()
+    const doneToken = await io.mock.mintReminder(habitId)
+    reminders[purpose] = repeatReminder({ habitId, title: `Orbit acceptance ${purpose} ${habitId.slice(0, 8)}`, doneToken,
+      reminderAt: new Date(io.now() - 60000), timeZone: io.timeZone })
+  }
   const topic = io.platform === 'darwin' ? io.report.push.registration.apnsTopic : null
   const before = topic ? await io.apsdReceipt(topic) : null
-  io.report.push[`${purpose}Delivery`] = await deliver(reminder)
-  if (topic) io.report.push[`${purpose}Receipt`] = await deviceReceipt(io, topic, before, purpose)
-  return reminder
+  for (const purpose of purposes) io.report.push[`${purpose}Delivery`] = await deliver(reminders[purpose])
+  if (topic) io.report.push.receipt = await deviceReceipt(io, topic, before, purposes)
+  return reminders
 }
 
 async function notification(io, pid, reminder, invoke, name) {
@@ -360,8 +364,14 @@ export async function exercisePush(io) {
   const deliver = await io.sender(readiness.transport, registration)
   await io.native(pid, 'close')
   await io.waitFor(async () => await windowsOf(io, pid) === 0, 'the main window to hide', 30000)
-  const completed = await sendReminder(io, deliver, 'done')
   const windows = io.platform === 'win32'
+  // usernoted lists the Orbit topic as nonwaking, and APNs holds a push to a nonwaking topic until apsd next writes to the
+  // courier. The registration's filter write is the last one before the Done click: pushes sent within 8.3 s of a filter
+  // write arrived in under 0.2 s, and pushes sent 13 to 25 s after one waited for the next write or never arrived (#1560).
+  // So macOS sends both reminders now, the expired one first, because Notification Center shows the newest one on top.
+  // Windows sends only the Done reminder before the click, and the expired one after the Done proof.
+  const sent = await sendReminders(io, deliver, windows ? ['done'] : ['expired', 'done'])
+  const completed = sent.done
   // On Windows the reader only proves that the toast shows with its Done button, and the activator client clicks Done.
   await notification(io, pid, completed, !windows, 'notification-done')
   if (windows) {
@@ -378,7 +388,7 @@ export async function exercisePush(io) {
   // A second request would follow the shell's first response well inside this window.
   await io.delay(5000)
   io.report.push.done = assertDoneDelivered({ logs: await io.mock.logs(), habitId: completed.data.habitId, visible: await windowsOf(io, pid) })
-  const expired = await sendReminder(io, deliver, 'expired')
+  const expired = sent.expired ?? (await sendReminders(io, deliver, ['expired'])).expired
   await notification(io, pid, expired, false, 'notification-expired')
   await io.stop(shell)
   await io.mock.sessionMode('expired')
