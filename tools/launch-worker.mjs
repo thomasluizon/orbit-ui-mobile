@@ -174,15 +174,19 @@ const engineName = config.worker
 const engine = config.workers[engineName]
 if (!engine.command) fail(2, `.claude/orchestrator.json names worker "${engineName}" but carries no command for it`)
 
-let invocation
-try {
-  invocation = resolveWorkerInvocation(engineName, engine, tierArgument)
-} catch (error) {
-  fail(2, error.message)
-}
 let accounts
 try {
   accounts = workerAccounts(engineName, engine)
+} catch (error) {
+  fail(2, error.message)
+}
+/** The model depends on the account that runs the order, so each account resolves its own launch vector. */
+const invocationFor = (account) => resolveWorkerInvocation(engineName, engine, tierArgument, account?.name ?? null)
+let invocation
+let fallbackInvocation = null
+try {
+  invocation = invocationFor(accounts[0] ?? null)
+  if (accounts[1] !== undefined) fallbackInvocation = invocationFor(accounts[1])
 } catch (error) {
   fail(2, error.message)
 }
@@ -582,7 +586,7 @@ const superviseAttempt = (workerPid, attemptLogFile) => {
  * the worktree until both records name its pid. If this launcher dies beforehand, its IPC channel
  * closes and the gate exits without starting the real worker.
  */
-const runAttempt = (account, attemptLogFile, attemptArgs) => new Promise((settle) => {
+const runAttempt = (account, attemptLogFile, attemptArgs, attemptModel) => new Promise((settle) => {
   console.error(`starting the ${engineName} worker for ${issue} in ${runDirectory}${accountLabel(account)}; log: ${attemptLogFile}`)
   const attemptStartedAt = new Date().toISOString()
   const logFd = openSync(attemptLogFile, "a")
@@ -615,7 +619,7 @@ const runAttempt = (account, attemptLogFile, attemptArgs) => new Promise((settle
     closeSync(logFd)
     const result = account !== null && outcome === "EXITED" ? logFinalResult(attemptLogFile) : NO_STOP
     if (result.authenticationFailed) console.error(`the ${engineName} worker for ${issue} could not sign in${accountLabel(account)}: ${result.error}`)
-    settle({ account: account?.name ?? null, configDirectory: account?.configDirectory ?? null, pid: attemptChild.pid ?? null, logFile: attemptLogFile, startedAt: attemptStartedAt, endedAt: new Date().toISOString(), exitCode, outcome, usageLimitReached: result.usageLimitReached, authenticationFailed: result.authenticationFailed, resultError: result.error })
+    settle({ account: account?.name ?? null, model: attemptModel, configDirectory: account?.configDirectory ?? null, pid: attemptChild.pid ?? null, logFile: attemptLogFile, startedAt: attemptStartedAt, endedAt: new Date().toISOString(), exitCode, outcome, usageLimitReached: result.usageLimitReached, authenticationFailed: result.authenticationFailed, resultError: result.error })
   }
   attemptChild.on("error", (error) => {
     console.error(`could not start the ${engineName} worker: ${error.message}`)
@@ -645,13 +649,13 @@ const finish = (attempts) => {
         published = true
       } catch (error) { console.error(`could not publish research findings: ${error.message}`) }
     }
-    console.log(JSON.stringify({ research: true, outputFile: researchPlan.outputFile, published, engine: engineName, model: invocation.model, account: last.account, pid: last.pid, logFile: last.logFile, startedAt, endedAt: last.endedAt, exitCode, outcome, authenticationFailed: last.authenticationFailed, resultError: last.resultError }, null, 2))
+    console.log(JSON.stringify({ research: true, outputFile: researchPlan.outputFile, published, engine: engineName, model: last.model, account: last.account, pid: last.pid, logFile: last.logFile, startedAt, endedAt: last.endedAt, exitCode, outcome, authenticationFailed: last.authenticationFailed, resultError: last.resultError }, null, 2))
     process.exit(published ? 0 : 1)
   }
   const commits = startHead ? gitIn(["log", "--format=%h %s", `${startHead}..HEAD`]).split("\n").filter(Boolean) : []
   const porcelain = spawnSync("git", ["-C", runDirectory, "status", "--porcelain"], { encoding: "utf8", windowsHide: true })
   const treeClean = porcelain.status === 0 && porcelain.stdout.trim() === ""
-  const result = { launcherPid: process.pid, sessionId: launchSessionId, repositoryKey, runDirectory, branch, issue, engine: engineName, tier: invocation.tier, model: invocation.model, account: last.account, configDirectory: last.configDirectory, measurement, noProgressMinutes, hardCeilingMinutes, pid: last.pid, logFile: last.logFile, startedAt, endedAt: last.endedAt, exitCode, outcome, usageLimitReached: last.usageLimitReached, authenticationFailed: last.authenticationFailed, resultError: last.resultError, attempts, commitsSinceLaunch: commits.length, commits, treeClean }
+  const result = { launcherPid: process.pid, sessionId: launchSessionId, repositoryKey, runDirectory, branch, issue, engine: engineName, tier: invocation.tier, model: last.model, account: last.account, configDirectory: last.configDirectory, measurement, noProgressMinutes, hardCeilingMinutes, pid: last.pid, logFile: last.logFile, startedAt, endedAt: last.endedAt, exitCode, outcome, usageLimitReached: last.usageLimitReached, authenticationFailed: last.authenticationFailed, resultError: last.resultError, attempts, commitsSinceLaunch: commits.length, commits, treeClean }
   const directory = join(workerLaunchDirectory(), "results")
   mkdirSync(directory, { recursive: true })
   const resultPath = join(directory, `${process.pid}.json`)
@@ -663,10 +667,10 @@ const finish = (attempts) => {
   process.exit(commits.length > 0 ? 4 : 1)
 }
 
-const attempts = [await runAttempt(primaryAccount, logFile, researchArgs ?? workerArgs)]
+const attempts = [await runAttempt(primaryAccount, logFile, researchArgs ?? workerArgs, invocation.model)]
 // Ticket work only: research publishes one report file, and its order is rerun whole.
 if (!research && attempts[0].usageLimitReached && fallbackAccount !== null) {
-  console.error(`${issue} stopped at the ${primaryAccount.name} account's usage limit; relaunching it once on the ${fallbackAccount.name} account`)
-  attempts.push(await runAttempt(fallbackAccount, logFileFor(fallbackAccount), [...scriptArgs, ...invocation.args, continuationPointer(runDirectory, branch)]))
+  console.error(`${issue} stopped at the ${primaryAccount.name} account's usage limit; relaunching it once on the ${fallbackAccount.name} account with ${fallbackInvocation.model}`)
+  attempts.push(await runAttempt(fallbackAccount, logFileFor(fallbackAccount), [...scriptArgs, ...fallbackInvocation.args, continuationPointer(runDirectory, branch)], fallbackInvocation.model))
 }
 finish(attempts)

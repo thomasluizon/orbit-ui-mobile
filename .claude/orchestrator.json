@@ -73,6 +73,25 @@
           "model": "claude-opus-5-5",
           "args": ["--effort", "high"]
         }
+      },
+      "fableAccounts": ["worker"],
+      "fableModels": {
+        "default": {
+          "model": "claude-fable-5-2",
+          "args": ["--effort", "high"]
+        },
+        "mechanical": {
+          "model": "claude-fable-5-2",
+          "args": ["--effort", "high"]
+        },
+        "deep": {
+          "model": "claude-fable-5-2",
+          "args": ["--effort", "high"]
+        },
+        "max": {
+          "model": "claude-fable-5-2",
+          "args": ["--effort", "high"]
+        }
       }
     }
   },

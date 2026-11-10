@@ -165,31 +165,52 @@ export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranc
   return config
 }
 
+/** The worker account's directory, and the main account: the orchestrator's default Claude config. */
+export const WORKER_ACCOUNT = "worker"
+export const MAIN_ACCOUNT = "main"
+
+const isModelFlag = (argument) => argument === "--model" || argument === "-m" || argument.startsWith("--model=")
+
+/**
+ * `models` holds the standard model of each tier. `fableAccounts` names the accounts that run
+ * `fableModels` instead, so adding or removing one account name is the only edit that turns Fable
+ * on or off for that account. A null account name, as in a bare tier lookup, always reads `models`.
+ */
+const modelsForAccount = (engineName, engine, accountName) => {
+  const { fableAccounts, fableModels } = engine
+  if (fableAccounts === undefined && fableModels === undefined) return engine.models
+  const known = [WORKER_ACCOUNT, MAIN_ACCOUNT]
+  if (!Array.isArray(fableAccounts) || fableAccounts.some((name) => !known.includes(name)) || new Set(fableAccounts).size !== fableAccounts.length) {
+    throw new Error(`worker engine "${engineName}" fableAccounts must be an array of unique account names from: ${known.join(", ")}`)
+  }
+  if (!isRecord(fableModels)) throw new Error(`worker engine "${engineName}" fableModels must be an object keyed by tier`)
+  const missingTiers = Object.keys(engine.models ?? {}).filter((name) => !isRecord(fableModels[name]))
+  if (missingTiers.length > 0) {
+    throw new Error(`worker engine "${engineName}" fableModels must declare every tier of models; missing: ${missingTiers.join(", ")}`)
+  }
+  return fableAccounts.includes(accountName) ? fableModels : engine.models
+}
+
 /**
  * `tier` is a plain string, not a label array. The caller chooses the configured profile for the
- * order in front of it; the resolver owns the one argument path shared by every tier.
+ * order in front of it; the resolver owns the one argument path shared by every tier. `accountName`
+ * is the account that runs the order, which can change the model but never the other arguments.
  */
-export const resolveWorkerInvocation = (engineName, engine, tier = "default") => {
+export const resolveWorkerInvocation = (engineName, engine, tier = "default", accountName = null) => {
   if (!isRecord(engine)) {
     throw new Error(`worker engine "${engineName}" is missing from .claude/orchestrator.json`)
   }
-  if (
-    !Array.isArray(engine.args) ||
-    engine.args.some((argument) => typeof argument !== "string") ||
-    engine.args.some((argument) => argument === "--model" || argument === "-m" || argument.startsWith("--model="))
-  ) {
+  if (!Array.isArray(engine.args) || engine.args.some((argument) => typeof argument !== "string") || engine.args.some(isModelFlag)) {
     throw new Error(`worker engine "${engineName}" must declare args as an array of non-model strings`)
   }
   const subagentOffArgs = engine.subagentOffArgs ?? []
-  if (
-    !Array.isArray(subagentOffArgs) ||
-    subagentOffArgs.some((argument) => typeof argument !== "string" || argument === "--model" || argument === "-m" || argument.startsWith("--model="))
-  ) {
+  if (!Array.isArray(subagentOffArgs) || subagentOffArgs.some((argument) => typeof argument !== "string" || isModelFlag(argument))) {
     throw new Error(`worker engine "${engineName}" subagentOffArgs must be an array of non-model strings`)
   }
-  const entry = engine.models?.[tier]
+  const models = modelsForAccount(engineName, engine, accountName)
+  const entry = models?.[tier]
   if (!isRecord(entry) || typeof entry.model !== "string" || entry.model.trim().length === 0) {
-    const declared = Object.keys(engine.models ?? {}).join(", ") || "none"
+    const declared = Object.keys(models ?? {}).join(", ") || "none"
     throw new Error(`worker engine "${engineName}" has no valid models.${tier}; declared tiers: ${declared}`)
   }
   if (entry.args !== undefined && (!Array.isArray(entry.args) || entry.args.some((argument) => typeof argument !== "string"))) {
@@ -226,10 +247,6 @@ export const CLAUDE_ACCOUNT_OVERRIDE_KEYS = [
   "CLAUDE_CODE_USE_MANTLE",
 ]
 
-/** The worker account's directory, and the main account: the orchestrator's default Claude config. */
-export const WORKER_ACCOUNT = "worker"
-export const MAIN_ACCOUNT = "main"
-
 /**
  * The accounts a launch runs under: the first runs the order, the second takes the one relaunch
  * after a usage limit. The config names only the variable; the path lives in the environment. Set,
@@ -262,4 +279,20 @@ export const workerAccountEnvironment = (environment, account) => {
   if (account.name === WORKER_ACCOUNT) scoped.CLAUDE_CONFIG_DIR = account.configDirectory
   else delete scoped.CLAUDE_CONFIG_DIR
   return scoped
+}
+
+/**
+ * The launch vector of every tier under every account the engine can run, for the calibration stamp.
+ * An engine with no Claude account has none, so its stamp carries an empty object.
+ */
+export const workerAccountTiers = (engineName, engine) => {
+  if (engineName !== "claude") return {}
+  const tiers = Object.keys(engine?.models ?? {}).sort()
+  return Object.fromEntries([WORKER_ACCOUNT, MAIN_ACCOUNT].map((accountName) => [
+    accountName,
+    Object.fromEntries(tiers.map((tier) => {
+      const { model, args } = resolveWorkerInvocation(engineName, engine, tier, accountName)
+      return [tier, { model, args }]
+    })),
+  ]))
 }
