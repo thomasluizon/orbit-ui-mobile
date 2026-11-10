@@ -5,7 +5,6 @@ import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import sharp from "sharp"
-import pngToIco from "png-to-ico"
 
 const USAGE = `usage: generate-brand-assets.mjs --write [--root <path>]
 
@@ -109,6 +108,9 @@ const generatedAssets = [
   { path: "apps/web/public/og-image.png", width: 1200, height: 630, ink: FOREGROUND, background: CANVAS, scale: 0.36, accent: true },
   { path: "apps/web/public/pwa-192x192.png", width: 192, height: 192, ink: FOREGROUND, background: CANVAS, scale: 0.6, accent: true },
   { path: "apps/web/public/pwa-512x512.png", width: 512, height: 512, ink: FOREGROUND, background: CANVAS, scale: 0.6, accent: true },
+  // apps/web/__tests__/manifest.test.ts requires this maskable copy to equal the canonical platform
+  // icon byte for byte, so it takes the same entry and a regeneration cannot leave it behind.
+  { path: "apps/web/public/pwa-maskable-512x512.png", width: 512, height: 512, ink: FOREGROUND, background: CANVAS, scale: 0.6, accent: true },
 ]
 
 function assertCanonicalSource(source, name) {
@@ -195,10 +197,23 @@ async function renderAccentMark(source, ink, accent, targetWidth) {
     .toBuffer({ resolveWithObject: true })
 }
 
+/** The CANVAS shape a transparent asset draws behind its mark: a full disc, or an inset rounded tile. */
+function backgroundShapeSvg({ width, height, disc, tile }) {
+  if (disc) {
+    return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><circle cx="${width / 2}" cy="${height / 2}" r="${width / 2}" fill="${CANVAS}"/></svg>`
+  }
+  if (tile) {
+    const side = width - 2 * tile.margin
+    return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect x="${tile.margin}" y="${tile.margin}" width="${side}" height="${side}" rx="${tile.radius}" ry="${tile.radius}" fill="${CANVAS}"/></svg>`
+  }
+  return null
+}
+
 async function renderAsset(sources, asset) {
   const source = asset.nativeMark ? sources.mark16 : asset.accent ? sources.markAccent : sources.mark
   const transparent = { r: 0, g: 0, b: 0, alpha: 0 }
-  const background = asset.disc ? transparent : asset.background ?? transparent
+  const shapeSvg = backgroundShapeSvg(asset)
+  const background = shapeSvg ? transparent : asset.background ?? transparent
   const canvas = sharp({
     create: {
       width: asset.width,
@@ -207,15 +222,7 @@ async function renderAsset(sources, asset) {
       background,
     },
   })
-  const backgroundLayers = asset.disc
-    ? [{
-        input: Buffer.from(
-          `<svg width="${asset.width}" height="${asset.height}" viewBox="0 0 ${asset.width} ${asset.height}"><circle cx="${asset.width / 2}" cy="${asset.height / 2}" r="${asset.width / 2}" fill="${CANVAS}"/></svg>`,
-        ),
-        left: 0,
-        top: 0,
-      }]
-    : []
+  const backgroundLayers = shapeSvg ? [{ input: Buffer.from(shapeSvg), left: 0, top: 0 }] : []
 
   if (!asset.ink) {
     return canvas.png({ compressionLevel: 9 }).toBuffer()
@@ -237,7 +244,8 @@ async function renderAsset(sources, asset) {
       .toBuffer()
   }
 
-  const targetWidth = Math.round(asset.width * asset.scale)
+  const markFrameWidth = asset.tile ? asset.width - 2 * asset.tile.margin : asset.width
+  const targetWidth = Math.round(markFrameWidth * asset.scale)
   const { data: mark, info } = asset.accent
     ? await renderAccentMark(source, asset.ink, ACCENT, targetWidth)
     : await renderTrimmedMark(source, asset.ink, targetWidth)
@@ -250,6 +258,45 @@ async function renderAsset(sources, asset) {
   return composed
     .png({ compressionLevel: 9 })
     .toBuffer()
+}
+
+// The Windows icon keeps the platform icon artwork (accent mark at 60% of the tile on CANVAS) on an
+// inset tile with a little rounding, as on the Orca icon (tile 80.5% of the canvas, radius 22.4% of
+// the tile). Windows draws these layers at 1:1, so a small layer gets the smallest whole-pixel margin
+// that leaves a transparent ring and a radius near 21% of its tile. At 16 px the 60% mark loses its
+// moon, so that layer draws the native 16 px redraw, like the 16 px favicon layer.
+const windowsIconLayer = (size, margin, radius, mark = { accent: true, scale: 0.6 }) =>
+  ({ width: size, height: size, ink: FOREGROUND, tile: { margin, radius }, ...mark })
+const windowsIconLayers = [
+  windowsIconLayer(16, 1, 3, { nativeMark: true }),
+  windowsIconLayer(24, 1, 4),
+  windowsIconLayer(32, 2, 6),
+  windowsIconLayer(48, 4, 9),
+  windowsIconLayer(64, 6, 11),
+  windowsIconLayer(256, 24, 44),
+]
+
+/** The one ICO writer, for favicon.ico and icon.ico. It stores every layer as an embedded PNG, the
+ *  layout Tauri's own icon command writes and every browser Orbit supports reads. A BMP layer costs
+ *  more bytes at 256 and needs an AND mask. The ICONDIR is 6 bytes, each ICONDIRENTRY 16 bytes, and
+ *  a width or height of 0 means 256. */
+function pngLayersToIco(layers) {
+  const header = Buffer.alloc(6)
+  header.writeUInt16LE(1, 2)
+  header.writeUInt16LE(layers.length, 4)
+  let offset = header.length + 16 * layers.length
+  const entries = layers.map(({ size, png }) => {
+    const entry = Buffer.alloc(16)
+    entry.writeUInt8(size >= 256 ? 0 : size, 0)
+    entry.writeUInt8(size >= 256 ? 0 : size, 1)
+    entry.writeUInt16LE(1, 4)
+    entry.writeUInt16LE(32, 6)
+    entry.writeUInt32LE(png.length, 8)
+    entry.writeUInt32LE(offset, 12)
+    offset += png.length
+    return entry
+  })
+  return Buffer.concat([header, ...entries, ...layers.map(({ png }) => png)])
 }
 
 const faviconLayerAssets = [
@@ -285,16 +332,31 @@ async function main() {
   }
 
   const faviconLayers = await Promise.all(
-    faviconLayerAssets.map((asset) =>
-      asset.path ? renderedAssets.get(asset.path) : renderAsset(sources, asset),
-    ),
+    faviconLayerAssets.map(async (asset) => ({
+      size: asset.width,
+      png: asset.path ? renderedAssets.get(asset.path) : await renderAsset(sources, asset),
+    })),
   )
   const faviconPath = join(repositoryRoot, "apps", "web", "app", "favicon.ico")
   await mkdir(dirname(faviconPath), { recursive: true })
-  await writeFile(faviconPath, await pngToIco(faviconLayers))
+  await writeFile(faviconPath, pngLayersToIco(faviconLayers))
+
+  const windowsIconPath = join(repositoryRoot, "apps", "desktop", "src-tauri", "icons", "icon.ico")
+  await mkdir(dirname(windowsIconPath), { recursive: true })
+  await writeFile(
+    windowsIconPath,
+    pngLayersToIco(
+      await Promise.all(
+        windowsIconLayers.map(async (asset) => ({
+          size: asset.width,
+          png: await renderAsset(sources, asset),
+        })),
+      ),
+    ),
+  )
 
   console.log(
-    `generated ${generatedAssets.length + 1} brand assets from design/brand/orbit-mark.svg, orbit-mark-accent.svg and orbit-mark-16.svg`,
+    `generated ${generatedAssets.length + 2} brand assets from design/brand/orbit-mark.svg, orbit-mark-accent.svg and orbit-mark-16.svg`,
   )
 }
 
