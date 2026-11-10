@@ -43,7 +43,9 @@ export async function startProxy({ token, probePath, port, upstreamPort, closeCo
         if (response.headersSent) response.destroy()
         else response.writeHead(502).end()
       }
-      const proxy = request({ host: '127.0.0.1', port: upstreamPort, path: incoming.url, method: incoming.method,
+      // No pooled upstream socket: the web server closes an idle one at its 5 s keep-alive timeout, and a
+      // request written onto it at that moment fails with "socket hang up", which Node never retries for a POST.
+      const proxy = request({ host: '127.0.0.1', port: upstreamPort, path: incoming.url, method: incoming.method, agent: false,
         headers: { ...incoming.headers, host: tls ? incoming.headers.host : `127.0.0.1:${port}`, 'accept-encoding': 'identity',
           ...(token ? { cookie: `auth_token=${token}; i18n_locale=en` } : {}), ...(tls ? { 'x-forwarded-proto': 'https' } : {}) } }, (upstream) => {
         upstream.on('error', failUpstream)
