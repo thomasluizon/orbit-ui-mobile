@@ -55,3 +55,33 @@ export const partitionDefects = ({ modules, shards }) => {
     unknown: [...counts.keys()].filter((module) => !known.has(module)),
   }
 }
+
+/** Every shard prints one line that starts with this marker, then a JSON object, at the end of its run. */
+export const TIMINGS_MARKER = "# tool-timings "
+
+/**
+ * Merge the timing lines of every shard in a CI log into one table.
+ * A module runs in one shard, so its seconds come from one line. `fixedSeconds` is the largest per-shard overhead.
+ * Returns null when the text holds no timing line.
+ */
+export const mergeTimingLines = (text) => {
+  const seconds = {}
+  let fixedSeconds = 0
+  let lines = 0
+  for (const line of text.split("\n")) {
+    const at = line.indexOf(TIMINGS_MARKER)
+    if (at === -1) continue
+    const timing = JSON.parse(line.slice(at + TIMINGS_MARKER.length))
+    Object.assign(seconds, timing.seconds)
+    fixedSeconds = Math.max(fixedSeconds, timing.fixedSeconds)
+    lines++
+  }
+  return lines === 0 ? null : { fixedSeconds, seconds: Object.fromEntries(Object.entries(seconds).sort(([left], [right]) => left.localeCompare(right))) }
+}
+
+/**
+ * The projected CI seconds of the slowest shard: its measured module seconds plus the fixed per-shard overhead.
+ * Seconds are absolute, so a slower harness raises the projection.
+ */
+export const slowestShardSeconds = ({ modules, seconds, fixedSeconds, shards }) =>
+  Math.max(...shards.map((shard) => fixedSeconds + shardSeconds({ modules, seconds, shard })))

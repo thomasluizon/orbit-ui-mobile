@@ -5,7 +5,7 @@ import { dirname, join } from "node:path"
 import { performance } from "node:perf_hooks"
 import { fileURLToPath } from "node:url"
 
-import { parseShard, partitionModules } from "./lib/test-shards.mjs"
+import { mergeTimingLines, parseShard, partitionModules, TIMINGS_MARKER } from "./lib/test-shards.mjs"
 
 const startedAt = performance.now()
 let assertionCount = () => 0
@@ -23,9 +23,11 @@ const USAGE = `usage: test-tools.mjs
   --shard <i/n>  run shard i of n (1-based). The shards partition every case module, so
                  running all n shards runs every module once. Cannot combine with --only
   --list         print the selected case module names, one per line, and exit 0 without running them
-  --write-timings <path>
-                 run the complete gate and write each module's measured seconds to <path>.
-                 The shard partition reads tools/test-tools-timings.json
+  --write-timings <path> --source-run <id>
+                 run nothing: read a CI log from stdin, merge the "# tool-timings" line of every
+                 shard in it, and write the module seconds to <path> with <id> as the source run.
+                 The shard partition reads tools/test-tools-timings.json.
+                 Example: gh run view <id> --log | node tools/test-tools.mjs --write-timings tools/test-tools-timings.json --source-run <id>
   --help, -h     print this usage and exit 0
 
 exit codes: 0 every check passed, 1 a failing check, 2 usage error`
@@ -166,7 +168,6 @@ const REPOSITORY_CASE_MODULES = [
 ]
 
 const TIMINGS_PATH = join(TOOLS_DIR, "test-tools-timings.json")
-const REGENERATE_TIMINGS = "node tools/test-tools.mjs --write-timings tools/test-tools-timings.json"
 
 const usageError = (message) => {
   console.error(`test-tools: ${message}\n`)
@@ -178,18 +179,20 @@ const requestedModules = []
 let shardText
 let listOnly = false
 let timingsOutputPath
+let sourceRun
 for (let index = 2; index < process.argv.length; index++) {
   const argument = process.argv[index]
   if (argument === "--list") {
     listOnly = true
-  } else if (argument === "--only" || argument === "--shard" || argument === "--write-timings") {
+  } else if (argument === "--only" || argument === "--shard" || argument === "--write-timings" || argument === "--source-run") {
     const value = process.argv[++index]
     if (!value || value.startsWith("-")) {
-      usageError(`${argument} requires ${argument === "--only" ? "a case-module name" : argument === "--shard" ? "a value like 2/4" : "an output path"}`)
+      usageError(`${argument} requires ${{ "--only": "a case-module name", "--shard": "a value like 2/4", "--write-timings": "an output path", "--source-run": "a run id" }[argument]}`)
     }
     if (argument === "--only") requestedModules.push(value)
     else if (argument === "--shard") shardText = value
-    else timingsOutputPath = value
+    else if (argument === "--write-timings") timingsOutputPath = value
+    else sourceRun = value
   } else {
     usageError(`unknown option: ${argument}`)
   }
@@ -197,7 +200,16 @@ for (let index = 2; index < process.argv.length; index++) {
 const shard = shardText === undefined ? null : parseShard(shardText)
 if (shardText !== undefined && !shard) usageError(`--shard needs i/n with 1 <= i <= n, got ${shardText}`)
 if (shard && requestedModules.length > 0) usageError("--shard cannot combine with --only")
-if (timingsOutputPath && (shard || requestedModules.length > 0)) usageError("--write-timings needs the complete gate, so it cannot combine with --only or --shard")
+if (timingsOutputPath && (shard || requestedModules.length > 0 || listOnly)) usageError("--write-timings runs nothing, so it cannot combine with --only, --shard or --list")
+if (timingsOutputPath && !/^\d+$/.test(sourceRun ?? "")) usageError("--write-timings needs --source-run <numeric run id>")
+if (sourceRun !== undefined && !timingsOutputPath) usageError("--source-run only goes with --write-timings")
+if (timingsOutputPath) {
+  const merged = mergeTimingLines(readFileSync(0, "utf8"))
+  if (!merged) usageError(`stdin holds no "${TIMINGS_MARKER.trim()}" line`)
+  const previous = JSON.parse(readFileSync(TIMINGS_PATH, "utf8"))
+  writeFileSync(timingsOutputPath, `${JSON.stringify({ ...previous, sourceRun: Number(sourceRun), ...merged }, null, 2)}\n`)
+  process.exit(0)
+}
 
 const validModules = [...CASE_MODULES, ...REPOSITORY_CASE_MODULES].map(([, module]) => module)
 const unknownModules = [...new Set(requestedModules.filter((name) => !validModules.includes(name)))]
@@ -441,15 +453,16 @@ T(
 
 const printedTally = assertionTally()
 const failures = failureCount()
-if (timingsOutputPath) {
-  const seconds = Object.fromEntries(
-    Object.entries(moduleSeconds).sort(([left], [right]) => left.localeCompare(right)).map(([module, value]) => [module, Math.round(value * 10) / 10]),
-  )
-  writeFileSync(timingsOutputPath, `${JSON.stringify({ regenerate: REGENERATE_TIMINGS, seconds }, null, 2)}\n`)
-}
 console.log("\n# assertion coverage")
 for (const [tool, count] of Object.entries(printedTally).sort(([left], [right]) => left.localeCompare(right))) {
   console.log(`${String(count).padStart(4)}  ${tool}`)
 }
+// One machine-readable line per run: `--write-timings` merges these lines from a CI log into tools/test-tools-timings.json.
+const roundedSeconds = (value) => Math.round(value * 10) / 10
+const measuredModuleSeconds = Object.fromEntries(
+  Object.entries(moduleSeconds).sort(([left], [right]) => left.localeCompare(right)).map(([module, value]) => [module, roundedSeconds(value)]),
+)
+const fixedSeconds = (performance.now() - startedAt) / 1000 - Object.values(moduleSeconds).reduce((total, value) => total + value, 0)
+console.log(`${TIMINGS_MARKER}${JSON.stringify({ shard: shardText ?? "all", fixedSeconds: roundedSeconds(fixedSeconds), seconds: measuredModuleSeconds })}`)
 console.log(`\n${failures === 0 ? "ORBIT TOOLS GATE OK" : `ORBIT TOOLS GATE FAILED (${failures})`}`)
 process.exit(failures === 0 ? 0 : 1)

@@ -94,15 +94,19 @@ jobs:
       - run: npm run build
 
   # Each shard runs a deterministic share of the tools harness case modules.
-  # tools/test-tools-timings.json sizes the shards. Tool and Hook Tests below keeps the required check name.
+  # tools/test-tools-timings.json holds CI seconds per module from PR Tests run 42915781433, and the
+  # tools harness fails when the slowest shard no longer fits. Tool and Hook Tests below keeps the required check name.
+  # Run 42915781433 took 2:43 to 5:13 end to end per shard, and the harness step took 116 to 264 s.
+  # The 8 minute limit is the slowest end to end time of 313 s times 1.5, rounded up to whole minutes.
   tool-tests:
     name: Tool tests (${{ matrix.shard }}/${{ matrix.total }})
     runs-on: ubuntu-latest
+    timeout-minutes: 8
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5]
-        total: [5]
+        shard: [1, 2, 3, 4]
+        total: [4]
     steps:
       - uses: actions/checkout@v7
 
@@ -143,7 +147,7 @@ jobs:
         run: npm ls --all
 
       - name: Test CI workflow behavior
-        run: node --test .github/scripts/check-web-test-budget.test.mjs tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs tools/__tests__/npm-cache-workflows.test.mjs .github/scripts/check-pr-metadata.test.mjs .github/scripts/desktop-build-workflow.test.mjs .github/scripts/unit-tests-workflow.test.mjs .github/scripts/tool-tests-workflow.test.mjs .github/scripts/release-admission.test.mjs
+        run: node --test .github/scripts/check-web-test-budget.test.mjs tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs tools/__tests__/npm-cache-workflows.test.mjs .github/scripts/check-pr-metadata.test.mjs .github/scripts/desktop-build-workflow.test.mjs .github/scripts/unit-tests-workflow.test.mjs .github/scripts/release-admission.test.mjs
 
       # This step owns the full-tree graphic floor assertion outside cached unit shards.
       # Other findings stay advisory; graphic floor findings and scanner errors fail.
