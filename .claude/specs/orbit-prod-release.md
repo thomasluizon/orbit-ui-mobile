@@ -50,6 +50,7 @@ Operating facts for workers, CI, merges, releases, consoles and devices are in `
 ### Platforms and releases
 
 - Route all work to `main` in every repository; `redesign/main` is retired.
+- iOS and Android ship together: the same `main` commit and the same user-facing version, with each store keeping its own build counter. A platform-only release is only for a defect specific to that platform (owner order, `#2106`).
 - Nothing deploys on a merge or a push; `/release` and `/android-release` own every deploy. Android fixes merged to `main` ship to the Open track, Orbit's main Android channel. The production track stays empty until the owner orders a launch.
 - The beta fleet permits a simpler deploy order while the owner is the only user, including relaxing deploy-API-first. Keep the full code contract.
 - The live Astra eval gate (`#315`) runs once, after every other ticket that changes the code is done and the `#1916` call-cost fix is live, with one attempt per case and failing cases rerun once. Its eval spend ceiling is 2 USD for that run and returns to 0.50 USD a day after it; fix rounds replay recorded provider responses offline. No paid-key probe runs without a written cost estimate. The iOS app does not hold the gate.
@@ -124,7 +125,8 @@ A deletion ships as a deprecation, then a code removal, then a table drop, each 
 ### Batch 8: new platforms, iOS first, then desktop
 
 - `#1561` Ship Orbit for iPhone and iPad to TestFlight, with push and the home-screen widget, and the production app on the owner's iPhone (owner order). The iPhone app is a launch requirement. Next: `ui#2414` (an iOS Release step that waits for processing and links every tester of the team's internal groups into the app's all-builds internal group; no `/v1/users`) is at `0b3523681` (CodeQL alert 57 fixed in the test; alert 56 dismissed as a false positive: the key id is the public JWT `kid`); request the review when CI is green; after merge, a production iOS Release from `main` (1.3.152 (2)), read its `TestFlight access` summary, then the real-device checks once the owner installs it. The iPad findings in the ticket comments (unread badge font scale, "Widget do Android" label) stay in scope.
-- `#2097` Submit Orbit for iPhone and iPad to App Review with manual release (owner order). Next: the API has no App Privacy resource, so the first submission goes through the App Store Connect web app in Chrome after the owner signs in once (the tab is open on the login page); write the listing in both locales with `/second-opinion` approval, capture screenshots on simulators (6.9-inch iPhone, 13-inch iPad), complete the subscriptions, review details and App Privacy, and submit the newest valid production build with manual release.
+- `#2097` Submit Orbit for iPhone and iPad to App Review with manual release (owner order). Next: the API has no App Privacy resource, so the first submission goes through the App Store Connect web app in Chrome, where the owner is signed in; write the listing in both locales with `/second-opinion` approval, capture screenshots on simulators (6.9-inch iPhone, 13-inch iPad), complete the subscriptions, review details and App Privacy, and submit the newest valid production build with manual release.
+- `#2106` Release the iPhone and Android apps together under one version number (owner order). Next: launch a worker.
 - `#1563` Show the App Store badge and the Mac and Windows downloads on the landing page. Next: `landing#127` is live in production landing `7fb212c42`; the App Store card follows the App Store listing (`#1561`).
 
 ## How the work runs
@@ -175,7 +177,7 @@ Latest handoff: a relay with the chain open, the run in `/sleep` with `crank: tr
 
 ## Open questions
 
-Open, for the owner: sign in to App Store Connect once in the Chrome tab the run opened (password and 2FA are his); it blocks the `#2097` App Privacy answers and the first App Review submission. The landing plan is approved and lives in `#2091`, `#2090`, `#2095` and `#2096`. Owner-only steps, never reminded: cancel the second Claude account on 4 December 2026; cancel ChatGPT Plus if it still bills; open TestFlight for the `#1561` device checks; record the `#33` videos when the run asks.
+Open, for the owner: none. The owner signed in to App Store Connect in Chrome. The landing plan is approved and lives in `#2091`, `#2090`, `#2095` and `#2096`. Owner-only steps, never reminded: cancel the second Claude account on 4 December 2026; cancel ChatGPT Plus if it still bills; open TestFlight for the `#1561` device checks; record the `#33` videos when the run asks.
 
 Settled decisions that still bind:
 
