@@ -156,6 +156,14 @@ if (process.platform === 'darwin') {
     assert.deepEqual(JSON.parse(capture.stdout), { windows: [] })
     assert.equal(spawnSync(reader, ['1', 'notification', 'title'], { encoding: 'utf8', timeout: 10000 }).status, 2)
     assert.equal(spawnSync(reader, ['1', 'windows', 'extra'], { encoding: 'utf8', timeout: 10000 }).status, 2)
+    // The bundles command takes one bundle identifier and answers in the shape that keepInstalledLaunchCopy reads.
+    const unknown = spawnSync(reader, ['0', 'bundles', 'org.useorbit.acceptance.unregistered'], { encoding: 'utf8', timeout: 10000 })
+    assert.equal(unknown.status, 0, unknown.stderr)
+    assert.deepEqual(JSON.parse(unknown.stdout), { copies: [], best: null })
+    const finder = JSON.parse(spawnSync(reader, ['0', 'bundles', 'com.apple.finder'], { encoding: 'utf8', timeout: 10000 }).stdout)
+    assert.equal(finder.best, finder.copies[0])
+    assert.match(finder.best, /\/Finder\.app$/)
+    assert.equal(spawnSync(reader, ['0', 'bundles'], { encoding: 'utf8', timeout: 10000 }).status, 2)
   })
 }
 

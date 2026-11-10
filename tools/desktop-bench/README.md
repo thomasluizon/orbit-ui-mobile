@@ -271,6 +271,13 @@ sign-in page, so cleanup stops it on every outcome. Its first page load finds a 
 refresh and goes to sign-in, which must show in a visible window. The mock must record no habit log
 for that reminder.
 
+On macOS, usernoted starts the shell for that Done at the copy that LaunchServices finds for the bundle
+identifier. The build output registers a second copy, and LaunchServices can rank it first. Thus, right
+after the install, the runner reads every registered copy from the AX helper's `bundles` command. It
+unregisters each present copy in the repository or the output directory with `lsregister -u` and
+deletes it. Then LaunchServices must rank `/Applications/Orbit Staging.app` first, or the run fails.
+`report.json` `install.launchServices` keeps the removed copies.
+
 Each run keeps the platform evidence that the notification readers use, also when a match fails:
 
 - `codesign-entitlements.stdout.log` and `codesign-entitlements.stderr.log` keep the raw macOS

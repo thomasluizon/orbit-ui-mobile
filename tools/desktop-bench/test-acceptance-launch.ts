@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import { test } from 'node:test'
-import { activateUnelevated, activationStatus, launchStatus, launchUnelevated } from './acceptance-platform.mjs'
+import { activateUnelevated, activationStatus, keepInstalledLaunchCopy, launchStatus, launchUnelevated } from './acceptance-platform.mjs'
 
 // The High modes compile the launcher's native types from windows-unelevated.cs beside the script, so both reach the output.
 const launcherCopies = [[fileURLToPath(new URL('./windows-unelevated.ps1', import.meta.url)), join('/output', 'windows-unelevated.ps1')],
@@ -356,4 +356,58 @@ test('the Windows notify mode records a COM failure with its HRESULT for an acti
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }
+})
+
+// LaunchServices answers in the shape of the AX helper's `bundles` reply: every registered copy, best match first. The fake
+// ranks a present copy first; the harness itself fails when the real ranking names any copy but the installed one.
+function launchServices(copies: string[], { keepsRemoved = false, missing = [] as string[] } = {}) {
+  const calls: string[][] = []
+  const host = {
+    exists: async (path: string) => !missing.includes(path),
+    execute: async (command: string, args: string[]) => {
+      calls.push([command, ...args])
+      if (command === '/usr/libexec/PlistBuddy') return 'org.useorbit.desktop.staging\n'
+      if (!keepsRemoved && args[0] === '-u') copies.splice(copies.indexOf(args[1]!), 1)
+      return ''
+    },
+    bundles: async (identifier: string) => { calls.push(['bundles', identifier]); return { copies: copies.slice(), best: copies.find((path) => !missing.includes(path)) ?? null } },
+    remove: async (path: string) => { calls.push(['remove', path]) },
+  }
+  return { host, calls }
+}
+
+const installedApp = '/Applications/Orbit Staging.app'
+const buildApp = '/work/orbit/apps/desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Orbit Staging.app'
+const lsregister = '/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister'
+
+test('a notification Done can start only the installed copy, because the build copy leaves LaunchServices before the push phase', async () => {
+  // usernoted started the build copy for the expired-session Done of run 42704572115, which LaunchServices ranked first.
+  const { host, calls } = launchServices([buildApp, installedApp])
+  assert.deepEqual(await keepInstalledLaunchCopy(installedApp, ['/work/orbit', '/work/_temp/output'], host),
+    { identifier: 'org.useorbit.desktop.staging', removed: [buildApp], best: installedApp })
+  assert.deepEqual(calls, [
+    ['/usr/libexec/PlistBuddy', '-c', 'Print :CFBundleIdentifier', `${installedApp}/Contents/Info.plist`],
+    ['bundles', 'org.useorbit.desktop.staging'],
+    [lsregister, '-u', buildApp],
+    ['remove', buildApp],
+    ['bundles', 'org.useorbit.desktop.staging'],
+  ])
+})
+
+test('the launch copy check leaves a vanished disk image copy alone, because lsregister -u exits 1 for a missing path', async () => {
+  const mounted = '/work/_temp/output/mounted/Orbit Staging.app'
+  const { host, calls } = launchServices([buildApp, mounted, installedApp], { missing: [mounted] })
+  assert.deepEqual(await keepInstalledLaunchCopy(installedApp, ['/work/orbit', '/work/_temp/output'], host),
+    { identifier: 'org.useorbit.desktop.staging', removed: [buildApp], best: installedApp })
+  assert.equal(calls.some((call) => call.includes(mounted)), false)
+})
+
+test('the launch copy check refuses a copy outside the harness directories and a copy LaunchServices still ranks first', async () => {
+  const foreign = launchServices(['/opt/elsewhere/Orbit Staging.app', installedApp])
+  await assert.rejects(() => keepInstalledLaunchCopy(installedApp, ['/work/orbit', '/work/_temp/output'], foreign.host),
+    /^Error: LaunchServices lists org\.useorbit\.desktop\.staging at \/opt\/elsewhere\/Orbit Staging\.app, outside the installed app and the harness directories$/)
+  assert.equal(foreign.calls.some(([command]) => command === lsregister || command === 'remove'), false, 'nothing outside the build is changed')
+  const kept = launchServices([buildApp, installedApp], { keepsRemoved: true })
+  await assert.rejects(() => keepInstalledLaunchCopy(installedApp, ['/work/orbit', '/work/_temp/output'], kept.host),
+    new RegExp(`^Error: LaunchServices still ranks .*Orbit Staging\\.app first for org\\.useorbit\\.desktop\\.staging, not ${installedApp.replaceAll('.', '\\.')}`))
 })

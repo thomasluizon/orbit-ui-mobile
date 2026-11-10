@@ -112,6 +112,30 @@ export async function install(installer, output) {
   return '/Applications/Orbit Staging.app/Contents/MacOS/orbit-desktop'
 }
 
+const lsregister = '/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister'
+
+// usernoted starts the app for a notification response at the copy that LaunchServices finds for the bundle identifier, and
+// NSWorkspace.h says that lookup "uses various heuristics in case multiple apps have the same bundle ID". The build output
+// registers a second copy, and in run 42704572115 the expired-session Done started it, which the installed-path lookup never
+// finds. Thus every copy in a harness directory leaves LaunchServices and the disk, and the installed copy must then rank first.
+// lsregister -u exits 1 for a path that no longer exists, such as a detached disk image, so only present copies are unregistered.
+export async function keepInstalledLaunchCopy(application, harnessDirectories, host) {
+  const identifier = (await host.execute('/usr/libexec/PlistBuddy', ['-c', 'Print :CFBundleIdentifier', join(application, 'Contents/Info.plist')])).trim()
+  const others = (await host.bundles(identifier)).copies.filter((path) => path !== application)
+  const foreign = others.filter((path) => !harnessDirectories.some((directory) => path.startsWith(`${directory}/`)))
+  if (foreign.length) throw new Error(`LaunchServices lists ${identifier} at ${foreign.join(', ')}, outside the installed app and the harness directories`)
+  const removed = []
+  for (const path of others) {
+    if (!await host.exists(path)) continue
+    await host.execute(lsregister, ['-u', path])
+    await host.remove(path)
+    removed.push(path)
+  }
+  const { best } = await host.bundles(identifier)
+  if (best !== application) throw new Error(`LaunchServices still ranks ${best} first for ${identifier}, not ${application}`)
+  return { identifier, removed, best }
+}
+
 // The desktop-staging environment supplies these to a same-repository macOS job; a fork pull request receives none.
 const signingNames = ['MACOS_DEVELOPER_ID_CERTIFICATE_BASE64', 'MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD', 'MACOS_PROVISIONING_PROFILE_BASE64', 'MACOS_SIGNING_IDENTITY']
 

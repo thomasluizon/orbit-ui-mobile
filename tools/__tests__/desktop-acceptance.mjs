@@ -170,6 +170,7 @@ async function installedLaunchCases() {
   const pushCalls = []
   const builtWith = []
   const captions = []
+  const launchCopies = []
   const events = [{ kind: 'hoje', nativeVersion: '1.0.0' }]
   let recorded
   let settings = {}
@@ -186,7 +187,11 @@ async function installedLaunchCases() {
     buildInstaller: async (_repository, _output, signing) => { builtWith.push(signing); return {} }, hermeticServices: async () => {}, nativeTool: async () => () => {},
     updateServer: async () => ({ route() {}, mode() {}, cookieEvidence() {} }),
     isolateOrigins: async () => ({ restore() {} }), lookup: async () => [{ address: '127.0.0.1' }],
-    startProxy: async () => proxy, install: async () => '/fixture/Orbit',
+    startProxy: async () => proxy, install: async () => '/fixture/Orbit.app/Contents/MacOS/orbit-desktop', dirname, execute: async () => '',
+    keepInstalledLaunchCopy: async (application, directories) => {
+      launchCopies.push({ application, directories, launches: launches.length })
+      return { identifier: 'org.useorbit.desktop.staging', removed: [], best: application }
+    },
     installedLaunch: (_executable, _output, name) => { launches.push(settings.expectAuthenticated === true); return { name } },
     waitFor: async (read, label) => { const result = read(); if (!result) throw new Error(`Timed out waiting for ${label}`); return result },
     inspectSurfaces: async () => {}, inspectCaption: async (_proxy, _native, handle) => { captions.push(handle.name) }, quit: async () => {}, recordKeys: (native) => native,
@@ -208,6 +213,9 @@ async function installedLaunchCases() {
   await context.acceptance({ repository: '/fixture', output: '/output', credentials })
   T('an unsigned macOS run reports the missing signing material as its reason', builtWith[2] === null && recorded.signing.unsigned === 'fixture unsigned reason')
   T('a macOS run keeps its native title bar out of the caption check', captions.length === 1, JSON.stringify(captions))
+  T('each macOS run leaves only the installed app in LaunchServices before its first launch, and a Windows run never asks',
+    launchCopies.map((call) => call.launches).join(',') === '3,6' && launchCopies.every((call) => call.application === '/fixture/Orbit.app' &&
+      JSON.stringify(call.directories) === '["/fixture","/output"]') && recorded.install.launchServices.best === '/fixture/Orbit.app', JSON.stringify(launchCopies))
   Object.assign(context, { windows: true })
   pushCalls.length = 0
   launches.length = 0
