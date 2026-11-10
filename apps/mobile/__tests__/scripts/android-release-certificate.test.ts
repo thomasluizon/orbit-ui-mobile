@@ -1,9 +1,10 @@
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execFile, spawnSync } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { promisify } from 'node:util'
 import { fileURLToPath, URL } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -18,23 +19,35 @@ const directory = mkdtempSync(join(tmpdir(), 'orbit-signing-certificate-'))
 const fixturePassword = randomBytes(16).toString('hex')
 const fixtureEnv = { ...process.env, ANDROID_KEYSTORE_PASSWORD: fixturePassword, ANDROID_KEY_ALIAS: 'upload' }
 
+const execFileAsync = promisify(execFile)
+
 function runJavaTool(command: string, args: string[]) {
-  return execFileSync(command, args, { cwd: directory, env: fixtureEnv, stdio: 'pipe' })
+  return execFileAsync(command, args, { cwd: directory, env: fixtureEnv })
 }
 
-beforeAll(() => {
-  for (const alias of ['upload', 'other']) {
-    runJavaTool('keytool', ['-genkeypair', '-alias', alias, '-keyalg', 'RSA', '-keysize', '2048',
-      '-dname', 'CN=Signing Fixture', '-validity', '1', '-keystore', 'upload-keystore.jks', '-storetype', 'JKS',
-      '-storepass:env', 'ANDROID_KEYSTORE_PASSWORD', '-keypass:env', 'ANDROID_KEYSTORE_PASSWORD'])
-  }
+function generateKeystore(alias: string, keystore: string) {
+  return runJavaTool('keytool', ['-genkeypair', '-alias', alias, '-keyalg', 'RSA', '-keysize', '2048',
+    '-dname', 'CN=Signing Fixture', '-validity', '1', '-keystore', keystore, '-storetype', 'JKS',
+    '-storepass:env', 'ANDROID_KEYSTORE_PASSWORD', '-keypass:env', 'ANDROID_KEYSTORE_PASSWORD'])
+}
+
+function signArchive(keystore: string, signedArchive: string, archive: string, alias: string) {
+  return runJavaTool('jarsigner', ['-keystore', keystore, '-storepass:env', 'ANDROID_KEYSTORE_PASSWORD',
+    '-keypass:env', 'ANDROID_KEYSTORE_PASSWORD', '-signedjar', signedArchive, archive, alias])
+}
+
+beforeAll(async () => {
   writeFileSync(join(directory, 'payload.txt'), 'signed fixture')
-  runJavaTool('jar', ['--create', '--file', 'unsigned.aab', 'payload.txt'])
-  const signingArgs = ['-keystore', 'upload-keystore.jks', '-storepass:env', 'ANDROID_KEYSTORE_PASSWORD',
-    '-keypass:env', 'ANDROID_KEYSTORE_PASSWORD']
-  runJavaTool('jarsigner', [...signingArgs, '-signedjar', 'matching.aab', 'unsigned.aab', 'upload'])
-  runJavaTool('jarsigner', [...signingArgs, '-signedjar', 'mismatched.aab', 'unsigned.aab', 'other'])
-  runJavaTool('jarsigner', [...signingArgs, '-signedjar', 'multiple-signers.aab', 'matching.aab', 'other'])
+  await Promise.all([
+    generateKeystore('upload', 'upload-keystore.jks'),
+    generateKeystore('other', 'other-keystore.jks'),
+    runJavaTool('jar', ['--create', '--file', 'unsigned.aab', 'payload.txt']),
+  ])
+  await Promise.all([
+    signArchive('upload-keystore.jks', 'matching.aab', 'unsigned.aab', 'upload'),
+    signArchive('other-keystore.jks', 'mismatched.aab', 'unsigned.aab', 'other'),
+  ])
+  await signArchive('other-keystore.jks', 'multiple-signers.aab', 'matching.aab', 'other')
 })
 
 afterAll(() => rmSync(directory, { recursive: true, force: true }))

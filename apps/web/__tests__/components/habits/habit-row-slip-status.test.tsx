@@ -43,12 +43,12 @@ describe.each(['en', 'pt-BR'] as const)('bad-habit status in %s', (language) => 
     expect(screen.getByRole('button', { name: pending + progress })).toBeInTheDocument()
   })
 
-  it.each([false, true])('announces selection glyph status, parent=%s', (parent) => {
+  it.each([false, true])('renders no status glyph in select mode, parent=%s', (parent) => {
     locale.current = language
     for (const logged of ['none', 'completed', 'range'] as const) {
-      const status = logged !== 'none' ? (language === 'en' ? 'Slipped' : 'Deslize') : (language === 'en' ? 'Not done' : 'Não feito')
-      const { unmount } = render(<LoggingRow parent={parent} selectMode logged={logged} />)
-      expect(screen.getByRole('img', { name: status + (parent ? ', 1/2' : '') })).toBeInTheDocument()
+      const { container, unmount } = render(<LoggingRow parent={parent} selectMode logged={logged} />)
+      expect(screen.queryByRole('img')).toBeNull()
+      expect(container.querySelector('[data-habit-check]')).toBeNull()
       unmount()
     }
   })
