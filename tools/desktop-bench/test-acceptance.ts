@@ -16,6 +16,7 @@ import * as releaseModule from '../../apps/desktop/scripts/release'
 import { assertAccessibleTree, corruptSignature } from './acceptance-contract.mjs'
 import * as acceptanceContract from './acceptance-contract.mjs'
 import { takeSigningMaterial } from './acceptance-platform.mjs'
+import { runChild } from './child-limit.mjs'
 
 const vector = JSON.parse(readFileSync(new URL('../../apps/desktop/__fixtures__/signer-vector.json', import.meta.url), 'utf8')) as { payload: string; signature: string; publicKey: string; version: string }
 const bytes = Buffer.from(vector.payload)
@@ -56,7 +57,7 @@ for (const target of ['aarch64-apple-darwin', 'x86_64-apple-darwin', 'x86_64-pc-
       }
       const execute = async (command: string, args: string[], options: { cwd?: string; env?: NodeJS.ProcessEnv } = {}) => {
         if (args[0] === 'native-build-fixture') return ''
-        const result = spawnSync(command, args, { cwd: options.cwd, env: options.env, encoding: 'utf8', timeout: 10000 })
+        const result = runChild(command, args, { cwd: options.cwd, env: options.env })
         assert.equal(result.status, 0, result.stderr)
         return result.stdout
       }
@@ -249,7 +250,7 @@ $current.BoundingRectangle.Height = 40
 $role = 'Button'; $path = '0/1'; $selection = $false; $failure = $null
 ${appendNode}
 ${serialize}`
-  const capture = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', timeout: 10000 })
+  const capture = runChild('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script])
   assert.equal(capture.status, 0, capture.stderr)
   const snapshot = JSON.parse(capture.stdout)
   assert.deepEqual(snapshot.nodes[0].BoundingRectangle, { X: null, Y: null, Width: null, Height: 40 })
@@ -804,7 +805,7 @@ if (process.platform === 'darwin') {
   assert.equal(compilation.status, 0, compilation.stderr)
   for (const scenario of ['alert-live', 'alert-named', 'alert-children', 'alert-controls', 'empty-live', 'empty-named', 'description-button', 'system-controls', 'separator']) {
     test(`native AX semantics accept ${scenario} without exempting unnamed app controls`, () => {
-      const capture = spawnSync(executable, [scenario], { encoding: 'utf8', timeout: 10000 })
+      const capture = runChild(executable, [scenario])
       assert.equal(capture.status, 0, capture.stderr)
       const snapshot = JSON.parse(capture.stdout)
       assert.equal(snapshot.error, null, JSON.stringify(snapshot))
@@ -833,7 +834,7 @@ if (process.platform === 'darwin') {
   }
   for (const scenario of ['alert-focusable', 'alert-focused', 'alert-button', 'alert-unnamed-control', 'unnamed-button', 'web-system-button', 'empty-focusable', 'empty-focused', 'empty-children', 'empty-generic', 'system-generic', 'system-no-description', 'unnamed-menu', 'disabled-unnamed-menu']) {
     test(`native AX semantics keep ${scenario} failing role and name acceptance`, () => {
-      const capture = spawnSync(executable, [scenario], { encoding: 'utf8', timeout: 10000 })
+      const capture = runChild(executable, [scenario])
       assert.equal(capture.status, 0, capture.stderr)
       const snapshot = JSON.parse(capture.stdout)
       assert.equal(snapshot.error, null)
@@ -850,7 +851,7 @@ if (process.platform === 'darwin') {
   }
   for (const scenario of ['scroll-children', 'scroll-contents', 'scroll-duplicate']) {
     test(`native AX traversal follows ${scenario} to the web area exactly once`, () => {
-      const capture = spawnSync(executable, [scenario], { encoding: 'utf8', timeout: 10000 })
+      const capture = runChild(executable, [scenario])
       assert.equal(capture.status, 0, capture.stderr)
       const snapshot = JSON.parse(capture.stdout)
       assert.equal(snapshot.error, null)
@@ -866,7 +867,7 @@ if (process.platform === 'darwin') {
     const context = inspectionContext('darwin')
     let calls = 0
     const native = async () => {
-      const capture = spawnSync(executable, [++calls === 1 ? 'no-web' : 'scroll-contents'], { encoding: 'utf8', timeout: 10000 })
+      const capture = runChild(executable, [++calls === 1 ? 'no-web' : 'scroll-contents'])
       assert.equal(capture.status, 0, capture.stderr)
       return JSON.parse(capture.stdout)
     }
@@ -879,7 +880,7 @@ if (process.platform === 'darwin') {
   })
   for (const scenario of ['success', 'once', 'twice', 'other', 'attribute-once', 'root-once', 'focusable-once']) {
     test(`native AX traversal ${scenario} preserves the tree and retries only invalid elements once`, () => {
-      const capture = spawnSync(executable, [scenario], { encoding: 'utf8', timeout: 10000 })
+      const capture = runChild(executable, [scenario])
       assert.equal(capture.status, 0, capture.stderr)
       const snapshot = JSON.parse(capture.stdout)
       const failed = scenario === 'twice' || scenario === 'other'

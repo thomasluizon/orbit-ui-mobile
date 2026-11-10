@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import { after, test } from 'node:test'
+import { runChild } from './child-limit.mjs'
 
 // Native notification readers of the push acceptance (#1861): the macOS AX reader, the Windows UIA reader and the
 // windows-unelevated.ps1 Done activator, each driven through its real source with a fixture tree.
@@ -116,7 +117,7 @@ if (process.platform === 'darwin') {
   ] as const) {
     test(`native notification reader ${expected ? 'invokes only the titled notification Done' : 'refuses'} in the ${scenario === 'custom' ? 'recorded' : 'assumed'} ${scenario} layout`, () => {
       for (const invoke of ['1', '0']) {
-        const capture = spawnSync(executable, [scenario, invoke], { encoding: 'utf8', timeout: 10000 })
+        const capture = runChild(executable, [scenario, invoke])
         assert.equal(capture.status, 0, capture.stderr)
         const reply = JSON.parse(capture.stdout) as { found: boolean; invoked: boolean; action?: string; nodes?: { role: string; text: string }[]
           tree: { role: string; parent: number; text: string; actions: string[]; element?: unknown }[] }
@@ -139,31 +140,31 @@ if (process.platform === 'darwin') {
   }
   test('native notification reader presses the menu bar clock only while Notification Center is closed, because the press toggles it', () => {
     for (const [scenario, presses] of [['closed', [{ id: 'clock', action: 'AXPress' }]], ['open', []]] as const) {
-      const capture = spawnSync(executable, [scenario, '0', '1'], { encoding: 'utf8', timeout: 10000 })
+      const capture = runChild(executable, [scenario, '0', '1'])
       assert.equal(capture.status, 0, capture.stderr)
       assert.equal((JSON.parse(capture.stdout) as { found: boolean }).found, false, scenario)
       assert.deepEqual(JSON.parse(capture.stderr), presses, scenario)
     }
-    const unrequested = spawnSync(executable, ['closed', '0', '0'], { encoding: 'utf8', timeout: 10000 })
+    const unrequested = runChild(executable, ['closed', '0', '0'])
     assert.deepEqual(JSON.parse(unrequested.stderr), [], 'a search without openCenter never touches the clock')
   })
   test('native window reader lists only the target process windows with layer and on-screen state', () => {
     const reader = join(directory, 'reader')
     const built = spawnSync('clang', ['-fobjc-arc', '-framework', 'AppKit', '-framework', 'ApplicationServices', fileURLToPath(new URL('./acceptance-ax.m', import.meta.url)), '-o', reader], { encoding: 'utf8', timeout: 30000 })
     assert.equal(built.status, 0, built.stderr)
-    const capture = spawnSync(reader, [String(process.pid), 'windows'], { encoding: 'utf8', timeout: 10000 })
+    const capture = runChild(reader, [String(process.pid), 'windows'])
     assert.equal(capture.status, 0, capture.stderr)
     assert.deepEqual(JSON.parse(capture.stdout), { windows: [] })
-    assert.equal(spawnSync(reader, ['1', 'notification', 'title'], { encoding: 'utf8', timeout: 10000 }).status, 2)
-    assert.equal(spawnSync(reader, ['1', 'windows', 'extra'], { encoding: 'utf8', timeout: 10000 }).status, 2)
+    assert.equal(runChild(reader, ['1', 'notification', 'title']).status, 2)
+    assert.equal(runChild(reader, ['1', 'windows', 'extra']).status, 2)
     // The bundles command takes one bundle identifier and answers in the shape that keepInstalledLaunchCopy reads.
-    const unknown = spawnSync(reader, ['0', 'bundles', 'org.useorbit.acceptance.unregistered'], { encoding: 'utf8', timeout: 10000 })
+    const unknown = runChild(reader, ['0', 'bundles', 'org.useorbit.acceptance.unregistered'])
     assert.equal(unknown.status, 0, unknown.stderr)
     assert.deepEqual(JSON.parse(unknown.stdout), { copies: [], best: null })
-    const finder = JSON.parse(spawnSync(reader, ['0', 'bundles', 'com.apple.finder'], { encoding: 'utf8', timeout: 10000 }).stdout)
+    const finder = JSON.parse(runChild(reader, ['0', 'bundles', 'com.apple.finder']).stdout)
     assert.equal(finder.best, finder.copies[0])
     assert.match(finder.best, /\/Finder\.app$/)
-    assert.equal(spawnSync(reader, ['0', 'bundles'], { encoding: 'utf8', timeout: 10000 }).status, 2)
+    assert.equal(runChild(reader, ['0', 'bundles']).status, 2)
   })
 }
 

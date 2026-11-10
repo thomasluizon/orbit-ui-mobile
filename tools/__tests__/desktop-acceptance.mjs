@@ -11,6 +11,7 @@ import { assertAccessibleTree, assertCookieEvidence, assertPaletteFocus } from '
 import { T, REPO_ROOT, check, configure, failureCount, root, stage } from './_harness.mjs'
 import { networkCases } from './desktop-acceptance-network.mjs'
 import { pushPhaseCases } from './desktop-acceptance-push.mjs'
+import { runChild } from '../desktop-bench/child-limit.mjs'
 
 function rejects(label, operation) {
   let failure
@@ -460,7 +461,7 @@ int main(int argc, const char *argv[]) {
   const compilation = spawnSync('clang', ['-fobjc-arc', '-framework', 'AppKit', '-framework', 'ApplicationServices', fixture, '-o', executable], { encoding: 'utf8', timeout: 30000 })
   T('macOS keyboard producer compiles with event posting and keyboard focus intercepted', compilation.status === 0, compilation.stderr)
   const run = (scenario) => {
-    const capture = spawnSync(executable, [scenario], { encoding: 'utf8', timeout: 10000 })
+    const capture = runChild(executable, [scenario])
     T(`macOS keyboard producer runs the ${scenario} scenario without opening an app`, capture.status === 0, capture.stderr)
     return JSON.parse(capture.stdout)
   }
@@ -857,6 +858,8 @@ export async function cases() {
   T('reader acceptance regressions exercise the native notification readers and the Windows Done activator', readerFixture.status === 0, readerFixture.stderr || readerFixture.stdout)
   const launchFixture = spawnSync(process.execPath, ['--import', 'tsx', join(REPO_ROOT, 'tools/desktop-bench/test-acceptance-launch.ts')], { cwd: REPO_ROOT, encoding: 'utf8', timeout: 60000 })
   T('launch acceptance regressions exercise the Medium-integrity Windows launcher', launchFixture.status === 0, launchFixture.stderr || launchFixture.stdout)
+  const childLimitFixture = spawnSync(process.execPath, ['--import', 'tsx', join(REPO_ROOT, 'tools/desktop-bench/test-child-limit.ts')], { cwd: REPO_ROOT, encoding: 'utf8', timeout: 60000 })
+  T('child limit regressions let a harness child outlast the old 10 s limit and name the measured limit on a timeout', childLimitFixture.status === 0, childLimitFixture.stderr || childLimitFixture.stdout)
   if (process.platform === 'darwin') {
     const compilation = spawnSync('clang', ['-fsyntax-only', '-fobjc-arc', join(REPO_ROOT, 'tools/desktop-bench/acceptance-ax.m')], { encoding: 'utf8', timeout: 30000 })
     T('macOS accessibility reader compiles against the installed SDK without opening an app', compilation.status === 0, compilation.stderr)
@@ -946,8 +949,8 @@ export async function cases() {
   T('APNs values reach only the signed macOS job, and WNS values only the job that runs Windows',
     ['ORBIT_APPLE_TEAM_ID', 'ORBIT_APNS_KEY_ID', 'ORBIT_APNS_PRIVATE_KEY'].every((name) => signed.includes(`${name}: `) && !unsigned.includes(name)) &&
       ['ORBIT_DESKTOP_WNS_OBJECT_ID', 'ORBIT_WNS_TENANT_ID', 'ORBIT_WNS_CLIENT_ID', 'ORBIT_WNS_CLIENT_SECRET'].every((name) => unsigned.includes(`${name}: `) && !signed.includes(name)))
-  T('the native producer step runs the acceptance, caption, push, reader and launch acceptance regressions in both jobs',
-    ['test-acceptance.ts', 'test-acceptance-caption.ts', 'test-acceptance-push.ts', 'test-acceptance-readers.ts', 'test-acceptance-launch.ts'].every((file) => setup.includes(`node --import tsx tools/desktop-bench/${file}`)) &&
+  T('the native producer step runs the acceptance, caption, push, reader, launch and child limit regressions in both jobs',
+    ['test-acceptance.ts', 'test-acceptance-caption.ts', 'test-acceptance-push.ts', 'test-acceptance-readers.ts', 'test-acceptance-launch.ts', 'test-child-limit.ts'].every((file) => setup.includes(`node --import tsx tools/desktop-bench/${file}`)) &&
       [unsigned, signed].every((text) => text.includes('uses: ./.github/actions/desktop-acceptance-setup')) &&
       workflow.includes("- '.github/actions/desktop-acceptance-setup/**'"))
 }
