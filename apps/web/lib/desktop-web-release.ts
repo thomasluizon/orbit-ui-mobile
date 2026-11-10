@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { captureException } from '@sentry/nextjs'
+import { isNetworkUnavailableError } from '@orbit/shared/utils'
 import { getQueryClient } from '@/lib/query-client'
 import { getHeldAccountId } from '@/stores/auth-store'
 import { useChatStore } from '@/stores/chat-store'
@@ -69,15 +70,14 @@ export function watchDesktopWebRelease(version: string, commit: string | null, o
   async function check() {
     if (checking || stopped) return
     checking = true
+    const pollSignal = AbortSignal.any([controller.signal, AbortSignal.timeout(10_000)])
     try {
-      const response = await fetch('/api/desktop-release', {
-        cache: 'no-store', signal: AbortSignal.any([controller.signal, AbortSignal.timeout(10_000)]),
-      })
+      const response = await fetch('/api/desktop-release', { cache: 'no-store', signal: pollSignal })
       if (!response.ok) throw new Error(`Cannot check desktop web release: ${response.status}`)
       const release = desktopWebReleaseSchema.parse(await response.json())
       if (!controller.signal.aborted) pending = release
     } catch (error) {
-      if (!controller.signal.aborted) captureException(error)
+      if (!pollSignal.aborted && !isNetworkUnavailableError(error)) captureException(error)
     } finally { checking = false }
   }
 
