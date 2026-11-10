@@ -135,7 +135,7 @@ export function parseDatePhrase(input: string, context: DatePhraseContext): Date
   if (context.timeZone === undefined || !isCalendarDate(context.referenceDate)) return { status: 'unavailable' }
   const numeric = numericDate(phrase, context)
   if (numeric) return numeric
-  if (/\d+[/.\-]\d+/.test(phrase)) return { status: 'ambiguous' }
+  if (/\d[/.\-]\d/.test(phrase)) return { status: 'ambiguous' }
   const relative = relativeDate(phrase, context.referenceDate)
   if (relative) return relative
   const bareDay = /^(?:dia (\d{1,2})|(?:on )?the (\d{1,2})(?:st|nd|rd|th)?)$/.exec(phrase)
