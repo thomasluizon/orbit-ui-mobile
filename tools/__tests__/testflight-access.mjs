@@ -101,7 +101,7 @@ const rejects = async (promise) => { try { await promise; return null } catch (e
 const bodiesOf = (api, method, path) => api.calls.filter((call) => call.method === method && call.path === path).map((call) => call.body)
 
 export const cases = async () => {
-  T("testflight access: fixture schemas come from Apple's specification", apple.source.includes("developer.apple.com") && Object.keys(apple.pages).length === 6 &&
+  T("testflight access: fixture schemas come from Apple's specification", new URL(apple.source.split(" ")[0]).hostname === "developer.apple.com" && Object.keys(apple.pages).length === 6 &&
     Object.values(apple.pages).every((page) => page.startsWith("https://developer.apple.com/documentation/appstoreconnectapi/")) &&
     apple.schemas.Build.properties.attributes.properties.processingState.enum.join() === "PROCESSING,FAILED,INVALID,VALID")
 
