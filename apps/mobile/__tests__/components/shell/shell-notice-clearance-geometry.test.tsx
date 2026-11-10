@@ -36,7 +36,7 @@ async function mountShell(width: number, today: boolean, notice?: React.ReactNod
     fab={today ? <View testID="create-fab" style={{ width: 60, height: 60 }} /> : undefined} tabBar={<View style={{ height: 80 }} />}>
     <View style={{ flex: 1 }} />
   </Shell412>) as GeometryTree })
-  for (const testID of ['shell-notice-content', 'shell-bottom', 'shell-tab-bar', 'shell-bottom-content', 'astra-button-area']) await report(testID, width)
+  for (const testID of ['shell-notice-content', 'shell-bottom', 'shell-tab-bar', 'shell-bottom-content']) await report(testID, width)
 }
 
 const toast = <Toast kind="neutral" message="O aviso saiu da lista." actionLabel="Desfazer" onAction={vi.fn()} persistent />
@@ -54,11 +54,7 @@ it('keeps the toast clear of the tab bar, the create button and the Astra button
   const placed = boxes.get('toast-neutral')!
   expect(boxes.get('shell-tab-bar')!.top - placed.bottom).toBeGreaterThanOrEqual(SHARED_GAP)
   expect(placed.top - boxes.get('create-fab')!.bottom).toBeGreaterThanOrEqual(SHARED_GAP)
-  const position = host('astra-button-position')!
-  const transform = (position.props.style as [unknown, { transform: { translateY?: number | { value: number } }[] }])[1].transform
-  const translateY = transform.find(entry => entry.translateY !== undefined)!.translateY!
-  const astraBottom = boxes.get('astra-button-area')!.top + (typeof translateY === 'number' ? translateY : translateY.value) + 60
-  expect(placed.top - astraBottom).toBeGreaterThanOrEqual(SPACING.s16)
+  expect(placed.top - boxes.get('astra-button')!.bottom).toBeGreaterThanOrEqual(SPACING.s16)
 })
 
 it('reserves no clearance while the notice slot is empty', async () => {

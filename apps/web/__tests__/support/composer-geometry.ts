@@ -84,6 +84,11 @@ export async function compileComposerGeometry() {
       const props = JSON.parse(document.getElementById('configuration').textContent);
       function MountedAstraShell() {
         const open = useUIStore(state => state.astraConversationOpen);
+        React.useEffect(() => {
+          const toggleSheet = event => useUIStore.getState()[event.detail ? 'registerOpenOverlay' : 'unregisterOpenOverlay']('habit-detail');
+          document.addEventListener('astra-test-sheet', toggleSheet);
+          return () => document.removeEventListener('astra-test-sheet', toggleSheet);
+        }, []);
         return React.createElement(ShellWide, { items: [], activeId: 'hoje', navLabel: 'Navigation', astraRow: { label: 'Astra', onOpen: () => useUIStore.getState().setAstraConversationOpen(true) },
           header: React.createElement('div', { style: { minHeight: 112 } }, 'Today'),
           tabBar: React.createElement('nav', { style: { minHeight: 80 } }, React.createElement('button', { 'data-probe-tab': '', style: { minHeight: 48 } }, 'Tabs')),

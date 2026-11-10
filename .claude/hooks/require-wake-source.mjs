@@ -29,7 +29,8 @@ try {
   // Stop handlers run concurrently. Suppress launch guidance on the crossing even if the relay
   // handler has not published pending state yet.
   if (config.relay.enabled && state?.sleep && state.sessionId === input?.session_id && typeof input.transcript_path === "string") {
-    const relay = checkRelayStop({ ...config.relay, state, sessionId: input.session_id, measuredTokens: readSessionContext(input.transcript_path) })
+    const relay = checkRelayStop({ ...config.relay, state, sessionId: input.session_id, measuredTokens: readSessionContext(input.transcript_path),
+      hookEventName: "Stop", wakeSources: wakeSourceStates.live, orphaned: wakeSourceStates.orphaned })
     if (relay?.begin) state = { ...state, relay: { ...state.relay, pending: true } }
     if (relay?.fallback) state = { ...state, relay: { ...state.relay, pending: false } }
   }

@@ -13,6 +13,7 @@ import { notificationsResponseSchema } from '@orbit/shared/types/notification'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 import { completeInstallOnboarding } from './install-onboarding'
+import { waitForSettledAstraStack } from './shell-conversation-entry'
 
 const HEIGHT = 915
 const notification = createMockNotification({ title: 'Layout notification' })
@@ -81,6 +82,7 @@ for (const width of [320, 412, 600]) {
         await page.keyboard.press('Escape')
         await expect(panel).toHaveCount(0)
         await page.evaluate(() => document.fonts.ready)
+        await waitForSettledAstraStack(page)
         await revealTodayControls(page)
         for (const selector of ['[data-shell-header] button', '[data-astra-button]', '[data-shell-tab-bar] :is(a[href], button)', '[data-shell-fab] button', '[data-shell-scroll-to-top] button']) {
           const controls = page.locator(selector).filter({ visible: true })
@@ -160,6 +162,7 @@ for (const inset of [0, 44]) {
       await expect(page.locator('[data-shell-fab] button')).toBeVisible()
       const tabSurface = (await page.locator('[data-tab-bar-surface]').boundingBox())!
       expect(tabSurface).toMatchObject({ x: 0, width: 844 })
+      await waitForSettledAstraStack(page)
       await revealTodayControls(page)
       const needsRecovery = await page.locator('[data-shell-destination-viewport]').evaluate(element => element.scrollHeight > element.clientHeight)
       for (const selector of ['[data-shell-header] button', '[data-astra-button]', '[data-shell-tab-bar] :is(a[href], button)', '[data-shell-fab] button', '[data-shell-scroll-to-top] button']) {

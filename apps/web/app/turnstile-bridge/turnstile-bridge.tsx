@@ -25,7 +25,7 @@ export function TurnstileBridge({ siteKey, theme = 'dark', language }: Readonly<
   }, [])
 
   return <div style={{ ...resolveWebThemeVariables('orange', theme), minHeight: '100vh', display: 'flex',
-    flexDirection: 'column', alignItems: 'center', backgroundColor: neutralColors[theme].bg, colorScheme: theme }}>
+    flexDirection: 'column', alignItems: 'stretch', backgroundColor: neutralColors[theme].bg, colorScheme: theme }}>
     <TurnstileWidget siteKey={siteKey} theme={theme} language={language} resetKey={0} quiet onToken={postToken} onStateChange={postState} />
   </div>
 }

@@ -62,8 +62,8 @@ it('passes WebView tokens to the login flow and reloads after consumption', asyn
   expect(first.props.source.uri).toContain('/turnstile-bridge?siteKey=site-key')
   expect(first.props.source.uri).toContain('&theme=dark')
   expect(first.props.source.uri).toContain('&language=pt-BR')
-  expect(first.props.containerStyle).toMatchObject({ width: 256, height: 160, flex: 0 })
-  expect(first.props.style).toMatchObject({ width: 256, height: 160, flex: 0 })
+  expect(first.props.containerStyle).toMatchObject({ width: '100%', height: 65, flex: 0 })
+  expect(first.props.style).toMatchObject({ width: '100%', height: 65, flex: 0 })
   appTheme.currentTheme = 'light'
   await TestRenderer.act(async () => {
     renderer!.update(React.createElement(TurnstileWidget, { siteKey: 'site-key', resetKey: 0, onToken }))
@@ -93,7 +93,7 @@ it('passes WebView tokens to the login flow and reloads after consumption', asyn
     await Promise.resolve()
   })
   expect(renderer!.root.findByType('WebView')).not.toBe(first)
-  expect(renderer!.root.findByType('WebView').props.containerStyle.height).toBe(160)
+  expect(renderer!.root.findByType('WebView').props.containerStyle.height).toBe(65)
   expect(StyleSheet.flatten(renderer!.toJSON().props.style).position).not.toBe('absolute')
   expect(renderer!.root.findAllByType('Text').some((node: { props: { children: unknown } }) =>
     node.props.children === 'auth.turnstileLoading')).toBe(true)
@@ -104,7 +104,7 @@ it('passes WebView tokens to the login flow and reloads after consumption', asyn
     await Promise.resolve()
   })
   expect(onToken).toHaveBeenLastCalledWith(null)
-  expect(renderer!.root.findByType('WebView').props.containerStyle.height).toBe(160)
+  expect(renderer!.root.findByType('WebView').props.containerStyle.height).toBe(65)
   expect(renderer!.root.findAllByProps({ accessibilityRole: 'alert' }).length).toBeGreaterThan(0)
   await TestRenderer.act(async () => {
     renderer!.root.findAllByProps({ accessibilityRole: 'button' })[0]!.props.onPress()

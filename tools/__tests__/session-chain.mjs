@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { T, stageRepo } from "./_harness.mjs"
-import { appendChainEntry, closeSessionChain, confirmChainSuccessor, openSessionChain, supersededSession, adoptRelayRun, readSessionChain } from "../lib/session-chain.mjs"
+import { appendChainEntry, closeSessionChain, confirmChainSuccessor, openSessionChain, supersededSession, adoptRelayRun, readSessionChain, sessionChainEntry } from "../lib/session-chain.mjs"
 import { readRunState, writeRunState } from "../lib/run-state.mjs"
 
 export const cases = async () => {
@@ -30,6 +30,16 @@ export const cases = async () => {
   confirmChainSuccessor("old", "new", "term_new", 2, checkout)
   appendChainEntry({ sessionId: "new", decisions: "next decision" }, checkout)
   T("session-chain: recovered confirmation is idempotent and keeps one chain", openSessionChain("new", checkout).entries.length === 2 && readSessionChain(checkout).chains.length === 2)
+  const entryTranscript = join(checkout, ".git", "entry-transcript.jsonl")
+  const entryDecisions = join(checkout, ".git", "entry-decisions.md")
+  writeFileSync(entryDecisions, "No open decisions.\n")
+  writeFileSync(entryTranscript, `${JSON.stringify({ type: "assistant", timestamp: "2026-11-01T00:00:00.000Z", message: { id: "call", usage: { input_tokens: 1, cache_creation_input_tokens: 1, cache_read_input_tokens: 1, output_tokens: 1 } } })}\n`)
+  const armed = await sessionChainEntry({ sessionId: "armed", decisionLogPath: entryDecisions,
+    relay: { forced: true, armedAt: "2026-11-01T01:00:00.000Z", armedTokens: 351000, measuredTokens: 400500, triggeredAt: "2026-11-01T01:20:00.000Z" } }, entryTranscript)
+  T("session-chain: an entry records whether the hard ceiling forced the relay", armed.forced === true)
+  T("session-chain: an entry records when and where the soft threshold armed", armed.armedAt === "2026-11-01T01:00:00.000Z" && armed.armedTokens === 351000)
+  const unarmed = await sessionChainEntry({ sessionId: "unarmed", decisionLogPath: entryDecisions, relay: { forced: false, measuredTokens: 352000, triggeredAt: "2026-11-01T01:20:00.000Z" } }, entryTranscript)
+  T("session-chain: a relay that began at its first quiet point records no arming", unarmed.forced === false && unarmed.armedAt === null && unarmed.armedTokens === null)
   adoptionFreshnessCases()
 }
 

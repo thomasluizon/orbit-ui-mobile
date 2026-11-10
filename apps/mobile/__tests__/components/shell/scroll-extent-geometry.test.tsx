@@ -95,7 +95,7 @@ it.each(viewports)('releases native minimum height after rows leave at $width by
   } finally { await act(() => tree.unmount()) }
 })
 
-it.each([390, 840, 1352])('clears the floating Astra entry at the end of the native list at %ipx', async width => {
+it.each([390, 840, 1352])('clears the stacked Astra button at the end of the native list at %ipx', async width => {
   const height = 915
   __setWindowDimensions({ width, height, scale: 1, fontScale: 1 })
   let tree!: GeometryTree
@@ -104,9 +104,6 @@ it.each([390, 840, 1352])('clears the floating Astra entry at the end of the nat
   try {
     const measure = () => measureSafeArea(exposeContent(tree.toJSON()), host => host.props.testID, { width, height })
     const host = (testID: string) => tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === testID)[0]!
-    const area = measure().get('astra-button-area')!
-    const onAstraLayout = host('astra-button-area').props.onLayout as (event: LayoutChangeEvent) => void
-    await act(() => onAstraLayout({ nativeEvent: { layout: { x: 0, y: 0, width: area.width, height: area.bottom - area.top } } } as LayoutChangeEvent))
     const list = measure().get('list')!
     const onListLayout = host('list').props.onLayout as (event: LayoutChangeEvent) => void
     await act(() => onListLayout({ nativeEvent: { layout: { x: 0, y: 0, width, height: list.bottom - list.top } } } as LayoutChangeEvent))
@@ -114,9 +111,7 @@ it.each([390, 840, 1352])('clears the floating Astra entry at the end of the nat
     const content = boxes.get('list-content')!
     const maximum = content.bottom - content.top - (list.bottom - list.top)
     const lastBottom = boxes.get('last-content')!.bottom - maximum
-    const style = StyleSheet.flatten(host('astra-button-position').props.style) as { transform: { translateY?: number }[] }
-    const translateY = style.transform.find(transform => transform.translateY !== undefined)!.translateY!
-    expect(boxes.get('astra-button')!.top + translateY - lastBottom).toBeGreaterThanOrEqual(SPACING.s16)
+    expect(boxes.get('astra-button')!.top - lastBottom).toBeGreaterThanOrEqual(SPACING.s16)
     expect(boxes.get('shell-bottom')!.top).toBe(list.bottom)
     const contentStyle = host('list').props.contentContainerStyle as { paddingBottom: number }
     expect(contentStyle.paddingBottom).toBeGreaterThan(SPACING.s96)
