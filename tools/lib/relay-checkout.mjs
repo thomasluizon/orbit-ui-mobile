@@ -1,15 +1,19 @@
 import { spawnSync } from "node:child_process"
+import { existsSync } from "node:fs"
+import { resolve } from "node:path"
 import { redactSecrets } from "./github-auth.mjs"
 
 const HARNESS_PATHS = ["tools/", ".claude/skills/", ".claude/hooks/", ".claude/rules/"]
 const DOCS_PATHS = [":(top).claude/specs/", ":(top).claude/handoffs/"]
 
+const runGit = (repoRoot, args) => spawnSync("git", args, { cwd: repoRoot, encoding: "utf8", timeout: 60_000,
+  env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_MERGE_AUTOEDIT: "no" }, maxBuffer: 16 * 1024 * 1024 })
+
+const gitFailure = (args, result) => new Error(redactSecrets(`relay checkout: git ${args.join(" ")} failed (${result.status ?? result.error?.code}):\n${result.stdout || ""}${result.stderr || ""}${result.error?.message || ""}`))
+
 const git = (repoRoot, args) => {
-  const result = spawnSync("git", args, { cwd: repoRoot, encoding: "utf8", timeout: 60_000,
-    env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_MERGE_AUTOEDIT: "no" }, maxBuffer: 16 * 1024 * 1024 })
-  if (result.error || result.status !== 0) {
-    throw new Error(redactSecrets(`relay checkout: git ${args.join(" ")} failed (${result.status ?? result.error?.code}):\n${result.stdout || ""}${result.stderr || ""}${result.error?.message || ""}`))
-  }
+  const result = runGit(repoRoot, args)
+  if (result.error || result.status !== 0) throw gitFailure(args, result)
   return result.stdout
 }
 
@@ -33,3 +37,30 @@ export const relayHarnessDifferences = (repoRoot) => {
 
 export const handoffDocsChanged = (repoRoot) => [[], ["--cached"]].some((flags) =>
   git(repoRoot, ["diff", ...flags, "--name-only", "-z", "--", ...DOCS_PATHS]).length > 0)
+
+/** Markers of a merge, cherry-pick or revert that waits for its commit, each per worktree. */
+const OPEN_OPERATION_MARKERS = ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD"]
+
+/**
+ * State directories of an open rebase (merge and apply backends), each per worktree. Git removes them when the rebase
+ * concludes. REBASE_HEAD is not a marker: it survives a concluded `git rebase --continue`.
+ */
+const OPEN_REBASE_DIRECTORIES = ["rebase-merge", "rebase-apply"]
+
+/**
+ * Resolves each marker through the ref store, because the reftable backend keeps CHERRY_PICK_HEAD and REVERT_HEAD
+ * there rather than as files. `rev-parse -q --verify` exits 1 with no output when the ref does not exist.
+ */
+const markerPresent = (repoRoot, marker) => {
+  const args = ["rev-parse", "-q", "--verify", marker]
+  const result = runGit(repoRoot, args)
+  if (!result.error && result.status === 0) return true
+  if (!result.error && result.status === 1) return false
+  throw gitFailure(args, result)
+}
+
+const rebaseOpen = (repoRoot) => OPEN_REBASE_DIRECTORIES.some((directory) =>
+  existsSync(resolve(repoRoot, git(repoRoot, ["rev-parse", "--git-path", directory]).trim())))
+
+export const operationInProgress = (repoRoot) =>
+  OPEN_OPERATION_MARKERS.some((marker) => markerPresent(repoRoot, marker)) || rebaseOpen(repoRoot)
