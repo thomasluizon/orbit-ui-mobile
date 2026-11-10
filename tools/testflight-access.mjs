@@ -5,12 +5,13 @@ import { appStoreToken } from "./lib/app-store-connect-token.mjs"
 
 const USAGE = `usage: testflight-access.mjs --app-id <apple id> --version <x.y.z> --build <number> [--timeout-minutes <n>]
 Runs after the iOS Release upload. Waits until App Store Connect shows the uploaded build as VALID, then
-makes sure an internal beta group with access to all builds holds the account holder of the team as a tester.
-The group and the tester are created only when missing. Writes the result to $GITHUB_STEP_SUMMARY when set.
-Reads APP_STORE_CONNECT_API_KEY_ID, APP_STORE_CONNECT_API_ISSUER_ID and APP_STORE_CONNECT_API_PRIVATE_KEY
-from the environment. Never prints the tester identity.
+makes sure the app has an internal beta group with access to all builds and links to it every tester of the
+team's other internal beta groups. The group is created only when missing. A tester is never created.
+Writes the result to $GITHUB_STEP_SUMMARY when set. Reads APP_STORE_CONNECT_API_KEY_ID,
+APP_STORE_CONNECT_API_ISSUER_ID and APP_STORE_CONNECT_API_PRIVATE_KEY from the environment.
+Never prints a tester e-mail or name.
 --help, -h print usage
-exit codes: 0 build valid and tester has access; 1 invalid build, timeout or API failure; 2 invalid arguments`
+exit codes: 0 build valid and the group has a tester; 1 invalid build, timeout or API failure; 2 invalid arguments`
 
 const API_ORIGIN = "https://api.appstoreconnect.apple.com"
 const DEFAULT_TIMEOUT_MINUTES = 25
@@ -70,53 +71,58 @@ export const waitForProcessedBuild = async ({ client, appId, version, buildNumbe
   }
 }
 
-const accountHolderEmail = async (client) => {
-  const holders = await client.getAll("/v1/users", { "filter[roles]": "ACCOUNT_HOLDER", limit: String(PAGE_LIMIT) })
-  const email = holders.length === 1 ? holders[0].attributes?.username : null
-  if (!email) throw new Error(`Expected exactly one ACCOUNT_HOLDER user, found ${holders.length}`)
-  return email
-}
-
-const internalGroup = async (client, appId) => {
+const findInternalGroup = async (client, appId) => {
   const groups = await client.getAll(`/v1/apps/${appId}/betaGroups`, { limit: String(PAGE_LIMIT) })
   const existing = groups.find(({ attributes }) => attributes?.isInternalGroup === true && attributes?.hasAccessToAllBuilds === true)
-  if (existing) return { id: existing.id, name: existing.attributes.name, created: false }
+  return existing ? { id: existing.id, name: existing.attributes.name } : null
+}
+
+const createInternalGroup = async (client, appId) => {
   const created = await client.post("/v1/betaGroups", { data: {
     type: "betaGroups", attributes: { name: GROUP_NAME, isInternalGroup: true, hasAccessToAllBuilds: true },
     relationships: { app: { data: { type: "apps", id: appId } } },
   } })
-  return { id: created.data.id, name: created.data.attributes.name, created: true }
+  return { id: created.data.id, name: created.data.attributes.name }
 }
 
-/** Makes the account holder an internal tester of an all-builds group, creating only what is missing. */
-export const ensureInternalTesterAccess = async ({ client, appId }) => {
-  const email = await accountHolderEmail(client)
-  const group = await internalGroup(client, appId)
-  const sameEmail = (tester) => tester.attributes?.email?.toLowerCase() === email.toLowerCase()
-  const members = await client.getAll(`/v1/betaGroups/${group.id}/betaTesters`, { limit: String(PAGE_LIMIT) })
-  let testerCount = members.length
-  let addedTester = false
-  if (!members.some(sameEmail)) {
-    const known = (await client.getAll("/v1/betaTesters", { "filter[email]": email, limit: "1" })).find(sameEmail)
-    if (known) {
-      await client.post(`/v1/betaGroups/${group.id}/relationships/betaTesters`, { data: [{ type: "betaTesters", id: known.id }] })
-    } else {
-      await client.post("/v1/betaTesters", { data: {
-        type: "betaTesters", attributes: { email },
-        relationships: { betaGroups: { data: [{ type: "betaGroups", id: group.id }] } },
-      } })
-    }
-    testerCount += 1
-    addedTester = true
+const testerIdsOf = async (client, groupId) =>
+  (await client.getAll(`/v1/betaGroups/${groupId}/betaTesters`, { limit: String(PAGE_LIMIT) })).map(({ id }) => id)
+
+/** The testers of every internal group of the team except one, each id once. */
+const internalTesterIds = async (client, excludedGroupId) => {
+  const groups = await client.getAll("/v1/betaGroups", { "filter[isInternalGroup]": "true", limit: String(PAGE_LIMIT) })
+  const ids = new Set()
+  for (const { id } of groups) {
+    if (id === excludedGroupId) continue
+    for (const testerId of await testerIdsOf(client, id)) ids.add(testerId)
   }
-  return { groupName: group.name, createdGroup: group.created, addedTester, testerCount }
+  return ids
 }
 
-export const summaryLines = ({ version, buildNumber, processingState, groupName, createdGroup, addedTester, testerCount }) => [
+/**
+ * Gives the app an all-builds internal group and links to it every tester of the team's other internal groups.
+ * A tester is never created and no e-mail address is read or sent. The run fails before any write when the
+ * group would end with no tester, because then nobody could install the build.
+ */
+export const ensureInternalTesterAccess = async ({ client, appId }) => {
+  const existing = await findInternalGroup(client, appId)
+  const members = new Set(existing ? await testerIdsOf(client, existing.id) : [])
+  const missing = [...await internalTesterIds(client, existing?.id)].filter((id) => !members.has(id))
+  const testerCount = members.size + missing.length
+  if (testerCount === 0) throw new Error("No internal tester found in any internal beta group of the team, so nobody could install the build")
+  const group = existing ?? await createInternalGroup(client, appId)
+  if (missing.length > 0) {
+    await client.post(`/v1/betaGroups/${group.id}/relationships/betaTesters`, { data: missing.map((id) => ({ type: "betaTesters", id })) })
+  }
+  return { groupName: group.name, createdGroup: !existing, linkedTesters: missing.length, testerCount }
+}
+
+export const summaryLines = ({ version, buildNumber, processingState, groupName, createdGroup, linkedTesters, testerCount }) => [
   "## TestFlight access",
   `- Build ${version} (${buildNumber}) processing state: ${processingState}`,
   `- Internal group: ${groupName}${createdGroup ? " (created by this run)" : ""}`,
-  `- Testers in the group: ${testerCount}${addedTester ? " (the account holder was added by this run)" : ""}`,
+  `- Testers in the group: ${testerCount}`,
+  `- Testers linked by this run: ${linkedTesters}`,
 ]
 
 const parseArguments = (args) => {

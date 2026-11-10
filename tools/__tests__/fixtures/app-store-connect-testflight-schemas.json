@@ -3,12 +3,10 @@
   "pages": {
     "GET /v1/builds": "https://developer.apple.com/documentation/appstoreconnectapi/get-v1-builds",
     "GET /v1/apps/{id}/betaGroups": "https://developer.apple.com/documentation/appstoreconnectapi/get-v1-apps-_id_-betagroups",
+    "GET /v1/betaGroups": "https://developer.apple.com/documentation/appstoreconnectapi/get-v1-betagroups",
     "POST /v1/betaGroups": "https://developer.apple.com/documentation/appstoreconnectapi/post-v1-betagroups",
     "GET /v1/betaGroups/{id}/betaTesters": "https://developer.apple.com/documentation/appstoreconnectapi/get-v1-betagroups-_id_-betatesters",
-    "POST /v1/betaGroups/{id}/relationships/betaTesters": "https://developer.apple.com/documentation/appstoreconnectapi/post-v1-betagroups-_id_-relationships-betatesters",
-    "GET /v1/users": "https://developer.apple.com/documentation/appstoreconnectapi/get-v1-users",
-    "GET /v1/betaTesters": "https://developer.apple.com/documentation/appstoreconnectapi/get-v1-betatesters",
-    "POST /v1/betaTesters": "https://developer.apple.com/documentation/appstoreconnectapi/post-v1-betatesters"
+    "POST /v1/betaGroups/{id}/relationships/betaTesters": "https://developer.apple.com/documentation/appstoreconnectapi/post-v1-betagroups-_id_-relationships-betatesters"
   },
   "filters": {
     "builds:filter[processingState]": [
@@ -22,21 +20,6 @@
       "MAC_OS",
       "TV_OS",
       "VISION_OS"
-    ],
-    "users:filter[roles]": [
-      "ADMIN",
-      "FINANCE",
-      "ACCOUNT_HOLDER",
-      "SALES",
-      "MARKETING",
-      "APP_MANAGER",
-      "DEVELOPER",
-      "ACCESS_TO_REPORTS",
-      "CUSTOMER_SUPPORT",
-      "CREATE_APPS",
-      "CLOUD_MANAGED_DEVELOPER_ID",
-      "CLOUD_MANAGED_APP_DISTRIBUTION",
-      "GENERATE_INDIVIDUAL_KEYS"
     ],
     "builds:filter names": [
       "filter[version]",
@@ -54,25 +37,23 @@
       "filter[id]",
       "limit"
     ],
-    "users:filter names": [
-      "filter[username]",
-      "filter[roles]",
-      "filter[visibleApps]",
+    "betaGroups of app:parameters": [
+      "fields[betaGroups]",
       "limit"
     ],
-    "betaTesters:filter names": [
-      "filter[firstName]",
-      "filter[lastName]",
-      "filter[email]",
-      "filter[inviteType]",
-      "filter[apps]",
-      "filter[betaGroups]",
+    "betaGroups:filter names": [
+      "filter[name]",
+      "filter[isInternalGroup]",
+      "filter[publicLinkEnabled]",
+      "filter[publicLinkLimitEnabled]",
+      "filter[publicLink]",
+      "filter[app]",
       "filter[builds]",
       "filter[id]",
       "limit"
     ],
-    "betaGroups of app:parameters": [
-      "fields[betaGroups]",
+    "betaGroup testers:parameters": [
+      "fields[betaTesters]",
       "limit"
     ]
   },
@@ -1193,107 +1174,6 @@
         "links"
       ]
     },
-    "BetaTesterCreateRequest": {
-      "type": "object",
-      "title": "BetaTesterCreateRequest",
-      "properties": {
-        "data": {
-          "type": "object",
-          "properties": {
-            "type": {
-              "type": "string",
-              "enum": [
-                "betaTesters"
-              ]
-            },
-            "attributes": {
-              "type": "object",
-              "properties": {
-                "firstName": {
-                  "type": "string",
-                  "nullable": true
-                },
-                "lastName": {
-                  "type": "string",
-                  "nullable": true
-                },
-                "email": {
-                  "type": "string",
-                  "format": "email"
-                }
-              },
-              "required": [
-                "email"
-              ]
-            },
-            "relationships": {
-              "type": "object",
-              "properties": {
-                "betaGroups": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "type": {
-                            "type": "string",
-                            "enum": [
-                              "betaGroups"
-                            ]
-                          },
-                          "id": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "type"
-                        ]
-                      }
-                    }
-                  }
-                },
-                "builds": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "type": {
-                            "type": "string",
-                            "enum": [
-                              "builds"
-                            ]
-                          },
-                          "id": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "type"
-                        ]
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "required": [
-            "attributes",
-            "type"
-          ]
-        }
-      },
-      "required": [
-        "data"
-      ]
-    },
     "BetaGroupBetaTestersLinkagesRequest": {
       "type": "object",
       "properties": {
@@ -1321,137 +1201,6 @@
       },
       "required": [
         "data"
-      ]
-    },
-    "User": {
-      "type": "object",
-      "title": "User",
-      "properties": {
-        "type": {
-          "type": "string",
-          "enum": [
-            "users"
-          ]
-        },
-        "id": {
-          "type": "string"
-        },
-        "attributes": {
-          "type": "object",
-          "properties": {
-            "username": {
-              "type": "string"
-            },
-            "firstName": {
-              "type": "string"
-            },
-            "lastName": {
-              "type": "string"
-            },
-            "roles": {
-              "type": "array",
-              "items": {
-                "$ref": "#/components/schemas/UserRole"
-              }
-            },
-            "allAppsVisible": {
-              "type": "boolean"
-            },
-            "provisioningAllowed": {
-              "type": "boolean"
-            }
-          }
-        },
-        "relationships": {
-          "type": "object",
-          "properties": {
-            "visibleApps": {
-              "type": "object",
-              "properties": {
-                "links": {
-                  "$ref": "#/components/schemas/RelationshipLinks"
-                },
-                "meta": {
-                  "$ref": "#/components/schemas/PagingInformation"
-                },
-                "data": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "type": {
-                        "type": "string",
-                        "enum": [
-                          "apps"
-                        ]
-                      },
-                      "id": {
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "id",
-                      "type"
-                    ]
-                  }
-                }
-              }
-            }
-          }
-        },
-        "links": {
-          "$ref": "#/components/schemas/ResourceLinks"
-        }
-      },
-      "required": [
-        "id",
-        "type"
-      ]
-    },
-    "UsersResponse": {
-      "type": "object",
-      "title": "UsersResponse",
-      "properties": {
-        "data": {
-          "type": "array",
-          "items": {
-            "$ref": "#/components/schemas/User"
-          }
-        },
-        "included": {
-          "type": "array",
-          "items": {
-            "$ref": "#/components/schemas/App"
-          }
-        },
-        "links": {
-          "$ref": "#/components/schemas/PagedDocumentLinks"
-        },
-        "meta": {
-          "$ref": "#/components/schemas/PagingInformation"
-        }
-      },
-      "required": [
-        "data",
-        "links"
-      ]
-    },
-    "UserRole": {
-      "type": "string",
-      "enum": [
-        "ADMIN",
-        "FINANCE",
-        "ACCOUNT_HOLDER",
-        "SALES",
-        "MARKETING",
-        "APP_MANAGER",
-        "DEVELOPER",
-        "ACCESS_TO_REPORTS",
-        "CUSTOMER_SUPPORT",
-        "CREATE_APPS",
-        "CLOUD_MANAGED_DEVELOPER_ID",
-        "CLOUD_MANAGED_APP_DISTRIBUTION",
-        "GENERATE_INDIVIDUAL_KEYS"
       ]
     },
     "PagedDocumentLinks": {

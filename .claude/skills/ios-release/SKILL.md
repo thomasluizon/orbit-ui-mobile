@@ -74,7 +74,8 @@ gh workflow run ios-release.yml --ref <ref> \
 Follow only the dispatched run. After the upload, the step `Wait for processing and give the internal
 tester access` runs `tools/testflight-access.mjs`. It waits until App Store Connect lists the exact version
 and build as `VALID`, and it fails the run on `FAILED`, `INVALID` or a timeout. It then makes sure the app has
-an internal beta group with access to all builds that holds the team's account holder as a tester, and it
-creates only what is missing. The step summary shows the processing state, the group name and the tester
-count. The App Store Connect API key must hold a role that can list team users. Report the run URL, commit,
-variant, version, build number and the step summary. Never print signing material.
+an internal beta group with access to all builds, and it links to that group every tester of the team's other
+internal beta groups. It creates the group only when missing, it never creates a tester, and it fails when the
+group would hold no tester. The step summary shows the processing state, the group name, the tester count and
+the number of testers this run linked. The release key needs only the App Manager role. Report the run URL,
+commit, variant, version, build number and the step summary. Never print signing material.
