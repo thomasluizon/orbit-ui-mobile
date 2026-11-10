@@ -1,3 +1,4 @@
+import { captureException } from '@sentry/nextjs'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { GET } from '@/app/api/desktop-release/route'
 import { getQueryClient } from '@/lib/query-client'
@@ -32,6 +33,7 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn(async () => GET()))
   vi.stubGlobal('location', { reload })
   reload.mockClear()
+  vi.mocked(captureException).mockClear()
 })
 afterEach(() => {
   cleanups.splice(0).forEach(cleanup => cleanup())
@@ -95,6 +97,62 @@ it('does not reload for the same build, and retries an offline or malformed meta
   await vi.advanceTimersByTimeAsync(2000)
   expect(available).toHaveBeenCalledOnce()
   expect(reload).not.toHaveBeenCalled()
+})
+
+/** Fake timers do not drive jsdom's AbortSignal.timeout, so the next poll gets a timeout signal the test aborts. */
+function timeOutNextPoll(rejection: () => Error) {
+  const timeout = new AbortController()
+  vi.spyOn(AbortSignal, 'timeout').mockReturnValueOnce(timeout.signal)
+  vi.mocked(fetch).mockImplementationOnce((_url, init) => new Promise((_resolve, reject) => {
+    init!.signal!.addEventListener('abort', () => reject(rejection()))
+  }))
+  return () => timeout.abort(new DOMException('The operation timed out.', 'TimeoutError'))
+}
+const webKitAbort = () => new DOMException('Fetch is aborted', 'AbortError')
+
+it.each([
+  ['WebKit', webKitAbort],
+  ['Chromium', () => new DOMException('signal timed out', 'TimeoutError')],
+])('does not report a %s timeout of the release poll', async (_engine, rejection) => {
+  const timeOut = timeOutNextPoll(rejection)
+  cleanups.push(watchDesktopWebRelease('0.1.2', currentCommit, vi.fn()))
+  await vi.advanceTimersByTimeAsync(0)
+  timeOut()
+  await vi.advanceTimersByTimeAsync(2000)
+  expect(fetch).toHaveBeenCalledOnce()
+  expect(captureException).not.toHaveBeenCalled()
+})
+
+it('does not report a failed fetch of the release poll', async () => {
+  vi.mocked(fetch).mockRejectedValueOnce(new TypeError('Failed to fetch'))
+  cleanups.push(watchDesktopWebRelease('0.1.2', currentCommit, vi.fn()))
+  await vi.advanceTimersByTimeAsync(2000)
+  expect(fetch).toHaveBeenCalledOnce()
+  expect(captureException).not.toHaveBeenCalled()
+})
+
+it.each([
+  ['a server error response', () => new Response(null, { status: 503 }), 'Cannot check desktop web release: 503'],
+  ['a malformed release body', () => Response.json({ commit: 'malformed' }), undefined],
+])('reports %s of the release poll once', async (_name, createResponse, message) => {
+  vi.mocked(fetch).mockResolvedValueOnce(createResponse())
+  cleanups.push(watchDesktopWebRelease('0.1.2', currentCommit, vi.fn()))
+  await vi.advanceTimersByTimeAsync(2000)
+  expect(captureException).toHaveBeenCalledOnce()
+  if (message) expect(vi.mocked(captureException).mock.calls[0]![0]).toEqual(new Error(message))
+})
+
+it('offers a new release on the poll after a timeout', async () => {
+  const timeOut = timeOutNextPoll(webKitAbort)
+  const available = vi.fn()
+  cleanups.push(watchDesktopWebRelease('0.1.2', currentCommit, available))
+  await vi.advanceTimersByTimeAsync(0)
+  timeOut()
+  await vi.advanceTimersByTimeAsync(2000)
+  expect(available).not.toHaveBeenCalled()
+  await vi.advanceTimersByTimeAsync(60_000)
+  expect(available).toHaveBeenCalledExactlyOnceWith({ commit: nextCommit, minimumShellVersion: compatibility.minimumShellVersion })
+  expect(captureException).not.toHaveBeenCalled()
 })
 
 it('preserves the current window if storage is unavailable, then retries the reload', async () => {
