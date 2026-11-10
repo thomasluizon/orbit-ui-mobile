@@ -3,7 +3,6 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { test } from './upgrade-fixtures'
 import { expectLabelsFit } from './label-fit-contract'
-import { clickWhenHydrated } from './hydration-guard'
 
 for (const width of [320, 360, 384, 412, 600, 768, 840, 1024, 1352]) {
   for (const [locale, words] of [['en', en], ['pt-BR', ptBR]] as const) {
@@ -16,7 +15,7 @@ for (const width of [320, 360, 384, 412, 600, 768, 840, 1024, 1352]) {
         await expect(control).toBeVisible()
         for (const label of [words.habits.viewToday, words.habits.viewAll, words.habits.viewGeneral]) {
           const radio = control.getByRole('radio', { name: label, exact: true })
-          await clickWhenHydrated(radio)
+          await radio.click()
           await expect(radio).toHaveAttribute('aria-checked', 'true')
           await expectLabelsFit(page, control)
           const positions = await control.getByRole('radio').evaluateAll((radios) => radios.map((radio) => radio.getBoundingClientRect().top))

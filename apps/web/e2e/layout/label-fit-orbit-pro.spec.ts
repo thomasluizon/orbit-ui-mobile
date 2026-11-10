@@ -4,7 +4,6 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { expectLabelsFit, markRequiredLabels } from './label-fit-contract'
 import { expectInteractionFill } from './label-interaction-fill'
 import { test } from './upgrade-fixtures'
-import { clickWhenHydrated } from './hydration-guard'
 
 async function expectPeriodFillsColumn(control: Locator) {
   await expect(control.getByRole('radio')).toHaveCount(2)
@@ -57,7 +56,7 @@ for (const width of [320, 360, 384, 412]) {
           await expectPeriodFillsColumn(control)
           const monthly = control.getByRole('radio', { name: words.upgrade.plans.interval.monthly, exact: true })
           await expectInteractionFill(monthly)
-          await clickWhenHydrated(monthly)
+          await monthly.click()
           await expect(monthly).toHaveAttribute('aria-checked', 'true')
           await expectPeriodFillsColumn(control)
         })

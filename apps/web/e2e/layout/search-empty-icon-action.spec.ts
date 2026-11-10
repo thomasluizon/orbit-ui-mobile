@@ -6,7 +6,6 @@ import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-f
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { setLayoutFixtureSession } from './profile-session'
 import { test } from './upgrade-fixtures'
-import { clickWhenHydrated, fillWhenHydrated } from './hydration-guard'
 
 const query = 'indinero'
 const habits = { ...emptyHabitsPageFixture, totalCount: 1, items: [makeHabitScheduleItem({ id: 'walk', title: 'Walk', children: [], hasSubHabits: false })] }
@@ -58,7 +57,7 @@ for (const width of [412, 1280]) {
           { path: API.habits.count, body: { count: 1 } },
         ])
         await page.goto('/')
-        await clickWhenHydrated(page.getByRole('button', { name: words.habits.search.title, exact: true }))
+        await page.getByRole('button', { name: words.habits.search.title, exact: true }).click()
         const field = page.getByRole('textbox', { name: words.habits.search.question, exact: true })
         await expect(field).toBeFocused()
         await field.fill(query)
@@ -72,7 +71,7 @@ for (const width of [412, 1280]) {
           { path: API.habits.list, query: { search: query }, body: noMatches },
         ])
         await page.goto('/search')
-        await fillWhenHydrated(page.locator('#orbit-main').getByRole('combobox', { name: words.habits.search.question }), query)
+        await page.locator('#orbit-main').getByRole('combobox', { name: words.habits.search.question }).fill(query)
         const column = page.locator('#orbit-main').getByText(words.habits.search.emptyBody, { exact: true }).locator('..')
         expectStartEdgeAction(await measureEmptyState(page, column, words.habits.search.create))
       })

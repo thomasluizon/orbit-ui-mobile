@@ -17,7 +17,6 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 import { inspectDestinationHeading } from './destination-heading'
-import { clickWhenHydrated } from './hydration-guard'
 
 const today = '2026-09-04'
 const habitId = 'habit-1'
@@ -139,7 +138,7 @@ for (const width of [412, 1352]) {
           const inspectActions = async () => {
             const main = page.locator('#orbit-main')
             const column = page.locator('[data-shell-column]')
-            if (route === '/progress/streak') await clickWhenHydrated(page.getByRole('button', { name: t('progressScreen.streak.freezesCount', { banked: streak.streakFreezesAccumulated, ceiling: streak.maxStreakFreezesAccumulated }), exact: true }))
+            if (route === '/progress/streak') await page.getByRole('button', { name: t('progressScreen.streak.freezesCount', { banked: streak.streakFreezesAccumulated, ceiling: streak.maxStreakFreezesAccumulated }), exact: true }).click()
             if (route !== `/habits/${habitId}`) await expect(column.locator(readySelectors[route]!).first()).toBeVisible()
             await expect(main.locator('[aria-busy="true"], .skeleton-pulse')).toHaveCount(0)
             if (route === '/habits/new') {
@@ -182,7 +181,7 @@ for (const width of [412, 1352]) {
             await page.goto(route)
             const consent = page.getByRole('dialog', { name: messages.marketingConsent.prompt.title })
             await expect(consent).toBeVisible()
-            await clickWhenHydrated(consent.getByRole('button', { name: messages.common.close, exact: true }))
+            await consent.getByRole('button', { name: messages.common.close, exact: true }).click()
             await expect(consent).toHaveCount(0)
           })
           else {
@@ -196,7 +195,7 @@ for (const width of [412, 1352]) {
         await page.goto('/calendar')
         const consent = page.getByRole('dialog', { name: messages.marketingConsent.prompt.title })
         await expect(consent).toBeVisible()
-        await clickWhenHydrated(consent.getByRole('button', { name: messages.common.close, exact: true }))
+        await consent.getByRole('button', { name: messages.common.close, exact: true }).click()
         await expect(consent).toHaveCount(0)
         const card = page.locator('section[data-field-surface="card"]').filter({ has: page.getByText(event.title, { exact: true }) })
         await expect(card).toBeVisible()
@@ -240,7 +239,7 @@ for (const width of [412, 1352]) {
         }
         await page.goto('/search')
         const consent = page.getByRole('dialog', { name: messages.marketingConsent.prompt.title })
-        await clickWhenHydrated(consent.getByRole('button', { name: messages.common.close, exact: true }))
+        await consent.getByRole('button', { name: messages.common.close, exact: true }).click()
         await expect(consent).toHaveCount(0)
         await page.getByRole('combobox', { name: messages.habits.search.question }).fill('Read')
         const main = page.getByRole('main')
@@ -261,7 +260,7 @@ for (const width of [412, 1352]) {
         await page.goto(`/habits/${habitId}`)
         const consent = page.getByRole('dialog', { name: messages.marketingConsent.prompt.title })
         await expect(consent).toBeVisible()
-        await clickWhenHydrated(consent.getByRole('button', { name: messages.common.close, exact: true }))
+        await consent.getByRole('button', { name: messages.common.close, exact: true }).click()
         await expect(consent).toHaveCount(0)
         await page.getByRole('button', { name: messages.habits.detail.delete, exact: true }).click()
         const sheet = page.getByRole('dialog', { name: messages.habits.deleteConfirmTitle })
@@ -274,7 +273,7 @@ for (const width of [412, 1352]) {
         await page.goto('/')
         const consent = page.getByRole('dialog', { name: messages.marketingConsent.prompt.title })
         await expect(consent).toBeVisible()
-        await clickWhenHydrated(consent.getByRole('button', { name: messages.common.close, exact: true }))
+        await consent.getByRole('button', { name: messages.common.close, exact: true }).click()
         await expect(consent).toHaveCount(0)
         const row = page.getByTestId('habit-row').filter({ hasText: habit.title }).first()
         await row.locator('[data-habit-row-control="menu"]').click()

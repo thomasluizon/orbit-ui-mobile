@@ -2,7 +2,6 @@ import { expect } from '@playwright/test'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { test } from './upgrade-fixtures'
-import { fillWhenHydrated } from './hydration-guard'
 
 for (const locale of ['en', 'pt-BR'] as const) {
   const words = locale === 'en' ? en : ptBR
@@ -102,7 +101,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
         await page.goto('/?astra=open')
         const conversation = page.locator('[data-shell-conversation]')
         await expect(conversation).toBeVisible()
-        await fillWhenHydrated(conversation.locator('[data-composer-input]'), 'Retained draft')
+        await conversation.locator('[data-composer-input]').fill('Retained draft')
         await conversation.getByRole('button', { name: words.common.closeConversation, exact: true }).click()
         await expect(page.locator('[data-composer-root]')).toHaveCount(0)
         await page.setViewportSize({ width: 1100, height: 915 })

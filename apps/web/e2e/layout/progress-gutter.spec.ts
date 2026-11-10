@@ -1,5 +1,5 @@
 import { getShellConversationEntry } from './shell-conversation-entry'
-import { clickWhenHydrated, openTodayListOptions } from './hydration-guard'
+import { openTodayListOptions } from './hydration-guard'
 import { expect, type Locator } from '@playwright/test'
 import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
@@ -80,7 +80,7 @@ for (const width of [1352, 1100, 840, 412]) {
           if (panelOpen) {
             await expect(page.locator('[data-shell-conversation="overlay"]')).toBeVisible()
             await expect(page.locator('[data-shell-scroller]')).toBeHidden()
-            await clickWhenHydrated(page.getByRole('button', { name: messages.common.closeConversation }))
+            await page.getByRole('button', { name: messages.common.closeConversation }).click()
           }
           await expect(overview).toBeVisible()
           await page.evaluate(() => document.fonts.ready)

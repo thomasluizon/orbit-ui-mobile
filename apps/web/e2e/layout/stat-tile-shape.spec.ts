@@ -8,7 +8,6 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
-import { clickWhenHydrated } from './hydration-guard'
 
 const streak = streakInfoSchema.parse({
   currentStreak: 7, longestStreak: 21, lastActiveDate: '2026-09-04',
@@ -88,7 +87,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
             expect(Math.abs(tile.height - loadingGeometry[index]!.height)).toBeLessThanOrEqual(0.5)
           })
           await page.goto('/progress/streak')
-          await clickWhenHydrated(page.getByRole('button', { name: t('progressScreen.streak.freezesCount', { banked: streak.streakFreezesAccumulated, ceiling: streak.maxStreakFreezesAccumulated }), exact: true }))
+          await page.getByRole('button', { name: t('progressScreen.streak.freezesCount', { banked: streak.streakFreezesAccumulated, ceiling: streak.maxStreakFreezesAccumulated }), exact: true }).click()
           const streakSection = page.getByRole('dialog', { name: words.progressScreen.streak.freezes, exact: true })
           const streakTiles = streakSection.locator('[data-state="default"]')
           await expect(streakTiles).toHaveCount(2)

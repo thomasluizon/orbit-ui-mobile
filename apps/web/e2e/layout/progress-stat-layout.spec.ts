@@ -11,7 +11,6 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { LAYOUT_ORIGIN } from '../support/env'
 import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { test } from './upgrade-fixtures'
-import { clickWhenHydrated } from './hydration-guard'
 
 const goals = paginatedGoalResponseSchema.parse({
   items: [createMockGoal()], page: 1, pageSize: 100, totalCount: 1, totalPages: 1,
@@ -45,7 +44,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
           (route) => route.fulfill({ json: retrospective }),
         )
         await page.goto('/progress/streak')
-        await clickWhenHydrated(page.getByRole('button', { name: t('progressScreen.streak.freezesCount', { banked: streak.streakFreezesAccumulated, ceiling: streak.maxStreakFreezesAccumulated }), exact: true }))
+        await page.getByRole('button', { name: t('progressScreen.streak.freezesCount', { banked: streak.streakFreezesAccumulated, ceiling: streak.maxStreakFreezesAccumulated }), exact: true }).click()
         const details = page.getByRole('dialog', { name: words.progressScreen.streak.freezes, exact: true })
         const bank = details.locator('[data-component="freeze-bank"]')
         await expect(bank).toHaveAttribute('data-protected-state', 'protected')

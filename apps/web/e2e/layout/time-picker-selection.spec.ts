@@ -8,7 +8,6 @@ import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
-import { clickWhenHydrated } from './hydration-guard'
 
 const habit = habitDetailSchema.parse({ ...makeHabitDetail(), dueTime: '21:00' })
 const schedule = makeHabitScheduleItem({ id: habit.id, dueTime: habit.dueTime })
@@ -35,7 +34,7 @@ for (const width of [412, 1280]) {
         await context.route(`${LAYOUT_ORIGIN}${API.habits.metrics(habit.id)}`, (route) => route.fulfill({ json: metrics }))
 
         await page.goto(`/habits/${habit.id}`)
-        await clickWhenHydrated(page.getByRole('button', { name: messages.habits.editHabit, exact: true }))
+        await page.getByRole('button', { name: messages.habits.editHabit, exact: true }).click()
         const editor = page.getByRole('dialog', { name: messages.habits.editHabit, exact: true })
         await expect(editor).toBeVisible()
         await editor.getByRole('button', { name: new RegExp(messages.habits.form.timingAndReminder) }).click()

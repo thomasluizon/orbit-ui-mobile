@@ -1,4 +1,4 @@
-import { clickWhenHydrated, openTodayListOptions } from './hydration-guard'
+import { openTodayListOptions } from './hydration-guard'
 import { setLayoutFixtureSession } from './profile-session'
 import { expect, type Locator, type Page } from '@playwright/test'
 import { API } from '@orbit/shared/api'
@@ -92,7 +92,7 @@ test('a short confirmation fits its content and keeps its actions above the safe
   })
   await setLayoutFixtureSession(context, [{ path: API.notifications.list, body: notifications }])
   await page.goto('/notifications')
-  await clickWhenHydrated(page.getByRole('button', { name: messages.notifications.options }))
+  await page.getByRole('button', { name: messages.notifications.options }).click()
   await page.getByRole('menu', { name: messages.notifications.options }).getByRole('menuitem', { name: messages.notifications.deleteAll }).click()
   const panel = page.getByRole('dialog', { name: messages.notifications.deleteAllAction })
   await expect(panel).toBeVisible()
@@ -114,7 +114,7 @@ test('a short confirmation fits its content and keeps its actions above the safe
 
 test('a short widget sheet has one bottom inset below its last line', async ({ page }) => {
   await page.goto('/profile')
-  await clickWhenHydrated(page.getByRole('button', { name: messages.profile.widgetTitle }))
+  await page.getByRole('button', { name: messages.profile.widgetTitle }).click()
   const panel = page.getByRole('dialog', { name: messages.profile.widgetTitle })
   await expect(panel).toBeVisible()
   await panel.evaluate(() => document.fonts.ready.then(() => undefined))
@@ -143,7 +143,7 @@ test('a long creation screen scrolls under its pinned safe area footer', async (
   await expect(screen).toBeVisible()
   await expect(page.getByRole('heading', { name: messages.habits.form.newTask })).toBeVisible()
   await expect(page.getByRole('dialog', { name: messages.habits.form.newTask })).toHaveCount(0)
-  await clickWhenHydrated(screen.getByRole('button', { name: messages.habits.form.moreDetails }))
+  await screen.getByRole('button', { name: messages.habits.form.moreDetails }).click()
   await expect(screen.locator('.habit-form-disclosure[data-open="true"]')).toBeVisible()
   const footer = page.locator('[data-habit-create-action]')
   await expect(footer.getByRole('button', { name: messages.habits.createTask, exact: true })).toBeVisible()

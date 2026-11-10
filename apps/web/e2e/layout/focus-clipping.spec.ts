@@ -1,5 +1,5 @@
 import { getShellConversationEntry } from './shell-conversation-entry'
-import { openTodayListOptions, waitForHydratedControl } from './hydration-guard'
+import { openTodayListOptions } from './hydration-guard'
 import { expect, type Locator, type Page } from '@playwright/test'
 import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
@@ -133,7 +133,6 @@ for (const width of [412, 1352] as const) {
         const conversation = page.locator('[data-shell-conversation]')
         await expect(conversation).toBeVisible()
         const field = conversation.locator('[data-composer-input]')
-        await waitForHydratedControl(field)
         await expectOneFieldIndicator(page, field, '[data-composer-input-row]', 'conversation field')
         const composer = conversation.locator('[data-composer-root]')
         const conversationChips = composer.getByRole('group', { name: messages.shell.composer.suggestionsLabel }).getByRole('button')

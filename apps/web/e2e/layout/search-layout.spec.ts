@@ -11,7 +11,6 @@ import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fix
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
-import { fillWhenHydrated } from './hydration-guard'
 
 const habits = createPaginatedSchema(habitScheduleItemSchema).parse({
   ...emptyHabitsPageFixture,
@@ -42,7 +41,7 @@ for (const width of [412, 840, 1440]) {
         await expect(surface.locator('[data-command-group]')).toHaveCount(0)
         await expect(surface.locator('kbd')).toHaveCount(0)
         await expect(page.getByRole('dialog')).toHaveCount(0)
-        await fillWhenHydrated(input, 'walk')
+        await input.fill('walk')
         await expect(surface.getByRole('option')).toHaveCount(3)
         await expect(surface.getByRole('listbox')).toHaveAttribute('aria-busy', 'false')
         await page.evaluate(() => document.fonts.ready)
@@ -91,7 +90,7 @@ for (const width of [412, 840, 1440]) {
           await page.goto('/search')
           const surface = page.locator('#orbit-main')
           const input = surface.getByRole('combobox', { name: messages.habits.search.question })
-          await fillWhenHydrated(input, 'walk')
+          await input.fill('walk')
           const options = surface.getByRole('option')
           await expect(options).toHaveCount(3)
           await expect(surface.getByRole('listbox')).toHaveAttribute('aria-busy', 'false')
@@ -137,7 +136,7 @@ for (const width of [412, 840, 1440]) {
             await page.goto('/search')
             const surface = page.locator('#orbit-main')
             const input = surface.getByRole('combobox', { name: messages.habits.search.question })
-            await fillWhenHydrated(input, 'walk')
+            await input.fill('walk')
             const options = surface.getByRole('option')
             await expect(options).toHaveCount(3)
             await expect(surface.getByRole('listbox')).toHaveAttribute('aria-busy', 'false')

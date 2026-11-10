@@ -8,7 +8,6 @@ import { habitDetailSchema, habitMetricsSchema } from '@orbit/shared/types/habit
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
-import { clickWhenHydrated } from './hydration-guard'
 
 const habitId = 'habit-1'
 const habit = habitDetailSchema.parse({ ...makeHabitDetail(), title: 'Beber água', dueTime: '08:00:00' })
@@ -40,7 +39,7 @@ for (const { width, panelOpen } of [
 
       await page.goto(`/habits/${habitId}`)
       if (panelOpen) {
-        await clickWhenHydrated(page.locator('[data-shell-pinned-slot]').getByRole('button', { name: ptBr.todayAstra.openConversation, exact: true }))
+        await page.locator('[data-shell-pinned-slot]').getByRole('button', { name: ptBr.todayAstra.openConversation, exact: true }).click()
         await expect(page.locator('[data-shell-conversation="overlay"]')).toBeVisible()
         await expect(page.locator('[data-shell-scroller]')).toBeHidden()
         await page.getByRole('button', { name: ptBr.common.closeConversation }).click()

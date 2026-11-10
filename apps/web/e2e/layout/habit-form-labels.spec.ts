@@ -8,7 +8,6 @@ import { habitDetailSchema, habitMetricsSchema } from '@orbit/shared/types/habit
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
-import { clickWhenHydrated } from './hydration-guard'
 
 async function assertFieldEdges(disclosure: Locator, descriptionOwner: Locator) {
   const fieldLabel = disclosure.getByRole('heading', { name: messages.habits.form.endDateQuestion, exact: true })
@@ -86,7 +85,7 @@ for (const width of [412, 1352]) {
       await page.goto('/habits/new')
       const screen = page.locator('[data-habit-create-screen]')
       const descriptionOwner = await assertDescriptionOrder(screen)
-      await clickWhenHydrated(screen.getByRole('radio', { name: new RegExp(messages.habits.form.typeHabit) }))
+      await screen.getByRole('radio', { name: new RegExp(messages.habits.form.typeHabit) }).click()
       await screen.getByRole('button', { name: messages.habits.form.moreDetails }).click()
       const disclosure = screen.locator('.habit-form-disclosure[data-open="true"]')
       await disclosure.getByRole('switch', { name: messages.habits.form.habitTypeAvoid }).click()
@@ -113,7 +112,7 @@ for (const width of [412, 1352]) {
         await context.route(`${LAYOUT_ORIGIN}${API.habits.logs(habit.id)}`, (route) => route.fulfill({ json: [] }))
         await context.route(`${LAYOUT_ORIGIN}${API.habits.metrics(habit.id)}`, (route) => route.fulfill({ json: metrics }))
         await page.goto(`/habits/${habit.id}`)
-        await clickWhenHydrated(page.getByRole('button', { name: messages.habits.editHabit }))
+        await page.getByRole('button', { name: messages.habits.editHabit }).click()
         const editor = page.getByRole('dialog', { name: messages.habits.editHabit, exact: true })
         await expect(editor.getByRole('heading', { name: messages.habits.editHabit, exact: true })).toHaveCSS('font-size', '22px')
         const disclosure = editor.locator('form .habit-form-disclosure[data-open="true"]')

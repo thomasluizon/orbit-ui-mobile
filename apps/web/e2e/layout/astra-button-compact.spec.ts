@@ -1,7 +1,6 @@
 import { expect, type Page } from '@playwright/test'
 import en from '@orbit/shared/i18n/en.json'
 import { test } from './layout-test'
-import { clickWhenHydrated } from './hydration-guard'
 
 const conversation = '[data-shell-conversation="overlay"]'
 
@@ -31,7 +30,7 @@ for (const width of [1280, 1352]) {
     test('renders no floating button and opens Astra from the sidebar row', async ({ page }) => {
       await openHoje(page)
       await expect(page.locator('[data-astra-button]')).toHaveCount(0)
-      await clickWhenHydrated(page.locator('[data-shell-sidebar]').getByRole('button', { name: en.nav.astra, exact: true }))
+      await page.locator('[data-shell-sidebar]').getByRole('button', { name: en.nav.astra, exact: true }).click()
       await expect(page.locator(conversation)).toBeVisible()
     })
   })
@@ -61,7 +60,7 @@ for (const width of [412, 840]) {
       expect(tabs.y - (bottom.y + bottom.height)).toBeGreaterThanOrEqual(16)
       await expect(page.locator(conversation)).toHaveCount(0)
 
-      await clickWhenHydrated(button)
+      await button.click()
       await expect(page.locator(conversation)).toBeVisible()
     })
 

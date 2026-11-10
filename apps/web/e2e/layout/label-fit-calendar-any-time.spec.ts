@@ -11,7 +11,6 @@ import { LAYOUT_FIXED_TIME } from './clock.mjs'
 import { expectLabelsFit, markRequiredLabels } from './label-fit-contract'
 import { setLayoutProfileSession } from './profile-session'
 import { test } from './upgrade-fixtures'
-import { clickWhenHydrated } from './hydration-guard'
 
 const dates = Array.from({ length: 7 }, (_, index) => {
   const date = new Date(LAYOUT_FIXED_TIME)
@@ -38,7 +37,7 @@ for (const width of [320, 412, 1352]) {
 
       test('keeps the Semana gutter label on one whole line', async ({ page }) => {
         await page.goto('/calendar')
-        await clickWhenHydrated(page.getByRole('radio', { name: words.calendar.view.week, exact: true }))
+        await page.getByRole('radio', { name: words.calendar.view.week, exact: true }).click()
         await expect(page.getByTestId('time-grid-event')).toHaveCount(14)
         const label = page.getByTestId('time-grid-any-time-label')
         await page.getByTestId('time-grid-hour-scroller').evaluate((element) => { element.scrollTop = 0 })

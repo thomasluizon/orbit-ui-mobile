@@ -14,7 +14,6 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { expectLabelsFit, markRequiredLabels, markUserText } from './label-fit-contract'
 import { test } from './upgrade-fixtures'
-import { clickWhenHydrated } from './hydration-guard'
 
 const day = '2026-09-04'
 const names = ['UnbrokenToken'.repeat(24), 'Read the books I chose to learn about all the places and people around the world before breakfast every morning']
@@ -52,7 +51,7 @@ for (const width of [320, 1352]) {
         test('fits and discloses picker names without toggling them', async ({ page }) => {
           await page.goto('/habits/new')
           const form = page.locator('[data-habit-create-screen]')
-          await clickWhenHydrated(form.getByRole('button', { name: words.habits.form.moreDetails }))
+          await form.getByRole('button', { name: words.habits.form.moreDetails }).click()
           for (const label of [words.habits.form.goals, words.habits.form.tags]) {
             await form.getByRole('button').filter({ has: page.getByText(label, { exact: true }) }).click()
             const picker = page.getByRole('dialog', { name: label, exact: true })
@@ -76,7 +75,7 @@ for (const width of [320, 1352]) {
         test('fits and discloses the drill heading while preserving back', async ({ page }) => {
           await page.goto(`/?date=${day}`)
           const row = page.locator('[data-habit-title]').filter({ has: page.locator('[data-personal-text]', { hasText: name }) }).first()
-          await clickWhenHydrated(row.locator('[data-habit-row-control="menu"]'))
+          await row.locator('[data-habit-row-control="menu"]').click()
           await page.getByRole('menu', { name, exact: true }).getByRole('menuitem', { name: words.habits.actions.openSubHabits, exact: true }).click()
           const heading = page.getByRole('heading', { name, level: 2, exact: true })
           await markRequiredLabels(heading.locator('..').getByText(createTranslator({ locale, messages: words })('habits.drillProgress', { done: 0, total: 1 }), { exact: true }))

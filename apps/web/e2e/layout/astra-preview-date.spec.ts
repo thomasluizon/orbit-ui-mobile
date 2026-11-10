@@ -9,7 +9,6 @@ import { LAYOUT_ORIGIN } from '../support/env'
 import { getShellConversationEntry } from './shell-conversation-entry'
 import { readTargetGeometry } from './press-shape-helpers'
 import { test } from './upgrade-fixtures'
-import { clickWhenHydrated } from './hydration-guard'
 
 for (const width of [320, 1280]) {
   for (const locale of ['en', 'pt-BR'] as const) {
@@ -26,7 +25,7 @@ for (const width of [320, 1280]) {
           const event = chatStreamEventSchema.parse({ type: 'final', response: { aiMessage: '', actions: [], pendingOperations: [preview] } })
           await context.route(`${LAYOUT_ORIGIN}${API.chat.stream}`, route => route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify(event)}\n\n` }))
           await page.goto('/')
-          await clickWhenHydrated(getShellConversationEntry(page, width, messages))
+          await getShellConversationEntry(page, width, messages).click()
           const conversation = page.locator('[data-shell-conversation="overlay"]')
           await conversation.locator('[data-composer-input]').fill(item.entityName)
           await conversation.getByRole('button', { name: messages.shell.composer.send, exact: true }).click()

@@ -8,7 +8,6 @@ import { TICKET_TASK_TITLE } from '@orbit/shared/test-support/pending-operation-
 import { chatStreamEventSchema } from '@orbit/shared/types/chat'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
-import { fillWhenHydrated } from './hydration-guard'
 
 for (const [locale, words] of [['en', en], ['pt-BR', ptBR]] as const) {
   for (const width of [320, 1280]) {
@@ -23,7 +22,7 @@ for (const [locale, words] of [['en', en], ['pt-BR', ptBR]] as const) {
         }))
         await page.goto('/?astra=open')
         const conversation = page.locator('[data-shell-conversation="overlay"]')
-        await fillWhenHydrated(conversation.locator('[data-composer-input]'), 'Review my routine')
+        await conversation.locator('[data-composer-input]').fill('Review my routine')
         await conversation.getByRole('button', { name: words.shell.composer.send, exact: true }).click()
         const header = conversation.locator('[data-conversation-header] header')
         const deletion = header.getByRole('button', { name: words.chat.conversation.delete, exact: true })

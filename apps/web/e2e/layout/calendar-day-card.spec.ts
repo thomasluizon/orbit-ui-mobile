@@ -12,7 +12,6 @@ import { LAYOUT_ORIGIN } from '../support/env'
 import { formatCatalogMessage } from '../support/messages'
 import { setLayoutProfileSession } from './profile-session'
 import { test } from './upgrade-fixtures'
-import { clickWhenHydrated } from './hydration-guard'
 
 const habitTitle = 'Caminhar pelo bairro depois do trabalho e conversar com os amigos sobre os planos para a semana e os caminhos que queremos conhecer juntos'
 const selectedDate = '2026-09-04'
@@ -183,7 +182,7 @@ for (const width of [412, 1352]) {
         expect(geometry.buttonLines).toBe(1)
         expect(geometry.clipped).toBe(false)
         expect(geometry.scrollWidth).toBe(geometry.pageWidth)
-        await clickWhenHydrated(action)
+        await action.click()
         await expect(page).toHaveURL(/\/upgrade$/)
       })
     })

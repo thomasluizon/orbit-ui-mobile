@@ -7,7 +7,6 @@ import { chatStreamEventSchema } from '@orbit/shared/types/chat'
 import { createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
-import { fillWhenHydrated } from './hydration-guard'
 
 const habit = makeHabitDetail()
 const habits = createPaginatedSchema(habitScheduleItemSchema).parse({
@@ -66,7 +65,7 @@ for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
           expect(Math.abs(markBox.y + markBox.height / 2 - closeBox.y - closeBox.height / 2)).toBeLessThanOrEqual(0.5)
           const feed = conversation.getByRole('feed', { name: words.chat.title, exact: true })
           if (scrolling) {
-            await fillWhenHydrated(conversation.locator('[data-composer-input]'), 'Como posso revisar a rotina?')
+            await conversation.locator('[data-composer-input]').fill('Como posso revisar a rotina?')
             await conversation.getByRole('button', { name: words.shell.composer.send, exact: true }).click()
             await expect(feed.getByRole('article')).toHaveCount(2)
             await expect(feed).toHaveAttribute('aria-busy', 'false')
@@ -107,7 +106,7 @@ for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
           await page.goto('/?astra=open')
           const conversation = page.locator('[data-shell-conversation]')
           const input = conversation.locator('[data-composer-input]')
-          await fillWhenHydrated(input, 'Como posso revisar a rotina?')
+          await input.fill('Como posso revisar a rotina?')
           await conversation.getByRole('button', { name: words.shell.composer.send, exact: true }).click()
           await expect(conversation.getByRole('article')).toHaveCount(2)
           await input.fill('Retained draft')

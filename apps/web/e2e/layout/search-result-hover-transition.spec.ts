@@ -11,7 +11,6 @@ import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fix
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
-import { fillWhenHydrated } from './hydration-guard'
 
 const habits = createPaginatedSchema(habitScheduleItemSchema).parse({
   ...emptyHabitsPageFixture,
@@ -32,7 +31,7 @@ async function setupSearch(page: Page, context: BrowserContext, locale: 'en' | '
   await page.goto('/search')
   const surface = page.locator('#orbit-main')
   const input = surface.getByRole('combobox', { name: messages.habits.search.question })
-  await fillWhenHydrated(input, 'walk')
+  await input.fill('walk')
   const options = surface.getByRole('option')
   await expect(options).toHaveCount(2)
   await expect(surface.getByRole('listbox')).toHaveAttribute('aria-busy', 'false')

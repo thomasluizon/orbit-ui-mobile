@@ -3,7 +3,6 @@ import { PROFILE_SUBMENUS } from '@orbit/shared/utils/profile-navigation'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { expectLabelsFit, markUserText } from './label-fit-contract'
 import { test } from './upgrade-fixtures'
-import { clickWhenHydrated } from './hydration-guard'
 
 const email = `${'longaddress'.repeat(12)}@example.com`
 const accountRoute = PROFILE_SUBMENUS.find((submenu) => submenu.id === 'account')!.route
@@ -23,7 +22,7 @@ for (const width of [320, 1024, 1352]) {
           const sidebarAccount = page.locator('[data-shell-sidebar] [data-shell-account]:not([data-loading])')
           await expect(sidebarAccount).toHaveAccessibleName(`Ada, ${email}`)
           fields.push(sidebarAccount.locator('[data-shell-account-email]'))
-          await clickWhenHydrated(sidebarAccount)
+          await sidebarAccount.click()
           await expect(page).toHaveURL(`${LAYOUT_ORIGIN}/profile`)
         }
         for (const field of fields) {

@@ -6,7 +6,6 @@ import { createTranslator } from 'next-intl'
 import { formatPrice, monthlyEquivalent } from '@orbit/shared/utils/subscription-pricing'
 import { subscriptionPlansFixtures } from '../../test-support/hermetic/mock-api/fixtures/subscription-plans'
 import { test } from './upgrade-fixtures'
-import { clickWhenHydrated } from './hydration-guard'
 
 function singleLineLabels(locale: string, messages: typeof en, trial: boolean): string[] {
   return [
@@ -189,7 +188,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
               await expect(upgradeScreen).toHaveAttribute('data-state', 'offline')
             }
             if (subscriptionState === 'portalOpening' || subscriptionState === 'portalFailed') {
-              await clickWhenHydrated(upgradeScreen.getByRole('button', { name: messages.upgrade.billing.actions.manage, exact: true }))
+              await upgradeScreen.getByRole('button', { name: messages.upgrade.billing.actions.manage, exact: true }).click()
               await expect(upgradeScreen).toHaveAttribute('data-state', subscriptionState === 'portalOpening' ? 'portal-opening' : 'portal-failed')
             }
           }

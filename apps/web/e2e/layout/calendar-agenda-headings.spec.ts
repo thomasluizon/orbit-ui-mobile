@@ -4,7 +4,6 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { prepareAgendaCalendar } from './calendar-agenda-fixtures'
 import { expectLabelsFit, markRequiredLabels } from './label-fit-contract'
 import { test } from './upgrade-fixtures'
-import { clickWhenHydrated } from './hydration-guard'
 
 for (const width of [320, 1280]) {
   for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
@@ -13,7 +12,7 @@ for (const width of [320, 1280]) {
       test('builds the today heading in one localized sentence and keeps long dates whole', async ({ page, context }) => {
         await prepareAgendaCalendar(context, locale)
         await page.goto('/calendar')
-        await clickWhenHydrated(page.getByRole('radio', { name: words.calendar.view.agenda, exact: true }))
+        await page.getByRole('radio', { name: words.calendar.view.agenda, exact: true }).click()
         const agenda = page.getByTestId('calendar-agenda-view')
         const headings = agenda.getByRole('heading')
         await expect(headings.nth(0)).toHaveText(locale === 'pt-BR' ? 'Hoje, sexta-feira, 4 de setembro' : 'Today, Friday, September 4')

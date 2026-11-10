@@ -4,7 +4,6 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { PROMPT_CATEGORIES, PROMPT_TEMPLATES } from '@orbit/shared/chat/prompt-library'
 import { expectLabelsFit, markRequiredLabels } from './label-fit-contract'
 import { test } from './upgrade-fixtures'
-import { fillWhenHydrated } from './hydration-guard'
 
 for (const width of [320, 412, 1352]) {
   for (const locale of ['en', 'pt-BR'] as const) {
@@ -15,7 +14,7 @@ for (const width of [320, 412, 1352]) {
         await page.goto('/?astra=open')
         const conversation = page.locator('[data-shell-conversation="overlay"]')
         const input = conversation.locator('[data-composer-input]')
-        await fillWhenHydrated(input, 'Meu rascunho')
+        await input.fill('Meu rascunho')
         await conversation.getByRole('button', { name: words.chat.templates.browse, exact: true }).first().click()
         const library = conversation.locator('[data-prompt-library]')
         await expect(library.getByRole('heading', { name: words.chat.templates.title, exact: true })).toBeFocused()

@@ -9,7 +9,6 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 import { readReminderChipGeometry } from './habit-timing-geometry'
-import { clickWhenHydrated } from './hydration-guard'
 
 async function expectWholeCaption(control: Locator) {
   const fits = await control.locator('[data-slot="list-row-title"]').evaluate(element => {
@@ -37,7 +36,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
             await page.goto('/habits/habit-1')
             await page.addStyleTag({ content: `html { font-size: ${16 * textScale}px; }` })
             const messages = locale === 'en' ? en : ptBR
-            await clickWhenHydrated(page.getByRole('button', { name: messages.habits.editHabit }))
+            await page.getByRole('button', { name: messages.habits.editHabit }).click()
             const editor = page.getByRole('dialog', { name: messages.habits.editHabit, exact: true })
             const entry = editor.getByRole('button', { name: new RegExp(messages.habits.form.timingAndReminder) })
             await entry.scrollIntoViewIfNeeded()

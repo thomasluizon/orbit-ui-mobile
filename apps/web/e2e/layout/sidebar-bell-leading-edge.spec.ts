@@ -8,7 +8,6 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { test } from './upgrade-fixtures'
 import { setLayoutFixtureSession } from './profile-session'
 import { expectInteractionFill } from './label-interaction-fill'
-import { clickWhenHydrated } from './hydration-guard'
 
 const notifications = notificationsResponseSchema.parse({
   items: [createMockNotification({ isRead: false })],
@@ -64,7 +63,7 @@ for (const width of [1024, 1352]) {
               }
             }).toPass()
             await expectInteractionFill(bell)
-            await clickWhenHydrated(toggle)
+            await toggle.click()
           }
           await bell.click()
           await expect(page).toHaveURL(/\/notifications$/)

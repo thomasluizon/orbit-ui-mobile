@@ -7,7 +7,6 @@ import { test } from './layout-test'
 import { setLayoutFixtureSession, setLayoutProfileSession } from './profile-session'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
-import { clickWhenHydrated } from './hydration-guard'
 
 for (const reducedMotion of ['no-preference', 'reduce'] as const) {
   test(`bulk skip retains departing rows and releases the scrolled viewport afterward with ${reducedMotion}`, async ({ page, context }) => {
@@ -27,7 +26,7 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
     await page.goto('/')
     const rows = page.locator('[data-testid="habit-row"]')
     await expect(rows).toHaveCount(items.length)
-    await clickWhenHydrated(rows.first().locator('[data-habit-row-control="menu"]'))
+    await rows.first().locator('[data-habit-row-control="menu"]').click()
     await page.getByRole('menuitem', { name: en.common.select, exact: true }).click()
     await page.getByRole('button', { name: en.common.selectAll, exact: true }).click()
     const scroller = page.locator('[data-shell-scroller]')

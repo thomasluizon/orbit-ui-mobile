@@ -6,7 +6,6 @@ import { makeClarificationPreviewMessage } from '@orbit/shared/test-support/chat
 import { chatStreamEventSchema } from '@orbit/shared/types/chat'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
-import { fillWhenHydrated } from './hydration-guard'
 
 const clarification = makeClarificationPreviewMessage()
 const reply = chatStreamEventSchema.parse({ type: 'final', response: {
@@ -27,7 +26,7 @@ for (const width of [600, 1352]) {
       test(sameTask ? 'brings all clarification preview actions above the composer after a same-task scroll and answer' : 'brings all clarification preview actions above the composer', async ({ page }) => {
         await page.goto('/?astra=open')
         const conversation = page.locator('[data-shell-conversation="overlay"]')
-        await fillWhenHydrated(conversation.locator('[data-composer-input]'), 'Quero criar um hábito. '.repeat(80))
+        await conversation.locator('[data-composer-input]').fill('Quero criar um hábito. '.repeat(80))
         await conversation.getByRole('button', { name: pt.shell.composer.send, exact: true }).click()
         const answer = conversation.getByRole('button', { name: pt.habits.clarification.quickAction.daily, exact: true })
         await expect(answer).toBeVisible()
@@ -57,7 +56,7 @@ for (const width of [600, 1352]) {
       }))
       await page.goto('/?astra=open')
       const conversation = page.locator('[data-shell-conversation="overlay"]')
-      await fillWhenHydrated(conversation.locator('[data-composer-input]'), 'Quero criar um hábito')
+      await conversation.locator('[data-composer-input]').fill('Quero criar um hábito')
       await conversation.getByRole('button', { name: pt.shell.composer.send, exact: true }).click()
       const feed = conversation.getByRole('feed')
       await expect(feed.getByRole('article')).toHaveCount(2)

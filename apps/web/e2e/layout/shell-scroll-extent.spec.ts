@@ -11,7 +11,6 @@ import { LAYOUT_FIXED_TIME } from './clock.mjs'
 import { setLayoutFixtureSession, setLayoutProfileSession } from './profile-session'
 import { measureShellScrollEnd, shellScrollViewports } from './shell-scroll-extent'
 import { test } from './layout-test'
-import { clickWhenHydrated } from './hydration-guard'
 
 async function floatingClearance(page: Page, width: number, scrollerBottom: number) {
   const button = page.locator('[data-astra-button]')
@@ -53,7 +52,7 @@ for (const viewport of shellScrollViewports) {
       expect(measured.scrollTop).toBe(measured.scrollHeight - measured.clientHeight)
       expect(measured.lastTop).toBeGreaterThanOrEqual(measured.scrollerTop)
       expect(measured.scrollerBottom - measured.lastBottom).toBeCloseTo(clearance, 0)
-      await clickWhenHydrated(scroller.locator('[data-habit-row-control="menu"]').first())
+      await scroller.locator('[data-habit-row-control="menu"]').first().click()
       await page.getByRole('menuitem', { name: en.common.select, exact: true }).click()
       for (let index = 0; index < 9; index++) {
         const control = page.locator('[data-habit-row-control="selection"][aria-pressed="false"]').first()

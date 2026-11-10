@@ -15,7 +15,6 @@ import { expectLabelsFit, markRequiredLabels } from './label-fit-contract'
 import { expectInteractionFill } from './label-interaction-fill'
 import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { test } from './upgrade-fixtures'
-import { clickWhenHydrated } from './hydration-guard'
 
 async function expectEmptyTitle(page: Page, surface: Page | Locator, title: string) {
   const label = surface.locator('[data-mark] > p').filter({ hasText: title })
@@ -84,7 +83,7 @@ for (const width of [320, 360, 384, 412]) {
 
       test('the empty Astra conversation keeps its invitation whole', async ({ page }) => {
         await page.goto('/')
-        await clickWhenHydrated(page.getByRole('button', { name: words.shell.astraButton.open, exact: true }))
+        await page.getByRole('button', { name: words.shell.astraButton.open, exact: true }).click()
         await expectEmptyTitle(page, page, words.chat.empty.title)
       })
 

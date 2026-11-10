@@ -4,7 +4,6 @@ import { API } from '@orbit/shared/api'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { test } from './upgrade-fixtures'
-import { clickWhenHydrated } from './hydration-guard'
 
 for (const locale of ['en', 'pt-BR'] as const) {
   for (const width of [320, 360, 384, 412, 1352]) {
@@ -52,7 +51,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
         await expect(link).toHaveAccessibleName(new RegExp(profile.name))
         await expect(link).toHaveAccessibleName(new RegExp(profile.email))
         await expect(row.getByRole('button')).toHaveCount(0)
-        await clickWhenHydrated(link)
+        await link.click()
         await expect(page).toHaveURL(/\/profile\/account$/)
         await expect(page.locator('[data-slot="list-row-title"][data-personal-text-expanded]').first()).toHaveText(profile.name)
         await expect(page.locator('[data-slot="list-row-description"][data-personal-text-expanded]').first()).toHaveText(profile.email)

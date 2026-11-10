@@ -11,7 +11,6 @@ import {
   matchesProgressGoalsRequest, progressGoalsEmptyGamification, progressGoalsEmptyPage,
   progressGoalsEmptyProfile, progressGoalsEmptyStreak,
 } from './progress-goals-empty-fixtures'
-import { clickWhenHydrated } from './hydration-guard'
 
 async function expectGoalsWell(well: Locator) {
   await expect(well).toBeVisible()
@@ -59,7 +58,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
           await expect(empty.getByRole('button', { name: words.progressScreen.goals.createAction })).toHaveAttribute('data-variant', viewport.width >= 768 ? 'secondary' : 'primary')
           await expect(empty.locator('p')).toHaveText(words.progressScreen.goals.empty)
           await page.goto('/progress/streak')
-          await clickWhenHydrated(page.getByRole('button', { name: t('progressScreen.streak.freezesCount', { banked: progressGoalsEmptyStreak.streakFreezesAccumulated, ceiling: progressGoalsEmptyStreak.maxStreakFreezesAccumulated }), exact: true }))
+          await page.getByRole('button', { name: t('progressScreen.streak.freezesCount', { banked: progressGoalsEmptyStreak.streakFreezesAccumulated, ceiling: progressGoalsEmptyStreak.maxStreakFreezesAccumulated }), exact: true }).click()
           const bank = page.locator('[data-component="freeze-bank"]')
           await expect(bank).toHaveAttribute('data-protected-state', 'empty')
           const figures = await bank.evaluate((element) => {
@@ -84,7 +83,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
           await expect(page.getByRole('button', { name: t('progressScreen.streak.freezesCount', { banked: progressGoalsEmptyStreak.streakFreezesAccumulated, ceiling: progressGoalsEmptyStreak.maxStreakFreezesAccumulated }), exact: true })).toBeFocused()
           goalPage = paginatedGoalResponseSchema.parse({ ...progressGoalsEmptyPage, items: [createMockGoal()], totalCount: 1, totalPages: 1 })
           await page.goto('/progress/goals')
-          await clickWhenHydrated(section.getByRole('button', { name: `${words.progressScreen.goals.filter}: ${words.progressScreen.goals.all}`, exact: true }))
+          await section.getByRole('button', { name: `${words.progressScreen.goals.filter}: ${words.progressScreen.goals.all}`, exact: true }).click()
           await page.getByRole('menuitemcheckbox', { name: words.progressScreen.goals.completed, exact: true }).click()
           await expectGoalsWell(well)
           await expect(well.locator('p')).toHaveText(words.progressScreen.goals.filterEmpty)

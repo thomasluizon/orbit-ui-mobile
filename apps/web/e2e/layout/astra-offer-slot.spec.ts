@@ -10,7 +10,6 @@ import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 import { getShellConversationEntry } from './shell-conversation-entry'
 import { inspectFocusedControlRings } from './focus-indicators'
-import { clickWhenHydrated } from './hydration-guard'
 
 function measureOfferLabel(button: HTMLElement) {
   const bounds = button.getBoundingClientRect()
@@ -44,7 +43,7 @@ for (const width of [320, 360, 384, 412]) {
           return route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify(response)}\n\n` })
         })
         await page.goto('/')
-        await clickWhenHydrated(getShellConversationEntry(page, width, messages))
+        await getShellConversationEntry(page, width, messages).click()
         const conversation = page.locator('[data-shell-conversation="overlay"]')
         await conversation.locator('[data-composer-input]').fill('How did I do?')
         await conversation.getByRole('button', { name: messages.shell.composer.send, exact: true }).click()

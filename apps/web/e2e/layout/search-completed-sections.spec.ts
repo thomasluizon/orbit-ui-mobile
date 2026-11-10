@@ -11,7 +11,6 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { LAYOUT_ORIGIN } from '../support/env'
 import { setLayoutFixtureSession, setLayoutProfileSession } from './profile-session'
 import { expectLabelsFit } from './label-fit-contract'
-import { clickWhenHydrated } from './hydration-guard'
 
 const habits = createPaginatedSchema(habitScheduleItemSchema).parse({
   ...emptyHabitsPageFixture,
@@ -35,7 +34,7 @@ for (const width of [320, 360, 384, 412, 1440]) {
         await page.goto('/search')
         const surfaces = [page.locator('#orbit-main')]
         if (width >= 1024) {
-          await clickWhenHydrated(page.locator('[data-shell-sidebar]').getByRole('button', { name: messages.nav.search }))
+          await page.locator('[data-shell-sidebar]').getByRole('button', { name: messages.nav.search }).click()
           surfaces.unshift(page.getByRole('dialog', { name: messages.command.title }))
         }
         for (const surface of surfaces) {

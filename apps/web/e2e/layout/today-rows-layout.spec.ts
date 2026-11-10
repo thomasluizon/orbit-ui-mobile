@@ -1,4 +1,4 @@
-import { clickWhenHydrated, openTodayListOptions } from './hydration-guard'
+import { openTodayListOptions } from './hydration-guard'
 import { setHabitTextScale, settleHabitRows } from './subhabit-indent-geometry'
 import { writeFile } from 'node:fs/promises'
 import { expect, type Page, type Locator } from '@playwright/test'
@@ -43,7 +43,7 @@ for (const mode of ['dark', 'light'] as const) {
       const parent = page.locator('[data-testid="habit-row"][data-habit-title="Parent"]')
       const disclosure = parent.locator('[data-habit-row-control="disclosure"]')
       await expect(disclosure).toBeVisible()
-      if (await disclosure.getAttribute('aria-expanded') === 'true') await clickWhenHydrated(disclosure)
+      if (await disclosure.getAttribute('aria-expanded') === 'true') await disclosure.click()
       await expect(parent).toContainText('0 de 2')
       const panels = page.locator('.habit-panel')
       await expect(panels).toHaveCount(3)
@@ -187,7 +187,7 @@ for (const width of [320, 600]) {
         await page.goto('/')
         const disclosure = page.locator('[data-habit-row-control="disclosure"]')
         await expect(disclosure).toBeVisible()
-        if (await disclosure.getAttribute('aria-expanded') !== 'true') await clickWhenHydrated(disclosure)
+        if (await disclosure.getAttribute('aria-expanded') !== 'true') await disclosure.click()
         await expect(page.getByTestId('habit-row')).toHaveCount(3)
         await expect(page.locator('.today-astra-sentence')).toHaveText(proactive.text)
         await setHabitTextScale(page, textScale, [habits[0]!.title])
@@ -259,7 +259,7 @@ for (const language of ['en', 'pt-BR'] as const) for (const mode of ['dark', 'li
       const parent = page.locator('[data-testid="habit-row"][data-habit-title="Parent"]')
       const disclosure = parent.locator('[data-habit-row-control="disclosure"]')
       await expect(disclosure).toBeVisible()
-      if (await disclosure.getAttribute('aria-expanded') !== 'true') await clickWhenHydrated(disclosure)
+      if (await disclosure.getAttribute('aria-expanded') !== 'true') await disclosure.click()
       await expect(page.getByTestId('habit-row')).toHaveCount(6)
       await expect(page.locator('[data-habit-row-description]')).toHaveCount(3)
       for (const scale of [1, 2]) {

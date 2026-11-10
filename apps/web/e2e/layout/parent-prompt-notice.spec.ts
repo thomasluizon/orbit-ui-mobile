@@ -8,7 +8,6 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { LAYOUT_FIXED_TIME } from './clock.mjs'
 import { setLayoutFixtureSession } from './profile-session'
 import { test } from './upgrade-fixtures'
-import { clickWhenHydrated } from './hydration-guard'
 
 const date = LAYOUT_FIXED_TIME.slice(0, 10)
 const child = createMockHabitScheduleChild({ id: 'notice-child', title: 'Child', dueDate: date, scheduledDates: [date] })
@@ -29,7 +28,7 @@ for (const width of [412, 1352]) {
           await page.goto('/')
           const parentRow = page.locator('[data-habit-title="Parent"]')
           const disclosure = parentRow.locator('[data-habit-row-control="disclosure"]')
-          if (await disclosure.getAttribute('aria-expanded') !== 'true') await clickWhenHydrated(disclosure)
+          if (await disclosure.getAttribute('aria-expanded') !== 'true') await disclosure.click()
           await page.locator('[data-habit-title="Child"] [data-habit-row-control="menu"]').click()
           await page.getByRole('menuitem', { name: words.habits.actions.skip, exact: true }).click()
           const dialog = page.getByRole('dialog', { name: words.habits.autoSkipParentTitle, exact: true })

@@ -7,7 +7,6 @@ import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import { notificationsResponseSchema } from '@orbit/shared/types/notification'
 import { measureTitleWords } from './title-word-geometry'
 import { test } from './upgrade-fixtures'
-import { clickWhenHydrated } from './hydration-guard'
 
 const titles = ['W'.repeat(60), 'Extraordinarily comprehensive internationalization responsibilities']
 const notifications = notificationsResponseSchema.parse({
@@ -41,7 +40,7 @@ for (const width of [320, 412]) {
           await expect(rowTitle).toHaveText(title)
           const action = rowTitle.locator('xpath=ancestor::button')
           await expect(action).toHaveAccessibleName(new RegExp(title))
-          await clickWhenHydrated(action)
+          await action.click()
           const detail = page.getByRole('dialog', { name: title, exact: true })
           await expect(detail).toBeVisible()
           const detailHeading = detail.getByRole('heading', { name: title, exact: true })

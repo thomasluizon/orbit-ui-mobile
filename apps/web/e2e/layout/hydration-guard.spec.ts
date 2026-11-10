@@ -3,7 +3,6 @@ import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
-import { clickWhenHydrated } from './hydration-guard'
 import { setLayoutFixtureSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 
@@ -20,7 +19,7 @@ test.describe('hydration guard under a slow CPU', () => {
     const session = await context.newCDPSession(page)
     await session.send('Emulation.setCPUThrottlingRate', { rate: 6 })
     await page.goto('/')
-    await clickWhenHydrated(page.getByRole('button', { name: en.habits.search.title, exact: true }))
+    await page.getByRole('button', { name: en.habits.search.title, exact: true }).click()
     await expect(page.getByRole('textbox', { name: en.habits.search.question, exact: true })).toBeFocused()
   })
 })

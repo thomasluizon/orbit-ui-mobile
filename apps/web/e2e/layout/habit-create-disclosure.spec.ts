@@ -7,7 +7,6 @@ import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { test } from './upgrade-fixtures'
 import { setLayoutFixtureSession } from './profile-session'
 import { LAYOUT_FIXED_TIME } from './clock.mjs'
-import { clickWhenHydrated } from './hydration-guard'
 
 async function assertInlineGlyph(phrase: Locator, glyph: Locator, date: Locator) {
   const mark = glyph.locator('[data-asset="astra-mark"]')
@@ -45,7 +44,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
         const disclosure = screen.getByRole('button', { name: messages.habits.form.moreDetails, exact: true })
         await expect(disclosure).toHaveAttribute('aria-expanded', 'false')
 
-        await clickWhenHydrated(disclosure)
+        await disclosure.click()
         await expect(disclosure).toHaveAttribute('aria-expanded', 'true')
         await expect(disclosure).toHaveAttribute('aria-controls', /\S+/)
         const regionId = await disclosure.getAttribute('aria-controls')
@@ -77,7 +76,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
             const screen = page.locator('[data-habit-create-screen]')
             const submit = page.locator('[data-habit-create-action]').getByRole('button', { name: messages.habits.createTask, exact: true })
             await expect(submit).toBeEnabled()
-            await clickWhenHydrated(submit)
+            await submit.click()
             const task = screen.getByRole('radio', { name: new RegExp(messages.habits.form.typeTask) })
             await expect(task).toBeChecked()
             await expect(screen.getByRole('radio', { name: new RegExp(messages.habits.form.typeTask) })).toBeChecked()
@@ -158,7 +157,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
       try {
         await page.goto('/habits/new')
         await page.addStyleTag({ content: ':root{font-size:32px!important}' })
-        await clickWhenHydrated(screen.getByRole('radio', { name: new RegExp(messages.habits.form.typeTask) }))
+        await screen.getByRole('radio', { name: new RegExp(messages.habits.form.typeTask) }).click()
         await phrase.fill(wording)
         await expect(phrase).toHaveValue(wording)
         await expect(date).toHaveText(messages.common.selectDate)
@@ -181,7 +180,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
         const messages = locale === 'en' ? en : ptBr
         await page.goto('/habits/new')
         const screen = page.locator('[data-habit-create-screen]')
-        await clickWhenHydrated(screen.getByRole('radio', { name: new RegExp(messages.habits.form.typeTask) }))
+        await screen.getByRole('radio', { name: new RegExp(messages.habits.form.typeTask) }).click()
         const phrase = screen.getByRole('textbox', { name: messages.habits.form.datePhrase, exact: true })
         const date = screen.getByRole('button', { name: new RegExp(messages.habits.form.taskDate) })
         const consultations: string[] = []

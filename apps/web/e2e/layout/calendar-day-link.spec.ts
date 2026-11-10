@@ -9,7 +9,6 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { billingDetailsFixture } from '../../test-support/hermetic/mock-api/fixtures/subscriptions'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { expectCalendarDayLinkFocus } from './calendar-day-link-focus'
-import { waitForHydratedControl } from './hydration-guard'
 import { expectFillShape, expectInteractionFill } from './label-interaction-fill'
 import { setLayoutProfileSession } from './profile-session'
 import { readControlPaint } from './control-paint'
@@ -100,7 +99,6 @@ for (const width of [412, 1280]) {
       test('keyboard focus follows the row radius without clipping', async ({ page }) => {
         await page.goto('/calendar')
         const link = page.getByRole('link', { name: ptBR.calendar.goToDay, exact: true })
-        await waitForHydratedControl(link)
         await expectCalendarDayLinkFocus(link)
       })
     })

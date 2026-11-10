@@ -7,7 +7,6 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { test } from './upgrade-fixtures'
-import { clickWhenHydrated } from './hydration-guard'
 
 async function openProfile(page: Page) {
   await page.goto('/profile')
@@ -71,7 +70,7 @@ for (const width of [320, 412, 600, 1280, 1352]) {
       ] as const) {
         test(`${path} retains its header after client navigation`, async ({ page }) => {
           await openProfile(page)
-          if (label === null) await clickWhenHydrated(page.locator(`a[href="${path}"]`))
+          if (label === null) await page.locator(`a[href="${path}"]`).click()
           else await page.getByRole('link', { name: label, exact: true }).click()
           await expect(page).toHaveURL(new RegExp(`${path}$`))
           if (path.startsWith('/profile/')) {
@@ -94,7 +93,7 @@ for (const width of [320, 412, 600, 1280, 1352]) {
 
       test('API keys live in the Astra sub-screen', async ({ page }) => {
         await openProfile(page)
-        await clickWhenHydrated(page.getByRole('link', { name: messages.profile.groups.astra, exact: true }))
+        await page.getByRole('link', { name: messages.profile.groups.astra, exact: true }).click()
         const keys = page.getByTestId('profile-api-keys')
         await expect(keys.getByRole('heading', { name: messages.profile.settingsRows.apiKeysMcp })).toBeVisible()
         await expect(keys.getByRole('button', { name: messages.profile.apiKeys.unlock, exact: true })).toBeVisible()
@@ -114,7 +113,7 @@ for (const width of [320, 412, 600, 1280, 1352]) {
           })
           await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
           await openProfile(page)
-          await clickWhenHydrated(page.getByRole('link', { name: messages.profile.groups.astra, exact: true }))
+          await page.getByRole('link', { name: messages.profile.groups.astra, exact: true }).click()
           await page.getByRole('link', { name: messages.profile.allowance.manageSubscription, exact: true }).click()
           await expect(page).toHaveURL(/\/upgrade\?from=%2Fprofile%2Fastra$/)
           await expect(page.getByRole('heading', { level: 1, name: messages.upgrade.title, exact: true })).toBeVisible()

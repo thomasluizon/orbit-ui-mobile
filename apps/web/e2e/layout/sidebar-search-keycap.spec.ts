@@ -7,7 +7,6 @@ import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { setLayoutProfileSession } from './profile-session'
-import { clickWhenHydrated } from './hydration-guard'
 
 const platforms = [
   { name: 'default', hint: 'Ctrl K' },
@@ -85,7 +84,7 @@ for (const width of [1100, 1352, 1440]) {
             expect(measured.paint.size).toBe('12px')
             expect(measured.paint.color).toBe(measured.expectedColor)
             await expect(sidebarKeycap).toHaveAttribute('data-keycap', '')
-            await clickWhenHydrated(control)
+            await control.click()
             const palette = page.getByRole('dialog', { name: messages.command.title })
             await expect(palette).toBeVisible()
             await expect(palette.locator('kbd')).toHaveText(['↑↓', '↵', 'esc'])

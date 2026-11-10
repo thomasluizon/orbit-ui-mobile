@@ -4,7 +4,6 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { test } from './upgrade-fixtures'
 import { settleAnimations } from './settle-animations'
 import { readControlPaint } from './control-paint'
-import { clickWhenHydrated } from './hydration-guard'
 
 for (const locale of ['en', 'pt-BR'] as const) {
   test.describe(`Calendar options rows in ${locale}`, () => {
@@ -14,7 +13,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
       test(`aligns row text with the sheet title and keeps a 52px floor at ${width}px`, async ({ page }) => {
         await page.setViewportSize({ width, height: 915 })
         await page.goto('/calendar')
-        await clickWhenHydrated(page.getByRole('button', { name: words.calendar.options, exact: true }))
+        await page.getByRole('button', { name: words.calendar.options, exact: true }).click()
         const dialog = page.getByRole('dialog', { name: words.calendar.options, exact: true })
         await expect(dialog).toBeVisible()
         await page.evaluate(() => document.fonts.ready)

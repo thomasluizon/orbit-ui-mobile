@@ -7,7 +7,6 @@ import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
-import { clickWhenHydrated } from './hydration-guard'
 
 const profile = profileSchema.parse({ ...profileFixture, language: 'pt-BR', aiMessagesUsed: 0 })
 const reply = 'Podemos revisar a sua rotina.'
@@ -24,7 +23,7 @@ for (const width of [412, 1352]) {
         contentType: 'text/event-stream', body: `data: ${JSON.stringify(finalEvent)}\n\n`,
       }))
       await page.goto('/')
-      await clickWhenHydrated(getShellConversationEntry(page, width, pt))
+      await getShellConversationEntry(page, width, pt).click()
       const conversation = page.locator('[data-shell-conversation="overlay"]')
       const feed = conversation.getByRole('feed', { name: pt.chat.title, exact: true })
       await expect(feed).toBeVisible()

@@ -9,7 +9,6 @@ import { LAYOUT_ORIGIN } from '../support/env'
 import { restPointerOutside } from './pointer-rest'
 import { readExpandedControlGeometry } from './expanded-control-geometry'
 import { test } from './upgrade-fixtures'
-import { clickWhenHydrated } from './hydration-guard'
 
 const calendarMonth = calendarMonthResponseSchema.parse({
   habits: [makeHabitScheduleItem({ title: 'Walking', children: [], hasSubHabits: false, dueDate: '2026-09-04', scheduledDates: ['2026-09-04'] })],
@@ -67,7 +66,7 @@ for (const width of [320, 412, 600, 840]) {
           const selector = header.getByRole('radiogroup')
           let initialTop: number | undefined
           for (const view of ['month', 'week', 'range', 'agenda'] as const) {
-            await clickWhenHydrated(selector.getByRole('radio', { name: words.calendar.view[view], exact: true }))
+            await selector.getByRole('radio', { name: words.calendar.view[view], exact: true }).click()
             const body = view === 'month' ? page.getByTestId('calendar-grid-card')
               : view === 'week' ? page.getByTestId('calendar-time-grid')
                 : view === 'range' ? page.getByRole('region').filter({ has: page.getByTestId('month-grid-days') }).locator('.orbit-calendar-grid-card')

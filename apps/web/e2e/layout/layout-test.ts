@@ -1,6 +1,6 @@
 import { test as base, type ConsoleMessage, type Page, type WebError } from '@playwright/test'
 import { LAYOUT_FIXED_TIME } from './clock.mjs'
-import { assertNoHydrationErrors } from './hydration-guard'
+import { assertNoHydrationErrors, waitForHydrationRoot } from './hydration-guard'
 import { waitForStreamedDocument } from '../../test-support/streamed-document'
 
 export async function advanceLayoutClock(page: Page, milliseconds: number): Promise<void> {
@@ -22,13 +22,14 @@ export const test = base.extend<{ layoutHydrationGuard: void }>({
       assertNoHydrationErrors(messages)
     }
   }, { auto: true }],
-  page: async ({ page }, runTest) => {
+  page: async ({ page, javaScriptEnabled }, runTest) => {
     await advanceLayoutClock(page, 0)
     const navigate = page.goto.bind(page)
     page.goto = async (url, options) => {
       const response = await navigate(url, options)
       if (options?.waitUntil !== 'commit' && options?.waitUntil !== 'domcontentloaded') {
         await page.evaluate(waitForStreamedDocument)
+        if (javaScriptEnabled) await waitForHydrationRoot(page)
       }
       return response
     }

@@ -6,7 +6,6 @@ import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-f
 import { calendarMonthResponseSchema } from '@orbit/shared/types/habit'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
-import { clickWhenHydrated } from './hydration-guard'
 
 const calendarMonth = calendarMonthResponseSchema.parse({
   habits: [makeHabitScheduleItem({ children: [], hasSubHabits: false, dueDate: '2026-09-04', scheduledDates: ['2026-09-04'] })],
@@ -25,7 +24,7 @@ for (const width of [320, 360, 384, 412, 600]) {
 
         test('keeps equal columns with start aligned values and single line captions', async ({ page }) => {
           await page.goto('/calendar')
-          await clickWhenHydrated(page.getByRole('radio', { name: words.calendar.view[view], exact: true }))
+          await page.getByRole('radio', { name: words.calendar.view[view], exact: true }).click()
           const stats = page.getByTestId('calendar-stats')
           await expect(stats).toBeVisible()
           await expect(stats.locator('[data-state="loading"]')).toHaveCount(0)

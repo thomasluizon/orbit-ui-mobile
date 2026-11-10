@@ -1,5 +1,5 @@
 import { getShellConversationEntry } from './shell-conversation-entry'
-import { focusWhenHydrated, openTodayListOptions } from './hydration-guard'
+import { openTodayListOptions } from './hydration-guard'
 import { expect, type Locator } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
@@ -46,7 +46,7 @@ async function expectStripEdge(strip: Locator) {
       && (element.scrollWidth <= element.clientWidth || (partial !== undefined && viewport.right - partial.left >= 16 && partial.right - viewport.right >= 16))
   })).toBe(true)
   for (const chip of await strip.getByRole('button').all()) {
-    await focusWhenHydrated(chip)
+    await chip.focus()
     await expect.poll(async () => chip.evaluate(element => {
       const bounds = element.getBoundingClientRect()
       const viewport = element.parentElement!.getBoundingClientRect()

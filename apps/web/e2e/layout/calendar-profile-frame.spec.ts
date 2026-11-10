@@ -5,7 +5,6 @@ import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
-import { focusWhenHydrated } from './hydration-guard'
 
 const profile = profileSchema.parse({ ...profileFixture, language: 'pt-BR', weekStartDay: 1 })
 
@@ -27,7 +26,7 @@ for (const width of [412, 1352]) {
         await page.goto('/calendar')
         await profileRequested
         const radio = page.getByRole('radio', { name: ptBR.calendar.view.week, exact: true })
-        await focusWhenHydrated(radio)
+        await radio.focus()
         await expect(radio).toBeFocused()
         await expect(page.getByTestId('calendar-grid-card').getByRole('progressbar')).toBeVisible()
         const originalRadio = await radio.elementHandle()

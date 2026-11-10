@@ -1,5 +1,5 @@
 import { createTranslator } from 'next-intl'
-import { clickWhenHydrated, openTodayListOptions } from './hydration-guard'
+import { openTodayListOptions } from './hydration-guard'
 import { setLayoutFixtureSession } from './profile-session'
 import { expect, type BrowserContext, type Locator, type Page } from '@playwright/test'
 import { API } from '@orbit/shared/api'
@@ -103,7 +103,7 @@ async function checkProgressLabels(page: Page, words: typeof en | typeof ptBR) {
     words.progressScreen.window.bestWeekday, words.progressScreen.window.topHabit,
   ]) await markRequiredLabels(page.getByText(caption, { exact: true }))
   await checkSurfaceLabels(page, page, [userFields.habitTitle])
-  await clickWhenHydrated(page.locator('a[href="/progress/goals"]'))
+  await page.locator('a[href="/progress/goals"]').click()
   await expect(page.locator(`[data-goal-id="${goals.items[0]!.id}"]`).getByText(userFields.goalTitle, { exact: true })).toBeVisible()
   await checkSurfaceLabels(page, page, [userFields.goalTitle])
 }
@@ -169,7 +169,7 @@ for (const width of [320, 360, 384, 412]) {
 
       test('Progress legend remains whole', async ({ page }) => {
         await page.goto('/progress/streak')
-        await clickWhenHydrated(page.getByRole('button', { name: t('progressScreen.streak.freezesCount', { banked: streak.streakFreezesAccumulated, ceiling: streak.maxStreakFreezesAccumulated }), exact: true }))
+        await page.getByRole('button', { name: t('progressScreen.streak.freezesCount', { banked: streak.streakFreezesAccumulated, ceiling: streak.maxStreakFreezesAccumulated }), exact: true }).click()
         await expect(page.locator('[data-component="freeze-bank"]')).toBeVisible()
         for (const caption of [
           words.progressScreen.streak.longest, words.streakDisplay.detail.tierTileLabel,
@@ -199,7 +199,7 @@ for (const width of [320, 360, 384, 412]) {
       test('Calendar selector and legend remain whole', async ({ page }) => {
         await page.goto('/calendar')
         await checkCalendarLabels(page, words)
-        await clickWhenHydrated(page.getByRole('button', { name: words.calendar.options, exact: true }))
+        await page.getByRole('button', { name: words.calendar.options, exact: true }).click()
         if (width < 1024) {
           await page.getByRole('dialog', { name: words.calendar.options, exact: true })
             .getByRole('button', { name: words.calendar.legendTitle, exact: true }).click()

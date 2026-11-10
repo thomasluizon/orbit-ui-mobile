@@ -9,7 +9,6 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 import { expectCalendarDayHabitRows } from './calendar-day-habit-geometry'
-import { clickWhenHydrated } from './hydration-guard'
 
 const emojiWellSize = 46
 const restingRowHeight = emojiWellSize + 2 * SPACING.s12
@@ -31,7 +30,7 @@ for (const width of [412, 1352]) {
 
         test('keeps the drawn floor and metadata for parents and children at large text', async ({ page }) => {
           await page.goto('/calendar')
-          await clickWhenHydrated(page.getByTestId(`calendar-day-select-${selectedDate}`))
+          await page.getByTestId(`calendar-day-select-${selectedDate}`).click()
           const label = page.getByRole('button', { name: loggable ? 'Caminhar' : /^Caminhar,/, exact: loggable })
           await expect(label).toBeVisible()
           const card = label.locator('xpath=ancestor::section[1]')

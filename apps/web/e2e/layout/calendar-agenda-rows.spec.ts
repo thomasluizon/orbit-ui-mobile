@@ -4,7 +4,6 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { agendaRowTitles, prepareAgendaCalendar } from './calendar-agenda-fixtures'
 import { expectInteractionFill } from './label-interaction-fill'
 import { test } from './upgrade-fixtures'
-import { clickWhenHydrated } from './hydration-guard'
 
 for (const width of [412, 1100, 1352]) {
   for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
@@ -13,7 +12,7 @@ for (const width of [412, 1100, 1352]) {
       test('orders touching two-line rows with values, status rings and padded fills', async ({ page, context }) => {
         await prepareAgendaCalendar(context, locale)
         await page.goto('/calendar')
-        await clickWhenHydrated(page.getByRole('radio', { name: words.calendar.view.agenda, exact: true }))
+        await page.getByRole('radio', { name: words.calendar.view.agenda, exact: true }).click()
         const day = page.getByTestId('calendar-agenda-day').first()
         const rows = day.locator('.orbit-list-row-body')
         await expect(rows).toHaveCount(4)

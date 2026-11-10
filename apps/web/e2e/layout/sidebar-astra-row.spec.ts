@@ -5,7 +5,6 @@ import { test } from './upgrade-fixtures'
 import { expectInteractionFill } from './label-interaction-fill'
 import { inspectFocusedRing, readOutlineVisibility } from './focus-indicators'
 import { getShellConversationEntry } from './shell-conversation-entry'
-import { focusWhenHydrated } from './hydration-guard'
 
 for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
   for (const width of [1100, 1352, 1440]) {
@@ -49,7 +48,7 @@ for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
         expect(markGeometry.centerOffset).toBeLessThanOrEqual(0.5)
         await expectInteractionFill(row)
         await page.keyboard.press('Tab')
-        await focusWhenHydrated(row)
+        await row.focus()
         const outline = await readOutlineVisibility(row)
         expect(outline.visible).toBe(true)
         expect(outline.clippedBy).toEqual([])

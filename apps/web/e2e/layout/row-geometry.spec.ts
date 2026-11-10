@@ -15,7 +15,6 @@ import { expectInteractionFill } from './label-interaction-fill'
 import { readControlPaint } from './control-paint'
 import { setLayoutProfileSession } from './profile-session'
 import { test } from './upgrade-fixtures'
-import { clickWhenHydrated } from './hydration-guard'
 
 const date = '2026-09-04'
 const habit = habitDetailSchema.parse({ ...makeHabitDetail(), isBadHabit: true })
@@ -182,7 +181,7 @@ for (const width of [412, 1352]) for (const locale of ['en', 'pt-BR'] as const) 
       await page.goto('/habits/new')
       const form = page.locator('[data-habit-create-screen]')
       const createDisclosure = form.getByRole('button', { name: words.habits.form.moreDetails, exact: true })
-      await clickWhenHydrated(createDisclosure)
+      await createDisclosure.click()
       await form.getByRole('switch', { name: words.habits.form.habitTypeAvoid, exact: true }).click()
       await expect(form.getByRole('switch', { name: words.habits.form.habitTypeAvoid, exact: true })).toBeChecked()
       await assertRows(form)
@@ -194,7 +193,7 @@ for (const width of [412, 1352]) for (const locale of ['en', 'pt-BR'] as const) 
       const disclosure = detail.getByRole('button', { name: words.habits.detail.moreDetails, exact: true })
       await expect(disclosure).toHaveAttribute('aria-expanded', 'false')
       await expect(disclosure).toHaveAttribute('aria-controls', 'habit-detail-fields')
-      await clickWhenHydrated(disclosure)
+      await disclosure.click()
       await expect(disclosure).toHaveAttribute('aria-expanded', 'true')
       await expect(disclosure.locator('[data-slot="list-row-chevron"]')).toHaveCount(0)
       await expect(disclosure.locator('[data-slot="list-row-title"]')).toHaveCSS('font-weight', '400')
@@ -225,7 +224,7 @@ for (const width of [412, 1352]) for (const locale of ['en', 'pt-BR'] as const) 
         await assertRows(page.locator('#orbit-main'))
       }
       await page.goto('/calendar')
-      await clickWhenHydrated(page.getByTestId(`calendar-day-select-${date}`))
+      await page.getByTestId(`calendar-day-select-${date}`).click()
       await assertRows(page.locator('#orbit-main'))
       await page.goto('/calendar?import=1')
       const sheet = page.getByRole('dialog', { name: words.calendar.calendars.title, exact: true })
@@ -243,7 +242,7 @@ for (const width of [412, 1352]) for (const locale of ['en', 'pt-BR'] as const) 
         await expectInteractionFill(checkbox)
         await expectInteractionFill(label)
         const importText = createTranslator({ locale, messages: words })('calendar.importButton', { count: 2 })
-        await clickWhenHydrated(sheet.getByRole('button', { name: importText, exact: true }))
+        await sheet.getByRole('button', { name: importText, exact: true }).click()
         await expect(sheet.getByText(words.calendar.importDone, { exact: true })).toBeVisible()
         await assertRows(sheet)
         const imported = sheet.getByRole('button', { name: 'Walk', exact: true })

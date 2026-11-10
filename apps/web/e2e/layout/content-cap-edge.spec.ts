@@ -11,7 +11,6 @@ import { agendaCalendarMonth } from './calendar-agenda-fixtures'
 import { completeInstallOnboarding } from './install-onboarding'
 import { setLayoutFixtureSession } from './profile-session'
 import { test } from './upgrade-fixtures'
-import { clickWhenHydrated } from './hydration-guard'
 
 const calendarMonth = calendarMonthResponseSchema.parse({
   ...agendaCalendarMonth,
@@ -66,7 +65,7 @@ for (const [locale, words] of [['en', en], ['pt-BR', ptBR]] as const) {
           await page.goto('/calendar')
           const selector = page.getByTestId('calendar-header-group').getByRole('radiogroup')
           const reference = await edges(selector)
-          await clickWhenHydrated(selector.getByRole('radio', { name: words.calendar.view.agenda, exact: true }))
+          await selector.getByRole('radio', { name: words.calendar.view.agenda, exact: true }).click()
           const agenda = page.getByTestId('calendar-agenda-view')
           await expect(agenda).toHaveAttribute('aria-busy', 'false')
           await expect(agenda.locator('.orbit-list-row-body')).toHaveCount(calendarMonth.habits.length)
