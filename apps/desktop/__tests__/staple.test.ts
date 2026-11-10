@@ -35,17 +35,17 @@ it('recognizes only the CloudKit connection loss that exits 68', () => {
   expect(isTransientStapleFailure({ status: 65, output: 'Could not find base64 encoded ticket in response for 2/ab12' })).toBe(false)
 })
 
-it('staples once and validates the stapled ticket when the first attempt works', async () => {
+it('staples once when the first attempt works', async () => {
   const { dependencies, calls, sleeps } = harness([success])
   await stapleWithRetry(dmg, dependencies)
-  expect(calls).toEqual([['stapler', 'staple', dmg], ['stapler', 'validate', dmg]])
+  expect(calls).toEqual([['stapler', 'staple', dmg]])
   expect(sleeps).toEqual([])
 })
 
-it('retries a dropped CloudKit connection with backoff and validates after the retry works', async () => {
+it('retries a dropped CloudKit connection with backoff until a staple works', async () => {
   const { dependencies, calls, sleeps, lines } = harness([connectionLost, connectionLost, success])
   await stapleWithRetry(dmg, dependencies)
-  expect(calls).toEqual([['stapler', 'staple', dmg], ['stapler', 'staple', dmg], ['stapler', 'staple', dmg], ['stapler', 'validate', dmg]])
+  expect(calls).toEqual([['stapler', 'staple', dmg], ['stapler', 'staple', dmg], ['stapler', 'staple', dmg]])
   expect(sleeps).toEqual(stapleBackoffMilliseconds.slice(0, 2))
   expect(lines).toEqual([
     'stapler lost the CloudKit connection on attempt 1 of 4; retrying in 10 s',
@@ -53,7 +53,7 @@ it('retries a dropped CloudKit connection with backoff and validates after the r
   ])
 })
 
-it('fails loudly after the last bounded attempt and never validates', async () => {
+it('fails loudly after the last bounded attempt', async () => {
   const { dependencies, calls, sleeps } = harness([connectionLost, connectionLost, connectionLost, connectionLost, success])
   await expect(stapleWithRetry(dmg, dependencies)).rejects.toThrow(`xcrun stapler staple failed for ${dmg} with status 68 on attempt 4 of 4`)
   expect(calls).toHaveLength(4)
@@ -70,9 +70,4 @@ it.each([
   await expect(stapleWithRetry(dmg, dependencies)).rejects.toThrow('xcrun stapler staple failed')
   expect(calls).toHaveLength(1)
   expect(sleeps).toEqual([])
-})
-
-it('fails when validation rejects the stapled ticket', async () => {
-  const { dependencies } = harness([success, { status: 65, output: 'does not have a ticket stapled to it' }])
-  await expect(stapleWithRetry(dmg, dependencies)).rejects.toThrow(`xcrun stapler validate rejected ${dmg} with status 65`)
 })

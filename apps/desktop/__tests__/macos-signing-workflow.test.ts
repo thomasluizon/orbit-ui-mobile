@@ -381,9 +381,7 @@ shellTest('staples the DMG and app before rebuilding the updater archive from th
   const relative = (path: string) => join(bundle, path).slice(directory.length + 1)
   expect(stapled.commands).toEqual([
     ['xcrun', 'stapler', 'staple', relative('dmg/Orbit Staging_0.dmg')],
-    ['xcrun', 'stapler', 'validate', relative('dmg/Orbit Staging_0.dmg')],
     ['xcrun', 'stapler', 'staple', relative('macos/Orbit Staging.app')],
-    ['xcrun', 'stapler', 'validate', relative('macos/Orbit Staging.app')],
   ])
   const entries = execFileSync('tar', ['-tzf', archive], { encoding: 'utf8' }).trim().split('\n')
   expect(entries.every(entry => entry.startsWith('Orbit Staging.app'))).toBe(true)

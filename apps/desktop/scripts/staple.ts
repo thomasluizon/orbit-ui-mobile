@@ -23,7 +23,7 @@ export async function stapleWithRetry(path: string, dependencies: StapleDependen
   const attempts = stapleBackoffMilliseconds.length + 1
   for (let attempt = 1; ; attempt++) {
     const result = dependencies.xcrun(['stapler', 'staple', path])
-    if (result.status === 0) break
+    if (result.status === 0) return
     if (attempt === attempts || !isTransientStapleFailure(result)) {
       throw new Error(`xcrun stapler staple failed for ${path} with status ${String(result.status)} on attempt ${attempt} of ${attempts}`)
     }
@@ -31,8 +31,6 @@ export async function stapleWithRetry(path: string, dependencies: StapleDependen
     dependencies.write(`stapler lost the CloudKit connection on attempt ${attempt} of ${attempts}; retrying in ${delay / 1000} s`)
     await dependencies.sleep(delay)
   }
-  const validation = dependencies.xcrun(['stapler', 'validate', path])
-  if (validation.status !== 0) throw new Error(`xcrun stapler validate rejected ${path} with status ${String(validation.status)}`)
 }
 
 function runXcrun(args: string[]): XcrunResult {

@@ -90,7 +90,7 @@ function git(...args: string[]) {
 function commit(path: string, content: string) {
   writeFileSync(path, content)
   git('--literal-pathspecs', 'add', path)
-  const head = git('for-each-ref', '--count=1', '--format=%(objectname)', 'refs/heads/')
+  const head = git('for-each-ref', '--format=%(objectname)', git('symbolic-ref', 'HEAD'))
   const parents = head ? ['-p', head] : []
   const commit = git('commit-tree', git('write-tree'), ...parents, '-m', 'fixture')
   git('update-ref', 'HEAD', commit)
