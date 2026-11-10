@@ -14,13 +14,14 @@ import { Check, Copy, Share2 } from '@/components/ui/icons'
 
 function ReferralCodeRow({ code, copied, onCopy }: Readonly<{ code: string; copied: boolean; onCopy: () => void }>) {
   const t = useTranslations()
-  const hiddenIcon = 'scale-[0.25] opacity-0'
-  const shownIcon = 'scale-100 opacity-100'
+  const iconSwap = 'absolute inset-0 transition-[transform,opacity,filter] [transition-duration:var(--dur-fast)] [transition-timing-function:var(--ease-standard)] motion-reduce:scale-100 motion-reduce:blur-[0px] motion-reduce:transition-none'
+  const hiddenIcon = 'scale-[0.25] opacity-0 blur-[4px]'
+  const shownIcon = 'scale-100 opacity-100 blur-[0px]'
   return <div className="flex flex-wrap items-center gap-3 px-4">
     <span translate="no" className="min-w-0 flex-1 break-all font-mono text-sm text-[var(--fg-1)]">{code}</span>
     <IconButton label={t(copied ? 'chat.account.copied' : 'chat.account.copy')} onClick={onCopy}><span className="relative inline-flex size-5">
-        <Copy aria-hidden="true" size={20} className={`absolute inset-0 transition-[transform,opacity] duration-200 motion-reduce:scale-100 motion-reduce:transition-[opacity] ${copied ? hiddenIcon : shownIcon}`} />
-        <Check aria-hidden="true" size={20} className={`absolute inset-0 transition-[transform,opacity] duration-200 motion-reduce:scale-100 motion-reduce:transition-[opacity] ${copied ? shownIcon : hiddenIcon}`} />
+        <Copy aria-hidden="true" size={20} data-icon-swap="copy" className={`${iconSwap} ${copied ? hiddenIcon : shownIcon}`} />
+        <Check aria-hidden="true" size={20} data-icon-swap="check" className={`${iconSwap} ${copied ? shownIcon : hiddenIcon}`} />
       </span></IconButton>
   </div>
 }

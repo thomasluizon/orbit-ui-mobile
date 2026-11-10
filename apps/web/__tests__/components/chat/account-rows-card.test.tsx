@@ -72,6 +72,21 @@ describe('Astra account rows on web', () => {
     expect(screen.queryByRole('button', { name: 'chat.account.open' })).not.toBeInTheDocument()
   })
 
+  it('swaps the copy icon with scale, opacity and blur on the shared fast duration and swaps instantly under reduced motion', async () => {
+    const { container } = render(<AccountRowsCard accountRows={{ kind: 'referral', surfaceId: 'profile', rows: [], referralCode: 'ORBIT123' }} />)
+    const copyIcon = () => container.querySelector('[data-icon-swap="copy"]')
+    const checkIcon = () => container.querySelector('[data-icon-swap="check"]')
+    for (const icon of [copyIcon(), checkIcon()]) {
+      expect(icon).toHaveClass('transition-[transform,opacity,filter]', '[transition-duration:var(--dur-fast)]', '[transition-timing-function:var(--ease-standard)]', 'motion-reduce:transition-none', 'motion-reduce:scale-100', 'motion-reduce:blur-[0px]')
+      expect(icon).not.toHaveClass('duration-200')
+    }
+    expect(copyIcon()).toHaveClass('scale-100', 'opacity-100', 'blur-[0px]')
+    expect(checkIcon()).toHaveClass('scale-[0.25]', 'opacity-0', 'blur-[4px]')
+    fireEvent.click(screen.getByRole('button', { name: 'chat.account.copy' }))
+    await waitFor(() => expect(checkIcon()).toHaveClass('scale-100', 'opacity-100', 'blur-[0px]'))
+    expect(copyIcon()).toHaveClass('scale-[0.25]', 'opacity-0', 'blur-[4px]')
+  })
+
   it('offers link copy when browser sharing is unavailable', async () => {
     Object.defineProperty(navigator, 'share', { configurable: true, value: undefined })
     render(<AccountRowsCard accountRows={{ kind: 'referral', surfaceId: 'profile', rows: [], referralLink: 'https://example.com/r/ORBIT123' }} />)
