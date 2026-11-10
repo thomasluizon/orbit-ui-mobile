@@ -272,7 +272,7 @@ const waitUntil = async (predicate, timeoutMs) => {
   return predicate()
 }
 
-/** A POSIX signal to the gate is the supported stop, so the gate must carry it to its worker. */
+/** The launcher stops a worker with a group SIGTERM and sweeps the group when the gate exits, so the gate must carry each signal to its worker and outlive it. */
 export const gateSignalCases = async () => {
   if (process.platform === "win32") return
   const gatePath = join(TOOLS_DIR, "lib", "worker-gate.cjs")

@@ -686,8 +686,8 @@ const finish = (attempts) => {
 }
 
 const attempts = [await runAttempt(primaryAccount, logFile, researchArgs ?? workerArgs)]
-// Ticket work only: research publishes one report file, and its order is rerun whole. A stopped launch never relaunches.
-if (!research && attempts[0].outcome !== "STOPPED" && attempts[0].usageLimitReached && fallbackAccount !== null) {
+// Ticket work only: research publishes one report file, and its order is rerun whole. A stopped launch never relaunches, because only an EXITED attempt reads a usage limit.
+if (!research && attempts[0].usageLimitReached && fallbackAccount !== null) {
   console.error(`${issue} stopped at the ${primaryAccount.name} account's usage limit; relaunching it once on the ${fallbackAccount.name} account`)
   attempts.push(await runAttempt(fallbackAccount, logFileFor(fallbackAccount), [...scriptArgs, ...invocation.args, continuationPointer(runDirectory, branch)]))
 }
