@@ -30,9 +30,19 @@ afterEach(() => { __resetTestHostConfig(); theme.mode = 'dark'; rowLocale.value 
 function assertParentProgressLabel(root: import('react-test-renderer').ReactTestInstance, selecting: boolean, done: number, total: number) {
   if (total === 0) return
   const label = `${done}/${total}`
-  const role = selecting ? 'image' : 'button'
-  const indicators = root.findAll((node) => node.props.accessibilityRole === role && String(node.props.accessibilityLabel).includes(label))
-  expect(indicators.length).toBeGreaterThan(0)
+  const indicators = root.findAll((node) => (node.props.accessibilityRole === 'button' || node.props.accessibilityRole === 'image') && String(node.props.accessibilityLabel).includes(label))
+  if (selecting) expect(indicators).toHaveLength(0)
+  else expect(indicators.length).toBeGreaterThan(0)
+}
+
+function findControlTarget(geometry: ReturnType<typeof measureInteractionFills>, selecting: boolean) {
+  const check = geometry.find((part) => part.host.props.testID === 'habit-check')
+  expect(check === undefined, 'select mode renders no log control').toBe(selecting)
+  if (!check) return { check, target: geometry.find((part) => (part.host.props as { accessibilityRole?: string }).accessibilityRole === 'checkbox')! }
+  const target = geometry.find((part) => check.ancestors.includes(part.slot) && part.width === 48)!
+  expect(Math.abs((check.left + check.right) / 2 - (target.left + target.right) / 2)).toBeLessThanOrEqual(1)
+  expect(Math.abs((check.top + check.bottom) / 2 - (target.top + target.bottom) / 2)).toBeLessThanOrEqual(1)
+  return { check, target }
 }
 
 function assertTypePlacement(geometry: ReturnType<typeof measureInteractionFills>, fontScale: number, depth: number, supportingMeta: boolean) {
@@ -121,6 +131,11 @@ describe('habit row standard on Android', () => {
         habit={createMockHabit({ title: 'Read', isCompleted: done })} hasChildren={parent}
         childrenDone={done ? 3 : 1} childrenTotal={parent ? 3 : 0} completionReadOnly isSelectMode={selecting}
         today="2025-01-01" selectedDate={new Date(2025, 0, 1)} />) })
+      if (selecting) {
+        expect(tree!.root.findAllByProps({ testID: 'habit-check' })).toHaveLength(0)
+        TestRenderer.act(() => tree.unmount())
+        continue
+      }
       const toggle = tree!.root.findAllByType('Pressable').find((node: import('react-test-renderer').ReactTestInstance) => String(node.props.accessibilityLabel).includes(': Read'))
       const rest = StyleSheet.flatten(tree!.root.findByProps({ testID: 'habit-check' }).props.style)
       TestRenderer.act(() => { toggle?.props.onHoverIn(); toggle?.props.onPressIn() })
@@ -297,21 +312,24 @@ describe('habit row standard on Android', () => {
         TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Read', ...scenario.flags })}
           today="2025-01-01" selectedDate={new Date(2025, 0, 1)}
           hasChildren={scenario.total > 0} childrenDone={scenario.done} childrenTotal={scenario.total} isSelectMode={isSelectMode} />) })
-        const check = tree!.root.findByProps({ testID: 'habit-check' })
         assertParentProgressLabel(tree!.root, isSelectMode, scenario.done, scenario.total)
+        if (isSelectMode) {
+          expect(tree!.root.findAllByProps({ testID: 'habit-check' })).toHaveLength(0)
+          TestRenderer.act(() => tree.unmount())
+          continue
+        }
+        const check = tree!.root.findByProps({ testID: 'habit-check' })
         expect(StyleSheet.flatten(check.props.style)).toMatchObject({ width: 28, height: 28, borderRadius: 12, borderColor: scenario.border, backgroundColor: scenario.fill })
         const paths = tree!.root.findAllByType('Path').filter((node: { props: Record<string, unknown> }) => node.props.strokeDasharray)
         expect(paths).toHaveLength(scenario.done === 1 ? 1 : 0)
         if (paths.length) expect(paths[0].props.stroke).toBe(tokens.primary)
-        if (!isSelectMode) {
-          const toggle = tree!.root.findAllByType('Pressable').find((node: { props: Record<string, unknown> }) => String(node.props.accessibilityLabel).includes(': Read'))!
-          expect(toggle.props.disabled).not.toBe(true)
-          const target = {}
-          TestRenderer.act(() => toggle.props.onFocus({ target, currentTarget: target }))
-          const indicators = tree!.root.findAllByType('View').filter((node: { props: { style: StyleProp<ViewStyle> } }) => StyleSheet.flatten<ViewStyle | undefined>(node.props.style)?.outlineWidth === 2)
-          expect(indicators).toHaveLength(1)
-          expect(StyleSheet.flatten(indicators[0].props.style)).toMatchObject({ borderRadius: 12, outlineOffset: 2, top: 10, right: 10, bottom: 10, left: 10 })
-        }
+        const toggle = tree!.root.findAllByType('Pressable').find((node: { props: Record<string, unknown> }) => String(node.props.accessibilityLabel).includes(': Read'))!
+        expect(toggle.props.disabled).not.toBe(true)
+        const target = {}
+        TestRenderer.act(() => toggle.props.onFocus({ target, currentTarget: target }))
+        const indicators = tree!.root.findAllByType('View').filter((node: { props: { style: StyleProp<ViewStyle> } }) => StyleSheet.flatten<ViewStyle | undefined>(node.props.style)?.outlineWidth === 2)
+        expect(indicators).toHaveLength(1)
+        expect(StyleSheet.flatten(indicators[0].props.style)).toMatchObject({ borderRadius: 12, outlineOffset: 2, top: 10, right: 10, bottom: 10, left: 10 })
         TestRenderer.act(() => tree.unmount())
       }
     }
@@ -336,10 +354,7 @@ it.each((['en', 'pt-BR'] as const).flatMap((locale) => [320, 412, 1352].flatMap(
     const supportingMeta = fontScale === 2 || width === 320 && depth === 2
     assertTypePlacement(geometry, fontScale, depth, supportingMeta)
     const row = geometry.find((part) => part.host.props.testID === 'habit-row')!
-    const check = geometry.find((part) => part.host.props.testID === 'habit-check')!
-    const target = geometry.find((part) => check.ancestors.includes(part.slot) && part.width === 48)!
-    expect(Math.abs((check.left + check.right) / 2 - (target.left + target.right) / 2)).toBeLessThanOrEqual(1)
-    expect(Math.abs((check.top + check.bottom) / 2 - (target.top + target.bottom) / 2)).toBeLessThanOrEqual(1)
+    const { check, target } = findControlTarget(geometry, selected !== undefined)
     if (!supportingMeta) expect(Math.abs((target.top + target.bottom) / 2 - (row.top + row.bottom) / 2)).toBeLessThanOrEqual(1)
     else expect(target.top - row.top).toBe(depth ? 4 : 8)
     expect(target.width).toBe(48)

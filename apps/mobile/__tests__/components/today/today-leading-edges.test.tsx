@@ -365,7 +365,11 @@ describe('Hoje leading edges on Android', () => {
           collectParentHosts(rows[1]![0])
           const parentControls = [...nodes].filter(([element]) => parentHosts.has(element) &&
             ((element.type === 'Pressable' && !element.props.accessibilityLabel?.startsWith('Parent habit')) || element.props.accessibilityRole === 'image'))
-          expect(parentControls).toHaveLength(selectMode ? 2 : 3)
+          const logControls = [...nodes].filter(([element]) => parentHosts.has(element) &&
+            (element.props.testID === 'habit-check' || element.props.accessibilityRole === 'image'))
+          expect(parentControls).toHaveLength(selectMode ? 1 : 3)
+          if (selectMode) expect(logControls, 'select mode renders no log control').toHaveLength(0)
+          else expect(logControls.length).toBeGreaterThan(0)
           for (const [, control] of parentControls) {
             const firstLineCenter = topPosition(parentTitle) + 20
             expect(topPosition(control)).toBeLessThanOrEqual(firstLineCenter)

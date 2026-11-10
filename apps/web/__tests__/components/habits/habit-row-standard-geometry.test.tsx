@@ -90,8 +90,9 @@ describe('habit row standard in Chromium', () => {
       expect(wellEdges).toEqual(Array.from({ length: 10 }, () => SPACING.s8))
       expect(rows[4]!.left - rows[3]!.left).toBe(SPACING.s16)
       expect(rows[4]!.right).toBe(rows[3]!.right)
-      for (const row of rows) {
-        expect(row.check).toMatchObject({ width: 28, height: 28, radius: '12px' })
+      for (const [index, row] of rows.entries()) {
+        if (index === 8) expect(row.check, 'select mode renders no log control').toBeNull()
+        else expect(row.check).toMatchObject({ width: 28, height: 28, radius: '12px' })
         expect(row.radius).toBe('20px')
         expect(row.layoutBorders).toEqual(['0px', '0px', '0px', '0px'])
         expect(row.border).toContain(expectedPaint.border)

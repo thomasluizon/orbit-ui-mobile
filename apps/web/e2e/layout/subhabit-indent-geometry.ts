@@ -206,6 +206,7 @@ export async function assertHabitRows(rows: Locator, width: number, depths: numb
   const geometry = await Promise.all((await rows.all()).map((row) => row.evaluate(readHabitGeometry)))
   expect(geometry.map((row) => row.depth)).toEqual(depths)
   for (const row of geometry) {
+    if (selecting) expect(row.checks, 'select mode renders no log control').toHaveLength(0)
     try { assertReadableHabit(row, width, scale) }
     catch (cause) {
       throw new Error(`${cause instanceof Error ? cause.message : String(cause)}\nHabit geometry: ${JSON.stringify({ width, scale, row })}`, { cause })

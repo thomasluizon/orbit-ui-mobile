@@ -10,6 +10,7 @@ import {
   isHabitDoneForRange,
   resolveHabitAccessibleStatus,
   getHabitInlineDepthLimit,
+  getHabitRowSelectionSpacerWidth,
   stripInlineMarkdown,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
@@ -27,7 +28,6 @@ import { HabitRowTrailing } from './habit-row-trailing'
 import {
   buildHabitRowAccessibilityLabel,
   buildHabitRowMetaParts,
-  hasHabitRowMenuActions,
   resolveHabitRowDotState,
 } from './habit-row-model'
 import { styles } from './habit-row-styles'
@@ -55,10 +55,9 @@ export interface HabitRowActions {
 }
 
 const EMPTY_HABIT_ROW_ACTIONS: HabitRowActions = {}
-
+/** The overflow menu the row shows outside selection; the trailing group and the menu render only then. */
 function buildMenuItems(
   actions: HabitRowActions,
-  isSelectMode: boolean,
   completionReadOnly: boolean,
   isGeneral: boolean,
   isOverdue: boolean,
@@ -72,14 +71,18 @@ function buildMenuItems(
   if (actions.onReschedule && isOverdue && !completionReadOnly) items.push({ id: 'reschedule', label: t('habits.actions.rescheduleAstra'), icon: 'astra' })
   if (actions.onEdit) items.push({ id: 'edit', label: t('common.edit'), icon: 'pencil' })
   if (actions.onDuplicate) items.push({ id: 'duplicate', label: t('habits.actions.duplicate'), icon: 'copy' })
-  if (actions.onEnterSelectMode && !isSelectMode) {
-    items.push({ id: 'select', label: t('common.select'), icon: 'checkbox' })
-  }
+  if (actions.onEnterSelectMode) items.push({ id: 'select', label: t('common.select'), icon: 'checkbox' })
   if (actions.onDrillInto && hasSubHabits) items.push({ id: 'drill', label: t('habits.actions.openSubHabits'), icon: 'list-tree' })
   if (actions.onDelete) {
     items.push({ id: 'delete', label: t('habits.actions.delete'), icon: 'trash', destructive: true })
   }
   return items
+}
+
+function SelectionSpacer({ width }: Readonly<{ width: number }>) {
+  if (width <= 0) return null
+  return <View testID="habit-row-trailing-slot" accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
+    pointerEvents="none" style={[styles.trailingSlot, { width }]} />
 }
 
 function runMenuAction(actions: HabitRowActions, id: string): void {
@@ -348,9 +351,8 @@ export const HabitRow = memo(function HabitRow({
   const emoji = habit.emoji
 
   const [menuVisible, setMenuVisible] = useState(false)
-  const menuItems = buildMenuItems(actions, isSelectMode, completionReadOnly, habit.isGeneral, isOverdue, habit.hasSubHabits, t)
-
-  const hasMenuActions = hasHabitRowMenuActions(actions, isSelectMode) && menuItems.length > 0
+  const menuItems = buildMenuItems(actions, completionReadOnly, habit.isGeneral, isOverdue, habit.hasSubHabits, t)
+  const hasMenuActions = menuItems.length > 0
 
   const handlePress = resolveBodyPressAction(isSelectMode, actions)
   const activation = useHabitRowActivation(handlePress, isSelectMode ? undefined : actions.onLongPressCard)
@@ -444,23 +446,24 @@ export const HabitRow = memo(function HabitRow({
           />
         ) : null}
 
-        <HabitRowTrailing
+        {isSelectMode ? <SelectionSpacer width={getHabitRowSelectionSpacerWidth(hasMenuActions, structuralColumn)} /> : (
+          <HabitRowTrailing
             habit={habit}
-            isSelectMode={isSelectMode}
-          hasChildren={hasChildren}
-          childrenDone={childrenDone}
-          childrenTotal={childrenTotal}
-          isDoneForRange={isDoneForRange}
-          canLog={canLog}
-          dotState={dotState}
-          hasMenuActions={hasMenuActions}
-          actions={actions}
-          tokens={tokens}
-          onToggleStatus={handleToggleStatus}
-          completionReadOnly={completionReadOnly}
-          completionReason={completionReason}
-          completionStatusUnavailable={completionStatusUnavailable}
-        />
+            hasChildren={hasChildren}
+            childrenDone={childrenDone}
+            childrenTotal={childrenTotal}
+            isDoneForRange={isDoneForRange}
+            canLog={canLog}
+            dotState={dotState}
+            hasMenuActions={hasMenuActions}
+            actions={actions}
+            tokens={tokens}
+            onToggleStatus={handleToggleStatus}
+            completionReadOnly={completionReadOnly}
+            completionReason={completionReason}
+            completionStatusUnavailable={completionStatusUnavailable}
+          />
+        )}
     </>
   )
 
@@ -472,7 +475,7 @@ export const HabitRow = memo(function HabitRow({
         {rowContents}
       </HabitRowLayout>
 
-      {hasMenuActions ? (
+      {hasMenuActions && !isSelectMode ? (
         <Menu.Content
           title={habit.title || t('habits.actions.menuTitle')}
           titleMode={rowMenuTitleMode(habit.title)}
