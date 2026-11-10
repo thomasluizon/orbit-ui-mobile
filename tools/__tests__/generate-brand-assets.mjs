@@ -29,6 +29,7 @@ const expectedAssets = [
   ["apps/web/public/og-image.png", 1200, 630],
   ["apps/web/public/pwa-192x192.png", 192, 192],
   ["apps/web/public/pwa-512x512.png", 512, 512],
+  ["apps/web/public/pwa-maskable-512x512.png", 512, 512],
 ]
 
 const fixtureRoot = (label) => {
@@ -48,6 +49,20 @@ const pixelAt = async (path, x, y) => {
   return [...data.subarray(offset, offset + 4)]
 }
 
+/** The embedded PNG of every ICONDIRENTRY. The ICONDIR is 6 bytes, each entry 16 bytes, and a width
+ *  of 0 means 256. */
+const readIcoLayers = (path) => {
+  const ico = readFileSync(path)
+  return Array.from({ length: ico.readUInt16LE(4) }, (_, index) => {
+    const entryOffset = 6 + index * 16
+    const dataOffset = ico.readUInt32LE(entryOffset + 12)
+    return {
+      size: ico.readUInt8(entryOffset) || 256,
+      png: ico.subarray(dataOffset, dataOffset + ico.readUInt32LE(entryOffset + 8)),
+    }
+  })
+}
+
 const isAccentPixel = (red, green, blue, alpha) =>
   alpha >= 128 && red > green * 2 && green > blue * 2
 
@@ -57,7 +72,7 @@ export const cases = async () => {
     "generate-brand-assets.mjs",
     "writes the complete derived asset inventory",
     ["--write", "--root", outputRoot],
-    { status: 0, stdout: /generated 24 brand assets/ },
+    { status: 0, stdout: /generated 26 brand assets/ },
   )
 
   for (const [relativePath, width, height] of expectedAssets) {
@@ -70,54 +85,59 @@ export const cases = async () => {
     )
   }
 
-  const faviconIco = readFileSync(join(outputRoot, "apps", "web", "app", "favicon.ico"))
-  const layerCount = faviconIco.readUInt16LE(4)
-  const layerSizes = Array.from({ length: layerCount }, (_, index) => {
-    const directoryOffset = 6 + index * 16
-    return [faviconIco.readUInt8(directoryOffset), faviconIco.readUInt8(directoryOffset + 1)]
-  })
+  const faviconLayers = readIcoLayers(join(outputRoot, "apps", "web", "app", "favicon.ico"))
   T(
     "generate-brand-assets.mjs: favicon.ico carries native 16 plus canonical 32 and 48 layers",
-    JSON.stringify(layerSizes) === JSON.stringify([[16, 16], [32, 32], [48, 48]]),
-    `ICO layers ${JSON.stringify(layerSizes)}`,
+    JSON.stringify(faviconLayers.map(({ size }) => size)) === JSON.stringify([16, 32, 48]),
+    `ICO layers ${JSON.stringify(faviconLayers.map(({ size }) => size))}`,
   )
 
-  const faviconLayerAccentPixelCount = (size) => {
-    const layerIndex = layerSizes.findIndex(([width, height]) => width === size && height === size)
-    if (layerIndex === -1) return -1
+  const faviconLayerAccentPixelCount = async (size) => {
+    const layer = faviconLayers.find((candidate) => candidate.size === size)
+    if (!layer) return -1
 
-    const directoryOffset = 6 + layerIndex * 16
-    const bitmapOffset = faviconIco.readUInt32LE(directoryOffset + 12)
-    const bitmapHeaderSize = faviconIco.readUInt32LE(bitmapOffset)
-    const pixelStart = bitmapOffset + bitmapHeaderSize
-    const pixelEnd = pixelStart + size * size * 4
+    const { data, info } = await sharp(layer.png).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
     let accent = 0
-    for (let index = pixelStart; index < pixelEnd; index += 4) {
-      if (
-        isAccentPixel(
-          faviconIco[index + 2],
-          faviconIco[index + 1],
-          faviconIco[index],
-          faviconIco[index + 3],
-        )
-      ) {
-        accent += 1
-      }
+    for (let index = 0; index < data.length; index += info.channels) {
+      if (isAccentPixel(data[index], data[index + 1], data[index + 2], data[index + 3])) accent += 1
     }
     return accent
   }
   for (const size of [32, 48]) {
     T(
       `generate-brand-assets.mjs: favicon.ico ${size}px layer keeps the accent moon`,
-      faviconLayerAccentPixelCount(size) > 0,
+      (await faviconLayerAccentPixelCount(size)) > 0,
       `favicon.ico ${size}px layer carries no #C4530F pixel`,
     )
   }
   T(
     "generate-brand-assets.mjs: favicon.ico native 16px layer carries no accent",
-    faviconLayerAccentPixelCount(16) === 0,
+    (await faviconLayerAccentPixelCount(16)) === 0,
     "favicon.ico 16px layer unexpectedly carries an accent pixel",
   )
+
+  // The Windows icon keeps the platform artwork on an inset, rounded tile. A full-bleed square
+  // reads as a hard edge beside other Windows apps, so every layer keeps a transparent margin.
+  const windowsLayers = readIcoLayers(join(outputRoot, "apps", "desktop", "src-tauri", "icons", "icon.ico"))
+  T(
+    "generate-brand-assets.mjs: Windows icon.ico carries PNG layers at 16, 24, 32, 48, 64 and 256",
+    JSON.stringify(windowsLayers.map(({ size }) => size)) === JSON.stringify([16, 24, 32, 48, 64, 256]),
+    `layers ${JSON.stringify(windowsLayers.map(({ size }) => size))}`,
+  )
+  T(
+    "generate-brand-assets.mjs: both ICO files store every layer as an embedded PNG",
+    [...faviconLayers, ...windowsLayers].every(({ png }) => png.subarray(1, 4).toString() === "PNG"),
+    "an ICO layer is not an embedded PNG",
+  )
+  for (const { size, png } of windowsLayers) {
+    const { data } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+    const alphaAt = (x, y) => data[(y * size + x) * 4 + 3]
+    T(
+      `generate-brand-assets.mjs: Windows icon.ico ${size}px layer is an inset tile with transparent corners`,
+      alphaAt(0, 0) === 0 && alphaAt(size - 1, size - 1) === 0 && alphaAt(size >> 1, 0) === 0 && alphaAt(size >> 1, size >> 1) === 255,
+      `${size}px layer corner ${alphaAt(0, 0)}, edge ${alphaAt(size >> 1, 0)}, centre ${alphaAt(size >> 1, size >> 1)}`,
+    )
+  }
 
   const favicon16 = join(outputRoot, "apps", "web", "public", "favicon-16.png")
   const faviconCorner = await pixelAt(favicon16, 0, 0)
@@ -277,6 +297,17 @@ export const cases = async () => {
       `${relativePath} unexpectedly carries an accent pixel`,
     )
   }
+
+  // apps/web/__tests__/manifest.test.ts requires the maskable PWA asset to equal the canonical
+  // platform icon byte for byte, so the generator writes it and a regeneration cannot leave it behind.
+  T(
+    "generate-brand-assets.mjs: the maskable PWA icon is byte-identical to the canonical platform icon",
+    existsSync(join(outputRoot, "apps", "web", "public", "pwa-maskable-512x512.png")) &&
+      readFileSync(join(outputRoot, "apps", "web", "public", "pwa-maskable-512x512.png")).equals(
+        readFileSync(join(outputRoot, "design", "brand", "png", "orbit-platform-icon-512.png")),
+      ),
+    "pwa-maskable-512x512.png is missing or differs from orbit-platform-icon-512.png",
+  )
 
   const icon = join(outputRoot, "apps", "mobile", "assets", "icon.png")
   const iconCorner = await pixelAt(icon, 0, 0)
