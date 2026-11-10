@@ -20,6 +20,7 @@ import { adoptOwnerHandoffRun, parseHandoffRequest, prepareOwnerHandoffRun, read
 import { checkDependencyCommand, checkDependencyFileWrite } from "./_lib/rules-dependencies.mjs"
 import { checkWorkerBrowser } from "./_lib/rules-worker.mjs"
 import { declaredRepoRoots } from "./_lib/repo-roots.mjs"
+import { operationInProgress } from "../../tools/lib/relay-checkout.mjs"
 import { readRunState, writeRunState } from "../../tools/lib/run-state.mjs"
 import { checkRelayStop } from "./_lib/rules-relay.mjs"
 import { adoptRelayRun, appendChainEntry, closeSessionChain, confirmChainSuccessor, openSessionChain } from "../../tools/lib/session-chain.mjs"
@@ -2210,30 +2211,52 @@ const mergeCommitHook = spawnSync(process.execPath, [join(hooksDir, "require-han
   input: JSON.stringify({ hook_event_name: "PreToolUse", session_id: "merge-commit-fixture", cwd: mergeCheckout, tool_input: { command: "git commit --no-edit" } }) })
 T("merge commit: the commit that concludes the merge passes the handoff gate", { status: mergeCommitHook.status, stderr: mergeCommitHook.stderr }, { status: 0, stderr: "" })
 
-// A backport cherry-pick that conflicts stages the picked commit's spec edit on a branch that already contains main.
-// The reftable ref backend keeps CHERRY_PICK_HEAD in its ref store, not as a file, so the case runs under both backends.
+// A conflicted cherry-pick, revert or rebase stages a spec edit that the operation carries, and the commit that concludes
+// it authors no handoff docs. The reftable ref backend keeps CHERRY_PICK_HEAD and REVERT_HEAD in its ref store, not as
+// files, so every case runs under both backends. A rebase stop leaves HEAD detached.
+const writeFixture = (checkout, files) => { for (const [path, text] of Object.entries(files)) writeFileSync(join(checkout, path), text) }
+const openOperationCases = [
+  { name: "cherry-pick", stagedSpec: ".claude/specs/merge.md", start: ["cherry-pick", "release"], prepare: (inCheckout, checkout) => [
+    () => inCheckout("checkout", "-qb", "release", "origin/main"),
+    () => { writeFixture(checkout, { "shared.txt": "release\n", ".claude/specs/merge.md": "release spec\n" }); return inCheckout("commit", "-qam", "release fix") },
+    () => inCheckout("checkout", "-qb", "backport", "origin/main"),
+    () => { writeFixture(checkout, { "shared.txt": "backport\n" }); return inCheckout("commit", "-qam", "backport work") },
+  ] },
+  { name: "revert", stagedSpec: ".claude/specs/merge.md", start: ["revert", "--no-edit", "release~1"], prepare: (inCheckout, checkout) => [
+    () => inCheckout("checkout", "-qb", "release", "origin/main"),
+    () => { writeFixture(checkout, { "shared.txt": "release\n", ".claude/specs/merge.md": "release spec\n" }); return inCheckout("commit", "-qam", "release fix") },
+    () => { writeFixture(checkout, { "shared.txt": "later\n" }); return inCheckout("commit", "-qam", "later work") },
+  ] },
+  { name: "rebase", stagedSpec: ".claude/specs/feature.md", start: ["rebase", "origin/main"], prepare: (inCheckout, checkout) => [
+    () => inCheckout("checkout", "-qb", "feature", "origin/main~1"),
+    () => { writeFixture(checkout, { "shared.txt": "feature\n", ".claude/specs/feature.md": "feature spec\n" }); return inCheckout("add", "shared.txt", ".claude/specs/feature.md") },
+    () => inCheckout("commit", "-qm", "feature work"),
+  ] },
+]
 for (const refFormat of ["files", "reftable"]) {
-  const label = refFormat === "files" ? "cherry-pick commit" : "cherry-pick commit (reftable)"
-  const pickCheckout = join(root, `pick-commit-checkout-${refFormat}`)
-  const inPickCheckout = (...args) => spawnSync("git", ["-C", pickCheckout, ...args], { encoding: "utf8" })
-  const pickSetup = [
-    () => spawnSync("git", ["clone", "-q", `--ref-format=${refFormat}`, mergeOrigin, pickCheckout], { encoding: "utf8" }),
-    () => inPickCheckout("config", "user.email", "hooks@example.invalid"),
-    () => inPickCheckout("config", "user.name", "Hook Test"),
-    () => inPickCheckout("checkout", "-qb", "release", "origin/main"),
-    () => { writeFileSync(join(pickCheckout, "shared.txt"), "release\n"); writeFileSync(join(pickCheckout, ".claude", "specs", "merge.md"), "release spec\n"); return inPickCheckout("commit", "-qam", "release fix") },
-    () => inPickCheckout("checkout", "-qb", "backport", "origin/main"),
-    () => { writeFileSync(join(pickCheckout, "shared.txt"), "backport\n"); return inPickCheckout("commit", "-qam", "backport work") },
-  ]
-  T(`${label}: fixture builds`, pickSetup.map((step) => step().status), pickSetup.map(() => 0))
-  T(`${label}: the checkout uses the ${refFormat} ref backend`, inPickCheckout("rev-parse", "--show-ref-format").stdout.trim(), refFormat)
-  T(`${label}: picking the release fix stops on a conflict`, inPickCheckout("cherry-pick", "release").status, 1)
-  writeFileSync(join(pickCheckout, "shared.txt"), "resolved\n")
-  T(`${label}: the resolution stages`, inPickCheckout("add", "shared.txt").status, 0)
-  T(`${label}: the index holds the picked spec edit`, inPickCheckout("diff", "--cached", "--name-only", "--", ".claude/specs/").stdout.trim(), ".claude/specs/merge.md")
-  const pickCommitHook = spawnSync(process.execPath, [join(hooksDir, "require-handoff-prompt.mjs")], { cwd: pickCheckout, encoding: "utf8",
-    input: JSON.stringify({ hook_event_name: "PreToolUse", session_id: `pick-commit-fixture-${refFormat}`, cwd: pickCheckout, tool_input: { command: "git commit --no-edit" } }) })
-  T(`${label}: the commit that concludes the cherry-pick passes the handoff gate`, { status: pickCommitHook.status, stderr: pickCommitHook.stderr }, { status: 0, stderr: "" })
+  for (const { name, stagedSpec, start, prepare } of openOperationCases) {
+    const label = refFormat === "files" ? `${name} commit` : `${name} commit (reftable)`
+    const checkout = join(root, `${name}-commit-checkout-${refFormat}`)
+    const inCheckout = (...args) => spawnSync("git", ["-C", checkout, ...args], { encoding: "utf8", env: { ...process.env, GIT_EDITOR: "true" } })
+    const setup = [
+      () => spawnSync("git", ["clone", "-q", `--ref-format=${refFormat}`, mergeOrigin, checkout], { encoding: "utf8" }),
+      () => inCheckout("config", "user.email", "hooks@example.invalid"),
+      () => inCheckout("config", "user.name", "Hook Test"),
+      ...prepare(inCheckout, checkout),
+    ]
+    T(`${label}: fixture builds`, setup.map((step) => step().status), setup.map(() => 0))
+    T(`${label}: the checkout uses the ${refFormat} ref backend`, inCheckout("rev-parse", "--show-ref-format").stdout.trim(), refFormat)
+    T(`${label}: the ${name} stops on a conflict`, inCheckout(...start).status, 1)
+    writeFixture(checkout, { "shared.txt": "resolved\n" })
+    T(`${label}: the resolution stages`, inCheckout("add", "shared.txt").status, 0)
+    T(`${label}: the index holds the spec edit the ${name} carries`, inCheckout("diff", "--cached", "--name-only", "--", ".claude/specs/").stdout.trim(), stagedSpec)
+    const commitHook = spawnSync(process.execPath, [join(hooksDir, "require-handoff-prompt.mjs")], { cwd: checkout, encoding: "utf8",
+      input: JSON.stringify({ hook_event_name: "PreToolUse", session_id: `${name}-commit-fixture-${refFormat}`, cwd: checkout, tool_input: { command: "git commit --no-edit" } }) })
+    T(`${label}: the commit that concludes the ${name} passes the handoff gate`, { status: commitHook.status, stderr: commitHook.stderr }, { status: 0, stderr: "" })
+    T(`${label}: the ${name} is open before it concludes`, operationInProgress(checkout), true)
+    T(`${label}: the ${name} concludes`, inCheckout(name, "--continue").status, 0)
+    T(`${label}: no operation is open after the ${name} concludes`, operationInProgress(checkout), false)
+  }
 }
 
 const specGitRepo = mkdtempSync(join(tmpdir(), "orbit-handoff-spec-"))

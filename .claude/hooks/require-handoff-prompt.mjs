@@ -20,8 +20,8 @@ try {
     verdict = checkHandoffStop({ request, state, headPrompt: head.text, headPromptCommittedAt: head.committedAt, headSpecVersions: head.specVersions })
   } else if (typeof input?.tool_input?.command === "string") {
     verdict = checkHandoffCommit({ command: input.tool_input.command, cwd: input?.cwd || process.cwd(), request, state, promptsForCommit, specsForCommit,
-      // Git refuses to merge main while a merge, cherry-pick or revert waits for its commit, and the staged docs came from that operation.
-      refreshCheckout: (directory) => { if (!operationInProgress(directory) && handoffDocsChanged(directory)) syncRelayCheckout(directory) },
+      // Git refuses to merge main while a merge, cherry-pick, revert or rebase waits for its commit, and the staged docs came from that operation.
+      refreshCheckout: (directory) => { if (handoffDocsChanged(directory) && !operationInProgress(directory)) syncRelayCheckout(directory) },
     })
   }
   if (verdict?.block) {
