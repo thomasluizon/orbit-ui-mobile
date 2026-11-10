@@ -183,6 +183,11 @@ const scopeInventory = [
       { files: scopedOffAllowlist[4].files, ignores: [], rules: scopedOffAllowlist[4].rules },
     ],
   },
+  {
+    config: "apps/desktop/eslint.config.mjs",
+    globalIgnores: [["node_modules/**", "coverage/**", "src-tauri/**", "*.config.{js,mjs,cjs,ts}"]],
+    localBlocks: [{ files: ["scripts/**/*.ts", "__tests__/**/*.ts"], ignores: [], rules: sharedRules }],
+  },
 ]
 
 const sameStrings = (left, right) =>
