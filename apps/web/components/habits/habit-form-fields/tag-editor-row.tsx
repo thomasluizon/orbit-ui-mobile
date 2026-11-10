@@ -51,7 +51,7 @@ export function TagEditorRow({
         placeholder={placeholder}
         maxLength={MAX_TAG_NAME_LENGTH}
         disabled={disabled}
-        className="flex-1 min-w-0 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-[12px] py-2 px-3 text-base sm:text-sm shadow-[inset_0_0_0_1px_var(--hairline)] border-0 focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] transition-[box-shadow] duration-[var(--dur-fast)]"
+        className="orbit-field-hover flex-1 min-w-0 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-[12px] py-2 px-3 text-base sm:text-sm shadow-[inset_0_0_0_1px_var(--border-control)] border-0 focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {

@@ -137,7 +137,7 @@ export function ReminderSection({
                         value={customValue ?? ''}
                         type="number"
                         min={1}
-                        className="w-20 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-[12px] py-2 px-3 text-sm border-0 shadow-[inset_0_0_0_1px_var(--hairline)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] transition-[box-shadow] duration-[var(--dur-fast)]"
+                        className="orbit-field-hover w-20 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-[12px] py-2 px-3 text-sm border-0 shadow-[inset_0_0_0_1px_var(--border-control)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
                         onChange={(e) => setCustomValue(e.target.value ? Number(e.target.value) : null)}
                         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomReminder() } }}
                       />
