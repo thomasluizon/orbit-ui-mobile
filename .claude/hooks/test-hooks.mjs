@@ -2210,6 +2210,27 @@ const mergeCommitHook = spawnSync(process.execPath, [join(hooksDir, "require-han
   input: JSON.stringify({ hook_event_name: "PreToolUse", session_id: "merge-commit-fixture", cwd: mergeCheckout, tool_input: { command: "git commit --no-edit" } }) })
 T("merge commit: the commit that concludes the merge passes the handoff gate", { status: mergeCommitHook.status, stderr: mergeCommitHook.stderr }, { status: 0, stderr: "" })
 
+// A backport cherry-pick that conflicts stages the picked commit's spec edit on a branch that already contains main.
+const pickCheckout = join(root, "pick-commit-checkout")
+const inPickCheckout = (...args) => spawnSync("git", ["-C", pickCheckout, ...args], { encoding: "utf8" })
+const pickSetup = [
+  () => spawnSync("git", ["clone", "-q", mergeOrigin, pickCheckout], { encoding: "utf8" }),
+  () => inPickCheckout("config", "user.email", "hooks@example.invalid"),
+  () => inPickCheckout("config", "user.name", "Hook Test"),
+  () => inPickCheckout("checkout", "-qb", "release", "origin/main"),
+  () => { writeFileSync(join(pickCheckout, "shared.txt"), "release\n"); writeFileSync(join(pickCheckout, ".claude", "specs", "merge.md"), "release spec\n"); return inPickCheckout("commit", "-qam", "release fix") },
+  () => inPickCheckout("checkout", "-qb", "backport", "origin/main"),
+  () => { writeFileSync(join(pickCheckout, "shared.txt"), "backport\n"); return inPickCheckout("commit", "-qam", "backport work") },
+]
+T("cherry-pick commit: fixture builds", pickSetup.map((step) => step().status), pickSetup.map(() => 0))
+T("cherry-pick commit: picking the release fix stops on a conflict", inPickCheckout("cherry-pick", "release").status, 1)
+writeFileSync(join(pickCheckout, "shared.txt"), "resolved\n")
+T("cherry-pick commit: the resolution stages", inPickCheckout("add", "shared.txt").status, 0)
+T("cherry-pick commit: the index holds the picked spec edit", inPickCheckout("diff", "--cached", "--name-only", "--", ".claude/specs/").stdout.trim(), ".claude/specs/merge.md")
+const pickCommitHook = spawnSync(process.execPath, [join(hooksDir, "require-handoff-prompt.mjs")], { cwd: pickCheckout, encoding: "utf8",
+  input: JSON.stringify({ hook_event_name: "PreToolUse", session_id: "pick-commit-fixture", cwd: pickCheckout, tool_input: { command: "git commit --no-edit" } }) })
+T("cherry-pick commit: the commit that concludes the cherry-pick passes the handoff gate", { status: pickCommitHook.status, stderr: pickCommitHook.stderr }, { status: 0, stderr: "" })
+
 const specGitRepo = mkdtempSync(join(tmpdir(), "orbit-handoff-spec-"))
 const inSpecRepo = (...args) => spawnSync("git", ["-C", specGitRepo, ...args], { encoding: "utf8" })
 inSpecRepo("init", "-q", "-b", "main")

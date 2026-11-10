@@ -36,5 +36,8 @@ export const relayHarnessDifferences = (repoRoot) => {
 export const handoffDocsChanged = (repoRoot) => [[], ["--cached"]].some((flags) =>
   git(repoRoot, ["diff", ...flags, "--name-only", "-z", "--", ...DOCS_PATHS]).length > 0)
 
-/** True while a merge waits for its commit: `MERGE_HEAD` exists in the checkout's own git directory. */
-export const mergeInProgress = (repoRoot) => existsSync(resolve(repoRoot, git(repoRoot, ["rev-parse", "--git-path", "MERGE_HEAD"]).trim()))
+/** Markers of a merge, cherry-pick or revert that waits for its commit, each in the checkout's own git directory. */
+const OPEN_OPERATION_MARKERS = ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD"]
+
+export const operationInProgress = (repoRoot) => OPEN_OPERATION_MARKERS.some((marker) =>
+  existsSync(resolve(repoRoot, git(repoRoot, ["rev-parse", "--git-path", marker]).trim())))
