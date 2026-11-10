@@ -52,7 +52,8 @@ config. When the variable is unset or empty, the worker runs on the main account
 relaunch. attempts names the account, log and outcome of each run, and each log file name ends in
 -worker-account.log or -main-account.log. authenticationFailed marks a sign-in the account could
 not complete, such as a cancelled account, and resultError carries the final error text.
-outcome is EXITED, KILLED_HARD_CEILING, KILLED_NO_PROGRESS, KILLED_LOG_RUNAWAY or SPAWN_FAILED.
+outcome is EXITED, KILLED_HARD_CEILING, KILLED_NO_PROGRESS, KILLED_LOG_RUNAWAY, STOPPED or SPAWN_FAILED.
+A SIGINT or SIGTERM to this launcher ends the worker process tree, then publishes the result with STOPPED.
 Research prints research, outputFile, published, engine, model, account, pid, logFile, startedAt, endedAt,
 exitCode, outcome, authenticationFailed and resultError. It publishes only a non-empty final response from an engine that exits 0.
 
@@ -60,8 +61,9 @@ exit codes: 0 the worker exited on its own, 1 this launcher killed it or it neve
             2 usage or config error, including a worker account directory that does not exist,
             3 the worker executable could not be resolved,
             4 this launcher killed it but the tree holds commits it made, so the work may be salvageable,
-            8 admission refused new ticket work before reservation
-Research exits 0 only after publishing findings, or 1 on engine, supervision or publication failure.`
+            8 admission refused new ticket work before reservation,
+            130 stopped by SIGINT, 143 stopped by SIGTERM
+Research exits 0 only after publishing findings, 1 on engine, supervision or publication failure, or 130 or 143 when stopped.`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -340,12 +342,14 @@ if (!research) {
   }
 }
 process.on("exit", () => { if (!research) releaseAdmission(admission.reservationId) })
-let child
+/** Set while an attempt runs. It stops that attempt's whole group and returns false when a clock already did. */
+let stopActiveAttempt = null
+let stopExitCode = null
 for (const [signal, exitCode] of [["SIGINT", 130], ["SIGTERM", 143]]) {
-  process.once(signal, () => {
-    if (child?.pid) {
-      if (process.platform === "win32") spawnSync("taskkill", ["/T", "/F", "/PID", String(child.pid)], { windowsHide: true })
-      else { try { process.kill(-child.pid) } catch { /* child already exited */ } }
+  process.on(signal, () => {
+    if (stopActiveAttempt) {
+      if (stopActiveAttempt(`${issue} received ${signal}; killing the worker process tree`)) stopExitCode ??= exitCode
+      return
     }
     if (!research) releaseAdmission(admission.reservationId)
     process.exit(exitCode)
@@ -413,6 +417,9 @@ const killTree = (pid, signal = "SIGTERM") => {
     /* a tree that is already gone still ends this launch; the exit handler reports what happened */
   }
 }
+
+/** A worker that handles SIGTERM without exiting still dies at this deadline. The override is a test hook. */
+const killGraceMs = Number(process.env.ORBIT_TEST_KILL_GRACE_MS) > 0 ? Number(process.env.ORBIT_TEST_KILL_GRACE_MS) : 10_000
 
 /**
  * node_modules is the setup hook's writes, not the worker's, and walking it every sample costs more
@@ -504,10 +511,17 @@ const logByteCap = Number.isFinite(logMegabyteCap) && logMegabyteCap > 0 ? logMe
  */
 const superviseAttempt = (workerPid, attemptLogFile) => {
   let outcome = "EXITED"
+  let killed = false
+  let graceTimer
+  /** The first kill keeps its outcome. SIGTERM ends the tree and SIGKILL follows at the grace deadline. */
   const kill = (killedOutcome, message) => {
+    if (killed) return false
+    killed = true
     outcome = killedOutcome
     console.error(message)
     killTree(workerPid)
+    graceTimer = setTimeout(() => killTree(workerPid, "SIGKILL"), killGraceMs)
+    return true
   }
   const ceiling = setTimeout(() => {
     kill("KILLED_HARD_CEILING", `${issue} passed the ${hardCeilingMinutes} minute ceiling; killing the worker process tree`)
@@ -573,7 +587,8 @@ const superviseAttempt = (workerPid, attemptLogFile) => {
   return {
     outcome: () => outcome,
     markSpawnFailed: () => { outcome = "SPAWN_FAILED" },
-    stop: () => { clearTimeout(ceiling); clearInterval(sampler) },
+    kill,
+    stop: () => { clearTimeout(ceiling); clearInterval(sampler); clearTimeout(graceTimer) },
   }
 }
 
@@ -596,7 +611,6 @@ const runAttempt = (account, attemptLogFile, attemptArgs) => new Promise((settle
     detached: process.platform !== "win32",
     env: workerAccountEnvironment(launchEnvironment, account),
   })
-  child = attemptChild
   if (!attemptChild.pid || (!research && !recordReservedWorkerPid(process.pid, attemptChild.pid, runDirectory))) {
     attemptChild.kill()
     fail(3, "could not publish the worker pid in the worktree reservation")
@@ -607,10 +621,12 @@ const runAttempt = (account, attemptLogFile, attemptArgs) => new Promise((settle
   }
   attemptChild.send({ executable, args: attemptArgs, directory: runDirectory, ...(research ? { input: researchPrompt(promptFile), reportDescriptor: reportFd === null ? null : 4 } : {}) })
   const supervisor = superviseAttempt(attemptChild.pid, attemptLogFile)
+  stopActiveAttempt = (message) => supervisor.kill("STOPPED", message)
   let settled = false
   const end = (outcome, exitCode) => {
     if (settled) return
     settled = true
+    stopActiveAttempt = null
     supervisor.stop()
     closeSync(logFd)
     const result = account !== null && outcome === "EXITED" ? logFinalResult(attemptLogFile) : NO_STOP
@@ -651,7 +667,7 @@ const finish = (attempts) => {
       } catch (error) { console.error(`could not publish research findings: ${error.message}`) }
     }
     console.log(JSON.stringify({ research: true, outputFile: researchPlan.outputFile, published, engine: engineName, model: invocation.model, account: last.account, pid: last.pid, logFile: last.logFile, startedAt, endedAt: last.endedAt, exitCode, outcome, authenticationFailed: last.authenticationFailed, resultError: last.resultError }, null, 2))
-    process.exit(published ? 0 : 1)
+    process.exit(outcome === "STOPPED" ? stopExitCode : published ? 0 : 1)
   }
   const commits = startHead ? gitIn(["log", "--format=%h %s", `${startHead}..HEAD`]).split("\n").filter(Boolean) : []
   const porcelain = spawnSync("git", ["-C", runDirectory, "status", "--porcelain"], { encoding: "utf8", windowsHide: true })
@@ -665,12 +681,13 @@ const finish = (attempts) => {
   renameSync(unpublished, resultPath)
   console.log(JSON.stringify(result, null, 2))
   if (outcome === "EXITED") process.exit(0)
+  if (outcome === "STOPPED") process.exit(stopExitCode)
   process.exit(commits.length > 0 ? 4 : 1)
 }
 
 const attempts = [await runAttempt(primaryAccount, logFile, researchArgs ?? workerArgs)]
-// Ticket work only: research publishes one report file, and its order is rerun whole.
-if (!research && attempts[0].usageLimitReached && fallbackAccount !== null) {
+// Ticket work only: research publishes one report file, and its order is rerun whole. A stopped launch never relaunches.
+if (!research && attempts[0].outcome !== "STOPPED" && attempts[0].usageLimitReached && fallbackAccount !== null) {
   console.error(`${issue} stopped at the ${primaryAccount.name} account's usage limit; relaunching it once on the ${fallbackAccount.name} account`)
   attempts.push(await runAttempt(fallbackAccount, logFileFor(fallbackAccount), [...scriptArgs, ...invocation.args, continuationPointer(runDirectory, branch)]))
 }

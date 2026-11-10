@@ -112,6 +112,64 @@ writeFileSync(process.env.ORBIT_TEST_STRAGGLER_MARKER, String(descendant.pid))
       } finally { await cleanupLifecycleLaunch(stragglerRun, stragglerLaunch, { discardLog, readFileContents }) }
     }
   }
+  if (process.platform !== "win32") {
+    const stubborn = stage("launch-worker/sigterm-ignoring-worker.cjs", `process.on("SIGTERM", () => {})\nsetInterval(() => {}, 60000)\n`)
+    const stubbornEnvironment = { ...githubAuthEnv(), ORBIT_TEST_KILL_GRACE_MS: "1000" }
+    for (const [label, timeouts, outcome, expectedLine] of [
+      ["hard ceiling", { hardCeilingMinutes: 0.02, noProgressMinutes: 5, pollSeconds: 0.2 }, "KILLED_HARD_CEILING", /passed the 0\.02 minute ceiling/g],
+      ["no-progress clock", { hardCeilingMinutes: 5, noProgressMinutes: 0.01, pollSeconds: 0.2 }, "KILLED_NO_PROGRESS", /has not moved HEAD/g],
+    ]) {
+      const stubbornLaunch = launch(`sigterm-ignored-${outcome}`, launchConfig({ ...stubEngine(stubborn), timeouts }))
+      const stubbornRun = launchAsync(stubbornLaunch.path, ["--issue", "ORB-201", "--worktree", stubbornLaunch.worktree, "--prompt", stubbornLaunch.prompt], stubbornEnvironment)
+      try {
+        const completion = await settleOrReport(stubbornRun, 30000)
+        discardLog(completion.stdout)
+        T(`${TOOL}: the ${label} ends a worker that ignores SIGTERM, and a kill acts once`,
+          completion.status === 1 && completion.stdout.includes(`"outcome": "${outcome}"`) && (completion.stderr.match(expectedLine) ?? []).length === 1,
+          JSON.stringify(completion))
+      } finally { await cleanupLifecycleLaunch(stubbornRun, stubbornLaunch, { discardLog, readFileContents }) }
+    }
+
+    const stoppable = stage("launch-worker/stoppable-worker.cjs", `
+const { spawn } = require("node:child_process")
+const { writeFileSync } = require("node:fs")
+const descendant = spawn(process.execPath, ["-e", "setInterval(() => {}, 60000)"], { stdio: "ignore" })
+writeFileSync(process.env.ORBIT_TEST_STOP_MARKER, process.pid + " " + descendant.pid)
+setInterval(() => {}, 60000)
+`)
+    for (const [signal, exitCode] of [["SIGTERM", 143], ["SIGINT", 130]]) {
+      const stopMarker = stage(`launch-worker/stop-${signal}.pids`, "")
+      rmSync(stopMarker)
+      const stopLaunch = launch(`stopped-by-${signal}`, launchConfig(stubEngine(stoppable)))
+      const stopRun = launchAsync(stopLaunch.path, ["--issue", "ORB-201", "--worktree", stopLaunch.worktree, "--prompt", stopLaunch.prompt], { ...githubAuthEnv(), ORBIT_TEST_STOP_MARKER: stopMarker })
+      const reservationPath = join(stopLaunch.worktree, ".git", "orbit-worker-launches", "occupied-worktree.json")
+      const wakeSourcePath = join(stopLaunch.base, ".git", "orbit-wake-sources", `${stopRun.child.pid}.json`)
+      let pids = []
+      let completion
+      try {
+        const started = await waitUntil(() => /^\d+ \d+$/.test(readFileContents(stopMarker) ?? ""), 30000)
+        pids = started ? readFileContents(stopMarker).split(" ").map(Number) : []
+        process.kill(stopRun.child.pid, signal)
+        completion = await settleOrReport(stopRun, 30000)
+        discardLog(completion.stdout)
+        const treeEnded = pids.length === 2 && await waitUntil(() => pids.every((pid) => !processIsRunning(pid)), 1000)
+        const resultPath = join(stopLaunch.base, ".git", "orbit-worker-launches", "results", `${stopRun.child.pid}.json`)
+        const published = existsSync(resultPath) ? JSON.parse(readFileSync(resultPath, "utf8")) : null
+        T(`${TOOL}: a ${signal} to the launcher ends the worker tree and publishes a STOPPED result`,
+          started && completion.status === exitCode && treeEnded && published?.outcome === "STOPPED" && published.attempts.length === 1 &&
+            !existsSync(reservationPath) && !existsSync(wakeSourcePath),
+          JSON.stringify({ started, pids, treeEnded, published: published?.outcome, reservation: existsSync(reservationPath), wakeSource: existsSync(wakeSourcePath), ...completion }))
+      } finally {
+        for (const pid of pids) if (processIsRunning(pid)) process.kill(pid, "SIGKILL")
+        // A launcher that already exited leaves a recorded gate pid the system may have reused, so only a live launcher's records are trusted.
+        if (completion?.status == null) await cleanupLifecycleLaunch(stopRun, stopLaunch, { discardLog, readFileContents })
+        else {
+          rmSync(reservationPath, { force: true })
+          rmSync(wakeSourcePath, { force: true })
+        }
+      }
+    }
+  }
   // Startup latency must not decide when a second launcher probes admission.
   const startupDelay = stage("launch-worker/startup-delay.cjs", `if (process.argv[1]?.endsWith("launch-worker.mjs")) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 6000)\n`)
   const startupEnvironment = () => {
@@ -202,6 +260,10 @@ setInterval(() => {}, 60000)
       if (secondOrphan) await cleanupLifecycleLaunch(secondOrphan, orphanLaunch, { discardLog, readFileContents })
     } finally { await cleanupLifecycleLaunch(releasedLaunch, orphanLaunch, { discardLog, readFileContents }) }
   }
+}
+
+const settleOrReport = async (launcher, timeoutMs) => {
+  try { return await launcherResult(launcher, timeoutMs) } catch (error) { return { status: null, stdout: "", stderr: error.message } }
 }
 
 const waitUntil = async (predicate, timeoutMs) => {
