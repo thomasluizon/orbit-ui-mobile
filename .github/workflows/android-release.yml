@@ -41,6 +41,10 @@ on:
         description: Optional note recorded in this run's log and summary
         required: false
         type: string
+      platform_only_reason:
+        description: Leave empty for a release that mirrors iOS. Name the Android-specific defect to release Android alone
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -113,6 +117,7 @@ jobs:
           CLEAR_CACHE: ${{ inputs.clear_cache }}
           VALIDATE_EXPO_DEPENDENCIES: ${{ inputs.validate_expo_dependencies }}
           BUILD_MESSAGE: ${{ inputs.message }}
+          PLATFORM_ONLY_REASON: ${{ inputs.platform_only_reason }}
         run: |
           set -euo pipefail
 
@@ -126,6 +131,7 @@ jobs:
           echo "clear cache:    ${CLEAR_CACHE}"
           echo "expo dep check: ${VALIDATE_EXPO_DEPENDENCIES}"
           echo "message:        ${BUILD_MESSAGE:-<none>}"
+          echo "platform only:  ${PLATFORM_ONLY_REASON:-<no, iOS mirrors this version>}"
           echo "triggered by:   ${GITHUB_ACTOR}"
 
           RERUN_COMMAND=$(printf 'gh workflow run android-release.yml --repo %s --ref %s -f app_version=%s -f android_version_code=%s -f track=%s -f clear_cache=%s -f validate_expo_dependencies=%s' \
@@ -133,6 +139,9 @@ jobs:
             "${RELEASE_TRACK}" "${CLEAR_CACHE}" "${VALIDATE_EXPO_DEPENDENCIES}")
           if [ -n "${BUILD_MESSAGE}" ]; then
             RERUN_COMMAND="${RERUN_COMMAND} -f message=$(printf '%q' "${BUILD_MESSAGE}")"
+          fi
+          if [ -n "${PLATFORM_ONLY_REASON}" ]; then
+            RERUN_COMMAND="${RERUN_COMMAND} -f platform_only_reason=$(printf '%q' "${PLATFORM_ONLY_REASON}")"
           fi
 
           echo "re-run:         ${RERUN_COMMAND}"
@@ -149,6 +158,7 @@ jobs:
             echo "| Commit | \`${GITHUB_SHA}\` |"
             echo "| Clear cache | \`${CLEAR_CACHE}\` |"
             echo "| Expo dep check | \`${VALIDATE_EXPO_DEPENDENCIES}\` |"
+            echo "| Platform only reason | ${PLATFORM_ONLY_REASON:-none, iOS mirrors this version} |"
             echo "| Triggered by | \`${GITHUB_ACTOR}\` |"
             echo
             echo "Re-run this release with the same values:"
@@ -170,6 +180,20 @@ jobs:
           android: false
 
       - uses: actions/checkout@v7
+
+      - name: Require one mobile version
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APP_VERSION: ${{ inputs.app_version }}
+          PLATFORM_ONLY_REASON: ${{ inputs.platform_only_reason }}
+          RELEASE_TRACK: ${{ inputs.track }}
+        run: |
+          set -euo pipefail
+          environment=production
+          if [ "$RELEASE_TRACK" = internal ]; then environment=staging; fi
+          node apps/mobile/scripts/mobile-version-pair.js check --platform android --environment "$environment" \
+            --app-version "$APP_VERSION" --platform-only-reason "$PLATFORM_ONLY_REASON"
 
       - uses: actions/setup-node@v7
         env:
