@@ -306,19 +306,21 @@ static NSDictionary *key(pid_t processId, NSString *name) {
     }
     usleep(250000);
     pid_t focused = focusedProcess();
-    // A real keyboard enters at the HID event tap and reaches the focused application, so a key posts there only for the installed process:
-    // https://developer.apple.com/documentation/coregraphics/cgeventtaplocation/hideventtap
+    // The key goes only to the installed process while it is the focused application, so its key window takes it as a typed key.
     if (focused != processId) {
         @throw [NSException exceptionWithName:@"Input"
             reason:[NSString stringWithFormat:@"Process %d did not receive keyboard focus for %@; process %d has it", processId, name, focused] userInfo:nil];
     }
+    // A key posted at the HID event tap gets its target process from the session's routing (CGEventTypes.h tap locations). On
+    // hosted runners that routing lost whole keys while the shell was the focused application with a key window and a blinking
+    // caret (#1560), so the key enters the shell's own event stream (CGEvent.h CGEventPostToPid).
     for (NSNumber *pressed in @[@YES, @NO]) {
         CGEventRef event = CGEventCreateKeyboardEvent(NULL, code.unsignedShortValue, pressed.boolValue);
         CGEventSetFlags(event, ([name isEqual:@"quit"] || [name isEqual:@"palette"]) ? kCGEventFlagMaskCommand : 0);
-        CGEventPost(kCGHIDEventTap, event);
+        CGEventPostToPid(processId, event);
         CFRelease(event);
     }
-    return @{@"sent": name, @"delivery": @"hid-event-tap", @"activation": activation, @"focusedProcess": @(focused)};
+    return @{@"sent": name, @"delivery": @"process-event", @"activation": activation, @"focusedProcess": @(focused)};
 }
 
 int main(int argc, const char *argv[]) {

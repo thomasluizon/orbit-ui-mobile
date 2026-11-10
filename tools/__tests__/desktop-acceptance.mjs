@@ -417,7 +417,12 @@ static void captureKey(CGEventTapLocation tap, CGEventRef event) {
         @"altKey": @((BOOL)((inheritedFlags & kCGEventFlagMaskAlternate) != 0))}];
 }
 static void captureTargetedKey(pid_t pid, CGEventRef event) {
-    [events addObject:@{@"command": command, @"targeted": @(pid)}];
+    inheritedFlags = CGEventGetFlags(event);
+    [events addObject:@{@"command": command, @"targeted": @(pid), @"focused": @(focused), @"pressed": @((BOOL)(CGEventGetType(event) == kCGEventKeyDown)),
+        @"metaKey": @((BOOL)((inheritedFlags & kCGEventFlagMaskCommand) != 0)),
+        @"shiftKey": @((BOOL)((inheritedFlags & kCGEventFlagMaskShift) != 0)),
+        @"ctrlKey": @((BOOL)((inheritedFlags & kCGEventFlagMaskControl) != 0)),
+        @"altKey": @((BOOL)((inheritedFlags & kCGEventFlagMaskAlternate) != 0))}];
 }
 #define CGEventCreateKeyboardEvent inheritedKeyboardEvent
 #define CGEventPost captureKey
@@ -453,16 +458,18 @@ int main(int argc, const char *argv[]) {
   }
   const focusedRun = run('focused')
   const { events } = focusedRun
-  T('macOS keyboard producer posts both key phases at the HID event tap, as a real keyboard enters, while the installed process has keyboard focus',
-    events.length === 12 && events.every((event) => event.tap === 0 && event.focused === 1 && event.targeted === undefined), JSON.stringify(events))
+  // The session routing behind the HID event tap lost whole keys on hosted runners while the shell held keyboard focus (#1560),
+  // so every key phase enters the installed process's own event stream and none passes through that routing.
+  T('macOS keyboard producer posts both key phases into the installed process, never at the HID event tap, while it has keyboard focus',
+    events.length === 12 && events.every((event) => event.targeted === 1 && event.tap === undefined && event.focused === 1), JSON.stringify(events))
   T('macOS keyboard producer sets Command only for shortcuts and clears inherited modifiers on both key phases', events.length === 12 && events.every((event) =>
     event.metaKey === ['palette', 'quit'].includes(event.command) && !event.shiftKey && !event.ctrlKey && !event.altKey), JSON.stringify(events))
-  T('macOS keyboard producer names the HID delivery path and the focused process in every reply without raising a focused process',
+  T('macOS keyboard producer names the process delivery path and the focused process in every reply without raising a focused process',
     focusedRun.raised.length === 0 && focusedRun.errors.length === 0 && focusedRun.replies.length === 6 && focusedRun.replies.every((reply) =>
-      reply.delivery === 'hid-event-tap' && reply.activation === 'focused' && reply.focusedProcess === 1), JSON.stringify(focusedRun))
+      reply.delivery === 'process-event' && reply.activation === 'focused' && reply.focusedProcess === 1), JSON.stringify(focusedRun))
   const raisedRun = run('raised')
-  T('macOS keyboard producer raises an unfocused installed process once, then posts at the HID event tap',
-    raisedRun.raised.join(',') === '1' && raisedRun.events.length === 12 && raisedRun.events.every((event) => event.tap === 0 && event.focused === 1) &&
+  T('macOS keyboard producer raises an unfocused installed process once, then posts into that process',
+    raisedRun.raised.join(',') === '1' && raisedRun.events.length === 12 && raisedRun.events.every((event) => event.targeted === 1 && event.focused === 1) &&
       raisedRun.replies[0].activation === 'raised' && raisedRun.replies.slice(1).every((reply) => reply.activation === 'focused'), JSON.stringify(raisedRun))
   const refusedRun = run('refused')
   T('macOS keyboard producer posts no key while another process keeps keyboard focus and names that process',

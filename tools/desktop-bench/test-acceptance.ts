@@ -553,7 +553,7 @@ test('a timed-out Astra dismissal records the native tree after Escape and the p
     const commands: string[] = []
     const native = async (_pid: number, command: string) => {
       commands.push(command)
-      if (command !== 'dump') return { sent: command, delivery: 'hid-event-tap' }
+      if (command !== 'dump') return { sent: command, delivery: 'process-event' }
       if (scenario === 'unreadable' && commands.filter((entry) => entry === 'dump').length === 3) throw new Error('AX read failed')
       return astra
     }
@@ -582,12 +582,12 @@ test('every native key reply joins the report with its delivery path, and other 
   const report: { keyDelivery?: unknown[] } = {}
   const calls: unknown[][] = []
   const native = (context.recordKeys as (native: unknown, report: unknown) => (...args: unknown[]) => Promise<unknown>)(
-    async (...args: unknown[]) => { calls.push(args); return args[1] === 'dump' ? { nodes: [] } : { sent: args[1], delivery: 'hid-event-tap', focusedProcess: 7 } }, report)
+    async (...args: unknown[]) => { calls.push(args); return args[1] === 'dump' ? { nodes: [] } : { sent: args[1], delivery: 'process-event', focusedProcess: 7 } }, report)
   for (const command of ['dump', 'escape', 'palette', 'down', 'home', 'notification', 'windows']) await native(7, command)
-  assert.deepEqual(JSON.parse(JSON.stringify(await native(7, 'quit', 41))), { sent: 'quit', delivery: 'hid-event-tap', focusedProcess: 7 })
+  assert.deepEqual(JSON.parse(JSON.stringify(await native(7, 'quit', 41))), { sent: 'quit', delivery: 'process-event', focusedProcess: 7 })
   assert.deepEqual(calls.at(-1), [7, 'quit', 41])
   assert.deepEqual(JSON.parse(JSON.stringify(report.keyDelivery)), ['escape', 'palette', 'down', 'home', 'quit'].map((command) =>
-    ({ command, sent: command, delivery: 'hid-event-tap', focusedProcess: 7 })))
+    ({ command, sent: command, delivery: 'process-event', focusedProcess: 7 })))
 })
 
 test('the page probe waits for Astra removal before acknowledging dismissal', async () => {

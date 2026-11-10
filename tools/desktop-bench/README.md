@@ -380,8 +380,10 @@ runner sends the Down again, with at most 3 posts per step. The report keeps eac
 the keys the page recorded for it in `paletteUndelivered`. A step that records two usable ArrowDown keys
 fails. A received Down that does not move the selection still fails the focus check.
 
-On macOS, the AX helper sends every key as a real keyboard does. It posts the key at the HID event tap,
-where HID events enter the window server, and the window server gives it to the focused application.
+On macOS, the AX helper posts every key into the event stream of the installed process with
+`CGEventPostToPid`, and the key window of the shell receives it as a typed key. A key posted at the HID
+event tap gets its target from the session routing of the window server. On hosted runners, that routing
+lost whole keys while the shell was the focused application with a key window and a blinking caret.
 The helper first reads the focused application from the system-wide AX element. If the installed process
 is not focused, the helper requests activation and sets `AXFrontmost`, because macOS 14 lets the system
 refuse an activation request. If another process keeps keyboard focus, the helper posts no key and names
