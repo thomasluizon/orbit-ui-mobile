@@ -1484,9 +1484,12 @@ with the exact decision required.
 ### Every turn under `--sleep` ends with a live wake source, named
 
 Context relays are the confirmed successor exception to this invariant. The Stop hook
-`relay-at-threshold.mjs` uses `relay.enabled` and `relay.thresholdTokens` from
-`.claude/orchestrator.json`. At the threshold it writes `relay.pending`; admission then
-refuses every new worker launch, including review batches. Keep the admitted queue and
+`relay-at-threshold.mjs` uses `relay.enabled`, `relay.softTokens` and `relay.hardTokens` from
+`.claude/orchestrator.json`. At the soft threshold it only arms the relay: work continues, and one
+message tells the session to finish the unit in front of it. The relay begins at the next quiet
+point, a turn end with every in-flight item waiting on a live wake source, or at the hard ceiling
+on any call. Then it writes `relay.pending`; admission refuses every new worker launch, including
+review batches. The owner set both values from the cost band that `node tools/measure-relay-cost.mjs` prints. Keep the admitted queue and
 ledger. Launch nothing while existing launchers or release watchers are live. Their exits
 wake this session; finish the drain without introducing another wakeup status scan.
 

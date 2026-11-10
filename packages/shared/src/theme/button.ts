@@ -31,6 +31,9 @@ export const BUTTON_SIZES: Record<ButtonSize, ButtonSizeSpec> = {
   md: { height: 50, paddingX: 26, fontSize: 16, iconSize: 20, gap: 9 },
 }
 
+/** The diameter of the round floating action button: the create habit button and the Astra button. */
+export const FAB_SIZE = 60
+
 /** A start-edge icon action moves its 44px paint back by the 20px glyph's side inset, so the glyph starts on the text column. */
 export const ICON_ACTION_START_HANG = -SPACING.s12
 

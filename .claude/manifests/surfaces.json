@@ -9079,58 +9079,6 @@
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "overlay-shell-astra-button",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/shell/astra-button.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/shell/astra-button.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-shell-astra-button",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/shell/astra-button.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/shell/astra-button.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-shell-astra-button",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/shell/astra-button.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/shell/astra-button.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-shell-astra-button",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/shell/astra-button.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/shell/astra-button.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
       "surfaceId": "overlay-shell-sidebar-account",
       "platform": "web",
       "kind": "overlay",
@@ -19015,58 +18963,6 @@
         "apps/mobile/components/share/share-card-sheet.tsx"
       ],
       "state": "empty",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-overlay-shell-astra-button",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/shell/astra-button.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/shell/astra-button.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-overlay-shell-astra-button",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/shell/astra-button.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/shell/astra-button.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-overlay-shell-astra-button",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/shell/astra-button.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/shell/astra-button.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-overlay-shell-astra-button",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/shell/astra-button.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/shell/astra-button.tsx"
-      ],
-      "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
     },

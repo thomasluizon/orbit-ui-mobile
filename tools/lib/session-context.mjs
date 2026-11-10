@@ -3,6 +3,13 @@ import { createInterface } from "node:readline"
 
 export const TRANSCRIPT_TAIL_BYTES = 4 * 1024 * 1024
 
+/**
+ * The context size at which the relay treats Claude Code as about to compact a 1M window itself. This is the
+ * repo's own figure: the installed CLI (2.1.319) computes its real trigger at run time from
+ * CLAUDE_CODE_AUTO_COMPACT_WINDOW minus a summary buffer, so the CLI source holds no single constant to copy.
+ */
+export const AUTO_COMPACT_TOKENS = 900_000
+
 const parseLine = (line) => {
   try { return JSON.parse(line) } catch { return null }
 }

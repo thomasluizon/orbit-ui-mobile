@@ -1,6 +1,6 @@
 import en from '@orbit/shared/i18n/en.json'
 import { API } from '@orbit/shared/api'
-import { getAccountDay } from '@orbit/shared/utils'
+import { ASTRA_STACK_CLEARANCE, getAccountDay } from '@orbit/shared/utils'
 import { SPACING } from '@orbit/shared/theme'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
@@ -10,16 +10,19 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { LAYOUT_FIXED_TIME } from './clock.mjs'
 import { setLayoutFixtureSession, setLayoutProfileSession } from './profile-session'
 import { measureShellScrollEnd, shellScrollViewports } from './shell-scroll-extent'
+import { waitForSettledAstraStack } from './shell-conversation-entry'
 import { test } from './layout-test'
 
-async function floatingClearance(page: Page, width: number, scrollerBottom: number) {
+async function floatingClearance(page: Page, width: number) {
   const button = page.locator('[data-astra-button]')
   if (width >= 1024) {
     await expect(button).toHaveCount(0)
     return { clearance: SPACING.s32, buttonTop: undefined }
   }
+  await waitForSettledAstraStack(page)
   const box = (await button.boundingBox())!
-  return { clearance: Math.max(SPACING.s96, scrollerBottom - box.y + SPACING.s16), buttonTop: box.y }
+  const stacked = await page.locator('[data-shell-fab] button').count() > 0
+  return { clearance: stacked ? ASTRA_STACK_CLEARANCE : SPACING.s96, buttonTop: box.y }
 }
 
 for (const viewport of shellScrollViewports) {
@@ -47,7 +50,7 @@ for (const viewport of shellScrollViewports) {
       await page.evaluate(() => document.fonts.ready)
       const measured = await scroller.evaluate(measureShellScrollEnd)
       await testInfo.attach('initial-scroll-extent', { body: JSON.stringify({ ...viewport, ...measured }), contentType: 'application/json' })
-      const { clearance } = await floatingClearance(page, viewport.width, measured.scrollerBottom)
+      const { clearance } = await floatingClearance(page, viewport.width)
       expect(measured.scrollTop).toBeGreaterThan(0)
       expect(measured.scrollTop).toBe(measured.scrollHeight - measured.clientHeight)
       expect(measured.lastTop).toBeGreaterThanOrEqual(measured.scrollerTop)
@@ -65,7 +68,7 @@ for (const viewport of shellScrollViewports) {
       const afterRemoval = await scroller.evaluate(measureShellScrollEnd)
       await testInfo.attach('settled-scroll-extent', { body: JSON.stringify({ ...viewport, ...afterRemoval }), contentType: 'application/json' })
       expect(afterRemoval.lastTop).toBeGreaterThanOrEqual(afterRemoval.scrollerTop)
-      const restored = await floatingClearance(page, viewport.width, afterRemoval.scrollerBottom)
+      const restored = await floatingClearance(page, viewport.width)
       const restoredClearance = restored.clearance
       expect(afterRemoval.scrollerBottom - afterRemoval.lastBottom).toBeCloseTo(restoredClearance, 0)
       if (restored.buttonTop !== undefined) {

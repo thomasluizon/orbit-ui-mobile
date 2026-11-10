@@ -189,6 +189,18 @@ describe('LoginPage', () => {
     expect(screen.getByRole('button', { name: 'auth.sendCode' })).toBeEnabled()
   })
 
+  it('dims Continue only for an empty email and keeps Google idle until it is pressed', () => {
+    vi.stubEnv('NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'test-site-key')
+    searchParamValues = { email: null, code: null, returnUrl: '/' }
+    render(<LoginPage />)
+    fireEvent.click(screen.getByRole('button', { name: 'Solve security check' }))
+    expect(screen.getByRole('button', { name: 'auth.sendCode' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'auth.signInWithGoogle' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'auth.signInWithGoogle' })).not.toHaveAttribute('aria-busy')
+    fireEvent.input(screen.getByLabelText('auth.email'), { target: { value: 'user@test.com' } })
+    expect(screen.getByRole('button', { name: 'auth.sendCode' })).toBeEnabled()
+  })
+
   it('renders the lockup and no navigation shell', () => {
     const { container } = render(<LoginPage />)
 
