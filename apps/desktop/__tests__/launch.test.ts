@@ -11,18 +11,18 @@ const script = readFileSync(new URL('../src-tauri/src/launch.js', import.meta.ur
   .replace('__ORBIT_LAUNCH_ORIGIN__', JSON.stringify(origin))
 
 function documentLaunch({ paint = true, nested = false, url = origin, loading = true, content = 'Hoje', mode = 'dark' } = {}) {
-  const invoke = vi.fn(async (_command: string, _payload: { generation: number | null }) => 7)
+  const invoke = vi.fn((_command: string, _payload: { generation: number | null }) => Promise.resolve(7))
   const windowEvents = new Map<string, Array<() => void>>()
   const documentEvents = new Map<string, () => void>()
   const frames: Array<() => void> = []
-  let observer: PaintObserver | undefined
+  const observers: PaintObserver[] = []
   let mutation: (() => void) | undefined
   const body = { innerText: content, querySelector: () => null }
   class PaintObserver {
     static supportedEntryTypes = paint ? ['paint'] : []
     disconnected = false
     options?: { type: string; buffered: boolean }
-    constructor(public callback: (entries: { getEntries(): Array<{ name: string }> }) => void) { observer = this }
+    constructor(public callback: (entries: { getEntries(): Array<{ name: string }> }) => void) { observers.push(this) }
     observe(options: { type: string; buffered: boolean }) { this.options = options }
     disconnect() { this.disconnected = true }
   }
@@ -51,8 +51,8 @@ function documentLaunch({ paint = true, nested = false, url = origin, loading = 
   return {
     invoke, windowEvents, documentEvents, frames,
     contentArrives: () => { body.innerText = 'Hoje'; mutation?.() },
-    painted: (name: string) => observer?.callback({ getEntries: () => [{ name }] }),
-    observer: () => observer,
+    painted: (name: string) => observers.at(-1)?.callback({ getEntries: () => [{ name }] }),
+    observer: () => observers.at(-1),
   }
 }
 

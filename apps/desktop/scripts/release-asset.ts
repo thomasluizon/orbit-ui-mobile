@@ -1,4 +1,4 @@
-// WHY: github.com/<repository>/releases/download answers 504 for hours during GitHub outages while the REST asset endpoint keeps serving the same bytes.
+/** WHY: github.com/<repository>/releases/download answers 504 for hours during GitHub outages while the REST asset endpoint keeps serving the same bytes. */
 const apiRoot = 'https://api.github.com'
 const attempts = 4
 const requestTimeoutMilliseconds = 30_000
@@ -28,7 +28,7 @@ async function requestWithRetries(url: string, accept: string, sleep: Sleep): Pr
   for (let attempt = 1; attempt <= attempts; attempt++) {
     try {
       const response = await fetch(url, { headers, signal: AbortSignal.timeout(requestTimeoutMilliseconds) })
-      // WHY: the timeout and a dropped connection also cut the body short, so the body read stays inside the retry.
+      /** WHY: the timeout and a dropped connection also cut the body short, so the body read stays inside the retry. */
       if (!retryable(response.status)) return { status: response.status, ok: response.ok, body: Buffer.from(await response.arrayBuffer()) }
       failure = `status ${response.status}`
     } catch (error) {

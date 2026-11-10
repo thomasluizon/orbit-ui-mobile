@@ -38,9 +38,9 @@ it('copies the complete signed installer set to exact version-free download name
   const { directory, output } = collectedDownloads()
   const destination = join(directory, 'fixed')
   prepareDownloads(vector.version, output, destination, vector.publicKey)
-  expect(readdirSync(destination).sort()).toEqual([
-    'SHA256SUMS', 'downloads.json', 'orbit-aarch64-apple-darwin.dmg', 'orbit-aarch64-pc-windows-msvc.exe',
-    'orbit-x86_64-apple-darwin.dmg', 'orbit-x86_64-pc-windows-msvc.exe',
+  expect(readdirSync(destination).sort((left, right) => left.localeCompare(right, 'en'))).toEqual([
+    'downloads.json', 'orbit-aarch64-apple-darwin.dmg', 'orbit-aarch64-pc-windows-msvc.exe',
+    'orbit-x86_64-apple-darwin.dmg', 'orbit-x86_64-pc-windows-msvc.exe', 'SHA256SUMS',
   ])
   verifyDownloads(destination)
   expect(readFileSync(join(destination, 'SHA256SUMS'), 'utf8')).toContain(`${createHash('sha256').update(vector.payload).digest('hex')}  orbit-aarch64-apple-darwin.dmg`)

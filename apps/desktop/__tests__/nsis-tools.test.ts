@@ -23,7 +23,7 @@ const pins: NsisPins = {
 function fixture(overrides: { utils?: string } = {}) {
   const tools = mkdtempSync(join(tmpdir(), 'nsis-tools-'))
   directories.push(tools)
-  const download = vi.fn(async (pin: { asset: string }) => Buffer.from(pin.asset === 'utils.dll' ? (overrides.utils ?? 'utils') : 'archive'))
+  const download = vi.fn((pin: { asset: string }) => Promise.resolve(Buffer.from(pin.asset === 'utils.dll' ? (overrides.utils ?? 'utils') : 'archive')))
   const extract = vi.fn((_archive: Buffer, destination: string) => {
     for (const file of fixtureFiles) {
       const path = join(destination, 'nsis-fixture', file)
@@ -63,14 +63,14 @@ it('rejects a download that does not match its pinned hash and leaves the tools 
 
 it('downloads through the release asset endpoint while the release download path answers 504', async () => {
   const requests: string[] = []
-  vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+  vi.stubGlobal('fetch', vi.fn((url: string) => {
     requests.push(url)
-    if (url.startsWith('https://github.com/')) return new Response('Gateway Time-out', { status: 504 })
-    if (url.endsWith('/releases/tags/nsis_tauri_utils-v0.5.3')) return Response.json({ assets: [{ id: 345882097, name: 'nsis_tauri_utils.dll' }] })
-    if (url.endsWith('/releases/assets/345882097')) return new Response('dll')
-    throw new Error(`Unexpected request ${url}`)
+    if (url.startsWith('https://github.com/')) return Promise.resolve(new Response('Gateway Time-out', { status: 504 }))
+    if (url.endsWith('/releases/tags/nsis_tauri_utils-v0.5.3')) return Promise.resolve(Response.json({ assets: [{ id: 345882097, name: 'nsis_tauri_utils.dll' }] }))
+    if (url.endsWith('/releases/assets/345882097')) return Promise.resolve(new Response('dll'))
+    return Promise.reject(new Error(`Unexpected request ${url}`))
   }))
-  const download = releaseDownloader(async () => {})
+  const download = releaseDownloader(() => Promise.resolve())
   expect((await download(nsisPins.utils)).toString()).toBe('dll')
   expect(requests).toEqual([
     'https://api.github.com/repos/tauri-apps/nsis-tauri-utils/releases/tags/nsis_tauri_utils-v0.5.3',
@@ -80,14 +80,14 @@ it('downloads through the release asset endpoint while the release download path
 
 it('retries an asset download whose body fails partway through', async () => {
   let assetRequests = 0
-  vi.stubGlobal('fetch', vi.fn(async (url: string) => {
-    if (url.endsWith('/releases/tags/nsis_tauri_utils-v0.5.3')) return Response.json({ assets: [{ id: 345882097, name: 'nsis_tauri_utils.dll' }] })
-    if (!url.endsWith('/releases/assets/345882097')) throw new Error(`Unexpected request ${url}`)
+  vi.stubGlobal('fetch', vi.fn((url: string) => {
+    if (url.endsWith('/releases/tags/nsis_tauri_utils-v0.5.3')) return Promise.resolve(Response.json({ assets: [{ id: 345882097, name: 'nsis_tauri_utils.dll' }] }))
+    if (!url.endsWith('/releases/assets/345882097')) return Promise.reject(new Error(`Unexpected request ${url}`))
     assetRequests++
-    if (assetRequests > 1) return new Response('dll')
-    return new Response(new ReadableStream({ start: controller => controller.error(new TypeError('terminated')) }))
+    if (assetRequests > 1) return Promise.resolve(new Response('dll'))
+    return Promise.resolve(new Response(new ReadableStream({ start: controller => controller.error(new TypeError('terminated')) })))
   }))
-  expect((await releaseDownloader(async () => {})(nsisPins.utils)).toString()).toBe('dll')
+  expect((await releaseDownloader(() => Promise.resolve())(nsisPins.utils)).toString()).toBe('dll')
   expect(assetRequests).toBe(2)
 })
 
@@ -100,7 +100,7 @@ it('pins the exact tools and hashes the installed Tauri CLI bundler downloads', 
   expect(binary).toContain(`https://github.com/${utils.repository}/releases/download/${utils.tag}/${utils.asset}`)
   expect(binary).toContain(utils.sha1)
   expect(binary).toContain(nsisPins.executableSha1)
-  // WHY: the NSIS archive constants compile only into the Windows bundler.
+  /** WHY: the NSIS archive constants compile only into the Windows bundler. */
   if (nativeBinary.includes('win32')) {
     expect(binary).toContain(`https://github.com/${archive.repository}/releases/download/${archive.tag}/${archive.asset}`)
     expect(binary).toContain(archive.sha1)

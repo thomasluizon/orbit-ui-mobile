@@ -8,7 +8,7 @@ import { channelAdvance, channelVersion, planShellRelease, shellFloor, sourceOnM
 import compatibility from '../../web/web-compatibility.json'
 import channel from '../__fixtures__/channel-staging.json'
 
-// WHY: Git-driven cases can exceed five seconds on Windows runners; allow headroom for process startup (#1818).
+/** WHY: Git-driven cases can exceed five seconds on Windows runners; allow headroom for process startup (#1818). */
 const gitTestTimeout = 30_000
 const directories: string[] = []
 const originalDirectory = process.cwd()
@@ -30,11 +30,11 @@ function channelFetch(overrides: Record<string, () => Response> = {}) {
     [`${apiRoot}/assets/726086785`]: () => new Response(channel.signature),
     ...overrides,
   }
-  return vi.fn(async (url: string) => {
-    if (url.startsWith('https://github.com/')) return new Response('Gateway Time-out', { status: 504 })
+  return vi.fn((url: string) => {
+    if (url.startsWith('https://github.com/')) return Promise.resolve(new Response('Gateway Time-out', { status: 504 }))
     const route = routes[url]
-    if (!route) throw new Error(`Unexpected request ${url}`)
-    return route()
+    if (!route) return Promise.reject(new Error(`Unexpected request ${url}`))
+    return Promise.resolve(route())
   })
 }
 
@@ -42,7 +42,7 @@ it('reads and verifies the real published staging channel through the release as
   vi.stubEnv('TAURI_SIGNING_PUBLIC_KEY', channel.publicKey)
   vi.stubGlobal('fetch', channelFetch())
   expect(await channelVersion('staging', noWait)).toBe('0.1.1')
-  const urls = vi.mocked(fetch).mock.calls.map(([url]) => String(url))
+  const urls = vi.mocked(fetch).mock.calls.map(requestedUrl)
   expect(urls).toEqual([`${apiRoot}/tags/desktop-staging`, `${apiRoot}/assets/726086829`, `${apiRoot}/assets/726086785`])
   expect(vi.mocked(fetch).mock.calls[1]![1]).toMatchObject({ headers: { Accept: 'application/octet-stream' } })
 })
@@ -55,7 +55,7 @@ it('retries a gateway error from the asset endpoint and gives up after four atte
   expect(manifestCalls).toBe(3)
   vi.stubGlobal('fetch', channelFetch({ [`${apiRoot}/assets/726086829`]: () => new Response(null, { status: 504 }) }))
   await expect(channelVersion('staging', noWait)).rejects.toThrow(`${apiRoot}/assets/726086829 failed after 4 attempts: status 504`)
-  expect(vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith('/assets/726086829'))).toHaveLength(4)
+  expect(vi.mocked(fetch).mock.calls.filter(call => requestedUrl(call).endsWith('/assets/726086829'))).toHaveLength(4)
   vi.stubGlobal('fetch', channelFetch({ [`${apiRoot}/tags/desktop-staging`]: () => new Response(null, { status: 504 }) }))
   await expect(channelVersion('staging', noWait)).rejects.toThrow(`${apiRoot}/tags/desktop-staging failed after 4 attempts: status 504`)
 })
@@ -76,6 +76,10 @@ it('treats only an absent channel release as a first release and rejects missing
   await expect(channelVersion('staging', noWait)).rejects.toThrow('has no asset latest.json')
 })
 
+function requestedUrl([input]: Parameters<typeof fetch>) {
+  return input instanceof Request ? input.url : input.toString()
+}
+
 function git(...args: string[]) {
   return execFileSync('git', args, { encoding: 'utf8', env: {
     ...process.env, GIT_AUTHOR_NAME: 'Fixture', GIT_AUTHOR_EMAIL: 'fixture@example.invalid',
@@ -86,8 +90,8 @@ function git(...args: string[]) {
 function commit(path: string, content: string) {
   writeFileSync(path, content)
   git('--literal-pathspecs', 'add', path)
-  let parents: string[] = []
-  try { parents = ['-p', git('rev-parse', '--verify', 'HEAD')] } catch { /* Initial fixture commit has no parent. */ }
+  const head = git('for-each-ref', '--count=1', '--format=%(objectname)', 'refs/heads/')
+  const parents = head ? ['-p', head] : []
   const commit = git('commit-tree', git('write-tree'), ...parents, '-m', 'fixture')
   git('update-ref', 'HEAD', commit)
   return commit

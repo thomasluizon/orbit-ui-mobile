@@ -12,7 +12,7 @@ const action = './.github/actions/desktop-nsis-tools'
 const windowsBundling = /tauri\s+(build|bundle)|run\s+"?(build|bundle):[^\n]*@orbit\/desktop|desktop-bench\/(acceptance|run)\.mjs/
 
 function runsOnWindows(job: Job): boolean {
-  // A matrix runner can be a fromJSON expression string; it runs on Windows when that expression names a Windows runner.
+  /** A matrix runner can be a fromJSON expression string; it runs on Windows when that expression names a Windows runner. */
   const matrixRunners = job.strategy?.matrix?.runner ?? []
   const runners = [job['runs-on'], ...(job.strategy?.matrix?.include?.map(entry => entry.runner) ?? []), ...(Array.isArray(matrixRunners) ? matrixRunners : [matrixRunners])]
   return runners.some(runner => runner?.toLowerCase().includes('windows'))
@@ -36,7 +36,7 @@ const workflows = readdirSync(workflowsDirectory).filter(file => file.endsWith('
 
 it('provides the NSIS tools before every Windows bundle', () => {
   const bundling = workflows.filter(({ workflow }) => Object.values(workflow.jobs).some(job => runsOnWindows(job) && job.steps?.some(step => windowsBundling.test(step.run ?? ''))))
-  expect(bundling.map(({ file }) => file).sort()).toEqual(['desktop-acceptance.yml', 'desktop-benchmark.yml', 'desktop-build.yml', 'desktop-release.yml'])
+  expect(bundling.map(({ file }) => file).sort((left, right) => left.localeCompare(right))).toEqual(['desktop-acceptance.yml', 'desktop-benchmark.yml', 'desktop-build.yml', 'desktop-release.yml'])
   for (const { file, workflow } of bundling) expect(windowsBundlingJobsMissingNsisTools(workflow), file).toEqual([])
 })
 

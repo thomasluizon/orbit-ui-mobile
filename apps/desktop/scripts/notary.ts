@@ -85,7 +85,7 @@ async function checkSubmission(id: string, options: NotaryWait, authorization: s
 
 export async function waitForNotarization(ids: string[], options: NotaryWait) {
   const pending = new Set(ids)
-  while (true) {
+  for (;;) {
     const authorization = `Bearer ${notaryToken(options.credentials, options.now())}`
     const failed: string[] = []
     for (const id of [...pending]) {

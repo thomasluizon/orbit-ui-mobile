@@ -457,6 +457,7 @@ jobs:
           web=()
           mobile=()
           shared=()
+          desktop=()
           while IFS= read -r -d '' file; do
             case "$file" in
               apps/web/*.js|apps/web/*.jsx|apps/web/*.mjs|apps/web/*.cjs|apps/web/*.ts|apps/web/*.tsx|apps/web/*.mts|apps/web/*.cts)
@@ -465,9 +466,13 @@ jobs:
                 mobile+=("${file#apps/mobile/}") ;;
               packages/shared/*.js|packages/shared/*.jsx|packages/shared/*.mjs|packages/shared/*.cjs|packages/shared/*.ts|packages/shared/*.tsx|packages/shared/*.mts|packages/shared/*.cts)
                 shared+=("${file#packages/shared/}") ;;
+              apps/desktop/src-tauri/*) ;;
+              apps/desktop/*.js|apps/desktop/*.jsx|apps/desktop/*.mjs|apps/desktop/*.cjs|apps/desktop/*.ts|apps/desktop/*.tsx|apps/desktop/*.mts|apps/desktop/*.cts)
+                desktop+=("${file#apps/desktop/}") ;;
             esac
           done < "$RUNNER_TEMP/changed-paths-present.nul"
           if [ "${#web[@]}" -gt 0 ]; then npm exec --workspace @orbit/web -- eslint -- "${web[@]}"; fi
           if [ "${#mobile[@]}" -gt 0 ]; then npm exec --workspace @orbit/mobile -- eslint -- "${mobile[@]}"; fi
           if [ "${#shared[@]}" -gt 0 ]; then npm exec --workspace @orbit/shared -- eslint -- "${shared[@]}"; fi
-          echo "Linted ${#web[@]} web, ${#mobile[@]} mobile and ${#shared[@]} shared files."
+          if [ "${#desktop[@]}" -gt 0 ]; then npm exec --workspace @orbit/desktop -- eslint -- "${desktop[@]}"; fi
+          echo "Linted ${#web[@]} web, ${#mobile[@]} mobile, ${#shared[@]} shared and ${#desktop[@]} desktop files."

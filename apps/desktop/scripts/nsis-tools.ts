@@ -19,14 +19,14 @@ export interface NsisDependencies {
 }
 
 const pinsPath = new URL('../src-tauri/native/windows/nsis-tools.json', import.meta.url)
-export const nsisPins: NsisPins = JSON.parse(readFileSync(pinsPath, 'utf8'))
+export const nsisPins = JSON.parse(readFileSync(pinsPath, 'utf8')) as NsisPins
 const utilsPath = 'Plugins/x86-unicode/additional/nsis_tauri_utils.dll'
 
 function sha1Of(path: string): string | null {
   return existsSync(path) ? createHash('sha1').update(readFileSync(path)).digest('hex').toUpperCase() : null
 }
 
-// WHY: tauri-bundler 2.10.4 reuses `<cache dir>/tauri/NSIS` only when these exact files and hashes are present, and downloads otherwise.
+/** WHY: tauri-bundler 2.10.4 reuses `<cache dir>/tauri/NSIS` only when these exact files and hashes are present, and downloads otherwise. */
 function nsisToolsComplete(nsisDirectory: string, pins: NsisPins = nsisPins): boolean {
   return pins.requiredFiles.every(file => existsSync(join(nsisDirectory, file)))
     && sha1Of(join(nsisDirectory, 'NSIS.exe')) === pins.executableSha1
@@ -59,7 +59,7 @@ export async function ensureNsisTools(toolsDirectory: string, dependencies: Nsis
 function extractZip(archive: Buffer, destination: string) {
   const file = join(destination, 'archive.zip')
   writeFileSync(file, archive)
-  // WHY: Git Bash puts GNU tar first on PATH, and only the Windows bsdtar reads zip files.
+  /** WHY: Git Bash puts GNU tar first on PATH, and only the Windows bsdtar reads zip files. */
   const result = spawnSync(join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tar.exe'), ['-xf', file, '-C', destination], { encoding: 'utf8' })
   if (result.status !== 0) throw new Error(`Cannot extract ${file}: ${result.stderr || result.error?.message}`)
   rmSync(file)
@@ -76,7 +76,7 @@ export function releaseDownloader(sleep?: Sleep): NsisDependencies['download'] {
 async function main() {
   const localAppData = process.env.LOCALAPPDATA
   if (process.platform !== 'win32' || !localAppData) throw new Error('NSIS tools install only on Windows with LOCALAPPDATA set')
-  // WHY: the bundler reads dirs::cache_dir(), which is the Local AppData folder on Windows.
+  /** WHY: the bundler reads dirs::cache_dir(), which is the Local AppData folder on Windows. */
   const outcome = await ensureNsisTools(join(localAppData, 'tauri'), { download: releaseDownloader(), extract: extractZip })
   console.log(`NSIS tools ${outcome} at ${join(localAppData, 'tauri', 'NSIS')}`)
 }

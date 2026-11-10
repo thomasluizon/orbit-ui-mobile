@@ -5,13 +5,13 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, expect, it, vi } from 'vitest'
 
-// WHY: A cold PowerShell start on hosted Windows runners can exceed the default test timeout.
+/** WHY: A cold PowerShell start on hosted Windows runners can exceed the default test timeout. */
 vi.setConfig({ testTimeout: 30000 })
 
 const native = fileURLToPath(new URL('../src-tauri/native/windows', import.meta.url))
 const shell = process.platform === 'win32' ? 'powershell.exe' : 'pwsh'
 const available = spawnSync(shell, ['-NoProfile', '-Command', 'exit 0']).status === 0
-// WHY: Windows CI uses the build's PowerShell host; other hosts run these cases when pwsh is installed.
+/** WHY: Windows CI uses the build's PowerShell host; other hosts run these cases when pwsh is installed. */
 const downloadTest = it.skipIf(!available && process.platform !== 'win32')
 if (!available) process.stderr.write(`PowerShell download tests skipped: ${shell} is unavailable\n`)
 const directories: string[] = []
@@ -23,7 +23,6 @@ function prepare(mode: string, cached?: string, architecture = 'x64', artifact =
   for (const filename of readdirSync(native).filter(filename => filename.endsWith('.ps1') || filename.endsWith('.json'))) {
     copyFileSync(join(native, filename), join(directory, filename))
   }
-  const payload = 'verified package bytes'
   if (cached !== undefined) writeFileSync(join(directory, 'sdk.zip'), cached)
   const harness = join(directory, 'test.ps1')
   writeFileSync(harness, `
@@ -154,7 +153,7 @@ downloadTest.each([
 
 it('keeps every real Windows download pin as a fixed SHA-256 literal', () => {
   const pins = JSON.parse(readFileSync(join(native, 'downloads.json'), 'utf8')) as Record<string, { url: string; sha256: string }>
-  expect(Object.keys(pins).sort()).toEqual(['cppwinrt', 'runtime-arm64', 'runtime-x64', 'sdk'])
+  expect(Object.keys(pins).sort((left, right) => left.localeCompare(right))).toEqual(['cppwinrt', 'runtime-arm64', 'runtime-x64', 'sdk'])
   for (const pin of Object.values(pins)) expect(pin.sha256).toMatch(/^[a-f0-9]{64}$/)
 })
 
