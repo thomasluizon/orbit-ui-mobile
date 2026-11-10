@@ -261,7 +261,8 @@ The reader reads that history before it invokes Done, so `report.json` `push.his
 reply of each search, and the report says whether the shell posted the toast at all.
 The mock must record exactly one habit log for that habit, and the app window must stay hidden.
 
-The second check sends another reminder and stops the shell while its notification is visible.
+The second check uses another reminder and stops the shell while its notification is visible. macOS
+sends that reminder before the first one, as the APNs paragraph below explains.
 From the push launch on, the mock refuses the long-lived sign-in token, so the BFF refreshes it into
 65 second tokens. After the shell stops, the mock also refuses the refresh token. A Done on that
 notification launches the shell. On Windows the activator client makes that Done, and COM starts the
@@ -269,6 +270,15 @@ shell from its `LocalServer32` command, as it does for a click while no shell ru
 sign-in page, so cleanup stops it on every outcome. Its first page load finds a due token, fails the
 refresh and goes to sign-in, which must show in a visible window. The mock must record no habit log
 for that reminder.
+
+On macOS, usernoted starts the shell for that Done at the copy that LaunchServices finds for the bundle
+identifier. The build output registers a second copy, and LaunchServices can rank it first. Thus, right
+after the install, the runner reads every registered copy from the AX helper's `bundles` command. A copy
+outside the repository and the output directory fails the run. The runner unregisters each present copy
+in those directories with `lsregister -u` and deletes it. `sudo ditto` leaves the installed copy
+unregistered, so the runner then registers it with `lsregister -f`. After that, LaunchServices must rank
+`/Applications/Orbit Staging.app` first, or the run fails. `report.json` `install.launchServices` keeps
+the removed copies.
 
 Each run keeps the platform evidence that the notification readers use, also when a match fails:
 
@@ -293,11 +303,19 @@ Each run keeps the platform evidence that the notification readers use, also whe
   of the phase. Together they show whether a reminder reached the device, reached the shell, or was
   not presented.
 
-On macOS, APNs answers HTTP 200 when it accepts a push, not when the device receives it. Before each
-reminder the phase reads apsd's incoming push count for the shell's topic, and after the send it waits
-up to 60 seconds for that count to rise. `report.json` `push.doneReceipt` and `push.expiredReceipt`
-keep the counts and the seconds that each push took. A push that apsd never counts fails the phase with
-the counts and the last arrival, before any Notification Center search.
+On macOS, APNs answers HTTP 200 when it accepts a push, not when the device receives it. usernoted lists
+the shell's topic as nonwaking, and APNs holds a push to a nonwaking topic until apsd next writes to the
+courier. The registration's filter write is the last write before the Done click. In the hosted runs
+that `#1560` names, a push sent at most 8.3 seconds after a filter write arrived in less than 0.2
+seconds. A push sent 13 to 25 seconds after a filter write waited for the next write, or never arrived.
+Thus the macOS phase sends the expired reminder and then the done reminder right after the main window
+hides. Notification Center shows the newest notification on top, so the done reminder goes last.
+Windows sends the expired reminder after the Done proof, because WNS has no such hold.
+
+Before the send, the phase reads apsd's incoming push count for the shell's topic. After the send, it
+waits up to 60 seconds for the count to rise by the number of reminders. `report.json` `push.receipt`
+keeps the counts and the seconds that the pushes took. If apsd does not count each push, the phase fails
+with the counts and the last arrival, before any Notification Center search.
 
 The macOS reader presses the menu bar clock to open Notification Center only while the center is closed.
 The press toggles the center, and only the open center lists its history and the Edit Widgets button.
@@ -380,8 +398,10 @@ runner sends the Down again, with at most 3 posts per step. The report keeps eac
 the keys the page recorded for it in `paletteUndelivered`. A step that records two usable ArrowDown keys
 fails. A received Down that does not move the selection still fails the focus check.
 
-On macOS, the AX helper sends every key as a real keyboard does. It posts the key at the HID event tap,
-where HID events enter the window server, and the window server gives it to the focused application.
+On macOS, the AX helper posts every key into the event stream of the installed process with
+`CGEventPostToPid`, and the key window of the shell receives it as a typed key. A key posted at the HID
+event tap gets its target from the session routing of the window server. On hosted runners, that routing
+lost whole keys while the shell was the focused application with a key window and a blinking caret.
 The helper first reads the focused application from the system-wide AX element. If the installed process
 is not focused, the helper requests activation and sets `AXFrontmost`, because macOS 14 lets the system
 refuse an activation request. If another process keeps keyboard focus, the helper posts no key and names
@@ -392,6 +412,8 @@ the AX tree in `trees/astra-after-escape.json`. The error states how many Escape
 An exact macOS access denial is recorded as
 a skip, with Windows still required. These are structural checks; a person's spoken screen reader
 pass remains separate. Reports, native trees, capture and diagnostic logs upload even on failure.
+If a step before acceptance fails, the upload only warns about the missing files, so that step stays
+the job's only failure.
 Keys, session fixtures and build packages are excluded from the artifact paths. Cleanup stops owned
 processes, restores hosts and trust, and removes the hermetic web build. Cleanup failure fails the job.
 

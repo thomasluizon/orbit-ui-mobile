@@ -19,6 +19,7 @@ runs:
         node --import tsx tools/desktop-bench/test-acceptance-push.ts
         node --import tsx tools/desktop-bench/test-acceptance-readers.ts
         node --import tsx tools/desktop-bench/test-acceptance-launch.ts
+        node --import tsx tools/desktop-bench/test-child-limit.ts
     - name: Install native prerequisites
       shell: bash
       run: |

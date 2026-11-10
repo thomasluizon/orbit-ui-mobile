@@ -8,7 +8,7 @@ import { buildHermeticWeb } from './runner.mjs'
 import { readFixtures } from './build.mjs'
 import { startProxy } from './server.mjs'
 import { assertFree, delay, execute, start, stop, stopAll, waitFor, waitForHttp } from './host.mjs'
-import { activateUnelevated, apsdReceipt, buildInstaller, capturePushDiagnostics, desktopOrigin, install, isolateOrigins, launchContext, launchUnelevated, startHttpsListener, startPushServices, startRecording } from './acceptance-platform.mjs'
+import { activateUnelevated, apsdReceipt, buildInstaller, capturePushDiagnostics, desktopOrigin, install, isolateOrigins, keepInstalledLaunchCopy, launchContext, launchUnelevated, startHttpsListener, startPushServices, startRecording } from './acceptance-platform.mjs'
 import { NativeTreePendingError, assertAccessibleTree, assertCookieEvidence, assertPaletteFocus, corruptSignature } from './acceptance-contract.mjs'
 import { exercisePush, pushSender, signedApsEnvironment, unsignedReason } from './acceptance-push.mjs'
 
@@ -20,13 +20,14 @@ const record = (path, value) => writeFile(path, `${JSON.stringify(value, null, 2
 async function nativeTool(output) {
   const executable = join(output, 'accessibility')
   if (!windows) await execute('clang', ['-fobjc-arc', '-framework', 'AppKit', '-framework', 'ApplicationServices', join(directory, 'acceptance-ax.m'), '-o', executable])
-  return async (pid, command, menuCommandId, { title, label, invoke = false, openCenter = false, executable: target, capture } = {}) => {
+  return async (pid, command, menuCommandId, { title, label, invoke = false, openCenter = false, executable: target, capture, bundle } = {}) => {
     const reply = windows
       ? await execute('powershell.exe', ['-NoProfile', '-NonInteractive', '-File', join(directory, 'acceptance-uia.ps1'), '-TargetProcessId', String(pid), '-Command', command,
         ...(menuCommandId === undefined ? [] : ['-MenuCommandId', String(menuCommandId)]),
         ...(title === undefined ? [] : ['-Title', title, '-Label', label]), ...(invoke ? ['-Invoke'] : []), ...(openCenter ? ['-OpenCenter'] : []),
         ...(target === undefined ? [] : ['-Executable', target]), ...(capture === undefined ? [] : ['-Capture', capture])])
-      : await execute(executable, [String(pid), command, ...(title === undefined ? [] : [title, label, invoke ? '1' : '0', openCenter ? '1' : '0'])])
+      : await execute(executable, [String(pid), command, ...(title === undefined ? [] : [title, label, invoke ? '1' : '0', openCenter ? '1' : '0']),
+        ...(bundle === undefined ? [] : [bundle])])
     return reply.trim() ? JSON.parse(reply) : null
   }
 }
@@ -419,6 +420,12 @@ export async function acceptance({ repository, output, credentials = {}, signing
     proxy = await startProxy({ probePath: join(directory, 'acceptance-probe.js'), port: proxyPort, upstreamPort: 3401, tls: isolation, route: updates.route, acceptance: true })
     const executable = await install(shell.installer, output)
     report.install = { source: shell.installer, executable, target: shell.target, version: '1.0.0', optionalFeatures: [] }
+    if (!windows) {
+      report.install.launchServices = await keepInstalledLaunchCopy(dirname(dirname(dirname(executable))), [repository, output], {
+        execute, exists: existsSync, remove: (path) => rm(path, { recursive: true, force: true }),
+        bundles: (identifier) => native(0, 'bundles', undefined, { bundle: identifier }),
+      })
+    }
     checkpoint('first-launch')
     let handle = await installedLaunch(executable, output, 'installed', report)
     await waitFor(() => proxy.read('email-completed'), 'email sign-in through the BFF')
