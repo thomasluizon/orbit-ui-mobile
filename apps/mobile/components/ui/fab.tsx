@@ -1,9 +1,10 @@
 import type { FabProps } from '@orbit/shared/contracts/actions'
 import { FAB_SIZE } from '@orbit/shared/theme'
-import { Pressable, StyleSheet, type PressableProps } from 'react-native'
+import { StyleSheet, View, type PressableProps } from 'react-native'
 import { useMemo } from 'react'
 import { createTokensV2, shadowsV2, type AppShadowV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 
 function dropShadow({ shadowOffset, shadowRadius, shadowOpacity }: AppShadowV2) {
   return `${shadowOffset.width}px ${shadowOffset.height}px ${shadowRadius}px rgba(0, 0, 0, ${shadowOpacity})`
@@ -17,7 +18,7 @@ export function Fab({ label, children, onClick, neutral = false, ...buttonProps 
   )
 
   return (
-    <Pressable
+    <MotionPressable
       {...buttonProps}
       onPress={onClick}
       accessibilityRole="button"
@@ -26,16 +27,20 @@ export function Fab({ label, children, onClick, neutral = false, ...buttonProps 
       style={({ pressed }) => [
         styles.button,
         {
-          backgroundColor: neutral ? tokens.bgElev : tokens.primary,
+          backgroundColor: neutral ? tokens.bgElev : pressed ? tokens.primaryPressed : tokens.primary,
           boxShadow: neutral
             ? `inset 0 0 0 1px ${tokens.hairlineStrong}, ${dropShadow(shadowsV2.shadow2)}`
             : `0 0 0 6px ${tokens.bg}`,
         },
-        pressed ? styles.pressed : null,
       ]}
     >
-      {children}
-    </Pressable>
+      {({ pressed }) => (
+        <>
+          {neutral ? <View pointerEvents="none" testID="fab-press-fill" style={[styles.pressFill, { backgroundColor: pressed ? tokens.bgHoverOpaque : 'transparent' }]} /> : null}
+          {children}
+        </>
+      )}
+    </MotionPressable>
   )
 }
 
@@ -47,7 +52,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pressed: {
-    transform: [{ scale: 0.96 }],
+  pressFill: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 999,
   },
 })

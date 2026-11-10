@@ -53,6 +53,12 @@ function byType(root: TestNode, type: string): TestNode[] {
   return root.findAll((node) => node.type === type)
 }
 
+function flattenStyle(style: unknown): Record<string, unknown> {
+  if (typeof style === 'function') return flattenStyle(style({ pressed: true }))
+  if (Array.isArray(style)) return style.reduce<Record<string, unknown>>((merged, entry) => ({ ...merged, ...flattenStyle(entry) }), {})
+  return style !== null && typeof style === 'object' ? style as Record<string, unknown> : {}
+}
+
 describe('redesign primitives on mobile', () => {
   beforeEach(() => {
     motionState.reduced = false
@@ -158,6 +164,36 @@ describe('redesign primitives on mobile', () => {
     expect(prop(button, 'accessibilityLabel')).toBe('Create')
     prop<() => void>(button, 'onPress')()
     expect(onClick).toHaveBeenCalledOnce()
+  })
+
+  describe('FAB press feedback', () => {
+    function pressedFab(element: ReactElement) {
+      const tree = render(element)
+      const host = () => tree.root.findAll(node => node.type === 'Pressable' && node.props.testID === 'fab').at(-1)!
+      void act(() => { prop<() => void>(host(), 'onPressIn')() })
+      const style = flattenStyle(prop<unknown>(host(), 'style'))
+      return { tree, style }
+    }
+
+    it('scales the Astra button to 0.96 and fills it on press', () => {
+      const { tree, style } = pressedFab(<Fab neutral label="Astra">+</Fab>)
+      expect(style.transform).toEqual([{ scale: 0.96 }])
+      expect(prop<{ backgroundColor: string }[]>(tree.root.findByProps({ testID: 'fab-press-fill' }), 'style').at(-1)?.backgroundColor).toBe(tokens.bgHoverOpaque)
+    })
+
+    it('keeps the fill and drops the scale under reduced motion', () => {
+      motionState.reduced = true
+      const { tree, style } = pressedFab(<Fab neutral label="Astra">+</Fab>)
+      expect(style.transform).toEqual([{ scale: 1 }])
+      expect(prop<{ backgroundColor: string }[]>(tree.root.findByProps({ testID: 'fab-press-fill' }), 'style').at(-1)?.backgroundColor).toBe(tokens.bgHoverOpaque)
+    })
+
+    it('presses the primary FAB to the pressed fill without a scale under reduced motion', () => {
+      motionState.reduced = true
+      const { style } = pressedFab(<Fab label="Create">+</Fab>)
+      expect(style.backgroundColor).toBe(tokens.primaryPressed)
+      expect(style.transform).toEqual([{ scale: 1 }])
+    })
   })
 
   it.each([16, 20, 24, 28, 40, 44, 48, 96, 128, 512])('uses the normal Orbit drawing at %ipx and limits accent to its moon', (size) => {
