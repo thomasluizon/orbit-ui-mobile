@@ -48,9 +48,8 @@ describe('layout hydration probe', () => {
       globalThis.window = globalThis;
       ${hydrationProbeScript};
       const hook = window.__REACT_DEVTOOLS_GLOBAL_HOOK__
-      hook.checkDCE(() => {})
+      const observed = { reactInjects: !hook.isDisabled && hook.supportsFiber === true }
       const rendererId = hook.inject({ rendererPackageName: 'react-dom' })
-      const observed = { supportsFiber: hook.supportsFiber, isDisabled: hook.isDisabled }
       hook.onCommitFiberRoot(rendererId, { current: ${JSON.stringify(shellWithSearchBoundary(suspenseState({ data: '$' })))} }, undefined, false)
       observed.afterDehydratedCommit = window.__orbitLayoutFullyHydrated ?? null
       hook.onCommitFiberRoot(rendererId, { current: ${JSON.stringify(shellWithSearchBoundary(null))} }, undefined, false)
@@ -59,8 +58,7 @@ describe('layout hydration probe', () => {
     `
     const output = execFileSync(process.execPath, ['--eval', script], { encoding: 'utf8', timeout: 10_000 })
     expect(JSON.parse(output)).toEqual({
-      supportsFiber: true,
-      isDisabled: false,
+      reactInjects: true,
       afterDehydratedCommit: null,
       afterHydratedCommit: true,
     })

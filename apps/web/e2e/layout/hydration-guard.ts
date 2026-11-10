@@ -45,28 +45,23 @@ export function countDehydratedBoundaries(rootFiber: ProbedFiber): number {
 /**
  * Installs a minimal React DevTools hook. React injects into it when its client bundle loads and calls
  * `onCommitFiberRoot` after every commit; the first commit with no dehydrated boundary marks the page hydrated.
- * React calls `checkDCE`, `inject`, `setStrictMode`, `onCommitFiberUnmount`, `onCommitFiberRoot` and
- * `onPostCommitFiberRoot`, so every one of them exists.
+ * React injects only when `supportsFiber` is set and `isDisabled` is falsy, and it checks `typeof` before it calls
+ * any other hook method, so the hook holds only `supportsFiber`, `inject` and `onCommitFiberRoot`.
  */
 function installHydrationProbe(countDehydrated: (rootFiber: ProbedFiber) => number) {
   const probeWindow = window as unknown as HydrationProbeWindow
   let rendererCount = 0
   probeWindow.__REACT_DEVTOOLS_GLOBAL_HOOK__ = {
     supportsFiber: true,
-    isDisabled: false,
-    checkDCE() {},
     inject() {
       rendererCount += 1
       return rendererCount
     },
-    setStrictMode() {},
-    onCommitFiberUnmount() {},
     onCommitFiberRoot(_rendererId: number, root: ProbedFiberRoot) {
       if (probeWindow.__orbitLayoutFullyHydrated !== true && countDehydrated(root.current) === 0) {
         probeWindow.__orbitLayoutFullyHydrated = true
       }
     },
-    onPostCommitFiberRoot() {},
   }
 }
 
