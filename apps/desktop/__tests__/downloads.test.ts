@@ -4,10 +4,13 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterEach, expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import vector from '../__fixtures__/signer-vector.json'
 import { collectDmg, downloadName, prepareDownloads, verifyDownloads } from '../scripts/downloads.ts'
 import { artifactName, collectArtifact, targets } from '../scripts/release.ts'
+
+/** WHY: The slowest case measured 5558 ms on a slow Windows runner and 302 ms on a healthy one, so 30 s is about five times the slowest measurement. */
+vi.setConfig({ testTimeout: 30_000 })
 
 const directories: string[] = []
 function workspace() {
@@ -38,9 +41,9 @@ it('copies the complete signed installer set to exact version-free download name
   const { directory, output } = collectedDownloads()
   const destination = join(directory, 'fixed')
   prepareDownloads(vector.version, output, destination, vector.publicKey)
-  expect(readdirSync(destination).sort()).toEqual([
-    'SHA256SUMS', 'downloads.json', 'orbit-aarch64-apple-darwin.dmg', 'orbit-aarch64-pc-windows-msvc.exe',
-    'orbit-x86_64-apple-darwin.dmg', 'orbit-x86_64-pc-windows-msvc.exe',
+  expect(readdirSync(destination).sort((left, right) => left.localeCompare(right, 'en'))).toEqual([
+    'downloads.json', 'orbit-aarch64-apple-darwin.dmg', 'orbit-aarch64-pc-windows-msvc.exe',
+    'orbit-x86_64-apple-darwin.dmg', 'orbit-x86_64-pc-windows-msvc.exe', 'SHA256SUMS',
   ])
   verifyDownloads(destination)
   expect(readFileSync(join(destination, 'SHA256SUMS'), 'utf8')).toContain(`${createHash('sha256').update(vector.payload).digest('hex')}  orbit-aarch64-apple-darwin.dmg`)

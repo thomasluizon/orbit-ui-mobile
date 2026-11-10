@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, expect, it } from 'vitest'
-// WHY: Apple's documented examples for Get Submission Status, Get Submission Log, the developer log and ErrorResponse.
+/** WHY: Apple's documented examples for Get Submission Status, Get Submission Log, the developer log and ErrorResponse. */
 import apple from '../__fixtures__/notary-api.json'
 import {
   macosTargets, notaryToken, readSubmissionId, submissionFile, submissionsEndpoint, waitForNotarization, type NotaryWait,
@@ -34,19 +34,19 @@ function service(statuses: Record<string, (Response | Error | string)[]>) {
   const sleeps: number[] = []
   const lines: string[] = []
   let clock = 1_700_000_000_000
-  const fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-    const url = String(input)
+  const fetch = ((input: string | URL | Request, init?: RequestInit) => {
+    const url = input instanceof Request ? input.url : input.toString()
     requests.push({ url, authorization: new Headers(init?.headers).get('authorization') })
-    if (url === logUrl) return json(apple.developerLog)
+    if (url === logUrl) return Promise.resolve(json(apple.developerLog))
     const id = url.slice(submissionsEndpoint.length + 1).replace(/\/logs$/, '')
-    if (url.endsWith('/logs')) return json(logsBody(id))
+    if (url.endsWith('/logs')) return Promise.resolve(json(logsBody(id)))
     const next = statuses[id]!.length > 1 ? statuses[id]!.shift()! : statuses[id]![0]!
-    if (next instanceof Error) throw next
-    return typeof next === 'string' ? json(statusBody(id, next)) : next
+    if (next instanceof Error) return Promise.reject(next)
+    return Promise.resolve(typeof next === 'string' ? json(statusBody(id, next)) : next)
   }) as typeof globalThis.fetch
   const options: NotaryWait = {
     credentials, fetch, deadline: clock + 60_000, intervalMilliseconds: 30_000,
-    sleep: async (milliseconds) => { sleeps.push(milliseconds); clock += milliseconds },
+    sleep: (milliseconds) => { sleeps.push(milliseconds); clock += milliseconds; return Promise.resolve() },
     now: () => clock,
     write: line => lines.push(line),
   }

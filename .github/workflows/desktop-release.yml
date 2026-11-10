@@ -393,8 +393,7 @@ jobs:
             echo "::error::Expected one app, one updater archive and one DMG"
             exit 1
           fi
-          xcrun stapler staple "${dmgs[0]}"
-          xcrun stapler staple "${apps[0]}"
+          node --experimental-strip-types apps/desktop/scripts/staple.ts "${dmgs[0]}" "${apps[0]}"
           rm -f "${archives[0]}" "${archives[0]}.sig"
           # WHY: The updater drops each entry's first path component, so the archive root must be the app with no AppleDouble or extended attribute entries.
           COPYFILE_DISABLE=1 tar --no-xattrs -czf "${archives[0]}" -C "$bundle/macos" "$(basename "${apps[0]}")"
