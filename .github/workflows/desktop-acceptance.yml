@@ -34,11 +34,14 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: ./.github/actions/desktop-acceptance-setup
-      - name: Provide the NSIS bundler tools
+      - id: setup
+        uses: ./.github/actions/desktop-acceptance-setup
+      - id: nsis
+        name: Provide the NSIS bundler tools
         if: runner.os == 'Windows'
         uses: ./.github/actions/desktop-nsis-tools
-      - name: Build, install and exercise the isolated desktop app
+      - id: acceptance
+        name: Build, install and exercise the isolated desktop app
         env:
           ACCEPTANCE_OUTPUT: ${{ runner.temp }}/orbit-desktop-acceptance
           # Public identifiers of the "Orbit Windows Push" Entra app (#1861); only the client secret is a credential.
@@ -48,6 +51,17 @@ jobs:
           ORBIT_WNS_CLIENT_ID: d8d3802e-fed9-4d7e-a7b9-87fdfcf2d0db
           ORBIT_WNS_CLIENT_SECRET: ${{ secrets.ORBIT_WNS_CLIENT_SECRET }}
         run: node tools/desktop-bench/acceptance.mjs --output "$ACCEPTANCE_OUTPUT"
+      # A failed step before acceptance leaves no report.json, and the upload below would fail on the missing file alone.
+      - name: Record a report when acceptance wrote none
+        if: always()
+        env:
+          ACCEPTANCE_OUTPUT: ${{ runner.temp }}/orbit-desktop-acceptance
+          SETUP_OUTCOME: ${{ steps.setup.outcome }}
+          NSIS_OUTCOME: ${{ steps.nsis.outcome }}
+          ACCEPTANCE_OUTCOME: ${{ steps.acceptance.outcome }}
+        run: >-
+          node tools/desktop-bench/acceptance-report.mjs --output "$ACCEPTANCE_OUTPUT"
+          --step "setup=$SETUP_OUTCOME" --step "nsis=$NSIS_OUTCOME" --step "acceptance=$ACCEPTANCE_OUTCOME"
       - name: Upload recording, native trees and report
         if: always()
         uses: actions/upload-artifact@v7
@@ -81,8 +95,10 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: ./.github/actions/desktop-acceptance-setup
-      - name: Build, sign, install and exercise the isolated desktop app
+      - id: setup
+        uses: ./.github/actions/desktop-acceptance-setup
+      - id: acceptance
+        name: Build, sign, install and exercise the isolated desktop app
         env:
           ACCEPTANCE_OUTPUT: ${{ runner.temp }}/orbit-desktop-acceptance
           ORBIT_APPLE_TEAM_ID: ${{ vars.ORBIT_APPLE_TEAM_ID }}
@@ -94,6 +110,15 @@ jobs:
           MACOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.MACOS_PROVISIONING_PROFILE_BASE64 }}
           MACOS_SIGNING_IDENTITY: ${{ vars.MACOS_SIGNING_IDENTITY }}
         run: node tools/desktop-bench/acceptance.mjs --output "$ACCEPTANCE_OUTPUT"
+      - name: Record a report when acceptance wrote none
+        if: always()
+        env:
+          ACCEPTANCE_OUTPUT: ${{ runner.temp }}/orbit-desktop-acceptance
+          SETUP_OUTCOME: ${{ steps.setup.outcome }}
+          ACCEPTANCE_OUTCOME: ${{ steps.acceptance.outcome }}
+        run: >-
+          node tools/desktop-bench/acceptance-report.mjs --output "$ACCEPTANCE_OUTPUT"
+          --step "setup=$SETUP_OUTCOME" --step "acceptance=$ACCEPTANCE_OUTCOME"
       - name: Upload recording, native trees and report
         if: always()
         uses: actions/upload-artifact@v7

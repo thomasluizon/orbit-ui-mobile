@@ -410,6 +410,8 @@ the AX tree in `trees/astra-after-escape.json`. The error states how many Escape
 An exact macOS access denial is recorded as
 a skip, with Windows still required. These are structural checks; a person's spoken screen reader
 pass remains separate. Reports, native trees, capture and diagnostic logs upload even on failure.
+If a step before acceptance fails, `acceptance-report.mjs` writes `report.json` with `passed` false,
+the outcome of each step and the first failed step, so every job uploads a report.
 Keys, session fixtures and build packages are excluded from the artifact paths. Cleanup stops owned
 processes, restores hosts and trust, and removes the hermetic web build. Cleanup failure fails the job.
 
