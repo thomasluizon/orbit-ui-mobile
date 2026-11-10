@@ -203,7 +203,7 @@ export function assertReleaseCandidate(variant: string, version: string, previou
 export function channelExists(variant: string): boolean {
   const { channel } = releaseSettings(variant, '0.1.0')
   const response = spawnSync('gh', ['api', '--include', `repos/${repository}/releases/tags/${channel}`], { encoding: 'utf8' })
-  const status = /^HTTP\/[\d.]+ (\d{3})\b/.exec(response.stdout ?? '')?.[1]
+  const status = /^HTTP\/[\d.]+ (\d{3})\b/.exec(response.stdout)?.[1]
   if (status === '404') return false
   if (response.status !== 0 || status !== '200') throw new Error(`Cannot look up desktop channel: ${status ?? 'transport failure'}`)
   return true

@@ -9,7 +9,7 @@ import vector from '../__fixtures__/signer-vector.json'
 import published from '../__fixtures__/channel-staging.json'
 import { artifactName, targets } from '../scripts/release.ts'
 
-// WHY: Publication runs several real Git and Node processes; allow startup headroom on shared hosts (#1964).
+/** WHY: Publication runs several real Git and Node processes; allow startup headroom on shared hosts (#1964). */
 vi.setConfig({ testTimeout: 30_000 })
 
 const require = createRequire(import.meta.url)
@@ -23,7 +23,7 @@ interface Workflow {
 const workflow = load(readFileSync(new URL('../../../.github/workflows/desktop-release.yml', import.meta.url), 'utf8'))
 const publish = workflow.jobs.publish!.steps.find((step) => step.name === 'Publish versioned artifacts before advancing the channel')!.run!
 const directories: string[] = []
-// WHY: The publisher runs on Ubuntu; these cases execute that workflow's Bash script.
+/** WHY: The publisher runs on Ubuntu; these cases execute that workflow's Bash script. */
 const publicationTest = it.skipIf(process.platform === 'win32')
 afterEach(() => directories.splice(0).forEach((directory) => rmSync(directory, { recursive: true, force: true })))
 
@@ -67,7 +67,7 @@ function publishAttempt(previous: string | null, failVersion = false, failFirstL
   git('update-ref', 'HEAD', source)
   if (previous) git('tag', `desktop-${variant}-v${previous}`, descendant)
   if (failure === 'tag') git('tag', `desktop-${variant}-v${vector.version}`, source)
-  const previousVector = vector.channels[`${variant}-${previous}` as keyof typeof vector.channels]
+  const previousVector = vector.channels[`${variant}-${previous}` as keyof typeof vector.channels] as (typeof vector.channels)[keyof typeof vector.channels] | undefined
   const executable = join(directory, 'gh')
   writeFileSync(executable, `#!/usr/bin/env node
 const { appendFileSync, readFileSync, writeFileSync } = require('node:fs')
@@ -113,7 +113,7 @@ publicationTest.each(['1.9.0', null])('publishes fixed production downloads and 
   expect(downloads![2]).toBe('desktop-production')
   expect(downloads).toContain('--clobber')
   const paths = downloads!.filter(arg => /\.(dmg|exe)$/.test(arg))
-  expect(paths.map(path => path.split('/').at(-1)).sort()).toEqual([
+  expect(paths.map(path => path.split('/').at(-1)!).sort((left, right) => left.localeCompare(right))).toEqual([
     'orbit-aarch64-apple-darwin.dmg', 'orbit-aarch64-pc-windows-msvc.exe',
     'orbit-x86_64-apple-darwin.dmg', 'orbit-x86_64-pc-windows-msvc.exe',
   ])
@@ -130,7 +130,7 @@ publicationTest('publishes no fixed download if the manifest upload fails', () =
 })
 
 it('supports pinned automatic releases and requires every target before publication', () => {
-  expect(Object.keys(workflow.on).sort()).toEqual(['workflow_call', 'workflow_dispatch'])
+  expect(Object.keys(workflow.on).sort((left, right) => left.localeCompare(right))).toEqual(['workflow_call', 'workflow_dispatch'])
   expect(workflow.jobs.validate!.steps.some(step => step.name === 'Plan shell publication')).toBe(true)
   expect(workflow.concurrency['cancel-in-progress']).toBe(false)
   expect(workflow.jobs.build!.needs).toBe('validate')
@@ -146,7 +146,7 @@ it('supports pinned automatic releases and requires every target before publicat
   expect(workflow.jobs.build!.if).toBe("needs.validate.outputs.shell_changed == 'true'")
   expect(workflow.jobs.publish!.if).toBe("needs.validate.outputs.advance_channel == 'true'")
   expect(workflow.jobs.ready!.env).toMatchObject({ ADVANCE_CHANNEL: '${{ needs.validate.outputs.advance_channel }}' })
-  expect(workflow.jobs.build!.strategy!.matrix.include.map((entry) => entry.target).sort()).toEqual([
+  expect(workflow.jobs.build!.strategy!.matrix.include.map((entry) => entry.target).sort((left, right) => left.localeCompare(right))).toEqual([
     'aarch64-apple-darwin', 'aarch64-pc-windows-msvc', 'x86_64-apple-darwin', 'x86_64-pc-windows-msvc',
   ])
   expect(workflow.jobs.build!['timeout-minutes']).toBe(35)

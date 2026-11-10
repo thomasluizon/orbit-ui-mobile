@@ -10,16 +10,16 @@ import vector from '../__fixtures__/signer-vector.json'
 import { releaseConfig } from '../scripts/release.ts'
 
 const require = createRequire(import.meta.url)
-const schema: object = JSON.parse(readFileSync(require.resolve('@tauri-apps/cli/config.schema.json'), 'utf8'))
+const schema = JSON.parse(readFileSync(require.resolve('@tauri-apps/cli/config.schema.json'), 'utf8')) as object
 const validate = new Ajv({ strict: false, validateFormats: false, unicodeRegExp: false }).compile(schema)
 
 function mergeConfig(original: object, patch: object): Record<string, unknown> {
   const merged: Record<string, unknown> = structuredClone(original) as Record<string, unknown>
-  for (const [key, value] of Object.entries(patch)) {
+  for (const [key, value] of Object.entries(patch) as [string, unknown][]) {
     if (value === null) delete merged[key]
     else if (typeof value === 'object' && !Array.isArray(value)) {
       const previous = merged[key]
-      merged[key] = mergeConfig(previous && typeof previous === 'object' && !Array.isArray(previous) ? previous : {}, value)
+      merged[key] = mergeConfig(typeof previous === 'object' && previous !== null && !Array.isArray(previous) ? previous : {}, value)
     } else merged[key] = value
   }
   return merged
@@ -96,7 +96,7 @@ describe.each(environments)('$name desktop', ({ config, origin, identifier }) =>
     const macOS = (config.bundle as { macOS?: { entitlements?: string; hardenedRuntime?: boolean } }).macOS
     expect(macOS?.hardenedRuntime).toBe(true)
     const source = readFileSync(new URL(`../src-tauri/${macOS?.entitlements}`, import.meta.url), 'utf8')
-    const entries = Object.fromEntries([...source.matchAll(/<key>([^<]+)<\/key><string>([^<]+)<\/string>/g)].map((match) => [match[1], match[2]]))
+    const entries = Object.fromEntries([...source.matchAll(/<key>([^<]+)<\/key><string>([^<]+)<\/string>/g)].map((match) => [match[1]!, match[2]!]))
     expect(entries).toEqual({
       'com.apple.application-identifier': `BD7JH468F7.${identifier}`,
       'com.apple.developer.aps-environment': 'production',
@@ -178,7 +178,7 @@ it('keeps exactly the Turnstile challenge documents the iOS app loads in subfram
   const entrypoint = readFileSync(new URL('../src-tauri/src/main.rs', import.meta.url), 'utf8').split('#[cfg(test)]')[0]!
   const desktopDocuments = entrypoint.match(/const EMBEDDED_FRAME_DOCUMENTS: \[&str; \d+\] = \[([^\]]*)\];/)?.[1]
   expect(desktopDocuments).toBeDefined()
-  const quoted = (list: string) => [...list.matchAll(/["']([^"']+)["']/g)].map((match) => match[1]!).sort()
+  const quoted = (list: string) => [...list.matchAll(/["']([^"']+)["']/g)].map((match) => match[1]!).sort((left, right) => left.localeCompare(right))
   expect(quoted(desktopDocuments!)).toEqual(quoted(iosDocuments!))
   expect(quoted(desktopDocuments!)).toEqual(['about:blank', 'about:srcdoc'])
 })
