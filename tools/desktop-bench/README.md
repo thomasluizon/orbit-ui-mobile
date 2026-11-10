@@ -273,10 +273,12 @@ for that reminder.
 
 On macOS, usernoted starts the shell for that Done at the copy that LaunchServices finds for the bundle
 identifier. The build output registers a second copy, and LaunchServices can rank it first. Thus, right
-after the install, the runner reads every registered copy from the AX helper's `bundles` command. It
-unregisters each present copy in the repository or the output directory with `lsregister -u` and
-deletes it. Then LaunchServices must rank `/Applications/Orbit Staging.app` first, or the run fails.
-`report.json` `install.launchServices` keeps the removed copies.
+after the install, the runner reads every registered copy from the AX helper's `bundles` command. A copy
+outside the repository and the output directory fails the run. The runner unregisters each present copy
+in those directories with `lsregister -u` and deletes it. `sudo ditto` leaves the installed copy
+unregistered, so the runner then registers it with `lsregister -f`. After that, LaunchServices must rank
+`/Applications/Orbit Staging.app` first, or the run fails. `report.json` `install.launchServices` keeps
+the removed copies.
 
 Each run keeps the platform evidence that the notification readers use, also when a match fails:
 
