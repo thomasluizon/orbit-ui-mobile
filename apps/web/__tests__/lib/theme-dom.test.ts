@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   neutralColors,
   schemes,
@@ -15,7 +15,12 @@ import {
   resolveWebThemeVariables,
   resolveInitialTheme,
 } from '@/lib/theme-dom'
-import { RESPONSIVE_TYPE_BREAKPOINT, responsiveTypeRoles } from '@orbit/shared/theme'
+import {
+  RESPONSIVE_TYPE_BREAKPOINT,
+  motionDurations,
+  motionEasings,
+  responsiveTypeRoles,
+} from '@orbit/shared/theme'
 
 const SCHEMES: ColorScheme[] = ['orange']
 const MODES: ThemeMode[] = ['dark', 'light']
@@ -205,5 +210,72 @@ describe('initial theme resolution', () => {
 
   it.each([undefined, null, '', 'system', 'invalid'])('follows the system for %s', (value) => {
     expect(resolveInitialTheme(value, value)).toBeNull()
+  })
+})
+
+function atRuleBlocks(stylesheet: string, header: string): string[] {
+  const blocks: string[] = []
+  for (let start = stylesheet.indexOf(header); start >= 0; start = stylesheet.indexOf(header, start + 1)) {
+    const open = stylesheet.indexOf('{', start)
+    let depth = 0
+    for (let index = open; index < stylesheet.length; index += 1) {
+      if (stylesheet[index] === '{') depth += 1
+      if (stylesheet[index] === '}') depth -= 1
+      if (depth === 0) {
+        blocks.push(stylesheet.slice(open + 1, index))
+        break
+      }
+    }
+  }
+  return blocks
+}
+
+describe('theme crossfade', () => {
+  const stylesheet = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
+    .replaceAll('\r\n', '\n')
+  const crossfadeHeader = '@media (prefers-reduced-motion: no-preference)'
+
+  afterEach(() => {
+    vi.useRealTimers()
+    document.documentElement.className = ''
+    document.documentElement.removeAttribute('style')
+  })
+
+  it('declares the crossfade only for people who allow motion', () => {
+    const motionBlocks = atRuleBlocks(stylesheet, crossfadeHeader)
+    const outsideMotionBlocks = motionBlocks.reduce((rest, block) => rest.replace(block, ''), stylesheet)
+    expect(outsideMotionBlocks).not.toContain('.theme-transitioning')
+    expect(motionBlocks.some((block) => block.includes('.theme-transitioning *'))).toBe(true)
+  })
+
+  it('fades over the shared theme duration with the shared standard easing', () => {
+    const rule = atRuleBlocks(stylesheet, crossfadeHeader).find((block) => block.includes('.theme-transitioning')) ?? ''
+    expect(rule).toContain('var(--dur-2) var(--ease-standard)')
+    expect(rule).not.toMatch(/\d(?:\.\d+)?m?s\s+ease\b/)
+    const root = stylesheet.slice(stylesheet.indexOf(':root {'))
+    expect(root).toContain(`--dur-2: ${motionDurations.theme}ms;`)
+    expect(root).toContain(`--ease-standard: cubic-bezier(${motionEasings.standard.join(', ')});`)
+  })
+
+  it('removes the crossfade class exactly when the fade ends', () => {
+    vi.useFakeTimers()
+    applyThemeTokensToDOM('orange', 'light', true)
+    const root = document.documentElement
+    expect(root.classList.contains('theme-transitioning')).toBe(true)
+    vi.advanceTimersByTime(motionDurations.theme - 1)
+    expect(root.classList.contains('theme-transitioning')).toBe(true)
+    vi.advanceTimersByTime(1)
+    expect(root.classList.contains('theme-transitioning')).toBe(false)
+  })
+
+  it('restarts the fade window when the theme changes again mid fade', () => {
+    vi.useFakeTimers()
+    applyThemeTokensToDOM('orange', 'light', true)
+    vi.advanceTimersByTime(motionDurations.theme / 2)
+    applyThemeTokensToDOM('orange', 'dark', true)
+    vi.advanceTimersByTime(motionDurations.theme - 1)
+    expect(document.documentElement.classList.contains('theme-transitioning')).toBe(true)
+    vi.advanceTimersByTime(1)
+    expect(document.documentElement.classList.contains('theme-transitioning')).toBe(false)
   })
 })

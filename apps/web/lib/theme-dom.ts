@@ -93,6 +93,8 @@ export function resolveWebThemeVariables(
   }
 }
 
+let themeTransitionTimer: ReturnType<typeof setTimeout> | undefined
+
 export function applyThemeTokensToDOM(
   scheme: ColorScheme,
   theme: ThemeMode,
@@ -104,7 +106,8 @@ export function applyThemeTokensToDOM(
 
   if (animate) {
     root.classList.add('theme-transitioning')
-    setTimeout(() => {
+    clearTimeout(themeTransitionTimer)
+    themeTransitionTimer = setTimeout(() => {
       root.classList.remove('theme-transitioning')
     }, motionDurations.theme)
   }
