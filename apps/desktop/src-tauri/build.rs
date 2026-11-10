@@ -67,7 +67,7 @@ fn build_windows() {
     println!("cargo:rustc-link-lib=windowsapp");
     println!("cargo:rustc-link-lib=ole32");
     println!("cargo:rustc-link-lib=advapi32");
-    for library in ["gdiplus", "shlwapi", "comctl32", "gdi32"] {
+    for library in ["gdiplus", "shlwapi", "comctl32", "gdi32", "dwmapi"] {
         println!("cargo:rustc-link-lib={library}");
     }
     println!(

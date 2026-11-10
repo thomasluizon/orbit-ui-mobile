@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <commctrl.h>
+#include <dwmapi.h>
 #include <gdiplus.h>
 #include <shlwapi.h>
 #include <memory>
@@ -90,8 +91,14 @@ extern "C" void orbit_launch_set_visible(void *parent, bool visible) {
     RedrawWindow(launch.window, nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
 }
 
+// WHY: Windows 10 rejects DWMWA_CAPTION_COLOR and keeps the immersive caption of the window theme, which is the intended fallback.
+static void paint_caption(HWND window, COLORREF canvas) {
+    DwmSetWindowAttribute(window, DWMWA_CAPTION_COLOR, &canvas, sizeof(canvas));
+}
+
 extern "C" bool orbit_launch_install(void *parent, const unsigned char *png, size_t length,
     unsigned char red, unsigned char green, unsigned char blue) {
+    paint_caption(static_cast<HWND>(parent), RGB(red, green, blue));
     if (!launch.graphics) {
         Gdiplus::GdiplusStartupInput input;
         if (Gdiplus::GdiplusStartup(&launch.graphics, &input, nullptr) != Gdiplus::Ok) return false;
