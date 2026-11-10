@@ -34,7 +34,8 @@ process.stdin.on('end', () => {
   else process.stdout.write(findings)
 })`
 const asyncRun = (staged) => {
-  const child = spawn(process.execPath, [...(staged.preload ? ["--require", staged.preload] : []), staged.path, ...staged.argv], { cwd: staged.base, env: process.env })
+  // A stopped worker tree ignores SIGTERM, so the launcher ends it with SIGKILL at its grace deadline. The grace stays under the 5 second watchdog below.
+  const child = spawn(process.execPath, [...(staged.preload ? ["--require", staged.preload] : []), staged.path, ...staged.argv], { cwd: staged.base, env: { ...process.env, ORBIT_TEST_KILL_GRACE_MS: "500" } })
   const pids = new Set([child.pid])
   let closed = false
   let stdout = ""

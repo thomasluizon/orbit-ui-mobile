@@ -729,7 +729,7 @@ commands remain forbidden.
 
 `launch-worker.mjs` runs in the FOREGROUND as its own watchdog and owns both clocks: the hard
 ceiling and the no-progress cap from `.claude/orchestrator.json` (currently 45 and 10 minutes),
-killing the whole process tree on either. Pass `--hard-ceiling-minutes` at launch for a ticket the
+killing the whole process tree on either. To stop a local worker, send SIGTERM to its launcher pid, the wake source file name. The launcher ends the whole worker group, publishes a result with outcome `STOPPED` and exits 143, and never relaunches. Never signal the recorded `workerPid` alone. Pass `--hard-ceiling-minutes` at launch for a ticket the
 plan already shows outrunning the fleet-wide ceiling: a large migration, a subsystem ticket, or one
 whose test matrix is the work.
 
