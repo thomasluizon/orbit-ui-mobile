@@ -1,5 +1,6 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
 import { resolveHabitAccessibleStatus } from '@orbit/shared/utils'
 import { useId, useRef, useState } from 'react'
 import { MoreVertical } from '@/components/ui/icons'
@@ -44,32 +45,6 @@ function triggerParentCompletion(event: React.MouseEvent, disabled: boolean, isD
   parentAction?.()
 }
 
-export function buildMenuItems(
-  t: ReturnType<typeof useTranslations>,
-  actions: HabitRowActions,
-  canSelect: boolean,
-  canDrillInto: boolean,
-  completionReadOnly: boolean,
-  isGeneral: boolean,
-  state: HabitStatus,
-): MenuItem[] {
-  const items: MenuItem[] = []
-  if (actions.onAddSubHabit) items.push({ id: 'add', label: t('habits.actions.addSubHabit'), icon: 'subtask' })
-  if (actions.onMoveParent) items.push({ id: 'move', label: t('habits.actions.moveUnder'), icon: 'arrows-move' })
-  if (actions.onSkip && !completionReadOnly && !isGeneral) items.push({ id: 'skip', label: t('habits.actions.skip'), icon: 'player-skip-forward' })
-  if (actions.onReschedule && state === 'overdue' && !completionReadOnly) items.push({ id: 'reschedule', label: t('habits.actions.rescheduleAstra'), icon: 'astra' })
-  if (actions.onEdit) items.push({ id: 'edit', label: t('common.edit'), icon: 'pencil' })
-  if (actions.onDuplicate) items.push({ id: 'duplicate', label: t('habits.actions.duplicate'), icon: 'copy' })
-  if (canSelect && actions.onEnterSelectMode) items.push({ id: 'select', label: t('common.select'), icon: 'checkbox' })
-  if (canDrillInto && actions.onDrillInto) {
-    items.push({ id: 'drill', label: t('habits.actions.openSubHabits'), icon: 'list-tree' })
-  }
-  if (actions.onDelete) {
-    items.push({ id: 'delete', label: t('habits.actions.delete'), icon: 'trash', destructive: true })
-  }
-  return items
-}
-
 interface HabitRowTrailingProps {
   habit: NormalizedHabit
   hasChildren: boolean
@@ -77,9 +52,7 @@ interface HabitRowTrailingProps {
   state: HabitStatus
   isDone: boolean
   canLog: boolean
-  hasMenuActions: boolean
-  canSelect: boolean
-  canDrillInto: boolean
+  menuItems: MenuItem[]
   actions: HabitRowActions
   onToggleStatus: () => void
   completionReadOnly: boolean
@@ -128,15 +101,7 @@ function HabitRowCompletion(props: Readonly<HabitRowTrailingProps>) {
 /** Trailing habit check and overflow actions. */
 // react-doctor-disable-next-line no-many-boolean-props -- these are derived per-row display flags computed once by HabitRow and passed straight through; they are not independent configuration axes and splitting the cluster adds indirection without benefit https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
-  const {
-  habit,
-  state,
-  hasMenuActions,
-  canSelect,
-  canDrillInto,
-  actions,
-  completionReadOnly,
-  } = props
+  const { habit, menuItems, actions } = props
   const t = useTranslations()
   const {
     onEdit,
@@ -152,13 +117,12 @@ export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuAnchorRef = useRef<HTMLButtonElement>(null)
   const menuId = useId()
-  const menuItems = buildMenuItems(t, actions, canSelect, canDrillInto, completionReadOnly, habit.isGeneral, state)
 
   return (
     <Menu.Root open={menuOpen} onOpenChange={setMenuOpen}>
-      <div className="flex items-center shrink-0" style={{ gap: 8 }}>
+      <div className="flex items-center shrink-0" style={{ gap: SPACING.s8 }}>
         <HabitRowCompletion {...props} />
-        {hasMenuActions && menuItems.length > 0 && (
+        {menuItems.length > 0 && (
           <>
             <Menu.Trigger asChild><button
               ref={menuAnchorRef}

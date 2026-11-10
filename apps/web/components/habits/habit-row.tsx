@@ -1,19 +1,20 @@
 'use client'
 
-import { SPACING } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { useId, type CSSProperties, type KeyboardEvent, type ReactNode, type RefCallback } from 'react'
-import { getHabitRowTypeLabelKey, isHabitDoneForRange, stripInlineMarkdown } from '@orbit/shared/utils'
+import { getHabitRowSelectionSpacerWidth, getHabitRowTypeLabelKey, isHabitDoneForRange, stripInlineMarkdown } from '@orbit/shared/utils'
 import { PersonalTextAction } from '@/components/ui/personal-text-action'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useTranslations } from 'next-intl'
 import type { HabitRowBase, HabitStatus } from '@orbit/shared/contracts/lists'
+import type { MenuItem } from '@orbit/shared/contracts/overlay'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { ChevronDown } from '@/components/ui/icons'
 import { Checkbox } from '@/components/ui/checkbox'
 import { buildHabitRowMetaTokens, HabitRowContent, MetaStrip, type HabitRowMetaToken } from './habit-row-content'
 import { HabitRowLeading } from './habit-row-leading'
-import { buildMenuItems, HabitRowTrailing } from './habit-row-trailing'
+import { HabitRowTrailing } from './habit-row-trailing'
 import { useHabitRowSupportingMeta, useHabitRowMetadataFit } from './use-habit-row-large-text'
 import { useHabitRowActivation } from './use-habit-row-activation'
 
@@ -80,49 +81,32 @@ interface HabitRowProps {
   actions?: HabitRowActions
 }
 
-function hasHabitMenuActions(
-  actions: HabitRowActions,
-  canSelect: boolean,
-  canDrillInto: boolean,
-): boolean {
-  return Boolean(
-    actions.onEdit ||
-    actions.onDuplicate ||
-    actions.onMoveParent ||
-    actions.onAddSubHabit ||
-    actions.onSkip ||
-    actions.onReschedule ||
-    actions.onDelete ||
-    canSelect ||
-    canDrillInto,
-  )
-}
-
-const ROW_CONTROL_WIDTH = 48
-const STRIP_GAP = 4
-const TRAILING_GAP = 8
-
-function selectionSpacerWidth(trailingHasMenu: boolean, selectionButton: boolean): number {
-  const trailingWidth = trailingHasMenu ? ROW_CONTROL_WIDTH + TRAILING_GAP + ROW_CONTROL_WIDTH : ROW_CONTROL_WIDTH
-  return selectionButton ? trailingWidth - ROW_CONTROL_WIDTH - STRIP_GAP : trailingWidth
-}
-
-function normalTrailingHasMenu(
+/** The overflow menu the row shows outside selection; the trailing group renders only then. */
+function buildMenuItems(
   t: ReturnType<typeof useTranslations>,
   actions: HabitRowActions,
   canDrillInto: boolean,
   completionReadOnly: boolean,
   isGeneral: boolean,
   state: HabitStatus,
-): boolean {
-  const canSelect = !!actions.onEnterSelectMode
-  return hasHabitMenuActions(actions, canSelect, canDrillInto)
-    && buildMenuItems(t, actions, canSelect, canDrillInto, completionReadOnly, isGeneral, state).length > 0
+): MenuItem[] {
+  const items: MenuItem[] = []
+  if (actions.onAddSubHabit) items.push({ id: 'add', label: t('habits.actions.addSubHabit'), icon: 'subtask' })
+  if (actions.onMoveParent) items.push({ id: 'move', label: t('habits.actions.moveUnder'), icon: 'arrows-move' })
+  if (actions.onSkip && !completionReadOnly && !isGeneral) items.push({ id: 'skip', label: t('habits.actions.skip'), icon: 'player-skip-forward' })
+  if (actions.onReschedule && state === 'overdue' && !completionReadOnly) items.push({ id: 'reschedule', label: t('habits.actions.rescheduleAstra'), icon: 'astra' })
+  if (actions.onEdit) items.push({ id: 'edit', label: t('common.edit'), icon: 'pencil' })
+  if (actions.onDuplicate) items.push({ id: 'duplicate', label: t('habits.actions.duplicate'), icon: 'copy' })
+  if (actions.onEnterSelectMode) items.push({ id: 'select', label: t('common.select'), icon: 'checkbox' })
+  if (canDrillInto) items.push({ id: 'drill', label: t('habits.actions.openSubHabits'), icon: 'list-tree' })
+  if (actions.onDelete) items.push({ id: 'delete', label: t('habits.actions.delete'), icon: 'trash', destructive: true })
+  return items
 }
 
+/** Pointer-inert through an inline style, because the supporting layout's `*:pointer-events-auto` outranks a class on its children. */
 function SelectionSpacer({ width }: Readonly<{ width: number }>) {
   if (width <= 0) return null
-  return <span aria-hidden="true" data-habit-row-trailing-slot="" className="pointer-events-none shrink-0" style={{ width, minHeight: ROW_CONTROL_WIDTH }} />
+  return <span aria-hidden="true" data-habit-row-trailing-slot="" className="shrink-0" style={{ width, minHeight: TOUCH_TARGET_MIN, pointerEvents: 'none' }} />
 }
 
 function HabitRowStructuralColumn({
@@ -208,18 +192,14 @@ function HabitRowView({
     onLog,
     onUnlog,
     onToggleExpand,
-    onEnterSelectMode,
     onDrillInto,
   } = actions
-  const canSelect = !selectMode && !!onEnterSelectMode
   const canDrillInto = hasSubHabits && !!onDrillInto
-  const hasMenuActions = hasHabitMenuActions(actions, canSelect, canDrillInto)
-  const { rowRef, narrow } = useHabitRowMetadataFit(JSON.stringify([habit.id, meta, selectMode, selected, structuralColumn, hasChildren, hasMenuActions, child, depth, depthSupportingMeta]), largeText, measureRef)
-  const supportingMeta = depthSupportingMeta || narrow
-
   const isDone = state === 'done' || isHabitDoneForRange(habit)
   const graphicState = habit.isBadHabit ? 'bad' : state
-  const trailingHasMenu = normalTrailingHasMenu(t, actions, canDrillInto, completionReadOnly, habit.isGeneral, graphicState)
+  const menuItems = buildMenuItems(t, actions, canDrillInto, completionReadOnly, habit.isGeneral, graphicState)
+  const { rowRef, narrow } = useHabitRowMetadataFit(JSON.stringify([habit.id, meta, selectMode, selected, structuralColumn, hasChildren, menuItems.length > 0, child, depth, depthSupportingMeta]), largeText, measureRef)
+  const supportingMeta = depthSupportingMeta || narrow
   const isChild = child || depth > 0
   const titleSize = isChild ? 14 : 17
   const emojiSize = isChild ? 16 : 22
@@ -286,7 +266,7 @@ function HabitRowView({
         />
       ) : null}
 
-      {selectMode ? <SelectionSpacer width={selectionSpacerWidth(trailingHasMenu, structuralColumn)} /> : (
+      {selectMode ? <SelectionSpacer width={getHabitRowSelectionSpacerWidth(menuItems.length > 0, structuralColumn)} /> : (
         <HabitRowTrailing
           habit={habit}
           hasChildren={hasChildren}
@@ -294,9 +274,7 @@ function HabitRowView({
           state={graphicState}
           isDone={isDone}
           canLog={canLog}
-          hasMenuActions={hasMenuActions}
-          canSelect={canSelect}
-          canDrillInto={canDrillInto}
+          menuItems={menuItems}
           actions={actions}
           onToggleStatus={handleToggleStatus}
           completionReadOnly={completionReadOnly}
@@ -314,7 +292,7 @@ function HabitRowView({
         onReorder={actions.onReorder} reorderInstructionsId={reorderInstructionsId}>
         {primaryContent}
       </HabitRowPrimaryButton>
-      {supportingMeta ? <div data-habit-row-controls="" className="pointer-events-none *:pointer-events-auto relative col-start-2 row-start-1 flex items-start gap-[4px]" style={{ paddingBlockStart: isChild ? SPACING.s4 : SPACING.s8 }}>{controls}</div> : <div data-habit-row-controls="" className="flex shrink-0 items-center gap-[4px]">{controls}</div>}
+      {supportingMeta ? <div data-habit-row-controls="" className="pointer-events-none *:pointer-events-auto relative col-start-2 row-start-1 flex items-start" style={{ gap: SPACING.s4, paddingBlockStart: isChild ? SPACING.s4 : SPACING.s8 }}>{controls}</div> : <div data-habit-row-controls="" className="flex shrink-0 items-center" style={{ gap: SPACING.s4 }}>{controls}</div>}
     </>
   )
 

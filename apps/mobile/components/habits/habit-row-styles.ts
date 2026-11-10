@@ -57,7 +57,7 @@ export const styles = StyleSheet.create({
   trailing: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: SPACING.s8,
   },
   trailingSlot: {
     minHeight: 48,
