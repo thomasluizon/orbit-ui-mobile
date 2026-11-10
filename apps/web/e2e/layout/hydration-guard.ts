@@ -48,7 +48,7 @@ export function countDehydratedBoundaries(rootFiber: ProbedFiber): number {
  * React calls `checkDCE`, `inject`, `setStrictMode`, `onCommitFiberUnmount`, `onCommitFiberRoot` and
  * `onPostCommitFiberRoot`, so every one of them exists.
  */
-export function installHydrationProbe(countDehydrated: (rootFiber: ProbedFiber) => number) {
+function installHydrationProbe(countDehydrated: (rootFiber: ProbedFiber) => number) {
   const probeWindow = window as unknown as HydrationProbeWindow
   let rendererCount = 0
   probeWindow.__REACT_DEVTOOLS_GLOBAL_HOOK__ = {
