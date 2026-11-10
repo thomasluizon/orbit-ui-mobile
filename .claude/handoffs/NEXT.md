@@ -16,12 +16,12 @@ UI `main` `691323673`; API `main` `f418f94e7`; landing `main` `5d9971870`. Produ
 
 | Item | Disposition |
 | --- | --- |
-| Android Open 1.3.152 (212), run 42919315374 | Confirm the run succeeded (`wait-release.mjs --workflow android`). It carries the `#2094` Android button. |
+| Android Open 1.3.152 (212), run 42919315374 | Succeeded; carries the `#2094` Android button. |
 | `ui#2412` (`#2094`) | Head `aba4247a3` (mobile `tsc` fix), CI waiter running. On green: `list-bot-threads` requests round 2; merge at a fresh approval and zero threads; close `#2094` after the Android Open run succeeds. |
 | `ui#2414` (`#1561`) | Head `0b3523681` (CodeQL 57 fixed, 56 dismissed), CI waiter running. On green: request the review (2-launch cap: the coordinator writes any batch). After merge: production iOS Release from `main` 1.3.152 (2), read the `TestFlight access` summary. |
 | `ui#2415` (`#2098`) | Round 1 commit-only worker (`launch-rb-2098.sh`, order `order-2098-rb1.md`). If its commit is unpushed: read the diff, `body-merge.sh`, reply to and resolve both round 1 threads, push, then CI and the round 2 review. Merge first when approved, then `main-into.sh` every open UI branch. |
 | `ui#2413` | Dependabot; PR Tests run 42899645155 rerun once for the web test budget red, CI waiter running. On green: request the review, merge at the bar. A second budget red: investigate `habit-list-scroll-geometry.test.tsx`. |
-| `landing#130` (`#2091`) | Head `4c762c1` (rendered startup 19,586 bytes, sweep passed), CI waiter running. On green: request the review; merge at the bar (branch at its 2-launch cap). |
+| `landing#130` (`#2091`) | Head `4c762c1` (rendered startup 19,586 bytes, sweep passed), CI green, review requested, waiter running. Merge at the bar (2-launch cap). |
 | `landing#129` (`#2090`) | Head `a66fb885f` (rendered startup 19,948 bytes). Round 1: three P1 threads (first press counted twice; focus drops on a keyboard pick; `#downloads` opens under the header). Coordinator writes the batch (2-launch cap). Run `landing-sweep.cjs` before merge. After both landing merges: launch `#2095` (it must stay under the 9,228-byte startup test), then landing staging and production. |
 | `#2099` to `#2105` (motion areas from `#2096`) | Admitted in `remaining`, no worktree yet. Launch one worker each (tier default, parity bound), within the load gate. |
 | `#2097` App Store review | App Store Connect still shows the login page. Adapt the live Play listing (both locales) for iPhone and iPad, then `/second-opinion`. After the owner signs in: screenshots, subscriptions, App Privacy, submit with manual release. |
