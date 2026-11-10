@@ -1,4 +1,6 @@
 import { spawnSync } from "node:child_process"
+import { existsSync } from "node:fs"
+import { resolve } from "node:path"
 import { redactSecrets } from "./github-auth.mjs"
 
 const HARNESS_PATHS = ["tools/", ".claude/skills/", ".claude/hooks/", ".claude/rules/"]
@@ -33,3 +35,6 @@ export const relayHarnessDifferences = (repoRoot) => {
 
 export const handoffDocsChanged = (repoRoot) => [[], ["--cached"]].some((flags) =>
   git(repoRoot, ["diff", ...flags, "--name-only", "-z", "--", ...DOCS_PATHS]).length > 0)
+
+/** True while a merge waits for its commit: `MERGE_HEAD` exists in the checkout's own git directory. */
+export const mergeInProgress = (repoRoot) => existsSync(resolve(repoRoot, git(repoRoot, ["rev-parse", "--git-path", "MERGE_HEAD"]).trim()))

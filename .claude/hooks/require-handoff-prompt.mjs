@@ -2,7 +2,7 @@
 // PreToolUse(Bash, PowerShell) and Stop adapter for the handoff prompt gate. The rules live in
 // _lib/rules-handoff.mjs. Exits 0 (allow) or 2 + stderr (block). Adapter errors block with a diagnostic.
 
-import { handoffDocsChanged, syncRelayCheckout } from "../../tools/lib/relay-checkout.mjs"
+import { handoffDocsChanged, mergeInProgress, syncRelayCheckout } from "../../tools/lib/relay-checkout.mjs"
 import { readHandoffRequest } from "../../tools/lib/handoff-prompt.mjs"
 import { REPO_ROOT, readRunState } from "../../tools/lib/run-state.mjs"
 import { newestCommittedPrompt, promptsForCommit, specsForCommit } from "./_lib/handoff-git.mjs"
@@ -20,7 +20,8 @@ try {
     verdict = checkHandoffStop({ request, state, headPrompt: head.text, headPromptCommittedAt: head.committedAt, headSpecVersions: head.specVersions })
   } else if (typeof input?.tool_input?.command === "string") {
     verdict = checkHandoffCommit({ command: input.tool_input.command, cwd: input?.cwd || process.cwd(), request, state, promptsForCommit, specsForCommit,
-      refreshCheckout: (directory) => { if (handoffDocsChanged(directory)) syncRelayCheckout(directory) },
+      // A commit that concludes a merge authors no handoff docs and already merges main.
+      refreshCheckout: (directory) => { if (!mergeInProgress(directory) && handoffDocsChanged(directory)) syncRelayCheckout(directory) },
     })
   }
   if (verdict?.block) {

@@ -2181,6 +2181,35 @@ T("handoff size: a commit of an 8300 B prompt is refused", /`\.claude\/handoffs\
 T("handoff size: a commit of an 8192 B prompt passes", specCommit([], `${goodSleepPrompt}\n${"x".repeat(8191 - goodSleepPrompt.length)}`), null)
 T("handoff size: a stop after an oversized committed spec is refused", blocks(checkHandoffStop({ request: { sleep: true, recordedAt: "2026-01-01T10:00:00Z" }, headPrompt: goodSleepPrompt, headPromptCommittedAt: "2026-01-01T10:05:00Z", headSpecVersions: () => ["x".repeat(41984)] })), true)
 
+// A commit that concludes a conflicted merge of main stages main's own spec edits. It authors no handoff docs.
+const mergeOrigin = join(root, "merge-commit-origin.git")
+const mergeCheckout = join(root, "merge-commit-checkout")
+const inMergeCheckout = (...args) => spawnSync("git", ["-C", mergeCheckout, ...args], { encoding: "utf8" })
+const mergeSetup = [
+  () => spawnSync("git", ["init", "-q", "--bare", mergeOrigin], { encoding: "utf8" }),
+  () => spawnSync("git", ["init", "-q", "--initial-branch=main", mergeCheckout], { encoding: "utf8" }),
+  () => inMergeCheckout("config", "user.email", "hooks@example.invalid"),
+  () => inMergeCheckout("config", "user.name", "Hook Test"),
+  () => inMergeCheckout("remote", "add", "origin", mergeOrigin),
+  () => { mkdirSync(join(mergeCheckout, ".claude", "specs"), { recursive: true }); writeFileSync(join(mergeCheckout, ".claude", "specs", "merge.md"), "spec\n"); writeFileSync(join(mergeCheckout, "shared.txt"), "base\n"); return inMergeCheckout("add", ".claude/specs/merge.md", "shared.txt") },
+  () => inMergeCheckout("commit", "-qm", "base"),
+  () => inMergeCheckout("push", "-q", "-u", "origin", "main"),
+  () => inMergeCheckout("checkout", "-qb", "feature"),
+  () => { writeFileSync(join(mergeCheckout, "shared.txt"), "feature\n"); return inMergeCheckout("commit", "-qam", "feature change") },
+  () => inMergeCheckout("checkout", "-q", "main"),
+  () => { writeFileSync(join(mergeCheckout, "shared.txt"), "main\n"); writeFileSync(join(mergeCheckout, ".claude", "specs", "merge.md"), "main spec\n"); return inMergeCheckout("commit", "-qam", "main change") },
+  () => inMergeCheckout("push", "-q", "origin", "main"),
+  () => inMergeCheckout("checkout", "-q", "feature"),
+]
+T("merge commit: fixture builds", mergeSetup.map((step) => step().status), mergeSetup.map(() => 0))
+T("merge commit: merging main stops on a conflict", inMergeCheckout("merge", "--no-edit", "origin/main").status, 1)
+writeFileSync(join(mergeCheckout, "shared.txt"), "resolved\n")
+T("merge commit: the resolution stages", inMergeCheckout("add", "shared.txt").status, 0)
+T("merge commit: the index holds main's spec edit", inMergeCheckout("diff", "--cached", "--name-only", "--", ".claude/specs/").stdout.trim(), ".claude/specs/merge.md")
+const mergeCommitHook = spawnSync(process.execPath, [join(hooksDir, "require-handoff-prompt.mjs")], { cwd: mergeCheckout, encoding: "utf8",
+  input: JSON.stringify({ hook_event_name: "PreToolUse", session_id: "merge-commit-fixture", cwd: mergeCheckout, tool_input: { command: "git commit --no-edit" } }) })
+T("merge commit: the commit that concludes the merge passes the handoff gate", { status: mergeCommitHook.status, stderr: mergeCommitHook.stderr }, { status: 0, stderr: "" })
+
 const specGitRepo = mkdtempSync(join(tmpdir(), "orbit-handoff-spec-"))
 const inSpecRepo = (...args) => spawnSync("git", ["-C", specGitRepo, ...args], { encoding: "utf8" })
 inSpecRepo("init", "-q", "-b", "main")
