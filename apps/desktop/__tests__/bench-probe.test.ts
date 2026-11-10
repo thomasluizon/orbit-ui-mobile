@@ -35,7 +35,7 @@ async function measureChat({ fragmented = false, interrupted = false, dispatchDe
     return new Response(body, { status: 200, statusText: 'OK', headers: { 'content-type': 'text/event-stream' } })
   }
   async function* textChunks(response: Response) {
-    const reader = response.body!.getReader()
+    const reader = response.body!.getReader() as ReadableStreamDefaultReader<Uint8Array>
     const decoder = new TextDecoder()
     try {
       for (;;) {
@@ -46,13 +46,13 @@ async function measureChat({ fragmented = false, interrupted = false, dispatchDe
     } finally { reader.releaseLock() }
   }
   const browser = {
-    fetch: async (url: string, options?: { signal?: AbortSignal; body?: string }) => {
+    fetch: (url: string, options?: { signal?: AbortSignal; body?: string }) => {
       if (url === '/_bench/events') {
         reports.push(JSON.parse(options!.body!) as { kind: string; message: string })
-        return new Response(null, { status: 204 })
+        return Promise.resolve(new Response(null, { status: 204 }))
       }
       expect(url).toBe('/api/chat/stream')
-      return createResponse(options!.signal!)
+      return Promise.resolve(createResponse(options!.signal!))
     },
   }
   let rendered: string | null | undefined = ''
@@ -64,7 +64,7 @@ async function measureChat({ fragmented = false, interrupted = false, dispatchDe
     createTurnKey: () => 'benchmark-turn', createMessageId: () => 'benchmark-reply',
     turnReconciliation: new ChatTurnReconciliation(), buildChatFormData: request => request.content,
     isAbortError: error => error instanceof Error && error.name === 'AbortError',
-    applyFinalResponse: async response => { rendered = response.aiMessage },
+    applyFinalResponse: response => { rendered = response.aiMessage; return Promise.resolve() },
     createTransport: (_request, reply) => async () => {
       const controller = reply.resetController()
       signals.push(controller.signal)
@@ -98,14 +98,15 @@ async function measureChat({ fragmented = false, interrupted = false, dispatchDe
       },
       querySelectorAll: () => rendered ? [{ innerText: rendered }] : chat.messages.map(message => ({ innerText: message.content })),
     },
-    pause: async () => {}, frame: async () => {},
-    post: async (event: { kind: string; message: string }) => { reports.push(event) },
-    until: async (read: () => unknown, label: string) => vi.waitFor(() => {
+    pause: () => Promise.resolve(), frame: () => Promise.resolve(),
+    post: (event: { kind: string; message: string }) => { reports.push(event); return Promise.resolve() },
+    until: (read: () => unknown, label: string) => vi.waitFor(() => {
       const result = read()
       if (!result) throw new Error(label)
       return result
     }, { interval: 1, timeout: 20000 }),
   }
+  // eslint-disable-next-line sonarjs/code-eval -- the test runs the repository's own injected script source, with no external input
   runInNewContext(`${chatSource}\nglobalThis.measure = chat`, sandbox)
   try {
     const measure = (sandbox as typeof sandbox & { measure: () => Promise<{ finalEventMs: number; firstTokenMs: number }> }).measure

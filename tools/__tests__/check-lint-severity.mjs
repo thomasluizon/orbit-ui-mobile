@@ -19,6 +19,7 @@ const inventoriedConfigs = [
   "apps/web/eslint.config.mjs",
   "apps/mobile/eslint.config.js",
   "packages/shared/eslint.config.mjs",
+  "apps/desktop/eslint.config.mjs",
 ]
 const fixtureConfigs = new Map()
 for (const path of inventoriedConfigs) {
@@ -129,6 +130,7 @@ export const cases = () => {
   for (const [label, configPath] of [
     ["mobile", "apps/mobile/eslint.config.js"],
     ["shared", "packages/shared/eslint.config.mjs"],
+    ["desktop", "apps/desktop/eslint.config.mjs"],
   ]) {
     const missingConfig = stageConfig(`missing-${label}`, webConfig(), "apps/web/eslint.config.mjs")
     rmSync(join(missingConfig, configPath))

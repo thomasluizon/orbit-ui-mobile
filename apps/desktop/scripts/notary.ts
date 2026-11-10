@@ -1,7 +1,9 @@
 import { createPrivateKey, sign } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { setTimeout as sleep } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
+import type { Sleep } from './release-asset.ts'
 import { targets } from './release.ts'
 
 export const submissionsEndpoint = 'https://appstoreconnect.apple.com/notary/v2/submissions'
@@ -12,7 +14,7 @@ export interface NotaryCredentials { keyId: string; issuerId: string; privateKey
 export interface NotaryWait {
   credentials: NotaryCredentials
   fetch: typeof fetch
-  sleep: (milliseconds: number) => Promise<void>
+  sleep: Sleep
   now: () => number
   deadline: number
   intervalMilliseconds: number
@@ -85,7 +87,7 @@ async function checkSubmission(id: string, options: NotaryWait, authorization: s
 
 export async function waitForNotarization(ids: string[], options: NotaryWait) {
   const pending = new Set(ids)
-  while (true) {
+  for (;;) {
     const authorization = `Bearer ${notaryToken(options.credentials, options.now())}`
     const failed: string[] = []
     for (const id of [...pending]) {
@@ -121,7 +123,7 @@ async function main() {
       privateKey: credential('APP_STORE_CONNECT_API_PRIVATE_KEY'),
     },
     fetch,
-    sleep: milliseconds => new Promise(resolveSleep => setTimeout(resolveSleep, milliseconds)),
+    sleep,
     now: Date.now,
     deadline: Date.now() + Number(deadlineMinutes) * 60_000,
     intervalMilliseconds: 30_000,
