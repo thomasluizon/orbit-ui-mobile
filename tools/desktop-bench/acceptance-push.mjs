@@ -369,8 +369,9 @@ export async function exercisePush(io) {
   // courier. The registration's filter write is the last one before the Done click: pushes sent within 8.3 s of a filter
   // write arrived in under 0.2 s, and pushes sent 13 to 25 s after one waited for the next write or never arrived (#1560).
   // So macOS sends both reminders now, the expired one first, because Notification Center shows the newest one on top.
-  const early = windows ? null : await sendReminders(io, deliver, ['expired', 'done'])
-  const completed = early?.done ?? (await sendReminders(io, deliver, ['done'])).done
+  // Windows sends only the Done reminder before the click, and the expired one after the Done proof.
+  const sent = await sendReminders(io, deliver, windows ? ['done'] : ['expired', 'done'])
+  const completed = sent.done
   // On Windows the reader only proves that the toast shows with its Done button, and the activator client clicks Done.
   await notification(io, pid, completed, !windows, 'notification-done')
   if (windows) {
@@ -387,7 +388,7 @@ export async function exercisePush(io) {
   // A second request would follow the shell's first response well inside this window.
   await io.delay(5000)
   io.report.push.done = assertDoneDelivered({ logs: await io.mock.logs(), habitId: completed.data.habitId, visible: await windowsOf(io, pid) })
-  const expired = early?.expired ?? (await sendReminders(io, deliver, ['expired'])).expired
+  const expired = sent.expired ?? (await sendReminders(io, deliver, ['expired'])).expired
   await notification(io, pid, expired, false, 'notification-expired')
   await io.stop(shell)
   await io.mock.sessionMode('expired')
