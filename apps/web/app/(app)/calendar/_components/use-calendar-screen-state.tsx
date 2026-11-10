@@ -41,12 +41,6 @@ function useClearStaleCalendarImportRoute(routeRequestKey: string, importRequest
   }, [routeRequestKey, importRequested, returnHref, router])
 }
 
-function resolveMonthSlideClass(monthSlide: MonthSlide): string {
-  if (monthSlide === 'right') return 'animate-slide-date-right'
-  if (monthSlide === 'left') return 'animate-slide-date-left'
-  return ''
-}
-
 export interface CalendarPageContentProps {
   navigation: ReturnType<typeof useCalendarNavigation>
   profile: CalendarProfile | undefined
@@ -326,13 +320,11 @@ function useCalendarMonthSwipe({ nextMonth, prevMonth, monthSlide, isOnline, set
     }
   }, [nextMonth, prevMonth])
 
-  const monthSlideClass = resolveMonthSlideClass(monthSlide)
-
   const openHabitCreation = useCallback(() => {
     if (!isOnline) { setShowCreateRefusal(true); return }
     setShowCreateModal(true)
   }, [isOnline, setShowCreateRefusal, setShowCreateModal])
-  return { monthSlideClass, handleTouchStart, handleTouchEnd, openHabitCreation }
+  return { monthSlide, handleTouchStart, handleTouchEnd, openHabitCreation }
 }
 
 type CalendarHeaderStateInputs = Pick<ReturnType<typeof useCalendarViewModel>, 'viewOptions' | 'rangeLabel'> & Pick<CalendarPageContentProps, 'view' | 'setView' | 'currentMonth' | 'selectedDay' | 'profile' | 'profileError'> & Pick<ReturnType<typeof useCalendarScreenSession>, 't' | 'todayKey' | 'weekStartsOn' | 'rangeOffset' | 'agendaOffset' | 'locale' | 'setRangeOffset' | 'setAgendaOffset'> & Pick<ReturnType<typeof useCalendarRangeState>, 'weekStart' | 'agendaStart' | 'agendaEnd'> & Pick<ReturnType<typeof useCalendarDisplayState>, 'weekLabel' | 'activeError'> & Pick<ReturnType<typeof useCalendarDateActions>, 'prevWeek' | 'nextWeek' | 'goToCurrentWeek' | 'previousRange' | 'nextRange' | 'prevMonth' | 'nextMonth' | 'goToCurrentMonth' | 'selectMonth'>

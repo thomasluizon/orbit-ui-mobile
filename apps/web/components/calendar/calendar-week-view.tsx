@@ -2,6 +2,7 @@
 
 import type { Locale } from 'date-fns'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+import { CalendarSlide } from './calendar-slide'
 import { CalendarTimeGrid, type TimeGridColumn } from './calendar-time-grid'
 
 interface CalendarWeekViewProps {
@@ -31,15 +32,8 @@ export function CalendarWeekView({
   nowLabel,
   timeZone,
 }: Readonly<CalendarWeekViewProps>) {
-  let slideClass = ''
-  if (slideDirection === 'right') {
-    slideClass = 'animate-slide-date-right'
-  } else if (slideDirection === 'left') {
-    slideClass = 'animate-slide-date-left'
-  }
-
   return (
-    <div key={columns[0]?.dateStr ?? 'week'} className={`flex min-h-0 flex-1 flex-col ${slideClass}`}>
+    <CalendarSlide direction={slideDirection} stepKey={columns[0]?.dateStr ?? 'week'} className="flex min-h-0 flex-1 flex-col">
       <CalendarTimeGrid
         columns={columns}
         dayMap={dayMap}
@@ -51,6 +45,6 @@ export function CalendarWeekView({
         timeZone={timeZone}
         isLoading={isLoading}
       />
-    </div>
+    </CalendarSlide>
   )
 }

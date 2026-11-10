@@ -346,6 +346,8 @@ export {
   splitCalendarMonthRange,
 } from './calendar-range'
 export type { CalendarRangeChunk, CalendarRangeModel } from './calendar-range'
+export { calendarSlideMotion, resolveCalendarSlide } from './calendar-slide-motion'
+export type { CalendarSlide, CalendarSlideDirection } from './calendar-slide-motion'
 export { fetchAllPaginatedItems } from './pagination'
 export { habitListQueryFilters, shouldFetchAllHabitPages, habitViewQueryOptions } from './habit-list-pagination-core'
 export {
