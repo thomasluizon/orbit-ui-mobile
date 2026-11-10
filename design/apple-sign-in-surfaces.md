@@ -18,7 +18,9 @@ Apple's native localized control. Android and web keep the existing login button
 
 `EXPO_PUBLIC_APPLE_CLIENT_ID` and `NEXT_PUBLIC_APPLE_CLIENT_ID` are required build variables for the
 mobile and web buttons. The web, Android and iOS release workflows stop before the build when the
-value is empty. Each value names the Apple Services ID of that flow's API client:
+value is empty. Each value matches the API client its flow signs in with: the grouped Services ID
+(`AppleSignIn__WebClientId`) for web and Android, the bundle identifier
+(`AppleSignIn__NativeClientId`) for native iOS:
 
 | Build | Variable | Value |
 |---|---|---|
@@ -29,8 +31,7 @@ value is empty. Each value names the Apple Services ID of that flow's API client
 | iOS production | environment `ios-production` `EXPO_PUBLIC_APPLE_CLIENT_ID` | `org.useorbit.app` |
 | iOS staging | environment `ios-staging` `EXPO_PUBLIC_APPLE_CLIENT_ID` | `org.useorbit.app.staging` |
 
-They name the grouped Apple Services ID. The API owns Apple's authorize URL, callback and
-single-use handoff. Android returns through the existing verified App Link. Web stores its client
+The API owns Apple's authorize URL, callback and single-use handoff. Android returns through the existing verified App Link. Web stores its client
 state in a temporary secure httpOnly cookie; the session uses the existing strict cookie writer.
 Native iOS sends the nonce digest to Apple and the raw nonce to the native API endpoint.
 

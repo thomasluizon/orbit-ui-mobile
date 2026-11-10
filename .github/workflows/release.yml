@@ -109,35 +109,25 @@ jobs:
               echo "::error::Selected SHA has missing or failing checks for ${workflow}.yml"; exit 1;
             }
           done
-      - name: Validate browser Sentry DSN
+      - name: Validate browser build variables
         env:
           RELEASE_ENVIRONMENT: ${{ inputs.environment }}
           PRODUCTION_DSN: ${{ vars.PRODUCTION_NEXT_PUBLIC_SENTRY_DSN }}
           STAGING_DSN: ${{ vars.STAGING_NEXT_PUBLIC_SENTRY_DSN }}
+          PRODUCTION_APPLE_CLIENT_ID: ${{ vars.PRODUCTION_NEXT_PUBLIC_APPLE_CLIENT_ID }}
+          STAGING_APPLE_CLIENT_ID: ${{ vars.STAGING_NEXT_PUBLIC_APPLE_CLIENT_ID }}
         run: |
           set -euo pipefail
           case "$RELEASE_ENVIRONMENT" in
-            production) dsn="$PRODUCTION_DSN" ;;
-            staging) dsn="$STAGING_DSN" ;;
+            production) dsn="$PRODUCTION_DSN"; apple_client_id="$PRODUCTION_APPLE_CLIENT_ID" ;;
+            staging) dsn="$STAGING_DSN"; apple_client_id="$STAGING_APPLE_CLIENT_ID" ;;
             *) echo "::error::Unknown release environment"; exit 1 ;;
           esac
           if [ -z "${dsn//[[:space:]]/}" ]; then
             echo "::error::Missing ${RELEASE_ENVIRONMENT} NEXT_PUBLIC_SENTRY_DSN"; exit 1
           fi
-      - name: Validate browser Apple client ID
-        env:
-          RELEASE_ENVIRONMENT: ${{ inputs.environment }}
-          PRODUCTION_CLIENT_ID: ${{ vars.PRODUCTION_NEXT_PUBLIC_APPLE_CLIENT_ID }}
-          STAGING_CLIENT_ID: ${{ vars.STAGING_NEXT_PUBLIC_APPLE_CLIENT_ID }}
-        run: |
-          set -euo pipefail
-          case "$RELEASE_ENVIRONMENT" in
-            production) client_id="$PRODUCTION_CLIENT_ID"; variable=PRODUCTION_NEXT_PUBLIC_APPLE_CLIENT_ID ;;
-            staging) client_id="$STAGING_CLIENT_ID"; variable=STAGING_NEXT_PUBLIC_APPLE_CLIENT_ID ;;
-            *) echo "::error::Unknown release environment"; exit 1 ;;
-          esac
-          if [ -z "${client_id//[[:space:]]/}" ]; then
-            echo "::error::Missing repository variable ${variable}; Sign in with Apple ships on every release"; exit 1
+          if [ -z "${apple_client_id//[[:space:]]/}" ]; then
+            echo "::error::Missing ${RELEASE_ENVIRONMENT} NEXT_PUBLIC_APPLE_CLIENT_ID; Sign in with Apple ships on every release"; exit 1
           fi
       - uses: actions/checkout@v7
         with:
