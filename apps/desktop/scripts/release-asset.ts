@@ -1,3 +1,5 @@
+import { setTimeout as defaultSleep } from 'node:timers/promises'
+
 /** WHY: github.com/<repository>/releases/download answers 504 for hours during GitHub outages while the REST asset endpoint keeps serving the same bytes. */
 const apiRoot = 'https://api.github.com'
 const attempts = 4
@@ -14,8 +16,6 @@ interface ReleaseResponse {
   ok: boolean
   body: Buffer
 }
-
-const defaultSleep: Sleep = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds))
 
 function retryable(status: number): boolean {
   return status === 429 || status >= 500

@@ -1,13 +1,15 @@
 import { spawnSync } from 'node:child_process'
 import { resolve } from 'node:path'
+import { setTimeout as sleep } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
+import type { Sleep } from './release-asset.ts'
 
-export const stapleBackoffMilliseconds = [10_000, 30_000, 60_000]
+const stapleBackoffMilliseconds = [10_000, 30_000, 60_000]
 
 export interface XcrunResult { status: number | null; output: string }
 export interface StapleDependencies {
   xcrun: (args: string[]) => XcrunResult
-  sleep: (milliseconds: number) => Promise<void>
+  sleep: Sleep
   write: (line: string) => void
 }
 
@@ -47,7 +49,7 @@ async function main() {
   for (const path of paths) {
     await stapleWithRetry(path, {
       xcrun: runXcrun,
-      sleep: milliseconds => new Promise(resolveSleep => setTimeout(resolveSleep, milliseconds)),
+      sleep,
       write: line => process.stdout.write(`${line}\n`),
     })
   }

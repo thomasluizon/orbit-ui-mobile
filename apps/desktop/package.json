@@ -16,6 +16,9 @@
     "@tauri-apps/cli": "2.12.4",
     "@vitest/coverage-v8": "^4.1.12",
     "ajv": "^8.20.0",
+    "eslint": "^10.14.0",
+    "eslint-plugin-sonarjs": "^4.2.2",
+    "typescript-eslint": "^8.72.1",
     "vitest": "^4.1.12"
   }
 }

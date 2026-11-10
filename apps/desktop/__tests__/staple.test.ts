@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { isTransientStapleFailure, stapleBackoffMilliseconds, stapleWithRetry, type StapleDependencies, type XcrunResult } from '../scripts/staple.ts'
+import { isTransientStapleFailure, stapleWithRetry, type StapleDependencies, type XcrunResult } from '../scripts/staple.ts'
 
 const dmg = 'bundle/dmg/Orbit Staging_0.1.27_aarch64.dmg'
 const connectionLost: XcrunResult = {
@@ -46,7 +46,7 @@ it('retries a dropped CloudKit connection with backoff until a staple works', as
   const { dependencies, calls, sleeps, lines } = harness([connectionLost, connectionLost, success])
   await stapleWithRetry(dmg, dependencies)
   expect(calls).toEqual([['stapler', 'staple', dmg], ['stapler', 'staple', dmg], ['stapler', 'staple', dmg]])
-  expect(sleeps).toEqual(stapleBackoffMilliseconds.slice(0, 2))
+  expect(sleeps).toEqual([10_000, 30_000])
   expect(lines).toEqual([
     'stapler lost the CloudKit connection on attempt 1 of 4; retrying in 10 s',
     'stapler lost the CloudKit connection on attempt 2 of 4; retrying in 30 s',
@@ -58,7 +58,7 @@ it('fails loudly after the last bounded attempt', async () => {
   await expect(stapleWithRetry(dmg, dependencies)).rejects.toThrow(`xcrun stapler staple failed for ${dmg} with status 68 on attempt 4 of 4`)
   expect(calls).toHaveLength(4)
   expect(calls.every(call => call[1] === 'staple')).toBe(true)
-  expect(sleeps).toEqual(stapleBackoffMilliseconds)
+  expect(sleeps).toEqual([10_000, 30_000, 60_000])
 })
 
 it.each([
