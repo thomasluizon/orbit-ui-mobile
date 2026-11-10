@@ -78,7 +78,11 @@ pub fn desktop_launch(
             mode.as_deref(),
             &crate::settings::path(window.app_handle()).map_err(|error| error.to_string())?,
             |mode| {
-                let color = canvas(mode == LaunchMode::Dark);
+                let dark = mode == LaunchMode::Dark;
+                let color = canvas(dark);
+                window
+                    .set_theme(Some(theme(dark)))
+                    .map_err(|error| error.to_string())?;
                 window
                     .set_background_color(Some(color))
                     .map_err(|error| error.to_string())?;
@@ -123,10 +127,20 @@ pub fn configure(config: &mut WindowConfig, mode: Option<LaunchMode>) {
         |mode| mode == LaunchMode::Dark,
     );
     config.background_color = Some(canvas(dark));
+    config.theme = Some(theme(dark));
 }
 
 fn system_is_dark() -> bool {
     unsafe { orbit_launch_is_dark() }
+}
+
+// The native caption, menu bar and webview colour scheme follow the page's mode, not the system's (#2084).
+fn theme(dark: bool) -> Theme {
+    if dark {
+        Theme::Dark
+    } else {
+        Theme::Light
+    }
 }
 
 pub fn canvas(dark: bool) -> Color {
@@ -156,11 +170,12 @@ mod tests {
 
     #[test]
     fn the_latest_page_mode_overrides_the_system_canvas_and_mark_before_window_creation() {
-        for (mode, reported, system, expected, png) in [
+        for (mode, reported, system, window_theme, expected, png) in [
             (
                 LaunchMode::Dark,
                 "dark",
                 Theme::Light,
+                Theme::Dark,
                 canvas(true),
                 include_bytes!("../native/launch-dark.png").as_slice(),
             ),
@@ -168,6 +183,7 @@ mod tests {
                 LaunchMode::Light,
                 "light",
                 Theme::Dark,
+                Theme::Light,
                 canvas(false),
                 include_bytes!("../native/launch-light.png").as_slice(),
             ),
@@ -195,6 +211,7 @@ mod tests {
                 restored.launch_mode,
                 |config| {
                     assert_eq!(config.background_color, Some(expected));
+                    assert_eq!(config.theme, Some(window_theme));
                     assert_eq!(mark(config.background_color.unwrap()), png);
                     assert!(!config.visible);
                     Ok(())
