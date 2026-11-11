@@ -213,10 +213,19 @@ export const cases = async () => {
   T("testflight access: each request signs its own token", tokens === 2 && fresh.calls[0].headers.Authorization === "Bearer token-1" && fresh.calls[1].headers.Authorization === "Bearer token-2")
 
   const workflow = readFileSync(join(REPO_ROOT, ".github/workflows/ios-release.yml"), "utf8")
-  const stepStart = workflow.indexOf("      - name: Wait for processing and give the internal tester access")
-  const step = workflow.slice(stepStart, workflow.indexOf("      - name: Remove signing credentials"))
-  T("testflight access: the release runs the tool once, after the upload and before the cleanup", stepStart > workflow.indexOf("xcrun altool --upload-app") &&
-    step.length > 0 && (workflow.match(/tools\/testflight-access\.mjs/g) ?? []).length === 1 && step.includes("timeout-minutes: 30") &&
-    step.includes('--app-id "$ORBIT_IOS_APP_STORE_ID"') && step.includes('--version "$APP_VERSION"') && step.includes('--build "$IOS_BUILD_NUMBER"') &&
-    step.includes("APP_STORE_CONNECT_API_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}") && !step.includes("if:"))
+  const jobStart = workflow.indexOf("\n  testflight-access:\n")
+  const job = jobStart === -1 ? "" : workflow.slice(jobStart)
+  const releaseJob = workflow.slice(0, jobStart)
+  T("testflight access: its own job needs the release, runs on Ubuntu, has a 30 minute limit and uses the release environment", job.length > 0 &&
+    job.includes("    needs: release\n") && job.includes("    runs-on: ubuntu-latest\n") && job.includes("    timeout-minutes: 30\n") &&
+    job.includes("    environment: ios-${{ inputs.variant }}\n") && !job.includes("permissions:") && !job.includes("if:"))
+  T("testflight access: the job runs the tool once with the app id, version and build, and the release job never runs it", job.length > 0 &&
+    (workflow.match(/tools\/testflight-access\.mjs/g) ?? []).length === 1 && !releaseJob.includes("testflight-access") &&
+    job.includes("actions/checkout@v7") && job.includes("actions/setup-node@v7") &&
+    job.includes('--app-id "$ORBIT_IOS_APP_STORE_ID"') && job.includes('--version "$APP_VERSION"') && job.includes('--build "$IOS_BUILD_NUMBER"') &&
+    job.includes("ORBIT_IOS_APP_STORE_ID: ${{ vars.ORBIT_IOS_APP_STORE_ID }}") && job.includes("APP_VERSION: ${{ inputs.app_version }}") &&
+    job.includes("IOS_BUILD_NUMBER: ${{ inputs.build_number }}") &&
+    job.includes("APP_STORE_CONNECT_API_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}") &&
+    job.includes("APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}") &&
+    job.includes("APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}"))
 }

@@ -172,15 +172,6 @@ jobs:
           test -f "${packages[0]}"
           xcrun altool --upload-app --type ios --file "${packages[0]}" \
             --apiKey "$APP_STORE_CONNECT_API_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_API_ISSUER_ID"
-      - name: Wait for processing and give the internal tester access
-        timeout-minutes: 30
-        env:
-          APP_VERSION: ${{ inputs.app_version }}
-          IOS_BUILD_NUMBER: ${{ inputs.build_number }}
-          APP_STORE_CONNECT_API_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}
-        run: |
-          node tools/testflight-access.mjs --app-id "$ORBIT_IOS_APP_STORE_ID" \
-            --version "$APP_VERSION" --build "$IOS_BUILD_NUMBER" --timeout-minutes 25
       - name: Remove signing credentials
         if: always()
         run: |
@@ -191,3 +182,26 @@ jobs:
             "$HOME/Library/MobileDevice/Provisioning Profiles/Orbit.mobileprovision" \
             "$HOME/Library/MobileDevice/Provisioning Profiles/OrbitWidget.mobileprovision" \
             "$HOME/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
+
+  testflight-access:
+    name: Wait for TestFlight processing and give the internal tester access
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ios-${{ inputs.variant }}
+    env:
+      ORBIT_IOS_APP_STORE_ID: ${{ vars.ORBIT_IOS_APP_STORE_ID }}
+      APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+      APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+      APP_STORE_CONNECT_API_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}
+      APP_VERSION: ${{ inputs.app_version }}
+      IOS_BUILD_NUMBER: ${{ inputs.build_number }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Wait for processing and give the internal tester access
+        run: |
+          node tools/testflight-access.mjs --app-id "$ORBIT_IOS_APP_STORE_ID" \
+            --version "$APP_VERSION" --build "$IOS_BUILD_NUMBER" --timeout-minutes 25
