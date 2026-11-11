@@ -104,36 +104,34 @@ function SuggestionStrip({ suggestions, label }: Readonly<Pick<ComposerProps, 's
   }, [suggestions])
   const maxWidth = layout.availableWidth > 0 ? layout.availableWidth - COMPOSER_CHIP_GAP - COMPOSER_CHIP_PEEK : undefined
   return (
-    <div data-composer-suggestion-row className="min-w-0">
-      <div ref={layoutRef} className="min-w-0">
-        <div
-          aria-label={label}
-          role="group"
-          data-focus-inset=""
-          onFocusCapture={revealFocusedControl}
-          style={{ gap: layout.gap, paddingInlineStart: layout.paddingStart }}
-          className="flex min-w-0 items-start overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        >
-          {suggestions.map(suggestion => (
-            <button
-              key={suggestion.id}
-              type="button"
-              aria-label={suggestion.label}
-              style={{ maxWidth }}
-              onClick={(event) => {
-                const root = event.currentTarget.closest('[data-composer-root]')
-                if (root instanceof HTMLElement) root.focus()
-                suggestion.onSelect()
-              }}
-              className="flex min-h-[48px] shrink-0 items-center gap-[8px] rounded-full border-0 bg-[var(--bg-well)] px-3 py-3 text-start text-sm font-medium text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"
-            >
-              <span data-suggestion-content className="flex min-w-0 items-start gap-[8px]">
-                <span aria-hidden="true" className="flex h-[1lh] shrink-0 items-center"><AstraGlyph size={16} /></span>
-                <span className="min-w-0"><span data-suggestion-label>{suggestion.label}</span></span>
-              </span>
-            </button>
-          ))}
-        </div>
+    <div ref={layoutRef} data-composer-suggestion-row className="min-w-0">
+      <div
+        aria-label={label}
+        role="group"
+        data-focus-inset=""
+        onFocusCapture={revealFocusedControl}
+        style={{ gap: layout.gap, paddingInlineStart: layout.paddingStart }}
+        className="flex min-w-0 items-start overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {suggestions.map(suggestion => (
+          <button
+            key={suggestion.id}
+            type="button"
+            aria-label={suggestion.label}
+            style={{ maxWidth }}
+            onClick={(event) => {
+              const root = event.currentTarget.closest('[data-composer-root]')
+              if (root instanceof HTMLElement) root.focus()
+              suggestion.onSelect()
+            }}
+            className="flex min-h-[48px] shrink-0 items-center gap-[8px] rounded-full border-0 bg-[var(--bg-well)] px-3 py-3 text-start text-sm font-medium text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"
+          >
+            <span data-suggestion-content className="flex min-w-0 items-start gap-[8px]">
+              <span aria-hidden="true" className="flex h-[1lh] shrink-0 items-center"><AstraGlyph size={16} /></span>
+              <span className="min-w-0"><span data-suggestion-label>{suggestion.label}</span></span>
+            </span>
+          </button>
+        ))}
       </div>
     </div>
   )

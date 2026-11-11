@@ -354,18 +354,23 @@ describe("mobile ui store", () => {
     useUIStore.persist.setOptions({ name: "orbit-ui-store" });
   });
 
-
+  it("ignores a retired composer collapse choice saved at the current persisted version", async () => {
+    asyncStorageState.data.set(
+      "orbit-ui-store",
+      JSON.stringify({
+        state: { activeView: "general", habitComposerCollapsed: true, conversationComposerCollapsed: true },
+        version: 9,
+      }),
+    );
+    await useUIStore.persist.rehydrate();
+    expect(useUIStore.getState().activeView).toBe("general");
+    expect(useUIStore.getState()).not.toHaveProperty("habitComposerCollapsed");
+    expect(useUIStore.getState()).not.toHaveProperty("conversationComposerCollapsed");
+    expect(useUIStore.getState()).not.toHaveProperty("setHabitComposerCollapsed");
+    expect(useUIStore.getState()).not.toHaveProperty("setConversationComposerCollapsed");
+    useUIStore.getState().setActiveView("all");
+    const persisted = asyncStorageState.data.get("orbit-ui-store");
+    expect(persisted).toContain('"activeView":"all"');
+    expect(persisted).not.toContain("ComposerCollapsed");
+  });
 });
-
- it("ignores a retired persisted composer collapse choice", async () => {
-  asyncStorageState.data.set("orbit-ui-store", JSON.stringify({
-    state: { activeView: "general", habitComposerCollapsed: true, conversationComposerCollapsed: true },
-    version: 4,
-  }));
-  await useUIStore.persist.rehydrate();
-  expect(useUIStore.getState()).not.toHaveProperty("habitComposerCollapsed");
-  expect(useUIStore.getState()).not.toHaveProperty("conversationComposerCollapsed");
-  expect(useUIStore.getState()).not.toHaveProperty("setHabitComposerCollapsed");
-  expect(useUIStore.getState()).not.toHaveProperty("setConversationComposerCollapsed");
-  expect(asyncStorageState.data.get("orbit-ui-store")).not.toContain("ComposerCollapsed");
- });
