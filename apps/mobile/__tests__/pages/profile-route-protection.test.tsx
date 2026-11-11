@@ -88,6 +88,9 @@ vi.mock('@/stores/auth-store', async () => {
   return { useAuthStore: create(() => ({ isAuthenticated: false })) }
 })
 vi.mock('@/lib/google-auth-callback', () => ({ useGoogleErrorLogin: () => false }))
+vi.mock('@/lib/use-app-theme', () => ({
+  useAppTheme: () => ({ currentTheme: 'dark', surfaces: { screen: { backgroundColor: 'transparent' } } }),
+}))
 vi.mock('@/stores/onboarding-draft-store', () => ({
   useOnboardingDraftStore: (selector: (state: { onboardingLocallyDone: boolean }) => unknown) =>
     selector({ onboardingLocallyDone: true }),
@@ -113,7 +116,7 @@ async function mountNavigator() {
   await TestRenderer.act(() => {
     tree = TestRenderer.create(
       <Route node={routes!} params={{}}>
-        <RootStackScreens screenBackgroundColor="transparent" />
+        <RootStackScreens />
       </Route>,
     )
   })
