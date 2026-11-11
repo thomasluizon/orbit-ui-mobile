@@ -1,6 +1,6 @@
 'use client'
 
-import { applyHabitLogSuccess,checkTodayCompletionAfterLog,setOptimisticCalendarHabitLog,rollbackHabitLogCalendars,setOptimisticHabitLogs,rollbackOptimisticHabitLogsCache } from '@orbit/shared/hooks'
+import { applyHabitLogSuccess,checkTodayCompletionAfterLog,setOptimisticCalendarHabitLog,rollbackHabitLogCalendars,setOptimisticHabitLogs,rollbackOptimisticHabitLogsCache,optimisticHabitLogId } from '@orbit/shared/hooks'
 
 import type { UseMutationOptions } from '@tanstack/react-query'
 import type { LogHabitResponse } from '@orbit/shared/types/habit'
@@ -150,11 +150,11 @@ function createLogHabitOnMutate(context: ReturnType<typeof useLogHabitContext>) 
     let previousLogs: HabitLog[] | undefined
     if (date) {
       const completed = intent === 'log'
-      const optimisticLogId = `optimistic-log:${habitId}:${date}`
+      const optimisticLogId = optimisticHabitLogId(habitId, date)
       const createdAtUtc = new Date().toISOString()
-      previousLogs = setOptimisticHabitLogs(queryClient, habitId, date, completed, optimisticLogId, createdAtUtc)
+      previousLogs = setOptimisticHabitLogs(queryClient, habitId, date, completed, createdAtUtc)
       updateHabitListsForDate(queryClient, date, (items) => optimisticSetDatedCompletion(items, habitId, date, completed, optimisticLogId), { includeUnfiltered: false })
-      setOptimisticCalendarHabitLog(queryClient, habitId, date, completed, optimisticLogId, createdAtUtc)
+      setOptimisticCalendarHabitLog(queryClient, habitId, date, completed, createdAtUtc)
     } else {
       updateHabitListsForDate(queryClient, occurrenceDate,
         (items) => optimisticToggleCompletion(items, habitId))
@@ -177,7 +177,7 @@ function createLogHabitOnError(context: ReturnType<typeof useLogHabitContext>) {
     }
     if (variables.date) {
       const date = variables.date
-      const optimisticLogId = `optimistic-log:${variables.habitId}:${date}`
+      const optimisticLogId = optimisticHabitLogId(variables.habitId, date)
       rollbackDatedHabitLists(queryClient, context?.previousLists ?? [], variables.habitId, date, optimisticLogId)
       if (context) rollbackOptimisticHabitLogsCache(queryClient, context.previousLogs, variables.habitId, date)
       rollbackHabitLogCalendars(queryClient, context?.previousCalendars ?? [], variables.habitId, date)

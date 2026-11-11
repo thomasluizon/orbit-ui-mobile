@@ -1,4 +1,4 @@
-import { applyHabitLogSuccess,checkTodayCompletionAfterLog,setOptimisticCalendarHabitLog,rollbackHabitLogCalendars,setOptimisticHabitLogs,rollbackOptimisticHabitLogsCache } from '@orbit/shared/hooks'
+import { applyHabitLogSuccess,checkTodayCompletionAfterLog,setOptimisticCalendarHabitLog,rollbackHabitLogCalendars,setOptimisticHabitLogs,rollbackOptimisticHabitLogsCache,optimisticHabitLogId } from '@orbit/shared/hooks'
 import { withAccountGuard,type HabitAccount } from './use-habit-mutation-shared'
 import type { UseMutationOptions } from '@tanstack/react-query'
 import { checkCompletionAfterSkip } from '@orbit/shared/query/skip-completion'
@@ -268,10 +268,10 @@ function createLogHabitOnMutate(context: ReturnType<typeof useLogHabitContext>) 
 
       if (date) {
         const completed = intent === 'log'
-        const optimisticLogId = `optimistic-log:${habitId}:${date}`
+        const optimisticLogId = optimisticHabitLogId(habitId, date)
         const createdAtUtc = new Date().toISOString()
-        previousLogs = setOptimisticHabitLogs(queryClient, habitId, date, completed, optimisticLogId, createdAtUtc)
-        setOptimisticCalendarHabitLog(queryClient, habitId, date, completed, optimisticLogId, createdAtUtc)
+        previousLogs = setOptimisticHabitLogs(queryClient, habitId, date, completed, createdAtUtc)
+        setOptimisticCalendarHabitLog(queryClient, habitId, date, completed, createdAtUtc)
         updateHabitListsForDate(queryClient, date, (items) =>
           optimisticSetDatedCompletion(
             items,
@@ -305,7 +305,7 @@ function createLogHabitOnError(context: ReturnType<typeof useLogHabitContext>) {
     }
     if (context && variables.date) {
       const date = variables.date
-      const optimisticLogId = `optimistic-log:${variables.habitId}:${date}`
+      const optimisticLogId = optimisticHabitLogId(variables.habitId, date)
       rollbackDatedHabitLists(
         queryClient,
         context.previousLists,

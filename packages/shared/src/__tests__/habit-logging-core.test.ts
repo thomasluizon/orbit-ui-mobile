@@ -33,7 +33,7 @@ describe('shared habit log settlement', () => {
     const key = habitKeys.calendar('2026-09-01', '2026-09-30')
     const before: CalendarMonthResponse = { habits: [], logs: {} }
     client.setQueryData(key, before)
-    setOptimisticCalendarHabitLog(client, 'habit', '2026-09-16', true, 'optimistic-log:habit:2026-09-16', '2026-09-16T12:00:00Z')
+    setOptimisticCalendarHabitLog(client, 'habit', '2026-09-16', true, '2026-09-16T12:00:00Z')
     expect(client.getQueryData<CalendarMonthResponse>(key)?.logs.habit).toHaveLength(1)
     const later = { id: 'later', date: '2026-09-17', value: 1, createdAtUtc: '2026-09-17T12:00:00Z' }
     client.setQueryData<CalendarMonthResponse>(key, current => ({ ...current!, logs: { ...current!.logs, habit: [...current!.logs.habit!, later] } }))
@@ -55,7 +55,7 @@ describe('shared optimistic habit logs', () => {
   ] as const)('writes the $intent at once and restores the snapshot on failure', ({ intent, initial, during }) => {
     const client = new QueryClient()
     client.setQueryData(habitKeys.logs('habit'), initial)
-    const previousLogs = setOptimisticHabitLogs(client, 'habit', date, intent === 'log', optimisticLogId, 'now')
+    const previousLogs = setOptimisticHabitLogs(client, 'habit', date, intent === 'log', 'now')
     expect(previousLogs).toEqual(initial)
     expect(client.getQueryData(habitKeys.logs('habit'))).toEqual(during)
     rollbackOptimisticHabitLogsCache(client, previousLogs, 'habit', date)
@@ -67,7 +67,7 @@ describe('shared optimistic habit logs', () => {
     const client = new QueryClient()
     const initial = [serverLog]
     client.setQueryData(habitKeys.logs('habit'), initial)
-    setOptimisticHabitLogs(client, 'habit', date, true, optimisticLogId, 'now')
+    setOptimisticHabitLogs(client, 'habit', date, true, 'now')
     expect(client.getQueryData(habitKeys.logs('habit'))).toBe(initial)
     client.clear()
   })
@@ -76,7 +76,7 @@ describe('shared optimistic habit logs', () => {
     const client = new QueryClient()
     const laterLog: HabitLog = { ...serverLog, id: 'later-log' }
     client.setQueryData(habitKeys.logs('habit'), [serverLog])
-    const previousLogs = setOptimisticHabitLogs(client, 'habit', date, false, optimisticLogId, 'now')
+    const previousLogs = setOptimisticHabitLogs(client, 'habit', date, false, 'now')
     client.setQueryData(habitKeys.logs('habit'), [laterLog])
     rollbackOptimisticHabitLogsCache(client, previousLogs, 'habit', date)
     expect(client.getQueryData(habitKeys.logs('habit'))).toEqual([laterLog])
@@ -85,7 +85,7 @@ describe('shared optimistic habit logs', () => {
 
   it.each([true, false])('writes no logs cache for a habit that has no cached logs and no observer (completed: %s)', completed => {
     const client = new QueryClient()
-    const previousLogs = setOptimisticHabitLogs(client, 'habit', date, completed, optimisticLogId, 'now')
+    const previousLogs = setOptimisticHabitLogs(client, 'habit', date, completed, 'now')
     expect(previousLogs).toBeUndefined()
     expect(client.getQueryData(habitKeys.logs('habit'))).toBeUndefined()
     rollbackOptimisticHabitLogsCache(client, previousLogs, 'habit', date)
@@ -102,7 +102,7 @@ describe('shared optimistic habit logs', () => {
   it('writes the log for a mounted screen whose logs still load, and returns that screen to loading when the log fails', async () => {
     const client = new QueryClient()
     const { readLogs, unsubscribe } = observeLoadingLogs(client)
-    const previousLogs = setOptimisticHabitLogs(client, 'habit', date, true, optimisticLogId, 'now')
+    const previousLogs = setOptimisticHabitLogs(client, 'habit', date, true, 'now')
     await Promise.resolve()
     expect(previousLogs).toBeUndefined()
     expect(client.getQueryData(habitKeys.logs('habit'))).toEqual([{ id: optimisticLogId, date, value: 1, createdAtUtc: 'now' }])
@@ -117,7 +117,7 @@ describe('shared optimistic habit logs', () => {
   it('keeps loading the logs of a mounted screen for an unlog, because no cached log exists to remove', () => {
     const client = new QueryClient()
     const { readLogs, unsubscribe } = observeLoadingLogs(client)
-    const previousLogs = setOptimisticHabitLogs(client, 'habit', date, false, optimisticLogId, 'now')
+    const previousLogs = setOptimisticHabitLogs(client, 'habit', date, false, 'now')
     expect(previousLogs).toBeUndefined()
     rollbackOptimisticHabitLogsCache(client, previousLogs, 'habit', date)
     expect(client.getQueryData(habitKeys.logs('habit'))).toBeUndefined()
