@@ -1,8 +1,9 @@
 import { QueryClient } from '@tanstack/query-core'
 import { afterEach,describe,expect,it,vi } from 'vitest'
-import { applyHabitLogSuccess,rollbackHabitLogCalendars,setOptimisticCalendarHabitLog } from '../hooks/habit-logging-core'
+import { applyHabitLogSuccess,rollbackHabitLogCalendars,rollbackOptimisticHabitLogsCache,setOptimisticCalendarHabitLog,setOptimisticHabitLogs } from '../hooks/habit-logging-core'
 import { gamificationKeys,habitKeys,profileKeys } from '../query/keys'
 import { logHabitResponseSchema,type CalendarMonthResponse } from '../types/habit'
+import type { HabitLog } from '../types/calendar'
 import { createMockGamificationProfile,createMockHabitScheduleItem,createMockProfile } from './factories'
 
 afterEach(() => vi.useRealTimers())
@@ -38,6 +39,47 @@ describe('shared habit log settlement', () => {
     client.setQueryData<CalendarMonthResponse>(key, current => ({ ...current!, logs: { ...current!.logs, habit: [...current!.logs.habit!, later] } }))
     rollbackHabitLogCalendars(client, [[key, before]], 'habit', '2026-09-16')
     expect(client.getQueryData<CalendarMonthResponse>(key)?.logs.habit).toEqual([later])
+    client.clear()
+  })
+})
+
+describe('shared optimistic habit logs', () => {
+  const date = '2026-09-16'
+  const optimisticLogId = `optimistic-log:habit:${date}`
+  const serverLog: HabitLog = { id: 'server-log', date, value: 1, createdAtUtc: '2026-09-16T09:00:00Z' }
+  const otherDayLog: HabitLog = { id: 'other-log', date: '2026-09-15', value: 1, createdAtUtc: '2026-09-15T09:00:00Z' }
+
+  it.each([
+    { intent: 'log', initial: [otherDayLog], during: [otherDayLog, { id: optimisticLogId, date, value: 1, createdAtUtc: 'now' }] },
+    { intent: 'unlog', initial: [otherDayLog, serverLog], during: [otherDayLog] },
+  ] as const)('writes the $intent at once and restores the snapshot on failure', ({ intent, initial, during }) => {
+    const client = new QueryClient()
+    client.setQueryData(habitKeys.logs('habit'), initial)
+    const previousLogs = setOptimisticHabitLogs(client, 'habit', date, intent === 'log', optimisticLogId, 'now')
+    expect(previousLogs).toEqual(initial)
+    expect(client.getQueryData(habitKeys.logs('habit'))).toEqual(during)
+    rollbackOptimisticHabitLogsCache(client, previousLogs, 'habit', date)
+    expect(client.getQueryData(habitKeys.logs('habit'))).toEqual(initial)
+    client.clear()
+  })
+
+  it('keeps the logs unchanged when the date already has the requested state', () => {
+    const client = new QueryClient()
+    const initial = [serverLog]
+    client.setQueryData(habitKeys.logs('habit'), initial)
+    setOptimisticHabitLogs(client, 'habit', date, true, optimisticLogId, 'now')
+    expect(client.getQueryData(habitKeys.logs('habit'))).toBe(initial)
+    client.clear()
+  })
+
+  it('keeps a later server log when an earlier optimistic unlog fails', () => {
+    const client = new QueryClient()
+    const laterLog: HabitLog = { ...serverLog, id: 'later-log' }
+    client.setQueryData(habitKeys.logs('habit'), [serverLog])
+    const previousLogs = setOptimisticHabitLogs(client, 'habit', date, false, optimisticLogId, 'now')
+    client.setQueryData(habitKeys.logs('habit'), [laterLog])
+    rollbackOptimisticHabitLogsCache(client, previousLogs, 'habit', date)
+    expect(client.getQueryData(habitKeys.logs('habit'))).toEqual([laterLog])
     client.clear()
   })
 })

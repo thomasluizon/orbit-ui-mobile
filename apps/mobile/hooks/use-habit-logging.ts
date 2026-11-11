@@ -1,4 +1,4 @@
-import { applyHabitLogSuccess,checkTodayCompletionAfterLog,setOptimisticCalendarHabitLog,rollbackHabitLogCalendars } from '@orbit/shared/hooks'
+import { applyHabitLogSuccess,checkTodayCompletionAfterLog,setOptimisticCalendarHabitLog,rollbackHabitLogCalendars,setOptimisticHabitLogs,rollbackOptimisticHabitLogsCache } from '@orbit/shared/hooks'
 import { withAccountGuard,type HabitAccount } from './use-habit-mutation-shared'
 import type { UseMutationOptions } from '@tanstack/react-query'
 import { checkCompletionAfterSkip } from '@orbit/shared/query/skip-completion'
@@ -8,7 +8,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useHabitMutation } from './use-habit-mutation'
 import { invalidateDerivedHabitLogQueries,habitKeys,profileKeys,applyCachedHabitSkip,rollbackDatedHabitLists,clearCachedOptimisticSkip,restoreCachedHabitSkip,getTodayHabitListAfterRefetch } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
-import { findHabitInList,getAccountDay,getFriendlyErrorMessage,normalizeHabits,buildChildrenIndex,rollbackOptimisticHabitLogs } from '@orbit/shared/utils'
+import { findHabitInList,getAccountDay,getFriendlyErrorMessage,normalizeHabits,buildChildrenIndex } from '@orbit/shared/utils'
 import type { LogHabitResponse,CalendarMonthResponse } from '@orbit/shared/types/habit'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { HabitLog } from '@orbit/shared/types/calendar'
@@ -256,15 +256,10 @@ function createLogHabitOnMutate(context: ReturnType<typeof useLogHabitContext>) 
       const hadPendingListRefetch = queryClient.isFetching({ queryKey: habitKeys.lists() }) > 0
       /** Start canceling refetches without delaying the optimistic completion. */
       void queryClient.cancelQueries({ queryKey: habitKeys.lists() })
-      if (date) {
-        void queryClient.cancelQueries({ queryKey: habitKeys.logs(habitId) })
-        void queryClient.cancelQueries({ queryKey: habitKeys.calendarPrefix() })
-      }
+      if (date) void queryClient.cancelQueries({ queryKey: habitKeys.calendarPrefix() })
 
       const previousLists = snapshotHabitLists(queryClient)
-      const previousLogs = date
-        ? queryClient.getQueryData<HabitLog[]>(habitKeys.logs(habitId))
-        : undefined
+      let previousLogs: HabitLog[] | undefined
       const previousCalendars = date
         ? queryClient.getQueriesData<CalendarMonthResponse>({
           queryKey: habitKeys.calendarPrefix(),
@@ -275,21 +270,8 @@ function createLogHabitOnMutate(context: ReturnType<typeof useLogHabitContext>) 
         const completed = intent === 'log'
         const optimisticLogId = `optimistic-log:${habitId}:${date}`
         const createdAtUtc = new Date().toISOString()
-
-        queryClient.setQueryData<HabitLog[]>(habitKeys.logs(habitId), (old) => {
-          const logs = old ?? []
-          if (!completed) {
-            return logs.filter((log) => log.date !== date || log.value <= 0)
-          }
-          if (logs.some((log) => log.date === date && log.value > 0)) return logs
-          return [...logs, {
-            id: optimisticLogId,
-            date,
-            value: 1,
-            createdAtUtc,
-          }]
-        })
-      setOptimisticCalendarHabitLog(queryClient, habitId, date, completed, optimisticLogId, createdAtUtc)
+        previousLogs = setOptimisticHabitLogs(queryClient, habitId, date, completed, optimisticLogId, createdAtUtc)
+        setOptimisticCalendarHabitLog(queryClient, habitId, date, completed, optimisticLogId, createdAtUtc)
         updateHabitListsForDate(queryClient, date, (items) =>
           optimisticSetDatedCompletion(
             items,
@@ -331,15 +313,7 @@ function createLogHabitOnError(context: ReturnType<typeof useLogHabitContext>) {
         date,
         optimisticLogId,
       )
-      queryClient.setQueryData<HabitLog[] | undefined>(
-        habitKeys.logs(variables.habitId),
-        (currentLogs) => rollbackOptimisticHabitLogs(
-          currentLogs,
-          context.previousLogs,
-          date,
-          optimisticLogId,
-        ),
-      )
+      rollbackOptimisticHabitLogsCache(queryClient, context.previousLogs, variables.habitId, date)
       rollbackHabitLogCalendars(queryClient, context.previousCalendars, variables.habitId, date)
     }
     showError(getFriendlyErrorMessage(error, (key, values) => t(key, values), 'habits.detail.logError'), t('common.dismiss'))
