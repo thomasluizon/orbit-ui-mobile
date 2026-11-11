@@ -63,11 +63,18 @@ describe('habit form and frequency picker motion tokens', () => {
     expect(text).toContain('transition-[scale] duration-[var(--dur-press)]')
   })
 
+  it('lets the copy button inherit the shared icon button timing', () => {
+    const text = source('components/habits/description-copy-button.tsx')
+    expect(text).toContain('icon-btn icon-btn-well')
+    expect(text).not.toMatch(/\btransition-\[|\[transition-duration:|\bease-\[/)
+  })
+
   it('names the hover and press tokens in the shared stylesheet', () => {
     const css = source('app/globals.css')
     expect(css).not.toMatch(/transform 150ms/)
     expect(css).not.toMatch(/(?:background-color|color|box-shadow) (?:240|380)ms/)
     expect(css).toMatch(/\.habit-control-motion \{\s*transition: background-color var\(--dur-hover-control\) var\(--ease-standard\), color var\(--dur-hover-control\) var\(--ease-standard\), transform var\(--dur-press\) var\(--ease-out\);/)
+    expect(css).toMatch(/\.icon-btn \{[^}]*transition:\s*background-color var\(--dur-hover-control\) var\(--ease-standard\),\s*color var\(--dur-hover-control\) var\(--ease-standard\),\s*transform var\(--dur-press\) var\(--ease-out\);/)
     expect(css).toMatch(/\.habit-form-disclosure \{[^}]*transition: opacity var\(--dur-enter\) var\(--ease-out\), transform var\(--dur-enter\) var\(--ease-out\);/s)
   })
 })
