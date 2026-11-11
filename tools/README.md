@@ -5,7 +5,7 @@
 > - Every tool is non-interactive, supports `--help`, and returns meaningful exit codes (see `CONVENTIONS.md`).
 > - `test-tools.mjs` EXECUTES every script here. A new tool with no coverage entry fails it, so coverage lands in the same PR as the tool.
 > - Script guards run as named steps in the single `Guards` job.
-> - The `Tool and Hook Tests` CI job runs both harness suites on every PR to `main`, including changes to their UI producers.
+> - The `Tool and Hook Tests` CI job aggregates four tools harness shards and the hooks harness on every PR to `main`, including changes to their UI producers.
 > - The orchestration core includes queue planning, prompt/worker isolation, delivery verification,
 >   final-head readiness receipts, ticket synchronization, review-thread handling, and teardown.
 > - The Docker registry guard requires explicit image hosts in tracked Dockerfiles.
@@ -193,17 +193,26 @@ is what makes landing on login a positive claim.
 
 | Tool | What it does | Usage |
 |---|---|---|
-| `test-tools.mjs` | Executes every tool in this directory against its contract and fails on any tool with no coverage entry. Review-only evidence is not sufficient: a harness that is read but never run is how a gate reports green over work that never happened. | `node tools/test-tools.mjs` |
+| `test-tools.mjs` | Executes every tool in this directory against its contract and fails on any tool with no coverage entry. Review-only evidence is not sufficient: a harness that is read but never run is how a gate reports green over work that never happened. `--shard i/n` runs one deterministic share of the case modules, sized by the CI seconds in `test-tools-timings.json`. `--list` prints the selected module names. Every run ends with one `# tool-timings` JSON line of per-module seconds. | `node tools/test-tools.mjs [--only <name>] [--shard i/n] [--list]` |
+| `record-tool-timings.mjs` | Regenerates `test-tools-timings.json` from one PR Tests run. It lists the run's `Tool tests (i/n)` jobs, fetches each job log alone with read-only `gh` commands, and merges their `# tool-timings` lines. It exits 2 and names the shard when a shard has no timing line or two, or when the lines mix shard counts. It writes a fixed `method` and the run id as `sourceRun`. | `node tools/record-tool-timings.mjs <run-id>` |
 | `record-gh-fixtures.mjs` | Re-records the GitHub issue, label, and Projects v2 response path/type manifest from read-only live `gh` commands. It never creates, edits, comments on, or closes a ticket. With `--review-rounds`, it records the raw `review-rounds.mjs` response for its pinned pull requests instead. | `node tools/record-gh-fixtures.mjs [--review-rounds]` |
 | `record-classifier-fixtures.mjs` | Runs the signed-in Claude CLI over every classifier replay case and records structured responses, latency, token counts, and a calibration record after complete agreement. | `node tools/record-classifier-fixtures.mjs` |
 
 Its sibling is `node .claude/hooks/test-hooks.mjs`, which proves the nine session hooks block and allow
 as specified, and that every hook wired in `.claude/settings.json` exists on disk and vice versa.
 
-The `Tool and Hook Tests` job in `.github/workflows/test.yml` runs `npm ci` and both commands on every
-PR to `main`. Each harness has a separate step whose exit code determines success;
-the hooks step also runs after a tools failure. There is no changed-path filter, so producer-only UI
-changes exercise the fixtures too. Run both commands locally after changing `tools/**` or `.claude/**`.
+The `Tool and Hook Tests` job in `.github/workflows/test.yml` aggregates two kinds of job on every PR to
+`main`. Four `Tool tests (i/4)` jobs each run `node tools/test-tools.mjs --shard i/4`, and one `Hook and
+workflow tests` job runs the hooks harness. The aggregate fails unless every one of them succeeded, and it
+keeps the check name that branch protection requires. A shard takes its modules from a longest-first
+partition of `test-tools-timings.json`, which holds the CI seconds of each module from the run in its
+`sourceRun` field. The harness fails when a module is in no shard or in two. It also projects the slowest
+shard from the committed snapshot: the snapshot seconds of that shard's modules plus `fixedSeconds`. It fails
+when that projection exceeds the 290 second harness budget, or when one module alone exceeds it. The
+projection changes only when you regenerate the snapshot with `node tools/record-tool-timings.mjs <run-id>`.
+The live guard is the 8 minute `timeout-minutes` of the `tool-tests` job. When the projection or a shard job
+is too slow, split the slowest case module or add a shard, then regenerate. There is no changed-path filter,
+so producer-only UI changes exercise the fixtures too. Run both harnesses locally without a flag after changing `tools/**` or `.claude/**`.
 
 ## Fixtures
 
