@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type ReactNode } from 'react'
+import { useLayoutEffect, useMemo, useRef, type ReactNode } from 'react'
 import { Animated, Text, View } from 'react-native'
 import { WifiOff } from '@/components/ui/icons'
 import type { AppTokensV2 } from '@/lib/theme'
@@ -45,7 +45,7 @@ export function LoginStepStage({ step, children }: Readonly<{ step: string; chil
   const reduced = motionPreset.reducedMotionEnabled
   const previousStep = useRef(step)
   const progress = useMemo(() => new Animated.Value(1), [])
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (previousStep.current === step || reduced) { progress.setValue(1); previousStep.current = step; return }
     previousStep.current = step
     progress.setValue(0)

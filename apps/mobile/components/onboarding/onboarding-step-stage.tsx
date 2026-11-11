@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type ReactNode } from 'react'
+import { useLayoutEffect, useMemo, useRef, type ReactNode } from 'react'
 // react-doctor-disable-next-line rn-prefer-reanimated -- WHY: the login step stage animates with system Animated; the onboarding stage mirrors it until the pinned ABI changes. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { Animated } from 'react-native'
 import { motionDurations, motionEasings, motionLayerTiming } from '@orbit/shared/theme'
@@ -8,7 +8,7 @@ export function OnboardingStepStage({ step, children }: Readonly<{ step: number;
   const reduced = usePrefersReducedMotion()
   const previousStep = useRef(step)
   const progress = useMemo(() => new Animated.Value(1), [])
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (previousStep.current === step || reduced) { progress.setValue(1); previousStep.current = step; return }
     previousStep.current = step
     progress.setValue(0)
