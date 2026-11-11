@@ -11,17 +11,15 @@ import { resolveBulkActionBarEnterShift } from './today-model'
 
 interface TodayMotionInput {
   filterMotionKey: string
-  isRefetching: boolean
 }
 
 /**
- * Owns the Today screen's transition motion: the filter/list enter animation on
- * view or filter changes, the refetch dim, and the bulk-action-bar enter/exit
- * (including when the bar unmounts). Extracted from TodayScreen unchanged.
+ * Owns the Today screen's transition motion: the date enter animation and the
+ * bulk-action-bar enter/exit (including when the bar unmounts). A refetch or a
+ * filter change never dims or moves the list.
  */
 export function useTodayMotion({
   filterMotionKey,
-  isRefetching,
 }: TodayMotionInput) {
   const listMotion = useResolvedMotionPreset('list-enter')
   const selectionMotion = useResolvedMotionPreset('selection')
@@ -29,7 +27,6 @@ export function useTodayMotion({
 
   const dayOpacityAnim = useMemo(() => new Animated.Value(1), [])
   const dayTranslateAnim = useMemo(() => new Animated.Value(0), [])
-  const refetchTransitionAnim = useMemo(() => new Animated.Value(0), [])
   const [bulkBarAnim] = useState(() => new Animated.Value(isSelectMode ? 1 : 0))
   const previousFilterMotionKeyRef = useRef(filterMotionKey)
   const dayTransitionSequenceRef = useRef(0)
@@ -99,26 +96,6 @@ export function useTodayMotion({
   }, [dayOpacityAnim, dayTranslateAnim])
 
   useEffect(() => {
-    Animated.timing(refetchTransitionAnim, {
-      toValue: isRefetching ? 1 : 0,
-      duration: isRefetching
-        ? listMotion.enterDuration
-        : listMotion.exitDuration,
-      easing: toAnimatedEasing(
-        isRefetching ? listMotion.enterEasing : listMotion.exitEasing,
-      ),
-      useNativeDriver: true,
-    }).start()
-  }, [
-    isRefetching,
-    listMotion.enterDuration,
-    listMotion.enterEasing,
-    listMotion.exitDuration,
-    listMotion.exitEasing,
-    refetchTransitionAnim,
-  ])
-
-  useEffect(() => {
     const sequence = selectionTransitionSequenceRef.current + 1
     selectionTransitionSequenceRef.current = sequence
     if (isSelectMode) {
@@ -171,25 +148,6 @@ export function useTodayMotion({
     [dayOpacityAnim, dayTranslateAnim],
   )
 
-  const refetchAnimatedStyle = useMemo(
-    () => ({
-      flex: 1,
-      opacity: refetchTransitionAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [1, 0.8],
-      }),
-      transform: [
-        {
-          translateY: refetchTransitionAnim.interpolate({
-            inputRange: [0, 1],
-            outputRange: [0, listMotion.reducedMotionEnabled ? 0 : 4],
-          }),
-        },
-      ],
-    }),
-    [listMotion.reducedMotionEnabled, refetchTransitionAnim],
-  )
-
   const bulkBarAnimatedStyle = useMemo(
     () => ({
       opacity: bulkBarAnim,
@@ -213,7 +171,6 @@ export function useTodayMotion({
 
   return {
     dayAnimatedStyle,
-    refetchAnimatedStyle,
     bulkBarAnimatedStyle,
     renderBulkActionBar: isSelectMode || renderBulkActionBar,
   }

@@ -2,6 +2,8 @@
 
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { reorderTransition } from '@/components/motion/list-motion'
+import { useViewportMatch } from '@/hooks/use-viewport-match'
 
 export function SortableHabitItem({
   id,
@@ -10,13 +12,14 @@ export function SortableHabitItem({
   id: string
   children: React.ReactNode
 }>) {
+  const reduced = useViewportMatch('(prefers-reduced-motion: reduce)')
   const {
     listeners,
     setNodeRef,
     transform,
     transition,
     isDragging: isItemDragging,
-  } = useSortable({ id })
+  } = useSortable({ id, transition: reduced ? null : reorderTransition })
 
   const sensorListeners = listeners as Record<string, React.EventHandler<React.SyntheticEvent<HTMLElement>>> | undefined
   const rowListeners = Object.fromEntries(

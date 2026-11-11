@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ListMotionItem, ListPresence, MotionDisclosure } from '@/components/motion/list-motion'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { ContentFade, ListMotionItem, ListPresence, MotionDisclosure } from '@/components/motion/list-motion'
 
 const preference = vi.hoisted(() => ({ reduced: false }))
 vi.mock('@/hooks/use-viewport-match', () => ({ useViewportMatch: () => preference.reduced }))
@@ -19,7 +21,7 @@ describe('list motion', () => {
     await waitFor(() => expect(screen.queryByText('Old')).toBeNull())
   })
 
-  it('removes collapsed children from interaction while their height settles', () => {
+  it('removes collapsed children from interaction as soon as the group collapses', () => {
     const view = render(<MotionDisclosure expanded id="children"><button>Child</button></MotionDisclosure>)
     expect(screen.getByRole('button', { name: 'Child' })).toBeVisible()
     view.rerender(<MotionDisclosure expanded={false} id="children"><button>Child</button></MotionDisclosure>)
@@ -47,6 +49,48 @@ describe('list motion', () => {
     expect(screen.queryByRole('button', { name: 'Child' })).toBeNull()
     view.rerender(<MotionDisclosure expanded><button>Child</button></MotionDisclosure>)
     expect(screen.getByRole('button', { name: 'Child' })).toBeVisible()
-    expect(view.container.querySelector('[data-motion-disclosure] > div')).toHaveStyle({ height: 'auto', opacity: '1' })
+    expect(view.container.querySelector('[data-motion-disclosure] > div')).toHaveStyle({ opacity: '1' })
   })
+
+  it('changes the group height at once and moves only opacity and transform on expand', () => {
+    const view = render(<MotionDisclosure expanded={false} id="children"><button>Child</button></MotionDisclosure>)
+    view.rerender(<MotionDisclosure expanded id="children"><button>Child</button></MotionDisclosure>)
+    const body = view.container.querySelector<HTMLElement>('#children > div')!
+    expect(body.style.opacity).toBe('0')
+    expect(body.style.transform).toContain('translateY(-12px)')
+    expect(body.style.height).toBe('')
+    expect(view.container.querySelector('#children')!.className).not.toContain('overflow-hidden')
+  })
+
+  it('removes the group in the same render that collapses it', () => {
+    const view = render(<MotionDisclosure expanded id="children"><button>Child</button></MotionDisclosure>)
+    view.rerender(<MotionDisclosure expanded={false} id="children"><button>Child</button></MotionDisclosure>)
+    expect(view.container.querySelector('#children')).toHaveAttribute('hidden')
+    expect(view.container.querySelector('#children > div')).toBeNull()
+  })
+
+  it('does not replay the expand motion for a group that first renders expanded', () => {
+    const view = render(<MotionDisclosure expanded id="children"><button>Child</button></MotionDisclosure>)
+    const body = view.container.querySelector<HTMLElement>('#children > div')!
+    expect(body.style.opacity).not.toBe('0')
+  })
+
+  it('expands without movement under reduced motion', () => {
+    preference.reduced = true
+    const view = render(<MotionDisclosure expanded={false} id="children"><button>Child</button></MotionDisclosure>)
+    view.rerender(<MotionDisclosure expanded id="children"><button>Child</button></MotionDisclosure>)
+    const body = view.container.querySelector<HTMLElement>('#children > div')!
+    expect(body.style.opacity).not.toBe('0')
+    expect(body.style.transform).not.toContain('translateY(-')
+  })
+
+  it('fades content through one CSS keyframe that reduced motion removes', () => {
+    const view = render(<ContentFade><p>Habits</p></ContentFade>)
+    const fade = view.container.querySelector('[data-content-fade]')!
+    expect(fade).not.toHaveAttribute('style')
+    const css = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
+    expect(css).toMatch(/\.content-fade \{ animation: content-crossfade var\(--dur-press\) var\(--ease-standard\); \}/)
+    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\s*\.content-fade \{ animation: none; \}/)
+  })
+
 })

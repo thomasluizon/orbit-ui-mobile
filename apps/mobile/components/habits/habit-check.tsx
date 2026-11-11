@@ -1,7 +1,8 @@
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import { HABIT_CHECK_PATH, HABIT_CHECK_PERIMETER, habitCheckProgress } from '@orbit/shared/utils/habit-row-status'
-import Animated from 'react-native-reanimated'
-import { motionDurations, motionEasings } from '@orbit/shared/theme'
+import { useEffect, useState } from 'react'
+import Animated, { cancelAnimation, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated'
+import { motionDurations, motionEasings, motionSprings, resolveMotionPreset } from '@orbit/shared/theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { StyleSheet, View } from 'react-native'
 import Svg, { Path } from 'react-native-svg'
@@ -21,6 +22,22 @@ export function HabitCheck({ status, label, unavailable = false, feedback = fals
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const reduced = usePrefersReducedMotion()
+  const ratio = habitCheckProgress(progress)
+  const done = status !== 'bad' && (progress ? ratio === 1 : status === 'done')
+  const [previousDone, setPreviousDone] = useState(done)
+  const [logged, setLogged] = useState(false)
+  if (done !== previousDone) {
+    setPreviousDone(done)
+    setLogged(done)
+  }
+  const settleScale = useSharedValue(1)
+  const settleStyle = useAnimatedStyle(() => ({ transform: [{ scale: settleScale.value }] }))
+  useEffect(() => {
+    if (!logged || reduced) return
+    settleScale.value = resolveMotionPreset('success-feedback').scaleFrom
+    settleScale.value = withSpring(1, { ...motionSprings.completion, overshootClamping: true })
+    return () => cancelAnimation(settleScale)
+  }, [logged, reduced, settleScale])
   const accessibilityRole = label ? 'image' : undefined
   if (unavailable) return (
     <View testID="unavailable-status-dot"
@@ -28,8 +45,6 @@ export function HabitCheck({ status, label, unavailable = false, feedback = fals
       style={{ width: 28, height: 28, borderRadius: 12, flexShrink: 0, alignItems: 'center', justifyContent: 'center',
         backgroundColor: tokens.bgWell, borderWidth: 0 }} />
   )
-  const ratio = habitCheckProgress(progress)
-  const done = status !== 'bad' && (progress ? ratio === 1 : status === 'done')
   const emptyFill = feedback ? tokens.bgHover : 'transparent'
   const { graphic: color } = progress ? { graphic: tokens.trackEmpty } : {
     empty: { graphic: tokens.statusEmpty }, done: { graphic: tokens.fg1 }, overdue: { graphic: tokens.statusOverdue }, bad: { graphic: tokens.statusBad },
@@ -37,10 +52,10 @@ export function HabitCheck({ status, label, unavailable = false, feedback = fals
   return (
     <Animated.View testID="habit-check"
       accessibilityRole={accessibilityRole} accessibilityLabel={label}
-      style={{ width: 28, height: 28, borderRadius: 12, flexShrink: 0, alignItems: 'center', justifyContent: 'center',
+      style={[{ width: 28, height: 28, borderRadius: 12, flexShrink: 0, alignItems: 'center', justifyContent: 'center',
         backgroundColor: done ? tokens.fg1 : emptyFill,
         transition: `background-color ${reduced ? motionDurations.instant : motionDurations.press}ms cubic-bezier(${motionEasings.standard.join(',')})`,
-        borderWidth: done ? 0 : 1, borderColor: color }}>
+        borderWidth: done ? 0 : 1, borderColor: color }, settleStyle]}>
       {done ? <CompletedCheck feedback={feedback} fill={tokens.bgHoverOpaque} color={tokens.bg} /> : null}
       {!done && ratio > 0 ? <Svg width={28} height={28} style={{ position: 'absolute', top: -1, left: -1 }}>
         <Path d={HABIT_CHECK_PATH} fill="none" stroke={status === 'bad' ? tokens.statusBad : tokens.primary}

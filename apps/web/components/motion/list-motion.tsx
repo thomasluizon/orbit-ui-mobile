@@ -2,12 +2,19 @@
 
 import { useContext, useEffect, useState, type Ref, type ReactNode, type CSSProperties } from 'react'
 import { AnimatePresence, motion, PresenceContext, usePresence } from 'motion/react'
-import { motionDurations, motionEasings, motionSprings, resolveMotionPreset } from '@orbit/shared/theme'
+import { motionEasings, motionSprings, resolveMotionPreset } from '@orbit/shared/theme'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
 
 export function ListPresence({ children }: Readonly<{ children: ReactNode }>) {
   return <AnimatePresence initial={false} mode="popLayout">{children}</AnimatePresence>
 }
+
+const softSpringResponseSeconds = 2 * Math.PI * Math.sqrt(motionSprings.soft.mass / motionSprings.soft.stiffness)
+
+export const reorderTransition = {
+  duration: Math.round(softSpringResponseSeconds * 1000),
+  easing: `cubic-bezier(${motionEasings.enter.join(',')})`,
+} as const
 
 function useExitDeadline(duration: number) {
   const [present, remove] = usePresence()
@@ -44,29 +51,21 @@ export function ListMotionItem({ children, className, style, ref, positionMotion
 
 export function MotionDisclosure({ expanded, id, children, positionMotion = true }: Readonly<{ expanded: boolean; id?: string; children: ReactNode; positionMotion?: boolean }>) {
   const reduced = useViewportMatch('(prefers-reduced-motion: reduce)')
-  const [visible, setVisible] = useState(expanded)
-  if (expanded && !visible) setVisible(true)
-  if (!positionMotion) return <div id={id} hidden={!expanded} inert={!expanded} aria-hidden={!expanded || undefined} data-motion-disclosure="" className="habit-row-group">
-    <div className="flex flex-col gap-2" style={{ height: 'auto', opacity: 1 }}>{children}</div>
-  </div>
-  return <div id={id} hidden={!expanded && (!visible || reduced)} inert={!expanded} aria-hidden={!expanded || undefined} data-motion-disclosure="" className="habit-row-group overflow-hidden">
-    <AnimatePresence initial={false} onExitComplete={() => setVisible(false)}>
-      {expanded ? <DisclosureBody key="children" duration={reduced ? 0 : motionDurations.base}>{children}</DisclosureBody> : null}
-    </AnimatePresence>
-  </div>
+  const enter = resolveMotionPreset('list-enter', reduced)
+  const [previousExpanded, setPreviousExpanded] = useState(expanded)
+  const [revealing, setRevealing] = useState(false)
+  if (expanded !== previousExpanded) {
+    setPreviousExpanded(expanded)
+    setRevealing(expanded)
+  }
+  const revealMotion = revealing && !reduced
+  let body: ReactNode = null
+  if (!positionMotion) body = <div className="flex flex-col gap-2">{children}</div>
+  else if (expanded) body = <motion.div className="flex flex-col gap-2" initial={revealMotion ? { opacity: 0, y: -enter.shift } : false}
+    animate={{ opacity: 1, y: 0 }} transition={{ duration: enter.enterDuration / 1000, ease: enter.enterEasing }}>{children}</motion.div>
+  return <div id={id} hidden={!expanded} inert={!expanded} aria-hidden={!expanded || undefined} data-motion-disclosure="" className="habit-row-group">{body}</div>
 }
 
-function DisclosureBody({ children, duration }: Readonly<{ children: ReactNode; duration: number }>) {
-  const present = useExitDeadline(duration)
-  const presence = useContext(PresenceContext)
-  return <PresenceContext.Provider value={null}><motion.div className="flex flex-col gap-2" initial={duration === 0 || presence?.initial === false ? false : { height: 0, opacity: 0 }}
-    animate={present ? { height: 'auto', opacity: 1 } : { height: 0, opacity: 0 }}
-    transition={{ duration: duration / 1000, ease: motionEasings.standard }}>{children}</motion.div></PresenceContext.Provider>
-}
-
-export function ContentFade({ children, ref }: Readonly<{ children: ReactNode; ref?: Ref<HTMLDivElement> }>) {
-  const reduced = useViewportMatch('(prefers-reduced-motion: reduce)')
-  const present = useExitDeadline(reduced ? 0 : motionDurations.micro)
-  return <PresenceContext.Provider value={null}><motion.div ref={ref} className="relative content-fade" data-content-fade="" initial={false} animate={{ opacity: present ? 1 : 0 }}
-    transition={{ duration: reduced ? 0 : motionDurations.micro / 1000 }}>{children}</motion.div></PresenceContext.Provider>
+export function ContentFade({ children }: Readonly<{ children: ReactNode }>) {
+  return <div className="relative content-fade" data-content-fade="">{children}</div>
 }

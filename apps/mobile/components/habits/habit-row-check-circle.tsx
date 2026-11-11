@@ -1,5 +1,7 @@
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { useState } from 'react'
+import Animated from 'react-native-reanimated'
+import { motionDurations, motionEasings, orbitalMotion } from '@orbit/shared/theme'
 import { triggerHaptic } from '@/lib/haptics'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
@@ -41,24 +43,24 @@ export function CheckCircle({
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={disabled ? accessibilityHint : undefined}
       accessibilityState={{ disabled }}
-      style={({ pressed }) => {
-        return {
-          width: 48,
-          minHeight: 48,
-          borderRadius: 12,
-          overflow: 'hidden',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: 'transparent',
-          opacity: disabled ? 0.4 : 1,
-          transform: [{ scale: pressed && !disabled && !prefersReducedMotion ? 0.96 : 1 }],
-        }
+      style={{
+        width: 48,
+        minHeight: 48,
+        borderRadius: 12,
+        overflow: 'hidden',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'transparent',
+        opacity: disabled ? 0.4 : 1,
       }}
     >
-      {({ pressed }) => <>
+      {({ pressed }) => <Animated.View style={{
+        transform: [{ scale: pressed && !disabled && !prefersReducedMotion ? orbitalMotion.press.scale : 1 }],
+        transition: prefersReducedMotion ? 'none' : `transform ${motionDurations.press}ms cubic-bezier(${motionEasings.standard.join(',')})`,
+      }}>
         <HabitCheck status={state} unavailable={unavailable} label={unavailable ? undefined : accessibilityLabel}
           feedback={(pressed || hovered) && !disabled} />
-      </>}
+      </Animated.View>}
     </Pressable>
   )
 }

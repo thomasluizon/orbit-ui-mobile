@@ -58,7 +58,10 @@ export function withTiming<Value>(value: Value, config?: unknown) {
   return value
 }
 
-export function withSpring<Value>(value: Value) {
+export const withSpringCalls: { value: unknown; config: unknown }[] = []
+
+export function withSpring<Value>(value: Value, config?: unknown) {
+  withSpringCalls.push({ value, config })
   return value
 }
 

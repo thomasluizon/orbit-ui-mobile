@@ -8,7 +8,7 @@ export function ContentFade({ children, fill = false }: Readonly<{ children: Rea
   const opacity = useSharedValue(reduced ? 1 : 0)
   const style = useAnimatedStyle(() => ({ opacity: opacity.value }))
   useEffect(() => {
-    opacity.value = withTiming(1, { duration: reduced ? 0 : motionDurations.micro })
+    opacity.value = withTiming(1, { duration: reduced ? 0 : motionDurations.press })
     return () => cancelAnimation(opacity)
   }, [opacity, reduced])
   return <Animated.View style={[fill ? { flex: 1 } : undefined, style]}>{children}</Animated.View>

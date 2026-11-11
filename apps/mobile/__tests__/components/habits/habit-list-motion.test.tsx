@@ -1,10 +1,10 @@
 import React from 'react'
 import TestRenderer, { act } from 'react-test-renderer'
 import { afterEach, expect, it, vi } from 'vitest'
-import { withTimingCalls } from '@/test-mocks/react-native-reanimated'
+import { withSpringCalls, withTimingCalls } from '@/test-mocks/react-native-reanimated'
 import { HabitListMotionRow } from '@/components/motion/habit-list-row'
 import { useRetainedHabitList } from '@/hooks/use-retained-habit-list'
-import { resolveMotionPreset } from '@orbit/shared/theme'
+import { motionSprings, resolveMotionPreset } from '@orbit/shared/theme'
 
 const preference = vi.hoisted(() => ({ reduced: false }))
 const sharedValueWrites = vi.hoisted(() => [] as { initial: unknown; value: unknown }[])
@@ -128,5 +128,38 @@ it('moves measured survivors after an exit below an unmeasured row', async () =>
   await act(() => { vi.advanceTimersByTime(resolveMotionPreset('list-exit', false).exitDuration) })
   expect(tree.root.findAllByType(HabitListMotionRow).map((row) => row.props.id)).toEqual(['offscreen', 'second'])
   expect(sharedValueWrites.filter((write) => write.initial === 0).map((write) => write.value)).toEqual([100, 0])
+  await act(() => tree.unmount())
+})
+
+it('reorders rows on the shared soft spring without a timing curve', async () => {
+  const items = [{ id: 'first' }, { id: 'second' }]
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await act(() => { tree = TestRenderer.create(<List items={items} />) })
+  await act(() => {
+    for (const [id, height] of [['first', 100], ['second', 120]] as const) {
+      const row = tree.root.findAllByType('AnimatedView').find((entry) => entry.props.testID === `habit-motion-${id}`)!
+      const onLayout = row.props.onLayout as (event: { nativeEvent: { layout: { height: number } } }) => void
+      onLayout({ nativeEvent: { layout: { height } } })
+    }
+  })
+  withSpringCalls.length = 0
+  withTimingCalls.length = 0
+  await act(() => { tree.update(<List items={[items[1]!, items[0]!]} />) })
+  expect(withSpringCalls).toEqual([
+    { value: 0, config: { ...motionSprings.soft, overshootClamping: true } },
+    { value: 0, config: { ...motionSprings.soft, overshootClamping: true } },
+  ])
+  expect(withTimingCalls.filter((call) => call.value === 0)).toEqual([])
+  await act(() => tree.unmount())
+})
+
+it('moves no row on reorder under reduced motion', async () => {
+  preference.reduced = true
+  const items = [{ id: 'first' }, { id: 'second' }]
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await act(() => { tree = TestRenderer.create(<List items={items} />) })
+  withSpringCalls.length = 0
+  await act(() => { tree.update(<List items={[items[1]!, items[0]!]} />) })
+  expect(withSpringCalls).toEqual([])
   await act(() => tree.unmount())
 })
