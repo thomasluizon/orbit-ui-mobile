@@ -58,15 +58,17 @@ function calendarActionVariant(wide: boolean): 'primary' | 'secondary' {
 function CalendarMonthView({ state }: Readonly<{ state: CalendarScreenState }>) {
   const t = useTranslations()
   const { currentMonth, selectedDay, todayKey, weekStartsOn, isOnline, isWideDesktop, showCreateRefusal, openImport, showRecurring, showEventSource, calendarEventsState, refetchCalendarEvents, openOrbitPro, isLoading, displayMonthDayMap, openDay, monthDayEntries, selectedCalendarEvents, selectedDayLoggable, pendingEntryStates, changeSelectedEntry, monthDisplayState, monthStatTiles, monthSlide, handleTouchStart, handleTouchEnd, openHabitCreation } = state
+  const monthKey = format(currentMonth, 'yyyy-MM')
   return (<div className="flex min-w-0 flex-col">
     <CalendarSlide
       direction={monthSlide}
-      stepKey={format(currentMonth, 'yyyy-MM')}
+      stepKey={monthKey}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       style={{ touchAction: 'pan-y' }}
     >
       <CalendarGrid
+        key={monthKey}
         currentMonth={currentMonth}
         dayMap={displayMonthDayMap}
         onSelectDay={openDay}

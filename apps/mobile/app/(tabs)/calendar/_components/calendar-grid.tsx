@@ -186,6 +186,7 @@ export function CalendarGrid({
     <CalendarGridLoading weekdayLabels={weekdayHeaders.length > 0 ? weekdayHeaders.map((weekday) => weekday.label) : formatWeekdayLabels(language, 1)} gridDays={gridDays} gap={gridGap} label={t('calendar.loading')} />
   ) : (
     <MonthGrid
+      key={monthKey}
       selectionIndex={gridDays.findIndex((cell) => cell.isCurrentMonth && cell.dateStr === selectedDay)}
       weekdayLabels={weekdayHeaders.map((weekday) => weekday.label)}
       gap={gridGap}

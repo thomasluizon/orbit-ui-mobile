@@ -32,9 +32,11 @@ export function CalendarWeekView({
   nowLabel,
   timeZone,
 }: Readonly<CalendarWeekViewProps>) {
+  const weekKey = columns[0]?.dateStr ?? 'week'
   return (
-    <CalendarSlide direction={slideDirection} stepKey={columns[0]?.dateStr ?? 'week'} className="flex min-h-0 flex-1 flex-col">
+    <CalendarSlide direction={slideDirection} stepKey={weekKey} className="flex min-h-0 flex-1 flex-col">
       <CalendarTimeGrid
+        key={weekKey}
         columns={columns}
         dayMap={dayMap}
         onSelectDay={onSelectDay}
