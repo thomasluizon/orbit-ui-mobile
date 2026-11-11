@@ -24,7 +24,7 @@ beforeEach(() => { state.reducedMotion = false; state.screens.clear() })
 
 it('uses native push and pop for detail and profile routes and vertical modal entry', async () => {
   let tree: ReactTestRenderer
-  await act(() => { tree = create(<RootStackScreens screenBackgroundColor="black" />) })
+  await act(() => { tree = create(<RootStackScreens />) })
   expect(state.options.animation).toBe('slide_from_right')
   expect(state.options.animationDuration).toBe(resolveMotionPreset('route-push').enterDuration)
   for (const name of ['profile/account', 'profile/preferences', 'progress/goals', 'progress/streak']) expect(state.screens.get(name)?.animation).toBeUndefined()
@@ -35,7 +35,7 @@ it('uses native push and pop for detail and profile routes and vertical modal en
 it('removes native travel from every stack override and tab when reduced motion is requested', async () => {
   state.reducedMotion = true
   let tree: ReactTestRenderer
-  await act(() => { tree = create(<RootStackScreens screenBackgroundColor="black" />) })
+  await act(() => { tree = create(<RootStackScreens />) })
   expect(state.options.animation).toBe('none')
   expect(state.options.animationDuration).toBe(0)
   for (const options of state.screens.values()) if (options.animation) expect(options.animation).toBe('none')
