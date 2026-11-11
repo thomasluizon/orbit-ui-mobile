@@ -1,7 +1,6 @@
 import { SPACING, MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
 import { useState, type RefObject } from 'react'
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native'
-import Animated, { type EntryOrExitLayoutType } from 'react-native-reanimated'
 import { format, type Locale } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import type { DayCellWords, ReadOnlyDayCellProps } from '@orbit/shared/contracts/dates'
@@ -13,6 +12,7 @@ import {
   isCalendarDayLoggable,
   resolveDayCellOutcome,
   type CalendarMonthDay,
+  type CalendarSlideDirection,
 } from '@orbit/shared/utils'
 import { GestureDetector, type PanGesture } from 'react-native-gesture-handler'
 import type { AppTokensV2 } from '@/lib/theme'
@@ -20,6 +20,7 @@ import { DayCell } from '@/components/dates/day-cell'
 import { MonthGrid } from '@/components/dates/month-grid'
 import { DayColumnContent } from '@/components/dates/day-column-content'
 import { Skeleton } from '@/components/ui/skeleton'
+import { CalendarSlide } from './calendar-slide'
 
 export type GridDay = CalendarMonthDay
 
@@ -35,7 +36,7 @@ interface CalendarGridProps {
   selectedDay: string | null
   isLoading?: boolean
   monthKey?: string
-  monthEntering?: EntryOrExitLayoutType
+  slideDirection?: CalendarSlideDirection | null
   swipeGesture?: PanGesture
   gridRef?: RefObject<View | null>
   todayRef?: RefObject<View | null>
@@ -159,7 +160,7 @@ export function CalendarGrid({
   selectedDay,
   isLoading,
   monthKey,
-  monthEntering,
+  slideDirection = null,
   swipeGesture,
   gridRef,
   todayRef,
@@ -181,51 +182,41 @@ export function CalendarGrid({
     readOnly: t('calendar.dayCell.readOnly'),
   }
 
-  if (isLoading) {
-    const loadingGrid = (
-      <View ref={gridRef} collapsable={false} testID="calendar-grid" style={compact ? styles.compactGrid : styles.calendarGrid}>
-        <CalendarGridLoading weekdayLabels={weekdayHeaders.length > 0 ? weekdayHeaders.map((weekday) => weekday.label) : formatWeekdayLabels(language, 1)} gridDays={gridDays} gap={gridGap} label={t('calendar.loading')} />
-      </View>
-    )
-    return swipeGesture
-      ? <GestureDetector gesture={swipeGesture}>{loadingGrid}</GestureDetector>
-      : loadingGrid
-  }
+  const gridContent = isLoading ? (
+    <CalendarGridLoading weekdayLabels={weekdayHeaders.length > 0 ? weekdayHeaders.map((weekday) => weekday.label) : formatWeekdayLabels(language, 1)} gridDays={gridDays} gap={gridGap} label={t('calendar.loading')} />
+  ) : (
+    <MonthGrid
+      selectionIndex={gridDays.findIndex((cell) => cell.isCurrentMonth && cell.dateStr === selectedDay)}
+      weekdayLabels={weekdayHeaders.map((weekday) => weekday.label)}
+      gap={gridGap}
+    >
+      {gridDays.map((cell) => {
+        const future = cell.dateStr > todayKey
+        const selected = cell.isCurrentMonth && cell.dateStr === selectedDay
+        return (
+          <CalendarGridDay
+            key={cell.dateStr}
+            cell={cell}
+            future={future}
+            futureWord={t('calendar.dayCell.future')}
+            locale={locale}
+            onSelectDay={onSelectDay}
+            selected={selected}
+            selectedWord={t('calendar.dayCell.selected')}
+            todayRef={todayRef}
+            words={words}
+            todayKey={todayKey}
+          />
+        )
+      })}
+    </MonthGrid>
+  )
 
   const grid = (
     <View ref={gridRef} collapsable={false} testID="calendar-grid" style={compact ? styles.compactGrid : styles.calendarGrid}>
-      <Animated.View
-        key={monthKey}
-        entering={monthEntering}
-        testID="calendar-grid-card"
-        style={styles.gridCard}
-      >
-        <MonthGrid
-          selectionIndex={gridDays.findIndex((cell) => cell.isCurrentMonth && cell.dateStr === selectedDay)}
-          weekdayLabels={weekdayHeaders.map((weekday) => weekday.label)}
-          gap={gridGap}
-        >
-          {gridDays.map((cell) => {
-            const future = cell.dateStr > todayKey
-            const selected = cell.isCurrentMonth && cell.dateStr === selectedDay
-            return (
-              <CalendarGridDay
-                key={cell.dateStr}
-                cell={cell}
-                future={future}
-                futureWord={t('calendar.dayCell.future')}
-                locale={locale}
-                onSelectDay={onSelectDay}
-                selected={selected}
-                selectedWord={t('calendar.dayCell.selected')}
-                todayRef={todayRef}
-                words={words}
-                todayKey={todayKey}
-              />
-            )
-          })}
-        </MonthGrid>
-      </Animated.View>
+      <CalendarSlide direction={slideDirection} stepKey={monthKey ?? ''} testID="calendar-grid-card" style={styles.gridCard}>
+        {gridContent}
+      </CalendarSlide>
     </View>
   )
 

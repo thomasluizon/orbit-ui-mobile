@@ -1,11 +1,7 @@
-import Animated, {
-  FadeInLeft,
-  FadeInRight,
-  ReduceMotion,
-} from "react-native-reanimated";
 import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import { createTokensV2 } from "@/lib/theme";
+import { CalendarSlide } from "./calendar-slide";
 import { CalendarTimeGrid, type TimeGridColumn } from "./calendar-time-grid";
 
 type Tokens = ReturnType<typeof createTokensV2>;
@@ -41,19 +37,10 @@ export function CalendarWeekView({
   t,
   tokens,
 }: Readonly<CalendarWeekViewProps>) {
-  const leftWeekEntering =
-    slideDirection === "left"
-      ? FadeInLeft.duration(220).reduceMotion(ReduceMotion.System)
-      : undefined;
-  const weekEntering =
-    slideDirection === "right"
-      ? FadeInRight.duration(220).reduceMotion(ReduceMotion.System)
-      : leftWeekEntering;
-
   return (
-    <Animated.View
-      key={columns[0]?.dateStr ?? "week"}
-      entering={weekEntering}
+    <CalendarSlide
+      direction={slideDirection}
+      stepKey={columns[0]?.dateStr ?? "week"}
       style={{ flex: 1, minHeight: 0 }}
     >
       <CalendarTimeGrid
@@ -69,6 +56,6 @@ export function CalendarWeekView({
         t={t}
         tokens={tokens}
       />
-    </Animated.View>
+    </CalendarSlide>
   );
 }
