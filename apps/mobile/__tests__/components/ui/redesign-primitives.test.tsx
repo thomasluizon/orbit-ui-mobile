@@ -181,6 +181,14 @@ describe('redesign primitives on mobile', () => {
       expect(prop<{ backgroundColor: string }[]>(tree.root.findByProps({ testID: 'fab-press-fill' }), 'style').at(-1)?.backgroundColor).toBe(tokens.bgHoverOpaque)
     })
 
+    it('clips the pressed fill of both FAB variants to the circular shape', () => {
+      for (const neutral of [true, false]) {
+        const { style } = pressedFab(<Fab neutral={neutral} label="Astra">+</Fab>)
+        expect(style.borderRadius).toBe(999)
+        expect(style.overflow).toBe('hidden')
+      }
+    })
+
     it('keeps the fill and drops the scale under reduced motion', () => {
       motionState.reduced = true
       const { tree, style } = pressedFab(<Fab neutral label="Astra">+</Fab>)
