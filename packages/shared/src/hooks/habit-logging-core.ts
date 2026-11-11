@@ -17,7 +17,7 @@ interface HabitLogEffects extends Pick<UIStoreState, 'setStreakCelebration' | 's
   onStartedStreak?: () => void
 }
 
-export function applyHabitLogSuccess(queryClient: QueryClient, response: LogHabitResponse, variables: HabitLogVariables, context: { occurrenceDate: string } | undefined, { setStreakCelebration, showStreakMoment, armMilestoneSharePrompt, onStartedStreak }: HabitLogEffects) {
+export function applyHabitLogSuccess(queryClient: QueryClient, response: LogHabitResponse, variables: HabitLogVariables, context: { occurrenceDate: string } | undefined, { setStreakCelebration, showStreakMoment, armMilestoneSharePrompt, onStartedStreak }: HabitLogEffects): void {
     const loggedHabit = findHabitInList(
       queryClient
         .getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })
@@ -108,12 +108,12 @@ export function checkTodayCompletionAfterLog(
 }
 
 
-export function setOptimisticCalendarHabitLog(queryClient: QueryClient, habitId: string, date: string, completed: boolean, optimisticLogId: string, createdAtUtc: string) {
+export function setOptimisticCalendarHabitLog(queryClient: QueryClient, habitId: string, date: string, completed: boolean, optimisticLogId: string, createdAtUtc: string): void {
   queryClient.setQueriesData<CalendarMonthResponse>({ queryKey: habitKeys.calendarPrefix() }, old => old
     ? optimisticSetCalendarHabitLog(old, habitId, date, completed, optimisticLogId, createdAtUtc) : old)
 }
 
-export function rollbackHabitLogCalendars(queryClient: QueryClient, previousCalendars: readonly (readonly [readonly unknown[], CalendarMonthResponse | undefined])[], habitId: string, date: string) {
+export function rollbackHabitLogCalendars(queryClient: QueryClient, previousCalendars: readonly (readonly [readonly unknown[], CalendarMonthResponse | undefined])[], habitId: string, date: string): void {
   for (const [key, previousCalendar] of previousCalendars) {
     if (!previousCalendar) continue
     queryClient.setQueryData<CalendarMonthResponse>(key, currentCalendar => currentCalendar
@@ -121,16 +121,26 @@ export function rollbackHabitLogCalendars(queryClient: QueryClient, previousCale
   }
 }
 
-/** Returns the logs snapshot that `rollbackOptimisticHabitLogsCache` restores when the log fails. */
+/**
+ * Writes the logs cache only when a screen can show the write: the logs are cached, or a mounted screen
+ * still loads them and this is a log. Any other write later opens the detail screen on a one-day or empty
+ * history instead of its loading state. Returns the snapshot that `rollbackOptimisticHabitLogsCache` restores.
+ */
 export function setOptimisticHabitLogs(queryClient: QueryClient, habitId: string, date: string, completed: boolean, optimisticLogId: string, createdAtUtc: string): HabitLog[] | undefined {
-  void queryClient.cancelQueries({ queryKey: habitKeys.logs(habitId) })
-  const previousLogs = queryClient.getQueryData<HabitLog[]>(habitKeys.logs(habitId))
-  queryClient.setQueryData<HabitLog[]>(habitKeys.logs(habitId), old =>
+  const queryKey = habitKeys.logs(habitId)
+  const previousLogs = queryClient.getQueryData<HabitLog[]>(queryKey)
+  if (previousLogs === undefined && !(completed && queryClient.getQueryCache().find({ queryKey })?.isActive())) return undefined
+  void queryClient.cancelQueries({ queryKey })
+  queryClient.setQueryData<HabitLog[]>(queryKey, old =>
     optimisticSetHabitLogs(old ?? [], date, completed, optimisticLogId, createdAtUtc))
   return previousLogs
 }
 
-export function rollbackOptimisticHabitLogsCache(queryClient: QueryClient, previousLogs: HabitLog[] | undefined, habitId: string, date: string) {
-  queryClient.setQueryData<HabitLog[] | undefined>(habitKeys.logs(habitId), currentLogs =>
-    rollbackOptimisticHabitLogs(currentLogs, previousLogs, date, `optimistic-log:${habitId}:${date}`))
+export function rollbackOptimisticHabitLogsCache(queryClient: QueryClient, previousLogs: HabitLog[] | undefined, habitId: string, date: string): void {
+  const queryKey = habitKeys.logs(habitId)
+  const currentLogs = queryClient.getQueryData<HabitLog[]>(queryKey)
+  const restoredLogs = rollbackOptimisticHabitLogs(currentLogs, previousLogs, date, `optimistic-log:${habitId}:${date}`)
+  /** The optimistic entry was the only data, so the screen goes back to loading and fetches the real logs. */
+  if (restoredLogs === undefined && currentLogs !== undefined) void queryClient.resetQueries({ queryKey, exact: true })
+  else queryClient.setQueryData<HabitLog[]>(queryKey, restoredLogs)
 }

@@ -1,4 +1,4 @@
-import { QueryClient } from '@tanstack/query-core'
+import { QueryClient,QueryObserver } from '@tanstack/query-core'
 import { afterEach,describe,expect,it,vi } from 'vitest'
 import { applyHabitLogSuccess,rollbackHabitLogCalendars,rollbackOptimisticHabitLogsCache,setOptimisticCalendarHabitLog,setOptimisticHabitLogs } from '../hooks/habit-logging-core'
 import { gamificationKeys,habitKeys,profileKeys } from '../query/keys'
@@ -80,6 +80,50 @@ describe('shared optimistic habit logs', () => {
     client.setQueryData(habitKeys.logs('habit'), [laterLog])
     rollbackOptimisticHabitLogsCache(client, previousLogs, 'habit', date)
     expect(client.getQueryData(habitKeys.logs('habit'))).toEqual([laterLog])
+    client.clear()
+  })
+
+  it.each([true, false])('writes no logs cache for a habit that has no cached logs and no observer (completed: %s)', completed => {
+    const client = new QueryClient()
+    const previousLogs = setOptimisticHabitLogs(client, 'habit', date, completed, optimisticLogId, 'now')
+    expect(previousLogs).toBeUndefined()
+    expect(client.getQueryData(habitKeys.logs('habit'))).toBeUndefined()
+    rollbackOptimisticHabitLogsCache(client, previousLogs, 'habit', date)
+    expect(client.getQueryCache().find({ queryKey: habitKeys.logs('habit') })).toBeUndefined()
+    client.clear()
+  })
+
+  function observeLoadingLogs(client: QueryClient) {
+    const readLogs = vi.fn(() => new Promise<HabitLog[]>(() => {}))
+    const unsubscribe = new QueryObserver(client, { queryKey: habitKeys.logs('habit'), queryFn: readLogs, retry: false }).subscribe(() => {})
+    return { readLogs, unsubscribe }
+  }
+
+  it('writes the log for a mounted screen whose logs still load, and returns that screen to loading when the log fails', async () => {
+    const client = new QueryClient()
+    const { readLogs, unsubscribe } = observeLoadingLogs(client)
+    const previousLogs = setOptimisticHabitLogs(client, 'habit', date, true, optimisticLogId, 'now')
+    await Promise.resolve()
+    expect(previousLogs).toBeUndefined()
+    expect(client.getQueryData(habitKeys.logs('habit'))).toEqual([{ id: optimisticLogId, date, value: 1, createdAtUtc: 'now' }])
+    rollbackOptimisticHabitLogsCache(client, previousLogs, 'habit', date)
+    expect(client.getQueryData(habitKeys.logs('habit'))).toBeUndefined()
+    expect(client.getQueryState(habitKeys.logs('habit'))).toMatchObject({ status: 'pending', fetchStatus: 'fetching' })
+    expect(readLogs).toHaveBeenCalledTimes(2)
+    unsubscribe()
+    client.clear()
+  })
+
+  it('keeps loading the logs of a mounted screen for an unlog, because no cached log exists to remove', () => {
+    const client = new QueryClient()
+    const { readLogs, unsubscribe } = observeLoadingLogs(client)
+    const previousLogs = setOptimisticHabitLogs(client, 'habit', date, false, optimisticLogId, 'now')
+    expect(previousLogs).toBeUndefined()
+    rollbackOptimisticHabitLogsCache(client, previousLogs, 'habit', date)
+    expect(client.getQueryData(habitKeys.logs('habit'))).toBeUndefined()
+    expect(client.getQueryState(habitKeys.logs('habit'))).toMatchObject({ status: 'pending', fetchStatus: 'fetching' })
+    expect(readLogs).toHaveBeenCalledOnce()
+    unsubscribe()
     client.clear()
   })
 })
