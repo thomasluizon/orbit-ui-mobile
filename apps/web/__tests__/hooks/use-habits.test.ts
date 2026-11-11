@@ -9,7 +9,7 @@ import { useHabits, useLogHabit, useSkipHabit, useCreateHabit, useDeleteHabit, u
 import { useHabitDetail, useHabitFullDetail, useHabitLogs, useHabitMetrics, useSearchHabits } from '@/hooks/use-habit-queries'
 import { getTodayHabitList, habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
 import { createApiClientError } from '@orbit/shared'
-import { buildCalendarDayMap, buildChildrenIndex, formatAPIDate, getAllDoneOnDate, getReturningInterval, hasHabitScheduleOnDate, normalizeHabits } from '@orbit/shared/utils'
+import { buildCalendarDayMap, buildChildrenIndex, buildHabitStripModel, formatAPIDate, getAllDoneOnDate, getReturningInterval, hasHabitScheduleOnDate, isHabitCompletedOnDate, normalizeHabits } from '@orbit/shared/utils'
 import type { CalendarMonthResponse, HabitDetail, HabitScheduleChild, HabitScheduleItem, PaginatedResponse } from '@orbit/shared/types/habit'
 
 
@@ -872,6 +872,45 @@ describe('useLogHabit', () => {
     }, 'account-a')
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.logs('h-1') })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.metrics('h-1') })
+  })
+
+  it.each(['log', 'unlog'] as const)('shows the detail %s before the log action settles and restores it on failure', async (intent) => {
+    const { logHabit } = await import('@/lib/actions/habits')
+    let rejectLog: ((error: Error) => void) | undefined
+    vi.mocked(logHabit).mockImplementation(() => new Promise((_, reject) => {
+      rejectLog = reject
+    }))
+    const date = '2025-01-15'
+    const serverLog = { id: 'server-log-1', date, value: 1, createdAtUtc: '2025-01-15T09:30:00Z' }
+    const initialLogs = intent === 'log' ? [] : [serverLog]
+    const habit = makeDetail({ dueDate: date, scheduledDates: [date] })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.detail('h-1'), habit)
+    queryClient.setQueryData(habitKeys.logs('h-1'), initialLogs)
+    const { result } = renderHook(() => ({ logs: useHabitLogs('h-1'), log: useLogHabit() }), { wrapper: createWrapper(queryClient) })
+    const detailState = () => {
+      const logs = result.current.logs.data ?? []
+      return {
+        completed: isHabitCompletedOnDate(habit, logs, date, 1),
+        stripDay: buildHabitStripModel(habit, logs, new Date(2025, 0, 15), 'en', 1).days.at(-1),
+      }
+    }
+    const before = detailState()
+
+    let pending: Promise<unknown> | undefined
+    act(() => { pending = result.current.log.mutateAsync({ habitId: 'h-1', date, intent }) })
+
+    expect(detailState().completed).toBe(intent === 'log')
+    expect(detailState().stripDay).not.toBe(before.stripDay)
+
+    await act(async () => {
+      rejectLog?.(new Error('Network failed'))
+      await expect(pending).rejects.toThrow('Network failed')
+    })
+
+    expect(queryClient.getQueryData(habitKeys.logs('h-1'))).toEqual(initialLogs)
+    expect(detailState()).toEqual(before)
+    expect(mockShowError).toHaveBeenCalledExactlyOnceWith('habits.detail.logError', 'common.dismiss')
   })
 
   it('updates a dated calendar row immediately and restores it when logging fails', async () => {
