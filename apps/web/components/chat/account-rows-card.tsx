@@ -14,7 +14,7 @@ import { Check, Copy, Share2 } from '@/components/ui/icons'
 
 function ReferralCodeRow({ code, copied, onCopy }: Readonly<{ code: string; copied: boolean; onCopy: () => void }>) {
   const t = useTranslations()
-  const iconSwap = 'absolute inset-0 transition-[transform,opacity,filter] [transition-duration:var(--dur-fast)] [transition-timing-function:var(--ease-standard)] motion-reduce:scale-100 motion-reduce:blur-[0px] motion-reduce:transition-none'
+  const iconSwap = 'absolute inset-0 transition-[scale,opacity,filter] [transition-duration:var(--dur-fast)] [transition-timing-function:var(--ease-standard)] motion-reduce:scale-100 motion-reduce:blur-[0px] motion-reduce:transition-none'
   const hiddenIcon = 'scale-[0.25] opacity-0 blur-[4px]'
   const shownIcon = 'scale-100 opacity-100 blur-[0px]'
   return <div className="flex flex-wrap items-center gap-3 px-4">

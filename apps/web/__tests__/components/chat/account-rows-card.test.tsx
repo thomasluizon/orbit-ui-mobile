@@ -77,7 +77,7 @@ describe('Astra account rows on web', () => {
     const copyIcon = () => container.querySelector('[data-icon-swap="copy"]')
     const checkIcon = () => container.querySelector('[data-icon-swap="check"]')
     for (const icon of [copyIcon(), checkIcon()]) {
-      expect(icon).toHaveClass('transition-[transform,opacity,filter]', '[transition-duration:var(--dur-fast)]', '[transition-timing-function:var(--ease-standard)]', 'motion-reduce:transition-none', 'motion-reduce:scale-100', 'motion-reduce:blur-[0px]')
+      expect(icon).toHaveClass('transition-[scale,opacity,filter]', '[transition-duration:var(--dur-fast)]', '[transition-timing-function:var(--ease-standard)]', 'motion-reduce:transition-none', 'motion-reduce:scale-100', 'motion-reduce:blur-[0px]')
       expect(icon).not.toHaveClass('duration-200')
     }
     expect(copyIcon()).toHaveClass('scale-100', 'opacity-100', 'blur-[0px]')
@@ -85,6 +85,16 @@ describe('Astra account rows on web', () => {
     fireEvent.click(screen.getByRole('button', { name: 'chat.account.copy' }))
     await waitFor(() => expect(checkIcon()).toHaveClass('scale-100', 'opacity-100', 'blur-[0px]'))
     expect(copyIcon()).toHaveClass('scale-[0.25]', 'opacity-0', 'blur-[4px]')
+  })
+
+  it('transitions the CSS property that the Tailwind scale utilities write', async () => {
+    const { compile } = await import('tailwindcss')
+    const css = (await compile('@tailwind utilities;')).build(['scale-[0.25]', 'scale-100'])
+    const written = [...css.matchAll(/^\s{2}(scale|transform):/gm)].map(match => match[1])
+    expect(new Set(written)).toEqual(new Set(['scale']))
+    const { container } = render(<AccountRowsCard accountRows={{ kind: 'referral', surfaceId: 'profile', rows: [], referralCode: 'ORBIT123' }} />)
+    const transitionClass = [...container.querySelector('[data-icon-swap="copy"]')!.classList].find(name => name.startsWith('transition-['))!
+    expect(transitionClass.slice('transition-['.length, -1).split(',')).toContain('scale')
   })
 
   it('offers link copy when browser sharing is unavailable', async () => {

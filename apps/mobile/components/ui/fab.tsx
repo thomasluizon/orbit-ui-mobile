@@ -29,14 +29,14 @@ export function Fab({ label, children, onClick, neutral = false, ...buttonProps 
         {
           backgroundColor: neutral ? tokens.bgElev : pressed ? tokens.primaryPressed : tokens.primary,
           boxShadow: neutral
-            ? `inset 0 0 0 1px ${tokens.hairlineStrong}, ${dropShadow(shadowsV2.shadow2)}`
+            ? dropShadow(shadowsV2.shadow2)
             : `0 0 0 6px ${tokens.bg}`,
         },
       ]}
     >
       {({ pressed }) => (
         <>
-          {neutral ? <View pointerEvents="none" testID="fab-press-fill" style={[styles.pressFill, { backgroundColor: pressed ? tokens.bgHoverOpaque : 'transparent' }]} /> : null}
+          {neutral ? <View pointerEvents="none" testID="fab-press-fill" style={[styles.pressFill, { backgroundColor: pressed ? tokens.bgHoverOpaque : 'transparent', boxShadow: `inset 0 0 0 1px ${tokens.hairlineStrong}` }]} /> : null}
           {children}
         </>
       )}
