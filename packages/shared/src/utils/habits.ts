@@ -102,6 +102,21 @@ function collectDescendantLogs(
   })
 }
 
+export function optimisticSetHabitLogs(
+  currentLogs: HabitLog[],
+  date: string,
+  logged: boolean,
+  optimisticLogId: string,
+  createdAtUtc: string,
+): HabitLog[] {
+  const hasActiveLog = currentLogs.some((log) => log.date === date && log.value > 0)
+  if (logged === hasActiveLog) return currentLogs
+
+  return logged
+    ? [...currentLogs, { id: optimisticLogId, date, value: 1, createdAtUtc }]
+    : currentLogs.filter((log) => log.date !== date || log.value <= 0)
+}
+
 export function optimisticSetCalendarHabitLog(
   calendarMonth: CalendarMonthResponse,
   habitId: string,
@@ -111,12 +126,8 @@ export function optimisticSetCalendarHabitLog(
   createdAtUtc: string,
 ): CalendarMonthResponse {
   const currentLogs = calendarMonth.logs[habitId] ?? []
-  const hasActiveLog = currentLogs.some((log) => log.date === date && log.value > 0)
-  if (logged === hasActiveLog) return calendarMonth
-
-  const nextLogs = logged
-    ? [...currentLogs, { id: optimisticLogId, date, value: 1, createdAtUtc }]
-    : currentLogs.filter((log) => log.date !== date || log.value <= 0)
+  const nextLogs = optimisticSetHabitLogs(currentLogs, date, logged, optimisticLogId, createdAtUtc)
+  if (nextLogs === currentLogs) return calendarMonth
 
   return {
     ...calendarMonth,
