@@ -24,8 +24,8 @@ vi.mock('react-native-reanimated', async (importOriginal) => ({
 vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => preference.reduced }))
 afterEach(() => { vi.useRealTimers(); preference.reduced = false })
 
-function List({ items, scope = 'account:today' }: Readonly<{ items: { id: string }[]; scope?: string }>) {
-  const presentation = useRetainedHabitList(items, scope, preference.reduced)
+function List({ items, scope = 'account:today', collapsedIds }: Readonly<{ items: { id: string; parentId?: string | null }[]; scope?: string; collapsedIds?: ReadonlySet<string> }>) {
+  const presentation = useRetainedHabitList(items, scope, preference.reduced, collapsedIds)
   return <>{presentation.rows.map((row) => <HabitListMotionRow key={row.item.id} id={row.item.id}
     phase={row.phase} offset={row.offset} itemIds={presentation.itemIds} measure={presentation.measure}>{row.item.id}</HabitListMotionRow>)}</>
 }
@@ -80,6 +80,40 @@ it('keeps the exit for a row a person logs or deletes while the scope stays the 
   await act(() => { tree = TestRenderer.create(<List items={[{ id: 'walk' }, { id: 'run' }]} />) })
   await act(() => { tree.update(<List items={[{ id: 'walk' }]} />) })
   expect(tree.root.findAllByType('AnimatedView').map((row) => row.props['data-phase'])).toEqual(['present', 'exit'])
+  await act(() => tree.unmount())
+})
+
+it('drops the rows a collapse hides at once and keeps the fade when the group expands', async () => {
+  vi.useFakeTimers()
+  const parent = { id: 'parent', parentId: null }
+  const child = { id: 'child', parentId: 'parent' }
+  const grandchild = { id: 'grandchild', parentId: 'child' }
+  const sibling = { id: 'sibling', parentId: null }
+  const expanded = [parent, child, grandchild, sibling]
+  const collapsed = [parent, sibling]
+  const phases = () => tree.root.findAllByType('AnimatedView').map((row) => `${String(row.props.testID)}:${String(row.props['data-phase'])}`)
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await act(() => { tree = TestRenderer.create(<List items={expanded} collapsedIds={new Set()} />) })
+  await act(() => { tree.update(<List items={collapsed} collapsedIds={new Set(['parent'])} />) })
+  expect(phases()).toEqual(['habit-motion-parent:present', 'habit-motion-sibling:present'])
+  await act(() => { tree.update(<List items={expanded} collapsedIds={new Set()} />) })
+  expect(phases()).toEqual(['habit-motion-parent:present', 'habit-motion-child:enter', 'habit-motion-grandchild:enter', 'habit-motion-sibling:present'])
+  await act(() => tree.unmount())
+})
+
+it('keeps the exit for a logged sub-habit and drops it at once when its group collapses', async () => {
+  vi.useFakeTimers()
+  const parent = { id: 'parent', parentId: null }
+  const child = { id: 'child', parentId: 'parent' }
+  const sibling = { id: 'sibling', parentId: null }
+  const expandedIds = new Set<string>()
+  const phases = () => tree.root.findAllByType('AnimatedView').map((row) => `${String(row.props.testID)}:${String(row.props['data-phase'])}`)
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await act(() => { tree = TestRenderer.create(<List items={[parent, child, sibling]} collapsedIds={expandedIds} />) })
+  await act(() => { tree.update(<List items={[parent, sibling]} collapsedIds={expandedIds} />) })
+  expect(phases()).toEqual(['habit-motion-parent:present', 'habit-motion-child:exit', 'habit-motion-sibling:present'])
+  await act(() => { tree.update(<List items={[parent, sibling]} collapsedIds={new Set(['parent'])} />) })
+  expect(phases()).toEqual(['habit-motion-parent:present', 'habit-motion-sibling:present'])
   await act(() => tree.unmount())
 })
 

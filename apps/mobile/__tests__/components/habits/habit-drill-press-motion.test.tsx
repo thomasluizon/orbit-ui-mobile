@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import React, { createRef } from 'react'
 import { act, create } from 'react-test-renderer'
-import { FlatList, RefreshControl, StyleSheet, type FlatListProps } from 'react-native'
+import { FlatList, RefreshControl, StyleSheet, type FlatListProps, type ViewStyle } from 'react-native'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { motionDurations, orbitalMotion } from '@orbit/shared/theme'
 import { HabitDrill } from '@/components/habit-list/habit-drill'
@@ -40,8 +40,11 @@ describe('drill back press feedback', () => {
     const back = () => tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'common.back')[0]!
     const onPressIn = back().props.onPressIn as () => void
     await act(() => onPressIn())
-    const pressed = StyleSheet.flatten(back().props.style)
-    expect(pressed).toMatchObject({ transform: [{ scale: reduced ? 1 : orbitalMotion.press.scale }], transitionDuration: reduced ? 0 : motionDurations.press })
+    const pressed = StyleSheet.flatten(back().props.style as ViewStyle) as ViewStyle & { transition?: string }
+    expect(pressed).toMatchObject({ transform: [{ scale: reduced ? 1 : orbitalMotion.press.scale }] })
+    if (reduced) expect(pressed.transition).toBe('none')
+    else expect(pressed.transition).toContain(`transform ${motionDurations.press}ms`)
+    expect(Object.keys(pressed).filter((key) => key.startsWith('transition'))).toEqual(['transition'])
     await act(() => tree.unmount())
   })
 })

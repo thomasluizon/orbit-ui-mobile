@@ -1,9 +1,7 @@
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { useState } from 'react'
-import Animated from 'react-native-reanimated'
-import { motionDurations, motionEasings, orbitalMotion } from '@orbit/shared/theme'
+import { PressScale } from '@/components/motion/press-scale'
 import { triggerHaptic } from '@/lib/haptics'
-import { usePrefersReducedMotion } from '@/lib/motion'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import { HabitCheck } from './habit-check'
 
@@ -25,7 +23,6 @@ export function CheckCircle({
   accessibilityHint,
 }: Readonly<CheckCircleProps>) {
   const [hovered, setHovered] = useState(false)
-  const prefersReducedMotion = usePrefersReducedMotion()
   return (
     <Pressable
       onPress={() => {
@@ -54,13 +51,10 @@ export function CheckCircle({
         opacity: disabled ? 0.4 : 1,
       }}
     >
-      {({ pressed }) => <Animated.View style={{
-        transform: [{ scale: pressed && !disabled && !prefersReducedMotion ? orbitalMotion.press.scale : 1 }],
-        transition: prefersReducedMotion ? 'none' : `transform ${motionDurations.press}ms cubic-bezier(${motionEasings.standard.join(',')})`,
-      }}>
+      {({ pressed }) => <PressScale pressed={pressed} disabled={disabled}>
         <HabitCheck status={state} unavailable={unavailable} label={unavailable ? undefined : accessibilityLabel}
           feedback={(pressed || hovered) && !disabled} />
-      </Animated.View>}
+      </PressScale>}
     </Pressable>
   )
 }

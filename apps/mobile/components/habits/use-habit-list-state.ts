@@ -355,14 +355,14 @@ export function useHabitListItems({ view, isSelectMode }: Pick<HabitListItemsInp
 type HabitListPresentationInputs = {
   drag: Pick<ReturnType<typeof useHabitListDrag>, 'activeDragItems' | 'isDraggingList'>
   account: Pick<ReturnType<typeof useHabitListAccount>, 'accountGeneration' | 'selectedDateStr'>
-  reducedListMotion: ReturnType<typeof useHabitListCollapseState>['reducedListMotion']
+  collapse: Pick<ReturnType<typeof useHabitListCollapseState>, 'collapsedIds' | 'reducedListMotion'>
 } & Pick<HabitListProps, 'view' | 'searchQuery' | 'filters'>
 
-export function useHabitListPresentation(drag: HabitListPresentationInputs['drag'], account: HabitListPresentationInputs['account'], { view, searchQuery, filters }: Pick<HabitListPresentationInputs, 'view' | 'searchQuery' | 'filters'>, reducedListMotion: HabitListPresentationInputs['reducedListMotion']) {
+export function useHabitListPresentation(drag: HabitListPresentationInputs['drag'], account: HabitListPresentationInputs['account'], { view, searchQuery, filters }: Pick<HabitListPresentationInputs, 'view' | 'searchQuery' | 'filters'>, { collapsedIds, reducedListMotion }: HabitListPresentationInputs['collapse']) {
   const { activeDragItems, isDraggingList } = drag
   const { accountGeneration, selectedDateStr } = account
   const scope = `${accountGeneration}:${view}:${isDraggingList}:${selectedDateStr}:${searchQuery ?? ''}:${JSON.stringify(filters)}`
-  const presentation = useRetainedHabitList(activeDragItems, scope, reducedListMotion)
+  const presentation = useRetainedHabitList(activeDragItems, scope, reducedListMotion, collapsedIds)
   const cellMotion = useMemo(() => createListCellMotion(reducedListMotion), [reducedListMotion])
   return { presentation, cellMotion, scope }
 }

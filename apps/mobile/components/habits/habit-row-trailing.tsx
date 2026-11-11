@@ -1,8 +1,7 @@
 import { resolveHabitAccessibleStatus } from '@orbit/shared/utils'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { View } from 'react-native'
-import Animated from 'react-native-reanimated'
-import { motionDurations, motionEasings, orbitalMotion } from '@orbit/shared/theme'
+import { PressScale } from '@/components/motion/press-scale'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { MoreVertical } from '@/components/ui/icons'
@@ -13,7 +12,6 @@ import { HabitCheck } from './habit-check'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import { CheckCircle } from './habit-row-check-circle'
 import type { HabitRowActions } from './habit-row'
-import { usePrefersReducedMotion } from '@/lib/motion'
 import { styles } from './habit-row-styles'
 
 interface HabitRowTrailingProps {
@@ -47,7 +45,6 @@ function InteractiveParentRing({
 }: Readonly<HabitRowTrailingProps>) {
   const { t } = useTranslation()
   const [hovered, setHovered] = useState(false)
-  const prefersReducedMotion = usePrefersReducedMotion()
   const statusName = t(`habits.statusDot.${resolveHabitAccessibleStatus(dotState, isDoneForRange)}` as const)
   const toggleLabel = isDoneForRange ? t('habits.actions.unlog') : t('habits.logHabit')
   const completionLabel = completionRingLabel(completionStatusUnavailable, statusName, toggleLabel, habit.title)
@@ -64,13 +61,10 @@ function InteractiveParentRing({
         styles.parentRingButton,
         completionReadOnly ? { opacity: 0.4 } : null,
       ]}>
-      {({ pressed }) => <Animated.View style={{
-        transform: [{ scale: pressed && !completionReadOnly && !prefersReducedMotion ? orbitalMotion.press.scale : 1 }],
-        transition: prefersReducedMotion ? 'none' : `transform ${motionDurations.press}ms cubic-bezier(${motionEasings.standard.join(',')})`,
-      }}>
+      {({ pressed }) => <PressScale pressed={pressed} disabled={completionReadOnly}>
         <HabitCheck status={dotState} progress={{ done: childrenDone, total: childrenTotal }}
           feedback={(pressed || hovered) && !completionReadOnly} />
-      </Animated.View>}
+      </PressScale>}
     </Pressable>
   )
 }

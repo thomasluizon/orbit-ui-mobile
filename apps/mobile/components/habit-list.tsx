@@ -475,7 +475,7 @@ function useHabitListModel(parameters: HabitListModelInputs) {
   const habitListCollapse = useHabitListCollapse(habitListRoots, habitListCollapseState, parameters)
   const habitListItems = useHabitListItems(parameters, habitListRoots, habitListAccount, habitListScroll, habitListCollapseState)
   const drag = useHabitListDrag(habitListCollapseState, habitListItems, habitListQueries)
-  const habitListPresentation = useHabitListPresentation(drag, habitListAccount, parameters, habitListCollapseState.reducedListMotion)
+  const habitListPresentation = useHabitListPresentation(drag, habitListAccount, parameters, habitListCollapseState)
   const habitListProgress = useHabitListProgress(habitListVisibility, parameters, habitListQueries)
   const habitMoveParentSelection = useHabitMoveParentSelection(habitListMoveState, habitListQueries, habitListAccount)
   const habitListMoveActions = useHabitListMoveActions(habitListMoveState, habitListQueries, parameters, habitMoveParentSelection, habitListAccount)

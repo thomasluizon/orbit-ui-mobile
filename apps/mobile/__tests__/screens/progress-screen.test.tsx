@@ -542,9 +542,10 @@ describe('mobile ProgressContent', () => {
     const tokens = createTokensV2('purple', theme.mode)
 
     let card = findCard()
-    const resting = StyleSheet.flatten(card.props.style as ViewStyle) as ViewStyle & { transition?: string; transitionDuration?: number }
+    const resting = StyleSheet.flatten(card.props.style as ViewStyle) as ViewStyle & { transition?: string }
     expect(resting).toMatchObject({ backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost, transform: [{ scale: 1 }] })
-    expect(resting.transitionDuration).toBe(150)
+    expect(resting.transition).toContain('transform 150ms')
+    expect(Object.keys(resting).filter((key) => key.startsWith('transition'))).toEqual(['transition'])
     await TestRenderer.act(() => (card.props.onPressIn as (event: unknown) => void)({}))
     card = findCard()
     expect(StyleSheet.flatten(card.props.style as ViewStyle)).toMatchObject({ backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] })

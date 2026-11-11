@@ -1677,6 +1677,9 @@ describe('HabitList', () => {
     const visibleIds = () => tree.root.findAllByType(HabitRow).filter(isInteractiveRow).map(
       (row: { props: { habit: NormalizedHabit } }) => row.props.habit.id,
     )
+    const rowPhases = () => tree.root.findAllByType('AnimatedView')
+      .filter((node: { props: { testID?: string } }) => node.props.testID?.startsWith('habit-motion-'))
+      .map((node: { props: Record<string, unknown> }) => `${String(node.props.testID)}:${String(node.props['data-phase'])}`)
     expect(disclosure().props.accessibilityState).toEqual({ expanded: true })
     expect(visibleIds()).toEqual([parent.id, child.id, secondParent.id, secondChild.id])
     const configure = vi.spyOn(LayoutAnimation, 'configureNext')
@@ -1686,8 +1689,10 @@ describe('HabitList', () => {
       expect(disclosure().props.accessibilityLabel).toBe('common.expand')
       expect(disclosure().props.accessibilityState).toEqual({ expanded: false })
       expect(visibleIds()).toEqual([parent.id, secondParent.id, secondChild.id])
+      expect(rowPhases()).toEqual(['habit-motion-parent:present', 'habit-motion-second-parent:present', 'habit-motion-second-child:present'])
       TestRenderer.act(() => disclosure().props.onPress())
       expect(configure).not.toHaveBeenCalled()
+      expect(rowPhases()).toEqual(['habit-motion-parent:present', 'habit-motion-child:enter', 'habit-motion-second-parent:present', 'habit-motion-second-child:present'])
     } finally {
       configure.mockRestore()
     }

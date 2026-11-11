@@ -7,10 +7,24 @@ interface PresentedItem<T> {
   deadline: number
 }
 
-export function useRetainedHabitList<T extends { id: string }>(items: T[], scope: string, reduced: boolean) {
+interface RetainedItem {
+  id: string
+  parentId?: string | null
+}
+
+const NO_COLLAPSED_IDS: ReadonlySet<string> = new Set()
+
+function isHiddenByCollapse<T extends RetainedItem>(item: T, shownById: ReadonlyMap<string, T>, collapsedIds: ReadonlySet<string>) {
+  for (let parent = shownById.get(item.parentId ?? ''); parent; parent = shownById.get(parent.parentId ?? '')) {
+    if (collapsedIds.has(parent.id)) return true
+  }
+  return false
+}
+
+export function useRetainedHabitList<T extends RetainedItem>(items: T[], scope: string, reduced: boolean, collapsedIds = NO_COLLAPSED_IDS) {
   const enter = resolveMotionPreset('list-enter', reduced)
   const exit = resolveMotionPreset('list-exit', reduced)
-  const [snapshot, setSnapshot] = useState(() => ({ scope, source: items,
+  const [snapshot, setSnapshot] = useState(() => ({ scope, collapsedIds, source: items,
     entries: items.map((item): PresentedItem<T> => ({ item, phase: 'present', deadline: 0 })) }))
   let entries = snapshot.entries
   const sameSource = snapshot.source.length === items.length && snapshot.source.every((previous, index) => {
@@ -18,20 +32,20 @@ export function useRetainedHabitList<T extends { id: string }>(items: T[], scope
     return Object.keys(previous).length === Object.keys(current).length &&
       Object.keys(previous).every((key) => previous[key as keyof T] === current[key as keyof T])
   })
-  if (!sameSource || snapshot.scope !== scope) {
+  if (!sameSource || snapshot.scope !== scope || snapshot.collapsedIds !== collapsedIds) {
     const previous = snapshot.scope === scope ? snapshot.entries : []
-    const previousIds = new Set(previous.map(({ item }) => item.id))
+    const previousById = new Map(previous.map(({ item }) => [item.id, item]))
     const nextIds = new Set(items.map((item) => item.id))
     const now = performance.now()
     entries = items.map((item): PresentedItem<T> => ({ item,
-      phase: previousIds.has(item.id) || snapshot.scope !== scope ? 'present' : 'enter',
+      phase: previousById.has(item.id) || snapshot.scope !== scope ? 'present' : 'enter',
       deadline: now + enter.enterDuration }))
     previous.forEach((entry, index) => {
-      if (nextIds.has(entry.item.id)) return
+      if (nextIds.has(entry.item.id) || isHiddenByCollapse(entry.item, previousById, collapsedIds)) return
       entries.splice(Math.min(index, entries.length), 0, { ...entry, phase: 'exit',
         deadline: entry.phase === 'exit' ? entry.deadline : now + exit.exitDuration })
     })
-    setSnapshot({ scope, source: items, entries })
+    setSnapshot({ scope, collapsedIds, source: items, entries })
   }
   useEffect(() => {
     const deadlines = snapshot.entries.filter((entry) => entry.phase !== 'present').map((entry) => entry.deadline)
