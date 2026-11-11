@@ -108,6 +108,12 @@ describe('composer chips', () => {
     expect(chips.find((chip) => chip.id === 'today.keepOnlyHabit')?.params).toEqual({ title: 'Walking' })
   })
 
+  it('never offers keeping only a bad habit to a returning account', () => {
+    const badHabit = createMockHabit({ id: 'snack', title: 'Late snack', isBadHabit: true })
+    const chips = buildComposerChips(state({ habits: [badHabit, pending], profile: createMockProfile({ lastCompletionDate: '2026-09-08' }) }))
+    expect(chips.find((chip) => chip.id === 'today.keepOnlyHabit')?.params).toEqual({ title: 'Reading' })
+  })
+
   it('keeps every Today variant within the drawn three-to-six-chip range', () => {
     const returning = createMockProfile({ lastCompletionDate: '2026-09-08' })
     const variants = [

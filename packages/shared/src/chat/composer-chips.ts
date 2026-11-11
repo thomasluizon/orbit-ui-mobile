@@ -85,7 +85,7 @@ function todayChips(state: ComposerChipState): ComposerChip[] {
     ? getReturningInterval(profile.lastCompletionDate, profile.timeZone, state.now)
     : null
   if (returning) {
-    const firstHabit = habits[0]
+    const firstHabit = habits.find((habit) => !habit.isBadHabit)
     return [
       chip('today.logLastDays'), chip('today.resumeHabits'), chip('today.cutToTwo'),
       chip('today.changeTimes'), chip('today.pauseWhatDoesNotFit'),
