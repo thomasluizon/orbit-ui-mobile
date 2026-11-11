@@ -40,8 +40,6 @@ export const MotionPressable = forwardRef<View, Readonly<MotionPressableProps>>(
         focused && focusInset && !props.disabled ? { outlineWidth: 2, outlineOffset: -4, outlineStyle: 'solid', outlineColor: tokens.fg1 } : null,
         {
           transform: [{ scale: !props.disabled && !prefersReducedMotion && (pressed || active) ? orbitalMotion.press.scale : 1 }],
-          transitionProperty: ['transform', 'backgroundColor'],
-          transitionDuration: prefersReducedMotion ? motionDurations.instant : motionDurations.press,
           transition: prefersReducedMotion ? 'none' : toCssTransition(['transform'], motionDurations.press, motionEasings.enter),
         },
       ]}
