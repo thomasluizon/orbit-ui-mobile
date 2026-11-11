@@ -1305,6 +1305,10 @@ button {
    animateTabViewTransition drives both legs from the shared
    tab-switch preset. The shell chrome changes at once, and taps
    reach the live page while the legs run.
+   Every named group paints above the root snapshot, so the
+   controls that float over the scroller take their own names
+   (their groups follow the page group in paint order), and the
+   page group clips both legs to the scroller box.
    ═══════════════════════════════════════════════════════ */
 
 ::view-transition-group(orbit-tab-page),
@@ -1314,8 +1318,20 @@ button {
   mix-blend-mode: normal;
 }
 
+::view-transition-group(orbit-tab-page) {
+  overflow: clip;
+}
+
 ::view-transition-new(orbit-tab-page) {
   opacity: 0;
+}
+
+:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back) [data-shell-fab-clip] {
+  view-transition-name: orbit-shell-fab;
+}
+
+:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back) [data-shell-scroll-to-top] {
+  view-transition-name: orbit-shell-scroll-to-top;
 }
 
 :root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition {
@@ -1323,7 +1339,13 @@ button {
 }
 
 :root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition-old(root),
-:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition-new(root) {
+:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition-new(root),
+:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition-group(orbit-shell-fab),
+:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition-old(orbit-shell-fab),
+:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition-new(orbit-shell-fab),
+:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition-group(orbit-shell-scroll-to-top),
+:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition-old(orbit-shell-scroll-to-top),
+:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition-new(orbit-shell-scroll-to-top) {
   animation-duration: 0s;
 }
 

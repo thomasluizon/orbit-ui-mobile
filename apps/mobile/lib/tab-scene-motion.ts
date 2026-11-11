@@ -10,7 +10,7 @@ interface TabPaths {
   readonly instant: boolean
 }
 
-export function getTabRoutePath(routeName: string): string {
+function getTabRoutePath(routeName: string): string {
   return routeName === 'index' ? '/' : `/${routeName}`
 }
 

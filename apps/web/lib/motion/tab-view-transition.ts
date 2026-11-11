@@ -8,7 +8,7 @@ import { resolveTabSwitchDirection } from '@orbit/shared/utils'
 
 export const TAB_VIEW_TRANSITION_NAME = 'orbit-tab-page'
 
-export const TAB_VIEW_TRANSITION_TYPES = {
+const TAB_VIEW_TRANSITION_TYPES = {
   forward: 'orbit-tab-forward',
   back: 'orbit-tab-back',
 } as const
