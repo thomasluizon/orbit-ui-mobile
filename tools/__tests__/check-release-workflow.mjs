@@ -399,6 +399,36 @@ function checkPinnedRelease() {
   T("production override is recorded with its reason", readFileSync(summary, "utf8").includes("force_unstaged: true") && readFileSync(summary, "utf8").includes("Staging service is unavailable"))
 }
 
+function checkAppleClientId() {
+  // Structure only. The reject-empty and accept-set behaviour of each guard lives in one suite:
+  // .github/scripts/release-admission.test.mjs (web and Android) and apps/mobile/__tests__/ios-workflows.test.ts (iOS).
+  const read = (file) => load(readFileSync(toolPath(`../.github/workflows/${file}`), "utf8"))
+  const targets = [
+    { label: "web", steps: read("release.yml").jobs.build.steps, name: "Validate browser build variables", before: ["Build and push production image", "Build and push staging image"],
+      wiring: { PRODUCTION_APPLE_CLIENT_ID: "${{ vars.PRODUCTION_NEXT_PUBLIC_APPLE_CLIENT_ID }}", STAGING_APPLE_CLIENT_ID: "${{ vars.STAGING_NEXT_PUBLIC_APPLE_CLIENT_ID }}" } },
+    { label: "android", steps: read("android-release.yml").jobs["release-android"].steps, name: "Validate release secrets",
+      before: ["Resolve Google Play track", "Submit build to Google Play"],
+      jobWiring: { EXPO_PUBLIC_APPLE_CLIENT_ID: "${{ vars.EXPO_PUBLIC_APPLE_CLIENT_ID }}" }, jobEnv: read("android-release.yml").jobs["release-android"].env },
+    { label: "ios", steps: read("ios-release.yml").jobs.release.steps, name: "Validate the release configuration",
+      before: ["Install dependencies", "Install signing credentials", "Archive the embedded app"],
+      jobWiring: { EXPO_PUBLIC_APPLE_CLIENT_ID: "${{ vars.EXPO_PUBLIC_APPLE_CLIENT_ID }}" }, jobEnv: read("ios-release.yml").jobs.release.env },
+  ]
+  for (const { label, steps, name, before, wiring, jobWiring, jobEnv } of targets) {
+    const index = steps.findIndex((step) => step.name === name)
+    T(`${label} release guard exists`, index >= 0)
+    if (index < 0) continue
+    const step = steps[index]
+    T(`${label} release guard cannot be skipped or ignored`, !step.if && !step["continue-on-error"])
+    T(`${label} release guard names the Apple client ID`, /APPLE_CLIENT_ID/.test(step.run ?? ""))
+    for (const later of before) {
+      const laterIndex = steps.findIndex((candidate) => candidate.name === later)
+      T(`${label} release guard runs before ${later}`, laterIndex > index)
+    }
+    if (wiring) T(`${label} release guard reads the Apple variables`, Object.entries(wiring).every(([key, value]) => step.env?.[key] === value))
+    if (jobWiring) T(`${label} job passes the Apple variable to its guard`, Object.entries(jobWiring).every(([key, value]) => jobEnv?.[key] === value))
+  }
+}
+
 export async function cases() {
   T("release workflow exposes only production and staging", JSON.stringify(load(workflow).on.workflow_dispatch.inputs.environment.options) === JSON.stringify(["production", "staging"]))
   T("release selection guard is present", typeof guard === "string")
@@ -437,4 +467,5 @@ export async function cases() {
   await checkProductionSteps()
   checkPinnedRelease()
   checkSourceIdentity()
+  checkAppleClientId()
 }
