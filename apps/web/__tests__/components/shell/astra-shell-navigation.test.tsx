@@ -39,14 +39,14 @@ const words = { placeholder: 'Message', send: 'Send', paste: 'Paste', nothingToP
 const attachWords = { image: 'Photo', file: 'Document', trayLabel: 'Attachments', remove: (name: string) => name }
 const voiceWords = { start: 'Voice', stop: 'Stop', recording: 'Recording', transcribing: 'Transcribing' }
 
-function buildChat(draft: string): ChatController {
+function buildChat(draft: string, suggestions: ReadonlyArray<{ id: string; label: string; onSelect: () => void }> = []): ChatController {
   return {
     threadScroll: createChatThreadScroll(), scrollToBottom: vi.fn(), chatContainerRef: createRef<HTMLDivElement>(), messages: [], activeSteps: [],
     canShowFollowUps: false, isTyping: false, streamingMessageId: null, showSuggestions: true,
     sendMessage: vi.fn(), handleBreakdownConfirmed: vi.fn(), confirmAndExecutePendingOperation: vi.fn(),
     prepareStepUpForBubble: vi.fn(), verifyStepUpForBubble: vi.fn(), isOnline: true,
     sendError: null, canRetryLastSend: false, retryLastSend: vi.fn(),
-    composerProps: { state: 'idle', words, value: draft, onChangeValue: vi.fn(), onSend: vi.fn(), suggestions: [],
+    composerProps: { state: 'idle', words, value: draft, onChangeValue: vi.fn(), onSend: vi.fn(), suggestions,
       attachWords, voiceWords, onAttachImage: vi.fn(), onAttachFile: vi.fn(), onVoice: vi.fn() },
   } as unknown as ChatController
 }
@@ -104,6 +104,20 @@ it('redirects focus from an unrelated portal back to the conversation', () => {
     act(() => unrelated.focus())
     expect(screen.getByRole('textbox', { name: words.placeholder })).toHaveFocus()
   } finally { unrelated.remove() }
+})
+
+it('shows the conversation suggestions at full composer width with no collapse control', () => {
+  const labels = ['Review routine', 'Plan routine']
+  const chat = buildChat('', labels.map((label, index) => ({ id: `chip-${index}`, label, onSelect: vi.fn() })))
+  render(<App chat={chat} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Astra' }))
+  const strip = screen.getByRole('group', { name: words.suggestionsLabel })
+  expect(within(strip).getAllByRole('button').map(button => button.textContent)).toEqual(labels)
+  const row = strip.closest('[data-composer-suggestion-row]')!
+  expect(row.querySelectorAll('button')).toHaveLength(labels.length)
+  expect(row.parentElement).toBe(document.querySelector('[data-composer-content]'))
+  expect(screen.queryByRole('button', { name: /shell\.composer\.(collapse|expand)/ })).toBeNull()
+  expect(document.querySelector('[data-composer-disclosure], [data-composer-collapse-row], [data-collapsed]')).toBeNull()
 })
 
 it.each([false, true])('hands attachment-menu focus back to the composer on Tab with shift=%s', async (shiftKey) => {
