@@ -31,6 +31,7 @@ import {
   AUTH_CALLBACK_URL, clearPendingGoogleAuthSession, getPendingGoogleAuthVerifier,
   markPendingGoogleAuthSession, setPendingGoogleAuthCallbackUrl,
 } from '@/lib/google-auth-callback'
+import { resolveMotionPreset, type MotionScenario } from '@orbit/shared/theme'
 
 vi.unmock('react-i18next')
 
@@ -100,7 +101,7 @@ vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({ children, onClick }: { children?: React.ReactNode; onClick?: () => void }) =>
     React.createElement('PillButton', { onClick }, children),
 }))
-vi.mock('@/lib/motion', () => ({ toAnimatedEasing: (value: unknown) => value, usePrefersReducedMotion: () => true }))
+vi.mock('@/lib/motion', () => ({ toAnimatedEasing: (value: unknown) => value, usePrefersReducedMotion: () => true, useResolvedMotionPreset: (scenario: MotionScenario) => resolveMotionPreset(scenario, true) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAccess: true }, isLoading: false }) }))
 vi.mock('@/hooks/use-habits', () => ({ useBulkCreateHabits: () => ({ mutateAsync: vi.fn() }) }))
 
