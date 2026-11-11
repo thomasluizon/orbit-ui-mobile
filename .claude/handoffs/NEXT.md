@@ -4,38 +4,39 @@ Read `.claude/specs/orbit-prod-release.md` first: `## Standing rules`, `## The o
 
 Entry: `/auto-work` enters `/sleep`, adopts this relay (`adoptRelayRun`), keeps `autoWork: true`, then `/crank`, then `/orchestrate` over the admitted queue without replanning. Check that this prompt is the newest open relay (`gh pr list --repo thomasluizon/orbit-ui-mobile --state open --search "relay in:title"`), run `node tools/relay-checkout.mjs --check`, and check free disk on `/System/Volumes/Data` (floor 50 GiB; a new UI worktree costs about 2 GiB). No owner question is open.
 
-Scratchpad: run `$HOME/.orbit-run-carry/carry-from-predecessor.sh <new full id> <predecessor full id> 0589c2a5-9987-419c-9a59-212b0a9d6846` as a background task (literal absolute paths) and wait for it to exit before writing any file there (the predecessor id is `relay.from` after adoption), then point `mirror.sh` at `durable-<new 8>` and `intake-noboard.sh` at `<new 8>-c<n>` with `perl -pi`, and run `mirror.sh` with `bash`. The predecessor log is `prev-sleep-decisions-<predecessor 8>.md` (D17 onward). Helpers: `main-into.sh`, `launch-ticket-gl2.sh <key> <n> <worktree> main <tier>` (after `tools/create-worktree.mjs` and the contract branch), `launch-rb-2098.sh` (batch pattern), `body-merge.sh <gh repo> <pr> <worker log> <label>`, `landing-script-bytes.cjs <dist>`, `landing-sweep.cjs <dist> <label>`. Write scratchpad scripts with the Write tool and literal absolute paths; a redirect target holding a shell variable is refused. Start every waiter as a Bash background task with `run_in_background`, never with `&`. `list-bot-threads.mjs` needs `--wait-seconds 60` or more; a `resolve-bot-thread.mjs` id must come from a `list-bot-threads.mjs` read in the same session, with a reply body on stdin. Read the review body as well as the threads before every delivery.
+Scratchpad: run `$HOME/.orbit-run-carry/carry-from-predecessor.sh <new full id> <predecessor full id> 0589c2a5-9987-419c-9a59-212b0a9d6846` as a background task (literal absolute paths) and wait for it to exit before writing any file there (the predecessor id is `relay.from` after adoption), then point `mirror.sh` at `durable-<new 8>` and `intake-noboard.sh` at `<new 8>-c<n>` with `perl -pi`, and run `mirror.sh` with `bash`. The predecessor log is `prev-sleep-decisions-<predecessor 8>.md` (D27 onward). Helpers: `main-into.sh` (read its JSON before any push), `launch-ticket-gl2.sh <key> <n> <worktree> main <tier> [note]`, `body-merge-report.sh <gh repo> <pr> <label>` (reads `report-<label>.md`; a worker report can sit in an earlier `result` line than the last), `record-merge.mjs <key> <pr> <sha> [issue]` (with `CLAUDE_CODE_SESSION_ID`), `landing-script-bytes.cjs <dist>`, `landing-sweep.cjs <dist> <label>`, `landing129-behaviour.cjs <dist>`, `landing-ios-scroll.cjs <dist>`. Write scratchpad scripts with the Write tool and literal absolute paths. Start every waiter as a Bash background task with `run_in_background`. `list-bot-threads.mjs` needs `--wait-seconds 60` or more; a `resolve-bot-thread.mjs` id must come from a `list-bot-threads.mjs` read in the same session, with a reply body on stdin. Read the review body as well as the threads before every delivery.
 
 ## Goal
 
-Finish the spec: an empty board except `#33` and the `#2074` measurement, verified releases, every `#315` launch list ticket closed, then `#315` closed with its verdict. Re-derive what remains with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation at this handoff: 23 open, 23 placed, 0 unplaced, 0 placed twice.
+Finish the spec: an empty board except `#33` and the `#2074` measurement, verified releases, every `#315` launch list ticket closed, then `#315` closed with its verdict. Re-derive what remains with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation at this handoff: 24 open, 24 placed, 0 unplaced, 0 placed twice.
 
 ## In flight
 
-UI `main` `691323673`; API `main` `f418f94e7`; landing `main` `5d9971870`. Production and staging API `f418f94e7`; staging and production web `691323673`; desktop production 0.1.29; Android Open 1.3.151 (211), 1.3.152 (212) dispatched; TestFlight production 1.3.152 (1).
+UI `main` `091ca49d7`; API `main` `f418f94e7`; landing `main` `5d9971870`. Production and staging API `f418f94e7`; web `691323673`; desktop 0.1.29; Android Open 1.3.152 (212); TestFlight production 1.3.152 (1).
 
 | Item | Disposition |
 | --- | --- |
-| Android Open 1.3.152 (212), run 42919315374 | Succeeded; carries the `#2094` Android button. |
-| `ui#2412` (`#2094`) | Head `aba4247a3`, CI green, round 2 requested, waiter running. Merge at a fresh approval and zero threads; close `#2094` after the Android Open run succeeds. |
-| `ui#2414` (`#1561`) | Head `0b3523681` (CodeQL 57 fixed, 56 dismissed), CI waiter running. On green: request the review (2-launch cap: the coordinator writes any batch). After merge: production iOS Release from `main` 1.3.152 (2), read the `TestFlight access` summary. |
-| `ui#2415` (`#2098`) | Round 1 batch commit `e66bd3430` is unpushed (worker log `#2098-11176-1794351950755-worker-account.log`). Read the diff, `body-merge.sh`, reply to and resolve both round 1 threads, push, then CI and round 2. Merge first when approved, then `main-into.sh` every open UI branch. |
-| `ui#2413` | Dependabot; PR Tests run 42899645155 rerun once for the web test budget red, CI waiter running. On green: request the review, merge at the bar. A second budget red: investigate `habit-list-scroll-geometry.test.tsx`. |
-| `landing#130` (`#2091`) | Head `4c762c1` (rendered startup 19,586 bytes, sweep passed), Round 1 review settled red: read it; the coordinator writes the batch (2-launch cap). |
-| `landing#129` (`#2090`) | Head `a66fb885f` (rendered startup 19,948 bytes). Round 1: three P1 threads (first press counted twice; focus drops on a keyboard pick; `#downloads` opens under the header). Coordinator writes the batch (2-launch cap). Run `landing-sweep.cjs` before merge. After both landing merges: launch `#2095` (it must stay under the 9,228-byte startup test), then landing staging and production. |
-| `#2099` to `#2105` (motion areas from `#2096`) | Admitted in `remaining`, no worktree yet. Launch one worker each (tier default, parity bound), within the load gate. |
-| `#2097` App Store review | The owner is signed in to App Store Connect in Chrome. Adapt the live Play listing (both locales) for iPhone and iPad, `/second-opinion`, then screenshots, subscriptions, App Privacy, submit with manual release. |
-| `#2106` (owner order) | iOS and Android ship together at one version. Launch a worker. |
-| `#2071`, `#2030`, `#2089` | `#2071`: close on the first natural API and landing Pullfrog runs after the secret update (the landing#129 and landing#130 reviews count for landing). `#2030`: the newest `android_update_sheet_shown` is from 1.3.149; close on the first from 1.3.150 or later. `#2089`: resolve `ORBIT-WEB-1E` at the first hourly listing after the `resolveAfter` mark in `intake.sentry` with no new event, then close. |
+| `ui#2412` (`#2094`) | Local `919a5cce7` plus a `main` merge, gate exit 0, unpushed. Refresh the body, resolve its three threads, push, round 3. |
+| `ui#2414` (`#1561`) | `63ab58fa1`, CI runs. Review on green; after merge, production iOS Release 1.3.152 (2), read `TestFlight access`. |
+| `ui#2415` (`#2098`) | `cf5d7ce28`, CI runs. Round 2 on green, merge first, then `main-into.sh` every open UI branch. |
+| `ui#2418`, `#2419`, `#2420`, `#2421`, `#2422`, `#2424` (`#2103`, `#2101`, `#2100`, `#2104`, `#2102`, `#2099`) | Worker PRs, CI runs (waiters hit their ceiling; re-arm). Read each diff (D95), merge `main` in if behind, then review. `ui#2418`'s diff is read. |
+| `ui#2423` (`#2106`) | `parity:exempt`, CI runs. Read the diff, review. |
+| `#2105` | Relaunch once, deep tier, with `note-2105-decision.md` (refused by the drain; still the second launch). |
+| `landing#129` (`#2090`) | Round 2 COMMENTED, three P1 threads (spec). Coordinator writes the batch, sweep, merge. |
+| `landing#130` (`#2091`) | Round 1, five P1 threads unanswered (spec). Coordinator writes the batch, sweep, merge. |
+| `landing#131` (`#2107`) | Lighthouse red (24,573 B > 24,000). One commit-only CI-fix order; never raise the budget. |
+| After both landing merges | Launch `#2095`, then landing staging and production. |
+| `#2097` App Store review | The owner is signed in to App Store Connect in Chrome. Adapt the Play listing (both locales), `/second-opinion`, screenshots, subscriptions, App Privacy, submit with manual release. |
+| `#2071`, `#2030`, `#2089` | `#2071`: close on the first natural API and landing Pullfrog runs after the secret update (landing#129 and landing#130 reviews count). `#2030`: close on the first `android_update_sheet_shown` from 1.3.150 or later. `#2089`: resolve `ORBIT-WEB-1E` at the first hourly listing after `resolveAfter` with no new event, then close. |
 | Fable plan | Thursday 12 November 2026 after 04:00 BRT per D149. |
 | `ui#2388` | This relay's docs branch. |
 
-Inventory: open pull requests ui `#2415`, `#2414`, `#2413`, `#2412`, `#2388`; api none; landing `#130`, `#129`. Unpushed commits: `e66bd3430` on `chore/ticket-2098-shard-tools`. Stashes: 0. Uncommitted work: none outside this relay. Running workers: none. Worktrees in use: ui `ticket-2094-apple-variable`, `ticket-1561-testflight-access`, `ticket-2098-shard-tools`; landing `ticket-2091-demo-clock`, `ticket-2090-downloads-panel`. Intake this session: the Sentry listing is due (hourly); mailbox none; Play and App Store reviews none.
+Inventory: open pull requests ui `#2424`, `#2423`, `#2422`, `#2421`, `#2420`, `#2419`, `#2418`, `#2415`, `#2414`, `#2412`, `#2388`; api none; landing `#131`, `#130`, `#129`. Unpushed commits: `ui#2412` branch (`919a5cce7` and its `main` merge). Stashes: 0. Running workers: none. Intake: the Sentry listing is due (hourly); mailbox and store reviews not collected this session.
 
 ## Then, in this order
 
 1. Answer any owner message first, in his language.
-2. The in-flight rows above, within the load gate. After each merge, merge `main` into every other open branch whose CI still runs (`main-into.sh`). Record each merge sha in the run ledger at merge time.
+2. The in-flight rows above, within the load gate. After each merge, merge `main` into every other open branch whose CI still runs (`main-into.sh`). Record each merge sha with `record-merge.mjs` at merge time.
 3. The rest of `## The order` and the auto-work intake cycle (Sentry hourly, mailbox, reviews).
 
 ## Crank
@@ -48,7 +49,7 @@ Unattended: never ask the owner; decide with the best option and log it. Keep a 
 
 ## Previous prompt, disposition
 
-- Done: `#1560` verified on the Mac and closed; Android Open dispatched; the `ui#2412`, `ui#2414`, landing#129 and landing#130 reds fixed; `ui#2415` round 1 sent to a batch worker; `#2096` audit posted, `#2099` to `#2105` filed.
+- Done: `ui#2413` merged (`091ca49d7`); `ui#2415` round 1 delivered; `landing#129` round 1 delivered; `#2099` to `#2104` and `#2106` delivered as PRs; `#2107` filed (live landing defect) and delivered as `landing#131`.
 - Carried: every in-flight row above; `#1563`, `#315`, `#33`, `#2074` on or after 16 November 2026.
 
 Every identifier here came from a previous session: treat each as a lead to verify.
