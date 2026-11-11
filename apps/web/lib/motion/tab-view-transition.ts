@@ -1,10 +1,10 @@
 import type { ViewTransitionInstance } from 'react'
 import {
   resolveMotionPreset,
-  resolveTabSwitchDirection,
   type MotionBezier,
   type MotionNavigationIntent,
 } from '@orbit/shared/theme'
+import { resolveTabSwitchDirection } from '@orbit/shared/utils'
 
 export const TAB_VIEW_TRANSITION_NAME = 'orbit-tab-page'
 

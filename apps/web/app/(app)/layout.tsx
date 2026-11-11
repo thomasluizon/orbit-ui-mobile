@@ -69,7 +69,7 @@ import {
 } from './onboarding-overlay-state'
 import { ApiFetchI18nProvider } from '@/lib/api-fetch-i18n-provider'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
-import { resolveShellComposerScope, HABIT_CREATE_OVERLAY_ID, buildHabitCreateHref, resolveHabitDetailRouteDate, isShareableAchievement } from '@orbit/shared/utils'
+import { resolveShellComposerScope, HABIT_CREATE_OVERLAY_ID, buildHabitCreateHref, resolveHabitDetailRouteDate, isShareableAchievement, SHELL_ROOT_PATHS } from '@orbit/shared/utils'
 import { AccountEventConnection } from '@/lib/account-event-connection'
 import { isPublicPath } from '@/lib/public-paths'
 import { useHasSessionCookie } from '@/lib/session-cookie-provider'
@@ -180,7 +180,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   }, [])
 
   useEffect(() => {
-    for (const tabRoute of ['/', '/calendar', '/progress', '/profile']) {
+    for (const tabRoute of SHELL_ROOT_PATHS) {
       router.prefetch(tabRoute)
     }
   }, [router])

@@ -16,7 +16,7 @@ import {
 import { useParams, usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { ShellNoticeSlotProvider, useShellNoticeHost } from '@/hooks/use-shell-notice-slot'
-import { DESTINATION_ICONS, SHELL_DESTINATION_IDS, resolveShellDestination, resolveShellChrome } from '@orbit/shared/utils'
+import { DESTINATION_ICONS, SHELL_DESTINATION_IDS, SHELL_DESTINATION_PATHS, resolveShellDestination, resolveShellChrome, type ShellDestinationId } from '@orbit/shared/utils'
 import { Plus } from '@/components/ui/icons'
 import { DestinationIcon, getDestinationIcon } from '@/components/navigation/destination-icon'
 import { requestHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
@@ -89,15 +89,6 @@ export function useShellComposerSlot(
 }
 
 export const DESTINATION_MAIN_CLASS_NAME = 'flex min-h-full flex-auto flex-col has-[[data-page-viewport]]:h-full'
-
-type BottomTab = 'hoje' | 'calendario' | 'progresso' | 'perfil'
-
-const ROUTES: Record<BottomTab, string> = {
-  hoje: '/',
-  calendario: '/calendar',
-  progresso: '/progress',
-  perfil: '/profile',
-}
 
 function hasPrimaryNavigation(pathname: string): boolean {
   return pathname !== '/wrapped'
@@ -245,14 +236,15 @@ function DestinationShellContent({
 
   useKeyboardShortcuts(navigationEnabled)
 
-  const labels = useMemo<Record<BottomTab, string>>(
-    () => Object.fromEntries(SHELL_DESTINATION_IDS.map((id) => [id, t(DESTINATION_ICONS[id].labelKey)])) as Record<BottomTab, string>,
+  const labels = useMemo<Record<ShellDestinationId, string>>(
+    () => Object.fromEntries(SHELL_DESTINATION_IDS.map((id) => [id, t(DESTINATION_ICONS[id].labelKey)])) as Record<ShellDestinationId, string>,
     [t],
   )
 
   const navigate = useCallback(
-    (id: BottomTab) => {
-      const route = ROUTES[id]
+    (id: ShellDestinationId) => {
+      const route = SHELL_DESTINATION_PATHS[id]
+      const reselected = route === pathname
       const transitionTypes = getTabTransitionTypes(
         pathname,
         route,
@@ -270,15 +262,18 @@ function DestinationShellContent({
       if (id === 'hoje') {
         requestHabitCreateNavigation(() => {
           useUIStore.getState().resetToday()
-          resetRouteTransitionIntent()
           scroller?.scrollTo({ top: 0, behavior: 'instant' })
-          if (pathname === '/') router.replace('/')
-          else pushRoute()
+          if (!reselected) {
+            pushRoute()
+            return
+          }
+          resetRouteTransitionIntent()
+          router.replace(route)
         })
         return
       }
       useUIStore.getState().setAstraConversationOpen(false)
-      if (route === pathname) {
+      if (reselected) {
         resetRouteTransitionIntent()
         scroller?.scrollTo({ top: 0, behavior: 'instant' })
         return
@@ -289,7 +284,7 @@ function DestinationShellContent({
   )
 
   const wideItems = useMemo(
-    () => SHELL_DESTINATION_IDS.map((id) => ({ id, href: ROUTES[id], label: labels[id], icon: id })),
+    () => SHELL_DESTINATION_IDS.map((id) => ({ id, href: SHELL_DESTINATION_PATHS[id], label: labels[id], icon: id })),
     [labels],
   )
 
@@ -338,7 +333,7 @@ function DestinationShellContent({
         astraRow={{ label: t('nav.astra'), onOpen: () => useUIStore.getState().setAstraConversationOpen(true) }}
         activeId={activeId}
         navLabel={t('nav.mainNavigation')}
-        onSelect={(id) => navigate(id as BottomTab)}
+        onSelect={(id) => navigate(id as ShellDestinationId)}
         onSidebarNavigate={() => useUIStore.getState().setAstraConversationOpen(false)}
         {...wideCreate}
         createRefusal={createRefusal}
@@ -357,9 +352,9 @@ function DestinationShellContent({
         tabBar={
           !chrome.flow ? <BottomTabBar
             activeId={activeId}
-            items={SHELL_DESTINATION_IDS.map((id) => ({ id, href: ROUTES[id], label: labels[id], icon: ({ active }) => <DestinationIcon destination={id} active={active} color={active ? 'var(--primary)' : 'var(--fg-3)'} /> }))}
+            items={SHELL_DESTINATION_IDS.map((id) => ({ id, href: SHELL_DESTINATION_PATHS[id], label: labels[id], icon: ({ active }) => <DestinationIcon destination={id} active={active} color={active ? 'var(--primary)' : 'var(--fg-3)'} /> }))}
             label={t('nav.mainNavigation')}
-            onSelect={(id) => navigate(id as BottomTab)}
+            onSelect={(id) => navigate(id as ShellDestinationId)}
           /> : undefined
         }
         fab={

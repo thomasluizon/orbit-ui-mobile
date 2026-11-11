@@ -130,10 +130,14 @@ export {
   resolveShellDestination,
   resolveShellChrome,
   resolveShellComposerScope,
+  resolveTabSwitchDirection,
+  SHELL_DESTINATION_PATHS,
   SHELL_DESTINATION_ROUTES,
+  SHELL_ROOT_PATHS,
 } from './shell-destinations'
 export type {
   ShellDestinationId,
+  ShellDestinationPath,
   ShellDestinationRoute,
 } from './shell-destinations'
 export { plural } from './plural'

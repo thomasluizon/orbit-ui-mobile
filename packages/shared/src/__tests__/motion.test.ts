@@ -8,7 +8,6 @@ import {
   motionSprings,
   resolveMotionPreset,
   resolveConversationMotion,
-  resolveTabSwitchDirection,
   shouldDismissSheet,
 } from '../theme/motion'
 
@@ -132,23 +131,4 @@ it.each([
 it('bounds conversation sequencing and removes every moving value under reduced motion', () => {
   expect(resolveConversationMotion(false, 100)).toMatchObject({ duration: motionDurations.conversation, shift: 12, delay: 180 })
   expect(resolveConversationMotion(true, 100)).toMatchObject({ duration: 0, shift: 0, delay: 0, changeDuration: 0 })
-})
-
-describe('resolveTabSwitchDirection', () => {
-  it.each([
-    ['/', '/calendar', 1],
-    ['/calendar', '/profile', 1],
-    ['/profile', '/progress', -1],
-    ['/progress', '/', -1],
-  ] as const)('orders the primary tabs from %s to %s', (from, to, direction) => {
-    expect(resolveTabSwitchDirection(from, to)).toBe(direction)
-  })
-
-  it.each([
-    ['/', '/'],
-    ['/', '/habits/h1'],
-    ['/profile/account', '/profile'],
-  ])('is not a tab switch from %s to %s', (from, to) => {
-    expect(resolveTabSwitchDirection(from, to)).toBeNull()
-  })
 })

@@ -47,6 +47,7 @@ import {
   resolveShellChrome,
   resolveShellComposerScope,
   resolveShellDestination,
+  SHELL_ROOT_PATHS,
 } from '@orbit/shared/utils'
 import {
   isReviewMomentEligible,
@@ -274,7 +275,7 @@ function RootLayoutNav() {
       <View style={{ flex: 1 }}>
         {showBottomNav ? (
           <Shell412
-            safeAreaTop={isNotFound || ['/', '/calendar', '/progress', '/profile', '/search'].includes(pathname)}
+            safeAreaTop={isNotFound || pathname === '/search' || SHELL_ROOT_PATHS.includes(pathname)}
             {...conversation}
             composer={!isNotFound && shellChrome.composer ? (
               <Composer

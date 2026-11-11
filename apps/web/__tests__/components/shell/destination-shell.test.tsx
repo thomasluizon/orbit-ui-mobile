@@ -544,16 +544,35 @@ describe('DestinationShell', () => {
     expect(getCurrentRouteTransitionIntent()).toBe('tab')
   })
 
-  it('switches tabs from the command palette without a view transition', () => {
+  it.each([
+    ['/', 'progresso', '/progress'],
+    ['/calendar', 'hoje', '/'],
+    ['/habits/h1', 'hoje', '/'],
+  ])('switches tabs at once from the command palette at %s through %s', (from, id, route) => {
+    mocks.pathname = from
+    let pushedIntent: string | undefined
+    mocks.push.mockImplementationOnce(() => { pushedIntent = getCurrentRouteTransitionIntent() })
+    render(<DestinationShell onCreate={() => {}}><h1>Page</h1></DestinationShell>)
+
+    act(() => {
+      setRouteTransitionIntent('instant')
+      mocks.commandViews.find((item) => item.id === id)!.onSelect()
+    })
+
+    expect(mocks.push).toHaveBeenCalledExactlyOnceWith(route)
+    expect(pushedIntent).toBe('instant')
+  })
+
+  it('clears the palette intent when it selects the open Today', () => {
     render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
 
     act(() => {
       setRouteTransitionIntent('instant')
-      mocks.commandViews.find((item) => item.id === 'progresso')!.onSelect()
+      mocks.commandViews.find((item) => item.id === 'hoje')!.onSelect()
     })
 
-    expect(mocks.push).toHaveBeenCalledExactlyOnceWith('/progress')
-    expect(getCurrentRouteTransitionIntent()).toBe('instant')
+    expect(mocks.push).not.toHaveBeenCalled()
+    expect(getCurrentRouteTransitionIntent()).toBe('neutral')
   })
 
   it('switches tabs at once under reduced motion', () => {

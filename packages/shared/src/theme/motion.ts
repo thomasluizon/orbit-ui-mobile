@@ -423,15 +423,6 @@ export function resolveMotionPreset(
 }
 
 
-export const primaryTabPaths: readonly string[] = ['/', '/calendar', '/progress', '/profile']
-
-export function resolveTabSwitchDirection(from: string, to: string): -1 | 1 | null {
-  const fromIndex = primaryTabPaths.indexOf(from)
-  const toIndex = primaryTabPaths.indexOf(to)
-  if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return null
-  return toIndex > fromIndex ? 1 : -1
-}
-
 export const sheetDrag = {
   dismissDistance: 96,
   dismissVelocity: 700,

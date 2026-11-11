@@ -1,10 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Animated } from 'react-native'
-import {
-  primaryTabPaths,
-  resolveMotionPreset,
-  resolveTabSwitchDirection,
-} from '@orbit/shared/theme'
+import { resolveMotionPreset } from '@orbit/shared/theme'
+import { SHELL_ROOT_PATHS, resolveTabSwitchDirection } from '@orbit/shared/utils'
 import { toAnimatedEasing } from '@/lib/motion'
 
 interface TabPaths {
@@ -32,7 +29,7 @@ function enterShiftFor(scene: TabScene, direction: -1 | 1 | null) {
 }
 
 function createTabScenes(focusedPath: string): ReadonlyMap<string, TabScene> {
-  return new Map(primaryTabPaths.map((path) => [path, createTabScene(path === focusedPath)]))
+  return new Map(SHELL_ROOT_PATHS.map((path) => [path, createTabScene(path === focusedPath)]))
 }
 
 function settleTabScenes(scenes: ReadonlyMap<string, TabScene>, focusedPath: string) {

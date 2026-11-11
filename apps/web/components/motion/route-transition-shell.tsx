@@ -11,9 +11,9 @@ import {
 } from 'motion/react'
 import {
   resolveMotionPreset,
-  resolveTabSwitchDirection,
   type MotionNavigationIntent,
 } from '@orbit/shared/theme'
+import { resolveTabSwitchDirection } from '@orbit/shared/utils'
 import {
   getRouteDirectionForIntent,
   getRouteScenarioForIntent,
