@@ -2450,11 +2450,11 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   color: inherit;
 }
 
-/* Theme crossfade class (toggled by applyThemeTokensToDOM). It lasts motionDurations.theme (--dur-2) and exists only when motion is allowed. */
+/* Theme crossfade class (toggled by applyThemeTokensToDOM). --dur-theme projects motionDurations.theme, the value its removal timer reads; the fade exists only when motion is allowed. */
 @media (prefers-reduced-motion: no-preference) {
   .theme-transitioning,
   .theme-transitioning * {
-    transition: background-color var(--dur-2) var(--ease-standard), color var(--dur-2) var(--ease-standard), border-color var(--dur-2) var(--ease-standard), box-shadow var(--dur-2) var(--ease-standard) !important;
+    transition: background-color var(--dur-theme) var(--ease-standard), color var(--dur-theme) var(--ease-standard), border-color var(--dur-theme) var(--ease-standard), box-shadow var(--dur-theme) var(--ease-standard) !important;
   }
 }
 

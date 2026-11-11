@@ -12,6 +12,7 @@ import {
   applyThemeTokensToDOM,
   canvasColor,
   normalizeColorScheme,
+  resolveWebMotionVariables,
   resolveWebThemeVariables,
   resolveInitialTheme,
 } from '@/lib/theme-dom'
@@ -250,10 +251,15 @@ describe('theme crossfade', () => {
 
   it('fades over the shared theme duration with the shared standard easing', () => {
     const rule = atRuleBlocks(stylesheet, crossfadeHeader).find((block) => block.includes('.theme-transitioning')) ?? ''
-    expect(rule).toContain('var(--dur-2) var(--ease-standard)')
+    expect(rule).toContain('var(--dur-theme) var(--ease-standard)')
+    expect(rule).not.toMatch(/var\(--dur-(?!theme\))/)
     expect(rule).not.toMatch(/\d(?:\.\d+)?m?s\s+ease\b/)
+    expect(stylesheet).not.toMatch(/--dur-theme\s*:/)
+    expect(resolveWebMotionVariables()['--dur-theme']).toBe(`${motionDurations.theme}ms`)
+    for (const mode of MODES) {
+      expect(resolveWebThemeVariables('orange', mode)['--dur-theme']).toBe(`${motionDurations.theme}ms`)
+    }
     const root = stylesheet.slice(stylesheet.indexOf(':root {'))
-    expect(root).toContain(`--dur-2: ${motionDurations.theme}ms;`)
     expect(root).toContain(`--ease-standard: cubic-bezier(${motionEasings.standard.join(', ')});`)
   })
 
@@ -261,6 +267,7 @@ describe('theme crossfade', () => {
     vi.useFakeTimers()
     applyThemeTokensToDOM('orange', 'light', true)
     const root = document.documentElement
+    expect(root.style.getPropertyValue('--dur-theme')).toBe(`${motionDurations.theme}ms`)
     expect(root.classList.contains('theme-transitioning')).toBe(true)
     vi.advanceTimersByTime(motionDurations.theme - 1)
     expect(root.classList.contains('theme-transitioning')).toBe(true)
