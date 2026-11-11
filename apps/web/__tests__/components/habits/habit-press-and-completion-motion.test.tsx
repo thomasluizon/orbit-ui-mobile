@@ -65,6 +65,7 @@ describe('completion feedback', () => {
     const view = render(<HabitCheck status="empty" label="Open" />)
     expect(settle.animate).not.toHaveBeenCalled()
     view.rerender(<HabitCheck status="done" label="Done" />)
+    view.rerender(<HabitCheck status="done" label="Done again" />)
     expect(settle.animate).toHaveBeenCalledOnce()
     expect(settle.animate).toHaveBeenCalledWith(view.container.querySelector('[data-habit-check]'), { scale: [resolveMotionPreset('success-feedback').scaleFrom, 1] }, { type: 'spring', ...motionSprings.completion })
   })

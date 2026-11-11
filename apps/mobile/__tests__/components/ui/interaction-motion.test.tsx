@@ -81,8 +81,7 @@ describe('interaction motion', () => {
     TestRenderer.act(() => tree!.update(<CheckCircle {...props} state="empty" />))
     expect(withSpringCalls).toEqual([])
     TestRenderer.act(() => tree!.update(<CheckCircle {...props} state="done" />))
-    expect(withSpringCalls.length).toBeGreaterThan(0)
-    for (const call of withSpringCalls) expect(call).toEqual({ value: 1, config: { ...motionSprings.completion, overshootClamping: true } })
+    expect(withSpringCalls).toEqual([{ value: 1, config: { ...motionSprings.completion, overshootClamping: true } }])
     TestRenderer.act(() => tree!.unmount())
   })
 
