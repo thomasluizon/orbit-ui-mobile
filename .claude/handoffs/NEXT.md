@@ -8,15 +8,15 @@ Scratchpad: run `$HOME/.orbit-run-carry/carry-from-predecessor.sh <new full id> 
 
 ## Goal
 
-Finish the spec: an empty board except `#33` and the `#2074` measurement, verified releases, every `#315` launch list ticket closed, then `#315` closed with its verdict. Re-derive the rest with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation at this handoff: 23 open, 23 placed, 0 unplaced, 0 placed twice.
+Finish the spec: an empty board except `#33` and the `#2074` measurement, verified releases, every `#315` launch list ticket closed, then `#315` closed with its verdict. Re-derive the rest with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation at this handoff: 22 open, 22 placed, 0 unplaced, 0 placed twice.
 
 ## In flight
 
-UI `main` `fc6ad1c47`; API `main` `1a70835b4`; landing `main` `aa0eaed9c`. Production and staging API `1a70835b4`; web `691323673`; landing `599bdfb69`; Android Open 1.3.152 (212); TestFlight production 1.3.152 (1). Each row's detail is its `## The order` bullet.
+UI `main` `fc6ad1c47`; API `main` `1a70835b4`; landing `main` `aa0eaed9c`. Production and staging API `1a70835b4`; web `691323673`; landing `599bdfb69`; Android Open 1.3.152 (213); TestFlight production 1.3.152 (1). Each row's detail is its `## The order` bullet.
 
 | Item | Disposition |
 | --- | --- |
-| `#2111` releases (owner report, first priority) | Web staging release run `43102924330` and Android Open 1.3.152 (213) run `43103079499`, both at `3db3e8c40`, ran at the handoff. Read each result. Then `release-run.sh ui production 3db3e8c400383de708ad0414cd8e9188e64a307c https://orbit-web-3qmv.onrender.com`, check the habit detail log on production web, close `#2111`; a green Android run closes `#2094`. |
+| `#2111` releases (owner report, first priority) | Android Open 1.3.152 (213) succeeded (run `43103079499`) and `#2094` is closed. Web staging release run `43102924330` at `3db3e8c40` ran at the handoff: read its result. Then `release-run.sh ui production 3db3e8c400383de708ad0414cd8e9188e64a307c https://orbit-web-3qmv.onrender.com`, check the habit detail log on production web, close `#2111`. |
 | `landing#129` (`#2090`) | Merged as `aa0eaed9c`. Its staging release run `43104118097` failed: `Render deploy ended with build_failed`. Read the Render build log of `orbit-landing-staging` first (render MCP), fix the cause at its root, never raise a byte budget, then staging, production and the three rendered checks. |
 | `landing#133` (`#2095`) | Base is `main`. A subagent merged the final `landing#129` code and `main` in worktree `ticket-2095-landing-motion`: head `13510ba`, clean, not pushed (fix commit `d3d7e38`, startup graph 23,732 of 24,000). Read the diff of `1105e00` and `d3d7e38`, run the six rendered checks listed in the predecessor log, push, chain, merge at the bar. |
 | `ui#2414` (`#1561`) | Merged as `fc6ad1c47`. When its `PR Tests` and `Guards` push runs pass: production iOS Release 1.3.152 (2), read the `testflight-access` job. Then `main` into `ui#2423` (`#2106`), chain, merge. |
