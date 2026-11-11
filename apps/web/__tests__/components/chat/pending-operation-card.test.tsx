@@ -375,7 +375,7 @@ describe('PendingOperationCard', () => {
     visibleLocale.language = locale
     const messages = locale === 'en' ? en : ptBR
     render(<PendingOperationCard pendingOperation={makeCreateWithReusedChildPreview()} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
-    expect(screen.getByRole('heading', { name: locale === 'en' ? 'New habit with existing habits' : 'Novo hábito com hábitos existentes' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: locale === 'en' ? 'New parent habit' : 'Novo hábito principal' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: locale === 'en' ? 'Create 1 habit' : 'Criar 1 hábito' })).toBeInTheDocument()
   })
 

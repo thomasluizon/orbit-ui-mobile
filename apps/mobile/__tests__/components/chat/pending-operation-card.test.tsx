@@ -432,7 +432,7 @@ describe('PendingOperationCard (mobile)', () => {
     visibleLocale.language = locale
     const reused = renderCard(makeCreateWithReusedChildPreview())
     const text = renderedText(reused.tree.toJSON())
-    expect(text).toContain(locale === 'en' ? 'New habit with existing habits' : 'Novo hábito com hábitos existentes')
+    expect(text).toContain(locale === 'en' ? 'New parent habit' : 'Novo hábito principal')
     expect(text).toContain(locale === 'en' ? 'Create' : 'Criar')
     expect(text).not.toContain(locale === 'en' ? 'Change 1 habit' : 'Alterar 1 hábito')
   })

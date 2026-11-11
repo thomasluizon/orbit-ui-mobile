@@ -100,7 +100,7 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
     const { record, render } = createRenderers()
     renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
-    expect(record.frame?.title).toBe(locale === 'en' ? 'New habit with existing habits' : 'Novo hábito com hábitos existentes')
+    expect(record.frame?.title).toBe(locale === 'en' ? 'New parent habit' : 'Novo hábito principal')
     expect(record.buttons.map((button) => button.label)).toContain(messages.chat.operation.create)
   })
 
@@ -115,7 +115,7 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
 
     it('names the same create in the header and on the button', () => {
       const { labels, record } = render()
-      const header = locale === 'en' ? 'New habit with existing habits' : 'Novo hábito com hábitos existentes'
+      const header = locale === 'en' ? 'New parent habit' : 'Novo hábito principal'
       expect(record.frame?.title).toBe(header)
       expect(labels.name).toBe(header)
       expect(labels.approve(1)).toBe(messages.chat.operation.create)

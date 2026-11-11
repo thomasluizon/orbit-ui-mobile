@@ -2077,7 +2077,7 @@
       "unknown": "Astra operation",
       "changeHabits": "{count, plural, one {Change # habit} other {Change # habits}}",
       "newHabits": "{count, plural, one {New habit} other {# new habits}}",
-      "newHabitsWithExisting": "{count, plural, one {New habit with existing habits} other {# new habits with existing habits}}",
+      "newHabitsWithExisting": "{count, plural, one {New parent habit} other {# new parent habits}}",
       "pendingTitle": "Awaiting confirmation",
       "pending": "Nothing has changed yet",
       "irreversible": "Permanent",
