@@ -1660,14 +1660,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .orbit-link-action-persistent::after {
   content: none;
 }
-
-.orbit-link-action-touch-underline {
-  text-decoration: underline;
-}
-
-.orbit-link-action-touch-underline::after {
-  content: none;
-}
 }
 
 /* WHY: The proactive line's section clearance follows text zoom, while its gutter stays fixed. https://github.com/thomasluizon/orbit-tickets/issues/1409 */
@@ -1857,21 +1849,12 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
 
   @layer components {
-  .orbit-link-action-touch-underline {
-    text-decoration: none;
-  }
-
-  .orbit-link-action-touch-underline::after {
-    content: '';
-  }
-
   .orbit-link-action:hover,
   a:hover > .orbit-link-action {
     color: var(--fg-1);
   }
 
-  .orbit-link-action:hover::after,
-  a:hover > .orbit-link-action::after {
+  .orbit-link-action:hover::after {
     transform: scaleX(1);
   }
   }

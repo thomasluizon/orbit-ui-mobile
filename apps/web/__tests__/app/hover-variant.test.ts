@@ -46,22 +46,20 @@ describe('hover states compiled from app/globals.css', () => {
     expect(hoverRules.filter((rule) => !gatedRules.has(rule)).map((rule) => rule.selector)).toEqual([])
   })
 
-  it('shows the touch underline at rest and hands it to the growing underline on a fine pointer', () => {
-    const touchRule = (rule: Rule) => rule.selector === '.orbit-link-action-touch-underline'
-    const restingRules = allRules.filter((rule) => touchRule(rule) && !gatedRules.has(rule))
-    const finePointerRules = allRules.filter((rule) => touchRule(rule) && gatedRules.has(rule))
-    expect(restingRules.map((rule) => rule.toString())).toEqual([expect.stringContaining('text-decoration: underline')])
-    expect(finePointerRules.map((rule) => rule.toString())).toEqual([expect.stringContaining('text-decoration: none')])
+  it('lets the whole anchor target drive the nested link label colour, only on a fine pointer', () => {
+    const labelRules = allRules.filter((rule) => rule.selector.includes('a:hover > .orbit-link-action'))
+    expect(labelRules.map((rule) => rule.toString())).toEqual([expect.stringContaining('color: var(--fg-1)')])
+    expect(labelRules.filter((rule) => !gatedRules.has(rule))).toEqual([])
+    expect(labelRules[0]!.selector).not.toContain('::after')
   })
 
-  it('lets the whole anchor target drive the nested link label hover, only on a fine pointer', () => {
-    const anchorRule = (rule: Rule) => rule.selector.includes('a:hover > .orbit-link-action')
-    const labelRules = allRules.filter(anchorRule)
-    expect(labelRules.length).toBeGreaterThanOrEqual(2)
-    expect(labelRules.filter((rule) => !gatedRules.has(rule))).toEqual([])
-    expect(labelRules.map((rule) => rule.selector)).toEqual(expect.arrayContaining([
-      expect.stringContaining('a:hover > .orbit-link-action::after'),
-    ]))
+  it('keeps the persistent link a real underline on every pointer, with no growing underline', () => {
+    const persistentRules = allRules.filter((rule) => rule.selector.startsWith('.orbit-link-action-persistent'))
+    expect(persistentRules.filter((rule) => gatedRules.has(rule))).toEqual([])
+    expect(persistentRules.map((rule) => rule.toString())).toEqual([
+      expect.stringContaining('text-decoration: underline'),
+      expect.stringContaining('content: none'),
+    ])
   })
 
   it('uses the hover variant instead of raw hover selectors in arbitrary variants', () => {

@@ -615,7 +615,7 @@ describe('UpgradePage', () => {
     expect(document.body.textContent).not.toContain('upgrade.matrix.')
   })
 
-  it('gives the stay free link the shared link hover: a colour change and an underline that grows', () => {
+  it('draws the stay free link underlined at rest, with a colour-only hover', () => {
     mockPlans = {
       monthly: { unitAmount: 999 },
       yearly: { unitAmount: 4999 },
@@ -629,7 +629,7 @@ describe('UpgradePage', () => {
     const label = screen.getByText('upgrade.convert.stayFree')
     expect(label).toHaveClass('orbit-link-action')
     expect(decline.className).not.toContain('transition-colors')
-    expect(label).toHaveClass('orbit-link-action-touch-underline')
+    expect(label).toHaveClass('orbit-link-action-persistent')
     expect(decline.className).not.toMatch(/(^|\s)underline(\s|$)/u)
     expect(label.className).not.toContain('@media')
   })
