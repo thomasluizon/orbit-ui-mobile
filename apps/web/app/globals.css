@@ -1865,11 +1865,13 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     content: '';
   }
 
-  .orbit-link-action:hover {
+  .orbit-link-action:hover,
+  a:hover > .orbit-link-action {
     color: var(--fg-1);
   }
 
-  .orbit-link-action:hover::after {
+  .orbit-link-action:hover::after,
+  a:hover > .orbit-link-action::after {
     transform: scaleX(1);
   }
   }

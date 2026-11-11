@@ -26,7 +26,7 @@ describe('LoginStepStage motion', () => {
   it('takes the leg duration, easing and shift from the shared preset', () => {
     const { initial, animate, exit } = readStage('code', preset)
     expect(animate.transition?.duration).toBeCloseTo(0.15, 5)
-    expect(exit.transition?.duration).toBeCloseTo(0.15, 5)
+    expect(exit.transition?.duration).toBeCloseTo(0.1, 5)
     expect(animate.transition?.ease).toEqual([...preset.enterEasing])
     expect(exit.transition?.ease).toEqual([...preset.exitEasing])
     expect(initial.x).toBe(20)

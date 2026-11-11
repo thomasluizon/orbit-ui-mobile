@@ -54,6 +54,16 @@ describe('hover states compiled from app/globals.css', () => {
     expect(finePointerRules.map((rule) => rule.toString())).toEqual([expect.stringContaining('text-decoration: none')])
   })
 
+  it('lets the whole anchor target drive the nested link label hover, only on a fine pointer', () => {
+    const anchorRule = (rule: Rule) => rule.selector.includes('a:hover > .orbit-link-action')
+    const labelRules = allRules.filter(anchorRule)
+    expect(labelRules.length).toBeGreaterThanOrEqual(2)
+    expect(labelRules.filter((rule) => !gatedRules.has(rule))).toEqual([])
+    expect(labelRules.map((rule) => rule.selector)).toEqual(expect.arrayContaining([
+      expect.stringContaining('a:hover > .orbit-link-action::after'),
+    ]))
+  })
+
   it('uses the hover variant instead of raw hover selectors in arbitrary variants', () => {
     const violations = ['app', 'components', 'hooks', 'lib', 'stores'].flatMap((directory) => {
       const root = resolve(process.cwd(), directory)

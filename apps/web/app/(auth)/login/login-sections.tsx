@@ -51,14 +51,15 @@ export function LoginStepStage({ step, motionPreset, children }: Readonly<{
 }>) {
   const reduced = motionPreset.reducedMotionEnabled
   const shift = reduced ? 0 : motionPreset.shift * (step === 'email' ? -1 : 1)
-  const legSeconds = reduced ? 0 : motionPreset.enterDuration / 2 / 1000
+  const enterSeconds = reduced ? 0 : motionPreset.enterDuration / 2 / 1000
+  const exitSeconds = reduced ? 0 : motionPreset.exitDuration / 2 / 1000
   return (
     <AnimatePresence initial={false} mode="wait">
       <m.div key={step}
         initial={{ opacity: reduced ? 1 : 0, x: shift }}
-        animate={{ opacity: 1, x: 0, transition: { duration: legSeconds, ease: motionPreset.enterEasing } }}
+        animate={{ opacity: 1, x: 0, transition: { duration: enterSeconds, ease: motionPreset.enterEasing } }}
         exit={{ opacity: reduced ? 1 : 0, x: shift,
-          transition: { duration: legSeconds, ease: motionPreset.exitEasing } }}
+          transition: { duration: exitSeconds, ease: motionPreset.exitEasing } }}
       >{children}</m.div>
     </AnimatePresence>
   )

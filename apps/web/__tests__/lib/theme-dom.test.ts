@@ -183,7 +183,7 @@ describe('web theme variables', () => {
       'transform-origin: left;\n  transition: transform var(--dur-hover) var(--ease-standard);',
     )
     expect(stylesheet).toContain(
-      '.orbit-link-action:hover::after {\n    transform: scaleX(1);',
+      '.orbit-link-action:hover::after,\n  a:hover > .orbit-link-action::after {\n    transform: scaleX(1);',
     )
     expect(stylesheet).toContain(
       '.orbit-link-action-persistent {\n  text-decoration: underline;',
