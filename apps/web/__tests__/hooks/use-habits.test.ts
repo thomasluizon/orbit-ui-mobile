@@ -883,7 +883,7 @@ describe('useLogHabit', () => {
     const date = '2025-01-15'
     const serverLog = { id: 'server-log-1', date, value: 1, createdAtUtc: '2025-01-15T09:30:00Z' }
     const initialLogs = intent === 'log' ? [] : [serverLog]
-    const habit = makeDetail({ dueDate: date, scheduledDates: [date] })
+    const habit = { ...makeDetail({ dueDate: date }), scheduledDates: [date] }
     const queryClient = createQueryClient()
     queryClient.setQueryData(habitKeys.detail('h-1'), habit)
     queryClient.setQueryData(habitKeys.logs('h-1'), initialLogs)
