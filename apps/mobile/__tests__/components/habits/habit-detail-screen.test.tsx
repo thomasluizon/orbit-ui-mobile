@@ -2200,6 +2200,27 @@ describe('HabitDetailScreen', () => {
     expect(tree!.root.findAllByProps({ testID: 'confirm-habits.checklistCompleteTitle' })).toHaveLength(0)
   })
 
+  it('closes the checklist log confirmation before the log settles', async () => {
+    mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
+    mocks.checklist.mockResolvedValueOnce(undefined)
+    mocks.log.mockReturnValueOnce(new Promise(() => {}))
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'habit-checklist' }).props.onToggle(0)
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'confirm-habits.checklistCompleteTitle' }).props.onConfirm()
+      await Promise.resolve()
+    })
+
+    expect(mocks.log).toHaveBeenCalledWith({ habitId: 'habit-1', date: '2026-08-28', intent: 'log' })
+    expect(tree!.root.findAllByProps({ testID: 'confirm-habits.checklistCompleteTitle' })).toHaveLength(0)
+  })
+
   it('keeps checklist edits without offering old-day completion', async () => {
     mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
     let tree: ReturnType<typeof TestRenderer.create>
