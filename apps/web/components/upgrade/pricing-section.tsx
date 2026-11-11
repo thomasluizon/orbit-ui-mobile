@@ -92,9 +92,9 @@ export function PricingSection({
                 event.preventDefault()
                 onStayFree()
               }}
-              className="inline-flex min-h-[var(--touch-min)] items-center text-base leading-[1.5] text-[var(--fg-1)] underline underline-offset-4 transition-colors duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)] active:scale-[0.96] aria-disabled:pointer-events-none aria-disabled:opacity-40"
+              className="inline-flex min-h-[var(--touch-min)] items-center text-base leading-[1.5] text-[var(--fg-2)] active:scale-[0.96] aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
-              {t('upgrade.convert.stayFree')}
+              <span className="orbit-link-action underline underline-offset-4 [@media(hover:hover)_and_(pointer:fine)]:no-underline">{t('upgrade.convert.stayFree')}</span>
             </Link>
           </div>
       </div>

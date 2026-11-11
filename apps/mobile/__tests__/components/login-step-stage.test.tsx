@@ -13,6 +13,7 @@ vi.mock('@/lib/motion', async () => {
   const shared = await import('@orbit/shared/theme')
   return {
     toAnimatedEasing: (controlPoints: unknown) => { bezier.received.push(controlPoints); return undefined },
+    usePrefersReducedMotion: () => mocks.reduced,
     useResolvedMotionPreset: () => ({ ...shared.resolveMotionPreset('route-replace', mocks.reduced), enterDuration: mocks.enterDuration, shift: mocks.shift }),
   }
 })

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { Animated, Text, View } from 'react-native'
 import { WifiOff } from '@/components/ui/icons'
-import { easings, type AppTokensV2 } from '@/lib/theme'
-import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
+import type { AppTokensV2 } from '@/lib/theme'
+import { toAnimatedEasing, useResolvedMotionPreset } from '@/lib/motion'
 import type { LoginStyles } from '@/app/login-styles'
 
 type Translate = (key: string, params?: Record<string, unknown>) => string
@@ -41,20 +41,21 @@ export function LoginOfflineNotice({ t, styles, tokens }: Readonly<{ t: Translat
 }
 
 export function LoginStepStage({ step, children }: Readonly<{ step: string; children: ReactNode }>) {
-  const reduced = usePrefersReducedMotion()
+  const motionPreset = useResolvedMotionPreset('route-replace')
+  const reduced = motionPreset.reducedMotionEnabled
   const previousStep = useRef(step)
   const progress = useMemo(() => new Animated.Value(1), [])
   useEffect(() => {
     if (previousStep.current === step || reduced) { progress.setValue(1); previousStep.current = step; return }
     previousStep.current = step
     progress.setValue(0)
-    const animation = Animated.timing(progress, { toValue: 1, duration: 220,
-      easing: toAnimatedEasing(easings.smooth), useNativeDriver: true })
+    const animation = Animated.timing(progress, { toValue: 1, duration: motionPreset.enterDuration,
+      easing: toAnimatedEasing(motionPreset.enterEasing), useNativeDriver: true })
     animation.start()
     return () => animation.stop()
-  }, [progress, reduced, step])
+  }, [progress, reduced, step, motionPreset.enterDuration, motionPreset.enterEasing])
   return <Animated.View style={{ opacity: progress, transform: [{ translateX: progress.interpolate({
-    inputRange: [0, 1], outputRange: [step === 'email' ? -12 : 12, 0],
+    inputRange: [0, 1], outputRange: [motionPreset.shift * (step === 'email' ? -1 : 1), 0],
   }) }] }}>{children}</Animated.View>
 }
 
