@@ -34,6 +34,7 @@ import { useUIStore } from '@/stores/ui-store'
 import {
   getCurrentRouteTransitionIntent,
   resetRouteTransitionIntent,
+  setRouteTransitionIntent,
 } from '@/lib/motion/route-intent'
 import { getTabTransitionTypes } from '@/lib/motion/tab-view-transition'
 import { mediaQueryMatches } from '@/lib/media-query'
@@ -258,7 +259,14 @@ function DestinationShellContent({
         getCurrentRouteTransitionIntent(),
         mediaQueryMatches('(prefers-reduced-motion: reduce)', true),
       )
-      const pushRoute = () => (transitionTypes ? router.push(route, { transitionTypes }) : router.push(route))
+      const pushRoute = () => {
+        if (!transitionTypes) {
+          router.push(route)
+          return
+        }
+        setRouteTransitionIntent('tab')
+        router.push(route, { transitionTypes })
+      }
       if (id === 'hoje') {
         requestHabitCreateNavigation(() => {
           useUIStore.getState().resetToday()
@@ -358,6 +366,7 @@ function DestinationShellContent({
           pathname === '/' && !todayFabHidden && !conversationOpen ? <ShellCreateFab onCreate={onCreate} refusal={createRefusal} /> : undefined
         }
         fabPending={pathname === '/' && todayFabPending}
+        tabViewTransition
       >
         <div id="orbit-main" className={DESTINATION_MAIN_CLASS_NAME}>{children}</div>
       </ShellWide>

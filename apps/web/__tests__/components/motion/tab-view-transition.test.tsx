@@ -98,9 +98,9 @@ describe('TabViewTransition', () => {
     expect(enter).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ duration: 0 }))
   })
 
-  it('wraps the shell scroller so the page swaps inside its own clip', () => {
+  it('wraps the shell scroller so the page swaps inside its own clip when the shell opts in', () => {
     render(
-      <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="hoje" navLabel="Main">
+      <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="hoje" navLabel="Main" tabViewTransition>
         <p>Today</p>
       </ShellWide>,
     )
@@ -109,6 +109,17 @@ describe('TabViewTransition', () => {
     expect(boundaryChild.type).toBe('main')
     expect(boundaryChild.props['data-shell-scroller']).toBe('')
     expect(screen.getByText('Today').closest('[data-shell-scroller]')).not.toBeNull()
+  })
+
+  it('mounts no boundary in a shell that does not opt in', () => {
+    render(
+      <ShellWide nav={false}>
+        <p>Flow</p>
+      </ShellWide>,
+    )
+
+    expect(captured.props).toBeNull()
+    expect(screen.getByText('Flow').closest('[data-shell-scroller]')).not.toBeNull()
   })
 })
 

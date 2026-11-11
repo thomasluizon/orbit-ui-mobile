@@ -19,10 +19,6 @@ export const TAB_VIEW_TRANSITION_CLASS = {
   default: 'none',
 } as const
 
-export function isPrimaryTabSwitch(from: string, to: string): boolean {
-  return resolveTabSwitchDirection(from, to) !== null
-}
-
 export function getTabTransitionTypes(
   from: string,
   to: string,

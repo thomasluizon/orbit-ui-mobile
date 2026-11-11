@@ -11,6 +11,7 @@ import {
 } from 'motion/react'
 import {
   resolveMotionPreset,
+  resolveTabSwitchDirection,
   type MotionNavigationIntent,
 } from '@orbit/shared/theme'
 import {
@@ -19,7 +20,6 @@ import {
   resetRouteTransitionIntent,
   useRouteTransitionIntent,
 } from '@/lib/motion/route-intent'
-import { isPrimaryTabSwitch } from '@/lib/motion/tab-view-transition'
 
 interface RouteTransitionShellProps {
   children: ReactNode
@@ -79,7 +79,8 @@ export function RouteTransitionShell({
       previous: routePaths.current,
     })
   }
-  const tabViewTransitionOwnsSwitch = isPrimaryTabSwitch(routePaths.previous, pathname)
+  const tabSwitchDirection = routePaths.intent === 'instant' ? null : resolveTabSwitchDirection(routePaths.previous, pathname)
+  const tabViewTransitionOwnsSwitch = tabSwitchDirection !== null && routePaths.intent === 'tab'
 
   useEffect(() => {
     if (committedPathnameRef.current === pathname) {
@@ -100,15 +101,15 @@ export function RouteTransitionShell({
     () => {
       const transitionIntent = routePaths.intent
       return {
-        direction: getRouteDirectionForIntent(transitionIntent),
+        direction: tabSwitchDirection ?? getRouteDirectionForIntent(transitionIntent),
         vertical: ['/upgrade', '/step-up'].includes(pathname) || ['/upgrade', '/step-up'].includes(routePaths.previous),
         motionPreset: {
-          ...resolveMotionPreset(getRouteScenarioForIntent(transitionIntent), Boolean(prefersReducedMotion)),
+          ...resolveMotionPreset(tabSwitchDirection === null ? getRouteScenarioForIntent(transitionIntent) : 'tab-switch', Boolean(prefersReducedMotion)),
           ...(transitionIntent === 'instant' ? { enterDuration: 0, exitDuration: 0, shift: 0 } : {}),
         },
       }
     },
-    [pathname, prefersReducedMotion, routePaths.intent, routePaths.previous],
+    [pathname, prefersReducedMotion, routePaths.intent, routePaths.previous, tabSwitchDirection],
   )
 
   return (

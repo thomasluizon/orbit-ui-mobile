@@ -6,8 +6,10 @@ import { motionPresets } from '@orbit/shared/theme'
 import TabLayout from '@/app/(tabs)/_layout'
 
 type ScreenOptions = Record<string, unknown> | ((props: { route: { name: string } }) => Record<string, unknown>)
-type SceneStyle = { opacity: { value: number }; transform: [{ translateX: { value: number } }] }
+type LiveValue = { value: number }
+type SceneStyle = { opacity: LiveValue; transform: [{ translateX: LiveValue | number }] }
 type TimingConfig = { duration: number; easing: { points: readonly number[] }; toValue: number }
+type InterpolationConfig = { inputRange: [number, number]; outputRange: [number, number] }
 
 const state = vi.hoisted(() => ({
   reducedMotion: false,
@@ -31,6 +33,25 @@ vi.mock('expo-router', () => {
 })
 
 const tabSwitch = motionPresets['tab-switch']
+const nativeReadBacks: (() => void)[] = []
+const valuePrototype = Animated.Value.prototype as unknown as {
+  interpolate: (config: InterpolationConfig) => LiveValue
+  stopAnimation: (callback?: (value: number) => void) => void
+}
+
+function interpolateLive(this: LiveValue, { inputRange, outputRange }: InterpolationConfig): LiveValue {
+  const readSource = () => this.value
+  return {
+    get value() {
+      const progress = (readSource() - inputRange[0]) / (inputRange[1] - inputRange[0])
+      return outputRange[0] + (outputRange[1] - outputRange[0]) * progress
+    },
+  }
+}
+
+function readNativeValueLater(this: LiveValue, callback?: (value: number) => void) {
+  if (callback) nativeReadBacks.push(() => callback(this.value))
+}
 
 function optionsFor(name: string) {
   const screenOptions = state.screenOptions!
@@ -40,6 +61,15 @@ function optionsFor(name: string) {
 function sceneFor(name: string): SceneStyle {
   const interpolator = optionsFor(name).sceneStyleInterpolator as (props: { current: { progress: Animated.Value } }) => { sceneStyle: SceneStyle }
   return interpolator({ current: { progress: new Animated.Value(0) } }).sceneStyle
+}
+
+function translateXOf(scene: SceneStyle): number {
+  const { translateX } = scene.transform[0]
+  return typeof translateX === 'number' ? translateX : translateX.value
+}
+
+function answerNativeReadBacks() {
+  for (const readBack of nativeReadBacks.splice(0)) readBack()
 }
 
 function timingFor(value: unknown): TimingConfig[] {
@@ -59,7 +89,10 @@ describe('TabLayout tab switch motion', () => {
   beforeEach(() => {
     state.reducedMotion = false
     state.pathname = '/'
+    nativeReadBacks.length = 0
     vi.spyOn(Animated, 'timing')
+    vi.spyOn(valuePrototype, 'interpolate').mockImplementation(interpolateLive)
+    vi.spyOn(valuePrototype, 'stopAnimation').mockImplementation(readNativeValueLater)
   })
 
   afterEach(async () => {
@@ -80,48 +113,56 @@ describe('TabLayout tab switch motion', () => {
 
   it('fades the old tab out on the exit duration and easing with no travel', async () => {
     await act(() => { tree = create(<TabLayout />) })
-    const leaving = sceneFor('index')
+    const leaving = sceneFor('index').opacity
 
     await switchTab(tree, '/calendar')
 
-    expect(timingFor(leaving.opacity)).toEqual([expect.objectContaining({
+    expect(timingFor(leaving)).toEqual([expect.objectContaining({
       duration: tabSwitch.exitDuration,
       easing: { points: tabSwitch.exitEasing },
       toValue: 0,
     })])
-    expect(timingFor(leaving.transform[0].translateX)).toEqual([])
-    expect(leaving.transform[0].translateX.value).toBe(0)
+    leaving.value = 0.4
+    expect(translateXOf(sceneFor('index'))).toBe(0)
   })
 
   it.each([
     ['/', '/calendar', tabSwitch.shift],
     ['/profile', '/progress', -tabSwitch.shift],
-  ])('enters from %s to %s with the tab shift on the enter timing', async (from, to, shift) => {
+  ])('enters from %s to %s with the tab shift tied to the enter fade', async (from, to, shift) => {
     state.pathname = from
     await act(() => { tree = create(<TabLayout />) })
-    const entering = sceneFor(to.slice(1))
 
     await switchTab(tree, to)
+    const entering = sceneFor(to.slice(1))
 
+    expect(translateXOf(entering)).toBe(shift)
     expect(timingFor(entering.opacity)).toEqual([expect.objectContaining({
       duration: tabSwitch.enterDuration,
       easing: { points: tabSwitch.enterEasing },
       toValue: 1,
     })])
-    expect(timingFor(entering.transform[0].translateX)).toEqual([expect.objectContaining({ toValue: 0 })])
-    expect(entering.transform[0].translateX.value).toBe(shift)
+    expect(Animated.timing).toHaveBeenCalledTimes(2)
+    entering.opacity.value = 0.5
+    expect(translateXOf(entering)).toBe(shift * 0.5)
+    entering.opacity.value = 1
+    expect(translateXOf(entering)).toBe(0)
   })
 
-  it('returns to a half-faded tab with only the travel it still has left', async () => {
+  it('returns to a half-faded tab with only the travel it still has left and waits on no native read-back', async () => {
     await act(() => { tree = create(<TabLayout />) })
     await switchTab(tree, '/calendar')
-    const today = sceneFor('index')
-    today.opacity.value = 0.5
+    const today = sceneFor('index').opacity
+    today.value = 0.5
 
     await switchTab(tree, '/')
 
-    expect(today.transform[0].translateX.value).toBe(-tabSwitch.shift * 0.5)
-    expect(timingFor(today.opacity).at(-1)).toMatchObject({ duration: tabSwitch.enterDuration, toValue: 1 })
+    expect(nativeReadBacks).toEqual([])
+    expect(translateXOf(sceneFor('index'))).toBe(-tabSwitch.shift * 0.5)
+    expect(timingFor(today).at(-1)).toMatchObject({ duration: tabSwitch.enterDuration, toValue: 1 })
+    answerNativeReadBacks()
+    today.value = 1
+    expect(translateXOf(sceneFor('index'))).toBe(0)
   })
 
   it('leaves the tab scenes alone when a route is pushed above the tabs', async () => {
@@ -148,7 +189,7 @@ describe('TabLayout tab switch motion', () => {
     expect(Animated.timing).not.toHaveBeenCalled()
     expect(sceneFor('progress').opacity.value).toBe(1)
     expect(sceneFor('index').opacity.value).toBe(0)
-    expect(sceneFor('progress').transform[0].translateX.value).toBe(0)
+    expect(translateXOf(sceneFor('progress'))).toBe(0)
   })
 
   it('settles a running switch when reduced motion turns on', async () => {
@@ -156,13 +197,13 @@ describe('TabLayout tab switch motion', () => {
     await switchTab(tree, '/calendar')
     const entering = sceneFor('calendar')
     const leaving = sceneFor('index')
-    expect(entering.transform[0].translateX.value).toBe(tabSwitch.shift)
+    expect(translateXOf(entering)).toBe(tabSwitch.shift)
 
     state.reducedMotion = true
     await act(() => tree.update(<TabLayout />))
 
     expect(entering.opacity.value).toBe(1)
-    expect(entering.transform[0].translateX.value).toBe(0)
+    expect(translateXOf(entering)).toBe(0)
     expect(leaving.opacity.value).toBe(0)
   })
 })

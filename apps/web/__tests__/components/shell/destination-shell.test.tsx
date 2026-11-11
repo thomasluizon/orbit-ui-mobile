@@ -541,6 +541,7 @@ describe('DestinationShell', () => {
     fireEvent.click(screen.getByRole('link', { name: label }))
 
     expect(mocks.push).toHaveBeenCalledExactlyOnceWith(route, { transitionTypes: [type] })
+    expect(getCurrentRouteTransitionIntent()).toBe('tab')
   })
 
   it('switches tabs from the command palette without a view transition', () => {
@@ -552,6 +553,7 @@ describe('DestinationShell', () => {
     })
 
     expect(mocks.push).toHaveBeenCalledExactlyOnceWith('/progress')
+    expect(getCurrentRouteTransitionIntent()).toBe('instant')
   })
 
   it('switches tabs at once under reduced motion', () => {
@@ -567,6 +569,7 @@ describe('DestinationShell', () => {
       fireEvent.click(screen.getByRole('link', { name: 'nav.calendar' }))
 
       expect(mocks.push).toHaveBeenCalledExactlyOnceWith('/calendar')
+      expect(getCurrentRouteTransitionIntent()).toBe('neutral')
     } finally {
       vi.unstubAllGlobals()
     }
