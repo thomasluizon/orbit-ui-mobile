@@ -64,7 +64,7 @@ beforeEach(() => {
   navigation.wide = true
   navigation.push.mockReset().mockImplementation((pathname: string) => { navigation.pathname = pathname })
   navigation.replace.mockReset().mockImplementation((pathname: string) => { navigation.pathname = pathname })
-  useUIStore.setState({ astraConversationOpen: false, conversationComposerCollapsed: false })
+  useUIStore.setState({ astraConversationOpen: false })
   useShellStore.setState({ paletteOpen: false })
   vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
     matches: navigation.wide && /min-width/.test(query), media: query, addEventListener: vi.fn(), removeEventListener: vi.fn(),
@@ -114,7 +114,7 @@ it.each([false, true])('hands attachment-menu focus back to the composer on Tab 
   act(() => within(menu).getByRole('menuitem', { name: attachWords.image }).focus())
   fireEvent.keyDown(document.activeElement!, { key: 'Tab', shiftKey })
   await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
-  expect(screen.getByRole('button', { name: shiftKey ? 'shell.composer.collapse' : words.send })).toHaveFocus()
+  expect(screen.getByRole('button', { name: shiftKey ? words.clear : words.send })).toHaveFocus()
   expect(useUIStore.getState().astraConversationOpen).toBe(true)
   expect(screen.getByRole('textbox', { name: words.placeholder })).toHaveValue('Keep this draft')
 })
@@ -284,27 +284,4 @@ it.each([false, true])('owns one named Astra row before the four destinations wi
   expect(within(rows[0]!).getByText('Astra')).toHaveAttribute('translate', 'no')
   expect(rows[0]!.querySelector('svg')).toHaveAttribute('data-asset', 'astra-mark')
   expect(within(navigation).getAllByRole('link')).toHaveLength(4)
-})
-
-it.each([false, true])('reopens a collapsed conversation with visible focus and restores the trigger with wide=%s', async wide => {
-  navigation.wide = wide
-  render(<App draft="Keep this draft" />)
-  const trigger = screen.getByRole('button', { name: wide ? 'Astra' : 'shell.astraButton.open' })
-  fireEvent.click(trigger)
-  fireEvent.click(screen.getByRole('button', { name: 'shell.composer.collapse' }))
-  fireEvent.click(screen.getByRole('button', { name: 'common.closeConversation' }))
-  expect(trigger).toHaveFocus()
-  fireEvent.click(trigger)
-  const expand = screen.getByRole('button', { name: 'shell.composer.expand' })
-  expect(expand).toBeVisible()
-  expect(expand).toHaveFocus()
-  expect(screen.queryByRole('textbox')).toBeNull()
-  const unrelated = document.createElement('button')
-  document.body.append(unrelated)
-  try {
-    act(() => unrelated.focus())
-    expect(expand).toHaveFocus()
-    fireEvent.keyDown(expand, { key: 'Escape' })
-    expect(trigger).toHaveFocus()
-  } finally { unrelated.remove() }
 })

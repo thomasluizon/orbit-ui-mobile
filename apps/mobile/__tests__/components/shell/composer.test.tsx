@@ -11,7 +11,6 @@ import { ArrowUp, RefreshCw, Square } from '@/components/ui/icons'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { useAppToastStore } from '@/stores/app-toast-store'
-import { useUIStore } from '@/stores/ui-store'
 import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epoch'
 import { Composer } from '@/components/shell/composer'
 import * as Menu from '@/components/ui/dropdown-menu'
@@ -552,16 +551,15 @@ function applyComposerLayoutInsets(node: YogaNode, style: Record<string, unknown
 
 describe('Composer (mobile)', () => {
   it.each([320, 480, 800].flatMap(width => [en, ptBR].flatMap(messages => [1, 2].flatMap(fontScale =>
-    ['empty', 'draft', 'sending'].flatMap(state => [false, true].map(collapsible => ({ width, messages, state, fontScale, collapsible })))))))(
-    'keeps equal fill clearance between 48px targets at $width in $state with text $fontScale and disclosure=$collapsible', ({ width, messages, state, fontScale, collapsible }) => {
-      useUIStore.setState({ habitComposerCollapsed: false })
+    ['empty', 'draft', 'sending'].map(state => ({ width, messages, state, fontScale }))))))(
+    'keeps equal fill clearance between 48px targets at $width in $state with text $fontScale', ({ width, messages, state, fontScale }) => {
       __setWindowDimensions({ width, height: 640, scale: 1, fontScale })
-      const tree = renderComposer(props({ collapsible, state: state === 'sending' ? 'sending' : 'idle', value: state === 'empty' ? '' : 'Draft',
+      const tree = renderComposer(props({ state: state === 'sending' ? 'sending' : 'idle', value: state === 'empty' ? '' : 'Draft',
         suggestions: [], words: messages.shell.composer, onAttachFile: vi.fn(), attachWords }))
       try {
         const parts = measureInteractionFills(tree.toJSON(), width, false, fontScale)
-        const textActions = state === 'sending' && !collapsible ? []
-          : [collapsible ? 'shell.composer.collapse' : state === 'empty' ? messages.shell.composer.paste : messages.shell.composer.clear]
+        const textActions = state === 'sending' ? []
+          : [state === 'empty' ? messages.shell.composer.paste : messages.shell.composer.clear]
         const names = [...textActions, messages.shell.composer.actions, messages.shell.composer.send]
         const targets = names.map(name => parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === name)!)
         for (const [index, target] of targets.entries()) {
@@ -803,21 +801,19 @@ describe('Composer (mobile)', () => {
     },
   )
 
-  it.each([en, ptBR].flatMap(messages => [1, 2].flatMap(fontScale => [false, true].map(collapsible => ({ messages, fontScale, collapsible })))))(
-    'hugs every returning suggestion across supported native widths with disclosure=$collapsible and text=$fontScale', ({ messages, fontScale, collapsible }) => {
+  it.each([en, ptBR].flatMap(messages => [1, 2].map(fontScale => ({ messages, fontScale }))))(
+    'hugs every returning suggestion across supported native widths with text=$fontScale', ({ messages, fontScale }) => {
     __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale })
     const chips = buildComposerChips({ surface: 'today', status: 'success', habits: [createMockHabit()], totalHabitCount: 1,
       profile: createMockProfile({ lastCompletionDate: '2026-09-01' }), now: new Date('2026-09-10T12:00:00Z') })
     const labels = messages.shell.composer.chips.today
     const suggestions = toComposerSuggestions(chips.map(({ id }) => ({ id,
       label: labels[id.replace('today.', '') as keyof typeof labels], onSelect: vi.fn() })))
-    const tree = renderComposer(props({ suggestions, words: messages.shell.composer, collapsible, collapseScope: 'conversation' }))
+    const tree = renderComposer(props({ suggestions, words: messages.shell.composer }))
     const config = Yoga.Config.create()
     try {
       for (const width of [320, 360, 384, 412, 600, 840, 1100, 1352, 320]) {
-        const row = tree.root.findByProps({ testID: 'composer-suggestion-row' })
-        const disclosure = collapsible ? byLabel(tree.root, 'shell.composer.collapse')[0] : undefined
-        const available = width - 32 - (disclosure ? StyleSheet.flatten(disclosure.props.style).width + StyleSheet.flatten(row.props.style).gap : 0)
+        const available = width - 32
         const host = tree.root.findByProps({ testID: 'composer-suggestions-layout' })
         TestRenderer.act(() => host.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: available, height: 48 } } }))
         const chipWidths = suggestions.map(suggestion => {

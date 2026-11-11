@@ -551,14 +551,15 @@ describe('ui store', () => {
 
 })
 
- it("rehydrates the habit composer choice from device storage", () => {
-  setUIAccountScope("composer-preference");
-  useUIStore.getState().setHabitComposerCollapsed(true);
-  setUIAccountScope("composer-preference");
-  expect(useUIStore.getState().habitComposerCollapsed).toBe(true);
-  setUIAccountScope(null);
-  expect(useUIStore.getState().habitComposerCollapsed).toBe(false);
-  setUIAccountScope("composer-preference");
-  expect(useUIStore.getState().habitComposerCollapsed).toBe(true);
-  useUIStore.persist.setOptions({ name: "orbit-ui-store" });
+ it("ignores a retired persisted composer collapse choice", async () => {
+  globalThis.localStorage.setItem('orbit-ui-store', JSON.stringify({
+    state: { activeView: 'goals', habitComposerCollapsed: true, conversationComposerCollapsed: true },
+    version: 4,
+  }));
+  await useUIStore.persist.rehydrate();
+  expect(useUIStore.getState()).not.toHaveProperty('habitComposerCollapsed');
+  expect(useUIStore.getState()).not.toHaveProperty('conversationComposerCollapsed');
+  expect(useUIStore.getState()).not.toHaveProperty('setHabitComposerCollapsed');
+  expect(useUIStore.getState()).not.toHaveProperty('setConversationComposerCollapsed');
+  expect(globalThis.localStorage.getItem('orbit-ui-store')).not.toContain('ComposerCollapsed');
  });

@@ -67,6 +67,6 @@ it.each([
   ['/calendar', undefined],
   ['/progress', undefined],
   ['/profile', undefined],
-])('uses independent composer disclosure scope for %s', (pathname, scope) => {
+])('resolves the habit composer scope for %s', (pathname, scope) => {
   expect(resolveShellComposerScope(pathname!)).toBe(scope)
 })
