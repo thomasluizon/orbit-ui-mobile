@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { appendFileSync } from "node:fs"
 import { pathToFileURL } from "node:url"
+import { apiClient } from "./lib/app-store-connect.mjs"
 import { appStoreToken } from "./lib/app-store-connect-token.mjs"
 
 const USAGE = `usage: testflight-access.mjs --app-id <apple id> --version <x.y.z> --build <number> [--timeout-minutes <n>]
@@ -13,44 +14,10 @@ Never prints a tester e-mail or name.
 --help, -h print usage
 exit codes: 0 build valid and the group has a tester; 1 invalid build, timeout or API failure; 2 invalid arguments`
 
-const API_ORIGIN = "https://api.appstoreconnect.apple.com"
 const DEFAULT_TIMEOUT_MINUTES = 25
 const POLL_INTERVAL_MS = 30_000
 const PAGE_LIMIT = 200
 const GROUP_NAME = "Orbit internal"
-
-/** App Store Connect API client: a fresh bearer token per request (each lives 10 minutes), GET with pagination, and JSON POST. */
-export const apiClient = (createToken, request = fetch) => {
-  const send = async (url, options) => {
-    const response = await request(url, {
-      ...options,
-      headers: { Authorization: `Bearer ${createToken()}`, ...(options.body ? { "Content-Type": "application/json" } : {}) },
-      signal: AbortSignal.timeout(30_000),
-    })
-    if (!response.ok) throw new Error(`App Store Connect ${options.method} ${new URL(url).pathname} failed (HTTP ${response.status})`)
-    return response
-  }
-  const getAll = async (path, query = {}) => {
-    const first = new URL(path, API_ORIGIN)
-    for (const [key, value] of Object.entries(query)) first.searchParams.set(key, value)
-    const visited = new Set()
-    const resources = []
-    for (let next = first; next; ) {
-      if (next.origin !== API_ORIGIN || next.pathname !== first.pathname || visited.has(next.href)) throw new Error("Invalid App Store Connect pagination link")
-      visited.add(next.href)
-      const page = await (await send(next, { method: "GET" })).json()
-      if (!Array.isArray(page.data)) throw new Error(`Invalid App Store Connect response for ${first.pathname}`)
-      resources.push(...page.data)
-      next = page.links?.next ? new URL(page.links.next, API_ORIGIN) : null
-    }
-    return resources
-  }
-  const post = async (path, body) => {
-    const response = await send(new URL(path, API_ORIGIN), { method: "POST", body: JSON.stringify(body) })
-    return response.status === 204 ? null : response.json()
-  }
-  return { getAll, post }
-}
 
 /**
  * Polls until the uploaded build is VALID. FAILED and INVALID end the run at once; an absent build is

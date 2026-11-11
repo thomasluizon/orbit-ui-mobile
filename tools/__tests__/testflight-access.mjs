@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
-import { apiClient, ensureInternalTesterAccess, summaryLines, waitForProcessedBuild } from "../testflight-access.mjs"
+import { apiClient } from "../lib/app-store-connect.mjs"
+import { ensureInternalTesterAccess, summaryLines, waitForProcessedBuild } from "../testflight-access.mjs"
 import { REPO_ROOT, T } from "./_harness.mjs"
 
 // Schemas and filters in the fixture are copied from Apple's published OpenAPI specification.
@@ -199,19 +200,6 @@ export const cases = async () => {
   const failed = await rejects(ensureInternalTesterAccess({ client: apiClient(() => "t", async () => new Response("{}", { status: 403 })), appId: "app-1" }))
   T("testflight access: an API error names the path and status and never a person", failed === "App Store Connect GET /v1/apps/app-1/betaGroups failed (HTTP 403)")
 
-  const hosts = []
-  const forged = await rejects(apiClient(() => "t", async (url) => {
-    hosts.push(new URL(url).host)
-    return Response.json({ data: [], links: { self: "x", next: "https://example.org/v1/betaGroups" } })
-  }).getAll("/v1/betaGroups"))
-  T("testflight access: a pagination link to another host is refused before any request", forged === "Invalid App Store Connect pagination link" && hosts.join() === "api.appstoreconnect.apple.com")
-  let tokens = 0
-  const fresh = fakeApi({})
-  const counting = apiClient(() => `token-${++tokens}`, fresh.request)
-  await counting.getAll("/v1/betaGroups")
-  await counting.getAll("/v1/betaGroups")
-  T("testflight access: each request signs its own token", tokens === 2 && fresh.calls[0].headers.Authorization === "Bearer token-1" && fresh.calls[1].headers.Authorization === "Bearer token-2")
-
   const workflow = readFileSync(join(REPO_ROOT, ".github/workflows/ios-release.yml"), "utf8")
   const jobStart = workflow.indexOf("\n  testflight-access:\n")
   const job = jobStart === -1 ? "" : workflow.slice(jobStart)
@@ -228,4 +216,11 @@ export const cases = async () => {
     job.includes("APP_STORE_CONNECT_API_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}") &&
     job.includes("APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}") &&
     job.includes("APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}"))
+  const stepStart = job.indexOf("      - name: Wait for processing and give the internal tester access\n")
+  const beforeToolStep = stepStart === -1 ? job : job.slice(0, stepStart)
+  const toolStep = stepStart === -1 ? "" : job.slice(stepStart)
+  T("testflight access: only the tool step receives the App Store Connect credentials, not checkout or setup-node", toolStep.length > 0 &&
+    !beforeToolStep.includes("\n    env:\n") && toolStep.startsWith("      - name: Wait for processing and give the internal tester access\n        env:\n") &&
+    ["APP_STORE_CONNECT_API_KEY_ID", "APP_STORE_CONNECT_API_ISSUER_ID", "APP_STORE_CONNECT_API_PRIVATE_KEY"].every((name) =>
+      !beforeToolStep.includes(name) && toolStep.includes(`          ${name}: \${{ secrets.${name} }}\n`)))
 }

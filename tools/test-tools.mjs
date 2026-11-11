@@ -112,6 +112,7 @@ const CASE_MODULES = [
   ["orbit-play-reviews.mjs", "orbit-play-reviews"],
   ["orbit-app-store-reviews.mjs", "orbit-app-store-reviews"],
   ["lib/app-store-connect-token.mjs", "app-store-connect-token"],
+  ["lib/app-store-connect.mjs", "app-store-connect"],
   ["testflight-access.mjs", "testflight-access"],
   ["orbit-review-replies.mjs", "orbit-review-replies"],
   ["lib/admission.mjs", "admission"],

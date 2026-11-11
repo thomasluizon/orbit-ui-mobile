@@ -32,7 +32,13 @@ export const cases = async () => {
     return Response.json(page)
   })
   T("app store: content changes create a new version without a modification field", updated.reviews[0].id !== snapshot.reviews[0].id)
-  let rejected = false
-  try { await readAppStoreReviews("123", "token", async () => Response.json({ data: [], links: { next: "https://example.org/steal" } })) } catch { rejected = true }
-  T("app store: pagination cannot send credentials to another host", rejected)
+  const rejects = async (promise) => { try { await promise; return null } catch (error) { return error.message } }
+  const hosts = []
+  const forged = await rejects(readAppStoreReviews("123", "token", async (url) => {
+    hosts.push(new URL(url).host)
+    return Response.json({ data: [], links: { self: String(url), next: "https://example.org/steal" } })
+  }))
+  T("app store: pagination cannot send credentials to another host", forged === "Invalid App Store Connect pagination link" && hosts.join() === "api.appstoreconnect.apple.com")
+  const failed = await rejects(readAppStoreReviews("123", "token", async () => new Response("{}", { status: 500 })))
+  T("app store: reviews are read through the shared App Store Connect transport", failed === "App Store Connect GET /v1/apps/123/customerReviews failed (HTTP 500)")
 }
