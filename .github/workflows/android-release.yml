@@ -224,6 +224,7 @@ jobs:
             "ANDROID_KEY_PASSWORD"
             "SENTRY_AUTH_TOKEN"
             "EXPO_PUBLIC_SENTRY_DSN"
+            "EXPO_PUBLIC_APPLE_CLIENT_ID"
           )
 
           for secret_name in "${REQUIRED_SECRETS[@]}"; do
