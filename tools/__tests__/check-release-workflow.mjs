@@ -1,6 +1,6 @@
 import { load } from "js-yaml"
 import { execFileSync, spawnSync } from "node:child_process"
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { runBounded } from "../lib/bounded-process.mjs"
 import { BASH, T, root, stage, toolPath } from "./_harness.mjs"
@@ -429,6 +429,76 @@ function checkAppleClientId() {
   }
 }
 
+/** Lines of a workflow that install Playwright system packages through apt: `--with-deps` or `install-deps`. */
+function systemDependencyInstalls(file, text) {
+  return text.split("\n").flatMap((line, index) => {
+    if (line.trim().startsWith("#")) return []
+    const installsDeps = /playwright\s+install\b.*--with-deps\b/.test(line) || /playwright\s+install-deps\b/.test(line)
+    return installsDeps ? [`${file}:${index + 1}: ${line.trim()}`] : []
+  })
+}
+
+/** Lines of a bash script that match `target` and sit outside every `if` branch whose condition matches `condition`. */
+function unguardedLines(script, target, condition) {
+  const frames = []
+  return script.split("\n").flatMap((line, index) => {
+    const text = line.trim()
+    if (/^if\b/.test(text)) frames.push({ condition: text, inElse: false })
+    else if (text === "else") frames.at(-1).inElse = true
+    else if (text === "fi") frames.pop()
+    const guarded = frames.some((frame) => !frame.inElse && condition.test(frame.condition))
+    return target.test(text) && !/^if\b/.test(text) && !guarded ? [`${index + 1}: ${text}`] : []
+  })
+}
+
+/** Why the ccache setup script can fail the job on a package mirror outage; an empty list means it cannot. */
+function ccacheSetupFlaws(script) {
+  const flaws = []
+  const installs = script.split("\n").map((line, index) => [line.trim(), index + 1]).filter(([line]) => line.includes("apt-get"))
+  if (installs.length === 0) flaws.push("no apt-get line")
+  for (const [line, number] of installs) {
+    if (!/^if\b.*apt-get.*;\s*then$/.test(line)) flaws.push(`${number}: apt-get outside an if condition: ${line}`)
+  }
+  const elseBranch = script.split(/^\s*else\s*$/m)[1] ?? ""
+  if (!/::warning::/.test(elseBranch)) flaws.push("the failure branch writes no ::warning:: line")
+  flaws.push(...unguardedLines(script, /^ccache\s/, /apt-get/).map((line) => `ccache command outside the install branch: ${line}`))
+  return flaws
+}
+
+function checkMirrorIndependence() {
+  const workflowsDirectory = toolPath("../.github/workflows")
+  const files = readdirSync(workflowsDirectory).filter((name) => /\.ya?ml$/.test(name))
+  const read = (name) => readFileSync(join(workflowsDirectory, name), "utf8")
+  const installs = files.flatMap((name) => systemDependencyInstalls(`.github/workflows/${name}`, read(name)))
+  T("no workflow installs Playwright system packages through apt", installs.length === 0, installs.join("\n     "))
+  const fixtureWithDeps = "      - run: npx playwright install --with-deps chromium\n"
+  const flagged = systemDependencyInstalls("fixture.yml", fixtureWithDeps)
+  T("a with-deps Playwright install is rejected with its file and line", flagged.length === 1 && flagged[0].startsWith("fixture.yml:1:"), flagged.join())
+  T("a Playwright install-deps command is rejected",
+    systemDependencyInstalls("fixture.yml", "steps:\n  - run: npx playwright install-deps chromium\n").length === 1)
+  T("a plain Playwright browser install is accepted", systemDependencyInstalls("fixture.yml", "  - run: npx playwright install chromium\n").length === 0)
+  for (const name of ["layout.yml", "release.yml"]) {
+    T(`${name} calls no apt command`, !/\bapt(-get)?\s+(install|update)\b/.test(read(name)))
+  }
+
+  const android = load(read("android-release.yml")).jobs["release-android"].steps
+  const setup = android.find((step) => step.name === "Set up ccache for the native C++ builds")
+  const restore = android.find((step) => step.name === "Restore the ccache directory")
+  const build = android.find((step) => step.name === "Build signed AAB with Gradle")
+  T("android ccache steps exist", !!setup && !!restore && !!build)
+  if (!setup || !restore || !build) return
+  const flaws = ccacheSetupFlaws(setup.run)
+  T("a ccache install failure cannot fail the android release", flaws.length === 0, flaws.join("\n     "))
+  const bareInstall = "set -euo pipefail\n\nsudo apt-get update -qq\nsudo apt-get install -y -qq ccache\nccache --zero-stats\n"
+  T("a ccache install under set -e outside a failure branch is rejected", ccacheSetupFlaws(bareInstall).length > 0)
+  T("android ccache is exported only from the install branch",
+    unguardedLines(setup.run, /GITHUB_ENV|CMAKE_(C|CXX)_COMPILER_LAUNCHER/, /apt-get/).length === 0 && /CCACHE_AVAILABLE=true/.test(setup.run))
+  T("the ccache directory restores only when ccache is available", restore.if === "env.CCACHE_AVAILABLE == 'true'")
+  T("the android build sets no compiler launcher of its own", !Object.keys(build.env ?? {}).some((key) => key.endsWith("_COMPILER_LAUNCHER")))
+  const unconditional = unguardedLines(build.run, /\bccache\s/, /CCACHE_AVAILABLE/)
+  T("every ccache command of the android build is behind the availability condition", unconditional.length === 0, unconditional.join("\n     "))
+}
+
 export async function cases() {
   T("release workflow exposes only production and staging", JSON.stringify(load(workflow).on.workflow_dispatch.inputs.environment.options) === JSON.stringify(["production", "staging"]))
   T("release selection guard is present", typeof guard === "string")
@@ -468,4 +538,5 @@ export async function cases() {
   checkPinnedRelease()
   checkSourceIdentity()
   checkAppleClientId()
+  checkMirrorIndependence()
 }
