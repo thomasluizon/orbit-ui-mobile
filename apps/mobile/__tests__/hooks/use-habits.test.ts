@@ -109,7 +109,7 @@ const mocks = vi.hoisted(() => {
   const queryClient = {
     setQueryDefaults: vi.fn(),
     cancelQueries: vi.fn(async () => {}),
-    getQueryCache: () => ({ findAll: () => [], subscribe: vi.fn() }),
+    getQueryCache: () => ({ find: () => undefined, findAll: () => [], subscribe: vi.fn() }),
     removeQueries: vi.fn(),
     invalidateQueries: vi.fn(async (_filters?: { queryKey: readonly unknown[] }) => {}),
     isFetching: vi.fn(() => 0),
