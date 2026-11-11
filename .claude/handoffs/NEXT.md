@@ -16,7 +16,7 @@ UI `main` `304484135`; API `main` `2bdd96e30`; landing `main` `49257d7`. Product
 
 | Item | Disposition |
 | --- | --- |
-| `#2110` worker | Launched on `fix/ticket-2110-astra-create-preview` (worktree `ticket-2110-astra-create-preview`). If it is still running at entry, wait on it with `wait-file.mjs` or its launcher result; then read the diff (D95), correct the body to `Tracks`, CI, review, merge. |
+| `#2110` | The worker hit the 45-minute ceiling with 2 unpushed commits (`48a5e74c4`, `2a7d11abf`, tree clean, no PR; 1 of 2 launches spent). Read the diff (D95), run the shared tests; relaunch once to finish or push and open the PR (`Tracks`); CI, review, merge. |
 | `ui#2429` (`#1561` status bar) | `8e4e0102d`, D95 read passed. Prove it on the iPhone simulator (system appearance light, Orbit theme dark: white glyphs) with an `/ios-generate` build of the branch, then review on green, merge. |
 | `landing#130` (`#2091`) | Round 8 review at `939e80f`: no blocking issue, one inline thread (a failed lazy chunk leaves the calendar and week card blank); `pullfrog-approval` failed. Fix the thread, push, re-review, merge, then `main` into `landing#129`. |
 | `landing#129` (`#2090`) | Lighthouse red (24,049 of 24,000) until `landing#130` merges: then `main` merge, `landing-verify.sh`, push, review on green, merge. Never raise the budget. |
@@ -31,7 +31,7 @@ UI `main` `304484135`; API `main` `2bdd96e30`; landing `main` `49257d7`. Product
 | Fable plan | Thursday 12 November 2026 after 04:00 BRT per D149. |
 | `ui#2388` | This relay's docs branch. |
 
-Inventory: open pull requests ui `#2429`, `#2427`, `#2426`, `#2425`, `#2424`, `#2423`, `#2422`, `#2421`, `#2420`, `#2419`, `#2418`, `#2416`, `#2414`, `#2412`, `#2388`; landing `#130`, `#129`; API none. Unpushed commits: none. Dirty worktrees: `ticket-2110-astra-create-preview` (worker in progress). Stashes: 0 (ui, landing, api). Running workers: `#2110` unless it exited before succession. Background subagents: none. Detached checks: none.
+Inventory: open pull requests ui `#2429`, `#2427`, `#2426`, `#2425`, `#2424`, `#2423`, `#2422`, `#2421`, `#2420`, `#2419`, `#2418`, `#2416`, `#2414`, `#2412`, `#2388`; landing `#130`, `#129`; API none. Unpushed commits: `fix/ticket-2110-astra-create-preview` (2). Dirty worktrees: none. Stashes: 0 (ui, landing, api). Running workers: none. Background subagents: none. Detached checks: none.
 
 ## Then, in this order
 
