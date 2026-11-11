@@ -114,7 +114,8 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock('@/lib/motion', () => ({
+vi.mock('@/lib/motion', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/motion')>(),
   getPrefersReducedMotion: () => Promise.resolve(mocks.reducedMotion),
   usePrefersReducedMotion: () => mocks.reducedMotion,
   toAnimatedEasing: () => (value: number) => value,

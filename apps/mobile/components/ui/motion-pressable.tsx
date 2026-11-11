@@ -2,10 +2,10 @@ import { forwardRef, useMemo, useState } from 'react'
 import { selectedBorderStyle } from './selected-focus-indicator'
 import { Pressable, type ColorValue, type PressableProps, type View } from 'react-native'
 import Animated from 'react-native-reanimated'
-import { motionDurations, motionEasings, orbitalMotion } from '@orbit/shared/theme'
+import { motionDurations, orbitalMotion } from '@orbit/shared/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
-import { usePrefersReducedMotion } from '@/lib/motion'
+import { toCssTransition, usePrefersReducedMotion } from '@/lib/motion'
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
 
@@ -42,7 +42,7 @@ export const MotionPressable = forwardRef<View, Readonly<MotionPressableProps>>(
           transform: [{ scale: !props.disabled && !prefersReducedMotion && (pressed || active) ? orbitalMotion.press.scale : 1 }],
           transitionProperty: ['transform', 'backgroundColor'],
           transitionDuration: prefersReducedMotion ? motionDurations.instant : motionDurations.press,
-          transition: prefersReducedMotion ? 'none' : `transform ${motionDurations.press}ms cubic-bezier(${motionEasings.standard.join(',')})`,
+          transition: prefersReducedMotion ? 'none' : toCssTransition(['transform'], motionDurations.press),
         },
       ]}
     >

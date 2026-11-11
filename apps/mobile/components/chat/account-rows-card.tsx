@@ -1,5 +1,5 @@
 import { IconButton } from '@/components/ui/icon-button'
-import { SPACING, motionDurations, motionEasings } from '@orbit/shared/theme'
+import { SPACING, motionDurations } from '@orbit/shared/theme'
 import { useState } from 'react'
 import { useReferralInvitation } from '@/hooks/use-referral-invitation'
 import { useTranslation } from 'react-i18next'
@@ -14,11 +14,9 @@ import { ListRow } from '@/components/ui/list-row'
 import { Check, Copy, Share2 } from '@/components/ui/icons'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { usePrefersReducedMotion } from '@/lib/motion'
+import { toCssTransition, usePrefersReducedMotion } from '@/lib/motion'
 
-const iconSwapTransition = ['opacity', 'transform', 'filter']
-  .map(property => `${property} ${motionDurations.fast}ms cubic-bezier(${motionEasings.standard.join(',')})`)
-  .join(', ')
+const iconSwapTransition = toCssTransition(['opacity', 'transform', 'filter'], motionDurations.fast)
 
 function iconSwapStyle(visible: boolean, reducedMotion: boolean) {
   const settled = visible || reducedMotion

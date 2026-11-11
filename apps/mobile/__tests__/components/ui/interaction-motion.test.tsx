@@ -7,7 +7,7 @@ import { withTimingCalls } from '../../../test-mocks/react-native-reanimated'
 import { motionDurations, orbitalMotion } from '@orbit/shared/theme'
 
 const preference = vi.hoisted(() => ({ reduced: false }))
-vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => preference.reduced }))
+vi.mock('@/lib/motion', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => preference.reduced }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark' }) }))
 vi.mock('@/lib/haptics', () => ({ triggerHaptic: vi.fn() }))
 const TestRenderer = require('react-test-renderer')
