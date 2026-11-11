@@ -32,8 +32,11 @@ import { useShellStore } from '@/stores/shell-store'
 import type { ActiveView } from '@orbit/shared/stores'
 import { useUIStore } from '@/stores/ui-store'
 import {
+  getCurrentRouteTransitionIntent,
   resetRouteTransitionIntent,
 } from '@/lib/motion/route-intent'
+import { getTabTransitionTypes } from '@/lib/motion/tab-view-transition'
+import { mediaQueryMatches } from '@/lib/media-query'
 import { AstraButton } from './astra-button'
 import { ShellWide } from './shell-wide'
 import { ScrollToTopButton } from '@/components/ui/scroll-to-top-button'
@@ -248,24 +251,31 @@ function DestinationShellContent({
 
   const navigate = useCallback(
     (id: BottomTab) => {
+      const route = ROUTES[id]
+      const transitionTypes = getTabTransitionTypes(
+        pathname,
+        route,
+        getCurrentRouteTransitionIntent(),
+        mediaQueryMatches('(prefers-reduced-motion: reduce)', true),
+      )
+      const pushRoute = () => (transitionTypes ? router.push(route, { transitionTypes }) : router.push(route))
       if (id === 'hoje') {
         requestHabitCreateNavigation(() => {
           useUIStore.getState().resetToday()
           resetRouteTransitionIntent()
           scroller?.scrollTo({ top: 0, behavior: 'instant' })
           if (pathname === '/') router.replace('/')
-          else router.push('/')
+          else pushRoute()
         })
         return
       }
       useUIStore.getState().setAstraConversationOpen(false)
-      const route = ROUTES[id]
       if (route === pathname) {
         resetRouteTransitionIntent()
         scroller?.scrollTo({ top: 0, behavior: 'instant' })
         return
       }
-      requestHabitCreateNavigation(() => router.push(route))
+      requestHabitCreateNavigation(pushRoute)
     },
     [pathname, router, scroller],
   )

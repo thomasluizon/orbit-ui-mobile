@@ -18,7 +18,6 @@ export type MotionScenario = (typeof motionScenarios)[number]
 export type MotionNavigationIntent =
   | 'instant'
   | 'neutral'
-  | 'tab'
   | 'forward'
   | 'back'
   | 'replace'

@@ -19,17 +19,15 @@ import {
   resetRouteTransitionIntent,
   useRouteTransitionIntent,
 } from '@/lib/motion/route-intent'
+import { isPrimaryTabSwitch } from '@/lib/motion/tab-view-transition'
 
 interface RouteTransitionShellProps {
   children: ReactNode
   className?: string
 }
 
-const PRIMARY_DESTINATIONS = ['/', '/calendar', '/progress', '/profile']
-
 type RouteTransitionMotion = Readonly<{
   direction: -1 | 0 | 1
-  isPrimaryTabSwitch: boolean
   vertical: boolean
   motionPreset: ReturnType<typeof resolveMotionPreset>
 }>
@@ -81,10 +79,7 @@ export function RouteTransitionShell({
       previous: routePaths.current,
     })
   }
-  const isPrimaryTabSwitch =
-    routePaths.previous !== pathname &&
-    PRIMARY_DESTINATIONS.includes(routePaths.previous) &&
-    PRIMARY_DESTINATIONS.includes(pathname)
+  const tabViewTransitionOwnsSwitch = isPrimaryTabSwitch(routePaths.previous, pathname)
 
   useEffect(() => {
     if (committedPathnameRef.current === pathname) {
@@ -103,12 +98,9 @@ export function RouteTransitionShell({
 
   const transitionMotion = useMemo<RouteTransitionMotion>(
     () => {
-      const transitionIntent = routePaths.intent === 'instant' ? 'instant' : isPrimaryTabSwitch ? 'tab' : routePaths.intent
+      const transitionIntent = routePaths.intent
       return {
-        direction: transitionIntent === 'tab'
-          ? PRIMARY_DESTINATIONS.indexOf(pathname) > PRIMARY_DESTINATIONS.indexOf(routePaths.previous) ? 1 : -1
-          : getRouteDirectionForIntent(transitionIntent),
-        isPrimaryTabSwitch,
+        direction: getRouteDirectionForIntent(transitionIntent),
         vertical: ['/upgrade', '/step-up'].includes(pathname) || ['/upgrade', '/step-up'].includes(routePaths.previous),
         motionPreset: {
           ...resolveMotionPreset(getRouteScenarioForIntent(transitionIntent), Boolean(prefersReducedMotion)),
@@ -116,7 +108,7 @@ export function RouteTransitionShell({
         },
       }
     },
-    [isPrimaryTabSwitch, pathname, prefersReducedMotion, routePaths.intent, routePaths.previous],
+    [pathname, prefersReducedMotion, routePaths.intent, routePaths.previous],
   )
 
   return (
@@ -127,7 +119,7 @@ export function RouteTransitionShell({
         className={className}
         custom={transitionMotion}
         variants={routeVariants}
-        initial={routePaths.hasNavigated ? 'initial' : false}
+        initial={routePaths.hasNavigated && !tabViewTransitionOwnsSwitch ? 'initial' : false}
         animate="animate"
       >
         {children}

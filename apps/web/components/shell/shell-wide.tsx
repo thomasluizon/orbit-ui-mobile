@@ -1,6 +1,7 @@
 'use client'
 
 import { ConversationComposerMotionProvider } from './conversation-composer-motion'
+import { TabViewTransition } from '@/components/motion/tab-view-transition'
 import { motion } from 'motion/react'
 import { useKeyboardViewport } from '@/hooks/use-keyboard-viewport'
 import { useConversationMotion } from '@/hooks/use-conversation-motion'
@@ -469,7 +470,7 @@ function ShellWideBackground({
             </div>
           </div> : null}
           <div data-shell-page="" className={`relative mx-auto flex w-full flex-1 flex-col ${astraSpacing.minimum}`} style={SHELL_PAGE_CLEARANCE}>
-            <main
+            <TabViewTransition><main
               ref={registerScroller}
               data-shell-scroller=""
               style={{ scrollPaddingBottom: astraSpacing.focusClearance }}
@@ -481,7 +482,7 @@ function ShellWideBackground({
                 className="pointer-events-none absolute left-0 top-0 h-px w-px"
               />
               <div data-shell-page-content="" className="mx-auto min-h-full w-full max-w-[740px] has-[[data-list-motion][inert]]:min-h-[var(--shell-scroll-min-height,100%)] has-[[data-page-viewport]]:h-full">{props.children}</div>
-            </main>
+            </main></TabViewTransition>
             {astraSpacing.fabColumn ? <ShellFabColumn astraButton={props.astraButton} fab={props.fab} fabPending={props.fabPending === true} /> : null}
             {props.scrollToTop !== undefined && !conversationOpen ? (
               <div data-shell-scroll-to-top="" className="pointer-events-none absolute inset-x-0 top-2 z-sticky flex justify-center">

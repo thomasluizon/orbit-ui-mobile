@@ -4,7 +4,6 @@ import { render } from '@testing-library/react'
 
 interface TransitionMotion {
   direction: -1 | 0 | 1
-  isPrimaryTabSwitch: boolean
   motionPreset: {
     enterDuration: number
     exitDuration: number
@@ -136,16 +135,26 @@ describe('RouteTransitionShell', () => {
     })
   })
 
-  it('moves toward the selected primary tab without waiting for an exit', () => {
+  it('leaves a primary tab switch to the tab view transition so nothing animates twice', () => {
     const shell = render(<RouteTransitionShell><p>Hoje</p></RouteTransitionShell>)
     mocks.pathname = '/calendar'
 
     shell.rerender(<RouteTransitionShell><p>Calendar</p></RouteTransitionShell>)
 
-    expect(resolvedVariants()).toMatchObject({
-      enter: { opacity: 0, x: 10 },
-      entering: { transition: { duration: 0.16 } },
-    })
+    expect(mocks.initials.at(-1)).toBe(false)
+  })
+
+  it('keeps the route entrance for a push that follows a tab switch', () => {
+    const shell = render(<RouteTransitionShell><p>Hoje</p></RouteTransitionShell>)
+    mocks.pathname = '/calendar'
+    shell.rerender(<RouteTransitionShell><p>Calendar</p></RouteTransitionShell>)
+    mocks.intent = 'forward'
+    mocks.pathname = '/habits/habit-1'
+
+    shell.rerender(<RouteTransitionShell><p>Habit</p></RouteTransitionShell>)
+
+    expect(mocks.initials.at(-1)).toBe('initial')
+    expect(resolvedVariants()).toMatchObject({ enter: { opacity: 0, x: 12 } })
   })
 })
 

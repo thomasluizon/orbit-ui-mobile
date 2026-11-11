@@ -19,6 +19,13 @@ const DELETED_MOTION_NAMES = [
   'orbit-pulse',
   'astra-orbit',
   'orbit-list-stagger',
+  'fade-enter',
+  'fade-leave',
+  'fade-in',
+  'gentle-pulse',
+  'check-item-pop',
+  'animate-check-pop',
+  'tag-pop',
 ]
 
 describe('globals.css motion', () => {

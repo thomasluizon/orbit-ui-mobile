@@ -370,7 +370,7 @@ describe('DestinationShell', () => {
     fireEvent.click(screen.getByRole('button', { name: 'nav.createHabit' }))
     expect(onCreate).toHaveBeenCalledOnce()
     fireEvent.click(screen.getByRole('link', { name: 'nav.progress' }))
-    expect(mocks.push).toHaveBeenCalledWith('/progress')
+    expect(mocks.push).toHaveBeenCalledWith('/progress', { transitionTypes: ['orbit-tab-forward'] })
     expect(screen.getByTestId('command-palette')).toBeInTheDocument()
     expect(mocks.keyboardEnabled).toHaveBeenCalledWith(true)
   })
@@ -530,8 +530,50 @@ describe('DestinationShell', () => {
     expect(screen.queryByRole('button', { name: 'nav.createHabit' })).not.toBeInTheDocument()
   })
 
+  it.each([
+    ['/', 'nav.calendar', '/calendar', 'orbit-tab-forward'],
+    ['/profile', 'nav.progress', '/progress', 'orbit-tab-back'],
+    ['/calendar', 'nav.today', '/', 'orbit-tab-back'],
+  ])('types the tab switch from %s through %s for the view transition', (from, label, route, type) => {
+    mocks.pathname = from
+    render(<DestinationShell onCreate={() => {}}><h1>Page</h1></DestinationShell>)
+
+    fireEvent.click(screen.getByRole('link', { name: label }))
+
+    expect(mocks.push).toHaveBeenCalledExactlyOnceWith(route, { transitionTypes: [type] })
+  })
+
+  it('switches tabs from the command palette without a view transition', () => {
+    render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
+
+    act(() => {
+      setRouteTransitionIntent('instant')
+      mocks.commandViews.find((item) => item.id === 'progresso')!.onSelect()
+    })
+
+    expect(mocks.push).toHaveBeenCalledExactlyOnceWith('/progress')
+  })
+
+  it('switches tabs at once under reduced motion', () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(prefers-reduced-motion: reduce)',
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+    try {
+      render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
+
+      fireEvent.click(screen.getByRole('link', { name: 'nav.calendar' }))
+
+      expect(mocks.push).toHaveBeenCalledExactlyOnceWith('/calendar')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('keeps a later pushed flow after selecting the active destination', () => {
-    setRouteTransitionIntent('tab')
+    setRouteTransitionIntent('forward')
     render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
 
     fireEvent.click(screen.getByRole('link', { name: 'nav.today' }))

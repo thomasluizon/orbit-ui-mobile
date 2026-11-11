@@ -511,11 +511,6 @@ select[aria-hidden="true"] {
   outline-offset: -2px;
 }
 
-@keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
 .orbit-sheet-grabber {
   align-self: center;
   width: 48px;
@@ -892,7 +887,6 @@ select[aria-hidden="true"] {
 
   /* Animations. */
   --animate-scale-in: scale-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
-  --animate-gentle-pulse: gentle-pulse 1s var(--ease-standard) infinite;
 
   /* Stacking (DESIGN.md): the semantic z-index scale, mirrored from
      @orbit/shared/theme zLayers. Overlays stack on a named tier via the
@@ -1306,10 +1300,34 @@ button {
   to { opacity: 1; transform: scale(1); }
 }
 
-/* Live/active indicator pulse */
-@keyframes gentle-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+/* ═══════════════════════════════════════════════════════
+   PRIMARY TAB SWITCH
+   animateTabViewTransition drives both legs from the shared
+   tab-switch preset. The shell chrome changes at once.
+   ═══════════════════════════════════════════════════════ */
+
+::view-transition-group(orbit-tab-page),
+::view-transition-old(orbit-tab-page),
+::view-transition-new(orbit-tab-page) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-new(orbit-tab-page) {
+  opacity: 0;
+}
+
+:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition-old(root),
+:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition-new(root) {
+  animation-duration: 0s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0s !important;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1318,20 +1336,6 @@ button {
 
 .skeleton-pulse {
   animation: skeleton-pulse calc(var(--dur-slow) * 4) ease-in-out var(--skeleton-pulse-iterations);
-}
-
-/* ═══════════════════════════════════════════════════════
-   GENERIC TRANSITIONS
-   ═══════════════════════════════════════════════════════ */
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity var(--dur-base) var(--ease-standard);
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1467,35 +1471,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .is-dragging * {
   user-select: none;
   -webkit-touch-callout: none;
-}
-
-/* ═══════════════════════════════════════════════════════
-   MICRO-INTERACTION ANIMATIONS
-   ═══════════════════════════════════════════════════════ */
-
-/* Checklist check pop */
-@keyframes check-item-pop {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.2); }
-  100% { transform: scale(1); }
-}
-
-.animate-check-pop {
-  animation: check-item-pop 200ms var(--ease-out);
-}
-
-/* Tag selection pop */
-@keyframes tag-pop {
-  0% { transform: scale(0.96); }
-  100% { transform: scale(1); }
-}
-
-.animate-tag-pop {
-  animation: tag-pop 160ms var(--ease-standard);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .animate-tag-pop { animation: none; }
 }
 
 /* ═══════════════════════════════════════════════════════
