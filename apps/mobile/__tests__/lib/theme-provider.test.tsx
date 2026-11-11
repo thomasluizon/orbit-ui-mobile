@@ -8,14 +8,19 @@ import { ThemeProvider, type ThemeContextValue } from '../../lib/theme-provider'
 import { useProfile } from '@/hooks/use-profile'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { Animated } from 'react-native'
-import { AccessibilityInfo } from '../../test-mocks/react-native'
-import { motionDurations, motionEasings } from '@orbit/shared/theme'
+import { motionDurations, motionEasings, resolveMotionPreset, type MotionScenario } from '@orbit/shared/theme'
 import { createTokensV2, getRuntimeTheme, setRuntimeTheme } from '@/lib/theme'
 import { toAnimatedEasing } from '@/lib/motion'
 import { useAppTheme } from '../../lib/use-app-theme'
 import { RootNotificationHeader } from '@/components/navigation/root-notification-header'
 import { Sun, Moon } from '@/components/ui/icons'
 
+const motionState = vi.hoisted(() => ({ prefersReducedMotion: false }))
+vi.mock('@/lib/motion', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/motion')>(),
+  usePrefersReducedMotion: () => motionState.prefersReducedMotion,
+  useResolvedMotionPreset: (scenario: MotionScenario) => resolveMotionPreset(scenario, motionState.prefersReducedMotion),
+}))
 vi.mock('@/lib/use-app-theme', async () => await import('../../lib/use-app-theme'))
 vi.mock('@/components/navigation/notification-bell', () => ({ NotificationBell: () => null }))
 vi.mock('@/lib/theme-provider', async () => await import('../../lib/theme-provider'))
@@ -82,6 +87,7 @@ async function setup(previous: ThemeMode, content?: ReactNode) {
 afterEach(async () => {
   await act(() => { for (const unmount of unmounts.splice(0)) unmount() })
   auth.isAuthenticated = true
+  motionState.prefersReducedMotion = false
   vi.clearAllMocks()
   vi.unstubAllGlobals()
 })
@@ -200,7 +206,7 @@ it('crossfades a theme change in the provider root without presenting a native M
   const [overlay] = findOverlay()
   expect(overlay).toBeDefined()
   const colours = overlay.findAllByType('View').map((node: { props: { style: { backgroundColor?: string }[] } }) => node.props.style[1]?.backgroundColor)
-  expect(colours).toEqual([previous.bg, previous.primary])
+  expect(colours).toEqual([previous.bg])
   expect(frames).toHaveLength(1)
   await act(() => frames[0]?.(0))
   expect(fades).toHaveLength(1)
@@ -214,13 +220,8 @@ it('crossfades a theme change in the provider root without presenting a native M
 })
 
 it('changes the theme at once without an overlay when reduced motion is on', async () => {
-  const listeners = new Set<(enabled: boolean) => void>()
-  const subscription = vi.spyOn(AccessibilityInfo, 'addEventListener').mockImplementation((event, listener) => {
-    if (event === 'reduceMotionChanged') listeners.add(listener)
-    return { remove: () => { listeners.delete(listener) } }
-  })
+  motionState.prefersReducedMotion = true
   const { root, chooser } = await setup('dark')
-  await act(() => { for (const listener of listeners) listener(true) })
   const frames = vi.fn(() => 1)
   vi.stubGlobal('requestAnimationFrame', frames)
   const timing = vi.spyOn(Animated, 'timing')
@@ -233,5 +234,4 @@ it('changes the theme at once without an overlay when reduced motion is on', asy
   expect(frames).not.toHaveBeenCalled()
   expect(timing).not.toHaveBeenCalled()
   timing.mockRestore()
-  subscription.mockRestore()
 })

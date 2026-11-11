@@ -17,7 +17,7 @@ import {
   View,
 } from 'react-native'
 import { API } from '@orbit/shared/api'
-import { resolveMotionPreset, type ColorScheme } from '@orbit/shared/theme'
+import type { ColorScheme } from '@orbit/shared/theme'
 import type { ThemeMode } from '@orbit/shared/types/profile'
 import { useProfile } from '@/hooks/use-profile'
 import { resolveActiveScheme } from './resolve-active-scheme'
@@ -33,7 +33,7 @@ import {
   type AppShadows,
   type AppSurfaces,
 } from '@/lib/theme'
-import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
+import { toAnimatedEasing, useResolvedMotionPreset } from '@/lib/motion'
 import { resolveAccessibleColorScheme } from '@orbit/shared/utils'
 
 export interface ThemeContextValue {
@@ -47,11 +47,6 @@ export interface ThemeContextValue {
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null)
-
-interface TransitionSnapshot {
-  background: string
-  accent: string
-}
 
 function persistThemePreference(theme: ThemeMode): Promise<unknown> {
   return performQueuedApiMutation({
@@ -72,7 +67,7 @@ export function ThemeProvider({
   children: ReactNode
 }>) {
   const systemScheme = useSystemColorScheme()
-  const prefersReducedMotion = usePrefersReducedMotion()
+  const themeMotion = useResolvedMotionPreset('theme-change')
   const { profile, patchProfile } = useProfile()
   const [currentScheme, setCurrentScheme] = useState<ColorScheme>(
     () => resolveActiveScheme(profile) ?? resolveAccessibleColorScheme(null, true),
@@ -84,7 +79,7 @@ export function ThemeProvider({
         : systemScheme === 'light' ? 'light' : 'dark'
     ),
   )
-  const [transitionSnapshot, setTransitionSnapshot] = useState<TransitionSnapshot | null>(null)
+  const [transitionBackground, setTransitionBackground] = useState<string | null>(null)
   /** React 19 forbids reading a ref during render, so this stable value is memoized. */
   const transitionOpacity = useMemo(() => new Animated.Value(0), [])
   const transitionFrameRef = useRef<number | null>(null)
@@ -94,36 +89,35 @@ export function ThemeProvider({
     theme: currentTheme,
   })
 
-  const runThemeTransition = useCallback((snapshot: TransitionSnapshot) => {
+  const runThemeTransition = useCallback((background: string) => {
     if (transitionFrameRef.current !== null) {
       cancelAnimationFrame(transitionFrameRef.current)
       transitionFrameRef.current = null
     }
 
     transitionOpacity.stopAnimation()
-    if (prefersReducedMotion) {
-      setTransitionSnapshot(null)
+    if (themeMotion.reducedMotionEnabled) {
+      setTransitionBackground(null)
       return
     }
 
-    const { enterDuration, enterEasing } = resolveMotionPreset('theme-change')
-    setTransitionSnapshot(snapshot)
+    setTransitionBackground(background)
     transitionOpacity.setValue(1)
 
     transitionFrameRef.current = requestAnimationFrame(() => {
       Animated.timing(transitionOpacity, {
         toValue: 0,
-        duration: enterDuration,
-        easing: toAnimatedEasing(enterEasing),
+        duration: themeMotion.enterDuration,
+        easing: toAnimatedEasing(themeMotion.enterEasing),
         useNativeDriver: true,
       }).start(({ finished }: { finished: boolean }) => {
         transitionFrameRef.current = null
         if (finished) {
-          setTransitionSnapshot(null)
+          setTransitionBackground(null)
         }
       })
     })
-  }, [prefersReducedMotion, transitionOpacity])
+  }, [themeMotion, transitionOpacity])
 
   useEffect(() => {
     setRuntimeTheme({ scheme: currentScheme, themeMode: currentTheme })
@@ -150,10 +144,7 @@ export function ThemeProvider({
       (previous.scheme !== currentScheme || previous.theme !== currentTheme)
     ) {
       const previousTokens = createTokensV2(previous.scheme, previous.theme)
-      runThemeTransition({
-        background: previousTokens.bg,
-        accent: previousTokens.primary,
-      })
+      runThemeTransition(previousTokens.bg)
       previousThemeRef.current = { scheme: currentScheme, theme: currentTheme }
     }
   }, [captureTheme, currentScheme, currentTheme, runThemeTransition])
@@ -223,7 +214,7 @@ export function ThemeProvider({
     <ThemeContext.Provider value={value}>
       <View style={styles.root}>
         {children}
-        {transitionSnapshot ? (
+        {transitionBackground ? (
           <Animated.View
             pointerEvents="none"
             style={[
@@ -236,13 +227,7 @@ export function ThemeProvider({
             <View
               style={[
                 styles.transitionBase,
-                { backgroundColor: transitionSnapshot.background },
-              ]}
-            />
-            <View
-              style={[
-                styles.transitionTint,
-                { backgroundColor: transitionSnapshot.accent },
+                { backgroundColor: transitionBackground },
               ]}
             />
           </Animated.View>
@@ -265,9 +250,5 @@ const styles = StyleSheet.create({
   },
   transitionBase: {
     ...StyleSheet.absoluteFill,
-  },
-  transitionTint: {
-    ...StyleSheet.absoluteFill,
-    opacity: 0.12,
   },
 })
