@@ -16,9 +16,24 @@
 All authored copy uses the paired English and Brazilian Portuguese locales. The iOS button uses
 Apple's native localized control. Android and web keep the existing login button anatomy.
 
-`EXPO_PUBLIC_APPLE_CLIENT_ID` and `NEXT_PUBLIC_APPLE_CLIENT_ID` gate the mobile and web buttons.
-They name the grouped Apple Services ID. The API owns Apple's authorize URL, callback and
-single-use handoff. Android returns through the existing verified App Link. Web stores its client
+`EXPO_PUBLIC_APPLE_CLIENT_ID` and `NEXT_PUBLIC_APPLE_CLIENT_ID` are required build variables for the
+mobile and web buttons. The web, Android and iOS release workflows stop before the build when the
+value is empty. The apps read each variable only as a flag that shows or hides the button. The
+API's `AppleSignIn__WebClientId` and `AppleSignIn__NativeClientId` settings choose the `client_id`
+that goes to Apple. By convention, each value names the API client its flow signs in with: the
+grouped Services ID (`AppleSignIn__WebClientId`) for web and Android, and the bundle identifier
+(`AppleSignIn__NativeClientId`) for native iOS:
+
+| Build | Variable | Value |
+|---|---|---|
+| Web production | repository `PRODUCTION_NEXT_PUBLIC_APPLE_CLIENT_ID` | `org.useorbit.app.web` |
+| Web staging | repository `STAGING_NEXT_PUBLIC_APPLE_CLIENT_ID` | `org.useorbit.app.staging.web` |
+| Android production | environment `Production` `EXPO_PUBLIC_APPLE_CLIENT_ID` | `org.useorbit.app.web` |
+| Android internal | environment `android-internal` `EXPO_PUBLIC_APPLE_CLIENT_ID` | `org.useorbit.app.staging.web` |
+| iOS production | environment `ios-production` `EXPO_PUBLIC_APPLE_CLIENT_ID` | `org.useorbit.app` |
+| iOS staging | environment `ios-staging` `EXPO_PUBLIC_APPLE_CLIENT_ID` | `org.useorbit.app.staging` |
+
+The API owns Apple's authorize URL, callback and single-use handoff. Android returns through the existing verified App Link. Web stores its client
 state in a temporary secure httpOnly cookie; the session uses the existing strict cookie writer.
 Native iOS sends the nonce digest to Apple and the raw nonce to the native API endpoint.
 
