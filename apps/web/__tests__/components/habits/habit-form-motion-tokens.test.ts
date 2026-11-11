@@ -40,6 +40,14 @@ describe('habit form and frequency picker motion tokens', () => {
     expect(text).toContain('transition-colors duration-[var(--dur-hover-control)] group-hover/remove:text-[var(--status-bad)]')
   })
 
+  it('shows the checklist row actions at once on keyboard focus', () => {
+    const revealed = source('components/habits/habit-checklist.tsx')
+      .split('\n')
+      .filter((line) => line.includes('focus-visible:opacity-100'))
+    expect(revealed).toHaveLength(2)
+    for (const line of revealed) expect(line).toContain('focus-visible:transition-none')
+  })
+
   it('times the sub-habit remove control hover as a control hover', () => {
     const text = source('components/habits/create-habit-modal/sub-habit-editor.tsx')
     expect(text.match(/duration-\[var\(--dur-hover-control\)\]/g)).toHaveLength(2)
