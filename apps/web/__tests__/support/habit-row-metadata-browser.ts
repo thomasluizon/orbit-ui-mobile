@@ -28,6 +28,15 @@ export function bundleHabitRowMetadata() {
           actions={{ onLog: () => {}, onDetail: () => {}, onDelete: () => {} }} />;
       });
     }
+    function LoggedParentRows() {
+      const nextDue = { kind: 'future', label: messages.habits.schedule.dueTomorrow };
+      const progress = messages.habits.rowProgress.replace('{done}', '0').replace('{total}', '2');
+      return [0, 1].flatMap(depth => [true, false].map(logged => <HabitRow key={depth + ':' + logged}
+        habit={createMockHabit({ id: (logged ? 'logged-' : 'open-') + depth, title: 'Read pages', hasSubHabits: true, isLoggedInRange: logged, dueDate: logged ? '2026-11-02' : '2026-11-01' })}
+        depth={depth} structuralColumn hasChildren childProgress={{ done: 0, total: 2 }} state={logged ? 'done' : 'empty'}
+        meta={logged ? [progress, nextDue] : [progress]}
+        actions={{ onEdit: () => {}, onLog: () => {}, onUnlog: () => {}, onToggleExpand: () => {} }} />));
+    }
     function Rows() {
       const [selecting, setSelecting] = useState(false);
       return <><button id="select-rows" onClick={() => setSelecting(value => !value)}>Select rows</button>
@@ -37,7 +46,7 @@ export function bundleHabitRowMetadata() {
           meta={parent ? ['1/3', '08:00'] : ['08:00']} selectMode={selecting} selected={selecting}
           actions={{ onEdit: () => {}, onToggleSelection: () => {}, onToggleExpand: () => {} }} />))}</>;
     }
-    createRoot(root).render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">{root.dataset.scenario === 'not-due' ? <NotDueRows /> : <Rows />}</NextIntlClientProvider>);`
+    createRoot(root).render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">{root.dataset.scenario === 'not-due' ? <NotDueRows /> : root.dataset.scenario === 'logged-parent' ? <LoggedParentRows /> : <Rows />}</NextIntlClientProvider>);`
   const options = { stdin: { contents, resolveDir: process.cwd(), loader: 'tsx' }, bundle: true, write: false, format: 'iife', platform: 'browser', conditions: ['browser'], alias: { '@sentry/nextjs': '@sentry/react' }, jsx: 'automatic', define: { 'process.env.NODE_ENV': '"production"', 'process.env': '{}' } }
   return execFileSync(process.execPath, ['--input-type=module', '-e', `
     import { build } from 'esbuild';

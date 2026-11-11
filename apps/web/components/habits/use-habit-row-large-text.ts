@@ -18,6 +18,9 @@ function subscribe(onChange: () => void) {
   }
 }
 
+/** The `gap-[4px]` between the tokens of `MetaStrip`. */
+const META_TOKEN_GAP = 4
+
 export function useHabitInlineDepthLimit() {
   const [contentWidth, setContentWidth] = useState<number>()
   const measureRef = useCallback((element: HTMLDivElement | null) => {
@@ -36,7 +39,8 @@ export function useHabitRowSupportingMeta(depth: number) {
   return { supportingMeta: largeText || depth > 0 && depth >= maxInlineDepth, measureRef, largeText }
 }
 
-export function useHabitRowMetadataFit(signature: string, largeText: boolean, measureRef: RefCallback<HTMLDivElement>) {
+/** The metadata moves to the supporting line when one token is wider than the title block, or, with `fitWholeStrip`, when the whole strip is. */
+export function useHabitRowMetadataFit(signature: string, largeText: boolean, measureRef: RefCallback<HTMLDivElement>, fitWholeStrip = false) {
   const [row, setRow] = useState<HTMLDivElement | null>(null)
   const rowRef = useCallback((element: HTMLDivElement | null) => {
     setRow(element)
@@ -54,10 +58,13 @@ export function useHabitRowMetadataFit(signature: string, largeText: boolean, me
     if (!content) return
     const observer = new ResizeObserver(() => {
       const available = content.getBoundingClientRect().width
-      if (available > 0) setNarrow(tokens.some((token) => token.getBoundingClientRect().width > available))
+      if (available <= 0) return
+      const widths = tokens.map((token) => token.getBoundingClientRect().width)
+      const stripWidth = widths.reduce((total, width) => total + width, 0) + META_TOKEN_GAP * Math.max(widths.length - 1, 0)
+      setNarrow(widths.some((width) => width > available) || (fitWholeStrip && stripWidth > available))
     })
     for (const element of [content, ...tokens]) observer.observe(element)
     return () => observer.disconnect()
-  }, [row, signature, largeText, narrow])
+  }, [row, signature, largeText, narrow, fitWholeStrip])
   return { rowRef, narrow }
 }

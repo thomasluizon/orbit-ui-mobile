@@ -260,6 +260,10 @@ function habitRowSpacing(depth: number, panelEnd: boolean): ViewStyle {
   return { paddingLeft: depth * SPACING.s16, paddingBottom: panelEnd ? SPACING.s12 : SPACING.s8 }
 }
 
+/** The `gap: 4` between the tokens of `HabitRowMetaStrip`. */
+const META_TOKEN_GAP = 4
+
+/** The metadata moves to the supporting line when one token is wider than the title block, or, for a logged parent, when the whole strip is. */
 function useHabitRowMetadataFit(metaParts: HabitRowMetaPart[], nextDueVisible: boolean) {
   const [measurements, setMeasurements] = useState<{ contentWidth: number; widths: Record<string, number> }>({ contentWidth: Infinity, widths: {} })
   const keys = visibleHabitRowMetaParts(metaParts, nextDueVisible).map((part, index) => habitRowMetaPartKey(part, index))
@@ -268,7 +272,9 @@ function useHabitRowMetadataFit(metaParts: HabitRowMetaPart[], nextDueVisible: b
     ...previous,
     widths: Object.fromEntries(keys.map((current) => [current, current === key ? width : previous.widths[current] ?? 0])),
   })
-  return { onContentWidth, onTokenWidth, narrow: keys.some((key) => (measurements.widths[key] ?? 0) > measurements.contentWidth) }
+  const widths = keys.map((key) => measurements.widths[key] ?? 0)
+  const stripWidth = widths.reduce((total, width) => total + width, 0) + META_TOKEN_GAP * Math.max(widths.length - 1, 0)
+  return { onContentWidth, onTokenWidth, narrow: widths.some((width) => width > measurements.contentWidth) || (nextDueVisible && stripWidth > measurements.contentWidth) }
 }
 
 function getHabitRowDates(selectedDate: Date | undefined, today: string | undefined) {

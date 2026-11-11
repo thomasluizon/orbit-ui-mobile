@@ -7,6 +7,7 @@ import { i18n } from '@/lib/i18n'
 import { createTokensV2 } from '@/lib/theme'
 import { HabitRow, type HabitRowProps } from '@/components/habits/habit-row'
 import { __resetTestHostConfig, __setWindowDimensions } from '@/test-mocks/react-native'
+import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
 
 vi.unmock('react-i18next')
 
@@ -113,4 +114,46 @@ describe('logged parent row states', () => {
     const strips = root.findAll((node) => node.props.testID === 'habit-row-meta' && typeof node.type === 'string')
     expect({ strips: strips.length, last: texts(strips[0]!).filter((text) => text !== '·').at(-1) }).toEqual({ strips: 1, last: 'due tomorrow' })
   })
+})
+
+describe('logged parent row metadata fit', () => {
+  it.each([320, 360, 384, 412].flatMap((width) => ['en', 'pt-BR'].flatMap((language) => [0, 1].map((depth) => ({ width, language, depth })))))(
+    'keeps the next due token whole on one metadata line at $width dp in $language, depth=$depth', async ({ width, language, depth }) => {
+      await i18n.changeLanguage(language)
+      __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+      const rowWidth = width - 32
+      let tree: ReturnType<typeof TestRenderer.create>
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(<I18nextProvider i18n={i18n}>
+          <HabitRow habit={loggedParent()} today={TODAY} selectedDate={new Date(`${TODAY}T12:00:00`)} depth={depth} structuralColumn hasChildren
+            childrenDone={0} childrenTotal={2} actions={{ onEdit: vi.fn(), onToggleExpand: vi.fn(), onLog: vi.fn(), onUnlog: vi.fn() }} />
+        </I18nextProvider>)
+      })
+      const layoutEvent = (layoutWidth: number) => ({ nativeEvent: { layout: { x: 0, y: 0, width: layoutWidth, height: 52 } } })
+      for (let pass = 0; pass < 3; pass += 1) {
+        const measured = measureInteractionFills(tree!.toJSON(), rowWidth, false)
+        const content = measured.find((part) => part.host.props.testID === 'habit-row-title-block')!
+        const tokenWidths = measured.filter((part) => part.host.props.testID === 'habit-row-meta-token').map((part) => part.width)
+        TestRenderer.act(() => {
+          tree!.root.findAll((node: ReactTestInstance) => typeof node.props.onLayout === 'function' && String(node.type) === 'View')[0]!.props.onLayout(layoutEvent(rowWidth))
+          tree!.root.findByProps({ testID: 'habit-row-title-block' }).props.onLayout(layoutEvent(content.width))
+          tree!.root.findAll((node: ReactTestInstance) => node.props.testID === 'habit-row-meta-token' && String(node.type) === 'View')
+            .forEach((node: ReactTestInstance, index: number) => (node.props.onLayout as (event: ReturnType<typeof layoutEvent>) => void)(layoutEvent(tokenWidths[index]!)))
+        })
+      }
+      const geometry = measureInteractionFills(tree!.toJSON(), rowWidth, false)
+      const row = geometry.find((part) => part.host.props.testID === 'habit-row')!
+      const tokens = geometry.filter((part) => part.host.props.testID === 'habit-row-meta-token')
+      const label = i18n.t('habits.schedule.dueTomorrow')
+      /** A nested parent at 320 dp is already on the supporting line, which may hold only two tokens; the whole label then starts the next line. */
+      const maximumLines = width === 320 && depth === 1 ? 2 : 1
+      const lines = new Set(tokens.map((token) => Math.round(token.top))).size
+      expect({
+        last: texts(tree!.root.findAll((node: ReactTestInstance) => node.props.testID === 'habit-row-meta' && typeof node.type === 'string')[0]).filter((text) => text !== '·').at(-1),
+        fits: lines <= maximumLines,
+        clipped: tokens.filter((token) => token.left < row.left || token.right > row.right).length,
+      }).toEqual({ last: label, fits: true, clipped: 0 })
+      TestRenderer.act(() => tree!.unmount())
+    },
+  )
 })
