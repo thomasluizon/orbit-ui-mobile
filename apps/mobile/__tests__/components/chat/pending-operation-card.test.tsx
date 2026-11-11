@@ -1,8 +1,11 @@
 import { restoreConversationPage } from '@orbit/shared/chat/conversation-restore'
 import { COMPACT_FAILED_INDEXES, makeExecutedConversationPage, makeRevisedConversationPage, PROPOSED_HABIT_TITLE, REVISED_HABIT_ID, REVISED_HABIT_TITLE, storedOperationId, type StoredExecution } from '@orbit/shared/test-support/conversation-fixtures'
 import { makeOfferedPreview, makeOfferedTaskPreview, makeOfferedChildPreview } from '@orbit/shared/test-support/astra-offer-fixtures'
-import { makeDatedTaskPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview, makeBulkUpdateHabitsPreview, makeBulkUpdateExecutionResponse, TICKET_TASK_DESCRIPTION, TICKET_TASK_TITLE } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeDatedTaskPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, makeCreateWithReusedChildPreview, REUSED_CHILD_HABIT_ID, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview, makeBulkUpdateHabitsPreview, makeBulkUpdateExecutionResponse, TICKET_TASK_DESCRIPTION, TICKET_TASK_TITLE } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { formatLocaleDate } from '@orbit/shared/utils'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { habitKeys } from '@orbit/shared/query'
+import { createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import { IntlMessageFormat } from 'intl-messageformat'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -424,12 +427,28 @@ describe('PendingOperationCard (mobile)', () => {
     }
   })
 
-  it.each(['en', 'pt-BR'])('keeps a neutral heading for nested reuse in %s', (locale) => {
+  it.each(['en', 'pt-BR'])('names nested reuse as one create in %s', (locale) => {
     visibleLocale.actual = true
     visibleLocale.language = locale
-    const messages = locale === 'en' ? en : ptBR
-    const reused = renderCard(makeNestedHabitPreview(2, true))
-    expect(renderedText(reused.tree.toJSON())).toContain(messages.chat.pendingOp.capability['habits-write'])
+    const reused = renderCard(makeCreateWithReusedChildPreview())
+    const text = renderedText(reused.tree.toJSON())
+    expect(text).toContain(locale === 'en' ? 'New habit with existing habits' : 'Novo hábito com hábitos existentes')
+    expect(text).toContain(locale === 'en' ? 'Create' : 'Criar')
+    expect(text).not.toContain(locale === 'en' ? 'Change 1 habit' : 'Alterar 1 hábito')
+  })
+
+  it('shows the cached emoji of a reused child and no top-level outcome for the new habit', () => {
+    const client = new QueryClient()
+    client.setQueryData(habitKeys.list({}), [createMockHabitScheduleItem({ id: REUSED_CHILD_HABIT_ID, emoji: '🚶' })])
+    visibleLocale.actual = true
+    visibleLocale.language = 'en'
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<QueryClientProvider client={client}><PendingOperationCard pendingOperation={makeCreateWithReusedChildPreview()} onConfirmExecute={vi.fn()} onPrepareStepUp={vi.fn()} onVerifyStepUp={vi.fn()} /></QueryClientProvider>)
+    })
+    const text = renderedText(tree.toJSON())
+    expect(text).toContain('🚶')
+    expect(text).not.toContain(en.habits.moveParent.toRoot)
   })
 
   it.each(childSchedulePreviewCases.flatMap(scenario => ['en', 'pt-BR'].map(locale => ({ ...scenario, locale }))))('preserves the child $name schedule in $locale', (scenario) => {
