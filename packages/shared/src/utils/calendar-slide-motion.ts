@@ -6,6 +6,8 @@ export const calendarSlideMotion = {
   distance: motionLayerTiming.routeShift,
   duration: motionDurations.route,
   easing: motionEasings.enter,
+  /** Offset in px at or below which the content looks at rest: the `motion` spring `restDelta` default for a px value. */
+  restDisplacementThreshold: 0.5,
 } as const
 
 interface CalendarSlide {
@@ -16,7 +18,8 @@ interface CalendarSlide {
 
 /**
  * Resolves the slide for one month or week step. `liveOffset` is the offset the content shows now:
- * a step in flight keeps it, so a repeated tap retargets from where the content is.
+ * a step still visibly in flight keeps it, so a repeated tap retargets from where the content is.
+ * An offset at or below `restDisplacementThreshold` looks at rest, so the new period slides in fresh.
  * Returns null when the new period appears at once: no direction, or reduced motion.
  */
 export function resolveCalendarSlide(
@@ -26,8 +29,9 @@ export function resolveCalendarSlide(
 ): CalendarSlide | null {
   if (direction === null || reducedMotion) return null
   const restingStart = direction === 'right' ? calendarSlideMotion.distance : -calendarSlideMotion.distance
+  const atRest = Math.abs(liveOffset) <= calendarSlideMotion.restDisplacementThreshold
   return {
-    from: liveOffset === 0 ? restingStart : liveOffset,
+    from: atRest ? restingStart : liveOffset,
     duration: calendarSlideMotion.duration,
     easing: calendarSlideMotion.easing,
   }

@@ -8,6 +8,7 @@ describe('calendar slide motion', () => {
       distance: motionLayerTiming.routeShift,
       duration: motionDurations.route,
       easing: motionEasings.enter,
+      restDisplacementThreshold: 0.5,
     })
     expect(calendarSlideMotion.distance).toBe(12)
     expect(calendarSlideMotion.duration).toBe(220)
@@ -21,6 +22,13 @@ describe('calendar slide motion', () => {
   it('retargets from the live offset instead of restarting a step in flight', () => {
     expect(resolveCalendarSlide('right', 5, false)?.from).toBe(5)
     expect(resolveCalendarSlide('right', -7, false)?.from).toBe(-7)
+    expect(resolveCalendarSlide('right', 0.94, false)?.from).toBeCloseTo(0.94)
+  })
+
+  it('starts a fresh slide when the shown offset looks at rest', () => {
+    expect(resolveCalendarSlide('right', 0.34, false)?.from).toBe(12)
+    expect(resolveCalendarSlide('left', 0.06, false)?.from).toBe(-12)
+    expect(resolveCalendarSlide('right', -0.5, false)?.from).toBe(12)
   })
 
   it('does not slide under reduced motion or without a direction', () => {

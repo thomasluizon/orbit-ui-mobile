@@ -4,6 +4,7 @@ import { enUS } from 'date-fns/locale'
 import { NextIntlClientProvider } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import { motionDurations, motionLayerTiming } from '@orbit/shared/theme'
+import { calendarSlideMotion } from '@orbit/shared/utils'
 import { CalendarWeekView } from '@/components/calendar/calendar-week-view'
 
 function weekColumns(firstDay: number) {
@@ -13,8 +14,8 @@ function weekColumns(firstDay: number) {
   })
 }
 
-function week(firstDay: number, slideDirection: 'left' | 'right' | null) {
-  return <NextIntlClientProvider locale="en" messages={en} timeZone="UTC"><CalendarWeekView columns={weekColumns(firstDay)} dayMap={new Map()} slideDirection={slideDirection} onSelectDay={vi.fn()}
+function week(firstDay: number, slideDirection: 'left' | 'right' | null, isLoading = false) {
+  return <NextIntlClientProvider locale="en" messages={en} timeZone="UTC"><CalendarWeekView columns={weekColumns(firstDay)} dayMap={new Map()} slideDirection={slideDirection} isLoading={isLoading} onSelectDay={vi.fn()}
     displayTime={(time) => time} dateFnsLocale={enUS} allDayLabel="No set time" nowLabel="Now" timeZone="UTC" /></NextIntlClientProvider>
 }
 
@@ -86,6 +87,35 @@ describe('Week slide motion', () => {
     const afterRepeat = shownOffset(slideElement(container))
     expect(afterRepeat).toBeLessThanOrEqual(beforeRepeat)
     expect(afterRepeat).toBeGreaterThan(0)
+  })
+
+  it('starts a fresh slide when a repeated step comes after the content looks at rest', async () => {
+    preferReducedMotion(false)
+    const { container, rerender } = render(week(5, null))
+    rerender(week(12, 'right'))
+    await pauseFor(9 * FRAME_MILLISECONDS)
+    const beforeRepeat = shownOffset(slideElement(container))
+    expect(beforeRepeat).toBeGreaterThan(0)
+    expect(beforeRepeat).toBeLessThanOrEqual(calendarSlideMotion.restDisplacementThreshold)
+    rerender(week(19, 'right'))
+    await frame()
+    expect(shownOffset(slideElement(container))).toBeGreaterThan(motionLayerTiming.routeShift / 2)
+  })
+
+  it('keeps one slide across the loading skeleton', async () => {
+    preferReducedMotion(false)
+    const { container, rerender } = render(week(5, null, true))
+    rerender(week(12, 'right', true))
+    await pauseFor(3 * FRAME_MILLISECONDS)
+    const element = slideElement(container)
+    const beforeData = shownOffset(element)
+    expect(beforeData).toBeGreaterThan(0)
+    rerender(week(12, 'right'))
+    await frame()
+    expect(slideElement(container)).toBe(element)
+    const afterData = shownOffset(element)
+    expect(afterData).toBeGreaterThan(0)
+    expect(afterData).toBeLessThan(beforeData)
   })
 
   it('shows the new week at once under reduced motion', async () => {

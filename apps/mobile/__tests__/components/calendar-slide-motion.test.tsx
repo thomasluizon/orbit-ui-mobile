@@ -53,12 +53,11 @@ function SlideSurface({ surface, step, direction, isLoading = false }: Readonly<
     t={((key: string) => key) as never} tokens={tokens} />
 }
 
-async function mount(surface: Surface, isLoading = false) {
+async function mount(surface: Surface) {
   let tree!: ReturnType<typeof TestRenderer.create>
-  await act(() => { tree = TestRenderer.create(<SlideSurface surface={surface} step={0} direction={null} isLoading={isLoading} />) })
+  await act(() => { tree = TestRenderer.create(<SlideSurface surface={surface} step={0} direction={null} />) })
   return {
-    step: (step: number, direction: CalendarSlideDirection | null) => act(() => { tree.update(<SlideSurface surface={surface} step={step} direction={direction} isLoading={isLoading} />) }),
-    tree,
+    step: (step: number, direction: CalendarSlideDirection | null) => act(() => { tree.update(<SlideSurface surface={surface} step={step} direction={direction} />) }),
   }
 }
 
@@ -94,6 +93,17 @@ describe.each(['month', 'week'] as const)('%s slide motion (mobile)', (surface) 
     expect(withTimingCalls).toHaveLength(2)
   })
 
+  it('starts a fresh slide when the shown offset looks at rest', async () => {
+    const view = await mount(surface)
+    await view.step(1, 'right')
+    const slide = sharedValues[0]!
+    slide.value = 0.34
+    slide.writes.length = 0
+    await view.step(2, 'right')
+    expect(slide.writes).toEqual([motionLayerTiming.routeShift, 0])
+    expect(withTimingCalls).toHaveLength(2)
+  })
+
   it('shows the new period at once under reduced motion', async () => {
     preference.reduced = true
     const view = await mount(surface)
@@ -111,9 +121,12 @@ describe.each(['month', 'week'] as const)('%s slide motion (mobile)', (surface) 
   })
 
   it('keeps one slide across the loading skeleton', async () => {
-    const view = await mount(surface, true)
-    await view.step(1, 'right')
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await act(() => { tree = TestRenderer.create(<SlideSurface surface={surface} step={0} direction={null} isLoading />) })
+    await act(() => { tree.update(<SlideSurface surface={surface} step={1} direction="right" isLoading />) })
+    await act(() => { tree.update(<SlideSurface surface={surface} step={1} direction="right" isLoading={false} />) })
     expect(sharedValues).toHaveLength(1)
-    expect(sharedValues[0]!.writes[0]).toBe(motionLayerTiming.routeShift)
+    expect(sharedValues[0]!.writes).toEqual([motionLayerTiming.routeShift, 0])
+    expect(withTimingCalls).toHaveLength(1)
   })
 })
