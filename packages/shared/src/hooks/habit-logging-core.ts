@@ -3,10 +3,11 @@ import type { HabitScheduleItem,CalendarMonthResponse,LogHabitResponse } from '.
 import type { Profile } from '../types/profile'
 import type { Goal } from '../types/goal'
 import type { GamificationProfile } from '../types/gamification'
+import type { HabitLog } from '../types/calendar'
 import type { UIStoreState } from '../stores/ui-store'
 import { getMilestoneShareStreakKey } from '../stores/engagement-prompt-store'
 import { isStreakCelebrationMilestone } from '../stores/celebration-queue'
-import { applyLinkedGoalUpdates,buildSuccessfulLogPatch,findHabitInList,getAccountDay,optimisticPatchHabit,optimisticSetCalendarHabitLog,rollbackOptimisticCalendarHabitLog } from '../utils'
+import { applyLinkedGoalUpdates,buildSuccessfulLogPatch,findHabitInList,getAccountDay,optimisticPatchHabit,optimisticSetCalendarHabitLog,optimisticSetHabitLogs,rollbackOptimisticCalendarHabitLog,rollbackOptimisticHabitLogs } from '../utils'
 import { checkTodayAllDoneOrDefer,updateHabitListsForDate,habitKeys,profileKeys,gamificationKeys,goalKeys } from '../query'
 
 export interface HabitLogVariables { habitId: string; date?: string; intent: 'log' | 'unlog' }
@@ -118,4 +119,18 @@ export function rollbackHabitLogCalendars(queryClient: QueryClient, previousCale
     queryClient.setQueryData<CalendarMonthResponse>(key, currentCalendar => currentCalendar
       ? rollbackOptimisticCalendarHabitLog(currentCalendar, previousCalendar, habitId, date, `optimistic-log:${habitId}:${date}`) : currentCalendar)
   }
+}
+
+/** Returns the logs snapshot that `rollbackOptimisticHabitLogsCache` restores when the log fails. */
+export function setOptimisticHabitLogs(queryClient: QueryClient, habitId: string, date: string, completed: boolean, optimisticLogId: string, createdAtUtc: string): HabitLog[] | undefined {
+  void queryClient.cancelQueries({ queryKey: habitKeys.logs(habitId) })
+  const previousLogs = queryClient.getQueryData<HabitLog[]>(habitKeys.logs(habitId))
+  queryClient.setQueryData<HabitLog[]>(habitKeys.logs(habitId), old =>
+    optimisticSetHabitLogs(old ?? [], date, completed, optimisticLogId, createdAtUtc))
+  return previousLogs
+}
+
+export function rollbackOptimisticHabitLogsCache(queryClient: QueryClient, previousLogs: HabitLog[] | undefined, habitId: string, date: string) {
+  queryClient.setQueryData<HabitLog[] | undefined>(habitKeys.logs(habitId), currentLogs =>
+    rollbackOptimisticHabitLogs(currentLogs, previousLogs, date, `optimistic-log:${habitId}:${date}`))
 }

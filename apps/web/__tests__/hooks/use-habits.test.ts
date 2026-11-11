@@ -877,7 +877,7 @@ describe('useLogHabit', () => {
   it.each(['log', 'unlog'] as const)('shows the detail %s before the log action settles and restores it on failure', async (intent) => {
     const { logHabit } = await import('@/lib/actions/habits')
     let rejectLog: ((error: Error) => void) | undefined
-    vi.mocked(logHabit).mockImplementation(() => new Promise((_, reject) => {
+    vi.mocked(logHabit).mockClear().mockImplementation(() => new Promise((_, reject) => {
       rejectLog = reject
     }))
     const date = '2025-01-15'
@@ -898,10 +898,12 @@ describe('useLogHabit', () => {
     const before = detailState()
 
     let pending: Promise<unknown> | undefined
-    act(() => { pending = result.current.log.mutateAsync({ habitId: 'h-1', date, intent }) })
+    await act(async () => { pending = result.current.log.mutateAsync({ habitId: 'h-1', date, intent }) })
 
-    expect(detailState().completed).toBe(intent === 'log')
+    await waitFor(() => expect(detailState().completed).toBe(intent === 'log'))
     expect(detailState().stripDay).not.toBe(before.stripDay)
+    expect(result.current.log.isPending).toBe(true)
+    expect(logHabit).toHaveBeenCalledOnce()
 
     await act(async () => {
       rejectLog?.(new Error('Network failed'))
@@ -909,7 +911,7 @@ describe('useLogHabit', () => {
     })
 
     expect(queryClient.getQueryData(habitKeys.logs('h-1'))).toEqual(initialLogs)
-    expect(detailState()).toEqual(before)
+    await waitFor(() => expect(detailState()).toEqual(before))
     expect(mockShowError).toHaveBeenCalledExactlyOnceWith('habits.detail.logError', 'common.dismiss')
   })
 

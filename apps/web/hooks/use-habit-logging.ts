@@ -1,6 +1,6 @@
 'use client'
 
-import { applyHabitLogSuccess,checkTodayCompletionAfterLog,setOptimisticCalendarHabitLog,rollbackHabitLogCalendars } from '@orbit/shared/hooks'
+import { applyHabitLogSuccess,checkTodayCompletionAfterLog,setOptimisticCalendarHabitLog,rollbackHabitLogCalendars,setOptimisticHabitLogs,rollbackOptimisticHabitLogsCache } from '@orbit/shared/hooks'
 
 import type { UseMutationOptions } from '@tanstack/react-query'
 import type { LogHabitResponse } from '@orbit/shared/types/habit'
@@ -14,6 +14,7 @@ import { findHabitInList,getAccountDay,normalizeHabits,buildChildrenIndex,optimi
 import { optimisticToggleCompletion } from '@/lib/habit-optimistic-helpers'
 import { restoreHabitLists,snapshotHabitLists,type HabitListSnapshots } from '@/lib/habit-mutation-helpers'
 import type { CalendarMonthResponse } from '@orbit/shared/types/habit'
+import type { HabitLog } from '@orbit/shared/types/calendar'
 import type { Profile } from '@orbit/shared/types/profile'
 import { logHabit as logHabitAction,skipHabit as skipHabitAction,undoSkipHabit as undoSkipHabitAction } from '@/lib/actions/habits'
 import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
@@ -127,7 +128,7 @@ function useLogHabitContext() {
 }
 
 type HabitLogVariables = { habitId: string; date?: string; intent: 'log' | 'unlog' }
-type HabitLogSnapshot = { occurrenceDate: string; previousLists: HabitListSnapshots; previousCalendars: readonly (readonly [readonly unknown[], CalendarMonthResponse | undefined])[]; hadPendingListRefetch: boolean; retryAllDoneDate: string | null }
+type HabitLogSnapshot = { occurrenceDate: string; previousLists: HabitListSnapshots; previousLogs: HabitLog[] | undefined; previousCalendars: readonly (readonly [readonly unknown[], CalendarMonthResponse | undefined])[]; hadPendingListRefetch: boolean; retryAllDoneDate: string | null }
 type HabitLogOptions = UseMutationOptions<LogHabitResponse, Error, HabitLogVariables, HabitLogSnapshot>
 
 function createLogHabitOnMutate(context: ReturnType<typeof useLogHabitContext>) {
@@ -146,10 +147,12 @@ function createLogHabitOnMutate(context: ReturnType<typeof useLogHabitContext>) 
       })
       : []
 
+    let previousLogs: HabitLog[] | undefined
     if (date) {
       const completed = intent === 'log'
       const optimisticLogId = `optimistic-log:${habitId}:${date}`
       const createdAtUtc = new Date().toISOString()
+      previousLogs = setOptimisticHabitLogs(queryClient, habitId, date, completed, optimisticLogId, createdAtUtc)
       updateHabitListsForDate(queryClient, date, (items) => optimisticSetDatedCompletion(items, habitId, date, completed, optimisticLogId), { includeUnfiltered: false })
       setOptimisticCalendarHabitLog(queryClient, habitId, date, completed, optimisticLogId, createdAtUtc)
     } else {
@@ -157,7 +160,7 @@ function createLogHabitOnMutate(context: ReturnType<typeof useLogHabitContext>) 
         (items) => optimisticToggleCompletion(items, habitId))
     }
 
-    return { occurrenceDate, previousLists, previousCalendars, hadPendingListRefetch, retryAllDoneDate: null as string | null }
+    return { occurrenceDate, previousLists, previousLogs, previousCalendars, hadPendingListRefetch, retryAllDoneDate: null as string | null }
   }
   return callback
 }
@@ -176,6 +179,7 @@ function createLogHabitOnError(context: ReturnType<typeof useLogHabitContext>) {
       const date = variables.date
       const optimisticLogId = `optimistic-log:${variables.habitId}:${date}`
       rollbackDatedHabitLists(queryClient, context?.previousLists ?? [], variables.habitId, date, optimisticLogId)
+      if (context) rollbackOptimisticHabitLogsCache(queryClient, context.previousLogs, variables.habitId, date)
       rollbackHabitLogCalendars(queryClient, context?.previousCalendars ?? [], variables.habitId, date)
     }
     showError(getFriendlyErrorMessage(error, (key, values) => t(key, values), 'habits.detail.logError'), t('common.dismiss'))
