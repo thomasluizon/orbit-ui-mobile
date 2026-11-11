@@ -114,8 +114,8 @@ export const cases = () => {
   T(`${TOOL}: the committed snapshot projects the slowest shard to ${projected.toFixed(0)}s, inside the ${SHARD_HARNESS_BUDGET_SECONDS}s budget`,
     projected <= SHARD_HARNESS_BUDGET_SECONDS,
     `the slowest shard projects to ${projected.toFixed(1)}s from run ${timings.sourceRun}\n     Split the slowest module or add shards to the matrix in .github/workflows/test.yml, then regenerate: ${timings.regenerate}`)
-  T(`${TOOL}: the projection reads absolute snapshot seconds, so a slower snapshot projects past the budget`,
-    projection(scaled(1.5)) > SHARD_HARNESS_BUDGET_SECONDS && projection(scaled(1.5)) > projected, `${projection(scaled(1.5)).toFixed(1)}s at 1.5 times`)
+  T(`${TOOL}: the projection reads absolute snapshot seconds, so a uniformly slower snapshot projects proportionally slower`,
+    Math.abs(projection(scaled(2)) - timings.fixedSeconds - 2 * (projected - timings.fixedSeconds)) < 0.01, `${projection(scaled(2)).toFixed(1)}s at 2 times, ${projected.toFixed(1)}s at 1 time`)
   T(`${TOOL}: no single module outweighs the budget, so a partition can fit it`,
     Math.max(...Object.values(timings.seconds)) + timings.fixedSeconds <= SHARD_HARNESS_BUDGET_SECONDS,
     `heaviest module: ${Object.entries(timings.seconds).sort(([, left], [, right]) => right - left)[0].join(" ")}s. Split it into case modules.`)

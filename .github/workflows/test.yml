@@ -97,8 +97,8 @@ jobs:
   # tools/test-tools-timings.json holds CI seconds per module from the run in its sourceRun field, and the tools
   # harness fails when that snapshot projects the slowest shard past its budget. timeout-minutes is the live guard.
   # Regenerate the snapshot with node tools/record-tool-timings.mjs <run-id>. Tool and Hook Tests below keeps the required check name.
-  # Run 42915781433 took 2:43 to 5:13 end to end per shard, and the harness step took 116 to 264 s.
-  # The 8 minute limit is the slowest end to end time of 313 s times 1.5, rounded up to whole minutes.
+  # Run 42961275542 (four shards) took 4:31 to 5:25 end to end per shard, and the harness step took 215 to 260 s.
+  # The 8 minute limit is about 1.5 times the slowest end to end time of 325 s.
   tool-tests:
     name: Tool tests (${{ matrix.shard }}/${{ matrix.total }})
     runs-on: ubuntu-latest
