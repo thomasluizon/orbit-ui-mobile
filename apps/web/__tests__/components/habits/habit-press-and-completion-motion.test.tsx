@@ -5,11 +5,15 @@ import { CheckCircle } from '@/components/habits/habit-row-check-circle'
 import { HabitCheck } from '@/components/habits/habit-check'
 import { HabitDrill } from '@/components/habits/habit-list/habit-drill'
 
+import { motionSprings, resolveMotionPreset } from '@orbit/shared/theme'
+
 const preference = vi.hoisted(() => ({ reduced: false }))
+const settle = vi.hoisted(() => ({ animate: vi.fn(() => ({ stop: vi.fn() })) }))
+vi.mock('motion/react', async (importOriginal) => ({ ...(await importOriginal<typeof import('motion/react')>()), animate: settle.animate }))
 vi.mock('@/hooks/use-viewport-match', () => ({ useViewportMatch: () => preference.reduced }))
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
-beforeEach(() => { preference.reduced = false })
+beforeEach(() => { preference.reduced = false; settle.animate.mockClear() })
 
 describe('check press feedback', () => {
   it('scales on the press duration and never on the control hover duration', () => {
@@ -53,10 +57,24 @@ describe('completion feedback', () => {
     expect(view.container.querySelector('[data-habit-check-settle]')).toBeNull()
   })
 
+  it('springs the mounted check from the success scale to rest with the completion spring', () => {
+    const view = render(<HabitCheck status="empty" label="Open" />)
+    expect(settle.animate).not.toHaveBeenCalled()
+    view.rerender(<HabitCheck status="done" label="Done" />)
+    expect(settle.animate).toHaveBeenCalledOnce()
+    expect(settle.animate).toHaveBeenCalledWith(view.container.querySelector('[data-habit-check]'), { scale: [resolveMotionPreset('success-feedback').scaleFrom, 1] }, { type: 'spring', ...motionSprings.completion })
+  })
+
+  it('mounts no motion for a check that first renders done', () => {
+    render(<HabitCheck status="done" label="Done" />)
+    expect(settle.animate).not.toHaveBeenCalled()
+  })
+
   it('plays nothing under reduced motion', () => {
     preference.reduced = true
     const view = render(<HabitCheck status="empty" label="Open" />)
     view.rerender(<HabitCheck status="done" label="Done" />)
     expect(view.container.querySelector('[data-habit-check-settle]')).toBeNull()
+    expect(settle.animate).not.toHaveBeenCalled()
   })
 })

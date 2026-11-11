@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { motion } from 'motion/react'
+import { useEffect, useRef, useState } from 'react'
+import { animate } from 'motion/react'
 import { motionSprings, resolveMotionPreset } from '@orbit/shared/theme'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import { HABIT_CHECK_PATH, HABIT_CHECK_PERIMETER, habitCheckProgress } from '@orbit/shared/utils/habit-row-status'
@@ -35,6 +35,12 @@ export function HabitCheck({ status, label, unavailable = false, progress }: Rea
   const ratio = habitCheckProgress(progress)
   const done = status !== 'bad' && (progress ? ratio === 1 : status === 'done')
   const settleFrom = useCompletionSettle(done)
+  const checkRef = useRef<HTMLSpanElement>(null)
+  useEffect(() => {
+    if (settleFrom === null || !checkRef.current) return
+    const settle = animate(checkRef.current, { scale: [settleFrom, 1] }, { type: 'spring', ...motionSprings.completion })
+    return () => settle.stop()
+  }, [settleFrom])
   if (unavailable) return (
     <span data-habit-check="" data-focus-ring-owner="" data-status="unavailable"
       role={label ? 'img' : undefined} aria-label={label}
@@ -45,16 +51,14 @@ export function HabitCheck({ status, label, unavailable = false, progress }: Rea
     empty: { graphic: 'var(--status-empty)' }, done: { graphic: 'var(--fg-1)' }, overdue: { graphic: 'var(--status-overdue)' }, bad: { graphic: 'var(--status-bad)' },
   }[status]
   return (
-    <motion.span data-habit-check="" data-focus-ring-owner="" data-status={status}
+    <span ref={checkRef} data-habit-check="" data-focus-ring-owner="" data-status={status}
       data-habit-check-settle={settleFrom === null ? undefined : ''}
       role={label ? 'img' : undefined} aria-label={label}
       className="habit-check-motion relative inline-flex shrink-0 items-center justify-center rounded-[12px]"
-      initial={false} animate={{ scale: settleFrom === null ? 1 : [settleFrom, 1] }}
-      transition={{ type: 'spring', ...motionSprings.completion }}
       style={{ width: 28, height: 28, background: done ? 'var(--fg-1)' : 'var(--habit-check-feedback, transparent)', boxShadow: done ? 'none' : `inset 0 0 0 1px ${color}` }}>
       {done ? <span data-habit-check-feedback="" aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-[inherit]" /> : null}
       {done ? <Check aria-hidden="true" className="relative" size={16} strokeWidth={3} color="var(--bg)" /> : null}
       {!done && ratio > 0 ? <ProgressRing ratio={ratio} bad={status === 'bad'} /> : null}
-    </motion.span>
+    </span>
   )
 }

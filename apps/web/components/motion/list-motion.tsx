@@ -1,6 +1,6 @@
 'use client'
 
-import { useContext, useEffect, useState, type Ref, type ReactNode, type CSSProperties } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, type Ref, type ReactNode, type CSSProperties } from 'react'
 import { AnimatePresence, motion, PresenceContext, usePresence } from 'motion/react'
 import { motionEasings, motionSprings, resolveMotionPreset } from '@orbit/shared/theme'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
@@ -16,14 +16,22 @@ export const reorderTransition = {
   easing: `cubic-bezier(${motionEasings.enter.join(',')})`,
 } as const
 
+const ListScopeContext = createContext('')
+
+export function ListScope({ scope, children }: Readonly<{ scope: string; children: ReactNode }>) {
+  return <ListScopeContext.Provider value={scope}>{children}</ListScopeContext.Provider>
+}
+
 function useExitDeadline(duration: number) {
+  const scope = useContext(ListScopeContext)
   const [present, remove] = usePresence()
+  const scopeWhilePresent = useRef(scope)
   useEffect(() => {
-    if (present) return
-    if (duration === 0) { remove(); return }
+    if (present) { scopeWhilePresent.current = scope; return }
+    if (duration === 0 || scopeWhilePresent.current !== scope) { remove(); return }
     const timer = setTimeout(() => remove(), duration)
     return () => clearTimeout(timer)
-  }, [duration, present, remove])
+  }, [duration, present, remove, scope])
   return present
 }
 

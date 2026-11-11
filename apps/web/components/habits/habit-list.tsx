@@ -1,6 +1,6 @@
 'use client'
 
-import { ContentFade,ListMotionItem,ListPresence,MotionDisclosure } from '@/components/motion/list-motion'
+import { ContentFade,ListMotionItem,ListPresence,ListScope,MotionDisclosure } from '@/components/motion/list-motion'
 import { TodayLaunchContent } from '@/components/today/today-launch-content'
 import { Fragment,Suspense,useEffect,type ComponentProps,type Ref } from 'react'
 import dynamic from 'next/dynamic'
@@ -427,7 +427,7 @@ function renderMainContent(context: HabitListRenderingContext): React.ReactNode 
 }
 
 function renderList(context: HabitListRenderingContext): React.ReactNode {
-  const { habitsQuery, t, view, accountGeneration, launchFromCache, habits, reorderInstructionsId, reorderAnnouncements, drill, showAllDone, onSeeUpcoming } = context
+  const { habitsQuery, t, view, accountGeneration, selectedDateStr, searchQuery, filters, launchFromCache, habits, reorderInstructionsId, reorderAnnouncements, drill, showAllDone, onSeeUpcoming } = context
   const { setListContainerRef } = context.drag
 
   if (habitsQuery.isLoading) return null
@@ -435,7 +435,7 @@ function renderList(context: HabitListRenderingContext): React.ReactNode {
     title={t('habits.loadError')} description="" actionLabel={t('common.retry')} actionIcon="refresh"
     onAction={() => { void habitsQuery.refetch() }} variant="secondary" />
 
-  return <ContentFade key={`${view}:${accountGeneration}`}><TodayLaunchContent enabled={view === 'today'} fromCache={launchFromCache} empty={habits.length === 0}><div
+  return <ContentFade key={`${view}:${accountGeneration}`}><ListScope scope={JSON.stringify([selectedDateStr, searchQuery, filters])}><TodayLaunchContent enabled={view === 'today'} fromCache={launchFromCache} empty={habits.length === 0}><div
     ref={setListContainerRef}
     data-habit-list=""
     style={{ overflowAnchor: 'none' }}
@@ -451,7 +451,7 @@ function renderList(context: HabitListRenderingContext): React.ReactNode {
       {!drill.currentParent && showAllDone ? <HabitListAllDone onSeeUpcoming={onSeeUpcoming} /> : null}
       {renderMainContent(context)}
     </div>
-  </div></TodayLaunchContent></ContentFade>
+  </div></TodayLaunchContent></ListScope></ContentFade>
 }
 
 type HabitListRenderingContext = Pick<ReturnType<typeof useHabitListModalState>, 'cardSelectedDate' | 'setHabitToEdit' | 'setEditModalOnSaved' | 'setShowEditModal' | 'setHabitToReschedule' | 'setShowRescheduleSheet' | 'refusedSubHabitParentId'> & Pick<ReturnType<typeof useHabitListQueries>, 't' | 'displayTime' | 'selectedDateStr' | 'todayStr' | 'locale' | 'isOnline' | 'dndContextId' | 'accountHabitCount' | 'dragAccessibility' | 'habitsQuery' | 'launchFromCache' | 'accountGeneration'> & Pick<ReturnType<typeof useHabitListProgress>, 'getChildrenProgress'> & Pick<ReturnType<typeof useHabitRecentCompletionState>, 'recentlyCompletedIds'> & { drag: ReturnType<typeof useHabitListDrag> } & { isSelectMode: boolean } & Pick<HabitListProps, 'selectedHabitIds' | 'onToggleSelection' | 'onEnterSelectMode' | 'onClearSearch' | 'onCreate' | 'filters' | 'createRefusal' | 'onShowCompleted' | 'onSeeUpcoming'> & Pick<ReturnType<typeof useHabitListCollapse>, 'collapsedIds' | 'toggleExpand'> & Pick<ReturnType<typeof useParentPromptQueue>, 'handleDirectToggle' | 'skipFromRow'> & { confirmations: ReturnType<typeof useHabitListConfirmations> } & Pick<ReturnType<typeof useHabitListVisibility>, 'drill'> & Pick<ReturnType<typeof useHabitListMoveState>, 'openMoveParentPicker'> & Pick<ReturnType<typeof createHabitListSubHabitActions>, 'startAddSubHabit'> & Pick<ReturnType<typeof useHabitListEditState>, 'openDetail'> & Pick<ReturnType<typeof useHabitListKeyboardReorder>, 'reorderInstructionsId' | 'moveHabitByKeyboard' | 'reorderAnnouncements'> & Pick<ReturnType<typeof useHabitListRoots>, 'habits'> & { searchQuery: string } & { view: HabitView } & Pick<ReturnType<typeof getHabitListCompletion>, 'showAllDone'>

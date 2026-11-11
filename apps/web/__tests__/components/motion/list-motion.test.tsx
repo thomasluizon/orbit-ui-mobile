@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { ContentFade, ListMotionItem, ListPresence, MotionDisclosure } from '@/components/motion/list-motion'
+import { ContentFade, ListMotionItem, ListPresence, ListScope, MotionDisclosure } from '@/components/motion/list-motion'
 
 const preference = vi.hoisted(() => ({ reduced: false }))
 vi.mock('@/hooks/use-viewport-match', () => ({ useViewportMatch: () => preference.reduced }))
@@ -19,6 +19,21 @@ describe('list motion', () => {
     fireEvent.click(screen.getByRole('button', { name: 'New' }))
     expect(onPress).toHaveBeenCalledOnce()
     await waitFor(() => expect(screen.queryByText('Old')).toBeNull())
+  })
+
+  it('removes a row at once when the list scope changes in the render that drops it', () => {
+    const rows = (names: string[]) => names.map((name) => <ListMotionItem key={name}><button>{name}</button></ListMotionItem>)
+    const view = render(<ListScope scope="all"><ListPresence>{rows(['Walk', 'Run'])}</ListPresence></ListScope>)
+    view.rerender(<ListScope scope="walk"><ListPresence>{rows(['Walk'])}</ListPresence></ListScope>)
+    expect(screen.queryByText('Run')).toBeNull()
+    expect(view.container.querySelector('[data-list-motion][inert]')).toBeNull()
+  })
+
+  it('keeps the exit for a row that leaves while the list scope stays the same', () => {
+    const rows = (names: string[]) => names.map((name) => <ListMotionItem key={name}><button>{name}</button></ListMotionItem>)
+    const view = render(<ListScope scope="all"><ListPresence>{rows(['Walk', 'Run'])}</ListPresence></ListScope>)
+    view.rerender(<ListScope scope="all"><ListPresence>{rows(['Walk'])}</ListPresence></ListScope>)
+    expect(screen.getByText('Run').closest('[data-list-motion]')).toHaveAttribute('inert')
   })
 
   it('removes collapsed children from interaction as soon as the group collapses', () => {

@@ -65,6 +65,24 @@ it('restores a departing row and discards retained rows on account replacement',
   await act(() => tree.unmount())
 })
 
+it.each(['search:walk', 'filter:Day', 'date:2026-09-04'])('drops the rows a scope change removes at once, without an exit: %s', async (nextScope) => {
+  vi.useFakeTimers()
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await act(() => { tree = TestRenderer.create(<List items={[{ id: 'walk' }, { id: 'run' }]} scope="account:today" />) })
+  await act(() => { tree.update(<List items={[{ id: 'walk' }]} scope={nextScope} />) })
+  expect(tree.root.findAllByType('AnimatedView').map((row) => row.props['data-phase'])).toEqual(['present'])
+  await act(() => tree.unmount())
+})
+
+it('keeps the exit for a row a person logs or deletes while the scope stays the same', async () => {
+  vi.useFakeTimers()
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await act(() => { tree = TestRenderer.create(<List items={[{ id: 'walk' }, { id: 'run' }]} />) })
+  await act(() => { tree.update(<List items={[{ id: 'walk' }]} />) })
+  expect(tree.root.findAllByType('AnimatedView').map((row) => row.props['data-phase'])).toEqual(['present', 'exit'])
+  await act(() => tree.unmount())
+})
+
 it('keeps measured rows moving when a virtualized row above them has no measurement', async () => {
   const unmeasured = { id: 'offscreen' }
   const first = { id: 'first' }
