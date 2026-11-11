@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useEffectEvent,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -171,6 +172,16 @@ function getPinnedComposer(notFoundVisible: boolean, registeredComposer: ReactNo
   return registeredComposer ?? (enabled ? composer : undefined)
 }
 
+function useTodayTopOnArrival(pathname: string, scroller: HTMLElement | null) {
+  const requestedFrom = useRef<string | null>(null)
+  useLayoutEffect(() => {
+    if (requestedFrom.current === null || requestedFrom.current === pathname) return
+    requestedFrom.current = null
+    if (pathname === '/') scroller?.scrollTo({ top: 0, behavior: 'instant' })
+  })
+  return useCallback(() => { requestedFrom.current = pathname }, [pathname])
+}
+
 function ShellCreateFab({ onCreate, refusal }: Readonly<{ onCreate: () => void; refusal?: ReactNode }>) {
   const t = useTranslations()
   return (
@@ -203,6 +214,7 @@ function DestinationShellContent({
   const params = useParams<{ missing?: string[] }>()
   const notFoundVisible = Array.isArray(params.missing)
   const previousPathname = useRef(pathname)
+  const requestTodayTopOnArrival = useTodayTopOnArrival(pathname, scroller)
   const wide = useIsWideDesktop()
   const { profile } = useProfile()
   const setPaletteOpen = useShellStore((state) => state.setPaletteOpen)
@@ -262,12 +274,13 @@ function DestinationShellContent({
       if (id === 'hoje') {
         requestHabitCreateNavigation(() => {
           useUIStore.getState().resetToday()
-          scroller?.scrollTo({ top: 0, behavior: 'instant' })
           if (!reselected) {
+            requestTodayTopOnArrival()
             pushRoute()
             return
           }
           resetRouteTransitionIntent()
+          scroller?.scrollTo({ top: 0, behavior: 'instant' })
           router.replace(route)
         })
         return
@@ -280,7 +293,7 @@ function DestinationShellContent({
       }
       requestHabitCreateNavigation(pushRoute)
     },
-    [pathname, router, scroller],
+    [pathname, requestTodayTopOnArrival, router, scroller],
   )
 
   const wideItems = useMemo(

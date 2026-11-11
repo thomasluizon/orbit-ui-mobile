@@ -594,6 +594,60 @@ describe('DestinationShell', () => {
     }
   })
 
+  it.each([
+    ['with the tab view transition', false, ['/', { transitionTypes: ['orbit-tab-back'] }]],
+    ['at once under reduced motion', true, ['/']],
+  ] as const)('keeps the leaving page at its scroll position until Today commits %s', (_label, reducedMotion, pushed) => {
+    if (reducedMotion) {
+      vi.stubGlobal('matchMedia', (query: string) => ({
+        matches: query === '(prefers-reduced-motion: reduce)',
+        media: query,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }))
+    }
+    try {
+      mocks.pathname = '/profile'
+      const shell = () => <ShellScrollerProvider><DestinationShell onCreate={() => {}}><h1>Page</h1></DestinationShell></ShellScrollerProvider>
+      const view = render(shell())
+      const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+      scroller.scrollTo = ((position: ScrollToOptions) => { scroller.scrollTop = position.top ?? 0 }) as typeof scroller.scrollTo
+      scroller.scrollTop = 480
+      let offsetAtPush: number | undefined
+      mocks.push.mockImplementationOnce(() => { offsetAtPush = scroller.scrollTop })
+
+      fireEvent.click(screen.getByRole('link', { name: 'nav.today' }))
+
+      expect(mocks.push).toHaveBeenCalledExactlyOnceWith(...pushed)
+      expect(offsetAtPush).toBe(480)
+      expect(scroller.scrollTop).toBe(480)
+
+      mocks.pathname = '/'
+      view.rerender(shell())
+
+      expect(scroller.scrollTop).toBe(0)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('drops the Today scroll reset when another page commits first', () => {
+    mocks.pathname = '/profile'
+    const shell = () => <ShellScrollerProvider><DestinationShell onCreate={() => {}}><h1>Page</h1></DestinationShell></ShellScrollerProvider>
+    const view = render(shell())
+    const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+    scroller.scrollTo = ((position: ScrollToOptions) => { scroller.scrollTop = position.top ?? 0 }) as typeof scroller.scrollTo
+
+    fireEvent.click(screen.getByRole('link', { name: 'nav.today' }))
+    mocks.pathname = '/progress'
+    view.rerender(shell())
+    scroller.scrollTop = 300
+    mocks.pathname = '/'
+    view.rerender(shell())
+
+    expect(scroller.scrollTop).toBe(300)
+  })
+
   it('keeps a later pushed flow after selecting the active destination', () => {
     setRouteTransitionIntent('forward')
     render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
