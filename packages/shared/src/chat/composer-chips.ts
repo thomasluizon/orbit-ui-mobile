@@ -92,14 +92,14 @@ function todayChips(state: ComposerChipState): ComposerChip[] {
       ...(firstHabit ? [chip('today.keepOnlyHabit', { title: firstHabit.title })] : []),
     ]
   }
-  const pending = habits.find((habit) => !isHabitDoneForRange(habit) && !habit.isOverdue)
-    ?? habits.find((habit) => !isHabitDoneForRange(habit))
+  const isOpen = (habit: ChipHabit) => !habit.isBadHabit && !isHabitDoneForRange(habit)
+  const pending = habits.find((habit) => isOpen(habit) && !habit.isOverdue) ?? habits.find(isOpen)
   if (!pending) {
     const parent = habits.find((habit) => habit.hasSubHabits)
     return [chip('today.logYesterday'), chip('today.createEveningHabit'), chip('today.changeTimes'), ...(parent ? [chip('today.reviewHabit', { title: parent.title })] : [])]
   }
-  const overdue = habits.find((habit) => habit.isOverdue && !isHabitDoneForRange(habit))
-  const parent = habits.find((habit) => habit.hasSubHabits && !isHabitDoneForRange(habit))
+  const overdue = habits.find((habit) => habit.isOverdue && isOpen(habit))
+  const parent = habits.find((habit) => habit.hasSubHabits && isOpen(habit))
   const log = chip('today.logHabit', { title: pending.title })
   const streakAtRisk = (state.selectedDateIsToday ?? true) && profile.currentStreak > 0 && !habits.some((habit) => !habit.isBadHabit && isHabitDoneForRange(habit))
   const candidates = [
