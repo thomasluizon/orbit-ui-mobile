@@ -189,7 +189,7 @@ vi.mock('@/hooks/use-date-format', () => ({
 }))
 
 vi.mock('@/lib/use-app-theme', () => ({
-  useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
+  useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark', surfaces: { screen: { backgroundColor: 'transparent' } } }),
 }))
 
 vi.mock('@/components/shell/flow-shell', () => ({
@@ -1413,7 +1413,7 @@ describe('mobile auth store security paths', () => {
 
     let view!: { unmount: () => void }
     await TestRenderer.act(async () => {
-      view = TestRenderer.create(React.createElement(RootStackScreens, { screenBackgroundColor: 'transparent' }))
+      view = TestRenderer.create(React.createElement(RootStackScreens))
       await useAuthStore.getState().logout()
     })
 
@@ -1429,7 +1429,7 @@ describe('mobile auth store security paths', () => {
   it('shows onboarding on a fresh installation before any session ends', async () => {
     let view!: { unmount: () => void }
     await TestRenderer.act(() => {
-      view = TestRenderer.create(React.createElement(RootStackScreens, { screenBackgroundColor: 'transparent' }))
+      view = TestRenderer.create(React.createElement(RootStackScreens))
     })
     expect(navigation.destinations.at(-1)).toBe('(onboarding)')
     await TestRenderer.act(() => view.unmount())
@@ -1938,7 +1938,7 @@ describe('mobile auth store security paths', () => {
     try {
       await TestRenderer.act(async () => {
         view = TestRenderer.create(React.createElement(React.Fragment, null,
-          React.createElement(RootStackScreens, { screenBackgroundColor: 'transparent' }),
+          React.createElement(RootStackScreens),
           React.createElement(AccountEventConnection),
         ))
         await vi.advanceTimersByTimeAsync(0)
@@ -1969,7 +1969,7 @@ describe('mobile auth store security paths', () => {
     try {
       await TestRenderer.act(async () => {
         view = TestRenderer.create(React.createElement(React.Fragment, null,
-          React.createElement(RootStackScreens, { screenBackgroundColor: 'transparent' }),
+          React.createElement(RootStackScreens),
           React.createElement(AccountEventConnection),
         ))
         await vi.advanceTimersByTimeAsync(0)
@@ -2014,7 +2014,7 @@ describe('mobile auth store security paths', () => {
     try {
       await TestRenderer.act(async () => {
         view = TestRenderer.create(React.createElement(React.Fragment, null,
-          React.createElement(RootStackScreens, { screenBackgroundColor: 'transparent' }),
+          React.createElement(RootStackScreens),
           React.createElement(AccountEventConnection),
         ))
         await vi.advanceTimersByTimeAsync(0)
@@ -2056,7 +2056,7 @@ describe('mobile auth store security paths', () => {
     useAuthStore.setState({ sessionPhase: 'signed-in', isAuthenticated: true, isLoading: false })
     let view!: { unmount: () => void }
     await TestRenderer.act(() => {
-      view = TestRenderer.create(React.createElement(RootStackScreens, { screenBackgroundColor: 'transparent' }))
+      view = TestRenderer.create(React.createElement(RootStackScreens))
     })
     let releaseDeletion!: () => void
     let signalDeletion!: () => void
@@ -2175,7 +2175,7 @@ describe('mobile auth store security paths', () => {
 
     let view!: { unmount: () => void }
     await TestRenderer.act(() => {
-      view = TestRenderer.create(React.createElement(RootStackScreens, { screenBackgroundColor: 'transparent' }))
+      view = TestRenderer.create(React.createElement(RootStackScreens))
     })
 
     const failedRefresh = refreshSession()
@@ -2350,7 +2350,7 @@ describe('mobile auth store security paths', () => {
       await useAuthStore.getState().checkAuth()
       await TestRenderer.act(() => {
         view = TestRenderer.create(React.createElement(React.Fragment, null,
-          React.createElement(RootStackScreens, { screenBackgroundColor: 'transparent' }),
+          React.createElement(RootStackScreens),
           React.createElement(ExpiryWarning),
         ))
       })
@@ -2505,7 +2505,7 @@ describe('mobile auth store security paths', () => {
     try {
       await TestRenderer.act(() => {
         view = TestRenderer.create(React.createElement(React.Fragment, null,
-          React.createElement(RootStackScreens, { screenBackgroundColor: 'transparent' }),
+          React.createElement(RootStackScreens),
           React.createElement(ExpiryWarning),
         ))
       })

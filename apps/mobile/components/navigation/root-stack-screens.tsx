@@ -1,4 +1,7 @@
+import { Platform } from 'react-native'
 import { Stack } from 'expo-router'
+import { useAppTheme } from '@/lib/use-app-theme'
+import { statusBarStyleForTheme } from '@/lib/status-bar-style'
 import { useAuthStore } from '@/stores/auth-store'
 import { useGoogleErrorLogin } from '@/lib/google-auth-callback'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
@@ -10,9 +13,8 @@ const SLIDE_FROM_RIGHT_SCREENS = [
   'wrapped',
 ] as const
 
-export function RootStackScreens({
-  screenBackgroundColor,
-}: Readonly<{ screenBackgroundColor: string }>) {
+export function RootStackScreens() {
+  const { currentTheme, surfaces } = useAppTheme()
   const reducedMotion = usePrefersReducedMotion()
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const allowErrorLogin = useGoogleErrorLogin()
@@ -24,6 +26,8 @@ export function RootStackScreens({
     <Stack
       screenOptions={{
         headerShown: false,
+        // iOS asks the presented screen controller, which follows the system appearance without a style: https://github.com/software-mansion/react-native-screens/blob/4.30.1/ios/RNSScreen.mm
+        ...(Platform.OS === 'ios' ? { statusBarStyle: statusBarStyleForTheme(currentTheme) } : {}),
         animation: captureBuildEnabled || reducedMotion ? 'none' : 'slide_from_right',
         animationDuration: captureBuildEnabled || reducedMotion
           ? 0
@@ -31,7 +35,7 @@ export function RootStackScreens({
         animationMatchesGesture: true,
         gestureEnabled: !reducedMotion,
         animationTypeForReplace: 'push',
-        contentStyle: { backgroundColor: screenBackgroundColor },
+        contentStyle: { backgroundColor: surfaces.screen.backgroundColor },
       }}
     >
       <Stack.Protected
