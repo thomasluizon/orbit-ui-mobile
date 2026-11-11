@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { CheckCircle } from '@/components/habits/habit-row-check-circle'
+import { HabitRowTrailing } from '@/components/habits/habit-row-trailing'
 import { HabitCheck } from '@/components/habits/habit-check'
 import { HabitDrill } from '@/components/habits/habit-list/habit-drill'
 import { ListScope } from '@/components/motion/list-motion'
@@ -23,6 +24,19 @@ describe('check press feedback', () => {
   it('scales on the press duration and never on the control hover duration', () => {
     render(<CheckCircle state="empty" onToggle={vi.fn()} disabled={false} ariaLabel="Log" />)
     const control = screen.getByRole('button', { name: 'Log' })
+    expect(control.className).toContain('duration-[var(--dur-press)]')
+    expect(control.className).not.toContain('--dur-hover-control')
+    expect(control.className).toContain('motion-safe:active:scale-[0.96]')
+  })
+})
+
+describe('parent row check press feedback', () => {
+  it('scales on the press duration and never on the control hover duration', () => {
+    const habit = createMockHabit({ title: 'Parent' })
+    render(<HabitRowTrailing habit={habit} hasChildren childProgress={{ done: 1, total: 3 }} state="empty" isDone={false} canLog
+      menuItems={[]} onMenuSelect={vi.fn()} actions={{ onLog: vi.fn(), onUnlog: vi.fn() } as never} onToggleStatus={vi.fn()}
+      completionReadOnly={false} completionStatusUnavailable={false} />)
+    const control = document.querySelector('[data-habit-row-control="check"]')!
     expect(control.className).toContain('duration-[var(--dur-press)]')
     expect(control.className).not.toContain('--dur-hover-control')
     expect(control.className).toContain('motion-safe:active:scale-[0.96]')

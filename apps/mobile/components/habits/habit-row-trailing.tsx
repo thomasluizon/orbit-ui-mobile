@@ -1,6 +1,8 @@
 import { resolveHabitAccessibleStatus } from '@orbit/shared/utils'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { View } from 'react-native'
+import Animated from 'react-native-reanimated'
+import { motionDurations, motionEasings, orbitalMotion } from '@orbit/shared/theme'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { MoreVertical } from '@/components/ui/icons'
@@ -58,14 +60,17 @@ function InteractiveParentRing({
       accessibilityState={{ disabled: completionReadOnly }}
       accessibilityHint={completionReadOnly ? completionReason : undefined}
       accessibilityLabel={`${completionLabel}, ${childrenDone}/${childrenTotal}`}
-      style={({ pressed }) => [
+      style={[
         styles.parentRingButton,
         completionReadOnly ? { opacity: 0.4 } : null,
-        pressed && !completionReadOnly && !prefersReducedMotion
-          ? { transform: [{ scale: 0.96 }] } : null,
       ]}>
-      {({ pressed }) => <HabitCheck status={dotState} progress={{ done: childrenDone, total: childrenTotal }}
-        feedback={(pressed || hovered) && !completionReadOnly} />}
+      {({ pressed }) => <Animated.View style={{
+        transform: [{ scale: pressed && !completionReadOnly && !prefersReducedMotion ? orbitalMotion.press.scale : 1 }],
+        transition: prefersReducedMotion ? 'none' : `transform ${motionDurations.press}ms cubic-bezier(${motionEasings.standard.join(',')})`,
+      }}>
+        <HabitCheck status={dotState} progress={{ done: childrenDone, total: childrenTotal }}
+          feedback={(pressed || hovered) && !completionReadOnly} />
+      </Animated.View>}
     </Pressable>
   )
 }
