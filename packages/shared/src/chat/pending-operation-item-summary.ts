@@ -92,9 +92,14 @@ function weekIntervalSummary(value: string | null | undefined, translate: Previe
     ? computeHabitFrequencyLabel({ isGeneral: false, frequencyUnit: 'Week', frequencyQuantity: interval, days: [], isFlexible: false }, (key, values) => translate(key, values as Record<string, string | number>)) : null
 }
 
+/** A create preview sets `oldValue` on `sub_habits` when it groups existing habits; that never means the new parent already exists. */
+export function marksExistingHabit(field: PendingOperationChange): boolean {
+  return field.field === 'habit_id' || (field.oldValue != null && field.field !== 'sub_habits')
+}
+
 function isHabitCreate(fields: readonly PendingOperationChange[], actionKey?: string | null): boolean {
   return ['createHabit', 'createHabits', 'createSubHabit'].includes(actionKey ?? '')
-    && !fields.some((field) => field.field === 'habit_id' || field.oldValue != null)
+    && !fields.some(marksExistingHabit)
 }
 
 function cadenceSummary(fields: readonly PendingOperationChange[], translate: PreviewTranslation, actionKey?: string | null): { label: string | null; complete: boolean } {

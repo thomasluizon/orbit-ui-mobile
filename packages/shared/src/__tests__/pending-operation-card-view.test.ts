@@ -1,7 +1,7 @@
 import { restoreConversationPage } from '../chat/conversation-restore'
 import { makeExecutedConversationPage, makeRevisedConversationPage, PARTIAL_BULK_LOG_PAYLOAD, storedOperationId, UNCHANGED_BULK_LOG_EXECUTION } from '../test-support/conversation-fixtures'
 import { astraOfferFixture, makeOfferedPreview, makeOfferedTaskPreview } from '../test-support/astra-offer-fixtures'
-import { makePlacementPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeBulkCreateExecutionResponse, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview, makeBulkUpdateHabitsPreview, makeBulkUpdateExecutionResponse } from '../test-support/pending-operation-preview-fixtures'
+import { makePlacementPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeBulkCreateExecutionResponse, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makeNestedHabitPreview, makeCreateWithReusedChildPreview, REUSED_CHILD_HABIT_ID, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview, makeBulkUpdateHabitsPreview, makeBulkUpdateExecutionResponse } from '../test-support/pending-operation-preview-fixtures'
 import { describe, expect, it, vi } from 'vitest'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { makeAgentOperationResult, makePendingAgentOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '../test-support/chat-fixtures'
@@ -95,12 +95,57 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     expect(record.buttons.some(button => button.label === remainder)).toBe(false)
   })
 
-  it.each([1, 2, 3])('keeps a neutral heading for reuse at depth %s', (depth) => {
+  it.each([1, 2, 3])('names a create with reuse at depth %s as one create', (depth) => {
     const operation = makeNestedHabitPreview(depth, true)
     const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
     const { record, render } = createRenderers()
     renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
-    expect(record.frame?.title).toBe(messages.chat.pendingOp.capability['habits-write'])
+    expect(record.frame?.title).toBe(locale === 'en' ? 'New habit with existing habits' : 'Novo hábito com hábitos existentes')
+    expect(record.buttons.map((button) => button.label)).toContain(messages.chat.operation.create)
+  })
+
+  describe('create that groups an existing habit under the new habit', () => {
+    function render(habitEmoji?: (habitId: string) => string | undefined) {
+      const operation = makeCreateWithReusedChildPreview()
+      const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+      const { record, render: renderers } = createRenderers()
+      renderPendingOperationCard({ card: { ...createCard(), habitEmoji }, labels, render: renderers, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+      return { labels, record }
+    }
+
+    it('names the same create in the header and on the button', () => {
+      const { labels, record } = render()
+      const header = locale === 'en' ? 'New habit with existing habits' : 'Novo hábito com hábitos existentes'
+      expect(record.frame?.title).toBe(header)
+      expect(labels.name).toBe(header)
+      expect(labels.approve(1)).toBe(messages.chat.operation.create)
+      expect(record.buttons.map((button) => button.label)).toContain(messages.chat.operation.create)
+    })
+
+    it('shows the existing habit emoji on a reused child without its own emoji', () => {
+      const { record } = render((habitId) => habitId === REUSED_CHILD_HABIT_ID ? '🚶' : undefined)
+      const rows = record.frame!.items
+      expect(rows.find((row) => row.label === 'Morning walk')?.icon).toBe('🚶')
+      expect(rows.find((row) => row.label === 'Drink a glass of water')?.icon).toBeUndefined()
+    })
+
+    it('keeps the proposed child emoji over the cached habit emoji', () => {
+      const operation = makeCreateWithReusedChildPreview()
+      const field = operation.items![0]!.fields.find((entry) => entry.field === 'sub_habits')!
+      const children = [{ habit_id: REUSED_CHILD_HABIT_ID, title: 'Morning walk', emoji: '🏃' }]
+      const edited = pendingAgentOperationSchema.parse({ ...operation, items: [{ ...operation.items![0]!, fields: operation.items![0]!.fields.map((entry) => entry === field ? { ...field, proposedValue: children } : entry) }] })
+      const labels = buildPendingOperationCardLabels(edited, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+      const { record, render: renderers } = createRenderers()
+      renderPendingOperationCard({ card: { ...createCard(), habitEmoji: () => '🚶' }, labels, render: renderers, onVerifyStepUp: vi.fn(), pendingOperation: edited })
+      expect(record.frame!.items.find((row) => row.label === 'Morning walk')?.icon).toBe('🏃')
+    })
+
+    it('lists no top-level outcome for the new habit', () => {
+      const { record } = render()
+      const text = record.frame!.items.map((row) => `${row.label} ${row.meta}`).join(' ')
+      expect(text).not.toContain(messages.habits.moveParent.toRoot)
+      expect(record.frame!.items[0]!.meta).not.toMatch(/Build this habit|Keep fixed days|Construir|dias fixos/)
+    })
   })
 
   it('keeps the create heading for a nested proposal without reuse', () => {

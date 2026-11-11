@@ -1,3 +1,4 @@
+import { marksExistingHabit } from './pending-operation-item-summary'
 import { pendingOperationSubHabits } from './pending-operation-sub-habits'
 import { groupPendingOperationItems } from './pending-operation-item-groups'
 import type { AgentOperationResult, HabitPlacement, PendingAgentOperation, PendingOperationChange, PendingOperationItem, PendingOperationFieldOptions, PendingOperationPlacement } from '../types/ai'
@@ -138,6 +139,7 @@ export interface PendingOperationCardActions {
   completedOperation?: AgentOperationResult
   canRetry?: boolean
   focusTitleOnMount?: boolean
+  habitEmoji?: (habitId: string) => string | undefined
   openableCapability?: boolean
   onOpenTarget?: (entityId: string, actionType: string) => void
   completeStepUp: (result: PendingOperationExecutionResult) => void
@@ -329,6 +331,13 @@ function previewItemBody<Node>(
   }))
 }
 
+function childIcon(fields: readonly PendingOperationChange[], habitEmoji: PendingOperationCardActions['habitEmoji']): string | undefined {
+  const own = fields.find((field) => field.field === 'emoji')?.newValue
+  if (own) return own
+  const habitId = fields.find((field) => field.field === 'habit_id')?.newValue
+  return habitId ? habitEmoji?.(habitId) : undefined
+}
+
 function previewRows<Node>(
   pendingOperation: PendingAgentOperation,
   card: PendingOperationCardActions,
@@ -374,7 +383,7 @@ function previewRows<Node>(
     }
     return [parent, ...(item.placement?.selected === 'checklist_item' ? [] : pendingOperationSubHabits(item.fields)).map((child, childIndex) => ({
       id: `${item.itemId}-child-${childIndex}`, label: child.title,
-      icon: child.fields.find((field) => field.field === 'emoji')?.newValue ?? undefined,
+      icon: childIcon(child.fields, card.habitEmoji),
       meta: labels.summarize(child.fields, 'createHabit'), indented: true,
       status, irreversible: false, proposed: parent.proposed, wrapLabel: true, wrapMeta: true, editable: false,
       control: revision?.canRevise && revision.rejectSubHabit && card.status == null && !revision.stale
@@ -400,7 +409,7 @@ function placementSummary(item: PreviewItem, operation: PendingAgentOperation, l
   const placement = item.placement
   const creating = operation.actionKey === 'applyAccountChanges' && operation.capabilityId === 'chat.changes'
     && item.fields.some((field) => HABIT_ONLY_PREVIEW_FIELDS.has(field.field))
-    && !item.fields.some((field) => field.field === 'habit_id' || field.oldValue != null)
+    && !item.fields.some(marksExistingHabit)
   const summary = labels.summarize(item.fields.filter((field) => !(parentChoice || placement) || field.field !== 'parent_habit_id'), creating ? 'createHabit' : undefined)
   if (!placement) return summary || (settled ? '' : labels.pending)
   const selected = labels.placementOption(placement.selected, placement.destinationName)

@@ -344,6 +344,23 @@ export function makeNestedHabitPreview(depth: number, reuse: boolean): PendingAg
   })
 }
 
+export const REUSED_CHILD_HABIT_ID = '00000000-0000-4000-8000-0000000000a1'
+
+/** Mirrors the API create preview for a new parent that groups an existing habit: the `sub_habits` field carries an `oldValue` although the parent does not exist yet. */
+export function makeCreateWithReusedChildPreview(): PendingAgentOperation {
+  const operation = makeCreateHabitsPreview(1)
+  const item = operation.items![0]!
+  const children = [{ habit_id: REUSED_CHILD_HABIT_ID, title: 'Morning walk' }, { title: 'Drink a glass of water' }]
+  const base = { entityId: emptyId, entityName: 'Morning routine', oldValue: null, isEditable: true }
+  const fields = [
+    { ...base, field: 'title', newValue: 'Morning routine', valueType: 'text', proposedValue: 'Morning routine' },
+    { ...base, field: 'is_bad_habit', newValue: 'False', valueType: 'boolean', proposedValue: false },
+    { ...base, field: 'parent_habit_id', newValue: 'No parent', valueType: 'text', proposedValue: null },
+    { ...base, field: 'sub_habits', oldValue: '[{"title":"Morning walk"},{}]', newValue: JSON.stringify(children), valueType: 'text', proposedValue: children },
+  ]
+  return pendingAgentOperationSchema.parse({ ...operation, items: [{ ...item, entityName: 'Morning routine', fields }] })
+}
+
 export const childSchedulePreviewCases = [
   { name: 'weekday', child: { title: 'Tuesday child', frequency_unit: 'Day', frequency_quantity: 1, days: ['Tuesday'], is_flexible: false }, english: 'Tue', portuguese: 'Ter' },
   { name: 'one-time date', child: { title: 'Dated child', frequency_unit: 'OneTime', due_date: '2026-10-25', due_time: '21:30' }, english: 'Oct 25, 2026 · 21:30', portuguese: '25 de out. de 2026 · 21:30' },

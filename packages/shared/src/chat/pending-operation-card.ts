@@ -1,5 +1,5 @@
 import type { AgentOperationResult, HabitPlacement, PendingAgentOperation, PendingOperationChange, PendingOperationPlacement } from '../types/ai'
-import { PENDING_OPERATION_WEEKDAYS, PREVIEW_ACTION_KEYS, summarizePendingOperationItem } from './pending-operation-item-summary'
+import { marksExistingHabit, PENDING_OPERATION_WEEKDAYS, PREVIEW_ACTION_KEYS, summarizePendingOperationItem } from './pending-operation-item-summary'
 import { getAgentCapabilityActionLabelKey, getAgentCapabilityLabelKey, getAgentOperationCopyKeys } from '../utils/agent-pending-operation'
 import type { PendingOperationItemGroupType } from './pending-operation-item-groups'
 
@@ -107,15 +107,16 @@ const DELETION_SUBJECTS: Readonly<Record<string, string>> = {
 function pendingOperationTitle(
   operation: PendingAgentOperation,
   createsHabits: boolean,
+  groupsExistingHabits: boolean,
   translate: (key: string, values?: Record<string, string | number>) => string,
 ): string {
   const count = operation.changeTargetCount ?? operation.items?.length ?? 1
   const item = operation.items?.[0]
-  if (createsHabits && count === 1 && (item?.habitType === 'Task'
+  if (createsHabits && !groupsExistingHabits && count === 1 && (item?.habitType === 'Task'
     || (item?.fields ?? operation.changes ?? []).some(field => field.field === 'frequency_unit' && field.newValue === 'OneTime'))) {
     return translate('habits.form.newTask')
   }
-  if (createsHabits) return translate('chat.operation.newHabits', { count })
+  if (createsHabits) return translate(groupsExistingHabits ? 'chat.operation.newHabitsWithExisting' : 'chat.operation.newHabits', { count })
   if (['updateHabit', 'updateHabits'].includes(operation.actionKey ?? '') && operation.items?.length === 1) {
     return translate('chat.operation.editHabit', { name: operation.items[0]!.entityName })
   }
@@ -135,8 +136,9 @@ export function buildPendingOperationCardLabels(
   const actionKey = pendingOperation.actionKey
   const createsHabits = ['createHabit', 'createHabits', 'createSubHabit'].includes(actionKey ?? '')
     && !hasMixedDeletion && !pendingOperation.items?.some((item) => item.removesData === true
-      || item.fields.some((field) => field.field === 'habit_id' || field.oldValue != null
-        || (field.field === 'sub_habits' && hasReusedSubHabit(field.proposedValue))))
+      || item.fields.some(marksExistingHabit))
+  const groupsExistingHabits = createsHabits && pendingOperation.items?.some((item) => item.fields.some((field) =>
+    field.field === 'sub_habits' && hasReusedSubHabit(field.proposedValue))) === true
   const toggleOutcome = getToggleOutcome(actionKey, pendingOperation.items?.length
     ? pendingOperation.items.flatMap((item) => item.fields) : pendingOperation.changes ?? [])
   const actionLabel = getApprovalLabel(actionKey, toggleOutcome, translate)
@@ -235,7 +237,7 @@ export function buildPendingOperationCardLabels(
       ? translate(`chat.operation.deleteTitle.${deletionSubject}`, { count })
       : translate('chat.operation.confirmActionTitle', { action: confirm }),
     irreversible: translate('chat.operation.irreversible'),
-    name: pendingOperationTitle(pendingOperation, createsHabits, translate),
+    name: pendingOperationTitle(pendingOperation, createsHabits, groupsExistingHabits, translate),
     pending: translate('chat.operation.pending'),
     pendingTitle: translate('chat.operation.pendingTitle'),
     proposed: translate('chat.preview.proposed'),
