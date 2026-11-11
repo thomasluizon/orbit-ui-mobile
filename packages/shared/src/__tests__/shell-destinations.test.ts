@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { resolveShellComposerScope, resolveShellChrome, resolveShellDestination } from '../utils/shell-destinations'
+import { resolveShellChrome, resolveShellDestination } from '../utils/shell-destinations'
 
 describe('resolveShellDestination', () => {
   it.each([
@@ -50,23 +50,11 @@ describe('resolveShellChrome', () => {
   })
 
   it('shows the composer only on habit detail', () => {
-    for (const route of ['/habits/h1']) {
+    for (const route of ['/habits/h1', '/habits/habit-1']) {
       expect(resolveShellChrome(route).composer).toBe(true)
     }
-    for (const route of ['/', '/calendar', '/progress', '/profile', '/search', '/about', '/support', '/notifications', '/upgrade', '/preferences', '/advanced', '/ai-settings']) {
+    for (const route of ['/', '/habits/new', '/habits/habit-1/edit', '/calendar', '/progress', '/profile', '/search', '/about', '/support', '/notifications', '/upgrade', '/preferences', '/advanced', '/ai-settings']) {
       expect(resolveShellChrome(route).composer).toBe(false)
     }
   })
-})
-
-it.each([
-  ['/', undefined],
-  ['/habits/habit-1', 'habit'],
-  ['/habits/new', undefined],
-  ['/habits/habit-1/edit', undefined],
-  ['/calendar', undefined],
-  ['/progress', undefined],
-  ['/profile', undefined],
-])('resolves the habit composer scope for %s', (pathname, scope) => {
-  expect(resolveShellComposerScope(pathname!)).toBe(scope)
 })

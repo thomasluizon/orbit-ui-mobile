@@ -49,12 +49,7 @@ export function resolveShellChrome(pathname: string, lastDestination: ShellDesti
   const destination = resolveShellDestination(pathname)
   return {
     activeId: pathname === '/search' ? lastDestination : destination ?? lastDestination,
-    composer: /^\/habits\/[^/]+$/.test(pathname),
+    composer: pathname !== '/habits/new' && /^\/habits\/[^/]+$/.test(pathname),
     flow: pathname === '/wrapped' || pathname === '/upgrade' || pathname === '/habits/new',
   }
-}
-
-export function resolveShellComposerScope(pathname: string): 'habit' | undefined {
-  if (/^\/habits\/[^/]+$/.test(pathname) && pathname !== '/habits/new') return 'habit'
-  return undefined
 }

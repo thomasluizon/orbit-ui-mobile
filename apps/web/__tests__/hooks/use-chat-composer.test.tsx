@@ -3166,6 +3166,15 @@ describe('web useChatComposer streaming send', () => {
     } else { expect(screen.getByRole('textbox')).toBeVisible(); expect(group).toBeVisible() }
   })
 
+  it('keeps the habit composer off the habit creation route', () => {
+    mocks.pathname = '/habits/new'
+    mocks.state.profile = createMockProfile({ hasImportedCalendar: true, hasSeenImportPrompt: true })
+    answerSessionWith({ expiresAt: Date.now() + 3600000, userId: 'user-1' })
+    render(<AppLayout><div>Content</div></AppLayout>)
+    expect(screen.queryByRole('textbox')).toBeNull()
+    expect(screen.queryByRole('group', { name: 'shell.composer.suggestionsLabel' })).not.toBeInTheDocument()
+  })
+
   it('queries the selected day with the visible Today general filter', () => {
     renderHook(() => useChatComposer({ pathname: '/', today: '2026-09-12', selectedDate: '2026-09-11', includeGeneral: true }))
     expect(mocks.state.habitFilters.at(-1)).toMatchObject({

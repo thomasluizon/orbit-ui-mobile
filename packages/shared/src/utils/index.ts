@@ -129,7 +129,6 @@ export { splitDescriptionLinks } from './description-links'
 export {
   resolveShellDestination,
   resolveShellChrome,
-  resolveShellComposerScope,
   SHELL_DESTINATION_ROUTES,
 } from './shell-destinations'
 export type {
