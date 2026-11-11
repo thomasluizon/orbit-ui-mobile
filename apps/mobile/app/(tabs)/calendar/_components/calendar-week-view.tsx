@@ -1,5 +1,6 @@
 import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
+import type { CalendarSlideDirection } from "@orbit/shared/utils";
 import { createTokensV2 } from "@/lib/theme";
 import { CalendarSlide } from "./calendar-slide";
 import { CalendarTimeGrid, type TimeGridColumn } from "./calendar-time-grid";
@@ -10,7 +11,7 @@ interface CalendarWeekViewProps {
   columns: readonly TimeGridColumn[];
   dayMap: Map<string, CalendarDayEntry[]>;
   /** Direction of the last week-nav step, driving the grid's slide-in motion. */
-  slideDirection: "left" | "right" | null;
+  slideDirection: CalendarSlideDirection | null;
   isLoading?: boolean;
   onSelectDay: (dateStr: string) => void;
   displayTime: (time: string) => string;

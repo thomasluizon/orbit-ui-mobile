@@ -8,7 +8,7 @@ export const calendarSlideMotion = {
   easing: motionEasings.enter,
 } as const
 
-export interface CalendarSlide {
+interface CalendarSlide {
   readonly from: number
   readonly duration: number
   readonly easing: MotionBezier
