@@ -2,7 +2,7 @@ import { expectPressFill } from '../../../support/press-feedback'
 import React from "react";
 import { RepeatReminderSection } from "@/components/habits/habit-form-fields/repeat-reminder-section";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { StyleSheet, type ViewStyle } from "react-native";
+import { StyleSheet, type StyleProp, type TextStyle, type ViewStyle } from "react-native";
 import { HABIT_REMINDER_PRESETS, buildCreateHabitRequest, buildEmptyHabitFormValues } from "@orbit/shared/utils";
 import { createTokensV2, radius } from "@/lib/theme";
 import { ReminderSection as OffsetEditor } from "@/components/habits/habit-form-fields/reminder-section";
@@ -309,6 +309,24 @@ describe("ReminderSection", () => {
     );
     press(tree, confirm!);
     expect(onReminderTimesChange).not.toHaveBeenCalled();
+  });
+
+  it("rings the custom offset field with the control border at rest and the primary ring while focused", async () => {
+    const { BottomSheetAppTextInput } = await vi.importActual<typeof import("@/components/ui/bottom-sheet-app-text-input")>("@/components/ui/bottom-sheet-app-text-input");
+    const { tree } = renderSection({ reminderTimes: [30] });
+    press(tree, buttons(tree).find((node) => descendantText(node) === "habits.form.reminderAdd")!);
+    press(tree, buttons(tree).find((node) => descendantText(node) === "habits.form.reminderCustom")!);
+    const ownerProps = tree.root.findAll((node) => node.type === "TextInput")[0]!.props;
+    let field!: TestTree;
+    TestRenderer.act(() => {
+      field = TestRenderer.create(<BottomSheetAppTextInput {...ownerProps} />);
+    });
+    const host = () => field.root.findAll((node) => node.type === "TextInput")[0]!;
+    expect(StyleSheet.flatten(host().props.style as StyleProp<TextStyle>)).toMatchObject({ borderWidth: 1, borderColor: tokens.borderControl });
+    TestRenderer.act(() => {
+      (host().props.onFocus as (event: unknown) => void)({});
+    });
+    expect(StyleSheet.flatten(host().props.style as StyleProp<TextStyle>)).toMatchObject({ borderWidth: 2, borderColor: tokens.primary });
   });
 
   it("does not add a duplicate custom reminder", () => {

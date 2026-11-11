@@ -131,8 +131,6 @@ export function createSectionStyles(tokens: AppTokens) {
       paddingHorizontal: SPACING.s12,
       fontFamily: "Geist_400Regular",
       fontSize: 14,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
     },
     customAddButton: {
       width: TOUCH_TARGET_MIN,

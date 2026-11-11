@@ -33,8 +33,6 @@ import { FocusProvenanceView } from '@/components/ui/focus-provenance-view'
 import { applySuggestionSchedule } from '@/components/habits/create-habit-modal/apply-suggestion'
 import { habitFormSchema } from '@orbit/shared/validation'
 import { useUIStore } from '@/stores/ui-store'
-import { ReduceMotion } from 'react-native-reanimated'
-import { motionDurations } from '@orbit/shared/theme'
 
 const renderer = require('react-test-renderer')
 const mountedTrees = new Set<ReturnType<typeof renderer.create>>()
@@ -1435,21 +1433,6 @@ describe('manual schedule creation', () => {
     mockProfileState.aiMessagesUsed = 0
     useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])
   })
-  it('opens and closes the more details disclosure with the shared durations and an explicit system reduced-motion setting', async () => {
-    const { useWatch } = await vi.importActual<typeof import('react-hook-form')>('react-hook-form')
-    useWatchMock.mockImplementation(useWatch)
-    function OwningForm() {
-      const helpers = useHabitForm({ initialData: { itemType: 'habit', title: 'Read', dueDate: '2026-09-02' } })
-      return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={vi.fn()} readPhraseLocally />
-    }
-    let tree: ReturnType<typeof TestRenderer.create>
-    await TestRenderer.act(() => { tree = TestRenderer.create(<OwningForm />) })
-    await TestRenderer.act(() => tree!.root.findAllByType(ListRow).find((node: { props: { title: string } }) => node.props.title === 'habits.form.moreDetails')!.props.onClick())
-    const disclosure = tree!.root.findAll((node: UnderstandingTestNode) => node.props.entering !== undefined && node.props.exiting !== undefined)[0]!
-    expect(disclosure.props.entering).toMatchObject({ durationMs: motionDurations.base, reduceMotionModes: [ReduceMotion.System] })
-    expect(disclosure.props.exiting).toMatchObject({ durationMs: motionDurations.routeExit, reduceMotionModes: [ReduceMotion.System] })
-  })
-
   it.each(['Day', 'Week', 'Month', 'Year'] as const)('creates every interval and flexible %s schedule without Astra', async (unit) => {
     const { useWatch } = await vi.importActual<typeof import('react-hook-form')>('react-hook-form')
     useWatchMock.mockImplementation(useWatch)

@@ -258,8 +258,6 @@ function createStyles(tokens: AppTokens) {
       flex: 1,
       minHeight: TOUCH_TARGET_MIN,
       borderRadius: 12,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
       backgroundColor: tokens.bgField,
       paddingHorizontal: SPACING.s12,
       color: tokens.fg1,
