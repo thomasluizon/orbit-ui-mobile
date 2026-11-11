@@ -43,7 +43,7 @@ function weekColumns(firstDay: number) {
   })
 }
 
-function Surface({ surface, step, direction, isLoading = false }: Readonly<{ surface: Surface; step: number; direction: CalendarSlideDirection | null; isLoading?: boolean }>) {
+function SlideSurface({ surface, step, direction, isLoading = false }: Readonly<{ surface: Surface; step: number; direction: CalendarSlideDirection | null; isLoading?: boolean }>) {
   if (surface === 'month') {
     return <CalendarGrid gridDays={month.gridDays} weekdayHeaders={[]} selectedDay={null} isLoading={isLoading} monthKey={`step-${step}`}
       slideDirection={direction} onSelectDay={vi.fn()} language="en" t={(key) => key} tokens={tokens} todayKey="2026-09-11" />
@@ -55,9 +55,9 @@ function Surface({ surface, step, direction, isLoading = false }: Readonly<{ sur
 
 async function mount(surface: Surface, isLoading = false) {
   let tree!: ReturnType<typeof TestRenderer.create>
-  await act(() => { tree = TestRenderer.create(<Surface surface={surface} step={0} direction={null} isLoading={isLoading} />) })
+  await act(() => { tree = TestRenderer.create(<SlideSurface surface={surface} step={0} direction={null} isLoading={isLoading} />) })
   return {
-    step: (step: number, direction: CalendarSlideDirection | null) => act(() => { tree.update(<Surface surface={surface} step={step} direction={direction} isLoading={isLoading} />) }),
+    step: (step: number, direction: CalendarSlideDirection | null) => act(() => { tree.update(<SlideSurface surface={surface} step={step} direction={direction} isLoading={isLoading} />) }),
     tree,
   }
 }
