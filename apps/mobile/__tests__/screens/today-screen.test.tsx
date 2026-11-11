@@ -581,7 +581,7 @@ describe('Hoje date boundaries', () => {
     expect(getTodayBoundary('2026-03-31', '2026-04-08')).toBe('read-only')
   })
 
-  it('composes day and refetch motion without flattening either transform', async () => {
+  it('wraps the list in the date slide alone, with no refetch dim or move', async () => {
     let tree!: import('react-test-renderer').ReactTestRenderer
     await TestRenderer.act(async () => {
       tree = createTestTree(<TodayScreen />)
@@ -595,7 +595,7 @@ describe('Hoje date boundaries', () => {
       ))
     })
 
-    expect(motionViews).toHaveLength(2)
+    expect(motionViews).toHaveLength(1)
   })
 
   it('registers the selection tray only while Today is focused', async () => {

@@ -38,7 +38,8 @@ describe('drill back press feedback', () => {
     let tree!: ReturnType<typeof create>
     await act(() => { tree = create(renderDrill()) })
     const back = () => tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'common.back')[0]!
-    await act(() => back().props.onPressIn())
+    const onPressIn = back().props.onPressIn as () => void
+    await act(() => onPressIn())
     const pressed = StyleSheet.flatten(back().props.style)
     expect(pressed).toMatchObject({ transform: [{ scale: reduced ? 1 : orbitalMotion.press.scale }], transitionDuration: reduced ? 0 : motionDurations.press })
     await act(() => tree.unmount())
