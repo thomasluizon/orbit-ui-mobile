@@ -2,6 +2,7 @@ import type { NormalizedHabit } from '../types/habit'
 import { differenceInCalendarDays } from 'date-fns'
 import { formatAPIDate, formatAPIDateInTimeZone, parseAPIDate, resolveHabitDetailRouteDate } from './dates'
 import { hasHabitScheduleOnDate, isWithinOverdueWindow } from './habits'
+import { isCompletedOneTimeHabit } from './habit-visibility'
 import { getDayOffset } from './today-date'
 import { MAX_INSTANCE_HORIZON_DAYS } from '../api/constants'
 import { formatLocaleDate } from './locale-format'
@@ -152,8 +153,8 @@ export function getHabitLogDateConfirmationKeys(intent?: 'log' | 'unlog', perman
 }
 
 /**
- * A localized hint for a future-due row: relative when due within a week
- * (`in 6d`), otherwise the absolute scheduled date (`scheduled 13 Jun`).
+ * A localized hint for a future-due row: `due tomorrow` for the next day, relative when due within
+ * a week (`in 6d`), otherwise the absolute scheduled date (`scheduled 13 Jun`).
  * Returns null when the habit's `dueDate` is today or in the past.
  */
 export function computeHabitFutureHint(
@@ -165,10 +166,37 @@ export function computeHabitFutureHint(
   if (!habit.dueDate || habit.dueDate <= today) return null
   const days = differenceInCalendarDays(parseAPIDate(habit.dueDate), parseAPIDate(today))
   if (days <= 0) return null
+  if (days === 1) return t('habits.schedule.dueTomorrow')
   if (days <= 7) return t('habits.schedule.dueInDays', { count: days })
   return t('habits.schedule.scheduledOn', {
     date: formatLocaleDate(habit.dueDate, locale, { month: 'short', day: 'numeric' }),
   })
+}
+
+/**
+ * The next due label of a habit row: only on today, and never for a finished habit. A finished habit is
+ * a completed one-time task, or a recurring habit whose next due date passes its end date. The API
+ * marks both `isCompleted`; this reads the end date instead, because a detail child row scopes
+ * `isCompleted` to the selected date.
+ */
+export function computeHabitRowNextDueHint(
+  habit: Pick<NormalizedHabit, 'dueDate' | 'endDate' | 'isCompleted' | 'frequencyUnit'>,
+  selectedDate: string,
+  today: string,
+  t: HabitCardTranslationAdapter,
+  locale?: string | null,
+): string | null {
+  if (selectedDate !== today || isCompletedOneTimeHabit(habit)) return null
+  if (habit.endDate && habit.dueDate && habit.dueDate > habit.endDate) return null
+  return computeHabitFutureHint(habit, today, t, locale)
+}
+
+/**
+ * A parent logged for the selected date dims its title and shows its next due label as visible
+ * metadata. Every other row keeps the label for screen readers only.
+ */
+export function isLoggedParentHabitRow(row: { hasSubHabits: boolean; isDone: boolean }): boolean {
+  return row.hasSubHabits && row.isDone
 }
 
 export function computeHabitMatchBadges(

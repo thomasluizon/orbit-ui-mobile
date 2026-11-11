@@ -296,6 +296,11 @@ describe('i18n locale parity', () => {
     }
   })
 
+  it('names the next due day of a logged habit row in both locales', () => {
+    expect([en.habits.schedule.dueTomorrow, ptBR.habits.schedule.dueTomorrow]).toEqual(['due tomorrow', 'volta amanhã'])
+    expect([en.habits.schedule.dueInDays, ptBR.habits.schedule.dueInDays]).toEqual(['in {count}d', 'em {count}d'])
+  })
+
   it('describes Undo after deleting habits or a goal in both locales', () => {
     for (const [locale, undoLabel, permanence] of [
       [en, 'undo', /cannot be undone/i],

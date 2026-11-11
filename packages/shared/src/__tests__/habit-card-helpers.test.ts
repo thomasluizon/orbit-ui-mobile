@@ -8,6 +8,8 @@ import {
   computeHabitCardStatus,
   computeHabitFrequencyLabel,
   computeHabitFutureHint,
+  computeHabitRowNextDueHint,
+  isLoggedParentHabitRow,
   computeHabitMatchBadges,
   getHabitLogDateDecision,
   getHabitLogDateConfirmationKeys,
@@ -395,7 +397,14 @@ describe('computeHabitFutureHint', () => {
     ).toBeNull()
   })
 
+  it('says due tomorrow for the next day', () => {
+    expect(computeHabitFutureHint(createMockHabit({ dueDate: '2025-01-11' }), today, t, 'en')).toBe('habits.schedule.dueTomorrow')
+  })
+
   it('renders a relative day hint when due within a week', () => {
+    expect(
+      computeHabitFutureHint(createMockHabit({ dueDate: '2025-01-12' }), today, t, 'en'),
+    ).toBe('habits.schedule.dueInDays({"count":2})')
     expect(
       computeHabitFutureHint(createMockHabit({ dueDate: '2025-01-16' }), today, t, 'en'),
     ).toBe('habits.schedule.dueInDays({"count":6})')
@@ -412,5 +421,39 @@ describe('computeHabitFutureHint', () => {
       'en',
     )
     expect(hint).toContain('habits.schedule.scheduledOn')
+  })
+})
+
+describe('computeHabitRowNextDueHint', () => {
+  const today = '2025-01-10'
+  const t = createTranslator()
+
+  it('gives the next due label only on today', () => {
+    const habit = createMockHabit({ dueDate: '2025-01-11', frequencyUnit: 'Day' })
+    expect(computeHabitRowNextDueHint(habit, today, today, t, 'en')).toBe('habits.schedule.dueTomorrow')
+    expect(computeHabitRowNextDueHint(habit, '2025-01-09', today, t, 'en')).toBeNull()
+  })
+
+  it('gives no label for a completed one-time task', () => {
+    expect(computeHabitRowNextDueHint(createMockHabit({ dueDate: '2025-01-11', frequencyUnit: null, isCompleted: true }), today, today, t, 'en')).toBeNull()
+  })
+
+  it('gives no label for a recurring habit whose next due date passes its end date', () => {
+    expect(computeHabitRowNextDueHint(createMockHabit({ dueDate: '2025-01-11', frequencyUnit: 'Day', endDate: '2025-01-10', isCompleted: true }), today, today, t, 'en')).toBeNull()
+  })
+
+  it('keeps the label for a recurring habit that a detail row marks completed for the date', () => {
+    expect(computeHabitRowNextDueHint(createMockHabit({ dueDate: '2025-01-11', frequencyUnit: 'Day', isCompleted: true }), today, today, t, 'en')).toBe('habits.schedule.dueTomorrow')
+  })
+})
+
+describe('isLoggedParentHabitRow', () => {
+  it.each([
+    { hasSubHabits: true, isDone: true, expected: true },
+    { hasSubHabits: true, isDone: false, expected: false },
+    { hasSubHabits: false, isDone: true, expected: false },
+    { hasSubHabits: false, isDone: false, expected: false },
+  ])('is $expected for hasSubHabits=$hasSubHabits isDone=$isDone', ({ hasSubHabits, isDone, expected }) => {
+    expect(isLoggedParentHabitRow({ hasSubHabits, isDone })).toBe(expected)
   })
 })

@@ -552,6 +552,7 @@
     "overdue": "Atrasado",
     "schedule": {
       "dueInDays": "em {count}d",
+      "dueTomorrow": "volta amanhã",
       "scheduledOn": "agendado para {date}"
     },
     "search": {

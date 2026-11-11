@@ -287,6 +287,8 @@ export {
   computeHabitFrequencyLabel,
   computeHabitFutureHint,
   computeHabitMatchBadges,
+  computeHabitRowNextDueHint,
+  isLoggedParentHabitRow,
 } from './habit-card-helpers'
 export type {
   HabitCardMatchBadge,
