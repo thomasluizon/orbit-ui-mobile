@@ -36,6 +36,30 @@ describe('list motion', () => {
     expect(screen.getByText('Run').closest('[data-list-motion]')).toHaveAttribute('inert')
   })
 
+  it('shows a row that appears because the list scope changed at once, without the enter motion', () => {
+    const rows = (names: string[]) => names.map((name) => <ListMotionItem key={name}><button>{name}</button></ListMotionItem>)
+    const view = render(<ListScope scope="walk"><ListPresence>{rows(['Walk'])}</ListPresence></ListScope>)
+    view.rerender(<ListScope scope="all"><ListPresence>{rows(['Walk', 'Run'])}</ListPresence></ListScope>)
+    const returning = screen.getByText('Run').closest<HTMLElement>('[data-list-motion]')!
+    expect(returning.style.opacity).toBe('1')
+    expect(returning.style.transform).toBe('none')
+  })
+
+  it('keeps the enter motion for a row that appears while the list scope stays the same', () => {
+    const rows = (names: string[]) => names.map((name) => <ListMotionItem key={name}><button>{name}</button></ListMotionItem>)
+    const view = render(<ListScope scope="all"><ListPresence>{rows(['Walk'])}</ListPresence></ListScope>)
+    view.rerender(<ListScope scope="all"><ListPresence>{rows(['Walk', 'Run'])}</ListPresence></ListScope>)
+    expect(screen.getByText('Run').closest<HTMLElement>('[data-list-motion]')!.style.opacity).toBe('0')
+  })
+
+  it('keeps the enter motion for a row that appears one render after the list scope changed', () => {
+    const rows = (names: string[]) => names.map((name) => <ListMotionItem key={name}><button>{name}</button></ListMotionItem>)
+    const view = render(<ListScope scope="walk"><ListPresence>{rows(['Walk'])}</ListPresence></ListScope>)
+    view.rerender(<ListScope scope="all"><ListPresence>{rows(['Walk'])}</ListPresence></ListScope>)
+    view.rerender(<ListScope scope="all"><ListPresence>{rows(['Walk', 'Run'])}</ListPresence></ListScope>)
+    expect(screen.getByText('Run').closest<HTMLElement>('[data-list-motion]')!.style.opacity).toBe('0')
+  })
+
   it('removes collapsed children from interaction as soon as the group collapses', () => {
     const view = render(<MotionDisclosure expanded id="children"><button>Child</button></MotionDisclosure>)
     expect(screen.getByRole('button', { name: 'Child' })).toBeVisible()

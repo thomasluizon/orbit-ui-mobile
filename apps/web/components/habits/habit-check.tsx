@@ -39,7 +39,7 @@ export function HabitCheck({ status, label, unavailable = false, progress }: Rea
   useEffect(() => {
     if (settleFrom === null || !checkRef.current) return
     const settle = animate(checkRef.current, { scale: [settleFrom, 1] }, { type: 'spring', ...motionSprings.completion })
-    return () => settle.stop()
+    return () => settle.complete()
   }, [settleFrom])
   if (unavailable) return (
     <span data-habit-check="" data-focus-ring-owner="" data-status="unavailable"

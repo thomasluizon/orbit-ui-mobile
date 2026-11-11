@@ -21,8 +21,12 @@ const Reanimated = {
   createAnimatedComponent: <T,>(component: T): T => component,
 }
 
+export const sharedValues: { value: unknown }[] = []
+
 export function useSharedValue<Value>(value: Value) {
-  return { value }
+  const created = { value }
+  sharedValues.push(created)
+  return created
 }
 
 export function useAnimatedStyle<T>(updater: () => T): T {
@@ -60,9 +64,11 @@ export function withTiming<Value>(value: Value, config?: unknown) {
 
 export const withSpringCalls: { value: unknown; config: unknown }[] = []
 
+export const springState: { settledValue?: unknown } = {}
+
 export function withSpring<Value>(value: Value, config?: unknown) {
   withSpringCalls.push({ value, config })
-  return value
+  return 'settledValue' in springState ? springState.settledValue as Value : value
 }
 
 export function withDelay<Value>(delayMs: number, value: Value) {

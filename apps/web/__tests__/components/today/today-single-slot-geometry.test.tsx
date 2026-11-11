@@ -50,7 +50,6 @@ const mocks = vi.hoisted(() => ({
       filters: {},
       hasFetched: true,
       isFetching: false,
-      isRefetching: false,
       showLoadError: false,
       habitsCount: 1,
     },

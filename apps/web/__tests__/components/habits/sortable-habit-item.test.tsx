@@ -61,7 +61,7 @@ describe('sortable habit stacking', () => {
     render(<SortableHabitItem id="habit-1"><span>Read</span></SortableHabitItem>)
 
     expect(sortable.options?.transition).toBe(reorderTransition)
-    expect(reorderTransition.duration).toBe(Math.round(2 * Math.PI * Math.sqrt(motionSprings.soft.mass / motionSprings.soft.stiffness) * 1000))
+    expect(reorderTransition.duration).toBe(390)
     expect(reorderTransition.duration).toBeGreaterThan(motionDurations.slow)
     expect(reorderTransition.easing).toBe(`cubic-bezier(${motionEasings.enter.join(',')})`)
   })

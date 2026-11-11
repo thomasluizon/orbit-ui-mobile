@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useRef, useState, type Ref, type ReactNode, type CSSProperties } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type Ref, type ReactNode, type CSSProperties } from 'react'
 import { AnimatePresence, motion, PresenceContext, usePresence } from 'motion/react'
 import { motionEasings, motionSprings, resolveMotionPreset } from '@orbit/shared/theme'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
@@ -16,14 +16,17 @@ export const reorderTransition = {
   easing: `cubic-bezier(${motionEasings.enter.join(',')})`,
 } as const
 
-const ListScopeContext = createContext('')
+const ListScopeContext = createContext<{ scope: string; committedScope: { current: string } }>({ scope: '', committedScope: { current: '' } })
 
 export function ListScope({ scope, children }: Readonly<{ scope: string; children: ReactNode }>) {
-  return <ListScopeContext.Provider value={scope}>{children}</ListScopeContext.Provider>
+  const committedScope = useRef(scope)
+  useEffect(() => { committedScope.current = scope }, [scope])
+  const value = useMemo(() => ({ scope, committedScope }), [scope])
+  return <ListScopeContext.Provider value={value}>{children}</ListScopeContext.Provider>
 }
 
 function useExitDeadline(duration: number) {
-  const scope = useContext(ListScopeContext)
+  const { scope } = useContext(ListScopeContext)
   const [present, remove] = usePresence()
   const scopeWhilePresent = useRef(scope)
   useEffect(() => {
@@ -46,10 +49,12 @@ export function ListMotionItem({ children, className, style, ref, positionMotion
   const enter = resolveMotionPreset('list-enter', reduced)
   const exit = resolveMotionPreset('list-exit', reduced)
   const present = useExitDeadline(exit.exitDuration)
+  const scopeContext = useContext(ListScopeContext)
   const presence = useContext(PresenceContext)
+  const [mountedByScopeChange] = useState(() => scopeContext.committedScope.current !== scopeContext.scope)
   return <PresenceContext.Provider value={null}><motion.div ref={ref} layout={reduced || !positionMotion ? false : 'position'}
     data-list-motion="" className={className} style={style} inert={!present} aria-hidden={!present || undefined}
-    initial={presence?.initial === false ? false : reduced || !positionMotion ? { opacity: 0 } : { opacity: 0, y: enter.shift }}
+    initial={presence?.initial === false || mountedByScopeChange ? false : reduced || !positionMotion ? { opacity: 0 } : { opacity: 0, y: enter.shift }}
     animate={present ? reduced || !positionMotion ? { opacity: 1 } : { opacity: 1, y: 0 } : { opacity: 0, ...(reduced || !positionMotion ? {} : { y: exit.shift }), transition: { duration: exit.exitDuration / 1000, ease: exit.exitEasing } }}
     transition={{ duration: enter.enterDuration / 1000, ease: enter.enterEasing,
       layout: reduced ? { duration: 0 } : { type: 'spring', ...motionSprings.soft } }}>

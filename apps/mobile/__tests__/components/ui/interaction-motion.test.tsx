@@ -3,7 +3,7 @@ import { StyleSheet } from 'react-native'
 import { MotionPressable } from '@/components/ui/motion-pressable'
 import { CheckCircle } from '@/components/habits/habit-row-check-circle'
 import { triggerHaptic } from '@/lib/haptics'
-import { withSpringCalls, withTimingCalls } from '../../../test-mocks/react-native-reanimated'
+import { sharedValues, springState, withSpringCalls, withTimingCalls } from '../../../test-mocks/react-native-reanimated'
 import { motionDurations, motionSprings, orbitalMotion } from '@orbit/shared/theme'
 
 const preference = vi.hoisted(() => ({ reduced: false }))
@@ -81,6 +81,21 @@ describe('interaction motion', () => {
     TestRenderer.act(() => tree!.update(<CheckCircle {...props} state="done" />))
     expect(withSpringCalls.length).toBeGreaterThan(0)
     for (const call of withSpringCalls) expect(call).toEqual({ value: 1, config: { ...motionSprings.completion, overshootClamping: true } })
+    TestRenderer.act(() => tree!.unmount())
+  })
+
+  it('returns the check to rest when it turns back before the spring settles', () => {
+    preference.reduced = false
+    springState.settledValue = 3
+    sharedValues.length = 0
+    let tree: ReturnType<typeof TestRenderer.create>
+    const props = { onToggle: vi.fn(), disabled: false, accessibilityLabel: 'Complete' }
+    TestRenderer.act(() => { tree = TestRenderer.create(<CheckCircle {...props} state="empty" />) })
+    TestRenderer.act(() => tree!.update(<CheckCircle {...props} state="done" />))
+    expect(sharedValues.some((shared) => shared.value === 3)).toBe(true)
+    TestRenderer.act(() => tree!.update(<CheckCircle {...props} state="empty" />))
+    delete springState.settledValue
+    expect(sharedValues.filter((shared) => shared.value === 3)).toEqual([])
     TestRenderer.act(() => tree!.unmount())
   })
 

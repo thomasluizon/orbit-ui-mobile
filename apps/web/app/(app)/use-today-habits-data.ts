@@ -41,7 +41,6 @@ export interface TodayHabitsData {
   habitsCount: number
   hasFetched: boolean
   isFetching: boolean
-  isRefetching: boolean
   showLoadError: boolean
   refetch: () => void
 }
@@ -109,7 +108,6 @@ export function useTodayHabitsData({
   const childrenByParent = habitsQuery.data?.childrenByParent ?? EMPTY_CHILDREN_BY_PARENT
   const habitsCount = habitsById.size
   const hasFetched = habitsQuery.dataUpdatedAt > 0
-  const isRefetching = habitsQuery.isFetching && hasFetched
   const showLoadError = habitsQuery.isError && !hasFetched
 
   return {
@@ -119,7 +117,6 @@ export function useTodayHabitsData({
     habitsCount,
     hasFetched,
     isFetching: habitsQuery.isFetching,
-    isRefetching,
     showLoadError,
     refetch: () => void habitsQuery.refetch(),
   }

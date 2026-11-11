@@ -34,7 +34,6 @@ const motionTestState = vi.hoisted(() => ({
   }>,
   completeAnimations: true,
   reducedMotion: false,
-  renderedStyles: new Map<string, { opacity?: unknown; y?: unknown }>(),
 }))
 
 vi.mock('@/components/ui/icons', async (importOriginal) => ({
@@ -86,10 +85,6 @@ vi.mock('motion/react', async (importOriginal) => {
         style?: { opacity?: unknown; y?: unknown }
         [key: string]: unknown
       }) => {
-        const testId = props['data-testid']
-        if (typeof testId === 'string') {
-          motionTestState.renderedStyles.set(testId, style ?? {})
-        }
         return ReactModule.createElement('div', {
           ...props,
           'data-motion-y': resolveStyleValue(style?.y),
@@ -168,13 +163,12 @@ const baseProps = {
 function createMotionView(
   dateStr: string,
   isFetching = false,
-  isRefetching = isFetching,
 ): TodayView {
   return {
     activeView: 'today',
     search: { open: false, toggle: vi.fn(), query: '' } as unknown as ReturnType<typeof useHabitViewSearch>,
     changeView: vi.fn(),
-    data: { filters: {}, isFetching, isRefetching },
+    data: { filters: {}, isFetching },
     habitListRef: { current: null },
     isSelectMode: false,
     nav: {
@@ -192,20 +186,6 @@ function createMotionView(
     showCompleted: false,
     toggleSelectMode: vi.fn(),
   } as unknown as TodayView
-}
-
-function getRenderedMotionStyle(testId: string) {
-  const style = motionTestState.renderedStyles.get(testId)
-  if (!style || style.opacity === undefined || style.y === undefined) {
-    throw new Error(`${testId} must own opacity and y motion values`)
-  }
-  return style
-}
-
-function getAnimationForStyleValue(styleValue: unknown) {
-  const animation = motionTestState.animations.find((entry) => entry.value === styleValue)
-  if (!animation) throw new Error('Expected the wrapper MotionValue to be animated')
-  return animation
 }
 
 describe('Hoje date control', () => {
@@ -277,7 +257,6 @@ describe('Hoje date control', () => {
     motionTestState.animations.length = 0
     motionTestState.completeAnimations = true
     motionTestState.reducedMotion = false
-    motionTestState.renderedStyles.clear()
   })
 
   it.each([['en', en], ['pt-BR', ptBr]] as const)('restores every frequency choice in %s', async (locale, messages) => {
@@ -571,66 +550,15 @@ describe('Hoje date control', () => {
     expect(goToNextDay).toHaveBeenCalledOnce()
   })
 
-  it('applies refetch motion at the HabitList boundary', () => {
+  it('never dims or moves the list during a background refetch', () => {
     motionTestState.completeAnimations = false
-    const { rerender } = render(<TodayHabitsPanel view={createMotionView('2026-04-08')} />)
-    const refetchWrapper = screen.getByTestId('today-refetch-motion')
-    const refetchStyle = getRenderedMotionStyle('today-refetch-motion')
-
-    expect(refetchWrapper).toContainElement(screen.getByTestId('today-habit-list'))
-    motionTestState.animations.length = 0
-
-    rerender(<TodayHabitsPanel view={createMotionView('2026-04-08', true)} />)
-    const refetchOpacity = getAnimationForStyleValue(refetchStyle.opacity)
-    const refetchShift = getAnimationForStyleValue(refetchStyle.y)
-    expect(refetchOpacity).toMatchObject({
-      from: 1,
-      target: 0.8,
-      options: {
-        duration: 0.22,
-        ease: [0.16, 1, 0.3, 1],
-      },
-    })
-    expect(refetchShift).toMatchObject({
-      from: 0,
-      target: 4,
-      options: {
-        duration: 0.22,
-        ease: [0.16, 1, 0.3, 1],
-      },
-    })
-  })
-
-  it('does not apply refetch motion during a cold client fetch', () => {
-    motionTestState.completeAnimations = false
-
-    render(<TodayHabitsPanel view={createMotionView('2026-04-08', true, false)} />)
-
-    expect(motionTestState.animations).not.toEqual(expect.arrayContaining([
-      expect.objectContaining({ target: 0.8 }),
-      expect.objectContaining({ target: 4 }),
-    ]))
-  })
-
-  it('keeps reduced refetch motion directional-static with reduced timings', () => {
-    motionTestState.completeAnimations = false
-    motionTestState.reducedMotion = true
     const { rerender } = render(<TodayHabitsPanel view={createMotionView('2026-04-08')} />)
     motionTestState.animations.length = 0
 
     rerender(<TodayHabitsPanel view={createMotionView('2026-04-08', true)} />)
-    expect(motionTestState.animations).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        from: 1,
-        target: 0.8,
-        options: expect.objectContaining({ duration: 0.09, ease: [0, 0, 1, 1] }),
-      }),
-      expect.objectContaining({
-        from: 0,
-        target: 0,
-        options: expect.objectContaining({ duration: 0.09 }),
-      }),
-    ]))
+
+    expect(screen.queryByTestId('today-refetch-motion')).toBeNull()
+    expect(motionTestState.animations).toEqual([])
   })
 
   it('opens the four list actions from the header row', async () => {

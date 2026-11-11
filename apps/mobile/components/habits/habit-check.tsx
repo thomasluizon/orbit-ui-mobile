@@ -36,7 +36,10 @@ export function HabitCheck({ status, label, unavailable = false, feedback = fals
     if (!logged || reduced) return
     settleScale.value = resolveMotionPreset('success-feedback').scaleFrom
     settleScale.value = withSpring(1, { ...motionSprings.completion, overshootClamping: true })
-    return () => cancelAnimation(settleScale)
+    return () => {
+      cancelAnimation(settleScale)
+      settleScale.value = 1
+    }
   }, [logged, reduced, settleScale])
   const accessibilityRole = label ? 'image' : undefined
   if (unavailable) return (
