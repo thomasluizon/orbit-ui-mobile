@@ -196,6 +196,19 @@ describe('privacy policy disclosures', () => {
   })
 
   it.each([
+    ['en', en, /iOS/, /voice input/i],
+    ['pt-BR', ptBR, /iOS/, /entrada por voz/i],
+  ])('names iOS crash reports and the voice audio upload in %s', (locale, messages, iosPattern, voicePattern) => {
+    expect(messages.privacy.dataCollected.device).toMatch(iosPattern)
+    expect(messages.privacy.thirdParty.sentry).toMatch(iosPattern)
+    expect(messages.privacy.thirdParty.openai).toMatch(voicePattern)
+    expect(messages.privacy.thirdParty.openai).toMatch(/OpenAI/)
+    render(React.createElement(TestIntlProvider, { locale, messages }, React.createElement(PrivacyPage)))
+    expect(screen.getByText(messages.privacy.thirdParty.openai)).toBeInTheDocument()
+    expect(screen.getByText(messages.privacy.thirdParty.sentry)).toBeInTheDocument()
+  })
+
+  it.each([
     ['English', en.privacy.retention],
     ['Portuguese', ptBR.privacy.retention],
   ])('states every scheduled retention period in %s', (_locale, retention) => {

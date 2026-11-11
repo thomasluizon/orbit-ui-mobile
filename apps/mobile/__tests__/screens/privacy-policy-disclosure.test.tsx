@@ -119,6 +119,25 @@ describe('PrivacyScreen disclosures', () => {
     expect(rendersText(tree!.root, messages.privacy.thirdParty.googlePlay)).toBe(true)
   })
 
+  it.each([
+    ['en', en, /iOS/, /voice input/i],
+    ['pt-BR', ptBR, /iOS/, /entrada por voz/i],
+  ])('names iOS crash reports and the voice audio upload in %s', (_locale, messages, iosPattern, voicePattern) => {
+    translations.messages = messages
+    let tree: { root: TestNode } | undefined
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<PrivacyScreen />)
+    })
+
+    expect(messages.privacy.dataCollected.device).toMatch(iosPattern)
+    expect(messages.privacy.thirdParty.sentry).toMatch(iosPattern)
+    expect(messages.privacy.thirdParty.openai).toMatch(/OpenAI/)
+    expect(messages.privacy.thirdParty.openai).toMatch(voicePattern)
+    expect(rendersText(tree!.root, messages.privacy.dataCollected.device)).toBe(true)
+    expect(rendersText(tree!.root, messages.privacy.thirdParty.sentry)).toBe(true)
+    expect(rendersText(tree!.root, messages.privacy.thirdParty.openai)).toBe(true)
+  })
+
   it('shows the cutover processors and data locations', () => {
     let tree: { root: TestNode } | undefined
     TestRenderer.act(() => {
