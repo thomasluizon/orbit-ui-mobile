@@ -1,11 +1,12 @@
 import { spawnSync } from 'node:child_process'
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 import { parse } from 'yaml'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createRequire } from 'node:module'
+import { declaredStepEnvironment, deploymentRecord as record, writeGitHubStub } from '../support/release-step-environment'
 
 const require = createRequire(import.meta.url)
 const script = fileURLToPath(new URL('../../scripts/mobile-version-pair.js', import.meta.url))
@@ -17,15 +18,6 @@ const pair = require('../../scripts/mobile-version-pair.js') as {
   planVersions: (newest: { android: string | null; ios: string | null }) => Record<string, unknown>
   recordIosDeployment: (input: Record<string, unknown>) => number
 }
-
-const androidRecord = JSON.parse(
-  readFileSync(fileURLToPath(new URL('../../../../tools/__tests__/android-deployment-fixture.json', import.meta.url)), 'utf8'),
-).deployment as { payload: Record<string, unknown> }
-const record = (version: string, task = 'android-release') => ({
-  ...androidRecord,
-  task,
-  payload: { ...androidRecord.payload, app_version: version },
-})
 
 const sha = 'a'.repeat(40)
 const check = (overrides: Record<string, unknown>) =>
@@ -59,7 +51,7 @@ describe('version arithmetic', () => {
   })
 
   it('fails closed on a record without a version', () => {
-    expect(() => pair.newestVersion([{ ...androidRecord, payload: {} }])).toThrow('Invalid version')
+    expect(() => pair.newestVersion([{ ...record('1.3.152'), payload: {} }])).toThrow('Invalid version')
     expect(() => pair.newestVersion({})).toThrow('unexpected deployments response')
   })
 })
@@ -164,20 +156,11 @@ describe('command line', () => {
     for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true })
   })
 
-  function run(args: string[], deployments: { android: unknown[]; ios: unknown[] }, reason = '') {
+  function run(args: string[], deployments: Parameters<typeof writeGitHubStub>[1], reason = '') {
     const directory = mkdtempSync(join(tmpdir(), 'mobile-version-pair-'))
     directories.push(directory)
-    writeFileSync(join(directory, 'responses.json'), JSON.stringify(deployments))
+    writeGitHubStub(directory, deployments)
     const summary = join(directory, 'summary.md')
-    writeFileSync(join(directory, 'gh'), [
-      '#!/bin/sh',
-      'case "$*" in',
-      `  *"task=android-release"*) node -e 'process.stdout.write(JSON.stringify(require(process.argv[1]).android))' "${directory}/responses.json" ;;`,
-      `  *"task=ios-release"*) node -e 'process.stdout.write(JSON.stringify(require(process.argv[1]).ios))' "${directory}/responses.json" ;;`,
-      '  *) echo "unexpected gh call: $*" >&2; exit 9 ;;',
-      'esac',
-    ].join('\n'))
-    chmodSync(join(directory, 'gh'), 0o755)
     const result = spawnSync(process.execPath, [script, ...args, ...(reason ? ['--platform-only-reason', reason] : [])], {
       encoding: 'utf8',
       env: { ...process.env, PATH: `${directory}:${process.env.PATH}`, GITHUB_REPOSITORY: 'owner/repository', GITHUB_STEP_SUMMARY: summary },
@@ -228,7 +211,7 @@ describe('command line', () => {
 })
 
 describe('release workflows', () => {
-  interface Step { name?: string; run?: string; uses?: string }
+  interface Step { name?: string; run?: string; uses?: string; env?: Record<string, string> }
   interface Workflow {
     on: { workflow_dispatch: { inputs: Record<string, { required?: boolean; type: string }> } }
     permissions: Record<string, string>
@@ -266,6 +249,42 @@ describe('release workflows', () => {
     const recorded = index(steps, (step) => step.name === 'Record the iOS upload')
     expect(recorded).toBe(upload + 1)
     expect(steps[recorded]!.run).toContain('mobile-version-pair.js record-ios')
+  })
+
+  const runAndroidGuard = (options: { track: string; androidVersion: string; iosVersion: string | null; platformOnlyReason?: string }) => {
+    const step = android.jobs['release-android']!.steps.find((candidate) => candidate.name === 'Require one mobile version')!
+    const directory = mkdtempSync(join(tmpdir(), 'orbit-android-guard-'))
+    try {
+      mkdirSync(join(directory, 'apps/mobile/scripts'), { recursive: true })
+      copyFileSync(script, join(directory, 'apps/mobile/scripts/mobile-version-pair.js'))
+      writeGitHubStub(directory, {
+        android: [record('1.3.152')],
+        ios: options.iosVersion ? [record(options.iosVersion, 'ios-release')] : [],
+      })
+      return spawnSync('/bin/bash', ['-c', step.run!], {
+        cwd: directory, encoding: 'utf8',
+        env: {
+          PATH: `${directory}:${process.env.PATH ?? ''}`, NODE_ENV: 'test', GITHUB_REPOSITORY: 'owner/repository',
+          ...declaredStepEnvironment(step, {
+            GH_TOKEN: 'test-token', APP_VERSION: options.androidVersion,
+            PLATFORM_ONLY_REASON: options.platformOnlyReason ?? '', RELEASE_TRACK: options.track,
+          }),
+        },
+      })
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  }
+
+  it.each([
+    ['open', '1.3.153', '1.3.152', '', 0, 'keeps both platforms on one version'],
+    ['internal', '1.3.153', '1.3.152', '', 0, 'keeps both platforms on one version'],
+    ['open', '1.3.152', '1.3.153', '', 1, 'older than the newest iOS version 1.3.153'],
+    ['open', '1.3.152', '1.3.153', 'Android only crash', 0, 'Android only crash'],
+  ] as const)('runs the Android guard on the %s track at %s against iOS %s with reason "%s"', (track, androidVersion, iosVersion, platformOnlyReason, status, output) => {
+    const result = runAndroidGuard({ track, androidVersion, iosVersion, platformOnlyReason })
+    expect(result.status).toBe(status)
+    expect(result.stdout + result.stderr).toContain(output)
   })
 
   it('keeps the Android run title format the release skills parse', () => {
