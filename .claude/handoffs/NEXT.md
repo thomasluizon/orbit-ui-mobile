@@ -16,7 +16,8 @@ UI `main` `fc6ad1c47`; API `main` `1a70835b4`; landing `main` `aa0eaed9c`. Produ
 
 | Item | Disposition |
 | --- | --- |
-| `#2111` releases (owner report, first priority) | Android Open 1.3.152 (213) succeeded (run `43103079499`) and `#2094` is closed. Web staging release run `43102924330` at `3db3e8c40` ran at the handoff: read its result. Then `release-run.sh ui production 3db3e8c400383de708ad0414cd8e9188e64a307c https://orbit-web-3qmv.onrender.com`, check the habit detail log on production web, close `#2111`. |
+| New owner report (first priority, no ticket yet) | The owner wrote: "when logging a habit that has sub habits due for today, it should let me log it, without logging the sub-habits, and have a visual clue that its not for today anymore, like "due tomorrow" and a little dimmed, this was already like this before, and you removed it". File it through `/ticket` at entry (live defect, Batch 0c, web and mobile), reproduce it red on the real path, find the commit that removed the behaviour with `git log -S`, restore it at the root, prove it green, release web and Android, then tell the owner. Do not guess the cause. |
+| `#2111` releases (owner report) | Android Open 1.3.152 (213) succeeded (run `43103079499`) and `#2094` is closed. Web staging release run `43102924330` at `3db3e8c40` ran at the handoff: read its result. Then `release-run.sh ui production 3db3e8c400383de708ad0414cd8e9188e64a307c https://orbit-web-3qmv.onrender.com`, check the habit detail log on production web, close `#2111`. |
 | `landing#129` (`#2090`) | Merged as `aa0eaed9c`. Its staging release run `43104118097` failed: `Render deploy ended with build_failed`. Read the Render build log of `orbit-landing-staging` first (render MCP), fix the cause at its root, never raise a byte budget, then staging, production and the three rendered checks. |
 | `landing#133` (`#2095`) | Base is `main`. A subagent merged the final `landing#129` code and `main` in worktree `ticket-2095-landing-motion`: head `13510ba`, clean, not pushed (fix commit `d3d7e38`, startup graph 23,732 of 24,000). Read the diff of `1105e00` and `d3d7e38`, run the six rendered checks listed in the predecessor log, push, chain, merge at the bar. |
 | `ui#2414` (`#1561`) | Merged as `fc6ad1c47`. When its `PR Tests` and `Guards` push runs pass: production iOS Release 1.3.152 (2), read the `testflight-access` job. Then `main` into `ui#2423` (`#2106`), chain, merge. |
@@ -32,7 +33,7 @@ Inventory: open pull requests ui `#2434`, `#2433`, `#2431`, `#2430`, `#2427`, `#
 ## Then, in this order
 
 1. Answer any owner message first, in his language, before any other work and before a relay step.
-2. The `#2111` release results and the web production release, then the other in-flight rows, within the load gate.
+2. The new owner report (ticket, repro, fix, release), then the `#2111` release results and the web production release, then the other in-flight rows, within the load gate.
 3. The rest of `## The order` and the auto-work intake cycle.
 
 ## Crank
