@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pressFill: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: 999,
   },
 })

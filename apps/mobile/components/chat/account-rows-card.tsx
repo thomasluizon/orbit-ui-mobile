@@ -1,10 +1,10 @@
 import { IconButton } from '@/components/ui/icon-button'
-import { SPACING } from '@orbit/shared/theme'
+import { SPACING, motionDurations, motionEasings } from '@orbit/shared/theme'
 import { useState } from 'react'
 import { useReferralInvitation } from '@/hooks/use-referral-invitation'
 import { useTranslation } from 'react-i18next'
 import { Share, Text, View } from 'react-native'
-import Animated, { Keyframe, ReduceMotion } from 'react-native-reanimated'
+import Animated from 'react-native-reanimated'
 import * as Clipboard from 'expo-clipboard'
 import type { AccountRowsCard as AccountRowsCardData } from '@orbit/shared/types/chat'
 import { accountRowLabelKey, formatAccountRowValue, presentAccountRows } from '@orbit/shared/chat'
@@ -14,9 +14,34 @@ import { ListRow } from '@/components/ui/list-row'
 import { Check, Copy, Share2 } from '@/components/ui/icons'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { usePrefersReducedMotion } from '@/lib/motion'
 
-const iconEnter = new Keyframe({ 0: { opacity: 0, transform: [{ scale: 0.25 }] }, 100: { opacity: 1, transform: [{ scale: 1 }] } }).duration(200).reduceMotion(ReduceMotion.System)
-const iconExit = new Keyframe({ 0: { opacity: 1, transform: [{ scale: 1 }] }, 100: { opacity: 0, transform: [{ scale: 0.25 }] } }).duration(200).reduceMotion(ReduceMotion.System)
+const iconSwapTransition = ['opacity', 'transform', 'filter']
+  .map(property => `${property} ${motionDurations.fast}ms cubic-bezier(${motionEasings.standard.join(',')})`)
+  .join(', ')
+
+function iconSwapStyle(visible: boolean, reducedMotion: boolean) {
+  const settled = visible || reducedMotion
+  return {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    opacity: visible ? 1 : 0,
+    transform: [{ scale: settled ? 1 : 0.25 }],
+    filter: [{ blur: settled ? 0 : 4 }],
+    transition: reducedMotion ? 'none' : iconSwapTransition,
+  } as const
+}
+
+function CopyStateIcon({ copied, color }: Readonly<{ copied: boolean; color: string }>) {
+  const reducedMotion = usePrefersReducedMotion()
+  return <View style={{ width: 20, height: 20 }}>
+    <Animated.View testID="copy-icon" style={iconSwapStyle(!copied, reducedMotion)}><Copy size={20} color={color} strokeWidth={1.8} /></Animated.View>
+    <Animated.View testID="check-icon" style={iconSwapStyle(copied, reducedMotion)}><Check size={20} color={color} strokeWidth={1.8} /></Animated.View>
+  </View>
+}
 
 export function AccountRowsCard({ accountRows }: Readonly<{ accountRows: AccountRowsCardData }>) {
   return accountRows.kind === 'referral'
@@ -66,7 +91,7 @@ function AccountRowsContent({ accountRows, invitation }: Readonly<{ accountRows:
     <BlockFrame state={failure ? 'partiallyFailed' : 'resting'} title={t(`chat.account.title.${accountRows.kind}`)} count={null} items={[]}
       body={<View style={{ gap: 12 }}>
         <SettingsGroup>{rows}</SettingsGroup>
-        {referral && accountRows.referralCode ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12, paddingHorizontal: SPACING.s16 }}><Text style={{ flexGrow: 1, flexShrink: 1, color: tokens.fg1, fontFamily: 'GeistMono_500Medium', fontSize: 14 }}>{accountRows.referralCode}</Text><IconButton label={t(copied ? 'chat.account.copied' : 'chat.account.copy')} onClick={() => { void copyCode() }}><View style={{ width: 20, height: 20 }}>{copied ? <Animated.View key="check" entering={iconEnter}><Check size={20} color={tokens.fg2} strokeWidth={1.8} /></Animated.View> : <Animated.View key="copy" exiting={iconExit}><Copy size={20} color={tokens.fg2} strokeWidth={1.8} /></Animated.View>}</View></IconButton></View> : null}
+        {referral && accountRows.referralCode ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12, paddingHorizontal: SPACING.s16 }}><Text style={{ flexGrow: 1, flexShrink: 1, color: tokens.fg1, fontFamily: 'GeistMono_500Medium', fontSize: 14 }}>{accountRows.referralCode}</Text><IconButton label={t(copied ? 'chat.account.copied' : 'chat.account.copy')} onClick={() => { void copyCode() }}><CopyStateIcon copied={copied} color={tokens.fg2} /></IconButton></View> : null}
         <Text accessibilityRole="summary" accessibilityLiveRegion="polite" style={{ color: failure ? tokens.statusBadText : tokens.fg2, fontSize: 14 }}>{failure ?? (copied ? t('chat.account.copied') : '')}</Text>
       </View>}
       actions={referral ? (accountRows.referralLink ? <IconButton label={t('chat.account.share')} onClick={() => void shareLink()}><Share2 size={20} strokeWidth={1.5} accessible={false} /></IconButton> : undefined) : undefined} />

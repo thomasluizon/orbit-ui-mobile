@@ -15,6 +15,8 @@ const TestRenderer = require('react-test-renderer')
 const rewardState = vi.hoisted(() => ({ stats: { rewardType: 'pro_days', proDaysPerReferral: 7, discountPercent: 23 }, locale: '' }))
 const referralRead = vi.hoisted(() => vi.fn())
 vi.mock('@/hooks/use-referral', () => ({ useReferral: () => { referralRead(); return { stats: rewardState.stats } } }))
+const motionState = vi.hoisted(() => ({ reduced: false }))
+vi.mock('@/lib/motion', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/motion')>()), usePrefersReducedMotion: () => motionState.reduced }))
 const mocks = vi.hoisted(() => ({ push: vi.fn(), setStringAsync: vi.fn().mockResolvedValue(true), share: vi.fn(), locale: 'en' }))
 vi.mock('react-native', async () => {
   const reactNative = await import('../../../test-mocks/react-native')
@@ -41,7 +43,7 @@ function render(element: React.ReactElement) {
 }
 
 describe('Astra account rows on mobile', () => {
-  beforeEach(() => { vi.clearAllMocks(); rewardState.locale = ''; mocks.locale = 'en' })
+  beforeEach(() => { vi.clearAllMocks(); rewardState.locale = ''; mocks.locale = 'en'; motionState.reduced = false })
 
   it('keeps plan rows read only and drops unknown keys', () => {
     const tree = render(<AccountRowsCard accountRows={{ kind: 'plan', surfaceId: 'profile', rows: [
@@ -87,6 +89,24 @@ describe('Astra account rows on mobile', () => {
     const openShare = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && controlName(node).includes('chat.account.share'))[0]
     await TestRenderer.act(async () => { openShare.props.onPress(); await Promise.resolve() })
     expect(mocks.share).toHaveBeenCalledWith({ title: 'referral.share.title', message: 'referral.share.proDays:{"proDays":7} https://example.com/r/ORBIT123' })
+  })
+
+  function iconStyle(tree: any, testID: string): Record<string, any> {
+    const flatten = (style: unknown): Record<string, any> => Array.isArray(style) ? Object.assign({}, ...style.map(flatten)) : (style ?? {}) as Record<string, any>
+    return flatten(tree.root.findAll((node: any) => node.props.testID === testID).at(-1).props.style)
+  }
+
+  it.each([false, true])('swaps the copy icon with scale, opacity and blur on the shared fast duration (reduced motion %s)', async (reduced) => {
+    motionState.reduced = reduced
+    const tree = render(<AccountRowsCard accountRows={{ kind: 'referral', surfaceId: 'profile', rows: [], referralCode: 'ORBIT123' }} />)
+    expect(iconStyle(tree, 'copy-icon')).toMatchObject({ opacity: 1, transform: [{ scale: 1 }], filter: [{ blur: 0 }] })
+    expect(iconStyle(tree, 'check-icon')).toMatchObject({ opacity: 0, transform: [{ scale: reduced ? 1 : 0.25 }], filter: [{ blur: reduced ? 0 : 4 }] })
+    await TestRenderer.act(async () => { await tree.root.findByProps({ accessibilityLabel: 'chat.account.copy' }).props.onPress() })
+    expect(iconStyle(tree, 'check-icon')).toMatchObject({ opacity: 1, transform: [{ scale: 1 }], filter: [{ blur: 0 }] })
+    expect(iconStyle(tree, 'copy-icon')).toMatchObject({ opacity: 0, transform: [{ scale: reduced ? 1 : 0.25 }], filter: [{ blur: reduced ? 0 : 4 }] })
+    const transition = iconStyle(tree, 'check-icon').transition as string
+    if (reduced) expect(transition).toBe('none')
+    else for (const property of ['opacity', 'transform', 'filter']) expect(transition).toContain(`${property} 160ms cubic-bezier(0.2,0,0,1)`)
   })
 
   it('confirms a referral code only after the native write and permits retry after rejection', async () => {
