@@ -138,6 +138,20 @@ describe('PrivacyScreen disclosures', () => {
     expect(rendersText(tree!.root, messages.privacy.thirdParty.openai)).toBe(true)
   })
 
+  it.each([
+    ['en', en, 'Last updated: November 2026'],
+    ['pt-BR', ptBR, 'Última atualização: novembro de 2026'],
+  ])('shows the current update month in %s', (_locale, messages, lastUpdated) => {
+    translations.messages = messages
+    let tree: { root: TestNode } | undefined
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<PrivacyScreen />)
+    })
+
+    expect(messages.privacy.lastUpdated).toBe(lastUpdated)
+    expect(rendersText(tree!.root, lastUpdated)).toBe(true)
+  })
+
   it('shows the cutover processors and data locations', () => {
     let tree: { root: TestNode } | undefined
     TestRenderer.act(() => {
