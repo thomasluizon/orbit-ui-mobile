@@ -16,13 +16,14 @@ function gatesOnFinePointerHover(query: string) {
 
 describe('hover states compiled from app/globals.css', () => {
   const hoverRules: Rule[] = []
+  const allRules: Rule[] = []
   const gatedRules = new Set<Rule>()
 
   beforeAll(async () => {
     const source = resolve(process.cwd(), 'app/globals.css')
     const stylesheet = `${readFileSync(source, 'utf8')}\n@source inline("hover:bg-[var(--bg-hover)] group-hover:opacity-100");`
     const compiled = postcss.parse((await postcss([tailwind()]).process(stylesheet, { from: source })).css)
-    compiled.walkRules((rule) => { if (HOVER_PSEUDO_CLASS.test(rule.selector)) hoverRules.push(rule) })
+    compiled.walkRules((rule) => { allRules.push(rule); if (HOVER_PSEUDO_CLASS.test(rule.selector)) hoverRules.push(rule) })
     compiled.walkAtRules('media', (media) => {
       if (gatesOnFinePointerHover(media.params)) media.walkRules((rule) => { gatedRules.add(rule) })
     })
@@ -43,6 +44,14 @@ describe('hover states compiled from app/globals.css', () => {
   it('leaves no hover state, utility or hand-written, that a touch tap could latch', () => {
     expect(hoverRules.length).toBeGreaterThan(40)
     expect(hoverRules.filter((rule) => !gatedRules.has(rule)).map((rule) => rule.selector)).toEqual([])
+  })
+
+  it('shows the touch underline at rest and hands it to the growing underline on a fine pointer', () => {
+    const touchRule = (rule: Rule) => rule.selector === '.orbit-link-action-touch-underline'
+    const restingRules = allRules.filter((rule) => touchRule(rule) && !gatedRules.has(rule))
+    const finePointerRules = allRules.filter((rule) => touchRule(rule) && gatedRules.has(rule))
+    expect(restingRules.map((rule) => rule.toString())).toEqual([expect.stringContaining('text-decoration: underline')])
+    expect(finePointerRules.map((rule) => rule.toString())).toEqual([expect.stringContaining('text-decoration: none')])
   })
 
   it('uses the hover variant instead of raw hover selectors in arbitrary variants', () => {

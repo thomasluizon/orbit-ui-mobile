@@ -94,7 +94,7 @@ export function PricingSection({
               }}
               className="inline-flex min-h-[var(--touch-min)] items-center text-base leading-[1.5] text-[var(--fg-2)] active:scale-[0.96] aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
-              <span className="orbit-link-action underline underline-offset-4 [@media(hover:hover)_and_(pointer:fine)]:no-underline">{t('upgrade.convert.stayFree')}</span>
+              <span className="orbit-link-action orbit-link-action-touch-underline underline-offset-4">{t('upgrade.convert.stayFree')}</span>
             </Link>
           </div>
       </div>

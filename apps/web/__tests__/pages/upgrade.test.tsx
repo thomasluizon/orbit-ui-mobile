@@ -629,8 +629,9 @@ describe('UpgradePage', () => {
     const label = screen.getByText('upgrade.convert.stayFree')
     expect(label).toHaveClass('orbit-link-action')
     expect(decline.className).not.toContain('transition-colors')
+    expect(label).toHaveClass('orbit-link-action-touch-underline')
     expect(decline.className).not.toMatch(/(^|\s)underline(\s|$)/u)
-    expect(label.className).toContain('[@media(hover:hover)_and_(pointer:fine)]:no-underline')
+    expect(label.className).not.toContain('@media')
   })
 
   describe.each(['/profile', '/profile/astra'])('decline destination %s', (destination) => {
