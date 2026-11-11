@@ -67,6 +67,11 @@ an AAB without Play credentials and exercises the same composite action as `andr
 Before prebuild, it selects the newest successful `android-release.yml` run on `main` for the
 open or production track and exports its version through `ORBIT_APP_VERSION`. An unavailable or
 unrecognized release fails preparation. The release workflow retains its dispatched `app_version`.
+Both mobile release workflows run `apps/mobile/scripts/mobile-version-pair.js check` before they build,
+so Android and iOS ship at one `app_version`. iOS must equal the newest Android version, and Android cannot
+go below the newest iOS version, unless the dispatch passes `platform_only_reason`. Each platform reads the
+other's `android-release` or `ios-release` GitHub Deployments. `mobile-version-pair.test.ts` runs the rules, the
+command line against a stub `gh`, and the workflow wiring.
 Release submission follows that action unconditionally. The
 action derives a universal APK from the shipping AAB with pinned, checksum-verified bundletool,
 uses a disposable installation key and compares the embedded Hermes bundle byte for byte.

@@ -5,11 +5,23 @@ description: Publish an Orbit iOS build to internal TestFlight through the manua
 
 # iOS release
 
+## One mobile version
+
+iOS ships at the same `app_version` as Android. Each store keeps its own build counter. The default
+path is `/android-release` first, then this skill at the version Android uploaded. Use the newest Android
+version from `node apps/mobile/scripts/mobile-version-pair.js plan --environment <staging|production>`
+(set `GITHUB_REPOSITORY` and `GH_TOKEN`). The workflow runs `mobile-version-pair.js check` and refuses an
+iOS version that differs from the newest Android version.
+
+Release iOS alone only for a defect specific to iOS. Pass the defect as `platform_only_reason`.
+The run summary and the iOS deployment record keep the reason. A successful upload records an `ios-release`
+GitHub Deployment, which the Android check reads. Never invent a reason to pass the check.
+
 Read `.github/workflows/ios-release.yml` for the current inputs and credential names.
 It archives the embedded redesign bundle, uploads Sentry symbols, and uploads to App Store Connect.
 Use staging for the first internal TestFlight build. Production releases run from `main`.
 
-Before dispatch, resolve the requested ref to a commit, app version, unused positive `build_number`,
+Before dispatch, resolve the requested ref to a commit, the app version from the rule above, an unused positive `build_number`,
 and `variant` (`staging` or `production`). Read the latest build number from the matching app's
 App Store Connect TestFlight screen; do not infer it from Android's version code. Verify the
 `Mobile iOS Build` compile check for the commit. Ask for a missing release parameter only after
@@ -68,7 +80,8 @@ Confirm the installed `gh workflow run` interface before dispatching. The comman
 
 ```sh
 gh workflow run ios-release.yml --ref <ref> \
-  -f variant=<staging-or-production> -f app_version=<version> -f build_number=<number>
+  -f variant=<staging-or-production> -f app_version=<version> -f build_number=<number> \
+  -f platform_only_reason=<reason or empty>
 ```
 
 Follow only the dispatched run. An upload command's successful exit proves upload acceptance;
