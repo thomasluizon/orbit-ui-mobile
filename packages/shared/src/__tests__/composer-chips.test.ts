@@ -127,6 +127,40 @@ describe('composer chips', () => {
     }
   })
 
+  describe('habits already logged for the selected day', () => {
+    const streakProfile = createMockProfile({ currentStreak: 3, longestStreak: 3, lastCompletionDate: null })
+    const loggedWalk = createMockHabit({ id: 'walk', title: 'Morning walk', isCompleted: false, isLoggedInRange: true })
+    const openGym = createMockHabit({ id: 'gym', title: 'Gym', isCompleted: false, isLoggedInRange: false })
+
+    it('never names a logged habit as the habit to log next', () => {
+      const chips = buildComposerChips(state({ habits: [loggedWalk, openGym], profile: streakProfile }))
+      expect(chips.find((chip) => chip.id === 'today.logHabit')?.params).toEqual({ title: 'Gym' })
+    })
+
+    it('falls to the all-done chips when every habit is logged for the day', () => {
+      const secondLogged = createMockHabit({ id: 'read', title: 'Reading', isCompleted: false, isLoggedInRange: true })
+      expect(ids({ habits: [loggedWalk, secondLogged], profile: streakProfile })).toEqual([
+        'today.logYesterday', 'today.createEveningHabit', 'today.changeTimes',
+      ])
+    })
+
+    it('does not offer to move an overdue habit that is already logged', () => {
+      const loggedOverdue = createMockHabit({ id: 'late', title: 'Walking', isOverdue: true, isLoggedInRange: true })
+      expect(ids({ habits: [loggedOverdue, openGym], profile: streakProfile })).not.toContain('today.moveOverdue')
+    })
+
+    it('keeps the streak-at-risk order only while no habit is logged for the day', () => {
+      const openOverdue = createMockHabit({ id: 'late', title: 'Walking', isOverdue: true, isLoggedInRange: false })
+      expect(ids({ habits: [openOverdue, openGym], profile: streakProfile })[0]).toBe('today.logHabit')
+      expect(ids({ habits: [loggedWalk, openOverdue], profile: streakProfile }).slice(0, 2)).toEqual(['today.moveOverdue', 'today.logHabit'])
+    })
+
+    it('does not offer trimming a sub-habit parent that is already logged', () => {
+      const loggedParent = createMockHabit({ id: 'routine', title: 'House routine', hasSubHabits: true, isLoggedInRange: true })
+      expect(ids({ habits: [loggedParent, openGym], profile: streakProfile })).not.toContain('today.trimHabit')
+    })
+  })
+
   it('does not treat a historical selected day as a streak at risk', () => {
     const profile = createMockProfile({ currentStreak: 5, lastCompletionDate: null })
     expect(ids({ habits: [overdue, pending], profile, selectedDateIsToday: false })[0]).toBe('today.moveOverdue')

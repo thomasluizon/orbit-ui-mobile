@@ -1,6 +1,7 @@
 import type { ComposerSuggestions } from '../contracts/composer'
 import type { HabitDetail, NormalizedHabit } from '../types/habit'
 import type { Profile } from '../types/profile'
+import { isHabitDoneForRange } from '../utils/habit-visibility'
 import { getReturningInterval } from '../utils/returning-interval'
 
 export const COMPOSER_CHIP_GAP = 8
@@ -33,7 +34,7 @@ export type ComposerChip = {
   prompt?: string
 }
 
-type ChipHabit = Pick<NormalizedHabit, 'title' | 'isCompleted' | 'isOverdue' | 'hasSubHabits' | 'linkedGoals'>
+type ChipHabit = Pick<NormalizedHabit, 'title' | 'isCompleted' | 'isLoggedInRange' | 'isOverdue' | 'hasSubHabits' | 'linkedGoals'>
 type ChipProfile = Pick<Profile, 'aiSummaryEnabled' | 'hasGoogleConnection' | 'currentStreak' | 'longestStreak' | 'lastCompletionDate' | 'timeZone'>
 type DetailHabit = Pick<HabitDetail, 'title' | 'checklistItems'>
 
@@ -91,19 +92,20 @@ function todayChips(state: ComposerChipState): ComposerChip[] {
       ...(firstHabit ? [chip('today.keepOnlyHabit', { title: firstHabit.title })] : []),
     ]
   }
-  const pending = habits.find((habit) => !habit.isCompleted && !habit.isOverdue)
-    ?? habits.find((habit) => !habit.isCompleted)
+  const pending = habits.find((habit) => !isHabitDoneForRange(habit) && !habit.isOverdue)
+    ?? habits.find((habit) => !isHabitDoneForRange(habit))
   if (!pending) {
     const parent = habits.find((habit) => habit.hasSubHabits)
     return [chip('today.logYesterday'), chip('today.createEveningHabit'), chip('today.changeTimes'), ...(parent ? [chip('today.reviewHabit', { title: parent.title })] : [])]
   }
-  const overdue = habits.find((habit) => habit.isOverdue && !habit.isCompleted)
-  const parent = habits.find((habit) => habit.hasSubHabits && !habit.isCompleted)
+  const overdue = habits.find((habit) => habit.isOverdue && !isHabitDoneForRange(habit))
+  const parent = habits.find((habit) => habit.hasSubHabits && !isHabitDoneForRange(habit))
   const log = chip('today.logHabit', { title: pending.title })
+  const streakAtRisk = (state.selectedDateIsToday ?? true) && profile.currentStreak > 0 && habits.every((habit) => !isHabitDoneForRange(habit))
   const candidates = [
-    ...((state.selectedDateIsToday ?? true) && profile.currentStreak > 0 && habits.every((habit) => !habit.isCompleted) ? [log] : []),
+    ...(streakAtRisk ? [log] : []),
     ...(overdue ? [chip('today.moveOverdue', { title: overdue.title })] : []),
-    ...((state.selectedDateIsToday ?? true) && profile.currentStreak > 0 && habits.every((habit) => !habit.isCompleted) ? [] : [log]),
+    ...(streakAtRisk ? [] : [log]),
     chip('today.logYesterday'),
     chip('today.pushTomorrow'),
     ...(parent ? [chip('today.trimHabit', { title: parent.title })] : []),
