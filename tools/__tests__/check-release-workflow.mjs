@@ -465,7 +465,7 @@ function runCcacheStep(script, { name, sudoWorks = false, env = {} }) {
       case "$*" in *--show-config*) printf 'max_size = 2.0G\ncompiler_check = content\n' ;; esac
     }
   `
-  const environment = { ...process.env, ...env, HOME: join(directory, "home"), GITHUB_ENV: paths.githubEnv, SUDO_WORKS: String(sudoWorks),
+  const environment = { ...process.env, HOME: join(directory, "home"), GITHUB_ENV: paths.githubEnv, SUDO_WORKS: String(sudoWorks),
     STUB_CALLS: paths.calls, STUB_INSTALLED: paths.installed }
   delete environment.CCACHE_AVAILABLE
   Object.assign(environment, env)
