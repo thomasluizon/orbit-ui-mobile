@@ -346,7 +346,7 @@ export function makeNestedHabitPreview(depth: number, reuse: boolean): PendingAg
 
 export const REUSED_CHILD_HABIT_ID = '00000000-0000-4000-8000-0000000000a1'
 
-/** Mirrors the API create preview for a new parent that groups an existing habit: the `sub_habits` field carries an `oldValue` although the parent does not exist yet. */
+/** Mirrors the API create preview for a new daily parent that groups an existing habit: the `sub_habits` field carries an `oldValue` although the parent does not exist yet. */
 export function makeCreateWithReusedChildPreview(): PendingAgentOperation {
   const operation = makeCreateHabitsPreview(1)
   const item = operation.items![0]!
@@ -354,11 +354,21 @@ export function makeCreateWithReusedChildPreview(): PendingAgentOperation {
   const base = { entityId: emptyId, entityName: 'Morning routine', oldValue: null, isEditable: true }
   const fields = [
     { ...base, field: 'title', newValue: 'Morning routine', valueType: 'text', proposedValue: 'Morning routine' },
+    { ...base, field: 'frequency_unit', newValue: 'Day', valueType: 'text', proposedValue: 'Day' },
+    { ...base, field: 'frequency_quantity', newValue: '1', valueType: 'number', proposedValue: 1 },
     { ...base, field: 'is_bad_habit', newValue: 'False', valueType: 'boolean', proposedValue: false },
     { ...base, field: 'parent_habit_id', newValue: 'No parent', valueType: 'text', proposedValue: null },
     { ...base, field: 'sub_habits', oldValue: '[{"title":"Morning walk"},{}]', newValue: JSON.stringify(children), valueType: 'text', proposedValue: children },
   ]
   return pendingAgentOperationSchema.parse({ ...operation, items: [{ ...item, entityName: 'Morning routine', fields }] })
+}
+
+/** The API binds reuse per habit in a bulk create, so each `grouped` entry says whether that habit groups an existing habit. */
+export function makeReuseCreateBatchPreview(grouped: readonly boolean[], changeTargetCount = grouped.length): PendingAgentOperation {
+  const groupedItem = makeCreateWithReusedChildPreview().items![0]!
+  const operation = makeCreateHabitsPreview(grouped.length)
+  return pendingAgentOperationSchema.parse({ ...operation, changeTargetCount, items: operation.items!.map((item, index) => grouped[index]
+    ? { ...groupedItem, itemId: item.itemId, stateFingerprint: item.stateFingerprint } : item) })
 }
 
 export const childSchedulePreviewCases = [

@@ -430,11 +430,13 @@ describe('PendingOperationCard (mobile)', () => {
   it.each(['en', 'pt-BR'])('names nested reuse as one create in %s', (locale) => {
     visibleLocale.actual = true
     visibleLocale.language = locale
+    const messages = locale === 'en' ? en : ptBR
     const reused = renderCard(makeCreateWithReusedChildPreview())
     const text = renderedText(reused.tree.toJSON())
     expect(text).toContain(locale === 'en' ? 'New parent habit' : 'Novo hábito principal')
     expect(text).toContain(locale === 'en' ? 'Create' : 'Criar')
     expect(text).not.toContain(locale === 'en' ? 'Change 1 habit' : 'Alterar 1 hábito')
+    expect(text).toContain(messages.habits.frequency.everyDay)
   })
 
   it('shows the cached emoji of a reused child and no top-level outcome for the new habit', () => {

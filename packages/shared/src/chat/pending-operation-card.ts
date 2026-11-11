@@ -137,8 +137,9 @@ export function buildPendingOperationCardLabels(
   const createsHabits = ['createHabit', 'createHabits', 'createSubHabit'].includes(actionKey ?? '')
     && !hasMixedDeletion && !pendingOperation.items?.some((item) => item.removesData === true
       || item.fields.some(marksExistingHabit))
-  const groupsExistingHabits = createsHabits && pendingOperation.items?.some((item) => item.fields.some((field) =>
-    field.field === 'sub_habits' && hasReusedSubHabit(field.proposedValue))) === true
+  const items = pendingOperation.items ?? []
+  const groupsExistingHabits = createsHabits && items.length > 0 && items.length === (pendingOperation.changeTargetCount ?? items.length)
+    && items.every((item) => item.fields.some((field) => field.field === 'sub_habits' && hasReusedSubHabit(field.proposedValue)))
   const toggleOutcome = getToggleOutcome(actionKey, pendingOperation.items?.length
     ? pendingOperation.items.flatMap((item) => item.fields) : pendingOperation.changes ?? [])
   const actionLabel = getApprovalLabel(actionKey, toggleOutcome, translate)

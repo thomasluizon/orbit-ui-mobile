@@ -107,8 +107,7 @@ function cadenceSummary(fields: readonly PendingOperationChange[], translate: Pr
   const unit = frequencyUnitSchema.safeParse(value('frequency_unit'))
   if (value('is_general')?.toLowerCase() === 'true') return { label: translate('chat.preview.summary.anytime'), complete: true }
   if (!unit.success) return { label: null, complete: false }
-  const updating = fields.some((field) => field.oldValue != null || field.field === 'habit_id')
-    || ['updateHabit', 'updateHabits'].includes(actionKey ?? '')
+  const updating = fields.some(marksExistingHabit) || ['updateHabit', 'updateHabits'].includes(actionKey ?? '')
   const daysField = fields.find((field) => field.field === 'days')
   const flexible = value('is_flexible')?.toLowerCase()
   const complete = !updating || (value('frequency_quantity') != null

@@ -1,7 +1,7 @@
 import { restoreConversationPage } from '../chat/conversation-restore'
 import { makeExecutedConversationPage, makeRevisedConversationPage, PARTIAL_BULK_LOG_PAYLOAD, storedOperationId, UNCHANGED_BULK_LOG_EXECUTION } from '../test-support/conversation-fixtures'
 import { astraOfferFixture, makeOfferedPreview, makeOfferedTaskPreview } from '../test-support/astra-offer-fixtures'
-import { makePlacementPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeBulkCreateExecutionResponse, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makeNestedHabitPreview, makeCreateWithReusedChildPreview, REUSED_CHILD_HABIT_ID, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview, makeBulkUpdateHabitsPreview, makeBulkUpdateExecutionResponse } from '../test-support/pending-operation-preview-fixtures'
+import { makePlacementPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeBulkCreateExecutionResponse, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makeNestedHabitPreview, makeCreateWithReusedChildPreview, makeReuseCreateBatchPreview, REUSED_CHILD_HABIT_ID, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview, makeBulkUpdateHabitsPreview, makeBulkUpdateExecutionResponse } from '../test-support/pending-operation-preview-fixtures'
 import { describe, expect, it, vi } from 'vitest'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { makeAgentOperationResult, makePendingAgentOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '../test-support/chat-fixtures'
@@ -145,6 +145,41 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
       const text = record.frame!.items.map((row) => `${row.label} ${row.meta}`).join(' ')
       expect(text).not.toContain(messages.habits.moveParent.toRoot)
       expect(record.frame!.items[0]!.meta).not.toMatch(/Build this habit|Keep fixed days|Construir|dias fixos/)
+    })
+
+    it('summarizes the new parent schedule like the same create without reuse', () => {
+      const operation = makeCreateWithReusedChildPreview()
+      const withoutReuse = pendingAgentOperationSchema.parse({ ...operation, items: [{ ...operation.items![0]!,
+        fields: operation.items![0]!.fields.map((field) => field.field === 'sub_habits' ? { ...field, oldValue: null } : field) }] })
+      const parentMeta = (preview: typeof operation) => {
+        const labels = buildPendingOperationCardLabels(preview, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+        const { record, render: renderers } = createRenderers()
+        renderPendingOperationCard({ card: createCard(), labels, render: renderers, onVerifyStepUp: vi.fn(), pendingOperation: preview })
+        return record.frame!.items[0]!.meta
+      }
+      expect(parentMeta(operation)).toBe(messages.habits.frequency.everyDay)
+      expect(parentMeta(operation)).toBe(parentMeta(withoutReuse))
+    })
+  })
+
+  describe('bulk create title when reuse is bound per habit', () => {
+    const title = (grouped: readonly boolean[], changeTargetCount?: number) => buildPendingOperationCardLabels(makeReuseCreateBatchPreview(grouped, changeTargetCount),
+      (key, values) => translateMessages(messages, key, values), (value) => value, locale).name
+
+    it('keeps the new habits title for a batch that mixes grouped and plain creates', () => {
+      expect(title([true, false, false])).toBe(translateMessages(messages, 'chat.operation.newHabits', { count: 3 }))
+    })
+
+    it('names a fully visible batch of grouped creates as new parent habits', () => {
+      expect(title([true, true])).toBe(translateMessages(messages, 'chat.operation.newHabitsWithExisting', { count: 2 }))
+    })
+
+    it('keeps the new habits title when the batch shows only some of its habits', () => {
+      expect(title([true, true], 4)).toBe(translateMessages(messages, 'chat.operation.newHabits', { count: 4 }))
+    })
+
+    it('keeps the new habits title for a counted batch with no listed habits', () => {
+      expect(title([], 3)).toBe(translateMessages(messages, 'chat.operation.newHabits', { count: 3 }))
     })
   })
 

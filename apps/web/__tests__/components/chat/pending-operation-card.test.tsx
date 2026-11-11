@@ -377,6 +377,7 @@ describe('PendingOperationCard', () => {
     render(<PendingOperationCard pendingOperation={makeCreateWithReusedChildPreview()} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     expect(screen.getByRole('heading', { name: locale === 'en' ? 'New parent habit' : 'Novo hábito principal' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: locale === 'en' ? 'Create 1 habit' : 'Criar 1 hábito' })).toBeInTheDocument()
+    expect(screen.getByText(messages.habits.frequency.everyDay)).toBeInTheDocument()
   })
 
   it('shows the cached emoji of a reused child and no top-level outcome for the new habit', () => {
