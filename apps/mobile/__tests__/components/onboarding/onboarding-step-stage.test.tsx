@@ -1,7 +1,7 @@
 import React from 'react'
 import { Animated } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { motionDurations, motionLayerTiming } from '@orbit/shared/theme'
+import { motionDurations, motionEasings, motionLayerTiming } from '@orbit/shared/theme'
 import { OnboardingStepStage } from '@/components/onboarding/onboarding-step-stage'
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
@@ -43,20 +43,25 @@ describe('OnboardingStepStage', () => {
     await TestRenderer.act(() => { tree.update(<OnboardingStepStage step={1}>body</OnboardingStepStage>) })
     expect(timing).toHaveBeenCalledOnce()
     expect(timing.mock.calls[0]![1]).toMatchObject({ toValue: 1, duration: motionDurations.base, useNativeDriver: true })
-    expect(bezier.received).toEqual([[0.16, 1, 0.3, 1]])
+    expect(bezier.received).toEqual([[...motionEasings.enter]])
     expect(interpolate).toHaveBeenCalledWith({ inputRange: [0, 1], outputRange: [motionLayerTiming.routeShift, 0] })
   })
 
-  it('takes the duration from the shared token', async () => {
+  it('takes the duration and the curve from the shared tokens', async () => {
     const durations = motionDurations as unknown as Record<string, number>
+    const easings = motionEasings as unknown as Record<string, readonly number[]>
     const originalBase = durations.base
+    const originalEnter = easings.enter
     durations.base = 333
+    easings.enter = [0.1, 0.2, 0.3, 0.4]
     try {
       const tree = await renderStage(0)
       await TestRenderer.act(() => { tree.update(<OnboardingStepStage step={1}>body</OnboardingStepStage>) })
       expect(timing.mock.calls[0]![1]).toMatchObject({ duration: 333 })
+      expect(bezier.received).toEqual([[0.1, 0.2, 0.3, 0.4]])
     } finally {
       durations.base = originalBase!
+      easings.enter = originalEnter!
     }
   })
 
