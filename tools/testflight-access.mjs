@@ -31,7 +31,7 @@ export const waitForProcessedBuild = async ({ client, appId, version, buildNumbe
       "filter[preReleaseVersion.platform]": "IOS", limit: "1",
     })
     const state = builds[0]?.attributes?.processingState
-    if (state === "VALID") return { buildId: builds[0].id, processingState: state }
+    if (state === "VALID") return
     if (state === "FAILED" || state === "INVALID") throw new Error(`Build ${version} (${buildNumber}) processing ended as ${state}`)
     if (now() + intervalMs > deadline) throw new Error(`Build ${version} (${buildNumber}) was not VALID before the timeout (last state: ${state ?? "not listed"})`)
     await sleep(intervalMs)
@@ -84,9 +84,9 @@ export const ensureInternalTesterAccess = async ({ client, appId }) => {
   return { groupName: group.name, createdGroup: !existing, linkedTesters: missing.length, testerCount }
 }
 
-export const summaryLines = ({ version, buildNumber, processingState, groupName, createdGroup, linkedTesters, testerCount }) => [
+export const summaryLines = ({ version, buildNumber, groupName, createdGroup, linkedTesters, testerCount }) => [
   "## TestFlight access",
-  `- Build ${version} (${buildNumber}) processing state: ${processingState}`,
+  `- Build ${version} (${buildNumber}) processing state: VALID`,
   `- Internal group: ${groupName}${createdGroup ? " (created by this run)" : ""}`,
   `- Testers in the group: ${testerCount}`,
   `- Testers linked by this run: ${linkedTesters}`,
@@ -117,11 +117,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     }
     appStoreToken(credentials)
     const client = apiClient(() => appStoreToken(credentials))
-    const build = await waitForProcessedBuild({
+    await waitForProcessedBuild({
       client, ...options, sleep: (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
     })
     const access = await ensureInternalTesterAccess({ client, appId: options.appId })
-    const lines = summaryLines({ version: options.version, buildNumber: options.buildNumber, processingState: build.processingState, ...access })
+    const lines = summaryLines({ version: options.version, buildNumber: options.buildNumber, ...access })
     console.log(lines.join("\n"))
     if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join("\n")}\n`)
   } catch (error) { console.error(error.message); process.exit(1) }

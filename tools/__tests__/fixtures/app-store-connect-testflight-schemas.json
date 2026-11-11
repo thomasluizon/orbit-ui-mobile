@@ -9,12 +9,6 @@
     "POST /v1/betaGroups/{id}/relationships/betaTesters": "https://developer.apple.com/documentation/appstoreconnectapi/post-v1-betagroups-_id_-relationships-betatesters"
   },
   "filters": {
-    "builds:filter[processingState]": [
-      "PROCESSING",
-      "FAILED",
-      "INVALID",
-      "VALID"
-    ],
     "builds:filter[preReleaseVersion.platform]": [
       "IOS",
       "MAC_OS",

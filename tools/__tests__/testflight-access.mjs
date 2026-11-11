@@ -107,8 +107,8 @@ export const cases = async () => {
     apple.schemas.Build.properties.attributes.properties.processingState.enum.join() === "PROCESSING,FAILED,INVALID,VALID")
 
   const valid = fakeApi({ buildStates: ["VALID"] })
-  const settled = await processed(valid)
-  T("testflight access: a build already VALID returns without waiting", settled.processingState === "VALID" && settled.buildId === "build-1" && valid.calls.length === 1)
+  await processed(valid)
+  T("testflight access: a build already VALID returns without waiting", valid.calls.length === 1)
   const buildQuery = valid.calls[0].query
   T("testflight access: the build lookup uses only filters and values Apple documents", Object.keys(buildQuery).every((key) => apple.filters["builds:filter names"].includes(key)) &&
     buildQuery["filter[app]"] === "app-1" && buildQuery["filter[version]"] === "1" && buildQuery["filter[preReleaseVersion.version]"] === "1.3.152" &&
@@ -116,8 +116,8 @@ export const cases = async () => {
 
   const waiting = fakeApi({ buildStates: ["PROCESSING", null, "VALID"] })
   const ticks = clock()
-  const afterWait = await processed(waiting, ticks)
-  T("testflight access: a build still processing or not yet listed is polled until VALID", afterWait.processingState === "VALID" && waiting.calls.length === 3 && ticks.now() === 60_000)
+  await processed(waiting, ticks)
+  T("testflight access: a build still processing or not yet listed is polled until VALID", waiting.calls.length === 3 && ticks.now() === 60_000)
 
   for (const failure of ["INVALID", "FAILED"]) {
     const failing = fakeApi({ buildStates: ["PROCESSING", failure] })
@@ -143,6 +143,8 @@ export const cases = async () => {
     linkedIds(other, "group-1").join() === "tester-a,tester-b" && writesOf(other).length === 1 && violations({ $ref: "#/components/schemas/BetaGroupBetaTestersLinkagesRequest" }, linkBody).length === 0)
   const listQuery = other.calls.find((call) => call.path === "/v1/betaGroups" && call.method === "GET").query
   T("testflight access: the group list uses only filters Apple documents and asks for internal groups", Object.keys(listQuery).every((key) => apple.filters["betaGroups:filter names"].includes(key)) && listQuery["filter[isInternalGroup]"] === "true")
+  const appGroupsQuery = other.calls.find((call) => call.path === "/v1/apps/app-1/betaGroups" && call.method === "GET").query
+  T("testflight access: the app's group list uses only parameters Apple documents", Object.keys(appGroupsQuery).every((key) => apple.filters["betaGroups of app:parameters"].includes(key)))
   T("testflight access: the tester lists use only parameters Apple documents", other.calls.filter((call) => /^\/v1\/betaGroups\/[^/]+\/betaTesters$/.test(call.path)).every((call) => Object.keys(call.query).every((key) => apple.filters["betaGroup testers:parameters"].includes(key))))
 
   const partial = fakeApi({ groups: [teamGroup("group-1", "Orbit team", "app-1", ["tester-a"]), teamGroup("group-other", "Other app", "app-2", ["tester-a", "tester-b"])] })
@@ -194,8 +196,8 @@ export const cases = async () => {
   const pagedResult = await access(pagedMembers)
   T("testflight access: a target group with several pages of testers is read to the end", pagedResult.testerCount === 6 && pagedResult.linkedTesters === 1 && linkedIds(pagedMembers, "group-1").join() === "tester-f")
 
-  const lines = summaryLines({ version: "1.3.152", buildNumber: "1", processingState: "VALID", ...linked }).join("\n")
-  T("testflight access: the summary names state, group, tester count and linked count and no person", lines.includes("VALID") && lines.includes("Orbit team") && lines.includes("Testers in the group: 2") && lines.includes("Testers linked by this run: 2") &&
+  const lines = summaryLines({ version: "1.3.152", buildNumber: "1", ...linked }).join("\n")
+  T("testflight access: the summary names state, group, tester count and linked count and no person", lines.includes("Build 1.3.152 (1) processing state: VALID") && lines.includes("Orbit team") && lines.includes("Testers in the group: 2") && lines.includes("Testers linked by this run: 2") &&
     !lines.includes("example.test") && !lines.includes("tester-a"))
   const failed = await rejects(ensureInternalTesterAccess({ client: apiClient(() => "t", async () => new Response("{}", { status: 403 })), appId: "app-1" }))
   T("testflight access: an API error names the path and status and never a person", failed === "App Store Connect GET /v1/apps/app-1/betaGroups failed (HTTP 403)")
