@@ -18,7 +18,7 @@ UI `main` `304484135`; API `main` `2bdd96e30`; landing `main` `49257d7`. Product
 | --- | --- |
 | `#2110` worker | Launched on `fix/ticket-2110-astra-create-preview` (worktree `ticket-2110-astra-create-preview`). If it is still running at entry, wait on it with `wait-file.mjs` or its launcher result; then read the diff (D95), correct the body to `Tracks`, CI, review, merge. |
 | `ui#2429` (`#1561` status bar) | `8e4e0102d`, D95 read passed. Prove it on the iPhone simulator (system appearance light, Orbit theme dark: white glyphs) with an `/ios-generate` build of the branch, then review on green, merge. |
-| `landing#130` (`#2091`) | Review requested at `939e80f`. Read it, merge at the bar, then `main` into `landing#129`. |
+| `landing#130` (`#2091`) | Round 8 review at `939e80f`: no blocking issue, one inline thread (a failed lazy chunk leaves the calendar and week card blank); `pullfrog-approval` failed. Fix the thread, push, re-review, merge, then `main` into `landing#129`. |
 | `landing#129` (`#2090`) | Lighthouse red (24,049 of 24,000) until `landing#130` merges: then `main` merge, `landing-verify.sh`, push, review on green, merge. Never raise the budget. |
 | `#2107` | `landing#131` merged `49257d7`. Landing staging and production releases after `#130` and `#129` merge (or now if they stall), then close `#2107`. |
 | `ui#2427`, `#2426`, `#2425`, `#2424`, `#2423`, `#2422`, `#2421`, `#2420`, `#2419`, `#2418`, `#2414`, `#2412` | CI queued or running. Request each review on green, merge at the bar, then `main` into the open UI branches whose CI still runs. `ui#2414` before `ui#2423`. `ui#2421`: a second `macos-signing-workflow.test.ts` timeout gets an investigation. |
@@ -49,7 +49,7 @@ Unattended: never ask the owner; decide with the best option and log it. Keep a 
 
 ## Previous prompt, disposition
 
-- Done: `#2097` listing, categories, age rating, price, availability, content rights, 16 screenshots (iPhone set retaken), App Privacy; the iOS status bar defect folded into `#1561` and delivered as `ui#2429`; the Astra preview findings filed as `#2110` with a worker; `landing#130` review requested; disk freed to 85 GiB.
+- Done: `#2097` listing, screenshots (iPhone set retaken) and App Privacy; the iOS status bar defect delivered as `ui#2429`; Astra preview findings filed as `#2110`; disk freed to 85 GiB.
 - Carried: every other in-flight row; `#2097` submission (owner phone and code first); `#2089`; `#1563`, `#315`, `#33`, `#2074` on or after 16 November 2026.
 - Superseded: "type a whole prompt in one `axe type` call" (it repeats spaces; use per-key `key-sequence`).
 
