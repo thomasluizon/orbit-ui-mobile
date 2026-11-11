@@ -1,4 +1,4 @@
-import { computeHabitFutureHint, getHabitChecklistProgress, getHabitRowTypeLabelKey, type HabitCardTranslationAdapter } from '@orbit/shared/utils'
+import { computeHabitRowNextDueHint, getHabitChecklistProgress, getHabitRowTypeLabelKey, type HabitCardTranslationAdapter } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import type { HabitRowMetaPart } from './habit-row-content'
@@ -48,10 +48,8 @@ export function buildHabitRowMetaParts({
   if (habit.isBadHabit && (habit.isCompleted || habit.isLoggedInRange)) {
     metaParts.push({ kind: 'bad' })
   }
-  if (!habit.isCompleted && selectedDateStr === todayStr) {
-    const futureHint = computeHabitFutureHint(habit, todayStr, t, locale)
-    if (futureHint) metaParts.push({ kind: 'future', label: futureHint })
-  }
+  const nextDueHint = computeHabitRowNextDueHint(habit, selectedDateStr, todayStr, t, locale)
+  if (nextDueHint) metaParts.push({ kind: 'future', label: nextDueHint })
   const checklist = getHabitChecklistProgress(habit)
   if (checklist) metaParts.push({ kind: 'checklist', ...checklist, label: `${t('habits.form.checklist')}, ${t('habits.rowProgress', checklist)}` })
   return metaParts

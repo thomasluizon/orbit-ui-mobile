@@ -27,8 +27,17 @@ interface HabitRowContentProps {
   metaParts: HabitRowMetaPart[]
   tokens: ReturnType<typeof createTokensV2>
   metaOnSupportingLine?: boolean
+  /** A logged parent shows its next due label as the last visible token; any other row keeps it for screen readers only. */
+  nextDueVisible?: boolean
   onContentWidth?: (width: number) => void
   onTokenWidth?: (key: string, width: number) => void
+}
+
+/** Moves the next due part to the end of the visible metadata, or drops it when the row keeps it hidden. */
+export function visibleHabitRowMetaParts(metaParts: HabitRowMetaPart[], nextDueVisible: boolean): HabitRowMetaPart[] {
+  const isNextDue = (part: HabitRowMetaPart) => typeof part !== 'string' && part.kind === 'future'
+  const others = metaParts.filter((part) => !isNextDue(part))
+  return nextDueVisible ? [...others, ...metaParts.filter(isNextDue)] : others
 }
 
 export function HabitRowContent({
@@ -41,6 +50,7 @@ export function HabitRowContent({
   metaParts,
   tokens,
   metaOnSupportingLine = false,
+  nextDueVisible = false,
   onContentWidth,
   onTokenWidth,
 }: Readonly<HabitRowContentProps>) {
@@ -63,7 +73,7 @@ export function HabitRowContent({
         numberOfLines={largeText ? 2 : 1} ellipsizeMode="tail"
         style={[styles.description, { color: metaColor }]}>{description}</Text> : null}
 
-      {metaOnSupportingLine ? null : <HabitRowMetaStrip metaParts={metaParts} metaColor={metaColor} tokens={tokens} largeText={largeText} onTokenWidth={onTokenWidth} />}
+      {metaOnSupportingLine ? null : <HabitRowMetaStrip metaParts={metaParts} nextDueVisible={nextDueVisible} metaColor={metaColor} tokens={tokens} largeText={largeText} onTokenWidth={onTokenWidth} />}
     </View>
   )
 }
@@ -77,14 +87,15 @@ export function habitRowMetaPartKey(part: HabitRowMetaPart, index: number): stri
   return `${index}:${habitRowMetaPartName(part)}`
 }
 
-export function HabitRowMetaStrip({ metaParts, metaColor, tokens, largeText = false, onTokenWidth }: Readonly<{
+export function HabitRowMetaStrip({ metaParts, nextDueVisible = false, metaColor, tokens, largeText = false, onTokenWidth }: Readonly<{
   metaParts: HabitRowMetaPart[]
+  nextDueVisible?: boolean
   metaColor: string
   tokens: ReturnType<typeof createTokensV2>
   largeText?: boolean
   onTokenWidth?: (key: string, width: number) => void
 }>) {
-  const visibleMeta = metaParts.filter((part) => typeof part === 'string' || part.kind !== 'future')
+  const visibleMeta = visibleHabitRowMetaParts(metaParts, nextDueVisible)
   const metaKeys = visibleMeta.map((part, index) => habitRowMetaPartKey(part, index))
   if (visibleMeta.length === 0) return null
   return (

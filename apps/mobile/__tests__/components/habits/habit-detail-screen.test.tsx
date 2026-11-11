@@ -752,6 +752,21 @@ describe('HabitDetailScreen', () => {
     expect(rows[1]!.findAll((node: TestNode) => String(node.props.accessibilityLabel).includes('habits.actions.unlog')).length).toBeGreaterThan(0)
   })
 
+  it.each([true, false])('shows the logged parent state on a detail child row only when the child has sub-habits=%s', (hasSubHabits) => {
+    vi.setSystemTime(new Date(2026, 7, 28, 12))
+    mocks.realHabitRows = true
+    mocks.detail = makeDetail()
+    mocks.scopedHabits.set('child-1', { ...makeScopedChild('2026-08-28'), hasSubHabits, dueDate: '2026-08-29' })
+    const tokens = createTokensV2('purple', 'dark')
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const row = tree.root.findByProps({ testID: 'detail-children' }).findAll((node: TestNode) => node.type === 'View' && node.props.testID === 'habit-row')[0]!
+    const title = row.findAll((node: TestNode) => node.type === 'Text' && node.props.children === makeScopedChild('2026-08-28').title)[0]!
+    const color = [title.props.style].flat(Infinity).reduce((value: unknown, style) => (style as { color?: unknown } | null)?.color ?? value, undefined)
+    expect({ color, label: renderedText(row.findByProps({ testID: 'habit-row-meta' })).includes('habits.schedule.dueTomorrow') })
+      .toEqual({ color: hasSubHabits ? tokens.fg3 : tokens.fg2, label: hasSubHabits })
+  })
+
   it.each(['light', 'dark'] as const)('keeps detail child monograms readable through the complete %s paint stack', (mode) => {
     mocks.realPressTokens = true
     mocks.realHabitRows = true
