@@ -1673,6 +1673,21 @@ describe('HabitDetailScreen', () => {
     expect(screen.queryByTestId('confirm-habits.checklistCompleteTitle')).not.toBeInTheDocument()
   })
 
+  it('closes the checklist log confirmation before the log settles', async () => {
+    mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
+    mocks.checklist.mockResolvedValueOnce(undefined)
+    mocks.log.mockReturnValueOnce(new Promise(() => {}))
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'toggle-checklist' }))
+    await act(async () => Promise.resolve())
+    fireEvent.click(screen.getByTestId('confirm-habits.checklistCompleteTitle'))
+    await act(async () => Promise.resolve())
+
+    expect(mocks.log).toHaveBeenCalledWith({ habitId: 'habit-1', date: '2026-08-28', intent: 'log' })
+    expect(screen.queryByTestId('confirm-habits.checklistCompleteTitle')).not.toBeInTheDocument()
+  })
+
   it('keeps checklist edits without offering old-day completion', async () => {
     mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-19" />)
