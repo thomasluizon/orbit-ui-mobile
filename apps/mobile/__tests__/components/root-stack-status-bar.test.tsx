@@ -6,7 +6,7 @@ import { RootStackScreens } from '@/components/navigation/root-stack-screens'
 
 const state = vi.hoisted((): { theme: 'dark' | 'light'; options: Record<string, unknown> } => ({ theme: 'dark', options: {} }))
 vi.mock('@/lib/motion', async (original) => ({ ...await original<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => false }))
-vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentTheme: state.theme, surfaces: { screen: { backgroundColor: 'black' } } }) }))
+vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentTheme: state.theme, surfaces: { screen: { backgroundColor: state.theme === 'dark' ? 'black' : 'white' } } }) }))
 vi.mock('@/lib/capture-mode', () => ({ captureBuildEnabled: false, shouldExposeOnboardingRoute: () => false }))
 vi.mock('@/stores/auth-store', () => ({ useAuthStore: (select: (value: { isAuthenticated: boolean }) => unknown) => select({ isAuthenticated: true }) }))
 vi.mock('@/stores/onboarding-draft-store', () => ({ useOnboardingDraftStore: (select: (value: { onboardingLocallyDone: boolean }) => unknown) => select({ onboardingLocallyDone: true }) }))
@@ -20,7 +20,7 @@ vi.mock('expo-router', () => {
 
 async function renderStackOptions(): Promise<Record<string, unknown>> {
   let tree: ReactTestRenderer
-  await act(() => { tree = create(<RootStackScreens screenBackgroundColor="black" />) })
+  await act(() => { tree = create(<RootStackScreens />) })
   const options = state.options
   await act(() => tree.update(<></>))
   return options
@@ -30,15 +30,18 @@ beforeEach(() => { state.theme = 'dark'; state.options = {} })
 afterEach(() => { Platform.OS = 'android' })
 
 it.each([
-  ['dark', 'light'],
-  ['light', 'dark'],
-] as const)('gives every iOS screen the %s theme glyph style %s', async (theme, style) => {
+  ['dark', 'light', 'black'],
+  ['light', 'dark', 'white'],
+] as const)('gives every iOS screen the %s theme glyph style %s and screen surface %s', async (theme, style, backgroundColor) => {
   Platform.OS = 'ios'
   state.theme = theme
-  expect((await renderStackOptions()).statusBarStyle).toBe(style)
+  expect(await renderStackOptions()).toMatchObject({ statusBarStyle: style, contentStyle: { backgroundColor } })
 })
 
-it('leaves the Android screens on the root status bar', async () => {
+it('leaves the Android screens on the root status bar with the theme screen surface', async () => {
   Platform.OS = 'android'
-  expect(await renderStackOptions()).not.toHaveProperty('statusBarStyle')
+  state.theme = 'light'
+  const options = await renderStackOptions()
+  expect(options).not.toHaveProperty('statusBarStyle')
+  expect(options).toMatchObject({ contentStyle: { backgroundColor: 'white' } })
 })

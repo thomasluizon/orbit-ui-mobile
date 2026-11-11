@@ -13,10 +13,8 @@ const SLIDE_FROM_RIGHT_SCREENS = [
   'wrapped',
 ] as const
 
-export function RootStackScreens({
-  screenBackgroundColor,
-}: Readonly<{ screenBackgroundColor: string }>) {
-  const { currentTheme } = useAppTheme()
+export function RootStackScreens() {
+  const { currentTheme, surfaces } = useAppTheme()
   const reducedMotion = usePrefersReducedMotion()
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const allowErrorLogin = useGoogleErrorLogin()
@@ -37,7 +35,7 @@ export function RootStackScreens({
         animationMatchesGesture: true,
         gestureEnabled: !reducedMotion,
         animationTypeForReplace: 'push',
-        contentStyle: { backgroundColor: screenBackgroundColor },
+        contentStyle: { backgroundColor: surfaces.screen.backgroundColor },
       }}
     >
       <Stack.Protected

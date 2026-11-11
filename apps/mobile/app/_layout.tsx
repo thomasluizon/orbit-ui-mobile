@@ -146,7 +146,7 @@ function RootLayoutNav() {
   const today = useCurrentDate(profile?.timeZone)
   const hasProAccess = useHasProAccess()
   const { count: totalHabitCount, isLoaded: habitCountLoaded } = useHabitCountLoaded()
-  const { currentTheme, currentScheme, surfaces } = useAppTheme()
+  const { currentTheme, currentScheme } = useAppTheme()
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
   const lastDestination = useUIStore((s) => s.lastDestination)
   const todayFabHidden = useUIStore((state) => state.todayFabHidden)
@@ -300,9 +300,7 @@ function RootLayoutNav() {
             astraButton={pathname === '/' && !isNotFound}
             fabPending={pathname === '/' && todayFabPending}
           >
-            <RootStackScreens
-              screenBackgroundColor={surfaces.screen.backgroundColor}
-            />
+            <RootStackScreens />
           </Shell412>
         ) : (
           <Shell412
@@ -315,9 +313,7 @@ function RootLayoutNav() {
               offlineNotice,
             )}
           >
-            <RootStackScreens
-              screenBackgroundColor={surfaces.screen.backgroundColor}
-            />
+            <RootStackScreens />
           </Shell412>
         )}
 
