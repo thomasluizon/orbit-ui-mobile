@@ -6,7 +6,7 @@ import { IconButton } from '@/components/ui/icon-button'
 
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 
-import { getHabitTypeLabelKey, getHabitRowTypeLabelKey, splitDescriptionLinks } from '@orbit/shared/utils'
+import { computeHabitRowNextDueHint, getHabitTypeLabelKey, getHabitRowTypeLabelKey, splitDescriptionLinks } from '@orbit/shared/utils'
 
 import { DescriptionCopyButton } from './description-copy-button'
 
@@ -642,6 +642,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
     const model = buildHabitDetailChildDateModel(child, scopedChild, dateStr, todayStr, sourceChild)
     return {
       ...model,
+      nextDueHint: computeHabitRowNextDueHint(model.habit, dateStr, todayStr, t, language),
       completionReason: model.dateStatusKey ? t(model.dateStatusKey) : getHabitDetailChildCompletionReason(scopedChild, completionReason, childUnavailableReason),
       completionStatusUnavailable: scopedChild === undefined || model.dateStatusKey !== undefined,
     }
@@ -669,7 +670,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       {children.length > 0 ? <Surface>
         <SectionTitle>{t('habits.detail.inside')}</SectionTitle>
         <DayHabitsStatus reasonKey={childUnavailableReasonKey} onRetry={() => { void habitsQuery.refetch() }} />
-        <div data-testid="detail-children" aria-busy={habitsQuery.isLoading} className="flex flex-col gap-[12px]">{children.map(({ habit: child, completed: childCompleted, canLog, dateStatusKey, completionReadOnly, completionReason: childCompletionReason, completionStatusUnavailable }) => <div key={child.id}><HabitRow habit={child} child depth={1} state={childCompleted ? 'done' : 'empty'} meta={dateStatusKey ? [{ kind: 'date-status', label: t(dateStatusKey) }] : []} canLog={canLog} completionReadOnly={completionReadOnly} completionReason={childCompletionReason} completionStatusUnavailable={completionStatusUnavailable} actions={{ onLog: () => { void writeLog(child.id, 'log') }, onUnlog: () => { void writeLog(child.id, 'unlog') }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} /><LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === child.id} /><UnscheduledChildReason reason={dateStatusKey ? undefined : childCompletionReason} notScheduledReason={t('calendar.dayCell.notScheduled')} /></div>)}</div>
+        <div data-testid="detail-children" aria-busy={habitsQuery.isLoading} className="flex flex-col gap-[12px]">{children.map(({ habit: child, completed: childCompleted, canLog, dateStatusKey, nextDueHint, completionReadOnly, completionReason: childCompletionReason, completionStatusUnavailable }) => <div key={child.id}><HabitRow habit={child} child depth={1} state={childCompleted ? 'done' : 'empty'} meta={[...(nextDueHint ? [{ kind: 'future' as const, label: nextDueHint }] : []), ...(dateStatusKey ? [{ kind: 'date-status' as const, label: t(dateStatusKey) }] : [])]} canLog={canLog} completionReadOnly={completionReadOnly} completionReason={childCompletionReason} completionStatusUnavailable={completionStatusUnavailable} actions={{ onLog: () => { void writeLog(child.id, 'log') }, onUnlog: () => { void writeLog(child.id, 'unlog') }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} /><LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === child.id} /><UnscheduledChildReason reason={dateStatusKey ? undefined : childCompletionReason} notScheduledReason={t('calendar.dayCell.notScheduled')} /></div>)}</div>
         {subHabitCreation}
       </Surface> : subHabitCreation}
       {strip ? <section ref={stripRef} tabIndex={-1} className="habit-detail-strip flex flex-col gap-2" style={{ containerType: 'inline-size' }}><p className="text-xs text-[var(--fg-3)]">{t('habits.detail.lastThirtyDays')}</p><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={16} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /><SlippingLine visible={rescue.open} metrics={metricsQuery.data} createdAtUtc={habit.createdAtUtc} today={today} timeZone={profile.timeZone} /></section> : null}

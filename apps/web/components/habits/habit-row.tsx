@@ -3,7 +3,7 @@
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { useId, type CSSProperties, type KeyboardEvent, type ReactNode, type RefCallback } from 'react'
-import { getHabitRowSelectionSpacerWidth, getHabitRowTypeLabelKey, isHabitDoneForRange, stripInlineMarkdown } from '@orbit/shared/utils'
+import { getHabitRowSelectionSpacerWidth, getHabitRowTypeLabelKey, isHabitDoneForRange, isLoggedParentHabitRow, stripInlineMarkdown } from '@orbit/shared/utils'
 import { PersonalTextAction } from '@/components/ui/personal-text-action'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useTranslations } from 'next-intl'
@@ -12,7 +12,7 @@ import type { MenuItem } from '@orbit/shared/contracts/overlay'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { ChevronDown } from '@/components/ui/icons'
 import { Checkbox } from '@/components/ui/checkbox'
-import { buildHabitRowMetaTokens, HabitRowContent, MetaStrip, type HabitRowMetaToken } from './habit-row-content'
+import { buildHabitRowMetaTokens, HabitRowContent, MetaStrip, visibleHabitRowMetaTokens, type HabitRowMetaToken } from './habit-row-content'
 import { HabitRowLeading } from './habit-row-leading'
 import { HabitRowTrailing } from './habit-row-trailing'
 import { useHabitRowSupportingMeta, useHabitRowMetadataFit } from './use-habit-row-large-text'
@@ -213,8 +213,9 @@ function HabitRowView({
   const canDrillInto = hasSubHabits && !!onDrillInto
   const isDone = state === 'done' || isHabitDoneForRange(habit)
   const graphicState = habit.isBadHabit ? 'bad' : state
+  const loggedParent = isLoggedParentHabitRow({ hasSubHabits: habit.hasSubHabits || hasChildren, isDone })
   const menuItems = buildMenuItems(t, actions, canDrillInto, completionReadOnly, habit.isGeneral, graphicState)
-  const { rowRef, narrow } = useHabitRowMetadataFit(JSON.stringify([habit.id, meta, selectMode, selected, structuralColumn, hasChildren, menuItems.length > 0, child, depth, depthSupportingMeta]), largeText, measureRef)
+  const { rowRef, narrow } = useHabitRowMetadataFit(JSON.stringify([habit.id, meta, loggedParent, selectMode, selected, structuralColumn, hasChildren, menuItems.length > 0, child, depth, depthSupportingMeta]), largeText, measureRef)
   const supportingMeta = depthSupportingMeta || narrow
   const isChild = child || depth > 0
   const titleSize = isChild ? 14 : 17
@@ -236,6 +237,7 @@ function HabitRowView({
   }
 
   function getTitleColor(): string {
+    if (loggedParent) return 'var(--habit-row-meta-color)'
     return isChild ? 'var(--fg-2)' : 'var(--fg-1)'
   }
 
@@ -256,7 +258,8 @@ function HabitRowView({
         habit={habit}
         titleSize={titleSize}
         titleColor={getTitleColor()}
-        meta={supportingMeta ? meta.filter((token) => typeof token !== 'string' && token.kind === 'future') : meta}
+        meta={supportingMeta ? meta.filter((token) => !loggedParent && typeof token !== 'string' && token.kind === 'future') : meta}
+        nextDueVisible={loggedParent}
       />
     </>
   )
@@ -305,7 +308,7 @@ function HabitRowView({
     <>
       <HabitRowPrimaryButton onClick={handleRowClick} supportingMeta={supportingMeta}
         descriptionId={descriptionId}
-        largeText={largeText} isChild={isChild} rowPadding={rowPadding} meta={meta} independentText={selectMode} label={`${habit.title}, ${t(getHabitRowTypeLabelKey(habit))}`}
+        largeText={largeText} isChild={isChild} rowPadding={rowPadding} meta={meta} nextDueVisible={loggedParent} independentText={selectMode} label={`${habit.title}, ${t(getHabitRowTypeLabelKey(habit))}`}
         onReorder={actions.onReorder} reorderInstructionsId={reorderInstructionsId}>
         {primaryContent}
       </HabitRowPrimaryButton>
@@ -326,7 +329,7 @@ function useDescriptionId(description: NormalizedHabit['description']) {
   return stripInlineMarkdown(description ?? '') ? id : undefined
 }
 
-function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, rowPadding, meta, onReorder, reorderInstructionsId, children, independentText, label, descriptionId }: Readonly<{
+function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, rowPadding, meta, nextDueVisible, onReorder, reorderInstructionsId, children, independentText, label, descriptionId }: Readonly<{
   onClick: () => void
   independentText: boolean
   label: string
@@ -336,6 +339,7 @@ function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, ro
   isChild: boolean
   rowPadding: CSSProperties
   meta: HabitRowMetaToken[]
+  nextDueVisible: boolean
   onReorder?: (direction: -1 | 1) => void
   reorderInstructionsId?: string
   children: ReactNode
@@ -367,18 +371,19 @@ function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, ro
             {children}
           </div>
         ) : children}
-        {supportingMeta ? <HabitRowSupportingFooter meta={meta} largeText={largeText} descriptionPresent={Boolean(descriptionId)} /> : null}
+        {supportingMeta ? <HabitRowSupportingFooter meta={meta} nextDueVisible={nextDueVisible} largeText={largeText} descriptionPresent={Boolean(descriptionId)} /> : null}
       </button>
   )
   return independentText ? <PersonalTextAction label={accessibleLabel} contentId={contentId} className={supportingMeta ? 'col-start-1 col-span-full row-start-1 row-span-2 grid grid-cols-subgrid grid-rows-subgrid' : 'flex-1 self-stretch'} contentClassName={`${layoutClass} col-start-1 col-span-full row-start-1 row-span-2 min-w-0 items-center self-stretch rounded-[20px] text-left`} contentStyle={rowPadding} control={control} /> : control
 }
 
-function HabitRowSupportingFooter({ meta, largeText, descriptionPresent }: Readonly<{
+function HabitRowSupportingFooter({ meta, nextDueVisible, largeText, descriptionPresent }: Readonly<{
   largeText: boolean
   meta: HabitRowMetaToken[]
+  nextDueVisible: boolean
   descriptionPresent: boolean
 }>) {
-  const supportingTokens = meta.filter((token) => typeof token === 'string' || token.kind !== 'future')
+  const supportingTokens = visibleHabitRowMetaTokens(meta, nextDueVisible)
   return (
     <div className="col-span-full row-start-2 flex min-w-0" style={{ gap: 12, paddingInlineEnd: SPACING.s8, paddingBlockStart: descriptionPresent ? SPACING.s0 : SPACING.s4, paddingBlockEnd: SPACING.s8 }}>
       <span className="w-[48px] shrink-0" aria-hidden="true" />

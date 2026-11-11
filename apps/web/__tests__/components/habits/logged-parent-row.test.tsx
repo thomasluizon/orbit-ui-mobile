@@ -191,7 +191,7 @@ it('shows the done disc and the dimmed title on the logged parent, and keeps the
   expect({
     visiblePresentationChangedAfterLog: visiblePresentation('parent') !== before.presentation,
     checkFill: check('parent').style.background,
-    sweep: check('parent').querySelector('svg'),
+    sweep: check('parent').querySelector('path[stroke-dasharray]'),
     titleColor: title('parent').style.color,
     titleOpacity: title('parent').style.opacity,
     childCount: visibleMetaTokens('parent').includes('0 of 2'),

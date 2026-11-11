@@ -33,6 +33,15 @@ interface HabitRowContentProps {
   largeText?: boolean
   typeOnSupportingLine?: boolean
   meta: HabitRowMetaToken[]
+  /** A logged parent shows its next due label as the last visible token; any other row keeps it for screen readers only. */
+  nextDueVisible?: boolean
+}
+
+/** Moves the next due token to the end of the visible metadata, or drops it when the row keeps it hidden. */
+export function visibleHabitRowMetaTokens(meta: HabitRowMetaToken[], nextDueVisible: boolean): HabitRowMetaToken[] {
+  const isNextDue = (token: HabitRowMetaToken) => typeof token !== 'string' && token.kind === 'future'
+  const others = meta.filter((token) => !isNextDue(token))
+  return nextDueVisible ? [...others, ...meta.filter(isNextDue)] : others
 }
 
 export function HabitRowContent({
@@ -44,10 +53,11 @@ export function HabitRowContent({
   largeText = false,
   typeOnSupportingLine = false,
   meta,
+  nextDueVisible = false,
 }: Readonly<HabitRowContentProps>) {
   const description = stripInlineMarkdown(habit.description ?? '')
-  const visibleMeta = meta.filter((token) => typeof token === 'string' || token.kind !== 'future')
-  const futureHint = meta.find((token) => typeof token !== 'string' && token.kind === 'future')
+  const visibleMeta = visibleHabitRowMetaTokens(meta, nextDueVisible)
+  const futureHint = nextDueVisible ? undefined : meta.find((token) => typeof token !== 'string' && token.kind === 'future')
   return (
     <div data-habit-row-title-block="" className="flex-1 min-w-0 flex flex-col" style={{ gap: 4 }}>
       <TitleText expanded={expanded} title={habit.title} size={titleSize} color={titleColor} />
