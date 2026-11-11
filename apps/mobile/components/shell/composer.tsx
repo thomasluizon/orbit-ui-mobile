@@ -14,7 +14,7 @@ import {
 } from '@orbit/shared/contracts/composer'
 import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
 import { isComposerEditable, buildComposerPrimaryControl, buildComposerControls, selectComposerAction, submitComposerFromKeyboard, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
-import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { AccessibilityInfo, Animated, findNodeHandle, ScrollView, StyleSheet, Text, type TextInput, type LayoutChangeEvent, View, useWindowDimensions } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
 import { captureError } from '@/lib/sentry'
@@ -23,7 +23,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { getAccountGeneration, subscribeToAccountGeneration } from '@/lib/session-epoch'
 import { useUIStore } from '@/stores/ui-store'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
-import { ArrowUp, ChevronDown, Clipboard as ClipboardIcon, FileText, Image, Mic, Plus, RefreshCw, Square, X } from '@/components/ui/icons'
+import { ArrowUp, Clipboard as ClipboardIcon, FileText, Image, Mic, Plus, RefreshCw, Square, X } from '@/components/ui/icons'
 import { ThemedIconButton } from '@/components/ui/icon-button'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
@@ -90,8 +90,7 @@ function SuggestionStrip({
   label,
   tokens,
   focusTarget,
-  disclosure,
-}: Readonly<Pick<ComposerProps, 'suggestions'> & { label: string; tokens: AppTokensV2; focusTarget: React.RefObject<TextInput | null>; disclosure?: React.ReactNode }>) {
+}: Readonly<Pick<ComposerProps, 'suggestions'> & { label: string; tokens: AppTokensV2; focusTarget: React.RefObject<TextInput | null> }>) {
   const { fontScale } = useWindowDimensions()
   const [availableWidth, setAvailableWidth] = useState(0)
   const [measurements, setMeasurements] = useState<Record<string, number>>({})
@@ -99,46 +98,43 @@ function SuggestionStrip({
   const layout = resolveComposerStripLayout(availableWidth, widths)
   const maxWidth = availableWidth > 0 ? availableWidth - COMPOSER_CHIP_GAP - COMPOSER_CHIP_PEEK : undefined
   return (
-    <View testID="composer-suggestion-row" style={styles.suggestionRow}>
-      <View style={styles.suggestionStrip} testID="composer-suggestions-layout" onLayout={event => setAvailableWidth(event.nativeEvent.layout.width)}>
-        <ScrollView
-          horizontal
-          accessibilityLabel={label}
-          showsHorizontalScrollIndicator={false}
-          style={{ flexGrow: 0 }}
-          contentContainerStyle={[styles.suggestions, { gap: layout.gap, paddingStart: layout.paddingStart }]}
-        >
-          {suggestions.map(suggestion => (
-            <InsetFocusPressable
-              key={suggestion.id}
-              accessibilityRole="button"
-              accessibilityLabel={suggestion.label}
-              onPress={() => {
-                if (focusTarget.current) AccessibilityInfo.sendAccessibilityEvent(focusTarget.current, 'focus')
-                suggestion.onSelect()
+    <View style={styles.suggestionStrip} testID="composer-suggestions-layout" onLayout={event => setAvailableWidth(event.nativeEvent.layout.width)}>
+      <ScrollView
+        horizontal
+        accessibilityLabel={label}
+        showsHorizontalScrollIndicator={false}
+        style={{ flexGrow: 0 }}
+        contentContainerStyle={[styles.suggestions, { gap: layout.gap, paddingStart: layout.paddingStart }]}
+      >
+        {suggestions.map(suggestion => (
+          <InsetFocusPressable
+            key={suggestion.id}
+            accessibilityRole="button"
+            accessibilityLabel={suggestion.label}
+            onPress={() => {
+              if (focusTarget.current) AccessibilityInfo.sendAccessibilityEvent(focusTarget.current, 'focus')
+              suggestion.onSelect()
+            }}
+            style={({ pressed }) => [
+              styles.suggestion,
+              { maxWidth,
+                backgroundColor: pressed ? tokens.bgHover : tokens.bgWell, borderColor: tokens.hairline },
+            ]}
+          >
+            <View
+              testID="composer-suggestion-content"
+              onLayout={event => {
+                const width = event.nativeEvent.layout.width + 2 * (styles.suggestion.paddingHorizontal + styles.suggestion.borderWidth)
+                setMeasurements(previous => previous[suggestion.id] === width ? previous : { ...previous, [suggestion.id]: width })
               }}
-              style={({ pressed }) => [
-                styles.suggestion,
-                { maxWidth: disclosure ? undefined : maxWidth,
-                  backgroundColor: pressed ? tokens.bgHover : tokens.bgWell, borderColor: tokens.hairline },
-              ]}
+              style={styles.suggestionContent}
             >
-              <View
-                testID="composer-suggestion-content"
-                onLayout={event => {
-                  const width = event.nativeEvent.layout.width + 2 * (styles.suggestion.paddingHorizontal + styles.suggestion.borderWidth)
-                  setMeasurements(previous => previous[suggestion.id] === width ? previous : { ...previous, [suggestion.id]: width })
-                }}
-                style={[styles.suggestionContent, disclosure ? { flexShrink: 0 } : null]}
-              >
-                {suggestion.icon ? <View style={[styles.suggestionIcon, { height: 20 * fontScale }]}>{suggestion.icon}</View> : null}
-                <View style={[styles.suggestionIcon, { height: 20 * fontScale }]}><AstraGlyph size={16} color={tokens.fg2} /></View><Text style={[styles.suggestionText, { color: tokens.fg2 }]}>{suggestion.label}</Text>
-              </View>
-            </InsetFocusPressable>
-          ))}
-        </ScrollView>
-      </View>
-      {disclosure}
+              {suggestion.icon ? <View style={[styles.suggestionIcon, { height: 20 * fontScale }]}>{suggestion.icon}</View> : null}
+              <View style={[styles.suggestionIcon, { height: 20 * fontScale }]}><AstraGlyph size={16} color={tokens.fg2} /></View><Text style={[styles.suggestionText, { color: tokens.fg2 }]}>{suggestion.label}</Text>
+            </View>
+          </InsetFocusPressable>
+        ))}
+      </ScrollView>
     </View>
   )
 }
@@ -164,7 +160,7 @@ function VoiceStatus({
   )
 }
 
-function AllowanceStatus({ props, tokens, focusTarget, disclosure }: Readonly<{ props: ComposerProps; tokens: AppTokensV2; focusTarget: React.RefObject<TextInput | null>; disclosure?: React.ReactNode }>) {
+function AllowanceStatus({ props, tokens, focusTarget }: Readonly<{ props: ComposerProps; tokens: AppTokensV2; focusTarget: React.RefObject<TextInput | null> }>) {
   const atLimit = props.state === 'atLimit'
   const withSuggestions = props.state === 'idle' && props.suggestions.length > 0
   return <View testID="composer-status-slot" style={[styles.limitStatus, styles.allowanceSlot]}>
@@ -177,7 +173,7 @@ function AllowanceStatus({ props, tokens, focusTarget, disclosure }: Readonly<{ 
       <Text testID="composer-renewal" style={[styles.allowanceText, { color: tokens.fg2 }]}>{props.renewalHint}</Text>
     </View>
     {!atLimit ? <View style={[styles.limitStatus, styles.allowanceUsage]}>
-      {withSuggestions ? <SuggestionStrip suggestions={props.suggestions} label={props.words.suggestionsLabel} tokens={tokens} focusTarget={focusTarget} disclosure={disclosure} /> : null}
+      {withSuggestions ? <SuggestionStrip suggestions={props.suggestions} label={props.words.suggestionsLabel} tokens={tokens} focusTarget={focusTarget} /> : null}
       {props.usageMessage ? <Text testID="composer-usage" style={[styles.usage, { color: tokens.fg3 }]}>{props.usageMessage}</Text> : null}
       {!withSuggestions ? <Text style={[styles.allowanceText, { color: tokens.fg2 }]}>{props.renewalHint}</Text> : null}
     </View> : null}
@@ -185,7 +181,7 @@ function AllowanceStatus({ props, tokens, focusTarget, disclosure }: Readonly<{ 
   </View>
 }
 
-function ComposerStatus({ props, tokens, focusTarget, disclosure }: Readonly<{ props: ComposerProps; tokens: AppTokensV2; focusTarget: React.RefObject<TextInput | null>; disclosure?: React.ReactNode }>) {
+function ComposerStatus({ props, tokens, focusTarget }: Readonly<{ props: ComposerProps; tokens: AppTokensV2; focusTarget: React.RefObject<TextInput | null> }>) {
   if (props.state === 'atLimit' || props.state === 'offline') {
     return (
       <View style={styles.limitStatus}>
@@ -207,7 +203,6 @@ function ComposerStatus({ props, tokens, focusTarget, disclosure }: Readonly<{ p
       label={props.words.suggestionsLabel}
       tokens={tokens}
       focusTarget={focusTarget}
-      disclosure={disclosure}
     />
   )
 }
@@ -418,7 +413,7 @@ function ComposerTextAction({ words, tokens, canClear, canPaste, inMenu, onClear
   </InsetFocusPressable>
 }
 
-function ComposerTextControls({ props, tokens, inMenu, onPasteText, onClear, onLayout, disclosure }: Readonly<{ props: ComposerProps; tokens: AppTokensV2; inMenu: boolean; disclosure?: React.ReactNode; onPasteText: (text: string) => void; onClear: () => void; onLayout: (event: LayoutChangeEvent) => void }>) {
+function ComposerTextControls({ props, tokens, inMenu, onPasteText, onClear, onLayout }: Readonly<{ props: ComposerProps; tokens: AppTokensV2; inMenu: boolean; onPasteText: (text: string) => void; onClear: () => void; onLayout: (event: LayoutChangeEvent) => void }>) {
   const canClear = props.state === 'idle' && props.value.length > 0
   const canPaste = props.state === 'idle' && props.value.length === 0
   const accountGeneration = useSyncExternalStore(subscribeToAccountGeneration, getAccountGeneration, getAccountGeneration)
@@ -447,8 +442,8 @@ function ComposerTextControls({ props, tokens, inMenu, onPasteText, onClear, onL
     } finally { scope.pending = false }
   }
   return <View testID="composer-text-controls" onLayout={onLayout} style={styles.textControls}>
-  {disclosure || (props.state !== 'recording' && props.state !== 'transcribing') ? <View testID="composer-text-action-slot" accessible={false} style={styles.textActionSlot}>
-    {disclosure ?? <ComposerTextAction words={props.words} tokens={tokens} canClear={canClear} canPaste={canPaste} inMenu={inMenu} onClear={onClear} onPaste={() => void pasteMessage()} />}
+  {(props.state !== 'recording' && props.state !== 'transcribing') ? <View testID="composer-text-action-slot" accessible={false} style={styles.textActionSlot}>
+    <ComposerTextAction words={props.words} tokens={tokens} canClear={canClear} canPaste={canPaste} inMenu={inMenu} onClear={onClear} onPaste={() => void pasteMessage()} />
   </View> : null}
   <ComposerControls props={props} tokens={tokens} onPaste={canPaste && inMenu ? () => void pasteMessage() : undefined}
     onClear={canClear && inMenu ? onClear : undefined} />
@@ -487,7 +482,7 @@ function ComposerPrimaryControl({ props, tokens, onLayout, inputRef }: Readonly<
   </InsetFocusPressable>
 }
 
-function ComposerInputRow({ props, tokens, inputRef, disclosure }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2; inputRef: React.RefObject<TextInput | null>; disclosure?: React.ReactNode }>) {
+function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2; inputRef: React.RefObject<TextInput | null> }>) {
   const [focused, setFocused] = useState(false)
   const [pasteInMenu, setPasteInMenu] = useState(false)
   const [widths, setWidths] = useState({ field: 0, entry: 0, actions: 0, send: 0 })
@@ -525,7 +520,7 @@ function ComposerInputRow({ props, tokens, inputRef, disclosure }: Readonly<{ pr
       </View>
 
       <View testID="composer-trailing-controls" style={styles.trailingControls}>
-        <ComposerTextControls props={props} tokens={tokens} inMenu={Boolean(disclosure) || pasteInMenu} disclosure={disclosure} onLayout={event => measureWidth('actions', event)} onClear={clearMessage} onPasteText={text => {
+        <ComposerTextControls props={props} tokens={tokens} inMenu={pasteInMenu} onLayout={event => measureWidth('actions', event)} onClear={clearMessage} onPasteText={text => {
           pasteFocus.current = text
           props.onChangeValue(text)
         }} />
@@ -549,17 +544,6 @@ function ComposerError({ props, tokens }: Readonly<{ props: ComposerProps; token
   </View>
 }
 
-function ComposerDisclosure({ collapsed, tokens, onToggle, ref }: Readonly<{ collapsed: boolean; tokens: AppTokensV2; onToggle: () => void; ref: React.Ref<View> }>) {
-  const { t } = useTranslation()
-  return <InsetFocusPressable ref={ref} testID={collapsed ? 'composer-collapse-row' : 'composer-collapse-control'} accessibilityRole="button"
-    accessibilityLabel={t(collapsed ? 'shell.composer.expand' : 'shell.composer.collapse')} accessibilityState={{ expanded: !collapsed }}
-    onPress={onToggle}
-    style={({ pressed }) => [collapsed ? styles.collapseRow : styles.collapseControl, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}>
-    {collapsed ? <AstraGlyph size={20} color={tokens.fg2} /> : null}
-    <ChevronDown size={20} color={tokens.fg2} style={collapsed ? { transform: [{ rotate: '180deg' }] } : undefined} />
-  </InsetFocusPressable>
-}
-
 function PromptQueue({ props, tokens }: Readonly<{ props: ComposerProps; tokens: AppTokensV2 }>) {
   const [selectedPrompt, setSelectedPrompt] = useState<string | null>(null)
   return <>
@@ -580,12 +564,11 @@ function PromptQueue({ props, tokens }: Readonly<{ props: ComposerProps; tokens:
   </>
 }
 
-function ComposerContent({ props, tokens, focusTarget, disclosure }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2; focusTarget: React.RefObject<TextInput | null>; disclosure?: React.ReactNode }>) {
+function ComposerContent({ props, tokens, focusTarget }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2; focusTarget: React.RefObject<TextInput | null> }>) {
   const attachments = props.attachments ?? []
   const hasAttachments = attachments.length > 0
   const showAllowanceStatus = Boolean(props.allowanceReason && props.renewalHint)
     && (props.state === 'idle' || props.state === 'sending' || props.state === 'atLimit')
-  const withSuggestions = props.state === 'idle' && props.suggestions.length > 0
   return <>
       {hasAttachments && props.attachWords && props.onAttachRemove ? (
         <AttachmentTray
@@ -598,17 +581,14 @@ function ComposerContent({ props, tokens, focusTarget, disclosure }: Readonly<{ 
 
       <PromptQueue props={props} tokens={tokens} />
       <ComposerError props={props} tokens={tokens} />
-      {showAllowanceStatus ? <AllowanceStatus props={props} tokens={tokens} focusTarget={focusTarget} disclosure={disclosure} /> : <ComposerStatus props={props} tokens={tokens} focusTarget={focusTarget} disclosure={disclosure} />}
-      <ComposerInputRow props={props} tokens={tokens} inputRef={focusTarget} disclosure={withSuggestions ? undefined : disclosure} />
+      {showAllowanceStatus ? <AllowanceStatus props={props} tokens={tokens} focusTarget={focusTarget} /> : <ComposerStatus props={props} tokens={tokens} focusTarget={focusTarget} />}
+      <ComposerInputRow props={props} tokens={tokens} inputRef={focusTarget} />
       {!showAllowanceStatus && props.usageMessage ? <Text testID="composer-usage" style={[styles.usage, { color: tokens.fg3 }]}>{props.usageMessage}</Text> : null}
   </>
 }
 
 export function Composer(props: Readonly<MobileComposerProps>) {
   const contentStyle = useShellContentStyle(SPACING.s16)
-  const contentId = useId()
-  const savedCollapsed = useUIStore(state => props.collapseScope === 'conversation' ? state.conversationComposerCollapsed : state.habitComposerCollapsed)
-  const collapsed = Boolean(props.collapsible && savedCollapsed)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const inputDisabled = !isComposerEditable(props.state)
@@ -618,21 +598,6 @@ export function Composer(props: Readonly<MobileComposerProps>) {
 
   const focusTarget = useRef<TextInput>(null)
   const composerRef = useRef<View>(null)
-  const expandedDisclosureRef = useRef<View>(null)
-  const collapsedDisclosureRef = useRef<View>(null)
-  const disclosureFocusPending = useRef(false)
-  function toggleCollapsed() {
-    disclosureFocusPending.current = true
-    const preferences = useUIStore.getState()
-    if (props.collapseScope === 'conversation') preferences.setConversationComposerCollapsed(!collapsed)
-    else preferences.setHabitComposerCollapsed(!collapsed)
-  }
-  useEffect(() => {
-    if (!disclosureFocusPending.current) return
-    disclosureFocusPending.current = false
-    const target = collapsed ? collapsedDisclosureRef.current : expandedDisclosureRef.current
-    if (target) AccessibilityInfo.sendAccessibilityEvent(target, 'focus')
-  }, [collapsed])
   const focusedTarget = useRef<'container' | 'input' | null>(null)
   const autoFocusApplied = useRef(false)
   useEffect(() => {
@@ -662,8 +627,6 @@ export function Composer(props: Readonly<MobileComposerProps>) {
     canRetry ? 'retry' : null,
   ].filter(Boolean).join('-')
 
-  const disclosure = props.collapsible ? <ComposerDisclosure collapsed={false} tokens={tokens} onToggle={toggleCollapsed} ref={expandedDisclosureRef} /> : undefined
-  const content = <ComposerContent props={props} tokens={tokens} focusTarget={focusTarget} disclosure={disclosure} />
   return (
     <View
       ref={composerRef}
@@ -679,10 +642,8 @@ export function Composer(props: Readonly<MobileComposerProps>) {
       accessibilityState={{ busy: props.state === 'sending' }}
       style={[styles.root, { backgroundColor: tokens.bg, borderTopColor: tokens.hairline }]}
     >
-      <ShellSideInsetsContext.Provider value={true}><View testID="composer-content" style={[styles.content, collapsed ? styles.collapsed : null, contentStyle]}>
-      {collapsed ? <ComposerDisclosure collapsed tokens={tokens} onToggle={toggleCollapsed} ref={collapsedDisclosureRef} /> : null}
-      {props.collapsible ? <View nativeID={contentId} accessibilityElementsHidden={collapsed} importantForAccessibility={collapsed ? 'no-hide-descendants' : 'auto'}
-        style={{ display: collapsed ? 'none' : 'flex', gap: 12 }}>{content}</View> : content}
+      <ShellSideInsetsContext.Provider value={true}><View testID="composer-content" style={[styles.content, contentStyle]}>
+      <ComposerContent props={props} tokens={tokens} focusTarget={focusTarget} />
       </View></ShellSideInsetsContext.Provider>
     </View>
   )
@@ -694,11 +655,7 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
   },
   content: { gap: 12, padding: SPACING.s16 },
-  collapsed: { paddingVertical: SPACING.s4, gap: 0 },
-  collapseControl: { width: 48, height: 48, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden' },
-  suggestionRow: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.s12 },
-  suggestionStrip: { flex: 1, minWidth: 0 },
-  collapseRow: { height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SPACING.s8, borderRadius: 12, overflow: 'hidden' },
+  suggestionStrip: { minWidth: 0 },
   tray: {
     gap: 8,
   },

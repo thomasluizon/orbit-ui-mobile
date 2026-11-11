@@ -345,8 +345,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         composer={composerScope === 'habit' ?
           <Composer
             {...chat.composerProps}
-            collapseScope={composerScope}
-            collapsible
             suggestions={chat.composerProps.suggestions}
             inputId={chat.composerInputId}
             onOpenConversation={() => setAstraConversationOpen(true)}
