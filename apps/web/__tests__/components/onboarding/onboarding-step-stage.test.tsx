@@ -37,6 +37,25 @@ describe('OnboardingStepStage', () => {
     expect(animate.transition.ease).toEqual([...motionEasings.enter])
   })
 
+  it('takes the duration and the curve from the shared tokens', () => {
+    const durations = motionDurations as unknown as Record<string, number>
+    const easings = motionEasings as unknown as Record<string, readonly number[]>
+    const originalBase = durations.base
+    const originalEnter = easings.enter
+    durations.base = 333
+    easings.enter = [0.1, 0.2, 0.3, 0.4]
+    try {
+      const { container, rerender } = render(<OnboardingStepStage step={0}>one</OnboardingStepStage>)
+      rerender(<OnboardingStepStage step={1}>two</OnboardingStepStage>)
+      const { transition } = readStage(container).animate
+      expect(transition.duration).toBeCloseTo(0.333, 5)
+      expect(transition.ease).toEqual([0.1, 0.2, 0.3, 0.4])
+    } finally {
+      durations.base = originalBase!
+      easings.enter = originalEnter!
+    }
+  })
+
   it('enters again when the person returns to the first step', () => {
     const { container, rerender } = render(<OnboardingStepStage step={0}>one</OnboardingStepStage>)
     rerender(<OnboardingStepStage step={1}>two</OnboardingStepStage>)
