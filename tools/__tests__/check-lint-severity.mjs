@@ -369,7 +369,7 @@ jobs:
   T(
     `${TOOL}: PR enforcement belongs to the unfiltered tools suite and the guard retains push coverage`,
     lintSeverityJob.includes("github.event_name != 'pull_request'") &&
-      readFileSync(join(REPO_ROOT, ".github/workflows/test.yml"), "utf8").includes("run: node tools/test-tools.mjs"),
+      readFileSync(join(REPO_ROOT, ".github/workflows/test.yml"), "utf8").includes("run: node tools/test-tools.mjs --shard "),
     lintSeverityJob.trim(),
   )
   T(
