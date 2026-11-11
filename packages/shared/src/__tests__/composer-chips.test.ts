@@ -155,6 +155,14 @@ describe('composer chips', () => {
       expect(ids({ habits: [loggedWalk, openOverdue], profile: streakProfile }).slice(0, 2)).toEqual(['today.moveOverdue', 'today.logHabit'])
     })
 
+    it('keeps the streak at risk when the only log for the day is a bad habit slip', () => {
+      const slippedBadHabit = createMockHabit({ id: 'snack', title: 'Late snack', isBadHabit: true, isCompleted: false, isLoggedInRange: true })
+      const openOverdue = createMockHabit({ id: 'late', title: 'Walking', isOverdue: true, isLoggedInRange: false })
+      const order = ids({ habits: [slippedBadHabit, openOverdue, openGym], profile: streakProfile })
+      expect(order.slice(0, 2)).toEqual(['today.logHabit', 'today.moveOverdue'])
+      expect(buildComposerChips(state({ habits: [slippedBadHabit, openOverdue, openGym], profile: streakProfile }))[0]!.params).toEqual({ title: 'Gym' })
+    })
+
     it('does not offer trimming a sub-habit parent that is already logged', () => {
       const loggedParent = createMockHabit({ id: 'routine', title: 'House routine', hasSubHabits: true, isLoggedInRange: true })
       expect(ids({ habits: [loggedParent, openGym], profile: streakProfile })).not.toContain('today.trimHabit')

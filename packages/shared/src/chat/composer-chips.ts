@@ -34,7 +34,7 @@ export type ComposerChip = {
   prompt?: string
 }
 
-type ChipHabit = Pick<NormalizedHabit, 'title' | 'isCompleted' | 'isLoggedInRange' | 'isOverdue' | 'hasSubHabits' | 'linkedGoals'>
+type ChipHabit = Pick<NormalizedHabit, 'title' | 'isCompleted' | 'isLoggedInRange' | 'isOverdue' | 'hasSubHabits' | 'isBadHabit' | 'linkedGoals'>
 type ChipProfile = Pick<Profile, 'aiSummaryEnabled' | 'hasGoogleConnection' | 'currentStreak' | 'longestStreak' | 'lastCompletionDate' | 'timeZone'>
 type DetailHabit = Pick<HabitDetail, 'title' | 'checklistItems'>
 
@@ -101,7 +101,7 @@ function todayChips(state: ComposerChipState): ComposerChip[] {
   const overdue = habits.find((habit) => habit.isOverdue && !isHabitDoneForRange(habit))
   const parent = habits.find((habit) => habit.hasSubHabits && !isHabitDoneForRange(habit))
   const log = chip('today.logHabit', { title: pending.title })
-  const streakAtRisk = (state.selectedDateIsToday ?? true) && profile.currentStreak > 0 && habits.every((habit) => !isHabitDoneForRange(habit))
+  const streakAtRisk = (state.selectedDateIsToday ?? true) && profile.currentStreak > 0 && !habits.some((habit) => !habit.isBadHabit && isHabitDoneForRange(habit))
   const candidates = [
     ...(streakAtRisk ? [log] : []),
     ...(overdue ? [chip('today.moveOverdue', { title: overdue.title })] : []),
