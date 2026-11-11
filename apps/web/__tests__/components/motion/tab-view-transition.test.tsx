@@ -124,6 +124,11 @@ describe('globals.css tab view transition', () => {
       .toContain('animation-duration: 0s')
   })
 
+  it('lets taps reach the live page while the tab legs run', () => {
+    expect(ruleBody(':root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition {'))
+      .toContain('pointer-events: none')
+  })
+
   it('stops every view transition animation under reduced motion', () => {
     const reduced = stylesheet.slice(stylesheet.indexOf('::view-transition-group(*)'))
     expect(stylesheet.lastIndexOf('@media (prefers-reduced-motion: reduce)', stylesheet.indexOf('::view-transition-group(*)')))

@@ -1303,7 +1303,8 @@ button {
 /* ═══════════════════════════════════════════════════════
    PRIMARY TAB SWITCH
    animateTabViewTransition drives both legs from the shared
-   tab-switch preset. The shell chrome changes at once.
+   tab-switch preset. The shell chrome changes at once, and taps
+   reach the live page while the legs run.
    ═══════════════════════════════════════════════════════ */
 
 ::view-transition-group(orbit-tab-page),
@@ -1315,6 +1316,10 @@ button {
 
 ::view-transition-new(orbit-tab-page) {
   opacity: 0;
+}
+
+:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition {
+  pointer-events: none;
 }
 
 :root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition-old(root),

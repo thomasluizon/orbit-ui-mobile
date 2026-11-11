@@ -61,12 +61,17 @@ export function useTabSceneMotion(pathname: string, instant: boolean) {
 
     const preset = resolveMotionPreset('tab-switch')
     for (const scene of scenes.values()) {
-      scene.opacity.stopAnimation()
       scene.translateX.stopAnimation()
-      scene.translateX.setValue(0)
-      if (scene !== entering && scene !== leaving) scene.opacity.setValue(0)
+      if (scene === entering) {
+        scene.opacity.stopAnimation((opacity) => scene.translateX.setValue(direction * preset.shift * (1 - opacity)))
+      } else if (scene === leaving) {
+        scene.opacity.stopAnimation()
+      } else {
+        scene.opacity.stopAnimation()
+        scene.opacity.setValue(0)
+        scene.translateX.setValue(0)
+      }
     }
-    entering.translateX.setValue(direction * preset.shift)
     const exitTiming = { duration: preset.exitDuration, easing: toAnimatedEasing(preset.exitEasing), useNativeDriver: true }
     const enterTiming = { duration: preset.enterDuration, easing: toAnimatedEasing(preset.enterEasing), useNativeDriver: true }
     const animation = Animated.parallel([

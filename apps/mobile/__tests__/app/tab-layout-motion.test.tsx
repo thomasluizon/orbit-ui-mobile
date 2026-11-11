@@ -112,6 +112,18 @@ describe('TabLayout tab switch motion', () => {
     expect(entering.transform[0].translateX.value).toBe(shift)
   })
 
+  it('returns to a half-faded tab with only the travel it still has left', async () => {
+    await act(() => { tree = create(<TabLayout />) })
+    await switchTab(tree, '/calendar')
+    const today = sceneFor('index')
+    today.opacity.value = 0.5
+
+    await switchTab(tree, '/')
+
+    expect(today.transform[0].translateX.value).toBe(-tabSwitch.shift * 0.5)
+    expect(timingFor(today.opacity).at(-1)).toMatchObject({ duration: tabSwitch.enterDuration, toValue: 1 })
+  })
+
   it('leaves the tab scenes alone when a route is pushed above the tabs', async () => {
     await act(() => { tree = create(<TabLayout />) })
 
