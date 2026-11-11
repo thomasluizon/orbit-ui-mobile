@@ -1,9 +1,11 @@
 #!/usr/bin/env node
-import { createHash, createSign } from "node:crypto"
+import { createHash } from "node:crypto"
 import { readFileSync, writeFileSync } from "node:fs"
 import { isAbsolute } from "node:path"
 import { pathToFileURL } from "node:url"
 import { acknowledgeIntake, updateIntakeSource } from "./lib/auto-work-intake.mjs"
+import { apiClient } from "./lib/app-store-connect.mjs"
+import { appStoreToken } from "./lib/app-store-connect-token.mjs"
 import { REPO_ROOT } from "./lib/run-state.mjs"
 
 const USAGE = `usage: orbit-app-store-reviews.mjs <--collect --output <absolute file> | --import <absolute file> | --ack>
@@ -17,39 +19,17 @@ No review response operation exists. Prints counts or pending reviews.
 --help, -h print usage
 exit codes: 0 success; 1 API, state or receipt failure; 2 invalid arguments or stdin`
 
-export const appStoreToken = ({ keyId, issuerId, privateKey }) => {
-  if (!keyId || !issuerId || !privateKey) throw new Error("App Store Connect review credentials unavailable")
-  const encode = (value) => Buffer.from(JSON.stringify(value)).toString("base64url")
-  const issuedAt = Math.floor(Date.now() / 1000)
-  const unsigned = `${encode({ alg: "ES256", kid: keyId, typ: "JWT" })}.${encode({ iss: issuerId, iat: issuedAt, exp: issuedAt + 600, aud: "appstoreconnect-v1" })}`
-  const signature = createSign("SHA256").update(unsigned).sign({ key: privateKey, dsaEncoding: "ieee-p1363" }, "base64url")
-  return `${unsigned}.${signature}`
-}
-
 export const readAppStoreReviews = async (appId, token, request = fetch) => {
   if (!/^\d+$/.test(appId ?? "")) throw new Error("ORBIT_IOS_APP_STORE_ID is required")
-  const path = `/v1/apps/${appId}/customerReviews`
-  let next = `https://api.appstoreconnect.apple.com${path}?limit=200`
-  const reviews = []
-  const visited = new Set()
-  while (next) {
-    const url = new URL(next, "https://api.appstoreconnect.apple.com")
-    if (url.origin !== "https://api.appstoreconnect.apple.com" || url.pathname !== path || visited.has(url.href)) throw new Error("Invalid App Store pagination link")
-    visited.add(url.href)
-    const response = await request(url, { method: "GET", headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(30_000) })
-    if (!response.ok) throw new Error(`App Store reviews failed (HTTP ${response.status})`)
-    const page = await response.json()
-    if (!Array.isArray(page.data)) throw new Error("Invalid App Store review response")
-    for (const review of page.data) {
-      const attributes = review.attributes
-      if (typeof review.id !== "string" || !attributes || !Number.isFinite(Date.parse(attributes.createdDate))) throw new Error("Invalid App Store review identity")
-      const contents = { createdAt: attributes.createdDate, title: attributes.title ?? "", text: attributes.body ?? "",
-        stars: attributes.rating ?? null, author: attributes.reviewerNickname ?? null, territory: attributes.territory ?? null }
-      const version = createHash("sha256").update(JSON.stringify(contents)).digest("hex")
-      reviews.push({ id: `${review.id}:${version}`, reviewId: review.id, ...contents })
-    }
-    next = page.links?.next
-  }
+  const customerReviews = await apiClient(() => token, request).getAll(`/v1/apps/${appId}/customerReviews`, { limit: "200" })
+  const reviews = customerReviews.map((review) => {
+    const attributes = review.attributes
+    if (typeof review.id !== "string" || !attributes || !Number.isFinite(Date.parse(attributes.createdDate))) throw new Error("Invalid App Store review identity")
+    const contents = { createdAt: attributes.createdDate, title: attributes.title ?? "", text: attributes.body ?? "",
+      stars: attributes.rating ?? null, author: attributes.reviewerNickname ?? null, territory: attributes.territory ?? null }
+    const version = createHash("sha256").update(JSON.stringify(contents)).digest("hex")
+    return { id: `${review.id}:${version}`, reviewId: review.id, ...contents }
+  })
   return { appId, collectedAt: new Date().toISOString(), reviews }
 }
 
