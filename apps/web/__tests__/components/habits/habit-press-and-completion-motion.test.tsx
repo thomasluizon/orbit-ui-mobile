@@ -4,6 +4,7 @@ import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { CheckCircle } from '@/components/habits/habit-row-check-circle'
 import { HabitCheck } from '@/components/habits/habit-check'
 import { HabitDrill } from '@/components/habits/habit-list/habit-drill'
+import { ListScope } from '@/components/motion/list-motion'
 
 import { motionSprings, resolveMotionPreset } from '@orbit/shared/theme'
 
@@ -79,6 +80,24 @@ describe('completion feedback', () => {
   it('mounts no motion for a check that first renders done', () => {
     render(<HabitCheck status="done" label="Done" />)
     expect(settle.animate).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { name: 'a logged habit', before: { status: 'empty' }, after: { status: 'done' } },
+    { name: 'a parent whose sub-habits are all done', before: { status: 'empty', progress: { done: 1, total: 2 } }, after: { status: 'empty', progress: { done: 2, total: 2 } } },
+  ] as const)('stays still when $name turns done in the same render as a list scope change', ({ before, after }) => {
+    const view = render(<ListScope scope="yesterday"><HabitCheck {...before} label="Check" /></ListScope>)
+    view.rerender(<ListScope scope="today"><HabitCheck {...after} label="Check" /></ListScope>)
+    expect(view.container.querySelector('[data-habit-check]')).toHaveStyle({ background: 'var(--fg-1)' })
+    expect(view.container.querySelector('[data-habit-check-settle]')).toBeNull()
+    expect(settle.animate).not.toHaveBeenCalled()
+  })
+
+  it('settles a mounted check that turns done while the list scope stays the same', () => {
+    const view = render(<ListScope scope="today"><HabitCheck status="empty" label="Open" /></ListScope>)
+    view.rerender(<ListScope scope="today"><HabitCheck status="done" label="Done" /></ListScope>)
+    expect(view.container.querySelector('[data-habit-check-settle]')).not.toBeNull()
+    expect(settle.animate).toHaveBeenCalledOnce()
   })
 
   it('plays nothing under reduced motion', () => {

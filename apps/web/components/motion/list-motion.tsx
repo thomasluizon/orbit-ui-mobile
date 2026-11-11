@@ -25,8 +25,12 @@ export function ListScope({ scope, children }: Readonly<{ scope: string; childre
   return <ListScopeContext.Provider value={value}>{children}</ListScopeContext.Provider>
 }
 
+export function useListScope(): string {
+  return useContext(ListScopeContext).scope
+}
+
 function useExitDeadline(duration: number) {
-  const { scope } = useContext(ListScopeContext)
+  const scope = useListScope()
   const [present, remove] = usePresence()
   const scopeWhilePresent = useRef(scope)
   useEffect(() => {

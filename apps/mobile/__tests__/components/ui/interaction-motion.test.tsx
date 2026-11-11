@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { StyleSheet } from 'react-native'
 import { MotionPressable } from '@/components/ui/motion-pressable'
 import { CheckCircle } from '@/components/habits/habit-row-check-circle'
+import { HabitCheck } from '@/components/habits/habit-check'
+import { ListScope } from '@/components/motion/list-scope'
 import { triggerHaptic } from '@/lib/haptics'
 import { sharedValues, springState, withSpringCalls, withTimingCalls } from '../../../test-mocks/react-native-reanimated'
 import { motionDurations, motionSprings, orbitalMotion } from '@orbit/shared/theme'
@@ -96,6 +98,30 @@ describe('interaction motion', () => {
     TestRenderer.act(() => tree!.update(<CheckCircle {...props} state="empty" />))
     delete springState.settledValue
     expect(sharedValues.filter((shared) => shared.value === 3)).toEqual([])
+    TestRenderer.act(() => tree!.unmount())
+  })
+
+  it.each([
+    { name: 'a logged habit', before: { status: 'empty' }, after: { status: 'done' } },
+    { name: 'a parent whose sub-habits are all done', before: { status: 'empty', progress: { done: 1, total: 2 } }, after: { status: 'empty', progress: { done: 2, total: 2 } } },
+  ] as const)('keeps the check still when $name turns done in the same render as a list scope change', ({ before, after }) => {
+    preference.reduced = false
+    withSpringCalls.length = 0
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<ListScope scope="yesterday"><HabitCheck {...before} label="Check" /></ListScope>) })
+    TestRenderer.act(() => tree!.update(<ListScope scope="today"><HabitCheck {...after} label="Check" /></ListScope>))
+    expect(StyleSheet.flatten(tree!.root.findByProps({ testID: 'habit-check' }).props.style)).toMatchObject({ borderWidth: 0 })
+    expect(withSpringCalls).toEqual([])
+    TestRenderer.act(() => tree!.unmount())
+  })
+
+  it('settles a mounted check that turns done while the list scope stays the same', () => {
+    preference.reduced = false
+    withSpringCalls.length = 0
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<ListScope scope="today"><HabitCheck status="empty" label="Check" /></ListScope>) })
+    TestRenderer.act(() => tree!.update(<ListScope scope="today"><HabitCheck status="done" label="Check" /></ListScope>))
+    expect(withSpringCalls).toEqual([{ value: 1, config: { ...motionSprings.completion, overshootClamping: true } }])
     TestRenderer.act(() => tree!.unmount())
   })
 

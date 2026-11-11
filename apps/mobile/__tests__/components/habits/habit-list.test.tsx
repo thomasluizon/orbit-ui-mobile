@@ -1,9 +1,11 @@
 import * as habitQueries from '@/hooks/use-habit-queries'
 import { useHabits as useHabitQueryFixture } from '@/hooks/use-habits'
-import { withTimingCalls } from '@/test-mocks/react-native-reanimated'
+import { withSpringCalls, withTimingCalls } from '@/test-mocks/react-native-reanimated'
 import { testI18n } from '@/__tests__/support/i18n'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { resetAccountQueries } from '@orbit/shared/query'
+import { motionSprings } from '@orbit/shared/theme'
+import { getPrefersReducedMotion } from '@/lib/motion'
 import { createMoveInventoryFixture } from '@orbit/shared/__tests__/move-inventory-fixtures'
 import { createAppendedGeneralSearchItems, createHabitViewItems, createHabitViewScheduleItems, createHabitViewFixture, HABIT_VIEW_ROW_ORDER } from '@orbit/shared/__tests__/habit-view-fixtures'
 import { createTokensV2 } from '@/lib/theme'
@@ -1952,6 +1954,36 @@ describe('HabitList', () => {
       completedToggle: 0,
       dateChange: 60,
     })
+  })
+
+  async function settlesCheckAcrossDates(from: string, to: string): Promise<boolean> {
+    const completionSpring = JSON.stringify({ ...motionSprings.completion, overshootClamping: true })
+    const seed = (isCompleted: boolean) => seedHabits([createMockHabit({ id: 'settle-habit', title: 'Read', isCompleted, dueDate: TODAY, scheduledDates: [YESTERDAY, TODAY] })])
+    const renderList = (date: string) => <HabitList view="today" filters={{ dateFrom: date, dateTo: date, includeOverdue: true }}
+      selectedDate={new Date(`${date}T09:00:00Z`)} showCompleted onCreatePress={vi.fn()} />
+    const checks = (tree: any) => tree.root.findAll((node: any) => node.props.testID === 'habit-check' && typeof node.type !== 'string')
+    seed(false)
+    let tree: any
+    TestRenderer.act(() => { tree = createTestTree(renderList(from)) })
+    await TestRenderer.act(async () => { await getPrefersReducedMotion() })
+    const [before] = checks(tree)
+    withSpringCalls.length = 0
+
+    seed(true)
+    TestRenderer.act(() => { tree.update(renderList(to)) })
+
+    expect(checks(tree)).toHaveLength(1)
+    expect(checks(tree)[0]).toBe(before)
+    expect(StyleSheet.flatten(before.props.style)).toMatchObject({ borderWidth: 0 })
+    return withSpringCalls.some((call) => JSON.stringify(call.config) === completionSpring)
+  }
+
+  it('keeps a mounted check still when it turns done in the same render as a date change', async () => {
+    expect(await settlesCheckAcrossDates(YESTERDAY, TODAY)).toBe(false)
+  })
+
+  it('settles a mounted check that turns done while the date stays the same', async () => {
+    expect(await settlesCheckAcrossDates(TODAY, TODAY)).toBe(true)
   })
 
   it('keeps row actions stable while using the latest habit and list callbacks', () => {

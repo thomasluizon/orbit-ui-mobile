@@ -7,6 +7,7 @@ import { usePrefersReducedMotion } from '@/lib/motion'
 import { StyleSheet, View } from 'react-native'
 import Svg, { Path } from 'react-native-svg'
 import { Check } from '@/components/ui/icons'
+import { useListScope } from '@/components/motion/list-scope'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -18,17 +19,13 @@ interface HabitCheckProps {
   progress?: { done: number; total: number }
 }
 
-export function HabitCheck({ status, label, unavailable = false, feedback = false, progress }: Readonly<HabitCheckProps>) {
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
-  const reduced = usePrefersReducedMotion()
-  const ratio = habitCheckProgress(progress)
-  const done = status !== 'bad' && (progress ? ratio === 1 : status === 'done')
-  const [previousDone, setPreviousDone] = useState(done)
+function useCompletionSettle(done: boolean, reduced: boolean) {
+  const scope = useListScope()
+  const [previous, setPrevious] = useState({ done, scope })
   const [logged, setLogged] = useState(false)
-  if (done !== previousDone) {
-    setPreviousDone(done)
-    setLogged(done)
+  if (done !== previous.done || scope !== previous.scope) {
+    setPrevious({ done, scope })
+    setLogged(done && scope === previous.scope)
   }
   const settleScale = useSharedValue(1)
   const settleStyle = useAnimatedStyle(() => ({ transform: [{ scale: settleScale.value }] }))
@@ -41,6 +38,16 @@ export function HabitCheck({ status, label, unavailable = false, feedback = fals
       settleScale.value = 1
     }
   }, [logged, reduced, settleScale])
+  return settleStyle
+}
+
+export function HabitCheck({ status, label, unavailable = false, feedback = false, progress }: Readonly<HabitCheckProps>) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const reduced = usePrefersReducedMotion()
+  const ratio = habitCheckProgress(progress)
+  const done = status !== 'bad' && (progress ? ratio === 1 : status === 'done')
+  const settleStyle = useCompletionSettle(done, reduced)
   const accessibilityRole = label ? 'image' : undefined
   if (unavailable) return (
     <View testID="unavailable-status-dot"

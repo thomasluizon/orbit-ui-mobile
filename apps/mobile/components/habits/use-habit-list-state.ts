@@ -361,9 +361,10 @@ type HabitListPresentationInputs = {
 export function useHabitListPresentation(drag: HabitListPresentationInputs['drag'], account: HabitListPresentationInputs['account'], { view, searchQuery, filters }: Pick<HabitListPresentationInputs, 'view' | 'searchQuery' | 'filters'>, reducedListMotion: HabitListPresentationInputs['reducedListMotion']) {
   const { activeDragItems, isDraggingList } = drag
   const { accountGeneration, selectedDateStr } = account
-  const presentation = useRetainedHabitList(activeDragItems, `${accountGeneration}:${view}:${isDraggingList}:${selectedDateStr}:${searchQuery ?? ''}:${JSON.stringify(filters)}`, reducedListMotion)
+  const scope = `${accountGeneration}:${view}:${isDraggingList}:${selectedDateStr}:${searchQuery ?? ''}:${JSON.stringify(filters)}`
+  const presentation = useRetainedHabitList(activeDragItems, scope, reducedListMotion)
   const cellMotion = useMemo(() => createListCellMotion(reducedListMotion), [reducedListMotion])
-  return { presentation, cellMotion }
+  return { presentation, cellMotion, scope }
 }
 
 type HabitListProgressInputs = Pick<ReturnType<typeof useHabitListVisibility>, 'visibility'> & { view: NonNullable<HabitListProps['view']> } & Pick<ReturnType<typeof useHabitListQueries>, 'getChildren' | 'habitsById'>

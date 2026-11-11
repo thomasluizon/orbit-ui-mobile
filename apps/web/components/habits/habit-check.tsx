@@ -4,6 +4,7 @@ import { motionSprings, resolveMotionPreset } from '@orbit/shared/theme'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import { HABIT_CHECK_PATH, HABIT_CHECK_PERIMETER, habitCheckProgress } from '@orbit/shared/utils/habit-row-status'
 import { Check } from '@/components/ui/icons'
+import { useListScope } from '@/components/motion/list-motion'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
 
 interface HabitCheckProps {
@@ -22,11 +23,12 @@ function ProgressRing({ ratio, bad }: Readonly<{ ratio: number; bad: boolean }>)
 
 function useCompletionSettle(done: boolean): number | null {
   const reduced = useViewportMatch('(prefers-reduced-motion: reduce)')
-  const [previousDone, setPreviousDone] = useState(done)
+  const scope = useListScope()
+  const [previous, setPrevious] = useState({ done, scope })
   const [logged, setLogged] = useState(false)
-  if (done !== previousDone) {
-    setPreviousDone(done)
-    setLogged(done)
+  if (done !== previous.done || scope !== previous.scope) {
+    setPrevious({ done, scope })
+    setLogged(done && scope === previous.scope)
   }
   return logged && !reduced ? resolveMotionPreset('success-feedback').scaleFrom : null
 }

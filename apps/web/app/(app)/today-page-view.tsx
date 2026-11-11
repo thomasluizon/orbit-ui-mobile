@@ -108,35 +108,33 @@ export function TodayHabitsPanel({ view }: Readonly<{ view: TodayView }>) {
   } = view
 
   return (
-    <>
-      <HabitList
-        ref={habitListRef}
-        view={view.activeView}
-        searchQuery={view.search.query}
-        onClearSearch={view.search.close}
-        selectedDate={view.activeView === 'today' ? nav.selectedDate : undefined}
-        showCompleted={showCompleted}
-        onShowCompleted={() => setShowCompleted(true)}
-        isSelectMode={isSelectMode}
-        selectedHabitIds={selectedHabitIds}
-        onBulkMove={selection.confirmBulkMove}
-        filters={data.filters}
-        onToggleSelection={selection.handleToggleSelection}
-        onEnterSelectMode={(habitId) => {
-          if (!isSelectMode) toggleSelectMode()
-          selection.handleToggleSelection(habitId)
-        }}
-        onCreate={() => {
-          if (!isOnline) { setShowCreateRefusal(true); return }
-          setShowCreateModal(true)
-        }}
-        createRefusal={showCreateRefusal && !isOnline}
-        onSeeUpcoming={view.activeView === 'today' && !nav.dateNav.nextDisabled ? nav.goToNextDay : undefined}
-        onAllLoadedIdsChange={view.setAllLoadedIds}
-        onAllCollapsedChange={setHabitListAllCollapsed}
-        onSurfaceOpenChange={view.setListSurfaceOpen}
-      />
-    </>
+    <HabitList
+      ref={habitListRef}
+      view={view.activeView}
+      searchQuery={view.search.query}
+      onClearSearch={view.search.close}
+      selectedDate={view.activeView === 'today' ? nav.selectedDate : undefined}
+      showCompleted={showCompleted}
+      onShowCompleted={() => setShowCompleted(true)}
+      isSelectMode={isSelectMode}
+      selectedHabitIds={selectedHabitIds}
+      onBulkMove={selection.confirmBulkMove}
+      filters={data.filters}
+      onToggleSelection={selection.handleToggleSelection}
+      onEnterSelectMode={(habitId) => {
+        if (!isSelectMode) toggleSelectMode()
+        selection.handleToggleSelection(habitId)
+      }}
+      onCreate={() => {
+        if (!isOnline) { setShowCreateRefusal(true); return }
+        setShowCreateModal(true)
+      }}
+      createRefusal={showCreateRefusal && !isOnline}
+      onSeeUpcoming={view.activeView === 'today' && !nav.dateNav.nextDisabled ? nav.goToNextDay : undefined}
+      onAllLoadedIdsChange={view.setAllLoadedIds}
+      onAllCollapsedChange={setHabitListAllCollapsed}
+      onSurfaceOpenChange={view.setListSurfaceOpen}
+    />
   )
 }
 
