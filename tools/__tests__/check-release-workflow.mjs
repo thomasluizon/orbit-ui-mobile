@@ -438,6 +438,9 @@ function systemDependencyInstalls(file, text) {
   })
 }
 
+/** True when workflow text calls `apt` or `apt-get` to install or update, with or without flags before the subcommand. */
+const callsApt = (text) => /\bapt(?:-get)?\s+(?:-\S+\s+)*(?:install|update)\b/.test(text)
+
 /**
  * Runs a ccache workflow step against stubbed `sudo`, `ccache` and `gradlew`, with no network and no real apt.
  * The `ccache` stub records every call and exits 127 (command not found) unless a stubbed install created it.
@@ -513,8 +516,12 @@ function checkMirrorIndependence() {
     systemDependencyInstalls("fixture.yml", "steps:\n  - run: npx playwright install-deps chromium\n").length === 1)
   T("a plain Playwright browser install is accepted", systemDependencyInstalls("fixture.yml", "  - run: npx playwright install chromium\n").length === 0)
   for (const name of ["layout.yml", "release.yml"]) {
-    T(`${name} calls no apt command`, !/\bapt(-get)?\s+(install|update)\b/.test(read(name)))
+    T(`${name} calls no apt command`, !callsApt(read(name)))
   }
+  for (const command of ["sudo apt-get install -y ccache", "sudo apt-get -y install libnss3", "sudo apt-get -qq update", "sudo apt -y install fonts-noto"]) {
+    T(`the apt check rejects ${command}`, callsApt(`      - run: ${command}\n`))
+  }
+  T("the apt check accepts a plain Playwright browser install", !callsApt("      - run: npx playwright install chromium\n"))
 
   const android = load(read("android-release.yml")).jobs["release-android"].steps
   const setup = android.find((step) => step.name === "Set up ccache for the native C++ builds")
