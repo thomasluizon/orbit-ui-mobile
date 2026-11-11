@@ -32,6 +32,7 @@ The GitHub environments `ios-staging` and `ios-production`, under Settings > Env
 | Kind | Key | Source |
 |---|---|---|
 | Variable | `ORBIT_APPLE_TEAM_ID` | Apple Developer > Membership details > Team ID |
+| Variable | `EXPO_PUBLIC_APPLE_CLIENT_ID` | Required. The app reads it only to show the Sign in with Apple button; the API's `AppleSignIn__NativeClientId` sets the client ID that Apple checks. By convention it holds that bundle identifier: `org.useorbit.app` in `ios-production` and `org.useorbit.app.staging` in `ios-staging`. The release stops before it builds when the value is empty |
 | Variable | `ORBIT_IOS_APP_STORE_ID` | App Store Connect > Apps > matching app > App Information > Apple ID |
 | Variable | `IOS_PROVISIONING_PROFILE_NAME` | Apple Developer > Certificates, Identifiers & Profiles > Profiles; the matching App Store distribution profile's name |
 | Variable | `IOS_WIDGET_PROVISIONING_PROFILE_NAME` | The distribution profile name for that variant's `<bundleIdentifier>.widget` extension |
@@ -84,7 +85,13 @@ gh workflow run ios-release.yml --ref <ref> \
   -f platform_only_reason=<reason or empty>
 ```
 
-Follow only the dispatched run. An upload command's successful exit proves upload acceptance;
-confirm processing finishes and the exact version and build appear in the matching app's
-TestFlight > Internal Testing screen before reporting it available to testers. Report the run URL,
-commit, variant, version, build number and processing result. Never print signing material.
+Follow only the dispatched run. After the `release` job uploads the build, the separate job
+`testflight-access` (`needs: release`, `ubuntu-latest`, 30 minutes) runs `tools/testflight-access.mjs`.
+It waits until App Store Connect lists the exact version and build as `VALID`, and it fails the job on
+`FAILED`, `INVALID` or a timeout. It then makes sure the app has an internal beta group with access to all
+builds, and it links to that group every tester of the team's other internal beta groups. It creates the
+group only when missing, it never creates a tester, and it fails when the group would hold no tester. The
+job summary shows the processing state, the group name, the tester count and the number of testers this run
+linked. If this job fails, use "Re-run failed jobs". The rerun does not upload the build again and does not
+use a new build number. The release key needs only the App Manager role. Report the run URL,
+commit, variant, version, build number and the job summary. Never print signing material.

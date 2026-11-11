@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -17,6 +17,18 @@ interface Workflow<Job extends string> {
 }
 
 const readWorkflow = <Job extends string>(name: string) => parse(readFileSync(resolve(`../../.github/workflows/${name}.yml`), 'utf8')) as Workflow<Job>
+
+/** Every setting `Validate the release configuration` requires, set to a valid staging value. */
+const iosReleaseEnvironment = {
+  PATH: process.env.PATH ?? '', NODE_ENV: 'test', ORBIT_APP_VARIANT: 'staging', GITHUB_REF: 'refs/heads/feature/release',
+  ORBIT_APPLE_TEAM_ID: 'TESTTEAM01', ORBIT_IOS_APP_STORE_ID: '1234567890',
+  IOS_PROVISIONING_PROFILE_NAME: 'Orbit Distribution', EXPO_PUBLIC_GOOGLE_CLIENT_ID: 'client',
+  IOS_WIDGET_PROVISIONING_PROFILE_NAME: 'Orbit Widget Distribution',
+  EXPO_PUBLIC_APPLE_CLIENT_ID: 'org.useorbit.app.staging',
+  EXPO_PUBLIC_TURNSTILE_SITE_KEY: 'site', EXPO_PUBLIC_SENTRY_DSN: 'dsn',
+  SENTRY_AUTH_TOKEN: 'test-token', APP_STORE_CONNECT_API_KEY_ID: 'test-key',
+  APP_STORE_CONNECT_API_ISSUER_ID: 'test-issuer', APP_VERSION: '2.0.0', IOS_BUILD_NUMBER: '42',
+} as const
 
 describe('iOS build and release boundaries', () => {
   it('signs the containing app and widget with separate provisioning profiles', () => {
@@ -156,16 +168,12 @@ describe('iOS build and release boundaries', () => {
     const run = () => execFileSync('/bin/bash', ['-c', step.run!], {
       cwd: directory, stdio: 'pipe',
       env: {
-        PATH: `${directory}:${process.env.PATH ?? ''}`, NODE_ENV: 'test', ORBIT_APP_VARIANT: options.variant, GITHUB_REF: options.ref,
+        ...iosReleaseEnvironment,
+        PATH: `${directory}:${process.env.PATH ?? ''}`, ORBIT_APP_VARIANT: options.variant, GITHUB_REF: options.ref,
         GITHUB_REPOSITORY: 'owner/repository',
-        ORBIT_APPLE_TEAM_ID: 'TESTTEAM01', ORBIT_IOS_APP_STORE_ID: '1234567890',
-        IOS_PROVISIONING_PROFILE_NAME: 'Orbit Distribution', EXPO_PUBLIC_GOOGLE_CLIENT_ID: 'client',
-        IOS_WIDGET_PROVISIONING_PROFILE_NAME: 'Orbit Widget Distribution',
-        EXPO_PUBLIC_TURNSTILE_SITE_KEY: 'site', EXPO_PUBLIC_SENTRY_DSN: 'dsn',
-        SENTRY_AUTH_TOKEN: 'test-token', APP_STORE_CONNECT_API_KEY_ID: 'test-key',
-        APP_STORE_CONNECT_API_ISSUER_ID: 'test-issuer',
         ...declaredStepEnvironment(step, {
-          APP_VERSION: '2.0.0', IOS_BUILD_NUMBER: '42', PLATFORM_ONLY_REASON: options.platformOnlyReason ?? '', GH_TOKEN: 'test-token',
+          APP_VERSION: iosReleaseEnvironment.APP_VERSION, IOS_BUILD_NUMBER: iosReleaseEnvironment.IOS_BUILD_NUMBER,
+          PLATFORM_ONLY_REASON: options.platformOnlyReason ?? '', GH_TOKEN: 'test-token',
         }),
       },
     })
@@ -211,5 +219,17 @@ describe('iOS build and release boundaries', () => {
     } finally {
       release.cleanup()
     }
+  })
+
+  it.each(['', ' \t'])('rejects the empty Apple client ID %j before signing', (value) => {
+    const workflow = readWorkflow<'release'>('ios-release')
+    const script = workflow.jobs.release.steps.find((step) => step.name === 'Validate the release configuration')?.run
+    expect(script).toBeTypeOf('string')
+    const result = spawnSync('/bin/bash', ['-c', script!], {
+      cwd: tmpdir(), encoding: 'utf8',
+      env: { ...iosReleaseEnvironment, EXPO_PUBLIC_APPLE_CLIENT_ID: value },
+    })
+    expect(result.status).toBe(1)
+    expect(result.stdout + result.stderr).toContain('::error::Missing EXPO_PUBLIC_APPLE_CLIENT_ID')
   })
 })

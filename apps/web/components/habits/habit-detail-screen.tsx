@@ -557,7 +557,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       return false
     }
   }, [showError])
-  const writeLog = async (targetHabitId: string, intent: 'log' | 'unlog', confirmed = false) => {
+  const writeLog = async (targetHabitId: string, intent: 'log' | 'unlog', confirmed = false, onStart?: () => void) => {
     const currentDate = new Date()
     const accountToday = formatAPIDateInTimeZone(currentDate, profile.timeZone)
     const targetHabit = targetHabitId === habitId ? habit
@@ -579,6 +579,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
     if (pendingToggleKeys.has(toggleKey)) return false
 
     pendingToggleKeys.add(toggleKey)
+    onStart?.()
     try {
       return await runWrite(
         () => logHabit.mutateAsync({ habitId: targetHabitId, date: dateStr, intent }),
@@ -600,7 +601,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   }
   const confirmLog = async () => {
     if (completionDisabled) { setConfirm(null); return }
-    if (await writeLog(habitId, 'log')) setConfirm(null)
+    await writeLog(habitId, 'log', false, () => setConfirm(null))
   }
   const confirmDelete = async () => {
     if (!await runWrite(() => deleteHabit.mutateAsync(habitId), t('habits.detail.deleteError'))) return
