@@ -93,8 +93,41 @@ jobs:
 
       - run: npm run build
 
-  tool-hook-tests:
-    name: Tool and Hook Tests
+  # Each shard runs a deterministic share of the tools harness case modules.
+  # tools/test-tools-timings.json holds CI seconds per module from the run in its sourceRun field, and the tools
+  # harness fails when that snapshot projects the slowest shard past its budget. timeout-minutes is the live guard.
+  # Regenerate the snapshot with node tools/record-tool-timings.mjs <run-id>. Tool and Hook Tests below keeps the required check name.
+  # Run 42961275542 (four shards) took 4:31 to 5:25 end to end per shard, and the harness step took 215 to 260 s.
+  # The 8 minute limit is about 1.5 times the slowest end to end time of 325 s.
+  tool-tests:
+    name: Tool tests (${{ matrix.shard }}/${{ matrix.total }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+        total: [4]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Use the repository npm version
+        run: npm install --global "$(node -p "require('./package.json').packageManager")" --no-audit --no-fund
+
+      - run: npm ci
+
+      - name: Run tools harness shard
+        run: node tools/test-tools.mjs --shard ${{ matrix.shard }}/${{ matrix.total }}
+
+  hook-tests:
+    name: Hook and workflow tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -123,13 +156,23 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tools/check-surface-scope.mjs --graphic-floor-only
 
-      - name: Run tools harness
-        if: ${{ !cancelled() }}
-        run: node tools/test-tools.mjs
-
       - name: Run hooks harness
         if: ${{ !cancelled() }}
         run: node .claude/hooks/test-hooks.mjs
+
+  tool-hook-tests:
+    name: Tool and Hook Tests
+    if: ${{ always() }}
+    needs: [tool-tests, hook-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every tool shard and the hook tests
+        env:
+          TOOL_RESULT: ${{ needs.tool-tests.result }}
+          HOOK_RESULT: ${{ needs.hook-tests.result }}
+        run: |
+          test "$TOOL_RESULT" = success
+          test "$HOOK_RESULT" = success
 
   unit-tests:
     name: Unit Tests
