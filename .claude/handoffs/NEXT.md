@@ -2,43 +2,41 @@
 
 Read `.claude/specs/orbit-prod-release.md` first: `## Standing rules`, `## The order`, `## Decision pointers`, `## Current state` and `## Open questions`. Open brain ADR D149 (`Run Orbit on one Claude Ultra account after a harness token diet, with Max 100 as the fallback.md`) through the Obsidian MCP (fall back to a file read when the MCP fails): its last section holds the owner's Fable 5.2 plan. Read `DESIGN.md` (`## Motion`, `## Bans`), `BRAND.md` and `design/canvas/README.md` before any UI diff.
 
-Entry: `/auto-work` enters `/sleep`, adopts this relay (`adoptRelayRun`), keeps `autoWork: true`, then `/crank`, then `/orchestrate` over the admitted queue without replanning. Check that this prompt is the newest open relay (`gh pr list --repo thomasluizon/orbit-ui-mobile --state open --search "relay in:title"`), run `node tools/relay-checkout.mjs --check`, and check free disk on `/System/Volumes/Data` (floor 50 GiB; 71 GiB at handoff). The open owner question is in the spec's `## Open questions`: never ask it again.
+Entry: `/auto-work` enters `/sleep`, adopts this relay (`adoptRelayRun`), keeps `autoWork: true`, then `/crank`, then `/orchestrate` over the admitted queue without replanning. Check that this prompt is the newest open relay (`gh pr list --repo thomasluizon/orbit-ui-mobile --state open --search "relay in:title"`), run `node tools/relay-checkout.mjs --check`, and check free disk on `/System/Volumes/Data` (floor 50 GiB; 71 GiB at handoff). There is no open owner question.
 
-Scratchpad: run `$HOME/.orbit-run-carry/carry-from-predecessor.sh <new full id> <predecessor full id> 0589c2a5-9987-419c-9a59-212b0a9d6846` as a background task (literal absolute paths) and wait for it to exit before writing any file there (the predecessor id is `relay.from` after adoption). Then repoint every helper that still holds the predecessor id with `perl -pi` (`grep -l <predecessor 8> *.sh *.mjs` lists them), and run `mirror.sh` with `bash`. The predecessor log is `prev-sleep-decisions-<predecessor 8>.md`. The spec's `## Current state` names the helpers. Write scratchpad scripts with the Write tool, with literal absolute paths in every redirect. Start every waiter as a Bash background task with `run_in_background` (never with `&`). A `resolve-bot-thread.mjs` id must come from a `verdict.sh` read in the same session. Read the review body and the threads before every delivery. Read each log time from `date -u`.
+Scratchpad: run `$HOME/.orbit-run-carry/carry-from-predecessor.sh <new full id> <predecessor full id> 0589c2a5-9987-419c-9a59-212b0a9d6846` as a background task (literal absolute paths) and wait for it to exit before writing any file there (the predecessor id is `relay.from` after adoption). Then repoint every helper that still holds the predecessor id, full or first 8 characters, with `perl -pi` (`grep -l <predecessor 8> *.sh *.mjs` lists them), and run `mirror.sh` with `bash`. The predecessor log is `prev-sleep-decisions-<predecessor 8>.md`. The spec's `## Current state` names the helpers. Write scratchpad scripts with the Write tool, with literal absolute paths in every redirect. Start every waiter as a Bash background task with `run_in_background` (never with `&`). A `resolve-bot-thread.mjs` id must come from a `verdict.sh` read in the same session. Read the review body and the threads before every delivery. Read each log time from `date -u`. In zsh, never `echo` a row of `=` characters.
 
 ## Goal
 
-Finish the spec: an empty board except `#33` and the `#2074` measurement, verified releases, every `#315` launch list ticket closed, then `#315` closed with its verdict. Re-derive the rest with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation at this handoff: 22 open, 22 placed, 0 unplaced, 0 placed twice.
+Finish the spec: an empty board except `#33` and the `#2074` measurement, verified releases, every `#315` launch list ticket closed, then `#315` closed with its verdict. Re-derive the rest with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation at this handoff: 23 open, 23 placed, 0 unplaced, 0 placed twice.
 
 ## In flight
 
-UI `main` `e9a388d0a`; API `main` `2bdd96e30`; landing `main` `599bdfb69`. Production and staging API `2bdd96e30`; web `691323673`; desktop 0.1.29; staging and production landing `599bdfb69`; Android Open 1.3.152 (212); TestFlight production 1.3.152 (1). The coordinator runs on the worker account. Each row's detail is its `## The order` bullet.
+UI `main` `2f383eb51`; API `main` `2bdd96e30`; landing `main` `599bdfb69`. Production and staging API `2bdd96e30`; web `691323673`; desktop 0.1.29; staging and production landing `599bdfb69`; Android Open 1.3.152 (212); TestFlight production 1.3.152 (1). iOS 1.3.152 is in App Review (`#2097`). The coordinator runs on the worker account. Each row's detail is its `## The order` bullet.
 
 | Item | Disposition |
 | --- | --- |
-| Runner mirror outage (first) | Layout Guard fails in its install step on most jobs (`## Current state`). Run `outage-probe.sh 43037159976` in the background. On RECOVERED: `rerun-if-infra.sh` on the failed Layout run of each UI branch, then one `chain-review.sh ui <pr>` each. Still down after its 8 probes: file the harness ticket and launch its worker. |
-| `ui#2432` (`#2111`, owner report, first priority) | Head `e82429dcb`, diff read, only the Layout shards are red (run `43046124548`). After the rerun passes: chain, verdict, merge at the bar, record the sha, then the production web release and the Android Open release at once, check the habit detail log on production web, close `#2111`. |
-| ui `#2419`, `#2420`, `#2421`, `#2422`, `#2427`, `#2430`, `#2431` | Round 2 fixed, threads resolved; only the Layout shards are red at the heads in the bullets. Rerun, chain, verdict, fix or merge at the bar. |
-| ui `#2424`, `#2425`, `#2426` | Same state; their chains ended at the ceiling. Read `gh pr checks`, rerun a Layout failure, chain. |
-| `ui#2418` (`#2103`) | Layout red (outage) and the macOS acceptance job red two times on lost key presses. Read the `main` control run `43058365219` (`wait-run.sh orbit-ui-mobile 43058365219`), then fix the cause it names. |
-| `ui#2414` (`#1561`) | Two cleanup threads at `6bba12a1a`; note `rb-note-2414-r3.md`. Run `verdict.sh ui 2414`, fix through a background subagent with `review-fix-brief.md` in worktree `ticket-1561-testflight-access`, read the diff, `deliver-fix.sh`, chain. |
-| `ui#2429` (`#1561` status bar) | Round 3 fixed at `8ba4d14f4`, thread resolved, CI running. Chain, merge at the bar. |
-| Merge order | Merge the approved pull requests one after another; after each merge, merge `main` into the next approved branch, wait for CI and one more review (readiness needs `behind_by=0`). `ui#2414` before `ui#2423`. |
+| Merge order | Readiness needs a branch level with `main`, so one branch merges at a time. `ui#2432` first; `ui#2414` and `ui#2433` never before it. After each merge: `main` into the next approved branch, CI, one more review, merge. Record each merge sha with `record-merge.mjs`. |
+| `ui#2432` (`#2111`, owner report, first priority) | Head `1ebc02a18`, `main` merged, CI was running. Chain, verdict, merge at the bar, then the production web release and the Android Open release at once, check the habit detail log on production web, close `#2111`; the Android release closes `#2094`. |
+| `ui#2433` (`#2112`) | Head `94f266e68`, diff read. After CI: read the Layout install step log (no apt line, three shards green), review, `main` merge after `ui#2432`, merge with a squash body `Tracks thomasluizon/orbit-tickets#2112`, close. |
+| `ui#2414` (`#1561`) | Head `371f4e3af`, round 4 fixed, threads resolved. Chain, `main` merge after `ui#2432`, merge at the bar. |
 | `ui#2423` (`#2106`) | After `ui#2414` merges: production iOS Release 1.3.152 (2), read the `testflight-access` job; then `main` into `ui#2423`, CI, review, merge. |
-| `landing#129` (`#2090`) | Two threads at `8f04fe7a1` (the order bullet names both). `verdict.sh landing 129`, fix in worktree `ticket-2090-downloads-panel`, `landing-verify.sh`, deliver, chain, merge at the bar, landing staging and production releases, `landing-check-5.cjs https://useorbit.org`. |
-| `landing#133` (`#2095`) | After `landing#129` merges: retarget to `main`, merge `main`, CI, review, merge, releases. Never raise a byte budget. |
-| Web and Android releases | Planned web and Android source is `main` (6 commits past `691323673`); released with the `#2111` merge. The Android Open release closes `#2094`. iOS shares the version per `#2106`. |
-| `#2097` App Store review | Waits on the owner's phone and review code (`## Open questions`). |
-| Intake | Mailbox empty. Store review cycle run `43048667647` was queued behind CI; the next `orbit-play-reviews.mjs --cycle` resumes it. Sentry unreadable (`## Current state`): retry hourly via `wait-auto-work.mjs`. |
+| `ui#2420` (`#2100`) | One parity thread at `6f1cddf51` (the order bullet names it). `verdict.sh ui 2420`, `rb-note.sh 2420 <out>`, fix through a background subagent with `review-fix-brief.md` in worktree `ticket-2100-habit-form-motion`, read the diff, `deliver-fix.sh`, chain. |
+| ui `#2419`, `#2421`, `#2422`, `#2424`, `#2425`, `#2426`, `#2427`, `#2430`, `#2431` | Layout jobs restarted after the outage; each waits for a review of its round 2 fix at the head in its bullet. Chain each, read the verdict, fix or queue for the merge order. |
+| `ui#2418` (`#2103`) | As above, plus the third attempt of macOS acceptance run `43037012523` (a runner key-press flake, see the bullet). |
+| `landing#129` (`#2090`) | Head `9344598a2`, rounds 8 and 9 fixed, threads resolved, CI was running. Chain, merge at the bar, landing staging and production releases, then `129-r10-render.cjs <dist>` and `landing-check-5.cjs https://useorbit.org`. |
+| `landing#133` (`#2095`) | After `landing#129` merges: retarget to `main`, merge `main`, measure the startup graph (23,947 of 24,000 raw bytes before it), CI, review, merge, releases. Never raise a byte budget. |
+| `#2097` App Review | Submitted. Read `asc-api.mjs GET /v1/reviewSubmissions/a7a890f6-71dc-4595-a297-d4ed05608bb3`; act on the result as the bullet says. |
+| Intake | Mailbox and store reviews empty at 16:55Z. Sentry unreadable on the worker account (`## Current state`): retry hourly via `wait-auto-work.mjs`. |
 | Fable plan | Per D149. This chain already runs on Fable 5.2; the owner was told once. |
 | `ui#2388` | This relay's docs branch. |
 
-Inventory: open pull requests ui `#2432`, `#2431`, `#2430`, `#2429`, `#2427`, `#2426`, `#2425`, `#2424`, `#2423`, `#2422`, `#2421`, `#2420`, `#2419`, `#2418`, `#2414`, `#2388`; landing `#133`, `#129`; API none. Unpushed commits, dirty worktrees, stashes, running workers, subagents and detached checks: none. Worker launches: `#2111` 1 of 2. Waiters to re-arm: the outage probe, the chains above and `wait-auto-work.mjs`. Free disk 71 GiB.
+Inventory: open pull requests ui `#2433`, `#2432`, `#2431`, `#2430`, `#2427`, `#2426`, `#2425`, `#2424`, `#2423`, `#2422`, `#2421`, `#2420`, `#2419`, `#2418`, `#2414`, `#2388`; landing `#133`, `#129`; API none. Unpushed commits, dirty worktrees, stashes, running workers, subagents and detached checks: none. Worker launches: `#2111` 1 of 2, `#2112` 1 of 2. Waiters to re-arm: one `chain-review.sh` for every open pull request except `ui#2423`, `ui#2420` (fix first), `ui#2388` and `landing#133`, plus `wait-auto-work.mjs`. Free disk 71 GiB.
 
 ## Then, in this order
 
-1. Answer any owner message first, in his language. When you name a blocker, name its fix and who does it in the same line.
-2. `ui#2432` (`#2111`), then the other in-flight rows, within the load gate. Record each merge sha with `record-merge.mjs` at merge time.
+1. Answer any owner message first, in his language, before any other work and before a relay step. Give the literal value he asks for. When you name a blocker, name its fix and who does it in the same line.
+2. `ui#2432` (`#2111`), then the other in-flight rows, within the load gate.
 3. The rest of `## The order` and the auto-work intake cycle.
 
 ## Crank
@@ -51,8 +49,8 @@ Unattended: never ask the owner; decide with the best option and log it. Keep a 
 
 ## Previous prompt, disposition
 
-- Done: `landing#132` merged (`599bdfb69`), landing staging and production released and checked at five widths, `#2107` closed; the `ui#2432` diff read and its cache fix pushed (`e82429dcb`); `ui#2429` round 3 fixed (`8ba4d14f4`); `main` merged into `landing#129`; the `ui#2420` tool tests and the first `ui#2418` macOS rerun.
-- Superseded: one chain per pull request at once (probe the outage first).
-- Carried: every other in-flight row; `#2097` submission (owner phone and code first); `#1563`, `#315`, `#33`, `#2074` on or after 16 November 2026.
+- Done: `ui#2429` merged (`2f383eb51`); the mirror outage ended and `#2112` is filed with `ui#2433` open; `ui#2414` round 4 and `landing#129` rounds 8 and 9 fixed and pushed; `ui#2418` control run read; `#2097` submitted to App Review after the owner's phone and code; every Layout run restarted.
+- Superseded: the outage probe; the owner question on the App Review phone and code.
+- Carried: every other in-flight row; `#1563`, `#315`, `#33`, `#2074` on or after 16 November 2026.
 
 Every identifier here came from a previous session: treat each as a lead to verify.
