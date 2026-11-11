@@ -161,13 +161,22 @@ test("web and Android accept dispatch evidence only for the selected SHA", () =>
   }
 })
 
-test("web build refuses a missing selected DSN without using the other environment", () => {
-  const step = stepNamed(web.jobs.build, "Validate browser Sentry DSN")
+test("web build refuses a missing selected browser variable without using the other environment", () => {
+  const step = stepNamed(web.jobs.build, "Validate browser build variables")
+  const names = { production: ["PRODUCTION_DSN", "PRODUCTION_APPLE_CLIENT_ID"], staging: ["STAGING_DSN", "STAGING_APPLE_CLIENT_ID"] }
   for (const environment of ["production", "staging"]) {
-    const settings = { RELEASE_ENVIRONMENT: environment, PRODUCTION_DSN: "production-dsn", STAGING_DSN: "staging-dsn" }
+    const settings = {
+      RELEASE_ENVIRONMENT: environment, PRODUCTION_DSN: "production-dsn", STAGING_DSN: "staging-dsn",
+      PRODUCTION_APPLE_CLIENT_ID: "production-apple", STAGING_APPLE_CLIENT_ID: "staging-apple",
+    }
     assert.equal(execute(step.run, settings).status, 0)
-    settings[environment === "production" ? "PRODUCTION_DSN" : "STAGING_DSN"] = ""
-    assert.notEqual(execute(step.run, settings).status, 0)
+    for (const [name, message] of [[names[environment][0], /NEXT_PUBLIC_SENTRY_DSN/], [names[environment][1], /NEXT_PUBLIC_APPLE_CLIENT_ID/]]) {
+      for (const empty of ["", " \t"]) {
+        const rejected = execute(step.run, { ...settings, [name]: empty })
+        assert.notEqual(rejected.status, 0)
+        assert.match(rejected.stdout + rejected.stderr, message)
+      }
+    }
   }
 })
 
@@ -268,12 +277,18 @@ test("staging status gates reject absent, stale and failed smoke evidence on bot
   }
 })
 
-test("Android validates the public DSN with its release settings", () => {
+test("Android validates the public DSN and Apple client ID with its release settings", () => {
   const job = load("android-release").jobs["release-android"]
   const step = stepNamed(job, "Validate release secrets")
   const environment = Object.fromEntries(Object.keys(step.env).map((name) => [name, "fixture-setting"]))
-  environment.EXPO_PUBLIC_SENTRY_DSN = ""
-  assert.notEqual(execute(step.run, environment).status, 0)
   environment.EXPO_PUBLIC_SENTRY_DSN = "fixture-dsn"
+  environment.EXPO_PUBLIC_APPLE_CLIENT_ID = "fixture-apple"
   assert.equal(execute(step.run, environment).status, 0)
+  for (const name of ["EXPO_PUBLIC_SENTRY_DSN", "EXPO_PUBLIC_APPLE_CLIENT_ID"]) {
+    for (const empty of ["", "  "]) {
+      const rejected = execute(step.run, { ...environment, [name]: empty })
+      assert.notEqual(rejected.status, 0)
+      assert.match(rejected.stdout + rejected.stderr, new RegExp(`Missing required release setting: ${name}`))
+    }
+  }
 })
