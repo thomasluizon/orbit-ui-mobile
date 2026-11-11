@@ -3,8 +3,18 @@ const API_ORIGIN = "https://api.appstoreconnect.apple.com"
 /**
  * The one App Store Connect API transport: a fresh bearer token per request (each token lives 10 minutes),
  * a 30-second limit, GET with pagination and JSON POST. A pagination link must keep the API host and the
- * first path, and is read once, so the token never goes to another host.
+ * first path, and is read once, so the token never goes to another host. A failure names the method, path,
+ * status and the first error's code and title. The detail is never read: Apple repeats a person's address there.
  */
+const ADDRESS_PATTERN = /[^\s@"'<>]+@[^\s@"'<>]+/g
+
+const errorSummary = async (response) => {
+  const body = await response.json().catch(() => null)
+  const { code, title } = body?.errors?.[0] ?? {}
+  if (typeof code !== "string" || typeof title !== "string") return ""
+  return `: ${code} "${title}"`.replace(ADDRESS_PATTERN, "[address]")
+}
+
 export const apiClient = (createToken, request = fetch) => {
   const send = async (url, options) => {
     const response = await request(url, {
@@ -12,7 +22,7 @@ export const apiClient = (createToken, request = fetch) => {
       headers: { Authorization: `Bearer ${createToken()}`, ...(options.body ? { "Content-Type": "application/json" } : {}) },
       signal: AbortSignal.timeout(30_000),
     })
-    if (!response.ok) throw new Error(`App Store Connect ${options.method} ${new URL(url).pathname} failed (HTTP ${response.status})`)
+    if (!response.ok) throw new Error(`App Store Connect ${options.method} ${new URL(url).pathname} failed (HTTP ${response.status})${await errorSummary(response)}`)
     return response
   }
   const getAll = async (path, query = {}) => {

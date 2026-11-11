@@ -76,9 +76,11 @@ Follow only the dispatched run. After the `release` job uploads the build, the s
 `testflight-access` (`needs: release`, `ubuntu-latest`, 30 minutes) runs `tools/testflight-access.mjs`.
 It waits until App Store Connect lists the exact version and build as `VALID`, and it fails the job on
 `FAILED`, `INVALID` or a timeout. It then makes sure the app has an internal beta group with access to all
-builds, and it links to that group every tester of the team's other internal beta groups. It creates the
-group only when missing, it never creates a tester, and it fails when the group would hold no tester. The
-job summary shows the processing state, the group name, the tester count and the number of testers this run
-linked. If this job fails, use "Re-run failed jobs". The rerun does not upload the build again and does not
-use a new build number. The release key needs only the App Manager role. Report the run URL,
+builds, and it makes that group hold every person of the team's other internal beta groups. A tester record
+belongs to one app, so for each such person that the group does not hold, matched by e-mail address without
+regard to case, it creates the app's own tester record in the group. It invents no new person. It creates the
+group only when missing and it fails when the group would hold no tester. The job summary shows the processing
+state, the group name, the tester count and the number of testers this run added. It never prints an e-mail
+address or a name. A failed create fails the job with the App Store Connect error code and title. If this job fails, use "Re-run failed jobs". The rerun does not upload the build again
+and does not use a new build number. The release key needs only the App Manager role. Report the run URL,
 commit, variant, version, build number and the job summary. Never print signing material.

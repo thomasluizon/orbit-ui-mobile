@@ -50,6 +50,12 @@ export const cases = async () => {
 
   const denied = await rejects(apiClient(() => "token", async () => new Response("{}", { status: 403 })).getAll("/v1/betaGroups"))
   T("app store connect: an HTTP failure names the method, the path and the status", denied === "App Store Connect GET /v1/betaGroups failed (HTTP 403)")
+  const detailed = await rejects(apiClient(() => "token", async () => Response.json({ errors: [{ id: "e1", status: "409", code: "STATE_ERROR", title: "The request cannot be fulfilled because of the state of another resource.", detail: "Tester(s) cannot be assigned: person@example.test" }] }, { status: 409 })).post("/v1/betaTesters", {}))
+  T("app store connect: a failure adds the first error's code and title and never the detail", detailed === 'App Store Connect POST /v1/betaTesters failed (HTTP 409): STATE_ERROR "The request cannot be fulfilled because of the state of another resource."')
+  const addressed = await rejects(apiClient(() => "token", async () => Response.json({ errors: [{ status: "409", code: "ENTITY_ERROR", title: "Tester person@example.test exists", detail: "x" }] }, { status: 409 })).post("/v1/betaTesters", {}))
+  T("app store connect: an e-mail address inside an error title is replaced", addressed === 'App Store Connect POST /v1/betaTesters failed (HTTP 409): ENTITY_ERROR "Tester [address] exists"')
+  const notJson = await rejects(apiClient(() => "token", async () => new Response("<html>bad gateway</html>", { status: 502 })).getAll("/v1/betaGroups"))
+  T("app store connect: a failure with a body that is not an error document keeps the short message", notJson === "App Store Connect GET /v1/betaGroups failed (HTTP 502)")
   const shapeless = await rejects(apiClient(() => "token", async () => Response.json({ errors: [] })).getAll("/v1/betaGroups"))
   T("app store connect: a page without a data array is refused", shapeless === "Invalid App Store Connect response for /v1/betaGroups")
 }
