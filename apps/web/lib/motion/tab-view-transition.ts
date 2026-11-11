@@ -1,11 +1,10 @@
 import type { ViewTransitionInstance } from 'react'
 import {
   resolveMotionPreset,
+  resolveTabSwitchDirection,
   type MotionBezier,
   type MotionNavigationIntent,
 } from '@orbit/shared/theme'
-
-export const PRIMARY_TAB_PATHS: readonly string[] = ['/', '/calendar', '/progress', '/profile']
 
 export const TAB_VIEW_TRANSITION_NAME = 'orbit-tab-page'
 
@@ -21,7 +20,7 @@ export const TAB_VIEW_TRANSITION_CLASS = {
 } as const
 
 export function isPrimaryTabSwitch(from: string, to: string): boolean {
-  return from !== to && PRIMARY_TAB_PATHS.includes(from) && PRIMARY_TAB_PATHS.includes(to)
+  return resolveTabSwitchDirection(from, to) !== null
 }
 
 export function getTabTransitionTypes(
@@ -30,15 +29,12 @@ export function getTabTransitionTypes(
   intent: MotionNavigationIntent,
   reducedMotion: boolean,
 ): string[] | undefined {
-  if (intent === 'instant' || reducedMotion || !isPrimaryTabSwitch(from, to)) {
+  const direction = resolveTabSwitchDirection(from, to)
+  if (intent === 'instant' || reducedMotion || direction === null) {
     return undefined
   }
 
-  return [
-    PRIMARY_TAB_PATHS.indexOf(to) > PRIMARY_TAB_PATHS.indexOf(from)
-      ? TAB_VIEW_TRANSITION_TYPES.forward
-      : TAB_VIEW_TRANSITION_TYPES.back,
-  ]
+  return [direction > 0 ? TAB_VIEW_TRANSITION_TYPES.forward : TAB_VIEW_TRANSITION_TYPES.back]
 }
 
 function toCssEasing(easing: MotionBezier): string {
