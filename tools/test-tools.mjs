@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
-import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, readdirSync, readFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { performance } from "node:perf_hooks"
 import { fileURLToPath } from "node:url"
 
-import { mergeTimingLines, parseShard, partitionModules, TIMINGS_MARKER } from "./lib/test-shards.mjs"
+import { parseShard, partitionModules, TIMINGS_MARKER } from "./lib/test-shards.mjs"
 
 const startedAt = performance.now()
 let assertionCount = () => 0
@@ -23,12 +23,11 @@ const USAGE = `usage: test-tools.mjs
   --shard <i/n>  run shard i of n (1-based). The shards partition every case module, so
                  running all n shards runs every module once. Cannot combine with --only
   --list         print the selected case module names, one per line, and exit 0 without running them
-  --write-timings <path> --source-run <id>
-                 run nothing: read a CI log from stdin, merge the "# tool-timings" line of every
-                 shard in it, and write the module seconds to <path> with <id> as the source run.
-                 The shard partition reads tools/test-tools-timings.json.
-                 Example: gh run view <id> --log | node tools/test-tools.mjs --write-timings tools/test-tools-timings.json --source-run <id>
   --help, -h     print this usage and exit 0
+
+  The shard partition reads tools/test-tools-timings.json. Every run prints one "# tool-timings"
+  JSON line; node tools/record-tool-timings.mjs <run-id> merges those lines from every shard of a
+  CI run into that file.
 
 exit codes: 0 every check passed, 1 a failing check, 2 usage error`
 
@@ -45,6 +44,7 @@ const LIB_DIR = join(TOOLS_DIR, "lib")
  * Each covered unit's decision-path module: [path under tools/, module under tools/__tests__/].
  * A library under tools/lib/ is registered by its relative path, because it has no CLI for the
  * universal contract to check and this registry is the only coverage it can carry.
+ * A unit can own several modules so the CI shards can balance a slow suite; its first row owns the contract.
  */
 const CASE_MODULES = [
   ["desktop-bench/run.mjs", "desktop-bench"],
@@ -65,6 +65,8 @@ const CASE_MODULES = [
   ["check-handoff-size.mjs", "check-handoff-size"],
   ["check-calibration.mjs", "check-calibration"],
   ["check-feature-parity.mjs", "check-feature-parity"],
+  ["check-feature-parity.mjs", "check-feature-parity-web"],
+  ["check-feature-parity.mjs", "check-feature-parity-mobile"],
   ["check-dashes.mjs", "check-dashes"],
   ["check-copy.mjs", "check-copy"],
   ["check-docker-registries.mjs", "check-docker-registries"],
@@ -147,6 +149,7 @@ const CASE_MODULES = [
   ["run-status.mjs", "run-status"],
   ["start-relay-successor.mjs", "start-relay-successor"],
   ["record-gh-fixtures.mjs", "record-gh-fixtures"],
+  ["record-tool-timings.mjs", "record-tool-timings"],
   ["record-classifier-fixtures.mjs", "record-classifier-fixtures"],
   ["release-plan.mjs", "release-plan"],
   ["redesign-coverage.mjs", "redesign-coverage"],
@@ -178,21 +181,15 @@ const usageError = (message) => {
 const requestedModules = []
 let shardText
 let listOnly = false
-let timingsOutputPath
-let sourceRun
 for (let index = 2; index < process.argv.length; index++) {
   const argument = process.argv[index]
   if (argument === "--list") {
     listOnly = true
-  } else if (argument === "--only" || argument === "--shard" || argument === "--write-timings" || argument === "--source-run") {
+  } else if (argument === "--only" || argument === "--shard") {
     const value = process.argv[++index]
-    if (!value || value.startsWith("-")) {
-      usageError(`${argument} requires ${{ "--only": "a case-module name", "--shard": "a value like 2/4", "--write-timings": "an output path", "--source-run": "a run id" }[argument]}`)
-    }
+    if (!value || value.startsWith("-")) usageError(`${argument} requires ${argument === "--only" ? "a case-module name" : "a value like 2/4"}`)
     if (argument === "--only") requestedModules.push(value)
-    else if (argument === "--shard") shardText = value
-    else if (argument === "--write-timings") timingsOutputPath = value
-    else sourceRun = value
+    else shardText = value
   } else {
     usageError(`unknown option: ${argument}`)
   }
@@ -200,16 +197,6 @@ for (let index = 2; index < process.argv.length; index++) {
 const shard = shardText === undefined ? null : parseShard(shardText)
 if (shardText !== undefined && !shard) usageError(`--shard needs i/n with 1 <= i <= n, got ${shardText}`)
 if (shard && requestedModules.length > 0) usageError("--shard cannot combine with --only")
-if (timingsOutputPath && (shard || requestedModules.length > 0 || listOnly)) usageError("--write-timings runs nothing, so it cannot combine with --only, --shard or --list")
-if (timingsOutputPath && !/^\d+$/.test(sourceRun ?? "")) usageError("--write-timings needs --source-run <numeric run id>")
-if (sourceRun !== undefined && !timingsOutputPath) usageError("--source-run only goes with --write-timings")
-if (timingsOutputPath) {
-  const merged = mergeTimingLines(readFileSync(0, "utf8"))
-  if (!merged) usageError(`stdin holds no "${TIMINGS_MARKER.trim()}" line`)
-  const previous = JSON.parse(readFileSync(TIMINGS_PATH, "utf8"))
-  writeFileSync(timingsOutputPath, `${JSON.stringify({ ...previous, sourceRun: Number(sourceRun), ...merged }, null, 2)}\n`)
-  process.exit(0)
-}
 
 const validModules = [...CASE_MODULES, ...REPOSITORY_CASE_MODULES].map(([, module]) => module)
 const unknownModules = [...new Set(requestedModules.filter((name) => !validModules.includes(name)))]
@@ -228,7 +215,6 @@ const selection = shard
 const isSelected = (module) => selection === null || selection.has(module)
 const selectedCaseModules = CASE_MODULES.filter(([, module]) => isSelected(module))
 const selectedRepositoryModules = REPOSITORY_CASE_MODULES.filter(([, module]) => isSelected(module))
-const selectedFiles = new Set(selectedCaseModules.map(([file]) => file))
 
 if (listOnly) {
   for (const [, module] of [...selectedCaseModules, ...selectedRepositoryModules]) console.log(module)
@@ -243,14 +229,15 @@ configure({ toolsDir: TOOLS_DIR, self: SELF })
 assertionCount = () => Object.values(assertionTally()).reduce((total, count) => total + count, 0)
 
 const moduleSeconds = {}
-const gateCases = {}
+/** [path under tools/, module name, cases()] in registry order. */
+const gateCases = []
 for (const [file, module] of selectedCaseModules) {
   const loaded = await import(`./__tests__/${module}.mjs`)
   if (typeof loaded.cases !== "function") {
     console.error(`test-tools: tools/__tests__/${module}.mjs exports no cases() for ${file}`)
     process.exit(1)
   }
-  gateCases[file] = loaded.cases
+  gateCases.push([file, module, loaded.cases])
 }
 
 const repositoryCases = {}
@@ -331,6 +318,7 @@ const INVALID_INPUT = {
   "record-readiness.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "record-classifier-fixtures.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "record-gh-fixtures.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "record-tool-timings.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "release-plan.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "redesign-coverage.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "reseed-calibration.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
@@ -353,10 +341,12 @@ const registeredCaseFiles = new Set(CASE_MODULES.map(([file]) => file))
 // A script with no case module has only the universal contract. A shard takes every nth one, so exactly one shard checks it.
 const shardContractScripts = scripts.filter((file) => !registeredCaseFiles.has(file))
   .filter((_, position) => shard !== null && position % shard.count === shard.index - 1)
+/** The first registered module of each unit, which owns that unit's universal contract. */
+const moduleOfFile = {}
+for (const [file, module] of CASE_MODULES) moduleOfFile[file] ??= module
 const contractScripts = selection === null
   ? scripts
-  : scripts.filter((file) => selectedFiles.has(file) || shardContractScripts.includes(file))
-const moduleOfFile = Object.fromEntries(CASE_MODULES.map(([file, module]) => [file, module]))
+  : scripts.filter((file) => (moduleOfFile[file] ? isSelected(moduleOfFile[file]) : shardContractScripts.includes(file)))
 const addSeconds = (module, milliseconds) => {
   if (module) moduleSeconds[module] = (moduleSeconds[module] ?? 0) + milliseconds / 1000
 }
@@ -417,13 +407,19 @@ T(
   `CASE_MODULES rows with no tools/ file: ${orphanedCaseKeys.join(", ")}\n     A skipped key exits 0 while its cases never run. Delete the row or restore the file.`,
 )
 
-for (const [file, cases] of Object.entries(gateCases)) {
-  if (orphanedCaseKeys.includes(file)) continue
+/** Modules whose cases() ran no assertion: an assertion that stops running prints nothing at all. */
+const silentModules = []
+const runCases = async (file, module, cases) => {
   beginToolScope(file)
+  const assertionsBefore = assertionTally()[file] ?? 0
   const caseStartedAt = performance.now()
   await cases()
-  addSeconds(moduleOfFile[file], performance.now() - caseStartedAt)
+  addSeconds(module, performance.now() - caseStartedAt)
+  if ((assertionTally()[file] ?? 0) === assertionsBefore) silentModules.push(module)
   endToolScope()
+}
+for (const [file, module, cases] of gateCases) {
+  if (!orphanedCaseKeys.includes(file)) await runCases(file, module, cases)
 }
 const missingRepositoryCaseFiles = Object.keys(repositoryCases).filter(
   (file) => !existsSync(join(TOOLS_DIR, "..", file)),
@@ -434,21 +430,12 @@ T(
   `repository case rows with no file: ${missingRepositoryCaseFiles.join(", ")}`,
 )
 const moduleOfRepositoryFile = Object.fromEntries(REPOSITORY_CASE_MODULES)
-for (const [file, cases] of Object.entries(repositoryCases)) {
-  beginToolScope(file)
-  const caseStartedAt = performance.now()
-  await cases()
-  addSeconds(moduleOfRepositoryFile[file], performance.now() - caseStartedAt)
-  endToolScope()
-}
+for (const [file, cases] of Object.entries(repositoryCases)) await runCases(file, moduleOfRepositoryFile[file], cases)
 
-const tally = assertionTally()
-const expectedCaseFiles = [...Object.keys(gateCases), ...Object.keys(repositoryCases)]
-const silent = expectedCaseFiles.filter((file) => !orphanedCaseKeys.includes(file) && !(tally[file] > 0))
 T(
   "every registered case module ran at least one assertion",
-  silent.length === 0,
-  `case modules that asserted nothing: ${silent.join(", ")}\n     An assertion that stops running prints nothing at all. Restore the cases.`,
+  silentModules.length === 0,
+  `case modules that asserted nothing: ${silentModules.join(", ")}\n     An assertion that stops running prints nothing at all. Restore the cases.`,
 )
 
 const printedTally = assertionTally()
@@ -457,7 +444,7 @@ console.log("\n# assertion coverage")
 for (const [tool, count] of Object.entries(printedTally).sort(([left], [right]) => left.localeCompare(right))) {
   console.log(`${String(count).padStart(4)}  ${tool}`)
 }
-// One machine-readable line per run: `--write-timings` merges these lines from a CI log into tools/test-tools-timings.json.
+// One machine-readable line per run: tools/record-tool-timings.mjs merges these lines from every shard of a CI run into tools/test-tools-timings.json.
 const roundedSeconds = (value) => Math.round(value * 10) / 10
 const measuredModuleSeconds = Object.fromEntries(
   Object.entries(moduleSeconds).sort(([left], [right]) => left.localeCompare(right)).map(([module, value]) => [module, roundedSeconds(value)]),

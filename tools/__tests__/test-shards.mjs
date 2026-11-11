@@ -1,6 +1,5 @@
 import { spawnSync } from "node:child_process"
-import { mkdtempSync, readFileSync, rmSync } from "node:fs"
-import { tmpdir } from "node:os"
+import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import yaml from "js-yaml"
 
@@ -11,7 +10,7 @@ const TOOL = "lib/test-shards.mjs"
 
 /** One shard job must finish in 6 minutes (the ticket). */
 const SHARD_JOB_LIMIT_SECONDS = 360
-/** Checkout, setup-node and npm ci before the harness step: 66 s at most on PR Tests run 42915781433 (`timings.sourceRun`). */
+/** Checkout, setup-node and npm ci before the harness step: 66 s at most on PR Tests runs 42915781433 and 42944546478. */
 const SHARD_SETUP_SECONDS = 70
 const SHARD_HARNESS_BUDGET_SECONDS = SHARD_JOB_LIMIT_SECONDS - SHARD_SETUP_SECONDS
 
@@ -107,42 +106,45 @@ export const cases = () => {
     shardSeconds({ modules: ["measured", "unmeasured"], seconds: { measured: 4 }, shard: ["unmeasured"] }) === 4,
     `modules with no CI number yet: ${unmeasured.join(", ") || "none"}`)
 
+  // A projection, not a measurement: the committed snapshot's seconds of the slowest shard's modules plus fixedSeconds.
+  // It moves only when the snapshot is regenerated. The live guard is the job's timeout-minutes.
   const projection = (seconds) => slowestShardSeconds({ modules: everyModule, seconds, fixedSeconds: timings.fixedSeconds, shards: listed })
   const scaled = (factor) => Object.fromEntries(Object.entries(timings.seconds).map(([module, value]) => [module, value * factor]))
   const projected = projection(timings.seconds)
-  T(`${TOOL}: the slowest shard projects to ${projected.toFixed(0)}s of CI time, inside the ${SHARD_HARNESS_BUDGET_SECONDS}s budget`,
+  T(`${TOOL}: the committed snapshot projects the slowest shard to ${projected.toFixed(0)}s, inside the ${SHARD_HARNESS_BUDGET_SECONDS}s budget`,
     projected <= SHARD_HARNESS_BUDGET_SECONDS,
-    `the slowest shard projects to ${projected.toFixed(1)}s from run ${timings.sourceRun}\n     Add shards to the matrix in .github/workflows/test.yml, or regenerate: ${timings.regenerate}`)
-  T(`${TOOL}: the projection fails when every module runs slower, so the budget can go red`,
+    `the slowest shard projects to ${projected.toFixed(1)}s from run ${timings.sourceRun}\n     Split the slowest module or add shards to the matrix in .github/workflows/test.yml, then regenerate: ${timings.regenerate}`)
+  T(`${TOOL}: the projection reads absolute snapshot seconds, so a slower snapshot projects past the budget`,
     projection(scaled(1.5)) > SHARD_HARNESS_BUDGET_SECONDS && projection(scaled(1.5)) > projected, `${projection(scaled(1.5)).toFixed(1)}s at 1.5 times`)
-  const heavy = { ...timings.seconds, "added-heavy-module": SHARD_HARNESS_BUDGET_SECONDS }
-  const withHeavy = partitionModules({ modules: [...everyModule, "added-heavy-module"], seconds: heavy, shardCount })
-  T(`${TOOL}: a new heavy module that lands in a shard fails the budget`,
-    slowestShardSeconds({ modules: [...everyModule, "added-heavy-module"], seconds: heavy, fixedSeconds: timings.fixedSeconds, shards: withHeavy }) > SHARD_HARNESS_BUDGET_SECONDS)
+  T(`${TOOL}: no single module outweighs the budget, so a partition can fit it`,
+    Math.max(...Object.values(timings.seconds)) + timings.fixedSeconds <= SHARD_HARNESS_BUDGET_SECONDS,
+    `heaviest module: ${Object.entries(timings.seconds).sort(([, left], [, right]) => right - left)[0].join(" ")}s. Split it into case modules.`)
 
-  const logged = `Tool tests (1/2)\tRun\t2026-11-10T22:35:27.1Z ${TIMINGS_MARKER}${JSON.stringify({ shard: "1/2", fixedSeconds: 0.4, seconds: { b: 2.5, a: 1 } })}\n` +
-    `Tool tests (2/2)\tRun\t2026-11-10T22:35:28.1Z ${TIMINGS_MARKER}${JSON.stringify({ shard: "2/2", fixedSeconds: 1.2, seconds: { c: 4 } })}\n`
+  const timingLine = (shard, seconds, fixedSeconds = 0.4) =>
+    `Tool tests (${shard})\tUNKNOWN STEP\t2026-11-11T02:49:33.7612538Z ${TIMINGS_MARKER}${JSON.stringify({ shard, fixedSeconds, seconds })}\n`
+  const mergeError = (text) => {
+    try {
+      mergeTimingLines(text)
+      return ""
+    } catch (error) {
+      return error.message
+    }
+  }
   T(`${TOOL}: timing lines of every shard merge into one table`,
-    JSON.stringify(mergeTimingLines(logged)) === JSON.stringify({ fixedSeconds: 1.2, seconds: { a: 1, b: 2.5, c: 4 } }) && mergeTimingLines("no timing here") === null)
-  const scratch = mkdtempSync(join(tmpdir(), "test-shards-"))
-  const output = join(scratch, "timings.json")
-  const roundTrip = run("test-tools.mjs", ["--write-timings", output, "--source-run", "7"], { input: logged })
-  const roundTripped = roundTrip.status === 0 ? JSON.parse(readFileSync(output, "utf8")) : null
-  rmSync(scratch, { recursive: true, force: true })
-  T(`${TOOL}: --write-timings writes the merged table with its source run and keeps the regenerate command`,
-    roundTripped?.sourceRun === 7 && roundTripped.fixedSeconds === 1.2 && roundTripped.regenerate === timings.regenerate &&
-      JSON.stringify(roundTripped.seconds) === JSON.stringify({ a: 1, b: 2.5, c: 4 }),
-    `${roundTrip.stderr} ${JSON.stringify(roundTripped)}`)
-  const written = run("test-tools.mjs", ["--write-timings", join(REPO_ROOT, "unused.json"), "--source-run", "7"], { input: "no timing here" })
-  T(`${TOOL}: --write-timings refuses a log with no timing line`, written.status === 2 && /holds no/.test(written.stderr), written.stderr)
-  T(`${TOOL}: --write-timings needs a numeric --source-run`,
-    run("test-tools.mjs", ["--write-timings", join(REPO_ROOT, "unused.json"), "--source-run", "latest"]).status === 2 &&
-      run("test-tools.mjs", ["--write-timings", join(REPO_ROOT, "unused.json")]).status === 2)
+    JSON.stringify(mergeTimingLines(timingLine("1/2", { b: 2.5, a: 1 }) + timingLine("2/2", { c: 4 }, 1.2))) ===
+      JSON.stringify({ fixedSeconds: 1.2, seconds: { a: 1, b: 2.5, c: 4 } }))
+  T(`${TOOL}: a log with no timing line is refused`, /holds no "# tool-timings" line/.test(mergeError("no timing here")), mergeError("no timing here"))
+  const missingShard = mergeError(timingLine("2/4", { b: 1 }) + timingLine("3/4", { c: 1 }) + timingLine("4/4", { d: 1 }))
+  T(`${TOOL}: a missing shard is refused by name, so its modules cannot drop out of the table`, missingShard === "no timing line for shard 1/4", missingShard)
+  const duplicateShard = mergeError(timingLine("1/2", { a: 1 }) + timingLine("1/2", { a: 2 }) + timingLine("2/2", { b: 1 }))
+  T(`${TOOL}: a shard with two timing lines is refused`, duplicateShard === "more than one timing line for shard 1/2", duplicateShard)
+  const mixedCount = mergeError(timingLine("1/2", { a: 1 }) + timingLine("2/2", { b: 1 }) + timingLine("3/3", { c: 1 }))
+  T(`${TOOL}: timing lines of two shard counts are refused`, mixedCount === "the timing lines mix shard counts 2, 3", mixedCount)
+  const unsharded = mergeError(timingLine("all", { a: 1 }))
+  T(`${TOOL}: a timing line from an unsharded run is refused`, unsharded === 'a timing line names shard "all", not i/n', unsharded)
 
   const usage = run("test-tools.mjs", ["--shard", "0/4"])
   T(`${TOOL}: an invalid --shard exits 2`, usage.status === 2 && /--shard needs i\/n/.test(usage.stderr), usage.stderr)
   const combined = run("test-tools.mjs", ["--shard", "1/4", "--only", "bounded-process"])
   T(`${TOOL}: --shard cannot combine with --only`, combined.status === 2 && /cannot combine/.test(combined.stderr), combined.stderr)
-  const timed = run("test-tools.mjs", ["--write-timings", join(REPO_ROOT, "unused.json"), "--source-run", "7", "--only", "bounded-process"])
-  T(`${TOOL}: --write-timings runs nothing, so it refuses --only`, timed.status === 2 && /runs nothing/.test(timed.stderr), timed.stderr)
 }

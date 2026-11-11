@@ -60,23 +60,38 @@ export const partitionDefects = ({ modules, shards }) => {
 export const TIMINGS_MARKER = "# tool-timings "
 
 /**
- * Merge the timing lines of every shard in a CI log into one table.
+ * The only description tools/test-tools-timings.json carries. It names no run, so a regeneration cannot
+ * carry a stale description forward: `sourceRun` is the only provenance field.
+ */
+export const TIMINGS_METHOD =
+  "Per-shard # tool-timings lines from every Tool tests (i/n) job of the sourceRun PR Tests run, merged by tools/record-tool-timings.mjs. Each module owns the wall seconds of its contract checks and cases. fixedSeconds is the largest per-shard harness overhead outside the modules."
+
+/**
+ * Merge the timing lines of every shard of one run into one table.
  * A module runs in one shard, so its seconds come from one line. `fixedSeconds` is the largest per-shard overhead.
- * Returns null when the text holds no timing line.
+ * Throws when the lines do not hold exactly one line for each shard 1..n of a single n: a shard with no line
+ * would silently drop its modules from the table.
  */
 export const mergeTimingLines = (text) => {
-  const seconds = {}
-  let fixedSeconds = 0
-  let lines = 0
-  for (const line of text.split("\n")) {
-    const at = line.indexOf(TIMINGS_MARKER)
-    if (at === -1) continue
-    const timing = JSON.parse(line.slice(at + TIMINGS_MARKER.length))
-    Object.assign(seconds, timing.seconds)
-    fixedSeconds = Math.max(fixedSeconds, timing.fixedSeconds)
-    lines++
+  const timings = text.split("\n").filter((line) => line.includes(TIMINGS_MARKER))
+    .map((line) => JSON.parse(line.slice(line.indexOf(TIMINGS_MARKER) + TIMINGS_MARKER.length)))
+  if (timings.length === 0) throw new Error(`the log holds no "${TIMINGS_MARKER.trim()}" line`)
+  const shards = timings.map((timing) => ({ timing, shard: parseShard(timing.shard) }))
+  const unsharded = shards.find(({ shard }) => !shard)
+  if (unsharded) throw new Error(`a timing line names shard ${JSON.stringify(unsharded.timing.shard)}, not i/n`)
+  const counts = [...new Set(shards.map(({ shard }) => shard.count))].sort((left, right) => left - right)
+  if (counts.length > 1) throw new Error(`the timing lines mix shard counts ${counts.join(", ")}`)
+  const [count] = counts
+  const lines = Array.from({ length: count }, (_, position) => shards.filter(({ shard }) => shard.index === position + 1).length)
+  const duplicated = lines.flatMap((total, position) => (total > 1 ? [`${position + 1}/${count}`] : []))
+  if (duplicated.length > 0) throw new Error(`more than one timing line for shard ${duplicated.join(", ")}`)
+  const missing = lines.flatMap((total, position) => (total === 0 ? [`${position + 1}/${count}`] : []))
+  if (missing.length > 0) throw new Error(`no timing line for shard ${missing.join(", ")}`)
+  const seconds = Object.assign({}, ...timings.map((timing) => timing.seconds))
+  return {
+    fixedSeconds: Math.max(...timings.map((timing) => timing.fixedSeconds)),
+    seconds: Object.fromEntries(Object.entries(seconds).sort(([left], [right]) => left.localeCompare(right))),
   }
-  return lines === 0 ? null : { fixedSeconds, seconds: Object.fromEntries(Object.entries(seconds).sort(([left], [right]) => left.localeCompare(right))) }
 }
 
 /**
