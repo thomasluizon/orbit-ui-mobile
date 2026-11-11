@@ -1,11 +1,8 @@
 import { restoreConversationPage } from '@orbit/shared/chat/conversation-restore'
 import { COMPACT_FAILED_INDEXES, makeExecutedConversationPage, makeRevisedConversationPage, PROPOSED_HABIT_TITLE, REVISED_HABIT_ID, REVISED_HABIT_TITLE, storedOperationId, type StoredExecution } from '@orbit/shared/test-support/conversation-fixtures'
 import { makeOfferedPreview, makeOfferedTaskPreview, makeOfferedChildPreview } from '@orbit/shared/test-support/astra-offer-fixtures'
-import { makeDatedTaskPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, makeCreateWithReusedChildPreview, REUSED_CHILD_HABIT_ID, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview, makeBulkUpdateHabitsPreview, makeBulkUpdateExecutionResponse, TICKET_TASK_DESCRIPTION, TICKET_TASK_TITLE } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
-import { formatLocaleDate } from '@orbit/shared/utils'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { habitKeys } from '@orbit/shared/query'
-import { createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
+import { makeDatedTaskPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeCreateWithReusedChildPreview, reusedChildIconCases, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview, makeBulkUpdateHabitsPreview, makeBulkUpdateExecutionResponse, TICKET_TASK_DESCRIPTION, TICKET_TASK_TITLE } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { formatLocaleDate, habitInitial } from '@orbit/shared/utils'
 import { IntlMessageFormat } from 'intl-messageformat'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -439,18 +436,19 @@ describe('PendingOperationCard (mobile)', () => {
     expect(text).toContain(messages.habits.frequency.everyDay)
   })
 
-  it('shows the cached emoji of a reused child and no top-level outcome for the new habit', () => {
-    const client = new QueryClient()
-    client.setQueryData(habitKeys.list({}), [createMockHabitScheduleItem({ id: REUSED_CHILD_HABIT_ID, emoji: '🚶' })])
+  it('lists no top-level outcome for the new habit that groups an existing habit', () => {
     visibleLocale.actual = true
     visibleLocale.language = 'en'
-    let tree: any
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(<QueryClientProvider client={client}><PendingOperationCard pendingOperation={makeCreateWithReusedChildPreview()} onConfirmExecute={vi.fn()} onPrepareStepUp={vi.fn()} onVerifyStepUp={vi.fn()} /></QueryClientProvider>)
-    })
-    const text = renderedText(tree.toJSON())
-    expect(text).toContain('🚶')
-    expect(text).not.toContain(en.habits.moveParent.toRoot)
+    const { tree } = renderCard(makeCreateWithReusedChildPreview())
+    expect(renderedText(tree.toJSON())).not.toContain(en.habits.moveParent.toRoot)
+  })
+
+  it.each(reusedChildIconCases)('shows the child tiles from the preview with $name', ({ preview, icons }) => {
+    const { tree } = renderCard(preview())
+    for (const [label, icon] of Object.entries(icons)) {
+      const row = tree.root.findAll((node: ReactTestInstance) => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === label)[0]!
+      expect(row.findAllByType(Text)[0]!.props.children).toBe(icon ?? habitInitial(label))
+    }
   })
 
   it.each(childSchedulePreviewCases.flatMap(scenario => ['en', 'pt-BR'].map(locale => ({ ...scenario, locale }))))('preserves the child $name schedule in $locale', (scenario) => {

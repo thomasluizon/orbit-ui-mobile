@@ -139,7 +139,6 @@ export interface PendingOperationCardActions {
   completedOperation?: AgentOperationResult
   canRetry?: boolean
   focusTitleOnMount?: boolean
-  habitEmoji?: (habitId: string) => string | undefined
   openableCapability?: boolean
   onOpenTarget?: (entityId: string, actionType: string) => void
   completeStepUp: (result: PendingOperationExecutionResult) => void
@@ -331,13 +330,6 @@ function previewItemBody<Node>(
   }))
 }
 
-function childIcon(fields: readonly PendingOperationChange[], habitEmoji: PendingOperationCardActions['habitEmoji']): string | undefined {
-  const own = fields.find((field) => field.field === 'emoji')?.newValue
-  if (own) return own
-  const habitId = fields.find((field) => field.field === 'habit_id')?.newValue
-  return habitId ? habitEmoji?.(habitId) : undefined
-}
-
 function previewRows<Node>(
   pendingOperation: PendingAgentOperation,
   card: PendingOperationCardActions,
@@ -383,7 +375,7 @@ function previewRows<Node>(
     }
     return [parent, ...(item.placement?.selected === 'checklist_item' ? [] : pendingOperationSubHabits(item.fields)).map((child, childIndex) => ({
       id: `${item.itemId}-child-${childIndex}`, label: child.title,
-      icon: childIcon(child.fields, card.habitEmoji),
+      icon: child.fields.find((field) => field.field === 'emoji')?.newValue || child.storedEmoji,
       meta: labels.summarize(child.fields, 'createHabit'), indented: true,
       status, irreversible: false, proposed: parent.proposed, wrapLabel: true, wrapMeta: true, editable: false,
       control: revision?.canRevise && revision.rejectSubHabit && card.status == null && !revision.stale

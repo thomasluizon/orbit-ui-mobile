@@ -344,13 +344,18 @@ export function makeNestedHabitPreview(depth: number, reuse: boolean): PendingAg
   })
 }
 
-export const REUSED_CHILD_HABIT_ID = '00000000-0000-4000-8000-0000000000a1'
+const REUSED_CHILD_HABIT_ID = '00000000-0000-4000-8000-0000000000a1'
+const NESTED_REUSED_HABIT_ID = '00000000-0000-4000-8000-0000000000a2'
 
-/** Mirrors the API create preview for a new daily parent that groups an existing habit: the `sub_habits` field carries an `oldValue` although the parent does not exist yet. */
-export function makeCreateWithReusedChildPreview(): PendingAgentOperation {
+/** The API entry for a reused child in `sub_habits.oldValue`: the stored values of its fields, then its stored `emoji`, or null when it has none. */
+function reusedChildOldValue(title: string, emoji: string | null): Record<string, string | null> {
+  return { title, habit_id: title, parent_habit_id: 'No parent', emoji }
+}
+
+/** Mirrors the API create preview for a new daily parent that groups existing habits: `sub_habits.oldValue` lists the stored values of each proposed child in the same order, and a new draft child's values are null. */
+function makeGroupedCreatePreview(children: readonly Record<string, unknown>[], storedChildren: readonly Record<string, unknown>[]): PendingAgentOperation {
   const operation = makeCreateHabitsPreview(1)
   const item = operation.items![0]!
-  const children = [{ habit_id: REUSED_CHILD_HABIT_ID, title: 'Morning walk' }, { title: 'Drink a glass of water' }]
   const base = { entityId: emptyId, entityName: 'Morning routine', oldValue: null, isEditable: true }
   const fields = [
     { ...base, field: 'title', newValue: 'Morning routine', valueType: 'text', proposedValue: 'Morning routine' },
@@ -358,10 +363,41 @@ export function makeCreateWithReusedChildPreview(): PendingAgentOperation {
     { ...base, field: 'frequency_quantity', newValue: '1', valueType: 'number', proposedValue: 1 },
     { ...base, field: 'is_bad_habit', newValue: 'False', valueType: 'boolean', proposedValue: false },
     { ...base, field: 'parent_habit_id', newValue: 'No parent', valueType: 'text', proposedValue: null },
-    { ...base, field: 'sub_habits', oldValue: '[{"title":"Morning walk"},{}]', newValue: JSON.stringify(children), valueType: 'text', proposedValue: children },
+    { ...base, field: 'sub_habits', oldValue: JSON.stringify(storedChildren), newValue: JSON.stringify(children), valueType: 'text', proposedValue: children },
   ]
   return pendingAgentOperationSchema.parse({ ...operation, items: [{ ...item, entityName: 'Morning routine', fields }] })
 }
+
+export function makeCreateWithReusedChildPreview({ storedEmoji = '🚶', proposedEmoji }: { storedEmoji?: string | null; proposedEmoji?: string } = {}): PendingAgentOperation {
+  return makeGroupedCreatePreview(
+    [{ title: 'Drink a glass of water', emoji: '💧' }, { habit_id: REUSED_CHILD_HABIT_ID, title: 'Morning walk', ...(proposedEmoji ? { emoji: proposedEmoji } : {}) }],
+    [{ title: null, emoji: null }, reusedChildOldValue('Morning walk', storedEmoji)],
+  )
+}
+
+/** The API keeps a deeper reuse at its own depth: the outer entry's `sub_habits` holds the JSON text of the nested old values. */
+function makeCreateWithNestedReusedChildPreview(): PendingAgentOperation {
+  return makeGroupedCreatePreview(
+    [{ title: 'Outdoors', sub_habits: [{ habit_id: NESTED_REUSED_HABIT_ID, title: 'Stretch' }] }, { habit_id: REUSED_CHILD_HABIT_ID, title: 'Morning walk' }],
+    [{ title: null, sub_habits: JSON.stringify([reusedChildOldValue('Stretch', '🧘')]) }, reusedChildOldValue('Morning walk', '🚶')],
+  )
+}
+
+export function withStoredChildren(operation: PendingAgentOperation, oldValue: string | null): PendingAgentOperation {
+  return pendingAgentOperationSchema.parse({ ...operation, items: operation.items!.map((item) => ({ ...item,
+    fields: item.fields.map((field) => field.field === 'sub_habits' ? { ...field, oldValue } : field) })) })
+}
+
+/** Each case lists the expected icon per child row label; `undefined` means the row has no emoji and shows its monogram. */
+export const reusedChildIconCases: readonly { name: string; preview: () => PendingAgentOperation; icons: Readonly<Record<string, string | undefined>> }[] = [
+  { name: 'a stored emoji after a new draft child', preview: () => makeCreateWithReusedChildPreview(), icons: { 'Drink a glass of water': '💧', 'Morning walk': '🚶' } },
+  { name: 'no stored emoji', preview: () => makeCreateWithReusedChildPreview({ storedEmoji: null }), icons: { 'Drink a glass of water': '💧', 'Morning walk': undefined } },
+  { name: 'a proposed emoji over the stored one', preview: () => makeCreateWithReusedChildPreview({ proposedEmoji: '🏃' }), icons: { 'Morning walk': '🏃' } },
+  { name: 'a reused child nested under a new draft child', preview: makeCreateWithNestedReusedChildPreview, icons: { Outdoors: undefined, 'Morning walk': '🚶' } },
+  ...[null, 'not json', '{"emoji":"🚶"}', '[null,"🚶"]'].map((oldValue) => ({
+    name: `the stored list ${oldValue}`, preview: () => withStoredChildren(makeCreateWithReusedChildPreview(), oldValue), icons: { 'Morning walk': undefined },
+  })),
+]
 
 /** The API binds reuse per habit in a bulk create, so each `grouped` entry says whether that habit groups an existing habit. */
 export function makeReuseCreateBatchPreview(grouped: readonly boolean[], changeTargetCount = grouped.length): PendingAgentOperation {

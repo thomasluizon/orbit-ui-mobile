@@ -1,11 +1,8 @@
 import { restoreConversationPage } from '@orbit/shared/chat/conversation-restore'
 import { COMPACT_FAILED_INDEXES, makeExecutedConversationPage, makeRevisedConversationPage, PROPOSED_HABIT_TITLE, REVISED_HABIT_ID, REVISED_HABIT_TITLE, storedOperationId, type StoredExecution } from '@orbit/shared/test-support/conversation-fixtures'
 import { makeOfferedPreview, makeOfferedTaskPreview, makeOfferedChildPreview } from '@orbit/shared/test-support/astra-offer-fixtures'
-import { makeDatedTaskPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, makeCreateWithReusedChildPreview, REUSED_CHILD_HABIT_ID, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview, makeBulkUpdateHabitsPreview, makeBulkUpdateExecutionResponse, TICKET_TASK_DESCRIPTION, TICKET_TASK_TITLE } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
-import { formatLocaleDate } from '@orbit/shared/utils'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { habitKeys } from '@orbit/shared/query'
-import { createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
+import { makeDatedTaskPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeCreateWithReusedChildPreview, reusedChildIconCases, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview, makeBulkUpdateHabitsPreview, makeBulkUpdateExecutionResponse, TICKET_TASK_DESCRIPTION, TICKET_TASK_TITLE } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { formatLocaleDate, habitInitial } from '@orbit/shared/utils'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { personalText } from '@/__tests__/support/personal-text'
 import en from '@orbit/shared/i18n/en.json'
@@ -380,14 +377,19 @@ describe('PendingOperationCard', () => {
     expect(screen.getByText(messages.habits.frequency.everyDay)).toBeInTheDocument()
   })
 
-  it('shows the cached emoji of a reused child and no top-level outcome for the new habit', () => {
-    const client = new QueryClient()
-    client.setQueryData(habitKeys.list({}), [createMockHabitScheduleItem({ id: REUSED_CHILD_HABIT_ID, emoji: '🚶' })])
+  it('lists no top-level outcome for the new habit that groups an existing habit', () => {
     visibleLocale.actual = true
     visibleLocale.language = 'en'
-    render(<QueryClientProvider client={client}><PendingOperationCard pendingOperation={makeCreateWithReusedChildPreview()} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} /></QueryClientProvider>)
-    expect(screen.getByText('🚶')).toBeInTheDocument()
+    render(<PendingOperationCard pendingOperation={makeCreateWithReusedChildPreview()} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     expect(screen.queryByText(en.habits.moveParent.toRoot, { exact: false })).not.toBeInTheDocument()
+  })
+
+  it.each(reusedChildIconCases)('shows the child tiles from the preview with $name', ({ preview, icons }) => {
+    render(<PendingOperationCard pendingOperation={preview()} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    for (const [label, icon] of Object.entries(icons)) {
+      const content = document.getElementById(screen.getByRole('button', { name: label }).getAttribute('aria-controls')!)
+      expect(content?.firstElementChild?.textContent).toBe(icon ?? habitInitial(label))
+    }
   })
 
   it.each(childSchedulePreviewCases.flatMap(scenario => ['en', 'pt-BR'].map(locale => ({ ...scenario, locale }))))('preserves the child $name schedule in $locale', (scenario) => {

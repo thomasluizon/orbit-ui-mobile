@@ -8,7 +8,6 @@ import { pendingOperationExecutionPatch, renderPendingOperationCard, type Pendin
 import type { PendingOperationExecutionResult, PendingOperationStepUpPreparationResult, RefreshPendingOperation, RevisePendingOperation } from '@orbit/shared/hooks'
 import type { PendingAgentOperation } from '@orbit/shared/types/ai'
 import { usePendingOperationRevision } from '@/hooks/use-pending-operation-revision'
-import { useCachedHabitEmoji } from '@/hooks/use-cached-habit-emoji'
 
 export type { PendingOperationButtonSpec, PendingOperationConfirmSheetProps, PendingOperationVerificationProps } from '@orbit/shared/chat'
 
@@ -48,7 +47,6 @@ export function SharedPendingOperationCard({
   onStateChange,
   render,
 }: Readonly<PendingOperationCardProps>): ReactNode {
-  const habitEmoji = useCachedHabitEmoji()
   const revision = usePendingOperationRevision(savedState?.operation ?? pendingOperation, onRevise, onRefresh, onStateChange, savedState)
   const card = usePendingOperationCardState({
     pendingOperationId: pendingOperation.id,
@@ -80,7 +78,7 @@ export function SharedPendingOperationCard({
 
   return createElement(ConversationChange, { changeKey: `${revision.operation.previewFingerprint}:${card.status}:${savedState?.dismissed}` }, renderPendingOperationCard({
     card: {
-      ...card, habitEmoji, recordedOutcome: savedState?.recordedOutcome, revision: { ...revision, chooseParent }, onOpenTarget, focusTitleOnMount, parentChoiceFocus: parentChoiceFocus?.sourceId === pendingOperation.id && parentChoiceFocus.sourceFingerprint === pendingOperation.previewFingerprint && parentChoiceFocus.authorizationVersion === revision.authorizationVersion ? parentChoiceFocus : undefined,
+      ...card, recordedOutcome: savedState?.recordedOutcome, revision: { ...revision, chooseParent }, onOpenTarget, focusTitleOnMount, parentChoiceFocus: parentChoiceFocus?.sourceId === pendingOperation.id && parentChoiceFocus.sourceFingerprint === pendingOperation.previewFingerprint && parentChoiceFocus.authorizationVersion === revision.authorizationVersion ? parentChoiceFocus : undefined,
       completeStepUp: (result) => { card.completeStepUp(result); onStateChange?.(pendingOperationExecutionPatch(result)) },
       dismiss: () => { card.dismiss(); onStateChange?.({ dismissed: true }) },
       confirmOpen: card.confirmOpen && !revision.stale,
