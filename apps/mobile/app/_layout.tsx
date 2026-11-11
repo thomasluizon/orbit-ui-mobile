@@ -19,6 +19,7 @@ import * as Linking from 'expo-linking'
 import { Providers, useCaptureReady } from '@/lib/providers'
 import { useAuthStore } from '@/stores/auth-store'
 import { RootStackScreens } from '@/components/navigation/root-stack-screens'
+import { statusBarStyleForTheme } from '@/lib/status-bar-style'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { useHasProAccess, useProfile } from '@/hooks/use-profile'
 import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
@@ -268,7 +269,7 @@ function RootLayoutNav() {
       <StatusBar
         animated={!captureBuildEnabled}
         hidden={captureBuildEnabled}
-        style={currentTheme === 'dark' ? 'light' : 'dark'}
+        style={statusBarStyleForTheme(currentTheme)}
       />
 
       <View style={{ flex: 1 }}>
