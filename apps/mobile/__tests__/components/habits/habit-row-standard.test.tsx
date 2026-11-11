@@ -81,6 +81,17 @@ function assertTypePlacement(geometry: ReturnType<typeof measureInteractionFills
   expect(metadata.host.props.numberOfLines).toBeUndefined()
 }
 
+function expectCompletionPressScale(tree: ReturnType<typeof TestRenderer.create>, pressableTransform: unknown, parent: boolean, scaled: boolean) {
+  if (parent) {
+    expect(pressableTransform ?? []).toEqual(scaled ? [{ scale: 0.96 }] : [])
+    return
+  }
+  let scaler = tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'AnimatedView' && node.props.testID === 'habit-check')[0]!.parent
+  while (scaler && String(scaler.type) !== 'AnimatedView') scaler = scaler.parent
+  expect(pressableTransform).toBeUndefined()
+  expect(StyleSheet.flatten(scaler!.props.style).transform).toEqual([{ scale: scaled ? 0.96 : 1 }])
+}
+
 describe('habit row standard on Android', () => {
   it.each((['light', 'dark'] as const).flatMap((mode) => [320, 412, 1352].flatMap((width) =>
     [1, 2].flatMap((fontScale) => [false, true].flatMap((parent) => [false, true].flatMap((reduced) => [false, true].flatMap((pressed) => (['empty', 'done', 'overdue', 'bad'] as const).map((state) => ({ mode, width, fontScale, parent, reduced, pressed, state })))))),
@@ -112,7 +123,7 @@ describe('habit row standard on Android', () => {
     if (parent && state !== 'done') expect(tree!.root.findAllByType('Path').find((part: import('react-test-renderer').ReactTestInstance) => part.props.strokeDasharray)?.props.stroke).toBe(state === 'bad' ? tokens.statusBad : tokens.primary)
     expect(fill.left - target.left).toBe(10)
     expect(fill.top - target.top).toBe(10)
-    expect(target.style.transform ?? []).toEqual(pressed && !reduced ? [{ scale: 0.96 }] : parent ? [] : [{ scale: 1 }])
+    expectCompletionPressScale(tree, target.style.transform, parent, pressed && !reduced)
     TestRenderer.act(() => { toggle().props.onHoverOut(); toggle().props.onPressOut() })
     expect(StyleSheet.flatten(tree!.root.findByProps({ testID: 'habit-check' }).props.style).backgroundColor).toBe(state === 'done' ? tokens.fg1 : 'transparent')
     expect(tree!.root.findAllByProps({ testID: 'habit-check-feedback' })).toHaveLength(0)
