@@ -1,7 +1,7 @@
 import { restoreConversationPage } from '../chat/conversation-restore'
 import { makeExecutedConversationPage, makeRevisedConversationPage, PARTIAL_BULK_LOG_PAYLOAD, storedOperationId, UNCHANGED_BULK_LOG_EXECUTION } from '../test-support/conversation-fixtures'
 import { astraOfferFixture, makeOfferedPreview, makeOfferedTaskPreview } from '../test-support/astra-offer-fixtures'
-import { makePlacementPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeBulkCreateExecutionResponse, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview, makeBulkUpdateHabitsPreview, makeBulkUpdateExecutionResponse } from '../test-support/pending-operation-preview-fixtures'
+import { makePlacementPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeBulkCreateExecutionResponse, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makeNestedHabitPreview, makeCreateWithReusedChildPreview, makeReusedHabitParentChoicePreview, makeReuseCreateBatchPreview, reusedChildIconCases, withStoredChildren, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview, makeBulkUpdateHabitsPreview, makeBulkUpdateExecutionResponse } from '../test-support/pending-operation-preview-fixtures'
 import { describe, expect, it, vi } from 'vitest'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { makeAgentOperationResult, makePendingAgentOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '../test-support/chat-fixtures'
@@ -16,6 +16,7 @@ import {
   type PendingOperationVerificationProps,
 } from '../chat/pending-operation-card-view'
 import { buildPendingOperationCardLabels, formatPreviewMeta, type PendingOperationCardLabels } from '../chat/pending-operation-card'
+import { HABIT_CREATE_ACTION_KEYS } from '../chat/pending-operation-item-summary'
 import { pendingOperationSubHabits } from '../chat/pending-operation-sub-habits'
 import { pendingOperationExecutionPatch } from '../chat/pending-operation-message-state'
 import { agentOperationResultSchema, pendingAgentOperationSchema } from '../types/ai'
@@ -82,6 +83,14 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     expect(record.frame?.items).toHaveLength(count)
   })
 
+  it.each(HABIT_CREATE_ACTION_KEYS)('treats %s as a habit create in the header, the approve button and the rows', (actionKey) => {
+    const operation = pendingAgentOperationSchema.parse({ ...makeCreateHabitsPreview(1), actionKey })
+    const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+    expect(labels.name).toBe(locale === 'en' ? 'New habit' : 'Novo hábito')
+    expect(labels.approve(1)).toBe(messages.chat.operation.create)
+    expect(labels.summarize([], actionKey)).toBe(translateMessages(messages, `chat.operation.source.${actionKey}`))
+  })
+
   it('keeps the full count and a localized remainder when the create preview is truncated', () => {
     const complete = makeCreateHabitsPreview(5)
     const operation = pendingAgentOperationSchema.parse({ ...complete, items: complete.items!.slice(0, 2) })
@@ -95,12 +104,99 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     expect(record.buttons.some(button => button.label === remainder)).toBe(false)
   })
 
-  it.each([1, 2, 3])('keeps a neutral heading for reuse at depth %s', (depth) => {
+  it.each([1, 2, 3])('names a create with reuse at depth %s as one create', (depth) => {
     const operation = makeNestedHabitPreview(depth, true)
     const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
     const { record, render } = createRenderers()
     renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
-    expect(record.frame?.title).toBe(messages.chat.pendingOp.capability['habits-write'])
+    expect(record.frame?.title).toBe(locale === 'en' ? 'New parent habit' : 'Novo hábito principal')
+    expect(record.buttons.map((button) => button.label)).toContain(messages.chat.operation.create)
+  })
+
+  describe('create that groups an existing habit under the new habit', () => {
+    function render(operation = makeCreateWithReusedChildPreview()) {
+      const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+      const { record, render: renderers } = createRenderers()
+      renderPendingOperationCard({ card: createCard(), labels, render: renderers, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+      return { labels, record }
+    }
+
+    it('names the same create in the header and on the button', () => {
+      const { labels, record } = render()
+      const header = locale === 'en' ? 'New parent habit' : 'Novo hábito principal'
+      expect(record.frame?.title).toBe(header)
+      expect(labels.name).toBe(header)
+      expect(labels.approve(1)).toBe(messages.chat.operation.create)
+      expect(record.buttons.map((button) => button.label)).toContain(messages.chat.operation.create)
+    })
+
+    it.each(reusedChildIconCases)('shows the child icons from the preview with $name', ({ preview, icons }) => {
+      const rows = render(preview()).record.frame!.items.filter((row) => row.indented)
+      for (const [label, icon] of Object.entries(icons)) expect(rows.find((row) => row.label === label)).toMatchObject({ icon })
+    })
+
+    it('shows no create outcome on the unchanged existing child and keeps it on the new child', () => {
+      const rows = render().record.frame!.items.filter((row) => row.indented)
+      expect(rows.map((row) => [row.label, row.meta])).toEqual([
+        ['Drink a glass of water', messages.chat.operation.source.createHabit],
+        ['Morning walk', ''],
+      ])
+    })
+
+    it('lists the requested changes on an existing child', () => {
+      const rows = render(makeCreateWithReusedChildPreview({ reusedChanges: { due_time: '07:00' } })).record.frame!.items.filter((row) => row.indented)
+      expect(rows.find((row) => row.label === 'Morning walk')?.meta).toBe(translateMessages(messages, 'chat.preview.atTime', { time: '07:00' }))
+    })
+
+    it('lists no top-level outcome for the new habit', () => {
+      const { record } = render()
+      const text = record.frame!.items.map((row) => `${row.label} ${row.meta}`).join(' ')
+      expect(text).not.toContain(messages.habits.moveParent.toRoot)
+      expect(record.frame!.items[0]!.meta).not.toContain(messages.chat.preview.summary.buildHabit)
+    })
+
+    it('summarizes the new parent schedule like the same create without reuse', () => {
+      const operation = makeCreateWithReusedChildPreview()
+      const withoutReuse = withStoredChildren(operation, null)
+      const parentMeta = (preview: typeof operation) => {
+        const labels = buildPendingOperationCardLabels(preview, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+        const { record, render: renderers } = createRenderers()
+        renderPendingOperationCard({ card: createCard(), labels, render: renderers, onVerifyStepUp: vi.fn(), pendingOperation: preview })
+        return record.frame!.items[0]!.meta
+      }
+      expect(parentMeta(operation)).toBe(messages.habits.frequency.everyDay)
+      expect(parentMeta(operation)).toBe(parentMeta(withoutReuse))
+    })
+  })
+
+  describe('bulk create title when reuse is bound per habit', () => {
+    const title = (grouped: readonly boolean[], changeTargetCount?: number) => buildPendingOperationCardLabels(makeReuseCreateBatchPreview(grouped, changeTargetCount),
+      (key, values) => translateMessages(messages, key, values), (value) => value, locale).name
+
+    it('keeps the new habits title for a batch that mixes grouped and plain creates', () => {
+      expect(title([true, false, false])).toBe(translateMessages(messages, 'chat.operation.newHabits', { count: 3 }))
+    })
+
+    it('names a fully visible batch of grouped creates as new parent habits', () => {
+      expect(title([true, true])).toBe(translateMessages(messages, 'chat.operation.newHabitsWithExisting', { count: 2 }))
+    })
+
+    it('keeps the new habits title when the batch shows only some of its habits', () => {
+      expect(title([true, true], 4)).toBe(translateMessages(messages, 'chat.operation.newHabits', { count: 4 }))
+    })
+
+    it('keeps the new habits title for a counted batch with no listed habits', () => {
+      expect(title([], 3)).toBe(translateMessages(messages, 'chat.operation.newHabits', { count: 3 }))
+    })
+  })
+
+  it('names no create on an existing habit in a create preview while its parent is a choice', () => {
+    const operation = makeReusedHabitParentChoicePreview()
+    const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    expect(record.frame!.items[0]).toMatchObject({ label: 'Morning walk', meta: messages.chat.operation.pending })
+    expect(record.frame!.items[0]!.meta).not.toBe(messages.chat.operation.source.createHabits)
   })
 
   it('keeps the create heading for a nested proposal without reuse', () => {
