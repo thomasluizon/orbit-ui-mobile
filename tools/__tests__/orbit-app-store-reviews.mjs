@@ -1,7 +1,6 @@
-import { generateKeyPairSync, verify } from "node:crypto"
 import { mkdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
-import { appStoreToken, importAppStoreReviews, readAppStoreReviews } from "../orbit-app-store-reviews.mjs"
+import { importAppStoreReviews, readAppStoreReviews } from "../orbit-app-store-reviews.mjs"
 import { acknowledgeIntake, intakeSource } from "../lib/auto-work-intake.mjs"
 import { writeRunState } from "../lib/run-state.mjs"
 import { T, root } from "./_harness.mjs"
@@ -33,19 +32,13 @@ export const cases = async () => {
     return Response.json(page)
   })
   T("app store: content changes create a new version without a modification field", updated.reviews[0].id !== snapshot.reviews[0].id)
-  let rejected = false
-  try { await readAppStoreReviews("123", "token", async () => Response.json({ data: [], links: { next: "https://example.org/steal" } })) } catch { rejected = true }
-  T("app store: pagination cannot send credentials to another host", rejected)
-  const { privateKey, publicKey } = generateKeyPairSync("ec", { namedCurve: "prime256v1" })
-  const [header, claims, signature] = appStoreToken({ keyId: "key", issuerId: "issuer", privateKey }).split(".")
-  T("app store: JWT header matches the team-key contract", JSON.stringify(JSON.parse(Buffer.from(header, "base64url"))) === JSON.stringify({ alg: "ES256", kid: "key", typ: "JWT" }))
-  T("app store: ES256 signature uses the required JWT encoding", verify("SHA256", Buffer.from(`${header}.${claims}`),
-    { key: publicKey, dsaEncoding: "ieee-p1363" }, Buffer.from(signature, "base64url")))
-  const payload = JSON.parse(Buffer.from(claims, "base64url"))
-  T("app store: JWT is short-lived and scoped to App Store Connect", payload.iss === "issuer" && Number.isInteger(payload.iat) &&
-    Math.abs(payload.iat - Date.now() / 1000) < 5 && payload.aud === "appstoreconnect-v1" && payload.exp - payload.iat === 600 &&
-    Object.keys(payload).sort().join(",") === "aud,exp,iat,iss")
-  const differentHeader = Buffer.from(JSON.stringify({ alg: "ES256", kid: "other", typ: "JWT" })).toString("base64url")
-  T("app store: the key identifier is authenticated by the signature", !verify("SHA256", Buffer.from(`${differentHeader}.${claims}`),
-    { key: publicKey, dsaEncoding: "ieee-p1363" }, Buffer.from(signature, "base64url")))
+  const rejects = async (promise) => { try { await promise; return null } catch (error) { return error.message } }
+  const hosts = []
+  const forged = await rejects(readAppStoreReviews("123", "token", async (url) => {
+    hosts.push(new URL(url).host)
+    return Response.json({ data: [], links: { self: String(url), next: "https://example.org/steal" } })
+  }))
+  T("app store: pagination cannot send credentials to another host", forged === "Invalid App Store Connect pagination link" && hosts.join() === "api.appstoreconnect.apple.com")
+  const failed = await rejects(readAppStoreReviews("123", "token", async () => new Response("{}", { status: 500 })))
+  T("app store: reviews are read through the shared App Store Connect transport", failed === "App Store Connect GET /v1/apps/123/customerReviews failed (HTTP 500)")
 }

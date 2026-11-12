@@ -558,6 +558,7 @@ export type {
 export {
   buildCalendarDayMap,
   optimisticSetCalendarHabitLog,
+  optimisticSetHabitLogs,
   rollbackOptimisticCalendarHabitLog,
   rollbackOptimisticHabitLogs,
   buildUnresolvedBulkFailures,
