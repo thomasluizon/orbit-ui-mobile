@@ -211,7 +211,29 @@ export const cases = async () => {
   const failingResult = run(TOOL, argumentsFor(), { path: failing.path, env: failing.env })
   T("wait-ci: settled result names failing checks", failingResult.status === 6 && JSON.parse(failingResult.stdout).pullRequests[0].failingChecks.includes("Lint"), failingResult.stderr)
 
-  const closed = fixture("closed", [{ kind: "pull", stdout: pull(SHA_A, "closed") }])
+  /**
+   * Shapes copied from the real check runs of ui#2419 head 25f27997b: a failed Unit Tests job skips
+   * the SonarCloud Analysis job, so the SonarCloud app never posts the required SonarCloud Code Analysis check.
+   */
+  const sonarProtection = { kind: "protection", stdout: JSON.stringify({ ...confirmed.protection,
+    contexts: ["Unit Tests", "SonarCloud Code Analysis"],
+    checks: [{ context: "Unit Tests", app_id: 15368 }, { context: "SonarCloud Code Analysis", app_id: 12526 }],
+  }) }
+  const skippedSonar = (unitTests) => ({ kind: "checks", stdout: checks([completed("Unit Tests", unitTests), completed("SonarCloud Analysis", "skipped")]) })
+  const failedUnitTests = fixture("failed-unit-tests", [sonarProtection, skippedSonar("failure")])
+  const failedUnitTestsResult = run(TOOL, argumentsFor("--ceiling-minutes", "0.1"), { path: failedUnitTests.path, env: failedUnitTests.env })
+  const failedUnitTestsBody = JSON.parse(failedUnitTestsResult.stdout)
+  T("wait-ci: a failing check settles as failing although a required context never arrived",
+    failedUnitTestsResult.status === 6 && failedUnitTestsBody.reason === "SETTLED" &&
+    failedUnitTestsBody.pullRequests[0].failingChecks.includes("Unit Tests"), failedUnitTestsResult.stdout + failedUnitTestsResult.stderr)
+  const missingRequired = fixture("missing-required", [sonarProtection, skippedSonar("success")])
+  const missingRequiredResult = run(TOOL, argumentsFor("--ceiling-minutes", "0.0001"), { path: missingRequired.path, env: missingRequired.env })
+  const missingRequiredBody = JSON.parse(missingRequiredResult.stdout)
+  T("wait-ci: passing checks with an absent required context never settle as passing",
+    missingRequiredResult.status === 3 && missingRequiredBody.reason === "CEILING" && !missingRequiredBody.pullRequests[0].settled,
+    missingRequiredResult.stdout + missingRequiredResult.stderr)
+
+  const closed = fixture("closed",[{ kind: "pull", stdout: pull(SHA_A, "closed") }])
   const closedResult = run(TOOL, argumentsFor(), { path: closed.path, env: closed.env })
   T("wait-ci: closed pull request exits", closedResult.status === 5 && JSON.parse(closedResult.stdout).reason === "PR_CLOSED", closedResult.stderr)
 

@@ -123,8 +123,6 @@ type ExpectedComposerBase = {
     onSend: (id: string) => void
   }
 
-  collapseScope?: 'conversation' | 'habit'
-  collapsible?: boolean
   words: ExpectedComposerWords
   value: string
   onChangeValue: (value: string) => void

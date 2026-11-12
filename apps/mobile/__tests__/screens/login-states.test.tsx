@@ -10,6 +10,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { LoginContent } from '@/components/auth/login-content'
 import { measureSafeArea, type GeometryHost } from '@/__tests__/support/safe-area-geometry'
 import { __emitKeyboardEvent, __setWindowDimensions } from '../../test-mocks/react-native'
+import { resolveMotionPreset, type MotionScenario } from '@orbit/shared/theme'
 import { pressableStyle } from '@/__tests__/support/press-feedback'
 
 vi.mock('react-i18next', async (importActual) => ({
@@ -34,7 +35,7 @@ vi.mock('@/components/auth/turnstile-widget', () => ({
   TurnstileWidget: () => React.createElement('TurnstileWidget'),
 }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'purple', currentTheme: mocks.theme }) }))
-vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => true, toAnimatedEasing: (value: unknown) => value }))
+vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => true, toAnimatedEasing: (value: unknown) => value, useResolvedMotionPreset: (scenario: MotionScenario) => resolveMotionPreset(scenario, true) }))
 vi.mock('@/components/ui/keyboard-aware-scroll-view', async () => {
   const { View } = await import('react-native')
   return { useKeyboardAwareInputReveal: () => ({ revealInput: mocks.revealInput }), KeyboardAwareScrollView: ({ children, contentContainerStyle }: {

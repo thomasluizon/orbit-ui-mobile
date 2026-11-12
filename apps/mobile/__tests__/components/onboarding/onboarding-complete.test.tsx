@@ -1,4 +1,6 @@
 import React from 'react'
+import { Animated } from 'react-native'
+import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { i18n } from '@/lib/i18n'
 import { OnboardingComplete } from '@/components/onboarding/onboarding-complete'
@@ -52,7 +54,7 @@ vi.mock('@/lib/use-app-theme', () => ({
 }))
 
 vi.mock('@/lib/motion', () => ({
-  toAnimatedEasing: () => undefined,
+  toAnimatedEasing: (controlPoints: unknown) => ({ controlPoints }),
   usePrefersReducedMotion: () => mocks.reducedMotion,
 }))
 
@@ -312,5 +314,35 @@ describe('OnboardingComplete', () => {
     expect(accent).toBeDefined()
     expect(Reflect.get(accent!.props, 'opacity')).toBe(0)
     mocks.reducedMotion = true
+  })
+
+  it('sweeps the landing ring for the shared slow duration on the shared enter curve', async () => {
+    const durations = motionDurations as unknown as Record<string, number>
+    const originalSlow = durations.slow
+    durations.slow = 333
+    mocks.reducedMotion = false
+    mocks.ringLength = 97
+    const timing = vi.spyOn(Animated, 'timing')
+    try {
+      let tree!: ReturnType<typeof TestRenderer.create>
+      await TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          <OnboardingComplete createdHabit="Exercise" emoji="🏃" remindersOff={false} skipped={false} signedOut={false} dueToday general={false} onFinish={vi.fn()} />,
+        )
+      })
+      const svg = tree.root.findAll((node: { type: unknown }) => node.type === 'Svg').at(0)
+      await TestRenderer.act(() => {
+        (Reflect.get(svg!.props, 'onLayout') as () => void)()
+      })
+      expect(timing).toHaveBeenCalledOnce()
+      expect(timing.mock.calls[0]![1]).toMatchObject({ toValue: 0, duration: 333 })
+      const ringCurve = (timing.mock.calls[0]![1] as unknown as { easing: { controlPoints: unknown } }).easing.controlPoints
+      expect(ringCurve).toBe(motionEasings.enter)
+    } finally {
+      durations.slow = originalSlow!
+      timing.mockRestore()
+      mocks.reducedMotion = true
+      mocks.ringLength = undefined
+    }
   })
 })

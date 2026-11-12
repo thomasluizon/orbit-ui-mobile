@@ -219,7 +219,6 @@ describe('Composer compact geometry in Chromium', () => {
   ))(
     'fits the approved $locale placeholder across adjacent compact widths on $surface', async ({ messages, surface }) => {
       const configuration = { ...geometryProps('idle', messages, true), clipboardText: 'Pasted message', testSurface: surface,
-        collapsible: true,
         suggestions: surface === 'habitDetail' ? liveChipSuggestions('habitDetail', messages).suggestions : [],
       }
       const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
