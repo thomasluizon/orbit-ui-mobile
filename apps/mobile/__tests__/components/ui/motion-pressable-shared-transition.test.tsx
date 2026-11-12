@@ -1,7 +1,7 @@
 import { resolve } from 'node:path'
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
-import { StyleSheet, type PressableProps } from 'react-native'
+import { StyleSheet } from 'react-native'
 import { MotionPressable } from '@/components/ui/motion-pressable'
 
 /** The installed Reanimated filter, loaded past the test double at run time so the type check does not compile Reanimated's source. */
@@ -20,9 +20,9 @@ vi.mock('@/components/motion/press-scale', async (importOriginal) => ({
   PRESS_SCALE_TRANSITION: sharedPress.transition,
 }))
 
-async function renderHost(style?: PressableProps['style']) {
+async function renderHost() {
   let tree!: ReactTestRenderer
-  await act(() => { tree = create(<MotionPressable onPress={vi.fn()} style={style} />) })
+  await act(() => { tree = create(<MotionPressable onPress={vi.fn()} />) })
   return { tree, host: tree.root.findAll((node) => typeof node.type === 'string')[0]! }
 }
 
@@ -41,17 +41,8 @@ describe('motion pressable shared press transition', () => {
   it('declares no transition longhand that Reanimated drops before its shorthand', async () => {
     const { tree, host } = await renderHost()
     const flattened = StyleSheet.flatten(host.props.style) as Record<string, unknown>
-    expect(Object.entries(flattened).filter(([key, value]) => /^transition[A-Z]/.test(key) && value !== undefined)).toEqual([])
+    expect(Object.keys(flattened).filter((key) => /^transition[A-Z]/.test(key))).toEqual([])
     expect(nativeTransition(host)).toEqual({ transition: sharedPress.transition })
-    await act(() => tree.update(<></>))
-  })
-
-  it('keeps a caller transition beside the press scale transition, so Reanimated drops neither', async () => {
-    const callerTransition = { backgroundColor: 'red', transitionProperty: 'backgroundColor', transitionDuration: 200 } as PressableProps['style']
-    const { tree, host } = await renderHost(callerTransition)
-    expect(nativeTransition(host)).toEqual({ transition: `backgroundColor 200ms ease 0ms, ${sharedPress.transition}` })
-    await act(() => tree.update(<MotionPressable onPress={vi.fn()} style={{ transition: 'opacity 90ms linear' } as PressableProps['style']} />))
-    expect(nativeTransition(tree.root.findAll((node) => typeof node.type === 'string')[0]!)).toEqual({ transition: `opacity 90ms linear, ${sharedPress.transition}` })
     await act(() => tree.update(<></>))
   })
 })

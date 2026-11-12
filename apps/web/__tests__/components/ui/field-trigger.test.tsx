@@ -22,6 +22,8 @@ function Fixtures() {
   </>
 }
 
+const UNITS = { label: 'Units', value: 'a', options: [{ value: 'a', label: 'Alpha' }], onChange: vi.fn() }
+
 const FIELD_TRIGGERS = [
   { name: 'select trigger', find: () => screen.getByRole('combobox', { name: 'Units' }), press: ':enabled:active' },
   { name: 'sidebar search', find: () => screen.getByRole('button', { name: 'Search' }), press: ':active' },
@@ -89,6 +91,18 @@ describe('field triggers and sidebar rows compiled from app/globals.css', () => 
     const chevron = screen.getByRole('combobox', { name: 'Units' }).querySelector('svg')!
     expectHoverAndPress(rules, chevron, 'var(--fg-2)', 'color')
     expect(rules.declarationsIn(chevron).get('transition-duration')).toBe('var(--dur-hover-control)')
+  })
+
+  it.each([
+    ['enabled', () => <Select {...UNITS} />, true],
+    ['disabled by its own attribute', () => <Select {...UNITS} disabled />, false],
+    ['disabled by a fieldset', () => <fieldset disabled><Select {...UNITS} /></fieldset>, false],
+  ] as const)('applies the select chevron promotion on hover and on press only while the trigger is enabled, as the fill does: %s', (_, renderSelect, enabled) => {
+    render(renderSelect())
+    const chevron = screen.getByRole('combobox', { name: 'Units' }).querySelector('svg')!
+    const promotions = rules.rulesFor(chevron).filter((rule) => rule.declarations.get('color') === 'var(--fg-2)')
+    expect(promotions).toHaveLength(2)
+    for (const { state } of promotions) expect(chevron.matches(state.replace(/:hover|:active/, ''))).toBe(enabled)
   })
 
   it('promotes the sidebar search label on hover and on press, so the pressed fill keeps it legible', () => {

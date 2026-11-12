@@ -109,13 +109,13 @@ select[aria-hidden="true"] {
   transition: box-shadow var(--dur-hover) var(--ease-standard);
 }
 
-.orbit-radio-row:active {
+.orbit-radio-row:enabled:active {
   --radio-row-secondary: var(--fg-2);
   --radio-row-track: var(--fg-3);
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .orbit-radio-row:hover {
+  .orbit-radio-row:enabled:hover {
     --radio-row-secondary: var(--fg-2);
     --radio-row-track: var(--fg-3);
   }

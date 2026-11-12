@@ -4,7 +4,7 @@ import postcss, { type Rule } from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { expect } from 'vitest'
 
-export interface CompiledRule { state: string; order: number; media: string[]; declarations: Map<string, string> }
+interface CompiledRule { state: string; order: number; media: string[]; declarations: Map<string, string> }
 
 export const FINE_POINTER_HOVER = '(hover: hover) and (pointer: fine)'
 export const MOTION_SAFE = '(prefers-reduced-motion: no-preference)'

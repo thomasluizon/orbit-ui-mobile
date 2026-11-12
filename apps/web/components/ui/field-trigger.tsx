@@ -8,9 +8,10 @@ export const FIELD_TRIGGER_PERIMETER = 'group relative isolate after:pointer-eve
 
 /**
  * `--fg-3` content inside a field trigger (a placeholder, a trailing icon) promotes to `--fg-2` while the
- * `FieldTriggerFill` layer shows, so it keeps its contrast floor over the stronger fill, timed like the fill.
+ * `FieldTriggerFill` layer shows, so it keeps its contrast floor over the stronger fill, timed like the fill. Like the fill,
+ * it stays at rest while the trigger is disabled, by its own attribute or by a `<fieldset disabled>`.
  */
-export const FIELD_TRIGGER_MUTED_CONTENT = 'transition-[color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover:text-[var(--fg-2)] group-active:text-[var(--fg-2)]'
+export const FIELD_TRIGGER_MUTED_CONTENT = 'transition-[color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-enabled:group-hover:text-[var(--fg-2)] group-enabled:group-active:text-[var(--fg-2)]'
 
 /**
  * `DESIGN.md`: a control with an opaque resting fill layers `--bg-hover-opaque` over that fill, on a

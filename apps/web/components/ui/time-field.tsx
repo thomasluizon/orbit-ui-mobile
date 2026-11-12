@@ -165,7 +165,7 @@ function TimeEntry(props: Readonly<TimeEntryProps>) {
             type="button"
             onClick={onClear}
             aria-label={clearLabel}
-            className="absolute right-1 top-1/2 grid -translate-y-1/2 place-items-center rounded-full text-[var(--fg-3)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96] transition-[background-color,scale] duration-[var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-out)]"
+            className="absolute right-1 top-1/2 grid -translate-y-1/2 place-items-center rounded-full text-[var(--fg-3)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] motion-safe:enabled:active:scale-[0.96] transition-[background-color,scale] duration-[var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-out)]"
             style={{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN }}
           >
             <X size={16} strokeWidth={1.8} aria-hidden="true" />

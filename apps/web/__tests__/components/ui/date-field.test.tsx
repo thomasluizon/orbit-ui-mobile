@@ -301,6 +301,20 @@ describe('DateField hover, press and perimeter paint compiled from app/globals.c
     }
   })
 
+  it.each([
+    ['enabled', () => <DateField value="" onChange={vi.fn()} />, true],
+    ['disabled by its own attribute', () => <DateField value="" onChange={vi.fn()} disabled />, false],
+    ['disabled by a fieldset', () => <fieldset disabled><DateField value="" onChange={vi.fn()} /></fieldset>, false],
+  ] as const)('applies the trigger icon and placeholder promotion on hover and on press only while the trigger is enabled, as the fill does: %s', (_, renderField, enabled) => {
+    render(renderField())
+    const trigger = screen.getByRole('button')
+    for (const content of [trigger.querySelector('svg')!, trigger.firstElementChild!]) {
+      const promotions = rules.rulesFor(content).filter((rule) => rule.declarations.get('color') === 'var(--fg-2)' && /:hover|:active/.test(rule.state))
+      expect(promotions).toHaveLength(2)
+      for (const { state } of promotions) expect(content.matches(state.replace(/:hover|:active/, ''))).toBe(enabled)
+    }
+  })
+
   it('shows the hover fill as a press fill on every day cell and month control, so a touch press paints it', () => {
     render(<DateField value="2025-06-15" onChange={vi.fn()} />)
     fireEvent.click(screen.getByRole('button'))

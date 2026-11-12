@@ -215,8 +215,8 @@ describe('habit form and frequency picker motion tokens', () => {
   it('fills the time field picker and clear buttons on hover and press with the neutral hover role and eases their scale', () => {
     const text = source('components/ui/time-field.tsx')
     expect(text).not.toContain('--bg-sunk')
-    expect(occurrences(text, 'enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] motion-safe:enabled:')).toBe(1)
-    expect(occurrences(text, ' hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:')).toBe(1)
+    expect(occurrences(text, 'enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] motion-safe:enabled:active:scale-[0.96]')).toBe(2)
+    expect(occurrences(text, ' hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:')).toBe(0)
     expect(occurrences(text, 'transition-[background-color,scale] duration-[var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-out)]')).toBe(2)
   })
 

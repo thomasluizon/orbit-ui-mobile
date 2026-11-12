@@ -22,6 +22,8 @@ vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn
 
 import { MAX_CHECKLIST_ITEMS } from '@orbit/shared/validation'
 import { PickerRow } from '@/components/ui/picker-row'
+import { RadioGroup } from '@/components/ui/radio-group'
+import { RadioRow } from '@/components/ui/select-check'
 import { TimeField } from '@/components/ui/time-field'
 import { ChecklistTemplates } from '@/components/habits/checklist-templates'
 import { HabitChecklist } from '@/components/habits/habit-checklist'
@@ -39,10 +41,24 @@ function InFieldset({ disabled, children }: Readonly<{ disabled: boolean; childr
   return <fieldset disabled={disabled}>{children}</fieldset>
 }
 
+/** A tag suggestion row (`tag-suggestions.tsx`): proposed, and disabled at the tag limit or while a suggestion saves. */
+function ProposedPickerRow({ disabled }: Readonly<{ disabled: boolean }>) {
+  return <PickerRow proposed name="Reading" selected={false} disabled={disabled} onToggle={vi.fn()} value="" valueClassName="flex-1" controlClassName="orbit-list-row-body flex min-h-12 w-full items-center rounded-[12px] px-2 py-1 text-left disabled:opacity-40" actionsClassName="flex" />
+}
+
+/** The habit form's radio rows (`habit-type-field.tsx`, `habit-date-field.tsx`): a plain row, a personal row, and a disabled personal row with its reason disclosure. */
+function FormRadioRows() {
+  return <RadioGroup aria-label="Type">
+    <RadioRow label="Task" selected onSelect={vi.fn()} />
+    <RadioRow label="Habit" textMode="personal" onSelect={vi.fn()} />
+    <RadioRow label="Locked" textMode="personal" disabled reason="Locked by the parent" />
+  </RadioGroup>
+}
+
 /** Each scenario renders habit form press controls in their disabled state and returns them. */
 const DISABLED_PRESS_CONTROLS: ReadonlyArray<readonly [string, () => HTMLElement[]]> = [
-  ['a picker row whose caller passes no press scale', () => {
-    render(<PickerRow name="Reading" selected={false} disabled onToggle={vi.fn()} value="" valueClassName="flex-1" controlClassName="orbit-list-row-body flex min-h-12 w-full items-center rounded-[12px] px-2 py-1 text-left disabled:opacity-40" actionsClassName="flex" />)
+  ['a proposed picker row whose caller passes no press scale', () => {
+    render(<ProposedPickerRow disabled />)
     return [screen.getByRole('button', { name: 'Reading' })]
   }],
   ['the tag picker row, edit and delete', () => {
@@ -80,6 +96,10 @@ const DISABLED_PRESS_CONTROLS: ReadonlyArray<readonly [string, () => HTMLElement
     render(<TimeField label="Start" value="" onChange={vi.fn()} disabled />)
     return [screen.getByRole('button', { name: /^Start: / })]
   }],
+  ['the exact time clear inside the disabled timing fieldset', () => {
+    render(<InFieldset disabled><TimeField label="Start" value="09:00" onChange={vi.fn()} onClear={vi.fn()} /></InFieldset>)
+    return [screen.getByRole('button', { name: 'common.clear' })]
+  }],
   ['the scheduled reminder remove inside a disabled fieldset', () => {
     render(<InFieldset disabled><ScheduledReminderSection reminderEnabled scheduledReminders={[{ when: 'same_day', time: '09:00' }]} onSetScheduledReminders={vi.fn()} onValidationError={vi.fn()} t={translate} /></InFieldset>)
     return [screen.getByRole('button', { name: 'habits.form.removeScheduledReminder' })]
@@ -90,6 +110,10 @@ const DISABLED_PRESS_CONTROLS: ReadonlyArray<readonly [string, () => HTMLElement
     fireEvent.click(screen.getByRole('button', { name: /habits\.form\.reminderAdd/ }))
     view.rerender(<InFieldset disabled>{section}</InFieldset>)
     return [screen.getAllByRole('button', { name: 'habits.form.removeReminder' })[0]!, screen.getByRole('button', { name: 'habits.form.reminderAtTime' }), screen.getByRole('button', { name: 'habits.form.reminderCustom' })]
+  }],
+  ['the radio row inside a disabled fieldset', () => {
+    render(<InFieldset disabled><FormRadioRows /></InFieldset>)
+    return [screen.getByRole('radio', { name: 'Task' })]
   }],
   ['the checklist item remove inside a disabled fieldset', () => {
     render(<InFieldset disabled><HabitChecklist editable items={[{ text: 'Run', isChecked: false }]} onItemsChange={vi.fn()} /></InFieldset>)
@@ -225,6 +249,23 @@ describe('habit form press scale', () => {
       const interactionPaints = rules.rulesFor(control).filter((rule) => /:hover|:active/.test(rule.state) && INTERACTION_PAINT.some((property) => rule.declarations.has(property)))
       expect(interactionPaints.filter((rule) => !/:enabled|:not\(:disabled\)/.test(rule.state)).map((rule) => rule.state)).toEqual([])
     }
+  })
+
+  it.each([['enabled', false], ['disabled', true]] as const)('applies the proposed picker row title promotion on hover and on press only while the row is enabled: %s', (_, disabled) => {
+    render(<ProposedPickerRow disabled={disabled} />)
+    const title = screen.getByRole('button', { name: 'Reading' }).querySelector('[class*="group-hover/picker"]')!
+    const promotions = rules.rulesFor(title).filter((rule) => rule.declarations.get('color') === 'var(--fg-2)')
+    expect(promotions).toHaveLength(2)
+    for (const { state } of promotions) expect(title.matches(state.replace(/:hover|:active/, ''))).toBe(!disabled)
+  })
+
+  it.each([['enabled', false], ['disabled', true]] as const)('applies every hover and press rule of a radio row, its personal text and its reason disclosure only while the form fieldset is enabled: %s', (_, disabled) => {
+    render(<InFieldset disabled={disabled}><FormRadioRows /></InFieldset>)
+    const applies = [...document.querySelectorAll('fieldset *')].flatMap((element) => rules.rulesFor(element)
+      .filter(({ state }) => /:hover|:active/.test(state))
+      .map(({ state }) => element.matches(`*${state.replace(/:hover|:active/g, '')}`)))
+    expect(applies.length).toBeGreaterThan(0)
+    expect(applies).toEqual(applies.map(() => !disabled))
   })
 
   it.each(DISABLED_PRESS_CONTROLS)('holds %s at unit scale under reduced motion through the global press rule', (_, renderControls) => {
