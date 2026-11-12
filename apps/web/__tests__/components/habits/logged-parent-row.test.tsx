@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, waitFor } from '@testing-library/react'
 import { NextIntlClientProvider, createTranslator } from 'next-intl'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { API } from '@orbit/shared/api'
 import { habitKeys, profileKeys } from '@orbit/shared/query'
 import { computeHabitFutureHint } from '@orbit/shared/utils'
@@ -37,8 +38,6 @@ vi.mock('next/navigation', () => ({
 import { HabitList } from '@/components/habits/habit-list'
 import { TodayProvider } from '@/app/(app)/today-provider'
 import { profileFixture } from '@/test-support/hermetic/mock-api/fixtures/profile'
-
-const profile = { ...profileFixture, language: 'en', timeZone: 'UTC' }
 
 function child(id: string, title: string) {
   return createMockHabitScheduleChild({ id, title, dueDate: TODAY, scheduledDates: [TODAY],
@@ -100,21 +99,12 @@ function visiblePresentation(id: string): string {
   return copy.outerHTML
 }
 
-async function logParentFromTodayList() {
-  api.items = dueTodayTree()
+async function renderTodayList(items: HabitScheduleItem[], locale: 'en' | 'pt-BR') {
+  api.items = items
   api.writes = []
   api.listReads = 0
   api.unexpectedReads = []
-  api.onWrite = (path) => {
-    if (path !== API.habits.log('parent')) throw new Error(`Unexpected write: ${path}`)
-    const unlog = api.writes.length > 1
-    api.items = unlog ? dueTodayTree() : parentLoggedTree()
-    /** Source: orbit-api `LogHabitCommand.HandleUnlogAsync` answers with the removed log id, no first completion and no XP. */
-    return unlog
-      ? { logId: 'log-parent', isFirstCompletionToday: false, previousStreak: 1, currentStreak: 0, linkedGoalUpdates: [] }
-      : { logId: 'log-parent', isFirstCompletionToday: true, previousStreak: 0, currentStreak: 1,
-        linkedGoalUpdates: [], xpEarned: 0, newAchievementIds: [] }
-  }
+  const profile = { ...profileFixture, language: locale, timeZone: 'UTC' }
   vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
     const path = input instanceof Request ? input.url : input.toString()
     const pathname = new URL(path, 'http://orbit.test').pathname
@@ -129,12 +119,27 @@ async function logParentFromTodayList() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   client.setQueryData(profileKeys.detail(), profile)
   client.setQueryData(habitKeys.count(), 3)
-  render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+  render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR} timeZone="UTC">
     <QueryClientProvider client={client}><TodayProvider>
       <HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />
     </TodayProvider></QueryClientProvider>
   </NextIntlClientProvider>)
   await waitFor(() => expect(document.querySelectorAll('[data-testid="habit-row"]').length).toBe(3))
+  return client
+}
+
+async function logParentFromTodayList(locale: 'en' | 'pt-BR' = 'en') {
+  const client = await renderTodayList(dueTodayTree(), locale)
+  api.onWrite = (path) => {
+    if (path !== API.habits.log('parent')) throw new Error(`Unexpected write: ${path}`)
+    const unlog = api.writes.length > 1
+    api.items = unlog ? dueTodayTree() : parentLoggedTree()
+    /** Source: orbit-api `LogHabitCommand.HandleUnlogAsync` answers with the removed log id, no first completion and no XP. */
+    return unlog
+      ? { logId: 'log-parent', isFirstCompletionToday: false, previousStreak: 1, currentStreak: 0, linkedGoalUpdates: [] }
+      : { logId: 'log-parent', isFirstCompletionToday: true, previousStreak: 0, currentStreak: 1,
+        linkedGoalUpdates: [], xpEarned: 0, newAchievementIds: [] }
+  }
 
   const before = {
     parentStatus: row('parent').dataset.status,
@@ -175,7 +180,7 @@ it('leaves the sub-habits unlogged with their own empty checks', async () => {
 
 it('shows the next due label once, as the last visible metadata token of the logged parent', async () => {
   await logParentFromTodayList()
-  const nextDueLabel = computeHabitFutureHint({ dueDate: TOMORROW }, TODAY, createTranslator({ locale: 'en', messages: en }) as never, 'en')
+  const nextDueLabel = computeHabitFutureHint({ dueDate: TOMORROW }, TODAY, createTranslator({ locale: 'en', messages: en }) as never, 'en', true)
   const labelNodes = [...row('parent').querySelectorAll<HTMLElement>('*')]
     .filter((node) => node.children.length === 0 && node.textContent === nextDueLabel)
   expect({
@@ -184,6 +189,19 @@ it('shows the next due label once, as the last visible metadata token of the log
     hiddenLabelNodes: labelNodes.filter((node) => node.closest('.sr-only') !== null).length,
     lastVisibleToken: visibleMetaTokens('parent').at(-1),
   }).toEqual({ nextDueLabel: 'due tomorrow', visibleLabelNodes: 1, hiddenLabelNodes: 0, lastVisibleToken: 'due tomorrow' })
+})
+
+it('shows the pt-BR next due label "volta amanhã" as the last visible metadata token of the logged parent', async () => {
+  await logParentFromTodayList('pt-BR')
+  expect(visibleMetaTokens('parent').at(-1)).toBe('volta amanhã')
+})
+
+it('gives a pt-BR screen reader first-occurrence words for a parent due tomorrow that has not been logged', async () => {
+  const [parent] = dueTodayTree()
+  await renderTodayList([{ ...parent!, dueDate: TOMORROW, scheduledDates: [], instances: [] }], 'pt-BR')
+  const name = row('parent').querySelector('[data-habit-row-body]')!.getAttribute('aria-label')!
+  expect({ firstOccurrence: name.includes('amanhã'), comesBack: name.includes('volta amanhã'), visible: visibleMetaTokens('parent').some((token) => token.includes('amanhã')) })
+    .toEqual({ firstOccurrence: true, comesBack: false, visible: false })
 })
 
 it('shows the done disc and the dimmed title on the logged parent, and keeps the child count', async () => {

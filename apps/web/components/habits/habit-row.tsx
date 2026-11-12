@@ -3,7 +3,7 @@
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { useId, type CSSProperties, type KeyboardEvent, type ReactNode, type RefCallback } from 'react'
-import { getHabitRowSelectionSpacerWidth, getHabitRowTypeLabelKey, isHabitDoneForRange, isLoggedParentHabitRow, stripInlineMarkdown } from '@orbit/shared/utils'
+import { getHabitRowSelectionSpacerWidth, getHabitRowTypeLabelKey, isHabitDoneForRange, isLoggedParentHabitRow, stripInlineMarkdown, visibleHabitRowMetaTokens } from '@orbit/shared/utils'
 import { PersonalTextAction } from '@/components/ui/personal-text-action'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useTranslations } from 'next-intl'
@@ -12,7 +12,7 @@ import type { MenuItem } from '@orbit/shared/contracts/overlay'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { ChevronDown } from '@/components/ui/icons'
 import { Checkbox } from '@/components/ui/checkbox'
-import { buildHabitRowMetaTokens, HabitRowContent, MetaStrip, visibleHabitRowMetaTokens, type HabitRowMetaToken } from './habit-row-content'
+import { buildHabitRowMetaTokens, HabitRowContent, MetaStrip, type HabitRowMetaToken } from './habit-row-content'
 import { HabitRowLeading } from './habit-row-leading'
 import { HabitRowTrailing } from './habit-row-trailing'
 import { useHabitRowSupportingMeta, useHabitRowMetadataFit } from './use-habit-row-large-text'
@@ -213,7 +213,7 @@ function HabitRowView({
   const canDrillInto = hasSubHabits && !!onDrillInto
   const isDone = state === 'done' || isHabitDoneForRange(habit)
   const graphicState = habit.isBadHabit ? 'bad' : state
-  const loggedParent = isLoggedParentHabitRow({ hasSubHabits: habit.hasSubHabits || hasChildren, isDone })
+  const loggedParent = isLoggedParentHabitRow(habit, hasChildren)
   const menuItems = buildMenuItems(t, actions, canDrillInto, completionReadOnly, habit.isGeneral, graphicState)
   const { rowRef, narrow } = useHabitRowMetadataFit(JSON.stringify([habit.id, meta, loggedParent, selectMode, selected, structuralColumn, hasChildren, menuItems.length > 0, child, depth, depthSupportingMeta]), largeText, measureRef, loggedParent)
   const supportingMeta = depthSupportingMeta || narrow

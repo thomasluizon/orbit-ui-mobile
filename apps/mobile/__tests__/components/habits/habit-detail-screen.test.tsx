@@ -763,8 +763,9 @@ describe('HabitDetailScreen', () => {
     const row = tree.root.findByProps({ testID: 'detail-children' }).findAll((node: TestNode) => node.type === 'View' && node.props.testID === 'habit-row')[0]!
     const title = row.findAll((node: TestNode) => node.type === 'Text' && node.props.children === makeScopedChild('2026-08-28').title)[0]!
     const color = [title.props.style].flat(Infinity).reduce((value: unknown, style) => (style as { color?: unknown } | null)?.color ?? value, undefined)
-    expect({ color, label: renderedText(row.findByProps({ testID: 'habit-row-meta' })).includes('habits.schedule.dueTomorrow') })
-      .toEqual({ color: hasSubHabits ? tokens.fg3 : tokens.fg2, label: hasSubHabits })
+    const hint = row.findAll((node: TestNode) => node.props.delayLongPress === 500 && typeof node.type === 'string')[0]!.props.accessibilityHint
+    expect({ color, label: renderedText(row.findByProps({ testID: 'habit-row-meta' })).includes('habits.schedule.nextDueTomorrow'), hint })
+      .toEqual({ color: hasSubHabits ? tokens.fg3 : tokens.fg2, label: hasSubHabits, hint: hasSubHabits ? 'habits.schedule.nextDueTomorrow' : 'habits.schedule.dueTomorrow' })
   })
 
   it.each(['light', 'dark'] as const)('keeps detail child monograms readable through the complete %s paint stack', (mode) => {

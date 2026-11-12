@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createMockHabit } from './factories'
+import { LOGGED_PARENT_TODAY, loggedParentRowCases } from '../test-support/logged-parent-row-cases'
 import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
 import { parseAPIDate } from '../utils/dates'
@@ -397,8 +398,10 @@ describe('computeHabitFutureHint', () => {
     ).toBeNull()
   })
 
-  it('says due tomorrow for the next day', () => {
-    expect(computeHabitFutureHint(createMockHabit({ dueDate: '2025-01-11' }), today, t, 'en')).toBe('habits.schedule.dueTomorrow')
+  it('says due tomorrow for the next day, and uses the logged parent words only when the caller asks for them', () => {
+    const habit = createMockHabit({ dueDate: '2025-01-11' })
+    expect([computeHabitFutureHint(habit, today, t, 'en'), computeHabitFutureHint(habit, today, t, 'en', true)])
+      .toEqual(['habits.schedule.dueTomorrow', 'habits.schedule.nextDueTomorrow'])
   })
 
   it('renders a relative day hint when due within a week', () => {
@@ -427,33 +430,81 @@ describe('computeHabitFutureHint', () => {
 describe('computeHabitRowNextDueHint', () => {
   const today = '2025-01-10'
   const t = createTranslator()
+  const onToday = { selectedDate: today, today, hasChildren: false }
 
   it('gives the next due label only on today', () => {
     const habit = createMockHabit({ dueDate: '2025-01-11', frequencyUnit: 'Day' })
-    expect(computeHabitRowNextDueHint(habit, today, today, t, 'en')).toBe('habits.schedule.dueTomorrow')
-    expect(computeHabitRowNextDueHint(habit, '2025-01-09', today, t, 'en')).toBeNull()
+    expect(computeHabitRowNextDueHint(habit, onToday, t, 'en')).toBe('habits.schedule.dueTomorrow')
+    expect(computeHabitRowNextDueHint(habit, { ...onToday, selectedDate: '2025-01-09' }, t, 'en')).toBeNull()
   })
 
   it('gives no label for a completed one-time task', () => {
-    expect(computeHabitRowNextDueHint(createMockHabit({ dueDate: '2025-01-11', frequencyUnit: null, isCompleted: true }), today, today, t, 'en')).toBeNull()
+    expect(computeHabitRowNextDueHint(createMockHabit({ dueDate: '2025-01-11', frequencyUnit: null, isCompleted: true }), onToday, t, 'en')).toBeNull()
   })
 
   it('gives no label for a recurring habit whose next due date passes its end date', () => {
-    expect(computeHabitRowNextDueHint(createMockHabit({ dueDate: '2025-01-11', frequencyUnit: 'Day', endDate: '2025-01-10', isCompleted: true }), today, today, t, 'en')).toBeNull()
+    expect(computeHabitRowNextDueHint(createMockHabit({ dueDate: '2025-01-11', frequencyUnit: 'Day', endDate: '2025-01-10', isCompleted: true }), onToday, t, 'en')).toBeNull()
   })
 
   it('keeps the label for a recurring habit that a detail row marks completed for the date', () => {
-    expect(computeHabitRowNextDueHint(createMockHabit({ dueDate: '2025-01-11', frequencyUnit: 'Day', isCompleted: true }), today, today, t, 'en')).toBe('habits.schedule.dueTomorrow')
+    expect(computeHabitRowNextDueHint(createMockHabit({ dueDate: '2025-01-11', frequencyUnit: 'Day', isCompleted: true }), onToday, t, 'en')).toBe('habits.schedule.dueTomorrow')
+  })
+
+  it('gives a logged parent its own next day words and keeps the first-occurrence words for every other row', () => {
+    const due = { dueDate: '2025-01-11', frequencyUnit: 'Day' as const }
+    expect({
+      loggedParent: computeHabitRowNextDueHint(createMockHabit({ ...due, hasSubHabits: true, isLoggedInRange: true }), onToday, t, 'en'),
+      loggedParentInView: computeHabitRowNextDueHint(createMockHabit({ ...due, isLoggedInRange: true }), { ...onToday, hasChildren: true }, t, 'en'),
+      openParent: computeHabitRowNextDueHint(createMockHabit({ ...due, hasSubHabits: true }), { ...onToday, hasChildren: true }, t, 'en'),
+      loggedLeaf: computeHabitRowNextDueHint(createMockHabit({ ...due, isLoggedInRange: true }), onToday, t, 'en'),
+      loggedParentInTwoDays: computeHabitRowNextDueHint(createMockHabit({ ...due, dueDate: '2025-01-12', hasSubHabits: true, isLoggedInRange: true }), onToday, t, 'en'),
+    }).toEqual({
+      loggedParent: 'habits.schedule.nextDueTomorrow',
+      loggedParentInView: 'habits.schedule.nextDueTomorrow',
+      openParent: 'habits.schedule.dueTomorrow',
+      loggedLeaf: 'habits.schedule.dueTomorrow',
+      loggedParentInTwoDays: 'habits.schedule.dueInDays({"count":2})',
+    })
   })
 })
 
+describe('next day words in both locales', () => {
+  const today = '2025-01-10'
+  const catalogTranslator = (messages: object) => (key: string) =>
+    String(key.split('.').reduce<unknown>((node, part) => (node as Record<string, unknown>)[part], messages))
+  const onToday = { selectedDate: today, today, hasChildren: false }
+  const openTaskDueTomorrow = createMockHabit({ title: 'Dentist', dueDate: '2025-01-11', frequencyUnit: null, frequencyQuantity: null })
+  const openParentDueTomorrow = createMockHabit({ dueDate: '2025-01-11', hasSubHabits: true })
+  const loggedParentDueTomorrow = createMockHabit({ dueDate: '2025-01-11', hasSubHabits: true, isLoggedInRange: true })
+
+  it.each([['en', en, 'due tomorrow', 'due tomorrow'], ['pt-BR', ptBR, 'amanhã', 'volta amanhã']] as const)(
+    'never tells a %s screen reader that a row which has not happened yet comes back', (locale, messages, firstOccurrence, loggedParent) => {
+      const t = catalogTranslator(messages)
+      expect({
+        genericHint: computeHabitFutureHint(openTaskDueTomorrow, today, t, locale),
+        openTask: computeHabitRowNextDueHint(openTaskDueTomorrow, onToday, t, locale),
+        openParent: computeHabitRowNextDueHint(openParentDueTomorrow, { ...onToday, hasChildren: true }, t, locale),
+        loggedParent: computeHabitRowNextDueHint(loggedParentDueTomorrow, { ...onToday, hasChildren: true }, t, locale),
+      }).toEqual({ genericHint: firstOccurrence, openTask: firstOccurrence, openParent: firstOccurrence, loggedParent })
+    },
+  )
+})
+
 describe('isLoggedParentHabitRow', () => {
-  it.each([
-    { hasSubHabits: true, isDone: true, expected: true },
-    { hasSubHabits: true, isDone: false, expected: false },
-    { hasSubHabits: false, isDone: true, expected: false },
-    { hasSubHabits: false, isDone: false, expected: false },
-  ])('is $expected for hasSubHabits=$hasSubHabits isDone=$isDone', ({ hasSubHabits, isDone, expected }) => {
-    expect(isLoggedParentHabitRow({ hasSubHabits, isDone })).toBe(expected)
+  it.each(loggedParentRowCases)('decides $name from the habit and the view: logged parent=$loggedParent', ({ habit, hasChildren, loggedParent }) => {
+    expect(isLoggedParentHabitRow(habit, hasChildren)).toBe(loggedParent)
+  })
+
+  it.each(loggedParentRowCases)('shows the next due label of $name only when it is a logged parent on today: $nextDueVisible', ({ habit, hasChildren, selectedDate, nextDueVisible }) => {
+    const hint = computeHabitRowNextDueHint(habit, { selectedDate, today: LOGGED_PARENT_TODAY, hasChildren }, createTranslator(), 'en')
+    expect(isLoggedParentHabitRow(habit, hasChildren) && hint !== null).toBe(nextDueVisible)
+  })
+
+  it('reads the done state from the log of the habit, not from the check that a caller paints', () => {
+    expect([
+      isLoggedParentHabitRow(createMockHabit({ hasSubHabits: true, isCompleted: true }), false),
+      isLoggedParentHabitRow(createMockHabit({ hasSubHabits: true, isLoggedInRange: true }), false),
+      isLoggedParentHabitRow(createMockHabit({ hasSubHabits: true }), true),
+    ]).toEqual([true, true, false])
   })
 })

@@ -32,7 +32,7 @@ describe('logged parent row metadata in Chromium', () => {
           await document.fonts.ready
           await new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done())))
         })
-        const label = (locale === 'en' ? en : ptBR).habits.schedule.dueTomorrow
+        const label = (locale === 'en' ? en : ptBR).habits.schedule.nextDueTomorrow
         for (const depth of [0, 1]) {
           const measure = (id: string) => page.locator(`[data-habit-id="${id}"]`).evaluate((element) => {
             const card = element.getBoundingClientRect()

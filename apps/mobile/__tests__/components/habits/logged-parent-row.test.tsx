@@ -221,7 +221,7 @@ it('leaves the sub-habits unlogged with their own empty checks', async () => {
 
 it('shows the next due label once, as the last visible metadata token of the logged parent', async () => {
   const { after } = await logParentFromTodayList()
-  const nextDueLabel = computeHabitFutureHint({ dueDate: TOMORROW }, TODAY, (key: string, params?: Record<string, string | number | Date>) => String(i18n.t(key, params)), 'en')
+  const nextDueLabel = computeHabitFutureHint({ dueDate: TOMORROW }, TODAY, (key: string, params?: Record<string, string | number | Date>) => String(i18n.t(key, params)), 'en', true)
   expect({ nextDueLabel, meta: visibleMeta(row(after, 'Parent')) })
     .toEqual({ nextDueLabel: 'due tomorrow', meta: ['Habit', '0 of 2', 'due tomorrow'] })
   const body = row(after, 'Parent').findAll((node) => node.props.delayLongPress === 500 && typeof node.type === 'string')[0]!

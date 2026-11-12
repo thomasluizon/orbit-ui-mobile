@@ -12,7 +12,9 @@ import {
   resolveHabitAccessibleStatus,
   getHabitInlineDepthLimit,
   getHabitRowSelectionSpacerWidth,
+  habitRowMetaNeedsSupportingLine,
   stripInlineMarkdown,
+  visibleHabitRowMetaTokens,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { HabitRowBase } from '@orbit/shared/contracts/lists'
@@ -23,7 +25,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import * as Menu from '@/components/ui/dropdown-menu'
 import { ChevronDown } from '@/components/ui/icons'
 import { Checkbox } from '@/components/ui/checkbox'
-import { habitRowMetaPartKey, HabitRowContent, HabitRowMetaStrip, visibleHabitRowMetaParts, type HabitRowMetaPart } from './habit-row-content'
+import { habitRowMetaPartKey, HabitRowContent, HabitRowMetaStrip, type HabitRowMetaPart } from './habit-row-content'
 import { HabitRowLeading } from './habit-row-leading'
 import { HabitRowTrailing } from './habit-row-trailing'
 import {
@@ -260,21 +262,17 @@ function habitRowSpacing(depth: number, panelEnd: boolean): ViewStyle {
   return { paddingLeft: depth * SPACING.s16, paddingBottom: panelEnd ? SPACING.s12 : SPACING.s8 }
 }
 
-/** The `gap: 4` between the tokens of `HabitRowMetaStrip`. */
-const META_TOKEN_GAP = 4
-
-/** The metadata moves to the supporting line when one token is wider than the title block, or, for a logged parent, when the whole strip is. */
+/** Measures the title block and the metadata tokens for `habitRowMetaNeedsSupportingLine`. */
 function useHabitRowMetadataFit(metaParts: HabitRowMetaPart[], nextDueVisible: boolean) {
   const [measurements, setMeasurements] = useState<{ contentWidth: number; widths: Record<string, number> }>({ contentWidth: Infinity, widths: {} })
-  const keys = visibleHabitRowMetaParts(metaParts, nextDueVisible).map((part, index) => habitRowMetaPartKey(part, index))
+  const keys = visibleHabitRowMetaTokens(metaParts, nextDueVisible).map((part, index) => habitRowMetaPartKey(part, index))
   const onContentWidth = (contentWidth: number) => setMeasurements((previous) => previous.contentWidth === contentWidth ? previous : { ...previous, contentWidth })
   const onTokenWidth = (key: string, width: number) => setMeasurements((previous) => previous.widths[key] === width ? previous : {
     ...previous,
     widths: Object.fromEntries(keys.map((current) => [current, current === key ? width : previous.widths[current] ?? 0])),
   })
   const widths = keys.map((key) => measurements.widths[key] ?? 0)
-  const stripWidth = widths.reduce((total, width) => total + width, 0) + META_TOKEN_GAP * Math.max(widths.length - 1, 0)
-  return { onContentWidth, onTokenWidth, narrow: widths.some((width) => width > measurements.contentWidth) || (nextDueVisible && stripWidth > measurements.contentWidth) }
+  return { onContentWidth, onTokenWidth, narrow: habitRowMetaNeedsSupportingLine(widths, measurements.contentWidth, nextDueVisible) }
 }
 
 function getHabitRowDates(selectedDate: Date | undefined, today: string | undefined) {
@@ -340,6 +338,7 @@ export const HabitRow = memo(function HabitRow({
 
   const metaParts = buildHabitRowMetaParts({
     habit,
+    hasChildren,
     childProgress: { done: childrenDone, total: childrenTotal },
     isOverdue: habit.isOverdue,
     selectedDateStr,
@@ -350,7 +349,7 @@ export const HabitRow = memo(function HabitRow({
   })
   if (dateStatusKey) metaParts.push({ kind: 'date-status', label: t(dateStatusKey) })
   if (habit.nextReminderAtUtc) metaParts.push({ kind: 'next', label: t('habits.nextReminder', { time: displayClock(habit.nextReminderAtUtc) }) })
-  const loggedParent = isLoggedParentHabitRow({ hasSubHabits: habit.hasSubHabits || hasChildren, isDone: isDoneForRange })
+  const loggedParent = isLoggedParentHabitRow(habit, hasChildren)
   const { onContentWidth, onTokenWidth, narrow } = useHabitRowMetadataFit(metaParts, loggedParent)
   const supportingMeta = largeText || depthBoundary || narrow
 

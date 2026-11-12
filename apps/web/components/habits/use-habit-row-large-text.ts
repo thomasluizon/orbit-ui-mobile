@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState, useSyncExternalStore, type RefCallback } from 'react'
-import { getHabitInlineDepthLimit } from '@orbit/shared/utils'
+import { getHabitInlineDepthLimit, habitRowMetaNeedsSupportingLine } from '@orbit/shared/utils'
 
 function textScale() {
   const rootSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
@@ -17,9 +17,6 @@ function subscribe(onChange: () => void) {
     window.removeEventListener('resize', onChange)
   }
 }
-
-/** The `gap-[4px]` between the tokens of `MetaStrip`. */
-const META_TOKEN_GAP = 4
 
 export function useHabitInlineDepthLimit() {
   const [contentWidth, setContentWidth] = useState<number>()
@@ -39,7 +36,7 @@ export function useHabitRowSupportingMeta(depth: number) {
   return { supportingMeta: largeText || depth > 0 && depth >= maxInlineDepth, measureRef, largeText }
 }
 
-/** The metadata moves to the supporting line when one token is wider than the title block, or, with `fitWholeStrip`, when the whole strip is. */
+/** Measures the title block and the metadata tokens for `habitRowMetaNeedsSupportingLine`. */
 export function useHabitRowMetadataFit(signature: string, largeText: boolean, measureRef: RefCallback<HTMLDivElement>, fitWholeStrip = false) {
   const [row, setRow] = useState<HTMLDivElement | null>(null)
   const rowRef = useCallback((element: HTMLDivElement | null) => {
@@ -59,9 +56,7 @@ export function useHabitRowMetadataFit(signature: string, largeText: boolean, me
     const observer = new ResizeObserver(() => {
       const available = content.getBoundingClientRect().width
       if (available <= 0) return
-      const widths = tokens.map((token) => token.getBoundingClientRect().width)
-      const stripWidth = widths.reduce((total, width) => total + width, 0) + META_TOKEN_GAP * Math.max(widths.length - 1, 0)
-      setNarrow(widths.some((width) => width > available) || (fitWholeStrip && stripWidth > available))
+      setNarrow(habitRowMetaNeedsSupportingLine(tokens.map((token) => token.getBoundingClientRect().width), available, fitWholeStrip))
     })
     for (const element of [content, ...tokens]) observer.observe(element)
     return () => observer.disconnect()

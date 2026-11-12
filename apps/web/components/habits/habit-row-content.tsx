@@ -1,4 +1,4 @@
-import { getHabitChecklistProgress, getHabitRowTypeLabelKey, stripInlineMarkdown, type HabitCardTranslationAdapter } from '@orbit/shared/utils'
+import { getHabitChecklistProgress, getHabitRowTypeLabelKey, HABIT_ROW_META_TOKEN_GAP, stripInlineMarkdown, visibleHabitRowMetaTokens, type HabitCardTranslationAdapter } from '@orbit/shared/utils'
 import { PersonalText } from '@/components/ui/personal-text'
 import { ListChecks } from '@/components/ui/icons'
 import type { ReactNode } from 'react'
@@ -35,13 +35,6 @@ interface HabitRowContentProps {
   meta: HabitRowMetaToken[]
   /** A logged parent shows its next due label as the last visible token; any other row keeps it for screen readers only. */
   nextDueVisible?: boolean
-}
-
-/** Moves the next due token to the end of the visible metadata, or drops it when the row keeps it hidden. */
-export function visibleHabitRowMetaTokens(meta: HabitRowMetaToken[], nextDueVisible: boolean): HabitRowMetaToken[] {
-  const isNextDue = (token: HabitRowMetaToken) => typeof token !== 'string' && token.kind === 'future'
-  const others = meta.filter((token) => !isNextDue(token))
-  return nextDueVisible ? [...others, ...meta.filter(isNextDue)] : others
 }
 
 export function HabitRowContent({
@@ -113,8 +106,9 @@ export function MetaStrip({ tokens, largeText = false, supportingLine = false }:
     <span
       data-habit-row-meta=""
       aria-hidden="true"
-      className="habit-row-meta flex min-w-0 flex-wrap items-center gap-[4px]"
+      className="habit-row-meta flex min-w-0 flex-wrap items-center"
       style={{
+        gap: HABIT_ROW_META_TOKEN_GAP,
         fontFamily: 'var(--font-mono)',
         fontSize: '0.75rem',
         fontVariantNumeric: 'tabular-nums',

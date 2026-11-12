@@ -553,6 +553,7 @@
     "schedule": {
       "dueInDays": "in {count}d",
       "dueTomorrow": "due tomorrow",
+      "nextDueTomorrow": "due tomorrow",
       "scheduledOn": "scheduled {date}"
     },
     "search": {

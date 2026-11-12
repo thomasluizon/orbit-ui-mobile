@@ -29,7 +29,7 @@ export function bundleHabitRowMetadata() {
       });
     }
     function LoggedParentRows() {
-      const nextDue = { kind: 'future', label: messages.habits.schedule.dueTomorrow };
+      const nextDue = { kind: 'future', label: messages.habits.schedule.nextDueTomorrow };
       const progress = messages.habits.rowProgress.replace('{done}', '0').replace('{total}', '2');
       return [0, 1].flatMap(depth => [true, false].map(logged => <HabitRow key={depth + ':' + logged}
         habit={createMockHabit({ id: (logged ? 'logged-' : 'open-') + depth, title: 'Read pages', hasSubHabits: true, isLoggedInRange: logged, dueDate: logged ? '2026-11-02' : '2026-11-01' })}

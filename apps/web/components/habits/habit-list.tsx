@@ -211,7 +211,7 @@ function deriveRowState(context: HabitListRenderingContext,
   return 'empty'
 }
 
-function buildMetaTokens(context: HabitListRenderingContext, habit: NormalizedHabit, childProgress?: { done: number; total: number }): HabitRowMetaToken[] {
+function buildMetaTokens(context: HabitListRenderingContext, habit: NormalizedHabit, hasChildren: boolean, childProgress?: { done: number; total: number }): HabitRowMetaToken[] {
   const { t, displayTime, selectedDateStr, todayStr, locale } = context
 
   const tokens: HabitRowMetaToken[] = []
@@ -223,7 +223,7 @@ function buildMetaTokens(context: HabitListRenderingContext, habit: NormalizedHa
   if (habit.isBadHabit && (habit.isCompleted || habit.isLoggedInRange)) {
     tokens.push({ kind: 'bad', label: t('habits.statusDot.bad') })
   }
-  const nextDueHint = computeHabitRowNextDueHint(habit, selectedDateStr, todayStr, t, locale)
+  const nextDueHint = computeHabitRowNextDueHint(habit, { selectedDate: selectedDateStr, today: todayStr, hasChildren }, t, locale)
   if (nextDueHint) tokens.push({ kind: 'future', label: nextDueHint })
   return tokens
 }
@@ -248,7 +248,7 @@ function renderHabitCard(context: HabitListRenderingContext,
   const isChild = depth > 0
   const recentlyCompleted = recentlyCompletedIds.has(habit.id)
   const state = deriveRowState(context, habit, recentlyCompleted)
-  const meta = buildMetaTokens(context, habit, progress)
+  const meta = buildMetaTokens(context, habit, hasChildren, progress)
   const { canLog, dateStatusKey, completionReadOnly, completionReasonKey, completionStatusUnavailable } = buildHabitRowDateModel(habit, selectedDateStr, todayStr)
   if (dateStatusKey) meta.push({ kind: 'date-status', label: t(dateStatusKey) })
   const hasLinkedGoal = (habit.linkedGoals?.length ?? 0) > 0

@@ -20,6 +20,7 @@ describe('resolveHabitRowDotState', () => {
 
 describe('buildHabitRowMetaParts', () => {
   const base = {
+    hasChildren: false,
     isOverdue: false,
     selectedDateStr: '2025-01-01',
     todayStr: '2025-01-01',
@@ -89,6 +90,18 @@ describe('buildHabitRowMetaParts', () => {
       habit: createMockHabit({ dueDate: '2025-01-05' }),
     })
     expect(parts).toContainEqual({ kind: 'future', label: 'habits.schedule.dueInDays' })
+  })
+
+  it('names the next day of a parent with its own words only when the parent is logged', () => {
+    const parent = { dueDate: '2025-01-02', hasSubHabits: true }
+    const future = (habit: ReturnType<typeof createMockHabit>, hasChildren: boolean) =>
+      buildHabitRowMetaParts({ ...base, habit, hasChildren }).find((part) => typeof part !== 'string' && part.kind === 'future')
+    expect([future(createMockHabit({ ...parent, isLoggedInRange: true }), true), future(createMockHabit(parent), true), future(createMockHabit({ dueDate: '2025-01-02', isLoggedInRange: true }), false)])
+      .toEqual([
+        { kind: 'future', label: 'habits.schedule.nextDueTomorrow' },
+        { kind: 'future', label: 'habits.schedule.dueTomorrow' },
+        { kind: 'future', label: 'habits.schedule.dueTomorrow' },
+      ])
   })
 })
 

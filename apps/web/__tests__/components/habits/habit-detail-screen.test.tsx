@@ -1827,7 +1827,7 @@ describe('HabitDetailScreen', () => {
     const { container } = render(<HabitDetailScreen habitId="habit-1" />)
     const row = container.querySelector<HTMLElement>('[data-testid="detail-children"] [data-testid="habit-row"]')!
     const title = row.querySelector<HTMLElement>('[data-habit-row-title-block] > :first-child')!
-    const label = within(row).getByText('habits.schedule.dueTomorrow')
+    const label = within(row).getByText(hasSubHabits ? 'habits.schedule.nextDueTomorrow' : 'habits.schedule.dueTomorrow')
     expect({
       titleColor: title.style.color,
       labelVisible: label.closest('.sr-only') === null && label.closest('[data-habit-row-meta]') !== null,

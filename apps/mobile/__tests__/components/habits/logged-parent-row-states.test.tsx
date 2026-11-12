@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { I18nextProvider } from 'react-i18next'
 import type { ReactTestInstance } from 'react-test-renderer'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { LOGGED_PARENT_TODAY, loggedParentRowCases } from '@orbit/shared/test-support/logged-parent-row-cases'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { i18n } from '@/lib/i18n'
 import { createTokensV2 } from '@/lib/theme'
@@ -114,6 +115,24 @@ describe('logged parent row states', () => {
     const strips = root.findAll((node) => node.props.testID === 'habit-row-meta' && typeof node.type === 'string')
     expect({ strips: strips.length, last: texts(strips[0]!).filter((text) => text !== '·').at(-1) }).toEqual({ strips: 1, last: 'due tomorrow' })
   })
+
+  it.each([['en', 'due tomorrow'], ['pt-BR', 'amanhã']])('gives a %s screen reader first-occurrence words for a row due tomorrow that has not been logged', async (language, label) => {
+    await i18n.changeLanguage(language)
+    const openParent = renderRow(loggedParent({ isLoggedInRange: false }))
+    const openTask = renderRow(createMockHabit({ id: 'dentist', title: 'Dentist', dueDate: '2026-09-13', frequencyUnit: null, frequencyQuantity: null, scheduledDates: [] }))
+    expect({
+      parentHint: bodyHint(openParent), parentVisible: visibleMeta(openParent).includes(label),
+      taskHint: bodyHint(openTask), taskVisible: visibleMeta(openTask).includes(label),
+    }).toEqual({ parentHint: label, parentVisible: false, taskHint: label, taskVisible: false })
+  })
+})
+
+describe('logged parent row decision', () => {
+  it.each(loggedParentRowCases)('dims $name and shows its next due label as the shared rule decides', ({ habit, hasChildren, depth, selectedDate, loggedParent: dimmed, nextDueVisible }) => {
+    const root = renderRow(habit, { hasChildren, depth, childrenTotal: hasChildren ? 2 : 0, selectedDate: new Date(`${selectedDate}T12:00:00`), today: LOGGED_PARENT_TODAY })
+    expect({ dimmed: titleColor(root, 'Parent') === tokens.fg3, nextDueVisible: visibleMeta(root).at(-1) === 'due tomorrow' })
+      .toEqual({ dimmed, nextDueVisible })
+  })
 })
 
 describe('logged parent row metadata fit', () => {
@@ -144,7 +163,7 @@ describe('logged parent row metadata fit', () => {
       const geometry = measureInteractionFills(tree!.toJSON(), rowWidth, false)
       const row = geometry.find((part) => part.host.props.testID === 'habit-row')!
       const tokens = geometry.filter((part) => part.host.props.testID === 'habit-row-meta-token')
-      const label = i18n.t('habits.schedule.dueTomorrow')
+      const label = i18n.t('habits.schedule.nextDueTomorrow')
       /** A nested parent at 320 dp is already on the supporting line, which may hold only two tokens; the whole label then starts the next line. */
       const maximumLines = width === 320 && depth === 1 ? 2 : 1
       const lines = new Set(tokens.map((token) => Math.round(token.top))).size

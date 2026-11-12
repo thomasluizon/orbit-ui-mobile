@@ -642,7 +642,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
     const model = buildHabitDetailChildDateModel(child, scopedChild, dateStr, todayStr, sourceChild)
     return {
       ...model,
-      nextDueHint: computeHabitRowNextDueHint(model.habit, dateStr, todayStr, t, language),
+      nextDueHint: computeHabitRowNextDueHint(model.habit, { selectedDate: dateStr, today: todayStr, hasChildren: false }, t, language),
       completionReason: model.dateStatusKey ? t(model.dateStatusKey) : getHabitDetailChildCompletionReason(scopedChild, completionReason, childUnavailableReason),
       completionStatusUnavailable: scopedChild === undefined || model.dateStatusKey !== undefined,
     }

@@ -1,4 +1,4 @@
-import { stripInlineMarkdown } from '@orbit/shared/utils'
+import { HABIT_ROW_META_TOKEN_GAP, stripInlineMarkdown, visibleHabitRowMetaTokens } from '@orbit/shared/utils'
 import { PersonalText } from '@/components/ui/personal-text'
 import { Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -31,13 +31,6 @@ interface HabitRowContentProps {
   nextDueVisible?: boolean
   onContentWidth?: (width: number) => void
   onTokenWidth?: (key: string, width: number) => void
-}
-
-/** Moves the next due part to the end of the visible metadata, or drops it when the row keeps it hidden. */
-export function visibleHabitRowMetaParts(metaParts: HabitRowMetaPart[], nextDueVisible: boolean): HabitRowMetaPart[] {
-  const isNextDue = (part: HabitRowMetaPart) => typeof part !== 'string' && part.kind === 'future'
-  const others = metaParts.filter((part) => !isNextDue(part))
-  return nextDueVisible ? [...others, ...metaParts.filter(isNextDue)] : others
 }
 
 export function HabitRowContent({
@@ -95,12 +88,12 @@ export function HabitRowMetaStrip({ metaParts, nextDueVisible = false, metaColor
   largeText?: boolean
   onTokenWidth?: (key: string, width: number) => void
 }>) {
-  const visibleMeta = visibleHabitRowMetaParts(metaParts, nextDueVisible)
+  const visibleMeta = visibleHabitRowMetaTokens(metaParts, nextDueVisible)
   const metaKeys = visibleMeta.map((part, index) => habitRowMetaPartKey(part, index))
   if (visibleMeta.length === 0) return null
   return (
     <View testID="habit-row-meta" accessible={false} importantForAccessibility="no-hide-descendants"
-      style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 4, minWidth: 0 }}>
+      style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: HABIT_ROW_META_TOKEN_GAP, minWidth: 0 }}>
       {visibleMeta.map((part, i) => <View key={metaKeys[i]} testID="habit-row-meta-token" onLayout={(event) => onTokenWidth?.(metaKeys[i]!, event.nativeEvent.layout.width)} style={[{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 }, typeof part !== 'string' && part.kind === 'date-status' ? { minWidth: 0, maxWidth: '100%', flexShrink: 1 } : undefined]}>
         <HabitRowMetaToken part={part} metaColor={metaColor} tokens={tokens} largeText={largeText} onWrap={() => onTokenWidth?.(metaKeys[i]!, Infinity)} />
         {i < visibleMeta.length - 1 ? <Text style={[styles.meta, { color: metaColor }]}>·</Text> : null}

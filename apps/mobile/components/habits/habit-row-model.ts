@@ -17,6 +17,8 @@ export function resolveHabitRowDotState(
 
 interface BuildHabitRowMetaPartsParams {
   habit: NormalizedHabit
+  /** Whether the current view renders sub-habits under the row. */
+  hasChildren: boolean
   childProgress?: { done: number; total: number }
   isOverdue: boolean
   selectedDateStr: string
@@ -29,6 +31,7 @@ interface BuildHabitRowMetaPartsParams {
 /** Parent completion or single-row timing and status metadata. */
 export function buildHabitRowMetaParts({
   habit,
+  hasChildren,
   childProgress,
   isOverdue,
   selectedDateStr,
@@ -48,7 +51,7 @@ export function buildHabitRowMetaParts({
   if (habit.isBadHabit && (habit.isCompleted || habit.isLoggedInRange)) {
     metaParts.push({ kind: 'bad' })
   }
-  const nextDueHint = computeHabitRowNextDueHint(habit, selectedDateStr, todayStr, t, locale)
+  const nextDueHint = computeHabitRowNextDueHint(habit, { selectedDate: selectedDateStr, today: todayStr, hasChildren }, t, locale)
   if (nextDueHint) metaParts.push({ kind: 'future', label: nextDueHint })
   const checklist = getHabitChecklistProgress(habit)
   if (checklist) metaParts.push({ kind: 'checklist', ...checklist, label: `${t('habits.form.checklist')}, ${t('habits.rowProgress', checklist)}` })
