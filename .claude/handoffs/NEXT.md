@@ -14,7 +14,7 @@ Finish the spec: an empty board except `#33` and the `#2074` measurement, verifi
 
 ## In flight
 
-UI `main` `89f0335e0`; API `main` `1a70835b4`; landing `main` `381b253fa`. Production web `46af750f6`; API `1a70835b4`; landing `381b253fa`; Android Open 1.3.153 (214); TestFlight 1.3.153 (3).
+UI `main` `89f0335e0`; API `main` `5fc345d20`; landing `main` `381b253fa`. Production web `46af750f6`; API `1a70835b4`; landing `381b253fa`; Android Open 1.3.153 (214); TestFlight 1.3.153 (3).
 
 | Item | Disposition |
 | --- | --- |
@@ -22,8 +22,8 @@ UI `main` `89f0335e0`; API `main` `1a70835b4`; landing `main` `381b253fa`. Produ
 | Web staging `89f0335e0` | Dispatched with `web-staging-after-main.sh`. Read its run; the smoke can fail its first attempt on the `#2116` redirect (rerun the failed job once). Then `release-run.sh ui production 89f0335e062886ff772b3f4489397356256d3f78 https://orbit-web-3qmv.onrender.com`. |
 | `ui#2439` (`#2116`) at `c46327515` | Approved, green, 0 threads. Merge after the iOS dispatch: `merge-gate.sh ui 2439` (`MSUBJ` with `fix:`, `MBODY` `Tracks thomasluizon/orbit-tickets#2116`), `record-merge.mjs`, then the web release and the three live checks in its order bullet. |
 | `ui#2441` (`#2074`) at `66094d12a` | Round 1 answered; in CI. `chain-read.sh ui 2441`, arm `chain-review.sh ui 2441` when no waiter runs, merge at the bar outside the Android to iOS window. |
-| `api#1108` (`#2118`) at `fc1982f3f` | Round 1 answered; in CI. Chain, review, merge (`merge-gate.sh api 1108`). Never delete its branch before the `#2127` pull request is retargeted. |
-| `#2127` worker | Launched in `orbit-api/ticket-2127-answered-choice-guard` (branch `fix/ticket-2127-answered-choice-guard`, base branch `feature/ticket-2118-api-speaks-orbit`, 150 minute ceiling, launch 1 of 2). Read its result and its diff, check the body (`Tracks`, test evidence red and green). After `api#1108` merges: retarget its pull request to `main`, merge `main`, chain, review, merge. Then the API release with a fresh Render export first, and the staging run its order bullet names. |
+| `api#1108` (`#2118`) | Merged as `5fc345d20`, not released. API release: a fresh Render export first (migration), then `/release`. The remote branch `feature/ticket-2118-api-speaks-orbit` was restored at `fc1982f3f` as the `#2127` base. |
+| `#2127` worker | Launched in `orbit-api/ticket-2127-answered-choice-guard` (branch `fix/ticket-2127-answered-choice-guard`, base branch `feature/ticket-2118-api-speaks-orbit`, 150 minute ceiling, launch 1 of 2). Read its result and its diff, check the body (`Tracks`, test evidence red and green). Then retarget its pull request to `main`, merge `main`, delete the restored `#2118` branch, chain, review, merge. Then the API release with a fresh Render export first, and the staging run its order bullet names. |
 | `#2128` | Blocked by `#2127`. Launch (repo:ui) when a UI slot and disk allow. |
 | `#1561` | Open a TestFlight group that outside testers can join, with the 1.3.154 build, after reading the current beta groups (`asc-api.mjs`). Write the link on the ticket. |
 | `#2119` to `#2126` | Batch M. Launch `#2119` when free disk is over 50 GiB. |
@@ -32,14 +32,14 @@ UI `main` `89f0335e0`; API `main` `1a70835b4`; landing `main` `381b253fa`. Produ
 | Intake | Mailbox and store reviews empty; Sentry holds only Q and R (`#1561`); board all placed. |
 | `ui#2388` | This relay's docs branch. Never request a review for it. |
 
-Inventory: open pull requests ui `#2441`, `#2439`, `#2388`; api `#1108`, plus the `#2127` worker's when it opens. Unpushed commits on a branch: none. Dirty worktrees: none after this commit. Stashes: none. Running workers: the `#2127` worker. Detached worktrees with commits on no remote branch: `combined-2065`, api `scratch-1090-merge`, api `scratch-877-timing` (leave them). Waiters to arm: one `chain-review.sh` per pull request in CI or review, `wait-release.mjs` for each release run, and `wait-auto-work.mjs` when nothing is launchable.
+Inventory: open pull requests ui `#2441`, `#2439`, `#2388`; api: the `#2127` worker's when it opens. Unpushed commits on a branch: none. Dirty worktrees: none after this commit. Stashes: none. Running workers: the `#2127` worker. Detached worktrees with commits on no remote branch: `combined-2065`, api `scratch-1090-merge`, api `scratch-877-timing` (leave them). Waiters to arm: one `chain-review.sh` per pull request in CI or review, `wait-release.mjs` for each release run, and `wait-auto-work.mjs` when nothing is launchable.
 
 ## Then, in this order
 
 1. Answer any owner message first, in his language (he writes pt-BR), before any other work and before a relay step.
 2. `#2127` to production: it is the owner's live defect and outranks the queue.
 3. The iOS 1.3.154 dispatch, the ticket closes, the teardown, the production web release, then `ui#2439` and its release.
-4. The merges at the bar (`api#1108`, `ui#2441`), then Batch M in its order and the auto-work intake cycle.
+4. The API release, the `ui#2441` merge at the bar, then Batch M in its order and the auto-work intake cycle.
 
 ## Crank
 
