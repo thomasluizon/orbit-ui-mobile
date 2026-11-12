@@ -6,7 +6,8 @@
     "GET /v1/betaGroups": "https://developer.apple.com/documentation/appstoreconnectapi/get-v1-betagroups",
     "POST /v1/betaGroups": "https://developer.apple.com/documentation/appstoreconnectapi/post-v1-betagroups",
     "GET /v1/betaGroups/{id}/betaTesters": "https://developer.apple.com/documentation/appstoreconnectapi/get-v1-betagroups-_id_-betatesters",
-    "POST /v1/betaGroups/{id}/relationships/betaTesters": "https://developer.apple.com/documentation/appstoreconnectapi/post-v1-betagroups-_id_-relationships-betatesters"
+    "GET /v1/betaTesters": "https://developer.apple.com/documentation/appstoreconnectapi/get-v1-betatesters",
+    "POST /v1/betaTesters": "https://developer.apple.com/documentation/appstoreconnectapi/post-v1-betatesters"
   },
   "filters": {
     "builds:filter[preReleaseVersion.platform]": [
@@ -48,6 +49,17 @@
     ],
     "betaGroup testers:parameters": [
       "fields[betaTesters]",
+      "limit"
+    ],
+    "betaTesters:filter names": [
+      "filter[firstName]",
+      "filter[lastName]",
+      "filter[email]",
+      "filter[inviteType]",
+      "filter[apps]",
+      "filter[betaGroups]",
+      "filter[builds]",
+      "filter[id]",
       "limit"
     ]
   },
@@ -951,6 +963,50 @@
         "data"
       ]
     },
+    "BetaGroupResponse": {
+      "type": "object",
+      "title": "BetaGroupResponse",
+      "properties": {
+        "data": {
+          "$ref": "#/components/schemas/BetaGroup"
+        },
+        "included": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/App"
+              },
+              {
+                "$ref": "#/components/schemas/BetaRecruitmentCriterion"
+              },
+              {
+                "$ref": "#/components/schemas/BetaTester"
+              },
+              {
+                "$ref": "#/components/schemas/Build"
+              }
+            ],
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "betaRecruitmentCriteria": "#/components/schemas/BetaRecruitmentCriterion",
+                "builds": "#/components/schemas/Build",
+                "betaTesters": "#/components/schemas/BetaTester",
+                "apps": "#/components/schemas/App"
+              }
+            }
+          }
+        },
+        "links": {
+          "$ref": "#/components/schemas/DocumentLinks"
+        }
+      },
+      "required": [
+        "data",
+        "links"
+      ]
+    },
     "BetaTester": {
       "type": "object",
       "title": "BetaTester",
@@ -1168,35 +1224,6 @@
         "links"
       ]
     },
-    "BetaGroupBetaTestersLinkagesRequest": {
-      "type": "object",
-      "properties": {
-        "data": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": [
-                  "betaTesters"
-                ]
-              },
-              "id": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "id",
-              "type"
-            ]
-          }
-        }
-      },
-      "required": [
-        "data"
-      ]
-    },
     "PagedDocumentLinks": {
       "type": "object",
       "properties": {
@@ -1217,36 +1244,207 @@
         "self"
       ]
     },
-    "BetaGroupUpdateRequestAttributes": {
+    "DocumentLinks": {
       "type": "object",
       "properties": {
-        "name": {
+        "self": {
           "type": "string",
-          "nullable": true
+          "format": "uri-reference"
+        }
+      },
+      "required": [
+        "self"
+      ]
+    },
+    "BetaTesterCreateRequest": {
+      "type": "object",
+      "title": "BetaTesterCreateRequest",
+      "properties": {
+        "data": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "betaTesters"
+              ]
+            },
+            "attributes": {
+              "type": "object",
+              "properties": {
+                "firstName": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "lastName": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "email": {
+                  "type": "string",
+                  "format": "email"
+                }
+              },
+              "required": [
+                "email"
+              ]
+            },
+            "relationships": {
+              "type": "object",
+              "properties": {
+                "betaGroups": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "betaGroups"
+                            ]
+                          },
+                          "id": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "type"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "builds": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "builds"
+                            ]
+                          },
+                          "id": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "type"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "required": [
+            "attributes",
+            "type"
+          ]
+        }
+      },
+      "required": [
+        "data"
+      ]
+    },
+    "BetaTesterResponse": {
+      "type": "object",
+      "title": "BetaTesterResponse",
+      "properties": {
+        "data": {
+          "$ref": "#/components/schemas/BetaTester"
         },
-        "publicLinkEnabled": {
-          "type": "boolean",
-          "nullable": true
+        "included": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/App"
+              },
+              {
+                "$ref": "#/components/schemas/BetaGroup"
+              },
+              {
+                "$ref": "#/components/schemas/Build"
+              }
+            ],
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "betaGroups": "#/components/schemas/BetaGroup",
+                "builds": "#/components/schemas/Build",
+                "apps": "#/components/schemas/App"
+              }
+            }
+          }
         },
-        "publicLinkLimitEnabled": {
-          "type": "boolean",
-          "nullable": true
-        },
-        "publicLinkLimit": {
-          "type": "integer",
-          "nullable": true
-        },
-        "feedbackEnabled": {
-          "type": "boolean",
-          "nullable": true
-        },
-        "iosBuildsAvailableForAppleSiliconMac": {
-          "type": "boolean",
-          "nullable": true
-        },
-        "iosBuildsAvailableForAppleVision": {
-          "type": "boolean",
-          "nullable": true
+        "links": {
+          "$ref": "#/components/schemas/DocumentLinks"
+        }
+      },
+      "required": [
+        "data",
+        "links"
+      ]
+    },
+    "ErrorResponse": {
+      "type": "object",
+      "properties": {
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "code": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "detail": {
+                "type": "string"
+              },
+              "source": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/ErrorSourcePointer"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ErrorSourceParameter"
+                  }
+                ]
+              },
+              "links": {
+                "$ref": "#/components/schemas/ErrorLinks"
+              },
+              "meta": {
+                "type": "object",
+                "additionalProperties": {}
+              }
+            },
+            "required": [
+              "code",
+              "detail",
+              "status",
+              "title"
+            ]
+          }
         }
       }
     }

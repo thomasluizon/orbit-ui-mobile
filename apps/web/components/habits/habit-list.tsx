@@ -4,7 +4,7 @@ import { ContentFade,ListMotionItem,ListPresence,MotionDisclosure } from '@/comp
 import { TodayLaunchContent } from '@/components/today/today-launch-content'
 import { Fragment,Suspense,useEffect,type ComponentProps,type Ref } from 'react'
 import dynamic from 'next/dynamic'
-import { buildHabitDateBuckets,formatHabitDateBucketLabel,buildHabitRowDateModel,computeHabitCardStatus,computeHabitFutureHint,getAllDoneOnDate,isHabitDoneForRange,type HabitResolution } from '@orbit/shared/utils'
+import { buildHabitDateBuckets,formatHabitDateBucketLabel,buildHabitRowDateModel,computeHabitCardStatus,computeHabitRowNextDueHint,getAllDoneOnDate,isHabitDoneForRange,type HabitResolution } from '@orbit/shared/utils'
 import { HabitRow,type HabitRowMetaToken } from './habit-row'
 import { HabitListEmptyState,HabitListFrequencyEmptyState,HabitListAllDone,HabitListNothingOpen,HabitListSkeleton } from './habit-list/empty-state'
 import { HabitDrill } from './habit-list/habit-drill'
@@ -211,7 +211,7 @@ function deriveRowState(context: HabitListRenderingContext,
   return 'empty'
 }
 
-function buildMetaTokens(context: HabitListRenderingContext, habit: NormalizedHabit, childProgress?: { done: number; total: number }): HabitRowMetaToken[] {
+function buildMetaTokens(context: HabitListRenderingContext, habit: NormalizedHabit, hasChildren: boolean, childProgress?: { done: number; total: number }): HabitRowMetaToken[] {
   const { t, displayTime, selectedDateStr, todayStr, locale } = context
 
   const tokens: HabitRowMetaToken[] = []
@@ -223,10 +223,8 @@ function buildMetaTokens(context: HabitListRenderingContext, habit: NormalizedHa
   if (habit.isBadHabit && (habit.isCompleted || habit.isLoggedInRange)) {
     tokens.push({ kind: 'bad', label: t('habits.statusDot.bad') })
   }
-  if (!habit.isCompleted && selectedDateStr === todayStr) {
-    const futureHint = computeHabitFutureHint(habit, todayStr, t, locale)
-    if (futureHint) tokens.push({ kind: 'future', label: futureHint })
-  }
+  const nextDueHint = computeHabitRowNextDueHint(habit, { selectedDate: selectedDateStr, today: todayStr, hasChildren }, t, locale)
+  if (nextDueHint) tokens.push({ kind: 'future', label: nextDueHint })
   return tokens
 }
 
@@ -250,10 +248,9 @@ function renderHabitCard(context: HabitListRenderingContext,
   const isChild = depth > 0
   const recentlyCompleted = recentlyCompletedIds.has(habit.id)
   const state = deriveRowState(context, habit, recentlyCompleted)
-  const meta = buildMetaTokens(context, habit, progress)
+  const meta = buildMetaTokens(context, habit, hasChildren, progress)
   const { canLog, dateStatusKey, completionReadOnly, completionReasonKey, completionStatusUnavailable } = buildHabitRowDateModel(habit, selectedDateStr, todayStr)
   if (dateStatusKey) meta.push({ kind: 'date-status', label: t(dateStatusKey) })
-  const hasLinkedGoal = (habit.linkedGoals?.length ?? 0) > 0
   return (
     <Fragment key={habit.id}>
       <HabitRow
@@ -267,7 +264,6 @@ function renderHabitCard(context: HabitListRenderingContext,
         completionReadOnly={completionReadOnly}
         completionStatusUnavailable={completionStatusUnavailable}
         completionReason={completionReasonKey ? t(completionReasonKey) : undefined}
-        streak={habit.currentStreak}
         child={isChild}
         depth={depth}
         selectMode={isSelectMode}
@@ -277,7 +273,6 @@ function renderHabitCard(context: HabitListRenderingContext,
         expanded={!options?.isDrillCard && depth < maxInlineDepth && !collapsedIds.has(habit.id)}
         childPanelId={options?.childPanelId}
         childProgress={progress}
-        showLinkedGoalDot={hasLinkedGoal}
         actions={{
           onReorder: options?.onReorder,
           onLog: () => { void handleDirectToggle(habit, 'log') },
