@@ -1,8 +1,8 @@
 import { restoreConversationPage } from '@orbit/shared/chat/conversation-restore'
 import { COMPACT_FAILED_INDEXES, makeExecutedConversationPage, makeRevisedConversationPage, PROPOSED_HABIT_TITLE, REVISED_HABIT_ID, REVISED_HABIT_TITLE, storedOperationId, type StoredExecution } from '@orbit/shared/test-support/conversation-fixtures'
 import { makeOfferedPreview, makeOfferedTaskPreview, makeOfferedChildPreview } from '@orbit/shared/test-support/astra-offer-fixtures'
-import { makeDatedTaskPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview, makeBulkUpdateHabitsPreview, makeBulkUpdateExecutionResponse, TICKET_TASK_DESCRIPTION, TICKET_TASK_TITLE } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
-import { formatLocaleDate } from '@orbit/shared/utils'
+import { makeDatedTaskPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeCreateWithReusedChildPreview, reusedChildIconCases, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview, makeBulkUpdateHabitsPreview, makeBulkUpdateExecutionResponse, TICKET_TASK_DESCRIPTION, TICKET_TASK_TITLE } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { formatLocaleDate, habitInitial } from '@orbit/shared/utils'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { personalText } from '@/__tests__/support/personal-text'
 import en from '@orbit/shared/i18n/en.json'
@@ -367,12 +367,41 @@ describe('PendingOperationCard', () => {
     }
   })
 
-  it.each(['en', 'pt-BR'])('keeps a neutral heading for nested reuse in %s', (locale) => {
+  it.each(['en', 'pt-BR'])('names nested reuse as one create in %s', (locale) => {
     visibleLocale.actual = true
     visibleLocale.language = locale
     const messages = locale === 'en' ? en : ptBR
-    render(<PendingOperationCard pendingOperation={makeNestedHabitPreview(2, true)} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
-    expect(screen.getByRole('heading', { name: messages.chat.pendingOp.capability['habits-write'] })).toBeInTheDocument()
+    render(<PendingOperationCard pendingOperation={makeCreateWithReusedChildPreview()} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(screen.getByRole('heading', { name: locale === 'en' ? 'New parent habit' : 'Novo hábito principal' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: locale === 'en' ? 'Create 1 habit' : 'Criar 1 hábito' })).toBeInTheDocument()
+    expect(screen.getByText(messages.habits.frequency.everyDay)).toBeInTheDocument()
+  })
+
+  it('lists no top-level outcome for the new habit that groups an existing habit', () => {
+    visibleLocale.actual = true
+    visibleLocale.language = 'en'
+    render(<PendingOperationCard pendingOperation={makeCreateWithReusedChildPreview()} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(screen.queryByText(en.habits.moveParent.toRoot, { exact: false })).not.toBeInTheDocument()
+  })
+
+  it.each(reusedChildIconCases)('shows the child tiles from the preview with $name', ({ preview, icons }) => {
+    render(<PendingOperationCard pendingOperation={preview()} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    for (const [label, icon] of Object.entries(icons)) {
+      const content = document.getElementById(screen.getByRole('button', { name: label }).getAttribute('aria-controls')!)
+      expect(content?.firstElementChild?.textContent).toBe(icon ?? habitInitial(label))
+    }
+  })
+
+  it.each(['en', 'pt-BR'])('shows no create outcome on the unchanged existing child in %s', (locale) => {
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    const messages = locale === 'en' ? en : ptBR
+    const { container } = render(<PendingOperationCard pendingOperation={makeCreateWithReusedChildPreview()} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    const rows = [...container.querySelectorAll('[data-indented="true"]')]
+    const row = (title: string) => rows.find((candidate) => candidate.textContent.includes(title))!
+    expect(row('Drink a glass of water').querySelector('[data-preview-item-meta]')?.textContent).toBe(messages.chat.operation.source.createHabit)
+    expect(row('Morning walk').querySelector('[data-preview-item-meta]')).toBeNull()
+    expect(row('Morning walk').textContent).toBe('🚶Morning walk')
   })
 
   it.each(childSchedulePreviewCases.flatMap(scenario => ['en', 'pt-BR'].map(locale => ({ ...scenario, locale }))))('preserves the child $name schedule in $locale', (scenario) => {

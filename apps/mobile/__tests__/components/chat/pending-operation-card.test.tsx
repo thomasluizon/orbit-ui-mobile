@@ -1,8 +1,8 @@
 import { restoreConversationPage } from '@orbit/shared/chat/conversation-restore'
 import { COMPACT_FAILED_INDEXES, makeExecutedConversationPage, makeRevisedConversationPage, PROPOSED_HABIT_TITLE, REVISED_HABIT_ID, REVISED_HABIT_TITLE, storedOperationId, type StoredExecution } from '@orbit/shared/test-support/conversation-fixtures'
 import { makeOfferedPreview, makeOfferedTaskPreview, makeOfferedChildPreview } from '@orbit/shared/test-support/astra-offer-fixtures'
-import { makeDatedTaskPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview, makeBulkUpdateHabitsPreview, makeBulkUpdateExecutionResponse, TICKET_TASK_DESCRIPTION, TICKET_TASK_TITLE } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
-import { formatLocaleDate } from '@orbit/shared/utils'
+import { makeDatedTaskPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeCreateWithReusedChildPreview, reusedChildIconCases, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview, makeBulkUpdateHabitsPreview, makeBulkUpdateExecutionResponse, TICKET_TASK_DESCRIPTION, TICKET_TASK_TITLE } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { formatLocaleDate, habitInitial } from '@orbit/shared/utils'
 import { IntlMessageFormat } from 'intl-messageformat'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -424,12 +424,42 @@ describe('PendingOperationCard (mobile)', () => {
     }
   })
 
-  it.each(['en', 'pt-BR'])('keeps a neutral heading for nested reuse in %s', (locale) => {
+  it.each(['en', 'pt-BR'])('names nested reuse as one create in %s', (locale) => {
     visibleLocale.actual = true
     visibleLocale.language = locale
     const messages = locale === 'en' ? en : ptBR
-    const reused = renderCard(makeNestedHabitPreview(2, true))
-    expect(renderedText(reused.tree.toJSON())).toContain(messages.chat.pendingOp.capability['habits-write'])
+    const reused = renderCard(makeCreateWithReusedChildPreview())
+    const text = renderedText(reused.tree.toJSON())
+    expect(text).toContain(locale === 'en' ? 'New parent habit' : 'Novo hábito principal')
+    expect(text).toContain(locale === 'en' ? 'Create' : 'Criar')
+    expect(text).not.toContain(locale === 'en' ? 'Change 1 habit' : 'Alterar 1 hábito')
+    expect(text).toContain(messages.habits.frequency.everyDay)
+  })
+
+  it('lists no top-level outcome for the new habit that groups an existing habit', () => {
+    visibleLocale.actual = true
+    visibleLocale.language = 'en'
+    const { tree } = renderCard(makeCreateWithReusedChildPreview())
+    expect(renderedText(tree.toJSON())).not.toContain(en.habits.moveParent.toRoot)
+  })
+
+  it.each(reusedChildIconCases)('shows the child tiles from the preview with $name', ({ preview, icons }) => {
+    const { tree } = renderCard(preview())
+    for (const [label, icon] of Object.entries(icons)) {
+      const row = tree.root.findAll((node: ReactTestInstance) => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === label)[0]!
+      expect(row.findAllByType(Text)[0]!.props.children).toBe(icon ?? habitInitial(label))
+    }
+  })
+
+  it.each(['en', 'pt-BR'])('shows no create outcome on the unchanged existing child in %s', (locale) => {
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    const messages = locale === 'en' ? en : ptBR
+    const { tree } = renderCard(makeCreateWithReusedChildPreview())
+    const childTexts = (index: number) => [...new Set(tree.root.findByProps({ testID: `block-frame-item-0-child-${index}-pending-proposed` })
+      .findAllByType(Text).map((node: ReactTestInstance) => renderedText(node)))]
+    expect(childTexts(0)).toEqual(['💧', 'Drink a glass of water', messages.chat.operation.source.createHabit])
+    expect(childTexts(1)).toEqual(['🚶', 'Morning walk'])
   })
 
   it.each(childSchedulePreviewCases.flatMap(scenario => ['en', 'pt-BR'].map(locale => ({ ...scenario, locale }))))('preserves the child $name schedule in $locale', (scenario) => {
