@@ -83,7 +83,48 @@ describe('version pair rules', () => {
   it('refuses Android below the newest iOS version without a reason', () => {
     const decision = check({ platform: 'android', appVersion: '1.3.153', platformNewest: '1.3.152', siblingNewest: '1.3.154' })
     expect(decision.allowed).toBe(false)
-    expect(decision.message).toContain('older than the newest iOS version 1.3.154')
+    expect(decision.message).toContain('not above the newest iOS version 1.3.154')
+  })
+
+  it.each(['', 'crash on Android 9'])('refuses Android at the version iOS shipped alone, with reason "%s"', (platformOnlyReason) => {
+    const decision = check({ platform: 'android', appVersion: '1.3.154', platformNewest: '1.3.153', siblingNewest: '1.3.154', platformOnlyReason })
+    expect(decision.allowed).toBe(false)
+    expect(decision.message).toContain('not above the newest iOS version 1.3.154')
+    expect(decision.message).toContain('nextVersion 1.3.155')
+  })
+
+  it('lets Android rebuild the shared version that both platforms carry', () => {
+    expect(check({ platform: 'android', appVersion: '1.3.153', platformNewest: '1.3.153', siblingNewest: '1.3.153' }).allowed).toBe(true)
+  })
+
+  it.each([
+    ['ios', '1.3.153', '1.3.152', '1.3.153'],
+    ['ios', '1.3.153', '1.3.153', '1.3.153'],
+    ['android', '1.3.153', '1.3.153', '1.3.153'],
+    ['android', '1.3.153', '1.3.152', '1.3.153'],
+  ] as const)('refuses a %s only release at %s when its newest is %s and the other platform carries %s', (platform, appVersion, platformNewest, siblingNewest) => {
+    const decision = check({ platform, appVersion, platformNewest, siblingNewest, platformOnlyReason: 'platform defect' })
+    expect(decision.allowed).toBe(false)
+    expect(decision.message).toContain(`not above the newest ${platform === 'ios' ? 'Android' : 'iOS'} version ${siblingNewest}`)
+    expect(decision.message).toContain('nextVersion 1.3.154')
+  })
+
+  it.each([
+    { android: '1.3.153', ios: '1.3.153' },
+    { android: '1.3.153', ios: '1.3.152' },
+    { android: '1.3.153', ios: '1.3.154' },
+    { android: '1.3.153', ios: null },
+    { android: null, ios: '1.3.154' },
+  ])('allows the plan nextVersion for each kind of release when Android is at $android and iOS at $ios', (newest) => {
+    const nextVersion = pair.planVersions(newest).nextVersion as string
+    const decide = (platform: 'android' | 'ios', platformOnlyReason: string) => check({
+      platform, appVersion: nextVersion, platformOnlyReason,
+      platformNewest: platform === 'android' ? newest.android : newest.ios,
+      siblingNewest: platform === 'android' ? newest.ios : newest.android,
+    })
+    expect(decide('android', '')).toMatchObject({ allowed: true, platformOnly: false })
+    expect(decide('android', 'Android defect')).toMatchObject({ allowed: true, platformOnly: true })
+    expect(decide('ios', 'iOS defect')).toMatchObject({ allowed: true, platformOnly: true })
   })
 
   it('refuses a platform that moves below its own newest release, even with a reason', () => {
@@ -234,7 +275,11 @@ describe('command line', () => {
       encoding: 'utf8',
       env: { ...process.env, PATH: `${directory}:${process.env.PATH}`, GITHUB_REPOSITORY: 'owner/repository', GITHUB_STEP_SUMMARY: summary },
     })
-    return { ...result, summary: (() => { try { return readFileSync(summary, 'utf8') } catch { return '' } })() }
+    return {
+      ...result,
+      summary: (() => { try { return readFileSync(summary, 'utf8') } catch { return '' } })(),
+      writes: readStubWrites(directory),
+    }
   }
 
   const iosAt153 = (environment: string) => ['check', '--platform', 'ios', '--environment', environment, '--app-version', '1.3.153']
@@ -299,6 +344,36 @@ describe('command line', () => {
     expect(spawnSync(process.execPath, [script, '--help'], { encoding: 'utf8' }).status).toBe(0)
     expect(spawnSync(process.execPath, [script, 'check', '--orbit-not-a-flag', 'x'], { encoding: 'utf8' }).status).toBe(2)
     expect(spawnSync(process.execPath, [script, 'check', '--platform', 'ios'], { encoding: 'utf8' }).status).toBe(2)
+  })
+
+  it.each([
+    [['-h']],
+    [['check', '--help']],
+    [['record-ios', '--environment', 'staging', '-h']],
+  ])('prints the usage for a help flag where a command or a flag belongs: %j', (args) => {
+    const result = spawnSync(process.execPath, [script, ...args], { encoding: 'utf8' })
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('Usage: node scripts/mobile-version-pair.js')
+  })
+
+  it('treats a help flag in the place of a flag value as that value', () => {
+    const result = spawnSync(process.execPath, [script, 'check', '--platform', '-h', '--environment', 'production', '--app-version', '1.3.153'], { encoding: 'utf8' })
+    expect(result.status).toBe(2)
+    expect(result.stdout).toBe('')
+  })
+
+  it.each(['-h', '--help'])('runs the check when the platform-only reason is %s', (reason) => {
+    const result = run(['check', '--platform', 'ios', '--environment', 'production', '--app-version', '1.3.151'], stagingBehind, reason)
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('ios 1.3.151 is older than its newest release 1.3.152')
+    expect(result.summary).toContain('| Verdict | refused |')
+  })
+
+  it.each(['-h', '--help'])('records the iOS upload when the platform-only reason is %s', (reason) => {
+    const result = run(['record-ios', '--environment', 'staging', '--variant', 'staging', '--app-version', '1.3.153', '--build-number', '5', '--sha', sha], stagingBehind, reason)
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('iOS deployment 77: staging, 1.3.153 (5)')
+    expect(result.writes[0]!.payload).toMatchObject({ task: 'ios-release', payload: { platform_only_reason: reason } })
   })
 })
 
@@ -405,10 +480,13 @@ describe('release workflows', () => {
   it.each([
     ['open', '1.3.153', '1.3.152', ahead, '', 0, 'keeps both platforms on one version'],
     ['production', '1.3.153', '1.3.152', ahead, '', 0, 'keeps both platforms on one version'],
-    ['internal', '1.3.140', ahead, '1.3.140', '', 0, 'keeps both platforms on one version'],
-    ['open', '1.3.152', '1.3.153', null, '', 1, 'older than the newest iOS version 1.3.153'],
-    ['internal', '1.3.139', null, '1.3.140', '', 1, 'older than the newest iOS version 1.3.140'],
-    ['open', '1.3.152', '1.3.153', null, 'Android only crash', 0, 'Android only crash'],
+    ['internal', '1.3.141', ahead, '1.3.140', '', 0, 'keeps both platforms on one version'],
+    ['internal', '1.3.140', ahead, '1.3.140', '', 1, 'not above the newest iOS version 1.3.140'],
+    ['open', '1.3.152', '1.3.153', null, '', 1, 'not above the newest iOS version 1.3.153'],
+    ['open', '1.3.153', '1.3.153', null, '', 1, 'not above the newest iOS version 1.3.153'],
+    ['internal', '1.3.139', null, '1.3.140', '', 1, 'not above the newest iOS version 1.3.140'],
+    ['open', '1.3.154', '1.3.153', null, 'Android only crash', 0, 'Android only crash'],
+    ['open', '1.3.153', '1.3.153', null, 'Android only crash', 1, 'not above the newest iOS version 1.3.153'],
   ] as const)('runs the Android guard on the %s track at %s against production iOS %s and staging iOS %s with reason "%s"', (track, androidVersion, productionIos, stagingIos, platformOnlyReason, status, output) => {
     const result = runAndroidGuard({ track, androidVersion, productionIos, stagingIos, platformOnlyReason })
     expect(result.stdout + result.stderr).toContain(output)

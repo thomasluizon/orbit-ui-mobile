@@ -13,6 +13,8 @@ Commands:
   check --platform <android|ios> --environment <staging|production> --app-version <x.y.z>
         [--platform-only-reason <text>]
       Refuse a version that puts the two platforms out of step. Exit 0 allows, 1 refuses.
+      iOS takes the newest Android version. A platform-only release, and Android after an
+      iOS-only release, must go above the newest version of the other platform.
   plan --environment <staging|production>
       Print the newest version of each platform and the next shared version as JSON.
   record-ios --environment <staging|production> --app-version <x.y.z> --build-number <n>
@@ -23,7 +25,7 @@ Commands:
 Each environment keeps its own records.
 ${PAIRING}
 
---help, -h  print this usage and exit 0
+--help, -h  print this usage and exit 0. In the place of a flag value, it is that value.
 exit codes: 0 success; 1 refused or read error; 2 invalid arguments`;
 
 const VERSION_PATTERN = /^(\d+)\.(\d+)\.(\d+)$/;
@@ -65,9 +67,9 @@ function newestVersion(deployments) {
 }
 
 /**
- * Decide whether `platform` may release `appVersion`.
- * `platformNewest` and `siblingNewest` are the newest recorded versions (null when none exists).
- * Android leads a shared release, so it may start a new version. iOS follows the newest Android version.
+ * Decide whether `platform` may release `appVersion`. The newest versions are null when no record exists.
+ * iOS follows the newest Android version. One version names one code state, so a platform-only release,
+ * and Android after an iOS-only release, go above the newest version of the other platform.
  */
 function checkVersionPair({ platform, appVersion, platformOnlyReason, platformNewest, siblingNewest }) {
   parseVersion(appVersion);
@@ -76,7 +78,12 @@ function checkVersionPair({ platform, appVersion, platformOnlyReason, platformNe
   if (platformNewest !== null && compareVersions(appVersion, platformNewest) < 0) {
     return refuse(`${platform} ${appVersion} is older than its newest release ${platformNewest}.`);
   }
+  const sibling = platform === "android" ? "iOS" : "Android";
+  const notAboveSibling = siblingNewest !== null && compareVersions(appVersion, siblingNewest) <= 0;
+  const refuseNotAbove = (subject, detail) => refuse(`${subject} is not above the newest ${sibling} version ${siblingNewest}${detail}. `
+    + `One version names one code state, so use the plan's nextVersion ${nextSharedVersion([platformNewest, siblingNewest])}.`);
   if (reason) {
+    if (notAboveSibling) return refuseNotAbove(`The ${platform} only release ${appVersion}`, "");
     return { allowed: true, platformOnly: true, message: `${platform} only release ${appVersion}. Reason: ${reason}` };
   }
   if (platform === "ios") {
@@ -86,8 +93,8 @@ function checkVersionPair({ platform, appVersion, platformOnlyReason, platformNe
     if (compareVersions(appVersion, siblingNewest) !== 0) {
       return refuse(`iOS ${appVersion} differs from the newest Android version ${siblingNewest}. Release iOS at ${siblingNewest}, or give a platform-only reason for a defect specific to iOS.`);
     }
-  } else if (siblingNewest !== null && compareVersions(appVersion, siblingNewest) < 0) {
-    return refuse(`Android ${appVersion} is older than the newest iOS version ${siblingNewest}. Release Android at ${siblingNewest} or later, or give a platform-only reason for a defect specific to Android.`);
+  } else if (notAboveSibling && (platformNewest === null || compareVersions(siblingNewest, platformNewest) !== 0)) {
+    return refuseNotAbove(`Android ${appVersion}`, ", which Android does not carry");
   }
   return { allowed: true, platformOnly: false, message: `${platform} ${appVersion} keeps both platforms on one version.` };
 }
@@ -112,14 +119,20 @@ function readBothNewest({ environment, repository }) {
   };
 }
 
+/** The patch above the highest of `versions` (null entries ignored), or null when every entry is null. */
+function nextSharedVersion(versions) {
+  const highest = versions.filter(Boolean).sort(compareVersions).at(-1);
+  return highest === undefined ? null : bumpPatch(highest);
+}
+
 function planVersions(newest) {
   const { android, ios } = newest;
-  const highest = [android, ios].filter(Boolean).sort(compareVersions).at(-1) ?? null;
+  const nextVersion = nextSharedVersion([android, ios]);
   const inStep = android !== null && android === ios;
-  const laggingPlatform = inStep || highest === null ? null
+  const laggingPlatform = inStep || nextVersion === null ? null
     : android === null || (ios !== null && compareVersions(android, ios) < 0) ? "android"
       : ios === null || compareVersions(ios, android) < 0 ? "ios" : null;
-  return { android, ios, inStep, laggingPlatform, nextVersion: highest === null ? null : bumpPatch(highest) };
+  return { android, ios, inStep, laggingPlatform, nextVersion };
 }
 
 /**
@@ -175,13 +188,18 @@ const FLAGS = {
   },
 };
 
+const HELP_FLAGS = ["--help", "-h"];
+
+/** A help flag counts only where a command or a flag belongs. In the place of a flag value it is that value. */
 function parseArguments(argv) {
   const [command, ...rest] = argv;
+  if (HELP_FLAGS.includes(command)) return { help: true };
   const allowed = FLAGS[command];
   if (!allowed) return null;
   const options = {};
   for (let index = 0; index < rest.length; index += 2) {
     const flag = rest[index];
+    if (HELP_FLAGS.includes(flag)) return { help: true };
     const value = rest[index + 1];
     const name = flag?.startsWith("--") ? flag.slice(2) : null;
     if (!name || ![...allowed.required, ...allowed.optional].includes(name) || value === undefined || name in options) return null;
@@ -245,11 +263,11 @@ function runRecordIos(options) {
 }
 
 function main(argv) {
-  if (argv.includes("--help") || argv.includes("-h")) {
+  const parsed = parseArguments(argv);
+  if (parsed?.help) {
     console.log(USAGE);
     return 0;
   }
-  const parsed = parseArguments(argv);
   if (!parsed) {
     console.error(USAGE);
     return 2;

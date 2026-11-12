@@ -27,6 +27,9 @@ than the code under test, release Android `internal` at the new version, then re
 
 Release iOS alone only for a defect specific to iOS. Pass the defect as `platform_only_reason`.
 The run summary and the iOS deployment record keep the reason. Never invent a reason to pass the check.
+An iOS-only release uses the `nextVersion` of the same plan, above the newest version of both platforms.
+One version names one code state, so the check refuses an iOS-only version at or below the newest Android
+version. The next shared release then starts on Android at the new `nextVersion`, above this iOS version.
 
 After the upload, the job `record-upload` (`needs: release`, `ubuntu-latest`) records an `ios-release`
 GitHub Deployment, which the Android check reads. It makes 3 attempts, and it reuses the record of the same

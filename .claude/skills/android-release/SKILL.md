@@ -38,7 +38,9 @@ workflow input `platform_only_reason` carries the reason, and the run summary re
 
 The workflow runs `node apps/mobile/scripts/mobile-version-pair.js check` before it builds. The check
 reads the newest version of each platform from GitHub Deployments (`android-release` and `ios-release`).
-It refuses an Android version below the newest iOS version, unless a reason is present.
+One version names one code state. So the check refuses an Android version at or below the newest iOS
+version when Android does not carry that version, as after an iOS-only release. It refuses an Android-only
+version at or below the newest iOS version. A reason does not change these two refusals.
 `node apps/mobile/scripts/mobile-version-pair.js plan --environment <production|staging>` prints both
 newest versions, the lagging platform and the next shared version. Run it with `GITHUB_REPOSITORY` and
 `GH_TOKEN` set. A refusal is a stop: do not retry it with a made-up reason.
@@ -116,8 +118,9 @@ Parse the newest title with `Android Release (\S+) \((\d+)\) to (\S+) on`. From 
 
 - `app_version` -> run `mobile-version-pair.js plan --environment production` for the `open` and `production`
   tracks, and use its `nextVersion`: the newest of the Android and iOS versions, with the **last numeric segment
-  bumped by one** (`1.3.26` -> `1.3.27`). When the plan names `android` as the lagging platform, use the iOS
-  version itself. For an Android-only release, bump the newest Android version.
+  bumped by one** (`1.3.26` -> `1.3.27`). Use `nextVersion` also when the plan names `android` as the lagging
+  platform: iOS is ahead only after an iOS-only release, and that version names iOS code that Android does not
+  carry. An Android-only release also uses `nextVersion`, so it never reuses a version iOS shipped.
   For the `internal` track, run the plan with `--environment staging` and use its `nextVersion`. The check
   also accepts a higher version, so a staging build of code that did not ship yet can use the `nextVersion`
   of the production plan when that version is higher.

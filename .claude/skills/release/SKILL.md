@@ -41,7 +41,7 @@ Read the Desktop summary for the selected SHA, channel and published or unchange
 
 ## Android
 
-Follow `.claude/skills/android-release/SKILL.md` to derive the next version and Play versionCode across all tracks. Confirm the exact inputs with the owner before dispatch. Production uses `open` by default or explicitly requested `production`, always from `main`. Staging uses only `internal`, from the selected branch. Never promote a binary across tracks. Android and iOS ship at one `app_version`: after the Android upload, run `.claude/skills/ios-release/SKILL.md` at the same version, with `variant=production` after `open` or `production` and `variant=staging` after `internal`. A platform-only release needs a defect specific to that platform and a `platform_only_reason`.
+Follow `.claude/skills/android-release/SKILL.md` to derive the next version and Play versionCode across all tracks. Confirm the exact inputs with the owner before dispatch. Production uses `open` by default or explicitly requested `production`, always from `main`. Staging uses only `internal`, from the selected branch. Never promote a binary across tracks. Android and iOS ship at one `app_version`: after the Android upload, run `.claude/skills/ios-release/SKILL.md` at the same version, with `variant=production` after `open` or `production` and `variant=staging` after `internal`. A platform-only release needs a defect specific to that platform and a `platform_only_reason`, and it uses the `nextVersion` of `mobile-version-pair.js plan`, so one version never names two code states.
 
 For a native Sentry upload blocker, follow that procedure's **Sentry organization lookup recovery**:
 use the trusted-main same-secret diagnostic. An API index 200 alone does not prove token auth; retain
