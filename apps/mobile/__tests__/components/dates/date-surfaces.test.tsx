@@ -9,6 +9,8 @@ import { MonthGrid } from '@/components/dates/month-grid'
 import { measureDaySurface, type GeometryHost } from '@/__tests__/support/calendar-grid-geometry'
 import { createTokensV2 } from '@/lib/theme'
 
+vi.mock('@/lib/motion', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/motion')>()), usePrefersReducedMotion: () => false }))
+
 interface TestNode {
   type: unknown
   props: Record<string, unknown>
@@ -111,6 +113,54 @@ describe('DayCell', () => {
     TestRenderer.act(() => { (deactivate as () => void)() })
     expect(circleStyle().backgroundColor).toBe(selected ? tokens.selectionBg : tokens.bgWell)
     expect(tree.root.findAllByProps({ testID: 'day-press-fill' })).toHaveLength(0)
+  })
+
+  it.each([
+    { name: 'selected', selected: true, today: false },
+    { name: 'today', selected: false, today: true },
+    { name: 'selected today', selected: true, today: true },
+  ])('draws a focus ring that differs from the $name ring without the moving selection', ({ selected, today }) => {
+    const tokens = createTokensV2('purple', 'dark')
+    const flat = (testID: string) => StyleSheet.flatten(tree.root.findByProps({ testID }).props.style as StyleProp<ViewStyle>)
+    const tree = render(<DayCell day={12} loggable selected={selected} today={today} words={cellWords} scheduled={4} done={1} onPress={() => {}} />)
+    const cell = tree.root.findByProps({ testID: 'day-cell-partial' })
+    const restingRing = flat(today ? 'day-today-ring' : 'day-selection-ring')
+    expect(restingRing).toMatchObject({ borderColor: tokens.primary, borderWidth: 2 })
+    TestRenderer.act(() => { (cell.props.onFocus as () => void)() })
+    expect(tree.root.findAllByProps({ testID: 'day-today-ring' })).toHaveLength(0)
+    expect(tree.root.findAllByProps({ testID: 'day-selection-ring' })).toHaveLength(0)
+    expect(flat('day-focus-ring')).toMatchObject({ borderColor: tokens.fg1, borderWidth: 2 })
+    expect(flat('day-focus-ring').borderColor).not.toBe(restingRing.borderColor)
+    expect(flat('day-focus-band')).toMatchObject({ borderRadius: 15, borderColor: tokens.bg, borderWidth: 2 })
+    TestRenderer.act(() => { (cell.props.onBlur as () => void)() })
+    expect(tree.root.findAllByProps({ testID: 'day-focus-ring' })).toHaveLength(0)
+    expect(flat(today ? 'day-today-ring' : 'day-selection-ring')).toMatchObject({ borderColor: tokens.primary })
+  })
+
+  it('draws the focus ring and hides the moving selection ring while the selected day holds focus', () => {
+    const tokens = createTokensV2('purple', 'dark')
+    const grid = (
+      <MonthGrid selectionIndex={0} weekdayLabels={['1', '2', '3', '4', '5', '6', '7']}>
+        <DayCell day={1} loggable selected today words={cellWords} scheduled={4} done={1} onPress={() => {}} />
+        <DayCell day={2} loggable words={cellWords} scheduled={4} done={1} onPress={() => {}} />
+      </MonthGrid>
+    )
+    const tree = render(grid)
+    const row = tree.root.findByProps({ testID: 'month-grid-row-0' })
+    TestRenderer.act(() => row.props.onLayout({ nativeEvent: { layout: { x: 0, y: 20, width: 320, height: 48 } } }))
+    const slots = row.findAll((node) => String(node.type) === 'View' && !node.props.testID && Boolean(node.props.onLayout))
+    for (const [index, slot] of slots.entries()) TestRenderer.act(() => (slot.props.onLayout as (event: unknown) => void)({ nativeEvent: { layout: { x: index * 48, y: 0, width: 40, height: 48 } } }))
+    TestRenderer.act(() => { (tree as unknown as { update(element: React.ReactNode): void }).update(grid) })
+    const indicator = () => StyleSheet.flatten(tree.root.findByProps({ testID: 'selection-motion-indicator' }).props.style as StyleProp<ViewStyle>)
+    expect(indicator()).toMatchObject({ borderColor: tokens.primary, borderWidth: 2 })
+    expect(tree.root.findAllByProps({ testID: 'day-today-ring' })).toHaveLength(0)
+    const selectedCell = tree.root.findAllByProps({ testID: 'day-cell-partial' })[0]!
+    TestRenderer.act(() => { (selectedCell.props.onFocus as () => void)() })
+    expect(indicator().borderColor).toBeUndefined()
+    expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'day-focus-ring' }).props.style as StyleProp<ViewStyle>)).toMatchObject({ borderColor: tokens.fg1, borderWidth: 2 })
+    TestRenderer.act(() => { (selectedCell.props.onBlur as () => void)() })
+    expect(indicator()).toMatchObject({ borderColor: tokens.primary, borderWidth: 2 })
+    expect(tree.root.findAllByProps({ testID: 'day-focus-ring' })).toHaveLength(0)
   })
 
   it('centres today and its status mark in a wide habit history slot', () => {
