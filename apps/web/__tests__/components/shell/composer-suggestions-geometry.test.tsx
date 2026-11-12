@@ -21,12 +21,12 @@ describe('Composer compact geometry in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each([en, ptBR].flatMap(messages => [1, 2].flatMap(fontScale => [false, true].map(collapsible => ({ messages, fontScale, collapsible })))))(
-    'hugs every returning conversation suggestion across supported widths with disclosure=$collapsible and text=$fontScale', async ({ messages, fontScale, collapsible }) => {
+  it.each([en, ptBR].flatMap(messages => [1, 2].map(fontScale => ({ messages, fontScale }))))(
+    'hugs every returning conversation suggestion across supported widths with text=$fontScale', async ({ messages, fontScale }) => {
     const { suggestions } = liveChipSuggestions('returning', messages)
     const page = await browser.newPage({ viewport: { width: 320, height: 740 } })
     try {
-      await page.setContent(`<style>${stylesheet}html{font-size:${16 * fontScale}px}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ state: 'idle', value: '', suggestions, words: messages.shell.composer, collapsible, collapseScope: 'conversation' })}</script>`)
+      await page.setContent(`<style>${stylesheet}html{font-size:${16 * fontScale}px}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ state: 'idle', value: '', suggestions, words: messages.shell.composer })}</script>`)
       await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
       await page.addScriptTag({ content: composerScript })
       await loadAppFonts(page)
@@ -38,13 +38,12 @@ describe('Composer compact geometry in Chromium', () => {
             element.scrollLeft = 0
             const bounds = element.getBoundingClientRect()
             const composer = element.closest('[data-composer-root]')!
-            const disclosure = composer.querySelector('[data-composer-disclosure]')?.getBoundingClientRect()
             const partial = [...element.querySelectorAll('button')].map(button => button.getBoundingClientRect())
               .find(chip => chip.left < bounds.right && chip.right > bounds.right)
             return { available: element.parentElement!.getBoundingClientRect().width, viewport: bounds.width,
               overflow: element.scrollWidth > element.clientWidth,
               peek: partial ? bounds.right - partial.left : 0, hidden: partial ? partial.right - bounds.right : 0,
-              right: bounds.right, disclosureLeft: disclosure?.left, disclosureRight: disclosure?.right,
+              right: bounds.right,
               fieldRight: composer.querySelector('[data-composer-input-row]')!.getBoundingClientRect().right,
               chips: [...element.querySelectorAll('button')].map(button => {
                 const style = getComputedStyle(button)
@@ -59,11 +58,42 @@ describe('Composer compact geometry in Chromium', () => {
             expect(measured.peek, evidence).toBeGreaterThanOrEqual(16)
             expect(measured.hidden, evidence).toBeGreaterThanOrEqual(16)
           }
-          if (collapsible) {
-            expect(measured.disclosureLeft! - measured.right, evidence).toBeCloseTo(12, 1)
-            expect(measured.disclosureRight, evidence).toBeCloseTo(measured.fieldRight, 1)
-          } else expect(measured.right, evidence).toBeCloseTo(measured.fieldRight, 1)
+          expect(measured.right, evidence).toBeCloseTo(measured.fieldRight, 1)
           for (const chip of measured.chips) expect(Math.abs(chip.width - chip.content - chip.padding), evidence).toBeLessThanOrEqual(1)
+        })
+      }
+    } finally { await page.close() }
+  })
+
+  it.each([en, ptBR])('spans the full composer content width with no collapse control beside it', async messages => {
+    const { suggestions } = liveChipSuggestions('returning', messages)
+    const page = await browser.newPage({ viewport: { width: 320, height: 740 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ state: 'idle', value: '', suggestions, words: messages.shell.composer })}</script>`)
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.addScriptTag({ content: composerScript })
+      await loadAppFonts(page)
+      const row = page.locator('[data-composer-suggestion-row]')
+      await row.waitFor()
+      for (const width of [320, 412, 840, 1352]) {
+        await page.setViewportSize({ width, height: 740 })
+        await vi.waitFor(async () => {
+          const measured = await row.evaluate(element => {
+            const content = element.closest('[data-composer-content]')!
+            const style = getComputedStyle(content)
+            const bounds = element.getBoundingClientRect()
+            const contentBounds = content.getBoundingClientRect()
+            return { rowLeft: bounds.left, rowRight: bounds.right, rowWidth: bounds.width,
+              contentLeft: contentBounds.left + parseFloat(style.paddingLeft), contentRight: contentBounds.right - parseFloat(style.paddingRight),
+              contentWidth: contentBounds.width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
+              controls: element.querySelectorAll('button').length, disclosures: element.closest('[data-composer-root]')!.querySelectorAll('[data-composer-disclosure], [data-composer-collapse-row]').length }
+          })
+          const evidence = JSON.stringify({ width, measured })
+          expect(measured.rowWidth, evidence).toBeCloseTo(measured.contentWidth, 1)
+          expect(measured.rowLeft, evidence).toBeCloseTo(measured.contentLeft, 1)
+          expect(measured.rowRight, evidence).toBeCloseTo(measured.contentRight, 1)
+          expect(measured.controls, evidence).toBe(suggestions.length)
+          expect(measured.disclosures, evidence).toBe(0)
         })
       }
     } finally { await page.close() }
