@@ -6,6 +6,7 @@
     "GET /v1/betaGroups": "https://developer.apple.com/documentation/appstoreconnectapi/get-v1-betagroups",
     "POST /v1/betaGroups": "https://developer.apple.com/documentation/appstoreconnectapi/post-v1-betagroups",
     "GET /v1/betaGroups/{id}/betaTesters": "https://developer.apple.com/documentation/appstoreconnectapi/get-v1-betagroups-_id_-betatesters",
+    "GET /v1/betaTesters": "https://developer.apple.com/documentation/appstoreconnectapi/get-v1-betatesters",
     "POST /v1/betaTesters": "https://developer.apple.com/documentation/appstoreconnectapi/post-v1-betatesters"
   },
   "filters": {
@@ -48,6 +49,17 @@
     ],
     "betaGroup testers:parameters": [
       "fields[betaTesters]",
+      "limit"
+    ],
+    "betaTesters:filter names": [
+      "filter[firstName]",
+      "filter[lastName]",
+      "filter[email]",
+      "filter[inviteType]",
+      "filter[apps]",
+      "filter[betaGroups]",
+      "filter[builds]",
+      "filter[id]",
       "limit"
     ]
   },

@@ -34,18 +34,21 @@ const violations = (schema, value, at = "$") => {
 
 const build = (processingState) => ({ type: "builds", id: "build-1", attributes: { version: "1", processingState } })
 const group = (id, name, attributes = {}) => ({ type: "betaGroups", id, attributes: { name, isInternalGroup: true, hasAccessToAllBuilds: true, ...attributes } })
-const tester = ({ id, email, firstName, lastName }) => ({ type: "betaTesters", id, attributes: JSON.parse(JSON.stringify({ email, firstName, lastName, inviteType: "EMAIL", state: "INSTALLED" })) })
+const tester = ({ id, email, firstName, lastName, state = "INSTALLED" }) => ({ type: "betaTesters", id, attributes: JSON.parse(JSON.stringify({ email, firstName, lastName, inviteType: "EMAIL", state })) })
 
 /**
- * A fake App Store Connect that answers only documented paths and records every call. `groups` lists every
- * beta group of the team with its app id and testers. A tester record belongs to one app, as on the real API:
- * a link request with an id of another app answers 409, and POST /v1/betaTesters creates a record in the group.
- * The fake honours the documented filters and a page size.
+ * A fake App Store Connect with the real API's answers. A person has a separate record, with its own id, in each
+ * app. A link of another app's record answers 409 STATE_ERROR. POST /v1/betaTesters for a person with no record in
+ * the group's app answers 201 and adds one. Nobody observed a link of the app's own record or a create for a person
+ * with a record in the app, so the fake throws there. It honours the documented filters and a page size.
  */
 const fakeApi = ({ buildStates = ["VALID"], groups = [], pageSize = 200, rejectCreateFor = null }) => {
   const calls = []
   let createdCount = 0
   const remainingStates = [...buildStates]
+  /** The records of one app, or of every app when appId is null, each record once. */
+  const recordsOf = (appId) => [...new Map(groups.filter((entry) => appId === null || entry.appId === appId)
+    .flatMap((entry) => entry.testers).map((record) => [record.id, record])).values()]
   const request = async (url, options) => {
     const address = new URL(url)
     const body = options.body ? JSON.parse(options.body) : null
@@ -76,8 +79,11 @@ const fakeApi = ({ buildStates = ["VALID"], groups = [], pageSize = 200, rejectC
     }
     const testersRoute = /^GET \/v1\/betaGroups\/([^/]+)\/betaTesters$/.exec(route)
     if (testersRoute) return page((groups.find((entry) => entry.id === testersRoute[1])?.testers ?? []).map(tester), "#/components/schemas/BetaTestersResponse")
+    if (route === "GET /v1/betaTesters") return page(recordsOf(address.searchParams.get("filter[apps]")).map(tester), "#/components/schemas/BetaTestersResponse")
     const linkRoute = /^POST \/v1\/betaGroups\/([^/]+)\/relationships\/betaTesters$/.exec(route)
     if (linkRoute) {
+      const ownIds = new Set(recordsOf(groups.find((entry) => entry.id === linkRoute[1]).appId).map(({ id }) => id))
+      if (body.data.some(({ id }) => ownIds.has(id))) throw new Error("nobody observed the answer to a link of the app's own tester record")
       return Response.json({ errors: [{ id: "error-1", status: "409", code: "STATE_ERROR", title: "The request cannot be fulfilled because of the state of another resource.", detail: "Tester(s) cannot be assigned" }] }, { status: 409 })
     }
     if (route === "POST /v1/betaTesters") {
@@ -88,7 +94,10 @@ const fakeApi = ({ buildStates = ["VALID"], groups = [], pageSize = 200, rejectC
         return Response.json({ errors: [{ id: "error-2", status: "409", code: "ENTITY_ERROR.ATTRIBUTE.INVALID", title: "An attribute value is invalid.", detail: `The tester ${email} cannot be created for Jane Doe` }] }, { status: 409 })
       }
       const target = groups.find((entry) => entry.id === body.data.relationships.betaGroups.data[0].id)
-      const created = { id: `tester-created-${++createdCount}`, email, firstName: body.data.attributes.firstName, lastName: body.data.attributes.lastName }
+      if (recordsOf(target.appId).some((record) => record.email.toLowerCase() === email.toLowerCase())) {
+        throw new Error("nobody observed the answer to a create for a person who already has a tester record in the app")
+      }
+      const created = { id: `tester-created-${++createdCount}`, email, firstName: body.data.attributes.firstName, lastName: body.data.attributes.lastName, state: "INVITED" }
       target.testers.push(created)
       return Response.json({ data: tester(created), links: { self: String(url) } }, { status: 201 })
     }
@@ -98,7 +107,7 @@ const fakeApi = ({ buildStates = ["VALID"], groups = [], pageSize = 200, rejectC
 }
 
 const resourceOf = ({ appId, testers, ...resource }) => resource
-/** A person is a key; the tester record of that person in one app has its own id, as on the real API. */
+/** A person is a key. The record of that person in one app has its own id, as the real API answered. */
 const personOf = (appId, key) => typeof key === "string"
   ? { id: `${appId}-tester-${key}`, email: `${key}@example.test`, firstName: `First${key}`, lastName: `Last${key}` }
   : { id: `${appId}-tester-${key.email}`, ...key }
@@ -120,7 +129,7 @@ const rejects = async (promise) => { try { await promise; return null } catch (e
 const bodiesOf = (api, method, path) => api.calls.filter((call) => call.method === method && call.path === path).map((call) => call.body)
 
 export const cases = async () => {
-  T("testflight access: fixture schemas come from Apple's specification", new URL(apple.source.split(" ")[0]).hostname === "developer.apple.com" && Object.keys(apple.pages).length === 6 &&
+  T("testflight access: fixture schemas come from Apple's specification", new URL(apple.source.split(" ")[0]).hostname === "developer.apple.com" && Object.keys(apple.pages).length === 7 &&
     Object.values(apple.pages).every((page) => page.startsWith("https://developer.apple.com/documentation/appstoreconnectapi/")) &&
     apple.schemas.Build.properties.attributes.properties.processingState.enum.join() === "PROCESSING,FAILED,INVALID,VALID")
 
@@ -169,9 +178,13 @@ export const cases = async () => {
   const appGroupsQuery = other.calls.find((call) => call.path === "/v1/apps/app-1/betaGroups" && call.method === "GET").query
   T("testflight access: the app's group list uses only parameters Apple documents", Object.keys(appGroupsQuery).every((key) => apple.filters["betaGroups of app:parameters"].includes(key)))
   T("testflight access: the tester lists use only parameters Apple documents", other.calls.filter((call) => /^\/v1\/betaGroups\/[^/]+\/betaTesters$/.test(call.path)).every((call) => Object.keys(call.query).every((key) => apple.filters["betaGroup testers:parameters"].includes(key))))
+  const appRecordsQuery = other.calls.find((call) => call.path === "/v1/betaTesters" && call.method === "GET")?.query ?? {}
+  T("testflight access: the list of this app's tester records uses only filters Apple documents and names this app", Object.keys(appRecordsQuery).every((key) => apple.filters["betaTesters:filter names"].includes(key)) &&
+    appRecordsQuery["filter[apps]"] === "app-1")
 
-  const again = await access(other)
-  T("testflight access: a second run right after the first adds nothing and passes", again.addedTesters === 0 && again.testerCount === 2 && writesOf(other).length === 2)
+  const again = await access(other).catch((error) => ({ failure: error.message }))
+  T("testflight access: a second run right after the first reads the group's members, adds nothing and passes", again.addedTesters === 0 && again.testerCount === 2 && again.testersOutsideGroup === 0 &&
+    writesOf(other).length === 2, JSON.stringify(again))
 
   const unnamed = fakeApi({ groups: [teamGroup("group-1", "Orbit team", "app-1", []), teamGroup("group-other", "Other app", "app-2", [{ email: "solo@example.test" }])] })
   await access(unnamed)
@@ -223,12 +236,36 @@ export const cases = async () => {
   await access(wrongKind)
   T("testflight access: an external group or a group without all builds is not reused", bodiesOf(wrongKind, "POST", "/v1/betaGroups").length === 1)
 
+  const outside = fakeApi({ groups: [
+    teamGroup("group-1", "Orbit team", "app-1", ["a"]),
+    teamGroup("group-selected", "Selected builds", "app-1", ["x"], { hasAccessToAllBuilds: false }),
+    teamGroup("group-external", "External", "app-1", ["y"], { isInternalGroup: false }),
+    teamGroup("group-other", "Other app", "app-2", ["a", "b", "x", "y"]),
+  ] })
+  const outsideResult = await access(outside).catch((error) => ({ failure: error.message }))
+  T("testflight access: a person with a tester record of this app outside the group gets no write and is counted", outsideResult.addedTesters === 1 && outsideResult.testersOutsideGroup === 2 &&
+    outsideResult.testerCount === 2 && createdEmails(outside).join() === "b@example.test" && writesOf(outside).length === 1, JSON.stringify(outsideResult))
+  const pagedRecords = fakeApi({ pageSize: 2, groups: [
+    teamGroup("group-1", "Orbit team", "app-1", []),
+    teamGroup("group-selected", "Selected builds", "app-1", ["p", "q", "r"], { hasAccessToAllBuilds: false }),
+    teamGroup("group-other", "Other app", "app-2", ["p", "q", "r", "s"]),
+  ] })
+  const pagedRecordsResult = await access(pagedRecords).catch((error) => ({ failure: error.message }))
+  T("testflight access: the list of this app's tester records is read to the end", pagedRecordsResult.addedTesters === 1 && pagedRecordsResult.testersOutsideGroup === 3 &&
+    createdEmails(pagedRecords).join() === "s@example.test", JSON.stringify(pagedRecordsResult))
+
   const nobody = fakeApi({ groups: [teamGroup("group-1", "Orbit team", "app-1", []), teamGroup("group-external", "External", "app-2", ["x"], { isInternalGroup: false })] })
   const nobodyMessage = await rejects(access(nobody))
   const noGroup = fakeApi({ groups: [] })
   const noGroupMessage = await rejects(access(noGroup))
-  T("testflight access: zero testers fails before any write", nobodyMessage?.includes("nobody could install the build") === true && noGroupMessage?.includes("nobody could install the build") === true &&
-    writesOf(nobody).length === 0 && writesOf(noGroup).length === 0)
+  const onlyOutside = fakeApi({ groups: [
+    teamGroup("group-1", "Orbit team", "app-1", []),
+    teamGroup("group-selected", "Selected builds", "app-1", ["x"], { hasAccessToAllBuilds: false }),
+    teamGroup("group-other", "Other app", "app-2", ["x"]),
+  ] })
+  const onlyOutsideMessage = await rejects(access(onlyOutside))
+  T("testflight access: zero testers fails before any write", [nobodyMessage, noGroupMessage, onlyOutsideMessage].every((message) => message?.includes("nobody could install the build") === true) &&
+    [nobody, noGroup, onlyOutside].every((api) => writesOf(api).length === 0), JSON.stringify([nobodyMessage, noGroupMessage, onlyOutsideMessage]))
 
   const crowded = fakeApi({ pageSize: 2, groups: [
     teamGroup("group-1", "Orbit team", "app-1", ["a"]),
@@ -254,6 +291,9 @@ export const cases = async () => {
   const lines = summaryLines({ version: "1.3.152", buildNumber: "1", ...created }).join("\n")
   T("testflight access: the summary names state, group, tester count and added count and no person", lines.includes("Build 1.3.152 (1) processing state: VALID") && lines.includes("Orbit team") && lines.includes("Testers in the group: 2") && lines.includes("Testers added by this run: 2") &&
     !lines.includes("example.test") && !lines.includes("Firsta"))
+  const outsideLines = summaryLines({ version: "1.3.152", buildNumber: "1", ...outsideResult }).join("\n")
+  T("testflight access: the summary counts this app's testers outside the group only when there are some", outsideLines.includes("- Testers of this app outside the group, not changed: 2") &&
+    !lines.includes("outside the group"))
   const failed = await rejects(ensureInternalTesterAccess({ client: apiClient(() => "t", async () => new Response("{}", { status: 403 })), appId: "app-1" }))
   T("testflight access: an API error names the path and status and never a person", failed === "App Store Connect GET /v1/apps/app-1/betaGroups failed (HTTP 403)")
 
