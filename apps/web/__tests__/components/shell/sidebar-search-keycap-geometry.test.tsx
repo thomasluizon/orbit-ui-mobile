@@ -108,9 +108,11 @@ describe('sidebar and palette keycap geometry in Chromium', () => {
         if (state === 'press') await page.mouse.down()
         try {
           const paint = await page.locator('[data-shell-sidebar] button:has(kbd) kbd').evaluate((keycap) => {
-            keycap.parentElement!.getAnimations().forEach((animation) => animation.finish())
+            const fill = keycap.parentElement!.querySelector('[data-press-fill]')!
+            for (const element of [keycap.parentElement!, fill, keycap]) element.getAnimations().forEach((animation) => animation.finish())
             const layers: string[] = []
             for (let ancestor: Element | null = keycap; ancestor; ancestor = ancestor.parentElement) layers.unshift(getComputedStyle(ancestor).backgroundColor)
+            layers.splice(-1, 0, getComputedStyle(fill).backgroundColor)
             return { color: getComputedStyle(keycap).color, layers }
           })
           expect.soft(contrastOnSurface(paint.color, paint.layers), `${theme} ${state}`).toBeGreaterThanOrEqual(4.5)

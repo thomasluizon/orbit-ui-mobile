@@ -46,7 +46,7 @@ function GoalPickerRow({ goal, selected, disabled, onToggle }: Readonly<{
       value={selected ? '✓' : `${Math.round(goal.progressPercentage)}%`}
       valueHidden={selected}
       valueClassName="font-mono text-xs text-[var(--fg-2)]"
-      controlClassName="orbit-list-row-body flex min-h-12 w-full min-w-0 items-center rounded-[12px] px-2 py-1 text-left active:scale-[0.96] disabled:opacity-40"
+      controlClassName="orbit-list-row-body flex min-h-12 w-full min-w-0 items-center rounded-[12px] px-2 py-1 text-left disabled:opacity-40"
       actionsClassName="flex items-center justify-between gap-2"
     />
   )

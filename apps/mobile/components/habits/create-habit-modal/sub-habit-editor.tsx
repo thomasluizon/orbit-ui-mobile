@@ -71,10 +71,7 @@ export function SubHabitEditor({
                 onChangeText={(val: string) => onUpdateSubHabit(entry.id, val)}
               />
               <Pressable
-                style={({ pressed }) => [
-                  styles.subHabitRemoveButton,
-                  pressed && { transform: [{ scale: 0.96 }] },
-                ]}
+                style={styles.subHabitRemoveButton}
                 onPress={() => onRemoveSubHabit(entry.id)}
                 hitSlop={{
                   top: 6,

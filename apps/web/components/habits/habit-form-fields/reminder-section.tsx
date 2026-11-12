@@ -97,7 +97,7 @@ export function ReminderSection({
                 <button
                   type="button"
                   aria-label={t('habits.form.removeReminder')}
-                  className={`grid shrink-0 place-items-center min-h-[var(--touch-min)] min-w-[var(--touch-min)] rounded-full hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${reminderTimes.length + scheduledReminderCount <= 1 ? 'opacity-30 cursor-not-allowed' : 'hover:text-[var(--fg-2)]'}`}
+                  className={`habit-control-motion grid shrink-0 place-items-center min-h-[var(--touch-min)] min-w-[var(--touch-min)] rounded-full enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] enabled:active:scale-[0.96] ${reminderTimes.length + scheduledReminderCount <= 1 ? 'opacity-30 cursor-not-allowed' : 'enabled:hover:text-[var(--fg-2)]'}`}
                   disabled={reminderTimes.length + scheduledReminderCount <= 1}
                   onClick={() => removeReminder(time)}
                 >
@@ -123,7 +123,7 @@ export function ReminderSection({
                   <button
                     key={preset.value}
                     type="button"
-                    className="flex min-h-[var(--touch-min)] w-full items-center px-3 py-2 text-left rounded-[12px] text-sm text-[var(--fg-1)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
+                    className="habit-control-motion flex min-h-[var(--touch-min)] w-full items-center px-3 py-2 text-left rounded-[12px] text-sm text-[var(--fg-1)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] enabled:active:scale-[0.96]"
                     onClick={() => addPreset(preset.value)}
                   >
                     {t(preset.key as Parameters<typeof t>[0])}
@@ -137,7 +137,7 @@ export function ReminderSection({
                         value={customValue ?? ''}
                         type="number"
                         min={1}
-                        className="w-20 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-[12px] py-2 px-3 text-sm border-0 shadow-[inset_0_0_0_1px_var(--hairline)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] transition-[box-shadow] duration-[var(--dur-fast)]"
+                        className="orbit-field-hover w-20 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-[12px] py-2 px-3 text-sm border-0 shadow-[inset_0_0_0_1px_var(--border-control)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
                         onChange={(e) => setCustomValue(e.target.value ? Number(e.target.value) : null)}
                         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomReminder() } }}
                       />
@@ -164,7 +164,7 @@ export function ReminderSection({
                 )}
                 <button
                   type="button"
-                  className="flex min-h-[var(--touch-min)] w-full items-center px-3 py-2 text-left rounded-[12px] text-sm text-[var(--fg-1)] font-medium enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
+                  className="habit-control-motion flex min-h-[var(--touch-min)] w-full items-center px-3 py-2 text-left rounded-[12px] text-sm text-[var(--fg-1)] font-medium enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] enabled:active:scale-[0.96]"
                   onClick={() => setShowCustomInput(!showCustomInput)}
                 >
                   {t('habits.form.reminderCustom')}

@@ -247,7 +247,7 @@ function createStyles(tokens: AppTokens, measuredLineHeight: number) {
       textAlign: 'center',
       fontVariant: ['tabular-nums'],
     },
-    pressed: { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] },
+    pressed: { backgroundColor: tokens.bgHover },
     disabled: { opacity: 0.4 },
   })
 }

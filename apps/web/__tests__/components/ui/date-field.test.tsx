@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { format } from 'date-fns'
+import { classNamesIn, compileClassRules, expectHoverAndPress, type CompiledClassRules } from '@/__tests__/support/compiled-class-rules'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -243,4 +244,86 @@ it('focuses the calendar trigger after a caller removes its focused action', () 
   const { rerender } = render(<DateField label="End date" value="2026-11-01" onChange={vi.fn()} />)
   rerender(<DateField label="End date" value="" onChange={vi.fn()} focusRequest={1} />)
   expect(screen.getByRole('button', { name: 'End date, common.selectDate' })).toHaveFocus()
+})
+
+describe('DateField hover, press and perimeter paint compiled from app/globals.css', () => {
+  let rules: CompiledClassRules
+
+  beforeAll(async () => {
+    const view = render(<DateField value="2025-06-15" onChange={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button'))
+    const names = classNamesIn(document)
+    view.unmount()
+    rules = await compileClassRules(names)
+  }, 60_000)
+
+  const declarationsIn = (element: Element, state?: string) => rules.declarationsIn(element, state)
+  const hoverAndPress = (element: Element, fill: string) => expectHoverAndPress(rules, element, fill)
+
+  it('layers the opaque hover fill over the trigger field on a fine pointer hover and on every press', () => {
+    render(<DateField value="2025-06-15" onChange={vi.fn()} />)
+    const trigger = screen.getByRole('button')
+    expect(trigger).toHaveClass('relative', 'isolate', 'bg-[var(--bg-field)]')
+    const fill = trigger.querySelector('[data-press-fill]')
+    expect(fill).not.toBeNull()
+    expect(fill).toHaveAttribute('aria-hidden', 'true')
+    expect(trigger.lastElementChild).toBe(fill)
+    expect(fill).toHaveClass('pointer-events-none', 'absolute', 'inset-0', '-z-10', 'rounded-[inherit]', 'bg-transparent')
+    const rest = declarationsIn(fill!)
+    expect(rest.get('transition-property')).toBe('background-color')
+    expect(rest.get('transition-duration')).toBe('var(--dur-hover-control)')
+    expect(rest.get('transition-timing-function')).toBe('var(--ease-standard)')
+    hoverAndPress(fill!, 'var(--bg-hover-opaque)')
+    expect(declarationsIn(fill!, ':is(:where(.group):disabled *)').get('display')).toBe('none')
+  })
+
+  it('draws the trigger perimeter with the control border above its fill and swaps it for the focus ring at once', () => {
+    render(<DateField value="2025-06-15" onChange={vi.fn()} />)
+    const trigger = screen.getByRole('button')
+    const painted = [trigger, ...trigger.querySelectorAll('*')].flatMap((element) => [...element.classList])
+    expect(painted.filter((name) => name.includes('--hairline'))).toEqual([])
+    const perimeter = declarationsIn(trigger, '::after')
+    expect(perimeter.get('--tw-shadow')).toBe('inset 0 0 0 1px var(--tw-shadow-color, var(--border-control))')
+    expect([perimeter.get('position'), perimeter.get('inset'), perimeter.get('border-radius'), perimeter.get('pointer-events')]).toEqual(['absolute', 'var(--orbit-space-0)', 'inherit', 'none'])
+    expect(perimeter.has('transition-property')).toBe(false)
+    expect(declarationsIn(trigger, ':focus-visible::after').get('--tw-shadow')).toBe('0 0 #0000')
+    const focus = declarationsIn(trigger, ':focus-visible')
+    expect([focus.get('outline-width'), focus.get('outline-offset'), focus.get('outline-color')]).toEqual(['2px', 'calc(2px * -1)', 'var(--primary)'])
+    expect(declarationsIn(trigger).get('transition-property')).toBe('scale')
+  })
+
+  it('promotes the trigger icon and placeholder to fg-2 while the fill shows, timed like the fill', () => {
+    render(<DateField value="" onChange={vi.fn()} />)
+    const trigger = screen.getByRole('button')
+    for (const content of [trigger.querySelector('svg')!, trigger.firstElementChild!]) {
+      expectHoverAndPress(rules, content, 'var(--fg-2)', 'color')
+      expect(declarationsIn(content).get('transition-duration')).toBe('var(--dur-hover-control)')
+    }
+  })
+
+  it.each([
+    ['enabled', () => <DateField value="" onChange={vi.fn()} />, true],
+    ['disabled by its own attribute', () => <DateField value="" onChange={vi.fn()} disabled />, false],
+    ['disabled by a fieldset', () => <fieldset disabled><DateField value="" onChange={vi.fn()} /></fieldset>, false],
+  ] as const)('applies the trigger icon and placeholder promotion on hover and on press only while the trigger is enabled, as the fill does: %s', (_, renderField, enabled) => {
+    render(renderField())
+    const trigger = screen.getByRole('button')
+    for (const content of [trigger.querySelector('svg')!, trigger.firstElementChild!]) {
+      const promotions = rules.rulesFor(content).filter((rule) => rule.declarations.get('color') === 'var(--fg-2)' && /:hover|:active/.test(rule.state))
+      expect(promotions).toHaveLength(2)
+      for (const { state } of promotions) expect(content.matches(state.replace(/:hover|:active/, ''))).toBe(enabled)
+    }
+  })
+
+  it('shows the hover fill as a press fill on every day cell and month control, so a touch press paints it', () => {
+    render(<DateField value="2025-06-15" onChange={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button'))
+    const days = [...document.querySelectorAll<HTMLButtonElement>('button[data-day]')]
+    expect(days).toHaveLength(42)
+    const controls = [...days, ...['common.previousMonth', 'common.selectYear', 'common.nextMonth'].map((label) => screen.getByLabelText(label))]
+    for (const control of controls) {
+      expect(declarationsIn(control).get('transition-property')).toContain('background-color')
+      hoverAndPress(control, 'var(--bg-hover)')
+    }
+  })
 })

@@ -1,5 +1,4 @@
 import { useHabitFormInteraction } from './habit-form-fields/habit-form-interaction'
-import { usePrefersReducedMotion } from '@/lib/motion'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useCallback, useMemo, useRef, useState } from 'react'
@@ -51,7 +50,7 @@ function ChecklistTemplatesEmptyState({ canSave, onSave, styles, translate }: Re
     <View style={styles.emptyState}>
       <Text numberOfLines={1} style={styles.emptyTitle}>{translate('habits.form.noTemplates')}</Text>
       <Text style={styles.emptyDescription}>{translate('habits.form.noTemplatesDescription')}</Text>
-      <Pressable accessibilityRole="button" accessibilityState={{ disabled: disabled || !canSave }} disabled={disabled || !canSave} style={[styles.emptyAction, !canSave ? styles.saveButtonDisabled : null]} onPress={onSave}>
+      <Pressable accessibilityRole="button" accessibilityState={{ disabled: disabled || !canSave }} disabled={disabled || !canSave} style={({ pressed }) => [styles.emptyAction, !canSave ? styles.saveButtonDisabled : null, pressed ? styles.emptyActionPressed : null]} onPress={onSave}>
         <Text numberOfLines={1} style={styles.emptyActionText}>{translate('habits.form.saveCurrentList')}</Text>
       </Pressable>
       {!canSave ? <Text style={styles.emptyReason}>{translate('habits.form.saveCurrentListDisabled')}</Text> : null}
@@ -64,7 +63,6 @@ export function ChecklistTemplates({
   onLoad,
 }: Readonly<ChecklistTemplatesProps>) {
   const { disabled, guard, isDisabled } = useHabitFormInteraction()
-  const prefersReducedMotion = usePrefersReducedMotion()
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -169,7 +167,7 @@ export function ChecklistTemplates({
             style={({ pressed }) => [
               styles.saveButton,
               (!templateName.trim() || createTemplate.isPending) && styles.saveButtonDisabled,
-              pressed ? { backgroundColor: tokens.primaryPressed, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] } : null,
+              pressed ? { backgroundColor: tokens.primaryPressed } : null,
             ]}
             onPress={handleSave}
             disabled={disabled || !templateName.trim() || createTemplate.isPending}
@@ -183,7 +181,7 @@ export function ChecklistTemplates({
             disabled={disabled}
             style={({ pressed }) => [
               styles.closeButton,
-              pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] } : null,
+              pressed ? { backgroundColor: tokens.bgHover } : null,
             ]}
             onPress={cancelEditor}
             accessibilityRole="button"
@@ -258,8 +256,6 @@ function createStyles(tokens: AppTokens) {
       flex: 1,
       minHeight: TOUCH_TARGET_MIN,
       borderRadius: 12,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
       backgroundColor: tokens.bgField,
       paddingHorizontal: SPACING.s12,
       color: tokens.fg1,
@@ -294,7 +290,8 @@ function createStyles(tokens: AppTokens) {
     emptyState: { alignItems: 'center', gap: 12, paddingVertical: SPACING.s32 },
     emptyTitle: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 20, textAlign: 'center' },
     emptyDescription: { color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14, textAlign: 'center' },
-    emptyAction: { backgroundColor: tokens.bgWell, borderRadius: 999, minHeight: TOUCH_TARGET_MIN, justifyContent: 'center', paddingHorizontal: SPACING.s16 },
+    emptyAction: { backgroundColor: tokens.bgWell, borderRadius: 999, overflow: 'hidden', minHeight: TOUCH_TARGET_MIN, justifyContent: 'center', paddingHorizontal: SPACING.s16 },
+    emptyActionPressed: { backgroundColor: tokens.bgHover },
     emptyActionText: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 },
     emptyReason: { color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 12, textAlign: 'center' },
   })
