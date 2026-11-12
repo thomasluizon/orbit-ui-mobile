@@ -10,6 +10,7 @@ import { DateField } from '@/components/ui/date-field'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { Sheet } from '@/components/ui/sheet'
 import { buildYearRange } from '@orbit/shared/utils'
+import { controlContrast } from '@orbit/shared/__tests__/contrast'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLocale: () => 'en' }))
@@ -60,6 +61,153 @@ describe('DateField sheet geometry in Chromium', () => {
         measured.placeholderColor, measured.placeholderColor, measured.valueColor,
       ])
       expect(measured.triggers.map((trigger) => trigger.radius)).toEqual(['12px', '12px', '12px'])
+    } finally { await page.close() }
+  })
+
+  /**
+   * Resolves each token in its own new probe. Under reduced motion the global `0.01ms` transition reset reaches
+   * every element, and `transition-property` defaults to `all`, so a reused probe reports the start of its transition.
+   */
+  async function openPaintPage(markup: string, mode: 'dark' | 'light', options: { hasTouch?: boolean; reducedMotion?: 'reduce' | 'no-preference' } = {}) {
+    const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([name, value]) => `${name}: ${value};`).join(' ')
+    const page = await browser.newPage({ viewport: { width: 412, height: 915 }, hasTouch: options.hasTouch ?? false, reducedMotion: options.reducedMotion ?? 'no-preference' })
+    await page.setContent(`<!doctype html><style>${stylesheet} :root { ${variables} color-scheme: ${mode}; } body { margin: 0; padding: 24px; background: var(--bg); }</style>${markup}`)
+    const tokens = await page.evaluate(() => {
+      const paint = (name: string) => {
+        const probe = document.createElement('span')
+        probe.style.backgroundColor = `var(${name})`
+        document.body.append(probe)
+        const color = getComputedStyle(probe).backgroundColor
+        probe.remove()
+        return color
+      }
+      return { canvas: paint('--bg'), field: paint('--bg-field'), opaqueHover: paint('--bg-hover-opaque'), hover: paint('--bg-hover'), border: paint('--border-control'), primary: paint('--primary') }
+    })
+    return { page, tokens }
+  }
+
+  function readTriggerPaint(button: Element) {
+    const fill = button.querySelector('[data-press-fill]')!
+    const fillStyle = getComputedStyle(fill)
+    const style = getComputedStyle(button)
+    const perimeter = getComputedStyle(button, '::after')
+    const rings = [...perimeter.boxShadow.matchAll(/(rgba?\([^)]+\)) 0px 0px 0px ([\d.]+)px inset/g)]
+      .filter((match) => Number(match[2]) > 0 && !/rgba\([^)]*, 0\)$/.test(match[1]!))
+      .map((match) => ({ color: match[1]!, width: Number(match[2]) }))
+    return {
+      field: style.backgroundColor,
+      fill: fillStyle.display === 'none' ? 'none' : fillStyle.backgroundColor,
+      fillDuration: Number.parseFloat(fillStyle.transitionDuration),
+      fillDelay: Number.parseFloat(fillStyle.transitionDelay),
+      rings,
+      outline: { style: style.outlineStyle, width: style.outlineWidth, offset: style.outlineOffset, color: style.outlineColor },
+      layers: { isolation: style.isolation, position: style.position, fillPosition: fillStyle.position, fillZ: fillStyle.zIndex, ringPosition: perimeter.position, ringZ: perimeter.zIndex },
+    }
+  }
+
+  it.each(['dark', 'light'] as const)('layers the opaque hover fill under the control border on a fine pointer hover and press in %s mode', async (mode) => {
+    const { container } = render(<DateField value="2025-06-15" onChange={vi.fn()} />)
+    const { page, tokens } = await openPaintPage(container.innerHTML, mode)
+    try {
+      const trigger = page.getByRole('button')
+      const rest = await trigger.evaluate(readTriggerPaint)
+      expect(rest.layers).toEqual({ isolation: 'isolate', position: 'relative', fillPosition: 'absolute', fillZ: '-10', ringPosition: 'absolute', ringZ: 'auto' })
+      expect(rest.field).toBe(tokens.field)
+      expect(rest.fill).toBe('rgba(0, 0, 0, 0)')
+      expect(rest.rings).toEqual([{ color: tokens.border, width: 1 }])
+      await trigger.hover()
+      await trigger.evaluate(settleAnimations)
+      const hovered = await trigger.evaluate(readTriggerPaint)
+      expect(hovered.fill).toBe(tokens.opaqueHover)
+      expect(hovered.field).toBe(rest.field)
+      expect(hovered.rings).toEqual(rest.rings)
+      expect(rest.fillDuration).toBeCloseTo(0.24)
+      expect(controlContrast(tokens.border, hovered.fill, [tokens.canvas, rest.field]).step).toBeGreaterThanOrEqual(1.25)
+      await page.mouse.down()
+      await trigger.evaluate(settleAnimations)
+      const pressed = await trigger.evaluate(readTriggerPaint)
+      expect(pressed.fill).toBe(tokens.opaqueHover)
+      expect(pressed.rings).toEqual(rest.rings)
+      await page.mouse.move(0, 0)
+      await page.mouse.up()
+      await trigger.evaluate(settleAnimations)
+      expect((await trigger.evaluate(readTriggerPaint)).fill).toBe('rgba(0, 0, 0, 0)')
+      await trigger.blur()
+      await page.keyboard.press('Shift')
+      await trigger.focus()
+      expect(await trigger.evaluate((button) => button.matches(':focus-visible'))).toBe(true)
+      const focused = await trigger.evaluate(readTriggerPaint)
+      expect(focused.outline).toEqual({ style: 'solid', width: '2px', offset: '-2px', color: tokens.primary })
+      expect(focused.rings).toEqual([])
+    } finally { await page.close() }
+  })
+
+  it.each(['dark', 'light'] as const)('paints every date picker press fill on a touch pointer without latching hover in %s mode', async (mode) => {
+    const { container } = render(<DateField value="2025-06-15" onChange={vi.fn()} />)
+    const triggerPage = await openPaintPage(container.innerHTML, mode, { hasTouch: true })
+    try {
+      const { page, tokens } = triggerPage
+      expect(await page.evaluate(() => matchMedia('(hover: hover) and (pointer: fine)').matches)).toBe(false)
+      const trigger = page.getByRole('button')
+      await trigger.hover()
+      expect((await trigger.evaluate(readTriggerPaint)).fill).toBe('rgba(0, 0, 0, 0)')
+      await page.mouse.down()
+      await trigger.evaluate(settleAnimations)
+      const pressed = await trigger.evaluate(readTriggerPaint)
+      expect(pressed.fill).toBe(tokens.opaqueHover)
+      expect(pressed.rings).toEqual([{ color: tokens.border, width: 1 }])
+      await page.mouse.move(0, 0)
+      await page.mouse.up()
+    } finally { await triggerPage.page.close() }
+
+    fireEvent.click(screen.getByRole('button'))
+    const dialog = await screen.findByRole('dialog')
+    const { page, tokens } = await openPaintPage(dialog.outerHTML, mode, { hasTouch: true })
+    try {
+      await page.locator('.orbit-sheet-panel').evaluate(settleAnimations)
+      const controls = [page.locator('button[data-day="2025-06-10"]'), page.locator('button[data-day="2025-06-15"]'),
+        ...['common.previousMonth', 'common.selectYear', 'common.nextMonth'].map((label) => page.getByRole('button', { name: label, exact: true }))]
+      for (const control of controls) {
+        const resting = await control.evaluate((button) => getComputedStyle(button).backgroundColor)
+        expect(resting).toBe('rgba(0, 0, 0, 0)')
+        await control.hover()
+        expect(await control.evaluate((button) => getComputedStyle(button).backgroundColor)).toBe(resting)
+        await page.mouse.down()
+        await control.evaluate(settleAnimations)
+        expect(await control.evaluate((button) => getComputedStyle(button).backgroundColor)).toBe(tokens.hover)
+        await page.mouse.move(0, 0)
+        await page.mouse.up()
+        await control.evaluate(settleAnimations)
+        expect(await control.evaluate((button) => getComputedStyle(button).backgroundColor)).toBe(resting)
+      }
+    } finally { await page.close() }
+  })
+
+  it('keeps the trigger fill off a disabled trigger and shows it without delay under reduced motion', async () => {
+    const { container } = render(<>
+      <DateField value="2025-06-15" disabled onChange={vi.fn()} />
+      <fieldset disabled><DateField value="2025-06-15" onChange={vi.fn()} /></fieldset>
+      <DateField value="2025-06-15" onChange={vi.fn()} />
+    </>)
+    const { page, tokens } = await openPaintPage(container.innerHTML, 'dark', { reducedMotion: 'reduce' })
+    try {
+      const triggers = page.locator('button[aria-haspopup="dialog"]')
+      for (const index of [0, 1]) {
+        const trigger = triggers.nth(index)
+        expect(await trigger.isDisabled()).toBe(true)
+        await trigger.hover({ force: true })
+        await page.mouse.down()
+        expect((await trigger.evaluate(readTriggerPaint)).fill).toBe('none')
+        await page.mouse.move(0, 0)
+        await page.mouse.up()
+      }
+      const enabled = triggers.nth(2)
+      await enabled.hover()
+      await enabled.evaluate(settleAnimations)
+      const hovered = await enabled.evaluate(readTriggerPaint)
+      expect(hovered.fillDuration).toBeLessThanOrEqual(0.001)
+      expect(hovered.fillDelay).toBe(0)
+      expect(hovered.fill).toBe(tokens.opaqueHover)
     } finally { await page.close() }
   })
 

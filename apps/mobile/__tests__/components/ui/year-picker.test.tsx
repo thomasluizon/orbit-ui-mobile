@@ -34,12 +34,12 @@ describe('YearPicker (mobile)', () => {
     expect(tree!.root.findByProps({ testID: 'year-picker-scroll' }).props.nestedScrollEnabled).toBe(true)
 
     const selectedCell = tree!.root.findByProps({ accessibilityLabel: '2026' })
-    const targetStyle = StyleSheet.flatten(selectedCell.props.style({ pressed: false })) as {
-      minHeight: number
-      marginBottom: number
-    }
-    const renderedRowHeight = targetStyle.minHeight + targetStyle.marginBottom
+    const columnLayer = tree!.root.findAll((node: { props: Record<string, unknown>; findAll: (predicate: (child: { props: Record<string, unknown> }) => boolean) => unknown[] }) => node.props['data-slot'] === 'press-scale' && node.findAll((child) => child.props.accessibilityLabel === '2026').length > 0)[0]!
+    const targetStyle = StyleSheet.flatten(selectedCell.props.style({ pressed: false })) as { minHeight: number }
+    const columnStyle = StyleSheet.flatten(columnLayer.props.style) as { width: string; marginBottom: number }
+    const renderedRowHeight = targetStyle.minHeight + columnStyle.marginBottom
 
+    expect(columnStyle.width).toBe(`${100 / 3}%`)
     expect(scrollTo).toHaveBeenCalledWith({ y: 3 * renderedRowHeight, animated: false })
     expect(targetStyle.minHeight).toBe(48)
 
@@ -52,13 +52,12 @@ describe('YearPicker (mobile)', () => {
 
     expect(StyleSheet.flatten(selectedCell.props.style({ pressed: true }))).toMatchObject({
       backgroundColor: tokens.primaryPressed,
-      transform: [{ scale: 0.96 }],
     })
+    expect(StyleSheet.flatten(selectedCell.props.style({ pressed: true })).transform).toBeUndefined()
 
     const unselectedCell = tree!.root.findByProps({ accessibilityLabel: '2025' })
     expect(StyleSheet.flatten(unselectedCell.props.style({ pressed: true }))).toMatchObject({
       backgroundColor: tokens.bgHover,
-      transform: [{ scale: 0.96 }],
     })
   })
 })

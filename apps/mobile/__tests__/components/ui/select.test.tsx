@@ -93,14 +93,51 @@ it('paints native select hover and focus on both trigger and option', async () =
   try {
     const trigger = hosts(tree).find((node) => node.props.role === 'combobox')!
     await act(() => (trigger.props.onHoverIn as (() => void) | undefined)?.())
-    expect(paint(trigger).backgroundColor).toBe(tokens.bgHover)
-    await act(() => (trigger.props.onHoverOut as (() => void) | undefined)?.())
     expect(paint(trigger).backgroundColor).toBe(tokens.bgField)
+    expect(triggerFill(tree)).toMatchObject({ backgroundColor: tokens.bgHoverOpaque, opacity: 1 })
+    await act(() => (trigger.props.onHoverOut as (() => void) | undefined)?.())
+    expect(triggerFill(tree).opacity).toBe(0)
     await act(() => (trigger.props.onPress as () => void)())
     const option = hosts(tree).find((node) => node.props.role === 'option' && node.props.accessibilityLabel === 'Beta')!
     await act(() => (option.props.onHoverIn as (() => void) | undefined)?.())
     expect(paint(option).backgroundColor).toBe(tokens.bgHover)
     await act(() => { __setTouchMode(false); __focusHost(option.props.__nativeTag as number) })
     expect(hosts(tree).some((node) => (node.type as unknown) === 'View' && StyleSheet.flatten<ViewStyle | undefined>(node.props.style as StyleProp<ViewStyle>)?.outlineWidth === 2)).toBe(true)
+  } finally { await act(() => tree.update(<></>)) }
+})
+
+function selectTrigger(tree: ReactTestRenderer) { return hosts(tree).find((node) => node.props.role === 'combobox')! }
+function triggerFill(tree: ReactTestRenderer) {
+  const tokens = createTokensV2('orange', 'dark')
+  return StyleSheet.flatten(selectTrigger(tree).findAll((node) => (node.type as unknown) === 'View' && node.props.pointerEvents === 'none' && StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).backgroundColor === tokens.bgHoverOpaque)[0]!.props.style as StyleProp<ViewStyle>)
+}
+
+it('draws the field trigger with the control border and layers the opaque hover fill over its field fill on every press', async () => {
+  const tokens = createTokensV2('orange', 'dark')
+  let tree!: ReactTestRenderer
+  await act(() => { tree = create(<Example onChange={vi.fn()} />) })
+  try {
+    const paint = () => StyleSheet.flatten((selectTrigger(tree).props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>)({ pressed: true }))
+    expect(paint()).toMatchObject({ backgroundColor: tokens.bgField, borderColor: tokens.borderControl, borderWidth: 1, overflow: 'hidden' })
+    const chevronColor = () => selectTrigger(tree).findAll((node) => node.props.size === 20 && typeof node.props.color === 'string')[0]!.props.color
+    expect(triggerFill(tree).opacity).toBe(0)
+    expect(chevronColor()).toBe(tokens.fg3)
+    await act(() => (selectTrigger(tree).props.onPressIn as () => void)())
+    expect(triggerFill(tree)).toMatchObject({ backgroundColor: tokens.bgHoverOpaque, opacity: 1 })
+    expect(paint().backgroundColor).toBe(tokens.bgField)
+    expect(chevronColor()).toBe(tokens.fg2)
+    await act(() => (selectTrigger(tree).props.onPressOut as () => void)())
+    expect(triggerFill(tree).opacity).toBe(0)
+    expect(chevronColor()).toBe(tokens.fg3)
+  } finally { await act(() => tree.update(<></>)) }
+})
+
+it('keeps a disabled field trigger without a hover or press fill', async () => {
+  let tree!: ReactTestRenderer
+  await act(() => { tree = create(<Example onChange={vi.fn()} disabled />) })
+  try {
+    await act(() => (selectTrigger(tree).props.onHoverIn as (() => void) | undefined)?.())
+    await act(() => (selectTrigger(tree).props.onPressIn as () => void)())
+    expect(triggerFill(tree).opacity).toBe(0)
   } finally { await act(() => tree.update(<></>)) }
 })

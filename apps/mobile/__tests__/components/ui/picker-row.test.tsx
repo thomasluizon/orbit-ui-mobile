@@ -45,12 +45,13 @@ it.each([false, true])('keeps toggle selection and honors reduced motion=%s', as
   try {
     const control = tree.root.findAll((node: TestNode) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')[0]!
     expect(control.props.accessibilityState).toMatchObject({ selected: true })
-    const resolveStyle = control.props.style as (state: { pressed: boolean }) => ViewStyle[]
     await renderer.act(() => (control.props.onPressIn as () => void)())
     const fills = tree.root.findAll((node: TestNode) => node.type === 'View' && StyleSheet.flatten((node.props.style as ViewStyle | undefined) ?? {}).backgroundColor === createTokensV2('orange', 'dark').bgHover)
     expect(fills).toHaveLength(1)
     expect(StyleSheet.flatten(fills[0]!.props.style)).toMatchObject({ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, borderRadius: 12 })
-    expect(StyleSheet.flatten(resolveStyle({ pressed: true })).transform ?? []).toEqual(reduced ? [] : [{ scale: 0.96 }])
+    expect(StyleSheet.flatten(control.props.style as ViewStyle[]).transform).toBeUndefined()
+    const scaleLayer = tree.root.findAll((node: TestNode) => node.props['data-slot'] === 'press-scale')[0]!
+    expect(StyleSheet.flatten(scaleLayer.props.style as ViewStyle).transform).toEqual([{ scale: reduced ? 1 : 0.96 }])
     await renderer.act(() => (control.props.onPress as () => void)())
     expect(onToggle).toHaveBeenCalledOnce()
   } finally { motion.reduced = false; await renderer.act(() => tree.unmount()) }

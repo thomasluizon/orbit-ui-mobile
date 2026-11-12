@@ -181,6 +181,7 @@ it('filters tags while keeping a creation action when no tag matches', async () 
   })
 
   const search = tree.root.findByType(BottomSheetAppTextInput)
+  expect(StyleSheet.flatten(search.props.style)).toEqual({ marginBottom: 8 })
   await TestRenderer.act(() => {
     search.props.onChangeText('Tag 24')
   })

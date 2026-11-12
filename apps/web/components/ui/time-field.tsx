@@ -57,7 +57,7 @@ function TimeOption({
       className={`orbit-selection-ring w-full min-h-[var(--touch-min)] rounded-[12px] py-2 text-center text-base transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)] ${
         selected
           ? 'bg-[var(--bg-hover)] text-[var(--fg-1)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]'
-          : 'text-[var(--fg-1)] hover:bg-[var(--bg-hover)]'
+          : 'text-[var(--fg-1)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]'
       }`}
       style={{ fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}
     >
@@ -155,7 +155,7 @@ function TimeEntry(props: Readonly<TimeEntryProps>) {
           aria-expanded={open}
           aria-label={`${label}: ${selectTimeLabel}`}
           onClick={onOpenPicker}
-          className="absolute top-1/2 grid -translate-y-1/2 place-items-center rounded-full text-[var(--fg-3)] hover:bg-[var(--bg-sunk)] disabled:opacity-60 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
+          className="absolute top-1/2 grid -translate-y-1/2 place-items-center rounded-full text-[var(--fg-3)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] motion-safe:enabled:active:scale-[0.96] disabled:opacity-60 transition-[background-color,scale] duration-[var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-out)]"
           style={{ right: canClear ? TOUCH_TARGET_MIN + 4 : 4, width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN }}
         >
           <Clock3 size={20} strokeWidth={1.8} aria-hidden="true" />
@@ -165,7 +165,7 @@ function TimeEntry(props: Readonly<TimeEntryProps>) {
             type="button"
             onClick={onClear}
             aria-label={clearLabel}
-            className="absolute right-1 top-1/2 grid -translate-y-1/2 place-items-center rounded-full text-[var(--fg-3)] hover:bg-[var(--bg-sunk)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
+            className="absolute right-1 top-1/2 grid -translate-y-1/2 place-items-center rounded-full text-[var(--fg-3)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] motion-safe:enabled:active:scale-[0.96] transition-[background-color,scale] duration-[var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-out)]"
             style={{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN }}
           >
             <X size={16} strokeWidth={1.8} aria-hidden="true" />
