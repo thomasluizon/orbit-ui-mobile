@@ -209,6 +209,28 @@ describe('privacy policy disclosures', () => {
   })
 
   it.each([
+    ['en', en, 'on Android', 'on iOS and in the Mac app', 'in the Windows app', 'in the web app'],
+    ['pt-BR', ptBR, 'no Android', 'no iOS e no app para Mac', 'no app para Windows', 'no aplicativo web'],
+  ])('names the push service of every platform in %s', (locale, messages, android, appleDevices, windows, browser) => {
+    const { firebase, apple, wns, webPush } = messages.privacy.thirdParty
+    expect(firebase).toContain('Firebase Cloud Messaging')
+    expect(firebase).toContain(android)
+    expect(firebase).not.toMatch(/iOS|Mac|Windows|web/)
+    expect(apple).toContain('Apple Push Notification service')
+    expect(apple).toContain(appleDevices)
+    expect(wns).toContain('Microsoft Windows Push Notification Services')
+    expect(wns).toContain(windows)
+    for (const pushService of ['Google', 'Mozilla', 'Apple', 'Microsoft']) {
+      expect(webPush).toContain(pushService)
+    }
+    expect(webPush).toContain(browser)
+    render(React.createElement(TestIntlProvider, { locale, messages }, React.createElement(PrivacyPage)))
+    for (const disclosure of [firebase, apple, wns, webPush]) {
+      expect(screen.getByText(disclosure)).toBeInTheDocument()
+    }
+  })
+
+  it.each([
     ['English', en.privacy.retention],
     ['Portuguese', ptBR.privacy.retention],
   ])('states every scheduled retention period in %s', (_locale, retention) => {
