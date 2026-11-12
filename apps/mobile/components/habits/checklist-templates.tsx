@@ -1,5 +1,4 @@
 import { useHabitFormInteraction } from './habit-form-fields/habit-form-interaction'
-import { usePrefersReducedMotion } from '@/lib/motion'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useCallback, useMemo, useRef, useState } from 'react'
@@ -64,7 +63,6 @@ export function ChecklistTemplates({
   onLoad,
 }: Readonly<ChecklistTemplatesProps>) {
   const { disabled, guard, isDisabled } = useHabitFormInteraction()
-  const prefersReducedMotion = usePrefersReducedMotion()
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -169,7 +167,7 @@ export function ChecklistTemplates({
             style={({ pressed }) => [
               styles.saveButton,
               (!templateName.trim() || createTemplate.isPending) && styles.saveButtonDisabled,
-              pressed ? { backgroundColor: tokens.primaryPressed, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] } : null,
+              pressed ? { backgroundColor: tokens.primaryPressed } : null,
             ]}
             onPress={handleSave}
             disabled={disabled || !templateName.trim() || createTemplate.isPending}
@@ -183,7 +181,7 @@ export function ChecklistTemplates({
             disabled={disabled}
             style={({ pressed }) => [
               styles.closeButton,
-              pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] } : null,
+              pressed ? { backgroundColor: tokens.bgHover } : null,
             ]}
             onPress={cancelEditor}
             accessibilityRole="button"

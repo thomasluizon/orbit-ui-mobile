@@ -66,6 +66,19 @@ function press(node: TestNode) {
   });
 }
 
+/** The scale the rendered host shows at rest and while held: `MotionPressable` owns it, not the caller's style. */
+function renderedPressScale(tree: TestTree, label: string) {
+  const host = () => tree.root.findAll((node) => typeof node.type === "string" && node.props.accessibilityRole === "button" && node.props.accessibilityLabel === label)[0]!;
+  const scale = () => (StyleSheet.flatten(host().props.style) as ViewStyle).transform;
+  const rest = scale();
+  TestRenderer.act(() => { (host().props.onPressIn as () => void)(); });
+  const held = scale();
+  TestRenderer.act(() => { (host().props.onPressOut as () => void)(); });
+  return { rest, held };
+}
+
+const EASED_PRESS = { rest: [{ scale: 1 }], held: [{ scale: 0.96 }] };
+
 function button(tree: TestTree, label: string): TestNode {
   return tree.root.findAll(
     (node) =>
@@ -197,8 +210,7 @@ describe("HabitEmojiSelector mobile", () => {
   it("filters, clears, and toggles a category in the picker", () => {
     const { tree } = renderSelector();
     const opener = button(tree, "habits.form.emojiOpenPicker");
-    expect(resolvedStyle(opener, true)).toContainEqual({ transform: [{ scale: 0.96 }] });
-    expect(resolvedStyle(opener, false).at(-1)).toBeNull();
+    expect(renderedPressScale(tree, "habits.form.emojiOpenPicker")).toEqual(EASED_PRESS);
     press(opener);
 
     const search = tree.root.findAll((node) => node.type === "TextInput")[0]!;
@@ -218,9 +230,7 @@ describe("HabitEmojiSelector mobile", () => {
     expect(search.props.value).toBe("");
 
     const category = button(tree, firstCategory.labelKey);
-    expect(resolvedStyle(category, true)).toContainEqual(expect.objectContaining({
-      transform: [{ scale: 0.96 }],
-    }));
+    expect(renderedPressScale(tree, firstCategory.labelKey)).toEqual(EASED_PRESS);
     press(category);
     expect(category.props.accessibilityState).toEqual({ selected: true });
     expect(resolvedStyle(category, false).at(-1)).toBeNull();
@@ -247,14 +257,10 @@ describe("HabitEmojiSelector mobile", () => {
       `habits.form.emoji: ${firstEmoji}`,
     );
     expect(selectedOption.props.accessibilityState).toEqual({ selected: true });
-    expect(resolvedStyle(selectedOption, true)).toContainEqual(expect.objectContaining({
-      transform: [{ scale: 0.96 }],
-    }));
+    expect(renderedPressScale(removal.tree, `habits.form.emoji: ${firstEmoji}`)).toEqual(EASED_PRESS);
     expect(resolvedStyle(selectedOption, false).at(-1)).toBeNull();
     const remove = button(removal.tree, "habits.form.emojiRemove");
-    expect(resolvedStyle(remove, true)).toContainEqual(expect.objectContaining({
-      transform: [{ scale: 0.96 }],
-    }));
+    expect(renderedPressScale(removal.tree, "habits.form.emojiRemove")).toEqual(EASED_PRESS);
     expect(resolvedStyle(remove, false).at(-1)).toBeNull();
     press(remove);
     expect(removal.onSelect).toHaveBeenCalledWith("");
