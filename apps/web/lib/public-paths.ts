@@ -1,3 +1,5 @@
+export const SENTRY_TUNNEL_ROUTE = '/monitoring'
+
 const PUBLIC_PATHS = [
   '/login',
   '/onboarding',
@@ -10,6 +12,7 @@ const PUBLIC_PATHS = [
   '/turnstile-bridge',
   '/.well-known',
   '/ingest',
+  SENTRY_TUNNEL_ROUTE,
 ]
 
 export function isPublicPath(pathname: string): boolean {

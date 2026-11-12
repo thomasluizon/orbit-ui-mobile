@@ -172,6 +172,24 @@ describe('proxy', () => {
     expect(NextResponse.redirect).not.toHaveBeenCalled()
   })
 
+  it('passes a signed-out Sentry tunnel envelope through the proxy', async () => {
+    vi.mocked(resolveSessionTokens).mockResolvedValue({
+      token: null,
+      expiresAt: null,
+      refreshed: false,
+      refreshFailed: false,
+    })
+    const tunnelUrl = 'http://localhost:3000/monitoring?o=1&p=2&r=us'
+
+    expect(unstable_doesMiddlewareMatch({ config, url: tunnelUrl })).toBe(true)
+
+    const response = await proxy(createRequest('/monitoring?o=1&p=2&r=us', { method: 'POST' }))
+
+    expect(response).toMatchObject({ type: 'next' })
+    expect(resolveSessionTokens).not.toHaveBeenCalled()
+    expect(NextResponse.redirect).not.toHaveBeenCalled()
+  })
+
   it('keeps trailing slashes on PostHog requests', () => {
     expect(nextConfig.skipTrailingSlashRedirect).toBe(true)
   })

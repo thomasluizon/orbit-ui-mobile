@@ -2,6 +2,7 @@ import type { NextConfig } from 'next'
 import createNextIntlPlugin from 'next-intl/plugin'
 import { withSentryConfig } from '@sentry/nextjs/config'
 import path from 'node:path'
+import { SENTRY_TUNNEL_ROUTE } from './lib/public-paths'
 import { LEGACY_PROFILE_ROUTES } from '../../packages/shared/src/utils/profile-routes'
 
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts')
@@ -69,5 +70,5 @@ export default process.env.NODE_ENV === 'development'
       silent: !process.env.CI,
       widenClientFileUpload: true,
       release: { name: process.env.NEXT_PUBLIC_WEB_COMMIT_SHA || undefined },
-      tunnelRoute: '/monitoring',
+      tunnelRoute: SENTRY_TUNNEL_ROUTE,
     })
