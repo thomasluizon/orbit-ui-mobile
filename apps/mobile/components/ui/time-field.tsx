@@ -441,6 +441,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     flexDirection: 'row',
     minHeight: 54,
+    paddingRight: SPACING.s4,
     width: '100%',
   },
   input: {
