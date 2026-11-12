@@ -36,8 +36,7 @@ import { useModalFocusTrap } from './use-modal-focus-trap'
 import { getShellHeading } from './shell-header'
 
 function getConversationFocusTarget(container: HTMLElement): HTMLElement {
-  return container.querySelector<HTMLElement>('[data-composer-collapse-row]')
-    ?? container.querySelector<HTMLElement>('[data-composer-input]:not([disabled])')
+  return container.querySelector<HTMLElement>('[data-composer-input]:not([disabled])')
     ?? container.querySelector<HTMLElement>('[data-composer-root]')
     ?? container.querySelector<HTMLElement>('button:not([disabled])')
     ?? container

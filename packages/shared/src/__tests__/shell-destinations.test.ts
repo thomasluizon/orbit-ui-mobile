@@ -3,7 +3,6 @@ import { SHELL_DESTINATION_IDS } from '../utils/destination-icons'
 import {
   SHELL_DESTINATION_PATHS,
   SHELL_ROOT_PATHS,
-  resolveShellComposerScope,
   resolveShellChrome,
   resolveShellDestination,
   resolveTabSwitchDirection,
@@ -58,25 +57,13 @@ describe('resolveShellChrome', () => {
   })
 
   it('shows the composer only on habit detail', () => {
-    for (const route of ['/habits/h1']) {
+    for (const route of ['/habits/h1', '/habits/habit-1']) {
       expect(resolveShellChrome(route).composer).toBe(true)
     }
-    for (const route of ['/', '/calendar', '/progress', '/profile', '/search', '/about', '/support', '/notifications', '/upgrade', '/preferences', '/advanced', '/ai-settings']) {
+    for (const route of ['/', '/habits/new', '/habits/habit-1/edit', '/calendar', '/progress', '/profile', '/search', '/about', '/support', '/notifications', '/upgrade', '/preferences', '/advanced', '/ai-settings']) {
       expect(resolveShellChrome(route).composer).toBe(false)
     }
   })
-})
-
-it.each([
-  ['/', undefined],
-  ['/habits/habit-1', 'habit'],
-  ['/habits/new', undefined],
-  ['/habits/habit-1/edit', undefined],
-  ['/calendar', undefined],
-  ['/progress', undefined],
-  ['/profile', undefined],
-])('uses independent composer disclosure scope for %s', (pathname, scope) => {
-  expect(resolveShellComposerScope(pathname!)).toBe(scope)
 })
 
 describe('shell destination paths', () => {
