@@ -5296,4 +5296,35 @@ describe('HabitList across an account change', () => {
 
     expect(screen.queryByTestId('sheet')).toBeNull()
   })
+
+  it('keeps one content fade mount while the search, the filters and the date change', () => {
+    dragLocale.english = true
+    const rendered = renderWithProviders(<HabitList view="today" filters={defaultFilters} selectedDate={new Date(`${TODAY}T12:00:00`)} />)
+    const fade = rendered.container.querySelector('[data-content-fade]')
+    expect(fade).not.toBeNull()
+
+    rendered.rerenderWithProviders(<HabitList view="today" filters={defaultFilters} selectedDate={new Date(`${TODAY}T12:00:00`)} searchQuery="Acc" />)
+    rendered.rerenderWithProviders(<HabitList view="today" filters={{ ...defaultFilters, frequencyUnit: 'Day' }} selectedDate={new Date(`${TODAY}T12:00:00`)} searchQuery="Account A" />)
+    rendered.rerenderWithProviders(<HabitList view="today" filters={defaultFilters} selectedDate={new Date(`${TOMORROW}T12:00:00`)} />)
+
+    expect(rendered.container.querySelector('[data-content-fade]')).toBe(fade)
+  })
+
+  it('replays the content fade when the view changes', () => {
+    const rendered = renderWithProviders(<HabitList view="today" filters={defaultFilters} />)
+    const fade = rendered.container.querySelector('[data-content-fade]')
+
+    rendered.rerenderWithProviders(<HabitList view="all" filters={defaultFilters} />)
+
+    expect(rendered.container.querySelector('[data-content-fade]')).not.toBe(fade)
+  })
+
+  it('replays the content fade when another account replaces the tab', async () => {
+    const rendered = renderWithProviders(<HabitList filters={defaultFilters} />)
+    const fade = rendered.container.querySelector('[data-content-fade]')
+
+    await replaceAccountWith('user-2')
+
+    expect(rendered.container.querySelector('[data-content-fade]')).not.toBe(fade)
+  })
 })

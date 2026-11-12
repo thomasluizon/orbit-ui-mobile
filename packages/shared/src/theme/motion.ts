@@ -54,9 +54,6 @@ export const motionDurations = {
   overlay: 220,
   toast: 220,
   theme: 220,
-  celebration: 560,
-  completePop: 500,
-  completeSpark: 600,
   listStagger: 36,
 } as const
 
@@ -91,12 +88,6 @@ export const orbitalMotion = {
   },
   route: {
     backgroundTintOpacity: 0.12,
-  },
-  completion: {
-    peakScale: 1.12,
-    reducedPeakScale: 1.04,
-    flashOpacity: 0.24,
-    reducedFlashOpacity: 0.12,
   },
 } as const
 
@@ -359,7 +350,7 @@ export const motionPresets: Record<MotionScenario, MotionPreset> = {
   },
   'success-feedback': {
     scenario: 'success-feedback',
-    enterDuration: motionDurations.completePop,
+    enterDuration: motionDurations.slow,
     exitDuration: motionDurations.fast,
     enterEasing: motionEasings.enter,
     exitEasing: motionEasings.exit,

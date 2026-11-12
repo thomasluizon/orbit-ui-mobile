@@ -111,7 +111,6 @@ vi.mock('@/components/today/today-astra', async (importOriginal) => {
 vi.mock('@/app/(tabs)/use-today-motion', () => ({
   useTodayMotion: () => ({
     dayAnimatedStyle: {},
-    refetchAnimatedStyle: {},
     bulkBarAnimatedStyle: {},
     renderBulkActionBar: false,
   }),

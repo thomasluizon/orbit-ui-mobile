@@ -1,10 +1,10 @@
 import React from 'react'
 import TestRenderer, { act } from 'react-test-renderer'
 import { afterEach, expect, it, vi } from 'vitest'
-import { withTimingCalls } from '@/test-mocks/react-native-reanimated'
+import { withSpringCalls, withTimingCalls } from '@/test-mocks/react-native-reanimated'
 import { HabitListMotionRow } from '@/components/motion/habit-list-row'
 import { useRetainedHabitList } from '@/hooks/use-retained-habit-list'
-import { resolveMotionPreset } from '@orbit/shared/theme'
+import { motionSprings, resolveMotionPreset } from '@orbit/shared/theme'
 
 const preference = vi.hoisted(() => ({ reduced: false }))
 const sharedValueWrites = vi.hoisted(() => [] as { initial: unknown; value: unknown }[])
@@ -24,8 +24,8 @@ vi.mock('react-native-reanimated', async (importOriginal) => ({
 vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => preference.reduced }))
 afterEach(() => { vi.useRealTimers(); preference.reduced = false })
 
-function List({ items, scope = 'account:today' }: Readonly<{ items: { id: string }[]; scope?: string }>) {
-  const presentation = useRetainedHabitList(items, scope, preference.reduced)
+function List({ items, scope = 'account:today', collapsedIds }: Readonly<{ items: { id: string; parentId?: string | null }[]; scope?: string; collapsedIds?: ReadonlySet<string> }>) {
+  const presentation = useRetainedHabitList(items, scope, preference.reduced, collapsedIds)
   return <>{presentation.rows.map((row) => <HabitListMotionRow key={row.item.id} id={row.item.id}
     phase={row.phase} offset={row.offset} itemIds={presentation.itemIds} measure={presentation.measure}>{row.item.id}</HabitListMotionRow>)}</>
 }
@@ -62,6 +62,58 @@ it('restores a departing row and discards retained rows on account replacement',
   expect(tree.root.findAllByType('AnimatedView')[0]!.props['data-phase']).toBe('present')
   await act(() => { tree.update(<List items={[]} scope="another-account:today" />) })
   expect(tree.root.findAllByType('AnimatedView')).toHaveLength(0)
+  await act(() => tree.unmount())
+})
+
+it.each(['search:walk', 'filter:Day', 'date:2026-09-04'])('drops the rows a scope change removes at once, without an exit: %s', async (nextScope) => {
+  vi.useFakeTimers()
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await act(() => { tree = TestRenderer.create(<List items={[{ id: 'walk' }, { id: 'run' }]} scope="account:today" />) })
+  await act(() => { tree.update(<List items={[{ id: 'walk' }]} scope={nextScope} />) })
+  expect(tree.root.findAllByType('AnimatedView').map((row) => row.props['data-phase'])).toEqual(['present'])
+  await act(() => tree.unmount())
+})
+
+it('keeps the exit for a row a person logs or deletes while the scope stays the same', async () => {
+  vi.useFakeTimers()
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await act(() => { tree = TestRenderer.create(<List items={[{ id: 'walk' }, { id: 'run' }]} />) })
+  await act(() => { tree.update(<List items={[{ id: 'walk' }]} />) })
+  expect(tree.root.findAllByType('AnimatedView').map((row) => row.props['data-phase'])).toEqual(['present', 'exit'])
+  await act(() => tree.unmount())
+})
+
+it('drops the rows a collapse hides at once and keeps the fade when the group expands', async () => {
+  vi.useFakeTimers()
+  const parent = { id: 'parent', parentId: null }
+  const child = { id: 'child', parentId: 'parent' }
+  const grandchild = { id: 'grandchild', parentId: 'child' }
+  const sibling = { id: 'sibling', parentId: null }
+  const expanded = [parent, child, grandchild, sibling]
+  const collapsed = [parent, sibling]
+  const phases = () => tree.root.findAllByType('AnimatedView').map((row) => `${String(row.props.testID)}:${String(row.props['data-phase'])}`)
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await act(() => { tree = TestRenderer.create(<List items={expanded} collapsedIds={new Set()} />) })
+  await act(() => { tree.update(<List items={collapsed} collapsedIds={new Set(['parent'])} />) })
+  expect(phases()).toEqual(['habit-motion-parent:present', 'habit-motion-sibling:present'])
+  await act(() => { tree.update(<List items={expanded} collapsedIds={new Set()} />) })
+  expect(phases()).toEqual(['habit-motion-parent:present', 'habit-motion-child:enter', 'habit-motion-grandchild:enter', 'habit-motion-sibling:present'])
+  await act(() => tree.unmount())
+})
+
+it('keeps the exit for a logged sub-habit and drops it at once when its group collapses', async () => {
+  vi.useFakeTimers()
+  const parent = { id: 'parent', parentId: null }
+  const child = { id: 'child', parentId: 'parent' }
+  const sibling = { id: 'sibling', parentId: null }
+  const expandedIds = new Set<string>()
+  const phases = () => tree.root.findAllByType('AnimatedView').map((row) => `${String(row.props.testID)}:${String(row.props['data-phase'])}`)
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await act(() => { tree = TestRenderer.create(<List items={[parent, child, sibling]} collapsedIds={expandedIds} />) })
+  await act(() => { tree.update(<List items={[parent, sibling]} collapsedIds={expandedIds} />) })
+  expect(phases()).toEqual(['habit-motion-parent:present', 'habit-motion-child:exit', 'habit-motion-sibling:present'])
+  await act(() => { tree.update(<List items={[parent, sibling]} collapsedIds={new Set(['parent'])} />) })
+  expect(phases()).toEqual(['habit-motion-parent:present', 'habit-motion-sibling:present'])
   await act(() => tree.unmount())
 })
 
@@ -128,5 +180,38 @@ it('moves measured survivors after an exit below an unmeasured row', async () =>
   await act(() => { vi.advanceTimersByTime(resolveMotionPreset('list-exit', false).exitDuration) })
   expect(tree.root.findAllByType(HabitListMotionRow).map((row) => row.props.id)).toEqual(['offscreen', 'second'])
   expect(sharedValueWrites.filter((write) => write.initial === 0).map((write) => write.value)).toEqual([100, 0])
+  await act(() => tree.unmount())
+})
+
+it('reorders rows on the shared soft spring without a timing curve', async () => {
+  const items = [{ id: 'first' }, { id: 'second' }]
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await act(() => { tree = TestRenderer.create(<List items={items} />) })
+  await act(() => {
+    for (const [id, height] of [['first', 100], ['second', 120]] as const) {
+      const row = tree.root.findAllByType('AnimatedView').find((entry) => entry.props.testID === `habit-motion-${id}`)!
+      const onLayout = row.props.onLayout as (event: { nativeEvent: { layout: { height: number } } }) => void
+      onLayout({ nativeEvent: { layout: { height } } })
+    }
+  })
+  withSpringCalls.length = 0
+  withTimingCalls.length = 0
+  await act(() => { tree.update(<List items={[items[1]!, items[0]!]} />) })
+  expect(withSpringCalls).toEqual([
+    { value: 0, config: { ...motionSprings.soft, overshootClamping: true } },
+    { value: 0, config: { ...motionSprings.soft, overshootClamping: true } },
+  ])
+  expect(withTimingCalls.filter((call) => call.value === 0)).toEqual([])
+  await act(() => tree.unmount())
+})
+
+it('moves no row on reorder under reduced motion', async () => {
+  preference.reduced = true
+  const items = [{ id: 'first' }, { id: 'second' }]
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await act(() => { tree = TestRenderer.create(<List items={items} />) })
+  withSpringCalls.length = 0
+  await act(() => { tree.update(<List items={[items[1]!, items[0]!]} />) })
+  expect(withSpringCalls).toEqual([])
   await act(() => tree.unmount())
 })

@@ -192,7 +192,6 @@ function TodayScreenContent() {
     Boolean(habitsQuery.data && getAllDoneOnDate(habitsById, habitsQuery.data.childrenByParent, date.dateStr).allDone)
   const motion = useTodayMotion({
     filterMotionKey: date.dateStr,
-    isRefetching: Boolean(habitsQuery.data && habitsQuery.isFetching && !search.open),
   })
   const closeControlsMenu = useCallback(() => {}, [])
   const selection = useTodaySelection({
@@ -332,34 +331,32 @@ function TodayScreenContent() {
   return (
     <View testID="today-content-column" onLayout={(event) => { viewportHeight.current = event.nativeEvent.layout.height }} style={[styles.screen, { backgroundColor: tokens.bg }]}>
       <ScreenReaderHeading ref={headingRef} title={t('nav.today')} />
-      <Animated.View style={[styles.listBand, motion.refetchAnimatedStyle]}>
-        <Animated.View style={[styles.listBand, motion.dayAnimatedStyle]}>
-          <HabitList
-            ref={habitListRef}
-            view={activeView}
-            searchQuery={search.query}
-            onClearSearch={search.close}
-            filters={filters}
-            selectedDate={activeView === 'today' ? date.selectedDate : undefined}
-            showCompleted={showCompleted}
-            onShowCompleted={() => setShowCompleted(true)}
-            isSelectMode={isSelectMode}
-            selectedHabitIds={selectedHabitIds}
-            onBulkMove={selection.confirmBulkMove}
-            listHeader={listHeader}
-            onCreatePress={() => setShowCreateModal(true)}
-            onSeeUpcoming={getSeeUpcomingAction(activeView, date.nextDisabled, date.goToNextDay)}
-            onDetailHabit={(habit) => openHabit(habit.id, actionDate, true)}
-            onEditHabit={(habit, onSaved) => {
-              setEditHabit(habit)
-              setEditHabitOnSaved(() => onSaved ?? null)
-            }}
-            onAllLoadedIdsChange={setAllLoadedIds}
-            onAllCollapsedChange={setHabitListAllCollapsed}
-            onSurfaceOpenChange={setListSurfaceOpen}
-            onScroll={scrollVisibility.update}
-          />
-        </Animated.View>
+      <Animated.View style={[styles.listBand, motion.dayAnimatedStyle]}>
+        <HabitList
+          ref={habitListRef}
+          view={activeView}
+          searchQuery={search.query}
+          onClearSearch={search.close}
+          filters={filters}
+          selectedDate={activeView === 'today' ? date.selectedDate : undefined}
+          showCompleted={showCompleted}
+          onShowCompleted={() => setShowCompleted(true)}
+          isSelectMode={isSelectMode}
+          selectedHabitIds={selectedHabitIds}
+          onBulkMove={selection.confirmBulkMove}
+          listHeader={listHeader}
+          onCreatePress={() => setShowCreateModal(true)}
+          onSeeUpcoming={getSeeUpcomingAction(activeView, date.nextDisabled, date.goToNextDay)}
+          onDetailHabit={(habit) => openHabit(habit.id, actionDate, true)}
+          onEditHabit={(habit, onSaved) => {
+            setEditHabit(habit)
+            setEditHabitOnSaved(() => onSaved ?? null)
+          }}
+          onAllLoadedIdsChange={setAllLoadedIds}
+          onAllCollapsedChange={setHabitListAllCollapsed}
+          onSurfaceOpenChange={setListSurfaceOpen}
+          onScroll={scrollVisibility.update}
+        />
       </Animated.View>
 
       <TodayModals
