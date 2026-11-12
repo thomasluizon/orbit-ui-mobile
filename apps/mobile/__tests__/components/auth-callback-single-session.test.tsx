@@ -9,6 +9,7 @@ import { useAppToastStore } from '@/stores/app-toast-store'
 import { i18n } from '@/lib/i18n'
 import { apiClient } from '@/lib/api-client'
 import { AUTH_CALLBACK_URL, clearPendingGoogleAuthSessionForLogin, clearPendingGoogleAuthSession, markPendingGoogleAuthSession, setPendingGoogleAuthCallbackUrl, getPendingGoogleAuthVerifier } from '@/lib/google-auth-callback'
+import { resolveMotionPreset, type MotionScenario } from '@orbit/shared/theme'
 
 vi.unmock('react-i18next')
 
@@ -75,6 +76,7 @@ vi.mock('@/lib/motion', () => ({
   toAnimatedEasing: (easing: unknown) => easing,
   usePrefersReducedMotion: () => true,
   getPrefersReducedMotion: () => Promise.resolve(true),
+  useResolvedMotionPreset: (scenario: MotionScenario) => resolveMotionPreset(scenario, true),
 }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/components/ui/pill-button', () => ({ PillButton: () => null }))

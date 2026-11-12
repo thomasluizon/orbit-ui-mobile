@@ -744,6 +744,26 @@ describe('OnboardingFlow state model', () => {
     expect(screen.getByLabelText('sentence')).toHaveValue('Walk every Monday at 18:00')
   })
 
+  it('fills the Back control on the shared control hover timing instead of snapping', () => {
+    mount(false)
+    fireEvent.change(screen.getByLabelText('sentence'), { target: { value: 'Walk every Monday at 18:00' } })
+    fireEvent.click(screen.getByRole('button', { name: 'continue' }))
+    const back = screen.getByRole('button', { name: 'back' })
+    expect(back.className).not.toContain('transition-none')
+    expect(back.className).toContain('transition-[background-color]')
+    expect(back.className).toContain('duration-[var(--dur-hover-control)]')
+    expect(back.className).toContain('ease-[var(--ease-standard)]')
+  })
+
+  it('wraps each step body in the onboarding step stage', () => {
+    mount(false)
+    expect(screen.getByLabelText('sentence').closest('[data-onboarding-step]')).toHaveAttribute('data-onboarding-step', '0')
+    fireEvent.change(screen.getByLabelText('sentence'), { target: { value: 'Walk every Monday at 18:00' } })
+    fireEvent.click(screen.getByRole('button', { name: 'continue' }))
+    const stage = screen.getByTestId('schedule').closest('[data-onboarding-step]')!
+    expect(stage).toHaveAttribute('data-onboarding-step', '1')
+  })
+
   it('uses a ghost button for the reminder deny action', async () => {
     await reachReminder(false)
     expect(screen.getByTestId('reminder-state')).toHaveTextContent('ask')

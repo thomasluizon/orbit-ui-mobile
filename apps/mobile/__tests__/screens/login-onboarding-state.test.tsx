@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { LoginContent } from '@/components/auth/login-content'
 import { i18n } from '@/lib/i18n'
+import { resolveMotionPreset, type MotionScenario } from '@orbit/shared/theme'
 
 vi.unmock('react-i18next')
 
@@ -77,6 +78,7 @@ vi.mock('@/lib/google-auth', () => ({ startMobileGoogleAuth: vi.fn() }))
 vi.mock('@/lib/motion', () => ({
   toAnimatedEasing: (easing: unknown) => easing,
   usePrefersReducedMotion: () => true,
+  useResolvedMotionPreset: (scenario: MotionScenario) => resolveMotionPreset(scenario, true),
 }))
 
 vi.mock('@/components/ui/keyboard-aware-scroll-view', async () => {
