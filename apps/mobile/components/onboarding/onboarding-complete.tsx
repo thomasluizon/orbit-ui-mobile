@@ -1,4 +1,4 @@
-import { SPACING } from '@orbit/shared/theme'
+import { motionDurations, SPACING } from '@orbit/shared/theme'
 import { useEffect, useMemo, useRef, useState } from 'react'
 // react-doctor-disable-next-line rn-prefer-reanimated -- WHY: SVG stroke animation uses system Animated until the pinned ABI changes. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { Animated, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
@@ -25,7 +25,7 @@ function LandingRing() {
     if (!length) return
     if (reduced) return
     offset.setValue(length)
-    const animation = Animated.timing(offset, { toValue: 0, duration: 280, easing: toAnimatedEasing(easings.out), useNativeDriver: false })
+    const animation = Animated.timing(offset, { toValue: 0, duration: motionDurations.slow, easing: toAnimatedEasing(easings.out), useNativeDriver: false })
     animation.start(({ finished }) => { if (finished) setSwept(true) })
     return () => animation.stop()
   }, [length, offset, reduced])

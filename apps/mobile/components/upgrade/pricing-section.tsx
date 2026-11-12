@@ -147,7 +147,7 @@ export function PricingSection({
                 pressed ? styles.pressedScale : null,
               ]}
             >
-              <Text style={[styles.freeLinkText, { color: tokens.fg1 }]}>
+              <Text style={[styles.freeLinkText, { color: tokens.fg2 }]}>
                 {t('upgrade.convert.stayFree')}
               </Text>
             </Pressable>

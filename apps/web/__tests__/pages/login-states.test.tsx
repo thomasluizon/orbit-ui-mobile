@@ -4,6 +4,7 @@ import { createTranslator } from 'next-intl'
 import { authLocales, authScreenStates, createLoginScreenFixture } from '@orbit/shared/__tests__/auth-screen-fixtures'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { resolveMotionPreset } from '@orbit/shared/theme'
 import { LoginContent } from '@/app/(auth)/login/login-content'
 
 const mocks = vi.hoisted(() => ({ flow: {} as Record<string, unknown>, action: vi.fn(), reduced: true }))
@@ -35,7 +36,7 @@ describe.each(authLocales)('auth screen composition in %s', (locale) => {
   it.each([false, true])('keeps step transitions and error shake inside the lazy provider, reduced=%s', reduced => {
     mocks.reduced = reduced
     setFixture('code wrong', locale)
-    mocks.flow.authStepMotion = { ...(mocks.flow.authStepMotion as Record<string, unknown>), reducedMotionEnabled: reduced }
+    mocks.flow.authStepMotion = resolveMotionPreset('route-replace', reduced)
     const { container, rerender } = render(<LoginContent />)
     const shake = container.querySelector('[data-motion-transition]')!
     expect(JSON.parse(shake.getAttribute('data-motion-animate')!)).toEqual({ x: reduced ? 0 : [0, -4, 4, -4, 4, 0] })
@@ -43,7 +44,7 @@ describe.each(authLocales)('auth screen composition in %s', (locale) => {
     expect(shake.closest('[data-motion-provider]')).not.toBeNull()
     expect(JSON.parse(container.querySelector('[data-motion-initial]')!.getAttribute('data-motion-initial')!)).toEqual({ opacity: reduced ? 1 : 0, x: reduced ? 0 : 12 })
     setFixture('email', locale)
-    mocks.flow.authStepMotion = { ...(mocks.flow.authStepMotion as Record<string, unknown>), reducedMotionEnabled: reduced }
+    mocks.flow.authStepMotion = resolveMotionPreset('route-replace', reduced)
     rerender(<LoginContent />)
     const stage = container.querySelector('[data-motion-exit]')!
     expect(JSON.parse(stage.getAttribute('data-motion-exit')!).x).toBe(reduced ? 0 : -12)

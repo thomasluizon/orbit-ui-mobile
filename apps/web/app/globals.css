@@ -1775,7 +1775,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
 
   @layer components {
-  .orbit-link-action:hover {
+  .orbit-link-action:hover,
+  a:hover > .orbit-link-action {
     color: var(--fg-1);
   }
 
