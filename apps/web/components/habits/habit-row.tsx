@@ -258,7 +258,7 @@ function HabitRowView({
         habit={habit}
         titleSize={titleSize}
         titleColor={getTitleColor()}
-        meta={supportingMeta ? meta.filter((token) => !loggedParent && typeof token !== 'string' && token.kind === 'future') : meta}
+        meta={supportingMeta ? meta.filter((token) => typeof token !== 'string' && token.kind === 'future') : meta}
         nextDueVisible={loggedParent}
       />
     </>

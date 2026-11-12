@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { I18nextProvider } from 'react-i18next'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
+import { motionDurations } from '@orbit/shared/theme'
 import { computeHabitFutureHint } from '@orbit/shared/utils'
 import { createMockHabitScheduleChild, createMockHabitScheduleItem, createMockProfile } from '@orbit/shared/__tests__/factories'
 import { DEFAULT_CONFIG } from '@orbit/shared/types/config'
@@ -180,7 +181,8 @@ async function logParentFromTodayList() {
   }
   await act(async () => { press(checkControl(row(before, 'Parent'))); await Promise.resolve() })
   await settle()
-  await act(async () => { await vi.advanceTimersByTimeAsync(2000) })
+  /** The row keeps a "recently completed" state for `motionDurations.micro` from the tap; move the fake clock past it. */
+  await act(async () => { await vi.advanceTimersByTimeAsync(motionDurations.micro) })
   await settle()
   return { beforeState, after: await renderRows() }
 }

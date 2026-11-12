@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
 import { NextIntlClientProvider, createTranslator } from 'next-intl'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { API } from '@orbit/shared/api'
 import { habitKeys, profileKeys } from '@orbit/shared/query'
+import { motionDurations } from '@orbit/shared/theme'
 import { computeHabitFutureHint } from '@orbit/shared/utils'
 import { createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import type { HabitScheduleItem } from '@orbit/shared/types/habit'
@@ -152,8 +153,11 @@ async function logParentFromTodayList(locale: 'en' | 'pt-BR' = 'en') {
   await waitFor(() => expect(api.writes.length).toBeGreaterThan(0))
   await waitFor(() => expect(api.listReads).toBeGreaterThan(listReadsBeforeLog))
   await waitFor(() => expect(row('parent').dataset.status).toBe('done'))
-  /** The row keeps a short "recently completed" state after a log; wait until only the server state is left. */
-  await new Promise((resolve) => setTimeout(resolve, 2000))
+  /**
+   * The row keeps a "recently completed" state for `motionDurations.micro` from the tap. This wait starts later
+   * and has the same length, so it ends after that state; `act` flushes the render that removes it.
+   */
+  await act(() => new Promise((resolve) => setTimeout(resolve, motionDurations.micro)))
   return { before, client }
 }
 
