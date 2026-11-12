@@ -40,9 +40,6 @@ export const apiClient = (createToken, request = fetch) => {
     }
     return resources
   }
-  const post = async (path, body) => {
-    const response = await send(new URL(path, API_ORIGIN), { method: "POST", body: JSON.stringify(body) })
-    return response.status === 204 ? null : response.json()
-  }
+  const post = async (path, body) => (await send(new URL(path, API_ORIGIN), { method: "POST", body: JSON.stringify(body) })).json()
   return { getAll, post }
 }

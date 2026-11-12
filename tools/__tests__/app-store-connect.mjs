@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util"
 import { apiClient } from "../lib/app-store-connect.mjs"
 import { T } from "./_harness.mjs"
 
@@ -34,19 +35,23 @@ export const cases = async () => {
       api.calls.map((call) => call.url.host).join() === "api.appstoreconnect.apple.com")
   }
 
+  // Apple's spec answers POST /v1/betaTesters with 201 and a BetaTesterResponse. The request body and this answer agree
+  // with the BetaTesterCreateRequest and BetaTesterResponse schemas in fixtures/app-store-connect-testflight-schemas.json.
+  const createRequest = { data: { type: "betaTesters", attributes: { email: "person@example.test" }, relationships: { betaGroups: { data: [{ type: "betaGroups", id: "group-1" }] } } } }
+  const createdTester = { data: { type: "betaTesters", id: "tester-1", attributes: { email: "person@example.test", inviteType: "EMAIL", state: "INVITED" } }, links: { self: "https://api.appstoreconnect.apple.com/v1/betaTesters/tester-1" } }
+  const created = recording(() => Response.json(createdTester, { status: 201 }))
+  const answer = await apiClient(() => "token", created.request).post("/v1/betaTesters", createRequest)
+  const [createCall] = created.calls
+  T("app store connect: a POST sends the body as JSON with its content type and returns the parsed answer", isDeepStrictEqual(answer, createdTester) &&
+    created.calls.length === 1 && createCall.method === "POST" && createCall.url.href === "https://api.appstoreconnect.apple.com/v1/betaTesters" &&
+    createCall.headers["Content-Type"] === "application/json" && createCall.body === JSON.stringify(createRequest))
+
   let tokens = 0
-  const signed = recording((url) => Response.json({ data: [], links: { self: String(url) } }))
+  const signed = recording((url, options) => (options.method === "POST" ? Response.json(createdTester, { status: 201 }) : Response.json({ data: [], links: { self: String(url) } })))
   const client = apiClient(() => `token-${++tokens}`, signed.request)
   await client.getAll("/v1/betaGroups")
-  await client.post("/v1/betaGroups", { data: {} })
+  await client.post("/v1/betaTesters", createRequest)
   T("app store connect: each request signs its own token", tokens === 2 && signed.calls.map((call) => call.headers.Authorization).join() === "Bearer token-1,Bearer token-2")
-
-  const linked = recording(() => new Response(null, { status: 204 }))
-  const answer = await apiClient(() => "token", linked.request).post("/v1/betaGroups/group-1/relationships/betaTesters", { data: [{ type: "betaTesters", id: "tester-a" }] })
-  const [linkCall] = linked.calls
-  T("app store connect: a POST sends JSON with its content type and a 204 answer returns null", answer === null && linkCall.method === "POST" &&
-    linkCall.url.href === "https://api.appstoreconnect.apple.com/v1/betaGroups/group-1/relationships/betaTesters" &&
-    linkCall.headers["Content-Type"] === "application/json" && JSON.parse(linkCall.body).data[0].id === "tester-a")
 
   const denied = await rejects(apiClient(() => "token", async () => new Response("{}", { status: 403 })).getAll("/v1/betaGroups"))
   T("app store connect: an HTTP failure names the method, the path and the status", denied === "App Store Connect GET /v1/betaGroups failed (HTTP 403)")
