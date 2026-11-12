@@ -86,6 +86,8 @@ these people. Add them to the group in App Store Connect. It invents no new pers
 when missing and it fails when the group would hold no tester. The job summary shows the processing state,
 the group name, the tester count and the number of testers this run added. It never prints an e-mail address
 or a name. A failed create fails the job with the App Store Connect error code and title. If this job fails,
-use "Re-run failed jobs". The rerun does not upload the build again and does not use a new build number. The
-release key needs only the App Manager role. Report the run URL, commit, variant, version, build number and the
-job summary. Never print signing material.
+use "Re-run failed jobs". The rerun does not upload the build again and does not use a new build number. It
+runs the tool from the original commit of the run. So a rerun can clear a timeout or an App Store Connect
+failure, but it never gets a later fix to the tool. After such a fix, the next release that you dispatch proves
+the fix. The release key needs only the App Manager role. Report the run URL, commit, variant, version, build
+number and the job summary. Never print signing material.
