@@ -1,6 +1,6 @@
-# Astra action labels and composer disclosure
+# Astra action labels and composer owners
 
-> **At a glance** - assistant action labels, inline form-fill icons, localized prompts and the habit-detail composer disclosure on web and Android.
+> **At a glance** - assistant action labels, inline form-fill icons, localized prompts and the habit-detail composer on web and Android.
 
 The authority for #1700 is the owner's instruction: "Revert this, just keep the changes that remove
 the bloat, be smart." Standalone actions show their short action label beside the canonical Astra
@@ -21,7 +21,7 @@ selection sends; they are distinct from the standalone form and object actions.
 Composer send shows one upward arrow, replaced by one spinner while sending. It has no Astra mark
 or visible text and keeps the localized Send name. Its 48px target shares one equal gap of the shared
 fill clearance (`INTERACTION_FILL_CLEARANCE`) with the other 48px trailing targets, including the
-text-action slot or disclosure and the attach control. The composer drawing uses the matching
+text-action slot and the attach control. The composer drawing uses the matching
 `--s-1` spacing token. The shared composer owns habit detail and the full-screen conversation.
 
 After a failed send, retry takes the send position at the trailing edge of the pill. It is the shared
@@ -40,7 +40,7 @@ leading the visible action label inside the ordinary full-width menu row.
 | Surface | Web owner | Android owner |
 |---|---|---|
 | Suggestion strip, conversation entry, submit and retry | `components/shell/composer.tsx` | `components/shell/composer.tsx` |
-| Hoje and habit-detail disclosure registration | `app/(app)/layout.tsx` | `app/_layout.tsx` |
+| Habit-detail composer registration | `app/(app)/layout.tsx` | `app/_layout.tsx` |
 | Complete ideas and live requests | `components/chat/prompt-idea.tsx` | `components/chat/prompt-idea.tsx` |
 | Deferred complete idea above the composer | `components/chat/conversation.tsx` | `components/chat/conversation.tsx` |
 | Follow-up requests | `components/chat/follow-up-chips.tsx` | `components/chat/follow-up-chips.tsx` |
@@ -74,14 +74,7 @@ names and settings that name the assistant retain their meaning. The summary act
 entry is the proactive line. The Perfil settings entry retains its assistant name through `PROFILE_SUBMENUS` and draws
 `AstraGlyph` as its leading icon (#1780: Astra always carries the Astra mark).
 
-Conversation and habit detail each keep one disclosure control (#1796). Collapsed, it occupies one compact row with the mark.
-Expanded, the collapse icon shares the suggestion row, leaving the scroll strip room beside it.
-Without suggestions it occupies the input row's reserved text-action slot, with Clear and Paste in
-the existing actions menu. Neither placement adds a row. The compact row remains 48px at enlarged
-text. Web uses the global focus indicator; Android retains InsetFocusPressable.
-The input, attachments and requests remain
-mounted. Each surface's local UI preference persists independently through the existing device storage
-adapter. Hoje exposes the fixed Astra button, stacked directly above the create habit button, instead of an input dock (#2005, #2077). The shell continues to allocate the pinned content
+The composer has no collapse control (#2108), so the suggestion row uses the full composer content width. The input, attachments and requests stay mounted. Hoje exposes the fixed Astra button, stacked directly above the create habit button, instead of an input dock (#2005, #2077). The shell continues to allocate the pinned content
 outside the habit scroller, following the actual composer height and preserving the final content row
 in narrow and short viewports. Wide web Hoje retains its existing sidebar entry without a pinned composer.
 
@@ -107,9 +100,9 @@ copy approval through `/second-opinion` belongs to the orchestrator before merge
 
 The surface table above also inventories the retained controls. Suggestion chips, complete and
 deferred ideas, follow-ups, proactive actions, onboarding import and setup prompts already show
-useful text and keep the brand-word removal. Composer entry, disclosure and send retain their drawn
-icon-only treatment. Named navigation retains #1687. The reading preview and composer collapse,
-spacing, containment and device persistence retain their existing behavior.
+useful text and keep the brand-word removal. Composer entry and send retain their drawn
+icon-only treatment. Named navigation retains #1687. The reading preview, spacing and containment
+retain their existing behavior.
 
 Vitest asserts visible labels and retained callbacks for each restored control on both platforms.
 Menu coverage includes both locale catalogs, sheet and anchored presentations, sibling row styling
