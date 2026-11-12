@@ -2,7 +2,7 @@ import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
 import { afterEach, expect, it, vi } from 'vitest'
-import { AccessibilityInfo, StyleSheet, Text, type TextStyle } from 'react-native'
+import { AccessibilityInfo, StyleSheet, Text, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import type { ComponentProps } from 'react'
 import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
 import { questionBlockFixture as block, questionAnswersFixture } from '@orbit/shared/test-support/chat-fixtures'
@@ -15,6 +15,7 @@ import { QuestionBlock } from '@/components/chat/question-block'
 import { Input } from '@/components/ui/input'
 import { IconButton } from '@/components/ui/icon-button'
 import { i18n } from '@/lib/i18n'
+import { createTokensV2, getRuntimeTheme } from '@/lib/theme'
 
 vi.unmock('react-i18next')
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
@@ -151,6 +152,19 @@ it.each(['pressed', 'focused', 'selected'] as const)('insets the Android scale p
     expect(ring.bottom).toBe(fill.bottom)
     expect(ring.style.outlineOffset).toBe(-2)
   }
+})
+it.each([false, true])('draws the Android scale focus ring in the foreground colour, selected %s', async selected => {
+  const { scheme, themeMode } = getRuntimeTheme()
+  const tokens = createTokensV2(scheme, themeMode)
+  await mount()
+  const scale = () => roles('radio').find(node => node.props.accessibilityLabel === '3')!
+  if (selected) await press(scale())
+  expect(scale().props.accessibilityState.checked).toBe(selected)
+  await renderer.act(() => (scale().props.onFocus as (event: { target: number; currentTarget: number }) => void)({ target: 1, currentTarget: 1 }))
+  const rings = scale().findAll(node => typeof node.type === 'string' && (StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>) as ViewStyle | undefined)?.outlineWidth === 2)
+  expect(rings, 'the focused option draws one ring and hides its selection ring').toHaveLength(1)
+  expect(StyleSheet.flatten(rings[0]!.props.style)).toMatchObject({ outlineColor: tokens.fg1, outlineOffset: -2 })
+  expect(tokens.fg1).not.toBe(tokens.primary)
 })
 it('keeps custom text, replaces single and yes/no answers and combines multiple choice and text', async () => {
   await mount()

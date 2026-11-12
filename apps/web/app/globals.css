@@ -1810,6 +1810,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 .chip:active { transform: scale(0.96); }
 .chip:focus-visible { outline-offset: -2px; }
+.chip-period:focus-visible { outline-color: var(--fg-1); }
 .chip:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -2530,9 +2531,6 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   box-shadow: none;
 }
 .chip-period.chip-active { --selection-ring-color: var(--primary); }
-:is(.orbit-selection-ring[data-selected], .orbit-selection-ring[aria-checked="true"], .orbit-selection-ring[aria-pressed="true"], .orbit-selection-ring[aria-selected="true"], .chip-period.chip-active):is(:focus-visible, :focus-visible *) {
-  outline-color: var(--fg-1);
-}
 .orbit-check-row-label::before,
 .orbit-check-row-label > .orbit-check-row-fill {
   content: '';

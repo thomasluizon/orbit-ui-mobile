@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { render, cleanup } from '@testing-library/react'
+import { render, cleanup, fireEvent, screen } from '@testing-library/react'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -12,6 +12,11 @@ import { CheckRow } from '@/components/ui/check-row'
 import { GoalTypeSelector } from '@/components/habits/create-goal-from-habit/goal-type-selector'
 import { makeHabitDetailScopedChild } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { RadioRow } from '@/components/ui/select-check'
+import { RadioGroup } from '@/components/ui/radio-group'
+import { WeekdayPicker } from '@/components/ui/weekday-picker'
+import { HabitMonthDaysField } from '@/components/habits/habit-form-fields/habit-month-days-field'
+import { HabitEmojiSelector } from '@/components/habits/habit-form-fields/habit-emoji-selector'
+import { HABIT_EMOJI_CATEGORIES } from '@orbit/shared/utils'
 import { DayCell } from '@/components/dates/day-cell'
 import { MovingDaySelection } from '@/components/dates/month-selection'
 import { QuestionControls } from '@/components/chat/question-controls'
@@ -37,6 +42,34 @@ const dayRingCases = [
 ] as const
 
 const options = [{ value: 'Mês', label: 'Mês' }, { value: 'Semana', label: 'Semana' }, { value: 'Período', label: 'Período' }, { value: 'Agenda', label: 'Agenda' }] as const
+
+interface SelectionGroup {
+  name: string
+  markup: () => string
+  unselected: string
+  selected: string
+  selectionRingOwner?: string
+}
+
+const scaleQuestion = questionBlockFixture.questions.find((candidate) => candidate.id === 'energy')!
+const questionWords = { yes: 'yes', no: 'no', recommended: 'recommended', freeText: 'free text', required: 'required' }
+const weekdayOptions = ['mon', 'tue', 'wed'].map((value) => ({ value, label: value, accessibleLabel: value }))
+
+function emojiGridMarkup() {
+  render(<HabitEmojiSelector selectedEmoji={HABIT_EMOJI_CATEGORIES[0]!.emojis[0]!} onSelect={vi.fn()} />)
+  fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' }))
+  return document.querySelector('[role="listbox"]')!.outerHTML
+}
+
+const selectionGroups: SelectionGroup[] = [
+  { name: 'segment', markup: () => render(<SegmentedControl label="View" options={options} value="Mês" onChange={() => {}} fullWidth />).container.innerHTML, unselected: 'button[role="radio"]:not([data-selected])', selected: 'button[role="radio"][data-selected]' },
+  { name: 'radio row', markup: () => render(<RadioGroup aria-label="Choice"><RadioRow label="Off" selected={false} onSelect={() => {}} /><RadioRow label="On" selected onSelect={() => {}} /></RadioGroup>).container.innerHTML, unselected: 'button[aria-checked="false"]', selected: 'button[aria-checked="true"]' },
+  { name: 'scale option', markup: () => render(<QuestionControls question={scaleQuestion} answer={{ questionId: 'energy', number: 3 }} disabled={false} controller={new QuestionBlockController()} words={questionWords} />).container.innerHTML, unselected: 'button[aria-checked="false"]', selected: 'button[aria-checked="true"]', selectionRingOwner: '[data-slot="question-scale-fill"][data-selected]' },
+  { name: 'period chip', markup: () => render(<><Chip variant="period">Week</Chip><Chip variant="period" active>Month</Chip></>).container.innerHTML, unselected: 'button[aria-pressed="false"]', selected: 'button[aria-pressed="true"]' },
+  { name: 'weekday picker', markup: () => render(<WeekdayPicker label="Days" days={['tue']} dayOptions={weekdayOptions} onToggleDay={() => {}} />).container.innerHTML, unselected: 'button[aria-pressed="false"]', selected: 'button[aria-pressed="true"]' },
+  { name: 'month days field', markup: () => render(<HabitMonthDaysField visible monthDays={[15]} anchorDay={15} quantity={1} onToggle={() => {}} />).container.innerHTML, unselected: 'button[aria-pressed="false"]', selected: 'button[aria-pressed="true"]' },
+  { name: 'emoji grid', markup: emojiGridMarkup, unselected: 'button[aria-selected="false"]', selected: 'button[aria-selected="true"]' },
+]
 
 describe('selection yields to keyboard focus', () => {
   let launch: BrowserLaunch | undefined
@@ -91,17 +124,26 @@ describe('selection yields to keyboard focus', () => {
 
 
   async function focusByKeyboard(page: import('@playwright/test').Page, control: import('@playwright/test').Locator) {
-    for (let stop = 0; stop < 20; stop += 1) {
+    if (await control.evaluate((element) => (element as HTMLElement).tabIndex < 0)) {
       await page.keyboard.press('Tab')
-      if (await control.evaluate((element) => element === document.activeElement)) break
+      await control.focus()
+    } else {
+      for (let stop = 0; stop < 20; stop += 1) {
+        await page.keyboard.press('Tab')
+        if (await control.evaluate((element) => element === document.activeElement)) break
+      }
     }
-    expect(await control.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
+    expect(await control.evaluate((element) => element === document.activeElement && element.matches(':focus-visible'))).toBe(true)
+  }
+
+  async function mountMarkup(markup: string, theme: 'dark' | 'light') {
+    const page = await browser.newPage()
+    await page.setContent(`<style>${stylesheet}:root { ${Object.entries(resolveWebThemeVariables('orange', theme)).map(([key, value]) => `${key}:${value};`).join('')} }</style>${markup}`)
+    return page
   }
 
   async function mountThemed(element: React.ReactNode, theme: 'dark' | 'light') {
-    const page = await browser.newPage()
-    await page.setContent(`<style>${stylesheet}:root { ${Object.entries(resolveWebThemeVariables('orange', theme)).map(([key, value]) => `${key}:${value};`).join('')} }</style>${render(element).container.innerHTML}`)
-    return page
+    return mountMarkup(render(element).container.innerHTML, theme)
   }
 
   for (const theme of ['dark', 'light'] as const) {
@@ -122,31 +164,30 @@ describe('selection yields to keyboard focus', () => {
         expect(focused.inner).toBe(background)
       } finally { cleanup(); await page.close() }
     })
-    it(`selected scale option focus ring differs from its selection ring, ${theme}`, async () => {
-      const question = questionBlockFixture.questions.find((candidate) => candidate.id === 'energy')!
-      const words = { yes: 'yes', no: 'no', recommended: 'recommended', freeText: 'free text', required: 'required' }
-      const page = await mountThemed(<QuestionControls question={question} answer={{ questionId: 'energy', number: 3 }} disabled={false} controller={new QuestionBlockController()} words={words} />, theme)
-      try {
-        const fill = page.locator('[data-slot="question-scale-fill"][data-selected]')
-        const primary = await readThemeColor(page, '--primary')
-        expect((await readRingPaint(fill)).outer).toBe(primary)
-        await focusByKeyboard(page, page.locator('button[aria-checked="true"]'))
-        expect((await readRingPaint(fill)).outline).toBe(await readThemeColor(page, '--fg-1'))
-      } finally { cleanup(); await page.close() }
-    })
-    it.each([
-      { name: 'segment', element: <SegmentedControl label="View" options={options} value="Mês" onChange={() => {}} fullWidth />, owner: 'button[data-selected]' },
-      { name: 'period chip', element: <Chip active variant="period">Chip</Chip>, owner: 'button' },
-      { name: 'radio row', element: <RadioRow label="Radio" selected onSelect={() => {}} />, owner: 'button[aria-checked="true"]' },
-    ])(`selected $name focus ring differs from its selection ring, ${theme}`, async ({ element, owner }) => {
-      const page = await mountThemed(element, theme)
-      try {
-        const control = page.locator(owner).first()
-        const primary = await readThemeColor(page, '--primary')
-        expect((await readRingPaint(control)).outer).toBe(primary)
-        await focusByKeyboard(page, control)
-        expect((await readRingPaint(control)).outline).toBe(await readThemeColor(page, '--fg-1'))
-      } finally { cleanup(); await page.close() }
+    it.each(selectionGroups)(`$name focuses an unselected and a selected member with the same --fg-1 ring, ${theme}`, async ({ markup, unselected, selected, selectionRingOwner }) => {
+      const html = markup()
+      cleanup()
+      const ringColors: (string | undefined)[] = []
+      for (const member of [unselected, selected]) {
+        const page = await mountMarkup(html, theme)
+        try {
+          const control = page.locator(member).first()
+          const primary = await readThemeColor(page, '--primary')
+          const foreground = await readThemeColor(page, '--fg-1')
+          expect(foreground).not.toBe(primary)
+          if (member === selected) expect((await readRingPaint(page.locator(selectionRingOwner ?? selected).first())).outer, 'the selected member rests on its accent selection ring').toBe(primary)
+          await focusByKeyboard(page, control)
+          expect((await inspectFocusedControlRings(page))?.indicators, 'the focused member must draw exactly one focus indicator').toHaveLength(1)
+          const outlines = await control.evaluate((element) => [element, ...element.querySelectorAll('*')].flatMap((owner) => {
+            const style = getComputedStyle(owner)
+            const painted = style.outlineStyle !== 'none' && Number.parseFloat(style.outlineWidth) > 0 && style.outlineColor !== 'rgba(0, 0, 0, 0)'
+            return painted ? [{ color: style.outlineColor, width: style.outlineWidth, offset: style.outlineOffset }] : []
+          }))
+          expect(outlines, `${member} must focus with one inset --fg-1 ring`).toEqual([{ color: foreground, width: '2px', offset: '-2px' }])
+          ringColors.push(outlines[0]?.color)
+        } finally { await page.close() }
+      }
+      expect(ringColors[0], 'an unselected and a selected member must share one focus colour').toBe(ringColors[1])
     })
     it.each([false, true].flatMap((checked) => (['none', 'active'] as const).map((forcedColors) => ({ checked, forcedColors }))))(`personal CheckRow keeps exactly one fill outline, ${theme}, checked $checked, forced colors $forcedColors`, async ({ checked, forcedColors }) => {
       const { container } = render(<CheckRow label="Habit" textMode="personal" checked={checked} onChange={vi.fn()} onOpenLabel={vi.fn()} />)
