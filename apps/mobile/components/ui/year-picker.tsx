@@ -1,7 +1,8 @@
 import { SPACING } from '@orbit/shared/theme'
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ScrollView, StyleSheet, Text } from 'react-native'
 import { InsetFocusPressable as Pressable } from './inset-focus-pressable'
+import { PressScale } from '@/components/motion/press-scale'
 import { buildYearRange } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 
@@ -57,28 +58,32 @@ export function YearPicker({
       showsVerticalScrollIndicator={false}
     >
       {/* react-doctor-disable-next-line rn-no-scrollview-mapped-list -- bounded year-range grid with programmatic scroll-to-selection via scrollTo(row); FlatList virtualization breaks the row-offset centering https://github.com/thomasluizon/orbit-ui-mobile/issues/243 */}
-      {years.map((year) => {
-        const isSelected = year === selectedYear
-        return (
-          <Pressable
-            focusColor={isSelected ? tokens.fgOnPrimary : tokens.fg1}
-            key={year}
-            onPress={() => onSelectYear(year)}
-            accessibilityRole="button"
-            accessibilityState={{ selected: isSelected }}
-            accessibilityLabel={String(year)}
-            style={({ pressed }) => [
-              styles.yearCell,
-              { backgroundColor: isSelected ? (pressed ? tokens.primaryPressed : tokens.primary) : tokens.bgField },
-              pressed && !isSelected ? { backgroundColor: tokens.bgHover } : null,
-              pressed ? styles.yearCellPressed : null,
-            ]}
-          >
-            <Text style={[styles.yearText, isSelected && styles.yearTextSelected, { color: isSelected ? tokens.fgOnPrimary : tokens.fg1 }]}>{year}</Text>
-          </Pressable>
-        )
-      })}
+      {years.map((year) => <YearCell key={year} year={year} isSelected={year === selectedYear} onSelectYear={onSelectYear} tokens={tokens} />)}
     </ScrollView>
+  )
+}
+
+function YearCell({ year, isSelected, onSelectYear, tokens }: Readonly<{ year: number; isSelected: boolean; onSelectYear: (year: number) => void; tokens: Tokens }>) {
+  const [yearPressed, setYearPressed] = useState(false)
+  return (
+    <PressScale pressed={yearPressed} disabled={false} style={styles.yearColumn}>
+      <Pressable
+        focusColor={isSelected ? tokens.fgOnPrimary : tokens.fg1}
+        onPress={() => onSelectYear(year)}
+        onPressIn={() => setYearPressed(true)}
+        onPressOut={() => setYearPressed(false)}
+        accessibilityRole="button"
+        accessibilityState={{ selected: isSelected }}
+        accessibilityLabel={String(year)}
+        style={({ pressed }) => [
+          styles.yearCell,
+          { backgroundColor: isSelected ? (pressed ? tokens.primaryPressed : tokens.primary) : tokens.bgField },
+          pressed && !isSelected ? { backgroundColor: tokens.bgHover } : null,
+        ]}
+      >
+        <Text style={[styles.yearText, isSelected && styles.yearTextSelected, { color: isSelected ? tokens.fgOnPrimary : tokens.fg1 }]}>{year}</Text>
+      </Pressable>
+    </PressScale>
   )
 }
 
@@ -89,17 +94,16 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     padding: GRID_PADDING,
   },
-  yearCell: {
+  yearColumn: {
     width: `${100 / COLUMNS}%`,
-    minHeight: ROW_HEIGHT - ROW_GAP,
     marginBottom: ROW_GAP,
+  },
+  yearCell: {
+    minHeight: ROW_HEIGHT - ROW_GAP,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 999,
     overflow: 'hidden',
-  },
-  yearCellPressed: {
-    transform: [{ scale: 0.96 }],
   },
   yearText: {
     fontFamily: 'GeistMono_500Medium',

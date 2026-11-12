@@ -18,6 +18,8 @@ const HABIT_FILES = [
   'components/habits/create-habit-modal/sub-habit-editor.tsx',
   'components/habits/description-copy-button.tsx',
   'components/ui/select-check.tsx',
+  'components/ui/date-field.tsx',
+  'components/ui/year-picker.tsx',
 ] as const
 
 const DURATION_TOKENS = String.raw`var\(--dur-[a-z-]+\)(?:,var\(--dur-[a-z-]+\))*`
@@ -106,6 +108,21 @@ describe('habit form and frequency picker motion tokens', () => {
     const text = source('components/ui/select-check.tsx')
     expect(text).toContain('transition-[background-color,scale] duration-[var(--dur-hover),var(--dur-press)] ease-[var(--ease-standard),var(--ease-out)]')
     expect(text).toContain('transition-[scale] duration-[var(--dur-press)] ease-[var(--ease-out)]')
+  })
+
+  it('presses the date trigger on the press token and shows its focus ring at once', () => {
+    const text = source('components/ui/date-field.tsx')
+    expect(occurrences(text, 'transition-[scale] duration-[var(--dur-press)] ease-[var(--ease-out)] motion-safe:enabled:active:scale-[0.96]')).toBe(1)
+    expect(text).not.toMatch(/transition-\[[^\]]*box-shadow/)
+  })
+
+  it.each([
+    ['components/ui/date-field.tsx', 'day'],
+    ['components/ui/year-picker.tsx', 'year'],
+  ])('%s eases the %s press scale beside its hover fill', (path) => {
+    const text = source(path)
+    expect(occurrences(text, 'transition-[background-color,scale] duration-[var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-out)] motion-safe:active:scale-[0.96]')).toBe(1)
+    expect(text).not.toMatch(/transition-\[[^\]]*transform/)
   })
 
   it('lets the copy button inherit the shared icon button timing', () => {

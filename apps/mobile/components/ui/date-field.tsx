@@ -1,4 +1,4 @@
-import { usePrefersReducedMotion } from '@/lib/motion'
+import { PressScale } from '@/components/motion/press-scale'
 import { PressFill } from '@/components/ui/press-fill'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { selectedBorderStyle } from '@/components/ui/selected-focus-indicator'
@@ -123,6 +123,59 @@ function DatePickerMonthNav({
   )
 }
 
+interface DatePickerDayProps {
+  day: Date
+  isSelected: boolean
+  isToday: boolean
+  isCurrentMonth: boolean
+  locale: string
+  onSelectDay: (day: Date) => void
+  tokens: AppTokens
+  styles: ReturnType<typeof createStyles>
+}
+
+function DatePickerDay({ day, isSelected, isToday, isCurrentMonth, locale, onSelectDay, tokens, styles }: Readonly<DatePickerDayProps>) {
+  const [dayPressed, setDayPressed] = useState(false)
+  return (
+    <PressScale pressed={dayPressed} disabled={false} style={styles.dayColumn}>
+      <InsetFocusPressable
+        style={({ pressed }) => [
+          styles.dayTarget,
+          pressed ? { backgroundColor: tokens.bgHover } : null,
+        ]}
+        onPress={() => onSelectDay(day)}
+        onPressIn={() => setDayPressed(true)}
+        onPressOut={() => setDayPressed(false)}
+        accessibilityRole="button"
+        accessibilityState={{ selected: isSelected }}
+        accessibilityLabel={formatLocaleDate(day, locale, {
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric',
+        })}
+      >{({ pressed, focused }) =>
+        <View
+          style={[
+            styles.dayCell,
+            isSelected && styles.dayCellSelected,
+            selectedBorderStyle(isToday && !isSelected, focused, 1, tokens.primary),
+          ]}
+        >
+          <Text
+            style={[
+              styles.dayText,
+              !isCurrentMonth && { color: pressed ? tokens.fg2 : tokens.fg3 },
+              isSelected && styles.dayTextSelected,
+            ]}
+          >
+            {format(day, 'd')}
+          </Text>
+        </View>
+      }</InsetFocusPressable>
+    </PressScale>
+  )
+}
+
 interface DatePickerBodyProps {
   pickerMode: 'days' | 'years'
   viewDate: Date
@@ -148,7 +201,6 @@ function DatePickerBody({
   tokens,
   styles,
 }: Readonly<DatePickerBodyProps>) {
-  const prefersReducedMotion = usePrefersReducedMotion()
   if (pickerMode === 'years') {
     return (
       <YearPicker
@@ -163,7 +215,7 @@ function DatePickerBody({
     <>
       <View style={styles.weekRow}>
         {weekDays.map((day) => (
-          <View key={day.key} style={styles.dayTarget}>
+          <View key={day.key} style={[styles.dayColumn, styles.dayTarget]}>
             <Text style={styles.weekDayText}>{day.label}</Text>
           </View>
         ))}
@@ -178,39 +230,17 @@ function DatePickerBody({
             const isCurrentMonth = isSameMonth(day, viewDate)
 
             return (
-              <InsetFocusPressable
+              <DatePickerDay
                 key={day.toISOString()}
-                style={({ pressed }) => [
-                  styles.dayTarget,
-                  pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] } : null,
-                ]}
-                onPress={() => onSelectDay(day)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: isSelected }}
-                accessibilityLabel={formatLocaleDate(day, locale, {
-                  month: 'long',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
-              >{({ pressed, focused }) =>
-                <View
-                  style={[
-                    styles.dayCell,
-                    isSelected && styles.dayCellSelected,
-                    selectedBorderStyle(isToday && !isSelected, focused, 1, tokens.primary),
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.dayText,
-                      !isCurrentMonth && { color: pressed ? tokens.fg2 : tokens.fg3 },
-                      isSelected && styles.dayTextSelected,
-                    ]}
-                  >
-                    {format(day, 'd')}
-                  </Text>
-                </View>
-              }</InsetFocusPressable>
+                day={day}
+                isSelected={isSelected}
+                isToday={isToday}
+                isCurrentMonth={isCurrentMonth}
+                locale={locale}
+                onSelectDay={onSelectDay}
+                tokens={tokens}
+                styles={styles}
+              />
             )
           })}
         </View>
@@ -235,7 +265,7 @@ export function DateField({
     triggerRef.current.setNativeProps({ hasTVPreferredFocus: true })
     AccessibilityInfo.sendAccessibilityEvent(triggerRef.current, 'focus')
   }, [focusRequest])
-  const prefersReducedMotion = usePrefersReducedMotion()
+  const [triggerPressed, setTriggerPressed] = useState(false)
   const { t, i18n } = useTranslation()
   const { profile } = useProfile()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -331,15 +361,14 @@ export function DateField({
 
   return (
     <>
-      <Pressable
+      <PressScale pressed={triggerPressed} disabled={disabled}><Pressable
         disabled={disabled}
         accessibilityState={{ disabled }}
         ref={triggerRef}
-        style={({ pressed }) => [
-          styles.trigger,
-          pressed ? { transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] } : null,
-        ]}
+        style={styles.trigger}
         onPress={openPicker}
+        onPressIn={() => setTriggerPressed(true)}
+        onPressOut={() => setTriggerPressed(false)}
         accessibilityLabel={label ? `${label}, ${selectionLabel}` : selectionLabel}
         accessibilityRole="button"
       >{({ pressed }) => <>
@@ -354,7 +383,7 @@ export function DateField({
           {displayValue || placeholder || t('common.selectDate')}
         </Text>
         <Calendar size={20} strokeWidth={1.8} color={tokens.fg3} />
-      </>}</Pressable>
+      </>}</Pressable></PressScale>
 
       {isOpen ? (
         <Sheet ref={sheetRef} open title={t('common.selectDate')} onClose={hidePicker} minimumBodyWidth={7 * DAY_TARGET_SIZE} virtualizedBody={pickerMode === 'years'}>
@@ -470,9 +499,11 @@ function createStyles(tokens: AppTokens) {
       fontVariant: ['tabular-nums'],
       textAlign: 'center',
     },
+    dayColumn: {
+      width: `${100 / 7}%`,
+    },
     dayTarget: {
       overflow: 'hidden',
-      width: `${100 / 7}%`,
       minHeight: DAY_TARGET_SIZE,
       borderRadius: radius.full,
       justifyContent: 'center',
