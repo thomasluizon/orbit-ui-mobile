@@ -3,6 +3,7 @@ import { StyleSheet } from 'react-native'
 import { RootNotificationHeader } from '@/components/navigation/root-notification-header'
 import { Sun, Moon } from '@/components/ui/icons'
 import { createTokensV2 } from '@/lib/theme'
+import { pressableStyle } from '@/__tests__/support/press-feedback'
 
 vi.mock('@/components/navigation/notification-bell', () => ({ NotificationBell: () => null }))
 vi.mock('@/lib/use-app-theme', async () => {
@@ -19,7 +20,7 @@ it('flips the header theme action and target glyph on every press with shared ic
   renderer.act(() => { tree = renderer.create(<RootNotificationHeader />) })
   try {
     const button = tree.root.findByType('Pressable')
-    const paint = (pressed = false) => StyleSheet.flatten(button.props.style({ pressed }))
+    const paint = (pressed = false) => pressableStyle(button, pressed)
     expect(button.props.accessibilityLabel).toBe('settings.theme.switchToLight')
     expect(tree.root.findAllByType(Sun)).toHaveLength(1)
     expect(tree.root.findAllByType(Moon)).toHaveLength(0)

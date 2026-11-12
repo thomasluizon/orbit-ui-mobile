@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
-import { resolveShellComposerScope, resolveShellChrome, resolveShellDestination } from '../utils/shell-destinations'
+import { SHELL_DESTINATION_IDS } from '../utils/destination-icons'
+import {
+  SHELL_DESTINATION_PATHS,
+  SHELL_ROOT_PATHS,
+  resolveShellChrome,
+  resolveShellDestination,
+  resolveTabSwitchDirection,
+} from '../utils/shell-destinations'
 
 describe('resolveShellDestination', () => {
   it.each([
@@ -50,23 +57,53 @@ describe('resolveShellChrome', () => {
   })
 
   it('shows the composer only on habit detail', () => {
-    for (const route of ['/habits/h1']) {
+    for (const route of ['/habits/h1', '/habits/habit-1']) {
       expect(resolveShellChrome(route).composer).toBe(true)
     }
-    for (const route of ['/', '/calendar', '/progress', '/profile', '/search', '/about', '/support', '/notifications', '/upgrade', '/preferences', '/advanced', '/ai-settings']) {
+    for (const route of ['/', '/habits/new', '/habits/habit-1/edit', '/calendar', '/progress', '/profile', '/search', '/about', '/support', '/notifications', '/upgrade', '/preferences', '/advanced', '/ai-settings']) {
       expect(resolveShellChrome(route).composer).toBe(false)
     }
   })
 })
 
-it.each([
-  ['/', undefined],
-  ['/habits/habit-1', 'habit'],
-  ['/habits/new', undefined],
-  ['/habits/habit-1/edit', undefined],
-  ['/calendar', undefined],
-  ['/progress', undefined],
-  ['/profile', undefined],
-])('uses independent composer disclosure scope for %s', (pathname, scope) => {
-  expect(resolveShellComposerScope(pathname!)).toBe(scope)
+describe('shell destination paths', () => {
+  it.each(SHELL_DESTINATION_IDS)('maps %s to a root path that resolves back to it', (id) => {
+    expect(resolveShellDestination(SHELL_DESTINATION_PATHS[id])).toBe(id)
+  })
+
+  it('lists the root paths in the order the tab bars render', () => {
+    expect(SHELL_ROOT_PATHS).toEqual(['/', '/calendar', '/progress', '/profile'])
+  })
+})
+
+describe('resolveTabSwitchDirection', () => {
+  it.each([
+    ['/', '/calendar', 1],
+    ['/calendar', '/profile', 1],
+    ['/profile', '/progress', -1],
+    ['/progress', '/', -1],
+  ] as const)('orders the primary tabs from %s to %s', (from, to, direction) => {
+    expect(resolveTabSwitchDirection(from, to)).toBe(direction)
+  })
+
+  it.each([
+    ['/', '/'],
+    ['/', '/habits/h1'],
+    ['/profile/account', '/profile'],
+  ])('is not a tab switch from %s to %s', (from, to) => {
+    expect(resolveTabSwitchDirection(from, to)).toBeNull()
+  })
+
+  it('follows a new tab bar order', async () => {
+    vi.resetModules()
+    vi.doMock('../utils/destination-icons', () => ({ SHELL_DESTINATION_IDS: ['perfil', 'progresso', 'calendario', 'hoje'] }))
+    try {
+      const reordered = await import('../utils/shell-destinations')
+      expect(reordered.SHELL_ROOT_PATHS).toEqual(['/profile', '/progress', '/calendar', '/'])
+      expect(reordered.resolveTabSwitchDirection('/', '/calendar')).toBe(-1)
+    } finally {
+      vi.doUnmock('../utils/destination-icons')
+      vi.resetModules()
+    }
+  })
 })

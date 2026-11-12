@@ -5,6 +5,7 @@ import { type ReactNode } from 'react'
 import { format } from 'date-fns'
 import { type CalendarMonthDisplayState } from '@orbit/shared/utils'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
+import { CalendarSlide } from '@/components/calendar/calendar-slide'
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
 import { CalendarStats } from '@/components/calendar/calendar-stats'
 import { CalendarWeekView } from '@/components/calendar/calendar-week-view'
@@ -56,16 +57,18 @@ function calendarActionVariant(wide: boolean): 'primary' | 'secondary' {
 }
 function CalendarMonthView({ state }: Readonly<{ state: CalendarScreenState }>) {
   const t = useTranslations()
-  const { currentMonth, selectedDay, todayKey, weekStartsOn, isOnline, isWideDesktop, showCreateRefusal, openImport, showRecurring, showEventSource, calendarEventsState, refetchCalendarEvents, openOrbitPro, isLoading, displayMonthDayMap, openDay, monthDayEntries, selectedCalendarEvents, selectedDayLoggable, pendingEntryStates, changeSelectedEntry, monthDisplayState, monthStatTiles, monthSlideClass, handleTouchStart, handleTouchEnd, openHabitCreation } = state
+  const { currentMonth, selectedDay, todayKey, weekStartsOn, isOnline, isWideDesktop, showCreateRefusal, openImport, showRecurring, showEventSource, calendarEventsState, refetchCalendarEvents, openOrbitPro, isLoading, displayMonthDayMap, openDay, monthDayEntries, selectedCalendarEvents, selectedDayLoggable, pendingEntryStates, changeSelectedEntry, monthDisplayState, monthStatTiles, monthSlide, handleTouchStart, handleTouchEnd, openHabitCreation } = state
+  const monthKey = format(currentMonth, 'yyyy-MM')
   return (<div className="flex min-w-0 flex-col">
-    <div
-      key={format(currentMonth, 'yyyy-MM')}
-      className={monthSlideClass}
+    <CalendarSlide
+      direction={monthSlide}
+      stepKey={monthKey}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       style={{ touchAction: 'pan-y' }}
     >
       <CalendarGrid
+        key={monthKey}
         currentMonth={currentMonth}
         dayMap={displayMonthDayMap}
         onSelectDay={openDay}
@@ -74,7 +77,7 @@ function CalendarMonthView({ state }: Readonly<{ state: CalendarScreenState }>) 
         weekStartsOn={weekStartsOn}
         todayKey={todayKey}
       />
-    </div>
+    </CalendarSlide>
 
     <CalendarMonthFeedback
       state={monthDisplayState}

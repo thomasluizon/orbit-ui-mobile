@@ -7,8 +7,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DescriptionCopyButton } from '@/components/habits/description-copy-button'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { AccessibilityInfo } from 'react-native'
-import { Check, Copy } from '@/components/ui/icons'
+import { expectCopyStateIcon } from '@/__tests__/support/copy-state-icon'
 
+const motionState = vi.hoisted(() => ({ reduced: false }))
+vi.mock('@/lib/motion', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/motion')>()), usePrefersReducedMotion: () => motionState.reduced }))
 const clipboard = vi.hoisted(() => ({ setStringAsync: vi.fn().mockResolvedValue(true), getStringAsync: vi.fn() }))
 vi.mock('expo-clipboard', () => ({ ...clipboard }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
@@ -27,18 +29,35 @@ async function mount(text = description) {
 beforeEach(() => {
   clipboard.setStringAsync.mockReset()
   clipboard.getStringAsync.mockReset().mockResolvedValue(description)
+  motionState.reduced = false
 })
 afterEach(async () => { await act(() => { tree.update(<></>) }) })
 
 describe('description copy action', () => {
+  function paint(pressed: boolean) {
+    const style = button().props.style as StyleProp<ViewStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle>)
+    return StyleSheet.flatten(typeof style === 'function' ? style({ pressed }) : style)
+  }
+
   it('keeps the pressed well distinct from its opaque resting fill', async () => {
     await mount()
-    const style = button().props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
-    const resting = StyleSheet.flatten(style({ pressed: false }))
-    const pressed = StyleSheet.flatten(style({ pressed: true }))
+    const resting = paint(false)
+    await act(() => { (button().props.onPressIn as (() => void) | undefined)?.() })
+    const pressed = paint(true)
     const tokens = createTokensV2('orange', 'dark')
     expect(contrastOnSurface(String(resting.backgroundColor), [tokens.bg, String(pressed.backgroundColor)])).toBeGreaterThanOrEqual(1.25)
     expect(contrastOnSurface(tokens.fg2, [tokens.bg, String(pressed.backgroundColor)])).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it.each([false, true])('presses through MotionPressable on the shared press timing (reduced motion %s)', async (reducedMotion) => {
+    motionState.reduced = reducedMotion
+    await mount()
+    const transition = reducedMotion ? 'none' : 'transform 150ms cubic-bezier(0.16,1,0.3,1)'
+    expect(paint(false)).toMatchObject({ transform: [{ scale: 1 }], transition })
+    await act(() => { (button().props.onPressIn as (() => void) | undefined)?.() })
+    expect(paint(true)).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgElevHover, transform: [{ scale: reducedMotion ? 1 : 0.96 }], transition })
+    await act(() => { (button().props.onPressOut as (() => void) | undefined)?.() })
+    expect(paint(false)).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgElev, transform: [{ scale: 1 }] })
   })
 
   it('copies the full original text and verifies it before announcing success', async () => {
@@ -50,8 +69,16 @@ describe('description copy action', () => {
     expect(feedback().props.children).toBe('habits.detail.descriptionCopied')
     expect(tree.root.findAll((node) => node.type === Text && node.props.accessibilityLiveRegion === 'polite')).toHaveLength(1)
     expect(StyleSheet.flatten(feedback().props.style)).toMatchObject({ position: 'absolute', width: 1, height: 1, overflow: 'hidden', color: 'transparent' })
-    expect(tree.root.findAll((node) => node.type === Check)).toHaveLength(1)
-    expect(tree.root.findAll((node) => node.type === Copy)).toHaveLength(0)
+  })
+
+  it.each([false, true])('swaps the copy icon through CopyStateIcon on the shared fast duration (reduced motion %s)', async (reducedMotion) => {
+    motionState.reduced = reducedMotion
+    await mount()
+    const glyph = { reducedMotion, color: createTokensV2('purple', 'dark').fg2, strokeWidth: 1.5 }
+    expectCopyStateIcon(button(), { copied: false, ...glyph })
+    await act(async () => { press(); await Promise.resolve() })
+    expect(feedback().props.children).toBe('habits.detail.descriptionCopied')
+    expectCopyStateIcon(button(), { copied: true, ...glyph })
   })
 
   it.each(['throw', 'rejection', 'mismatch'])('surfaces %s without claiming success and allows retry', async (failure) => {

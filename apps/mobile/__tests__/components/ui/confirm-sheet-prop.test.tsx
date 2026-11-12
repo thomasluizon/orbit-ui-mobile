@@ -8,6 +8,7 @@ import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { sheetTestControls } from '../../support/sheet-double'
+import { pressableStyle } from '@/__tests__/support/press-feedback'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -23,7 +24,7 @@ describe('ConfirmSheet controlled close', () => {
     expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', 'Delete habit'])
     expectSmallSheetActions(tree.root)
     const actions: ReactTestInstance[] = tree.root.findAll((node: ReactTestInstance) => typeof node.type === 'string' && ['button-ghost-sm', 'button-primary-sm'].includes(String(node.props.testID)))
-    const [cancel, confirm] = actions.map((node) => StyleSheet.flatten((node.props.style as (state: { pressed: boolean }) => ViewStyle[])({ pressed: false })))
+    const [cancel, confirm] = actions.map((node) => pressableStyle(node, false))
     expect(actions[0]!.findAll((node) => String(node.type) === 'Text' && node.props.children === 'common.cancel')).toHaveLength(1)
     expect(cancel).toMatchObject({ height: 44, paddingStart: BUTTON_SIZES.sm.paddingX, paddingHorizontal: BUTTON_SIZES.sm.paddingX, borderWidth: 1.5 })
     expect(cancel!.height).toBe(confirm!.height)

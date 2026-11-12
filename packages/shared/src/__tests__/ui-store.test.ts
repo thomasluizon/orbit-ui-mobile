@@ -290,41 +290,21 @@ describe("shared ui store", () => {
       activeFilters: {},
       activeView: "all",
       calendarShowRecurring: true,
-      habitComposerCollapsed: false,
-      conversationComposerCollapsed: false,
       allDoneCelebratedDate: "",
       dailyStreakMomentDate: "",
       setupChecklistDismissed: false,
     });
   });
 
-  it("persists the habit composer disclosure and defaults invalid values to expanded", () => {
+  it("ignores a retired composer collapse choice and stops persisting it", () => {
     const store = createStoreHarness();
-    expect(store.getState().habitComposerCollapsed).toBe(false);
-    store.getState().setHabitComposerCollapsed(true);
-    expect(migratePersistedUIState(getPersistedUIState(store.getState())).habitComposerCollapsed).toBe(true);
-    for (const value of [undefined, null, "true", 1, false]) {
-      expect(migratePersistedUIState({ habitComposerCollapsed: value }).habitComposerCollapsed).toBe(false);
-    }
-  });
-
-  it("persists the Hoje disclosure independently and expands missing or invalid preferences", () => {
-    const store = createStoreHarness();
-    expect(store.getState().conversationComposerCollapsed).toBe(false);
-    store.getState().setConversationComposerCollapsed(true);
-    expect(migratePersistedUIState(getPersistedUIState(store.getState()))).toMatchObject({
-      conversationComposerCollapsed: true, habitComposerCollapsed: false,
-    });
-    store.getState().setHabitComposerCollapsed(true);
-    store.getState().setConversationComposerCollapsed(false);
-    expect(migratePersistedUIState(getPersistedUIState(store.getState()))).toMatchObject({
-      conversationComposerCollapsed: false, habitComposerCollapsed: true,
-    });
-    for (const value of [undefined, null, "true", 1, false]) {
-      expect(migratePersistedUIState({ conversationComposerCollapsed: value, habitComposerCollapsed: true })).toMatchObject({
-        conversationComposerCollapsed: false, habitComposerCollapsed: true,
-      });
-    }
+    const migrated = migratePersistedUIState({ habitComposerCollapsed: true, conversationComposerCollapsed: true });
+    expect(migrated).not.toHaveProperty("habitComposerCollapsed");
+    expect(migrated).not.toHaveProperty("conversationComposerCollapsed");
+    expect(store.getState()).not.toHaveProperty("habitComposerCollapsed");
+    expect(store.getState()).not.toHaveProperty("setConversationComposerCollapsed");
+    expect(getPersistedUIState(store.getState())).not.toHaveProperty("habitComposerCollapsed");
+    expect(getPersistedUIState(store.getState())).not.toHaveProperty("conversationComposerCollapsed");
   });
 
   it("persists the recurring calendar filter and defaults invalid stored values", () => {

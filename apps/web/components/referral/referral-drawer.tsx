@@ -3,7 +3,8 @@
 import { PillButton } from '@/components/ui/pill-button'
 
 import { useState } from 'react'
-import { Check, Copy, Loader2 } from '@/components/ui/icons'
+import { Loader2 } from '@/components/ui/icons'
+import { CopyStateIcon } from '@/components/ui/copy-state-icon'
 import { useTranslations } from 'next-intl'
 import type { ReferralPresentationStats } from '@orbit/shared/types/referral'
 import { REFERRAL_REWARD_COPY_KEYS, selectReferralReward } from '@orbit/shared/utils'
@@ -57,11 +58,7 @@ function LoadedContent({
             onClick={onCopy}
             aria-label={t('referral.drawer.copyLink')}
           >
-            {copied ? (
-              <Check size={20} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
-            ) : (
-              <Copy size={20} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
-            )}
+            <CopyStateIcon copied={copied} strokeWidth={1.8} color="var(--fg-2)" />
           </button>
           <span aria-live="polite" className="sr-only">
             {copied ? t('referral.drawer.linkCopied') : ''}

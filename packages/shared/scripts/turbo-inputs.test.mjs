@@ -28,8 +28,9 @@ const consumers = [
     'design/brand/orbit-mark-accent.svg', 'packages/shared/src/chat/stream-turn.ts', 'tools/desktop-bench/probe.js',
   ] },
   { workspace: 'apps/mobile', name: '@orbit/mobile', inputs: [
-    '.github/workflows/ios-build.yml', '.github/workflows/ios-release.yml',
+    '.github/workflows/android-release.yml', '.github/workflows/ios-build.yml', '.github/workflows/ios-release.yml',
     `${tokenDirectory}/colors.css`, 'packages/shared/src/theme/neutral-ramp.ts',
+    'tools/__tests__/android-deployment-fixture.json',
   ] },
   { workspace: 'apps/web', name: '@orbit/web', inputs: [
     'tools/check-surface-scope.mjs', 'DESIGN.md', 'design/brand/png/orbit-platform-icon-512.png',

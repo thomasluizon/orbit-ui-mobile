@@ -46,8 +46,8 @@ import {
   formatAPIDate,
   isShareableAchievement,
   resolveShellChrome,
-  resolveShellComposerScope,
   resolveShellDestination,
+  SHELL_ROOT_PATHS,
 } from '@orbit/shared/utils'
 import {
   isReviewMomentEligible,
@@ -134,7 +134,6 @@ function RootLayoutNav() {
   const { t } = useTranslation()
   const router = useRouter()
   const pathname = usePathname()
-  const composerScope = resolveShellComposerScope(pathname)
   useAppToastNavigation(pathname)
   const includeGeneral = useComposerGeneralPreference(pathname)
   const { from, date } = useGlobalSearchParams<{ from?: string | string[]; date?: string | string[] }>()
@@ -275,13 +274,11 @@ function RootLayoutNav() {
       <View style={{ flex: 1 }}>
         {showBottomNav ? (
           <Shell412
-            safeAreaTop={isNotFound || ['/', '/calendar', '/progress', '/profile', '/search'].includes(pathname)}
+            safeAreaTop={isNotFound || pathname === '/search' || SHELL_ROOT_PATHS.includes(pathname)}
             {...conversation}
             composer={!isNotFound && shellChrome.composer ? (
               <Composer
                 {...chat.composerProps}
-                collapseScope={composerScope}
-                collapsible={composerScope !== undefined}
                 suggestions={chat.composerProps.suggestions}
                 onOpenConversation={() => setAstraConversationOpen(true)}
                 conversationLabel={t('todayAstra.openConversation')}

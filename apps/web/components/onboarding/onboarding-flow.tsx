@@ -36,7 +36,7 @@ import {
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { FlowShell } from '@/components/shell/flow-shell'
 import { ShellWide } from '@/components/shell/shell-wide'
-import { DESTINATION_ICONS, SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
+import { DESTINATION_ICONS, SHELL_DESTINATION_IDS, SHELL_DESTINATION_PATHS } from '@orbit/shared/utils'
 import { DestinationIcon } from '@/components/navigation/destination-icon'
 import { ActionRow } from '@/components/ui/action-row'
 import { ArrowLeft, RefreshCw } from '@/components/ui/icons'
@@ -58,6 +58,7 @@ import { OnboardingProStep, type OnboardingProExit } from './onboarding-pro-step
 import { setOnboardingProPending } from '@/hooks/use-onboarding-pro-pending'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { OnboardingComplete } from './onboarding-complete'
+import { OnboardingStepStage } from './onboarding-step-stage'
 import { OnboardingCreateHabit } from './onboarding-create-habit'
 import { OnboardingRemind } from './onboarding-remind'
 import { OnboardingWelcome } from './onboarding-welcome'
@@ -78,12 +79,12 @@ function FlowActions({ primary, secondary, reason }: Readonly<{ primary: ReactNo
   return <div className="flex w-full flex-col gap-2"><ActionRow>{secondary}{primary}</ActionRow>{reason}</div>
 }
 
-const DONE_TAB_ROUTES: Record<string, string> = { astra: '/?astra=open', hoje: '/', calendario: '/calendar', progresso: '/progress', perfil: '/profile' }
+const DONE_TAB_ROUTES: Record<string, string> = { astra: '/?astra=open', ...SHELL_DESTINATION_PATHS }
 
 function DoneShell({ onSelect, children, modalId, loginHref }: Readonly<{ onSelect: (id: string) => void; children: ReactNode; modalId: string; loginHref?: string }>) {
   const t = useTranslations()
-  const items = useMemo(() => SHELL_DESTINATION_IDS.map((id) => ({ id, href: loginHref ?? DONE_TAB_ROUTES[id]!, label: t(DESTINATION_ICONS[id].labelKey), icon: id })), [loginHref, t])
-  const tabBar = <BottomTabBar activeId="hoje" label={t('nav.mainNavigation')} items={SHELL_DESTINATION_IDS.map((id) => ({ id, href: loginHref ?? DONE_TAB_ROUTES[id]!, label: t(DESTINATION_ICONS[id].labelKey), icon: ({ active }) => <DestinationIcon destination={id} active={active} color={active ? 'var(--primary)' : 'var(--fg-3)'} /> }))} onSelect={onSelect} />
+  const items = useMemo(() => SHELL_DESTINATION_IDS.map((id) => ({ id, href: loginHref ?? SHELL_DESTINATION_PATHS[id], label: t(DESTINATION_ICONS[id].labelKey), icon: id })), [loginHref, t])
+  const tabBar = <BottomTabBar activeId="hoje" label={t('nav.mainNavigation')} items={SHELL_DESTINATION_IDS.map((id) => ({ id, href: loginHref ?? SHELL_DESTINATION_PATHS[id], label: t(DESTINATION_ICONS[id].labelKey), icon: ({ active }) => <DestinationIcon destination={id} active={active} color={active ? 'var(--primary)' : 'var(--fg-3)'} /> }))} onSelect={onSelect} />
   return <ShellWide astraRow={{ label: t('nav.astra'), onOpen: () => onSelect('astra') }} items={items} activeId="hoje" navLabel={t('nav.mainNavigation')} onSelect={onSelect} tabBar={tabBar} notice={<><UpdateAvailableBanner modalId={modalId} inset={false} /><AppToastHost placement="modal" modalId={modalId} /></>}>
     <div className="mx-auto flex min-h-full w-full max-w-[440px] items-center px-4 lg:max-w-[560px] lg:px-0">{children}</div>
   </ShellWide>
@@ -158,7 +159,7 @@ function OnboardingHeader({ step, onBack, onSkip, completionPending }: Readonly<
   return <div className="flex min-h-14 items-center justify-between gap-4 px-4 min-[1024px]:px-0">
     <div className="flex shrink-0 items-center gap-2">
       {onBack && (step === ONBOARDING_WHEN_STEP || step === ONBOARDING_REMIND_STEP) ? <button type="button" aria-label={t('back')} disabled={completionPending} onClick={onBack}
-        className="grid min-h-[48px] w-[48px] shrink-0 touch-manipulation transition-none place-items-center rounded-full text-[var(--fg-1)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2 disabled:opacity-40">
+        className="grid min-h-[48px] w-[48px] shrink-0 touch-manipulation transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] place-items-center rounded-full text-[var(--fg-1)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2 disabled:opacity-40">
         <ArrowLeft size={20} aria-hidden="true" focusable="false" className="translate-x-px rtl:-translate-x-px rtl:-scale-x-100" />
       </button> : null}
       <span className="font-mono text-xs tracking-[0.04em] text-[var(--fg-3)] tabular-nums"><span translate="no">Orbit</span> · <span className="text-[var(--fg-1)]">{String(displayStep).padStart(2, '0')}</span> / {String(getOnboardingDisplayTotal()).padStart(2, '0')}</span><span className="sr-only" role="status">{t('step', { current: displayStep, total: getOnboardingDisplayTotal() })}</span></div>
@@ -450,7 +451,7 @@ export function OnboardingFlow({ finalStepOnly = false, onExit }: Readonly<{ fin
   const overlay = step >= ONBOARDING_DONE_STEP ? (
     <DoneShell modalId={modalId} loginHref={isLive ? undefined : getOnboardingLoginUrl(searchQuery, true)} onSelect={(id) => completeAndLeave(isLive ? DONE_TAB_ROUTES[id] : undefined)}><DoneContent step={step} proContent={<OnboardingProStep ref={proStepRef} onFinish={finishAndLeave} />} doneContent={<OnboardingComplete createdHabit={createdTitle} emoji={emoji || '◎'} remindersOff={remindersOff} skipped={skipped} signedOut={!isLive} continuesToPro={isLive && getCurrentPlan(profile) !== 'Pro'} dueToday={createdDueToday} general={createdGeneral} onFinish={() => completeAndLeave()} />} /></DoneShell>
   ) : (
-    <FlowShell nav={false} mode="onboarding" header={<OnboardingHeader completionPending={completionPending} step={step} onBack={resolvingDeferredPush ? undefined : goBack} onSkip={createdId ? undefined : () => void skip()} />} action={<div className="contents" inert={completionPending || undefined}><DecisionAction {...decisionProps} /></div>} notice={<><UpdateAvailableBanner modalId={modalId} inset={false} />{createFailed ? <ErrorState message={t('createFailed')} /> : null}<AppToastHost placement="modal" modalId={modalId} /></>}><div className="contents" inert={completionPending || undefined}><DecisionContent {...decisionProps} />{suggestion.verification}</div></FlowShell>
+    <FlowShell nav={false} mode="onboarding" header={<OnboardingHeader completionPending={completionPending} step={step} onBack={resolvingDeferredPush ? undefined : goBack} onSkip={createdId ? undefined : () => void skip()} />} action={<div className="contents" inert={completionPending || undefined}><DecisionAction {...decisionProps} /></div>} notice={<><UpdateAvailableBanner modalId={modalId} inset={false} />{createFailed ? <ErrorState message={t('createFailed')} /> : null}<AppToastHost placement="modal" modalId={modalId} /></>}><div className="contents" inert={completionPending || undefined}><OnboardingStepStage step={step}><DecisionContent {...decisionProps} /></OnboardingStepStage>{suggestion.verification}</div></FlowShell>
   )
   return <Dialog.Root open={overlayOpen} modal disablePointerDismissal onOpenChange={(open) => { if (!open) closeOverlay() }}><Dialog.Portal><Dialog.Viewport className="z-modal fixed inset-0"><Dialog.Popup aria-labelledby="onboarding-title" className="fixed inset-0 overflow-hidden bg-[var(--bg)]">{overlay}</Dialog.Popup></Dialog.Viewport></Dialog.Portal></Dialog.Root>
 }

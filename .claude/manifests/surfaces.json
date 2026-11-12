@@ -131,6 +131,7 @@
         "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
+        "apps/web/components/calendar/calendar-slide.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
         "apps/web/components/calendar/calendar-time-grid.tsx",
         "apps/web/components/calendar/calendar-week-view.tsx"
@@ -152,6 +153,7 @@
         "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
+        "apps/web/components/calendar/calendar-slide.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
         "apps/web/components/calendar/calendar-time-grid.tsx",
         "apps/web/components/calendar/calendar-week-view.tsx"
@@ -173,6 +175,7 @@
         "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
+        "apps/web/components/calendar/calendar-slide.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
         "apps/web/components/calendar/calendar-time-grid.tsx",
         "apps/web/components/calendar/calendar-week-view.tsx"
@@ -194,6 +197,7 @@
         "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
+        "apps/web/components/calendar/calendar-slide.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
         "apps/web/components/calendar/calendar-time-grid.tsx",
         "apps/web/components/calendar/calendar-week-view.tsx"
@@ -215,6 +219,7 @@
         "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
+        "apps/web/components/calendar/calendar-slide.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
         "apps/web/components/calendar/calendar-time-grid.tsx",
         "apps/web/components/calendar/calendar-week-view.tsx"
@@ -236,6 +241,7 @@
         "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
+        "apps/web/components/calendar/calendar-slide.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
         "apps/web/components/calendar/calendar-time-grid.tsx",
         "apps/web/components/calendar/calendar-week-view.tsx"
@@ -257,6 +263,7 @@
         "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
+        "apps/web/components/calendar/calendar-slide.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
         "apps/web/components/calendar/calendar-time-grid.tsx",
         "apps/web/components/calendar/calendar-week-view.tsx"
@@ -278,6 +285,7 @@
         "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
+        "apps/web/components/calendar/calendar-slide.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
         "apps/web/components/calendar/calendar-time-grid.tsx",
         "apps/web/components/calendar/calendar-week-view.tsx"

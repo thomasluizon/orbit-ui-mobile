@@ -39,14 +39,14 @@ const words = { placeholder: 'Message', send: 'Send', paste: 'Paste', nothingToP
 const attachWords = { image: 'Photo', file: 'Document', trayLabel: 'Attachments', remove: (name: string) => name }
 const voiceWords = { start: 'Voice', stop: 'Stop', recording: 'Recording', transcribing: 'Transcribing' }
 
-function buildChat(draft: string): ChatController {
+function buildChat(draft: string, suggestions: ReadonlyArray<{ id: string; label: string; onSelect: () => void }> = []): ChatController {
   return {
     threadScroll: createChatThreadScroll(), scrollToBottom: vi.fn(), chatContainerRef: createRef<HTMLDivElement>(), messages: [], activeSteps: [],
     canShowFollowUps: false, isTyping: false, streamingMessageId: null, showSuggestions: true,
     sendMessage: vi.fn(), handleBreakdownConfirmed: vi.fn(), confirmAndExecutePendingOperation: vi.fn(),
     prepareStepUpForBubble: vi.fn(), verifyStepUpForBubble: vi.fn(), isOnline: true,
     sendError: null, canRetryLastSend: false, retryLastSend: vi.fn(),
-    composerProps: { state: 'idle', words, value: draft, onChangeValue: vi.fn(), onSend: vi.fn(), suggestions: [],
+    composerProps: { state: 'idle', words, value: draft, onChangeValue: vi.fn(), onSend: vi.fn(), suggestions,
       attachWords, voiceWords, onAttachImage: vi.fn(), onAttachFile: vi.fn(), onVoice: vi.fn() },
   } as unknown as ChatController
 }
@@ -64,7 +64,7 @@ beforeEach(() => {
   navigation.wide = true
   navigation.push.mockReset().mockImplementation((pathname: string) => { navigation.pathname = pathname })
   navigation.replace.mockReset().mockImplementation((pathname: string) => { navigation.pathname = pathname })
-  useUIStore.setState({ astraConversationOpen: false, conversationComposerCollapsed: false })
+  useUIStore.setState({ astraConversationOpen: false })
   useShellStore.setState({ paletteOpen: false })
   vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
     matches: navigation.wide && /min-width/.test(query), media: query, addEventListener: vi.fn(), removeEventListener: vi.fn(),
@@ -106,6 +106,20 @@ it('redirects focus from an unrelated portal back to the conversation', () => {
   } finally { unrelated.remove() }
 })
 
+it('shows the conversation suggestions at full composer width with no collapse control', () => {
+  const labels = ['Review routine', 'Plan routine']
+  const chat = buildChat('', labels.map((label, index) => ({ id: `chip-${index}`, label, onSelect: vi.fn() })))
+  render(<App chat={chat} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Astra' }))
+  const strip = screen.getByRole('group', { name: words.suggestionsLabel })
+  expect(within(strip).getAllByRole('button').map(button => button.textContent)).toEqual(labels)
+  const row = strip.closest('[data-composer-suggestion-row]')!
+  expect(row.querySelectorAll('button')).toHaveLength(labels.length)
+  expect(row.parentElement).toBe(document.querySelector('[data-composer-content]'))
+  expect(screen.queryByRole('button', { name: /shell\.composer\.(collapse|expand)/ })).toBeNull()
+  expect(document.querySelector('[data-composer-disclosure], [data-composer-collapse-row], [data-collapsed]')).toBeNull()
+})
+
 it.each([false, true])('hands attachment-menu focus back to the composer on Tab with shift=%s', async (shiftKey) => {
   render(<App draft="Keep this draft" />)
   fireEvent.click(screen.getByRole('button', { name: 'Astra' }))
@@ -114,7 +128,7 @@ it.each([false, true])('hands attachment-menu focus back to the composer on Tab 
   act(() => within(menu).getByRole('menuitem', { name: attachWords.image }).focus())
   fireEvent.keyDown(document.activeElement!, { key: 'Tab', shiftKey })
   await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
-  expect(screen.getByRole('button', { name: shiftKey ? 'shell.composer.collapse' : words.send })).toHaveFocus()
+  expect(screen.getByRole('button', { name: shiftKey ? words.clear : words.send })).toHaveFocus()
   expect(useUIStore.getState().astraConversationOpen).toBe(true)
   expect(screen.getByRole('textbox', { name: words.placeholder })).toHaveValue('Keep this draft')
 })
@@ -132,7 +146,8 @@ it.each([
   expect(screen.queryByRole('dialog', { name: 'Astra' })).toBeNull()
   if (role === 'link') expect(control).toHaveAttribute('href', pathname)
   if (pathname === '/') expect(navigation.replace).toHaveBeenCalledWith(pathname)
-  if (pathname !== '/') expect(navigation.push).toHaveBeenCalledWith(pathname)
+  if (pathname !== '/' && role === 'button') expect(navigation.push).toHaveBeenCalledWith(pathname)
+  if (pathname !== '/' && role === 'link') expect(navigation.push).toHaveBeenCalledWith(pathname, { transitionTypes: ['orbit-tab-forward'] })
   view.rerender(<App />)
   expect(screen.getByRole('heading', { name: pathname })).toBeVisible()
 })
@@ -241,7 +256,7 @@ it.each([[false, '/'], [true, '/'], [false, '/progress'], [true, '/progress']] a
   expect(useUIStore.getState().astraConversationOpen).toBe(true)
   expect(within(conversation).queryByRole('link', { name: 'Ver no Progresso' })).toBeNull()
   fireEvent.click(screen.getByRole('link', { name: 'nav.progress' }))
-  if (pathname !== '/progress') expect(navigation.push).toHaveBeenCalledWith('/progress')
+  if (pathname !== '/progress') expect(navigation.push).toHaveBeenCalledWith('/progress', { transitionTypes: ['orbit-tab-forward'] })
   view.rerender(<App block={block} />)
   expect(screen.queryByRole('dialog', { name: 'Astra' })).toBeNull()
   expect(useUIStore.getState().astraConversationOpen).toBe(false)
@@ -284,27 +299,4 @@ it.each([false, true])('owns one named Astra row before the four destinations wi
   expect(within(rows[0]!).getByText('Astra')).toHaveAttribute('translate', 'no')
   expect(rows[0]!.querySelector('svg')).toHaveAttribute('data-asset', 'astra-mark')
   expect(within(navigation).getAllByRole('link')).toHaveLength(4)
-})
-
-it.each([false, true])('reopens a collapsed conversation with visible focus and restores the trigger with wide=%s', async wide => {
-  navigation.wide = wide
-  render(<App draft="Keep this draft" />)
-  const trigger = screen.getByRole('button', { name: wide ? 'Astra' : 'shell.astraButton.open' })
-  fireEvent.click(trigger)
-  fireEvent.click(screen.getByRole('button', { name: 'shell.composer.collapse' }))
-  fireEvent.click(screen.getByRole('button', { name: 'common.closeConversation' }))
-  expect(trigger).toHaveFocus()
-  fireEvent.click(trigger)
-  const expand = screen.getByRole('button', { name: 'shell.composer.expand' })
-  expect(expand).toBeVisible()
-  expect(expand).toHaveFocus()
-  expect(screen.queryByRole('textbox')).toBeNull()
-  const unrelated = document.createElement('button')
-  document.body.append(unrelated)
-  try {
-    act(() => unrelated.focus())
-    expect(expand).toHaveFocus()
-    fireEvent.keyDown(expand, { key: 'Escape' })
-    expect(trigger).toHaveFocus()
-  } finally { unrelated.remove() }
 })

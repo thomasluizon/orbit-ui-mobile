@@ -4,7 +4,7 @@ import { useDateFormat } from '@/hooks/use-date-format'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { Pressable, Text, View, StyleSheet } from 'react-native'
 import { useState } from 'react'
-import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 import { Bell, ChevronDown, X } from '@/components/ui/icons'
 import type { TFunction } from 'i18next'
 import {
@@ -177,16 +177,16 @@ export function CalendarSyncEventRow({
       </View>
       </View>
       {isReviewMode && suggestionId ? (
-        <Pressable
+        <MotionPressable
           {...dismissFeedback.handlers}
           onPress={() => onDismiss(suggestionId)}
           disabled={dismissPending}
           accessibilityRole="button"
           accessibilityLabel={t('calendar.autoSync.dismissSuggestion')}
           style={[styles.dismissButton, { backgroundColor: nestedControlFill(dismissFeedback, tokens) }, dismissPending && styles.quietActionDim]}
-        ><X size={20} color={tokens.fg3} strokeWidth={1.8} /></Pressable>
+        ><X size={20} color={tokens.fg3} strokeWidth={1.8} /></MotionPressable>
       ) : null}
-      <InsetFocusPressable {...disclosureFeedback.handlers} accessibilityRole="button" accessibilityLabel={t('contextMenu.viewDetails')} accessibilityHint={disclosureLabel} accessibilityState={{ expanded }} onPress={() => setExpanded(!expanded)} style={{ minHeight: 48, minWidth: 48, alignSelf: 'flex-start', alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: nestedControlFill(disclosureFeedback, tokens) }}><ChevronDown size={20} strokeWidth={1.5} color={tokens.fg3} accessible={false} /></InsetFocusPressable>
+      <MotionPressable focusInset {...disclosureFeedback.handlers} accessibilityRole="button" accessibilityLabel={t('contextMenu.viewDetails')} accessibilityHint={disclosureLabel} accessibilityState={{ expanded }} onPress={() => setExpanded(!expanded)} style={{ minHeight: 48, minWidth: 48, alignSelf: 'flex-start', alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: nestedControlFill(disclosureFeedback, tokens) }}><ChevronDown size={20} strokeWidth={1.5} color={tokens.fg3} accessible={false} /></MotionPressable>
       </View>
     </View>
   )

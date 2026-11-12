@@ -6,7 +6,7 @@ import type { ReactNode } from 'react'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { getTodayBoundary, computeHabitFutureHint } from '@orbit/shared/utils'
+import { getTodayBoundary } from '@orbit/shared/utils'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
@@ -635,7 +635,7 @@ describe('HabitRow large text placement', () => {
   it('keeps producer-derived future hints hidden when parent progress moves', () => {
     document.documentElement.style.fontSize = '32px'
     const habit = createMockHabit({ title: 'Parent', dueDate: '2030-01-02' })
-    const hint = computeHabitFutureHint(habit, '2030-01-01', (key) => key, 'en')!
+    const hint = 'habits.schedule.dueTomorrow'
     render(<HabitRow habit={habit} hasChildren childProgress={{ done: 0, total: 2 }}
       meta={['0 of 2', { kind: 'future', label: hint }]} />)
     expect(screen.getByText('0 of 2').textContent).toBe('0 of 2')
@@ -664,5 +664,57 @@ describe('HabitRow large text placement', () => {
       expect(document.querySelectorAll('[data-habit-row-type]')).toHaveLength(1)
       expect(screen.getByText(metadata).closest('[data-habit-row-body], [data-personal-text-action]')).not.toBeNull()
     })
+  })
+})
+
+describe('logged parent row', () => {
+  afterEach(() => { document.documentElement.style.fontSize = '' })
+  const nextDue = { kind: 'future' as const, label: 'due tomorrow' }
+  const titleOf = () => document.querySelector<HTMLElement>('[data-habit-row-title-block] > :first-child')!
+  const visibleTokens = () => [...document.querySelectorAll<HTMLElement>('[data-habit-row-meta] [data-habit-row-meta-token]')]
+    .map((token) => token.textContent!.replace(/·$/, ''))
+  const hiddenLabels = () => [...document.querySelectorAll('.sr-only')].map((node) => node.textContent)
+  const loggedParent = (overrides: Parameters<typeof createMockHabit>[0] = {}) =>
+    createMockHabit({ title: 'Parent', hasSubHabits: true, isLoggedInRange: true, dueDate: '2030-01-02', ...overrides })
+
+  it.each([false, true])('dims the title and shows the next due label last, selecting=%s', (selectMode) => {
+    render(<HabitRow habit={loggedParent()} state="done" hasChildren childProgress={{ done: 0, total: 2 }}
+      selectMode={selectMode} meta={['0 of 2', nextDue]} />)
+    expect({ color: titleOf().style.color, opacity: titleOf().style.opacity, tokens: visibleTokens(), hidden: hiddenLabels() })
+      .toEqual({ color: 'var(--habit-row-meta-color)', opacity: '', tokens: ['habits.form.typeHabit', '0 of 2', 'due tomorrow'], hidden: [] })
+    if (!selectMode) expect(document.querySelector<HTMLElement>('[data-habit-check]')!.style.background).toBe('var(--fg-1)')
+  })
+
+  it('keeps the title colour and the hidden label of a logged row with no sub-habits', () => {
+    render(<HabitRow habit={loggedParent({ title: 'Leaf', hasSubHabits: false })} state="done" meta={[nextDue]} />)
+    expect({ color: titleOf().style.color, tokens: visibleTokens(), hidden: hiddenLabels() })
+      .toEqual({ color: 'var(--fg-1)', tokens: ['habits.form.typeHabit'], hidden: ['due tomorrow'] })
+  })
+
+  it('keeps the bad check of a logged bad parent', () => {
+    render(<HabitRow habit={loggedParent({ isBadHabit: true })} state="bad" hasChildren childProgress={{ done: 1, total: 2 }} meta={['1 of 2', nextDue]} />)
+    const check = document.querySelector<HTMLElement>('[data-habit-check]')!
+    expect({ status: check.dataset.status, fill: check.style.background, stroke: check.querySelector('path')?.getAttribute('stroke') })
+      .toEqual({ status: 'bad', fill: 'var(--habit-check-feedback, transparent)', stroke: 'var(--status-bad)' })
+  })
+
+  it('keeps the ratio check and the normal title of a parent with every sub-habit done and no log of its own', () => {
+    render(<HabitRow habit={loggedParent({ isLoggedInRange: false })} state="empty" hasChildren childProgress={{ done: 2, total: 2 }} meta={['2 of 2', nextDue]} />)
+    expect({ color: titleOf().style.color, tokens: visibleTokens(), hidden: hiddenLabels() })
+      .toEqual({ color: 'var(--fg-1)', tokens: ['habits.form.typeHabit', '2 of 2'], hidden: ['due tomorrow'] })
+  })
+
+  it('dims a completed one-time parent task, which carries no next due label', () => {
+    render(<HabitRow habit={loggedParent({ isLoggedInRange: false, isCompleted: true, frequencyUnit: null })} state="done" hasChildren childProgress={{ done: 0, total: 2 }} meta={['0 of 2']} />)
+    expect({ color: titleOf().style.color, tokens: visibleTokens(), fill: document.querySelector<HTMLElement>('[data-habit-check]')!.style.background })
+      .toEqual({ color: 'var(--habit-row-meta-color)', tokens: ['habits.rowTypeTask', '0 of 2'], fill: 'var(--fg-1)' })
+  })
+
+  it('carries the next due label in the supporting footer at large text', () => {
+    document.documentElement.style.fontSize = '32px'
+    render(<HabitRow habit={loggedParent()} state="done" hasChildren childProgress={{ done: 0, total: 2 }} meta={['0 of 2', nextDue]} />)
+    const label = screen.getByText('due tomorrow')
+    expect({ inHeading: label.closest('[data-habit-row-heading]') !== null, inMeta: label.closest('[data-habit-row-meta]') !== null, hidden: hiddenLabels(), last: visibleTokens().at(-1) })
+      .toEqual({ inHeading: false, inMeta: true, hidden: [], last: 'due tomorrow' })
   })
 })

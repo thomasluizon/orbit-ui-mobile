@@ -1,4 +1,4 @@
-import { expectPressFill } from '../support/press-feedback';
+import { expectPressFill, pressableStyle } from '../support/press-feedback';
 import React from "react";
 import { __setWindowDimensions } from "@/test-mocks/react-native";
 import { StyleSheet, View } from "react-native";
@@ -140,7 +140,7 @@ describe("CalendarHeader month and year navigation (mobile)", () => {
       const indicators = tree.root.findAll((node) => node.type === 'View' && StyleSheet.flatten(node.props.style)?.outlineWidth === 2);
       expect(indicators).toHaveLength(1);
       TestRenderer.act(() => label.props.onBlur({ target: 1, currentTarget: 1 }));
-      const style = StyleSheet.flatten(label.props.style({ pressed: false }));
+      const style = pressableStyle(label, false);
       expect(style.minHeight).toBeGreaterThanOrEqual(48);
       expect(style.minWidth).toBeGreaterThanOrEqual(48);
       TestRenderer.act(() => label.props.onPress());
@@ -170,12 +170,12 @@ describe("CalendarHeader month and year navigation (mobile)", () => {
     });
     for (const label of ['Previous', 'Next']) {
       const control = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === label)[0]!;
-      expect(StyleSheet.flatten(control.props.style({ pressed: false }))).toMatchObject({ backgroundColor: 'transparent' });
-      expect(StyleSheet.flatten(control.props.style({ pressed: false }))).toMatchObject({ borderWidth: 1.5, borderColor: themedTokens.hairlineStrong });
+      expect(pressableStyle(control, false)).toMatchObject({ backgroundColor: 'transparent' });
+      expect(pressableStyle(control, false)).toMatchObject({ borderWidth: 1.5, borderColor: themedTokens.hairlineStrong });
       expectPressFill(tree, label, themedTokens.bgHover, 9999);
     }
     const title = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'April, calendar.monthPicker')[0]!;
-    expect(StyleSheet.flatten(title.props.style({ pressed: false }))).toMatchObject({ backgroundColor: 'transparent', borderRadius: 12 });
+    expect(pressableStyle(title, false)).toMatchObject({ backgroundColor: 'transparent', borderRadius: 12 });
     expectPressFill(tree, 'April, calendar.monthPicker', themedTokens.bgHover, 12);
   });
 
@@ -250,10 +250,10 @@ describe("CalendarHeader period navigation (mobile)", () => {
     for (const label of ['Previous week', 'Next week']) expectPressFill(tree!, label, tokens.bgHover, 9999);
     const current = tree!.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'calendar.period.goToCurrent:{"period":"Apr 6 to Apr 12"}')[0]!;
     expect.soft(current.props.hitSlop).toBeUndefined();
-    expect.soft(StyleSheet.flatten(current.props.style({ pressed: false }))).toMatchObject({
+    expect.soft(pressableStyle(current, false)).toMatchObject({
       backgroundColor: 'transparent', minHeight: TOUCH_TARGET_MIN, borderRadius: 12, paddingHorizontal: 16,
     });
-    expect.soft(StyleSheet.flatten(current.props.style({ pressed: true }))).toMatchObject({
+    expect.soft(pressableStyle(current, true)).toMatchObject({
       backgroundColor: tokens.bgHover, borderRadius: 12, overflow: 'hidden',
     });
     pressByAccessibilityLabel(tree!, "Previous week");
@@ -281,21 +281,21 @@ describe('CalendarHeader shared navigation', () => {
     const controls = tree.root.findAll((node) => node.type === 'Pressable');
     expect(controls).toHaveLength(view === 'month' ? 4 : 3);
     for (const index of [0, controls.length - 1]) {
-      expect(StyleSheet.flatten(controls[index]!.props.style({ pressed: false }))).toMatchObject({ height: 44, width: 44, minHeight: 44, minWidth: 44, borderRadius: 9999, borderWidth: 1.5, borderColor: tokens.hairlineStrong });
+      expect(pressableStyle(controls[index]!, false)).toMatchObject({ height: 44, width: 44, minHeight: 44, minWidth: 44, borderRadius: 9999, borderWidth: 1.5, borderColor: tokens.hairlineStrong });
       expect(controls[index]!.props.hitSlop).toBe(2);
-      if (controls[index]!.props.disabled) expect(StyleSheet.flatten(controls[index]!.props.style({ pressed: true })).backgroundColor).toBe('transparent');
+      if (controls[index]!.props.disabled) expect(pressableStyle(controls[index]!, true).backgroundColor).toBe('transparent');
       else expectPressFill(tree, index === 0 ? 'Previous' : 'Next', tokens.bgHover, 9999);
     }
-    const title = StyleSheet.flatten(controls[1]!.props.style({ pressed: false }));
+    const title = pressableStyle(controls[1]!, false);
     expect(title).toMatchObject({ borderRadius: 12, backgroundColor: 'transparent', paddingHorizontal: view === 'month' ? 8 : 16, paddingVertical: 8 });
     expect(title.borderWidth).toBeUndefined();
-    expect(StyleSheet.flatten(controls[1]!.props.style({ pressed: true })).backgroundColor).toBe(tokens.bgHover);
+    expect(pressableStyle(controls[1]!, true).backgroundColor).toBe(tokens.bgHover);
     await TestRenderer.act(() => { controls[1]!.props.onHoverIn?.({}); });
-    expect(StyleSheet.flatten(controls[1]!.props.style({ pressed: false })).backgroundColor).toBe(tokens.bgHover);
+    expect(pressableStyle(controls[1]!, false).backgroundColor).toBe(tokens.bgHover);
     await TestRenderer.act(() => { controls[1]!.props.onHoverOut?.({}); controls[1]!.props.onFocus?.({ target: 1, currentTarget: 1 }); });
-    expect(StyleSheet.flatten(controls[1]!.props.style({ pressed: false })).backgroundColor).toBe(tokens.bgHover);
+    expect(pressableStyle(controls[1]!, false).backgroundColor).toBe(tokens.bgHover);
     await TestRenderer.act(() => { controls[1]!.props.onBlur?.({ target: 1, currentTarget: 1 }); });
-    expect(StyleSheet.flatten(controls[1]!.props.style({ pressed: false })).backgroundColor).toBe('transparent');
+    expect(pressableStyle(controls[1]!, false).backgroundColor).toBe('transparent');
     expect(Boolean(controls.at(-1)!.props.disabled)).toBe(view === 'range');
   });
 });

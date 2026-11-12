@@ -3,7 +3,7 @@
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { useId, type CSSProperties, type KeyboardEvent, type ReactNode, type RefCallback } from 'react'
-import { getHabitRowSelectionSpacerWidth, getHabitRowTypeLabelKey, isHabitDoneForRange, stripInlineMarkdown } from '@orbit/shared/utils'
+import { getHabitRowSelectionSpacerWidth, getHabitRowTypeLabelKey, isHabitDoneForRange, isLoggedParentHabitRow, stripInlineMarkdown, visibleHabitRowMetaTokens } from '@orbit/shared/utils'
 import { PersonalTextAction } from '@/components/ui/personal-text-action'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useTranslations } from 'next-intl'
@@ -48,7 +48,7 @@ interface HabitRowProps {
   habit: NormalizedHabit
   /** Derived display state (computed by caller from instances/logs). */
   state?: HabitStatus
-  /** Inline tokens between title and trailing dot (frequency, time, X/Y checklist, overdue, bad). */
+  /** Metadata tokens the caller adds between the type and the checklist count: time or child progress, status, next due date, date status. */
   meta?: HabitRowMetaToken[]
   /** Whether the status dot may be tapped to log for the selected date. When false and not done,
    *  the dot renders disabled/read-only (mirrors the backend log rule). Defaults to true. */
@@ -57,8 +57,6 @@ interface HabitRowProps {
   completionReadOnly?: boolean
   completionReason?: string
   completionStatusUnavailable?: boolean
-  /** Streak number from `habit.currentStreak` — only rendered when >= 2 and not child. */
-  streak?: number
   /** True when this row is rendered under a parent. Renders with smaller text. */
   child?: boolean
   /** Visible depth relative to the current list context; each ancestor adds one spacing step. */
@@ -75,8 +73,6 @@ interface HabitRowProps {
   expanded?: boolean
   childPanelId?: string
   childProgress?: { done: number; total: number }
-  /** Whether to render the small linked-goal indicator (5px primary dot before the status). */
-  showLinkedGoalDot?: boolean
   reorderInstructionsId?: string
   actions?: HabitRowActions
 }
@@ -213,8 +209,11 @@ function HabitRowView({
   const canDrillInto = hasSubHabits && !!onDrillInto
   const isDone = state === 'done' || isHabitDoneForRange(habit)
   const graphicState = habit.isBadHabit ? 'bad' : state
+  const loggedParent = isLoggedParentHabitRow(habit, hasChildren)
+  const visibleMeta = visibleHabitRowMetaTokens(meta, loggedParent)
+  const hiddenNextDue = loggedParent ? undefined : meta.find((token): token is Extract<HabitRowMetaToken, { kind: 'future' }> => typeof token !== 'string' && token.kind === 'future')
   const menuItems = buildMenuItems(t, actions, canDrillInto, completionReadOnly, habit.isGeneral, graphicState)
-  const { rowRef, narrow } = useHabitRowMetadataFit(JSON.stringify([habit.id, meta, selectMode, selected, structuralColumn, hasChildren, menuItems.length > 0, child, depth, depthSupportingMeta]), largeText, measureRef)
+  const { rowRef, narrow } = useHabitRowMetadataFit(JSON.stringify([habit.id, meta, selectMode, selected, structuralColumn, hasChildren, menuItems.length > 0, child, depth, depthSupportingMeta]), largeText, measureRef, loggedParent)
   const supportingMeta = depthSupportingMeta || narrow
   const isChild = child || depth > 0
   const titleSize = isChild ? 14 : 17
@@ -236,6 +235,7 @@ function HabitRowView({
   }
 
   function getTitleColor(): string {
+    if (loggedParent) return 'var(--habit-row-meta-color)'
     return isChild ? 'var(--fg-2)' : 'var(--fg-1)'
   }
 
@@ -256,7 +256,8 @@ function HabitRowView({
         habit={habit}
         titleSize={titleSize}
         titleColor={getTitleColor()}
-        meta={supportingMeta ? meta.filter((token) => typeof token !== 'string' && token.kind === 'future') : meta}
+        visibleMeta={visibleMeta}
+        hiddenNextDueLabel={hiddenNextDue?.label}
       />
     </>
   )
@@ -305,7 +306,7 @@ function HabitRowView({
     <>
       <HabitRowPrimaryButton onClick={handleRowClick} supportingMeta={supportingMeta}
         descriptionId={descriptionId}
-        largeText={largeText} isChild={isChild} rowPadding={rowPadding} meta={meta} independentText={selectMode} label={`${habit.title}, ${t(getHabitRowTypeLabelKey(habit))}`}
+        largeText={largeText} isChild={isChild} rowPadding={rowPadding} meta={meta} visibleMeta={visibleMeta} independentText={selectMode} label={`${habit.title}, ${t(getHabitRowTypeLabelKey(habit))}`}
         onReorder={actions.onReorder} reorderInstructionsId={reorderInstructionsId}>
         {primaryContent}
       </HabitRowPrimaryButton>
@@ -326,7 +327,7 @@ function useDescriptionId(description: NormalizedHabit['description']) {
   return stripInlineMarkdown(description ?? '') ? id : undefined
 }
 
-function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, rowPadding, meta, onReorder, reorderInstructionsId, children, independentText, label, descriptionId }: Readonly<{
+function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, rowPadding, meta, visibleMeta, onReorder, reorderInstructionsId, children, independentText, label, descriptionId }: Readonly<{
   onClick: () => void
   independentText: boolean
   label: string
@@ -335,7 +336,10 @@ function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, ro
   largeText: boolean
   isChild: boolean
   rowPadding: CSSProperties
+  /** Every token, for the accessible name. */
   meta: HabitRowMetaToken[]
+  /** The tokens the supporting footer draws, from `visibleHabitRowMetaTokens`. */
+  visibleMeta: HabitRowMetaToken[]
   onReorder?: (direction: -1 | 1) => void
   reorderInstructionsId?: string
   children: ReactNode
@@ -367,22 +371,21 @@ function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, ro
             {children}
           </div>
         ) : children}
-        {supportingMeta ? <HabitRowSupportingFooter meta={meta} largeText={largeText} descriptionPresent={Boolean(descriptionId)} /> : null}
+        {supportingMeta ? <HabitRowSupportingFooter visibleMeta={visibleMeta} largeText={largeText} descriptionPresent={Boolean(descriptionId)} /> : null}
       </button>
   )
   return independentText ? <PersonalTextAction label={accessibleLabel} contentId={contentId} className={supportingMeta ? 'col-start-1 col-span-full row-start-1 row-span-2 grid grid-cols-subgrid grid-rows-subgrid' : 'flex-1 self-stretch'} contentClassName={`${layoutClass} col-start-1 col-span-full row-start-1 row-span-2 min-w-0 items-center self-stretch rounded-[20px] text-left`} contentStyle={rowPadding} control={control} /> : control
 }
 
-function HabitRowSupportingFooter({ meta, largeText, descriptionPresent }: Readonly<{
+function HabitRowSupportingFooter({ visibleMeta, largeText, descriptionPresent }: Readonly<{
   largeText: boolean
-  meta: HabitRowMetaToken[]
+  visibleMeta: HabitRowMetaToken[]
   descriptionPresent: boolean
 }>) {
-  const supportingTokens = meta.filter((token) => typeof token === 'string' || token.kind !== 'future')
   return (
     <div className="col-span-full row-start-2 flex min-w-0" style={{ gap: 12, paddingInlineEnd: SPACING.s8, paddingBlockStart: descriptionPresent ? SPACING.s0 : SPACING.s4, paddingBlockEnd: SPACING.s8 }}>
       <span className="w-[48px] shrink-0" aria-hidden="true" />
-      <div className="min-w-0 flex-1"><MetaStrip tokens={supportingTokens} largeText={largeText} supportingLine /></div>
+      <div className="min-w-0 flex-1"><MetaStrip tokens={visibleMeta} largeText={largeText} supportingLine /></div>
     </div>
   )
 }
