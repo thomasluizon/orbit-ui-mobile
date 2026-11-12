@@ -10,6 +10,7 @@ import { Pressable, Text, View } from 'react-native'
 import type { BlockFrameProps } from '@orbit/shared/contracts/blocks'
 import { AccountRowsCard } from '@/components/chat/account-rows-card'
 import { controlName, renderedText } from '../../support/react-test-renderer'
+import { expectCopyStateIcon } from '../../support/copy-state-icon'
 
 const TestRenderer = require('react-test-renderer')
 const rewardState = vi.hoisted(() => ({ stats: { rewardType: 'pro_days', proDaysPerReferral: 7, discountPercent: 23 }, locale: '' }))
@@ -91,22 +92,12 @@ describe('Astra account rows on mobile', () => {
     expect(mocks.share).toHaveBeenCalledWith({ title: 'referral.share.title', message: 'referral.share.proDays:{"proDays":7} https://example.com/r/ORBIT123' })
   })
 
-  function iconStyle(tree: any, testID: string): Record<string, any> {
-    const flatten = (style: unknown): Record<string, any> => Array.isArray(style) ? Object.assign({}, ...style.map(flatten)) : (style ?? {}) as Record<string, any>
-    return flatten(tree.root.findAll((node: any) => node.props.testID === testID).at(-1).props.style)
-  }
-
-  it.each([false, true])('swaps the copy icon with scale, opacity and blur on the shared fast duration (reduced motion %s)', async (reduced) => {
-    motionState.reduced = reduced
+  it.each([false, true])('swaps the copy icon through CopyStateIcon with scale, opacity and blur on the shared fast duration (reduced motion %s)', async (reducedMotion) => {
+    motionState.reduced = reducedMotion
     const tree = render(<AccountRowsCard accountRows={{ kind: 'referral', surfaceId: 'profile', rows: [], referralCode: 'ORBIT123' }} />)
-    expect(iconStyle(tree, 'copy-icon')).toMatchObject({ opacity: 1, transform: [{ scale: 1 }], filter: [{ blur: 0 }] })
-    expect(iconStyle(tree, 'check-icon')).toMatchObject({ opacity: 0, transform: [{ scale: reduced ? 1 : 0.25 }], filter: [{ blur: reduced ? 0 : 4 }] })
+    expectCopyStateIcon(tree.root, { copied: false, reducedMotion, color: '#111111', strokeWidth: 1.8 })
     await TestRenderer.act(async () => { await tree.root.findByProps({ accessibilityLabel: 'chat.account.copy' }).props.onPress() })
-    expect(iconStyle(tree, 'check-icon')).toMatchObject({ opacity: 1, transform: [{ scale: 1 }], filter: [{ blur: 0 }] })
-    expect(iconStyle(tree, 'copy-icon')).toMatchObject({ opacity: 0, transform: [{ scale: reduced ? 1 : 0.25 }], filter: [{ blur: reduced ? 0 : 4 }] })
-    const transition = iconStyle(tree, 'check-icon').transition as string
-    if (reduced) expect(transition).toBe('none')
-    else for (const property of ['opacity', 'transform', 'filter']) expect(transition).toContain(`${property} 160ms cubic-bezier(0.2,0,0,1)`)
+    expectCopyStateIcon(tree.root, { copied: true, reducedMotion, color: '#111111', strokeWidth: 1.8 })
   })
 
   it('confirms a referral code only after the native write and permits retry after rejection', async () => {

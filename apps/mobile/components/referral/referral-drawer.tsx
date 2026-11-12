@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
-import { Check, Copy } from '@/components/ui/icons'
+import { CopyStateIcon } from '@/components/ui/copy-state-icon'
 import { useTranslation } from 'react-i18next'
 import type { ReferralPresentationStats } from '@orbit/shared/types/referral'
 import { REFERRAL_REWARD_COPY_KEYS, selectReferralReward } from '@orbit/shared/utils'
@@ -79,11 +79,7 @@ function LoadedContent({
             accessibilityRole="button"
             accessibilityLabel={t('referral.drawer.copyLink')}
           >
-            {copied ? (
-              <Check size={20} color={tokens.fg2} strokeWidth={1.8} />
-            ) : (
-              <Copy size={20} color={tokens.fg2} strokeWidth={1.8} />
-            )}
+            <CopyStateIcon copied={copied} color={tokens.fg2} strokeWidth={1.8} />
           </Pressable>
         </View>
       </View>

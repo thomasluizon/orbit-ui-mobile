@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { BlockFrameProps } from '@orbit/shared/contracts/blocks'
 import { AccountRowsCard } from '@/components/chat/account-rows-card'
+import { expectCopyStateIcon } from '@/__tests__/support/copy-state-icon'
 
 const rewardState = vi.hoisted(() => ({ stats: { rewardType: 'pro_days', proDaysPerReferral: 7, discountPercent: 23 }, locale: '' }))
 const referralRead = vi.hoisted(() => vi.fn())
@@ -72,19 +73,11 @@ describe('Astra account rows on web', () => {
     expect(screen.queryByRole('button', { name: 'chat.account.open' })).not.toBeInTheDocument()
   })
 
-  it('swaps the copy icon with scale, opacity and blur on the shared fast duration and swaps instantly under reduced motion', async () => {
-    const { container } = render(<AccountRowsCard accountRows={{ kind: 'referral', surfaceId: 'profile', rows: [], referralCode: 'ORBIT123' }} />)
-    const copyIcon = () => container.querySelector('[data-icon-swap="copy"]')
-    const checkIcon = () => container.querySelector('[data-icon-swap="check"]')
-    for (const icon of [copyIcon(), checkIcon()]) {
-      expect(icon).toHaveClass('transition-[scale,opacity,filter]', '[transition-duration:var(--dur-fast)]', '[transition-timing-function:var(--ease-standard)]', 'motion-reduce:transition-none', 'motion-reduce:scale-100', 'motion-reduce:blur-[0px]')
-      expect(icon).not.toHaveClass('duration-200')
-    }
-    expect(copyIcon()).toHaveClass('scale-100', 'opacity-100', 'blur-[0px]')
-    expect(checkIcon()).toHaveClass('scale-[0.25]', 'opacity-0', 'blur-[4px]')
+  it('swaps the copy icon through CopyStateIcon with scale, opacity and blur on the shared fast duration and swaps instantly under reduced motion', async () => {
+    render(<AccountRowsCard accountRows={{ kind: 'referral', surfaceId: 'profile', rows: [], referralCode: 'ORBIT123' }} />)
+    expectCopyStateIcon(screen.getByRole('button', { name: 'chat.account.copy' }), { copied: false, strokeWidth: 2 })
     fireEvent.click(screen.getByRole('button', { name: 'chat.account.copy' }))
-    await waitFor(() => expect(checkIcon()).toHaveClass('scale-100', 'opacity-100', 'blur-[0px]'))
-    expect(copyIcon()).toHaveClass('scale-[0.25]', 'opacity-0', 'blur-[4px]')
+    await waitFor(() => expectCopyStateIcon(screen.getByRole('button', { name: 'chat.account.copied' }), { copied: true, strokeWidth: 2 }))
   })
 
   it('transitions the CSS property that the Tailwind scale utilities write', async () => {

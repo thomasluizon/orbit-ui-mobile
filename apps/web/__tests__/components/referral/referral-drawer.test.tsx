@@ -1,6 +1,6 @@
 import { referralCopyCases } from '@orbit/shared/__tests__/referral-copy-fixtures'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
@@ -35,6 +35,7 @@ vi.mock('@/hooks/use-referral', () => ({
 
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { expectSmallSheetActions, sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { expectCopyStateIcon } from '@/__tests__/support/copy-state-icon'
 
 describe('ReferralDrawer', () => {
   beforeEach(() => {
@@ -109,6 +110,17 @@ describe('ReferralDrawer', () => {
     expect(
       screen.getByRole('button', { name: 'referral.drawer.copyLink' }),
     ).toBeInTheDocument()
+  })
+
+  it('swaps the copy icon through CopyStateIcon on the shared fast duration and swaps instantly under reduced motion', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+    render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
+    const copy = screen.getByRole('button', { name: 'referral.drawer.copyLink' })
+    expectCopyStateIcon(copy, { copied: false, strokeWidth: 1.8, color: 'var(--fg-2)' })
+    fireEvent.click(copy)
+    await waitFor(() => expectCopyStateIcon(copy, { copied: true, strokeWidth: 1.8, color: 'var(--fg-2)' }))
+    expect(writeText).toHaveBeenCalledWith(mockReferralUrl)
   })
 
   it('shows stats when available', () => {
