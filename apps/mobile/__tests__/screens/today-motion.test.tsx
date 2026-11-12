@@ -70,7 +70,7 @@ const TestRenderer: typeof import('react-test-renderer') = require('react-test-r
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 function MotionHarness({ date }: Readonly<{ date: string }>) {
-  useTodayMotion({ filterMotionKey: date, isRefetching: false })
+  useTodayMotion({ filterMotionKey: date })
   return null
 }
 
@@ -140,4 +140,16 @@ describe('Today day motion', () => {
     expect(mocks.timing).not.toHaveBeenCalled()
     expect(mocks.values.slice(0, 2).map((value) => value.current)).toEqual([1, 0])
   })
+
+  it('starts no timing on mount or when the same date renders again', async () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<MotionHarness date="2026-09-03" />)
+    })
+    await TestRenderer.act(() => {
+      tree.update(<MotionHarness date="2026-09-03" />)
+    })
+    expect(mocks.timing).not.toHaveBeenCalled()
+  })
+
 })

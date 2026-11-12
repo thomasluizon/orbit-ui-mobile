@@ -1846,6 +1846,10 @@ to `--bg-hover`, and light uses the stronger opaque-control hover value.
 - **Trigger-anchored overlays** scale from their trigger via `transform-origin`, never from centre. Modals stay centred.
 - **Directional slides preserve hierarchical navigation** and ordered sequences. Tabs combine a 10px directional shift with a short cross-fade.
 - **Press feedback** is `scale(0.96)` on pointer-down, never on release, and stays continuous for the whole duration of a drag or sheet gesture.
+- **Press feedback uses `motionDurations.press` (150ms) on both platforms.** The check and the drill-back control scale on that token, and reduced motion removes the scale.
+- **Logging a habit plays the `completion` feedback once.** The check settles from `scale(0.92)` to 1 on `motionSprings.completion`, with no overshoot. It plays only when a mounted check turns done while the date, search and filters stay the same, never on first render or with a list scope change, and reduced motion plays nothing. The `celebration`, `completePop`, `completeSpark` and `orbitalMotion.completion` tokens have no role and do not exist.
+- **Search, filters and a background refetch never remount, dim or move the Today list.** The content fade runs once when the view or the account changes. A date change runs only the date slide.
+- **A reorder moves on the `soft` spring on both platforms.** The web drag adapter converts its response (390ms) to the one CSS transition `dnd-kit` accepts, with the `enter` easing. A sub-habit group changes height at once and moves only `opacity` and `transform` on expand.
 - **Respond on pointer-down, not on release.** Audit every debounce, artificial timer and transition wait on the input path.
 - **Gate hover-triggered motion behind `@media (hover: hover) and (pointer: fine)`.** Web only.
 - **Stagger group entrances 30 to 80ms per item**, cap the total at about 500ms, and never block interaction while it plays. Do not stagger a routine, high-frequency interaction.

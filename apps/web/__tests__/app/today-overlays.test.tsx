@@ -89,7 +89,7 @@ function TodayHarness() {
         nextLabel: 'Next day',
       },
     },
-    data: { filters: {}, isRefetching: false },
+    data: { filters: {} },
     habitListRef: { current: null },
     isSelectMode,
     selectedHabitIds,

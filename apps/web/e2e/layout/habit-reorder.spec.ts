@@ -86,7 +86,6 @@ for (const width of [320, 360, 384, 412, 600, 768, 1280]) for (const mode of ['l
     await expect(page.getByRole('menuitem', { name: 'Refresh', exact: true })).toBeEnabled()
     await page.keyboard.press('Escape')
     await expect(page.getByRole('menu')).toBeHidden()
-    await expect(page.getByTestId('today-refetch-motion')).toHaveCSS('opacity', '1')
     await page.locator('[data-habit-title="Habit 3"]').evaluate((row) => row.scrollIntoView({ block: 'center', behavior: 'instant' }))
     const source = page.locator('[data-habit-title="Habit 1"]')
     const start = await source.locator('[data-habit-row-body]').boundingBox()
