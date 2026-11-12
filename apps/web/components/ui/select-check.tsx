@@ -120,7 +120,7 @@ export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, desc
     aria-disabled={busy || undefined}
     onFocus={onFocus}
     onBlur={onBlur}
-    className={`orbit-selection-ring orbit-selection-ring-thin orbit-radio-row flex w-full cursor-pointer items-center border-0 text-left ${textMode === 'personal' ? 'transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)]' : `transition-[background-color,scale] duration-[var(--dur-hover),var(--dur-press)] ease-[var(--ease-standard),var(--ease-out)] ${busy ? '' : 'motion-safe:active:scale-[0.96]'}`} hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)] ${radioRowFill(selected, proposed)} ${textMode === 'personal' ? 'absolute inset-0' : ''}`}
+    className={`orbit-selection-ring orbit-selection-ring-thin orbit-radio-row flex w-full cursor-pointer items-center border-0 text-left ${textMode === 'personal' ? 'transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)]' : `transition-[background-color,scale] duration-[var(--dur-hover),var(--dur-press)] ease-[var(--ease-standard),var(--ease-out)] ${busy ? '' : 'motion-safe:active:scale-[0.96]'}`} hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)] ${radioRowFill(selected, proposed)} ${textMode === 'personal' ? 'absolute inset-0' : ''}`}
     style={style}
   >{textMode === 'personal' ? null : content}</button></RadioItem>
 
