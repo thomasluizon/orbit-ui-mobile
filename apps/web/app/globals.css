@@ -1275,25 +1275,6 @@ button {
   50% { opacity: 0.55; }
 }
 
-/* Date navigation slide animations */
-@keyframes slide-date-right {
-  from { opacity: 0; transform: translateX(12px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes slide-date-left {
-  from { opacity: 0; transform: translateX(-12px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-.animate-slide-date-right {
-  animation: slide-date-right var(--dur-base) var(--ease-out);
-}
-
-.animate-slide-date-left {
-  animation: slide-date-left var(--dur-base) var(--ease-out);
-}
-
 /* Modal/card entrance */
 @keyframes scale-in {
   from { opacity: 0; transform: scale(0.95); }
