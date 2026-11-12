@@ -285,7 +285,6 @@ export {
   getHabitLogDateConfirmationKeys,
   computeHabitCardStatus,
   computeHabitFrequencyLabel,
-  computeHabitFutureHint,
   computeHabitMatchBadges,
   computeHabitRowNextDueHint,
   isLoggedParentHabitRow,
@@ -294,7 +293,6 @@ export type {
   HabitCardMatchBadge,
   HabitCardStatus,
   HabitCardTranslationAdapter,
-  HabitRowDueContext,
 } from './habit-card-helpers'
 export { buildRescheduleProposalLabels, type RescheduleProposalLabels } from './reschedule-proposal'
 export { parseShowGeneralOnTodayPreference } from './preferences'

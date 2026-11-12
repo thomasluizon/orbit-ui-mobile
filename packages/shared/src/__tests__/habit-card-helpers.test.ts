@@ -8,7 +8,6 @@ import {
   canLogHabitOnDate,
   computeHabitCardStatus,
   computeHabitFrequencyLabel,
-  computeHabitFutureHint,
   computeHabitRowNextDueHint,
   isLoggedParentHabitRow,
   computeHabitMatchBadges,
@@ -387,43 +386,27 @@ describe('getHabitLogDateDecision', () => {
   })
 })
 
-describe('computeHabitFutureHint', () => {
+describe('computeHabitRowNextDueHint distance words', () => {
   const today = '2025-01-10'
   const t = createTranslator()
+  const onToday = { selectedDate: today, today, hasChildren: false }
 
   it('returns null for today or past due dates', () => {
-    expect(computeHabitFutureHint(createMockHabit({ dueDate: today }), today, t, 'en')).toBeNull()
-    expect(
-      computeHabitFutureHint(createMockHabit({ dueDate: '2025-01-05' }), today, t, 'en'),
-    ).toBeNull()
+    expect(computeHabitRowNextDueHint(createMockHabit({ dueDate: today }), onToday, t, 'en')).toBeNull()
+    expect(computeHabitRowNextDueHint(createMockHabit({ dueDate: '2025-01-05' }), onToday, t, 'en')).toBeNull()
   })
 
-  it('says due tomorrow for the next day, and uses the logged parent words only when the caller asks for them', () => {
-    const habit = createMockHabit({ dueDate: '2025-01-11' })
-    expect([computeHabitFutureHint(habit, today, t, 'en'), computeHabitFutureHint(habit, today, t, 'en', true)])
-      .toEqual(['habits.schedule.dueTomorrow', 'habits.schedule.nextDueTomorrow'])
+  it('says due tomorrow for the next day', () => {
+    expect(computeHabitRowNextDueHint(createMockHabit({ dueDate: '2025-01-11' }), onToday, t, 'en')).toBe('habits.schedule.dueTomorrow')
   })
 
   it('renders a relative day hint when due within a week', () => {
-    expect(
-      computeHabitFutureHint(createMockHabit({ dueDate: '2025-01-12' }), today, t, 'en'),
-    ).toBe('habits.schedule.dueInDays({"count":2})')
-    expect(
-      computeHabitFutureHint(createMockHabit({ dueDate: '2025-01-16' }), today, t, 'en'),
-    ).toBe('habits.schedule.dueInDays({"count":6})')
-    expect(
-      computeHabitFutureHint(createMockHabit({ dueDate: '2025-01-17' }), today, t, 'en'),
-    ).toBe('habits.schedule.dueInDays({"count":7})')
+    expect(['2025-01-12', '2025-01-16', '2025-01-17'].map((dueDate) => computeHabitRowNextDueHint(createMockHabit({ dueDate }), onToday, t, 'en')))
+      .toEqual(['habits.schedule.dueInDays({"count":2})', 'habits.schedule.dueInDays({"count":6})', 'habits.schedule.dueInDays({"count":7})'])
   })
 
   it('renders an absolute scheduled date beyond a week', () => {
-    const hint = computeHabitFutureHint(
-      createMockHabit({ dueDate: '2025-02-09' }),
-      today,
-      t,
-      'en',
-    )
-    expect(hint).toContain('habits.schedule.scheduledOn')
+    expect(computeHabitRowNextDueHint(createMockHabit({ dueDate: '2025-02-09' }), onToday, t, 'en')).toContain('habits.schedule.scheduledOn')
   })
 })
 
@@ -481,11 +464,10 @@ describe('next day words in both locales', () => {
     'never tells a %s screen reader that a row which has not happened yet comes back', (locale, messages, firstOccurrence, loggedParent) => {
       const t = catalogTranslator(messages)
       expect({
-        genericHint: computeHabitFutureHint(openTaskDueTomorrow, today, t, locale),
         openTask: computeHabitRowNextDueHint(openTaskDueTomorrow, onToday, t, locale),
         openParent: computeHabitRowNextDueHint(openParentDueTomorrow, { ...onToday, hasChildren: true }, t, locale),
         loggedParent: computeHabitRowNextDueHint(loggedParentDueTomorrow, { ...onToday, hasChildren: true }, t, locale),
-      }).toEqual({ genericHint: firstOccurrence, openTask: firstOccurrence, openParent: firstOccurrence, loggedParent })
+      }).toEqual({ openTask: firstOccurrence, openParent: firstOccurrence, loggedParent })
     },
   )
 })

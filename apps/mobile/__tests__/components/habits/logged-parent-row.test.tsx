@@ -5,7 +5,6 @@ import { I18nextProvider } from 'react-i18next'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
 import { motionDurations } from '@orbit/shared/theme'
-import { computeHabitFutureHint } from '@orbit/shared/utils'
 import { createMockHabitScheduleChild, createMockHabitScheduleItem, createMockProfile } from '@orbit/shared/__tests__/factories'
 import { DEFAULT_CONFIG } from '@orbit/shared/types/config'
 import type { HabitScheduleItem } from '@orbit/shared/types/habit'
@@ -223,7 +222,7 @@ it('leaves the sub-habits unlogged with their own empty checks', async () => {
 
 it('shows the next due label once, as the last visible metadata token of the logged parent', async () => {
   const { after } = await logParentFromTodayList()
-  const nextDueLabel = computeHabitFutureHint({ dueDate: TOMORROW }, TODAY, (key: string, params?: Record<string, string | number | Date>) => String(i18n.t(key, params)), 'en', true)
+  const nextDueLabel = i18n.t('habits.schedule.nextDueTomorrow')
   expect({ nextDueLabel, meta: visibleMeta(row(after, 'Parent')) })
     .toEqual({ nextDueLabel: 'due tomorrow', meta: ['Habit', '0 of 2', 'due tomorrow'] })
   const body = row(after, 'Parent').findAll((node) => node.props.delayLongPress === 500 && typeof node.type === 'string')[0]!

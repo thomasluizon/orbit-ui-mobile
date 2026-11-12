@@ -6,7 +6,7 @@ import type { ReactNode } from 'react'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { getTodayBoundary, computeHabitFutureHint } from '@orbit/shared/utils'
+import { getTodayBoundary } from '@orbit/shared/utils'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
@@ -635,7 +635,7 @@ describe('HabitRow large text placement', () => {
   it('keeps producer-derived future hints hidden when parent progress moves', () => {
     document.documentElement.style.fontSize = '32px'
     const habit = createMockHabit({ title: 'Parent', dueDate: '2030-01-02' })
-    const hint = computeHabitFutureHint(habit, '2030-01-01', (key) => key, 'en')!
+    const hint = 'habits.schedule.dueTomorrow'
     render(<HabitRow habit={habit} hasChildren childProgress={{ done: 0, total: 2 }}
       meta={['0 of 2', { kind: 'future', label: hint }]} />)
     expect(screen.getByText('0 of 2').textContent).toBe('0 of 2')

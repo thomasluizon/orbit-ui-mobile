@@ -153,17 +153,17 @@ export function getHabitLogDateConfirmationKeys(intent?: 'log' | 'unlog', perman
 }
 
 /**
- * A localized hint for a future-due row: the next day, relative when due within a week (`in 6d`),
+ * The words for how far away a future due date is: the next day, relative when due within a week (`in 6d`),
  * otherwise the absolute scheduled date (`scheduled 13 Jun`). The next day reads `due tomorrow`, true
  * for a row that has not happened yet; `loggedParent` gives a parent that comes back its own words.
  * Returns null when the habit's `dueDate` is today or in the past.
  */
-export function computeHabitFutureHint(
+function formatNextDueDistance(
   habit: Pick<NormalizedHabit, 'dueDate'>,
   today: string,
   t: HabitCardTranslationAdapter,
-  locale?: string | null,
-  loggedParent = false,
+  locale: string | null | undefined,
+  loggedParent: boolean,
 ): string | null {
   if (!habit.dueDate || habit.dueDate <= today) return null
   const days = differenceInCalendarDays(parseAPIDate(habit.dueDate), parseAPIDate(today))
@@ -176,7 +176,7 @@ export function computeHabitFutureHint(
 }
 
 /** The row inputs that web and mobile both have: the selected and current dates, and the sub-habits the view renders. */
-export interface HabitRowDueContext {
+interface HabitRowDueContext {
   selectedDate: string
   today: string
   hasChildren: boolean
@@ -195,7 +195,7 @@ export function computeHabitRowNextDueHint(
 ): string | null {
   if (selectedDate !== today || isCompletedOneTimeHabit(habit)) return null
   if (habit.endDate && habit.dueDate && habit.dueDate > habit.endDate) return null
-  return computeHabitFutureHint(habit, today, t, locale, isLoggedParentHabitRow(habit, hasChildren))
+  return formatNextDueDistance(habit, today, t, locale, isLoggedParentHabitRow(habit, hasChildren))
 }
 
 /**

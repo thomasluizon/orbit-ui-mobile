@@ -215,7 +215,7 @@ function HabitRowView({
   const graphicState = habit.isBadHabit ? 'bad' : state
   const loggedParent = isLoggedParentHabitRow(habit, hasChildren)
   const menuItems = buildMenuItems(t, actions, canDrillInto, completionReadOnly, habit.isGeneral, graphicState)
-  const { rowRef, narrow } = useHabitRowMetadataFit(JSON.stringify([habit.id, meta, loggedParent, selectMode, selected, structuralColumn, hasChildren, menuItems.length > 0, child, depth, depthSupportingMeta]), largeText, measureRef, loggedParent)
+  const { rowRef, narrow } = useHabitRowMetadataFit(JSON.stringify([habit.id, meta, selectMode, selected, structuralColumn, hasChildren, menuItems.length > 0, child, depth, depthSupportingMeta]), largeText, measureRef, loggedParent)
   const supportingMeta = depthSupportingMeta || narrow
   const isChild = child || depth > 0
   const titleSize = isChild ? 14 : 17

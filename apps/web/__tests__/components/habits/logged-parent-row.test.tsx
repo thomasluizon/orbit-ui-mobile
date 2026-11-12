@@ -1,13 +1,12 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
-import { NextIntlClientProvider, createTranslator } from 'next-intl'
+import { NextIntlClientProvider } from 'next-intl'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { API } from '@orbit/shared/api'
 import { habitKeys, profileKeys } from '@orbit/shared/query'
 import { motionDurations } from '@orbit/shared/theme'
-import { computeHabitFutureHint } from '@orbit/shared/utils'
 import { createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import type { HabitScheduleItem } from '@orbit/shared/types/habit'
 
@@ -184,7 +183,7 @@ it('leaves the sub-habits unlogged with their own empty checks', async () => {
 
 it('shows the next due label once, as the last visible metadata token of the logged parent', async () => {
   await logParentFromTodayList()
-  const nextDueLabel = computeHabitFutureHint({ dueDate: TOMORROW }, TODAY, createTranslator({ locale: 'en', messages: en }) as never, 'en', true)
+  const nextDueLabel = en.habits.schedule.nextDueTomorrow
   const labelNodes = [...row('parent').querySelectorAll<HTMLElement>('*')]
     .filter((node) => node.children.length === 0 && node.textContent === nextDueLabel)
   expect({

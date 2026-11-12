@@ -28,7 +28,7 @@ interface HabitRowContentProps {
   tokens: ReturnType<typeof createTokensV2>
   metaOnSupportingLine?: boolean
   /** A logged parent shows its next due label as the last visible token; any other row keeps it for screen readers only. */
-  nextDueVisible?: boolean
+  nextDueVisible: boolean
   onContentWidth?: (width: number) => void
   onTokenWidth?: (key: string, width: number) => void
 }
@@ -43,7 +43,7 @@ export function HabitRowContent({
   metaParts,
   tokens,
   metaOnSupportingLine = false,
-  nextDueVisible = false,
+  nextDueVisible,
   onContentWidth,
   onTokenWidth,
 }: Readonly<HabitRowContentProps>) {
@@ -80,9 +80,9 @@ export function habitRowMetaPartKey(part: HabitRowMetaPart, index: number): stri
   return `${index}:${habitRowMetaPartName(part)}`
 }
 
-export function HabitRowMetaStrip({ metaParts, nextDueVisible = false, metaColor, tokens, largeText = false, onTokenWidth }: Readonly<{
+export function HabitRowMetaStrip({ metaParts, nextDueVisible, metaColor, tokens, largeText = false, onTokenWidth }: Readonly<{
   metaParts: HabitRowMetaPart[]
-  nextDueVisible?: boolean
+  nextDueVisible: boolean
   metaColor: string
   tokens: ReturnType<typeof createTokensV2>
   largeText?: boolean

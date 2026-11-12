@@ -34,7 +34,7 @@ interface HabitRowContentProps {
   typeOnSupportingLine?: boolean
   meta: HabitRowMetaToken[]
   /** A logged parent shows its next due label as the last visible token; any other row keeps it for screen readers only. */
-  nextDueVisible?: boolean
+  nextDueVisible: boolean
 }
 
 export function HabitRowContent({
@@ -46,7 +46,7 @@ export function HabitRowContent({
   largeText = false,
   typeOnSupportingLine = false,
   meta,
-  nextDueVisible = false,
+  nextDueVisible,
 }: Readonly<HabitRowContentProps>) {
   const description = stripInlineMarkdown(habit.description ?? '')
   const visibleMeta = visibleHabitRowMetaTokens(meta, nextDueVisible)

@@ -37,7 +37,7 @@ export function useHabitRowSupportingMeta(depth: number) {
 }
 
 /** Measures the title block and the metadata tokens for `habitRowMetaNeedsSupportingLine`. */
-export function useHabitRowMetadataFit(signature: string, largeText: boolean, measureRef: RefCallback<HTMLDivElement>, fitWholeStrip = false) {
+export function useHabitRowMetadataFit(signature: string, largeText: boolean, measureRef: RefCallback<HTMLDivElement>, fitWholeStrip: boolean) {
   const [row, setRow] = useState<HTMLDivElement | null>(null)
   const rowRef = useCallback((element: HTMLDivElement | null) => {
     setRow(element)
