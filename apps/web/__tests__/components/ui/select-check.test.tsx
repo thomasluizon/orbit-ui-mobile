@@ -147,7 +147,7 @@ describe('select-check RadioRow group', () => {
     const unselected = screen.getByRole('radio', { name: 'Second' })
 
     expect(selected).toHaveClass('bg-[rgba(var(--primary-rgb),0.10)]')
-    expect(selected).toHaveClass('hover:bg-[var(--bg-hover)]')
+    expect(selected).toHaveClass('enabled:hover:bg-[var(--bg-hover)]')
     expect(selected).toHaveAttribute('aria-checked', 'true')
     expect(unselected.querySelector('[aria-hidden="true"]')).toHaveStyle({ boxShadow: 'inset 0 0 0 2px var(--radio-row-track,var(--track-empty))' })
   })

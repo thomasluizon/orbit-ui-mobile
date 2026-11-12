@@ -2,10 +2,11 @@ import { forwardRef, useMemo, useState, type ForwardedRef, type ReactElement } f
 import { selectedBorderStyle } from './selected-focus-indicator'
 import { Pressable, type ColorValue, type PressableProps, type View } from 'react-native'
 import Animated from 'react-native-reanimated'
-import { motionDurations, motionEasings, orbitalMotion } from '@orbit/shared/theme'
+import { orbitalMotion } from '@orbit/shared/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
-import { toCssTransition, usePrefersReducedMotion } from '@/lib/motion'
+import { usePrefersReducedMotion } from '@/lib/motion'
+import { PRESS_SCALE_TRANSITION } from '@/components/motion/press-scale'
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
 
@@ -41,7 +42,7 @@ function useMotionPressableElement(
         focused && focusInset && !props.disabled ? { outlineWidth: 2, outlineOffset: -4, outlineStyle: 'solid', outlineColor: tokens.fg1 } : null,
         {
           transform: [{ scale: !props.disabled && !isStatic && !prefersReducedMotion && (pressed || active) ? orbitalMotion.press.scale : 1 }],
-          transition: prefersReducedMotion ? 'none' : toCssTransition(['transform'], motionDurations.press, motionEasings.enter),
+          transition: prefersReducedMotion ? 'none' : PRESS_SCALE_TRANSITION,
         },
       ]}
     >

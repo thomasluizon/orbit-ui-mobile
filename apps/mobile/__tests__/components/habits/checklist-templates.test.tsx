@@ -1,7 +1,7 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { measureClampedPersonalText, expectPersonalTextLayout, expandedTextControls, pressTextControl } from '@/__tests__/support/personal-text'
 import React from 'react'
-import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
+import { StyleSheet, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ChecklistTemplate } from '@orbit/shared/types/checklist-template'
@@ -130,6 +130,19 @@ describe('ChecklistTemplates mobile', () => {
     expect(row.props.value).toBeUndefined()
   })
 
+  it('paints the save current list action press fill, as the web chip does', () => {
+    const tokens = createTokensV2('orange', 'light')
+    const { tree } = renderTemplates()
+    press(listRow(tree, 'habits.form.useTemplate'))
+    const saveCurrent = () => tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.findAll((child) => child.type === 'Text' && child.props.children === 'habits.form.saveCurrentList').length > 0)[0]!
+    const paint = () => StyleSheet.flatten(saveCurrent().props.style as StyleProp<ViewStyle>)
+    expect(paint().backgroundColor).toBe(tokens.bgWell)
+    TestRenderer.act(() => (saveCurrent().props.onPressIn as () => void)())
+    expect(paint().backgroundColor).toBe(tokens.bgHover)
+    TestRenderer.act(() => (saveCurrent().props.onPressOut as () => void)())
+    expect(paint().backgroundColor).toBe(tokens.bgWell)
+  })
+
   it('saves the current checklist under a trimmed template name', () => {
     const { tree } = renderTemplates()
     press(listRow(tree, 'habits.form.useTemplate'))
@@ -149,6 +162,26 @@ describe('ChecklistTemplates mobile', () => {
       { name: 'Morning', items: ['Shoes'] },
       expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }),
     )
+  })
+
+  it('rings the template name field with the control border at rest and the primary ring while focused', async () => {
+    const { BottomSheetAppTextInput } = await vi.importActual<typeof import('@/components/ui/bottom-sheet-app-text-input')>('@/components/ui/bottom-sheet-app-text-input')
+    const tokens = createTokensV2('orange', 'light')
+    const { tree } = renderTemplates()
+    press(listRow(tree, 'habits.form.useTemplate'))
+    const saveCurrent = tree.root.findAll((node) => node.props.accessibilityRole === 'button' && node.findAll((child) => child.type === 'Text' && child.props.children === 'habits.form.saveCurrentList').length > 0)[0]!
+    press(saveCurrent, 'onPress')
+    const ownerProps = tree.root.findAll((node) => node.type === 'TextInput')[0]!.props
+    let field!: TestTree
+    TestRenderer.act(() => {
+      field = TestRenderer.create(<BottomSheetAppTextInput {...ownerProps} />)
+    })
+    const host = () => field.root.findAll((node) => node.type === 'TextInput')[0]!
+    expect(StyleSheet.flatten(host().props.style as StyleProp<TextStyle>)).toMatchObject({ borderWidth: 1, borderColor: tokens.borderControl })
+    TestRenderer.act(() => {
+      ;(host().props.onFocus as (event: unknown) => void)({})
+    })
+    expect(StyleSheet.flatten(host().props.style as StyleProp<TextStyle>)).toMatchObject({ borderWidth: 2, borderColor: tokens.primary })
   })
 
   it('loads a selected template as unchecked checklist items', () => {

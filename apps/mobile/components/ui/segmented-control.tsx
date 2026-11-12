@@ -58,7 +58,7 @@ function SegmentOption<TValue extends string>({
         { minWidth: minimumWidth },
         selected && !hasIndicator ? { backgroundColor: tokens.bgHover } : null,
         disabled ? styles.disabled : null,
-        pressed ? [styles.pressed, { backgroundColor: tokens.bgHover }] : null,
+        pressed ? { backgroundColor: tokens.bgHover } : null,
       ]}
     >
       {selected && !focused ? <View pointerEvents="none" accessible={false} style={[styles.selectionRing, { borderColor: tokens.primary }]} /> : null}
@@ -172,9 +172,6 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.s4,
   },
   selectionRing: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderWidth: 2, borderRadius: 8 },
-  pressed: {
-    transform: [{ scale: 0.96 }],
-  },
   label: {
     fontFamily: 'Geist_500Medium',
     fontSize: 14,

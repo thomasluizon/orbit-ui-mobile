@@ -30,6 +30,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { i18n } from '@/lib/i18n'
 import { createTokensV2 } from '@/lib/theme'
+import { PRESS_SCALE_TRANSITION } from '@/components/motion/press-scale'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import { pressableStyle } from '@/__tests__/support/press-feedback'
@@ -545,7 +546,7 @@ describe('mobile ProgressContent', () => {
     let card = findCard()
     const resting = StyleSheet.flatten(card.props.style as ViewStyle) as ViewStyle & { transition?: string }
     expect(resting).toMatchObject({ backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost, transform: [{ scale: 1 }] })
-    expect(resting.transition).toBe('transform 150ms cubic-bezier(0.16,1,0.3,1)')
+    expect(resting.transition).toBe(PRESS_SCALE_TRANSITION)
     await TestRenderer.act(() => (card.props.onPressIn as (event: unknown) => void)({}))
     card = findCard()
     expect(StyleSheet.flatten(card.props.style as ViewStyle)).toMatchObject({ backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] })

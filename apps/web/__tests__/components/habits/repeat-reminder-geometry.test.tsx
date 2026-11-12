@@ -171,11 +171,19 @@ describe('repeat reminder compact surfaces', () => {
         const interval = page.getByRole('combobox', { name: messages.habits.form.repeatInterval, exact: true })
         await page.keyboard.press('Tab')
         await interval.focus()
-        await page.waitForFunction(() => [...document.querySelectorAll('[role="combobox"]')].some(element => element.matches(':focus-visible') && getComputedStyle(element).boxShadow.includes('2px')))
-        const focus = await interval.evaluate((element) => ({ shadow: getComputedStyle(element).boxShadow, outline: getComputedStyle(element).outlineWidth, outlineColor: getComputedStyle(element).outlineColor, outlineStyle: getComputedStyle(element).outlineStyle }))
-        expect(focus.shadow).toContain('2px')
-        expect(focus.outlineStyle).toBe('none')
-        expect([...focus.shadow.matchAll(/\b0px 0px 0px ([1-9]\d*)px/g)]).toHaveLength(1)
+        await page.waitForFunction(() => [...document.querySelectorAll('[role="combobox"]')].some(element => element.matches(':focus-visible') && getComputedStyle(element).outlineStyle !== 'none'))
+        const focus = await interval.evaluate((element) => {
+          const probe = document.createElement('span')
+          probe.style.color = 'var(--primary)'
+          document.body.append(probe)
+          const primary = getComputedStyle(probe).color
+          probe.remove()
+          const style = getComputedStyle(element)
+          const rings = [null, '::before', '::after'].flatMap(pseudo => [...getComputedStyle(element, pseudo).boxShadow.matchAll(/\b0px 0px 0px ([1-9]\d*)px/g)].map(ring => `${pseudo ?? 'element'} ${ring[1]}px`))
+          return { outline: { style: style.outlineStyle, width: style.outlineWidth, offset: style.outlineOffset, color: style.outlineColor }, primary, rings }
+        })
+        expect(focus.outline).toEqual({ style: 'solid', width: '2px', offset: '-2px', color: focus.primary })
+        expect(focus.rings).toEqual([])
         const geometry = await page.evaluate(() => {
           const controls = [...document.querySelectorAll('#repeat-form [role="combobox"]')].map(element => element.getBoundingClientRect())
           const choices = document.querySelector('#repeat-form [role="radiogroup"]')!.getBoundingClientRect()
