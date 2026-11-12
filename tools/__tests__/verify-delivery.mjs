@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
+import { parityExemptTerms } from "../lib/parity-scope.mjs"
 import { T, check, orcaEnv, processIsRunning, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
 
 const TOOL = "verify-delivery.mjs"
@@ -311,11 +312,32 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(mobileOnly.head)]), 0, [checkRun("Lint")], { behind_by: 0 }, null, { ciReadMarker: parityCiReadMarker }) },
   )
   T(`${TOOL}: a missing parity label is reported before CI is read`, existsSync(parityCiReadMarker))
-  verdictOf(mobileOnly, JSON.stringify([{ ...pullRequest(mobileOnly.head), labels: [{ name: "parity:exempt" }] }]), "DELIVERED", 0, "a labeled one-sided mobile change is deliverable")
+  const exempted = (fixture, parity) => JSON.stringify([{
+    ...pullRequest(fixture.head),
+    body: `Implements ${ISSUE}.${parity === null ? "" : `\n\n## Parity\n\n${parity}\n\n## Test evidence\n\nChecked.`}`,
+    labels: [{ name: "parity:exempt" }],
+  }])
+  verdictOf(mobileOnly, exempted(mobileOnly, "SecureStore vs cookie adapter."), "DELIVERED", 0, "a labeled one-sided mobile change with an accepted parity term is deliverable")
+  const parityTermCiReadMarker = stage("verify-delivery/parity-term-ci-read", "must remain")
+  const unjustified = check(
+    TOOL,
+    "a parity:exempt label with a paraphrased ## Parity line is a delivery defect before CI",
+    ["--issue", ISSUE, "--worktree", mobileOnly.path, "--branch", BRANCH, "--repo", "ui"],
+    { status: 1, stdout: /"verdict": "MISSING_PARITY_TERM"[\s\S]*"parityTerm": \{[\s\S]*"pass": false/ },
+    { path: testedToolPath, env: ghPlan(exempted(mobileOnly, "Web proxy adapter: mobile has no tunnel route."), 0, [checkRun("Lint")], { behind_by: 0 }, null, { ciReadMarker: parityTermCiReadMarker }) },
+  )
+  T(`${TOOL}: a missing parity term is reported before CI is read`, existsSync(parityTermCiReadMarker))
+  const reportedTerms = (() => {
+    try { return JSON.parse(unjustified.stdout).checks.parityTerm.accepted } catch { return null }
+  })()
+  T(`${TOOL}: a missing parity term lists every accepted term`, Array.isArray(reportedTerms) && reportedTerms.join("|") === parityExemptTerms.join("|"), unjustified.stdout)
+  verdictOf(mobileOnly, exempted(mobileOnly, null), "MISSING_PARITY_TERM", 1, "a parity:exempt label with no ## Parity section is not deliverable")
   const webOnly = stageDelivery("web-only", { changedPaths: ["apps/web/components/Message.tsx"] })
   verdictOf(webOnly, JSON.stringify([pullRequest(webOnly.head)]), "MISSING_PARITY_LABEL", 1, "a one-sided web change also needs parity:exempt")
   const mirrored = stageDelivery("mirrored", { changedPaths: ["apps/web/components/Message.tsx", "apps/mobile/components/Message.tsx"] })
   verdictOf(mirrored, JSON.stringify([pullRequest(mirrored.head)]), "DELIVERED", 0, "a mirrored change needs no parity label")
+  verdictOf(mirrored, exempted(mirrored, null), "MISSING_PARITY_TERM", 1, "a labeled mirrored change needs a parity term, as the PR Metadata gate does")
+  verdictOf(pushed, exempted(pushed, null), "DELIVERED", 0, "a labeled change outside the app sources needs no parity term")
   const nonUiAgainstAlternate = stageAlternateBaseParity("non-ui-alternate", ALTERNATE_BASE)
   const mobileAgainstAlternate = stageAlternateBaseParity("mobile-alternate", "main")
   T(`${TOOL}: divergent base fixtures staged`, Boolean(nonUiAgainstAlternate && mobileAgainstAlternate))

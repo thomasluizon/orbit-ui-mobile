@@ -121,7 +121,8 @@ no invocation flag overrides it. Pool sizing for an enabled Cloud lane is detail
                      compare base...head               -> behind_by = 0
                      statusCheckRollup, both node shapes -> no check red, none pending
                      DELIVERED · NO_COMMIT · DIRTY_TREE · UNPUSHED · NO_PR · UNLINKED_PR
-                     · STALE_PR · OUT_OF_DATE · CI_FAILING · CI_PENDING
+                     · STALE_PR · MISSING_PARITY_LABEL · MISSING_PARITY_TERM · DRAFT
+                     · OUT_OF_DATE · CI_FAILING · CI_PENDING
                      on EVERY worker exit, DELIVERED included: read the worker log tail for
                      NEEDS_DECISION and the PR body's ## Assumptions (attended: adjudicate
                      both with the owner NOW, before step 8)
@@ -672,10 +673,13 @@ location and proof. Carry `materialized.handoff.testResults` verbatim into the e
 `## Test evidence` section: the materializer returns that section as `pullRequestBody` on initial
 delivery and receipt retries. Include that returned section unchanged in the final body alongside
 the change summary, assumptions and manual steps; append local validation results without replacing
-the worker's observations. Save the resulting PR body in the scratchpad before delivery and use
-that saved body when opening or updating the PR. Only after reading the durable receipt, restore
-`.claude/cloud-handoff.json` to HEAD in the index and worktree, removing a newly added artifact if
-needed; it is transport, not product source. Receipt retries return the preserved handoff without
+the worker's observations. When the staged diff touches only one of `apps/web` and `apps/mobile`
+and qualifies for the exemption, open the PR with `--label parity:exempt` and a one-line
+`## Parity` section that holds a term from `parityExemptTerms` in `tools/lib/parity-scope.mjs`.
+Step 7 reports `MISSING_PARITY_TERM` for a paraphrase. Save the resulting PR body in the
+scratchpad before delivery and use that saved body when opening or updating the PR. Only after
+reading the durable receipt, restore `.claude/cloud-handoff.json` to HEAD in the index and
+worktree, removing a newly added artifact if needed; it is transport, not product source. Receipt retries return the preserved handoff without
 reapplying the diff. A legacy receipt without `handoffRequired` has no such proof: recover the full
 handoff explicitly or record a blocker before delivery; an absent report never means no decisions.
 
@@ -777,7 +781,10 @@ It is the SOLE authority for the word "delivered". Exit 0 means `DELIVERED`.
 | `DIRTY_TREE` | commits exist AND the tree is dirty |
 | `UNPUSHED` | commits exist above `origin/<branch>` |
 | `NO_PR` | `gh pr list --head <branch>` returned 0, or more than 1 |
+| `UNLINKED_PR` | neither the PR title nor its body names the ticket |
 | `STALE_PR` | the PR's `headRefOid` is not the branch head |
+| `MISSING_PARITY_LABEL` | the change touches app sources on one platform only and the PR has no `parity:exempt` label |
+| `MISSING_PARITY_TERM` | the PR has `parity:exempt` and changes app sources, but its `## Parity` section names no term from `parityExemptTerms`; `checks.parityTerm.accepted` lists them |
 | `OUT_OF_DATE` | GitHub compare says `behind_by > 0`; reports the base SHA, head SHA and count |
 | `CI_FAILING` | a required or gating check concluded red on the current head, or its one rerun request failed or has no recorded outcome |
 | `CI_PENDING` | checks are running or an accepted rerun of a cancelled current-head run has not completed |

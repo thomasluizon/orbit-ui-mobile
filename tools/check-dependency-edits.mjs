@@ -7,6 +7,8 @@ import { tmpdir } from "node:os"
 import { basename, dirname, join, relative, resolve, sep } from "node:path"
 import { fileURLToPath } from "node:url"
 
+import { escapeRegex } from "./lib/escape-regex.mjs"
+
 const USAGE = `usage: check-dependency-edits.mjs [--root <path>] [--tolerance-seconds <n>]
 
   Walks installed node_modules trees and compares every locked package with its verified archive.
@@ -165,7 +167,7 @@ function isDeclaredWorkspace(locked) {
   const patterns = Array.isArray(manifest.workspaces) ? manifest.workspaces : manifest.workspaces?.packages
   if (!Array.isArray(patterns) || locked.resolved.split(/[\\/]/).includes("..")) return false
   return patterns.some((pattern) => {
-    const expression = pattern.split("*").map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("[^/]+")
+    const expression = pattern.split("*").map(escapeRegex).join("[^/]+")
     return new RegExp(`^${expression}$`).test(locked.resolved)
   })
 }
