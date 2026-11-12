@@ -5,12 +5,50 @@ description: Publish an Orbit iOS build to internal TestFlight through the manua
 
 # iOS release
 
+## One mobile version
+
+iOS ships at the same `app_version` as Android. Each store keeps its own build counter. The default
+path is `/android-release` first, then this skill at the version Android uploaded.
+
+The `variant` selects the GitHub environment, and each environment keeps its own records. Select the
+variant of the Android run's environment:
+
+| Android `track` | GitHub environment | iOS `variant` |
+|---|---|---|
+| `open`, `production` | `production` | `production` |
+| `internal` | `staging` | `staging` |
+
+Use the newest Android version from
+`node apps/mobile/scripts/mobile-version-pair.js plan --environment <the variant>` (set `GITHUB_REPOSITORY`
+and `GH_TOKEN`). The workflow runs `mobile-version-pair.js check` against that environment only. It refuses
+an iOS version that differs from the newest Android version there. It passes `--sha "$GITHUB_SHA"` and
+refuses a build of a commit other than the commit of the newest Android record at that version. A new build
+number at a version that iOS already carries must build that version's commit too. `gh workflow run --ref`
+builds the tip of the branch. So dispatch only while that tip is the commit of the Android run. If the
+branch moved, release Android at the new `nextVersion` from the new tip first. If the newest Android record
+at the version has no commit, the check refuses the version and does not guess a commit. An iOS `staging` build thus needs an
+Android `internal` build at the same version first. When the staging plan shows an older Android version
+than the code under test, release Android `internal` at the new version, then release iOS `staging`.
+
+Release iOS alone only for a defect specific to iOS. Pass the defect as `platform_only_reason`.
+The run summary and the iOS deployment record keep the reason. Never invent a reason to pass the check.
+An iOS-only release uses the `nextVersion` of the same plan, above the newest version of both platforms.
+One version names one code state, so the check refuses an iOS-only version at or below the newest Android
+version. The next shared release then starts on Android at the new `nextVersion`, above this iOS version.
+
+After the upload, the job `record-upload` (`needs: release`, `ubuntu-latest`) records an `ios-release`
+GitHub Deployment, which the Android check reads. It makes 3 attempts, and it reuses the record of the same
+commit, version, build number and variant. If this job fails, use "Re-run failed jobs". The rerun does not
+upload the build again and does not use a new build number. Until this record exists, the Android check
+does not see this iOS version.
+
 Read `.github/workflows/ios-release.yml` for the current inputs and credential names.
 It archives the embedded redesign bundle, uploads Sentry symbols, and uploads to App Store Connect.
-Use staging for the first internal TestFlight build. Production releases run from `main`.
+The `variant` input defaults to `production`, the pair of the default Android `open` track.
+Production releases run from `main`.
 
-Before dispatch, resolve the requested ref to a commit, app version, unused positive `build_number`,
-and `variant` (`staging` or `production`). Read the latest build number from the matching app's
+Before dispatch, resolve the requested ref to a commit equal to the Android run's commit, the app version from the rule above, an unused positive `build_number`,
+and `variant` (`staging` or `production`, from the table above). Read the latest build number from the matching app's
 App Store Connect TestFlight screen; do not infer it from Android's version code. Verify the
 `Mobile iOS Build` compile check for the commit. Ask for a missing release parameter only after
 checking the requested release context. Dispatch only when the user has authorized the upload.
@@ -69,11 +107,13 @@ Confirm the installed `gh workflow run` interface before dispatching. The comman
 
 ```sh
 gh workflow run ios-release.yml --ref <ref> \
-  -f variant=<staging-or-production> -f app_version=<version> -f build_number=<number>
+  -f variant=<staging-or-production> -f app_version=<version> -f build_number=<number> \
+  -f platform_only_reason=<reason or empty>
 ```
 
 Follow only the dispatched run. After the `release` job uploads the build, the separate job
 `testflight-access` (`needs: release`, `ubuntu-latest`, 30 minutes) runs `tools/testflight-access.mjs`.
+It does not wait for `record-upload`.
 It waits until App Store Connect lists the exact version and build as `VALID`, and it fails the job on
 `FAILED`, `INVALID` or a timeout. It then makes sure the app has an internal beta group with access to all
 builds, and it links to that group every tester of the team's other internal beta groups. It creates the
