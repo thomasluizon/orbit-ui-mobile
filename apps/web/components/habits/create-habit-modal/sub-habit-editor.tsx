@@ -45,8 +45,8 @@ export function SubHabitEditor({
                 <span className="w-4 shrink-0 text-right font-mono text-xs tabular-nums text-[var(--fg-3)]" aria-hidden="true">{index + 1}</span>
                 {/* eslint-disable-next-line local/require-focus-replacement -- WHY: the parent draws the input focus perimeter with an inset shadow and a Highlight border in forced colors. */}
                 <input value={entry.value} type="text" maxLength={MAX_HABIT_TITLE_LENGTH} aria-label={task ? t('habits.form.subTaskInputLabel', { index: index + 1 }) : t('habits.form.subHabitInputLabel', { index: index + 1 })} placeholder={task ? t('habits.form.subTaskPlaceholder') : t('habits.form.subHabitPlaceholder')} className="flex-1 min-w-0 bg-transparent text-[14px] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] border-0 focus-visible:outline-none" onChange={(e) => onUpdateSubHabit(entry.id, e.target.value)} />
-                <button type="button" aria-label={task ? t('habits.form.removeSubTask') : t('habits.form.removeSubHabit')} className="group/remove shrink-0 grid size-[var(--touch-min)] place-items-center rounded-full text-[var(--fg-3)] transition-colors duration-[var(--dur-hover-control)]" onClick={() => onRemoveSubHabit(entry.id)}>
-                  <Trash2 size={16} strokeWidth={1.8} aria-hidden="true" className="transition-colors duration-[var(--dur-hover-control)] group-hover/remove:text-[var(--status-bad)]" />
+                <button type="button" aria-label={task ? t('habits.form.removeSubTask') : t('habits.form.removeSubHabit')} className="group/remove shrink-0 grid size-[var(--touch-min)] place-items-center rounded-full text-[var(--fg-3)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" onClick={() => onRemoveSubHabit(entry.id)}>
+                  <Trash2 size={16} strokeWidth={1.8} aria-hidden="true" className="transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover/remove:text-[var(--status-bad)]" />
                 </button>
               </div>
             </Proposed>

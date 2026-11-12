@@ -350,7 +350,7 @@ function SortableChecklistItem({
         style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN }}
         onClick={() => onRemove(index)}
       >
-        <X size={16} strokeWidth={1.8} aria-hidden="true" className="transition-colors duration-[var(--dur-hover-control)] group-hover/remove:text-[var(--status-bad)]" />
+        <X size={16} strokeWidth={1.8} aria-hidden="true" className="transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover/remove:text-[var(--status-bad)]" />
       </button>
     </div>
   )
