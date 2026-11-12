@@ -1,5 +1,6 @@
 import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { expect } from 'vitest'
+import { motionDurations, motionEasings } from '@orbit/shared/theme'
 
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
 
@@ -23,6 +24,17 @@ export function pressableStyle(host: { props: Record<string, unknown> }, pressed
   const pressedStyle = StyleSheet.flatten(host.props.style as StyleProp<ViewStyle>)
   void renderer.act(() => { (host.props.onPressOut as (() => void) | undefined)?.() })
   return pressedStyle
+}
+
+/**
+ * Asserts the `MotionPressable` press of `DESIGN.md` Press feedback: unit scale at rest, 0.96 while pressed,
+ * eased over the shared press duration on the enter curve, and unit scale with no transition under reduced motion.
+ */
+export function expectMotionPress(host: { props: Record<string, unknown> }, reducedMotion: boolean) {
+  const transition = reducedMotion ? 'none' : `transform ${motionDurations.press}ms cubic-bezier(${motionEasings.enter.join(',')})`
+  expect(pressableStyle(host, false)).toMatchObject({ transform: [{ scale: 1 }], transition })
+  expect(pressableStyle(host, true)).toMatchObject({ transform: [{ scale: reducedMotion ? 1 : 0.96 }], transition })
+  expect(pressableStyle(host, false)).toMatchObject({ transform: [{ scale: 1 }], transition })
 }
 
 export function expectPressPaint(control: PressControl, expected: {

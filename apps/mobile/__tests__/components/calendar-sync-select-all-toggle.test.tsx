@@ -1,10 +1,12 @@
 import React from 'react'
-import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createTokensV2 } from '@/lib/theme'
 import { SelectAllToggle } from '@/components/calendar-sync/calendar-sync-select-all-toggle'
+import { expectMotionPress, pressableStyle } from '@/__tests__/support/press-feedback'
 
 const TestRenderer = require('react-test-renderer')
+const motionState = vi.hoisted(() => ({ reduced: false }))
+vi.mock('@/lib/motion', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/motion')>()), usePrefersReducedMotion: () => motionState.reduced }))
 
 const tokens = createTokensV2('purple', 'dark')
 const selectAllLabel = 'Select all'
@@ -40,15 +42,21 @@ function getButton(tree: ReturnType<typeof renderToggle>) {
 }
 
 describe('mobile SelectAllToggle', () => {
+  beforeEach(() => { motionState.reduced = false })
+
   it('paints the whole enabled target without invisible slop', () => {
     const button = getButton(renderToggle(false, vi.fn()))
-    const style = button.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
     expect(button.props.disabled).toBeUndefined()
     expect(button.props.accessibilityState).toEqual({ selected: false })
     expect(button.props.hitSlop).toBeUndefined()
-    expect(StyleSheet.flatten(style({ pressed: false })).opacity).toBeUndefined()
-    expect(StyleSheet.flatten(style({ pressed: false }))).toMatchObject({ backgroundColor: 'transparent' })
-    expect(StyleSheet.flatten(style({ pressed: true }))).toMatchObject({ width: 48, height: 48, backgroundColor: tokens.bgHover })
+    expect(pressableStyle(button, false).opacity).toBeUndefined()
+    expect(pressableStyle(button, false)).toMatchObject({ backgroundColor: 'transparent' })
+    expect(pressableStyle(button, true)).toMatchObject({ width: 48, height: 48, backgroundColor: tokens.bgHover })
+  })
+
+  it.each([false, true])('presses through MotionPressable on the shared press timing, as the web icon button does (reduced motion %s)', (reducedMotion) => {
+    motionState.reduced = reducedMotion
+    expectMotionPress(getButton(renderToggle(false, vi.fn())), reducedMotion)
   })
 
   it('exposes the select-all label when nothing is selected', () => {

@@ -10,10 +10,12 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { buildWrappedSlides, formatClosedWrappedMonth } from '@orbit/shared/utils'
 import { WrappedPlayer } from '@/components/wrapped/wrapped-player'
-import { expectPressFill, pressableStyle } from '@/__tests__/support/press-feedback'
+import { expectMotionPress, expectPressFill, pressableStyle } from '@/__tests__/support/press-feedback'
 import { createTokensV2 } from '@/lib/theme'
 
 const profileState = vi.hoisted(() => ({ available: true }))
+const motionState = vi.hoisted(() => ({ reduced: false }))
+vi.mock('@/lib/motion', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/motion')>()), usePrefersReducedMotion: () => motionState.reduced }))
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: profileState.available ? createMockProfile({ weekStartDay: 1 }) : undefined }),
@@ -100,9 +102,17 @@ function hosts(tree: ReactTestRenderer) {
 }
 
 describe('Wrapped close target', () => {
+  beforeEach(() => { motionState.reduced = false })
+
   it('paints the complete 44px target without invisible hit slop', () => {
     const { tree } = renderPlayer()
     expectPressFill(tree, 'wrapped.close', tokens.bgHover, 999)
+  })
+
+  it.each([false, true])('presses through MotionPressable on the shared press timing, as the web icon button does (reduced motion %s)', (reducedMotion) => {
+    motionState.reduced = reducedMotion
+    const { tree } = renderPlayer()
+    expectMotionPress(hosts(tree).find((node) => node.props.accessibilityLabel === 'wrapped.close')!, reducedMotion)
   })
 })
 
