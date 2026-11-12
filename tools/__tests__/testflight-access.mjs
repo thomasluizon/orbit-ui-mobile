@@ -5,8 +5,8 @@ import { ensureInternalTesterAccess, summaryLines, waitForProcessedBuild } from 
 import { REPO_ROOT, T } from "./_harness.mjs"
 
 // Schemas and filters in the fixture are copied from Apple's published OpenAPI specification.
-// Every fake response and request body is checked against them. The fixture `pages` key cites each
-// documentation page, for example GET /v1/builds:
+// Every request body the tool sends and every answer a fake gives is checked against them. The fixture
+// `pages` key cites each documentation page, for example GET /v1/builds:
 // https://developer.apple.com/documentation/appstoreconnectapi/get-v1-builds
 const apple = JSON.parse(readFileSync(new URL("./fixtures/app-store-connect-testflight-schemas.json", import.meta.url), "utf8"))
 
@@ -32,66 +32,84 @@ const violations = (schema, value, at = "$") => {
   return []
 }
 
+const checkedSchemas = new Set()
+/** The fixture schemas the checks reached: each one checked directly and every one it references. */
+const reachedSchemas = () => {
+  const reached = new Set()
+  const visit = (node) => {
+    if (!node || typeof node !== "object") return
+    const name = node.$ref?.split("/").pop()
+    if (name && apple.schemas[name] && !reached.has(name)) {
+      reached.add(name)
+      visit(apple.schemas[name])
+    }
+    Object.values(node).forEach(visit)
+  }
+  visit([...checkedSchemas].map((name) => ({ $ref: `#/components/schemas/${name}` })))
+  return reached
+}
+
+/** Returns the value, or throws when it breaks the fixture schema it stands for. `role` names it in the error. */
+const conform = (value, schema, role) => {
+  checkedSchemas.add(schema)
+  const problems = violations({ $ref: `#/components/schemas/${schema}` }, value)
+  if (problems.length) throw new Error(`${role} breaks Apple's ${schema} schema: ${problems.join("; ")}`)
+  return value
+}
+const answer = (body, schema, status = 200) => Response.json(conform(body, schema, "fake answer"), { status })
+
 const build = (processingState) => ({ type: "builds", id: "build-1", attributes: { version: "1", processingState } })
 const group = (id, name, attributes = {}) => ({ type: "betaGroups", id, attributes: { name, isInternalGroup: true, hasAccessToAllBuilds: true, ...attributes } })
 const tester = ({ id, email, firstName, lastName, state = "INSTALLED" }) => ({ type: "betaTesters", id, attributes: JSON.parse(JSON.stringify({ email, firstName, lastName, inviteType: "EMAIL", state })) })
 
 /**
- * A fake App Store Connect with the real API's answers. A person has a separate record, with its own id, in each
- * app. A link of another app's record answers 409 STATE_ERROR. POST /v1/betaTesters for a person with no record in
- * the group's app answers 201 and adds one. Nobody observed a link of the app's own record or a create for a person
- * with a record in the app, so the fake throws there. It honours the documented filters and a page size.
+ * A fake App Store Connect with the real API's answers, for the routes the tool calls; any other route throws.
+ * A person has a separate record, with its own id, in each app. POST /v1/betaTesters for a person with no record
+ * in the group's app answers 201 and adds one. Nobody observed a create for a person with a record in the app,
+ * so the fake throws there. It honours the documented filters and a page size.
  */
 const fakeApi = ({ buildStates = ["VALID"], groups = [], pageSize = 200, rejectCreateFor = null }) => {
   const calls = []
   let createdCount = 0
   const remainingStates = [...buildStates]
-  /** The records of one app, or of every app when appId is null, each record once. */
-  const recordsOf = (appId) => [...new Map(groups.filter((entry) => appId === null || entry.appId === appId)
+  /** The records of one app, each record once. */
+  const recordsOf = (appId) => [...new Map(groups.filter((entry) => entry.appId === appId)
     .flatMap((entry) => entry.testers).map((record) => [record.id, record])).values()]
   const request = async (url, options) => {
     const address = new URL(url)
     const body = options.body ? JSON.parse(options.body) : null
-    calls.push({ method: options.method, path: address.pathname, query: Object.fromEntries(address.searchParams), body, headers: options.headers })
+    calls.push({ method: options.method, path: address.pathname, query: Object.fromEntries(address.searchParams), body })
     const page = (data, schema) => {
       const start = Number(address.searchParams.get("cursor") ?? 0)
       const next = new URL(address)
       next.searchParams.set("cursor", String(start + pageSize))
-      const response = { data: data.slice(start, start + pageSize), links: { self: String(url), ...(start + pageSize < data.length ? { next: String(next) } : {}) } }
-      const problems = violations({ $ref: schema }, response)
-      if (problems.length) throw new Error(`fixture breaks Apple's ${schema} schema: ${problems.join("; ")}`)
-      return Response.json(response)
+      return answer({ data: data.slice(start, start + pageSize), links: { self: String(url), ...(start + pageSize < data.length ? { next: String(next) } : {}) } }, schema)
     }
     const route = `${options.method} ${address.pathname}`
     if (route === "GET /v1/builds") {
       const state = remainingStates.length > 1 ? remainingStates.shift() : remainingStates[0]
-      return page(state === null ? [] : [build(state)], "#/components/schemas/BuildsResponse")
+      return page(state === null ? [] : [build(state)], "BuildsResponse")
     }
-    if (route === "GET /v1/apps/app-1/betaGroups") return page(groups.filter((entry) => entry.appId === "app-1").map(resourceOf), "#/components/schemas/BetaGroupsResponse")
+    if (route === "GET /v1/apps/app-1/betaGroups") return page(groups.filter((entry) => entry.appId === "app-1").map(resourceOf), "BetaGroupsResponse")
     if (route === "GET /v1/betaGroups") {
       const internalOnly = address.searchParams.get("filter[isInternalGroup]") === "true"
-      return page(groups.filter((entry) => !internalOnly || entry.attributes.isInternalGroup === true).map(resourceOf), "#/components/schemas/BetaGroupsResponse")
+      return page(groups.filter((entry) => !internalOnly || entry.attributes.isInternalGroup === true).map(resourceOf), "BetaGroupsResponse")
     }
     if (route === "POST /v1/betaGroups") {
+      conform(body, "BetaGroupCreateRequest", "request")
       const created = group("group-new", body.data.attributes.name)
       groups.push({ ...created, appId: body.data.relationships.app.data.id, testers: [] })
-      return Response.json({ data: created, links: { self: String(url) } }, { status: 201 })
+      return answer({ data: created, links: { self: String(url) } }, "BetaGroupResponse", 201)
     }
     const testersRoute = /^GET \/v1\/betaGroups\/([^/]+)\/betaTesters$/.exec(route)
-    if (testersRoute) return page((groups.find((entry) => entry.id === testersRoute[1])?.testers ?? []).map(tester), "#/components/schemas/BetaTestersResponse")
-    if (route === "GET /v1/betaTesters") return page(recordsOf(address.searchParams.get("filter[apps]")).map(tester), "#/components/schemas/BetaTestersResponse")
-    const linkRoute = /^POST \/v1\/betaGroups\/([^/]+)\/relationships\/betaTesters$/.exec(route)
-    if (linkRoute) {
-      const ownIds = new Set(recordsOf(groups.find((entry) => entry.id === linkRoute[1]).appId).map(({ id }) => id))
-      if (body.data.some(({ id }) => ownIds.has(id))) throw new Error("nobody observed the answer to a link of the app's own tester record")
-      return Response.json({ errors: [{ id: "error-1", status: "409", code: "STATE_ERROR", title: "The request cannot be fulfilled because of the state of another resource.", detail: "Tester(s) cannot be assigned" }] }, { status: 409 })
-    }
+    if (testersRoute) return page((groups.find((entry) => entry.id === testersRoute[1])?.testers ?? []).map(tester), "BetaTestersResponse")
+    if (route === "GET /v1/betaTesters") return page(recordsOf(address.searchParams.get("filter[apps]")).map(tester), "BetaTestersResponse")
     if (route === "POST /v1/betaTesters") {
-      const problems = violations({ $ref: "#/components/schemas/BetaTesterCreateRequest" }, body)
-      if (problems.length) throw new Error(`request breaks Apple's BetaTesterCreateRequest schema: ${problems.join("; ")}`)
+      conform(body, "BetaTesterCreateRequest", "request")
       const email = body.data.attributes.email
+      // A schema-valid failure, not an observed answer: its detail repeats the address and a name to prove neither prints.
       if (email === rejectCreateFor) {
-        return Response.json({ errors: [{ id: "error-2", status: "409", code: "ENTITY_ERROR.ATTRIBUTE.INVALID", title: "An attribute value is invalid.", detail: `The tester ${email} cannot be created for Jane Doe` }] }, { status: 409 })
+        return answer({ errors: [{ status: "409", code: "ENTITY_ERROR.ATTRIBUTE.INVALID", title: "An attribute value is invalid.", detail: `The tester ${email} cannot be created for Jane Doe` }] }, "ErrorResponse", 409)
       }
       const target = groups.find((entry) => entry.id === body.data.relationships.betaGroups.data[0].id)
       if (recordsOf(target.appId).some((record) => record.email.toLowerCase() === email.toLowerCase())) {
@@ -99,9 +117,9 @@ const fakeApi = ({ buildStates = ["VALID"], groups = [], pageSize = 200, rejectC
       }
       const created = { id: `tester-created-${++createdCount}`, email, firstName: body.data.attributes.firstName, lastName: body.data.attributes.lastName, state: "INVITED" }
       target.testers.push(created)
-      return Response.json({ data: tester(created), links: { self: String(url) } }, { status: 201 })
+      return answer({ data: tester(created), links: { self: String(url) } }, "BetaTesterResponse", 201)
     }
-    return new Response("{}", { status: 404 })
+    throw new Error(`the fake has no route for ${route}`)
   }
   return { request, calls, groups }
 }
@@ -294,8 +312,11 @@ export const cases = async () => {
   const outsideLines = summaryLines({ version: "1.3.152", buildNumber: "1", ...outsideResult }).join("\n")
   T("testflight access: the summary counts this app's testers outside the group only when there are some", outsideLines.includes("- Testers of this app outside the group, not changed: 2") &&
     !lines.includes("outside the group"))
-  const failed = await rejects(ensureInternalTesterAccess({ client: apiClient(() => "t", async () => new Response("{}", { status: 403 })), appId: "app-1" }))
-  T("testflight access: an API error names the path and status and never a person", failed === "App Store Connect GET /v1/apps/app-1/betaGroups failed (HTTP 403)")
+  // The body the real API answered to a GET with an invalid bearer token.
+  const unauthorized = { errors: [{ status: "401", code: "NOT_AUTHORIZED", title: "Authentication credentials are missing or invalid.",
+    detail: "Provide a properly configured and signed bearer token, and make sure that it has not expired. Learn more about Generating Tokens for API Requests https://developer.apple.com/go/?id=api-generating-tokens" }] }
+  const failed = await rejects(ensureInternalTesterAccess({ client: apiClient(() => "t", async () => answer(unauthorized, "ErrorResponse", 401)), appId: "app-1" }))
+  T("testflight access: an API error names the path, status, code and title and never a person", failed === 'App Store Connect GET /v1/apps/app-1/betaGroups failed (HTTP 401): NOT_AUTHORIZED "Authentication credentials are missing or invalid."')
 
   const workflow = readFileSync(join(REPO_ROOT, ".github/workflows/ios-release.yml"), "utf8")
   const jobStart = workflow.indexOf("\n  testflight-access:\n")
@@ -320,4 +341,8 @@ export const cases = async () => {
     !beforeToolStep.includes("\n    env:\n") && toolStep.startsWith("      - name: Wait for processing and give the internal tester access\n        env:\n") &&
     ["APP_STORE_CONNECT_API_KEY_ID", "APP_STORE_CONNECT_API_ISSUER_ID", "APP_STORE_CONNECT_API_PRIVATE_KEY"].every((name) =>
       !beforeToolStep.includes(name) && toolStep.includes(`          ${name}: \${{ secrets.${name} }}\n`)))
+
+  const reached = reachedSchemas()
+  const unchecked = Object.keys(apple.schemas).filter((name) => !reached.has(name))
+  T("testflight access: every schema in the fixture is reached by a request or answer check", unchecked.length === 0, `not reached: ${unchecked.join(", ")}`)
 }

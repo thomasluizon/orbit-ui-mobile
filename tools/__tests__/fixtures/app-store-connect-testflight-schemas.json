@@ -963,6 +963,50 @@
         "data"
       ]
     },
+    "BetaGroupResponse": {
+      "type": "object",
+      "title": "BetaGroupResponse",
+      "properties": {
+        "data": {
+          "$ref": "#/components/schemas/BetaGroup"
+        },
+        "included": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/App"
+              },
+              {
+                "$ref": "#/components/schemas/BetaRecruitmentCriterion"
+              },
+              {
+                "$ref": "#/components/schemas/BetaTester"
+              },
+              {
+                "$ref": "#/components/schemas/Build"
+              }
+            ],
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "betaRecruitmentCriteria": "#/components/schemas/BetaRecruitmentCriterion",
+                "builds": "#/components/schemas/Build",
+                "betaTesters": "#/components/schemas/BetaTester",
+                "apps": "#/components/schemas/App"
+              }
+            }
+          }
+        },
+        "links": {
+          "$ref": "#/components/schemas/DocumentLinks"
+        }
+      },
+      "required": [
+        "data",
+        "links"
+      ]
+    },
     "BetaTester": {
       "type": "object",
       "title": "BetaTester",
@@ -1200,38 +1244,17 @@
         "self"
       ]
     },
-    "BetaGroupUpdateRequestAttributes": {
+    "DocumentLinks": {
       "type": "object",
       "properties": {
-        "name": {
+        "self": {
           "type": "string",
-          "nullable": true
-        },
-        "publicLinkEnabled": {
-          "type": "boolean",
-          "nullable": true
-        },
-        "publicLinkLimitEnabled": {
-          "type": "boolean",
-          "nullable": true
-        },
-        "publicLinkLimit": {
-          "type": "integer",
-          "nullable": true
-        },
-        "feedbackEnabled": {
-          "type": "boolean",
-          "nullable": true
-        },
-        "iosBuildsAvailableForAppleSiliconMac": {
-          "type": "boolean",
-          "nullable": true
-        },
-        "iosBuildsAvailableForAppleVision": {
-          "type": "boolean",
-          "nullable": true
+          "format": "uri-reference"
         }
-      }
+      },
+      "required": [
+        "self"
+      ]
     },
     "BetaTesterCreateRequest": {
       "type": "object",
