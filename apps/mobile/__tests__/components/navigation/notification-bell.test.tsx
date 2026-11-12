@@ -27,6 +27,7 @@ import { sheetTestControls } from '@/__tests__/support/sheet-double'
 import { apiClient } from '@/lib/api-client'
 import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
 import { __resetTestHostConfig, __setWindowDimensions } from '../../../test-mocks/react-native'
+import { pressableStyle } from '@/__tests__/support/press-feedback'
 
 const TestRenderer = require('react-test-renderer')
 const testI18n = createInstance()
@@ -189,10 +190,7 @@ describe('mobile alerts', () => {
     state.unreadCount = 25
     const tree = render(<NotificationBell />)
     const button = () => hosts(tree, 'Pressable', 'Alerts, 25 unread')[0]!
-    const surface = (pressed = false) => {
-      const style = button().props.style
-      return StyleSheet.flatten(typeof style === 'function' ? style({ pressed }) : style)
-    }
+    const surface = (pressed = false) => pressableStyle(button(), pressed)
     const tokens = createTokensV2('purple', mode)
     expect(surface()).toMatchObject({ backgroundColor: 'transparent', minWidth: 44, minHeight: 44, borderRadius: 9999 })
     expect(surface(true).backgroundColor).toBe(tokens.bgHover)
@@ -236,10 +234,7 @@ describe('mobile alerts', () => {
     const tree = render()
     expect(text(tree, en.notifications.loadError)).toHaveLength(1)
     const retry = hosts(tree, 'Pressable', en.common.retry)[0]!
-    const surface = (pressed: boolean) => {
-      const style = retry.props.style
-      return StyleSheet.flatten(typeof style === 'function' ? style({ pressed }) : style).backgroundColor
-    }
+    const surface = (pressed: boolean) => pressableStyle(retry, pressed).backgroundColor
     const resting = surface(false)
     const pressed = surface(true)
     expect(pressed, 'Retry must visibly change its surface while pressed').not.toBe(resting)

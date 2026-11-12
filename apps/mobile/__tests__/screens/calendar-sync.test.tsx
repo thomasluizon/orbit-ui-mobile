@@ -15,7 +15,7 @@ import { Sheet } from "@/components/ui/sheet";
 import { calendarKeys } from '@orbit/shared/query';
 import { Link as LinkIcon } from '@/components/ui/icons';
 import { advanceAccountGeneration } from '@/lib/session-epoch';
-import { expectPressPaint } from '@/__tests__/support/press-feedback';
+import { expectMotionPress, expectPressPaint, pressableStyle } from '@/__tests__/support/press-feedback';
 
 import { CalendarImportContent, type CalendarImportActionHandle, type CalendarImportActionState } from "@/components/calendar-sync/calendar-import-content";
 import AuthCallbackScreen from '@/app/auth-callback';
@@ -114,7 +114,8 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock('@/lib/motion', () => ({
+vi.mock('@/lib/motion', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/motion')>(),
   getPrefersReducedMotion: () => Promise.resolve(mocks.reducedMotion),
   usePrefersReducedMotion: () => mocks.reducedMotion,
   toAnimatedEasing: () => (value: number) => value,
@@ -400,7 +401,7 @@ describe("CalendarSyncScreen", () => {
     const bodyStyle = StyleSheet.flatten(body.props.contentContainerStyle as ViewStyle);
     const row = tree.root.find((node) => node.type === 'View' && node.props.testID === 'section-heading-row');
     const toggle = row.findAll((node) => node.type === 'Pressable')[0]!;
-    const toggleStyle = (toggle.props.style as (state: { pressed: boolean }) => ViewStyle[])({ pressed: false });
+    const toggleStyle = pressableStyle(toggle, false);
     const contentMeasure = 320 - 2 * Number(bodyStyle.paddingHorizontal);
     const headingMeasure = contentMeasure - Number(StyleSheet.flatten(toggleStyle).width) - Number(StyleSheet.flatten(row.props.style as ViewStyle).gap);
     process.stdout.write(`${JSON.stringify({ platform: 'Android font proxy', language, text: expected, textWidth, headingMeasure, contentMeasure, measurementCanvasWidth: 288 })}\n`);
@@ -478,6 +479,22 @@ describe("CalendarSyncScreen", () => {
     const disclosure = tree.root.find((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'contextMenu.viewDetails');
     TestRenderer.act(() => { (disclosure.props.onPress as () => void)(); });
     expect(tree.root.findAll((node) => node.type === PersonalText && node.props.children === event.title)).toHaveLength(1);
+  });
+
+  it.each([false, true])('presses every icon action through MotionPressable on the shared press timing, as the web icon buttons do (reduced motion %s)', async (reducedMotion) => {
+    mocks.reducedMotion = reducedMotion;
+    mocks.searchParams = { mode: 'review' };
+    mocks.suggestions = buildEvents(2).map((event) => ({ id: `suggestion-${event.id}`, event }));
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen />); await Promise.resolve(); });
+    const row = tree.root.find((node) => node.type === 'View' && node.props.testID === 'section-heading-row');
+    const controls = [
+      tree.root.find((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'calendar.autoSync.syncNow'),
+      row.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button')[0]!,
+      tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'contextMenu.viewDetails')[0]!,
+      tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'calendar.autoSync.dismissSuggestion')[0]!,
+    ];
+    for (const control of controls) expectMotionPress(control, reducedMotion);
   });
 
   it('shows the automatic sync Pro gate before attempting any mutation', async () => {

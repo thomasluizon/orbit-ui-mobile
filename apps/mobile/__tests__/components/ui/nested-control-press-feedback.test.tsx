@@ -11,6 +11,7 @@ import { CalendarSyncEventRow } from '@/components/calendar-sync/calendar-sync-e
 import { HabitBlockRow } from '@/components/chat/habit-block-row'
 import { PickerRow } from '@/components/ui/picker-row'
 import { createStyles } from '@/components/calendar-sync/calendar-import-styles'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 import { createTokensV2 } from '@/lib/theme'
 
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark' }) }))
@@ -108,7 +109,7 @@ const surfaces: Surface[] = [
       dismissPending={false} styles={createStyles()} tokens={tokens} t={((key: string) => key) as TFunction} onToggle={vi.fn()} onDismiss={vi.fn()} />),
     parentFill: (tree) => tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'calendar-event-feedback')[0]!,
     body: (tree) => tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'checkbox')[0]!,
-    nested: (tree) => tree.root.findAll((node) => typeof node.type === 'function' && node.props.accessibilityRole === 'button' && typeof node.props.onPressIn === 'function'),
+    nested: (tree) => tree.root.findAll((node) => node.type === MotionPressable && node.props.accessibilityRole === 'button' && typeof node.props.onPressIn === 'function'),
   },
 ]
 

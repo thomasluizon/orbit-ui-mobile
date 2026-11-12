@@ -10,7 +10,7 @@ import { expectPressPaint } from '@/__tests__/support/press-feedback'
 import { createTokensV2, radius } from '@/lib/theme'
 
 const state = vi.hoisted((): { reducedMotion: boolean; mode: 'dark' | 'light' } => ({ reducedMotion: false, mode: 'dark' }))
-vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => state.reducedMotion }))
+vi.mock('@/lib/motion', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => state.reducedMotion }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'purple', currentTheme: state.mode }) }))
 
 type TestNode = {

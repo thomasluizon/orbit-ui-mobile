@@ -8,7 +8,7 @@ import { orbitalMotion } from '@orbit/shared/theme'
 import { PRESS_SCALE_TRANSITION } from '@/components/motion/press-scale'
 
 const preference = vi.hoisted(() => ({ reduced: false }))
-vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => preference.reduced }))
+vi.mock('@/lib/motion', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => preference.reduced }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark' }) }))
 vi.mock('@/lib/haptics', () => ({ triggerHaptic: vi.fn() }))
 const TestRenderer = require('react-test-renderer')

@@ -1,4 +1,4 @@
-import { expectPressFill } from '../../../support/press-feedback'
+import { expectPressFill, pressableStyle } from '../../../support/press-feedback'
 import React from "react";
 import { StyleSheet, type TextStyle, type ViewStyle } from "react-native";
 import Yoga from "yoga-layout";
@@ -88,7 +88,8 @@ function button(tree: TestTree, label: string): TestNode {
 }
 
 function resolvedStyle(node: TestNode, pressed: boolean): unknown[] {
-  return (node.props.style as (state: { pressed: boolean }) => unknown[])({ pressed });
+  const style = node.props.style;
+  return typeof style === 'function' ? (style as (state: { pressed: boolean }) => unknown[])({ pressed }) : [pressableStyle(node, pressed)];
 }
 
 function renderSelector(

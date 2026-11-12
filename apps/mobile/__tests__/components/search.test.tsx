@@ -38,7 +38,7 @@ vi.mock('@/hooks/use-habit-logging', () => {
 return { useLogHabit: () => ({ mutate: mocks.log, isPending: mocks.pending }),
   useSkipHabit: () => ({ mutate: mocks.skip, isPending: mocks.pending }) }
 })
-vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => true }))
+vi.mock('@/lib/motion', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => true }))
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 type Tree = import('react-test-renderer').ReactTestRenderer

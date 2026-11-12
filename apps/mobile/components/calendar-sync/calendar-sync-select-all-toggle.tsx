@@ -1,7 +1,8 @@
-import { Pressable, type StyleProp, type ViewStyle } from 'react-native'
+import type { StyleProp, ViewStyle } from 'react-native'
 import { CheckCheck, SquareX } from '@/components/ui/icons'
 import { createTokensV2 } from '@/lib/theme'
 import { createStyles } from '@/components/calendar-sync/calendar-import-styles'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 
 interface SelectAllToggleProps {
   allSelected: boolean
@@ -23,7 +24,7 @@ export function SelectAllToggle({
 }: Readonly<SelectAllToggleProps>) {
   const styles = createStyles()
   return (
-    <Pressable
+    <MotionPressable
       onPress={onToggle}
       accessibilityRole="button"
       accessibilityLabel={allSelected ? deselectAllLabel : selectAllLabel}
@@ -40,6 +41,6 @@ export function SelectAllToggle({
       ) : (
         <CheckCheck size={20} color={tokens.fg2} strokeWidth={2} />
       )}
-    </Pressable>
+    </MotionPressable>
   )
 }

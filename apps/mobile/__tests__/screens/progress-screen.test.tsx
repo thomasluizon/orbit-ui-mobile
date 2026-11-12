@@ -33,6 +33,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { PRESS_SCALE_TRANSITION } from '@/components/motion/press-scale'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
+import { pressableStyle } from '@/__tests__/support/press-feedback'
 
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
@@ -853,8 +854,7 @@ describe('mobile ProgressContent', () => {
     const action = findPill(tree.root, 'progressScreen.goals.createAction')
     expect(action.props.testID).toBe('button-primary-sm')
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'empty-state-mark-orbit')).toHaveLength(1)
-    const style = action.props.style as (state: { pressed: boolean }) => ViewStyle[]
-    expect(StyleSheet.flatten(style({ pressed: false }))).toMatchObject({ height: 44, paddingHorizontal: BUTTON_SIZES.sm.paddingX })
+    expect(pressableStyle(action, false)).toMatchObject({ height: 44, paddingHorizontal: BUTTON_SIZES.sm.paddingX })
     await TestRenderer.act(() => { (action.props.onPress as () => void)() })
     expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.title === 'goals.create')).toHaveLength(1)
     expect(useUIStore.getState().astraConversationOpen).toBe(false)

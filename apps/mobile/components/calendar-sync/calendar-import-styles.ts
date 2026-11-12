@@ -143,7 +143,6 @@ export function createStyles() {
     },
     quietActionDim: {
       opacity: 0.6,
-      transform: [{ scale: 0.96 }],
     },
     quietActionText: {
       fontFamily: 'Geist_500Medium',
