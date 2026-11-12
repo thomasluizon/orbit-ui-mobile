@@ -19,6 +19,7 @@ import * as Linking from 'expo-linking'
 import { Providers, useCaptureReady } from '@/lib/providers'
 import { useAuthStore } from '@/stores/auth-store'
 import { RootStackScreens } from '@/components/navigation/root-stack-screens'
+import { statusBarStyleForTheme } from '@/lib/status-bar-style'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { useHasProAccess, useProfile } from '@/hooks/use-profile'
 import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
@@ -47,6 +48,7 @@ import {
   resolveShellChrome,
   resolveShellComposerScope,
   resolveShellDestination,
+  SHELL_ROOT_PATHS,
 } from '@orbit/shared/utils'
 import {
   isReviewMomentEligible,
@@ -145,7 +147,7 @@ function RootLayoutNav() {
   const today = useCurrentDate(profile?.timeZone)
   const hasProAccess = useHasProAccess()
   const { count: totalHabitCount, isLoaded: habitCountLoaded } = useHabitCountLoaded()
-  const { currentTheme, currentScheme, surfaces } = useAppTheme()
+  const { currentTheme, currentScheme } = useAppTheme()
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
   const lastDestination = useUIStore((s) => s.lastDestination)
   const todayFabHidden = useUIStore((state) => state.todayFabHidden)
@@ -268,13 +270,13 @@ function RootLayoutNav() {
       <StatusBar
         animated={!captureBuildEnabled}
         hidden={captureBuildEnabled}
-        style={currentTheme === 'dark' ? 'light' : 'dark'}
+        style={statusBarStyleForTheme(currentTheme)}
       />
 
       <View style={{ flex: 1 }}>
         {showBottomNav ? (
           <Shell412
-            safeAreaTop={isNotFound || ['/', '/calendar', '/progress', '/profile', '/search'].includes(pathname)}
+            safeAreaTop={isNotFound || pathname === '/search' || SHELL_ROOT_PATHS.includes(pathname)}
             {...conversation}
             composer={!isNotFound && shellChrome.composer ? (
               <Composer
@@ -299,9 +301,7 @@ function RootLayoutNav() {
             astraButton={pathname === '/' && !isNotFound}
             fabPending={pathname === '/' && todayFabPending}
           >
-            <RootStackScreens
-              screenBackgroundColor={surfaces.screen.backgroundColor}
-            />
+            <RootStackScreens />
           </Shell412>
         ) : (
           <Shell412
@@ -314,9 +314,7 @@ function RootLayoutNav() {
               offlineNotice,
             )}
           >
-            <RootStackScreens
-              screenBackgroundColor={surfaces.screen.backgroundColor}
-            />
+            <RootStackScreens />
           </Shell412>
         )}
 

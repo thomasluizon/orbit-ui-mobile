@@ -162,6 +162,11 @@ describe('Android app variant', () => {
     expect(config.ios.privacyManifests.NSPrivacyAccessedAPITypes).toHaveLength(4)
   })
 
+  it.each(['production', 'staging'])('keeps the iOS %s status bar under view controller control', (variant) => {
+    process.env.ORBIT_APP_VARIANT = variant
+    expect(createConfig().ios.infoPlist.UIViewControllerBasedStatusBarAppearance).toBe(true)
+  })
+
   it.each(['production', 'staging'])('uses only provisioned Apple identifiers for %s', (variant) => {
     process.env.ORBIT_APP_VARIANT = variant
     vi.stubEnv('ORBIT_APPLE_TEAM_ID', 'TESTTEAM01')

@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useEffectEvent,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -16,7 +17,7 @@ import {
 import { useParams, usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { ShellNoticeSlotProvider, useShellNoticeHost } from '@/hooks/use-shell-notice-slot'
-import { DESTINATION_ICONS, SHELL_DESTINATION_IDS, resolveShellDestination, resolveShellChrome } from '@orbit/shared/utils'
+import { DESTINATION_ICONS, SHELL_DESTINATION_IDS, SHELL_DESTINATION_PATHS, resolveShellDestination, resolveShellChrome, type ShellDestinationId } from '@orbit/shared/utils'
 import { Plus } from '@/components/ui/icons'
 import { DestinationIcon, getDestinationIcon } from '@/components/navigation/destination-icon'
 import { requestHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
@@ -32,8 +33,12 @@ import { useShellStore } from '@/stores/shell-store'
 import type { ActiveView } from '@orbit/shared/stores'
 import { useUIStore } from '@/stores/ui-store'
 import {
+  getCurrentRouteTransitionIntent,
   resetRouteTransitionIntent,
+  setRouteTransitionIntent,
 } from '@/lib/motion/route-intent'
+import { getTabTransitionTypes } from '@/lib/motion/tab-view-transition'
+import { mediaQueryMatches } from '@/lib/media-query'
 import { AstraButton } from './astra-button'
 import { ShellWide } from './shell-wide'
 import { ScrollToTopButton } from '@/components/ui/scroll-to-top-button'
@@ -85,15 +90,6 @@ export function useShellComposerSlot(
 }
 
 export const DESTINATION_MAIN_CLASS_NAME = 'flex min-h-full flex-auto flex-col has-[[data-page-viewport]]:h-full'
-
-type BottomTab = 'hoje' | 'calendario' | 'progresso' | 'perfil'
-
-const ROUTES: Record<BottomTab, string> = {
-  hoje: '/',
-  calendario: '/calendar',
-  progresso: '/progress',
-  perfil: '/profile',
-}
 
 function hasPrimaryNavigation(pathname: string): boolean {
   return pathname !== '/wrapped'
@@ -176,6 +172,16 @@ function getPinnedComposer(notFoundVisible: boolean, registeredComposer: ReactNo
   return registeredComposer ?? (enabled ? composer : undefined)
 }
 
+function useTodayTopOnArrival(pathname: string, scroller: HTMLElement | null) {
+  const requestedFrom = useRef<string | null>(null)
+  useLayoutEffect(() => {
+    if (requestedFrom.current === null || requestedFrom.current === pathname) return
+    requestedFrom.current = null
+    if (pathname === '/') scroller?.scrollTo({ top: 0, behavior: 'instant' })
+  })
+  return useCallback(() => { requestedFrom.current = pathname }, [pathname])
+}
+
 function ShellCreateFab({ onCreate, refusal }: Readonly<{ onCreate: () => void; refusal?: ReactNode }>) {
   const t = useTranslations()
   return (
@@ -208,6 +214,7 @@ function DestinationShellContent({
   const params = useParams<{ missing?: string[] }>()
   const notFoundVisible = Array.isArray(params.missing)
   const previousPathname = useRef(pathname)
+  const requestTodayTopOnArrival = useTodayTopOnArrival(pathname, scroller)
   const wide = useIsWideDesktop()
   const { profile } = useProfile()
   const setPaletteOpen = useShellStore((state) => state.setPaletteOpen)
@@ -241,37 +248,56 @@ function DestinationShellContent({
 
   useKeyboardShortcuts(navigationEnabled)
 
-  const labels = useMemo<Record<BottomTab, string>>(
-    () => Object.fromEntries(SHELL_DESTINATION_IDS.map((id) => [id, t(DESTINATION_ICONS[id].labelKey)])) as Record<BottomTab, string>,
+  const labels = useMemo<Record<ShellDestinationId, string>>(
+    () => Object.fromEntries(SHELL_DESTINATION_IDS.map((id) => [id, t(DESTINATION_ICONS[id].labelKey)])) as Record<ShellDestinationId, string>,
     [t],
   )
 
   const navigate = useCallback(
-    (id: BottomTab) => {
+    (id: ShellDestinationId) => {
+      const route = SHELL_DESTINATION_PATHS[id]
+      const reselected = route === pathname
+      const transitionTypes = getTabTransitionTypes(
+        pathname,
+        route,
+        getCurrentRouteTransitionIntent(),
+        mediaQueryMatches('(prefers-reduced-motion: reduce)', true),
+      )
+      const pushRoute = () => {
+        if (!transitionTypes) {
+          router.push(route)
+          return
+        }
+        setRouteTransitionIntent('tab')
+        router.push(route, { transitionTypes })
+      }
       if (id === 'hoje') {
         requestHabitCreateNavigation(() => {
           useUIStore.getState().resetToday()
+          if (!reselected) {
+            requestTodayTopOnArrival()
+            pushRoute()
+            return
+          }
           resetRouteTransitionIntent()
           scroller?.scrollTo({ top: 0, behavior: 'instant' })
-          if (pathname === '/') router.replace('/')
-          else router.push('/')
+          router.replace(route)
         })
         return
       }
       useUIStore.getState().setAstraConversationOpen(false)
-      const route = ROUTES[id]
-      if (route === pathname) {
+      if (reselected) {
         resetRouteTransitionIntent()
         scroller?.scrollTo({ top: 0, behavior: 'instant' })
         return
       }
-      requestHabitCreateNavigation(() => router.push(route))
+      requestHabitCreateNavigation(pushRoute)
     },
-    [pathname, router, scroller],
+    [pathname, requestTodayTopOnArrival, router, scroller],
   )
 
   const wideItems = useMemo(
-    () => SHELL_DESTINATION_IDS.map((id) => ({ id, href: ROUTES[id], label: labels[id], icon: id })),
+    () => SHELL_DESTINATION_IDS.map((id) => ({ id, href: SHELL_DESTINATION_PATHS[id], label: labels[id], icon: id })),
     [labels],
   )
 
@@ -320,7 +346,7 @@ function DestinationShellContent({
         astraRow={{ label: t('nav.astra'), onOpen: () => useUIStore.getState().setAstraConversationOpen(true) }}
         activeId={activeId}
         navLabel={t('nav.mainNavigation')}
-        onSelect={(id) => navigate(id as BottomTab)}
+        onSelect={(id) => navigate(id as ShellDestinationId)}
         onSidebarNavigate={() => useUIStore.getState().setAstraConversationOpen(false)}
         {...wideCreate}
         createRefusal={createRefusal}
@@ -339,15 +365,16 @@ function DestinationShellContent({
         tabBar={
           !chrome.flow ? <BottomTabBar
             activeId={activeId}
-            items={SHELL_DESTINATION_IDS.map((id) => ({ id, href: ROUTES[id], label: labels[id], icon: ({ active }) => <DestinationIcon destination={id} active={active} color={active ? 'var(--primary)' : 'var(--fg-3)'} /> }))}
+            items={SHELL_DESTINATION_IDS.map((id) => ({ id, href: SHELL_DESTINATION_PATHS[id], label: labels[id], icon: ({ active }) => <DestinationIcon destination={id} active={active} color={active ? 'var(--primary)' : 'var(--fg-3)'} /> }))}
             label={t('nav.mainNavigation')}
-            onSelect={(id) => navigate(id as BottomTab)}
+            onSelect={(id) => navigate(id as ShellDestinationId)}
           /> : undefined
         }
         fab={
           pathname === '/' && !todayFabHidden && !conversationOpen ? <ShellCreateFab onCreate={onCreate} refusal={createRefusal} /> : undefined
         }
         fabPending={pathname === '/' && todayFabPending}
+        tabViewTransition
       >
         <div id="orbit-main" className={DESTINATION_MAIN_CLASS_NAME}>{children}</div>
       </ShellWide>

@@ -54,7 +54,7 @@ function TimeOption({
       type="button"
       role="radio"
       aria-checked={selected}
-      className={`orbit-selection-ring w-full min-h-[var(--touch-min)] rounded-[12px] py-2 text-center text-base transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)] ${
+      className={`orbit-selection-ring w-full min-h-[var(--touch-min)] rounded-[12px] py-2 text-center text-base transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)] ${
         selected
           ? 'bg-[var(--bg-hover)] text-[var(--fg-1)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]'
           : 'text-[var(--fg-1)] hover:bg-[var(--bg-hover)]'

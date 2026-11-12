@@ -60,8 +60,6 @@ export function useRouteTransitionIntent() {
 
 export function getRouteScenarioForIntent(intent: MotionNavigationIntent): MotionScenario {
   switch (intent) {
-    case 'tab':
-      return 'tab-switch'
     case 'replace':
     case 'modal-close':
       return 'route-replace'
@@ -74,7 +72,6 @@ export function getRouteDirectionForIntent(intent: MotionNavigationIntent): -1 |
   switch (intent) {
     case 'back':
       return -1
-    case 'tab':
     case 'replace':
     case 'modal-close':
     case 'instant':

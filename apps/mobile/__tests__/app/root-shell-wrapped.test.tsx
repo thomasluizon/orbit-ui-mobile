@@ -122,8 +122,8 @@ vi.mock('@/hooks/use-habits', () => ({
 }))
 vi.mock('@/components/navigation/root-stack-screens', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/components/navigation/root-stack-screens')>()
-  return { RootStackScreens: (props: React.ComponentProps<typeof original.RootStackScreens>) => <>
-    <FirstPaint />{routeState.mountToday ? <TodayScreen /> : <original.RootStackScreens {...props} />}
+  return { RootStackScreens: () => <>
+    <FirstPaint />{routeState.mountToday ? <TodayScreen /> : <original.RootStackScreens />}
   </> }
 })
 vi.mock('@/components/habit-list', () => ({ HabitList: () => <Text testID="today-list">Today list</Text> }))
@@ -150,7 +150,8 @@ vi.mock('@/lib/use-app-theme', () => ({
     },
   }),
 }))
-vi.mock('@/lib/motion', () => ({
+vi.mock('@/lib/motion', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/motion')>(),
   usePrefersReducedMotion: () => createState.reducedMotion,
   mobileMotion: { presets: { 'route-push': { enterDuration: 200 } } },
 }))

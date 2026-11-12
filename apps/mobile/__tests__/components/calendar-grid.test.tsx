@@ -185,7 +185,7 @@ describe('CalendarGrid (mobile)', () => {
       const control = tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === 'calendar-day-select-2026-09-11')[0]!
       TestRenderer.act(() => { (control.props[state === 'pressed' ? 'onPressIn' : 'onFocus'] as () => void)() })
       const parts = measureDaySurface(tree.toJSON(), width)
-      const paint = parts.filter((part) => part.day && (part.testID === 'day-press-fill' || part.testID === 'day-today-ring' || part.testID === 'day-selection-ring' || Boolean(part.style.backgroundColor && part.style.backgroundColor !== 'transparent')))
+      const paint = parts.filter((part) => part.day && (part.testID === 'day-press-fill' || part.testID === 'day-today-ring' || part.testID === 'day-selection-ring' || part.testID === 'day-focus-ring' || part.testID === 'day-focus-band' || Boolean(part.style.backgroundColor && part.style.backgroundColor !== 'transparent')))
       expect(paint.length).toBeGreaterThan(0)
       for (const box of paint) {
         expect(box.left, box.testID).toBeGreaterThanOrEqual(box.column.left - 0.1)

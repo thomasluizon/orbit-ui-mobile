@@ -14,7 +14,7 @@ import { measureStartEdgeIconAction } from '@/__tests__/support/start-edge-icon-
 
 vi.unmock('react-i18next')
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark' }) }))
-vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => true }))
+vi.mock('@/lib/motion', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => true }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn(), back: vi.fn() }) }))
 vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn().mockResolvedValue(true) }))
 vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({}), useMutation: () => ({ isPending: false, mutate: vi.fn() }) }))

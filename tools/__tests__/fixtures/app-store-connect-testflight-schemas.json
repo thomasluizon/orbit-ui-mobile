@@ -1,0 +1,1452 @@
+{
+  "source": "https://developer.apple.com/sample-code/app-store-connect/app-store-connect-openapi-specification.zip (App Store Connect API 4.6)",
+  "pages": {
+    "GET /v1/builds": "https://developer.apple.com/documentation/appstoreconnectapi/get-v1-builds",
+    "GET /v1/apps/{id}/betaGroups": "https://developer.apple.com/documentation/appstoreconnectapi/get-v1-apps-_id_-betagroups",
+    "GET /v1/betaGroups": "https://developer.apple.com/documentation/appstoreconnectapi/get-v1-betagroups",
+    "POST /v1/betaGroups": "https://developer.apple.com/documentation/appstoreconnectapi/post-v1-betagroups",
+    "GET /v1/betaGroups/{id}/betaTesters": "https://developer.apple.com/documentation/appstoreconnectapi/get-v1-betagroups-_id_-betatesters",
+    "GET /v1/betaTesters": "https://developer.apple.com/documentation/appstoreconnectapi/get-v1-betatesters",
+    "POST /v1/betaTesters": "https://developer.apple.com/documentation/appstoreconnectapi/post-v1-betatesters"
+  },
+  "filters": {
+    "builds:filter[preReleaseVersion.platform]": [
+      "IOS",
+      "MAC_OS",
+      "TV_OS",
+      "VISION_OS"
+    ],
+    "builds:filter names": [
+      "filter[version]",
+      "filter[expired]",
+      "filter[processingState]",
+      "filter[betaAppReviewSubmission.betaReviewState]",
+      "filter[usesNonExemptEncryption]",
+      "filter[preReleaseVersion.version]",
+      "filter[preReleaseVersion.platform]",
+      "filter[buildAudienceType]",
+      "filter[preReleaseVersion]",
+      "filter[app]",
+      "filter[betaGroups]",
+      "filter[appStoreVersion]",
+      "filter[id]",
+      "limit"
+    ],
+    "betaGroups of app:parameters": [
+      "fields[betaGroups]",
+      "limit"
+    ],
+    "betaGroups:filter names": [
+      "filter[name]",
+      "filter[isInternalGroup]",
+      "filter[publicLinkEnabled]",
+      "filter[publicLinkLimitEnabled]",
+      "filter[publicLink]",
+      "filter[app]",
+      "filter[builds]",
+      "filter[id]",
+      "limit"
+    ],
+    "betaGroup testers:parameters": [
+      "fields[betaTesters]",
+      "limit"
+    ],
+    "betaTesters:filter names": [
+      "filter[firstName]",
+      "filter[lastName]",
+      "filter[email]",
+      "filter[inviteType]",
+      "filter[apps]",
+      "filter[betaGroups]",
+      "filter[builds]",
+      "filter[id]",
+      "limit"
+    ]
+  },
+  "schemas": {
+    "Build": {
+      "type": "object",
+      "title": "Build",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "builds"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "attributes": {
+          "type": "object",
+          "properties": {
+            "version": {
+              "type": "string"
+            },
+            "uploadedDate": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "expirationDate": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "expired": {
+              "type": "boolean"
+            },
+            "minOsVersion": {
+              "type": "string"
+            },
+            "lsMinimumSystemVersion": {
+              "type": "string"
+            },
+            "computedMinMacOsVersion": {
+              "type": "string"
+            },
+            "computedMinVisionOsVersion": {
+              "type": "string"
+            },
+            "iconAssetToken": {
+              "$ref": "#/components/schemas/ImageAsset"
+            },
+            "processingState": {
+              "type": "string",
+              "enum": [
+                "PROCESSING",
+                "FAILED",
+                "INVALID",
+                "VALID"
+              ]
+            },
+            "buildAudienceType": {
+              "$ref": "#/components/schemas/BuildAudienceType"
+            },
+            "usesNonExemptEncryption": {
+              "type": "boolean"
+            }
+          }
+        },
+        "relationships": {
+          "type": "object",
+          "properties": {
+            "preReleaseVersion": {
+              "type": "object",
+              "properties": {
+                "links": {
+                  "$ref": "#/components/schemas/RelationshipLinks"
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "preReleaseVersions"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type"
+                  ]
+                }
+              }
+            },
+            "individualTesters": {
+              "type": "object",
+              "properties": {
+                "links": {
+                  "$ref": "#/components/schemas/RelationshipLinks"
+                },
+                "meta": {
+                  "$ref": "#/components/schemas/PagingInformation"
+                },
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "betaTesters"
+                        ]
+                      },
+                      "id": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "type"
+                    ]
+                  }
+                }
+              }
+            },
+            "betaGroups": {
+              "type": "object",
+              "properties": {
+                "links": {
+                  "$ref": "#/components/schemas/RelationshipLinks"
+                },
+                "meta": {
+                  "$ref": "#/components/schemas/PagingInformation"
+                },
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "betaGroups"
+                        ]
+                      },
+                      "id": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "type"
+                    ]
+                  }
+                }
+              }
+            },
+            "betaBuildLocalizations": {
+              "type": "object",
+              "properties": {
+                "links": {
+                  "$ref": "#/components/schemas/RelationshipLinks"
+                },
+                "meta": {
+                  "$ref": "#/components/schemas/PagingInformation"
+                },
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "betaBuildLocalizations"
+                        ]
+                      },
+                      "id": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "type"
+                    ]
+                  }
+                }
+              }
+            },
+            "appEncryptionDeclaration": {
+              "type": "object",
+              "properties": {
+                "links": {
+                  "$ref": "#/components/schemas/RelationshipLinks"
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "appEncryptionDeclarations"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type"
+                  ]
+                }
+              }
+            },
+            "betaAppReviewSubmission": {
+              "type": "object",
+              "properties": {
+                "links": {
+                  "$ref": "#/components/schemas/RelationshipLinks"
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "betaAppReviewSubmissions"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type"
+                  ]
+                }
+              }
+            },
+            "app": {
+              "type": "object",
+              "properties": {
+                "links": {
+                  "$ref": "#/components/schemas/RelationshipLinks"
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "apps"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type"
+                  ]
+                }
+              }
+            },
+            "buildBetaDetail": {
+              "type": "object",
+              "properties": {
+                "links": {
+                  "$ref": "#/components/schemas/RelationshipLinks"
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "buildBetaDetails"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type"
+                  ]
+                }
+              }
+            },
+            "appStoreVersion": {
+              "type": "object",
+              "properties": {
+                "links": {
+                  "$ref": "#/components/schemas/RelationshipLinks"
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "appStoreVersions"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type"
+                  ]
+                }
+              }
+            },
+            "icons": {
+              "type": "object",
+              "properties": {
+                "links": {
+                  "$ref": "#/components/schemas/RelationshipLinks"
+                },
+                "meta": {
+                  "$ref": "#/components/schemas/PagingInformation"
+                },
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "buildIcons"
+                        ]
+                      },
+                      "id": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "type"
+                    ]
+                  }
+                }
+              }
+            },
+            "buildBundles": {
+              "type": "object",
+              "properties": {
+                "meta": {
+                  "$ref": "#/components/schemas/PagingInformation"
+                },
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "buildBundles"
+                        ]
+                      },
+                      "id": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "type"
+                    ]
+                  }
+                }
+              }
+            },
+            "buildUpload": {
+              "type": "object",
+              "properties": {
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "buildUploads"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type"
+                  ]
+                }
+              }
+            },
+            "perfPowerMetrics": {
+              "type": "object",
+              "properties": {
+                "links": {
+                  "$ref": "#/components/schemas/RelationshipLinks"
+                }
+              }
+            },
+            "diagnosticSignatures": {
+              "type": "object",
+              "properties": {
+                "links": {
+                  "$ref": "#/components/schemas/RelationshipLinks"
+                }
+              }
+            }
+          }
+        },
+        "links": {
+          "$ref": "#/components/schemas/ResourceLinks"
+        }
+      },
+      "required": [
+        "id",
+        "type"
+      ]
+    },
+    "BuildsResponse": {
+      "type": "object",
+      "title": "BuildsResponse",
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/Build"
+          }
+        },
+        "included": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/AppEncryptionDeclaration"
+              },
+              {
+                "$ref": "#/components/schemas/AppStoreVersion"
+              },
+              {
+                "$ref": "#/components/schemas/App"
+              },
+              {
+                "$ref": "#/components/schemas/BetaAppReviewSubmission"
+              },
+              {
+                "$ref": "#/components/schemas/BetaBuildLocalization"
+              },
+              {
+                "$ref": "#/components/schemas/BetaGroup"
+              },
+              {
+                "$ref": "#/components/schemas/BetaTester"
+              },
+              {
+                "$ref": "#/components/schemas/BuildBetaDetail"
+              },
+              {
+                "$ref": "#/components/schemas/BuildBundle"
+              },
+              {
+                "$ref": "#/components/schemas/BuildIcon"
+              },
+              {
+                "$ref": "#/components/schemas/BuildUpload"
+              },
+              {
+                "$ref": "#/components/schemas/PrereleaseVersion"
+              }
+            ],
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "betaGroups": "#/components/schemas/BetaGroup",
+                "appEncryptionDeclarations": "#/components/schemas/AppEncryptionDeclaration",
+                "betaAppReviewSubmissions": "#/components/schemas/BetaAppReviewSubmission",
+                "buildBetaDetails": "#/components/schemas/BuildBetaDetail",
+                "buildIcons": "#/components/schemas/BuildIcon",
+                "buildUploads": "#/components/schemas/BuildUpload",
+                "appStoreVersions": "#/components/schemas/AppStoreVersion",
+                "preReleaseVersions": "#/components/schemas/PrereleaseVersion",
+                "buildBundles": "#/components/schemas/BuildBundle",
+                "betaTesters": "#/components/schemas/BetaTester",
+                "apps": "#/components/schemas/App",
+                "betaBuildLocalizations": "#/components/schemas/BetaBuildLocalization"
+              }
+            }
+          }
+        },
+        "links": {
+          "$ref": "#/components/schemas/PagedDocumentLinks"
+        },
+        "meta": {
+          "$ref": "#/components/schemas/PagingInformation"
+        }
+      },
+      "required": [
+        "data",
+        "links"
+      ]
+    },
+    "BetaGroup": {
+      "type": "object",
+      "title": "BetaGroup",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "betaGroups"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "attributes": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "createdDate": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "isInternalGroup": {
+              "type": "boolean"
+            },
+            "hasAccessToAllBuilds": {
+              "type": "boolean"
+            },
+            "publicLinkEnabled": {
+              "type": "boolean"
+            },
+            "publicLinkId": {
+              "type": "string"
+            },
+            "publicLinkLimitEnabled": {
+              "type": "boolean"
+            },
+            "publicLinkLimit": {
+              "type": "integer"
+            },
+            "publicLink": {
+              "type": "string"
+            },
+            "feedbackEnabled": {
+              "type": "boolean"
+            },
+            "iosBuildsAvailableForAppleSiliconMac": {
+              "type": "boolean"
+            },
+            "iosBuildsAvailableForAppleVision": {
+              "type": "boolean"
+            }
+          }
+        },
+        "relationships": {
+          "type": "object",
+          "properties": {
+            "app": {
+              "type": "object",
+              "properties": {
+                "links": {
+                  "$ref": "#/components/schemas/RelationshipLinks"
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "apps"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type"
+                  ]
+                }
+              }
+            },
+            "builds": {
+              "type": "object",
+              "properties": {
+                "links": {
+                  "$ref": "#/components/schemas/RelationshipLinks"
+                },
+                "meta": {
+                  "$ref": "#/components/schemas/PagingInformation"
+                },
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "builds"
+                        ]
+                      },
+                      "id": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "type"
+                    ]
+                  }
+                }
+              }
+            },
+            "betaTesters": {
+              "type": "object",
+              "properties": {
+                "links": {
+                  "$ref": "#/components/schemas/RelationshipLinks"
+                },
+                "meta": {
+                  "$ref": "#/components/schemas/PagingInformation"
+                },
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "betaTesters"
+                        ]
+                      },
+                      "id": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "type"
+                    ]
+                  }
+                }
+              }
+            },
+            "betaRecruitmentCriteria": {
+              "type": "object",
+              "properties": {
+                "links": {
+                  "$ref": "#/components/schemas/RelationshipLinks"
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "betaRecruitmentCriteria"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type"
+                  ]
+                }
+              }
+            },
+            "betaRecruitmentCriterionCompatibleBuildCheck": {
+              "type": "object",
+              "properties": {
+                "links": {
+                  "$ref": "#/components/schemas/RelationshipLinks"
+                }
+              }
+            }
+          }
+        },
+        "links": {
+          "$ref": "#/components/schemas/ResourceLinks"
+        }
+      },
+      "required": [
+        "id",
+        "type"
+      ]
+    },
+    "BetaGroupsResponse": {
+      "type": "object",
+      "title": "BetaGroupsResponse",
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/BetaGroup"
+          }
+        },
+        "included": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/App"
+              },
+              {
+                "$ref": "#/components/schemas/BetaRecruitmentCriterion"
+              },
+              {
+                "$ref": "#/components/schemas/BetaTester"
+              },
+              {
+                "$ref": "#/components/schemas/Build"
+              }
+            ],
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "betaRecruitmentCriteria": "#/components/schemas/BetaRecruitmentCriterion",
+                "builds": "#/components/schemas/Build",
+                "betaTesters": "#/components/schemas/BetaTester",
+                "apps": "#/components/schemas/App"
+              }
+            }
+          }
+        },
+        "links": {
+          "$ref": "#/components/schemas/PagedDocumentLinks"
+        },
+        "meta": {
+          "$ref": "#/components/schemas/PagingInformation"
+        }
+      },
+      "required": [
+        "data",
+        "links"
+      ]
+    },
+    "BetaGroupCreateRequest": {
+      "type": "object",
+      "title": "BetaGroupCreateRequest",
+      "properties": {
+        "data": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "betaGroups"
+              ]
+            },
+            "attributes": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "isInternalGroup": {
+                  "type": "boolean",
+                  "nullable": true
+                },
+                "hasAccessToAllBuilds": {
+                  "type": "boolean",
+                  "nullable": true
+                },
+                "publicLinkEnabled": {
+                  "type": "boolean",
+                  "nullable": true
+                },
+                "publicLinkLimitEnabled": {
+                  "type": "boolean",
+                  "nullable": true
+                },
+                "publicLinkLimit": {
+                  "type": "integer",
+                  "nullable": true
+                },
+                "feedbackEnabled": {
+                  "type": "boolean",
+                  "nullable": true
+                }
+              },
+              "required": [
+                "name"
+              ]
+            },
+            "relationships": {
+              "type": "object",
+              "properties": {
+                "app": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "apps"
+                          ]
+                        },
+                        "id": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "type"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "builds": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "builds"
+                            ]
+                          },
+                          "id": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "type"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "betaTesters": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "betaTesters"
+                            ]
+                          },
+                          "id": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "type"
+                        ]
+                      }
+                    }
+                  }
+                }
+              },
+              "required": [
+                "app"
+              ]
+            }
+          },
+          "required": [
+            "relationships",
+            "attributes",
+            "type"
+          ]
+        }
+      },
+      "required": [
+        "data"
+      ]
+    },
+    "BetaGroupResponse": {
+      "type": "object",
+      "title": "BetaGroupResponse",
+      "properties": {
+        "data": {
+          "$ref": "#/components/schemas/BetaGroup"
+        },
+        "included": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/App"
+              },
+              {
+                "$ref": "#/components/schemas/BetaRecruitmentCriterion"
+              },
+              {
+                "$ref": "#/components/schemas/BetaTester"
+              },
+              {
+                "$ref": "#/components/schemas/Build"
+              }
+            ],
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "betaRecruitmentCriteria": "#/components/schemas/BetaRecruitmentCriterion",
+                "builds": "#/components/schemas/Build",
+                "betaTesters": "#/components/schemas/BetaTester",
+                "apps": "#/components/schemas/App"
+              }
+            }
+          }
+        },
+        "links": {
+          "$ref": "#/components/schemas/DocumentLinks"
+        }
+      },
+      "required": [
+        "data",
+        "links"
+      ]
+    },
+    "BetaTester": {
+      "type": "object",
+      "title": "BetaTester",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "betaTesters"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "attributes": {
+          "type": "object",
+          "properties": {
+            "firstName": {
+              "type": "string"
+            },
+            "lastName": {
+              "type": "string"
+            },
+            "email": {
+              "type": "string",
+              "format": "email"
+            },
+            "inviteType": {
+              "$ref": "#/components/schemas/BetaInviteType"
+            },
+            "state": {
+              "$ref": "#/components/schemas/BetaTesterState"
+            },
+            "appDevices": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "model": {
+                    "type": "string"
+                  },
+                  "platform": {
+                    "type": "string",
+                    "enum": [
+                      "IOS",
+                      "MAC_OS",
+                      "TV_OS",
+                      "WATCH_OS",
+                      "VISION_OS"
+                    ]
+                  },
+                  "osVersion": {
+                    "type": "string"
+                  },
+                  "appBuildVersion": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "relationships": {
+          "type": "object",
+          "properties": {
+            "apps": {
+              "type": "object",
+              "properties": {
+                "links": {
+                  "$ref": "#/components/schemas/RelationshipLinks"
+                },
+                "meta": {
+                  "$ref": "#/components/schemas/PagingInformation"
+                },
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "apps"
+                        ]
+                      },
+                      "id": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "type"
+                    ]
+                  }
+                }
+              }
+            },
+            "betaGroups": {
+              "type": "object",
+              "properties": {
+                "links": {
+                  "$ref": "#/components/schemas/RelationshipLinks"
+                },
+                "meta": {
+                  "$ref": "#/components/schemas/PagingInformation"
+                },
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "betaGroups"
+                        ]
+                      },
+                      "id": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "type"
+                    ]
+                  }
+                }
+              }
+            },
+            "builds": {
+              "type": "object",
+              "properties": {
+                "links": {
+                  "$ref": "#/components/schemas/RelationshipLinks"
+                },
+                "meta": {
+                  "$ref": "#/components/schemas/PagingInformation"
+                },
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "builds"
+                        ]
+                      },
+                      "id": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "type"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "links": {
+          "$ref": "#/components/schemas/ResourceLinks"
+        }
+      },
+      "required": [
+        "id",
+        "type"
+      ]
+    },
+    "BetaTestersResponse": {
+      "type": "object",
+      "title": "BetaTestersResponse",
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/BetaTester"
+          }
+        },
+        "included": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/App"
+              },
+              {
+                "$ref": "#/components/schemas/BetaGroup"
+              },
+              {
+                "$ref": "#/components/schemas/Build"
+              }
+            ],
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "betaGroups": "#/components/schemas/BetaGroup",
+                "builds": "#/components/schemas/Build",
+                "apps": "#/components/schemas/App"
+              }
+            }
+          }
+        },
+        "links": {
+          "$ref": "#/components/schemas/PagedDocumentLinks"
+        },
+        "meta": {
+          "$ref": "#/components/schemas/PagingInformation"
+        }
+      },
+      "required": [
+        "data",
+        "links"
+      ]
+    },
+    "PagedDocumentLinks": {
+      "type": "object",
+      "properties": {
+        "self": {
+          "type": "string",
+          "format": "uri-reference"
+        },
+        "first": {
+          "type": "string",
+          "format": "uri-reference"
+        },
+        "next": {
+          "type": "string",
+          "format": "uri-reference"
+        }
+      },
+      "required": [
+        "self"
+      ]
+    },
+    "DocumentLinks": {
+      "type": "object",
+      "properties": {
+        "self": {
+          "type": "string",
+          "format": "uri-reference"
+        }
+      },
+      "required": [
+        "self"
+      ]
+    },
+    "BetaTesterCreateRequest": {
+      "type": "object",
+      "title": "BetaTesterCreateRequest",
+      "properties": {
+        "data": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "betaTesters"
+              ]
+            },
+            "attributes": {
+              "type": "object",
+              "properties": {
+                "firstName": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "lastName": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "email": {
+                  "type": "string",
+                  "format": "email"
+                }
+              },
+              "required": [
+                "email"
+              ]
+            },
+            "relationships": {
+              "type": "object",
+              "properties": {
+                "betaGroups": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "betaGroups"
+                            ]
+                          },
+                          "id": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "type"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "builds": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "builds"
+                            ]
+                          },
+                          "id": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "type"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "required": [
+            "attributes",
+            "type"
+          ]
+        }
+      },
+      "required": [
+        "data"
+      ]
+    },
+    "BetaTesterResponse": {
+      "type": "object",
+      "title": "BetaTesterResponse",
+      "properties": {
+        "data": {
+          "$ref": "#/components/schemas/BetaTester"
+        },
+        "included": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/App"
+              },
+              {
+                "$ref": "#/components/schemas/BetaGroup"
+              },
+              {
+                "$ref": "#/components/schemas/Build"
+              }
+            ],
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "betaGroups": "#/components/schemas/BetaGroup",
+                "builds": "#/components/schemas/Build",
+                "apps": "#/components/schemas/App"
+              }
+            }
+          }
+        },
+        "links": {
+          "$ref": "#/components/schemas/DocumentLinks"
+        }
+      },
+      "required": [
+        "data",
+        "links"
+      ]
+    },
+    "ErrorResponse": {
+      "type": "object",
+      "properties": {
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "code": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "detail": {
+                "type": "string"
+              },
+              "source": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/ErrorSourcePointer"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ErrorSourceParameter"
+                  }
+                ]
+              },
+              "links": {
+                "$ref": "#/components/schemas/ErrorLinks"
+              },
+              "meta": {
+                "type": "object",
+                "additionalProperties": {}
+              }
+            },
+            "required": [
+              "code",
+              "detail",
+              "status",
+              "title"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

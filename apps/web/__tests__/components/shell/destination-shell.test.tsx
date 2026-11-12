@@ -370,7 +370,7 @@ describe('DestinationShell', () => {
     fireEvent.click(screen.getByRole('button', { name: 'nav.createHabit' }))
     expect(onCreate).toHaveBeenCalledOnce()
     fireEvent.click(screen.getByRole('link', { name: 'nav.progress' }))
-    expect(mocks.push).toHaveBeenCalledWith('/progress')
+    expect(mocks.push).toHaveBeenCalledWith('/progress', { transitionTypes: ['orbit-tab-forward'] })
     expect(screen.getByTestId('command-palette')).toBeInTheDocument()
     expect(mocks.keyboardEnabled).toHaveBeenCalledWith(true)
   })
@@ -530,8 +530,126 @@ describe('DestinationShell', () => {
     expect(screen.queryByRole('button', { name: 'nav.createHabit' })).not.toBeInTheDocument()
   })
 
+  it.each([
+    ['/', 'nav.calendar', '/calendar', 'orbit-tab-forward'],
+    ['/profile', 'nav.progress', '/progress', 'orbit-tab-back'],
+    ['/calendar', 'nav.today', '/', 'orbit-tab-back'],
+  ])('types the tab switch from %s through %s for the view transition', (from, label, route, type) => {
+    mocks.pathname = from
+    render(<DestinationShell onCreate={() => {}}><h1>Page</h1></DestinationShell>)
+
+    fireEvent.click(screen.getByRole('link', { name: label }))
+
+    expect(mocks.push).toHaveBeenCalledExactlyOnceWith(route, { transitionTypes: [type] })
+    expect(getCurrentRouteTransitionIntent()).toBe('tab')
+  })
+
+  it.each([
+    ['/', 'progresso', '/progress'],
+    ['/calendar', 'hoje', '/'],
+    ['/habits/h1', 'hoje', '/'],
+  ])('switches tabs at once from the command palette at %s through %s', (from, id, route) => {
+    mocks.pathname = from
+    let pushedIntent: string | undefined
+    mocks.push.mockImplementationOnce(() => { pushedIntent = getCurrentRouteTransitionIntent() })
+    render(<DestinationShell onCreate={() => {}}><h1>Page</h1></DestinationShell>)
+
+    act(() => {
+      setRouteTransitionIntent('instant')
+      mocks.commandViews.find((item) => item.id === id)!.onSelect()
+    })
+
+    expect(mocks.push).toHaveBeenCalledExactlyOnceWith(route)
+    expect(pushedIntent).toBe('instant')
+  })
+
+  it('clears the palette intent when it selects the open Today', () => {
+    render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
+
+    act(() => {
+      setRouteTransitionIntent('instant')
+      mocks.commandViews.find((item) => item.id === 'hoje')!.onSelect()
+    })
+
+    expect(mocks.push).not.toHaveBeenCalled()
+    expect(getCurrentRouteTransitionIntent()).toBe('neutral')
+  })
+
+  it('switches tabs at once under reduced motion', () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(prefers-reduced-motion: reduce)',
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+    try {
+      render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
+
+      fireEvent.click(screen.getByRole('link', { name: 'nav.calendar' }))
+
+      expect(mocks.push).toHaveBeenCalledExactlyOnceWith('/calendar')
+      expect(getCurrentRouteTransitionIntent()).toBe('neutral')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it.each([
+    ['with the tab view transition', false, ['/', { transitionTypes: ['orbit-tab-back'] }]],
+    ['at once under reduced motion', true, ['/']],
+  ] as const)('keeps the leaving page at its scroll position until Today commits %s', (_label, reducedMotion, pushed) => {
+    if (reducedMotion) {
+      vi.stubGlobal('matchMedia', (query: string) => ({
+        matches: query === '(prefers-reduced-motion: reduce)',
+        media: query,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }))
+    }
+    try {
+      mocks.pathname = '/profile'
+      const shell = () => <ShellScrollerProvider><DestinationShell onCreate={() => {}}><h1>Page</h1></DestinationShell></ShellScrollerProvider>
+      const view = render(shell())
+      const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+      scroller.scrollTo = ((position: ScrollToOptions) => { scroller.scrollTop = position.top ?? 0 }) as typeof scroller.scrollTo
+      scroller.scrollTop = 480
+      let offsetAtPush: number | undefined
+      mocks.push.mockImplementationOnce(() => { offsetAtPush = scroller.scrollTop })
+
+      fireEvent.click(screen.getByRole('link', { name: 'nav.today' }))
+
+      expect(mocks.push).toHaveBeenCalledExactlyOnceWith(...pushed)
+      expect(offsetAtPush).toBe(480)
+      expect(scroller.scrollTop).toBe(480)
+
+      mocks.pathname = '/'
+      view.rerender(shell())
+
+      expect(scroller.scrollTop).toBe(0)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('drops the Today scroll reset when another page commits first', () => {
+    mocks.pathname = '/profile'
+    const shell = () => <ShellScrollerProvider><DestinationShell onCreate={() => {}}><h1>Page</h1></DestinationShell></ShellScrollerProvider>
+    const view = render(shell())
+    const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+    scroller.scrollTo = ((position: ScrollToOptions) => { scroller.scrollTop = position.top ?? 0 }) as typeof scroller.scrollTo
+
+    fireEvent.click(screen.getByRole('link', { name: 'nav.today' }))
+    mocks.pathname = '/progress'
+    view.rerender(shell())
+    scroller.scrollTop = 300
+    mocks.pathname = '/'
+    view.rerender(shell())
+
+    expect(scroller.scrollTop).toBe(300)
+  })
+
   it('keeps a later pushed flow after selecting the active destination', () => {
-    setRouteTransitionIntent('tab')
+    setRouteTransitionIntent('forward')
     render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
 
     fireEvent.click(screen.getByRole('link', { name: 'nav.today' }))

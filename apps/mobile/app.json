@@ -29,6 +29,7 @@
         "CFBundleDevelopmentRegion": "en",
         "LSRequiresIPhoneOS": true,
         "UIRequiresFullScreen": false,
+        "UIViewControllerBasedStatusBarAppearance": true,
         "UISupportedInterfaceOrientations~ipad": [
           "UIInterfaceOrientationPortrait",
           "UIInterfaceOrientationPortraitUpsideDown",
