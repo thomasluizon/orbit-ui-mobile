@@ -1,12 +1,9 @@
 'use client'
 
-import { useEffect, useId, useMemo, useRef } from 'react'
+import { useEffect, useId } from 'react'
 import { useTranslations } from 'next-intl'
 import { usePathname } from 'next/navigation'
 import dynamic from 'next/dynamic'
-// react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* across components/**); a partial per-file swap yields no bundle benefit and risks unprovided motion components. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-import { animate, motion, useMotionValue, useReducedMotion } from 'motion/react'
-import { resolveMotionPreset } from '@orbit/shared/theme'
 import { getTodayBoundary } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
 import { HabitList } from '@/components/habits/habit-list'
@@ -48,48 +45,6 @@ function boundaryKey(boundary: ReturnType<typeof getTodayBoundary>): string | nu
   if (boundary === 'read-only') return 'habits.todayBoundary.readOnly'
   if (boundary === 'future') return 'habits.todayBoundary.future'
   return null
-}
-
-function useTodayRefetchMotion(isRefetching: boolean) {
-  const prefersReducedMotion = useReducedMotion()
-  const preset = useMemo(
-    () => resolveMotionPreset('list-enter', Boolean(prefersReducedMotion)),
-    [prefersReducedMotion],
-  )
-  const opacity = useMotionValue(1)
-  const translate = useMotionValue(0)
-  const animationsRef = useRef<ReturnType<typeof animate>[]>([])
-
-  useEffect(() => {
-    for (const animation of animationsRef.current) animation.stop()
-    const entering = isRefetching
-    const transition = {
-      duration: (entering ? preset.enterDuration : preset.exitDuration) / 1000,
-      ease: entering ? preset.enterEasing : preset.exitEasing,
-    }
-    animationsRef.current = [
-      animate(opacity, entering ? 0.8 : 1, transition),
-      animate(
-        translate,
-        entering && !preset.reducedMotionEnabled ? 4 : 0,
-        transition,
-      ),
-    ]
-    return () => {
-      for (const animation of animationsRef.current) animation.stop()
-    }
-  }, [
-    isRefetching,
-    preset.enterDuration,
-    preset.enterEasing,
-    preset.exitDuration,
-    preset.exitEasing,
-    preset.reducedMotionEnabled,
-    opacity,
-    translate,
-  ])
-
-  return { opacity, translate }
 }
 
 export function TodayHeaderRegion({ view, children }: Readonly<{ view: TodayView; children?: React.ReactNode }>) {
@@ -151,41 +106,35 @@ export function TodayHabitsPanel({ view }: Readonly<{ view: TodayView }>) {
     showCompleted,
     toggleSelectMode,
   } = view
-  const refetchMotion = useTodayRefetchMotion(data.isRefetching && !view.search.open)
 
   return (
-    <motion.div
-      data-testid="today-refetch-motion"
-      style={{ opacity: refetchMotion.opacity, y: refetchMotion.translate }}
-    >
-      <HabitList
-        ref={habitListRef}
-        view={view.activeView}
-        searchQuery={view.search.query}
-        onClearSearch={view.search.close}
-        selectedDate={view.activeView === 'today' ? nav.selectedDate : undefined}
-        showCompleted={showCompleted}
-        onShowCompleted={() => setShowCompleted(true)}
-        isSelectMode={isSelectMode}
-        selectedHabitIds={selectedHabitIds}
-        onBulkMove={selection.confirmBulkMove}
-        filters={data.filters}
-        onToggleSelection={selection.handleToggleSelection}
-        onEnterSelectMode={(habitId) => {
-          if (!isSelectMode) toggleSelectMode()
-          selection.handleToggleSelection(habitId)
-        }}
-        onCreate={() => {
-          if (!isOnline) { setShowCreateRefusal(true); return }
-          setShowCreateModal(true)
-        }}
-        createRefusal={showCreateRefusal && !isOnline}
-        onSeeUpcoming={view.activeView === 'today' && !nav.dateNav.nextDisabled ? nav.goToNextDay : undefined}
-        onAllLoadedIdsChange={view.setAllLoadedIds}
-        onAllCollapsedChange={setHabitListAllCollapsed}
-        onSurfaceOpenChange={view.setListSurfaceOpen}
-      />
-    </motion.div>
+    <HabitList
+      ref={habitListRef}
+      view={view.activeView}
+      searchQuery={view.search.query}
+      onClearSearch={view.search.close}
+      selectedDate={view.activeView === 'today' ? nav.selectedDate : undefined}
+      showCompleted={showCompleted}
+      onShowCompleted={() => setShowCompleted(true)}
+      isSelectMode={isSelectMode}
+      selectedHabitIds={selectedHabitIds}
+      onBulkMove={selection.confirmBulkMove}
+      filters={data.filters}
+      onToggleSelection={selection.handleToggleSelection}
+      onEnterSelectMode={(habitId) => {
+        if (!isSelectMode) toggleSelectMode()
+        selection.handleToggleSelection(habitId)
+      }}
+      onCreate={() => {
+        if (!isOnline) { setShowCreateRefusal(true); return }
+        setShowCreateModal(true)
+      }}
+      createRefusal={showCreateRefusal && !isOnline}
+      onSeeUpcoming={view.activeView === 'today' && !nav.dateNav.nextDisabled ? nav.goToNextDay : undefined}
+      onAllLoadedIdsChange={view.setAllLoadedIds}
+      onAllCollapsedChange={setHabitListAllCollapsed}
+      onSurfaceOpenChange={view.setListSurfaceOpen}
+    />
   )
 }
 

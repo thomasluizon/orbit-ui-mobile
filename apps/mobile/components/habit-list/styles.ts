@@ -108,7 +108,6 @@ export function createStyles(tokens: AppTokens) {
     },
     drillBackBtnPressed: {
       backgroundColor: tokens.bgHover,
-      transform: [{ scale: 0.96 }],
     },
     drillHeading: { flex: 1, minWidth: 0 },
     drillSkeletons: {

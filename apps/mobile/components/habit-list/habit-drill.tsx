@@ -4,10 +4,10 @@ import { useListScrollReservation } from '@/hooks/use-list-scroll-reservation'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { HabitListMotionRow } from '@/components/motion/habit-list-row'
 import { IconButton } from '@/components/ui/icon-button'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 import { useMemo, useState, type ReactElement, type ReactNode, type RefObject } from 'react'
 import {
   type FlatList,
-  Pressable,
   Text,
   View,
   type ListRenderItem,
@@ -111,7 +111,7 @@ export function HabitDrill({
       {listHeaderComponent}
       <View style={styles.drillControls}>
         <View style={styles.drillHeader}>
-          <Pressable
+          <MotionPressable
             onPress={drill.drillBack}
             accessibilityRole="button"
             accessibilityLabel={t('common.back')}
@@ -121,7 +121,7 @@ export function HabitDrill({
             ]}
           >
             <ArrowLeft size={20} color={tokens.fg1} strokeWidth={1.8} />
-          </Pressable>
+          </MotionPressable>
           <View style={styles.drillHeading}>
             <PersonalText onClampedChange={setClamped} accessibilityRole="header" style={styles.drillTitle}>
               {drill.currentParent?.title ?? ''}

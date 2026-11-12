@@ -1,6 +1,7 @@
 import { KeyboardAwareFlatList,KeyboardAwareScrollHost } from '@/components/ui/keyboard-aware-scroll-view'
 import { HabitListMotionRow } from '@/components/motion/habit-list-row'
 import { ContentFade } from '@/components/motion/content-fade'
+import { ListScope } from '@/components/motion/list-scope'
 import { TodayLaunchContent } from '@/components/today/today-launch-content'
 import { SPACING } from '@orbit/shared/theme'
 import { forwardRef,useCallback,useLayoutEffect,useMemo,useRef,type ReactElement,type RefObject } from 'react'
@@ -210,7 +211,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const { launchFromCache } = state.queries
     const { drill } = state
     const { listExtraData } = state.selection
-    const { presentation, cellMotion } = state.motion
+    const { presentation, cellMotion, scope } = state.motion
     const { measureList } = state.items
     const { renderItem } = state.rowItems
     const { keyExtractor } = state.empty
@@ -219,11 +220,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const { renderCurrentViewEmptyState } = state.rendering
     const { isDraggingList, handleDragEnd } = state.drag
     const commonOverlays = <HabitListOverlays state={state} />
-    if (drill.currentParentId) return renderHabitDrillState({ ...state, commonOverlays })
-    if (view === 'all') return renderHabitAllState({ ...state, commonOverlays })
+    if (drill.currentParentId) return <ListScope scope={scope}>{renderHabitDrillState({ ...state, commonOverlays })}</ListScope>
+    if (view === 'all') return <ListScope scope={scope}>{renderHabitAllState({ ...state, commonOverlays })}</ListScope>
     const status = getHabitListStatus(state)
     return (
-      <>
+      <ListScope scope={scope}>
         <ContentFade key="habits" fill><KeyboardAwareScrollHost scrollRef={scrollContainerRef} contentContainerStyle={[styles.listContent, bulkBarStyle]}>{keyboard => <DraggableFlatList
           {...keyboard}
           {...cellMotion}
@@ -251,7 +252,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           windowSize={11}
         />}</KeyboardAwareScrollHost></ContentFade>
         {commonOverlays}
-      </>
+      </ListScope>
     )
   },
 )
@@ -474,7 +475,7 @@ function useHabitListModel(parameters: HabitListModelInputs) {
   const habitListCollapse = useHabitListCollapse(habitListRoots, habitListCollapseState, parameters)
   const habitListItems = useHabitListItems(parameters, habitListRoots, habitListAccount, habitListScroll, habitListCollapseState)
   const drag = useHabitListDrag(habitListCollapseState, habitListItems, habitListQueries)
-  const habitListPresentation = useHabitListPresentation(drag, habitListAccount, parameters, habitListCollapseState.reducedListMotion)
+  const habitListPresentation = useHabitListPresentation(drag, habitListAccount, parameters, habitListCollapseState)
   const habitListProgress = useHabitListProgress(habitListVisibility, parameters, habitListQueries)
   const habitMoveParentSelection = useHabitMoveParentSelection(habitListMoveState, habitListQueries, habitListAccount)
   const habitListMoveActions = useHabitListMoveActions(habitListMoveState, habitListQueries, parameters, habitMoveParentSelection, habitListAccount)

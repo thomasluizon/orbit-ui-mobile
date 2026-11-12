@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
-import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
-import { resolveMotionPreset } from '@orbit/shared/theme'
+import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated'
+import { motionSprings, resolveMotionPreset } from '@orbit/shared/theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
 
 export function HabitListMotionRow({ id, phase, offset, itemIds, measure, children, positionMotion = true }: Readonly<{
@@ -26,9 +26,9 @@ export function HabitListMotionRow({ id, phase, offset, itemIds, measure, childr
       previous.itemIds.every((itemId, index) => itemId === itemIds[index])
     if (!sameOrder && previous.offset !== null && offset !== null && previous.offset !== offset) {
       translation.value += previous.offset - offset
-      translation.value = withTiming(0, { duration: enter.enterDuration, easing: Easing.bezier(...enter.enterEasing) })
+      translation.value = withSpring(0, { ...motionSprings.soft, overshootClamping: true })
     }
-  }, [enter.enterDuration, enter.enterEasing, itemIds, offset, positionMotion, reduced, translation])
+  }, [itemIds, offset, positionMotion, reduced, translation])
   useEffect(() => {
     if (phase === 'enter') {
       opacity.value = 0

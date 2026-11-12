@@ -1,7 +1,7 @@
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { useState } from 'react'
+import { PressScale } from '@/components/motion/press-scale'
 import { triggerHaptic } from '@/lib/haptics'
-import { usePrefersReducedMotion } from '@/lib/motion'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import { HabitCheck } from './habit-check'
 
@@ -23,7 +23,6 @@ export function CheckCircle({
   accessibilityHint,
 }: Readonly<CheckCircleProps>) {
   const [hovered, setHovered] = useState(false)
-  const prefersReducedMotion = usePrefersReducedMotion()
   return (
     <Pressable
       onPress={() => {
@@ -41,24 +40,21 @@ export function CheckCircle({
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={disabled ? accessibilityHint : undefined}
       accessibilityState={{ disabled }}
-      style={({ pressed }) => {
-        return {
-          width: 48,
-          minHeight: 48,
-          borderRadius: 12,
-          overflow: 'hidden',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: 'transparent',
-          opacity: disabled ? 0.4 : 1,
-          transform: [{ scale: pressed && !disabled && !prefersReducedMotion ? 0.96 : 1 }],
-        }
+      style={{
+        width: 48,
+        minHeight: 48,
+        borderRadius: 12,
+        overflow: 'hidden',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'transparent',
+        opacity: disabled ? 0.4 : 1,
       }}
     >
-      {({ pressed }) => <>
+      {({ pressed }) => <PressScale pressed={pressed} disabled={disabled}>
         <HabitCheck status={state} unavailable={unavailable} label={unavailable ? undefined : accessibilityLabel}
           feedback={(pressed || hovered) && !disabled} />
-      </>}
+      </PressScale>}
     </Pressable>
   )
 }
