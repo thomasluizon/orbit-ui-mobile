@@ -131,11 +131,16 @@ describe('habit form focus treatments', () => {
 
   it('drops the global forced-colors outline on a field that paints its own perimeter', () => {
     const stylesheet = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
-      .replaceAll('\r\n', '\n')
 
-    expect(stylesheet).toMatch(
-      /@media \(forced-colors: active\) \{[^@]*\[data-focus-perimeter\] :is\(input, textarea\):focus-visible \{\s*outline: none !important;/,
-    )
+    const optOuts: { value: string; important: boolean }[] = []
+    postcss.parse(stylesheet).walkAtRules('media', (media) => {
+      if (media.params !== '(forced-colors: active)') return
+      media.walkRules((rule) => {
+        if (!rule.selectors.includes('[data-focus-perimeter] :is(input, textarea):focus-visible')) return
+        rule.walkDecls('outline', (declaration) => { optOuts.push({ value: declaration.value, important: Boolean(declaration.important) }) })
+      })
+    })
+    expect(optOuts).toEqual([{ value: 'none', important: true }])
   })
 
   it('pairs every forced-colors outline opt-out with a system-color perimeter', () => {

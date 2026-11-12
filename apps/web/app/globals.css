@@ -2362,10 +2362,12 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   color: inherit;
 }
 
-/* Theme transition class (toggled by useColorScheme on scheme change) */
-.theme-transitioning,
-.theme-transitioning * {
-  transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease !important;
+/* Theme crossfade class (toggled by applyThemeTokensToDOM). --dur-theme projects motionDurations.theme, the value its removal timer reads; the fade exists only when motion is allowed. */
+@media (prefers-reduced-motion: no-preference) {
+  .theme-transitioning,
+  .theme-transitioning * {
+    transition: background-color var(--dur-theme) var(--ease-standard), color var(--dur-theme) var(--ease-standard), border-color var(--dur-theme) var(--ease-standard), box-shadow var(--dur-theme) var(--ease-standard) !important;
+  }
 }
 
 @keyframes search-dot { 50% { opacity: 0.35; } }
