@@ -54,8 +54,6 @@ export interface PersistedUIState {
   activeFilters: HabitsFilter;
   activeView: ActiveView;
   calendarShowRecurring: boolean;
-  habitComposerCollapsed: boolean;
-  conversationComposerCollapsed: boolean;
 }
 
 export function migratePersistedUIState(
@@ -70,8 +68,6 @@ export function migratePersistedUIState(
     allDoneCelebratedDate: typeof state.allDoneCelebratedDate === "string" ? state.allDoneCelebratedDate : "",
     dailyStreakMomentDate: typeof state.dailyStreakMomentDate === "string" ? state.dailyStreakMomentDate : "",
     setupChecklistDismissed: state.setupChecklistDismissed === true,
-    habitComposerCollapsed: state.habitComposerCollapsed === true,
-    conversationComposerCollapsed: state.conversationComposerCollapsed === true,
     activeFilters,
     calendarShowRecurring: typeof state.calendarShowRecurring === "boolean" ? state.calendarShowRecurring : true,
     activeView: isActiveView(state.activeView) ? state.activeView : "today",
@@ -88,10 +84,6 @@ export interface UIStoreState {
 
   calendarShowRecurring: boolean;
   setCalendarShowRecurring: (show: boolean) => void;
-  habitComposerCollapsed: boolean;
-  conversationComposerCollapsed: boolean;
-  setHabitComposerCollapsed: (collapsed: boolean) => void;
-  setConversationComposerCollapsed: (collapsed: boolean) => void;
   activeView: ActiveView;
   setActiveView: (view: ActiveView) => void;
   todayResetVersion: number;
@@ -178,8 +170,6 @@ export function getPersistedUIState(state: UIStoreState): PersistedUIState {
     activeFilters,
     activeView: state.activeView,
     calendarShowRecurring: state.calendarShowRecurring,
-    habitComposerCollapsed: state.habitComposerCollapsed,
-    conversationComposerCollapsed: state.conversationComposerCollapsed,
     setupChecklistDismissed: state.setupChecklistDismissed,
   };
 }
@@ -248,10 +238,6 @@ export function createUIStoreState(
         activeFilters: { ...state.activeFilters, ...filters },
       })),
 
-    conversationComposerCollapsed: false,
-    setConversationComposerCollapsed: (conversationComposerCollapsed) => set({ conversationComposerCollapsed }),
-    habitComposerCollapsed: false,
-    setHabitComposerCollapsed: (habitComposerCollapsed) => set({ habitComposerCollapsed }),
     calendarShowRecurring: true,
     setCalendarShowRecurring: (calendarShowRecurring) => set({ calendarShowRecurring }),
     activeView: "today",
