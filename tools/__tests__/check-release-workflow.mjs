@@ -1,6 +1,6 @@
 import { load } from "js-yaml"
 import { execFileSync, spawnSync } from "node:child_process"
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { runBounded } from "../lib/bounded-process.mjs"
 import { BASH, T, root, stage, toolPath } from "./_harness.mjs"
@@ -429,6 +429,127 @@ function checkAppleClientId() {
   }
 }
 
+/** Lines of a workflow that install Playwright system packages through apt: `--with-deps` or `install-deps`. */
+function systemDependencyInstalls(file, text) {
+  return text.split("\n").flatMap((line, index) => {
+    if (line.trim().startsWith("#")) return []
+    const installsDeps = /playwright\s+install\b.*--with-deps\b/.test(line) || /playwright\s+install-deps\b/.test(line)
+    return installsDeps ? [`${file}:${index + 1}: ${line.trim()}`] : []
+  })
+}
+
+/** True when workflow text calls `apt` or `apt-get` to install or update, with or without flags before the subcommand. */
+const callsApt = (text) => /\bapt(?:-get)?\s+(?:-\S+\s+)*(?:install|update)\b/.test(text)
+
+/**
+ * Runs a ccache workflow step against stubbed `sudo`, `ccache` and `gradlew`, with no network and no real apt.
+ * The `ccache` stub records every call and exits 127 (command not found) unless a stubbed install created it.
+ */
+function runCcacheStep(script, { name, sudoWorks = false, env = {} }) {
+  const directory = join(root, "release-ccache", name)
+  rmSync(directory, { recursive: true, force: true })
+  mkdirSync(join(directory, "home"), { recursive: true })
+  const paths = { calls: join(directory, "calls"), installed: join(directory, "installed"), githubEnv: join(directory, "github-env") }
+  writeFileSync(paths.calls, "")
+  writeFileSync(paths.githubEnv, "")
+  writeFileSync(join(directory, "gradlew"), "#!/usr/bin/env bash\nexit 0\n")
+  const stubs = `
+    sudo() {
+      echo "sudo $*" >> "$STUB_CALLS"
+      [ "$SUDO_WORKS" = true ] || return 100
+      case "$*" in *"install"*) touch "$STUB_INSTALLED" ;; esac
+    }
+    ccache() {
+      echo "ccache $*" >> "$STUB_CALLS"
+      [ -e "$STUB_INSTALLED" ] || { echo "ccache: command not found" >&2; return 127; }
+      case "$*" in *--show-config*) printf 'max_size = 2.0G\ncompiler_check = content\n' ;; esac
+    }
+  `
+  const environment = { ...process.env, HOME: join(directory, "home"), GITHUB_ENV: paths.githubEnv, SUDO_WORKS: String(sudoWorks),
+    STUB_CALLS: paths.calls, STUB_INSTALLED: paths.installed }
+  delete environment.CCACHE_AVAILABLE
+  Object.assign(environment, env)
+  const result = spawnSync(BASH, ["-c", `${stubs}\n${script}`], { cwd: directory, encoding: "utf8", env: environment })
+  const calls = readFileSync(paths.calls, "utf8").trim().split("\n").filter(Boolean)
+  return { status: result.status, stdout: result.stdout, stderr: result.stderr, calls,
+    githubEnv: readFileSync(paths.githubEnv, "utf8"), ccacheCalls: calls.filter((call) => call.startsWith("ccache ")) }
+}
+
+/** Why the ccache setup and build scripts can fail the job on a package mirror outage; an empty list means they cannot. */
+function ccacheStepFlaws(setupScript, buildScript) {
+  const flaws = []
+  const failedInstall = runCcacheStep(setupScript, { name: "setup-mirror-down" })
+  if (failedInstall.status !== 0) flaws.push(`setup exits ${failedInstall.status} when apt fails: ${failedInstall.stderr.trim()}`)
+  if (failedInstall.ccacheCalls.length > 0) flaws.push(`setup runs ccache when apt fails: ${failedInstall.ccacheCalls.join("; ")}`)
+  if (!failedInstall.stdout.includes("::warning::")) flaws.push("setup prints no ::warning:: line when apt fails")
+  if (failedInstall.githubEnv !== "") flaws.push(`setup writes GITHUB_ENV when apt fails: ${failedInstall.githubEnv.trim()}`)
+
+  const installed = runCcacheStep(setupScript, { name: "setup-mirror-up", sudoWorks: true })
+  if (installed.status !== 0) flaws.push(`setup exits ${installed.status} when apt works: ${installed.stderr.trim()}`)
+  for (const line of ["CCACHE_AVAILABLE=true", "CMAKE_C_COMPILER_LAUNCHER=ccache", "CMAKE_CXX_COMPILER_LAUNCHER=ccache"]) {
+    if (!installed.githubEnv.split("\n").includes(line)) flaws.push(`setup does not write ${line} when apt works`)
+  }
+
+  for (const clear of ["true", "false"]) {
+    const without = runCcacheStep(buildScript, { name: `build-without-ccache-${clear}`, env: { CLEAR_CACHE: clear } })
+    if (without.status !== 0) flaws.push(`build exits ${without.status} without ccache and CLEAR_CACHE=${clear}: ${without.stderr.trim()}`)
+    if (without.ccacheCalls.length > 0) flaws.push(`build runs ccache without ccache and CLEAR_CACHE=${clear}: ${without.ccacheCalls.join("; ")}`)
+  }
+  const withCcache = runCcacheStep(`touch "$STUB_INSTALLED"\n${buildScript}`, { name: "build-with-ccache", env: { CLEAR_CACHE: "true", CCACHE_AVAILABLE: "true" } })
+  const expected = ["ccache --clear", "ccache --show-stats"]
+  if (withCcache.status !== 0 || expected.some((call) => !withCcache.ccacheCalls.includes(call))) {
+    flaws.push(`build with ccache must exit 0 and run ${expected.join(" and ")}; got ${withCcache.status}: ${withCcache.ccacheCalls.join("; ")}`)
+  }
+  return flaws
+}
+
+function checkMirrorIndependence() {
+  const workflowsDirectory = toolPath("../.github/workflows")
+  const files = readdirSync(workflowsDirectory).filter((name) => /\.ya?ml$/.test(name))
+  const read = (name) => readFileSync(join(workflowsDirectory, name), "utf8")
+  const installs = files.flatMap((name) => systemDependencyInstalls(`.github/workflows/${name}`, read(name)))
+  T("no workflow installs Playwright system packages through apt", installs.length === 0, installs.join("\n     "))
+  const fixtureWithDeps = "      - run: npx playwright install --with-deps chromium\n"
+  const flagged = systemDependencyInstalls("fixture.yml", fixtureWithDeps)
+  T("a with-deps Playwright install is rejected with its file and line", flagged.length === 1 && flagged[0].startsWith("fixture.yml:1:"), flagged.join())
+  T("a Playwright install-deps command is rejected",
+    systemDependencyInstalls("fixture.yml", "steps:\n  - run: npx playwright install-deps chromium\n").length === 1)
+  T("a plain Playwright browser install is accepted", systemDependencyInstalls("fixture.yml", "  - run: npx playwright install chromium\n").length === 0)
+  for (const name of ["layout.yml", "release.yml"]) {
+    T(`${name} calls no apt command`, !callsApt(read(name)))
+  }
+  for (const command of ["sudo apt-get install -y ccache", "sudo apt-get -y install libnss3", "sudo apt-get -qq update", "sudo apt -y install fonts-noto"]) {
+    T(`the apt check rejects ${command}`, callsApt(`      - run: ${command}\n`))
+  }
+  T("the apt check accepts a plain Playwright browser install", !callsApt("      - run: npx playwright install chromium\n"))
+
+  const android = load(read("android-release.yml")).jobs["release-android"].steps
+  const setup = android.find((step) => step.name === "Set up ccache for the native C++ builds")
+  const restore = android.find((step) => step.name === "Restore the ccache directory")
+  const build = android.find((step) => step.name === "Build signed AAB with Gradle")
+  T("android ccache steps exist", !!setup && !!restore && !!build)
+  if (!setup || !restore || !build) return
+  const flaws = ccacheStepFlaws(setup.run, build.run)
+  T("a ccache install failure cannot fail the android release", flaws.length === 0, flaws.join("\n     "))
+  const guardBlock = (command) => new RegExp(String.raw`if \[ "\$\{CCACHE_AVAILABLE:-\}" = "true" \]; then\n(?:\s*echo [^\n]*\n)?\s*${command}\n\s*fi`)
+  const oneLineGuard = 'if [ "${CCACHE_AVAILABLE:-}" = "true" ]; then ccache --zero-stats; fi'
+  const mutations = {
+    "a bare install under set -e": [
+      "set -euo pipefail\n\nsudo apt-get update -qq\nsudo apt-get install -y -qq ccache\nccache --zero-stats\n", build.run],
+    "an unguarded ccache --clear": [setup.run, build.run.replace(guardBlock("ccache --clear"), "ccache --clear")],
+    "an unguarded ccache --show-stats": [setup.run, build.run.replace(guardBlock("ccache --show-stats"), "ccache --show-stats")],
+    "a one-line guard before a bare ccache --show-stats": [setup.run,
+      `set -euo pipefail\n${oneLineGuard}\nccache --show-stats\n`],
+    "a setup that exits 1 when apt fails": [setup.run.replace(/else\n.*::warning::.*\n/, "else\n  exit 1\n"), build.run],
+  }
+  for (const [label, [mutatedSetup, mutatedBuild]] of Object.entries(mutations)) {
+    T(`the ccache check rejects ${label}`, (mutatedSetup !== setup.run || mutatedBuild !== build.run) &&
+      ccacheStepFlaws(mutatedSetup, mutatedBuild).length > 0, "mutation did not apply or the check passed it")
+  }
+  T("the ccache directory restores only when ccache is available", restore.if === "env.CCACHE_AVAILABLE == 'true'")
+  T("the android build sets no compiler launcher of its own", !Object.keys(build.env ?? {}).some((key) => key.endsWith("_COMPILER_LAUNCHER")))
+}
+
 export async function cases() {
   T("release workflow exposes only production and staging", JSON.stringify(load(workflow).on.workflow_dispatch.inputs.environment.options) === JSON.stringify(["production", "staging"]))
   T("release selection guard is present", typeof guard === "string")
@@ -468,4 +589,5 @@ export async function cases() {
   checkPinnedRelease()
   checkSourceIdentity()
   checkAppleClientId()
+  checkMirrorIndependence()
 }
