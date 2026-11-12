@@ -208,14 +208,15 @@ describe('habit form and frequency picker motion tokens', () => {
     const text = source('components/habits/checklist-templates.tsx')
     expect(text).toMatch(/orbit-list-row-body [^"]*active:scale-\[0\.96\]/)
     expect(text).toMatch(/orbit-list-row-action [^"]*active:scale-\[0\.96\]/)
-    expect(text).toContain('hover:bg-[var(--primary-hover)] active:bg-[var(--primary-pressed)] enabled:active:scale-[0.96]')
+    expect(text).toContain('enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)] enabled:active:scale-[0.96]')
     expect(text).toContain('hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96]')
   })
 
   it('fills the time field picker and clear buttons on hover and press with the neutral hover role and eases their scale', () => {
     const text = source('components/ui/time-field.tsx')
     expect(text).not.toContain('--bg-sunk')
-    expect(occurrences(text, 'hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:')).toBe(2)
+    expect(occurrences(text, 'enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] motion-safe:enabled:')).toBe(1)
+    expect(occurrences(text, ' hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:')).toBe(1)
     expect(occurrences(text, 'transition-[background-color,scale] duration-[var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-out)]')).toBe(2)
   })
 

@@ -135,7 +135,7 @@ export function HabitEmojiSelector({
       {pickerOpen ? <Sheet ref={sheetRef} open title={t('habits.form.emojiPickerTitle')} onClose={hidePicker} headerAccessory={selectedEmoji ? (
         <div className="flex items-center gap-2">
           <span className="grid size-11 place-items-center rounded-full bg-[var(--bg-well)] text-xl">{selectedEmoji}</span>
-          <button type="button" disabled={isDisabled} className="habit-control-motion group/remove grid size-[var(--touch-min)] place-items-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] enabled:active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-45" aria-label={t('habits.form.emojiRemove')} onClick={() => onSelect('')}>
+          <button type="button" disabled={isDisabled} className="habit-control-motion group/remove grid size-[var(--touch-min)] place-items-center rounded-full text-[var(--fg-2)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] enabled:active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-45" aria-label={t('habits.form.emojiRemove')} onClick={() => onSelect('')}>
             <Trash2 size={20} strokeWidth={1.8} aria-hidden="true" className="transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover/remove:text-[var(--status-bad)]" />
           </button>
         </div>

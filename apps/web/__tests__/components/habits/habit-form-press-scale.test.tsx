@@ -5,7 +5,8 @@ import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { classNamesIn, compileClassRules, type CompiledClassRules } from '@/__tests__/support/compiled-class-rules'
 
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLocale: () => 'en-US' }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: undefined }) }))
 vi.mock('@/components/ui/sheet', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/components/ui/sheet')>(),
   Sheet: ({ children, headerAccessory }: { children: ReactNode; headerAccessory?: ReactNode }) => <div role="dialog">{headerAccessory}{children}</div>,
@@ -17,8 +18,11 @@ vi.mock('@/hooks/use-checklist-templates', () => ({
 }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn(), showSuccess: vi.fn(), showInfo: vi.fn() }) }))
 
+import { MAX_CHECKLIST_ITEMS } from '@orbit/shared/validation'
 import { PickerRow } from '@/components/ui/picker-row'
+import { TimeField } from '@/components/ui/time-field'
 import { ChecklistTemplates } from '@/components/habits/checklist-templates'
+import { HabitChecklist } from '@/components/habits/habit-checklist'
 import { HabitEmojiSelector } from '@/components/habits/habit-form-fields/habit-emoji-selector'
 import { ReminderSection } from '@/components/habits/habit-form-fields/reminder-section'
 import { TagEditorRow } from '@/components/habits/habit-form-fields/tag-editor-row'
@@ -60,7 +64,18 @@ const DISABLED_PRESS_CONTROLS: ReadonlyArray<readonly [string, () => HTMLElement
     view.rerender(<HabitEmojiSelector selectedEmoji="🏃" onSelect={vi.fn()} isDisabled />)
     return [screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' }), screen.getByRole('button', { name: 'habits.form.emojiRemove' })]
   }],
+  ['the checklist duplicate at the item limit', () => {
+    render(<HabitChecklist editable items={Array.from({ length: MAX_CHECKLIST_ITEMS }, (_, index) => ({ text: `Step ${index}`, isChecked: false }))} onItemsChange={vi.fn()} />)
+    return [screen.getAllByRole('button', { name: 'habits.form.duplicateChecklistItem' })[0]!]
+  }],
+  ['the time field picker button', () => {
+    render(<TimeField label="Start" value="" onChange={vi.fn()} disabled />)
+    return [screen.getByRole('button', { name: /^Start: / })]
+  }],
 ]
+
+/** Properties a hover or a press paints: the fill and the content colour. */
+const INTERACTION_PAINT = ['background-color', 'background', 'color']
 
 /** The global press rule `app/globals.css` declares under reduced motion: its selector and whether it can beat a layered utility. */
 function reducedMotionPressRules() {
@@ -98,6 +113,14 @@ describe('habit form press scale', () => {
       expect(control).toBeDisabled()
       expect(pressScaleRules(control).map((rule) => rule.declarations.get('scale'))).toEqual(['0.96'])
       expect(pressScaleRules(control).map((rule) => rule.state)).toEqual([':enabled:active'])
+    }
+  })
+
+  it.each(DISABLED_PRESS_CONTROLS)('paints no hover or press state on %s while disabled, as its mobile mirror does', (_, renderControls) => {
+    for (const control of renderControls()) {
+      expect(control).toBeDisabled()
+      const interactionPaints = rules.rulesFor(control).filter((rule) => /:hover|:active/.test(rule.state) && INTERACTION_PAINT.some((property) => rule.declarations.has(property)))
+      expect(interactionPaints.filter((rule) => !/:enabled|:not\(:disabled\)/.test(rule.state)).map((rule) => rule.state)).toEqual([])
     }
   })
 

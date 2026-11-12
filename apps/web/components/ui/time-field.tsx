@@ -155,7 +155,7 @@ function TimeEntry(props: Readonly<TimeEntryProps>) {
           aria-expanded={open}
           aria-label={`${label}: ${selectTimeLabel}`}
           onClick={onOpenPicker}
-          className="absolute top-1/2 grid -translate-y-1/2 place-items-center rounded-full text-[var(--fg-3)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:enabled:active:scale-[0.96] disabled:opacity-60 transition-[background-color,scale] duration-[var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-out)]"
+          className="absolute top-1/2 grid -translate-y-1/2 place-items-center rounded-full text-[var(--fg-3)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] motion-safe:enabled:active:scale-[0.96] disabled:opacity-60 transition-[background-color,scale] duration-[var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-out)]"
           style={{ right: canClear ? TOUCH_TARGET_MIN + 4 : 4, width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN }}
         >
           <Clock3 size={20} strokeWidth={1.8} aria-hidden="true" />

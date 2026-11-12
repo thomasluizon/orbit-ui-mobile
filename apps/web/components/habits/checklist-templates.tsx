@@ -123,7 +123,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
           />
           <button
             type="button"
-            className="habit-control-motion shrink-0 rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] disabled:opacity-40 hover:bg-[var(--primary-hover)] active:bg-[var(--primary-pressed)] enabled:active:scale-[0.96]"
+            className="habit-control-motion shrink-0 rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] disabled:opacity-40 enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)] enabled:active:scale-[0.96]"
             style={{
               padding: "var(--orbit-space-8) var(--orbit-space-12)",
               fontFamily: 'var(--font-sans)',
