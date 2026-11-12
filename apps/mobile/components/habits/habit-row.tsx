@@ -391,9 +391,6 @@ export const HabitRow = memo(function HabitRow({
     title: habit.title,
     dotState: completionStatusUnavailable ? undefined : resolveHabitAccessibleStatus(dotState, isDoneForRange),
     metaParts,
-    linkedGoal: false,
-    showStreak: false,
-    streak: 0,
     t,
   })
   const selectionLabel = [habit.title, ...metaParts.flatMap((part) => typeof part !== 'string' && (part.kind === 'type' || part.kind === 'checklist') ? [part.label] : [])].join(', ')

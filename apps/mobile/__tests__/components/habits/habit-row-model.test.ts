@@ -5,6 +5,7 @@ import {
   buildHabitRowMetaParts,
   resolveHabitRowDotState,
 } from '@/components/habits/habit-row-model'
+import type { HabitRowMetaPart } from '@/components/habits/habit-row-content'
 
 const t = (key: string) => key
 const displayTime = (time: string) => time
@@ -106,27 +107,26 @@ describe('buildHabitRowMetaParts', () => {
 })
 
 describe('buildHabitRowAccessibilityLabel', () => {
-  it('joins title, status, linked-goal and streak', () => {
+  it('joins title, type, status and the visible metadata words', () => {
     const label = buildHabitRowAccessibilityLabel({
       title: 'Run',
       dotState: 'done',
-      linkedGoal: true,
-      showStreak: true,
-      streak: 5,
+      metaParts: [{ kind: 'type', label: 'habits.form.typeHabit' }, '08:00',
+        { kind: 'checklist', label: 'habits.form.checklist, 1 of 2', done: 1, total: 2 }],
       t,
     })
-    expect(label).toBe('Run, habits.statusDot.done, habits.detail.linkedGoal, 🔥 5')
+    expect(label).toBe('Run, habits.form.typeHabit, habits.statusDot.done, 08:00, habits.form.checklist, 1 of 2')
   })
 
-  it('omits linked-goal and streak when not applicable', () => {
-    const label = buildHabitRowAccessibilityLabel({
-      title: 'Run',
-      dotState: 'empty',
-      linkedGoal: false,
-      showStreak: false,
-      streak: 0,
-      t,
+  it('names overdue once, leaves the next due label to the hint and drops an unavailable status', () => {
+    const metaParts: HabitRowMetaPart[] = [{ kind: 'type', label: 'habits.form.typeHabit' }, { kind: 'overdue' },
+      { kind: 'future', label: 'habits.schedule.dueTomorrow' }]
+    expect({
+      overdue: buildHabitRowAccessibilityLabel({ title: 'Run', dotState: 'overdue', metaParts, t }),
+      unavailable: buildHabitRowAccessibilityLabel({ title: 'Run', metaParts, t }),
+    }).toEqual({
+      overdue: 'Run, habits.form.typeHabit, habits.statusDot.overdue',
+      unavailable: 'Run, habits.form.typeHabit, habits.overdue',
     })
-    expect(label).toBe('Run, habits.statusDot.empty')
   })
 })

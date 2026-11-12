@@ -61,10 +61,7 @@ export function buildHabitRowMetaParts({
 interface BuildHabitRowAccessibilityLabelParams {
   title: string
   dotState?: HabitStatus
-  metaParts?: HabitRowMetaPart[]
-  linkedGoal: boolean
-  showStreak: boolean
-  streak: number
+  metaParts: HabitRowMetaPart[]
   t: HabitCardTranslationAdapter
 }
 
@@ -72,10 +69,7 @@ interface BuildHabitRowAccessibilityLabelParams {
 export function buildHabitRowAccessibilityLabel({
   title,
   dotState,
-  metaParts = [],
-  linkedGoal,
-  showStreak,
-  streak,
+  metaParts,
   t,
 }: BuildHabitRowAccessibilityLabelParams): string {
   const type = metaParts.find((part) => typeof part !== 'string' && part.kind === 'type')
@@ -89,8 +83,6 @@ export function buildHabitRowAccessibilityLabel({
     else if (part.kind === 'overdue' && dotState !== 'overdue') parts.push(t('habits.overdue'))
     else if (part.kind === 'bad' && dotState !== 'bad') parts.push(t('habits.statusDot.bad'))
   }
-  if (linkedGoal) parts.push(t('habits.detail.linkedGoal'))
-  if (showStreak) parts.push(`🔥 ${streak}`)
   return parts.join(', ')
 }
 
