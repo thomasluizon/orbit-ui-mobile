@@ -96,7 +96,7 @@ jobs:
         run: tar -C apps/web -xzf "$RUNNER_TEMP/layout-build.tgz"
 
       - name: Install lockfile-pinned Playwright Chromium
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
 
       - name: Check upgrade layout
         run: npm run test:layout -w apps/web -- --shard=${{ matrix.shard }}/3
