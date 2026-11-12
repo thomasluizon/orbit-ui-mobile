@@ -9,6 +9,7 @@ import en from '@orbit/shared/i18n/en.json'
 import { createApiClientError } from '@orbit/shared/utils'
 
 import { LoginContent } from '@/components/auth/login-content'
+import { resolveMotionPreset, type MotionScenario } from '@orbit/shared/theme'
 
 vi.mock('react-i18next', async (importActual) => ({
   ...(await importActual<typeof import('react-i18next')>()),
@@ -48,6 +49,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/lib/motion', () => ({
   toAnimatedEasing: (easing: unknown) => easing,
   usePrefersReducedMotion: () => true,
+  useResolvedMotionPreset: (scenario: MotionScenario) => resolveMotionPreset(scenario, true),
 }))
 
 vi.mock('@/components/ui/keyboard-aware-scroll-view', async () => {

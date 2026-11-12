@@ -18,6 +18,7 @@ import { LoginContent } from '@/components/auth/login-content'
 import LoginScreen from '@/app/login'
 import AuthCallbackScreen from '@/app/auth-callback'
 import { PillButton } from '@/components/ui/pill-button'
+import { resolveMotionPreset, type MotionScenario } from '@orbit/shared/theme'
 
 vi.mock('react-i18next', async (importActual) => ({
   ...(await importActual<typeof import('react-i18next')>()),
@@ -83,6 +84,7 @@ vi.mock('react-native', async () => {
 vi.mock('@/lib/motion', () => ({
   toAnimatedEasing: (easing: unknown) => easing,
   usePrefersReducedMotion: () => true,
+  useResolvedMotionPreset: (scenario: MotionScenario) => resolveMotionPreset(scenario, true),
 }))
 
 vi.mock('@/components/ui/keyboard-aware-scroll-view', async () => {
