@@ -21,13 +21,13 @@ UI `main` `89f0335e0`; API `main` `5fc345d20`; landing `main` `381b253fa`. Produ
 | Android Open 1.3.154 (215) | Uploaded from `89f0335e0` (run `43324055937`, success). Dispatch `ios-release.yml` at 1.3.154 from the same commit (`.claude/skills/ios-release/SKILL.md`). No UI merge lands before the iOS dispatch. After both uploads: close `#2099`, `#2100`, `#2102`, `#2103`, `#2104`, `#2105`, `#2108`, `#2115` and `#2110` (after its web release), then `teardown-worktree.mjs` on their worktrees (about 25 GiB). |
 | Web staging `89f0335e0` | Run `43324061646` failed in the smoke suite (the `#2116` first attempt) and its failed job was rerun once: read the run; a second red gets a diagnosis. On green, `release-run.sh ui production 89f0335e062886ff772b3f4489397356256d3f78 https://orbit-web-3qmv.onrender.com`. |
 | `ui#2439` (`#2116`) at `c46327515` | Approved, green, 0 threads. Merge after the iOS dispatch: `merge-gate.sh ui 2439` (`MSUBJ` with `fix:`, `MBODY` `Tracks thomasluizon/orbit-tickets#2116`), `record-merge.mjs`, then the web release and the three live checks in its order bullet. |
-| `ui#2441` (`#2074`) at `66094d12a` | Round 1 answered; in CI. `chain-read.sh ui 2441`, arm `chain-review.sh ui 2441` when no waiter runs, merge at the bar outside the Android to iOS window. |
+| `ui#2441` (`#2074`) at `66094d12a` | Round 2: one open thread (`chromium.ts:102`, `browser.close()` outside the deadline; `chain-read.sh ui 2441`). Subagent fix, deliver, chain; merge at the bar after the iOS dispatch. |
 | `api#1108` (`#2118`) | Merged as `5fc345d20`, not released. API release: a fresh Render export first (migration), then `/release`. The remote branch `feature/ticket-2118-api-speaks-orbit` was restored at `fc1982f3f` as the `#2127` base. |
 | `#2127` worker | Launched in `orbit-api/ticket-2127-answered-choice-guard` (branch `fix/ticket-2127-answered-choice-guard`, base branch `feature/ticket-2118-api-speaks-orbit`, 150 minute ceiling, launch 1 of 2). Read its result and its diff, check the body (`Tracks`, test evidence red and green). Then retarget its pull request to `main`, merge `main`, delete the restored `#2118` branch, chain, review, merge. Then the API release with a fresh Render export first, and the staging run its order bullet names. |
 | `#2128` | Blocked by `#2127`. Launch (repo:ui) when a UI slot and disk allow. |
 | `#1561` | Open a TestFlight group that outside testers can join, with the 1.3.154 build, after reading the current beta groups (`asc-api.mjs`). Write the link on the ticket. |
 | `#2119` to `#2126` | Batch M. Launch `#2119` when free disk is over 50 GiB. |
-| `#2096` | One pull request for the press gap list in its comments. |
+| `#2096` | One pull request for its press gap list. |
 | Claude usage | Main account 9% weekly, one reset available; read `https://claude.ai/settings/usage` at each hourly Sentry tick. |
 | Intake | Mailbox and store reviews empty; Sentry holds only Q and R (`#1561`); board all placed. |
 | `ui#2388` | This relay's docs branch. Never request a review for it. |
