@@ -1862,6 +1862,12 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
 }
 
+/* Press fill: after the primary hover rule above, with at least its specificity, so it wins under a mouse. It is outside the hover query, so it also shows on touch. */
+button[data-variant="primary"]:enabled:not([data-loading]):active,
+[data-fab]:not([data-fab="neutral"]):active {
+  background: var(--primary-pressed);
+}
+
 /* Kit chip: pill control (Astra action chips, filters, view switcher) */
 @layer components {
 .chip {
@@ -1941,7 +1947,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   transition: background-color var(--dur-hover-control) var(--ease-standard),
     color var(--dur-hover-control) var(--ease-standard),
     opacity var(--dur-1) var(--ease-out),
-    scale var(--dur-1) var(--ease-out);
+    scale var(--dur-press) var(--ease-out);
 }
 }
 
