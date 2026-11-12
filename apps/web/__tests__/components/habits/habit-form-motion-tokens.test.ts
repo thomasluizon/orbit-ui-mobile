@@ -39,11 +39,14 @@ function stylesheetTransition(css: string, selector: string) {
 }
 
 const COLOR_AND_PRESS = 'background-color var(--dur-hover-control) var(--ease-standard), color var(--dur-hover-control) var(--ease-standard), transform var(--dur-press) var(--ease-out)'
+/** Tailwind 4 `active:scale-[0.96]` sets the CSS `scale` property, so a rule whose consumers press with it transitions `scale`. */
+const SCALE_PRESS = 'scale var(--dur-press) var(--ease-out)'
 
 const STYLESHEET_TRANSITIONS = [
   ['.orbit-list-row', 'background-color var(--dur-hover) var(--ease-standard), box-shadow var(--dur-hover) var(--ease-standard), transform var(--dur-press) var(--ease-out)'],
-  ['.orbit-list-row-action', 'background-color var(--dur-hover-control) var(--ease-standard), transform var(--dur-press) var(--ease-out)'],
-  ['.habit-control-motion', COLOR_AND_PRESS],
+  ['.orbit-list-row-body', `background-color var(--dur-hover) var(--ease-standard), ${SCALE_PRESS}`],
+  ['.orbit-list-row-action', `background-color var(--dur-hover-control) var(--ease-standard), ${SCALE_PRESS}`],
+  ['.habit-control-motion', `background-color var(--dur-hover-control) var(--ease-standard), color var(--dur-hover-control) var(--ease-standard), ${SCALE_PRESS}`],
   ['.orbit-sheet-close', COLOR_AND_PRESS],
   ['.icon-btn', COLOR_AND_PRESS],
   ['.chip', COLOR_AND_PRESS],
@@ -119,5 +122,20 @@ describe('habit form and frequency picker motion tokens', () => {
 
   it.each(STYLESHEET_TRANSITIONS)('%s names its duration and curve tokens in the shared stylesheet', (selector, transition) => {
     expect(stylesheetTransition(source('app/globals.css'), selector)).toBe(transition)
+  })
+
+  it.each([
+    ['components/habits/habit-form-fields/habit-understanding.tsx', '.habit-control-motion'],
+    ['components/habits/goal-linking-field.tsx', '.orbit-list-row-body'],
+    ['components/ui/list-row.tsx', '.orbit-list-row-action'],
+  ])('%s eases its scale press through %s', (path, rule) => {
+    expect(source(path)).toMatch(new RegExp(String.raw`${rule.slice(1)}[^"'\`]*active:scale-\[0\.96\]`))
+    expect(stylesheetTransition(source('app/globals.css'), rule)).toContain(SCALE_PRESS)
+  })
+
+  it('eases every picker row press, the tag picker included, through the list row body rule', () => {
+    expect(source('components/ui/picker-row.tsx')).toContain('orbit-list-row-body group/picker')
+    expect(source('components/habits/habit-form-fields/tag-picker-field.tsx')).toMatch(/controlClassName="[^"]*active:scale-\[0\.96\]/)
+    expect(stylesheetTransition(source('app/globals.css'), '.orbit-list-row-body')).toContain(SCALE_PRESS)
   })
 })

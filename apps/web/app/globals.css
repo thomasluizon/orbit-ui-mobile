@@ -149,7 +149,7 @@ select[aria-hidden="true"] {
 }
 
 .orbit-list-row-body {
-  transition: background-color var(--dur-hover) var(--ease-standard);
+  transition: background-color var(--dur-hover) var(--ease-standard), scale var(--dur-press) var(--ease-out);
 }
 
 .orbit-list-row-shell .orbit-list-row-body::before {
@@ -250,7 +250,7 @@ select[aria-hidden="true"] {
 }
 
 .orbit-list-row-action {
-  transition: background-color var(--dur-hover-control) var(--ease-standard), transform var(--dur-press) var(--ease-out);
+  transition: background-color var(--dur-hover-control) var(--ease-standard), scale var(--dur-press) var(--ease-out);
 }
 
 .orbit-list-row-body:not(:where(.orbit-list-action-surface *)):active:not(:disabled):not(:has(:is(button, a, [role="button"]):active)) {
@@ -263,7 +263,7 @@ select[aria-hidden="true"] {
 
 @layer components {
 .habit-control-motion {
-  transition: background-color var(--dur-hover-control) var(--ease-standard), color var(--dur-hover-control) var(--ease-standard), transform var(--dur-press) var(--ease-out);
+  transition: background-color var(--dur-hover-control) var(--ease-standard), color var(--dur-hover-control) var(--ease-standard), scale var(--dur-press) var(--ease-out);
 }
 }
 
