@@ -45,7 +45,12 @@ describe('interaction motion', () => {
   it('keeps reduced-motion presses at unit scale and uses the shared duration', () => {
     const stylesheet = readFileSync('app/globals.css', 'utf8')
     expect(stylesheet).toMatch(/habit-check-motion\s*\{\s*transition: background-color var\(--dur-press\)/)
-    expect(stylesheet).toMatch(/@media \(prefers-reduced-motion: reduce\)\s*\{\s*:is\(button, a,.*?:active\s*\{\s*scale: none !important/s)
+    const pressScales: [string, boolean | undefined, string[]][] = []
+    postcss.parse(stylesheet).walkRules((rule) => {
+      if (!rule.selectors.some((selector) => selector.startsWith(':is(button, a,') && selector.endsWith(':active'))) return
+      rule.walkDecls('scale', (declaration) => { pressScales.push([declaration.value, declaration.important, mediaConditions(declaration)]) })
+    })
+    expect(pressScales).toEqual([['none', true, ['(prefers-reduced-motion: reduce)']]])
   })
 
   it('keeps the kit icon button press fill under reduced motion and scales it only when motion is allowed', () => {
