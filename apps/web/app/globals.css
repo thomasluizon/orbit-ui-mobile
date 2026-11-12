@@ -2646,6 +2646,9 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   box-shadow: none;
 }
 .chip-period.chip-active { --selection-ring-color: var(--primary); }
+:is(.orbit-selection-ring[data-selected], .orbit-selection-ring[aria-checked="true"], .orbit-selection-ring[aria-pressed="true"], .orbit-selection-ring[aria-selected="true"], .chip-period.chip-active):is(:focus-visible, :focus-visible *) {
+  outline-color: var(--fg-1);
+}
 .orbit-check-row-label::before,
 .orbit-check-row-label > .orbit-check-row-fill {
   content: '';
@@ -2780,7 +2783,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 
 .orbit-day-target:focus-visible {
   outline: none;
-  --day-focus-ring: inset 0 0 0 2px var(--primary);
+  --day-focus-ring: inset 0 0 0 2px var(--fg-1), inset 0 0 0 4px var(--bg);
   --day-selection-ring: none;
 }
 

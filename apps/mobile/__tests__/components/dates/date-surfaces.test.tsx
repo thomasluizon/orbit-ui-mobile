@@ -147,7 +147,7 @@ describe('DayCell', () => {
     )
     const tree = render(grid)
     const row = tree.root.findByProps({ testID: 'month-grid-row-0' })
-    TestRenderer.act(() => row.props.onLayout({ nativeEvent: { layout: { x: 0, y: 20, width: 320, height: 48 } } }))
+    TestRenderer.act(() => (row.props.onLayout as (event: unknown) => void)({ nativeEvent: { layout: { x: 0, y: 20, width: 320, height: 48 } } }))
     const slots = row.findAll((node) => String(node.type) === 'View' && !node.props.testID && Boolean(node.props.onLayout))
     for (const [index, slot] of slots.entries()) TestRenderer.act(() => (slot.props.onLayout as (event: unknown) => void)({ nativeEvent: { layout: { x: index * 48, y: 0, width: 40, height: 48 } } }))
     TestRenderer.act(() => { (tree as unknown as { update(element: React.ReactNode): void }).update(grid) })
