@@ -5,6 +5,7 @@ import { isAbsolute, resolve } from "node:path"
 import { assertRepositoryLabel, readComments, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { CLOUD_FINISHING_CONTRACT } from "./lib/cloud-worker.mjs"
+import { parityExemptTerms } from "./lib/parity-scope.mjs"
 
 const USAGE = `usage: compose-prompt.mjs --issue <ORB-N|#N|N> --repo <ui|api|landing> --out <absolute path>
 
@@ -118,7 +119,9 @@ const localUiParityDelivery = !cloud && !reviewBatch && repoKey === "ui"
   ? `\n\n**UI parity at pull request creation.** If the change touches only one of \`apps/web\` and
 \`apps/mobile\` and qualifies for the exemption, open the pull request with
 \`--label parity:exempt\` and a one-line \`## Parity\` section naming the platform adapter or
-the enumerated layout-shell divergence. Otherwise make the mirror change.`
+the enumerated layout-shell divergence. The PR Metadata gate accepts the section only when it holds
+one of these exact terms: ${parityExemptTerms.join(", ")}. Write the term itself, for example
+"BFF vs direct API adapter". A paraphrase fails the gate. Otherwise make the mirror change.`
   : ""
 
 const vitestEvidence = repoKey === "ui"

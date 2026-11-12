@@ -2,13 +2,13 @@ import { useAstraAllowanceCopy } from '@/hooks/use-astra-allowance-copy'
 import { captureError } from '@/lib/sentry'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useHabitFormInteraction } from './habit-form-fields/habit-form-interaction'
-import { SPACING } from '@orbit/shared/theme'
+import { motionDurations, motionEasings, SPACING } from '@orbit/shared/theme'
 import { X } from '@/components/ui/icons'
 import { backendFormFieldFocusRequest, hasTagDraftChanges, resolveBackendFormFieldMessage } from '@orbit/shared/hooks'
 import { useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
-import Animated, { Easing, Keyframe } from 'react-native-reanimated'
+import Animated, { Easing, Keyframe, ReduceMotion } from 'react-native-reanimated'
 import { useController, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import type { HabitFormCommonProps } from '@orbit/shared/utils'
@@ -64,13 +64,13 @@ import { useAppTheme } from '@/lib/use-app-theme'
 
 const DISCLOSURE_ENTER = new Keyframe({
   0: { opacity: 0, transform: [{ scale: 0.95 }] },
-  100: { opacity: 1, transform: [{ scale: 1 }], easing: Easing.bezier(0.16, 1, 0.3, 1) },
-}).duration(220)
+  100: { opacity: 1, transform: [{ scale: 1 }], easing: Easing.bezier(...motionEasings.enter) },
+}).duration(motionDurations.base).reduceMotion(ReduceMotion.System)
 
 const DISCLOSURE_EXIT = new Keyframe({
   0: { opacity: 1, transform: [{ scale: 1 }] },
-  100: { opacity: 0, transform: [{ scale: 0.95 }], easing: Easing.bezier(0.4, 0, 1, 1) },
-}).duration(165)
+  100: { opacity: 0, transform: [{ scale: 0.95 }], easing: Easing.bezier(...motionEasings.exit) },
+}).duration(motionDurations.routeExit).reduceMotion(ReduceMotion.System)
 
 interface HabitFormFieldsProps extends HabitFormCommonProps<HabitFormHelpers, TagSelectionState, ReactNode> {
   onFlushBufferedInputsReady?: (flush: () => void) => void

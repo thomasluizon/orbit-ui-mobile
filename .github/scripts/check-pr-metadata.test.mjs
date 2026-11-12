@@ -6,6 +6,7 @@ import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import test from "node:test"
 import yaml from "js-yaml"
+import { parityExemptTerms } from "../../tools/lib/parity-scope.mjs"
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
 const load = (name) => yaml.load(readFileSync(join(root, `.github/workflows/${name}.yml`), "utf8"))
@@ -57,6 +58,7 @@ function check(body, labels, paths, expected, options = {}) {
     })
     assert.equal(result.status, expected, result.stderr)
     assert.equal(readFileSync(output, "utf8"), body ?? "")
+    return result
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }
@@ -94,6 +96,26 @@ test("parity checks reject removed exemptions and require a specific justificati
   check(justified, [], web, 1)
   check("## Parity\n\nPlatform adapter: Radix Primitives on web.", ["parity:exempt"], web, 0)
   check("## Parity\n\nPlatform adapter: rn-primitives on Android.", ["parity:exempt"], web, 0)
+  check("## Parity\n\nWeb proxy adapter: mobile has no Next.js proxy and no tunnel route.", ["parity:exempt"], web, 1)
+  check("## Parity\n\nBFF vs direct API adapter.", ["parity:exempt"], web, 0)
+})
+
+test("a rejected parity section tells its reader every accepted term", () => {
+  const web = ["apps/web/components/control.tsx"]
+  for (const [body, labels] of [
+    ["## Parity\n\nWeb proxy adapter: mobile has no tunnel route.", ["parity:exempt"]],
+    ["", ["parity:exempt"]],
+    ["", []],
+  ]) {
+    const { stderr } = check(body, labels, web, 1)
+    const missing = parityExemptTerms.filter((term) => !stderr.includes(term))
+    assert.deepEqual(missing, [], stderr)
+  }
+})
+
+test("every exported parity term satisfies the exemption gate", () => {
+  const web = ["apps/web/components/control.tsx"]
+  for (const term of parityExemptTerms) check(`## Parity\n\nDivergence: ${term}.`, ["parity:exempt"], web, 0)
 })
 
 test("a workflow-only PR can carry a label at creation without a UI exemption", () => {

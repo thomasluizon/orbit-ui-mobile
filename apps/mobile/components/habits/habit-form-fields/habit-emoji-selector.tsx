@@ -102,10 +102,9 @@ export function HabitEmojiSelector({
       <View style={{ gap: 8, maxWidth: '100%', flexShrink: 0, width: Math.max(wellSize, TOUCH_TARGET_MIN) + (onSuggest ? TOUCH_TARGET_MIN + 12 : 0) }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <Pressable focusInset
-            style={({ pressed }) => [
+            style={[
               styles.emojiWell,
               { width: Math.max(wellSize, TOUCH_TARGET_MIN), height: Math.max(wellSize, TOUCH_TARGET_MIN), borderRadius: 12, overflow: 'hidden', backgroundColor: 'transparent' },
-              pressed ? { transform: [{ scale: 0.96 }] } : null,
               isDisabled ? { opacity: 0.45 } : null,
             ]}
             disabled={isDisabled}
@@ -137,7 +136,7 @@ export function HabitEmojiSelector({
         headerAccessory={selectedEmoji ? (
           <View style={{ alignItems: 'center', flexDirection: 'row', gap: 8 }}>
             <View style={{ alignItems: 'center', backgroundColor: tokens.bgWell, borderRadius: 999, height: 44, justifyContent: 'center', width: 44 }}><Text style={{ fontSize: 20 }}>{selectedEmoji}</Text></View>
-            <Pressable focusInset accessibilityRole="button" accessibilityLabel={t("habits.form.emojiRemove")} accessibilityState={{ disabled: isDisabled }} disabled={isDisabled} style={({ pressed }) => [{ alignItems: 'center', borderRadius: 999, overflow: 'hidden', height: TOUCH_TARGET_MIN, justifyContent: 'center', width: TOUCH_TARGET_MIN }, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null, isDisabled ? { opacity: 0.45 } : null]} onPress={() => onSelect("")}>
+            <Pressable focusInset accessibilityRole="button" accessibilityLabel={t("habits.form.emojiRemove")} accessibilityState={{ disabled: isDisabled }} disabled={isDisabled} style={({ pressed }) => [{ alignItems: 'center', borderRadius: 999, overflow: 'hidden', height: TOUCH_TARGET_MIN, justifyContent: 'center', width: TOUCH_TARGET_MIN }, pressed ? { backgroundColor: tokens.bgHover } : null, isDisabled ? { opacity: 0.45 } : null]} onPress={() => onSelect("")}>
               <Trash2 size={20} color={tokens.fg2} strokeWidth={1.8} />
             </Pressable>
           </View>
@@ -180,7 +179,7 @@ export function HabitEmojiSelector({
                     style={({ pressed }) => [
                       styles.emojiCategoryTab,
                       selected ? styles.emojiCategoryTabActive : null,
-                      pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null,
+                      pressed ? { backgroundColor: tokens.bgHover } : null,
                     ]}
 
                     onPress={() => handleSelectCategory(category.id)}
@@ -211,7 +210,7 @@ export function HabitEmojiSelector({
                           style={({ pressed }) => [
                             styles.emojiOption,
                             selected ? styles.emojiOptionSelected : null,
-                            pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null,
+                            pressed ? { backgroundColor: tokens.bgHover } : null,
                           ]}
                           disabled={isDisabled}
                           onPress={() => handleSelectEmoji(emoji)}

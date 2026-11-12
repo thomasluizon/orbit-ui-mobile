@@ -107,7 +107,7 @@ export function ReminderSection({
                     { minHeight: TOUCH_TARGET_MIN, minWidth: TOUCH_TARGET_MIN, alignItems: "center", justifyContent: "center" },
                     { borderRadius: 999, overflow: "hidden" },
                     reminderTimes.length + scheduledReminderCount <= 1 && { opacity: 0.45 },
-                    pressed && { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] },
+                    pressed && { backgroundColor: tokens.bgHover },
                   ]}
 
                   accessibilityRole="button"
@@ -138,10 +138,7 @@ export function ReminderSection({
                   key={preset.value}
                   style={({ pressed }) => [
                     sectionStyles.dropdownItem,
-                    pressed && {
-                      backgroundColor: tokens.bgHover,
-                      transform: [{ scale: 0.98 }],
-                    },
+                    pressed && { backgroundColor: tokens.bgHover },
                   ]}
                   accessibilityRole="button"
                   onPress={() => addPreset(preset.value)}
@@ -177,10 +174,7 @@ export function ReminderSection({
               <Pressable disabled={disabled}
                 style={({ pressed }) => [
                   sectionStyles.dropdownItem,
-                  pressed && {
-                    backgroundColor: tokens.bgHover,
-                    transform: [{ scale: 0.98 }],
-                  },
+                  pressed && { backgroundColor: tokens.bgHover },
                 ]}
                 accessibilityRole="button"
                 onPress={() => setShowCustomInput(!showCustomInput)}

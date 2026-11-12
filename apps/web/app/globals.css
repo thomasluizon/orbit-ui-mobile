@@ -109,13 +109,13 @@ select[aria-hidden="true"] {
   transition: box-shadow var(--dur-hover) var(--ease-standard);
 }
 
-.orbit-radio-row:active {
+.orbit-radio-row:enabled:active {
   --radio-row-secondary: var(--fg-2);
   --radio-row-track: var(--fg-3);
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .orbit-radio-row:hover {
+  .orbit-radio-row:enabled:hover {
     --radio-row-secondary: var(--fg-2);
     --radio-row-track: var(--fg-3);
   }
@@ -123,7 +123,7 @@ select[aria-hidden="true"] {
 
 .orbit-list-row {
   box-shadow: inset 0 0 0 1px transparent;
-  transition: background-color 380ms var(--ease-standard), box-shadow 380ms var(--ease-standard), transform 150ms var(--ease-out);
+  transition: background-color var(--dur-hover) var(--ease-standard), box-shadow var(--dur-hover) var(--ease-standard), transform var(--dur-press) var(--ease-out);
 }
 
 .orbit-list-row-shell[data-text-mode="label"]:has([data-slot="list-row-title"][data-row-multiline]) :is([data-slot="list-row-content"], .orbit-list-row-label-content) {
@@ -149,7 +149,7 @@ select[aria-hidden="true"] {
 }
 
 .orbit-list-row-body {
-  transition: background-color var(--dur-hover) var(--ease-standard);
+  transition: background-color var(--dur-hover) var(--ease-standard), scale var(--dur-press) var(--ease-out);
 }
 
 .orbit-list-row-shell .orbit-list-row-body::before {
@@ -263,7 +263,7 @@ select[aria-hidden="true"] {
 
 @layer components {
 .habit-control-motion {
-  transition: background-color 240ms var(--ease-standard), color 240ms var(--ease-standard), scale var(--dur-press) var(--ease-out);
+  transition: background-color var(--dur-hover-control) var(--ease-standard), color var(--dur-hover-control) var(--ease-standard), scale var(--dur-press) var(--ease-out);
 }
 }
 
@@ -452,7 +452,7 @@ select[aria-hidden="true"] {
   transform-origin: center top;
   opacity: 1;
   transform: scale(1);
-  transition: opacity 220ms var(--ease-out), transform 220ms var(--ease-out);
+  transition: opacity var(--dur-enter) var(--ease-out), transform var(--dur-enter) var(--ease-out);
 }
 
 @starting-style {
@@ -488,7 +488,7 @@ select[aria-hidden="true"] {
     background: var(--bg-hover);
   }
 
-  .orbit-list-row-action:hover {
+  .orbit-list-row-action:hover:not(:disabled) {
     background: var(--bg-hover);
   }
 
@@ -610,7 +610,7 @@ select[aria-hidden="true"] {
   border-radius: 999px;
   background: transparent;
   color: var(--fg-2);
-  transition: background-color var(--dur-hover-control) var(--ease-standard), color var(--dur-hover-control) var(--ease-standard), transform 150ms var(--ease-out);
+  transition: background-color var(--dur-hover-control) var(--ease-standard), color var(--dur-hover-control) var(--ease-standard), transform var(--dur-press) var(--ease-out);
 }
 
 .orbit-sheet-close:focus-visible {
@@ -1441,10 +1441,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
 }
 
+/* The perimeter is the text field `--border-control` ring; each consumer adds `orbit-field-hover` for its hover and timing. */
 .form-input {
-  @apply w-full bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-[14px] py-3 px-4 text-base focus:outline-none transition-[background-color,box-shadow,color] duration-200;
+  @apply w-full bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-[14px] py-3 px-4 text-base focus:outline-none;
   min-height: 54px;
-  box-shadow: inset 0 0 0 1px var(--hairline);
+  box-shadow: inset 0 0 0 1px var(--border-control);
 }
 
 .form-input:focus {
@@ -1814,9 +1815,9 @@ button[data-variant="primary"]:enabled:not([data-loading]):active,
   align-items: center;
   gap: 7px;
   transition:
-    background-color 240ms var(--ease-standard),
-    color 240ms var(--ease-standard),
-    transform 150ms var(--ease-out);
+    background-color var(--dur-hover-control) var(--ease-standard),
+    color var(--dur-hover-control) var(--ease-standard),
+    transform var(--dur-press) var(--ease-out);
 }
 .chip:active { transform: scale(0.96); }
 .chip:focus-visible { outline-offset: -2px; }
@@ -2361,10 +2362,12 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   color: inherit;
 }
 
-/* Theme transition class (toggled by useColorScheme on scheme change) */
-.theme-transitioning,
-.theme-transitioning * {
-  transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease !important;
+/* Theme crossfade class (toggled by applyThemeTokensToDOM). --dur-theme projects motionDurations.theme, the value its removal timer reads; the fade exists only when motion is allowed. */
+@media (prefers-reduced-motion: no-preference) {
+  .theme-transitioning,
+  .theme-transitioning * {
+    transition: background-color var(--dur-theme) var(--ease-standard), color var(--dur-theme) var(--ease-standard), border-color var(--dur-theme) var(--ease-standard), box-shadow var(--dur-theme) var(--ease-standard) !important;
+  }
 }
 
 @keyframes search-dot { 50% { opacity: 0.35; } }

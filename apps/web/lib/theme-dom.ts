@@ -93,29 +93,28 @@ export function resolveWebThemeVariables(
   }
 }
 
-export function applyThemeTokensToDOM(
-  scheme: ColorScheme,
-  theme: ThemeMode,
-  animate = false,
-) {
+let themeTransitionTimer: ReturnType<typeof setTimeout> | undefined
+
+/**
+ * Crossfades only when the root already shows the opposite mode, so the first apply and a
+ * same-mode apply stay instant. The mobile provider derives its overlay from the same change.
+ */
+export function applyThemeTokensToDOM(scheme: ColorScheme, theme: ThemeMode) {
   if (typeof document === 'undefined') return
 
   const root = document.documentElement
+  const oppositeMode: ThemeMode = theme === 'dark' ? 'light' : 'dark'
 
-  if (animate) {
+  if (root.classList.contains(oppositeMode)) {
     root.classList.add('theme-transitioning')
-    setTimeout(() => {
+    clearTimeout(themeTransitionTimer)
+    themeTransitionTimer = setTimeout(() => {
       root.classList.remove('theme-transitioning')
     }, motionDurations.theme)
   }
 
-  if (theme === 'dark') {
-    root.classList.add('dark')
-    root.classList.remove('light')
-  } else {
-    root.classList.add('light')
-    root.classList.remove('dark')
-  }
+  root.classList.add(theme)
+  root.classList.remove(oppositeMode)
 
   for (const s of VALID_COLOR_SCHEMES) root.classList.remove(`scheme-${s}`)
   root.classList.add('scheme-orange')
@@ -145,6 +144,7 @@ export function resolveWebMotionVariables(): Record<`--${string}`, string> {
     variables[`--motion-${scenario}-scale`] = String(preset.scaleFrom)
   }
   variables['--dur-press'] = `${motionDurations.press}ms`
+  variables['--dur-theme'] = `${motionDurations.theme}ms`
   variables['--motion-ease-enter'] = `cubic-bezier(${motionEasings.enter.join(',')})`
   variables['--motion-ease-exit'] = `cubic-bezier(${motionEasings.exit.join(',')})`
   return variables

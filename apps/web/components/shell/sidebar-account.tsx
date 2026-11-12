@@ -26,7 +26,7 @@ export function SidebarAccount({ account, accountEmail, collapsed }: Readonly<{ 
         data-shell-account=""
         aria-label={label}
         title={collapsed ? label : undefined}
-        className={`orbit-hover-text flex flex-1 min-h-[var(--touch-min)] min-w-0 items-center ${collapsed ? 'justify-center' : ''} gap-3 rounded-[12px] px-2 py-2 text-start text-[14px] font-medium text-[var(--fg-1)] transition-[background-color,color,scale] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-out)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96]`}
+        className={`orbit-hover-text flex flex-1 min-h-[var(--touch-min)] min-w-0 items-center ${collapsed ? 'justify-center' : ''} gap-3 rounded-[12px] px-2 py-2 text-start text-[14px] font-medium text-[var(--fg-1)] transition-[background-color,color,scale] duration-[var(--dur-hover-control),var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-standard),var(--ease-out)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96]`}
       >
         <span aria-hidden="true" className="grid size-7 shrink-0 place-items-center rounded-[8px] bg-[var(--bg-well)] text-[var(--fg-2)]">
           {Array.from(account)[0]?.toLocaleUpperCase()}
