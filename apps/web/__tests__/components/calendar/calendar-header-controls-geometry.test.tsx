@@ -32,6 +32,7 @@ import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { registerChromeLaunchHook } from '@/__tests__/support/chromium'
 import { expectDayCircle, expectDayCircleHover } from '@/__tests__/support/calendar-day-circle'
 import { readControlPaint } from '@/e2e/layout/control-paint'
+import { inspectFocusedControlRings, readRingPaint, readThemeColor } from '@/e2e/layout/focus-indicators'
 import { calendarGeometryHarness, calendarKeys, seededDayMap } from '@/__tests__/support/calendar-header-geometry'
 
 vi.mock('@/hooks/use-goals', () => ({ useCreateGoal: () => ({ mutateAsync: vi.fn(), isPending: false, error: null }) }))
@@ -154,6 +155,10 @@ describe('Calendar header geometry in Chromium', () => {
       const today = page.getByTestId('calendar-day-select-2026-09-11')
       const partial = page.getByTestId('calendar-day-select-2026-09-10')
       await today.waitFor()
+      const foreground = await readThemeColor(page, '--fg-1')
+      const background = await readThemeColor(page, '--bg')
+      const todayRing = { ring: `${await readThemeColor(page, '--primary')} 0px 0px 0px 2px inset`, outlineStyle: 'none' }
+      const focusRing = { ring: `${background} 0px 0px 0px 4px inset`, outlineStyle: 'solid', outlineWidth: '2px', outlineColor: foreground, outlineOffset: '-2px' }
       await page.keyboard.press('Tab')
       await today.focus()
       expect(await today.getAttribute('aria-pressed')).toBe('true')
@@ -165,14 +170,12 @@ describe('Calendar header geometry in Chromium', () => {
           const ring = circle.querySelector('[data-day-position-ring]')!
           const bounds = ring.getBoundingClientRect()
           const disc = button.querySelector('[data-day-disc]')!.getBoundingClientRect()
-          const probe = document.createElement('span')
-          probe.style.color = 'var(--primary)'
-          button.append(probe)
-          const primary = getComputedStyle(probe).color
-          probe.remove()
-          return { ring: getComputedStyle(ring).boxShadow, primary, width: bounds.width, height: bounds.height, discWidth: disc.width }
+          const style = getComputedStyle(ring)
+          return { keyboardFocused: button.matches(':focus-visible'), ring: style.boxShadow, outlineStyle: style.outlineStyle, outlineWidth: style.outlineWidth,
+            outlineColor: style.outlineColor, outlineOffset: style.outlineOffset, width: bounds.width, height: bounds.height, discWidth: disc.width }
         })
-        expect(geometry.ring).toBe(`${geometry.primary} 0px 0px 0px 2px inset`)
+        expect(geometry.keyboardFocused).toBe(selected)
+        expect(geometry).toMatchObject(selected ? focusRing : todayRing)
         expect(geometry.width).toBeLessThanOrEqual(44)
         expect(geometry.width).toBeCloseTo(geometry.height, 1)
         expect(geometry.discWidth).toBeCloseTo(34, 1)
@@ -183,7 +186,9 @@ describe('Calendar header geometry in Chromium', () => {
         await page.keyboard.press('Tab')
         await button.focus()
         expect(await button.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
-        await expectDayCircle(button.locator('..'), true, true, true)
+        await expectDayCircle(button.locator('..'), true, false, true)
+        expect((await inspectFocusedControlRings(page))?.indicators).toEqual(['span:outline'])
+        expect(await readRingPaint(button.locator('[data-day-circle]'))).toEqual({ outer: foreground, inner: background, outline: null })
       }
       await page.emulateMedia({ forcedColors: 'active' })
       const forcedRing = await today.locator('[data-day-position-ring]').evaluate((ring) => ({ shadow: getComputedStyle(ring).boxShadow, outline: getComputedStyle(ring).outlineWidth }))

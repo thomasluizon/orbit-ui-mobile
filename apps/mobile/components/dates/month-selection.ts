@@ -4,6 +4,7 @@ import type { SelectionBounds } from '@/components/ui/selection-indicator'
 
 export const MovingDaySelection = createContext(false)
 export const DayColumnPosition = createContext(0.5)
+export const DayFocusReport = createContext<(focused: boolean) => void>(() => undefined)
 
 export function useMonthSelection(selectedIndex?: number) {
   const [rows, setRows] = useState<Record<number, number>>({})
