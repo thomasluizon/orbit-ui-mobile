@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
+import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { OnboardingComplete } from '@/components/onboarding/onboarding-complete'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
@@ -85,5 +86,44 @@ describe('OnboardingComplete', () => {
     render(<OnboardingComplete createdHabit="Read" emoji="📖" remindersOff skipped={false} signedOut={false} dueToday general={false} onFinish={vi.fn()} />)
     expect(screen.getByText('remindersOffBody')).toBeInTheDocument()
     expect(screen.queryByText(/Pro/u)).not.toBeInTheDocument()
+  })
+
+  describe('landing ring sweep', () => {
+    const animate = vi.fn(() => ({ onfinish: null as (() => void) | null, cancel: vi.fn() }))
+    const originalAnimate = Reflect.get(SVGElement.prototype, 'animate')
+    const originalLength = Reflect.get(SVGElement.prototype, 'getTotalLength')
+    const durations = motionDurations as unknown as Record<string, number>
+    const easings = motionEasings as unknown as Record<string, readonly number[]>
+    const originalSlow = durations.slow
+    const originalEnter = easings.enter
+
+    afterEach(() => {
+      durations.slow = originalSlow!
+      easings.enter = originalEnter!
+      Reflect.set(SVGElement.prototype, 'animate', originalAnimate)
+      Reflect.set(SVGElement.prototype, 'getTotalLength', originalLength)
+      animate.mockClear()
+    })
+
+    function renderRing() {
+      Reflect.set(SVGElement.prototype, 'animate', animate)
+      Reflect.set(SVGElement.prototype, 'getTotalLength', () => 97)
+      render(<OnboardingComplete createdHabit="Read" emoji="📖" remindersOff={false} skipped={false} signedOut={false} dueToday general={false} onFinish={vi.fn()} />)
+    }
+
+    it('sweeps on the shared enter easing', () => {
+      easings.enter = [0.1, 0.2, 0.3, 0.4]
+      renderRing()
+      expect(animate).toHaveBeenCalledOnce()
+      const options = (animate.mock.calls[0] as unknown as [unknown, { easing: string }])[1]
+      expect(options.easing).toBe('cubic-bezier(0.1, 0.2, 0.3, 0.4)')
+    })
+
+    it('sweeps for the shared slow duration', () => {
+      durations.slow = 333
+      renderRing()
+      const options = (animate.mock.calls[0] as unknown as [unknown, { duration: number }])[1]
+      expect(options.duration).toBe(333)
+    })
   })
 })
