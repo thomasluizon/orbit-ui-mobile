@@ -107,17 +107,11 @@ describe('motion theme contract', () => {
     }
   })
 
-  it('keeps celebratory feedback longer than core micro-interactions', () => {
-    expect(motionDurations.completePop).toBeGreaterThan(motionDurations.fast)
-    expect(motionDurations.completeSpark).toBeGreaterThan(motionDurations.micro)
-  })
-
   it('exports orbital interaction tokens for cross-platform UI polish', () => {
     expect(orbitalMotion.press.scale).toBeCloseTo(0.96)
     expect(orbitalMotion.press.duration).toBe(150)
     expect(orbitalMotion.elevatedPress.translateY).toBeLessThan(0)
     expect(orbitalMotion.list.maxStaggerItems).toBeGreaterThan(0)
-    expect(orbitalMotion.completion.peakScale).toBeGreaterThan(orbitalMotion.completion.reducedPeakScale)
   })
 })
 

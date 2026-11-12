@@ -37,7 +37,6 @@ const mocks = vi.hoisted(() => ({
       filters: {},
       hasFetched: true,
       isFetching: false,
-      isRefetching: false,
       showLoadError: false,
       habitsCount: 1,
     },
@@ -173,7 +172,6 @@ describe('web Today Astra owned surfaces', () => {
     mocks.view.listSurfaceOpen = false
     mocks.view.data.isFetching = false
     mocks.view.data.hasFetched = true
-    mocks.view.data.isRefetching = false
     mocks.view.data.showLoadError = false
     mocks.view.data.habitsCount = 1
     mocks.view.data.habitsById = new Map([['habit-1', createMockHabit({ id: 'habit-1', scheduledDates: ['2026-08-29'] })]])
@@ -279,13 +277,11 @@ describe('web Today Astra owned surfaces', () => {
     const line = screen.getByRole('button', { name: 'Check in' })
 
     mocks.view.data.isFetching = true
-    mocks.view.data.isRefetching = true
     page.rerender(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
 
     expect(screen.getByRole('button', { name: 'Check in' })).toBe(line)
 
     mocks.view.data.isFetching = false
-    mocks.view.data.isRefetching = false
     page.rerender(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
 
     expect(screen.getByRole('button', { name: 'Check in' })).toBe(line)
@@ -344,21 +340,20 @@ describe('web Today Astra owned surfaces', () => {
     expect(mocks.animate).toHaveBeenCalledTimes(4)
   })
 
-  it('renders the real panel with one day owner and an independent refetch channel', () => {
+  it('renders the real panel with one day owner and no refetch channel', () => {
     const page = render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
     const dayOwner = page.container.querySelector('[data-today-day-transition]')
-    const refetchChannel = screen.getByTestId('today-refetch-motion')
 
-    expect(dayOwner).toContainElement(refetchChannel)
-    expect(refetchChannel).toContainElement(screen.getByTestId('today-habit-list'))
+    expect(dayOwner).toContainElement(screen.getByTestId('today-habit-list'))
+    expect(screen.queryByTestId('today-refetch-motion')).toBeNull()
     expect(screen.queryByTestId('today-day-motion')).not.toBeInTheDocument()
 
     mocks.animate.mockClear()
     mocks.motionSets.length = 0
-    mocks.view.data.isRefetching = true
+    mocks.view.data.isFetching = true
     page.rerender(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
 
-    expect(mocks.animate.mock.calls.map(([, target]) => target)).toEqual([0.8, 4])
+    expect(mocks.animate).not.toHaveBeenCalled()
     expect(mocks.motionSets).toEqual([])
   })
 
@@ -376,12 +371,6 @@ describe('web Today Astra owned surfaces', () => {
     page.rerender(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
 
     expect(mocks.motionSets).toEqual([1, 0])
-    expect(mocks.animate.mock.calls.map(([, target, transition]) => ({
-      target,
-      duration: transition?.duration,
-    }))).toEqual([
-      { target: 1, duration: 0.07 },
-      { target: 0, duration: 0.07 },
-    ])
+    expect(mocks.animate).not.toHaveBeenCalled()
   })
 })

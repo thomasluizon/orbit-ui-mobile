@@ -18,7 +18,7 @@ async function renderMotion(initialDate: string) {
   let latest!: MotionResult
 
   function Harness({ date }: Readonly<{ date: string }>) {
-    latest = useTodayMotion({ filterMotionKey: date, isRefetching: false })
+    latest = useTodayMotion({ filterMotionKey: date })
     return null
   }
 
@@ -79,6 +79,18 @@ describe('useTodayMotion', () => {
       expect.objectContaining({ duration: 220, toValue: 0, useNativeDriver: true }),
     )
 
+    await motion.unmount()
+    timing.mockRestore()
+  })
+
+  it('starts no animation on mount or on a re-render of the same date', async () => {
+    const timing = vi.spyOn(Animated, 'timing')
+    const motion = await renderMotion('2026-04-08')
+
+    await motion.update('2026-04-08')
+
+    expect(timing).not.toHaveBeenCalled()
+    expect(Object.keys(motion.latest).sort((left, right) => left.localeCompare(right))).toEqual(['bulkBarAnimatedStyle', 'dayAnimatedStyle', 'renderBulkActionBar'])
     await motion.unmount()
     timing.mockRestore()
   })

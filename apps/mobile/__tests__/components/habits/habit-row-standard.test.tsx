@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { SPACING } from '@orbit/shared/theme'
+import { SPACING, orbitalMotion } from '@orbit/shared/theme'
 import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { HabitRow } from '@/components/habits/habit-row'
+import { PRESS_SCALE_TRANSITION } from '@/components/motion/press-scale'
 import { createTokensV2 } from '@/lib/theme'
 import { __resetTestHostConfig, __setWindowDimensions } from '@/test-mocks/react-native'
 import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
@@ -81,6 +82,16 @@ function assertTypePlacement(geometry: ReturnType<typeof measureInteractionFills
   expect(metadata.host.props.numberOfLines).toBeUndefined()
 }
 
+function expectCompletionPressScale(tree: ReturnType<typeof TestRenderer.create>, pressableTransform: unknown, scaled: boolean, reduced: boolean) {
+  let scaler = tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'AnimatedView' && node.props.testID === 'habit-check')[0]!.parent
+  while (scaler && scaler.props['data-slot'] !== 'press-scale') scaler = scaler.parent
+  expect(pressableTransform).toBeUndefined()
+  const scalerStyle = StyleSheet.flatten(scaler!.props.style)
+  expect(scalerStyle.transform).toEqual([{ scale: scaled ? orbitalMotion.press.scale : 1 }])
+  if (reduced) expect(scalerStyle.transition).toBe('none')
+  else expect(scalerStyle.transition).toBe(PRESS_SCALE_TRANSITION)
+}
+
 describe('habit row standard on Android', () => {
   it.each((['light', 'dark'] as const).flatMap((mode) => [320, 412, 1352].flatMap((width) =>
     [1, 2].flatMap((fontScale) => [false, true].flatMap((parent) => [false, true].flatMap((reduced) => [false, true].flatMap((pressed) => (['empty', 'done', 'overdue', 'bad'] as const).map((state) => ({ mode, width, fontScale, parent, reduced, pressed, state })))))),
@@ -112,7 +123,7 @@ describe('habit row standard on Android', () => {
     if (parent && state !== 'done') expect(tree!.root.findAllByType('Path').find((part: import('react-test-renderer').ReactTestInstance) => part.props.strokeDasharray)?.props.stroke).toBe(state === 'bad' ? tokens.statusBad : tokens.primary)
     expect(fill.left - target.left).toBe(10)
     expect(fill.top - target.top).toBe(10)
-    expect(target.style.transform ?? []).toEqual(pressed && !reduced ? [{ scale: 0.96 }] : parent ? [] : [{ scale: 1 }])
+    expectCompletionPressScale(tree, target.style.transform, pressed && !reduced, reduced)
     TestRenderer.act(() => { toggle().props.onHoverOut(); toggle().props.onPressOut() })
     expect(StyleSheet.flatten(tree!.root.findByProps({ testID: 'habit-check' }).props.style).backgroundColor).toBe(state === 'done' ? tokens.fg1 : 'transparent')
     expect(tree!.root.findAllByProps({ testID: 'habit-check-feedback' })).toHaveLength(0)

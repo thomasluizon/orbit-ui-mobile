@@ -1,6 +1,7 @@
 import { resolveHabitAccessibleStatus } from '@orbit/shared/utils'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { View } from 'react-native'
+import { PressScale } from '@/components/motion/press-scale'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { MoreVertical } from '@/components/ui/icons'
@@ -11,7 +12,6 @@ import { HabitCheck } from './habit-check'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import { CheckCircle } from './habit-row-check-circle'
 import type { HabitRowActions } from './habit-row'
-import { usePrefersReducedMotion } from '@/lib/motion'
 import { styles } from './habit-row-styles'
 
 interface HabitRowTrailingProps {
@@ -45,7 +45,6 @@ function InteractiveParentRing({
 }: Readonly<HabitRowTrailingProps>) {
   const { t } = useTranslation()
   const [hovered, setHovered] = useState(false)
-  const prefersReducedMotion = usePrefersReducedMotion()
   const statusName = t(`habits.statusDot.${resolveHabitAccessibleStatus(dotState, isDoneForRange)}` as const)
   const toggleLabel = isDoneForRange ? t('habits.actions.unlog') : t('habits.logHabit')
   const completionLabel = completionRingLabel(completionStatusUnavailable, statusName, toggleLabel, habit.title)
@@ -58,14 +57,14 @@ function InteractiveParentRing({
       accessibilityState={{ disabled: completionReadOnly }}
       accessibilityHint={completionReadOnly ? completionReason : undefined}
       accessibilityLabel={`${completionLabel}, ${childrenDone}/${childrenTotal}`}
-      style={({ pressed }) => [
+      style={[
         styles.parentRingButton,
         completionReadOnly ? { opacity: 0.4 } : null,
-        pressed && !completionReadOnly && !prefersReducedMotion
-          ? { transform: [{ scale: 0.96 }] } : null,
       ]}>
-      {({ pressed }) => <HabitCheck status={dotState} progress={{ done: childrenDone, total: childrenTotal }}
-        feedback={(pressed || hovered) && !completionReadOnly} />}
+      {({ pressed }) => <PressScale pressed={pressed} disabled={completionReadOnly}>
+        <HabitCheck status={dotState} progress={{ done: childrenDone, total: childrenTotal }}
+          feedback={(pressed || hovered) && !completionReadOnly} />
+      </PressScale>}
     </Pressable>
   )
 }

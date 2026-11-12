@@ -3024,10 +3024,13 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 
 .content-fade { animation: content-crossfade var(--dur-press) var(--ease-standard); }
 
+@media (prefers-reduced-motion: reduce) {
+  .content-fade { animation: none; }
+}
+
 .habit-row-group[hidden] { display: none; }
 .habit-row-group:has(> div:empty) { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  [data-motion-disclosure] > div { height: auto !important; opacity: 1 !important; }
   [data-motion-disclosure][aria-hidden="true"] { display: none !important; }
 }
