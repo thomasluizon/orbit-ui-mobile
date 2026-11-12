@@ -10,6 +10,7 @@ import {
 } from '@/lib/auth-api'
 import nextConfig from '../next.config'
 import { createManifest } from '@/lib/manifest'
+import { SENTRY_TUNNEL_ROUTE } from '@/lib/public-paths'
 
 vi.mock('next-intl/server', () => ({ getTranslations: async () => (key: string) => key }))
 import { POST as issueEventTicket } from '@/app/api/events/ticket/route'
@@ -188,6 +189,15 @@ describe('proxy', () => {
     expect(response).toMatchObject({ type: 'next' })
     expect(resolveSessionTokens).not.toHaveBeenCalled()
     expect(NextResponse.redirect).not.toHaveBeenCalled()
+  })
+
+  it('serves the Sentry tunnel from its route handler instead of a header-forwarding rewrite', async () => {
+    const rewrites = await nextConfig.rewrites?.() ?? []
+    const rules = Array.isArray(rewrites)
+      ? rewrites
+      : [...rewrites.beforeFiles ?? [], ...rewrites.afterFiles ?? [], ...rewrites.fallback ?? []]
+
+    expect(rules.filter(({ source }) => source.startsWith(SENTRY_TUNNEL_ROUTE))).toEqual([])
   })
 
   it('keeps trailing slashes on PostHog requests', () => {
