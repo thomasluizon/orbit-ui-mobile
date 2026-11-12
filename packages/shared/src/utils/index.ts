@@ -130,10 +130,14 @@ export {
   resolveShellDestination,
   resolveShellChrome,
   resolveShellComposerScope,
+  resolveTabSwitchDirection,
+  SHELL_DESTINATION_PATHS,
   SHELL_DESTINATION_ROUTES,
+  SHELL_ROOT_PATHS,
 } from './shell-destinations'
 export type {
   ShellDestinationId,
+  ShellDestinationPath,
   ShellDestinationRoute,
 } from './shell-destinations'
 export { plural } from './plural'
@@ -347,6 +351,8 @@ export {
   splitCalendarMonthRange,
 } from './calendar-range'
 export type { CalendarRangeChunk, CalendarRangeModel } from './calendar-range'
+export { calendarSlideMotion, resolveCalendarSlide } from './calendar-slide-motion'
+export type { CalendarSlideDirection } from './calendar-slide-motion'
 export { fetchAllPaginatedItems } from './pagination'
 export { habitListQueryFilters, shouldFetchAllHabitPages, habitViewQueryOptions } from './habit-list-pagination-core'
 export {

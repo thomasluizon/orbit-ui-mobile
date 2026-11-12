@@ -4,7 +4,6 @@ import { render } from '@testing-library/react'
 
 interface TransitionMotion {
   direction: -1 | 0 | 1
-  isPrimaryTabSwitch: boolean
   motionPreset: {
     enterDuration: number
     exitDuration: number
@@ -22,7 +21,7 @@ const mocks = vi.hoisted(() => ({
   childTransitions: [] as TransitionMotion[],
   initials: [] as (false | string)[],
   reducedMotion: false,
-  intent: 'neutral' as 'back' | 'forward' | 'neutral' | 'instant',
+  intent: 'neutral' as 'back' | 'forward' | 'neutral' | 'instant' | 'tab',
   pathname: '/',
   transitions: [] as TransitionMotion[],
   variants: null as null | {
@@ -136,16 +135,58 @@ describe('RouteTransitionShell', () => {
     })
   })
 
-  it('moves toward the selected primary tab without waiting for an exit', () => {
+  it('leaves a tab bar switch to the tab view transition so nothing animates twice', () => {
     const shell = render(<RouteTransitionShell><p>Hoje</p></RouteTransitionShell>)
+    mocks.intent = 'tab'
     mocks.pathname = '/calendar'
 
     shell.rerender(<RouteTransitionShell><p>Calendar</p></RouteTransitionShell>)
 
+    expect(mocks.initials.at(-1)).toBe(false)
+  })
+
+  it.each([
+    ['/', '/progress', 'neutral', 10],
+    ['/', '/calendar', 'forward', 10],
+    ['/calendar', '/', 'neutral', -10],
+    ['/profile', '/', 'neutral', -10],
+    ['/progress', '/calendar', 'back', -10],
+  ] as const)('moves toward the tab on a switch from %s to %s that the tab bar did not start (%s)', (from, to, intent, shift) => {
+    mocks.pathname = from
+    const shell = render(<RouteTransitionShell><p>From</p></RouteTransitionShell>)
+    mocks.intent = intent
+    mocks.pathname = to
+
+    shell.rerender(<RouteTransitionShell><p>To</p></RouteTransitionShell>)
+
+    expect(mocks.initials.at(-1)).toBe('initial')
     expect(resolvedVariants()).toMatchObject({
-      enter: { opacity: 0, x: 10 },
+      enter: { opacity: 0, x: shift },
       entering: { transition: { duration: 0.16 } },
     })
+  })
+
+  it('switches a tab that the tab bar did not start at once under reduced motion', () => {
+    mocks.reducedMotion = true
+    const shell = render(<RouteTransitionShell><p>Hoje</p></RouteTransitionShell>)
+    mocks.pathname = '/progress'
+
+    shell.rerender(<RouteTransitionShell><p>Progress</p></RouteTransitionShell>)
+
+    expect(resolvedVariants()).toMatchObject({ enter: { opacity: 1, x: 0 }, entering: { transition: { duration: 0 } } })
+  })
+
+  it('keeps the route entrance for a push that follows a tab switch', () => {
+    const shell = render(<RouteTransitionShell><p>Hoje</p></RouteTransitionShell>)
+    mocks.pathname = '/calendar'
+    shell.rerender(<RouteTransitionShell><p>Calendar</p></RouteTransitionShell>)
+    mocks.intent = 'forward'
+    mocks.pathname = '/habits/habit-1'
+
+    shell.rerender(<RouteTransitionShell><p>Habit</p></RouteTransitionShell>)
+
+    expect(mocks.initials.at(-1)).toBe('initial')
+    expect(resolvedVariants()).toMatchObject({ enter: { opacity: 0, x: 12 } })
   })
 })
 

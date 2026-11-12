@@ -1,7 +1,7 @@
-import { DayColumnPosition, MovingDaySelection, useMonthSelection } from './month-selection'
+import { DayColumnPosition, DayFocusReport, MovingDaySelection, useMonthSelection } from './month-selection'
 import { SelectionIndicator } from '@/components/ui/selection-indicator'
 import { usePrefersReducedMotion } from '@/lib/motion'
-import { Children } from 'react'
+import { Children, useState } from 'react'
 import type { MonthGridProps } from '@orbit/shared/contracts/dates'
 import { StyleSheet, Text, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
@@ -20,6 +20,7 @@ export function MonthGrid({
   const tokens = createTokensV2(currentScheme, currentTheme)
   const selection = useMonthSelection(selectionIndex)
   const reduced = usePrefersReducedMotion()
+  const [selectionFocused, setSelectionFocused] = useState(false)
   const columns = weekdayLabels.length
   const numericGap = typeof gap === 'number' ? gap : Number.parseFloat(gap)
   const dayChildren = Children.toArray(children)
@@ -30,7 +31,7 @@ export function MonthGrid({
     : []
 
   return (
-    <MovingDaySelection.Provider value={Boolean(selection.bounds) && !reduced}><View accessibilityRole="summary" accessibilityLabel={label} testID={`month-grid-${columns}-columns`} style={{ rowGap: 8 }}>
+    <MovingDaySelection.Provider value={Boolean(selection.bounds) && !reduced}><DayFocusReport.Provider value={setSelectionFocused}><View accessibilityRole="summary" accessibilityLabel={label} testID={`month-grid-${columns}-columns`} style={{ rowGap: 8 }}>
       {columns > 0 ? (
         <View testID="month-grid-header" accessibilityElementsHidden={Boolean(loadingLabel)} importantForAccessibility={loadingLabel ? "no-hide-descendants" : "auto"} style={[styles.row, { columnGap: numericGap, opacity: loadingLabel ? 0 : undefined }]}>
           {weekdayLabels.map((weekday, index) => (
@@ -57,9 +58,9 @@ export function MonthGrid({
               ))
             : dayChildren}
         </View>
-        <SelectionIndicator bounds={reduced ? undefined : selection.bounds} color="transparent" borderColor={tokens.primary} radius={999} />
+        <SelectionIndicator bounds={reduced ? undefined : selection.bounds} color="transparent" borderColor={selectionFocused ? undefined : tokens.primary} radius={999} />
       </View>
-    </View></MovingDaySelection.Provider>
+    </View></DayFocusReport.Provider></MovingDaySelection.Provider>
   )
 }
 
