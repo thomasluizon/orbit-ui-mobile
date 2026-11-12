@@ -20,7 +20,6 @@ describe('motion pressable press timing', () => {
     await act(() => { tree = create(<MotionPressable onPress={vi.fn()} />) })
     const host = tree.root.findAll((node) => typeof node.type === 'string')[0]!
     expect(StyleSheet.flatten(host.props.style)).toMatchObject({
-      transitionDuration: 151,
       transition: 'transform 151ms cubic-bezier(0.11,0.22,0.33,0.44)',
     })
     await act(() => tree.update(<></>))

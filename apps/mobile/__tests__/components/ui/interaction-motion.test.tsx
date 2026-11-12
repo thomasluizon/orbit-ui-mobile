@@ -4,7 +4,8 @@ import { MotionPressable } from '@/components/ui/motion-pressable'
 import { CheckCircle } from '@/components/habits/habit-row-check-circle'
 import { triggerHaptic } from '@/lib/haptics'
 import { withTimingCalls } from '../../../test-mocks/react-native-reanimated'
-import { motionDurations, orbitalMotion } from '@orbit/shared/theme'
+import { orbitalMotion } from '@orbit/shared/theme'
+import { PRESS_SCALE_TRANSITION } from '@/components/motion/press-scale'
 
 const preference = vi.hoisted(() => ({ reduced: false }))
 vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => preference.reduced }))
@@ -20,12 +21,12 @@ describe('interaction motion', () => {
     TestRenderer.act(() => { tree = TestRenderer.create(<MotionPressable onPress={onPress} />) })
     const host = () => tree!.root.findByType('Pressable')
     TestRenderer.act(() => host().props.onPressIn())
-    expect(StyleSheet.flatten(host().props.style)).toMatchObject({ transform: [{ scale: orbitalMotion.press.scale }], transitionDuration: motionDurations.press })
+    expect(StyleSheet.flatten(host().props.style)).toMatchObject({ transform: [{ scale: orbitalMotion.press.scale }], transition: PRESS_SCALE_TRANSITION })
     TestRenderer.act(() => host().props.onPress())
     expect(onPress).toHaveBeenCalledOnce()
     preference.reduced = true
     TestRenderer.act(() => tree!.update(<MotionPressable onPress={onPress} />))
-    expect(StyleSheet.flatten(host().props.style)).toMatchObject({ transform: [{ scale: 1 }], transitionDuration: 0 })
+    expect(StyleSheet.flatten(host().props.style)).toMatchObject({ transform: [{ scale: 1 }], transition: 'none' })
     TestRenderer.act(() => tree!.unmount())
   })
 

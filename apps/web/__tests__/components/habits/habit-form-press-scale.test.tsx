@@ -1,5 +1,7 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { join, relative } from 'node:path'
 import postcss, { type Rule } from 'postcss'
+import ts from 'typescript'
 import type { ReactNode } from 'react'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
@@ -25,11 +27,17 @@ import { ChecklistTemplates } from '@/components/habits/checklist-templates'
 import { HabitChecklist } from '@/components/habits/habit-checklist'
 import { HabitEmojiSelector } from '@/components/habits/habit-form-fields/habit-emoji-selector'
 import { ReminderSection } from '@/components/habits/habit-form-fields/reminder-section'
+import { ScheduledReminderSection } from '@/components/habits/habit-form-fields/scheduled-reminder-section'
 import { TagEditorRow } from '@/components/habits/habit-form-fields/tag-editor-row'
 import { TagPickerField } from '@/components/habits/habit-form-fields/tag-picker-field'
 
 const translate = ((key: string) => key) as unknown as Parameters<typeof ReminderSection>[0]['t']
 const tag = { id: 'tag-0', name: 'Health', color: '#6d5bd0' }
+
+/** The edit modal disables its habit form fields through `<fieldset disabled>` while it saves (`edit-habit-modal.tsx`). */
+function InFieldset({ disabled, children }: Readonly<{ disabled: boolean; children: ReactNode }>) {
+  return <fieldset disabled={disabled}>{children}</fieldset>
+}
 
 /** Each scenario renders habit form press controls in their disabled state and returns them. */
 const DISABLED_PRESS_CONTROLS: ReadonlyArray<readonly [string, () => HTMLElement[]]> = [
@@ -72,7 +80,102 @@ const DISABLED_PRESS_CONTROLS: ReadonlyArray<readonly [string, () => HTMLElement
     render(<TimeField label="Start" value="" onChange={vi.fn()} disabled />)
     return [screen.getByRole('button', { name: /^Start: / })]
   }],
+  ['the scheduled reminder remove inside a disabled fieldset', () => {
+    render(<InFieldset disabled><ScheduledReminderSection reminderEnabled scheduledReminders={[{ when: 'same_day', time: '09:00' }]} onSetScheduledReminders={vi.fn()} onValidationError={vi.fn()} t={translate} /></InFieldset>)
+    return [screen.getByRole('button', { name: 'habits.form.removeScheduledReminder' })]
+  }],
+  ['the reminder remove, preset and custom rows inside a disabled fieldset', () => {
+    const section = <ReminderSection reminderEnabled reminderTimes={[15, 30]} onReminderTimesChange={vi.fn()} reminderLabel={(minutes) => `${minutes} min`} t={translate} />
+    const view = render(<InFieldset disabled={false}>{section}</InFieldset>)
+    fireEvent.click(screen.getByRole('button', { name: /habits\.form\.reminderAdd/ }))
+    view.rerender(<InFieldset disabled>{section}</InFieldset>)
+    return [screen.getAllByRole('button', { name: 'habits.form.removeReminder' })[0]!, screen.getByRole('button', { name: 'habits.form.reminderAtTime' }), screen.getByRole('button', { name: 'habits.form.reminderCustom' })]
+  }],
+  ['the checklist item remove inside a disabled fieldset', () => {
+    render(<InFieldset disabled><HabitChecklist editable items={[{ text: 'Run', isChecked: false }]} onItemsChange={vi.fn()} /></InFieldset>)
+    return [screen.getByRole('button', { name: 'habits.form.removeChecklistItem' })]
+  }],
 ]
+
+const HABITS = 'components/habits'
+/** Files `HabitFormFields` renders inside the edit modal's `<fieldset disabled>`, so a fieldset can disable any of their controls. */
+const FIELDSET_FILES = ['habit-form-fields/', 'checklist-templates.tsx', 'habit-checklist.tsx', 'goal-linking-field.tsx']
+const FORM_CONTROLS = new Set(['button', 'input', 'select', 'textarea'])
+/** A hover or press variant that paints a fill or a text colour, or scales. */
+const INTERACTION_TOKEN = /^(?<chain>(?:[\w-]+(?:\/[\w-]+)?:)*?)(?<group>group-)?(?<state>hover|active)(?:\/(?<name>[\w-]+))?:(?:[\w-]+:)*(?:bg|text|scale)-/
+
+function habitSourceFiles(directory: string): string[] {
+  return readdirSync(directory).flatMap((name) => {
+    const file = join(directory, name)
+    if (statSync(file).isDirectory()) return habitSourceFiles(file)
+    return file.endsWith('.tsx') ? [file] : []
+  })
+}
+
+/** Class tokens of a `className` value. A token in the false branch of a `disabled ? … : …` condition is gated by that condition. */
+function classTokens(node: ts.Node, source: ts.SourceFile, gated = false): Array<{ token: string; gated: boolean }> {
+  if (ts.isConditionalExpression(node) && /\b(?:is)?[dD]isabled\b/.test(node.condition.getText(source))) {
+    return [...classTokens(node.whenTrue, source, gated), ...classTokens(node.whenFalse, source, true)]
+  }
+  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) || ts.isTemplateHead(node) || ts.isTemplateMiddle(node) || ts.isTemplateTail(node)) {
+    return node.text.split(/\s+/).filter(Boolean).map((token) => ({ token, gated }))
+  }
+  return node.getChildren(source).flatMap((child) => classTokens(child, source, gated))
+}
+
+interface ClassAttribute { at: string; inFieldset: boolean; disableable: boolean; tokens: Array<{ token: string; gated: boolean }> }
+
+/** Every `className` in a habit file, with whether its element is a form control that can be disabled, directly or by the form fieldset. */
+function classAttributes(file: string): ClassAttribute[] {
+  const path = relative(HABITS, file)
+  const inFieldset = FIELDSET_FILES.some((prefix) => path.startsWith(prefix))
+  const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+  const attributes: ClassAttribute[] = []
+  const visit = (node: ts.Node) => {
+    if (ts.isJsxAttribute(node) && node.name.getText(source) === 'className' && node.initializer && ts.isJsxOpeningLikeElement(node.parent.parent)) {
+      const element = node.parent.parent
+      const ownDisabled = element.attributes.properties.some((attribute) => ts.isJsxAttribute(attribute) && attribute.name.getText(source) === 'disabled')
+      attributes.push({
+        at: `${path}:${source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1}`,
+        inFieldset,
+        disableable: FORM_CONTROLS.has(element.tagName.getText(source)) && (inFieldset || ownDisabled),
+        tokens: classTokens(node.initializer, source),
+      })
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(source)
+  return attributes
+}
+
+/** An own hover or press paint or scale with no `enabled:` guard on a control that can be disabled. */
+function ungatedOwnTokens({ at, inFieldset, disableable, tokens }: ClassAttribute) {
+  if (!disableable) return []
+  return tokens.filter(({ token, gated }) => {
+    const match = INTERACTION_TOKEN.exec(token)
+    return match !== null && !match.groups!.group && !match.groups!.chain!.split(':').includes('enabled') && !(gated && !inFieldset)
+  }).map(({ token }) => `${at} ${token}`)
+}
+
+/** A group hover or press paint keyed to a control that can be disabled, with neither a `group-enabled/` guard nor a `group-disabled/` reset. */
+function ungatedGroupTokens(attributes: ClassAttribute[]) {
+  const groups = new Set(attributes.filter(({ disableable }) => disableable).flatMap(({ tokens }) => tokens.flatMap(({ token }) => /^group\/([\w-]+)$/.exec(token)?.[1] ?? [])))
+  return attributes.flatMap(({ at, tokens }) => tokens.flatMap(({ token }) => {
+    const match = INTERACTION_TOKEN.exec(token)
+    const name = match?.groups?.group ? match.groups.name : undefined
+    if (!name || !groups.has(name) || token.includes(`group-enabled/${name}:`)) return []
+    const utility = /:((?:bg|text)-)/.exec(token)?.[1]
+    return tokens.some(({ token: reset }) => reset.startsWith(`group-disabled/${name}:${utility}`)) ? [] : [`${at} ${token}`]
+  }))
+}
+
+/** Every hover or press paint or scale on a habit control that can be disabled, directly or by the form's fieldset, that still applies while it is disabled. */
+function ungatedInteractionPaint() {
+  return habitSourceFiles(HABITS).flatMap((file) => {
+    const attributes = classAttributes(file)
+    return [...attributes.flatMap(ungatedOwnTokens), ...ungatedGroupTokens(attributes)]
+  })
+}
 
 /** Properties a hover or a press paints: the fill and the content colour. */
 const INTERACTION_PAINT = ['background-color', 'background', 'color']
@@ -132,5 +235,17 @@ describe('habit form press scale', () => {
       expect(control.matches(press!.selector.replace(/:active$/, ''))).toBe(true)
       expect([...control.classList].filter((name) => name.includes('scale-') && name.includes('!'))).toEqual([])
     }
+  })
+})
+
+describe('habit form controls in source', () => {
+  it('lists the fieldset files HabitFormFields renders', () => {
+    const fields = readFileSync('components/habits/habit-form-fields.tsx', 'utf8')
+    for (const file of FIELDSET_FILES.filter((prefix) => prefix.endsWith('.tsx'))) expect(fields).toContain(`from './${file.replace(/\.tsx$/, '')}'`)
+    expect(fields).toContain("from './habit-form-fields/")
+  })
+
+  it('gates every hover and press paint or scale of a control that can be disabled, directly or by the form fieldset, on :enabled', () => {
+    expect(ungatedInteractionPaint()).toEqual([])
   })
 })

@@ -110,14 +110,14 @@ describe('habit form and frequency picker motion tokens', () => {
   })
 
   it('times the emoji remove glyph hover as a control hover', () => {
-    expect(source(HABIT_FILES[0])).toContain('duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover/remove')
+    expect(source(HABIT_FILES[0])).toContain('duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-enabled/remove:group-hover/remove')
   })
 
   it('times checklist presses with the press token and hovers with the control token', () => {
     const text = source('components/habits/habit-checklist.tsx')
     expect(occurrences(text, '[transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-out)]')).toBe(1)
     expect(occurrences(text, '[transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-hover-control),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-standard),var(--ease-out)]')).toBe(2)
-    expect(text).toContain('transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover/remove:text-[var(--status-bad)]')
+    expect(text).toContain('transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-enabled/remove:group-hover/remove:text-[var(--status-bad)]')
   })
 
   it('shows the checklist row actions at once on keyboard focus', () => {
@@ -209,7 +209,7 @@ describe('habit form and frequency picker motion tokens', () => {
     expect(text).toMatch(/orbit-list-row-body [^"]*active:scale-\[0\.96\]/)
     expect(text).toMatch(/orbit-list-row-action [^"]*active:scale-\[0\.96\]/)
     expect(text).toContain('enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)] enabled:active:scale-[0.96]')
-    expect(text).toContain('hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96]')
+    expect(text).toContain('enabled:hover:bg-[var(--bg-hover)] enabled:hover:text-[var(--fg-1)] enabled:active:bg-[var(--bg-hover)] enabled:active:scale-[0.96]')
   })
 
   it('fills the time field picker and clear buttons on hover and press with the neutral hover role and eases their scale', () => {

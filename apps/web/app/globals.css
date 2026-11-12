@@ -488,7 +488,7 @@ select[aria-hidden="true"] {
     background: var(--bg-hover);
   }
 
-  .orbit-list-row-action:hover {
+  .orbit-list-row-action:hover:not(:disabled) {
     background: var(--bg-hover);
   }
 

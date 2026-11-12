@@ -138,7 +138,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
           </button>
           <button
             type="button"
-            className="habit-control-motion shrink-0 grid size-[var(--touch-min)] place-items-center rounded-full text-[var(--fg-3)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96]"
+            className="habit-control-motion shrink-0 grid size-[var(--touch-min)] place-items-center rounded-full text-[var(--fg-3)] enabled:hover:bg-[var(--bg-hover)] enabled:hover:text-[var(--fg-1)] enabled:active:bg-[var(--bg-hover)] enabled:active:scale-[0.96]"
             onClick={cancelEditor}
             aria-label={t('common.close')}
           >
@@ -148,14 +148,14 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
             ) : null}
             {templates.map((template) => (
               <div key={template.id} className="orbit-list-action-surface flex min-w-0 flex-col gap-1 px-4 py-2">
-                <button type="button" aria-label={template.name} className="orbit-list-row-body min-h-[var(--touch-min)] w-full min-w-0 rounded-[12px] px-2 py-1 text-left text-[17px] font-normal leading-[1.4] text-[var(--fg-1)] active:scale-[0.96]" onClick={() => handleLoad(template.id)}>
+                <button type="button" aria-label={template.name} className="orbit-list-row-body min-h-[var(--touch-min)] w-full min-w-0 rounded-[12px] px-2 py-1 text-left text-[17px] font-normal leading-[1.4] text-[var(--fg-1)] enabled:active:scale-[0.96]" onClick={() => handleLoad(template.id)}>
                   <PersonalText onClampedChange={(clamped) => setClampedTemplates((current) => current[template.id] === clamped ? current : { ...current, [template.id]: clamped })}>{template.name}</PersonalText>
                 </button>
                 <div className="flex min-w-0 items-center gap-2 px-2 text-sm text-[var(--orbit-list-row-secondary,var(--fg-3))]">
                   <Icon name="template" size={20} />
                   <span className="min-w-0 flex-1">{t('habits.form.templateItemCount', { count: template.items.length })}</span>
                   <PersonalTextDetails iconOnly clamped={clampedTemplates[template.id]}>{template.name}</PersonalTextDetails>
-                  <button type="button" aria-label={`${t('common.delete')}: ${template.name}`} className="orbit-list-row-action grid size-[var(--touch-min)] shrink-0 place-items-center rounded-full active:scale-[0.96]" onClick={() => handleDelete(template.id)}>
+                  <button type="button" aria-label={`${t('common.delete')}: ${template.name}`} className="orbit-list-row-action grid size-[var(--touch-min)] shrink-0 place-items-center rounded-full enabled:active:scale-[0.96]" onClick={() => handleDelete(template.id)}>
                     <Icon name="trash" size={20} color="var(--status-bad)" />
                   </button>
                 </div>
