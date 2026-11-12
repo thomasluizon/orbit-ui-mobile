@@ -83,7 +83,7 @@ tester.run('hover-transition', require('../hover-transition.cjs'), {
     '<button className={ready ? "hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" : "bg-transparent"} />',
     '<button className={[ready ? "hover:bg-[var(--bg-hover)]" : "", "transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"].join(" ")} />',
     '<button className="enabled:hover:bg-[var(--bg-hover)] !transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" />',
-    ...['habit-control-motion', 'orbit-pill-action', 'orbit-list-row', 'orbit-list-row-body', 'orbit-list-row-action', 'orbit-menu-item', 'chip'].map((motion) => `<button className="hover:bg-[var(--bg-hover)] ${motion}" />`),
+    ...['habit-control-motion', 'orbit-pill-action', 'orbit-list-row', 'orbit-list-row-body', 'orbit-list-row-action', 'orbit-menu-item', 'chip', 'icon-btn'].map((motion) => `<button className="hover:bg-[var(--bg-hover)] ${motion}" />`),
     '<span className="group-hover:bg-[var(--bg-hover)] transition-none" />',
     '<button className="hover:bg-[var(--bg-hover)] motion-safe:transition-colors motion-safe:duration-[var(--dur-hover-control)] motion-safe:ease-[var(--ease-standard)]" />',
   ],

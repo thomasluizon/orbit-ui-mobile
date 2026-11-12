@@ -9,10 +9,11 @@ import { AstraAllowancePanel } from '@/components/profile/astra-allowance-panel'
 import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2 } from '@/lib/theme'
+import { pressableStyle } from '@/__tests__/support/press-feedback'
 
 const state = vi.hoisted((): { mode: 'dark' | 'light'; reducedMotion: boolean } => ({ mode: 'dark', reducedMotion: false }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: state.mode }) }))
-vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => state.reducedMotion }))
+vi.mock('@/lib/motion', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/motion')>()), usePrefersReducedMotion: () => state.reducedMotion }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }) }))
 
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
@@ -36,8 +37,7 @@ function renderedButtons(element: React.ReactElement) {
 }
 
 function resolvedStyle(button: import('react-test-renderer').ReactTestInstance, pressed: boolean) {
-  const style = button.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
-  const resolved = StyleSheet.flatten(style({ pressed }))
+  const resolved = pressableStyle(button, pressed)
   if (typeof button.props.children !== 'function') return resolved
   const content = button.props.children({ pressed }) as ReactElement<{ children: [ReactElement<{ style: StyleProp<ViewStyle> }>, ReactElement] }>
   const fill = StyleSheet.flatten(content.props.children[0].props.style)
@@ -63,7 +63,7 @@ describe('neutral press feedback on Android', () => {
       expect(Number(rest.minWidth ?? rest.width) + 2 * Number(button.props.hitSlop ?? 0)).toBeGreaterThanOrEqual(48)
       const pressed = resolvedStyle(button, true)
       expect(pressed.backgroundColor).toBe(button.props.accessibilityLabel !== 'Ghost' && button.props.accessibilityLabel !== 'profile.allowance.seePro' ? createTokensV2('orange', mode).bgHoverOpaque : createTokensV2('orange', mode).bgHover)
-      expect(pressed.transform).toBeUndefined()
+      expect(pressed.transform ?? [{ scale: 1 }]).toEqual([{ scale: 1 }])
       expect(pressed.overflow).toBe('hidden')
       expect(pressed.borderRadius).toBeGreaterThan(0)
       expect(resolvedStyle(button, false)).toEqual(rest)
@@ -91,7 +91,7 @@ describe('neutral press feedback on Android', () => {
     state.reducedMotion = false
     for (const button of renderedButtons(<>{selectionTray(allSelected, false)}<PillButton variant="ghost" accessibleName="Ghost">Ghost</PillButton></>)) {
       expect(resolvedStyle(button, true)).toMatchObject({ backgroundColor: button.props.accessibilityLabel === 'Ghost' ? createTokensV2('orange', state.mode).bgHover : createTokensV2('orange', state.mode).bgHoverOpaque, transform: [{ scale: 0.96 }] })
-      expect(resolvedStyle(button, false).transform).toBeUndefined()
+      expect(resolvedStyle(button, false).transform ?? [{ scale: 1 }]).toEqual([{ scale: 1 }])
     }
   })
 

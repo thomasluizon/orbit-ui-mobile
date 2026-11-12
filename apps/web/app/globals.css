@@ -250,7 +250,7 @@ select[aria-hidden="true"] {
 }
 
 .orbit-list-row-action {
-  transition: background-color var(--dur-hover-control) var(--ease-standard), transform 150ms var(--ease-out);
+  transition: background-color var(--dur-hover-control) var(--ease-standard), scale var(--dur-press) var(--ease-out);
 }
 
 .orbit-list-row-body:not(:where(.orbit-list-action-surface *)):active:not(:disabled):not(:has(:is(button, a, [role="button"]):active)) {
@@ -263,7 +263,7 @@ select[aria-hidden="true"] {
 
 @layer components {
 .habit-control-motion {
-  transition: background-color 240ms var(--ease-standard), color 240ms var(--ease-standard), transform 150ms var(--ease-out);
+  transition: background-color 240ms var(--ease-standard), color 240ms var(--ease-standard), scale var(--dur-press) var(--ease-out);
 }
 }
 
@@ -1506,9 +1506,12 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   transition:
     background-color var(--dur-hover-control) var(--ease-standard),
     color var(--dur-hover-control) var(--ease-standard),
-    transform var(--dur-fast) var(--ease-standard);
+    transform var(--dur-press) var(--ease-out);
 }
-.icon-btn:active { background: var(--bg-hover); transform: scale(0.96); }
+.icon-btn:active { background: var(--bg-hover); }
+@media (prefers-reduced-motion: no-preference) {
+  .icon-btn:active { transform: scale(0.96); }
+}
 .icon-btn-ring { box-shadow: inset 0 0 0 1.5px var(--hairline-strong); }
 .icon-btn-well { background: var(--bg-elev); }
 }
@@ -1782,6 +1785,12 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
 }
 
+/* Press fill: after the primary hover rule above, with at least its specificity, so it wins under a mouse. It is outside the hover query, so it also shows on touch. */
+button[data-variant="primary"]:enabled:not([data-loading]):active,
+[data-fab]:not([data-fab="neutral"]):active {
+  background: var(--primary-pressed);
+}
+
 /* Kit chip: pill control (Astra action chips, filters, view switcher) */
 @layer components {
 .chip {
@@ -1862,7 +1871,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   transition: background-color var(--dur-hover-control) var(--ease-standard),
     color var(--dur-hover-control) var(--ease-standard),
     opacity var(--dur-1) var(--ease-out),
-    scale var(--dur-1) var(--ease-out);
+    scale var(--dur-press) var(--ease-out);
 }
 }
 

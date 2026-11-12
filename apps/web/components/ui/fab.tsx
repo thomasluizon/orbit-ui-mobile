@@ -12,7 +12,7 @@ export function Fab({ label, children, onClick, neutral = false, style, ...butto
       aria-label={label}
       onClick={onClick}
       data-fab={neutral ? 'neutral' : ''}
-      className={`group relative appearance-none border-0 flex items-center justify-center ${neutral ? 'bg-[var(--bg-elev)] text-[var(--fg-1)]' : 'bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-hover)] active:bg-[var(--primary-pressed)]'} cursor-pointer transition-[background-color,scale,box-shadow] [transition-duration:var(--dur-hover-control),var(--dur-press),var(--dur-fast)] [transition-timing-function:var(--ease-standard),var(--ease-out),var(--ease-out)] motion-safe:active:scale-[0.96]`}
+      className={`group relative appearance-none border-0 flex items-center justify-center ${neutral ? 'bg-[var(--bg-elev)] text-[var(--fg-1)]' : 'bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-hover)]'} cursor-pointer transition-[background-color,scale,box-shadow] [transition-duration:var(--dur-hover-control),var(--dur-press),var(--dur-fast)] [transition-timing-function:var(--ease-standard),var(--ease-out),var(--ease-out)] motion-safe:active:scale-[0.96]`}
       style={{
         borderRadius: 999,
         boxShadow: neutral ? 'var(--sh-2)' : CANVAS_RING,

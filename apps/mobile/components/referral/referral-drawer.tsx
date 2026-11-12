@@ -5,14 +5,14 @@ import {
   AccessibilityInfo,
   ActivityIndicator,
   Platform,
-  Pressable,
   Share,
   StyleSheet,
   Text,
   View,
 } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
-import { Check, Copy } from '@/components/ui/icons'
+import { CopyStateIcon } from '@/components/ui/copy-state-icon'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 import { useTranslation } from 'react-i18next'
 import type { ReferralPresentationStats } from '@orbit/shared/types/referral'
 import { REFERRAL_REWARD_COPY_KEYS, selectReferralReward } from '@orbit/shared/utils'
@@ -70,7 +70,7 @@ function LoadedContent({
           <Text style={styles.linkText} numberOfLines={1}>
             {referralUrl}
           </Text>
-          <Pressable
+          <MotionPressable
             style={({ pressed }) => [
               styles.copyButton,
               pressed ? styles.copyButtonPressed : null,
@@ -79,12 +79,8 @@ function LoadedContent({
             accessibilityRole="button"
             accessibilityLabel={t('referral.drawer.copyLink')}
           >
-            {copied ? (
-              <Check size={20} color={tokens.fg2} strokeWidth={1.8} />
-            ) : (
-              <Copy size={20} color={tokens.fg2} strokeWidth={1.8} />
-            )}
-          </Pressable>
+            <CopyStateIcon copied={copied} color={tokens.fg2} strokeWidth={1.8} />
+          </MotionPressable>
         </View>
       </View>
 
@@ -272,7 +268,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     copyButtonPressed: {
       backgroundColor: tokens.bgHover,
-      transform: [{ scale: 0.96 }],
     },
     actionError: {
       fontFamily: 'Geist_400Regular',

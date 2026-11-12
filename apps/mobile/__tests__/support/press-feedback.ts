@@ -1,5 +1,6 @@
 import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { expect } from 'vitest'
+import { motionDurations, motionEasings } from '@orbit/shared/theme'
 
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
 
@@ -9,6 +10,31 @@ type PressTree = { root: { findAll(predicate: (node: PressHost) => boolean): Pre
 type PressControl = {
   props: Record<string, unknown>
   findAll(predicate: (node: PressHost) => boolean): PressHost[]
+}
+
+/**
+ * Flattens a pressable host's style at rest or pressed. A function style resolves directly. A resolved style,
+ * as a `MotionPressable` host renders, presses in, reads and presses out.
+ */
+export function pressableStyle(host: { props: Record<string, unknown> }, pressed: boolean): Record<string, any> {
+  const style = host.props.style as StyleProp<ViewStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle>)
+  if (typeof style === 'function') return StyleSheet.flatten(style({ pressed }))
+  if (!pressed) return StyleSheet.flatten(style)
+  void renderer.act(() => { (host.props.onPressIn as (() => void) | undefined)?.() })
+  const pressedStyle = StyleSheet.flatten(host.props.style as StyleProp<ViewStyle>)
+  void renderer.act(() => { (host.props.onPressOut as (() => void) | undefined)?.() })
+  return pressedStyle
+}
+
+/**
+ * Asserts the `MotionPressable` press of `DESIGN.md` Press feedback: unit scale at rest, 0.96 while pressed,
+ * eased over the shared press duration on the enter curve, and unit scale with no transition under reduced motion.
+ */
+export function expectMotionPress(host: { props: Record<string, unknown> }, reducedMotion: boolean) {
+  const transition = reducedMotion ? 'none' : `transform ${motionDurations.press}ms cubic-bezier(${motionEasings.enter.join(',')})`
+  expect(pressableStyle(host, false)).toMatchObject({ transform: [{ scale: 1 }], transition })
+  expect(pressableStyle(host, true)).toMatchObject({ transform: [{ scale: reducedMotion ? 1 : 0.96 }], transition })
+  expect(pressableStyle(host, false)).toMatchObject({ transform: [{ scale: 1 }], transition })
 }
 
 export function expectPressPaint(control: PressControl, expected: {
@@ -32,14 +58,14 @@ export function expectPressPaint(control: PressControl, expected: {
   }
   const resting = resolved(false)
   expect(resting.backgroundColor ?? 'transparent').toBe(expected.restFill ?? 'transparent')
-  expect(resting.transform).toBeUndefined()
+  expect(resting.transform ?? [{ scale: 1 }]).toEqual([{ scale: 1 }])
   expect(resting.opacity ?? 1).toBe(1)
   if (expected.overlay) expect(overlayStyle()).toMatchObject({ backgroundColor: expected.fill, opacity: 0 })
   void renderer.act(() => { (host.props.onPressIn as (() => void) | undefined)?.() })
   const pressed = resolved(true)
   expect(pressed.opacity ?? 1).toBe(1)
   expect(pressed).toMatchObject({ borderRadius: expected.borderRadius, overflow: 'hidden' })
-  expect(pressed.transform).toEqual(expected.scale === null ? undefined : [{ scale: expected.scale ?? 0.96 }])
+  expect(pressed.transform ?? [{ scale: 1 }]).toEqual([{ scale: expected.scale === null ? 1 : expected.scale ?? 0.96 }])
   if (expected.overlay) {
     expect(pressed.backgroundColor ?? 'transparent').toBe(expected.restFill ?? 'transparent')
     expect(overlayStyle()).toMatchObject({ ...StyleSheet.absoluteFill, backgroundColor: expected.fill, opacity: 1 })

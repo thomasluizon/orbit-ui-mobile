@@ -100,7 +100,7 @@ vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({ children, onClick }: { children?: React.ReactNode; onClick?: () => void }) =>
     React.createElement('PillButton', { onClick }, children),
 }))
-vi.mock('@/lib/motion', () => ({ toAnimatedEasing: (value: unknown) => value, usePrefersReducedMotion: () => true }))
+vi.mock('@/lib/motion', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/motion')>(), toAnimatedEasing: (value: unknown) => value, usePrefersReducedMotion: () => true }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAccess: true }, isLoading: false }) }))
 vi.mock('@/hooks/use-habits', () => ({ useBulkCreateHabits: () => ({ mutateAsync: vi.fn() }) }))
 
