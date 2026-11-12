@@ -381,6 +381,9 @@ describe('OnboardingFlow state model', () => {
   })
 
   it('enters the next step body with the shared base duration', async () => {
+    const durations = motionDurations as unknown as Record<string, number>
+    const originalBase = durations.base
+    durations.base = 333
     const timing = vi.spyOn(Animated, 'timing')
     try {
       const tree = await mount(false)
@@ -389,8 +392,9 @@ describe('OnboardingFlow state model', () => {
       await click(tree, 'onboarding.flow.continue')
       const stepCalls = timing.mock.calls.slice(callsBeforeContinue)
       expect(stepCalls).toHaveLength(1)
-      expect(stepCalls[0]![1]).toMatchObject({ toValue: 1, duration: motionDurations.base, useNativeDriver: true })
+      expect(stepCalls[0]![1]).toMatchObject({ toValue: 1, duration: 333, useNativeDriver: true })
     } finally {
+      durations.base = originalBase!
       timing.mockRestore()
     }
   })

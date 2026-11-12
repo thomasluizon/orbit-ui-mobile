@@ -1,6 +1,6 @@
 import React from 'react'
 import { Animated } from 'react-native'
-import { motionDurations } from '@orbit/shared/theme'
+import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { i18n } from '@/lib/i18n'
 import { OnboardingComplete } from '@/components/onboarding/onboarding-complete'
@@ -54,7 +54,7 @@ vi.mock('@/lib/use-app-theme', () => ({
 }))
 
 vi.mock('@/lib/motion', () => ({
-  toAnimatedEasing: () => undefined,
+  toAnimatedEasing: (controlPoints: unknown) => ({ controlPoints }),
   usePrefersReducedMotion: () => mocks.reducedMotion,
 }))
 
@@ -316,7 +316,7 @@ describe('OnboardingComplete', () => {
     mocks.reducedMotion = true
   })
 
-  it('sweeps the landing ring for the shared slow duration', async () => {
+  it('sweeps the landing ring for the shared slow duration on the shared enter curve', async () => {
     const durations = motionDurations as unknown as Record<string, number>
     const originalSlow = durations.slow
     durations.slow = 333
@@ -336,6 +336,8 @@ describe('OnboardingComplete', () => {
       })
       expect(timing).toHaveBeenCalledOnce()
       expect(timing.mock.calls[0]![1]).toMatchObject({ toValue: 0, duration: 333 })
+      const ringCurve = (timing.mock.calls[0]![1] as unknown as { easing: { controlPoints: unknown } }).easing.controlPoints
+      expect(ringCurve).toBe(motionEasings.enter)
     } finally {
       durations.slow = originalSlow!
       timing.mockRestore()

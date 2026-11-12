@@ -47,21 +47,26 @@ describe('OnboardingStepStage', () => {
     expect(interpolate).toHaveBeenCalledWith({ inputRange: [0, 1], outputRange: [motionLayerTiming.routeShift, 0] })
   })
 
-  it('takes the duration and the curve from the shared tokens', async () => {
+  it('takes the shift, the duration and the curve from the shared tokens', async () => {
     const durations = motionDurations as unknown as Record<string, number>
     const easings = motionEasings as unknown as Record<string, readonly number[]>
+    const layerTiming = motionLayerTiming as unknown as Record<string, number>
     const originalBase = durations.base
     const originalEnter = easings.enter
+    const originalShift = layerTiming.routeShift
     durations.base = 333
     easings.enter = [0.1, 0.2, 0.3, 0.4]
+    layerTiming.routeShift = 37
     try {
       const tree = await renderStage(0)
       await TestRenderer.act(() => { tree.update(<OnboardingStepStage step={1}>body</OnboardingStepStage>) })
       expect(timing.mock.calls[0]![1]).toMatchObject({ duration: 333 })
       expect(bezier.received).toEqual([[0.1, 0.2, 0.3, 0.4]])
+      expect(interpolate).toHaveBeenCalledWith({ inputRange: [0, 1], outputRange: [37, 0] })
     } finally {
       durations.base = originalBase!
       easings.enter = originalEnter!
+      layerTiming.routeShift = originalShift!
     }
   })
 

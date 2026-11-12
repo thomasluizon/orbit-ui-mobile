@@ -93,10 +93,13 @@ describe('OnboardingComplete', () => {
     const originalAnimate = Reflect.get(SVGElement.prototype, 'animate')
     const originalLength = Reflect.get(SVGElement.prototype, 'getTotalLength')
     const durations = motionDurations as unknown as Record<string, number>
+    const easings = motionEasings as unknown as Record<string, readonly number[]>
     const originalSlow = durations.slow
+    const originalEnter = easings.enter
 
     afterEach(() => {
       durations.slow = originalSlow!
+      easings.enter = originalEnter!
       Reflect.set(SVGElement.prototype, 'animate', originalAnimate)
       Reflect.set(SVGElement.prototype, 'getTotalLength', originalLength)
       animate.mockClear()
@@ -109,10 +112,11 @@ describe('OnboardingComplete', () => {
     }
 
     it('sweeps on the shared enter easing', () => {
+      easings.enter = [0.1, 0.2, 0.3, 0.4]
       renderRing()
       expect(animate).toHaveBeenCalledOnce()
       const options = (animate.mock.calls[0] as unknown as [unknown, { easing: string }])[1]
-      expect(options.easing).toBe(`cubic-bezier(${motionEasings.enter.join(', ')})`)
+      expect(options.easing).toBe('cubic-bezier(0.1, 0.2, 0.3, 0.4)')
     })
 
     it('sweeps for the shared slow duration', () => {

@@ -37,22 +37,27 @@ describe('OnboardingStepStage', () => {
     expect(animate.transition.ease).toEqual([...motionEasings.enter])
   })
 
-  it('takes the duration and the curve from the shared tokens', () => {
+  it('takes the shift, the duration and the curve from the shared tokens', () => {
     const durations = motionDurations as unknown as Record<string, number>
     const easings = motionEasings as unknown as Record<string, readonly number[]>
+    const layerTiming = motionLayerTiming as unknown as Record<string, number>
     const originalBase = durations.base
     const originalEnter = easings.enter
+    const originalShift = layerTiming.routeShift
     durations.base = 333
     easings.enter = [0.1, 0.2, 0.3, 0.4]
+    layerTiming.routeShift = 37
     try {
       const { container, rerender } = render(<OnboardingStepStage step={0}>one</OnboardingStepStage>)
       rerender(<OnboardingStepStage step={1}>two</OnboardingStepStage>)
-      const { transition } = readStage(container).animate
-      expect(transition.duration).toBeCloseTo(0.333, 5)
-      expect(transition.ease).toEqual([0.1, 0.2, 0.3, 0.4])
+      const { initial, animate } = readStage(container)
+      expect(initial).toEqual({ opacity: 0, y: 37 })
+      expect(animate.transition.duration).toBeCloseTo(0.333, 5)
+      expect(animate.transition.ease).toEqual([0.1, 0.2, 0.3, 0.4])
     } finally {
       durations.base = originalBase!
       easings.enter = originalEnter!
+      layerTiming.routeShift = originalShift!
     }
   })
 
