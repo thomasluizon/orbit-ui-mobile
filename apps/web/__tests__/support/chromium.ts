@@ -7,6 +7,7 @@ export type HookRegistrar = (hook: () => Promise<void> | void, timeout?: number)
 export const CHROME_LAUNCH_HOOK_TIMEOUT_MS = 45_000
 
 const CHROME_LAUNCH_TIMEOUT_MS = 30_000
+export const CHROME_WARM_START_TIMEOUT_MS = 120_000
 const CHROME_CONNECT_TIMEOUT_MS = 10_000
 const CHROME_GRACEFUL_CLOSE_TIMEOUT_MS = 5_000
 
@@ -77,13 +78,18 @@ export function launchChrome(options?: Parameters<typeof chromium.launchServer>[
   })
 }
 
-// WHY: a fresh runner's first Chrome start can stall past a suite's launch hook, so it is paid once before suites start. https://github.com/thomasluizon/orbit-tickets/issues/315
+// WHY: a fresh runner pays its first Chrome start and first page inside the first case's timer unless that cost is paid before suites start. https://github.com/thomasluizon/orbit-tickets/issues/2074
 export async function warmChrome(): Promise<void> {
   try {
-    const browser = await chromium.launch({ channel: 'chrome', timeout: CHROME_LAUNCH_TIMEOUT_MS })
-    await browser.close()
+    const browser = await chromium.launch({ channel: 'chrome', timeout: CHROME_WARM_START_TIMEOUT_MS })
+    try {
+      const page = await browser.newPage()
+      await page.setContent('<p>Orbit</p>', { timeout: CHROME_WARM_START_TIMEOUT_MS })
+    } finally {
+      await browser.close()
+    }
   } catch (cause) {
-    process.stderr.write(`Chrome warm start failed: ${cause instanceof Error ? cause.message : String(cause)}\n`)
+    throw new Error('Chrome warm start failed.', { cause })
   }
 }
 
