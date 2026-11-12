@@ -23,7 +23,7 @@ UI `main` `89f0335e0`; API `main` `5fc345d20`; landing `main` `381b253fa`. Produ
 | `ui#2439` (`#2116`) at `c46327515` | Approved, green, 0 threads. Merge after the iOS dispatch: `merge-gate.sh ui 2439` (`MSUBJ` with `fix:`, `MBODY` `Tracks thomasluizon/orbit-tickets#2116`), `record-merge.mjs`, then the web release and the three live checks in its order bullet. |
 | `ui#2441` (`#2074`) at `66094d12a` | Round 2: one open thread (`chromium.ts:102`, `browser.close()` outside the deadline; `chain-read.sh ui 2441`). Subagent fix, deliver, chain; merge at the bar after the iOS dispatch. |
 | `api#1108` (`#2118`) | Merged as `5fc345d20`, not released. API release: a fresh Render export first (migration), then `/release`. The remote branch `feature/ticket-2118-api-speaks-orbit` was restored at `fc1982f3f` as the `#2127` base. |
-| `#2127` worker | Launched in `orbit-api/ticket-2127-answered-choice-guard` (branch `fix/ticket-2127-answered-choice-guard`, base branch `feature/ticket-2118-api-speaks-orbit`, 150 minute ceiling, launch 1 of 2). Read its result and its diff, check the body (`Tracks`, test evidence red and green). Then retarget its pull request to `main`, merge `main`, delete the restored `#2118` branch, chain, review, merge. Then the API release with a fresh Render export first, and the staging run its order bullet names. |
+| `api#1109` (`#2127`) at `aee3da912` | Delivered by the worker (launch 1 of 2) in `orbit-api/ticket-2127-answered-choice-guard`, base `feature/ticket-2118-api-speaks-orbit`. Its diff is unread: read it and the body (`Tracks`, red and green evidence); commit `aee3da912` raises two first-call cost limits, so judge that gate edit. Then retarget it to `main`, merge `main`, delete the restored `#2118` branch, chain, review, merge. Then the API release with a fresh Render export first, and the staging run its order bullet names. |
 | `#2128` | Blocked by `#2127`. Launch (repo:ui) when a UI slot and disk allow. |
 | `#1561` | Open a TestFlight group that outside testers can join, with the 1.3.154 build, after reading the current beta groups (`asc-api.mjs`). Write the link on the ticket. |
 | `#2119` to `#2126` | Batch M. Launch `#2119` when free disk is over 50 GiB. |
@@ -32,7 +32,7 @@ UI `main` `89f0335e0`; API `main` `5fc345d20`; landing `main` `381b253fa`. Produ
 | Intake | Mailbox and store reviews empty; Sentry holds only Q and R (`#1561`); board all placed. |
 | `ui#2388` | This relay's docs branch. Never request a review for it. |
 
-Inventory: open pull requests ui `#2441`, `#2439`, `#2388`; api: the `#2127` worker's when it opens. Unpushed commits on a branch: none. Dirty worktrees: none after this commit. Stashes: none. Running workers: the `#2127` worker. Detached worktrees with unpushed commits (leave them): `combined-2065`, api `scratch-1090-merge`, api `scratch-877-timing`. Waiters to arm: one `chain-review.sh` per pull request in CI or review, `wait-release.mjs` for each release run, and `wait-auto-work.mjs` when nothing is launchable.
+Inventory: open pull requests ui `#2441`, `#2439`, `#2388`; api `#1109`. Unpushed commits on a branch: none. Dirty worktrees: none after this commit. Stashes: none. Running workers: none. Detached worktrees with unpushed commits (leave them): `combined-2065`, api `scratch-1090-merge`, api `scratch-877-timing`. Waiters to arm: one `chain-review.sh` per pull request in CI or review, `wait-release.mjs` for each release run, and `wait-auto-work.mjs` when nothing is launchable.
 
 ## Then, in this order
 
