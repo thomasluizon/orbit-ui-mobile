@@ -1,6 +1,7 @@
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import React from 'react'
-import { I18nManager, StyleSheet } from 'react-native'
+import { Animated, I18nManager, StyleSheet } from 'react-native'
+import { motionDurations } from '@orbit/shared/theme'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
@@ -377,6 +378,25 @@ describe('OnboardingFlow state model', () => {
   it('hides the account action for a signed-in account', async () => {
     const tree = await mount(true)
     expect(byType(tree.root, 'PillButton').some((node) => node.props.children === 'onboarding.flow.what.haveAccount')).toBe(false)
+  })
+
+  it('enters the next step body with the shared base duration', async () => {
+    const durations = motionDurations as unknown as Record<string, number>
+    const originalBase = durations.base
+    durations.base = 333
+    const timing = vi.spyOn(Animated, 'timing')
+    try {
+      const tree = await mount(false)
+      await enterSentence(tree, 'Walk every Monday at 18:00')
+      const callsBeforeContinue = timing.mock.calls.length
+      await click(tree, 'onboarding.flow.continue')
+      const stepCalls = timing.mock.calls.slice(callsBeforeContinue)
+      expect(stepCalls).toHaveLength(1)
+      expect(stepCalls[0]![1]).toMatchObject({ toValue: 1, duration: 333, useNativeDriver: true })
+    } finally {
+      durations.base = originalBase!
+      timing.mockRestore()
+    }
   })
 
   it('puts icon-only Back before the counter and keeps Skip last', async () => {

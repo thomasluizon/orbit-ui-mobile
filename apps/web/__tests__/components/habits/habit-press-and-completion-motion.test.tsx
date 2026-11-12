@@ -6,6 +6,7 @@ import { HabitRowTrailing } from '@/components/habits/habit-row-trailing'
 import { HabitCheck } from '@/components/habits/habit-check'
 import { HabitDrill } from '@/components/habits/habit-list/habit-drill'
 import { ListScope } from '@/components/motion/list-motion'
+import { scaleTransition } from '@/__tests__/support/press-transition'
 
 import { motionSprings, resolveMotionPreset } from '@orbit/shared/theme'
 
@@ -25,6 +26,7 @@ describe('check press feedback', () => {
     render(<CheckCircle state="empty" onToggle={vi.fn()} disabled={false} ariaLabel="Log" />)
     const control = screen.getByRole('button', { name: 'Log' })
     expect(control.className).toContain('duration-[var(--dur-press)]')
+    expect(control.className).toContain('ease-[var(--ease-out)]')
     expect(control.className).not.toContain('--dur-hover-control')
     expect(control.className).toContain('motion-safe:active:scale-[0.96]')
   })
@@ -38,6 +40,7 @@ describe('parent row check press feedback', () => {
       completionReadOnly={false} completionStatusUnavailable={false} />)
     const control = document.querySelector('[data-habit-row-control="check"]')!
     expect(control.className).toContain('duration-[var(--dur-press)]')
+    expect(control.className).toContain('ease-[var(--ease-out)]')
     expect(control.className).not.toContain('--dur-hover-control')
     expect(control.className).toContain('motion-safe:active:scale-[0.96]')
   })
@@ -57,6 +60,7 @@ describe('drill back press feedback', () => {
     expect(back.className).not.toMatch(/(^|\s)active:scale-/)
     expect(back.className).toContain('duration-[var(--dur-hover-control),var(--dur-press)]')
     expect(back.className).toContain('transition-[background-color,scale]')
+    expect(scaleTransition(back)).toBe('var(--dur-press) var(--ease-out)')
   })
 })
 
@@ -90,6 +94,16 @@ describe('completion feedback', () => {
     view.rerender(<HabitCheck status="empty" label="Open" />)
     expect(settle.controls.complete).toHaveBeenCalledOnce()
     expect(settle.controls.stop).not.toHaveBeenCalled()
+  })
+
+  it('leaves no inline transform on the check when it turns back after the spring', () => {
+    const view = render(<HabitCheck status="empty" label="Open" />)
+    view.rerender(<HabitCheck status="done" label="Done" />)
+    const check = view.container.querySelector<HTMLElement>('[data-habit-check]')!
+    /** motion-dom `buildHTMLStyles` writes `transform: none` when the scale reaches 1. */
+    check.style.transform = 'none'
+    view.rerender(<HabitCheck status="empty" label="Open" />)
+    expect(check.getAttribute('style')).not.toContain('transform')
   })
 
   it('mounts no motion for a check that first renders done', () => {

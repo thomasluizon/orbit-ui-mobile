@@ -2,7 +2,7 @@ import { surfaceHighlighted, useNestedSlotFeedback, useRowFeedback } from '@/hoo
 import { SPACING } from '@orbit/shared/theme'
 import { useMemo, useState, type ReactNode } from 'react'
 import { StyleSheet, Text, View, type StyleProp, type TextStyle } from 'react-native'
-import { usePrefersReducedMotion } from '@/lib/motion'
+import { PressScale } from '@/components/motion/press-scale'
 import * as Primitive from '@rn-primitives/toggle'
 import { PersonalText } from '@/components/ui/personal-text'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
@@ -24,7 +24,6 @@ interface PickerRowProps {
 export function PickerRow({ name, selected, proposed = false, disabled, onToggle, value, valueStyle, valueHidden, children }: Readonly<PickerRowProps>) {
   const [clamped, setClamped] = useState(false)
   const tokens = useThemeTokens()
-  const reducedMotion = usePrefersReducedMotion()
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const feedback = useRowFeedback(disabled)
   const slot = useNestedSlotFeedback()
@@ -32,9 +31,9 @@ export function PickerRow({ name, selected, proposed = false, disabled, onToggle
   return (
     <View style={styles.row}>
       <View pointerEvents="none" accessible={false} testID="picker-row-feedback" style={[StyleSheet.absoluteFill, { borderRadius: 12, backgroundColor: highlighted ? tokens.bgHover : 'transparent', outlineWidth: feedback.focused ? 2 : 0, outlineColor: tokens.fg1, outlineStyle: 'solid', outlineOffset: -2 }]} />
-      <Primitive.Root {...feedback.handlers} focusable={!disabled} pressed={selected} onPressedChange={onToggle} role={undefined} aria-checked={undefined} accessibilityRole="button" accessibilityLabel={name} accessibilityState={{ selected, disabled }} disabled={disabled} style={({ pressed }) => [styles.rowMain, disabled ? styles.disabled : null, pressed && !reducedMotion ? { transform: [{ scale: 0.96 }] } : null]}>
+      <PressScale pressed={feedback.pressed} disabled={disabled}><Primitive.Root {...feedback.handlers} focusable={!disabled} pressed={selected} onPressedChange={onToggle} role={undefined} aria-checked={undefined} accessibilityRole="button" accessibilityLabel={name} accessibilityState={{ selected, disabled }} disabled={disabled} style={[styles.rowMain, disabled ? styles.disabled : null]}>
         {({ pressed }) => <PersonalText onClampedChange={setClamped} style={[styles.rowTitle, proposed ? styles.proposedTitle : null, proposed && (pressed || highlighted) ? styles.interactiveTitle : null]}>{name}</PersonalText>}
-      </Primitive.Root>
+      </Primitive.Root></PressScale>
       <View style={styles.rowActions}>
         <Text accessible={valueHidden ? false : undefined} style={[valueStyle, highlighted && StyleSheet.flatten(valueStyle ?? {}).color === tokens.fg3 ? { color: tokens.fg2 } : null]}>{value}</Text>
         <View testID="picker-row-controls" {...slot.handlers} style={styles.rowControls}>

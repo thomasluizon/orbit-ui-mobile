@@ -6,7 +6,7 @@ import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { BUTTON_SIZES } from '@orbit/shared/theme'
 import { contrastOnSurface, withAlpha } from '@orbit/shared/__tests__/contrast'
 import { createTokensV2, mixHex, radius } from '@/lib/theme'
-import { expectPressPaint } from '@/__tests__/support/press-feedback'
+import { expectPressPaint, pressableStyle } from '@/__tests__/support/press-feedback'
 
 const theme = vi.hoisted((): { mode: 'dark' | 'light' } => ({ mode: 'dark' }))
 
@@ -61,7 +61,7 @@ describe('PillButton (mobile)', () => {
         else expect(statusSlot.children).toHaveLength(0)
         expect(tree.root.findAllByType(AstraGlyph)).toHaveLength(1)
         expect(button.props.accessibilityState).toMatchObject({ disabled: false, busy: loading })
-        expect(flattenStyle(button.props.style({ pressed: false })).outlineWidth).toBe(2)
+        expect(pressableStyle(button, false).outlineWidth).toBe(2)
         if (loading) expect(button.props.onPress).toBeUndefined()
         else TestRenderer.act(() => button.props.onPress())
       }
@@ -79,7 +79,7 @@ describe('PillButton (mobile)', () => {
     const tree = renderPill(<PillButton variant="ghost" iconOnly minimumHeight={48} label="Edit habit" onFocus={onFocus} onBlur={onBlur}><span /></PillButton>)
     try {
       const button = tree.root.findByType('Pressable')
-      const paint = (pressed = false) => flattenStyle(button.props.style({ pressed }))
+      const paint = (pressed = false) => pressableStyle(button, pressed)
       const resting = paint()
       expect(resting).toMatchObject({ borderWidth: 1.5, borderColor: tokens.hairlineStrong, borderRadius: radius.full, height: 48, width: 48 })
       expect(button.props.hitSlop).toBeUndefined()
@@ -128,7 +128,7 @@ describe('PillButton (mobile)', () => {
 
     expect(visibleHeight).toBe(44)
     expect(button.props.hitSlop).toBe(2)
-    const geometry = flattenStyle(button.props.style({ pressed: false }))
+    const geometry = pressableStyle(button, false)
     expect(geometry.minWidth).toBe(44)
     if (iconOnly) expect(Math.max(geometry.width, geometry.minWidth)).toBe(44)
   })
@@ -136,7 +136,7 @@ describe('PillButton (mobile)', () => {
   it('paints even a narrow label in the whole target', () => {
     const tree = renderPill(<PillButton size="sm">i</PillButton>)
     const button = tree.root.findByType('Pressable')
-    const geometry = flattenStyle(button.props.style({ pressed: false }))
+    const geometry = pressableStyle(button, false)
     expect(textContents(tree)).toContain('i')
     expect(geometry.minHeight).toBe(44)
     expect(geometry.minWidth).toBe(44)
@@ -158,7 +158,7 @@ describe('PillButton (mobile)', () => {
   it('keeps a leading glyph decorative and tightens its side of the pill', () => {
     const tree = renderPill(<PillButton size="sm" leadingIcon={<Copy size={BUTTON_SIZES.sm.iconSize} aria-hidden />}>Copy</PillButton>)
     const pressable = tree.root.findByType('Pressable')
-    const style = flattenStyle(pressable.props.style({ pressed: false }))
+    const style = pressableStyle(pressable, false)
     expect(style.paddingStart).toBe(16)
     expect(style.paddingHorizontal).toBe(18)
     expect(tree.root.findAllByType(Copy)).toHaveLength(1)
@@ -237,7 +237,7 @@ describe('PillButton (mobile)', () => {
       ? <PillButton iconOnly label="Open menu"><span>Menu</span></PillButton>
       : <PillButton>Continue</PillButton>)
     const button = tree.root.findByType('Pressable')
-    const geometry = flattenStyle(button.props.style({ pressed: false }))
+    const geometry = pressableStyle(button, false)
     const visibleHeight = Math.max(geometry.height, geometry.minHeight)
     expect(visibleHeight).toBe(44)
     expect(visibleHeight + (button.props.hitSlop ?? 0) * 2).toBe(48)
@@ -256,8 +256,8 @@ describe('PillButton (mobile)', () => {
       </PillButton>,
     )
     const pressable = tree.root.findByType('Pressable')
-    const rest = flattenStyle(pressable.props.style({ pressed: false }))
-    const pressed = flattenStyle(pressable.props.style({ pressed: true }))
+    const rest = pressableStyle(pressable, false)
+    const pressed = pressableStyle(pressable, true)
 
     expect(pressed.backgroundColor).not.toBe(rest.backgroundColor)
     expect(pressed.opacity).toBeUndefined()
@@ -266,8 +266,8 @@ describe('PillButton (mobile)', () => {
   it('scales on press and restores its size on release while disabled states block presses', () => {
     const tree = renderPill(<PillButton>Continue</PillButton>)
     const button = tree.root.findByType('Pressable')
-    expect(flattenStyle(button.props.style({ pressed: true })).transform).toEqual([{ scale: 0.96 }])
-    expect(flattenStyle(button.props.style({ pressed: false })).transform).toBeUndefined()
+    expect(pressableStyle(button, true).transform).toEqual([{ scale: 0.96 }])
+    expect(pressableStyle(button, false).transform).toEqual([{ scale: 1 }])
 
     const disabled = renderPill(<PillButton disabled>Continue</PillButton>).root.findByType('Pressable')
     const loading = renderPill(<PillButton loading>Saving</PillButton>).root.findByType('Pressable')
@@ -283,7 +283,7 @@ describe('PillButton (mobile)', () => {
     expect(button.props.disabled).toBe(false)
     expect(button.props.accessibilityState).toMatchObject({ busy: true, disabled: false })
     expect(button.props.onPress).toBeUndefined()
-    expect(flattenStyle(button.props.style({ pressed: true })).transform).toBeUndefined()
+    expect(pressableStyle(button, true).transform).toEqual([{ scale: 1 }])
     expect(onClick).not.toHaveBeenCalled()
     const unavailable = renderPill(<PillButton disabled loading focusableWhenLoading>Save</PillButton>).root.findByType('Pressable')
     expect(unavailable.props.disabled).toBe(true)
@@ -299,11 +299,11 @@ describe('PillButton (mobile)', () => {
     expect(busyTree.root.findAllByType('ActivityIndicator')).toHaveLength(1)
 
     const destructive = renderPill(<PillButton variant="destructive">Delete</PillButton>)
-    const pressed = flattenStyle(destructive.root.findByType('Pressable').props.style({ pressed: true }))
+    const pressed = pressableStyle(destructive.root.findByType('Pressable'), true)
     expect(contrastOnSurface(tokens.fgOnBad, [pressed.backgroundColor])).toBeGreaterThanOrEqual(4.5)
 
     const disabledWhileLoading = renderPill(<PillButton disabled loading>Saving</PillButton>)
-    const loadingStyle = flattenStyle(disabledWhileLoading.root.findByType('Pressable').props.style({ pressed: false }))
+    const loadingStyle = pressableStyle(disabledWhileLoading.root.findByType('Pressable'), false)
     expect(loadingStyle.opacity).toBeUndefined()
   })
 })

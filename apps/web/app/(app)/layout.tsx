@@ -69,7 +69,7 @@ import {
 } from './onboarding-overlay-state'
 import { ApiFetchI18nProvider } from '@/lib/api-fetch-i18n-provider'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
-import { resolveShellComposerScope, HABIT_CREATE_OVERLAY_ID, buildHabitCreateHref, resolveHabitDetailRouteDate, isShareableAchievement } from '@orbit/shared/utils'
+import { resolveShellChrome, HABIT_CREATE_OVERLAY_ID, buildHabitCreateHref, resolveHabitDetailRouteDate, isShareableAchievement, SHELL_ROOT_PATHS } from '@orbit/shared/utils'
 import { AccountEventConnection } from '@/lib/account-event-connection'
 import { isPublicPath } from '@/lib/public-paths'
 import { useHasSessionCookie } from '@/lib/session-cookie-provider'
@@ -156,7 +156,7 @@ function SyncComposerDate({ onChange }: Readonly<{ onChange: (date: string | und
 function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>) {
   const router = useRouter()
   const pathname = usePathname()
-  const composerScope = resolveShellComposerScope(pathname)
+  const showComposer = resolveShellChrome(pathname).composer
   const t = useTranslations()
   const { showPersistentError } = useAppToast()
   const { profile, patchProfile } = useProfile()
@@ -180,7 +180,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   }, [])
 
   useEffect(() => {
-    for (const tabRoute of ['/', '/calendar', '/progress', '/profile']) {
+    for (const tabRoute of SHELL_ROOT_PATHS) {
       router.prefetch(tabRoute)
     }
   }, [router])
@@ -342,11 +342,9 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         createRefusal={!isOnline && showCreateRefusal ? (
           <OfflineRefusal icon="create" title={t('offline.create.title')} reason={t('offline.create.reason')} />
         ) : undefined}
-        composer={composerScope === 'habit' ?
+        composer={showComposer ?
           <Composer
             {...chat.composerProps}
-            collapseScope={composerScope}
-            collapsible
             suggestions={chat.composerProps.suggestions}
             inputId={chat.composerInputId}
             onOpenConversation={() => setAstraConversationOpen(true)}

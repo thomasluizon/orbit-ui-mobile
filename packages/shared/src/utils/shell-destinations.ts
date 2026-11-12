@@ -1,4 +1,24 @@
+import { SHELL_DESTINATION_IDS } from './destination-icons'
+
 export type ShellDestinationId = 'hoje' | 'calendario' | 'progresso' | 'perfil'
+
+export const SHELL_DESTINATION_PATHS = {
+  hoje: '/',
+  calendario: '/calendar',
+  progresso: '/progress',
+  perfil: '/profile',
+} as const satisfies Record<ShellDestinationId, string>
+
+export type ShellDestinationPath = (typeof SHELL_DESTINATION_PATHS)[ShellDestinationId]
+
+export const SHELL_ROOT_PATHS: readonly string[] = SHELL_DESTINATION_IDS.map((id) => SHELL_DESTINATION_PATHS[id])
+
+export function resolveTabSwitchDirection(from: string, to: string): -1 | 1 | null {
+  const fromIndex = SHELL_ROOT_PATHS.indexOf(from)
+  const toIndex = SHELL_ROOT_PATHS.indexOf(to)
+  if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return null
+  return toIndex > fromIndex ? 1 : -1
+}
 
 export interface ShellDestinationRoute {
   pattern: string
@@ -49,12 +69,7 @@ export function resolveShellChrome(pathname: string, lastDestination: ShellDesti
   const destination = resolveShellDestination(pathname)
   return {
     activeId: pathname === '/search' ? lastDestination : destination ?? lastDestination,
-    composer: /^\/habits\/[^/]+$/.test(pathname),
+    composer: pathname !== '/habits/new' && /^\/habits\/[^/]+$/.test(pathname),
     flow: pathname === '/wrapped' || pathname === '/upgrade' || pathname === '/habits/new',
   }
-}
-
-export function resolveShellComposerScope(pathname: string): 'habit' | undefined {
-  if (/^\/habits\/[^/]+$/.test(pathname) && pathname !== '/habits/new') return 'habit'
-  return undefined
 }

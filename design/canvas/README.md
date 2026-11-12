@@ -31,6 +31,15 @@ clearance. Habit detail and the conversation keep the shared composer. This amen
 the Hoje dock in the drawing and every drawing note that places a floating or draggable Astra
 button.
 
+### Composer collapse removal amendment (#2108)
+
+Under D42, the owner's #2108 order removes the composer collapse from the shared composer on
+web and mobile. The composer in the conversation and in habit detail has no collapse control,
+no compact mark row and no stored collapse preference, and the prompt suggestions row spans
+the full composer content width. This amendment supersedes the note in
+`Orbit Astra Conversation.dc.html` and `Orbit Habit Detail.dc.html` that lets habit detail
+collapse to one compact mark row (#1668).
+
 ## Empty-state composition amendment (#1896)
 
 The shared EmptyState uses the existing 48px asset size for both identity carriers on every
@@ -196,6 +205,17 @@ ellipsis. The glyph uses stroke 1.5, at 16px normally and 24px above 130% text. 
 supporting footer serves enlarged text, the measured inline depth boundary and measured token overflow in a narrow heading column,
 with first-title-line controls; ordinary default rows retain whole-row centring. This production
 composition amendment adds no unused drawing prop or checklist action.
+
+### Logged parent row amendment (#2114)
+
+Under D42, the owner's order amends the Hoje row drawings: a parent that is logged for the selected
+date, while its sub-habits stay open, shows that state. Its check becomes the neutral done disc that
+`Orbit Hoje.dc.html` already names; a bad parent keeps its bad check. Its title takes `--fg-3` at
+rest and `--fg-2` during row hover or press. Its next due date becomes the last visible metadata
+token: "due tomorrow" / "volta amanhã" for the next day, then the existing relative and scheduled
+words. The label shows only on today and never for a finished habit. When the full metadata flow
+does not fit on one line, the row uses the supporting footer. A row without sub-habits keeps the
+#898 treatment. No confirmation, no opacity change and no line through the title.
 
 ### Focused read block amendment
 

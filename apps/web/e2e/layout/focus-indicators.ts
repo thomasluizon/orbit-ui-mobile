@@ -294,3 +294,52 @@ export async function expectOneControlRing(control: Locator, forcedColors: boole
     expect(styles.wrapperOutlineStyle === 'none' || styles.wrapperOutlineWidth === '0px').toBe(true)
   }).toPass({ timeout: 5000 })
 }
+
+export interface RingPaint {
+  /** Colour that the inset box shadows and inset outlines paint in the outer 2px band, or null. */
+  outer: string | null
+  /** Colour that the inset box shadows and inset outlines paint in the 2px band directly inside the outer one, or null. */
+  inner: string | null
+  /** Colour of the outline of the target, or null when it draws none. */
+  outline: string | null
+}
+
+export async function readRingPaint(target: Locator): Promise<RingPaint> {
+  await settleFocusAnimations(target, undefined, true)
+  return target.evaluate((owner) => {
+    const layers = [owner, ...owner.querySelectorAll('*')]
+      .map((element, order) => ({ element, order, zIndex: Number.parseInt(getComputedStyle(element).zIndex, 10) || 0 }))
+      .sort((first, second) => first.zIndex - second.zIndex || first.order - second.order)
+    const paintedAt = (depth: number) => {
+      let painted: string | null = null
+      for (const { element } of layers) {
+        const layerStyle = getComputedStyle(element)
+        const shadows = layerStyle.boxShadow.split(/,(?![^()]*\))/).map((shadow) => shadow.trim()).reverse()
+        for (const shadow of shadows) {
+          const color = shadow.match(/rgba?\([^)]*\)/)?.[0]
+          const lengths = shadow.replace(/rgba?\([^)]*\)/g, '').match(/-?[\d.]+px/g)?.map(Number.parseFloat)
+          if (color && shadow.includes('inset') && lengths && lengths.length >= 4 && lengths[0] === 0 && lengths[1] === 0 && lengths[2] === 0 && lengths[3]! > depth) painted = color
+        }
+        const outlineWidth = Number.parseFloat(layerStyle.outlineWidth)
+        const outlineInset = -Number.parseFloat(layerStyle.outlineOffset)
+        if (layerStyle.outlineStyle !== 'none' && outlineWidth > 0 && outlineInset - outlineWidth <= depth && depth < outlineInset) painted = layerStyle.outlineColor
+      }
+      return painted
+    }
+    const style = getComputedStyle(owner)
+    const outlined = style.outlineStyle !== 'none' && Number.parseFloat(style.outlineWidth) > 0
+    return { outer: paintedAt(1), inner: paintedAt(3), outline: outlined ? style.outlineColor : null }
+  })
+}
+
+export async function readThemeColor(page: Page, token: '--fg-1' | '--bg' | '--primary'): Promise<string> {
+  return page.evaluate((name) => {
+    const probe = document.createElement('span')
+    probe.style.color = `var(${name})`
+    probe.style.setProperty('forced-color-adjust', 'none')
+    document.body.appendChild(probe)
+    const color = getComputedStyle(probe).color
+    probe.remove()
+    return color
+  }, token)
+}

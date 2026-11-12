@@ -6,7 +6,7 @@ import { SelectionIndicator } from '@/components/ui/selection-indicator'
 import { motionDurations } from '@orbit/shared/theme'
 
 const preference = vi.hoisted(() => ({ reduced: false }))
-vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => preference.reduced }))
+vi.mock('@/lib/motion', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => preference.reduced }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark' }) }))
 const TestRenderer = require('react-test-renderer')
 

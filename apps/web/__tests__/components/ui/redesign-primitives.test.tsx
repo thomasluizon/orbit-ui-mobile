@@ -77,6 +77,14 @@ describe('redesign primitives on web', () => {
     expect(onClick).toHaveBeenCalledOnce()
   })
 
+  it('presses the Astra button with a 0.96 scale and a fill, and keeps only the fill under reduced motion', () => {
+    render(<Fab neutral label="Astra">+</Fab>)
+    const button = screen.getByRole('button', { name: 'Astra' })
+    expect(button).toHaveClass('motion-safe:active:scale-[0.96]')
+    expect(button).not.toHaveClass('active:scale-[0.96]')
+    expect(button.querySelector('[data-press-fill]')).toHaveClass('group-active:bg-[var(--bg-hover-opaque)]')
+  })
+
   it.each([16, 20, 24, 28, 40, 44, 48, 96, 128, 512])('uses the normal Orbit drawing at %ipx and limits accent to its moon', (size) => {
     const { container, rerender } = render(<OrbitMark size={size} />)
     expect(container.querySelector('svg')).toHaveAttribute('data-asset', 'orbit-mark')

@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import type { Time24 } from '@orbit/shared/contracts/forms'
-import { Pressable, StyleSheet, TextInput, View } from 'react-native'
+import { Pressable, StyleSheet, TextInput, View, type ViewStyle } from 'react-native'
+import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { formatLocaleTime } from '@orbit/shared/utils'
 import { INTERACTION_FILL_CLEARANCE, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
@@ -82,6 +83,41 @@ async function pressDone(tree: any) {
     await Promise.resolve()
     return done.props.onPress()
   })
+}
+
+interface HostJson {
+  type: string
+  props: Record<string, unknown>
+  children: (HostJson | string)[] | null
+}
+
+function hostChildren(element: HostJson): HostJson[] {
+  return (element.children ?? []).filter((child): child is HostJson => typeof child !== 'string')
+}
+
+function findInputRow(json: HostJson | HostJson[] | null): HostJson | undefined {
+  for (const element of Array.isArray(json) ? json : json ? [json] : []) {
+    if (hostChildren(element).some((child) => child.type === 'TextInput')) return element
+    const found = findInputRow(hostChildren(element))
+    if (found) return found
+  }
+}
+
+function layoutNode(element: HostJson): YogaNode {
+  const declared = element.props.style
+  const style = StyleSheet.flatten((typeof declared === 'function' ? declared({ pressed: true }) : declared) ?? {}) as ViewStyle
+  const node = Yoga.Node.create()
+  if (style.flexDirection === 'row') node.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
+  if (style.alignItems === 'center') node.setAlignItems(Yoga.ALIGN_CENTER)
+  if (typeof style.flex === 'number') node.setFlex(style.flex)
+  if (typeof style.width === 'number') node.setWidth(style.width)
+  if (typeof style.height === 'number') node.setHeight(style.height)
+  if (typeof style.minHeight === 'number') node.setMinHeight(style.minHeight)
+  if (typeof style.borderWidth === 'number') node.setBorder(Yoga.EDGE_ALL, style.borderWidth)
+  if (typeof style.paddingHorizontal === 'number') node.setPadding(Yoga.EDGE_HORIZONTAL, style.paddingHorizontal)
+  if (typeof style.paddingRight === 'number') node.setPadding(Yoga.EDGE_RIGHT, style.paddingRight)
+  hostChildren(element).forEach((child, index) => node.insertChild(layoutNode(child), index))
+  return node
 }
 
 function ProfileTimeFields() {
@@ -369,6 +405,45 @@ await Promise.resolve()
     })
 
     expect(onClear).toHaveBeenCalledTimes(1)
+  })
+
+  it('paints a round neutral press fill on the picker and clear buttons inside the field', async () => {
+    const tokens = createTokensV2('purple', 'dark')
+    let tree: any
+    await TestRenderer.act(async () => {
+      await Promise.resolve()
+      tree = TestRenderer.create(withFocusProvenance(<TimeField label="Start" value="14:30" onChange={vi.fn()} onClear={vi.fn()} />))
+    })
+    for (const label of ['Start: common.selectTime', 'common.clear']) {
+      const button = tree.root.findAllByType(Pressable).find((node: any) => node.props.accessibilityLabel === label)
+      const paint = (pressed: boolean) => StyleSheet.flatten(button.props.style({ pressed }))
+      expect(paint(false).backgroundColor).toBeUndefined()
+      expect(paint(true)).toMatchObject({ backgroundColor: tokens.bgHover, width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, borderRadius: TOUCH_TARGET_MIN / 2, overflow: 'hidden' })
+    }
+  })
+
+  it.each([
+    { value: '14:30' as const, buttons: 2 },
+    { value: '' as const, buttons: 1 },
+  ])('keeps the last press fill 4px inside the field border, as web does, with $buttons trailing button(s)', async ({ value, buttons }) => {
+    let tree: any
+    await TestRenderer.act(async () => {
+      await Promise.resolve()
+      tree = TestRenderer.create(withFocusProvenance(<TimeField label="Start" value={value} onChange={vi.fn()} onClear={vi.fn()} />))
+    })
+    const row = layoutNode(findInputRow(tree.toJSON())!)
+    try {
+      row.calculateLayout(320, undefined, Yoga.DIRECTION_LTR)
+      expect(row.getChildCount()).toBe(1 + buttons)
+      const layer = row.getChild(row.getChildCount() - 1)
+      const fill = layer.getChild(0)
+      const fillRight = layer.getComputedLeft() + fill.getComputedLeft() + fill.getComputedWidth()
+      const fillTop = layer.getComputedTop() + fill.getComputedTop()
+      const innerRight = row.getComputedWidth() - row.getComputedBorder(Yoga.EDGE_RIGHT)
+      expect(fill.getComputedWidth()).toBe(TOUCH_TARGET_MIN)
+      expect(innerRight - fillRight).toBe(SPACING.s4)
+      expect(fillTop - row.getComputedBorder(Yoga.EDGE_TOP)).toBeGreaterThan(0)
+    } finally { row.freeRecursive() }
   })
 
   it('does not render a clear button when value is empty', async () => {

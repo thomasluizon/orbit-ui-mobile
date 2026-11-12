@@ -1,6 +1,7 @@
 import React from 'react'
 import { Animated } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { motionDurations } from '@orbit/shared/theme'
 import { Skeleton } from '@/components/ui/skeleton'
 
 const TestRenderer = require('react-test-renderer')
@@ -48,6 +49,19 @@ describe('mobile skeleton motion', () => {
 
     TestRenderer.act(() => tree.unmount())
     expect(stop).toHaveBeenCalledOnce()
+  })
+
+  it('pulses each half cycle for two slow durations, the shared skeleton timing', () => {
+    const timing = vi.spyOn(Animated, 'timing')
+
+    TestRenderer.act(() => {
+      TestRenderer.create(<Skeleton variant="habit-row" label="Loading habits" />)
+    })
+
+    expect(timing.mock.calls.map(([, config]) => config.duration)).toEqual([
+      motionDurations.slow * 2,
+      motionDurations.slow * 2,
+    ])
   })
 
   it('settles immediately without starting a loop under reduced motion', () => {

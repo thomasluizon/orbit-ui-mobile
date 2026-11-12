@@ -89,6 +89,11 @@ describe('Skeleton', () => {
     expect(container.innerHTML).not.toMatch(/gradient|shimmer|spinner/i)
   })
 
+  it('pulses one full cycle for four slow durations, the shared skeleton timing', () => {
+    expect(skeletonPulseDeclaration()).toContain('calc(var(--dur-slow) * 4)')
+    expect(skeletonPulseDeclaration()).not.toMatch(/\d+(\.\d+)?m?s/)
+  })
+
   it('settles a stalled skeleton before five seconds and leaves it visible', () => {
     vi.useFakeTimers()
     const { container } = render(<Skeleton variant="settings" label="Loading settings" />)

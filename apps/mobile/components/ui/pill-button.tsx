@@ -4,7 +4,6 @@ import { ActionRowContext } from './action-row'
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
 import {
   ActivityIndicator,
-  Pressable,
   StyleSheet,
   Text,
   type ViewStyle,
@@ -15,7 +14,7 @@ import {
 import { SPACING, GOOGLE_SIGN_IN_BUTTON, ICON_ACTION_START_HANG, BUTTON_SIZES, MATCHED_PILL_WIDTH, TOUCH_TARGET_MIN, SMALL_PILL_VISIBLE_MIN, type ButtonVariant } from '@orbit/shared/theme'
 import { createTokensV2, mixHex, radius, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { usePrefersReducedMotion } from '@/lib/motion'
+import { ThemedMotionPressable } from './motion-pressable'
 
 const SMALL_PILL_HIT_PADDING = (TOUCH_TARGET_MIN - SMALL_PILL_VISIBLE_MIN) / 2
 
@@ -83,7 +82,6 @@ export function ThemedButton({
   const composedRef = useComposedRefs(ref, buttonRef)
   const size = useContext(ActionRowContext) ? 'sm' : requestedSize
   const sizeSpec = BUTTON_SIZES[size]
-  const prefersReducedMotion = usePrefersReducedMotion()
   const nativelyDisabled = disabled || (loading && !focusableWhenLoading)
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
@@ -122,9 +120,11 @@ export function ThemedButton({
   }
 
   return (
-    <Pressable
+    <ThemedMotionPressable
       {...pressableProps}
       ref={composedRef}
+      tokens={tokens}
+      static={loading}
       hitSlop={size === 'sm' && (!iconOnly || (minimumHeight ?? 0) < TOUCH_TARGET_MIN) ? SMALL_PILL_HIT_PADDING : undefined}
       onPress={loading ? undefined : onPress ?? onClick}
       onFocus={() => { setFocused(true); onFocus?.() }}
@@ -147,11 +147,10 @@ export function ThemedButton({
         variantStyle(pressed && !disabled && !loading),
         focused ? buttonFocusStyle(variant, tokens.fg1) : null,
         disabled && !loading ? styles.disabled : null,
-        pressed && !disabled && !loading && !prefersReducedMotion ? styles.pressedScale : null,
       ]}
     >
       <ButtonContents loading={loading} retainLeadingIcon={retainLeadingIcon} iconOnly={iconOnly} leadingGlyph={leadingGlyph} textColor={textColorByVariant[variant]} sizeSpec={sizeSpec}>{children}</ButtonContents>
-    </Pressable>
+    </ThemedMotionPressable>
   )
 }
 
@@ -201,9 +200,6 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.4,
-  },
-  pressedScale: {
-    transform: [{ scale: 0.96 }],
   },
   label: {
     fontFamily: 'Geist_500Medium',

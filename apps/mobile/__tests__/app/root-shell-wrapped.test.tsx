@@ -150,7 +150,8 @@ vi.mock('@/lib/use-app-theme', () => ({
     },
   }),
 }))
-vi.mock('@/lib/motion', () => ({
+vi.mock('@/lib/motion', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/motion')>(),
   usePrefersReducedMotion: () => createState.reducedMotion,
   mobileMotion: { presets: { 'route-push': { enterDuration: 200 } } },
 }))

@@ -88,6 +88,20 @@ function leftWithin(node: YogaNode, body: YogaNode): number {
   return left
 }
 
+function absoluteTop(node: YogaNode): number {
+  let top = 0
+  let current: YogaNode | null = node
+  while (current) {
+    top += current.getComputedTop()
+    current = current.getParent()
+  }
+  return top
+}
+
+function topWithin(node: YogaNode, ancestor: YogaNode): number {
+  return absoluteTop(node) - absoluteTop(ancestor)
+}
+
 function findHost(elements: HostJson[], testID: string): HostJson | undefined {
   for (const element of elements) {
     if (element.props.testID === testID) return element
@@ -162,22 +176,22 @@ describe('DateField sheet geometry (mobile)', () => {
         expect(viewport.getComputedTop() + viewportHeight).toBeLessThanOrEqual(body.getComputedHeight() - bodyStyle.paddingBottom)
         const years = buildYearRange(2025)
         expect(targets).toHaveLength(years.length)
-        expect(targets[3]!.getComputedTop() - targets[0]!.getComputedTop()).toBe(52)
+        expect(topWithin(targets[3]!, content) - topWithin(targets[0]!, content)).toBe(52)
         TestRenderer.act(() => {
           yearScroll.props.onLayout({ nativeEvent: { layout: { height: viewportHeight } } })
           yearScroll.props.onContentSizeChange(592, content.getComputedHeight())
         })
         const selected = targets[years.indexOf(2025)]!
         const selectedOffset = scrollTo.mock.calls.at(-1)![0].y
-        expect(selected.getComputedTop() - selectedOffset).toBeGreaterThanOrEqual(0)
-        expect(selected.getComputedTop() - selectedOffset + selected.getComputedHeight()).toBeLessThanOrEqual(viewportHeight)
+        expect(topWithin(selected, content) - selectedOffset).toBeGreaterThanOrEqual(0)
+        expect(topWithin(selected, content) - selectedOffset + selected.getComputedHeight()).toBeLessThanOrEqual(viewportHeight)
         for (const index of [0, years.length - 1]) {
           const target = targets[index]!
           const offset = index === 0 ? 0 : content.getComputedHeight() - viewportHeight
           expect(target.getComputedWidth()).toBeGreaterThanOrEqual(48)
           expect(target.getComputedHeight()).toBe(48)
-          expect(target.getComputedTop() - offset).toBeGreaterThanOrEqual(0)
-          expect(target.getComputedTop() - offset + target.getComputedHeight()).toBeLessThanOrEqual(viewportHeight)
+          expect(topWithin(target, content) - offset).toBeGreaterThanOrEqual(0)
+          expect(topWithin(target, content) - offset + target.getComputedHeight()).toBeLessThanOrEqual(viewportHeight)
         }
       } finally { body.freeRecursive() }
       TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'common.selectYear' }).props.onPress())

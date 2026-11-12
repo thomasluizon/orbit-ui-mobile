@@ -6,15 +6,18 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { PersonalText } from '@/components/ui/personal-text'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { Pressable, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import type { BlockFrameProps } from '@orbit/shared/contracts/blocks'
 import { AccountRowsCard } from '@/components/chat/account-rows-card'
 import { controlName, renderedText } from '../../support/react-test-renderer'
+import { expectCopyStateIcon } from '../../support/copy-state-icon'
 
 const TestRenderer = require('react-test-renderer')
 const rewardState = vi.hoisted(() => ({ stats: { rewardType: 'pro_days', proDaysPerReferral: 7, discountPercent: 23 }, locale: '' }))
 const referralRead = vi.hoisted(() => vi.fn())
 vi.mock('@/hooks/use-referral', () => ({ useReferral: () => { referralRead(); return { stats: rewardState.stats } } }))
+const motionState = vi.hoisted(() => ({ reduced: false }))
+vi.mock('@/lib/motion', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/motion')>()), usePrefersReducedMotion: () => motionState.reduced }))
 const mocks = vi.hoisted(() => ({ push: vi.fn(), setStringAsync: vi.fn().mockResolvedValue(true), share: vi.fn(), locale: 'en' }))
 vi.mock('react-native', async () => {
   const reactNative = await import('../../../test-mocks/react-native')
@@ -41,7 +44,7 @@ function render(element: React.ReactElement) {
 }
 
 describe('Astra account rows on mobile', () => {
-  beforeEach(() => { vi.clearAllMocks(); rewardState.locale = ''; mocks.locale = 'en' })
+  beforeEach(() => { vi.clearAllMocks(); rewardState.locale = ''; mocks.locale = 'en'; motionState.reduced = false })
 
   it('keeps plan rows read only and drops unknown keys', () => {
     const tree = render(<AccountRowsCard accountRows={{ kind: 'plan', surfaceId: 'profile', rows: [
@@ -87,6 +90,25 @@ describe('Astra account rows on mobile', () => {
     const openShare = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && controlName(node).includes('chat.account.share'))[0]
     await TestRenderer.act(async () => { openShare.props.onPress(); await Promise.resolve() })
     expect(mocks.share).toHaveBeenCalledWith({ title: 'referral.share.title', message: 'referral.share.proDays:{"proDays":7} https://example.com/r/ORBIT123' })
+  })
+
+  it.each([false, true])('swaps the copy icon through CopyStateIcon with scale, opacity and blur on the shared fast duration (reduced motion %s)', async (reducedMotion) => {
+    motionState.reduced = reducedMotion
+    const tree = render(<AccountRowsCard accountRows={{ kind: 'referral', surfaceId: 'profile', rows: [], referralCode: 'ORBIT123' }} />)
+    expectCopyStateIcon(tree.root, { copied: false, reducedMotion, color: '#111111', strokeWidth: 1.8 })
+    await TestRenderer.act(async () => { await tree.root.findByProps({ accessibilityLabel: 'chat.account.copy' }).props.onPress() })
+    expectCopyStateIcon(tree.root, { copied: true, reducedMotion, color: '#111111', strokeWidth: 1.8 })
+  })
+
+  it.each([false, true])('presses the copy control on the shared eased press (reduced motion %s)', (reducedMotion) => {
+    motionState.reduced = reducedMotion
+    const tree = render(<AccountRowsCard accountRows={{ kind: 'referral', surfaceId: 'profile', rows: [], referralCode: 'ORBIT123' }} />)
+    const host = () => tree.root.findAll((node: any) => typeof node.type === 'string' && node.props.accessibilityLabel === 'chat.account.copy')[0]
+    const paint = () => { const style = host().props.style; return StyleSheet.flatten(typeof style === 'function' ? style({ pressed: true }) : style) }
+    TestRenderer.act(() => { host().props.onPressIn?.() })
+    expect(paint()).toMatchObject({ transform: [{ scale: reducedMotion ? 1 : 0.96 }], transition: reducedMotion ? 'none' : 'transform 150ms cubic-bezier(0.16,1,0.3,1)' })
+    TestRenderer.act(() => { host().props.onPressOut?.() })
+    expect(paint()).toMatchObject({ transform: [{ scale: 1 }] })
   })
 
   it('confirms a referral code only after the native write and permits retry after rejection', async () => {

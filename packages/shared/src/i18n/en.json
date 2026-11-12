@@ -239,8 +239,6 @@
         "stop": "Stop reply",
         "stopped": "Reply stopped."
       },
-      "collapse": "Collapse message composer",
-      "expand": "Expand message composer",
       "usage": "Messages today: {used} of {limit}",
       "usageWeekly": "Messages this week: {used} of {limit}",
       "placeholder": "What would you like to do?",
@@ -552,6 +550,8 @@
     "overdue": "Overdue",
     "schedule": {
       "dueInDays": "in {count}d",
+      "dueTomorrow": "due tomorrow",
+      "nextDueTomorrow": "due tomorrow",
       "scheduledOn": "scheduled {date}"
     },
     "search": {
@@ -1028,7 +1028,6 @@
       "noDataYet": "No data yet",
       "daysFree": "Days free",
       "reminders": "Reminders",
-      "linkedGoal": "Linked goal",
       "askAstraSeedDefault": "How am I doing with my habit \"{title}\"? Give me your read and one tip to improve.",
       "copyDescription": "Copy description",
       "descriptionCopied": "Description copied",
@@ -2883,7 +2882,7 @@
     "close": "Close privacy policy",
     "title": "Privacy policy",
     "headerTitle": "Privacy",
-    "lastUpdated": "Last updated: October 2026",
+    "lastUpdated": "Last updated: November 2026",
     "intro": {
       "title": "Introduction",
       "body": "Orbit is a personal habit tracking app. We take your privacy seriously and are committed to protecting your personal data. This policy explains what data we store, how we use it, and your rights under the LGPD (Lei Geral de Proteção de Dados) and equivalent data-protection laws."
@@ -2898,7 +2897,7 @@
       "habits": "Habit data: habits you create, completion logs, schedules, tags, and goals",
       "chat": "AI chat messages: conversations with the Orbit AI assistant",
       "preferences": "Preferences: language, timezone, color scheme, and notification settings",
-      "device": "Device data: a push notification token (to deliver reminders) and Android crash reports with device and OS details, a random installation ID, and an approximate city inferred from the request IP address. These reports do not include your name, email, or account details."
+      "device": "Device data: a push notification token (to deliver reminders) and Android and iOS crash reports with device and OS details, a random installation ID, and an approximate city inferred from the request IP address. These reports do not include your name, email, or account details."
     },
     "howWeUse": {
       "title": "How We Use Your Data",
@@ -2912,12 +2911,14 @@
       "intro": "We use the following services to operate Orbit:",
       "google": "Google OAuth: for sign-in directly with Google",
       "stripe": "Stripe: for subscription payment processing",
-      "firebase": "Firebase Cloud Messaging: for push notifications",
-      "openai": "OpenAI: for AI chat features and daily summaries",
+      "firebase": "Firebase Cloud Messaging: for push notifications on Android",
+      "wns": "Microsoft Windows Push Notification Services: for push notifications in the Windows app",
+      "webPush": "Browser push services (Google, Mozilla, Apple, or Microsoft): for push notifications in the web app, through the service your browser uses",
+      "openai": "OpenAI: for AI chat features, daily summaries, and transcription of the audio you record with voice input, which the app uploads for this purpose",
       "ses": "Amazon SES (us-east-2): for transactional and marketing emails",
       "googlePlay": "Google Play Billing: for subscription purchases on Android",
-      "apple": "Apple: for Sign in with Apple and subscription purchases through the App Store",
-      "sentry": "Sentry: for crash and error reports. On Android, these include device and OS details, a random installation ID, and an approximate city inferred from the request IP address, without your name, email, or account details",
+      "apple": "Apple: for Sign in with Apple, push notifications on iOS and in the Mac app through the Apple Push Notification service, and subscription purchases through the App Store",
+      "sentry": "Sentry: for crash and error reports. On Android and iOS, these include device and OS details, a random installation ID, and an approximate city inferred from the request IP address, without your name, email, or account details",
       "posthog": "PostHog (US Cloud): for product analytics linked to an account identifier and plan details, plus web traffic and performance analytics; we do not send habit or chat content",
       "render": "Render (Ohio, United States): for web and API hosting and the database",
       "s3": "Amazon S3 (us-east-2): for file uploads",

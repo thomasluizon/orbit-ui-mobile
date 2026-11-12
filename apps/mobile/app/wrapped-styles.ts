@@ -22,7 +22,6 @@ export const styles = StyleSheet.create({
   page: { flex: 1, position: 'relative' },
   pager: { paddingHorizontal: SPACING.s16, paddingTop: SPACING.s16 },
   closeBtn: { width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, flexShrink: 0, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  closeBtnPressed: { transform: [{ scale: 0.96 }] },
   slide: {
     flex: 1,
     alignSelf: 'center',

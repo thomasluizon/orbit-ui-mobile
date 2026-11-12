@@ -4,6 +4,7 @@ import React from 'react'
 import { pressRadioKey } from '@/__tests__/support/radio-key'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
+import { motionDurations, motionLayerTiming } from '@orbit/shared/theme'
 import { habitKeys, profileKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { CalendarMonthResponse } from '@orbit/shared/types/habit'
@@ -451,6 +452,52 @@ describe('CalendarPage view switcher', () => {
       heldQueries.realDayDetail = false
       heldQueries.calendarRequest = null
     }
+  })
+
+  describe('month slide motion', () => {
+    const shownOffset = (element: HTMLElement) => {
+      const match = /translateX\((-?[\d.]+)px\)/.exec(element.style.transform)
+      return match ? Number(match[1]) : 0
+    }
+    const pause = (milliseconds: number) => act(async () => { for (let elapsed = 0; elapsed < milliseconds; elapsed += 16) await vi.advanceTimersByTimeAsync(16) })
+    const preferReducedMotion = (reduce: boolean) => vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: reduce && query === '(prefers-reduced-motion: reduce)', media: query, onchange: null,
+      addListener: () => {}, removeListener: () => {}, addEventListener: () => {}, removeEventListener: () => {}, dispatchEvent: () => false,
+    }))
+    beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(PINNED_TEST_TIME) })
+    afterEach(() => { vi.unstubAllGlobals() })
+
+    it('enters from the step side, retargets a repeated tap and settles on the shared route timing', async () => {
+      preferReducedMotion(false)
+      render(<CalendarPage />)
+      const slide = screen.getByTestId('month-view').parentElement as HTMLElement
+      fireEvent.click(screen.getByRole('button', { name: 'common.nextMonth' }))
+      await pause(48)
+      const beforeRepeat = shownOffset(slide)
+      expect(beforeRepeat).toBeGreaterThan(0)
+      expect(beforeRepeat).toBeLessThan(motionLayerTiming.routeShift)
+      expect(screen.getByTestId('month-view').parentElement).toBe(slide)
+      fireEvent.click(screen.getByRole('button', { name: 'common.nextMonth' }))
+      await pause(0)
+      const afterRepeat = shownOffset(slide)
+      expect(afterRepeat).toBeGreaterThan(0)
+      expect(afterRepeat).toBeLessThanOrEqual(beforeRepeat)
+      await pause(motionDurations.route + 120)
+      expect(shownOffset(slide)).toBe(0)
+      fireEvent.click(screen.getByRole('button', { name: 'common.previousMonth' }))
+      await pause(16)
+      expect(shownOffset(slide)).toBeLessThan(0)
+    })
+
+    it('shows the new month at once under reduced motion', async () => {
+      preferReducedMotion(true)
+      render(<CalendarPage />)
+      const slide = screen.getByTestId('month-view').parentElement as HTMLElement
+      fireEvent.click(screen.getByRole('button', { name: 'common.nextMonth' }))
+      await pause(16)
+      expect(shownOffset(slide)).toBe(0)
+      expect(Number(slide.style.opacity || 1)).toBe(1)
+    })
   })
 
   it.each([false, true])('keeps the header controls mounted and focused through keyboard view changes at wide=%s', async (wide) => {

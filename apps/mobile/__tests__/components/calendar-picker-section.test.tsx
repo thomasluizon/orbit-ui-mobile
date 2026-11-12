@@ -25,7 +25,8 @@ vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
 }))
 
-vi.mock('@/lib/motion', () => ({
+vi.mock('@/lib/motion', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/motion')>()),
   usePrefersReducedMotion: () => mocks.reducedMotion,
   toAnimatedEasing: () => (value: number) => value,
 }))

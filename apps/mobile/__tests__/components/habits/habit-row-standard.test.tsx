@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { SPACING, motionDurations, orbitalMotion } from '@orbit/shared/theme'
+import { SPACING, orbitalMotion } from '@orbit/shared/theme'
 import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { HabitRow } from '@/components/habits/habit-row'
+import { PRESS_SCALE_TRANSITION } from '@/components/motion/press-scale'
 import { createTokensV2 } from '@/lib/theme'
 import { __resetTestHostConfig, __setWindowDimensions } from '@/test-mocks/react-native'
 import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
@@ -83,12 +84,12 @@ function assertTypePlacement(geometry: ReturnType<typeof measureInteractionFills
 
 function expectCompletionPressScale(tree: ReturnType<typeof TestRenderer.create>, pressableTransform: unknown, scaled: boolean, reduced: boolean) {
   let scaler = tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'AnimatedView' && node.props.testID === 'habit-check')[0]!.parent
-  while (scaler && String(scaler.type) !== 'AnimatedView') scaler = scaler.parent
+  while (scaler && scaler.props['data-slot'] !== 'press-scale') scaler = scaler.parent
   expect(pressableTransform).toBeUndefined()
   const scalerStyle = StyleSheet.flatten(scaler!.props.style)
   expect(scalerStyle.transform).toEqual([{ scale: scaled ? orbitalMotion.press.scale : 1 }])
   if (reduced) expect(scalerStyle.transition).toBe('none')
-  else expect(scalerStyle.transition).toContain(`transform ${motionDurations.press}ms`)
+  else expect(scalerStyle.transition).toBe(PRESS_SCALE_TRANSITION)
 }
 
 describe('habit row standard on Android', () => {

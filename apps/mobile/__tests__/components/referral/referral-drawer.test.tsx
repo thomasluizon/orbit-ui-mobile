@@ -1,6 +1,6 @@
 import { referralCopyCases } from '@orbit/shared/__tests__/referral-copy-fixtures'
 import React from 'react'
-import { Platform } from 'react-native'
+import { Platform, StyleSheet } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReferralStats } from '@orbit/shared/types/referral'
 import { createInstance } from 'i18next'
@@ -11,8 +11,12 @@ import { renderedText } from '../../support/react-test-renderer'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { expectSmallSheetActions, sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
+import { expectCopyStateIcon } from '@/__tests__/support/copy-state-icon'
+import { createTokensV2 } from '@/lib/theme'
 
 const TestRenderer = require('react-test-renderer')
+const motionState = vi.hoisted(() => ({ reduced: false }))
+vi.mock('@/lib/motion', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/motion')>()), usePrefersReducedMotion: () => motionState.reduced }))
 
 const stats: ReferralStats = {
   referralCode: 'ORBIT1',
@@ -94,6 +98,32 @@ describe('ReferralDrawer (mobile)', () => {
     mocks.referral = { stats, isLoading: false, isError: false, error: null }
     mocks.share.mockReset().mockResolvedValue({ action: 'sharedAction' })
     mocks.setStringAsync.mockReset()
+    motionState.reduced = false
+  })
+
+  it.each([false, true])('swaps the copy icon through CopyStateIcon on the shared fast duration (reduced motion %s)', async (reducedMotion) => {
+    motionState.reduced = reducedMotion
+    mocks.setStringAsync.mockResolvedValue(true)
+    const tree = renderDrawer()
+    const glyph = { reducedMotion, color: createTokensV2('purple', 'dark').fg2, strokeWidth: 1.8 }
+    expectCopyStateIcon(slot(tree, 'SheetBody'), { copied: false, ...glyph })
+    await pressButton(slot(tree, 'SheetBody'), 'referral.drawer.copyLink')
+    expect(mocks.setStringAsync).toHaveBeenCalledWith('https://useorbit.org/r/ORBIT1')
+    expectCopyStateIcon(slot(tree, 'SheetBody'), { copied: true, ...glyph })
+    TestRenderer.act(() => { tree.unmount() })
+  })
+
+  it.each([false, true])('presses the copy button through MotionPressable on the shared press timing (reduced motion %s)', (reducedMotion) => {
+    motionState.reduced = reducedMotion
+    const tree = renderDrawer()
+    const host = () => slot(tree, 'SheetBody').findAll((node: any) => typeof node.type === 'string' && node.props.accessibilityLabel === 'referral.drawer.copyLink')[0]
+    const paint = (pressed: boolean) => { const style = host().props.style; return StyleSheet.flatten(typeof style === 'function' ? style({ pressed }) : style) }
+    expect(paint(false)).toMatchObject({ transform: [{ scale: 1 }], transition: reducedMotion ? 'none' : 'transform 150ms cubic-bezier(0.16,1,0.3,1)' })
+    TestRenderer.act(() => { host().props.onPressIn?.() })
+    expect(paint(true)).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgHover, transform: [{ scale: reducedMotion ? 1 : 0.96 }], transition: reducedMotion ? 'none' : 'transform 150ms cubic-bezier(0.16,1,0.3,1)' })
+    TestRenderer.act(() => { host().props.onPressOut?.() })
+    expect(paint(false)).toMatchObject({ transform: [{ scale: 1 }] })
+    TestRenderer.act(() => { tree.unmount() })
   })
 
   it.each(['en', 'pt-BR'])('describes the real Pro-days offer and shares it in %s', async (locale) => {

@@ -6,10 +6,11 @@ import { HabitCheck } from '@/components/habits/habit-check'
 import { ListScope } from '@/components/motion/list-scope'
 import { triggerHaptic } from '@/lib/haptics'
 import { sharedValues, springState, withSpringCalls, withTimingCalls } from '../../../test-mocks/react-native-reanimated'
-import { motionDurations, motionSprings, orbitalMotion } from '@orbit/shared/theme'
+import { motionSprings, orbitalMotion } from '@orbit/shared/theme'
+import { PRESS_SCALE_TRANSITION } from '@/components/motion/press-scale'
 
 const preference = vi.hoisted(() => ({ reduced: false }))
-vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => preference.reduced }))
+vi.mock('@/lib/motion', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => preference.reduced }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark' }) }))
 vi.mock('@/lib/haptics', () => ({ triggerHaptic: vi.fn() }))
 const TestRenderer = require('react-test-renderer')
@@ -23,8 +24,7 @@ describe('interaction motion', () => {
     const host = () => tree!.root.findByType('Pressable')
     TestRenderer.act(() => host().props.onPressIn())
     const held = StyleSheet.flatten(host().props.style)
-    expect(held).toMatchObject({ transform: [{ scale: orbitalMotion.press.scale }] })
-    expect(held.transition).toContain(`transform ${motionDurations.press}ms`)
+    expect(held).toMatchObject({ transform: [{ scale: orbitalMotion.press.scale }], transition: PRESS_SCALE_TRANSITION })
     expect(Object.keys(held).filter((key) => key.startsWith('transition'))).toEqual(['transition'])
     TestRenderer.act(() => host().props.onPress())
     expect(onPress).toHaveBeenCalledOnce()
@@ -62,14 +62,13 @@ describe('interaction motion', () => {
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<CheckCircle state="empty" onToggle={vi.fn()} disabled={false} accessibilityLabel="Complete" />) })
     const scaler = () => {
-      const scalers = tree!.root.findAllByType('AnimatedView')
-        .filter((node: { props: { testID?: string } }) => node.props.testID !== 'habit-check')
+      const scalers = tree!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props['data-slot'] === 'press-scale')
       expect(scalers).toHaveLength(1)
       return StyleSheet.flatten(scalers[0].props.style) as { transform: { scale: number }[]; transition: string }
     }
     TestRenderer.act(() => tree!.root.findByType('Pressable').props.onPressIn())
     expect(scaler()).toMatchObject({ transform: [{ scale: orbitalMotion.press.scale }] })
-    expect(scaler().transition).toContain(`transform ${motionDurations.press}ms`)
+    expect(scaler().transition).toBe(PRESS_SCALE_TRANSITION)
     preference.reduced = true
     TestRenderer.act(() => tree!.update(<CheckCircle state="empty" onToggle={vi.fn()} disabled={false} accessibilityLabel="Complete" />))
     expect(scaler()).toMatchObject({ transform: [{ scale: 1 }], transition: 'none' })

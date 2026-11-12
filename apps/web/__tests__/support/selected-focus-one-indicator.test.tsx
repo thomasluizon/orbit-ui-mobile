@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { render, cleanup } from '@testing-library/react'
+import { render, cleanup, fireEvent, screen } from '@testing-library/react'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -12,18 +12,80 @@ import { CheckRow } from '@/components/ui/check-row'
 import { GoalTypeSelector } from '@/components/habits/create-goal-from-habit/goal-type-selector'
 import { makeHabitDetailScopedChild } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { RadioRow } from '@/components/ui/select-check'
+import { RadioGroup } from '@/components/ui/radio-group'
+import { WeekdayPicker } from '@/components/ui/weekday-picker'
+import { HabitMonthDaysField } from '@/components/habits/habit-form-fields/habit-month-days-field'
+import { HabitEmojiSelector } from '@/components/habits/habit-form-fields/habit-emoji-selector'
+import { HABIT_EMOJI_CATEGORIES } from '@orbit/shared/utils'
+import { DateField } from '@/components/ui/date-field'
+import { MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
+import { format } from 'date-fns'
+import { DayCell } from '@/components/dates/day-cell'
+import { MovingDaySelection } from '@/components/dates/month-selection'
+import { QuestionControls } from '@/components/chat/question-controls'
+import { QuestionBlockController } from '@orbit/shared/chat'
+import { questionBlockFixture } from '@orbit/shared/test-support/question-fixtures'
+import type { DayCellWords } from '@orbit/shared/contracts/dates'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
-import { inspectControlAccentRings, inspectFocusedControlRings } from '@/e2e/layout/focus-indicators'
+import { inspectControlAccentRings, inspectFocusedControlRings, readRingPaint, readThemeColor } from '@/e2e/layout/focus-indicators'
 import { loadAppFonts } from './app-fonts'
 import { measureSplitSegmentWords, mountMeasuredSegmentedControls } from './segmented-control-geometry'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from './chromium'
 import { NotificationBellDisplay } from '@/components/navigation/notification-bell'
 
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLocale: () => 'en' }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { weekStartDay: 1 } }) }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
 
+const dayWords: DayCellWords = { none: 'none', partial: 'partial', full: 'full', notScheduled: 'not scheduled', of: 'of', today: 'today', readOnly: 'read only' }
+const dayRingCases = [
+  { name: 'selected', selected: true, today: false, done: 1, scheduled: 2 },
+  { name: 'today', selected: false, today: true, done: 1, scheduled: 2 },
+  { name: 'full selected', selected: true, today: false, done: 1, scheduled: 1 },
+] as const
+
 const options = [{ value: 'Mês', label: 'Mês' }, { value: 'Semana', label: 'Semana' }, { value: 'Período', label: 'Período' }, { value: 'Agenda', label: 'Agenda' }] as const
+
+interface SelectionGroup {
+  name: string
+  markup: () => string
+  unselected: string
+  selected: string
+  selectionRingOwner?: string
+}
+
+const scaleQuestion = questionBlockFixture.questions.find((candidate) => candidate.id === 'energy')!
+const questionWords = { yes: 'yes', no: 'no', recommended: 'recommended', freeText: 'free text', required: 'required' }
+const weekdayOptions = ['mon', 'tue', 'wed'].map((value) => ({ value, label: value, accessibleLabel: value }))
+
+function emojiGridMarkup() {
+  render(<HabitEmojiSelector selectedEmoji={HABIT_EMOJI_CATEGORIES[0]!.emojis[0]!} onSelect={vi.fn()} />)
+  fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' }))
+  return document.querySelector('[role="listbox"]')!.outerHTML
+}
+
+function dateFieldGridMarkup() {
+  const today = new Date()
+  const step = today.getDate() > 14 ? -1 : 1
+  const selected = new Date(today.getFullYear(), today.getMonth(), today.getDate() + step)
+  const plain = new Date(today.getFullYear(), today.getMonth(), today.getDate() + step * 7)
+  render(<DateField value={format(selected, 'yyyy-MM-dd')} onChange={vi.fn()} />)
+  fireEvent.click(screen.getByRole('button', { name: 'common.selectedDate' }))
+  return {
+    html: `<div style="width:${7 * MONTH_GRID_TARGET_MIN}px">${document.querySelector('[role="grid"]')!.outerHTML}</div>`,
+    days: [`button[data-day="${format(plain, 'yyyy-MM-dd')}"]`, 'button[aria-current="date"]', 'button[aria-pressed="true"]'],
+  }
+}
+
+const selectionGroups: SelectionGroup[] = [
+  { name: 'segment', markup: () => render(<SegmentedControl label="View" options={options} value="Mês" onChange={() => {}} fullWidth />).container.innerHTML, unselected: 'button[role="radio"]:not([data-selected])', selected: 'button[role="radio"][data-selected]' },
+  { name: 'radio row', markup: () => render(<RadioGroup aria-label="Choice"><RadioRow label="Off" selected={false} onSelect={() => {}} /><RadioRow label="On" selected onSelect={() => {}} /></RadioGroup>).container.innerHTML, unselected: 'button[aria-checked="false"]', selected: 'button[aria-checked="true"]' },
+  { name: 'scale option', markup: () => render(<QuestionControls question={scaleQuestion} answer={{ questionId: 'energy', number: 3 }} disabled={false} controller={new QuestionBlockController()} words={questionWords} />).container.innerHTML, unselected: 'button[aria-checked="false"]', selected: 'button[aria-checked="true"]', selectionRingOwner: '[data-slot="question-scale-fill"][data-selected]' },
+  { name: 'period chip', markup: () => render(<><Chip variant="period">Week</Chip><Chip variant="period" active>Month</Chip></>).container.innerHTML, unselected: 'button[aria-pressed="false"]', selected: 'button[aria-pressed="true"]' },
+  { name: 'weekday picker', markup: () => render(<WeekdayPicker label="Days" days={['tue']} dayOptions={weekdayOptions} onToggleDay={() => {}} />).container.innerHTML, unselected: 'button[aria-pressed="false"]', selected: 'button[aria-pressed="true"]' },
+  { name: 'month days field', markup: () => render(<HabitMonthDaysField visible monthDays={[15]} anchorDay={15} quantity={1} onToggle={() => {}} />).container.innerHTML, unselected: 'button[aria-pressed="false"]', selected: 'button[aria-pressed="true"]' },
+  { name: 'emoji grid', markup: emojiGridMarkup, unselected: 'button[aria-selected="false"]', selected: 'button[aria-selected="true"]' },
+]
 
 describe('selection yields to keyboard focus', () => {
   let launch: BrowserLaunch | undefined
@@ -76,7 +138,110 @@ describe('selection yields to keyboard focus', () => {
     },
   )
 
+
+  async function focusByKeyboard(page: import('@playwright/test').Page, control: import('@playwright/test').Locator) {
+    if (await control.evaluate((element) => (element as HTMLElement).tabIndex < 0)) {
+      await page.keyboard.press('Tab')
+      await control.focus()
+    } else {
+      for (let stop = 0; stop < 20; stop += 1) {
+        await page.keyboard.press('Tab')
+        if (await control.evaluate((element) => element === document.activeElement)) break
+      }
+    }
+    expect(await control.evaluate((element) => element === document.activeElement && element.matches(':focus-visible'))).toBe(true)
+  }
+
+  async function readFocusOutlines(control: import('@playwright/test').Locator) {
+    return control.evaluate((element) => [element, ...element.querySelectorAll('*')].flatMap((owner) => {
+      const style = getComputedStyle(owner)
+      const painted = style.outlineStyle !== 'none' && Number.parseFloat(style.outlineWidth) > 0 && style.outlineColor !== 'rgba(0, 0, 0, 0)'
+      return painted ? [{ color: style.outlineColor, width: style.outlineWidth, offset: style.outlineOffset }] : []
+    }))
+  }
+
+  async function mountMarkup(markup: string, theme: 'dark' | 'light') {
+    const page = await browser.newPage()
+    await page.setContent(`<style>${stylesheet}:root { ${Object.entries(resolveWebThemeVariables('orange', theme)).map(([key, value]) => `${key}:${value};`).join('')} }</style>${markup}`)
+    return page
+  }
+
+  async function mountThemed(element: React.ReactNode, theme: 'dark' | 'light') {
+    return mountMarkup(render(element).container.innerHTML, theme)
+  }
+
   for (const theme of ['dark', 'light'] as const) {
+    it.each([false, true].flatMap((moving) => dayRingCases.map((dayCase) => ({ moving, ...dayCase }))))(`day cell focus ring differs from the state marker, ${theme}, $name, moving selection $moving`, async ({ moving, selected, today, done, scheduled }) => {
+      const page = await mountThemed(<MovingDaySelection.Provider value={moving ? 'month' : null}><DayCell day={15} label="March 15" words={dayWords} done={done} scheduled={scheduled} selected={selected} today={today} loggable onPress={vi.fn()} /></MovingDaySelection.Provider>, theme)
+      try {
+        const circle = page.locator('[data-day-circle]')
+        const primary = await readThemeColor(page, '--primary')
+        const foreground = await readThemeColor(page, '--fg-1')
+        const background = await readThemeColor(page, '--bg')
+        const resting = await readRingPaint(circle)
+        expect(resting.outer).toBe(primary)
+        await focusByKeyboard(page, page.getByRole('button'))
+        expect((await inspectFocusedControlRings(page))?.indicators, 'the focused day must draw exactly one focus indicator').toEqual(['span:outline'])
+        const focused = await readRingPaint(circle)
+        expect(focused.outer, 'focused ring must not repeat the marker colour in the marker band').not.toBe(resting.outer)
+        expect(focused.outer).toBe(foreground)
+        expect(focused.inner).toBe(background)
+      } finally { cleanup(); await page.close() }
+    })
+    it.each(selectionGroups)(`$name focuses an unselected and a selected member with the same --fg-1 ring, ${theme}`, async ({ markup, unselected, selected, selectionRingOwner }) => {
+      const html = markup()
+      cleanup()
+      const ringColors: (string | undefined)[] = []
+      for (const member of [unselected, selected]) {
+        const page = await mountMarkup(html, theme)
+        try {
+          const control = page.locator(member).first()
+          const primary = await readThemeColor(page, '--primary')
+          const foreground = await readThemeColor(page, '--fg-1')
+          expect(foreground).not.toBe(primary)
+          if (member === selected) expect((await readRingPaint(page.locator(selectionRingOwner ?? selected).first())).outer, 'the selected member rests on its accent selection ring').toBe(primary)
+          await focusByKeyboard(page, control)
+          expect((await inspectFocusedControlRings(page))?.indicators, 'the focused member must draw exactly one focus indicator').toHaveLength(1)
+          const outlines = await readFocusOutlines(control)
+          expect(outlines, `${member} must focus with one inset --fg-1 ring`).toEqual([{ color: foreground, width: '2px', offset: '-2px' }])
+          ringColors.push(outlines[0]?.color)
+        } finally { await page.close() }
+      }
+      expect(ringColors[0], 'an unselected and a selected member must share one focus colour').toBe(ringColors[1])
+    })
+    it(`date field day focuses a plain, the today and the selected day with the same --fg-1 ring at the narrowest width, ${theme}`, async () => {
+      const grid = dateFieldGridMarkup()
+      cleanup()
+      const ringColors: (string | undefined)[] = []
+      for (const day of grid.days) {
+        const page = await mountMarkup(grid.html, theme)
+        try {
+          const control = page.locator(day)
+          const primary = await readThemeColor(page, '--primary')
+          const foreground = await readThemeColor(page, '--fg-1')
+          expect(foreground).not.toBe(primary)
+          if (day.includes('aria-current')) expect(await inspectControlAccentRings(control), 'today rests on its hairline accent ring').toEqual(['span:shadow'])
+          if (day.includes('aria-pressed')) expect(await control.locator('span').first().evaluate((disc) => getComputedStyle(disc).backgroundColor), 'the selected day rests on its accent disc').toBe(primary)
+          await focusByKeyboard(page, control)
+          expect((await inspectFocusedControlRings(page))?.indicators, 'the focused day must draw exactly one focus indicator').toHaveLength(1)
+          const outlines = await readFocusOutlines(control)
+          expect(outlines, `${day} must focus with one inset --fg-1 ring`).toEqual([{ color: foreground, width: '2px', offset: '-2px' }])
+          const placement = await control.evaluate((button) => {
+            const style = getComputedStyle(button)
+            const target = button.getBoundingClientRect()
+            const disc = button.querySelector('span')!
+            const discBounds = disc.getBoundingClientRect()
+            const gap = Math.min(discBounds.left - target.left, target.right - discBounds.right, discBounds.top - target.top, target.bottom - discBounds.bottom)
+            return { width: target.width, clearance: gap + Number.parseFloat(style.outlineOffset), markerShadow: getComputedStyle(disc).boxShadow }
+          })
+          expect(placement.width, 'the grid renders at its narrowest column width').toBeCloseTo(MONTH_GRID_TARGET_MIN, 0)
+          expect(placement.clearance, 'the ring keeps clear of the day disc').toBeGreaterThanOrEqual(2)
+          expect(placement.markerShadow, 'the today marker yields to the focus ring').toBe('none')
+          ringColors.push(outlines[0]?.color)
+        } finally { await page.close() }
+      }
+      expect(new Set(ringColors).size, 'plain, today and selected days must share one focus colour').toBe(1)
+    })
     it.each([false, true].flatMap((checked) => (['none', 'active'] as const).map((forcedColors) => ({ checked, forcedColors }))))(`personal CheckRow keeps exactly one fill outline, ${theme}, checked $checked, forced colors $forcedColors`, async ({ checked, forcedColors }) => {
       const { container } = render(<CheckRow label="Habit" textMode="personal" checked={checked} onChange={vi.fn()} onOpenLabel={vi.fn()} />)
       const page = await browser.newPage({ forcedColors })

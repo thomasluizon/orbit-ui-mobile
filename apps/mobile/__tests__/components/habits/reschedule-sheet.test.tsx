@@ -7,6 +7,7 @@ import { RescheduleSheet } from '@/components/habits/reschedule-sheet'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { __setWindowDimensions } from '../../../test-mocks/react-native'
+import { pressableStyle } from '@/__tests__/support/press-feedback'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -95,8 +96,7 @@ describe('RescheduleSheet (mobile)', () => {
     if (state === 'error') {
       const action = tree.root.findAll(node => node.type === 'Pressable' && node.findAll(child => child.type === 'Text' && child.props.children === 'habits.reschedule.suggestDate').length > 0)[0]!
       expect(action.findAll(node => node.type === 'Text').map(node => node.props.children)).toEqual(['habits.reschedule.suggestDate'])
-      const style = action.props.style as (state: { pressed: boolean }) => import('react-native').ViewStyle[]
-      expect(StyleSheet.flatten(style({ pressed: false })).width).toBeUndefined()
+      expect(pressableStyle(action, false).width).toBeUndefined()
     }
   })
   it.each(['free', 'error'] as const)('dismisses the %s footer without applying or navigating', (state) => {

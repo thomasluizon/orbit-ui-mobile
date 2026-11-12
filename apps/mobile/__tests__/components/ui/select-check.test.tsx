@@ -418,15 +418,34 @@ describe('RadioRow press feedback', () => {
     const style = (pressed: boolean) => StyleSheet.flatten(pressStyle({ pressed }))
     const tokens = createTokensV2('orange', 'dark')
 
-    expect(style(false).transform).toBeUndefined()
-    expect(style(true).transform).toEqual(reducedMotion ? undefined : [{ scale: 0.96 }])
+    expect(style(true).transform).toBeUndefined()
+    expect(pressScale(tree)).toEqual([{ scale: 1 }])
+    void act(() => (row.props.onPressIn as () => void)())
+    expect(pressScale(tree)).toEqual([{ scale: reducedMotion ? 1 : 0.96 }])
     expect(style(true).backgroundColor).toBe(tokens.bgHover)
     expect(accessibilityState.checked).toBe(selected)
     expect(onSelect).not.toHaveBeenCalled()
     void act(() => onPress())
+    void act(() => (row.props.onPressOut as () => void)())
     expect(onSelect).toHaveBeenCalledTimes(selected ? 0 : 1)
-    expect(style(false).transform).toBeUndefined()
+    expect(pressScale(tree)).toEqual([{ scale: 1 }])
     expect(style(false).backgroundColor).toBe(selected ? tokens.selectionBg : 'transparent')
+    void act(() => tree.update(<View />))
+  })
+
+  it.each([false, true])('keeps the press fill and scale of a busy row at rest, the state the web row mirrors (personal text: %s)', (personal) => {
+    let tree!: ReactTestRenderer
+    void act(() => {
+      tree = create(<RadioGroup accessibilityLabel="Subjects">
+        <RadioRow label="Subject" textMode={personal ? 'personal' : undefined} busy reason="Saving" onSelect={vi.fn()} />
+      </RadioGroup>)
+    })
+    const row = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio')[0]!
+    const style = (pressed: boolean) => StyleSheet.flatten((row.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>)({ pressed }))
+    void act(() => (row.props.onPressIn as () => void)())
+    expect(style(true).backgroundColor).toBe('transparent')
+    expect(pressScale(tree)).toEqual([{ scale: 1 }])
+    void act(() => (row.props.onPressOut as () => void)())
     void act(() => tree.update(<View />))
   })
 
@@ -436,22 +455,24 @@ describe('RadioRow press feedback', () => {
       <RadioRow label="Subject" onSelect={vi.fn()} />
     </RadioGroup>
     void act(() => { tree = create(renderRow()) })
-    const pressedStyle = () => {
-      const row = tree.root.findAll((node) => node.type === Pressable)[0]!
-      const style = row.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
-      return StyleSheet.flatten(style({ pressed: true }))
-    }
-    expect(pressedStyle().transform).toEqual([{ scale: 0.96 }])
+    const row = () => tree.root.findAll((node) => node.type === Pressable)[0]!
+    const pressedFill = () => StyleSheet.flatten((row().props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>)({ pressed: true })).backgroundColor
+    void act(() => (row().props.onPressIn as () => void)())
+    expect(pressScale(tree)).toEqual([{ scale: 0.96 }])
     motionState.prefersReducedMotion = true
     void act(() => { tree.update(renderRow()) })
-    expect(pressedStyle().transform).toBeUndefined()
-    expect(pressedStyle().backgroundColor).toBe(createTokensV2('orange', 'dark').bgHover)
+    expect(pressScale(tree)).toEqual([{ scale: 1 }])
+    expect(pressedFill()).toBe(createTokensV2('orange', 'dark').bgHover)
     motionState.prefersReducedMotion = false
     void act(() => { tree.update(renderRow()) })
-    expect(pressedStyle().transform).toEqual([{ scale: 0.96 }])
+    expect(pressScale(tree)).toEqual([{ scale: 0.96 }])
     void act(() => { tree.update(<View />) })
   })
 })
+
+function pressScale(tree: ReactTestRenderer) {
+  return StyleSheet.flatten(tree.root.findAll((node) => node.props['data-slot'] === 'press-scale')[0]!.props.style as StyleProp<ViewStyle>).transform
+}
 
 describe('RadioRow secondary text contrast', () => {
   afterEach(() => { themeState.currentTheme = 'dark' })

@@ -44,7 +44,7 @@ function EmojiSuggestionButton({ onSuggest, canSuggest, isSuggesting, isDisabled
 
 function EmojiWell({ wellSize, proposed, selectedEmoji }: Readonly<Pick<HabitEmojiSelectorProps, 'wellSize' | 'proposed' | 'selectedEmoji'>>) {
   return (
-    <span data-emoji-well="" data-proposed={proposed ? '' : undefined} aria-hidden="true" className="habit-control-motion grid place-items-center rounded-[var(--r-well)] bg-[var(--bg-well)] group-hover/emoji:bg-[var(--bg-hover)] group-active/emoji:bg-[var(--bg-hover)]" style={{
+    <span data-emoji-well="" data-proposed={proposed ? '' : undefined} aria-hidden="true" className="habit-control-motion grid place-items-center rounded-[var(--r-well)] bg-[var(--bg-well)] group-hover/emoji:bg-[var(--bg-hover)] group-active/emoji:bg-[var(--bg-hover)] group-disabled/emoji:bg-[var(--bg-well)]" style={{
       width: wellSize,
       height: wellSize,
       color: proposed ? 'var(--fg-3)' : undefined,
@@ -108,7 +108,7 @@ export function HabitEmojiSelector({
         <div className="flex items-center gap-3">
           <button
             type="button"
-            className="habit-control-motion group/emoji grid shrink-0 cursor-pointer place-items-center border-0 active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-[var(--fg-1)] focus-visible:-outline-offset-2 disabled:cursor-not-allowed disabled:opacity-45"
+            className="habit-control-motion group/emoji grid shrink-0 cursor-pointer place-items-center border-0 enabled:active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-[var(--fg-1)] focus-visible:-outline-offset-2 disabled:cursor-not-allowed disabled:opacity-45"
             style={{
               width: typeof wellSize === 'number' ? Math.max(wellSize, TOUCH_TARGET_MIN) : wellSize,
               height: typeof wellSize === 'number' ? Math.max(wellSize, TOUCH_TARGET_MIN) : wellSize,
@@ -135,8 +135,8 @@ export function HabitEmojiSelector({
       {pickerOpen ? <Sheet ref={sheetRef} open title={t('habits.form.emojiPickerTitle')} onClose={hidePicker} headerAccessory={selectedEmoji ? (
         <div className="flex items-center gap-2">
           <span className="grid size-11 place-items-center rounded-full bg-[var(--bg-well)] text-xl">{selectedEmoji}</span>
-          <button type="button" disabled={isDisabled} className="habit-control-motion group/remove grid size-[var(--touch-min)] place-items-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-45" aria-label={t('habits.form.emojiRemove')} onClick={() => onSelect('')}>
-            <Trash2 size={20} strokeWidth={1.8} aria-hidden="true" className="transition-colors duration-[240ms] ease-[var(--ease-standard)] group-hover/remove:text-[var(--status-bad)]" />
+          <button type="button" disabled={isDisabled} className="habit-control-motion group/remove grid size-[var(--touch-min)] place-items-center rounded-full text-[var(--fg-2)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] enabled:active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-45" aria-label={t('habits.form.emojiRemove')} onClick={() => onSelect('')}>
+            <Trash2 size={20} strokeWidth={1.8} aria-hidden="true" className="transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-enabled/remove:group-hover/remove:text-[var(--status-bad)]" />
           </button>
         </div>
       ) : undefined}>
@@ -149,12 +149,12 @@ export function HabitEmojiSelector({
               onChange={(event) => setQuery(event.target.value)}
               aria-label={t('habits.form.emojiSearchPlaceholder')}
               placeholder={t('habits.form.emojiSearchPlaceholder')}
-              className="form-input min-w-0 flex-1"
+              className="form-input orbit-field-hover min-w-0 flex-1"
             />
             {query ? (
               <button
                 type="button"
-                className="habit-control-motion grid size-[var(--touch-min)] shrink-0 place-items-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96]"
+                className="habit-control-motion grid size-[var(--touch-min)] shrink-0 place-items-center rounded-full text-[var(--fg-2)] enabled:hover:bg-[var(--bg-hover)] enabled:hover:text-[var(--fg-1)] enabled:active:bg-[var(--bg-hover)] enabled:active:scale-[0.96]"
                 aria-label={t('habits.form.emojiClearSearch')}
                 onClick={() => setQuery('')}
               >
@@ -200,7 +200,7 @@ export function HabitEmojiSelector({
                         role="option"
                         aria-selected={isSelected}
                         aria-label={`${t('habits.form.emoji')}: ${emoji}`}
-                        className={`orbit-selection-ring habit-control-motion grid place-items-center rounded-[12px] hover:bg-[var(--bg-hover)] text-[22px] active:bg-[var(--bg-hover)] active:scale-[0.96] ${
+                        className={`orbit-selection-ring habit-control-motion grid place-items-center rounded-[12px] enabled:hover:bg-[var(--bg-hover)] text-[22px] enabled:active:bg-[var(--bg-hover)] enabled:active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)] ${
                           isSelected
                             ? 'bg-[rgba(var(--primary-rgb),0.10)]'
                             : 'bg-[var(--bg-field)]'

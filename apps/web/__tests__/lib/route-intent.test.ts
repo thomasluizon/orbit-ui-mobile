@@ -9,7 +9,6 @@ import {
 
 describe('route intent helpers', () => {
   it('maps intents to the correct shared motion scenarios', () => {
-    expect(getRouteScenarioForIntent('tab')).toBe('tab-switch')
     expect(getRouteScenarioForIntent('replace')).toBe('route-replace')
     expect(getRouteScenarioForIntent('forward')).toBe('route-push')
   })
@@ -17,7 +16,7 @@ describe('route intent helpers', () => {
   it('maps directions consistently for push and back navigation', () => {
     expect(getRouteDirectionForIntent('forward')).toBe(1)
     expect(getRouteDirectionForIntent('back')).toBe(-1)
-    expect(getRouteDirectionForIntent('tab')).toBe(0)
+    expect(getRouteDirectionForIntent('instant')).toBe(0)
   })
 
   it('resets the live snapshot back to neutral', () => {

@@ -147,6 +147,7 @@ export class Keyframe {
   readonly definitions: Record<number, Record<string, unknown>>
   durationMs?: number
   delayMs?: number
+  reduceMotionModes: unknown[] = []
 
   constructor(definitions: Record<number, Record<string, unknown>>) {
     this.definitions = definitions
@@ -160,7 +161,8 @@ export class Keyframe {
     this.delayMs = delayMs
     return this
   }
-  reduceMotion(): this {
+  reduceMotion(mode: unknown): this {
+    this.reduceMotionModes.push(mode)
     return this
   }
 }

@@ -35,13 +35,17 @@ function useCompletionSettle(done: boolean): number | null {
 
 export function HabitCheck({ status, label, unavailable = false, progress }: Readonly<HabitCheckProps>) {
   const ratio = habitCheckProgress(progress)
-  const done = status !== 'bad' && (progress ? ratio === 1 : status === 'done')
+  const done = status === 'done' || (status !== 'bad' && progress !== undefined && ratio === 1)
   const settleFrom = useCompletionSettle(done)
   const checkRef = useRef<HTMLSpanElement>(null)
   useEffect(() => {
-    if (settleFrom === null || !checkRef.current) return
-    const settle = animate(checkRef.current, { scale: [settleFrom, 1] }, { type: 'spring', ...motionSprings.completion })
-    return () => settle.complete()
+    const check = checkRef.current
+    if (settleFrom === null || !check) return
+    const settle = animate(check, { scale: [settleFrom, 1] }, { type: 'spring', ...motionSprings.completion })
+    return () => {
+      settle.complete()
+      check.style.removeProperty('transform')
+    }
   }, [settleFrom])
   if (unavailable) return (
     <span data-habit-check="" data-focus-ring-owner="" data-status="unavailable"

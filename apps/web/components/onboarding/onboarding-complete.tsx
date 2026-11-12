@@ -4,6 +4,7 @@ import { mediaQueryMatches } from '@/lib/media-query'
 
 import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
+import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { getOnboardingCompleteCopy } from '@orbit/shared/utils'
 import { PillButton } from '@/components/ui/pill-button'
 import { StatusRing } from '@/components/ui/status-ring'
@@ -32,7 +33,7 @@ function LandingRing() {
     const length = circle.getTotalLength()
     circle.style.strokeDasharray = String(length)
     circle.style.strokeDashoffset = String(length)
-    const animation = circle.animate([{ strokeDashoffset: length }, { strokeDashoffset: 0 }], { duration: 280, easing: 'ease-out' })
+    const animation = circle.animate([{ strokeDashoffset: length }, { strokeDashoffset: 0 }], { duration: motionDurations.slow, easing: `cubic-bezier(${motionEasings.enter.join(', ')})` })
     animation.onfinish = () => setSwept(true)
     return () => animation.cancel()
   }, [])

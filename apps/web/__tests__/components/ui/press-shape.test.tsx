@@ -272,7 +272,7 @@ describe('interaction fill parity in Chromium', () => {
     try {
       const variables = resolveWebThemeVariables('orange', mode)
       const declarations = Object.entries(variables).map(([key, value]) => `${key}:${value};`).join('')
-      await page.setContent(`<style>${stylesheet}:root {${declarations}} body {padding:48px} :is(button, select) {transition:none !important}</style>${markup}${close}`)
+      await page.setContent(`<style>${stylesheet}:root {${declarations}} body {padding:48px} :is(button, select, [data-press-fill]) {transition:none !important}</style>${markup}${close}`)
       await loadAppFonts(page)
       const expectedFill = await page.evaluate((fill) => { const probe = document.createElement('span'); probe.style.backgroundColor = fill; document.body.append(probe); const color = getComputedStyle(probe).backgroundColor; probe.remove(); return color }, variables['--bg-hover']!)
       for (const label of ['Previous day', 'Next day', 'List options', 'Search', 'Previous month', 'Next month', `Abril, ${ptBr.calendar.monthPicker}`, 'Previous week', 'Next week', 'Week, voltar para hoje', ptBr.notifications.bell, 'common.back', 'Idle chip', 'Selected chip', ptBr.common.close, 'Cancel']) {
@@ -286,11 +286,15 @@ describe('interaction fill parity in Chromium', () => {
         expect((await control.evaluate(readControlPaint)).background, `${label} press`).toBe(expectedFill)
         await page.mouse.up()
       }
-      if (!hasTouch) {
-        const direction = page.getByRole('combobox', { name: 'Direction' })
-        await direction.hover()
-        expect(await direction.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(expectedFill)
-      }
+      const opaqueFill = await page.evaluate((fill) => { const probe = document.createElement('span'); probe.style.backgroundColor = fill; document.body.append(probe); const color = getComputedStyle(probe).backgroundColor; probe.remove(); return color }, variables['--bg-hover-opaque']!)
+      const direction = page.getByRole('combobox', { name: 'Direction' })
+      const directionPaint = () => direction.evaluate((element) => ({ field: getComputedStyle(element).backgroundColor, fill: getComputedStyle(element.querySelector('[data-press-fill]')!).backgroundColor }))
+      const restingField = (await directionPaint()).field
+      await direction.hover()
+      if (!hasTouch) expect(await directionPaint()).toEqual({ field: restingField, fill: opaqueFill })
+      await page.mouse.down()
+      expect(await directionPaint()).toEqual({ field: restingField, fill: opaqueFill })
+      await page.mouse.up()
       const segment = page.getByRole('radio', { name: 'Active', exact: true })
       await segment.hover()
       await page.mouse.down()

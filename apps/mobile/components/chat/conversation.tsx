@@ -425,7 +425,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
           }}
         >
           <KeyboardAwareSheetScrollView keyboardShouldPersistTaps="handled" style={{ flexGrow: 0 }}><ShellContent><PendingPromptIdea hasDraft={!!composerProps.value} disabledReason={disabledReason} onSelect={selectIdea} /></ShellContent>
-          <Composer collapsible collapseScope="conversation"
+          <Composer
             inputSelection={inputSelection}
             {...composerProps}
             onChangeValue={value => { setInputSelection(undefined); composerProps.onChangeValue(value); }}

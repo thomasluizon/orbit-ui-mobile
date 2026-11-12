@@ -1,6 +1,7 @@
 'use client'
 
 import { ConversationComposerMotionProvider } from './conversation-composer-motion'
+import { TabViewTransition } from '@/components/motion/tab-view-transition'
 import { motion } from 'motion/react'
 import { useKeyboardViewport } from '@/hooks/use-keyboard-viewport'
 import { useConversationMotion } from '@/hooks/use-conversation-motion'
@@ -27,6 +28,7 @@ import { SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
 import { DestinationIcon } from '@/components/navigation/destination-icon'
 import { Lockup } from '@/components/ui/lockup'
 import { Keycap } from '@/components/ui/keycap'
+import { FIELD_TRIGGER_PERIMETER, FieldTriggerFill } from '@/components/ui/field-trigger'
 import { Button } from '@/components/ui/pill-button'
 import { IconButton } from '@/components/ui/icon-button'
 import { useShellScrollerRegistration } from './shell-scroller-context'
@@ -34,8 +36,7 @@ import { useModalFocusTrap } from './use-modal-focus-trap'
 import { getShellHeading } from './shell-header'
 
 function getConversationFocusTarget(container: HTMLElement): HTMLElement {
-  return container.querySelector<HTMLElement>('[data-composer-collapse-row]')
-    ?? container.querySelector<HTMLElement>('[data-composer-input]:not([disabled])')
+  return container.querySelector<HTMLElement>('[data-composer-input]:not([disabled])')
     ?? container.querySelector<HTMLElement>('[data-composer-root]')
     ?? container.querySelector<HTMLElement>('button:not([disabled])')
     ?? container
@@ -56,7 +57,7 @@ type WithDestinationHrefs<Props> = Props extends { items: ShellWideItem[] }
   ? Omit<Props, 'items'> & { items: WebShellWideItem[]; themeAction?: ReactNode }
   : Props
 
-type ResponsiveShellProps = WithDestinationHrefs<ShellWideProps> & { registerHeaderHost?: RefCallback<HTMLDivElement>; astraButton?: ReactNode; tabBar?: ReactNode; fab?: ReactNode; fabPending?: boolean; scrollToTop?: ReactNode; createRefusal?: ReactNode; onSidebarNavigate?: () => void }
+type ResponsiveShellProps = WithDestinationHrefs<ShellWideProps> & { registerHeaderHost?: RefCallback<HTMLDivElement>; astraButton?: ReactNode; tabBar?: ReactNode; fab?: ReactNode; fabPending?: boolean; scrollToTop?: ReactNode; createRefusal?: ReactNode; onSidebarNavigate?: () => void; tabViewTransition?: boolean }
 
 function SidebarItem({
   item,
@@ -92,11 +93,11 @@ function SidebarItem({
       data-habit-create-navigation={onSelect ? '' : undefined}
       className={[
         'flex min-h-[var(--touch-min)] w-full items-center gap-3 overflow-hidden rounded-[12px] px-3 text-left text-[14px] font-medium',
-        'transition-[background-color,color,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] ease-[var(--ease-standard)] active:scale-[0.96]',
+        'transition-[background-color,color,scale] duration-[var(--dur-hover-control),var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-standard),var(--ease-out)] active:scale-[0.96]',
         active
-          ? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]'
+          ? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)] active:text-[var(--primary-text)]'
           : 'text-[var(--fg-3)]',
-        'orbit-hover-text hover:bg-[var(--bg-hover)] touch-manipulation focus-visible:-outline-offset-2',
+        'orbit-hover-text hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] touch-manipulation focus-visible:-outline-offset-2',
         collapsed ? 'justify-center' : undefined,
       ].join(' ')}
       aria-current={current ? 'page' : undefined}
@@ -127,11 +128,11 @@ function SidebarAstraRow({ row, open, conversationId, collapsed }: Readonly<{
             onClick={row.onOpen}
             className={[
               'flex min-h-[var(--touch-min)] w-full items-center gap-3 overflow-hidden rounded-[12px] px-3 text-left text-[14px] font-medium',
-              'transition-[background-color,color,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] ease-[var(--ease-standard)] active:scale-[0.96]',
+              'transition-[background-color,color,scale] duration-[var(--dur-hover-control),var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-standard),var(--ease-out)] active:scale-[0.96]',
               open
-                ? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]'
+                ? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)] active:text-[var(--primary-text)]'
                 : 'text-[var(--fg-3)]',
-              'orbit-hover-text hover:bg-[var(--bg-hover)] touch-manipulation focus-visible:-outline-offset-2',
+              'orbit-hover-text hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] touch-manipulation focus-visible:-outline-offset-2',
               collapsed ? 'justify-center' : undefined,
             ].join(' ')}
           >
@@ -148,13 +149,14 @@ function SidebarSearch({ onPalette, paletteLabel, paletteHint, collapsed }: Read
             onClick={onPalette}
             aria-label={paletteLabel}
             title={collapsed ? paletteLabel : undefined}
-            className={`orbit-hover-text ${collapsed ? 'justify-center' : ''} flex min-h-[var(--touch-min)] items-center gap-3 rounded-[12px] bg-[var(--bg-field)] px-3 text-[14px] text-[var(--fg-3)] shadow-[inset_0_0_0_1px_var(--border-control)] transition-[background-color,color,box-shadow,scale] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-hover-control),150ms] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-standard),var(--ease-out)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] motion-safe:active:scale-[0.96]`}
+            className={`${FIELD_TRIGGER_PERIMETER} orbit-hover-text ${collapsed ? 'justify-center' : ''} flex min-h-[var(--touch-min)] items-center gap-3 rounded-[12px] bg-[var(--bg-field)] px-3 text-[14px] text-[var(--fg-3)] transition-[color,scale] duration-[var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-out)] hover:text-[var(--fg-1)] hover:[--fg-3:var(--fg-2)] active:text-[var(--fg-1)] active:[--fg-3:var(--fg-2)] motion-safe:active:scale-[0.96]`}
           >
             <Search size={20} strokeWidth={1.5} aria-hidden="true" />
             <span className={collapsed ? 'sr-only' : 'min-w-0 flex-1 truncate text-left'}>{paletteLabel}</span>
             {!collapsed && paletteHint ? (
               <Keycap>{paletteHint}</Keycap>
             ) : null}
+            <FieldTriggerFill />
           </button>
         ) : null}</>
 }
@@ -429,7 +431,7 @@ function ShellFabColumn({ astraButton, fab, fabPending }: Readonly<{ astraButton
 }
 
 function ShellWideBackground({
-  props: { registerHeaderHost, ...props },
+  props: { registerHeaderHost, tabViewTransition, ...props },
   conversationOpen,
   wide,
   conversationId,
@@ -452,6 +454,21 @@ function ShellWideBackground({
     || props.notice !== undefined || pinnedSlot !== undefined
   const floating = props.fab !== undefined || props.fabPending === true
   const astraSpacing = getFabColumnSpacing({ hasBottomChrome, hasPinnedSlot: pinnedSlot !== undefined, floating, astraButton: props.astraButton !== undefined, wide })
+  const scroller = (
+    <main
+      ref={registerScroller}
+      data-shell-scroller=""
+      style={{ scrollPaddingBottom: astraSpacing.focusClearance }}
+      className={`relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] ${astraSpacing.padding}`}
+    >
+      <span
+        aria-hidden="true"
+        data-shell-scroll-origin=""
+        className="pointer-events-none absolute left-0 top-0 h-px w-px"
+      />
+      <div data-shell-page-content="" className="mx-auto min-h-full w-full max-w-[740px] has-[[data-list-motion][inert]]:min-h-[var(--shell-scroll-min-height,100%)] has-[[data-page-viewport]]:h-full">{props.children}</div>
+    </main>
+  )
   return (
     <ConversationComposerMotionProvider><div
       className="isolate flex min-w-0 flex-1"
@@ -469,19 +486,7 @@ function ShellWideBackground({
             </div>
           </div> : null}
           <div data-shell-page="" className={`relative mx-auto flex w-full flex-1 flex-col ${astraSpacing.minimum}`} style={SHELL_PAGE_CLEARANCE}>
-            <main
-              ref={registerScroller}
-              data-shell-scroller=""
-              style={{ scrollPaddingBottom: astraSpacing.focusClearance }}
-              className={`relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] ${astraSpacing.padding}`}
-            >
-              <span
-                aria-hidden="true"
-                data-shell-scroll-origin=""
-                className="pointer-events-none absolute left-0 top-0 h-px w-px"
-              />
-              <div data-shell-page-content="" className="mx-auto min-h-full w-full max-w-[740px] has-[[data-list-motion][inert]]:min-h-[var(--shell-scroll-min-height,100%)] has-[[data-page-viewport]]:h-full">{props.children}</div>
-            </main>
+            {tabViewTransition ? <TabViewTransition>{scroller}</TabViewTransition> : scroller}
             {astraSpacing.fabColumn ? <ShellFabColumn astraButton={props.astraButton} fab={props.fab} fabPending={props.fabPending === true} /> : null}
             {props.scrollToTop !== undefined && !conversationOpen ? (
               <div data-shell-scroll-to-top="" className="pointer-events-none absolute inset-x-0 top-2 z-sticky flex justify-center">

@@ -45,7 +45,7 @@ function SegmentOption<TValue extends string>({
       data-selected={selected || undefined}
       onClick={(event) => { if (event.detail === 0) select() }}
       data-disabled={disabled || undefined}
-      className={`${segmentPadding} orbit-selection-ring habit-control-motion isolate relative min-h-[var(--touch-min)] min-w-[var(--touch-min)] max-w-full grow shrink basis-auto py-1 rounded-[8px] text-[0.875rem] font-medium text-[var(--fg-2)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)] data-[selected]:text-[var(--fg-1)] disabled:opacity-40`}
+      className={`${segmentPadding} orbit-selection-ring habit-control-motion isolate relative min-h-[var(--touch-min)] min-w-[var(--touch-min)] max-w-full grow shrink basis-auto py-1 rounded-[8px] text-[0.875rem] font-medium text-[var(--fg-2)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)] data-[selected]:text-[var(--fg-1)] disabled:opacity-40`}
     >
       <span className="relative block whitespace-normal [overflow-wrap:normal]">{option.label}</span>
       {selected ? <SelectionIndicator id={indicatorId} /> : null}

@@ -2,7 +2,7 @@ const { getAttributeValueNode } = require('./_jsx-strings.cjs')
 const { BREAKPOINTS, MEDIA_VARIANTS, isSupportedVariant, compareVariants } = require('./_hover-variant-order.cjs')
 
 const HOVER_VARIANT = /^(?:hover|group-hover(?:\/[^:]+)?)$/
-const MOTION = new Set(['habit-control-motion', 'orbit-pill-action', 'orbit-list-row', 'orbit-list-row-body', 'orbit-list-row-action', 'orbit-menu-item', 'chip'])
+const MOTION = new Set(['habit-control-motion', 'orbit-pill-action', 'orbit-list-row', 'orbit-list-row-body', 'orbit-list-row-action', 'orbit-menu-item', 'chip', 'icon-btn'])
 const BACKGROUND_TRANSITIONS = new Set(['transition', 'transition-colors', 'transition-all', 'transition-none'])
 
 function combineBranches(nodes) {
