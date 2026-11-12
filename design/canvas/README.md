@@ -206,6 +206,17 @@ supporting footer serves enlarged text, the measured inline depth boundary and m
 with first-title-line controls; ordinary default rows retain whole-row centring. This production
 composition amendment adds no unused drawing prop or checklist action.
 
+### Logged parent row amendment (#2114)
+
+Under D42, the owner's order amends the Hoje row drawings: a parent that is logged for the selected
+date, while its sub-habits stay open, shows that state. Its check becomes the neutral done disc that
+`Orbit Hoje.dc.html` already names; a bad parent keeps its bad check. Its title takes `--fg-3` at
+rest and `--fg-2` during row hover or press. Its next due date becomes the last visible metadata
+token: "due tomorrow" / "volta amanhã" for the next day, then the existing relative and scheduled
+words. The label shows only on today and never for a finished habit. When the full metadata flow
+does not fit on one line, the row uses the supporting footer. A row without sub-habits keeps the
+#898 treatment. No confirmation, no opacity change and no line through the title.
+
 ### Focused read block amendment
 
 `Orbit Astra Conversation` adds `periodTotal`, `periodComparison`, `history`, `read stale` and

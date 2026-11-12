@@ -21,7 +21,7 @@ function QuestionScale({ question, answer, disabled, controller, words }: Questi
   return <View style={{ minWidth: 0, gap: 8 }}>
     <RadioGroup testID="question-scale" accessibilityLabel={question.prompt} accessibilityHint={words.required} onLayout={event => setAvailableWidth(event.nativeEvent.layout.width)} style={{ flexDirection: 'row', gap: 0 }}>
       {[1, 2, 3, 4, 5].map(number => <RadioItem key={number} selected={answer?.number === number} disabled={disabled} onSelect={() => controller.setAnswer(question, { number })}>
-        <InsetFocusPressable accessibilityRole="radio" accessibilityLabel={String(number)} accessibilityState={{ checked: answer?.number === number, disabled }} disabled={disabled} focusable={!disabled} focusInset={INTERACTION_FILL_CLEARANCE / 2} focusOffset={-2} focusColor={tokens.primary}
+        <InsetFocusPressable accessibilityRole="radio" accessibilityLabel={String(number)} accessibilityState={{ checked: answer?.number === number, disabled }} disabled={disabled} focusable={!disabled} focusInset={INTERACTION_FILL_CLEARANCE / 2} focusOffset={-2}
           style={[styles.scaleOption, { width: optionWidth, opacity: disabled ? 0.6 : 1 }]}>
           {({ pressed, focused }) => <View data-slot="question-scale-fill" style={[styles.scaleFill, {
             backgroundColor: pressed || focused ? tokens.bgHover : answer?.number === number ? tokens.bgWell : 'transparent',

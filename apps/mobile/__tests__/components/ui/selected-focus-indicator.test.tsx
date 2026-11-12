@@ -15,6 +15,7 @@ import { HabitEmojiSelector } from '@/components/habits/habit-form-fields/habit-
 import { createStyles } from '@/components/habits/habit-form-fields/styles'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
+import { pressableStyle } from '@/__tests__/support/press-feedback'
 
 vi.unmock('@/components/ui/date-field')
 
@@ -142,7 +143,7 @@ it('theme action keeps one focus perimeter and a neutral press fill', () => {
   let tree: ReturnType<typeof TestRenderer.create>
   TestRenderer.act(() => { tree = TestRenderer.create(<ThemeToggle />) })
   const button = tree!.root.findAllByType('Pressable')[0]
-  expect(StyleSheet.flatten(button.props.style({ pressed: true })).backgroundColor).toBe(tokens.bgHover)
+  expect(pressableStyle(button, true).backgroundColor).toBe(tokens.bgHover)
   expect(ringCount(button)).toBe(0)
   TestRenderer.act(() => tree!.unmount())
 })

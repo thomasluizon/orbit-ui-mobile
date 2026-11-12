@@ -8,6 +8,7 @@ import { useAppToastStore } from '@/stores/app-toast-store'
 import { useUIStore } from '@/stores/ui-store'
 import { createTokensV2 } from '@/lib/theme'
 import { contrastOnSurface, withAlpha } from '@orbit/shared/__tests__/contrast'
+import { pressableStyle } from '@/__tests__/support/press-feedback'
 
 const safeArea = vi.hoisted(() => ({ top: 0, bottom: 0, left: 0, right: 0 }))
 vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => safeArea }))
@@ -112,7 +113,7 @@ describe('mobile Toast', () => {
       node.type === 'Pressable' && node.props.accessibilityLabel === 'common.close')[0]
     expect(close).toBeDefined()
     expect(close.props.accessibilityRole).toBe('button')
-    const target = StyleSheet.flatten(close.props.style({ pressed: false }))
+    const target = pressableStyle(close, false)
     expect(target.minHeight + close.props.hitSlop * 2).toBe(48)
     expect(target.width + close.props.hitSlop * 2).toBe(48)
     TestRenderer.act(() => close.props.onPress())

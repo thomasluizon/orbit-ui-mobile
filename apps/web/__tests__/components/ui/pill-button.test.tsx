@@ -337,7 +337,7 @@ describe('PillButton', () => {
     expect(transitions).toHaveLength(1)
     expect(transitions[0]).toContain('background-color var(--dur-hover-control) var(--ease-standard)')
     expect(transitions[0]).toContain('opacity var(--dur-1) var(--ease-out)')
-    expect(transitions[0]).toContain('scale var(--dur-1) var(--ease-out)')
+    expect(transitions[0]).toContain('scale var(--dur-press) var(--ease-out)')
     expect(transitions[0]).not.toContain('transform')
     const activeDurations: string[] = []
     css.walkRules('.orbit-pill-action:active:not(:disabled)', (rule) => {

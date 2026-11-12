@@ -71,7 +71,7 @@ function CalendarMonthFeedback({
 }
 function CalendarMonthView({ state }: Readonly<{ state: CalendarScreenState }>) {
   const { t, i18n } = useTranslation()
-  const { currentMonth, selectedDay, router, todayKey, openImport, tokens, calendarGridRef, calendarDayRef, displayTime, showEventSource, calendarEventsState, refetchCalendarEvents, isLoading, swipeGesture, selectMonthDay, gridDays, weekdayHeaders, monthDisplayState, formattedSelectedDate, monthDayEntries, selectedCalendarEvents, completedCount, selectedDayLoggable, pendingEntryStates, changeSelectedEntry, monthEntering, openHabitCreation } = state
+  const { currentMonth, selectedDay, router, todayKey, openImport, tokens, calendarGridRef, calendarDayRef, displayTime, showEventSource, calendarEventsState, refetchCalendarEvents, isLoading, swipeGesture, selectMonthDay, gridDays, weekdayHeaders, monthDisplayState, formattedSelectedDate, monthDayEntries, selectedCalendarEvents, completedCount, selectedDayLoggable, pendingEntryStates, changeSelectedEntry, monthSlide, openHabitCreation } = state
   return ((
     <>
       <CalendarGrid
@@ -80,7 +80,7 @@ function CalendarMonthView({ state }: Readonly<{ state: CalendarScreenState }>) 
         selectedDay={selectedDay}
         isLoading={isLoading}
         monthKey={format(currentMonth, "yyyy-MM")}
-        monthEntering={monthEntering}
+        slideDirection={monthSlide}
         swipeGesture={swipeGesture}
         gridRef={calendarGridRef}
         todayRef={calendarDayRef}

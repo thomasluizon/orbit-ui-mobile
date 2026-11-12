@@ -30,7 +30,7 @@ export function HabitMonthDaysField({ visible, monthDays, anchorDay, quantity, d
           const chosen = selected.includes(day)
           return <button key={day} type="button" aria-pressed={chosen} disabled={disabled}
             style={proposed ? { '--selection-ring-color': 'var(--fg-3)' } as CSSProperties : undefined}
-            className={`orbit-selection-ring orbit-selection-ring-thin habit-control-motion grid min-h-[var(--touch-min)] min-w-[24px] place-items-center rounded-full border-0 font-mono text-sm tabular-nums enabled:hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40 ${chosen ? proposed ? 'bg-[var(--bg-well)] text-[var(--fg-2)]' : 'bg-[var(--primary-dim)] text-[var(--fg-1)]' : 'bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] enabled:hover:text-[var(--fg-1)]'}`}
+            className={`orbit-selection-ring orbit-selection-ring-thin habit-control-motion grid min-h-[var(--touch-min)] min-w-[24px] place-items-center rounded-full border-0 font-mono text-sm tabular-nums enabled:hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)] disabled:opacity-40 ${chosen ? proposed ? 'bg-[var(--bg-well)] text-[var(--fg-2)]' : 'bg-[var(--primary-dim)] text-[var(--fg-1)]' : 'bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] enabled:hover:text-[var(--fg-1)]'}`}
             onClick={() => onToggle(day)}>{day}</button>
         })}
       </fieldset>

@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { parse } from 'yaml'
 import { describe, expect, it } from 'vitest'
+import { declaredStepEnvironment, deploymentRecord, writeGitHubStub } from './support/release-step-environment'
 
 interface Workflow<Job extends string> {
   on: Record<string, { branches?: string[]; paths?: string[] } | null>
@@ -11,7 +12,7 @@ interface Workflow<Job extends string> {
     'runs-on': string
     'timeout-minutes': number
     env: Record<string, string>
-    steps: { name?: string; run?: string; uses?: string; if?: string; with?: Record<string, string> }[]
+    steps: { name?: string; run?: string; uses?: string; if?: string; env?: Record<string, string>; with?: Record<string, string> }[]
   }>
 }
 
@@ -154,33 +155,102 @@ describe('iOS build and release boundaries', () => {
     }
   })
 
+  const androidCommit = 'a'.repeat(40)
+
+  /** Runs the iOS validation step. The Android record names `androidCommit` (null: no commit); the run builds `commit`. */
+  const validateRelease = (options: {
+    variant: 'staging' | 'production'; ref: string; androidVersion: string | null; platformOnlyReason?: string
+    commit?: string; recordedCommit?: string | null
+  }) => {
+    const recorded = options.recordedCommit === null ? { sha: undefined } : { sha: options.recordedCommit ?? androidCommit }
+    const workflow = readWorkflow<'release'>('ios-release')
+    const step = workflow.jobs.release.steps.find((candidate) => candidate.name === 'Validate the release configuration')!
+    expect(step.run).toBeTypeOf('string')
+    const directory = mkdtempSync(join(tmpdir(), 'orbit-ios-dispatch-'))
+    const appDirectory = join(directory, 'apps/mobile')
+    mkdirSync(join(appDirectory, 'scripts'), { recursive: true })
+    copyFileSync(resolve('app.json'), join(appDirectory, 'app.json'))
+    for (const script of ['set-app-version.js', 'mobile-version-pair.js']) copyFileSync(resolve('scripts', script), join(appDirectory, 'scripts', script))
+    writeGitHubStub(directory, {
+      [options.variant]: { android: options.androidVersion ? [deploymentRecord(options.androidVersion, 'android-release', recorded)] : [], ios: [] },
+      [options.variant === 'staging' ? 'production' : 'staging']: { android: [deploymentRecord('1.0.0')], ios: [] },
+    })
+    const run = () => execFileSync('/bin/bash', ['-c', step.run!], {
+      cwd: directory, stdio: 'pipe',
+      env: {
+        ...iosReleaseEnvironment,
+        PATH: `${directory}:${process.env.PATH ?? ''}`, ORBIT_APP_VARIANT: options.variant, GITHUB_REF: options.ref,
+        GITHUB_REPOSITORY: 'owner/repository', GITHUB_SHA: options.commit ?? androidCommit,
+        ...declaredStepEnvironment(step, {
+          APP_VERSION: iosReleaseEnvironment.APP_VERSION, IOS_BUILD_NUMBER: iosReleaseEnvironment.IOS_BUILD_NUMBER,
+          PLATFORM_ONLY_REASON: options.platformOnlyReason ?? '', GH_TOKEN: 'test-token',
+        }),
+      },
+    })
+    const buildNumber = () => {
+      const config: { expo: { ios: { buildNumber: string } } } = JSON.parse(readFileSync(join(appDirectory, 'app.json'), 'utf8'))
+      return config.expo.ios.buildNumber
+    }
+    return { run, buildNumber, cleanup: () => rmSync(directory, { recursive: true, force: true }) }
+  }
+
   it.each([
     ['production', 'refs/heads/feature/release', false],
     ['production', 'refs/heads/main', true],
     ['staging', 'refs/heads/feature/release', true],
   ] as const)('validates %s releases from %s before signing', (variant, ref, accepted) => {
-    const workflow = readWorkflow<'release'>('ios-release')
-    const script = workflow.jobs.release.steps.find((step) => step.name === 'Validate the release configuration')?.run
-    expect(script).toBeTypeOf('string')
-    const directory = mkdtempSync(join(tmpdir(), 'orbit-ios-dispatch-'))
-    const appDirectory = join(directory, 'apps/mobile')
-    mkdirSync(join(appDirectory, 'scripts'), { recursive: true })
-    copyFileSync(resolve('app.json'), join(appDirectory, 'app.json'))
-    copyFileSync(resolve('scripts/set-app-version.js'), join(appDirectory, 'scripts/set-app-version.js'))
-    const release = () => execFileSync('/bin/bash', ['-c', script!], {
-      cwd: directory, stdio: 'pipe',
-      env: { ...iosReleaseEnvironment, ORBIT_APP_VARIANT: variant, GITHUB_REF: ref },
-    })
+    const release = validateRelease({ variant, ref, androidVersion: '2.0.0' })
     try {
       if (accepted) {
-        expect(release).not.toThrow()
-        const config: { expo: { ios: { buildNumber: string } } } = JSON.parse(readFileSync(join(appDirectory, 'app.json'), 'utf8'))
-        expect(config.expo.ios.buildNumber).toBe('42')
+        expect(release.run).not.toThrow()
+        expect(release.buildNumber()).toBe('42')
       } else {
-        expect(release).toThrow('Production iOS releases must run from main')
+        expect(release.run).toThrow('Production iOS releases must run from main')
       }
     } finally {
-      rmSync(directory, { recursive: true, force: true })
+      release.cleanup()
+    }
+  })
+
+  it.each([
+    ['refuses a staging version that differs from the newest Android internal version', 'staging', '1.9.0', '', 'differs from the newest Android version 1.9.0'],
+    ['refuses a production version that differs from the newest Android open version', 'production', '1.9.0', '', 'differs from the newest Android version 1.9.0'],
+    ['refuses when Android has no release to mirror in that environment', 'staging', null, '', 'No Android release exists to mirror'],
+    ['allows the mismatch with a platform-only reason', 'staging', '1.9.0', 'iOS only crash', null],
+  ] as const)('%s before it writes the version', (_name, variant, androidVersion, platformOnlyReason, refusal) => {
+    const release = validateRelease({ variant, ref: 'refs/heads/main', androidVersion, platformOnlyReason })
+    try {
+      if (refusal === null) {
+        expect(release.run).not.toThrow()
+        expect(release.buildNumber()).toBe('42')
+      } else {
+        expect(release.run).toThrow(refusal)
+        expect(release.buildNumber()).not.toBe('42')
+      }
+    } finally {
+      release.cleanup()
+    }
+  })
+
+  it.each([
+    ['refuses an iOS build of another commit at the Android version', 'production', '2.0.0', '', 'b'.repeat(40), androidCommit,
+      `Android 2.0.0 is built from ${androidCommit}, and this release builds ${'b'.repeat(40)}.`],
+    ['allows an iOS build of the commit Android built', 'production', '2.0.0', '', androidCommit, androidCommit, null],
+    ['refuses a version whose Android record names no commit', 'staging', '2.0.0', '', androidCommit, null,
+      'The newest Android record of 2.0.0 names no commit'],
+    ['allows an iOS-only release at a new version from any commit', 'production', '1.9.0', 'iOS only crash', 'b'.repeat(40), androidCommit, null],
+  ] as const)('%s before it writes the version', (_name, variant, androidVersion, platformOnlyReason, commit, recordedCommit, refusal) => {
+    const release = validateRelease({ variant, ref: 'refs/heads/main', androidVersion, platformOnlyReason, commit, recordedCommit })
+    try {
+      if (refusal === null) {
+        expect(release.run).not.toThrow()
+        expect(release.buildNumber()).toBe('42')
+      } else {
+        expect(release.run).toThrow(refusal)
+        expect(release.buildNumber()).not.toBe('42')
+      }
+    } finally {
+      release.cleanup()
     }
   })
 

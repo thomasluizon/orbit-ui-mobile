@@ -1673,6 +1673,21 @@ describe('HabitDetailScreen', () => {
     expect(screen.queryByTestId('confirm-habits.checklistCompleteTitle')).not.toBeInTheDocument()
   })
 
+  it('closes the checklist log confirmation before the log settles', async () => {
+    mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
+    mocks.checklist.mockResolvedValueOnce(undefined)
+    mocks.log.mockReturnValueOnce(new Promise(() => {}))
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'toggle-checklist' }))
+    await act(async () => Promise.resolve())
+    fireEvent.click(screen.getByTestId('confirm-habits.checklistCompleteTitle'))
+    await act(async () => Promise.resolve())
+
+    expect(mocks.log).toHaveBeenCalledWith({ habitId: 'habit-1', date: '2026-08-28', intent: 'log' })
+    expect(screen.queryByTestId('confirm-habits.checklistCompleteTitle')).not.toBeInTheDocument()
+  })
+
   it('keeps checklist edits without offering old-day completion', async () => {
     mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-19" />)
@@ -1802,6 +1817,22 @@ describe('HabitDetailScreen', () => {
     expect(meta.firstElementChild?.querySelector('[data-habit-row-type]')).not.toBeNull()
     expect(meta.querySelector('[data-habit-row-checklist]')?.textContent).toBe('1/2')
     expect(row.querySelectorAll('[data-habit-row-type]')).toHaveLength(1)
+  })
+
+  it.each([true, false])('shows the logged parent state on a detail child row only when the child has sub-habits=%s', (hasSubHabits) => {
+    vi.setSystemTime(new Date(2026, 7, 28, 12))
+    mocks.realChildRows = true
+    mocks.detail = makeDetail()
+    mocks.scopedHabits.set('child-1', { ...makeScopedChild('2026-08-28'), hasSubHabits, dueDate: '2026-08-29' })
+    const { container } = render(<HabitDetailScreen habitId="habit-1" />)
+    const row = container.querySelector<HTMLElement>('[data-testid="detail-children"] [data-testid="habit-row"]')!
+    const title = row.querySelector<HTMLElement>('[data-habit-row-title-block] > :first-child')!
+    const label = within(row).getByText(hasSubHabits ? 'habits.schedule.nextDueTomorrow' : 'habits.schedule.dueTomorrow')
+    expect({
+      titleColor: title.style.color,
+      labelVisible: label.closest('.sr-only') === null && label.closest('[data-habit-row-meta]') !== null,
+      check: row.querySelector('[data-status="done"]') !== null,
+    }).toEqual({ titleColor: hasSubHabits ? 'var(--habit-row-meta-color)' : 'var(--fg-2)', labelVisible: hasSubHabits, check: true })
   })
 
   describe('drawn detail geometry', () => {

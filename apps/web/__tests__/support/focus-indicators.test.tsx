@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Loader2 } from '@/components/ui/icons'
 import { CheckCircle } from '@/components/habits/habit-row-check-circle'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
-import { expectOneFieldIndicator, inspectControlAccentRings, inspectFocusedControlRings as inspectFocusedRing, readFieldIndicators, readOutlineVisibility, settleFocusAnimations } from '@/e2e/layout/focus-indicators'
+import { expectOneFieldIndicator, inspectControlAccentRings, inspectFocusedControlRings as inspectFocusedRing, readFieldIndicators, readOutlineVisibility, readRingPaint, settleFocusAnimations } from '@/e2e/layout/focus-indicators'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from './chromium'
 
 describe('field indicator readers in Chromium', () => {
@@ -202,6 +202,24 @@ describe('field indicator readers in Chromium', () => {
       </style><div class="field"><input></div>`)
       await loadAppFonts(page)
       expect(await readFieldIndicators(page.locator('input'), '.field')).toEqual(indicators)
+    } finally {
+      await page.close()
+    }
+  })
+
+  it.each([
+    { label: 'an inset outline above an inset band', rules: '.ring { outline: 2px solid rgb(244, 244, 246); outline-offset: -2px; box-shadow: inset 0 0 0 4px rgb(9, 9, 11); }', paint: { outer: 'rgb(244, 244, 246)', inner: 'rgb(9, 9, 11)', outline: null } },
+    { label: 'an outset outline beside an inset ring', rules: '.ring { outline: 2px solid rgb(244, 244, 246); outline-offset: 2px; box-shadow: inset 0 0 0 2px rgb(196, 83, 15); }', paint: { outer: 'rgb(196, 83, 15)', inner: null, outline: null } },
+    { label: 'one inset ring without an outline', rules: '.ring { box-shadow: inset 0 0 0 2px rgb(196, 83, 15); }', paint: { outer: 'rgb(196, 83, 15)', inner: null, outline: null } },
+  ])('reads the ring bands of $label', async ({ rules, paint }) => {
+    const page = await browser.newPage()
+    try {
+      await page.setContent(`<style>
+        .circle { position: relative; width: 34px; height: 34px; border-radius: 17px; isolation: isolate; }
+        .ring { position: absolute; inset: 0; border-radius: inherit; }
+        ${rules}
+      </style><div class="circle"><div class="ring"></div></div>`)
+      expect(await readRingPaint(page.locator('.circle'))).toEqual(paint)
     } finally {
       await page.close()
     }

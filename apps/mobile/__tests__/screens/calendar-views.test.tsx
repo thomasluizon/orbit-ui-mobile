@@ -147,6 +147,7 @@ vi.mock("expo-router", () => ({
   }, { Screen: () => null }),
   useRouter: () => ({ push: state.routerPush, replace: vi.fn(), setParams: state.routerSetParams }),
   useLocalSearchParams: () => state.routeParams,
+  usePathname: () => "/calendar",
 }));
 
 vi.mock('@/components/calendar-sync/calendar-import-content', () => ({

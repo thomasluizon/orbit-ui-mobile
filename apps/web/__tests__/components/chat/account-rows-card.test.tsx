@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { BlockFrameProps } from '@orbit/shared/contracts/blocks'
 import { AccountRowsCard } from '@/components/chat/account-rows-card'
+import { expectCopyStateIcon } from '@/__tests__/support/copy-state-icon'
 
 const rewardState = vi.hoisted(() => ({ stats: { rewardType: 'pro_days', proDaysPerReferral: 7, discountPercent: 23 }, locale: '' }))
 const referralRead = vi.hoisted(() => vi.fn())
@@ -70,6 +71,23 @@ describe('Astra account rows on web', () => {
     fireEvent.click(screen.getByRole('button', { name: 'chat.account.share' }))
     await waitFor(() => expect(mocks.share).toHaveBeenCalledWith({ title: 'referral.share.title', text: 'referral.share.proDays', url: 'https://example.com/r/ORBIT123' }))
     expect(screen.queryByRole('button', { name: 'chat.account.open' })).not.toBeInTheDocument()
+  })
+
+  it('swaps the copy icon through CopyStateIcon with scale, opacity and blur on the shared fast duration and swaps instantly under reduced motion', async () => {
+    render(<AccountRowsCard accountRows={{ kind: 'referral', surfaceId: 'profile', rows: [], referralCode: 'ORBIT123' }} />)
+    expectCopyStateIcon(screen.getByRole('button', { name: 'chat.account.copy' }), { copied: false, strokeWidth: 2 })
+    fireEvent.click(screen.getByRole('button', { name: 'chat.account.copy' }))
+    await waitFor(() => expectCopyStateIcon(screen.getByRole('button', { name: 'chat.account.copied' }), { copied: true, strokeWidth: 2 }))
+  })
+
+  it('transitions the CSS property that the Tailwind scale utilities write', async () => {
+    const { compile } = await import('tailwindcss')
+    const css = (await compile('@tailwind utilities;')).build(['scale-[0.25]', 'scale-100'])
+    const written = [...css.matchAll(/^\s{2}(scale|transform):/gm)].map(match => match[1])
+    expect(new Set(written)).toEqual(new Set(['scale']))
+    const { container } = render(<AccountRowsCard accountRows={{ kind: 'referral', surfaceId: 'profile', rows: [], referralCode: 'ORBIT123' }} />)
+    const transitionClass = [...container.querySelector('[data-icon-swap="copy"]')!.classList].find(name => name.startsWith('transition-['))!
+    expect(transitionClass.slice('transition-['.length, -1).split(',')).toContain('scale')
   })
 
   it('offers link copy when browser sharing is unavailable', async () => {

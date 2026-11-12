@@ -17,7 +17,7 @@ export function HabitCheck({ status, label, unavailable = false, progress }: Rea
       style={{ width: 28, height: 28, background: 'var(--bg-well)', boxShadow: 'none' }} />
   )
   const ratio = habitCheckProgress(progress)
-  const done = status !== 'bad' && (progress ? ratio === 1 : status === 'done')
+  const done = status === 'done' || (status !== 'bad' && progress !== undefined && ratio === 1)
   const { graphic: color } = progress ? { graphic: 'var(--track-empty)' } : {
     empty: { graphic: 'var(--status-empty)' }, done: { graphic: 'var(--fg-1)' }, overdue: { graphic: 'var(--status-overdue)' }, bad: { graphic: 'var(--status-bad)' },
   }[status]

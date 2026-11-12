@@ -1,8 +1,8 @@
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import { HABIT_CHECK_PATH, HABIT_CHECK_PERIMETER, habitCheckProgress } from '@orbit/shared/utils/habit-row-status'
 import Animated from 'react-native-reanimated'
-import { motionDurations, motionEasings } from '@orbit/shared/theme'
-import { usePrefersReducedMotion } from '@/lib/motion'
+import { motionDurations } from '@orbit/shared/theme'
+import { toCssTransition, usePrefersReducedMotion } from '@/lib/motion'
 import { StyleSheet, View } from 'react-native'
 import Svg, { Path } from 'react-native-svg'
 import { Check } from '@/components/ui/icons'
@@ -29,7 +29,7 @@ export function HabitCheck({ status, label, unavailable = false, feedback = fals
         backgroundColor: tokens.bgWell, borderWidth: 0 }} />
   )
   const ratio = habitCheckProgress(progress)
-  const done = status !== 'bad' && (progress ? ratio === 1 : status === 'done')
+  const done = status === 'done' || (status !== 'bad' && progress !== undefined && ratio === 1)
   const emptyFill = feedback ? tokens.bgHover : 'transparent'
   const { graphic: color } = progress ? { graphic: tokens.trackEmpty } : {
     empty: { graphic: tokens.statusEmpty }, done: { graphic: tokens.fg1 }, overdue: { graphic: tokens.statusOverdue }, bad: { graphic: tokens.statusBad },
@@ -39,7 +39,7 @@ export function HabitCheck({ status, label, unavailable = false, feedback = fals
       accessibilityRole={accessibilityRole} accessibilityLabel={label}
       style={{ width: 28, height: 28, borderRadius: 12, flexShrink: 0, alignItems: 'center', justifyContent: 'center',
         backgroundColor: done ? tokens.fg1 : emptyFill,
-        transition: `background-color ${reduced ? motionDurations.instant : motionDurations.press}ms cubic-bezier(${motionEasings.standard.join(',')})`,
+        transition: toCssTransition(['background-color'], reduced ? motionDurations.instant : motionDurations.press),
         borderWidth: done ? 0 : 1, borderColor: color }}>
       {done ? <CompletedCheck feedback={feedback} fill={tokens.bgHoverOpaque} color={tokens.bg} /> : null}
       {!done && ratio > 0 ? <Svg width={28} height={28} style={{ position: 'absolute', top: -1, left: -1 }}>
