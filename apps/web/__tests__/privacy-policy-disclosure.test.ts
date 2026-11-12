@@ -183,8 +183,8 @@ describe('privacy policy disclosures', () => {
   })
 
   it.each([
-    ['en', en, 'Device data: a push notification token (to deliver reminders) and Android crash reports with device and OS details, a random installation ID, and an approximate city inferred from the request IP address. These reports do not include your name, email, or account details.'],
-    ['pt-BR', ptBR, 'Dados do dispositivo: um token de notificação push (para enviar lembretes) e relatórios de falhas no Android com informações do aparelho e do sistema, um identificador aleatório da instalação e a cidade aproximada, estimada pelo endereço IP da conexão. Esses relatórios não incluem nome, e-mail nem dados da conta.'],
+    ['en', en, 'Device data: a push notification token (to deliver reminders) and Android and iOS crash reports with device and OS details, a random installation ID, and an approximate city inferred from the request IP address. These reports do not include your name, email, or account details.'],
+    ['pt-BR', ptBR, 'Dados do dispositivo: um token de notificação push (para enviar lembretes) e relatórios de falhas no Android e no iOS com informações do aparelho e do sistema, um identificador aleatório da instalação e a cidade aproximada, estimada pelo endereço IP da conexão. Esses relatórios não incluem nome, e-mail nem dados da conta.'],
   ])('omits retired ad disclosures while retaining device disclosures in %s', (locale, messages, deviceDisclosure) => {
     render(React.createElement(TestIntlProvider, { locale, messages }, React.createElement(PrivacyPage)))
 
@@ -193,6 +193,41 @@ describe('privacy policy disclosures', () => {
     expect(messages.privacy.dataCollected.device).toBe(deviceDisclosure)
     expect(screen.getByText(deviceDisclosure)).toBeInTheDocument()
     expect(screen.getByText(messages.privacy.thirdParty.googlePlay)).toBeInTheDocument()
+  })
+
+  it.each([
+    ['en', en, /iOS/, /voice input/i],
+    ['pt-BR', ptBR, /iOS/, /entrada por voz/i],
+  ])('names iOS crash reports and the voice audio upload in %s', (locale, messages, iosPattern, voicePattern) => {
+    expect(messages.privacy.dataCollected.device).toMatch(iosPattern)
+    expect(messages.privacy.thirdParty.sentry).toMatch(iosPattern)
+    expect(messages.privacy.thirdParty.openai).toMatch(voicePattern)
+    expect(messages.privacy.thirdParty.openai).toMatch(/OpenAI/)
+    render(React.createElement(TestIntlProvider, { locale, messages }, React.createElement(PrivacyPage)))
+    expect(screen.getByText(messages.privacy.thirdParty.openai)).toBeInTheDocument()
+    expect(screen.getByText(messages.privacy.thirdParty.sentry)).toBeInTheDocument()
+  })
+
+  it.each([
+    ['en', en, 'on Android', 'on iOS and in the Mac app', 'in the Windows app', 'in the web app'],
+    ['pt-BR', ptBR, 'no Android', 'no iOS e no app para Mac', 'no app para Windows', 'no aplicativo web'],
+  ])('names the push service of every platform in %s', (locale, messages, android, appleDevices, windows, browser) => {
+    const { firebase, apple, wns, webPush } = messages.privacy.thirdParty
+    expect(firebase).toContain('Firebase Cloud Messaging')
+    expect(firebase).toContain(android)
+    expect(firebase).not.toMatch(/iOS|Mac|Windows|web/)
+    expect(apple).toContain('Apple Push Notification service')
+    expect(apple).toContain(appleDevices)
+    expect(wns).toContain('Microsoft Windows Push Notification Services')
+    expect(wns).toContain(windows)
+    for (const pushService of ['Google', 'Mozilla', 'Apple', 'Microsoft']) {
+      expect(webPush).toContain(pushService)
+    }
+    expect(webPush).toContain(browser)
+    render(React.createElement(TestIntlProvider, { locale, messages }, React.createElement(PrivacyPage)))
+    for (const disclosure of [firebase, apple, wns, webPush]) {
+      expect(screen.getByText(disclosure)).toBeInTheDocument()
+    }
   })
 
   it.each([
@@ -225,8 +260,8 @@ describe('privacy policy disclosures', () => {
     expect(ptBR.privacy.dataResidency.body).toContain('Estados Unidos')
     expect(en.privacy.dataResidency.body).toContain('Render hosts the web application, API, and database')
     expect(ptBR.privacy.dataResidency.body).toContain('A Render hospeda o aplicativo web, a API e o banco de dados')
-    expect(en.privacy.lastUpdated).toBe('Last updated: October 2026')
-    expect(ptBR.privacy.lastUpdated).toBe('Última atualização: outubro de 2026')
+    expect(en.privacy.lastUpdated).toBe('Last updated: November 2026')
+    expect(ptBR.privacy.lastUpdated).toBe('Última atualização: novembro de 2026')
   })
 })
 
