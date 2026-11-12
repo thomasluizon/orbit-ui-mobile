@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState, useSyncExternalStore, type RefCallback } from 'react'
-import { getHabitInlineDepthLimit } from '@orbit/shared/utils'
+import { getHabitInlineDepthLimit, habitRowMetaNeedsSupportingLine } from '@orbit/shared/utils'
 
 function textScale() {
   const rootSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
@@ -36,7 +36,8 @@ export function useHabitRowSupportingMeta(depth: number) {
   return { supportingMeta: largeText || depth > 0 && depth >= maxInlineDepth, measureRef, largeText }
 }
 
-export function useHabitRowMetadataFit(signature: string, largeText: boolean, measureRef: RefCallback<HTMLDivElement>) {
+/** Measures the title block and the metadata tokens for `habitRowMetaNeedsSupportingLine`. */
+export function useHabitRowMetadataFit(signature: string, largeText: boolean, measureRef: RefCallback<HTMLDivElement>, fitWholeStrip: boolean) {
   const [row, setRow] = useState<HTMLDivElement | null>(null)
   const rowRef = useCallback((element: HTMLDivElement | null) => {
     setRow(element)
@@ -54,10 +55,11 @@ export function useHabitRowMetadataFit(signature: string, largeText: boolean, me
     if (!content) return
     const observer = new ResizeObserver(() => {
       const available = content.getBoundingClientRect().width
-      if (available > 0) setNarrow(tokens.some((token) => token.getBoundingClientRect().width > available))
+      if (available <= 0) return
+      setNarrow(habitRowMetaNeedsSupportingLine(tokens.map((token) => token.getBoundingClientRect().width), available, fitWholeStrip))
     })
     for (const element of [content, ...tokens]) observer.observe(element)
     return () => observer.disconnect()
-  }, [row, signature, largeText, narrow])
+  }, [row, signature, largeText, narrow, fitWholeStrip])
   return { rowRef, narrow }
 }
