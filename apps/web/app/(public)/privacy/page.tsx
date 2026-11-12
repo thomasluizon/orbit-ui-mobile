@@ -22,6 +22,7 @@ function usePrivacySections(): LegalDocumentSection[] {
     { id: 'third-party', title: t('privacy.thirdParty.title'), paragraphs: [
       t('privacy.thirdParty.intro'), t('privacy.thirdParty.google'),
       t('privacy.thirdParty.stripe'), t('privacy.thirdParty.firebase'),
+      t('privacy.thirdParty.wns'), t('privacy.thirdParty.webPush'),
       t('privacy.thirdParty.openai'), t('privacy.thirdParty.ses'),
       t('privacy.thirdParty.googlePlay'),
       t('privacy.thirdParty.apple'),
