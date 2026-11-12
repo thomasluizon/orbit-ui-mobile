@@ -1,6 +1,7 @@
 'use client'
 
 import { ConversationComposerMotionProvider } from './conversation-composer-motion'
+import { TabViewTransition } from '@/components/motion/tab-view-transition'
 import { motion } from 'motion/react'
 import { useKeyboardViewport } from '@/hooks/use-keyboard-viewport'
 import { useConversationMotion } from '@/hooks/use-conversation-motion'
@@ -57,7 +58,7 @@ type WithDestinationHrefs<Props> = Props extends { items: ShellWideItem[] }
   ? Omit<Props, 'items'> & { items: WebShellWideItem[]; themeAction?: ReactNode }
   : Props
 
-type ResponsiveShellProps = WithDestinationHrefs<ShellWideProps> & { registerHeaderHost?: RefCallback<HTMLDivElement>; astraButton?: ReactNode; tabBar?: ReactNode; fab?: ReactNode; fabPending?: boolean; scrollToTop?: ReactNode; createRefusal?: ReactNode; onSidebarNavigate?: () => void }
+type ResponsiveShellProps = WithDestinationHrefs<ShellWideProps> & { registerHeaderHost?: RefCallback<HTMLDivElement>; astraButton?: ReactNode; tabBar?: ReactNode; fab?: ReactNode; fabPending?: boolean; scrollToTop?: ReactNode; createRefusal?: ReactNode; onSidebarNavigate?: () => void; tabViewTransition?: boolean }
 
 function SidebarItem({
   item,
@@ -431,7 +432,7 @@ function ShellFabColumn({ astraButton, fab, fabPending }: Readonly<{ astraButton
 }
 
 function ShellWideBackground({
-  props: { registerHeaderHost, ...props },
+  props: { registerHeaderHost, tabViewTransition, ...props },
   conversationOpen,
   wide,
   conversationId,
@@ -454,6 +455,21 @@ function ShellWideBackground({
     || props.notice !== undefined || pinnedSlot !== undefined
   const floating = props.fab !== undefined || props.fabPending === true
   const astraSpacing = getFabColumnSpacing({ hasBottomChrome, hasPinnedSlot: pinnedSlot !== undefined, floating, astraButton: props.astraButton !== undefined, wide })
+  const scroller = (
+    <main
+      ref={registerScroller}
+      data-shell-scroller=""
+      style={{ scrollPaddingBottom: astraSpacing.focusClearance }}
+      className={`relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] ${astraSpacing.padding}`}
+    >
+      <span
+        aria-hidden="true"
+        data-shell-scroll-origin=""
+        className="pointer-events-none absolute left-0 top-0 h-px w-px"
+      />
+      <div data-shell-page-content="" className="mx-auto min-h-full w-full max-w-[740px] has-[[data-list-motion][inert]]:min-h-[var(--shell-scroll-min-height,100%)] has-[[data-page-viewport]]:h-full">{props.children}</div>
+    </main>
+  )
   return (
     <ConversationComposerMotionProvider><div
       className="isolate flex min-w-0 flex-1"
@@ -471,19 +487,7 @@ function ShellWideBackground({
             </div>
           </div> : null}
           <div data-shell-page="" className={`relative mx-auto flex w-full flex-1 flex-col ${astraSpacing.minimum}`} style={SHELL_PAGE_CLEARANCE}>
-            <main
-              ref={registerScroller}
-              data-shell-scroller=""
-              style={{ scrollPaddingBottom: astraSpacing.focusClearance }}
-              className={`relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] ${astraSpacing.padding}`}
-            >
-              <span
-                aria-hidden="true"
-                data-shell-scroll-origin=""
-                className="pointer-events-none absolute left-0 top-0 h-px w-px"
-              />
-              <div data-shell-page-content="" className="mx-auto min-h-full w-full max-w-[740px] has-[[data-list-motion][inert]]:min-h-[var(--shell-scroll-min-height,100%)] has-[[data-page-viewport]]:h-full">{props.children}</div>
-            </main>
+            {tabViewTransition ? <TabViewTransition>{scroller}</TabViewTransition> : scroller}
             {astraSpacing.fabColumn ? <ShellFabColumn astraButton={props.astraButton} fab={props.fab} fabPending={props.fabPending === true} /> : null}
             {props.scrollToTop !== undefined && !conversationOpen ? (
               <div data-shell-scroll-to-top="" className="pointer-events-none absolute inset-x-0 top-2 z-sticky flex justify-center">
