@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync } from "node:fs"
 import { createHash } from "node:crypto"
 import { join } from "node:path"
 import { cloudOrder } from "../lib/cloud-worker.mjs"
+import { parityExemptTerms } from "../lib/parity-scope.mjs"
 
 import { check, githubIssueReadPlan, orcaEnv, realOrchestratorConfig, REPO_ROOT, root, stage, stageWithConfig, T } from "./_harness.mjs"
 
@@ -70,6 +71,12 @@ export const cases = () => {
       prompt.includes("platform adapter") && prompt.includes("enumerated layout-shell divergence") &&
       prompt.includes("mirror change"),
     prompt,
+  )
+  const missingTerms = parityExemptTerms.filter((term) => !prompt.includes(term))
+  T(
+    `${TOOL}: local ui delivery lists every parity term the PR Metadata gate accepts`,
+    parityExemptTerms.length > 0 && missingTerms.length === 0,
+    `missing: ${missingTerms.join(", ")}`,
   )
 
   const boardMarker = stage("compose-prompt/board-read", "must remain")

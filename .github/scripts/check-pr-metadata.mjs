@@ -1,4 +1,4 @@
-import { parityPlatform } from "../../tools/lib/parity-scope.mjs"
+import { parityExemptionJustified, parityExemptTerms, parityPlatform } from "../../tools/lib/parity-scope.mjs"
 import { readFileSync, writeFileSync } from "node:fs"
 import { dashFindings } from "../../tools/check-dashes.mjs"
 import { attributionFindings } from "../../tools/lib/attribution-lines.mjs"
@@ -26,14 +26,14 @@ if (attribution.length) {
 const paths = readFileSync(changedPaths, "utf8").split(/\r?\n/)
 const web = paths.some((path) => parityPlatform(path) === "web")
 const mobile = paths.some((path) => parityPlatform(path) === "mobile")
+const acceptedTerms = `one of these platform adapters or layout-shell divergences: ${parityExemptTerms.join(", ")}`
 if (labels.includes("parity:exempt") && (web || mobile)) {
-  const section = text.split(/^## Parity[ \t]*\r?$/m)[1]?.split(/^## /m)[0].trim()
-  if (!section || !/BFF|direct API|cookie|SecureStore|shadcn|StyleSheet|next-intl|i18next|Radix Primitives|rn-primitives|navigation chrome|sidebar|tab bar|command palette|keyboard shortcuts|hover affordances/i.test(section)) {
-    console.error("::error::parity:exempt requires a line under ## Parity naming the platform adapter or permitted layout-shell divergence.")
+  if (!parityExemptionJustified(text)) {
+    console.error(`::error::parity:exempt requires a line under ## Parity that names ${acceptedTerms}.`)
     failed = true
   }
 } else if (web !== mobile) {
-  console.error("::error::UI changes must land on both platforms or carry parity:exempt with a justification under ## Parity.")
+  console.error(`::error::UI changes must land on both platforms or carry parity:exempt with a line under ## Parity that names ${acceptedTerms}.`)
   failed = true
 }
 if (failed) process.exitCode = 1
