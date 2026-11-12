@@ -94,7 +94,13 @@ request header on an external rewrite, so that rewrite sent the session cookies 
 handler forwards an envelope only when its header names the build's `NEXT_PUBLIC_SENTRY_DSN`,
 and it sends the body to that project's ingest endpoint with only a `Content-Type` header.
 `SENTRY_TUNNEL_ROUTE` in `lib/public-paths.ts` names the path, so a signed-out visitor
-reaches it. Do not set `tunnelRoute` again: its rewrite runs before the Route Handler.
+reaches it.
+
+Do not set `tunnelRoute` again. Today `next.config.ts` has no `rewrites()`, so Next.js loads the
+`tunnelRoute` rewrite in `afterFiles`, after the `/monitoring` Route Handler, and it does nothing.
+If `rewrites()` later returns an object, Sentry prepends the rewrite to `beforeFiles`, ahead of
+the handler. Then the rewrite sends the session cookies and the `proxy.ts` request headers to
+Sentry again.
 
 ## Focused read block rollout
 
