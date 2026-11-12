@@ -433,6 +433,22 @@ describe('RadioRow press feedback', () => {
     void act(() => tree.update(<View />))
   })
 
+  it.each([false, true])('keeps the press fill and scale of a busy row at rest, the state the web row mirrors (personal text: %s)', (personal) => {
+    let tree!: ReactTestRenderer
+    void act(() => {
+      tree = create(<RadioGroup accessibilityLabel="Subjects">
+        <RadioRow label="Subject" textMode={personal ? 'personal' : undefined} busy reason="Saving" onSelect={vi.fn()} />
+      </RadioGroup>)
+    })
+    const row = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio')[0]!
+    const style = (pressed: boolean) => StyleSheet.flatten((row.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>)({ pressed }))
+    void act(() => (row.props.onPressIn as () => void)())
+    expect(style(true).backgroundColor).toBe('transparent')
+    expect(pressScale(tree)).toEqual([{ scale: 1 }])
+    void act(() => (row.props.onPressOut as () => void)())
+    void act(() => tree.update(<View />))
+  })
+
   it('responds to a reduced-motion preference change while pressed', () => {
     let tree!: ReactTestRenderer
     const renderRow = () => <RadioGroup accessibilityLabel="Subjects">

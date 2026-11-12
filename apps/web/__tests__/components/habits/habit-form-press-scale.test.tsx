@@ -55,6 +55,15 @@ function FormRadioRows() {
   </RadioGroup>
 }
 
+/** A plain and a personal radio row, idle or busy. A busy row stays enabled for focus and is `aria-disabled`, so `:enabled` does not gate it. */
+function RadioRowsWhile({ busy }: Readonly<{ busy: boolean }>) {
+  const state = busy ? { busy: true as const, reason: 'Saving' } : { busy: false as const }
+  return <RadioGroup aria-label="Type">
+    <RadioRow label="Task" onSelect={vi.fn()} {...state} />
+    <RadioRow label="Habit" textMode="personal" onSelect={vi.fn()} {...state} />
+  </RadioGroup>
+}
+
 /** Each scenario renders habit form press controls in their disabled state and returns them. */
 const DISABLED_PRESS_CONTROLS: ReadonlyArray<readonly [string, () => HTMLElement[]]> = [
   ['a proposed picker row whose caller passes no press scale', () => {
@@ -227,6 +236,11 @@ describe('habit form press scale', () => {
       cleanup()
       return scenarioNames
     })
+    for (const busy of [false, true]) {
+      render(<RadioRowsWhile busy={busy} />)
+      names.push(...classNamesIn(document))
+      cleanup()
+    }
     rules = await compileClassRules(names)
   }, 60_000)
 
@@ -266,6 +280,20 @@ describe('habit form press scale', () => {
       .map(({ state }) => element.matches(`*${state.replace(/:hover|:active/g, '')}`)))
     expect(applies.length).toBeGreaterThan(0)
     expect(applies).toEqual(applies.map(() => !disabled))
+  })
+
+  it.each([['idle', false], ['busy', true]] as const)('paints the radio row hover and press fill only while the row is idle, as its mobile mirror does: %s', (_, busy) => {
+    render(<RadioRowsWhile busy={busy} />)
+    const rows = screen.getAllByRole('radio')
+    expect(rows).toHaveLength(2)
+    for (const row of rows) {
+      expect(row).toBeEnabled()
+      expect(row.getAttribute('aria-disabled')).toBe(busy ? 'true' : null)
+      const paints = rules.rulesFor(row).filter((rule) => /:hover|:active/.test(rule.state) && INTERACTION_PAINT.some((property) => rule.declarations.has(property)))
+      const applied = paints.filter((rule) => row.matches(`*${rule.state.replace(/:hover|:active/g, '')}`)).map((rule) => rule.state)
+      if (busy) expect(applied).toEqual([])
+      else expect(applied).toEqual([':enabled:hover', ':enabled:active'])
+    }
   })
 
   it.each(DISABLED_PRESS_CONTROLS)('holds %s at unit scale under reduced motion through the global press rule', (_, renderControls) => {
