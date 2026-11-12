@@ -78,13 +78,13 @@ export function launchChrome(options?: Parameters<typeof chromium.launchServer>[
   })
 }
 
-type WarmStartStep = 'launch' | 'first page' | 'first content'
+type WarmStartStep = 'launch' | 'first page' | 'first content' | 'close'
 
 // WHY: a fresh runner pays its first Chrome start and first page inside the first case's timer unless that cost is paid before suites start. https://github.com/thomasluizon/orbit-tickets/issues/2074
 export async function warmChrome(): Promise<void> {
   let step: WarmStartStep = 'launch'
   let deadlineTimer: ReturnType<typeof setTimeout> | undefined
-  // WHY: global setup runs with no Vitest timer, and Playwright opens a page with no timeout of its own. https://github.com/thomasluizon/orbit-tickets/issues/2074
+  // WHY: global setup runs with no Vitest timer, and Playwright opens a page and closes the browser with no timeout of its own. https://github.com/thomasluizon/orbit-tickets/issues/2074
   const deadline = new Promise<never>((_, reject) => {
     deadlineTimer = setTimeout(() => {
       reject(new Error(`Chrome warm start exceeded ${CHROME_WARM_START_TIMEOUT_MS}ms in the ${step} step.`))
@@ -99,7 +99,8 @@ export async function warmChrome(): Promise<void> {
       step = 'first content'
       await Promise.race([page.setContent('<p>Orbit</p>', { timeout: CHROME_WARM_START_TIMEOUT_MS }), deadline])
     } finally {
-      await browser.close()
+      step = 'close'
+      await Promise.race([browser.close(), deadline])
     }
   } catch (cause) {
     if (step === 'launch') void browserLaunch.then((lateBrowser) => lateBrowser.close(), () => undefined)

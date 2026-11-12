@@ -182,6 +182,27 @@ describe('Chromium test lifecycle', () => {
     }
   })
 
+  it.each([
+    { stalledStep: 'close', firstPageStalls: false },
+    { stalledStep: 'first page', firstPageStalls: true },
+  ])('fails the warm start at its deadline in the $stalledStep step when the browser never closes', async ({ stalledStep, firstPageStalls }) => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    vi.mocked(browser.close).mockReturnValueOnce(new Promise(() => undefined))
+    if (firstPageStalls) vi.mocked(browser.newPage).mockReturnValueOnce(new Promise(() => undefined))
+    const outcome = warmChrome().then(() => 'warm', (error: Error) => `${error.message} ${(error.cause as Error).message}`)
+
+    try {
+      await vi.advanceTimersByTimeAsync(CHROME_WARM_START_TIMEOUT_MS - 1)
+      await expect(Promise.race([outcome, Promise.resolve('pending')])).resolves.toBe('pending')
+      await vi.advanceTimersByTimeAsync(1)
+      await expect(outcome).resolves.toBe(`Chrome warm start failed. Chrome warm start exceeded 120000ms in the ${stalledStep} step.`)
+      expect(browser.close).toHaveBeenCalledOnce()
+      expect(page.setContent).toHaveBeenCalledTimes(firstPageStalls ? 0 : 1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('fails a stalled warm start launch at its deadline and closes a browser that opens later', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     let finishLaunch!: (launched: Browser) => void
