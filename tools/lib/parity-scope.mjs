@@ -4,7 +4,8 @@ export const parityPlatform = (path) =>
   /^apps\/(web|mobile)\/(app|components|hooks|stores|lib)\/.+\.(?:ts|tsx|js|jsx|mjs|cjs|css)$/.exec(path)?.[1]
 
 // The platform adapters and layout-shell divergences that justify `parity:exempt`.
-// The PR Metadata gate tests the `## Parity` section against these, and the worker order lists them.
+// The PR Metadata gate and tools/verify-delivery.mjs test the `## Parity` section against these,
+// the gate error and the local worker order list them, and the orchestrate skill points here.
 export const parityExemptTerms = [
   "BFF",
   "direct API",
@@ -26,4 +27,10 @@ export const parityExemptTerms = [
 
 const escapeForPattern = (term) => term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 
-export const parityExemptPattern = new RegExp(parityExemptTerms.map(escapeForPattern).join("|"), "i")
+const parityExemptPattern = new RegExp(parityExemptTerms.map(escapeForPattern).join("|"), "i")
+
+// The one `## Parity` section parser: the section runs from its heading to the next `## ` heading.
+export const parityExemptionJustified = (body) => {
+  const section = (body ?? "").split(/^## Parity[ \t]*\r?$/m)[1]?.split(/^## /m)[0]
+  return parityExemptPattern.test(section ?? "")
+}

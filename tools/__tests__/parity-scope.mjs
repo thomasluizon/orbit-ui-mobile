@@ -1,4 +1,4 @@
-import { parityExemptPattern, parityExemptTerms, parityPlatform } from "../lib/parity-scope.mjs"
+import { parityExemptionJustified, parityExemptTerms, parityPlatform } from "../lib/parity-scope.mjs"
 import { T } from "./_harness.mjs"
 
 export const cases = () => {
@@ -15,7 +15,12 @@ export const cases = () => {
   T("mobile layout source is a mobile parity change", parityPlatform("apps/mobile/app/_layout.tsx") === "mobile")
   T("the accepted parity terms are the approved adapter and layout-shell list", parityExemptTerms.join("|") ===
     "BFF|direct API|cookie|SecureStore|shadcn|StyleSheet|next-intl|i18next|Radix Primitives|rn-primitives|navigation chrome|sidebar|tab bar|command palette|keyboard shortcuts|hover affordances")
-  for (const term of parityExemptTerms) T(`parity pattern accepts ${term}`, parityExemptPattern.test(`Adapter: ${term}.`))
-  T("parity pattern accepts a different letter case", parityExemptPattern.test("a SIDEBAR difference"))
-  T("parity pattern rejects a paraphrase", !parityExemptPattern.test("Web proxy adapter: mobile has no tunnel route."))
+  for (const term of parityExemptTerms) T(`a parity section naming ${term} is justified`, parityExemptionJustified(`## Parity\n\nAdapter: ${term}.`))
+  T("a parity term matches in a different letter case", parityExemptionJustified("## Parity\n\na SIDEBAR difference"))
+  T("a parity section with a paraphrase is not justified", !parityExemptionJustified("## Parity\n\nWeb proxy adapter: mobile has no tunnel route."))
+  T("a parity heading with a CRLF line ending still opens the section", parityExemptionJustified("## Parity\r\n\r\nBFF vs direct API adapter.\r\n"))
+  T("a term under the next heading does not justify an empty parity section",
+    !parityExemptionJustified("## Parity\n\n## Test evidence\n\nBFF cookie adapter."))
+  T("a term outside any parity section does not justify the exemption", !parityExemptionJustified("## Summary\n\nBFF vs direct API adapter."))
+  T("an empty or absent body is not justified", !parityExemptionJustified("") && !parityExemptionJustified(null))
 }

@@ -8,7 +8,7 @@ import { runBounded } from "./lib/bounded-process.mjs"
 import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { PASSING_CONCLUSIONS, REVIEW_APP_CONTEXT, headActivityArgv, headActivityBoundary, newestChecks, pullRequestStateArgv, pullRequestStateFromGraphQl, registrationFingerprint, requiredCheckSatisfied, requiredChecksFromResponse, resolveReviewVerdict, reviewPageArgv, reviewPageFromGraphQl } from "./lib/readiness-receipt.mjs"
-import { parityPlatform } from "./lib/parity-scope.mjs"
+import { parityExemptionJustified, parityExemptTerms, parityPlatform } from "./lib/parity-scope.mjs"
 import { gitDirectoryOf } from "./lib/run-state.mjs"
 
 const USAGE = `usage: verify-delivery.mjs --issue <ORB-N|#N|N> --worktree <path> --branch <name> [options]
@@ -27,8 +27,8 @@ const USAGE = `usage: verify-delivery.mjs --issue <ORB-N|#N|N> --worktree <path>
 
 Derives delivery from git and GitHub artifacts only, never from a worker's own
 report. Checks run in order and the first failure decides the verdict:
-NO_COMMIT, DIRTY_TREE, UNPUSHED, NO_PR, STALE_PR, UNLINKED_PR, MISSING_PARITY_LABEL, DRAFT, OUT_OF_DATE,
-CI_FAILING, CI_PENDING, or DELIVERED.
+NO_COMMIT, DIRTY_TREE, UNPUSHED, NO_PR, UNLINKED_PR, STALE_PR, MISSING_PARITY_LABEL,
+MISSING_PARITY_TERM, DRAFT, OUT_OF_DATE, CI_FAILING, CI_PENDING, or DELIVERED.
 
 A cancelled current-head Actions run is rerun once when a run from the same pull request
 branch and workflow, created for an ancestor head, finished later. The report records
@@ -286,6 +286,18 @@ checks.parityLabel = {
   observed: hasParityLabel ? "parity:exempt" : "label absent",
 }
 if (!checks.parityLabel.pass) emit("MISSING_PARITY_LABEL")
+
+/**
+ * The PR Metadata gate refuses `parity:exempt` on any app source change unless the `## Parity`
+ * section names an accepted term. The same predicate runs here, so a paraphrase fails before CI on
+ * a local and a cloud delivery, and the report lists the terms that pass.
+ */
+const parityTermRequired = hasParityLabel && (webPaths.length > 0 || mobilePaths.length > 0)
+checks.parityTerm = { pass: !parityTermRequired || parityExemptionJustified(pullRequest.body), required: parityTermRequired }
+if (!checks.parityTerm.pass) {
+  checks.parityTerm.accepted = parityExemptTerms
+  emit("MISSING_PARITY_TERM")
+}
 
 const repositoryFromUrl = /^https:\/\/github\.com\/([^/]+\/[^/]+)\/pull\/\d+\/?$/i.exec(pullRequest.url)?.[1]
 if (!repositoryFromUrl) fail(2, `pull request #${pullRequest.number} carried no parseable GitHub URL`)
