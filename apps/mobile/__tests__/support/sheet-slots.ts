@@ -1,5 +1,5 @@
-import { StyleSheet } from 'react-native'
 import { expect } from 'vitest'
+import { pressableStyle } from './press-feedback'
 
 interface SlotNode {
   type: unknown
@@ -44,9 +44,9 @@ export function expectSmallSheetActions(root: unknown): void {
   const buttons = footer.findAll(isButton)
   expect(buttons.length).toBeGreaterThan(0)
   for (const button of buttons) {
-    if (typeof button.props.style === 'function') {
+    if (/^button-/.test(String(button.props.testID))) {
       expect(button.props.testID).toMatch(/-sm$/)
-      expect(StyleSheet.flatten(button.props.style({ pressed: false })).width).toBeUndefined()
+      expect(pressableStyle(button, false).width).toBeUndefined()
       expect(textOf(button)).not.toBe('')
     } else {
       expect(button.props.size).toBe('sm')

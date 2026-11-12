@@ -5,12 +5,12 @@ import { buildCalendarHeaderState,resolveCalendarProfileSettings,type CalendarPr
 import { useCalendars } from '@/hooks/use-calendars'
 import { useState,useMemo,useCallback,useEffect,useLayoutEffect,useRef,type Dispatch,type SetStateAction } from "react"
 import { View,FlatList } from "react-native"
-import { FadeInLeft,FadeInRight,ReduceMotion } from "react-native-reanimated"
 import { useTranslation } from "react-i18next"
 import { useLocalSearchParams,useRouter } from "expo-router"
 import { buildHabitCreateHref,formatCalendarSpanEnds,formatCalendarDayTitle,orderCalendarDayEntries,buildCalendarRangeModel,CALENDAR_MONTH_SWIPE_THRESHOLD,filterRecurringDayMap,filterRecurringEntries,filterCalendarSyncEventsByDate,isCalendarDayLoggable,buildCalendarMonthModel,formatWeekdayLabels,resolveCalendarMonthDisplayState,shouldOpenCalendarImportSheet,calendarImportRouteRequestKey } from "@orbit/shared/utils"
 import { useCalendarEntryMutationLock } from '@/hooks/use-calendar-entry-mutation-lock'
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar"
+import type { CalendarSlideDirection } from '@orbit/shared/utils'
 import { useCalendarData, useCalendarRange } from '@/hooks/use-calendar-data'
 import { useLogHabit } from '@/hooks/use-habit-logging'
 import { useCalendarEvents } from "@/hooks/use-calendar-events"
@@ -30,21 +30,13 @@ import { useCurrentDate } from "../../use-today-date"
 import { useUIStore } from "@/stores/ui-store"
 import { createStyles } from './calendar-screen-styles'
 
-type MonthSlide = "left" | "right" | null
+type MonthSlide = CalendarSlideDirection | null
 
 function useClearStaleCalendarImportRoute(routeRequestKey: string, importRequested: boolean) {
   const router = useRouter()
   useEffect(() => {
     if (routeRequestKey && !importRequested) router.replace('/calendar')
   }, [routeRequestKey, importRequested, router])
-}
-
-function resolveMonthEntering(monthSlide: MonthSlide) {
-  if (monthSlide === "right")
-    return FadeInRight.duration(220).reduceMotion(ReduceMotion.System)
-  if (monthSlide === "left")
-    return FadeInLeft.duration(220).reduceMotion(ReduceMotion.System)
-  return undefined
 }
 
 export interface CalendarScreenContentProps {
@@ -282,9 +274,9 @@ function useCalendarEntryState({ selectedDay, activeDayMap, hasProAccess, calend
   return { formattedSelectedDate, monthDayEntries, selectedCalendarEvents, completedCount, selectedDayLoggable, pendingEntryStates, changeSelectedEntry, filteredEntries, goToSelectedDay }
 }
 
-type CalendarStatsStateInputs = Pick<ReturnType<typeof useCalendarViewModel>, 'monthStats' | 'rangeModel'> & Pick<ReturnType<typeof useCalendarScreenSession>, 't' | 'monthSlide' | 'router' | 'openImport'>
+type CalendarStatsStateInputs = Pick<ReturnType<typeof useCalendarViewModel>, 'monthStats' | 'rangeModel'> & Pick<ReturnType<typeof useCalendarScreenSession>, 't' | 'router' | 'openImport'>
 
-function useCalendarStatsState({ monthStats, t, rangeModel, monthSlide, router, openImport }: CalendarStatsStateInputs) {
+function useCalendarStatsState({ monthStats, t, rangeModel, router, openImport }: CalendarStatsStateInputs) {
   const monthStatTiles = useMemo(
     () => [
       {
@@ -327,8 +319,6 @@ function useCalendarStatsState({ monthStats, t, rangeModel, monthSlide, router, 
     [rangeModel.stats, t],
   )
 
-  const monthEntering = resolveMonthEntering(monthSlide)
-
   const openHabitCreation = useCallback(() => {
     router.push(buildHabitCreateHref({ from: '/calendar' }))
   }, [router])
@@ -336,7 +326,7 @@ function useCalendarStatsState({ monthStats, t, rangeModel, monthSlide, router, 
   const openGoogleCalendar = () => {
     openImport(null)
   }
-  return { monthEntering, openHabitCreation, monthStatTiles, rangeStatTiles, openGoogleCalendar }
+  return { openHabitCreation, monthStatTiles, rangeStatTiles, openGoogleCalendar }
 }
 
 type CalendarHeaderStateInputs = Pick<CalendarScreenContentProps, 'currentMonth' | 'view' | 'selectedDay' | 'setView'> & Pick<ReturnType<typeof useCalendarScreenSession>, 'todayKey' | 'weekStartsOn' | 'rangeOffset' | 'agendaOffset' | 'i18n' | 't' | 'setRangeOffset' | 'setAgendaOffset' | 'tokens' | 'listRef'> & Pick<ReturnType<typeof useCalendarRangeState>, 'weekStart' | 'agendaStart' | 'agendaEnd'> & Pick<ReturnType<typeof useCalendarDisplayState>, 'weekLabel'> & Pick<ReturnType<typeof useCalendarViewModel>, 'rangeLabel' | 'viewOptions'> & Pick<ReturnType<typeof useCalendarDateActions>, 'prevWeek' | 'nextWeek' | 'goToCurrentWeek' | 'previousRange' | 'nextRange' | 'prevMonth' | 'nextMonth' | 'goToCurrentMonth' | 'selectMonth'>

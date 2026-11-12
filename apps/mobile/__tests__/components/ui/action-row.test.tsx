@@ -3,6 +3,7 @@ import { ActionRow } from '@/components/ui/action-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
 import Yoga from 'yoga-layout'
+import { pressableStyle } from '@/__tests__/support/press-feedback'
 
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
@@ -56,7 +57,7 @@ describe('ActionRow', () => {
     parent.setPadding(Yoga.EDGE_VERTICAL, style.paddingVertical ?? 0)
     const buttons = tree.root.findAllByType('Pressable')
     const boxes = buttons.map((button: { props: { style: (state: { pressed: boolean }) => StyleProp<ViewStyle> } }, index: number) => {
-      const geometry = StyleSheet.flatten(button.props.style({ pressed: false }))
+      const geometry = pressableStyle(button, false)
       const box = Yoga.Node.create()
       box.setHeight(Math.max(Number(geometry.height ?? 0), Number(geometry.minHeight ?? 0)))
       box.setWidth(80)

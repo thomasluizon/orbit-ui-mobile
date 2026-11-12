@@ -8,6 +8,7 @@ import { i18n } from '@/lib/i18n'
 import { createTokensV2, radius } from '@/lib/theme'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { MAX_CHECKLIST_ITEMS } from '@orbit/shared/validation'
+import { pressableStyle } from '@/__tests__/support/press-feedback'
 
 interface RenderedNode {
   type: unknown
@@ -126,8 +127,7 @@ function pressMoveUp(tree: RenderedTree) {
 }
 
 function pressPaint(node: RenderedNode, pressed: boolean) {
-  const style = node.props.style as (state: { pressed: boolean }) => ViewStyle
-  return StyleSheet.flatten(style({ pressed }))
+  return pressableStyle(node, pressed)
 }
 
 describe('HabitChecklist press paint', () => {
@@ -211,8 +211,7 @@ describe('HabitChecklist checked rows', () => {
     const buttons = tree.root.findAll((node) => node.type === 'Pressable' && labels.has(String(node.props.accessibilityLabel)))
     expect(buttons.length).toBeGreaterThanOrEqual(6)
     for (const button of buttons) {
-      const style = button.props.style as (state: { pressed: boolean }) => ViewStyle[]
-      const pressed = StyleSheet.flatten(style({ pressed: true }))
+      const pressed = pressableStyle(button, true)
       expect(button.props.hitSlop).toBeUndefined()
       expect(pressed).toMatchObject({ width: 48, height: 48 })
       if (!button.props.disabled) expect(pressed.backgroundColor).toBe(createTokensV2('purple', 'dark').bgHover)
@@ -384,8 +383,7 @@ it('keeps the reset glyph above the graphic floor on a pressed card child', () =
     tree = TestRenderer.create(<HabitChecklist items={[{ text: 'Read', isChecked: true }]} interactive onReset={vi.fn()} />)
   })
   const reset = tree!.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === i18n.t('habits.form.resetChecklist'))[0]!
-  const style = reset.props.style as (state: { pressed: boolean }) => ViewStyle
-  const fill = StyleSheet.flatten(style({ pressed: true })).backgroundColor as string
+  const fill = pressableStyle(reset, true).backgroundColor as string
   const children = reset.parent?.parent?.props.children
   const icon = (typeof children === 'function' ? children({ pressed: true }) : children) as ReactElement<{ color: string }>
   const tokens = createTokensV2('orange', 'dark')

@@ -7,6 +7,7 @@ import {
   motionPresets,
   orbitalMotion,
   resolveMotionPreset,
+  type MotionBezier,
   type MotionScenario,
 } from '@orbit/shared/theme'
 
@@ -92,6 +93,17 @@ export function toAnimatedEasing(
     controlPoints[2],
     controlPoints[3],
   )
+}
+
+/** Serializes transitioned properties, a duration and a shared bezier into the Reanimated CSS `transition` shorthand. */
+export function toCssTransition(
+  properties: readonly string[],
+  duration: number,
+  easing: MotionBezier = motionEasings.standard,
+): string {
+  return properties
+    .map((property) => `${property} ${duration}ms cubic-bezier(${easing.join(',')})`)
+    .join(', ')
 }
 
 /** Base Animated.timing config (toValue 1, native driver) from a duration + shared bezier. */

@@ -32,6 +32,7 @@ import { i18n } from '@/lib/i18n'
 import { createTokensV2 } from '@/lib/theme'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
+import { pressableStyle } from '@/__tests__/support/press-feedback'
 
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
@@ -542,9 +543,9 @@ describe('mobile ProgressContent', () => {
     const tokens = createTokensV2('purple', theme.mode)
 
     let card = findCard()
-    const resting = StyleSheet.flatten(card.props.style as ViewStyle) as ViewStyle & { transition?: string; transitionDuration?: number }
+    const resting = StyleSheet.flatten(card.props.style as ViewStyle) as ViewStyle & { transition?: string }
     expect(resting).toMatchObject({ backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost, transform: [{ scale: 1 }] })
-    expect(resting.transitionDuration).toBe(150)
+    expect(resting.transition).toBe('transform 150ms cubic-bezier(0.16,1,0.3,1)')
     await TestRenderer.act(() => (card.props.onPressIn as (event: unknown) => void)({}))
     card = findCard()
     expect(StyleSheet.flatten(card.props.style as ViewStyle)).toMatchObject({ backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] })
@@ -852,8 +853,7 @@ describe('mobile ProgressContent', () => {
     const action = findPill(tree.root, 'progressScreen.goals.createAction')
     expect(action.props.testID).toBe('button-primary-sm')
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'empty-state-mark-orbit')).toHaveLength(1)
-    const style = action.props.style as (state: { pressed: boolean }) => ViewStyle[]
-    expect(StyleSheet.flatten(style({ pressed: false }))).toMatchObject({ height: 44, paddingHorizontal: BUTTON_SIZES.sm.paddingX })
+    expect(pressableStyle(action, false)).toMatchObject({ height: 44, paddingHorizontal: BUTTON_SIZES.sm.paddingX })
     await TestRenderer.act(() => { (action.props.onPress as () => void)() })
     expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.title === 'goals.create')).toHaveLength(1)
     expect(useUIStore.getState().astraConversationOpen).toBe(false)

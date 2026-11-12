@@ -530,6 +530,16 @@ describe('Composer', () => {
     }
   })
 
+  it('eases the open conversation glyph press over the shared press duration on the ease-out curve, as mobile does', () => {
+    render(<Composer {...props({ onOpenConversation: vi.fn(), conversationLabel: en.todayAstra.openConversation })} />)
+    expect(screen.getByRole('button', { name: en.todayAstra.openConversation })).toHaveClass(
+      'motion-safe:active:[&_svg]:scale-[0.96]',
+      'motion-safe:[&_svg]:transition-transform',
+      'motion-safe:[&_svg]:duration-[var(--dur-press)]',
+      'motion-safe:[&_svg]:ease-[var(--ease-out)]',
+    )
+  })
+
   it('renders three suggestions in their named group', () => {
     render(<Composer {...props()} />)
     const group = screen.getByRole('group', { name: words.suggestionsLabel })
