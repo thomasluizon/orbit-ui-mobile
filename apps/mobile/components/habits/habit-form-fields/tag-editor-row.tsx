@@ -69,7 +69,7 @@ export function TagEditorRow({
         style={({ pressed }) => [
           styles.tagFormSave,
           disabled && { opacity: 0.45 },
-          pressed && { backgroundColor: tokens.primaryPressed, transform: [{ scale: 0.96 }] },
+          pressed && { backgroundColor: tokens.primaryPressed },
         ]}
 
         accessibilityRole="button"
@@ -83,7 +83,7 @@ export function TagEditorRow({
         style={({ pressed }) => [
           styles.tagFormCancel,
           disabled && { opacity: 0.45 },
-          pressed && { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] },
+          pressed && { backgroundColor: tokens.bgHover },
         ]}
 
         accessibilityRole="button"

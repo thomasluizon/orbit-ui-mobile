@@ -589,19 +589,22 @@ function webForegroundStates(node, matchIndex, sourceFile, conditionKey) {
   if (utility.startsWith("active:")) return ["pressed"]
   if (utility.startsWith("hover:") || (/^group-hover(?:\/[\w-]+)?:/.test(utility) && group)) return ["hover"]
   const role = utility.match(/^(text|bg|border|fill|stroke)-/)?.[1]
-  if (role && new RegExp(`(?:^|\\s)hover:${role}-\\[var\\(--`).test(literal.text)
-    && !ancestorHoverSurface(node, sourceFile, conditionKey)) return ["rest", "pressed"]
-  if (role && group && new RegExp(`(?:^|\\s)group-hover(?:/[\\w-]+)?:${role}-\\[var\\(--`).test(literal.text)
-    && !ancestorHoverSurface(group, sourceFile, conditionKey)) return ["rest", "pressed"]
-  return ["rest", "hover", "pressed"]
+  if (!role) return ["rest", "hover", "pressed"]
+  const hoverOverridden = (new RegExp(`(?:^|\\s)hover:${role}-\\[var\\(--`).test(literal.text)
+    && !ancestorInteractionSurface(node, sourceFile, conditionKey, "hover"))
+    || (group && new RegExp(`(?:^|\\s)group-hover(?:/[\\w-]+)?:${role}-\\[var\\(--`).test(literal.text)
+      && !ancestorInteractionSurface(group, sourceFile, conditionKey, "hover"))
+  const pressOverridden = new RegExp(`(?:^|\\s)active:${role}-\\[var\\(--`).test(literal.text)
+    && !ancestorInteractionSurface(node, sourceFile, conditionKey, "pressed")
+  return ["rest", ...(hoverOverridden ? [] : ["hover"]), ...(pressOverridden ? [] : ["pressed"])]
 }
 
-function ancestorHoverSurface(node, sourceFile, conditionKey) {
+function ancestorInteractionSurface(node, sourceFile, conditionKey, interaction) {
   for (let current = openingElement(node)?.parent?.parent; current; current = current.parent) {
     if (!ts.isJsxElement(current)) continue
     const opening = current.openingElement
     const resting = openingSurfaces(opening, sourceFile, { interaction: "rest", conditionKey })
-    if (openingSurfaces(opening, sourceFile, { interaction: "hover", conditionKey }).some((surface) => !resting.includes(surface))) return true
+    if (openingSurfaces(opening, sourceFile, { interaction, conditionKey }).some((surface) => !resting.includes(surface))) return true
   }
   return false
 }

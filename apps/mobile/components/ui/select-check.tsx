@@ -8,7 +8,7 @@ import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import type { RadioRowProps } from '@orbit/shared/contracts/lists'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { usePrefersReducedMotion } from '@/lib/motion'
+import { PressScale } from '@/components/motion/press-scale'
 import { RadioItem } from '@/components/ui/radio-group'
 
 const ROW_INDENTS = [SPACING.s16, SPACING.s24, SPACING.s32, SPACING.s48, SPACING.s64, SPACING.s96] as const
@@ -49,10 +49,10 @@ export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, desc
   const { fontScale } = useWindowDimensions()
   const blocked = disabled || busy
   const [disclosed, setDisclosed] = useState(false)
+  const [rowPressed, setRowPressed] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const themeTokens = createTokensV2(currentScheme, currentTheme)
   const tokens = proposed ? { ...themeTokens, primary: themeTokens.fg3, selectionBg: themeTokens.bgWell } : themeTokens
-  const prefersReducedMotion = usePrefersReducedMotion()
   const wrappingStyle = wrapLabel ? { lineHeight: 22.4 } : null
   const controlMinHeight = wrapLabel ? 22.4 * fontScale : undefined
   const supportingReason = Boolean(blocked && textMode === 'personal' && reason)
@@ -96,7 +96,7 @@ export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, desc
   return disabled ? (
     <View style={{ flexDirection: 'row', minWidth: 0, alignItems: 'center' }}><View data-slot="list-row-body" focusable={false} accessibilityRole="radio" accessibilityLabel={accessibilityLabel} accessibilityState={{ checked: selected, disabled: true }} style={[rowStyle, selectedBorderStyle(selected, false, 1.5, tokens.primary), { flex: 1, minWidth: 0 }]}>{content()}</View>{textMode === 'personal' ? <InsetFocusPressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ expanded: disclosed }} onPress={() => setDisclosed(!disclosed)} style={({ pressed }) => ({ minHeight: 48, minWidth: 48, ...(supportingReason && { alignSelf: 'flex-start' as const }), padding: SPACING.s8, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}><ChevronDown accessible={false} color={tokens.fg2} size={20} strokeWidth={2} style={disclosed ? { transform: [{ rotate: '180deg' }] } : undefined} /></InsetFocusPressable> : null}</View>
   ) : (
-    <RadioItem selected={selected} onSelect={onSelect} disabled={disabled} busy={busy}><InsetFocusPressable selectionRingWidth={1.5} selectionRingColor={tokens.primary}
+    <PressScale pressed={rowPressed} disabled={blocked}><RadioItem selected={selected} onSelect={onSelect} disabled={disabled} busy={busy}><InsetFocusPressable selectionRingWidth={1.5} selectionRingColor={tokens.primary}
       data-slot="list-row-body"
       accessibilityRole="radio"
       accessibilityLabel={accessibilityLabel}
@@ -105,12 +105,13 @@ export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, desc
       disabled={false}
       onFocus={onFocus}
       onBlur={onBlur}
+      onPressIn={() => setRowPressed(true)}
+      onPressOut={() => setRowPressed(false)}
       style={({ pressed }) => [
         ...rowStyle,
         pressed && !blocked ? { backgroundColor: tokens.bgHover } : null,
-        pressed && !blocked && !prefersReducedMotion ? { transform: [{ scale: 0.96 }] } : null,
       ]}
-    >{({ pressed }) => content(pressed)}</InsetFocusPressable></RadioItem>
+    >{({ pressed }) => content(pressed)}</InsetFocusPressable></RadioItem></PressScale>
   )
 }
 

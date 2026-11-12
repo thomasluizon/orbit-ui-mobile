@@ -79,7 +79,7 @@ function createStyles(tokens: Tokens) {
     chip: { backgroundColor: tokens.bgWell, borderRadius: 8, minWidth: 0, maxWidth: '100%' },
     chipText: { color: tokens.fg2, fontFamily: 'Geist_500Medium', fontSize: 14, flexShrink: 1 },
     list: { flexShrink: 1, gap: 4 }, count: { color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 12, padding: SPACING.s8 },
-    search: { backgroundColor: tokens.bgField, borderColor: tokens.hairline, borderRadius: 12, borderWidth: 1, color: tokens.fg1, marginBottom: SPACING.s8, minHeight: 54, paddingHorizontal: SPACING.s16 },
+    search: { marginBottom: SPACING.s8 },
     virtualList: { maxHeight: 320 },
     rowValue: { flex: 1, color: tokens.fg2, fontFamily: 'GeistMono_400Regular', fontSize: 12 },
     empty: { alignItems: 'center', gap: 16, padding: SPACING.s32 }, emptyTitle: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 20, textAlign: 'center' },

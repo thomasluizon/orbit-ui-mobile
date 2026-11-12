@@ -2,6 +2,7 @@ import { IconButton } from '@/components/ui/icon-button'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useHabitFormInteraction } from './habit-form-fields/habit-form-interaction'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
+import { PressScalePressable } from '@/components/motion/press-scale'
 import { useState, useCallback, useMemo } from 'react'
 import {
   View,
@@ -80,7 +81,7 @@ function EditableChecklistItem({
   return (
     <View style={styles.editableItem}>
       <View style={styles.moveButtons}>
-        <Pressable
+        <PressScalePressable
           accessibilityRole="button"
           accessibilityLabel={t('habits.form.moveChecklistItemUp')}
           style={({ pressed }) => [
@@ -91,8 +92,8 @@ function EditableChecklistItem({
           disabled={disabled || isFirst}
         >
           <ChevronUp size={16} color={tokens.fg3} style={{ opacity: isFirst ? 0.3 : 1 }} />
-        </Pressable>
-        <Pressable
+        </PressScalePressable>
+        <PressScalePressable
           accessibilityRole="button"
           accessibilityLabel={t('habits.form.moveChecklistItemDown')}
           style={({ pressed }) => [
@@ -103,7 +104,7 @@ function EditableChecklistItem({
           disabled={disabled || isLast}
         >
           <ChevronDown size={16} color={tokens.fg3} style={{ opacity: isLast ? 0.3 : 1 }} />
-        </Pressable>
+        </PressScalePressable>
       </View>
       <View style={styles.uncheckedBox} />
       <BottomSheetAppTextInput isChangeDisabled={isDisabled}
@@ -117,7 +118,7 @@ function EditableChecklistItem({
         onBlur={guard(() => { setFocused(false); if (localText !== text) onUpdateText(index, localText) })}
         onChangeText={guard((value) => { setLocalText(value); onUpdateText(index, value) })}
       />
-      <Pressable
+      <PressScalePressable
         accessibilityRole="button"
         accessibilityLabel={t('habits.form.duplicateChecklistItem')}
         style={({ pressed }) => [
@@ -129,8 +130,8 @@ function EditableChecklistItem({
         disabled={disabled || duplicateDisabled}
       >
         <Copy size={16} color={tokens.fg3} strokeWidth={1.8} />
-      </Pressable>
-      <Pressable
+      </PressScalePressable>
+      <PressScalePressable
         accessibilityRole="button"
         accessibilityLabel={t('habits.form.removeChecklistItem')}
         disabled={disabled}
@@ -141,7 +142,7 @@ function EditableChecklistItem({
         onPress={() => onRemove(index)}
       >
         <X size={16} color={tokens.fg3} strokeWidth={1.8} />
-      </Pressable>
+      </PressScalePressable>
     </View>
   )
 }
@@ -325,7 +326,7 @@ export function HabitChecklist({
             {checkedCount}/{items.length}
           </Text>
           {interactive && checkedCount > 0 && (
-            <Pressable
+            <PressScalePressable
               accessibilityRole="button"
               accessibilityLabel={t('habits.form.resetChecklist')}
               style={({ pressed }) => [
@@ -335,7 +336,7 @@ export function HabitChecklist({
               onPress={onReset}
             >
               {({ pressed }) => <RotateCcw size={16} color={pressed ? tokens.fg2 : tokens.primary} strokeWidth={1.8} />}
-            </Pressable>
+            </PressScalePressable>
           )}
 
         </View>
