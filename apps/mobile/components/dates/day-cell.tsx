@@ -1,7 +1,7 @@
-import { MovingDaySelection } from './month-selection'
+import { DayFocusReport, MovingDaySelection } from './month-selection'
 import { DayColumnContent } from './day-column-content'
 import { MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
-import { useContext, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import type { DayCellProps, DayOutcome } from '@orbit/shared/contracts/dates'
 import { buildDayCellAccessibleName, resolveDayCellOutcome } from '@orbit/shared/utils'
 import { Pressable, StyleSheet, Text, View, type AccessibilityState } from 'react-native'
@@ -67,27 +67,51 @@ function HabitHistoryContents({ props, outcome, size, tokens, pressed }: Content
   )
 }
 
+function useYieldMovingSelection(yielding: boolean) {
+  const reportFocus = useContext(DayFocusReport)
+  useEffect(() => {
+    if (!yielding) return undefined
+    reportFocus(true)
+    return () => reportFocus(false)
+  }, [reportFocus, yielding])
+}
+
+/** One indicator: a 2px foreground ring with a canvas band inside it, so it reads on every disc fill. */
+function DayFocusRing({ size, tokens }: Readonly<{ size: number; tokens: Tokens }>) {
+  return (
+    <View pointerEvents="none" testID="day-focus-ring" style={[styles.pressFill, { borderRadius: size / 2, borderColor: tokens.fg1, borderWidth: 2 }]}>
+      <View pointerEvents="none" testID="day-focus-band" style={[styles.pressFill, { borderRadius: size / 2 - 2, borderColor: tokens.bg, borderWidth: 2 }]} />
+    </View>
+  )
+}
+
 type MobileDayCellProps = DayCellProps & {
   accessibilityState?: AccessibilityState
+}
+
+function DayCellBody({ props, outcome, tokens, pressed }: Readonly<{ props: DayCellProps; outcome: DayOutcome; tokens: Tokens; pressed: boolean }>) {
+  if (props.future) return <Text testID="day-future-numeral" style={[styles.numeral, { color: tokens.fg2 }]}>{props.day}</Text>
+  if (props.habitHistory) return <HabitHistoryContents props={props} outcome={outcome} size={34} tokens={tokens} pressed={pressed} />
+  return <DayCellContents props={props} outcome={outcome} size={34} tokens={tokens} pressed={pressed} />
 }
 
 function DayCellCircle({ props, size, tokens, pressed, focused }: Readonly<{ props: DayCellProps; size: number; tokens: Tokens; pressed: boolean; focused: boolean }>) {
   const moving = useContext(MovingDaySelection)
   const outcome = resolveDayCellOutcome(props)
-  const contents = props.future
-    ? <Text testID="day-future-numeral" style={[styles.numeral, { color: tokens.fg2 }]}>{props.day}</Text>
-    : props.habitHistory
-      ? <HabitHistoryContents props={props} outcome={outcome} size={34} tokens={tokens} pressed={pressed} />
-      : <DayCellContents props={props} outcome={outcome} size={34} tokens={tokens} pressed={pressed} />
+  const contents = <DayCellBody props={props} outcome={outcome} tokens={tokens} pressed={pressed} />
   const restingFill = props.loggable || props.raised ? tokens.bgWell : 'transparent'
   const backgroundColor = props.selected ? tokens.selectionBg : pressed ? 'transparent' : restingFill
-  const ring = (props.today || props.selected || focused || props.focused) && !(props.selected && moving)
+  const focusVisible = focused || Boolean(props.focused)
+  const heldByMovingSelection = Boolean(props.selected) && moving
+  useYieldMovingSelection(focusVisible && heldByMovingSelection)
+  const positionRing = (props.today || props.selected) && !focusVisible && !heldByMovingSelection
     ? <View pointerEvents="none" testID={props.today ? 'day-today-ring' : 'day-selection-ring'} style={[styles.pressFill, { borderRadius: size / 2, borderColor: tokens.primary, borderWidth: 2 }]} />
     : null
   return <DayColumnContent><View testID="day-circle" style={[styles.container, { width: size, height: size, borderRadius: size / 2, overflow: 'hidden', backgroundColor }]}>
     {pressed && !props.selected ? <PressFill size={size} tokens={tokens} /> : null}
     {contents}
-    {ring}
+    {positionRing}
+    {focusVisible ? <DayFocusRing size={size} tokens={tokens} /> : null}
   </View></DayColumnContent>
 }
 

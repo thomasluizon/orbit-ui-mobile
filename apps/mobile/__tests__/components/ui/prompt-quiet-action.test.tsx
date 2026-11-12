@@ -3,6 +3,7 @@ import { expect, it, vi } from 'vitest'
 import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { createTokensV2 } from '@/lib/theme'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
+import { pressableStyle } from '@/__tests__/support/press-feedback'
 
 const theme = vi.hoisted((): { mode: 'dark' | 'light' } => ({ mode: 'dark' }))
 vi.mock('@/lib/use-app-theme', () => ({
@@ -34,9 +35,8 @@ it.each(['dark', 'light'] as const)('keeps a 44px quiet target, legible text and
   await TestRenderer.act(() => { tree = TestRenderer.create(<PromptQuietAction onClick={onClick}>Later</PromptQuietAction>) })
   try {
     const button = tree.root.findByType('Pressable')
-    const style = button.props.style as (state: { pressed: boolean }) => ViewStyle[]
-    const rest = StyleSheet.flatten(style({ pressed: false }))
-    const pressed = StyleSheet.flatten(style({ pressed: true }))
+    const rest = pressableStyle(button, false)
+    const pressed = pressableStyle(button, true)
     const labelNode = tree.root.findByType('Text')
     const label = StyleSheet.flatten(labelNode.props.style as TextStyle[])
     expect(rest.minHeight).toBe(44)
@@ -52,7 +52,7 @@ it.each(['dark', 'light'] as const)('keeps a 44px quiet target, legible text and
     expect(contrastOnSurface(tokens.bgElev, [tokens.bgElev, pressed.backgroundColor as string])).toBeGreaterThanOrEqual(1.25)
     expect(pressed.transform).toEqual([{ scale: 0.96 }])
     expect(pressed.opacity).toBeUndefined()
-    expect(rest.transform).toBeUndefined()
+    expect(rest.transform ?? [{ scale: 1 }]).toEqual([{ scale: 1 }])
     expect(button.props.accessibilityRole).toBe('button')
     TestRenderer.act(() => { button.props.onPress?.() })
     expect(onClick).toHaveBeenCalledOnce()

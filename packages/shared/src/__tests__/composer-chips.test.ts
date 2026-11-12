@@ -108,6 +108,12 @@ describe('composer chips', () => {
     expect(chips.find((chip) => chip.id === 'today.keepOnlyHabit')?.params).toEqual({ title: 'Walking' })
   })
 
+  it('never offers keeping only a bad habit to a returning account', () => {
+    const badHabit = createMockHabit({ id: 'snack', title: 'Late snack', isBadHabit: true })
+    const chips = buildComposerChips(state({ habits: [badHabit, pending], profile: createMockProfile({ lastCompletionDate: '2026-09-08' }) }))
+    expect(chips.find((chip) => chip.id === 'today.keepOnlyHabit')?.params).toEqual({ title: 'Reading' })
+  })
+
   it('keeps every Today variant within the drawn three-to-six-chip range', () => {
     const returning = createMockProfile({ lastCompletionDate: '2026-09-08' })
     const variants = [
@@ -125,6 +131,70 @@ describe('composer chips', () => {
       expect(count).toBeGreaterThanOrEqual(3)
       expect(count).toBeLessThanOrEqual(6)
     }
+  })
+
+  describe('habits already logged for the selected day', () => {
+    const streakProfile = createMockProfile({ currentStreak: 3, longestStreak: 3, lastCompletionDate: null })
+    const loggedWalk = createMockHabit({ id: 'walk', title: 'Morning walk', isCompleted: false, isLoggedInRange: true })
+    const openGym = createMockHabit({ id: 'gym', title: 'Gym', isCompleted: false, isLoggedInRange: false })
+
+    it('never names a logged habit as the habit to log next', () => {
+      const chips = buildComposerChips(state({ habits: [loggedWalk, openGym], profile: streakProfile }))
+      expect(chips.find((chip) => chip.id === 'today.logHabit')?.params).toEqual({ title: 'Gym' })
+    })
+
+    it('falls to the all-done chips when every habit is logged for the day', () => {
+      const secondLogged = createMockHabit({ id: 'read', title: 'Reading', isCompleted: false, isLoggedInRange: true })
+      expect(ids({ habits: [loggedWalk, secondLogged], profile: streakProfile })).toEqual([
+        'today.logYesterday', 'today.createEveningHabit', 'today.changeTimes',
+      ])
+    })
+
+    it('does not offer to move an overdue habit that is already logged', () => {
+      const loggedOverdue = createMockHabit({ id: 'late', title: 'Walking', isOverdue: true, isLoggedInRange: true })
+      expect(ids({ habits: [loggedOverdue, openGym], profile: streakProfile })).not.toContain('today.moveOverdue')
+    })
+
+    it('keeps the streak-at-risk order only while no habit is logged for the day', () => {
+      const openOverdue = createMockHabit({ id: 'late', title: 'Walking', isOverdue: true, isLoggedInRange: false })
+      expect(ids({ habits: [openOverdue, openGym], profile: streakProfile })[0]).toBe('today.logHabit')
+      expect(ids({ habits: [loggedWalk, openOverdue], profile: streakProfile }).slice(0, 2)).toEqual(['today.moveOverdue', 'today.logHabit'])
+    })
+
+    it('keeps the streak at risk when the only log for the day is a bad habit slip', () => {
+      const slippedBadHabit = createMockHabit({ id: 'snack', title: 'Late snack', isBadHabit: true, isCompleted: false, isLoggedInRange: true })
+      const openOverdue = createMockHabit({ id: 'late', title: 'Walking', isOverdue: true, isLoggedInRange: false })
+      const order = ids({ habits: [slippedBadHabit, openOverdue, openGym], profile: streakProfile })
+      expect(order.slice(0, 2)).toEqual(['today.logHabit', 'today.moveOverdue'])
+      expect(buildComposerChips(state({ habits: [slippedBadHabit, openOverdue, openGym], profile: streakProfile }))[0]!.params).toEqual({ title: 'Gym' })
+    })
+
+    it('does not offer trimming a sub-habit parent that is already logged', () => {
+      const loggedParent = createMockHabit({ id: 'routine', title: 'House routine', hasSubHabits: true, isLoggedInRange: true })
+      expect(ids({ habits: [loggedParent, openGym], profile: streakProfile })).not.toContain('today.trimHabit')
+    })
+
+    describe('bad habits without a slip', () => {
+      const unslippedBad = createMockHabit({ id: 'snack', title: 'Late snack', isBadHabit: true, isCompleted: false, isLoggedInRange: false })
+
+      it('falls to the all-done chips when only unslipped bad habits remain', () => {
+        expect(ids({ habits: [loggedWalk, unslippedBad], profile: streakProfile })).toEqual([
+          'today.logYesterday', 'today.createEveningHabit', 'today.changeTimes',
+        ])
+      })
+
+      it('names the first open good habit as the streak-saving log', () => {
+        const chips = buildComposerChips(state({ habits: [unslippedBad, openGym], profile: streakProfile }))
+        expect(chips[0]).toMatchObject({ id: 'today.logHabit', params: { title: 'Gym' } })
+      })
+
+      it('never offers to move or trim a bad habit', () => {
+        const overdueBadParent = createMockHabit({ id: 'doom', title: 'Doom scrolling', isBadHabit: true, isOverdue: true, hasSubHabits: true })
+        const order = ids({ habits: [overdueBadParent, openGym], profile: streakProfile })
+        expect(order).not.toContain('today.moveOverdue')
+        expect(order).not.toContain('today.trimHabit')
+      })
+    })
   })
 
   it('does not treat a historical selected day as a streak at risk', () => {

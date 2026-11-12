@@ -56,6 +56,16 @@ describe('mobile motion helpers', () => {
     expect(mobileMotion.orbital.list.staggerMs).toBeGreaterThan(0)
   })
 
+  it('serializes each transitioned property into the Reanimated CSS shorthand', async () => {
+    const { toCssTransition } = await import('@/lib/motion')
+
+    expect(toCssTransition(['transform'], 150)).toBe('transform 150ms cubic-bezier(0.2,0,0,1)')
+    expect(toCssTransition(['opacity', 'transform', 'filter'], 160)).toBe(
+      'opacity 160ms cubic-bezier(0.2,0,0,1), transform 160ms cubic-bezier(0.2,0,0,1), filter 160ms cubic-bezier(0.2,0,0,1)',
+    )
+    expect(toCssTransition(['transform'], 150, [0.16, 1, 0.3, 1])).toBe('transform 150ms cubic-bezier(0.16,1,0.3,1)')
+  })
+
   it('keeps an arriving accessibility change ahead of an older preference query', async () => {
     let finishQuery!: (value: boolean) => void
     mocks.AccessibilityInfo.isReduceMotionEnabled.mockReturnValueOnce(new Promise<boolean>((resolve) => { finishQuery = resolve }))

@@ -4,7 +4,8 @@ import { isAbsolute } from "node:path"
 import { pathToFileURL } from "node:url"
 import { replyDisposition, updateIntakeSource } from "./lib/auto-work-intake.mjs"
 import { PLAY_PACKAGES, playAccessToken, reviewItem } from "./orbit-play-reviews.mjs"
-import { appStoreToken, readAppStoreReviews } from "./orbit-app-store-reviews.mjs"
+import { appStoreToken } from "./lib/app-store-connect-token.mjs"
+import { readAppStoreReviews } from "./orbit-app-store-reviews.mjs"
 import { REPO_ROOT } from "./lib/run-state.mjs"
 
 const USAGE = `usage: orbit-review-replies.mjs <--prepare | --post --output <absolute file> | --import <absolute file>>

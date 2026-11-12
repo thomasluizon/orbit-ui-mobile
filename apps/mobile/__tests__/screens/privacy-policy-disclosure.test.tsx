@@ -101,8 +101,8 @@ describe('PrivacyScreen disclosures', () => {
   })
 
   it.each([
-    ['en', en, 'Device data: a push notification token (to deliver reminders) and Android crash reports with device and OS details, a random installation ID, and an approximate city inferred from the request IP address. These reports do not include your name, email, or account details.'],
-    ['pt-BR', ptBR, 'Dados do dispositivo: um token de notificação push (para enviar lembretes) e relatórios de falhas no Android com informações do aparelho e do sistema, um identificador aleatório da instalação e a cidade aproximada, estimada pelo endereço IP da conexão. Esses relatórios não incluem nome, e-mail nem dados da conta.'],
+    ['en', en, 'Device data: a push notification token (to deliver reminders) and Android and iOS crash reports with device and OS details, a random installation ID, and an approximate city inferred from the request IP address. These reports do not include your name, email, or account details.'],
+    ['pt-BR', ptBR, 'Dados do dispositivo: um token de notificação push (para enviar lembretes) e relatórios de falhas no Android e no iOS com informações do aparelho e do sistema, um identificador aleatório da instalação e a cidade aproximada, estimada pelo endereço IP da conexão. Esses relatórios não incluem nome, e-mail nem dados da conta.'],
   ])('omits retired ad disclosures while retaining device disclosures in %s', (_locale, messages, deviceDisclosure) => {
     translations.messages = messages
     let tree: { root: TestNode } | undefined
@@ -117,6 +117,66 @@ describe('PrivacyScreen disclosures', () => {
     expect(messages.privacy.dataCollected.device).toBe(deviceDisclosure)
     expect(rendersText(tree!.root, deviceDisclosure)).toBe(true)
     expect(rendersText(tree!.root, messages.privacy.thirdParty.googlePlay)).toBe(true)
+  })
+
+  it.each([
+    ['en', en, /iOS/, /voice input/i],
+    ['pt-BR', ptBR, /iOS/, /entrada por voz/i],
+  ])('names iOS crash reports and the voice audio upload in %s', (_locale, messages, iosPattern, voicePattern) => {
+    translations.messages = messages
+    let tree: { root: TestNode } | undefined
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<PrivacyScreen />)
+    })
+
+    expect(messages.privacy.dataCollected.device).toMatch(iosPattern)
+    expect(messages.privacy.thirdParty.sentry).toMatch(iosPattern)
+    expect(messages.privacy.thirdParty.openai).toMatch(/OpenAI/)
+    expect(messages.privacy.thirdParty.openai).toMatch(voicePattern)
+    expect(rendersText(tree!.root, messages.privacy.dataCollected.device)).toBe(true)
+    expect(rendersText(tree!.root, messages.privacy.thirdParty.sentry)).toBe(true)
+    expect(rendersText(tree!.root, messages.privacy.thirdParty.openai)).toBe(true)
+  })
+
+  it.each([
+    ['en', en, 'on Android', 'on iOS and in the Mac app', 'in the Windows app', 'in the web app'],
+    ['pt-BR', ptBR, 'no Android', 'no iOS e no app para Mac', 'no app para Windows', 'no aplicativo web'],
+  ])('names the push service of every platform in %s', (_locale, messages, android, appleDevices, windows, browser) => {
+    translations.messages = messages
+    let tree: { root: TestNode } | undefined
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<PrivacyScreen />)
+    })
+
+    const { firebase, apple, wns, webPush } = messages.privacy.thirdParty
+    expect(firebase).toContain('Firebase Cloud Messaging')
+    expect(firebase).toContain(android)
+    expect(firebase).not.toMatch(/iOS|Mac|Windows|web/)
+    expect(apple).toContain('Apple Push Notification service')
+    expect(apple).toContain(appleDevices)
+    expect(wns).toContain('Microsoft Windows Push Notification Services')
+    expect(wns).toContain(windows)
+    for (const pushService of ['Google', 'Mozilla', 'Apple', 'Microsoft']) {
+      expect(webPush).toContain(pushService)
+    }
+    expect(webPush).toContain(browser)
+    for (const disclosure of [firebase, apple, wns, webPush]) {
+      expect(rendersText(tree!.root, disclosure)).toBe(true)
+    }
+  })
+
+  it.each([
+    ['en', en, 'Last updated: November 2026'],
+    ['pt-BR', ptBR, 'Última atualização: novembro de 2026'],
+  ])('shows the current update month in %s', (_locale, messages, lastUpdated) => {
+    translations.messages = messages
+    let tree: { root: TestNode } | undefined
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<PrivacyScreen />)
+    })
+
+    expect(messages.privacy.lastUpdated).toBe(lastUpdated)
+    expect(rendersText(tree!.root, lastUpdated)).toBe(true)
   })
 
   it('shows the cutover processors and data locations', () => {

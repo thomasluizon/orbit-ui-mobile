@@ -10,6 +10,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { LoginContent } from '@/components/auth/login-content'
 import { measureSafeArea, type GeometryHost } from '@/__tests__/support/safe-area-geometry'
 import { __emitKeyboardEvent, __setWindowDimensions } from '../../test-mocks/react-native'
+import { pressableStyle } from '@/__tests__/support/press-feedback'
 
 vi.mock('react-i18next', async (importActual) => ({
   ...(await importActual<typeof import('react-i18next')>()),
@@ -335,7 +336,7 @@ function assertEmailState(root: Node, state: Parameters<typeof setFixture>[0], f
           expect(marks[0]!.props.accessibilityLabel).toBeUndefined()
           expect(marks[0]!.props.accessibilityRole).toBeUndefined()
           expect(host(marks[0]!, 'Path')).toHaveLength(4)
-          const buttonStyle = StyleSheet.flatten((googleButton.props.style as (state: { pressed: boolean }) => unknown)({ pressed: false }))
+          const buttonStyle = pressableStyle(googleButton, false)
           expect(buttonStyle).toMatchObject({ paddingHorizontal: 12, paddingStart: 12, gap: 10 })
         }
         const submit = button(root, t(fixture.fromOnboarding ? 'auth.onboarding.continue' : 'auth.sendCode'))!

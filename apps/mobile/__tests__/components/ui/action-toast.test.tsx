@@ -6,6 +6,7 @@ import { NotificationDeleteNotice } from '@/components/navigation/notification-d
 import { getPendingNotificationDeleteIdsSnapshot, queuePendingNotificationDelete, resetPendingNotificationDeletesForTests } from '@/lib/pending-notification-deletes'
 import { useAppToastNavigation } from '@/hooks/use-app-toast-navigation'
 import { useAppToastStore } from '@/stores/app-toast-store'
+import { pressableStyle } from '@/__tests__/support/press-feedback'
 
 const { act, create } = require('react-test-renderer')
 
@@ -220,7 +221,7 @@ describe('Android action toast dismissal', () => {
       node.type === 'Pressable' && node.props.accessibilityLabel === 'common.close')[0]
     expect(close).toBeDefined()
     act(() => close.props.onFocus())
-    expect(StyleSheet.flatten(close.props.style({ pressed: false })).outlineWidth).toBeGreaterThanOrEqual(2)
+    expect(pressableStyle(close, false).outlineWidth).toBeGreaterThanOrEqual(2)
     act(() => { vi.advanceTimersByTime(30000) })
     expect(visibleToasts()).not.toHaveLength(0)
     act(() => close.props.onBlur())

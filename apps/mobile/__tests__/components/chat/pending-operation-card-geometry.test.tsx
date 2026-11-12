@@ -14,6 +14,7 @@ import { i18n } from '@/lib/i18n'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { measureProfileRow } from '../../support/profile-row-geometry'
 import { renderedText } from '../../support/react-test-renderer'
+import { pressableStyle } from '@/__tests__/support/press-feedback'
 
 vi.unmock('react-i18next')
 
@@ -227,7 +228,7 @@ describe('Pending preview geometry on Android', () => {
       layout.setJustifyContent(rowStyle.justifyContent === 'flex-end' ? Yoga.JUSTIFY_FLEX_END : Yoga.JUSTIFY_FLEX_START)
       buttons.forEach((button: { findByType: (type: unknown) => { props: { style: (state: { pressed: boolean }) => StyleProp<ViewStyle>; hitSlop: number } }; findAllByType: (type: unknown) => { props: { style: StyleProp<TextStyle>; children: string } }[] }) => {
         const pressable = button.findByType(Pressable)
-        const style = StyleSheet.flatten(pressable.props.style({ pressed: false }))
+        const style = pressableStyle(pressable, false)
         const label = button.findAllByType(Text)[0]
         const labelStyle = label ? StyleSheet.flatten(label.props.style) : undefined
         const action = Yoga.Node.create()

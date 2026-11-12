@@ -50,7 +50,7 @@ const mocks = vi.hoisted(() => ({
   reducedMotion: false,
 }))
 
-vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => mocks.reducedMotion }))
+vi.mock('@/lib/motion', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/motion')>()), usePrefersReducedMotion: () => mocks.reducedMotion }))
 
 vi.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ operation: mocks.operation }),

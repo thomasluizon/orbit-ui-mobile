@@ -3,6 +3,7 @@ import { formatAPIDate,parseAPIDate } from '../utils/dates'
 import { MAX_RANGE_DAYS,resolveCalendarRangeEnd } from '../utils/calendar-range'
 import type { CalendarView } from '../utils/calendar-navigation'
 import type { StateSetter } from './state-adapter'
+import type { CalendarSlideDirection } from '../utils/calendar-slide-motion'
 import type { CalendarDayEntry } from '../types/calendar'
 import type { CalendarProfile } from '../utils/calendar-navigation'
 import type { CalendarAutoSyncState } from '../types/calendar'
@@ -114,11 +115,11 @@ export function createUseCalendarRangeState<RangeQuery extends CalendarQueryStat
 }
 
 interface CalendarDateActionsInputs {
-  setMonthSlide: StateSetter<'left' | 'right' | null>
+  setMonthSlide: StateSetter<CalendarSlideDirection | null>
   currentMonth: Date
   setSelectedDay: (date: string) => void
   todayKey: string
-  setWeekSlide: StateSetter<'left' | 'right' | null>
+  setWeekSlide: StateSetter<CalendarSlideDirection | null>
   setWeekAnchor: StateSetter<Date | null>
   view?: CalendarView
   setIsDayDetailOpen: StateSetter<boolean>

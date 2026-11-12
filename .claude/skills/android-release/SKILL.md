@@ -1,7 +1,7 @@
 ---
 name: android-release
-description: Dispatch the Android Release GitHub Action that builds and publishes Orbit to Google Play. Defaults to the open track with the version and versionCode bumped one patch above the last run. Use when the user wants to ship a mobile release, publish to Play, or says /android-release. Not for a local APK, which is /android-generate.
-argument-hint: "[version] [--track internal|open|production] [--code N] [--clear-cache] [--validate-deps] [--message <text>]"
+description: Dispatch the Android Release GitHub Action that builds and publishes Orbit to Google Play. Defaults to the open track with the version bumped one patch above the newest Android or iOS release, then hands the same version to /ios-release. Use when the user wants to ship a mobile release, publish to Play, or says /android-release. Not for a local APK, which is /android-generate.
+argument-hint: "[version] [--track internal|open|production] [--code N] [--clear-cache] [--validate-deps] [--message <text>] [--android-only <reason>]"
 effort: low
 ---
 
@@ -27,6 +27,41 @@ fails with an explicit build-below-server-minimum verdict, including after the s
 The first-screen assertion reads the onboarding input label because the keyboard can clip its
 heading. Both workflows ship an x86_64 slice so the gate executes the AAB's native libraries.
 
+## One mobile version
+
+Android and iOS ship at the same `app_version`. Each store keeps its own build counter. This skill is the
+default entry point for both platforms: release Android, then release iOS at the same version through
+`/ios-release`. Do not report a mobile release as done until both uploads exist.
+
+Release Android alone only for a defect specific to Android. Pass `--android-only <reason>`. The
+workflow input `platform_only_reason` carries the reason, and the run summary records it.
+
+The workflow runs `node apps/mobile/scripts/mobile-version-pair.js check` before it builds. The check
+reads the newest version of each platform from GitHub Deployments (`android-release` and `ios-release`).
+One version names one code state. So the check refuses an Android version at or below the newest iOS
+version when Android does not carry that version, as after an iOS-only release. It refuses an Android-only
+version at or below the newest iOS version. A reason does not change these two refusals.
+The check also compares commits. The workflow passes `--sha "$GITHUB_SHA"`, the commit that it builds. A
+version that a platform already carries takes only the commit of that platform's newest record at that
+version. So iOS builds the commit that Android built, and an Android rebuild of a version that Android
+carries builds the commit of that version. New code takes `nextVersion`. GitHub sets `sha` on every
+deployment record. If the newest record at the version has no commit, the check refuses the version.
+`node apps/mobile/scripts/mobile-version-pair.js plan --environment <production|staging>` prints both
+newest versions, the lagging platform and the next shared version. Run it with `GITHUB_REPOSITORY` and
+`GH_TOKEN` set. A refusal is a stop: do not retry it with a made-up reason.
+
+Each GitHub environment keeps its own records, and the check reads only one environment. The Android
+track selects that environment, and the iOS `variant` must select the same one:
+
+| Android `track` | GitHub environment | iOS `variant` |
+|---|---|---|
+| `open`, `production` | `production` | `production` |
+| `internal` | `staging` | `staging` |
+
+An iOS `staging` build follows an Android `internal` build at the same version. An iOS `production` build
+follows an Android `open` or `production` build at the same version. The other variant reads the other
+environment, and the check refuses the version when that environment holds a different Android version.
+
 ## The workflow's inputs (from the workflow file, not memory)
 
 | Input | Required | Values |
@@ -37,6 +72,7 @@ heading. Both workflows ship an x86_64 slice so the gate executes the AAB's nati
 | `clear_cache` | no | boolean, default `false` |
 | `validate_expo_dependencies` | no | boolean, default `false` |
 | `message` | no | free text recorded in the run log and summary |
+| `platform_only_reason` | no | empty for a release that mirrors iOS; the Android-specific defect for an Android-only release |
 
 The workflow builds `internal` from the selected branch as `org.useorbit.app.staging` ("Orbit Staging")
 against `https://api-staging.useorbit.org` and records it in the `staging` GitHub environment.
@@ -85,7 +121,14 @@ gh run list --workflow android-release.yml --limit 5 \
 
 Parse the newest title with `Android Release (\S+) \((\d+)\) to (\S+) on`. From it:
 
-- `app_version` -> bump the **last numeric segment by one** (`1.3.26` -> `1.3.27`).
+- `app_version` -> run `mobile-version-pair.js plan --environment production` for the `open` and `production`
+  tracks, and use its `nextVersion`: the newest of the Android and iOS versions, with the **last numeric segment
+  bumped by one** (`1.3.26` -> `1.3.27`). Use `nextVersion` also when the plan names `android` as the lagging
+  platform: iOS is ahead only after an iOS-only release, and that version names iOS code that Android does not
+  carry. An Android-only release also uses `nextVersion`, so it never reuses a version iOS shipped.
+  For the `internal` track, run the plan with `--environment staging` and use its `nextVersion`. The check
+  also accepts a higher version, so a staging build of code that did not ship yet can use the `nextVersion`
+  of the production plan when that version is higher.
 - `android_version_code` -> previous integer plus one (`85` -> `86`).
 - `track` -> **`open`** by default, regardless of the previous run's track.
 
@@ -245,6 +288,7 @@ Anything in `$ARGUMENTS` overrides the derived defaults:
 - `--clear-cache` -> `clear_cache=true`
 - `--validate-deps` -> `validate_expo_dependencies=true`
 - `--message <text>` -> `message`
+- `--android-only <reason>` -> `platform_only_reason`, and skip the iOS follow-up
 
 When the user supplies a version but no code, still derive the code from the last run and say so.
 
@@ -289,7 +333,8 @@ gh workflow run android-release.yml \
   -f track=<track> \
   -f clear_cache=<bool> \
   -f validate_expo_dependencies=<bool> \
-  -f message=<text>
+  -f message=<text> \
+  -f platform_only_reason=<reason or empty>
 ```
 
 `gh workflow run` prints no run id. Resolve the new run by listing again, **scoped to the same ref** so a
@@ -302,6 +347,24 @@ gh run list --workflow android-release.yml --branch <confirmed ref> --limit 5 \
   --json databaseId,displayTitle,status,headBranch
 gh run watch <databaseId>
 ```
+
+## Step 5 - Release iOS at the same version
+
+Unless `--android-only` was given, run `/ios-release` after the Android upload succeeds. Use the same commit
+(a `main` commit for `open` and `production`) and the same `app_version`. Dispatch the iOS `variant` of the
+Android track's environment:
+
+- Android `open` or `production` -> `variant=production` (this is the default path).
+- Android `internal` -> `variant=staging`.
+
+The iOS workflow refuses any other version. The other variant reads the other environment's Android
+records, so the workflow refuses it too when those records hold a different version. Confirm the iOS build
+number with the owner as that skill states.
+
+`gh workflow run --ref` builds the tip of the branch, and the iOS check refuses a commit other than the
+commit that Android built. Before the iOS dispatch, run `git fetch origin <branch>`. Compare
+`git rev-parse origin/<branch>` with the commit of the Android run. If the branch moved, release Android
+again at the new `nextVersion` from the new tip, then release iOS.
 
 ## Report
 

@@ -1,6 +1,6 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { AppState, StyleSheet, type AppStateStatus, type PressableProps } from 'react-native'
+import { AppState, StyleSheet, type AppStateStatus } from 'react-native'
 import { I18nextProvider } from 'react-i18next'
 
 import { ExpiryWarning } from '@/components/ui/expiry-warning'
@@ -9,6 +9,7 @@ import { i18n } from '@/lib/i18n'
 import { useAuthStore } from '@/stores/auth-store'
 import { createTokensV2, radius } from '@/lib/theme'
 import { SMALL_PILL_VISIBLE_MIN, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { pressableStyle } from '@/__tests__/support/press-feedback'
 
 vi.unmock('react-i18next')
 
@@ -152,8 +153,7 @@ function textContent(children: React.ReactNode): string {
 }
 
 function actionStyle(instance: TestInstance, pressed = false) {
-  const style = action(instance, i18n.t('auth.refresh')).props.style as PressableProps['style']
-  return StyleSheet.flatten(typeof style === 'function' ? style({ pressed }) : style)
+  return pressableStyle(action(instance, i18n.t('auth.refresh')), pressed)
 }
 
 beforeEach(async () => {
