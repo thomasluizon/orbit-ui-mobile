@@ -64,10 +64,11 @@
       "outputs": ["coverage/**"],
       "inputs": [
         "$TURBO_DEFAULT$",
-        "$TURBO_ROOT$/.github/workflows/ios-{build,release}.yml",
+        "$TURBO_ROOT$/.github/workflows/{android-release,ios-build,ios-release}.yml",
         "$TURBO_ROOT$/DESIGN.md",
         "$TURBO_ROOT$/design/canvas/_ds/*/tokens/colors.css",
-        "$TURBO_ROOT$/packages/shared/src/**"
+        "$TURBO_ROOT$/packages/shared/src/**",
+        "$TURBO_ROOT$/tools/__tests__/android-deployment-fixture.json"
       ]
     },
     "@orbit/web#test": {
