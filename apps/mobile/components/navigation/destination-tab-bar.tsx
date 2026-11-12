@@ -2,15 +2,13 @@ import { useMemo } from 'react'
 import { useRouter } from 'expo-router'
 import { dismissAllSheets } from '@/components/ui/sheet'
 import { useTranslation } from 'react-i18next'
-import { resolveShellChrome, DESTINATION_ICONS, SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
+import { resolveShellChrome, DESTINATION_ICONS, SHELL_DESTINATION_IDS, SHELL_DESTINATION_PATHS, type ShellDestinationId } from '@orbit/shared/utils'
 import { DestinationIcon } from '@/components/navigation/destination-icon'
 import { useUIStore } from '@/stores/ui-store'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { BottomTabBar } from './bottom-tab-bar'
 import { useRootScrollReselect } from '@/components/shell/root-scroll-context'
-
-const ROOT_PATHS: Record<string, string> = { hoje: '/', calendario: '/calendar', progresso: '/progress', perfil: '/profile' }
 
 export function DestinationTabBar({ pathname, notFound = false }: Readonly<{ pathname: string; notFound?: boolean }>) {
   const router = useRouter()
@@ -35,13 +33,12 @@ export function DestinationTabBar({ pathname, notFound = false }: Readonly<{ pat
       return
     }
     useUIStore.getState().setAstraConversationOpen(false)
-    if (!notFound && id === active && pathname === ROOT_PATHS[id]) {
+    const rootPath = SHELL_DESTINATION_PATHS[id as ShellDestinationId]
+    if (!notFound && id === active && pathname === rootPath) {
       scrollToTop?.(id)
       return
     }
-    if (id === 'calendario') router.navigate('/calendar')
-    else if (id === 'progresso') router.navigate('/progress')
-    else router.navigate('/profile')
+    router.navigate(rootPath)
   }
 
   const { t } = useTranslation()
