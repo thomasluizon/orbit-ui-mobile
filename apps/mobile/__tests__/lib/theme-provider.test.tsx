@@ -256,6 +256,17 @@ it('crossfades a theme that reaches the profile after sign-in or from another de
   expect(colours).toEqual([createTokensV2('orange', 'dark').bg])
 })
 
+it('applies a profile or chosen theme that matches the screen at once, as web does', async () => {
+  const { root, client, chooser, flushNotifications } = await setup('dark')
+
+  await act(() => { client.setQueryData(profileKeys.detail(), createMockProfile({ themePreference: 'dark', name: 'Other device' })) })
+  await flushNotifications()
+  await act(() => chooser.current?.applyTheme('dark'))
+
+  expect(chooser.current?.currentTheme).toBe('dark')
+  expect(findThemeOverlays(root)).toHaveLength(0)
+})
+
 it('crossfades first-run detection when the system scheme differs from the first frame', async () => {
   appearance.scheme = 'light'
   const { root, chooser, flushNotifications, renderedThemes } = await setup('dark', undefined, null)

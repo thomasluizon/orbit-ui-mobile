@@ -37,7 +37,7 @@ export function useColorScheme() {
   useEffect(() => {
     if (currentTheme !== getCurrentTheme()) return
     setCookie('orbit_color_scheme', currentScheme)
-    applyThemeTokensToDOM(currentScheme, currentTheme, false)
+    applyThemeTokensToDOM(currentScheme, currentTheme)
   }, [currentScheme, currentTheme])
 
   const applyTheme = useCallback((theme: ThemeMode, persistToDb = true) => {
@@ -49,7 +49,7 @@ export function useColorScheme() {
       profile ? { ...profile, themePreference: theme } : profile,
     )
     setCurrentTheme(theme)
-    applyThemeTokensToDOM(currentScheme, theme, true)
+    applyThemeTokensToDOM(currentScheme, theme)
 
     if (persistToDb) {
       updateThemePreferenceAction({ themePreference: theme }, intendedAccountId).catch((error: unknown) => {
@@ -62,7 +62,7 @@ export function useColorScheme() {
           profile && previousProfile ? { ...profile, themePreference: previousProfile.themePreference } : profile,
         )
         setCurrentTheme(prev)
-        applyThemeTokensToDOM(currentScheme, prev, true)
+        applyThemeTokensToDOM(currentScheme, prev)
       })
     }
   }, [currentScheme, currentTheme, queryClient, showPersistentError, t])
@@ -84,7 +84,7 @@ export function useColorScheme() {
         : null
     if (dbTheme && dbTheme !== currentTheme) {
       setCurrentTheme(dbTheme)
-      applyThemeTokensToDOM(currentScheme, dbTheme, true)
+      applyThemeTokensToDOM(currentScheme, dbTheme)
     }
   }, [currentScheme, currentTheme])
 
@@ -98,7 +98,7 @@ export function useColorScheme() {
     const detected: ThemeMode =
       mediaQueryMatches('(prefers-color-scheme: light)') ? 'light' : 'dark'
     setCurrentTheme(detected, false)
-    applyThemeTokensToDOM(currentScheme, detected, true)
+    applyThemeTokensToDOM(currentScheme, detected)
     updateThemePreferenceAction({ themePreference: detected }, getHeldAccountId()).catch((error: unknown) => {
       if (reportsAccountChanged(error)) {
         showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))

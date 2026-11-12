@@ -286,7 +286,8 @@ describe('theme crossfade', () => {
 
   it('removes the crossfade class exactly when the fade ends', () => {
     vi.useFakeTimers()
-    applyThemeTokensToDOM('orange', 'light', true)
+    applyThemeTokensToDOM('orange', 'dark')
+    applyThemeTokensToDOM('orange', 'light')
     const root = document.documentElement
     expect(root.style.getPropertyValue('--dur-theme')).toBe(`${motionDurations.theme}ms`)
     expect(root.classList.contains('theme-transitioning')).toBe(true)
@@ -298,10 +299,37 @@ describe('theme crossfade', () => {
 
   it('restarts the fade window when the theme changes again mid fade', () => {
     vi.useFakeTimers()
-    applyThemeTokensToDOM('orange', 'light', true)
+    applyThemeTokensToDOM('orange', 'dark')
+    applyThemeTokensToDOM('orange', 'light')
     vi.advanceTimersByTime(motionDurations.theme / 2)
-    applyThemeTokensToDOM('orange', 'dark', true)
+    applyThemeTokensToDOM('orange', 'dark')
     vi.advanceTimersByTime(motionDurations.theme - 1)
+    expect(document.documentElement.classList.contains('theme-transitioning')).toBe(true)
+    vi.advanceTimersByTime(1)
+    expect(document.documentElement.classList.contains('theme-transitioning')).toBe(false)
+  })
+
+  it.each([
+    ['no mode class before the first apply', ''],
+    ['the same mode', 'dark scheme-orange'],
+  ])('applies the theme at once when the root shows %s', (_state, className) => {
+    vi.useFakeTimers()
+    document.documentElement.className = className
+
+    applyThemeTokensToDOM('orange', 'dark')
+
+    expect(document.documentElement.classList.contains('dark')).toBe(true)
+    expect(document.documentElement.classList.contains('theme-transitioning')).toBe(false)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('keeps the running fade window when the same mode is applied again mid fade', () => {
+    vi.useFakeTimers()
+    applyThemeTokensToDOM('orange', 'dark')
+    applyThemeTokensToDOM('orange', 'light')
+    vi.advanceTimersByTime(motionDurations.theme / 2)
+    applyThemeTokensToDOM('orange', 'light')
+    vi.advanceTimersByTime(motionDurations.theme / 2 - 1)
     expect(document.documentElement.classList.contains('theme-transitioning')).toBe(true)
     vi.advanceTimersByTime(1)
     expect(document.documentElement.classList.contains('theme-transitioning')).toBe(false)

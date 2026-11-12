@@ -95,16 +95,17 @@ export function resolveWebThemeVariables(
 
 let themeTransitionTimer: ReturnType<typeof setTimeout> | undefined
 
-export function applyThemeTokensToDOM(
-  scheme: ColorScheme,
-  theme: ThemeMode,
-  animate = false,
-) {
+/**
+ * Crossfades only when the root already shows the opposite mode, so the first apply and a
+ * same-mode apply stay instant. The mobile provider derives its overlay from the same change.
+ */
+export function applyThemeTokensToDOM(scheme: ColorScheme, theme: ThemeMode) {
   if (typeof document === 'undefined') return
 
   const root = document.documentElement
+  const oppositeMode: ThemeMode = theme === 'dark' ? 'light' : 'dark'
 
-  if (animate) {
+  if (root.classList.contains(oppositeMode)) {
     root.classList.add('theme-transitioning')
     clearTimeout(themeTransitionTimer)
     themeTransitionTimer = setTimeout(() => {
@@ -112,13 +113,8 @@ export function applyThemeTokensToDOM(
     }, motionDurations.theme)
   }
 
-  if (theme === 'dark') {
-    root.classList.add('dark')
-    root.classList.remove('light')
-  } else {
-    root.classList.add('light')
-    root.classList.remove('dark')
-  }
+  root.classList.add(theme)
+  root.classList.remove(oppositeMode)
 
   for (const s of VALID_COLOR_SCHEMES) root.classList.remove(`scheme-${s}`)
   root.classList.add('scheme-orange')

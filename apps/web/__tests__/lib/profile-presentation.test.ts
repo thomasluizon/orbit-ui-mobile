@@ -130,6 +130,21 @@ describe('profile presentation helpers', () => {
     }
   })
 
+  it('applies a sign-in theme that matches the screen at once, as the mobile provider does', () => {
+    vi.useFakeTimers()
+    try {
+      applyThemeTokensToDOM('orange', 'dark')
+
+      applyProfilePresentation({ colorScheme: 'orange', themePreference: 'dark', language: 'en' })
+
+      expect(document.documentElement).toHaveClass('dark')
+      expect(document.documentElement).not.toHaveClass('theme-transitioning')
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it.each(['purple', 'blue', 'green', 'rose', 'orange', 'cyan', null])(
     'hydrates the granted accent from stored value %s',
     (stored) => {
