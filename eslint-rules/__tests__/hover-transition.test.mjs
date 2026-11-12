@@ -84,6 +84,7 @@ tester.run('hover-transition', require('../hover-transition.cjs'), {
     '<button className={[ready ? "hover:bg-[var(--bg-hover)]" : "", "transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"].join(" ")} />',
     '<button className="enabled:hover:bg-[var(--bg-hover)] !transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" />',
     ...['habit-control-motion', 'orbit-pill-action', 'orbit-list-row', 'orbit-list-row-body', 'orbit-list-row-action', 'orbit-menu-item', 'chip', 'icon-btn'].map((motion) => `<button className="hover:bg-[var(--bg-hover)] ${motion}" />`),
+    '<button className="icon-btn icon-btn-well enabled:hover:bg-[var(--bg-elev-hover)] enabled:active:bg-[var(--bg-elev-hover)]" />',
     '<span className="group-hover:bg-[var(--bg-hover)] transition-none" />',
     '<button className="hover:bg-[var(--bg-hover)] motion-safe:transition-colors motion-safe:duration-[var(--dur-hover-control)] motion-safe:ease-[var(--ease-standard)]" />',
   ],
@@ -142,6 +143,8 @@ tester.run('hover-transition', require('../hover-transition.cjs'), {
     { code: '<button className="hover:bg-[var(--bg-hover)] hover:transition-colors" />', errors: [{ messageId: 'missing' }] },
     { code: '<button className="hover:bg-[var(--bg-hover)] hover:[transition-property:background-color]" />', errors: [{ messageId: 'missing' }] },
     { code: '<button className="hover:bg-[var(--bg-hover)] habit-control-motionless" />', errors: [{ messageId: 'missing' }] },
+    { code: '<button className="enabled:hover:bg-[var(--bg-elev-hover)] icon-btn-well" />', errors: [{ messageId: 'missing' }] },
+    { code: '<button className="hover:bg-[var(--bg-hover)] icon-btn duration-[var(--dur-press)]" />', errors: [{ messageId: 'duration' }] },
     { code: '<div className="transition-colors"><button className="hover:bg-[var(--bg-hover)]" /></div>', errors: [{ messageId: 'missing' }] },
   ],
 })

@@ -361,8 +361,8 @@ export function Screen(){return <button className="${promotion} bg-[var(--bg)] h
   }
   const interactionOwners = [
     { path: "apps/web/components/navigation/bottom-tab-bar.tsx", before: "group rounded-full", after: "group rounded-full hover:bg-[var(--bg-hover)]" },
-    { path: "apps/web/components/shell/shell-wide.tsx", owner: "SidebarItem", before: "? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]'", after: "? 'text-[var(--primary-soft)]'" },
-    { path: "apps/web/components/shell/shell-wide.tsx", owner: "SidebarAstraRow", before: "? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]'", after: "? 'text-[var(--primary-soft)]'" },
+    { path: "apps/web/components/shell/shell-wide.tsx", owner: "SidebarItem", before: "? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)] active:text-[var(--primary-text)]'", after: "? 'text-[var(--primary-soft)]'" },
+    { path: "apps/web/components/shell/shell-wide.tsx", owner: "SidebarAstraRow", before: "? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)] active:text-[var(--primary-text)]'", after: "? 'text-[var(--primary-soft)]'" },
     { path: "apps/mobile/components/navigation/bottom-tab-bar.tsx", before: "style={styles.tab}", after: "style={[styles.tab, hoveredId === item.id && { backgroundColor: tokens.bgHover }]}" },
   ]
   for (const [index, owner] of interactionOwners.entries()) {
@@ -388,6 +388,10 @@ export function Screen(){return <button className="${promotion} bg-[var(--bg)] h
   }
   const stateCases = [
     ["direct-hover", { web: `<button className="bg-[var(--bg)] hover:bg-[var(--bg-hover)] text-[var(--primary-soft)] hover:text-[var(--primary-text)]">Item</button>` }, 0],
+    ["direct-hover-press", { web: `<button className="bg-[var(--bg)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] text-[var(--primary-soft)] hover:text-[var(--primary-text)] active:text-[var(--primary-text)]">Item</button>` }, 0],
+    ["hover-only-press-pair", { web: `<button className="bg-[var(--bg)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] text-[var(--primary-soft)] hover:text-[var(--primary-text)]">Item</button>` }, 1],
+    ["press-only-hover-pair", { web: `<button className="bg-[var(--bg)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] text-[var(--primary-soft)] active:text-[var(--primary-text)]">Item</button>` }, 1],
+    ["ancestor-press", { web: `<div className="bg-[var(--bg)] active:bg-[var(--bg-hover)] p-4"><button className="text-[var(--primary-soft)] hover:text-[var(--primary-text)] active:text-[var(--primary-text)]">Item</button></div>` }, 1],
     ["wrong-state", { web: `<button className="bg-[var(--bg)] hover:bg-[var(--bg-hover)] text-[var(--primary-soft)] focus:text-[var(--primary-text)]">Item</button>` }, 1],
     ["child-hover", { web: `<button className="bg-[var(--bg)] hover:bg-[var(--bg-hover)]"><span className="text-[var(--primary-soft)] hover:text-[var(--primary-text)]">Item</span></button>` }, 1],
     ["conditional-hover-ancestor", { web: `export function Example({ active }) { return <button className={active ? "bg-[var(--bg)] hover:bg-[var(--bg-hover)]" : "bg-[var(--bg)]"}><span className="text-[var(--primary-soft)] hover:text-[var(--primary-text)]">Item</span></button> }` }, 1],
@@ -581,7 +585,7 @@ export function Screen(){return <button className="${promotion} bg-[var(--bg)] h
 
   const dateField = "apps/mobile/components/ui/date-field.tsx"
   const calendarPaths = [dateField]
-  const calendarViolation = { path: dateField, before: "<Calendar size={20} strokeWidth={1.8} color={tokens.fg3} />", after: "<Calendar size={20} strokeWidth={1.8} color={tokens.fg4} />" }
+  const calendarViolation = { path: dateField, before: "<Calendar size={20} strokeWidth={1.8} color={pressed ? tokens.fg2 : tokens.fg3} />", after: "<Calendar size={20} strokeWidth={1.8} color={pressed ? tokens.fg2 : tokens.fg4} />" }
   for (const lineShift of [0, 2]) {
     const badCalendar = stageProducerRepository(`producer-calendar-fg4-shift-${lineShift}`, calendarPaths, calendarViolation)
     const calendarPath = join(badCalendar, dateField)

@@ -131,8 +131,6 @@ export function createSectionStyles(tokens: AppTokens) {
       paddingHorizontal: SPACING.s12,
       fontFamily: "Geist_400Regular",
       fontSize: 14,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
     },
     customAddButton: {
       width: TOUCH_TARGET_MIN,
@@ -163,6 +161,7 @@ export function createSectionStyles(tokens: AppTokens) {
       paddingHorizontal: SPACING.s12,
       paddingVertical: SPACING.s8,
       borderRadius: radius.full,
+      overflow: "hidden",
       backgroundColor: tokens.bgField,
       borderWidth: 1,
       borderColor: "transparent",
@@ -171,10 +170,16 @@ export function createSectionStyles(tokens: AppTokens) {
     whenButtonActive: {
       backgroundColor: tintFromPrimary(tokens, 0.12),
     },
+    whenButtonPressed: {
+      backgroundColor: tokens.bgHover,
+    },
     whenButtonText: {
       fontFamily: "Geist_500Medium",
       fontSize: 14,
       color: tokens.fg3,
+    },
+    whenButtonTextPressed: {
+      color: tokens.fg2,
     },
     whenButtonTextActive: {
       color: tokens.fg1,

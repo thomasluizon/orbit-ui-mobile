@@ -92,7 +92,7 @@ function TimeZoneOptions({
             setQuery(event.target.value)
             setVisibleCount(TIME_ZONE_PAGE_SIZE)
           }}
-          className="form-input mb-1"
+          className="form-input orbit-field-hover mb-1"
           style={{ borderRadius: 12 }}
           placeholder={searchLabel}
         />

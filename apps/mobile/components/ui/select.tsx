@@ -5,6 +5,8 @@ import type { SelectOption, SelectProps } from '@orbit/shared/contracts/forms'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { Check, ChevronDown } from '@/components/ui/icons'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
+import { PressFill } from '@/components/ui/press-fill'
+import { PressScale } from '@/components/motion/press-scale'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useThemeTokens } from '@/hooks/use-theme-tokens'
 
@@ -25,13 +27,18 @@ export function Root({ value, onChange, options, disabled, children }: Readonly<
   </SelectionContext.Provider>
 }
 
+/** A field-shaped trigger: the `borderControl` field border, the `bgHoverOpaque` layer over its field fill on hover and press, and the shared press scale. */
 export function Trigger(props: ComponentProps<typeof Primitive.Trigger>) {
   const tokens = useThemeTokens()
   const { value, disabled } = Primitive.useRootContext()
   const [hovered, setHovered] = useState(false)
-  return <Primitive.Trigger {...props} disabled={disabled} accessibilityRole="combobox" accessibilityValue={{ text: value?.label ?? '' }} asChild><InsetFocusPressable onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)} focusColor={tokens.fg1} style={({ pressed }) => [styles.trigger, { backgroundColor: !disabled && (pressed || hovered) ? tokens.bgHover : tokens.bgField, borderColor: tokens.hairline }]}>
-    <Primitive.Value placeholder="" style={[styles.value, { color: tokens.fg1 }]} /><ChevronDown size={20} color={tokens.fg3} />
-  </InsetFocusPressable></Primitive.Trigger>
+  const [pressed, setPressed] = useState(false)
+  return <PressScale pressed={pressed} disabled={Boolean(disabled)}><Primitive.Trigger {...props} disabled={disabled} accessibilityRole="combobox" accessibilityValue={{ text: value?.label ?? '' }} asChild><InsetFocusPressable onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)} onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)} focusColor={tokens.fg1} style={[styles.trigger, { backgroundColor: tokens.bgField, borderColor: tokens.borderControl }]}>
+    {({ pressed: held }) => <>
+      <PressFill pressed={!disabled && (held || hovered)} color={tokens.bgHoverOpaque} />
+      <Primitive.Value placeholder="" style={[styles.value, { color: tokens.fg1 }]} /><ChevronDown size={20} color={!disabled && (held || hovered) ? tokens.fg2 : tokens.fg3} />
+    </>}
+  </InsetFocusPressable></Primitive.Trigger></PressScale>
 }
 
 export const Portal = Primitive.Portal
