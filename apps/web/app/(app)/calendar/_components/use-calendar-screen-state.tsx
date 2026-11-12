@@ -15,7 +15,7 @@ import { useAccountBoundRouteRequest,useAccountScopedState } from '@/hooks/use-s
 import { useCalendarAutoSyncState } from '@/hooks/use-calendar-auto-sync'
 import { useLogHabit } from '@/hooks/use-habit-logging'
 import { useTimeFormat } from '@/hooks/use-time-format'
-import { buildCalendarMonthModel } from '@orbit/shared/utils'
+import { buildCalendarMonthModel, type CalendarSlideDirection } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { type CalendarImportActionHandle,type CalendarImportActionState } from '@/components/calendar-sync/calendar-import-content'
 import { useSheetHost } from '@/components/ui/sheet'
@@ -28,7 +28,7 @@ import { useAccountClockSeed } from '@/lib/account-clock'
 import { CalendarHeader } from './calendar-shell'
 import { useCalendarNavigation,type CalendarView } from '@/hooks/use-calendar-navigation'
 
-type MonthSlide = 'left' | 'right' | null
+type MonthSlide = CalendarSlideDirection | null
 
 function calendarDateFnsLocale(locale: string) {
   return locale === 'pt-BR' ? ptBR : enUS
@@ -39,12 +39,6 @@ function useClearStaleCalendarImportRoute(routeRequestKey: string, importRequest
   useEffect(() => {
     if (routeRequestKey && !importRequested) router.replace(returnHref, { scroll: false })
   }, [routeRequestKey, importRequested, returnHref, router])
-}
-
-function resolveMonthSlideClass(monthSlide: MonthSlide): string {
-  if (monthSlide === 'right') return 'animate-slide-date-right'
-  if (monthSlide === 'left') return 'animate-slide-date-left'
-  return ''
 }
 
 export interface CalendarPageContentProps {
@@ -299,9 +293,9 @@ function useCalendarViewModel({ selectedDay, locale, todayKey, t, currentMonth, 
   return { viewOptions, rangeLabel, monthDisplayState, monthStatTiles, rangeModel, weekdayLabels, rangeStatTiles, dayDetailTitle }
 }
 
-type CalendarMonthSwipeInputs = Pick<ReturnType<typeof useCalendarDateActions>, 'nextMonth' | 'prevMonth'> & Pick<ReturnType<typeof useCalendarScreenSession>, 'monthSlide' | 'isOnline' | 'setShowCreateRefusal' | 'setShowCreateModal'>
+type CalendarMonthSwipeInputs = Pick<ReturnType<typeof useCalendarDateActions>, 'nextMonth' | 'prevMonth'> & Pick<ReturnType<typeof useCalendarScreenSession>, 'isOnline' | 'setShowCreateRefusal' | 'setShowCreateModal'>
 
-function useCalendarMonthSwipe({ nextMonth, prevMonth, monthSlide, isOnline, setShowCreateRefusal, setShowCreateModal }: CalendarMonthSwipeInputs) {
+function useCalendarMonthSwipe({ nextMonth, prevMonth, isOnline, setShowCreateRefusal, setShowCreateModal }: CalendarMonthSwipeInputs) {
   const touchStart = useRef<{ x: number; y: number } | null>(null)
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -326,13 +320,11 @@ function useCalendarMonthSwipe({ nextMonth, prevMonth, monthSlide, isOnline, set
     }
   }, [nextMonth, prevMonth])
 
-  const monthSlideClass = resolveMonthSlideClass(monthSlide)
-
   const openHabitCreation = useCallback(() => {
     if (!isOnline) { setShowCreateRefusal(true); return }
     setShowCreateModal(true)
   }, [isOnline, setShowCreateRefusal, setShowCreateModal])
-  return { monthSlideClass, handleTouchStart, handleTouchEnd, openHabitCreation }
+  return { handleTouchStart, handleTouchEnd, openHabitCreation }
 }
 
 type CalendarHeaderStateInputs = Pick<ReturnType<typeof useCalendarViewModel>, 'viewOptions' | 'rangeLabel'> & Pick<CalendarPageContentProps, 'view' | 'setView' | 'currentMonth' | 'selectedDay' | 'profile' | 'profileError'> & Pick<ReturnType<typeof useCalendarScreenSession>, 't' | 'todayKey' | 'weekStartsOn' | 'rangeOffset' | 'agendaOffset' | 'locale' | 'setRangeOffset' | 'setAgendaOffset'> & Pick<ReturnType<typeof useCalendarRangeState>, 'weekStart' | 'agendaStart' | 'agendaEnd'> & Pick<ReturnType<typeof useCalendarDisplayState>, 'weekLabel' | 'activeError'> & Pick<ReturnType<typeof useCalendarDateActions>, 'prevWeek' | 'nextWeek' | 'goToCurrentWeek' | 'previousRange' | 'nextRange' | 'prevMonth' | 'nextMonth' | 'goToCurrentMonth' | 'selectMonth'>
