@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as Sentry from '@sentry/nextjs'
 import { beforeSendEvent } from '@/lib/sentry-scrub'
+import { SENTRY_TUNNEL_ROUTE } from '@/lib/public-paths'
 
 vi.mock('@sentry/nextjs', () => ({
   init: vi.fn(),
@@ -55,7 +56,9 @@ describe.each([
         enabled: true,
         release: 'a'.repeat(40),
         environment: environment || 'production',
-        ...(runtime === 'browser' ? { tracesSampler: expect.any(Function) } : { tracesSampleRate: 0 }),
+        ...(runtime === 'browser'
+          ? { tracesSampler: expect.any(Function), tunnel: SENTRY_TUNNEL_ROUTE }
+          : { tracesSampleRate: 0 }),
         sendDefaultPii: false,
         beforeSend: beforeSendEvent,
       })
