@@ -511,11 +511,6 @@ select[aria-hidden="true"] {
   outline-offset: -2px;
 }
 
-@keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
 .orbit-sheet-grabber {
   align-self: center;
   width: 48px;
@@ -890,13 +885,8 @@ select[aria-hidden="true"] {
   --shadow-2: var(--sh-2);
   --shadow-3: var(--sh-3);
 
-  /* Animations.
-     `slide-up-fade` uses `backwards` fill-mode (start-state only, no post-animation
-     hold) so it doesn't pin transform values that would override later inline
-     transforms in drag-enabled contexts. Matches `.stagger-enter > *` below. */
-  --animate-slide-up: slide-up-fade 0.28s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  /* Animations. */
   --animate-scale-in: scale-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
-  --animate-gentle-pulse: gentle-pulse 1s var(--ease-standard) infinite;
 
   /* Stacking (DESIGN.md): the semantic z-index scale, mirrored from
      @orbit/shared/theme zLayers. Overlays stack on a named tier via the
@@ -943,8 +933,6 @@ select[aria-hidden="true"] {
   --row-h: 68px;
   background-color: var(--bg);
   color: var(--fg-1);
-
-  --orbit-list-stagger: 40ms;
 
   /* Motion tokens */
   --dur-1: 160ms;
@@ -1287,89 +1275,67 @@ button {
   50% { opacity: 0.55; }
 }
 
-/* Staggerable list entrance */
-@keyframes slide-up-fade {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* Date navigation slide animations */
-@keyframes slide-date-right {
-  from { opacity: 0; transform: translateX(12px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes slide-date-left {
-  from { opacity: 0; transform: translateX(-12px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-.animate-slide-date-right {
-  animation: slide-date-right var(--dur-base) var(--ease-out);
-}
-
-.animate-slide-date-left {
-  animation: slide-date-left var(--dur-base) var(--ease-out);
-}
-
 /* Modal/card entrance */
 @keyframes scale-in {
   from { opacity: 0; transform: scale(0.95); }
   to { opacity: 1; transform: scale(1); }
 }
 
-/* Live/active indicator pulse */
-@keyframes gentle-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-@keyframes orbit-pulse {
-  0%, 100% { opacity: 0.7; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.1); }
-}
-
-.animate-spin-slow {
-  animation: spin 8s linear infinite;
-}
-
-.animate-orbit-pulse {
-  animation: orbit-pulse 2.5s ease-in-out infinite;
-}
-
-@keyframes astra-orbit {
-  to { transform: rotate(360deg); }
-}
-
-.astra-orbit {
-  transform-origin: center;
-  animation: astra-orbit 14s linear infinite;
-}
-
 /* ═══════════════════════════════════════════════════════
-   PAGE & LAYOUT TRANSITIONS
+   PRIMARY TAB SWITCH
+   animateTabViewTransition drives both legs from the shared
+   tab-switch preset. The shell chrome changes at once, and taps
+   reach the live page while the legs run.
+   Every named group paints above the root snapshot, so the
+   controls that float over the scroller take their own names
+   (their groups follow the page group in paint order), and the
+   page group clips both legs to the scroller box.
    ═══════════════════════════════════════════════════════ */
 
-.page-enter-active,
-.layout-enter-active {
-  transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out);
+::view-transition-group(orbit-tab-page),
+::view-transition-old(orbit-tab-page),
+::view-transition-new(orbit-tab-page) {
+  animation: none;
+  mix-blend-mode: normal;
 }
 
-.page-leave-active,
-.layout-leave-active {
-  transition: opacity var(--dur-fast) ease-in, transform var(--dur-fast) ease-in;
+::view-transition-group(orbit-tab-page) {
+  overflow: clip;
 }
 
-.page-enter-from,
-.layout-enter-from {
+::view-transition-new(orbit-tab-page) {
   opacity: 0;
-  transform: translateY(10px) scale(0.99);
 }
 
-.page-leave-to,
-.layout-leave-to {
-  opacity: 0;
-  transform: translateY(-6px) scale(0.99);
+:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back) [data-shell-fab-clip] {
+  view-transition-name: orbit-shell-fab;
+}
+
+:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back) [data-shell-scroll-to-top] {
+  view-transition-name: orbit-shell-scroll-to-top;
+}
+
+:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition {
+  pointer-events: none;
+}
+
+:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition-old(root),
+:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition-new(root),
+:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition-group(orbit-shell-fab),
+:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition-old(orbit-shell-fab),
+:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition-new(orbit-shell-fab),
+:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition-group(orbit-shell-scroll-to-top),
+:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition-old(orbit-shell-scroll-to-top),
+:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition-new(orbit-shell-scroll-to-top) {
+  animation-duration: 0s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0s !important;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1377,21 +1343,7 @@ button {
    ═══════════════════════════════════════════════════════ */
 
 .skeleton-pulse {
-  animation: skeleton-pulse 1.1s ease-in-out var(--skeleton-pulse-iterations);
-}
-
-/* ═══════════════════════════════════════════════════════
-   GENERIC TRANSITIONS
-   ═══════════════════════════════════════════════════════ */
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity var(--dur-base) var(--ease-standard);
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
+  animation: skeleton-pulse calc(var(--dur-slow) * 4) ease-in-out var(--skeleton-pulse-iterations);
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1527,35 +1479,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .is-dragging * {
   user-select: none;
   -webkit-touch-callout: none;
-}
-
-/* ═══════════════════════════════════════════════════════
-   MICRO-INTERACTION ANIMATIONS
-   ═══════════════════════════════════════════════════════ */
-
-/* Checklist check pop */
-@keyframes check-item-pop {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.2); }
-  100% { transform: scale(1); }
-}
-
-.animate-check-pop {
-  animation: check-item-pop 200ms var(--ease-out);
-}
-
-/* Tag selection pop */
-@keyframes tag-pop {
-  0% { transform: scale(0.96); }
-  100% { transform: scale(1); }
-}
-
-.animate-tag-pop {
-  animation: tag-pop 160ms var(--ease-standard);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .animate-tag-pop { animation: none; }
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1973,10 +1896,6 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
     animation-duration: 3s !important;
     animation-iteration-count: infinite !important;
   }
-
-  .stagger-enter > * {
-    animation: none !important;
-  }
   .collapsible {
     transition: none !important;
   }
@@ -2195,25 +2114,6 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 /* ═══════════════════════════════════════════════════════
    UTILITY CLASSES
    ═══════════════════════════════════════════════════════ */
-
-/* Stagger entrance animation for lists.
-   fill-mode is `backwards` (not `both`) so the keyframe's end-state transform
-   isn't pinned to the element after the animation finishes - otherwise it would
-   override any subsequent inline transforms (e.g., @dnd-kit drag transforms). */
-.stagger-enter > * {
-  animation: slide-up-fade 0.28s cubic-bezier(0.16, 1, 0.3, 1) backwards;
-}
-.stagger-enter > *:nth-child(1) { animation-delay: 0ms; }
-.stagger-enter > *:nth-child(2) { animation-delay: var(--orbit-list-stagger); }
-.stagger-enter > *:nth-child(3) { animation-delay: calc(var(--orbit-list-stagger) * 2); }
-.stagger-enter > *:nth-child(4) { animation-delay: calc(var(--orbit-list-stagger) * 3); }
-.stagger-enter > *:nth-child(5) { animation-delay: calc(var(--orbit-list-stagger) * 4); }
-.stagger-enter > *:nth-child(6) { animation-delay: calc(var(--orbit-list-stagger) * 5); }
-.stagger-enter > *:nth-child(7) { animation-delay: calc(var(--orbit-list-stagger) * 6); }
-.stagger-enter > *:nth-child(8) { animation-delay: calc(var(--orbit-list-stagger) * 7); }
-.stagger-enter > *:nth-child(9) { animation-delay: calc(var(--orbit-list-stagger) * 8); }
-.stagger-enter > *:nth-child(10) { animation-delay: calc(var(--orbit-list-stagger) * 9); }
-.stagger-enter > *:nth-child(n+11) { animation: none; }
 
 /* Collapsible section animation */
 .collapsible {
@@ -2463,22 +2363,6 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 .theme-transitioning,
 .theme-transitioning * {
   transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease !important;
-}
-
-/* ═══════════════════════════════════════════════════════
-   TODAY PAGE TRANSITIONS
-   Slide-up for bulk action bar, slide-date for date navigation
-   ═══════════════════════════════════════════════════════ */
-
-.slide-up-enter-active,
-.slide-up-leave-active {
-  transition: opacity var(--dur-slow) ease, transform var(--dur-slow) ease;
-}
-
-.slide-up-enter-from,
-.slide-up-leave-to {
-  opacity: 0;
-  transform: translateY(100%);
 }
 
 @keyframes search-dot { 50% { opacity: 0.35; } }
