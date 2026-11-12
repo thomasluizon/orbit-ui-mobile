@@ -115,7 +115,9 @@ the proof branch. The iOS startup equivalent is tracked separately in #1561.
 Both mobile release workflows run `apps/mobile/scripts/mobile-version-pair.js check` before they build,
 so Android and iOS ship at one `app_version`. iOS must equal the newest Android version, unless the dispatch
 passes `platform_only_reason`. One version names one code state, so a platform-only release, and Android after
-an iOS-only release, must go above the newest version of the other platform. Each platform reads the
+an iOS-only release, must go above the newest version of the other platform. The check also takes the commit
+the run builds (`--sha "$GITHUB_SHA"`). A version that a platform already carries takes only the commit of its
+newest record there, and a record without a commit refuses its version. Each platform reads the
 other's `android-release` or `ios-release` GitHub Deployments in one environment: Android `internal` and iOS
 `staging` read `staging`, and Android `open` or `production` and iOS `production` read `production`.
 `mobile-version-pair.test.ts` and `ios-workflows.test.ts` run the rules, the command line and each workflow

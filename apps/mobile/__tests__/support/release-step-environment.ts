@@ -2,7 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 
-export interface DeploymentRecord { task: string; sha: string; payload: Record<string, unknown> }
+export interface DeploymentRecord { task: string; sha?: string; created_at?: string; payload: Record<string, unknown> }
 export type DeploymentEnvironment = 'staging' | 'production'
 export type StubDeployments = Partial<Record<DeploymentEnvironment, { android: DeploymentRecord[]; ios: DeploymentRecord[] }>>
 export interface StubWrite { path: string; payload: Record<string, unknown> }
@@ -11,9 +11,15 @@ const producedAndroidRecord = JSON.parse(
   readFileSync(fileURLToPath(new URL('../../../../tools/__tests__/android-deployment-fixture.json', import.meta.url)), 'utf8'),
 ).deployment as DeploymentRecord
 
-export const deploymentRecord = (version: string, task = 'android-release'): DeploymentRecord => ({
+/** A produced deployment record at `version`. `{ sha: undefined }` gives a record without a commit. */
+export const deploymentRecord = (
+  version: string,
+  task = 'android-release',
+  overrides: Pick<DeploymentRecord, 'sha' | 'created_at'> = {},
+): DeploymentRecord => ({
   ...producedAndroidRecord,
   task,
+  ...overrides,
   payload: { ...producedAndroidRecord.payload, app_version: version },
 })
 

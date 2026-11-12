@@ -20,14 +20,19 @@ const pair = require('../../scripts/mobile-version-pair.js') as {
   recordIosDeployment: (input: Record<string, unknown>) => number
 }
 
+/** The commit of the produced record fixture, and another commit. */
 const sha = 'a'.repeat(40)
-const check = (overrides: Record<string, unknown>) =>
+const otherSha = 'b'.repeat(40)
+
+/** Runs the rule with one record at `platformNewest` and one at `siblingNewest`, unless the records are given. */
+const check = ({ platformNewest = '1.3.152', siblingNewest = '1.3.153', ...overrides }: Record<string, unknown> & { platformNewest?: string | null; siblingNewest?: string | null }) =>
   pair.checkVersionPair({
     platform: 'ios',
     appVersion: '1.3.153',
+    sha,
     platformOnlyReason: '',
-    platformNewest: '1.3.152',
-    siblingNewest: '1.3.153',
+    platformRecords: platformNewest ? [record(platformNewest)] : [],
+    siblingRecords: siblingNewest ? [record(siblingNewest)] : [],
     ...overrides,
   })
 
@@ -141,6 +146,74 @@ describe('version pair rules', () => {
 
   it('treats a blank reason as no reason', () => {
     expect(check({ appVersion: '1.3.155', platformOnlyReason: '   ' }).allowed).toBe(false)
+  })
+})
+
+describe('one code state per version', () => {
+  const at = (version: string, commit: string | undefined, createdAt = '2026-11-10T00:00:00Z') =>
+    record(version, 'android-release', { sha: commit, created_at: createdAt })
+
+  it('lets iOS take the Android version from the commit Android built', () => {
+    expect(check({ siblingRecords: [at('1.3.153', sha)] })).toMatchObject({ allowed: true, platformOnly: false })
+  })
+
+  it('refuses iOS at the Android version from another commit, and names both commits and the way out', () => {
+    const decision = check({ sha: otherSha, siblingRecords: [at('1.3.153', sha)] })
+    expect(decision.allowed).toBe(false)
+    expect(decision.message).toContain(`Android 1.3.153 is built from ${sha}, and this release builds ${otherSha}.`)
+    expect(decision.message).toContain(`build ${sha}, or release Android at the plan's nextVersion 1.3.154 from this commit, then iOS.`)
+  })
+
+  it('compares with the newest record of the version, whatever the list order', () => {
+    const siblingRecords = [at('1.3.153', otherSha, '2026-11-10T23:22:07Z'), at('1.3.153', sha, '2026-11-11T22:11:34Z'), at('1.3.152', otherSha, '2026-11-12T00:00:00Z')]
+    expect(check({ siblingRecords }).allowed).toBe(true)
+    expect(check({ sha: otherSha, siblingRecords }).message).toContain(`Android 1.3.153 is built from ${sha}`)
+  })
+
+  it('refuses a version whose newest record names no commit, and does not guess one', () => {
+    for (const commit of [sha, otherSha]) {
+      const decision = check({ sha: commit, siblingRecords: [at('1.3.153', undefined)] })
+      expect(decision.allowed).toBe(false)
+      expect(decision.message).toContain('The newest Android record of 1.3.153 names no commit, so the check cannot prove one code state.')
+    }
+  })
+
+  it('ignores a record without a commit at another version', () => {
+    expect(check({ siblingRecords: [at('1.3.152', undefined), at('1.3.153', sha)] }).allowed).toBe(true)
+  })
+
+  it.each([
+    ['the same commit', sha, true],
+    ['another commit', otherSha, false],
+  ])('lets Android rebuild a version it carries only from the commit of that version: %s', (_name, commit, allowed) => {
+    for (const siblingRecords of [[], [at('1.3.153', sha)]]) {
+      const decision = check({ platform: 'android', sha: commit, platformRecords: [at('1.3.153', sha)], siblingRecords })
+      expect(decision.allowed).toBe(allowed)
+      if (!allowed) expect(decision.message).toContain(`Android 1.3.153 is built from ${sha}, and this release builds ${otherSha}.`)
+    }
+  })
+
+  it('refuses a new iOS build of a version iOS carries from another commit', () => {
+    const decision = check({ sha: otherSha, platformRecords: [at('1.3.153', sha)], siblingRecords: [at('1.3.153', otherSha)] })
+    expect(decision.allowed).toBe(false)
+    expect(decision.message).toContain(`iOS 1.3.153 is built from ${sha}, and this release builds ${otherSha}.`)
+  })
+
+  it.each([
+    ['the same commit', sha, true, 'Reason: Keychain defect on iOS 18'],
+    ['another commit', otherSha, false, `build ${sha}, or take the plan's nextVersion 1.3.156.`],
+  ])('lets a platform-only release repeat its version only from the commit of that version: %s', (_name, commit, allowed, message) => {
+    const decision = check({
+      appVersion: '1.3.155', sha: commit, platformOnlyReason: 'Keychain defect on iOS 18',
+      platformRecords: [at('1.3.155', sha)], siblingRecords: [at('1.3.153', sha)],
+    })
+    expect(decision.allowed).toBe(allowed)
+    expect(decision.message).toContain(message)
+  })
+
+  it('lets a platform-only release take a new version from any commit', () => {
+    const decision = check({ appVersion: '1.3.154', sha: otherSha, platformOnlyReason: 'iOS widget defect', siblingRecords: [at('1.3.153', sha)] })
+    expect(decision).toMatchObject({ allowed: true, platformOnly: true })
   })
 })
 
@@ -282,17 +355,42 @@ describe('command line', () => {
     }
   }
 
-  const iosAt153 = (environment: string) => ['check', '--platform', 'ios', '--environment', environment, '--app-version', '1.3.153']
+  const iosAt153 = (environment: string, commit = sha) =>
+    ['check', '--platform', 'ios', '--environment', environment, '--app-version', '1.3.153', '--sha', commit]
   const stagingBehind: StubDeployments = {
     production: { android: [record('1.3.152'), record('1.3.153')], ios: [record('1.3.152', 'ios-release')] },
     staging: { android: [record('1.3.139')], ios: [] },
   }
 
-  it('allows iOS at the newest Android version', () => {
+  it('allows iOS at the newest Android version from the commit Android built', () => {
     const result = run(iosAt153('production'), stagingBehind)
     expect(result.status).toBe(0)
     expect(result.summary).toContain('allowed')
     expect(result.summary).toContain('| Environment | `production` |')
+    expect(result.summary).toContain(`| Commit | \`${sha}\` |`)
+  })
+
+  it('refuses iOS at the newest Android version from another commit, and names both commits', () => {
+    const result = run(iosAt153('production', otherSha), stagingBehind)
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain(`Android 1.3.153 is built from ${sha}, and this release builds ${otherSha}.`)
+    expect(result.summary).toContain('| Verdict | refused |')
+    expect(result.summary).toContain(`| Commit | \`${otherSha}\` |`)
+  })
+
+  it('refuses a version whose newest Android record names no commit', () => {
+    const result = run(iosAt153('production'), { production: { android: [record('1.3.153', 'android-release', { sha: undefined })], ios: [] } })
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('The newest Android record of 1.3.153 names no commit')
+  })
+
+  it.each([
+    ['without a commit', []],
+    ['with a commit that is not 40 hexadecimal characters', ['--sha', 'main']],
+  ])('refuses a check %s as an invalid argument', (_name, commit) => {
+    const result = run(['check', '--platform', 'ios', '--environment', 'production', '--app-version', '1.3.153', ...commit], stagingBehind)
+    expect(result.status).toBe(2)
+    expect(result.summary).toBe('')
   })
 
   it('refuses iOS at a version Android does not carry', () => {
@@ -363,7 +461,7 @@ describe('command line', () => {
   })
 
   it.each(['-h', '--help'])('runs the check when the platform-only reason is %s', (reason) => {
-    const result = run(['check', '--platform', 'ios', '--environment', 'production', '--app-version', '1.3.151'], stagingBehind, reason)
+    const result = run(['check', '--platform', 'ios', '--environment', 'production', '--app-version', '1.3.151', '--sha', sha], stagingBehind, reason)
     expect(result.status).toBe(1)
     expect(result.stderr).toContain('ios 1.3.151 is older than its newest release 1.3.152')
     expect(result.summary).toContain('| Verdict | refused |')
@@ -420,13 +518,15 @@ describe('release workflows', () => {
     expect(guard).toBeGreaterThan(index(steps, (step) => step.uses === 'actions/checkout@v7'))
     expect(guard).toBeLessThan(index(steps, (step) => step.name === 'Install dependencies from the lockfile'))
     expect(steps[guard]!.run).toContain('mobile-version-pair.js check --platform android')
+    expect(steps[guard]!.run).toContain('--sha "$GITHUB_SHA"')
     expect(steps[guard]!.run).toContain('--platform-only-reason "$PLATFORM_ONLY_REASON"')
   })
 
-  it('checks the iOS version before it writes the version into the project', () => {
+  it('checks the iOS version and commit before it writes the version into the project', () => {
     const steps = ios.jobs.release!.steps
     const validate = steps.find((step) => step.name === 'Validate the release configuration')!.run!
     expect(validate).toContain('mobile-version-pair.js check --platform ios')
+    expect(validate).toContain('--sha "$GITHUB_SHA"')
     expect(validate.indexOf('mobile-version-pair.js check')).toBeLessThan(validate.indexOf('set-app-version.js'))
   })
 
@@ -465,7 +565,8 @@ describe('release workflows', () => {
     expect(status).toMatchObject({ path: 'repos/owner/repository/deployments/77/statuses', payload: { state: 'success' } })
   })
 
-  const runAndroidGuard = (options: { track: string; androidVersion: string; productionIos: string | null; stagingIos: string | null; platformOnlyReason?: string }) => {
+  /** Runs the Android guard. Every record names the commit `sha`; the run builds `commit`. */
+  const runAndroidGuard = (options: { track: string; androidVersion: string; productionIos: string | null; stagingIos: string | null; platformOnlyReason?: string; commit?: string }) => {
     const step = android.jobs['release-android']!.steps.find((candidate) => candidate.name === 'Require one mobile version')!
     const iosRecords = (version: string | null) => (version ? [record(version, 'ios-release')] : [])
     return runStep(step, {
@@ -474,8 +575,19 @@ describe('release workflows', () => {
     }, {
       GH_TOKEN: 'test-token', APP_VERSION: options.androidVersion,
       PLATFORM_ONLY_REASON: options.platformOnlyReason ?? '', RELEASE_TRACK: options.track,
-    })
+    }, { GITHUB_SHA: options.commit ?? sha })
   }
+
+  it.each([
+    ['open', '1.3.152', sha, 0, 'keeps both platforms on one version'],
+    ['open', '1.3.152', otherSha, 1, `Android 1.3.152 is built from ${sha}, and this release builds ${otherSha}.`],
+    ['internal', '1.3.139', otherSha, 1, `Android 1.3.139 is built from ${sha}, and this release builds ${otherSha}.`],
+    ['open', '1.3.153', otherSha, 0, 'keeps both platforms on one version'],
+  ] as const)('runs the Android guard on the %s track at %s from commit %s against the commit Android recorded', (track, androidVersion, commit, status, output) => {
+    const result = runAndroidGuard({ track, androidVersion, productionIos: null, stagingIos: null, commit })
+    expect(result.stdout + result.stderr).toContain(output)
+    expect(result.status).toBe(status)
+  })
 
   it.each([
     ['open', '1.3.153', '1.3.152', ahead, '', 0, 'keeps both platforms on one version'],

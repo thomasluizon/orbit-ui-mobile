@@ -41,6 +41,11 @@ reads the newest version of each platform from GitHub Deployments (`android-rele
 One version names one code state. So the check refuses an Android version at or below the newest iOS
 version when Android does not carry that version, as after an iOS-only release. It refuses an Android-only
 version at or below the newest iOS version. A reason does not change these two refusals.
+The check also compares commits. The workflow passes `--sha "$GITHUB_SHA"`, the commit that it builds. A
+version that a platform already carries takes only the commit of that platform's newest record at that
+version. So iOS builds the commit that Android built, and an Android rebuild of a version that Android
+carries builds the commit of that version. New code takes `nextVersion`. GitHub sets `sha` on every
+deployment record. If the newest record at the version has no commit, the check refuses the version.
 `node apps/mobile/scripts/mobile-version-pair.js plan --environment <production|staging>` prints both
 newest versions, the lagging platform and the next shared version. Run it with `GITHUB_REPOSITORY` and
 `GH_TOKEN` set. A refusal is a stop: do not retry it with a made-up reason.
@@ -355,6 +360,11 @@ Android track's environment:
 The iOS workflow refuses any other version. The other variant reads the other environment's Android
 records, so the workflow refuses it too when those records hold a different version. Confirm the iOS build
 number with the owner as that skill states.
+
+`gh workflow run --ref` builds the tip of the branch, and the iOS check refuses a commit other than the
+commit that Android built. Before the iOS dispatch, run `git fetch origin <branch>`. Compare
+`git rev-parse origin/<branch>` with the commit of the Android run. If the branch moved, release Android
+again at the new `nextVersion` from the new tip, then release iOS.
 
 ## Report
 

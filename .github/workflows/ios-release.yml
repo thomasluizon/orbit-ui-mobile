@@ -92,7 +92,7 @@ jobs:
             if [ -z "${!key//[[:space:]]/}" ]; then echo "::error::Missing $key"; exit 1; fi
           done
           node apps/mobile/scripts/mobile-version-pair.js check --platform ios --environment "$ORBIT_APP_VARIANT" \
-            --app-version "$APP_VERSION" --platform-only-reason "$PLATFORM_ONLY_REASON"
+            --app-version "$APP_VERSION" --sha "$GITHUB_SHA" --platform-only-reason "$PLATFORM_ONLY_REASON"
           node apps/mobile/scripts/set-app-version.js "$APP_VERSION" '' "$IOS_BUILD_NUMBER"
       - name: Install dependencies
         run: npm ci

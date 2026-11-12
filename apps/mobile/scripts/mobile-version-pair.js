@@ -5,16 +5,19 @@ const PAIRING = "Android open and production pair with iOS production. Android i
 
 const USAGE = `Usage: node scripts/mobile-version-pair.js <command> [options]
 
-Keeps the Android and iOS user-facing versions on one number.
+Keeps the Android and iOS user-facing versions on one number, and one number on one commit.
 Both platforms record each upload as a GitHub Deployment (task android-release or ios-release).
 Set GITHUB_REPOSITORY (owner/name) and GH_TOKEN, as in GitHub Actions.
 
 Commands:
   check --platform <android|ios> --environment <staging|production> --app-version <x.y.z>
-        [--platform-only-reason <text>]
+        --sha <commit> [--platform-only-reason <text>]
       Refuse a version that puts the two platforms out of step. Exit 0 allows, 1 refuses.
       iOS takes the newest Android version. A platform-only release, and Android after an
       iOS-only release, must go above the newest version of the other platform.
+      --sha is the commit the release builds. A version that a platform already carries
+      takes only the commit of its newest record on that platform. The check refuses a
+      version whose newest record names no commit.
   plan --environment <staging|production>
       Print the newest version of each platform and the next shared version as JSON.
   record-ios --environment <staging|production> --app-version <x.y.z> --build-number <n>
@@ -29,7 +32,9 @@ ${PAIRING}
 exit codes: 0 success; 1 refused or read error; 2 invalid arguments`;
 
 const VERSION_PATTERN = /^(\d+)\.(\d+)\.(\d+)$/;
+const COMMIT_PATTERN = /^[a-f0-9]{40}$/;
 const TASKS = { android: "android-release", ios: "ios-release" };
+const PLATFORM_NAMES = { android: "Android", ios: "iOS" };
 const ENVIRONMENTS = ["staging", "production"];
 const PLATFORMS = ["android", "ios"];
 const DEPLOYMENT_PAGE_SIZE = 100;
@@ -67,18 +72,56 @@ function newestVersion(deployments) {
 }
 
 /**
- * Decide whether `platform` may release `appVersion`. The newest versions are null when no record exists.
+ * The commit of the newest record at `version`: undefined when no record carries the version,
+ * null when that record names no commit. The newest record has the latest `created_at`.
+ */
+function recordedCommit(deployments, version) {
+  const carrying = deployments.filter((deployment) => compareVersions(deployment.payload.app_version, version) === 0);
+  if (carrying.length === 0) return undefined;
+  const newest = carrying.reduce((latest, candidate) => (candidate.created_at > latest.created_at ? candidate : latest));
+  return typeof newest.sha === "string" && COMMIT_PATTERN.test(newest.sha) ? newest.sha : null;
+}
+
+/**
+ * Decide whether `platform` may release `appVersion` built from commit `sha`, from the deployment records
+ * of both platforms. One version names one code state, so a version that a platform carries takes only
+ * the commit of its newest record there. A rebuild of the same platform's version follows the same rule.
+ */
+function checkVersionPair({ platform, appVersion, sha, platformOnlyReason, platformRecords, siblingRecords }) {
+  const platformNewest = newestVersion(platformRecords);
+  const siblingNewest = newestVersion(siblingRecords);
+  const decision = checkVersions({ platform, appVersion, platformOnlyReason, platformNewest, siblingNewest });
+  if (!decision.allowed) return decision;
+  const nextVersion = nextSharedVersion([platformNewest, siblingNewest]);
+  const remedy = decision.platformOnly
+    ? `take the plan's nextVersion ${nextVersion}`
+    : `release Android at the plan's nextVersion ${nextVersion} from this commit, then iOS`;
+  const sibling = platform === "android" ? "ios" : "android";
+  for (const [name, records] of [[platform, platformRecords], [sibling, siblingRecords]]) {
+    const recorded = recordedCommit(records, appVersion);
+    if (recorded === null) {
+      return refuse(`The newest ${PLATFORM_NAMES[name]} record of ${appVersion} names no commit, so the check cannot prove one code state. Instead, ${remedy}.`);
+    }
+    if (recorded !== undefined && recorded !== sha) {
+      return refuse(`${PLATFORM_NAMES[name]} ${appVersion} is built from ${recorded}, and this release builds ${sha}. One version names one code state, so build ${recorded}, or ${remedy}.`);
+    }
+  }
+  return decision;
+}
+
+/**
+ * Decide whether the version numbers allow the release. The newest versions are null when no record exists.
  * iOS follows the newest Android version. One version names one code state, so a platform-only release,
  * and Android after an iOS-only release, go above the newest version of the other platform.
  */
-function checkVersionPair({ platform, appVersion, platformOnlyReason, platformNewest, siblingNewest }) {
+function checkVersions({ platform, appVersion, platformOnlyReason, platformNewest, siblingNewest }) {
   parseVersion(appVersion);
   if (!PLATFORMS.includes(platform)) throw new Error(`Unknown platform "${platform}"`);
   const reason = typeof platformOnlyReason === "string" ? platformOnlyReason.trim() : "";
   if (platformNewest !== null && compareVersions(appVersion, platformNewest) < 0) {
     return refuse(`${platform} ${appVersion} is older than its newest release ${platformNewest}.`);
   }
-  const sibling = platform === "android" ? "iOS" : "Android";
+  const sibling = PLATFORM_NAMES[platform === "android" ? "ios" : "android"];
   const notAboveSibling = siblingNewest !== null && compareVersions(appVersion, siblingNewest) <= 0;
   const refuseNotAbove = (subject, detail) => refuse(`${subject} is not above the newest ${sibling} version ${siblingNewest}${detail}. `
     + `One version names one code state, so use the plan's nextVersion ${nextSharedVersion([platformNewest, siblingNewest])}.`);
@@ -107,15 +150,14 @@ function readGitHub(path) {
   return JSON.parse(execFileSync("gh", ["api", path], { encoding: "utf8", timeout: 30_000, maxBuffer: 4 * 1024 * 1024 }));
 }
 
-function readNewestVersion({ platform, environment, repository }) {
-  const path = `repos/${repository}/deployments?task=${TASKS[platform]}&environment=${environment}&per_page=${DEPLOYMENT_PAGE_SIZE}`;
-  return newestVersion(readGitHub(path));
+function readDeployments({ platform, environment, repository }) {
+  return readGitHub(`repos/${repository}/deployments?task=${TASKS[platform]}&environment=${environment}&per_page=${DEPLOYMENT_PAGE_SIZE}`);
 }
 
 function readBothNewest({ environment, repository }) {
   return {
-    android: readNewestVersion({ platform: "android", environment, repository }),
-    ios: readNewestVersion({ platform: "ios", environment, repository }),
+    android: newestVersion(readDeployments({ platform: "android", environment, repository })),
+    ios: newestVersion(readDeployments({ platform: "ios", environment, repository })),
   };
 }
 
@@ -180,7 +222,7 @@ function pauseFor(milliseconds) {
 }
 
 const FLAGS = {
-  check: { required: ["platform", "environment", "app-version"], optional: ["platform-only-reason"] },
+  check: { required: ["platform", "environment", "app-version", "sha"], optional: ["platform-only-reason"] },
   plan: { required: ["environment"], optional: [] },
   "record-ios": {
     required: ["environment", "app-version", "build-number", "variant", "sha"],
@@ -211,7 +253,7 @@ function parseArguments(argv) {
   if (options.variant !== undefined && !ENVIRONMENTS.includes(options.variant)) return null;
   if (options["build-number"] !== undefined && !/^[1-9]\d{0,17}$/.test(options["build-number"])) return null;
   if (options["app-version"] !== undefined && !VERSION_PATTERN.test(options["app-version"])) return null;
-  if (options.sha !== undefined && !/^[a-f0-9]{40}$/.test(options.sha)) return null;
+  if (options.sha !== undefined && !COMMIT_PATTERN.test(options.sha)) return null;
   return { command, options };
 }
 
@@ -231,9 +273,10 @@ function runCheck(options) {
   const decision = checkVersionPair({
     platform: options.platform,
     appVersion: options["app-version"],
+    sha: options.sha,
     platformOnlyReason: options["platform-only-reason"],
-    platformNewest: readNewestVersion({ platform: options.platform, environment: options.environment, repository }),
-    siblingNewest: readNewestVersion({ platform: siblingPlatform, environment: options.environment, repository }),
+    platformRecords: readDeployments({ platform: options.platform, environment: options.environment, repository }),
+    siblingRecords: readDeployments({ platform: siblingPlatform, environment: options.environment, repository }),
   });
   appendSummary([
     "### Mobile version pair",
@@ -242,6 +285,7 @@ function runCheck(options) {
     "| --- | --- |",
     `| Environment | \`${options.environment}\` |`,
     `| Version | \`${options["app-version"]}\` |`,
+    `| Commit | \`${options.sha}\` |`,
     `| Platform only | \`${decision.platformOnly}\` |`,
     `| Verdict | ${decision.allowed ? "allowed" : "refused"} |`,
     `| Detail | ${decision.message} |`,

@@ -21,7 +21,12 @@ variant of the Android run's environment:
 Use the newest Android version from
 `node apps/mobile/scripts/mobile-version-pair.js plan --environment <the variant>` (set `GITHUB_REPOSITORY`
 and `GH_TOKEN`). The workflow runs `mobile-version-pair.js check` against that environment only. It refuses
-an iOS version that differs from the newest Android version there. An iOS `staging` build thus needs an
+an iOS version that differs from the newest Android version there. It passes `--sha "$GITHUB_SHA"` and
+refuses a build of a commit other than the commit of the newest Android record at that version. A new build
+number at a version that iOS already carries must build that version's commit too. `gh workflow run --ref`
+builds the tip of the branch. So dispatch only while that tip is the commit of the Android run. If the
+branch moved, release Android at the new `nextVersion` from the new tip first. If the newest Android record
+at the version has no commit, the check refuses the version and does not guess a commit. An iOS `staging` build thus needs an
 Android `internal` build at the same version first. When the staging plan shows an older Android version
 than the code under test, release Android `internal` at the new version, then release iOS `staging`.
 
@@ -42,7 +47,7 @@ It archives the embedded redesign bundle, uploads Sentry symbols, and uploads to
 The `variant` input defaults to `production`, the pair of the default Android `open` track.
 Production releases run from `main`.
 
-Before dispatch, resolve the requested ref to a commit, the app version from the rule above, an unused positive `build_number`,
+Before dispatch, resolve the requested ref to a commit equal to the Android run's commit, the app version from the rule above, an unused positive `build_number`,
 and `variant` (`staging` or `production`, from the table above). Read the latest build number from the matching app's
 App Store Connect TestFlight screen; do not infer it from Android's version code. Verify the
 `Mobile iOS Build` compile check for the commit. Ask for a missing release parameter only after
