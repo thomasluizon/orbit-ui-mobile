@@ -6,6 +6,7 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { DescriptionCopyButton } from '@/components/habits/description-copy-button'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
+import { expectCopyStateIcon } from '@/__tests__/support/copy-state-icon'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 const writeText = vi.fn()
@@ -40,8 +41,14 @@ describe('description copy action', () => {
     expect(feedback.overflow).toBe('hidden')
     expect(feedback.clipPath).toBe('inset(50%)')
     expect(feedback.whiteSpace).toBe('nowrap')
-    expect(copyButton().querySelectorAll('svg')).toHaveLength(1)
-    expect(copyButton().querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+  })
+
+  it('swaps the copy icon through CopyStateIcon on the shared fast duration and swaps instantly under reduced motion', async () => {
+    render(<DescriptionCopyButton description="A note" />)
+    expectCopyStateIcon(copyButton(), { copied: false, strokeWidth: 1.5 })
+    await act(async () => { fireEvent.click(copyButton()) })
+    expect(screen.getByRole('status')).toHaveTextContent('habits.detail.descriptionCopied')
+    expectCopyStateIcon(copyButton(), { copied: true, strokeWidth: 1.5 })
   })
 
   it.each(['rejection', 'missing', 'throw'])('shows a persistent failure for %s without claiming success, then allows retry', async (failure) => {

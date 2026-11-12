@@ -19,7 +19,7 @@ vi.mock('@/components/ui/markdown', () => ({
 
 interface TestNode {
   type: unknown
-  props: { accessibilityLabel?: string; onPress?: () => void }
+  props: { accessibilityLabel?: string; onPress?: () => void; testID?: string; style?: { opacity?: number } }
 }
 interface TestTree {
   root: { findAll: (predicate: (node: TestNode) => boolean) => TestNode[] }
@@ -60,7 +60,7 @@ function copy(label: string) {
   return button!.props.onPress!()
 }
 function copiedIcons() {
-  return tree.root.findAll((node) => node.type === 'Check')
+  return tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'check-icon' && node.props.style?.opacity === 1)
 }
 
 beforeEach(() => {

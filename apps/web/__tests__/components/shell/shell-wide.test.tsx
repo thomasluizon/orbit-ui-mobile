@@ -8,6 +8,7 @@ import { Fab } from '@/components/ui/fab'
 import { Toast } from '@/components/ui/toast'
 import en from '@orbit/shared/i18n/en.json'
 import { SPACING, TAB_BAR_MIN_HEIGHT, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { scaleTransition } from '@/__tests__/support/press-transition'
 
 const media = vi.hoisted(() => ({ width: 1023 }))
 
@@ -353,6 +354,33 @@ describe('ShellWide', () => {
     expect(account.querySelector('[aria-hidden="true"]')).toHaveTextContent('A')
     expect(within(account).queryByRole('button')).not.toBeInTheDocument()
     expect(account.nextElementSibling).toBeNull()
+  })
+
+  it('eases every sidebar press scale over the shared press duration on the ease-out curve', () => {
+    media.width = 1352
+    render(
+      <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }}
+        items={items}
+        activeId="hoje"
+        navLabel="Main navigation"
+        onPalette={() => {}}
+        paletteLabel="Search"
+        account="Ada Lovelace"
+        accountEmail="ada@example.com"
+      />,
+    )
+
+    const controls = [
+      screen.getByRole('link', { name: 'Hoje' }),
+      screen.getByRole('link', { name: 'Calendário' }),
+      screen.getByRole('button', { name: 'Astra' }),
+      screen.getByRole('button', { name: 'Search' }),
+      screen.getByRole('button', { name: 'Ada Lovelace, ada@example.com' }),
+    ]
+    for (const control of controls) {
+      expect([...control.classList].some((name) => /(^|:)active:scale-\[0\.96\]$/.test(name)), control.textContent).toBe(true)
+      expect(scaleTransition(control), control.textContent).toBe('var(--dur-press) var(--ease-out)')
+    }
   })
 
   it('reserves the account row while its profile loads', () => {

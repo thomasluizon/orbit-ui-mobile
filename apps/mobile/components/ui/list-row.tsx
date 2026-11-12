@@ -1,7 +1,7 @@
 import { nestedControlFill, surfaceHighlighted, useRowFeedback } from '@/hooks/use-row-feedback'
-import { usePrefersReducedMotion } from '@/lib/motion'
+import { toCssTransition, usePrefersReducedMotion } from '@/lib/motion'
 import { PersonalText } from '@/components/ui/personal-text'
-import { INTERACTION_FILL_CLEARANCE, PADDING, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, PADDING, SPACING, TOUCH_TARGET_MIN, motionDurations, motionEasings } from '@orbit/shared/theme'
 import * as SwitchPrimitive from '@rn-primitives/switch'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import Animated from 'react-native-reanimated'
@@ -17,7 +17,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 
 const AnimatedContent = Animated.createAnimatedComponent(View)
 const PRESS_TRANSITION = {
-  transition: 'transform 150ms cubic-bezier(0.16, 1, 0.3, 1)',
+  transition: toCssTransition(['transform'], motionDurations.press, motionEasings.enter),
 } as const
 
 function getDisabledStyle(disabled: boolean) {

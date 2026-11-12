@@ -16,6 +16,7 @@ import { useReferralInvitation } from '@/hooks/use-referral-invitation'
 import { useProfile } from '@/hooks/use-profile'
 import { Pager } from '@/components/ui/pager'
 import { PillButton } from '@/components/ui/pill-button'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 import { WrappedSlide } from './wrapped-slide'
 import { styles, type Tokens } from '@/app/wrapped-styles'
 
@@ -88,14 +89,14 @@ export function WrappedPlayer({
             <Text style={[styles.coverEyebrow, { color: tokens.fg3 }]}>{t(`wrapped.player.eyebrow.${period}`)}</Text>
             <Text style={[styles.headerWindow, { color: tokens.fg3 }]}>{windowLabel}</Text>
           </View>
-          <Pressable
+          <MotionPressable
             onPress={onClose}
             accessibilityRole="button"
             accessibilityLabel={t('wrapped.close')}
-            style={({ pressed }) => [styles.closeBtn, pressed ? [styles.closeBtnPressed, { backgroundColor: tokens.bgHover }] : null]}
+            style={({ pressed }) => [styles.closeBtn, pressed ? { backgroundColor: tokens.bgHover } : null]}
           >
             <X size={20} color={tokens.fg1} strokeWidth={1.8} />
-          </Pressable>
+          </MotionPressable>
         </View>
 
         <ScrollView

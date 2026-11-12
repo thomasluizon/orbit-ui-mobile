@@ -1,4 +1,4 @@
-import { Platform, StyleSheet, View, type AppStateStatus } from 'react-native'
+import { Platform, StyleSheet, View, type AppStateStatus, type StyleProp, type TextStyle } from 'react-native'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import React from 'react'
@@ -15,6 +15,7 @@ import { CommonActions, StackActions } from 'expo-router/build/react-navigation/
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 
 import UpgradeScreen from '@/app/upgrade'
+import { createTokensV2 } from '@/lib/theme'
 import { StoreBillingProvider } from '@/hooks/store-billing-provider'
 import { useAuthStore } from '@/stores/auth-store'
 import { setAccountId } from '@/lib/account-scope'
@@ -614,6 +615,18 @@ describe('UpgradeScreen', () => {
       expect(tree.root.findAll((node) => node.type === 'View' && node.props.accessibilityRole === 'progressbar')).toHaveLength(0)
       expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === messages.upgrade.billing.usage.title)).toHaveLength(0)
       expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === messages.upgrade.billing.usage.nearLimit)).toHaveLength(0)
+      await TestRenderer.act(() => tree.unmount())
+    })
+
+    it.each(['light', 'dark'] as const)('rests the decline link in the fg-2 reassurance colour with a real underline in %s', async (mode) => {
+      mocks.mode = mode
+      const tree = await renderScreen()
+      const textStyle = (children: string) => StyleSheet.flatten(tree.root.findAll((node) => node.type === 'Text' && node.props.children === children)[0]!.props.style as StyleProp<TextStyle>)
+      const decline = textStyle(messages.upgrade.convert.stayFree)
+      expect(decline.color).toBe(createTokensV2('orange', mode).fg2)
+      expect(decline.color).not.toBe(createTokensV2('orange', mode).fg1)
+      expect(decline.color).toBe(textStyle(messages.upgrade.convert.cancelAnytime).color)
+      expect(decline.textDecorationLine).toBe('underline')
       await TestRenderer.act(() => tree.unmount())
     })
 
