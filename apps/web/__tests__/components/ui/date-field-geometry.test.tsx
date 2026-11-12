@@ -64,17 +64,24 @@ describe('DateField sheet geometry in Chromium', () => {
     } finally { await page.close() }
   })
 
+  /**
+   * Resolves each token in its own new probe. Under reduced motion the global `0.01ms` transition reset reaches
+   * every element, and `transition-property` defaults to `all`, so a reused probe reports the start of its transition.
+   */
   async function openPaintPage(markup: string, mode: 'dark' | 'light', options: { hasTouch?: boolean; reducedMotion?: 'reduce' | 'no-preference' } = {}) {
     const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([name, value]) => `${name}: ${value};`).join(' ')
     const page = await browser.newPage({ viewport: { width: 412, height: 915 }, hasTouch: options.hasTouch ?? false, reducedMotion: options.reducedMotion ?? 'no-preference' })
     await page.setContent(`<!doctype html><style>${stylesheet} :root { ${variables} color-scheme: ${mode}; } body { margin: 0; padding: 24px; background: var(--bg); }</style>${markup}`)
     const tokens = await page.evaluate(() => {
-      const probe = document.createElement('span')
-      document.body.append(probe)
-      const paint = (name: string) => { probe.style.backgroundColor = `var(${name})`; return getComputedStyle(probe).backgroundColor }
-      const resolved = { canvas: paint('--bg'), field: paint('--bg-field'), opaqueHover: paint('--bg-hover-opaque'), hover: paint('--bg-hover'), border: paint('--border-control'), primary: paint('--primary') }
-      probe.remove()
-      return resolved
+      const paint = (name: string) => {
+        const probe = document.createElement('span')
+        probe.style.backgroundColor = `var(${name})`
+        document.body.append(probe)
+        const color = getComputedStyle(probe).backgroundColor
+        probe.remove()
+        return color
+      }
+      return { canvas: paint('--bg'), field: paint('--bg-field'), opaqueHover: paint('--bg-hover-opaque'), hover: paint('--bg-hover'), border: paint('--border-control'), primary: paint('--primary') }
     })
     return { page, tokens }
   }
@@ -91,6 +98,7 @@ describe('DateField sheet geometry in Chromium', () => {
       field: style.backgroundColor,
       fill: fillStyle.display === 'none' ? 'none' : fillStyle.backgroundColor,
       fillDuration: Number.parseFloat(fillStyle.transitionDuration),
+      fillDelay: Number.parseFloat(fillStyle.transitionDelay),
       rings,
       outline: { style: style.outlineStyle, width: style.outlineWidth, offset: style.outlineOffset, color: style.outlineColor },
       layers: { isolation: style.isolation, position: style.position, fillPosition: fillStyle.position, fillZ: fillStyle.zIndex, ringPosition: perimeter.position, ringZ: perimeter.zIndex },
@@ -198,6 +206,7 @@ describe('DateField sheet geometry in Chromium', () => {
       await enabled.evaluate(settleAnimations)
       const hovered = await enabled.evaluate(readTriggerPaint)
       expect(hovered.fillDuration).toBeLessThanOrEqual(0.001)
+      expect(hovered.fillDelay).toBe(0)
       expect(hovered.fill).toBe(tokens.opaqueHover)
     } finally { await page.close() }
   })
