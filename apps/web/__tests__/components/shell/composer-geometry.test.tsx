@@ -103,29 +103,6 @@ describe('Composer compact geometry in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each([320, 360, 384, 412, 600].flatMap(width => [en, ptBR].map(messages => ({ width, messages }))))(
-    'contains the Hoje and habit disclosure in the pill at $width with a whole placeholder', async ({ width, messages }) => {
-      const page = await browser.newPage({ viewport: { width, height: 915 } })
-      try {
-        for (const collapseScope of ['conversation', 'habit'] as const) {
-          const view = render(<Composer {...geometryProps('idle', messages, true)} collapsible collapseScope={collapseScope} />)
-          try {
-            await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
-            await loadAppFonts(page)
-            const pill = page.locator('[data-composer-input-row]')
-            const disclosure = pill.locator('[data-composer-disclosure]')
-            expect(await disclosure.count()).toBe(1)
-            expect(await disclosure.getAttribute('aria-expanded')).toBe('true')
-            expect(await pill.locator('button').count()).toBe(4)
-            expect(await page.locator('[data-composer-input]').evaluate(composerPlaceholderFits, 1)).toBe(true)
-            const tops = await pill.locator('[data-composer-trailing-controls] button').evaluateAll(buttons => buttons.map(button => button.getBoundingClientRect().top))
-            expect(Math.max(...tops) - Math.min(...tops)).toBeLessThanOrEqual(1)
-          } finally { view.unmount() }
-        }
-      } finally { await page.close() }
-    },
-  )
-
   it.each([412, 1280].flatMap((width) => (['light', 'dark'] as const).flatMap((mode) => [false, true].map((forcedColors) => ({ width, mode, forcedColors })))))(
     'draws one field and action focus ring at $width in $mode with forced colors $forcedColors', async ({ width, mode, forcedColors }) => {
       const view = render(<Composer {...geometryProps('typing', en, false)} />)

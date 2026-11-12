@@ -31,6 +31,15 @@ clearance. Habit detail and the conversation keep the shared composer. This amen
 the Hoje dock in the drawing and every drawing note that places a floating or draggable Astra
 button.
 
+### Composer collapse removal amendment (#2108)
+
+Under D42, the owner's #2108 order removes the composer collapse from the shared composer on
+web and mobile. The composer in the conversation and in habit detail has no collapse control,
+no compact mark row and no stored collapse preference, and the prompt suggestions row spans
+the full composer content width. This amendment supersedes the note in
+`Orbit Astra Conversation.dc.html` and `Orbit Habit Detail.dc.html` that lets habit detail
+collapse to one compact mark row (#1668).
+
 ## Empty-state composition amendment (#1896)
 
 The shared EmptyState uses the existing 48px asset size for both identity carriers on every
