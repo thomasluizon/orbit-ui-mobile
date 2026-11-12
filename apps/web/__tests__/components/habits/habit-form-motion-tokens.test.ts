@@ -89,6 +89,13 @@ const PRESS_FILL_FILES = [
   'components/ui/weekday-picker.tsx',
 ] as const
 
+const PICKER_ROW_CALLERS = [
+  'components/habits/habit-form-fields/tag-picker-field.tsx',
+  'components/habits/habit-form-fields/tag-suggestions.tsx',
+  'components/habits/goal-linking-field.tsx',
+  'components/goals/goal-habits-field.tsx',
+] as const
+
 describe('habit form and frequency picker motion tokens', () => {
   it.each(HABIT_FILES)('%s times every transition with a duration token and a curve token', (path) => {
     const text = source(path)
@@ -177,7 +184,6 @@ describe('habit form and frequency picker motion tokens', () => {
 
   it.each([
     ['components/habits/habit-form-fields/habit-understanding.tsx', '.habit-control-motion'],
-    ['components/habits/goal-linking-field.tsx', '.orbit-list-row-body'],
     ['components/ui/list-row.tsx', '.orbit-list-row-action'],
   ])('%s eases its scale press through %s', (path, rule) => {
     expect(source(path)).toMatch(new RegExp(String.raw`${rule.slice(1)}[^"'\`]*active:scale-\[0\.96\]`))
@@ -202,7 +208,7 @@ describe('habit form and frequency picker motion tokens', () => {
     const text = source('components/habits/checklist-templates.tsx')
     expect(text).toMatch(/orbit-list-row-body [^"]*active:scale-\[0\.96\]/)
     expect(text).toMatch(/orbit-list-row-action [^"]*active:scale-\[0\.96\]/)
-    expect(text).toContain('hover:bg-[var(--primary-hover)] active:bg-[var(--primary-pressed)] active:scale-[0.96]')
+    expect(text).toContain('hover:bg-[var(--primary-hover)] active:bg-[var(--primary-pressed)] enabled:active:scale-[0.96]')
     expect(text).toContain('hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96]')
   })
 
@@ -227,9 +233,9 @@ describe('habit form and frequency picker motion tokens', () => {
     expect(rule).not.toMatch(/transition|duration-|--hairline/)
   })
 
-  it('eases every picker row press, the tag picker included, through the list row body rule', () => {
-    expect(source('components/ui/picker-row.tsx')).toContain('orbit-list-row-body group/picker')
-    expect(source('components/habits/habit-form-fields/tag-picker-field.tsx')).toMatch(/controlClassName="[^"]*active:scale-\[0\.96\]/)
+  it('lets the picker row own its press scale, eased through the list row body rule, so no caller repeats it', () => {
+    expect(source('components/ui/picker-row.tsx')).toContain('orbit-list-row-body group/picker enabled:active:scale-[0.96]')
+    for (const path of PICKER_ROW_CALLERS) expect(source(path)).not.toMatch(/controlClassName="[^"]*scale-/)
     expect(stylesheetTransition(source('app/globals.css'), '.orbit-list-row-body')).toContain(SCALE_PRESS)
   })
 })
