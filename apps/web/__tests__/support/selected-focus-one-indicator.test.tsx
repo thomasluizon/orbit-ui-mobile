@@ -17,6 +17,9 @@ import { WeekdayPicker } from '@/components/ui/weekday-picker'
 import { HabitMonthDaysField } from '@/components/habits/habit-form-fields/habit-month-days-field'
 import { HabitEmojiSelector } from '@/components/habits/habit-form-fields/habit-emoji-selector'
 import { HABIT_EMOJI_CATEGORIES } from '@orbit/shared/utils'
+import { DateField } from '@/components/ui/date-field'
+import { MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
+import { format } from 'date-fns'
 import { DayCell } from '@/components/dates/day-cell'
 import { MovingDaySelection } from '@/components/dates/month-selection'
 import { QuestionControls } from '@/components/chat/question-controls'
@@ -59,6 +62,19 @@ function emojiGridMarkup() {
   render(<HabitEmojiSelector selectedEmoji={HABIT_EMOJI_CATEGORIES[0]!.emojis[0]!} onSelect={vi.fn()} />)
   fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' }))
   return document.querySelector('[role="listbox"]')!.outerHTML
+}
+
+function dateFieldGridMarkup() {
+  const today = new Date()
+  const step = today.getDate() > 14 ? -1 : 1
+  const selected = new Date(today.getFullYear(), today.getMonth(), today.getDate() + step)
+  const plain = new Date(today.getFullYear(), today.getMonth(), today.getDate() + step * 7)
+  render(<DateField value={format(selected, 'yyyy-MM-dd')} onChange={vi.fn()} />)
+  fireEvent.click(screen.getByRole('button', { name: 'common.selectedDate' }))
+  return {
+    html: `<div style="width:${7 * MONTH_GRID_TARGET_MIN}px">${document.querySelector('[role="grid"]')!.outerHTML}</div>`,
+    days: [`button[data-day="${format(plain, 'yyyy-MM-dd')}"]`, 'button[aria-current="date"]', 'button[aria-pressed="true"]'],
+  }
 }
 
 const selectionGroups: SelectionGroup[] = [
@@ -136,6 +152,14 @@ describe('selection yields to keyboard focus', () => {
     expect(await control.evaluate((element) => element === document.activeElement && element.matches(':focus-visible'))).toBe(true)
   }
 
+  async function readFocusOutlines(control: import('@playwright/test').Locator) {
+    return control.evaluate((element) => [element, ...element.querySelectorAll('*')].flatMap((owner) => {
+      const style = getComputedStyle(owner)
+      const painted = style.outlineStyle !== 'none' && Number.parseFloat(style.outlineWidth) > 0 && style.outlineColor !== 'rgba(0, 0, 0, 0)'
+      return painted ? [{ color: style.outlineColor, width: style.outlineWidth, offset: style.outlineOffset }] : []
+    }))
+  }
+
   async function mountMarkup(markup: string, theme: 'dark' | 'light') {
     const page = await browser.newPage()
     await page.setContent(`<style>${stylesheet}:root { ${Object.entries(resolveWebThemeVariables('orange', theme)).map(([key, value]) => `${key}:${value};`).join('')} }</style>${markup}`)
@@ -178,16 +202,45 @@ describe('selection yields to keyboard focus', () => {
           if (member === selected) expect((await readRingPaint(page.locator(selectionRingOwner ?? selected).first())).outer, 'the selected member rests on its accent selection ring').toBe(primary)
           await focusByKeyboard(page, control)
           expect((await inspectFocusedControlRings(page))?.indicators, 'the focused member must draw exactly one focus indicator').toHaveLength(1)
-          const outlines = await control.evaluate((element) => [element, ...element.querySelectorAll('*')].flatMap((owner) => {
-            const style = getComputedStyle(owner)
-            const painted = style.outlineStyle !== 'none' && Number.parseFloat(style.outlineWidth) > 0 && style.outlineColor !== 'rgba(0, 0, 0, 0)'
-            return painted ? [{ color: style.outlineColor, width: style.outlineWidth, offset: style.outlineOffset }] : []
-          }))
+          const outlines = await readFocusOutlines(control)
           expect(outlines, `${member} must focus with one inset --fg-1 ring`).toEqual([{ color: foreground, width: '2px', offset: '-2px' }])
           ringColors.push(outlines[0]?.color)
         } finally { await page.close() }
       }
       expect(ringColors[0], 'an unselected and a selected member must share one focus colour').toBe(ringColors[1])
+    })
+    it(`date field day focuses a plain, the today and the selected day with the same --fg-1 ring at the narrowest width, ${theme}`, async () => {
+      const grid = dateFieldGridMarkup()
+      cleanup()
+      const ringColors: (string | undefined)[] = []
+      for (const day of grid.days) {
+        const page = await mountMarkup(grid.html, theme)
+        try {
+          const control = page.locator(day)
+          const primary = await readThemeColor(page, '--primary')
+          const foreground = await readThemeColor(page, '--fg-1')
+          expect(foreground).not.toBe(primary)
+          if (day.includes('aria-current')) expect(await inspectControlAccentRings(control), 'today rests on its hairline accent ring').toEqual(['span:shadow'])
+          if (day.includes('aria-pressed')) expect(await control.locator('span').first().evaluate((disc) => getComputedStyle(disc).backgroundColor), 'the selected day rests on its accent disc').toBe(primary)
+          await focusByKeyboard(page, control)
+          expect((await inspectFocusedControlRings(page))?.indicators, 'the focused day must draw exactly one focus indicator').toHaveLength(1)
+          const outlines = await readFocusOutlines(control)
+          expect(outlines, `${day} must focus with one inset --fg-1 ring`).toEqual([{ color: foreground, width: '2px', offset: '-2px' }])
+          const placement = await control.evaluate((button) => {
+            const style = getComputedStyle(button)
+            const target = button.getBoundingClientRect()
+            const disc = button.querySelector('span')!
+            const discBounds = disc.getBoundingClientRect()
+            const gap = Math.min(discBounds.left - target.left, target.right - discBounds.right, discBounds.top - target.top, target.bottom - discBounds.bottom)
+            return { width: target.width, clearance: gap + Number.parseFloat(style.outlineOffset), markerShadow: getComputedStyle(disc).boxShadow }
+          })
+          expect(placement.width, 'the grid renders at its narrowest column width').toBeCloseTo(MONTH_GRID_TARGET_MIN, 0)
+          expect(placement.clearance, 'the ring keeps clear of the day disc').toBeGreaterThanOrEqual(2)
+          expect(placement.markerShadow, 'the today marker yields to the focus ring').toBe('none')
+          ringColors.push(outlines[0]?.color)
+        } finally { await page.close() }
+      }
+      expect(new Set(ringColors).size, 'plain, today and selected days must share one focus colour').toBe(1)
     })
     it.each([false, true].flatMap((checked) => (['none', 'active'] as const).map((forcedColors) => ({ checked, forcedColors }))))(`personal CheckRow keeps exactly one fill outline, ${theme}, checked $checked, forced colors $forcedColors`, async ({ checked, forcedColors }) => {
       const { container } = render(<CheckRow label="Habit" textMode="personal" checked={checked} onChange={vi.fn()} onOpenLabel={vi.fn()} />)
