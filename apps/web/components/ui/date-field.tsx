@@ -174,18 +174,19 @@ export function DateField({
         aria-haspopup="dialog"
         data-appearance={appearance}
         style={{ color: appearance === 'proposed' ? 'var(--fg-3)' : 'var(--fg-1)' }}
-        className="group w-full min-h-[54px] bg-[var(--bg-field)] rounded-md py-3 px-4 text-base shadow-[inset_0_0_0_1px_var(--hairline)] text-left flex items-center justify-between focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] transition-[scale] duration-[var(--dur-press)] ease-[var(--ease-out)] motion-safe:enabled:active:scale-[0.96]"
+        className="group relative isolate w-full min-h-[54px] bg-[var(--bg-field)] rounded-md py-3 px-4 text-base text-left flex items-center justify-between after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:shadow-[inset_0_0_0_1px_var(--border-control)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)] focus-visible:after:shadow-none transition-[scale] duration-[var(--dur-press)] ease-[var(--ease-out)] motion-safe:enabled:active:scale-[0.96]"
         onClick={() => (isOpen ? closePicker() : setIsOpen(true))}
       >
         <span className={dateValueClassName(displayValue, appearance)}>{displayValue || placeholder || t('common.selectDate')}</span>
         <Calendar size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" />
+        <span data-press-fill="" aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] bg-transparent transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover:bg-[var(--bg-hover-opaque)] group-active:bg-[var(--bg-hover-opaque)] group-disabled:hidden" />
       </button>
 
       {isOpen ? <Sheet ref={sheetRef} open title={t('common.selectDate')} initialFocus={initialFocusRef} onClose={hidePicker} minimumBodyWidth={7 * MONTH_GRID_TARGET_MIN} virtualizedBody={pickerMode === 'years'}>
         <div className="flex shrink-0 items-center justify-between mb-2">
           <button
             type="button"
-            className={`p-3 rounded-sm transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] ${pickerMode === 'years' ? 'invisible' : ''}`}
+            className={`p-3 rounded-sm transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] ${pickerMode === 'years' ? 'invisible' : ''}`}
             aria-label={t('common.previousMonth')}
             onClick={prevMonth}
           >
@@ -200,7 +201,7 @@ export function DateField({
               aria-label={t('common.selectYear')}
               aria-expanded={pickerMode === 'years'}
               onClick={() => setPickerMode((mode) => (mode === 'years' ? 'days' : 'years'))}
-              className="inline-flex min-h-[var(--touch-min)] min-w-[var(--touch-min)] items-center justify-center text-xs font-medium rounded-sm px-1 py-1 hover:bg-[var(--bg-hover)] transition-[background-color,color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
+              className="inline-flex min-h-[var(--touch-min)] min-w-[var(--touch-min)] items-center justify-center text-xs font-medium rounded-sm px-1 py-1 hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] transition-[background-color,color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
               style={{ color: 'var(--fg-1)' }}
             >
               {yearLabel}
@@ -208,7 +209,7 @@ export function DateField({
           </span>
           <button
             type="button"
-            className={`p-3 rounded-sm transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] ${pickerMode === 'years' ? 'invisible' : ''}`}
+            className={`p-3 rounded-sm transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] ${pickerMode === 'years' ? 'invisible' : ''}`}
             aria-label={t('common.nextMonth')}
             onClick={nextMonth}
           >
@@ -271,7 +272,7 @@ export function DateField({
                           })}
                           aria-pressed={!!isSelected}
                           aria-current={isToday ? 'date' : undefined}
-                          className="group flex min-h-[var(--month-grid-touch-min)] items-center justify-center rounded-full transition-[background-color,scale] duration-[var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-out)] motion-safe:active:scale-[0.96] hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)]"
+                          className="group flex min-h-[var(--month-grid-touch-min)] items-center justify-center rounded-full transition-[background-color,scale] duration-[var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-out)] motion-safe:active:scale-[0.96] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)]"
                           onClick={() => selectDay(day)}
                         >
                           <span
