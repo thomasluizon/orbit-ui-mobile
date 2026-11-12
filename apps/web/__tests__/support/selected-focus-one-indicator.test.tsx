@@ -115,6 +115,7 @@ describe('selection yields to keyboard focus', () => {
         const resting = await readRingPaint(circle)
         expect(resting.outer).toBe(primary)
         await focusByKeyboard(page, page.getByRole('button'))
+        expect((await inspectFocusedControlRings(page))?.indicators, 'the focused day must draw exactly one focus indicator').toEqual(['span:outline'])
         const focused = await readRingPaint(circle)
         expect(focused.outer, 'focused ring must not repeat the marker colour in the marker band').not.toBe(resting.outer)
         expect(focused.outer).toBe(foreground)

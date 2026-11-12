@@ -296,9 +296,9 @@ export async function expectOneControlRing(control: Locator, forcedColors: boole
 }
 
 export interface RingPaint {
-  /** Colour that the inset box shadows paint in the outer 2px band, or null. */
+  /** Colour that the inset box shadows and inset outlines paint in the outer 2px band, or null. */
   outer: string | null
-  /** Colour that the inset box shadows paint in the 2px band directly inside the outer one, or null. */
+  /** Colour that the inset box shadows and inset outlines paint in the 2px band directly inside the outer one, or null. */
   inner: string | null
   /** Colour of the outline of the target, or null when it draws none. */
   outline: string | null
@@ -313,12 +313,16 @@ export async function readRingPaint(target: Locator): Promise<RingPaint> {
     const paintedAt = (depth: number) => {
       let painted: string | null = null
       for (const { element } of layers) {
-        const shadows = getComputedStyle(element).boxShadow.split(/,(?![^()]*\))/).map((shadow) => shadow.trim()).reverse()
+        const layerStyle = getComputedStyle(element)
+        const shadows = layerStyle.boxShadow.split(/,(?![^()]*\))/).map((shadow) => shadow.trim()).reverse()
         for (const shadow of shadows) {
           const color = shadow.match(/rgba?\([^)]*\)/)?.[0]
           const lengths = shadow.replace(/rgba?\([^)]*\)/g, '').match(/-?[\d.]+px/g)?.map(Number.parseFloat)
           if (color && shadow.includes('inset') && lengths && lengths.length >= 4 && lengths[0] === 0 && lengths[1] === 0 && lengths[2] === 0 && lengths[3]! > depth) painted = color
         }
+        const outlineWidth = Number.parseFloat(layerStyle.outlineWidth)
+        const outlineInset = -Number.parseFloat(layerStyle.outlineOffset)
+        if (layerStyle.outlineStyle !== 'none' && outlineWidth > 0 && outlineInset - outlineWidth <= depth && depth < outlineInset) painted = layerStyle.outlineColor
       }
       return painted
     }
