@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
 import { useTranslation } from 'react-i18next'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
-import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 import { CopyStateIcon } from '@/components/ui/copy-state-icon'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { captureError } from '@/lib/sentry'
@@ -38,7 +38,8 @@ function DescriptionCopyAction({ description }: Readonly<{ description: string }
 
   return (
     <View style={styles.copyRow}>
-      <InsetFocusPressable
+      <MotionPressable
+        focusInset
         accessibilityRole="button"
         accessibilityLabel={t('habits.detail.copyDescription')}
         accessibilityState={{ disabled, busy: status === 'pending' }}
@@ -49,7 +50,7 @@ function DescriptionCopyAction({ description }: Readonly<{ description: string }
         style={({ pressed }) => [styles.copyButton, { opacity: disabled ? 0.4 : 1, backgroundColor: (pressed || hovered) && !disabled ? tokens.bgElevHover : tokens.bgElev }]}
       >
         <CopyStateIcon copied={status === 'copied'} color={tokens.fg2} strokeWidth={1.5} />
-      </InsetFocusPressable>
+      </MotionPressable>
       <Text accessibilityLiveRegion="polite" style={status === 'error' ? [styles.feedback, { color: tokens.statusBadText }] : styles.announcement}>{status === 'error' ? t('habits.detail.copyFailed') : status === 'copied' ? t('habits.detail.descriptionCopied') : ''}</Text>
     </View>
   )

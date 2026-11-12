@@ -34,14 +34,30 @@ beforeEach(() => {
 afterEach(async () => { await act(() => { tree.update(<></>) }) })
 
 describe('description copy action', () => {
+  function paint(pressed: boolean) {
+    const style = button().props.style as StyleProp<ViewStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle>)
+    return StyleSheet.flatten(typeof style === 'function' ? style({ pressed }) : style)
+  }
+
   it('keeps the pressed well distinct from its opaque resting fill', async () => {
     await mount()
-    const style = button().props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
-    const resting = StyleSheet.flatten(style({ pressed: false }))
-    const pressed = StyleSheet.flatten(style({ pressed: true }))
+    const resting = paint(false)
+    await act(() => { (button().props.onPressIn as (() => void) | undefined)?.() })
+    const pressed = paint(true)
     const tokens = createTokensV2('orange', 'dark')
     expect(contrastOnSurface(String(resting.backgroundColor), [tokens.bg, String(pressed.backgroundColor)])).toBeGreaterThanOrEqual(1.25)
     expect(contrastOnSurface(tokens.fg2, [tokens.bg, String(pressed.backgroundColor)])).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it.each([false, true])('presses through MotionPressable on the shared press timing (reduced motion %s)', async (reducedMotion) => {
+    motionState.reduced = reducedMotion
+    await mount()
+    const transition = reducedMotion ? 'none' : 'transform 150ms cubic-bezier(0.16,1,0.3,1)'
+    expect(paint(false)).toMatchObject({ transform: [{ scale: 1 }], transition })
+    await act(() => { (button().props.onPressIn as (() => void) | undefined)?.() })
+    expect(paint(true)).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgElevHover, transform: [{ scale: reducedMotion ? 1 : 0.96 }], transition })
+    await act(() => { (button().props.onPressOut as (() => void) | undefined)?.() })
+    expect(paint(false)).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgElev, transform: [{ scale: 1 }] })
   })
 
   it('copies the full original text and verifies it before announcing success', async () => {
