@@ -25,12 +25,9 @@ export const parityExemptTerms = [
   "hover affordances",
 ]
 
-const escapeForPattern = (term) => term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-
-const parityExemptPattern = new RegExp(parityExemptTerms.map(escapeForPattern).join("|"), "i")
-
 // The one `## Parity` section parser: the section runs from its heading to the next `## ` heading.
+// Each term is a plain string, so a case-insensitive substring test needs no compiled pattern.
 export const parityExemptionJustified = (body) => {
-  const section = (body ?? "").split(/^## Parity[ \t]*\r?$/m)[1]?.split(/^## /m)[0]
-  return parityExemptPattern.test(section ?? "")
+  const section = (body ?? "").split(/^## Parity[ \t]*\r?$/m)[1]?.split(/^## /m)[0].toLowerCase() ?? ""
+  return parityExemptTerms.some((term) => section.includes(term.toLowerCase()))
 }

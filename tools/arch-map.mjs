@@ -5,6 +5,8 @@ import { readFileSync as readFileSyncRaw, readdirSync, statSync, writeFileSync }
 import { dirname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
+import { escapeRegex } from "./lib/escape-regex.mjs"
+
 /** ARCH_MAP_ROOT is the test seam: the regression cases stage a fixture tree and derive from it. */
 const REPO_ROOT = process.env.ARCH_MAP_ROOT
   ? resolve(process.env.ARCH_MAP_ROOT)
@@ -313,7 +315,7 @@ function buildEndpoints() {
   const exportMap = typesExportMap()
 
   return endpoints.map(({ name, path }) => {
-    const reference = new RegExp(`\\bAPI\\.${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`)
+    const reference = new RegExp(`\\bAPI\\.${escapeRegex(name)}\\b`)
     const referenceAll = new RegExp(reference.source, "g")
     const webCallsites = webFiles.filter((file) => reference.test(read(file)))
     const mobileCallsites = mobileFiles.filter((file) => reference.test(read(file)))

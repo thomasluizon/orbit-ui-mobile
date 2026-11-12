@@ -9,6 +9,7 @@ import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-i
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { PASSING_CONCLUSIONS, REVIEW_APP_CONTEXT, headActivityArgv, headActivityBoundary, newestChecks, pullRequestStateArgv, pullRequestStateFromGraphQl, registrationFingerprint, requiredCheckSatisfied, requiredChecksFromResponse, resolveReviewVerdict, reviewPageArgv, reviewPageFromGraphQl } from "./lib/readiness-receipt.mjs"
 import { parityExemptionJustified, parityExemptTerms, parityPlatform } from "./lib/parity-scope.mjs"
+import { escapeRegex } from "./lib/escape-regex.mjs"
 import { gitDirectoryOf } from "./lib/run-state.mjs"
 
 const USAGE = `usage: verify-delivery.mjs --issue <ORB-N|#N|N> --worktree <path> --branch <name> [options]
@@ -234,7 +235,6 @@ if (!checks.prCount.pass) emit("NO_PR")
  * still lands here and would read as delivered. The composed work order requires a pull request
  * that links the issue, and this file is the only thing that checks the work order was honoured.
  */
-const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 /** Keep bare #N and migrated identifiers for compatibility: this checks a ticket mention, not
  * GitHub's closing semantics. Qualified references must name the configured ticket repository;
  * the wider leading boundary prevents a different owner or repository from matching by suffix. */

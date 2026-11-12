@@ -3,6 +3,7 @@
 import { readFileSync } from "node:fs"
 
 import { runBounded } from "./bounded-process.mjs"
+import { escapeRegex } from "./escape-regex.mjs"
 import { readOrchestratorConfig } from "./orchestrator-config.mjs"
 
 const ISSUE_FIELDS = "number,url,title,body,state,stateReason,labels,blockedBy,blocking"
@@ -488,8 +489,7 @@ export const createMilestone = async ({ title, description }) => {
 }
 
 const createdIssueFromUrl = (stdout, repository) => {
-  const escapedRepository = repository.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-  const match = new RegExp(`^https://github\\.com/${escapedRepository}/issues/([1-9]\\d*)/?$`).exec(stdout.trim())
+  const match = new RegExp(`^https://github\\.com/${escapeRegex(repository)}/issues/([1-9]\\d*)/?$`).exec(stdout.trim())
   if (!match) throw new Error(`gh issue create returned no issue URL for ${repository}`)
   return { number: positiveIssueNumber(Number(match[1])), url: stdout.trim().replace(/\/$/, "") }
 }
