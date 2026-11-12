@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { BrowserClient, defaultStackParser, makeFetchTransport } from '@sentry/browser'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { POST } from '@/app/monitoring/route'
 import { AUTH_COOKIE, REFRESH_COOKIE } from '@/lib/auth-api'
@@ -26,6 +27,30 @@ function tunnelRequest(body: string, headers: Record<string, string> = {}, searc
   return new Request(`https://app.example.test${SENTRY_TUNNEL_ROUTE}${search}`, {
     method: 'POST', body, headers: { 'content-type': 'text/plain;charset=UTF-8', ...headers },
   })
+}
+
+function browserSdk(tunnel: string | undefined) {
+  const requestedUrls: string[] = []
+  const routeStatuses: number[] = []
+  const client = new BrowserClient({
+    dsn: BROWSER_DSN,
+    tunnel,
+    integrations: [],
+    sendClientReports: false,
+    stackParser: defaultStackParser,
+    transport: (options) => makeFetchTransport(options, async (_url, init) => {
+      requestedUrls.push(options.url)
+      const answer = await POST(new Request(`https://app.example.test${SENTRY_TUNNEL_ROUTE}`, init))
+      routeStatuses.push(answer.status)
+      return answer
+    }),
+  })
+  return { client, requestedUrls, routeStatuses }
+}
+
+function forwardedEnvelopeHeader(): unknown {
+  const envelope = new TextDecoder().decode(fetchUpstream.mock.calls[0]![1]!.body as Uint8Array)
+  return JSON.parse(envelope.slice(0, envelope.indexOf('\n')))
 }
 
 beforeEach(() => {
@@ -112,4 +137,48 @@ describe('Sentry tunnel route', () => {
       expect(fetchUpstream).not.toHaveBeenCalled()
     },
   )
+})
+
+describe('Sentry tunnel route with the real browser SDK', () => {
+  it('forwards the error envelope the SDK posts to the tunnel by the dsn the SDK writes into its header', async () => {
+    fetchUpstream.mockResolvedValue(new Response('{}', { status: 200 }))
+    const sdk = browserSdk(SENTRY_TUNNEL_ROUTE)
+
+    sdk.client.captureException(new Error('boom'))
+    await sdk.client.flush(1000)
+
+    expect(sdk.requestedUrls).toEqual([SENTRY_TUNNEL_ROUTE])
+    expect(sdk.routeStatuses).toEqual([200])
+    expect(fetchUpstream).toHaveBeenCalledExactlyOnceWith(INGEST_ENDPOINT, expect.anything())
+    expect(forwardedEnvelopeHeader()).toMatchObject({ dsn: BROWSER_DSN })
+  })
+
+  it('refuses the envelope the SDK builds without a tunnel, which it sends straight to the same ingest endpoint', async () => {
+    fetchUpstream.mockResolvedValue(new Response('{}', { status: 200 }))
+    const sdk = browserSdk(undefined)
+
+    sdk.client.captureException(new Error('boom'))
+    await sdk.client.flush(1000)
+
+    const directEndpoint = new URL(sdk.requestedUrls[0]!)
+    directEndpoint.searchParams.delete('sentry_client')
+    expect(directEndpoint.href).toBe(INGEST_ENDPOINT)
+    expect(sdk.routeStatuses).toEqual([403])
+    expect(fetchUpstream).not.toHaveBeenCalled()
+  })
+
+  it('returns the Sentry rate limit header that makes the SDK hold the next error', async () => {
+    fetchUpstream.mockImplementation(async () => new Response('{}', {
+      status: 200, headers: { 'x-sentry-rate-limits': '60:error:organization' },
+    }))
+    const sdk = browserSdk(SENTRY_TUNNEL_ROUTE)
+
+    sdk.client.captureException(new Error('first'))
+    await sdk.client.flush(1000)
+    sdk.client.captureException(new Error('second'))
+    await sdk.client.flush(1000)
+
+    expect(sdk.routeStatuses).toEqual([200])
+    expect(fetchUpstream).toHaveBeenCalledTimes(1)
+  })
 })
