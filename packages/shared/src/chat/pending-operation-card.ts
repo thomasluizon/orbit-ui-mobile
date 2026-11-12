@@ -1,5 +1,5 @@
 import type { AgentOperationResult, HabitPlacement, PendingAgentOperation, PendingOperationChange, PendingOperationPlacement } from '../types/ai'
-import { marksExistingHabit, PENDING_OPERATION_WEEKDAYS, PREVIEW_ACTION_KEYS, summarizePendingOperationItem } from './pending-operation-item-summary'
+import { HABIT_CREATE_ACTION_KEYS, marksExistingHabit, PENDING_OPERATION_WEEKDAYS, PREVIEW_ACTION_KEYS, summarizePendingOperationItem } from './pending-operation-item-summary'
 import { getAgentCapabilityActionLabelKey, getAgentCapabilityLabelKey, getAgentOperationCopyKeys } from '../utils/agent-pending-operation'
 import type { PendingOperationItemGroupType } from './pending-operation-item-groups'
 
@@ -134,7 +134,7 @@ export function buildPendingOperationCardLabels(
   const hasMixedDeletion = pendingOperation.items?.some((item) => item.removesData === true)
     && pendingOperation.items.some((item) => item.removesData !== true)
   const actionKey = pendingOperation.actionKey
-  const createsHabits = ['createHabit', 'createHabits', 'createSubHabit'].includes(actionKey ?? '')
+  const createsHabits = HABIT_CREATE_ACTION_KEYS.includes(actionKey ?? '')
     && !hasMixedDeletion && !pendingOperation.items?.some((item) => item.removesData === true
       || item.fields.some(marksExistingHabit))
   const items = pendingOperation.items ?? []

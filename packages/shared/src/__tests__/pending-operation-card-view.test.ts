@@ -16,6 +16,7 @@ import {
   type PendingOperationVerificationProps,
 } from '../chat/pending-operation-card-view'
 import { buildPendingOperationCardLabels, formatPreviewMeta, type PendingOperationCardLabels } from '../chat/pending-operation-card'
+import { HABIT_CREATE_ACTION_KEYS } from '../chat/pending-operation-item-summary'
 import { pendingOperationSubHabits } from '../chat/pending-operation-sub-habits'
 import { pendingOperationExecutionPatch } from '../chat/pending-operation-message-state'
 import { agentOperationResultSchema, pendingAgentOperationSchema } from '../types/ai'
@@ -80,6 +81,14 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     expect(record.frame?.title).toBe(locale === 'en' ? count === 1 ? 'New habit' : `${count} new habits` : count === 1 ? 'Novo hábito' : `${count} novos hábitos`)
     expect(record.frame?.count).toBe(count)
     expect(record.frame?.items).toHaveLength(count)
+  })
+
+  it.each(HABIT_CREATE_ACTION_KEYS)('treats %s as a habit create in the header, the approve button and the rows', (actionKey) => {
+    const operation = pendingAgentOperationSchema.parse({ ...makeCreateHabitsPreview(1), actionKey })
+    const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+    expect(labels.name).toBe(locale === 'en' ? 'New habit' : 'Novo hábito')
+    expect(labels.approve(1)).toBe(messages.chat.operation.create)
+    expect(labels.summarize([], actionKey)).toBe(translateMessages(messages, `chat.operation.source.${actionKey}`))
   })
 
   it('keeps the full count and a localized remainder when the create preview is truncated', () => {

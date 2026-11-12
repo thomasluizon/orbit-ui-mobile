@@ -99,7 +99,7 @@ export function marksExistingHabit(field: PendingOperationChange): boolean {
   return field.field === 'habit_id' || (field.oldValue != null && field.field !== 'sub_habits')
 }
 
-const HABIT_CREATE_ACTION_KEYS: readonly string[] = ['createHabit', 'createHabits', 'createSubHabit']
+export const HABIT_CREATE_ACTION_KEYS: readonly string[] = ['createHabit', 'createHabits', 'createSubHabit']
 
 function isHabitCreate(fields: readonly PendingOperationChange[], actionKey?: string | null): boolean {
   return HABIT_CREATE_ACTION_KEYS.includes(actionKey ?? '') && !fields.some(marksExistingHabit)
