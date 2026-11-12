@@ -251,7 +251,6 @@ function renderHabitCard(context: HabitListRenderingContext,
   const meta = buildMetaTokens(context, habit, hasChildren, progress)
   const { canLog, dateStatusKey, completionReadOnly, completionReasonKey, completionStatusUnavailable } = buildHabitRowDateModel(habit, selectedDateStr, todayStr)
   if (dateStatusKey) meta.push({ kind: 'date-status', label: t(dateStatusKey) })
-  const hasLinkedGoal = (habit.linkedGoals?.length ?? 0) > 0
   return (
     <Fragment key={habit.id}>
       <HabitRow
@@ -265,7 +264,6 @@ function renderHabitCard(context: HabitListRenderingContext,
         completionReadOnly={completionReadOnly}
         completionStatusUnavailable={completionStatusUnavailable}
         completionReason={completionReasonKey ? t(completionReasonKey) : undefined}
-        streak={habit.currentStreak}
         child={isChild}
         depth={depth}
         selectMode={isSelectMode}
@@ -275,7 +273,6 @@ function renderHabitCard(context: HabitListRenderingContext,
         expanded={!options?.isDrillCard && depth < maxInlineDepth && !collapsedIds.has(habit.id)}
         childPanelId={options?.childPanelId}
         childProgress={progress}
-        showLinkedGoalDot={hasLinkedGoal}
         actions={{
           onReorder: options?.onReorder,
           onLog: () => { void handleDirectToggle(habit, 'log') },

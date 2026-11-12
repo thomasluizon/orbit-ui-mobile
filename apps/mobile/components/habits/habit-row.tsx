@@ -262,17 +262,17 @@ function habitRowSpacing(depth: number, panelEnd: boolean): ViewStyle {
   return { paddingLeft: depth * SPACING.s16, paddingBottom: panelEnd ? SPACING.s12 : SPACING.s8 }
 }
 
-/** Measures the title block and the metadata tokens for `habitRowMetaNeedsSupportingLine`. */
-function useHabitRowMetadataFit(metaParts: HabitRowMetaPart[], nextDueVisible: boolean) {
+/** Measures the title block and the metadata tokens for `habitRowMetaNeedsSupportingLine`, keyed from the list `HabitRowMetaStrip` draws. */
+function useHabitRowMetadataFit(visibleMetaParts: HabitRowMetaPart[], fitWholeStrip: boolean) {
   const [measurements, setMeasurements] = useState<{ contentWidth: number; widths: Record<string, number> }>({ contentWidth: Infinity, widths: {} })
-  const keys = visibleHabitRowMetaTokens(metaParts, nextDueVisible).map((part, index) => habitRowMetaPartKey(part, index))
+  const keys = visibleMetaParts.map((part, index) => habitRowMetaPartKey(part, index))
   const onContentWidth = (contentWidth: number) => setMeasurements((previous) => previous.contentWidth === contentWidth ? previous : { ...previous, contentWidth })
   const onTokenWidth = (key: string, width: number) => setMeasurements((previous) => previous.widths[key] === width ? previous : {
     ...previous,
     widths: Object.fromEntries(keys.map((current) => [current, current === key ? width : previous.widths[current] ?? 0])),
   })
   const widths = keys.map((key) => measurements.widths[key] ?? 0)
-  return { onContentWidth, onTokenWidth, narrow: habitRowMetaNeedsSupportingLine(widths, measurements.contentWidth, nextDueVisible) }
+  return { onContentWidth, onTokenWidth, narrow: habitRowMetaNeedsSupportingLine(widths, measurements.contentWidth, fitWholeStrip) }
 }
 
 function getHabitRowDates(selectedDate: Date | undefined, today: string | undefined) {
@@ -350,7 +350,8 @@ export const HabitRow = memo(function HabitRow({
   if (dateStatusKey) metaParts.push({ kind: 'date-status', label: t(dateStatusKey) })
   if (habit.nextReminderAtUtc) metaParts.push({ kind: 'next', label: t('habits.nextReminder', { time: displayClock(habit.nextReminderAtUtc) }) })
   const loggedParent = isLoggedParentHabitRow(habit, hasChildren)
-  const { onContentWidth, onTokenWidth, narrow } = useHabitRowMetadataFit(metaParts, loggedParent)
+  const visibleMetaParts = visibleHabitRowMetaTokens(metaParts, loggedParent)
+  const { onContentWidth, onTokenWidth, narrow } = useHabitRowMetadataFit(visibleMetaParts, loggedParent)
   const supportingMeta = largeText || depthBoundary || narrow
 
   const description = stripInlineMarkdown(habit.description ?? '')
@@ -416,8 +417,7 @@ export const HabitRow = memo(function HabitRow({
         titleSize={titleSize}
         titleColor={titleColor}
         metaColor={bodyPressFeedback.metaColor}
-        metaParts={metaParts}
-        nextDueVisible={loggedParent}
+        visibleMetaParts={visibleMetaParts}
         metaOnSupportingLine={supportingMeta}
         tokens={tokens}
       />
@@ -481,7 +481,7 @@ export const HabitRow = memo(function HabitRow({
   return (
     <Menu.Root open={menuVisible} onOpenChange={setMenuVisible}><View onLayout={measureRow} style={habitRowSpacing(depth, panelEnd)}>
       <HabitRowLayout habitTitle={habit.title} depth={depth} descriptionPresent={Boolean(description)} isChild={isChild} supportingMeta={supportingMeta}
-        rowStyle={[rowStyle, style]} outlineColor={bodyPressFeedback.outlineColor} primaryButton={primaryButton} primaryContent={primaryContent} metaParts={metaParts} nextDueVisible={loggedParent}
+        rowStyle={[rowStyle, style]} outlineColor={bodyPressFeedback.outlineColor} primaryButton={primaryButton} primaryContent={primaryContent} visibleMetaParts={visibleMetaParts}
         metaColor={bodyPressFeedback.metaColor} largeText={largeText} onTokenWidth={onTokenWidth} tokens={tokens}>
         {rowContents}
       </HabitRowLayout>
@@ -502,7 +502,7 @@ function rowMenuTitleMode(title: string | null | undefined) {
   return title ? 'typed' : 'label'
 }
 
-function HabitRowLayout({ habitTitle, depth, descriptionPresent, isChild, supportingMeta, rowStyle, outlineColor, primaryButton, primaryContent, metaParts, nextDueVisible, metaColor, largeText, onTokenWidth, tokens, children }: Readonly<{
+function HabitRowLayout({ habitTitle, depth, descriptionPresent, isChild, supportingMeta, rowStyle, outlineColor, primaryButton, primaryContent, visibleMetaParts, metaColor, largeText, onTokenWidth, tokens, children }: Readonly<{
   habitTitle: string
   depth: number
   descriptionPresent: boolean
@@ -512,8 +512,7 @@ function HabitRowLayout({ habitTitle, depth, descriptionPresent, isChild, suppor
   outlineColor: string
   primaryButton: ReactNode
   primaryContent: ReactNode
-  metaParts: Parameters<typeof HabitRowContent>[0]['metaParts']
-  nextDueVisible: boolean
+  visibleMetaParts: HabitRowMetaPart[]
   metaColor: string
   largeText: boolean
   onTokenWidth: (key: string, width: number) => void
@@ -537,7 +536,7 @@ function HabitRowLayout({ habitTitle, depth, descriptionPresent, isChild, suppor
           style={{ flexDirection: 'row', gap: 12, paddingLeft: SPACING.s8, paddingRight: SPACING.s8, paddingTop: descriptionPresent ? SPACING.s0 : SPACING.s4, paddingBottom: SPACING.s8 }}>
           <View style={{ width: 48, flexShrink: 0 }} />
           <View style={{ flex: 1, minWidth: 0 }}>
-            <HabitRowMetaStrip metaParts={metaParts} nextDueVisible={nextDueVisible} metaColor={metaColor} tokens={tokens} largeText={largeText} onTokenWidth={onTokenWidth} />
+            <HabitRowMetaStrip visibleMetaParts={visibleMetaParts} metaColor={metaColor} tokens={tokens} largeText={largeText} onTokenWidth={onTokenWidth} />
           </View>
         </View>
       ) : null}

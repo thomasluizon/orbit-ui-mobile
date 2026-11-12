@@ -264,8 +264,8 @@ describe('label and interaction fill guards in Chromium', () => {
       const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
       const title = 'Caminhar pelo bairro depois do trabalho e conversar com os amigos'
       const content = renderToStaticMarkup(cloneElement(createElement(NextIntlClientProvider), { locale, messages: words, timeZone: 'UTC' }, createElement(HabitRowContent, {
-        habit: createMockHabit({ title }), titleSize: 17, titleColor: 'var(--fg-1)', nextDueVisible: false,
-        meta: [{ kind: 'overdue', label: words.habits.overdue }, '08:00',
+        habit: createMockHabit({ title }), titleSize: 17, titleColor: 'var(--fg-1)',
+        visibleMeta: [{ kind: 'overdue', label: words.habits.overdue }, '08:00',
           words.habits.rowProgress.replace('{done}', '1').replace('{total}', '2')],
       })))
       try {

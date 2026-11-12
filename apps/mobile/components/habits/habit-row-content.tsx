@@ -1,4 +1,4 @@
-import { HABIT_ROW_META_TOKEN_GAP, stripInlineMarkdown, visibleHabitRowMetaTokens } from '@orbit/shared/utils'
+import { HABIT_ROW_META_TOKEN_GAP, stripInlineMarkdown } from '@orbit/shared/utils'
 import { PersonalText } from '@/components/ui/personal-text'
 import { Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -24,11 +24,10 @@ interface HabitRowContentProps {
   expanded?: boolean
   largeText?: boolean
   metaColor: string
-  metaParts: HabitRowMetaPart[]
+  /** The tokens the inline strip draws, from `visibleHabitRowMetaTokens`. */
+  visibleMetaParts: HabitRowMetaPart[]
   tokens: ReturnType<typeof createTokensV2>
   metaOnSupportingLine?: boolean
-  /** A logged parent shows its next due label as the last visible token; any other row keeps it for screen readers only. */
-  nextDueVisible: boolean
   onContentWidth?: (width: number) => void
   onTokenWidth?: (key: string, width: number) => void
 }
@@ -40,10 +39,9 @@ export function HabitRowContent({
   expanded = false,
   largeText = false,
   metaColor,
-  metaParts,
+  visibleMetaParts,
   tokens,
   metaOnSupportingLine = false,
-  nextDueVisible,
   onContentWidth,
   onTokenWidth,
 }: Readonly<HabitRowContentProps>) {
@@ -66,7 +64,7 @@ export function HabitRowContent({
         numberOfLines={largeText ? 2 : 1} ellipsizeMode="tail"
         style={[styles.description, { color: metaColor }]}>{description}</Text> : null}
 
-      {metaOnSupportingLine ? null : <HabitRowMetaStrip metaParts={metaParts} nextDueVisible={nextDueVisible} metaColor={metaColor} tokens={tokens} largeText={largeText} onTokenWidth={onTokenWidth} />}
+      {metaOnSupportingLine ? null : <HabitRowMetaStrip visibleMetaParts={visibleMetaParts} metaColor={metaColor} tokens={tokens} largeText={largeText} onTokenWidth={onTokenWidth} />}
     </View>
   )
 }
@@ -80,23 +78,22 @@ export function habitRowMetaPartKey(part: HabitRowMetaPart, index: number): stri
   return `${index}:${habitRowMetaPartName(part)}`
 }
 
-export function HabitRowMetaStrip({ metaParts, nextDueVisible, metaColor, tokens, largeText = false, onTokenWidth }: Readonly<{
-  metaParts: HabitRowMetaPart[]
-  nextDueVisible: boolean
+/** Draws the visible tokens; each token reports its width under `habitRowMetaPartKey`, the key the row's fit hook builds from the same list. */
+export function HabitRowMetaStrip({ visibleMetaParts, metaColor, tokens, largeText = false, onTokenWidth }: Readonly<{
+  visibleMetaParts: HabitRowMetaPart[]
   metaColor: string
   tokens: ReturnType<typeof createTokensV2>
   largeText?: boolean
   onTokenWidth?: (key: string, width: number) => void
 }>) {
-  const visibleMeta = visibleHabitRowMetaTokens(metaParts, nextDueVisible)
-  const metaKeys = visibleMeta.map((part, index) => habitRowMetaPartKey(part, index))
-  if (visibleMeta.length === 0) return null
+  const metaKeys = visibleMetaParts.map((part, index) => habitRowMetaPartKey(part, index))
+  if (visibleMetaParts.length === 0) return null
   return (
     <View testID="habit-row-meta" accessible={false} importantForAccessibility="no-hide-descendants"
       style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: HABIT_ROW_META_TOKEN_GAP, minWidth: 0 }}>
-      {visibleMeta.map((part, i) => <View key={metaKeys[i]} testID="habit-row-meta-token" onLayout={(event) => onTokenWidth?.(metaKeys[i]!, event.nativeEvent.layout.width)} style={[{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 }, typeof part !== 'string' && part.kind === 'date-status' ? { minWidth: 0, maxWidth: '100%', flexShrink: 1 } : undefined]}>
+      {visibleMetaParts.map((part, i) => <View key={metaKeys[i]} testID="habit-row-meta-token" onLayout={(event) => onTokenWidth?.(metaKeys[i]!, event.nativeEvent.layout.width)} style={[{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 }, typeof part !== 'string' && part.kind === 'date-status' ? { minWidth: 0, maxWidth: '100%', flexShrink: 1 } : undefined]}>
         <HabitRowMetaToken part={part} metaColor={metaColor} tokens={tokens} largeText={largeText} onWrap={() => onTokenWidth?.(metaKeys[i]!, Infinity)} />
-        {i < visibleMeta.length - 1 ? <Text style={[styles.meta, { color: metaColor }]}>·</Text> : null}
+        {i < visibleMetaParts.length - 1 ? <Text style={[styles.meta, { color: metaColor }]}>·</Text> : null}
       </View>)}
     </View>
   )
