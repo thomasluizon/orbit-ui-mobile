@@ -14,6 +14,8 @@ Watch every named pull request's current head through GitHub REST checks and com
 Exit when all checks settle, a head moves, a pull request closes, or the ceiling expires.
 A required pullfrog-approval check counts only with --require-check pullfrog-approval: Pullfrog reviews
 on request, so a plain waiter settles on the CI that must pass before that request.
+A head with a failing check settles once nothing is pending, even when a required check never arrives;
+a passing head waits for every required check.
 Transient GitHub errors retry until the ceiling; JSON includes their count and last text.
 Waiters in this checkout share half the live REST hourly limit per account, use conditional
 reads, and slow down when capacity is low. Budget waits remain inside the ceiling.
@@ -183,7 +185,9 @@ try {
         ...statuses.filter((item) => ["failure", "error"].includes(item.state)).map((item) => item.context),
       ]
       const runsPending = (await runsForHead(entry.head)).some((run) => run.status !== "completed")
-      const quiet = completedNames.size > 0 && !pending && !runsPending && required.every(({ context, appId }) => checks.some((check) => check.name === context && (appId === null || check.app.id === appId) && check.status === "completed" && check.conclusion !== null) || (appId === null && statuses.some((item) => item.context === context && item.state !== "pending")))
+      const requiredArrived = required.every(({ context, appId }) => checks.some((check) => check.name === context && (appId === null || check.app.id === appId) && check.status === "completed" && check.conclusion !== null) || (appId === null && statuses.some((item) => item.context === context && item.state !== "pending")))
+      // A failed job can skip the job that feeds a required check (a failed Unit Tests skips SonarCloud Analysis), so that check never arrives. Only a passing head waits for every required context.
+      const quiet = completedNames.size > 0 && !pending && !runsPending && (entry.failingChecks.length > 0 || requiredArrived)
       const observed = JSON.stringify({ checks: checks.map((check) => [check.name, check.app.id, check.status, check.conclusion]).sort(), statuses: statuses.map((item) => [item.context, item.state]).sort() })
       entry.settled = quiet && lastQuietSet.get(entry.number) === observed
       lastQuietSet.set(entry.number, quiet ? observed : null)
