@@ -6,6 +6,7 @@ import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import test from "node:test"
 import yaml from "js-yaml"
+import { parityExemptTerms } from "../../tools/lib/parity-scope.mjs"
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
 const load = (name) => yaml.load(readFileSync(join(root, `.github/workflows/${name}.yml`), "utf8"))
@@ -94,6 +95,13 @@ test("parity checks reject removed exemptions and require a specific justificati
   check(justified, [], web, 1)
   check("## Parity\n\nPlatform adapter: Radix Primitives on web.", ["parity:exempt"], web, 0)
   check("## Parity\n\nPlatform adapter: rn-primitives on Android.", ["parity:exempt"], web, 0)
+  check("## Parity\n\nWeb proxy adapter: mobile has no Next.js proxy and no tunnel route.", ["parity:exempt"], web, 1)
+  check("## Parity\n\nBFF vs direct API adapter.", ["parity:exempt"], web, 0)
+})
+
+test("every exported parity term satisfies the exemption gate", () => {
+  const web = ["apps/web/components/control.tsx"]
+  for (const term of parityExemptTerms) check(`## Parity\n\nDivergence: ${term}.`, ["parity:exempt"], web, 0)
 })
 
 test("a workflow-only PR can carry a label at creation without a UI exemption", () => {
