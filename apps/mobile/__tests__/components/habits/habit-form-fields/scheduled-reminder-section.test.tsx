@@ -196,6 +196,24 @@ describe("ScheduledReminderSection", () => {
     ]);
   });
 
+  it('paints each day choice press fill and promotes its unselected label, as the web chip does', () => {
+    const { tree } = render({ scheduledReminders: [] })
+    const option = (label: string) => tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === label)[0]!
+    const labels = ['habits.form.scheduledReminderDayBefore', 'habits.form.scheduledReminderSameDay']
+    for (const label of labels) {
+      const selected = (option(label).props.accessibilityState as { checked: boolean }).checked
+      const paint = () => StyleSheet.flatten(option(label).props.style as ViewStyle[])
+      const text = () => StyleSheet.flatten(option(label).findAll((node) => node.type === 'Text')[0]!.props.style as ViewStyle[]) as { color?: string }
+      expect(paint().backgroundColor).not.toBe(tokens.bgHover)
+      TestRenderer.act(() => (option(label).props.onPressIn as () => void)())
+      expect(paint().backgroundColor).toBe(tokens.bgHover)
+      expect(text().color).toBe(selected ? tokens.fg1 : tokens.fg2)
+      TestRenderer.act(() => (option(label).props.onPressOut as () => void)())
+      expect(paint().backgroundColor).not.toBe(tokens.bgHover)
+      expect(text().color).toBe(selected ? tokens.fg1 : tokens.fg3)
+    }
+  })
+
   it('adds a picked time with a visible label and no orphan actions', () => {
     const { tree, onSetScheduledReminders } = render({ scheduledReminders: [] })
     const picker = tree.root.findAll((node) => node.type === 'TimeField')[0]!

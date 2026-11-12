@@ -168,7 +168,7 @@ export function HabitChecklist({
             <button
               type="button"
               aria-label={t('habits.form.resetChecklist')}
-              className="touch-target shrink-0 inline-flex items-center justify-center rounded-full text-[var(--primary)] hover:text-[var(--fg-2)] active:text-[var(--fg-2)] hover:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96] transition-[background-color,color,scale] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-out)]"
+              className="touch-target shrink-0 inline-flex items-center justify-center rounded-full text-[var(--primary)] hover:text-[var(--fg-2)] active:text-[var(--fg-2)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96] transition-[background-color,color,scale] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-out)]"
               style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN }}
               onClick={onReset}
             >
@@ -307,7 +307,7 @@ function SortableChecklistItem({
         {...attributes}
         {...listeners}
         aria-label={t('dragAndDrop.handle', { name: item.text })}
-        className="orbit-focus-inset checklist-drag-handle touch-target shrink-0 inline-flex items-center justify-center rounded-full cursor-grab active:cursor-grabbing text-[var(--fg-3)] hover:text-[var(--fg-2)] hover:bg-[var(--bg-hover)] transition-[color,background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] touch-none"
+        className="orbit-focus-inset checklist-drag-handle touch-target shrink-0 inline-flex items-center justify-center rounded-full cursor-grab active:cursor-grabbing text-[var(--fg-3)] hover:text-[var(--fg-2)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] transition-[color,background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] touch-none"
         style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN }}
       >
         <GripHorizontal size={16} strokeWidth={1.8} aria-hidden="true" />
@@ -335,7 +335,7 @@ function SortableChecklistItem({
       <button
         type="button"
         aria-label={t('habits.form.duplicateChecklistItem')}
-        className="touch-target shrink-0 inline-flex items-center justify-center rounded-full text-[var(--fg-3)] hover:text-[var(--fg-1)] hover:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96] sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 focus-visible:transition-none transition-[color,background-color,opacity,scale] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-hover-control),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-standard),var(--ease-out)]"
+        className="touch-target shrink-0 inline-flex items-center justify-center rounded-full text-[var(--fg-3)] hover:text-[var(--fg-1)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96] sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 focus-visible:transition-none transition-[color,background-color,opacity,scale] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-hover-control),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-standard),var(--ease-out)]"
         style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN }}
         disabled={duplicateDisabled}
         onClick={() => onDuplicate(index)}
@@ -346,7 +346,7 @@ function SortableChecklistItem({
       <button
         type="button"
         aria-label={t('habits.form.removeChecklistItem')}
-        className="touch-target group/remove shrink-0 inline-flex items-center justify-center rounded-full text-[var(--fg-3)] hover:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96] sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 focus-visible:transition-none transition-[color,background-color,opacity,scale] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-hover-control),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-standard),var(--ease-out)]"
+        className="touch-target group/remove shrink-0 inline-flex items-center justify-center rounded-full text-[var(--fg-3)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96] sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 focus-visible:transition-none transition-[color,background-color,opacity,scale] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-hover-control),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-standard),var(--ease-out)]"
         style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN }}
         onClick={() => onRemove(index)}
       >
@@ -378,7 +378,7 @@ function InteractiveChecklistItem({
         className="group/checklist-item flex-1"
         label={item.text}
         contentClassName="flex min-h-12 min-w-0 items-center rounded-[12px] px-2 py-1"
-        control={<button type="button" aria-label={item.text} onClick={() => onToggle(index)} className="orbit-hover-text min-h-12 w-full rounded-[12px] text-start touch-manipulation hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]">
+        control={<button type="button" aria-label={item.text} onClick={() => onToggle(index)} className="orbit-hover-text min-h-12 w-full rounded-[12px] text-start touch-manipulation hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]">
           <span className={`block min-w-0 flex-1 whitespace-pre-wrap break-words text-base leading-[1.4] ${item.isChecked ? 'text-[var(--fg-3)] group-hover/checklist-item:text-[var(--fg-2)] group-focus-within/checklist-item:text-[var(--fg-2)] group-active/checklist-item:text-[var(--fg-2)]' : 'text-[var(--fg-1)]'}`}>{item.text}</span>
         </button>}
       /> : <div className="min-w-0 flex-1 px-2 py-1"><span className="block min-w-0 whitespace-pre-wrap break-words text-base leading-[1.4]" style={{ color: item.isChecked ? 'var(--fg-3)' : 'var(--fg-1)' }}>{item.text}</span></div>}

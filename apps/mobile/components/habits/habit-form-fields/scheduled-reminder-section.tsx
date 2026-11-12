@@ -30,13 +30,13 @@ function ReminderWhenOption({ label, selected, onSelect, styles }: Readonly<{
       style={({ pressed }) => [
         styles.whenButton,
         selected && styles.whenButtonActive,
-        pressed && { transform: [{ scale: 0.96 }] },
+        pressed && styles.whenButtonPressed,
       ]}
       accessibilityRole="radio"
       accessibilityLabel={label}
       accessibilityState={{ checked: selected, ...(disabled ? { disabled: true } : {}) }}
     >
-      <Text style={[styles.whenButtonText, selected && styles.whenButtonTextActive]}>{label}</Text>
+      {({ pressed }) => <Text style={[styles.whenButtonText, pressed && styles.whenButtonTextPressed, selected && styles.whenButtonTextActive]}>{label}</Text>}
     </Pressable></RadioItem>
   );
 }

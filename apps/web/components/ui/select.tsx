@@ -5,6 +5,7 @@ import { useComposedRefs } from '@radix-ui/react-compose-refs'
 import { createContext, useCallback, useContext, useState, type ComponentProps, type ReactNode } from 'react'
 import type { SelectOption, SelectProps } from '@orbit/shared/contracts/forms'
 import { Check, ChevronDown } from '@/components/ui/icons'
+import { FIELD_TRIGGER_MUTED_CONTENT, FIELD_TRIGGER_PERIMETER, FieldTriggerFill } from '@/components/ui/field-trigger'
 
 const SelectContext = createContext<((element: HTMLButtonElement | null) => void) | null>(null)
 const PortalContext = createContext<HTMLElement | null>(null)
@@ -24,8 +25,8 @@ export function Root({ value, onChange, options, disabled, children }: Readonly<
 export function Trigger({ children, ref, ...props }: ComponentProps<typeof Primitive.Trigger>) {
   const resolveContainer = useContext(SelectContext)
   const composedRef = useComposedRefs(ref, resolveContainer)
-  return <Primitive.Trigger {...props} ref={composedRef} className="flex w-full min-h-[54px] items-center justify-between gap-3 rounded-[12px] border-0 transition-[background-color,box-shadow] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] bg-[var(--bg-field)] py-3 pr-4 pl-4 text-left text-base text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] disabled:opacity-50">
-    {children}<Primitive.Icon asChild><ChevronDown size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" aria-hidden="true" /></Primitive.Icon>
+  return <Primitive.Trigger {...props} ref={composedRef} className={`${FIELD_TRIGGER_PERIMETER} flex w-full min-h-[54px] items-center justify-between gap-3 rounded-[12px] border-0 bg-[var(--bg-field)] py-3 pr-4 pl-4 text-left text-base text-[var(--fg-1)] transition-[scale] duration-[var(--dur-press)] ease-[var(--ease-out)] motion-safe:enabled:active:scale-[0.96] disabled:opacity-50`}>
+    {children}<Primitive.Icon asChild><ChevronDown size={20} strokeWidth={1.8} className={`text-[var(--fg-3)] ${FIELD_TRIGGER_MUTED_CONTENT}`} aria-hidden="true" /></Primitive.Icon><FieldTriggerFill />
   </Primitive.Trigger>
 }
 

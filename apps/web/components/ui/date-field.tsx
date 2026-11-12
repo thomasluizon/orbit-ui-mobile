@@ -21,6 +21,7 @@ import { useTranslations, useLocale } from 'next-intl'
 import { formatLocaleDate, splitMonthYear } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
 import { YearPicker } from '@/components/ui/year-picker'
+import { FIELD_TRIGGER_MUTED_CONTENT, FIELD_TRIGGER_PERIMETER, FieldTriggerFill } from '@/components/ui/field-trigger'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
 interface DateFieldProps {
@@ -35,7 +36,7 @@ interface DateFieldProps {
 
 function dateValueClassName(displayValue: string, appearance: DateFieldProps['appearance']): string | undefined {
   if (displayValue && appearance !== 'proposed') return undefined
-  return `${!displayValue ? 'text-[var(--fg-3)] ' : ''}group-hover:text-[var(--fg-2)] group-active:text-[var(--fg-2)] group-focus-visible:text-[var(--fg-2)]`
+  return `${!displayValue ? 'text-[var(--fg-3)] ' : ''}${FIELD_TRIGGER_MUTED_CONTENT} group-focus-visible:text-[var(--fg-2)]`
 }
 
 export function DateField({
@@ -174,12 +175,12 @@ export function DateField({
         aria-haspopup="dialog"
         data-appearance={appearance}
         style={{ color: appearance === 'proposed' ? 'var(--fg-3)' : 'var(--fg-1)' }}
-        className="group relative isolate w-full min-h-[54px] bg-[var(--bg-field)] rounded-md py-3 px-4 text-base text-left flex items-center justify-between after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:shadow-[inset_0_0_0_1px_var(--border-control)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)] focus-visible:after:shadow-none transition-[scale] duration-[var(--dur-press)] ease-[var(--ease-out)] motion-safe:enabled:active:scale-[0.96]"
+        className={`${FIELD_TRIGGER_PERIMETER} w-full min-h-[54px] bg-[var(--bg-field)] rounded-md py-3 px-4 text-base text-left flex items-center justify-between transition-[scale] duration-[var(--dur-press)] ease-[var(--ease-out)] motion-safe:enabled:active:scale-[0.96]`}
         onClick={() => (isOpen ? closePicker() : setIsOpen(true))}
       >
         <span className={dateValueClassName(displayValue, appearance)}>{displayValue || placeholder || t('common.selectDate')}</span>
-        <Calendar size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" />
-        <span data-press-fill="" aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] bg-transparent transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover:bg-[var(--bg-hover-opaque)] group-active:bg-[var(--bg-hover-opaque)] group-disabled:hidden" />
+        <Calendar size={20} strokeWidth={1.8} className={`text-[var(--fg-3)] ${FIELD_TRIGGER_MUTED_CONTENT}`} />
+        <FieldTriggerFill />
       </button>
 
       {isOpen ? <Sheet ref={sheetRef} open title={t('common.selectDate')} initialFocus={initialFocusRef} onClose={hidePicker} minimumBodyWidth={7 * MONTH_GRID_TARGET_MIN} virtualizedBody={pickerMode === 'years'}>

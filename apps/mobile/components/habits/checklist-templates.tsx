@@ -51,7 +51,7 @@ function ChecklistTemplatesEmptyState({ canSave, onSave, styles, translate }: Re
     <View style={styles.emptyState}>
       <Text numberOfLines={1} style={styles.emptyTitle}>{translate('habits.form.noTemplates')}</Text>
       <Text style={styles.emptyDescription}>{translate('habits.form.noTemplatesDescription')}</Text>
-      <Pressable accessibilityRole="button" accessibilityState={{ disabled: disabled || !canSave }} disabled={disabled || !canSave} style={[styles.emptyAction, !canSave ? styles.saveButtonDisabled : null]} onPress={onSave}>
+      <Pressable accessibilityRole="button" accessibilityState={{ disabled: disabled || !canSave }} disabled={disabled || !canSave} style={({ pressed }) => [styles.emptyAction, !canSave ? styles.saveButtonDisabled : null, pressed ? styles.emptyActionPressed : null]} onPress={onSave}>
         <Text numberOfLines={1} style={styles.emptyActionText}>{translate('habits.form.saveCurrentList')}</Text>
       </Pressable>
       {!canSave ? <Text style={styles.emptyReason}>{translate('habits.form.saveCurrentListDisabled')}</Text> : null}
@@ -292,7 +292,8 @@ function createStyles(tokens: AppTokens) {
     emptyState: { alignItems: 'center', gap: 12, paddingVertical: SPACING.s32 },
     emptyTitle: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 20, textAlign: 'center' },
     emptyDescription: { color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14, textAlign: 'center' },
-    emptyAction: { backgroundColor: tokens.bgWell, borderRadius: 999, minHeight: TOUCH_TARGET_MIN, justifyContent: 'center', paddingHorizontal: SPACING.s16 },
+    emptyAction: { backgroundColor: tokens.bgWell, borderRadius: 999, overflow: 'hidden', minHeight: TOUCH_TARGET_MIN, justifyContent: 'center', paddingHorizontal: SPACING.s16 },
+    emptyActionPressed: { backgroundColor: tokens.bgHover },
     emptyActionText: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 },
     emptyReason: { color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 12, textAlign: 'center' },
   })

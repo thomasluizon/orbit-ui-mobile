@@ -1,10 +1,7 @@
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { format } from 'date-fns'
-import postcss, { type Rule } from 'postcss'
-import tailwind from '@tailwindcss/postcss'
+import { classNamesIn, compileClassRules, expectHoverAndPress, type CompiledClassRules } from '@/__tests__/support/compiled-class-rules'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -249,64 +246,19 @@ it('focuses the calendar trigger after a caller removes its focused action', () 
   expect(screen.getByRole('button', { name: 'End date, common.selectDate' })).toHaveFocus()
 })
 
-interface CompiledRule { state: string; order: number; media: string[]; declarations: Map<string, string> }
-
-const FINE_POINTER_HOVER = '(hover: hover) and (pointer: fine)'
-
-function classSelector(name: string) {
-  return `.${name.replace(/[^\w-]/g, (character) => `\\${character}`)}`
-}
-
 describe('DateField hover, press and perimeter paint compiled from app/globals.css', () => {
-  const rulesByClass = new Map<string, CompiledRule[]>()
+  let rules: CompiledClassRules
 
   beforeAll(async () => {
     const view = render(<DateField value="2025-06-15" onChange={vi.fn()} />)
     fireEvent.click(screen.getByRole('button'))
-    const names = new Set([...document.querySelectorAll('[class]')].flatMap((element) => [...element.classList]))
+    const names = classNamesIn(document)
     view.unmount()
-    const source = resolve(process.cwd(), 'app/globals.css')
-    const stylesheet = `${readFileSync(source, 'utf8')}\n@source inline("${[...names].join(' ')}");`
-    const compiled = postcss.parse((await postcss([tailwind()]).process(stylesheet, { from: source })).css)
-    const mediaByRule = new Map<Rule, string[]>()
-    compiled.walkAtRules('media', (query) => query.walkRules((rule) => { mediaByRule.set(rule, [...(mediaByRule.get(rule) ?? []), query.params]) }))
-    let order = 0
-    compiled.walkRules((rule) => {
-      order += 1
-      const media = mediaByRule.get(rule) ?? []
-      const declarations = new Map<string, string>()
-      rule.walkDecls((declaration) => { declarations.set(declaration.prop, declaration.value) })
-      for (const name of names) {
-        const selector = classSelector(name)
-        if (!rule.selector.startsWith(selector)) continue
-        const state = rule.selector.slice(selector.length)
-        if (state && !/^[:.[\s]/.test(state)) continue
-        rulesByClass.set(name, [...(rulesByClass.get(name) ?? []), { state, order, media, declarations }])
-      }
-    })
+    rules = await compileClassRules(names)
   }, 60_000)
 
-  function rulesFor(element: Element) {
-    return [...element.classList].flatMap((name) => rulesByClass.get(name) ?? []).sort((left, right) => left.order - right.order)
-  }
-
-  function declarationsIn(element: Element, state = '') {
-    const merged = new Map<string, string>()
-    for (const rule of rulesFor(element)) if (rule.state === state && rule.media.length === 0) for (const [property, value] of rule.declarations) merged.set(property, value)
-    return merged
-  }
-
-  function hoverAndPress(element: Element, fill: string) {
-    const rules = rulesFor(element).filter((rule) => rule.declarations.get('background-color') === fill)
-    const hover = rules.filter((rule) => rule.state.includes(':hover'))
-    const press = rules.filter((rule) => rule.state.includes(':active'))
-    expect(hover).toHaveLength(1)
-    expect(press).toHaveLength(1)
-    expect(hover[0]!.media).toEqual([FINE_POINTER_HOVER])
-    expect(press[0]!.media).toEqual([])
-    expect(press[0]!.state).toBe(hover[0]!.state.replace(':hover', ':active'))
-    expect(press[0]!.order).toBeGreaterThan(hover[0]!.order)
-  }
+  const declarationsIn = (element: Element, state?: string) => rules.declarationsIn(element, state)
+  const hoverAndPress = (element: Element, fill: string) => expectHoverAndPress(rules, element, fill)
 
   it('layers the opaque hover fill over the trigger field on a fine pointer hover and on every press', () => {
     render(<DateField value="2025-06-15" onChange={vi.fn()} />)
@@ -338,6 +290,15 @@ describe('DateField hover, press and perimeter paint compiled from app/globals.c
     const focus = declarationsIn(trigger, ':focus-visible')
     expect([focus.get('outline-width'), focus.get('outline-offset'), focus.get('outline-color')]).toEqual(['2px', 'calc(2px * -1)', 'var(--primary)'])
     expect(declarationsIn(trigger).get('transition-property')).toBe('scale')
+  })
+
+  it('promotes the trigger icon and placeholder to fg-2 while the fill shows, timed like the fill', () => {
+    render(<DateField value="" onChange={vi.fn()} />)
+    const trigger = screen.getByRole('button')
+    for (const content of [trigger.querySelector('svg')!, trigger.firstElementChild!]) {
+      expectHoverAndPress(rules, content, 'var(--fg-2)', 'color')
+      expect(declarationsIn(content).get('transition-duration')).toBe('var(--dur-hover-control)')
+    }
   })
 
   it('shows the hover fill as a press fill on every day cell and month control, so a touch press paints it', () => {

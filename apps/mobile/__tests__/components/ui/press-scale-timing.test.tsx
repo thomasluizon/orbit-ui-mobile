@@ -7,6 +7,9 @@ import { RadioRow } from '@/components/ui/select-check'
 import { PickerRow } from '@/components/ui/picker-row'
 import { DateField } from '@/components/ui/date-field'
 import { YearPicker } from '@/components/ui/year-picker'
+import { Select } from '@/components/ui/select'
+import { TimeField } from '@/components/ui/time-field'
+import { HabitChecklist } from '@/components/habits/habit-checklist'
 import { createTokensV2 } from '@/lib/theme'
 
 const motionOverride = vi.hoisted(() => ({ pressDuration: 151, enter: [0.11, 0.22, 0.33, 0.44] as const, pressScale: 0.91, reducedMotion: false }))
@@ -57,6 +60,7 @@ async function pressOut(target: ReactTestInstance) {
 }
 
 const tokens = createTokensV2('orange', 'dark')
+const CHECKLIST = [{ text: 'Read', isChecked: false }, { text: 'Write', isChecked: false }]
 
 const pressTargets = [
   { name: 'RadioRow', render: (busy: boolean) => <RadioGroup accessibilityLabel="Frequency">{busy ? <RadioRow label="Daily" busy reason="Saving" onSelect={vi.fn()} /> : <RadioRow label="Daily" onSelect={vi.fn()} />}</RadioGroup>, find: (tree: ReactTestRenderer) => Promise.resolve(pressTarget(tree, 'radio')) },
@@ -64,6 +68,13 @@ const pressTargets = [
   { name: 'DateField trigger', render: (disabled: boolean) => <DateField value="2025-06-15" disabled={disabled} onChange={vi.fn()} />, find: (tree: ReactTestRenderer) => Promise.resolve(pressTarget(tree, 'button', 'common.selectedDate')) },
   { name: 'DateField day', render: () => <DateField value="2025-06-15" onChange={vi.fn()} />, find: async (tree: ReactTestRenderer) => { await openDatePicker(tree); return pressTarget(tree, 'button', 'June 14, 2025') } },
   { name: 'YearPicker year', render: () => <YearPicker selectedYear={2025} onSelectYear={vi.fn()} tokens={tokens} />, find: (tree: ReactTestRenderer) => Promise.resolve(pressTarget(tree, 'button', '2024')) },
+  { name: 'Select trigger', render: (disabled: boolean) => <Select label="Units" value="a" options={[{ value: 'a', label: 'Alpha' }]} disabled={disabled} onChange={vi.fn()} />, find: (tree: ReactTestRenderer) => Promise.resolve(pressTarget(tree, 'combobox')) },
+  { name: 'TimeField picker button', render: (disabled: boolean) => <TimeField label="Start" value="14:30" disabled={disabled} onChange={vi.fn()} onClear={vi.fn()} />, find: (tree: ReactTestRenderer) => Promise.resolve(pressTarget(tree, 'button', 'Start: common.selectTime')) },
+  { name: 'TimeField clear button', render: (disabled: boolean) => <TimeField label="Start" value="14:30" disabled={disabled} onChange={vi.fn()} onClear={vi.fn()} />, find: (tree: ReactTestRenderer) => Promise.resolve(pressTarget(tree, 'button', 'common.clear')) },
+  { name: 'HabitChecklist move', render: () => <HabitChecklist items={CHECKLIST} editable onItemsChange={vi.fn()} />, find: (tree: ReactTestRenderer) => Promise.resolve(pressTarget(tree, 'button', 'habits.form.moveChecklistItemDown')) },
+  { name: 'HabitChecklist duplicate', render: () => <HabitChecklist items={CHECKLIST} editable onItemsChange={vi.fn()} />, find: (tree: ReactTestRenderer) => Promise.resolve(pressTarget(tree, 'button', 'habits.form.duplicateChecklistItem')) },
+  { name: 'HabitChecklist remove', render: () => <HabitChecklist items={CHECKLIST} editable onItemsChange={vi.fn()} />, find: (tree: ReactTestRenderer) => Promise.resolve(pressTarget(tree, 'button', 'habits.form.removeChecklistItem')) },
+  { name: 'HabitChecklist reset', render: () => <HabitChecklist items={[{ text: 'Read', isChecked: true }]} interactive onReset={vi.fn()} />, find: (tree: ReactTestRenderer) => Promise.resolve(pressTarget(tree, 'button', 'habits.form.resetChecklist')) },
 ] as const
 
 describe.each(pressTargets)('$name press timing', ({ render, find }) => {
@@ -93,7 +104,7 @@ describe.each(pressTargets)('$name press timing', ({ render, find }) => {
 
 })
 
-const blockableTargets = pressTargets.filter((target) => ['RadioRow', 'PickerRow', 'DateField trigger'].includes(target.name))
+const blockableTargets = pressTargets.filter((target) => ['RadioRow', 'PickerRow', 'DateField trigger', 'Select trigger', 'TimeField picker button'].includes(target.name))
 
 describe.each(blockableTargets)('$name blocked press', ({ render, find }) => {
   it('keeps a busy or disabled target at unit scale', async () => {
@@ -104,4 +115,14 @@ describe.each(blockableTargets)('$name blocked press', ({ render, find }) => {
       expect(scaleLayer(target).transform).toEqual([{ scale: 1 }])
     } finally { await act(() => tree.unmount()) }
   })
+})
+
+it('keeps the first checklist row move up control, which is disabled, at unit scale', async () => {
+  const tree = await mount(<HabitChecklist items={CHECKLIST} editable onItemsChange={vi.fn()} />)
+  try {
+    const moveUp = pressTarget(tree, 'button', 'habits.form.moveChecklistItemUp')
+    expect(moveUp.props.disabled).toBe(true)
+    await pressIn(moveUp)
+    expect(scaleLayer(moveUp).transform).toEqual([{ scale: 1 }])
+  } finally { await act(() => tree.unmount()) }
 })

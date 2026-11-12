@@ -121,7 +121,7 @@ it('selects a goal below the first viewport while the search keyboard is open', 
     (tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'ListRow')[0]!.props.onClick as () => void)()
   })
 
-  expect(StyleSheet.flatten(tree.root.findByType('BottomSheetAppTextInput').props.style)).toMatchObject({ paddingHorizontal: 16, minHeight: 54 })
+  expect(StyleSheet.flatten(tree.root.findByType('BottomSheetAppTextInput').props.style)).toEqual({ marginBottom: 8 })
   const list = tree.root.findByType(FlatList)
   expect(list.props.nestedScrollEnabled).toBe(true)
   expect(list.props.keyboardShouldPersistTaps).toBe('handled')

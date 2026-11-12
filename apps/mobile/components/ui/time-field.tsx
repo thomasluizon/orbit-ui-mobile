@@ -2,8 +2,8 @@ import { TypedTextInput } from '@/components/ui/typed-text-input'
 import { INTERACTION_FILL_CLEARANCE, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useEffect, useRef, useState } from 'react'
 import { InsetFocusPressable } from './inset-focus-pressable'
+import { PressScalePressable } from '@/components/motion/press-scale'
 import {
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -242,26 +242,28 @@ function TimeEntry({
           onSubmitEditing={onSubmit}
           style={[styles.input, { color: tokens.fg1 }]}
         />
-        <Pressable
+        <PressScalePressable
           onPress={onOpenPicker}
           disabled={disabled}
           accessibilityRole="button"
           accessibilityLabel={`${label}: ${selectTimeLabel}`}
           accessibilityState={{ disabled }}
-          style={styles.icon}
+          focusColor={tokens.fg1}
+          style={({ pressed }) => [styles.icon, pressed ? { backgroundColor: tokens.bgHover } : null]}
         >
           <Clock3 size={20} color={tokens.fg3} strokeWidth={1.8} />
-        </Pressable>
+        </PressScalePressable>
         {canClear ? (
-          <Pressable
+          <PressScalePressable
             onPress={onClear}
             disabled={disabled}
             accessibilityRole="button"
             accessibilityLabel={clearLabel}
-            style={styles.icon}
+            focusColor={tokens.fg1}
+            style={({ pressed }) => [styles.icon, pressed ? { backgroundColor: tokens.bgHover } : null]}
           >
             <X size={20} color={tokens.fg3} strokeWidth={1.8} />
-          </Pressable>
+          </PressScalePressable>
         ) : null}
       </View>
       {error || hint ? (
@@ -449,7 +451,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontVariant: ['tabular-nums'],
   },
-  icon: { alignItems: 'center', justifyContent: 'center', minHeight: 52, width: 48 },
+  icon: { alignItems: 'center', justifyContent: 'center', height: TOUCH_TARGET_MIN, width: TOUCH_TARGET_MIN, borderRadius: TOUCH_TARGET_MIN / 2, overflow: 'hidden' },
   caption: { fontFamily: 'Geist_400Regular', fontSize: 12 },
   disabled: { opacity: 0.6 },
   columns: { flexDirection: 'row', gap: 8, height: COLUMN_HEIGHT, flexShrink: 1, minHeight: ROW_HEIGHT },

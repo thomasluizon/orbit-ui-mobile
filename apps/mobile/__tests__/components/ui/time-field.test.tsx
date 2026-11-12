@@ -371,6 +371,21 @@ await Promise.resolve()
     expect(onClear).toHaveBeenCalledTimes(1)
   })
 
+  it('paints a round neutral press fill on the picker and clear buttons inside the field', async () => {
+    const tokens = createTokensV2('purple', 'dark')
+    let tree: any
+    await TestRenderer.act(async () => {
+      await Promise.resolve()
+      tree = TestRenderer.create(withFocusProvenance(<TimeField label="Start" value="14:30" onChange={vi.fn()} onClear={vi.fn()} />))
+    })
+    for (const label of ['Start: common.selectTime', 'common.clear']) {
+      const button = tree.root.findAllByType(Pressable).find((node: any) => node.props.accessibilityLabel === label)
+      const paint = (pressed: boolean) => StyleSheet.flatten(button.props.style({ pressed }))
+      expect(paint(false).backgroundColor).toBeUndefined()
+      expect(paint(true)).toMatchObject({ backgroundColor: tokens.bgHover, width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, borderRadius: TOUCH_TARGET_MIN / 2, overflow: 'hidden' })
+    }
+  })
+
   it('does not render a clear button when value is empty', async () => {
     let tree: any
 

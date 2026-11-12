@@ -149,7 +149,7 @@ export function HabitEmojiSelector({
               onChange={(event) => setQuery(event.target.value)}
               aria-label={t('habits.form.emojiSearchPlaceholder')}
               placeholder={t('habits.form.emojiSearchPlaceholder')}
-              className="form-input min-w-0 flex-1"
+              className="form-input orbit-field-hover min-w-0 flex-1"
             />
             {query ? (
               <button

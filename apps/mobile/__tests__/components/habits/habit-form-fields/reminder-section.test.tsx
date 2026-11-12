@@ -430,9 +430,14 @@ it('fills reminder removal, add, custom units, directions, and commit', () => {
   pressText('habits.form.reminderAdd');
   pressText('habits.form.reminderCustom');
   for (const label of ['habits.form.reminderCustomUnit', 'habits.form.reminderDirection']) {
-    const control = tree.root.findAll((node) => typeof node.type === 'string' && node.props.role === 'combobox' && node.props.accessibilityLabel === label)[0]!
-    const style = control.props.style as (state: { pressed: boolean }) => ViewStyle[]
-    expect(StyleSheet.flatten(style({ pressed: true }))).toMatchObject({ backgroundColor: tokens.bgHover, borderRadius: 12 })
+    const control = () => tree.root.findAll((node) => typeof node.type === 'string' && node.props.role === 'combobox' && node.props.accessibilityLabel === label)[0]!
+    const fill = () => StyleSheet.flatten(control().findAll((node) => node.type === 'View' && node.props.pointerEvents === 'none' && StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).backgroundColor === tokens.bgHoverOpaque)[0]!.props.style as StyleProp<ViewStyle>)
+    const style = control().props.style as (state: { pressed: boolean }) => ViewStyle[]
+    expect(StyleSheet.flatten(style({ pressed: true }))).toMatchObject({ backgroundColor: tokens.bgField, borderColor: tokens.borderControl, borderRadius: 12 })
+    expect(fill().opacity).toBe(0)
+    TestRenderer.act(() => (control().props.onPressIn as () => void)())
+    expect(fill().opacity).toBe(1)
+    TestRenderer.act(() => (control().props.onPressOut as () => void)())
   }
   expectPressFill(tree, 'common.add', tokens.bgHover, radius.full);
 });

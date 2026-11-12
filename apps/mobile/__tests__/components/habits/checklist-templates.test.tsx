@@ -130,6 +130,19 @@ describe('ChecklistTemplates mobile', () => {
     expect(row.props.value).toBeUndefined()
   })
 
+  it('paints the save current list action press fill, as the web chip does', () => {
+    const tokens = createTokensV2('orange', 'light')
+    const { tree } = renderTemplates()
+    press(listRow(tree, 'habits.form.useTemplate'))
+    const saveCurrent = () => tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.findAll((child) => child.type === 'Text' && child.props.children === 'habits.form.saveCurrentList').length > 0)[0]!
+    const paint = () => StyleSheet.flatten(saveCurrent().props.style as StyleProp<ViewStyle>)
+    expect(paint().backgroundColor).toBe(tokens.bgWell)
+    TestRenderer.act(() => (saveCurrent().props.onPressIn as () => void)())
+    expect(paint().backgroundColor).toBe(tokens.bgHover)
+    TestRenderer.act(() => (saveCurrent().props.onPressOut as () => void)())
+    expect(paint().backgroundColor).toBe(tokens.bgWell)
+  })
+
   it('saves the current checklist under a trimmed template name', () => {
     const { tree } = renderTemplates()
     press(listRow(tree, 'habits.form.useTemplate'))

@@ -1,8 +1,7 @@
 import { SPACING } from '@orbit/shared/theme'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { ScrollView, StyleSheet, Text } from 'react-native'
-import { InsetFocusPressable as Pressable } from './inset-focus-pressable'
-import { PressScale } from '@/components/motion/press-scale'
+import { PressScalePressable } from '@/components/motion/press-scale'
 import { buildYearRange } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 
@@ -64,26 +63,22 @@ export function YearPicker({
 }
 
 function YearCell({ year, isSelected, onSelectYear, tokens }: Readonly<{ year: number; isSelected: boolean; onSelectYear: (year: number) => void; tokens: Tokens }>) {
-  const [yearPressed, setYearPressed] = useState(false)
   return (
-    <PressScale pressed={yearPressed} disabled={false} style={styles.yearColumn}>
-      <Pressable
-        focusColor={isSelected ? tokens.fgOnPrimary : tokens.fg1}
-        onPress={() => onSelectYear(year)}
-        onPressIn={() => setYearPressed(true)}
-        onPressOut={() => setYearPressed(false)}
-        accessibilityRole="button"
-        accessibilityState={{ selected: isSelected }}
-        accessibilityLabel={String(year)}
-        style={({ pressed }) => [
-          styles.yearCell,
-          { backgroundColor: isSelected ? (pressed ? tokens.primaryPressed : tokens.primary) : tokens.bgField },
-          pressed && !isSelected ? { backgroundColor: tokens.bgHover } : null,
-        ]}
-      >
-        <Text style={[styles.yearText, isSelected && styles.yearTextSelected, { color: isSelected ? tokens.fgOnPrimary : tokens.fg1 }]}>{year}</Text>
-      </Pressable>
-    </PressScale>
+    <PressScalePressable
+      layerStyle={styles.yearColumn}
+      focusColor={isSelected ? tokens.fgOnPrimary : tokens.fg1}
+      onPress={() => onSelectYear(year)}
+      accessibilityRole="button"
+      accessibilityState={{ selected: isSelected }}
+      accessibilityLabel={String(year)}
+      style={({ pressed }) => [
+        styles.yearCell,
+        { backgroundColor: isSelected ? (pressed ? tokens.primaryPressed : tokens.primary) : tokens.bgField },
+        pressed && !isSelected ? { backgroundColor: tokens.bgHover } : null,
+      ]}
+    >
+      <Text style={[styles.yearText, isSelected && styles.yearTextSelected, { color: isSelected ? tokens.fgOnPrimary : tokens.fg1 }]}>{year}</Text>
+    </PressScalePressable>
   )
 }
 

@@ -68,6 +68,12 @@ describe('DateField (mobile)', () => {
     const trigger = tree.root.findByType('Pressable')
     expectPressPaint(trigger, { fill: tokens.bgHoverOpaque, restFill: tokens.bgField, overlay: true, borderRadius: radius.md, scale: null })
     expectPressScale(trigger, reducedMotion ? 1 : 0.96)
+    const icon = () => trigger.findAll((node: { props: { size?: number; color?: unknown } }) => node.props.size === 20 && typeof node.props.color === 'string')[0].props.color
+    expect(icon()).toBe(tokens.fg3)
+    TestRenderer.act(() => trigger.props.onPressIn())
+    expect(icon()).toBe(tokens.fg2)
+    TestRenderer.act(() => trigger.props.onPressOut())
+    expect(icon()).toBe(tokens.fg3)
     if (!value) {
       const text = trigger.findAllByType('Text')[0]
       expect(flatten(text.props.style).color).toBe(tokens.fg3)

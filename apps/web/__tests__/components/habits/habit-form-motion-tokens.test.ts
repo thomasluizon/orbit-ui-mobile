@@ -20,6 +20,13 @@ const HABIT_FILES = [
   'components/ui/select-check.tsx',
   'components/ui/date-field.tsx',
   'components/ui/year-picker.tsx',
+  'components/ui/field-trigger.tsx',
+  'components/ui/select.tsx',
+  'components/ui/time-field.tsx',
+  'components/habits/habit-form-fields/scheduled-reminder-section.tsx',
+  'components/habits/habit-form-fields/tag-picker-field.tsx',
+  'components/shell/shell-wide.tsx',
+  'components/shell/sidebar-account.tsx',
 ] as const
 
 const DURATION_TOKENS = String.raw`var\(--dur-[a-z-]+\)(?:,var\(--dur-[a-z-]+\))*`
@@ -53,6 +60,33 @@ const STYLESHEET_TRANSITIONS = [
   ['.icon-btn', COLOR_AND_PRESS],
   ['.chip', COLOR_AND_PRESS],
   ['.habit-form-disclosure', 'opacity var(--dur-enter) var(--ease-out), transform var(--dur-enter) var(--ease-out)'],
+] as const
+
+/** Every quoted, single-quoted or template class string in a source file, with the attribute that receives it. */
+function classLiterals(text: string) {
+  return Array.from(text.matchAll(/(controlClassName=)?(?:"([^"\n]*)"|'([^'\n]*)'|`([^`]*)`)/g), (match) => ({ attribute: match[1], literal: match[2] ?? match[3] ?? match[4] ?? '' }))
+}
+
+const HOVER_FILL = /(?<![\w/-])(?:enabled:)?hover:bg-\[(var\(--[a-z-]+\))\]/g
+const PRESS_FILL_FOR: Record<string, string> = { 'var(--primary-hover)': 'var(--primary-pressed)' }
+
+/** A hover fill without the matching press fill in the same class string: a touch press, which never hovers, would paint nothing. */
+function hoverFillsWithoutPress(text: string) {
+  return classLiterals(text)
+    .filter(({ attribute }) => attribute === undefined)
+    .flatMap(({ literal }) => Array.from(literal.matchAll(HOVER_FILL), (match) => {
+      const press = (PRESS_FILL_FOR[match[1]!] ?? match[1]!).replace(/[()[\]-]/g, String.raw`\$&`)
+      return new RegExp(String.raw`(?<![\w/-])(?:enabled:)?active:bg-\[${press}\]`).test(literal) ? [] : [`${match[0]} in ${literal.slice(0, 80)}`]
+    }).flat())
+}
+
+const PRESS_FILL_FILES = [
+  ...HABIT_FILES,
+  'components/habits/habit-form-fields/habit-month-days-field.tsx',
+  'components/habits/habit-form-fields/habit-understanding.tsx',
+  'components/habits/habit-form-fields/tag-suggestions.tsx',
+  'components/habits/goal-linking-field.tsx',
+  'components/ui/weekday-picker.tsx',
 ] as const
 
 describe('habit form and frequency picker motion tokens', () => {
@@ -89,7 +123,7 @@ describe('habit form and frequency picker motion tokens', () => {
 
   it('times the sub-habit remove control hover as a control hover', () => {
     const text = source('components/habits/create-habit-modal/sub-habit-editor.tsx')
-    expect(occurrences(text, 'transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]')).toBe(2)
+    expect(occurrences(text, 'transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover/remove:text-[var(--status-bad)]')).toBe(1)
   })
 
   it.each([
@@ -148,6 +182,49 @@ describe('habit form and frequency picker motion tokens', () => {
   ])('%s eases its scale press through %s', (path, rule) => {
     expect(source(path)).toMatch(new RegExp(String.raw`${rule.slice(1)}[^"'\`]*active:scale-\[0\.96\]`))
     expect(stylesheetTransition(source('app/globals.css'), rule)).toContain(SCALE_PRESS)
+  })
+
+  it.each(PRESS_FILL_FILES)('%s gives every hover fill the matching press fill, so a touch press paints it', (path) => {
+    expect(hoverFillsWithoutPress(source(path))).toEqual([])
+  })
+
+  it.each([
+    ['components/habits/habit-form-fields/reminder-section.tsx', 3],
+    ['components/habits/habit-form-fields/scheduled-reminder-section.tsx', 1],
+    ['components/habits/create-habit-modal/sub-habit-editor.tsx', 1],
+  ] as const)('%s presses its remove, preset and custom buttons with the eased scale its mobile mirror uses', (path, count) => {
+    const text = source(path)
+    expect(text).not.toContain('transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"')
+    expect(text.match(/className=[{"`]+habit-control-motion [^"`]*active:scale-\[0\.96\]/g)).toHaveLength(count)
+  })
+
+  it('presses the checklist template rows, close and save with the scale and fill their mobile mirrors use', () => {
+    const text = source('components/habits/checklist-templates.tsx')
+    expect(text).toMatch(/orbit-list-row-body [^"]*active:scale-\[0\.96\]/)
+    expect(text).toMatch(/orbit-list-row-action [^"]*active:scale-\[0\.96\]/)
+    expect(text).toContain('hover:bg-[var(--primary-hover)] active:bg-[var(--primary-pressed)] active:scale-[0.96]')
+    expect(text).toContain('hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96]')
+  })
+
+  it('fills the time field picker and clear buttons on hover and press with the neutral hover role and eases their scale', () => {
+    const text = source('components/ui/time-field.tsx')
+    expect(text).not.toContain('--bg-sunk')
+    expect(occurrences(text, 'hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:')).toBe(2)
+    expect(occurrences(text, 'transition-[background-color,scale] duration-[var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-out)]')).toBe(2)
+  })
+
+  it.each([
+    'components/habits/habit-form-fields/habit-emoji-selector.tsx',
+    'components/ui/picker-list.tsx',
+    'app/(app)/preferences/_components/preference-picker-sheet.tsx',
+  ])('%s gives its shared form input search the text field hover', (path) => {
+    expect(source(path)).toMatch(/className="form-input orbit-field-hover/)
+  })
+
+  it('rings the shared form input with the control border and shows its focus ring at once', () => {
+    const rule = /^\.form-input \{([^}]*)\}/m.exec(source('app/globals.css'))?.[1]
+    expect(rule).toContain('box-shadow: inset 0 0 0 1px var(--border-control);')
+    expect(rule).not.toMatch(/transition|duration-|--hairline/)
   })
 
   it('eases every picker row press, the tag picker included, through the list row body rule', () => {

@@ -1,6 +1,5 @@
-import { PressScale } from '@/components/motion/press-scale'
+import { PressScale, PressScalePressable } from '@/components/motion/press-scale'
 import { PressFill } from '@/components/ui/press-fill'
-import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { selectedBorderStyle } from '@/components/ui/selected-focus-indicator'
 import { SPACING, TOUCH_TARGET_MIN, MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
@@ -135,44 +134,40 @@ interface DatePickerDayProps {
 }
 
 function DatePickerDay({ day, isSelected, isToday, isCurrentMonth, locale, onSelectDay, tokens, styles }: Readonly<DatePickerDayProps>) {
-  const [dayPressed, setDayPressed] = useState(false)
   return (
-    <PressScale pressed={dayPressed} disabled={false} style={styles.dayColumn}>
-      <InsetFocusPressable
-        style={({ pressed }) => [
-          styles.dayTarget,
-          pressed ? { backgroundColor: tokens.bgHover } : null,
+    <PressScalePressable
+      layerStyle={styles.dayColumn}
+      style={({ pressed }) => [
+        styles.dayTarget,
+        pressed ? { backgroundColor: tokens.bgHover } : null,
+      ]}
+      onPress={() => onSelectDay(day)}
+      accessibilityRole="button"
+      accessibilityState={{ selected: isSelected }}
+      accessibilityLabel={formatLocaleDate(day, locale, {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      })}
+    >{({ pressed, focused }) =>
+      <View
+        style={[
+          styles.dayCell,
+          isSelected && styles.dayCellSelected,
+          selectedBorderStyle(isToday && !isSelected, focused, 1, tokens.primary),
         ]}
-        onPress={() => onSelectDay(day)}
-        onPressIn={() => setDayPressed(true)}
-        onPressOut={() => setDayPressed(false)}
-        accessibilityRole="button"
-        accessibilityState={{ selected: isSelected }}
-        accessibilityLabel={formatLocaleDate(day, locale, {
-          month: 'long',
-          day: 'numeric',
-          year: 'numeric',
-        })}
-      >{({ pressed, focused }) =>
-        <View
+      >
+        <Text
           style={[
-            styles.dayCell,
-            isSelected && styles.dayCellSelected,
-            selectedBorderStyle(isToday && !isSelected, focused, 1, tokens.primary),
+            styles.dayText,
+            !isCurrentMonth && { color: pressed ? tokens.fg2 : tokens.fg3 },
+            isSelected && styles.dayTextSelected,
           ]}
         >
-          <Text
-            style={[
-              styles.dayText,
-              !isCurrentMonth && { color: pressed ? tokens.fg2 : tokens.fg3 },
-              isSelected && styles.dayTextSelected,
-            ]}
-          >
-            {format(day, 'd')}
-          </Text>
-        </View>
-      }</InsetFocusPressable>
-    </PressScale>
+          {format(day, 'd')}
+        </Text>
+      </View>
+    }</PressScalePressable>
   )
 }
 
@@ -382,7 +377,7 @@ export function DateField({
         >
           {displayValue || placeholder || t('common.selectDate')}
         </Text>
-        <Calendar size={20} strokeWidth={1.8} color={tokens.fg3} />
+        <Calendar size={20} strokeWidth={1.8} color={pressed ? tokens.fg2 : tokens.fg3} />
       </>}</Pressable></PressScale>
 
       {isOpen ? (

@@ -88,7 +88,7 @@ export function ScheduledReminderSection({
                   style={{ fontFamily: 'var(--font-sans)', fontSize: '0.75rem', fontWeight: 500 }}
                 >
                   <span className="min-w-0 break-words">{scheduledReminderLabel(sr)}</span>
-                  <button type="button" aria-label={t('habits.form.removeScheduledReminder')} className="grid shrink-0 rounded-full hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] place-items-center min-h-[var(--touch-min)] min-w-[var(--touch-min)] hover:text-[var(--fg-2)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" onClick={() => removeScheduledReminder(idx)}>
+                  <button type="button" aria-label={t('habits.form.removeScheduledReminder')} className="habit-control-motion grid shrink-0 rounded-full hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96] place-items-center min-h-[var(--touch-min)] min-w-[var(--touch-min)] hover:text-[var(--fg-2)]" onClick={() => removeScheduledReminder(idx)}>
                     <X size={16} strokeWidth={2.2} aria-hidden="true" />
                   </button>
                 </span>
