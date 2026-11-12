@@ -1,4 +1,4 @@
-import { getHabitChecklistProgress, getHabitRowTypeLabelKey, stripInlineMarkdown, type HabitCardTranslationAdapter } from '@orbit/shared/utils'
+import { getHabitChecklistProgress, getHabitRowTypeLabelKey, HABIT_ROW_META_TOKEN_GAP, stripInlineMarkdown, type HabitCardTranslationAdapter } from '@orbit/shared/utils'
 import { PersonalText } from '@/components/ui/personal-text'
 import { ListChecks } from '@/components/ui/icons'
 import type { ReactNode } from 'react'
@@ -32,7 +32,10 @@ interface HabitRowContentProps {
   descriptionId?: string
   largeText?: boolean
   typeOnSupportingLine?: boolean
-  meta: HabitRowMetaToken[]
+  /** The tokens the inline strip draws, from `visibleHabitRowMetaTokens`. */
+  visibleMeta: HabitRowMetaToken[]
+  /** The next due label of a row that does not show it, for screen readers only (#898). */
+  hiddenNextDueLabel?: string
 }
 
 export function HabitRowContent({
@@ -43,11 +46,10 @@ export function HabitRowContent({
   descriptionId,
   largeText = false,
   typeOnSupportingLine = false,
-  meta,
+  visibleMeta,
+  hiddenNextDueLabel,
 }: Readonly<HabitRowContentProps>) {
   const description = stripInlineMarkdown(habit.description ?? '')
-  const visibleMeta = meta.filter((token) => typeof token === 'string' || token.kind !== 'future')
-  const futureHint = meta.find((token) => typeof token !== 'string' && token.kind === 'future')
   return (
     <div data-habit-row-title-block="" className="flex-1 min-w-0 flex flex-col" style={{ gap: 4 }}>
       <TitleText expanded={expanded} title={habit.title} size={titleSize} color={titleColor} />
@@ -57,7 +59,7 @@ export function HabitRowContent({
         {description}
       </span> : null}
       {typeOnSupportingLine ? null : <MetaStrip tokens={visibleMeta} largeText={largeText} />}
-      {futureHint && typeof futureHint !== 'string' ? <span className="sr-only">{futureHint.label}</span> : null}
+      {hiddenNextDueLabel === undefined ? null : <span className="sr-only">{hiddenNextDueLabel}</span>}
     </div>
   )
 }
@@ -76,7 +78,7 @@ interface TitleTextProps {
   color: string
 }
 
-export function TitleText({ title, size, color, expanded }: Readonly<TitleTextProps>) {
+function TitleText({ title, size, color, expanded }: Readonly<TitleTextProps>) {
   return (
     <PersonalText expanded={expanded}
       className="flex-shrink min-w-0"
@@ -103,8 +105,9 @@ export function MetaStrip({ tokens, largeText = false, supportingLine = false }:
     <span
       data-habit-row-meta=""
       aria-hidden="true"
-      className="habit-row-meta flex min-w-0 flex-wrap items-center gap-[4px]"
+      className="habit-row-meta flex min-w-0 flex-wrap items-center"
       style={{
+        gap: HABIT_ROW_META_TOKEN_GAP,
         fontFamily: 'var(--font-mono)',
         fontSize: '0.75rem',
         fontVariantNumeric: 'tabular-nums',
