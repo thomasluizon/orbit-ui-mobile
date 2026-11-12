@@ -35,7 +35,7 @@ function DescriptionCopyAction({ description }: Readonly<{ description: string }
         aria-busy={status === 'pending'}
         aria-describedby={status === 'error' ? errorId : undefined}
         disabled={disabled}
-        className="icon-btn icon-btn-well transition-[background-color,color,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-fast)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--bg-elev-hover)] enabled:active:bg-[var(--bg-elev-hover)] motion-reduce:transform-none disabled:transform-none disabled:opacity-40"
+        className="icon-btn icon-btn-well transition-[background-color,color,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-fast)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--bg-elev-hover)] enabled:active:bg-[var(--bg-elev-hover)] disabled:transform-none disabled:opacity-40"
         onClick={() => { void copyDescription() }}
       >
         <CopyStateIcon copied={status === 'copied'} strokeWidth={1.5} />

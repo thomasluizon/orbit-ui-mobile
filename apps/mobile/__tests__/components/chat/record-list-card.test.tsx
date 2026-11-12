@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import type { BlockFrameProps } from '@orbit/shared/contracts/blocks'
 import { RecordListCard } from '@/components/chat/record-list-card'
 import { controlName, renderedText } from '../../support/react-test-renderer'
+import { pressableStyle } from '@/__tests__/support/press-feedback'
 
 const TestRenderer = require('react-test-renderer')
 const mocks = vi.hoisted(() => ({ push: vi.fn(), markRead: vi.fn(), apiClient: vi.fn(), generation: 0, onAccountChange: null as null | (() => void) }))
@@ -60,7 +61,7 @@ describe('Astra record list on mobile', () => {
     expect(tree.root.findAll((node: any) => node.type === View && node.props?.testID === 'record-row')).toHaveLength(20)
     const filter = tree.root.findAll((node: any) => node.props.accessibilityLabel === 'chat.recordList.filter' && typeof node.props.onChangeText === 'function')[0]!
     const filterTrigger = tree.root.findAll((node: any) => node.type === Pressable && controlName(node) === 'chat.recordList.filterAction')[0]
-    const filterPaint = StyleSheet.flatten(filterTrigger.props.style({ pressed: false }))
+    const filterPaint = pressableStyle(filterTrigger, false)
     expect(filterPaint).toMatchObject({ width: 44, height: 44 })
     expect(filterPaint.width + 2 * filterTrigger.props.hitSlop).toBeGreaterThanOrEqual(48)
     expect(filterPaint.height + 2 * filterTrigger.props.hitSlop).toBeGreaterThanOrEqual(48)

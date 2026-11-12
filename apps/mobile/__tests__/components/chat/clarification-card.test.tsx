@@ -95,7 +95,7 @@ function findPressables(root: TestTreeRoot): TestNode[] {
   return root.findAll(
     (node) =>
       typeof node.props.onPress === 'function' &&
-      typeof node.type !== 'string',
+      typeof node.type === 'string',
   )
 }
 

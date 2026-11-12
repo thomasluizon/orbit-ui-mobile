@@ -1,8 +1,17 @@
 import { readFileSync } from 'node:fs'
+import postcss, { type AtRule, type Node } from 'postcss'
 import { render, fireEvent } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { CheckCircle } from '@/components/habits/habit-row-check-circle'
 import { SelectionIndicator } from '@/components/ui/selection-indicator'
+
+function mediaConditions(node: Node): string[] {
+  const conditions: string[] = []
+  for (let parent = node.parent; parent; parent = parent.parent) {
+    if (parent.type === 'atrule' && (parent as AtRule).name === 'media') conditions.push((parent as AtRule).params)
+  }
+  return conditions
+}
 
 describe('interaction motion', () => {
   it('keeps selection paint inside the control', () => {
@@ -25,5 +34,18 @@ describe('interaction motion', () => {
     const stylesheet = readFileSync('app/globals.css', 'utf8')
     expect(stylesheet).toMatch(/habit-check-motion\s*\{\s*transition: background-color var\(--dur-press\)/)
     expect(stylesheet).toMatch(/@media \(prefers-reduced-motion: reduce\)\s*\{\s*:is\(button, a,.*?:active\s*\{\s*scale: none !important/s)
+  })
+
+  it('keeps the kit icon button press fill under reduced motion and scales it only when motion is allowed', () => {
+    const css = postcss.parse(readFileSync('app/globals.css', 'utf8'))
+    const pressDeclarations: [string, string, string[]][] = []
+    css.walkRules((rule) => {
+      if (!rule.selectors.includes('.icon-btn:active')) return
+      rule.walkDecls((declaration) => { pressDeclarations.push([declaration.prop, declaration.value, mediaConditions(declaration)]) })
+    })
+    expect(pressDeclarations).toEqual([
+      ['background', 'var(--bg-hover)', []],
+      ['transform', 'scale(0.96)', ['(prefers-reduced-motion: no-preference)']],
+    ])
   })
 })

@@ -6,7 +6,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { PersonalText } from '@/components/ui/personal-text'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { Pressable, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import type { BlockFrameProps } from '@orbit/shared/contracts/blocks'
 import { AccountRowsCard } from '@/components/chat/account-rows-card'
 import { controlName, renderedText } from '../../support/react-test-renderer'
@@ -98,6 +98,17 @@ describe('Astra account rows on mobile', () => {
     expectCopyStateIcon(tree.root, { copied: false, reducedMotion, color: '#111111', strokeWidth: 1.8 })
     await TestRenderer.act(async () => { await tree.root.findByProps({ accessibilityLabel: 'chat.account.copy' }).props.onPress() })
     expectCopyStateIcon(tree.root, { copied: true, reducedMotion, color: '#111111', strokeWidth: 1.8 })
+  })
+
+  it.each([false, true])('presses the copy control on the shared eased press (reduced motion %s)', (reducedMotion) => {
+    motionState.reduced = reducedMotion
+    const tree = render(<AccountRowsCard accountRows={{ kind: 'referral', surfaceId: 'profile', rows: [], referralCode: 'ORBIT123' }} />)
+    const host = () => tree.root.findAll((node: any) => typeof node.type === 'string' && node.props.accessibilityLabel === 'chat.account.copy')[0]
+    const paint = () => { const style = host().props.style; return StyleSheet.flatten(typeof style === 'function' ? style({ pressed: true }) : style) }
+    TestRenderer.act(() => { host().props.onPressIn?.() })
+    expect(paint()).toMatchObject({ transform: [{ scale: reducedMotion ? 1 : 0.96 }], transition: reducedMotion ? 'none' : 'transform 150ms cubic-bezier(0.16,1,0.3,1)' })
+    TestRenderer.act(() => { host().props.onPressOut?.() })
+    expect(paint()).toMatchObject({ transform: [{ scale: 1 }] })
   })
 
   it('confirms a referral code only after the native write and permits retry after rejection', async () => {

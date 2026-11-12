@@ -1585,7 +1585,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     color var(--dur-hover-control) var(--ease-standard),
     transform var(--dur-fast) var(--ease-standard);
 }
-.icon-btn:active { background: var(--bg-hover); transform: scale(0.96); }
+.icon-btn:active { background: var(--bg-hover); }
+@media (prefers-reduced-motion: no-preference) {
+  .icon-btn:active { transform: scale(0.96); }
+}
 .icon-btn-ring { box-shadow: inset 0 0 0 1.5px var(--hairline-strong); }
 .icon-btn-well { background: var(--bg-elev); }
 }

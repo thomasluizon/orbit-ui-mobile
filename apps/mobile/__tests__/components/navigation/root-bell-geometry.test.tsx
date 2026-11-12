@@ -16,6 +16,7 @@ import { createMockNotification, createMockProactiveItem } from '@orbit/shared/_
 import { formatAPIDate } from '@orbit/shared/utils'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { queryClient, persistQueryCache, restoreQueryCache, setQueryCacheScope } from '@/lib/query-client'
+import { pressableStyle } from '@/__tests__/support/press-feedback'
 
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
 const navigation = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), count: 0, restored: false }))
@@ -193,9 +194,7 @@ it.each([412, 1352])('keeps the pressed header fills clear of the Astra summary 
       expect(geometry.summary!.top - control.bottom).toBeGreaterThanOrEqual(24)
     }
     const bell = tree.root.find((node) => typeof node.type === 'string' && node.props.accessibilityLabel?.startsWith('notifications.bell') === true)
-    const declared = bell.props.style
-    expect(typeof declared).toBe('function')
-    expect(StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: true }) : declared).backgroundColor).toBe(createTokensV2('purple', 'dark').bgHover)
+    expect(pressableStyle(bell, true).backgroundColor).toBe(createTokensV2('purple', 'dark').bgHover)
   } finally { await renderer.act(() => tree.unmount()) }
 })
 
@@ -248,9 +247,9 @@ it.each([320, 360, 384, 412, 840, 1024, 1352].flatMap((width) => [1, 2].map((fon
         function checkHeaderIcons(node: Host, inHeader = false) {
           const header = inHeader || ['today-header-actions', 'calendar-shell-header', 'root-notification-header'].includes(node.props.testID ?? '')
           if (header && node.props.accessibilityRole === 'button') {
-            const style = node.props.style
-            const rest = StyleSheet.flatten(typeof style === 'function' ? style({ pressed: false }) : style)
-            const pressed = StyleSheet.flatten(typeof style === 'function' ? style({ pressed: true }) : style)
+            const control = tree.root.find((instance) => typeof instance.type === 'string' && instance.props.style === node.props.style)
+            const rest = pressableStyle(control, false)
+            const pressed = pressableStyle(control, true)
             expect(rest.backgroundColor ?? 'transparent', `${name} ${node.props.accessibilityLabel}`).toBe('transparent')
             expect(pressed.backgroundColor).toBe(createTokensV2('purple', 'dark').bgHover)
           }

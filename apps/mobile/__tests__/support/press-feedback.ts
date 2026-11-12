@@ -11,6 +11,20 @@ type PressControl = {
   findAll(predicate: (node: PressHost) => boolean): PressHost[]
 }
 
+/**
+ * Flattens a pressable host's style at rest or pressed. A function style resolves directly. A resolved style,
+ * as a `MotionPressable` host renders, presses in, reads and presses out.
+ */
+export function pressableStyle(host: { props: Record<string, unknown> }, pressed: boolean): Record<string, any> {
+  const style = host.props.style as StyleProp<ViewStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle>)
+  if (typeof style === 'function') return StyleSheet.flatten(style({ pressed }))
+  if (!pressed) return StyleSheet.flatten(style)
+  void renderer.act(() => { (host.props.onPressIn as (() => void) | undefined)?.() })
+  const pressedStyle = StyleSheet.flatten(host.props.style as StyleProp<ViewStyle>)
+  void renderer.act(() => { (host.props.onPressOut as (() => void) | undefined)?.() })
+  return pressedStyle
+}
+
 export function expectPressPaint(control: PressControl, expected: {
   fill: string
   borderRadius: number
@@ -32,14 +46,14 @@ export function expectPressPaint(control: PressControl, expected: {
   }
   const resting = resolved(false)
   expect(resting.backgroundColor ?? 'transparent').toBe(expected.restFill ?? 'transparent')
-  expect(resting.transform).toBeUndefined()
+  expect(resting.transform ?? [{ scale: 1 }]).toEqual([{ scale: 1 }])
   expect(resting.opacity ?? 1).toBe(1)
   if (expected.overlay) expect(overlayStyle()).toMatchObject({ backgroundColor: expected.fill, opacity: 0 })
   void renderer.act(() => { (host.props.onPressIn as (() => void) | undefined)?.() })
   const pressed = resolved(true)
   expect(pressed.opacity ?? 1).toBe(1)
   expect(pressed).toMatchObject({ borderRadius: expected.borderRadius, overflow: 'hidden' })
-  expect(pressed.transform).toEqual(expected.scale === null ? undefined : [{ scale: expected.scale ?? 0.96 }])
+  expect(pressed.transform ?? [{ scale: 1 }]).toEqual([{ scale: expected.scale === null ? 1 : expected.scale ?? 0.96 }])
   if (expected.overlay) {
     expect(pressed.backgroundColor ?? 'transparent').toBe(expected.restFill ?? 'transparent')
     expect(overlayStyle()).toMatchObject({ ...StyleSheet.absoluteFill, backgroundColor: expected.fill, opacity: 1 })

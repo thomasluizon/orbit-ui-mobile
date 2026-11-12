@@ -33,6 +33,7 @@ import { FocusProvenanceView } from '@/components/ui/focus-provenance-view'
 import { applySuggestionSchedule } from '@/components/habits/create-habit-modal/apply-suggestion'
 import { habitFormSchema } from '@orbit/shared/validation'
 import { useUIStore } from '@/stores/ui-store'
+import { pressableStyle } from '@/__tests__/support/press-feedback'
 
 const renderer = require('react-test-renderer')
 const mountedTrees = new Set<ReturnType<typeof renderer.create>>()
@@ -1150,7 +1151,7 @@ it('exposes tag suggestions from the owning habit form', async () => {
   const actions = tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.suggestTags')
   expect(actions).toHaveLength(1)
   expect(actions[0]!.findAllByType('Text')).toHaveLength(0)
-  expect(StyleSheet.flatten(actions[0]!.props.style({ pressed: false })).width).toBe(48)
+  expect(pressableStyle(actions[0], false).width).toBe(48)
   await TestRenderer.act(() => tree.unmount())
 })
 
@@ -1320,7 +1321,7 @@ describe('habit tag suggestions', () => {
     formLocale.language = 'pt-BR'
     await renderTagForm('Run', '   ')
     expect(button('habits.form.suggestTags').findAllByType(AstraGlyph)).toHaveLength(1)
-    expect(StyleSheet.flatten(button('habits.form.suggestTags').props.style({ pressed: false })).borderWidth ?? 0).toBe(0)
+    expect(pressableStyle(button('habits.form.suggestTags'), false).borderWidth ?? 0).toBe(0)
     await TestRenderer.act(() => button('habits.form.suggestTags').props.onPress())
     expect(button('habits.form.suggestTags').props.accessibilityState).toMatchObject({ disabled: true, busy: true })
     expect(button('habits.form.suggestTags').findAllByType(AstraGlyph)).toHaveLength(0)

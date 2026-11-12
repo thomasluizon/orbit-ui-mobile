@@ -10,7 +10,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { buildWrappedSlides, formatClosedWrappedMonth } from '@orbit/shared/utils'
 import { WrappedPlayer } from '@/components/wrapped/wrapped-player'
-import { expectPressFill } from '@/__tests__/support/press-feedback'
+import { expectPressFill, pressableStyle } from '@/__tests__/support/press-feedback'
 import { createTokensV2 } from '@/lib/theme'
 
 const profileState = vi.hoisted(() => ({ available: true }))
@@ -297,7 +297,7 @@ describe('WrappedPlayer', () => {
     expect(buttons.map((button) => button.findAll((node) => String(node.type) === 'Text')[0]?.props.children)).toEqual([
       messages.wrapped.previous, messages.shareCard.download, messages.shareCard.share,
     ])
-    expect(buttons.map((button) => StyleSheet.flatten((button.props.style as (state: { pressed: boolean }) => ViewStyle[])({ pressed: false })).height)).toEqual([44, 44, 44])
+    expect(buttons.map((button) => pressableStyle(button, false).height)).toEqual([44, 44, 44])
   })
 
   it('shows both final actions as busy while the card renders', () => {

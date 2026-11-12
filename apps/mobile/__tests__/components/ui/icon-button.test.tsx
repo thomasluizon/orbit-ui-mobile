@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
 import { createTokensV2 } from '@/lib/theme'
+import { pressableStyle } from '@/__tests__/support/press-feedback'
 
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark' }) }))
 const renderer = require('react-test-renderer')
@@ -13,7 +14,7 @@ describe('IconButton', () => {
     renderer.act(() => { tree = renderer.create(<IconButton label={label} onClick={onClick}><RefreshCw /></IconButton>) })
     try {
       const button = tree.root.findByType('Pressable')
-      const paint = (pressed = false) => Object.assign({}, ...button.props.style({ pressed }).flat().filter(Boolean))
+      const paint = (pressed = false) => pressableStyle(button, pressed)
       expect(button.props.accessibilityLabel).toBe(label)
       expect(tree.root.findAllByType('Text')).toHaveLength(0)
       expect(paint()).toMatchObject({ width: 44, height: 44, borderWidth: 0 })
@@ -39,7 +40,7 @@ describe('IconButton', () => {
     let tree: any
     renderer.act(() => { tree = renderer.create(<IconButton label="Clear" onClick={vi.fn()}><RefreshCw size={20} /></IconButton>) })
     try {
-      const paint = () => Object.assign({}, ...tree.root.findByType('Pressable').props.style({ pressed: false }).flat().filter(Boolean))
+      const paint = () => pressableStyle(tree.root.findByType('Pressable'), false)
       expect(paint().marginStart).toBeUndefined()
       renderer.act(() => tree.update(<IconButton edge="start" label="Clear" onClick={vi.fn()}><RefreshCw size={20} /></IconButton>))
       expect(paint()).toMatchObject({ width: 44, height: 44, marginStart: -(44 - 20) / 2 })
