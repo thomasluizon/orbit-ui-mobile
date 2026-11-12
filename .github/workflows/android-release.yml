@@ -369,7 +369,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          # #2112: a package mirror outage must not fail the release, so the build runs without ccache.
+          # A package mirror outage must not fail the release, so the build runs without ccache.
           if sudo apt-get update -qq && sudo apt-get install -y -qq ccache; then
             ccache --set-config=max_size=2G
             ccache --set-config=compiler_check=content
