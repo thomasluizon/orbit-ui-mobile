@@ -36,7 +36,7 @@ import {
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { FlowShell } from '@/components/shell/flow-shell'
 import { ShellWide } from '@/components/shell/shell-wide'
-import { DESTINATION_ICONS, SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
+import { DESTINATION_ICONS, SHELL_DESTINATION_IDS, SHELL_DESTINATION_PATHS } from '@orbit/shared/utils'
 import { DestinationIcon } from '@/components/navigation/destination-icon'
 import { ActionRow } from '@/components/ui/action-row'
 import { ArrowLeft, RefreshCw } from '@/components/ui/icons'
@@ -78,12 +78,12 @@ function FlowActions({ primary, secondary, reason }: Readonly<{ primary: ReactNo
   return <div className="flex w-full flex-col gap-2"><ActionRow>{secondary}{primary}</ActionRow>{reason}</div>
 }
 
-const DONE_TAB_ROUTES: Record<string, string> = { astra: '/?astra=open', hoje: '/', calendario: '/calendar', progresso: '/progress', perfil: '/profile' }
+const DONE_TAB_ROUTES: Record<string, string> = { astra: '/?astra=open', ...SHELL_DESTINATION_PATHS }
 
 function DoneShell({ onSelect, children, modalId, loginHref }: Readonly<{ onSelect: (id: string) => void; children: ReactNode; modalId: string; loginHref?: string }>) {
   const t = useTranslations()
-  const items = useMemo(() => SHELL_DESTINATION_IDS.map((id) => ({ id, href: loginHref ?? DONE_TAB_ROUTES[id]!, label: t(DESTINATION_ICONS[id].labelKey), icon: id })), [loginHref, t])
-  const tabBar = <BottomTabBar activeId="hoje" label={t('nav.mainNavigation')} items={SHELL_DESTINATION_IDS.map((id) => ({ id, href: loginHref ?? DONE_TAB_ROUTES[id]!, label: t(DESTINATION_ICONS[id].labelKey), icon: ({ active }) => <DestinationIcon destination={id} active={active} color={active ? 'var(--primary)' : 'var(--fg-3)'} /> }))} onSelect={onSelect} />
+  const items = useMemo(() => SHELL_DESTINATION_IDS.map((id) => ({ id, href: loginHref ?? SHELL_DESTINATION_PATHS[id], label: t(DESTINATION_ICONS[id].labelKey), icon: id })), [loginHref, t])
+  const tabBar = <BottomTabBar activeId="hoje" label={t('nav.mainNavigation')} items={SHELL_DESTINATION_IDS.map((id) => ({ id, href: loginHref ?? SHELL_DESTINATION_PATHS[id], label: t(DESTINATION_ICONS[id].labelKey), icon: ({ active }) => <DestinationIcon destination={id} active={active} color={active ? 'var(--primary)' : 'var(--fg-3)'} /> }))} onSelect={onSelect} />
   return <ShellWide astraRow={{ label: t('nav.astra'), onOpen: () => onSelect('astra') }} items={items} activeId="hoje" navLabel={t('nav.mainNavigation')} onSelect={onSelect} tabBar={tabBar} notice={<><UpdateAvailableBanner modalId={modalId} inset={false} /><AppToastHost placement="modal" modalId={modalId} /></>}>
     <div className="mx-auto flex min-h-full w-full max-w-[440px] items-center px-4 lg:max-w-[560px] lg:px-0">{children}</div>
   </ShellWide>
