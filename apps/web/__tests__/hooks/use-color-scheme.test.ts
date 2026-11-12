@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { renderToString } from 'react-dom/server'
 import { hydrateRoot } from 'react-dom/client'
+import { motionDurations } from '@orbit/shared/theme'
+import type { ThemeMode } from '@orbit/shared/types/profile'
 
 const heldAccount = vi.hoisted(() => ({ id: null as string | null }))
 const accountGeneration = vi.hoisted(() => ({ current: 0 }))
@@ -58,9 +60,21 @@ let bootstrapTheme = ''
 const mockSetProperty = vi.fn((property: string, value: string) => {
   if (property === 'color-scheme') bootstrapTheme = value
 })
+const rootClasses = new Set<string>()
 const mockClassList = {
-  add: vi.fn(),
-  remove: vi.fn(),
+  add: vi.fn((...tokens: string[]) => { for (const token of tokens) rootClasses.add(token) }),
+  remove: vi.fn((...tokens: string[]) => { for (const token of tokens) rootClasses.delete(token) }),
+  contains: (token: string) => rootClasses.has(token),
+}
+
+/** Seeds the root as the server class and the bootstrap script leave it before the first paint. */
+function paintBootstrapTheme(theme: ThemeMode) {
+  bootstrapTheme = theme
+  rootClasses.add(theme)
+}
+
+function crossfadeStarts() {
+  return mockClassList.add.mock.calls.filter((tokens) => tokens.includes('theme-transitioning')).length
 }
 
 Object.defineProperty(document, 'documentElement', {
@@ -113,6 +127,7 @@ describe('useColorScheme', () => {
     accountGeneration.current = 0
     showPersistentError.mockClear()
     mockSetProperty.mockClear()
+    rootClasses.clear()
     mockClassList.add.mockClear()
     mockClassList.remove.mockClear()
   })
@@ -141,7 +156,7 @@ describe('useColorScheme', () => {
   })
 
   it.each([undefined, 'dark'])('preserves the server light theme with cookie %s', (cookieTheme) => {
-    bootstrapTheme = 'light'
+    paintBootstrapTheme('light')
     if (cookieTheme) mockCookies['orbit_theme_mode'] = cookieTheme
     const { result } = renderHook(() => useColorScheme())
     expect(result.current.currentTheme).toBe('light')
@@ -263,6 +278,53 @@ describe('useColorScheme', () => {
     })
 
     expect(result.current.currentTheme).toBe('dark')
+  })
+
+  it.each([
+    ['a chosen theme', (hook: ReturnType<typeof useColorScheme>) => hook.applyTheme('dark', false)],
+    ['a theme from the profile', (hook: ReturnType<typeof useColorScheme>) => hook.syncThemeFromProfile('dark')],
+    ['first-run detection', (hook: ReturnType<typeof useColorScheme>) => hook.detectAndSaveThemeIfNeeded(null)],
+  ] as const)('crossfades %s after the first paint once, as the mobile provider does', (_source, change) => {
+    paintBootstrapTheme('light')
+    const { result } = renderHook(() => useColorScheme())
+    expect(crossfadeStarts()).toBe(0)
+
+    act(() => change(result.current))
+
+    expect(result.current.currentTheme).toBe('dark')
+    expect(rootClasses.has('dark')).toBe(true)
+    expect(crossfadeStarts()).toBe(1)
+  })
+
+  it('keeps the crossfade window when the store sync applies the theme that is already on screen', () => {
+    vi.useFakeTimers()
+    try {
+      paintBootstrapTheme('light')
+      const { result } = renderHook(() => useColorScheme())
+
+      act(() => result.current.applyTheme('dark', false))
+
+      expect(crossfadeStarts()).toBe(1)
+      act(() => { vi.advanceTimersByTime(motionDurations.theme - 1) })
+      expect(rootClasses.has('theme-transitioning')).toBe(true)
+      act(() => { vi.advanceTimersByTime(1) })
+      expect(rootClasses.has('theme-transitioning')).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it.each([
+    ['a same-theme profile sync', (hook: ReturnType<typeof useColorScheme>) => hook.syncThemeFromProfile('light')],
+    ['a same-theme choice', (hook: ReturnType<typeof useColorScheme>) => hook.applyTheme('light', false)],
+  ] as const)('applies %s without a crossfade', (_source, change) => {
+    paintBootstrapTheme('light')
+    const { result } = renderHook(() => useColorScheme())
+
+    act(() => change(result.current))
+
+    expect(result.current.currentTheme).toBe('light')
+    expect(crossfadeStarts()).toBe(0)
   })
 
   it('syncThemeFromProfile does nothing when themes match', () => {

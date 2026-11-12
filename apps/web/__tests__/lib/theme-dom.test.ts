@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import postcss, { list, type AtRule, type Node, type Rule } from 'postcss'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   neutralColors,
   schemes,
@@ -12,13 +13,28 @@ import {
   applyThemeTokensToDOM,
   canvasColor,
   normalizeColorScheme,
+  resolveWebMotionVariables,
   resolveWebThemeVariables,
   resolveInitialTheme,
 } from '@/lib/theme-dom'
-import { RESPONSIVE_TYPE_BREAKPOINT, responsiveTypeRoles } from '@orbit/shared/theme'
+import {
+  RESPONSIVE_TYPE_BREAKPOINT,
+  motionDurations,
+  motionEasings,
+  responsiveTypeRoles,
+} from '@orbit/shared/theme'
 
 const SCHEMES: ColorScheme[] = ['orange']
 const MODES: ThemeMode[] = ['dark', 'light']
+const stylesheetTree = postcss.parse(readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8'))
+
+function mediaConditions(node: Node): string[] {
+  const conditions: string[] = []
+  for (let parent = node.parent; parent; parent = parent.parent) {
+    if (parent.type === 'atrule' && (parent as AtRule).name === 'media') conditions.push((parent as AtRule).params)
+  }
+  return conditions
+}
 
 function tokenBlock(heading: string): string {
   const design = readFileSync(resolve(process.cwd(), '../../DESIGN.md'), 'utf8')
@@ -40,25 +56,35 @@ function documentedTokens(): string[] {
 
 describe('web theme variables', () => {
   it('publishes both responsive type pairs from the shared contract', () => {
-    const stylesheet = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
-    const boundary = `@media (min-width: ${RESPONSIVE_TYPE_BREAKPOINT / 16}rem)`
-    const wideSection = stylesheet.slice(stylesheet.indexOf(boundary))
     for (const [selector, name] of [
-      ['t-display-heading', 'displayHeading'], ['t-allowance', 'allowance'],
+      ['.t-display-heading', 'displayHeading'], ['.t-allowance', 'allowance'],
     ] as const) {
       const role = responsiveTypeRoles[name]
-      const pattern = new RegExp(`\\.${selector} \\{([^}]+)\\}`)
-      const compact = stylesheet.match(pattern)?.[1]
-      const wide = wideSection.match(pattern)?.[1]
-      expect(compact).toContain(`font-family: var(--font-${role.family});`)
-      expect(compact).toContain(`font-weight: ${role.weight};`)
-      expect(compact).toContain(`letter-spacing: ${role.letterSpacingEm}em;`)
-      expect(compact).toContain('color: var(--fg-1);')
-      expect(compact).toContain(`font-size: ${role.compact.size}px;`)
-      expect(compact).toContain(`line-height: ${role.compact.lineHeight};`)
-      expect(wide).toContain(`font-size: ${role.wide.size}px;`)
-      expect(wide).toContain(`line-height: ${role.wide.lineHeight};`)
-      if ('tabularNums' in role) expect(compact).toContain('font-variant-numeric: tabular-nums;')
+      const pairs: { media: string[]; declarations: Record<string, string> }[] = []
+      stylesheetTree.walkRules((rule) => {
+        if (!rule.selectors.includes(selector)) return
+        const declarations: Record<string, string> = {}
+        rule.walkDecls((declaration) => { declarations[declaration.prop] = declaration.value })
+        pairs.push({ media: mediaConditions(rule), declarations })
+      })
+      expect(pairs, selector).toMatchObject([
+        {
+          media: [],
+          declarations: {
+            'font-family': `var(--font-${role.family})`,
+            'font-weight': `${role.weight}`,
+            'letter-spacing': `${role.letterSpacingEm}em`,
+            color: 'var(--fg-1)',
+            'font-size': `${role.compact.size}px`,
+            'line-height': `${role.compact.lineHeight}`,
+            ...('tabularNums' in role ? { 'font-variant-numeric': 'tabular-nums' } : {}),
+          },
+        },
+        {
+          media: [`(min-width: ${RESPONSIVE_TYPE_BREAKPOINT / 16}rem)`],
+          declarations: { 'font-size': `${role.wide.size}px`, 'line-height': `${role.wide.lineHeight}` },
+        },
+      ])
     }
   })
 
@@ -205,5 +231,107 @@ describe('initial theme resolution', () => {
 
   it.each([undefined, null, '', 'system', 'invalid'])('follows the system for %s', (value) => {
     expect(resolveInitialTheme(value, value)).toBeNull()
+  })
+})
+
+describe('theme crossfade', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+    document.documentElement.className = ''
+    document.documentElement.removeAttribute('style')
+  })
+
+  it('fades over the shared theme tokens only for people who allow motion', () => {
+    const crossfades: { selectors: string[]; media: string[]; property: string; important: boolean | undefined; legs: string[] }[] = []
+    stylesheetTree.walkRules((rule) => {
+      if (!rule.selectors.some((selector) => selector.includes('.theme-transitioning'))) return
+      rule.walkDecls((declaration) => {
+        crossfades.push({
+          selectors: rule.selectors,
+          media: mediaConditions(rule),
+          property: declaration.prop,
+          important: declaration.important,
+          legs: list.comma(declaration.value),
+        })
+      })
+    })
+    expect(crossfades).toEqual([{
+      selectors: ['.theme-transitioning', '.theme-transitioning *'],
+      media: ['(prefers-reduced-motion: no-preference)'],
+      property: 'transition',
+      important: true,
+      legs: [
+        'background-color var(--dur-theme) var(--ease-standard)',
+        'color var(--dur-theme) var(--ease-standard)',
+        'border-color var(--dur-theme) var(--ease-standard)',
+        'box-shadow var(--dur-theme) var(--ease-standard)',
+      ],
+    }])
+  })
+
+  it('projects the theme duration and the standard easing from the shared motion contract', () => {
+    const themeDurations: string[] = []
+    stylesheetTree.walkDecls('--dur-theme', (declaration) => { themeDurations.push(declaration.value) })
+    expect(themeDurations).toEqual([])
+    expect(resolveWebMotionVariables()['--dur-theme']).toBe(`${motionDurations.theme}ms`)
+    for (const mode of MODES) {
+      expect(resolveWebThemeVariables('orange', mode)['--dur-theme']).toBe(`${motionDurations.theme}ms`)
+    }
+    const standardEasings: [string, string][] = []
+    stylesheetTree.walkDecls('--ease-standard', (declaration) => {
+      standardEasings.push([(declaration.parent as Rule).selector, declaration.value])
+    })
+    expect(standardEasings).toEqual([[':root', `cubic-bezier(${motionEasings.standard.join(', ')})`]])
+  })
+
+  it('removes the crossfade class exactly when the fade ends', () => {
+    vi.useFakeTimers()
+    applyThemeTokensToDOM('orange', 'dark')
+    applyThemeTokensToDOM('orange', 'light')
+    const root = document.documentElement
+    expect(root.style.getPropertyValue('--dur-theme')).toBe(`${motionDurations.theme}ms`)
+    expect(root.classList.contains('theme-transitioning')).toBe(true)
+    vi.advanceTimersByTime(motionDurations.theme - 1)
+    expect(root.classList.contains('theme-transitioning')).toBe(true)
+    vi.advanceTimersByTime(1)
+    expect(root.classList.contains('theme-transitioning')).toBe(false)
+  })
+
+  it('restarts the fade window when the theme changes again mid fade', () => {
+    vi.useFakeTimers()
+    applyThemeTokensToDOM('orange', 'dark')
+    applyThemeTokensToDOM('orange', 'light')
+    vi.advanceTimersByTime(motionDurations.theme / 2)
+    applyThemeTokensToDOM('orange', 'dark')
+    vi.advanceTimersByTime(motionDurations.theme - 1)
+    expect(document.documentElement.classList.contains('theme-transitioning')).toBe(true)
+    vi.advanceTimersByTime(1)
+    expect(document.documentElement.classList.contains('theme-transitioning')).toBe(false)
+  })
+
+  it.each([
+    ['no mode class before the first apply', ''],
+    ['the same mode', 'dark scheme-orange'],
+  ])('applies the theme at once when the root shows %s', (_state, className) => {
+    vi.useFakeTimers()
+    document.documentElement.className = className
+
+    applyThemeTokensToDOM('orange', 'dark')
+
+    expect(document.documentElement.classList.contains('dark')).toBe(true)
+    expect(document.documentElement.classList.contains('theme-transitioning')).toBe(false)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('keeps the running fade window when the same mode is applied again mid fade', () => {
+    vi.useFakeTimers()
+    applyThemeTokensToDOM('orange', 'dark')
+    applyThemeTokensToDOM('orange', 'light')
+    vi.advanceTimersByTime(motionDurations.theme / 2)
+    applyThemeTokensToDOM('orange', 'light')
+    vi.advanceTimersByTime(motionDurations.theme / 2 - 1)
+    expect(document.documentElement.classList.contains('theme-transitioning')).toBe(true)
+    vi.advanceTimersByTime(1)
+    expect(document.documentElement.classList.contains('theme-transitioning')).toBe(false)
   })
 })
