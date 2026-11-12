@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { motionDurations } from '@orbit/shared/theme'
 import { applyThemeTokensToDOM, resolveWebThemeVariables } from '@/lib/theme-dom'
 
 import {
@@ -110,6 +111,37 @@ describe('profile presentation helpers', () => {
     const variables = resolveWebThemeVariables('orange', themeMode)
     for (const [property, value] of Object.entries(variables)) {
       expect(document.documentElement.style.getPropertyValue(property)).toBe(value)
+    }
+  })
+
+  it('crossfades the profile theme at sign-in, as the mobile provider does', () => {
+    vi.useFakeTimers()
+    try {
+      applyThemeTokensToDOM('orange', 'dark')
+      expect(document.documentElement).not.toHaveClass('theme-transitioning')
+
+      applyProfilePresentation({ colorScheme: 'orange', themePreference: 'light', language: 'en' })
+
+      expect(document.documentElement).toHaveClass('light', 'theme-transitioning')
+      vi.advanceTimersByTime(motionDurations.theme)
+      expect(document.documentElement).not.toHaveClass('theme-transitioning')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('applies a sign-in theme that matches the screen at once, as the mobile provider does', () => {
+    vi.useFakeTimers()
+    try {
+      applyThemeTokensToDOM('orange', 'dark')
+
+      applyProfilePresentation({ colorScheme: 'orange', themePreference: 'dark', language: 'en' })
+
+      expect(document.documentElement).toHaveClass('dark')
+      expect(document.documentElement).not.toHaveClass('theme-transitioning')
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      vi.useRealTimers()
     }
   })
 
