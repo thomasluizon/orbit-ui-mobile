@@ -43,7 +43,9 @@ export function summarizePendingOperationItem(
   const dateLabel = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? formatLocaleDate(parseAPIDate(date), locale, { dateStyle: 'medium' }) : null
   const time = value('due_time')
   const summary = [cadence.label, intervalLabel, dateLabel, time ? translate('chat.preview.atTime', { time: formatTime(time) }) : null, ...additionalChanges(fields, translate, formatTime, locale, cadence.complete, creating), creating ? createReminderSummary(fields, translate, formatTime) : null].filter(Boolean).join(' · ')
-  return summary || (actionKey && PREVIEW_ACTION_KEYS.includes(actionKey) ? translate(`chat.operation.source.${actionKey}`) : '')
+  /** A habit create does not create the existing habit it reuses, so that habit's row names no action. */
+  const namesAction = actionKey != null && PREVIEW_ACTION_KEYS.includes(actionKey) && (creating || !HABIT_CREATE_ACTION_KEYS.includes(actionKey))
+  return summary || (namesAction ? translate(`chat.operation.source.${actionKey}`) : '')
 }
 
 function summarizeReschedule(fields: readonly PendingOperationChange[], translate: PreviewTranslation, locale: string, today?: string): string | undefined {
@@ -92,9 +94,15 @@ function weekIntervalSummary(value: string | null | undefined, translate: Previe
     ? computeHabitFrequencyLabel({ isGeneral: false, frequencyUnit: 'Week', frequencyQuantity: interval, days: [], isFlexible: false }, (key, values) => translate(key, values as Record<string, string | number>)) : null
 }
 
+/** A create preview sets `oldValue` on `sub_habits` when it groups existing habits; that never means the new parent already exists. */
+export function marksExistingHabit(field: PendingOperationChange): boolean {
+  return field.field === 'habit_id' || (field.oldValue != null && field.field !== 'sub_habits')
+}
+
+export const HABIT_CREATE_ACTION_KEYS: readonly string[] = ['createHabit', 'createHabits', 'createSubHabit']
+
 function isHabitCreate(fields: readonly PendingOperationChange[], actionKey?: string | null): boolean {
-  return ['createHabit', 'createHabits', 'createSubHabit'].includes(actionKey ?? '')
-    && !fields.some((field) => field.field === 'habit_id' || field.oldValue != null)
+  return HABIT_CREATE_ACTION_KEYS.includes(actionKey ?? '') && !fields.some(marksExistingHabit)
 }
 
 function cadenceSummary(fields: readonly PendingOperationChange[], translate: PreviewTranslation, actionKey?: string | null): { label: string | null; complete: boolean } {
@@ -102,8 +110,7 @@ function cadenceSummary(fields: readonly PendingOperationChange[], translate: Pr
   const unit = frequencyUnitSchema.safeParse(value('frequency_unit'))
   if (value('is_general')?.toLowerCase() === 'true') return { label: translate('chat.preview.summary.anytime'), complete: true }
   if (!unit.success) return { label: null, complete: false }
-  const updating = fields.some((field) => field.oldValue != null || field.field === 'habit_id')
-    || ['updateHabit', 'updateHabits'].includes(actionKey ?? '')
+  const updating = fields.some(marksExistingHabit) || ['updateHabit', 'updateHabits'].includes(actionKey ?? '')
   const daysField = fields.find((field) => field.field === 'days')
   const flexible = value('is_flexible')?.toLowerCase()
   const complete = !updating || (value('frequency_quantity') != null

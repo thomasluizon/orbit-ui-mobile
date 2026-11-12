@@ -344,6 +344,84 @@ export function makeNestedHabitPreview(depth: number, reuse: boolean): PendingAg
   })
 }
 
+const REUSED_CHILD_HABIT_ID = '00000000-0000-4000-8000-0000000000a1'
+const NESTED_REUSED_HABIT_ID = '00000000-0000-4000-8000-0000000000a2'
+
+/** The API entry for a reused child in `sub_habits.oldValue`: the stored values of its fields, then its stored `emoji`, or null when it has none. */
+function reusedChildOldValue(title: string, emoji: string | null): Record<string, string | null> {
+  return { title, habit_id: title, parent_habit_id: 'No parent', emoji }
+}
+
+/** Mirrors the API create preview for a new daily parent that groups existing habits: `sub_habits.oldValue` lists the stored values of each proposed child in the same order, and a new draft child's values are null. */
+function makeGroupedCreatePreview(children: readonly Record<string, unknown>[], storedChildren: readonly Record<string, unknown>[]): PendingAgentOperation {
+  const operation = makeCreateHabitsPreview(1)
+  const item = operation.items![0]!
+  const base = { entityId: emptyId, entityName: 'Morning routine', oldValue: null, isEditable: true }
+  const fields = [
+    { ...base, field: 'title', newValue: 'Morning routine', valueType: 'text', proposedValue: 'Morning routine' },
+    { ...base, field: 'frequency_unit', newValue: 'Day', valueType: 'text', proposedValue: 'Day' },
+    { ...base, field: 'frequency_quantity', newValue: '1', valueType: 'number', proposedValue: 1 },
+    { ...base, field: 'is_bad_habit', newValue: 'False', valueType: 'boolean', proposedValue: false },
+    { ...base, field: 'parent_habit_id', newValue: 'No parent', valueType: 'text', proposedValue: null },
+    { ...base, field: 'sub_habits', oldValue: JSON.stringify(storedChildren), newValue: JSON.stringify(children), valueType: 'text', proposedValue: children },
+  ]
+  return pendingAgentOperationSchema.parse({ ...operation, items: [{ ...item, entityName: 'Morning routine', fields }] })
+}
+
+/** `reusedChanges` holds the changes the proposal requests for the reused child, next to its `habit_id` and `title`. */
+export function makeCreateWithReusedChildPreview({ storedEmoji = '🚶', proposedEmoji, reusedChanges = {} }: {
+  storedEmoji?: string | null; proposedEmoji?: string; reusedChanges?: Readonly<Record<string, unknown>>
+} = {}): PendingAgentOperation {
+  return makeGroupedCreatePreview(
+    [{ title: 'Drink a glass of water', emoji: '💧' }, { habit_id: REUSED_CHILD_HABIT_ID, title: 'Morning walk', ...(proposedEmoji ? { emoji: proposedEmoji } : {}), ...reusedChanges }],
+    [{ title: null, emoji: null }, reusedChildOldValue('Morning walk', storedEmoji)],
+  )
+}
+
+/** Mirrors the API bulk create preview that reuses an existing top-level habit while its parent is still a choice: each field carries the habit's stored value as `oldValue`. */
+export function makeReusedHabitParentChoicePreview(): PendingAgentOperation {
+  const operation = makeParentChoicePreview(1)
+  const item = operation.items![0]!
+  const base = { entityId: REUSED_CHILD_HABIT_ID, entityName: 'Morning walk', valueType: 'text', isEditable: true }
+  return pendingAgentOperationSchema.parse({ ...operation, items: [{ ...item, entityId: REUSED_CHILD_HABIT_ID, entityName: 'Morning walk', fields: [
+    { ...base, field: 'title', oldValue: 'Morning walk', newValue: 'Morning walk', proposedValue: 'Morning walk' },
+    { ...base, field: 'habit_id', oldValue: 'Morning walk', newValue: 'Morning walk', proposedValue: REUSED_CHILD_HABIT_ID, isEditable: false },
+    { ...base, field: 'parent_habit_id', oldValue: 'No parent', newValue: 'Post Lunch', proposedValue: 'Post Lunch' },
+  ] }] })
+}
+
+/** The API keeps a deeper reuse at its own depth: the outer entry's `sub_habits` holds the JSON text of the nested old values. */
+function makeCreateWithNestedReusedChildPreview(): PendingAgentOperation {
+  return makeGroupedCreatePreview(
+    [{ title: 'Outdoors', sub_habits: [{ habit_id: NESTED_REUSED_HABIT_ID, title: 'Stretch' }] }, { habit_id: REUSED_CHILD_HABIT_ID, title: 'Morning walk' }],
+    [{ title: null, sub_habits: JSON.stringify([reusedChildOldValue('Stretch', '🧘')]) }, reusedChildOldValue('Morning walk', '🚶')],
+  )
+}
+
+export function withStoredChildren(operation: PendingAgentOperation, oldValue: string | null): PendingAgentOperation {
+  return pendingAgentOperationSchema.parse({ ...operation, items: operation.items!.map((item) => ({ ...item,
+    fields: item.fields.map((field) => field.field === 'sub_habits' ? { ...field, oldValue } : field) })) })
+}
+
+/** Each case lists the expected icon per child row label; `undefined` means the row has no emoji and shows its monogram. */
+export const reusedChildIconCases: readonly { name: string; preview: () => PendingAgentOperation; icons: Readonly<Record<string, string | undefined>> }[] = [
+  { name: 'a stored emoji after a new draft child', preview: () => makeCreateWithReusedChildPreview(), icons: { 'Drink a glass of water': '💧', 'Morning walk': '🚶' } },
+  { name: 'no stored emoji', preview: () => makeCreateWithReusedChildPreview({ storedEmoji: null }), icons: { 'Drink a glass of water': '💧', 'Morning walk': undefined } },
+  { name: 'a proposed emoji over the stored one', preview: () => makeCreateWithReusedChildPreview({ proposedEmoji: '🏃' }), icons: { 'Morning walk': '🏃' } },
+  { name: 'a reused child nested under a new draft child', preview: makeCreateWithNestedReusedChildPreview, icons: { Outdoors: undefined, 'Morning walk': '🚶' } },
+  ...[null, 'not json', '{"emoji":"🚶"}', '[null,"🚶"]'].map((oldValue) => ({
+    name: `the stored list ${oldValue}`, preview: () => withStoredChildren(makeCreateWithReusedChildPreview(), oldValue), icons: { 'Morning walk': undefined },
+  })),
+]
+
+/** The API binds reuse per habit in a bulk create, so each `grouped` entry says whether that habit groups an existing habit. */
+export function makeReuseCreateBatchPreview(grouped: readonly boolean[], changeTargetCount = grouped.length): PendingAgentOperation {
+  const groupedItem = makeCreateWithReusedChildPreview().items![0]!
+  const operation = makeCreateHabitsPreview(grouped.length)
+  return pendingAgentOperationSchema.parse({ ...operation, changeTargetCount, items: operation.items!.map((item, index) => grouped[index]
+    ? { ...groupedItem, itemId: item.itemId, stateFingerprint: item.stateFingerprint } : item) })
+}
+
 export const childSchedulePreviewCases = [
   { name: 'weekday', child: { title: 'Tuesday child', frequency_unit: 'Day', frequency_quantity: 1, days: ['Tuesday'], is_flexible: false }, english: 'Tue', portuguese: 'Ter' },
   { name: 'one-time date', child: { title: 'Dated child', frequency_unit: 'OneTime', due_date: '2026-10-25', due_time: '21:30' }, english: 'Oct 25, 2026 · 21:30', portuguese: '25 de out. de 2026 · 21:30' },
