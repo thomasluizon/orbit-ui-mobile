@@ -29,7 +29,7 @@ export function HabitCheck({ status, label, unavailable = false, feedback = fals
         backgroundColor: tokens.bgWell, borderWidth: 0 }} />
   )
   const ratio = habitCheckProgress(progress)
-  const done = status !== 'bad' && (progress ? ratio === 1 : status === 'done')
+  const done = status === 'done' || (status !== 'bad' && progress !== undefined && ratio === 1)
   const emptyFill = feedback ? tokens.bgHover : 'transparent'
   const { graphic: color } = progress ? { graphic: tokens.trackEmpty } : {
     empty: { graphic: tokens.statusEmpty }, done: { graphic: tokens.fg1 }, overdue: { graphic: tokens.statusOverdue }, bad: { graphic: tokens.statusBad },

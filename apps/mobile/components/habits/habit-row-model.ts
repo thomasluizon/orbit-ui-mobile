@@ -1,4 +1,4 @@
-import { computeHabitFutureHint, getHabitChecklistProgress, getHabitRowTypeLabelKey, type HabitCardTranslationAdapter } from '@orbit/shared/utils'
+import { computeHabitRowNextDueHint, getHabitChecklistProgress, getHabitRowTypeLabelKey, type HabitCardTranslationAdapter } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import type { HabitRowMetaPart } from './habit-row-content'
@@ -17,6 +17,8 @@ export function resolveHabitRowDotState(
 
 interface BuildHabitRowMetaPartsParams {
   habit: NormalizedHabit
+  /** Whether the current view renders sub-habits under the row. */
+  hasChildren: boolean
   childProgress?: { done: number; total: number }
   isOverdue: boolean
   selectedDateStr: string
@@ -29,6 +31,7 @@ interface BuildHabitRowMetaPartsParams {
 /** Parent completion or single-row timing and status metadata. */
 export function buildHabitRowMetaParts({
   habit,
+  hasChildren,
   childProgress,
   isOverdue,
   selectedDateStr,
@@ -48,10 +51,8 @@ export function buildHabitRowMetaParts({
   if (habit.isBadHabit && (habit.isCompleted || habit.isLoggedInRange)) {
     metaParts.push({ kind: 'bad' })
   }
-  if (!habit.isCompleted && selectedDateStr === todayStr) {
-    const futureHint = computeHabitFutureHint(habit, todayStr, t, locale)
-    if (futureHint) metaParts.push({ kind: 'future', label: futureHint })
-  }
+  const nextDueHint = computeHabitRowNextDueHint(habit, { selectedDate: selectedDateStr, today: todayStr, hasChildren }, t, locale)
+  if (nextDueHint) metaParts.push({ kind: 'future', label: nextDueHint })
   const checklist = getHabitChecklistProgress(habit)
   if (checklist) metaParts.push({ kind: 'checklist', ...checklist, label: `${t('habits.form.checklist')}, ${t('habits.rowProgress', checklist)}` })
   return metaParts
@@ -60,10 +61,7 @@ export function buildHabitRowMetaParts({
 interface BuildHabitRowAccessibilityLabelParams {
   title: string
   dotState?: HabitStatus
-  metaParts?: HabitRowMetaPart[]
-  linkedGoal: boolean
-  showStreak: boolean
-  streak: number
+  metaParts: HabitRowMetaPart[]
   t: HabitCardTranslationAdapter
 }
 
@@ -71,10 +69,7 @@ interface BuildHabitRowAccessibilityLabelParams {
 export function buildHabitRowAccessibilityLabel({
   title,
   dotState,
-  metaParts = [],
-  linkedGoal,
-  showStreak,
-  streak,
+  metaParts,
   t,
 }: BuildHabitRowAccessibilityLabelParams): string {
   const type = metaParts.find((part) => typeof part !== 'string' && part.kind === 'type')
@@ -88,8 +83,6 @@ export function buildHabitRowAccessibilityLabel({
     else if (part.kind === 'overdue' && dotState !== 'overdue') parts.push(t('habits.overdue'))
     else if (part.kind === 'bad' && dotState !== 'bad') parts.push(t('habits.statusDot.bad'))
   }
-  if (linkedGoal) parts.push(t('habits.detail.linkedGoal'))
-  if (showStreak) parts.push(`🔥 ${streak}`)
   return parts.join(', ')
 }
 
