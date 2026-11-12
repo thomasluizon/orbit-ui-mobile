@@ -6,7 +6,8 @@ import { fileURLToPath, URL } from 'node:url'
 import { parse } from 'yaml'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createRequire } from 'node:module'
-import { declaredStepEnvironment, deploymentRecord as record, writeGitHubStub } from '../support/release-step-environment'
+import { declaredStepEnvironment, deploymentRecord as record, readStubWrites, writeGitHubStub } from '../support/release-step-environment'
+import type { StubDeployments } from '../support/release-step-environment'
 
 const require = createRequire(import.meta.url)
 const script = fileURLToPath(new URL('../../scripts/mobile-version-pair.js', import.meta.url))
@@ -115,38 +116,106 @@ describe('shared release plan', () => {
 })
 
 describe('iOS deployment record', () => {
-  it('creates the deployment and marks it successful', () => {
-    const calls: { path: string; payload: Record<string, unknown> }[] = []
-    const run = (path: string, payload: Record<string, unknown>) => {
-      calls.push({ path, payload })
-      return { id: 77 }
+  const upload = {
+    environment: 'production', appVersion: '1.3.153', buildNumber: '2', variant: 'production', sha,
+    platformOnlyReason: ' ', repository: 'owner/repository', logUrl: 'https://example.invalid/run',
+  }
+  const recorded = { id: 41, payload: { app_version: '1.3.153', ios_build_number: '2', variant: 'production' } }
+  const otherBuild = { id: 40, payload: { ...recorded.payload, ios_build_number: '1' } }
+
+  /**
+   * A GitHub double that keeps each created deployment, as the real list does.
+   * `failAt` fails a call before it takes effect. `loseResponseAt` applies the call, then fails it.
+   * Both hold positions in the order of all calls, from 0.
+   */
+  function fakeGitHub(options: { existing?: unknown; created?: unknown; failAt?: number[]; loseResponseAt?: number[] } = {}) {
+    const calls: { kind: 'read' | 'create' | 'status'; path: string; payload?: Record<string, unknown> }[] = []
+    const pauses: number[] = []
+    let stored = options.existing ?? []
+    const settle = (effect: () => unknown) => {
+      const position = calls.length - 1
+      if (options.failAt?.includes(position)) throw new Error('gh: Bad Gateway (HTTP 502)')
+      const result = effect()
+      if (options.loseResponseAt?.includes(position)) throw new Error('gh: connection reset')
+      return result
     }
-    const id = pair.recordIosDeployment({
-      environment: 'production', appVersion: '1.3.153', buildNumber: '2', variant: 'production', sha,
-      platformOnlyReason: ' ', repository: 'owner/repository', logUrl: 'https://example.invalid/run', run,
-    })
-    expect(id).toBe(77)
-    expect(calls.map((call) => call.path)).toEqual(['repos/owner/repository/deployments', 'repos/owner/repository/deployments/77/statuses'])
-    expect(calls[0]!.payload).toMatchObject({ task: 'ios-release', environment: 'production', ref: sha, required_contexts: [] })
-    expect(calls[0]!.payload.payload).toEqual({ app_version: '1.3.153', ios_build_number: '2', variant: 'production' })
-    expect(calls[1]!.payload).toMatchObject({ state: 'success' })
+    const github = {
+      read: (path: string) => { calls.push({ kind: 'read', path }); return settle(() => stored) },
+      write: (path: string, payload: Record<string, unknown>) => {
+        const kind = path.endsWith('/statuses') ? 'status' : 'create'
+        calls.push({ kind, path, payload })
+        return settle(() => {
+          if (kind === 'status') return { id: 1 }
+          const created = options.created ?? { id: 77, payload: payload.payload }
+          if (Array.isArray(stored)) stored = [...stored, created]
+          return created
+        })
+      },
+    }
+    return {
+      calls, pauses, kinds: () => calls.map((call) => call.kind),
+      input: { ...upload, github, pause: (milliseconds: number) => { pauses.push(milliseconds) } },
+    }
+  }
+
+  it('looks for the record of this upload on the commit, then creates it and marks it successful', () => {
+    const fake = fakeGitHub()
+    expect(pair.recordIosDeployment(fake.input)).toBe(77)
+    expect(fake.calls.map((call) => call.path)).toEqual([
+      `repos/owner/repository/deployments?sha=${sha}&task=ios-release&environment=production&per_page=100`,
+      'repos/owner/repository/deployments',
+      'repos/owner/repository/deployments/77/statuses',
+    ])
+    expect(fake.calls[1]!.payload).toMatchObject({ task: 'ios-release', environment: 'production', ref: sha, required_contexts: [] })
+    expect(fake.calls[1]!.payload!.payload).toEqual({ app_version: '1.3.153', ios_build_number: '2', variant: 'production' })
+    expect(fake.calls[2]!.payload).toMatchObject({ state: 'success' })
+    expect(fake.pauses).toEqual([])
   })
 
   it('keeps the platform-only reason in the record', () => {
-    const calls: Record<string, unknown>[] = []
-    pair.recordIosDeployment({
-      environment: 'staging', appVersion: '1.3.155', buildNumber: '3', variant: 'staging', sha, platformOnlyReason: 'iOS widget defect',
-      repository: 'owner/repository', logUrl: 'https://example.invalid/run',
-      run: (_path: string, payload: Record<string, unknown>) => { calls.push(payload); return { id: 1 } },
-    })
-    expect(calls[0]!.payload).toMatchObject({ platform_only_reason: 'iOS widget defect' })
+    const fake = fakeGitHub()
+    pair.recordIosDeployment({ ...fake.input, environment: 'staging', variant: 'staging', platformOnlyReason: 'iOS widget defect' })
+    expect(fake.calls[1]!.payload!.payload).toMatchObject({ variant: 'staging', platform_only_reason: 'iOS widget defect' })
+  })
+
+  it('reuses the record of the same upload, so a rerun does not record twice', () => {
+    const fake = fakeGitHub({ existing: [otherBuild, recorded] })
+    expect(pair.recordIosDeployment(fake.input)).toBe(41)
+    expect(fake.kinds()).toEqual(['read', 'status'])
+    expect(fake.calls[1]!.path).toBe('repos/owner/repository/deployments/41/statuses')
+  })
+
+  it('creates a record when the commit holds only another build number', () => {
+    const fake = fakeGitHub({ existing: [otherBuild] })
+    expect(pair.recordIosDeployment(fake.input)).toBe(77)
+    expect(fake.kinds()).toEqual(['read', 'create', 'status'])
+  })
+
+  it.each([
+    ['the lookup fails', { failAt: [0] }, ['read', 'read', 'create', 'status']],
+    ['the creation fails', { failAt: [1] }, ['read', 'create', 'read', 'create', 'status']],
+    ['the creation response is lost', { loseResponseAt: [1] }, ['read', 'create', 'read', 'status']],
+    ['the status fails', { failAt: [2] }, ['read', 'create', 'status', 'read', 'status']],
+  ])('repeats the record once when %s, and creates one deployment', (_name, failure, kinds) => {
+    const fake = fakeGitHub(failure)
+    expect(pair.recordIosDeployment(fake.input)).toBe(77)
+    expect(fake.kinds()).toEqual(kinds)
+    expect(fake.pauses).toEqual([2000])
+  })
+
+  it('stops after three failed attempts and raises the last error', () => {
+    const fake = fakeGitHub({ failAt: [0, 1, 2] })
+    expect(() => pair.recordIosDeployment(fake.input)).toThrow('HTTP 502')
+    expect(fake.kinds()).toEqual(['read', 'read', 'read'])
+    expect(fake.pauses).toEqual([2000, 4000])
   })
 
   it('stops when GitHub returns no numeric id', () => {
-    expect(() => pair.recordIosDeployment({
-      environment: 'production', appVersion: '1.3.153', buildNumber: '2', variant: 'production', sha, repository: 'owner/repository', logUrl: '',
-      run: () => ({}),
-    })).toThrow('numeric id')
+    expect(() => pair.recordIosDeployment(fakeGitHub({ created: {} }).input)).toThrow('numeric id')
+  })
+
+  it('fails closed on a lookup response that is not a list', () => {
+    expect(() => pair.recordIosDeployment(fakeGitHub({ existing: {} }).input)).toThrow('unexpected deployments response')
   })
 })
 
@@ -156,7 +225,7 @@ describe('command line', () => {
     for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true })
   })
 
-  function run(args: string[], deployments: Parameters<typeof writeGitHubStub>[1], reason = '') {
+  function run(args: string[], deployments: StubDeployments, reason = '') {
     const directory = mkdtempSync(join(tmpdir(), 'mobile-version-pair-'))
     directories.push(directory)
     writeGitHubStub(directory, deployments)
@@ -168,36 +237,59 @@ describe('command line', () => {
     return { ...result, summary: (() => { try { return readFileSync(summary, 'utf8') } catch { return '' } })() }
   }
 
-  const iosAt153 = ['check', '--platform', 'ios', '--environment', 'production', '--app-version', '1.3.153']
+  const iosAt153 = (environment: string) => ['check', '--platform', 'ios', '--environment', environment, '--app-version', '1.3.153']
+  const stagingBehind: StubDeployments = {
+    production: { android: [record('1.3.152'), record('1.3.153')], ios: [record('1.3.152', 'ios-release')] },
+    staging: { android: [record('1.3.139')], ios: [] },
+  }
 
   it('allows iOS at the newest Android version', () => {
-    const result = run(iosAt153, { android: [record('1.3.152'), record('1.3.153')], ios: [record('1.3.152', 'ios-release')] })
+    const result = run(iosAt153('production'), stagingBehind)
     expect(result.status).toBe(0)
     expect(result.summary).toContain('allowed')
+    expect(result.summary).toContain('| Environment | `production` |')
   })
 
   it('refuses iOS at a version Android does not carry', () => {
-    const result = run(iosAt153, { android: [record('1.3.152')], ios: [record('1.3.152', 'ios-release')] })
+    const result = run(iosAt153('production'), { production: { android: [record('1.3.152')], ios: [record('1.3.152', 'ios-release')] } })
     expect(result.status).toBe(1)
     expect(result.stderr).toContain('differs from the newest Android version 1.3.152')
     expect(result.summary).toContain('refused')
   })
 
+  it('reads only the records of the named environment, and a refusal names that environment and the pairs', () => {
+    const result = run(iosAt153('staging'), stagingBehind)
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('differs from the newest Android version 1.3.139')
+    expect(result.stderr).toContain('The check read the staging environment.')
+    expect(result.stderr).toContain('Android open and production pair with iOS production. Android internal pairs with iOS staging.')
+    expect(result.summary).toContain('| Environment | `staging` |')
+  })
+
   it('allows the mismatch with a platform-only reason and records it in the summary', () => {
-    const result = run(iosAt153, { android: [record('1.3.152')], ios: [] }, 'iOS only crash')
+    const result = run(iosAt153('production'), { production: { android: [record('1.3.152')], ios: [] } }, 'iOS only crash')
     expect(result.status).toBe(0)
     expect(result.summary).toContain('`true`')
     expect(result.stdout).toContain('iOS only crash')
   })
 
-  it('prints the plan as JSON', () => {
-    const result = run(['plan', '--environment', 'production'], { android: [record('1.3.153')], ios: [record('1.3.152', 'ios-release')] })
+  it.each([
+    ['production', { android: '1.3.153', ios: '1.3.152', laggingPlatform: 'ios', nextVersion: '1.3.154' }],
+    ['staging', { android: '1.3.139', ios: null, laggingPlatform: 'ios', nextVersion: '1.3.140' }],
+  ] as const)('prints the %s plan as JSON', (environment, plan) => {
+    const result = run(['plan', '--environment', environment], stagingBehind)
     expect(result.status).toBe(0)
-    expect(JSON.parse(result.stdout)).toMatchObject({ laggingPlatform: 'ios', nextVersion: '1.3.154' })
+    expect(JSON.parse(result.stdout)).toMatchObject({ environment, ...plan })
+  })
+
+  it('records an iOS upload through gh and prints the deployment', () => {
+    const result = run(['record-ios', '--environment', 'staging', '--variant', 'staging', '--app-version', '1.3.153', '--build-number', '5', '--sha', sha], stagingBehind)
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('iOS deployment 77: staging, 1.3.153 (5)')
   })
 
   it('fails closed when GitHub cannot be read', () => {
-    const result = spawnSync(process.execPath, [script, ...iosAt153], {
+    const result = spawnSync(process.execPath, [script, ...iosAt153('production')], {
       encoding: 'utf8', env: { ...process.env, PATH: '/nonexistent', GITHUB_REPOSITORY: 'owner/repository' },
     })
     expect(result.status).toBe(1)
@@ -213,14 +305,35 @@ describe('command line', () => {
 describe('release workflows', () => {
   interface Step { name?: string; run?: string; uses?: string; env?: Record<string, string> }
   interface Workflow {
-    on: { workflow_dispatch: { inputs: Record<string, { required?: boolean; type: string }> } }
+    on: { workflow_dispatch: { inputs: Record<string, { required?: boolean; type: string; default?: string }> } }
     permissions: Record<string, string>
-    jobs: Record<string, { steps: Step[] }>
+    jobs: Record<string, { needs?: string; 'runs-on': string; permissions?: Record<string, string>; steps: Step[] }>
   }
   const read = (name: string) => parse(readFileSync(resolve(`../../.github/workflows/${name}.yml`), 'utf8')) as Workflow
   const android = read('android-release')
   const ios = read('ios-release')
   const index = (steps: Step[], predicate: (step: Step) => boolean) => steps.findIndex(predicate)
+  const ahead = '1.3.160'
+
+  /** Runs one workflow step in a directory that holds the script and a stub `gh`, with only the declared environment. */
+  function runStep(step: Step, deployments: StubDeployments, values: Record<string, string>, runner: Record<string, string> = {}) {
+    const directory = mkdtempSync(join(tmpdir(), 'orbit-release-step-'))
+    try {
+      mkdirSync(join(directory, 'apps/mobile/scripts'), { recursive: true })
+      copyFileSync(script, join(directory, 'apps/mobile/scripts/mobile-version-pair.js'))
+      writeGitHubStub(directory, deployments)
+      const result = spawnSync('/bin/bash', ['-c', step.run!], {
+        cwd: directory, encoding: 'utf8',
+        env: {
+          PATH: `${directory}:${process.env.PATH ?? ''}`, NODE_ENV: 'test', GITHUB_REPOSITORY: 'owner/repository', ...runner,
+          ...declaredStepEnvironment(step, values),
+        },
+      })
+      return { ...result, writes: readStubWrites(directory) }
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  }
 
   it.each([['android-release', android], ['ios-release', ios]] as const)('%s accepts an optional platform-only reason', (_name, workflow) => {
     expect(workflow.on.workflow_dispatch.inputs.platform_only_reason).toMatchObject({ type: 'string', required: false })
@@ -242,49 +355,64 @@ describe('release workflows', () => {
     expect(validate.indexOf('mobile-version-pair.js check')).toBeLessThan(validate.indexOf('set-app-version.js'))
   })
 
-  it('records the iOS upload only after the upload step', () => {
-    const steps = ios.jobs.release!.steps
-    expect(ios.permissions.deployments).toBe('write')
-    const upload = index(steps, (step) => step.name === 'Upload to TestFlight with the App Store Connect API key')
-    const recorded = index(steps, (step) => step.name === 'Record the iOS upload')
-    expect(recorded).toBe(upload + 1)
-    expect(steps[recorded]!.run).toContain('mobile-version-pair.js record-ios')
+  it('defaults the iOS variant to production, the pair of the default Android open track', () => {
+    expect(ios.on.workflow_dispatch.inputs.variant).toMatchObject({ type: 'choice', default: 'production' })
   })
 
-  const runAndroidGuard = (options: { track: string; androidVersion: string; iosVersion: string | null; platformOnlyReason?: string }) => {
+  it('records the iOS upload in a job of its own, so a rerun of the record never uploads again', () => {
+    const record = ios.jobs['record-upload']!
+    expect(record.needs).toBe('release')
+    expect(record['runs-on']).toBe('ubuntu-latest')
+    expect(record.permissions).toEqual({ contents: 'read', deployments: 'write' })
+    expect(record.steps.map((step) => step.run ?? '').join('\n')).toContain('mobile-version-pair.js record-ios')
+    expect(ios.jobs.release!.steps.map((step) => step.run ?? '').join('\n')).not.toContain('record-ios')
+  })
+
+  it('gives write access to deployments only to the record job, and keeps the tester job independent of it', () => {
+    expect(ios.permissions).toEqual({ contents: 'read' })
+    expect(ios.jobs.release!.permissions).toEqual({ contents: 'read', deployments: 'read' })
+    expect(ios.jobs['testflight-access']!.permissions).toBeUndefined()
+    expect(ios.jobs['testflight-access']!.needs).toBe('release')
+  })
+
+  it.each(['staging', 'production'] as const)('records a %s upload in the environment of the same name', (variant) => {
+    const step = ios.jobs['record-upload']!.steps.find((candidate) => candidate.name === 'Record the iOS upload')!
+    const result = runStep(step, { [variant]: { android: [record('1.3.153')], ios: [] } }, {
+      GH_TOKEN: 'test-token', ORBIT_APP_VARIANT: variant, APP_VERSION: '1.3.153', IOS_BUILD_NUMBER: '7', PLATFORM_ONLY_REASON: '',
+    }, { GITHUB_SHA: 'b'.repeat(40), GITHUB_RUN_ID: '1' })
+    expect(result.stderr).toBe('')
+    expect(result.status).toBe(0)
+    const [created, status] = result.writes
+    expect(created).toMatchObject({
+      path: 'repos/owner/repository/deployments',
+      payload: { environment: variant, task: 'ios-release', ref: 'b'.repeat(40), payload: { app_version: '1.3.153', ios_build_number: '7', variant } },
+    })
+    expect(status).toMatchObject({ path: 'repos/owner/repository/deployments/77/statuses', payload: { state: 'success' } })
+  })
+
+  const runAndroidGuard = (options: { track: string; androidVersion: string; productionIos: string | null; stagingIos: string | null; platformOnlyReason?: string }) => {
     const step = android.jobs['release-android']!.steps.find((candidate) => candidate.name === 'Require one mobile version')!
-    const directory = mkdtempSync(join(tmpdir(), 'orbit-android-guard-'))
-    try {
-      mkdirSync(join(directory, 'apps/mobile/scripts'), { recursive: true })
-      copyFileSync(script, join(directory, 'apps/mobile/scripts/mobile-version-pair.js'))
-      writeGitHubStub(directory, {
-        android: [record('1.3.152')],
-        ios: options.iosVersion ? [record(options.iosVersion, 'ios-release')] : [],
-      })
-      return spawnSync('/bin/bash', ['-c', step.run!], {
-        cwd: directory, encoding: 'utf8',
-        env: {
-          PATH: `${directory}:${process.env.PATH ?? ''}`, NODE_ENV: 'test', GITHUB_REPOSITORY: 'owner/repository',
-          ...declaredStepEnvironment(step, {
-            GH_TOKEN: 'test-token', APP_VERSION: options.androidVersion,
-            PLATFORM_ONLY_REASON: options.platformOnlyReason ?? '', RELEASE_TRACK: options.track,
-          }),
-        },
-      })
-    } finally {
-      rmSync(directory, { recursive: true, force: true })
-    }
+    const iosRecords = (version: string | null) => (version ? [record(version, 'ios-release')] : [])
+    return runStep(step, {
+      production: { android: [record('1.3.152')], ios: iosRecords(options.productionIos) },
+      staging: { android: [record('1.3.139')], ios: iosRecords(options.stagingIos) },
+    }, {
+      GH_TOKEN: 'test-token', APP_VERSION: options.androidVersion,
+      PLATFORM_ONLY_REASON: options.platformOnlyReason ?? '', RELEASE_TRACK: options.track,
+    })
   }
 
   it.each([
-    ['open', '1.3.153', '1.3.152', '', 0, 'keeps both platforms on one version'],
-    ['internal', '1.3.153', '1.3.152', '', 0, 'keeps both platforms on one version'],
-    ['open', '1.3.152', '1.3.153', '', 1, 'older than the newest iOS version 1.3.153'],
-    ['open', '1.3.152', '1.3.153', 'Android only crash', 0, 'Android only crash'],
-  ] as const)('runs the Android guard on the %s track at %s against iOS %s with reason "%s"', (track, androidVersion, iosVersion, platformOnlyReason, status, output) => {
-    const result = runAndroidGuard({ track, androidVersion, iosVersion, platformOnlyReason })
-    expect(result.status).toBe(status)
+    ['open', '1.3.153', '1.3.152', ahead, '', 0, 'keeps both platforms on one version'],
+    ['production', '1.3.153', '1.3.152', ahead, '', 0, 'keeps both platforms on one version'],
+    ['internal', '1.3.140', ahead, '1.3.140', '', 0, 'keeps both platforms on one version'],
+    ['open', '1.3.152', '1.3.153', null, '', 1, 'older than the newest iOS version 1.3.153'],
+    ['internal', '1.3.139', null, '1.3.140', '', 1, 'older than the newest iOS version 1.3.140'],
+    ['open', '1.3.152', '1.3.153', null, 'Android only crash', 0, 'Android only crash'],
+  ] as const)('runs the Android guard on the %s track at %s against production iOS %s and staging iOS %s with reason "%s"', (track, androidVersion, productionIos, stagingIos, platformOnlyReason, status, output) => {
+    const result = runAndroidGuard({ track, androidVersion, productionIos, stagingIos, platformOnlyReason })
     expect(result.stdout + result.stderr).toContain(output)
+    expect(result.status).toBe(status)
   })
 
   it('keeps the Android run title format the release skills parse', () => {

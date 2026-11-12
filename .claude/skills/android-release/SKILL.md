@@ -43,6 +43,18 @@ It refuses an Android version below the newest iOS version, unless a reason is p
 newest versions, the lagging platform and the next shared version. Run it with `GITHUB_REPOSITORY` and
 `GH_TOKEN` set. A refusal is a stop: do not retry it with a made-up reason.
 
+Each GitHub environment keeps its own records, and the check reads only one environment. The Android
+track selects that environment, and the iOS `variant` must select the same one:
+
+| Android `track` | GitHub environment | iOS `variant` |
+|---|---|---|
+| `open`, `production` | `production` | `production` |
+| `internal` | `staging` | `staging` |
+
+An iOS `staging` build follows an Android `internal` build at the same version. An iOS `production` build
+follows an Android `open` or `production` build at the same version. The other variant reads the other
+environment, and the check refuses the version when that environment holds a different Android version.
+
 ## The workflow's inputs (from the workflow file, not memory)
 
 | Input | Required | Values |
@@ -102,9 +114,13 @@ gh run list --workflow android-release.yml --limit 5 \
 
 Parse the newest title with `Android Release (\S+) \((\d+)\) to (\S+) on`. From it:
 
-- `app_version` -> run `mobile-version-pair.js plan` and use its `nextVersion`: the newest of the Android and iOS
-  versions, with the **last numeric segment bumped by one** (`1.3.26` -> `1.3.27`). When the plan names `android` as
-  the lagging platform, use the iOS version itself. For an Android-only release, bump the newest Android version.
+- `app_version` -> run `mobile-version-pair.js plan --environment production` for the `open` and `production`
+  tracks, and use its `nextVersion`: the newest of the Android and iOS versions, with the **last numeric segment
+  bumped by one** (`1.3.26` -> `1.3.27`). When the plan names `android` as the lagging platform, use the iOS
+  version itself. For an Android-only release, bump the newest Android version.
+  For the `internal` track, run the plan with `--environment staging` and use its `nextVersion`. The check
+  also accepts a higher version, so a staging build of code that did not ship yet can use the `nextVersion`
+  of the production plan when that version is higher.
 - `android_version_code` -> previous integer plus one (`85` -> `86`).
 - `track` -> **`open`** by default, regardless of the previous run's track.
 
@@ -326,9 +342,16 @@ gh run watch <databaseId>
 
 ## Step 5 - Release iOS at the same version
 
-Unless `--android-only` was given, run `/ios-release` for the same `main` commit and the same `app_version`
-after the Android upload succeeds. The iOS workflow refuses any other version. Confirm the iOS build number with
-the owner as that skill states.
+Unless `--android-only` was given, run `/ios-release` after the Android upload succeeds. Use the same commit
+(a `main` commit for `open` and `production`) and the same `app_version`. Dispatch the iOS `variant` of the
+Android track's environment:
+
+- Android `open` or `production` -> `variant=production` (this is the default path).
+- Android `internal` -> `variant=staging`.
+
+The iOS workflow refuses any other version. The other variant reads the other environment's Android
+records, so the workflow refuses it too when those records hold a different version. Confirm the iOS build
+number with the owner as that skill states.
 
 ## Report
 

@@ -155,7 +155,7 @@ describe('iOS build and release boundaries', () => {
     }
   })
 
-  const validateRelease = (options: { variant: string; ref: string; androidVersion: string | null; platformOnlyReason?: string }) => {
+  const validateRelease = (options: { variant: 'staging' | 'production'; ref: string; androidVersion: string | null; platformOnlyReason?: string }) => {
     const workflow = readWorkflow<'release'>('ios-release')
     const step = workflow.jobs.release.steps.find((candidate) => candidate.name === 'Validate the release configuration')!
     expect(step.run).toBeTypeOf('string')
@@ -164,7 +164,10 @@ describe('iOS build and release boundaries', () => {
     mkdirSync(join(appDirectory, 'scripts'), { recursive: true })
     copyFileSync(resolve('app.json'), join(appDirectory, 'app.json'))
     for (const script of ['set-app-version.js', 'mobile-version-pair.js']) copyFileSync(resolve('scripts', script), join(appDirectory, 'scripts', script))
-    writeGitHubStub(directory, { android: options.androidVersion ? [deploymentRecord(options.androidVersion)] : [], ios: [] })
+    writeGitHubStub(directory, {
+      [options.variant]: { android: options.androidVersion ? [deploymentRecord(options.androidVersion)] : [], ios: [] },
+      [options.variant === 'staging' ? 'production' : 'staging']: { android: [deploymentRecord('1.0.0')], ios: [] },
+    })
     const run = () => execFileSync('/bin/bash', ['-c', step.run!], {
       cwd: directory, stdio: 'pipe',
       env: {
@@ -203,11 +206,12 @@ describe('iOS build and release boundaries', () => {
   })
 
   it.each([
-    ['refuses a version that differs from the newest Android version', '1.9.0', '', 'differs from the newest Android version 1.9.0'],
-    ['refuses when Android has no release to mirror', null, '', 'No Android release exists to mirror'],
-    ['allows the mismatch with a platform-only reason', '1.9.0', 'iOS only crash', null],
-  ] as const)('%s before it writes the version', (_name, androidVersion, platformOnlyReason, refusal) => {
-    const release = validateRelease({ variant: 'staging', ref: 'refs/heads/main', androidVersion, platformOnlyReason })
+    ['refuses a staging version that differs from the newest Android internal version', 'staging', '1.9.0', '', 'differs from the newest Android version 1.9.0'],
+    ['refuses a production version that differs from the newest Android open version', 'production', '1.9.0', '', 'differs from the newest Android version 1.9.0'],
+    ['refuses when Android has no release to mirror in that environment', 'staging', null, '', 'No Android release exists to mirror'],
+    ['allows the mismatch with a platform-only reason', 'staging', '1.9.0', 'iOS only crash', null],
+  ] as const)('%s before it writes the version', (_name, variant, androidVersion, platformOnlyReason, refusal) => {
+    const release = validateRelease({ variant, ref: 'refs/heads/main', androidVersion, platformOnlyReason })
     try {
       if (refusal === null) {
         expect(release.run).not.toThrow()

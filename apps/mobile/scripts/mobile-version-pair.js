@@ -1,6 +1,8 @@
 const { execFileSync } = require("node:child_process");
 const fs = require("node:fs");
 
+const PAIRING = "Android open and production pair with iOS production. Android internal pairs with iOS staging.";
+
 const USAGE = `Usage: node scripts/mobile-version-pair.js <command> [options]
 
 Keeps the Android and iOS user-facing versions on one number.
@@ -16,6 +18,10 @@ Commands:
   record-ios --environment <staging|production> --app-version <x.y.z> --build-number <n>
         --variant <staging|production> --sha <commit> [--platform-only-reason <text>]
       Record one iOS upload as a GitHub Deployment so the Android check can read it.
+      Reuses the record of the same upload and makes 3 attempts, so a rerun never records twice.
+
+Each environment keeps its own records.
+${PAIRING}
 
 --help, -h  print this usage and exit 0
 exit codes: 0 success; 1 refused or read error; 2 invalid arguments`;
@@ -25,6 +31,7 @@ const TASKS = { android: "android-release", ios: "ios-release" };
 const ENVIRONMENTS = ["staging", "production"];
 const PLATFORMS = ["android", "ios"];
 const DEPLOYMENT_PAGE_SIZE = 100;
+const RECORD_ATTEMPTS = 3;
 
 function parseVersion(value) {
   const match = typeof value === "string" ? VERSION_PATTERN.exec(value) : null;
@@ -93,15 +100,15 @@ function readGitHub(path) {
   return JSON.parse(execFileSync("gh", ["api", path], { encoding: "utf8", timeout: 30_000, maxBuffer: 4 * 1024 * 1024 }));
 }
 
-function readNewestVersion({ platform, environment, repository, read = readGitHub }) {
+function readNewestVersion({ platform, environment, repository }) {
   const path = `repos/${repository}/deployments?task=${TASKS[platform]}&environment=${environment}&per_page=${DEPLOYMENT_PAGE_SIZE}`;
-  return newestVersion(read(path));
+  return newestVersion(readGitHub(path));
 }
 
-function readBothNewest({ environment, repository, read }) {
+function readBothNewest({ environment, repository }) {
   return {
-    android: readNewestVersion({ platform: "android", environment, repository, read }),
-    ios: readNewestVersion({ platform: "ios", environment, repository, read }),
+    android: readNewestVersion({ platform: "android", environment, repository }),
+    ios: readNewestVersion({ platform: "ios", environment, repository }),
   };
 }
 
@@ -115,23 +122,48 @@ function planVersions(newest) {
   return { android, ios, inStep, laggingPlatform, nextVersion: highest === null ? null : bumpPatch(highest) };
 }
 
-function recordIosDeployment({ environment, appVersion, buildNumber, variant, sha, platformOnlyReason, repository, logUrl, run = runGitHubWrite }) {
+/**
+ * Record one iOS upload. Each attempt first looks for the record of this exact upload on the commit,
+ * so a lost creation response or a rerun reuses that record. A failed attempt repeats after a pause.
+ */
+function recordIosDeployment({ environment, appVersion, buildNumber, variant, sha, platformOnlyReason, repository, logUrl, github = GITHUB, pause = pauseFor }) {
   const reason = typeof platformOnlyReason === "string" ? platformOnlyReason.trim() : "";
-  const deployment = run(`repos/${repository}/deployments`, {
-    ref: sha, task: TASKS.ios, environment,
-    description: `iOS ${appVersion} (${buildNumber}) to TestFlight ${variant}`,
-    auto_merge: false, required_contexts: [],
-    payload: { app_version: appVersion, ios_build_number: buildNumber, variant, ...(reason ? { platform_only_reason: reason } : {}) },
-  });
-  if (!Number.isInteger(deployment?.id)) throw new Error("GitHub returned a deployment without a numeric id");
-  run(`repos/${repository}/deployments/${deployment.id}/statuses`, { state: "success", log_url: logUrl, auto_inactive: false });
-  return deployment.id;
+  const upload = { app_version: appVersion, ios_build_number: buildNumber, variant };
+  const deployments = `repos/${repository}/deployments`;
+  const recordOnce = () => {
+    const recorded = github.read(`${deployments}?sha=${sha}&task=${TASKS.ios}&environment=${environment}&per_page=${DEPLOYMENT_PAGE_SIZE}`);
+    if (!Array.isArray(recorded)) throw new Error("GitHub returned an unexpected deployments response");
+    const deployment = recorded.find((candidate) => Object.entries(upload).every(([key, value]) => candidate?.payload?.[key] === value))
+      ?? github.write(deployments, {
+        ref: sha, task: TASKS.ios, environment,
+        description: `iOS ${appVersion} (${buildNumber}) to TestFlight ${variant}`,
+        auto_merge: false, required_contexts: [],
+        payload: { ...upload, ...(reason ? { platform_only_reason: reason } : {}) },
+      });
+    if (!Number.isInteger(deployment?.id)) throw new Error("GitHub returned a deployment without a numeric id");
+    github.write(`${deployments}/${deployment.id}/statuses`, { state: "success", log_url: logUrl, auto_inactive: false });
+    return deployment.id;
+  };
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return recordOnce();
+    } catch (error) {
+      if (attempt === RECORD_ATTEMPTS) throw error;
+      pause(attempt * 2000);
+    }
+  }
 }
 
-function runGitHubWrite(path, payload) {
+function writeGitHub(path, payload) {
   return JSON.parse(execFileSync("gh", ["api", "--method", "POST", path, "--input", "-"], {
     encoding: "utf8", input: JSON.stringify(payload), timeout: 30_000, maxBuffer: 4 * 1024 * 1024,
   }));
+}
+
+const GITHUB = { read: readGitHub, write: writeGitHub };
+
+function pauseFor(milliseconds) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
 }
 
 const FLAGS = {
@@ -190,13 +222,14 @@ function runCheck(options) {
     "",
     `| Platform | \`${options.platform}\` |`,
     "| --- | --- |",
+    `| Environment | \`${options.environment}\` |`,
     `| Version | \`${options["app-version"]}\` |`,
     `| Platform only | \`${decision.platformOnly}\` |`,
     `| Verdict | ${decision.allowed ? "allowed" : "refused"} |`,
     `| Detail | ${decision.message} |`,
   ]);
   if (decision.allowed) console.log(decision.message);
-  else console.error(`::error::${decision.message}`);
+  else console.error(`::error::${decision.message} The check read the ${options.environment} environment. ${PAIRING}`);
   return decision.allowed ? 0 : 1;
 }
 
@@ -233,6 +266,6 @@ function main(argv) {
   }
 }
 
-module.exports = { bumpPatch, checkVersionPair, compareVersions, newestVersion, parseVersion, planVersions, readNewestVersion, recordIosDeployment };
+module.exports = { bumpPatch, checkVersionPair, compareVersions, newestVersion, planVersions, recordIosDeployment };
 
 if (require.main === module) process.exitCode = main(process.argv.slice(2));

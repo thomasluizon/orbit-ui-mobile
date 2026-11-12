@@ -5,10 +5,10 @@ on:
   workflow_dispatch:
     inputs:
       variant:
-        description: Internal TestFlight app variant
+        description: App variant. production mirrors Android open and production. staging mirrors Android internal
         type: choice
         required: true
-        default: staging
+        default: production
         options: [staging, production]
       app_version:
         description: User-facing app version
@@ -25,7 +25,6 @@ on:
 
 permissions:
   contents: read
-  deployments: write
 
 concurrency:
   group: ios-release-${{ inputs.variant }}
@@ -37,6 +36,9 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 60
     environment: ios-${{ inputs.variant }}
+    permissions:
+      contents: read
+      deployments: read
     env:
       ORBIT_APP_VARIANT: ${{ inputs.variant }}
       ORBIT_APPLE_TEAM_ID: ${{ vars.ORBIT_APPLE_TEAM_ID }}
@@ -182,16 +184,6 @@ jobs:
           test -f "${packages[0]}"
           xcrun altool --upload-app --type ios --file "${packages[0]}" \
             --apiKey "$APP_STORE_CONNECT_API_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_API_ISSUER_ID"
-      - name: Record the iOS upload
-        env:
-          GH_TOKEN: ${{ github.token }}
-          APP_VERSION: ${{ inputs.app_version }}
-          IOS_BUILD_NUMBER: ${{ inputs.build_number }}
-          PLATFORM_ONLY_REASON: ${{ inputs.platform_only_reason }}
-        run: |
-          node apps/mobile/scripts/mobile-version-pair.js record-ios --environment "$ORBIT_APP_VARIANT" \
-            --variant "$ORBIT_APP_VARIANT" --app-version "$APP_VERSION" --build-number "$IOS_BUILD_NUMBER" \
-            --sha "$GITHUB_SHA" --platform-only-reason "$PLATFORM_ONLY_REASON"
       - name: Remove signing credentials
         if: always()
         run: |
@@ -202,6 +194,33 @@ jobs:
             "$HOME/Library/MobileDevice/Provisioning Profiles/Orbit.mobileprovision" \
             "$HOME/Library/MobileDevice/Provisioning Profiles/OrbitWidget.mobileprovision" \
             "$HOME/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
+
+  # A separate job, so "Re-run failed jobs" repeats only the record and never the upload.
+  record-upload:
+    name: Record the iOS upload for the Android version check
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Record the iOS upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ORBIT_APP_VARIANT: ${{ inputs.variant }}
+          APP_VERSION: ${{ inputs.app_version }}
+          IOS_BUILD_NUMBER: ${{ inputs.build_number }}
+          PLATFORM_ONLY_REASON: ${{ inputs.platform_only_reason }}
+        run: |
+          node apps/mobile/scripts/mobile-version-pair.js record-ios --environment "$ORBIT_APP_VARIANT" \
+            --variant "$ORBIT_APP_VARIANT" --app-version "$APP_VERSION" --build-number "$IOS_BUILD_NUMBER" \
+            --sha "$GITHUB_SHA" --platform-only-reason "$PLATFORM_ONLY_REASON"
 
   testflight-access:
     name: Wait for TestFlight processing and give the internal tester access
