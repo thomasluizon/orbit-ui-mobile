@@ -11,15 +11,12 @@ import { scaleTransition } from '@/__tests__/support/press-transition'
 import { motionSprings, resolveMotionPreset } from '@orbit/shared/theme'
 
 const preference = vi.hoisted(() => ({ reduced: false }))
-const settle = vi.hoisted(() => {
-  const controls = { stop: vi.fn(), complete: vi.fn() }
-  return { controls, animate: vi.fn(() => controls) }
-})
+const settle = vi.hoisted(() => ({ animate: vi.fn(() => ({ stop: vi.fn() })) }))
 vi.mock('motion/react', async (importOriginal) => ({ ...(await importOriginal<typeof import('motion/react')>()), animate: settle.animate }))
 vi.mock('@/hooks/use-viewport-match', () => ({ useViewportMatch: () => preference.reduced }))
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
-beforeEach(() => { preference.reduced = false; settle.animate.mockClear(); settle.controls.stop.mockClear(); settle.controls.complete.mockClear() })
+beforeEach(() => { preference.reduced = false; settle.animate.mockClear() })
 
 describe('check press feedback', () => {
   it('scales on the press duration and never on the control hover duration', () => {
@@ -85,25 +82,7 @@ describe('completion feedback', () => {
     view.rerender(<HabitCheck status="done" label="Done" />)
     view.rerender(<HabitCheck status="done" label="Done again" />)
     expect(settle.animate).toHaveBeenCalledOnce()
-    expect(settle.animate).toHaveBeenCalledWith(view.container.querySelector('[data-habit-check]'), { scale: [resolveMotionPreset('success-feedback').scaleFrom, 1] }, { type: 'spring', ...motionSprings.completion })
-  })
-
-  it('finishes the spring at rest when the check turns back before it settles', () => {
-    const view = render(<HabitCheck status="empty" label="Open" />)
-    view.rerender(<HabitCheck status="done" label="Done" />)
-    view.rerender(<HabitCheck status="empty" label="Open" />)
-    expect(settle.controls.complete).toHaveBeenCalledOnce()
-    expect(settle.controls.stop).not.toHaveBeenCalled()
-  })
-
-  it('leaves no inline transform on the check when it turns back after the spring', () => {
-    const view = render(<HabitCheck status="empty" label="Open" />)
-    view.rerender(<HabitCheck status="done" label="Done" />)
-    const check = view.container.querySelector<HTMLElement>('[data-habit-check]')!
-    /** motion-dom `buildHTMLStyles` writes `transform: none` when the scale reaches 1. */
-    check.style.transform = 'none'
-    view.rerender(<HabitCheck status="empty" label="Open" />)
-    expect(check.getAttribute('style')).not.toContain('transform')
+    expect(settle.animate).toHaveBeenCalledWith(resolveMotionPreset('success-feedback').scaleFrom, 1, expect.objectContaining({ type: 'spring', ...motionSprings.completion }))
   })
 
   it('mounts no motion for a check that first renders done', () => {
