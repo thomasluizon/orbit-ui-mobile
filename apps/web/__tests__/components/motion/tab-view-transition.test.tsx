@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import postcss from 'postcss'
+import postcss, { type Rule } from 'postcss'
 import type { ReactElement, ReactNode, ViewTransitionInstance, ViewTransitionProps } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
@@ -25,8 +25,7 @@ vi.mock('@/components/ui/lockup', () => ({ Lockup: () => <div>Orbit</div> }))
 import { TabViewTransition } from '@/components/motion/tab-view-transition'
 import { ShellWide } from '@/components/shell/shell-wide'
 
-const stylesheet = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
-const parsedStylesheet = postcss.parse(stylesheet)
+const parsedStylesheet = postcss.parse(readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8'))
 const TAB_SWITCH = ':root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)'
 const originalMatchMedia = window.matchMedia
 
@@ -207,9 +206,31 @@ describe('globals.css tab view transition', () => {
   })
 
   it('stops every view transition animation under reduced motion', () => {
-    const reduced = stylesheet.slice(stylesheet.indexOf('::view-transition-group(*)'))
-    expect(stylesheet.lastIndexOf('@media (prefers-reduced-motion: reduce)', stylesheet.indexOf('::view-transition-group(*)')))
-      .toBeGreaterThan(stylesheet.indexOf('PRIMARY TAB SWITCH'))
-    expect(reduced.slice(0, reduced.indexOf('}'))).toContain('animation-duration: 0s !important')
+    const tabSwitchRules: Rule[] = []
+    parsedStylesheet.walkRules((rule) => {
+      if (rule.selectors.some((selector) => selector.startsWith(TAB_SWITCH))) tabSwitchRules.push(rule)
+    })
+    expect(tabSwitchRules).not.toHaveLength(0)
+    const resets: { selectors: string[]; durations: string[]; followsTabSwitch: boolean }[] = []
+    parsedStylesheet.walkAtRules('media', (media) => {
+      if (media.params !== '(prefers-reduced-motion: reduce)') return
+      media.walkRules((rule) => {
+        if (!rule.selectors.includes('::view-transition-group(*)')) return
+        const durations: string[] = []
+        rule.walkDecls('animation-duration', (declaration) => {
+          durations.push(`${declaration.value}${declaration.important ? ' !important' : ''}`)
+        })
+        resets.push({
+          selectors: rule.selectors,
+          durations,
+          followsTabSwitch: tabSwitchRules.every((tabSwitch) => tabSwitch.source!.end!.offset <= rule.source!.start!.offset),
+        })
+      })
+    })
+    expect(resets).toEqual([{
+      selectors: ['::view-transition-group(*)', '::view-transition-old(*)', '::view-transition-new(*)'],
+      durations: ['0s !important'],
+      followsTabSwitch: true,
+    }])
   })
 })
