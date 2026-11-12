@@ -265,6 +265,21 @@ describe('useColorScheme', () => {
     expect(result.current.currentTheme).toBe('dark')
   })
 
+  it.each([
+    ['a chosen theme', (hook: ReturnType<typeof useColorScheme>) => hook.applyTheme('dark', false)],
+    ['a theme from the profile', (hook: ReturnType<typeof useColorScheme>) => hook.syncThemeFromProfile('dark')],
+    ['first-run detection', (hook: ReturnType<typeof useColorScheme>) => hook.detectAndSaveThemeIfNeeded(null)],
+  ] as const)('crossfades %s after the first paint, as the mobile provider does', (_source, change) => {
+    bootstrapTheme = 'light'
+    const { result } = renderHook(() => useColorScheme())
+    expect(mockClassList.add).not.toHaveBeenCalledWith('theme-transitioning')
+
+    act(() => change(result.current))
+
+    expect(result.current.currentTheme).toBe('dark')
+    expect(mockClassList.add).toHaveBeenCalledWith('theme-transitioning')
+  })
+
   it('syncThemeFromProfile does nothing when themes match', () => {
     const { result } = renderHook(() => useColorScheme())
 

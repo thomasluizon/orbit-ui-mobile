@@ -84,7 +84,7 @@ export function useColorScheme() {
         : null
     if (dbTheme && dbTheme !== currentTheme) {
       setCurrentTheme(dbTheme)
-      applyThemeTokensToDOM(currentScheme, dbTheme)
+      applyThemeTokensToDOM(currentScheme, dbTheme, true)
     }
   }, [currentScheme, currentTheme])
 
@@ -98,7 +98,7 @@ export function useColorScheme() {
     const detected: ThemeMode =
       mediaQueryMatches('(prefers-color-scheme: light)') ? 'light' : 'dark'
     setCurrentTheme(detected, false)
-    applyThemeTokensToDOM(currentScheme, detected)
+    applyThemeTokensToDOM(currentScheme, detected, true)
     updateThemePreferenceAction({ themePreference: detected }, getHeldAccountId()).catch((error: unknown) => {
       if (reportsAccountChanged(error)) {
         showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))

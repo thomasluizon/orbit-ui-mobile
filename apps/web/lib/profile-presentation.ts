@@ -23,7 +23,7 @@ export function applyProfilePresentation(profile: Pick<
   setClientCookie('orbit_color_scheme', colorScheme)
   if (explicitTheme) setClientCookie('orbit_theme_mode', explicitTheme)
   setClientCookie('i18n_locale', language)
-  applyThemeTokensToDOM(colorScheme, themeMode, false)
+  applyThemeTokensToDOM(colorScheme, themeMode, true)
 }
 
 export async function hydrateProfilePresentation(isCurrent: () => boolean = () => true): Promise<Profile | null> {

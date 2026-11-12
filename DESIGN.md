@@ -1667,7 +1667,7 @@ Sheets and dialogs enter in 220ms and exit in 160ms; menus use 160ms and 120ms;
 toasts use 220ms and 160ms. Reduced motion has zero travel and unit scale, using
 an instant change or a fade of at most 120ms. A live preference change settles motion.
 Springs must not overshoot. Keyboard navigation and the command palette remain instant.
-A theme change cross-fades in `motionDurations.theme` (220ms) with `motionEasings.standard` on web and mobile, and the web class or mobile overlay ends with the fade. Under reduced motion the theme changes at once on both platforms.
+Every theme change after the first paint cross-fades in `motionDurations.theme` (220ms) with `motionEasings.standard` on web and mobile. This includes a chosen theme, its rollback after a failed save, a profile theme from sign-in or another device, and first-run detection. The web class or mobile overlay ends with the fade. The first paint applies the theme at once, and under reduced motion every theme change is instant on both platforms.
 Native stack and TrueSheet use platform transitions, gesture velocity and dismissal completion;
 the operating system owns native timing where the library exposes no duration or spring.
 Web sheets follow the grabber and settle with the shared sheet spring; a failed or cancelled

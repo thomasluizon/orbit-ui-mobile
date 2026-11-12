@@ -25,9 +25,10 @@ vi.mock('@/lib/use-app-theme', async () => await import('../../lib/use-app-theme
 vi.mock('@/components/navigation/notification-bell', () => ({ NotificationBell: () => null }))
 vi.mock('@/lib/theme-provider', async () => await import('../../lib/theme-provider'))
 
+const appearance = vi.hoisted((): { scheme: ThemeMode } => ({ scheme: 'dark' }))
 vi.mock('react-native', async () => ({
   ...await import('../../test-mocks/react-native'),
-  Appearance: { getColorScheme: () => 'dark' },
+  Appearance: { getColorScheme: () => appearance.scheme },
 }))
 
 vi.mock('react-i18next', () => ({
@@ -44,12 +45,18 @@ const TestRenderer = require('react-test-renderer')
 const act = TestRenderer.act
 const unmounts: (() => void)[] = []
 
-async function setup(previous: ThemeMode, content?: ReactNode) {
+function findThemeOverlays(renderer: ReturnType<typeof TestRenderer.create>) {
+  return renderer.root.findAll(
+    (node: { type: unknown; props: { pointerEvents?: string } }) => node.type === 'AnimatedView' && node.props.pointerEvents === 'none',
+  )
+}
+
+async function setup(previous: ThemeMode, content?: ReactNode, storedPreference: ThemeMode | null = previous) {
   vi.stubGlobal('requestAnimationFrame', vi.fn(() => 1))
   vi.stubGlobal('cancelAnimationFrame', vi.fn())
   setRuntimeTheme({ scheme: 'orange', themeMode: previous })
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  client.setQueryData(profileKeys.detail(), createMockProfile({ themePreference: previous }))
+  client.setQueryData(profileKeys.detail(), createMockProfile({ themePreference: storedPreference }))
   const chooser: { current: ThemeContextValue | null } = { current: null }
   const destination: { profile?: Profile; theme: ThemeContextValue | null } = { theme: null }
   const renderedThemes: (ThemeMode | undefined)[] = []
@@ -87,6 +94,7 @@ async function setup(previous: ThemeMode, content?: ReactNode) {
 afterEach(async () => {
   await act(() => { for (const unmount of unmounts.splice(0)) unmount() })
   auth.isAuthenticated = true
+  appearance.scheme = 'dark'
   motionState.prefersReducedMotion = false
   vi.clearAllMocks()
   vi.unstubAllGlobals()
@@ -195,9 +203,7 @@ it('crossfades a theme change in the provider root without presenting a native M
     return { start: (finish) => { fade.finish = finish }, stop: () => {}, reset: () => {} }
   })
   const previous = createTokensV2('orange', 'dark')
-  const findOverlay = () => root.root.findAll(
-    (node: { type: unknown; props: { pointerEvents?: string } }) => node.type === 'AnimatedView' && node.props.pointerEvents === 'none',
-  )
+  const findOverlay = () => findThemeOverlays(root)
 
   expect(findOverlay()).toHaveLength(0)
   await act(() => chooser.current?.applyTheme('light'))
@@ -230,8 +236,33 @@ it('changes the theme at once without an overlay when reduced motion is on', asy
 
   expect(chooser.current?.currentTheme).toBe('light')
   expect(getRuntimeTheme().themeMode).toBe('light')
-  expect(root.root.findAll((node: { type: unknown; props: { pointerEvents?: string } }) => node.type === 'AnimatedView' && node.props.pointerEvents === 'none')).toHaveLength(0)
+  expect(findThemeOverlays(root)).toHaveLength(0)
   expect(frames).not.toHaveBeenCalled()
   expect(timing).not.toHaveBeenCalled()
   timing.mockRestore()
+})
+
+it('crossfades a theme that reaches the profile after sign-in or from another device, like a chosen theme', async () => {
+  const { root, client, chooser, flushNotifications } = await setup('dark')
+  expect(findThemeOverlays(root)).toHaveLength(0)
+
+  await act(() => { client.setQueryData(profileKeys.detail(), createMockProfile({ themePreference: 'light' })) })
+  await flushNotifications()
+
+  expect(chooser.current?.currentTheme).toBe('light')
+  const [overlay] = findThemeOverlays(root)
+  expect(overlay).toBeDefined()
+  const colours = overlay.findAllByType('View').map((node: { props: { style: { backgroundColor?: string }[] } }) => node.props.style[1]?.backgroundColor)
+  expect(colours).toEqual([createTokensV2('orange', 'dark').bg])
+})
+
+it('crossfades first-run detection when the system scheme differs from the first frame', async () => {
+  appearance.scheme = 'light'
+  const { root, chooser, flushNotifications, renderedThemes } = await setup('dark', undefined, null)
+  await flushNotifications()
+
+  expect(renderedThemes[0]).toBe('dark')
+  expect(chooser.current?.currentTheme).toBe('light')
+  expect(performQueuedApiMutation).toHaveBeenCalledWith(expect.objectContaining({ type: 'setThemePreference', payload: { themePreference: 'light' } }))
+  expect(findThemeOverlays(root)).toHaveLength(1)
 })
