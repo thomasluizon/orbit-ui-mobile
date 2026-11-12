@@ -1,7 +1,7 @@
 import { restoreConversationPage } from '../chat/conversation-restore'
 import { makeExecutedConversationPage, makeRevisedConversationPage, PARTIAL_BULK_LOG_PAYLOAD, storedOperationId, UNCHANGED_BULK_LOG_EXECUTION } from '../test-support/conversation-fixtures'
 import { astraOfferFixture, makeOfferedPreview, makeOfferedTaskPreview } from '../test-support/astra-offer-fixtures'
-import { makePlacementPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeBulkCreateExecutionResponse, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makeNestedHabitPreview, makeCreateWithReusedChildPreview, makeReuseCreateBatchPreview, reusedChildIconCases, withStoredChildren, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview, makeBulkUpdateHabitsPreview, makeBulkUpdateExecutionResponse } from '../test-support/pending-operation-preview-fixtures'
+import { makePlacementPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeBulkCreateExecutionResponse, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makeNestedHabitPreview, makeCreateWithReusedChildPreview, makeReusedHabitParentChoicePreview, makeReuseCreateBatchPreview, reusedChildIconCases, withStoredChildren, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview, makeBulkUpdateHabitsPreview, makeBulkUpdateExecutionResponse } from '../test-support/pending-operation-preview-fixtures'
 import { describe, expect, it, vi } from 'vitest'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { makeAgentOperationResult, makePendingAgentOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '../test-support/chat-fixtures'
@@ -126,6 +126,19 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
       for (const [label, icon] of Object.entries(icons)) expect(rows.find((row) => row.label === label)).toMatchObject({ icon })
     })
 
+    it('shows no create outcome on the unchanged existing child and keeps it on the new child', () => {
+      const rows = render().record.frame!.items.filter((row) => row.indented)
+      expect(rows.map((row) => [row.label, row.meta])).toEqual([
+        ['Drink a glass of water', messages.chat.operation.source.createHabit],
+        ['Morning walk', ''],
+      ])
+    })
+
+    it('lists the requested changes on an existing child', () => {
+      const rows = render(makeCreateWithReusedChildPreview({ reusedChanges: { due_time: '07:00' } })).record.frame!.items.filter((row) => row.indented)
+      expect(rows.find((row) => row.label === 'Morning walk')?.meta).toBe(translateMessages(messages, 'chat.preview.atTime', { time: '07:00' }))
+    })
+
     it('lists no top-level outcome for the new habit', () => {
       const { record } = render()
       const text = record.frame!.items.map((row) => `${row.label} ${row.meta}`).join(' ')
@@ -166,6 +179,15 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     it('keeps the new habits title for a counted batch with no listed habits', () => {
       expect(title([], 3)).toBe(translateMessages(messages, 'chat.operation.newHabits', { count: 3 }))
     })
+  })
+
+  it('names no create on an existing habit in a create preview while its parent is a choice', () => {
+    const operation = makeReusedHabitParentChoicePreview()
+    const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    expect(record.frame!.items[0]).toMatchObject({ label: 'Morning walk', meta: messages.chat.operation.pending })
+    expect(record.frame!.items[0]!.meta).not.toBe(messages.chat.operation.source.createHabits)
   })
 
   it('keeps the create heading for a nested proposal without reuse', () => {

@@ -43,7 +43,9 @@ export function summarizePendingOperationItem(
   const dateLabel = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? formatLocaleDate(parseAPIDate(date), locale, { dateStyle: 'medium' }) : null
   const time = value('due_time')
   const summary = [cadence.label, intervalLabel, dateLabel, time ? translate('chat.preview.atTime', { time: formatTime(time) }) : null, ...additionalChanges(fields, translate, formatTime, locale, cadence.complete, creating), creating ? createReminderSummary(fields, translate, formatTime) : null].filter(Boolean).join(' · ')
-  return summary || (actionKey && PREVIEW_ACTION_KEYS.includes(actionKey) ? translate(`chat.operation.source.${actionKey}`) : '')
+  /** A habit create does not create the existing habit it reuses, so that habit's row names no action. */
+  const namesAction = actionKey != null && PREVIEW_ACTION_KEYS.includes(actionKey) && (creating || !HABIT_CREATE_ACTION_KEYS.includes(actionKey))
+  return summary || (namesAction ? translate(`chat.operation.source.${actionKey}`) : '')
 }
 
 function summarizeReschedule(fields: readonly PendingOperationChange[], translate: PreviewTranslation, locale: string, today?: string): string | undefined {
@@ -97,9 +99,10 @@ export function marksExistingHabit(field: PendingOperationChange): boolean {
   return field.field === 'habit_id' || (field.oldValue != null && field.field !== 'sub_habits')
 }
 
+const HABIT_CREATE_ACTION_KEYS: readonly string[] = ['createHabit', 'createHabits', 'createSubHabit']
+
 function isHabitCreate(fields: readonly PendingOperationChange[], actionKey?: string | null): boolean {
-  return ['createHabit', 'createHabits', 'createSubHabit'].includes(actionKey ?? '')
-    && !fields.some(marksExistingHabit)
+  return HABIT_CREATE_ACTION_KEYS.includes(actionKey ?? '') && !fields.some(marksExistingHabit)
 }
 
 function cadenceSummary(fields: readonly PendingOperationChange[], translate: PreviewTranslation, actionKey?: string | null): { label: string | null; complete: boolean } {

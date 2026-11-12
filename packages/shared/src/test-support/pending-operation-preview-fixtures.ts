@@ -368,11 +368,26 @@ function makeGroupedCreatePreview(children: readonly Record<string, unknown>[], 
   return pendingAgentOperationSchema.parse({ ...operation, items: [{ ...item, entityName: 'Morning routine', fields }] })
 }
 
-export function makeCreateWithReusedChildPreview({ storedEmoji = '🚶', proposedEmoji }: { storedEmoji?: string | null; proposedEmoji?: string } = {}): PendingAgentOperation {
+/** `reusedChanges` holds the changes the proposal requests for the reused child, next to its `habit_id` and `title`. */
+export function makeCreateWithReusedChildPreview({ storedEmoji = '🚶', proposedEmoji, reusedChanges = {} }: {
+  storedEmoji?: string | null; proposedEmoji?: string; reusedChanges?: Readonly<Record<string, unknown>>
+} = {}): PendingAgentOperation {
   return makeGroupedCreatePreview(
-    [{ title: 'Drink a glass of water', emoji: '💧' }, { habit_id: REUSED_CHILD_HABIT_ID, title: 'Morning walk', ...(proposedEmoji ? { emoji: proposedEmoji } : {}) }],
+    [{ title: 'Drink a glass of water', emoji: '💧' }, { habit_id: REUSED_CHILD_HABIT_ID, title: 'Morning walk', ...(proposedEmoji ? { emoji: proposedEmoji } : {}), ...reusedChanges }],
     [{ title: null, emoji: null }, reusedChildOldValue('Morning walk', storedEmoji)],
   )
+}
+
+/** Mirrors the API bulk create preview that reuses an existing top-level habit while its parent is still a choice: each field carries the habit's stored value as `oldValue`. */
+export function makeReusedHabitParentChoicePreview(): PendingAgentOperation {
+  const operation = makeParentChoicePreview(1)
+  const item = operation.items![0]!
+  const base = { entityId: REUSED_CHILD_HABIT_ID, entityName: 'Morning walk', valueType: 'text', isEditable: true }
+  return pendingAgentOperationSchema.parse({ ...operation, items: [{ ...item, entityId: REUSED_CHILD_HABIT_ID, entityName: 'Morning walk', fields: [
+    { ...base, field: 'title', oldValue: 'Morning walk', newValue: 'Morning walk', proposedValue: 'Morning walk' },
+    { ...base, field: 'habit_id', oldValue: 'Morning walk', newValue: 'Morning walk', proposedValue: REUSED_CHILD_HABIT_ID, isEditable: false },
+    { ...base, field: 'parent_habit_id', oldValue: 'No parent', newValue: 'Post Lunch', proposedValue: 'Post Lunch' },
+  ] }] })
 }
 
 /** The API keeps a deeper reuse at its own depth: the outer entry's `sub_habits` holds the JSON text of the nested old values. */

@@ -392,6 +392,18 @@ describe('PendingOperationCard', () => {
     }
   })
 
+  it.each(['en', 'pt-BR'])('shows no create outcome on the unchanged existing child in %s', (locale) => {
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    const messages = locale === 'en' ? en : ptBR
+    const { container } = render(<PendingOperationCard pendingOperation={makeCreateWithReusedChildPreview()} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    const rows = [...container.querySelectorAll('[data-indented="true"]')]
+    const row = (title: string) => rows.find((candidate) => candidate.textContent.includes(title))!
+    expect(row('Drink a glass of water').querySelector('[data-preview-item-meta]')?.textContent).toBe(messages.chat.operation.source.createHabit)
+    expect(row('Morning walk').querySelector('[data-preview-item-meta]')).toBeNull()
+    expect(row('Morning walk').textContent).toBe('🚶Morning walk')
+  })
+
   it.each(childSchedulePreviewCases.flatMap(scenario => ['en', 'pt-BR'].map(locale => ({ ...scenario, locale }))))('preserves the child $name schedule in $locale', (scenario) => {
     const { locale } = scenario
     visibleLocale.actual = true

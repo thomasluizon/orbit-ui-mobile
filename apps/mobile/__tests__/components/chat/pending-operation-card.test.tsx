@@ -451,6 +451,17 @@ describe('PendingOperationCard (mobile)', () => {
     }
   })
 
+  it.each(['en', 'pt-BR'])('shows no create outcome on the unchanged existing child in %s', (locale) => {
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    const messages = locale === 'en' ? en : ptBR
+    const { tree } = renderCard(makeCreateWithReusedChildPreview())
+    const childTexts = (index: number) => [...new Set(tree.root.findByProps({ testID: `block-frame-item-0-child-${index}-pending-proposed` })
+      .findAllByType(Text).map((node: ReactTestInstance) => renderedText(node)))]
+    expect(childTexts(0)).toEqual(['💧', 'Drink a glass of water', messages.chat.operation.source.createHabit])
+    expect(childTexts(1)).toEqual(['🚶', 'Morning walk'])
+  })
+
   it.each(childSchedulePreviewCases.flatMap(scenario => ['en', 'pt-BR'].map(locale => ({ ...scenario, locale }))))('preserves the child $name schedule in $locale', (scenario) => {
     const { locale } = scenario
     visibleLocale.actual = true
