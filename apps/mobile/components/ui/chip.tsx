@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { SPACING, TOUCH_TARGET_MIN, typeRoles } from '@orbit/shared/theme'
 import { StyleSheet, Text, View } from 'react-native'
-import { InsetFocusPressable as Pressable } from './inset-focus-pressable'
+import { PressScalePressable as Pressable } from '@/components/motion/press-scale'
 import { createTokensV2, radius, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -48,7 +48,6 @@ export function Chip({
             borderColor: tokens.hairline,
             borderWidth: active && isPeriod ? 1.5 : 1,
           },
-          pressed && !active ? styles.chipPressed : null,
         ]
       }}
     >
@@ -75,9 +74,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-  },
-  chipPressed: {
-    transform: [{ scale: 0.96 }],
   },
   leading: {
     flexDirection: 'row',
