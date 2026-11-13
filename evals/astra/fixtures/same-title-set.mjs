@@ -10,8 +10,9 @@ export async function readSameTitleSet(api, parentId) {
   return { parent: { id: parentId, title: parent.title }, children: children.toSorted((left, right) => left.position - right.position) }
 }
 
+// Both registered roots stay active: the API purges a habit soft-deleted for more than 31 days
+// (SyncCleanupService), so a deleted root could not be restored by a later reset.
 export async function seedSameTitleSet(api, account, today, dailyHabit) {
-  await api('DELETE', `habits/${account.secondHabitId}`, undefined, ['HABIT_NOT_FOUND'])
   for (let index = 0; index < sameTitleSet.count; index++) {
     await api('POST', `habits/${account.habitId}/sub-habits`, dailyHabit(sameTitleSet.child, today))
   }
@@ -21,7 +22,8 @@ export async function seedSameTitleSet(api, account, today, dailyHabit) {
     throw new Error('Same-title fixture parent or ordered child readback failed.')
   }
   const { payload: exported } = await api('GET', 'eval/snapshot')
-  if (!Array.isArray(exported?.habits) || exported.habits.length !== sameTitleSet.count + 1
+  if (!Array.isArray(exported?.habits) || exported.habits.length !== sameTitleSet.count + 2
+    || !exported.habits.some((habit) => habit.id === account.secondHabitId)
     || exported.habits.some((habit) => !Array.isArray(habit.logs) || habit.logs.some((log) => log.value > 0))) {
     throw new Error('Same-title fixture habit count or history readback failed.')
   }

@@ -1,6 +1,6 @@
 import { structural, behavior, composition } from './assertions.mjs'
 import { restartProposal, restartReadback } from './restart.mjs'
-import { publicApi } from './fixtures/api.mjs'
+import { approvePendingOperation, publicApi } from './fixtures/api.mjs'
 import { readRestartSnapshot } from './fixtures/restart.mjs'
 import { requireEvalOrigin } from './fixtures/reset.mjs'
 
@@ -17,12 +17,8 @@ export async function completeRestart(output, vars) {
   }
   const pending = output.composition.pendingOperations[0]
   const path = `ai/pending-operations/${pending.id}`
-  if (vars.restart.decision === 'approve') {
-    const { payload } = await api('POST', `${path}/confirm?clientContext=${encodeURIComponent(JSON.stringify(vars.clientContext))}`)
-    if (typeof payload?.confirmationToken !== 'string' || !payload.confirmationToken.trim()) throw new Error('Restart confirmation lacks its token.')
-    // The token stays in memory and never enters the graded output or evidence reports.
-    await api('POST', `${path}/execute`, { confirmationToken: payload.confirmationToken, clientContext: vars.clientContext })
-  } else if (vars.restart.decision === 'reject') {
+  if (vars.restart.decision === 'approve') await approvePendingOperation(api, pending.id, vars.clientContext)
+  else if (vars.restart.decision === 'reject') {
     await api('POST', `${path}/revise`, { previewFingerprint: pending.previewFingerprint, items: [], clientContext: vars.clientContext })
     const confirmation = await api('POST', `${path}/confirm`, undefined, [], [404])
     if (confirmation.status !== 404) throw new Error('Rejected restart remains confirmable.')

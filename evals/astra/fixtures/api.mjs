@@ -79,6 +79,18 @@ export function publicApi(credentialKey) {
   }
 }
 
+// Contract: orbit-api AiController.ConfirmPendingOperation returns ConfirmPendingOperationResponse
+// (pendingOperationId, confirmationToken); execute takes that token with the same clientContext.
+export async function approvePendingOperation(api, pendingId, clientContext) {
+  const path = `ai/pending-operations/${pendingId}`
+  const { payload } = await api('POST', `${path}/confirm?clientContext=${encodeURIComponent(JSON.stringify(clientContext))}`)
+  if (payload?.pendingOperationId !== pendingId || typeof payload.confirmationToken !== 'string' || !payload.confirmationToken.trim()) {
+    throw new Error('Approval confirmation lacks its bound token.')
+  }
+  // The token stays in memory and never enters the graded output or evidence reports.
+  return api('POST', `${path}/execute`, { confirmationToken: payload.confirmationToken, clientContext })
+}
+
 export async function requireEvalAccess(credentialKey) {
   const expected = credentialKey === 'ORBIT_EVAL_TOKEN'
   try {

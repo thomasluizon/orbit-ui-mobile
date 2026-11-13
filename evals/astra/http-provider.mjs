@@ -16,6 +16,7 @@ export default class AstraHttpProvider {
   constructor(options) {
     this.config = { ...options.config, validateStatus: '() => true' }
     this.provider = null
+    this.answerProvider = null
   }
 
   id() { return 'astra-http' }
@@ -89,8 +90,13 @@ export default class AstraHttpProvider {
     let response
     try {
       if (context.vars.refine) return await this.refine(prompt, context, options)
-      this.provider ??= loadApiProvider('http', { options: { config: this.config } })
-      response = await (await this.provider).callApi(prompt, context, options)
+      // Contract: orbit-api ChatController.Chat binds an optional blockAnswer form field (AiBlockAnswer JSON); only an
+      // answer turn sends it, so every other turn keeps the request shape it always had.
+      if (context.vars.blockAnswerJson) {
+        this.answerProvider ??= loadApiProvider('http', { options: { config: { ...this.config, multipart: { ...this.config.multipart,
+          parts: [...this.config.multipart.parts, { kind: 'field', name: 'blockAnswer', value: '{{blockAnswerJson}}' }] } } } })
+      } else this.provider ??= loadApiProvider('http', { options: { config: this.config } })
+      response = await (await (context.vars.blockAnswerJson ? this.answerProvider : this.provider)).callApi(prompt, context, options)
     } catch (error) {
       const status = error.name === 'HttpRateLimitError' && error.status === 429 ? 429 : null
       return { error: status ? 'Astra returned HTTP 429.' : 'Astra HTTP request failed.',
@@ -118,7 +124,7 @@ export default class AstraHttpProvider {
       }
     }
     if (context.vars.sameTitleSet && response.output?.composition && !response.error) {
-      try { response.output = await completeSameTitleSet(response.output, context.vars) } catch {
+      try { response.output = await completeSameTitleSet(response.output, context.vars, (input, next) => this.chat(input, next, options)) } catch {
         return { ...response, error: 'Same-title approval or independent persisted readback failed.' }
       }
     }

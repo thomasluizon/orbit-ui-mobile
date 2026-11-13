@@ -159,8 +159,10 @@ export function attemptEvidence(entry, attempt) {
       }))),
       ...output.restartReadback,
     } } : {}),
-    ...(output?.sameTitleReadback ? { sameTitleSet: {
-      proposed: (output.composition.pendingOperations ?? []).map((pending) => ({ actionKey: pending.actionKey, items: pending.items.length })),
+    ...(output?.sameTitleReadback || output?.sameTitleAnswer ? { sameTitleSet: {
+      proposed: (output.sameTitleAnswer?.composition ?? output.composition).pendingOperations?.map((pending) => ({ actionKey: pending.actionKey, items: pending.items.length })) ?? [],
+      ...(output.sameTitleAnswer ? { answer: { card: output.sameTitleAnswer.card, message: output.sameTitleAnswer.message ?? null,
+        checks: output.sameTitleAnswer.checks ?? [] } } : {}),
       ...output.sameTitleReadback,
     } } : {}),
     timing: timingEvidence(output?.trace?.timing),

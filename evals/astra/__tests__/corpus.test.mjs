@@ -9,8 +9,8 @@ const scenarios = parse(readFileSync(new URL('../scenarios.yaml', import.meta.ur
 const textOccurrenceCount = /\b(?:appear(?:s)?|occur(?:s)?|mention(?:ed)?|repeat(?:ed)?)\b[^.;]*\b(?:(?:exactly|only) once|once|one (?:time|occurrence)|twice)\b/i
 it('includes every scenario identity in the launch corpus', () => {
   expect(corpus).toHaveLength(184)
-  expect(scenarios).toHaveLength(43)
-  expect(new Set([...corpus, ...scenarios].map((entry) => entry.metadata.id)).size).toBe(227)
+  expect(scenarios).toHaveLength(51)
+  expect(new Set([...corpus, ...scenarios].map((entry) => entry.metadata.id)).size).toBe(235)
 })
 it.each([
   ['goal-behind', ['at_risk', 'behind']],

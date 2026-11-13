@@ -18,7 +18,7 @@ const corpus = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((path) =
 const fixtures = new Set(['pro', 'duplicate-titles', 'malicious-title', 'zero-history', 'empty', 'overdue', 'skipped',
   'free-at-limit', 'budget-exhausted', 'composition', 'composition-partial', 'composition-stale', 'composition-error',
   'composition-offline', 'composition-logged', 'composition-streaks', 'medical', 'existing-parents', 'restart', 'restart-non-daily', 'starting-step-checklist', 'hoje-next-step',
-  'same-title-children', 'similar-titles'])
+  'same-title-children'])
 export const disposableEvalOrigins = ['https://orbit-api-staging-uqu2.onrender.com', 'https://api.useorbit.org']
 export function requireEvalOrigin() {
   if (!disposableEvalOrigins.includes(apiOrigin())) throw new Error('Fixture reset requires a known eval origin and a disposable eval account.')
@@ -194,8 +194,7 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
   const fixture = test.metadata.fixture
   const names = fixtureNames(test.metadata.locale)
   const titles = fixture === 'hoje-next-step' ? ['Meals', 'Water']
-    : fixture === 'same-title-children' ? [sameTitleSet.parent, names.habits[1]]
-      : fixtureHabitTitles(fixture, test.metadata.locale)
+    : fixture === 'same-title-children' ? [sameTitleSet.parent, names.habits[1]] : fixtureHabitTitles(fixture, test.metadata.locale)
   if (!fixtures.has(fixture)) throw new Error('Unknown fixture.')
   const key = test.vars.credentialKey
   const api = publicApi(key)

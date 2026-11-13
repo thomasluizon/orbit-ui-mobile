@@ -214,6 +214,13 @@ export function composition(output, context) {
   }
   const outcome = (response.actions?.length ?? 0) > 0 || (response.policyDenials?.length ?? 0) > 0
     || (response.operations ?? []).some((operation) => ['Failed', 'Denied', 'UnsupportedByPolicy'].includes(operation.status))
+  // A preview case may allow one question first; the HTTP provider answers it and grades the answer turn's preview.
+  if (expected.mode === 'preview' && expected.allowQuestion === true && !pending.length && !outcome) {
+    const question = blocks.length ? blocks.length === 1 && ['choice', 'question'].includes(blocks[0].kind) && (!external || shortLines(external, 1, false))
+      : shortLines(response.aiMessage, 3, false)
+    return question ? result(true, 'Verified one question before the preview.')
+      : result(false, 'A question before the preview must be one choice or question card, or one to three short lines.')
+  }
   if (expected.mode === 'fallback') {
     if (blocks.length || !text(response.aiMessage)) return result(false, 'Missing readable capability fallback or unsupported block.')
   } else if (expected.mode === 'text' || (expected.mode === 'clarification' && !blocks.length)) {
