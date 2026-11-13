@@ -7,11 +7,15 @@ import { ShellSkeleton } from '@/components/ui/shell-skeleton'
 import { SkeletonFace } from '@/components/ui/skeleton'
 import { CalendarSyncBoundary } from '@/app/(tabs)/calendar/_components/calendar-sync-boundary'
 import { Check, RefreshCw } from '@/components/ui/icons'
+import { ThemedButton } from '@/components/ui/pill-button'
 import { createTokensV2 } from '@/lib/theme'
 
-const motion = vi.hoisted(() => ({ reduced: false }))
+const motion = vi.hoisted(() => ({ reduced: false, themeBroken: false }))
 vi.mock('@/lib/motion', async (original) => ({ ...await original<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => motion.reduced }))
-vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }) }))
+vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => {
+  if (motion.themeBroken) throw new Error('no app theme')
+  return { currentScheme: 'purple', currentTheme: 'dark' }
+} }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 
 const TestRenderer = require('react-test-renderer')
@@ -42,7 +46,7 @@ function expectNoSpinner(root: Node) {
   expect(root.findAll((node) => node.type === 'ActivityIndicator')).toHaveLength(0)
 }
 
-afterEach(() => { motion.reduced = false; vi.restoreAllMocks() })
+afterEach(() => { motion.reduced = false; motion.themeBroken = false; vi.restoreAllMocks() })
 
 describe('a control that waits for its own request on Android', () => {
   it('shows the skeleton face in the checkbox and keeps a checked state visible on it', () => {
@@ -86,6 +90,14 @@ describe('a control that waits for its own request on Android', () => {
     expectNoSpinner(tree.root)
     await TestRenderer.act(async () => { finish(); await Promise.resolve() })
     expect(hosts(control(), 'skeleton-face')).toHaveLength(0)
+    tree.unmount()
+  })
+
+  it('draws the waiting face of a button that renders without the app theme from its own tokens', () => {
+    motion.themeBroken = true
+    const tree = render(<ThemedButton tokens={tokens} loading>Retry</ThemedButton>)
+    expectSkeletonFace(tree.root)
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Retry')).toHaveLength(1)
     tree.unmount()
   })
 

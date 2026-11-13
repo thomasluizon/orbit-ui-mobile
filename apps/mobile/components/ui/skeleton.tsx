@@ -167,16 +167,28 @@ export function Skeleton(props: Readonly<SkeletonProps>) {
   )
 }
 
-/**
- * The face of a control that waits for its own request: the `fill` skeleton behind its label. The control renders
- * it as its first child and clips it to its own shape.
- */
-export function SkeletonFace() {
+function SkeletonFaceLayer({ tokens }: Readonly<{ tokens: AppTokensV2 }>) {
+  const opacity = usePulseOpacity()
   return (
     <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" testID="skeleton-face" style={StyleSheet.absoluteFill}>
-      <Skeleton variant="fill" grouped />
+      <Block style={styles.fill} tokens={tokens} opacity={opacity} />
     </View>
   )
+}
+
+function ThemedSkeletonFace() {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
+  return <SkeletonFaceLayer tokens={tokens} />
+}
+
+/**
+ * The face of a control that waits for its own request: the `fill` skeleton block and pulse behind its label. The
+ * control renders it as its first child and clips it to its own shape. A control drawn without the app theme, such as
+ * the error screen's `ThemedButton`, passes its own tokens.
+ */
+export function SkeletonFace({ tokens }: Readonly<{ tokens?: AppTokensV2 }>) {
+  return tokens ? <SkeletonFaceLayer tokens={tokens} /> : <ThemedSkeletonFace />
 }
 
 const styles = StyleSheet.create({

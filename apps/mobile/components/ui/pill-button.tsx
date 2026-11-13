@@ -159,7 +159,7 @@ export function ThemedButton({
         disabled && !loading ? styles.disabled : null,
       ]}
     >
-      <ButtonContents loading={loading} retainLeadingIcon={retainLeadingIcon} iconOnly={iconOnly} leadingGlyph={leadingGlyph} textColor={textColor} sizeSpec={sizeSpec}>{children}</ButtonContents>
+      <ButtonContents tokens={tokens} loading={loading} retainLeadingIcon={retainLeadingIcon} iconOnly={iconOnly} leadingGlyph={leadingGlyph} textColor={textColor} sizeSpec={sizeSpec}>{children}</ButtonContents>
     </ThemedMotionPressable>
   )
 }
@@ -174,13 +174,13 @@ function iconOnlyStyle(side: number, edge: 'start' | undefined): ViewStyle {
 }
 
 /** The face, glyph and label. A waiting action keeps its glyph and label on the skeleton face. */
-function ButtonContents({ loading, retainLeadingIcon, iconOnly, leadingGlyph, children, textColor, sizeSpec }: Readonly<Pick<ButtonProps, 'children' | 'iconOnly'> & {
-  loading: boolean; retainLeadingIcon: boolean; leadingGlyph: React.ReactNode; textColor: string; sizeSpec: typeof BUTTON_SIZES.sm
+function ButtonContents({ tokens, loading, retainLeadingIcon, iconOnly, leadingGlyph, children, textColor, sizeSpec }: Readonly<Pick<ButtonProps, 'children' | 'iconOnly'> & {
+  tokens: AppTokensV2; loading: boolean; retainLeadingIcon: boolean; leadingGlyph: React.ReactNode; textColor: string; sizeSpec: typeof BUTTON_SIZES.sm
 }>) {
   const { fontScale } = useWindowDimensions()
   const iconColor = isValidElement<{ color?: string }>(children) ? children.props.color : undefined
   return <>
-      {loading ? <SkeletonFace /> : null}
+      {loading ? <SkeletonFace tokens={tokens} /> : null}
       {iconOnly ? buttonLeadingGlyph(children, iconColor ?? textColor) : leadingGlyph}
       {iconOnly ? null : (
         <Text
