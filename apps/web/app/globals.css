@@ -2457,11 +2457,12 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
     background: color-mix(in srgb, var(--fg-1) 90%, var(--bg));
   }
 }
-.orbit-streak-badge {
+.orbit-streak-badge > [data-slot="press-surface"] {
+  position: relative;
   isolation: isolate;
 }
 
-.orbit-streak-badge::after {
+.orbit-streak-badge > [data-slot="press-surface"]::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -2472,7 +2473,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   transition: background-color var(--dur-hover-control) var(--ease-standard);
 }
 
-.orbit-streak-badge:active::after {
+.orbit-streak-badge:active > [data-slot="press-surface"]::after {
   background-color: var(--bg-hover-opaque);
 }
 
@@ -2481,7 +2482,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .orbit-streak-badge:hover::after {
+  .orbit-streak-badge:hover > [data-slot="press-surface"]::after {
     background-color: var(--bg-hover-opaque);
   }
 

@@ -27,48 +27,56 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
       type="button"
       aria-label={plural(t('streakDisplay.badge.tooltip', { count: streak }), streak)}
       onClick={() => router.push('/progress/streak')}
-      className="orbit-streak-badge touch-target appearance-none border-0 cursor-pointer inline-flex items-center justify-center bg-[var(--bg-elev)] motion-safe:active:scale-[0.96] transition-[background-color,scale] [transition-duration:var(--dur-fast),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-out)]"
+      className="group/streak-badge orbit-streak-badge touch-target appearance-none border-0 bg-transparent p-0 cursor-pointer inline-flex items-stretch justify-center"
       style={{
         minWidth: TOUCH_TARGET_MIN,
         minHeight: TOUCH_TARGET_MIN,
         borderRadius: 999,
-        padding: "var(--orbit-space-0) var(--orbit-space-8)",
-        gap: 4,
-        boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
       }}
     >
-      {isFrozen ? (
-        <svg
-          width="12"
-          height="14"
-          viewBox="0 0 12 14"
-          fill="none"
-          stroke="var(--fg-2)"
-          strokeWidth="1.6"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M6 0v14M2 2l4 4 4-4M2 12l4-4 4 4M0 7h12" />
-        </svg>
-      ) : (
-        <span
-          aria-hidden="true"
-          style={{ fontSize: 16, lineHeight: 1, opacity: dormant ? 0.45 : 1 }}
-        >
-          🔥
-        </span>
-      )}
       <span
+        data-slot="press-surface"
+        data-press-fill=""
+        className="flex flex-1 items-center justify-center rounded-[inherit] bg-[var(--bg-elev)] transition-[background-color,scale] [transition-duration:var(--dur-fast),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-out)] motion-safe:group-active/streak-badge:scale-[0.96]"
         style={{
-          fontFamily: 'var(--font-mono)',
-          fontSize: 12,
-          fontWeight: 500,
-          color: dormant ? 'var(--streak-count-color, var(--fg-3))' : 'var(--fg-1)',
-          fontVariantNumeric: 'tabular-nums',
+          padding: "var(--orbit-space-0) var(--orbit-space-8)",
+          gap: 4,
+          boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
         }}
       >
-        {streak}
+        {isFrozen ? (
+          <svg
+            width="12"
+            height="14"
+            viewBox="0 0 12 14"
+            fill="none"
+            stroke="var(--fg-2)"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M6 0v14M2 2l4 4 4-4M2 12l4-4 4 4M0 7h12" />
+          </svg>
+        ) : (
+          <span
+            aria-hidden="true"
+            style={{ fontSize: 16, lineHeight: 1, opacity: dormant ? 0.45 : 1 }}
+          >
+            🔥
+          </span>
+        )}
+        <span
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 12,
+            fontWeight: 500,
+            color: dormant ? 'var(--streak-count-color, var(--fg-3))' : 'var(--fg-1)',
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {streak}
+        </span>
       </span>
     </button>
   )

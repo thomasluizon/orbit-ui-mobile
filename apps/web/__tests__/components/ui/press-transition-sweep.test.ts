@@ -19,9 +19,9 @@ const sources = ['app', 'components'].flatMap((directory) => sourceFiles(join(ro
 
 /**
  * Tailwind `active:scale-[0.96]` sets the CSS `scale` property, so only a transition on `scale` (or on `transition-transform`, which lists it) eases the press.
- * A `group-active` scale presses a surface inside a press target that keeps its full size.
+ * A `group-active` scale presses a surface inside a press target that keeps its full size, and `group-enabled` holds it still while that target is disabled.
  */
-const PRESS_SCALE_CLASS = /(?:^|[\s"'`])(?:motion-safe:)?(?:enabled:)?(?:group-)?active(?:\/[\w-]+)?:scale-\[(?:0\.96|0\.99)\]/
+const PRESS_SCALE_CLASS = /(?:^|[\s"'`])(?:motion-safe:)?(?:(?:group-)?enabled(?:\/[\w-]+)?:)?(?:group-)?active(?:\/[\w-]+)?:scale-\[(?:0\.96|0\.99)\]/
 
 /** Classes whose CSS rule owns the press transition. The rules are checked in the stylesheet test below. */
 const PRESS_TRANSITION_CLASSES = ['habit-control-motion', 'orbit-pill-action', 'orbit-list-row-body', 'orbit-list-row-action', 'icon-btn']

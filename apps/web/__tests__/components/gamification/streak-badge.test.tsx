@@ -108,10 +108,11 @@ describe('Control hover paint in Chromium', () => {
       await page.setContent(`<style>${stylesheet} :root{${declarations}} body{padding:48px;background:var(--bg)}</style>${container.innerHTML}`)
       await loadAppFonts(page)
       const button = page.locator('button')
-      const resting = await button.evaluate((element) => getComputedStyle(element).backgroundColor)
+      const surface = button.locator(':scope > [data-slot="press-surface"]')
+      const resting = await surface.evaluate((element) => getComputedStyle(element).backgroundColor)
       await button.hover()
       await button.evaluate((element) => Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)))
-      const paint = await button.evaluate((element) => ({
+      const paint = await surface.evaluate((element) => ({
         base: getComputedStyle(element).backgroundColor,
         layer: getComputedStyle(element, '::after').backgroundColor,
         text: getComputedStyle(element.querySelector('span:last-child')!).color,

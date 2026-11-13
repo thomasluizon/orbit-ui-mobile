@@ -49,7 +49,7 @@ describe('habit row standard in Chromium', () => {
         if (await progress.count()) expect(await progress.getAttribute('stroke')).toBe(await control.locator('[data-habit-check]').getAttribute('data-status') === 'bad' ? 'var(--status-bad)' : 'var(--primary)')
         await page.mouse.down()
         const pressScale = motion === 'reduce' ? 1 : 0.96
-        await expect.poll(() => control.evaluate((element) => element.getBoundingClientRect().width)).toBeCloseTo(48 * pressScale, 1)
+        await expect.poll(() => control.locator('[data-habit-check]').evaluate((element) => element.getBoundingClientRect().width)).toBeCloseTo(28 * pressScale, 1)
         await assertCompletionFill(control, scale, pressScale, expect)
         await page.mouse.up()
         await page.mouse.move(0, 0)
@@ -84,7 +84,7 @@ describe('habit row standard in Chromium', () => {
         expect(await completionPaint(control)).toBe(rest)
         await page.mouse.down()
         const pressScale = motion === 'reduce' ? 1 : 0.96
-        await expect.poll(() => control.evaluate((element) => element.getBoundingClientRect().width)).toBeCloseTo(48 * pressScale, 1)
+        await expect.poll(() => control.locator('[data-habit-check]').evaluate((element) => element.getBoundingClientRect().width)).toBeCloseTo(28 * pressScale, 1)
         await assertCompletionFill(control, 1, pressScale, expect)
         await page.mouse.move(0, 0)
         await page.mouse.up()

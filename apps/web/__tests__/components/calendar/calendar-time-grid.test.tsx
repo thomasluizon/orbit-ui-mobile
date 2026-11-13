@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { beforeAll, describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, within, waitFor, act } from '@testing-library/react'
 import { enUS, ptBR } from 'date-fns/locale'
 
@@ -12,6 +12,8 @@ vi.mock('next-intl', () => ({
 import { CalendarWeekView } from '@/components/calendar/calendar-week-view'
 import { CalendarTimeGrid, type TimeGridColumn } from '@/components/calendar/calendar-time-grid'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+import { MOTION_SAFE } from '@/__tests__/support/compiled-class-rules'
+import { compilePressScaleRules, scaledWhilePressed, type PressScaleRule } from '@/__tests__/support/press-scale-rules'
 
 function makeEntry(overrides: Partial<CalendarDayEntry> = {}): CalendarDayEntry {
   return {
@@ -174,7 +176,7 @@ describe('CalendarTimeGrid', () => {
     renderGrid([col], dayMap)
 
     const block = screen.getByTestId('time-grid-event')
-    expect(block).toHaveStyle({ boxShadow: 'inset 0 0 0 1px var(--hairline)' })
+    expect(block.querySelector(':scope > [data-slot="press-surface"]')).toHaveStyle({ boxShadow: 'inset 0 0 0 1px var(--hairline)' })
   })
 
   it('keeps every concurrent timed-event lane at least 48px wide', () => {
@@ -654,5 +656,22 @@ describe('CalendarTimeGrid', () => {
     renderGrid([col], dayMap)
 
     expect(screen.queryByTestId('time-grid-empty')).toBeNull()
+  })
+})
+
+describe('time grid press targets that keep their full size', () => {
+  let rules: PressScaleRule[]
+  beforeAll(async () => { rules = await compilePressScaleRules() })
+
+  it.each([
+    ['a timed block', 'time-grid-event'],
+    ['a week header', 'time-grid-col-header'],
+  ])('scales the surface inside %s and never the target, so a press at its edge keeps its click', (_name, testId) => {
+    const col = column(2025, 5, 16)
+    renderGrid([col], new Map([[col.dateStr, [makeEntry({ dueTime: '08:00' })]]]))
+    const target = screen.getByTestId(testId)
+    const scaled = scaledWhilePressed(rules, target)
+    expect(scaled.map(({ element }) => element), 'the press scales only the surface inside the target').toEqual([target.querySelector(':scope > [data-slot="press-surface"]')])
+    expect(scaled.map(({ media }) => media), 'reduced motion removes the press scale').toEqual([[MOTION_SAFE]])
   })
 })
