@@ -4127,6 +4127,7 @@
   },
   "desktopWindow": {
     "controls": "Controles da janela",
+    "menu": "Menu",
     "minimize": "Minimizar",
     "maximize": "Maximizar",
     "restore": "Restaurar",

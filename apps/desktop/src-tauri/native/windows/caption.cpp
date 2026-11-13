@@ -7,6 +7,9 @@ static constexpr int kBarHeight = 48;
 static constexpr int kControlWidth = 44;
 static constexpr int kEndInset = 4;
 static constexpr UINT_PTR kParentSubclass = 2;
+// A layered window lets mouse input through where its alpha is zero (Win32 "Layered Windows", hit testing), so the region
+// keeps the lowest visible alpha: its black fill adds 1/255 over the page, and the page glyph, hover and press stay visible.
+static constexpr BYTE kRegionAlpha = 1;
 
 struct Caption {
     HWND overlay = nullptr;
@@ -77,13 +80,16 @@ extern "C" bool orbit_caption_install(void *parent, void (*hover)(bool)) {
     WNDCLASSW definition{};
     definition.lpfnWndProc = overlay_events;
     definition.hInstance = GetModuleHandleW(nullptr);
+    definition.hbrBackground = static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));
     definition.lpszClassName = L"OrbitSnapRegion";
     if (!RegisterClassW(&definition)) return false;
     auto window = static_cast<HWND>(parent);
     caption.hover = hover;
-    caption.overlay = CreateWindowExW(0, definition.lpszClassName, L"", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS,
+    // Windows 8 and later accept WS_EX_LAYERED on a child window; the shell manifest declares those versions.
+    caption.overlay = CreateWindowExW(WS_EX_LAYERED, definition.lpszClassName, L"", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS,
         0, 0, 0, 0, window, nullptr, definition.hInstance, nullptr);
-    if (!caption.overlay || !SetWindowSubclass(window, parent_events, kParentSubclass, 0)) return false;
+    if (!caption.overlay || !SetLayeredWindowAttributes(caption.overlay, 0, kRegionAlpha, LWA_ALPHA)) return false;
+    if (!SetWindowSubclass(window, parent_events, kParentSubclass, 0)) return false;
     place(window);
     return true;
 }

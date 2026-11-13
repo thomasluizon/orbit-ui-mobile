@@ -1,4 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { NextIntlClientProvider } from 'next-intl'
 import { renderToString } from 'react-dom/server'
@@ -59,14 +60,38 @@ it('renders nothing on the server, so the first client render matches it', () =>
 })
 
 it.each([
-  ['en', ['Minimize', 'Maximize', 'Close'], 'Window controls'],
-  ['pt-BR', ['Minimizar', 'Maximizar', 'Fechar'], 'Controles da janela'],
-] as const)('draws the three Windows actions with %s accessible names', async (locale, names, group) => {
+  ['en', ['Minimize', 'Maximize', 'Close'], 'Window controls', 'Menu'],
+  ['pt-BR', ['Minimizar', 'Maximizar', 'Fechar'], 'Controles da janela', 'Menu'],
+] as const)('draws the menu action and the three Windows actions with %s accessible names', async (locale, names, group, menu) => {
   markShell('windows')
-  renderBar(locale)
+  const { container } = renderBar(locale)
   const controls = screen.getByRole('group', { name: group })
   expect(within(controls).getAllByRole('button').map((button) => button.getAttribute('aria-label'))).toEqual(names)
+  const buttons = within(container).getAllByRole('button')
+  expect(buttons.map((button) => button.getAttribute('aria-label'))).toEqual([menu, ...names])
+  expect(buttons[0]).toHaveAttribute('aria-haspopup', 'menu')
   await waitFor(() => expect(invoke).toHaveBeenCalledWith('desktop_window', { action: 'state' }))
+})
+
+it('opens the native app menu from the menu action at the start of the bar, by pointer or by keyboard', async () => {
+  markShell('windows')
+  const { container } = renderBar()
+  const menu = screen.getByRole('button', { name: 'Menu' })
+  const bar = container.querySelector('[data-desktop-window-bar-content]') as HTMLElement
+  expect(bar.firstElementChild?.contains(menu)).toBe(true)
+  expect(bar.style.paddingInlineStart).toBe('4px')
+  expect(menu.tabIndex).toBe(0)
+  fireEvent.mouseDown(menu, { button: 0, detail: 1 })
+  expect(invoke).not.toHaveBeenCalledWith('desktop_window', { action: 'drag' })
+  fireEvent.click(menu)
+  expect(invoke).toHaveBeenLastCalledWith('desktop_window', { action: 'menu' })
+  const user = userEvent.setup()
+  for (const key of ['{Enter}', ' ']) {
+    invoke.mockClear()
+    menu.focus()
+    await user.keyboard(key)
+    expect(invoke).toHaveBeenCalledWith('desktop_window', { action: 'menu' })
+  }
 })
 
 it('calls the window command of each action and swaps the maximize glyph and name with the window state', async () => {
@@ -97,7 +122,7 @@ it('drags on a single press and toggles maximize on a double press of the bar, n
   markShell('windows')
   const { container } = renderBar()
   await screen.findByRole('button', { name: 'Maximize' })
-  const dragArea = container.querySelector('[data-desktop-window-bar-content] > div') as HTMLElement
+  const dragArea = container.querySelector('[data-desktop-window-bar-content] > [role="presentation"]') as HTMLElement
   fireEvent.mouseDown(dragArea, { button: 0, detail: 1 })
   expect(invoke).toHaveBeenLastCalledWith('desktop_window', { action: 'drag' })
   fireEvent.mouseDown(dragArea, { button: 0, detail: 2 })
@@ -119,7 +144,7 @@ it('shows the hover fill on the maximize action while the native snap region hol
   expect(maximize).not.toHaveAttribute('data-native-hover')
 })
 
-it('keeps the macOS traffic lights clear and draws no window actions', () => {
+it('keeps the macOS traffic lights clear and draws no window actions and no menu action, as macOS keeps its menu bar', () => {
   markShell('macos')
   const { container } = renderBar()
   expect(screen.queryAllByRole('button')).toEqual([])

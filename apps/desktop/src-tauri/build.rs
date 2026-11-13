@@ -18,17 +18,23 @@ fn main() {
         "windows" => build_windows(),
         _ => panic!("Desktop push requires macOS or Windows"),
     }
-    tauri_build::try_build(tauri_build::Attributes::new().app_manifest(
-        tauri_build::AppManifest::new().commands(&[
-            "commit_desktop_login",
-            "desktop_push",
-            "desktop_update",
-            "desktop_launch",
-            "desktop_window",
-            #[cfg(feature = "bench-loopback")]
-            "fit_bench_viewport",
-        ]),
-    ))
+    println!("cargo:rerun-if-changed=windows-app-manifest.xml");
+    tauri_build::try_build(
+        tauri_build::Attributes::new()
+            .app_manifest(tauri_build::AppManifest::new().commands(&[
+                "commit_desktop_login",
+                "desktop_push",
+                "desktop_update",
+                "desktop_launch",
+                "desktop_window",
+                #[cfg(feature = "bench-loopback")]
+                "fit_bench_viewport",
+            ]))
+            .windows_attributes(
+                tauri_build::WindowsAttributes::new()
+                    .app_manifest(include_str!("windows-app-manifest.xml")),
+            ),
+    )
     .expect("cannot build desktop context")
 }
 

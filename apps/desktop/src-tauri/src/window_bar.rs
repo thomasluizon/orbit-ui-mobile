@@ -9,7 +9,13 @@ pub enum Action {
     Minimize,
     ToggleMaximize,
     Close,
+    Menu,
 }
+
+// CSS pixels of the bar, matching apps/web/lib/desktop-window.ts: the menu action starts at the end inset, so its popup opens
+// at that inset under the bar.
+const BAR_HEIGHT: f64 = 48.0;
+const BAR_END_INSET: f64 = 4.0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Platform {
@@ -90,6 +96,7 @@ trait BarWindow {
     fn minimize(&self) -> tauri::Result<()>;
     fn start_dragging(&self) -> tauri::Result<()>;
     fn close(&self) -> tauri::Result<()>;
+    fn popup_menu(&self) -> tauri::Result<()>;
 }
 
 impl BarWindow for WebviewWindow {
@@ -111,6 +118,18 @@ impl BarWindow for WebviewWindow {
     fn close(&self) -> tauri::Result<()> {
         WebviewWindow::close(self)
     }
+    // The same native menu the window carries, shown as a popup: muda's `show_context_menu_for_hwnd` tracks its parallel
+    // popup handle, which keeps the labels, check states and enabled states of the menu bar, and dispatches the same events.
+    fn popup_menu(&self) -> tauri::Result<()> {
+        let menu = self
+            .menu()
+            .ok_or_else(|| std::io::Error::other("The window has no menu"))?;
+        WebviewWindow::popup_menu_at(
+            self,
+            &menu,
+            tauri::LogicalPosition::new(BAR_END_INSET, BAR_HEIGHT),
+        )
+    }
 }
 
 fn apply(window: &impl BarWindow, action: Action) -> tauri::Result<bool> {
@@ -119,6 +138,7 @@ fn apply(window: &impl BarWindow, action: Action) -> tauri::Result<bool> {
         Action::Drag => window.start_dragging()?,
         Action::Minimize => window.minimize()?,
         Action::Close => window.close()?,
+        Action::Menu => window.popup_menu()?,
         Action::ToggleMaximize => {
             if window.is_maximized()? {
                 window.unmaximize()?
@@ -138,8 +158,10 @@ extern "C" {
 #[cfg(windows)]
 static HOVER_TARGET: std::sync::OnceLock<tauri::AppHandle> = std::sync::OnceLock::new();
 
+#[cfg(any(windows, test))]
 const MAXIMIZE_HOVER_EVENT: &str = "orbit-window-maximize-hover";
 
+#[cfg(any(windows, test))]
 fn hover_script(hovered: bool) -> String {
     format!(
         "window.dispatchEvent(new CustomEvent('{MAXIMIZE_HOVER_EVENT}', {{ detail: {hovered} }}));"
@@ -253,6 +275,7 @@ mod tests {
             ("minimize", Action::Minimize),
             ("toggle_maximize", Action::ToggleMaximize),
             ("close", Action::Close),
+            ("menu", Action::Menu),
         ] {
             let parsed: Action = serde_json::from_str(&format!("\"{name}\"")).unwrap();
             assert_eq!(parsed, action);
@@ -299,6 +322,9 @@ mod tests {
         fn close(&self) -> tauri::Result<()> {
             self.record("close")
         }
+        fn popup_menu(&self) -> tauri::Result<()> {
+            self.record("popup_menu")
+        }
     }
 
     #[test]
@@ -311,6 +337,8 @@ mod tests {
             (Action::Close, false, Some("close"), false),
             (Action::ToggleMaximize, false, Some("maximize"), true),
             (Action::ToggleMaximize, true, Some("unmaximize"), false),
+            (Action::Menu, false, Some("popup_menu"), false),
+            (Action::Menu, true, Some("popup_menu"), true),
         ] {
             let window = Recorder::new(maximized);
             assert_eq!(apply(&window, action).unwrap(), after);

@@ -214,14 +214,47 @@ async function traversePalette(proxy, native, handle, dump, previous, report) {
 
 // The DESIGN.md canvas tokens, which the Orbit window bar paints for each page mode (#2132).
 const barCanvas = { light: [250, 250, 250], dark: [9, 9, 11] }
+const barActions = ['menu', 'minimize', 'maximize', 'close']
+
+// The least glyph extent of each 20px icon, as [width, height] in CSS pixels: the menu dots stand tall, the minimize line
+// lies wide, and the maximize square and the close cross take both directions.
+const glyphExtent = { menu: [0, 8], minimize: [8, 0], maximize: [8, 8], close: [8, 8] }
+
+// An action area shows its glyph on the canvas, as the minimize and close areas do: most of its middle is canvas, and the
+// pixels that stand apart from the canvas have the extent of its icon. A blank area has no glyph, a window painted over the
+// area has little canvas, and a stray line has the wrong extent. The snap region over the maximize action blends 1/255 of
+// black, so a canvas pixel may differ by a few levels. The reader samples the middle half of the 44px action, 22px wide.
+function glyphVisible(area, canvas) {
+  const scale = area.width / 22
+  let flat = 0
+  const rows = []
+  const columns = []
+  area.pixels.forEach((pixel, index) => {
+    if (pixel < 0) return
+    const distance = Math.max(...[16, 8, 0].map((shift, channel) => Math.abs(((pixel >> shift) & 255) - canvas[channel])))
+    if (distance <= 4) flat++
+    if (distance >= 64) {
+      rows.push(Math.floor(index / area.width))
+      columns.push(index % area.width)
+    }
+  })
+  const [width, height] = glyphExtent[area.name]
+  const extent = (values) => values.length ? Math.max(...values) - Math.min(...values) + 1 : 0
+  return rows.length > 0 && flat >= area.pixels.length * 0.6 &&
+    extent(columns) >= width * scale && extent(rows) >= height * scale
+}
+
+const glyphsVisible = (bar, canvas) => bar.actions?.map(({ name }) => name).join() === barActions.join() &&
+  bar.actions.every((area) => glyphVisible(area, canvas))
 
 async function inspectWindowBar(proxy, native, handle, output, report) {
   const names = await catalogValue('../../packages/shared/src/i18n', (catalogue) => catalogue.desktopWindow)
   const named = (key) => names.map((catalogue) => catalogue[key])
   // Only the two mode reads keep their screenshot, so the later reads write to a scratch capture.
   const read = (action = 'read', label, capture = 'window-action') => native(handle.child.pid, 'windowbar', undefined, { action, label, capture: join(output, `${capture}.png`) })
-  const hasActions = (bar, middle) => bar.buttons.length === 3 && named('minimize').includes(bar.buttons[0]) &&
-    named(middle).includes(bar.buttons[1]) && named('close').includes(bar.buttons[2])
+  // UI Automation reads the bar's buttons left to right: the menu action, then minimize, maximize or restore, and close.
+  const hasActions = (bar, middle) => bar.buttons.length === 4 && named('menu').includes(bar.buttons[0]) && named('minimize').includes(bar.buttons[1]) &&
+    named(middle).includes(bar.buttons[2]) && named('close').includes(bar.buttons[3])
   report.windowBar = {}
   for (const mode of ['light', 'dark']) {
     proxy.send(`appearance-${mode}`)
@@ -234,32 +267,50 @@ async function inspectWindowBar(proxy, native, handle, output, report) {
       await waitFor(async () => {
         bar = await read('read', undefined, `window-${mode}`)
         const [dominant] = bar.bar.colors
-        return bar.bar.captionHeight === 0 && !bar.bar.menuBar && dominant?.color.join() === expected.join() && dominant.count >= bar.bar.sampled * 0.9
-      }, `${mode} window bar in the Orbit canvas colour with no native caption`, 30000)
+        return bar.bar.captionHeight === 0 && !bar.bar.menuBar && dominant?.color.join() === expected.join() && dominant.count >= bar.bar.sampled * 0.9 &&
+          glyphsVisible(bar.bar, expected)
+      }, `${mode} window bar in the Orbit canvas colour with no native caption and a glyph on every action`, 30000)
     } finally {
       report.windowBar[mode] = { expected, pageCanvas: page.canvas, ...bar }
     }
   }
   const actions = report.windowBar.actions = {}
   const settled = (description, ready) => waitFor(async () => { const bar = await read(); return ready(bar) ? bar : undefined }, description, 15000)
-  const initial = await settled('the minimize, maximize and close actions of the window bar', (bar) => hasActions(bar, 'maximize'))
+  const initial = await settled('the menu, minimize, maximize and close actions of the window bar', (bar) => hasActions(bar, 'maximize'))
   actions.buttons = initial.buttons
+  await inspectMenuAction(proxy, read, actions)
   const dragged = await read('drag')
   actions.drag = { before: initial.state.rect, after: dragged.state.rect }
   if (dragged.state.rect[0] - initial.state.rect[0] < 100) throw new Error(`Dragging the window bar did not move the window: ${JSON.stringify(actions.drag)}`)
-  await read('invoke', initial.buttons[1])
+  await read('invoke', initial.buttons[2])
   const maximized = await settled('the maximized window with the restore action', (bar) => bar.state.zoomed && hasActions(bar, 'restore'))
   actions.maximize = maximized.state
-  await read('invoke', maximized.buttons[1])
+  await read('invoke', maximized.buttons[2])
   actions.restore = (await settled('the restored window with the maximize action', (bar) => !bar.state.zoomed && hasActions(bar, 'maximize'))).state
   await read('doubleclick')
   actions.doubleClickMaximize = (await settled('a double click on the bar maximizing the window', (bar) => bar.state.zoomed)).state
   await read('doubleclick')
   actions.doubleClickRestore = (await settled('a double click on the bar restoring the window', (bar) => !bar.state.zoomed)).state
-  await read('invoke', initial.buttons[0])
+  await read('invoke', initial.buttons[1])
   actions.minimize = (await settled('the minimized window', (bar) => bar.state.iconic)).state
   await read('restore')
   actions.restoreFromMinimize = (await settled('the window restored from minimize', (bar) => !bar.state.iconic && bar.state.visible)).state
+}
+
+// The probe presses the menu action as a person does; the shell then holds its native menu open as a popup until Escape.
+async function inspectMenuAction(proxy, read, actions) {
+  proxy.send('window-menu')
+  await waitFor(() => proxy.read('window-menu'), 'the probe pressing the menu action')
+  const { popup } = await read('popup')
+  actions.menu = popup
+  if (!popup.closed) throw new Error(`Escape did not close the native popup menu: ${JSON.stringify(popup.rect)}`)
+  if (!popup.items.length || JSON.stringify(popup.items) !== JSON.stringify(popup.windowMenu)) {
+    throw new Error(`The menu action did not open the window menu: ${JSON.stringify({ items: popup.items, windowMenu: popup.windowMenu })}`)
+  }
+  // TrackPopupMenu puts the top left corner of the menu at the anchor, here the start of the menu action under the bar.
+  if (Math.abs(popup.rect[0] - popup.anchor[0]) > 8 || Math.abs(popup.rect[1] - popup.anchor[1]) > 8) {
+    throw new Error(`The native popup menu did not open under the menu action: ${JSON.stringify({ rect: popup.rect, anchor: popup.anchor })}`)
+  }
 }
 
 async function installedLaunch(executable, output, name, report) {

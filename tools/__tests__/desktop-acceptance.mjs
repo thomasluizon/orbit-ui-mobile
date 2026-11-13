@@ -373,6 +373,42 @@ async function appearanceProbeCases() {
   T('the appearance probe presses the theme toggle only when the page shows the other mode', clicks === 2, `clicks ${clicks}`)
 }
 
+// The page draws the menu action as a button with data-window-action="menu" (apps/web/components/desktop-window-bar.tsx).
+async function windowMenuProbeCases() {
+  const reports = []
+  const commands = ['window-menu']
+  let pressed = 0
+  const browserWindow = { __ORBIT_DESKTOP_VERSION__: '1.0.0' }
+  browserWindow.top = browserWindow
+  let finished
+  const done = new Promise((resolve) => { finished = resolve })
+  const context = {
+    URLSearchParams, window: browserWindow, Date, setTimeout, requestAnimationFrame: (callback) => setImmediate(callback),
+    location: { pathname: '/', search: '' },
+    document: {
+      readyState: 'complete', cookie: '', addEventListener() {},
+      querySelector: (selector) => {
+        if (selector === '[data-window-action="menu"]') return { click() { pressed++ } }
+        return selector === '[data-habit-id="bench-0000"]' || selector === '[data-astra-button]:not([disabled])' ? {} : null
+      },
+    },
+    fetch: async (path, options) => {
+      if (path === '/_bench/events') {
+        const event = JSON.parse(options.body)
+        reports.push({ kind: event.kind, pressed })
+        if (event.kind === 'window-menu' || event.kind === 'error') finished()
+        return new Response(null, { status: 204 })
+      }
+      if (path === '/_bench/command') return commands.length ? new Response(commands.shift()) : new Promise(() => {})
+      return new Response(null, { status: 200 })
+    },
+  }
+  runInNewContext(await servedProbe(true), context)
+  await done
+  T('the window menu probe presses the menu action of the bar once and reports the press',
+    JSON.stringify(reports) === JSON.stringify([{ kind: 'hoje', pressed: 0 }, { kind: 'window-menu', pressed: 1 }]), JSON.stringify(reports))
+}
+
 async function compactHojeProbeCases() {
   const reports = []
   const keyListeners = []
@@ -827,6 +863,7 @@ export async function cases() {
   await sessionProbeCases()
   await compactHojeProbeCases()
   await appearanceProbeCases()
+  await windowMenuProbeCases()
   await controlledPaletteCases()
   nativePaletteFocusCases()
   const native = { denied: false, error: null, nodes: [

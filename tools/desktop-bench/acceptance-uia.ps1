@@ -8,7 +8,7 @@ param(
   [switch]$OpenCenter,
   [string]$Executable,
   [string]$Capture,
-  [ValidateSet('read', 'invoke', 'drag', 'doubleclick', 'restore')][string]$Action = 'read'
+  [ValidateSet('read', 'invoke', 'drag', 'doubleclick', 'restore', 'popup')][string]$Action = 'read'
 )
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes, WindowsBase, System.Windows.Forms
@@ -35,6 +35,7 @@ public sealed class OrbitMenuItem {
     public uint id;
     public string text;
     public bool enabled;
+    public bool @checked;
     public OrbitMenuItem[] children;
 }
 public static class OrbitForeground {
@@ -146,8 +147,9 @@ public static class OrbitForeground {
             uint state = GetMenuState(menu, (uint)position, 0x400);
             if (state == uint.MaxValue) throw new InvalidOperationException("Cannot read installed menu state");
             IntPtr submenu = GetSubMenu(menu, position);
+            // MF_GRAYED and MF_DISABLED are 3, and MF_CHECKED is 8.
             items.Add(new OrbitMenuItem { id = GetMenuItemID(menu, position), text = text.ToString(),
-                enabled = (state & 3) == 0, children = submenu == IntPtr.Zero ? new OrbitMenuItem[0] : ReadMenu(submenu) });
+                enabled = (state & 3) == 0, @checked = (state & 8) != 0, children = submenu == IntPtr.Zero ? new OrbitMenuItem[0] : ReadMenu(submenu) });
         }
         return items.ToArray();
     }
@@ -424,11 +426,33 @@ if ($Command -eq 'windowbar') {
   $handle = [IntPtr]$window.Current.NativeWindowHandle
   $automation = [System.Windows.Automation.AutomationElement]
   $buttonType = New-Object System.Windows.Automation.PropertyCondition($automation::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button)
-  # A minimized window cannot take the foreground, and a restore needs none.
-  if ($Action -ne 'read' -and $Action -ne 'restore') {
+  # A minimized window cannot take the foreground, and a restore needs none. An open popup menu already holds the foreground
+  # its owner gave it (muda show_context_menu calls SetForegroundWindow before TrackPopupMenu).
+  if ($Action -ne 'read' -and $Action -ne 'restore' -and $Action -ne 'popup') {
     if (-not [OrbitForeground]::SetForegroundWindow($handle)) { throw 'Cannot foreground installed app' }
     Start-Sleep -Milliseconds 250
   }
+  # The probe pressed the menu action, so the shell shows its native menu as a popup. The reading keeps the popup and the
+  # window menu, closes the popup with Escape and waits until it is gone.
+  $popupReading = $null
+  if ($Action -eq 'popup') {
+    $popup = $null
+    for ($attempt = 0; $attempt -lt 100 -and $null -eq $popup; $attempt++) {
+      $popup = [OrbitWindowBarReader]::Popup($handle, $TargetProcessId)
+      if ($null -eq $popup) { Start-Sleep -Milliseconds 100 }
+    }
+    if ($null -eq $popup) { throw 'No native popup menu opened for the menu action' }
+    $items = @([OrbitForeground]::ReadMenu([IntPtr]$popup.menu))
+    $windowMenu = @([OrbitForeground]::ReadMenu([OrbitForeground]::GetMenu($handle)))
+    [OrbitWindowBarReader]::Dismiss()
+    $open = $true
+    for ($attempt = 0; $attempt -lt 50 -and $open; $attempt++) {
+      Start-Sleep -Milliseconds 100
+      $open = $null -ne [OrbitWindowBarReader]::Popup($handle, $TargetProcessId)
+    }
+    $popupReading = @{ rect = $popup.rect; anchor = $popup.anchor; items = $items; windowMenu = $windowMenu; closed = -not $open }
+  }
+  if ($Action -eq 'read') { [OrbitWindowBarReader]::Park($handle) }
   if ($Action -eq 'invoke') {
     if (-not $Label) { throw 'invoke requires -Label' }
     $named = New-Object System.Windows.Automation.AndCondition($buttonType, (New-Object System.Windows.Automation.PropertyCondition($automation::NameProperty, $Label)))
@@ -447,7 +471,7 @@ if ($Command -eq 'windowbar') {
   $state = [OrbitWindowBarReader]::State($handle)
   $reading = $null
   if (-not $state.iconic) { $reading = [OrbitWindowBarReader]::Read($handle, $Capture) }
-  @{ action = $Action; state = $state; buttons = $row; bar = $reading } | ConvertTo-Json -Depth 6
+  @{ action = $Action; state = $state; buttons = $row; bar = $reading; popup = $popupReading } | ConvertTo-Json -Depth 20
   exit 0
 }
 if ($Command -ne 'dump') {

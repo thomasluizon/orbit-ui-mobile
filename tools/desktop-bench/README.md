@@ -155,12 +155,22 @@ as `pageCanvas`. The `windowbar` command of `acceptance-uia.ps1` reads the windo
 to start at the top of the visible frame, no menu bar above the client area, and the `DESIGN.md`
 canvas (`#FAFAFA` light, `#09090B` dark) on at least 90% of the sampled middle of the Orbit bar. The
 shell keeps its native menu attached, so the reader keeps the `GetMenuBarInfo` rectangle as `menuRect`
-and counts a menu bar only when part of it lies above the client area. Then the runner reads the three
-bar actions through UI Automation and uses them: it drags the empty bar, invokes maximize and restore,
-double clicks the bar twice, and invokes minimize and restores the window. `report.json` `windowBar` keeps each reading
-and the window state after each action. The `window-light.png` and `window-dark.png` captures of the
-whole window upload with the job. The Windows 11 snap layouts flyout has no automation reading, so only a
-person on Windows 11 can see it. Separate
+and counts a menu bar only when part of it lies above the client area. The reader parks the pointer in
+the middle of the window before a reading, so no action shows its hover fill, and crops the middle half
+of the menu, minimize, maximize and close areas as `actions`. In each mode every area must be at least
+60% canvas, and its pixels at least 64 levels from the canvas must span the glyph of its icon (8 CSS
+pixels tall for the menu dots, wide for the minimize line, both for the maximize square and the close
+cross). That fails a window painted over the maximize action, as the snap region did before it was
+layered; `__fixtures__/window-bar-actions.json` keeps those areas from a light and a dark capture of
+that build. Then the runner reads the four bar actions through UI Automation and uses them. The probe
+presses the menu action, and the `popup` action of the reader finds the process's visible `#32768`
+popup menu, reads it through `MN_GETHMENU`, presses Escape and waits until it closes. The runner
+requires the popup to equal the window menu (ids, labels, enabled and checked states), to open at the
+start of the menu action under the bar, and to close. Then it drags the empty bar, invokes maximize and
+restore, double clicks the bar twice, and invokes minimize and restores the window. `report.json`
+`windowBar` keeps each reading and the window state after each action. The `window-light.png` and
+`window-dark.png` captures of the whole window upload with the job. The Windows 11 snap layouts flyout
+has no automation reading, so only a person on Windows 11 can see it. Separate
 launches reject a cryptographically corrupted signature and download a correctly signed newer
 version. The update package is the built acceptance installer, signed with the newer advertised
 version to exercise the verifier. The job tests discovery and download verification; it does not

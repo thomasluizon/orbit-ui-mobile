@@ -109,6 +109,13 @@
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
     await report(`appearance-${mode}`, { canvas: root.style.getPropertyValue('--bg') })
   }
+  // The menu action asks the shell to show its native menu, which stays open until the reader closes it, so the probe
+  // reports the press without waiting for the command to settle.
+  async function windowMenu() {
+    const action = await until(() => document.querySelector('[data-window-action="menu"]'), 'the window bar menu action', 15000)
+    action.click()
+    await report('window-menu')
+  }
   async function update(expected) {
     const invoke = window.__TAURI_INTERNALS__?.invoke
     if (!invoke) throw new Error('Native updater bridge unavailable')
@@ -163,6 +170,7 @@
       }
       if (command.startsWith('update-')) await update(command.slice(7))
       else if (command.startsWith('appearance-')) await appearance(command.slice('appearance-'.length))
+      else if (command === 'window-menu') await windowMenu()
       else if (command.startsWith('focus-')) {
         await until(() => paletteState().selected === Number(command.slice(6)), 'next keyboard-selected result')
         await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))

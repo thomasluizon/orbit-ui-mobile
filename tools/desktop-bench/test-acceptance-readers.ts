@@ -354,21 +354,34 @@ $form.Activate()
 Wait-Paint
 $borderless = [OrbitWindowBarReader]::Read($form.Handle, '${join(directory, 'borderless.png')}')
 $state = [OrbitWindowBarReader]::State($form.Handle)
+$form.WindowState = 'Minimized'
+Wait-Paint
+$minimized = [OrbitWindowBarReader]::Read($form.Handle, '${join(directory, 'minimized.png')}')
+$form.WindowState = 'Normal'
 $form.FormBorderStyle = 'Sizable'
 $form.Text = 'Orbit window bar fixture'
 Wait-Paint
 $captioned = [OrbitWindowBarReader]::Read($form.Handle, '${join(directory, 'captioned.png')}')
 $form.Close()
-@{ borderless = $borderless; captioned = $captioned; state = $state } | ConvertTo-Json -Depth 6
+@{ borderless = $borderless; captioned = $captioned; state = $state; minimized = ($null -eq $minimized) } | ConvertTo-Json -Depth 6
 `
     const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', timeout: 60000 })
     assert.equal(result.status, 0, result.stderr)
-    type Reading = { frame: number[]; captionHeight: number; menuBar: boolean; sampled: number; colors: { color: number[]; count: number }[] }
-    const { borderless, captioned, state } = JSON.parse(result.stdout) as { borderless: Reading; captioned: Reading; state: { rect: number[]; zoomed: boolean; iconic: boolean; visible: boolean } }
+    type Reading = { frame: number[]; captionHeight: number; menuBar: boolean; sampled: number; colors: { color: number[]; count: number }[]
+      actions: { name: string; width: number; height: number; pixels: number[] }[] }
+    const { borderless, captioned, state, minimized } = JSON.parse(result.stdout) as { borderless: Reading; captioned: Reading; minimized: boolean
+      state: { rect: number[]; zoomed: boolean; iconic: boolean; visible: boolean } }
     assert.equal(borderless.captionHeight, 0, JSON.stringify(borderless))
     assert.equal(borderless.menuBar, false)
     assert.deepEqual(borderless.colors[0]!.color, [9, 9, 11], JSON.stringify(borderless))
     assert.ok(borderless.colors[0]!.count >= borderless.sampled * 0.9, JSON.stringify(borderless))
+    // The reader crops the middle half of each 44px action of the 48px bar; the fixture paints the canvas everywhere.
+    assert.deepEqual(borderless.actions.map(({ name, width, height }) => [name, width, height]),
+      [['menu', 22, 24], ['minimize', 22, 24], ['maximize', 22, 24], ['close', 22, 24]])
+    assert.ok(borderless.actions.every(({ pixels }) => pixels.length === 22 * 24 && pixels.filter((pixel) => pixel === 0x09090b).length >= pixels.length * 0.9),
+      JSON.stringify(borderless.actions.map(({ pixels }) => pixels.slice(0, 4))))
+    // A window that is minimized has no bar to read, even when its state was read before it turned minimized.
+    assert.equal(minimized, true)
     // A window with the system caption has client area below its frame top, which is what the check rejects.
     assert.ok(captioned.captionHeight > 0, JSON.stringify(captioned))
     assert.deepEqual([state.zoomed, state.iconic, state.visible], [false, false, true])

@@ -161,11 +161,37 @@ it('keeps the native snap region, the page bar and the stylesheet on one geometr
     expect(value).toBeGreaterThan(0)
     expect(constant(native, new RegExp(`${nativeName} = (\\d+)`))).toBe(value)
   }
-  expect(read('../../web/app/globals.css')).toContain(`--desktop-window-bar-height: ${constant(page, /DESKTOP_WINDOW_BAR_HEIGHT = (\d+)/)}px;`)
+  const height = constant(page, /DESKTOP_WINDOW_BAR_HEIGHT = (\d+)/)
+  const inset = constant(page, /DESKTOP_WINDOW_BAR_END_INSET = (\d+)/)
+  const control = constant(page, /DESKTOP_WINDOW_CONTROL_WIDTH = (\d+)/)
+  const menuAnchor = read('../src-tauri/src/window_bar.rs')
+  expect(menuAnchor).toContain(`const BAR_HEIGHT: f64 = ${height}.0;`)
+  expect(menuAnchor).toContain(`const BAR_END_INSET: f64 = ${inset}.0;`)
+  expect(menuAnchor).toContain('tauri::LogicalPosition::new(BAR_END_INSET, BAR_HEIGHT)')
+  const acceptanceReader = read('../../../tools/desktop-bench/acceptance-window-bar.cs')
+  for (const [name, value] of [['BarCssHeight', height], ['ControlCssWidth', control], ['EndCssInset', inset]] as const) {
+    expect(acceptanceReader).toContain(`private const int ${name} = ${value};`)
+  }
+  expect(read('../src-tauri/native/windows/caption.cpp')).toMatch(/CreateWindowExW\(WS_EX_LAYERED,[\s\S]*SetLayeredWindowAttributes\(caption\.overlay, 0, kRegionAlpha, LWA_ALPHA\)/)
+  expect(read('../src-tauri/native/windows/caption.cpp')).toContain('static constexpr BYTE kRegionAlpha = 1;')
+  expect(read('../../web/app/globals.css')).toContain(`--desktop-window-bar-height: ${height}px;`)
   expect(page).toContain("runtime.invoke('desktop_window', { action })")
   expect(read('../src-tauri/src/window_bar.rs')).toContain(`'${page.match(/DESKTOP_MAXIMIZE_HOVER_EVENT = '([^']+)'/)?.[1]}'`)
   expect(read('../src-tauri/build.rs')).toContain('.file("native/windows/caption.cpp")')
   expect(read('../src-tauri/native/windows/launch.cpp')).not.toMatch(/DWMWA_CAPTION_COLOR|dwmapi/)
+})
+
+it('embeds a Windows manifest that keeps Common Controls 6 and declares Windows 8 and later for the layered snap region', () => {
+  const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
+  const build = read('../src-tauri/build.rs')
+  expect(build).toMatch(/\.windows_attributes\(\s*tauri_build::WindowsAttributes::new\(\)\s*\.app_manifest\(include_str!\("windows-app-manifest\.xml"\)\),?\s*\)/)
+  expect(build).toContain('cargo:rerun-if-changed=windows-app-manifest.xml')
+  const manifest = read('../src-tauri/windows-app-manifest.xml')
+  expect(manifest).toContain('name="Microsoft.Windows.Common-Controls"')
+  expect(manifest).toContain('version="6.0.0.0"')
+  for (const id of ['8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a', '1f676c76-80e1-4239-95bb-83d0f6d0da78', '4a2f28e3-53b9-4441-ba9c-d69d4a4a6e38']) {
+    expect(manifest).toContain(`<supportedOS Id="{${id}}"/>`)
+  }
 })
 
 it('gives staging and production separate persistent webview identities', () => {
