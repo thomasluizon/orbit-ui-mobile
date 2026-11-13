@@ -39,7 +39,7 @@ it('clears failed and expired tokens and offers retry', async () => {
 
   const callbacks = renderWidget.mock.calls[0]![1] as {
     callback: (token: string) => void
-    'error-callback': () => boolean
+    'error-callback': (code: string) => boolean
     'expired-callback': () => void
   }
   act(() => callbacks.callback('fresh-token'))
@@ -55,7 +55,7 @@ it('clears failed and expired tokens and offers retry', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'auth.turnstileRetry' }))
   expect(reset).toHaveBeenCalledWith('widget-1')
 
-  act(() => { callbacks['error-callback']() })
+  act(() => { callbacks['error-callback']('110200') })
   expect(screen.getByRole('alert')).toHaveTextContent('auth.turnstileFailed')
 })
 
@@ -94,8 +94,8 @@ it('keeps onboarding verification managed and reports failure without extra copy
   await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
   expect(renderWidget.mock.calls[0]![1]).toMatchObject({ appearance: 'interaction-only' })
   expect(screen.queryByRole('status')).toBeNull()
-  const callbacks = renderWidget.mock.calls[0]![1] as { 'error-callback': () => boolean }
-  act(() => { callbacks['error-callback']() })
+  const callbacks = renderWidget.mock.calls[0]![1] as { 'error-callback': (code: string) => boolean }
+  act(() => { callbacks['error-callback']('110200') })
   expect(onStateChange).toHaveBeenCalledWith('failed')
   expect(screen.queryByRole('alert')).toBeNull()
   expect(screen.queryByText('auth.turnstileFailed')).toBeNull()
@@ -196,4 +196,53 @@ it('shows the loading sentence only while no challenge waits for the person', as
   expect(screen.getByRole('status')).toHaveTextContent('')
   act(() => callbacks['after-interactive-callback']())
   expect(screen.getByRole('status')).toHaveTextContent('auth.turnstileLoading')
+})
+
+it('keeps checking while Turnstile runs a failed challenge again and reports the failure when that run fails too', async () => {
+  const renderWidget = vi.fn((..._args: unknown[]) => 'retried-widget')
+  const reset = vi.fn()
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset, remove: vi.fn() }
+  const onToken = vi.fn()
+  const onStateChange = vi.fn()
+  render(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={onToken} onStateChange={onStateChange} />)
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
+  const callbacks = renderWidget.mock.calls[0]![1] as {
+    'error-callback': (code: string) => boolean
+    'before-interactive-callback': () => void
+  }
+
+  act(() => { expect(callbacks['error-callback']('600010')).toBe(true) })
+  expect(onStateChange).toHaveBeenLastCalledWith('loading')
+  expect(onToken).toHaveBeenLastCalledWith(null)
+  expect(screen.getByRole('status')).toHaveTextContent('auth.turnstileLoading')
+  expect(screen.queryByRole('button', { name: 'auth.turnstileRetry' })).toBeNull()
+
+  act(() => callbacks['before-interactive-callback']())
+  expect(onStateChange).toHaveBeenLastCalledWith('interactive')
+  act(() => { callbacks['error-callback']('600010') })
+  expect(onStateChange).toHaveBeenLastCalledWith('loading')
+
+  act(() => { callbacks['error-callback']('600010') })
+  expect(onStateChange).toHaveBeenLastCalledWith('failed')
+  expect(screen.getByRole('alert')).toHaveTextContent('auth.turnstileFailed')
+  act(() => { callbacks['error-callback']('600010') })
+  expect(onStateChange).toHaveBeenLastCalledWith('failed')
+
+  fireEvent.click(screen.getByRole('button', { name: 'auth.turnstileRetry' }))
+  expect(reset).toHaveBeenCalledWith('retried-widget')
+  act(() => { callbacks['error-callback']('600010') })
+  expect(onStateChange).toHaveBeenLastCalledWith('loading')
+  expect(renderWidget.mock.calls[0]![1]).toMatchObject({ retry: 'auto' })
+})
+
+it.each(['200100', '110200'])('reports at once the failure %s that Cloudflare marks as not retried', async (code) => {
+  const renderWidget = vi.fn((..._args: unknown[]) => 'final-widget')
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
+  const onStateChange = vi.fn()
+  render(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} onStateChange={onStateChange} />)
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
+  const callbacks = renderWidget.mock.calls[0]![1] as { 'error-callback': (code: string) => boolean }
+  act(() => { callbacks['error-callback'](code) })
+  expect(onStateChange).toHaveBeenLastCalledWith('failed')
+  expect(screen.getByRole('alert')).toHaveTextContent('auth.turnstileFailed')
 })

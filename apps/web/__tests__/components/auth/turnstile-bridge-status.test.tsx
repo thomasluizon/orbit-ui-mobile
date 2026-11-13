@@ -42,8 +42,8 @@ it('draws only the Cloudflare challenge and leaves status and retry to the nativ
   }
   expectNoStatusSurface()
 
-  const callbacks = renderWidget.mock.calls[0]![1] as { 'error-callback': () => boolean; 'expired-callback': () => void }
-  act(() => { callbacks['error-callback']() })
+  const callbacks = renderWidget.mock.calls[0]![1] as { 'error-callback': (code: string) => boolean; 'expired-callback': () => void }
+  act(() => { callbacks['error-callback']('200100') })
   expectNoStatusSurface()
   act(() => callbacks['expired-callback']())
   expectNoStatusSurface()
@@ -51,6 +51,29 @@ it('draws only the Cloudflare challenge and leaves status and retry to the nativ
     { state: 'failed' },
     { token: null },
     { state: 'expired' },
+    { token: null },
+  ])
+})
+
+it('tells the native host the check is still loading while Turnstile runs a failed first challenge again', async () => {
+  const renderWidget = vi.fn((..._args: unknown[]) => 'widget-1')
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
+  const postMessage = vi.fn()
+  window.ReactNativeWebView = { postMessage }
+  render(<TurnstileBridge siteKey="mobile-site-key" theme="dark" language="en" />)
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledTimes(1))
+  const callbacks = renderWidget.mock.calls[0]![1] as {
+    'error-callback': (code: string) => boolean
+    'before-interactive-callback': () => void
+  }
+
+  act(() => { callbacks['error-callback']('600010') })
+  act(() => callbacks['before-interactive-callback']())
+
+  expect(postMessage.mock.calls.map(([message]) => JSON.parse(message as string))).toEqual([
+    { state: 'loading' },
+    { token: null },
+    { state: 'interactive' },
     { token: null },
   ])
 })
