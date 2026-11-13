@@ -1131,6 +1131,9 @@
       "daysFree": "Days free",
       "reminders": "Reminders",
       "askAstraSeedDefault": "How am I doing with my habit \"{title}\"? Give me your read and one tip to improve.",
+      "orbit": {
+        "lastSevenDays": "You did this on {done} of the last 7 days."
+      },
       "copyDescription": "Copy description",
       "descriptionCopied": "Description copied",
       "copyFailed": "We could not copy the description. Select the text and copy it by hand.",
@@ -1144,7 +1147,7 @@
       "log": "Log \"{title}\"",
       "unlog": "Undo log for {title}",
       "lastThirtyDays": "Last 30 days",
-      "slippingLine": "No completions in the last {days, plural, one {# day} other {# days}}. The streak is at {streak} and the 30-day rate is below {limit}%.",
+      "slippingLine": "This habit has slowed down. A new date might fit it better.",
       "history": "Activity",
       "previousMonth": "Previous month",
       "nextMonth": "Next month",

@@ -1131,6 +1131,9 @@
       "daysFree": "Sem deslize",
       "reminders": "Lembretes",
       "askAstraSeedDefault": "Como estou indo no hábito \"{title}\"? Me dá sua análise e uma dica para melhorar.",
+      "orbit": {
+        "lastSevenDays": "Você fez isso em {done} dos últimos 7 dias."
+      },
       "copyDescription": "Copiar descrição",
       "descriptionCopied": "Descrição copiada",
       "copyFailed": "Não foi possível copiar a descrição. Selecione o texto e copie manualmente.",
@@ -1144,7 +1147,7 @@
       "log": "Registrar \"{title}\"",
       "unlog": "Desfazer registro de {title}",
       "lastThirtyDays": "Últimos 30 dias",
-      "slippingLine": "Nenhum registro {days, plural, =0 {nos últimos # dias} one {no último dia} other {nos últimos # dias}}. A sequência está em {streak} e a taxa dos últimos 30 dias está abaixo de {limit}%.",
+      "slippingLine": "Esse hábito está num ritmo mais devagar. Uma nova data pode caber melhor.",
       "history": "Atividade",
       "previousMonth": "Mês anterior",
       "nextMonth": "Próximo mês",
