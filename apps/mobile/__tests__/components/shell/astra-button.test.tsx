@@ -155,7 +155,7 @@ it('is the live Orbit at 48 with no background, in a 60 press target', async () 
   await mountShell(412)
   const mascot = host('astra-button').findAll(node => node.props['data-orbit-face'] === 'rig')[0]!
   expect(mascot.props).toMatchObject({ width: 48, accessible: false })
-  const flattened = StyleSheet.flatten(host('astra-button').props.style)
+  const flattened = StyleSheet.flatten(host('astra-button').props.style) as Record<string, unknown>
   expect(flattened).toMatchObject({ width: 60, height: 60 })
   expect(flattened.backgroundColor).toBeUndefined()
   expect(flattened.boxShadow).toBeUndefined()
