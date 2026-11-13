@@ -69,7 +69,7 @@ In-flight work finishes as normal. Then no new board ticket is admitted until ev
 
 A finding from an owner review or a rendered sweep that shows broken behaviour lands here.
 
-No open ticket.
+- `#2132` Replace the native Windows title bar with an Orbit-drawn top bar, as Teams and Slack have (owner order; `#2084` only recoloured the native bar, which the owner rejected). Next: the worker runs in worktree `ticket-2132-windows-top-bar` (launch 1 of 2). The ticket has no option to keep the native caption. Review, merge, then the web release, which publishes the production desktop shell; read the Windows acceptance screenshots in light and dark before the close.
 
 ### Batch 0b: the harness and the standing syncs
 
