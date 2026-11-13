@@ -153,6 +153,7 @@
     ],
     "Orbit Criar": [
       "m-overlay-create-goal-from-habit-goal-deadline-field",
+      "m-overlay-guided-guided-habit-flow",
       "m-overlay-habit-form-fields-habit-date-field",
       "m-overlay-habit-form-fields-habit-emoji-selector",
       "m-overlay-habit-form-fields-habit-timing-field",
@@ -161,8 +162,10 @@
       "m-overlay-habits-create-habit-modal",
       "m-overlay-habits-habit-create-frame",
       "m-overlay-habits-habit-form-fields",
+      "m-overlay-ui-result-dialog",
       "m-route-habits-new",
       "overlay-create-goal-from-habit-goal-deadline-field",
+      "overlay-guided-guided-habit-flow",
       "overlay-habit-form-fields-habit-date-field",
       "overlay-habit-form-fields-habit-emoji-selector",
       "overlay-habit-form-fields-habit-timing-field",
@@ -171,6 +174,7 @@
       "overlay-habits-create-habit-modal",
       "overlay-habits-habit-create-frame",
       "overlay-habits-habit-form-fields",
+      "overlay-ui-result-dialog",
       "route-habits-new"
     ],
     "Orbit Habit Detail": [
