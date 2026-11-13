@@ -37,7 +37,7 @@ Inventory: open pull requests ui `#2442`, `#2444`, `#2445`, `#2447`, `#2448`, `#
 
 ## Then, in this order
 
-1. Answer any owner message first, in his language, before any other work and before a relay step. Give each order a ticket or a rescope before the turn ends.
+1. Answer any owner message first, before any other work and before a relay step. Give each order a ticket or a rescope before the turn ends.
 2. Arm the chains (`api#1111`, `ui#2442`), start the staging web wait and the `ui#2447` device proof, and deliver `ui#2445` round 8.
 3. `ui#2450`: read the launch result and the diff, then the missing parts; start `#2121` when Part 3 is on the branch.
 4. `api#1111` to merged, then staging, 5 captures and production.
