@@ -348,8 +348,9 @@
     "returningElapsed": "{days, plural, =0 {Você concluiu um hábito pela última vez há # dias.} one {Você concluiu um hábito pela última vez há # dia.} other {Você concluiu um hábito pela última vez há # dias.}}",
     "returningBounded": "Você concluiu um hábito pela última vez há mais de 30 dias.",
     "viewProgress": "Ver no Progresso",
-    "offline": "O Orbit precisa de conexão. Você ainda pode registrar hábitos offline.",
-    "offlineLog": "Salvo neste aparelho. O Orbit sincroniza quando você se reconectar."
+    "offline": "Preciso de conexão para conversar. Você ainda pode registrar hábitos offline.",
+    "offlineLog": "Salvo neste aparelho. Eu sincronizo quando você se reconectar.",
+    "limit": "Eu volto a conversar quando suas mensagens de IA renovarem."
   },
   "command": {
     "title": "O que você quer fazer",

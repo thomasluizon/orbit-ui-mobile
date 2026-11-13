@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => ({
 }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }) }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: mocks.upgrade, navigate: vi.fn() }) }))
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.profile }) }))
 vi.mock('@/hooks/use-proactive-item', () => ({ useProactiveItem: () => ({ item: mocks.item, openItem: mocks.openItem }) }))
 vi.mock('@/lib/api-client', () => ({ apiClient: (...args: unknown[]) => mocks.fetchSummary(...args) }))

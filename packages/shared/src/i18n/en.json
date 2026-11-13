@@ -348,8 +348,9 @@
     "returningElapsed": "{days, plural, one {You last completed a habit # day ago.} other {You last completed a habit # days ago.}}",
     "returningBounded": "You last completed a habit over 30 days ago.",
     "viewProgress": "See it on Progress",
-    "offline": "Orbit needs a connection. Habit logging still works offline.",
-    "offlineLog": "Saved on this device. Orbit will sync it when you reconnect."
+    "offline": "I need a connection to talk. Habit logging still works offline.",
+    "offlineLog": "Saved on this device. I sync it when you reconnect.",
+    "limit": "I can talk again when your AI messages renew."
   },
   "command": {
     "title": "What do you want to do",
