@@ -14,23 +14,30 @@ beforeEach(() => { vi.clearAllMocks(); mocks.params = { code: 'oauth-code', stat
 let tree: ReturnType<typeof TestRenderer.create>
 afterEach(() => TestRenderer.act(() => tree?.unmount()))
 function mount() { TestRenderer.act(() => { tree = TestRenderer.create(<QueryClientProvider client={new QueryClient()}><Callback /></QueryClientProvider>) }) }
-it('posts code, state and redirect URI once and returns to Astra settings', async () => {
+it('posts code, state and redirect URI once and returns to the AI settings page', async () => {
   mount()
-  await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/profile/astra'))
+  await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/profile/ai'))
   expect(mocks.complete).toHaveBeenCalledExactlyOnceWith(API.connections.notionCallback, expect.objectContaining({ method: 'POST' }))
   expect(JSON.parse(mocks.complete.mock.calls[0]![1].body)).toEqual(createNotionCallback())
 })
 it('returns a cancelled consent without posting or displaying an error', async () => {
   mocks.params = { error: 'access_denied', state: 'oauth-state' }; mount()
-  await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalledExactlyOnceWith('/profile/astra'))
+  await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalledExactlyOnceWith('/profile/ai'))
   expect(mocks.complete).not.toHaveBeenCalled()
 })
 it.each<Record<string, string>>([{ code: 'oauth-code' }, { error: 'server_error' }])('rejects an incomplete or failed callback', async (params) => {
   mocks.params = params; mount()
-  await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/profile/astra?notionError=1'))
+  await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/profile/ai?notionError=1'))
   expect(mocks.complete).not.toHaveBeenCalled()
 })
-it('returns a failed exchange to the retryable error on Astra settings', async () => {
+it('returns a failed exchange to the retryable error on the AI settings page', async () => {
   mocks.complete.mockRejectedValue(new Error('Unavailable')); mount()
-  await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/profile/astra?notionError=1'))
+  await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/profile/ai?notionError=1'))
+})
+it('draws the settings skeleton and no spinner while the connection completes', () => {
+  mocks.complete.mockReturnValue(new Promise(() => {}))
+  mount()
+  const hosts = tree.root.findAll((node: { type: unknown }) => typeof node.type === 'string')
+  expect(hosts.some((node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) => node.props.accessibilityRole === 'progressbar' && node.props.accessibilityLabel === 'common.loading')).toBe(true)
+  expect(hosts.some((node: { type: unknown }) => node.type === 'ActivityIndicator')).toBe(false)
 })

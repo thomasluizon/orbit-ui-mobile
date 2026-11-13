@@ -488,7 +488,7 @@ describe('ExpiryWarning', () => {
     })
   })
 
-  it('shows progress while session recovery is running', async () => {
+  it('shows the skeleton face on its action while session recovery is running', async () => {
     type RefreshedOutcome = { status: 'refreshed'; token: string }
     let resolveRefresh!: (outcome: RefreshedOutcome) => void
     mocks.refreshSession.mockImplementation(
@@ -507,7 +507,8 @@ describe('ExpiryWarning', () => {
     })
 
     expect(action(instance, i18n.t('auth.refresh')).props.disabled).toBe(true)
-    expect(hostNodes(instance, 'ActivityIndicator')).toHaveLength(1)
+    expect(hostNodes(instance, 'ActivityIndicator')).toHaveLength(0)
+    expect(instance.root.findAll((node) => node.type === 'View' && node.props.testID === 'skeleton-face')).toHaveLength(1)
     expect(action(instance, i18n.t('auth.refresh')).props.accessibilityLabel).toBe(i18n.t('auth.refresh'))
 
     await TestRenderer.act(async () => {

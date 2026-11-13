@@ -8,6 +8,7 @@ import { useTranslations } from 'next-intl'
 import { SectionLabel } from '@/components/ui/section-label'
 import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
+import { OptionCard } from '@/components/ui/option-card'
 import { RowList } from '@/components/ui/row-list'
 import { useProfile } from '@/hooks/use-profile'
 import { updateMarketingConsent } from '@/lib/actions/profile'
@@ -19,11 +20,14 @@ export function MarketingConsentSection({
   contained = false,
   acceptVariant = 'primary',
   trailingRow,
+  guided = false,
 }: Readonly<{
   showSectionLabel?: boolean
   contained?: boolean
   acceptVariant?: 'primary' | 'secondary'
   trailingRow?: ReactNode
+  /** The flag `orbit_guided_flows`: the two answers are quick options. */
+  guided?: boolean
 }>) {
   const t = useTranslations()
   const { profile, patchProfile } = useProfile()
@@ -53,7 +57,12 @@ export function MarketingConsentSection({
       <p className="m-0 font-sans text-sm leading-[1.55] text-[var(--fg-2)]">
         {t('profile.marketingEmails.questionDescription')}
       </p>
-      <fieldset
+      {guided ? (
+        <div role="group" aria-label={t('profile.marketingEmails.question')} data-option-group="" className="grid grid-cols-2 gap-3">
+          <OptionCard label={t('profile.marketingEmails.decline')} disabled={mutation.isPending} onSelect={() => mutation.mutate(false)} />
+          <OptionCard label={t('profile.marketingEmails.accept')} disabled={mutation.isPending} onSelect={() => mutation.mutate(true)} />
+        </div>
+      ) : <fieldset
         disabled={mutation.isPending}
         className="m-0 flex flex-wrap gap-2 border-0 p-0"
       ><ActionRow>
@@ -64,7 +73,7 @@ export function MarketingConsentSection({
         <PillButton size="sm" variant={acceptVariant} onClick={() => mutation.mutate(true)}>
           {t('profile.marketingEmails.accept')}
         </PillButton>
-      </ActionRow></fieldset>
+      </ActionRow></fieldset>}
     </div>
   ) : (
     /* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil emailOn controls this label under D42. */

@@ -126,11 +126,11 @@ among mark-only controls. It does not add an Orbit route or Android tab.
 | Wide sidebar conversation row | `components/shell/shell-wide.tsx`, `components/shell/destination-shell.tsx` | No sidebar; composer owns the front door | `nav.astra` supplies `Orbit` beside the glyph, with sibling row treatment; opens the conversation layer |
 | Onboarding shell conversation row | `components/onboarding/onboarding-flow.tsx`, rendered by `components/shell/shell-wide.tsx` | No sidebar | Uses the same `nav.astra` row; selects the existing Orbit onboarding entry |
 | Command palette | `components/shell/destination-shell.tsx`, `components/command/command-groups.tsx` | No command palette | No Orbit conversation entry exists; the supplied destinations are Hoje, Calendário, Progresso, Perfil, Todos and Geral |
-| Perfil settings navigation | `app/(app)/profile/_components/profile-settings-content.tsx` | `app/(tabs)/profile/_components/profile-settings-content.tsx` | `PROFILE_SUBMENUS` in `packages/shared/src/utils/profile-navigation.ts` supplies `profile.groups.astra`, already `Orbit` in both locales; opens `/profile/astra` settings with the `OrbitMascot` leading icon |
+| Perfil settings navigation | `app/(app)/profile/_components/profile-settings-content.tsx` | `app/(tabs)/profile/_components/profile-settings-content.tsx` | `PROFILE_SUBMENUS` in `packages/shared/src/utils/profile-navigation.ts` supplies `profile.groups.astra`, already `Orbit` in both locales; opens `/profile/ai` settings with the `OrbitMascot` leading icon |
 | Habit-detail conversation entry | `components/shell/composer.tsx` | `components/shell/composer.tsx` | Retains the mark-only composer control and contextual accessible name; this input accessory has no sibling destination names |
 
 Android component coverage mounts Perfil with both locale catalogs, checks its visible and
-accessible `Orbit` name and follows the row to `/profile/astra`. Web navigation coverage checks
+accessible `Orbit` name and follows the row to `/profile/ai`. Web navigation coverage checks
 one named sidebar row before the four destinations and its retained open/close behavior.
 Chromium coverage checks visible text, matching sibling row geometry, hover, press, focus and
 active styling in both locales and appearances. Action-copy and composer tests retain the

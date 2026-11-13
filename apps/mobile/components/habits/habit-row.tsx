@@ -35,6 +35,7 @@ import {
 } from './habit-row-model'
 import { styles } from './habit-row-styles'
 import { useHabitRowActivation } from './use-habit-row-activation'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 
 /**
  * Action callbacks consumed by HabitRow.
@@ -147,7 +148,7 @@ function HabitRowStructuralColumn({
   const [hovered, setHovered] = useState(false)
   if (!hasChildren) return null
   return (
-    <Pressable
+    <MotionPressable focusInset
       onPress={actions.onToggleExpand}
       onHoverIn={() => setHovered(true)}
       onHoverOut={() => setHovered(false)}
@@ -157,15 +158,13 @@ function HabitRowStructuralColumn({
       style={({ pressed }) => [
         styles.structuralColumn,
         hovered ? { backgroundColor: tokens.bgHover } : null,
-        pressed
-          ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] }
-          : null,
+        pressed ? { backgroundColor: tokens.bgHover } : null,
       ]}
     >
       <View style={{ transform: [{ rotate: expanded ? '0deg' : '-90deg' }] }}>
         <ChevronDown size={20} color={tokens.fg3} strokeWidth={1.8} />
       </View>
-    </Pressable>
+    </MotionPressable>
   )
 }
 
@@ -177,14 +176,13 @@ function HabitRowSelection({ title, selected, onToggleSelection, tokens }: Reado
 }>) {
   const [hovered, setHovered] = useState(false)
   return (
-    <Pressable onPress={onToggleSelection}
+    <MotionPressable focusInset onPress={onToggleSelection}
       onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}
       accessibilityRole="checkbox" accessibilityLabel={title} accessibilityState={{ checked: selected }}
       style={({ pressed }) => [styles.structuralColumn,
-        hovered || pressed ? { backgroundColor: tokens.bgHover } : null,
-        pressed ? { transform: [{ scale: 0.96 }] } : null]}>
+        hovered || pressed ? { backgroundColor: tokens.bgHover } : null]}>
       <Checkbox checked={selected} onChange={() => onToggleSelection?.()} as="span" />
-    </Pressable>
+    </MotionPressable>
   )
 }
 

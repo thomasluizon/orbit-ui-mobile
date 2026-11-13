@@ -80,6 +80,25 @@ export type HabitResultItem = {
   frequencyQuantity: number | null
 }
 
+/** The facts a draft saves, for a create that a queue holds until the server record exists. */
+export function optimisticHabitResult(values: {
+  itemType?: 'task' | 'habit' | null | undefined
+  isGeneral?: boolean | undefined
+  dueDate?: string | null | undefined
+  dueTime?: string | null | undefined
+  frequencyUnit?: HabitResultItem['frequencyUnit'] | undefined
+  frequencyQuantity?: number | null | undefined
+}): HabitResultItem {
+  return {
+    itemType: values.itemType === 'habit' ? 'habit' : 'task',
+    isGeneral: values.isGeneral ?? false,
+    dueDate: values.dueDate || null,
+    dueTime: values.dueTime || null,
+    frequencyUnit: values.frequencyUnit ?? null,
+    frequencyQuantity: values.frequencyQuantity ?? null,
+  }
+}
+
 export type HabitResultSentenceKey =
   | 'result.task.dated'
   | 'result.task.datedTimed'

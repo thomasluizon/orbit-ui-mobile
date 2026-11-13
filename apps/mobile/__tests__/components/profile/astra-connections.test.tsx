@@ -60,7 +60,7 @@ it('uses the Pro lock without reading Notion for free accounts', () => {
   expect(tree.root.findAllByType(NotionConnectionSheet)).toHaveLength(0)
   expect(mocks.api).not.toHaveBeenCalledWith(API.connections.notion, expect.anything(), expect.anything())
 })
-it('keeps Connect and its spinner while requesting authorization', async () => {
+it('keeps Connect busy on its skeleton face while requesting authorization', async () => {
   mocks.api.mockImplementation((path: string) => path === API.connections.notionAuthorize ? new Promise(() => {}) : Promise.resolve(createNotionConnection()))
   mount(); await openNotion()
   expect(text()).toContain(en.profile.connections.description)
@@ -154,4 +154,15 @@ it('shows an authorization failure and allows another attempt', async () => {
   TestRenderer.act(() => action(en.profile.connections.connect).props.onClick()); await settle()
   expect(text()).toContain(en.profile.connections.error)
   expect(action(en.profile.connections.connect).props.disabled).toBe(false)
+})
+it('draws a skeleton and no spinner while the Notion connection loads', () => {
+  mocks.api.mockReturnValue(new Promise(() => {}))
+  function Harness() {
+    const controller = useNotionConnectionController(true)
+    return <NotionConnectionSheet callbackFailed={false} controller={controller} onClose={vi.fn()} onAuthorize={vi.fn()} onOpenUrl={vi.fn()} />
+  }
+  mount(true, <Harness />)
+  const hosts = tree.root.findAll((node: { type: unknown }) => typeof node.type === 'string')
+  expect(hosts.some((node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) => node.props.accessibilityRole === 'progressbar' && node.props.accessibilityLabel === en.common.loading)).toBe(true)
+  expect(hosts.some((node: { type: unknown }) => node.type === 'ActivityIndicator')).toBe(false)
 })

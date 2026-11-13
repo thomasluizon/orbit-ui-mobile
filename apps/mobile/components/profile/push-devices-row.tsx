@@ -10,6 +10,7 @@ import { RowList } from '@/components/ui/row-list'
 import { PillButton } from '@/components/ui/pill-button'
 import { RotateCcw, Settings } from '@/components/ui/icons'
 import type { AppTokensV2 } from '@/lib/theme'
+import { Skeleton } from '@/components/ui/skeleton'
 
 function PushDevicesFeedback({
   tokens,
@@ -108,7 +109,7 @@ export function PushDevicesRow({
         if (!currentDeviceRegistered && !canEnable) return
         onToggle()
       } }} />
-      {loading ? <Text accessibilityRole="progressbar" accessibilityLabel={t('profile.loading')} style={{ color: tokens.fg3, paddingHorizontal: SPACING.s16, paddingBottom: SPACING.s12, fontSize: 14 }}>{t('profile.loading')}</Text> : null}
+      {loading ? <Skeleton variant="settings" rows={1} label={t('profile.loading')} /> : null}
       <PushDevicesFeedback
         tokens={tokens}
         error={error}

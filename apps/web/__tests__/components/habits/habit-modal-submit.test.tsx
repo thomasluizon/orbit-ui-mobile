@@ -263,7 +263,7 @@ describe.each(['create', 'edit'] as const)('habit %s submit', (mode) => {
     expect(mutation).not.toHaveBeenCalled()
   })
 
-  it('keeps its label and shows a spinner only while the request runs', async () => {
+  it('keeps its label and shows the skeleton face, never a spinner, only while the request runs', async () => {
     let finish!: () => void
     mutation.mockImplementation(() => new Promise((resolve) => { finish = () => resolve(habit) }))
     const { title, submit, onClose } = await renderSheet(mode)
@@ -272,12 +272,14 @@ describe.each(['create', 'edit'] as const)('habit %s submit', (mode) => {
     await waitFor(() => expect(submit).toHaveAttribute('aria-busy', 'true'))
     expect(submit).toBeDisabled()
     expect(submit).toHaveTextContent(mode === 'create' ? /habits.create(?:Habit|Task)/ : 'common.save')
-    expect(submit.querySelector('svg')).not.toBeNull()
+    expect(submit.querySelector('[data-slot="skeleton-face"] .skeleton-pulse')).not.toBeNull()
+    expect(submit.querySelector('svg, .animate-spin')).toBeNull()
     await act(async () => fireEvent.click(submit))
     expect(mutation).toHaveBeenCalledTimes(1)
     await act(async () => finish())
     await waitFor(() => expect(submit).toBeEnabled())
     expect(submit).not.toHaveAttribute('aria-busy')
+    expect(submit.querySelector('[data-slot="skeleton-face"]')).toBeNull()
     expect(onClose).toHaveBeenCalledWith(false)
   })
 

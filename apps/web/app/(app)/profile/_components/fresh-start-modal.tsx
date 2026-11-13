@@ -7,7 +7,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { resetAccountQueries } from '@orbit/shared/query'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
-import { Check, RotateCcw, X } from '@/components/ui/icons'
+import { RotateCcw } from '@/components/ui/icons'
 import {
   buildAccountScopedStorageKey,
   buildFreshStartDeletedItems,
@@ -22,6 +22,11 @@ import { resetAccount } from '@/lib/actions/profile'
 import { getHeldAccountId } from '@/stores/auth-store'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { useOffline } from '@/hooks/use-offline'
+import { captureGuidedFlowCompleted } from '@/lib/posthog'
+import { ResultDialog } from '@/components/ui/result-dialog'
+import { FreshStartFlow } from './fresh-start-flow'
+import { FreshStartLists } from './fresh-start-lists'
 
 const TRIAL_EXPIRED_SEEN_STORAGE_KEY = 'orbit_trial_expired_seen'
 
@@ -58,9 +63,11 @@ function FreshStartHero({ body }: Readonly<{ body: string }>) {
 interface FreshStartModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** The flag `orbit_guided_flows`: the one-question flow and its result dialog replace the sheet. */
+  guided?: boolean
 }
 
-export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModalProps>) {
+export function FreshStartModal({ open, onOpenChange, guided = false }: Readonly<FreshStartModalProps>) {
   const t = useTranslations()
   const queryClient = useQueryClient()
   const router = useRouter()
@@ -70,6 +77,8 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
   const [loading, setLoading] = useAccountScopedState(false)
   const requestPending = useRef(false)
   const [error, setError] = useAccountScopedState('')
+  const [resultShown, setResultShown] = useAccountScopedState(false)
+  const { isOnline } = useOffline()
 
   const isConfirmed = confirmText.trim().toUpperCase() === 'ORBIT'
   const { sheetRef, closeSheet } = useSheetHost()
@@ -81,14 +90,15 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
         setConfirmText('')
         setError('')
         setLoading(false)
+        setResultShown(false)
       }
       onOpenChange(value)
     },
-    [onOpenChange, setConfirmText, setError, setLoading, setStep],
+    [onOpenChange, setConfirmText, setError, setLoading, setResultShown, setStep],
   )
 
   async function handleReset() {
-    if (loading || requestPending.current || !isConfirmed || getHeldAccountId() === null) return
+    if (loading || requestPending.current || !isConfirmed || getHeldAccountId() === null || (guided && !isOnline)) return
     const intendedAccountId = getHeldAccountId()
     const accountGeneration = getAccountGeneration()
     requestPending.current = true
@@ -107,6 +117,12 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
       const accountId = getHeldAccountId()
       if (accountId !== null) {
         localStorage.removeItem(buildAccountScopedStorageKey(TRIAL_EXPIRED_SEEN_STORAGE_KEY, accountId))
+      }
+      if (guided) {
+        void resetAccountQueries(queryClient, 'signed-in')
+        captureGuidedFlowCompleted('fresh_start', 2, false)
+        setResultShown(true)
+        return
       }
       closeSheet(() => {
         if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) return
@@ -127,6 +143,37 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
 
   const deletedItems = buildFreshStartDeletedItems(t)
   const preservedItems = buildFreshStartPreservedItems(t)
+
+  if (open && guided && resultShown) {
+    return (
+      <ResultDialog
+        title={t('result.title')}
+        sentence={t('result.account.freshStart')}
+        primaryLabel={t('result.account.openToday')}
+        onPrimary={() => { handleOpenChange(false); router.push('/') }}
+        onClose={() => handleOpenChange(false)}
+        orbitState="parado"
+      />
+    )
+  }
+  if (open && guided) {
+    return (
+      <FreshStartFlow
+        step={step}
+        deletedItems={deletedItems}
+        preservedItems={preservedItems}
+        confirmText={confirmText}
+        onConfirmTextChange={setConfirmText}
+        loading={loading}
+        error={error}
+        offline={!isOnline}
+        onContinue={() => setStep('confirm')}
+        onBack={() => setStep('info')}
+        onClose={() => handleOpenChange(false)}
+        onReset={() => void handleReset()}
+      />
+    )
+  }
 
   return (
     <>
@@ -164,72 +211,6 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
         )}
       </Sheet>) : null}
     </>
-  )
-}
-
-function ListBlock({
-  title,
-  items,
-  itemIcon,
-}: Readonly<{ title: string; items: string[]; itemIcon: 'delete' | 'keep' }>) {
-  return (
-    <div
-      className="flex flex-col rounded-[16px]"
-      style={{
-        gap: 8,
-        padding: "var(--orbit-space-12) var(--orbit-space-16)",
-        background: 'var(--bg-card)',
-        boxShadow: 'inset 0 0 0 1px var(--hairline)',
-      }}
-    >
-      <div
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 12,
-          fontWeight: 500,
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase',
-          color: 'var(--fg-3)',
-        }}
-      >
-        {title}
-      </div>
-      <div className="flex flex-col" style={{ gap: 4 }}>
-        {items.map((item) => (
-          <span key={item} className="flex items-start" style={{ gap: 8 }}>
-            {itemIcon === 'delete' ? (
-              <X
-                size={16}
-                strokeWidth={1.8}
-                color="var(--status-bad)"
-                aria-hidden="true"
-                className="shrink-0"
-                style={{ marginTop: SPACING.s0 }}
-              />
-            ) : (
-              <Check
-                size={16}
-                strokeWidth={1.8}
-                color="var(--status-done)"
-                aria-hidden="true"
-                className="shrink-0"
-                style={{ marginTop: SPACING.s0 }}
-              />
-            )}
-            <span
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 14,
-                lineHeight: 1.4,
-                color: 'var(--fg-2)',
-              }}
-            >
-              {item}
-            </span>
-          </span>
-        ))}
-      </div>
-    </div>
   )
 }
 
@@ -308,18 +289,7 @@ function FreshStartInfoStep({
   return (
     <div className="flex flex-col" style={{ gap: 16 }}>
       <FreshStartHero body={t('profile.freshStart.description')} />
-      <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        <ListBlock
-          title={t('profile.freshStart.willDelete')}
-          items={deletedItems}
-          itemIcon="delete"
-        />
-        <ListBlock
-          title={t('profile.freshStart.willKeep')}
-          items={preservedItems}
-          itemIcon="keep"
-        />
-      </div>
+      <FreshStartLists deletedItems={deletedItems} preservedItems={preservedItems} />
     </div>
   )
 }

@@ -35,7 +35,7 @@ function FlowPrimaryAction({ primary, wide }: Readonly<{ primary: NonNullable<Qu
   return (
     <div className={wide ? 'flex w-full justify-center pt-6' : 'w-full'}>
       <div className={wide ? 'w-full max-w-[360px]' : 'w-full'}>
-        <PillButton loading={primary.loading} focusableWhenLoading hint={primary.hint} onClick={primary.onPress}>{primary.label}</PillButton>
+        <PillButton variant={primary.variant} loading={primary.loading} focusableWhenLoading hint={primary.hint} onClick={primary.onPress}>{primary.label}</PillButton>
       </div>
     </div>
   )
@@ -52,6 +52,10 @@ function useQuestionFocus(stepKey: string, onStepChange: () => void) {
   return headingRef
 }
 
+function mascotLook<Look>(orbitState: QuestionFlowProps['orbitState'], lookAt: Look): Look | null {
+  return orbitState === 'parado' ? lookAt : null
+}
+
 function stepTravel(direction: 1 | -1, shift: number | undefined) {
   if (shift === undefined) return { x: `${direction * 100}%`, opacity: 1 }
   return { x: direction * shift, opacity: 0 }
@@ -59,7 +63,7 @@ function stepTravel(direction: 1 | -1, shift: number | undefined) {
 
 /** The one-question flow frame. It holds no habit-specific code: a second consumer mounts it with its own content. */
 export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
-  const { flow, question, line, stepKey, direction, orbitState = 'parado', statusText, options, children, primary, footer } = props
+  const { flow, question, line, stepKey, direction, orbitState = 'parado', showOrbit = true, statusText, options, children, primary, footer } = props
   const wide = useViewportMatch('(min-width: 1024px)')
   const sm = useViewportMatch('(min-width: 640px)')
   const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
@@ -72,9 +76,10 @@ export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
 
   const hoveredOption = (target: EventTarget) => wide && hoverCapable && target instanceof HTMLElement ? target.closest('[data-option-card]') : null
   const primaryAction = primary ? <FlowPrimaryAction primary={primary} wide={wide} /> : null
+  const visibleOrbitState = showOrbit ? orbitState : undefined
 
   return (
-    <div data-question-flow="" data-step={stepKey} data-orbit-state={orbitState} className="flex min-h-0 flex-1 flex-col">
+    <div data-question-flow="" data-step={stepKey} data-orbit-state={visibleOrbitState} className="flex min-h-0 flex-1 flex-col">
       <FlowHeader props={props} />
       <main className="flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-4">
         <motion.div
@@ -89,7 +94,7 @@ export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
           onPointerLeave={lookAway}
           className="my-auto flex w-full max-w-[592px] flex-col items-center gap-6 py-4 text-center"
         >
-          <span ref={mascotRef} aria-hidden="true"><OrbitMascot size={wide ? 128 : 96} state={orbitState} lookAt={orbitState === 'parado' ? lookAt : null} turnKey={stepKey} /></span>
+          {showOrbit ? <span ref={mascotRef} aria-hidden="true"><OrbitMascot size={wide ? 128 : 96} state={orbitState} lookAt={mascotLook(orbitState, lookAt)} turnKey={stepKey} /></span> : null}
           {line ? <p id={lineId} className="text-base leading-6 text-[var(--fg-2)]">{line}</p> : null}
           <h1 ref={headingRef} tabIndex={-1} aria-describedby={line ? lineId : undefined} className="orbit-flow-question text-balance font-display text-[28px] leading-[1.18] text-[var(--fg-1)] lg:text-[34px] lg:leading-[1.15]">{question}</h1>
           {options ? <div role="group" aria-label={question} data-option-group="" className="grid w-full grid-cols-2 gap-3">{options}</div> : null}

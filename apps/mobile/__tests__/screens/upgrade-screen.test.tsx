@@ -520,21 +520,21 @@ describe('UpgradeScreen', () => {
   describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('back destination in $locale', ({ locale, messages }) => {
     it.each([
       { source: 'profile', from: undefined, destination: messages.nav.profile },
-      { source: 'profile/astra', from: '/profile/astra', destination: messages.profile.groups.astra },
+      { source: 'profile/ai', from: '/profile/ai', destination: messages.profile.groups.astra },
       { source: 'calendar', from: undefined, destination: messages.nav.calendar },
       { source: 'habits/new', from: undefined, destination: messages.habits.form.newHabit },
       { source: 'index', from: '/', destination: messages.nav.today },
-      { source: 'calendar', from: '/profile/astra', destination: messages.nav.calendar },
+      { source: 'calendar', from: '/profile/ai', destination: messages.nav.calendar },
       { source: 'chat', from: undefined, destination: messages.chat.title },
       { source: null, from: undefined, destination: messages.nav.profile },
-      { source: null, from: '/profile/astra', destination: messages.profile.groups.astra },
+      { source: null, from: '/profile/ai', destination: messages.profile.groups.astra },
     ])('names and returns to $source with from=$from', async ({ source, from, destination }) => {
       mocks.realNavigation = true
       mocks.renderComposition = true
       mocks.from = from
       await testI18n.changeLanguage(locale)
       const router = StackRouter({ initialRouteName: source ? '(tabs)' : 'upgrade' })
-      const options = { routeNames: ['(tabs)', 'profile/astra', 'habits/new', 'chat', 'upgrade'], routeGetIdList: {} }
+      const options = { routeNames: ['(tabs)', 'profile/ai', 'habits/new', 'chat', 'upgrade'], routeGetIdList: {} }
       let state = router.getInitialState(options)
       if (source) {
         if (source === 'profile' || source === 'calendar' || source === 'index') {

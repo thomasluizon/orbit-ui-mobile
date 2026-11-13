@@ -2,6 +2,7 @@ import { usePushNotifications } from '@/hooks/use-push-notifications'
 import { usePushSubscriptions } from '@/hooks/use-push-subscriptions'
 import { MarketingConsentSection } from '@/components/marketing-consent/marketing-consent-section'
 import { PushDevicesRow } from '@/components/profile/push-devices-row'
+import { useFlag } from '@/hooks/use-flag'
 
 import { useTranslation } from 'react-i18next'
 import { useCallback, useEffect } from 'react'
@@ -11,6 +12,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 
 export function ProfileNotificationsContent() {
+  const guided = useFlag('orbit_guided_flows')
   const { t } = useTranslation()
   const pushPreferences = usePushNotifications()
   const pushSubscriptions = usePushSubscriptions(pushPreferences.expoPushToken)
@@ -39,7 +41,7 @@ export function ProfileNotificationsContent() {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   return <View style={{ gap: 24 }}>
-      <MarketingConsentSection showSectionLabel={false} contained />
+      <MarketingConsentSection showSectionLabel={false} contained guided={guided} />
       <PushDevicesRow
         tokens={tokens}
         count={pushSubscriptions.count}

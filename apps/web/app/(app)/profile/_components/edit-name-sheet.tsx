@@ -21,9 +21,11 @@ import { useAccountScopedState } from '@/hooks/use-session-reset'
 interface EditNameSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** The flag `orbit_guided_flows`: the sheet title is the question, and the field takes it as its name. */
+  guided?: boolean
 }
 
-export function EditNameSheet({ open, onOpenChange }: Readonly<EditNameSheetProps>) {
+export function EditNameSheet({ open, onOpenChange, guided = false }: Readonly<EditNameSheetProps>) {
   const t = useTranslations()
   const { profile, patchProfile, invalidate } = useProfile()
 
@@ -89,7 +91,7 @@ export function EditNameSheet({ open, onOpenChange }: Readonly<EditNameSheetProp
       open
       onClose={!mutation.isPending && dismiss.canDismiss ? () => onOpenChange(false): undefined}
       onAttemptDismiss={requestDismiss}
-      title={t('profile.editName.title')}
+      title={t(guided ? 'profile.editName.label' : 'profile.editName.title')}
       actions={(
         <ActionRow>
           <PillButton size="sm" variant="ghost" disabled={mutation.isPending} onClick={requestDismiss}>{t('common.cancel')}</PillButton>
@@ -102,6 +104,7 @@ export function EditNameSheet({ open, onOpenChange }: Readonly<EditNameSheetProp
       <div className="flex flex-col" style={{ gap: 16 }}>
         <Input
           label={t('profile.editName.label')}
+          hideLabel={guided}
           value={name}
           onChange={handleNameChange}
           autoComplete="name"

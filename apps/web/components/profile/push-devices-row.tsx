@@ -8,6 +8,7 @@ import { RowList } from '@/components/ui/row-list'
 import { PillButton } from '@/components/ui/pill-button'
 import { RotateCcw } from '@/components/ui/icons'
 import { getPushStatusMessageKey, getPushStatusTone, type PushPreferenceStatus } from '@/hooks/use-push-notification-preferences'
+import { Skeleton } from '@/components/ui/skeleton'
 
 export function PushDevicesRow({
   count,
@@ -47,7 +48,7 @@ export function PushDevicesRow({
         setLimitReached(false)
         onToggle()
       } }} />
-      {loading ? <p role="status" aria-label={t('profile.loading')} className="m-0 px-4 pb-3 text-sm text-[var(--fg-3)]">{t('profile.loading')}</p> : null}
+      {loading ? <Skeleton variant="settings" rows={1} label={t('profile.loading')} /> : null}
       {error ? <div className="flex items-center gap-3 px-4 pb-3">
         <p role="alert" className="m-0 flex-1 text-sm text-[var(--status-bad-text)]">{t('profile.settingsRows.devicesUnavailable')}</p>
         <PillButton variant="ghost" size="sm" iconOnly label={t('common.retry')} onClick={onRetry}>

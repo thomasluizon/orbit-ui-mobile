@@ -1,11 +1,12 @@
 import { SPACING } from '@orbit/shared/theme'
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import type { TFunction } from 'i18next'
 import type { CalendarAutoSyncState } from '@orbit/shared/types/calendar'
 import { formatCalendarSyncTimestamp, getFriendlyErrorMessage, isPayGateError } from '@orbit/shared/utils'
 import { ListRow } from '@/components/ui/list-row'
 import { RefreshCw } from '@/components/ui/icons'
 import { MotionPressable } from '@/components/ui/motion-pressable'
+import { SkeletonFace } from '@/components/ui/skeleton'
 import { useOffline } from '@/hooks/use-offline'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
@@ -33,6 +34,7 @@ export function CalendarSyncBoundary({ isConnected, hasProAccess, autoSyncState,
   const gated = !hasProAccess || proRequired
   const showControls = isConnected && !gated
   const syncUnavailable = !isOnline || pendingAction !== null
+  const syncing = pendingAction === 'sync'
 
   async function runAction(kind: 'toggle' | 'sync', action: () => Promise<void>) {
     if (gated || syncUnavailable) return
@@ -56,7 +58,7 @@ export function CalendarSyncBoundary({ isConnected, hasProAccess, autoSyncState,
         <Text style={[styles.label, { color: tokens.fg2 }]}>{t(isConnected ? 'calendar.dayDetail.googleConnected' : 'calendar.autoSync.reconnectTitle')}</Text>
         <Text accessibilityHint={t('calendar.dayDetail.lastSyncedLabel')} style={[styles.date, { color: tokens.fg2 }]}>{lastSynced ?? t('calendar.autoSync.lastSyncedNever')}</Text>
       </View>
-      {showControls ? <MotionPressable focusInset accessibilityRole="button" accessibilityLabel={t('calendar.autoSync.syncNow')} accessibilityState={{ disabled: syncUnavailable, busy: pendingAction === 'sync' }} disabled={syncUnavailable} onPress={() => void runAction('sync', onSyncNow)} style={({ pressed }) => [styles.refresh, { backgroundColor: pressed ? tokens.bgHover : 'transparent', opacity: syncUnavailable ? 0.5 : 1 }]}>{pendingAction === 'sync' ? <ActivityIndicator size="small" color={tokens.fg2} /> : <RefreshCw size={20} strokeWidth={1.5} color={tokens.fg2} accessible={false} />}</MotionPressable> : null}
+      {showControls ? <MotionPressable focusInset accessibilityRole="button" accessibilityLabel={t('calendar.autoSync.syncNow')} accessibilityState={{ disabled: syncUnavailable, busy: syncing }} disabled={syncUnavailable} onPress={() => void runAction('sync', onSyncNow)} style={({ pressed }) => [styles.refresh, { backgroundColor: pressed ? tokens.bgHover : 'transparent', opacity: syncUnavailable && !syncing ? 0.5 : 1 }]}>{syncing ? <SkeletonFace /> : null}<RefreshCw size={20} strokeWidth={1.5} color={tokens.fg2} accessible={false} /></MotionPressable> : null}
     </View>
     {showControls ? <ListRow placement="column" title={t('calendar.autoSync.automaticImport')} description={t('calendar.autoSync.automaticImportDescription')} disabled={syncUnavailable} toggle={{ checked: autoSyncState?.enabled ?? false, pending: pendingAction === 'toggle', onChange: (enabled) => void runAction('toggle', () => onAutoSyncChange(enabled)) }} /> : null}
     <Text accessibilityLiveRegion="polite" style={[styles.label, { color: tokens.fg2, display: gated || pendingAction === 'sync' ? undefined : 'none' }]}>{gated ? t('calendar.autoSync.proRequired') : pendingAction === 'sync' ? t('calendar.autoSync.syncing') : ''}</Text>

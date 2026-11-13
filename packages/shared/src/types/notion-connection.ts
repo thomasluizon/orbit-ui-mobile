@@ -24,7 +24,7 @@ export type NotionCallbackRequest = z.infer<typeof notionCallbackRequestSchema>
 export type NotionAuthorizeRequest = z.infer<typeof notionAuthorizeRequestSchema>
 
 export const NOTION_CALLBACK_PATH = '/auth-callback/notion'
-export const NOTION_RETURN_PATH = '/profile/astra'
+export const NOTION_RETURN_PATH = '/profile/ai'
 
 export function notionConnectionLabel(connection: NotionConnection | undefined, isLoading = false):
   'common.loading' | 'profile.connections.renew' | 'profile.connections.connected' | 'profile.connections.notConnected' {

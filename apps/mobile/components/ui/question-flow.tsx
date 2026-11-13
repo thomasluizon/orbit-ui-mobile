@@ -77,7 +77,7 @@ function useQuestionFocus(stepKey: string, onStepChange: () => void) {
 
 /** The one-question flow frame. It holds no habit-specific code: a second consumer mounts it with its own content. */
 export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
-  const { flow, question, line, stepKey, direction, orbitState = 'parado', statusText, options, children, primary, footer } = props
+  const { flow, question, line, stepKey, direction, orbitState = 'parado', showOrbit = true, statusText, options, children, primary, footer } = props
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
   const { width } = useWindowDimensions()
@@ -92,7 +92,7 @@ export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
   const shownLook = orbitState === 'parado' ? lookAt ?? (keyboardOpen ? KEYBOARD_LOOK : null) : null
   const primaryAction = primary ? (
     <View style={wide ? styles.primaryWide : styles.primaryCompact}>
-      <PillButton loading={primary.loading} focusableWhenLoading hint={primary.hint} onClick={primary.onPress}>{primary.label}</PillButton>
+      <PillButton variant={primary.variant} loading={primary.loading} focusableWhenLoading hint={primary.hint} onClick={primary.onPress}>{primary.label}</PillButton>
     </View>
   ) : null
 
@@ -102,9 +102,11 @@ export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
         <FlowHeader props={props} />
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <Animated.View key={stepKey} testID={`question-flow-step-${stepKey}`} style={[styles.block, travel]}>
-            <View ref={mascotRef} collapsable={false} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
-              <OrbitMascot size={wide ? 128 : 96} state={orbitState} lookAt={shownLook} turnKey={stepKey} />
-            </View>
+            {showOrbit ? (
+              <View ref={mascotRef} collapsable={false} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+                <OrbitMascot size={wide ? 128 : 96} state={orbitState} lookAt={shownLook} turnKey={stepKey} />
+              </View>
+            ) : null}
             {line ? <Text style={[styles.line, { color: tokens.fg2 }]}>{line}</Text> : null}
             <Text ref={headingRef} accessibilityRole="header" accessibilityHint={line ?? undefined} style={[styles.question, wide ? styles.questionWide : null, { color: tokens.fg1 }]} textBreakStrategy="balanced">{question}</Text>
             {options ? <View style={styles.options}>{options}</View> : null}

@@ -12,6 +12,7 @@ const noSpaceXY = require("../../eslint-rules/no-space-x-y.cjs")
 const requireFocusReplacement = require("../../eslint-rules/require-focus-replacement.cjs")
 const willChangeDiscipline = require("../../eslint-rules/will-change-discipline.cjs")
 const noSparkleAiMarker = require("../../eslint-rules/no-sparkle-ai-marker.cjs")
+const noSpinner = require("../../eslint-rules/no-spinner.cjs")
 const iconSizeGrid = require("../../eslint-rules/icon-size-grid.cjs")
 const noPillRadiusOnStatic = require("../../eslint-rules/no-pill-radius-on-static.cjs")
 const noOklch = require("../../eslint-rules/no-oklch-outside-web-tokens.cjs")
@@ -127,6 +128,7 @@ module.exports = defineConfig([
           "require-focus-replacement": requireFocusReplacement,
           "will-change-discipline": willChangeDiscipline,
           "no-sparkle-ai-marker": noSparkleAiMarker,
+          "no-spinner": noSpinner,
           "icon-size-grid": iconSizeGrid,
           "no-pill-radius-on-static": noPillRadiusOnStatic,
           "no-oklch-outside-web-tokens": noOklch,
@@ -185,6 +187,7 @@ module.exports = defineConfig([
       "local/require-focus-replacement": "error",
       "local/will-change-discipline": "error",
       "local/no-sparkle-ai-marker": "error",
+      "local/no-spinner": "error",
       "local/icon-size-grid": "error",
       "local/no-pill-radius-on-static": "error",
       "local/no-oklch-outside-web-tokens": "error",

@@ -1,5 +1,6 @@
-import { ProfileSubscreen } from '../(tabs)/profile/_components/profile-subscreen'
+import { Redirect } from 'expo-router'
 
-export default function ProfileAstraScreen() {
-  return <ProfileSubscreen screen="astra" />
+/** The old slug of the AI settings page. An in-app link from stored data still reaches the page. */
+export default function LegacyAiSettingsRedirect() {
+  return <Redirect href="/profile/ai" />
 }

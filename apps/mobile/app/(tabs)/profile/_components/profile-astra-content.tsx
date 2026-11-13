@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router'
 import { deriveProfileAstraFeatures } from '@orbit/shared/utils'
 import { AstraConnections } from '@/components/profile/astra-connections'
 import { ProfileApiKeys } from '@/components/profile/profile-api-keys'
+import { useFlag } from '@/hooks/use-flag'
 import { AstraAllowancePanel } from '@/components/profile/astra-allowance-panel'
 import {
   type AstraSettingsController,
@@ -31,8 +32,9 @@ function buildAstraRows(
   { profile, router, t }: RowContext,
   settings: AstraSettingsController,
   apiKeysUnlocked: boolean,
+  guided: boolean,
 ) {
-  const onUpgrade = () => router.push(buildUpgradeHref('/profile/astra'))
+  const onUpgrade = () => router.push(buildUpgradeHref('/profile/ai'))
   const astraFeatures = deriveProfileAstraFeatures(Boolean(profile?.hasProAccess), settings)
   return (
     <View style={{ gap: 32 }}>
@@ -40,7 +42,7 @@ function buildAstraRows(
         {profile ? (
           <AstraAllowancePanel
             profile={profile}
-            onPlanAction={() => router.push(buildUpgradeHref('/profile/astra'))}
+            onPlanAction={() => router.push(buildUpgradeHref('/profile/ai'))}
           />
         ) : null}
         {profile ? (
@@ -61,15 +63,16 @@ function buildAstraRows(
         ) : null}
       </View>
       <AstraConnections hasProAccess={Boolean(profile?.hasProAccess)} />
-      <ProfileApiKeys profile={profile} unlocked={apiKeysUnlocked} />
+      <ProfileApiKeys profile={profile} unlocked={apiKeysUnlocked} guided={guided} />
     </View>
   )
 }
 
 export function ProfileAstraContent({ profile, patchProfile }: Readonly<ProfileContentProps>) {
+  const guided = useFlag('orbit_guided_flows')
   const { t } = useTranslation()
   const router = useRouter()
   const [apiKeysUnlocked] = useState(() => isStepUpVerified('keys'))
   const astraSettings = useAstraSettingsController(profile, patchProfile)
-  return buildAstraRows({ profile, router, t }, astraSettings, apiKeysUnlocked)
+  return buildAstraRows({ profile, router, t }, astraSettings, apiKeysUnlocked, guided)
 }

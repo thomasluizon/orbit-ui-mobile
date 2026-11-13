@@ -1,6 +1,6 @@
 import { ShellContent } from '@/components/shell/shell-content'
 import { useState, type ReactNode } from 'react'
-import { SPACING, TOUCH_TARGET_MIN, typeRoles } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN, orbitalMotion, typeRoles } from '@orbit/shared/theme'
 import { MAX_BULK_OPERATION_SIZE } from '@orbit/shared/api'
 import { useTranslation } from 'react-i18next'
 import { StyleSheet, Text, View } from 'react-native'
@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pressedScale: {
-    transform: [{ scale: 0.96 }],
+    transform: [{ scale: orbitalMotion.press.scale }],
   },
   disabled: {
     opacity: 0.45,

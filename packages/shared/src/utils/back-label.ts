@@ -3,7 +3,7 @@ const BACK_DESTINATION_KEYS: Readonly<Record<string, string>> = {
   '/calendar': 'nav.calendar',
   '/calendar-sync': 'nav.calendar',
   '/progress': 'nav.progress',
-  '/profile/astra': 'profile.groups.astra',
+  '/profile/ai': 'profile.groups.astra',
   '/profile/account': 'profile.submenus.account',
   '/profile/preferences': 'profile.submenus.preferences',
   '/profile/notifications': 'profile.groups.notifications',

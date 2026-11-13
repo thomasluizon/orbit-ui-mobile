@@ -46,7 +46,7 @@ for (const width of [412, 1280]) {
       })
 
       test('centres both Astra switch labels', async ({ page }) => {
-        await page.goto('/profile/astra')
+        await page.goto('/profile/ai')
         await expect(page.getByRole('switch')).toHaveCount(2)
         await page.evaluate(() => document.fonts.ready)
         for (const label of [words.profile.proactiveAstra.title, words.profile.aiSummary.title]) {

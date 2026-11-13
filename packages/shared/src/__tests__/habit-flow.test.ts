@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   describeHabitResult,
+  optimisticHabitResult,
   phraseLeavesWordsUnread,
   readPhraseCoverage,
   remainingHabitFlowSteps,
@@ -108,5 +109,17 @@ describe('habitPhraseReadSchema', () => {
   it('parses a miss with empty fields', () => {
     const miss = { read: false, emoji: null, frequencyUnit: null, frequencyQuantity: null, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] }
     expect(habitPhraseReadSchema.parse(miss).read).toBe(false)
+  })
+})
+
+describe('optimisticHabitResult', () => {
+  it('names the facts of a draft so a queued create states what it saved', () => {
+    expect(optimisticHabitResult({ itemType: 'habit', isGeneral: false, dueDate: '2026-11-14', dueTime: '08:00', frequencyUnit: 'Day', frequencyQuantity: 1 }))
+      .toEqual({ itemType: 'habit', isGeneral: false, dueDate: '2026-11-14', dueTime: '08:00', frequencyUnit: 'Day', frequencyQuantity: 1 })
+  })
+
+  it('reads an empty date and an empty time as none, and an undecided type as a task', () => {
+    expect(optimisticHabitResult({ itemType: null, isGeneral: true, dueDate: '', dueTime: '' }))
+      .toEqual({ itemType: 'task', isGeneral: true, dueDate: null, dueTime: null, frequencyUnit: null, frequencyQuantity: null })
   })
 })

@@ -9,6 +9,7 @@ import { __resetTestHostConfig, __setWindowDimensions } from '@/test-mocks/react
 import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { pressableStyle } from '@/__tests__/support/press-feedback'
 
 vi.unmock('@/components/ui/icons')
 const TestRenderer = require('react-test-renderer')
@@ -241,7 +242,7 @@ describe('habit row standard on Android', () => {
     const body = tree!.root.findAllByType('Pressable').find((node: { props: Record<string, unknown> }) => node.props.accessibilityRole === 'button' && String(node.props.accessibilityLabel).startsWith('Read'))!
     const rowStyle = () => StyleSheet.flatten(tree!.root.findByProps({ testID: 'habit-row' }).props.style)
     const outline = () => StyleSheet.flatten(tree!.root.findByProps({ testID: 'habit-row-outline' }).props.style).borderColor
-    const controlStyle = (pressed = false) => StyleSheet.flatten(selection.props.style({ pressed }))
+    const controlStyle = (pressed = false) => pressableStyle(selection, pressed)
     expect(selection.props.onHoverIn).toBeTypeOf('function')
     expect(selection.props.onHoverOut).toBeTypeOf('function')
     expect(controlStyle()).toMatchObject({ width: 48, minHeight: 48, borderRadius: 999, overflow: 'hidden' })
@@ -258,7 +259,7 @@ describe('habit row standard on Android', () => {
       TestRenderer.act(() => selection.props.onPressIn())
       expect(controlStyle().backgroundColor).toBe(tokens.bgHover)
       TestRenderer.act(() => selection.props.onHoverOut())
-      expect(controlStyle(true)).toMatchObject({ backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] })
+      expect(controlStyle(true)).toMatchObject({ backgroundColor: tokens.bgHover, transform: [{ scale: motion.reduced ? 1 : 0.96 }] })
       TestRenderer.act(() => selection.props.onPressOut())
       expect(controlStyle().backgroundColor).toBeUndefined()
       expect(rowStyle().backgroundColor).toBe(restingFill)

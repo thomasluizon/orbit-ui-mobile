@@ -29,6 +29,7 @@ vi.mock('expo-router', () => ({
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => vi.fn() }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile() }) }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.online }) }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => false }))
 vi.mock('@/hooks/use-subscription-status', () => ({ useSubscriptionStatus: () => ({
   status: mocks.status, isLoading: mocks.loading, isError: mocks.failed, refetch: vi.fn(),
 }) }))

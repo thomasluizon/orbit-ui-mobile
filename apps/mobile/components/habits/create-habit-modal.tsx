@@ -12,6 +12,10 @@ import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { HabitCreateActions } from './habit-create-actions'
 import { HabitCreateFrame } from './habit-create-frame'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
+import { useFlag } from '@/hooks/use-flag'
+import { captureGuidedFlowCompleted } from '@/lib/posthog'
+import { GuidedHabitFlow } from './guided/guided-habit-flow'
+import { HabitResultDialog } from './guided/habit-result-dialog'
 
 import { HabitFormFields } from './habit-form-fields'
 import {
@@ -46,8 +50,9 @@ import {
   resolveAutoManagedReminderEnabled,
   resolveSupportedLocale,
   toggleSelectedId,
+  optimisticHabitResult,
 } from '@orbit/shared/utils'
-import type { HabitFormProposal, HabitPhraseFormOwnership } from '@orbit/shared/utils'
+import type { HabitFormProposal, HabitPhraseFormOwnership, HabitResultItem } from '@orbit/shared/utils'
 import { useUIStore } from '@/stores/ui-store'
 import { habitSuggestionCreateValues } from '@orbit/shared/chat'
 import type { HabitSuggestionDraft } from '@orbit/shared/types'
@@ -162,6 +167,10 @@ export function CreateHabitModal({
   const [emojiFailure, setEmojiFailure] = useState<{ title: string; message: string; atLimit: boolean } | null>(null)
   const { showError, showSuccess, showInfo } = useAppToast()
   const isSubHabitMode = !!parentHabit
+  const guided = useFlag('orbit_guided_flows')
+  const [saved, setSaved] = useState<{ id: string; optimistic: HabitResultItem } | null>(null)
+  const [flowRun, setFlowRun] = useState(0)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const activeView = useUIStore((s) => s.activeView)
 
   const [pendingChecklistItem, setPendingChecklistItem] = useState('')
@@ -300,6 +309,7 @@ export function CreateHabitModal({
       setPendingChecklistItem('')
       setEmojiFailure(null)
       setCreateBoundary(null)
+      setSaveError(null)
       setReminderWasManuallyToggled(false)
       setExpandAdvancedSignal(0)
       formHelpers.clearBackendErrors()
@@ -351,7 +361,7 @@ export function CreateHabitModal({
       )
     })
     // react-doctor-disable-next-line exhaustive-deps -- reset-on-open must run once per open transition only, never re-fire on formHelpers/tags/parentHabit reference churn while already open; latest values are read from resetOnOpenRef, updated every render https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  }, [open, replaceSubHabits])
+  }, [open, replaceSubHabits, flowRun])
 
   useEffect(() => {
     if (!open) return
@@ -403,15 +413,15 @@ export function CreateHabitModal({
       return
     }
     if (formHelpers.reportBackendErrors(error)) return
-    showError(
-      getFriendlyErrorMessage(
-        error,
-        translate,
-        isSubHabitMode ? 'errors.createSubHabit' : 'errors.createHabit',
-        isSubHabitMode ? 'subHabit' : 'habit',
-      ),
+    const message = getFriendlyErrorMessage(
+      error,
+      translate,
+      isSubHabitMode ? 'errors.createSubHabit' : 'errors.createHabit',
+      isSubHabitMode ? 'subHabit' : 'habit',
     )
-  }, [formHelpers, isSubHabitMode, showError, translate])
+    if (guided) setSaveError(message)
+    else showError(message)
+  }, [formHelpers, guided, isSubHabitMode, showError, translate])
 
   const handleSubmit = useCallback(async () => {
     flushBufferedInputsRef.current()
@@ -451,7 +461,12 @@ export function CreateHabitModal({
           selectedGoalIds,
           subHabitValues,
         )
-        await createHabit.mutateAsync(request)
+        const created = await createHabit.mutateAsync(request)
+        if (guided) {
+          captureGuidedFlowCompleted('habit_create', 0, false)
+          setSaved({ id: created.id, optimistic: optimisticHabitResult(data) })
+          return
+        }
       }
       finishClose(() => { onClose(); onCreated?.() })
     } catch (error: unknown) {
@@ -468,6 +483,7 @@ export function CreateHabitModal({
     reminderTimes,
     createHabit,
     createSubHabit,
+    guided,
     finishClose,
     onClose,
     onCreated,
@@ -609,28 +625,8 @@ export function CreateHabitModal({
   const sheetTitle = resolveCreateSheetTitle(isSubHabitMode, t, formHelpers.form.watch('itemType') === 'task')
   const lockedGeneral = parentHabit?.isGeneral ?? null
 
-  return (
-    <>
-      {open ? (<HabitCreateFrame
-        presentation={presentation}
-        fromConversation={fromConversation}
-        leaving={leaveAction !== null}
-        leaveGuard={leaveGuard}
-        ref={sheetRef}
-        open
-        onClose={dismissGuard.canDismiss ? onClose : undefined}
-        onAttemptDismiss={dismissGuard.requestDismiss}
-        title={sheetTitle}
-        actions={<>
-          <View accessibilityLiveRegion="polite" style={createBoundary ? { paddingBottom: 12 } : undefined}>
-            <CreateBoundaryNotice boundary={createBoundary} onUpgrade={navigateToUpgrade} />
-          </View>
-          <HabitCreateActions task={formHelpers.form.watch('itemType') === 'task'} presentation={presentation} pending={isPending}
-            empty={watchedTitle.trim().length === 0} subHabit={isSubHabitMode}
-            onCancel={dismissGuard.requestDismiss} onSubmit={() => void handleSubmit()} />
-        </>}
-
-      >
+  function renderFormFields() {
+    return (
         <View style={styles.scrollContent}>
           {recoveryMessage ? <Text style={{ color: tokens.fg2 }}>{recoveryMessage} {t('common.syncOrphanedDetail')}</Text> : null}
           <HabitFormFields
@@ -673,7 +669,72 @@ export function CreateHabitModal({
             ) : null}
           </HabitFormFields>
         </View>
+    )
+  }
+
+  function renderCreateActions() {
+    return (
+      <>
+          <View accessibilityLiveRegion="polite" style={createBoundary ? { paddingBottom: 12 } : undefined}>
+            <CreateBoundaryNotice boundary={createBoundary} onUpgrade={navigateToUpgrade} />
+          </View>
+          <HabitCreateActions task={formHelpers.form.watch('itemType') === 'task'} presentation={presentation} pending={isPending}
+            empty={watchedTitle.trim().length === 0} subHabit={isSubHabitMode}
+            onCancel={dismissGuard.requestDismiss} onSubmit={() => void handleSubmit()} />
+      </>
+    )
+  }
+
+  function renderGuidedFlow(moreFields: React.ReactNode) {
+    const task = formHelpers.form.watch('itemType') === 'task'
+    const createLabel = isSubHabitMode ? t('common.create') : t(task ? 'habits.createTask' : 'habits.createHabit')
+    return (
+      <GuidedHabitFlow
+        key={flowRun}
+        formHelpers={formHelpers}
+        lockedGeneral={lockedGeneral}
+        fromConversation={fromConversation}
+        pending={isPending}
+        saveError={saveError}
+        notice={<CreateBoundaryNotice boundary={createBoundary} onUpgrade={navigateToUpgrade} />}
+        moreFields={moreFields}
+        createLabel={createLabel}
+        onSubmit={() => void handleSubmit()}
+        onClose={dismissGuard.requestDismiss}
+      />
+    )
+  }
+
+  return (
+    <>
+      {open ? (<HabitCreateFrame
+        guided={guided}
+        presentation={presentation}
+        fromConversation={fromConversation}
+        leaving={leaveAction !== null}
+        leaveGuard={leaveGuard}
+        ref={sheetRef}
+        open
+        onClose={dismissGuard.canDismiss ? onClose : undefined}
+        onAttemptDismiss={dismissGuard.requestDismiss}
+        title={sheetTitle}
+        actions={guided ? undefined : renderCreateActions()}
+
+      >
+        {guided ? renderGuidedFlow(renderFormFields()) : renderFormFields()}
       </HabitCreateFrame>) : null}
+      {saved ? (
+        <HabitResultDialog
+          habitId={saved.id}
+          optimistic={saved.optimistic}
+          change="created"
+          onClose={() => {
+            setSaved(null)
+            finishClose(() => { onClose(); onCreated?.() })
+          }}
+          onCreateAnother={() => { setSaved(null); setSaveError(null); setFlowRun((run) => run + 1) }}
+        />
+      ) : null}
       <DiscardChangesSheet
         open={dismissGuard.showDiscardDialog}
         onKeepEditingStart={() => {

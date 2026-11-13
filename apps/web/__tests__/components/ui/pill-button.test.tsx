@@ -49,23 +49,23 @@ describe('PillButton', () => {
 
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-    it.each([412, 1280].flatMap((width) => [false, true].map((loading) => ({ width, loading }))))('keeps focused Astra action motion confined to its busy loader at $width px (loading: $loading)', async ({ width, loading }) => {
+    it.each([412, 1280].flatMap((width) => [false, true].map((loading) => ({ width, loading }))))('keeps focused Astra action motion confined to its finite skeleton face at $width px (loading: $loading)', async ({ width, loading }) => {
       const { container } = render(<PillButton variant="ghost" retainLeadingIcon leadingIcon={<OrbitMascot size={16} />} loading={loading} focusableWhenLoading onClick={vi.fn()}>Ask Astra</PillButton>)
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         const button = page.getByRole('button', { name: 'Ask Astra' })
         await button.focus()
-        const statusSlot = button.locator('span[aria-hidden="true"]')
-        expect(await statusSlot.evaluate((element) => {
-          const { width, height } = element.getBoundingClientRect()
-          return { width, height }
-        })).toEqual({ width: BUTTON_SIZES.sm.iconSize, height: BUTTON_SIZES.sm.iconSize })
-        expect(await statusSlot.locator('svg').count()).toBe(loading ? 1 : 0)
+        const face = button.locator('[data-slot="skeleton-face"]')
+        expect(await face.count()).toBe(loading ? 1 : 0)
+        expect(await button.locator('.animate-spin').count()).toBe(0)
         if (loading) {
-          expect(await statusSlot.locator('svg').getAttribute('class')).toContain('animate-spin')
-          expect(await statusSlot.locator('svg').getAttribute('class')).toContain('orbit-essential-loading')
-          expect(await statusSlot.evaluate((element) => element.getAnimations({ subtree: true }).some((animation) => animation.playState === 'running' && animation.effect?.getComputedTiming().endTime === Infinity))).toBe(true)
+          expect(await face.evaluate((element) => {
+            const box = element.getBoundingClientRect()
+            const host = element.parentElement!.getBoundingClientRect()
+            return [box.width, box.height].join('x') === [host.width, host.height].join('x')
+          })).toBe(true)
+          expect(await face.evaluate((element) => element.getAnimations({ subtree: true }).every((animation) => animation.effect?.getComputedTiming().endTime !== Infinity))).toBe(true)
         }
         await settleFocusAnimations(button, undefined, !loading)
         if (!loading) expect(await button.evaluate((element) => element.getAnimations({ subtree: true }).filter((animation) => animation.playState === 'running').length)).toBe(0)
@@ -302,26 +302,16 @@ describe('PillButton', () => {
     expect(onClick).not.toHaveBeenCalled()
   })
 
-  it('keeps its loading spinner perceivable under reduced motion', () => {
+  it('shows the skeleton face, never a spinner, and keeps no looping loader under reduced motion', () => {
     render(<PillButton loading>Saving</PillButton>)
     const button = screen.getByRole('button', { name: 'Saving' })
-    expect(button.querySelector('svg')).toHaveClass('animate-spin')
-    expect(button.querySelector('svg')).toHaveClass('orbit-essential-loading')
+    expect(button.querySelector('[data-slot="skeleton-face"] .skeleton-pulse')).not.toBeNull()
+    expect(button.querySelector('svg, .animate-spin')).toBeNull()
 
     const css = postcss.parse(readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8'))
-    const declarations: string[] = []
-    css.walkAtRules('media', (media) => {
-      if (media.params !== '(prefers-reduced-motion: reduce)') return
-      media.walkRules('.orbit-essential-loading', (rule) => {
-        rule.walkDecls((declaration) => {
-          declarations.push(`${declaration.prop}: ${declaration.value}${declaration.important ? ' !important' : ''}`)
-        })
-      })
-    })
-    expect(declarations).toEqual([
-      'animation-duration: 3s !important',
-      'animation-iteration-count: infinite !important',
-    ])
+    const loaders: string[] = []
+    css.walkRules((rule) => { if (rule.selector.includes('orbit-essential-loading')) loaders.push(rule.selector) })
+    expect(loaders).toEqual([])
   })
 
   it('transitions the scale property the press utility writes, apart from the hover colour', () => {
@@ -359,8 +349,8 @@ describe('PillButton', () => {
 
     expect(button).not.toHaveClass('disabled:opacity-40')
     expect(label).not.toHaveClass('opacity-60')
-    expect(contrastOnSurface(tokens['--fg-on-primary']!, [tokens['--primary']!])).toBeGreaterThanOrEqual(4.5)
-    expect(contrastOnSurface(tokens['--primary']!, [tokens['--bg']!])).toBeGreaterThanOrEqual(3)
+    expect(button).toHaveClass('text-[var(--fg-1)]')
+    expect(contrastOnSurface(tokens['--fg-1']!, [tokens['--bg']!, tokens['--bg-well']!])).toBeGreaterThanOrEqual(4.5)
     expect(button).toHaveAttribute('aria-busy', 'true')
     const css = postcss.parse(readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8'))
     const focusOutlines: string[] = []

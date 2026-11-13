@@ -352,7 +352,7 @@ describe('Composer', () => {
       expect(send.querySelector('[data-asset="orbit-mascot"]')).toBeNull()
       expect(send.querySelectorAll('svg')).toHaveLength(1)
       expect(send.lastElementChild).toHaveAttribute('aria-hidden', 'true')
-      expect(send.querySelectorAll('.orbit-essential-loading')).toHaveLength(0)
+      expect(send.querySelectorAll('[data-slot="skeleton-face"]')).toHaveLength(0)
       expect(send).not.toHaveAttribute('aria-busy')
       view.unmount()
     },
@@ -678,7 +678,7 @@ describe('Composer', () => {
       expect(send).toHaveClass('enabled:hover:bg-[var(--primary-hover)]')
     }
     expect(send.querySelectorAll('svg')).toHaveLength(1)
-    expect(send.querySelectorAll('.orbit-essential-loading')).toHaveLength(0)
+    expect(send.querySelectorAll('[data-slot="skeleton-face"]')).toHaveLength(0)
     expect(send.querySelector('[data-asset^="orbit-mascot"]')).toBeNull()
     if (_case === 'sending') expect(send).not.toHaveClass('disabled:opacity-40')
     else if (disabled) expect(send).toHaveClass('disabled:opacity-40')
@@ -728,7 +728,7 @@ describe('Composer', () => {
     const send = screen.getByRole('button', { name: words.send })
     expect(send).toBeEnabled()
     expect(send).not.toHaveAttribute('aria-busy')
-    expect(send.querySelector('.orbit-essential-loading')).toBeNull()
+    expect(send.querySelector('[data-slot="skeleton-face"]')).toBeNull()
     expect(screen.queryByRole('group', { name: words.suggestionsLabel })).not.toBeInTheDocument()
   })
 

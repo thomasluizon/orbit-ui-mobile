@@ -19,7 +19,7 @@ export interface ButtonSizeSpec {
   paddingX: number
   /** Label font size in px. */
   fontSize: number
-  /** Leading-icon / busy-spinner size in px. */
+  /** Leading-icon size in px. */
   iconSize: 16 | 20 | 24
   /** Gap between the leading slot and the label in px. */
   gap: number

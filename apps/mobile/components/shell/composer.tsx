@@ -31,6 +31,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { mobileMotion, toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import * as Menu from '@/components/ui/dropdown-menu'
 import { Sheet } from '@/components/ui/sheet'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 
 function AttachmentIcon({ kind, color }: Readonly<Pick<ComposerAttachment, 'kind'> & { color: string }>) {
   return kind === 'image' ? (
@@ -532,15 +533,14 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
 }
 
 function ComposerError({ props, tokens }: Readonly<{ props: ComposerProps; tokens: AppTokensV2 }>) {
-  const prefersReducedMotion = usePrefersReducedMotion()
   if (!props.errorMessage && !props.errorRecovery) return null
   return <View style={styles.limitStatus}>
     {props.errorMessage ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive"
       style={[styles.limitReason, { color: tokens.statusBadText }]}>{props.errorMessage}</Text> : null}
-    {props.errorRecovery ? <InsetFocusPressable accessibilityRole="button" accessibilityLabel={props.errorRecovery.label} onPress={props.errorRecovery.onSelect}
-      style={({ pressed }) => [styles.retry, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] } : null]}>
+    {props.errorRecovery ? <MotionPressable focusInset accessibilityRole="button" accessibilityLabel={props.errorRecovery.label} onPress={props.errorRecovery.onSelect}
+      style={({ pressed }) => [styles.retry, pressed ? { backgroundColor: tokens.bgHover } : null]}>
       <Text style={[styles.retryText, { color: tokens.fg2 }]}>{props.errorRecovery.label}</Text>
-    </InsetFocusPressable> : null}
+    </MotionPressable> : null}
   </View>
 }
 

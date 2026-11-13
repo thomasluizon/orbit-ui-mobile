@@ -88,21 +88,25 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             return fallback
         }
 
-        /** Signed out: no refresh and no spinner. Every signed-out path goes through here. */
+        /** Signed out: no refresh and no skeleton face. Every signed-out path goes through here. */
         fun hideRefresh(views: RemoteViews) {
             views.setViewVisibility(R.id.widget_refresh, View.GONE)
             views.setViewVisibility(R.id.widget_refresh_loading, View.GONE)
             views.setViewVisibility(R.id.widget_header_right, View.GONE)
         }
 
-        /** Signed in and idle: the refresh returns and its spinner goes. */
+        /** Signed in and idle: the refresh is enabled and its skeleton face goes. */
         fun showRefresh(views: RemoteViews) {
             applyRefreshingState(views, false)
         }
 
-        /** Refreshing swaps the control for its spinner and dims only the existing rows. */
+        /**
+         * Refreshing keeps the refresh glyph in place, disabled, on the still skeleton tone (a widget cannot pulse), and
+         * dims only the existing rows. The control itself is named Refreshing while it waits.
+         */
         private fun applyRefreshingState(views: RemoteViews, refreshing: Boolean) {
-            views.setViewVisibility(R.id.widget_refresh, if (refreshing) View.GONE else View.VISIBLE)
+            views.setViewVisibility(R.id.widget_refresh, View.VISIBLE)
+            views.setBoolean(R.id.widget_refresh, "setEnabled", !refreshing)
             views.setViewVisibility(
                 R.id.widget_refresh_loading, if (refreshing) View.VISIBLE else View.GONE
             )
@@ -384,13 +388,9 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             val refreshDescription = OrbitWidgetFactory.tr(
                 context,
                 lang,
-                WidgetString.REFRESH
+                if (refreshing) WidgetString.REFRESHING else WidgetString.REFRESH
             )
             views.setContentDescription(R.id.widget_refresh, refreshDescription)
-            views.setContentDescription(
-                R.id.widget_refresh_loading,
-                OrbitWidgetFactory.tr(context, lang, WidgetString.REFRESHING)
-            )
             views.setContentDescription(
                 R.id.widget_loading,
                 OrbitWidgetFactory.tr(context, lang, WidgetString.LOADING)
@@ -480,7 +480,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
         val appWidgetIds = appWidgetManager.getAppWidgetIds(
             android.content.ComponentName(context, OrbitWidgetProvider::class.java)
         )
-        // Show loading spinner immediately, unless there is nothing to refresh
+        // Show the refreshing state immediately, unless there is nothing to refresh
         if (isSignedOut(context)) {
             for (id in appWidgetIds) updateWidgetLayout(context, appWidgetManager, id)
             return

@@ -252,9 +252,9 @@ describe('HabitRow canonical content (mobile)', () => {
     const disclosure = controls.findByProps({ accessibilityLabel: 'common.collapse' })
     expect(disclosure.props.accessibilityState).toMatchObject({ expanded: true })
     expect(body.props.delayLongPress).toBe(500)
-    const checkbox = selection.findAll((node: { props: { pointerEvents?: string } }) => node.props.pointerEvents === 'none')[0]
-    const fill = checkbox.findAll((node: { props: { width?: number; height?: number; fill?: string } }) => node.props.width === 24 && node.props.height === 24 && node.props.fill !== undefined)[0]
-    expect(fill.props.fill).toBe(createTokensV2('purple', 'dark').fg1)
+    const checkbox = selection.findAll((node: { type: unknown; props: { 'data-slot'?: string } }) => typeof node.type === 'string' && node.props['data-slot'] === 'checkbox-box')[0]
+    expect(StyleSheet.flatten(checkbox.props.style).backgroundColor).toBe(createTokensV2('purple', 'dark').statusDone)
+    expect(createTokensV2('purple', 'dark').statusDone).toBe(createTokensV2('purple', 'dark').fg1)
     TestRenderer.act(() => disclosure.props.onPress())
     expect(onToggleExpand).toHaveBeenCalledOnce()
     expect(onToggleSelection).not.toHaveBeenCalled()

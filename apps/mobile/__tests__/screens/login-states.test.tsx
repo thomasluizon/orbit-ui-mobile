@@ -330,7 +330,9 @@ function assertEmailState(root: Node, state: Parameters<typeof setFixture>[0], f
         const marks = googleButton.findAll((node) => node.type === 'Svg' && node.props.testID === 'google-mark')
         if (fixture.isGoogleLoading) {
           expect(googleButton.props.accessibilityState).toMatchObject({ busy: true })
-          expect(marks).toHaveLength(0)
+          expect(marks).toHaveLength(1)
+          expect(googleButton.findAll((node) => node.type === 'View' && node.props.testID === 'skeleton-face')).toHaveLength(1)
+          expect(googleButton.findAll((node) => node.type === 'ActivityIndicator')).toHaveLength(0)
         } else {
           expect(marks).toHaveLength(1)
           expect(marks[0]!.props).toMatchObject({ accessible: false, importantForAccessibility: 'no-hide-descendants', width: 20, height: 20 })
