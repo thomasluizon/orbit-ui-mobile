@@ -25,4 +25,6 @@ export interface OrbitMascotProps {
   lead?: boolean
   /** The control in focus. Orbit shows Olhando: the pill eyes move toward it. It never changes a state other than parado, and reduced motion keeps the eyes still. */
   lookAt?: OrbitLookTarget | null
+  /** A change of this value, caused by the person (a step change, a page change), makes the ring turn once and widens the eyes through the turn. A new value retargets the turn and turns never queue. Reduced motion, a still face and the first value draw no turn. */
+  turnKey?: string | number
 }

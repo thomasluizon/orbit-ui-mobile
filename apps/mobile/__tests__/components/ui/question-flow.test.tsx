@@ -1,4 +1,5 @@
 import { Modal } from 'react-native'
+import { markGuidedFlowCompleted } from '@orbit/shared/utils'
 import { act } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
 import { OptionCard } from '@/components/ui/option-card'
@@ -7,6 +8,7 @@ import { ResultDialog } from '@/components/ui/result-dialog'
 import { press, renderNavigation } from './navigation-render'
 
 const baseProps = {
+  flow: 'habit_create' as const,
   question: 'Quando?', line: 'Pode ser qualquer dia, ou uma repetição.', stepKey: 'when', position: 2, total: 4,
   progressLabel: 'Passo 2 de 4', backLabel: 'Voltar', closeLabel: 'Fechar', direction: 1 as const,
 }
@@ -18,6 +20,32 @@ function flow(overrides: Partial<Parameters<typeof QuestionFlow>[0]> = {}) {
 }
 
 const textOf = (tree: ReturnType<typeof renderNavigation>) => tree.hosts().filter((node) => node.type === 'Text').map((node) => node.props.children)
+
+const posthog = vi.hoisted(() => ({ captureGuidedFlowEvent: vi.fn() }))
+vi.mock('@/lib/posthog', () => posthog)
+
+describe('QuestionFlow events on Android', () => {
+  it('reports each step view once and an abandon at the last step', () => {
+    posthog.captureGuidedFlowEvent.mockClear()
+    const tree = renderNavigation(flow())
+    tree.update(flow({ position: 2 }))
+    tree.update(flow({ stepKey: 'time' }))
+    tree.unmount()
+    expect(posthog.captureGuidedFlowEvent.mock.calls.map(([event]) => event)).toEqual([
+      { name: 'guided_flow_step_viewed', properties: { flow: 'habit_create', step: 'when', step_count: 4 } },
+      { name: 'guided_flow_step_viewed', properties: { flow: 'habit_create', step: 'time', step_count: 4 } },
+      { name: 'guided_flow_abandoned', properties: { flow: 'habit_create', step: 'time' } },
+    ])
+  })
+
+  it('reports no abandon when the flow completed', () => {
+    posthog.captureGuidedFlowEvent.mockClear()
+    const tree = renderNavigation(flow())
+    markGuidedFlowCompleted('habit_create')
+    tree.unmount()
+    expect(posthog.captureGuidedFlowEvent.mock.calls.some(([event]) => event.name === 'guided_flow_abandoned')).toBe(false)
+  })
+})
 
 describe('QuestionFlow on Android', () => {
   it('names the progress and keeps the slot when there is no back step', () => {

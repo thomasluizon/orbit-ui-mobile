@@ -906,3 +906,15 @@ export type {
 } from './habit-flow-navigation'
 export { answerHabitReminder, answerHabitTime, answerHabitWhen, shiftCalendarDate, HABIT_TIME_OPTIONS } from './habit-flow-answers'
 export type { HabitFlowFormPort, HabitWhenChoice } from './habit-flow-answers'
+
+export {
+  GUIDED_FLOW_IDS,
+  createGuidedFlowTracker,
+  markGuidedFlowCompleted,
+  resetGuidedFlowCompleted,
+  takeGuidedFlowCompleted,
+  type GuidedFlowEvent,
+  type GuidedFlowId,
+  type GuidedFlowSink,
+  type GuidedFlowTracker,
+} from './guided-flow-events'

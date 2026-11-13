@@ -3,6 +3,7 @@
 import { mediaQueryMatches } from '@/lib/media-query'
 
 import type { CaptureResult } from 'posthog-js'
+import { markGuidedFlowCompleted, type GuidedFlowEvent, type GuidedFlowId } from '@orbit/shared/utils'
 
 type PostHogClient = typeof import('posthog-js')['default']
 
@@ -193,4 +194,15 @@ export function capturePwaInstalled(): void {
   if (!key || !analyticsEnabled) return
   if (posthog) posthog.capture('pwa_installed')
   else pendingEvents.push('pwa_installed')
+}
+
+export function captureGuidedFlowEvent(event: GuidedFlowEvent): void {
+  if (!key || !analyticsEnabled) return
+  if (posthog) posthog.capture(event.name, event.properties)
+}
+
+/** A flow reached its result. It also tells the flow shell that the flow was not abandoned. */
+export function captureGuidedFlowCompleted(flow: GuidedFlowId, stepCount: number, usedAiRead: boolean): void {
+  markGuidedFlowCompleted(flow)
+  captureGuidedFlowEvent({ name: 'guided_flow_completed', properties: { flow, step_count: stepCount, used_ai_read: usedAiRead } })
 }

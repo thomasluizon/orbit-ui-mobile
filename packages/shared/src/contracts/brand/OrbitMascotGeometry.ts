@@ -74,6 +74,17 @@ export interface OrbitMascotFrame {
   readonly moon: { readonly x: number; readonly y: number; readonly radius: number; readonly front: boolean }
   /** 1 is open and 0.1 is the closed point of a blink. */
   readonly blinkScale: number
+  /** The width of the eyes through a ring turn. 1 at rest. */
+  readonly eyeWiden: number
+}
+
+/** The widest the eyes get through the middle of a ring turn, as a factor of their rest width. */
+export const ORBIT_MASCOT_TURN_EYE_WIDEN = 1.2
+
+/** How far a ring turn has gone, from 0 to 1, `elapsed` milliseconds after it started. It eases in and out. */
+export function orbitRingTurnProgress(elapsed: number, duration: number): number {
+  const linear = Math.min(Math.max(elapsed / duration, 0), 1)
+  return linear < 0.5 ? 2 * linear * linear : 1 - (-2 * linear + 2) ** 2 / 2
 }
 
 const toRadians = (degrees: number) => (degrees * Math.PI) / 180
@@ -118,12 +129,12 @@ export interface OrbitMascotTimings {
   readonly tiltPeriod: number
 }
 
-/** The frame at `milliseconds` of the idle loop. Zero is the rest frame every still face draws. */
-export function orbitMascotFrame(milliseconds: number, timings: OrbitMascotTimings): OrbitMascotFrame {
+/** The frame at `milliseconds` of the idle loop. Zero is the rest frame every still face draws. `turn` is the progress of a ring turn from 0 to 1: the ring and the moon make one full turn about the planet and the eyes widen through it. */
+export function orbitMascotFrame(milliseconds: number, timings: OrbitMascotTimings, turn = 0): OrbitMascotFrame {
   const tilt = toRadians(
     ORBIT_MASCOT_RING_REST_TILT_DEGREES
       + ORBIT_MASCOT_RING_TILT_RANGE_DEGREES * Math.sin((milliseconds / timings.tiltPeriod) * Math.PI * 2),
-  )
+  ) + turn * Math.PI * 2
   const moonAngle = ORBIT_MASCOT_MOON_REST_ANGLE + (milliseconds / timings.moonPeriod) * Math.PI * 2
   const flatX = ORBIT_MASCOT_RING_RADIUS * Math.cos(moonAngle)
   const flatY = ORBIT_MASCOT_RING_RADIUS * ORBIT_MASCOT_RING_OPENING * Math.sin(moonAngle)
@@ -140,6 +151,7 @@ export function orbitMascotFrame(milliseconds: number, timings: OrbitMascotTimin
       front: depth >= 0,
     },
     blinkScale: blinkScaleAt(blinkPhase),
+    eyeWiden: Number((1 + (ORBIT_MASCOT_TURN_EYE_WIDEN - 1) * Math.sin(turn * Math.PI)).toFixed(3)),
   }
 }
 

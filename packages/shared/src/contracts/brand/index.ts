@@ -16,6 +16,8 @@ export {
   orbitLookVector,
   resolveOrbitShownState,
   ORBIT_EYE_TRAVEL,
+  ORBIT_MASCOT_TURN_EYE_WIDEN,
+  orbitRingTurnProgress,
   type OrbitShownState,
   type OrbitEyeShape,
   type OrbitFace,

@@ -1,8 +1,11 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { OptionCard } from '@/components/ui/option-card'
+import { markGuidedFlowCompleted } from '@orbit/shared/utils'
 import { QuestionFlow } from '@/components/ui/question-flow'
 
+const posthog = vi.hoisted(() => ({ captureGuidedFlowEvent: vi.fn() }))
+vi.mock('@/lib/posthog', () => posthog)
 vi.mock('next-intl', () => ({ useLocale: () => 'en', useTranslations: () => (key: string) => key }))
 
 function stubMedia(matching: readonly string[]) {
@@ -15,6 +18,7 @@ function stubMedia(matching: readonly string[]) {
 }
 
 const baseProps = {
+  flow: 'habit_create' as const,
   question: 'Quando?', line: 'Pode ser qualquer dia, ou uma repetição.', stepKey: 'when', position: 2, total: 4,
   progressLabel: 'Passo 2 de 4', backLabel: 'Voltar', closeLabel: 'Fechar', direction: 1 as const,
   onBack: vi.fn(), onClose: vi.fn(),
@@ -26,8 +30,43 @@ function Flow({ stepKey = 'when', ...overrides }: Readonly<Partial<Parameters<ty
     primary={{ label: 'Continuar', onPress: vi.fn() }} />
 }
 
-beforeEach(() => stubMedia([]))
+beforeEach(() => {
+  stubMedia([])
+  posthog.captureGuidedFlowEvent.mockClear()
+})
 afterEach(() => vi.unstubAllGlobals())
+
+describe('QuestionFlow events', () => {
+  it('reports each step view once with the flow id, the step and the step count', () => {
+    const { rerender } = render(<Flow />)
+    rerender(<Flow position={2} />)
+    rerender(<Flow stepKey="time" />)
+    expect(posthog.captureGuidedFlowEvent.mock.calls.map(([event]) => event)).toEqual([
+      { name: 'guided_flow_step_viewed', properties: { flow: 'habit_create', step: 'when', step_count: 4 } },
+      { name: 'guided_flow_step_viewed', properties: { flow: 'habit_create', step: 'time', step_count: 4 } },
+    ])
+  })
+
+  it('reports an abandon at the last step when the flow closes without a result', () => {
+    const { unmount } = render(<Flow stepKey="time" />)
+    unmount()
+    expect(posthog.captureGuidedFlowEvent).toHaveBeenLastCalledWith({ name: 'guided_flow_abandoned', properties: { flow: 'habit_create', step: 'time' } })
+  })
+
+  it('reports no abandon when the flow completed', () => {
+    const { unmount } = render(<Flow />)
+    markGuidedFlowCompleted('habit_create')
+    unmount()
+    expect(posthog.captureGuidedFlowEvent.mock.calls.some(([event]) => event.name === 'guided_flow_abandoned')).toBe(false)
+  })
+
+  it('turns the ring of Orbit on a step change and draws no turn on the first step', () => {
+    const { container, rerender } = render(<Flow />)
+    expect(container.querySelector('[data-asset="orbit-mascot"]')).toHaveAttribute('data-orbit-turn', 'rest')
+    rerender(<Flow stepKey="time" />)
+    expect(container.querySelector('[data-asset="orbit-mascot"]')).toBeInTheDocument()
+  })
+})
 
 describe('QuestionFlow', () => {
   it('names the progress and keeps the 48 slot when there is no back step', () => {

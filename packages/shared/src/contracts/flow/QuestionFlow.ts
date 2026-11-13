@@ -1,7 +1,10 @@
 import type { OrbitLookTarget } from '../brand/OrbitMascot'
+import type { GuidedFlowId } from '../../utils/guided-flow-events'
 
 /** The one-question flow frame: header row, centred block, free path and the pinned primary action. It holds no habit-specific code. */
 export interface QuestionFlowProps {
+  /** The flow id the `guided_flow_*` events carry. Each consumer passes its own. */
+  flow: GuidedFlowId
   /** The question is the `h1` of the step, the visible label and the accessible name. */
   question: string
   /** The Orbit line. Absent when no job applies, and the block closes up. */
