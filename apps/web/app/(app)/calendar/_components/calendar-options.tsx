@@ -13,7 +13,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { CalendarLegend } from './calendar-shell'
 
-function CalendarOptionsContent({ onGoogleCalendar }: Readonly<{ onGoogleCalendar?: () => void }>) {
+function CalendarOptionsContent({ onGoogleCalendar, guided }: Readonly<CalendarOptionsProps>) {
   const menuId = useId()
   const t = useTranslations()
   const wide = useIsWideDesktop()
@@ -46,12 +46,18 @@ function CalendarOptionsContent({ onGoogleCalendar }: Readonly<{ onGoogleCalenda
         <ListRow placement="column" textMode="label" title={t('calendar.legendTitle')} onClick={() => closeOptions('legend')} />
       </div>
     </Sheet> : null}
-    {legendOpen ? <Sheet ref={sheetRef} open title={t('calendar.legendTitle')} onClose={() => setLegendOpen(false)}>
+    {legendOpen ? <Sheet ref={sheetRef} open title={t(guided ? 'calendar.legendQuestion' : 'calendar.legendTitle')} onClose={() => setLegendOpen(false)}>
       <CalendarLegend loggableLabel={t('calendar.legend.loggable')} fullLabel={t('calendar.legend.full')} partialLabel={t('calendar.legend.partial')} noneLabel={t('calendar.legend.none')} />
     </Sheet> : null}
   </Menu.Root>
 }
 
-export function CalendarOptions({ onGoogleCalendar }: Readonly<{ onGoogleCalendar?: () => void }>) {
-  return <ShellHeader><CalendarOptionsContent onGoogleCalendar={onGoogleCalendar} /></ShellHeader>
+interface CalendarOptionsProps {
+  onGoogleCalendar?: () => void
+  /** The guided flows: the legend sheet asks what each mark means. */
+  guided?: boolean
+}
+
+export function CalendarOptions({ onGoogleCalendar, guided = false }: Readonly<CalendarOptionsProps>) {
+  return <ShellHeader><CalendarOptionsContent onGoogleCalendar={onGoogleCalendar} guided={guided} /></ShellHeader>
 }

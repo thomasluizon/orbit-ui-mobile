@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { format } from 'date-fns'
 import { PADDING, SPACING } from '@orbit/shared/theme'
 import { conversationMascotState, promptDisabledReason } from '@orbit/shared/chat'
 import { buildComposerAvailability } from '@orbit/shared/hooks'
@@ -45,8 +44,9 @@ function useCalendarOrbitModel(props: CalendarOrbitLineProps): { line: CalendarO
   const { view, currentMonth, monthDisplayState, selectedDay, todayKey, displayMonthDayMap, displayRangeDayMap, rangeLoading } = props
   const span = shownSpan(props)
   const entries = (view === 'month' ? displayMonthDayMap : displayRangeDayMap).get(selectedDay) ?? []
-  const line = resolveCalendarOrbitLine({ view, monthState: monthDisplayState, monthStart: format(currentMonth, 'yyyy-MM-01'), rangeLoading, span, selectedDay, todayKey, entries })
-  return { line, page: span?.from ?? format(currentMonth, 'yyyy-MM') }
+  const monthStart = formatAPIDate(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1))
+  const line = resolveCalendarOrbitLine({ view, monthState: monthDisplayState, monthStart, rangeLoading, span, selectedDay, todayKey, entries })
+  return { line, page: span?.from ?? monthStart }
 }
 
 /** One ring turn for each page the person turns. A view switch is not a page turn. */

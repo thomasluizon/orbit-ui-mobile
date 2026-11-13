@@ -26,6 +26,7 @@ import { useSheetHost } from '@/components/ui/sheet'
 import { SegmentedControl } from "@/components/ui/segmented-control"
 import { CalendarHeader } from "./calendar-shell"
 import { CalendarOrbitLine } from './calendar-orbit-line'
+import { useFlag } from '@/hooks/use-flag'
 import { type CalendarImportActionHandle,type CalendarImportActionState } from '@/components/calendar-sync/calendar-import-content'
 import { useCurrentDate } from "../../use-today-date"
 import { useUIStore } from "@/stores/ui-store"
@@ -299,9 +300,10 @@ function useCalendarStatsState({ monthStats, t, rangeModel, router, openImport }
   return { openHabitCreation, monthStatTiles, rangeStatTiles, openGoogleCalendar }
 }
 
-type CalendarHeaderStateInputs = { orbitLine: ReactNode } & Pick<CalendarScreenContentProps, 'currentMonth' | 'view' | 'selectedDay' | 'setView'> & Pick<ReturnType<typeof useCalendarScreenSession>, 'todayKey' | 'weekStartsOn' | 'rangeOffset' | 'agendaOffset' | 'i18n' | 't' | 'setRangeOffset' | 'setAgendaOffset' | 'tokens' | 'listRef'> & Pick<ReturnType<typeof useCalendarRangeState>, 'weekStart' | 'agendaStart' | 'agendaEnd'> & Pick<ReturnType<typeof useCalendarDisplayState>, 'weekLabel'> & Pick<ReturnType<typeof useCalendarViewModel>, 'rangeLabel' | 'viewOptions'> & Pick<ReturnType<typeof useCalendarDateActions>, 'prevWeek' | 'nextWeek' | 'goToCurrentWeek' | 'previousRange' | 'nextRange' | 'prevMonth' | 'nextMonth' | 'goToCurrentMonth' | 'selectMonth'>
+type CalendarHeaderStateInputs = { orbitLine: ReactNode } & Pick<CalendarScreenContentProps, 'currentMonth' | 'view' | 'selectedDay' | 'setView'> & Pick<ReturnType<typeof useCalendarScreenSession>, 'todayKey' | 'weekStartsOn' | 'rangeOffset' | 'agendaOffset' | 'i18n' | 't' | 'setRangeOffset' | 'setAgendaOffset' | 'tokens' | 'listRef'> & Pick<ReturnType<typeof useCalendarRangeState>, 'weekStart' | 'agendaStart' | 'agendaEnd'> & Pick<ReturnType<typeof useCalendarDisplayState>, 'weekLabel'> & Pick<ReturnType<typeof useCalendarViewModel>, 'rangeLabel' | 'viewOptions'> & Pick<ReturnType<typeof useCalendarDateActions>, 'prevWeek' | 'nextWeek' | 'goToCurrentWeek' | 'previousRange' | 'nextRange' | 'prevMonth' | 'nextMonth' | 'goToCurrentMonth' | 'selectMonth' | 'selectDate'>
 
-function useCalendarHeaderState({ orbitLine, currentMonth, todayKey, view, selectedDay, weekStart, weekStartsOn, rangeOffset, agendaOffset, weekLabel, rangeLabel, agendaStart, agendaEnd, i18n, t, prevWeek, nextWeek, goToCurrentWeek, previousRange, nextRange, setRangeOffset, setAgendaOffset, prevMonth, nextMonth, goToCurrentMonth, selectMonth, tokens, viewOptions, listRef, setView }: CalendarHeaderStateInputs) {
+function useCalendarHeaderState({ orbitLine, selectDate, currentMonth, todayKey, view, selectedDay, weekStart, weekStartsOn, rangeOffset, agendaOffset, weekLabel, rangeLabel, agendaStart, agendaEnd, i18n, t, prevWeek, nextWeek, goToCurrentWeek, previousRange, nextRange, setRangeOffset, setAgendaOffset, prevMonth, nextMonth, goToCurrentMonth, selectMonth, tokens, viewOptions, listRef, setView }: CalendarHeaderStateInputs) {
+  const guided = useFlag('orbit_guided_flows')
   const calendarHeader = (
     <CalendarHeader
       currentMonth={currentMonth}
@@ -318,7 +320,7 @@ function useCalendarHeaderState({ orbitLine, currentMonth, todayKey, view, selec
       onCurrentMonth={goToCurrentMonth}
       onSelectMonth={selectMonth}
       tokens={tokens}
-      orbitLine={orbitLine}
+      orbitLine={orbitLine} guided={guided} onSelectDate={selectDate}
       viewSelector={<SegmentedControl<CalendarView> fullWidth options={viewOptions} value={view} onChange={(nextView) => {
         listRef.current?.scrollToOffset({ offset: 0, animated: false })
         setView(nextView)

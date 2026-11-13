@@ -17,6 +17,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { plural } from '@/lib/plural'
 import { CalendarOptions } from './_components/calendar-options'
 import { useCalendarNavigation } from '@/hooks/use-calendar-navigation'
+import { useFlag } from '@/hooks/use-flag'
 
 function CalendarImportActions({ state, onImport, t }: {
   state: CalendarImportActionState
@@ -70,13 +71,14 @@ function CalendarBody({ profileReady, profileError, onRetryProfile, error, onRet
 
 function CalendarPageContent(props: Readonly<CalendarPageContentProps>) {
   const state = useCalendarScreenState(props)
+  const guided = useFlag('orbit_guided_flows')
   const { profile, profileError, onRetryProfile, selectedDay, view, setIsDayDetailOpen, router, todayKey, t, openGoogleCalendar, openImport, isDayDetailOpen, sheetRef, openDayDisclosure, setIsEventsOpen, openHabit, disclosedWeekDay, isEventsOpen, showImportSheet, importSheetRef, closeImport, reviewRequested, importActionState, commitCalendarImport, importRequested, searchParams, initialImportEventId, importActionRef, setImportActionState, closeImportSheet, setIsImportOpen, showRecurring, showEventSource, calendarEventsState, refetchCalendarEvents, openOrbitPro, rangeLoadingLabel, activeError, activeRefresh, selectedCalendarEvents, selectedDayLoggable, pendingEntryStates, changeSelectedEntry, selectedEntries, dayDetailTitle, pageLayout } = state
 
   return (
     <div {...pageLayout.viewportProps} data-calendar-page="" className={pageLayout.pageClass}>
       <h1 className="sr-only" tabIndex={-1}>{t('nav.calendar')}</h1>
       <div className={pageLayout.contentClass}>
-        <CalendarOptions onGoogleCalendar={profile ? openGoogleCalendar : undefined} />
+        <CalendarOptions onGoogleCalendar={profile ? openGoogleCalendar : undefined} guided={guided} />
         {pageLayout.header}
 
         <CalendarBody profileReady={Boolean(profile)} profileError={profileError} onRetryProfile={onRetryProfile} error={activeError} onRetry={() => void activeRefresh()}>

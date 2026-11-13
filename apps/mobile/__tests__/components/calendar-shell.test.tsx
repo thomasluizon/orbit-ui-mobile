@@ -495,3 +495,90 @@ describe('Calendar options (mobile)', () => {
     expect(tree.root.findAll((node) => node.type === Sheet)).toHaveLength(1);
   });
 });
+
+describe("the month picker as one question (mobile)", () => {
+  const tokens = createTokensV2("purple", "dark");
+  function pickerWords(words: typeof en) {
+    return { 'calendar.monthPicker': words.calendar.monthPicker, 'calendar.monthPickerQuestion': words.calendar.monthPickerQuestion, 'dates.today': words.dates.today,
+      'calendar.monthPickerLastMonth': words.calendar.monthPickerLastMonth, 'calendar.monthPickerTyped': words.calendar.monthPickerTyped,
+      'calendar.monthPickerTypedPlaceholder': words.calendar.monthPickerTypedPlaceholder, 'calendar.monthPickerTypedSubmit': words.calendar.monthPickerTypedSubmit,
+      'calendar.monthPickerTypedUnresolved': words.calendar.monthPickerTypedUnresolved, 'common.selectYear': words.common.selectYear };
+  }
+
+  function renderGuided(words: typeof en = en, guided = true) {
+    translated.words = pickerWords(words);
+    const handlers = { onCurrentMonth: vi.fn(), onSelectMonth: vi.fn(), onSelectDate: vi.fn() };
+    let tree!: Tree;
+    TestRenderer.act(() => {
+      tree = mount(<CalendarHeader currentMonth={new Date(2026, 11, 1)} todayKey="2026-11-13" previousMonthLabel="Previous month" nextMonthLabel="Next month"
+        onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} tokens={tokens} guided={guided} {...handlers} />);
+    });
+    pressByAccessibilityLabel(tree, `December, ${words.calendar.monthPicker}`);
+    return { tree, handlers };
+  }
+
+  function typeAndSubmit(tree: Tree, words: typeof en, phrase: string) {
+    const field = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === words.calendar.monthPickerTyped && typeof node.props.onChangeText === 'function')[0]!;
+    TestRenderer.act(() => field.props.onChangeText(phrase));
+    const action = tree.root.findAll((node) => typeof node.type === 'string' && typeof node.props.onPress === 'function'
+      && node.findAll((child) => child.type === 'Text' && child.props.children === words.calendar.monthPickerTypedSubmit).length > 0).at(-1)!;
+    TestRenderer.act(() => action.props.onPress());
+  }
+
+  it.each([en, ptBR])('shows the question as the title, two quick options and the free path', (words) => {
+    const { tree } = renderGuided(words);
+    const texts = hostTextValues(tree);
+    expect(texts).toContain(words.calendar.monthPickerQuestion);
+    expect(texts).toContain(words.dates.today);
+    expect(texts).toContain(words.calendar.monthPickerLastMonth);
+    expect(tree.root.findAll((node) => node.props.testID === 'calendar-jump-question').length).toBeGreaterThan(0);
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === `2026, ${words.common.selectYear}`)).toHaveLength(1);
+  });
+
+  it('answers Today and Last month in one press each', () => {
+    const today = renderGuided();
+    pressByAccessibilityLabel(today.tree, en.dates.today);
+    finishNativeDismissal(today.tree);
+    expect(today.handlers.onCurrentMonth).toHaveBeenCalledTimes(1);
+    const last = renderGuided();
+    pressByAccessibilityLabel(last.tree, en.calendar.monthPickerLastMonth);
+    finishNativeDismissal(last.tree);
+    expect(last.handlers.onSelectMonth).toHaveBeenCalledWith(9, 2026);
+  });
+
+  it.each([
+    ['dia 20', '2026-12-20'],
+    ['sexta, dia 20', '2027-08-20'],
+  ])('selects the typed "%s"', (phrase, date) => {
+    const { tree, handlers } = renderGuided(ptBR);
+    typeAndSubmit(tree, ptBR, phrase);
+    finishNativeDismissal(tree);
+    expect(handlers.onSelectDate).toHaveBeenCalledWith(date);
+  });
+
+  it('keeps the sheet open with one line of guidance when the text does not resolve', () => {
+    const { tree, handlers } = renderGuided();
+    typeAndSubmit(tree, en, 'whenever');
+    expect(nativeSheet.dismiss).not.toHaveBeenCalled();
+    expect(handlers.onSelectDate).not.toHaveBeenCalled();
+    expect(hostTextValues(tree)).toContain(en.calendar.monthPickerTypedUnresolved);
+  });
+
+  it('keeps the current picker with the guided flows off', () => {
+    const { tree } = renderGuided(en, false);
+    expect(hostTextValues(tree)).not.toContain(en.calendar.monthPickerQuestion);
+    expect(tree.root.findAll((node) => node.props.testID === 'calendar-jump-question')).toHaveLength(0);
+  });
+
+  it('titles the legend with the question and keeps the four marks', () => {
+    translated.words = { 'calendar.options': en.calendar.options, 'calendar.legendTitle': en.calendar.legendTitle, 'calendar.legendQuestion': en.calendar.legendQuestion };
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = mount(<CalendarOptions tokens={tokens} onGoogleCalendar={vi.fn()} guided />); });
+    pressByAccessibilityLabel(tree, en.calendar.options);
+    pressByAccessibilityLabel(tree, en.calendar.legendTitle);
+    finishNativeDismissal(tree);
+    const texts = hostTextValues(tree);
+    expect(texts).toContain(en.calendar.legendQuestion);
+    for (const mark of ['full', 'partial', 'none', 'loggable']) expect(texts).toContain(`calendar.legend.${mark}`);
+  });
+});

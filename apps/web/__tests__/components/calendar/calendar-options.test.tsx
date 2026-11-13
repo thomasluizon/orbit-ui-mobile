@@ -71,6 +71,17 @@ describe('compact Calendar options', () => {
     expect(screen.queryByRole('dialog', { name: 'calendar.options' })).not.toBeInTheDocument()
     expect(screen.getByRole('dialog', { name: 'calendar.legendTitle' })).toHaveTextContent('calendar.legend.loggable')
   })
+
+  it('keeps the three entries and titles the legend with the question when the guided flows are on', () => {
+    const onGoogleCalendar = vi.fn()
+    render(<CalendarOptions onGoogleCalendar={onGoogleCalendar} guided />)
+    const dialog = openOptions()
+    expect(within(dialog).getByRole('checkbox', { name: 'calendar.showRecurring' })).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'calendar.googleCalendar' })).toBeEnabled()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'calendar.legendTitle' }))
+    const legend = screen.getByRole('dialog', { name: 'calendar.legendQuestion' })
+    for (const mark of ['full', 'partial', 'none', 'loggable']) expect(legend).toHaveTextContent(`calendar.legend.${mark}`)
+  })
 })
 
 function DayWithOptions() {

@@ -1330,7 +1330,7 @@
     "monthPickerLastMonth": "Last month",
     "monthPickerTyped": "In your own words",
     "monthPickerTypedPlaceholder": "The 20th or Friday, the 20th",
-    "monthPickerTypedSubmit": "Go to this date",
+    "monthPickerTypedSubmit": "Show day",
     "monthPickerTypedUnresolved": "I could not find that date. Try something like the 20th.",
     "orbit": {
       "dayFull": "The {day, selectordinal, one {#st} two {#nd} few {#rd} other {#th}}: all done.",
