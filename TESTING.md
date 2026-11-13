@@ -616,11 +616,15 @@ the API's `AiChoiceSelection.TargetsOf`. Every such record must be a stored chil
 and one selection the card allows must state the whole decision. When a list can hold the deleted half and the
 renamed half, the grader selects the half that its question asks about: the action words of the question, else the
 count that it states. When the question tells neither, or the two signals disagree, the case fails with a message
-that names a grader limit, not a model fault. The provider sends that selection as `blockAnswer`, with the message and
-the history the web client sends. As the client does, the answer turn, confirm and execute send the first response's
-`conversationId` in `clientContext`, so the API reads the stored conversation. The shared client functions build the
-message: the selected labels for a choice card, and each question prompt with its selected labels for a question
-card. When the question has no card, the provider sends the typed text. The lifecycle runs in `attempt()` around the
+that names a grader limit, not a model fault. A `yesNo` question beside the lists is answered yes when its prompt
+names, by the same signals, the half that the lists leave out. A `yesNo` question that names the selected half, both
+halves or neither, and every `scale` or `slider` question, also fail the case with a grader-limit message. The
+model-fault message stays for a card whose every question the grader reads. The provider sends that selection as
+`blockAnswer`, with the message and the history the web client sends. As the client does, the answer turn, confirm
+and execute send the first response's `conversationId` in `clientContext`, so the API reads the stored conversation.
+The shared client functions build the message: the selected labels for a choice card, and each question prompt with
+its selected labels or the client's yes word for a question card. When the question has no card, the provider sends
+the typed text. The lifecycle runs in `attempt()` around the
 single request of `chat()`, as the offer lifecycle does, so the answer turn cannot start the lifecycle again. The
 answer turn must hold one preview with both actions on the decided positions and no further question.
 `composition.allowPreviewNote` permits one short line beside the preview for the production request, the count case

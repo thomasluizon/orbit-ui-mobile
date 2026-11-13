@@ -10,6 +10,10 @@ const emptyGuid = /^[0-]+$/u
 const normalize = (value) => String(value ?? '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
 const sameSet = (left, right) => left.length === right.length && left.every((id) => right.includes(id))
 const cardKinds = ['choice', 'question']
+const choiceTypes = ['choice', 'singleChoice', 'multipleChoice']
+// The grader-limit wording starts "The grader cannot", so the report never blames the model for a card it cannot read.
+const graderLimit = (cause, prompt) => result(false, `The grader cannot ${cause}: ${prompt}`)
+const cannotTell = 'tell which action the card question asks about (delete or rename)'
 
 // Producer: orbit-api AskTool gives a choice option a server-only target_ids list (the habits read this turn that the option
 // stands for); the eval trace keeps the ask arguments, so a set option's coverage is read there, never guessed from its label.
@@ -27,11 +31,12 @@ function targetsOf(option, declared) {
   return guid.test(option.id) && !emptyGuid.test(option.id) ? [option.id] : []
 }
 
-// One selectable list per question: a choice block is one list; a question block has one list per choice question.
+// One list per question: a choice block is one list; a question block has one list per question. Only a choice list has
+// options; a yesNo, scale or slider list (orbit-api AskTool accepts all three) keeps its type for the grader to read.
 function selectionLists(part) {
-  if (part.kind === 'choice') return [{ id: null, prompt: part.block.question, many: part.block.multiSelect === true, options: part.block.options }]
-  return part.block.questions.map((question) => ({ id: question.id, prompt: question.prompt,
-    many: question.type === 'multipleChoice', options: ['singleChoice', 'multipleChoice'].includes(question.type) ? question.options ?? [] : [] }))
+  if (part.kind === 'choice') return [{ id: null, type: 'choice', prompt: part.block.question, many: part.block.multiSelect === true, options: part.block.options }]
+  return part.block.questions.map((question) => ({ id: question.id, type: question.type, prompt: question.prompt,
+    many: question.type === 'multipleChoice', options: choiceTypes.includes(question.type) ? question.options ?? [] : [] }))
 }
 
 // Action words of both locales, matched on the normalized question at a word start. The production request renames with
@@ -65,17 +70,39 @@ function selectionOf(list, targets, part) {
 // asks about, and the grader never guesses one when the question does not tell.
 function selectionFor(list, targets, decision) {
   const halves = { deleted: selectionOf(list, targets, decision.deleted), renamed: selectionOf(list, targets, decision.renamed) }
-  if (!halves.deleted || !halves.renamed) return { chosen: halves.deleted ?? halves.renamed }
-  const asked = askedHalf(list.prompt, decision)
-  return asked ? { chosen: halves[asked] } : { unclear: true }
+  const fitting = Object.keys(halves).filter((half) => halves[half])
+  const half = fitting.length === 2 ? askedHalf(list.prompt, decision) : fitting[0]
+  if (fitting.length === 2 && !half) return { limit: cannotTell }
+  return { chosen: halves[half] ?? null, half }
+}
+
+// Each question read: a choice list's selection and its half, the half a yesNo question names, or the grader's limit.
+// The grader answers no scale or slider question, and never guesses what a yesNo question that names no half confirms.
+function readList(list, targets, decision) {
+  if (choiceTypes.includes(list.type)) return selectionFor(list, targets, decision)
+  if (list.type !== 'yesNo') return { limit: `answer a ${list.type} card question` }
+  const names = askedHalf(list.prompt, decision)
+  return names ? { names } : { limit: cannotTell }
+}
+
+// Producer: QuestionBlockController.submit labels each question "<prompt>: <labels>" with questionAnswerLabels (a yesNo
+// answer as the catalog's yes word), and BlockAnswerSubmission.send posts formatBlockAnswer of those labels as the message.
+function questionAnswer(card, readings, locale) {
+  const answers = readings.map(({ list, chosen }) => chosen ? { questionId: list.id, selectedIds: chosen.map((option) => option.id) }
+    : { questionId: list.id, boolean: true })
+  const t = catalogTranslator(locale)
+  const labels = questionAnswerLabels(card.block, Object.fromEntries(answers.map((answer) => [answer.questionId, answer])),
+    { yes: t('common.yes'), no: t('common.no') }, locale)
+  return { message: formatBlockAnswer(labels, undefined, locale), blockAnswer: { blockId: card.block.blockId, selectedIds: [], answers } }
 }
 
 // A card holds the answer when each stored child is selectable as a record or through a set option, every record an
-// option stands for is a stored child, and one selection the card allows states the whole decision.
+// option stands for is a stored child, and one selection the card allows states the whole decision. The choice lists
+// state one half; a yesNo question beside them that names the other half is answered yes.
 export function sameTitleCard(output, vars) {
   const children = vars.sameTitleBaseline?.children?.map((child) => child.id) ?? []
   const answer = vars.sameTitleSet?.answer
-  if (!children.length || !answer) return { ...result(false, 'The same-title card lacks its baseline or decision.') }
+  if (!children.length || !answer) return result(false, 'The same-title card lacks its baseline or decision.')
   const cards = (output.composition?.parts ?? []).filter((part) => part?.type === 'block' && cardKinds.includes(part.kind))
   if (!cards.length) return { ...result(true, 'The question has no card; the person types the answer.'), message: answer.text }
   if (cards.length !== 1) return result(false, 'The question turn shows more than one card.')
@@ -90,23 +117,20 @@ export function sameTitleCard(output, vars) {
   const covered = new Set([...targets.values()].flat())
   if (!children.every((id) => covered.has(id))) return result(false, `The card lets the person select ${covered.size} of the ${children.length} same-title children.`)
   const decision = { deleted: answer.deleted.map((position) => children[position]), renamed: answer.renamed.map((position) => children[position]) }
-  const selections = lists.map((list) => ({ list, ...selectionFor(list, targets, decision) }))
-  if (selections.some(({ chosen, unclear }) => !chosen && !unclear)) return result(false, 'No selection the card allows states the whole decision.')
-  const unclear = selections.find((selection) => selection.unclear)
-  // A grader limit, not a model fault: the report names the question so a reader can judge it.
-  if (unclear) return result(false, `The grader cannot tell which action the card question asks about (delete or rename): ${unclear.list.prompt}`)
+  const readings = lists.map((list) => ({ list, ...readList(list, targets, decision) }))
+  // A grader limit, not a model fault: the report names the question so a reader can judge it. The model-fault wording
+  // below is only for a card whose every question the grader reads.
+  const unread = readings.find((reading) => reading.limit)
+  if (unread) return graderLimit(unread.limit, unread.list.prompt)
+  const selections = readings.filter((reading) => choiceTypes.includes(reading.list.type))
+  if (selections.some(({ chosen }) => !chosen)) return result(false, 'No selection the card allows states the whole decision.')
+  const stated = new Set(selections.map(({ half }) => half))
+  const unconfirmed = readings.find(({ names }) => names && (stated.size !== 1 || stated.has(names)))
+  if (unconfirmed) return graderLimit('answer a yes or no card question about the half the selection states', unconfirmed.list.prompt)
   const locale = vars.clientContext.locale
   const holds = result(true, 'The card can hold the whole decision.')
-  if (card.kind === 'choice') {
-    const [{ chosen }] = selections
-    return { ...holds, message: formatBlockAnswer(chosen.map((option) => option.label), undefined, locale),
-      blockAnswer: { blockId: card.block.blockId, selectedIds: chosen.map((option) => option.id) } }
-  }
-  // Producer: QuestionBlockController.submit labels each question "<prompt>: <labels>" with questionAnswerLabels, and
-  // BlockAnswerSubmission.send posts formatBlockAnswer of those labels as the message.
-  const answers = selections.map(({ list, chosen }) => ({ questionId: list.id, selectedIds: chosen.map((option) => option.id) }))
-  const t = catalogTranslator(locale)
-  const labels = questionAnswerLabels(card.block, Object.fromEntries(answers.map((answer) => [answer.questionId, answer])),
-    { yes: t('common.yes'), no: t('common.no') }, locale)
-  return { ...holds, message: formatBlockAnswer(labels, undefined, locale), blockAnswer: { blockId: card.block.blockId, selectedIds: [], answers } }
+  if (card.kind === 'question') return { ...holds, ...questionAnswer(card, readings, locale) }
+  const [{ chosen }] = selections
+  return { ...holds, message: formatBlockAnswer(chosen.map((option) => option.label), undefined, locale),
+    blockAnswer: { blockId: card.block.blockId, selectedIds: chosen.map((option) => option.id) } }
 }

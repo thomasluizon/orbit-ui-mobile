@@ -251,8 +251,15 @@ it.each([
   expect(sameTitleCard(output, cardVars(children))).toMatchObject({ pass: false, reason })
 })
 
+// Producer: the web and mobile question blocks pass t('common.yes') and t('common.no') of the shared catalog as the words.
+const appWords = (locale) => {
+  const { common } = JSON.parse(readFileSync(new URL(`../../../packages/shared/src/i18n/${locale}.json`, import.meta.url), 'utf8'))
+  return { yes: common.yes, no: common.no, answered: String }
+}
+
 // The real client submission: the card's controller hands its labels and answer to BlockAnswerSubmission.send, whose
-// request is the message and blockAnswer the chat endpoint receives.
+// request is the message and blockAnswer the chat endpoint receives. A yesNo question takes a boolean, as the
+// question-controls row does with setAnswer; a choice question takes the ids it selects.
 async function clientAnswer(part, selected, locale) {
   let posted
   const chat = { isTyping: false, streamingMessageId: null, messages: [] }
@@ -270,8 +277,11 @@ async function clientAnswer(part, selected, locale) {
       await controller.submit({ definition: part, interaction }, String, locale)
     } else {
       const controller = new QuestionBlockController()
-      for (const question of part.block.questions) for (const id of selected[question.id] ?? []) controller.select(question, id)
-      await controller.submit({ block: part.block, interaction }, { yes: 'Yes', no: 'No', answered: String }, locale)
+      for (const question of part.block.questions) {
+        if (question.type === 'yesNo') controller.setAnswer(question, { boolean: selected[question.id] })
+        else for (const id of selected[question.id] ?? []) controller.select(question, id)
+      }
+      await controller.submit({ block: part.block, interaction }, appWords(locale), locale)
     }
   } finally { vi.useRealTimers() }
   return { message: posted.content, blockAnswer: posted.blockAnswer }
@@ -326,9 +336,12 @@ it('gives an option whose id is the empty GUID and that declares no targets no r
     .toMatchObject({ pass: true, blockAnswer: { blockId: card.block.blockId, selectedIds: ['lastTwo'] } })
 })
 
-const questionCard = (children, prompt) => ({ type: 'block', kind: 'question', block: { blockId: '77777777-7777-4777-8777-777777777777',
-  expiresAtUtc: '2026-11-14T04:33:04Z', questions: [{ id: 'pick', type: 'multipleChoice', prompt, allowFreeText: false,
+const questionCard = (children, prompt, type = 'multipleChoice') => ({ type: 'block', kind: 'question', block: { blockId: '77777777-7777-4777-8777-777777777777',
+  expiresAtUtc: '2026-11-14T04:33:04Z', questions: [{ id: 'pick', type, prompt, allowFreeText: false,
     options: children.map((id, index) => ({ id, label: `${index + 1}st` })) }] } })
+// A record card with a second question that is not a choice: orbit-api AskTool accepts yesNo, scale and slider questions.
+const withQuestion = (card, question) => ({ ...card, block: { ...card.block,
+  questions: [...card.block.questions, { id: 'second', allowFreeText: false, ...question }] } })
 
 // A record card lets the person select either half of the decision, so the grader answers the half its question asks
 // about: the action the question names, else the count it states. The production request's verb is "coloca".
@@ -354,6 +367,49 @@ it.each([
 ])('reports a grader limit, not a model fault, for a record card whose question %s', (_name, prompt, locale) => {
   expect(sameTitleCard(shown(questionCard(ids, prompt)), cardVars(ids, locale))).toEqual({ pass: false, score: 0,
     reason: `The grader cannot tell which action the card question asks about (delete or rename): ${prompt}` })
+})
+
+// The record list states one half and a yesNo question confirms the other half, so the card holds the whole decision.
+// IsValidAnswer (orbit-api AiQuestions) needs one answer per question, so the yesNo question is answered too.
+it.each([
+  ['en', 'Which two should I delete?', 'Rename the other four to Water - 1.18L?',
+    'Which two should I delete?: 5st and 6st and Rename the other four to Water - 1.18L?: Yes'],
+  ['pt-BR', 'Quais dois eu excluo?', 'Renomeio os outros quatro para Water - 1.18L?',
+    'Quais dois eu excluo?: 5st e 6st e Renomeio os outros quatro para Water - 1.18L?: Sim'],
+])('answers a %s record card whose yes or no question confirms the other half with yes, as the client sends it', async (locale, prompt, confirm, message) => {
+  const card = withQuestion(questionCard(ids, prompt), { type: 'yesNo', prompt: confirm })
+  const sent = await clientAnswer(card, { pick: ids.slice(4), second: true }, locale)
+  expect(sent.message).toBe(message)
+  expect(sent.blockAnswer.answers).toEqual([{ questionId: 'pick', selectedIds: ids.slice(4) }, { questionId: 'second', boolean: true }])
+  const answer = sameTitleCard(shown(card), cardVars(ids, locale))
+  expect(answer).toMatchObject({ pass: true, reason: 'The card can hold the whole decision.' })
+  expect(sentBy(answer)).toEqual(sent)
+})
+
+const cannotTell = 'The grader cannot tell which action the card question asks about (delete or rename)'
+it.each([
+  ['a yes or no question that names no action', { type: 'yesNo', prompt: 'Is that right?' }, 'en', cannotTell],
+  ['a yes or no question that names no action', { type: 'yesNo', prompt: 'Está certo?' }, 'pt-BR', cannotTell],
+  ['a yes or no question that names both actions', { type: 'yesNo', prompt: 'Delete those and rename the rest?' }, 'en', cannotTell],
+  ['a yes or no question about the half the records state', { type: 'yesNo', prompt: 'Delete those two?' }, 'en',
+    'The grader cannot answer a yes or no card question about the half the selection states'],
+  ['a scale question', { type: 'scale', prompt: 'How sure are you?', lowLabel: 'Unsure', highLabel: 'Sure' }, 'en',
+    'The grader cannot answer a scale card question'],
+  ['a slider question', { type: 'slider', prompt: 'Quantos ml?', min: 0, max: 2000, step: 10, unit: 'ml' }, 'pt-BR',
+    'The grader cannot answer a slider card question'],
+])('reports a grader limit, not a model fault, for a record card with %s', (_name, question, locale, limit) => {
+  const card = withQuestion(questionCard(ids, 'Which two should I delete?'), question)
+  expect(sameTitleCard(shown(card), cardVars(ids, locale))).toEqual({ pass: false, score: 0, reason: `${limit}: ${question.prompt}` })
+})
+
+// The model-fault wording stays for a card the grader reads in full: a single-choice record list cannot select two.
+it.each([
+  ['a readable yes or no question', { type: 'yesNo', prompt: 'Rename the other five?' }, 'No selection the card allows states the whole decision.'],
+  ['a scale question', { type: 'scale', prompt: 'How sure are you?', lowLabel: 'Unsure', highLabel: 'Sure' },
+    'The grader cannot answer a scale card question: How sure are you?'],
+])('fails a single-choice record list beside %s by what the grader can read', (_name, question, reason) => {
+  const card = withQuestion(questionCard(ids, 'Which one should I delete?', 'singleChoice'), question)
+  expect(sameTitleCard(shown(card), cardVars(ids, 'en'))).toEqual({ pass: false, score: 0, reason })
 })
 
 it('answers a set-option card whose question names no action and no count with the one half its options state', async () => {
