@@ -1,5 +1,6 @@
-import { expect, type Locator } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
 import { expectDayCircle, expectDayCircleHover } from './calendar-day-circle-helpers'
+import { readThemeColor } from './focus-indicators'
 import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -33,6 +34,25 @@ async function expectHeaderGap(grid: Locator) {
   expect(gap).toBeCloseTo(8, 1)
 }
 
+/** Reaches the day by a sequential keyboard step, so the browser marks it keyboard focused, and waits for that state. */
+async function keyboardFocusDay(page: Page, day: Locator) {
+  await day.focus()
+  await page.keyboard.press('Shift+Tab')
+  await page.keyboard.press('Tab')
+  await expect(day).toBeFocused()
+  await expect.poll(() => day.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
+}
+
+/** `DESIGN.md` DayCell: keyboard focus replaces the primary position treatment with one inset 2px `--fg-1` ring and a `--bg` band. */
+async function expectKeyboardDayRing(page: Page, day: Locator) {
+  const [foreground, background] = [await readThemeColor(page, '--fg-1'), await readThemeColor(page, '--bg')]
+  const ring = await day.locator('[data-day-position-ring]').evaluate((element) => {
+    const style = getComputedStyle(element)
+    return { ring: style.boxShadow, outline: `${style.outlineStyle} ${style.outlineWidth} ${style.outlineColor}`, outlineOffset: style.outlineOffset }
+  })
+  expect(ring).toEqual({ ring: `${background} 0px 0px 0px 4px inset`, outline: `solid 2px ${foreground}`, outlineOffset: '-2px' })
+}
+
 for (const width of [320, 412, 600, 1352]) {
   for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
     test.describe(`${locale} calendar day circle at ${width}px`, () => {
@@ -57,9 +77,9 @@ for (const width of [320, 412, 600, 1352]) {
         await expectDayCircle(current, true, true, true)
         await expectDayCircleHover(partial.getByRole('button'))
         await expectDayCircle(partial, true, true, true)
-        await page.keyboard.press('Tab')
-        await partial.getByRole('button').focus()
-        await expectDayCircle(partial, true, true, true)
+        await keyboardFocusDay(page, partial.getByRole('button'))
+        await expectDayCircle(partial, true, false, true)
+        await expectKeyboardDayRing(page, partial.getByRole('button'))
         await page.getByTestId('calendar-header-group').getByRole('radio', { name: words.calendar.view.range, exact: true }).click()
         const periodToday = grid.locator('[data-outcome][aria-current="date"]')
         await expect(periodToday).toBeVisible()

@@ -9,6 +9,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { ListRow } from '@/components/ui/list-row'
+import { Sheet } from '@/components/ui/sheet'
 import { CalendarAgendaView } from '@/components/calendar/calendar-agenda-view'
 import { MOTION_SAFE } from '@/__tests__/support/compiled-class-rules'
 
@@ -86,5 +87,20 @@ describe('list row press scale', () => {
   it.each(stillRows)('holds %s still on press', (_name, row) => {
     render(row())
     expect(scaledWhilePressed(rules, document.querySelector('.orbit-list-row-body')!)).toEqual([])
+  })
+})
+
+describe('sheet close press scale', () => {
+  let rules: PressScaleRule[]
+  beforeAll(async () => { rules = await compilePressScaleRules() })
+  afterEach(cleanup)
+
+  it('scales the close glyph on press and never the close control that owns its fill and its 48px target', () => {
+    render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC"><Sheet title="Options" onClose={vi.fn()}><p>Body</p></Sheet></NextIntlClientProvider>)
+    const closes = document.querySelectorAll('.orbit-sheet-close')
+    expect(closes).toHaveLength(1)
+    const scaled = scaledWhilePressed(rules, closes[0]!)
+    expect(scaled.map(({ element }) => element), 'the pressed close scales only its glyph').toEqual([closes[0]!.querySelector(':scope > svg')])
+    expect(scaled.map(({ media }) => media), 'reduced motion removes the press scale').toEqual([[MOTION_SAFE]])
   })
 })

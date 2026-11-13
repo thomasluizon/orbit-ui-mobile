@@ -97,7 +97,7 @@ describe('web press scale transitions', () => {
     ['.orbit-pill-action', 'scale'],
     ['.icon-btn', 'transform'],
     ['.chip', 'scale'],
-    ['.orbit-sheet-close', 'scale'],
+    ['.orbit-sheet-close > svg', 'scale'],
   ])('%s transitions %s over the press duration on the enter curve', (selector, property) => {
     const rules = rulesWith(selector).filter((rule) => rule.parent?.type === 'root' || (rule.parent as AtRule).name === 'layer')
     expect(rules.length, selector).toBeGreaterThan(0)
