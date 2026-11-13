@@ -3054,8 +3054,14 @@ html[data-desktop-window-bar] .min-h-dvh:not(.fixed) {
   background-color: var(--bg-hover);
 }
 
-.orbit-window-bar [data-window-action='close']:enabled:hover,
 .orbit-window-bar [data-window-action='close']:enabled:active {
-  background-color: var(--status-bad);
+  background: var(--status-bad);
   color: var(--fg-on-bad);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .orbit-window-bar [data-window-action='close']:enabled:hover {
+    background: var(--status-bad);
+    color: var(--fg-on-bad);
+  }
 }
