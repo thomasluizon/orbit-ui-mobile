@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { Ajv } from 'ajv'
 import { describe, expect, it } from 'vitest'
+import { BUTTON_SIZES, SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 import base from '../src-tauri/tauri.conf.json'
 import production from '../src-tauri/tauri.production.conf.json'
 import macos from '../src-tauri/tauri.macos.conf.json'
@@ -155,15 +156,14 @@ it('keeps the native snap region, the page bar and the stylesheet on one geometr
   const page = read('../../web/lib/desktop-window.ts')
   const constant = (source: string, pattern: RegExp) => Number(source.match(pattern)?.[1])
   const native = read('../src-tauri/native/windows/caption.cpp')
-  for (const [name, nativeName] of [['HEIGHT', 'kBarHeight'], ['CONTROL_WIDTH', 'kControlWidth'], ['END_INSET', 'kEndInset']] as const) {
-    const pageName = name === 'END_INSET' ? 'DESKTOP_WINDOW_BAR_END_INSET' : `DESKTOP_WINDOW_${name === 'HEIGHT' ? 'BAR_HEIGHT' : name}`
-    const value = constant(page, new RegExp(`${pageName} = (\\d+)`))
+  const height = constant(page, /DESKTOP_WINDOW_BAR_HEIGHT = (\d+)/)
+  const inset = constant(page, /DESKTOP_WINDOW_BAR_END_INSET = (\d+)/)
+  const control = Math.max(SMALL_PILL_VISIBLE_MIN, BUTTON_SIZES.sm.height)
+  expect(page).toContain('export const DESKTOP_WINDOW_CONTROL_WIDTH = Math.max(SMALL_PILL_VISIBLE_MIN, BUTTON_SIZES.sm.height)')
+  for (const [nativeName, value] of [['kBarHeight', height], ['kControlWidth', control], ['kEndInset', inset]] as const) {
     expect(value).toBeGreaterThan(0)
     expect(constant(native, new RegExp(`${nativeName} = (\\d+)`))).toBe(value)
   }
-  const height = constant(page, /DESKTOP_WINDOW_BAR_HEIGHT = (\d+)/)
-  const inset = constant(page, /DESKTOP_WINDOW_BAR_END_INSET = (\d+)/)
-  const control = constant(page, /DESKTOP_WINDOW_CONTROL_WIDTH = (\d+)/)
   const menuAnchor = read('../src-tauri/src/window_bar.rs')
   expect(menuAnchor).toContain(`const BAR_HEIGHT: f64 = ${height}.0;`)
   expect(menuAnchor).toContain(`const BAR_END_INSET: f64 = ${inset}.0;`)

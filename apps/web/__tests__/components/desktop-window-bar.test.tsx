@@ -6,7 +6,7 @@ import { renderToString } from 'react-dom/server'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { DesktopWindowBar } from '@/components/desktop-window-bar'
-import { DESKTOP_MAXIMIZE_HOVER_EVENT } from '@/lib/desktop-window'
+import { DESKTOP_MAXIMIZE_HOVER_EVENT, DESKTOP_WINDOW_CONTROL_WIDTH } from '@/lib/desktop-window'
 
 const captureException = vi.fn()
 vi.mock('@sentry/nextjs', () => ({ captureException: (error: unknown) => captureException(error) }))
@@ -71,6 +71,14 @@ it.each([
   expect(buttons.map((button) => button.getAttribute('aria-label'))).toEqual([menu, ...names])
   expect(buttons[0]).toHaveAttribute('aria-haspopup', 'menu')
   await waitFor(() => expect(invoke).toHaveBeenCalledWith('desktop_window', { action: 'state' }))
+})
+
+it('draws every action as wide as the control width that the native snap region and the acceptance reader take', () => {
+  markShell('windows')
+  const { container } = renderBar()
+  const buttons = within(container).getAllByRole('button')
+  expect(buttons).toHaveLength(4)
+  for (const button of buttons) expect(button.style.width).toBe(`${DESKTOP_WINDOW_CONTROL_WIDTH}px`)
 })
 
 it('opens the native app menu from the menu action at the start of the bar, by pointer or by keyboard', async () => {

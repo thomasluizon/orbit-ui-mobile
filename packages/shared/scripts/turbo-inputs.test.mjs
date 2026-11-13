@@ -26,6 +26,7 @@ const consumers = [
     'apps/mobile/lib/turnstile-frames.ts', 'apps/web/proxy.ts', 'apps/web/web-compatibility.json',
     'apps/web/test-support/hermetic/mock-api/fixtures/chat-stream.ts', 'design/brand/orbit-mark-16.svg',
     'design/brand/orbit-mark-accent.svg', 'packages/shared/src/chat/stream-turn.ts', 'tools/desktop-bench/probe.js',
+    'apps/web/lib/desktop-window.ts', 'apps/web/app/globals.css', 'tools/desktop-bench/acceptance-window-bar.cs',
   ] },
   { workspace: 'apps/mobile', name: '@orbit/mobile', inputs: [
     '.github/workflows/android-release.yml', '.github/workflows/ios-build.yml', '.github/workflows/ios-release.yml',

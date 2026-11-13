@@ -1,3 +1,4 @@
+import { BUTTON_SIZES, SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 import { desktopRuntime } from '@/lib/desktop-runtime'
 
 export type DesktopWindowPlatform = 'windows' | 'macos'
@@ -11,8 +12,9 @@ export const DESKTOP_WINDOW_BAR_ATTRIBUTE = 'data-desktop-window-bar'
  * action in `src/window_bar.rs`: the menu action starts at the end inset, and its menu opens under the bar.
  */
 export const DESKTOP_WINDOW_BAR_HEIGHT = 48
-export const DESKTOP_WINDOW_CONTROL_WIDTH = 44
 export const DESKTOP_WINDOW_BAR_END_INSET = 4
+/** Each action is an `IconButton`, which `actionStyle` makes as wide as the larger of the small pill height and the visible minimum. */
+export const DESKTOP_WINDOW_CONTROL_WIDTH = Math.max(SMALL_PILL_VISIBLE_MIN, BUTTON_SIZES.sm.height)
 
 /** The room the macOS traffic lights take at the start of the bar. */
 export const DESKTOP_WINDOW_TRAFFIC_LIGHT_INSET = 80
