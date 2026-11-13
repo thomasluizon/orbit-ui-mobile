@@ -311,6 +311,15 @@ select[aria-hidden="true"] {
 .orbit-list-row-shell [data-slot="list-row-content"] {
   position: relative;
   z-index: 1;
+  transition: scale var(--dur-press) var(--ease-out);
+}
+
+/* WHY: a list row presses its content and never its fill, so the fill keeps its clearance from the content, as the mobile row does (#2096). */
+@media (prefers-reduced-motion: no-preference) {
+  .orbit-list-row-shell > .orbit-list-row-body:active:not(:disabled, [aria-disabled="true"]) > [data-slot="list-row-content"],
+  .orbit-list-row-shell > [data-personal-text-action] > .orbit-list-row-body:active:not(:disabled, [aria-disabled="true"]) + [data-personal-text-content] > [data-slot="list-row-content"] {
+    scale: 0.96;
+  }
 }
 
 .orbit-list-row-outset {

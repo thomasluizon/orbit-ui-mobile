@@ -91,6 +91,7 @@ describe('web press scale transitions', () => {
 
   it.each([
     ['.orbit-list-row-body', 'scale'],
+    ['.orbit-list-row-shell [data-slot="list-row-content"]', 'scale'],
     ['.orbit-list-row-action', 'scale'],
     ['.habit-control-motion', 'scale'],
     ['.orbit-pill-action', 'scale'],

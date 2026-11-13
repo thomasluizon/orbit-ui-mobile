@@ -50,15 +50,16 @@ function stylesheetTransition(css: string, selector: string) {
 const COLOR_AND_PRESS = 'background-color var(--dur-hover-control) var(--ease-standard), color var(--dur-hover-control) var(--ease-standard), transform var(--dur-press) var(--ease-out)'
 /** Tailwind 4 `active:scale-[0.96]` sets the CSS `scale` property, so a rule whose consumers press with it transitions `scale`. */
 const SCALE_PRESS = 'scale var(--dur-press) var(--ease-out)'
+const COLOR_AND_SCALE_PRESS = `background-color var(--dur-hover-control) var(--ease-standard), color var(--dur-hover-control) var(--ease-standard), ${SCALE_PRESS}`
 
 const STYLESHEET_TRANSITIONS = [
   ['.orbit-list-row', 'background-color var(--dur-hover) var(--ease-standard), box-shadow var(--dur-hover) var(--ease-standard), transform var(--dur-press) var(--ease-out)'],
   ['.orbit-list-row-body', `background-color var(--dur-hover) var(--ease-standard), ${SCALE_PRESS}`],
   ['.orbit-list-row-action', `background-color var(--dur-hover-control) var(--ease-standard), ${SCALE_PRESS}`],
   ['.habit-control-motion', `background-color var(--dur-hover-control) var(--ease-standard), color var(--dur-hover-control) var(--ease-standard), ${SCALE_PRESS}`],
-  ['.orbit-sheet-close', COLOR_AND_PRESS],
+  ['.orbit-sheet-close', COLOR_AND_SCALE_PRESS],
   ['.icon-btn', COLOR_AND_PRESS],
-  ['.chip', COLOR_AND_PRESS],
+  ['.chip', COLOR_AND_SCALE_PRESS],
   ['.habit-form-disclosure', 'opacity var(--dur-enter) var(--ease-out), transform var(--dur-enter) var(--ease-out)'],
 ] as const
 
