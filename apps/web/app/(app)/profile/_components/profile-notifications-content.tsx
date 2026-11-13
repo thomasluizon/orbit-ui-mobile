@@ -4,6 +4,7 @@ import { usePushNotificationPreferences } from '@/hooks/use-push-notification-pr
 import { usePushSubscriptions } from '@/hooks/use-push-subscriptions'
 import { MarketingConsentSection } from '@/app/(app)/preferences/_components/marketing-consent-section'
 import { PushDevicesRow } from '@/components/profile/push-devices-row'
+import { useFlag } from '@/hooks/use-flag'
 
 import { useTranslations } from 'next-intl'
 
@@ -11,12 +12,13 @@ export function ProfileNotificationsContent() {
   const t = useTranslations()
   const pushPreferences = usePushNotificationPreferences()
   const pushSubscriptions = usePushSubscriptions()
+  const guided = useFlag('orbit_guided_flows')
   const toggleThisDevice = async () => {
     await pushPreferences.togglePush(!pushSubscriptions.isCurrentDeviceRegistered)
     await pushSubscriptions.refresh()
   }
   return <div className="flex flex-col" style={{ gap: 24 }}>
-      <MarketingConsentSection showSectionLabel={false} contained acceptVariant="secondary" />
+      <MarketingConsentSection showSectionLabel={false} contained acceptVariant="secondary" guided={guided} />
       <PushDevicesRow
         count={pushSubscriptions.count}
         max={pushSubscriptions.max}

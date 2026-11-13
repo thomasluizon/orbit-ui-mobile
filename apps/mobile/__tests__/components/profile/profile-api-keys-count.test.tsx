@@ -345,7 +345,7 @@ it.each([
   TestRenderer.act(() => challenge.root.findByType(OtpInput).props.onChange('123456'))
   await TestRenderer.act(async () => { await buttonByLabel(challenge, 'stepUp.confirm').props.onClick() })
   expect(mocks.apiClient).toHaveBeenCalledWith(API.apiKeys.confirmCreationChallenge, { method: 'POST', body: JSON.stringify({ code: '123456' }) }, expect.anything())
-  expect(mocks.replace).toHaveBeenCalledWith('/profile/astra')
+  expect(mocks.replace).toHaveBeenCalledWith('/profile/ai')
   expect(hasApiKeyCreationGrant()).toBe(true)
   TestRenderer.act(() => challenge.unmount())
 
@@ -436,7 +436,8 @@ it('withholds Android key details while locked or loading', () => {
   expect(keyText(tree)).not.toContain('External tool')
   mocks.loading = true
   TestRenderer.act(() => tree.update(<ProfileApiKeys profile={{ hasProAccess: true } as Profile} unlocked />))
-  expect(keyText(tree)).toContain('common.loading')
+  expect(tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; accessibilityLabel?: string } }) => typeof node.type === 'string' && node.props.accessibilityRole === 'progressbar' && node.props.accessibilityLabel === 'common.loading')).not.toHaveLength(0)
+  expect(tree.root.findAll((node: { type: unknown }) => node.type === 'ActivityIndicator')).toHaveLength(0)
   expect(keyText(tree)).not.toContain('habits:read, goals:read')
   TestRenderer.act(() => tree.unmount())
 })

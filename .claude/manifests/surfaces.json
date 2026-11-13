@@ -767,52 +767,52 @@
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "route-profile-astra",
+      "surfaceId": "route-profile-ai",
       "platform": "web",
       "kind": "route",
-      "sourceFile": "apps/web/app/(app)/profile/astra/page.tsx",
-      "href": "/profile/astra",
+      "sourceFile": "apps/web/app/(app)/profile/ai/page.tsx",
+      "href": "/profile/ai",
       "ownedFiles": [
-        "apps/web/app/(app)/profile/astra/page.tsx"
+        "apps/web/app/(app)/profile/ai/page.tsx"
       ],
       "state": "default",
       "theme": "light",
       "locale": "en"
     },
     {
-      "surfaceId": "route-profile-astra",
+      "surfaceId": "route-profile-ai",
       "platform": "web",
       "kind": "route",
-      "sourceFile": "apps/web/app/(app)/profile/astra/page.tsx",
-      "href": "/profile/astra",
+      "sourceFile": "apps/web/app/(app)/profile/ai/page.tsx",
+      "href": "/profile/ai",
       "ownedFiles": [
-        "apps/web/app/(app)/profile/astra/page.tsx"
+        "apps/web/app/(app)/profile/ai/page.tsx"
       ],
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "route-profile-astra",
+      "surfaceId": "route-profile-ai",
       "platform": "web",
       "kind": "route",
-      "sourceFile": "apps/web/app/(app)/profile/astra/page.tsx",
-      "href": "/profile/astra",
+      "sourceFile": "apps/web/app/(app)/profile/ai/page.tsx",
+      "href": "/profile/ai",
       "ownedFiles": [
-        "apps/web/app/(app)/profile/astra/page.tsx"
+        "apps/web/app/(app)/profile/ai/page.tsx"
       ],
       "state": "default",
       "theme": "dark",
       "locale": "en"
     },
     {
-      "surfaceId": "route-profile-astra",
+      "surfaceId": "route-profile-ai",
       "platform": "web",
       "kind": "route",
-      "sourceFile": "apps/web/app/(app)/profile/astra/page.tsx",
-      "href": "/profile/astra",
+      "sourceFile": "apps/web/app/(app)/profile/ai/page.tsx",
+      "href": "/profile/ai",
       "ownedFiles": [
-        "apps/web/app/(app)/profile/astra/page.tsx"
+        "apps/web/app/(app)/profile/ai/page.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -1525,6 +1525,7 @@
       "sourceFile": "apps/web/app/(app)/support/page.tsx",
       "href": "/support",
       "ownedFiles": [
+        "apps/web/app/(app)/support/_components/support-flow.tsx",
         "apps/web/app/(app)/support/_components/support-form.tsx",
         "apps/web/app/(app)/support/_components/support-reply-email.tsx",
         "apps/web/app/(app)/support/_components/support-success-state.tsx",
@@ -1543,6 +1544,7 @@
       "sourceFile": "apps/web/app/(app)/support/page.tsx",
       "href": "/support",
       "ownedFiles": [
+        "apps/web/app/(app)/support/_components/support-flow.tsx",
         "apps/web/app/(app)/support/_components/support-form.tsx",
         "apps/web/app/(app)/support/_components/support-reply-email.tsx",
         "apps/web/app/(app)/support/_components/support-success-state.tsx",
@@ -1561,6 +1563,7 @@
       "sourceFile": "apps/web/app/(app)/support/page.tsx",
       "href": "/support",
       "ownedFiles": [
+        "apps/web/app/(app)/support/_components/support-flow.tsx",
         "apps/web/app/(app)/support/_components/support-form.tsx",
         "apps/web/app/(app)/support/_components/support-reply-email.tsx",
         "apps/web/app/(app)/support/_components/support-success-state.tsx",
@@ -1579,6 +1582,7 @@
       "sourceFile": "apps/web/app/(app)/support/page.tsx",
       "href": "/support",
       "ownedFiles": [
+        "apps/web/app/(app)/support/_components/support-flow.tsx",
         "apps/web/app/(app)/support/_components/support-form.tsx",
         "apps/web/app/(app)/support/_components/support-reply-email.tsx",
         "apps/web/app/(app)/support/_components/support-success-state.tsx",
@@ -11295,6 +11299,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-route-profile-ai",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/profile/ai.tsx",
+      "href": "/profile/ai",
+      "ownedFiles": [
+        "apps/mobile/app/profile/ai.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-profile-ai",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/profile/ai.tsx",
+      "href": "/profile/ai",
+      "ownedFiles": [
+        "apps/mobile/app/profile/ai.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-profile-ai",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/profile/ai.tsx",
+      "href": "/profile/ai",
+      "ownedFiles": [
+        "apps/mobile/app/profile/ai.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-profile-ai",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/profile/ai.tsx",
+      "href": "/profile/ai",
+      "ownedFiles": [
+        "apps/mobile/app/profile/ai.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-route-profile-astra",
       "platform": "mobile",
       "kind": "route",
@@ -11934,6 +11990,7 @@
       "href": "/support",
       "ownedFiles": [
         "apps/mobile/app/support.tsx",
+        "apps/mobile/components/support-flow.tsx",
         "apps/mobile/components/support-reply-email.tsx"
       ],
       "state": "default",
@@ -11948,6 +12005,7 @@
       "href": "/support",
       "ownedFiles": [
         "apps/mobile/app/support.tsx",
+        "apps/mobile/components/support-flow.tsx",
         "apps/mobile/components/support-reply-email.tsx"
       ],
       "state": "default",
@@ -11962,6 +12020,7 @@
       "href": "/support",
       "ownedFiles": [
         "apps/mobile/app/support.tsx",
+        "apps/mobile/components/support-flow.tsx",
         "apps/mobile/components/support-reply-email.tsx"
       ],
       "state": "default",
@@ -11976,6 +12035,7 @@
       "href": "/support",
       "ownedFiles": [
         "apps/mobile/app/support.tsx",
+        "apps/mobile/components/support-flow.tsx",
         "apps/mobile/components/support-reply-email.tsx"
       ],
       "state": "default",
@@ -19585,6 +19645,58 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/components/ui/expiry-warning.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-ui-flow-screen",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/flow-screen.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/flow-screen.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-ui-flow-screen",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/flow-screen.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/flow-screen.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-ui-flow-screen",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/flow-screen.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/flow-screen.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-ui-flow-screen",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/flow-screen.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/flow-screen.tsx"
       ],
       "state": "default",
       "theme": "dark",

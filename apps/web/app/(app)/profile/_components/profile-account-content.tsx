@@ -4,6 +4,7 @@ import { useShellNoticeSlot } from '@/hooks/use-shell-notice-slot'
 import { ListRow } from '@/components/ui/list-row'
 import { Toast } from '@/components/ui/toast'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { useFlag } from '@/hooks/use-flag'
 import { getAnalyticsOptOut, setAnalyticsOptOut, subscribeAnalyticsOptOut } from '@/lib/posthog'
 import { DeleteAccountModal } from './delete-account-modal'
 import { EditNameSheet } from './edit-name-sheet'
@@ -38,6 +39,7 @@ export function ProfileAccountContent({ profile }: Readonly<ProfileContentProps>
   const [showEditName, setShowEditName] = useAccountScopedState(false)
   const [showFreshStart, setShowFreshStart] = useAccountScopedState(false)
   const [showDeleteAccount, setShowDeleteAccount] = useAccountScopedState(false)
+  const guided = useFlag('orbit_guided_flows')
   const optedOut = useSyncExternalStore(subscribeAnalyticsOptOut, getAnalyticsOptOut, getServerAnalyticsOptOut)
   const analyticsEnabled = optedOut === null ? null : !optedOut
   const [analyticsSaveError, setAnalyticsSaveError] = useState(false)
@@ -76,9 +78,9 @@ export function ProfileAccountContent({ profile }: Readonly<ProfileContentProps>
         {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 430 controls this label under D42. */}
         <ListRow key="delete" textMode="label" compact icon={icon(Trash2)} title={t('profile.settingsRows.deleteAccount')} danger onClick={() => setShowDeleteAccount(true)} />
       </RowList>
-      <EditNameSheet open={showEditName} onOpenChange={setShowEditName} />
-      <FreshStartModal open={showFreshStart} onOpenChange={setShowFreshStart} />
-      <DeleteAccountModal open={showDeleteAccount} onOpenChange={setShowDeleteAccount} profile={profile} />
+      <EditNameSheet open={showEditName} onOpenChange={setShowEditName} guided={guided} />
+      <FreshStartModal open={showFreshStart} onOpenChange={setShowFreshStart} guided={guided} />
+      <DeleteAccountModal open={showDeleteAccount} onOpenChange={setShowDeleteAccount} profile={profile} guided={guided} />
     </>
   )
 }

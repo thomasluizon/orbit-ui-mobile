@@ -35,7 +35,7 @@ export function AstraConnections({ hasProAccess }: Readonly<{ hasProAccess: bool
   const controller = useNotionConnectionController(hasProAccess)
   const [open, setOpen] = useAccountScopedState(false)
   const [launchFailed, setLaunchFailed] = useAccountScopedState(false)
-  const onUpgrade = () => router.push('/upgrade?from=%2Fprofile%2Fastra')
+  const onUpgrade = () => router.push('/upgrade?from=%2Fprofile%2Fai')
   const connect = (ready: (url: string) => void) => {
     if (!controller.isOnline || controller.authorize.isPending) return
     setLaunchFailed(false)

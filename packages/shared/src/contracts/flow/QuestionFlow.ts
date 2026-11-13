@@ -22,6 +22,8 @@ export interface QuestionFlowProps {
   /** 1 forward, -1 back. */
   direction: 1 | -1
   orbitState?: 'parado' | 'pensando' | 'feliz' | 'descansando'
+  /** False on a flow that holds no mascot, such as a Perfil flow with a destructive step. The block then starts at the question. Default true. */
+  showOrbit?: boolean
   /** The plain-text status that stands for a visible Orbit state to assistive technology. */
   statusText?: string
   options?: React.ReactNode
@@ -32,6 +34,8 @@ export interface QuestionFlowProps {
     onPress: () => void
     loading?: boolean
     hint?: string
+    /** The tone of a step that deletes, such as the typed confirmation of a fresh start. Default primary. */
+    variant?: 'caution' | 'destructive'
   }
   /** One quiet control under the block, such as a link. */
   footer?: React.ReactNode

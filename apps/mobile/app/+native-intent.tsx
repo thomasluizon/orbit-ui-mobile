@@ -18,6 +18,9 @@ const RETIRED_ROUTE_DESTINATIONS: Readonly<Record<string, string>> = {
   ...Object.fromEntries(LEGACY_PROFILE_ROUTES.map(({ source, destination }) => [source, destination])),
 }
 
+/** A page that moved to a new slug keeps its query, so a return such as `?subscription=success` still lands. */
+const MOVED_SLUG_SOURCES: ReadonlySet<string> = new Set(['/profile/astra'])
+
 export function redirectSystemPath({ path }: Readonly<{
   path: string
   initial: boolean
@@ -27,7 +30,8 @@ export function redirectSystemPath({ path }: Readonly<{
     pathname === route || pathname.startsWith(`${route}/`))
   if (retired) {
     const suffixIndex = path.search(/[?#]/)
-    const suffix = retired[1].startsWith('/progress/') && suffixIndex >= 0 ? path.slice(suffixIndex) : ''
+    const keepsSuffix = retired[1].startsWith('/progress/') || MOVED_SLUG_SOURCES.has(retired[0])
+    const suffix = keepsSuffix && suffixIndex >= 0 ? path.slice(suffixIndex) : ''
     return `${retired[1]}${suffix}`
   }
   if (pathname === '/profile') {

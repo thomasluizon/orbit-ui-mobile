@@ -51,7 +51,7 @@ it('opens the existing calendar sheet route and hides Notion when disabled', () 
 it('locks Notion for a free account without loading its connection', () => {
   mount(false)
   fireEvent.click(screen.getByRole('button', { name: /Notion/ }))
-  expect(mocks.push).toHaveBeenCalledWith('/upgrade?from=%2Fprofile%2Fastra')
+  expect(mocks.push).toHaveBeenCalledWith('/upgrade?from=%2Fprofile%2Fai')
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(mocks.fetch).not.toHaveBeenCalled()
 })
@@ -164,4 +164,15 @@ it('keeps an unavailable connection retryable', async () => {
   fireEvent.click(screen.getByRole('button', { name: /Notion/ }))
   expect(screen.getByRole('button', { name: en.common.retry })).toBeEnabled()
   expect(screen.queryByRole('button', { name: en.profile.connections.connect })).not.toBeInTheDocument()
+})
+it('draws a skeleton and no spinner while the Notion connection loads', () => {
+  mocks.fetch.mockReturnValue(new Promise(() => {}))
+  function Harness() {
+    const controller = useNotionConnectionController(true)
+    return <NotionConnectionSheet callbackFailed={false} controller={controller} onClose={vi.fn()} onAuthorize={vi.fn()} onOpenUrl={vi.fn()} />
+  }
+  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><Harness /></QueryClientProvider>)
+  expect(screen.getByRole('progressbar', { name: en.common.loading })).toHaveAttribute('data-variant', 'settings')
+  expect(document.querySelector('.animate-spin')).toBeNull()
+  expect(screen.queryByText(en.common.loading)).not.toBeInTheDocument()
 })

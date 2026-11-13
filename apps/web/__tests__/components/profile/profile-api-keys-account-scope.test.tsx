@@ -507,7 +507,7 @@ it.each([
   fireEvent.change(input, { target: { value: '123456' } })
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: en.stepUp.confirm })) })
   expect(confirmApiKeyCreationChallenge).toHaveBeenCalledWith('123456', 'user-1')
-  expect(management.replace).toHaveBeenCalledWith('/profile/astra')
+  expect(management.replace).toHaveBeenCalledWith('/profile/ai')
   expect(hasApiKeyCreationGrant()).toBe(true)
   challenge.unmount()
 
@@ -585,8 +585,7 @@ it('withholds key details while access is locked or the list is loading', () => 
   expect(screen.queryByText('External tool')).not.toBeInTheDocument()
   management.loading = true
   view.rerender(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
-  expect(screen.getByRole('status')).toHaveTextContent(en.common.loading)
-  expect(screen.getByRole('status')).toBeInstanceOf(HTMLOutputElement)
+  expect(screen.getByRole('progressbar', { name: en.common.loading })).toHaveAttribute('data-variant', 'settings')
   expect(screen.queryByText('habits:read, goals:read')).not.toBeInTheDocument()
 })
 

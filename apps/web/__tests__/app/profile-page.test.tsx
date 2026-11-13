@@ -224,11 +224,11 @@ import ProfilePage from '@/app/(app)/profile/page'
 
 import ProfileAccountRoute from '@/app/(app)/profile/account/page'
 import ProfilePreferencesRoute from '@/app/(app)/profile/preferences/page'
-import ProfileAstraRoute from '@/app/(app)/profile/astra/page'
+import ProfileAiRoute from '@/app/(app)/profile/ai/page'
 import ProfileNotificationsRoute from '@/app/(app)/profile/notifications/page'
 import { ProfileSubscreen } from '@/app/(app)/profile/_components/profile-subscreen'
 
-const PROFILE_ROUTES = { account: ProfileAccountRoute, preferences: ProfilePreferencesRoute, astra: ProfileAstraRoute, notifications: ProfileNotificationsRoute }
+const PROFILE_ROUTES = { account: ProfileAccountRoute, preferences: ProfilePreferencesRoute, astra: ProfileAiRoute, notifications: ProfileNotificationsRoute }
 
 function expiryField(): HTMLElement {
   const field = screen.queryByRole('textbox', { name: 'orbitMcp.expiresAtLabel' })
@@ -610,7 +610,7 @@ describe('ProfilePage', () => {
         expect(icons[0]!.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
         if (index === 3) {
           expect(icons[0]).toHaveAttribute('data-asset', 'orbit-mascot')
-          expect(row.querySelector('a')).toHaveAttribute('href', '/profile/astra')
+          expect(row.querySelector('a')).toHaveAttribute('href', '/profile/ai')
         }
         if (navigates) {
           const chevron = icons[1]!
@@ -686,10 +686,10 @@ describe('ProfilePage', () => {
   it('forwards a checkout return to Astra without dropping settlement parameters', () => {
     mockSearchParams.current = 'subscription=success&keep=1'
     render(<ProfilePage />)
-    expect(mockRouterPush).toHaveBeenCalledWith('/profile/astra?subscription=success&keep=1')
+    expect(mockRouterPush).toHaveBeenCalledWith('/profile/ai?subscription=success&keep=1')
   })
 
-  it.each([['#you', '/profile/preferences'], ['#astra', '/profile/astra'], ['#api-keys', '/profile/astra'], ['#notifications', '/profile/notifications'], ['#ending', '/profile/account']])('forwards the saved %s section to %s', (hash, destination) => {
+  it.each([['#you', '/profile/preferences'], ['#astra', '/profile/ai'], ['#api-keys', '/profile/ai'], ['#notifications', '/profile/notifications'], ['#ending', '/profile/account']])('forwards the saved %s section to %s', (hash, destination) => {
     history.replaceState({}, '', `/profile${hash}`)
     try {
       render(<ProfilePage />)
@@ -701,7 +701,7 @@ describe('ProfilePage', () => {
 
   it('opens settings through four sub-menu entries instead of rendering their controls on Perfil', () => {
     render(<ProfilePage />)
-    for (const path of ['/profile/account', '/profile/preferences', '/profile/astra', '/profile/notifications']) {
+    for (const path of ['/profile/account', '/profile/preferences', '/profile/ai', '/profile/notifications']) {
       expect(screen.getAllByRole('link').some((link) => link.getAttribute('href') === path)).toBe(true)
     }
     expect(screen.queryByRole('button', { name: /profile.settingsRows.timezone/ })).not.toBeInTheDocument()
@@ -956,7 +956,7 @@ describe('ProfilePage', () => {
     expect(astra.queryByRole('link', { name: 'profile.allowance.manageSubscription' })).not.toBeInTheDocument()
 
     const allowanceGate = astra.getByRole('link', { name: 'profile.allowance.seePro' })
-    expect(allowanceGate).toHaveAttribute('href', '/upgrade?from=%2Fprofile%2Fastra')
+    expect(allowanceGate).toHaveAttribute('href', '/upgrade?from=%2Fprofile%2Fai')
     expect(allowanceGate).not.toHaveAttribute('aria-disabled', 'true')
   })
 
@@ -971,8 +971,8 @@ describe('ProfilePage', () => {
     expect(summaryGate).toBeEnabled()
     fireEvent.click(proactiveGate)
     fireEvent.click(summaryGate)
-    expect(mockRouterPush).toHaveBeenNthCalledWith(1, '/upgrade?from=%2Fprofile%2Fastra')
-    expect(mockRouterPush).toHaveBeenNthCalledWith(2, '/upgrade?from=%2Fprofile%2Fastra')
+    expect(mockRouterPush).toHaveBeenNthCalledWith(1, '/upgrade?from=%2Fprofile%2Fai')
+    expect(mockRouterPush).toHaveBeenNthCalledWith(2, '/upgrade?from=%2Fprofile%2Fai')
   })
 
   it.each([
@@ -1008,8 +1008,8 @@ describe('ProfilePage', () => {
         expect(row).toBeEnabled()
         fireEvent.click(row)
       }
-      expect(mockRouterPush).toHaveBeenNthCalledWith(1, '/upgrade?from=%2Fprofile%2Fastra')
-      expect(mockRouterPush).toHaveBeenNthCalledWith(2, '/upgrade?from=%2Fprofile%2Fastra')
+      expect(mockRouterPush).toHaveBeenNthCalledWith(1, '/upgrade?from=%2Fprofile%2Fai')
+      expect(mockRouterPush).toHaveBeenNthCalledWith(2, '/upgrade?from=%2Fprofile%2Fai')
     }
   })
 
@@ -1024,7 +1024,7 @@ describe('ProfilePage', () => {
     expect(upgradeRow).toBeEnabled()
 
     fireEvent.click(upgradeRow)
-    expect(mockRouterPush).toHaveBeenCalledWith('/upgrade?from=%2Fprofile%2Fastra')
+    expect(mockRouterPush).toHaveBeenCalledWith('/upgrade?from=%2Fprofile%2Fai')
   })
 
   it('badges the locked API keys section Pro, never with the trial label', () => {
@@ -1057,7 +1057,7 @@ describe('ProfilePage', () => {
     expect(upgradeRow).toBeEnabled()
     expect(apiKeys.queryByText('Work key')).not.toBeInTheDocument()
     fireEvent.click(upgradeRow)
-    expect(mockRouterPush).toHaveBeenCalledWith('/upgrade?from=%2Fprofile%2Fastra')
+    expect(mockRouterPush).toHaveBeenCalledWith('/upgrade?from=%2Fprofile%2Fai')
   })
 
   it('puts the step up before the API key list for Pro accounts', () => {
@@ -1519,7 +1519,7 @@ describe('ProfilePage', () => {
 
     const astra = within(screen.getByTestId('profile-settings-group-astra'))
     expect(astra.getByText('profile.subscription.trial')).toBeInTheDocument()
-    expect(astra.getByRole('link', { name: 'profile.allowance.seePro' })).toHaveAttribute('href', '/upgrade?from=%2Fprofile%2Fastra')
+    expect(astra.getByRole('link', { name: 'profile.allowance.seePro' })).toHaveAttribute('href', '/upgrade?from=%2Fprofile%2Fai')
     expect(astra.queryByRole('link', { name: 'profile.allowance.manageSubscription' })).not.toBeInTheDocument()
   })
 
@@ -1556,7 +1556,7 @@ describe('ProfilePage', () => {
     expect(astra.getByText('profile.allowance.spent')).toBeInTheDocument()
     expect(astra.queryByRole('link', { name: 'profile.allowance.seePro' })).not.toBeInTheDocument()
 
-    expect(astra.getByRole('link', { name: 'profile.allowance.manageSubscription' })).toHaveAttribute('href', '/upgrade?from=%2Fprofile%2Fastra')
+    expect(astra.getByRole('link', { name: 'profile.allowance.manageSubscription' })).toHaveAttribute('href', '/upgrade?from=%2Fprofile%2Fai')
     const proactiveSwitch = astra.getByRole('switch', { name: 'profile.proactiveAstra.title' })
     const summarySwitch = astra.getByRole('switch', { name: 'profile.aiSummary.title' })
     const proactiveRow = proactiveSwitch.closest('.orbit-list-row-shell')

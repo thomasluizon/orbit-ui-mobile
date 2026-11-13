@@ -45,6 +45,7 @@ vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: mockProfile }),
 }))
 
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => false }))
 vi.mock('@/hooks/use-offline', () => ({
   useOffline: () => ({ isOnline: mockIsOnline }),
 }))

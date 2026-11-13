@@ -29,7 +29,7 @@ import { createTokensV2 } from '@/lib/theme'
 import ProfileScreen from '@/app/(tabs)/profile'
 import ProfileAccountRoute from '@/app/profile/account'
 import ProfilePreferencesRoute from '@/app/profile/preferences'
-import ProfileAstraRoute from '@/app/profile/astra'
+import ProfileAiRoute from '@/app/profile/ai'
 import ProfileNotificationsRoute from '@/app/profile/notifications'
 import { ProfileNotificationsContent } from '@/app/(tabs)/profile/_components/profile-notifications-content'
 
@@ -583,7 +583,7 @@ function findButtonByName(
 }
 
 
-const PROFILE_ROUTES = { account: ProfileAccountRoute, preferences: ProfilePreferencesRoute, astra: ProfileAstraRoute, notifications: ProfileNotificationsRoute }
+const PROFILE_ROUTES = { account: ProfileAccountRoute, preferences: ProfilePreferencesRoute, astra: ProfileAiRoute, notifications: ProfileNotificationsRoute }
 
 function expectProfileRowIcons(row: ReactTestInstance, index: number, isLifetimePro: boolean) {
   const leadingIcons = ['User', 'Crown', 'Settings', 'Svg', 'Bell']
@@ -987,7 +987,7 @@ describe('ProfileScreen', () => {
     ['preferences', ['profile.settingsRows.timezone', 'profile.settingsRows.weekStart', 'settings.clock.title', 'profile.language.title', 'settings.homeScreen.showGeneral']],
     ['astra', ['profile.allowance.title', 'profile.proactiveAstra.title', 'profile.aiSummary.title', 'profile.settingsRows.apiKeysMcp']],
     ['notifications', ['profile.settingsRows.remindersNote']],
-  ] as const)('opens %s from Perfil and keeps its settings in that screen alone', async (destination, labels) => {
+  ] as const)('opens the %s sub-screen from Perfil and keeps its settings in that screen alone', async (destination, labels) => {
     mockRealListRow.current = true
     const top = await renderProfileScreen()
     const title = destination === 'account' ? mockProfileState.current.profile?.name : destination === 'preferences' ? 'profile.submenus.preferences' : `profile.groups.${destination}`
@@ -995,7 +995,7 @@ describe('ProfileScreen', () => {
       top.root.find((node: { type: unknown; props: { accessibilityRole?: string }; children: unknown[] }) =>
         typeof node.type === 'string' && node.props.accessibilityRole === 'button' && nodeText(node).startsWith(title ?? '')).props.onPress()
     })
-    expect(mockRouterPush).toHaveBeenLastCalledWith(`/profile/${destination}`)
+    expect(mockRouterPush).toHaveBeenLastCalledWith(destination === 'astra' ? '/profile/ai' : `/profile/${destination}`)
     TestRenderer.act(() => top.unmount())
     const tree = await renderProfileSubscreen(destination)
     const group = tree.root.findByProps({ testID: `profile-settings-group-${destination}` })
@@ -1015,7 +1015,7 @@ describe('ProfileScreen', () => {
   it('forwards a directly linked subscription success return to Astra', async () => {
     mockSearchParams.current = { subscription: 'success' }
     const tree = await renderProfileScreen()
-    expect(mockRouterPush).toHaveBeenCalledWith('/profile/astra?subscription=success')
+    expect(mockRouterPush).toHaveBeenCalledWith('/profile/ai?subscription=success')
     TestRenderer.act(() => tree.unmount())
   })
 
@@ -1030,7 +1030,7 @@ describe('ProfileScreen', () => {
       const target = row.find((node: { type: unknown; props: { accessibilityRole?: string } }) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')
       expect(target.props.accessibilityLabel).toBe('Orbit')
       TestRenderer.act(() => target.props.onPress())
-      expect(mockRouterPush).toHaveBeenLastCalledWith('/profile/astra')
+      expect(mockRouterPush).toHaveBeenLastCalledWith('/profile/ai')
     } finally { TestRenderer.act(() => tree.unmount()) }
   })
 
@@ -1039,7 +1039,7 @@ describe('ProfileScreen', () => {
     for (const [label, path] of [
       [mockProfileState.current.profile?.name ?? 'profile.submenus.account', '/profile/account'],
       ['profile.submenus.preferences', '/profile/preferences'],
-      ['profile.groups.astra', '/profile/astra'],
+      ['profile.groups.astra', '/profile/ai'],
       ['profile.groups.notifications', '/profile/notifications'],
     ] as const) {
       TestRenderer.act(() => {
@@ -1207,7 +1207,7 @@ describe('ProfileScreen', () => {
     expect(allowanceGate.props.accessibilityState.disabled).toBe(false)
     expect(mockRouterPush).toHaveBeenNthCalledWith(1, {
       pathname: '/upgrade',
-      params: { from: '/profile/astra' },
+      params: { from: '/profile/ai' },
     })
   })
 
@@ -1226,11 +1226,11 @@ describe('ProfileScreen', () => {
     })
     expect(mockRouterPush).toHaveBeenNthCalledWith(1, {
       pathname: '/upgrade',
-      params: { from: '/profile/astra' },
+      params: { from: '/profile/ai' },
     })
     expect(mockRouterPush).toHaveBeenNthCalledWith(2, {
       pathname: '/upgrade',
-      params: { from: '/profile/astra' },
+      params: { from: '/profile/ai' },
     })
   })
 
@@ -1269,8 +1269,8 @@ describe('ProfileScreen', () => {
         expect(row.props.hint).toBeUndefined()
         TestRenderer.act(() => row.props.onPress?.())
       }
-      expect(mockRouterPush).toHaveBeenNthCalledWith(1, { pathname: '/upgrade', params: { from: '/profile/astra' } })
-      expect(mockRouterPush).toHaveBeenNthCalledWith(2, { pathname: '/upgrade', params: { from: '/profile/astra' } })
+      expect(mockRouterPush).toHaveBeenNthCalledWith(1, { pathname: '/upgrade', params: { from: '/profile/ai' } })
+      expect(mockRouterPush).toHaveBeenNthCalledWith(2, { pathname: '/upgrade', params: { from: '/profile/ai' } })
     }
   })
 
@@ -1314,7 +1314,7 @@ describe('ProfileScreen', () => {
     })
     expect(mockRouterPush).toHaveBeenCalledWith({
       pathname: '/upgrade',
-      params: { from: '/profile/astra' },
+      params: { from: '/profile/ai' },
     })
   })
 
@@ -1337,7 +1337,7 @@ describe('ProfileScreen', () => {
     TestRenderer.act(() => upgradeRow.props.onPress?.())
     expect(mockRouterPush).toHaveBeenCalledWith({
       pathname: '/upgrade',
-      params: { from: '/profile/astra' },
+      params: { from: '/profile/ai' },
     })
   })
 
@@ -1929,7 +1929,7 @@ describe('ProfileScreen', () => {
     })
     expect(mockRouterPush).toHaveBeenCalledWith({
       pathname: '/upgrade',
-      params: { from: '/profile/astra' },
+      params: { from: '/profile/ai' },
     })
   })
 
@@ -1983,7 +1983,7 @@ describe('ProfileScreen', () => {
     })
     expect(mockRouterPush).toHaveBeenCalledWith({
       pathname: '/upgrade',
-      params: { from: '/profile/astra' },
+      params: { from: '/profile/ai' },
     })
     const proactiveSwitch = astra.findByProps({
       accessibilityRole: 'switch',

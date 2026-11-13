@@ -28,7 +28,7 @@ for (const width of [320, 360, 384, 412]) {
         })
 
         test('keeps allowance and feature titles whole with matching group spacing', async ({ page }) => {
-          await page.goto('/profile/astra')
+          await page.goto('/profile/ai')
           const allowance = page.getByTestId('astra-allowance-panel')
           const groups = allowance.locator('..')
           for (const label of [words.profile.allowance.title, words.profile.proactiveAstra.title, words.profile.aiSummary.title]) {
