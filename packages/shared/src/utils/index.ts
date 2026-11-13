@@ -889,3 +889,20 @@ export type {
   HabitResultSentence,
   HabitResultSentenceKey,
 } from './habit-flow'
+export {
+  advanceHabitFlow,
+  habitFlowPosition,
+  openHabitFlowStep,
+  retreatHabitFlow,
+  settleHabitFlow,
+  startHabitFlow,
+} from './habit-flow-navigation'
+export type {
+  HabitFlowDetailStep,
+  HabitFlowNavigation,
+  HabitFlowOptionalId,
+  HabitFlowPosition,
+  HabitFlowStepKey,
+} from './habit-flow-navigation'
+export { answerHabitReminder, answerHabitTime, answerHabitWhen, shiftCalendarDate, HABIT_TIME_OPTIONS } from './habit-flow-answers'
+export type { HabitFlowFormPort, HabitWhenChoice } from './habit-flow-answers'
