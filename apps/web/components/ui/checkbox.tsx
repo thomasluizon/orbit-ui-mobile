@@ -42,7 +42,7 @@ export function Checkbox({
       data-checked={checked ? '' : undefined}
       data-loading={loading ? '' : undefined}
       data-error={error ? '' : undefined}
-      className="grid min-h-[var(--touch-min)] min-w-[var(--touch-min)] place-items-center border-0 bg-transparent p-0 disabled:opacity-60"
+      className="orbit-press-content grid min-h-[var(--touch-min)] min-w-[var(--touch-min)] place-items-center border-0 bg-transparent p-0 disabled:opacity-60"
     >
       {box}
     </Primitive.Root>

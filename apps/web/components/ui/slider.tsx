@@ -21,7 +21,7 @@ export function Slider({ label, value, valueText, min, max, step, disabled, onCh
     </Primitive.Track>
     <Primitive.Thumb aria-label={label} aria-valuemin={min} aria-valuemax={max} aria-valuenow={value ?? min} aria-valuetext={valueText} aria-disabled={disabled} onKeyDown={event => {
       if (event.key === ' ' || event.key === 'Enter') { event.preventDefault(); event.stopPropagation(); if (!disabled) select(tick) }
-    }} className="flex size-[var(--touch-min)] items-center justify-center rounded-full transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]">
+    }} className="orbit-press-content flex size-[var(--touch-min)] items-center justify-center rounded-full transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]">
       <span aria-hidden="true" className="size-6 rounded-full bg-[var(--primary)]" />
     </Primitive.Thumb>
   </Primitive.Root>

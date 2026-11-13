@@ -46,7 +46,7 @@ export function SelectCheck() {
 }
 
 export function Item({ value, label, disabled }: Readonly<SelectOption>) {
-  return <Primitive.Item value={value} textValue={label} disabled={disabled} className="flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-[12px] px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)] data-[highlighted]:bg-[var(--bg-hover)] data-[disabled]:opacity-50">
+  return <Primitive.Item value={value} textValue={label} disabled={disabled} className="orbit-press-content flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-[12px] px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)] data-[highlighted]:bg-[var(--bg-hover)] data-[disabled]:opacity-50">
     <Primitive.ItemText>{label}</Primitive.ItemText><SelectCheck />
   </Primitive.Item>
 }

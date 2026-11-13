@@ -625,6 +625,34 @@ select[aria-hidden="true"] {
 
 .orbit-sheet-close:active { background: var(--bg-hover); }
 
+@media (prefers-reduced-motion: no-preference) {
+  .orbit-sheet-close:active { transform: scale(0.96); }
+}
+
+/* Press feedback that keeps the press target: a row, an item or a small control scales its content
+   (never its hit box or its press fill), so a press near the edge stays on the control. */
+@layer components {
+  .orbit-list-row-body > [data-slot="list-row-content"],
+  .orbit-menu-content,
+  .orbit-press-content > :not([data-press-fill]),
+  .orbit-press-content > [data-press-fill] > *,
+  .orbit-tab > [data-tab-indicator] > :not([data-selection-motion]),
+  .orbit-tab > :not([data-tab-indicator]) {
+    transition: scale var(--dur-press) var(--ease-out);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .orbit-list-row-body:active:not(:disabled):not(:has(:is(button, a, [role="button"]):active)) > [data-slot="list-row-content"],
+  .orbit-menu-item:active:not(:disabled) > .orbit-menu-content,
+  .orbit-press-content:active:not(:disabled, [data-disabled]) > :not([data-press-fill]),
+  .orbit-press-content:active:not(:disabled, [data-disabled]) > [data-press-fill] > *,
+  .orbit-tab:active > [data-tab-indicator] > :not([data-selection-motion]),
+  .orbit-tab:active > :not([data-tab-indicator]) {
+    scale: 0.96;
+  }
+}
+
 [data-menu-trigger][data-state="open"]:not(:disabled) {
   background-color: var(--bg-hover);
 }
