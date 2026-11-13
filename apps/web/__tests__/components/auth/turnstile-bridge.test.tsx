@@ -43,6 +43,14 @@ it('posts widget state and tokens through the native bridge', () => {
   ])
 })
 
+it('fills its native frame exactly so the bridge document never scrolls inside it', () => {
+  const { container } = render(<TurnstileBridge siteKey="mobile-site-key" theme="dark" />)
+  const frame = container.firstElementChild as HTMLElement
+  expect(frame.style.height).toBe('100dvh')
+  expect(frame.style.minHeight).toBe('')
+  expect(frame.style.overflow).toBe('hidden')
+})
+
 it('renders the bridge only when a site key is supplied', async () => {
   expect(await TurnstileBridgePage({ searchParams: Promise.resolve({}) })).toBeNull()
   const page = await TurnstileBridgePage({ searchParams: Promise.resolve({ siteKey: 'site-key', theme: 'light' }) })

@@ -337,6 +337,14 @@ describe('SupportScreen', () => {
     expect(findInputByLabel(tree.root, 'profile.support.message')).toBeDefined()
   })
 
+  it('keeps the message field and the send action in one group the keyboard reveals together', async () => {
+    const tree = await renderScreen()
+    await selectSubject(tree.root, 2)
+    const group = tree.root.findAll((node) => node.type === View && node.props.testID === 'support-field-action')[0]!
+    expect(findInputByLabel(group, 'profile.support.message')).toBeDefined()
+    expect(group.findAll((node) => node.props.children === 'profile.support.send')).not.toHaveLength(0)
+  })
+
   it('keeps a restored message visible when its draft has no subject', async () => {
     mocks.getItem.mockResolvedValue(JSON.stringify({ subject: null, message: 'Saved message' }))
     const tree = await renderScreen()

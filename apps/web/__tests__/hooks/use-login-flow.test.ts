@@ -293,6 +293,21 @@ it('submits a completed code when a delayed widget token arrives', async () => {
   expect(fetchMock).toHaveBeenCalledTimes(2)
 })
 
+it('gives the code field focus back when the code screen check passes before the code is complete', async () => {
+  vi.stubEnv('NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'test-site-key')
+  const { result } = renderHook(() => useLoginFlow())
+  act(() => result.current.setEmail('user@test.com'))
+  const emailStepRequest = result.current.codeFocusRequest
+  act(() => result.current.onTurnstileToken('send-token'))
+  expect(result.current.codeFocusRequest).toBe(emailStepRequest)
+  await act(async () => { await result.current.sendCode() })
+
+  act(() => result.current.onCodeChange('12'))
+  const before = result.current.codeFocusRequest
+  act(() => result.current.onTurnstileToken('code-token'))
+  expect(result.current.codeFocusRequest).toBe(before + 1)
+})
+
 it.each(['before', 'during'])('does not replay a code completed %s an offline interval', async (timing) => {
   vi.stubEnv('NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'test-site-key')
   const { result, rerender } = renderHook(() => useLoginFlow())

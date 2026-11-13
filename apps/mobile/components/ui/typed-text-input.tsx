@@ -1,5 +1,6 @@
 import { forwardRef, useCallback, useMemo, useRef, type ComponentProps } from 'react'
 import { useKeyboardAwareInputReveal } from './keyboard-aware-scroll-view'
+import { useKeyboardRevealGroup } from './keyboard-reveal-group'
 import { TextInput } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -11,6 +12,7 @@ export const TypedTextInput = forwardRef<TextInput, TypedTextInputProps>(
     const inputRef = useRef<TextInput>(null)
     const focusedRef = useRef(false)
     const keyboardAware = useKeyboardAwareInputReveal()
+    const revealGroup = useKeyboardRevealGroup()
     const assignRef = useCallback((node: TextInput | null) => {
       inputRef.current = node
       if (typeof ref === 'function') {
@@ -19,9 +21,10 @@ export const TypedTextInput = forwardRef<TextInput, TypedTextInputProps>(
         ref.current = node
       }
     }, [ref])
+    const revealTarget = () => revealGroup?.current ?? inputRef.current
     const reveal = () => {
       if (focusedRef.current) {
-        keyboardAware?.revealInput(inputRef.current)
+        keyboardAware?.revealInput(revealTarget())
       }
     }
     const { currentScheme, currentTheme } = useAppTheme()
@@ -37,7 +40,7 @@ export const TypedTextInput = forwardRef<TextInput, TypedTextInputProps>(
         }}
         onBlur={(event) => {
           focusedRef.current = false
-          keyboardAware?.clearInput(inputRef.current)
+          keyboardAware?.clearInput(revealTarget())
           onBlur?.(event)
         }}
         onLayout={(event) => {

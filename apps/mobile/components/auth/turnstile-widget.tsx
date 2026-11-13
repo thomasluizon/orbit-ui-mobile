@@ -1,7 +1,7 @@
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
 import { useEffect, useMemo, useState } from 'react'
-import { Text, View } from 'react-native'
+import { Text, View, type LayoutChangeEvent } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { WebView, type WebViewMessageEvent } from 'react-native-webview'
 import { createTokensV2 } from '@/lib/theme'
@@ -18,10 +18,12 @@ export function TurnstileWidget({
   siteKey,
   resetKey,
   onToken,
+  onLayout,
 }: Readonly<{
   siteKey: string
   resetKey: number
   onToken: (token: string | null) => void
+  onLayout?: (event: LayoutChangeEvent) => void
 }>) {
   const { t, i18n } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -66,7 +68,7 @@ export function TurnstileWidget({
   }
 
   return (
-    <View style={{ alignItems: 'center', alignSelf: 'stretch',
+    <View onLayout={onLayout} style={{ alignItems: 'center', alignSelf: 'stretch',
       ...(takesNoSpace ? { position: 'absolute', left: 0, right: 0, height: 0, overflow: 'hidden' } as const : {}) }}>
       <View testID="turnstile-challenge" style={{ alignSelf: 'stretch', height: challengeHostHeight, overflow: 'hidden' }}>
         <WebView
@@ -77,6 +79,9 @@ export function TurnstileWidget({
           accessibilityLabel={t('auth.turnstileLabel')}
           containerStyle={{ width: '100%', height: FLEXIBLE_CHALLENGE_HEIGHT, flex: 0, backgroundColor: tokens.bg }}
           style={{ width: '100%', height: FLEXIBLE_CHALLENGE_HEIGHT, flex: 0, backgroundColor: tokens.bg }}
+          scrollEnabled={false}
+          bounces={false}
+          overScrollMode="never"
           javaScriptEnabled
           domStorageEnabled
           thirdPartyCookiesEnabled

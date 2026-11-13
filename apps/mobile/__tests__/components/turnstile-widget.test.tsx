@@ -190,6 +190,48 @@ it('loads the iOS challenge frames and keeps the top frame on the bridge without
   expect(linking.openURL).not.toHaveBeenCalled()
 })
 
+it('never scrolls the bridge inside its frame', async () => {
+  let renderer!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(async () => {
+    renderer = TestRenderer.create(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />)
+    await Promise.resolve()
+  })
+  onTestFinished(() => TestRenderer.act(() => renderer.unmount()))
+  expect(renderer.root.findByType('WebView').props).toMatchObject({ scrollEnabled: false, bounces: false, overScrollMode: 'never' })
+})
+
+it('names the challenge without making it one element, so screen readers reach the web content', async () => {
+  let renderer!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(async () => {
+    renderer = TestRenderer.create(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />)
+    await Promise.resolve()
+  })
+  onTestFinished(() => TestRenderer.act(() => renderer.unmount()))
+  await TestRenderer.act(async () => {
+    renderer.root.findByType('WebView').props.onMessage({ nativeEvent: { data: JSON.stringify({ state: 'interactive' }) } })
+    await Promise.resolve()
+  })
+  type Node = { type: unknown; props: Record<string, unknown>; parent: Node | null }
+  const webView = renderer.root.findByType('WebView') as Node
+  expect(webView.props.accessibilityLabel).toBe('auth.turnstileLabel')
+  for (let node: Node | null = webView; node; node = node.parent) {
+    expect(node.props.accessible).not.toBe(true)
+    expect(node.props.importantForAccessibility).not.toBe('no-hide-descendants')
+    expect(node.props.accessibilityElementsHidden).not.toBe(true)
+  }
+})
+
+it('reports its own layout so the sign-in column can keep still around it', async () => {
+  const onLayout = vi.fn()
+  let renderer!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(async () => {
+    renderer = TestRenderer.create(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} onLayout={onLayout} />)
+    await Promise.resolve()
+  })
+  onTestFinished(() => TestRenderer.act(() => renderer.unmount()))
+  expect(renderer.toJSON().props.onLayout).toBe(onLayout)
+})
+
 it('shows the loading sentence only while no challenge waits for the person and takes no space otherwise', async () => {
   let renderer!: ReturnType<typeof TestRenderer.create>
   await TestRenderer.act(async () => {

@@ -32,6 +32,7 @@ import { apiClient } from '@/lib/api-client'
 import { SupportReplyEmail } from '@/components/support-reply-email'
 import { Input } from '@/components/ui/input'
 import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
+import { KeyboardRevealGroup } from '@/components/ui/keyboard-reveal-group'
 import { PillButton } from '@/components/ui/pill-button'
 import { useShellPageEnd } from '@/components/shell/shell-scroller-clearance'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -187,51 +188,53 @@ function SupportForm({
           </Text>
         ) : null}
       </View>
-      {messageAsked ? <Input
-        label={t('profile.support.message')}
-        required
-        value={message}
-        onChange={onChangeMessage}
-        placeholder={t('profile.support.messagePlaceholder')}
-        disabled={sending}
-        error={messageError ?? undefined}
-        hint={messageError ? undefined : messageOverLimitHint ?? undefined}
-        maxLength={messageMaxLength}
-        multiline
-        rows={6}
-        autoComplete="off"
-        focusRequest={messageFocusRequest}
-        onBlur={onMessageBlur}
-      /> : null}
-      <SupportReplyEmail email={email} />
-      {appVersion ? (
-        <Text style={[styles.versionIncluded, { color: tokens.fg3 }]}>
-          {t('profile.support.versionIncluded', { version: appVersion })}
-        </Text>
-      ) : null}
-      {!isOnline ? (
-        <View accessibilityLiveRegion="polite" style={[styles.offlineNotice, { backgroundColor: tokens.bgWell }]}>
-          <WifiOff size={20} color={tokens.fg3} accessible={false} />
-          <Text style={[styles.offlineText, { color: tokens.fg2 }]}>
-            {t('profile.support.offlineReason')}
+      <KeyboardRevealGroup testID="support-field-action" style={styles.fieldAction}>
+        {messageAsked ? <Input
+          label={t('profile.support.message')}
+          required
+          value={message}
+          onChange={onChangeMessage}
+          placeholder={t('profile.support.messagePlaceholder')}
+          disabled={sending}
+          error={messageError ?? undefined}
+          hint={messageError ? undefined : messageOverLimitHint ?? undefined}
+          maxLength={messageMaxLength}
+          multiline
+          rows={6}
+          autoComplete="off"
+          focusRequest={messageFocusRequest}
+          onBlur={onMessageBlur}
+        /> : null}
+        <SupportReplyEmail email={email} />
+        {appVersion ? (
+          <Text style={[styles.versionIncluded, { color: tokens.fg3 }]}>
+            {t('profile.support.versionIncluded', { version: appVersion })}
           </Text>
+        ) : null}
+        {!isOnline ? (
+          <View accessibilityLiveRegion="polite" style={[styles.offlineNotice, { backgroundColor: tokens.bgWell }]}>
+            <WifiOff size={20} color={tokens.fg3} accessible={false} />
+            <Text style={[styles.offlineText, { color: tokens.fg2 }]}>
+              {t('profile.support.offlineReason')}
+            </Text>
+          </View>
+        ) : null}
+        {isOnline && disabledReason ? (
+          <Text style={[styles.formDescription, { color: tokens.fg2 }]}>
+            {disabledReason}
+          </Text>
+        ) : null}
+        <View>
+          <PillButton size="md"
+            onClick={onSend}
+            disabled={!canSend}
+            loading={sending}
+            hint={!isOnline ? t('profile.support.offlineReason') : disabledReason ?? undefined}
+          >
+            {error ? t('profile.support.retry') : t('profile.support.send')}
+          </PillButton>
         </View>
-      ) : null}
-      {isOnline && disabledReason ? (
-        <Text style={[styles.formDescription, { color: tokens.fg2 }]}>
-          {disabledReason}
-        </Text>
-      ) : null}
-      <View>
-        <PillButton size="md"
-          onClick={onSend}
-          disabled={!canSend}
-          loading={sending}
-          hint={!isOnline ? t('profile.support.offlineReason') : disabledReason ?? undefined}
-        >
-          {error ? t('profile.support.retry') : t('profile.support.send')}
-        </PillButton>
-      </View>
+      </KeyboardRevealGroup>
     </View>
   )
 }
@@ -458,6 +461,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     gap: 24,
   },
+  fieldAction: { gap: 24 },
   formDescription: {
     fontFamily: 'Geist_400Regular',
     fontSize: 16,

@@ -43,6 +43,11 @@ describe('mobile OtpInput', () => {
     const style = StyleSheet.flatten(tree!.root.findByType('TextInput').props.style)
     const UIKIT_HIT_TEST_ALPHA_FLOOR = 0.01
     expect(Math.fround(style.opacity)).toBeGreaterThan(UIKIT_HIT_TEST_ALPHA_FLOOR)
+    expect(style).toMatchObject({ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, zIndex: 1 })
+    const cells = tree!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
+      typeof node.props.testID === 'string' && node.props.testID.startsWith('otp-cell-') && typeof node.type === 'string')
+    expect(cells).toHaveLength(6)
+    for (const cell of cells) expect(cell.props.pointerEvents).toBe('none')
   })
 
   it('keeps one inset ring on the focused cell', async () => {

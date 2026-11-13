@@ -1,5 +1,5 @@
 import React from 'react'
-import { TextInput } from 'react-native'
+import { ScrollView, StyleSheet, TextInput, View } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   __emitKeyboardEvent,
@@ -15,6 +15,8 @@ import {
   KeyboardAwareView,
   useKeyboardAwareInputReveal,
 } from '@/components/ui/keyboard-aware-scroll-view'
+import { KeyboardRevealGroup } from '@/components/ui/keyboard-reveal-group'
+import { TypedTextInput } from '@/components/ui/typed-text-input'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -252,6 +254,66 @@ describe('KeyboardAwareScrollView (mobile)', () => {
       __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: 400 } })
     })
     expect(measureSpy).not.toHaveBeenCalled()
+  })
+
+  describe('a field and its action at 375 x 667 with the keyboard top at 432', () => {
+    const KEYBOARD_TOP = 432
+    const REVEAL_MARGIN = 24
+    function renderFieldAndAction(group: { current: MeasureResult }) {
+      const scrollTo = vi.fn()
+      __setScrollToImpl(scrollTo)
+      __setMeasureInWindowImpl((callback, props, name) => {
+        if (name === 'ScrollView') callback(0, 20, 375, KEYBOARD_TOP - 20)
+        else if (props.testID === 'field-action') callback(0, group.current.y, 375, group.current.height)
+        else callback(0, 300, 375, 56)
+      })
+      let tree!: ReturnType<typeof TestRenderer.create>
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          <KeyboardAwareScrollView>
+            <KeyboardRevealGroup testID="field-action">
+              <TypedTextInput accessibilityLabel="Code" />
+              <View accessibilityRole="button" />
+            </KeyboardRevealGroup>
+          </KeyboardAwareScrollView>,
+        )
+      })
+      return { tree, scrollTo }
+    }
+
+    it('lifts the whole group above the keyboard when the field alone already fits', () => {
+      const group = { current: { y: 300, height: 243 } }
+      const { tree, scrollTo } = renderFieldAndAction(group)
+      TestRenderer.act(() => tree.root.findByType(TextInput).props.onFocus({ nativeEvent: {} }))
+      TestRenderer.act(() => __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: KEYBOARD_TOP } }))
+      expect(scrollTo).toHaveBeenLastCalledWith({ y: 300 + 243 - (KEYBOARD_TOP - REVEAL_MARGIN), animated: true })
+    })
+
+    it('lifts the group again when it grows while the field keeps focus', () => {
+      const group = { current: { y: 200, height: 150 } }
+      const { tree, scrollTo } = renderFieldAndAction(group)
+      TestRenderer.act(() => tree.root.findByType(TextInput).props.onFocus({ nativeEvent: {} }))
+      TestRenderer.act(() => __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: KEYBOARD_TOP } }))
+      expect(scrollTo).not.toHaveBeenCalled()
+      group.current = { y: 200, height: 150 + 65 + 24 }
+      const groupHost = tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
+        node.type === 'View' && node.props.testID === 'field-action')[0]
+      TestRenderer.act(() => groupHost.props.onLayout())
+      expect(scrollTo).toHaveBeenLastCalledWith({ y: 200 + 239 - (KEYBOARD_TOP - REVEAL_MARGIN), animated: true })
+    })
+
+    it.each([{ viewport: 667 - 20, label: 'under' }, { viewport: KEYBOARD_TOP - 20, label: 'above' }])(
+      'ends the scroll clear of the keyboard when the scroller reaches $label it', ({ viewport }) => {
+        __setMeasureInWindowImpl((callback) => callback(0, 20, 375, viewport))
+        let tree!: ReturnType<typeof TestRenderer.create>
+        TestRenderer.act(() => {
+          tree = TestRenderer.create(<KeyboardAwareScrollView contentContainerStyle={{ paddingBottom: 16 }}><View /></KeyboardAwareScrollView>)
+        })
+        TestRenderer.act(() => __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: KEYBOARD_TOP } }))
+        const paddingBottom = StyleSheet.flatten(tree.root.findByType(ScrollView).props.contentContainerStyle).paddingBottom as number
+        const lastLineBottomAtScrollEnd = 20 + viewport - paddingBottom
+        expect(lastLineBottomAtScrollEnd).toBeLessThanOrEqual(KEYBOARD_TOP - REVEAL_MARGIN)
+      })
   })
 })
 
