@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react'
 import type { ReactNode } from 'react'
 import { Animated, BackHandler, Text, View } from 'react-native'
 import { formatLoginCountdown, type LoginCodeFailure } from '@orbit/shared/utils'
+import { motionDurations } from '@orbit/shared/theme'
 import { type AppTokensV2, easings } from '@/lib/theme'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import { PillButton } from '@/components/ui/pill-button'
@@ -9,6 +10,9 @@ import { OtpInput } from '@/components/ui/otp-input'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import type { LoginStyles } from '@/app/login-styles'
 import { LoginHeader, LoginOfflineNotice, LoginSuccessMessage } from './login-sections'
+
+/** The rejected code shakes through these offsets over the shared slow duration, as on web. */
+const SHAKE_OFFSETS = [-4, 4, -4, 4, 0] as const
 
 interface CodeStepProps {
   email: string
@@ -52,8 +56,8 @@ export function CodeStep({ email, codeDigits, onCodeChange, isSubmitting, isRese
   useEffect(() => {
     shake.setValue(0)
     if (!fieldError || reduced) return
-    const animation = Animated.sequence([-4, 4, -4, 4, 0].map((toValue) => Animated.timing(shake, {
-      toValue, duration: 56, easing: toAnimatedEasing(easings.smooth), useNativeDriver: true,
+    const animation = Animated.sequence(SHAKE_OFFSETS.map((toValue) => Animated.timing(shake, {
+      toValue, duration: motionDurations.slow / SHAKE_OFFSETS.length, easing: toAnimatedEasing(easings.smooth), useNativeDriver: true,
     })))
     animation.start()
     return () => animation.stop()
