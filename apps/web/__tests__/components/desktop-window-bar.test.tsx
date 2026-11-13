@@ -6,6 +6,8 @@ import { renderToString } from 'react-dom/server'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { DesktopWindowBar } from '@/components/desktop-window-bar'
+import { ThrottleScreen } from '@/components/ui/throttle-screen'
+import { useThrottleStore } from '@/stores/throttle-store'
 import { DESKTOP_MAXIMIZE_HOVER_EVENT, DESKTOP_WINDOW_CONTROL_WIDTH } from '@/lib/desktop-window'
 
 const captureException = vi.fn()
@@ -172,6 +174,26 @@ it('tells the shell when the first bar is drawn and when the last bar is gone, s
   expect(barReports()).toEqual([true])
   first.unmount()
   expect(barReports()).toEqual([true, false])
+})
+
+it('draws a second bar inside the throttle screen, whose modal dialog covers the root bar and makes it inert, with no frame report', () => {
+  markShell('windows')
+  const dialogs = HTMLDialogElement.prototype as HTMLDialogElement & { showModal: () => void; close: () => void }
+  dialogs.showModal = function showModal(this: HTMLDialogElement) { this.setAttribute('open', '') }
+  dialogs.close = function close(this: HTMLDialogElement) { this.removeAttribute('open') }
+  try {
+    render(<NextIntlClientProvider locale="en" messages={en}><ThrottleScreen /><DesktopWindowBar /></NextIntlClientProvider>)
+    act(() => { useThrottleStore.getState().show(429, { retryAfterUtc: new Date(Date.now() + 42000).toISOString() }) })
+    const throttle = screen.getByRole('dialog', { name: en.errorScreen.throttleTitle })
+    expect(within(throttle).getByRole('group', { name: 'Window controls' })).toBeInTheDocument()
+    expect(screen.getAllByRole('group', { name: 'Window controls' })).toHaveLength(2)
+    act(() => { useThrottleStore.getState().clear() })
+    expect(screen.getAllByRole('group', { name: 'Window controls' })).toHaveLength(1)
+    expect(barReports()).toEqual([true])
+  } finally {
+    Reflect.deleteProperty(dialogs, 'showModal')
+    Reflect.deleteProperty(dialogs, 'close')
+  }
 })
 
 it('reports a failed bar report instead of swallowing it', async () => {

@@ -3076,19 +3076,11 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   [data-motion-disclosure][aria-hidden="true"] { display: none !important; }
 }
 
-/* Desktop shell without a native title bar: the shell marks the root, the bar is fixed over the reserved strip, and full-height shells give the strip back. */
+/* Desktop shell without a native title bar: the shell marks the root, and the fixed bar is one more top inset, so every surface that clears the top safe area, in normal flow or fixed to the viewport, clears the bar once. */
 html[data-desktop-window-bar] {
   --desktop-window-bar-height: 48px;
-  padding-block-start: var(--desktop-window-bar-height);
+  --safe-top: max(env(safe-area-inset-top, 0px), var(--desktop-window-bar-height));
   background-color: var(--bg);
-}
-
-html[data-desktop-window-bar] .h-dvh:not(.fixed) {
-  height: calc(100dvh - var(--desktop-window-bar-height));
-}
-
-html[data-desktop-window-bar] .min-h-dvh:not(.fixed) {
-  min-height: calc(100dvh - var(--desktop-window-bar-height));
 }
 
 .orbit-window-bar [data-window-action='maximize'][data-native-hover] {
