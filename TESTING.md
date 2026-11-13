@@ -385,7 +385,8 @@ shipped client schema.
 Each locale covers an initial stuck prompt, a smaller action, task approval, checklist approval and
 a client whose `partKinds` omits `oneSmallStep`. The legacy answer must equal the tool's step text
 without action prompts. The typed answer has one block, the three server labels and no framing prose.
-Follow-ups send the returned action's complete `message` with verified setup history. The smaller
+Follow-ups send the returned action's complete `message` with verified setup history and the setup response's
+`conversationId`; the legacy client predates that id and sends none. The smaller
 rubric receives the original activity and step to compare effort semantically, allowing equivalent
 activity wording. Save cases derive their required tool arguments from that same returned step.
 
@@ -426,7 +427,8 @@ this flow offline; never treat their passing result as evidence from a live mode
 ### Proactive offer gate
 
 The `offers-*` families add 70 bilingual cases to the composition corpus, bringing it to 184 cases
-and the full launch corpus to 205. Each case runs the configured `k` attempts and retains its
+and the full launch corpus to 205. The same-title families then add 30 cases to `scenarios.yaml`,
+bringing it to 51 cases and the full launch corpus to 235. Each case runs the configured `k` attempts and retains its
 family/locale pass^k result.
 The app-launch gate uses `k=1`. Fixture selection is explicit in `vars.offerState` and stays the
 same on retries. Each state has its own case identity in both locales:
@@ -577,6 +579,82 @@ responses with no action; they cannot satisfy a required eligible-action case. H
 read replays must reject unsafe actions even when the prose sounds reasonable. These replays never
 call Orbit, start an app server, increase an AI ceiling or replace the app-launch pass^k gate.
 
+### Same-title set cases
+
+The `same-title-set` family (#2128, with the #2129 cases) proves the request class #2127 fixed, over one parent
+Water with six children titled Water - 710ml (fixture `same-title-children`). Each locale holds 13 cases:
+
+- the production request (delete two and rename the other four) with no question;
+- one action on the last two by order (a deletion, and a rename to Water - 1L);
+- a whole-set rename and a whole-set deletion;
+- a title that matches the parent and its children;
+- a choice answer, a typed full answer and a typed full repeat, each with the earlier question in `history`;
+- the whole reported conversation, whose last message must reach the preview;
+- a stated count that differs from the found count;
+- the singular request that must ask once;
+- the card case: one question at most, a card that can hold the answer, then one preview of the whole request.
+
+The `same-title-control` family runs a singular request with an unrelated set word (`thanks for all the help`,
+`obrigado por tudo`) or an order word in a time phrase (`in the last two weeks`, `nas últimas duas semanas`) over
+the same six children. It expects one question and no write. The API settles a title group only when it has two
+or more records, so a control over distinct titles cannot reach the set and order classifier.
+
+The two singular cases and the four control cases use `composition.mode: clarification`. When the question has a card,
+the card must offer each of the six children as a separate option, because a singular request means one child. The
+API completes a record card that offers more than four records as one `question` block with one `records` question,
+because a choice holds four options at most. Its options are the record ids in read order, labelled
+`Water - 710ml (1 of 6)` or `Water - 710ml (1º de 6)`.
+
+`composition` grades only the generic rule of the mode: one choice or question card and no write. `behavior`
+grades the options of the card through `sameTitleProposal`, as `sameTitleCard` does for the card cases. A choice
+card for these cases fails `behavior`, because it offers some of the children or offers them only in sets. A
+question card that offers fewer children also fails `behavior`, and the reason names how many children it offers.
+The lifecycle then stops before the readback. The rubric of each of these cases states this rule in the same words.
+
+When the first turn fails `structural`, `behavior` or `composition`, the lifecycle stops before the answer turn and
+the readback. `behavior` then names that gate and its reason, so it never reads as a lost answer turn or as a
+change to the stored children. The restart lifecycle reports a stopped first turn in the same way.
+
+A `sameTitleSet` policy declares `deleted` and `renamed`, each with a `count` and optional `positions`, and
+`renamed.title`. `behavior` grades the one held preview. The API combines a bulk deletion and a bulk rename of one
+turn into one `applyAccountChanges` operation, whose item ids carry the member index in tool-call order. A lone
+action keeps `deleteHabits` or `updateHabits`. The grader classifies each item by its field (`delete` with value
+type `action`, or `title` with the requested new value), never by the member index. It requires one member per
+action, every item a stored child, no habit in two actions, never the parent, and `positions` matched by baseline
+order. The HTTP provider then reads the set back, approves the preview through `approvePendingOperation`, and
+reads it back again. The persisted children must show the deleted ones gone, the renamed ones retitled and the
+rest unchanged. A preview case forbids `ask`, so a question before the preview fails it.
+
+A card case adds `sameTitleSet.answer` (the decided `deleted` and `renamed` positions and a typed `text`) and
+`composition.allowQuestion`. When the first turn asks, each option stands for the records its `ask` call declares
+in `target_ids`. An option that declares none stands for its own id when that id is a nonempty GUID, in the order of
+the API's `AiChoiceSelection.TargetsOf`. Every such record must be a stored child, each child must be selectable,
+and one selection the card allows must state the whole decision. When a list can hold the deleted half and the
+renamed half, the grader selects the half that its question asks about: the action words of the question, else the
+count that it states. In a list question, `keep` and `manter` are rename words, because the records to keep are the
+records to rename. When the question tells neither, or the two signals disagree, the case fails with a message that
+names a grader limit, not a model fault. A `yesNo` question beside the lists is answered yes only when its verb
+proposes the decided action for the half that the lists leave out. A count can confirm that half, but a count alone
+never decides it. In a `yesNo` question, `keep`, `manter`, `leave`, `stay`, `ficar` and each other verb of no change
+are not rename words, and `title` and `título` are not rename words. A negation (`not`, `don't`, `without`,
+`instead`, `não`, `sem`, `em vez`) or an alternative (`or`, `ou`) makes the prompt propose no one action. A `yesNo`
+question fails the case with a grader-limit message when it proposes no action, both actions or the action of the
+selected half. It also fails the case with that message when its count and its verb point at different halves.
+Every `scale` or `slider` question also fails the case with a grader-limit message. The model-fault message stays for
+a card whose every question the grader reads. The provider sends that selection as `blockAnswer`, with the message
+and the history the web client sends. As the client does, the answer turn, confirm and execute send the first
+response's `conversationId` in `clientContext`, so the API reads the stored conversation.
+The shared client functions build the message: the selected labels for a choice card, and each question prompt with
+its selected labels or the client's yes word for a question card. When the question has no card, the provider sends
+the typed text. The lifecycle runs in `attempt()` around the
+single request of `chat()`, as the offer lifecycle does, so the answer turn cannot start the lifecycle again. The
+answer turn must hold one preview with both actions on the decided positions and no further question.
+`composition.allowPreviewNote` permits one short line beside the preview for the production request, the count case
+and the card case.
+
+Offline checks (`npm test --prefix evals/astra`) prove the fixture, grading and lifecycle, including the real
+staging responses of #2127 (`__tests__/fixtures/same-title-streams.mjs`); the paid run is the #315 gate.
+
 ### Environment and reproducible fixtures
 
 Restart cases cover proposal, approval, rejection and the preference for exactly two habits
@@ -689,6 +767,7 @@ its previous state after the run. Header alone or flag alone cannot enable traci
 | `free-at-limit` | Free account at the actual configured root capacity, with enough message allowance |
 | `budget-exhausted` | Daily message allowance exhausted through at most five ordinary requests, independently verified from profile; an unavailable precondition stays incomplete |
 | `hoje-next-step` | UTC profile in the case language, English titles in both locales: Meals with Breakfast logged today, then pending Lunch at 12:00, Afternoon snack at 16:00 and Dinner at 19:00; Water with six pending Water - 710ml children. Registered root IDs are preserved; ordered children, times, parent links and completion history require independent readback |
+| `same-title-children` | English titles in both locales: parent Water (the first registered root) with six pending Water - 710ml children in position order, and the second registered root Walk or Caminhada, still active. Ordered children, parent link and empty history require independent readback; the reset stores the readback as `sameTitleBaseline` |
 
 ### Daily windows and combined report
 
@@ -1085,8 +1164,9 @@ exact parent IDs, weekly vitamin D and daily rosuvastatin, without duplicate roo
 Only medical correction cases declare `vars.setup`. After fixture reset, the hook issues that
 original request using the same installed HTTP provider and capabilities, with a separate fresh
 request identity. Structure, behavior and composition must all pass before the correction runs.
-The actual final answer becomes chat history, and the actual preview becomes the comparison
-baseline. The correction requires 16:00 and preserves every other preview field and item identity.
+The actual final answer becomes chat history, the returned `conversationId` joins the client context,
+and the actual preview becomes the comparison baseline. The correction requires 16:00 and preserves every other
+preview field and item identity.
 A correction requires exactly one held `bulk_create_habits` call. Setup derives its full argument
 scope from the verified original trace, changing only the named exam's `due_time`; exact argument
 matching rejects added fields, changed siblings and additional mutations. Successful writes
@@ -1118,8 +1198,12 @@ rendered consumers; this harness change does not unblock broad rollout by itself
    Compound cases require every tool and its key arguments. Bulk cases require exactly one bulk
    call and forbid its single-item counterpart. Ambiguity cases allow only appropriate reads
    and asks; the rubric requires a question rather than action. Use `composition.mode: clarification`
-   to accept either one to three short plain-text lines without a block or exactly one `choice` block.
-   Other block kinds, multiple blocks and pending writes fail this policy.
+   to accept either one to three short plain-text lines without a block or exactly one `choice` or
+   `question` card. The API sends a `question` card for the same intent: it folds only one short
+   `singleChoice` question into a choice, and it sends a record card over more than four records as a
+   question. Other block kinds, multiple blocks and pending writes fail this policy. A case that
+   declares `sameTitleSet` also needs its card to offer each stored child as a separate option, and
+   `behavior` grades that rule.
 3. Regenerate `catalog.yaml` from a settled API checkout with
    `node evals/astra/generate-catalog.mjs <orbit-api checkout>`. This requires the API's .NET SDK
    and restored package access. The exporter builds into a private temporary artifacts directory,
