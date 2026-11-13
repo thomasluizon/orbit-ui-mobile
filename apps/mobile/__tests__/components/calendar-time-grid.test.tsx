@@ -1064,6 +1064,27 @@ describe.each(['dark', 'light'] as const)('Calendar column-header interactions i
     expect(view.onSelectDay).not.toHaveBeenCalled();
   });
 
+  it('scales the header fill with its weekday and date in one press layer, as the web week header does', () => {
+    const view = headerInteractions(mode, 'en');
+    const pressLayer = (node: TestNode) => {
+      let layer = node.parent;
+      while (layer && layer.props['data-slot'] !== 'press-scale') layer = layer.parent;
+      return layer;
+    };
+    const inHeader = (testID: string) => hostsByTestID(view.tree, testID).find((candidate) => {
+      for (let parent = candidate.parent; parent; parent = parent.parent) if (parent === view.header()) return true;
+      return false;
+    })!;
+    const layer = pressLayer(view.header());
+    expect(layer, 'a press scale layer holds the header').toBeTruthy();
+    expect(pressLayer(inHeader('time-grid-col-header-fill')), 'the fill shares the header press layer').toBe(layer);
+    expect(pressLayer(inHeader('time-grid-col-date')), 'the date shares the header press layer').toBe(layer);
+    view.run('onPressIn');
+    expect(view.scale()).toBeCloseTo(0.96, 5);
+    view.run('onPressOut');
+    expect(view.scale()).toBe(1);
+  });
+
   it.each(['en', 'pt-BR'] as const)('retains focus paint and one inset outline through hover and cancelled press in %s', (language) => {
     const view = headerInteractions(mode, language);
     const initialGeometry = headerGeometry(view.style());

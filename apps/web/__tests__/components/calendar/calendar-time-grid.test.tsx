@@ -670,8 +670,18 @@ describe('time grid press targets that keep their full size', () => {
     const col = column(2025, 5, 16)
     renderGrid([col], new Map([[col.dateStr, [makeEntry({ dueTime: '08:00' })]]]))
     const target = screen.getByTestId(testId)
+    const layers = [...target.querySelectorAll(':scope > [data-press-fill], :scope > [data-slot="press-surface"]')]
     const scaled = scaledWhilePressed(rules, target)
-    expect(scaled.map(({ element }) => element), 'the press scales only the surface inside the target').toEqual([target.querySelector(':scope > [data-slot="press-surface"]')])
-    expect(scaled.map(({ media }) => media), 'reduced motion removes the press scale').toEqual([[MOTION_SAFE]])
+    expect(scaled.map(({ element }) => element), 'the press scales the surface and its fill inside the target, never the target').toEqual(layers)
+    expect(scaled.map(({ media }) => media), 'reduced motion removes the press scale').toEqual(layers.map(() => [MOTION_SAFE]))
+  })
+
+  it('scales the week header press fill with its weekday and date, as the mobile header scales both', () => {
+    const col = column(2025, 5, 16)
+    renderGrid([col], new Map())
+    const target = screen.getByTestId('time-grid-col-header')
+    const fill = target.querySelector(':scope > .orbit-calendar-week-header-fill')
+    expect(fill, 'the week header paints its press fill on its own layer').not.toBeNull()
+    expect(scaledWhilePressed(rules, target).map(({ element }) => element), 'the fill scales with the weekday and date').toContain(fill)
   })
 })

@@ -36,8 +36,17 @@ describe('press targets that keep their full size', () => {
   it.each(controls)('scales the surface inside %s and never the target, so a press at its edge keeps its click', (_name, control, find) => {
     render(control())
     const target = find()
+    const layers = [...target.querySelectorAll(':scope > [data-press-fill], :scope > [data-slot="press-surface"]')]
     const scaled = scaledWhilePressed(rules, target)
-    expect(scaled.map(({ element }) => element), 'the press scales only the surface inside the target').toEqual([target.querySelector(':scope > [data-slot="press-surface"]')])
-    expect(scaled.map(({ media }) => media), 'reduced motion removes the press scale').toEqual([[MOTION_SAFE]])
+    expect(scaled.map(({ element }) => element), 'the press scales the surface and its fill inside the target, never the target').toEqual(layers)
+    expect(scaled.map(({ media }) => media), 'reduced motion removes the press scale').toEqual(layers.map(() => [MOTION_SAFE]))
+  })
+
+  it('scales the select-all press fill with its label, as the mobile tray scales both', () => {
+    render(withMessages(<SelectionTray {...tray} />))
+    const target = screen.getByRole('button', { name: en.common.selectAll })
+    const fill = target.querySelector(':scope > [data-press-fill]')
+    expect(fill, 'the select-all paints its press fill on its own layer').not.toBeNull()
+    expect(scaledWhilePressed(rules, target).map(({ element }) => element), 'the fill scales with the label').toContain(fill)
   })
 })

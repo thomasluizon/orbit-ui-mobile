@@ -274,6 +274,29 @@ describe('SelectionTray', () => {
     expect(StyleSheet.flatten(style).backgroundColor).toBeUndefined()
   })
 
+  it.each([false, true])('scales the select-all fill with its label in one press layer, as the web select-all does, with reduced motion %s', async (reducedMotion) => {
+    interactionState.reducedMotion = reducedMotion
+    const { tree, props } = await renderBar()
+    type LayerNode = RenderedNode & { parent: LayerNode | null }
+    const pressLayer = (node: LayerNode) => {
+      let layer = node.parent
+      while (layer && layer.props['data-slot'] !== 'press-scale') layer = layer.parent
+      return layer
+    }
+    const host = (predicate: (node: RenderedNode) => boolean) => tree.root.findAll((node) => typeof node.type === 'string' && predicate(node))[0] as LayerNode
+    const layer = pressLayer(host((node) => node.props.testID === 'selection-all-fill'))
+    expect(layer, 'a press scale layer holds the select-all fill').toBeTruthy()
+    expect(pressLayer(host((node) => node.props.children === props.selectAllLabel)), 'the fill and the label share one press scale layer').toBe(layer)
+    const control = tree.root.findAll((node) => typeof node.props.children === 'function' && typeof node.props.onPressIn === 'function'
+      && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === undefined)[0]!
+    const scale = () => (StyleSheet.flatten(layer!.props.style as StyleProp<ViewStyle>) as { transform: [{ scale: number }] }).transform[0].scale
+    expect(scale()).toBe(1)
+    await TestRenderer.act(() => { (control.props.onPressIn as () => void)() })
+    expect(scale()).toBe(reducedMotion ? 1 : 0.96)
+    await TestRenderer.act(() => { (control.props.onPressOut as () => void)() })
+    expect(scale()).toBe(1)
+  })
+
   it('renders the tabular count beside the digit-free suffix', async () => {
     const { tree } = await renderBar({ count: 7, countSuffixLabel: 'selected' })
 

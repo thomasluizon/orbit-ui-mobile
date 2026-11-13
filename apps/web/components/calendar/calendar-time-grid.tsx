@@ -377,7 +377,7 @@ export function CalendarTimeGrid({
                       padding: "var(--orbit-space-8) var(--orbit-space-4)",
                     }}
                   >
-                    <span aria-hidden="true" data-press-fill="" className="orbit-calendar-week-header-fill pointer-events-none absolute rounded-[inherit] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover:bg-[var(--bg-hover)] group-active:bg-[var(--bg-hover)]"
+                    <span aria-hidden="true" data-press-fill="" className="orbit-calendar-week-header-fill pointer-events-none absolute rounded-[inherit] transition-[background-color,scale] [transition-duration:var(--dur-hover-control),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-out)] group-hover:bg-[var(--bg-hover)] group-active:bg-[var(--bg-hover)] motion-safe:group-active/week-header:scale-[0.96]"
                       style={{ inset: INTERACTION_FILL_CLEARANCE }} />
                     <span data-slot="press-surface" className="relative flex flex-col items-center justify-center transition-[scale] duration-[var(--dur-press)] ease-[var(--ease-out)] motion-safe:group-active/week-header:scale-[0.96]" style={{ gap: 4 }}>
                       <span

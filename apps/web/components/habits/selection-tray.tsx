@@ -164,7 +164,7 @@ export function SelectionTray({
           <span
             data-press-fill=""
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] bg-[var(--bg-hover-opaque)] opacity-0 transition-opacity duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover:opacity-100 group-active:opacity-100"
+            className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] bg-[var(--bg-hover-opaque)] opacity-0 transition-[opacity,scale] [transition-duration:var(--dur-hover-control),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-out)] group-hover:opacity-100 group-active:opacity-100 motion-safe:group-active/select-all:scale-[0.96]"
           />
           <span data-slot="press-surface" className="transition-[scale] duration-[var(--dur-press)] ease-[var(--ease-out)] motion-safe:group-active/select-all:scale-[0.96]">{allSelected ? t('common.deselectAll') : t('common.selectAll')}</span>
         </button>
