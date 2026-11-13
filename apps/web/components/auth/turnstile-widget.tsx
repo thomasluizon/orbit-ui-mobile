@@ -16,6 +16,7 @@ interface TurnstileApi {
     theme: 'light' | 'dark'
     language: string
     retry: 'auto'
+    'retry-interval': number
     callback: (token: string) => void
     'error-callback': (code: string) => boolean
     'expired-callback': () => void
@@ -29,6 +30,8 @@ interface TurnstileApi {
 // WHY: with retry auto Turnstile runs a failed challenge again by itself, and Cloudflare marks these codes Retry: Yes https://developers.cloudflare.com/turnstile/troubleshooting/client-side-errors/error-codes/
 const RETRIED_ERROR_CODES = new Set(['110600', '110620', '200500'])
 const RETRIED_ERROR_FAMILIES = ['300', '600']
+// WHY: the first challenge of a fresh WebView fails once and Turnstile waits this long before the next run; its default is 8000 ms. https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/widget-configurations/
+const RETRY_INTERVAL_MS = 2000
 
 function isRetriedByTurnstile(code: string): boolean {
   return RETRIED_ERROR_CODES.has(code) || RETRIED_ERROR_FAMILIES.some((family) => code.startsWith(family))
@@ -157,6 +160,7 @@ export function TurnstileWidget({
         theme: challengeTheme,
         language: challengeLanguage,
         retry: 'auto',
+        'retry-interval': RETRY_INTERVAL_MS,
         callback: (token) => progress('solved', token),
         'error-callback': fail,
         'expired-callback': () => update('expired'),

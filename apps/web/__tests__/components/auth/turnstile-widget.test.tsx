@@ -232,7 +232,7 @@ it('keeps checking while Turnstile runs a failed challenge again and reports the
   expect(reset).toHaveBeenCalledWith('retried-widget')
   act(() => { callbacks['error-callback']('600010') })
   expect(onStateChange).toHaveBeenLastCalledWith('loading')
-  expect(renderWidget.mock.calls[0]![1]).toMatchObject({ retry: 'auto' })
+  expect(renderWidget.mock.calls[0]![1]).toMatchObject({ retry: 'auto', 'retry-interval': 2000 })
 })
 
 it.each(['200100', '110200'])('reports at once the failure %s that Cloudflare marks as not retried', async (code) => {
