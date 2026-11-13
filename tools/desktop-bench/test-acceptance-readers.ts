@@ -333,120 +333,47 @@ test('PowerShell producer lists process windows, finds the installed executable,
   assert.ok(tokens.hosts.every((host) => host.error ? host.integrity === null : level.test(String(host.integrity))))
 })
 
-// The installed acceptance reads the Orbit caption through this reader (#2084), so it runs here against a real DWM caption.
-test('Windows caption reader samples the canvas caption that DWMWA_CAPTION_COLOR paints, above the client area and above a menu bar', { skip: process.platform !== 'win32' }, () => {
-  const directory = mkdtempSync(join(tmpdir(), 'orbit-caption-'))
+// The installed acceptance reads the Orbit window bar through this reader (#2132), so it runs here against a real borderless window.
+test('Windows window bar reader finds no caption above the client area and samples the canvas of the bar and the window state', { skip: process.platform !== 'win32' }, () => {
+  const directory = mkdtempSync(join(tmpdir(), 'orbit-window-bar-'))
   try {
-    const reader = fileURLToPath(new URL('./acceptance-caption.cs', import.meta.url))
+    const reader = fileURLToPath(new URL('./acceptance-window-bar.cs', import.meta.url))
     const script = `
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition (Get-Content -LiteralPath '${reader}' -Raw)
-Add-Type @'
-using System;
-using System.Runtime.InteropServices;
-public static class CaptionFixture {
-    [DllImport("dwmapi.dll")] public static extern int DwmSetWindowAttribute(IntPtr window, int attribute, ref int value, int size);
-}
-'@
 function Wait-Paint { for ($index = 0; $index -lt 10; $index++) { [System.Windows.Forms.Application]::DoEvents(); Start-Sleep -Milliseconds 50 } }
 $form = New-Object System.Windows.Forms.Form
-$form.Text = 'Orbit caption fixture'
+$form.FormBorderStyle = 'None'
+$form.BackColor = [System.Drawing.Color]::FromArgb(9, 9, 11)
 $form.StartPosition = 'Manual'
 $form.SetBounds(100, 100, 800, 400)
 $form.TopMost = $true
 $form.Show()
-# DWMWA_CAPTION_COLOR (35) takes a COLORREF, 0x00BBGGRR, so the dark canvas #09090B is 0x000B0909.
-$color = 0x000B0909
-$status = [CaptionFixture]::DwmSetWindowAttribute($form.Handle, 35, [ref]$color, 4)
 $form.Activate()
 Wait-Paint
-$plain = [OrbitCaptionReader]::Read($form.Handle, '${join(directory, 'plain.png')}')
-$form.Menu = New-Object System.Windows.Forms.MainMenu
-[void]$form.Menu.MenuItems.Add('File')
+$borderless = [OrbitWindowBarReader]::Read($form.Handle, '${join(directory, 'borderless.png')}')
+$state = [OrbitWindowBarReader]::State($form.Handle)
+$form.FormBorderStyle = 'Sizable'
+$form.Text = 'Orbit window bar fixture'
 Wait-Paint
-$menu = [OrbitCaptionReader]::Read($form.Handle, '${join(directory, 'menu.png')}')
+$captioned = [OrbitWindowBarReader]::Read($form.Handle, '${join(directory, 'captioned.png')}')
 $form.Close()
-@{ status = $status; plain = $plain; menu = $menu } | ConvertTo-Json -Depth 6
+@{ borderless = $borderless; captioned = $captioned; state = $state } | ConvertTo-Json -Depth 6
 `
     const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', timeout: 60000 })
     assert.equal(result.status, 0, result.stderr)
-    type Caption = { frame: number[]; bottom: number; menuBar: boolean; sampled: number; colors: { color: number[]; count: number }[] }
-    const { status, plain, menu } = JSON.parse(result.stdout) as { status: number; plain: Caption; menu: Caption }
-    assert.equal(status, 0, 'the runner supports DWMWA_CAPTION_COLOR')
-    assert.deepEqual([plain.menuBar, menu.menuBar], [false, true])
-    for (const caption of [plain, menu]) {
-      assert.ok(caption.bottom > caption.frame[1]! && caption.sampled > 0, JSON.stringify(caption))
-      assert.deepEqual(caption.colors[0]!.color, [9, 9, 11], JSON.stringify(caption))
-      assert.ok(caption.colors[0]!.count >= caption.sampled * 0.9, JSON.stringify(caption))
-    }
-    // The menu bar starts below the caption, so its rows never enter the sample.
-    assert.ok(Math.abs((menu.bottom - menu.frame[1]!) - (plain.bottom - plain.frame[1]!)) <= 1, JSON.stringify({ plain, menu }))
-    for (const name of ['plain.png', 'menu.png']) assert.ok(statSync(join(directory, name)).size > 0, name)
-  } finally {
-    rmSync(directory, { recursive: true, force: true })
-  }
-})
-
-// DWMWA_CAPTION_COLOR paints the canvas whatever the window theme is, so the read-back flag is what shows the window theme (#2084).
-// Microsoft documents DWMWA_USE_IMMERSIVE_DARK_MODE for DwmSetWindowAttribute, so this real window proves the read-back on the runner.
-test('Windows caption reader reads back the window theme flag on both Orbit canvas colours', { skip: process.platform !== 'win32' }, () => {
-  const directory = mkdtempSync(join(tmpdir(), 'orbit-caption-theme-'))
-  try {
-    const reader = fileURLToPath(new URL('./acceptance-caption.cs', import.meta.url))
-    const script = `
-$ErrorActionPreference = 'Stop'
-Add-Type -AssemblyName System.Windows.Forms
-Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition (Get-Content -LiteralPath '${reader}' -Raw)
-Add-Type @'
-using System;
-using System.Runtime.InteropServices;
-public static class CaptionFixture {
-    [DllImport("dwmapi.dll")] public static extern int DwmSetWindowAttribute(IntPtr window, int attribute, ref int value, int size);
-}
-'@
-function Wait-Paint { for ($index = 0; $index -lt 20; $index++) { [System.Windows.Forms.Application]::DoEvents(); Start-Sleep -Milliseconds 50 } }
-# DWMWA_CAPTION_COLOR (35) takes a COLORREF, 0x00BBGGRR. DWMWA_USE_IMMERSIVE_DARK_MODE (20) takes a BOOL.
-$canvases = @{ light = 0x00FAFAFA; dark = 0x000B0909 }
-$results = @{}
-foreach ($canvas in 'light', 'dark') {
-  foreach ($theme in 'light', 'dark') {
-    $form = New-Object System.Windows.Forms.Form
-    $form.Text = 'Orbit caption theme fixture'
-    $form.StartPosition = 'Manual'
-    $form.SetBounds(100, 100, 800, 400)
-    $form.TopMost = $true
-    $form.Show()
-    $color = $canvases[$canvas]
-    $dark = if ($theme -eq 'dark') { 1 } else { 0 }
-    $colorStatus = [CaptionFixture]::DwmSetWindowAttribute($form.Handle, 35, [ref]$color, 4)
-    $themeStatus = [CaptionFixture]::DwmSetWindowAttribute($form.Handle, 20, [ref]$dark, 4)
-    $form.Activate()
-    Wait-Paint
-    $reading = [OrbitCaptionReader]::Read($form.Handle, (Join-Path '${directory}' "$canvas-$theme.png"))
-    $results["$canvas-$theme"] = @{ colorStatus = $colorStatus; themeStatus = $themeStatus; caption = $reading }
-    $form.Close()
-  }
-}
-$results | ConvertTo-Json -Depth 7
-`
-    const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', timeout: 120000 })
-    assert.equal(result.status, 0, result.stderr)
-    type Reading = { colorStatus: number; themeStatus: number; caption: { colors: { color: number[] }[]; darkMode: number; darkModeStatus: number } }
-    const readings = JSON.parse(result.stdout) as Record<string, Reading>
-    const canvas = { light: [250, 250, 250], dark: [9, 9, 11] }
-    const hresult = (status: number) => `0x${(status >>> 0).toString(16).toUpperCase().padStart(8, '0')}`
-    for (const canvasMode of ['light', 'dark'] as const) {
-      for (const theme of ['light', 'dark'] as const) {
-        const reading = readings[`${canvasMode}-${theme}`]!
-        const label = `${canvasMode} canvas with the ${theme} window theme: ${JSON.stringify(reading)}`
-        assert.equal(reading.colorStatus, 0, `DWMWA_CAPTION_COLOR failed with HRESULT ${hresult(reading.colorStatus)}: ${label}`)
-        assert.equal(reading.themeStatus, 0, `DWMWA_USE_IMMERSIVE_DARK_MODE failed with HRESULT ${hresult(reading.themeStatus)}: ${label}`)
-        assert.equal(reading.caption.darkModeStatus, 0, `The DWMWA_USE_IMMERSIVE_DARK_MODE read-back failed with HRESULT ${hresult(reading.caption.darkModeStatus)}: ${label}`)
-        assert.equal(reading.caption.darkMode, theme === 'dark' ? 1 : 0, `The read-back flag is not the window theme that the fixture set: ${label}`)
-        assert.deepEqual(reading.caption.colors[0]!.color, canvas[canvasMode], `The caption is not the canvas colour: ${label}`)
-      }
-    }
+    type Reading = { frame: number[]; captionHeight: number; menuBar: boolean; sampled: number; colors: { color: number[]; count: number }[] }
+    const { borderless, captioned, state } = JSON.parse(result.stdout) as { borderless: Reading; captioned: Reading; state: { rect: number[]; zoomed: boolean; iconic: boolean; visible: boolean } }
+    assert.equal(borderless.captionHeight, 0, JSON.stringify(borderless))
+    assert.equal(borderless.menuBar, false)
+    assert.deepEqual(borderless.colors[0]!.color, [9, 9, 11], JSON.stringify(borderless))
+    assert.ok(borderless.colors[0]!.count >= borderless.sampled * 0.9, JSON.stringify(borderless))
+    // A window with the system caption has client area below its frame top, which is what the check rejects.
+    assert.ok(captioned.captionHeight > 0, JSON.stringify(captioned))
+    assert.deepEqual([state.zoomed, state.iconic, state.visible], [false, false, true])
+    assert.deepEqual(state.rect, borderless.frame)
+    for (const name of ['borderless.png', 'captioned.png']) assert.ok(statSync(join(directory, name)).size > 0, name)
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }

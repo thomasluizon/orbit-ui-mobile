@@ -188,9 +188,6 @@ fn construct_window(
     {
         window.remove_menu()?;
     }
-    // WHY: the native menu bar would draw under the Orbit bar; hide_menu keeps the menu registered for the window (muda `hide_for_hwnd`).
-    #[cfg(windows)]
-    window.hide_menu()?;
     launch::install(&window, window_config)?;
     #[cfg(windows)]
     window_bar::install_snap_region(&window)?;

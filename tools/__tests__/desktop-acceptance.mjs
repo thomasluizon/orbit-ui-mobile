@@ -195,7 +195,7 @@ async function installedLaunchCases() {
     },
     installedLaunch: (_executable, _output, name) => { launches.push(settings.expectAuthenticated === true); return { name } },
     waitFor: async (read, label) => { const result = read(); if (!result) throw new Error(`Timed out waiting for ${label}`); return result },
-    inspectSurfaces: async () => {}, inspectCaption: async (_proxy, _native, handle) => { captions.push(handle.name) }, quit: async () => {}, recordKeys: (native) => native,
+    inspectSurfaces: async () => {}, inspectWindowBar: async (_proxy, _native, handle) => { captions.push(handle.name) }, quit: async () => {}, recordKeys: (native) => native,
     pushPhase: async (options) => { pushCalls.push({ options, checks: options.report.launchChecks.map((checkpoint) => checkpoint.event) }) },
     readFile: async () => 'signature verification failed', record: async (_path, report) => { recorded = report }, rm: async () => {}, stopAll: async () => {},
   }
@@ -204,7 +204,7 @@ async function installedLaunchCases() {
   await context.acceptance({ repository: '/fixture', output: '/output', credentials })
   T('a Windows run builds unsigned, tells the push phase so and reports why',
     builtWith[0] === null && pushCalls[0].options.signed === false && recorded.signing.unsigned === 'Windows packages with --no-sign')
-  T('a Windows run checks the caption once, on the first signed-in launch', JSON.stringify(captions) === '["installed"]', JSON.stringify(captions))
+  T('a Windows run checks the window bar once, on the first signed-in launch', JSON.stringify(captions) === '["installed"]', JSON.stringify(captions))
   const signing = { certificate: 'fixture-certificate', password: 'fixture-password', profile: 'fixture-profile', identity: 'Developer ID Application: Fixture (TEAM)' }
   Object.assign(context, { windows: false, unsignedReason: 'fixture unsigned reason', startHttpsListener: async () => {} })
   await context.acceptance({ repository: '/fixture', output: '/output', credentials, signing })
@@ -213,7 +213,7 @@ async function installedLaunchCases() {
       JSON.stringify(recorded.signing) === JSON.stringify({ identity: signing.identity, entitlements: 'Entitlements.staging.plist' }))
   await context.acceptance({ repository: '/fixture', output: '/output', credentials })
   T('an unsigned macOS run reports the missing signing material as its reason', builtWith[2] === null && recorded.signing.unsigned === 'fixture unsigned reason')
-  T('a macOS run keeps its native title bar out of the caption check', captions.length === 1, JSON.stringify(captions))
+  T('a macOS run keeps its window out of the Windows window bar check', captions.length === 1, JSON.stringify(captions))
   T('each macOS run leaves only the installed app in LaunchServices before its first launch, and a Windows run never asks',
     launchCopies.map((call) => call.launches).join(',') === '3,6' && launchCopies.every((call) => call.application === '/fixture/Orbit.app' &&
       JSON.stringify(call.directories) === '["/fixture","/output"]') && recorded.install.launchServices.best === '/fixture/Orbit.app', JSON.stringify(launchCopies))
@@ -230,9 +230,9 @@ async function installedLaunchCases() {
   T('installed updater relaunches require the persisted session after the initial email launch', JSON.stringify(launches) === '[false,true,true]', JSON.stringify(launches))
   T('installed acceptance waits for a new Hoje event after requesting an authenticated reload',
     commands.filter(command => command === 'reload').length === 1 && events.length === 2)
-  T('recording checkpoints locate first launch, sign-in, the caption check, reload and both authenticated relaunches',
+  T('recording checkpoints locate first launch, sign-in, the window bar check, reload and both authenticated relaunches',
     recorded.launchChecks.map(checkpoint => checkpoint.event).join(',') ===
-      'first-launch,email-completed,signed-in-hoje,caption,reload,reloaded-hoje,relaunch-bad,relaunched-hoje-bad,relaunch-valid,relaunched-hoje-valid' &&
+      'first-launch,email-completed,signed-in-hoje,window-bar,reload,reloaded-hoje,relaunch-bad,relaunched-hoje-bad,relaunch-valid,relaunched-hoje-valid' &&
       recorded.launchChecks.every(checkpoint => Number.isFinite(checkpoint.recordingSeconds) && checkpoint.recordingSeconds >= 0))
   const palette = { kind: 'palette', busy: false, inputFocused: true, selected: 0, results: ['Habit 1', 'Habit 3', 'Habit 4'] }
   const delivered = { kind: 'palette-key', key: 'ArrowDown', code: 'ArrowDown', trusted: true, targetInput: true,
@@ -344,7 +344,7 @@ async function appearanceProbeCases() {
   }
   runInNewContext(await servedProbe(true), context)
   await done
-  T('the caption probe leaves exactly the requested page mode on the root before it reports, and keeps the colour scheme',
+  T('the appearance probe leaves exactly the requested page mode on the root before it reports, and keeps the colour scheme',
     JSON.stringify(reports) === JSON.stringify([
       { kind: 'hoje', modes: ['dark'], scheme: true },
       { kind: 'appearance-light', modes: ['light'], scheme: true },
@@ -850,8 +850,8 @@ export async function cases() {
   rejects('a set cookie alone cannot prove an authenticated request', () => assertCookieEvidence(cookies, false))
   const fixture = spawnSync(process.execPath, ['--import', 'tsx', join(REPO_ROOT, 'tools/desktop-bench/test-acceptance.ts')], { cwd: REPO_ROOT, encoding: 'utf8', timeout: 60000 })
   T('acceptance regressions exercise the email schema, signature verifier and native tree reader', fixture.status === 0, fixture.stderr || fixture.stdout)
-  const captionFixture = spawnSync(process.execPath, ['--import', 'tsx', join(REPO_ROOT, 'tools/desktop-bench/test-acceptance-caption.ts')], { cwd: REPO_ROOT, encoding: 'utf8', timeout: 60000 })
-  T('caption acceptance regressions exercise the Windows caption colour and window theme read-back', captionFixture.status === 0, captionFixture.stderr || captionFixture.stdout)
+  const windowBarFixture = spawnSync(process.execPath, ['--import', 'tsx', join(REPO_ROOT, 'tools/desktop-bench/test-acceptance-window-bar.ts')], { cwd: REPO_ROOT, encoding: 'utf8', timeout: 60000 })
+  T('window bar acceptance regressions exercise the Windows caption absence, canvas colour and window actions', windowBarFixture.status === 0, windowBarFixture.stderr || windowBarFixture.stdout)
   const pushFixture = spawnSync(process.execPath, ['--import', 'tsx', join(REPO_ROOT, 'tools/desktop-bench/test-acceptance-push.ts')], { cwd: REPO_ROOT, encoding: 'utf8', timeout: 60000 })
   T('push acceptance regressions exercise the reminder producers, mock API and push phase', pushFixture.status === 0, pushFixture.stderr || pushFixture.stdout)
   const readerFixture = spawnSync(process.execPath, ['--import', 'tsx', join(REPO_ROOT, 'tools/desktop-bench/test-acceptance-readers.ts')], { cwd: REPO_ROOT, encoding: 'utf8', timeout: 60000 })
@@ -936,11 +936,11 @@ export async function cases() {
   const unsigned = job('installed')
   const signed = job('installed-signed')
   const sameRepository = "github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository"
-  T('native acceptance retains both VMs, per-ref cancellation and always-uploaded evidence, including the Windows caption captures',
+  T('native acceptance retains both VMs, per-ref cancellation and always-uploaded evidence, including the Windows window captures',
     unsigned.includes(`runner: \${{ fromJSON((${sameRepository}) && '["windows-latest"]' || '["macos-latest", "windows-latest"]') }}`) &&
       signed.includes(`if: ${sameRepository}`) && signed.includes('runs-on: macos-latest') &&
       workflow.includes('desktop-acceptance-${{ github.ref }}') && unsigned.includes('if: always()') && signed.includes('if: always()') &&
-      unsigned.includes('${{ runner.temp }}/orbit-desktop-acceptance/caption-*.png'))
+      unsigned.includes('${{ runner.temp }}/orbit-desktop-acceptance/window-*.png'))
   T('only the same-repository macOS job takes desktop-staging, without a deployment, and passes its signing material to the harness',
     signed.includes('environment:\n      name: desktop-staging\n      deployment: false') && !unsigned.includes('environment:') && !workflow.includes('desktop-production') &&
       ['MACOS_DEVELOPER_ID_CERTIFICATE_BASE64', 'MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD', 'MACOS_PROVISIONING_PROFILE_BASE64'].every((name) => signed.includes(`${name}: \${{ secrets.${name} }}`)) &&
@@ -949,8 +949,8 @@ export async function cases() {
   T('APNs values reach only the signed macOS job, and WNS values only the job that runs Windows',
     ['ORBIT_APPLE_TEAM_ID', 'ORBIT_APNS_KEY_ID', 'ORBIT_APNS_PRIVATE_KEY'].every((name) => signed.includes(`${name}: `) && !unsigned.includes(name)) &&
       ['ORBIT_DESKTOP_WNS_OBJECT_ID', 'ORBIT_WNS_TENANT_ID', 'ORBIT_WNS_CLIENT_ID', 'ORBIT_WNS_CLIENT_SECRET'].every((name) => unsigned.includes(`${name}: `) && !signed.includes(name)))
-  T('the native producer step runs the acceptance, caption, push, reader, launch and child limit regressions in both jobs',
-    ['test-acceptance.ts', 'test-acceptance-caption.ts', 'test-acceptance-push.ts', 'test-acceptance-readers.ts', 'test-acceptance-launch.ts', 'test-child-limit.ts'].every((file) => setup.includes(`node --import tsx tools/desktop-bench/${file}`)) &&
+  T('the native producer step runs the acceptance, window bar, push, reader, launch and child limit regressions in both jobs',
+    ['test-acceptance.ts', 'test-acceptance-window-bar.ts', 'test-acceptance-push.ts', 'test-acceptance-readers.ts', 'test-acceptance-launch.ts', 'test-child-limit.ts'].every((file) => setup.includes(`node --import tsx tools/desktop-bench/${file}`)) &&
       [unsigned, signed].every((text) => text.includes('uses: ./.github/actions/desktop-acceptance-setup')) &&
       workflow.includes("- '.github/actions/desktop-acceptance-setup/**'"))
 }

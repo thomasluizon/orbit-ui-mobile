@@ -148,7 +148,6 @@ it('draws no native window frame on Windows and hands the frame to the Orbit bar
   const lifecycle = readFileSync(new URL('../src-tauri/src/lifecycle.rs', import.meta.url), 'utf8').split('#[cfg(test)]')[0]!
   expect(lifecycle).toContain('crate::window_bar::configure_frame(&mut config, crate::window_bar::Platform::current());')
   for (const config of [base, production, windows]) expect(JSON.stringify(config)).not.toContain('"decorations"')
-  expect(readFileSync(new URL('../src-tauri/src/main.rs', import.meta.url), 'utf8')).toMatch(/#\[cfg\(windows\)\]\s*window\.hide_menu\(\)\?;/)
 })
 
 it('keeps the native snap region, the page bar and the stylesheet on one geometry and one command', () => {

@@ -1,13 +1,14 @@
 param(
   [Parameter(Mandatory = $true)][int]$TargetProcessId,
-  [Parameter(Mandatory = $true)][ValidateSet('dump', 'down', 'home', 'escape', 'palette', 'menu', 'quit', 'caption', 'windows', 'close', 'notification', 'process', 'activation')][string]$Command,
+  [Parameter(Mandatory = $true)][ValidateSet('dump', 'down', 'home', 'escape', 'palette', 'menu', 'quit', 'windowbar', 'windows', 'close', 'notification', 'process', 'activation')][string]$Command,
   [uint32]$MenuCommandId,
   [string]$Title,
   [string]$Label,
   [switch]$Invoke,
   [switch]$OpenCenter,
   [string]$Executable,
-  [string]$Capture
+  [string]$Capture,
+  [ValidateSet('read', 'invoke', 'drag', 'doubleclick', 'restore')][string]$Action = 'read'
 )
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes, WindowsBase, System.Windows.Forms
@@ -416,14 +417,37 @@ if ($Command -eq 'quit') {
   @{ sent = $Command } | ConvertTo-Json
   exit 0
 }
-if ($Command -eq 'caption') {
-  if (-not $Capture) { throw 'caption requires -Capture' }
-  # Only this command compiles the caption reader, so the other commands keep their start time.
-  Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'acceptance-caption.cs') -Raw)
-  # A foreground window has nothing above its caption, and its active caption is the one the owner sees.
-  if (-not [OrbitForeground]::SetForegroundWindow($window.Current.NativeWindowHandle)) { throw 'Cannot foreground installed app' }
-  Start-Sleep -Milliseconds 250
-  [OrbitCaptionReader]::Read([IntPtr]$window.Current.NativeWindowHandle, $Capture) | ConvertTo-Json -Depth 5
+if ($Command -eq 'windowbar') {
+  if (-not $Capture) { throw 'windowbar requires -Capture' }
+  # Only this command compiles the window reader, so the other commands keep their start time.
+  Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'acceptance-window-bar.cs') -Raw)
+  $handle = [IntPtr]$window.Current.NativeWindowHandle
+  $automation = [System.Windows.Automation.AutomationElement]
+  $buttonType = New-Object System.Windows.Automation.PropertyCondition($automation::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button)
+  # A minimized window cannot take the foreground, and a restore needs none.
+  if ($Action -ne 'read' -and $Action -ne 'restore') {
+    if (-not [OrbitForeground]::SetForegroundWindow($handle)) { throw 'Cannot foreground installed app' }
+    Start-Sleep -Milliseconds 250
+  }
+  if ($Action -eq 'invoke') {
+    if (-not $Label) { throw 'invoke requires -Label' }
+    $named = New-Object System.Windows.Automation.AndCondition($buttonType, (New-Object System.Windows.Automation.PropertyCondition($automation::NameProperty, $Label)))
+    $button = $window.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $named)
+    if ($null -eq $button) { throw "The window bar has no button named $Label" }
+    $button.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+  }
+  if ($Action -eq 'drag') { [OrbitWindowBarReader]::Drag($handle, 160) }
+  if ($Action -eq 'doubleclick') { [OrbitWindowBarReader]::DoubleClick($handle) }
+  if ($Action -eq 'restore') { [OrbitWindowBarReader]::Restore($handle) }
+  Start-Sleep -Milliseconds 500
+  # The bar is the topmost row of buttons in the window, read left to right, so the names do not depend on the display scale.
+  $buttons = @($window.FindAll([System.Windows.Automation.TreeScope]::Descendants, $buttonType) | Where-Object { -not $_.Current.IsOffscreen })
+  $top = ($buttons | ForEach-Object { $_.Current.BoundingRectangle.Y } | Measure-Object -Minimum).Minimum
+  $row = @($buttons | Where-Object { $_.Current.BoundingRectangle.Y -eq $top } | Sort-Object { $_.Current.BoundingRectangle.X } | ForEach-Object { $_.Current.Name })
+  $state = [OrbitWindowBarReader]::State($handle)
+  $reading = $null
+  if (-not $state.iconic) { $reading = [OrbitWindowBarReader]::Read($handle, $Capture) }
+  @{ action = $Action; state = $state; buttons = $row; bar = $reading } | ConvertTo-Json -Depth 6
   exit 0
 }
 if ($Command -ne 'dump') {

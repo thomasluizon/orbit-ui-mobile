@@ -20,11 +20,11 @@ const record = (path, value) => writeFile(path, `${JSON.stringify(value, null, 2
 async function nativeTool(output) {
   const executable = join(output, 'accessibility')
   if (!windows) await execute('clang', ['-fobjc-arc', '-framework', 'AppKit', '-framework', 'ApplicationServices', join(directory, 'acceptance-ax.m'), '-o', executable])
-  return async (pid, command, menuCommandId, { title, label, invoke = false, openCenter = false, executable: target, capture, bundle } = {}) => {
+  return async (pid, command, menuCommandId, { title, label, action, invoke = false, openCenter = false, executable: target, capture, bundle } = {}) => {
     const reply = windows
       ? await execute('powershell.exe', ['-NoProfile', '-NonInteractive', '-File', join(directory, 'acceptance-uia.ps1'), '-TargetProcessId', String(pid), '-Command', command,
         ...(menuCommandId === undefined ? [] : ['-MenuCommandId', String(menuCommandId)]),
-        ...(title === undefined ? [] : ['-Title', title, '-Label', label]), ...(invoke ? ['-Invoke'] : []), ...(openCenter ? ['-OpenCenter'] : []),
+        ...(title === undefined ? [] : ['-Title', title, '-Label', label]), ...(action === undefined ? [] : ['-Action', action, ...(label === undefined ? [] : ['-Label', label])]), ...(invoke ? ['-Invoke'] : []), ...(openCenter ? ['-OpenCenter'] : []),
         ...(target === undefined ? [] : ['-Executable', target]), ...(capture === undefined ? [] : ['-Capture', capture])])
       : await execute(executable, [String(pid), command, ...(title === undefined ? [] : [title, label, invoke ? '1' : '0', openCenter ? '1' : '0']),
         ...(bundle === undefined ? [] : [bundle])])
@@ -212,32 +212,53 @@ async function traversePalette(proxy, native, handle, dump, previous, report) {
   report.paletteFocus = focus
 }
 
-// The DESIGN.md canvas tokens, which the shell paints into the Windows 11 caption for each page mode (#2084).
-const captionCanvas = { light: [250, 250, 250], dark: [9, 9, 11] }
+// The DESIGN.md canvas tokens, which the Orbit window bar paints for each page mode (#2132).
+const barCanvas = { light: [250, 250, 250], dark: [9, 9, 11] }
 
-// DWMWA_CAPTION_COLOR paints the canvas whatever the window theme is, and the caption-button glyphs follow the caption colour,
-// so only the DWMWA_USE_IMMERSIVE_DARK_MODE flag that the reader reads back from the window proves the runtime window theme.
-const captionDarkMode = { light: 0, dark: 1 }
-
-async function inspectCaption(proxy, native, handle, output, report) {
-  report.caption = {}
+async function inspectWindowBar(proxy, native, handle, output, report) {
+  const names = await catalogValue('../../packages/shared/src/i18n', (catalogue) => catalogue.desktopWindow)
+  const named = (key) => names.map((catalogue) => catalogue[key])
+  // Only the two mode reads keep their screenshot, so the later reads write to a scratch capture.
+  const read = (action = 'read', label, capture = 'window-action') => native(handle.child.pid, 'windowbar', undefined, { action, label, capture: join(output, `${capture}.png`) })
+  const hasActions = (bar, middle) => bar.buttons.length === 3 && named('minimize').includes(bar.buttons[0]) &&
+    named(middle).includes(bar.buttons[1]) && named('close').includes(bar.buttons[2])
+  report.windowBar = {}
   for (const mode of ['light', 'dark']) {
     proxy.send(`appearance-${mode}`)
     await waitFor(() => proxy.read(`appearance-${mode}`), `${mode} page appearance`)
-    const expected = captionCanvas[mode]
-    let caption
+    const expected = barCanvas[mode]
+    let bar
     try {
-      // The shell applies a reported mode asynchronously, so the reader polls until the caption shows its colour and window theme.
+      // The shell applies a reported mode asynchronously, so the reader polls until the bar shows the canvas of the page mode.
       await waitFor(async () => {
-        caption = await native(handle.child.pid, 'caption', undefined, { capture: join(output, `caption-${mode}.png`) })
-        const [dominant] = caption.colors
-        return dominant?.color.join() === expected.join() && dominant.count >= caption.sampled * 0.9 &&
-          caption.darkModeStatus === 0 && caption.darkMode === captionDarkMode[mode]
-      }, `${mode} caption in the Orbit canvas colour`, 30000)
+        bar = await read('read', undefined, `window-${mode}`)
+        const [dominant] = bar.bar.colors
+        return bar.bar.captionHeight === 0 && !bar.bar.menuBar && dominant?.color.join() === expected.join() && dominant.count >= bar.bar.sampled * 0.9
+      }, `${mode} window bar in the Orbit canvas colour with no native caption`, 30000)
     } finally {
-      report.caption[mode] = { expected, ...caption }
+      report.windowBar[mode] = { expected, ...bar }
     }
   }
+  const actions = report.windowBar.actions = {}
+  const settled = (description, ready) => waitFor(async () => { const bar = await read(); return ready(bar) ? bar : undefined }, description, 15000)
+  const initial = await settled('the minimize, maximize and close actions of the window bar', (bar) => hasActions(bar, 'maximize'))
+  actions.buttons = initial.buttons
+  const dragged = await read('drag')
+  actions.drag = { before: initial.state.rect, after: dragged.state.rect }
+  if (dragged.state.rect[0] - initial.state.rect[0] < 100) throw new Error(`Dragging the window bar did not move the window: ${JSON.stringify(actions.drag)}`)
+  await read('invoke', initial.buttons[1])
+  const maximized = await settled('the maximized window with the restore action', (bar) => bar.state.zoomed && hasActions(bar, 'restore'))
+  actions.maximize = maximized.state
+  await read('invoke', maximized.buttons[1])
+  actions.restore = (await settled('the restored window with the maximize action', (bar) => !bar.state.zoomed && hasActions(bar, 'maximize'))).state
+  await read('doubleclick')
+  actions.doubleClickMaximize = (await settled('a double click on the bar maximizing the window', (bar) => bar.state.zoomed)).state
+  await read('doubleclick')
+  actions.doubleClickRestore = (await settled('a double click on the bar restoring the window', (bar) => !bar.state.zoomed)).state
+  await read('invoke', initial.buttons[0])
+  actions.minimize = (await settled('the minimized window', (bar) => bar.state.iconic)).state
+  await read('restore')
+  actions.restoreFromMinimize = (await settled('the window restored from minimize', (bar) => !bar.state.iconic && bar.state.visible)).state
 }
 
 async function installedLaunch(executable, output, name, report) {
@@ -440,8 +461,8 @@ export async function acceptance({ repository, output, credentials = {}, signing
       report.paletteFocus ??= proxy.events().filter((event) => event.kind === 'focus')
     }
     if (windows) {
-      checkpoint('caption')
-      await inspectCaption(proxy, native, handle, output, report)
+      checkpoint('window-bar')
+      await inspectWindowBar(proxy, native, handle, output, report)
     }
     const beforeReload = proxy.events().filter((event) => event.kind === 'hoje').length
     checkpoint('reload')

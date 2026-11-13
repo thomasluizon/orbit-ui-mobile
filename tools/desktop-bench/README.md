@@ -149,14 +149,15 @@ macOS installs from the mounted DMG into the Applications directory. Windows run
 installer with its silent flag and explicit install directory. Only that installed executable is
 launched. The first launch checks Hoje, Astra, palette structure and native clean quit. On Windows it
 also sets the page's root mode class to light and then dark, the signal the shell reads, and the
-`caption` command of `acceptance-uia.ps1` captures the native caption with `acceptance-caption.cs`.
-The reader samples the middle of the caption above the menu bar and requires the `DESIGN.md` canvas
-(`#FAFAFA` light, `#09090B` dark) on at least 90% of the sampled pixels. `DWMWA_CAPTION_COLOR` paints the
-canvas whatever the window theme is, and the caption-button glyphs follow the caption colour. The reader therefore
-reads `DWMWA_USE_IMMERSIVE_DARK_MODE` (attribute 20, which `tao` writes on every Windows 11 build) back from the
-window with `DwmGetWindowAttribute`. The runner requires a successful read-back with flag 0 for the light mode and
-flag 1 for the dark mode, in the same poll as the canvas colour. `report.json` `caption` keeps the sampled colours,
-the flag and its HRESULT, and the `caption-light.png` and `caption-dark.png` captures upload with the job. Separate
+`windowbar` command of `acceptance-uia.ps1` reads the window with `acceptance-window-bar.cs`.
+The window has no native caption, so the reader requires the client area to start at the top of the
+visible frame, no menu bar area, and the `DESIGN.md` canvas (`#FAFAFA` light, `#09090B` dark) on at
+least 90% of the sampled middle of the Orbit bar. Then the runner reads the three bar actions through
+UI Automation and uses them: it drags the empty bar, invokes maximize and restore, double clicks the
+bar twice, and invokes minimize and restores the window. `report.json` `windowBar` keeps each reading
+and the window state after each action. The `window-light.png` and `window-dark.png` captures of the
+whole window upload with the job. The Windows 11 snap layouts flyout has no automation reading, so only a
+person on Windows 11 can see it. Separate
 launches reject a cryptographically corrupted signature and download a correctly signed newer
 version. The update package is the built acceptance installer, signed with the newer advertised
 version to exercise the verifier. The job tests discovery and download verification; it does not

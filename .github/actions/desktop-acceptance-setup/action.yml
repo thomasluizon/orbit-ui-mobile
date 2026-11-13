@@ -15,7 +15,7 @@ runs:
       shell: bash
       run: |
         node --import tsx tools/desktop-bench/test-acceptance.ts
-        node --import tsx tools/desktop-bench/test-acceptance-caption.ts
+        node --import tsx tools/desktop-bench/test-acceptance-window-bar.ts
         node --import tsx tools/desktop-bench/test-acceptance-push.ts
         node --import tsx tools/desktop-bench/test-acceptance-readers.ts
         node --import tsx tools/desktop-bench/test-acceptance-launch.ts
