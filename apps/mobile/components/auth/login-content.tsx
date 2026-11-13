@@ -54,11 +54,12 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
   const canSubmitTurnstile = !flow.turnstileSiteKey || Boolean(flow.turnstileToken)
   const turnstileWidget = check.widget
   const checkSpace = !account && check.height > 0 ? check.height + styles.step.gap : 0
+  const scrollPadding = wide ? styles.scrollWide.padding : 0
   return <View style={styles.root}>
-    <ShellContent style={{ flex: 1 }}><KeyboardAwareScrollView ref={scrollRef} containerStyle={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
-      contentContainerStyle={[styles.scrollContent, wide && styles.scrollWide]} keyboardShouldPersistTaps="always"
+    <ShellContent style={{ flex: 1 }}><KeyboardAwareScrollView ref={scrollRef} containerStyle={[styles.container, { paddingTop: insets.top }]}
+      contentContainerStyle={[styles.scrollContent, wide && styles.scrollWide, { paddingBottom: scrollPadding + insets.bottom }]} keyboardShouldPersistTaps="always"
       showsVerticalScrollIndicator={false} onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)}>
-      <SteadyColumn viewportHeight={viewportHeight - (wide ? 2 * styles.scrollWide.padding : 0)} blockSpace={checkSpace}
+      <SteadyColumn viewportHeight={viewportHeight - 2 * scrollPadding - insets.bottom} blockSpace={checkSpace}
         style={[styles.formColumn, !wide && styles.formCompact, width < 336 && { paddingHorizontal: SPACING.s8 }, wide && styles.panel]}>
         {Platform.OS !== 'ios' && flow.showReferralBanner && !account && <ReferralBanner t={t} styles={styles} />}
         <Lockup />

@@ -1,4 +1,7 @@
 import React, { useLayoutEffect } from 'react'
+import { readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { dirname, join } from 'node:path'
 import { Platform, StyleSheet, View, type LayoutChangeEvent } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createLoginScreenFixture } from '@orbit/shared/__tests__/auth-screen-fixtures'
@@ -11,17 +14,21 @@ import { __emitKeyboardEvent, __resetTestHostConfig, __setMeasureInWindowImpl, _
 
 const { act, create } = require('react-test-renderer')
 
-const SE = { width: 375, height: 667, statusBar: 20, keyboardTop: 432 }
+const SE = { width: 375, height: 667, top: 20, bottom: 0, keyboardTop: 432 }
+const IPHONE_17 = { width: 402, height: 874, top: 62, bottom: 34, keyboardTop: 572 }
+const device = { ...SE }
 const FLEXIBLE_CHALLENGE_HEIGHT = 65
+const STEP_GAP = 24
 type CheckState = 'none' | 'challenge'
 const CHECK_HEIGHTS: Record<CheckState, number> = { none: 0, challenge: FLEXIBLE_CHALLENGE_HEIGHT }
 
-const mocks = vi.hoisted((): { flow: Record<string, unknown>; check: 'none' | 'challenge' } => ({ flow: {}, check: 'challenge' }))
+const mocks = vi.hoisted((): { flow: Record<string, unknown>; check: 'none' | 'challenge'; insets: { top: number; bottom: number } } =>
+  ({ flow: {}, check: 'challenge', insets: { top: 0, bottom: 0 } }))
 vi.mock('react-i18next', async (importActual) => ({
   ...(await importActual<typeof import('react-i18next')>()),
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
 }))
-vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 20, bottom: 0, left: 0, right: 0 }) }))
+vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ ...mocks.insets, left: 0, right: 0 }) }))
 vi.mock('@/app/use-login-flow', () => ({ useLoginFlow: () => mocks.flow }))
 vi.mock('@/components/auth/turnstile-widget', () => ({
   TurnstileWidget: ({ onLayout, onSpaceChange }: { onLayout?: (event: LayoutChangeEvent) => void; onSpaceChange?: (height: number) => void }) => {
@@ -50,8 +57,15 @@ function keyOf(type: unknown, props: Record<string, unknown>, children?: unknown
   return props.testID as string | undefined
 }
 
+function withIosKeyboardAvoidingPadding(host: GeometryHost | string): GeometryHost | string {
+  if (typeof host === 'string') return host
+  const style = host.type === 'KeyboardAvoidingView' ? StyleSheet.flatten([host.props.style as object, { paddingBottom: 0 }]) : host.props.style
+  return { ...host, props: { ...host.props, style }, children: host.children?.map(withIosKeyboardAvoidingPadding) ?? null }
+}
+
 function layout() {
-  return measureSafeArea(geometry.tree!.toJSON(), (host) => keyOf(host.type, host.props, host.children), { width: SE.width, height: SE.height })
+  const root = withIosKeyboardAvoidingPadding(geometry.tree!.toJSON()) as GeometryHost
+  return measureSafeArea(root, (host) => keyOf(host.type, host.props, host.children), { width: device.width, height: device.height })
 }
 
 function screenBox(key: string) {
@@ -89,7 +103,7 @@ function settle(tree: Tree) {
 }
 
 function screen() {
-  return <View style={{ width: SE.width, height: SE.height }}>
+  return <View style={{ width: device.width, height: device.height }}>
     <KeyboardAwareSheetScrollView testID="flow-viewport" style={{ flex: 1 }} contentContainerStyle={{ flex: 1 }}>
       <LoginContent />
     </KeyboardAwareSheetScrollView>
@@ -122,8 +136,8 @@ function textInput(tree: Tree, index: number) {
 
 function openKeyboard(tree: Tree) {
   act(() => {
-    __emitKeyboardEvent('keyboardWillShow', { endCoordinates: { screenY: SE.keyboardTop } })
-    __emitKeyboardEvent('keyboardDidChangeFrame', { endCoordinates: { screenY: SE.keyboardTop } })
+    __emitKeyboardEvent('keyboardWillShow', { endCoordinates: { screenY: device.keyboardTop } })
+    __emitKeyboardEvent('keyboardDidChangeFrame', { endCoordinates: { screenY: device.keyboardTop } })
   })
   settle(tree)
 }
@@ -131,19 +145,25 @@ function openKeyboard(tree: Tree) {
 function closeKeyboard(tree: Tree) {
   act(() => {
     __emitKeyboardEvent('keyboardWillHide')
-    __emitKeyboardEvent('keyboardDidChangeFrame', { endCoordinates: { screenY: SE.height } })
+    __emitKeyboardEvent('keyboardDidChangeFrame', { endCoordinates: { screenY: device.height } })
     __emitKeyboardEvent('keyboardDidHide')
   })
   geometry.scrollY = Math.min(geometry.scrollY, maxLoginScroll(tree))
   settle(tree)
 }
 
-describe('mobile sign-in on the iPhone SE inside the flow viewport', () => {
+function useDevice(next: typeof SE) {
+  Object.assign(device, next)
+  mocks.insets = { top: next.top, bottom: next.bottom }
+  __setWindowDimensions({ width: next.width, height: next.height, scale: 2, fontScale: 1 })
+}
+
+describe('mobile sign-in on iPhone inside the flow viewport', () => {
   beforeEach(() => {
     __resetTestHostConfig()
     geometry.scrollY = 0
     Object.defineProperty(Platform, 'OS', { configurable: true, value: 'ios' })
-    __setWindowDimensions({ width: SE.width, height: SE.height, scale: 2, fontScale: 1 })
+    useDevice(SE)
     vi.stubGlobal('requestAnimationFrame', (callback: (time: number) => void) => { callback(0); return 0 })
     __setMeasureInWindowImpl(measureFromLayout)
   })
@@ -167,7 +187,7 @@ describe('mobile sign-in on the iPhone SE inside the flow viewport', () => {
 
   it('rests the column where a direct launch puts it after the keyboard of the previous screen closes', () => {
     const expected = directTop('challenge')
-    __emitKeyboardEvent('keyboardWillShow', { endCoordinates: { screenY: SE.keyboardTop } })
+    __emitKeyboardEvent('keyboardWillShow', { endCoordinates: { screenY: device.keyboardTop } })
     const tree = render('email', 'challenge')
     closeKeyboard(tree)
     expect(screenBox('login-column').top).toBe(expected)
@@ -189,12 +209,28 @@ describe('mobile sign-in on the iPhone SE inside the flow viewport', () => {
     act(() => (textInput(tree, 0).props.onFocus as (event: object) => void)({ nativeEvent: {} }))
     openKeyboard(tree)
     const scroller = screenBox('login-scroll')
-    expect(scroller.bottom).toBe(SE.keyboardTop)
+    expect(scroller.bottom).toBe(device.keyboardTop)
     const lastLine = screenBox('last-line')
     expect(lastLine.top).toBeGreaterThanOrEqual(scroller.top)
-    expect(lastLine.bottom).toBeLessThanOrEqual(SE.keyboardTop)
+    expect(lastLine.bottom).toBeLessThanOrEqual(device.keyboardTop)
     const field = screenBox('login-field-action')
     expect(field.top).toBeGreaterThanOrEqual(scroller.top)
+  })
+
+  it('lets the iPhone keyboard view replace the bottom padding of its own style', () => {
+    const require = createRequire(import.meta.url)
+    const source = readFileSync(join(dirname(require.resolve('react-native/package.json')), 'Libraries/Components/Keyboard/KeyboardAvoidingView.js'), 'utf8')
+    expect(source).toContain('style={StyleSheet.compose(style, {paddingBottom: bottomHeight})}')
+  })
+
+  it.each(['none', 'challenge'] as const)('centres the column in the safe area of an iPhone with a home indicator (check: %s)', (check) => {
+    useDevice(IPHONE_17)
+    render('email', check)
+    const column = screenBox('login-column')
+    const topGap = column.top - IPHONE_17.top
+    const bottomGap = IPHONE_17.height - IPHONE_17.bottom - column.bottom
+    const checkSpace = check === 'none' ? 0 : FLEXIBLE_CHALLENGE_HEIGHT + STEP_GAP
+    expect(Math.abs(topGap - (bottomGap + checkSpace))).toBeLessThanOrEqual(1)
   })
 })
 
