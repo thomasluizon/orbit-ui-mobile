@@ -60,7 +60,7 @@ it('uses the Pro lock without reading Notion for free accounts', () => {
   expect(tree.root.findAllByType(NotionConnectionSheet)).toHaveLength(0)
   expect(mocks.api).not.toHaveBeenCalledWith(API.connections.notion, expect.anything(), expect.anything())
 })
-it('keeps Connect and its spinner while requesting authorization', async () => {
+it('keeps Connect busy on its skeleton face while requesting authorization', async () => {
   mocks.api.mockImplementation((path: string) => path === API.connections.notionAuthorize ? new Promise(() => {}) : Promise.resolve(createNotionConnection()))
   mount(); await openNotion()
   expect(text()).toContain(en.profile.connections.description)

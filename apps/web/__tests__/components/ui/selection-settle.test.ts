@@ -52,4 +52,12 @@ describe('selection settle on web', () => {
       'transition-timing-function': 'var(--ease-standard), var(--ease-standard), var(--ease-out), var(--motion-ease-standard)',
     }])
   })
+
+  it('settles the checkbox fill in on the selection preset as it fills and out on its shorter exit as it clears', () => {
+    expect(declarationsOf('.orbit-checkbox-box')).toEqual({ transition: 'background-color var(--motion-selection-exit) var(--motion-ease-exit)' })
+    expect(declarationsOf('.orbit-checkbox-box[data-filled]')).toEqual({
+      'transition-duration': 'var(--motion-selection-enter)',
+      'transition-timing-function': 'var(--motion-ease-standard)',
+    })
+  })
 })

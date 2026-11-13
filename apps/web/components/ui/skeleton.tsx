@@ -105,3 +105,15 @@ export function Skeleton(props: Readonly<SkeletonProps>) {
     </div>
   )
 }
+
+/**
+ * The face of a control that waits for its own request: the `fill` skeleton behind its label, clipped to the
+ * control's shape. The control is `relative isolate`, so the face paints under its label and glyph.
+ */
+export function SkeletonFace() {
+  return (
+    <span aria-hidden="true" data-slot="skeleton-face" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden rounded-[inherit]">
+      <Skeleton variant="fill" grouped />
+    </span>
+  )
+}

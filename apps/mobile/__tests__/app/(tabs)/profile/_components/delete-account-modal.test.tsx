@@ -129,7 +129,7 @@ describe('DeleteAccountModal', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
-  it.each(['success', 'failure', 'challenge'] as const)('clears the send spinner when another account replaces the session during %s', async outcome => {
+  it.each(['success', 'failure', 'challenge'] as const)('clears the send busy state when another account replaces the session during %s', async outcome => {
     let settle!: () => void
     let reject!: (error: Error) => void
     const pending = new Promise<void>((resolve, rejectRequest) => { settle = resolve; reject = rejectRequest })

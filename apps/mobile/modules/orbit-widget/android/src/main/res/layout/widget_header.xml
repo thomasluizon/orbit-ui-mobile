@@ -85,6 +85,14 @@
             android:layout_width="@dimen/widget_touch_target"
             android:layout_height="@dimen/widget_touch_target">
             <ImageView
+                android:id="@+id/widget_refresh_loading"
+                android:layout_width="@dimen/widget_touch_target"
+                android:layout_height="@dimen/widget_touch_target"
+                android:background="@drawable/widget_skeleton_mark"
+                android:importantForAccessibility="no"
+                android:contentDescription="@null"
+                android:visibility="gone" />
+            <ImageView
                 android:id="@+id/widget_refresh"
                 android:layout_width="@dimen/widget_touch_target"
                 android:layout_height="@dimen/widget_touch_target"
@@ -92,14 +100,6 @@
                 android:padding="@dimen/widget_refresh_inset"
                 android:accessibilityLiveRegion="polite"
                 android:contentDescription="@string/widget_refresh" />
-            <ProgressBar
-                android:id="@+id/widget_refresh_loading"
-                style="?android:attr/progressBarStyleSmall"
-                android:layout_width="@dimen/widget_touch_target"
-                android:layout_height="@dimen/widget_touch_target"
-                android:indeterminateTint="@color/widget_fg_3"
-                android:accessibilityLiveRegion="polite"
-                android:visibility="gone" />
         </FrameLayout>
     </LinearLayout>
     <ImageView

@@ -2,13 +2,14 @@ import { INTERACTION_FILL_CLEARANCE, SPACING } from '@orbit/shared/theme'
 import { PersonalText } from '@/components/ui/personal-text'
 import { useState } from 'react'
 import type { CheckRowProps } from '@orbit/shared/contracts/forms'
-import { ActivityIndicator, Pressable as NativePressable, StyleSheet, Text, View, useWindowDimensions, type PressableProps, type ViewStyle } from 'react-native'
+import { Pressable as NativePressable, StyleSheet, Text, View, useWindowDimensions, type PressableProps, type ViewStyle } from 'react-native'
 import { InsetFocusPressable as Pressable } from './inset-focus-pressable'
 import { Checkbox } from './checkbox'
 import { PressScale } from '@/components/motion/press-scale'
 import { Check, CheckCircle, Circle } from './icons'
+import { SkeletonFace } from './skeleton'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, radius } from '@/lib/theme'
 
 export function CheckRow({
   leading,
@@ -108,11 +109,13 @@ const styles = StyleSheet.create({
   description: { fontFamily: 'Geist_400Regular', fontSize: 14 },
   value: { fontFamily: 'GeistMono_400Regular', fontSize: 14, fontVariant: ['tabular-nums'] },
   disabled: { opacity: 0.6 },
+  columnIndicator: { width: 16, height: 16, borderRadius: radius.md, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  calendarDayCircle: { width: 24, height: 24, borderRadius: radius.full, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
 })
 
 function ColumnCheckRow({ label, checked, onChange, description, error, value, disabled, loading, tokens }: Readonly<CheckRowProps & { tokens: ReturnType<typeof createTokensV2> }>) {
   const { fontScale } = useWindowDimensions()
-  return <PersonalControl tokens={tokens} fillStyle={styles.columnFill} hitSlop={{ left: 16, right: 16 }} onPress={() => onChange(!checked)} disabled={disabled || loading} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityHint={error ?? description} accessibilityState={{ checked, disabled: disabled || loading, busy: loading }} style={[styles.columnRow, { minHeight: error || description ? 68 : 52 }, disabled || loading ? styles.disabled : null]}>
+  return <PersonalControl tokens={tokens} fillStyle={styles.columnFill} hitSlop={{ left: 16, right: 16 }} onPress={() => onChange(!checked)} disabled={disabled || loading} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityHint={error ?? description} accessibilityState={{ checked, disabled: disabled || loading, busy: loading }} style={[styles.columnRow, { minHeight: error || description ? 68 : 52 }, disabled ? styles.disabled : null]}>
     {({ pressed }) => <>
       <PressScale pressed={pressed} disabled={Boolean(disabled || loading)} style={[styles.copy, { minHeight: Math.max(28, 23.8 * fontScale), justifyContent: 'center' }]}>
         <Text style={[styles.columnLabel, { color: tokens.fg1 }]}>{label}</Text>
@@ -120,7 +123,10 @@ function ColumnCheckRow({ label, checked, onChange, description, error, value, d
       </PressScale>
       {value !== undefined ? <PressScale pressed={pressed} disabled={Boolean(disabled || loading)}><Text style={[styles.value, { color: tokens.fg2 }]}>{value}</Text></PressScale> : null}
       <View data-slot="check-row-tick" importantForAccessibility="no-hide-descendants" style={{ width: 16, minHeight: Math.max(28, 23.8 * fontScale), alignItems: 'center', justifyContent: 'center' }}>
-        <PressScale pressed={pressed} disabled={Boolean(disabled || loading)}>{loading ? <ActivityIndicator size="small" color={tokens.fg1} /> : checked ? <Check size={16} color={tokens.fg1} strokeWidth={1.5} /> : null}</PressScale>
+        <PressScale pressed={pressed} disabled={Boolean(disabled || loading)}><View data-slot="check-row-indicator" style={styles.columnIndicator}>
+          {loading ? <SkeletonFace /> : null}
+          {checked ? <Check size={16} color={tokens.fg1} strokeWidth={1.5} /> : null}
+        </View></PressScale>
       </View>
     </>}
   </PersonalControl>
@@ -138,9 +144,12 @@ function getPersonalControlFill(calendarDay: boolean) {
   return calendarDay ? { ...styles.controlFill, ...styles.calendarDayControlFill } : styles.controlFill
 }
 
-function CalendarDayCircle({ checked, color }: Readonly<{ checked: boolean; color: string }>) {
+function CalendarDayCircle({ checked, loading, color }: Readonly<{ checked: boolean; loading: boolean; color: string }>) {
   const CircleIcon = checked ? CheckCircle : Circle
-  return <CircleIcon data-slot="calendar-day-circle" size={24} strokeWidth={1.5} color={color} accessible={false} />
+  return <View style={styles.calendarDayCircle}>
+    {loading ? <SkeletonFace /> : null}
+    <CircleIcon data-slot="calendar-day-circle" size={24} strokeWidth={1.5} color={color} accessible={false} />
+  </View>
 }
 
 function PersonalCheckRowContent({ label, selection, checked, placement, variant, labelExpanded, error, description, value, tokens }: Readonly<Pick<CheckRowProps, 'selection' | 'checked' | 'label' | 'placement' | 'variant' | 'labelExpanded' | 'error' | 'description' | 'value'> & { tokens: ReturnType<typeof createTokensV2> }>) {
@@ -160,8 +169,8 @@ function PersonalCheckRowContent({ label, selection, checked, placement, variant
 function PersonalCheckRow({ leading, label, selection, placement, variant, onOpenLabel, labelExpanded, checked, onChange, description, error, value, disabled, loading, tokens }: Readonly<CheckRowProps & { tokens: ReturnType<typeof createTokensV2> }>) {
   const { fontScale } = useWindowDimensions()
   const calendarDay = variant === 'calendar-day'
-  const control = <PersonalControl data-slot={selection ? 'check-row-control' : undefined} tokens={tokens} fillStyle={getPersonalControlFill(calendarDay)} containContent hitSlop={calendarDay ? SPACING.s16 : undefined} focusable={!disabled && !loading} onPress={() => onChange(!checked)} disabled={disabled || loading} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityHint={error ?? description} accessibilityState={{ checked, disabled: disabled || loading, busy: loading }} data-loading={loading ? '' : undefined} style={[styles.personalControl, calendarDay ? styles.calendarDayControl : null, selection ? { minHeight: 22.4 * fontScale + SPACING.s12 * 2 } : null, disabled || loading ? styles.disabled : null]}>
-    {calendarDay ? <CalendarDayCircle checked={checked} color={tokens.fg1} /> : <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />}
+  const control = <PersonalControl data-slot={selection ? 'check-row-control' : undefined} tokens={tokens} fillStyle={getPersonalControlFill(calendarDay)} containContent hitSlop={calendarDay ? SPACING.s16 : undefined} focusable={!disabled && !loading} onPress={() => onChange(!checked)} disabled={disabled || loading} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityHint={error ?? description} accessibilityState={{ checked, disabled: disabled || loading, busy: loading }} data-loading={loading ? '' : undefined} style={[styles.personalControl, calendarDay ? styles.calendarDayControl : null, selection ? { minHeight: 22.4 * fontScale + SPACING.s12 * 2 } : null, disabled ? styles.disabled : null]}>
+    {calendarDay ? <CalendarDayCircle checked={checked} loading={Boolean(loading)} color={tokens.fg1} /> : <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />}
   </PersonalControl>
   return (
     <View data-slot="list-row-body" style={getPersonalRowStyle(calendarDay, Boolean(error || description || value !== undefined), placement, selection)}>

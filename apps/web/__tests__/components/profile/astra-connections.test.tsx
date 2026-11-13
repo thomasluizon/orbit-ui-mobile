@@ -55,12 +55,13 @@ it('locks Notion for a free account without loading its connection', () => {
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(mocks.fetch).not.toHaveBeenCalled()
 })
-it('retains Connect and shows its spinner while requesting authorization', async () => {
+it('retains Connect and shows its skeleton face while requesting authorization', async () => {
   mocks.authorize.mockReturnValue(new Promise(() => {}))
   mount(); await openNotion()
   expect(screen.getByText(en.profile.connections.description)).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: en.profile.connections.connect }))
   await waitFor(() => expect(screen.getByRole('button', { name: en.profile.connections.connect })).toHaveAttribute('aria-busy', 'true'))
+  expect(screen.getByRole('button', { name: en.profile.connections.connect }).querySelector('[data-slot="skeleton-face"]')).not.toBeNull()
   expect(mocks.authorize).toHaveBeenCalledExactlyOnceWith({ redirectUri: `${window.location.origin}/auth-callback/notion` }, 'account-a')
   expect(mocks.fetch).toHaveBeenCalledWith(API.connections.notion)
 })

@@ -1,7 +1,6 @@
-import { usePrefersReducedMotion } from '@/lib/motion'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useEffect, useMemo, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
@@ -46,6 +45,7 @@ import { FlowShell } from '@/components/shell/flow-shell'
 import { OtpInput } from '@/components/ui/otp-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 
 export default function StepUpScreen() {
   const accountGeneration = useAccountGeneration()
@@ -450,18 +450,17 @@ function MobileStepUpResend({ cooldownSeconds, onResend, requesting, t, tokens }
 }
 
 function QuietAction({ label, onPress }: Readonly<{ label: string; onPress: () => void }>) {
-  const prefersReducedMotion = usePrefersReducedMotion()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   return (
-    <Pressable
+    <MotionPressable
       onPress={onPress}
       accessibilityRole="link"
       accessibilityLabel={label}
-      style={({ pressed }) => [styles.quietAction, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] } : null]}
+      style={({ pressed }) => [styles.quietAction, pressed ? { backgroundColor: tokens.bgHover } : null]}
     >
       <Text style={[styles.quietLabel, { color: tokens.fg2 }]}>{label}</Text>
-    </Pressable>
+    </MotionPressable>
   )
 }
 

@@ -676,6 +676,30 @@ ruleTester.run('no-sparkle-ai-marker', rule('no-sparkle-ai-marker'), {
   ],
 })
 
+ruleTester.run('no-spinner', rule('no-spinner'), {
+  valid: [
+    "import { Skeleton, SkeletonFace } from '@/components/ui/skeleton'",
+    '<Skeleton variant="fill" grouped />',
+    '<span className="skeleton-pulse rounded-full" />',
+    "document.querySelector('.animate-spin')",
+    '<div className="animate-spinner-free" />',
+    "const status = 'spinning'",
+  ],
+  invalid: [
+    { code: "import { ActivityIndicator, View } from 'react-native'", errors: [{ messageId: 'noSpinner' }] },
+    { code: '<ActivityIndicator size="small" />', errors: [{ messageId: 'noSpinner' }] },
+    { code: '<RN.ActivityIndicator />', errors: [{ messageId: 'noSpinner' }] },
+    { code: 'const Indicator = ReactNative.ActivityIndicator', errors: [{ messageId: 'noSpinner' }] },
+    { code: "import { Loader2 } from '@/components/ui/icons'", errors: [{ messageId: 'noSpinner' }] },
+    { code: "import { IconLoader2 as Loader2 } from '@tabler/icons-react'", errors: [{ messageId: 'noSpinner' }] },
+    { code: "import { LoaderCircle } from 'lucide-react'", errors: [{ messageId: 'noSpinner' }] },
+    { code: '<Loader2 className="size-4" />', errors: [{ messageId: 'noSpinner' }] },
+    { code: '<svg className="size-6 animate-spin text-[var(--fg-3)]" />', errors: [{ messageId: 'noSpinner' }] },
+    { code: '<svg className={`motion-safe:animate-spin ${tone}`} />', errors: [{ messageId: 'noSpinner' }] },
+    { code: '<span className="animate-[spin_1s_linear_infinite]" />', errors: [{ messageId: 'noSpinner' }] },
+  ],
+})
+
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), 'type-fixtures')
 const SUBJECT = join(FIXTURES, 'subject.tsx')
 

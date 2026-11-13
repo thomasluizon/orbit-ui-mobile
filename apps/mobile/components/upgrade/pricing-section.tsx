@@ -2,12 +2,14 @@ import type { AstraAllowance } from '@orbit/shared/utils'
 import { useRouter } from 'expo-router'
 import { SPACING } from '@orbit/shared/theme'
 import { ProPitch } from './pro-pitch'
-import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native'
+import { Platform, Pressable, Text, View } from 'react-native'
+import { SkeletonFace } from '@/components/ui/skeleton'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import type { StoreOffer } from '@/hooks/use-play-billing'
 import { PlanSelection } from './plan-selection'
 import { styles } from './styles'
 import type { SubscriptionInterval, Tokens, UpgradeTextFn } from './types'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 
 // react-doctor-disable-next-line no-many-boolean-props -- Deliberate presentational section aggregator: each boolean is an independent upgrade-screen UI-state flag (plans loading/error, online, ...) owned by the upgrade screen; an options-object rewrite would churn the caller and the web parity mirror for no runtime benefit. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function PricingSection({
@@ -95,24 +97,21 @@ export function PricingSection({
             tokens={tokens}
           />
           {plans || Platform.OS === 'ios' ? (
-            <Pressable
+            <MotionPressable
               accessibilityRole="button"
               onPress={onRestore}
               disabled={isRestoring || !isOnline || checkoutLoading !== null}
               accessibilityState={{ disabled: isRestoring || !isOnline || checkoutLoading !== null, busy: isRestoring }}
               hitSlop={{ top: 6, bottom: 6 }}
-              style={({ pressed }) => [
+              style={() => [
                 styles.restoreAction,
                 { flexDirection: 'row', alignItems: 'center', gap: 8 },
-                isRestoring || !isOnline || checkoutLoading !== null ? styles.disabledAction : null,
-                pressed ? styles.pressedScale : null,
+                !isRestoring && (!isOnline || checkoutLoading !== null) ? styles.disabledAction : null,
               ]}
             >
-              {isRestoring ? (
-                <ActivityIndicator size="small" color={tokens.fg3} />
-              ) : null}
+              {isRestoring ? <SkeletonFace /> : null}
               <Text style={[styles.restoreLink, { color: tokens.fg3 }]}>{t('upgrade.restorePurchase')}</Text>
-            </Pressable>
+            </MotionPressable>
           ) : null}
         </View>
 
@@ -136,21 +135,20 @@ export function PricingSection({
                 </Pressable>
               </View> : null}
             </View> : null}
-            <Pressable
+            <MotionPressable
               accessibilityRole="link"
               onPress={onStayFree}
               disabled={checkoutLoading !== null}
               accessibilityState={{ disabled: checkoutLoading !== null }}
-              style={({ pressed }) => [
+              style={() => [
                 styles.freeLink,
                 checkoutLoading !== null ? styles.disabledAction : null,
-                pressed ? styles.pressedScale : null,
               ]}
             >
               <Text style={[styles.freeLinkText, { color: tokens.fg2 }]}>
                 {t('upgrade.convert.stayFree')}
               </Text>
-            </Pressable>
+            </MotionPressable>
           </View>
       </View>
     </View>

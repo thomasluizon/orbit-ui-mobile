@@ -28,7 +28,7 @@ describe('HabitFormFields', () => {
     }
   })
 
-  it('keeps the frequency fill action mounted with one spinner during its request', () => {
+  it('keeps the frequency fill action mounted with its glyph on the skeleton face during its request', () => {
     const view = renderForm(createFormHelpers({ title: 'Build a stronger routine' }), vi.fn(() => SETUP_PROPOSAL))
     const action = screen.getByRole('button', { name: 'habits.form.askAstra' })
     expect(action.querySelector('[data-asset^="orbit-mascot"]')).toBeInTheDocument()
@@ -36,8 +36,9 @@ describe('HabitFormFields', () => {
     expect(screen.getByRole('button', { name: 'habits.form.askAstra' })).toBe(action)
     expect(action).toHaveAttribute('aria-busy', 'true')
     expect(action).toHaveAttribute('data-borderless', 'true')
-    expect(action.querySelector('[data-asset^="orbit-mascot"]')).toBeNull()
-    expect(action.querySelectorAll('svg')).toHaveLength(1)
+    expect(action.querySelector('[data-asset^="orbit-mascot"]')).toBeInTheDocument()
+    expect(action.querySelector('[data-slot="skeleton-face"] .skeleton-pulse')).toBeInTheDocument()
+    expect(action.querySelector('.animate-spin')).toBeNull()
     view.rerenderForm()
     expect(action).not.toHaveAttribute('aria-busy')
     expect(action.querySelector('[data-asset^="orbit-mascot"]')).toBeInTheDocument()
@@ -134,8 +135,9 @@ describe('HabitFormFields', () => {
     view.rerenderForm(true)
     const busy = screen.getByRole('button', { name: 'habits.form.suggestEmoji' })
     expect(busy).toBe(button)
-    expect(busy.querySelector('[data-asset^="orbit-mascot"]')).toBeNull()
-    expect(busy.querySelectorAll('svg')).toHaveLength(1)
+    expect(busy.querySelector('[data-asset^="orbit-mascot"]')).toBeInTheDocument()
+    expect(busy.querySelector('[data-slot="skeleton-face"] .skeleton-pulse')).toBeInTheDocument()
+    expect(busy.querySelector('.animate-spin')).toBeNull()
     expect(busy).toHaveAttribute('aria-busy', 'true')
     expect(busy).not.toBeDisabled()
     expect(busy).toHaveAttribute('aria-disabled', 'true')

@@ -526,7 +526,7 @@ describe('useStoreBilling', () => {
     expect(hook.current.isProcessing).toBe(false)
   })
 
-  it('clears the spinner when the purchase sheet reports an error', async () => {
+  it('clears the busy state when the purchase sheet reports an error', async () => {
     mocks.state.subscriptions = [
       {
         id: 'orbit_pro',

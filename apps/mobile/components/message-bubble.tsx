@@ -2,7 +2,7 @@ import { ConversationImage } from '@/components/chat/conversation-image'
 import { ConversationReveal } from '@/components/chat/conversation-motion'
 import { useState, useMemo } from "react";
 // react-doctor-disable-next-line rn-prefer-expo-image -- expo-image is not a project dependency; the only <Image> is a transient chat-attachment preview (a per-message URI) where expo-image's disk cache brings no benefit, and adding a native image library is out of scope for a React Doctor burn-down (SDK 57 native-ABI/rebuild risk). https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-import { View, Text, Image, StyleSheet, Pressable } from "react-native";
+import { View, Text, Image, StyleSheet } from "react-native";
 import { useChatNavigation } from "@/hooks/use-chat-navigation";
 import { ArrowUpRight } from "@/components/ui/icons";
 import { SPACING, TOUCH_TARGET_MIN } from "@orbit/shared/theme";
@@ -20,6 +20,7 @@ import { ChatBlock } from "@/components/chat/block-registry";
 import { Markdown } from "@/components/ui/markdown";
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from "@/lib/use-app-theme";
+import { MotionPressable } from '@/components/ui/motion-pressable'
 
 function MessageProse({ message, sourceText, styles, showImage }: Readonly<{
   message: MessageBubbleProps['message'];
@@ -131,24 +132,19 @@ export function MessageBubble(props: Readonly<MessageBubbleProps>) {
           <View style={styles.relatedContainer} accessibilityLabel={t("chat.related.title")}>
             <View style={styles.relatedChips}>
               {relatedSurfaces.map((surface) => (
-                <Pressable
+                <MotionPressable
                   key={surface.id}
                   accessibilityRole="button"
                   accessibilityLabel={t(surface.labelKey)}
                   onPress={() => navigate(surface.mobileRoute)}
                   style={({ pressed }) => [
                     styles.relatedChip,
-                    pressed
-                      ? {
-                          transform: [{ scale: 0.96 }],
-                          backgroundColor: tokens.bgHover,
-                        }
-                      : null,
+                    pressed ? { backgroundColor: tokens.bgHover } : null,
                   ]}
                 >
                   <Text style={styles.relatedChipText}>{t(surface.labelKey)}</Text>
                   <ArrowUpRight size={16} color={tokens.fg3} strokeWidth={1.8} />
-                </Pressable>
+                </MotionPressable>
               ))}
             </View>
           </View>

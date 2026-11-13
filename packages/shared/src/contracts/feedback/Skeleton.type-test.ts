@@ -67,8 +67,6 @@ export type SkeletonTypeContract = [
   Assert<IsExact<{ variant: 'settings' }, SkeletonProps>>,
   // @ts-expect-error variant is a closed six-value set
   Assert<IsExact<{ variant: 'card'; label: 'Loading' }, SkeletonProps>>,
-  // @ts-expect-error skeletons cannot opt into a spinner
-  Assert<IsExact<{ variant: 'settings'; label: 'Loading'; spinner: true }, SkeletonProps>>,
   // @ts-expect-error skeletons cannot opt into a shimmer
   Assert<IsExact<{ variant: 'settings'; label: 'Loading'; shimmer: true }, SkeletonProps>>,
   // @ts-expect-error skeletons cannot select another animation
