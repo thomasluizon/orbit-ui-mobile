@@ -8,6 +8,7 @@ import { SENTRY_TUNNEL_ROUTE } from '@/lib/public-paths'
 
 const BROWSER_DSN = 'https://publickey@o123.ingest.us.sentry.io/456'
 const INGEST_ENDPOINT = 'https://o123.ingest.us.sentry.io/api/456/envelope/?sentry_version=7&sentry_key=publickey'
+const SENTRY_UPSTREAM_TIME_LIMIT_MS = 2000
 const fetchUpstream = vi.fn<typeof fetch>()
 
 function envelopeFor(header: string): string {
@@ -57,7 +58,7 @@ beforeEach(() => {
   vi.stubGlobal('fetch', fetchUpstream.mockReset())
   vi.stubEnv('NEXT_PUBLIC_SENTRY_DSN', BROWSER_DSN)
 })
-afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
+afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.restoreAllMocks() })
 
 describe('Sentry tunnel route', () => {
   it('lives at the tunnel path the browser SDK posts to and the proxy treats as public', () => {
@@ -124,6 +125,80 @@ describe('Sentry tunnel route', () => {
 
     expect(response.status).toBe(403)
     expect(fetchUpstream).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['a timed out connection', Object.assign(new TypeError('fetch failed'), { cause: new Error('connect ETIMEDOUT 34.160.81.0:443') })],
+    ['an unreachable network', Object.assign(new TypeError('fetch failed'), { cause: new Error('connect ENETUNREACH 2600:1901:0:5e8a:::443') })],
+  ])('answers 502 with an empty body and does not throw when Sentry fails with %s', async (_case, failure) => {
+    fetchUpstream.mockRejectedValue(failure)
+
+    const response = await POST(tunnelRequest(sdkEnvelope(BROWSER_DSN)))
+
+    expect(fetchUpstream).toHaveBeenCalledExactlyOnceWith(INGEST_ENDPOINT, expect.anything())
+    expect(response.status).toBe(502)
+    expect(await response.text()).toBe('')
+  })
+
+  it('answers 502 with an empty body when the call to Sentry passes the time limit', async () => {
+    const timeLimit = new AbortController()
+    const createTimeLimit = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(timeLimit.signal)
+    const timeoutError = new DOMException('The operation was aborted due to timeout', 'TimeoutError')
+    fetchUpstream.mockImplementation((_url, init) => new Promise((_resolve, reject) => {
+      init!.signal!.addEventListener('abort', () => reject(new Error(String(init!.signal!.reason))))
+      timeLimit.abort(timeoutError)
+    }))
+
+    const response = await POST(tunnelRequest(sdkEnvelope(BROWSER_DSN)))
+
+    expect(createTimeLimit).toHaveBeenCalledExactlyOnceWith(SENTRY_UPSTREAM_TIME_LIMIT_MS)
+    expect(fetchUpstream).toHaveBeenCalledExactlyOnceWith(INGEST_ENDPOINT, expect.objectContaining({ signal: timeLimit.signal }))
+    expect(response.status).toBe(502)
+    expect(await response.text()).toBe('')
+  })
+
+  it('answers 502 with an empty body when Sentry sends its headers in time but its body passes the time limit', async () => {
+    const timeLimit = new AbortController()
+    vi.spyOn(AbortSignal, 'timeout').mockReturnValue(timeLimit.signal)
+    fetchUpstream.mockImplementation(async (_url, init) => new Response(new ReadableStream({
+      start(body) {
+        body.enqueue(new TextEncoder().encode('{"id":'))
+        init!.signal!.addEventListener('abort', () => body.error(init!.signal!.reason))
+      },
+      pull() {
+        timeLimit.abort(new DOMException('The operation was aborted due to timeout', 'TimeoutError'))
+      },
+    }), { status: 200, headers: { 'content-type': 'application/json' } }))
+
+    const response = await POST(tunnelRequest(sdkEnvelope(BROWSER_DSN)))
+
+    expect(fetchUpstream).toHaveBeenCalledExactlyOnceWith(INGEST_ENDPOINT, expect.objectContaining({ signal: timeLimit.signal }))
+    expect(response.status).toBe(502)
+    expect(await response.text()).toBe('')
+  })
+
+  it.each([
+    ['a status outside 200 to 599', { status: { value: 999 } }],
+    ['a reason phrase with a control character', { statusText: { value: 'O\u0001K' } }],
+    ['a reason phrase that is not Latin-1', { statusText: { value: `O${String.fromCodePoint(0xfffd)}K` } }],
+  ])('answers 502 with an empty body when Sentry answers with %s, which a Response cannot carry', async (_case, statusLine) => {
+    fetchUpstream.mockResolvedValue(Object.defineProperties(new Response('{}', { status: 200 }), statusLine))
+
+    const response = await POST(tunnelRequest(sdkEnvelope(BROWSER_DSN)))
+
+    expect(fetchUpstream).toHaveBeenCalledExactlyOnceWith(INGEST_ENDPOINT, expect.anything())
+    expect(response.status).toBe(502)
+    expect(await response.text()).toBe('')
+  })
+
+  it('forwards a Sentry answer whose status carries no body', async () => {
+    fetchUpstream.mockResolvedValue(new Response(null, { status: 204, headers: { 'x-sentry-rate-limits': '60:error:organization' } }))
+
+    const response = await POST(tunnelRequest(sdkEnvelope(BROWSER_DSN)))
+
+    expect(response.status).toBe(204)
+    expect(response.headers.get('x-sentry-rate-limits')).toBe('60:error:organization')
+    expect(response.body).toBeNull()
   })
 
   it.each([undefined, '', 'not a dsn', 'https://o123.ingest.us.sentry.io/456'])(
