@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
+import { motion } from 'motion/react'
 import type { BarChartPoint } from '@orbit/shared/contracts/display'
 import {
   BAR_CHART_HEIGHT,
@@ -11,10 +12,20 @@ import {
   resolveBarChartSelection,
   stepSelection,
 } from '@orbit/shared/contracts/display'
+import { motionEasings, motionPresets } from '@orbit/shared/theme'
 import { useTranslations } from 'next-intl'
+import { useViewportMatch } from '@/hooks/use-viewport-match'
 
-export function BarChart({ points, label }: Readonly<{ points: readonly BarChartPoint[]; label: string }>) {
+const READOUT_MOVE = { duration: motionPresets.selection.enterDuration / 1000, ease: [...motionEasings.standard] as [number, number, number, number] }
+
+/** `onSelectPoint` reports each selection the person makes, by press or by key, with the bar that holds it. */
+export function BarChart({ points, label, onSelectPoint }: Readonly<{
+  points: readonly BarChartPoint[]
+  label: string
+  onSelectPoint?: (point: BarChartPoint, bar: HTMLElement) => void
+}>) {
   const t = useTranslations('charts.bar')
+  const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
   const containerRef = useRef<HTMLDivElement>(null)
   const readoutRef = useRef<HTMLParagraphElement>(null)
   const radioRefs = useRef<(HTMLButtonElement | null)[]>([])
@@ -43,8 +54,15 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
     if (!direction) return
     event.preventDefault()
     const next = stepSelection(selectedIndex, points.length, direction)
-    setSelectedDate(points[next]!.startDate)
+    select(next)
     radioRefs.current[next]?.focus()
+  }
+
+  function select(index: number) {
+    const point = points[index]!
+    setSelectedDate(point.startDate)
+    const bar = radioRefs.current[index]
+    if (bar) onSelectPoint?.(point, bar)
   }
 
   function describePoint(point: BarChartPoint) {
@@ -57,9 +75,9 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
   return (
     <div className="orbit-bar-chart flex w-full min-w-0 flex-col gap-2" data-testid="bar-chart">
       <div className="w-full">
-        <p ref={readoutRef} data-slot="bar-chart-readout" aria-live="polite" aria-atomic="true" className="relative w-max max-w-full rounded-[8px] p-2 text-sm leading-[1.4] tabular-nums text-[var(--fg-1)] [overflow-wrap:anywhere]" style={{ left: resolveBarChartReadout(width, readoutWidth, selectedIndex, points.length) }}>
+        <motion.p ref={readoutRef} layout={reducedMotion ? false : 'position'} transition={READOUT_MOVE} data-slot="bar-chart-readout" data-readout-motion={reducedMotion ? 'still' : 'selection'} aria-live="polite" aria-atomic="true" className="relative w-max max-w-full rounded-[8px] p-2 text-sm leading-[1.4] tabular-nums text-[var(--fg-1)] [overflow-wrap:anywhere]" style={{ left: resolveBarChartReadout(width, readoutWidth, selectedIndex, points.length) }}>
           {describePoint(points[selectedIndex]!)}
-        </p>
+        </motion.p>
       </div>
       <div ref={containerRef} data-interaction-fill-grid="" role="radiogroup" aria-label={label} className="relative flex w-full" style={{ height: BAR_CHART_HEIGHT }}>
         {points.map((point, index) => <button
@@ -70,7 +88,7 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
           aria-label={describePoint(point)}
           aria-checked={index === selectedIndex}
           tabIndex={index === selectedIndex ? 0 : -1}
-          onClick={() => setSelectedDate(point.startDate)}
+          onClick={() => select(index)}
           onKeyDown={handleKey}
           className="orbit-bar-chart-column group relative min-w-0 flex-1 cursor-pointer touch-manipulation rounded-none bg-transparent p-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)]"
         >

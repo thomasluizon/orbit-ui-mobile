@@ -11,6 +11,8 @@ export interface DefaultStatTileProps extends StatTileBase {
   state?: 'default'
   /** the figure */
   value: string | number
+  /** The figure changed since the person last saw it: it rolls in once. Reduced motion shows it still. */
+  roll?: boolean
   emptyLabel?: never
   loadingLabel?: never
 }
