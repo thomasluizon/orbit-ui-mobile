@@ -16,6 +16,8 @@ type Tokens = ReturnType<typeof createTokensV2>
 
 interface CalendarHeaderProps extends CalendarHeaderNavigationProps {
   viewSelector?: ReactNode
+  /** The Orbit line row, between the period navigation and the view switch. */
+  orbitLine?: ReactNode
   tokens: Tokens
 }
 
@@ -49,7 +51,7 @@ function CalendarMonthPicker({ currentMonth, tokens, onSelectMonth, choosingYear
   </View>
 }
 
-export function CalendarHeader({ currentMonth, todayKey, isTodaySelected = false, previousMonthLabel, nextMonthLabel, onPreviousMonth, onNextMonth, onCurrentMonth, onSelectMonth, period, viewSelector, tokens }: Readonly<CalendarHeaderProps>) {
+export function CalendarHeader({ currentMonth, todayKey, isTodaySelected = false, previousMonthLabel, nextMonthLabel, onPreviousMonth, onNextMonth, onCurrentMonth, onSelectMonth, period, viewSelector, orbitLine, tokens }: Readonly<CalendarHeaderProps>) {
   const { t, i18n } = useTranslation()
   const styles = createStyles(tokens)
   const heading = formatCalendarMonthHeading(currentMonth, todayKey, i18n.language)
@@ -74,6 +76,7 @@ export function CalendarHeader({ currentMonth, todayKey, isTodaySelected = false
       </View>
       <ThemedIconButton tokens={tokens} borderless={false} label={period?.nextLabel ?? nextMonthLabel} onPress={period?.onNext ?? onNextMonth} disabled={period?.nextDisabled}><ChevronRight size={20} color={tokens.fg2} strokeWidth={2} /></ThemedIconButton>
     </View>
+    {orbitLine}
     {viewSelector}
     {pickerOpen ? <Sheet ref={sheetRef} open accessibleTitle={t('calendar.monthPicker')} onClose={() => setPickerOpen(false)} virtualizedBody={choosingYear}
       headerAccessory={<CalendarTitleControl tokens={tokens} accessibilityLabel={`${year}, ${t('common.selectYear')}`} accessibilityState={{ expanded: choosingYear }} onPress={() => setChoosingYear(!choosingYear)}><Text style={styles.label}>{year}</Text><ChevronDown size={16} color={tokens.fg2} strokeWidth={2} /></CalendarTitleControl>}>

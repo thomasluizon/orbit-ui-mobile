@@ -13,6 +13,10 @@ import { createTokensV2 } from "@/lib/theme"
 
 import { PillButton } from "@/components/ui/pill-button"
 
+import { useFlag } from '@/hooks/use-flag'
+
+import { buildHabitCreateHref } from '@orbit/shared/utils'
+
 import { CalendarGrid } from "./calendar-grid"
 
 import { CalendarDayDetail } from "./calendar-day-detail"
@@ -39,8 +43,8 @@ function CalendarInlineDaySlot({ loading, selected, children }: Readonly<{ loadi
 
 interface CalendarMonthFeedbackProps {
   state: CalendarMonthDisplayState
-  emptyText: string
-  futureText: string
+  /** Absent when the Orbit line states the month. */
+  text: string | null
   createLabel: string
   onCreate: () => void
   tokens: ReturnType<typeof createTokensV2>
@@ -48,19 +52,18 @@ interface CalendarMonthFeedbackProps {
 
 function CalendarMonthFeedback({
   state,
-  emptyText,
-  futureText,
+  text,
   createLabel,
   onCreate,
   tokens,
 }: Readonly<CalendarMonthFeedbackProps>) {
   const styles = useMemo(() => createStyles(), [])
-  if (state !== 'empty' && state !== 'future') return null
+  if (state !== 'empty' && (state !== 'future' || !text)) return null
   return (
     <View style={styles.emptyMonth} testID="calendar-month-empty">
-      <Text style={[styles.emptyMonthText, { color: tokens.fg2 }]}>
-        {state === 'future' ? futureText : emptyText}
-      </Text>
+      {text ? <Text style={[styles.emptyMonthText, { color: tokens.fg2 }]}>
+        {text}
+      </Text> : null}
       {state === 'empty' ? (
         <PillButton variant="primary" size="sm" onClick={onCreate}>
           {createLabel}
@@ -71,7 +74,8 @@ function CalendarMonthFeedback({
 }
 function CalendarMonthView({ state }: Readonly<{ state: CalendarScreenState }>) {
   const { t, i18n } = useTranslation()
-  const { currentMonth, selectedDay, router, todayKey, openImport, tokens, calendarGridRef, calendarDayRef, displayTime, showEventSource, calendarEventsState, refetchCalendarEvents, isLoading, swipeGesture, selectMonthDay, gridDays, weekdayHeaders, monthDisplayState, formattedSelectedDate, monthDayEntries, selectedCalendarEvents, completedCount, selectedDayLoggable, pendingEntryStates, changeSelectedEntry, monthSlide, openHabitCreation } = state
+  const guided = useFlag('orbit_guided_flows')
+  const { currentMonth, selectedDay, router, todayKey, openImport, tokens, calendarGridRef, selectedDayRef, displayTime, showEventSource, calendarEventsState, refetchCalendarEvents, isLoading, swipeGesture, selectMonthDay, gridDays, weekdayHeaders, monthDisplayState, formattedSelectedDate, monthDayEntries, selectedCalendarEvents, completedCount, selectedDayLoggable, pendingEntryStates, changeSelectedEntry, monthSlide, openHabitCreation } = state
   return ((
     <>
       <CalendarGrid
@@ -83,7 +87,7 @@ function CalendarMonthView({ state }: Readonly<{ state: CalendarScreenState }>) 
         slideDirection={monthSlide}
         swipeGesture={swipeGesture}
         gridRef={calendarGridRef}
-        todayRef={calendarDayRef}
+        selectedRef={selectedDayRef}
         onSelectDay={selectMonthDay}
         language={i18n.language}
         t={t}
@@ -93,10 +97,9 @@ function CalendarMonthView({ state }: Readonly<{ state: CalendarScreenState }>) 
 
       <CalendarMonthFeedback
         state={monthDisplayState}
-        emptyText={t('calendar.emptyMonth')}
-        futureText={t('calendar.futureMonth')}
+        text={guided ? null : t(monthDisplayState === 'future' ? 'calendar.futureMonth' : 'calendar.emptyMonth')}
         createLabel={t('habits.createHabit')}
-        onCreate={openHabitCreation}
+        onCreate={guided ? () => router.push(buildHabitCreateHref({ from: '/calendar', date: selectedDay })) : openHabitCreation}
         tokens={tokens}
       />
 

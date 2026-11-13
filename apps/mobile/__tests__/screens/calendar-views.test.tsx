@@ -46,6 +46,8 @@ import { ListRow } from '@/components/ui/list-row'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => false }))
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/components/navigation/notification-bell', () => ({ NotificationBell: () => <View testID="notification-bell" /> }));
 
 const rootScrollMocks = vi.hoisted(() => ({ scrollToOffset: vi.fn() }))

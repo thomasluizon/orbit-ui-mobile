@@ -3,7 +3,7 @@ import type { useCalendarNavigation } from './use-calendar-navigation'
 import { useOpenHabit } from '@/hooks/use-open-habit'
 import { buildCalendarHeaderState,resolveCalendarProfileSettings,type CalendarProfile,type CalendarView } from '@orbit/shared/utils/calendar-navigation'
 import { useCalendars } from '@/hooks/use-calendars'
-import { useState,useMemo,useCallback,useEffect,useLayoutEffect,useRef,type Dispatch,type SetStateAction } from "react"
+import { useState,useMemo,useCallback,useEffect,useLayoutEffect,useRef,type Dispatch,type ReactNode,type SetStateAction } from "react"
 import { View,FlatList } from "react-native"
 import { useTranslation } from "react-i18next"
 import { useLocalSearchParams,useRouter } from "expo-router"
@@ -25,6 +25,7 @@ import { useAppTheme } from "@/lib/use-app-theme"
 import { useSheetHost } from '@/components/ui/sheet'
 import { SegmentedControl } from "@/components/ui/segmented-control"
 import { CalendarHeader } from "./calendar-shell"
+import { CalendarOrbitLine } from './calendar-orbit-line'
 import { type CalendarImportActionHandle,type CalendarImportActionState } from '@/components/calendar-sync/calendar-import-content'
 import { useCurrentDate } from "../../use-today-date"
 import { useUIStore } from "@/stores/ui-store"
@@ -77,7 +78,7 @@ function useCalendarScreenSession({ navigation, profile, view, selectedDay }: Ca
   )
   const styles = useMemo(() => createStyles(), [])
   const calendarGridRef = useRef<View>(null)
-  const calendarDayRef = useRef<View>(null)
+  const selectedDayRef = useRef<View>(null)
   const [monthSlide, setMonthSlide] = useState<MonthSlide>(null)
   const { weekAnchor, setWeekAnchor, agendaOffset, setAgendaOffset, rangeOffset, setRangeOffset } = navigation
   const [weekSlide, setWeekSlide] = useState<MonthSlide>(null)
@@ -110,7 +111,7 @@ function useCalendarScreenSession({ navigation, profile, view, selectedDay }: Ca
     setInitialImportEventId(null)
     if (importRequested) router.replace('/calendar')
   }, [importRequested, router, setInitialImportEventId, setIsImportOpen])
-  return { hasProAccess, timeZone, autoSyncState, closeSheet, setIsDayDetailOpen, router, weekAnchor, todayKey, weekStartsOn, rangeOffset, agendaOffset, t, i18n, setMonthSlide, setWeekSlide, setWeekAnchor, setRangeOffset, setCalendarHasError, logHabit, monthSlide, openImport, setAgendaOffset, tokens, listRef, calendarGridRef, calendarDayRef, displayTime, styles, weekSlide, clearance, isDayDetailOpen, sheetRef, openDayDisclosure, setIsEventsOpen, openHabit, disclosedWeekDay, isEventsOpen, showImportSheet, importSheetRef, closeImport, reviewRequested, importActionState, commitCalendarImport, importRequested, params, initialImportEventId, importActionRef, setImportActionState, closeImportSheet, setIsImportOpen }
+  return { hasProAccess, timeZone, autoSyncState, closeSheet, setIsDayDetailOpen, router, weekAnchor, todayKey, weekStartsOn, rangeOffset, agendaOffset, t, i18n, setMonthSlide, setWeekSlide, setWeekAnchor, setRangeOffset, setCalendarHasError, logHabit, monthSlide, openImport, setAgendaOffset, tokens, listRef, calendarGridRef, selectedDayRef, displayTime, styles, weekSlide, clearance, isDayDetailOpen, sheetRef, openDayDisclosure, setIsEventsOpen, openHabit, disclosedWeekDay, isEventsOpen, showImportSheet, importSheetRef, closeImport, reviewRequested, importActionState, commitCalendarImport, importRequested, params, initialImportEventId, importActionRef, setImportActionState, closeImportSheet, setIsImportOpen }
 }
 
 const useCalendarEventState = createUseCalendarEventState({
@@ -274,50 +275,19 @@ function useCalendarEntryState({ selectedDay, activeDayMap, hasProAccess, calend
   return { formattedSelectedDate, monthDayEntries, selectedCalendarEvents, completedCount, selectedDayLoggable, pendingEntryStates, changeSelectedEntry, filteredEntries, goToSelectedDay }
 }
 
+function calendarStatTiles(stats: { bestStreak: number; totalLogs: number; missed: number }, t: ReturnType<typeof useTranslation>['t']) {
+  return [
+    { key: 'bestStreak', value: stats.bestStreak, label: t('calendar.bestStreak') },
+    { key: 'totalLogs', value: stats.totalLogs, label: t('calendar.totalLogs') },
+    { key: 'missed', value: stats.missed, label: t('calendar.missedCount') },
+  ] as const
+}
+
 type CalendarStatsStateInputs = Pick<ReturnType<typeof useCalendarViewModel>, 'monthStats' | 'rangeModel'> & Pick<ReturnType<typeof useCalendarScreenSession>, 't' | 'router' | 'openImport'>
 
 function useCalendarStatsState({ monthStats, t, rangeModel, router, openImport }: CalendarStatsStateInputs) {
-  const monthStatTiles = useMemo(
-    () => [
-      {
-        key: "bestStreak",
-        value: monthStats.bestStreak,
-        label: t("calendar.bestStreak"),
-      },
-      {
-        key: "totalLogs",
-        value: monthStats.totalLogs,
-        label: t("calendar.totalLogs"),
-      },
-      {
-        key: "missed",
-        value: monthStats.missed,
-        label: t("calendar.missedCount"),
-      },
-    ] as const,
-    [monthStats, t],
-  )
-
-  const rangeStatTiles = useMemo(
-    () => [
-      {
-        key: "bestStreak",
-        value: rangeModel.stats.bestStreak,
-        label: t("calendar.bestStreak"),
-      },
-      {
-        key: "totalLogs",
-        value: rangeModel.stats.totalLogs,
-        label: t("calendar.totalLogs"),
-      },
-      {
-        key: "missed",
-        value: rangeModel.stats.missed,
-        label: t("calendar.missedCount"),
-      },
-    ] as const,
-    [rangeModel.stats, t],
-  )
+  const monthStatTiles = useMemo(() => calendarStatTiles(monthStats, t), [monthStats, t])
+  const rangeStatTiles = useMemo(() => calendarStatTiles(rangeModel.stats, t), [rangeModel.stats, t])
 
   const openHabitCreation = useCallback(() => {
     router.push(buildHabitCreateHref({ from: '/calendar' }))
@@ -329,9 +299,9 @@ function useCalendarStatsState({ monthStats, t, rangeModel, router, openImport }
   return { openHabitCreation, monthStatTiles, rangeStatTiles, openGoogleCalendar }
 }
 
-type CalendarHeaderStateInputs = Pick<CalendarScreenContentProps, 'currentMonth' | 'view' | 'selectedDay' | 'setView'> & Pick<ReturnType<typeof useCalendarScreenSession>, 'todayKey' | 'weekStartsOn' | 'rangeOffset' | 'agendaOffset' | 'i18n' | 't' | 'setRangeOffset' | 'setAgendaOffset' | 'tokens' | 'listRef'> & Pick<ReturnType<typeof useCalendarRangeState>, 'weekStart' | 'agendaStart' | 'agendaEnd'> & Pick<ReturnType<typeof useCalendarDisplayState>, 'weekLabel'> & Pick<ReturnType<typeof useCalendarViewModel>, 'rangeLabel' | 'viewOptions'> & Pick<ReturnType<typeof useCalendarDateActions>, 'prevWeek' | 'nextWeek' | 'goToCurrentWeek' | 'previousRange' | 'nextRange' | 'prevMonth' | 'nextMonth' | 'goToCurrentMonth' | 'selectMonth'>
+type CalendarHeaderStateInputs = { orbitLine: ReactNode } & Pick<CalendarScreenContentProps, 'currentMonth' | 'view' | 'selectedDay' | 'setView'> & Pick<ReturnType<typeof useCalendarScreenSession>, 'todayKey' | 'weekStartsOn' | 'rangeOffset' | 'agendaOffset' | 'i18n' | 't' | 'setRangeOffset' | 'setAgendaOffset' | 'tokens' | 'listRef'> & Pick<ReturnType<typeof useCalendarRangeState>, 'weekStart' | 'agendaStart' | 'agendaEnd'> & Pick<ReturnType<typeof useCalendarDisplayState>, 'weekLabel'> & Pick<ReturnType<typeof useCalendarViewModel>, 'rangeLabel' | 'viewOptions'> & Pick<ReturnType<typeof useCalendarDateActions>, 'prevWeek' | 'nextWeek' | 'goToCurrentWeek' | 'previousRange' | 'nextRange' | 'prevMonth' | 'nextMonth' | 'goToCurrentMonth' | 'selectMonth'>
 
-function useCalendarHeaderState({ currentMonth, todayKey, view, selectedDay, weekStart, weekStartsOn, rangeOffset, agendaOffset, weekLabel, rangeLabel, agendaStart, agendaEnd, i18n, t, prevWeek, nextWeek, goToCurrentWeek, previousRange, nextRange, setRangeOffset, setAgendaOffset, prevMonth, nextMonth, goToCurrentMonth, selectMonth, tokens, viewOptions, listRef, setView }: CalendarHeaderStateInputs) {
+function useCalendarHeaderState({ orbitLine, currentMonth, todayKey, view, selectedDay, weekStart, weekStartsOn, rangeOffset, agendaOffset, weekLabel, rangeLabel, agendaStart, agendaEnd, i18n, t, prevWeek, nextWeek, goToCurrentWeek, previousRange, nextRange, setRangeOffset, setAgendaOffset, prevMonth, nextMonth, goToCurrentMonth, selectMonth, tokens, viewOptions, listRef, setView }: CalendarHeaderStateInputs) {
   const calendarHeader = (
     <CalendarHeader
       currentMonth={currentMonth}
@@ -348,6 +318,7 @@ function useCalendarHeaderState({ currentMonth, todayKey, view, selectedDay, wee
       onCurrentMonth={goToCurrentMonth}
       onSelectMonth={selectMonth}
       tokens={tokens}
+      orbitLine={orbitLine}
       viewSelector={<SegmentedControl<CalendarView> fullWidth options={viewOptions} value={view} onChange={(nextView) => {
         listRef.current?.scrollToOffset({ offset: 0, animated: false })
         setView(nextView)
@@ -366,7 +337,8 @@ export function useCalendarScreenState(props: Readonly<CalendarScreenContentProp
   const calendarViewModel = useCalendarViewModel({ ...calendarScreenSession, ...props, ...calendarDisplayState, ...calendarRangeState })
   const calendarEntryState = useCalendarEntryState({ ...props, ...calendarViewModel, ...calendarScreenSession, ...calendarEventState })
   const calendarStatsState = useCalendarStatsState({ ...calendarViewModel, ...calendarScreenSession })
-  const calendarHeaderState = useCalendarHeaderState({ ...props, ...calendarScreenSession, ...calendarRangeState, ...calendarDisplayState, ...calendarViewModel, ...calendarDateActions })
+  const orbitLine = <CalendarOrbitLine {...props} {...calendarScreenSession} {...calendarRangeState} {...calendarDisplayState} {...calendarViewModel} />
+  const calendarHeaderState = useCalendarHeaderState({ ...props, ...calendarScreenSession, ...calendarRangeState, ...calendarDisplayState, ...calendarViewModel, ...calendarDateActions, orbitLine })
   return { ...props, ...calendarScreenSession, ...calendarEventState, ...calendarRangeState, ...calendarDisplayState, ...calendarDateActions, ...calendarViewModel, ...calendarEntryState, ...calendarStatsState, ...calendarHeaderState }
 }
 

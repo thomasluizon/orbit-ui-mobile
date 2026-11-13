@@ -12,6 +12,8 @@ import { formatCalendarMonthHeading, formatLocaleDate } from '@orbit/shared/util
 
 interface CalendarHeaderProps extends CalendarHeaderNavigationProps {
   viewSelector?: ReactNode
+  /** The Orbit line row, between the period navigation and the view switch. It brings its own gutter. */
+  orbitLine?: ReactNode
 }
 
 const controlButton = 'inline-flex min-h-12 min-w-12 shrink-0 items-center justify-center border-0 text-[var(--fg-2)] cursor-pointer transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)]'
@@ -55,7 +57,7 @@ function CalendarNavigationTitle({ currentMonth, todayKey, isTodaySelected, peri
       </div>
 }
 
-export function CalendarHeader({ currentMonth, todayKey, isTodaySelected = false, previousMonthLabel, nextMonthLabel, onPreviousMonth, onNextMonth, onCurrentMonth, onSelectMonth, period, viewSelector }: Readonly<CalendarHeaderProps>) {
+export function CalendarHeader({ currentMonth, todayKey, isTodaySelected = false, previousMonthLabel, nextMonthLabel, onPreviousMonth, onNextMonth, onCurrentMonth, onSelectMonth, period, viewSelector, orbitLine }: Readonly<CalendarHeaderProps>) {
   const pickerId = useId()
   const yearButtonRef = useRef<HTMLButtonElement>(null)
   const t = useTranslations()
@@ -65,15 +67,16 @@ export function CalendarHeader({ currentMonth, todayKey, isTodaySelected = false
   const { sheetRef, closeSheet } = useSheetHost()
   const returnToToday = () => { if (!isTodaySelected) (period?.onCurrent ?? onCurrentMonth)() }
   const chooseMonth = (month: number, year: number) => closeSheet(() => { setPickerOpen(false); onSelectMonth(month, year) })
-  return <div data-testid="calendar-header-group" className="flex flex-col gap-4 px-4 pt-3 pb-6">
-    <div data-testid={period ? `calendar-${period.view === 'agenda' ? 'week' : period.view}-navigation` : 'calendar-month-navigation'} className="flex min-h-12 flex-wrap items-center justify-center gap-2">
+  return <div data-testid="calendar-header-group" className="flex flex-col gap-4 pt-3 pb-6">
+    <div data-testid={period ? `calendar-${period.view === 'agenda' ? 'week' : period.view}-navigation` : 'calendar-month-navigation'} className="flex min-h-12 flex-wrap items-center justify-center gap-2 px-4">
       <IconButton borderless={false} label={period?.previousLabel ?? previousMonthLabel} onClick={period?.onPrevious ?? onPreviousMonth}><ChevronLeft size={20} strokeWidth={2} aria-hidden="true" /></IconButton>
       <CalendarNavigationTitle currentMonth={currentMonth} todayKey={todayKey} isTodaySelected={isTodaySelected} period={period}
         pickerId={pickerId} pickerOpen={pickerOpen} onReturn={returnToToday}
         onOpenPicker={() => { setYear(currentMonth.getFullYear()); setChoosingYear(false); setPickerOpen(true) }} />
       <IconButton borderless={false} label={period?.nextLabel ?? nextMonthLabel} onClick={period?.onNext ?? onNextMonth} disabled={period?.nextDisabled}><ChevronRight size={20} strokeWidth={2} aria-hidden="true" /></IconButton>
     </div>
-    {viewSelector}
+    {orbitLine}
+    {viewSelector ? <div className="px-4">{viewSelector}</div> : null}
     {pickerOpen ? <Sheet ref={sheetRef} open accessibleTitle={t('calendar.monthPicker')} onClose={() => setPickerOpen(false)} virtualizedBody={choosingYear}
       headerAccessory={<button ref={yearButtonRef} type="button" className={`${titleButton} px-3`} aria-label={`${year}, ${t('common.selectYear')}`} aria-expanded={choosingYear} aria-controls={pickerId} onClick={() => setChoosingYear(!choosingYear)}>{year}<ChevronDown size={16} strokeWidth={2} aria-hidden="true" /></button>}>
       <div id={pickerId} className="flex min-h-0 flex-col"><CalendarMonthPicker currentMonth={currentMonth} onSelectMonth={chooseMonth} choosingYear={choosingYear} year={year} onSelectYear={(nextYear) => { setYear(nextYear); setChoosingYear(false); yearButtonRef.current?.focus() }} /></div>

@@ -13,12 +13,15 @@ import { CalendarRangeView } from '@/components/calendar/calendar-range-view'
 import { CalendarAgendaView } from '@/components/calendar/calendar-agenda-view'
 import { PillButton } from '@/components/ui/pill-button'
 import { OfflineRefusal } from '@/components/ui/offline-refusal'
+import { useFlag } from '@/hooks/use-flag'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { buildHabitCreateHref } from '@orbit/shared/utils'
 import type { CalendarScreenState } from './use-calendar-screen-state'
 
 interface CalendarMonthFeedbackProps {
   state: CalendarMonthDisplayState
-  emptyText: string
-  futureText: string
+  /** Absent when the Orbit line states the month. */
+  text: string | null
   createLabel: string
   createVariant: 'primary' | 'secondary'
   onCreate: () => void
@@ -27,17 +30,16 @@ interface CalendarMonthFeedbackProps {
 
 function CalendarMonthFeedback({
   state,
-  emptyText,
-  futureText,
+  text,
   createLabel,
   createVariant,
   onCreate,
   createRefusal,
 }: Readonly<CalendarMonthFeedbackProps>) {
-  if (state !== 'empty' && state !== 'future') return null
+  if (state !== 'empty' && (state !== 'future' || !text)) return null
   return (
     <div className="flex flex-col items-start gap-3 px-4 py-4" data-testid="calendar-month-empty">
-      <p className="text-[var(--fg-2)]">{state === 'future' ? futureText : emptyText}</p>
+      {text ? <p className="text-[var(--fg-2)]">{text}</p> : null}
       {state === 'empty' ? (
         <PillButton variant={createVariant} size="sm" onClick={onCreate}>
           {createLabel}
@@ -55,9 +57,25 @@ function CalendarDayCardSlot({ children }: Readonly<{ children: ReactNode }>) {
 function calendarActionVariant(wide: boolean): 'primary' | 'secondary' {
   return wide ? 'secondary' : 'primary'
 }
+/** With the guided flows on, the create action of an empty month opens the create flow on the selected day. */
+function useCreateOnSelectedDay(state: CalendarScreenState, guided: boolean): () => void {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const { isOnline, setShowCreateRefusal, selectedDay, openHabitCreation } = state
+  if (!guided) return openHabitCreation
+  return () => {
+    if (!isOnline) { setShowCreateRefusal(true); return }
+    const query = searchParams.size ? `?${searchParams}` : ''
+    router.push(buildHabitCreateHref({ from: `${pathname}${query}`, date: selectedDay }))
+  }
+}
+
 function CalendarMonthView({ state }: Readonly<{ state: CalendarScreenState }>) {
   const t = useTranslations()
-  const { currentMonth, selectedDay, todayKey, weekStartsOn, isOnline, isWideDesktop, showCreateRefusal, openImport, showRecurring, showEventSource, calendarEventsState, refetchCalendarEvents, openOrbitPro, isLoading, displayMonthDayMap, openDay, monthDayEntries, selectedCalendarEvents, selectedDayLoggable, pendingEntryStates, changeSelectedEntry, monthDisplayState, monthStatTiles, monthSlide, handleTouchStart, handleTouchEnd, openHabitCreation } = state
+  const guided = useFlag('orbit_guided_flows')
+  const createOnSelectedDay = useCreateOnSelectedDay(state, guided)
+  const { currentMonth, selectedDay, todayKey, weekStartsOn, isOnline, isWideDesktop, showCreateRefusal, openImport, showRecurring, showEventSource, calendarEventsState, refetchCalendarEvents, openOrbitPro, isLoading, displayMonthDayMap, openDay, monthDayEntries, selectedCalendarEvents, selectedDayLoggable, pendingEntryStates, changeSelectedEntry, monthDisplayState, monthStatTiles, monthSlide, handleTouchStart, handleTouchEnd } = state
   const monthKey = format(currentMonth, 'yyyy-MM')
   return (<div className="flex min-w-0 flex-col">
     <CalendarSlide
@@ -81,11 +99,10 @@ function CalendarMonthView({ state }: Readonly<{ state: CalendarScreenState }>) 
 
     <CalendarMonthFeedback
       state={monthDisplayState}
-      emptyText={t('calendar.emptyMonth')}
-      futureText={t('calendar.futureMonth')}
+      text={guided ? null : t(monthDisplayState === 'future' ? 'calendar.futureMonth' : 'calendar.emptyMonth')}
       createLabel={t('habits.createHabit')}
       createVariant={calendarActionVariant(isWideDesktop)}
-      onCreate={openHabitCreation}
+      onCreate={createOnSelectedDay}
       createRefusal={monthDisplayState === 'empty' && showCreateRefusal && !isOnline ? <OfflineRefusal icon="create" title={t('offline.create.title')} reason={t('offline.create.reason')} /> : null}
     />
 
