@@ -13,6 +13,7 @@ import { renderedText } from '@/__tests__/support/react-test-renderer'
 import { ProgressContent } from '@/components/progress/progress-content'
 import { useUIPreferencesReadiness, useUIStore } from '@/stores/ui-store'
 import { reanimatedTestState } from '../../../test-mocks/react-native-reanimated'
+import { __setWindowDimensions } from '@/test-mocks/react-native'
 
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
 
@@ -27,6 +28,7 @@ const mocks = vi.hoisted(() => {
   repairMutate: vi.fn(),
   repair,
   canView: true,
+  gamificationLoading: false,
   achievements: [] as unknown[],
   push: vi.fn(),
   captureEvent: vi.fn(),
@@ -43,7 +45,7 @@ vi.mock('expo-router', () => ({ usePathname: () => '/progress', useRouter: () =>
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark' }) }))
 vi.mock('@/lib/motion', async (original) => ({ ...await original<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => mocks.reducedMotion }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
-vi.mock('@/components/navigation/root-notification-header', () => ({ RootNotificationHeader: () => null }))
+vi.mock('@/components/navigation/root-notification-header', () => ({ RootNotificationHeader: () => React.createElement('RootNotificationHeader') }))
 vi.mock('@/components/share/share-card-entry-button', () => ({ ShareCardEntryButton: () => React.createElement('ShareEntry') }))
 vi.mock('@/lib/posthog', () => ({ captureGuidedFlowEvent: mocks.captureEvent, captureGuidedFlowCompleted: mocks.captureCompleted }))
 vi.mock('@/hooks/use-retrospective', () => ({ useProgressRetrospective: () => ({ refetch: mocks.refetch, ...mocks.retrospective }) }))
@@ -53,7 +55,7 @@ vi.mock('@/hooks/use-profile', () => ({
 vi.mock('@/hooks/use-gamification', () => ({
   useGamificationProfile: () => ({
     profile: { level: 2, totalXp: 150, xpForNextLevel: 200, currentStreak: 4, longestStreak: 9, achievements: mocks.achievements },
-    xpProgress: 50, isLoading: false, isError: false, error: mocks.canView ? null : createApiClientError(403, { errorCode: 'PAY_GATE' }, 'Pro'), refetch: vi.fn(),
+    xpProgress: 50, isLoading: mocks.gamificationLoading, isError: false, error: mocks.canView ? null : createApiClientError(403, { errorCode: 'PAY_GATE' }, 'Pro'), refetch: vi.fn(),
   }),
   useStreakFreeze: () => mocks.freeze,
   useRepairStreak: () => ({ ...mocks.repair, mutate: mocks.repairMutate, reset: vi.fn() }),
@@ -121,6 +123,7 @@ beforeEach(() => {
   mocks.reducedMotion = false
   reanimatedTestState.reducedMotion = false
   mocks.canView = true
+  mocks.gamificationLoading = false
   mocks.retrospective = readyWindow()
   mocks.repair = { isPending: false, isError: false, error: null }
   mocks.achievements = []
@@ -158,6 +161,15 @@ describe('Progresso root with orbit_guided_flows on (Android)', () => {
       expect(mocks.push).toHaveBeenLastCalledWith(route)
     }
     expect(byTestId(root, 'progress-streak-figure')).toHaveLength(0)
+    expect(root.root.findAll((node) => String(node.type) === 'RootNotificationHeader')).toHaveLength(1)
+  })
+
+  it('draws Orbit at 128 at 1024 and above', async () => {
+    __setWindowDimensions({ width: 1024, height: 900, scale: 1, fontScale: 1 })
+    try {
+      const root = await renderIn('en')
+      expect(mascots(root)[0]!.props.width).toBe(128)
+    } finally { __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 }) }
   })
 
   it('shows the skeleton while loading, with Orbit in Parado, no line and no spinner', async () => {
@@ -228,13 +240,15 @@ describe('Progresso root bar selection (Android)', () => {
     expect(lineOf(root)).toBe('Você apareceu em 12 dos últimos 30 dias.')
   })
 
-  it('keeps the line and the readout still under reduced motion', async () => {
+  it('keeps the line, the readout and the eyes still under reduced motion', async () => {
     mocks.reducedMotion = true
     reanimatedTestState.reducedMotion = true
     const root = await renderIn('en')
     await press(bars(root)[0]!)
     expect(lineOf(root)).toBe('Tuesday, September 8: 1 of 2.')
     expect(byTestId(root, 'bar-chart-readout')[0]!.props.layout).toBeUndefined()
+    const eyes = mascots(root)[0]!.findAll((node) => String(node.type) === 'G' && typeof node.props.transform === 'string' && node.props.transform.startsWith('translate('))
+    expect(eyes[0]!.props.transform).toMatch(/^translate\(0 0\)/)
   })
 })
 
@@ -303,6 +317,24 @@ describe('Sequência with orbit_guided_flows on (Android)', () => {
     expect(byTestId(root, 'progress-locked-card')).toHaveLength(1)
     expect(byTestId(root, 'streak-orbit-line')).toHaveLength(0)
     expect(hosts(root).some((node) => node.props['data-orbit-state'] === 'feliz')).toBe(false)
+  })
+})
+
+describe('Progresso sub-screens with orbit_guided_flows on (Android)', () => {
+  it('shows the skeleton strip while the streak history loads, with no line and no spinner', async () => {
+    mocks.freeze = { ...deriveStreakFreezeState(null, null, '2026-09-10'), streakInfo: null, streakQuery: { isError: false, refetch: vi.fn() } }
+    const root = await renderIn('en', 'streak')
+    expect(byTestId(root, 'skeleton-unit-fill').length).toBeGreaterThan(0)
+    expect(byTestId(root, 'streak-orbit-line')).toHaveLength(0)
+    expect(root.root.findAll((node) => String(node.type) === 'ActivityIndicator')).toHaveLength(0)
+  })
+
+  it.each(['streak', 'achievements'] as const)('shows the skeleton while %s loads and no spinner', async (screenId) => {
+    mocks.gamificationLoading = true
+    const root = await renderIn('en', screenId)
+    expect(hosts(root).some((node) => node.props.accessibilityRole === 'progressbar' && node.props.accessibilityLabel === en.progressScreen.loading)).toBe(true)
+    expect(byTestId(root, 'settings-skeleton-row').length).toBeGreaterThan(0)
+    expect(root.root.findAll((node) => String(node.type) === 'ActivityIndicator')).toHaveLength(0)
   })
 })
 

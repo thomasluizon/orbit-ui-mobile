@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   repairMutate: vi.fn(),
   repair: { isPending: false, isError: false, error: null as unknown },
   canView: true,
+  gamificationLoading: false,
   achievements: [] as unknown[],
   captureEvent: vi.fn(),
   captureCompleted: vi.fn(),
@@ -37,7 +38,7 @@ vi.mock('@/hooks/use-profile', () => ({
 vi.mock('@/hooks/use-gamification', () => ({
   useGamificationProfile: () => ({
     profile: { level: 2, totalXp: 150, xpForNextLevel: 200, currentStreak: 4, longestStreak: 9, achievements: mocks.achievements },
-    xpProgress: 50, isLoading: false, isError: false, error: mocks.canView ? null : createApiClientError(403, { errorCode: 'PAY_GATE' }, 'Pro'), refetch: vi.fn(),
+    xpProgress: 50, isLoading: mocks.gamificationLoading, isError: false, error: mocks.canView ? null : createApiClientError(403, { errorCode: 'PAY_GATE' }, 'Pro'), refetch: vi.fn(),
   }),
   useStreakFreeze: () => mocks.freeze,
   useRepairStreak: () => ({ ...mocks.repair, mutate: mocks.repairMutate, reset: vi.fn() }),
@@ -94,6 +95,7 @@ beforeEach(() => {
   stubMedia([])
   mocks.flag = true
   mocks.canView = true
+  mocks.gamificationLoading = false
   mocks.retrospective = readyWindow()
   mocks.repair = { isPending: false, isError: false, error: null }
   mocks.achievements = []
@@ -140,6 +142,7 @@ describe('Progresso root with orbit_guided_flows on', () => {
     expect(screen.getByRole('link', { name: /Streak/ })).toHaveAttribute('href', '/progress/streak')
     expect(screen.getByRole('link', { name: /Goals/ })).toHaveAttribute('href', '/progress/goals')
     expect(screen.getByRole('link', { name: /Achievements/ })).toHaveAttribute('href', '/progress/achievements')
+    expect(document.querySelector('[data-root-notification-header]')).not.toBeNull()
   })
 
   it('shows the skeleton while the window loads, with Orbit in Parado, no line and no spinner', () => {
@@ -326,6 +329,29 @@ describe('Sequência with orbit_guided_flows on', () => {
     expect(screen.getByRole('link', { name: en.progressScreen.streak.lockedAction })).toHaveAttribute('href', '/upgrade')
     expect(container.querySelector('[data-orbit-state="feliz"]')).toBeNull()
     expect(container.querySelector('[data-streak-orbit-line]')).toBeNull()
+  })
+})
+
+describe('Progresso sub-screens with orbit_guided_flows on', () => {
+  it('keeps the sub-screen header with its back control', () => {
+    renderIn('en', <ProgressContent screen="streak" />)
+    expect(screen.getByRole('button', { name: en.progressScreen.back })).toBeInTheDocument()
+  })
+
+  it('shows the skeleton strip while the streak history loads, with no line and no spinner', () => {
+    mocks.freeze = { ...deriveStreakFreezeState(null, null, '2026-09-10'), streakInfo: null, streakQuery: { isError: false, refetch: vi.fn() } }
+    const { container } = renderIn('en', <ProgressContent screen="streak" />)
+    expect(container.querySelector('[data-progress-streak-summary] .skeleton-pulse')).not.toBeNull()
+    expect(container.querySelector('[data-streak-orbit-line]')).toBeNull()
+    expect(container.querySelector('.animate-spin')).toBeNull()
+  })
+
+  it.each(['streak', 'achievements'] as const)('shows the skeleton while %s loads and no spinner', (screenId) => {
+    mocks.gamificationLoading = true
+    const { container } = renderIn('en', <ProgressContent screen={screenId} />)
+    expect(screen.getByRole('progressbar', { name: en.progressScreen.loading })).toBeInTheDocument()
+    expect(container.querySelector('.skeleton-pulse')).not.toBeNull()
+    expect(container.querySelector('.animate-spin')).toBeNull()
   })
 })
 
