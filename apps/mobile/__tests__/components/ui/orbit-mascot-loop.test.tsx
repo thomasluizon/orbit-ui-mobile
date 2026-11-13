@@ -1,12 +1,16 @@
-import type { ReactElement } from 'react'
+import type { Context, ReactElement } from 'react'
 import { AppState, View } from 'react-native'
-import { IsFocusedContext } from 'expo-router/build/react-navigation/core/useIsFocused'
 import { setOrbitMotionEnabled } from '@orbit/shared/utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { OrbitOverlayLayer } from '@/components/ui/orbit-overlay-layer'
+import { orbitScreenLayout } from '@/components/ui/orbit-screen-focus'
 import { createTokensV2 } from '@/lib/theme'
 import { reanimatedTestState } from '@/test-mocks/react-native-reanimated'
+
+/** The route focus a navigator gives each screen; `useIsFocused` reads it as the real hook reads its route. */
+const route = vi.hoisted(() => ({ Focus: require('react').createContext(true) as Context<boolean> }))
+vi.mock('expo-router', () => ({ useIsFocused: () => require('react').useContext(route.Focus) }))
 
 const TestRenderer = require('react-test-renderer')
 
@@ -109,10 +113,8 @@ describe('Orbit idle loop on Android', () => {
   })
 
   it('pauses on a screen that is not focused, gives the live slot to the focused screen, and resumes on focus', () => {
-    const screens = (firstFocused: boolean) => <View>
-      <IsFocusedContext value={firstFocused}><OrbitMascot size={96} /></IsFocusedContext>
-      <IsFocusedContext value={!firstFocused}><OrbitMascot size={96} /></IsFocusedContext>
-    </View>
+    const screen = (focused: boolean) => <route.Focus value={focused}>{orbitScreenLayout({ children: <OrbitMascot size={96} /> })}</route.Focus>
+    const screens = (firstFocused: boolean) => <View>{screen(firstFocused)}{screen(!firstFocused)}</View>
     const tree = render(screens(false))
     expect(loops(tree)).toEqual(['still', 'running'])
     TestRenderer.act(() => tree.update(screens(true)))
