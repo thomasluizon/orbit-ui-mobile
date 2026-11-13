@@ -537,7 +537,7 @@ function ComposerError({ props, tokens }: Readonly<{ props: ComposerProps; token
   return <View style={styles.limitStatus}>
     {props.errorMessage ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive"
       style={[styles.limitReason, { color: tokens.statusBadText }]}>{props.errorMessage}</Text> : null}
-    {props.errorRecovery ? <PressScalePressable accessibilityRole="button" accessibilityLabel={props.errorRecovery.label} onPress={props.errorRecovery.onSelect}
+    {props.errorRecovery ? <PressScalePressable layerStyle={styles.retryLayer} accessibilityRole="button" accessibilityLabel={props.errorRecovery.label} onPress={props.errorRecovery.onSelect}
       style={({ pressed }) => [styles.retry, pressed ? { backgroundColor: tokens.bgHover } : null]}>
       <Text style={[styles.retryText, { color: tokens.fg2 }]}>{props.errorRecovery.label}</Text>
     </PressScalePressable> : null}
@@ -874,6 +874,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  retryLayer: {
+    alignSelf: 'flex-start',
   },
   retryText: {
     fontFamily: 'Geist_500Medium',

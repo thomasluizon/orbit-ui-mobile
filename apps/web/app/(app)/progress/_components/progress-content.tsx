@@ -422,28 +422,30 @@ function GoalCard({ goal, index, total, canReorder, onMove, onOpen }: Readonly<{
     event.preventDefault()
     onMove(goal.id, index + (event.key === 'ArrowUp' ? -1 : 1))
   }
+  // WHY: the card presses its surface inside a target that keeps its full size, so a press at its edge never shrinks out from under the pointer and loses its click. https://github.com/thomasluizon/orbit-tickets/issues/2096
   return (
     <button type="button" aria-label={accessibilityLabel} data-goal-id={goal.id} data-dragging={isDragging}
       ref={setNodeRef} {...listeners}
       style={{
         translate: transform ? `${transform.x}px ${transform.y}px` : undefined,
         transform: transform ? `scaleX(${transform.scaleX}) scaleY(${transform.scaleY})` : undefined,
-        transition: 'background-color var(--dur-hover) var(--ease-standard), box-shadow var(--dur-hover) var(--ease-standard), scale var(--dur-press) var(--ease-out)',
       }}
       aria-roledescription={canReorder ? attributes['aria-roledescription'] : undefined}
       aria-describedby={canReorder ? attributes['aria-describedby'] : undefined}
       aria-keyshortcuts={canReorder ? 'Alt+ArrowUp Alt+ArrowDown' : undefined}
       onKeyDown={canReorder ? handleKeyDown : undefined}
       onClick={onOpen}
-      className="[transition-property:background-color,box-shadow,scale] [transition-duration:var(--dur-hover),var(--dur-hover),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-out)] orbit-hover-text relative flex w-full cursor-pointer select-none items-center gap-3 rounded-[20px] bg-[var(--bg-card)] p-record-inset text-left shadow-[inset_0_0_0_1px_var(--hairline-ghost)] hover:bg-[var(--bg-hover)] hover:shadow-[inset_0_0_0_1px_var(--hairline-strong)] active:scale-[0.96] data-[dragging=true]:z-[2] data-[dragging=true]:scale-[0.96] data-[dragging=true]:opacity-50 data-[dragging=true]:shadow-[var(--sh-2),inset_0_0_0_1px_var(--hairline-strong)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)]">
-      <span className="flex min-w-0 flex-1 flex-col gap-1">
-        <PersonalText className={`  text-[17px] font-medium ${abandoned ? 'text-[var(--fg-2)]' : 'text-[var(--fg-1)]'}`}>{goal.title}</PersonalText>
-        <span className="flex flex-wrap items-center gap-2">
-          {labelKey ? <Badge variant={abandoned ? 'outline' : 'solid'}>{t(labelKey)}</Badge> : null}
-          {!abandoned ? <span className="font-[var(--font-mono)] text-[12px] tabular-nums text-[var(--fg-2)]">{t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit })}</span> : null}
+      className="group/goal-card orbit-hover-text relative flex w-full cursor-pointer select-none rounded-[20px] text-left data-[dragging=true]:z-[2] data-[dragging=true]:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)]">
+      <span data-slot="goal-card-surface" className="[transition-property:background-color,box-shadow,scale] [transition-duration:var(--dur-hover),var(--dur-hover),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-out)] flex min-w-0 flex-1 items-center gap-3 rounded-[20px] bg-[var(--bg-card)] p-record-inset shadow-[inset_0_0_0_1px_var(--hairline-ghost)] group-hover/goal-card:bg-[var(--bg-hover)] group-hover/goal-card:shadow-[inset_0_0_0_1px_var(--hairline-strong)] motion-safe:group-active/goal-card:scale-[0.96] motion-safe:group-data-[dragging=true]/goal-card:scale-[0.96] group-data-[dragging=true]/goal-card:shadow-[var(--sh-2),inset_0_0_0_1px_var(--hairline-strong)]">
+        <span className="flex min-w-0 flex-1 flex-col gap-1">
+          <PersonalText className={`  text-[17px] font-medium ${abandoned ? 'text-[var(--fg-2)]' : 'text-[var(--fg-1)]'}`}>{goal.title}</PersonalText>
+          <span className="flex flex-wrap items-center gap-2">
+            {labelKey ? <Badge variant={abandoned ? 'outline' : 'solid'}>{t(labelKey)}</Badge> : null}
+            {!abandoned ? <span className="font-[var(--font-mono)] text-[12px] tabular-nums text-[var(--fg-2)]">{t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit })}</span> : null}
+          </span>
         </span>
+        <GoalIndicator goal={goal} />
       </span>
-      <GoalIndicator goal={goal} />
     </button>
   )
 }

@@ -984,7 +984,7 @@ function headerInteractions(mode: 'dark' | 'light', language: 'en' | 'pt-BR') {
   const hover = attachedHeaderHover(header());
   const otherHover = attachedHeaderHover(headers()[1]!);
   expect(otherHover).not.toBe(hover);
-  const style = (pressed = false) => resolveStyle(header().props.style({ pressed }));
+  const style = () => resolveStyle(header().props.style({ pressed: false }));
   const scale = () => (pressLayerStyle(header()).transform as [{ scale: number }])[0].scale;
   const fill = (index = 0) => hostsByTestID(tree, 'time-grid-col-header-fill').find((candidate) => {
     for (let parent = candidate.parent; parent; parent = parent.parent) if (parent === headers()[index]) return true;

@@ -17,8 +17,11 @@ function sourceFiles(directory: string): string[] {
 const sources = ['app', 'components'].flatMap((directory) => sourceFiles(join(root, directory)))
   .map((path) => ({ path: relative(root, path), lines: readFileSync(path, 'utf8').split('\n') }))
 
-/** Tailwind `active:scale-[0.96]` sets the CSS `scale` property, so only a transition on `scale` (or on `transition-transform`, which lists it) eases the press. */
-const PRESS_SCALE_CLASS = /(?:^|[\s"'`])(?:motion-safe:)?(?:enabled:)?active:scale-\[(?:0\.96|0\.99)\]/
+/**
+ * Tailwind `active:scale-[0.96]` sets the CSS `scale` property, so only a transition on `scale` (or on `transition-transform`, which lists it) eases the press.
+ * A `group-active` scale presses a surface inside a press target that keeps its full size.
+ */
+const PRESS_SCALE_CLASS = /(?:^|[\s"'`])(?:motion-safe:)?(?:enabled:)?(?:group-)?active(?:\/[\w-]+)?:scale-\[(?:0\.96|0\.99)\]/
 
 /** Classes whose CSS rule owns the press transition. The rules are checked in the stylesheet test below. */
 const PRESS_TRANSITION_CLASSES = ['habit-control-motion', 'orbit-pill-action', 'orbit-list-row-body', 'orbit-list-row-action', 'icon-btn']
@@ -63,8 +66,18 @@ function elementClasses(lines: string[], index: number): string {
   return lines.slice(start, end + 1).join(' ')
 }
 
+/** The source of one element's opening tag: from the nearest line above the press class that opens a JSX element to the press class. */
+function openingTag(lines: string[], index: number): string {
+  let start = index
+  for (let step = 0; step < 16 && start > 0 && !/<[A-Za-z][\w.]*(?:\s|$)/.test(lines[start]!); step++) start--
+  return lines.slice(start, index + 1).join(' ')
+}
+
+/** An inline `style.transition` beats every `transition-*` utility, so the class text of that element never applies. */
+const INLINE_TRANSITION = /\btransition:\s*['"`]/
+
 const pressScaleElements = sources.flatMap(({ path, lines }) => lines.flatMap((line, index) => PRESS_SCALE_CLASS.test(line)
-  ? [{ path, line: index + 1, classes: FRAGMENT_FILES.includes(path) ? lines.join(' ') : elementClasses(lines, index) }]
+  ? [{ path, line: index + 1, classes: FRAGMENT_FILES.includes(path) ? lines.join(' ') : elementClasses(lines, index), tag: openingTag(lines, index) }]
   : []))
 
 function rulesWith(selector: string): Rule[] {
@@ -84,7 +97,8 @@ describe('web press scale transitions', () => {
     expect(pressScaleElements.length).toBeGreaterThan(40)
   })
 
-  it.each(pressScaleElements.map((element) => [`${element.path}:${element.line}`, element] as const))('%s eases its press scale on the press duration and the enter curve', (_name, { classes }) => {
+  it.each(pressScaleElements.map((element) => [`${element.path}:${element.line}`, element] as const))('%s eases its press scale on the press duration and the enter curve', (_name, { classes, tag }) => {
+    expect(tag, 'an inline transition voids the transition classes this test reads').not.toMatch(INLINE_TRANSITION)
     if (PRESS_TRANSITION_CLASSES.some((name) => new RegExp(`(?:^|[\\s"'\`])${name}(?:[\\s"'\`]|$)`).test(classes))) return
     expect(pressTransitionOf(classes)).toEqual({ duration: 'var(--dur-press)', easing: 'var(--ease-out)' })
   })

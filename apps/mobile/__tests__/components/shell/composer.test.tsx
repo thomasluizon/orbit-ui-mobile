@@ -622,6 +622,25 @@ describe('Composer (mobile)', () => {
     TestRenderer.act(() => { recovery.unmount(); retry.unmount() })
     motionState.reducedMotion = false
   })
+
+  it('lays the recovery press layer on the pill box, so a press shrinks the pill in place in the stretching status column', () => {
+    type Host = Parameters<typeof measureProfileRow>[0]
+    const holds = (host: Host, label: string): boolean => host.props.accessibilityLabel === label
+      || (host.children ?? []).some((child) => typeof child !== 'string' && holds(child, label))
+    const statusOf = (host: Host): Host | undefined => (host.children ?? []).some((child) => typeof child !== 'string' && child.props['data-slot'] === 'press-scale' && holds(child, 'Recover'))
+      ? host
+      : (host.children ?? []).flatMap((child) => typeof child === 'string' ? [] : [statusOf(child)]).find(Boolean)
+    const recovery = renderComposer(props({ errorRecovery: { label: 'Recover', onSelect: vi.fn() } }))
+    try {
+      const status = statusOf(recovery.toJSON() as Host)
+      expect(status, 'the recovery pill sits in the composer status column').toBeDefined()
+      const measured = measureProfileRow({ type: 'View', props: {}, children: [status!] }, 360, 1)
+      const layer = measured.parts.find((part) => part.slot === 'press-scale')!
+      const pill = measured.controls.find((control) => control.accessibilityLabel === 'Recover')!
+      expect(pill.width).toBeLessThan(360)
+      expect({ left: layer.left, width: layer.width }, 'the layer scales about the pill centre, not the column centre').toEqual({ left: pill.left, width: pill.width })
+    } finally { TestRenderer.act(() => recovery.unmount()) }
+  })
   it.each(['idle', 'offline', 'atLimit'] as const)('aligns the %s placeholder with the padded caret', state => {
     const tree = renderComposer(props({ state, limitReason: 'limit sentinel' }))
     try {

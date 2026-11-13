@@ -15,7 +15,7 @@ import { SettingsGroup } from '@/components/ui/settings-group'
 import { ProgressSubscreen } from './progress-subscreen'
 import { RootNotificationHeader } from '@/components/navigation/root-notification-header'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
-import { AccessibilityInfo, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
+import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import {
@@ -49,7 +49,7 @@ import { Badge } from '@/components/ui/badge'
 import { BarChart } from '@/components/ui/bar-chart'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
-import { MotionPressable } from '@/components/ui/motion-pressable'
+import { PressScale } from '@/components/motion/press-scale'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { useGoalDrag } from './use-goal-drag'
 import { DayStrip } from '@/components/dates/day-strip'
@@ -354,8 +354,9 @@ function GoalCard({ goal, index, total, canReorder, isDragging, onDrag, onMove, 
         progress: t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit }),
         position,
       })
+  // WHY: the card presses its surface inside a target that keeps its full size, as the web card does, so the pressed surface never moves its own target. https://github.com/thomasluizon/orbit-tickets/issues/2096
   return (
-    <MotionPressable ref={focusRef} testID={`goal-card-${goal.id}`} active={isDragging} accessible accessibilityRole="button" accessibilityLabel={accessibilityLabel}
+    <Pressable ref={focusRef} testID={`goal-card-${goal.id}`} accessible accessibilityRole="button" accessibilityLabel={accessibilityLabel}
       accessibilityHint={canReorder ? t('progressScreen.goals.reorderHint') : undefined}
       accessibilityActions={canReorder ? [{ name: 'decrement', label: t('progressScreen.goals.moveUp') }, { name: 'increment', label: t('progressScreen.goals.moveDown') }] : undefined}
       onAccessibilityAction={canReorder ? (event) => {
@@ -363,20 +364,22 @@ function GoalCard({ goal, index, total, canReorder, isDragging, onDrag, onMove, 
         if (action === 'decrement' || action === 'increment') onMove(goal.id, index + (action === 'decrement' ? -1 : 1))
       } : undefined}
       {...gesture} onPress={() => { if (!suppressPress()) onOpen() }}
-      style={({ pressed }) => [
+      style={isDragging ? styles.goalCardLifted : null}>
+      {({ pressed }) => <PressScale pressed={pressed || isDragging} disabled={false} style={[
         styles.goalCard,
         { backgroundColor: pressed ? tokens.bgHover : tokens.bgCard, borderColor: tokens.hairlineGhost },
-        isDragging ? { ...shadowsV2.shadow2, borderColor: tokens.hairlineStrong, opacity: 0.5, zIndex: 2 } : null,
+        isDragging ? { ...shadowsV2.shadow2, borderColor: tokens.hairlineStrong, opacity: 0.5 } : null,
       ]}>
-      <View style={styles.goalCopy}>
-        <PersonalText ellipsizeMode="tail" style={[styles.goalTitle, { color: abandoned ? tokens.fg2 : tokens.fg1 }]}>{goal.title}</PersonalText>
-        <View style={styles.goalMeta}>
-          {labelKey ? <Badge variant={abandoned ? 'outline' : 'solid'}>{t(labelKey)}</Badge> : null}
-          {!abandoned ? <Text style={[styles.meta, { color: tokens.fg2 }]}>{t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit })}</Text> : null}
+        <View style={styles.goalCopy}>
+          <PersonalText ellipsizeMode="tail" style={[styles.goalTitle, { color: abandoned ? tokens.fg2 : tokens.fg1 }]}>{goal.title}</PersonalText>
+          <View style={styles.goalMeta}>
+            {labelKey ? <Badge variant={abandoned ? 'outline' : 'solid'}>{t(labelKey)}</Badge> : null}
+            {!abandoned ? <Text style={[styles.meta, { color: tokens.fg2 }]}>{t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit })}</Text> : null}
+          </View>
         </View>
-      </View>
-      <GoalIndicator goal={goal} />
-    </MotionPressable>
+        <GoalIndicator goal={goal} />
+      </PressScale>}
+    </Pressable>
   )
 }
 
@@ -649,7 +652,7 @@ const styles = StyleSheet.create({
   topHabitChevron: { width: 24, height: 24, flexShrink: 0 },
   topHabitName: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 24 },
   windowGrid: { gap: 16 }, windowLock: { width: '100%' }, windowRow: { flexDirection: 'row', gap: 16 }, windowSection: { gap: PADDING.sectionTitleGap }, windowTile: { flex: 1, minWidth: 0 },
-  goalsSection: { gap: PADDING.sectionTitleGap }, goalCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: PADDING.recordInset, borderRadius: 20, overflow: 'hidden', borderWidth: 1 },
+  goalsSection: { gap: PADDING.sectionTitleGap }, goalCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: PADDING.recordInset, borderRadius: 20, overflow: 'hidden', borderWidth: 1 }, goalCardLifted: { zIndex: 2 },
   goalTitle: { fontFamily: 'Geist_500Medium', fontSize: 17, lineHeight: 24 }, goalMeta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   goalCopy: { flex: 1, minWidth: 0, gap: 4 }, goalSeparator: { height: 12 },
   emptyLine: { alignItems: 'flex-start', borderRadius: 12, gap: 8, padding: PADDING.recordInset },

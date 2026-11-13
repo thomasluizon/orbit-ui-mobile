@@ -6,6 +6,8 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { OnboardingCreateHabit } from '@/components/onboarding/onboarding-create-habit'
+import { MOTION_SAFE } from '@/__tests__/support/compiled-class-rules'
+import { compilePressScaleRules, scaledWhilePressed } from '@/__tests__/support/press-scale-rules'
 
 const translations = vi.hoisted(() => ({
   locale: 'en',
@@ -125,6 +127,16 @@ describe('OnboardingCreateHabit', () => {
     expect(proposal).toHaveAccessibleDescription(/Walk outside.*3 times a week, any day.*Any time/)
     fireEvent.click(proposal)
     expect(onCorrect).toHaveBeenCalledOnce()
+  })
+
+  it('presses the proposal surface and never the correction target, so a press at its edge keeps its click', async () => {
+    const rules = await compilePressScaleRules()
+    render(<OnboardingCreateHabit {...base} proposed correcting={false} />)
+    const proposal = screen.getByRole('button', { name: 'Correct schedule. Emoji proposed by Astra' })
+    const scaled = scaledWhilePressed(rules, proposal)
+    expect(scaled.map(({ element }) => element), 'the pressed proposal scales only its surface').toEqual([proposal.querySelector(':scope > [data-slot="proposal-surface"]')])
+    expect(scaled.map(({ media }) => media), 'reduced motion removes the press scale').toEqual([[MOTION_SAFE]])
+    expect(scaled[0]!.element).toHaveClass('transition-[scale]', 'duration-[var(--dur-press)]', 'ease-[var(--ease-out)]')
   })
 
   it('announces the proposal emoji through the correction button', () => {

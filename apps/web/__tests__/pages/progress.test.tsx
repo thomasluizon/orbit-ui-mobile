@@ -441,7 +441,7 @@ describe('ProgressContent', () => {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         await loadAppFonts(page)
         const geometry = await page.locator('[data-goal-id]').evaluateAll((cards) => cards.map((card) => {
-          const title = card.querySelector('span')!.firstElementChild! as HTMLElement
+          const title = card.querySelector('[data-slot="goal-card-surface"] > span')!.firstElementChild! as HTMLElement
           const metadata = title.nextElementSibling! as HTMLElement
           const style = getComputedStyle(title)
           return { height: title.getBoundingClientRect().height, lineHeight: Number.parseFloat(style.lineHeight),
