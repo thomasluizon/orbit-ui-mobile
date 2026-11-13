@@ -4,7 +4,7 @@ Read `.claude/specs/orbit-prod-release.md` first: `## Standing rules`, `## The o
 
 Entry: `/auto-work` enters `/sleep`, adopts this relay (`adoptRelayRun`), keeps `autoWork: true`, then `/crank`, then `/orchestrate` over the admitted queue without replanning. Check that this prompt is the newest open relay (`gh pr list --repo thomasluizon/orbit-ui-mobile --state open --search "relay in:title"`), run `node tools/relay-checkout.mjs --check`, and read free disk on `/System/Volumes/Data` (entry floor 50 GiB).
 
-Scratchpad: run `$HOME/.orbit-run-carry/carry-from-predecessor.sh <new full id> <predecessor full id> 0589c2a5-9987-419c-9a59-212b0a9d6846` as a background task and wait for it to exit before writing any file there (the predecessor id is `relay.from`). Then repoint every helper that holds the predecessor's first 8 characters with `perl -pi`, and run `mirror.sh` with `bash`, then `durable-dedupe.sh`. The predecessor log is `prev-sleep-decisions-<predecessor 8>.md`: read its `## D` headings (D1 to D17). Write scratchpad files with the Write tool and literal paths. The shell is zsh: run a multi-argument loop through a `bash` script. Print at most 40 lines from any tool call. Send every review fix and diagnosis to a fresh background subagent (`opus`) with `review-fix-brief.md` and a narrow note (pattern `fix-note-api-1110-r3.md`; `dump-review.sh <key> <pr> <file>` saves the review; `extract-agent-report.mjs <task output> <file>` saves its report). Read each subagent diff, run the Chromium files and layout specs its report lists (pattern `proof-2442-r3.sh`), correct a one-line test yourself, then `deliver-fix.sh <key> <pr> <worktree> <report> <reply> <thread ids>`.
+Scratchpad: run `$HOME/.orbit-run-carry/carry-from-predecessor.sh <new full id> <predecessor full id> 0589c2a5-9987-419c-9a59-212b0a9d6846` as a background task and wait for it to exit before writing any file there (the predecessor id is `relay.from`). Then repoint every helper that holds the predecessor's first 8 characters with `perl -pi`, and run `mirror.sh` with `bash`, then `durable-dedupe.sh`. The predecessor log is `prev-sleep-decisions-<predecessor 8>.md`: read its `## D` headings (D1 to D17). Write scratchpad files with the Write tool and literal paths. The shell is zsh: run a multi-argument loop through a `bash` script. Print at most 40 lines from any tool call. Send every review fix and diagnosis to a fresh background subagent (`opus`) with `review-fix-brief.md` and a narrow note (pattern `fix-note-ui-2445-r6.md`; `dump-review.sh <key> <pr> <file>` saves the review; `extract-agent-report.mjs <task output> <file>` saves its report). Read each subagent diff and the review body, run the Chromium files and layout specs its report lists, then `deliver-fix.sh <key> <pr> <worktree> <report> <reply> <thread ids>`.
 
 A worker order says: no background task, one pull request for the whole ticket, never file a ticket, commit and push early, never the full `node tools/test-tools.mjs`, and in `apps/web` only `npx vitest run --project jsdom <files>`. Workers run through scratchpad `prep-launch.sh <issue> <worktree name>` after `compose-ui.sh <issue> <worktree> <branch> <note>`; `new-ticket-wt.sh <issue> <name> <prefix> main` makes the worktree.
 
@@ -18,24 +18,25 @@ UI `main` `59f355525`; API `main` `2f49ed78f`; landing `main` `381b253fa`. Produ
 
 | Item | Disposition |
 | --- | --- |
-| `api#1110` (`#2129`) at `6891a1b51` | Round 2 delivered. Review round 3 has one open P1 thread (`review-api-1110-r3.md`, note `fix-note-api-1110-r3.md`). Its subagent report is scratchpad `report-api-1110-r3.md`; its commit, if the report names one, is local and not pushed (`git log origin/fix/ticket-2129-short-request-job..HEAD` in the worktree). Read the diff and the `## Model instruction` section, write the reply, `deliver-fix.sh`, `chain-review.sh api 1110`, merge at the bar (`merge-gate.sh api 1110`, `MSUBJ` with `fix(chat):`, `MBODY` `Tracks thomasluizon/orbit-tickets#2129`), `record-merge.mjs`, API release to staging then production, then the 5 captures and the measurement of the order bullet. |
-| `#2127` | Open. Close with the passing 5 capture table, then remove api worktree `ticket-2127-answered-choice-guard`. |
-| `ui#2445` (`#2128`) at `5e9009097` | Rounds 2 and 3 delivered, work order on the ticket. One open thread (`review-ui-2445-r3.md`, note `fix-note-ui-2445-r4.md`). Its subagent report is scratchpad `report-ui-2445-r4.md`; its commit is local and not pushed. Read the diff, `deliver-fix.sh` with a delivery report that adds only the new test evidence, then the chain. |
-| `ui#2444` (`#2119`) at `4fee79d86` | Rounds 1 and 2 delivered (nine threads resolved), copy verdict posted, ledger comments at this head. Start `chain-review.sh ui 2444`. |
-| `ui#2442` (`#2096`) at `f6a1fc148` on GitHub | CI is red at that head. Local, not pushed: `f5f0e7547` and `ca8fbdbed`. Do not push yet: send the order bullet's next round to a subagent (revert the eight controls with no red proof, press at the exact edge, then the pill and the chip red first), run `proof-2442-r3.sh` again with the new file list, then push and start the chain. |
+| `api#1110` (`#2129`) at `70424b97a` | Round 4 delivered, zero open threads, comments only. Start `chain-review.sh api 1110`. At the bar: `merge-gate.sh api 1110` (`MSUBJ` with `fix(chat):`, `MBODY` `Tracks thomasluizon/orbit-tickets#2129`), `record-merge.mjs`, release `main` to staging, 5 captures, production only after 5 of 5, then the measurement of the order bullet. |
+| `#2127` | Open. Close with the passing capture table, then remove api worktree `ticket-2127-answered-choice-guard`. |
+| `ui#2445` (`#2128`) at `aad203988` | Round 5 delivered, zero open threads, comments only. Start `chain-review.sh ui 2445`, merge at the bar. |
+| `ui#2444` (`#2119`) at `2408256d5` | Round 3 delivered, zero open threads, ledger verified and its comments replaced at this head. `Layout shard 1` is red on the racy spec (four reds, two reruns at this head): no more reruns. After `ui#2442` merges, `main-merge-push.sh ticket-2119-file-ledger-hygiene`, then the ledger steps and `chain-review.sh ui 2444`. |
+| `ui#2442` (`#2096`) at `f6a1fc148` on GitHub | CI red at that head. Local, not pushed: `f5f0e7547`, `ca8fbdbed`, `b5b47beb9`, `697ecc45a`. `proof-2442-r4.sh` ran in the predecessor: the whole Chromium project passed (198 files, 7823 tests), `probe-2442-layer.sh` gave 5 red without the hit layer and 20 of 20 with it; the layout part (42 specs, `spec-2442-r4.log`) was running with no failure. Read that log: if it is not complete, run only its `run-spec.sh` part again (the build exists). Then the delivery report, the push and the chain. It merges first: it holds the fix of the racy spec. |
+| `ui#2446` | The automatic API contract snapshot, checks green, no review yet. Read its diff, request the review (`chain-review.sh ui 2446`), merge at the bar. |
 | `#1561` | Build 4 is `WAITING_FOR_BETA_REVIEW`: read `externalBuildState` with `asc-api.mjs` at each intake cycle. |
 | `#2120` to `#2126` | Batch M, in ticket order, each after the one before it; `#2120` after `ui#2444` merges. |
-| Claude usage | Main account at 23% of the week. Read `https://claude.ai/settings/usage` at each hourly Sentry tick. |
-| Intake | Mailbox and reviews empty; Sentry holds Q and R (`#1561`) and `ORBIT-WEB-1F` (`#2130`). |
+| Claude usage | 25% of the week at 08:00Z. Read `https://claude.ai/settings/usage` at each hourly Sentry tick. |
+| Intake | Nothing new: mailbox, reviews, Sentry (Q, R, `ORBIT-WEB-1F`), board. |
 | `ui#2388` | This relay's docs branch. Never request a review for it. |
 
-Inventory: open pull requests ui `#2442`, `#2444`, `#2445`, `#2388`; api `#1110`; landing none. Unpushed commits: two in the `ui#2442` worktree, and a possible subagent commit in each of the `api#1110` and `ui#2445` worktrees (rows above). Dirty worktrees: none. Stashes: none. Running workers: none. Detached worktrees with unpushed commits (leave them): `combined-2065`, api `scratch-1090-merge`, api `scratch-877-timing`. Waiters to arm: one `chain-review.sh <key> <pr>` for each pull request after its push, `wait-release.mjs` for each release run, and `wait-auto-work.mjs` when nothing is launchable.
+Inventory: open pull requests ui `#2442`, `#2444`, `#2445`, `#2446`, `#2388`; api `#1110`; landing none. Unpushed commits: four in the `ui#2442` worktree. Dirty worktrees: none. Stashes: none. Running workers and subagents: none. Detached worktrees with unpushed commits (leave them): `combined-2065`, api `scratch-1090-merge`, api `scratch-877-timing`. Waiters to arm: one `chain-review.sh <key> <pr>` for each pull request, `wait-release.mjs` for each release run, and `wait-auto-work.mjs` when nothing is launchable.
 
 ## Then, in this order
 
 1. Answer any owner message first, in his language, before any other work and before a relay step.
-2. `api#1110` to merged, released and measured. The assistant is the owner's live defect and outranks the queue.
-3. Start the `ui#2444` chain and deliver the `ui#2445` round. Then `ui#2445`, `ui#2444` and `ui#2442` to merged, one at a time (`behind_by=0`; a branch takes `main` with its next push), then one web release (never with an API release), then Batch M in its order and the auto-work intake cycle.
+2. `api#1110` to merged, released to staging, captured, released to production and measured. The assistant is the owner's live defect and outranks the queue.
+3. `ui#2442` to pushed and in review. Then `ui#2442`, `ui#2445`, `ui#2446` and `ui#2444` to merged, one at a time (`behind_by=0`; a branch takes `main` with its next push), then one web release (never with an API release), then Batch M in its order and the auto-work intake cycle.
 
 ## Crank
 
@@ -47,8 +48,8 @@ Unattended: never ask the owner; decide with the best option and log it. Keep a 
 
 ## Previous prompt, disposition
 
-- Done: `ui#2444` rounds 1 and 2, `api#1110` round 2 and `ui#2445` rounds 2 and 3 delivered; the `ui#2442` CI diagnosis.
-- Changed: `ui#2442` is held before its push (eight controls with no red proof); `#2128` has a second work order, built into `ui#2445`.
+- Done: `api#1110` rounds 3 and 4, `ui#2445` rounds 4 and 5 and `ui#2444` round 3 delivered; the `ui#2442` round built.
+- Changed: the answered-set rule of `api#1110` is deleted and the staging capture decides (the captures run between the staging release and the production release); the pill and the chip of `ui#2442` get a hit layer, not a restructure; `ui#2442` merges first.
 - Carried: `api#1110`, `ui#2442`, `ui#2444`, `ui#2445` to merged; the releases; Batch M; `#1561`, `#1563`, `#315`, `#33`; the `#2074` measurement on or after 16 November 2026.
 
 Every identifier here came from a previous session: treat each as a lead to verify.
