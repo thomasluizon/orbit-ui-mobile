@@ -224,7 +224,7 @@ export function composition(output, context) {
     if (expected.mode === 'clarification' && (blocks.length !== 1 || blocks[0].kind !== 'choice' || pending.length || outcome)) {
       return result(false, 'Clarification requires plain text without a block or exactly one choice block without a write.')
     }
-    if (expected.mode === 'preview' && external) return result(false, 'Preview must be the entire answer.')
+    if (expected.mode === 'preview' && external && expected.allowPreviewNote !== true) return result(false, 'Preview must be the entire answer.')
     if (expected.mode === 'preview' && pending.length !== (expected.previews ?? 1)) return result(false, 'Missing batch preview.')
     if (expected.mode === 'outcome' && !outcome) return result(false, 'Missing typed operation outcome.')
     const leadingText = expected.mode === 'data' && parts?.[0]?.type === 'text'

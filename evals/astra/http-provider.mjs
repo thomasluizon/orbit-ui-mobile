@@ -4,6 +4,7 @@ import { suggestionAnswer } from './suggestions.mjs'
 import { loadApiProvider } from 'promptfoo'
 import { visibleAnswer } from './visible-answer.mjs'
 import { completeRestart } from './restart-lifecycle.mjs'
+import { completeSameTitleSet } from './same-title-set-lifecycle.mjs'
 import { structural, behavior, composition } from './assertions.mjs'
 import { brainDumpPreview } from './brain-dumps.mjs'
 import { approveBrainDump, brainDumpBaseline } from './brain-dump-approval.mjs'
@@ -114,6 +115,11 @@ export default class AstraHttpProvider {
     if (context.vars.restart && response.output?.composition && !response.error) {
       try { response.output = await completeRestart(response.output, context.vars) } catch {
         return { ...response, error: 'Restart approval or independent persisted readback failed.' }
+      }
+    }
+    if (context.vars.sameTitleSet && response.output?.composition && !response.error) {
+      try { response.output = await completeSameTitleSet(response.output, context.vars) } catch {
+        return { ...response, error: 'Same-title approval or independent persisted readback failed.' }
       }
     }
     if (['saveTask', 'saveChecklistItem'].includes(context.vars.startingStepAction)

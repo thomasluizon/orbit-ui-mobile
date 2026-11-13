@@ -159,6 +159,10 @@ export function attemptEvidence(entry, attempt) {
       }))),
       ...output.restartReadback,
     } } : {}),
+    ...(output?.sameTitleReadback ? { sameTitleSet: {
+      proposed: (output.composition.pendingOperations ?? []).map((pending) => ({ actionKey: pending.actionKey, items: pending.items.length })),
+      ...output.sameTitleReadback,
+    } } : {}),
     timing: timingEvidence(output?.trace?.timing),
     savedStep: entry.gradingResult?.componentResults?.find((assertion) => assertion.assertion?.metric === 'savedStep')?.metadata?.savedStep ?? null,
     ...(output?.brainDumpReadback ? { brainDumpReadback: output.brainDumpReadback } : {}),

@@ -171,6 +171,7 @@ it.each([...new Set(corpus.map((entry) => entry.metadata.fixture))])('establishe
   else if (fixture === 'free-at-limit') expect(active).toHaveLength(capacity)
   else if (fixture === 'malicious-title') expect(active).toHaveLength(3)
   else if (fixture === 'hoje-next-step') expect(active).toHaveLength(12)
+  else if (fixture === 'same-title-children') expect(active).toHaveLength(7)
   else if (fixture === 'restart' || fixture === 'restart-non-daily') {
     expect(active).toHaveLength(6)
     expect(test.vars.restartBaseline).toHaveLength(6)
@@ -181,6 +182,7 @@ it.each([...new Set(corpus.map((entry) => entry.metadata.fixture))])('establishe
   }
   else expect(active).toHaveLength(2)
   if (fixture === 'existing-parents') expect(active.map((habit) => habit.title)).toEqual(test.metadata.locale === 'pt-BR' ? ['Depois do almoço', 'Antes de dormir'] : ['Post Lunch', 'Before Bed'])
+  if (fixture === 'similar-titles') expect(active.map((habit) => habit.title)).toEqual(test.metadata.locale === 'pt-BR' ? ['Caminhada manhã', 'Caminhada noite'] : ['Morning Walk', 'Evening Walk'])
   if (fixture === 'duplicate-titles') expect(active.map((habit) => habit.title)).toEqual(['Caminhada', 'Caminhada'])
   if (fixture.startsWith('composition')) { expect(goals).toHaveLength(1); expect(tags).toHaveLength(1); expect(templates).toHaveLength(1) }
   if (fixture === 'composition-logged') expect(active[0].logs.some((log) => log.date === '2026-10-24')).toBe(true)

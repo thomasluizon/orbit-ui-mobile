@@ -4,19 +4,21 @@ import { pathToFileURL } from 'node:url'
 import { parse } from 'yaml'
 import { apiOrigin, readCredentials, refreshCredential, safeFailureMessage, updateCredentials } from '../credentials.mjs'
 import { publicApi, requireEvalAccess } from './api.mjs'
-import { fixtureNames, fixtureHabitTitles, habitlessFixtures, maliciousHabitTitle, startingChecklistItems } from './names.mjs'
+import { fixtureNames, fixtureHabitTitles, habitlessFixtures, maliciousHabitTitle, sameTitleSet, startingChecklistItems } from './names.mjs'
 import { exhaustAllowance } from './allowance.mjs'
 import { seedRestart } from './restart.mjs'
 import { configureOffers, freshConversation } from '../offer-context.mjs'
 import { seedOfferFixture } from './offers.mjs'
 import { dateInTimeZone, goalBehindDates, isBehindState } from './offer-timezone.mjs'
 import { seedHojeNextStep } from './hoje-next-step.mjs'
+import { seedSameTitleSet } from './same-title-set.mjs'
 
 const corpus = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((path) =>
   parse(readFileSync(new URL(`../${path}`, import.meta.url), 'utf8'), { merge: true }))
 const fixtures = new Set(['pro', 'duplicate-titles', 'malicious-title', 'zero-history', 'empty', 'overdue', 'skipped',
   'free-at-limit', 'budget-exhausted', 'composition', 'composition-partial', 'composition-stale', 'composition-error',
-  'composition-offline', 'composition-logged', 'composition-streaks', 'medical', 'existing-parents', 'restart', 'restart-non-daily', 'starting-step-checklist', 'hoje-next-step'])
+  'composition-offline', 'composition-logged', 'composition-streaks', 'medical', 'existing-parents', 'restart', 'restart-non-daily', 'starting-step-checklist', 'hoje-next-step',
+  'same-title-children', 'similar-titles'])
 export const disposableEvalOrigins = ['https://orbit-api-staging-uqu2.onrender.com', 'https://api.useorbit.org']
 export function requireEvalOrigin() {
   if (!disposableEvalOrigins.includes(apiOrigin())) throw new Error('Fixture reset requires a known eval origin and a disposable eval account.')
@@ -191,7 +193,9 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
   requireEvalOrigin()
   const fixture = test.metadata.fixture
   const names = fixtureNames(test.metadata.locale)
-  const titles = fixture === 'hoje-next-step' ? ['Meals', 'Water'] : fixtureHabitTitles(fixture, test.metadata.locale)
+  const titles = fixture === 'hoje-next-step' ? ['Meals', 'Water']
+    : fixture === 'same-title-children' ? [sameTitleSet.parent, names.habits[1]]
+      : fixtureHabitTitles(fixture, test.metadata.locale)
   if (!fixtures.has(fixture)) throw new Error('Unknown fixture.')
   const key = test.vars.credentialKey
   const api = publicApi(key)
@@ -249,6 +253,12 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
   await restoreHabits(api, exported, account, fixture, today, titles)
   if (fixture === 'hoje-next-step') {
     test.vars.fixtureEvidence = fixtureEvidence(await seedHojeNextStep(api, account, today, dailyHabit), fixture, today, account)
+    return
+  }
+  if (fixture === 'same-title-children') {
+    const seeded = await seedSameTitleSet(api, account, today, dailyHabit)
+    test.vars.sameTitleBaseline = seeded.baseline
+    test.vars.fixtureEvidence = fixtureEvidence(seeded.exported, fixture, today, account)
     return
   }
   if (fixture === 'restart' || fixture === 'restart-non-daily') {
