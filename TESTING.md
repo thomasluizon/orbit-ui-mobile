@@ -187,6 +187,16 @@ The guided flow has shared logic and three primitives, and each one has a Vitest
 - `apps/web/__tests__/components/ui/question-flow.test.tsx` and `apps/mobile/__tests__/components/ui/question-flow.test.tsx` cover `OptionCard` and `QuestionFlow`: the progress name, focus on the question, the Orbit line as the description, Pensando, Olhando and the pinned primary action.
 - `apps/web/__tests__/components/ui/result-dialog.test.tsx` and the `ResultDialog` cases in `apps/mobile/__tests__/components/ui/question-flow.test.tsx` cover the dialog: name, description, focus, Escape and the scrim, Android back, and the Feliz and Parado states.
 
+### Destinations: Hoje, habit detail and the conversation
+
+These suites run each destination with the `orbit_guided_flows` flag on, and one case per surface proves the current surface with the flag off. The shared `useFlag` double is `packages/shared/src/test-support/flag-state.ts`: every flag is off until a test calls `enableTestFlags`.
+
+- `apps/web/__tests__/components/chat/question-block-quick-options.test.tsx` and `apps/mobile/__tests__/components/chat/question-block-quick-options.test.tsx` cover the quick options of a question block: the selection, the arrow keys, the same answer payload as the radio list, and the radio list with the flag off.
+- `apps/web/__tests__/components/today/today-orbit-line.test.tsx` and `apps/mobile/__tests__/components/today/today-orbit-line.test.tsx` cover the Orbit line on Hoje: Orbit still at 48, the accessible name, Descansando offline and at the message limit, and the 20 px glyph with the flag off.
+- `apps/web/__tests__/components/habits/habit-detail-orbit-line.test.tsx` and `apps/mobile/__tests__/components/habits/habit-detail-orbit-line.test.tsx` cover the Orbit line of habit detail: the count of the last 7 days, no count when none is done, and the review conversation seed.
+- `apps/web/__tests__/components/habits/habit-detail-result.test.tsx` and `apps/mobile/__tests__/components/habits/habit-detail-result.test.tsx` cover the result dialog of an accepted reschedule and of a delete: the sentence, Feliz and Parado, and the dismissal.
+- `packages/shared/src/__tests__/habit-detail-flow.test.ts` covers `countDoneInRecentDays`.
+
 ### Compact label and interaction fill guard
 
 Build locally with `npm run build:hermetic -w apps/web` before running the layout project. The helper sets `API_BASE` and `NEXT_PUBLIC_EVENT_API_BASE` to `http://127.0.0.1:5099` before `next build`, overriding `.env.production` for the account event stream and wake ping. It then runs `node tools/check-hermetic-web-build.mjs`, which rejects client output containing production or staging API hosts and refuses missing or empty output. `npm run test:layout -w apps/web` repeats the check before starting servers, so a later release build cannot silently replace the hermetic build. Both layout and perf workflows set these build inputs and check the output before running. Release builds retain their environment-specific inputs.
