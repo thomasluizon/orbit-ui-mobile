@@ -27,7 +27,7 @@ function answerVars(vars, card) {
     { role: 'user', content: vars.input }, { role: 'ai', content: card.turn.aiMessage ?? '', parts: card.turn.parts },
     { role: 'user', content: card.message },
   ])
-  return { ...vars, input: card.message, evalRequestId: randomUUID(), sameTitleSet: undefined, history: undefined,
+  return { ...vars, input: card.message, evalRequestId: randomUUID(), history: undefined,
     historyJson: JSON.stringify(history), blockAnswerJson: card.blockAnswer ? JSON.stringify(card.blockAnswer) : undefined,
     composition: { mode: 'preview', previews: 1, allowPreviewNote: vars.composition.allowPreviewNote },
     expectations: { required: tools.map((name) => ({ name })), allowed: ['query_habits', ...tools],

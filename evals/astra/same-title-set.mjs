@@ -17,7 +17,7 @@ function itemAction(item, renamedTitle) {
   return field.field === 'title' && renamedTitle !== undefined && field.newValue === renamedTitle ? 'renamed' : null
 }
 
-export function heldChanges(pending, policy) {
+function heldChanges(pending, policy) {
   const changes = { deleted: [], renamed: [], unknown: 0, members: new Map() }
   for (const operation of pending) {
     for (const item of operation.items ?? []) {
@@ -32,7 +32,7 @@ export function heldChanges(pending, policy) {
 }
 
 // A case with an `answer` may ask one question first; the provider then answers it and keeps the answer turn here.
-export function heldPreview(output, vars) {
+function heldPreview(output, vars) {
   const first = output.composition?.pendingOperations ?? []
   if (first.length || !vars.sameTitleSet?.answer) return { pending: first, answered: false }
   const answer = output.sameTitleAnswer

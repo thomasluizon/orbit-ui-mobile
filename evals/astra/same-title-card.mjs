@@ -1,6 +1,8 @@
 import { tsImport } from 'tsx/esm/api'
+import { catalogTranslator } from './catalog-translator.mjs'
 
 const { formatBlockAnswer } = await tsImport('../../packages/shared/src/chat/block-answer.ts', import.meta.url)
+const { questionAnswerLabels } = await tsImport('../../packages/shared/src/chat/question-block-core.ts', import.meta.url)
 
 const result = (pass, reason) => ({ pass, score: pass ? 1 : 0, reason })
 const guid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu
@@ -64,9 +66,18 @@ export function sameTitleCard(output, vars) {
   const decision = { deleted: answer.deleted.map((position) => children[position]), renamed: answer.renamed.map((position) => children[position]) }
   const selections = lists.map((list) => ({ list, chosen: selectionFor(list, targets, decision) }))
   if (selections.some(({ chosen }) => !chosen)) return result(false, 'No selection the card allows states the whole decision.')
-  const labels = selections.flatMap(({ chosen }) => chosen.map((option) => option.label))
-  const blockAnswer = card.kind === 'choice'
-    ? { blockId: card.block.blockId, selectedIds: selections[0].chosen.map((option) => option.id) }
-    : { blockId: card.block.blockId, selectedIds: [], answers: selections.map(({ list, chosen }) => ({ questionId: list.id, selectedIds: chosen.map((option) => option.id) })) }
-  return { ...result(true, 'The card can hold the whole decision.'), message: formatBlockAnswer(labels, undefined, vars.clientContext.locale), blockAnswer }
+  const locale = vars.clientContext.locale
+  const holds = result(true, 'The card can hold the whole decision.')
+  if (card.kind === 'choice') {
+    const [{ chosen }] = selections
+    return { ...holds, message: formatBlockAnswer(chosen.map((option) => option.label), undefined, locale),
+      blockAnswer: { blockId: card.block.blockId, selectedIds: chosen.map((option) => option.id) } }
+  }
+  // Producer: QuestionBlockController.submit labels each question "<prompt>: <labels>" with questionAnswerLabels, and
+  // BlockAnswerSubmission.send posts formatBlockAnswer of those labels as the message.
+  const answers = selections.map(({ list, chosen }) => ({ questionId: list.id, selectedIds: chosen.map((option) => option.id) }))
+  const t = catalogTranslator(locale)
+  const labels = questionAnswerLabels(card.block, Object.fromEntries(answers.map((answer) => [answer.questionId, answer])),
+    { yes: t('common.yes'), no: t('common.no') }, locale)
+  return { ...holds, message: formatBlockAnswer(labels, undefined, locale), blockAnswer: { blockId: card.block.blockId, selectedIds: [], answers } }
 }

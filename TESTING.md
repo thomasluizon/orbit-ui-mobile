@@ -611,8 +611,11 @@ rest unchanged. A preview case forbids `ask`, so a question before the preview f
 A card case adds `sameTitleSet.answer` (the decided `deleted` and `renamed` positions and a typed `text`) and
 `composition.allowQuestion`. When the first turn asks, the card must name only stored children by id, make each
 child selectable as a record or through a set option whose `ask` call declares `target_ids`, and offer one
-selection that states the whole decision. The provider sends that selection as `blockAnswer` (or the typed text
-when the question has no card) with the history the web client sends. The answer turn must hold one preview with
+selection that states the whole decision. The provider sends that selection as `blockAnswer`, with the message and
+the history the web client sends. The shared client functions build the message: the selected labels for a choice
+card, and each question prompt with its selected labels for a question card. When the question has no card, the
+provider sends the typed text. The lifecycle runs in `attempt()` around the single request of `chat()`, as the offer
+lifecycle does, so the answer turn cannot start the lifecycle again. The answer turn must hold one preview with
 both actions on the decided positions and no further question. `composition.allowPreviewNote` permits one short
 line beside the preview for the production request, the count case and the card case.
 

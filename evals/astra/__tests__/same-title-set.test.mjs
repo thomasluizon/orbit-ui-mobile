@@ -1,6 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
+import { tsImport } from 'tsx/esm/api'
 import { behavior, composition } from '../assertions.mjs'
 import { sameTitleProposal, sameTitleReadback } from '../same-title-set.mjs'
 import { sameTitleCard } from '../same-title-card.mjs'
@@ -15,6 +16,10 @@ import { chatResponse, preview, toolCall } from './fixtures/producer.mjs'
 import { fixtureFetch } from './fixtures/public-api.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
 import { streams } from './fixtures/same-title-streams.mjs'
+
+const { AnswerBlockController } = await tsImport('../../../packages/shared/src/chat/answer-block-controller.ts', import.meta.url)
+const { QuestionBlockController } = await tsImport('../../../packages/shared/src/chat/question-block-core.ts', import.meta.url)
+const { BlockAnswerSubmission } = await tsImport('../../../packages/shared/src/chat/block-answer-submission.ts', import.meta.url)
 
 const corpus = parse(readFileSync(new URL('../scenarios.yaml', import.meta.url), 'utf8'), { merge: true })
 const family = corpus.filter((entry) => entry.metadata.family === 'same-title-set')
@@ -241,16 +246,54 @@ it.each([
   expect(sameTitleCard(output, cardVars(children))).toMatchObject({ pass: false, reason })
 })
 
-it('answers a card that can hold the decision with the selection the client would send', () => {
+// The real client submission: the card's controller hands its labels and answer to BlockAnswerSubmission.send, whose
+// request is the message and blockAnswer the chat endpoint receives.
+async function clientAnswer(part, selected, locale) {
+  let posted
+  const chat = { isTyping: false, streamingMessageId: null, messages: [] }
+  const submission = new BlockAnswerSubmission()
+  const context = { isOnline: true, atMessageLimit: false, locale, getChat: () => chat, createMessageId: () => 'answer', beginSend() {},
+    conversation: { astraConversationOpen: true }, refreshProfile: async () => {}, words: { answered: String },
+    run: async (request) => { posted = request; return { kind: 'final' } } }
+  const interaction = { isOnline: true, isSending: false, atMessageLimit: false, allowance: 1, send: (request) => submission.send(request, context) }
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date('2026-11-13T05:00:00Z'))
+  try {
+    if (part.kind === 'choice') {
+      const controller = new AnswerBlockController({ definition: part })
+      for (const id of selected) controller.check(id, true)
+      await controller.submit({ definition: part, interaction }, String, locale)
+    } else {
+      const controller = new QuestionBlockController()
+      for (const question of part.block.questions) for (const id of selected[question.id] ?? []) controller.select(question, id)
+      await controller.submit({ block: part.block, interaction }, { yes: 'Yes', no: 'No', answered: String }, locale)
+    }
+  } finally { vi.useRealTimers() }
+  return { message: posted.content, blockAnswer: posted.blockAnswer }
+}
+const sentBy = ({ message, blockAnswer }) => ({ message, blockAnswer })
+
+it('answers a card that can hold the decision with the message and selection the client sends', async () => {
   const children = streams.run3.children
   const run3 = sameTitleCard(shown(streams.run3.card, askTrace({ setA: children.slice(0, 4), setB: children.slice(2), all6: children })), cardVars(children))
-  expect(run3).toMatchObject({ pass: true, message: 'Primeiros quatro', blockAnswer: { blockId: streams.run3.card.block.blockId, selectedIds: ['setA'] } })
-  const records = (prompt) => shown({ type: 'block', kind: 'question', block: { blockId: '77777777-7777-4777-8777-777777777777', questions: [{ id: 'pick',
+  const run3Sent = await clientAnswer(streams.run3.card, ['setA'], 'pt-BR')
+  expect(run3Sent.message).toBe('Primeiros quatro')
+  expect(run3.pass).toBe(true)
+  expect(sentBy(run3)).toEqual(run3Sent)
+  const records = (prompt) => ({ type: 'block', kind: 'question', block: { blockId: '77777777-7777-4777-8777-777777777777', questions: [{ id: 'pick',
     type: 'multipleChoice', prompt, allowFreeText: false, options: ids.map((id, index) => ({ id, label: `${index + 1}º` })) }] } })
-  expect(sameTitleCard(records('Quais dois você quer excluir?'), cardVars(ids))).toMatchObject({ pass: true, message: '5º e 6º',
-    blockAnswer: { blockId: '77777777-7777-4777-8777-777777777777', selectedIds: [], answers: [{ questionId: 'pick', selectedIds: ids.slice(4) }] } })
-  expect(sameTitleCard(records('Which four do you want to keep?'), cardVars(ids, 'en')))
-    .toMatchObject({ pass: true, message: '1º, 2º, 3º, and 4º', blockAnswer: { answers: [{ questionId: 'pick', selectedIds: ids.slice(0, 4) }] } })
+  const deleteCard = records('Quais dois você quer excluir?')
+  const deleteSent = await clientAnswer(deleteCard, { pick: ids.slice(4) }, 'pt-BR')
+  expect(deleteSent.message).toBe('Quais dois você quer excluir?: 5º e 6º')
+  const deletion = sameTitleCard(shown(deleteCard), cardVars(ids))
+  expect(deletion.pass).toBe(true)
+  expect(sentBy(deletion)).toEqual(deleteSent)
+  const keepCard = records('Which four do you want to keep?')
+  const keepSent = await clientAnswer(keepCard, { pick: ids.slice(0, 4) }, 'en')
+  expect(keepSent.message).toBe('Which four do you want to keep?: 1º, 2º, 3º, and 4º')
+  const keep = sameTitleCard(shown(keepCard), cardVars(ids, 'en'))
+  expect(keep.pass).toBe(true)
+  expect(sentBy(keep)).toEqual(keepSent)
   expect(sameTitleCard({ composition: { parts: [{ type: 'text', text: 'Which two should I delete?' }] }, trace: { calls: [] } }, cardVars(ids, 'en')))
     .toEqual(expect.objectContaining({ pass: true, message: 'Delete the last 2 and rename the first 4' }))
 })
@@ -353,6 +396,25 @@ it('never executes a confirmation bound to another pending operation', async () 
   expect(habits.filter((habit) => habit.deleted || habit.title === 'Water - 1.18L')).toHaveLength(0)
 })
 
+it('keeps chat() to one request that approves nothing, so an answer turn cannot start the same-title lifecycle', async () => {
+  boundary()
+  const policy = await seeded('same-title-split-en')
+  const children = policy.sameTitleBaseline.children.map((child) => child.id)
+  pendingTargets = { deleted: children.slice(4), renamed: children.slice(0, 4) }
+  requests.length = 0
+  let calls = 0
+  const provider = new AstraHttpProvider({ config: {} })
+  provider.provider = Promise.resolve({ callApi: async () => {
+    calls++
+    return { output: held({ deleted: children.slice(4), renamed: children.slice(0, 4) }) }
+  } })
+  const response = await provider.chat('split', { vars: policy })
+  expect(response.error).toBeUndefined()
+  expect(calls).toBe(1)
+  expect(response.output.sameTitleReadback).toBeUndefined()
+  expect(aiWrites()).toEqual([])
+})
+
 it('never approves malformed tool evidence or a preview with the wrong targets', async () => {
   boundary()
   const policy = await seeded('same-title-split-en')
@@ -386,9 +448,12 @@ it('answers a card that holds the decision, then approves the one preview of the
     (children, requestId) => held({ deleted: children.slice(4), renamed: children.slice(0, 4), requestId }))
   expect(response.error).toBeUndefined()
   expect(answered).toHaveLength(1)
-  expect(answered[0].prompt).toBe('5st and 6st')
-  expect(JSON.parse(answered[0].vars.blockAnswerJson)).toEqual({ blockId: '77777777-7777-4777-8777-777777777777', selectedIds: [],
-    answers: [{ questionId: 'pick', selectedIds: children.slice(4) }] })
+  const sent = await clientAnswer(questionCard(children, 'Which two do you want to delete?'), { pick: children.slice(4) }, 'en')
+  expect(sent.message).toBe('Which two do you want to delete?: 5st and 6st')
+  expect(answered[0].prompt).toBe(sent.message)
+  expect(JSON.parse(answered[0].vars.blockAnswerJson)).toEqual(sent.blockAnswer)
+  // The answer turn keeps the case's vars: chat() is one request, so no var stops it from starting the lifecycle again.
+  expect(answered[0].vars.sameTitleSet).toEqual(policy.sameTitleSet)
   expect(answered[0].vars.evalRequestId).not.toBe(policy.evalRequestId)
   expect(JSON.parse(answered[0].vars.historyJson)).toEqual([{ role: 'user', content: policy.input },
     { role: 'assistant', content: expect.stringContaining('"kind":"question"') }])

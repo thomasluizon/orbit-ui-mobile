@@ -66,6 +66,14 @@ export default class AstraHttpProvider {
       }
       return response
     }
+    if (context.vars.sameTitleSet) {
+      const response = await this.chat(prompt, context, options)
+      if (!response.output?.composition || response.error) return response
+      try { response.output = await completeSameTitleSet(response.output, context.vars, (input, next) => this.chat(input, next, options)) } catch {
+        return { ...response, error: 'Same-title approval or independent persisted readback failed.' }
+      }
+      return response
+    }
     if (!context.vars.brainDump || context.vars.preconditionFailure) return this.chat(prompt, context, options)
     const baseline = await brainDumpBaseline(context.vars)
     const response = await this.chat(prompt, context, options)
@@ -121,11 +129,6 @@ export default class AstraHttpProvider {
     if (context.vars.restart && response.output?.composition && !response.error) {
       try { response.output = await completeRestart(response.output, context.vars) } catch {
         return { ...response, error: 'Restart approval or independent persisted readback failed.' }
-      }
-    }
-    if (context.vars.sameTitleSet && response.output?.composition && !response.error) {
-      try { response.output = await completeSameTitleSet(response.output, context.vars, (input, next) => this.chat(input, next, options)) } catch {
-        return { ...response, error: 'Same-title approval or independent persisted readback failed.' }
       }
     }
     if (['saveTask', 'saveChecklistItem'].includes(context.vars.startingStepAction)
