@@ -2,7 +2,7 @@
 
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type Ref } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useCurrentTheme } from '@/stores/theme-store'
 
@@ -71,33 +71,21 @@ function useChallengeVisibility() {
   return { containerRef, challengeVisible }
 }
 
-function useReportedHeight(onHeightChange: ((height: number) => void) | undefined) {
-  const boxRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const box = boxRef.current
-    if (!box || !onHeightChange) return
-    const observer = new ResizeObserver(() => onHeightChange(box.getBoundingClientRect().height))
-    observer.observe(box)
-    return () => observer.disconnect()
-  }, [onHeightChange])
-  return boxRef
-}
-
 export function TurnstileWidget({
+  ref,
   siteKey,
   resetKey,
   onToken,
   onStateChange,
-  onHeightChange,
   theme,
   language,
   quiet = false,
 }: Readonly<{
+  ref?: Ref<HTMLDivElement>
   siteKey: string
   resetKey: number
   onToken: (token: string | null) => void
   onStateChange?: (state: WidgetState) => void
-  onHeightChange?: (height: number) => void
   theme?: 'light' | 'dark'
   language?: string
   quiet?: boolean
@@ -109,7 +97,6 @@ export function TurnstileWidget({
   const currentTheme = useCurrentTheme()
   const challengeTheme = theme ?? currentTheme
   const { containerRef, challengeVisible } = useChallengeVisibility()
-  const boxRef = useReportedHeight(onHeightChange)
   const widgetIdRef = useRef<unknown>(null)
   const callbacksRef = useRef({ onToken, onStateChange })
   const [state, setState] = useState<WidgetState>('idle')
@@ -192,7 +179,7 @@ export function TurnstileWidget({
   if (quiet) return <div ref={containerRef} style={{ position, ...challengeStyle }} />
 
   return (
-    <div ref={boxRef} className="flex flex-col items-center text-center text-sm text-[var(--fg-2)]" style={{ gap: 8, position }}>
+    <div ref={ref} className="flex flex-col items-center text-center text-sm text-[var(--fg-2)]" style={{ gap: 8, position }}>
       <div ref={containerRef} className="w-full" style={challengeStyle} />
       <p role="status" className={state === 'loading' ? '' : 'sr-only'}>
         {state === 'loading' ? t('auth.turnstileLoading') : ''}

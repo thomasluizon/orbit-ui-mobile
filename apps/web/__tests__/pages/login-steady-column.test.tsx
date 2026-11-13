@@ -54,7 +54,7 @@ function stubLayout() {
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
     if (this === geometry.challenge) return box(geometry.check === 'challenge' ? CHECK_HEIGHTS.challenge : 0)
     if (this === geometry.challenge?.parentElement) return box(CHECK_HEIGHTS[geometry.check])
-    if (this.matches('[data-field-surface]') || this.dataset.testid === 'login-column') return box(geometry.column + checkSpace())
+    if (this.matches('[data-field-surface]')) return box(geometry.column + checkSpace())
     return box(0)
   })
 }
@@ -64,10 +64,36 @@ function settleLayout() {
 }
 
 function columnTop(main: HTMLElement) {
-  const frame = main.firstElementChild as HTMLElement
-  const inset = Number.parseFloat(frame.style.paddingTop || '0')
+  let inset = 0
+  for (let element = main.querySelector<HTMLElement>('[data-field-surface]'); element && element !== main; element = element.parentElement) {
+    inset += Number.parseFloat(element.style.marginTop || '0') + Number.parseFloat(element.style.paddingTop || '0')
+  }
   const outer = inset + geometry.column + checkSpace()
   return Math.max(0, (VIEWPORT - outer) / 2) + inset
+}
+
+async function renderSignIn(step: 'email' | 'code', column: number) {
+  stubLayout()
+  geometry.check = 'none'
+  geometry.column = column
+  const renderWidget = vi.fn((..._args: unknown[]) => 'steady-widget')
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
+  mocks.flow = { ...createLoginScreenFixture(step, 'en'), t: createTranslator({ locale: 'en', messages: en }),
+    turnstileSiteKey: 'site-key', turnstileResetKey: 0, onTurnstileToken: vi.fn(), setEmail: vi.fn(), sendCode: vi.fn(),
+    verifyCode: vi.fn(), resendCode: vi.fn(), backToEmail: vi.fn(), onCodeChange: vi.fn(), continueAccount: vi.fn() }
+  const { container } = render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+    <style>{`form { row-gap: ${STEP_GAP}px }`}</style>
+    <main style={{ minHeight: `${SE.height}px`, paddingTop: `${SE.safeTop}px`, paddingBottom: '0px' }}><LoginContent /></main>
+  </NextIntlClientProvider>)
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
+  geometry.challenge = renderWidget.mock.calls[0]![0] as HTMLElement
+  const options = renderWidget.mock.calls[0]![1] as TurnstileOptions
+  const changes: Record<CheckState, () => void> = {
+    none: () => options.callback('steady-token'),
+    loading: () => options['after-interactive-callback'](),
+    challenge: () => options['before-interactive-callback'](),
+  }
+  return { main: container.querySelector('main')!, changes }
 }
 
 afterEach(() => {
@@ -85,25 +111,7 @@ describe('web sign-in column at 375 x 667', () => {
     { step: 'email', column: 600 },
     { step: 'code', column: 600 },
   ] as const)('keeps the $step column of $column still while the check appears, changes and leaves', async ({ step, column }) => {
-    stubLayout()
-    geometry.column = column
-    const renderWidget = vi.fn((..._args: unknown[]) => 'steady-widget')
-    ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
-    mocks.flow = { ...createLoginScreenFixture(step, 'en'), t: createTranslator({ locale: 'en', messages: en }),
-      turnstileSiteKey: 'site-key', turnstileResetKey: 0, onTurnstileToken: vi.fn(), setEmail: vi.fn(), sendCode: vi.fn(),
-      verifyCode: vi.fn(), resendCode: vi.fn(), backToEmail: vi.fn(), onCodeChange: vi.fn(), continueAccount: vi.fn() }
-    const { container } = render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
-      <main style={{ minHeight: `${SE.height}px`, paddingTop: `${SE.safeTop}px`, paddingBottom: '0px' }}><LoginContent /></main>
-    </NextIntlClientProvider>)
-    await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
-    geometry.challenge = renderWidget.mock.calls[0]![0] as HTMLElement
-    const options = renderWidget.mock.calls[0]![1] as TurnstileOptions
-    const main = container.querySelector('main')!
-    const changes: Record<CheckState, () => void> = {
-      none: () => options.callback('steady-token'),
-      loading: () => options['after-interactive-callback'](),
-      challenge: () => options['before-interactive-callback'](),
-    }
+    const { main, changes } = await renderSignIn(step, column)
     const tops = (['none', 'loading', 'challenge', 'loading', 'none'] as const).map((check) => {
       act(() => changes[check]())
       geometry.check = check
@@ -111,5 +119,16 @@ describe('web sign-in column at 375 x 667', () => {
       return columnTop(main)
     })
     expect(tops).toEqual(Array.from({ length: 5 }, () => Math.max(0, (VIEWPORT - column) / 2)))
+  })
+
+  it.each(['email', 'code'] as const)('places the %s column in the resize callback that sees the check, before React renders again', async (step) => {
+    const { main, changes } = await renderSignIn(step, 486)
+    const tops = (['none', 'loading', 'none'] as const).map((check) => {
+      act(() => changes[check]())
+      geometry.check = check
+      for (const callback of [...observers]) callback()
+      return columnTop(main)
+    })
+    expect(tops).toEqual([80.5, 80.5, 80.5])
   })
 })
