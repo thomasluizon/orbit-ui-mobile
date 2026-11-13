@@ -43,6 +43,8 @@ interface DateFieldProps {
   focusRequest?: number
   appearance?: 'normal' | 'proposed'
   disabled?: boolean
+  /** The first day a person can pick, as `yyyy-MM-dd`. An earlier day is disabled. */
+  minDate?: string
 }
 
 interface DatePickerMonthNavProps {
@@ -129,12 +131,13 @@ interface DatePickerDayProps {
   isToday: boolean
   isCurrentMonth: boolean
   locale: string
+  disabled: boolean
   onSelectDay: (day: Date) => void
   tokens: AppTokens
   styles: ReturnType<typeof createStyles>
 }
 
-function DatePickerDay({ day, isSelected, isToday, isCurrentMonth, locale, onSelectDay, tokens, styles }: Readonly<DatePickerDayProps>) {
+function DatePickerDay({ day, isSelected, isToday, isCurrentMonth, locale, disabled, onSelectDay, tokens, styles }: Readonly<DatePickerDayProps>) {
   return (
     <PressScalePressable
       layerStyle={styles.dayColumn}
@@ -143,8 +146,9 @@ function DatePickerDay({ day, isSelected, isToday, isCurrentMonth, locale, onSel
         pressed ? { backgroundColor: tokens.bgHover } : null,
       ]}
       onPress={() => onSelectDay(day)}
+      disabled={disabled}
       accessibilityRole="button"
-      accessibilityState={{ selected: isSelected }}
+      accessibilityState={{ selected: isSelected, disabled }}
       accessibilityLabel={formatLocaleDate(day, locale, {
         month: 'long',
         day: 'numeric',
@@ -181,6 +185,7 @@ interface DatePickerBodyProps {
   locale: string
   onSelectYear: (year: number) => void
   onSelectDay: (day: Date) => void
+  minDate?: string
   tokens: AppTokens
   styles: ReturnType<typeof createStyles>
 }
@@ -194,6 +199,7 @@ function DatePickerBody({
   locale,
   onSelectYear,
   onSelectDay,
+  minDate,
   tokens,
   styles,
 }: Readonly<DatePickerBodyProps>) {
@@ -233,6 +239,7 @@ function DatePickerBody({
                 isToday={isToday}
                 isCurrentMonth={isCurrentMonth}
                 locale={locale}
+                disabled={minDate !== undefined && format(day, 'yyyy-MM-dd') < minDate}
                 onSelectDay={onSelectDay}
                 tokens={tokens}
                 styles={styles}
@@ -253,6 +260,7 @@ export function DateField({
   focusRequest,
   appearance = 'normal',
   disabled = false,
+  minDate,
 }: Readonly<DateFieldProps>) {
   const { fontScale } = useWindowDimensions()
   const triggerRef = useRef<View>(null)
@@ -405,6 +413,7 @@ export function DateField({
               locale={locale}
               onSelectYear={selectYear}
               onSelectDay={selectDay}
+              minDate={minDate}
               tokens={tokens}
               styles={styles}
             />

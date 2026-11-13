@@ -878,6 +878,7 @@ export {
   resetCoveredAnswers,
   phraseLeavesWordsUnread,
   describeHabitResult,
+  optimisticHabitResult,
   resolveResultDestination,
 } from './habit-flow'
 export type {

@@ -15,10 +15,13 @@ type HabitCreateFrameProps = ComponentProps<typeof Sheet> & {
   presentation: 'sheet' | 'screen'
   fromConversation: boolean
   leaving: boolean
+  /** The one-question flow owns its header, its close and its primary action, so the frame adds none. */
+  guided?: boolean
   leaveGuard?: ComponentType<{ leaving: boolean; requestLeave: () => void }>
 }
 
-export function HabitCreateFrame({ presentation, fromConversation, leaving, leaveGuard, ...props }: Readonly<HabitCreateFrameProps>) {
+export function HabitCreateFrame({ presentation, fromConversation, leaving, guided = false, leaveGuard, ...props }: Readonly<HabitCreateFrameProps>) {
+  if (guided) return <GuidedCreateFrame presentation={presentation} leaving={leaving} leaveGuard={leaveGuard} {...props} />
   if (presentation === 'sheet') return <Sheet {...props} />
   return <HabitCreateScreenFrame {...props} fromConversation={fromConversation} leaving={leaving} leaveGuard={leaveGuard} />
 }
@@ -40,6 +43,19 @@ function HabitCreateScreenFrame({ fromConversation, leaving, leaveGuard: LeaveGu
     {LeaveGuard ? <LeaveGuard leaving={leaving} requestLeave={() => props.onAttemptDismiss?.()} /> : null}
     {props.children}
     </KeyboardAwareScrollView>
+  </Shell412></KeyboardAwareView>
+}
+
+function GuidedCreateFrame({ presentation, leaving, leaveGuard: LeaveGuard, title, children, ...props }: Readonly<Pick<HabitCreateFrameProps, 'presentation' | 'leaving' | 'leaveGuard'> & ComponentProps<typeof Sheet>>) {
+  useLayoutEffect(() => {
+    if (presentation !== 'screen') return undefined
+    useUIStore.getState().registerOpenOverlay(HABIT_CREATE_OVERLAY_ID)
+    return () => useUIStore.getState().unregisterOpenOverlay(HABIT_CREATE_OVERLAY_ID)
+  }, [presentation])
+  if (presentation === 'sheet') return <Sheet {...props} accessibleTitle={title}>{children}</Sheet>
+  return <KeyboardAwareView style={styles.root}><Shell412 nav={false} safeAreaTop>
+    {LeaveGuard ? <LeaveGuard leaving={leaving} requestLeave={() => props.onAttemptDismiss?.()} /> : null}
+    {children}
   </Shell412></KeyboardAwareView>
 }
 
