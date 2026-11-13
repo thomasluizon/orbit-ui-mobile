@@ -326,7 +326,7 @@ function graphicOnlyContainer(node, graphicTags) {
     }
     if (ts.isJsxElement(child) || ts.isJsxSelfClosingElement(child)) {
       const tag = jsxTag(ts.isJsxElement(child) ? child.openingElement : child)
-      if (graphicTags.has(tag) || /(?:Icon|Glyph)$/.test(tag)) { hasGraphic = true; return true }
+      if (graphicTags.has(tag) || /(?:Icon|Glyph|Mascot)$/.test(tag)) { hasGraphic = true; return true }
       return ts.isJsxElement(child) && child.children.every(inspect)
     }
     return false
@@ -336,7 +336,7 @@ function graphicOnlyContainer(node, graphicTags) {
 
 function classifiedRole(node, source, matchIndex, graphicTags) {
   const tag = jsxTag(openingElement(node))
-  if (graphicTags.has(tag) || /(?:Icon|Glyph)$/.test(tag) || graphicOnlyContainer(node, graphicTags)) return "graphic"
+  if (graphicTags.has(tag) || /(?:Icon|Glyph|Mascot)$/.test(tag) || graphicOnlyContainer(node, graphicTags)) return "graphic"
   const literal = ancestor(node, (current) => ts.isStringLiteralLike(current) || ts.isTemplateExpression(current))
   const before = source.slice(literal ? literal.getStart() + 1 : Math.max(0, matchIndex - 48), matchIndex)
   if (/(?:^|\s)(?:[\w-]+:)*text-\[[^\]]*$/.test(before)) return "text"
@@ -345,7 +345,7 @@ function classifiedRole(node, source, matchIndex, graphicTags) {
   if (attribute) {
     const name = propertyName(attribute.name).toLowerCase()
     if (/^(?:background|backgroundcolor|bordercolor|fill|stroke|trackcolor)$/.test(name)) return "graphic"
-    if (name === "color") return /(?:Icon|Ring)$/.test(tag) ? "graphic" : "text"
+    if (name === "color") return /(?:Icon|Ring|Mascot)$/.test(tag) ? "graphic" : "text"
   }
   const property = ancestor(node, ts.isPropertyAssignment)
   if (property) {

@@ -87,7 +87,7 @@ describe('period insight card on mobile', () => {
 
   it('omits a missing chart with empty narrative defaults', () => {
     const root = render(<PeriodInsightCard periodInsight={{ ...insight, series: null, narrative: { highlights: '', trends: '', suggestion: '', missed: '' } }} />)
-    expect(root.findAllByType('Path')).toHaveLength(2)
+    expect(root.findAllByType('Path')).toHaveLength(8)
     const more = root.findByProps({ accessibilityLabel: 'chat.habitList.more' })
     void act(() => { (more.props.onPress as () => void)() })
     expect(root.findAllByType('Text').some(node => node.props.children === 'chat.insight.highlights')).toBe(false)

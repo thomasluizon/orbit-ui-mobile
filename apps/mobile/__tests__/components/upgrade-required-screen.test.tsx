@@ -72,12 +72,12 @@ vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
 }))
 
-vi.mock('@/components/ui/orbit-mark', () => {
+vi.mock('@/components/ui/orbit-mascot', () => {
 
   const React = require('react')
   return {
-    OrbitMark: (props: Record<string, unknown>) =>
-      React.createElement('OrbitMark', props),
+    OrbitMascot: (props: Record<string, unknown>) =>
+      React.createElement('OrbitMascot', props),
   }
 })
 

@@ -25,7 +25,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { ArrowUp, Clipboard as ClipboardIcon, FileText, Image, Mic, Plus, RefreshCw, Square, X } from '@/components/ui/icons'
 import { ThemedIconButton } from '@/components/ui/icon-button'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { mobileMotion, toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
@@ -130,7 +130,7 @@ function SuggestionStrip({
               style={styles.suggestionContent}
             >
               {suggestion.icon ? <View style={[styles.suggestionIcon, { height: 20 * fontScale }]}>{suggestion.icon}</View> : null}
-              <View style={[styles.suggestionIcon, { height: 20 * fontScale }]}><AstraGlyph size={16} color={tokens.fg2} /></View><Text style={[styles.suggestionText, { color: tokens.fg2 }]}>{suggestion.label}</Text>
+              <View style={[styles.suggestionIcon, { height: 20 * fontScale }]}><OrbitMascot size={16} color={tokens.fg2} /></View><Text style={[styles.suggestionText, { color: tokens.fg2 }]}>{suggestion.label}</Text>
             </View>
           </InsetFocusPressable>
         ))}
@@ -397,7 +397,7 @@ function OpenConversationControl({ props, tokens, onLayout }: Readonly<{ props: 
       onPress={() => { returnFocusPending.current = true; props.onOpenConversation?.() }}
       onPressIn={() => animate(mobileMotion.orbital.press.scale)} onPressOut={() => animate(1)}
       style={({ pressed }) => [styles.openConversation, pressed ? { backgroundColor: tokens.bgHover } : null]}>
-      <Animated.View style={{ transform: [{ scale }] }}><AstraGlyph size={20} color={tokens.fg3} /></Animated.View>
+      <Animated.View style={{ transform: [{ scale }] }}><OrbitMascot size={20} color={tokens.fg3} /></Animated.View>
     </InsetFocusPressable>
 }
 

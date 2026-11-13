@@ -56,7 +56,7 @@ vi.mock('@/hooks/use-proactive-item', () => ({
 }))
 vi.mock('@/hooks/use-summary', () => ({ useSummary: vi.fn() }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
-vi.mock('@/components/ui/astra-glyph', () => ({ AstraGlyph: () => null }))
+vi.mock('@/components/ui/orbit-mascot', () => ({ OrbitMascot: () => null }))
 vi.mock('@/hooks/use-habits', () => ({
   EMPTY_HABITS_BY_ID: new Map(),
   useHabits: () => ({

@@ -283,7 +283,7 @@ describe('OnboardingFlow state model', () => {
     const tree = await mount(false)
     await enterSentence(tree, sentence)
     await click(tree, 'onboarding.flow.continue')
-    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'astra-mark')).toHaveLength(1)
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'orbit-mascot')).toHaveLength(1)
     expect(renderedText(tree)).toContain(title)
     expect(renderedText(tree)).toContain('onboarding.flow.when.astraRead')
     expect(mocks.anonymous).toHaveBeenCalledWith({ title: sentence, language: locale })

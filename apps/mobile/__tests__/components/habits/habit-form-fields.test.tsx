@@ -19,7 +19,7 @@ import { useTagSelection, type TagSelectionState } from '@/hooks/use-tag-selecti
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { RepeatReminderSection } from '@/components/habits/habit-form-fields/repeat-reminder-section'
 import { HabitCreateFrame } from '@/components/habits/habit-create-frame'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { HabitScheduleFields } from '@/components/habits/habit-form-fields/habit-schedule-fields'
 import { HabitUnderstanding } from '@/components/habits/habit-form-fields/habit-understanding'
 import { HabitFormInteractionProvider } from '@/components/habits/habit-form-fields/habit-form-interaction'
@@ -225,13 +225,13 @@ describe('HabitFormFields mobile', () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => { tree = TestRenderer.create(form(false)) })
     const action = tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.askAstra')[0]!
-    expect(action.findAllByType(AstraGlyph)).toHaveLength(1)
+    expect(action.findAllByType(OrbitMascot)).toHaveLength(1)
     await TestRenderer.act(() => { tree.update(form(true)) })
     expect(action.props.accessibilityState.busy).toBe(true)
-    expect(action.findAllByType(AstraGlyph)).toHaveLength(0)
+    expect(action.findAllByType(OrbitMascot)).toHaveLength(0)
     expect(action.findAll((node: UnderstandingTestNode) => node.type === 'ActivityIndicator')).toHaveLength(1)
     await TestRenderer.act(() => { tree.update(form(false)) })
-    expect(action.findAllByType(AstraGlyph)).toHaveLength(1)
+    expect(action.findAllByType(OrbitMascot)).toHaveLength(1)
     expect(action.findAll((node: UnderstandingTestNode) => node.type === 'ActivityIndicator')).toHaveLength(0)
   })
 
@@ -244,11 +244,11 @@ describe('HabitFormFields mobile', () => {
     </HabitFormInteractionProvider>
     let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => { tree = TestRenderer.create(form(false)) })
-    const controls = tree.root.findAllByType(PillButton).filter((node: import('react-test-renderer').ReactTestInstance) => node.findAll(candidate => candidate.type === AstraGlyph).length > 0)
+    const controls = tree.root.findAllByType(PillButton).filter((node: import('react-test-renderer').ReactTestInstance) => node.findAll(candidate => candidate.type === OrbitMascot).length > 0)
     expect(controls).toHaveLength(2)
     const hosts = controls.map((control: import('react-test-renderer').ReactTestInstance) => control.findAll((node) => String(node.type) === 'Pressable')[0]!)
     for (const control of controls) {
-      expect(control.findAllByType(AstraGlyph)).toHaveLength(1)
+      expect(control.findAllByType(OrbitMascot)).toHaveLength(1)
       const host = control.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Pressable')[0]!
       expect(host.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Text')).toHaveLength(0)
       const style = StyleSheet.flatten(typeof host.props.style === 'function' ? host.props.style({ pressed: false }) : host.props.style)
@@ -365,7 +365,7 @@ describe('HabitFormFields mobile', () => {
     await TestRenderer.act(() => { button.props.onPress(); tree.update(form(true)) })
     const busy = action('habits.form.suggestEmoji')
     expect(busy === button, 'pending keeps the native action mounted').toBe(true)
-    expect(busy.findAllByType(AstraGlyph)).toHaveLength(0)
+    expect(busy.findAllByType(OrbitMascot)).toHaveLength(0)
     expect(busy.findAll((node: UnderstandingTestNode) => node.type === 'ActivityIndicator')).toHaveLength(1)
     expect(busy.props.accessibilityState.busy).toBe(true)
     expect(busy.props.accessibilityState.disabled).toBe(false)
@@ -379,7 +379,7 @@ describe('HabitFormFields mobile', () => {
     await TestRenderer.act(() => { tree.update(form()) })
     expect(action('habits.form.suggestEmoji') === button, 'success keeps the native action mounted').toBe(true)
     expect(__getFocusedNativeTag()).toBe(moveFocus ? phrase.props.__nativeTag : button.props.__nativeTag)
-    expect(button.findAllByType(AstraGlyph)).toHaveLength(1)
+    expect(button.findAllByType(OrbitMascot)).toHaveLength(1)
     expect(button.findAll((node: UnderstandingTestNode) => node.type === 'ActivityIndicator')).toHaveLength(0)
     expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'View' && node.props.testID === 'habit-emoji-well' && node.props['data-proposed'] === true)).toHaveLength(1)
     await TestRenderer.act(() => { tree.unmount() })
@@ -1060,7 +1060,7 @@ describe('mobile understanding sentence', () => {
     const props = { ...tree!.root.findByType(HabitUnderstanding).props, value: 'Run', sentence: 'A' }
     await TestRenderer.act(async () => { tree!.update(<HabitUnderstanding {...props} />); await Promise.resolve() })
     if (effect === 'emoji') {
-      expect(tree!.root.findAllByType(AstraGlyph)).toHaveLength(0)
+      expect(tree!.root.findAllByType(OrbitMascot)).toHaveLength(0)
       expect(tree!.root.findAll((node: UnderstandingTestNode) => node.props.testID === 'habit-suggest-emoji')).toHaveLength(0)
     } else expect(tree!.root.findAll((node: UnderstandingTestNode) =>
       (node.props.entering !== undefined || node.props.exiting !== undefined) &&
@@ -1320,11 +1320,11 @@ describe('habit tag suggestions', () => {
     tagMutations.suggest.mockImplementation(() => new Promise((complete) => { resolve = complete }))
     formLocale.language = 'pt-BR'
     await renderTagForm('Run', '   ')
-    expect(button('habits.form.suggestTags').findAllByType(AstraGlyph)).toHaveLength(1)
+    expect(button('habits.form.suggestTags').findAllByType(OrbitMascot)).toHaveLength(1)
     expect(pressableStyle(button('habits.form.suggestTags'), false).borderWidth ?? 0).toBe(0)
     await TestRenderer.act(() => button('habits.form.suggestTags').props.onPress())
     expect(button('habits.form.suggestTags').props.accessibilityState).toMatchObject({ disabled: true, busy: true })
-    expect(button('habits.form.suggestTags').findAllByType(AstraGlyph)).toHaveLength(0)
+    expect(button('habits.form.suggestTags').findAllByType(OrbitMascot)).toHaveLength(0)
     expect(button('habits.form.suggestTags').findAll((node: UnderstandingTestNode) => node.type === 'ActivityIndicator')).toHaveLength(1)
     expect(button('habits.form.suggestTags').props.accessibilityHint).toBe('habits.form.suggestingTags')
     expect(text('habits.form.suggestingTags')[0]!.props.accessibilityLiveRegion).toBe('polite')
@@ -1332,7 +1332,7 @@ describe('habit tag suggestions', () => {
     await TestRenderer.act(() => resolve({ tags: [] }))
     expect(text('habits.form.noTagSuggestions')).toHaveLength(1)
     expect(button('habits.form.suggestTags').props.disabled).toBe(false)
-    expect(button('habits.form.suggestTags').findAllByType(AstraGlyph)).toHaveLength(1)
+    expect(button('habits.form.suggestTags').findAllByType(OrbitMascot)).toHaveLength(1)
   })
 
   it('shows request failure inline and permits retry', async () => {
@@ -2401,7 +2401,7 @@ describe('native automatic date field', () => {
     await debounce()
     const pending = status('habits.form.dateInterpreting')[0]!
     expect(pending.props.accessibilityState.busy).toBe(true)
-    expect(pending.findByType(AstraGlyph).props).toMatchObject({ size: 16, color: createTokensV2('orange', formLocale.theme).fg3 })
+    expect(pending.findByType(OrbitMascot).props).toMatchObject({ size: 16, color: createTokensV2('orange', formLocale.theme).fg3 })
     const control = tree.root.findAll((node: UnderstandingTestNode) => node.type === 'View' && node.props.testID === 'input-control' && node.findAll(child => child === pending).length > 0)[0]!
     expect(control.findAll((child: UnderstandingTestNode) => child === input())).toHaveLength(1)
     expect(StyleSheet.flatten(input().props.style).paddingRight).toBe(48)

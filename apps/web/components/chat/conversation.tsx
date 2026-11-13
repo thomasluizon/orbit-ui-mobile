@@ -26,7 +26,7 @@ import { MessageBubble } from '@/components/chat/message-bubble'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { Composer } from '@/components/shell/composer'
 import { ChevronDown, Lightbulb, X, RefreshCw } from '@/components/ui/icons'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { WorkingMark } from '@/components/ui/toast'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useChatStore } from '@/stores/chat-store'
@@ -122,7 +122,7 @@ function PendingPromptIdea({ hasDraft, disabledReason, onSelect }: Readonly<{
   if (!pendingIdea?.id.startsWith('prompt-library:')) return null
   return <div data-pending-prompt="" className="mx-auto w-full max-w-[740px] px-4">
     {hasDraft ? <p role="status" className="text-sm text-[var(--fg-3)]">{t('chat.templates.draftKept')}</p> : null}
-    <ListRow accessibilityLabel={findPromptSlot(pendingIdea.prompt) ? undefined : pendingIdea.label} icon={findPromptSlot(pendingIdea.prompt) ? undefined : <AstraGlyph size={24} />} placement="column" title={pendingIdea.label} textMode="label" chevron={false} disabled={hasDraft || !!disabledReason} onClick={() => onSelect(pendingIdea.id.replace('prompt-library:', ''), pendingIdea.label, pendingIdea.prompt)} />
+    <ListRow accessibilityLabel={findPromptSlot(pendingIdea.prompt) ? undefined : pendingIdea.label} icon={findPromptSlot(pendingIdea.prompt) ? undefined : <OrbitMascot size={24} />} placement="column" title={pendingIdea.label} textMode="label" chevron={false} disabled={hasDraft || !!disabledReason} onClick={() => onSelect(pendingIdea.id.replace('prompt-library:', ''), pendingIdea.label, pendingIdea.prompt)} />
   </div>
 }
 
@@ -327,7 +327,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
       <div data-conversation-header="" className="relative z-10 shrink-0">
         <AppBar
           title={t('chat.title')}
-          titleVisual={<AstraGlyph size={16} />}
+          titleVisual={<OrbitMascot size={16} />}
           titleIsBrandName
           action={<>
             <ConversationDeleteAction onDelete={history.requestDelete} isSending={chat.isSending} operationBusy={isPendingOperationBusy} />
@@ -378,7 +378,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
             className="flex min-w-0 flex-col gap-2"
           >
           {msg.role === 'ai' && messages[index - 1]?.role !== 'ai' ? <span aria-hidden="true" className="pointer-events-none block size-6 shrink-0 text-[var(--fg-1)]" data-astra-avatar="">
-            <AstraGlyph size={24} />
+            <OrbitMascot size={24} />
           </span> : null}
           <div className="flex min-w-0 w-full flex-col gap-4">
           {msg.role === 'ai' ? <TurnAnnouncement messageId={msg.id} claimAnnouncement={claimAnnouncement} content={getChatCompletionText(msg, { ready: t('chat.replyReady'), unreadable: t('chat.unreadableReply') })} complete={!msg.restored && (!initialMessageIds.has(msg.id) || msg.id === initialStreamingMessageId) && msg.id !== streamingMessageId && !isTyping} /> : null}
@@ -408,7 +408,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
         ))}
         {showPendingReply || traceSteps.length > 0 ? <ConversationReveal animate className="flex min-w-0 flex-col gap-2">
           {messages.at(-1)?.role !== 'ai' ? <span aria-hidden="true" className="pointer-events-none block size-6 shrink-0 text-[var(--fg-1)]" data-astra-avatar="">
-            <AstraGlyph size={24} />
+            <OrbitMascot size={24} />
           </span> : null}
           <div className="flex min-w-0 w-full flex-col gap-4">
             {showPendingReply ? <div data-astra-pending aria-hidden="true" className="pointer-events-none flex h-6 items-center">

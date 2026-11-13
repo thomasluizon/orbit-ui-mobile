@@ -5,7 +5,7 @@ import { createChatThreadScroll } from '@orbit/shared/hooks'
 import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AccessibilityInfo, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { AstraConversation } from '@/components/chat/conversation'
 import { createTokensV2 } from '@/lib/theme'
 import { useUIStore } from '@/stores/ui-store'
@@ -126,12 +126,12 @@ describe('AstraConversation header (mobile)', () => {
     const tree = render()
     try {
       const header = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'nav-header-plain')[0]!
-      expect(header.findAll((node) => node.type === AstraGlyph)).toHaveLength(1)
+      expect(header.findAll((node) => node.type === OrbitMascot)).toHaveLength(1)
       const headings = hosts(tree).filter((node) => node.props.accessibilityRole === 'header')
       expect(headings).toHaveLength(1)
       expect(headings[0]!.props.accessibilityLabel).toBe('Astra')
       expect(header.findAll((node) => typeof node.type === 'string' && node.props.children === 'Astra')).toHaveLength(0)
-      expect(header.findAll((node) => node.props.testID === 'astra-mark')[0]!.props.accessible).toBe(false)
+      expect(header.findAll((node) => node.props.testID === 'orbit-mascot')[0]!.props.accessible).toBe(false)
       expect(focus).toHaveBeenCalledWith(expect.objectContaining({ __nativeTag: headings[0]!.props.__nativeTag }), 'focus')
     } finally { focus.mockRestore(); void TestRenderer.act(() => tree.update(<></>)) }
   })

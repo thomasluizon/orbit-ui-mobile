@@ -603,6 +603,9 @@ vi.mock('react-native-svg', () => ({
   Rect: (props: any) => React.createElement('Rect', props),
   Circle: (props: any) => React.createElement('Circle', props),
   Path: (props: any) => React.createElement('Path', props),
+  ClipPath: () => null,
+  Defs: () => null,
+  G: () => null,
 }))
 
 function flattenRenderedText(node: unknown): string {
@@ -2268,7 +2271,7 @@ describe('HabitList', () => {
     })
     allDone = tree!.root.findAll((node) => node.type === HabitListAllDone)[0]
     expect(allDone?.props.onSeeUpcoming).toBe(onSeeUpcoming)
-    expect(allDone?.findAll((node) => node.props.testID === 'orbit-mark').length).toBeGreaterThan(0)
+    expect(allDone?.findAll((node) => node.props.testID === 'orbit-mascot').length).toBeGreaterThan(0)
     expect(allDone?.findAll((node) => node.props.testID === 'completed-day-mark').length).toBeGreaterThan(0)
     expect(allDone?.findAll((node) => node.props.testID === 'button-ghost-sm').length).toBeGreaterThan(0)
     const action = allDone?.props.onSeeUpcoming as (() => void) | undefined

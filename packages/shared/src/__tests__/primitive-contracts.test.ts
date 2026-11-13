@@ -3,10 +3,9 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { ButtonProps, FabProps } from '../contracts/actions'
 import type {
-  AstraGlyphProps,
   IconProps,
   LockupProps,
-  OrbitMarkProps,
+  OrbitMascotProps,
 } from '../contracts/brand'
 import type {
   BadgeProps,
@@ -27,8 +26,7 @@ interface PrimitiveContractMap {
   BadgeProps: BadgeProps
   ButtonProps: ButtonProps
   FabProps: FabProps
-  OrbitMarkProps: OrbitMarkProps
-  AstraGlyphProps: AstraGlyphProps
+  OrbitMascotProps: OrbitMascotProps
   IconProps: IconProps
   LockupProps: LockupProps
 }
@@ -42,8 +40,7 @@ const CONTRACT_NAMES = [
   'BadgeProps',
   'ButtonProps',
   'FabProps',
-  'OrbitMarkProps',
-  'AstraGlyphProps',
+  'OrbitMascotProps',
   'IconProps',
   'LockupProps',
 ] as const satisfies readonly (keyof PrimitiveContractMap)[]

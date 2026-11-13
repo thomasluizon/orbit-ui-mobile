@@ -54,7 +54,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', pt]] as const) {
           element.scrollTop = 0
           return {
             scrollerTop: element.getBoundingClientRect().top,
-            glyphTop: element.querySelector('[data-asset="astra-mark"]')!.getBoundingClientRect().top,
+            glyphTop: element.querySelector('[data-asset="orbit-mascot"]')!.getBoundingClientRect().top,
           }
         })
         expect(top.glyphTop).toBeGreaterThanOrEqual(top.scrollerTop)

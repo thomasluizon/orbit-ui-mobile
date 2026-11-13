@@ -18,7 +18,7 @@ import {
 } from 'react'
 import { BUTTON_SIZES, FAB_SIZE, SPACING, TAB_BAR_MIN_HEIGHT, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import type { ShellWideItem, ShellWideProps } from '@orbit/shared/contracts/shell'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { ASTRA_BUTTON_GAP, ASTRA_STACK_CLEARANCE } from '@orbit/shared/utils'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useIsClient } from '@/hooks/use-is-client'
@@ -136,7 +136,7 @@ function SidebarAstraRow({ row, open, conversationId, collapsed }: Readonly<{
               collapsed ? 'justify-center' : undefined,
             ].join(' ')}
           >
-            <AstraGlyph size={20} color={open ? 'var(--primary)' : 'var(--fg-3)'} />
+            <OrbitMascot size={20} color={open ? 'var(--primary)' : 'var(--fg-3)'} />
             <span translate="no" className={collapsed ? 'sr-only' : 'min-w-0 truncate'}>{row.label}</span>
           </button>
 }

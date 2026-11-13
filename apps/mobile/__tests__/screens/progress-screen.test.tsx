@@ -828,7 +828,7 @@ describe('mobile ProgressContent', () => {
     Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
     const tree = await renderProgress(undefined, 'goals')
     expect(tree.root.findAll((node) => node.props.children === 'progressScreen.goals.empty').length).toBeGreaterThan(0)
-    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'empty-state-mark-orbit')).toHaveLength(1)
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'empty-state-mark')).toHaveLength(1)
     expect(pillButtons(tree.root)).toHaveLength(1)
     await TestRenderer.act(() => {
       ;(findPill(tree.root, 'progressScreen.goals.createAction').props.onPress as () => void)()
@@ -854,7 +854,7 @@ describe('mobile ProgressContent', () => {
 
     const action = findPill(tree.root, 'progressScreen.goals.createAction')
     expect(action.props.testID).toBe('button-primary-sm')
-    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'empty-state-mark-orbit')).toHaveLength(1)
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'empty-state-mark')).toHaveLength(1)
     expect(pressableStyle(action, false)).toMatchObject({ height: 44, paddingHorizontal: BUTTON_SIZES.sm.paddingX })
     await TestRenderer.act(() => { (action.props.onPress as () => void)() })
     expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.title === 'goals.create')).toHaveLength(1)

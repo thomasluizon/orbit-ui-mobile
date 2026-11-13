@@ -1,21 +1,26 @@
 import {
+  LOCKUP_HEIGHT,
   LOCKUP_MARK_PATHS,
+  LOCKUP_MARK_TRANSFORM,
+  LOCKUP_VIEW_BOX,
+  LOCKUP_WIDTH,
   LOCKUP_WORD_PATH,
+  LOCKUP_WORD_TRANSFORM,
   type LockupProps,
 } from '@orbit/shared/contracts/brand'
 
 export function Lockup(_props: Readonly<LockupProps>) {
   return (
     <svg
-      width="89.395502773"
-      height="17.882739221"
-      viewBox="-0.000000087 0 89.395502773 17.882739221"
+      width={LOCKUP_WIDTH}
+      height={LOCKUP_HEIGHT}
+      viewBox={LOCKUP_VIEW_BOX}
       fill="none"
       color="var(--fg-1)"
       aria-hidden="true"
       data-asset="orbit-lockup"
     >
-      <g transform="translate(-11.101787705 -14.738114888) scale(0.049008704)">
+      <g transform={LOCKUP_MARK_TRANSFORM}>
         {LOCKUP_MARK_PATHS.map((path) => (
           <path
             key={path.d}
@@ -26,7 +31,7 @@ export function Lockup(_props: Readonly<LockupProps>) {
           />
         ))}
       </g>
-      <g transform="translate(38.84610376 15.708)">
+      <g transform={LOCKUP_WORD_TRANSFORM}>
         <path d={LOCKUP_WORD_PATH} fill="currentColor" />
       </g>
     </svg>

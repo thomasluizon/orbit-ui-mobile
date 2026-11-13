@@ -1,12 +1,10 @@
-import { ASTRA_GLYPH_PATHS, ORBIT_MARK_PATHS, ORBIT_MARK_VIEW_BOX } from '@orbit/shared/contracts/brand'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { Columns } from '@/components/ui/columns'
 import { Fab } from '@/components/ui/fab'
 import { Icon } from '@/components/ui/icon'
 import { Lockup } from '@/components/ui/lockup'
-import { OrbitMark } from '@/components/ui/orbit-mark'
 import { ProgressRing } from '@/components/ui/progress-ring'
 
 describe('redesign primitives on web', () => {
@@ -85,30 +83,43 @@ describe('redesign primitives on web', () => {
     expect(button.querySelector('[data-press-fill]')).toHaveClass('group-active:bg-[var(--bg-hover-opaque)]')
   })
 
-  it.each([16, 20, 24, 28, 40, 44, 48, 96, 128, 512])('uses the normal Orbit drawing at %ipx and limits accent to its moon', (size) => {
-    const { container, rerender } = render(<OrbitMark size={size} />)
-    expect(container.querySelector('svg')).toHaveAttribute('data-asset', 'orbit-mark')
-    expect([...container.querySelectorAll('path')].map(path => path.getAttribute('d'))).toEqual(ORBIT_MARK_PATHS.map(path => path.d))
-    expect(container.querySelector('svg')).toHaveAttribute('width', String(size))
-    expect(container.querySelector('svg')).toHaveAttribute('viewBox', ORBIT_MARK_VIEW_BOX)
-    expect(container.querySelectorAll('path[data-part="moon"]')[0]).toHaveAttribute('fill', 'currentColor')
-
-    rerender(<OrbitMark size={size} accent />)
-    expect(container.querySelector('svg')).toHaveAttribute('data-asset', 'orbit-mark-accent')
-    const paths = container.querySelectorAll('path')
-    expect(paths[0]).toHaveAttribute('fill', 'currentColor')
-    expect(paths[paths.length - 1]).toHaveAttribute('fill', 'var(--primary)')
+  it.each([16, 20, 24] as const)('draws the small static face at %ipx with the moon as the only accent', (size) => {
+    const { container } = render(<OrbitMascot size={size} />)
+    const svg = container.querySelector('svg')
+    expect(svg).toHaveAttribute('data-asset', 'orbit-mascot')
+    expect(svg).toHaveAttribute('data-orbit-face', 'small')
+    expect(svg).toHaveAttribute('data-orbit-loop', 'still')
+    expect(svg).toHaveAttribute('width', String(size))
+    expect(svg).toHaveAttribute('height', String(size * 0.75))
+    expect(svg).toHaveAttribute('aria-hidden', 'true')
+    expect(svg).toHaveAttribute('color', 'var(--fg-1)')
+    expect(container.querySelectorAll('[data-part="eye"]')).toHaveLength(2)
+    expect(container.querySelector('[data-part="moon"]')).toHaveAttribute('fill', 'var(--primary)')
+    expect(container.querySelectorAll('[fill="var(--primary)"]')).toHaveLength(1)
   })
 
-  it.each([14, 16, 20, 24])('renders the normal Astra paths at %ipx and honours color', (size) => {
-    const { container, rerender } = render(<AstraGlyph size={size} />)
-    expect(container.querySelector('svg')).toHaveAttribute('data-asset', 'astra-mark')
-    expect(container.querySelector('svg')).toHaveAttribute('width', String(size))
-    expect(container.querySelector('svg')).toHaveAttribute('height', String(size))
-    expect(container.querySelector('svg')).toHaveAttribute('color', 'currentColor')
-    expect([...container.querySelectorAll('path')].map(path => path.getAttribute('d'))).toEqual(ASTRA_GLYPH_PATHS.map(path => path.d))
+  it.each([48, 96, 128] as const)('draws the live rig at %ipx in the 7 by 5 box', (size) => {
+    const { container } = render(<OrbitMascot size={size} still />)
+    const svg = container.querySelector('svg')
+    expect(svg).toHaveAttribute('data-orbit-face', 'rig')
+    expect(svg).toHaveAttribute('data-orbit-state', 'parado')
+    expect(svg).toHaveAttribute('viewBox', '-210 -150 420 300')
+    expect(svg).toHaveAttribute('width', String(size))
+    expect(svg).toHaveAttribute('height', String((size * 300) / 420))
+    expect((22 / 420) * size).toBeGreaterThanOrEqual(2)
+    expect(container.querySelectorAll('[fill="var(--primary)"]')).toHaveLength(1)
+  })
 
-    rerender(<AstraGlyph size={size} color="#123456" />)
+  it.each(['parado', 'pensando', 'feliz', 'descansando'] as const)('exposes the %s state and draws two eyes', (state) => {
+    const { container } = render(<OrbitMascot size={96} state={state} still />)
+    expect(container.querySelector('svg')).toHaveAttribute('data-orbit-state', state)
+    expect(container.querySelectorAll('[data-part="eye"]')).toHaveLength(2)
+    const arcs = container.querySelectorAll('[data-part="eye"][stroke]')
+    expect(arcs).toHaveLength(state === 'feliz' ? 2 : 0)
+  })
+
+  it('honours the color of the planet and the ring', () => {
+    const { container } = render(<OrbitMascot size={16} color="#123456" />)
     expect(container.querySelector('svg')).toHaveAttribute('color', '#123456')
   })
 
@@ -126,7 +137,7 @@ describe('redesign primitives on web', () => {
     const { container } = render(<Lockup />)
     const svg = container.querySelector('svg')
     expect(svg).toHaveAttribute('data-asset', 'orbit-lockup')
-    expect(svg).toHaveAttribute('viewBox', '-0.000000087 0 89.395502773 17.882739221')
+    expect(svg).toHaveAttribute('viewBox', '-0.000400046 0.000000000 89.395902732 17.742772815')
     expect(container.querySelector('text')).toBeNull()
   })
 })

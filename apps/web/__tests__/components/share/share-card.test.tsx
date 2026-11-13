@@ -40,7 +40,7 @@ describe('ShareCard', () => {
   it('renders the branded capture target at the 9 by 16 story ratio', () => {
     const { container } = render(<ShareCard recap={createMockRecap()} />)
     expect(screen.getByTestId('share-card')).toHaveStyle({ width: '360px', height: '640px' })
-    expect(container.querySelector('[data-asset="orbit-mark-accent"]')).toBeInTheDocument()
+    expect(container.querySelector('[data-asset="orbit-mascot"]')).toBeInTheDocument()
   })
 
   it('contains no controls and exactly one primary figure with two supporting figures', () => {

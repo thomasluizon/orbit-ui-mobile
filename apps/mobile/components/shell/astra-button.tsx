@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { Fab } from '@/components/ui/fab'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { useUIStore } from '@/stores/ui-store'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
@@ -15,6 +15,6 @@ export function AstraButton() {
   const tokens = createTokensV2(currentScheme, currentTheme)
   const openConversation = useUIStore(state => state.setAstraConversationOpen)
   return <Fab neutral testID="astra-button" label={t('shell.astraButton.open')} onClick={() => openConversation(true)}>
-    <AstraGlyph size={24} color={tokens.fg1} />
+    <OrbitMascot size={24} color={tokens.fg1} />
   </Fab>
 }

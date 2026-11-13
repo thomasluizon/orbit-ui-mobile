@@ -609,7 +609,7 @@ describe('ProfilePage', () => {
         expect(icons[0]!.getAttribute('width')).toBe('24')
         expect(icons[0]!.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
         if (index === 3) {
-          expect(icons[0]).toHaveAttribute('data-asset', 'astra-mark')
+          expect(icons[0]).toHaveAttribute('data-asset', 'orbit-mascot')
           expect(row.querySelector('a')).toHaveAttribute('href', '/profile/astra')
         }
         if (navigates) {

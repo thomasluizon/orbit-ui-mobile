@@ -23,7 +23,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { ErrorState } from '@/components/ui/error-state'
 
 import { Skeleton } from '@/components/ui/skeleton'
-import { OrbitMark } from '@/components/ui/orbit-mark'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import {
   captionStyle,
   heroNumeralStyle,
@@ -72,7 +72,7 @@ export function WrappedSlide({ slide, recap, period, captureRef, shareError, sav
     case 'intro':
       return (
         <SlideShell testId="wrapped-slide-intro" gap={16}>
-          <motion.div data-testid="wrapped-motion-part" {...motionProps(0, reducedMotion)}><OrbitMark size={48} /></motion.div>
+          <motion.div data-testid="wrapped-motion-part" {...motionProps(0, reducedMotion)}><OrbitMascot size={48} /></motion.div>
           <motion.h1
             className="text-[34px] lg:text-[44px]"
             data-testid="wrapped-motion-part"

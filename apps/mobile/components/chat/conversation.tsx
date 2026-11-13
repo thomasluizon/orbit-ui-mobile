@@ -36,7 +36,7 @@ import { PendingReply, type PendingReplyHandle } from "@/components/chat/pending
 import { FollowUpChips } from "@/components/chat/follow-up-chips";
 import { GoalDetailDrawer } from "@/components/goals/goal-detail-drawer";
 import { AppBar } from "@/components/ui/app-bar";
-import { AstraGlyph } from "@/components/ui/astra-glyph";
+import { OrbitMascot } from "@/components/ui/orbit-mascot";
 import { MotionPressable } from "@/components/ui/motion-pressable";
 import { ChevronDown, Lightbulb, X, RefreshCw } from "@/components/ui/icons";
 import { useChatStore } from '@/stores/chat-store';
@@ -108,7 +108,7 @@ function PendingPromptIdea({ hasDraft, disabledReason, onSelect }: Readonly<{
   if (!pendingIdea?.id.startsWith('prompt-library:')) return null;
   return <View style={{ paddingHorizontal: SPACING.s16 }}>
     {hasDraft ? <Text accessibilityLiveRegion="polite" style={{ fontFamily: 'Geist_400Regular', fontSize: 14, color: tokens.fg3 }}>{t('chat.templates.draftKept')}</Text> : null}
-    <ListRow accessibilityLabel={findPromptSlot(pendingIdea.prompt) ? undefined : pendingIdea.label} icon={findPromptSlot(pendingIdea.prompt) ? undefined : <AstraGlyph size={24} />} placement="column" title={pendingIdea.label} textMode="label" chevron={false} disabled={hasDraft || !!disabledReason} onClick={() => onSelect(pendingIdea.id.replace('prompt-library:', ''), pendingIdea.label, pendingIdea.prompt)} />
+    <ListRow accessibilityLabel={findPromptSlot(pendingIdea.prompt) ? undefined : pendingIdea.label} icon={findPromptSlot(pendingIdea.prompt) ? undefined : <OrbitMascot size={24} />} placement="column" title={pendingIdea.label} textMode="label" chevron={false} disabled={hasDraft || !!disabledReason} onClick={() => onSelect(pendingIdea.id.replace('prompt-library:', ''), pendingIdea.label, pendingIdea.prompt)} />
   </View>;
 }
 
@@ -292,7 +292,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
     ({ item, index }) => (
       <View style={styles.messageTurn}>
       {item.role === 'ai' && messages[index - 1]?.role !== 'ai' ? <View testID="astra-avatar" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={styles.avatar}>
-        <AstraGlyph size={24} />
+        <OrbitMascot size={24} />
       </View> : null}
       <View style={styles.messageContent}>
       {item.role === 'ai' ? <TurnAnnouncement messageId={item.id} claimAnnouncement={claimAnnouncement} content={getChatCompletionText(item, { ready: t('chat.replyReady'), unreadable: t('chat.unreadableReply') })} complete={!item.restored && (!initialMessageIds.has(item.id) || item.id === initialStreamingMessageId) && item.id !== streamingMessageId && !isTyping} /> : null}
@@ -351,7 +351,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
         <AppBar
           titleRef={titleRef}
           title={t("chat.title")}
-          titleVisual={<AstraGlyph size={16} />}
+          titleVisual={<OrbitMascot size={16} />}
           action={<>
             <ConversationDeleteAction onDelete={history.requestDelete} isSending={chat.isSending} operationBusy={isPendingOperationBusy} />
             <MotionPressable ref={browseHeaderRef} accessibilityRole="button" accessibilityLabel={t('chat.templates.browse')} onPress={() => openLibrary(browseHeaderRef)} style={({ pressed }) => [styles.headerClose, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}><Lightbulb size={20} strokeWidth={2} color={tokens.fg1} /></MotionPressable>
@@ -406,7 +406,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
               }}
               ListFooterComponent={<>{showPendingReply || traceSteps.length > 0 ? <ConversationReveal animate style={styles.messageTurn}>
                 {messages.at(-1)?.role !== 'ai' ? <View testID="astra-avatar" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={styles.avatar}>
-                  <AstraGlyph size={24} />
+                  <OrbitMascot size={24} />
                 </View> : null}
                 <View style={styles.messageContent}>
                   {showPendingReply ? <PendingReply ref={attachPendingReply} /> : <ThinkingTrace steps={traceSteps} running />}

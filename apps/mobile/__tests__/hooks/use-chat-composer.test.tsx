@@ -169,6 +169,8 @@ vi.mock('react-native-svg', () => ({
   __esModule: true,
   default: () => null,
   Path: () => null,
+  ClipPath: () => null,
+  G: () => null,
   Defs: () => null,
   Stop: () => null,
   Rect: () => null,

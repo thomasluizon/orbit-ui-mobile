@@ -1,6 +1,6 @@
 'use client'
 
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 
 import { useCallback } from 'react'
 import { useRouter } from 'next/navigation'
@@ -106,7 +106,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
           <PillButton variant="ghost" size="sm" onClick={() => closeSheet()}>
             {t('habits.reschedule.dismiss')}
           </PillButton>
-          <PillButton leadingIcon={<AstraGlyph size={16} />} variant={filledVariant} size="sm" onClick={() => void refetch()}>
+          <PillButton leadingIcon={<OrbitMascot size={16} />} variant={filledVariant} size="sm" onClick={() => void refetch()}>
             {t('habits.reschedule.suggestDate')}
           </PillButton>
         </>

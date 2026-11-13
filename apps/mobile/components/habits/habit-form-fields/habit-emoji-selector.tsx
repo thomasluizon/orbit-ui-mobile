@@ -1,4 +1,4 @@
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { useHabitFormInteraction } from './habit-form-interaction'
 import { PillButton } from '@/components/ui/pill-button'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
@@ -45,7 +45,7 @@ function EmojiSuggestionButton({ onSuggest, canSuggest, isSuggesting, isDisabled
       hint={[isSuggesting ? t('habits.form.emojiSuggesting') : suggestionHint, suggestionError].filter(Boolean).join(' ') || undefined}
       onClick={guard(() => { if (canSuggest && !isDisabled && !isSuggesting) onSuggest() })}
     >
-      <AstraGlyph size={20} />
+      <OrbitMascot size={20} />
     </PillButton>
   ) : null
 }

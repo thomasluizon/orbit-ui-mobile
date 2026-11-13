@@ -47,8 +47,8 @@ vi.mock('@/components/ui/pill-button', () => ({
     size?: string
   }) => React.createElement('Button', { disabled, onPress: onClick, label, accessibilityLabel: label, size }, children),
 }))
-vi.mock('@/components/ui/orbit-mark', () => ({
-  OrbitMark: () => React.createElement('OrbitMark'),
+vi.mock('@/components/ui/orbit-mascot', () => ({
+  OrbitMascot: () => React.createElement('OrbitMascot'),
 }))
 vi.mock('@/components/ui/icon', () => ({
   Icon: ({ name }: { name: string }) => React.createElement('Icon', { name }),

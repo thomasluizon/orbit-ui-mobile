@@ -2,7 +2,7 @@
 
 import { IconButton } from '@/components/ui/icon-button'
 
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 
@@ -107,7 +107,7 @@ export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirme
     <>
     <BlockFrame state={isPending ? 'acting' : card.partiallyFailed ? 'partiallyFailed' : 'resting'} title={t('chat.breakdown.title', { name: parentName })} titleMode="typed" stackSettledRows items={rows} body={card.completed ? null : (
       <div className="min-w-0 shrink-0">
-      {card.habits.length === 0 ? <div className="flex flex-col items-center gap-6 text-center text-[var(--fg-2)]"><AstraGlyph size={96} color="var(--fg-1)" /><p className="text-sm">{t('chat.breakdown.empty')}</p></div> : null}
+      {card.habits.length === 0 ? <div className="flex flex-col items-center gap-6 text-center text-[var(--fg-2)]"><OrbitMascot size={96} color="var(--fg-1)" /><p className="text-sm">{t('chat.breakdown.empty')}</p></div> : null}
       <label className="flex min-h-[var(--touch-min)] w-full shrink-0 items-start gap-1 rounded-[12px] px-2 py-3 text-sm text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[var(--fg-1)] has-[:disabled]:pointer-events-none has-[:disabled]:opacity-60">
         <input type="checkbox" name="createAsParent" className="sr-only" checked={card.createAsParent} disabled={isPending || card.groupingLocked} onChange={(event) => card.setCreateAsParent(event.target.checked)} />
         <Checkbox as="span" checked={card.createAsParent} onChange={card.setCreateAsParent} />

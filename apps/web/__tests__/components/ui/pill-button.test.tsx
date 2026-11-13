@@ -8,7 +8,7 @@ import { resolve } from 'node:path'
 import { measureTextOverflow } from '../../../e2e/layout/text-overflow-geometry'
 import { measureOnboardingProStep } from '../../../e2e/layout/onboarding-pro-step-geometry'
 import { PillButton, PillLink } from '@/components/ui/pill-button'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { settleFocusAnimations } from '../../../e2e/layout/focus-indicators'
 import { SelectAllToggle } from '@/components/calendar-sync/select-all-toggle'
 import { Copy } from '@/components/ui/icons'
@@ -50,7 +50,7 @@ describe('PillButton', () => {
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
     it.each([412, 1280].flatMap((width) => [false, true].map((loading) => ({ width, loading }))))('keeps focused Astra action motion confined to its busy loader at $width px (loading: $loading)', async ({ width, loading }) => {
-      const { container } = render(<PillButton variant="ghost" retainLeadingIcon leadingIcon={<AstraGlyph size={16} />} loading={loading} focusableWhenLoading onClick={vi.fn()}>Ask Astra</PillButton>)
+      const { container } = render(<PillButton variant="ghost" retainLeadingIcon leadingIcon={<OrbitMascot size={16} />} loading={loading} focusableWhenLoading onClick={vi.fn()}>Ask Astra</PillButton>)
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
@@ -70,7 +70,7 @@ describe('PillButton', () => {
         await settleFocusAnimations(button, undefined, !loading)
         if (!loading) expect(await button.evaluate((element) => element.getAnimations({ subtree: true }).filter((animation) => animation.playState === 'running').length)).toBe(0)
         expect(await button.evaluate((element) => element.matches(':focus'))).toBe(true)
-        expect(await button.locator('[data-asset="astra-mark"]').count()).toBe(1)
+        expect(await button.locator('[data-asset="orbit-mascot"]').count()).toBe(1)
         expect(await button.getAttribute('aria-busy')).toBe(loading ? 'true' : null)
       } finally {
         await page.close()

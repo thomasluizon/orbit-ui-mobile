@@ -1,79 +1,93 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { ASTRA_GLYPH_PATHS, ASTRA_GLYPH_VIEW_BOX, ORBIT_MARK_PATHS, ORBIT_MARK_VIEW_BOX } from '../contracts/brand'
+import {
+  LOCKUP_MARK_PATHS,
+  LOCKUP_MARK_TRANSFORM,
+  LOCKUP_VIEW_BOX,
+  LOCKUP_WORD_PATH,
+  LOCKUP_WORD_TRANSFORM,
+  ORBIT_MASCOT_FACES,
+  ORBIT_SMALL_FACES,
+  orbitMascotFrame,
+  orbitMascotSizeFor,
+} from '../contracts/brand'
+import { mascotMotion } from '../theme'
+import { repositoryRoot } from '../test-support/repository-root'
 
-function cubicAt(start: number, first: number, second: number, end: number, time: number) {
-  const remaining = 1 - time
-  return remaining ** 3 * start + 3 * remaining ** 2 * time * first
-    + 3 * remaining * time ** 2 * second + time ** 3 * end
-}
+const brandFile = (name: string) => readFileSync(join(repositoryRoot, 'design', 'brand', name), 'utf8')
+const pathsOf = (svg: string, fill: string) =>
+  [...svg.matchAll(/<path fill="([^"]+)" d="([^"]+)"\/>/g)].filter((match) => match[1] === fill).map((match) => match[2])
+const strokesOf = (svg: string) => [...svg.matchAll(/<path fill="none" stroke="[^"]+" stroke-width="17" stroke-linecap="round" d="([^"]+)"\/>/g)].map((match) => match[1])
 
-function cubicBounds(start: number, first: number, second: number, end: number) {
-  const quadratic = -start + 3 * first - 3 * second + end
-  const linear = 2 * (start - 2 * first + second)
-  const constant = first - start
-  const discriminant = linear ** 2 - 4 * quadratic * constant
-  const roots = Math.abs(quadratic) < 1e-10
-    ? (Math.abs(linear) < 1e-10 ? [] : [-constant / linear])
-    : (discriminant < 0 ? [] : [
-      (-linear + Math.sqrt(discriminant)) / (2 * quadratic),
-      (-linear - Math.sqrt(discriminant)) / (2 * quadratic),
-    ])
-  return [start, end, ...roots.filter(time => time > 0 && time < 1)
-    .map(time => cubicAt(start, first, second, end, time))]
-}
+const EYE_FILL = 'var(--bg, #09090B)'
 
-function drawnCoordinates(path: string) {
-  const commands = [...path.matchAll(/([MLCZ])([^MLCZ]*)/g)]
-  expect(commands.map(command => command[0]).join('')).toBe(path)
-  const horizontal: number[] = []
-  const vertical: number[] = []
-  let currentX = 0
-  let currentY = 0
-  for (const [, command, argumentsText] of commands) {
-    const coordinates = argumentsText!.trim().split(/[\s,]+/).filter(Boolean).map(Number)
-    expect(coordinates.every(Number.isFinite)).toBe(true)
-    if (command === 'Z') {
-      expect(coordinates).toHaveLength(0)
-      continue
+describe('mascot geometry matches the design sources', () => {
+  it.each([
+    ['parado', 'orbit-mascot.svg'],
+    ['pensando', 'orbit-mascot-pensando.svg'],
+    ['descansando', 'orbit-mascot-descansando.svg'],
+  ] as const)('draws the %s eyes of %s', (state, file) => {
+    const drawn = ORBIT_MASCOT_FACES[state].eyes.map((eye) => eye.d)
+    expect(drawn).toEqual(pathsOf(brandFile(file), EYE_FILL))
+  })
+
+  it('draws the feliz arcs of orbit-mascot-feliz.svg', () => {
+    expect(ORBIT_MASCOT_FACES.feliz.eyes.map((eye) => eye.d.replaceAll(/\s+/g, ' '))).toEqual(
+      strokesOf(brandFile('orbit-mascot-feliz.svg')).map((arc) => arc!.replaceAll(/\s+/g, ' ')),
+    )
+  })
+
+  it('draws each small face exactly as orbit-mascot-small.svg does', () => {
+    const source = brandFile('orbit-mascot-small.svg')
+    const root = source.replace(/<defs><symbol[\s\S]*<\/symbol><\/defs>/, '')
+    expect(pathsOf(root, EYE_FILL)).toEqual([...ORBIT_SMALL_FACES[24].eyes])
+    expect(pathsOf(root, 'var(--primary, currentColor)')).toEqual([ORBIT_SMALL_FACES[24].moon])
+    for (const size of [16, 20] as const) {
+      const symbol = new RegExp(`<symbol id="small-${size}" viewBox="([^"]+)">([\\s\\S]*?)</symbol>`).exec(source)!
+      expect(ORBIT_SMALL_FACES[size].viewBox).toBe(symbol[1])
+      expect(pathsOf(symbol[2]!, EYE_FILL)).toEqual([...ORBIT_SMALL_FACES[size].eyes])
+      expect(pathsOf(symbol[2]!, 'var(--primary, currentColor)')).toEqual([ORBIT_SMALL_FACES[size].moon])
     }
-    expect(coordinates).toHaveLength(command === 'C' ? 6 : 2)
-    if (command === 'C') {
-      horizontal.push(...cubicBounds(currentX, coordinates[0]!, coordinates[2]!, coordinates[4]!))
-      vertical.push(...cubicBounds(currentY, coordinates[1]!, coordinates[3]!, coordinates[5]!))
-    } else {
-      horizontal.push(coordinates[0]!)
-      vertical.push(coordinates[1]!)
-    }
-    currentX = coordinates.at(-2)!
-    currentY = coordinates.at(-1)!
-  }
-  return { horizontal, vertical }
-}
+  })
 
-describe.each([
-  { name: 'Astra', viewBox: ASTRA_GLYPH_VIEW_BOX, drawing: ASTRA_GLYPH_PATHS },
-  { name: 'Orbit', viewBox: ORBIT_MARK_VIEW_BOX, drawing: ORBIT_MARK_PATHS },
-])('$name frame', ({ viewBox, drawing }) => {
-  it('contains every drawn coordinate and touches all four edges of its view box', () => {
-    const frame = viewBox.split(/\s+/).map(Number)
-    expect(frame).toHaveLength(4)
-    expect(frame.every(Number.isFinite)).toBe(true)
-    const [left, top, width, height] = frame as [number, number, number, number]
-    expect(width).toBeGreaterThan(0)
-    expect(height).toBeGreaterThan(0)
-    expect(drawing.length).toBeGreaterThan(0)
-    const paths = drawing.map(path => drawnCoordinates(path.d))
-    const axes = [
-      { coordinates: paths.flatMap(path => path.horizontal), minimum: left, maximum: left + width },
-      { coordinates: paths.flatMap(path => path.vertical), minimum: top, maximum: top + height },
-    ]
-    for (const { coordinates, minimum, maximum } of axes) {
-      for (const coordinate of coordinates) {
-        expect(coordinate).toBeGreaterThanOrEqual(minimum - 0.01)
-        expect(coordinate).toBeLessThanOrEqual(maximum + 0.01)
-      }
-      expect(Math.abs(Math.min(...coordinates) - minimum)).toBeLessThanOrEqual(0.01)
-      expect(Math.abs(Math.max(...coordinates) - maximum)).toBeLessThanOrEqual(0.01)
-    }
+  it('draws each eye 22 units wide in a box 420 wide, so at 48 it is above the 2px floor', () => {
+    expect((22 / 420) * 48).toBeGreaterThan(2)
+  })
+})
+
+describe('the rest frame', () => {
+  it('puts the moon where orbit-mascot.svg draws it', () => {
+    const frame = orbitMascotFrame(0, mascotMotion)
+    const moon = /<circle cx="([^"]+)" cy="([^"]+)" r="([^"]+)" fill="var\(--primary, currentColor\)"\/>/.exec(brandFile('orbit-mascot.svg'))!
+    expect(frame.moon.x).toBeCloseTo(Number(moon[1]), 0)
+    expect(frame.moon.y).toBeCloseTo(Number(moon[2]), 0)
+    expect(frame.moon.radius).toBeCloseTo(Number(moon[3]), 0)
+    expect(frame.blinkScale).toBe(1)
+  })
+
+  it('tilts the ring at most 5 degrees each side of -18 and blinks near the end of each interval', () => {
+    const quarter = orbitMascotFrame(mascotMotion.tiltPeriod / 4, mascotMotion)
+    expect(quarter.ringFront).not.toBe(orbitMascotFrame(0, mascotMotion).ringFront)
+    expect(orbitMascotFrame(mascotMotion.blinkInterval * 0.96, mascotMotion).blinkScale).toBeCloseTo(0.1)
+    expect(orbitMascotFrame(mascotMotion.blinkInterval * 0.5, mascotMotion).blinkScale).toBe(1)
+  })
+})
+
+describe('mascot sizes', () => {
+  it.each([[16, 16], [20, 20], [24, 24], [32, 24], [48, 48], [60, 48], [96, 96], [128, 128], [200, 128], [12, 16]])(
+    'a slot of %i px takes the %i tier',
+    (slot, tier) => expect(orbitMascotSizeFor(slot)).toBe(tier),
+  )
+})
+
+describe('lockup geometry matches orbit-lockup.svg', () => {
+  it('draws the same view box, transforms and paths', () => {
+    const source = brandFile('orbit-lockup.svg')
+    expect(source).toContain(`viewBox="${LOCKUP_VIEW_BOX}"`)
+    expect(source).toContain(`<g transform="${LOCKUP_MARK_TRANSFORM}">`)
+    expect(source).toContain(`<g transform="${LOCKUP_WORD_TRANSFORM}"`)
+    for (const path of LOCKUP_MARK_PATHS) expect(source).toContain(`d="${path.d}"`)
+    expect(source).toContain(`d="${LOCKUP_WORD_PATH}"`)
   })
 })

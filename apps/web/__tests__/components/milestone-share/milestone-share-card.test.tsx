@@ -18,7 +18,7 @@ describe('MilestoneShareCard', () => {
     const { container } = render(<MilestoneShareCard variant={{ kind: 'streak', streak: 30 }} referralUrl="https://useorbit.org/r/XY" />)
     expect(screen.getByText('30 🔥')).toBeInTheDocument()
     expect(screen.getByText('milestoneShare.streakEyebrow')).toBeInTheDocument()
-    expect(container.querySelector('[data-asset="orbit-mark-accent"]')).toBeInTheDocument()
+    expect(container.querySelector('[data-asset="orbit-mascot"]')).toBeInTheDocument()
   })
 
   it('renders the achievement variant with its emoji, name, and rarity', () => {

@@ -76,7 +76,7 @@ describe('Empty conversation geometry in Chromium', () => {
       expect(await page.getByRole('feed').getByRole('button', { name: messages.chat.templates.browse }).count()).toBe(1)
       const geometry = await page.evaluate((disclosure) => {
         const scroller = document.querySelector<HTMLElement>('[role="feed"]')!
-        const glyph = scroller.querySelector('[data-asset="astra-mark"]')!
+        const glyph = scroller.querySelector('[data-asset="orbit-mascot"]')!
         const disclaimer = Array.from(scroller.querySelectorAll('p')).find((paragraph) => paragraph.textContent === disclosure)!
         const empty = scroller.firstElementChild!
         scroller.scrollTop = 0

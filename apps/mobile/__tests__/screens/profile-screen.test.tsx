@@ -497,6 +497,9 @@ vi.mock('react-native-svg', () => ({
   __esModule: true,
   default: (props: Record<string, unknown>) => React.createElement('Svg', props),
   Path: () => null,
+  ClipPath: () => null,
+  G: () => null,
+  Circle: () => null,
   Defs: () => null,
   Stop: () => null,
   Rect: () => null,
@@ -592,7 +595,7 @@ function expectProfileRowIcons(row: ReactTestInstance, index: number, isLifetime
   expect(contents[0]!.type).toBe(leadingIcons[index])
   expect(contents[1]!.type).toBe('Text')
   expect(icons[0]!.props.size ?? icons[0]!.props.width).toBe(24)
-  if (index === 3) expect(icons[0]!.props).toMatchObject({ testID: 'astra-mark', color: createTokensV2('orange', 'dark').fg1, accessible: false })
+  if (index === 3) expect(icons[0]!.props).toMatchObject({ testID: 'orbit-mascot', color: createTokensV2('orange', 'dark').fg1, accessible: false })
   if (navigates) {
     expect(contents.at(-1)!.type).toBe('ChevronRight')
   }

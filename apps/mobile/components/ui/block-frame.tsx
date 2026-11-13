@@ -1,7 +1,7 @@
 import Animated from 'react-native-reanimated'
 import { ConversationChange, useConversationLayout } from '@/components/chat/conversation-motion'
 import { IconButton } from '@/components/ui/icon-button'
-import { OrbitMark } from '@/components/ui/orbit-mark'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { ActionRow } from './action-row'
 
 import { SPACING, SMALL_PILL_VISIBLE_MIN, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
@@ -247,7 +247,7 @@ function FrameHeader({ props, tokens }: Readonly<{ props: Readonly<BlockFramePro
   }
   return (
       <View style={[styles.header, props.titleMode === 'typed' && { flexDirection: 'column', alignItems: 'stretch' }]}>
-        <OrbitMark size={20} />
+        <OrbitMascot size={20} />
         {props.titleContent ? <View accessibilityRole="header" style={{ flex: 1, minWidth: 0 }}>{props.titleContent}</View> : props.titleMode === 'typed' ? <View onLayout={props.focusTitleOnMount ? focusTitle : undefined}><PersonalText onClampedChange={setClamped} accessibilityRef={personalTitleRef} accessibilityRole="header" style={[styles.title, { flex: 0, color: tokens.fg1 }]}>{props.title}</PersonalText></View> : <Text ref={titleRef} onLayout={props.focusTitleOnMount ? focusTitle : undefined} numberOfLines={props.wrapTitle ? undefined : 1} style={[styles.title, { color: tokens.fg1 }]}>{props.title}</Text>}
         <FrameHeaderDetails props={props} tokens={tokens} clamped={clamped} />
       </View>

@@ -78,7 +78,7 @@ describe('desktop completion page geometry in Chromium', () => {
         const action = document.querySelector('a')!
         const heading = document.querySelector('h1')!
         const body = document.querySelector('p')!
-        const mark = document.querySelector('[data-asset="orbit-mark-accent"]')!
+        const mark = document.querySelector('[data-asset="orbit-mascot"]')!
         const panel = document.querySelector('[data-field-surface="responsive-card"]')!.getBoundingClientRect()
         const panelCentre = panel.left + panel.width / 2
         const centreOffsets = Object.fromEntries(Object.entries({ mark, heading, body, action }).map(([name, element]) => {
@@ -103,7 +103,7 @@ describe('desktop completion page geometry in Chromium', () => {
           targetHeight: action.getBoundingClientRect().height - parseFloat(target.top) - parseFloat(target.bottom),
           documentWidth: document.documentElement.scrollWidth, viewportWidth: innerWidth,
           background: getComputedStyle(document.body).backgroundColor,
-          marks: document.querySelectorAll('[data-asset="orbit-mark-accent"]').length,
+          marks: document.querySelectorAll('[data-asset="orbit-mascot"]').length,
         }
       })
       for (const [element, offset] of Object.entries(geometry.centreOffsets)) {

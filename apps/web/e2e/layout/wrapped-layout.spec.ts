@@ -171,7 +171,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
 
         await page.goto('/wrapped')
         await page.evaluate(() => document.fonts.ready)
-        const mark = await page.locator('main svg[data-asset="orbit-mark"]').boundingBox()
+        const mark = await page.locator('main svg[data-asset="orbit-mascot"]').boundingBox()
         const coverTitle = await page.locator('main h1').boundingBox()
         const back = await page.getByRole('button', { name: messages.common.backToProfile }).boundingBox()
         const frameLeft = (width - 900) / 2

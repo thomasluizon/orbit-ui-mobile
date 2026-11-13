@@ -92,14 +92,14 @@ describe('ChatEmptyState (mobile)', () => {
     expect(scroll.props.children).toBeTruthy()
   })
 
-  it('heads the empty thread with the Astra mark, on no disc and with no accent', () => {
+  it('heads the empty thread with the mascot, on no disc', () => {
     const { tree } = renderEmptyState([])
 
     expect(tree.root.findAll((node: any) =>
-      typeof node.type === 'string' && node.props?.testID === 'empty-state-mark-astra',
+      typeof node.type === 'string' && node.props?.testID === 'empty-state-mark',
     )).toHaveLength(1)
     const rendered = JSON.stringify(tree.toJSON())
-    expect(rendered).not.toContain(tokens.primary)
+    expect(rendered.split(tokens.primary)).toHaveLength(2)
     expect(rendered).not.toContain(tokens.primaryRgb)
   })
 

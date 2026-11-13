@@ -84,7 +84,7 @@ describe('HabitRow overflow menus', () => {
       'copy', 'checkbox', 'list-tree', 'trash',
     ])
     expect(items.filter((_, index) => index !== 3).every((item) => item.querySelector('[data-icon] svg[width="20"][stroke-width="2"]'))).toBe(true)
-    expect(items[3]!.querySelector('[data-asset^="astra-mark"]')).toHaveAttribute('aria-hidden', 'true')
+    expect(items[3]!.querySelector('[data-asset^="orbit-mascot"]')).toHaveAttribute('aria-hidden', 'true')
     expect(items[8]).toHaveAttribute('data-destructive', 'true')
   })
 

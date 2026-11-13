@@ -13,7 +13,7 @@ import { RadioRow } from '@/components/ui/select-check'
 import { DateField } from '@/components/ui/date-field'
 import { Input } from '@/components/ui/input'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -101,7 +101,7 @@ export function HabitDateField({ formHelpers, onRecurrence, lockedGeneral, onCha
   const validationError = form.formState.errors.datePhrase?.message
   const error = issue || validationError
   return <View style={{ minWidth: 0, gap: 16 }}>
-    {!formHelpers.isGeneral ? <Input disabled={disabled} label={t('habits.form.datePhrase')} placeholder={t('habits.form.datePhrasePlaceholder')} trailing={snapshot.pending || snapshot.astra ? <View accessible accessibilityLabel={t(snapshot.pending ? 'habits.form.dateInterpreting' : 'habits.form.dateInterpreted')} accessibilityState={{ busy: snapshot.pending }}><AstraGlyph size={16} color={tokens.fg3} /></View> : undefined} name="datePhrase" autoComplete="off" value={phrase} error={error ? t(error) : undefined} focusRequest={validationError && issue !== 'habits.form.recurrenceRequiresHabit' ? formHelpers.validationFocusRequest : undefined} onChange={guard((value) => editor.setPhrase(value))} /> : null}
+    {!formHelpers.isGeneral ? <Input disabled={disabled} label={t('habits.form.datePhrase')} placeholder={t('habits.form.datePhrasePlaceholder')} trailing={snapshot.pending || snapshot.astra ? <View accessible accessibilityLabel={t(snapshot.pending ? 'habits.form.dateInterpreting' : 'habits.form.dateInterpreted')} accessibilityState={{ busy: snapshot.pending }}><OrbitMascot size={16} color={tokens.fg3} /></View> : undefined} name="datePhrase" autoComplete="off" value={phrase} error={error ? t(error) : undefined} focusRequest={validationError && issue !== 'habits.form.recurrenceRequiresHabit' ? formHelpers.validationFocusRequest : undefined} onChange={guard((value) => editor.setPhrase(value))} /> : null}
     <TaskDateChoices formHelpers={formHelpers} lockedGeneral={lockedGeneral} onChange={onChange} />
     {!formHelpers.isGeneral ? <View style={{ minWidth: 0, gap: 8 }}>
       {type === 'habit' ? <Text style={{ color: tokens.fg2, fontSize: 14, fontFamily: 'Geist_500Medium' }}>{dateLabel}</Text> : null}

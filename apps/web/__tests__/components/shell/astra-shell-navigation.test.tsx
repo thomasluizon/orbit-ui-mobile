@@ -297,6 +297,6 @@ it.each([false, true])('owns one named Astra row before the four destinations wi
   expect(rows[0]).toHaveTextContent(/^Astra$/)
   expect(rows[0]).toHaveAccessibleName('Astra')
   expect(within(rows[0]!).getByText('Astra')).toHaveAttribute('translate', 'no')
-  expect(rows[0]!.querySelector('svg')).toHaveAttribute('data-asset', 'astra-mark')
+  expect(rows[0]!.querySelector('svg')).toHaveAttribute('data-asset', 'orbit-mascot')
   expect(within(navigation).getAllByRole('link')).toHaveLength(4)
 })

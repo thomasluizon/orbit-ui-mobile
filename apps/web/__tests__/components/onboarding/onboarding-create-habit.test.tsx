@@ -91,7 +91,7 @@ describe('OnboardingCreateHabit', () => {
 
   it.each([true, false])('attributes the reply only when Astra answered: %s', (proposed) => {
     const { container } = render(<OnboardingCreateHabit {...base} proposed={proposed} correcting={false} />)
-    const mark = container.querySelector('[data-asset="astra-mark"]')
+    const mark = container.querySelector('[data-asset="orbit-mascot"]')
     if (proposed) {
       expect(mark).toHaveAttribute('width', '24')
       expect(screen.queryByRole('img', { name: /^(Astra|Orbit)$/ })).toBeNull()

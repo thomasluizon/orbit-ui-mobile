@@ -1,4 +1,3 @@
-import { ORBIT_MARK_PATHS } from '@orbit/shared/contracts/brand'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
@@ -84,11 +83,10 @@ describe('CelebrationPanel', () => {
 
     const panel = container.querySelector('[data-celebration-panel]')
     expect(panel).not.toHaveAttribute('data-blocking')
-    expect(panel?.querySelectorAll('circle')).toHaveLength(0)
-    const mark = panel?.querySelector('[data-asset="orbit-mark"]')
-    expect(mark).toHaveAttribute('width', '44')
-    expect(mark).toHaveAttribute('height', '44')
-    expect([...(mark?.querySelectorAll('path') ?? [])].map(path => path.getAttribute('d'))).toEqual(ORBIT_MARK_PATHS.map(path => path.d))
+    const mark = panel?.querySelector('[data-asset="orbit-mascot"]')
+    expect(mark).toHaveAttribute('width', '48')
+    expect(mark).toHaveAttribute('data-orbit-state', 'feliz')
+    expect(mark).toHaveAttribute('data-orbit-loop', 'still')
     expect(panel).not.toHaveAttribute('aria-modal')
     expect(container.querySelector('[data-shell-background]')).not.toHaveAttribute('inert')
     expect(screen.getByRole('button', { name: 'Log habit' })).toBeEnabled()

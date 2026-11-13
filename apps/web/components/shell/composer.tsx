@@ -22,7 +22,7 @@ import { ArrowUp, Clipboard, FileText, Image as ImageIcon, Mic, Plus, RefreshCw,
 import { IconButton } from '@/components/ui/icon-button'
 import * as Menu from '@/components/ui/dropdown-menu'
 import { Sheet } from '@/components/ui/sheet'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { getAccountGeneration, subscribeToAccountGeneration } from '@/lib/session-epoch'
@@ -127,7 +127,7 @@ function SuggestionStrip({ suggestions, label }: Readonly<Pick<ComposerProps, 's
             className="flex min-h-[48px] shrink-0 items-center gap-[8px] rounded-full border-0 bg-[var(--bg-well)] px-3 py-3 text-start text-sm font-medium text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"
           >
             <span data-suggestion-content className="flex min-w-0 items-start gap-[8px]">
-              <span aria-hidden="true" className="flex h-[1lh] shrink-0 items-center"><AstraGlyph size={16} /></span>
+              <span aria-hidden="true" className="flex h-[1lh] shrink-0 items-center"><OrbitMascot size={16} /></span>
               <span className="min-w-0"><span data-suggestion-label>{suggestion.label}</span></span>
             </span>
           </button>
@@ -382,7 +382,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
           onClick={props.onOpenConversation}
           className="flex min-w-12 min-h-12 max-w-full shrink-0 items-center justify-center gap-2 px-2 py-1 rounded-full border-0 bg-transparent text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:[&_svg]:scale-[0.96] motion-safe:[&_svg]:transition-transform motion-safe:[&_svg]:duration-[var(--dur-press)] motion-safe:[&_svg]:ease-[var(--ease-out)]"
         >
-          <AstraGlyph size={20} color="var(--fg-3)" />
+          <OrbitMascot size={20} color="var(--fg-3)" />
         </button>
       ) : null}
 

@@ -229,12 +229,12 @@ describe('Composer compact geometry in Chromium', () => {
                 })
                 if (!sharesLine) combinedLines.push(fragment)
               }
-              const mark = button.querySelector<SVGSVGElement>('[data-asset="astra-mark"]')!
+              const mark = button.querySelector<SVGSVGElement>('[data-asset="orbit-mascot"]')!
               const ink = mark.getBBox()
               const drawnCentre = new DOMPoint(ink.x + ink.width / 2, ink.y + ink.height / 2).matrixTransform(mark.getScreenCTM()!)
               const firstLineCentre = button.querySelector('[data-suggestion-content]')!.getBoundingClientRect().top + parseFloat(style.lineHeight) / 2
               const attribution = [...button.querySelectorAll<HTMLElement>('[translate="no"]')]
-              const marks = [...button.querySelectorAll<SVGElement>('[data-asset="astra-mark"]')]
+              const marks = [...button.querySelectorAll<SVGElement>('[data-asset="orbit-mascot"]')]
               return { left: bounds.left, right: bounds.right, width: bounds.width, height: bounds.height,
                 label: text.textContent, accessibleName: button.getAttribute('aria-label'), lines: lines.length, textOverflow: style.textOverflow,
                 combinedText: text.parentElement!.textContent, combinedLines: combinedLines.length,

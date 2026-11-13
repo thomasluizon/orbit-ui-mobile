@@ -8,7 +8,7 @@ import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
 import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ArrowUp, RefreshCw, Square } from '@/components/ui/icons'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epoch'
@@ -139,7 +139,7 @@ it.each([en, ptBR])('shows each suggestion action with only the decorative mark'
       expect(control.props.accessibilityLabel).toBe(chips[index]!.label)
       expect(textValues(control)).toEqual([chips[index]!.label])
       const marks = control.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
-        typeof node.type === 'string' && node.props.testID === 'astra-mark')
+        typeof node.type === 'string' && node.props.testID === 'orbit-mascot')
       expect(marks).toHaveLength(1)
       expect(marks[0]!.props.accessible).toBe(false)
     }
@@ -576,7 +576,7 @@ describe('Composer (mobile)', () => {
     const send = tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === words.send)[0]!
     expect(send.findAllByType(ArrowUp)).toHaveLength(1)
     expect(send.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'ActivityIndicator')).toHaveLength(0)
-    expect(send.findAllByType(AstraGlyph)).toHaveLength(0)
+    expect(send.findAllByType(OrbitMascot)).toHaveLength(0)
     expect(send.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Text')).toHaveLength(0)
     expect(StyleSheet.flatten(send.props.style).width).toBe(48)
     TestRenderer.act(() => tree.unmount())
@@ -824,7 +824,7 @@ describe('Composer (mobile)', () => {
           const contentStyle = StyleSheet.flatten(chip.findByProps({ testID: 'composer-suggestion-content' }).props.style)
           const style = StyleSheet.flatten(chip.props.style)
           const inset = 2 * (style.paddingHorizontal + style.borderWidth)
-          const naturalWidth = labelWidth + chip.findByType(AstraGlyph).props.size + contentStyle.gap + inset
+          const naturalWidth = labelWidth + chip.findByType(OrbitMascot).props.size + contentStyle.gap + inset
           const contentWidth = Math.min(naturalWidth, style.maxWidth ?? naturalWidth) - inset
           TestRenderer.act(() => chip.findByProps({ testID: 'composer-suggestion-content' }).props.onLayout({
             nativeEvent: { layout: { x: 0, y: 0, width: contentWidth, height: 20 } },
@@ -1417,7 +1417,7 @@ describe('Composer (mobile)', () => {
       const trailingControls = trailing.findAll((node: { type?: unknown; props?: Record<string, unknown> }) => node.type === 'Pressable')
       expect(trailingControls.at(-1)).toBe(retry)
       expect(retry.findAllByType(RefreshCw)).toHaveLength(1)
-      expect(retry.findAllByType(AstraGlyph)).toHaveLength(0)
+      expect(retry.findAllByType(OrbitMascot)).toHaveLength(0)
       expect(byLabel(tree.root, words.send)).toHaveLength(0)
       expect(byLabel(tree.root, voiceWords.start)).toHaveLength(0)
       pressControl(retry)

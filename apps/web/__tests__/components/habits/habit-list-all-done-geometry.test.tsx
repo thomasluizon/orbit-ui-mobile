@@ -1,4 +1,3 @@
-import { ORBIT_MARK_PATHS } from '@orbit/shared/contracts/brand'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
@@ -41,7 +40,7 @@ describe('Hoje completion text and action geometry', () => {
           const [title, hint] = document.querySelectorAll('p')
           const action = document.querySelector('button')!.getBoundingClientRect()
           const finish = document.querySelector('[data-testid="habit-list-all-done"]')!.getBoundingClientRect()
-          const logo = document.querySelector<SVGSVGElement>('[data-asset="orbit-mark"]')
+          const logo = document.querySelector<SVGSVGElement>('[data-asset="orbit-mascot"]')
           const mark = logo?.getBoundingClientRect()
           const carrier = document.querySelector('[data-testid="completed-day-mark"]')?.getBoundingClientRect()
           const ink = [...(logo?.querySelectorAll('path') ?? [])].map(path => path.getBoundingClientRect())
@@ -69,7 +68,6 @@ describe('Hoje completion text and action geometry', () => {
             actionCentre: action.left + action.width / 2, text,
             animations: document.getAnimations().length }
         })
-        expect(geometry.paths).toEqual(ORBIT_MARK_PATHS.map(path => path.d))
         expect(geometry.circles).toBe(0)
         expect(geometry.markGap).toBe(24)
         expect(geometry.mark).toMatchObject({ width: 48, height: 48 })

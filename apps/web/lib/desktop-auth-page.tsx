@@ -5,7 +5,7 @@ import { createTranslator } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { AuthPagePanel } from '@/components/auth/auth-page-panel'
-import { OrbitMark } from '@/components/ui/orbit-mark'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { PillAnchor } from '@/components/ui/pill-anchor'
 import { neutralColors } from '@orbit/shared/theme'
 import { buildThemeBootstrapScript } from '@/lib/theme-bootstrap'
@@ -56,7 +56,7 @@ export async function desktopAuthPage(destination: URL, locale: string, mode: 'l
       <body>
         <main>
           <AuthPagePanel>
-            <OrbitMark size={128} accent />
+            <OrbitMascot size={128} />
             <div className="desktop-auth-message">
               <h1>{title}</h1>
               <p>{t(failed ? 'failureBody' : 'successBody')}</p>

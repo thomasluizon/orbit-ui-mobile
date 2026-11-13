@@ -9,7 +9,7 @@ export function ChatEmptyState({ browseAction }: Readonly<{ browseAction?: React
 
   return (
     <div className="mx-auto flex min-h-full w-full max-w-[708px] flex-col justify-center-safe" aria-live="off">
-      <EmptyState mark="astra" title={t('chat.empty.title')} action={browseAction} disclosure={
+      <EmptyState title={t('chat.empty.title')} action={browseAction} disclosure={
         <p
           className="m-0 self-center text-center"
           style={{
