@@ -70,7 +70,6 @@ export {
   IconListCheck as ListTodo,
   IconListTree as ListTree,
   IconSubtask as Subtask,
-  IconLoader2 as Loader2,
   IconLock as Lock,
   IconLogout as LogOut,
   IconMail as Mail,

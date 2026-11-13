@@ -43,8 +43,12 @@ function pressableHeight(tree: any): number | undefined {
   return Math.max(geometry.height ?? 0, geometry.minHeight ?? 0)
 }
 
+function skeletonFaces(tree: any) {
+  return tree.root.findAll((node: any) => typeof node.type === 'string' && node.props.testID === 'skeleton-face')
+}
+
 describe('PillButton (mobile)', () => {
-  it('mounts the moving loader only while the focused Astra action is busy', () => {
+  it('keeps the focused Astra action glyph on the skeleton face only while it is busy, with no status slot', () => {
     const onClick = vi.fn()
     const action = (loading: boolean) => <PillButton variant="ghost" retainLeadingIcon leadingIcon={<OrbitMascot size={16} />} loading={loading} focusableWhenLoading onClick={onClick}>Ask Astra</PillButton>
     const tree = renderPill(action(false))
@@ -53,12 +57,9 @@ describe('PillButton (mobile)', () => {
       TestRenderer.act(() => button.props.onFocus())
       for (const loading of [false, true, false]) {
         TestRenderer.act(() => tree.update(action(loading)))
-        const loaders = tree.root.findAllByType('ActivityIndicator')
-        expect(loaders).toHaveLength(loading ? 1 : 0)
-        const statusSlot = tree.root.findByType('View')
-        expect(flattenStyle(statusSlot.props.style)).toMatchObject({ width: BUTTON_SIZES.sm.iconSize, height: BUTTON_SIZES.sm.iconSize })
-        if (loading) expect(loaders[0].props).toMatchObject({ animating: true, size: 'small', color: createTokensV2('purple', theme.mode).fg1 })
-        else expect(statusSlot.children).toHaveLength(0)
+        expect(tree.root.findAllByType('ActivityIndicator')).toHaveLength(0)
+        expect(skeletonFaces(tree)).toHaveLength(loading ? 1 : 0)
+        expect(tree.root.findAll((node: any) => node.type === 'View' && flattenStyle(node.props.style).width === BUTTON_SIZES.sm.iconSize && node.props.accessible === false)).toHaveLength(0)
         expect(tree.root.findAllByType(OrbitMascot)).toHaveLength(1)
         expect(button.props.accessibilityState).toMatchObject({ disabled: false, busy: loading })
         expect(pressableStyle(button, false).outlineWidth).toBe(2)
@@ -195,7 +196,7 @@ describe('PillButton (mobile)', () => {
     expect(button.props.accessibilityState).toEqual({ disabled: true, busy: false })
   })
 
-  it('no-ops presses and shows a spinner while loading', () => {
+  it('no-ops presses and keeps its label on the skeleton face, never a spinner, while loading', () => {
     const onPress = vi.fn()
     const tree = renderPill(
       <PillButton onClick={onPress} loading>
@@ -205,7 +206,10 @@ describe('PillButton (mobile)', () => {
     const button = tree.root.findByType('Pressable')
     expect(button.props.accessibilityState).toEqual({ disabled: true, busy: true })
     expect(button.props.onPress).toBeUndefined()
-    expect(tree.root.findAllByType('ActivityIndicator')).toHaveLength(1)
+    expect(tree.root.findAllByType('ActivityIndicator')).toHaveLength(0)
+    expect(skeletonFaces(tree)).toHaveLength(1)
+    expect(textContents(tree)).toEqual(['Saving'])
+    expect(pressableStyle(button, false)).toMatchObject({ backgroundColor: 'transparent', overflow: 'hidden' })
   })
 
   it('renders all five variants', () => {
@@ -295,8 +299,11 @@ describe('PillButton (mobile)', () => {
     const busyTree = renderPill(<PillButton loading>Saving</PillButton>)
     const label = flattenStyle(busyTree.root.findByType('Text').props.style)
     const busyForeground = label.opacity ? withAlpha(label.color, label.opacity) : label.color
-    expect(contrastOnSurface(busyForeground, [tokens.primary])).toBeGreaterThanOrEqual(4.5)
-    expect(busyTree.root.findAllByType('ActivityIndicator')).toHaveLength(1)
+    expect(busyForeground).toBe(tokens.fg1)
+    expect(contrastOnSurface(busyForeground, [tokens.bg, tokens.bgWell])).toBeGreaterThanOrEqual(4.5)
+    expect(contrastOnSurface(busyForeground, [tokens.bg])).toBeGreaterThanOrEqual(4.5)
+    expect(busyTree.root.findAllByType('ActivityIndicator')).toHaveLength(0)
+    expect(skeletonFaces(busyTree)).toHaveLength(1)
 
     const destructive = renderPill(<PillButton variant="destructive">Delete</PillButton>)
     const pressed = pressableStyle(destructive.root.findByType('Pressable'), true)

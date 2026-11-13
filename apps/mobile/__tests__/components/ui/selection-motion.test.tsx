@@ -5,6 +5,8 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { SelectionIndicator } from '@/components/ui/selection-indicator'
 import { MotionPressable } from '@/components/ui/motion-pressable'
 import { SwitchTrack } from '@/components/ui/switch'
+import { Checkbox } from '@/components/ui/checkbox'
+import { createTokensV2 } from '@/lib/theme'
 import { PRESS_SCALE_TRANSITION } from '@/components/motion/press-scale'
 import { motionDurations, motionPresets } from '@orbit/shared/theme'
 
@@ -69,6 +71,20 @@ describe('selection motion', () => {
     preference.reduced = true
     TestRenderer.act(() => tree!.update(render(true)))
     expect(host().transition).toBe('none')
+    TestRenderer.act(() => tree!.unmount())
+    preference.reduced = false
+  })
+
+  it.each([false, true])('settles the checkbox fill on the selection preset, and at once under reduced motion %s', (reduced) => {
+    preference.reduced = reduced
+    const { enterDuration, exitDuration, enterEasing, exitEasing } = motionPresets.selection
+    const tokens = createTokensV2('orange', 'dark')
+    let tree: ReturnType<typeof TestRenderer.create>
+    const box = () => StyleSheet.flatten(tree!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props['data-slot'] === 'checkbox-box')[0]!.props.style)
+    TestRenderer.act(() => { tree = TestRenderer.create(<Checkbox checked={false} onChange={vi.fn()} label="Done" />) })
+    expect(box()).toMatchObject({ backgroundColor: 'transparent', transition: reduced ? 'none' : `background-color ${exitDuration}ms cubic-bezier(${exitEasing.join(',')})` })
+    TestRenderer.act(() => tree!.update(<Checkbox checked onChange={vi.fn()} label="Done" />))
+    expect(box()).toMatchObject({ backgroundColor: tokens.statusDone, transition: reduced ? 'none' : `background-color ${enterDuration}ms cubic-bezier(${enterEasing.join(',')})` })
     TestRenderer.act(() => tree!.unmount())
     preference.reduced = false
   })

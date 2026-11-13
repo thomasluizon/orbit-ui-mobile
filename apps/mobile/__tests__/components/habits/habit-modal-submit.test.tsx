@@ -13,7 +13,6 @@ import { HabitDetailScreen } from '@/components/habits/habit-detail-screen'
 import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
 import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
 import { createQueuedAck } from '@/lib/offline-mutations'
-import { ActivityIndicator } from 'react-native'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { __setFocusImpl } from '@/test-mocks/react-native'
 import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
@@ -234,7 +233,7 @@ describe.each(['create', 'edit'] as const)('habit %s submit', (mode) => {
     expect(mutation).not.toHaveBeenCalled()
   })
 
-  it('keeps its label and shows a spinner only while the request runs', async () => {
+  it('keeps its label and shows the skeleton face, never a spinner, only while the request runs', async () => {
     let finish!: () => void
     mutation.mockImplementation(() => new Promise((resolve) => { finish = () => resolve(habit) }))
     const { title, submit, onClose, tree } = await renderSheet(mode)
@@ -244,13 +243,15 @@ describe.each(['create', 'edit'] as const)('habit %s submit', (mode) => {
     expect(buttonState(submit).busy).toBe(true)
     expect(buttonState(submit).disabled).toBe(true)
     expect(submit.findAll((node) => (node.type as unknown) === 'Text').some((node) => node.props.children === (mode === 'create' ? 'habits.createHabit' : 'common.save'))).toBe(true)
-    expect(tree.root.findAll((node) => node.type === ActivityIndicator)[0]).toBeTruthy()
+    expect(submit.findAll((node) => (node.type as unknown) === 'View' && node.props.testID === 'skeleton-face')).toHaveLength(1)
+    expect(tree.root.findAll((node) => (node.type as unknown) === 'ActivityIndicator')).toHaveLength(0)
     await pressSubmit(submit)
     expect(mutation).toHaveBeenCalledTimes(1)
     await act(() => Promise.resolve(finish()))
     await settleMutation()
     expect(buttonState(submit).disabled).toBe(false)
     expect(buttonState(submit).busy).toBe(false)
+    expect(submit.findAll((node) => (node.type as unknown) === 'View' && node.props.testID === 'skeleton-face')).toHaveLength(0)
     expect(onClose).toHaveBeenCalled()
   })
 

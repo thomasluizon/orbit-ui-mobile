@@ -167,6 +167,18 @@ export function Skeleton(props: Readonly<SkeletonProps>) {
   )
 }
 
+/**
+ * The face of a control that waits for its own request: the `fill` skeleton behind its label. The control renders
+ * it as its first child and clips it to its own shape.
+ */
+export function SkeletonFace() {
+  return (
+    <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" testID="skeleton-face" style={StyleSheet.absoluteFill}>
+      <Skeleton variant="fill" grouped />
+    </View>
+  )
+}
+
 const styles = StyleSheet.create({
   unit: { width: '100%' },
   fill: { width: '100%', height: '100%' },

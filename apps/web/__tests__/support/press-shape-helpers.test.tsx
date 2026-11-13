@@ -152,7 +152,7 @@ describe('press shape hover sampling in Chromium', () => {
   it('settles reduced motion transitions without waiting on an infinite loading animation', async () => {
     const page = await renderPill(`
       [data-loading] { animation: loading 1s linear infinite; }
-      @keyframes loading { to { transform: rotate(360deg); } }
+      @keyframes loading { 50% { opacity: 0.55; } }
     `)
     try {
       await page.emulateMedia({ reducedMotion: 'reduce' })
@@ -160,7 +160,6 @@ describe('press shape hover sampling in Chromium', () => {
         const loading = document.createElement('span')
         loading.setAttribute('data-loading', '')
         loading.setAttribute('aria-hidden', 'true')
-        loading.className = 'orbit-essential-loading'
         document.querySelector('button')!.append(loading)
       })
       expect(await page.locator('[data-loading]').evaluate((element) =>

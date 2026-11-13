@@ -3,7 +3,6 @@ import { cloneElement, isValidElement, useContext, useState, type Ref } from 're
 import { ActionRowContext } from './action-row'
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
 import {
-  ActivityIndicator,
   StyleSheet,
   Text,
   type ViewStyle,
@@ -15,6 +14,7 @@ import { SPACING, GOOGLE_SIGN_IN_BUTTON, ICON_ACTION_START_HANG, BUTTON_SIZES, M
 import { createTokensV2, mixHex, radius, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ThemedMotionPressable } from './motion-pressable'
+import { SkeletonFace } from './skeleton'
 
 const SMALL_PILL_HIT_PADDING = (TOUCH_TARGET_MIN - SMALL_PILL_VISIBLE_MIN) / 2
 
@@ -26,6 +26,16 @@ function buttonTextColors(tokens: ReturnType<typeof createTokensV2>, quiet: bool
     destructive: tokens.fgOnBad,
     caution: tokens.fgOnOverdue,
   }
+}
+
+/** A waiting action's face is the skeleton, so its label reads `fg1` on the skeleton tone; a quiet ghost keeps `fg2`. */
+function waitingTextColor(tokens: AppTokensV2, variant: ButtonVariant, quiet: boolean): string {
+  return variant === 'ghost' && quiet ? tokens.fg2 : tokens.fg1
+}
+
+/** The waiting face clears the variant fill for the skeleton and keeps the ghost border width, so the size stays. */
+function waitingFaceStyle(variant: ButtonVariant, ghostBorderWidth: number): ViewStyle {
+  return { backgroundColor: 'transparent', borderWidth: variant === 'ghost' ? ghostBorderWidth : 0, borderColor: 'transparent' }
 }
 
 function buttonFocusStyle(variant: ButtonVariant, outlineColor: string): ViewStyle {
@@ -86,8 +96,8 @@ export function ThemedButton({
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
 
-  const textColorByVariant = buttonTextColors(tokens, quiet)
-  const leadingGlyph = buttonLeadingGlyph(leadingIcon, textColorByVariant[variant])
+  const textColor = loading ? waitingTextColor(tokens, variant, quiet) : buttonTextColors(tokens, quiet)[variant]
+  const leadingGlyph = buttonLeadingGlyph(leadingIcon, textColor)
 
   const ghostPressedFill = elevated ? tokens.bgElevHover : quiet ? tokens.bgHoverOpaque : tokens.bgHover
   const ghostFill = elevated ? tokens.bgElev : 'transparent'
@@ -144,12 +154,12 @@ export function ThemedButton({
           ? iconOnlyStyle(Math.max(minimumHeight ?? sizeSpec.height, SMALL_PILL_VISIBLE_MIN), edge)
           : { height: minimumHeight === undefined ? Math.max(sizeSpec.height, SMALL_PILL_VISIBLE_MIN) : undefined, minHeight: Math.max(minimumHeight ?? 0, SMALL_PILL_VISIBLE_MIN), width: matchedWidth ? MATCHED_PILL_WIDTH : undefined, paddingVertical: SPACING.s4, paddingHorizontal: sizeSpec.paddingX, paddingStart: leadingIcon ? sizeSpec.paddingX - 2 : sizeSpec.paddingX, gap: sizeSpec.gap },
         brand === 'google' ? { paddingHorizontal: GOOGLE_SIGN_IN_BUTTON.paddingX, paddingStart: GOOGLE_SIGN_IN_BUTTON.paddingX, gap: GOOGLE_SIGN_IN_BUTTON.gap } : null,
-        variantStyle(pressed && !disabled && !loading),
+        loading ? waitingFaceStyle(variant, ghostBorderWidth) : variantStyle(pressed && !disabled),
         focused ? buttonFocusStyle(variant, tokens.fg1) : null,
         disabled && !loading ? styles.disabled : null,
       ]}
     >
-      <ButtonContents loading={loading} retainLeadingIcon={retainLeadingIcon} iconOnly={iconOnly} leadingGlyph={leadingGlyph} textColor={textColorByVariant[variant]} sizeSpec={sizeSpec}>{children}</ButtonContents>
+      <ButtonContents loading={loading} retainLeadingIcon={retainLeadingIcon} iconOnly={iconOnly} leadingGlyph={leadingGlyph} textColor={textColor} sizeSpec={sizeSpec}>{children}</ButtonContents>
     </ThemedMotionPressable>
   )
 }
@@ -163,15 +173,15 @@ function iconOnlyStyle(side: number, edge: 'start' | undefined): ViewStyle {
   return { height: side, width: side, paddingHorizontal: SPACING.s0, gap: 0, marginStart: edge === 'start' ? ICON_ACTION_START_HANG : undefined }
 }
 
+/** The face, glyph and label. A waiting action keeps its glyph and label on the skeleton face. */
 function ButtonContents({ loading, retainLeadingIcon, iconOnly, leadingGlyph, children, textColor, sizeSpec }: Readonly<Pick<ButtonProps, 'children' | 'iconOnly'> & {
   loading: boolean; retainLeadingIcon: boolean; leadingGlyph: React.ReactNode; textColor: string; sizeSpec: typeof BUTTON_SIZES.sm
 }>) {
   const { fontScale } = useWindowDimensions()
   const iconColor = isValidElement<{ color?: string }>(children) ? children.props.color : undefined
   return <>
-      {loading && !retainLeadingIcon ? (
-        <ActivityIndicator size="small" color={textColor} />
-      ) : iconOnly ? buttonLeadingGlyph(children, iconColor ?? textColor) : leadingGlyph}
+      {loading ? <SkeletonFace /> : null}
+      {iconOnly ? buttonLeadingGlyph(children, iconColor ?? textColor) : leadingGlyph}
       {iconOnly ? null : (
         <Text
           numberOfLines={retainLeadingIcon && fontScale > 1.3 ? undefined : 1}
@@ -184,7 +194,6 @@ function ButtonContents({ loading, retainLeadingIcon, iconOnly, leadingGlyph, ch
           {children}
         </Text>
       )}
-      {retainLeadingIcon && !iconOnly ? <View accessible={false} importantForAccessibility="no-hide-descendants" style={{ width: sizeSpec.iconSize, height: sizeSpec.iconSize }}>{loading ? <ActivityIndicator animating size="small" color={textColor} /> : null}</View> : null}
   </>
 }
 

@@ -2,7 +2,8 @@ import type { AstraAllowance } from '@orbit/shared/utils'
 import { useRouter } from 'expo-router'
 import { SPACING } from '@orbit/shared/theme'
 import { ProPitch } from './pro-pitch'
-import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native'
+import { Platform, Pressable, Text, View } from 'react-native'
+import { SkeletonFace } from '@/components/ui/skeleton'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import type { StoreOffer } from '@/hooks/use-play-billing'
 import { PlanSelection } from './plan-selection'
@@ -104,13 +105,11 @@ export function PricingSection({
               style={({ pressed }) => [
                 styles.restoreAction,
                 { flexDirection: 'row', alignItems: 'center', gap: 8 },
-                isRestoring || !isOnline || checkoutLoading !== null ? styles.disabledAction : null,
+                !isRestoring && (!isOnline || checkoutLoading !== null) ? styles.disabledAction : null,
                 pressed ? styles.pressedScale : null,
               ]}
             >
-              {isRestoring ? (
-                <ActivityIndicator size="small" color={tokens.fg3} />
-              ) : null}
+              {isRestoring ? <SkeletonFace /> : null}
               <Text style={[styles.restoreLink, { color: tokens.fg3 }]}>{t('upgrade.restorePurchase')}</Text>
             </Pressable>
           ) : null}

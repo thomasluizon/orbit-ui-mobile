@@ -3,7 +3,6 @@ import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useCallback, useMemo, useState } from 'react'
 import {
   AccessibilityInfo,
-  ActivityIndicator,
   Platform,
   Share,
   StyleSheet,
@@ -26,6 +25,7 @@ import { ActionRow } from '@/components/ui/action-row'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 import { Sheet } from '@/components/ui/sheet'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useSheetPresence } from '@/components/ui/sheet-presence'
 import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -203,8 +203,9 @@ function ReferralDrawerContent({ onClose, sheetRef, closeSheet }: Readonly<Pick<
     >
       <View style={styles.content}>
         {isLoading ? (
-          <View style={styles.loadingContainer} accessibilityRole="progressbar">
-            <ActivityIndicator color={tokens.fg3} />
+          <View testID="referral-skeleton" style={styles.content} accessibilityRole="progressbar" accessibilityLabel={t('common.loading')} accessibilityState={{ busy: true }}>
+            <View style={styles.linkSkeleton}><Skeleton variant="fill" grouped /></View>
+            <Skeleton variant="settings" rows={2} grouped />
           </View>
         ) : null}
         {isError ? <ErrorState message={error.message} /> : null}
@@ -235,9 +236,8 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     content: {
       gap: 16,
     },
-    loadingContainer: {
-      paddingVertical: SPACING.s48,
-      alignItems: 'center',
+    linkSkeleton: {
+      height: TOUCH_TARGET_MIN + SPACING.s8 + 2,
     },
     linkWell: {
       flexDirection: 'row',

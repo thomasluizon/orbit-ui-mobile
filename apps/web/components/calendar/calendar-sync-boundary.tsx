@@ -8,6 +8,7 @@ import { getAccountGeneration } from '@/lib/session-epoch'
 import { useOffline } from '@/hooks/use-offline'
 import { ListRow } from '@/components/ui/list-row'
 import { RefreshCw } from '@/components/ui/icons'
+import { SkeletonFace } from '@/components/ui/skeleton'
 
 interface CalendarSyncBoundaryProps {
   isConnected: boolean
@@ -52,7 +53,7 @@ export function CalendarSyncBoundary({ isConnected, hasProAccess, autoSyncState,
         <span className="text-sm text-[var(--fg-2)]">{t(isConnected ? 'calendar.dayDetail.googleConnected' : 'calendar.autoSync.reconnectTitle')}</span>
         <span className="font-mono text-xs tabular-nums text-[var(--fg-2)]" title={t('calendar.dayDetail.lastSyncedLabel')}>{lastSynced ?? t('calendar.autoSync.lastSyncedNever')}</span>
       </div>
-      {showControls ? <button type="button" aria-label={t('calendar.autoSync.syncNow')} aria-busy={pendingAction === 'sync' || undefined} disabled={syncUnavailable} onClick={() => void runAction('sync', onSyncNow)} className="icon-btn touch-target shrink-0 text-[var(--fg-2)] disabled:opacity-50"><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></button> : null}
+      {showControls ? <button type="button" aria-label={t('calendar.autoSync.syncNow')} aria-busy={pendingAction === 'sync' || undefined} disabled={syncUnavailable} onClick={() => void runAction('sync', onSyncNow)} className={`icon-btn touch-target isolate shrink-0 text-[var(--fg-2)] ${pendingAction === 'sync' ? '' : 'disabled:opacity-50'}`}>{pendingAction === 'sync' ? <SkeletonFace /> : null}<RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></button> : null}
     </div>
     {showControls ? <ListRow placement="column" title={t('calendar.autoSync.automaticImport')} description={t('calendar.autoSync.automaticImportDescription')} disabled={syncUnavailable} toggle={{ checked: autoSyncState?.enabled ?? false, pending: pendingAction === 'toggle', onChange: (enabled) => void runAction('toggle', () => onAutoSyncChange(enabled)) }} /> : null}
     <p role="status" hidden={!gated && pendingAction !== 'sync'} className="m-0 text-sm text-[var(--fg-2)]">{gated ? t('calendar.autoSync.proRequired') : pendingAction === 'sync' ? t('calendar.autoSync.syncing') : ''}</p>

@@ -1918,7 +1918,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 }
 }
 
-/* Reduced motion: keep essential loading feedback while suppressing other motion. */
+/* Reduced motion: every animation and transition settles at once; a skeleton holds its still tone. */
 @media (prefers-reduced-motion: reduce) {
   .habit-form-disclosure[data-open] {
     transform: none;
@@ -1936,10 +1936,6 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
     transition-duration: 0s !important;
   }
 
-  .orbit-essential-loading {
-    animation-duration: 3s !important;
-    animation-iteration-count: infinite !important;
-  }
   .collapsible {
     transition: none !important;
   }
@@ -2590,6 +2586,13 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 .chip-active {
   transition-duration: var(--dur-hover-control), var(--dur-hover-control), var(--dur-press), var(--motion-selection-enter);
   transition-timing-function: var(--ease-standard), var(--ease-standard), var(--ease-out), var(--motion-ease-standard);
+}
+.orbit-checkbox-box {
+  transition: background-color var(--motion-selection-exit) var(--motion-ease-exit);
+}
+.orbit-checkbox-box[data-filled] {
+  transition-duration: var(--motion-selection-enter);
+  transition-timing-function: var(--motion-ease-standard);
 }
 .orbit-selection-ring-thin { --selection-ring-width: 1.5px; }
 .orbit-selection-ring-hairline { --selection-ring-width: 1px; }
