@@ -6448,6 +6448,41 @@ export const PostApiHabitsSuggestSetupBody = zod.object({
 export const PostApiHabitsSuggestSetupResponse = zod.unknown()
 
 
+export const PostApiHabitsReadPhraseHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const postApiHabitsReadPhraseBodyLanguageDefault = `en`;
+
+export const PostApiHabitsReadPhraseBody = zod.object({
+  "phrase": zod.string(),
+  "language": zod.string().default(postApiHabitsReadPhraseBodyLanguageDefault)
+})
+
+export const postApiHabitsReadPhraseResponseFrequencyUnitTwoTwoMin = -2147483648;
+export const postApiHabitsReadPhraseResponseFrequencyUnitTwoTwoMax = 2147483647;
+
+export const postApiHabitsReadPhraseResponseFrequencyQuantityRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiHabitsReadPhraseResponseDaysItemTwoMin = -2147483648;
+export const postApiHabitsReadPhraseResponseDaysItemTwoMax = 2147483647;
+
+export const postApiHabitsReadPhraseResponseFlexibleTargetRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+
+
+export const PostApiHabitsReadPhraseResponse = zod.object({
+  "read": zod.boolean(),
+  "emoji": zod.string().nullable(),
+  "frequencyUnit": zod.union([zod.null(),zod.union([zod.enum(['Day', 'Week', 'Month', 'Year']),zod.int().min(postApiHabitsReadPhraseResponseFrequencyUnitTwoTwoMin).max(postApiHabitsReadPhraseResponseFrequencyUnitTwoTwoMax)])]),
+  "frequencyQuantity": zod.union([zod.int(),zod.stringFormat('int32', postApiHabitsReadPhraseResponseFrequencyQuantityRegExpTwo)]).nullable(),
+  "days": zod.array(zod.union([zod.enum(['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']),zod.int().min(postApiHabitsReadPhraseResponseDaysItemTwoMin).max(postApiHabitsReadPhraseResponseDaysItemTwoMax)])),
+  "isFlexible": zod.boolean(),
+  "flexibleTarget": zod.union([zod.int(),zod.stringFormat('int32', postApiHabitsReadPhraseResponseFlexibleTargetRegExpTwo)]).nullable(),
+  "dueTime": zod.string().nullable(),
+  "subHabits": zod.array(zod.string()),
+  "checklistItems": zod.array(zod.string())
+})
+
+
 export const PostApiHabitsIdLogParams = zod.object({
   "id": zod.uuid()
 })
@@ -7381,7 +7416,7 @@ export const getApiProfileResponseStreakFreezesAvailableRegExpTwo = new RegExp('
 export const getApiProfileResponseUses24HourClockDefault = true;
 export const getApiProfileResponseProactiveAstraEnabledDefault = false;
 export const getApiProfileResponseActiveApiKeyCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
-
+export const getApiProfileResponseMascotMotionEnabledDefault = true;
 
 export const GetApiProfileResponse = zod.object({
   "userId": zod.uuid(),
@@ -7442,7 +7477,8 @@ export const GetApiProfileResponse = zod.object({
   "activeApiKeyCount": zod.union([zod.int(),zod.stringFormat('int32', getApiProfileResponseActiveApiKeyCountRegExpTwo)]).nullish(),
   "billingProvider": zod.string().nullish(),
   "aiMessagesPeriod": zod.string().nullish(),
-  "aiMessagesResetsAt": zod.iso.datetime({"offset":true}).nullish()
+  "aiMessagesResetsAt": zod.iso.datetime({"offset":true}).nullish(),
+  "mascotMotionEnabled": zod.boolean().default(getApiProfileResponseMascotMotionEnabledDefault)
 })
 
 
@@ -7524,6 +7560,17 @@ export const PutApiProfileClockFormatBody = zod.object({
 })
 
 export const PutApiProfileClockFormatResponse = zod.void()
+
+
+export const PutApiProfileMascotMotionHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const PutApiProfileMascotMotionBody = zod.object({
+  "enabled": zod.boolean()
+})
+
+export const PutApiProfileMascotMotionResponse = zod.void()
 
 
 export const PutApiProfileThemePreferenceHeader = zod.object({
