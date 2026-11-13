@@ -1,6 +1,8 @@
-import { PADDING, } from '@orbit/shared/theme'
+import { useEffect, useState, type ReactElement, type ReactNode } from 'react'
+import { motionDurations, motionEasings, motionLayerTiming, PADDING } from '@orbit/shared/theme'
 import type { StatTileProps } from '@orbit/shared/contracts/display'
-import { StyleSheet, Text, View } from 'react-native'
+import { Animated, Easing, StyleSheet, Text, View } from 'react-native'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -28,6 +30,26 @@ function TileValue({ value, isEmpty, color }: Readonly<{
   )
 }
 
+/** A changed figure rolls up into its own line once, inside a clip. Reduced motion keeps it still. */
+function RollingValue({ children }: Readonly<{ children: ReactNode }>) {
+  const reducedMotion = usePrefersReducedMotion()
+  const [progress] = useState(() => new Animated.Value(reducedMotion ? 1 : 0))
+  useEffect(() => {
+    if (reducedMotion) {
+      progress.setValue(1)
+      return undefined
+    }
+    const roll = Animated.timing(progress, { toValue: 1, duration: motionDurations.slow, easing: Easing.bezier(...motionEasings.standard), useNativeDriver: true })
+    roll.start()
+    return () => roll.stop()
+  }, [progress, reducedMotion])
+  return (
+    <View style={styles.rollClip} testID={reducedMotion ? 'stat-tile-value-still' : 'stat-tile-value-roll'}>
+      <Animated.View style={{ opacity: progress, transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [motionLayerTiming.routeShift, 0] }) }] }}>{children}</Animated.View>
+    </View>
+  )
+}
+
 export function StatTile(props: Readonly<StatTileProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -46,11 +68,11 @@ export function StatTile(props: Readonly<StatTileProps>) {
           <Text style={[styles.value, { opacity: 0 }]}>0</Text><View style={[styles.valueSkeleton, { position: 'absolute', backgroundColor: tokens.bgElev2 }]} />
         </View>
       ) : (
-        <TileValue
+        rollValue(props, <TileValue
           value={shownStatValue(props)}
           isEmpty={isEmpty}
           color={isEmpty ? tokens.fg3 : tokens.fg1}
-        />
+        />)
       )}
       {state === 'loading' ? (
         <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.loadingLabel}>
@@ -62,7 +84,12 @@ export function StatTile(props: Readonly<StatTileProps>) {
   )
 }
 
+function rollValue(props: StatTileProps, value: ReactElement) {
+  return (props.state === undefined || props.state === 'default') && props.roll ? <RollingValue>{value}</RollingValue> : value
+}
+
 const styles = StyleSheet.create({
+  rollClip: { maxWidth: '100%', overflow: 'hidden' },
   tile: {
     flex: 1,
     minWidth: 0,

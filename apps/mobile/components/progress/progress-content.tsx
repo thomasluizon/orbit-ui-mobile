@@ -1,22 +1,16 @@
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { ContentFade } from '@/components/motion/content-fade'
 import { createListCellMotion } from '@/lib/list-motion'
-import { StreakFigure } from '@/components/gamification/streak-figure'
 import { IconButton } from '@/components/ui/icon-button'
-import { PADDING, SPACING, SHELL_CONTENT_MAX_WIDTH, SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
-import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
+import { PADDING, SPACING, SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { ActionRow } from '@/components/ui/action-row'
 import { CreateGoalSheet } from '@/components/goals/create-goal-sheet'
 import { PersonalText } from '@/components/ui/personal-text'
-import { PROGRESS_SUBMENUS, type ProgressSubmenuId } from '@orbit/shared/utils/progress-navigation'
-import { ListRow } from '@/components/ui/list-row'
-import { SettingsGroup } from '@/components/ui/settings-group'
+import type { ProgressSubmenuId } from '@orbit/shared/utils/progress-navigation'
 import { ProgressSubscreen } from './progress-subscreen'
-import { RootNotificationHeader } from '@/components/navigation/root-notification-header'
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { AccessibilityInfo, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
-import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import {
   NestableDraggableFlatList,
@@ -27,302 +21,30 @@ import {
 import type { Goal, GoalPositionItem } from '@orbit/shared/types/goal'
 import {
   buildGoalMovePositions,
-  buildProtectedDayLabels,
-  buildStreakWeekDays,
-  deriveStreakRepairState,
-  extractBackendErrorCode,
-  extractBackendStatus,
   filterProgressGoals,
-  formatStreakDate,
-  formatStreakRepairDates,
-  getBestRetrospectiveWeekdayKey,
   getProgressGoalLabelKey,
-  getStreakRepairErrorMessageKey,
-  getStreakTierLabelKey,
-  isPayGateError,
-  visibleProgressAchievements,
-  mapCompletionSeries,
   type ProgressGoalFilter,
-  type StreakRepairState,
 } from '@orbit/shared/utils'
 import { Badge } from '@/components/ui/badge'
-import { BarChart } from '@/components/ui/bar-chart'
-import { CapacityNotice } from '@/components/ui/capacity-notice'
-import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { MotionPressable } from '@/components/ui/motion-pressable'
-import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { useGoalDrag } from './use-goal-drag'
-import { DayStrip } from '@/components/dates/day-strip'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ShellCentredRegion } from '@/components/shell/shell-centred-region'
 import { ErrorState } from '@/components/ui/error-state'
-import { Sheet, useSheetHost } from '@/components/ui/sheet'
-import { FreezeBank } from '@/components/ui/freeze-bank'
-import { ChevronDown, ChevronRight, Lock, Snowflake, RefreshCw, Plus } from '@/components/ui/icons'
-import { AchievementTile } from '@/components/gamification/achievement-tile'
-import { LevelSummary } from '@/components/gamification/level-summary'
+import { RefreshCw, Plus } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
 import { ProgressRing } from '@/components/ui/progress-ring'
-import { ProBadge } from '@/components/ui/pro-badge'
 import * as Menu from '@/components/ui/dropdown-menu'
-import { Skeleton } from '@/components/ui/skeleton'
-import { StatTile } from '@/components/ui/stat-tile'
 import { StatusRing } from '@/components/ui/status-ring'
-import { useGamificationProfile, useRepairStreak, useStreakFreeze } from '@/hooks/use-gamification'
 import { useGoals, useReorderGoals } from '@/hooks/use-goals'
-import { useProfile } from '@/hooks/use-profile'
-import { useProgressRetrospective } from '@/hooks/use-retrospective'
 import { createTokensV2, shadowsV2, type AppTokensV2 } from '@/lib/theme'
-import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { ScrollView as GestureScrollView } from 'react-native-gesture-handler'
-import { useRootScrollToTop } from '@/components/shell/root-scroll-context'
-import { useShellPageEnd, useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
+import { useShellPageEnd } from '@/components/shell/shell-scroller-clearance'
 import { useAppTheme } from '@/lib/use-app-theme'
-
-const NO_HABITS_FOR_PERIOD = 'NO_HABITS_FOR_PERIOD'
-
-function Section({ children }: Readonly<{ children: ReactNode }>) {
-  return <View testID="progress-achievements-section" style={styles.section}>{children}</View>
-}
-
-function WindowFigureGrid({ children }: Readonly<{ children: ReactNode[] }>) {
-  const { width, fontScale } = useWindowDimensions()
-  const columns = width / fontScale >= 768 ? 3 : width / fontScale >= 360 ? 2 : 1
-
-  return (
-    <View testID={`progress-window-grid-${columns}`} style={styles.windowGrid}>
-      {Array.from({ length: Math.ceil(children.length / columns) }, (_, rowIndex) => (
-        <View key={rowIndex} testID="progress-window-row" style={styles.windowRow}>
-          {children.slice(rowIndex * columns, (rowIndex + 1) * columns).map((child, columnIndex) => (
-            <View key={columnIndex} style={styles.windowTile}>{child}</View>
-          ))}
-        </View>
-      ))}
-    </View>
-  )
-}
-
-/** One busy region covers the figures and the habit row. */
-function WindowFigureLoading({ label }: Readonly<{ label: string }>) {
-  const { t } = useTranslation()
-  return (
-    <View accessible accessibilityRole="progressbar" accessibilityLabel={label} accessibilityState={{ busy: true }} style={styles.windowSection}>
-      <Skeleton variant="bar-chart" grouped />
-      <WindowFigureGrid>
-        {(['completionRate', 'activeDays', 'bestWeekday'] as const).map((key) => <View key={key} importantForAccessibility="no-hide-descendants"><StatTile state="loading" loadingLabel={label} label={t(`progressScreen.window.${key}`)} /></View>)}
-      </WindowFigureGrid>
-      <Skeleton variant="habit-row" grouped />
-    </View>
-  )
-}
-
-function WindowFrame({ children, title, tokens, statusText = '' }: Readonly<{
-  children: ReactNode
-  title: string
-  tokens: AppTokensV2
-  statusText?: string
-}>) {
-  return (
-    <View testID="progress-window-section" style={styles.windowSection}>
-      <Text accessibilityRole="header" style={[styles.sectionTitle, { color: tokens.fg1 }]}>{title}</Text>
-      <Text accessibilityLiveRegion="polite" style={styles.screenReaderTitle} testID="progress-window-status">{statusText}</Text>
-      {children}
-    </View>
-  )
-}
-
-function LockedCard({ title, body, action, tokens }: Readonly<{ title: string; body: string; action: string; tokens: AppTokensV2 }>) {
-  const router = useRouter()
-  return (
-    <View testID="progress-locked-card" style={[styles.card, { backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost }]}>
-      <View style={styles.lockHeader}><Lock size={20} strokeWidth={2} color={tokens.fg2} /><ProBadge alwaysVisible /></View>
-      <View style={styles.copy}><Text style={[styles.cardTitle, { color: tokens.fg1 }]}>{title}</Text><Text style={[styles.body, { color: tokens.fg3 }]}>{body}</Text></View>
-      <View style={styles.actionStart}><PillButton variant="ghost" size="sm" onClick={() => router.push(buildUpgradeHref('/progress'))}>{action}</PillButton></View>
-    </View>
-  )
-}
-
-function FrozenTodayStatus({ isFrozenToday, tokens }: Readonly<{ isFrozenToday: boolean; tokens: AppTokensV2 }>) {
-  const { t } = useTranslation()
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => {
-    let active = true
-    void Promise.resolve().then(() => { if (active) setMounted(true) })
-    return () => { active = false }
-  }, [])
-  const showMessage = mounted && isFrozenToday
-  return (
-    <View accessible accessibilityLiveRegion="polite" accessibilityLabel={showMessage ? t('progressScreen.streak.frozenToday') : ''} style={showMessage ? [styles.frozenBanner, { backgroundColor: tokens.bgWell }] : styles.screenReaderTitle}>
-      {showMessage ? <><Snowflake size={20} strokeWidth={2} color={tokens.statusFrozen} /><Text style={[styles.frozenCopy, { color: tokens.fg2 }]}>{t('progressScreen.streak.frozenToday')}</Text></> : null}
-    </View>
-  )
-}
-
-function FreezeCoveredStatus({ date, remaining, origin, locale, tokens }: Readonly<{
-  date: string
-  remaining: number
-  origin?: string | null
-  locale: string
-  tokens: AppTokensV2
-}>) {
-  const { t } = useTranslation()
-  const message = t(origin === 'automatic' ? 'progressScreen.streak.automaticCovered' : 'progressScreen.streak.covered', {
-    date: formatStreakDate(date, locale),
-    count: remaining,
-  })
-  return (
-    <View accessible accessibilityLiveRegion="polite" accessibilityLabel={message} style={[styles.frozenBanner, { backgroundColor: tokens.bgWell }]}>
-      <Snowflake size={20} strokeWidth={2} color={tokens.statusFrozen} />
-      <Text style={[styles.frozenCopy, { color: tokens.fg2 }]}>{message}</Text>
-    </View>
-  )
-}
-
-function RepairUnavailableCopy({ state, tokens }: Readonly<{
-  state: StreakRepairState
-  tokens: AppTokensV2
-}>) {
-  const { t } = useTranslation()
-  const message = state.banked === 0
-    ? t('progressScreen.streak.repairEmpty')
-    : state.bankFull
-      ? t('progressScreen.streak.repairCapped', { needed: state.count, banked: state.banked })
-      : t('progressScreen.streak.repairPartial', { needed: state.count, banked: state.banked })
-  return <Text style={[styles.body, { color: tokens.fg2 }]}>{message}</Text>
-}
-
-function StreakRepairPanel({ state, ceiling, repair, tokens, isWide }: Readonly<{
-  state: StreakRepairState
-  ceiling: number
-  repair: ReturnType<typeof useRepairStreak>
-  tokens: AppTokensV2
-  isWide: boolean
-}>) {
-  const { t, i18n } = useTranslation()
-  const [confirmOpen, setConfirmOpen] = useState(false)
-  const repairStatus = extractBackendStatus(repair.error)
-  if (state.gapUnavailable) {
-    return (
-      <View style={[styles.gapWell, { backgroundColor: tokens.bgWell }]}>
-        <Text style={[styles.gapBody, { color: tokens.fg1 }]}>{t('progressScreen.streak.gapUnavailable')}</Text>
-      </View>
-    )
-  }
-  if (state.showGap) {
-    const datesLabel = formatStreakRepairDates(state.dates, i18n.language)
-    return (
-      <>
-        <View style={[styles.gapWell, { backgroundColor: tokens.bgWell }]}>
-          <Text style={[styles.gapBody, { color: tokens.fg1 }]}>{t('progressScreen.streak.gapBody', { count: state.count })}</Text>
-          {state.canRepair ? <View style={styles.actionStart}><PillButton variant={isWide ? 'secondary' : 'primary'} size="sm" loading={repair.isPending} onClick={() => setConfirmOpen(true)}>{t('progressScreen.streak.repairAction', { dates: datesLabel })}</PillButton></View> : null}
-          {!state.canRepair ? <RepairUnavailableCopy state={state} tokens={tokens} /> : null}
-          {repair.isError && repairStatus !== 409 ? <Text accessibilityRole="alert" style={[styles.body, { color: tokens.statusBadText }]}>{t(getStreakRepairErrorMessageKey(repairStatus))}</Text> : null}
-        </View>
-        <ConfirmSheet
-          open={confirmOpen}
-          title={t('progressScreen.streak.repairConfirmTitle', { dates: datesLabel })}
-          message={t('progressScreen.streak.repairConfirmBody', { count: state.count })}
-          confirmLabel={t('progressScreen.streak.repairConfirmAction')}
-          onCancel={() => setConfirmOpen(false)}
-          onConfirm={() => {
-            setConfirmOpen(false)
-            repair.mutate(state.dates)
-          }}
-        />
-      </>
-    )
-  }
-  return state.bankFull
-    ? <CapacityNotice message={t('progressScreen.streak.bankFull', { count: ceiling })} />
-    : null
-}
-
-function StreakFreezeDetails({ freeze, repair, timeZone, longestStreak, currentStreak, tokens }: Readonly<{
-  freeze: ReturnType<typeof useStreakFreeze>
-  repair: ReturnType<typeof useRepairStreak>
-  timeZone: string | null
-  longestStreak: number
-  currentStreak: number
-  tokens: AppTokensV2
-}>) {
-  const { t, i18n } = useTranslation()
-  const { width } = useWindowDimensions()
-  const tier = t(getStreakTierLabelKey(currentStreak))
-  const repairState = deriveStreakRepairState({
-    streak: freeze.streakInfo,
-    freezesAvailable: freeze.freezesAvailable,
-    banked: freeze.streakFreezesAccumulated,
-    ceiling: freeze.maxStreakFreezesAccumulated,
-    now: new Date(),
-    accountTimeZone: timeZone,
-  })
-  const dayWords = { active: t('progressScreen.streak.active'), frozen: t('progressScreen.streak.frozen'), missed: t('progressScreen.streak.missed'), today: t('progressScreen.streak.today') }
-  return (
-    <>
-      <FrozenTodayStatus isFrozenToday={freeze.isFrozenToday} tokens={tokens} />
-      {freeze.streakInfo?.lastFreezeCoveredDate && freeze.streakInfo.freezeBankRemaining != null ? <FreezeCoveredStatus date={freeze.streakInfo.lastFreezeCoveredDate} remaining={freeze.streakInfo.freezeBankRemaining} origin={freeze.streakInfo.lastFreezeCoveredOrigin} locale={i18n.language} tokens={tokens} /> : null}
-      <FreezeBank inSheet loadingLabel={!freeze.streakInfo ? t('progressScreen.loading') : undefined} banked={freeze.streakFreezesAccumulated} ceiling={freeze.maxStreakFreezesAccumulated} usedThisMonth={freeze.freezesUsedThisMonth} longestValue={longestStreak} longestLabel={t('progressScreen.streak.longest')} daysTowardNext={Math.max(0, 7 - freeze.daysUntilNextFreeze)} earnRateDays={7} tierValue={tier} tierLabel={t('streakDisplay.detail.tierTileLabel')} protectedDays={buildProtectedDayLabels(freeze.streakInfo?.recentFreezeDates ?? [], i18n.language, freeze.isFrozenToday, timeZone ?? undefined)} words={{ ...dayWords, legendLabel: t('progressScreen.streak.legend'), bankedLabel: t('progressScreen.streak.banked'), usedLabel: t('progressScreen.streak.used'), nextLabel: t('progressScreen.streak.next'), nextProgressLabel: t('progressScreen.streak.nextProgress'), nextFreezeProgress: t('progressScreen.streak.nextOf', { current: Math.max(0, 7 - freeze.daysUntilNextFreeze), total: 7 }), protectedLabel: t('progressScreen.streak.protectedDays'), protectedEmpty: t('progressScreen.streak.protectedEmpty'), protectedDay: t('progressScreen.streak.protected'), protectedToday: t('progressScreen.streak.protectedToday') }} />
-      {freeze.streakInfo ? <StreakRepairPanel state={repairState} ceiling={freeze.maxStreakFreezesAccumulated} repair={repair} tokens={tokens} isWide={width >= 768} /> : null}
-    </>
-  )
-}
-
-function StreakFreezeEntry({ loading, banked, ceiling, detailsOpen, onClick }: Readonly<{
-  loading: boolean
-  banked: number
-  ceiling: number
-  detailsOpen: boolean
-  onClick: () => void
-}>) {
-  const { t } = useTranslation()
-  const label = t('progressScreen.streak.freezes')
-  const value = `${banked} / ${ceiling}`
-  return (
-    <ListRow placement="column" textMode="label" title={label} accessibilityLabel={loading ? label : t('progressScreen.streak.freezesCount', { banked, ceiling })} expanded={detailsOpen} disabled={loading} valueHidden={loading} value={value} chevron onClick={onClick} />
-  )
-}
-
-function StreakSection({ accountProfile, canView, gamificationProfile, tokens }: Readonly<{
-  accountProfile: ReturnType<typeof useProfile>['profile']; canView: boolean; gamificationProfile: ReturnType<typeof useGamificationProfile>['profile']; tokens: AppTokensV2
-}>) {
-  const { t, i18n } = useTranslation()
-  const { width } = useWindowDimensions()
-  const [detailsOpen, setDetailsOpen] = useAccountScopedState(false)
-  const { sheetRef } = useSheetHost()
-  const timeZone = accountProfile?.timeZone ?? null
-  const freeze = useStreakFreeze(accountProfile, timeZone, canView)
-  const repair = useRepairStreak(timeZone)
-  const currentStreak = freeze.streakInfo?.currentStreak ?? gamificationProfile?.currentStreak ?? accountProfile?.currentStreak ?? 0
-  const longestStreak = freeze.streakInfo?.longestStreak ?? gamificationProfile?.longestStreak ?? accountProfile?.longestStreak ?? 0
-  const days = buildStreakWeekDays(freeze.streakInfo, currentStreak, freeze.isFrozenToday, new Date(), 14, timeZone ?? undefined, freeze.streakInfo?.firstEligibleDate)
-  const labels = useMemo(() => days.map((day) => new Intl.DateTimeFormat(i18n.language, { month: 'short', day: 'numeric' }).format(day.date)), [days, i18n.language])
-  const tier = t(getStreakTierLabelKey(currentStreak))
-  const dayWords = { notScheduled: t('calendar.dayCell.notScheduled'), active: t('progressScreen.streak.active'), frozen: t('progressScreen.streak.frozen'), missed: t('progressScreen.streak.missed'), today: t('progressScreen.streak.today') }
-  if (canView && freeze.streakQuery.isError) {
-    return <View testID="progress-streak-section" style={styles.streakSection}><Text accessibilityRole="header" style={styles.screenReaderTitle}>{t('progressScreen.sections.streak')}</Text><ErrorState message={t('progressScreen.error')} action={<IconButton label={t('progressScreen.retry')} onClick={() => void freeze.streakQuery.refetch()}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>} /></View>
-  }
-  const loading = canView && !freeze.streakInfo
-  return (
-    <View accessibilityState={{ busy: loading }} testID="progress-streak-section" style={styles.streakSection}><Text accessibilityRole="header" style={styles.screenReaderTitle}>{t('progressScreen.sections.streak')}</Text>
-      <StreakFigure currentStreak={currentStreak} tokens={tokens} />
-      <View accessible={loading} accessibilityState={{ busy: loading }} accessibilityLabel={loading ? t('progressScreen.loading') : undefined}>
-        <View accessibilityElementsHidden={loading} importantForAccessibility={loading ? 'no-hide-descendants' : 'auto'} style={loading && styles.hidden}>
-          <DayStrip size={width >= 768 ? 24 : 20} scope="account" days={days.map((day) => day.status)} labels={labels} label={t('progressScreen.streak.stripWindow', { count: days.length })} words={dayWords} />
-        </View>
-        {loading ? <View pointerEvents="none" style={StyleSheet.absoluteFill}><Skeleton variant="fill" grouped /></View> : null}
-      </View>
-      {canView ? <>
-        <StreakFreezeEntry loading={loading} banked={freeze.streakFreezesAccumulated} ceiling={freeze.maxStreakFreezesAccumulated} detailsOpen={detailsOpen} onClick={() => setDetailsOpen(true)} />
-        {detailsOpen ? <Sheet ref={sheetRef} open title={t('progressScreen.streak.freezes')} onClose={() => setDetailsOpen(false)}>
-          <View style={styles.streakSection}>
-            <StreakFreezeDetails freeze={freeze} repair={repair} timeZone={timeZone} longestStreak={longestStreak} currentStreak={currentStreak} tokens={tokens} />
-          </View>
-        </Sheet> : null}
-      </> : <><WindowFigureGrid><StatTile value={longestStreak} label={t('progressScreen.streak.longest')} /><StatTile value={tier} label={t('streakDisplay.detail.tierTileLabel')} /></WindowFigureGrid><LockedCard title={t('progressScreen.streak.lockedTitle')} body={t('progressScreen.streak.lockedBody')} action={t('progressScreen.streak.lockedAction')} tokens={tokens} /></>}
-    </View>
-  )
-}
+import { ProgressGamificationRoute } from './progress-gamification-content'
+import { ProgressLoading } from './progress-loading'
+import { ProgressOverviewRoute } from './progress-overview'
 
 function GoalIndicator({ goal }: Readonly<{ goal: Goal }>) {
   const { t } = useTranslation()
@@ -453,118 +175,6 @@ function GoalSeparator() {
   return <View style={styles.goalSeparator} />
 }
 
-function TopHabitRow({ habit, tokens }: Readonly<{ habit?: { name: string; emoji: string | null; habitId?: string | null }; tokens: AppTokensV2 }>) {
-  const { t } = useTranslation()
-  const router = useRouter()
-  const [hovered, setHovered] = useState(false)
-  const [expanded, setExpanded] = useState(false)
-  const habitId = habit?.habitId
-  const ChevronIcon = habitId ? ChevronRight : ChevronDown
-  const content = <>
-    <View style={styles.topHabitLabelRow}>
-      <Text style={[styles.body, { color: tokens.fg2 }]}>{t('progressScreen.window.topHabit')}</Text>
-      {habit ? <View accessible={false} importantForAccessibility="no-hide-descendants" style={styles.topHabitChevron}><ChevronIcon size={24} strokeWidth={1.5} color={tokens.fg3} /></View> : null}
-    </View>
-    {habit ? <View style={{ flexDirection: 'row', gap: 4, minWidth: 0 }}>{habit.emoji ? <Text accessible={false} style={[styles.topHabitName, { color: tokens.fg1 }]}>{habit.emoji}</Text> : null}<View style={{ flex: 1, minWidth: 0 }}><PersonalText expanded={expanded} selectable={!habitId} accessibilityLabel={habit.name} style={[styles.topHabitName, { color: tokens.fg1 }]}>{habit.name}</PersonalText></View></View>
-      : <Text style={[styles.body, { color: tokens.fg3 }]}>{t('progressScreen.window.topHabitEmpty')}</Text>}
-  </>
-  return habitId
-    ? <InsetFocusPressable testID="progress-top-habit" accessibilityRole="link" accessibilityLabel={`${t('progressScreen.window.topHabit')}, ${habit.name}`}
-        onPress={() => router.push({ pathname: '/habits/[id]', params: { id: habitId } })}
-        onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}
-        style={({ pressed }) => [styles.topHabit, { backgroundColor: pressed || hovered ? tokens.bgHover : 'transparent' }]}>{content}</InsetFocusPressable>
-    : habit ? <InsetFocusPressable testID="progress-top-habit" accessibilityRole="button" accessibilityLabel={`${t('progressScreen.window.topHabit')}, ${habit.name}`} accessibilityState={{ expanded }} onPress={() => setExpanded(!expanded)} style={({ pressed }) => [styles.topHabit, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}>{content}</InsetFocusPressable> : <View testID="progress-top-habit" style={styles.topHabit}>{content}</View>
-}
-
-function WindowSection({ tokens }: Readonly<{ tokens: AppTokensV2 }>) {
-  const { t, i18n } = useTranslation()
-  const router = useRouter()
-  const { width } = useWindowDimensions()
-  const retrospective = useProgressRetrospective()
-  if (isPayGateError(retrospective.error)) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><View style={styles.windowLock}><LockedCard title={t('progressScreen.window.lockedTitle')} body={t('progressScreen.window.lockedBody')} action={t('progressScreen.window.lockedAction')} tokens={tokens} /></View></WindowFrame>
-  if (retrospective.isLoading) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens} statusText={t('progressScreen.loading')}><WindowFigureLoading label={t('progressScreen.loading')} /></WindowFrame>
-  const hasNoHabits = retrospective.isError && extractBackendErrorCode(retrospective.error) === NO_HABITS_FOR_PERIOD
-  if (hasNoHabits) {
-    const emptyAction = (
-      // eslint-disable-next-line local/max-button-words -- Canvas-owned control copy.
-      <PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" accessibilityRole="link" onClick={() => router.push('/')}>{t('progressScreen.window.emptyAction')}</PillButton>
-    )
-    return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens} statusText={t('progressScreen.window.empty')}><EmptyState title={t('progressScreen.window.empty')} action={emptyAction} /></WindowFrame>
-  }
-  if (retrospective.isError) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><ErrorState message={t('progressScreen.error')} action={<IconButton label={t('progressScreen.retry')} onClick={() => void retrospective.refetch()}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>} /></WindowFrame>
-  if (!retrospective.data) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><WindowFigureLoading label={t('progressScreen.loading')} /></WindowFrame>
-  const metrics = retrospective.data.metrics
-  const bestWeekday = getBestRetrospectiveWeekdayKey(metrics.weeklyConsistency)
-  const topHabit = metrics.topHabits[0]
-  const points = metrics.completionSeries ? mapCompletionSeries(metrics.completionSeries, i18n.language) : []
-  return (
-    <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}>
-      {points.some((point) => point.scheduled > 0) ? <BarChart points={points} label={t('progressScreen.window.chartLabel')} /> : null}
-      <WindowFigureGrid>
-        <StatTile value={`${Math.round(metrics.completionRate)}%`} label={t('progressScreen.window.completionRate')} />
-        <StatTile value={metrics.activeDays} label={t('progressScreen.window.activeDays')} />
-        {bestWeekday
-          ? <StatTile value={t(`dates.daysAbbreviated.${bestWeekday}`)} label={t('progressScreen.window.bestWeekday')} />
-          : <StatTile state="empty" emptyLabel={t('progressScreen.window.bestWeekdayEmpty')} label={t('progressScreen.window.bestWeekday')} />}
-      </WindowFigureGrid>
-      <TopHabitRow habit={topHabit} tokens={tokens} />
-      <ActionRow><ShareCardEntryButton variant="button" /></ActionRow>
-    </WindowFrame>
-  )
-}
-
-function AchievementsSection({ gamificationAvailable, profile, xpProgress, tokens }: Readonly<{
-  gamificationAvailable: boolean
-  profile: ReturnType<typeof useGamificationProfile>['profile']
-  xpProgress: number
-  tokens: AppTokensV2
-}>) {
-  const { t } = useTranslation()
-  const router = useRouter()
-  const { width, fontScale } = useWindowDimensions()
-  const contentWidth = Math.min(width, SHELL_CONTENT_MAX_WIDTH) - styles.sections.paddingHorizontal * 2
-  const columns = Math.max(1, Math.floor((contentWidth + styles.achievementGrid.gap) / (260 * fontScale + styles.achievementGrid.gap)))
-  if (!gamificationAvailable) {
-    return (
-      <Section>
-        <View style={styles.windowLock}>
-          <LockedCard
-            title={t('progressScreen.achievements.lockedTitle')}
-            body={t('progressScreen.achievements.lockedBody')}
-            action={t('progressScreen.achievements.lockedAction')}
-            tokens={tokens}
-          />
-        </View>
-      </Section>
-    )
-  }
-  if (!profile) return null
-  const achievements = visibleProgressAchievements(profile.achievements)
-  const categories = Array.from(new Set(achievements.map((achievement) => achievement.category)))
-  const tileWidth = (contentWidth - styles.achievementGrid.gap * (columns - 1)) / columns
-  return (
-    <>
-      <LevelSummary profile={profile} xpProgress={xpProgress} tokens={tokens} />
-      <Section>
-        {achievements.length === 0 ? <EmptyState title={t('progressScreen.achievements.empty')} action={<PillButton variant="primary" size="sm" accessibilityRole="link" onClick={() => router.push('/')}>{t('progressScreen.achievements.emptyAction')}</PillButton>} /> : categories.map((category) => <View key={category} style={styles.achievementCategory}><Text accessibilityRole="header" style={[styles.achievementCategoryTitle, { color: tokens.fg2 }]} testID="achievement-category">{t(`gamification.categories.${category}`)}</Text><View style={styles.achievementGrid}>{achievements.filter((achievement) => achievement.category === category).map((achievement) => <AchievementTile key={achievement.id} achievement={achievement} tokens={tokens} width={tileWidth} />)}</View></View>)}
-      </Section>
-    </>
-  )
-}
-
-function ProgressLoading({ label, screen }: Readonly<{ label: string; screen: ProgressSubmenuId }>) {
-  return <View style={styles.loading} accessible accessibilityRole="progressbar" accessibilityLabel={label} accessibilityState={{ busy: true }}>
-    {screen !== 'goals' ? <Skeleton variant="settings" grouped /> : null}
-    {screen === 'streak' ? <>
-      <View style={{ height: 20 }}><Skeleton variant="fill" grouped /></View>
-      <View style={styles.loadingTileRow}><View style={styles.loadingTile}><Skeleton variant="stat-tile" grouped /></View><View style={styles.loadingTile}><Skeleton variant="stat-tile" grouped /></View></View>
-      <Skeleton variant="settings" rows={3} grouped />
-    </> : <View style={styles.loadingRows}>
-      {Array.from({ length: 3 }, (_, index) => <Skeleton key={index} variant="habit-row" grouped />)}
-    </View>}
-  </View>
-}
-
 function ProgressPageHeading({ focusRef, title }: Readonly<{ focusRef: RefObject<Text | null>; title: string }>) {
   return <Text ref={focusRef} testID="progress-screen-heading" accessible style={styles.screenReaderTitle}>{title}</Text>
 }
@@ -630,76 +240,25 @@ function ProgressGoalsContent() {
 }
 
 const styles = StyleSheet.create({
-  screenReaderTitle: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', color: 'transparent' },
-  root: { flex: 1 }, content: { gap: PADDING.sectionStackGap }, sections: { gap: PADDING.sectionStackGap, paddingHorizontal: PADDING.screenGutter, paddingVertical: SPACING.s16 }, fill: { flexGrow: 1 },
-  loading: { gap: 32 }, loadingRows: { gap: 12 },
-  loadingTileRow: { flexDirection: 'row', gap: 16 }, loadingTile: { flex: 1, minWidth: 0 },
-  error: { width: '100%' },
-  section: { gap: SPACING.s16 }, sectionTitle: { fontFamily: 'Geist_500Medium', fontSize: 20, lineHeight: 24 },
-  streakSection: { width: '100%', gap: 16 },
-  hidden: { opacity: 0 },
-  frozenBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 12, padding: SPACING.s12 },
-  frozenCopy: { flex: 1, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
-  copy: { gap: 4 }, body: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 }, meta: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16 },
-  notice: { borderRadius: 12, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s12 },
-  card: { borderRadius: 20, borderWidth: 1, gap: 12, padding: PADDING.recordInset }, cardTitle: { fontFamily: 'Geist_500Medium', fontSize: 16, lineHeight: 20 }, actionStart: { alignSelf: 'flex-start' }, lockHeader: { alignItems: 'center', flexDirection: 'row', gap: 12 },
-  gapWell: { borderRadius: 12, gap: 12, padding: PADDING.recordInset }, gapBody: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24 },
-  topHabit: { minHeight: 68, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s16, borderRadius: 12, overflow: 'hidden', gap: 4, minWidth: 0 },
-  topHabitLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  topHabitChevron: { width: 24, height: 24, flexShrink: 0 },
-  topHabitName: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 24 },
-  windowGrid: { gap: 16 }, windowLock: { width: '100%' }, windowRow: { flexDirection: 'row', gap: 16 }, windowSection: { gap: PADDING.sectionTitleGap }, windowTile: { flex: 1, minWidth: 0 },
-  goalsSection: { gap: PADDING.sectionTitleGap }, goalCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: PADDING.recordInset, borderRadius: 20, overflow: 'hidden', borderWidth: 1 },
-  goalTitle: { fontFamily: 'Geist_500Medium', fontSize: 17, lineHeight: 24 }, goalMeta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
-  goalCopy: { flex: 1, minWidth: 0, gap: 4 }, goalSeparator: { height: 12 },
+  body: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
+  content: { gap: PADDING.sectionStackGap },
   emptyLine: { alignItems: 'flex-start', borderRadius: 12, gap: 8, padding: PADDING.recordInset },
-  achievementCategory: { gap: PADDING.sectionTitleGap }, achievementCategoryTitle: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 20, paddingTop: SPACING.s4 }, achievementGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  error: { width: '100%' },
+  fill: { flexGrow: 1 },
+  goalCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: PADDING.recordInset, borderRadius: 20, overflow: 'hidden', borderWidth: 1 },
+  goalCopy: { flex: 1, minWidth: 0, gap: 4 },
+  goalMeta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  goalSeparator: { height: 12 },
+  goalTitle: { fontFamily: 'Geist_500Medium', fontSize: 17, lineHeight: 24 },
+  goalsSection: { gap: PADDING.sectionTitleGap },
+  meta: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16 },
+  root: { flex: 1 },
+  screenReaderTitle: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', color: 'transparent' },
+  sections: { gap: PADDING.sectionStackGap, paddingHorizontal: PADDING.screenGutter, paddingVertical: SPACING.s16 },
 })
 
-function ProgressOverview() {
-  const { t } = useTranslation()
-  const router = useRouter()
-  const theme = useAppTheme()
-  const tokens = createTokensV2(theme.currentScheme, theme.currentTheme)
-  const clearance = useShellScrollerClearance()
-  const scrollRef = useRef<ScrollView>(null)
-  useRootScrollToTop('progresso', useCallback(() => { scrollRef.current?.scrollTo({ y: 0, animated: false }) }, []))
-  return <ScrollView ref={scrollRef} testID="progress-overview" style={[styles.root, { backgroundColor: tokens.bg }]} contentContainerStyle={[styles.content, { paddingBottom: clearance }]}>
-    <RootNotificationHeader />
-    <View testID="progress-sections" style={styles.sections}>
-      <Text accessibilityRole="header" style={styles.screenReaderTitle}>{t('progressScreen.title')}</Text>
-      <WindowSection tokens={tokens} />
-      <SettingsGroup>
-        {PROGRESS_SUBMENUS.map((entry) => <ListRow key={entry.id} placement="column" textMode="label" icon={entry.icon} title={t(entry.labelKey)} description={entry.descriptionKey ? t(entry.descriptionKey) : undefined} href={entry.route} onClick={() => router.push(entry.route)} />)}
-      </SettingsGroup>
-    </View>
-  </ScrollView>
-}
-
-function ProgressGamificationContent({ screen }: Readonly<{ screen: 'streak' | 'achievements' }>) {
-  const { t } = useTranslation()
-  const theme = useAppTheme()
-  const tokens = createTokensV2(theme.currentScheme, theme.currentTheme)
-  const clearance = useShellPageEnd().paddingBottom
-  const account = useProfile()
-  const canView = account.profile?.canViewGamification ?? false
-  const gamification = useGamificationProfile(canView)
-  const available = canView && !isPayGateError(gamification.error)
-  const error = account.isError || (available && gamification.isError)
-  const loading = !error && (account.isLoading || (available && gamification.isLoading))
-  const retry = () => { void account.refetch(); void gamification.refetch() }
-  return <ProgressSubscreen screen={screen}>
-    <ScrollView style={styles.root} contentContainerStyle={[styles.sections, { paddingBottom: clearance }]}>
-      {error ? <ErrorState message={t('progressScreen.error')} action={<IconButton label={t('progressScreen.retry')} onClick={retry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>} />
-        : loading ? <ProgressLoading label={t('progressScreen.loading')} screen={screen} />
-        : screen === 'streak' ? <StreakSection accountProfile={account.profile} canView={available} gamificationProfile={gamification.profile} tokens={tokens} />
-        : <AchievementsSection gamificationAvailable={available} profile={gamification.profile} xpProgress={gamification.xpProgress} tokens={tokens} />}
-    </ScrollView>
-  </ProgressSubscreen>
-}
-
 export function ProgressContent({ screen = 'overview' }: Readonly<{ screen?: ProgressSubmenuId | 'overview' }>) {
-  if (screen === 'overview') return <ProgressOverview />
+  if (screen === 'overview') return <ProgressOverviewRoute />
   if (screen === 'goals') return <ProgressGoalsContent />
-  return <ProgressGamificationContent screen={screen} />
+  return <ProgressGamificationRoute screen={screen} />
 }
