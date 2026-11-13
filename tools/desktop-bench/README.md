@@ -150,7 +150,9 @@ installer with its silent flag and explicit install directory. Only that install
 launched. The first launch checks Hoje, Astra, palette structure and native clean quit. On Windows it
 also presses the page's theme toggle for light and then dark. The toggle writes the root mode class
 that the shell reads and the canvas tokens that the page paints with, and the probe reports that canvas
-as `pageCanvas`. The `windowbar` command of `acceptance-uia.ps1` reads the window with
+as `pageCanvas`. The shell sets the window theme to that mode, which sets the WebView2 colour scheme, so
+the probe gives `prefers-color-scheme` 15 seconds to follow the mode and reports it as `prefersDark`.
+The runner requires `prefersDark` to match the mode in the same poll as the canvas. The `windowbar` command of `acceptance-uia.ps1` reads the window with
 `acceptance-window-bar.cs`. The window has no native caption, so the reader requires the client area
 to start at the top of the visible frame, no menu bar above the client area, and the `DESIGN.md`
 canvas (`#FAFAFA` light, `#09090B` dark) on at least 90% of the sampled middle of the Orbit bar. The
@@ -168,8 +170,11 @@ popup menu, reads it through `MN_GETHMENU`, presses Escape and waits until it cl
 lists that open popup as a top-level window of the process in front of the app window, so each
 window command of the reader takes the process's `Tauri Window`, never its first window. The runner
 requires the popup to equal the window menu (ids, labels, enabled and checked states), to open at the
-start of the menu action under the bar, and to close. Then it drags the empty bar, invokes maximize and
-restore, double clicks the bar twice, and invokes minimize and restores the window. `report.json`
+start of the menu action under the bar, and to close. Then it drags the empty bar, presses the maximize
+action twice with the pointer (the `click` action: `SetCursorPos` and `mouse_event` at the middle of the
+action, where the snap region of `caption.cpp` takes the press) and requires the window to maximize and
+then to restore, double clicks the bar twice, and invokes minimize and restores the window. UI
+Automation Invoke would run the page button and never reach the snap region. `report.json`
 `windowBar` keeps each reading and the window state after each action. The `window-light.png` and
 `window-dark.png` captures of the whole window upload with the job. The Windows 11 snap layouts flyout
 has no automation reading, so only a person on Windows 11 can see it. Separate

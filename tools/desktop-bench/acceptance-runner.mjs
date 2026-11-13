@@ -258,7 +258,8 @@ async function inspectWindowBar(proxy, native, handle, output, report) {
   report.windowBar = {}
   for (const mode of ['light', 'dark']) {
     proxy.send(`appearance-${mode}`)
-    // The probe reports the canvas token the page paints with, so a wrong bar colour tells a page that kept its mode from a shell fault.
+    // The probe reports the canvas token the page paints with, so a wrong bar colour tells a page that kept its mode from a shell
+    // fault. It also reports prefers-color-scheme, the WebView2 colour scheme that the shell sets with the window theme of the mode.
     const page = await waitFor(() => proxy.read(`appearance-${mode}`), `${mode} page appearance`)
     const expected = barCanvas[mode]
     let bar
@@ -267,11 +268,11 @@ async function inspectWindowBar(proxy, native, handle, output, report) {
       await waitFor(async () => {
         bar = await read('read', undefined, `window-${mode}`)
         const [dominant] = bar.bar.colors
-        return bar.bar.captionHeight === 0 && !bar.bar.menuBar && dominant?.color.join() === expected.join() && dominant.count >= bar.bar.sampled * 0.9 &&
-          glyphsVisible(bar.bar, expected)
-      }, `${mode} window bar in the Orbit canvas colour with no native caption and a glyph on every action`, 30000)
+        return page.prefersDark === (mode === 'dark') && bar.bar.captionHeight === 0 && !bar.bar.menuBar && dominant?.color.join() === expected.join() &&
+          dominant.count >= bar.bar.sampled * 0.9 && glyphsVisible(bar.bar, expected)
+      }, `${mode} window bar in the Orbit canvas colour with no native caption, a glyph on every action and the ${mode} WebView2 colour scheme`, 30000)
     } finally {
-      report.windowBar[mode] = { expected, pageCanvas: page.canvas, ...bar }
+      report.windowBar[mode] = { expected, pageCanvas: page.canvas, prefersDark: page.prefersDark, ...bar }
     }
   }
   const actions = report.windowBar.actions = {}
@@ -282,11 +283,12 @@ async function inspectWindowBar(proxy, native, handle, output, report) {
   const dragged = await read('drag')
   actions.drag = { before: initial.state.rect, after: dragged.state.rect }
   if (dragged.state.rect[0] - initial.state.rect[0] < 100) throw new Error(`Dragging the window bar did not move the window: ${JSON.stringify(actions.drag)}`)
-  await read('invoke', initial.buttons[2])
-  const maximized = await settled('the maximized window with the restore action', (bar) => bar.state.zoomed && hasActions(bar, 'restore'))
-  actions.maximize = maximized.state
-  await read('invoke', maximized.buttons[2])
-  actions.restore = (await settled('the restored window with the maximize action', (bar) => !bar.state.zoomed && hasActions(bar, 'maximize'))).state
+  // A pointer on the maximize action lands on the native snap region (caption.cpp), not on the page button, so the reader
+  // presses it with the pointer. UI Automation Invoke would run the page button and never reach the snap region.
+  await read('click')
+  actions.maximize = (await settled('a pointer press on the maximize action maximizing the window, with the restore action', (bar) => bar.state.zoomed && hasActions(bar, 'restore'))).state
+  await read('click')
+  actions.restore = (await settled('a pointer press on the restore action restoring the window, with the maximize action', (bar) => !bar.state.zoomed && hasActions(bar, 'maximize'))).state
   await read('doubleclick')
   actions.doubleClickMaximize = (await settled('a double click on the bar maximizing the window', (bar) => bar.state.zoomed)).state
   await read('doubleclick')

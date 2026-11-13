@@ -8,7 +8,7 @@ param(
   [switch]$OpenCenter,
   [string]$Executable,
   [string]$Capture,
-  [ValidateSet('read', 'invoke', 'drag', 'doubleclick', 'restore', 'popup')][string]$Action = 'read'
+  [ValidateSet('read', 'invoke', 'click', 'drag', 'doubleclick', 'restore', 'popup')][string]$Action = 'read'
 )
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes, WindowsBase, System.Windows.Forms
@@ -466,6 +466,7 @@ if ($Command -eq 'windowbar') {
     if ($null -eq $button) { throw "The window bar has no button named $Label" }
     $button.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
   }
+  if ($Action -eq 'click') { [OrbitWindowBarReader]::ClickMaximize($handle) }
   if ($Action -eq 'drag') { [OrbitWindowBarReader]::Drag($handle, 160) }
   if ($Action -eq 'doubleclick') { [OrbitWindowBarReader]::DoubleClick($handle) }
   if ($Action -eq 'restore') { [OrbitWindowBarReader]::Restore($handle) }

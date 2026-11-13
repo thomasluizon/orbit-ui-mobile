@@ -20,6 +20,8 @@ type Options = {
   locale?: 0 | 1
   buttons?: string[]
   doubleClickWorks?: boolean
+  snapRegionWorks?: boolean
+  prefersDark?: Record<string, boolean>
   areas?: (mode: string) => Area[]
   popup?: Partial<Popup>
 }
@@ -64,7 +66,10 @@ function windowContext(options: Options = {}) {
   const state = { rect: [0, 0, 800, 600], zoomed: false, iconic: false, visible: true }
   const proxy = {
     send(command: string) { sent.push(command); if (command.startsWith('appearance-')) mode = command.replace('appearance-', '') },
-    read(kind: string) { return sent.includes(kind) ? { kind, canvas: pageCanvas[kind.replace('appearance-', '')] } : undefined },
+    read(kind: string) {
+      const mode = kind.replace('appearance-', '')
+      return sent.includes(kind) ? { kind, canvas: pageCanvas[mode], prefersDark: (options.prefersDark ?? { light: false, dark: true })[mode] } : undefined
+    },
   }
   const native = async (pid: number, command: string, _menu: undefined, { action, label, capture }: { action: string; label?: string; capture: string }) => {
     assert.equal(pid, 7)
@@ -72,11 +77,10 @@ function windowContext(options: Options = {}) {
     calls.push({ action, label, capture })
     if (action === 'drag') state.rect = state.rect.map((edge, index) => (index % 2 === 0 ? edge + (options.dragDistance ?? 160) : edge))
     if (action === 'doubleclick' && options.doubleClickWorks !== false) state.zoomed = !state.zoomed
+    if (action === 'click' && options.snapRegionWorks !== false) state.zoomed = !state.zoomed
     if (action === 'restore') state.iconic = false
     if (action === 'invoke') {
       if (label === names.minimize) state.iconic = true
-      else if (label === names.maximize) state.zoomed = true
-      else if (label === names.restore) state.zoomed = false
       else throw new Error(`The window bar has no button named ${label}`)
     }
     let popup = null
@@ -110,21 +114,22 @@ function glyphRule() {
   return (context as typeof context & { glyphVisible: (area: Area, canvas: number[]) => boolean }).glyphVisible
 }
 
-test('the window bar check proves no native caption, the canvas and a glyph on every action in both modes, the menu popup and every window action', async () => {
+test('the window bar check proves no native caption, the canvas, a glyph on every action and the colour scheme in both modes, the menu popup and every window action', async () => {
   const check = windowContext()
   const recorded = {}
   await check.run(recorded)
-  const report = JSON.parse(JSON.stringify(recorded)) as { windowBar: Record<string, { expected?: number[]; pageCanvas?: string; captionHeight?: number; state?: { zoomed: boolean; iconic: boolean } }> }
+  const report = JSON.parse(JSON.stringify(recorded)) as { windowBar: Record<string, { expected?: number[]; pageCanvas?: string; prefersDark?: boolean; captionHeight?: number; state?: { zoomed: boolean; iconic: boolean } }> }
   assert.deepEqual(check.sent, ['appearance-light', 'appearance-dark', 'window-menu'])
   assert.deepEqual(check.calls.filter(({ capture }) => capture !== join('output', 'window-action.png')).map(({ capture }) => capture),
     [join('output', 'window-light.png'), join('output', 'window-dark.png')])
   assert.deepEqual(check.calls.filter(({ action }) => action !== 'read').map(({ action, label }) => [action, label]), [
-    ['popup', undefined], ['drag', undefined], ['invoke', 'Maximize'], ['invoke', 'Restore'], ['doubleclick', undefined], ['doubleclick', undefined],
+    ['popup', undefined], ['drag', undefined], ['click', undefined], ['click', undefined], ['doubleclick', undefined], ['doubleclick', undefined],
     ['invoke', 'Minimize'], ['restore', undefined],
   ])
   assert.deepEqual(report.windowBar.light!.expected, canvas.light)
   assert.deepEqual(report.windowBar.dark!.expected, canvas.dark)
   assert.deepEqual([report.windowBar.light!.pageCanvas, report.windowBar.dark!.pageCanvas], [pageCanvas.light, pageCanvas.dark])
+  assert.deepEqual([report.windowBar.light!.prefersDark, report.windowBar.dark!.prefersDark], [false, true])
   const actions = report.windowBar.actions as unknown as Record<string, { zoomed: boolean; iconic: boolean; rect: number[] }> & { menu: Popup }
   assert.equal(actions.maximize!.zoomed, true)
   assert.equal(actions.restore!.zoomed, false)
@@ -139,19 +144,21 @@ test('the window bar check proves no native caption, the canvas and a glyph on e
 test('the window bar check accepts the pt-BR accessible names', async () => {
   const check = windowContext({ locale: 1 })
   await check.run({})
-  assert.deepEqual(check.calls.filter(({ action }) => action === 'invoke').map(({ label }) => label), ['Maximizar', 'Restaurar', 'Minimizar'])
+  assert.deepEqual(check.calls.filter(({ action }) => action === 'invoke').map(({ label }) => label), ['Minimizar'])
 })
 
-test('the window bar check fails on a native caption, a menu bar or a colour other than the canvas, and keeps the last reading', async () => {
+test('the window bar check fails on a native caption, a menu bar, a colour other than the canvas or a colour scheme other than the mode, and keeps the last reading', async () => {
   for (const [options, failed] of [
     [{ captionHeight: 31 }, 'light'],
     [{ menuBar: true }, 'light'],
     [{ color: { light: [243, 243, 243], dark: canvas.dark! } }, 'light'],
     [{ color: { light: canvas.light!, dark: [32, 32, 32] } }, 'dark'],
+    [{ prefersDark: { light: true, dark: true } }, 'light'],
+    [{ prefersDark: { light: false, dark: false } }, 'dark'],
   ] as const) {
     const check = windowContext(options as Options)
     const recorded = {} as { windowBar?: Record<string, unknown> }
-    await assert.rejects(() => check.run(recorded), new RegExp(`Timed out waiting for ${failed} window bar in the Orbit canvas colour with no native caption and a glyph on every action`))
+    await assert.rejects(() => check.run(recorded), new RegExp(`Timed out waiting for ${failed} window bar in the Orbit canvas colour with no native caption, a glyph on every action and the ${failed} WebView2 colour scheme`))
     assert.ok(check.elapsed() >= 30000)
     assert.ok(JSON.parse(JSON.stringify(recorded)).windowBar[failed].bar.frame)
   }
@@ -186,6 +193,7 @@ test('the window bar check fails when an action is missing, mislabelled or does 
   await assert.rejects(() => windowContext({ buttons: ['Menu', 'Minimize', 'Maximize', 'Exit'] }).run({}), /Timed out waiting for the menu, minimize, maximize and close actions/)
   await assert.rejects(() => windowContext({ dragDistance: 20 }).run({}), /Dragging the window bar did not move the window/)
   await assert.rejects(() => windowContext({ doubleClickWorks: false }).run({}), /Timed out waiting for a double click on the bar maximizing the window/)
+  await assert.rejects(() => windowContext({ snapRegionWorks: false }).run({}), /Timed out waiting for a pointer press on the maximize action maximizing the window/)
 })
 
 test('the window bar check fails when the menu popup stays open, shows another menu or opens away from the menu action', async () => {

@@ -255,6 +255,23 @@ public static class OrbitWindowBarReader {
         mouse_event(LeftUp, 0, 0, 0, UIntPtr.Zero);
     }
 
+    // A pointer press in the middle of the maximize action: client right - end inset - 1.5 controls, half the bar down. There the
+    // snap region of caption.cpp answers HTMAXBUTTON, and its button release maximizes or restores the window.
+    public static void ClickMaximize(IntPtr window) {
+        UsePhysicalPixels();
+        NativeRect client;
+        if (!GetClientRect(window, out client)) throw new Win32Exception();
+        var origin = new NativePoint();
+        if (!ClientToScreen(window, ref origin)) throw new Win32Exception();
+        uint dpi = GetDpiForWindow(window);
+        int control = Scale(ControlCssWidth, dpi), inset = Scale(EndCssInset, dpi), bar = Scale(BarCssHeight, dpi);
+        SetCursorPos(origin.X + client.Right - inset - control - control / 2, origin.Y + bar / 2);
+        Thread.Sleep(100);
+        mouse_event(LeftDown, 0, 0, 0, UIntPtr.Zero);
+        Thread.Sleep(60);
+        mouse_event(LeftUp, 0, 0, 0, UIntPtr.Zero);
+    }
+
     public static void DoubleClick(IntPtr window) {
         NativePoint point = BarPoint(window);
         SetCursorPos(point.X, point.Y);
