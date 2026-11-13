@@ -1,6 +1,7 @@
-import { INTERACTION_FILL_CLEARANCE, SPACING, orbitalMotion } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, SPACING } from '@orbit/shared/theme'
 import { useEffect, useMemo, useRef, useState } from "react";
 import { InsetFocusPressable } from "@/components/ui/inset-focus-pressable";
+import { PressScalePressable } from "@/components/motion/press-scale";
 import {
   ScrollView,
   StyleSheet,
@@ -18,7 +19,6 @@ import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import { calendarEntryOutcome, formatCalendarWeekday, getAccountDateTime, isCalendarGridScrollMovement, nowDate, orderCalendarDayEntries, resolveCalendarGridOpeningScroll } from "@orbit/shared/utils";
 import { createTokensV2, radius } from "@/lib/theme";
-import { usePrefersReducedMotion } from "@/lib/motion";
 
 import { X } from '@/components/ui/icons';
 import { PersonalText } from '@/components/ui/personal-text';
@@ -151,14 +151,9 @@ function TimedBlock({
   tokens: Tokens;
 }>) {
   const outcome = calendarEntryOutcome(block.entry);
-  const prefersReducedMotion = usePrefersReducedMotion();
   return (
-    <InsetFocusPressable
-      testID="time-grid-event"
-      accessibilityRole="button"
-      onPress={onSelect}
-      accessibilityLabel={t('calendar.entryLabel', { title: block.entry.title, time: displayTime(block.entry.dueTime!), status: t(outcome.labelKey) })}
-      style={({ pressed }) => ({
+    <PressScalePressable
+      layerStyle={{
         position: "absolute",
         top: block.top * fontScale,
         minHeight: 48,
@@ -168,6 +163,13 @@ function TimedBlock({
           BLOCK_HORIZONTAL_INSET / 2,
         width: colWidth / block.laneCount - BLOCK_HORIZONTAL_INSET,
         minWidth: BLOCK_MIN_WIDTH,
+      }}
+      testID="time-grid-event"
+      accessibilityRole="button"
+      onPress={onSelect}
+      accessibilityLabel={t('calendar.entryLabel', { title: block.entry.title, time: displayTime(block.entry.dueTime!), status: t(outcome.labelKey) })}
+      style={({ pressed }) => ({
+        flex: 1,
         paddingVertical: SPACING.s4,
         paddingHorizontal: SPACING.s4,
         borderRadius: 8,
@@ -182,7 +184,6 @@ function TimedBlock({
             : tokens.bgWell,
         borderWidth: 1,
         borderColor: isFuture ? tokens.hairlineGhost : tokens.hairline,
-        transform: [{ scale: pressed && !prefersReducedMotion ? orbitalMotion.press.scale : 1 }],
       })}
     >
       {({ pressed }) => <>
@@ -195,7 +196,7 @@ function TimedBlock({
       <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, color: pressed ? tokens.fg2 : tokens.fg3 }}>{displayTime(block.entry.dueTime!)}</Text>
       </View>
       </>}
-    </InsetFocusPressable>
+    </PressScalePressable>
   );
 }
 
@@ -239,23 +240,19 @@ function ColumnHeader({
     .runOnJS(true)
     .onBegin(() => setHovered(true))
     .onFinalize(() => setHovered(false)), []);
-  const prefersReducedMotion = usePrefersReducedMotion();
   return (
     <View style={{ width: colWidth }}>
       <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" style={styles.colHeaderGridLines} />
       <GestureDetector gesture={hoverGesture}>
-        <InsetFocusPressable
+        <PressScalePressable
+          layerStyle={styles.colHeaderLayer}
           testID="time-grid-col-header"
           focusOffset={-(INTERACTION_FILL_CLEARANCE + 2)}
           accessibilityRole="button"
           onPress={() => onSelectDay(column.dateStr)}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          style={({ pressed }) => [
-            styles.colHeader,
-            { width: colWidth },
-            pressed && !prefersReducedMotion && { transform: [{ scale: orbitalMotion.press.scale }] },
-          ]}
+          style={[styles.colHeader, { width: colWidth }]}
         >
           {({ pressed }) => <>
             <View testID="time-grid-col-header-fill" pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
@@ -292,7 +289,7 @@ function ColumnHeader({
               </Text>
             </View>
           </>}
-        </InsetFocusPressable>
+        </PressScalePressable>
       </GestureDetector>
     </View>
   );
@@ -688,6 +685,9 @@ function createStyles(tokens: Tokens) {
       bottom: INTERACTION_FILL_CLEARANCE,
       left: INTERACTION_FILL_CLEARANCE,
       borderRadius: radius.sm,
+    },
+    colHeaderLayer: {
+      flex: 1,
     },
     colHeader: {
       flex: 1,

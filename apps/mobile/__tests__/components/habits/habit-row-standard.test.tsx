@@ -232,7 +232,8 @@ describe('habit row standard on Android', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
-  it.each([false, true])('gives the structural selection checkbox independent hover and cancellation feedback, selected=%s', (isSelected) => {
+  it.each([false, true].flatMap((isSelected) => [false, true].map((reduced) => ({ isSelected, reduced }))))('gives the structural selection checkbox independent hover and cancellation feedback, selected=$isSelected, reduced motion=$reduced', ({ isSelected, reduced }) => {
+    motion.reduced = reduced
     const actions = { onToggleSelection: vi.fn(), onDetail: vi.fn(), onToggleExpand: vi.fn(), onLog: vi.fn() }
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Read' })}
@@ -259,8 +260,9 @@ describe('habit row standard on Android', () => {
       TestRenderer.act(() => selection.props.onPressIn())
       expect(controlStyle().backgroundColor).toBe(tokens.bgHover)
       TestRenderer.act(() => selection.props.onHoverOut())
-      expect(controlStyle(true)).toMatchObject({ backgroundColor: tokens.bgHover, transform: [{ scale: motion.reduced ? 1 : 0.96 }] })
+      expect(controlStyle(true)).toMatchObject({ backgroundColor: tokens.bgHover, transform: [{ scale: reduced ? 1 : 0.96 }], transition: reduced ? 'none' : PRESS_SCALE_TRANSITION })
       TestRenderer.act(() => selection.props.onPressOut())
+      expect(controlStyle().transform).toEqual([{ scale: 1 }])
       expect(controlStyle().backgroundColor).toBeUndefined()
       expect(rowStyle().backgroundColor).toBe(restingFill)
       for (const action of Object.values(actions)) expect(action).not.toHaveBeenCalled()

@@ -92,9 +92,9 @@ export function PricingSection({
                 event.preventDefault()
                 onStayFree()
               }}
-              className="inline-flex min-h-[var(--touch-min)] items-center text-base leading-[1.5] text-[var(--fg-2)] active:scale-[0.96] aria-disabled:pointer-events-none aria-disabled:opacity-40"
+              className="group/stay-free inline-flex min-h-[var(--touch-min)] items-center text-base leading-[1.5] text-[var(--fg-2)] aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
-              <span className="orbit-link-action orbit-link-action-persistent underline-offset-4">{t('upgrade.convert.stayFree')}</span>
+              <span data-slot="press-surface" className="orbit-link-action orbit-link-action-persistent underline-offset-4 transition-[color,scale] [transition-duration:var(--dur-hover),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-out)] motion-safe:group-active/stay-free:scale-[0.96]">{t('upgrade.convert.stayFree')}</span>
             </Link>
           </div>
       </div>

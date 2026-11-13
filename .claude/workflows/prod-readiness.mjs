@@ -165,33 +165,29 @@ const HYGIENE_CHECKS = [
   {
     repository: 'ui',
     name: 'orbit-ui-mobile',
-    where: `the orbit-ui-mobile repository (the ledger rows in the candidates)`,
   },
   {
     repository: 'api',
     name: 'orbit-api',
-    where: `the orbit-api repository (the ledger rows in the candidates)`,
   },
   {
     repository: 'landing',
     name: 'orbit-landing-page',
-    where: `the orbit-landing-page repository (the ledger rows in the candidates)`,
   },
   {
     repository: 'workshop',
     name: 'thomas-brain',
-    where: `the thomas-brain repository (the ledger rows in the candidates)`,
   },
   {
     repository: 'vault',
     name: 'brain vault',
-    where: `the brain vault (the ledger rows in the candidates)`,
   },
 ]
 
 function hygienePrompt(c, root, candidates) {
   return [
     `Repository hygiene check for ${c.name}, rooted at ${root}. The four kinds are old, outdated, duplicate and temporary. You have Read, Grep and Glob and no shell. This is a read-only judgement over file ledger rows; a candidate is a signal and not a verdict.`,
+    `A root or a file you cannot open is not a clean result. First open the root with Glob. When you cannot open the root, return no finding and one deferred entry with the check "hygiene-unreadable", the path ${root} and the error you got. When you cannot open a candidate, return it in deferred with the check "hygiene-unreadable", the path of its row and the error. Never return an empty result for a root or a candidate you did not read.`,
     `The ledger rule, word for word: ${LEDGER_RULE}`,
     `For each candidate row, search for a reader. A reader can write no path: a framework convention, a tool that walks a folder, a config key, a person that a pointer sends to the file. Return a finding only when answer 1 is absent (the fix is delete) or when answer 1 exists and answer 2 fails (the fix is update). Name what the file says and what the code says.`,
     `A file under a public web folder, an app asset folder or a store asset folder can have a deployed reader. Do not return a delete finding for it. Return it in deferred with the check "hygiene-deployed-readers". A record is never a finding: a migration, a vault decision, a journal note, a raw inbox file, a published post, a vendored file with a lock entry.`,
@@ -202,6 +198,15 @@ function hygienePrompt(c, root, candidates) {
 }
 
 const ordersDelete = (f) => /\bdelete\b/i.test(f.fix || '')
+
+const trimmedPath = (path) => String(path ?? '').replace(/[\\/]+$/, '')
+
+/** A finder read nothing when it could not open its root, or when it could open none of its candidates. */
+function readNothing({ root, judged, result }) {
+  const unreadable = new Set((result.deferred || []).filter((item) => item?.check === 'hygiene-unreadable').map((item) => trimmedPath(item.path)))
+  if (unreadable.has(trimmedPath(root))) return true
+  return judged.length > 0 && judged.every((row) => unreadable.has(trimmedPath(row.path)) || unreadable.has(`${trimmedPath(root)}/${row.path}`))
+}
 
 function a11yPrompt(c) {
   return [
@@ -310,18 +315,25 @@ for (const c of HYGIENE_CHECKS) {
 const hygieneResults = await parallel(
   hygieneRuns.map(({ c, root, judged }) => () =>
     agent(hygienePrompt(c, root, judged), { label: `hygiene:${c.repository}`, phase: 'Hygiene', model: 'haiku', agentType: 'audit-readonly', schema: HYGIENE_SCHEMA })
-      .then((r) => ({ repository: c.repository, root, result: r }))
+      .then((r) => ({ repository: c.repository, root, judged, result: r }))
   )
 )
 const hygieneChecksFailed = hygieneRuns
   .map(({ c }, i) => (hygieneResults[i] && hygieneResults[i].result ? null : c.repository))
   .filter(Boolean)
 if (hygieneChecksFailed.length) log(`hygiene: ${hygieneChecksFailed.join(', ')} FAILED (finder died) — coverage UNKNOWN for those repositories, never clean`)
-// Each finding keeps the root of its repository, so the skeptic can open a file outside orbit-ui-mobile.
-const hygieneRaw = hygieneResults.filter((x) => x && x.result).flatMap((x) => (x.result.findings || []).map((f) => ({ ...f, root: x.root })))
-for (const x of hygieneResults.filter((entry) => entry && entry.result)) {
+const hygieneReturned = hygieneResults.filter((x) => x && x.result)
+for (const x of hygieneReturned) {
   for (const item of x.result.deferred || []) hygieneDeferred.push(item)
 }
+// A finder that read nothing has not run, as a dead finder has not: its findings are dropped and its hygiene-unreadable entries stay deferred.
+const hygieneUnread = hygieneReturned.filter(readNothing).map((x) => x.repository)
+if (hygieneUnread.length) log(`hygiene: ${hygieneUnread.join(', ')} FAILED (finder could not open the root or any candidate) — coverage UNKNOWN for those repositories, never clean`)
+hygieneChecksFailed.push(...hygieneUnread)
+// Each finding keeps the root of its repository, so the skeptic can open a file outside orbit-ui-mobile.
+const hygieneRaw = hygieneReturned
+  .filter((x) => !hygieneUnread.includes(x.repository))
+  .flatMap((x) => (x.result.findings || []).map((f) => ({ ...f, root: x.root })))
 for (const f of hygieneRaw) if (rank(f.severity) === 0) f.severity = 'High'
 
 phase('Verify')

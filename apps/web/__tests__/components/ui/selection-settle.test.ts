@@ -40,7 +40,7 @@ describe('selection settle on web', () => {
   })
 
   it('settles the chip ring the same way while its fill, colour and press keep their timing', () => {
-    expect(declarationsOf('.chip').transition).toBe('background-color var(--dur-hover-control) var(--ease-standard), color var(--dur-hover-control) var(--ease-standard), transform var(--dur-press) var(--ease-out), box-shadow var(--motion-selection-exit) var(--motion-ease-exit)')
+    expect(declarationsOf('.chip').transition).toBe('background-color var(--dur-hover-control) var(--ease-standard), color var(--dur-hover-control) var(--ease-standard), scale var(--dur-press) var(--ease-out), box-shadow var(--motion-selection-exit) var(--motion-ease-exit)')
     const active: Record<string, string>[] = []
     stylesheet.walkRules('.chip-active', (rule) => {
       const declarations: Record<string, string> = {}

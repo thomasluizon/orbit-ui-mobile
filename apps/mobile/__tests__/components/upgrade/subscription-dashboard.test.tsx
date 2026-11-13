@@ -1,5 +1,5 @@
 import React from 'react'
-import { AccessibilityInfo, Linking, StyleSheet, type PressableStateCallbackType, type StyleProp, type ViewStyle } from 'react-native'
+import { AccessibilityInfo, Linking } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
 import type { BillingDetails } from '@orbit/shared/types/subscription'

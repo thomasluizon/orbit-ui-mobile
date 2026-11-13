@@ -11,6 +11,53 @@ import { styles } from './styles'
 import type { SubscriptionInterval, Tokens, UpgradeTextFn } from './types'
 import { MotionPressable } from '@/components/ui/motion-pressable'
 
+function RestoreAction({ disabled, isRestoring, onRestore, t, tokens }: Readonly<{
+  disabled: boolean
+  isRestoring: boolean
+  onRestore: () => void
+  t: UpgradeTextFn
+  tokens: Tokens
+}>) {
+  return (
+    <MotionPressable
+      accessibilityRole="button"
+      onPress={onRestore}
+      disabled={disabled}
+      accessibilityState={{ disabled, busy: isRestoring }}
+      hitSlop={{ top: 6, bottom: 6 }}
+      style={[
+        styles.restoreAction,
+        { flexDirection: 'row', alignItems: 'center', gap: 8 },
+        disabled && !isRestoring ? styles.disabledAction : null,
+      ]}
+    >
+      {isRestoring ? <SkeletonFace /> : null}
+      <Text style={[styles.restoreLink, { color: tokens.fg3 }]}>{t('upgrade.restorePurchase')}</Text>
+    </MotionPressable>
+  )
+}
+
+function StayFreeLink({ disabled, onStayFree, t, tokens }: Readonly<{
+  disabled: boolean
+  onStayFree: () => void
+  t: UpgradeTextFn
+  tokens: Tokens
+}>) {
+  return (
+    <MotionPressable
+      accessibilityRole="link"
+      onPress={onStayFree}
+      disabled={disabled}
+      accessibilityState={{ disabled }}
+      style={[styles.freeLink, disabled ? styles.disabledAction : null]}
+    >
+      <Text style={[styles.freeLinkText, { color: tokens.fg2 }]}>
+        {t('upgrade.convert.stayFree')}
+      </Text>
+    </MotionPressable>
+  )
+}
+
 // react-doctor-disable-next-line no-many-boolean-props -- Deliberate presentational section aggregator: each boolean is an independent upgrade-screen UI-state flag (plans loading/error, online, ...) owned by the upgrade screen; an options-object rewrite would churn the caller and the web parity mirror for no runtime benefit. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function PricingSection({
   inset = true,
@@ -97,21 +144,13 @@ export function PricingSection({
             tokens={tokens}
           />
           {plans || Platform.OS === 'ios' ? (
-            <MotionPressable
-              accessibilityRole="button"
-              onPress={onRestore}
+            <RestoreAction
               disabled={isRestoring || !isOnline || checkoutLoading !== null}
-              accessibilityState={{ disabled: isRestoring || !isOnline || checkoutLoading !== null, busy: isRestoring }}
-              hitSlop={{ top: 6, bottom: 6 }}
-              style={() => [
-                styles.restoreAction,
-                { flexDirection: 'row', alignItems: 'center', gap: 8 },
-                !isRestoring && (!isOnline || checkoutLoading !== null) ? styles.disabledAction : null,
-              ]}
-            >
-              {isRestoring ? <SkeletonFace /> : null}
-              <Text style={[styles.restoreLink, { color: tokens.fg3 }]}>{t('upgrade.restorePurchase')}</Text>
-            </MotionPressable>
+              isRestoring={isRestoring}
+              onRestore={onRestore}
+              t={t}
+              tokens={tokens}
+            />
           ) : null}
         </View>
 
@@ -135,20 +174,7 @@ export function PricingSection({
                 </Pressable>
               </View> : null}
             </View> : null}
-            <MotionPressable
-              accessibilityRole="link"
-              onPress={onStayFree}
-              disabled={checkoutLoading !== null}
-              accessibilityState={{ disabled: checkoutLoading !== null }}
-              style={() => [
-                styles.freeLink,
-                checkoutLoading !== null ? styles.disabledAction : null,
-              ]}
-            >
-              <Text style={[styles.freeLinkText, { color: tokens.fg2 }]}>
-                {t('upgrade.convert.stayFree')}
-              </Text>
-            </MotionPressable>
+            <StayFreeLink disabled={checkoutLoading !== null} onStayFree={onStayFree} t={t} tokens={tokens} />
           </View>
       </View>
     </View>
