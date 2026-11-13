@@ -187,6 +187,15 @@ The guided flow has shared logic and three primitives, and each one has a Vitest
 - `apps/web/__tests__/components/ui/question-flow.test.tsx` and `apps/mobile/__tests__/components/ui/question-flow.test.tsx` cover `OptionCard` and `QuestionFlow`: the progress name, focus on the question, the Orbit line as the description, Pensando, Olhando and the pinned primary action.
 - `apps/web/__tests__/components/ui/result-dialog.test.tsx` and the `ResultDialog` cases in `apps/mobile/__tests__/components/ui/question-flow.test.tsx` cover the dialog: name, description, focus, Escape and the scrim, Android back, and the Feliz and Parado states.
 
+### Progresso guided surfaces
+
+The Progresso rework behind `orbit_guided_flows` has shared unit suites and one behavior suite per platform. Each scenario runs in English and Portuguese, with and without reduced motion, and one case per surface proves the current form with the flag off.
+
+- `packages/shared/src/__tests__/progress-orbit-line.test.ts` covers the line cases (active days, the quiet window, a selected day, an unscheduled day, the return after a gap, the empty window and the absent line), the shared gap rule, the window status and the Sequência line.
+- `packages/shared/src/__tests__/progress-figures.test.ts` covers the seen figures: a first visit, a changed figure and a stored value read back.
+- `apps/web/__tests__/app/progress-guided.test.tsx` and `apps/mobile/__tests__/components/progress/progress-guided.test.tsx` cover the root states, the bar selection, the figure roll, the rows, Sequência, the repair flow with each result and error, the lock cards and Conquistas.
+- `apps/mobile/__tests__/components/progress/progress-guided-centre-geometry.test.tsx` measures the empty window, the sub-screen error, the repair question and the result dialog at 320, 360, 384 and 412. The Chromium `apps/web/__tests__/app/progress-guided-geometry.test.tsx` measures the same blocks and the one-line question headings in both locales.
+
 ### Compact label and interaction fill guard
 
 Build locally with `npm run build:hermetic -w apps/web` before running the layout project. The helper sets `API_BASE` and `NEXT_PUBLIC_EVENT_API_BASE` to `http://127.0.0.1:5099` before `next build`, overriding `.env.production` for the account event stream and wake ping. It then runs `node tools/check-hermetic-web-build.mjs`, which rejects client output containing production or staging API hosts and refuses missing or empty output. `npm run test:layout -w apps/web` repeats the check before starting servers, so a later release build cannot silently replace the hermetic build. Both layout and perf workflows set these build inputs and check the output before running. Release builds retain their environment-specific inputs.

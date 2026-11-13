@@ -2,8 +2,8 @@
 
 **At a glance:** responsive achievement cards and the adjacent list audit on web and Android.
 
-The owners are `apps/web/app/(app)/progress/_components/progress-content.tsx` and
-`apps/mobile/components/progress/progress-content.tsx`, rendered by the Conquistas sub-screen at `/progress/achievements` on both platforms.
+The owners are `apps/web/app/(app)/progress/_components/progress-achievements.tsx` and
+`apps/mobile/components/progress/progress-achievements.tsx`, rendered by the Conquistas sub-screen at `/progress/achievements` on both platforms.
 The overview at `/progress` owns the window stat tiles, and `/progress/goals` owns the goal list.
 Each sub-screen keeps the centred 740px column and its visible back control to Progresso.
 

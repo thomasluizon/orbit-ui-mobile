@@ -1694,8 +1694,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
-        "apps/web/components/ui/columns.tsx",
-        "apps/web/components/ui/pager.tsx"
+        "apps/web/components/ui/columns.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -1713,8 +1712,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
-        "apps/web/components/ui/columns.tsx",
-        "apps/web/components/ui/pager.tsx"
+        "apps/web/components/ui/columns.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -1732,8 +1730,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
-        "apps/web/components/ui/columns.tsx",
-        "apps/web/components/ui/pager.tsx"
+        "apps/web/components/ui/columns.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -1751,8 +1748,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
-        "apps/web/components/ui/columns.tsx",
-        "apps/web/components/ui/pager.tsx"
+        "apps/web/components/ui/columns.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -6275,6 +6271,110 @@
         "apps/web/app/(app)/progress/_components/progress-content.tsx"
       ],
       "state": "empty",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-components-progress-streak",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/progress/_components/progress-streak.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/_components/progress-streak.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-components-progress-streak",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/progress/_components/progress-streak.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/_components/progress-streak.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-components-progress-streak",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/progress/_components/progress-streak.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/_components/progress-streak.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-components-progress-streak",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/progress/_components/progress-streak.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/_components/progress-streak.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-components-progress-subscreen",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/progress/_components/progress-subscreen.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/_components/progress-subscreen.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-components-progress-subscreen",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/progress/_components/progress-subscreen.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/_components/progress-subscreen.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-components-progress-subscreen",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/progress/_components/progress-subscreen.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/_components/progress-subscreen.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-components-progress-subscreen",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/progress/_components/progress-subscreen.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/_components/progress-subscreen.tsx"
+      ],
+      "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
     },
@@ -12080,7 +12180,6 @@
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
         "apps/mobile/components/ui/columns.tsx",
-        "apps/mobile/components/ui/pager.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx"
@@ -12099,7 +12198,6 @@
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
         "apps/mobile/components/ui/columns.tsx",
-        "apps/mobile/components/ui/pager.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx"
@@ -12118,7 +12216,6 @@
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
         "apps/mobile/components/ui/columns.tsx",
-        "apps/mobile/components/ui/pager.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx"
@@ -12137,7 +12234,6 @@
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
         "apps/mobile/components/ui/columns.tsx",
-        "apps/mobile/components/ui/pager.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx"
@@ -18759,6 +18855,162 @@
         "apps/mobile/components/progress/progress-content.tsx"
       ],
       "state": "empty",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-progress-progress-streak",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/progress/progress-streak.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/progress/progress-streak.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-progress-progress-streak",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/progress/progress-streak.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/progress/progress-streak.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-progress-progress-streak",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/progress/progress-streak.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/progress/progress-streak.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-progress-progress-streak",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/progress/progress-streak.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/progress/progress-streak.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-progress-progress-streak",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/progress/progress-streak.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/progress/progress-streak.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-progress-progress-streak",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/progress/progress-streak.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/progress/progress-streak.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-progress-progress-streak",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/progress/progress-streak.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/progress/progress-streak.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-progress-progress-streak",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/progress/progress-streak.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/progress/progress-streak.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-progress-streak-repair-flow",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/progress/streak-repair-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/progress/streak-repair-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-progress-streak-repair-flow",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/progress/streak-repair-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/progress/streak-repair-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-progress-streak-repair-flow",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/progress/streak-repair-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/progress/streak-repair-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-progress-streak-repair-flow",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/progress/streak-repair-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/progress/streak-repair-flow.tsx"
+      ],
+      "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
     },

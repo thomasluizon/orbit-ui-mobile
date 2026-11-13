@@ -13,8 +13,8 @@ Paths below are relative to each platform's `components/` directory unless state
 | Empty Orbit thread | `chat/chat-empty-state.tsx` | `chat/chat-empty-state.tsx` | Orbit mascot, title, one ghost browse action and disclosure |
 | Empty calendar import and review | `calendar-sync/calendar-import-content.tsx` | `calendar-sync/calendar-import-content.tsx` | Orbit mark, mode-specific title and back action |
 | Empty goal list | `app/(app)/progress/_components/progress-content.tsx` | `progress/progress-content.tsx` | Orbit mark, title and create action |
-| Empty progress window | Same progress owner | Same progress owner | Orbit mark, title and habit entry |
-| Empty achievements | Same progress owner | Same progress owner | Orbit mark, title and habit entry |
+| Empty progress window | `app/(app)/progress/_components/progress-window.tsx`; with `orbit_guided_flows` on, `guided-progress-overview.tsx` | `progress/progress-window.tsx`; with the flag on, `progress/guided-progress-overview.tsx` | Orbit mark, title and habit entry; with the flag on, the root Orbit at 96 says the empty line above the same habit entry |
+| Empty achievements | `app/(app)/progress/_components/progress-achievements.tsx` | `progress/progress-achievements.tsx` | Orbit mark, title and habit entry |
 | Empty linked-habit picker | `goals/goal-habits-field.tsx` | `goals/goal-habits-field.tsx` | Orbit mark, title and create action |
 | Linked-habit search miss | Same picker owner | Same picker owner | Orbit mark, query-miss title and close action |
 | Empty share card | `share/share-card-sheet.tsx` | `share/share-card-sheet.tsx` | Orbit mark and existing title |
