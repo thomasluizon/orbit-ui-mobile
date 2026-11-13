@@ -21,15 +21,15 @@ UI `main` `89d35525f`; API `main` `5fc345d20`; landing `main` `381b253fa`. Produ
 | `api#1109` (`#2127`) at `54f74ac00` | Base `main`, CI ran on this head. `chain-read.sh api 1109`; on green request the review (`chain-review.sh api 1109`), fix threads through a subagent, merge at the bar (`merge-gate.sh api 1109`, `MSUBJ` with `fix(chat):`, `MBODY` `Tracks thomasluizon/orbit-tickets#2127`), `record-merge.mjs`. Then the API release: staging, then production with origin `https://api.useorbit.org`; no migration, so no export. Never with a production web release. Then the staging transcript of its order bullet, then close. |
 | `#2129` | The owner's newest report (the assistant is dumb in general). The work order is the ticket comment. Launch an API worker (repo:api, base `main`) as soon as `api#1109` merges; before that it would conflict. |
 | `ui#2442` (`#2096`) at `9e6c0bb60` | `calendar-week-agenda-geometry.test.tsx` fails 8 cases (`press: fill has inline breathing room`); the other 11 listed Chromium files pass. A subagent fix was in flight at this handoff (note `fix-note-ui-2442-r0.md`): look for a new local commit in worktree `ticket-2096-press-transitions`; if none, send the note again. Read the diff, run `chromium-manual.sh 2442 ticket-2096-press-transitions`, push, chain, merge. Then the web release and the next Android and iOS pair (1.3.155, Android first). |
-| `#2119` worker | Launch 1 of 2 in worktree `ticket-2119-file-ledger-hygiene` (branch `chore/ticket-2119-file-ledger-hygiene`). Read the launcher result and the diff. If it stopped at the limit with uncommitted work, relaunch with a continuation note (pattern `note-order-2096-relaunch.md`). |
+| `#2119` | Launch 1 of 2 ended in worktree `ticket-2119-file-ledger-hygiene` with a clean tree and local commits (head `193669ddd`), no push and no pull request. Read its report (the last `result` line of its log) and `git log origin/main..HEAD`, then relaunch (2 of 2) with a continuation note (pattern `note-order-2096-relaunch.md`): finish what the report names, push, one pull request. |
 | `#2128` | Blocked by `#2127`. Launch (repo:ui) when it merges. |
 | `#1561` | The outside tester group exists and build 4 waits for Beta App Review: read `externalBuildState` of the build with `asc-api.mjs` at each intake cycle. |
 | `#2120` to `#2126` | Batch M, in ticket order, each after the one before it. |
-| Claude usage | Read `https://claude.ai/settings/usage` at each hourly Sentry tick (not read in the last session). |
-| Intake | Mailbox and store reviews empty; Sentry holds only Q and R (`#1561`); board all placed. |
+| Claude usage | Read `https://claude.ai/settings/usage` at each hourly Sentry tick. |
+| Intake | Mailbox and reviews empty; Sentry holds only Q and R (`#1561`). |
 | `ui#2388` | This relay's docs branch. Never request a review for it. |
 
-Inventory: open pull requests ui `#2442`, `#2388`; api `#1109`. Unpushed commits on a branch: at most the subagent commit on `fix/ticket-2096-press-transitions`. Dirty worktrees: the `#2119` worktree while its worker runs. Stashes: none. Detached worktrees with unpushed commits (leave them): `combined-2065`, api `scratch-1090-merge`, api `scratch-877-timing`. Waiters to arm: one `chain-review.sh` per pull request in CI or review, `wait-release.mjs` for each release run, and `wait-auto-work.mjs` when nothing is launchable.
+Inventory: open pull requests ui `#2442`, `#2388`; api `#1109`. Unpushed commits on a branch: at most the subagent commit on `fix/ticket-2096-press-transitions`. Dirty worktrees: none. Stashes: none. Detached worktrees with unpushed commits (leave them): `combined-2065`, api `scratch-1090-merge`, api `scratch-877-timing`. Waiters to arm: one `chain-review.sh` per pull request in CI or review, `wait-release.mjs` for each release run, and `wait-auto-work.mjs` when nothing is launchable.
 
 ## Then, in this order
 
