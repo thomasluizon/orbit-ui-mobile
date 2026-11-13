@@ -18,6 +18,6 @@ export function AstraButton() {
     className="flex cursor-pointer appearance-none items-center justify-center border-0 bg-transparent p-0 transition-[scale] [transition-duration:var(--dur-press)] [transition-timing-function:var(--ease-out)] motion-safe:active:scale-[0.96]"
     style={{ height: FAB_SIZE, width: FAB_SIZE }}
   >
-    <OrbitMascot size={48} />
+    <OrbitMascot size={48} lead />
   </button>
 }

@@ -80,6 +80,19 @@ describe('Orbit idle loop on web', () => {
     expect(loopOf(container)).toBe('running')
   })
 
+  it('gives the live slot to the next Orbit in view while the first one is off screen', () => {
+    const { container } = render(<><OrbitMascot size={48} /><OrbitMascot size={96} /></>)
+    expect([loopOf(container, 0), loopOf(container, 1)]).toEqual(['running', 'still'])
+    act(() => { observers[0]?.([{ isIntersecting: false }]) })
+    expect([loopOf(container, 0), loopOf(container, 1)]).toEqual(['still', 'running'])
+  })
+
+  it('lets the conversation entry lead the view when it returns after another Orbit', () => {
+    const { container, rerender } = render(<><OrbitMascot size={96} />{null}</>)
+    rerender(<><OrbitMascot size={96} /><OrbitMascot size={48} lead /></>)
+    expect([loopOf(container, 0), loopOf(container, 1)]).toEqual(['still', 'running'])
+  })
+
   it('pauses while the tab is in the background and resumes in the foreground', () => {
     const { container } = render(<OrbitMascot size={96} />)
     const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')

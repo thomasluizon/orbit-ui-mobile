@@ -6,6 +6,8 @@ interface LiveClaim {
   readonly claim: symbol
   /** The number of overlays around the mascot: 0 on the page, 1 inside a sheet, 2 inside a sheet on a sheet. */
   readonly layer: number
+  /** The conversation entry leads its view whenever it is in view. */
+  readonly lead: boolean
 }
 
 const listeners = new Set<() => void>()
@@ -51,9 +53,9 @@ export function pauseOrbitLoopForOverlay(): () => void {
   }
 }
 
-/** A live mascot claims a slot while it is mounted. On the top layer, only the first claim runs the loop. */
-export function claimOrbitLiveSlot(claim: symbol, layer = 0): () => void {
-  liveClaims.push({ claim, layer })
+/** A live mascot claims a slot while it is in view. On the top layer, the leading claim runs the loop, or else the first claim. */
+export function claimOrbitLiveSlot(claim: symbol, layer = 0, lead = false): () => void {
+  liveClaims.push({ claim, layer, lead })
   notify()
   return () => {
     const index = liveClaims.findIndex((entry) => entry.claim === claim)
@@ -62,8 +64,9 @@ export function claimOrbitLiveSlot(claim: symbol, layer = 0): () => void {
   }
 }
 
-/** An Orbit runs when the person allows motion, no overlay covers its layer, and it holds the first claim of the top layer. */
+/** An Orbit runs when the person allows motion, no overlay covers its layer, and it holds the live claim of the top layer. */
 export function mayOrbitRunLoop(claim: symbol): boolean {
   if (!motionEnabled) return false
-  return liveClaims.find((entry) => entry.layer === overlayCount)?.claim === claim
+  const top = liveClaims.filter((entry) => entry.layer === overlayCount)
+  return (top.find((entry) => entry.lead) ?? top[0])?.claim === claim
 }

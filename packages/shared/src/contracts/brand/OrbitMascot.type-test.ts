@@ -15,6 +15,7 @@ export type OrbitMascotTypeContract = [
   Assert<IsExactWidth<OrbitMascotProps['state'], 'parado' | 'pensando' | 'feliz' | 'descansando' | undefined>>,
   Assert<IsExactWidth<OrbitMascotProps['still'], boolean | undefined>>,
   Assert<IsExactWidth<OrbitMascotProps['color'], string | undefined>>,
+  Assert<IsExactWidth<OrbitMascotProps['lead'], boolean | undefined>>,
   Assert<IsExact<{ size: 96; state: 'feliz' }, OrbitMascotProps>>,
   // @ts-expect-error the size is required
   Assert<IsExact<{ state: 'parado' }, OrbitMascotProps>>,

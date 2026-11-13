@@ -39,7 +39,7 @@ function isSmallSize(size: number): size is OrbitMascotSmallSize {
 /** The idle loop clock in milliseconds. It runs only while this mascot holds the one live slot, the
  *  person has not paused Orbit, no overlay covers its layer and the app is in the foreground. It never
  *  runs under reduced motion. */
-function useOrbitLoopClock(wantsLoop: boolean) {
+function useOrbitLoopClock(wantsLoop: boolean, lead: boolean) {
   const [claim] = useState(() => Symbol('orbit-mascot'))
   const layer = useOrbitOverlayLayer()
   const reducedMotion = useReducedMotion()
@@ -49,7 +49,7 @@ function useOrbitLoopClock(wantsLoop: boolean) {
   const elapsed = useRef(0)
   useSyncExternalStore(subscribeOrbitLoop, getOrbitLoopVersion, getOrbitLoopVersion)
 
-  useEffect(() => (candidate ? claimOrbitLiveSlot(claim, layer) : undefined), [candidate, claim, layer])
+  useEffect(() => (candidate ? claimOrbitLiveSlot(claim, layer, lead) : undefined), [candidate, claim, layer, lead])
 
   useEffect(() => {
     if (!candidate) return undefined
@@ -161,10 +161,10 @@ function ThemedOrbitMascot(props: Readonly<OrbitMascotProps>) {
   return <OrbitMascotDrawing {...props} tokens={tokens} />
 }
 
-function OrbitMascotDrawing({ size, state = 'parado', still = false, color, tokens }: Readonly<OrbitMascotProps & { tokens: AppTokensV2 }>) {
+function OrbitMascotDrawing({ size, state = 'parado', still = false, color, lead = false, tokens }: Readonly<OrbitMascotProps & { tokens: AppTokensV2 }>) {
   const clipId = `orbit-planet-${useId().replaceAll(':', '')}`
   const small = isSmallSize(size)
-  const { clock, running } = useOrbitLoopClock(!small && !still)
+  const { clock, running } = useOrbitLoopClock(!small && !still, lead)
   const frame = orbitMascotFrame(clock, mascotMotion)
   const palette = paletteFrom(tokens)
 

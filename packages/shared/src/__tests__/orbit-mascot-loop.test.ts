@@ -65,6 +65,18 @@ describe('Orbit idle loop permission', () => {
     releasePage()
   })
 
+  it('lets the conversation entry lead its view even when it claims after another Orbit', () => {
+    const emptyState = Symbol('empty-state')
+    const entry = Symbol('entry')
+    const releaseEmptyState = claimOrbitLiveSlot(emptyState)
+    const releaseEntry = claimOrbitLiveSlot(entry, 0, true)
+    expect(mayOrbitRunLoop(entry)).toBe(true)
+    expect(mayOrbitRunLoop(emptyState)).toBe(false)
+    releaseEntry()
+    expect(mayOrbitRunLoop(emptyState)).toBe(true)
+    releaseEmptyState()
+  })
+
   it('notifies subscribers and changes its version on each change', () => {
     let calls = 0
     const stop = subscribeOrbitLoop(() => { calls += 1 })

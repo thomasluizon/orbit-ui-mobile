@@ -113,6 +113,13 @@ describe('Orbit idle loop on Android', () => {
     tree.unmount()
   })
 
+  it('lets the conversation entry lead the view when it returns after another Orbit', () => {
+    const tree = render(<View><OrbitMascot size={96} />{null}</View>)
+    TestRenderer.act(() => tree.update(<View><OrbitMascot size={96} /><OrbitMascot size={48} lead /></View>))
+    expect(loops(tree)).toEqual(['still', 'running'])
+    tree.unmount()
+  })
+
   it('stops every loop when Orbit em movimento is off', () => {
     const tree = render(<OrbitMascot size={96} />)
     TestRenderer.act(() => setOrbitMotionEnabled(false))

@@ -36,8 +36,9 @@ function isSmallSize(size: number): size is OrbitMascotSmallSize {
 
 /** The idle loop clock in milliseconds. It runs only while this mascot holds the one live slot, the
  *  person has not paused Orbit, no overlay covers its layer, the mascot is on screen and the tab is in
- *  the foreground. It never runs under reduced motion. */
-function useOrbitLoopClock(wantsLoop: boolean, target: React.RefObject<SVGSVGElement | null>) {
+ *  the foreground. It never runs under reduced motion. An Orbit off screen, such as a hidden conversation
+ *  entry, gives the slot to the next Orbit in view. */
+function useOrbitLoopClock(wantsLoop: boolean, lead: boolean, target: React.RefObject<SVGSVGElement | null>) {
   const [claim] = useState(() => Symbol('orbit-mascot'))
   const layer = useOrbitOverlayLayer()
   const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
@@ -48,7 +49,7 @@ function useOrbitLoopClock(wantsLoop: boolean, target: React.RefObject<SVGSVGEle
   const elapsed = useRef(0)
   useSyncExternalStore(subscribeOrbitLoop, getOrbitLoopVersion, getOrbitLoopVersion)
 
-  useEffect(() => (candidate ? claimOrbitLiveSlot(claim, layer) : undefined), [candidate, claim, layer])
+  useEffect(() => (candidate && onScreen ? claimOrbitLiveSlot(claim, layer, lead) : undefined), [candidate, onScreen, claim, layer, lead])
 
   useEffect(() => {
     const element = target.current
@@ -154,11 +155,11 @@ function SmallFace({ size, clipId }: Readonly<{ size: OrbitMascotSmallSize; clip
   )
 }
 
-export function OrbitMascot({ size, state = 'parado', still = false, color }: Readonly<OrbitMascotProps>) {
+export function OrbitMascot({ size, state = 'parado', still = false, color, lead = false }: Readonly<OrbitMascotProps>) {
   const clipId = `orbit-planet-${useId().replaceAll(':', '')}`
   const svgRef = useRef<SVGSVGElement | null>(null)
   const small = isSmallSize(size)
-  const { clock, running } = useOrbitLoopClock(!small && !still, svgRef)
+  const { clock, running } = useOrbitLoopClock(!small && !still, lead, svgRef)
   const frame = orbitMascotFrame(clock, mascotMotion)
 
   return (

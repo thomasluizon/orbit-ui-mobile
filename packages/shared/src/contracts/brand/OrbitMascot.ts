@@ -15,4 +15,6 @@ export interface OrbitMascotProps {
   still?: boolean
   /** The planet and the ring. Defaults to the foreground token. */
   color?: string
+  /** The conversation entry: on a view that shows it, it is the live Orbit, and every other Orbit in that view is still. */
+  lead?: boolean
 }

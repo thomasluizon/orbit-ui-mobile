@@ -20,7 +20,7 @@ export function AstraButton() {
     onPress={() => openConversation(true)}
     style={styles.target}
   >
-    <OrbitMascot size={48} />
+    <OrbitMascot size={48} lead />
   </MotionPressable>
 }
 
