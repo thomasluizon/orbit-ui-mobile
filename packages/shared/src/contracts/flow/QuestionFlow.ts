@@ -40,3 +40,8 @@ export interface QuestionFlowProps {
   /** One quiet control under the block, such as a link. */
   footer?: React.ReactNode
 }
+
+/** What one step shows. A step owner returns it and the flow host passes it to the frame: `free` becomes the children. */
+export type FlowStepView = Pick<QuestionFlowProps, 'question' | 'line' | 'options' | 'primary' | 'orbitState' | 'statusText'> & {
+  free?: React.ReactNode
+}

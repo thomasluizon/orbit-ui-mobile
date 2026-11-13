@@ -623,6 +623,35 @@
         "no": "Não",
         "removeEndDate": "Tirar a data final"
       },
+      "tags": {
+        "lineIntro": "Uma tag junta itens parecidos. Toque numa para ver o que já está nela.",
+        "lineHas": "{tag} já tem {items}.",
+        "lineEmpty": "{tag} ainda está vazia.",
+        "more": "{count, plural, =0 {mais # itens} one {mais # item} other {mais # itens}}",
+        "none": "Sem tag",
+        "searchMiss": "Nenhuma tag com esse nome.",
+        "manage": "Quer mudar o nome ou apagar uma tag?"
+      },
+      "checklist": {
+        "line": "Os passos viram uma lista que você marca enquanto faz.",
+        "useTemplate": "Usar um modelo",
+        "saveTemplate": "Guardar como modelo"
+      },
+      "templates": {
+        "question": "Qual modelo você quer usar?",
+        "line": "Um modelo é uma lista de passos que você guardou para usar de novo.",
+        "lineEmpty": "Você ainda não guardou nenhum modelo. Escreva os passos e eu guardo para a próxima.",
+        "option": "{name}, {count, plural, =0 {# itens} one {# item} other {# itens}}",
+        "write": "Escrever os passos",
+        "saveQuestion": "Que nome vai ter esse modelo?",
+        "saveLine": "Eu guardo estes passos para você usar em outro hábito."
+      },
+      "goals": {
+        "line": "Uma meta soma o progresso dos hábitos ligados a ela.",
+        "lineEmpty": "Você ainda não tem metas. Uma meta soma o progresso dos hábitos ligados a ela.",
+        "limit": "Escolha até 10 metas",
+        "searchMiss": "Nenhuma meta com esse nome."
+      },
       "orbit": {
         "offline": "Sem conexão. Eu leio no aparelho e você segue do mesmo jeito.",
         "fromConversation": "Veio da sua conversa com o Orbit."
@@ -3150,7 +3179,19 @@
       "sent": "Sua mensagem chegou. A resposta vai para {email}."
     },
     "seeCalendar": "Ver no Calendário",
-    "createAnother": "Criar outro"
+    "createAnother": "Criar outro",
+    "goal": {
+      "created": "A meta \"{title}\" vai até {date}.",
+      "createdNoDeadline": "A meta \"{title}\" foi criada sem prazo.",
+      "updated": "A meta \"{title}\" foi salva e vai até {date}.",
+      "updatedNoDeadline": "A meta \"{title}\" foi salva sem prazo.",
+      "reactivated": "A meta \"{title}\" voltou a ficar ativa.",
+      "abandoned": "A meta \"{title}\" foi marcada como abandonada.",
+      "deleted": "A meta \"{title}\" foi apagada.",
+      "open": "Ver a meta",
+      "openList": "Ver as metas",
+      "another": "Criar outra"
+    }
   },
   "onboarding": {
     "flow": {
@@ -3761,6 +3802,33 @@
       "unitQuestion": "De quê?",
       "deadlineQuestion": "Até quando?"
     },
+    "flow": {
+      "what": {
+        "line": "Escreva do seu jeito. Depois eu pergunto quanto e até quando."
+      },
+      "track": {
+        "line": "Progresso soma um número. Sequência conta dias seguidos."
+      },
+      "amount": {
+        "line": "Com um número eu mostro quanto falta.",
+        "streakLine": "Eu conto cada dia seguido até você chegar lá."
+      },
+      "deadline": {
+        "line": "Com um prazo eu calculo quanto fazer por dia.",
+        "none": "Sem prazo",
+        "monthEnd": "Fim do mês",
+        "yearEnd": "Fim do ano"
+      },
+      "habits": {
+        "question": "Quais hábitos contam para essa meta?"
+      },
+      "summary": {
+        "what": "O que você quer",
+        "track": "Como acompanhar",
+        "amount": "Quanto",
+        "deadline": "Até quando"
+      }
+    },
     "streak": {
       "ofTarget": "Dia {current} de {target}"
     },
@@ -3801,7 +3869,12 @@
       "askAstraEyebrow": "Analisar meta",
       "askAstraDefault": "Quer um plano de acompanhamento semanal para isso?",
       "askAstraSeedDefault": "Me ajuda a montar um plano de acompanhamento semanal para a meta \"{title}\".",
-      "statusLabel": "Status"
+      "statusLabel": "Status",
+      "line": {
+        "daysLeft": "{days, plural, =0 {Faltam # dias para o prazo.} one {Falta # dia para o prazo.} other {Faltam # dias para o prazo.}}",
+        "dueToday": "O prazo é hoje.",
+        "passed": "O prazo era {date}."
+      }
     },
     "deadline": {
       "daysLeft": "{n, plural, =0 {# dias restantes} one {# dia restante} other {# dias restantes}}"
