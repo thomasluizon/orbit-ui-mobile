@@ -192,6 +192,8 @@ fn construct_window(
     #[cfg(windows)]
     window.hide_menu()?;
     launch::install(&window, window_config)?;
+    #[cfg(windows)]
+    window_bar::install_snap_region(&window)?;
     drop(window);
     Ok(())
 }

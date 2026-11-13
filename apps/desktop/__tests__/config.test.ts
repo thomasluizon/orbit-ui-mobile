@@ -151,6 +151,24 @@ it('draws no native window frame on Windows and hands the frame to the Orbit bar
   expect(readFileSync(new URL('../src-tauri/src/main.rs', import.meta.url), 'utf8')).toMatch(/#\[cfg\(windows\)\]\s*window\.hide_menu\(\)\?;/)
 })
 
+it('keeps the native snap region, the page bar and the stylesheet on one geometry and one command', () => {
+  const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
+  const page = read('../../web/lib/desktop-window.ts')
+  const constant = (source: string, pattern: RegExp) => Number(source.match(pattern)?.[1])
+  const native = read('../src-tauri/native/windows/caption.cpp')
+  for (const [name, nativeName] of [['HEIGHT', 'kBarHeight'], ['CONTROL_WIDTH', 'kControlWidth'], ['END_INSET', 'kEndInset']] as const) {
+    const pageName = name === 'END_INSET' ? 'DESKTOP_WINDOW_BAR_END_INSET' : `DESKTOP_WINDOW_${name === 'HEIGHT' ? 'BAR_HEIGHT' : name}`
+    const value = constant(page, new RegExp(`${pageName} = (\\d+)`))
+    expect(value).toBeGreaterThan(0)
+    expect(constant(native, new RegExp(`${nativeName} = (\\d+)`))).toBe(value)
+  }
+  expect(read('../../web/app/globals.css')).toContain(`--desktop-window-bar-height: ${constant(page, /DESKTOP_WINDOW_BAR_HEIGHT = (\d+)/)}px;`)
+  expect(page).toContain("runtime.invoke('desktop_window', { action })")
+  expect(read('../src-tauri/src/window_bar.rs')).toContain(`'${page.match(/DESKTOP_MAXIMIZE_HOVER_EVENT = '([^']+)'/)?.[1]}'`)
+  expect(read('../src-tauri/build.rs')).toContain('.file("native/windows/caption.cpp")')
+  expect(read('../src-tauri/native/windows/launch.cpp')).not.toMatch(/DWMWA_CAPTION_COLOR|dwmapi/)
+})
+
 it('gives staging and production separate persistent webview identities', () => {
   expect(base.identifier).not.toBe(production.identifier)
 })
