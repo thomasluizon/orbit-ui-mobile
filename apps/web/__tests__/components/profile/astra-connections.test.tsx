@@ -164,3 +164,14 @@ it('keeps an unavailable connection retryable', async () => {
   expect(screen.getByRole('button', { name: en.common.retry })).toBeEnabled()
   expect(screen.queryByRole('button', { name: en.profile.connections.connect })).not.toBeInTheDocument()
 })
+it('draws a skeleton and no spinner while the Notion connection loads', () => {
+  mocks.fetch.mockReturnValue(new Promise(() => {}))
+  function Harness() {
+    const controller = useNotionConnectionController(true)
+    return <NotionConnectionSheet callbackFailed={false} controller={controller} onClose={vi.fn()} onAuthorize={vi.fn()} onOpenUrl={vi.fn()} />
+  }
+  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><Harness /></QueryClientProvider>)
+  expect(screen.getByRole('progressbar', { name: en.common.loading })).toHaveAttribute('data-variant', 'settings')
+  expect(document.querySelector('.animate-spin')).toBeNull()
+  expect(screen.queryByText(en.common.loading)).not.toBeInTheDocument()
+})

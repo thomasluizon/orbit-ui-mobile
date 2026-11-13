@@ -11,6 +11,7 @@ import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { PillButton } from '@/components/ui/pill-button'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface NotionConnectionSheetProps {
   callbackFailed: boolean
@@ -27,7 +28,7 @@ function NotionConnectionDetails({ controller, reconnect, hasConnection }: Reado
   const locale = useLocale()
   const { connection } = controller
   const current = connection.data
-  return <>{connection.isLoading ? <p className="text-sm text-[var(--fg-2)]" >{t('common.loading')}</p> : hasConnection ? <>
+  return <>{connection.isLoading ? <Skeleton variant="settings" rows={1} label={t('common.loading')} /> : hasConnection ? <>
           {current?.workspaceName ? <PersonalTextDetails textStyle={{ fontSize: '1rem', lineHeight: 1.5 }}>{current.workspaceName}</PersonalTextDetails> : null}
           {current?.lastPollAtUtc ? <p className="text-sm text-[var(--fg-2)]" >{t('profile.connections.lastSync', { time: new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(current.lastPollAtUtc)) })}</p> : <p className="text-sm text-[var(--fg-2)]" >{t('profile.connections.awaitingSync')}</p>}
           {reconnect ? <p className="text-sm text-[var(--fg-2)]" >{t('profile.connections.renew')}</p> : null}

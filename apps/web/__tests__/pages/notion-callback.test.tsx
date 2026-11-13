@@ -13,7 +13,7 @@ function mount() {
   useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Account', email: 'account@example.com' })
   render(<Callback />)
 }
-it('posts code, state and redirect URI once and returns to Astra settings', async () => {
+it('posts code, state and redirect URI once and returns to the AI settings page', async () => {
   mount()
   await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/profile/ai'))
   expect(mocks.complete).toHaveBeenCalledExactlyOnceWith(createNotionCallback(`${window.location.origin}/auth-callback/notion`), 'account-a')
@@ -28,7 +28,15 @@ it.each<Record<string, string>>([{ code: 'oauth-code' }, { error: 'server_error'
   await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/profile/ai?notionError=1'))
   expect(mocks.complete).not.toHaveBeenCalled()
 })
-it('returns a failed exchange to the retryable error on Astra settings', async () => {
+it('returns a failed exchange to the retryable error on the AI settings page', async () => {
   mocks.complete.mockRejectedValue(new Error('Unavailable')); mount()
   await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/profile/ai?notionError=1'))
+})
+it('draws the settings skeleton and no spinner while the connection completes', () => {
+  mocks.complete.mockReturnValue(new Promise(() => {}))
+  mount()
+  const skeleton = document.querySelector('[role="progressbar"]')
+  expect(skeleton?.getAttribute('aria-label')).toBe('common.loading')
+  expect(skeleton?.getAttribute('data-variant')).toBe('settings')
+  expect(document.querySelector('.animate-spin')).toBeNull()
 })

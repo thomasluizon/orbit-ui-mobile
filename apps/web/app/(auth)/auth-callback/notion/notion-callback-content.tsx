@@ -9,6 +9,7 @@ import { NOTION_CALLBACK_PATH, NOTION_RETURN_PATH, notionCallbackRequestSchema }
 import { completeNotion } from '@/lib/actions/profile'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { getHeldAccountId } from '@/stores/auth-store'
+import { Skeleton } from '@/components/ui/skeleton'
 
 export function NotionCallbackContent() {
   const t = useTranslations()
@@ -37,5 +38,5 @@ export function NotionCallbackContent() {
     }
     void complete()
   }, [code, state, error, router])
-  return <p role="status" className="text-sm text-[var(--fg-2)]">{t('common.loading')}</p>
+  return <Skeleton variant="settings" rows={4} label={t('common.loading')} />
 }

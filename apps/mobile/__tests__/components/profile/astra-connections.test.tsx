@@ -155,3 +155,14 @@ it('shows an authorization failure and allows another attempt', async () => {
   expect(text()).toContain(en.profile.connections.error)
   expect(action(en.profile.connections.connect).props.disabled).toBe(false)
 })
+it('draws a skeleton and no spinner while the Notion connection loads', () => {
+  mocks.api.mockReturnValue(new Promise(() => {}))
+  function Harness() {
+    const controller = useNotionConnectionController(true)
+    return <NotionConnectionSheet callbackFailed={false} controller={controller} onClose={vi.fn()} onAuthorize={vi.fn()} onOpenUrl={vi.fn()} />
+  }
+  mount(true, <Harness />)
+  const hosts = tree.root.findAll((node: { type: unknown }) => typeof node.type === 'string')
+  expect(hosts.some((node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) => node.props.accessibilityRole === 'progressbar' && node.props.accessibilityLabel === en.common.loading)).toBe(true)
+  expect(hosts.some((node: { type: unknown }) => node.type === 'ActivityIndicator')).toBe(false)
+})
