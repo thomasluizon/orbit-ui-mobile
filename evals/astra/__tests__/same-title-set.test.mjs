@@ -303,9 +303,9 @@ it('answers a card that can hold the decision with the message and selection the
     .toEqual(expect.objectContaining({ pass: true, message: 'Delete the last 2 and rename the first 4' }))
 })
 
-const choiceCard = (options) => ({ type: 'block', kind: 'choice', block: { blockId: '88888888-8888-4888-8888-888888888888',
-  question: 'Which two do you want to delete?', options: options.map(({ id, label }) => ({ id, label, description: null })),
-  multiSelect: false, allowFreeText: false } })
+const choiceCard = (options, question = 'Which two do you want to delete?') => ({ type: 'block', kind: 'choice',
+  block: { blockId: '88888888-8888-4888-8888-888888888888', question, options: options.map(({ id, label }) => ({ id, label, description: null })),
+    multiSelect: false, allowFreeText: false } })
 
 // Producer: AiChoiceSelection.TargetsOf (orbit-api 2f49ed78f) reads an option's target_ids first, and the option's own id
 // only when the option declares none; so declared targets win over an id that is a stored child or another GUID.
@@ -329,6 +329,41 @@ it('gives an option whose id is the empty GUID and that declares no targets no r
 const questionCard = (children, prompt) => ({ type: 'block', kind: 'question', block: { blockId: '77777777-7777-4777-8777-777777777777',
   expiresAtUtc: '2026-11-14T04:33:04Z', questions: [{ id: 'pick', type: 'multipleChoice', prompt, allowFreeText: false,
     options: children.map((id, index) => ({ id, label: `${index + 1}st` })) }] } })
+
+// A record card lets the person select either half of the decision, so the grader answers the half its question asks
+// about: the action the question names, else the count it states. The production request's verb is "coloca".
+it.each([
+  ['an English rename verb and count', 'Which four should I change to Water - 1.18L?', 'en'],
+  ['a Portuguese rename verb and count', 'Quais quatro eu coloco como Water - 1.18L?', 'pt-BR'],
+  ['an English rename verb alone', 'Which ones should become Water - 1.18L?', 'en'],
+  ['a Portuguese rename verb alone', 'Quais você quer trocar para Water - 1.18L?', 'pt-BR'],
+  ['an English count alone', 'Which four of them?', 'en'],
+  ['a Portuguese count alone', 'Quais quatro deles?', 'pt-BR'],
+])('answers a record card whose question carries %s with the renamed half', async (_name, prompt, locale) => {
+  const card = questionCard(ids, prompt)
+  const answer = sameTitleCard(shown(card), cardVars(ids, locale))
+  expect(answer).toMatchObject({ pass: true, reason: 'The card can hold the whole decision.' })
+  expect(sentBy(answer)).toEqual(await clientAnswer(card, { pick: ids.slice(0, 4) }, locale))
+})
+
+it.each([
+  ['names no action and no count', 'Which ones do you mean?', 'en'],
+  ['names no action and no count', 'Quais deles?', 'pt-BR'],
+  ['names an action that its count contradicts', 'Which four should I delete?', 'en'],
+  ['asks about both halves, as the real run 3 card did', streams.run3.card.block.question, 'pt-BR'],
+])('reports a grader limit, not a model fault, for a record card whose question %s', (_name, prompt, locale) => {
+  expect(sameTitleCard(shown(questionCard(ids, prompt)), cardVars(ids, locale))).toEqual({ pass: false, score: 0,
+    reason: `The grader cannot tell which action the card question asks about (delete or rename): ${prompt}` })
+})
+
+it('answers a set-option card whose question names no action and no count with the one half its options state', async () => {
+  const card = choiceCard([{ id: 'firstTwo', label: 'Delete the first two' }, { id: 'middleTwo', label: 'Delete the middle two' },
+    { id: 'lastTwo', label: 'Delete the last two' }], 'What should I do?')
+  const targets = { firstTwo: ids.slice(0, 2), middleTwo: ids.slice(2, 4), lastTwo: ids.slice(4) }
+  const answer = sameTitleCard(shown(card, askTrace(targets)), cardVars(ids, 'en'))
+  expect(answer).toMatchObject({ pass: true, reason: 'The card can hold the whole decision.' })
+  expect(sentBy(answer)).toEqual(await clientAnswer(card, ['lastTwo'], 'en'))
+})
 
 it('lets a card case show one question and keeps every other preview case strict', () => {
   const card = questionCard(ids, 'Which two do you want to delete?')

@@ -613,7 +613,10 @@ A card case adds `sameTitleSet.answer` (the decided `deleted` and `renamed` posi
 `composition.allowQuestion`. When the first turn asks, each option stands for the records its `ask` call declares
 in `target_ids`. An option that declares none stands for its own id when that id is a nonempty GUID, in the order of
 the API's `AiChoiceSelection.TargetsOf`. Every such record must be a stored child, each child must be selectable,
-and one selection the card allows must state the whole decision. The provider sends that selection as `blockAnswer`, with the message and
+and one selection the card allows must state the whole decision. When a list can hold the deleted half and the
+renamed half, the grader selects the half that its question asks about: the action words of the question, else the
+count that it states. When the question tells neither, or the two signals disagree, the case fails with a message
+that names a grader limit, not a model fault. The provider sends that selection as `blockAnswer`, with the message and
 the history the web client sends. As the client does, the answer turn, confirm and execute send the first response's
 `conversationId` in `clientContext`, so the API reads the stored conversation. The shared client functions build the
 message: the selected labels for a choice card, and each question prompt with its selected labels for a question

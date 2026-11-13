@@ -1,11 +1,11 @@
 import { tsImport } from 'tsx/esm/api'
 import { catalogTranslator } from './catalog-translator.mjs'
+import { guid } from './fixtures/api.mjs'
 
 const { formatBlockAnswer } = await tsImport('../../packages/shared/src/chat/block-answer.ts', import.meta.url)
 const { questionAnswerLabels } = await tsImport('../../packages/shared/src/chat/question-block-core.ts', import.meta.url)
 
 const result = (pass, reason) => ({ pass, score: pass ? 1 : 0, reason })
-const guid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu
 const emptyGuid = /^[0-]+$/u
 const normalize = (value) => String(value ?? '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
 const sameSet = (left, right) => left.length === right.length && left.every((id) => right.includes(id))
@@ -34,21 +34,40 @@ function selectionLists(part) {
     many: question.type === 'multipleChoice', options: ['singleChoice', 'multipleChoice'].includes(question.type) ? question.options ?? [] : [] }))
 }
 
-function wantsDeletion(prompt) {
+// Action words of both locales, matched on the normalized question at a word start. The production request renames with
+// "coloca"; the recorded cards and the corpus histories use excluir, apagar, renomear, manter, change, delete and keep.
+// The habits to keep are the habits to rename, so keep and manter are rename words.
+const deletionWords = /\b(?:delet|remov|exclu|apag|elimin|descart|drop|eras|discard)/u
+const renameWords = /\b(?:renam|renome|chang|mud|troc|coloc|becom|updat|atualiz|title\b|titulo\b|keep|mant)/u
+// Count words for one half of the six children. One, um and uma also read as a pronoun or an article, so only the digit
+// states one. A digit inside a title such as 710ml or 1.18L is no count.
+const countWords = { 2: ['two', 'dois', 'duas'], 3: ['three', 'tres'], 4: ['four', 'quatro'], 5: ['five', 'cinco'], 6: ['six', 'seis'] }
+const statesCount = (text, count) => new RegExp(`(?<![\\w.])(?:${[count, ...countWords[count] ?? []].join('|')})(?!\\w|\\.\\d)`, 'u').test(text)
+const onlyOne = (deleted, renamed) => deleted === renamed ? null : deleted ? 'deleted' : 'renamed'
+
+// The half of the decision a list question asks about: the action it names, else the count it states. Null when it names
+// neither, or when the two point at different halves.
+function askedHalf(prompt, decision) {
   const text = normalize(prompt)
-  const deletion = /delet|remov|exclu|apag/u.test(text)
-  return deletion && !/renam|renome|keep|mant/u.test(text) ? true : !deletion && /renam|renome|keep|mant/u.test(text) ? false : null
+  const byAction = onlyOne(deletionWords.test(text), renameWords.test(text))
+  const byCount = onlyOne(statesCount(text, decision.deleted.length), statesCount(text, decision.renamed.length))
+  return byAction && byCount && byAction !== byCount ? null : byAction ?? byCount
 }
 
-// The selection that states the person's decision on one list, or null when the list cannot hold it.
+// The selection that states one half of the decision on one list, or null when the list cannot hold that half.
+function selectionOf(list, targets, part) {
+  const fitting = list.options.filter((option) => targets.get(option.id).length && targets.get(option.id).every((id) => part.includes(id)))
+  const chosen = list.many ? fitting : fitting.filter((option) => sameSet(targets.get(option.id), part)).slice(0, 1)
+  return chosen.length && sameSet([...new Set(chosen.flatMap((option) => targets.get(option.id)))], part) ? chosen : null
+}
+
+// A list that can hold one half is answered with it; a list that can hold both is answered with the half its question
+// asks about, and the grader never guesses one when the question does not tell.
 function selectionFor(list, targets, decision) {
-  const parts = wantsDeletion(list.prompt) === false ? [decision.renamed, decision.deleted] : [decision.deleted, decision.renamed]
-  for (const part of parts) {
-    const fitting = list.options.filter((option) => targets.get(option.id).length && targets.get(option.id).every((id) => part.includes(id)))
-    const chosen = list.many ? fitting : fitting.filter((option) => sameSet(targets.get(option.id), part)).slice(0, 1)
-    if (chosen.length && sameSet([...new Set(chosen.flatMap((option) => targets.get(option.id)))], part)) return chosen
-  }
-  return null
+  const halves = { deleted: selectionOf(list, targets, decision.deleted), renamed: selectionOf(list, targets, decision.renamed) }
+  if (!halves.deleted || !halves.renamed) return { chosen: halves.deleted ?? halves.renamed }
+  const asked = askedHalf(list.prompt, decision)
+  return asked ? { chosen: halves[asked] } : { unclear: true }
 }
 
 // A card holds the answer when each stored child is selectable as a record or through a set option, every record an
@@ -71,8 +90,11 @@ export function sameTitleCard(output, vars) {
   const covered = new Set([...targets.values()].flat())
   if (!children.every((id) => covered.has(id))) return result(false, `The card lets the person select ${covered.size} of the ${children.length} same-title children.`)
   const decision = { deleted: answer.deleted.map((position) => children[position]), renamed: answer.renamed.map((position) => children[position]) }
-  const selections = lists.map((list) => ({ list, chosen: selectionFor(list, targets, decision) }))
-  if (selections.some(({ chosen }) => !chosen)) return result(false, 'No selection the card allows states the whole decision.')
+  const selections = lists.map((list) => ({ list, ...selectionFor(list, targets, decision) }))
+  if (selections.some(({ chosen, unclear }) => !chosen && !unclear)) return result(false, 'No selection the card allows states the whole decision.')
+  const unclear = selections.find((selection) => selection.unclear)
+  // A grader limit, not a model fault: the report names the question so a reader can judge it.
+  if (unclear) return result(false, `The grader cannot tell which action the card question asks about (delete or rename): ${unclear.list.prompt}`)
   const locale = vars.clientContext.locale
   const holds = result(true, 'The card can hold the whole decision.')
   if (card.kind === 'choice') {
