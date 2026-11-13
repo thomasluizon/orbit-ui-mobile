@@ -552,8 +552,7 @@
         "freeLabel": "Ou diga com as suas palavras",
         "freePlaceholder": "Sexta, dia 20, toda segunda",
         "calendar": "Escolher no calendário",
-        "unresolved": "Não entendi essa data. Tente \"sexta\" ou \"dia 20\".",
-        "submit": "Usar essa data"
+        "unresolved": "Não entendi essa data. Tente \"sexta\" ou \"dia 20\"."
       },
       "time": {
         "question": "Tem hora certa?",

@@ -552,8 +552,7 @@
         "freeLabel": "Or say it in your words",
         "freePlaceholder": "Friday, the 20th, every Monday",
         "calendar": "Pick on the calendar",
-        "unresolved": "I could not read that date. Try \"Friday\" or \"the 20th\".",
-        "submit": "Use this date"
+        "unresolved": "I could not read that date. Try \"Friday\" or \"the 20th\"."
       },
       "time": {
         "question": "Is there a set time?",

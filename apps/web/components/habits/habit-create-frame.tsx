@@ -17,11 +17,14 @@ type HabitCreateFrameProps = ComponentProps<typeof Sheet> & {
   fromConversation: boolean
   actionRefreshKey: string
   leaving: boolean
+  /** The one-question flow owns its header, its close and its primary action, so the frame adds none. */
+  guided?: boolean
   onNavigate: (action: () => void) => void
   onReturn: () => void
 }
 
-export function HabitCreateFrame({ presentation, fromConversation, actionRefreshKey, leaving, onNavigate, onReturn, ...props }: Readonly<HabitCreateFrameProps>) {
+export function HabitCreateFrame({ presentation, fromConversation, actionRefreshKey, leaving, guided = false, onNavigate, onReturn, ...props }: Readonly<HabitCreateFrameProps>) {
+  if (guided) return <GuidedCreateFrame presentation={presentation} leaving={leaving} onNavigate={onNavigate} onReturn={onReturn} {...props} />
   if (presentation === 'sheet') return <Sheet {...props} />
   return <HabitCreateScreenFrame {...props} fromConversation={fromConversation} actionRefreshKey={actionRefreshKey} leaving={leaving} onNavigate={onNavigate} onReturn={onReturn} />
 }
@@ -46,4 +49,18 @@ function HabitCreateScreenFrame({ children, actions, title, onAttemptDismiss, on
     </div>
     {!hosted ? footer : null}
   </>
+}
+
+function GuidedCreateFrame({ presentation, children, title, leaving, onClose, onAttemptDismiss, onNavigate, onReturn, ...props }: Readonly<Pick<HabitCreateFrameProps, 'presentation' | 'children' | 'title' | 'leaving' | 'onClose' | 'onAttemptDismiss' | 'onNavigate' | 'onReturn'> & ComponentProps<typeof Sheet>>) {
+  if (presentation === 'sheet') return <Sheet {...props} accessibleTitle={title} onClose={onClose} onAttemptDismiss={onAttemptDismiss}>{children}</Sheet>
+  return <GuidedCreateScreen leaving={leaving} dirty={!onClose} onNavigate={onNavigate} onReturn={onReturn}>{children}</GuidedCreateScreen>
+}
+
+function GuidedCreateScreen({ children, leaving, dirty, onNavigate, onReturn }: Readonly<{ children: React.ReactNode; leaving: boolean; dirty: boolean; onNavigate: (action: () => void) => void; onReturn: () => void }>) {
+  useLayoutEffect(() => {
+    useUIStore.getState().registerOpenOverlay(HABIT_CREATE_OVERLAY_ID)
+    return () => useUIStore.getState().unregisterOpenOverlay(HABIT_CREATE_OVERLAY_ID)
+  }, [])
+  useHabitCreateNavigationGuard({ active: true, dirty, leaving, onNavigate, onReturn })
+  return <div data-habit-create-screen="" data-guided="" className="flex min-h-0 w-full flex-1 flex-col">{children}</div>
 }

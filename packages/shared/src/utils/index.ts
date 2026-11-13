@@ -918,3 +918,5 @@ export {
   type GuidedFlowSink,
   type GuidedFlowTracker,
 } from './guided-flow-events'
+
+export { parseDatePhrase, type DatePhraseContext, type DatePhraseResult } from './date-phrase-parser'
