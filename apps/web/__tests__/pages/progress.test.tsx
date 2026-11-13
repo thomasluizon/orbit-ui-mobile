@@ -482,7 +482,7 @@ describe('ProgressContent', () => {
       const page = await browser.newPage({ viewport: { width, height: 900 } })
       try {
         const { container } = render(
-          <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="progresso" navLabel="Navigation"
+          <ShellWide astraRow={{ label: 'Orbit', onOpen: () => {} }} items={[]} activeId="progresso" navLabel="Navigation"
             conversation={<button>Conversation</button>}
             conversationOpen={panelOpen} conversationLabel="Conversation">
             <ProgressPage />
@@ -957,7 +957,7 @@ describe('ProgressContent', () => {
     expect(useUIStore.getState().astraConversationOpen).toBe(false)
   })
 
-  it('keeps an unsent Astra draft when starting a goal', () => {
+  it('keeps an unsent conversation draft when starting a goal', () => {
     useChatStore.getState().setDraft('Unsent note')
     const { rerender } = render(<QueryClientProvider client={queryClient}><GoalsPage /></QueryClientProvider>)
 

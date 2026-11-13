@@ -862,7 +862,7 @@ describe('mobile ProgressContent', () => {
     expect(useUIStore.getState().astraConversationOpen).toBe(false)
   })
 
-  it('keeps an unsent Astra draft when starting a goal', async () => {
+  it('keeps an unsent conversation draft when starting a goal', async () => {
     useChatStore.getState().setDraft('Unsent note')
     const tree = await renderProgress(undefined, 'goals')
 
