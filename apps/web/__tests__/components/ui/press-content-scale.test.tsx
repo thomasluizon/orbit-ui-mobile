@@ -10,6 +10,7 @@ import { ListRow } from '@/components/ui/list-row'
 import { PageHeader } from '@/components/ui/page-header'
 import { Select } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
+import { Toast } from '@/components/ui/toast'
 
 vi.mock('next-intl', () => ({ useLocale: () => 'en-US', useTranslations: () => (key: string) => key }))
 Object.defineProperty(Element.prototype, 'hasPointerCapture', { configurable: true, value: () => false })
@@ -88,5 +89,12 @@ describe('press feedback that keeps the press target on web', () => {
   it('scales and fills the pressed page header back control as the app bar back does', () => {
     render(<PageHeader title="Ajuda" backLabel="Voltar" onBack={vi.fn()} />)
     expect(screen.getByRole('button', { name: 'Voltar' })).toHaveClass('motion-safe:active:scale-[0.96]', 'active:bg-[var(--bg-hover)]', 'transition-[background-color,scale]')
+  })
+
+  it('scales the toast text action label inside its unscaled action', () => {
+    render(<Toast kind="neutral" message="Deleted" actionLabel="Undo" onAction={vi.fn()} />)
+    const action = screen.getByRole('button', { name: 'Undo' })
+    expect(action).toHaveClass('orbit-press-content')
+    expect(action.firstElementChild).toHaveTextContent('Undo')
   })
 })
