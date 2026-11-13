@@ -833,6 +833,76 @@ select[aria-hidden="true"] {
   }
 }
 
+.orbit-sheet-viewport[data-centred="true"] {
+  align-items: center;
+  padding: var(--orbit-space-16);
+}
+
+.orbit-sheet-panel[data-centred="true"] {
+  max-width: 420px;
+  border-radius: 20px;
+  background: var(--bg-elev);
+  box-shadow: var(--shadow-3);
+}
+
+.orbit-sheet-panel[data-centred="true"] .orbit-sheet-grabber-target {
+  display: none;
+}
+
+.orbit-flow-question:focus {
+  outline: none;
+}
+
+.orbit-option-card {
+  display: flex;
+  width: 100%;
+  min-height: 72px;
+  align-items: center;
+  justify-content: center;
+  padding: var(--orbit-space-12) var(--orbit-space-16);
+  border-radius: 20px;
+  background: var(--bg-card);
+  color: var(--fg-1);
+  font-size: 17px;
+  line-height: 24px;
+  text-align: center;
+  outline: none;
+  transition: background-color var(--dur-fast) var(--ease-standard), box-shadow var(--dur-fast) var(--ease-standard), transform var(--dur-fast) var(--ease-standard);
+}
+
+.orbit-option-card[data-selected] {
+  box-shadow: inset 0 0 0 2px var(--primary);
+}
+
+.orbit-option-card:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--fg-1);
+}
+
+.orbit-option-card:active {
+  background: var(--bg-hover);
+  transform: scale(0.96);
+}
+
+.orbit-option-card:disabled {
+  opacity: 0.5;
+}
+
+@media (hover: hover) {
+  .orbit-option-card:not(:disabled):hover {
+    background: var(--bg-hover);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orbit-option-card {
+    transition: none;
+  }
+
+  .orbit-option-card:active {
+    transform: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .orbit-sheet-backdrop,
   .orbit-sheet-panel,

@@ -6,6 +6,12 @@ export type OrbitMascotSize = OrbitMascotLiveSize | OrbitMascotSmallSize
 export const ORBIT_MASCOT_LIVE_SIZES: readonly OrbitMascotLiveSize[] = [48, 96, 128]
 export const ORBIT_MASCOT_SMALL_SIZES: readonly OrbitMascotSmallSize[] = [16, 20, 24]
 
+/** Where Orbit looks, each axis from -1 to 1 across the control in focus. */
+export interface OrbitLookTarget {
+  readonly x: number
+  readonly y: number
+}
+
 export interface OrbitMascotProps {
   /** The drawn width. The height follows the 7:5 box of the rig or the 4:3 box of the small face. */
   size: OrbitMascotSize
@@ -17,4 +23,6 @@ export interface OrbitMascotProps {
   color?: string
   /** The conversation entry: on a view that shows it, it is the live Orbit, and every other Orbit in that view is still. */
   lead?: boolean
+  /** The control in focus. Orbit shows Olhando: the pill eyes move toward it. It never changes a state other than parado, and reduced motion keeps the eyes still. */
+  lookAt?: OrbitLookTarget | null
 }

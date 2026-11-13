@@ -4,6 +4,7 @@ import * as serverActions from '@/app/actions/habits'
 import { bindServerAction } from '@/lib/client-action'
 
 export const createHabit = bindServerAction(serverActions.createHabit)
+export const readHabitPhrase = bindServerAction(serverActions.readHabitPhrase)
 export const suggestHabitSetup = bindServerAction(serverActions.suggestHabitSetup)
 export const updateHabit = bindServerAction(serverActions.updateHabit)
 export const deleteHabit = bindServerAction(serverActions.deleteHabit)

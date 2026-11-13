@@ -188,3 +188,40 @@ export const ORBIT_SMALL_FACES = {
     moon: 'M4.909 13.68C4.909 14.647 4.126 15.43 3.159 15.43C2.193 15.43 1.409 14.647 1.409 13.68C1.409 12.714 2.193 11.93 3.159 11.93C4.126 11.93 4.909 12.714 4.909 13.68Z',
   },
 } as const satisfies Record<number, OrbitSmallFace>
+
+/** The most the eyes travel toward a control, in rig units. The planet radius is 100, so the pills stay inside it. */
+export const ORBIT_EYE_TRAVEL = { x: 14, y: 9 } as const
+
+export type OrbitShownState = 'parado' | 'olhando' | 'pensando' | 'feliz' | 'descansando'
+
+/** The state `data-orbit-state` exposes. Priority: descansando, pensando, feliz, olhando, parado. */
+export function resolveOrbitShownState(
+  state: 'parado' | 'pensando' | 'feliz' | 'descansando',
+  lookAt: { readonly x: number; readonly y: number } | null | undefined,
+): OrbitShownState {
+  return state === 'parado' && lookAt ? 'olhando' : state
+}
+
+/** The eye shift toward the target. Reduced motion draws no eye travel. */
+export function orbitEyeOffset(
+  lookAt: { readonly x: number; readonly y: number } | null | undefined,
+  reducedMotion: boolean,
+): { readonly x: number; readonly y: number } {
+  if (!lookAt || reducedMotion) return { x: 0, y: 0 }
+  const clamp = (value: number) => Math.max(-1, Math.min(1, value))
+  return { x: clamp(lookAt.x) * ORBIT_EYE_TRAVEL.x, y: clamp(lookAt.y) * ORBIT_EYE_TRAVEL.y }
+}
+
+const ORBIT_LOOK_REACH = 160
+
+/** The look vector from the mascot centre to a control centre, each axis from -1 to 1. */
+export function orbitLookVector(
+  mascotCentre: { readonly x: number; readonly y: number },
+  targetCentre: { readonly x: number; readonly y: number },
+): { readonly x: number; readonly y: number } {
+  const clamp = (value: number) => Math.max(-1, Math.min(1, value))
+  return {
+    x: clamp((targetCentre.x - mascotCentre.x) / ORBIT_LOOK_REACH),
+    y: clamp((targetCentre.y - mascotCentre.y) / ORBIT_LOOK_REACH),
+  }
+}

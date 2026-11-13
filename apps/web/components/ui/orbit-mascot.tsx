@@ -10,6 +10,8 @@ import {
   orbitBlinkMatrix,
   orbitMascotFrame,
   orbitMascotSizeFor,
+  orbitEyeOffset,
+  resolveOrbitShownState,
   type OrbitEyeShape,
   type OrbitMascotFrame,
   type OrbitMascotProps,
@@ -107,7 +109,7 @@ function Moon({ frame }: Readonly<{ frame: OrbitMascotFrame }>) {
   return <circle cx={frame.moon.x} cy={frame.moon.y} r={frame.moon.radius} fill="var(--primary)" data-part="moon" />
 }
 
-function Rig({ state, frame, clipId }: Readonly<{ state: NonNullable<OrbitMascotProps['state']>; frame: OrbitMascotFrame; clipId: string }>) {
+function Rig({ state, frame, clipId, eyeOffset }: Readonly<{ state: NonNullable<OrbitMascotProps['state']>; frame: OrbitMascotFrame; clipId: string; eyeOffset: { readonly x: number; readonly y: number } }>) {
   const face = ORBIT_MASCOT_FACES[state]
   const blink = face.blinkCentreY === null ? undefined : orbitBlinkMatrix(frame.blinkScale, face.blinkCentreY)
   return (
@@ -120,9 +122,11 @@ function Rig({ state, frame, clipId }: Readonly<{ state: NonNullable<OrbitMascot
       <path d={frame.ringBack} fill="currentColor" />
       {frame.moon.front ? null : <Moon frame={frame} />}
       <circle cx="0" cy="0" r={ORBIT_MASCOT_PLANET_RADIUS} fill="currentColor" />
-      {face.eyes.map((shape) => (
-        <Eye key={shape.d} shape={shape} blink={blink} />
-      ))}
+      <g transform={`translate(${eyeOffset.x} ${eyeOffset.y})`} data-part="eyes">
+        {face.eyes.map((shape) => (
+          <Eye key={shape.d} shape={shape} blink={blink} />
+        ))}
+      </g>
       <g clipPath={`url(#${clipId})`}>
         <path d={frame.ringOutline} fill="var(--orbit-surface, var(--bg))" />
       </g>
@@ -155,12 +159,14 @@ function SmallFace({ size, clipId }: Readonly<{ size: OrbitMascotSmallSize; clip
   )
 }
 
-export function OrbitMascot({ size, state = 'parado', still = false, color, lead = false }: Readonly<OrbitMascotProps>) {
+export function OrbitMascot({ size, state = 'parado', still = false, color, lead = false, lookAt = null }: Readonly<OrbitMascotProps>) {
   const clipId = `orbit-planet-${useId().replaceAll(':', '')}`
   const svgRef = useRef<SVGSVGElement | null>(null)
   const small = isSmallSize(size)
   const { clock, running } = useOrbitLoopClock(!small && !still, lead, svgRef)
   const frame = orbitMascotFrame(clock, mascotMotion)
+  const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
+  const eyeOffset = orbitEyeOffset(lookAt, reducedMotion || still)
 
   return (
     <svg
@@ -172,11 +178,11 @@ export function OrbitMascot({ size, state = 'parado', still = false, color, lead
       color={color ?? 'var(--fg-1)'}
       aria-hidden="true"
       data-asset="orbit-mascot"
-      data-orbit-state={state}
+      data-orbit-state={small ? state : resolveOrbitShownState(state, lookAt)}
       data-orbit-face={small ? 'small' : 'rig'}
       data-orbit-loop={running ? 'running' : 'still'}
     >
-      {small ? <SmallFace size={size} clipId={clipId} /> : <Rig state={state} frame={frame} clipId={clipId} />}
+      {small ? <SmallFace size={size} clipId={clipId} /> : <Rig state={state} frame={frame} clipId={clipId} eyeOffset={eyeOffset} />}
     </svg>
   )
 }

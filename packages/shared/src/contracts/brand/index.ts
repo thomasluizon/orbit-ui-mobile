@@ -1,4 +1,4 @@
-export type { OrbitMascotProps, OrbitMascotSize, OrbitMascotLiveSize, OrbitMascotSmallSize } from './OrbitMascot'
+export type { OrbitLookTarget, OrbitMascotProps, OrbitMascotSize, OrbitMascotLiveSize, OrbitMascotSmallSize } from './OrbitMascot'
 export { ORBIT_MASCOT_LIVE_SIZES, ORBIT_MASCOT_SMALL_SIZES } from './OrbitMascot'
 export type { IconProps } from './Icon'
 export type { LockupProps } from './Lockup'
@@ -12,6 +12,11 @@ export {
   orbitBlinkMatrix,
   orbitMascotFrame,
   orbitMascotSizeFor,
+  orbitEyeOffset,
+  orbitLookVector,
+  resolveOrbitShownState,
+  ORBIT_EYE_TRAVEL,
+  type OrbitShownState,
   type OrbitEyeShape,
   type OrbitFace,
   type OrbitMascotFrame,
