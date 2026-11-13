@@ -29,6 +29,15 @@ export function isQuestionAnswered(question: Question, answer: QuestionAnswer | 
   return answer.number >= question.min && answer.number <= question.max && isOnQuestionStep(answer.number, question.min, question.step)
 }
 
+/** The most options that render as quick options. A longer list keeps the list presentation. */
+export const QUICK_OPTION_LIMIT = 4
+
+/** A single-choice or yes/no question with 2 to 4 options answers with quick options. A multiple-choice question takes several answers and keeps its check list. */
+export function usesQuickOptions(question: Question): boolean {
+  if (question.type === 'yesNo') return true
+  return question.type === 'singleChoice' && question.options.length >= 2 && question.options.length <= QUICK_OPTION_LIMIT
+}
+
 export function formatQuestionNumber(value: number, locale: string): string {
   return new Intl.NumberFormat(locale, { maximumFractionDigits: 20 }).format(value)
 }

@@ -348,8 +348,9 @@
     "returningElapsed": "{days, plural, one {You last completed a habit # day ago.} other {You last completed a habit # days ago.}}",
     "returningBounded": "You last completed a habit over 30 days ago.",
     "viewProgress": "See it on Progress",
-    "offline": "Orbit needs a connection. Habit logging still works offline.",
-    "offlineLog": "Saved on this device. Orbit will sync it when you reconnect."
+    "offline": "I need a connection to talk. Habit logging still works offline.",
+    "offlineLog": "Saved on this device. I sync it when you reconnect.",
+    "limit": "I can talk again when your AI messages renew."
   },
   "command": {
     "title": "What do you want to do",
@@ -1129,6 +1130,9 @@
       "daysFree": "Days free",
       "reminders": "Reminders",
       "askAstraSeedDefault": "How am I doing with my habit \"{title}\"? Give me your read and one tip to improve.",
+      "orbit": {
+        "lastSevenDays": "You did this on {done} of the last 7 days."
+      },
       "copyDescription": "Copy description",
       "descriptionCopied": "Description copied",
       "copyFailed": "We could not copy the description. Select the text and copy it by hand.",
@@ -1142,7 +1146,7 @@
       "log": "Log \"{title}\"",
       "unlog": "Undo log for {title}",
       "lastThirtyDays": "Last 30 days",
-      "slippingLine": "No completions in the last {days, plural, one {# day} other {# days}}. The streak is at {streak} and the 30-day rate is below {limit}%.",
+      "slippingLine": "This habit has slowed down. A new date might fit it better.",
       "history": "Activity",
       "previousMonth": "Previous month",
       "nextMonth": "Next month",
@@ -3126,7 +3130,9 @@
     "habit": {
       "repeat": "The habit starts {start} and repeats {cadence}.",
       "repeatTimed": "The habit starts {start} and repeats {cadence} at {time}.",
-      "updated": "The changes are saved."
+      "updated": "The changes are saved.",
+      "rescheduled": "The habit moved to {date}.",
+      "deleted": "The habit was deleted."
     },
     "cadence": {
       "day": "{count, plural, one {every day} other {every # days}}",

@@ -2,6 +2,7 @@ import { PADDING, SPACING } from '@orbit/shared/theme'
 import { useState } from 'react'
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
+import { useFlag } from '@/hooks/use-flag'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -14,9 +15,12 @@ interface TodayAstraLineProps {
   busy?: boolean
   announce?: boolean
   loading?: boolean
+  /** Descansando when the AI is absent: offline or at the message limit. */
+  resting?: boolean
 }
 
-export function TodayAstraLine({ text, destination, role = 'button', onPress, disabled = false, busy = false, announce = false, loading = false }: Readonly<TodayAstraLineProps>) {
+export function TodayAstraLine({ text, destination, role = 'button', onPress, disabled = false, busy = false, announce = false, loading = false, resting = false }: Readonly<TodayAstraLineProps>) {
+  const guided = useFlag('orbit_guided_flows')
   const { fontScale } = useWindowDimensions()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -42,7 +46,7 @@ export function TodayAstraLine({ text, destination, role = 'button', onPress, di
       >
         {!disabled && (pressed || hovered) ? <View accessible={false} pointerEvents="none" style={[StyleSheet.absoluteFill, styles.feedback, { backgroundColor: tokens.bgHoverOpaque }]} /> : null}
         <View accessible={false} style={{ width: 48, flexShrink: 0, alignItems: 'center' }}>
-          <OrbitMascot size={20} color={tokens.fg3} />
+          {guided ? <OrbitMascot size={48} still state={resting ? 'descansando' : 'parado'} /> : <OrbitMascot size={20} color={tokens.fg3} />}
         </View>
         {loading ? <View testID="summary-skeleton" accessible={false} importantForAccessibility="no-hide-descendants" style={styles.skeleton}>
           <View style={[styles.placeholder, { backgroundColor: tokens.hairlineStrong }]} />

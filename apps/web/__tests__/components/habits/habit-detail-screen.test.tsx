@@ -100,7 +100,6 @@ vi.mock('next-intl', () => ({
     if (mocks.realChildStatusCopy && key === 'habits.form.typeHabit') return ptBR.habits.form.typeHabit
     if (mocks.realChildStatusCopy && key === 'habits.statusDot.skip') return ptBR.habits.statusDot.skip
     if (mocks.realChildStatusCopy && key === 'calendar.dayCell.notScheduled') return ptBR.calendar.dayCell.notScheduled
-    if (key === 'habits.detail.slippingLine') return `${key}:${values?.days}:${values?.streak}:${values?.limit}`
     if (key === 'loggedAt') return `${values?.date}, logged at ${values?.time}`
     if (key === 'habits.detail.logDateConfirmMessage') return `${values?.date}: ${values?.name}`
     if (key === 'habits.detail.logDateConfirmUnlogMessage') return `Undo ${values?.name}: ${values?.date}`
@@ -669,7 +668,7 @@ describe('HabitDetailScreen', () => {
     expect(mocks.rescheduleRefetch).toHaveBeenCalledOnce()
     fireEvent.click(screen.getByRole('button', { name: 'habits.reschedule.dismiss' }))
     expect(screen.queryByText('habits.detail.rescheduleError')).not.toBeInTheDocument()
-    expect(screen.getByText('habits.detail.slippingLine:9:0:50')).toBeVisible()
+    expect(screen.getByText('habits.detail.slippingLine')).toBeVisible()
   })
 
   it.each([
@@ -709,8 +708,8 @@ describe('HabitDetailScreen', () => {
     notNow.focus()
     fireEvent.click(notNow)
     expect(screen.queryByRole('group', { name: 'habits.form.proposedByAstra' })).not.toBeInTheDocument()
-    expect(screen.getByText('habits.detail.slippingLine:9:0:50')).toBeVisible()
-    expect(screen.getByText('habits.detail.slippingLine:9:0:50').closest('section')).toHaveFocus()
+    expect(screen.getByText('habits.detail.slippingLine')).toBeVisible()
+    expect(screen.getByText('habits.detail.slippingLine').closest('section')).toHaveFocus()
     mocks.suggestion = { frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-08-30', dueTime: null, days: [], rationale: 'Try tomorrow' }
     view.rerender(<HabitDetailScreen habitId="habit-1" />)
     expect(screen.queryByRole('group', { name: 'habits.form.proposedByAstra' })).not.toBeInTheDocument()
@@ -733,7 +732,7 @@ describe('HabitDetailScreen', () => {
     mocks.scopedHabitsByDate.set('2026-08-20', new Map([['habit-1', { ...makeScopedParent(), isOverdue: false }]]))
     const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-20" />)
     expect(mocks.scopedRequests).toContainEqual({ dateFrom: '2026-08-29', includeOverdue: true })
-    expect(screen.getByText('habits.detail.slippingLine:9:0:50')).toBeVisible()
+    expect(screen.getByText('habits.detail.slippingLine')).toBeVisible()
     expect(mocks.rescheduleOptions.some((options) => options.enabled)).toBe(true)
 
     mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), isOverdue: false }]])
@@ -760,14 +759,14 @@ describe('HabitDetailScreen', () => {
     ])
     expect(within(proposal).getAllByRole('button').map((button) => [button.dataset.variant, button.dataset.size])).toEqual([['ghost', 'sm'], ['primary', 'sm']])
     expect(screen.queryByText('habits.detail.slipping')).not.toBeInTheDocument()
-    expect(screen.getByText('habits.detail.slippingLine:9:0:50')).toBeVisible()
+    expect(screen.getByText('habits.detail.slippingLine')).toBeVisible()
 
     const notNow = within(proposal).getByRole('button', { name: 'habits.reschedule.dismiss' })
     notNow.focus()
     fireEvent.click(notNow)
     expect(screen.queryByRole('group', { name: 'habits.form.proposedByAstra' })).not.toBeInTheDocument()
-    expect(screen.getByText('habits.detail.slippingLine:9:0:50')).toBeVisible()
-    expect(document.activeElement).toBe(screen.getByText('habits.detail.slippingLine:9:0:50').closest('section'))
+    expect(screen.getByText('habits.detail.slippingLine')).toBeVisible()
+    expect(document.activeElement).toBe(screen.getByText('habits.detail.slippingLine').closest('section'))
 
     mocks.detail = { ...makeDetail(), id: 'habit-2' }
     mocks.scopedHabits = new Map([['habit-2', { ...makeScopedParent(), id: 'habit-2', isOverdue: true }]])
@@ -838,7 +837,7 @@ describe('HabitDetailScreen', () => {
 
     fireEvent.click(within(card).getByRole('button', { name: 'habits.reschedule.dismiss' }))
     expect(screen.queryByText('habits.reschedule.freePrompt')).not.toBeInTheDocument()
-    expect(screen.getByText('habits.detail.slippingLine:9:0:50')).toBeVisible()
+    expect(screen.getByText('habits.detail.slippingLine')).toBeVisible()
   })
 
   it('uses a primary action on narrow web and secondary on wide web', () => {

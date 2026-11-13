@@ -42,8 +42,6 @@ import {
   getAvailableHabitDetailScopedChild,
   getHabitDetailChildCompletionReason,
   getHabitDetailChildUnavailableReasonKey,
-  getHabitDaysWithoutLog,
-  HABIT_SLIPPING_RATE_LIMIT,
   getHabitLogDateDecision,
   getHabitLogDateConfirmationKeys,
   getTodayBoundary,
@@ -58,10 +56,7 @@ import {
   parseAPIDate,
   shouldShowHabitMetrics,
 } from '@orbit/shared/utils'
-import { prepareChatRequest } from '@orbit/shared/stores'
-import { useChatStore } from '@/stores/chat-store'
-import { useUIStore } from '@/stores/ui-store'
-import type { ChecklistItem, HabitDetail, HabitMetrics, NormalizedHabit, RescheduleSuggestion } from '@orbit/shared/types/habit'
+import type { ChecklistItem, HabitDetail, NormalizedHabit, RescheduleSuggestion } from '@orbit/shared/types/habit'
 import { ShellHeader } from '@/components/shell/shell-header'
 import { AppBar } from '@/components/ui/app-bar'
 import { Badge } from '@/components/ui/badge'
@@ -71,6 +66,8 @@ import { DayColumnContent } from '@/components/dates/day-column-content'
 import { DayStrip } from '@/components/dates/day-strip'
 import { ErrorState } from '@/components/ui/error-state'
 import { ListRow } from '@/components/ui/list-row'
+import { HabitDetailOrbitLine, HabitDetailReviewRow } from '@/components/habits/habit-detail-orbit-line'
+import { HabitDetailResultDialog, useHabitDetailResult } from '@/components/habits/habit-detail-result'
 import { MonthGrid } from '@/components/dates/month-grid'
 import { PillButton, PillLink } from '@/components/ui/pill-button'
 import { Proposed } from '@/components/ui/proposed'
@@ -299,21 +296,6 @@ function ReminderReadout({ habit }: Readonly<{ habit: NormalizedHabit }>) {
   return <section data-habit-detail-reminders="" className="flex flex-col gap-1"><p className="text-sm font-medium text-[var(--fg-2)]">{t('habits.detail.reminders')}</p>{rows.map((row) => <div key={row.key} className="flex min-h-8 items-center gap-2"><p className="font-mono text-sm tabular-nums text-[var(--fg-1)]">{displayTime(row.time)}</p><p className="text-sm text-[var(--fg-3)]">{row.label}</p></div>)}</section>
 }
 
-function AskAstraRow({ habit }: Readonly<{ habit: NormalizedHabit }>) {
-  const t = useTranslations()
-  const openConversation = () => {
-    prepareChatRequest(useChatStore.getState(), {
-      id: `habit-detail:${habit.id}`,
-      label: t('habits.detail.askAstra'),
-      prompt: t('habits.detail.askAstraSeedDefault', { title: habit.title }),
-    })
-    useUIStore.getState().setAstraConversationOpen(true)
-  }
-  return (
-    <ListRow placement="column" wrapTitle icon={<OrbitMascot size={24} />} title={t('habits.detail.askAstra')} accessibilityLabel={t('habits.detail.askAstra')} onClick={openConversation} />
-  )
-}
-
 function MetricsSection({ visible, loading, error, metrics, isBadHabit }: Readonly<{ visible: boolean; loading: boolean; error: boolean; metrics: ReturnType<typeof useHabitMetrics>['data']; isBadHabit: boolean }>) {
   const t = useTranslations('habits.detail')
   const common = useTranslations('common')
@@ -348,10 +330,10 @@ function useHabitRescue({ habitId, isBadHabit, slipping, overdue, hasProAccess, 
   return { query, open: eligible && extractBackendErrorCode(query.error) !== 'HABIT_NOT_OVERDUE' }
 }
 
-function SlippingLine({ visible, metrics, createdAtUtc, today, timeZone }: Readonly<{ visible: boolean; metrics: HabitMetrics | undefined; createdAtUtc: string; today: Date; timeZone: string | null | undefined }>) {
+function SlippingLine({ visible }: Readonly<{ visible: boolean }>) {
   const t = useTranslations()
-  if (!visible || !metrics) return null
-  return <p className="text-pretty text-sm leading-[1.55] text-[var(--fg-2)]">{t('habits.detail.slippingLine', { days: getHabitDaysWithoutLog(metrics, createdAtUtc, today, timeZone), streak: metrics.currentStreak, limit: HABIT_SLIPPING_RATE_LIMIT })}</p>
+  if (!visible) return null
+  return <p className="text-pretty text-sm leading-[1.55] text-[var(--fg-2)]">{t('habits.detail.slippingLine')}</p>
 }
 
 const rescueCardClass = 'flex flex-col gap-3 rounded-[var(--r-card)] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline-ghost)]'
@@ -367,7 +349,7 @@ function renderRescueProposalValues(suggestion: RescheduleSuggestion, labels: Re
   </>
 }
 
-function RescheduleBlock({ habit, rescue: { query, open }, hasProAccess, locale, today, scheduleEditing, returnFocus }: Readonly<{ habit: NormalizedHabit; rescue: ReturnType<typeof useHabitRescue>; hasProAccess: boolean; locale: string; today: Date; scheduleEditing: boolean; returnFocus: () => void }>) {
+function RescheduleBlock({ habit, rescue: { query, open }, hasProAccess, locale, today, scheduleEditing, returnFocus, onAccepted }: Readonly<{ habit: NormalizedHabit; rescue: ReturnType<typeof useHabitRescue>; hasProAccess: boolean; locale: string; today: Date; scheduleEditing: boolean; returnFocus: () => void; onAccepted: (dateLabel: string) => void }>) {
   const t = useTranslations()
   const { showError } = useAppToast()
   const { displayTime } = useTimeFormat()
@@ -406,6 +388,7 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasProAccess, locale,
   const accept = async (suggestion: RescheduleSuggestion) => {
     try {
       await updateHabit.mutateAsync({ habitId: habit.id, data: buildRescheduleUpdateRequest(habit, suggestion) })
+      onAccepted(buildRescheduleProposalLabels(suggestion, { locale, today, translate: t, formatTime: displayTime }).dateLabel)
       close()
     } catch {
       if (isCurrentVisit()) showError(t('habits.detail.rescheduleWriteError'))
@@ -512,6 +495,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   const [createOpen, setCreateOpen] = useAccountScopedState(false)
   const { showCreateRefusal, refuseSubHabitCreation } = useSubHabitRefusal(isOnline)
   const [confirm, setConfirm] = useAccountScopedState<ConfirmAction>(null)
+  const resultHost = useHabitDetailResult()
   const [pendingDateLog, setPendingDateLog] = useAccountScopedState<{ habitId: string; intent: 'log' | 'unlog'; date: string; name: string; permanent: boolean } | null>(null)
   const [invalidLogDate, setInvalidLogDate] = useAccountScopedState<{ date: string; habitId: string } | null>(null)
   const [childToDelete, setChildToDelete] = useAccountScopedState<string | null>(null)
@@ -606,7 +590,17 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   const confirmDelete = async () => {
     if (!await runWrite(() => deleteHabit.mutateAsync(habitId), t('habits.detail.deleteError'))) return
     setConfirm(null)
+    if (resultHost.guided) resultHost.setResult({ kind: 'deleted' })
+    else router.push(`/?date=${dateStr}`)
+  }
+  const seeTodayFromResult = () => {
+    resultHost.setResult(null)
     router.push(`/?date=${dateStr}`)
+  }
+  /** The deleted habit has no screen to return to, so dismissing its dialog leaves for Hoje as well. */
+  const closeResult = () => {
+    if (resultHost.result?.kind === 'deleted') seeTodayFromResult()
+    else resultHost.setResult(null)
   }
   const confirmChildDelete = async () => {
     if (!childToDelete) return
@@ -665,6 +659,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
         <CompletionBoundaryReason disabled={completionDisabled} reason={completionReason} />
         <HabitDueDate habit={habit} language={language} />
       </div>
+      <HabitDetailOrbitLine habit={habit} days={strip?.days} />
       {habit.repeatReminder || habit.nextReminderAtUtc ? <RepeatReminderDetail habit={habit} logs={logs} /> : null}
       <HabitChecklist items={habit.checklistItems} interactive onToggle={(index) => void toggleChecklist(index)} onReset={() => { void updateItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} />
       {children.length > 0 ? <Surface>
@@ -673,9 +668,9 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
         <div data-testid="detail-children" aria-busy={habitsQuery.isLoading} className="flex flex-col gap-[12px]">{children.map(({ habit: child, completed: childCompleted, canLog, dateStatusKey, nextDueHint, completionReadOnly, completionReason: childCompletionReason, completionStatusUnavailable }) => <div key={child.id}><HabitRow habit={child} child depth={1} state={childCompleted ? 'done' : 'empty'} meta={[...(nextDueHint ? [{ kind: 'future' as const, label: nextDueHint }] : []), ...(dateStatusKey ? [{ kind: 'date-status' as const, label: t(dateStatusKey) }] : [])]} canLog={canLog} completionReadOnly={completionReadOnly} completionReason={childCompletionReason} completionStatusUnavailable={completionStatusUnavailable} actions={{ onLog: () => { void writeLog(child.id, 'log') }, onUnlog: () => { void writeLog(child.id, 'unlog') }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} /><LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === child.id} /><UnscheduledChildReason reason={dateStatusKey ? undefined : childCompletionReason} notScheduledReason={t('calendar.dayCell.notScheduled')} /></div>)}</div>
         {subHabitCreation}
       </Surface> : subHabitCreation}
-      {strip ? <section ref={stripRef} tabIndex={-1} className="habit-detail-strip flex flex-col gap-2" style={{ containerType: 'inline-size' }}><p className="text-xs text-[var(--fg-3)]">{t('habits.detail.lastThirtyDays')}</p><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={16} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /><SlippingLine visible={rescue.open} metrics={metricsQuery.data} createdAtUtc={habit.createdAtUtc} today={today} timeZone={profile.timeZone} /></section> : null}
-      <RescheduleBlock key={habit.id} habit={habit} rescue={rescue} hasProAccess={hasProAccess} locale={language} today={today} scheduleEditing={editOpen} returnFocus={() => stripRef.current?.focus()} />
-      <AskAstraRow habit={habit} />
+      {strip ? <section ref={stripRef} tabIndex={-1} className="habit-detail-strip flex flex-col gap-2" style={{ containerType: 'inline-size' }}><p className="text-xs text-[var(--fg-3)]">{t('habits.detail.lastThirtyDays')}</p><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={16} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /><SlippingLine visible={rescue.open} /></section> : null}
+      <RescheduleBlock key={habit.id} habit={habit} rescue={rescue} hasProAccess={hasProAccess} locale={language} today={today} scheduleEditing={editOpen} returnFocus={() => stripRef.current?.focus()} onAccepted={(date) => { if (resultHost.guided) resultHost.setResult({ kind: 'rescheduled', date }) }} />
+      <HabitDetailReviewRow habit={habit} />
       <section className="flex flex-col gap-3"><ListRow placement="column" icon={detailsOpen ? 'chevron-down' : 'chevron-right'} title={t('habits.detail.moreDetails')} expanded={detailsOpen} controls="habit-detail-fields" chevron={false} onClick={() => setDetailsOpen((value) => !value)} /><div hidden={!detailsOpen} id="habit-detail-fields" className="flex flex-col gap-6">
       <MetricsSection visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} error={metricsQuery.isError} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} />
       <ReminderReadout habit={habit} />
@@ -694,6 +689,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       }} />
       <ConfirmSheet open={confirm === 'delete'} title={t('habits.deleteConfirmTitle')} message={t('habits.deleteConfirmMessage')} confirmLabel={t('habits.deleteHabit')} destructive onCancel={() => setConfirm(null)} onConfirm={() => { void confirmDelete() }} />
       <ConfirmSheet open={confirm === 'delete-child'} title={t('habits.deleteConfirmTitle')} message={t('habits.deleteConfirmMessage')} confirmLabel={t('habits.deleteHabit')} destructive onCancel={() => { setConfirm(null); setChildToDelete(null) }} onConfirm={() => { void confirmChildDelete() }} />
+      <HabitDetailResultDialog result={resultHost.result} onSeeToday={seeTodayFromResult} onClose={closeResult} />
     </HabitDetailFrame>
   )
 }

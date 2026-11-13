@@ -348,8 +348,9 @@
     "returningElapsed": "{days, plural, =0 {Você concluiu um hábito pela última vez há # dias.} one {Você concluiu um hábito pela última vez há # dia.} other {Você concluiu um hábito pela última vez há # dias.}}",
     "returningBounded": "Você concluiu um hábito pela última vez há mais de 30 dias.",
     "viewProgress": "Ver no Progresso",
-    "offline": "O Orbit precisa de conexão. Você ainda pode registrar hábitos offline.",
-    "offlineLog": "Salvo neste aparelho. O Orbit sincroniza quando você se reconectar."
+    "offline": "Preciso de conexão para conversar. Você ainda pode registrar hábitos offline.",
+    "offlineLog": "Salvo neste aparelho. Eu sincronizo quando você se reconectar.",
+    "limit": "Eu volto a conversar quando suas mensagens de IA renovarem."
   },
   "command": {
     "title": "O que você quer fazer",
@@ -1129,6 +1130,9 @@
       "daysFree": "Sem deslize",
       "reminders": "Lembretes",
       "askAstraSeedDefault": "Como estou indo no hábito \"{title}\"? Me dá sua análise e uma dica para melhorar.",
+      "orbit": {
+        "lastSevenDays": "Você fez isso em {done} dos últimos 7 dias."
+      },
       "copyDescription": "Copiar descrição",
       "descriptionCopied": "Descrição copiada",
       "copyFailed": "Não foi possível copiar a descrição. Selecione o texto e copie manualmente.",
@@ -1142,7 +1146,7 @@
       "log": "Registrar \"{title}\"",
       "unlog": "Desfazer registro de {title}",
       "lastThirtyDays": "Últimos 30 dias",
-      "slippingLine": "Nenhum registro {days, plural, =0 {nos últimos # dias} one {no último dia} other {nos últimos # dias}}. A sequência está em {streak} e a taxa dos últimos 30 dias está abaixo de {limit}%.",
+      "slippingLine": "Esse hábito está num ritmo mais devagar. Uma nova data pode caber melhor.",
       "history": "Atividade",
       "previousMonth": "Mês anterior",
       "nextMonth": "Próximo mês",
@@ -3126,7 +3130,9 @@
     "habit": {
       "repeat": "O hábito começa {start} e se repete {cadence}.",
       "repeatTimed": "O hábito começa {start} e se repete {cadence} às {time}.",
-      "updated": "As mudanças foram salvas."
+      "updated": "As mudanças foram salvas.",
+      "rescheduled": "O hábito foi para {date}.",
+      "deleted": "O hábito foi apagado."
     },
     "cadence": {
       "day": "{count, plural, =0 {a cada # dias} one {todo dia} other {a cada # dias}}",

@@ -18,7 +18,6 @@ import {
   createAccountScopedHabitDetailWriteQueue,
   buildHabitDetailHeaderSummary,
   isHabitDetailCompletionDisabled,
-  getHabitDaysWithoutLog,
   getHabitHistoryLog,
   getHabitStartDate,
   parseHabitHistoryDate,
@@ -26,6 +25,7 @@ import {
   isHabitCompletedOnDate,
   isHabitHistoryMonthLoaded,
   isHabitSlipping,
+  countDoneInRecentDays,
   mergeHabitDetailWithScopedHabit,
   removeHabitDetailChild,
   shouldResetHabitChecklist,
@@ -523,12 +523,11 @@ describe('habit detail flow model', () => {
     expect(isHabitSlipping(recurring, metrics, [log('2026-08-27')], today, 'UTC')).toBe(false)
   })
 
-  it('counts the calendar days without a log for the slipping line', () => {
-    const accountToday = parseAPIDate('2026-08-28')
-    expect(getHabitDaysWithoutLog({ lastCompletedDate: '2026-08-25' }, '2026-08-01T12:00:00Z', accountToday, 'UTC')).toBe(3)
-    expect(getHabitDaysWithoutLog({ lastCompletedDate: null }, '2026-08-20T12:00:00Z', accountToday, 'UTC')).toBe(9)
-    expect(getHabitDaysWithoutLog({ lastCompletedDate: null }, '2026-08-20T02:00:00Z', accountToday, 'America/Sao_Paulo')).toBe(10)
-    expect(getHabitDaysWithoutLog({ lastCompletedDate: null }, '2026-08-19T20:00:00Z', accountToday, 'Asia/Tokyo')).toBe(9)
+  it('counts only the done days inside the recent window', () => {
+    const days = ['done', 'done', 'missed', 'not-scheduled', 'done', 'missed', 'done', 'done'] as const
+    expect(countDoneInRecentDays(days, 7)).toBe(4)
+    expect(countDoneInRecentDays(days, 2)).toBe(2)
+    expect(countDoneInRecentDays([], 7)).toBe(0)
   })
 
   it('does not call a newly created habit slipping', () => {

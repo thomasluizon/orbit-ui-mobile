@@ -2,12 +2,14 @@ import { StyleSheet, Text, View } from 'react-native'
 import { useState } from 'react'
 import { INTERACTION_FILL_CLEARANCE, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useTranslation } from 'react-i18next'
-import { formatQuestionNumber, type QuestionControlProps } from '@orbit/shared/chat'
+import { formatQuestionNumber, usesQuickOptions, type QuestionControlProps } from '@orbit/shared/chat'
 import { RadioGroup, RadioItem } from '@/components/ui/radio-group'
 import { RadioRow } from '@/components/ui/select-check'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { CheckRow } from '@/components/ui/check-row'
 import { Input } from '@/components/ui/input'
+import { OptionCard } from '@/components/ui/option-card'
+import { useFlag } from '@/hooks/use-flag'
 import { Slider } from '@/components/ui/slider'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -42,12 +44,24 @@ export function QuestionControls(props: QuestionControlProps) {
   const numberLabel = (value: number) => formatQuestionNumber(value, i18n.language)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const quickOptions = useFlag('orbit_guided_flows')
   if (question.type === 'scale') return <QuestionScale {...props} />
   if (question.type === 'slider') return <View style={{ minWidth: 0, gap: 8 }}>
     <Text style={{ fontSize: 14, lineHeight: 20, color: tokens.fg2 }}>{answer?.number === undefined ? `${numberLabel(question.min)} ${question.unit} / ${numberLabel(question.max)} ${question.unit}` : `${numberLabel(answer.number)} ${question.unit}`}</Text>
     <Slider label={question.prompt} min={question.min} max={question.max} step={question.step} value={answer?.number} valueText={`${numberLabel(answer?.number ?? question.min)} ${question.unit}`} disabled={disabled} onChange={number => controller.setAnswer(question, { number })} />
   </View>
   const choices = question.type === 'yesNo' ? [true, false].map(boolean => ({ id: String(boolean), label: boolean ? words.yes : words.no, recommended: false })) : question.options
+  if (quickOptions && usesQuickOptions(question)) return <View style={{ minWidth: 0, gap: 16 }}>
+    <View role="group" accessibilityLabel={question.prompt} accessibilityHint={words.required} style={styles.quickOptions}>
+      {choices.map(option => {
+        const selected = question.type === 'yesNo' ? answer?.boolean === (option.id === 'true') : answer?.selectedIds?.includes(option.id) === true
+        const press = () => question.type === 'yesNo' ? controller.setAnswer(question, { boolean: option.id === 'true' }) : controller.select(question, option.id)
+        return <OptionCard key={option.id} label={option.label} selected={selected} disabled={disabled} onSelect={press} />
+      })}
+    </View>
+    {choices.filter(option => option.recommended).map(option => <Text key={option.id} style={{ color: tokens.fg3, fontSize: 12, lineHeight: 16, textAlign: 'center' }}>{`${option.label}: ${words.recommended}`}</Text>)}
+    {question.allowFreeText ? <Input label={words.freeText} value={answer?.freeText ?? ''} onChange={value => controller.setFreeText(question, value)} disabled={disabled} maxLength={500} /> : null}
+  </View>
   const rows = choices.map(option => question.type === 'multipleChoice'
     ? <CheckRow key={option.id} selection wrapLabel label={option.label} checked={answer?.selectedIds?.includes(option.id) === true} disabled={disabled} onChange={() => controller.select(question, option.id)} />
     : <RadioRow key={option.id} selection wrapLabel hideMeta label={option.label} description={option.recommended ? words.recommended : undefined}
@@ -61,6 +75,7 @@ export function QuestionControls(props: QuestionControlProps) {
 }
 
 const styles = StyleSheet.create({
+  quickOptions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12 },
   scaleOption: { minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, padding: INTERACTION_FILL_CLEARANCE / 2, borderRadius: 12 },
   scaleFill: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 8, borderRadius: 12, overflow: 'hidden' },
 })

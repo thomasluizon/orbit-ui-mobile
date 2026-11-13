@@ -42,8 +42,8 @@ export {
   buildHabitStripModel,
   canNavigateHabitHistoryBack,
   canNavigateHabitHistoryForward,
-  getHabitDaysWithoutLog,
   HABIT_SLIPPING_RATE_LIMIT,
+  countDoneInRecentDays,
   getHabitHistoryLog,
   getHabitStartDate,
   habitHistoryCutoff,
@@ -828,7 +828,7 @@ export {
 
 export { resolveHabitAccessibleStatus, buildHabitRowDateModel } from './habit-row-status'
 
-export { proactiveActionLabelKey, getProactiveActionReason, getTodayAstraLine, getTodayAstraSlot } from './proactive'
+export { proactiveActionLabelKey, getProactiveActionReason, getTodayAstraLine, getTodayAstraRest, getTodayAstraSlot } from './proactive'
 export { buildHabitViewFilters, type HabitViewFiltersInput } from './habit-view-filters'
 
 export { buildHabitDateBuckets, type HabitDateBucket } from './habit-list-progress'
