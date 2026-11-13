@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react'
-import { SPACING, TOUCH_TARGET_MIN, typeRoles } from '@orbit/shared/theme'
+import { orbitalMotion, SPACING, TOUCH_TARGET_MIN, typeRoles } from '@orbit/shared/theme'
 import { StyleSheet, Text, View } from 'react-native'
 import { InsetFocusPressable as Pressable } from './inset-focus-pressable'
 import { createTokensV2, radius, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { usePrefersReducedMotion } from '@/lib/motion'
 
 interface ChipProps {
   children: ReactNode
@@ -27,6 +28,7 @@ export function Chip({
 }: Readonly<ChipProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const reducedMotion = usePrefersReducedMotion()
   const isPeriod = variant === 'period'
 
   return (
@@ -48,7 +50,7 @@ export function Chip({
             borderColor: tokens.hairline,
             borderWidth: active && isPeriod ? 1.5 : 1,
           },
-          pressed && !active ? styles.chipPressed : null,
+          pressed && !active && !reducedMotion ? styles.chipPressed : null,
         ]
       }}
     >
@@ -77,7 +79,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   chipPressed: {
-    transform: [{ scale: 0.96 }],
+    transform: [{ scale: orbitalMotion.press.scale }],
   },
   leading: {
     flexDirection: 'row',

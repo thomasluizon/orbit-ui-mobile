@@ -192,6 +192,15 @@ describe('pressed hit area shapes', () => {
     })
   })
 
+  it.each([false, true])('scales the pressed chip to 0.96 only when motion is allowed (reduced: %s)', (reduced) => {
+    motion.reduced = reduced
+    try {
+      const style = pressedStyle(<Chip onPress={() => {}} accessibilityLabel="Filter">Filter</Chip>, 'Filter')
+      expect(style.transform).toEqual(reduced ? undefined : [{ scale: 0.96 }])
+      expect(style.backgroundColor).toBe(tokens.bgHover)
+    } finally { motion.reduced = false }
+  })
+
   it('fills the pressed check row at the row radius and clears it on release', () => {
     withTree(<CheckRow label="Water" checked={false} onChange={() => {}} />, (tree) => {
       const control = findPressable(tree, 'Water')

@@ -59,6 +59,13 @@ describe('web pill press feedback', () => {
     expect(pressFillClasses(actionClasses('ghost', 'sm', 'button', false, false, true))).toEqual(['enabled:active:bg-[var(--bg-elev-hover)]'])
   })
 
+  it('scales a pressed chip only when the person allows motion', () => {
+    const pressed = ruleWith('.chip:active')
+    expect(value(pressed, 'transform')).toEqual(['scale(0.96)'])
+    expect(pressed.parent?.type).toBe('atrule')
+    expect((pressed.parent as { params?: string }).params).toBe('(prefers-reduced-motion: no-preference)')
+  })
+
   it('lets the primary button and FAB press fill win over their pointer hover, also on touch', () => {
     const hover = ruleWith('button[data-variant="primary"]:enabled:hover')
     const pressed = ruleWith('button[data-variant="primary"]:enabled:not([data-loading]):active')

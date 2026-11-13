@@ -1819,7 +1819,9 @@ button[data-variant="primary"]:enabled:not([data-loading]):active,
     color var(--dur-hover-control) var(--ease-standard),
     transform var(--dur-press) var(--ease-out);
 }
-.chip:active { transform: scale(0.96); }
+@media (prefers-reduced-motion: no-preference) {
+  .chip:active { transform: scale(0.96); }
+}
 .chip:focus-visible { outline-offset: -2px; }
 .chip-period:focus-visible { outline-color: var(--fg-1); }
 .chip:disabled {
