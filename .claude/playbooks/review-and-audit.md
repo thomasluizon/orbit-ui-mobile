@@ -63,3 +63,22 @@ Quoting a file under `node_modules` in a finding? Run `node tools/check-dependen
 Apply **mechanically-detectable** fixes verbatim. For **judgement-bound** ones (content clarity, screen-reader announcement quality, keyboard-flow coherence, complex visual contrast), leave a TODO naming the rule and flag for human review. **Never invent the content** — a fabricated alt text or label closes the finding and keeps the defect.
 
 Then verify by **re-running the identical audit and diffing against the recorded baseline**: every targeted violation gone **and no new one introduced**. A fix pass that does not diff against a before-list has not verified anything. (This is the no-new-regressions half that global rule 5 omits.)
+
+## Proving an external interface
+
+### 13. A read of an external field needs evidence in the pull request
+A pull request that reads a field, flag, subcommand, exit code or response shape from outside this repository carries its evidence in the body. External means a CLI (`orca`, `gh`, `git`), an HTTP API or a library that this repository did not write. An existing read in the codebase is not evidence: it can be the guess that this rule exists to catch. A pull request that first proved the field can be cited instead of a new run.
+
+Confirm the interface against the response itself, in this order:
+
+1. Run a real invocation and read what came back.
+2. If the command writes, read the installed package source where it builds the response.
+3. If neither is possible, use schema introspection.
+
+`--help` proves that a flag exists. It proves nothing about a response body. Documentation, memory of a similar tool and what the shape "should" be are never authority.
+
+Paste the complete key set with types, and replace the values. Absence cannot be proven from an excerpt. Keep the literal format of each value that the code parses: write `"<ISO-8601 timestamp>"`, never `"<redacted>"`. List the full set of accepted values for each field that the code compares. Give the reviewer a way to re-derive the shape: the exact command with named placeholders for credentials, or the `file:line` in the installed package that builds the response.
+
+Never write the fixture that agrees with the guess. A fixture built from a guess makes the harness prove that the code matches the belief. If the field cannot be confirmed, do not read it. Use a value that the interface already returns, or make success depend only on the exit code, and say in the pull request body which field was wanted. An unconfirmed field is not a failure signal: "the write failed" and "the field does not exist" arrive as the same value.
+
+Redact before you paste. Never include a token, key, cookie or credential, and replace each personal, customer or account value with a placeholder. A pull request body is permanent and every person with repository access reads it.

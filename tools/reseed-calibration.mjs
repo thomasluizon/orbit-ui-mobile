@@ -117,12 +117,6 @@ const VERDICTS = {
     "current: runs lint, type-check and tests across both repos, so low effort is right.",
   ".claude/skills/wrap-up/SKILL.md":
     "current: medium effort; the skill invokes three steps in order and waits for the owner between handovers, including under --sleep.",
-  ".agents/skills/merge-prs/SKILL.md":
-    "current: a pointer with no behaviour, so it declares no model and no effort and inherits whatever the Codex host runs. Its digest is the whole verdict: the frontmatter name and description decide whether Codex finds this skill at all, and the body names the one canonical definition both hosts read.",
-  ".agents/skills/orchestrate/SKILL.md":
-    "current: a pointer with no behaviour, so it declares no model and no effort and inherits whatever the Codex host runs. Its digest is the whole verdict, and it matters most here: orchestrate is the entry point every other piece of work passes through, so a pointer that stops resolving takes the whole queue with it.",
-  ".agents/skills/ticket/SKILL.md":
-    "current: a pointer with no behaviour, so it declares no model and no effort and inherits whatever the Codex host runs. Its digest is the whole verdict, because a ticket is the prompt (D2) and a host that reads a forked definition writes a forked ticket.",
 }
 
 const tuningOf = (relativePath) => {
@@ -137,8 +131,8 @@ const tuningOf = (relativePath) => {
   return tuning
 }
 
-/** The same denominator `check-calibration.mjs` derives, including BOTH skill roots: `.claude` holds
- * the canonical definitions and `.agents` holds the entrypoints the Codex host discovers. */
+/** The same denominator `check-calibration.mjs` derives, including BOTH skill roots: a file under
+ * `.agents/skills` needs a verdict row too, so a host entrypoint cannot ride outside the gate. */
 const files = []
 for (const name of readdirSync(join(root, ".claude", "agents")).sort()) {
   if (name.endsWith(".md")) files.push(`.claude/agents/${name}`)

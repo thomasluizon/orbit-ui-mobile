@@ -26,7 +26,7 @@ it isn't a finding.
 
 ## Phase 0 — Provenance & self-containment
 
-This skill is the one consumer of `.claude/skills/pr-review/rubric.md`, and that file is the
+This skill is the one consumer of `.claude/skills/audit-code-quality/rubric.md`, and that file is the
 single place its dimensions live. Those dimensions were adapted at authoring time from
 the **code-review base on claudeskills.info** (https://claudeskills.info) and specialized
 to Orbit's ten Code Standards, the orbit-api hard rules, `eslint-rules/no-comments.cjs`,
@@ -69,7 +69,7 @@ Read **`.claude/skills/_shared/gate-owned-exclusions.md`**. The rubric was writt
 review over a diff; as a standing audit this skill audits ONLY the rubric dimensions no
 gate enforces. It does NOT re-flag: comment policy (ESLint `local/no-comments` + Roslyn
 `ORBIT0001`), the enumerated spacing scale (`local/spacing-scale`), `console` / `any` bans,
-dashes, copy register, React correctness (`react-doctor.yml`), or any other `local/*` /
+dashes, copy register, React correctness (the `guards.yml` React Doctor step), or any other `local/*` /
 `guards.yml` / `ORBIT0001..0005` concern. It DOES own: dead/stale code, SOLID/clean-arch
 (state or data models that cause branch proliferation, function size over the ~50/~100-line
 caps, nesting past ~3, pass-through or magical abstractions, giant multi-responsibility
@@ -95,7 +95,7 @@ Workflow({ scriptPath: '.claude/workflows/audit.mjs', args: { kind: 'code-qualit
 
 It fans out **one Haiku finder per area** — `apps/web` · `apps/mobile` · `packages/shared`
 · `orbit-api/src/Orbit.Application` · `orbit-api/src/{Orbit.Domain,Orbit.Infrastructure,
-Orbit.Api}` — each reading `.claude/skills/pr-review/rubric.md`; runs a **Haiku skeptic**
+Orbit.Api}` — each reading `.claude/skills/audit-code-quality/rubric.md`; runs a **Haiku skeptic**
 per **Critical/High** finding (default-refuted, re-runs the zero-reference grep for dead-code
 claims); loops a completeness critic until dry (cap 2 dry rounds). It returns:
 
@@ -173,7 +173,7 @@ to a diff review) and the convergence state.
 
 ## Guardrails — do NOT
 
-- **Fork the rubric.** The workflow's finders read `.claude/skills/pr-review/rubric.md`;
+- **Fork the rubric.** The workflow's finders read `.claude/skills/audit-code-quality/rubric.md`;
   never inline a copy of the dimensions here. One file, zero drift.
 - **Re-derive security or contract findings.** Point at `/audit-security` and
   `/audit-tests`; stay in the quality lane.

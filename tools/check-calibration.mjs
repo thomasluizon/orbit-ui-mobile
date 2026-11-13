@@ -18,8 +18,8 @@ const USAGE = `usage: check-calibration.mjs [--root <path>]
   tool pass on drift; the escape hatch is the calibration:reseed label on the guards.yml job.
 
     1. every .claude/agents/*.md, .claude/skills/*/SKILL.md and .agents/skills/*/SKILL.md has a
-       stamp entry. Both skill roots, because .claude holds the canonical definitions and .agents
-       holds the entrypoints the Codex host discovers
+       stamp entry. Both skill roots, because a host entrypoint added under .agents must not ride
+       outside the gate
     2. no stamp entry names a file that no longer exists
     3. each entry's recorded model and effort match what the file declares today, AND its recorded
        digest matches the file's complete normalized content, so rewriting a prompt body invalidates

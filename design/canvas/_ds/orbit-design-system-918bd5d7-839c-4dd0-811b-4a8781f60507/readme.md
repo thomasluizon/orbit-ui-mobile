@@ -23,8 +23,7 @@ One product surface matters today: the app, designed mobile-first at a 412px she
 
 - Local codebase folder `design/` from `orbit-ui-mobile` on branch `redesign/main`: the granted
   export under `design/canvas/` (subject to the D42 ladder in `DESIGN.md`) and `design/brand/`
-  (marks, lockups, fonts, README.md, SETUP.md). `design/superseded/reference.html` is historical and
-  carries no authority.
+  (marks, lockups, fonts, README.md, SETUP.md).
 - Uploaded brand files (same assets): fonts, mark/lockup SVGs and PNGs, now in `assets/`.
 - GitHub repository `github.com/thomasluizon/orbit-ui-mobile` uses the near-black canvas `#09090B`, one warm orange accent `#C4530F`, and light and dark modes. Fonts are Geist Sans for UI, Space Grotesk for display, and Geist Mono for metadata; `DESIGN.md` defines the authority of this export.
 - No Figma source exists.

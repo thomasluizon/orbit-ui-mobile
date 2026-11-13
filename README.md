@@ -54,7 +54,7 @@ packages/
 - Node.js 20 or newer
 - npm 11 or newer
 - The separate `orbit-api` service if you want local backend access
-- Expo tooling plus Android Studio for native builds (Orbit mobile ships Android only)
+- Expo tooling plus Android Studio for native builds (Orbit mobile ships through Google Play; iPhone and iPad target internal TestFlight)
 
 ### Install
 
@@ -88,8 +88,6 @@ The codebase currently expects these variables when you want to override default
 
 - `API_BASE` for the web app backend URL. It falls back to `http://localhost:5000`.
 - `EXPO_PUBLIC_API_BASE` for the mobile app backend URL. It falls back to the production API, so set this explicitly for local mobile development.
-- `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` for web Supabase config.
-- `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` for mobile Supabase config.
 - `NEXT_PUBLIC_VAPID_PUBLIC_KEY` for web push notifications.
 - `EXPO_PUBLIC_PROJECT_ID` for Expo push when you need to override the EAS project id.
 

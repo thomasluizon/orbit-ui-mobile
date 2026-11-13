@@ -10,7 +10,7 @@ const repositoryText = (path) => readFileSync(resolve(repositoryRoot, path), "ut
 function checkProdReadinessInventory() {
   const skill = repositoryText(".claude/skills/prod-readiness/SKILL.md")
   const workflow = repositoryText(".claude/workflows/prod-readiness.mjs")
-  const rubric = repositoryText(".claude/skills/pr-review/rubric.md")
+  const rubric = repositoryText(".claude/skills/audit-code-quality/rubric.md")
   const table = skill.match(/\| # \| Inventory item \| Kind \| Owner of the analysis \|[\s\S]*?(?=\n\n)/)?.[0] ?? ""
   const rows = [...table.matchAll(/^\| (\d+) \| ([^|]+) \| ([^|]+) \|/gm)]
     .map(([, number, name, kind]) => ({ number: Number(number), name: name.trim(), kind: kind.trim() }))

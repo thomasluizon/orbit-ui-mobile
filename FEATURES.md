@@ -2,12 +2,12 @@
 
 > **At a glance** - counts for deployed Astra and MCP tools, and retained social compatibility references.
 > Counts are pinned to `thomasluizon/orbit-api` commit
-> `fb61d9214db8919d5b80ece4cb885f8788ceaae9`; recount after API changes.
+> `5fc345d2011174ddf36e56e4e08511ced08f5ef9`; recount after API changes.
 
 ## Astra AI
 
 `orbit-api/src/Orbit.Api/Extensions/ServiceCollectionExtensions.AiServices.cs` registers
-**63 `IAiTool` implementations**.
+**72 `IAiTool` implementations**.
 
 Synchronization trigger: after an `IAiTool` registration reaches deployed `orbit-api` `main`,
 recount that source and update this total plus both guide locales in a paired UI pull request.
@@ -15,25 +15,27 @@ recount that source and update this total plus both guide locales in a paired UI
 ## MCP
 
 `orbit-api/src/Orbit.Api/Mcp/Tools/*.cs` contains
-**81 `[McpServerTool]` methods across 15 tool classes**.
+**111 `[McpServerTool]` methods across 17 tool classes**.
 
 | Tool class | `[McpServerTool]` methods |
 |---|---:|
-| `AccountTools.cs` | 1 |
-| `AgentTools.cs` | 8 |
-| `ApiKeyTools.cs` | 2 |
-| `CalendarTools.cs` | 2 |
-| `ChecklistTemplateTools.cs` | 3 |
-| `FeatureTools.cs` | 1 |
-| `GamificationTools.cs` | 3 |
-| `GoalTools.cs` | 11 |
-| `HabitTools.cs` | 24 |
-| `NotificationTools.cs` | 7 |
-| `ProfileTools.cs` | 7 |
-| `SubscriptionTools.cs` | 4 |
-| `SupportTools.cs` | 1 |
-| `TagTools.cs` | 5 |
-| `UserFactTools.cs` | 2 |
+| `AccountTools.cs` | 2 |
+| `AgentTools.cs` | 9 |
+| `ApiKeyTools.cs` | 3 |
+| `CalendarTools.cs` | 5 |
+| `ChecklistTemplateTools.cs` | 5 |
+| `FeatureFlagTools.cs` | 2 |
+| `FeatureTools.cs` | 2 |
+| `GamificationTools.cs` | 4 |
+| `GoalTools.cs` | 12 |
+| `HabitTools.cs` | 30 |
+| `NotificationTools.cs` | 8 |
+| `NotionTools.cs` | 2 |
+| `ProfileTools.cs` | 9 |
+| `RecordPageTools.cs` | 5 |
+| `SubscriptionTools.cs` | 5 |
+| `SupportTools.cs` | 2 |
+| `TagTools.cs` | 6 |
 
 Synchronization trigger: after an `[McpServerTool]` method reaches deployed `orbit-api` `main`,
 recount every tool class and update this table, its total, and both guide locales in a paired UI pull request.

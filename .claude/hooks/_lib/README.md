@@ -26,7 +26,7 @@ Session hooks block commands or edits before they happen.
 `rules-orchestrator.mjs` is **cost-raising defence in depth and never the control**:
 it is bypassable through another tool, a shell wrapper, or script-file indirection,
 and its own header says so. The control for the admin merge is the prohibition in
-the worker contract, `AGENTS.md` and `CLAUDE.md`.
+the worker contract and `CLAUDE.md`.
 
 `rules-dependencies.mjs` splits the same way, and its header names the split. The
 FILE path (Write, Edit, MultiEdit) is the one it really closes, because that is

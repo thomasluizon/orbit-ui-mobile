@@ -35,9 +35,7 @@ The twenty-one-screen Claude Design export is committed at
 
 Read the drawing for the surface you are building before you read the section here that describes it.
 
-**`design/superseded/reference.html` carries no authority.** Use the granted canvas.
-
-An export without a grant carries no authority. Never build from `design/canvas/superseded/`.
+Use the granted canvas. An export without a grant carries no authority.
 
 **Canvas precedence:** a `linear-gradient` in `Orbit Calendario.dc.html` is non-authoritative under rule 2. See `#370`.
 

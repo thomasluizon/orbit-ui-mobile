@@ -7,7 +7,7 @@ effort: low
 
 # Android Generate - build an APK from this checkout
 
-Builds the local release APK with `apps/mobile`'s own script, so the AdMob test units, the skipped
+Builds the local release APK with `apps/mobile`'s own script, so the skipped
 Sentry upload, and the Gradle staging directory all stay exactly as the repository defines them.
 
 ## Mode (from `$ARGUMENTS`)

@@ -40,10 +40,9 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `.claude/manifests/feature-parity.json` | Generated web and Android capability inventory, removal citations and restoration tracking; NOT committed. Run `git fetch origin main && node tools/check-feature-parity.mjs --write` to create it locally; CI regenerates and uploads the evidence artifact. |
 | `tools/feature-parity-rules.json` | Exact capability relocations, owner removal citations and restoration tickets; the checker derives completion from source. |
 | `.claude/specs/orbit-prod-release.md` | Production release rules, capability restoration scope and release verification. |
-| `AGENTS.md` | Codex's entry doc; defers to `CLAUDE.md`. |
 | `apps/web/DEPLOYMENT.md` | Web image build, GitHub settings, and production and staging Render releases. |
 | `packages/shared/CONTRACT_DRIFT.md` | Pinned API snapshot check and automated rebaseline. |
-| `.claude/skills/pr-review/rubric.md` | The dimensions `/audit-code-quality` audits against; its only consumer. |
+| `.claude/skills/audit-code-quality/rubric.md` | The dimensions `/audit-code-quality` audits against; its only consumer. |
 | `gating-matrix.json` | Generated inventory of PayGate methods, config keys, and feature flags at the `thomasluizon/orbit-api` repository root; run `node tools/gating-matrix.mjs` there to create it. |
 | `FEATURES.md` | Retained Astra and MCP tool-count inventory and social compatibility references that no generated artifact carries; verify every count against its named `orbit-api` source. |
 | `.claude/skills/flag/SKILL.md` | Inspect and change production or staging feature flags through admin Orbit MCP, with before and after verification. |

@@ -36,10 +36,10 @@ The ops-layer checklist and this orchestration shape were adapted at authoring t
 **`scaling-past-vibe` workflow base** in the `vibe-coding-workflow-skills` collection on
 claudeskills.info (https://claudeskills.info), then specialized to Orbit's real operational
 surface (Sentry across the three runtimes, Hangfire + `IHostedService` background work, the
-`BackgroundServiceHealthCheck`, and the promote/smoke deploy workflows).
+`BackgroundServiceHealthCheck`, and the staged release workflows).
 
 Five further upstream skills were mined at authoring time and their judgement folded into this
-skill and into `.claude/skills/pr-review/rubric.md`, which is the **single consolidated
+skill and into `.claude/skills/audit-code-quality/rubric.md`, which is the **single consolidated
 standards document** (the code-quality audit reads it as its contract, so the standards flow
 into every sweep):
 
@@ -57,7 +57,7 @@ into every sweep):
 
 **Code-agent isolation**: the workflow's agents run against the project's own checkout and
 read repo config. Before they start, the calling session performs the performance audit's
-read-only Supabase measurement. The production connector is never exposed to a finder.
+read-only Render Postgres measurement. The production connector is never exposed to a finder.
 **CI / headless fallback**: if the `Workflow` tool is unavailable, run the four
 `/audit-*` skills' own fallbacks inline plus the ops and a11y fan-outs, then consolidate; the
 ticket set and the contract still hold.
@@ -75,7 +75,7 @@ Read **`.claude/skills/_shared/gate-owned-exclusions.md`**. The ops and a11y lay
 adds are exactly the judgement no gate can check: whether the RUNNING system survives
 production (observability, multi-instance safety, background durability, backups, a pre-prod
 gate) and whether a user can complete the core journeys by keyboard or with assistive
-technology. React correctness is NOT in this skill's inventory: `react-doctor.yml` is a
+technology. React correctness is NOT in this skill's inventory: the `guards.yml` React Doctor step is a
 required CI gate and owns it, including its a11y lint rules (D11); the standing full-repo
 react-doctor backlog is mechanical debt for the ORB-46 project, not a prod-readiness finding.
 `Dependency Review` and `dependabot-auto-merge` gate NEW dependency regressions per PR; neither

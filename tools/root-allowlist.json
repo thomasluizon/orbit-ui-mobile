@@ -7,7 +7,6 @@
     ".gitattributes",
     ".gitignore",
     ".npmrc",
-    "AGENTS.md",
     "BRAND.md",
     "CLAUDE.md",
     "DESIGN.md",
@@ -30,7 +29,6 @@
     "turbo.json"
   ],
   "directories": [
-    ".agents",
     ".claude",
     ".github",
     ".lighthouseci",

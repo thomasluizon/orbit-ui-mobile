@@ -42,7 +42,6 @@ const inventory = () => {
 let FILES = []
 let COUNT = 0
 let A_SKILL = ""
-let A_POINTER = null
 
 const stage = (label, stamp) => {
   const fixture = join(root, "reseed-calibration", label)
@@ -92,15 +91,10 @@ export const cases = () => {
   FILES = inventory()
   COUNT = FILES.length
   A_SKILL = FILES.find((file) => file.path.startsWith(".claude/skills/"))?.path ?? ""
-  A_POINTER = FILES.find((file) => file.path.startsWith(".agents/skills/"))?.path ?? null
 
-  T(`${TOOL}: the derived inventory found something to stamp`, COUNT > 0 && A_POINTER !== null, `found ${COUNT} file(s), pointer ${A_POINTER}`)
+  T(`${TOOL}: the derived inventory found something to stamp`, COUNT > 0, `found ${COUNT} file(s)`)
 
-  /**
-   * The denominator is a glob over BOTH skill roots, so the host entrypoint the Codex host discovers
-   * is stamped alongside the canonical definition it points at. A pass that wrote only `.claude` left
-   * the file that decides WHICH prompt runs outside the gate entirely.
-   */
+  /** The denominator is a glob over the agent files and both skill roots, so no skill file runs outside the gate. */
   const fresh = stage("fresh")
   check(TOOL, "a first pass stamps every agent, skill and host entrypoint it finds", ["--root", fresh], {
     status: 0,
@@ -109,8 +103,8 @@ export const cases = () => {
   const first = stampOf(fresh)
   T(`${TOOL}: a first pass stamps the classifier model and prompt`, first.classifier?.model === "gpt-6-luna" && first.classifier.promptDigest === createHash("sha256").update(CLASSIFIER_PROMPT).digest("hex").slice(0, 16) && typeof first.classifier.verdict === "string")
   T(
-    `${TOOL}: the first pass stamped the .agents host entrypoints, not only the .claude definitions`,
-    Object.keys(first.entries).includes(A_POINTER),
+    `${TOOL}: the first pass stamped every .claude agent and skill`,
+    FILES.every((file) => Object.keys(first.entries).includes(file.path)),
     `entries were ${Object.keys(first.entries).join(", ")}`,
   )
   T(
@@ -222,12 +216,12 @@ export const cases = () => {
     stdout: new RegExp(`1 verdict\\(s\\) renewed, ${COUNT - 1} carried forward`),
   })
 
-  /** A changed HOST ENTRYPOINT is renewed too, which is the file the old denominator could not see. */
-  const pointerEdited = stage("pointer-edited", backdated(first, 200))
-  write(join(pointerEdited, ...A_POINTER.split("/")), `${POINTER}a changed pointer\n`)
-  check(TOOL, "a changed .agents host entrypoint is renewed, so its verdict cannot ride the old text", ["--root", pointerEdited], {
-    status: 0,
-    stdout: new RegExp(`1 verdict\\(s\\) renewed, ${COUNT - 1} carried forward`),
+  /** The walk still covers `.agents/skills`: a new host entrypoint needs a verdict row before it can be stamped. */
+  const pointerAdded = stage("pointer-added", backdated(first, 200))
+  write(join(pointerAdded, ".agents", "skills", "ticket", "SKILL.md"), POINTER)
+  check(TOOL, "a new .agents host entrypoint with no verdict row cannot be stamped", ["--root", pointerAdded], {
+    nonZero: true,
+    stderr: /no verdict written for: \.agents\/skills\/ticket\/SKILL\.md/,
   })
 
   /**

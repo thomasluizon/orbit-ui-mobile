@@ -57,7 +57,7 @@ const OPS_LADDER = 'Blocker (a whole runtime is dark, or it corrupts user data o
 const OPS_CHECKS = [
   {
     check: 'observability',
-    where: `Sentry across all three runtimes — web ${UI}/apps/web/sentry.server.config.ts + sentry.edge.config.ts + lib/sentry-scrub.ts; mobile ${UI}/apps/mobile/lib/sentry-init.ts + lib/sentry.ts; api ${API}/src/Orbit.Infrastructure/Configuration/SentrySettings.cs + ${API}/src/Orbit.Api/Middleware/UnhandledExceptionHandler.cs. Health: ${API}/src/Orbit.Infrastructure/Services/BackgroundServiceHealthCheck.cs + the MapHealthChecks registration. Alert routing: the Discord sink.`,
+    where: `Sentry across all three runtimes — web ${UI}/apps/web/sentry.server.config.ts + sentry.edge.config.ts + lib/sentry-scrub.ts; mobile ${UI}/apps/mobile/lib/sentry-init.ts + lib/sentry.ts; api ${API}/src/Orbit.Infrastructure/Configuration/SentrySettings.cs + ${API}/src/Orbit.Api/Middleware/UnhandledExceptionHandler.cs. Health: ${API}/src/Orbit.Infrastructure/Services/BackgroundServiceHealthCheck.cs + the MapHealthChecks registration. Alert routing: the Sentry alert rules, which live in the Sentry console, so name them as deferred when no console read exists.`,
     ready: 'error capture initialized + DSN wired on all three surfaces, an unhandled-exception handler, a /health endpoint, and alerts routed to a sink someone watches',
     gap: 'a surface with no error capture, no health endpoint, or no alert sink is a finding (Blocker if a whole runtime is dark, High for a single gap)',
   },
@@ -75,8 +75,8 @@ const OPS_CHECKS = [
   },
   {
     check: 'staging',
-    where: `deploy/CI workflows in BOTH repos — ${UI}/.github/workflows/promote-prod.yml, smoke-prod.yml, test.yml; ${API}/.github/workflows/*. Discover the current state per repo.`,
-    ready: 'a pre-prod gate (smoke + promote) sits between merge and prod',
+    where: `deploy/CI workflows in BOTH repos — ${UI}/.github/workflows/release.yml, test.yml; ${API}/.github/workflows/release.yml, production-plan.yml, staging-reseed.yml. Discover the current state per repo.`,
+    ready: 'a staged release sits between merge and prod: production refuses a commit that a healthy staging release has not admitted',
     gap: 'no staging/QA env or no pre-prod gate (Medium, calibrated)',
   },
   {
@@ -234,7 +234,7 @@ return {
   a11yNotApplicable: a11yInScope ? null : `the resolved scope "${scope}" contains no UI surface`,
   opsDeferred: [
     { check: 'backups', reason: 'un-verifiable from a repo read — verify in the DB console: automated backups / PITR enabled AND a tested restore path' },
-    { check: 'paid-api-cost-caps', reason: 'un-verifiable from a repo read: verify in each provider console (OpenAI, Resend, Stripe, FCM): a hard monthly cap AND a spend alert at 50% of it. An in-app rate limit bounds one caller, only the provider cap bounds the bill' },
+    { check: 'paid-api-cost-caps', reason: 'un-verifiable from a repo read: verify in each provider console (OpenAI, Stripe, FCM, AWS): a hard monthly cap AND a spend alert at 50% of it. An in-app rate limit bounds one caller, only the provider cap bounds the bill' },
     { check: 'a11y-runtime-matrix', reason: 'un-verifiable from a repo read — needs the running app: the axe A/AA tag set (wcag2a,wcag2aa,wcag21a,wcag21aa,wcag22aa), a keyboard pass, and a screen-reader pass over the route x state x viewport x input-mode matrix; the static sweep claims source-provable findings only, never conformance' },
   ],
   failedAudits: auditResults.filter((r) => r.failed).map((r) => r.kind),

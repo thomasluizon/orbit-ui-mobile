@@ -20,7 +20,7 @@ layer. Audits own judgement. Never both."
 | `guards.yml` Expo SDK Pin | a drifted Expo SDK pin |
 | `pr-metadata.yml` PR Metadata parity check | a one-sided web/mobile UI change (a missing mirror) |
 | Roslyn `ORBIT0001..0005` | narration comments, redundant transaction rollbacks, a controller with no class-level `[Authorize]`/`[AllowAnonymous]`, raw `DateTime.UtcNow` for user-facing dates, a `DbSet<T>` with no `modelBuilder.Entity<T>` config |
-| `react-doctor.yml` (required) | React correctness: effect cleanup, hydration/browser-global in render, impure updaters, prop-callback-in-render, plus the react-doctor a11y and perf rules. The standing full-repo backlog is mechanical debt for the ORB-46 project, not an audit finding. |
+| `guards.yml` React Doctor step (required) | React correctness: effect cleanup, hydration/browser-global in render, impure updaters, prop-callback-in-render, plus the react-doctor a11y and perf rules. The standing full-repo backlog is mechanical debt for the ORB-46 project, not an audit finding. |
 | `perf.yml` (`apps/web/lighthouserc.json`) | the authed-Today LCP / TBT / script-bundle-size budgets on web |
 | `guards.yml` Architecture map drift | architecture-map drift |
 

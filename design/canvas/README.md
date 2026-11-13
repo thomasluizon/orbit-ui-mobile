@@ -1,7 +1,7 @@
 # The canvas documents
 
 > **At a glance** - the granted canvas export and design tokens for every redesign surface.
-> Build from the active drawings and their amendments below. The documents in `superseded/` are not targets.
+> Build from the active drawings and their amendments below.
 
 ### Settled preview row amendment (#2048)
 
@@ -241,7 +241,7 @@ The paired owners and verification boundaries are in `design/astra-preview-surfa
 
 **Thomas granted this export on 2026-08-25**, which is what gives it authority. `DESIGN.md` records
 the grant in its D42 paragraph, and `CLAUDE.md` points here. Without that grant a canvas export
-carries nothing, and the eleven in `superseded/` still carry nothing.
+carries nothing.
 
 **Amendments since the grant, listed so no reader treats the export as byte-identical to it.** An
 amendment lands here and in the shipped tokens together, never in one alone, because a canvas token
@@ -607,18 +607,7 @@ rather than a product surface.
 4. The Agenda entry-details sheet, preserving full habit text, time and status on both platforms.
 5. The granted Calendário drawing at both widths, including shared navigation and the Agenda details disclosure.
 
-## `superseded/`
-
-Eleven documents from the pass that predates the information architecture (2026-08-16). They reskin
-the app that existed and draw a habit tracker with a chat tab, so **every one of them contradicts
-`DESIGN.md` section `## Information architecture`**. They are kept as a record of what the canvas
-produces when the prompt describes the screen that exists instead of the job the screen does.
-
-They live in their own folder rather than beside the authority because prose asking an implementer to
-ignore a file in front of them is not a control. `Orbit Insights.dc.html` was deleted on 2026-08-16
-with the `/insights` route.
-
-### Astra glyph surface inventory
+## Astra glyph surface inventory
 
 Each row names the paired web and Android component unless a platform is explicit.
 The glyph primitives provide the asset; their consumers below own its placement.
