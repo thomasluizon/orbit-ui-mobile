@@ -1,4 +1,4 @@
-import { INTERACTION_FILL_CLEARANCE, SPACING } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, SPACING, orbitalMotion } from '@orbit/shared/theme'
 import { useEffect, useMemo, useRef, useState } from "react";
 import { InsetFocusPressable } from "@/components/ui/inset-focus-pressable";
 import {
@@ -151,6 +151,7 @@ function TimedBlock({
   tokens: Tokens;
 }>) {
   const outcome = calendarEntryOutcome(block.entry);
+  const prefersReducedMotion = usePrefersReducedMotion();
   return (
     <InsetFocusPressable
       testID="time-grid-event"
@@ -181,7 +182,7 @@ function TimedBlock({
             : tokens.bgWell,
         borderWidth: 1,
         borderColor: isFuture ? tokens.hairlineGhost : tokens.hairline,
-        transform: [{ scale: pressed ? 0.96 : 1 }],
+        transform: [{ scale: pressed && !prefersReducedMotion ? orbitalMotion.press.scale : 1 }],
       })}
     >
       {({ pressed }) => <>
@@ -253,7 +254,7 @@ function ColumnHeader({
           style={({ pressed }) => [
             styles.colHeader,
             { width: colWidth },
-            pressed && !prefersReducedMotion && { transform: [{ scale: 0.96 }] },
+            pressed && !prefersReducedMotion && { transform: [{ scale: orbitalMotion.press.scale }] },
           ]}
         >
           {({ pressed }) => <>

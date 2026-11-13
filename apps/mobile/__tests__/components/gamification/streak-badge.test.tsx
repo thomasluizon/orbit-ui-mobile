@@ -5,6 +5,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 
 import { StreakBadge } from '@/components/gamification/streak-badge'
+import { expectMotionPress, pressableStyle } from '@/__tests__/support/press-feedback'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -28,6 +29,8 @@ vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'orange', currentTheme: themeState.mode }),
 }))
 
+const motion = vi.hoisted(() => ({ reduced: false }))
+vi.mock('@/lib/motion', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => motion.reduced }))
 vi.mock('@/lib/plural', () => ({
   plural: (text: string) => text,
 }))
@@ -107,8 +110,8 @@ describe('StreakBadge pressed paint', () => {
     const tokens = createTokensV2('orange', mode)
     const tree = renderBadge({ streak, isFrozen })
     const [button] = findButton(tree.root)
-    const rest = StyleSheet.flatten(button.props.style({ pressed: false }))
-    const pressed = StyleSheet.flatten(button.props.style({ pressed: true }))
+    const rest = pressableStyle(button, false)
+    const pressed = pressableStyle(button, true)
     expect(button.props.hitSlop).toBeUndefined()
     expect(rest).toMatchObject({ minWidth: 48, minHeight: 48 })
     expect(rest.borderWidth ?? 0).toBe(0)
@@ -138,5 +141,14 @@ describe('StreakBadge pressed paint', () => {
     expect(contrastOnSurface(tokens.bgElev, [tokens.bgElev, fill])).toBeGreaterThanOrEqual(1.25)
     expect(contrastOnSurface(text, [tokens.bgElev, fill])).toBeGreaterThanOrEqual(4.5)
     TestRenderer.act(() => tree.unmount())
+  })
+})
+
+describe('StreakBadge press scale', () => {
+  it.each([false, true])('eases on the shared press token and holds it under reduced motion: %s', (reduced) => {
+    motion.reduced = reduced
+    const tree = renderBadge({ streak: 3 })
+    expectMotionPress(tree.root.findAll((node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')[0], reduced)
+    motion.reduced = false
   })
 })

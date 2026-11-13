@@ -13,6 +13,7 @@ import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import { CheckCircle } from './habit-row-check-circle'
 import type { HabitRowActions } from './habit-row'
 import { styles } from './habit-row-styles'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 
 interface HabitRowTrailingProps {
   habit: NormalizedHabit
@@ -97,7 +98,7 @@ export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
       <HabitRowCompletion {...props} />
       {hasMenuActions ? (
         <Menu.Trigger asChild>
-          <Pressable
+          <MotionPressable focusInset
             onHoverIn={() => setMenuHovered(true)}
             onHoverOut={() => setMenuHovered(false)}
             accessibilityRole="button"
@@ -105,12 +106,7 @@ export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
             style={({ pressed }) => [
               styles.menuButton,
               menuHovered ? { backgroundColor: tokens.bgHover } : null,
-              pressed
-                ? {
-                    backgroundColor: tokens.bgHover,
-                    transform: [{ scale: 0.96 }],
-                  }
-                : null,
+              pressed ? { backgroundColor: tokens.bgHover } : null,
             ]}
           >
             <MoreVertical
@@ -118,7 +114,7 @@ export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
               color={tokens.fg3}
               strokeWidth={1.8}
             />
-          </Pressable>
+          </MotionPressable>
         </Menu.Trigger>
       ) : null}
     </View>
