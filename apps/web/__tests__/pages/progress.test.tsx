@@ -352,7 +352,7 @@ describe('ProgressContent', () => {
         } else if (destination === 'goals') {
           const card = page.getByRole('button', { name: /Read 12 Books/ }).first()
           expect(await card.evaluate((element) => {
-            const style = getComputedStyle(element)
+            const style = getComputedStyle(element.querySelector('[data-slot="goal-card-surface"]')!)
             return { inline: Number.parseFloat(style.paddingLeft), block: Number.parseFloat(style.paddingTop) }
           })).toEqual({ inline: 16, block: 16 })
         } else if (destination === 'achievements') {
