@@ -1,5 +1,5 @@
 import React from 'react'
-import { AccessibilityInfo, Linking, StyleSheet, type PressableStateCallbackType, type StyleProp, type ViewStyle } from 'react-native'
+import { AccessibilityInfo, Linking, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
 import type { BillingDetails } from '@orbit/shared/types/subscription'
@@ -658,11 +658,7 @@ describe('subscription dashboards (mobile)', () => {
         const action = tree.root.findAll((node) => node.type === 'Pressable' && node.props.onPress === onPress)[0]!
         expect(action.props.disabled).toBe(disabled)
         expect(action.props.accessibilityState).toMatchObject({ disabled })
-        const resolveStyle = action.props.style as (state: PressableStateCallbackType) => StyleProp<ViewStyle>
-        for (const pressed of [false, true]) {
-          const style = StyleSheet.flatten(resolveStyle({ pressed }))
-          expect(style.opacity ?? 1).toBe(disabled ? 0.4 : 1)
-        }
+        expect(StyleSheet.flatten(action.props.style as StyleProp<ViewStyle>).opacity ?? 1).toBe(disabled ? 0.4 : 1)
       }
     },
   )

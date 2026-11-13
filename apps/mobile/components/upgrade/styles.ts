@@ -200,9 +200,6 @@ export const styles = StyleSheet.create({
   disabledAction: {
     opacity: 0.4,
   },
-  pressedScale: {
-    transform: [{ scale: 0.96 }],
-  },
   errorText: {
     fontFamily: 'Geist_400Regular',
     fontSize: 14,

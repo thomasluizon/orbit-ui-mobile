@@ -23,6 +23,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { getAccountGeneration, subscribeToAccountGeneration } from '@/lib/session-epoch'
 import { useUIStore } from '@/stores/ui-store'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
+import { PressScalePressable } from '@/components/motion/press-scale'
 import { ArrowUp, Clipboard as ClipboardIcon, FileText, Image, Mic, Plus, RefreshCw, Square, X } from '@/components/ui/icons'
 import { ThemedIconButton } from '@/components/ui/icon-button'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
@@ -532,15 +533,14 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
 }
 
 function ComposerError({ props, tokens }: Readonly<{ props: ComposerProps; tokens: AppTokensV2 }>) {
-  const prefersReducedMotion = usePrefersReducedMotion()
   if (!props.errorMessage && !props.errorRecovery) return null
   return <View style={styles.limitStatus}>
     {props.errorMessage ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive"
       style={[styles.limitReason, { color: tokens.statusBadText }]}>{props.errorMessage}</Text> : null}
-    {props.errorRecovery ? <InsetFocusPressable accessibilityRole="button" accessibilityLabel={props.errorRecovery.label} onPress={props.errorRecovery.onSelect}
-      style={({ pressed }) => [styles.retry, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] } : null]}>
+    {props.errorRecovery ? <PressScalePressable layerStyle={styles.retryLayer} accessibilityRole="button" accessibilityLabel={props.errorRecovery.label} onPress={props.errorRecovery.onSelect}
+      style={({ pressed }) => [styles.retry, pressed ? { backgroundColor: tokens.bgHover } : null]}>
       <Text style={[styles.retryText, { color: tokens.fg2 }]}>{props.errorRecovery.label}</Text>
-    </InsetFocusPressable> : null}
+    </PressScalePressable> : null}
   </View>
 }
 
@@ -874,6 +874,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  retryLayer: {
+    alignSelf: 'flex-start',
   },
   retryText: {
     fontFamily: 'Geist_500Medium',

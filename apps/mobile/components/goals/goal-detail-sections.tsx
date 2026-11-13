@@ -1,6 +1,6 @@
-import { usePrefersReducedMotion } from '@/lib/motion'
 import { useState, useMemo } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
+import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { ListRow } from '@/components/ui/list-row'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import type { Goal, GoalMetrics } from '@orbit/shared/types/goal'
@@ -41,7 +41,6 @@ export function GoalProgressHistorySection({
   showAllLabel,
   showLessLabel,
 }: Readonly<GoalProgressHistorySectionProps>) {
-  const prefersReducedMotion = usePrefersReducedMotion()
   const { t, i18n } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -94,7 +93,7 @@ export function GoalProgressHistorySection({
           onPress={() => setShowAllHistory((prev) => !prev)}
           style={({ pressed }) => [
             styles.toggleAll,
-            pressed && { backgroundColor: tokens.bgHover, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] },
+            pressed && { backgroundColor: tokens.bgHover },
           ]}
           accessibilityRole="button"
           accessibilityLabel={showAllHistory ? showLessLabel : showAllLabel}

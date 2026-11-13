@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { StyleSheet } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
+import { expectMotionPress } from '@/__tests__/support/press-feedback'
 
 import { StreakBadge } from '@/components/gamification/streak-badge'
 
@@ -107,12 +108,11 @@ describe('StreakBadge pressed paint', () => {
     const tokens = createTokensV2('orange', mode)
     const tree = renderBadge({ streak, isFrozen })
     const [button] = findButton(tree.root)
-    const rest = StyleSheet.flatten(button.props.style({ pressed: false }))
-    const pressed = StyleSheet.flatten(button.props.style({ pressed: true }))
+    const rest = StyleSheet.flatten(button.props.style)
     expect(button.props.hitSlop).toBeUndefined()
     expect(rest).toMatchObject({ minWidth: 48, minHeight: 48 })
     expect(rest.borderWidth ?? 0).toBe(0)
-    expect(pressed.backgroundColor).toBe(rest.backgroundColor)
+    expectMotionPress(tree.root.findAll((node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')[0], false)
     expect(typeof button.props.children).toBe('function')
     const restingContents = button.props.children({ pressed: false })
     const [restingRing, restingLayer, restingGlyph, restingCount] = restingContents.props.children
