@@ -5,7 +5,7 @@
 | Surface | Owner | States |
 | --- | --- | --- |
 | Web login | `apps/web/app/(auth)/login/email-step.tsx` | Configured, hidden without public client, offline and busy |
-| Mobile login | `apps/mobile/components/auth/apple-sign-in-button.tsx` | Native Apple button on supported iOS devices; browser session on Android; hidden without public client |
+| Mobile login | `apps/mobile/components/auth/apple-sign-in-button.tsx` | Pill button with the Apple mark and Google's text size on iOS (native sign-in) and Android (browser session); hidden without public client |
 | Web callback | `apps/web/app/(auth)/auth-callback/auth-callback-content.tsx` | State mismatch, expired handoff, session changed, reactivated account and signed in |
 | Mobile callback | `apps/mobile/components/auth/apple-auth-callback.tsx` | The same handoff outcomes, with SecureStore state and session ownership |
 | Native iOS sign-in | `apps/mobile/lib/apple-auth.ts` | Random state, SHA-256 nonce, silent cancellation and existing login completion |
@@ -13,8 +13,10 @@
 | Subscription | Both `/upgrade` routes | App Store plan and usage; native management on iOS; iPhone instruction without a link elsewhere |
 | Account deletion | Both delete-account modals | Apple cancellation warning before account deletion |
 
-All authored copy uses the paired English and Brazilian Portuguese locales. The iOS button uses
-Apple's native localized control. Android and web keep the existing login button anatomy.
+All authored copy uses the paired English and Brazilian Portuguese locales. The iOS and Android
+buttons use the pill button with the Apple mark, because the system control cannot take the app's
+text size. Apple's guidelines allow a custom title font, weight, size and corner radius. Web keeps
+its existing login button anatomy.
 
 `EXPO_PUBLIC_APPLE_CLIENT_ID` and `NEXT_PUBLIC_APPLE_CLIENT_ID` are required build variables for the
 mobile and web buttons. The web, Android and iOS release workflows stop before the build when the
