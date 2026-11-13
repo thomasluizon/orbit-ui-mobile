@@ -58,7 +58,7 @@ beforeEach(() => {
   vi.stubGlobal('fetch', fetchUpstream.mockReset())
   vi.stubEnv('NEXT_PUBLIC_SENTRY_DSN', BROWSER_DSN)
 })
-afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
+afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.restoreAllMocks() })
 
 describe('Sentry tunnel route', () => {
   it('lives at the tunnel path the browser SDK posts to and the proxy treats as public', () => {
@@ -153,7 +153,48 @@ describe('Sentry tunnel route', () => {
     expect(createTimeLimit).toHaveBeenCalledExactlyOnceWith(SENTRY_UPSTREAM_TIME_LIMIT_MS)
     expect(response.status).toBe(502)
     expect(await response.text()).toBe('')
-    createTimeLimit.mockRestore()
+  })
+
+  it('answers 502 with an empty body when Sentry sends its headers in time but its body passes the time limit', async () => {
+    const timeLimit = new AbortController()
+    vi.spyOn(AbortSignal, 'timeout').mockReturnValue(timeLimit.signal)
+    fetchUpstream.mockImplementation(async (_url, init) => new Response(new ReadableStream({
+      start(body) {
+        body.enqueue(new TextEncoder().encode('{"id":'))
+        init!.signal!.addEventListener('abort', () => body.error(init!.signal!.reason))
+      },
+      pull() {
+        timeLimit.abort(new DOMException('The operation was aborted due to timeout', 'TimeoutError'))
+      },
+    }), { status: 200, headers: { 'content-type': 'application/json' } }))
+
+    const response = await POST(tunnelRequest(sdkEnvelope(BROWSER_DSN)))
+
+    expect(response.status).toBe(502)
+    expect(await response.text()).toBe('')
+  })
+
+  it.each([
+    ['a status outside 200 to 599', { status: { value: 999 } }],
+    ['a reason phrase with a control character', { statusText: { value: 'O\u0001K' } }],
+    ['a reason phrase that is not Latin-1', { statusText: { value: `O${String.fromCodePoint(0xfffd)}K` } }],
+  ])('answers 502 with an empty body when Sentry answers with %s, which a Response cannot carry', async (_case, statusLine) => {
+    fetchUpstream.mockResolvedValue(Object.defineProperties(new Response('{}', { status: 200 }), statusLine))
+
+    const response = await POST(tunnelRequest(sdkEnvelope(BROWSER_DSN)))
+
+    expect(response.status).toBe(502)
+    expect(await response.text()).toBe('')
+  })
+
+  it('forwards a Sentry answer whose status carries no body', async () => {
+    fetchUpstream.mockResolvedValue(new Response(null, { status: 204, headers: { 'x-sentry-rate-limits': '60:error:organization' } }))
+
+    const response = await POST(tunnelRequest(sdkEnvelope(BROWSER_DSN)))
+
+    expect(response.status).toBe(204)
+    expect(response.headers.get('x-sentry-rate-limits')).toBe('60:error:organization')
+    expect(response.body).toBeNull()
   })
 
   it.each([undefined, '', 'not a dsn', 'https://o123.ingest.us.sentry.io/456'])(

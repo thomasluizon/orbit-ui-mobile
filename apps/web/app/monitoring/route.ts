@@ -32,9 +32,8 @@ async function forwardSentryEnvelope(request: Request): Promise<Response> {
   if (!destination) return new Response(null, { status: 404 })
   const envelope = new Uint8Array(await request.arrayBuffer())
   if (sentryEnvelopeEndpoint(envelopeDsn(envelope)) !== destination) return new Response(null, { status: 403 })
-  let upstream: Response
   try {
-    upstream = await fetch(destination, {
+    const upstream = await fetch(destination, {
       method: 'POST',
       headers: { 'content-type': 'application/x-sentry-envelope' },
       body: envelope,
@@ -42,15 +41,16 @@ async function forwardSentryEnvelope(request: Request): Promise<Response> {
       cache: 'no-store',
       signal: AbortSignal.timeout(SENTRY_UPSTREAM_TIME_LIMIT_MS),
     })
+    const body = upstream.body ? await upstream.arrayBuffer() : null
+    const headers = new Headers()
+    for (const name of SENTRY_RESPONSE_HEADERS) {
+      const value = upstream.headers.get(name)
+      if (value) headers.set(name, value)
+    }
+    return new Response(body, { status: upstream.status, statusText: upstream.statusText, headers })
   } catch {
     return new Response(null, { status: 502 })
   }
-  const headers = new Headers()
-  for (const name of SENTRY_RESPONSE_HEADERS) {
-    const value = upstream.headers.get(name)
-    if (value) headers.set(name, value)
-  }
-  return new Response(upstream.body, { status: upstream.status, statusText: upstream.statusText, headers })
 }
 
 export { forwardSentryEnvelope as POST }
