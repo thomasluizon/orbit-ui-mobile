@@ -18,10 +18,10 @@ const sources = ['app', 'components', 'hooks', 'lib'].flatMap((directory) => sou
 /** The only files that may write a press scale: the shared press primitives and the list row body, which eases it on the same transition. */
 const PRESS_SCALE_OWNERS = ['components/ui/motion-pressable.tsx', 'components/motion/press-scale.tsx', 'components/ui/list-row.tsx']
 
-const PRESS_SCALE_WRITE = /scale:\s*(?:0\.96|0\.99)\b|orbitalMotion\.press\.scale|pressedScale|PressedScale/
+const PRESS_SCALE_WRITE = /scale:[^,}\]]*\b0\.9[69]\b|orbitalMotion\.press\.scale|pressedScale|PressedScale/
 
 /**
- * Every press control that the press gap list of #2096 names, on mobile. Each reaches the shared press transition
+ * Every press control that the press gap list of thomasluizon/orbit-tickets#2096 names, on mobile. Each reaches the shared press transition
  * through `MotionPressable`, `PressScale`, `PressScalePressable` or the list row transition.
  */
 const LISTED_PRESS_CONTROLS = [

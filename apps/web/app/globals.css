@@ -314,7 +314,7 @@ select[aria-hidden="true"] {
   transition: scale var(--dur-press) var(--ease-out);
 }
 
-/* WHY: a list row presses its content and never its fill, so the fill keeps its clearance from the content, as the mobile row does (#2096). */
+/* WHY: a list row presses its content and never its fill, so the fill keeps its clearance from the content, as the mobile row does (thomasluizon/orbit-tickets#2096). */
 @media (prefers-reduced-motion: no-preference) {
   .orbit-list-row-shell > .orbit-list-row-body:active:not(:disabled, [aria-disabled="true"]) > [data-slot="list-row-content"],
   .orbit-list-row-shell > [data-personal-text-action] > .orbit-list-row-body:active:not(:disabled, [aria-disabled="true"]) + [data-personal-text-content] > [data-slot="list-row-content"] {
@@ -637,7 +637,7 @@ select[aria-hidden="true"] {
 }
 
 .orbit-sheet-close:active { background: var(--bg-hover); }
-/* WHY: the close presses its glyph and never the control, so its fill and its 48px target stay whole while pressed (#2096). */
+/* WHY: the close presses its glyph and never the control, so its fill and its 48px target stay whole while pressed (thomasluizon/orbit-tickets#2096). */
 @media (prefers-reduced-motion: no-preference) {
   .orbit-sheet-close:active > svg { scale: 0.96; }
 }
