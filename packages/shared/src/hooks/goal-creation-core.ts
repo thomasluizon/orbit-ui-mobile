@@ -9,6 +9,8 @@ export interface CreateGoalSheetProps {
   onClose: () => void
   initialHabitIds?: string[]
   onCreated?: (goalId: string, habitIds: string[]) => void
+  /** The habit the goal starts from, when the habit flow opens it. The guided flow skips "Which habits" and shows this title on the summary. */
+  fromHabit?: { title: string }
 }
 
 interface GoalDraft {
