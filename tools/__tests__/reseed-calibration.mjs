@@ -8,7 +8,6 @@ const TOOL = "reseed-calibration.mjs"
 
 const AGENT = ["---", "name: design-reviewer", "model: sonnet", "effort: medium", "---", "", "body", ""].join("\n")
 const SKILL = ["---", "name: ticket", "effort: high", "---", "", "body", ""].join("\n")
-const POINTER = ["---", "name: ticket", "description: pointer", "---", "", "The canonical definition is .claude/skills/ticket/SKILL.md.", ""].join("\n")
 const CLASSIFIER_PROMPT = "Classify the ticket.\n"
 const digestOf = (body) => createHash("sha256").update(body.replace(/\r\n/g, "\n")).digest("hex").slice(0, 16)
 
@@ -25,13 +24,10 @@ const inventory = () => {
   for (const name of readdirSync(join(REPO_ROOT, ".claude", "agents")).sort()) {
     if (name.endsWith(".md")) found.push({ path: `.claude/agents/${name}`, body: AGENT })
   }
-  for (const relativeRoot of [".claude/skills", ".agents/skills"]) {
-    const absolute = join(REPO_ROOT, ...relativeRoot.split("/"))
-    if (!existsSync(absolute)) continue
-    for (const entry of readdirSync(absolute, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) {
-      if (entry.isDirectory() && existsSync(join(absolute, entry.name, "SKILL.md"))) {
-        found.push({ path: `${relativeRoot}/${entry.name}/SKILL.md`, body: relativeRoot === ".agents/skills" ? POINTER : SKILL })
-      }
+  const skillsDirectory = join(REPO_ROOT, ".claude", "skills")
+  for (const entry of readdirSync(skillsDirectory, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) {
+    if (entry.isDirectory() && existsSync(join(skillsDirectory, entry.name, "SKILL.md"))) {
+      found.push({ path: `.claude/skills/${entry.name}/SKILL.md`, body: SKILL })
     }
   }
   return found
@@ -94,9 +90,9 @@ export const cases = () => {
 
   T(`${TOOL}: the derived inventory found something to stamp`, COUNT > 0, `found ${COUNT} file(s)`)
 
-  /** The denominator is a glob over the agent files and both skill roots, so no skill file runs outside the gate. */
+  // The denominator is a glob over `.claude/agents/*.md` and `.claude/skills/*/SKILL.md`, so no agent or skill runs outside the gate.
   const fresh = stage("fresh")
-  check(TOOL, "a first pass stamps every agent, skill and host entrypoint it finds", ["--root", fresh], {
+  check(TOOL, "a first pass stamps every agent and skill it finds", ["--root", fresh], {
     status: 0,
     stdout: new RegExp(`stamped ${COUNT} file\\(s\\)`),
   })
@@ -214,14 +210,6 @@ export const cases = () => {
   check(TOOL, "only the file whose content moved is renewed", ["--root", edited], {
     status: 0,
     stdout: new RegExp(`1 verdict\\(s\\) renewed, ${COUNT - 1} carried forward`),
-  })
-
-  /** The walk still covers `.agents/skills`: a new host entrypoint needs a verdict row before it can be stamped. */
-  const pointerAdded = stage("pointer-added", backdated(first, 200))
-  write(join(pointerAdded, ".agents", "skills", "ticket", "SKILL.md"), POINTER)
-  check(TOOL, "a new .agents host entrypoint with no verdict row cannot be stamped", ["--root", pointerAdded], {
-    nonZero: true,
-    stderr: /no verdict written for: \.agents\/skills\/ticket\/SKILL\.md/,
   })
 
   /**

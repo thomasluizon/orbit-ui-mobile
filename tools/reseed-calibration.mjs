@@ -15,7 +15,7 @@ const USAGE = `usage: reseed-calibration.mjs [--root <path>]
   --help, -h     print this usage and exit 0
 
   Every model, effort and content digest is READ from the file it describes. The verdicts are the
-  judgement half and live in this file, one per agent, skill and host entrypoint; a file with no
+  judgement half and live in this file, one per agent and skill; a file with no
   verdict, or a verdict naming a file that is not in the tree, is refused rather than guessed.
 
   A verdict keeps its OWN calibratedAt and this pass renews that date only when the file's content,
@@ -131,18 +131,16 @@ const tuningOf = (relativePath) => {
   return tuning
 }
 
-/** The same denominator `check-calibration.mjs` derives, including BOTH skill roots: a file under
- * `.agents/skills` needs a verdict row too, so a host entrypoint cannot ride outside the gate. */
+// The same denominator `check-calibration.mjs` derives: `.claude/agents/*.md` and `.claude/skills/*/SKILL.md`.
 const files = []
 for (const name of readdirSync(join(root, ".claude", "agents")).sort()) {
   if (name.endsWith(".md")) files.push(`.claude/agents/${name}`)
 }
-for (const relativeRoot of [".claude/skills", ".agents/skills"]) {
-  const absolute = join(root, ...relativeRoot.split("/"))
-  if (!existsSync(absolute)) continue
-  for (const entry of readdirSync(absolute, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) {
-    if (entry.isDirectory() && existsSync(join(absolute, entry.name, "SKILL.md"))) {
-      files.push(`${relativeRoot}/${entry.name}/SKILL.md`)
+const skillsDirectory = join(root, ".claude", "skills")
+if (existsSync(skillsDirectory)) {
+  for (const entry of readdirSync(skillsDirectory, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) {
+    if (entry.isDirectory() && existsSync(join(skillsDirectory, entry.name, "SKILL.md"))) {
+      files.push(`.claude/skills/${entry.name}/SKILL.md`)
     }
   }
 }

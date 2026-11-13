@@ -545,7 +545,8 @@ Flattening it silently breaks every stylesheet reference.
 ### The component contracts
 
 The binding prop contracts live in `packages/shared/src/contracts/`, one folder for each component group. Both
-platforms' components consume them, and each file carries a type test. This folder holds no copy of them.
+platforms' components consume them. Each group folder holds at least one `*.type-test.ts` file, but not every
+contract file has its own type test. This folder holds no copy of them.
 Where a screen and a contract disagree, the contract is the stricter artifact and the screen is a prototype: a
 `.dc.html` is never type-checked, so several screens omit a word a contract requires. Build to the contract and
 supply the word.
