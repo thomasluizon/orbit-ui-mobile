@@ -1,7 +1,8 @@
 import { useTranslations } from 'next-intl'
-import { PADDING } from '@orbit/shared/theme'
+import { PADDING, motionDurations, motionEasings } from '@orbit/shared/theme'
 import { calendarDayLoadingLabel, calendarStatState } from '@orbit/shared/utils/calendar-navigation'
-import { type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
+import { useViewportMatch } from '@/hooks/use-viewport-match'
 import { format } from 'date-fns'
 import { type CalendarMonthDisplayState } from '@orbit/shared/utils'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
@@ -50,8 +51,22 @@ function CalendarMonthFeedback({
   )
 }
 
-function CalendarDayCardSlot({ children }: Readonly<{ children: ReactNode }>) {
-  return <div data-testid="calendar-day-card-slot" style={{ paddingInline: PADDING.screenGutter, paddingBlockStart: PADDING.sectionGap }}>{children}</div>
+const DAY_CARD_FADE = { duration: motionDurations.base, easing: `cubic-bezier(${motionEasings.standard.join(', ')})` }
+
+/** A new selected day cross-fades the day card on the base duration. The first day and reduced motion show at once. */
+function CalendarDayCardSlot({ dayKey, children }: Readonly<{ dayKey: string; children: ReactNode }>) {
+  const slotRef = useRef<HTMLDivElement>(null)
+  const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
+  const shownDay = useRef(dayKey)
+  useEffect(() => {
+    if (shownDay.current === dayKey) return undefined
+    shownDay.current = dayKey
+    const slot = slotRef.current
+    if (reducedMotion || !slot || typeof slot.animate !== 'function') return undefined
+    const fade = slot.animate([{ opacity: 0 }, { opacity: 1 }], DAY_CARD_FADE)
+    return () => fade.cancel()
+  }, [dayKey, reducedMotion])
+  return <div ref={slotRef} data-testid="calendar-day-card-slot" style={{ paddingInline: PADDING.screenGutter, paddingBlockStart: PADDING.sectionGap }}>{children}</div>
 }
 
 function calendarActionVariant(wide: boolean): 'primary' | 'secondary' {
@@ -106,7 +121,7 @@ function CalendarMonthView({ state }: Readonly<{ state: CalendarScreenState }>) 
       createRefusal={monthDisplayState === 'empty' && showCreateRefusal && !isOnline ? <OfflineRefusal icon="create" title={t('offline.create.title')} reason={t('offline.create.reason')} /> : null}
     />
 
-    <CalendarDayCardSlot>
+    <CalendarDayCardSlot dayKey={selectedDay}>
       <CalendarDayDetail
         loadingLabel={calendarDayLoadingLabel(monthDisplayState, t('calendar.loading'))}
         dateStr={selectedDay}

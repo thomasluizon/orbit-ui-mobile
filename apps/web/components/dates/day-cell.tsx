@@ -3,6 +3,8 @@
 import { MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
 
 import { useContext, type CSSProperties } from 'react'
+import { motionDurations, motionEasings } from '@orbit/shared/theme'
+import { useViewportMatch } from '@/hooks/use-viewport-match'
 import { MovingDaySelection } from './month-selection'
 import { DayColumnContent } from './day-column-content'
 import { SelectionIndicator } from '@/components/ui/selection-indicator'
@@ -28,7 +30,11 @@ function PressFill({ selected = false }: Readonly<{ selected?: boolean }>) {
   )
 }
 
+const ARC_SWEEP = `stroke-dashoffset ${motionDurations.slow}ms cubic-bezier(${motionEasings.standard.join(', ')})`
+
+/** The share of the day done, drawn on a path length of 100. A log sweeps the arc from the old share to the new one; reduced motion draws the new share at once. */
 function PartialArc({ fraction, size }: Readonly<{ fraction: number; size: number }>) {
+  const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
   const stroke = 2
   const radius = (size - stroke) / 2
   const center = size / 2
@@ -43,9 +49,12 @@ function PartialArc({ fraction, size }: Readonly<{ fraction: number; size: numbe
         fill="none"
         pathLength={100}
         stroke="var(--primary)"
-        strokeDasharray={`${sweep} 100`}
+        strokeDasharray="100 100"
+        strokeDashoffset={100 - sweep}
         strokeLinecap="round"
         strokeWidth={stroke}
+        data-day-arc=""
+        style={reducedMotion ? undefined : { transition: ARC_SWEEP }}
       />
     </svg>
   )

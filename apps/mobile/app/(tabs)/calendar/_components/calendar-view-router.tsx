@@ -1,7 +1,11 @@
 import { useTranslation } from 'react-i18next'
 import { calendarDayLoadingLabel, calendarStatState } from '@orbit/shared/utils/calendar-navigation'
 
-import { useMemo, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, type ReactNode } from "react"
+
+import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
+
+import { usePrefersReducedMotion } from '@/lib/motion'
 
 import { View, Text , StyleSheet } from "react-native"
 
@@ -34,11 +38,31 @@ import type { CalendarScreenState } from './use-calendar-screen-state'
 import { createStyles } from './calendar-screen-styles'
 
 
-import { PADDING } from '@orbit/shared/theme'
+import { PADDING, motionDurations, motionEasings } from '@orbit/shared/theme'
 
-function CalendarInlineDaySlot({ loading, selected, children }: Readonly<{ loading: boolean; selected: boolean; children: ReactNode }>) {
-  if (!loading && !selected) return null
-  return <View testID="calendar-day-card-slot" style={calendarLayoutStyles.inlineDay}>{children}</View>
+/** A new selected day cross-fades the day card on the base duration. The first day and reduced motion show at once. */
+function useDayCardFade(dayKey: string) {
+  const reducedMotion = usePrefersReducedMotion()
+  const opacity = useSharedValue(1)
+  const shownDay = useRef(dayKey)
+  useEffect(() => {
+    if (shownDay.current === dayKey) return undefined
+    shownDay.current = dayKey
+    if (reducedMotion) return undefined
+    opacity.value = 0
+    opacity.value = withTiming(1, { duration: motionDurations.base, easing: Easing.bezier(...motionEasings.standard) })
+    return () => {
+      cancelAnimation(opacity)
+      opacity.value = 1
+    }
+  }, [dayKey, opacity, reducedMotion])
+  return useAnimatedStyle(() => ({ opacity: opacity.value }))
+}
+
+function CalendarInlineDaySlot({ loading, dayKey, children }: Readonly<{ loading: boolean; dayKey: string; children: ReactNode }>) {
+  const fadeStyle = useDayCardFade(dayKey)
+  if (!loading && !dayKey) return null
+  return <Animated.View testID="calendar-day-card-slot" style={[calendarLayoutStyles.inlineDay, fadeStyle]}>{children}</Animated.View>
 }
 
 interface CalendarMonthFeedbackProps {
@@ -103,7 +127,7 @@ function CalendarMonthView({ state }: Readonly<{ state: CalendarScreenState }>) 
         tokens={tokens}
       />
 
-      <CalendarInlineDaySlot loading={monthDisplayState === 'loading'} selected={Boolean(selectedDay)}>
+      <CalendarInlineDaySlot loading={monthDisplayState === 'loading'} dayKey={selectedDay}>
         <CalendarDayDetail
           loadingLabel={calendarDayLoadingLabel(monthDisplayState, t('calendar.loading'))}
           selectedDate={selectedDay}

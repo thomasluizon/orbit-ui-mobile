@@ -1,6 +1,9 @@
 'use client'
 
-import { SPACING } from '@orbit/shared/theme'
+import { SPACING, motionSprings, resolveMotionPreset } from '@orbit/shared/theme'
+import { useEffect, useRef, useState } from 'react'
+import { animate } from 'motion/react'
+import { useViewportMatch } from '@/hooks/use-viewport-match'
 
 
 import { PersonalTextAction } from '@/components/ui/personal-text-action'
@@ -105,9 +108,42 @@ function personalContentClassName(leading: CheckRowProps['leading']) {
   return leading ? 'flex items-center gap-2' : 'flex flex-col justify-center'
 }
 
+/** A log pops the check: it settles from the success-feedback scale on the completion spring. The first render and reduced motion draw it still. */
+function useCheckSettle(checked: boolean): number | null {
+  const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
+  const [shown, setShown] = useState(checked)
+  const [logged, setLogged] = useState(false)
+  if (checked !== shown) {
+    setShown(checked)
+    setLogged(checked)
+  }
+  return logged && !reducedMotion ? resolveMotionPreset('success-feedback').scaleFrom : null
+}
+
+function CalendarDayCheck({ checked }: Readonly<{ checked: boolean }>) {
+  const settleFrom = useCheckSettle(checked)
+  const checkRef = useRef<HTMLSpanElement>(null)
+  useEffect(() => {
+    const check = checkRef.current
+    if (settleFrom === null || !check) return undefined
+    const settle = animate(settleFrom, 1, {
+      type: 'spring', ...motionSprings.completion,
+      onUpdate: (scale) => { check.style.transform = `scale(${scale})` },
+      onComplete: () => check.style.removeProperty('transform'),
+    })
+    return () => {
+      settle.stop()
+      check.style.removeProperty('transform')
+    }
+  }, [settleFrom])
+  const CircleIcon = checked ? CheckCircle : Circle
+  return <span ref={checkRef} data-check-settle={settleFrom === null ? undefined : ''} className="grid place-items-center">
+    <CircleIcon data-slot="calendar-day-circle" size={24} stroke={1.5} aria-hidden="true" focusable="false" className="text-[var(--fg-1)]" />
+  </span>
+}
+
 function PersonalCheckRow({ leading, label, selection = false, placement, variant, onOpenLabel, labelExpanded, labelControls, checked, onChange, description, error, value, disabled, loading }: Readonly<CheckRowProps>) {
   const calendarDay = variant === 'calendar-day'
-  const CircleIcon = checked ? CheckCircle : Circle
   return (
     <div data-slot="list-row-body" className="flex min-w-0 items-center" style={personalRowStyle(calendarDay, Boolean(error || description || value !== undefined), placement, selection)}>
       <PersonalTextAction label={label} className="flex-1" contentClassName={personalContentClassName(leading)} contentStyle={personalLabelContentStyle(calendarDay)} controlDecoration={<span aria-hidden="true" data-press-fill="" className="orbit-check-row-fill" />} control={<button type="button" disabled={disabled} data-variant={variant} onClick={onOpenLabel} aria-label={label} aria-expanded={labelExpanded} aria-controls={labelControls} style={{ gap: 4 }} className="orbit-check-row-label orbit-hover-text flex min-w-0 flex-1 flex-col justify-center rounded-[12px] border-0 bg-transparent text-start transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)]">
@@ -120,7 +156,7 @@ function PersonalCheckRow({ leading, label, selection = false, placement, varian
       </button>} />
       <button type="button" role="checkbox" style={personalControlStyle(selection)} data-variant={variant} aria-label={label} aria-checked={checked} aria-busy={calendarDay ? loading : undefined} disabled={disabled || loading} onClick={() => onChange(!checked)} data-loading={loading ? '' : undefined} className={`orbit-check-row-control orbit-press-content relative grid ${calendarDay ? 'size-6' : 'size-[56px]'} shrink-0 place-items-center rounded-[12px] border-0 bg-transparent transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:opacity-60`}>
         <span aria-hidden="true" data-press-fill="" className="orbit-check-row-fill grid place-items-center p-2">
-          {calendarDay ? <CircleIcon data-slot="calendar-day-circle" size={24} stroke={1.5} aria-hidden="true" focusable="false" className="text-[var(--fg-1)]" /> : <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />}
+          {calendarDay ? <CalendarDayCheck checked={checked} /> : <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />}
         </span>
       </button>
     </div>

@@ -1,15 +1,46 @@
 import { DayFocusReport, MovingDaySelection } from './month-selection'
 import { DayColumnContent } from './day-column-content'
-import { MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
-import { useContext, useEffect, useState } from 'react'
+import { MONTH_GRID_TARGET_MIN, motionDurations, motionEasings } from '@orbit/shared/theme'
+import { useContext, useEffect, useRef, useState } from 'react'
 import type { DayCellProps, DayOutcome } from '@orbit/shared/contracts/dates'
 import { buildDayCellAccessibleName, resolveDayCellOutcome } from '@orbit/shared/utils'
-import { Pressable, StyleSheet, Text, View, type AccessibilityState } from 'react-native'
+import {
+  // react-doctor-disable-next-line rn-prefer-reanimated -- WHY: RN Animated supports SVG stroke props while the pinned Reanimated ABI awaits https://github.com/thomasluizon/orbit-ui-mobile/issues/243.
+  Animated,
+  Pressable, StyleSheet, Text, View, type AccessibilityState,
+} from 'react-native'
 import Svg, { Circle } from 'react-native-svg'
+import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 type Tokens = ReturnType<typeof createTokensV2>
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle)
+
+/** The share of the day done. A log sweeps the arc from the old share to the new one on the slow duration; reduced motion draws the new share at once. */
+function PartialArc({ size, stroke, fraction, color }: Readonly<{ size: number; stroke: number; fraction: number; color: string }>) {
+  const reducedMotion = usePrefersReducedMotion()
+  const radius = (size - stroke) / 2
+  const circumference = 2 * Math.PI * radius
+  const target = circumference * (1 - fraction)
+  const [offset] = useState(() => new Animated.Value(target))
+  const shown = useRef(target)
+  useEffect(() => {
+    if (shown.current === target) return undefined
+    shown.current = target
+    offset.stopAnimation()
+    if (reducedMotion) {
+      offset.setValue(target)
+      return undefined
+    }
+    const sweep = Animated.timing(offset, { toValue: target, duration: motionDurations.slow, easing: toAnimatedEasing(motionEasings.standard), useNativeDriver: false })
+    sweep.start()
+    return () => sweep.stop()
+  }, [offset, reducedMotion, target])
+  return <AnimatedCircle testID="day-arc" cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={color} strokeDasharray={[circumference, circumference]} strokeDashoffset={offset}
+    strokeLinecap="round" strokeWidth={stroke} rotation={-90} origin={`${size / 2}, ${size / 2}`} />
+}
 
 type ContentsProps = Readonly<{ props: DayCellProps; outcome: DayOutcome; size: number; tokens: Tokens; pressed: boolean }>
 
@@ -21,7 +52,6 @@ function PressFill({ size, tokens }: Readonly<{ size: number; tokens: Tokens }>)
 function DayCellContents({ props, outcome, size, tokens, pressed }: ContentsProps) {
   const stroke = 2
   const radius = (size - stroke) / 2
-  const circumference = 2 * Math.PI * radius
   const fraction = props.scheduled && props.done !== undefined ? Math.max(0, Math.min(1, props.done / props.scheduled)) : 0.5
   const fill = outcome === 'full' ? tokens.fg1 : 'transparent'
   const borderColor = outcome === 'none' ? tokens.statusEmpty : 'transparent'
@@ -33,18 +63,7 @@ function DayCellContents({ props, outcome, size, tokens, pressed }: ContentsProp
       {outcome === 'partial' ? (
         <Svg width="100%" height="100%" viewBox={`0 0 ${size} ${size}`} style={styles.arc}>
           <Circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={tokens.statusEmpty} strokeWidth={stroke} />
-          <Circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            stroke={tokens.primary}
-            strokeDasharray={[circumference * fraction, circumference]}
-            strokeLinecap="round"
-            strokeWidth={stroke}
-            rotation={-90}
-            origin={`${size / 2}, ${size / 2}`}
-          />
+          <PartialArc size={size} stroke={stroke} fraction={fraction} color={tokens.primary} />
         </Svg>
       ) : null}
       <Text style={[styles.numeral, { color: textColor, fontWeight: props.today ? '500' : '400' }]}>{props.day}</Text>
