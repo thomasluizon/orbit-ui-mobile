@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import sharp from 'sharp'
 import { neutralColors } from '../../../packages/shared/src/theme/neutral-ramp.ts'
 import { schemes } from '../../../packages/shared/src/theme/color-schemes.ts'
-import { launchAsset } from '../scripts/launch-assets.ts'
+import { launchAsset, paintMascot } from '../scripts/launch-assets.ts'
 
 const origin = 'https://app.useorbit.org'
 const script = readFileSync(new URL('../src-tauri/src/launch.js', import.meta.url), 'utf8')
@@ -123,10 +123,9 @@ it.each(['dark', 'light'] as const)('keeps the %s native mark generated from the
 })
 
 it.each(['dark', 'light'] as const)('preserves the granted canvas and accent moon in the %s launch raster', async (mode) => {
-  const source = readFileSync(new URL('../../../design/brand/orbit-mark-accent.svg', import.meta.url), 'utf8')
-  const painted = source.replaceAll('var(--primary, currentColor)', schemes.orange.accent[mode].primary)
-    .replaceAll('currentColor', neutralColors[mode].fg1)
-  const expected = await sharp(Buffer.from(painted)).resize(512, 512)
+  const source = readFileSync(new URL('../../../design/brand/orbit-mascot.svg', import.meta.url), 'utf8')
+  const expected = await sharp(Buffer.from(paintMascot(source, mode)), { density: (72 * 512) / 420 })
+    .resize(512, 512, { fit: 'contain', background: neutralColors[mode].bg })
     .flatten({ background: neutralColors[mode].bg }).raw().toBuffer()
   const generated = await launchAsset(mode)
   const generatedPixels = await sharp(generated).flatten({ background: neutralColors[mode].bg }).raw().toBuffer()
@@ -134,4 +133,10 @@ it.each(['dark', 'light'] as const)('preserves the granted canvas and accent moo
   const committed = readFileSync(new URL(`../src-tauri/native/launch-${mode}.png`, import.meta.url))
   const committedPixels = await sharp(committed).flatten({ background: neutralColors[mode].bg }).raw().toBuffer()
   expect(committedPixels.equals(expected), 'committed pixels preserve the untrimmed brand canvas').toBe(true)
+  const moon = Number.parseInt(schemes.orange.accent[mode].primary.slice(1), 16)
+  let moonPixels = 0
+  for (let index = 0; index < committedPixels.length; index += 3) {
+    if (committedPixels.readUIntBE(index, 3) === moon) moonPixels += 1
+  }
+  expect(moonPixels, 'the accent moon is drawn in the launch raster').toBeGreaterThan(0)
 })
