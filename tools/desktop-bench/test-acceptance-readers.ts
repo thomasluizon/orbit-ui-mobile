@@ -378,3 +378,86 @@ $form.Close()
     rmSync(directory, { recursive: true, force: true })
   }
 })
+
+// The installed shell keeps its native menu attached, and tao answers WM_NCCALCSIZE of an undecorated window with a client
+// area equal to the window (tao-0.37.2 src/platform_impl/windows/event_loop.rs:2074). A plain popup window with the same
+// menu shows a menu bar above its client area, so the reader must tell the two apart.
+const menuWindowFixture = `
+using System;
+using System.Runtime.InteropServices;
+using System.Windows.Forms;
+
+public sealed class OrbitMenuWindow : NativeWindow {
+    [DllImport("user32.dll")] private static extern IntPtr CreateMenu();
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern bool AppendMenuW(IntPtr menu, uint flags, UIntPtr item, string text);
+    [DllImport("user32.dll")] private static extern bool SetMenu(IntPtr window, IntPtr menu);
+    [DllImport("user32.dll")] private static extern IntPtr GetMenu(IntPtr window);
+    [DllImport("user32.dll")] private static extern bool DrawMenuBar(IntPtr window);
+    [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr window, IntPtr after, int x, int y, int width, int height, uint flags);
+    private const int CalculateSize = 0x0083;
+    // SWP_NOSIZE, SWP_NOMOVE, SWP_NOZORDER, SWP_NOACTIVATE and SWP_FRAMECHANGED.
+    private const uint FrameChanged = 0x0001 | 0x0002 | 0x0004 | 0x0010 | 0x0020;
+    private bool clientCoversWindow;
+
+    public OrbitMenuWindow(int x, int y, int width, int height) {
+        // WS_POPUP and WS_VISIBLE, with WS_EX_TOPMOST.
+        var parameters = new CreateParams { Caption = "Orbit menu fixture", X = x, Y = y, Width = width, Height = height,
+            Style = unchecked((int)0x80000000) | 0x10000000, ExStyle = 0x00000008 };
+        CreateHandle(parameters);
+        IntPtr menu = CreateMenu();
+        if (menu == IntPtr.Zero || !AppendMenuW(menu, 0, new UIntPtr(1), "File") || !SetMenu(Handle, menu)) throw new InvalidOperationException("Cannot attach the fixture menu");
+        DrawMenuBar(Handle);
+    }
+
+    public bool HasMenu { get { return GetMenu(Handle) != IntPtr.Zero; } }
+
+    public void CoverWindowWithClient() {
+        clientCoversWindow = true;
+        SetWindowPos(Handle, IntPtr.Zero, 0, 0, 0, 0, FrameChanged);
+    }
+
+    protected override void WndProc(ref Message message) {
+        // Returning 0 for either form keeps the proposed rectangle, so the client area is the whole window, as tao answers it.
+        if (clientCoversWindow && message.Msg == CalculateSize) { message.Result = IntPtr.Zero; return; }
+        base.WndProc(ref message);
+    }
+}
+`
+
+test('Windows window bar reader reports a menu bar only when the menu has a strip above the client area', { skip: process.platform !== 'win32' }, () => {
+  const directory = mkdtempSync(join(tmpdir(), 'orbit-window-menu-'))
+  try {
+    const reader = fileURLToPath(new URL('./acceptance-window-bar.cs', import.meta.url))
+    const fixture = join(directory, 'menu-window.cs')
+    writeFileSync(fixture, menuWindowFixture)
+    const script = `
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition (Get-Content -LiteralPath '${reader}' -Raw)
+Add-Type -ReferencedAssemblies System.Windows.Forms, System.Drawing -TypeDefinition (Get-Content -LiteralPath '${fixture}' -Raw)
+function Wait-Paint { for ($index = 0; $index -lt 10; $index++) { [System.Windows.Forms.Application]::DoEvents(); Start-Sleep -Milliseconds 50 } }
+$window = New-Object OrbitMenuWindow -ArgumentList 100, 100, 800, 400
+Wait-Paint
+$shown = [OrbitWindowBarReader]::Read($window.Handle, '${join(directory, 'menu-shown.png')}')
+$window.CoverWindowWithClient()
+Wait-Paint
+$covered = [OrbitWindowBarReader]::Read($window.Handle, '${join(directory, 'menu-covered.png')}')
+$attached = $window.HasMenu
+$window.DestroyHandle()
+@{ shown = $shown; covered = $covered; attached = $attached } | ConvertTo-Json -Depth 6
+`
+    const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', timeout: 60000 })
+    assert.equal(result.status, 0, result.stderr)
+    type Reading = { captionHeight: number; menuBar: boolean; menuRect: number[] | null }
+    const { shown, covered, attached } = JSON.parse(result.stdout) as { shown: Reading; covered: Reading; attached: boolean }
+    // The shown menu bar sits between the frame top and the client area, so both the caption height and the menu bar fail the check.
+    assert.ok(shown.captionHeight > 0, JSON.stringify(shown))
+    assert.equal(shown.menuBar, true, JSON.stringify(shown))
+    // The covered window keeps its menu, as the shell keeps File > Exit, but has no strip to paint a menu bar in.
+    assert.equal(attached, true)
+    assert.equal(covered.captionHeight, 0, JSON.stringify(covered))
+    assert.equal(covered.menuBar, false, JSON.stringify(covered))
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})

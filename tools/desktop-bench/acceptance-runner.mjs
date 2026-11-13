@@ -225,7 +225,8 @@ async function inspectWindowBar(proxy, native, handle, output, report) {
   report.windowBar = {}
   for (const mode of ['light', 'dark']) {
     proxy.send(`appearance-${mode}`)
-    await waitFor(() => proxy.read(`appearance-${mode}`), `${mode} page appearance`)
+    // The probe reports the canvas token the page paints with, so a wrong bar colour tells a page that kept its mode from a shell fault.
+    const page = await waitFor(() => proxy.read(`appearance-${mode}`), `${mode} page appearance`)
     const expected = barCanvas[mode]
     let bar
     try {
@@ -236,7 +237,7 @@ async function inspectWindowBar(proxy, native, handle, output, report) {
         return bar.bar.captionHeight === 0 && !bar.bar.menuBar && dominant?.color.join() === expected.join() && dominant.count >= bar.bar.sampled * 0.9
       }, `${mode} window bar in the Orbit canvas colour with no native caption`, 30000)
     } finally {
-      report.windowBar[mode] = { expected, ...bar }
+      report.windowBar[mode] = { expected, pageCanvas: page.canvas, ...bar }
     }
   }
   const actions = report.windowBar.actions = {}

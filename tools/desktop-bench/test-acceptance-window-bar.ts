@@ -20,6 +20,7 @@ type Options = {
 }
 
 const canvas: Record<string, number[]> = { light: [250, 250, 250], dark: [9, 9, 11] }
+const pageCanvas: Record<string, string> = { light: '#FAFAFA', dark: '#09090B' }
 
 function windowContext(options: Options = {}) {
   const runner = readFileSync(new URL('./acceptance-runner.mjs', import.meta.url), 'utf8')
@@ -35,7 +36,7 @@ function windowContext(options: Options = {}) {
   const state = { rect: [0, 0, 800, 600], zoomed: false, iconic: false, visible: true }
   const proxy = {
     send(command: string) { sent.push(command); mode = command.replace('appearance-', '') },
-    read(kind: string) { return sent.includes(kind) ? { kind } : undefined },
+    read(kind: string) { return sent.includes(kind) ? { kind, canvas: pageCanvas[kind.replace('appearance-', '')] } : undefined },
   }
   const native = async (pid: number, command: string, _menu: undefined, { action, label, capture }: { action: string; label?: string; capture: string }) => {
     assert.equal(pid, 7)
@@ -69,7 +70,7 @@ test('the window bar check proves no native caption, the canvas in both modes an
   const check = windowContext()
   const recorded = {}
   await check.run(recorded)
-  const report = JSON.parse(JSON.stringify(recorded)) as { windowBar: Record<string, { expected?: number[]; captionHeight?: number; state?: { zoomed: boolean; iconic: boolean } }> }
+  const report = JSON.parse(JSON.stringify(recorded)) as { windowBar: Record<string, { expected?: number[]; pageCanvas?: string; captionHeight?: number; state?: { zoomed: boolean; iconic: boolean } }> }
   assert.deepEqual(check.sent, ['appearance-light', 'appearance-dark'])
   assert.deepEqual(check.calls.filter(({ capture }) => capture !== join('output', 'window-action.png')).map(({ capture }) => capture),
     [join('output', 'window-light.png'), join('output', 'window-dark.png')])
@@ -79,6 +80,7 @@ test('the window bar check proves no native caption, the canvas in both modes an
   ])
   assert.deepEqual(report.windowBar.light!.expected, canvas.light)
   assert.deepEqual(report.windowBar.dark!.expected, canvas.dark)
+  assert.deepEqual([report.windowBar.light!.pageCanvas, report.windowBar.dark!.pageCanvas], [pageCanvas.light, pageCanvas.dark])
   const actions = report.windowBar.actions as unknown as Record<string, { zoomed: boolean; iconic: boolean; rect: number[] }>
   assert.equal(actions.maximize!.zoomed, true)
   assert.equal(actions.restore!.zoomed, false)

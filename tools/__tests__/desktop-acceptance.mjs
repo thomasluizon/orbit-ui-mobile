@@ -316,10 +316,25 @@ async function sessionProbeCases() {
 }
 
 // The shell observes only the root mode class (apps/desktop/src-tauri/src/launch.js), so the probe must leave exactly one.
+// The page paints from the inline tokens on the root, which only the theme switch writes (apps/web/lib/theme-dom.ts
+// applyThemeTokensToDOM), so the probe must change the mode through the ThemeToggle control (data-theme-toggle).
 async function appearanceProbeCases() {
   const reports = []
-  const commands = ['appearance-light', 'appearance-dark']
-  const root = new JSDOM('<html class="dark scheme-orange"></html>').window.document.documentElement
+  const commands = ['appearance-dark', 'appearance-light', 'appearance-dark']
+  const canvas = { light: '#FAFAFA', dark: '#09090B' }
+  const root = new JSDOM('<html class="dark scheme-orange" style="--bg: #09090B"></html>').window.document.documentElement
+  let theme = 'dark'
+  let clicks = 0
+  const toggle = {
+    click() {
+      clicks++
+      const previous = theme
+      theme = previous === 'dark' ? 'light' : 'dark'
+      root.classList.add(theme)
+      root.classList.remove(previous)
+      root.style.setProperty('--bg', canvas[theme])
+    },
+  }
   const browserWindow = { __ORBIT_DESKTOP_VERSION__: '1.0.0' }
   browserWindow.top = browserWindow
   let finished
@@ -329,13 +344,17 @@ async function appearanceProbeCases() {
     location: { pathname: '/', search: '' },
     document: {
       readyState: 'complete', cookie: '', documentElement: root, addEventListener() {},
-      querySelector: (selector) => selector === '[data-habit-id="bench-0000"]' || selector === '[data-astra-button]:not([disabled])' ? {} : null,
+      querySelector: (selector) => {
+        if (selector === '[data-theme-toggle]') return toggle
+        return selector === '[data-habit-id="bench-0000"]' || selector === '[data-astra-button]:not([disabled])' ? {} : null
+      },
     },
     fetch: async (path, options) => {
       if (path === '/_bench/events') {
         const event = JSON.parse(options.body)
-        reports.push({ kind: event.kind, modes: ['dark', 'light'].filter((mode) => root.classList.contains(mode)), scheme: root.classList.contains('scheme-orange') })
-        if (event.kind === 'appearance-dark' || event.kind === 'error') finished()
+        reports.push({ kind: event.kind, modes: ['dark', 'light'].filter((mode) => root.classList.contains(mode)), scheme: root.classList.contains('scheme-orange'),
+          canvas: root.style.getPropertyValue('--bg'), reported: event.canvas ?? null })
+        if (reports.length === 4 || event.kind === 'error') finished()
         return new Response(null, { status: 204 })
       }
       if (path === '/_bench/command') return commands.length ? new Response(commands.shift()) : new Promise(() => {})
@@ -344,12 +363,14 @@ async function appearanceProbeCases() {
   }
   runInNewContext(await servedProbe(true), context)
   await done
-  T('the appearance probe leaves exactly the requested page mode on the root before it reports, and keeps the colour scheme',
+  T('the appearance probe changes the page mode through the theme toggle, so the page canvas follows, and reports that canvas',
     JSON.stringify(reports) === JSON.stringify([
-      { kind: 'hoje', modes: ['dark'], scheme: true },
-      { kind: 'appearance-light', modes: ['light'], scheme: true },
-      { kind: 'appearance-dark', modes: ['dark'], scheme: true },
+      { kind: 'hoje', modes: ['dark'], scheme: true, canvas: canvas.dark, reported: null },
+      { kind: 'appearance-dark', modes: ['dark'], scheme: true, canvas: canvas.dark, reported: canvas.dark },
+      { kind: 'appearance-light', modes: ['light'], scheme: true, canvas: canvas.light, reported: canvas.light },
+      { kind: 'appearance-dark', modes: ['dark'], scheme: true, canvas: canvas.dark, reported: canvas.dark },
     ]), JSON.stringify(reports))
+  T('the appearance probe presses the theme toggle only when the page shows the other mode', clicks === 2, `clicks ${clicks}`)
 }
 
 async function compactHojeProbeCases() {

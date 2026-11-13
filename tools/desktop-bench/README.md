@@ -148,13 +148,16 @@ and an authenticated request. No deployed API or account is used.
 macOS installs from the mounted DMG into the Applications directory. Windows runs the built NSIS
 installer with its silent flag and explicit install directory. Only that installed executable is
 launched. The first launch checks Hoje, Astra, palette structure and native clean quit. On Windows it
-also sets the page's root mode class to light and then dark, the signal the shell reads, and the
-`windowbar` command of `acceptance-uia.ps1` reads the window with `acceptance-window-bar.cs`.
-The window has no native caption, so the reader requires the client area to start at the top of the
-visible frame, no menu bar area, and the `DESIGN.md` canvas (`#FAFAFA` light, `#09090B` dark) on at
-least 90% of the sampled middle of the Orbit bar. Then the runner reads the three bar actions through
-UI Automation and uses them: it drags the empty bar, invokes maximize and restore, double clicks the
-bar twice, and invokes minimize and restores the window. `report.json` `windowBar` keeps each reading
+also presses the page's theme toggle for light and then dark. The toggle writes the root mode class
+that the shell reads and the canvas tokens that the page paints with, and the probe reports that canvas
+as `pageCanvas`. The `windowbar` command of `acceptance-uia.ps1` reads the window with
+`acceptance-window-bar.cs`. The window has no native caption, so the reader requires the client area
+to start at the top of the visible frame, no menu bar above the client area, and the `DESIGN.md`
+canvas (`#FAFAFA` light, `#09090B` dark) on at least 90% of the sampled middle of the Orbit bar. The
+shell keeps its native menu attached, so the reader keeps the `GetMenuBarInfo` rectangle as `menuRect`
+and counts a menu bar only when part of it lies above the client area. Then the runner reads the three
+bar actions through UI Automation and uses them: it drags the empty bar, invokes maximize and restore,
+double clicks the bar twice, and invokes minimize and restores the window. `report.json` `windowBar` keeps each reading
 and the window state after each action. The `window-light.png` and `window-dark.png` captures of the
 whole window upload with the job. The Windows 11 snap layouts flyout has no automation reading, so only a
 person on Windows 11 can see it. Separate

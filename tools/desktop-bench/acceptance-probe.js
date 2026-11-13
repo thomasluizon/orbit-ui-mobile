@@ -96,13 +96,18 @@
       inputFocused: document.activeElement === input, selected, results: results.map((result) => result.getAttribute('aria-label') || result.textContent.trim()),
       inputName: accessibleName(input), listId: input?.getAttribute('aria-controls'), activeDescendantId: input?.getAttribute('aria-activedescendant') }
   }
-  // The shell reads only the root mode class, the class the theme switch writes, so the probe drives that same signal.
+  // The shell reads the root mode class, but the page paints from the inline tokens that only the theme switch writes with
+  // that class (apps/web/lib/theme-dom.ts applyThemeTokensToDOM), so the probe presses the real ThemeToggle.
   async function appearance(mode) {
     const root = document.documentElement
-    root.classList.remove(mode === 'dark' ? 'light' : 'dark')
-    root.classList.add(mode)
+    const other = mode === 'dark' ? 'light' : 'dark'
+    if (!root.classList.contains(mode) || root.classList.contains(other)) {
+      const toggle = await until(() => document.querySelector('[data-theme-toggle]'), 'the theme toggle', 15000)
+      toggle.click()
+      await until(() => root.classList.contains(mode) && !root.classList.contains(other), `the ${mode} page mode after the theme toggle`, 15000)
+    }
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
-    await report(`appearance-${mode}`)
+    await report(`appearance-${mode}`, { canvas: root.style.getPropertyValue('--bg') })
   }
   async function update(expected) {
     const invoke = window.__TAURI_INTERNALS__?.invoke

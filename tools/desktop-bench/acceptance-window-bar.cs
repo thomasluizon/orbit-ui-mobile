@@ -15,6 +15,9 @@ public sealed class OrbitWindowBarReading {
     // The visible frame in physical pixels, and the height between its top edge and the top of the client area.
     public int[] frame;
     public int captionHeight;
+    // GetMenuBarInfo reports the rectangle of an attached menu, or null without one. menuBar is true only when part of that
+    // rectangle lies above the client area, the non-client strip where Windows paints a menu bar.
+    public int[] menuRect;
     public bool menuBar;
     public int sampled;
     public OrbitWindowBarColor[] colors;
@@ -72,8 +75,11 @@ public static class OrbitWindowBarReader {
         NativeRect frame = Frame(window);
         var origin = new NativePoint();
         if (!ClientToScreen(window, ref origin)) throw new Win32Exception();
+        // The shell keeps its native menu attached for the menu commands. A client area that starts at the frame top leaves
+        // that menu no strip to paint in, although GetMenuBarInfo still reports its rectangle.
         var menu = new MenuBarInfo { Size = Marshal.SizeOf(typeof(MenuBarInfo)) };
-        bool menuBar = GetMenuBarInfo(window, MenuObject, 0, ref menu) && menu.Bar.Bottom > menu.Bar.Top;
+        bool attached = GetMenuBarInfo(window, MenuObject, 0, ref menu);
+        bool menuBar = attached && Math.Min(menu.Bar.Bottom, origin.Y) > Math.Max(menu.Bar.Top, frame.Top);
         int width = frame.Right - frame.Left, height = frame.Bottom - frame.Top;
         int bar = (int)Math.Round(BarCssHeight * GetDpiForWindow(window) / 96.0);
         if (width <= 0 || height <= bar) throw new InvalidOperationException("The window is smaller than its top bar");
@@ -100,7 +106,8 @@ public static class OrbitWindowBarReader {
                 colors.Add(new OrbitWindowBarColor { color = new[] { (color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF }, count = ranked[index].Value });
             }
             return new OrbitWindowBarReading { frame = new[] { frame.Left, frame.Top, frame.Right, frame.Bottom },
-                captionHeight = origin.Y - frame.Top, menuBar = menuBar, sampled = sampled, colors = colors.ToArray() };
+                captionHeight = origin.Y - frame.Top, menuBar = menuBar, sampled = sampled, colors = colors.ToArray(),
+                menuRect = attached ? new[] { menu.Bar.Left, menu.Bar.Top, menu.Bar.Right, menu.Bar.Bottom } : null };
         }
     }
 
