@@ -1,10 +1,11 @@
 export const meta = {
   name: 'prod-readiness',
-  description: 'Pre-launch orchestrator that runs the four audit workflows in parallel (Haiku fan-out), adds the ops-layer and static-a11y audits no child covers (D11 judgement no gate checks), verifies its own findings, and returns consolidated data for Opus to tier-tag, verdict, and turn into GitHub tickets (D10).',
+  description: 'Pre-launch orchestrator that runs the four audit workflows in parallel (Haiku fan-out), adds the ops-layer, static-a11y and repository-hygiene audits no child covers (D11 judgement no gate checks; hygiene covers old, outdated, duplicate and temporary files in five repositories), verifies its own findings, and returns consolidated data for Opus to tier-tag, verdict, and turn into GitHub tickets (D10).',
   phases: [
     { title: 'Audits', detail: 'the four /audit workflows in parallel' },
     { title: 'Ops', detail: 'observability · multi-instance · background durability · staging · concurrency' },
     { title: 'A11y', detail: 'static WCAG 2.2 AA sweep — web + mobile' },
+    { title: 'Hygiene', detail: 'old · outdated · duplicate · temporary files — five repositories' },
     { title: 'Verify', detail: 'skeptic per Blocker/High ops or a11y finding — default refuted' },
   ],
 }
@@ -15,6 +16,12 @@ if (!absolutePath(parsedArgs.roots?.ui) || !absolutePath(parsedArgs.roots?.api))
   throw new Error('prod-readiness workflow requires absolute ui and api roots')
 }
 const { ui: UI, api: API } = parsedArgs.roots
+const hygieneRepositories = parsedArgs.hygiene?.repositories ?? {}
+for (const [key, repository] of Object.entries(hygieneRepositories)) {
+  if (repository?.root != null && !absolutePath(repository.root)) {
+    throw new Error(`prod-readiness workflow requires an absolute hygiene root for ${key}`)
+  }
+}
 
 const OPS_SCHEMA = {
   type: 'object',
@@ -99,6 +106,71 @@ const A11Y_CHECKS = [
     where: `${UI}/apps/mobile — shared primitives and the navigation shell first (components/, sheets, dialogs, tab bar), then the same core journeys; judge React Native semantics (accessibilityRole / accessibilityLabel / accessibilityState, grouped children, focus after navigation)`,
   },
 ]
+
+const HYGIENE_LADDER = 'High (an agent instruction file that contradicts CLAUDE.md; a runbook, a release skill or a playbook that orders a command, a path or a vendor that does not exist) / Medium (each other old, outdated or temporary finding) / Low (a duplicate asset with a named generator). A hygiene finding is never a Blocker.'
+
+const LEDGER_RULE = 'Every tracked file starts as a suspect. The default verdict is delete or update. A file keeps its current form only with two written answers: (1) why it exists: the reader, consumer or need it serves today; (2) why it is correct exactly as it is: what was checked against the current code or the current decision. No answer to 1 means delete. An answer to 1 and none to 2 means update. "Nobody proved it is dead" is not an answer. A keep verdict without both answers is a defect. Before a delete, search for readers; a real reader is answer 1.'
+
+const HYGIENE_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    findings: OPS_SCHEMA.properties.findings,
+    deferred: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: { check: { type: 'string' }, path: { type: 'string' }, reason: { type: 'string' } },
+        required: ['check', 'path', 'reason'],
+      },
+    },
+  },
+  required: ['findings', 'deferred'],
+}
+
+const HYGIENE_CANDIDATE_CAP = 300
+
+const HYGIENE_CHECKS = [
+  {
+    repository: 'ui',
+    name: 'orbit-ui-mobile',
+    where: `the orbit-ui-mobile repository (the ledger rows in the candidates)`,
+  },
+  {
+    repository: 'api',
+    name: 'orbit-api',
+    where: `the orbit-api repository (the ledger rows in the candidates)`,
+  },
+  {
+    repository: 'landing',
+    name: 'orbit-landing-page',
+    where: `the orbit-landing-page repository (the ledger rows in the candidates)`,
+  },
+  {
+    repository: 'workshop',
+    name: 'thomas-brain',
+    where: `the thomas-brain repository (the ledger rows in the candidates)`,
+  },
+  {
+    repository: 'vault',
+    name: 'brain vault',
+    where: `the brain vault (the ledger rows in the candidates)`,
+  },
+]
+
+function hygienePrompt(c, root, candidates) {
+  return [
+    `Repository hygiene check for ${c.name}, rooted at ${root}. The four kinds are old, outdated, duplicate and temporary. You have Read, Grep and Glob and no shell. This is a read-only judgement over file ledger rows; a candidate is a signal and not a verdict.`,
+    `The ledger rule, word for word: ${LEDGER_RULE}`,
+    `For each candidate row, search for a reader. A reader can write no path: a framework convention, a tool that walks a folder, a config key, a person that a pointer sends to the file. Return a finding only when answer 1 is absent (the fix is delete) or when answer 1 exists and answer 2 fails (the fix is update). Name what the file says and what the code says.`,
+    `A file under a public web folder, an app asset folder or a store asset folder can have a deployed reader. Do not return a delete finding for it. Return it in deferred with the check "hygiene-deployed-readers". A record is never a finding: a migration, a vault decision, a journal note, a raw inbox file, a published post, a vendored file with a lock entry.`,
+    `Severity ladder: [${HYGIENE_LADDER}]. For each finding return: severity, check ("hygiene-old", "hygiene-outdated", "hygiene-duplicate" or "hygiene-temporary"), title, location (the repository name, then the path), risk (who reads the file and acts on it), evidence (the ledger row and the search terms with their result), fix (delete or update, and what the update says).`,
+    `Candidates (${candidates.length}), one JSON row each: ${candidates.map((row) => JSON.stringify(row)).join('\n')}`,
+  ].join('\n')
+}
+
+const ordersDelete = (f) => /\bdelete\b/i.test(f.fix || '')
 
 function a11yPrompt(c) {
   return [
@@ -185,12 +257,46 @@ const a11yChecksFailed = a11yInScope
 if (a11yChecksFailed.length) log(`a11y: ${a11yChecksFailed.join(', ')} FAILED (finder died) — coverage UNKNOWN for those checks, never clean`)
 const a11yRaw = a11yResults.filter((x) => x && x.result).flatMap((x) => x.result.findings || [])
 
+phase('Hygiene')
+const hygieneDeferred = []
+const hygieneRuns = []
+for (const c of HYGIENE_CHECKS) {
+  const repository = hygieneRepositories[c.repository]
+  if (!repository || repository.root == null) {
+    hygieneDeferred.push({ check: `hygiene-${c.repository}`, path: c.name, reason: repository?.reason || 'the root is not on this machine, or the scope excludes it' })
+    continue
+  }
+  const all = Array.isArray(repository.candidates) ? repository.candidates : []
+  const judged = all.slice(0, HYGIENE_CANDIDATE_CAP)
+  if (all.length > judged.length) {
+    hygieneDeferred.push({ check: `hygiene-${c.repository}`, path: c.name, reason: `${all.length - judged.length} candidates beyond the cap of ${HYGIENE_CANDIDATE_CAP} were not judged; run again on the remainder` })
+  }
+  hygieneRuns.push({ c, root: repository.root, judged })
+}
+const hygieneResults = await parallel(
+  hygieneRuns.map(({ c, root, judged }) => () =>
+    agent(hygienePrompt(c, root, judged), { label: `hygiene:${c.repository}`, phase: 'Hygiene', model: 'haiku', agentType: 'audit-readonly', schema: HYGIENE_SCHEMA })
+      .then((r) => ({ repository: c.repository, result: r }))
+  )
+)
+const hygieneChecksFailed = hygieneRuns
+  .map(({ c }, i) => (hygieneResults[i] && hygieneResults[i].result ? null : c.repository))
+  .filter(Boolean)
+if (hygieneChecksFailed.length) log(`hygiene: ${hygieneChecksFailed.join(', ')} FAILED (finder died) — coverage UNKNOWN for those repositories, never clean`)
+const hygieneRaw = hygieneResults.filter((x) => x && x.result).flatMap((x) => x.result.findings || [])
+for (const x of hygieneResults.filter((entry) => entry && entry.result)) {
+  for (const item of x.result.deferred || []) hygieneDeferred.push(item)
+}
+for (const f of hygieneRaw) if (rank(f.severity) === 0) f.severity = 'High'
+
 phase('Verify')
 const REFUTE_FRAMING = {
-  ops: 'ops-readiness finding. Read the cited config/code in full context and argue it is a FALSE POSITIVE — Hangfire already coordinates that job, the unhandled-exception handler DOES exist, the runtime really has a promote gate, the cache is per-request not process-global, or a concurrency guard prevents the cited interleaving.',
+  hygiene: 'repository-hygiene finding. Read the cited file and search the repository for a reader. Argue it is FALSE: a reader exists (a framework convention, a tool that walks a folder, a config key, a person a pointer sends to the file), the file is a record, the copy is necessary for a tool, or the doc is correct.',
+  ops: 'ops-readiness finding. Read the cited config/code in full context and argue it is a FALSE POSITIVE — Hangfire already coordinates that job, the unhandled-exception handler DOES exist, the runtime really has a staged release gate, the cache is per-request not process-global, or a concurrency guard prevents the cited interleaving.',
   a11y: 'static-a11y finding. Read the cited component in full context and argue it is a FALSE POSITIVE — the control IS a native element further up the tree, the label DOES exist in both locales, the role carries its keyboard contract elsewhere, the state is not user-reachable, a react-doctor.yml rule already fails on it, or the severity is inflated.',
 }
 const verifyTargets = [
+  ...hygieneRaw.filter((f) => isSerious(f) || ordersDelete(f)).map((f) => ({ f, layer: 'hygiene' })),
   ...opsRaw.filter(isSerious).map((f) => ({ f, layer: 'ops' })),
   ...a11yRaw.filter(isSerious).map((f) => ({ f, layer: 'a11y' })),
 ].sort((a, b) => rank(a.f.severity) - rank(b.f.severity))
@@ -210,7 +316,7 @@ const verdicts = (
   )
 ).filter(Boolean)
 
-const survivorsByLayer = { ops: [], a11y: [] }
+const survivorsByLayer = { ops: [], a11y: [], hygiene: [] }
 for (const { f, v, layer } of verdicts) {
   if (v && v.refuted) continue
   if (v && v.adjustedSeverity) f.severity = v.adjustedSeverity
@@ -221,16 +327,22 @@ const opsFindings = [...survivorsByLayer.ops, ...opsRaw.filter((f) => !isSerious
   .sort((a, b) => rank(a.severity) - rank(b.severity))
 const a11yFindings = [...survivorsByLayer.a11y, ...a11yRaw.filter((f) => !isSerious(f))]
   .sort((a, b) => rank(a.severity) - rank(b.severity))
+const hygieneFindings = [...survivorsByLayer.hygiene, ...hygieneRaw.filter((f) => !isSerious(f) && !ordersDelete(f))]
+  .sort((a, b) => rank(a.severity) - rank(b.severity))
 
 return {
   scope,
   audits: auditResults,
   opsFindings,
   a11yFindings,
+  hygieneFindings,
   opsChecksRun: OPS_CHECKS.filter((c) => !opsChecksFailed.includes(c.check)).map((c) => c.check),
   opsChecksFailed,
   a11yChecksRun: a11yInScope ? A11Y_CHECKS.filter((c) => !a11yChecksFailed.includes(c.check)).map((c) => c.check) : [],
   a11yChecksFailed,
+  hygieneChecksRun: hygieneRuns.map(({ c }) => c.repository).filter((repository) => !hygieneChecksFailed.includes(repository)),
+  hygieneChecksFailed,
+  hygieneDeferred,
   a11yNotApplicable: a11yInScope ? null : `the resolved scope "${scope}" contains no UI surface`,
   opsDeferred: [
     { check: 'backups', reason: 'un-verifiable from a repo read — verify in the DB console: automated backups / PITR enabled AND a tested restore path' },

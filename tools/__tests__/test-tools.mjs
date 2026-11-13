@@ -22,6 +22,9 @@ function checkProdReadinessInventory() {
   const outputNames = output?.[2].split(" · ").map((item) => item.split(" {")[0]) ?? []
   const inventoryNumbers = new Map(rows.map(({ name, number }) => [name, number]))
   const whereValues = [...workflow.matchAll(/^\s*where: `([^`]+)`/gm)].map(([, value]) => value)
+  const hygieneKeys = [...workflow.matchAll(/^\s*repository: '([^']+)'/gm)].map(([, key]) => key)
+  const hygieneSection = skill.split("## Phase 2d: Repository hygiene sweep (session-run, read-only)")[1]?.split("\n## Phase 3")[0] ?? ""
+  const hygieneChecks = ["hygiene-old", "hygiene-outdated", "hygiene-duplicate", "hygiene-temporary"]
   const numberedReferences = [skill, workflow, rubric].map((source) =>
     [...source.matchAll(/inventory item (\d+)/g)].map(([, number]) => Number(number)))
   const expectedReferences = [
@@ -36,8 +39,18 @@ function checkProdReadinessInventory() {
   T("prod-readiness: Phase 4 names every inventory item in order", Number(output?.[1]) === rows.length &&
     JSON.stringify(outputNames) === JSON.stringify(rows.map(({ name }) => name)),
     `output=${outputNames.join(",")} inventory=${rows.map(({ name }) => name).join(",")}`)
-  T("prod-readiness: every finder where path uses forward slashes", whereValues.length === workflowOps.length + 2 &&
+  T("prod-readiness: every finder where path uses forward slashes", whereValues.length === workflowOps.length + 2 + hygieneKeys.length &&
     whereValues.every((value) => !value.includes("\\")), whereValues.filter((value) => value.includes("\\")).join("\n"))
+  T("prod-readiness: the Phase 2d section sits between Phase 2c and Phase 3", skill.indexOf("## Phase 2c") < skill.indexOf("## Phase 2d: Repository hygiene sweep (session-run, read-only)") &&
+    skill.indexOf("## Phase 2d: Repository hygiene sweep (session-run, read-only)") < skill.indexOf("## Phase 3"))
+  T("prod-readiness: the repository hygiene item is the last row of the inventory", rows.at(-1)?.name === "Repository hygiene" && rows.at(-1)?.kind === "session sweep" && rows.length === 15,
+    `rows=${rows.length} last=${rows.at(-1)?.name}`)
+  T("prod-readiness: the workflow has one hygiene check for each of the five repository keys", JSON.stringify(hygieneKeys) === JSON.stringify(["ui", "api", "landing", "workshop", "vault"]), hygieneKeys.join(","))
+  T("prod-readiness: the workflow source holds the four hygiene check names", hygieneChecks.every((name) => workflow.includes(name)))
+  T("prod-readiness: the skill names the four hygiene kinds and the five repositories", hygieneChecks.every((name) => hygieneSection.includes(name)) &&
+    ["orbit-ui-mobile", "orbit-api", "orbit-landing-page", "thomas-brain", "brain vault"].every((name) => skill.includes(name)))
+  T("prod-readiness: the Phase 2d section names the ledger tool and the ticket pipeline", hygieneSection.includes("tools/file-ledger.mjs") && hygieneSection.includes("_shared/audit-to-tickets.md"))
+  T("prod-readiness: the Phase 2d section forbids a committed ledger and a delete in the sweep", /Write a hygiene ledger to a repository/.test(skill) && /Delete or edit in the hygiene sweep/.test(skill))
   T("prod-readiness: numbered item references match the inventory", JSON.stringify(numberedReferences) === JSON.stringify(expectedReferences),
     `references=${JSON.stringify(numberedReferences)} inventory=${JSON.stringify(expectedReferences)}`)
   T("prod-readiness: shared-resource review reaches the canonical checklist", inventoryNumbers.has("Concurrency") &&

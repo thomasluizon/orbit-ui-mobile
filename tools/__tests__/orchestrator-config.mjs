@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process"
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
-import { dirname, join, relative, resolve } from "node:path"
+import { dirname, isAbsolute, join, relative, resolve } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import { runInNewContext } from "node:vm"
 
@@ -73,6 +73,53 @@ export const cases = async () => {
     T(`${NAME}: ${name} workflow accepts absolute roots`,
       absolute.UI === "/checkout/ui" && absolute.API === "/checkout/api")
   }
+
+  const readinessSource = readFileSync(new URL("../../.claude/workflows/prod-readiness.mjs", import.meta.url), "utf8").replace(/^export const meta = [\s\S]*?\n}\n/, "")
+  const runReadiness = async ({ hygiene, refute = true, scope = "both" }) => {
+    const prompts = {}
+    const context = {
+      args: { roots: { ui: "/checkout/ui", api: "/checkout/api" }, scope, hygiene },
+      phase() {},
+      log() {},
+      parallel: (calls) => Promise.all(calls.map((call) => call())),
+      workflow: async (_, input) => ({ kind: input.kind, findings: [], counts: {}, coverage: [], deferred: [], converged: true }),
+      agent: async (prompt, options) => {
+        prompts[options.label] = prompt
+        if (options.label === "hygiene:ui") {
+          return {
+            findings: [{ severity: "Blocker", check: "hygiene-old", title: "Old file", location: "orbit-ui-mobile x.md", risk: "an agent reads it", evidence: "row and search", fix: "delete x.md" }],
+            deferred: [{ check: "hygiene-deployed-readers", path: "apps/web/public/a.png", reason: "a public URL can serve it" }],
+          }
+        }
+        if (options.label === "hygiene:api") return null
+        if (options.label.startsWith("verify:")) return { refuted: refute, note: "checked" }
+        return { findings: [] }
+      },
+    }
+    const result = await runInNewContext(`(async () => {\n${readinessSource}\n})()`, context)
+    return { result, prompts }
+  }
+  const hygieneArgument = { repositories: { ui: { root: "/checkout/ui", candidates: [{ path: "x.md" }] }, api: { root: "/checkout/api", candidates: [{ path: "y.md" }] }, landing: { root: null, reason: "scope" }, workshop: { root: "/checkout/workshop", candidates: [] }, vault: { root: null } } }
+  const refuted = await runReadiness({ hygiene: hygieneArgument })
+  T(`${NAME}: the hygiene phase runs one finder for each repository that has a root`,
+    JSON.stringify(refuted.result.hygieneChecksRun) === JSON.stringify(["ui", "workshop"]) && JSON.stringify(refuted.result.hygieneChecksFailed) === JSON.stringify(["api"]),
+    JSON.stringify([refuted.result.hygieneChecksRun, refuted.result.hygieneChecksFailed]))
+  T(`${NAME}: a delete finding that the skeptic refutes is dropped`, refuted.result.hygieneFindings.length === 0, JSON.stringify(refuted.result.hygieneFindings))
+  const deferredChecks = refuted.result.hygieneDeferred.map((item) => item.check)
+  T(`${NAME}: a missing root, a scope exclusion and a deployed reader land in the deferred ledger`,
+    deferredChecks.includes("hygiene-landing") && deferredChecks.includes("hygiene-vault") && deferredChecks.includes("hygiene-deployed-readers") &&
+      refuted.result.hygieneDeferred.find((item) => item.check === "hygiene-landing")?.reason === "scope", JSON.stringify(refuted.result.hygieneDeferred))
+  T(`${NAME}: the finder prompt carries the ledger rule and the four kinds`,
+    /Every tracked file starts as a suspect/.test(refuted.prompts["hygiene:ui"]) && ["hygiene-old", "hygiene-outdated", "hygiene-duplicate", "hygiene-temporary"].every((kind) => refuted.prompts["hygiene:ui"].includes(kind)))
+  const kept = await runReadiness({ hygiene: hygieneArgument, refute: false })
+  T(`${NAME}: a surviving hygiene finding is never a Blocker`, kept.result.hygieneFindings.length === 1 && kept.result.hygieneFindings[0].severity === "High", JSON.stringify(kept.result.hygieneFindings))
+  const absent = await runReadiness({})
+  T(`${NAME}: a run with no hygiene argument defers all five repositories and never reads as clean`,
+    absent.result.hygieneDeferred.length === 5 && absent.result.hygieneChecksRun.length === 0 && absent.result.hygieneChecksFailed.length === 0, JSON.stringify(absent.result.hygieneDeferred))
+  const capped = await runReadiness({ hygiene: { repositories: { ui: { root: "/checkout/ui", candidates: Array.from({ length: 301 }, (_, index) => ({ path: `f${index}.md` })) } } } })
+  T(`${NAME}: candidates beyond the cap are reported as not judged`, capped.result.hygieneDeferred.some((item) => /1 candidates beyond the cap of 300/.test(item.reason)), JSON.stringify(capped.result.hygieneDeferred))
+  const relativeRoot = thrown(() => runInNewContext(`${readinessSource.slice(readinessSource.indexOf("const parsedArgs ="), readinessSource.indexOf("const OPS_SCHEMA"))}`, { args: { roots: { ui: "/a", api: "/b" }, hygiene: { repositories: { vault: { root: "../brain" } } } } }))
+  T(`${NAME}: a relative hygiene root is refused naming the repository`, /absolute hygiene root for vault/.test(relativeRoot ?? ""), relativeRoot ?? "accepted")
 
   for (const [label, args] of [
     ["--model", ["exec", "--model", "gpt-5.6-sol"]],
@@ -185,6 +232,26 @@ export const cases = async () => {
       resolvedRepos.landing === resolve(fixtureRoot, "../orbit-landing-page"),
     JSON.stringify(resolvedRepos),
   )
+  const hygieneConfig = configUrl("hygiene-roots", JSON.stringify({ ...real, hygieneRoots: { workshop: "../thomas-brain", vault: "../brain" } }))
+  const hygieneRoots = readOrchestratorConfig(hygieneConfig)
+  const hygieneFixtureRoot = dirname(dirname(fileURLToPath(hygieneConfig)))
+  T(`${NAME}: hygieneRoots resolve to absolute paths from the repository root`,
+    hygieneRoots.hygieneRoots.workshop === resolve(hygieneFixtureRoot, "../thomas-brain") && hygieneRoots.hygieneRoots.vault === resolve(hygieneFixtureRoot, "../brain") &&
+      isAbsolute(hygieneRoots.hygieneRoots.workshop) && isAbsolute(hygieneRoots.hygieneRoots.vault),
+    JSON.stringify(hygieneRoots.hygieneRoots))
+  T(`${NAME}: the shipped config resolves both hygiene roots outside the repos block`,
+    typeof shipped.hygieneRoots?.workshop === "string" && isAbsolute(shipped.hygieneRoots.workshop) && isAbsolute(shipped.hygieneRoots.vault) &&
+      !("workshop" in shipped.repos) && !("vault" in shipped.repos), JSON.stringify(shipped.hygieneRoots))
+  for (const key of ["workshop", "vault"]) {
+    const invalid = { ...real, hygieneRoots: { workshop: "../thomas-brain", vault: "../brain", [key]: 7 } }
+    const message = thrown(() => readOrchestratorConfig(configUrl(`invalid-hygiene-${key}`, JSON.stringify(invalid))))
+    T(`${NAME}: a hygieneRoots value that is not a string is refused naming ${key}`, message?.includes(`hygieneRoots.${key} must be a non-empty string`), message ?? "config was accepted")
+  }
+  const { hygieneRoots: removedHygiene, ...withoutHygiene } = real
+  const loadedWithoutHygiene = readOrchestratorConfig(configUrl("no-hygiene-roots", JSON.stringify(withoutHygiene)))
+  T(`${NAME}: a config with no hygieneRoots block still loads and keeps the same repos keys`,
+    removedHygiene !== undefined && loadedWithoutHygiene.hygieneRoots === undefined &&
+      JSON.stringify(Object.keys(loadedWithoutHygiene.repos)) === JSON.stringify(Object.keys(real.repos)))
   for (const name of ["maxOpenPullRequests", "maxQueuedRuns"]) {
     const invalid = { ...real, caps: { ...real.caps, [name]: 0 } }
     const message = thrown(() => readOrchestratorConfig(configUrl(`invalid-${name}`, JSON.stringify(invalid))))

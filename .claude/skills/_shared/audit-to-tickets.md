@@ -45,6 +45,8 @@ mandatory generated artifacts across tickets merely to satisfy a number.
   infer it silently.
 - `repo:ui` tickets declare `parity:yes` (web + mobile in one PR) or `parity:no` with the
   adapter-only justification in the body.
+- A finding in `thomas-brain` or in the brain vault gets `repo:ui` and `parity:no`. The reason in the
+  body: no app surface changes.
 - blockedBy is an explicit relation, never prose: a ui perf fix that needs an api index first
   is a ui ticket blockedBy the api ticket.
 
@@ -76,13 +78,13 @@ On approval:
 
 1. Apply `/ticket` phase E milestone rules. List existing milestone titles first. Assign one when
    the audit extends a real body of work; holding-pen findings get no milestone.
-2. Use `gh issue create --repo thomasluizon/orbit-tickets --title "<title>" --body-file <draft>
-   --label <repo:*> --label <Feature|Bug|Improvement> [--label <parity:*> ...] --project Orbit
-   [--milestone "<existing title>"]` per ticket.
-3. Set each created board item to Status Todo with `gh project item-edit 2 --owner thomasluizon
-   --url <created-issue-url> --field Status --value Todo`.
-4. Add every approved `blockedBy` edge with `gh issue edit <ticket-number>
-   --repo thomasluizon/orbit-tickets --add-blocked-by <blocker-number>`.
+2. Run `node tools/create-ticket.mjs --title "<title>" --body-file <draft> --label <repo:*> --label
+   <Feature|Bug|Improvement> [--label <parity:*> ...] [--milestone "<existing title>"]
+   [--blocked-by <ORB-N|#N|N> ...]` for each ticket. The tool adds the ticket to the configured
+   project, sets Status Todo and writes every `blockedBy` relation. Create each blocker before the
+   ticket it blocks.
+3. Never use the raw GitHub issue create command: a hook refuses it, and only the tool also creates the project card.
+4. Copy the number and URL from the tool output for the next step. Never reconstruct them.
 5. Re-read each created issue against the template, labels, board Status, milestone, and relations.
 6. Print the final table: issue reference, title, repo, type, milestone or `none`, and blockedBy.
 

@@ -143,7 +143,7 @@ require the zero-reference proof.
 Run the shared pipeline in **`.claude/skills/_shared/audit-to-tickets.md`**: one GitHub
 ticket per verified debt, drafted to the 6.2 template, validated by
 re-read against the 6.2 template, presented behind ONE approval gate, then created via
-`gh issue create` and re-validated from the created issue.
+`node tools/create-ticket.mjs` and re-validated from the created issue.
 
 Code-quality-specific mapping into the 6.2 body:
 
