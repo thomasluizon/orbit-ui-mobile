@@ -2,7 +2,7 @@ import { TypedTextInput } from '@/components/ui/typed-text-input'
 import { INTERACTION_FILL_CLEARANCE, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useEffect, useRef, useState } from 'react'
 import { InsetFocusPressable } from './inset-focus-pressable'
-import { PressScalePressable } from '@/components/motion/press-scale'
+import { PressScale, PressScalePressable } from '@/components/motion/press-scale'
 import {
   ScrollView,
   StyleSheet,
@@ -98,14 +98,16 @@ function TimeOption({
           { backgroundColor: pressedOptionBackground(tokens, selected, pressed || touchPressed) },
         ]}
       >
-        <Text
-          style={[
-            styles.optionLabel,
-            { color: tokens.fg1 },
-          ]}
-        >
-          {formattedValue}
-        </Text>
+        {({ pressed }) => <PressScale pressed={pressed || touchPressed} disabled={false}>
+          <Text
+            style={[
+              styles.optionLabel,
+              { color: tokens.fg1 },
+            ]}
+          >
+            {formattedValue}
+          </Text>
+        </PressScale>}
       </InsetFocusPressable>
     </RadioItem></GestureDetector>
   )

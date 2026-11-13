@@ -5,6 +5,7 @@ import type { SliderProps } from '@orbit/shared/contracts/forms'
 import { questionSliderTick, questionSliderValue, questionSliderValueAtTick } from '@orbit/shared/types/question-block'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { createTokensV2, radius } from '@/lib/theme'
+import { PressScale } from '@/components/motion/press-scale'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 export function Slider({ label, value, valueText, min, max, step, disabled, onChange }: Readonly<SliderProps>) {
@@ -12,6 +13,7 @@ export function Slider({ label, value, valueText, min, max, step, disabled, onCh
   const tokens = createTokensV2(currentScheme, currentTheme)
   const [width, setWidth] = useState(0)
   const [focused, setFocused] = useState(false)
+  const [dragging, setDragging] = useState(false)
   const [nativeHandle, setNativeHandle] = useState<number | undefined>(undefined)
   const trackRef = useCallback((element: View | null) => {
     if (element) { const handle = findNodeHandle(element); if (handle !== null) setNativeHandle(handle) }
@@ -33,11 +35,14 @@ export function Slider({ label, value, valueText, min, max, step, disabled, onCh
   return <Primitive.Root value={tick} min={0} max={tickCount} step={1} disabled={disabled} onValueChange={values => select(values[0]!)}>
     <Primitive.Track {...keys} ref={trackRef} {...focusTargets} accessibilityLabel={label} aria-valuemin={min} aria-valuemax={max} aria-valuenow={value ?? min} aria-valuetext={valueText} accessibilityValue={{ min, max, now: value ?? min, text: valueText }} focusable={!disabled}
       onLayout={event => setWidth(event.nativeEvent.layout.width)} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
-      onStartShouldSetResponder={() => !disabled} onMoveShouldSetResponder={() => !disabled} onResponderGrant={touch} onResponderMove={touch}
+      onStartShouldSetResponder={() => !disabled} onMoveShouldSetResponder={() => !disabled} onResponderGrant={(event) => { setDragging(true); touch(event) }} onResponderMove={touch}
+      onResponderRelease={() => setDragging(false)} onResponderTerminate={() => setDragging(false)}
       style={{ minHeight: TOUCH_TARGET_MIN, justifyContent: 'center', paddingHorizontal: 24, borderRadius: radius.full, opacity: disabled ? 0.6 : 1, outlineWidth: focused && !disabled ? 2 : 0, outlineOffset: -2, outlineColor: tokens.primary, outlineStyle: 'solid' }}>
       <View pointerEvents="none" style={{ height: 4, borderRadius: radius.full, backgroundColor: tokens.fg3 }}>
         <Primitive.Range style={{ width: `${fraction * 100}%`, height: 4, borderRadius: radius.full, backgroundColor: tokens.primary }} />
-        <Primitive.Thumb style={{ position: 'absolute', left: `${fraction * 100}%`, width: 24, height: 24, borderRadius: radius.full, backgroundColor: tokens.primary, top: '50%', transform: [{ translateX: -12 }, { translateY: -12 }] }} />
+        <Primitive.Thumb style={{ position: 'absolute', left: `${fraction * 100}%`, width: 24, height: 24, top: '50%', transform: [{ translateX: -12 }, { translateY: -12 }] }}>
+          <PressScale pressed={dragging} disabled={Boolean(disabled)} style={{ width: 24, height: 24, borderRadius: radius.full, backgroundColor: tokens.primary }}>{null}</PressScale>
+        </Primitive.Thumb>
       </View>
     </Primitive.Track>
   </Primitive.Root>
