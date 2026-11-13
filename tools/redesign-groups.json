@@ -230,6 +230,7 @@
       "m-overlay-profile-preferences-sections",
       "m-overlay-profile-profile-api-keys",
       "m-overlay-profile-profile-mcp-guide",
+      "m-overlay-ui-flow-screen",
       "m-route-profile-account",
       "m-route-profile-ai",
       "m-route-profile-astra",

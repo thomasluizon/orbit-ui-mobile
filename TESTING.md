@@ -226,6 +226,16 @@ across design bundles so testing configuration does not change the pinned native
 
 Workers compile these specs and run the repository's Vitest suites, including their permitted isolated Chromium cases. They do not run Playwright or start app servers for this work order. The PR layout workflow is the only runner for the new guard and the source of its observed red or green geometry evidence. Expected failures on an unfixed tree must not be described as observed failures before that workflow runs.
 
+### Perfil guided flows
+
+With the flag `orbit_guided_flows` on, the multi-field Perfil surfaces run on the guided flow primitives with no mascot, and each suite also proves the current surface with the flag off. Every scenario runs in `en` and `pt-BR`, and the flow scenarios run with reduced motion off and on.
+
+- `apps/web/__tests__/components/profile/account-guided-flows.test.tsx` and `apps/mobile/__tests__/app/(tabs)/profile/_components/account-guided-flows.test.tsx` cover start over (the two lists, the typed confirmation, the Parado result dialog, failure, offline) and delete account (the warning for each plan, the code request, failure, offline).
+- `apps/web/__tests__/pages/support-guided-flow.test.tsx` and `apps/mobile/__tests__/screens/support-guided-flow.test.tsx` cover the support request: the subject as quick options, the message, the Feliz result dialog with the way back to About, failure with retry and offline.
+- `apps/web/__tests__/components/profile/api-key-create-flow.test.tsx` and `apps/mobile/__tests__/components/profile/api-key-create-flow.test.tsx` cover key creation: the place, the access, the scope of a scoped key, the expiry with `Never` as a quick option, the format error, the reveal step with copy and the discard guard.
+- `apps/web/__tests__/components/profile/perfil-guided-settings.test.tsx` and `apps/mobile/__tests__/components/profile/perfil-guided-settings.test.tsx` cover the product email quick options, the name sheet titled with its question, and the skeleton (never a spinner) of the push devices and API key lists.
+- `packages/shared/src/__tests__/profile-routes.test.ts`, `packages/shared/src/__tests__/astra-offers.test.ts`, `apps/web/__tests__/pages/profile-legacy-redirects.test.ts` and `apps/mobile/__tests__/screens/profile-legacy-redirects.test.tsx` cover the AI settings slug `/profile/ai` and every redirect source, including `/profile/astra`. The Rust tests in `apps/desktop/src-tauri/src/links.rs` cover both slugs in the desktop allowlist.
+
 ### How the authed-Today Lighthouse budget gate works
 
 - **Hermetic mock API.** `perf.yml` builds the web app, boots the mock orbit-api (`test-support/hermetic/mock-api/server.ts`, `127.0.0.1:5099`) with a job-level `API_BASE` pointing the Next BFF at it, and lets LHCI manage `next start`. The fixture server validates every response against its `@orbit/shared` schema at boot. No prod, no secrets, no real orbit-api.
