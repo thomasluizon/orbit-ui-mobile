@@ -1765,7 +1765,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
 
   button[data-variant="primary"]:enabled:hover,
-  [data-fab]:not([data-fab="neutral"]):hover {
+  [data-fab]:hover {
     background: var(--primary-hover);
   }
 
@@ -1789,7 +1789,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 /* Press fill: after the primary hover rule above, with at least its specificity, so it wins under a mouse. It is outside the hover query, so it also shows on touch. */
 button[data-variant="primary"]:enabled:not([data-loading]):active,
-[data-fab]:not([data-fab="neutral"]):active {
+[data-fab]:active {
   background: var(--primary-pressed);
 }
 

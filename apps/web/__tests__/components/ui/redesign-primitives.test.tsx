@@ -75,12 +75,13 @@ describe('redesign primitives on web', () => {
     expect(onClick).toHaveBeenCalledOnce()
   })
 
-  it('presses the Astra button with a 0.96 scale and a fill, and keeps only the fill under reduced motion', () => {
-    render(<Fab neutral label="Astra">+</Fab>)
-    const button = screen.getByRole('button', { name: 'Astra' })
+  it('presses the FAB with a 0.96 scale only when motion is allowed, and keeps the pressed fill', () => {
+    render(<Fab label="Create">+</Fab>)
+    const button = screen.getByRole('button', { name: 'Create' })
     expect(button).toHaveClass('motion-safe:active:scale-[0.96]')
     expect(button).not.toHaveClass('active:scale-[0.96]')
-    expect(button.querySelector('[data-press-fill]')).toHaveClass('group-active:bg-[var(--bg-hover-opaque)]')
+    expect(button).toHaveAttribute('data-fab', '')
+    expect(button.querySelector('[data-press-fill]')).toBeNull()
   })
 
   it.each([16, 20, 24] as const)('draws the small static face at %ipx with the moon as the only accent', (size) => {

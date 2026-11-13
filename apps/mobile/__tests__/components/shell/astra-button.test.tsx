@@ -9,6 +9,7 @@ import { useShellScrollerClearance } from '@/components/shell/shell-scroller-cle
 import { useUIStore } from '@/stores/ui-store'
 import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-area-geometry'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
+import { expectMotionPress } from '@/__tests__/support/press-feedback'
 
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark' }) }))
 vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 24, bottom: 24, left: 0, right: 0 }) }))
@@ -82,7 +83,7 @@ describe.each([412, 840])('the compact Astra button at %ipx', width => {
     expect({ left: alone.left, top: alone.top }).toEqual({ left: stacked.left, top: stacked.top })
   })
 
-  it('holds the create habit slot while that button is pending, so the Astra button stays put when it arrives', async () => {
+  it('holds the create habit slot while that button is pending, so the conversation entry stays put when it arrives', async () => {
     await mountShell(width, { fab: false, fabPending: true })
     const pending = measure(width).get('astra-button')!
     const clearance = clearances.at(-1)
@@ -106,7 +107,7 @@ describe.each([412, 840])('the compact Astra button at %ipx', width => {
     expect(scrollerBottom - clearance).toBeLessThanOrEqual(boxes.get('astra-button')!.top - SPACING.s16)
   })
 
-  it('holds the stacked end clearance while a registered sheet withholds the Astra button', async () => {
+  it('holds the stacked end clearance while a registered sheet withholds the conversation entry', async () => {
     await mountShell(width)
     const boxes = measure(width)
     const stacked = boxes.get('shell-scroller')!.bottom - boxes.get('astra-button')!.top + SPACING.s16
@@ -119,7 +120,7 @@ describe.each([412, 840])('the compact Astra button at %ipx', width => {
   })
 })
 
-it('opens Astra on tap and carries its accessible name', async () => {
+it('opens the conversation on tap and carries its accessible name', async () => {
   await mountShell(412)
   expect(host('astra-button').props.accessibilityLabel).toBe('shell.astraButton.open')
   await act(() => { (host('astra-button').props.onPress as () => void)() })
@@ -159,5 +160,11 @@ it('is the live Orbit at 48 with no background, in a 60 press target', async () 
   expect(flattened).toMatchObject({ width: 60, height: 60 })
   expect(flattened.backgroundColor).toBeUndefined()
   expect(flattened.boxShadow).toBeUndefined()
+  expect(hosts('fab-press-fill')).toHaveLength(0)
+})
+
+it('keeps the conversation entry still on press under reduced motion, with no press fill', async () => {
+  await mountShell(412)
+  expectMotionPress(host('astra-button'), true)
   expect(hosts('fab-press-fill')).toHaveLength(0)
 })

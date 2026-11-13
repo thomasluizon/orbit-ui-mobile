@@ -62,8 +62,8 @@ describe('web pill press feedback', () => {
   it('lets the primary button and FAB press fill win over their pointer hover, also on touch', () => {
     const hover = ruleWith('button[data-variant="primary"]:enabled:hover')
     const pressed = ruleWith('button[data-variant="primary"]:enabled:not([data-loading]):active')
-    expect(hover.selectors).toEqual(['button[data-variant="primary"]:enabled:hover', '[data-fab]:not([data-fab="neutral"]):hover'])
-    expect(pressed.selectors).toEqual(['button[data-variant="primary"]:enabled:not([data-loading]):active', '[data-fab]:not([data-fab="neutral"]):active'])
+    expect(hover.selectors).toEqual(['button[data-variant="primary"]:enabled:hover', '[data-fab]:hover'])
+    expect(pressed.selectors).toEqual(['button[data-variant="primary"]:enabled:not([data-loading]):active', '[data-fab]:active'])
     expect(value(hover, 'background')).toEqual(['var(--primary-hover)'])
     expect(value(pressed, 'background')).toEqual(['var(--primary-pressed)'])
     expect(pressed.parent?.type, 'unlayered and outside the hover query').toBe('root')

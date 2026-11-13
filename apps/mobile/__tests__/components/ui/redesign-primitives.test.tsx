@@ -173,32 +173,13 @@ describe('redesign primitives on mobile', () => {
       return { tree, style }
     }
 
-    it('scales the Astra button to 0.96 and fills it on press', () => {
-      const { tree, style } = pressedFab(<Fab neutral label="Astra">+</Fab>)
+    it('scales the FAB to 0.96 with the pressed fill and clips it to the circle', () => {
+      const { tree, style } = pressedFab(<Fab label="Create">+</Fab>)
       expect(style.transform).toEqual([{ scale: 0.96 }])
-      expect(prop<{ backgroundColor: string }[]>(tree.root.findByProps({ testID: 'fab-press-fill' }), 'style').at(-1)?.backgroundColor).toBe(tokens.bgHoverOpaque)
-    })
-
-    it('draws the neutral hairline on the press fill so the pressed fill never covers it', () => {
-      const { tree, style } = pressedFab(<Fab neutral label="Astra">+</Fab>)
-      const fillStyle = flattenStyle(prop<unknown>(tree.root.findByProps({ testID: 'fab-press-fill' }), 'style'))
-      expect(fillStyle.boxShadow).toBe(`inset 0 0 0 1px ${tokens.hairlineStrong}`)
-      expect(String(style.boxShadow)).not.toContain('inset')
-    })
-
-    it('clips the pressed fill of both FAB variants to the circular shape', () => {
-      for (const neutral of [true, false]) {
-        const { style } = pressedFab(<Fab neutral={neutral} label="Astra">+</Fab>)
-        expect(style.borderRadius).toBe(999)
-        expect(style.overflow).toBe('hidden')
-      }
-    })
-
-    it('keeps the fill and drops the scale under reduced motion', () => {
-      motionState.reduced = true
-      const { tree, style } = pressedFab(<Fab neutral label="Astra">+</Fab>)
-      expect(style.transform).toEqual([{ scale: 1 }])
-      expect(prop<{ backgroundColor: string }[]>(tree.root.findByProps({ testID: 'fab-press-fill' }), 'style').at(-1)?.backgroundColor).toBe(tokens.bgHoverOpaque)
+      expect(style.backgroundColor).toBe(tokens.primaryPressed)
+      expect(style.borderRadius).toBe(999)
+      expect(style.overflow).toBe('hidden')
+      expect(tree.root.findAll(node => node.props.testID === 'fab-press-fill')).toHaveLength(0)
     })
 
     it('presses the primary FAB to the pressed fill without a scale under reduced motion', () => {
