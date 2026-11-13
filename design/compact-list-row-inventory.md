@@ -31,7 +31,7 @@ Owner: `/profile`, with name editing, preference pickers, widget information, fr
 
 | Web consumer | Mobile consumer | Rows and states | Density |
 |---|---|---|---|
-| `apps/web/app/(app)/profile/_components/profile-settings-content.tsx` | `apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx` | Account and four preferences; export idle/preparing/error; locked Astra features; More rows with/without descriptions; sign-out, fresh-start and deletion | Plain rows 52px; account and described/error rows preserve growth |
+| `apps/web/app/(app)/profile/_components/profile-settings-content.tsx` | `apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx` | Account and four preferences; export idle/preparing/error; locked Orbit features; More rows with/without descriptions; sign-out, fresh-start and deletion | Plain rows 52px; account and described/error rows preserve growth |
 | `apps/web/components/profile/profile-api-keys.tsx` | `apps/mobile/components/profile/profile-api-keys.tsx` | Free unlock, Pro step-up locked/unlocked, busy entry, empty/loading/error list, populated key rows and revoke actions | Explicit compact rows, 52px floor; actions 44px |
 
 ### 3. Calendario agenda and selected day
@@ -80,7 +80,7 @@ Owners: checklist fields in create/edit habit sheets and habit detail, opening t
 |---|---|---|---|
 | `apps/web/components/habits/checklist-templates.tsx` | `apps/mobile/components/habits/checklist-templates.tsx` | Entry; sheet closed/open; empty/populated templates; save entry/form; named template rows with count description and delete action; save/delete failures use the existing toast | Explicit compact form entry 52px with 12px inline inset; plain save row 52px; described list rows preserve growth |
 
-### 8. Astra account records
+### 8. Orbit account records
 
 Owner: conversation message bubbles, in the shell conversation overlay/panel and chat route.
 

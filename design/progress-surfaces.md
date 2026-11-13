@@ -42,7 +42,7 @@ Wrapped notifications retain their separate period-aware route. Notifications ca
 detail routes are accepted directly. Other retired insights and retrospective notifications open
 the overview, preserving their query and fragment.
 
-Streak badges and the Astra streak card open Sequência. The Astra goal-list action opens Metas;
+Streak badges and the Orbit streak card open Sequência. The Orbit goal-list action opens Metas;
 the gamification feature-explanation link opens Conquistas. Root navigation and general progress
 summaries continue to open the overview.
 
@@ -77,7 +77,7 @@ execution remains with the layout workflow. Metas is a separate route with no st
 | Repair count and details entry | Available, empty, partial, capped and unavailable repair; repair confirmation remains in the sheet |
 | Capacity sheet | Full bank, no earning row and no upgrade action |
 
-## Focused Astra level and achievements
+## Focused Orbit level and achievements
 
 The paired `components/gamification/level-summary.tsx` and `achievement-tile.tsx` own both
 Conquistas and the negotiated `components/chat/gamification-card.tsx` composition. Extraction
@@ -95,7 +95,7 @@ continue to own the extracted components. The eval projects the same visible hea
 XP, achievement copy, earned state and progress instead of hidden source metadata.
 
 The paired `components/gamification/streak-figure.tsx` owns the unchanged current-streak figure
-on Sequência and in focused Astra reads. `gamification-streak.tsx` composes that figure with
+on Sequência and in focused Orbit reads. `gamification-streak.tsx` composes that figure with
 DayStrip and the existing read-only FreezeBank only when the streak source is present. The saved
 query date anchors the strip and protected dates; live hooks cannot replace the snapshot.
 Streak-only answers use the frame heading; combined answers add a separate streak heading.

@@ -10,7 +10,7 @@
 | Date | `habit-form-fields/habit-date-field.tsx` | When input and editable date before More details; tasks choose Do on or No date, and No date hides the phrase and picker |
 | Schedule | `habit-form-fields/habit-schedule-fields.tsx` | Fixed and count-based Habit choices; undated tasks remain in the Task date group with tree locks |
 | Days of the month | `habit-form-fields/habit-month-days-field.tsx`; shared `month-days.ts` | Under a fixed monthly schedule, asks On which days of the month? with 31 day toggles, the chosen days in one line and the start date's day as the default (#2032) |
-| Date interpretation | Shared `date-phrase-parser.ts`, `date-interpretation-session.ts`, `habit-date-editor.ts`; app `use-date-interpretation.ts` | Offline calendar arithmetic, automatic debounced interpretation, editable draft date, in-field Astra provenance, stale rejection and terminal allowance refresh |
+| Date interpretation | Shared `date-phrase-parser.ts`, `date-interpretation-session.ts`, `habit-date-editor.ts`; app `use-date-interpretation.ts` | Offline calendar arithmetic, automatic debounced interpretation, editable draft date, in-field Orbit provenance, stale rejection and terminal allowance refresh |
 | Recurrence intent | Shared `habit-recurrence-phrase.ts`, `habit-phrase-parser.ts`, `habit-date-editor.ts`, `habit-form-helpers.ts`; paired date/type fields and form hooks | Bilingual daily, weekly count and weekday wording writes the existing schedule for a deliberately selected dated Habit; a single Task weekday selects its next occurrence; explicit Task repetition keeps one inline recovery toward the existing Habit choice |
 | Type readback | `habit-row-content.tsx`, `habit-detail-screen.tsx` | Whole quiet vocabulary beneath the full-width title; original controls and counts retained |
 
@@ -31,7 +31,7 @@ task request. Untouched dated end dates keep their value.
 
 The title's emoji square shares the field's single-line height: at least 54, growing with the
 current text line height and 12 minimum block insets. The mirror and editable input use equal
-symmetric insets, centring their first line in that height. The emoji and Astra actions centre
+symmetric insets, centring their first line in that height. The emoji and Orbit actions centre
 on this first line even when the title wraps; the square does not grow with subsequent lines.
 Validation and suggestion feedback remain below the row and do not affect action alignment.
 Web Chromium and native mounted Yoga tests cover 360 and 412 widths at text scales 1 and 2,
@@ -48,7 +48,7 @@ allowance. Further typing, manual date selection, form dismissal and changed sem
 cancel the consultation. Ownership includes account, locale, timezone, account day, mode, type,
 cadence unit, quantity, sorted distinct weekdays, interval and calendar bounds. Late responses
 cannot replace a newer date. The resolved date fills the unsaved draft and remains editable before
-Save. The phrase stays visible with a muted Astra glyph at the field's trailing edge while pending
+Save. The phrase stays visible with a muted small static face at the field's trailing edge while pending
 and after interpretation. Accessible status identifies both states. Manual selection clears that
 provenance. Offline, allowance and provider failures retain unresolved guidance and the calendar.
 There is no separate date request pill, cost caption or date confirmation action.
@@ -114,7 +114,7 @@ implements [#1701](https://github.com/thomasluizon/orbit-tickets/issues/1701):
 unavailable-reason captions leave the visible form, while accessible descriptions remain.
 [The action-label correction](https://github.com/thomasluizon/orbit-tickets/issues/1700)
 retains the drawing's existing icon-only form fills. Neither instruction removes an
-Astra capability or the explanation of a proposed value.
+Orbit capability or the explanation of a proposed value.
 
 | Production capability | Current owner and control on both platforms |
 |---|---|
@@ -134,7 +134,7 @@ accessible without adding a caption beside the title.
 Paired behavior tests cover offline date assistance with allowance available or exhausted,
 reconnection without changing the draft, local date editing without a paid request, the
 fifth-tag boundary and recovery after deselection, and proposed versus ordinary emoji
-attribution. The title-row well, borderless Astra fill and pending spinner keep their
+attribution. The title-row well, borderless Orbit fill and pending spinner keep their
 existing geometry and behavior coverage.
 
 ## Verification boundary
@@ -156,24 +156,24 @@ production create/edit/readback remain separate verification boundaries. API pro
 precedes consumer publication. Web production and Android open-track release are owned by the
 orchestrator; no Android production release or version floor change is implied.
 
-## Astra affordance inventory (#1607)
+## Orbit affordance inventory (#1607)
 
 | Paired control | Callback owner | Disposition |
 |---|---|---|
-| Setup fallback | `createHabitFormController.askAstra` to `use-habit-suggestion` | Corrected mark with existing visible Astra label |
-| Emoji suggestion | `useEmojiProposal` to `onSuggestEmoji` / `use-habit-suggestion` | Corrected mark and Ask Astra wording in persistent Emoji context; manual picker unchanged |
+| Setup fallback | `createHabitFormController.askAstra` to `use-habit-suggestion` | Corrected mark with existing visible Orbit label |
+| Emoji suggestion | `useEmojiProposal` to `onSuggestEmoji` / `use-habit-suggestion` | Corrected mark and Ask Orbit wording in persistent Emoji context; manual picker unchanged |
 | Date consultation | `HabitDateEditor.ask` to `use-date-interpretation` | Corrected mark; explicit, budgeted and guarded request unchanged |
-| Tag generation | `TagSuggestions` to `useTagSuggestions.suggest` / `useSuggestTags` | Corrected mark and Ask Astra wording under Tags; acceptance remains deterministic |
-| Compact and habit-detail composer entry | `onOpenConversation` to conversation store | Corrected visible Astra name beside existing mark; opens without sending |
+| Tag generation | `TagSuggestions` to `useTagSuggestions.suggest` / `useSuggestTags` | Corrected mark and Ask Orbit wording under Tags; acceptance remains deterministic |
+| Compact and habit-detail composer entry | `onOpenConversation` to conversation store | Corrected visible Orbit name beside existing mark; opens without sending |
 | Composer send, retry and live suggestions | `onSend`, `onRetry`, suggestion `onSelect` to chat send owner | Corrected mark and visible wording; current request and retry ownership retained |
 | Habit and goal detail entries | `AskAstraRow`, `openAstra` to `prepareChatRequest` and conversation store | Corrected mark; draft preparation opens without sending |
 | Habit-list empty entry | `onAskAstra` to conversation store | Corrected mark with existing label |
-| Follow-up and proactive actions | `onSelect` / `useProactiveAction.act` to `sendMessage` | Corrected mark and visible Astra name in each specific action target |
-| Complete prompt-library and deferred ideas | `selectIdea` to `sendMessage` | Corrected mark and visible Astra name |
+| Follow-up and proactive actions | `onSelect` / `useProactiveAction.act` to `sendMessage` | Corrected mark and visible Orbit name in each specific action target |
+| Complete prompt-library and deferred ideas | `selectIdea` to `sendMessage` | Corrected mark and visible Orbit name |
 | Slotted prompt ideas | `selectIdea` to `preparePromptTemplate` | Deterministic draft preparation; no invocation mark |
 | Reschedule menu and retries | Sheet opening / `refetch` to `useRescheduleSuggestion` | Corrected invocation identification; existing eligibility and GET/refetch policy retained |
 | Wide navigation and conversation header | Existing conversation store entry / AppBar | Already conforming, preserved |
-| Today Astra line | Caller-defined destination | Existing mark and visible sentence retained; no speculative navigation change |
+| Today Orbit line | Caller-defined destination | Existing mark and visible sentence retained; no speculative navigation change |
 | Date, tag and reschedule acceptance, ordinary Save | Existing form and mutation owners | Deterministic, no generation label or new request |
 | Voice record, stop, cancel and transcription | Existing speech-to-text and recording owners | Separate transport and recording states retained; no inferred generation affordance |
 | Pending-operation approval and execution | Existing operation controllers | Deterministic approval boundary retained, no generation label |
@@ -191,7 +191,7 @@ form-size or invocation rule requiring an edit; the owning contradictions are in
 |---|---|
 | Inline title rename and emoji picker | One named type-aware pencil opens `edit-habit-modal.tsx`; title/emoji are draft fields in `habit-form-fields.tsx` |
 | Task/Habit, dated/undated tasks, fixed/count habits, weekdays, quantity, interval and tree constraints | Existing complete editor and shared mode drafts; no inline schedule writer |
-| Editable start/due date, local phrase, picker and explicit Astra proposal | Existing date editor; accepted proposals update the draft; Save owns persistence |
+| Editable start/due date, local phrase, picker and explicit Orbit proposal | Existing date editor; accepted proposals update the draft; Save owns persistence |
 | Exact/end time, relative offsets and absolute/scheduled reminders | Existing form reminder owners; local until Save |
 | End date and description clears | Full update carries clearEndDate and the explicit empty description |
 | Stored description read/copy | Detail header renders selectable source prose and Copy description without a collapsed preview |
@@ -204,7 +204,7 @@ form-size or invocation rule requiring an edit; the owning contradictions are in
 | Avoidance and slip alert | Existing full form and actual plan/General constraints |
 | Activity strip, statistics, reminder readout, cadence/end/started facts and month history | Retained read owners; More details holds secondary facts and full month navigation |
 | Linked-goal navigation | Read facts open the existing goal detail owner; association editing uses the pencil |
-| Contextual Astra and rescue | Existing contextual entry and independently accepted proposal; no automatic new paid request |
+| Contextual Orbit and rescue | Existing contextual entry and independently accepted proposal; no automatic new paid request |
 | Navigation and deletion | Existing detail header/back and confirmed deletion paths |
 | Loading/error/offline | Existing detail reads; editor validation and persistent error; native supported queue and persistent sync notice |
 

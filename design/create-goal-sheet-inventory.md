@@ -4,7 +4,7 @@
 
 | Surface | Owners on both platforms | Coverage |
 | --- | --- | --- |
-| Progresso without progress | `progress-content`, page invitation | Opens the shared create sheet and retains Astra drafts |
+| Progresso without progress | `progress-content`, page invitation | Opens the shared create sheet and retains Orbit drafts |
 | Progresso with an empty Metas section | `progress-content`, section invitation | Opens the shared create sheet; save replaces the invitation with the goal |
 | Progresso with goals | `progress-content`, Metas action | Opens the same sheet; new goals remain visible through the all-goals filter |
 | Habit create and edit | `goal-linking-field` | Empty and populated goal pickers open the same sheet; creation selects the new goal |
@@ -19,7 +19,7 @@ values if the title is cleared. Linked habits stay visible for every entry. Add 
 field row. Edit goal and progress entry use the same question labels.
 
 The shell create action creates habits directly. There is no separate create menu or goal item to reroute.
-Astra conversation suggestion chips and accepted goal proposals retain their conversational flow.
+Orbit conversation suggestion chips and accepted goal proposals retain their conversational flow.
 The create sheet and linked habit picker explain how selected habits to avoid affect progress:
 Streak goals count avoided days; Standard goals count logged slips. Changing type updates the note
 while preserving the selected habits.

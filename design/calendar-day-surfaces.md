@@ -9,7 +9,7 @@ The calendar drawing governs the geometry; existing fill tokens retain their rol
 | Surface | Web owner | Android owner | States |
 | --- | --- | --- | --- |
 | Calendar month | calendar-grid and DayCell | calendar-grid and DayCell | none, partial, full, not scheduled, future, outside month, loggable, today, selected, today with selection, hover, press, keyboard focus |
-| Astra habit month | chat/habit-month-card and calendar-grid | chat/habit-month-card and calendar-grid | done, missed, skipped, not scheduled, future, today, partial month, multiple months, signed refresh, stale and failed recovery |
+| Orbit habit month | chat/habit-month-card and calendar-grid | chat/habit-month-card and calendar-grid | done, missed, skipped, not scheduled, future, today, partial month, multiple months, signed refresh, stale and failed recovery |
 | Calendar period | calendar-range-view and DayCell | calendar-range-view and DayCell | none, partial, full, not scheduled, today, leading empty slot |
 | Habit month history | habit-detail-screen and DayCell | habit-detail-screen and DayCell | completed, missed, not scheduled, today, future, unavailable, outside month |
 | Month loading grid | calendar-grid and Skeleton | calendar-grid and Skeleton | circular placeholders in full-column slots, seven tracks while profile preferences load |
@@ -40,7 +40,7 @@ The web loggable day well transitions its background with the same control durat
 and easing as the hover fill. Press keeps its immediate well removal. Selected,
 future and today indicators retain their paint.
 
-Astra habit-month blocks reuse the calendar projection, month grid and day cells.
+Orbit habit-month blocks reuse the calendar projection, month grid and day cells.
 The supplied local today and week start govern the saved snapshot. Compact grids
 omit screen insets; each queried month keeps seven columns, and dates outside the
 absolute query stay unavailable. Selecting a day opens that date on Calendário.

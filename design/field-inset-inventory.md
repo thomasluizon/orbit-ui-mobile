@@ -11,7 +11,7 @@ Every concrete text control and input-producing primitive or wrapper in the web 
 | Standard Input, form-input, AppTextInput, BottomSheetAppTextInput, goal FieldWell | 16 | Granted design-system Input; minimum height 54. Busca, move-parent, emoji, tag, goal and time-zone searches inherit this family. Tag and goal search keep their keyboard-aware native wrapper with exact Input padding and minimum height. |
 | Composer | 8 | The #1607 amendment in `design/canvas/README.md` retains pill padding 4 and input padding 8. Text starts at 12 in conversation, or 4 plus the measured glyph-and-name entry width plus 8 on compact Hoje and habit detail. Entry and trailing controls keep the 48 target minimum. Native positioned placeholder and measurement text use logical start/end 8. |
 | Sentence / multiline Input | 16 | Granted Habit Create sentence field and design-system multiline Input. Habit phrase overlays match the textarea/TextInput padding. |
-| Other inline add, template name, tag editor, custom reminder, detail quantity, chat record filter and breakdown edit | 12 | Granted Habit Create, Habit Detail and Astra inline wells. Checklist add rows use the standard Input family. |
+| Other inline add, template name, tag editor, custom reminder, detail quantity, chat record filter and breakdown edit | 12 | Granted Habit Create, Habit Detail and Orbit inline wells. Checklist add rows use the standard Input family. |
 | Checklist item edit | 8 with drag grip; 12 without grip | Granted Habit Create checklist. Both shipped editors always include their grip; their add rows use the standard Input inset of 16. |
 | Numbered subhabit row | 8 after index | Granted Habit Create compound row. Input padding is 0; the row provides leading padding and an 8 gap after its 16-wide index. |
 | Habit title edit | 16 | Existing full editor Input; the detail reading heading is static and the named pencil opens this field. |
@@ -146,8 +146,8 @@ Visible native text controls use `TypedTextInput`, which applies `fg1` after cal
 | Habit detail title editing | `habits/habit-form-fields/habit-understanding.tsx` | same relative component | Existing full editor foreground and padding; the read heading has no input |
 | Checklist add and description | `habits/habit-form-fields.tsx` | same relative components | Shared `Input` in both single-line and multiline modes |
 | Checklist and subhabit edit | `habits/habit-checklist.tsx`, `habits/create-habit-modal/sub-habit-editor.tsx` | same relative components | Native `BottomSheetAppTextInput`, web input with `--fg-1` |
-| Astra and shell composers | `shell/composer.tsx` | same relative component | Native `TypedTextInput`, web `TypedTextarea` |
-| Astra record filter and breakdown rename | `chat/record-list-card.tsx`, `chat/breakdown-suggestion.tsx` | same relative components | Native `TypedTextInput`, web input with `--fg-1` |
+| Orbit and shell composers | `shell/composer.tsx` | same relative component | Native `TypedTextInput`, web `TypedTextarea` |
+| Orbit record filter and breakdown rename | `chat/record-list-card.tsx`, `chat/breakdown-suggestion.tsx` | same relative components | Native `TypedTextInput`, web input with `--fg-1` |
 | Search and move-parent search | `app/search.tsx`, `habit-list/move-parent-dialog.tsx` | `app/(app)/search/page.tsx`, `habits/habit-list/move-parent-overlay.tsx` | Shared `Input` |
 | Goal title, target and unit | `goals/edit-goal-modal.tsx`, `goals/edit-goal-modal/edit-goal-target-fields.tsx`, `goals/create-goal-sheet.tsx`, `habits/create-goal-from-habit/goal-target-fields.tsx` | same relative components | Native `BottomSheetAppTextInput`, web `FieldWell` with `--fg-1` |
 | Profile name and reset confirmation | `app/(tabs)/profile/_components/edit-name-sheet.tsx`, `fresh-start-modal.tsx` | `app/(app)/profile/_components/edit-name-sheet.tsx`, `fresh-start-modal.tsx` | Native `AppTextInput`, web `Input` |

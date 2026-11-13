@@ -1,16 +1,16 @@
-# Astra action labels and composer owners
+# Orbit action labels and composer owners
 
 > **At a glance** - assistant action labels, inline form-fill icons, localized prompts and the habit-detail composer on web and Android.
 
 The authority for #1700 is the owner's instruction: "Revert this, just keep the changes that remove
-the bloat, be smart." Standalone actions show their short action label beside the canonical Astra
+the bloat, be smart." Standalone actions show their short action label beside the canonical Orbit
 glyph. Actions drop the appended brand word, never their label. The visible label supplies the
-accessible name once; the glyph is decorative. Astra menu items use the same row width, minimum
+accessible name once; the glyph is decorative. Orbit menu items use the same row width, minimum
 height, padding, hover, press and focus as sibling items.
 
 Inline form-field fill controls for emoji, tags and frequency remain icon-only with localized
 accessible names. Date interpretation runs automatically after a typing pause and shows a muted
-Astra glyph inside the field while pending and after filling its editable draft date. #1701 owns those controls and their hint captions. The interpretation fallback in
+small static face inside the field while pending and after filling its editable draft date. #1701 owns those controls and their hint captions. The interpretation fallback in
 `habit-form-fields.tsx` remains with that form owner. The shared PillButton icon-only color and
 loading-slot support stays because these retained form controls depend on it.
 
@@ -18,14 +18,14 @@ Suggestion chips, idea cards and proactive prose retain their request text witho
 brand name. Their accessible names contain the request once. These suggestions describe what a
 selection sends; they are distinct from the standalone form and object actions.
 
-Composer send shows one upward arrow, replaced by one spinner while sending. It has no Astra mark
+Composer send shows one upward arrow, replaced by one spinner while sending. It has no Orbit mascot
 or visible text and keeps the localized Send name. Its 48px target shares one equal gap of the shared
 fill clearance (`INTERACTION_FILL_CLEARANCE`) with the other 48px trailing targets, including the
 text-action slot and the attach control. The composer drawing uses the matching
 `--s-1` spacing token. The shared composer owns habit detail and the full-screen conversation.
 
 After a failed send, retry takes the send position at the trailing edge of the pill. It is the shared
-`IconButton` with `RefreshCw` and the localized `shell.composer.retry` name, and it has no Astra mark.
+`IconButton` with `RefreshCw` and the localized `shell.composer.retry` name, and it has no Orbit mascot.
 Retry stays while the draft and attachments are unchanged since the failure, or while the composer
 has no sendable content. An edit is a new send, so the send arrow returns. Offline, at limit and
 while a reply runs, the send position keeps its own control. No retry control shows below the pill.
@@ -34,7 +34,7 @@ while retry shows retries the failed turn and does not send a copy. Retry moves 
 
 Other action owners retain clearance on both platforms: the emoji picker and suggestion targets
 have a 12px gap; date, tag, interpretation and analysis actions occupy separate rows; reschedule
-and rescue retry use the 12px ActionRow gap. Menu Astra items occupy their own row, with the mark
+and rescue retry use the 12px ActionRow gap. Menu Orbit items occupy their own row, with the mark
 leading the visible action label inside the ordinary full-width menu row.
 
 | Surface | Web owner | Android owner |
@@ -72,9 +72,9 @@ and import actions retain their contextual meanings. Explanatory prose, AI discl
 names and settings that name the assistant retain their meaning. The summary action's
 `summary.askAstra` catalog entry has the approved contextual verb even though the current summary
 entry is the proactive line. The Perfil settings entry retains its assistant name through `PROFILE_SUBMENUS` and draws
-`AstraGlyph` as its leading icon (#1780: Astra always carries the Astra mark).
+`OrbitMascot` as its leading icon (#1780: Orbit always carries the Orbit mascot).
 
-The composer has no collapse control (#2108), so the suggestion row uses the full composer content width. The input, attachments and requests stay mounted. Hoje exposes the fixed Astra button, stacked directly above the create habit button, instead of an input dock (#2005, #2077). The shell continues to allocate the pinned content
+The composer has no collapse control (#2108), so the suggestion row uses the full composer content width. The input, attachments and requests stay mounted. Hoje exposes the conversation entry, stacked directly above the create habit button, instead of an input dock (#2005, #2077). The shell continues to allocate the pinned content
 outside the habit scroller, following the actual composer height and preserving the final content row
 in narrow and short viewports. Wide web Hoje retains its existing sidebar entry without a pinned composer.
 
@@ -90,13 +90,13 @@ copy approval through `/second-opinion` belongs to the orchestrator before merge
 
 | Control | Web file | Android file | Label key now | Visible before (en / pt-BR) | Visible now (en / pt-BR) |
 |---|---|---|---|---|---|
-| Astra menu rows | `apps/web/components/ui/dropdown-menu-content.tsx`, `dropdown-menu-item.tsx` | `apps/mobile/components/ui/dropdown-menu.tsx` | Supplied item label | Supplied item label | Supplied item label |
-| Overdue reschedule | `apps/web/components/habits/habit-row-trailing.tsx` | `apps/mobile/components/habits/habit-row.tsx` | `habits.actions.rescheduleAstra` | Reschedule with Astra / Reagendar com a Astra | Reschedule / Reagendar |
-| Habit analysis | `apps/web/components/habits/habit-detail-screen.tsx` | `apps/mobile/components/habits/habit-detail-screen.tsx` | `habits.detail.askAstra` | Ask Astra / Perguntar à Astra | Review habit / Analisar hábito |
-| Habit rescue retry | `apps/web/components/habits/habit-detail-screen.tsx` | `apps/mobile/components/habits/habit-detail-screen.tsx` | `habits.reschedule.suggestDate` (previously `habits.form.askDate`) | Ask Astra / Consultar Astra | Suggest date / Sugerir data |
-| Reschedule sheet retry | `apps/web/components/habits/reschedule-sheet.tsx` | `apps/mobile/components/habits/reschedule-sheet.tsx` | `habits.reschedule.suggestDate` (previously `habits.form.askDate`) | Ask Astra / Consultar Astra | Suggest date / Sugerir data |
-| Goal analysis | `apps/web/components/goals/goal-detail-drawer.tsx` | `apps/mobile/components/goals/goal-detail-drawer.tsx` | `goals.detail.askAstraEyebrow` (previously `nav.astra`) | Astra / Astra | Review goal / Analisar meta |
-| Empty habit list | `apps/web/components/habits/habit-list/empty-state.tsx` | `apps/mobile/components/habit-list/empty-state.tsx` | `habits.askAstra` | Ask Astra / Pedir à Astra | Start conversation / Iniciar conversa |
+| Orbit menu rows | `apps/web/components/ui/dropdown-menu-content.tsx`, `dropdown-menu-item.tsx` | `apps/mobile/components/ui/dropdown-menu.tsx` | Supplied item label | Supplied item label | Supplied item label |
+| Overdue reschedule | `apps/web/components/habits/habit-row-trailing.tsx` | `apps/mobile/components/habits/habit-row.tsx` | `habits.actions.rescheduleAstra` | Reschedule with Orbit / Reagendar com o Orbit | Reschedule / Reagendar |
+| Habit analysis | `apps/web/components/habits/habit-detail-screen.tsx` | `apps/mobile/components/habits/habit-detail-screen.tsx` | `habits.detail.askAstra` | Ask Orbit / Perguntar ao Orbit | Review habit / Analisar hábito |
+| Habit rescue retry | `apps/web/components/habits/habit-detail-screen.tsx` | `apps/mobile/components/habits/habit-detail-screen.tsx` | `habits.reschedule.suggestDate` (previously `habits.form.askDate`) | Ask Orbit / Consultar Orbit | Suggest date / Sugerir data |
+| Reschedule sheet retry | `apps/web/components/habits/reschedule-sheet.tsx` | `apps/mobile/components/habits/reschedule-sheet.tsx` | `habits.reschedule.suggestDate` (previously `habits.form.askDate`) | Ask Orbit / Consultar Orbit | Suggest date / Sugerir data |
+| Goal analysis | `apps/web/components/goals/goal-detail-drawer.tsx` | `apps/mobile/components/goals/goal-detail-drawer.tsx` | `goals.detail.askAstraEyebrow` (previously `nav.astra`) | Orbit / Orbit | Review goal / Analisar meta |
+| Empty habit list | `apps/web/components/habits/habit-list/empty-state.tsx` | `apps/mobile/components/habit-list/empty-state.tsx` | `habits.askAstra` | Ask Orbit / Pedir ao Orbit | Start conversation / Iniciar conversa |
 
 The surface table above also inventories the retained controls. Suggestion chips, complete and
 deferred ideas, follow-ups, proactive actions, onboarding import and setup prompts already show
@@ -113,24 +113,24 @@ clearance assertions; the orchestrator owns their hermetic run, device font rend
 web and Android Open rollout.
 
 
-## Named Astra navigation entries
+## Named Orbit navigation entries
 
 The copy authority for #1687 is the owner's instruction: "i asked you to top putting Consultar
 astra string everywhere / what you did: removed the astra word from the app, including on the
-sidebar / fix this". Navigation rows keep `Astra` wherever sibling destinations show their names.
+sidebar / fix this". Navigation rows keep `Orbit` wherever sibling destinations show their names.
 Only actions drop appended branding. This corrects the #1668 inventory's inclusion of the sidebar
-among mark-only controls. It does not add an Astra route or Android tab.
+among mark-only controls. It does not add an Orbit route or Android tab.
 
 | Entry | Web owner | Android owner | Visible name and behavior |
 |---|---|---|---|
-| Wide sidebar conversation row | `components/shell/shell-wide.tsx`, `components/shell/destination-shell.tsx` | No sidebar; composer owns the front door | `nav.astra` supplies `Astra` beside the glyph, with sibling row treatment; opens the conversation layer |
-| Onboarding shell conversation row | `components/onboarding/onboarding-flow.tsx`, rendered by `components/shell/shell-wide.tsx` | No sidebar | Uses the same `nav.astra` row; selects the existing Astra onboarding entry |
-| Command palette | `components/shell/destination-shell.tsx`, `components/command/command-groups.tsx` | No command palette | No Astra conversation entry exists; the supplied destinations are Hoje, Calendário, Progresso, Perfil, Todos and Geral |
-| Perfil settings navigation | `app/(app)/profile/_components/profile-settings-content.tsx` | `app/(tabs)/profile/_components/profile-settings-content.tsx` | `PROFILE_SUBMENUS` in `packages/shared/src/utils/profile-navigation.ts` supplies `profile.groups.astra`, already `Astra` in both locales; opens `/profile/astra` settings with the `AstraGlyph` leading icon |
+| Wide sidebar conversation row | `components/shell/shell-wide.tsx`, `components/shell/destination-shell.tsx` | No sidebar; composer owns the front door | `nav.astra` supplies `Orbit` beside the glyph, with sibling row treatment; opens the conversation layer |
+| Onboarding shell conversation row | `components/onboarding/onboarding-flow.tsx`, rendered by `components/shell/shell-wide.tsx` | No sidebar | Uses the same `nav.astra` row; selects the existing Orbit onboarding entry |
+| Command palette | `components/shell/destination-shell.tsx`, `components/command/command-groups.tsx` | No command palette | No Orbit conversation entry exists; the supplied destinations are Hoje, Calendário, Progresso, Perfil, Todos and Geral |
+| Perfil settings navigation | `app/(app)/profile/_components/profile-settings-content.tsx` | `app/(tabs)/profile/_components/profile-settings-content.tsx` | `PROFILE_SUBMENUS` in `packages/shared/src/utils/profile-navigation.ts` supplies `profile.groups.astra`, already `Orbit` in both locales; opens `/profile/astra` settings with the `OrbitMascot` leading icon |
 | Habit-detail conversation entry | `components/shell/composer.tsx` | `components/shell/composer.tsx` | Retains the mark-only composer control and contextual accessible name; this input accessory has no sibling destination names |
 
 Android component coverage mounts Perfil with both locale catalogs, checks its visible and
-accessible `Astra` name and follows the row to `/profile/astra`. Web navigation coverage checks
+accessible `Orbit` name and follows the row to `/profile/astra`. Web navigation coverage checks
 one named sidebar row before the four destinations and its retained open/close behavior.
 Chromium coverage checks visible text, matching sibling row geometry, hover, press, focus and
 active styling in both locales and appearances. Action-copy and composer tests retain the

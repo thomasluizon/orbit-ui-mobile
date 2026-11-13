@@ -1,60 +1,33 @@
 # Orbit brand assets
 
-> **At a glance** - the two marks and the three type families.
+> **At a glance** - the Orbit mascot, its five state faces and the three type families.
 
-## The marks
+## The mascot
 
-`orbit-mark.svg` and `astra-mark.svg` are the source marks.
-
-| file | what it is |
-|---|---|
-| `orbit-mark.svg` | the Orbit mark. A planet drawn as a ring with an open centre, an orbital band crossing in front low and passing behind at the upper right, and a small solid moon above right |
-| `astra-mark.svg` | the Astra glyph. A letter A carrying the same orbital band and the same solid dot |
-
-**They are told apart by silhouette.** Orbit is a hollow ring; Astra is a solid
-letterform. That distinction survives at 16px. Use these shapes when applying the mark rule in
-`DESIGN.md`.
-
-Each file is one `fill-rule="evenodd"` path plus, on Orbit, the moon. Both paint with
-`fill="currentColor"` and carry no hex at all, so one file serves every colour the mark is drawn
-in: the `--fg-1` ink, white on an accent tile, and the warm orange itself. The consumer sets
-`color`. Neither carries a background rectangle, so both are transparent. Neither carries C2PA
-metadata.
-
-**Set `color` on whatever renders the mark.** `DESIGN.md` puts the mark in `--fg-1` everywhere
-except the accent treatment, so a component renders it with `color: var(--fg-1)`. A standalone
-viewer that sets no `color` falls back to the browser default, which is black on white.
-
-**Inline these files. Never load one through an image primitive.** `currentColor` resolves against
-the render tree the SVG participates in, and an `<img src>`, a CSS `background-image` or a React
-Native `<Image source>` puts the file in its own document, where the surrounding `color` does not
-reach it and the mark renders black. That is why `DESIGN.md` states the rule as "one SVG, recoloured
-per state ... strip any hardcoded `fill` on import": a mark that has to take `--fg-1`, white on an
-accent tile, and the accent itself cannot be an external image. A surface that genuinely needs a
-flat file takes a baked raster instead of one of these two.
-
-The marks were generated privately under a paid Recraft plan with commercial rights.
-
-## The variants
+Orbit is one mark: a filled planet with two vertical pill eyes, one orbital ring and one moon. The mascot is an SVG rig drawn for Orbit. Mood shows through the eyes only, and Orbit never shows a sad face.
 
 | file | what it is |
 |---|---|
-| `orbit-mark-16.svg` | the native Orbit 16 redraw. **Drawn at 16, not exported from 1024**, because a stroke scaled down from 1024 renders soft (`DESIGN.md:267`). Monochrome, no accent |
-| `orbit-mark-accent.svg` | the accent treatment: the granted 1024 drawing with `var(--primary)` on the moon and `currentColor` everywhere else |
-| `orbit-lockup.svg` | the horizontal lockup, 28 mark, 12 gap, 22 wordmark, 89.3955 by 17.8827 (exact: 89.395502773 by 17.882739221) |
+| `orbit-mascot.svg` | the rig at rest, in the Parado face. The box is `-210 -150 420 300`, the planet has radius 100 and each eye is 22 by 56. At a drawn width of 48 an eye is 2.51px wide |
+| `orbit-mascot-feliz.svg` | the Feliz face: two upward arcs |
+| `orbit-mascot-pensando.svg` | the Pensando face: pills, raised |
+| `orbit-mascot-descansando.svg` | the Descansando face: two closed lines |
+| `orbit-mascot-small.svg` | the small static face for 16, 20 and 24. It is a new drawing on the pixel grid, not a scaled rig. The symbols `small-16` and `small-20` hold the native 16 and 20 drawings, and the root holds the 24 drawing |
+| `orbit-lockup.svg` | the horizontal lockup: the small static face as a 28 mark, a 12 gap and a 22 wordmark, 89.3959 by 17.7428 |
 
-**There is no 24 grid variant.** `DESIGN.md` enumerates 16, 48, 128, and 512 as asset sizes.
-The mark is neither type nor an icon, so it does not follow the type scale or the 24 icon grid.
+Olhando has no file. It is the Parado face with the eyes moved.
 
-**In-app marks use one drawing at every size.** `OrbitMark` uses the normal Orbit paths
-with a shared viewBox fitted to their drawn bounds, including at 16px (#2008). Astra uses its
-normal drawing with the same centring rule (#1797). The native 16 asset below remains an
-input to the standalone raster and favicon export pipeline. It is not an in-app variant.
+The planet and the ring paint with `currentColor`. The moon paints with `var(--primary, currentColor)`, so a viewer that defines no `--primary` still draws the whole mark. The eyes paint with `var(--bg, #09090B)`, and the ring outline paints with `var(--orbit-surface, var(--bg, #09090B))`, so a viewer with no tokens still shows the face. No file carries a background rectangle.
 
-**The accent tints exactly one element.** `DESIGN.md:261` gives the accent four roles and this is the
-fourth: "The mark carries the accent on exactly one element, its moon." A second tinted element is a
-violation, not a variation. The moon's fill falls back to `currentColor`, so a viewer or an upload
-preview that defines no `--primary` still renders the whole mark rather than dropping the moon.
+**Set `color` on whatever renders the mascot.** `DESIGN.md` puts the planet and the ring in `--fg-1`, so a component renders the file with `color: var(--fg-1)`. A standalone viewer that sets no `color` falls back to the browser default, which is black on white.
+
+**Inline these files. Never load one through an image primitive.** `currentColor` and the custom properties resolve against the render tree the SVG participates in. An `<img src>`, a CSS `background-image` or a React Native `<Image source>` puts the file in its own document, where the surrounding `color` does not reach it. A surface that needs a flat file takes a baked raster instead.
+
+**There is no 24 grid variant of the rig.** The live mascot renders at 48, 96 and 128 and never below 40, because each eye needs at least 2px. From 16 to 24 the mark is the small static face. Export sizes stay 16, 48, 128 and 512.
+
+**The accent tints exactly one element.** `DESIGN.md` gives the accent four roles and this is the fourth: the moon carries it and nothing else does. A second tinted element is a violation, not a variation.
+
+**The pixel-grid inputs of the raster pipeline.** `orbit-mark.svg`, `orbit-mark-16.svg` and `orbit-mark-accent.svg` are the old hollow-ring sources. They stay in this folder only as the inputs of `tools/generate-brand-assets.mjs` until the raster pipeline reads the mascot sources, and no in-app surface draws them.
 
 **The lockup's 28 measures the MARK, not a 28 box.** `DESIGN.md:269` says so explicitly. The 1024
 art carries wide empty margin, so a literal 28 box draws ink about 8px tall beside a 15.4px cap
@@ -64,7 +37,7 @@ lockup.
 **The lockup's 12 separates ink from ink**, not bounding boxes. The wordmark's `O` carries a left
 side bearing, so placing the text origin 12 from the mark would have left a 13.15 visual gap.
 
-**The lockup's viewBox IS its ink**, 89.3955 by 17.8827 (exact: 89.395502773 by 17.882739221), with no baked margin. Clear space is the
+**The lockup's viewBox IS its ink**, 89.3959 by 17.7428, with no baked margin. Clear space is the
 consumer's to add. A logo file that carries its own padding cannot be aligned to anything.
 
 Both numbers are solved from the curve extrema, not measured off a render. A pixel measurement
