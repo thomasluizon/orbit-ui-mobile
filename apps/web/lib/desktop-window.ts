@@ -5,7 +5,7 @@ export type DesktopWindowPlatform = 'windows' | 'macos'
 export type DesktopWindowAction = 'state' | 'drag' | 'minimize' | 'toggle_maximize' | 'close' | 'menu'
 
 /** The shell marks the root element with this attribute at document creation, and only a shell without a native title bar does. */
-export const DESKTOP_WINDOW_BAR_ATTRIBUTE = 'data-desktop-window-bar'
+const DESKTOP_WINDOW_BAR_ATTRIBUTE = 'data-desktop-window-bar'
 
 /**
  * Matches the native hit region of the maximize action in `native/windows/caption.cpp`, and the popup anchor of the menu
