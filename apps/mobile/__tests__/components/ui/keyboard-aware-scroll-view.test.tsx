@@ -1,5 +1,5 @@
 import React from 'react'
-import { ScrollView, StyleSheet, TextInput, View } from 'react-native'
+import { Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   __emitKeyboardEvent,
@@ -257,6 +257,7 @@ describe('KeyboardAwareScrollView (mobile)', () => {
   })
 
   describe('a field and its action at 375 x 667 with the keyboard top at 432', () => {
+    const SCREEN_HEIGHT = 667
     const KEYBOARD_TOP = 432
     const REVEAL_MARGIN = 24
     function renderFieldAndAction(group: { current: MeasureResult }) {
@@ -302,18 +303,54 @@ describe('KeyboardAwareScrollView (mobile)', () => {
       expect(scrollTo).toHaveBeenLastCalledWith({ y: 200 + 239 - (KEYBOARD_TOP - REVEAL_MARGIN), animated: true })
     })
 
-    it.each([{ viewport: 667 - 20, label: 'under' }, { viewport: KEYBOARD_TOP - 20, label: 'above' }])(
-      'ends the scroll clear of the keyboard when the scroller reaches $label it', ({ viewport }) => {
-        __setMeasureInWindowImpl((callback) => callback(0, 20, 375, viewport))
-        let tree!: ReturnType<typeof TestRenderer.create>
-        TestRenderer.act(() => {
-          tree = TestRenderer.create(<KeyboardAwareScrollView contentContainerStyle={{ paddingBottom: 16 }}><View /></KeyboardAwareScrollView>)
-        })
+    function renderPaddedScroller(viewport: number, field: boolean) {
+      __setMeasureInWindowImpl((callback) => callback(0, 20, 375, viewport))
+      let tree!: ReturnType<typeof TestRenderer.create>
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(<KeyboardAwareScrollView contentContainerStyle={{ paddingBottom: 16 }}>
+          {field ? <TypedTextInput accessibilityLabel="Code" /> : <View />}
+        </KeyboardAwareScrollView>)
+      })
+      if (field) TestRenderer.act(() => tree.root.findByType(TextInput).props.onFocus({ nativeEvent: {} }))
+      const paddingBottom = () => StyleSheet.flatten(tree.root.findByType(ScrollView).props.contentContainerStyle).paddingBottom as number
+      return { tree, paddingBottom }
+    }
+
+    it.each([{ viewport: SCREEN_HEIGHT - 20, label: 'under' }, { viewport: KEYBOARD_TOP - 20, label: 'above' }])(
+      'ends the scroll of the focused field clear of the keyboard when the scroller reaches $label it', ({ viewport }) => {
+        const { paddingBottom } = renderPaddedScroller(viewport, true)
         TestRenderer.act(() => __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: KEYBOARD_TOP } }))
-        const paddingBottom = StyleSheet.flatten(tree.root.findByType(ScrollView).props.contentContainerStyle).paddingBottom as number
-        const lastLineBottomAtScrollEnd = 20 + viewport - paddingBottom
+        const lastLineBottomAtScrollEnd = 20 + viewport - paddingBottom()
         expect(lastLineBottomAtScrollEnd).toBeLessThanOrEqual(KEYBOARD_TOP - REVEAL_MARGIN)
       })
+
+    it('reserves only the covered part in a scroller that holds no focused field, so a nested scroller reaches the keyboard edge', () => {
+      const { paddingBottom } = renderPaddedScroller(SCREEN_HEIGHT - 20, false)
+      TestRenderer.act(() => __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: KEYBOARD_TOP } }))
+      expect(paddingBottom()).toBe(16 + SCREEN_HEIGHT - KEYBOARD_TOP)
+    })
+
+    it.each([true, false])('drops the keyboard space when iOS hides the keyboard and then reports the end frame (focused field: %s)', (field) => {
+      const previous = Platform.OS
+      Object.defineProperty(Platform, 'OS', { configurable: true, value: 'ios' })
+      try {
+        const { tree, paddingBottom } = renderPaddedScroller(SCREEN_HEIGHT - 20, field)
+        TestRenderer.act(() => {
+          __emitKeyboardEvent('keyboardWillShow', { endCoordinates: { screenY: KEYBOARD_TOP } })
+          __emitKeyboardEvent('keyboardDidChangeFrame', { endCoordinates: { screenY: KEYBOARD_TOP } })
+        })
+        expect(paddingBottom()).toBeGreaterThan(16)
+        TestRenderer.act(() => {
+          if (field) tree.root.findByType(TextInput).props.onBlur({ nativeEvent: {} })
+          __emitKeyboardEvent('keyboardWillHide')
+          __emitKeyboardEvent('keyboardDidChangeFrame', { endCoordinates: { screenY: SCREEN_HEIGHT } })
+          __emitKeyboardEvent('keyboardDidHide')
+        })
+        expect(paddingBottom()).toBe(16)
+      } finally {
+        Object.defineProperty(Platform, 'OS', { configurable: true, value: previous })
+      }
+    })
   })
 })
 

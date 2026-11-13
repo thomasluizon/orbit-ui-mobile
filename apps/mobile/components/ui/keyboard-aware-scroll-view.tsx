@@ -105,6 +105,8 @@ interface KeyboardAwareContextValue {
 
 const KeyboardAwareContext = createContext<KeyboardAwareContextValue | null>(null)
 
+const REVEAL_MARGIN = 24
+
 function resolveKeyboardBehavior(
   behavior?: KeyboardAvoidingViewProps['behavior'],
 ): KeyboardAvoidingViewProps['behavior'] {
@@ -202,18 +204,18 @@ function useKeyboardAwareContextValue(
         y + viewportHeight,
         frame.top - keyboardVerticalOffset,
       )
-      setKeyboardSpace(Math.max(0, y + viewportHeight - visibleBottom) + 24)
+      const revealSpace = focusedInputRef.current ? REVEAL_MARGIN : 0
+      setKeyboardSpace(Math.max(0, y + viewportHeight - visibleBottom) + revealSpace)
       scrollFocusedInputIntoView(
         scrollable,
         focusedInputRef.current,
         { top: visibleBottom, visibleTop: y },
         scrollOffsetYRef.current,
-        24,
+        REVEAL_MARGIN,
       )
     })
   }, [keyboardVerticalOffset, scrollableRef])
-  const revealInput = useCallback((input: KeyboardAwareInputTarget) => {
-    focusedInputRef.current = input
+  const scheduleFocusRefresh = useCallback(() => {
     if (!keyboardFrameRef.current) return
     if (focusFrameRef.current !== null) cancelAnimationFrame(focusFrameRef.current)
     focusFrameRef.current = requestAnimationFrame(() => {
@@ -221,9 +223,15 @@ function useKeyboardAwareContextValue(
       refresh()
     })
   }, [refresh])
+  const revealInput = useCallback((input: KeyboardAwareInputTarget) => {
+    focusedInputRef.current = input
+    scheduleFocusRefresh()
+  }, [scheduleFocusRefresh])
   const clearInput = useCallback((input: KeyboardAwareInputTarget) => {
-    if (focusedInputRef.current === input) focusedInputRef.current = null
-  }, [])
+    if (focusedInputRef.current !== input) return
+    focusedInputRef.current = null
+    scheduleFocusRefresh()
+  }, [scheduleFocusRefresh])
   const recordScroll = useCallback((offset: number) => {
     scrollOffsetYRef.current = offset
   }, [])
@@ -257,7 +265,7 @@ function useKeyboardFrameListener(
         refresh()
       })
     }
-    const update = (event: KeyboardEvent) => {
+    const show = (event: KeyboardEvent) => {
       keyboardFrameRef.current = { top: event.endCoordinates.screenY }
       scheduleRefresh()
     }
@@ -267,18 +275,22 @@ function useKeyboardFrameListener(
       keyboardFrameRef.current = null
       setKeyboardSpace(0)
     }
+    // WHY: iOS posts the frame change that ends a hide after the will-hide notification, so only a shown keyboard may record a frame. https://developer.apple.com/documentation/uikit/uiresponder/keyboarddidchangeframenotification
+    const changeFrame = (event: KeyboardEvent) => {
+      if (keyboardFrameRef.current) show(event)
+    }
     const metrics = Keyboard.metrics()
     if (metrics) {
       keyboardFrameRef.current = { top: metrics.screenY }
       scheduleRefresh()
     }
     const showSubscription = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', update,
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', show,
     )
     const hideSubscription = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', hide,
     )
-    const frameSubscription = Keyboard.addListener('keyboardDidChangeFrame', update)
+    const frameSubscription = Keyboard.addListener('keyboardDidChangeFrame', changeFrame)
     return () => {
       if (frame !== null) cancelAnimationFrame(frame)
       showSubscription.remove()
