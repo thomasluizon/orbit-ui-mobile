@@ -6,6 +6,8 @@
 // run2 and run4: first-turn cards only; their streams do not hold the six child ids.
 export const streams = {
   run3: {
+    // Both final responses carry this top-level conversationId: the answer turn was sent in that one conversation.
+    conversationId: 'd1b7c7c0-73ad-49a0-875f-05215639d44a',
     children: [
       '22371c5a-206f-44b2-b078-f67bcb7c0eb9',
       '9d154ad6-2c69-4670-80c3-907c1c3e010b',

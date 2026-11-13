@@ -7,6 +7,7 @@ import { sameTitleCard } from './same-title-card.mjs'
 import { approvePendingOperation, publicApi } from './fixtures/api.mjs'
 import { readSameTitleSet } from './fixtures/same-title-set.mjs'
 import { requireEvalOrigin } from './fixtures/reset.mjs'
+import { followConversation } from './offer-context.mjs'
 
 const { buildRecentChatHistory } = await tsImport('../../packages/shared/src/utils/chat-history.ts', import.meta.url)
 const actionTools = { deleted: 'bulk_delete_habits', renamed: 'bulk_update_habits' }
@@ -28,6 +29,7 @@ function answerVars(vars, card) {
     { role: 'user', content: card.message },
   ])
   return { ...vars, input: card.message, evalRequestId: randomUUID(), history: undefined,
+    clientContextJson: JSON.stringify(vars.clientContext),
     historyJson: JSON.stringify(history), blockAnswerJson: card.blockAnswer ? JSON.stringify(card.blockAnswer) : undefined,
     composition: { mode: 'preview', previews: 1, allowPreviewNote: vars.composition.allowPreviewNote },
     expectations: { required: tools.map((name) => ({ name })), allowed: ['query_habits', ...tools],
@@ -55,11 +57,13 @@ export async function completeSameTitleSet(output, vars, chat) {
   const parentId = vars.sameTitleBaseline.parent.id
   const held = await readSameTitleSet(api, parentId)
   if (!isDeepStrictEqual(held, vars.sameTitleBaseline)) return { ...output, sameTitleReadback: { held, after: held } }
-  const answered = asked ? { ...output, sameTitleAnswer: await answerQuestion(output, vars, chat) } : output
+  // The answer turn and the approval run in the conversation the first response returned, as the client sends them.
+  const clientContext = followConversation(vars.clientContext, output)
+  const answered = asked ? { ...output, sameTitleAnswer: await answerQuestion(output, { ...vars, clientContext }, chat) } : output
   if (asked && !sameTitleProposal(answered, vars).pass) return answered
   const pending = asked ? answered.sameTitleAnswer.composition.pendingOperations : output.composition.pendingOperations ?? []
   const before = asked ? await readSameTitleSet(api, parentId) : held
   if (!isDeepStrictEqual(before, vars.sameTitleBaseline)) return { ...answered, sameTitleReadback: { held: before, after: before } }
-  for (const operation of pending) await approvePendingOperation(api, operation.id, vars.clientContext)
+  for (const operation of pending) await approvePendingOperation(api, operation.id, clientContext)
   return { ...answered, sameTitleReadback: { held: before, after: await readSameTitleSet(api, parentId) } }
 }

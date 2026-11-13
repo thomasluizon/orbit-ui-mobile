@@ -385,7 +385,8 @@ shipped client schema.
 Each locale covers an initial stuck prompt, a smaller action, task approval, checklist approval and
 a client whose `partKinds` omits `oneSmallStep`. The legacy answer must equal the tool's step text
 without action prompts. The typed answer has one block, the three server labels and no framing prose.
-Follow-ups send the returned action's complete `message` with verified setup history. The smaller
+Follow-ups send the returned action's complete `message` with verified setup history and the setup response's
+`conversationId`; the legacy client predates that id and sends none. The smaller
 rubric receives the original activity and step to compare effort semantically, allowing equivalent
 activity wording. Save cases derive their required tool arguments from that same returned step.
 
@@ -612,12 +613,14 @@ A card case adds `sameTitleSet.answer` (the decided `deleted` and `renamed` posi
 `composition.allowQuestion`. When the first turn asks, the card must name only stored children by id, make each
 child selectable as a record or through a set option whose `ask` call declares `target_ids`, and offer one
 selection that states the whole decision. The provider sends that selection as `blockAnswer`, with the message and
-the history the web client sends. The shared client functions build the message: the selected labels for a choice
-card, and each question prompt with its selected labels for a question card. When the question has no card, the
-provider sends the typed text. The lifecycle runs in `attempt()` around the single request of `chat()`, as the offer
-lifecycle does, so the answer turn cannot start the lifecycle again. The answer turn must hold one preview with
-both actions on the decided positions and no further question. `composition.allowPreviewNote` permits one short
-line beside the preview for the production request, the count case and the card case.
+the history the web client sends. As the client does, the answer turn, confirm and execute send the first response's
+`conversationId` in `clientContext`, so the API reads the stored conversation. The shared client functions build the
+message: the selected labels for a choice card, and each question prompt with its selected labels for a question
+card. When the question has no card, the provider sends the typed text. The lifecycle runs in `attempt()` around the
+single request of `chat()`, as the offer lifecycle does, so the answer turn cannot start the lifecycle again. The
+answer turn must hold one preview with both actions on the decided positions and no further question.
+`composition.allowPreviewNote` permits one short line beside the preview for the production request, the count case
+and the card case.
 
 Offline checks (`npm test --prefix evals/astra`) prove the fixture, grading and lifecycle, including the real
 staging responses of #2127 (`__tests__/fixtures/same-title-streams.mjs`); the paid run is the #315 gate.
@@ -1131,8 +1134,9 @@ exact parent IDs, weekly vitamin D and daily rosuvastatin, without duplicate roo
 Only medical correction cases declare `vars.setup`. After fixture reset, the hook issues that
 original request using the same installed HTTP provider and capabilities, with a separate fresh
 request identity. Structure, behavior and composition must all pass before the correction runs.
-The actual final answer becomes chat history, and the actual preview becomes the comparison
-baseline. The correction requires 16:00 and preserves every other preview field and item identity.
+The actual final answer becomes chat history, the returned `conversationId` joins the client context,
+and the actual preview becomes the comparison baseline. The correction requires 16:00 and preserves every other
+preview field and item identity.
 A correction requires exactly one held `bulk_create_habits` call. Setup derives its full argument
 scope from the verified original trace, changing only the named exam's `due_time`; exact argument
 matching rejects added fields, changed siblings and additional mutations. Successful writes

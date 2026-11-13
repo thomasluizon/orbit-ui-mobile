@@ -325,7 +325,10 @@ function boundary(failure) {
   vi.stubGlobal('fetch', async (url, options) => {
     const path = new URL(url).pathname
     if (!path.startsWith('/api/ai/')) return fixture(url, options)
-    requests.push({ path, body: options.body ? JSON.parse(options.body) : undefined })
+    const body = options.body ? JSON.parse(options.body) : undefined
+    // Producer: confirm reads clientContext from the query, execute from the body (AiController).
+    const clientContext = path.endsWith('/confirm') ? JSON.parse(new URL(url).searchParams.get('clientContext')) : body?.clientContext
+    requests.push({ path, body, clientContext })
     if (path.endsWith('/confirm')) return Response.json({ pendingOperationId: failure === 'unbound' ? operationIds.deleteHabits : path.split('/')[4],
       confirmationToken: 'private-confirmation-token' })
     if (failure !== 'ignored') {
@@ -461,6 +464,29 @@ it('answers a card that holds the decision, then approves the one preview of the
     .toEqual([['structural', true], ['behavior', true], ['composition', true]])
   expect(aiWrites()).toEqual(['confirm', 'execute'])
   expect(behavior(response.output, { vars: policy })).toMatchObject({ pass: true })
+})
+
+// The client takes conversationId from each response (settleComposerResponse) and sends it in clientContext on the next turn,
+// confirm and execute; with conversation recording on, the API then answers from the stored conversation, not the history.
+it.each(['card', 'preview'])('sends the conversation id the first response returned on every later %s call', async (shape) => {
+  boundary()
+  const { conversationId } = streams.run3
+  const answer = (children, requestId) => {
+    const output = held({ deleted: children.slice(4), renamed: children.slice(0, 4), requestId })
+    return { ...output, composition: { ...output.composition, conversationId } }
+  }
+  const { policy, answered, response } = shape === 'card'
+    ? await cardAttempt((children) => respond([], { parts: [questionCard(children, 'Which two do you want to delete?')], conversationId }), answer)
+    : await cardAttempt((children) => answer(children, 'same-title'), answer)
+  expect(response.error).toBeUndefined()
+  expect(policy.clientContext).not.toHaveProperty('conversationId')
+  const continued = { ...policy.clientContext, conversationId }
+  expect(answered.map(({ vars }) => [vars.clientContext, vars.clientContextJson]))
+    .toEqual(shape === 'card' ? [[continued, JSON.stringify(continued)]] : [])
+  if (shape === 'card') expect(JSON.parse(answered[0].vars.historyJson)).toEqual([{ role: 'user', content: policy.input },
+    { role: 'assistant', content: expect.stringContaining('"kind":"question"') }])
+  expect(requests.filter(({ path }) => path.startsWith('/api/ai/')).map(({ path, clientContext }) => [path.split('/').at(-1), clientContext]))
+    .toEqual([['confirm', continued], ['execute', continued]])
 })
 
 it.each([
