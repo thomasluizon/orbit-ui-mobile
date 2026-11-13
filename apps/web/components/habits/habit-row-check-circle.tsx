@@ -31,10 +31,10 @@ export function CheckCircle({ state, unavailable = false, onToggle, disabled, ar
       aria-label={ariaLabel}
       aria-describedby={disabled && disabledReason ? reasonId : undefined}
       title={disabled ? disabledReason : undefined}
-      className={`group/row-check appearance-none border-0 bg-transparent shrink-0 flex min-h-[48px] w-[48px] items-center justify-center rounded-[20px] ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
+      className={`appearance-none border-0 bg-transparent shrink-0 flex min-h-[48px] w-[48px] items-center justify-center rounded-[20px] transition-transform duration-[var(--dur-press)] ease-[var(--ease-out)] ${disabled ? 'cursor-default' : 'cursor-pointer motion-safe:active:scale-[0.96]'}`}
       style={{ opacity: disabled ? 0.4 : 1 }}
     >
-      <span aria-hidden="true" data-slot="press-surface" className={disabled ? 'flex' : 'flex transition-[scale] duration-[var(--dur-press)] ease-[var(--ease-out)] motion-safe:group-active/row-check:scale-[0.96]'}>
+      <span aria-hidden="true" className="flex">
         {unavailable
           ? <HabitCheck status={state} unavailable />
           : <HabitCheck status={state} label={ariaLabel} />}

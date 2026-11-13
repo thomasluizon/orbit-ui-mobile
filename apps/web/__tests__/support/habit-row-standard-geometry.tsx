@@ -388,8 +388,8 @@ export async function assertCompletionFill(control: Locator, scale: number, pres
   for (const edge of ['left', 'right', 'top', 'bottom'] as const) {
     testExpect(Math.abs(measured.fill[edge] - measured.glyph[edge])).toBeLessThanOrEqual(1)
   }
-  testExpect(measured.target.width, 'a press scales the check inside the target and never the 48px target').toBeCloseTo(48, 1)
-  testExpect(measured.target.height).toBeGreaterThanOrEqual(48 - 0.1)
+  testExpect(measured.target.width).toBeCloseTo(48 * pressScale, 1)
+  testExpect(measured.target.height).toBeGreaterThanOrEqual(48 * pressScale - 0.1)
   const expected = await control.evaluate((element) => {
     const reference = document.createElement('span')
     reference.style.background = element.querySelector('[data-habit-check-feedback]') ? 'var(--bg-hover-opaque)' : 'var(--bg-hover)'

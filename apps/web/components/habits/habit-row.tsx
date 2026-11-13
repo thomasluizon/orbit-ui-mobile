@@ -149,16 +149,14 @@ function HabitRowStructuralColumn({
       aria-label={drillInsteadOfExpand ? drillLabel : expanded ? collapseLabel : expandLabel}
       aria-expanded={drillInsteadOfExpand ? undefined : expanded}
       aria-controls={drillInsteadOfExpand ? undefined : childPanelId}
-      className="group/row-disclosure flex min-h-[48px] w-[48px] shrink-0 appearance-none items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] cursor-pointer"
+      className="flex min-h-[48px] w-[48px] shrink-0 appearance-none items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,scale] [transition-duration:var(--dur-hover-control),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-out)] cursor-pointer motion-safe:active:scale-[0.96]"
     >
-      <span data-slot="press-surface" className="grid place-items-center transition-[scale] duration-[var(--dur-press)] ease-[var(--ease-out)] motion-safe:group-active/row-disclosure:scale-[0.96]">
-        <ChevronDown
-          size={20}
-          strokeWidth={1.8}
-          aria-hidden="true"
-          style={{ transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)' }}
-        />
-      </span>
+      <ChevronDown
+        size={20}
+        strokeWidth={1.8}
+        aria-hidden="true"
+        style={{ transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)' }}
+      />
     </button>
   )
 }
@@ -268,10 +266,8 @@ function HabitRowView({
       {structuralColumn && selectMode ? (
         <button type="button" data-habit-row-control="selection" aria-label={`${habit.title}, ${meta.filter((token) => typeof token !== 'string' && (token.kind === 'type' || token.kind === 'checklist')).map((token) => typeof token === 'string' ? token : token.label).join(' ')}`}
           aria-pressed={selected} onClick={() => onToggleSelection?.()}
-          className="group/row-selection flex min-h-[48px] w-[48px] shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]">
-          <span data-slot="press-surface" className="grid place-items-center transition-[scale] duration-[var(--dur-press)] ease-[var(--ease-out)] motion-safe:group-active/row-selection:scale-[0.96]">
-            <Checkbox checked={selected} onChange={() => onToggleSelection?.()} as="span" />
-          </span>
+          className="flex min-h-[48px] w-[48px] shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 transition-[background-color,scale] [transition-duration:var(--dur-hover-control),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-out)] motion-safe:active:scale-[0.96]">
+          <Checkbox checked={selected} onChange={() => onToggleSelection?.()} as="span" />
         </button>
       ) : null}
       {structuralColumn ? (

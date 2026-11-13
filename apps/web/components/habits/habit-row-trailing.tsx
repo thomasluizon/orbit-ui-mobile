@@ -78,10 +78,8 @@ function InteractiveParentRing({
       aria-disabled={disabled && completionReason ? true : undefined}
       aria-describedby={completionReasonId(disabled, completionReason, reasonId)}
       title={disabled ? completionReason : undefined}
-      className={`group/parent-ring appearance-none border-0 bg-transparent flex min-h-[48px] w-[48px] items-center justify-center rounded-[20px] ${disabled ? 'cursor-default opacity-40' : 'cursor-pointer'}`}>
-      <span data-slot="press-surface" className={disabled ? 'grid place-items-center' : 'grid place-items-center transition-[scale] duration-[var(--dur-press)] ease-[var(--ease-out)] motion-safe:group-active/parent-ring:scale-[0.96]'}>
-        <HabitCheck status={state} progress={childProgress ?? { done: 0, total: 0 }} />
-      </span>
+      className={`appearance-none border-0 bg-transparent flex min-h-[48px] w-[48px] items-center justify-center rounded-[20px] transition-transform duration-[var(--dur-press)] ease-[var(--ease-out)] ${disabled ? 'cursor-default opacity-40' : 'cursor-pointer motion-safe:active:scale-[0.96]'}`}>
+      <HabitCheck status={state} progress={childProgress ?? { done: 0, total: 0 }} />
       <CompletionReason id={reasonId} disabled={disabled} reason={completionReason} />
     </button>
   )
@@ -126,12 +124,10 @@ export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
               onClick={(event) => {
                 event.stopPropagation()
               }}
-              className="group/row-menu touch-target appearance-none border-0 bg-transparent flex items-center justify-center rounded-full text-[var(--fg-3)] transition-[background-color,color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] cursor-pointer hover:text-[var(--fg-1)]"
+              className="touch-target appearance-none border-0 bg-transparent flex items-center justify-center rounded-full text-[var(--fg-3)] transition-[background-color,color,scale] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-out)] cursor-pointer hover:text-[var(--fg-1)] motion-safe:active:scale-[0.96]"
               style={{ width: 48, minHeight: 48 }}
             >
-              <span data-slot="press-surface" className="grid place-items-center transition-[scale] duration-[var(--dur-press)] ease-[var(--ease-out)] motion-safe:group-active/row-menu:scale-[0.96]">
-                <MoreVertical size={20} strokeWidth={1.8} />
-              </span>
+              <MoreVertical size={20} strokeWidth={1.8} />
             </button></Menu.Trigger>
             <Menu.Content
               id={menuId}

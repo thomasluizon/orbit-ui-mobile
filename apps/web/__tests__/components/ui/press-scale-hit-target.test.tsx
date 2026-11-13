@@ -21,6 +21,9 @@ import { CheckCircle } from '@/components/habits/habit-row-check-circle'
 import { HabitRowTrailing } from '@/components/habits/habit-row-trailing'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { OnboardingCreateHabit } from '@/components/onboarding/onboarding-create-habit'
+import { Chip } from '@/components/ui/chip'
+import { PillAnchor } from '@/components/ui/pill-anchor'
+import { PillButton } from '@/components/ui/pill-button'
 import { QuietLink } from '@/components/ui/quiet-link'
 import { PricingSection } from '@/components/upgrade/pricing-section'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
@@ -60,6 +63,17 @@ const controls: [string, () => ReactElement, (page: Page) => Locator][] = [
   ['the pricing stay-free link', () => <PricingSection profile={null} plans={null} isLoadingPlans isPlansError={false} isOnline trialDaysLeft={null}
     checkoutLoading={null} checkoutError="" discountedAmount={(amount) => amount} onCheckout={vi.fn()} onStayFree={vi.fn()} onRetryPlans={vi.fn()}
     t={((key: string) => key) as never} />, (page) => page.getByRole('link', { name: 'upgrade.convert.stayFree', exact: true })],
+  ['the selection tray select-all', () => <SelectionTray {...tray} />, (page) => page.getByRole('button', { name: en.common.selectAll, exact: true })],
+  ['a calendar timed block', timeGrid, (page) => page.getByTestId('time-grid-event')],
+  ['a calendar week header', timeGrid, (page) => page.getByTestId('time-grid-col-header')],
+  ['the command row', () => <Command><Command.List><CommandRow leading={<span />} label="Morning run" value="morning-run" onSelect={vi.fn()} /></Command.List></Command>,
+    (page) => page.locator('[cmdk-item]')],
+  ['a pill button', () => <PillButton size="md" onClick={vi.fn()}>Continue to checkout</PillButton>, (page) => page.getByRole('button', { name: 'Continue to checkout', exact: true })],
+  ['a pill anchor', () => <PillAnchor href="https://example.com/billing">Open the billing portal in your browser</PillAnchor>,
+    (page) => page.getByRole('link', { name: 'Open the billing portal in your browser', exact: true })],
+  ['a resting chip', () => <Chip onClick={vi.fn()}>Morning routine</Chip>, (page) => page.getByRole('button', { name: 'Morning routine', exact: true })],
+  ['a selected chip', () => <Chip active onClick={vi.fn()}>Morning routine</Chip>, (page) => page.getByRole('button', { name: 'Morning routine', exact: true })],
+  // WHY: these eight scale their whole 48px target. The scale removes 0.96px at each edge, which is under 1px, so a press at the exact edge keeps its click. Each case guards that band. https://github.com/thomasluizon/orbit-tickets/issues/2096
   ['the answer block habit check', () => <AnswerBlock definition={{ kind: 'pickList', block: pickListBlockFixture }} />,
     (page) => page.locator('[data-habit-row-control="check"]').first()],
   ['the habit row disclosure', () => <HabitRow habit={createMockHabit({ title: 'Read' })} structuralColumn hasChildren actions={{ onDetail: vi.fn(), onToggleExpand: vi.fn() }} />,
@@ -72,11 +86,6 @@ const controls: [string, () => ReactElement, (page: Page) => Locator][] = [
   ['the habit row menu', () => <HabitRowTrailing habit={createMockHabit({ title: 'Parent' })} menuItems={[{ id: 'edit', label: 'Edit' }]} {...parentRing} />,
     (page) => page.locator('[data-habit-row-control="menu"]')],
   ['a selection tray action', () => <SelectionTray {...tray} />, (page) => page.getByRole('button', { name: en.habits.bulkBar.log, exact: true })],
-  ['the selection tray select-all', () => <SelectionTray {...tray} />, (page) => page.getByRole('button', { name: en.common.selectAll, exact: true })],
-  ['a calendar timed block', timeGrid, (page) => page.getByTestId('time-grid-event')],
-  ['a calendar week header', timeGrid, (page) => page.getByTestId('time-grid-col-header')],
-  ['the command row', () => <Command><Command.List><CommandRow leading={<span />} label="Morning run" value="morning-run" onSelect={vi.fn()} /></Command.List></Command>,
-    (page) => page.locator('[cmdk-item]')],
   ['the streak badge', () => <StreakBadge streak={3} />, (page) => page.locator('.orbit-streak-badge')],
 ]
 
@@ -103,8 +112,7 @@ describe('press hit target in Chromium', () => {
       await card.scrollIntoViewIfNeeded()
       await card.evaluate((element) => { element.addEventListener('click', (event) => { event.preventDefault(); element.dataset.clicks = String(Number(element.dataset.clicks ?? 0) + 1) }) })
       const box = (await card.boundingBox())!
-      const insideBandThatPressScaleRemoves = Math.min(2, box.width / 100)
-      const edge = { x: box.x + insideBandThatPressScaleRemoves, y: box.y + box.height / 2 }
+      const edge = { x: box.x, y: box.y + box.height / 2 }
       expect(await card.evaluate((element, point) => element.contains(document.elementFromPoint(point.x, point.y)), edge), 'the press starts on the control').toBe(true)
       await page.mouse.move(edge.x, edge.y)
       await page.mouse.down()

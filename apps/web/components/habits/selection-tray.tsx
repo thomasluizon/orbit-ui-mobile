@@ -66,10 +66,10 @@ function BulkBtn({ icon: Icon, label, iconColor, onClick, disabled = false, reas
       aria-disabled={disabled && reason ? true : undefined}
       aria-describedby={disabled && reason ? descriptionId ?? reasonId : undefined}
       title={disabled ? reason : undefined}
-      className={`group/bulk-action appearance-none border-0 bg-transparent shrink-0 overflow-hidden flex items-center justify-center transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] ${
+      className={`appearance-none border-0 bg-transparent shrink-0 overflow-hidden flex items-center justify-center transition-[background-color,scale] [transition-duration:var(--dur-hover-control),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-out)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] ${
         disabled
           ? 'opacity-45'
-          : 'cursor-pointer hover:bg-[var(--bg-hover-opaque)] active:bg-[var(--bg-hover-opaque)]'
+          : 'cursor-pointer hover:bg-[var(--bg-hover-opaque)] active:bg-[var(--bg-hover-opaque)] motion-safe:active:scale-[0.96]'
       }`}
       style={{
         width: TOUCH_TARGET_MIN,
@@ -78,9 +78,7 @@ function BulkBtn({ icon: Icon, label, iconColor, onClick, disabled = false, reas
         color: iconColor,
       }}
     >
-      <span data-slot="press-surface" className={disabled ? 'grid place-items-center' : 'grid place-items-center transition-[scale] duration-[var(--dur-press)] ease-[var(--ease-out)] motion-safe:group-active/bulk-action:scale-[0.96]'}>
-        <Icon size={20} strokeWidth={1.8} />
-      </span>
+      <Icon size={20} strokeWidth={1.8} />
       {disabled && reason && !descriptionId ? <span id={reasonId} className="sr-only">{reason}</span> : null}
     </button>
   )

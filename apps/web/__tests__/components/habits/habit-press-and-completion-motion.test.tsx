@@ -22,12 +22,10 @@ describe('check press feedback', () => {
   it('scales on the press duration and never on the control hover duration', () => {
     render(<CheckCircle state="empty" onToggle={vi.fn()} disabled={false} ariaLabel="Log" />)
     const control = screen.getByRole('button', { name: 'Log' })
-    const surface = control.querySelector(':scope > [data-slot="press-surface"]')!
-    expect(control.className, 'the press target keeps its full size').not.toContain('scale-[')
-    expect(surface.className).toContain('duration-[var(--dur-press)]')
-    expect(surface.className).toContain('ease-[var(--ease-out)]')
-    expect(surface.className).not.toContain('--dur-hover-control')
-    expect(surface.className).toContain('motion-safe:group-active/row-check:scale-[0.96]')
+    expect(control.className).toContain('duration-[var(--dur-press)]')
+    expect(control.className).toContain('ease-[var(--ease-out)]')
+    expect(control.className).not.toContain('--dur-hover-control')
+    expect(control.className).toContain('motion-safe:active:scale-[0.96]')
   })
 })
 
@@ -38,12 +36,10 @@ describe('parent row check press feedback', () => {
       menuItems={[]} onMenuSelect={vi.fn()} actions={{ onLog: vi.fn(), onUnlog: vi.fn() } as never} onToggleStatus={vi.fn()}
       completionReadOnly={false} completionStatusUnavailable={false} />)
     const control = document.querySelector('[data-habit-row-control="check"]')!
-    const surface = control.querySelector(':scope > [data-slot="press-surface"]')!
-    expect(control.className, 'the press target keeps its full size').not.toContain('scale-[')
-    expect(surface.className).toContain('duration-[var(--dur-press)]')
-    expect(surface.className).toContain('ease-[var(--ease-out)]')
-    expect(surface.className).not.toContain('--dur-hover-control')
-    expect(surface.className).toContain('motion-safe:group-active/parent-ring:scale-[0.96]')
+    expect(control.className).toContain('duration-[var(--dur-press)]')
+    expect(control.className).toContain('ease-[var(--ease-out)]')
+    expect(control.className).not.toContain('--dur-hover-control')
+    expect(control.className).toContain('motion-safe:active:scale-[0.96]')
   })
 })
 

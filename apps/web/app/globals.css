@@ -945,6 +945,24 @@ select[aria-hidden="true"] {
   overflow-wrap: anywhere;
 }
 
+/* A press target that scales whole keeps its full hit area. This layer has no paint and covers the box.
+   It takes the inverse of the 0.96 press scale, so a press that starts at the edge also ends on the target. */
+@utility press-hit-layer {
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    &:active::before {
+      scale: calc(1 / 0.96);
+    }
+  }
+}
+
 :root {
   --row-h-compact: 52px;
   --row-h: 68px;
@@ -1835,6 +1853,7 @@ button[data-variant="primary"]:enabled:not([data-loading]):active,
     background-color var(--dur-hover-control) var(--ease-standard),
     color var(--dur-hover-control) var(--ease-standard),
     scale var(--dur-press) var(--ease-out);
+  @apply press-hit-layer;
 }
 @media (prefers-reduced-motion: no-preference) {
   .chip:active { scale: 0.96; }
@@ -2457,12 +2476,11 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
     background: color-mix(in srgb, var(--fg-1) 90%, var(--bg));
   }
 }
-.orbit-streak-badge > [data-slot="press-surface"] {
-  position: relative;
+.orbit-streak-badge {
   isolation: isolate;
 }
 
-.orbit-streak-badge > [data-slot="press-surface"]::after {
+.orbit-streak-badge::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -2473,7 +2491,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   transition: background-color var(--dur-hover-control) var(--ease-standard);
 }
 
-.orbit-streak-badge:active > [data-slot="press-surface"]::after {
+.orbit-streak-badge:active::after {
   background-color: var(--bg-hover-opaque);
 }
 
@@ -2482,7 +2500,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .orbit-streak-badge:hover > [data-slot="press-surface"]::after {
+  .orbit-streak-badge:hover::after {
     background-color: var(--bg-hover-opaque);
   }
 
