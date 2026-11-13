@@ -25,7 +25,7 @@ UI `main` `1ffaaa7ae`; API `main` `1cf355934`; landing `main` `381b253fa`. Produ
 | `ui#2445` (`#2128`) | Round 8 (one P1 thread) was with a subagent at the relay: read the end of `handoff-notes.md`, then the commit, deliver, and arm the chain. |
 | `ui#2447` (`#2131`) at `4be3a69ed` | Two fix rounds pushed. Run `staging-web-wait.sh fix/ticket-2131-iphone-sign-in 4be3a69ed730e8f7425a5fa6ce3b59f623e44e78` as a background task, start the device proof subagent with `proof-note-ui-2447.md` (SE first), then review and merge. |
 | `ui#2448` (`#2132`) at `f3785b048` | Two fix rounds pushed. Approve the `desktopWindow.menu` copy, read the `installed (windows-latest)` job and its two captures, then `chain-review.sh ui 2448`. |
-| `ui#2450` (`#2120`), base `chore/ticket-2119-file-ledger-hygiene` | Launch 2 of 2 ran at the relay: read the end of `handoff-notes.md`. Then the spec bullet. `#2121` starts stacked on it when Part 3 is on the branch. |
+| `ui#2450` (`#2120`), base `chore/ticket-2119-file-ledger-hygiene` | Launch 2 of 2 ended at its time limit with Part 2 and a part of Part 3: read the end of `handoff-notes.md`. Then the spec bullet. `#2121` starts stacked on it when Part 3 is on the branch. |
 | `ui#2444` (`#2119`) at `2408256d5` | Waits for `ui#2442`. Then `main-merge-push.sh ticket-2119-file-ledger-hygiene`, the ledger steps and `chain-review.sh ui 2444`. No rerun of its red `Layout shard 1`. |
 | `#1561` | Build 4 is `WAITING_FOR_BETA_REVIEW`: read `externalBuildState` with `asc-api.mjs` at each intake cycle. |
 | `#2121` to `#2126` | Batch M, in ticket order, each stacked on the ticket before it. |
@@ -33,7 +33,7 @@ UI `main` `1ffaaa7ae`; API `main` `1cf355934`; landing `main` `381b253fa`. Produ
 
 Read scratchpad `handoff-notes.md` after the carry.
 
-Inventory: open pull requests ui `#2442`, `#2444`, `#2445`, `#2447`, `#2448`, `#2450`, `#2388`; api `#1111`; landing none. Running workers: none after the relay. Stashes and dirty worktrees: none. Detached worktrees with unpushed commits (leave them): `combined-2065`, api `scratch-1090-merge`, api `scratch-877-timing`. Waiters to arm: one `chain-review.sh <key> <pr>` for each pull request in CI or review, `wait-release.mjs` for each release run, and `wait-auto-work.mjs` when nothing is launchable.
+Inventory: open pull requests ui `#2442`, `#2444`, `#2445`, `#2447`, `#2448`, `#2450`, `#2388`; api `#1111`; landing none. Running workers: none after the relay. Stashes: none. Dirty worktree: `ticket-2120-orbit-identity` holds uncommitted Part 3 work and one unpushed commit from the worker that the time limit stopped (never discard it; a subagent continues from it). Detached worktrees with unpushed commits (leave them): `combined-2065`, api `scratch-1090-merge`, api `scratch-877-timing`. Waiters to arm: one `chain-review.sh <key> <pr>` for each pull request in CI or review, `wait-release.mjs` for each release run, and `wait-auto-work.mjs` when nothing is launchable.
 
 ## Then, in this order
 
