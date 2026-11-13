@@ -101,10 +101,13 @@ export function OtpInput({
   )
 }
 
+// WHY: UIKit hit testing ignores alpha below 0.01 and float32 0.01 is 0.0099999998: https://developer.apple.com/documentation/uikit/uiview/hittest(_:with:)
+const REAL_INPUT_OPACITY = 0.02
+
 const styles = StyleSheet.create({
   root: { gap: 8 },
   cellRow: { position: 'relative', flexDirection: 'row', justifyContent: 'center', gap: 8 },
-  realInput: { ...StyleSheet.absoluteFill, zIndex: 1, opacity: 0.01 },
+  realInput: { ...StyleSheet.absoluteFill, zIndex: 1, opacity: REAL_INPUT_OPACITY },
   cell: { width: 44, height: 56, flexShrink: 1, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   resizableCell: { height: undefined, minHeight: 56, paddingVertical: 8 },
   digit: { fontFamily: 'GeistMono_500Medium', fontSize: 28, fontVariant: ['tabular-nums'] },

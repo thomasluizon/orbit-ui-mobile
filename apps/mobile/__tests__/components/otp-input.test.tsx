@@ -34,6 +34,17 @@ describe('mobile OtpInput', () => {
       __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 })
     }
   })
+  it('keeps the real input above the UIKit hit-test floor so a tap reaches it on iPhone', async () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<OtpInput label="Code" value="" onChange={vi.fn()} />)
+      await Promise.resolve()
+    })
+    const style = StyleSheet.flatten(tree!.root.findByType('TextInput').props.style)
+    const UIKIT_HIT_TEST_ALPHA_FLOOR = 0.01
+    expect(Math.fround(style.opacity)).toBeGreaterThan(UIKIT_HIT_TEST_ALPHA_FLOOR)
+  })
+
   it('keeps one inset ring on the focused cell', async () => {
     let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(async () => {
