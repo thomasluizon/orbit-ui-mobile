@@ -281,7 +281,27 @@ back to the production key. The API enforces `AI__EvalDailyBudgetUsd`, a hard sh
 of 0.50 USD per UTC day per environment for all eval accounts together. The per-account
 `astra_eval_unmetered` flag does not bypass this shared ceiling.
 A ceiling stop ends that UTC day's window; the gate continues with its remaining cases in the
-next UTC day's window (`### Daily windows and combined report`). Never continue it on another
+next UTC day's window (`### Same-title set cases
+
+The `same-title-set` family (#2128) proves the request class #2127 fixed: one parent Water with six
+children titled Water - 710ml. Per locale it holds the production request (delete two and rename the other four),
+one action on the last two by order, a whole-set rename, a title that matches the parent and its children,
+a choice answer, a typed full answer and a typed full repeat (each with the earlier question in `history`),
+a stated count that differs from the found count, and the singular request that must ask once.
+The `same-title-control` family uses `similar-titles` and expects one question and no write for a singular
+request that carries an unrelated set or order word.
+
+A case with a `sameTitleSet` policy declares `deleted` and `renamed`, each with a `count` and optional `positions`,
+and `renamed.title`. `behavior` grades the held preview: one operation per declared action, every item a stored
+child, no habit in two actions, never the parent, and `positions` matched by baseline order. The HTTP provider then
+reads the set back, confirms and executes every held operation, and reads it back again. The persisted children
+must show the deleted ones gone, the renamed ones retitled and the rest unchanged. A preview case sets
+`composition.previews` to its operation count and forbids `ask`, so a question before the preview fails it.
+`composition.allowPreviewNote` permits one short line beside the preview for the two count cases.
+`#2129` adds its further cases to the same family. Offline checks (`npm test --prefix evals/astra`) prove the
+fixture, grading and lifecycle; the paid run is the #315 gate.
+
+### Daily windows and combined report`). Never continue it on another
 account, key or environment, reset a counter, raise a ceiling or rotate accounts to finish. No paid-key probe
 runs without a written cost estimate on the owning ticket first; record the actual cost
 on that ticket afterward.
@@ -426,7 +446,8 @@ this flow offline; never treat their passing result as evidence from a live mode
 ### Proactive offer gate
 
 The `offers-*` families add 70 bilingual cases to the composition corpus, bringing it to 184 cases
-and the full launch corpus to 205. Each case runs the configured `k` attempts and retains its
+and the full launch corpus to 205. The same-title families then add 22 cases to `scenarios.yaml`,
+bringing it to 43 cases and the full launch corpus to 227. Each case runs the configured `k` attempts and retains its
 family/locale pass^k result.
 The app-launch gate uses `k=1`. Fixture selection is explicit in `vars.offerState` and stays the
 same on retries. Each state has its own case identity in both locales:
@@ -689,6 +710,8 @@ its previous state after the run. Header alone or flag alone cannot enable traci
 | `free-at-limit` | Free account at the actual configured root capacity, with enough message allowance |
 | `budget-exhausted` | Daily message allowance exhausted through at most five ordinary requests, independently verified from profile; an unavailable precondition stays incomplete |
 | `hoje-next-step` | UTC profile in the case language, English titles in both locales: Meals with Breakfast logged today, then pending Lunch at 12:00, Afternoon snack at 16:00 and Dinner at 19:00; Water with six pending Water - 710ml children. Registered root IDs are preserved; ordered children, times, parent links and completion history require independent readback |
+| `same-title-children` | English titles in both locales, the first registered root only: parent Water with six pending Water - 710ml children in position order, and the second registered root deleted (restorable by the next reset). Ordered children, parent link and empty history require independent readback; the reset stores the readback as `sameTitleBaseline` |
+| `similar-titles` | The two registered roots renamed to two distinct titles that share one word (Morning Walk and Evening Walk, or Caminhada manhã and Caminhada noite), both pending |
 
 ### Daily windows and combined report
 
