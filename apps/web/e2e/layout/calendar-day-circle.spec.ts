@@ -46,11 +46,10 @@ async function keyboardFocusDay(page: Page, day: Locator) {
 /** `DESIGN.md` DayCell: keyboard focus replaces the primary position treatment with one inset 2px `--fg-1` ring and a `--bg` band. */
 async function expectKeyboardDayRing(page: Page, day: Locator) {
   const [foreground, background] = [await readThemeColor(page, '--fg-1'), await readThemeColor(page, '--bg')]
-  const ring = await day.locator('[data-day-position-ring]').evaluate((element) => {
+  await expect.poll(() => day.locator('[data-day-position-ring]').evaluate((element) => {
     const style = getComputedStyle(element)
     return { ring: style.boxShadow, outline: `${style.outlineStyle} ${style.outlineWidth} ${style.outlineColor}`, outlineOffset: style.outlineOffset }
-  })
-  expect(ring).toEqual({ ring: `${background} 0px 0px 0px 4px inset`, outline: `solid 2px ${foreground}`, outlineOffset: '-2px' })
+  })).toEqual({ ring: `${background} 0px 0px 0px 4px inset`, outline: `solid 2px ${foreground}`, outlineOffset: '-2px' })
 }
 
 for (const width of [320, 412, 600, 1352]) {
