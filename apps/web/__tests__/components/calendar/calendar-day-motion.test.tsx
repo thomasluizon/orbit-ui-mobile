@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { motionDurations } from '@orbit/shared/theme'
+import { motionDurations, motionLayerTiming } from '@orbit/shared/theme'
 import type { DayCellWords } from '@orbit/shared/contracts/dates'
 import { DayCell } from '@/components/dates/day-cell'
 import { CheckRow } from '@/components/ui/check-row'
@@ -16,6 +16,7 @@ vi.mock('@/components/calendar/calendar-grid', () => ({ CalendarGrid: () => <div
 vi.mock('@/components/calendar/calendar-slide', () => ({ CalendarSlide: ({ children }: { children: ReactNode }) => <div>{children}</div> }))
 vi.mock('@/components/calendar/calendar-day-detail', () => ({ CalendarDayDetail: ({ dateStr }: { dateStr: string }) => <section data-testid="day-card">{dateStr}</section> }))
 vi.mock('@/components/calendar/calendar-stats', () => ({ CalendarStats: () => <div data-testid="stats" /> }))
+vi.mock('@/components/calendar/calendar-week-view', () => ({ CalendarWeekView: () => <div data-testid="week" /> }))
 
 const words: DayCellWords = { none: 'none', partial: 'partial', full: 'full', notScheduled: 'rest', of: 'of', today: 'today', readOnly: 'read only' }
 
@@ -142,5 +143,25 @@ describe('the month view with the guided flows on', () => {
     expect(screen.getByText('calendar.emptyMonth')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
     expect(openHabitCreation).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('the view switch', () => {
+  it('enters the chosen view on the tab-switch preset, shifted toward its segment', () => {
+    const { rerender } = render(<CalendarViewRouter state={monthState({})} />)
+    rerender(<CalendarViewRouter state={monthState({ view: 'week' })} />)
+    expect(animate).toHaveBeenCalledWith(
+      [{ opacity: 0, transform: `translateX(${motionLayerTiming.tabShift}px)` }, { opacity: 1, transform: 'translateX(0)' }],
+      expect.objectContaining({ duration: motionDurations.fast }),
+    )
+    expect(screen.getByTestId('week')).toBeInTheDocument()
+  })
+
+  it('swaps the view at once under reduced motion', () => {
+    state.reducedMotion = true
+    stubMatchMedia()
+    const { rerender } = render(<CalendarViewRouter state={monthState({})} />)
+    rerender(<CalendarViewRouter state={monthState({ view: 'week' })} />)
+    expect(animate).not.toHaveBeenCalled()
   })
 })

@@ -38,7 +38,7 @@ import type { CalendarScreenState } from './use-calendar-screen-state'
 import { createStyles } from './calendar-screen-styles'
 
 
-import { PADDING, motionDurations, motionEasings } from '@orbit/shared/theme'
+import { PADDING, motionDurations, motionEasings, resolveMotionPreset } from '@orbit/shared/theme'
 
 /** A new selected day cross-fades the day card on the base duration. The first day and reduced motion show at once. */
 function useDayCardFade(dayKey: string) {
@@ -154,7 +154,37 @@ function CalendarMonthView({ state }: Readonly<{ state: CalendarScreenState }>) 
   ))
 }
 
+const VIEW_ORDER: readonly CalendarScreenState['view'][] = ['month', 'week', 'range', 'agenda']
+
+/** A view switch enters on the tab-switch preset, shifted toward the side of the chosen segment. Reduced motion swaps the view at once. */
+function useViewSwitchMotion(view: CalendarScreenState['view']) {
+  const reducedMotion = usePrefersReducedMotion()
+  const progress = useSharedValue(1)
+  const shift = useSharedValue(0)
+  const shownView = useRef(view)
+  useEffect(() => {
+    const before = shownView.current
+    if (before === view) return undefined
+    shownView.current = view
+    if (reducedMotion) return undefined
+    const preset = resolveMotionPreset('tab-switch')
+    shift.value = (VIEW_ORDER.indexOf(view) > VIEW_ORDER.indexOf(before) ? 1 : -1) * preset.shift
+    progress.value = 0
+    progress.value = withTiming(1, { duration: preset.enterDuration, easing: Easing.bezier(...preset.enterEasing) })
+    return () => {
+      cancelAnimation(progress)
+      progress.value = 1
+    }
+  }, [progress, reducedMotion, shift, view])
+  return useAnimatedStyle(() => ({ opacity: progress.value, transform: [{ translateX: (1 - progress.value) * shift.value }] }))
+}
+
 export function CalendarViewRouter({ state }: Readonly<{ state: CalendarScreenState }>) {
+  const switchStyle = useViewSwitchMotion(state.view)
+  return <Animated.View testID="calendar-view-switch" style={[{ flexGrow: state.view === 'week' ? 1 : 0 }, switchStyle]}><CalendarViewBody state={state} /></Animated.View>
+}
+
+function CalendarViewBody({ state }: Readonly<{ state: CalendarScreenState }>) {
   const { t, i18n } = useTranslation()
   const { view, timeZone, todayKey, tokens, displayTime, weekSlide, agendaStart, rangeLoading, displayRangeDayMap, gridColumns, onSelectDay, rangeModel, rangeLabel, weekdayHeaders, rangeStatTiles } = state
   return ({

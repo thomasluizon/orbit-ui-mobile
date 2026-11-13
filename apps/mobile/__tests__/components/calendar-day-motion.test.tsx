@@ -15,6 +15,7 @@ vi.mock('@/lib/motion', async (importOriginal) => ({ ...await importOriginal<typ
 vi.mock('@/hooks/use-flag', () => ({ useFlag: () => state.guided }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }) }))
 vi.mock('@/app/(tabs)/calendar/_components/calendar-grid', () => ({ CalendarGrid: () => <View testID="grid" /> }))
+vi.mock('@/app/(tabs)/calendar/_components/calendar-week-view', () => ({ CalendarWeekView: () => <View testID="week" /> }))
 vi.mock('@/app/(tabs)/calendar/_components/calendar-day-detail', () => ({ CalendarDayDetail: ({ selectedDate }: { selectedDate: string }) => <View testID={`day-card-${selectedDate}`} /> }))
 vi.mock('@/components/ui/pill-button', () => ({ PillButton: ({ onClick }: { children: ReactNode; onClick: () => void }) => <Pressable testID="pill" onPress={onClick} /> }))
 
@@ -140,5 +141,21 @@ describe('the month view with the guided flows on, on Android', () => {
     expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'calendar.emptyMonth').length).toBeGreaterThan(0)
     TestRenderer.act(() => (byTestId(tree, 'pill').find((node) => typeof node.type === 'string')!.props.onPress as () => void)())
     expect(view.openHabitCreation).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('the view switch on Android', () => {
+  it('enters the chosen view on the tab-switch preset', () => {
+    const tree = render(<CalendarViewRouter state={monthState({})} />)
+    TestRenderer.act(() => tree.update(<CalendarViewRouter state={monthState({ view: 'week' })} />))
+    expect(withTimingCalls).toEqual([expect.objectContaining({ value: 1, config: expect.objectContaining({ duration: motionDurations.fast }) })])
+    expect(byTestId(tree, 'week').length).toBeGreaterThan(0)
+  })
+
+  it('swaps the view at once under reduced motion', () => {
+    state.reducedMotion = true
+    const tree = render(<CalendarViewRouter state={monthState({})} />)
+    TestRenderer.act(() => tree.update(<CalendarViewRouter state={monthState({ view: 'week' })} />))
+    expect(withTimingCalls).toHaveLength(0)
   })
 })

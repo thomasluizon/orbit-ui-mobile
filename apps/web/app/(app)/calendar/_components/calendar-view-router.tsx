@@ -1,5 +1,5 @@
 import { useTranslations } from 'next-intl'
-import { PADDING, motionDurations, motionEasings } from '@orbit/shared/theme'
+import { PADDING, motionDurations, motionEasings, resolveMotionPreset } from '@orbit/shared/theme'
 import { calendarDayLoadingLabel, calendarStatState } from '@orbit/shared/utils/calendar-navigation'
 import { useEffect, useRef, type ReactNode } from 'react'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
@@ -149,7 +149,33 @@ function CalendarMonthView({ state }: Readonly<{ state: CalendarScreenState }>) 
   </div>)
 }
 
+const VIEW_ORDER: readonly CalendarScreenState['view'][] = ['month', 'week', 'range', 'agenda']
+
+/** A view switch enters on the tab-switch preset, shifted toward the side of the chosen segment. Reduced motion swaps the view at once. */
+function CalendarViewSwitch({ view, children }: Readonly<{ view: CalendarScreenState['view']; children: ReactNode }>) {
+  const viewRef = useRef<HTMLDivElement>(null)
+  const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
+  const shownView = useRef(view)
+  useEffect(() => {
+    const before = shownView.current
+    if (before === view) return undefined
+    shownView.current = view
+    const element = viewRef.current
+    if (reducedMotion || !element || typeof element.animate !== 'function') return undefined
+    const preset = resolveMotionPreset('tab-switch')
+    const shift = (VIEW_ORDER.indexOf(view) > VIEW_ORDER.indexOf(before) ? 1 : -1) * preset.shift
+    const enter = element.animate([{ opacity: 0, transform: `translateX(${shift}px)` }, { opacity: 1, transform: 'translateX(0)' }],
+      { duration: preset.enterDuration, easing: `cubic-bezier(${preset.enterEasing.join(', ')})` })
+    return () => enter.cancel()
+  }, [view, reducedMotion])
+  return <div ref={viewRef} data-calendar-view={view} className="flex min-h-0 flex-1 flex-col">{children}</div>
+}
+
 export function CalendarViewRouter({ state }: Readonly<{ state: CalendarScreenState }>) {
+  return <CalendarViewSwitch view={state.view}><CalendarViewBody state={state} /></CalendarViewSwitch>
+}
+
+function CalendarViewBody({ state }: Readonly<{ state: CalendarScreenState }>) {
   const t = useTranslations()
   const { view, timeZone, todayKey, weekSlide, displayTime, dateFnsLocale, agendaStart, rangeLoading, displayRangeDayMap, gridColumns, openDay, rangeLabel, rangeModel, weekdayLabels, rangeStatTiles } = state
   if (view === 'month') return (<CalendarMonthView state={state} />)
