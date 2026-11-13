@@ -88,6 +88,20 @@ other paths use the US ingestion host. The handler strips application credential
 hop-by-hop headers and restores the content encoding decoded by Node's fetch before
 streaming the response. Keep the SDK's `api_host` at `/ingest` and preserve trailing slashes.
 
+Browser Sentry envelopes post to the `/monitoring` Route Handler through the SDK's `tunnel`
+option, not through the `withSentryConfig` `tunnelRoute` rewrite. Next.js forwards every
+request header on an external rewrite, so that rewrite sent the session cookies to Sentry. The
+handler forwards an envelope only when its header names the build's `NEXT_PUBLIC_SENTRY_DSN`,
+and it sends the body to that project's ingest endpoint with only a `Content-Type` header.
+`SENTRY_TUNNEL_ROUTE` in `lib/public-paths.ts` names the path, so a signed-out visitor
+reaches it.
+
+Do not set `tunnelRoute` again. Today `next.config.ts` has no `rewrites()`, so Next.js loads the
+`tunnelRoute` rewrite in `afterFiles`, after the `/monitoring` Route Handler, and it does nothing.
+If `rewrites()` later returns an object, Sentry prepends the rewrite to `beforeFiles`, ahead of
+the handler. Then the rewrite sends the session cookies and the `proxy.ts` request headers to
+Sentry again.
+
 ## Focused read block rollout
 
 Deploy #1616's API contracts before shipping the client advertisement for `periodTotal`,

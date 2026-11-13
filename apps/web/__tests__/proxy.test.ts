@@ -10,6 +10,7 @@ import {
 } from '@/lib/auth-api'
 import nextConfig from '../next.config'
 import { createManifest } from '@/lib/manifest'
+import { SENTRY_TUNNEL_ROUTE } from '@/lib/public-paths'
 
 vi.mock('next-intl/server', () => ({ getTranslations: async () => (key: string) => key }))
 import { POST as issueEventTicket } from '@/app/api/events/ticket/route'
@@ -170,6 +171,33 @@ describe('proxy', () => {
     expect(flagsResponse).toMatchObject({ type: 'next' })
     expect(resolveSessionTokens).not.toHaveBeenCalled()
     expect(NextResponse.redirect).not.toHaveBeenCalled()
+  })
+
+  it('passes a signed-out Sentry tunnel envelope through the proxy', async () => {
+    vi.mocked(resolveSessionTokens).mockResolvedValue({
+      token: null,
+      expiresAt: null,
+      refreshed: false,
+      refreshFailed: false,
+    })
+    const tunnelUrl = 'http://localhost:3000/monitoring?o=1&p=2&r=us'
+
+    expect(unstable_doesMiddlewareMatch({ config, url: tunnelUrl })).toBe(true)
+
+    const response = await proxy(createRequest('/monitoring?o=1&p=2&r=us', { method: 'POST' }))
+
+    expect(response).toMatchObject({ type: 'next' })
+    expect(resolveSessionTokens).not.toHaveBeenCalled()
+    expect(NextResponse.redirect).not.toHaveBeenCalled()
+  })
+
+  it('serves the Sentry tunnel from its route handler instead of a header-forwarding rewrite', async () => {
+    const rewrites = await nextConfig.rewrites?.() ?? []
+    const rules = Array.isArray(rewrites)
+      ? rewrites
+      : [...rewrites.beforeFiles ?? [], ...rewrites.afterFiles ?? [], ...rewrites.fallback ?? []]
+
+    expect(rules.filter(({ source }) => source.startsWith(SENTRY_TUNNEL_ROUTE))).toEqual([])
   })
 
   it('keeps trailing slashes on PostHog requests', () => {

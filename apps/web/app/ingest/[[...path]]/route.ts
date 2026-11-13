@@ -65,6 +65,8 @@ async function forwardPostHog(request: Request): Promise<Response> {
   headers.set('accept-encoding', 'gzip, deflate, br')
   headers.delete('cookie')
   headers.delete('authorization')
+  headers.delete('x-nonce')
+  headers.delete('content-security-policy')
   const options: RequestInit & { duplex: 'half' } = {
     method: request.method,
     headers,

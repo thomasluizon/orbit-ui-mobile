@@ -109,14 +109,15 @@ describe('PostHog streaming proxy', () => {
     '/api/surveys/', '/api/early_access_features/', '/api/product_tours/',
     '/api/web_experiments/', '/api/conversations/v1/widget/message',
     '/static/array.js', '/array/project-token/config',
-  ])('forwards a streamed body and client context for %s without application credentials', async path => {
+  ])('forwards a streamed body and client context for %s without application credentials or proxy headers', async path => {
     fetchUpstream.mockResolvedValue(new Response('ok'))
     const request = new Request(`https://app.example.test/ingest${path}`, {
       method: 'POST', body: 'event payload',
       headers: { cookie: 'auth=private', authorization: 'Bearer private', host: 'app.example.test',
         'content-type': 'text/plain', 'content-encoding': 'gzip', origin: 'https://app.example.test',
         'user-agent': 'sdk-agent', connection: 'keep-alive, x-private-hop', 'x-private-hop': 'private',
-        'x-forwarded-for': '192.0.2.1', 'content-length': '13' },
+        'x-forwarded-for': '192.0.2.1', 'content-length': '13', 'x-nonce': 'cHJveHktbm9uY2U=',
+        'content-security-policy': "script-src 'nonce-cHJveHktbm9uY2U='" },
     })
 
     await POST(request)
@@ -138,7 +139,8 @@ describe('PostHog streaming proxy', () => {
     expect(headers.get('user-agent')).toBe('sdk-agent')
     expect(headers.get('x-forwarded-for')).toBe('192.0.2.1')
     expect(headers.get('accept-encoding')).toBe('gzip, deflate, br')
-    for (const header of ['cookie', 'authorization', 'connection', 'content-length', 'x-private-hop']) {
+    for (const header of ['cookie', 'authorization', 'connection', 'content-length', 'x-private-hop',
+      'x-nonce', 'content-security-policy']) {
       expect(headers.has(header)).toBe(false)
     }
   })
