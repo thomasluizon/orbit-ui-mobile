@@ -8,6 +8,7 @@ import { SENTRY_TUNNEL_ROUTE } from '@/lib/public-paths'
 
 const BROWSER_DSN = 'https://publickey@o123.ingest.us.sentry.io/456'
 const INGEST_ENDPOINT = 'https://o123.ingest.us.sentry.io/api/456/envelope/?sentry_version=7&sentry_key=publickey'
+const SENTRY_UPSTREAM_TIME_LIMIT_MS = 2000
 const fetchUpstream = vi.fn<typeof fetch>()
 
 function envelopeFor(header: string): string {
@@ -124,6 +125,35 @@ describe('Sentry tunnel route', () => {
 
     expect(response.status).toBe(403)
     expect(fetchUpstream).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['a timed out connection', Object.assign(new TypeError('fetch failed'), { cause: new Error('connect ETIMEDOUT 34.160.81.0:443') })],
+    ['an unreachable network', Object.assign(new TypeError('fetch failed'), { cause: new Error('connect ENETUNREACH 2600:1901:0:5e8a:::443') })],
+  ])('answers 502 with an empty body and does not throw when Sentry fails with %s', async (_case, failure) => {
+    fetchUpstream.mockRejectedValue(failure)
+
+    const response = await POST(tunnelRequest(sdkEnvelope(BROWSER_DSN)))
+
+    expect(response.status).toBe(502)
+    expect(await response.text()).toBe('')
+  })
+
+  it('answers 502 with an empty body when the call to Sentry passes the time limit', async () => {
+    const timeLimit = new AbortController()
+    const createTimeLimit = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(timeLimit.signal)
+    const timeoutError = new DOMException('The operation was aborted due to timeout', 'TimeoutError')
+    fetchUpstream.mockImplementation((_url, init) => new Promise((_resolve, reject) => {
+      init!.signal!.addEventListener('abort', () => reject(new Error(String(init!.signal!.reason))))
+      timeLimit.abort(timeoutError)
+    }))
+
+    const response = await POST(tunnelRequest(sdkEnvelope(BROWSER_DSN)))
+
+    expect(createTimeLimit).toHaveBeenCalledExactlyOnceWith(SENTRY_UPSTREAM_TIME_LIMIT_MS)
+    expect(response.status).toBe(502)
+    expect(await response.text()).toBe('')
+    createTimeLimit.mockRestore()
   })
 
   it.each([undefined, '', 'not a dsn', 'https://o123.ingest.us.sentry.io/456'])(
