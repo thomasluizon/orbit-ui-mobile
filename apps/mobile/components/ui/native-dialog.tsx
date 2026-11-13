@@ -8,6 +8,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { useOverlayFocus } from './focus-provenance-view'
 import { useOverlayMotion } from '@/lib/overlay-motion'
 import { useNativeWindow } from './native-window-host'
+import { OrbitOverlayLayer } from './orbit-overlay-layer'
 
 interface NativeDialogProps {
   open: boolean
@@ -18,7 +19,7 @@ interface NativeDialogProps {
 
 export function NativeDialog({ open, onOpenChange, title, children }: Readonly<NativeDialogProps>) {
   return <Dialog.Root open={open} onOpenChange={onOpenChange}>
-    <WindowPortal title={title}>{children}</WindowPortal>
+    <OrbitOverlayLayer active={open}><WindowPortal title={title}>{children}</WindowPortal></OrbitOverlayLayer>
   </Dialog.Root>
 }
 

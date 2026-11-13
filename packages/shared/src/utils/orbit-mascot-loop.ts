@@ -1,9 +1,15 @@
 /** Who may run Orbit's idle loop. A view has at most one live Orbit, the person can switch the loop off,
- *  and an open overlay pauses it. The store has no React in it: the apps read it through
+ *  and an open overlay pauses every Orbit under it. The store has no React in it: the apps read it through
  *  `useSyncExternalStore`. */
 
+interface LiveClaim {
+  readonly claim: symbol
+  /** The number of overlays around the mascot: 0 on the page, 1 inside a sheet, 2 inside a sheet on a sheet. */
+  readonly layer: number
+}
+
 const listeners = new Set<() => void>()
-const liveClaims: symbol[] = []
+const liveClaims: LiveClaim[] = []
 let motionEnabled = true
 let overlayCount = 0
 let version = 0
@@ -45,17 +51,19 @@ export function pauseOrbitLoopForOverlay(): () => void {
   }
 }
 
-/** A live mascot claims a slot while it is mounted. Only the first claim runs the loop. */
-export function claimOrbitLiveSlot(claim: symbol): () => void {
-  liveClaims.push(claim)
+/** A live mascot claims a slot while it is mounted. On the top layer, only the first claim runs the loop. */
+export function claimOrbitLiveSlot(claim: symbol, layer = 0): () => void {
+  liveClaims.push({ claim, layer })
   notify()
   return () => {
-    const index = liveClaims.indexOf(claim)
+    const index = liveClaims.findIndex((entry) => entry.claim === claim)
     if (index >= 0) liveClaims.splice(index, 1)
     notify()
   }
 }
 
+/** An Orbit runs when the person allows motion, no overlay covers its layer, and it holds the first claim of the top layer. */
 export function mayOrbitRunLoop(claim: symbol): boolean {
-  return motionEnabled && overlayCount === 0 && liveClaims[0] === claim
+  if (!motionEnabled) return false
+  return liveClaims.find((entry) => entry.layer === overlayCount)?.claim === claim
 }

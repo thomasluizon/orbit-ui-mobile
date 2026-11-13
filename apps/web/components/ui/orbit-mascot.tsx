@@ -24,6 +24,7 @@ import {
 } from '@orbit/shared/utils'
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
+import { useOrbitOverlayLayer } from '@/components/ui/orbit-overlay-layer'
 
 const SMALL_BOX_RATIO = 3 / 4
 const LIVE_MIN_SIZE = 48
@@ -34,10 +35,11 @@ function isSmallSize(size: number): size is OrbitMascotSmallSize {
 }
 
 /** The idle loop clock in milliseconds. It runs only while this mascot holds the one live slot, the
- *  person has not paused Orbit, no overlay covers the view, the mascot is on screen and the tab is in
+ *  person has not paused Orbit, no overlay covers its layer, the mascot is on screen and the tab is in
  *  the foreground. It never runs under reduced motion. */
 function useOrbitLoopClock(wantsLoop: boolean, target: React.RefObject<SVGSVGElement | null>) {
   const [claim] = useState(() => Symbol('orbit-mascot'))
+  const layer = useOrbitOverlayLayer()
   const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
   const candidate = wantsLoop && !reducedMotion
   const [onScreen, setOnScreen] = useState(true)
@@ -46,7 +48,7 @@ function useOrbitLoopClock(wantsLoop: boolean, target: React.RefObject<SVGSVGEle
   const elapsed = useRef(0)
   useSyncExternalStore(subscribeOrbitLoop, getOrbitLoopVersion, getOrbitLoopVersion)
 
-  useEffect(() => (candidate ? claimOrbitLiveSlot(claim) : undefined), [candidate, claim])
+  useEffect(() => (candidate ? claimOrbitLiveSlot(claim, layer) : undefined), [candidate, claim, layer])
 
   useEffect(() => {
     const element = target.current

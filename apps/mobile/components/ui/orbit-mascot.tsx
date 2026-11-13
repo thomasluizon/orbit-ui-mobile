@@ -26,6 +26,7 @@ import { useReducedMotion } from 'react-native-reanimated'
 import Svg, { Circle, ClipPath, Defs, G, Path } from 'react-native-svg'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useOrbitOverlayLayer } from '@/components/ui/orbit-overlay-layer'
 
 const SMALL_BOX_RATIO = 3 / 4
 const LIVE_MIN_SIZE = 48
@@ -36,10 +37,11 @@ function isSmallSize(size: number): size is OrbitMascotSmallSize {
 }
 
 /** The idle loop clock in milliseconds. It runs only while this mascot holds the one live slot, the
- *  person has not paused Orbit, no overlay covers the view and the app is in the foreground. It never
+ *  person has not paused Orbit, no overlay covers its layer and the app is in the foreground. It never
  *  runs under reduced motion. */
 function useOrbitLoopClock(wantsLoop: boolean) {
   const [claim] = useState(() => Symbol('orbit-mascot'))
+  const layer = useOrbitOverlayLayer()
   const reducedMotion = useReducedMotion()
   const candidate = wantsLoop && !reducedMotion
   const [foreground, setForeground] = useState(AppState.currentState === 'active')
@@ -47,7 +49,7 @@ function useOrbitLoopClock(wantsLoop: boolean) {
   const elapsed = useRef(0)
   useSyncExternalStore(subscribeOrbitLoop, getOrbitLoopVersion, getOrbitLoopVersion)
 
-  useEffect(() => (candidate ? claimOrbitLiveSlot(claim) : undefined), [candidate, claim])
+  useEffect(() => (candidate ? claimOrbitLiveSlot(claim, layer) : undefined), [candidate, claim, layer])
 
   useEffect(() => {
     if (!candidate) return undefined
@@ -144,9 +146,22 @@ function paletteFrom(tokens: AppTokensV2): Palette {
   return { eye: tokens.bg, surface: tokens.bg, moon: tokens.primary }
 }
 
-export function OrbitMascot({ size, state = 'parado', still = false, color }: Readonly<OrbitMascotProps>) {
+type MobileOrbitMascotProps = OrbitMascotProps & {
+  /** The resolved tokens of a surface that must render without theme state, such as the root error screen. */
+  tokens?: AppTokensV2
+}
+
+export function OrbitMascot({ tokens, ...props }: Readonly<MobileOrbitMascotProps>) {
+  return tokens ? <OrbitMascotDrawing {...props} tokens={tokens} /> : <ThemedOrbitMascot {...props} />
+}
+
+function ThemedOrbitMascot(props: Readonly<OrbitMascotProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
+  return <OrbitMascotDrawing {...props} tokens={tokens} />
+}
+
+function OrbitMascotDrawing({ size, state = 'parado', still = false, color, tokens }: Readonly<OrbitMascotProps & { tokens: AppTokensV2 }>) {
   const clipId = `orbit-planet-${useId().replaceAll(':', '')}`
   const small = isSmallSize(size)
   const { clock, running } = useOrbitLoopClock(!small && !still)
