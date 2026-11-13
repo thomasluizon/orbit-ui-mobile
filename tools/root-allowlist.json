@@ -1,6 +1,5 @@
 {
   "files": [
-    ".claudeignore",
     ".dockerignore",
     ".env",
     ".env.local",

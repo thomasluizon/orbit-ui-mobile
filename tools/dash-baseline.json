@@ -1,5 +1,4 @@
 {
-  ".claudeignore": 1,
   ".github/dependabot.yml": 1,
   ".github/workflows/dependabot-auto-merge.yml": 1,
   "apps/mobile/app/(tabs)/today-model.ts": 1,

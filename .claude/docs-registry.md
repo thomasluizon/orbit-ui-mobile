@@ -31,6 +31,7 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `design/astra-conversation-participants.md` | Astra participant avatar owners, continuation spacing, text, block and running tool trace alignment, and pending reply replacement. |
 | `design/astra-one-small-step-surfaces.md` | Astra starting-step block owners, complete request actions, text disclosure and platform verification boundaries. |
 | `design/astra-block-copy-surfaces.md` | Astra reply code-block copy owners, independent confirmations, user and description exclusions, and platform verification boundaries. |
+| `.claude/mcp.json.example` | Template for the gitignored `.mcp.json`: the three MCP servers that `/investigate` calls (render, sentry, csharp-lsp). |
 | `design/astra-pending-reply-surfaces.md` | Astra pending reply owners, terminal replacements, polite announcement ownership and hermetic verification boundaries. |
 | `design/astra-mark-only-surfaces.md` | Assistant action labels, inline form-fill icons, localized prompts and the habit-detail composer owners (the composer has no collapse control). |
 | `design/astra-preview-surfaces.md` | Astra preview item semantics, counted actions, breakdown footer disclosure, deletion confirmation, revision, terminal outcomes and responsive parity. |
