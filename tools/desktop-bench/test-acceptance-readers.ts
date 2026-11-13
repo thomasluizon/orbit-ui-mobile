@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { after, test } from 'node:test'
 import { runChild } from './child-limit.mjs'
 
@@ -471,6 +471,155 @@ $window.DestroyHandle()
     assert.equal(covered.captionHeight, 0, JSON.stringify(covered))
     assert.equal(covered.menuBar, false, JSON.stringify(covered))
   } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+// The installed shell as the popup reading meets it: a window of the class Tauri gives its webview windows, with its native
+// menu attached and the same menu open as a popup under the bar. muda-0.20.0 inserts every item into the menu bar and into a
+// parallel popup menu that holds the same submenus (attach_item), and shows that popup after SetForegroundWindow with
+// TrackPopupMenu, TPM_LEFTALIGN and TPM_RETURNCMD at a client point (show_context_menu). The flag and style values are those
+// of windows-sys-0.61.2.
+const popupWindowFixture = `
+using System;
+using System.IO;
+using System.Runtime.InteropServices;
+using System.Threading;
+
+public static class OrbitPopupFixture {
+    private delegate IntPtr WindowProcedure(IntPtr window, uint message, IntPtr word, IntPtr parameter);
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct WindowClass {
+        public uint style;
+        public WindowProcedure procedure;
+        public int classExtra;
+        public int windowExtra;
+        public IntPtr instance;
+        public IntPtr icon;
+        public IntPtr cursor;
+        public IntPtr background;
+        public string menuName;
+        public string className;
+    }
+    [StructLayout(LayoutKind.Sequential)] private struct NativePoint { public int X, Y; }
+    [StructLayout(LayoutKind.Sequential)] private struct NativeMessage {
+        public IntPtr window;
+        public uint message;
+        public IntPtr word;
+        public IntPtr parameter;
+        public uint time;
+        public NativePoint point;
+    }
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern ushort RegisterClassW(ref WindowClass definition);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern IntPtr CreateWindowExW(uint extended, string className, string title, uint style, int x, int y, int width, int height,
+        IntPtr parent, IntPtr menu, IntPtr instance, IntPtr parameter);
+    [DllImport("user32.dll")] private static extern IntPtr DefWindowProcW(IntPtr window, uint message, IntPtr word, IntPtr parameter);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] private static extern IntPtr GetModuleHandleW(string name);
+    [DllImport("user32.dll")] private static extern IntPtr CreateMenu();
+    [DllImport("user32.dll")] private static extern IntPtr CreatePopupMenu();
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern bool AppendMenuW(IntPtr menu, uint flags, UIntPtr item, string text);
+    [DllImport("user32.dll")] private static extern bool SetMenu(IntPtr window, IntPtr menu);
+    [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr window);
+    [DllImport("user32.dll")] private static extern bool ClientToScreen(IntPtr window, ref NativePoint point);
+    [DllImport("user32.dll")] private static extern int TrackPopupMenu(IntPtr menu, uint flags, int x, int y, int reserved, IntPtr window, IntPtr rect);
+    [DllImport("user32.dll")] private static extern bool PeekMessageW(out NativeMessage message, IntPtr window, uint first, uint last, uint remove);
+    [DllImport("user32.dll")] private static extern bool TranslateMessage(ref NativeMessage message);
+    [DllImport("user32.dll")] private static extern IntPtr DispatchMessageW(ref NativeMessage message);
+    [DllImport("user32.dll")] private static extern bool DestroyWindow(IntPtr window);
+    private const uint Popup = 0x10, Checked = 0x8, ReturnCommand = 0x100, PopupStyle = 0x80000000, Visible = 0x10000000, Topmost = 0x8;
+    // A field keeps the window procedure alive for as long as the window can call it.
+    private static readonly WindowProcedure procedure = Procedure;
+
+    private static IntPtr Procedure(IntPtr window, uint message, IntPtr word, IntPtr parameter) {
+        return DefWindowProcW(window, message, word, parameter);
+    }
+
+    private static void Append(IntPtr menu, uint flags, UIntPtr item, string text) {
+        if (!AppendMenuW(menu, flags, item, text)) throw new InvalidOperationException("Cannot build the fixture menu");
+    }
+
+    private static UIntPtr Submenu(IntPtr menu) {
+        return new UIntPtr((ulong)menu.ToInt64());
+    }
+
+    // Opens the popup under the bar and returns its command once it closes. The window keeps answering messages after that
+    // until the stop file exists, so the reader can read the window after it presses Escape.
+    public static int Run(string stopFile) {
+        var definition = new WindowClass { procedure = procedure, instance = GetModuleHandleW(null), className = "Tauri Window" };
+        if (RegisterClassW(ref definition) == 0) throw new InvalidOperationException("Cannot register the Tauri Window class");
+        IntPtr window = CreateWindowExW(Topmost, "Tauri Window", "Orbit popup fixture", PopupStyle | Visible, 100, 100, 800, 400,
+            IntPtr.Zero, IntPtr.Zero, definition.instance, IntPtr.Zero);
+        if (window == IntPtr.Zero) throw new InvalidOperationException("Cannot create the fixture window");
+        IntPtr file = CreatePopupMenu(), help = CreatePopupMenu(), bar = CreateMenu(), popup = CreatePopupMenu();
+        Append(file, 0, new UIntPtr(1u), "Exit\\tCtrl+Q");
+        Append(help, 0, new UIntPtr(2u), "Support");
+        Append(help, Checked, new UIntPtr(3u), "Launch at login");
+        foreach (IntPtr menu in new[] { bar, popup }) {
+            Append(menu, Popup, Submenu(file), "File");
+            Append(menu, Popup, Submenu(help), "Help");
+        }
+        if (!SetMenu(window, bar)) throw new InvalidOperationException("Cannot attach the fixture menu");
+        var anchor = new NativePoint { X = 4, Y = 48 };
+        if (!ClientToScreen(window, ref anchor)) throw new InvalidOperationException("Cannot place the fixture popup");
+        Console.Out.WriteLine("ready");
+        Console.Out.Flush();
+        SetForegroundWindow(window);
+        int command = TrackPopupMenu(popup, ReturnCommand, anchor.X, anchor.Y, 0, window, IntPtr.Zero);
+        DateTime deadline = DateTime.UtcNow.AddSeconds(60);
+        NativeMessage message;
+        while (!File.Exists(stopFile) && DateTime.UtcNow < deadline) {
+            while (PeekMessageW(out message, IntPtr.Zero, 0, 0, 1)) {
+                TranslateMessage(ref message);
+                DispatchMessageW(ref message);
+            }
+            Thread.Sleep(20);
+        }
+        DestroyWindow(window);
+        return command;
+    }
+}
+`
+
+// The menu action holds the native menu open as a popup while the reader runs, and UI Automation lists that popup as a
+// top-level window of the same process in front of the app window (#2132). The reader must still read the app window, its
+// menu and the popup, close the popup with Escape and read the window state.
+test('Windows window bar reader reads the Tauri window and its menu while the popup menu of the same process is open', { skip: process.platform !== 'win32' }, async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'orbit-window-popup-'))
+  const fixture = join(directory, 'popup-window.cs')
+  const stop = join(directory, 'stop')
+  writeFileSync(fixture, popupWindowFixture)
+  const shell = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
+    `$ErrorActionPreference = 'Stop'; Add-Type -TypeDefinition (Get-Content -LiteralPath '${fixture}' -Raw); [OrbitPopupFixture]::Run('${stop}')`],
+  { stdio: ['ignore', 'pipe', 'pipe'] })
+  let output = ''
+  let errors = ''
+  shell.stdout.setEncoding('utf8').on('data', (chunk: string) => { output += chunk })
+  shell.stderr.setEncoding('utf8').on('data', (chunk: string) => { errors += chunk })
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error(`The popup fixture did not open: ${errors}`)), 60000)
+      shell.stdout.on('data', () => { if (output.includes('ready')) { clearTimeout(timer); resolve() } })
+      shell.on('exit', (code) => { clearTimeout(timer); reject(new Error(`The popup fixture exited with ${code}: ${errors}`)) })
+    })
+    const reader = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-File', uiaScript, '-TargetProcessId', String(shell.pid),
+      '-Command', 'windowbar', '-Action', 'popup', '-Capture', join(directory, 'popup.png')], { encoding: 'utf8', timeout: 60000 })
+    writeFileSync(stop, '')
+    assert.equal(reader.status, 0, reader.stderr)
+    type MenuItem = { id: number; text: string; enabled: boolean; checked: boolean; children: MenuItem[] }
+    const { state, popup } = JSON.parse(reader.stdout) as { state: { rect: number[] }
+      popup: { rect: number[]; anchor: number[]; items: MenuItem[]; windowMenu: MenuItem[]; closed: boolean } }
+    const outline = (items: MenuItem[]): unknown[] => items.map(({ text, enabled, checked, children }) => [text, enabled, checked, outline(children)])
+    assert.deepEqual(outline(popup.items), [['File', true, false, [['Exit\tCtrl+Q', true, false, []]]],
+      ['Help', true, false, [['Support', true, false, []], ['Launch at login', true, true, []]]]], JSON.stringify(popup))
+    assert.deepEqual(popup.items, popup.windowMenu)
+    assert.equal(popup.closed, true)
+    // TrackPopupMenu puts the top left corner of the popup at the anchor, the start of the menu action under the bar.
+    assert.ok(Math.abs(popup.rect[0]! - popup.anchor[0]!) <= 8 && Math.abs(popup.rect[1]! - popup.anchor[1]!) <= 8, JSON.stringify(popup))
+    // The state is the fixture window's, which is wider than its popup menu.
+    assert.ok(state.rect[2]! - state.rect[0]! > popup.rect[2]! - popup.rect[0]!, JSON.stringify({ state, popup }))
+  } finally {
+    shell.kill()
     rmSync(directory, { recursive: true, force: true })
   }
 })

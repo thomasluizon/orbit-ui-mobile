@@ -846,6 +846,12 @@ async function installedQuitCases() {
   const native = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-uia.ps1'), 'utf8')
   T('Windows quit dispatches a native menu command instead of sending Ctrl+Q to WebView2',
     native.includes('PostMessage') && native.includes('GetMenu') && !native.includes("quit = '^q'"))
+  // The popup menu that the menu action opens is a top-level window of the same process in front of the app window, so a
+  // lookup by process alone reads the popup as the app window and finds no window menu on it.
+  const lookup = native.slice(native.indexOf('$condition = '), native.indexOf("if ($Command -eq 'menu')"))
+  T('the Windows reader takes the Tauri window of the process, never the popup menu in front of it',
+    lookup.includes('$automation::ProcessIdProperty, $TargetProcessId') && lookup.includes("$automation::ClassNameProperty, 'Tauri Window'") &&
+      lookup.includes('RootElement.FindFirst([System.Windows.Automation.TreeScope]::Children, $condition)'), lookup)
 }
 
 export async function cases() {

@@ -164,7 +164,9 @@ cross). That fails a window painted over the maximize action, as the snap region
 layered; `__fixtures__/window-bar-actions.json` keeps those areas from a light and a dark capture of
 that build. Then the runner reads the four bar actions through UI Automation and uses them. The probe
 presses the menu action, and the `popup` action of the reader finds the process's visible `#32768`
-popup menu, reads it through `MN_GETHMENU`, presses Escape and waits until it closes. The runner
+popup menu, reads it through `MN_GETHMENU`, presses Escape and waits until it closes. UI Automation
+lists that open popup as a top-level window of the process in front of the app window, so each
+window command of the reader takes the process's `Tauri Window`, never its first window. The runner
 requires the popup to equal the window menu (ids, labels, enabled and checked states), to open at the
 start of the menu action under the bar, and to close. Then it drags the empty bar, invokes maximize and
 restore, double clicks the bar twice, and invokes minimize and restores the window. `report.json`

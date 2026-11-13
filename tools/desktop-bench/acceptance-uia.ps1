@@ -407,9 +407,15 @@ if ($Command -eq 'notification') {
     windows = $match.windows; toast = $toast } | ConvertTo-Json -Depth 8
   exit 0
 }
-$condition = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $TargetProcessId)
-$window = [System.Windows.Automation.AutomationElement]::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Children, $condition)
-if ($null -eq $window) { throw "No UI Automation window for process $TargetProcessId" }
+# An open popup menu is a top-level window of the same process in front of the app window: UI Automation lists a context
+# menu as a child of the desktop ("UI Automation Support for the Menu Control Type"). So the reader takes the window of the
+# class that Tauri gives its webview windows, as Close and the push window count do.
+$automation = [System.Windows.Automation.AutomationElement]
+$condition = New-Object System.Windows.Automation.AndCondition(
+  (New-Object System.Windows.Automation.PropertyCondition($automation::ProcessIdProperty, $TargetProcessId)),
+  (New-Object System.Windows.Automation.PropertyCondition($automation::ClassNameProperty, 'Tauri Window')))
+$window = $automation::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Children, $condition)
+if ($null -eq $window) { throw "No UI Automation Tauri Window for process $TargetProcessId" }
 if ($Command -eq 'menu') {
   @{ items = @([OrbitForeground]::ReadMenu([OrbitForeground]::GetMenu($window.Current.NativeWindowHandle))) } | ConvertTo-Json -Depth 20
   exit 0
@@ -424,7 +430,6 @@ if ($Command -eq 'windowbar') {
   # Only this command compiles the window reader, so the other commands keep their start time.
   Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'acceptance-window-bar.cs') -Raw)
   $handle = [IntPtr]$window.Current.NativeWindowHandle
-  $automation = [System.Windows.Automation.AutomationElement]
   $buttonType = New-Object System.Windows.Automation.PropertyCondition($automation::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button)
   # A minimized window cannot take the foreground, and a restore needs none. An open popup menu already holds the foreground
   # its owner gave it (muda show_context_menu calls SetForegroundWindow before TrackPopupMenu).
@@ -442,6 +447,7 @@ if ($Command -eq 'windowbar') {
       if ($null -eq $popup) { Start-Sleep -Milliseconds 100 }
     }
     if ($null -eq $popup) { throw 'No native popup menu opened for the menu action' }
+    if ($popup.menu -eq 0) { throw 'The open popup menu returned no menu handle to MN_GETHMENU' }
     $items = @([OrbitForeground]::ReadMenu([IntPtr]$popup.menu))
     $windowMenu = @([OrbitForeground]::ReadMenu([OrbitForeground]::GetMenu($handle)))
     [OrbitWindowBarReader]::Dismiss()
