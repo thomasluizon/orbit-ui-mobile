@@ -69,6 +69,7 @@ const controls: [string, () => ReactElement, (page: Page) => Locator][] = [
   ['the command row', () => <Command><Command.List><CommandRow leading={<span />} label="Morning run" value="morning-run" onSelect={vi.fn()} /></Command.List></Command>,
     (page) => page.locator('[cmdk-item]')],
   ['a pill button', () => <PillButton size="md" onClick={vi.fn()}>Continue to checkout</PillButton>, (page) => page.getByRole('button', { name: 'Continue to checkout', exact: true })],
+  ['a ghost pill button', () => <PillButton size="md" variant="ghost" onClick={vi.fn()}>Continue to checkout</PillButton>, (page) => page.getByRole('button', { name: 'Continue to checkout', exact: true })],
   ['a pill anchor', () => <PillAnchor href="https://example.com/billing">Open the billing portal in your browser</PillAnchor>,
     (page) => page.getByRole('link', { name: 'Open the billing portal in your browser', exact: true })],
   ['a resting chip', () => <Chip onClick={vi.fn()}>Morning routine</Chip>, (page) => page.getByRole('button', { name: 'Morning routine', exact: true })],

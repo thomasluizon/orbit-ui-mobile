@@ -12,7 +12,7 @@ const variantClasses: Record<ButtonVariant, string> = {
 const buttonInteractionClasses: Record<ButtonVariant, string> = {
   primary: 'enabled:active:scale-[0.96]',
   secondary: 'enabled:hover:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))] enabled:active:scale-[0.96] enabled:active:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))]',
-  ghost: 'overflow-hidden enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] motion-safe:enabled:active:scale-[0.96]',
+  ghost: 'enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] motion-safe:enabled:active:scale-[0.96]',
   destructive: 'enabled:hover:bg-[color-mix(in_srgb,var(--status-bad)_85%,var(--fg-1))] enabled:active:scale-[0.96] enabled:active:bg-[color-mix(in_srgb,var(--status-bad)_85%,var(--fg-1))]',
   caution: 'enabled:hover:bg-[color-mix(in_srgb,var(--status-overdue)_85%,black)] enabled:active:scale-[0.96] enabled:active:bg-[color-mix(in_srgb,var(--status-overdue)_85%,black)]',
 }
@@ -20,7 +20,7 @@ const buttonInteractionClasses: Record<ButtonVariant, string> = {
 const linkInteractionClasses: Record<ButtonVariant, string> = {
   primary: 'hover:bg-[var(--primary-hover)] active:scale-[0.96] active:bg-[var(--primary-pressed)]',
   secondary: 'hover:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))] active:scale-[0.96] active:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))]',
-  ghost: 'overflow-hidden hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96]',
+  ghost: 'hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96]',
   destructive: 'hover:bg-[color-mix(in_srgb,var(--status-bad)_85%,var(--fg-1))] active:scale-[0.96] active:bg-[color-mix(in_srgb,var(--status-bad)_85%,var(--fg-1))]',
   caution: 'hover:bg-[color-mix(in_srgb,var(--status-overdue)_85%,black)] active:scale-[0.96] active:bg-[color-mix(in_srgb,var(--status-overdue)_85%,black)]',
 }
@@ -32,9 +32,9 @@ export function actionClasses(variant: ButtonVariant, size: ButtonSize, element:
     ? buttonInteractionClasses[variant]
     : linkInteractionClasses[variant]
   const interactionClasses = elevated && variant === 'ghost'
-    ? 'overflow-hidden enabled:hover:bg-[var(--bg-elev-hover)] enabled:active:bg-[var(--bg-elev-hover)] motion-safe:enabled:active:scale-[0.96]'
+    ? 'enabled:hover:bg-[var(--bg-elev-hover)] enabled:active:bg-[var(--bg-elev-hover)] motion-safe:enabled:active:scale-[0.96]'
     : quiet && variant === 'ghost'
-    ? 'overflow-hidden enabled:hover:bg-[var(--bg-hover-opaque)] enabled:active:bg-[var(--bg-hover-opaque)] motion-safe:enabled:active:scale-[0.96]'
+    ? 'enabled:hover:bg-[var(--bg-hover-opaque)] enabled:active:bg-[var(--bg-hover-opaque)] motion-safe:enabled:active:scale-[0.96]'
     : variantInteractions
   return [baseClasses, variant === 'ghost' && borderless ? 'text-[var(--fg-1)] outline-0 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-[var(--fg-1)] focus-visible:-outline-offset-2' : variantClasses[variant], variant === 'ghost' ? elevated ? 'bg-[var(--bg-elev)]' : 'bg-transparent' : undefined, loading ? undefined : interactionClasses,
     element === 'button' && !loading ? 'disabled:opacity-40' : undefined,

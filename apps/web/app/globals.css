@@ -954,6 +954,7 @@ select[aria-hidden="true"] {
     content: '';
     position: absolute;
     inset: 0;
+    border-radius: inherit;
   }
 
   @media (prefers-reduced-motion: no-preference) {
@@ -2089,7 +2090,6 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   --pill-hit-padding: calc((var(--touch-min) - var(--pill-visible-min)) / 2);
   min-width: var(--pill-visible-min);
   min-height: var(--pill-visible-min);
-  overflow: visible;
 }
 
 .orbit-pill-action.touch-target::after {
