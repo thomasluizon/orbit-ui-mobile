@@ -2680,6 +2680,7 @@
       "scopeTitle": "Scoped key",
       "scopeLabel": "What can it access?",
       "setExpiry": "Set expiry?",
+      "expiryQuestion": "Does it expire?",
       "scopeAction": "Create",
       "mcpTitle": "Connect over MCP",
       "stepUpBody": "To change keys or delete the account, sign in again. Orbit never asks for your password inside a conversation.",
@@ -2822,6 +2823,8 @@
       "confirmInstruction": "Type ORBIT to confirm.",
       "confirmLabel": "Ready to start over?",
       "confirmPlaceholder": "ORBIT",
+      "question": "Do you want to start from scratch?",
+      "offlineReason": "No connection. Connect to the internet to start over.",
       "errorGeneric": "Something went wrong. Please try again."
     },
     "deleteAccount": {
@@ -2832,6 +2835,8 @@
       "warningPro": "Your account will be deactivated now and permanently deleted up to 30 days from today. Log back in anytime before then to cancel.",
       "warningDetail": "All your data will be permanently deleted, including your habits, completion history, AI conversations, and settings. We'll email you a confirmation code to continue.",
       "sendCode": "Send code",
+      "sendQuestion": "Can we send the code to your email?",
+      "sendLine": "The code goes to {email}.",
       "errorGeneric": "Something went wrong. Please try again.",
       "offlineDescription": "Connect to the internet to deactivate your account."
     }
@@ -3136,6 +3141,14 @@
       "year": "{count, plural, one {every year} other {every # years}}"
     },
     "seeToday": "View in Today",
+    "account": {
+      "freshStart": "Everything you tracked was deleted. Your account, plan and preferences stay.",
+      "freshStartQueued": "Everything you tracked will be deleted when the connection returns. Your account, plan and preferences stay.",
+      "openToday": "Open Today"
+    },
+    "support": {
+      "sent": "Your message arrived. The reply goes to {email}."
+    },
     "seeCalendar": "View in Calendar",
     "createAnother": "Create another"
   },

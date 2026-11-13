@@ -21,9 +21,11 @@ import { createTokensV2 } from '@/lib/theme'
 interface EditNameSheetProps {
   open: boolean
   onClose: () => void
+  /** The flag `orbit_guided_flows`: the sheet title is the question, and the field takes it as its name. */
+  guided?: boolean
 }
 
-export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
+export function EditNameSheet({ open, onClose, guided = false }: Readonly<EditNameSheetProps>) {
   const { t } = useTranslation()
   const { profile, patchProfile } = useProfile()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -98,7 +100,7 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
       open
       onClose={!mutation.isPending && dismiss.canDismiss ? onClose: undefined}
       onAttemptDismiss={requestDismiss}
-      title={t('profile.editName.title')}
+      title={t(guided ? 'profile.editName.label' : 'profile.editName.title')}
       actions={(
         <ActionRow>
           <PillButton size="sm" variant="ghost" disabled={mutation.isPending} onClick={requestDismiss}>{t('common.cancel')}</PillButton>
@@ -109,9 +111,11 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
       )}
     >
       <View style={styles.body}>
-        <Text style={[styles.label, { color: tokens.fg2 }]}>
-          {t('profile.editName.label')}
-        </Text>
+        {guided ? null : (
+          <Text style={[styles.label, { color: tokens.fg2 }]}>
+            {t('profile.editName.label')}
+          </Text>
+        )}
         <AppTextInput
           value={name}
           onChangeText={handleNameChange}

@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { Check, RotateCcw, X } from '@/components/ui/icons'
+import { RotateCcw } from '@/components/ui/icons'
 import { API } from '@orbit/shared/api'
 import { resetAccountQueries } from '@orbit/shared/query'
 import {
@@ -33,6 +33,9 @@ import { PillButton } from '@/components/ui/pill-button'
 import { ActionRow } from '@/components/ui/action-row'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
+import { captureGuidedFlowCompleted } from '@/lib/posthog'
+import { FreshStartGuided } from './fresh-start-flow'
+import { FreshStartLists } from './fresh-start-lists'
 
 const TRIAL_EXPIRED_SEEN_STORAGE_KEY = 'orbit_trial_expired_seen'
 
@@ -57,9 +60,11 @@ function accountStillCurrent(accountGeneration: number, accountId: string | null
 interface FreshStartModalProps {
   open: boolean
   onClose: () => void
+  /** The flag `orbit_guided_flows`: the one-question flow and its result dialog replace the sheet. */
+  guided?: boolean
 }
 
-export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps>) {
+export function FreshStartModal({ open, onClose, guided = false }: Readonly<FreshStartModalProps>) {
   const { sheetRef, closeSheet } = useSheetHost()
   const { t } = useTranslation()
   const router = useRouter()
@@ -72,6 +77,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
   const [resetLoading, setResetLoading] = useState(false)
   const requestPending = useRef(false)
   const [resetError, setResetError] = useState('')
+  const [resetOutcome, setResetOutcome] = useState<'done' | 'queued' | null>(null)
   const [prevOpen, setPrevOpen] = useState(open)
 
   if (open !== prevOpen) {
@@ -81,10 +87,25 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
       setResetConfirmText('')
       setResetError('')
       setResetLoading(false)
+      setResetOutcome(null)
     }
   }
 
   const isResetConfirmed = resetConfirmText.trim().toUpperCase() === 'ORBIT'
+
+  function completeReset(queued: boolean, isCurrentAccount: () => boolean) {
+    if (guided) {
+      captureGuidedFlowCompleted('fresh_start', 2, false)
+      setResetOutcome(queued ? 'queued' : 'done')
+      return
+    }
+    closeSheet(() => {
+      if (!isCurrentAccount()) return
+      onClose()
+      void resetAccountQueries(queryClient, 'signed-in')
+      router.replace('/(tabs)')
+    })
+  }
 
   async function handleResetAccount() {
     if (resetLoading || requestPending.current) return
@@ -143,12 +164,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
       void resetAccountQueries(queryClient, 'signed-in')
       await clearPersistedQueryCache()
       if (!isCurrentAccount()) return
-      closeSheet(() => {
-        if (!isCurrentAccount()) return
-        onClose()
-        void resetAccountQueries(queryClient, 'signed-in')
-        router.replace('/(tabs)')
-      })
+      completeReset(isQueuedResult(result), isCurrentAccount)
     } catch (err: unknown) {
       if (!isCurrentAccount()) return
       const msg = getFriendlyErrorMessage(err, t, 'profile.freshStart.errorGeneric', 'generic')
@@ -162,6 +178,26 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
   const deletedItems = buildFreshStartDeletedItems(t)
   const preservedItems = buildFreshStartPreservedItems(t)
   const confirmButtonLabel = t('profile.freshStart.deleteData')
+
+  if (open && guided) {
+    return (
+      <FreshStartGuided
+        outcome={resetOutcome}
+        onOpenToday={() => { onClose(); router.replace('/(tabs)') }}
+        step={resetStep}
+        deletedItems={deletedItems}
+        preservedItems={preservedItems}
+        confirmText={resetConfirmText}
+        onConfirmTextChange={setResetConfirmText}
+        loading={resetLoading}
+        error={resetError}
+        onContinue={() => setResetStep('confirm')}
+        onBack={() => setResetStep('info')}
+        onClose={onClose}
+        onReset={() => { void handleResetAccount() }}
+      />
+    )
+  }
 
   return (
     <>
@@ -240,45 +276,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
               </Text>
             </View>
 
-            <View style={styles.listRow}>
-              <View
-                style={[
-                  styles.freshStartBox,
-                  { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
-                ]}
-              >
-                <Text style={[styles.boxLabel, { color: tokens.fg3 }]}>
-                  {t('profile.freshStart.willDelete')}
-                </Text>
-                {deletedItems.map((item) => (
-                  <View key={item} style={styles.boxItem}>
-                    <X size={16} color={tokens.statusBad} strokeWidth={1.8} />
-                    <Text style={[styles.boxItemText, { color: tokens.fg2 }]}>
-                      {item}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-
-              <View
-                style={[
-                  styles.freshStartBox,
-                  { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
-                ]}
-              >
-                <Text style={[styles.boxLabel, { color: tokens.fg3 }]}>
-                  {t('profile.freshStart.willKeep')}
-                </Text>
-                {preservedItems.map((item) => (
-                  <View key={item} style={styles.boxItem}>
-                    <Check size={16} color={tokens.statusDone} strokeWidth={1.8} />
-                    <Text style={[styles.boxItemText, { color: tokens.fg2 }]}>
-                      {item}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </View>
+            <FreshStartLists deletedItems={deletedItems} preservedItems={preservedItems} />
           </View>
         ) : (
           <View style={styles.body}>
@@ -335,34 +333,6 @@ const styles = StyleSheet.create({
     lineHeight: 23,
   },
 
-  listRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  freshStartBox: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: SPACING.s16,
-    gap: 8,
-  },
-  boxLabel: {
-    fontFamily: 'GeistMono_500Medium',
-    fontSize: 12,
-    letterSpacing: 0.96,
-    textTransform: 'uppercase',
-  },
-  boxItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-  },
-  boxItemText: {
-    fontFamily: 'Geist_400Regular',
-    fontSize: 14,
-    lineHeight: 19.6,
-    flex: 1,
-  },
 
   destructiveHero: {
     alignItems: 'center',
