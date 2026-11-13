@@ -183,8 +183,11 @@ Workflow({ scriptPath: '.claude/workflows/prod-readiness.mjs', args: {
 It runs the four `audit` workflows in parallel (each self-caps its own fan-out plus verify
 plus loop), then fans out the **ops-layer** checks (observability · multi-instance ·
 background durability · staging · concurrency) and the **static-a11y** checks (web · mobile, WCAG 2.2 AA
-floor, source-provable findings only) as Haiku finders, runs a Haiku skeptic per Blocker/High
-ops or a11y finding (default-refuted), and returns:
+floor, source-provable findings only) as Haiku finders, plus one hygiene finder per repository
+(Phase 2d). It then runs a Haiku skeptic (default-refuted) per Blocker/High ops or a11y finding
+and per High or delete hygiene finding, with at most 60 skeptics in all (`VERIFY_CAP`, the same
+cap as `audit.mjs`). Ops and a11y findings get the skeptic slots before hygiene findings of the
+same severity. The workflow returns:
 
 ```
 { scope,
@@ -205,7 +208,9 @@ The workflow fails closed on its own machinery. A check whose finder died lands 
 skeptic died is kept, carrying `unverified` — treat it as real until re-verified, and say so
 in the ticket. Each skeptic gets the root of the repository, the evidence and the fix. A file the
 skeptic cannot open is never a refutation: an ops or a11y finding is then kept with `unverified`,
-and a hygiene finding goes to `hygieneDeferred`. The a11y checks run only when the resolved scope contains a UI surface; an
+and a hygiene finding goes to `hygieneDeferred`. A finding beyond the skeptic cap is never
+returned as verified: an ops or a11y finding is kept with `unverified`, and a hygiene finding goes
+to `hygieneDeferred` with the reason "beyond the adversarial-verify cap of 60". The a11y checks run only when the resolved scope contains a UI surface; an
 `api`-only scope returns `a11yNotApplicable` with the reason, and inventory item 11 then reads
 **N/A (scope has no UI surface)** — that is a verdict, not a skipped item.
 
@@ -431,7 +436,7 @@ The ledger rule, word for word, which each finder and each fix ticket applies:
    - old: `inboundByPath`, `inboundByBasename` and `crossRepositoryInbound` are all zero. Order by the oldest `lastCommit` first.
 4. **Exclude the records** before the workflow sees them: each file under `src/Orbit.Infrastructure/Migrations/` in `orbit-api`; each file under a `Decisions/` folder, `5 Journal/` or `0 Inbox/raw/` in the vault; each text file of a published post in `thomas-brain`; each file of a skill that `skills-lock.json` or `.claude/skills/VENDOR.md` pins in `thomas-brain`.
 5. **Pass the candidates** to the workflow in the `hygiene` argument, as the skill passes `performanceMeasurement` today: `hygiene: { repositories: { ui: { root, candidates }, api: { root, candidates }, landing: { root, candidates }, workshop: { root, candidates }, vault: { root, candidates } } }`. Each candidate is its ledger row plus `kind`; the workflow refuses a candidate without one.
-6. **Read the result.** A finder that died puts its repository in `hygieneChecksFailed`: the coverage is unknown, and the item is never clean. The workflow judges at most 300 candidates for each repository. Each kind gets an equal share of that cap, and a share that one kind leaves unused goes to the other kinds, so the `outdated`, `temporary` and `duplicate` candidates are judged before the `old` rows use up the cap. `hygieneCandidates` gives the judged and deferred count of each kind, and a `hygieneDeferred` entry names each kind with candidates that were not judged.
+6. **Read the result.** A finder that died puts its repository in `hygieneChecksFailed`: the coverage is unknown, and the item is never clean. The workflow judges at most 300 candidates for each repository. Each kind gets an equal share of that cap, and a share that one kind leaves unused goes to the other kinds, so the `outdated`, `temporary` and `duplicate` candidates are judged before the `old` rows use up the cap. `hygieneCandidates` gives the judged and deferred count of each kind, and a `hygieneDeferred` entry names each kind with candidates that were not judged. A High or delete finding that the skeptic cap of 60 left without a skeptic is also a `hygieneDeferred` entry, never a finding.
 7. **Before a finding becomes a ticket,** search the open tickets in `thomasluizon/orbit-tickets` for its path. If an open ticket covers it, name that ticket in the gate. Do not create a second one.
 
 The workflow runs one finder for each repository with the agent type `audit-readonly`. A finder has no shell: it reads with Read, Grep and Glob, so the tool runs in this session. A file under a public web folder, an app asset folder or a store asset folder can have a deployed reader, so a finder never returns a delete finding for it. It returns the file as deferred with the check `hygiene-deployed-readers`. A skeptic argues that each finding is false, for each finding that orders a delete and for each High finding. The default is refuted. The skeptic gets the root of the repository, the evidence and the fix. A file that the skeptic cannot open is deferred, never refuted: the finding goes to `hygieneDeferred`.
@@ -471,7 +476,8 @@ emission.
   findings that share a fix and PR into one ticket (D4).
 - Map each to its `repo:*` from `location`; an ops finding is almost always `repo:api`, an
   a11y finding always `repo:ui`. A ui fix that depends on an api change is the ui ticket
-  blockedBy the api ticket.
+  blockedBy the api ticket. A hygiene finding in `thomas-brain` or the vault is coordinator
+  work: label and mark it as `_shared/audit-to-tickets.md` §2 says, so no worker receives it.
 - Draft each body to the 6.2 template and re-read it against that template before proposing it. An
   ops ticket's Problem carries the `risk` (what breaks in production and when); Technical
   details carry `evidence`; Acceptance criteria name the observable ready-state (the scheduler
@@ -576,7 +582,7 @@ re-validate each with `--issue`.
 - **Hardcode a verdict, the QA-env state, or the backup state.** The workflow discovers
   staging plus background topology at runtime per repo; the workflow set and the QA env drift
   (#211). What a repo read cannot verify goes to the Deferred ledger, never to "clean."
-- **Delete or edit in the hygiene sweep.** The sweep reads and reports. A fix ticket deletes or updates a file, and its worker applies the ledger rule.
+- **Delete or edit in the hygiene sweep.** The sweep reads and reports. A fix ticket deletes or updates a file and applies the ledger rule: a worker does it in the three code repositories, and the orchestrating session does it by hand in `thomas-brain` or the vault.
 - **Write a hygiene ledger to a repository.** A committed ledger goes stale. Keep each ledger in the scratchpad, and let each ticket carry the rows of its own finding.
 - **Turn a record into a finding.** A migration, a vault decision, a journal note, a raw inbox file, a published post and a vendored file with a lock entry are records.
 - **Paste enterprise checklists.** SOC2 / SIEM / multi-region / DR drills get one acknowledging

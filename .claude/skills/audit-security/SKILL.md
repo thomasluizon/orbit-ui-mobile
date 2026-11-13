@@ -136,8 +136,10 @@ re-invoke for any gap:
    **Then check the database door.** Orbit's Postgres is a Render database with an operator IP
    allow-list. That state lives in the Render console and the Terraform variables, not in a
    handler, so the finders cannot judge it. YOU run the check in the final bullet of checklist
-   section A: the allow-list is non-empty and holds no `0.0.0.0/0` entry. Without Render access,
-   record it as UNVERIFIED in the Deferred ledger.
+   section A: the live allow-list holds no `0.0.0.0/0` entry. An empty list blocks every external
+   connection, so it is closed, not a finding. The tracked `[]` values in `variables.tf` and
+   `example.tfvars` are placeholders, not the live list. Without Render access, record it as
+   UNVERIFIED in the Deferred ledger.
 2. **AI / MCP tools cannot cross users**, the agent operations derive `userId` from the
    session; no tool accepts a target-user parameter. A raw-id mutator is **Tier 1**.
 3. **AI-abuse / prompt-injection**, the AI endpoint is rate-limited + size-capped; a crafted

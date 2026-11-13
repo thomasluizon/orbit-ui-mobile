@@ -10,7 +10,7 @@ The product combines daily habit tracking, streaks, goals, reminders, AI assista
 - Break bigger routines into sub-habits and checklists so progress feels concrete.
 - Stay focused on the day with due, overdue, and upcoming habits in a today-first flow.
 - Build momentum with streaks, streak freezes, achievements, XP, levels, and goals.
-- Get reminders through push notifications, plus Android home screen widget support.
+- Get reminders through push notifications, plus home screen widget support on Android, iPhone and iPad.
 - Add schedule context by importing Google Calendar events into Orbit.
 - Use AI features like chat, daily summaries, retrospectives, memory, and slip alerts.
 
@@ -54,7 +54,7 @@ packages/
 - Node.js 20 or newer
 - npm 11 or newer
 - The separate `orbit-api` service if you want local backend access
-- Expo tooling plus Android Studio for native builds (Orbit mobile ships through Google Play; iPhone and iPad target internal TestFlight)
+- Expo tooling, plus Android Studio for Android builds and Xcode with CocoaPods on a Mac for iPhone and iPad builds (Android ships through Google Play; iPhone and iPad target internal TestFlight)
 
 ### Install
 

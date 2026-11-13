@@ -75,8 +75,9 @@ export const cases = async () => {
   }
 
   const readinessSource = readFileSync(new URL("../../.claude/workflows/prod-readiness.mjs", import.meta.url), "utf8").replace(/^export const meta = [\s\S]*?\n}\n/, "")
-  const runReadiness = async ({ hygiene, refute = true, verdict = { refuted: refute, note: "checked" }, scope = "both" }) => {
+  const runReadiness = async ({ hygiene, refute = true, verdict = { refuted: refute, note: "checked" }, scope = "both", finderFindings = {} }) => {
     const prompts = {}
+    const labels = []
     const context = {
       args: { roots: { ui: "/checkout/ui", api: "/checkout/api" }, scope, hygiene },
       phase() {},
@@ -85,6 +86,8 @@ export const cases = async () => {
       workflow: async (_, input) => ({ kind: input.kind, findings: [], counts: {}, coverage: [], deferred: [], converged: true }),
       agent: async (prompt, options) => {
         prompts[options.label] = prompt
+        labels.push(options.label)
+        if (finderFindings[options.label]) return { findings: finderFindings[options.label], deferred: [] }
         if (options.label === "hygiene:ui") {
           return {
             findings: [{ severity: "Blocker", check: "hygiene-old", title: "Old file", location: "orbit-ui-mobile x.md", risk: "an agent reads it", evidence: "row and search", fix: "delete x.md" }],
@@ -106,7 +109,7 @@ export const cases = async () => {
       },
     }
     const result = await runInNewContext(`(async () => {\n${readinessSource}\n})()`, context)
-    return { result, prompts }
+    return { result, prompts, labels }
   }
   const hygieneArgument = { repositories: { ui: { root: "/checkout/ui", candidates: [{ path: "x.md", kind: "old" }] }, api: { root: "/checkout/api", candidates: [{ path: "y.md", kind: "outdated" }] }, landing: { root: null, reason: "scope" }, workshop: { root: "/checkout/workshop", candidates: [{ path: "drafts/z.md", kind: "temporary" }] }, vault: { root: null } } }
   const refuted = await runReadiness({ hygiene: hygieneArgument })
@@ -147,6 +150,27 @@ export const cases = async () => {
     JSON.stringify(unopened.result.hygieneDeferred))
   T(`${NAME}: an ops finding whose skeptic cannot open the file is kept as unverified`,
     unopened.result.opsFindings.length === 1 && /could not open the cited file/.test(unopened.result.opsFindings[0].unverified ?? ""), JSON.stringify(unopened.result.opsFindings))
+  const deleteFindings = Array.from({ length: 70 }, (_, index) => ({ severity: "Medium", check: "hygiene-old", title: `Old file ${index}`, location: `orbit-ui-mobile old-${index}.md`, risk: "an agent reads it", evidence: "row and search", fix: `delete old-${index}.md` }))
+  const overflow = await runReadiness({ hygiene: hygieneArgument, refute: false, finderFindings: { "hygiene:ui": deleteFindings } })
+  const overflowSkeptics = overflow.labels.filter((label) => label.startsWith("verify:"))
+  const capDeferred = overflow.result.hygieneDeferred.filter((item) => /adversarial-verify cap of 60/.test(item.reason))
+  T(`${NAME}: the Verify phase starts at most 60 skeptics when 72 findings qualify`, overflowSkeptics.length === 60, `${overflowSkeptics.length} skeptics`)
+  T(`${NAME}: an ops finding takes a skeptic slot before hygiene findings of a lower or equal severity`,
+    overflowSkeptics.includes("verify:staging") && overflow.result.opsFindings.length === 1 && overflow.result.opsFindings[0].unverified === undefined, JSON.stringify(overflow.result.opsFindings))
+  T(`${NAME}: hygiene delete findings beyond the cap go to hygieneDeferred with the reason and never into hygieneFindings`,
+    overflow.result.hygieneFindings.length === 59 && capDeferred.length === 12 &&
+      capDeferred.some((item) => item.path === "thomas-brain drafts/z.md") &&
+      capDeferred.every((item) => !overflow.result.hygieneFindings.some((finding) => finding.location === item.path)),
+    `${overflow.result.hygieneFindings.length} findings, ${capDeferred.length} deferred by the cap`)
+  const opsFlood = Array.from({ length: 61 }, (_, index) => ({ severity: "High", check: "staging", title: `Gap ${index}`, location: `orbit-api release.yml:${index + 1}`, risk: "an unadmitted commit ships", evidence: `release.yml:${index + 1}`, fix: "add the admission step" }))
+  const opsOverflow = await runReadiness({ hygiene: hygieneArgument, refute: false, finderFindings: { "ops:staging": opsFlood } })
+  const unchallengedOps = opsOverflow.result.opsFindings.filter((finding) => /adversarial-verify cap of 60/.test(finding.unverified ?? ""))
+  T(`${NAME}: an ops finding beyond the cap is kept with unverified, and no hygiene finding takes a skeptic slot first`,
+    opsOverflow.labels.filter((label) => label.startsWith("verify:")).length === 60 && opsOverflow.result.opsFindings.length === 61 && unchallengedOps.length === 1 &&
+      opsOverflow.result.hygieneDeferred.filter((item) => /adversarial-verify cap of 60/.test(item.reason)).length === 2,
+    `${opsOverflow.result.opsFindings.length} ops findings, ${unchallengedOps.length} unchallenged`)
+  const verifyPhaseDetail = /title: 'Verify', detail: '([^']*)'/.exec(readFileSync(new URL("../../.claude/workflows/prod-readiness.mjs", import.meta.url), "utf8"))?.[1] ?? ""
+  T(`${NAME}: the Verify phase detail names the hygiene findings and the cap`, /hygiene/.test(verifyPhaseDetail) && /60/.test(verifyPhaseDetail), verifyPhaseDetail)
   const absent = await runReadiness({})
   T(`${NAME}: a run with no hygiene argument defers all five repositories and never reads as clean`,
     absent.result.hygieneDeferred.length === 5 && absent.result.hygieneChecksRun.length === 0 && absent.result.hygieneChecksFailed.length === 0, JSON.stringify(absent.result.hygieneDeferred))

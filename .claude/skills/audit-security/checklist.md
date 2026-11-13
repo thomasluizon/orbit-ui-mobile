@@ -33,12 +33,14 @@ Every finding cites a file:line and a **threat** (who reaches it, what they get)
   `userId` predicate.
 - [ ] **Mass-assignment**: update commands bind only allowed fields; a client can't set
   `UserId`, `IsPro`, role, or balance through an unscoped DTO bind.
-- [ ] **The database is closed to the internet, and this is NOT repo-readable, so check the live
-  setting.** Orbit's Postgres is a Render database (`render_postgres` in
-  `orbit-api/infra/production.tf`) with an operator IP allow-list. A reader-only audit sees the
-  Terraform variable and not the live list. Read `production_postgres_ip_allow_list` in the
-  `orbit-api/infra` variables and tfvars. An empty list or a `0.0.0.0/0` entry is **Tier 1**.
-  Without Render access, put the live setting in the Deferred ledger and never report it clean.
+- [ ] **The database is closed to the internet, and the live list is NOT repo-readable.** Orbit's
+  Postgres is a Render database (`render_postgres` in `orbit-api/infra/production.tf`) with an
+  operator IP allow-list. An empty list blocks every external connection, so it is the closed
+  state and never a finding. The tracked values (the `variables.tf` default and `example.tfvars`)
+  are `[]` placeholders by design, not the live list: never report them. The live list is in the
+  ignored `local.tfvars` and on the Render Postgres Networking screen. Only a `0.0.0.0/0` entry
+  in the live list is **Tier 1**. Without Render access, put the live setting in the Deferred
+  ledger as UNVERIFIED and never report it clean.
 
 ## B. Injection
 
@@ -166,7 +168,8 @@ Every finding cites a file:line and a **threat** (who reaches it, what they get)
 
 - [ ] **A privacy policy is reachable and linked** from the app and the landing page, and
   the processors it names match the ones the code actually calls (Render region,
-  AWS, Stripe, PostHog US Cloud, Sentry, Firebase, OpenAI). The AI flow is named in
+  AWS, Stripe, PostHog US Cloud, Sentry, Firebase, OpenAI, Cloudflare Turnstile, Google and
+  Apple sign-in, APNs). The AI flow is named in
   plain terms — user text reaches OpenAI and the policy says so; state AI-disclosure laws
   make silence its own violation. A policy that contradicts the real processor list is
   **Tier 2**.

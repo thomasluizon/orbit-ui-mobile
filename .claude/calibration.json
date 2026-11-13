@@ -172,7 +172,7 @@
     ".claude/skills/audit-security/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "7072b53ccf3396cd",
+      "digest": "cbc58459aaac8600",
       "calibratedAt": "2026-11-13",
       "verdict": "undeclared, inherits the session: security findings need judgment because missed authorization gaps may be invisible in output."
     },
@@ -270,14 +270,14 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "b61299d3903b5991",
+      "digest": "ab325c6c9e1bd2df",
       "calibratedAt": "2026-11-13",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },
     ".claude/skills/prod-readiness/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "c8d2bedf7e4261fb",
+      "digest": "3121db99c921d749",
       "calibratedAt": "2026-11-13",
       "verdict": "undeclared, inherits the session: it judges four child audits before producing a launch verdict."
     },

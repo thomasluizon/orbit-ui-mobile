@@ -45,8 +45,23 @@ mandatory generated artifacts across tickets merely to satisfy a number.
   infer it silently.
 - `repo:ui` tickets declare `parity:yes` (web + mobile in one PR) or `parity:no` with the
   adapter-only justification in the body.
-- A finding in `thomas-brain` or in the brain vault gets `repo:ui` and `parity:no`. The reason in the
-  body: no app surface changes.
+- A finding in `thomas-brain` or in the brain vault is coordinator work. Every worker gets a
+  worktree of one of the three code repositories, so no worker can change that file. The
+  orchestrating session makes the change by hand, then closes the ticket with
+  `node tools/complete-ticket.mjs --issue <ticket>`. The ticket gets
+  `repo:ui`, because the board needs one routing label, and `parity:no` with the reason "no app
+  surface changes". The first line of its Scope section is this marker, word for word, with the
+  path and the repository filled in:
+
+  > Coordinator work, ops-only: there is no code in any repo a worker can open for this. The
+  > orchestrating session changes `<path>` in `<thomas-brain or the brain vault>` by hand, and no
+  > worker runs this ticket.
+
+  `tools/plan-queue.mjs` reads the marker as `NOT_CODE_WORK` (the rule in
+  `tools/lib/ticket-classifier-prompt.md`: an in-scope section says the work is operations work,
+  or says "no code in any repo") and defers the ticket, so neither
+  `/orchestrate` nor `/auto-work` admits it. Never put the marker under Out of scope, where the
+  classifier does not read it.
 - blockedBy is an explicit relation, never prose: a ui perf fix that needs an api index first
   is a ui ticket blockedBy the api ticket.
 

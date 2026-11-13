@@ -6,7 +6,7 @@ export const meta = {
     { title: 'Ops', detail: 'observability · multi-instance · background durability · staging · concurrency' },
     { title: 'A11y', detail: 'static WCAG 2.2 AA sweep — web + mobile' },
     { title: 'Hygiene', detail: 'old · outdated · duplicate · temporary files — five repositories' },
-    { title: 'Verify', detail: 'skeptic per Blocker/High ops or a11y finding — default refuted' },
+    { title: 'Verify', detail: 'at most 60 skeptics: one per Blocker/High ops or a11y finding, then one per High or delete hygiene finding; default refuted' },
   ],
 }
 
@@ -335,11 +335,16 @@ const ROOTS_FOR = {
   ops: () => `The repositories are rooted at ${UI} (orbit-ui-mobile) and ${API} (orbit-api); a location path is relative to the root of the repository it names.`,
   a11y: () => `The repository is rooted at ${UI}; the location path is relative to that root.`,
 }
-const verifyTargets = [
-  ...hygieneRaw.filter((f) => isSerious(f) || ordersDelete(f)).map((f) => ({ f, layer: 'hygiene' })),
+// One cap bounds the skeptic fan-out, as in audit.mjs. The sort is stable, so ops and a11y findings come before hygiene findings of the same severity.
+const VERIFY_CAP = 60
+const verifyQueue = [
   ...opsRaw.filter(isSerious).map((f) => ({ f, layer: 'ops' })),
   ...a11yRaw.filter(isSerious).map((f) => ({ f, layer: 'a11y' })),
+  ...hygieneRaw.filter((f) => isSerious(f) || ordersDelete(f)).map((f) => ({ f, layer: 'hygiene' })),
 ].sort((a, b) => rank(a.f.severity) - rank(b.f.severity))
+const verifyTargets = verifyQueue.slice(0, VERIFY_CAP)
+const verifyOverflow = verifyQueue.slice(VERIFY_CAP)
+if (verifyOverflow.length) log(`verify: ${verifyOverflow.length} findings beyond the adversarial-verify cap of ${VERIFY_CAP} get no skeptic`)
 const verdicts = (
   await parallel(
     verifyTargets.map(({ f, layer }) => () =>
@@ -372,6 +377,15 @@ for (const { f, v, layer } of verdicts) {
   if (v && v.refuted) continue
   if (v && v.adjustedSeverity) f.severity = v.adjustedSeverity
   if (!v) f.unverified = 'the skeptic died — kept unchallenged (a dead verifier is not a clean pass); re-verify before acting'
+  survivorsByLayer[layer].push(f)
+}
+// A hygiene finding without a skeptic is not verified, so it is deferred. An ops or a11y gap stays visible with unverified.
+for (const { f, layer } of verifyOverflow) {
+  if (layer === 'hygiene') {
+    hygieneDeferred.push({ check: f.check, path: f.location || '', reason: `beyond the adversarial-verify cap of ${VERIFY_CAP}, so no skeptic judged it; run the sweep again on the remainder` })
+    continue
+  }
+  f.unverified = `beyond the adversarial-verify cap of ${VERIFY_CAP}, so it is kept unchallenged; re-verify before acting`
   survivorsByLayer[layer].push(f)
 }
 const opsFindings = [...survivorsByLayer.ops, ...opsRaw.filter((f) => !isSerious(f))]
