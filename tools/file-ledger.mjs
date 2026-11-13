@@ -87,8 +87,9 @@ const usage = () => `usage: file-ledger.mjs [--repo <path>] [--also-search <path
   Checks: rows with a verdict other than delete are exactly the tracked files at HEAD; rows with the verdict
   delete are exactly the files that base tracks and HEAD does not; a keep row has a reader and a checked value
   and unchanged content; an update row has a reader and a checked value and changed content or a new path; a
-  delete row has a note; a reader is never empty, none, unknown or n/a. Prints a summary table on stdout and
-  each defect with its path on stderr.
+  delete row has a note; a reader is never empty, none, unknown or n/a. Prints a summary on stdout (a table with
+  one row for each class and a total row, the bytes that the deletes removed and the duplicate groups at base
+  and at HEAD) and each defect with its path on stderr.
 
   Mode 3, render. Writes Markdown parts that each fit in one pull request comment.
     --render <ledger>     the verified ledger
@@ -639,8 +640,7 @@ const bytesRemoved = (root, baseTree, deletedPaths) => {
     .reduce((total, size) => total + Number(size), 0)
 }
 
-const tableRowFor = (label, matches, { baseTree, headTree, rows }) => {
-  const inScope = (path) => matches(path)
+const tableRowFor = (label, inScope, { baseTree, headTree, rows }) => {
   const verdictCount = (verdict) => rows.filter((row) => row.verdict === verdict && inScope(row.path)).length
   const before = [...baseTree.keys()].filter(inScope).length
   const after = [...headTree.keys()].filter(inScope).length
@@ -651,7 +651,6 @@ const summaryTable = ({ rows, headTree, baseTree, root, emptyHash }) => {
   const context = { rows, headTree, baseTree }
   const lines = ["| Class | Files before | Files after | keep | update | delete | other-ticket |", "|---|---:|---:|---:|---:|---:|---:|"]
   for (const fileClass of CLASSES) lines.push(tableRowFor(fileClass, (path) => classify(path) === fileClass, context))
-  lines.push(tableRowFor("design/ source", (path) => path.startsWith("design/") && classify(path) === "source", context))
   lines.push(tableRowFor("total", () => true, context))
   const deleted = rows.filter((row) => row.verdict === "delete").map((row) => row.path)
   lines.push(

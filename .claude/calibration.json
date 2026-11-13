@@ -277,7 +277,7 @@
     ".claude/skills/prod-readiness/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "3121db99c921d749",
+      "digest": "4113c24ad7a3f30d",
       "calibratedAt": "2026-11-13",
       "verdict": "undeclared, inherits the session: it judges four child audits before producing a launch verdict."
     },

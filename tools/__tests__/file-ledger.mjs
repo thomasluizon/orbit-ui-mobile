@@ -191,7 +191,12 @@ const verifyArguments = ({ repository, base }, ledgerPath, extra = ["--other-tic
 const caseVerify = () => {
   const fixture = makeVerifyFixture("verify")
   const complete = writeLedger("verify-complete", fixture.ledger)
-  check(TOOL, "verify exits 0 for a complete ledger", verifyArguments(fixture, complete), { status: 0, stdout: /\| total \|/ })
+  const summary = check(TOOL, "verify exits 0 for a complete ledger", verifyArguments(fixture, complete), { status: 0, stdout: /\| total \|/ })
+  const labels = [...summary.stdout.matchAll(/^\| ([^|]+?) \| \d/gm)].map((match) => match[1])
+  T(`${TOOL}: the verify summary has one row for each class and a total row, and no other row`, labels.join() === "config,agent,doc,asset,test,source,total", labels.join())
+  T(`${TOOL}: the verify summary counts each class and the total from the ledger and both trees`,
+    summary.stdout.includes("| doc | 3 | 3 | 1 | 2 | 1 | 0 |") && summary.stdout.includes("| source | 1 | 1 | 0 | 0 | 0 | 1 |") && summary.stdout.includes("| total | 4 | 4 | 1 | 2 | 1 | 1 |"), summary.stdout)
+  T(`${TOOL}: the verify summary gives the bytes the deletes removed`, summary.stdout.includes("bytes removed by deletes: 8"), summary.stdout)
 
   const defect = (name, mutate, extra, pattern) => {
     const ledger = mutate(fixture.ledger.map((row) => ({ ...row })))
