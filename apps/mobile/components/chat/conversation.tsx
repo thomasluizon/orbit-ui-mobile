@@ -26,7 +26,7 @@ import { useChatNavigation } from "@/hooks/use-chat-navigation";
 import { useTranslation } from "react-i18next";
 import type { ChatMessage } from "@orbit/shared/types";
 import { CHAT_GOAL_ACTION_TYPES } from "@orbit/shared/hooks";
-import { unplannedToolSteps, getChatCompletionText, resolveConversationSuggestions, chatTraceLabelKey, stripChatDirectives, findPromptSlot, preparePromptTemplate, promptDisabledReason, getChatReplyState } from "@orbit/shared/chat";
+import { unplannedToolSteps, getChatCompletionText, resolveConversationSuggestions, chatTraceLabelKey, stripChatDirectives, findPromptSlot, preparePromptTemplate, promptDisabledReason, conversationMascotState, getChatReplyState } from "@orbit/shared/chat";
 import type { useChatComposer } from "@/hooks/use-chat-composer";
 import { MessageBubble } from "@/components/message-bubble";
 import { KeyboardAwareFlatList, KeyboardAwareSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view';
@@ -373,7 +373,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
         <Text testID="astra-working-announcement" accessibilityLiveRegion="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>{announcingWork ? t('chat.trace.working') : ''}</Text>
 
         {showSuggestions ? (
-          <ShellContent style={{ flex: 1 }}><ChatEmptyState ref={chatAreaRef} styles={styles} browseAction={<Button buttonRef={browseEmptyRef} variant="ghost" onClick={() => openLibrary(browseEmptyRef)}>{t('chat.templates.browse')}</Button>} /></ShellContent>
+          <ShellContent style={{ flex: 1 }}><ChatEmptyState ref={chatAreaRef} styles={styles} mascotState={conversationMascotState(chat)} browseAction={<Button buttonRef={browseEmptyRef} variant="ghost" onClick={() => openLibrary(browseEmptyRef)}>{t('chat.templates.browse')}</Button>} /></ShellContent>
         ) : (
           <View ref={chatAreaRef} style={{ flex: 1 }}>
             <PlanAnnouncements messages={messages} />

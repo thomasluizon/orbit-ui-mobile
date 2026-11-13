@@ -179,6 +179,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     >
       <View style={styles.scrollContent}>
         <View style={styles.headerRow}>
+          <OrbitMascot size={48} state={hasProAccess && isLoading ? 'pensando' : 'parado'} />
           <Text style={styles.astraName}>Orbit</Text>
           <Badge>{t('aiDisclosure.isAiLabel')}</Badge>
         </View>

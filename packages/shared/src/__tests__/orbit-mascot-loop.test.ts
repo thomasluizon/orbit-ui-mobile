@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
+import { conversationMascotState } from '../chat/composer-controls'
 import {
   claimOrbitLiveSlot,
   getOrbitLoopVersion,
@@ -47,6 +48,23 @@ describe('Orbit idle loop permission', () => {
     release()
   })
 
+  it('lets the Orbit inside the top overlay run while the Orbit under it stays still', () => {
+    const page = Symbol('page')
+    const inSheet = Symbol('in-sheet')
+    const releasePage = claimOrbitLiveSlot(page)
+    const closeSheet = pauseOrbitLoopForOverlay()
+    const releaseInSheet = claimOrbitLiveSlot(inSheet, 1)
+    expect(mayOrbitRunLoop(page)).toBe(false)
+    expect(mayOrbitRunLoop(inSheet)).toBe(true)
+    const closeSecondSheet = pauseOrbitLoopForOverlay()
+    expect(mayOrbitRunLoop(inSheet)).toBe(false)
+    closeSecondSheet()
+    releaseInSheet()
+    closeSheet()
+    expect(mayOrbitRunLoop(page)).toBe(true)
+    releasePage()
+  })
+
   it('notifies subscribers and changes its version on each change', () => {
     let calls = 0
     const stop = subscribeOrbitLoop(() => { calls += 1 })
@@ -57,5 +75,16 @@ describe('Orbit idle loop permission', () => {
     stop()
     setOrbitMotionEnabled(true)
     expect(calls).toBe(1)
+  })
+})
+
+describe('conversationMascotState', () => {
+  it.each([
+    [{ isOnline: true, atMessageLimit: false }, 'parado'],
+    [{ isOnline: false, atMessageLimit: false }, 'descansando'],
+    [{ isOnline: true, atMessageLimit: true }, 'descansando'],
+    [{ isOnline: true, atMessageLimit: false, dailyBudgetReached: true }, 'descansando'],
+  ] as const)('rests Orbit only while the AI is unavailable: %o', (state, expected) => {
+    expect(conversationMascotState(state)).toBe(expected)
   })
 })

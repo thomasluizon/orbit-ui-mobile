@@ -261,6 +261,7 @@ describe('RescheduleSheet (mobile)', () => {
     expect(skeletons.length).toBeGreaterThanOrEqual(1)
     expect(tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'skeleton-unit-habit-row')).toHaveLength(2)
     expect(tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'skeleton-unit-habit-row' && node.props.accessibilityRole === 'progressbar')).toHaveLength(1)
+    expect(tree.root.findAll((node) => node.type === 'Svg' && node.props.testID === 'orbit-mascot')[0]!.props['data-orbit-state']).toBe('pensando')
     const actions = tree.root.findAll((node) => node.type === 'SheetActions')[0]!
     expect(actions.findAll((node) => node.type === 'Pressable' && typeof node.props.testID === 'string' && String(node.props.testID).startsWith('button-'))).toHaveLength(0)
   })
@@ -276,7 +277,9 @@ describe('RescheduleSheet (mobile)', () => {
     expect(hasText(tree.root, 'habits.form.proposedByAstra')).toBe(true)
     const date = tree.root.findAll((node) => node.type === 'Text' && node.props.testID === 'reschedule-proposed-schedule')[0]!
     expect(date.props.children).toEqual(['qui., 20 de ago.', ' · 07:30:00'])
-    expect(tree.root.findAll((node) => node.type === 'Svg' && node.props.testID === 'orbit-mascot')).toHaveLength(0)
+    const mascots = tree.root.findAll((node) => node.type === 'Svg' && node.props.testID === 'orbit-mascot')
+    expect(mascots).toHaveLength(1)
+    expect(mascots[0]!.props).toMatchObject({ width: 48, accessible: false, 'data-orbit-state': 'parado' })
     const name = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Orbit')[0]!
     expect(JSON.stringify(name.props.style)).not.toContain('uppercase')
   })

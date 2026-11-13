@@ -16,6 +16,9 @@ export type EmptyStateTypeContract = [
   Assert<IsExactWidth<EmptyStateProps['title'], string>>,
   Assert<IsExactWidth<EmptyStateProps['action'], React.ReactElement | undefined>>,
   Assert<IsExactWidth<EmptyStateProps['disclosure'], React.ReactElement | undefined>>,
+  Assert<IsExactWidth<EmptyStateProps['mascotState'], 'parado' | 'descansando' | undefined>>,
+  // @ts-expect-error an empty state is never Feliz
+  Assert<IsExact<{ title: 'Nothing here'; mascotState: 'feliz' }, EmptyStateProps>>,
   Assert<IsExact<{ title: 'Nothing here' }, EmptyStateProps>>,
   Assert<IsExact<{ title: 'Ask Orbit'; action: typeof _action }, EmptyStateProps>>,
   // @ts-expect-error empty state title is required

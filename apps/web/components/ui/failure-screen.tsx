@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from 'react'
 import { useTranslations } from 'next-intl'
 import { getErrorSurface, getFriendlyErrorKey, getRetryCountdown } from '@orbit/shared/utils'
 import { PillButton } from '@/components/ui/pill-button'
+import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 
 function failureBodyKey(accountChanged: boolean, throttled: boolean): string {
   if (accountChanged) return 'errors.api.accountChanged'
@@ -12,6 +13,7 @@ function failureBodyKey(accountChanged: boolean, throttled: boolean): string {
 
 export function FailureScreen({ error, retry, titleId }: Readonly<{ error: unknown; titleId?: string; retry: () => void | Promise<void> }>) {
   const t = useTranslations()
+  const mascotSize = useStateMascotSize()
   const accountChanged = getFriendlyErrorKey(error, '') === 'errors.api.accountChanged'
   const surface = getErrorSurface(error)
   const requestId = surface.requestId
@@ -36,6 +38,7 @@ export function FailureScreen({ error, retry, titleId }: Readonly<{ error: unkno
   }
   return (
     <section className="error-surface" data-state={countdown ? 'throttle' : 'failure'} aria-busy={retrying || undefined}>
+      <OrbitMascot size={mascotSize} />
       <h1 id={titleId} className="error-surface-title">{t(countdown ? 'errorScreen.throttleTitle' : 'errorScreen.title')}</h1>
       <p className="error-surface-body">{t(failureBodyKey(accountChanged, countdown !== null))}</p>
       {countdown ? <p role="timer" className="font-mono text-[20px] leading-[1.4] tabular-nums">{countdown.label}</p> : null}

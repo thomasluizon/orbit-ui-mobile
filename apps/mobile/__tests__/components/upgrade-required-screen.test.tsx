@@ -78,6 +78,7 @@ vi.mock('@/components/ui/orbit-mascot', () => {
   return {
     OrbitMascot: (props: Record<string, unknown>) =>
       React.createElement('OrbitMascot', props),
+    useStateMascotSize: () => 96,
   }
 })
 

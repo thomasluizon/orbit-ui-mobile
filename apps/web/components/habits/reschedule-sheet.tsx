@@ -193,6 +193,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     >
       <div className="flex flex-col pb-2" style={{ gap: 16 }}>
         <div className="flex items-center" style={{ gap: 8 }}>
+          <OrbitMascot size={48} state={hasProAccess && isLoading ? 'pensando' : 'parado'} />
           <span
             translate="no"
             style={{

@@ -149,6 +149,7 @@ describe('RescheduleSheet', () => {
     expect(screen.getAllByRole('progressbar')).toHaveLength(1)
     expect(screen.getByTestId('reschedule-loading-skeleton').querySelectorAll('[data-variant="habit-row"]')).toHaveLength(2)
     expect(screen.queryByRole('button', { name: 'habits.reschedule.accept' })).not.toBeInTheDocument()
+    expect(screen.getByTestId('sheet').querySelector('[data-asset="orbit-mascot"]')).toHaveAttribute('data-orbit-state', 'pensando')
   })
 
   it('uses an accessible dialog title and the proposed Astra label', () => {
@@ -162,7 +163,11 @@ describe('RescheduleSheet', () => {
     expect(screen.getByTestId('reschedule-proposed-schedule')).toHaveTextContent(/^qui\., 20 de ago\. · 07:30:00$/)
     expect(screen.getByText('Orbit')).toHaveAttribute('translate', 'no')
     expect(screen.getByText('Orbit')).not.toHaveStyle({ textTransform: 'uppercase' })
-    expect(screen.getByTestId('sheet').querySelector('[data-asset="orbit-mascot"]')).not.toBeInTheDocument()
+    const mascots = screen.getByTestId('sheet').querySelectorAll('[data-asset="orbit-mascot"]')
+    expect(mascots).toHaveLength(1)
+    expect(mascots[0]).toHaveAttribute('data-orbit-state', 'parado')
+    expect(mascots[0]).toHaveAttribute('width', '48')
+    expect(mascots[0]).toHaveAttribute('aria-hidden', 'true')
   })
 
   it('adds the year to a proposed date outside the account year', () => {

@@ -10,6 +10,7 @@ export function EmptyState({
   title,
   action,
   disclosure,
+  mascotState = 'parado',
 }: Readonly<EmptyStateProps>) {
   const mascotSize = useStateMascotSize()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -18,7 +19,7 @@ export function EmptyState({
   return (
     <View style={styles.container} testID="empty-state">
       <View testID="empty-state-mark">
-        <OrbitMascot size={mascotSize} />
+        <OrbitMascot size={mascotSize} state={mascotState} />
       </View>
       <Text style={[styles.title, { color: tokens.fg1 }]} textBreakStrategy="balanced">{title}</Text>
       {action ? <View testID="empty-state-action">{action}</View> : null}

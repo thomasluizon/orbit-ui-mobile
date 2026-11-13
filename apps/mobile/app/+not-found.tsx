@@ -3,13 +3,14 @@ import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { PillLink } from '@/components/ui/pill-button'
-import { OrbitMascot } from '@/components/ui/orbit-mascot'
+import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 import { errorSurfaceStyles as styles } from '@/components/ui/error-surface-styles'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 export default function NotFoundScreen() {
   const { width } = useWindowDimensions()
+  const mascotSize = useStateMascotSize()
   const { t } = useTranslation()
   const clearance = useShellScrollerClearance()
   const router = useRouter()
@@ -17,7 +18,7 @@ export default function NotFoundScreen() {
   const tokens = createTokensV2(currentScheme, currentTheme)
   return (
     <ScrollView style={{ backgroundColor: tokens.bg }} contentContainerStyle={[styles.root, clearance > 0 ? { paddingBottom: clearance } : undefined]}>
-      <OrbitMascot size={96} />
+      <OrbitMascot size={mascotSize} />
       <Text accessibilityRole="header" textBreakStrategy="simple" android_hyphenationFrequency="none" style={[styles.title, width >= 1024 && styles.titleWide, { color: tokens.fg1 }]}>{t('notFoundPage.title')}</Text>
       <Text style={[styles.body, { color: tokens.fg2 }]}>{t('notFoundPage.description')}</Text>
       <PillLink onPress={() => router.replace('/')}>{t('notFoundPage.action')}</PillLink>

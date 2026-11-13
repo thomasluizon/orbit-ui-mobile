@@ -19,7 +19,7 @@ import { AnimatePresence } from 'motion/react'
 import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import { useTranslations } from 'next-intl'
 import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
-import { unplannedToolSteps, getChatCompletionText, resolveConversationSuggestions, chatTraceLabelKey, stripChatDirectives, findPromptSlot, preparePromptTemplate, promptDisabledReason, getChatReplyState } from '@orbit/shared/chat'
+import { unplannedToolSteps, getChatCompletionText, resolveConversationSuggestions, chatTraceLabelKey, stripChatDirectives, findPromptSlot, preparePromptTemplate, promptDisabledReason, conversationMascotState, getChatReplyState } from '@orbit/shared/chat'
 import { APP_BAR_CONTROL_CLASS, AppBar } from '@/components/ui/app-bar'
 import type { useChatComposer } from '@/hooks/use-chat-composer'
 import { MessageBubble } from '@/components/chat/message-bubble'
@@ -365,7 +365,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
         aria-busy={replyWorking || isPendingOperationBusy}
         aria-label={t('chat.title')}
       >
-        {showSuggestions && <ChatEmptyState browseAction={<Button buttonRef={browseEmptyRef} variant="ghost" onClick={() => openLibrary(browseEmptyRef)}>{t('chat.templates.browse')}</Button>} />}
+        {showSuggestions && <ChatEmptyState mascotState={conversationMascotState(chat)} browseAction={<Button buttonRef={browseEmptyRef} variant="ghost" onClick={() => openLibrary(browseEmptyRef)}>{t('chat.templates.browse')}</Button>} />}
 
         <div ref={threadContentRef} className="mx-auto flex w-full max-w-[708px] flex-col gap-4">
         {messages.map((msg, index) => (

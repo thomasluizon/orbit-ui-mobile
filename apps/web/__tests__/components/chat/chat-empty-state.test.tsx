@@ -38,6 +38,13 @@ describe('ChatEmptyState', () => {
     }
   })
 
+  it('shows Orbit resting only while the AI is unavailable', () => {
+    const { container, rerender } = render(<ChatEmptyState />)
+    expect(container.querySelector('[data-asset="orbit-mascot"]')).toHaveAttribute('data-orbit-state', 'parado')
+    rerender(<ChatEmptyState mascotState="descansando" />)
+    expect(container.querySelector('[data-asset="orbit-mascot"]')).toHaveAttribute('data-orbit-state', 'descansando')
+  })
+
   it('keeps the empty introduction out of the conversation live log', () => {
     render(<div role="log" aria-live="polite"><ChatEmptyState /></div>)
 

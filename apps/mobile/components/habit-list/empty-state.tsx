@@ -1,6 +1,6 @@
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
-import { OrbitMascot } from '@/components/ui/orbit-mascot'
+import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { ActionRow } from '@/components/ui/action-row'
@@ -37,6 +37,7 @@ export function HabitListEmptyState({
 }: Readonly<HabitListEmptyStateProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const mascotSize = useStateMascotSize()
   const isAstraPrompt = variant === 'primary'
   const hasDistinctDescription = Boolean(description) && description !== title
   const showAstraAction =
@@ -94,7 +95,7 @@ export function HabitListEmptyState({
 
   return (
     <View style={styles.container}>
-      <OrbitMascot size={96} />
+      <OrbitMascot size={mascotSize} />
       <Text style={[styles.title, { color: tokens.fg1 }]}>{title}</Text>
       {hasDistinctDescription ? (
         <Text style={[styles.description, { color: tokens.fg2 }]}>{description}</Text>

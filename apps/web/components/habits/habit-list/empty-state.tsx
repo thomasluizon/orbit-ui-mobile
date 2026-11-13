@@ -2,7 +2,7 @@
 
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
-import { OrbitMascot } from '@/components/ui/orbit-mascot'
+import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
@@ -54,6 +54,7 @@ export function HabitListEmptyState({
   variant = 'primary',
 }: Readonly<HabitListEmptyStateProps>) {
   const t = useTranslations()
+  const mascotSize = useStateMascotSize()
   const isAstraPrompt = variant === 'primary'
   const hasDistinctDescription =
     Boolean(description) && description !== title
@@ -65,7 +66,7 @@ export function HabitListEmptyState({
       className="flex flex-col items-center justify-center text-center"
       style={{ padding: "var(--orbit-space-64) var(--orbit-space-32)", gap: 16 }}
     >
-      <OrbitMascot size={96} />
+      <OrbitMascot size={mascotSize} />
       <div
         style={{
           fontFamily: 'var(--font-sans)',

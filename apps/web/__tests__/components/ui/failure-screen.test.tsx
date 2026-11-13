@@ -22,6 +22,16 @@ function mount(error: unknown, retry = vi.fn(), locale = 'en') {
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); useThrottleStore.getState().clear() })
 
 describe('FailureScreen', () => {
+  it('draws one decorative Orbit in the default state above the title', () => {
+    mount({ status: 500, data: { requestId: 'real-reference' } })
+    const mascots = document.querySelectorAll('[data-asset="orbit-mascot"]')
+    expect(mascots).toHaveLength(1)
+    expect(mascots[0]).toHaveAttribute('data-orbit-state', 'parado')
+    expect(mascots[0]).toHaveAttribute('aria-hidden', 'true')
+    expect(mascots[0]).toHaveAttribute('width', '96')
+    expect(mascots[0]?.nextElementSibling?.tagName).toBe('H1')
+  })
+
   it.each(['dark', 'light'] as const)('keeps the rendered reference above the text contrast floor in %s', async (theme) => {
     mount({ status: 500, data: { requestId: 'real-reference' } })
     const reference = screen.getByText('ref real-reference')
