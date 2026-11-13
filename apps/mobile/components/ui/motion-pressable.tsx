@@ -45,8 +45,8 @@ function useMotionPressableElement(
       onPressIn={(event) => { setPressed(true); onPressIn?.(event) }}
       onPressOut={(event) => { setPressed(false); onPressOut?.(event) }}
       style={[
+        ringed ? { borderColor: 'transparent' } : null,
         typeof style === 'function' ? style({ pressed }) : style,
-        ringed && !selected ? { borderColor: 'transparent' } : null,
         selectedBorderStyle(selected, focused, selectionRingWidth, selectionRingColor ?? tokens.primary),
         focused && focusInset && !props.disabled ? { outlineWidth: 2, outlineOffset: -4, outlineStyle: 'solid', outlineColor: tokens.fg1 } : null,
         {

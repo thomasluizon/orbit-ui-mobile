@@ -89,6 +89,17 @@ describe('selection motion', () => {
     preference.reduced = false
   })
 
+  it('keeps the caller resting border under a ringed control until it is selected', () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    const render = (selected: boolean) => <MotionPressable accessibilityRole="button" accessibilityState={{ selected }} selectionRingWidth={1.5} selectionRingColor="#C4530F" style={{ borderWidth: 1, borderColor: '#2A2A2E' }} />
+    const host = () => StyleSheet.flatten(tree!.root.findAll((node: { type: unknown }) => typeof node.type === 'string')[0]!.props.style)
+    TestRenderer.act(() => { tree = TestRenderer.create(render(false)) })
+    expect(host()).toMatchObject({ borderWidth: 1, borderColor: '#2A2A2E' })
+    TestRenderer.act(() => tree!.update(render(true)))
+    expect(host()).toMatchObject({ borderWidth: 1.5, borderColor: '#C4530F' })
+    TestRenderer.act(() => tree!.unmount())
+  })
+
   it('keeps an unringed control on the press transition alone', () => {
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<MotionPressable accessibilityRole="button" accessibilityState={{ selected: true }} />) })
