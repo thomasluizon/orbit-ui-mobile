@@ -1739,7 +1739,7 @@ The state changes first. Motion follows it, and motion never delays a press or a
 
 **The idle loop** is a blink, a slow ring tilt and a moon orbit. It runs only at 48, 96 and 128. The planet does not move, scale or bob. The ring tilts at most 5 degrees each side of rest. The moon passes behind the planet. The loop draws at most 30 frames per second. A view has at most one live Orbit. An Orbit inside a button is still, except the conversation entry.
 
-**The loop pauses** when Orbit is off screen, when the app or the tab is in the background, when an overlay covers it, and when `Orbit em movimento` is off.
+**The loop pauses** when Orbit is off screen, when the app or the tab is in the background, when an overlay covers it, and when `Orbit em movimento` is off. An Orbit inside the top overlay may be the live Orbit of that overlay. An Orbit off screen gives the live slot to the next Orbit in view.
 
 **The ring turn.** When the person causes a step or a page change, the ring makes one full turn and the eyes widen through it. A new change in that time retargets the turn. Turns never queue.
 
@@ -1781,7 +1781,7 @@ drag returns to rest. Sheet content remains scrollable and controls respond duri
 
 **Daily streak feedback is state indication, once per day.** One panel occupies the existing
 shell notice slot above the bottom chrome, leaving every underlying control interactive. Daily inset
-and gap are 16px and 12px; milestone and other fact inset and gap remain 24px and 16px. The
+and gap are 16px and 12px; milestone and other fact inset and gap remain 24px and 16px.
 The 48px identity is Orbit in the happy state, still, at 48 with no surrounding ring, using the shared mascot tokens. Orbit carries the notice identity.
 
 | Phase | Purpose | Normal motion | Reduced motion |
@@ -1834,8 +1834,8 @@ Android haptic. Milestone days show only their milestone panel; queue priority a
 
 Labelled actions retaining their leading glyph reserve a trailing status slot. Standalone mark-only
 Orbit actions keep their busy announcement. An icon-only form fill action replaces its glyph with
-one spinner while its request runs. Composer send retains its upward arrow while a reply runs; the pending reply owns running feedback and a separate Stop reply control remains reachable. An idle action carries no looping status animation, including Orbit's idle loop is not a status animation. It never runs inside an action, except the conversation entry.
-while focused (#1607, #1668).
+one spinner while its request runs. Composer send retains its upward arrow while a reply runs; the pending reply owns running feedback and a separate Stop reply control remains reachable. An idle action carries no looping status animation, including
+while focused (#1607, #1668). Orbit's idle loop is not a status animation. It never runs inside an action, except the conversation entry.
 
 **A high-frequency interaction responds on pointer-down.** Its state change is instant. Its motion plays after the state change and is interruptible. Never a full entrance on a hover or a keystroke. A keystroke may move Orbit's eyes. It moves nothing else.
 
