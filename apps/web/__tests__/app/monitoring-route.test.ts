@@ -135,6 +135,7 @@ describe('Sentry tunnel route', () => {
 
     const response = await POST(tunnelRequest(sdkEnvelope(BROWSER_DSN)))
 
+    expect(fetchUpstream).toHaveBeenCalledExactlyOnceWith(INGEST_ENDPOINT, expect.anything())
     expect(response.status).toBe(502)
     expect(await response.text()).toBe('')
   })
@@ -151,6 +152,7 @@ describe('Sentry tunnel route', () => {
     const response = await POST(tunnelRequest(sdkEnvelope(BROWSER_DSN)))
 
     expect(createTimeLimit).toHaveBeenCalledExactlyOnceWith(SENTRY_UPSTREAM_TIME_LIMIT_MS)
+    expect(fetchUpstream).toHaveBeenCalledExactlyOnceWith(INGEST_ENDPOINT, expect.objectContaining({ signal: timeLimit.signal }))
     expect(response.status).toBe(502)
     expect(await response.text()).toBe('')
   })
@@ -170,6 +172,7 @@ describe('Sentry tunnel route', () => {
 
     const response = await POST(tunnelRequest(sdkEnvelope(BROWSER_DSN)))
 
+    expect(fetchUpstream).toHaveBeenCalledExactlyOnceWith(INGEST_ENDPOINT, expect.objectContaining({ signal: timeLimit.signal }))
     expect(response.status).toBe(502)
     expect(await response.text()).toBe('')
   })
@@ -183,6 +186,7 @@ describe('Sentry tunnel route', () => {
 
     const response = await POST(tunnelRequest(sdkEnvelope(BROWSER_DSN)))
 
+    expect(fetchUpstream).toHaveBeenCalledExactlyOnceWith(INGEST_ENDPOINT, expect.anything())
     expect(response.status).toBe(502)
     expect(await response.text()).toBe('')
   })
