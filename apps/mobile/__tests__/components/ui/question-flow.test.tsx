@@ -1,4 +1,5 @@
 import { Modal } from 'react-native'
+import { act } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
 import { OptionCard } from '@/components/ui/option-card'
 import { QuestionFlow } from '@/components/ui/question-flow'
@@ -51,6 +52,23 @@ describe('QuestionFlow on Android', () => {
     press(primary!)
     expect(onPress).toHaveBeenCalledTimes(1)
     tree.unmount()
+  })
+
+  it('announces a changed line after one second of quiet and announces nothing on a step change', () => {
+    vi.useFakeTimers()
+    const live = (tree: ReturnType<typeof renderNavigation>) => tree.hosts().find((node) => (node.props as Record<string, unknown>).accessibilityLiveRegion === 'polite')?.props.children
+    const tree = renderNavigation(flow({ line: null }))
+    try {
+      expect(live(tree)).toBe('')
+      tree.update(flow({ line: 'Entendi: hoje.' }))
+      vi.advanceTimersByTime(999)
+      expect(live(tree)).toBe('')
+      void act(() => { vi.advanceTimersByTime(1) })
+      expect(live(tree)).toBe('Entendi: hoje.')
+      tree.update(flow({ stepKey: 'time', question: 'Tem hora certa?', line: 'Se tiver hora, eu aviso você.' }))
+      void act(() => { vi.advanceTimersByTime(3000) })
+      expect(live(tree)).toBe('')
+    } finally { tree.unmount(); vi.useRealTimers() }
   })
 
   it('exposes Pensando and the text status', () => {

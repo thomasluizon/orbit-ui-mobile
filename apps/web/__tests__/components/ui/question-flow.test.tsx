@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { OptionCard } from '@/components/ui/option-card'
 import { QuestionFlow } from '@/components/ui/question-flow'
@@ -85,6 +85,23 @@ describe('QuestionFlow', () => {
     expect(document.querySelector('svg[data-asset="orbit-mascot"]')).toHaveAttribute('data-orbit-state', 'olhando')
     rerender(<Flow orbitState="pensando" />)
     expect(document.querySelector('svg[data-asset="orbit-mascot"]')).toHaveAttribute('data-orbit-state', 'pensando')
+  })
+
+  it('announces a changed line after one second of quiet and announces nothing on a step change', () => {
+    vi.useFakeTimers()
+    try {
+      const { rerender } = render(<Flow />)
+      expect(screen.getByRole('status')).toBeEmptyDOMElement()
+      rerender(<Flow line="Entendi: hoje." />)
+      act(() => { vi.advanceTimersByTime(999) })
+      expect(screen.getByRole('status')).toBeEmptyDOMElement()
+      act(() => { vi.advanceTimersByTime(1) })
+      expect(screen.getByRole('status')).toHaveTextContent('Entendi: hoje.')
+      expect(screen.getByRole('status')).toHaveAttribute('aria-live', 'polite')
+      rerender(<Flow stepKey="time" question="Tem hora certa?" line="Se tiver hora, eu aviso você." />)
+      act(() => { vi.advanceTimersByTime(3000) })
+      expect(screen.getByRole('status')).toBeEmptyDOMElement()
+    } finally { vi.useRealTimers() }
   })
 
   it('draws no eye travel under reduced motion', () => {
