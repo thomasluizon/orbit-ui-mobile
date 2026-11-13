@@ -66,7 +66,6 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/mobile/components/habits/checklist-templates.tsx` | 131 | `BottomSheetAppTextInput` | inline add | 12 |
 | `apps/mobile/components/habits/create-goal-from-habit/goal-target-fields.tsx` | 37 | `BottomSheetAppTextInput` | standard | 16 |
 | `apps/mobile/components/habits/create-goal-from-habit/goal-target-fields.tsx` | 58 | `BottomSheetAppTextInput` | standard | 16 |
-| `apps/mobile/components/habits/create-goal-from-habit-sheet.tsx` | 199 | `BottomSheetAppTextInput` | standard | 16 |
 | `apps/mobile/components/habits/create-habit-modal/sub-habit-editor.tsx` | 58 | `BottomSheetAppTextInput` | subhabit | 0; 8 after index |
 | `apps/mobile/components/habits/goal-linking-field.tsx` | 70 | `BottomSheetAppTextInput` | standard | 16 |
 | `apps/mobile/components/habits/habit-checklist.tsx` | 119 | `BottomSheetAppTextInput` | checklist edit | 8 with grip |
@@ -113,7 +112,6 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/web/components/habits/checklist-templates.tsx` | 100 | `input` | inline add | 12 |
 | `apps/web/components/habits/create-goal-from-habit/goal-target-fields.tsx` | 27 | `FieldWell` | standard | 16 |
 | `apps/web/components/habits/create-goal-from-habit/goal-target-fields.tsx` | 38 | `FieldWell` | standard | 16 |
-| `apps/web/components/habits/create-goal-from-habit-sheet.tsx` | 239 | `FieldWell` | standard | 16 |
 | `apps/web/components/habits/create-habit-modal/sub-habit-editor.tsx` | 42 | `input` | subhabit | 0; 8 after index |
 | `apps/web/components/habits/goal-linking-field.tsx` | 64 | `input` | standard | 16 |
 | `apps/web/components/habits/habit-checklist.tsx` | 331 | `input` | checklist edit | 8 with grip |
@@ -151,7 +149,7 @@ Visible native text controls use `TypedTextInput`, which applies `fg1` after cal
 | Astra and shell composers | `shell/composer.tsx` | same relative component | Native `TypedTextInput`, web `TypedTextarea` |
 | Astra record filter and breakdown rename | `chat/record-list-card.tsx`, `chat/breakdown-suggestion.tsx` | same relative components | Native `TypedTextInput`, web input with `--fg-1` |
 | Search and move-parent search | `app/search.tsx`, `habit-list/move-parent-dialog.tsx` | `app/(app)/search/page.tsx`, `habits/habit-list/move-parent-overlay.tsx` | Shared `Input` |
-| Goal title, target and unit | `goals/edit-goal-modal.tsx`, `goals/edit-goal-modal/edit-goal-target-fields.tsx`, `habits/create-goal-from-habit-sheet.tsx`, `habits/create-goal-from-habit/goal-target-fields.tsx` | same relative components | Native `BottomSheetAppTextInput`, web `FieldWell` with `--fg-1` |
+| Goal title, target and unit | `goals/edit-goal-modal.tsx`, `goals/edit-goal-modal/edit-goal-target-fields.tsx`, `goals/create-goal-sheet.tsx`, `habits/create-goal-from-habit/goal-target-fields.tsx` | same relative components | Native `BottomSheetAppTextInput`, web `FieldWell` with `--fg-1` |
 | Profile name and reset confirmation | `app/(tabs)/profile/_components/edit-name-sheet.tsx`, `fresh-start-modal.tsx` | `app/(app)/profile/_components/edit-name-sheet.tsx`, `fresh-start-modal.tsx` | Native `AppTextInput`, web `Input` |
 | Profile time-zone search and key name | `profile/preferences-sections.tsx`, `profile/profile-api-keys.tsx` | preferences picker and `profile/profile-api-keys.tsx` | Native `BottomSheetAppTextInput` or `Input`, web explicit `--fg-1` |
 | Virtualized picker search | No additional native producer | `ui/picker-list.tsx` | Web `form-input` resolves to `--fg-1` |

@@ -25,7 +25,7 @@ ESLint `local/*`, `guards.yml` and Roslyn `ORBIT0001..0005` enforce the mechanic
 5. **Error handling at boundaries only.** Validate user input and external APIs, trust your types inside, never swallow an error.
 6. **Naming.** Descriptive, no abbreviations, never `data`/`info`/`temp`/`obj`/`helper`/`util` as a final name.
 7. **DRY at the right level.** Cross-app code goes to `packages/shared`, cross-component to `apps/<platform>/components/`, never for one caller.
-8. **Never assume an external interface.** Confirm a field, flag, exit code or response shape from a CLI, API or library you did not write against the real response or the installed source, never memory or `--help`. Never write the fixture that agrees with a guess; cannot confirm it, do not read it. The PR body carries the evidence (`review-and-audit.md` rule 13). Nothing writes inside `node_modules`; `node tools/check-dependency-edits.mjs` proves the tree matches the lockfile.
+8. **Never assume an external interface.** Confirm a field, flag, exit code or response shape from a CLI, API or library you did not write against the real response or the installed source, never memory or `--help`. Never write the fixture that agrees with a guess; cannot confirm it, do not read it. Evidence format: `review-and-audit.md` rule 13. Nothing writes inside `node_modules`; `node tools/check-dependency-edits.mjs` proves the tree matches the lockfile.
 9. **Simplest implementation** that fully meets the current requirements.
 10. **Grow the system in layers.** Start from the smallest version that works end to end, and never trade a working product for unfinished complexity.
 11. **Use the dependencies already here**, then an established library, before you write your own.
@@ -42,7 +42,6 @@ Web cookie is httpOnly + sameSite strict + secure; mobile tokens live in SecureS
 
 - Backend support: a paired, cross-linked `orbit-api` PR in the same task.
 - Branches `feature/`|`fix/`|`chore/`; `main` is protected; squash-merge only; never `--no-verify`/`--no-gpg-sign`; never reuse a squash-merged branch.
-- Backport shipping fixes from long-lived branches.
 - **Admin merge is forbidden except inside the `/merge-prs` skill after the owner invokes it** for an approved frozen PR set, with only `gh pr merge --admin --squash --match-head-commit <sha>`. Outside it, STOP and ask the owner. Never use `PUT /repos/{owner}/{repo}/pulls/{number}/merge` or GraphQL `mergePullRequest`.
 - Pullfrog, not the writer session, reviews every PR in GitHub Actions. Its `pullfrog-approval` check is required on `main` in both code repositories; no PR changes its instructions. Fix the code when it is red.
 
