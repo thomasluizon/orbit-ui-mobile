@@ -369,14 +369,19 @@ it.each([
     reason: `The grader cannot tell which action the card question asks about (delete or rename): ${prompt}` })
 })
 
-// The record list states one half and a yesNo question confirms the other half, so the card holds the whole decision.
-// IsValidAnswer (orbit-api AiQuestions) needs one answer per question, so the yesNo question is answered too.
+// The record list states one half and a yesNo question proposes the rename of the other half, so the card holds the whole
+// decision. IsValidAnswer (orbit-api AiQuestions) needs one answer per question, so the yesNo question is answered too.
+// A keep word beside a real rename verb still proposes the rename.
 it.each([
-  ['en', 'Which two should I delete?', 'Rename the other four to Water - 1.18L?',
+  ['en', 'a rename verb', 'Which two should I delete?', 'Rename the other four to Water - 1.18L?',
     'Which two should I delete?: 5st and 6st and Rename the other four to Water - 1.18L?: Yes'],
-  ['pt-BR', 'Quais dois eu excluo?', 'Renomeio os outros quatro para Water - 1.18L?',
+  ['pt-BR', 'a rename verb', 'Quais dois eu excluo?', 'Renomeio os outros quatro para Water - 1.18L?',
     'Quais dois eu excluo?: 5st e 6st e Renomeio os outros quatro para Water - 1.18L?: Sim'],
-])('answers a %s record card whose yes or no question confirms the other half with yes, as the client sends it', async (locale, prompt, confirm, message) => {
+  ['en', 'keep and a rename verb', 'Which two should I delete?', 'Keep the other four and rename them to Water - 1.18L?',
+    'Which two should I delete?: 5st and 6st and Keep the other four and rename them to Water - 1.18L?: Yes'],
+  ['pt-BR', 'manter and a rename verb', 'Quais dois eu excluo?', 'Mantenho os outros quatro e renomeio para Water - 1.18L?',
+    'Quais dois eu excluo?: 5st e 6st e Mantenho os outros quatro e renomeio para Water - 1.18L?: Sim'],
+])('answers a %s record card whose yes or no question proposes the other half with %s with yes, as the client sends it', async (locale, _name, prompt, confirm, message) => {
   const card = withQuestion(questionCard(ids, prompt), { type: 'yesNo', prompt: confirm })
   const sent = await clientAnswer(card, { pick: ids.slice(4), second: true }, locale)
   expect(sent.message).toBe(message)
@@ -393,6 +398,18 @@ it.each([
   ['a yes or no question that names both actions', { type: 'yesNo', prompt: 'Delete those and rename the rest?' }, 'en', cannotTell],
   ['a yes or no question about the half the records state', { type: 'yesNo', prompt: 'Delete those two?' }, 'en',
     'The grader cannot answer a yes or no card question about the half the selection states'],
+  // A count names the half, never the action: yes to a prompt of no change would tell the assistant not to rename the four.
+  ['a yes or no question that leaves the other half as it is', { type: 'yesNo', prompt: 'Leave the other four as they are?' }, 'en', cannotTell],
+  ['a yes or no question that keeps the other half unchanged', { type: 'yesNo', prompt: 'Should the other four stay unchanged?' }, 'en', cannotTell],
+  ['a yes or no question that keeps the other half as it is', { type: 'yesNo', prompt: 'Os outros quatro ficam como estão?' }, 'pt-BR', cannotTell],
+  ['a yes or no question whose only verb is keep', { type: 'yesNo', prompt: 'Keep the other four as they are?' }, 'en', cannotTell],
+  ['a yes or no question whose only verb is manter', { type: 'yesNo', prompt: 'Mantenho os outros quatro como estão?' }, 'pt-BR', cannotTell],
+  ['a yes or no question that names the title and no rename verb', { type: 'yesNo', prompt: 'Keep the title of the other four?' }, 'en', cannotTell],
+  ['a yes or no question that negates the rename', { type: 'yesNo', prompt: "Don't rename the other four?" }, 'en', cannotTell],
+  ['a yes or no question that negates the rename', { type: 'yesNo', prompt: 'Deixo os outros quatro sem renomear?' }, 'pt-BR', cannotTell],
+  ['a yes or no question that offers the rename as one alternative', { type: 'yesNo', prompt: 'Rename the other four or leave them?' }, 'en', cannotTell],
+  ['a yes or no question that offers the rename as one alternative', { type: 'yesNo', prompt: 'Renomeio os outros quatro ou deixo como estão?' }, 'pt-BR', cannotTell],
+  ['a yes or no question whose count contradicts its verb', { type: 'yesNo', prompt: 'Rename the other two?' }, 'en', cannotTell],
   ['a scale question', { type: 'scale', prompt: 'How sure are you?', lowLabel: 'Unsure', highLabel: 'Sure' }, 'en',
     'The grader cannot answer a scale card question'],
   ['a slider question', { type: 'slider', prompt: 'Quantos ml?', min: 0, max: 2000, step: 10, unit: 'ml' }, 'pt-BR',

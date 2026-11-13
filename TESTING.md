@@ -615,13 +615,19 @@ in `target_ids`. An option that declares none stands for its own id when that id
 the API's `AiChoiceSelection.TargetsOf`. Every such record must be a stored child, each child must be selectable,
 and one selection the card allows must state the whole decision. When a list can hold the deleted half and the
 renamed half, the grader selects the half that its question asks about: the action words of the question, else the
-count that it states. When the question tells neither, or the two signals disagree, the case fails with a message
-that names a grader limit, not a model fault. A `yesNo` question beside the lists is answered yes when its prompt
-names, by the same signals, the half that the lists leave out. A `yesNo` question that names the selected half, both
-halves or neither, and every `scale` or `slider` question, also fail the case with a grader-limit message. The
-model-fault message stays for a card whose every question the grader reads. The provider sends that selection as
-`blockAnswer`, with the message and the history the web client sends. As the client does, the answer turn, confirm
-and execute send the first response's `conversationId` in `clientContext`, so the API reads the stored conversation.
+count that it states. In a list question, `keep` and `manter` are rename words, because the records to keep are the
+records to rename. When the question tells neither, or the two signals disagree, the case fails with a message that
+names a grader limit, not a model fault. A `yesNo` question beside the lists is answered yes only when its verb
+proposes the decided action for the half that the lists leave out. A count can confirm that half, but a count alone
+never decides it. In a `yesNo` question, `keep`, `manter`, `leave`, `stay`, `ficar` and each other verb of no change
+are not rename words, and `title` and `título` are not rename words. A negation (`not`, `don't`, `without`,
+`instead`, `não`, `sem`, `em vez`) or an alternative (`or`, `ou`) makes the prompt propose no one action. A `yesNo`
+question fails the case with a grader-limit message when it proposes no action, both actions or the action of the
+selected half. It also fails the case with that message when its count and its verb point at different halves.
+Every `scale` or `slider` question also fails the case with a grader-limit message. The model-fault message stays for
+a card whose every question the grader reads. The provider sends that selection as `blockAnswer`, with the message
+and the history the web client sends. As the client does, the answer turn, confirm and execute send the first
+response's `conversationId` in `clientContext`, so the API reads the stored conversation.
 The shared client functions build the message: the selected labels for a choice card, and each question prompt with
 its selected labels or the client's yes word for a question card. When the question has no card, the provider sends
 the typed text. The lifecycle runs in `attempt()` around the

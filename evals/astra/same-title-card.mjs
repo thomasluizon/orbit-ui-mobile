@@ -41,22 +41,37 @@ function selectionLists(part) {
 
 // Action words of both locales, matched on the normalized question at a word start. The production request renames with
 // "coloca"; the recorded cards and the corpus histories use excluir, apagar, renomear, manter, change, delete and keep.
-// The habits to keep are the habits to rename, so keep and manter are rename words.
 const deletionWords = /\b(?:delet|remov|exclu|apag|elimin|descart|drop|eras|discard)/u
-const renameWords = /\b(?:renam|renome|chang|mud|troc|coloc|becom|updat|atualiz|title\b|titulo\b|keep|mant)/u
+const renameVerbs = /\b(?:renam|renome|chang|mud|troc|coloc|becom|updat|atualiz)/u
+// Rename words of a list question only: the habits to keep are the habits to rename, and the habits a list asks a title
+// for are the habits to retitle. A yesNo question that keeps a half or names its title proposes no rename.
+const listRenameWords = /\b(?:keep|mant|title\b|titulo\b)/u
+// A yes to a negated action, or to one of two alternatives, agrees to no one action.
+const noProposalWords = /\b(?:not|never|nothing|without|instead|rather|or|nao|nunca|nada|nem|sem|ou|em vez|ao inves)\b|n['’]t\b/u
 // Count words for one half of the six children. One, um and uma also read as a pronoun or an article, so only the digit
 // states one. A digit inside a title such as 710ml or 1.18L is no count.
 const countWords = { 2: ['two', 'dois', 'duas'], 3: ['three', 'tres'], 4: ['four', 'quatro'], 5: ['five', 'cinco'], 6: ['six', 'seis'] }
 const statesCount = (text, count) => new RegExp(`(?<![\\w.])(?:${[count, ...countWords[count] ?? []].join('|')})(?!\\w|\\.\\d)`, 'u').test(text)
 const onlyOne = (deleted, renamed) => deleted === renamed ? null : deleted ? 'deleted' : 'renamed'
+const countHalf = (text, decision) => onlyOne(statesCount(text, decision.deleted.length), statesCount(text, decision.renamed.length))
 
 // The half of the decision a list question asks about: the action it names, else the count it states. Null when it names
 // neither, or when the two point at different halves.
 function askedHalf(prompt, decision) {
   const text = normalize(prompt)
-  const byAction = onlyOne(deletionWords.test(text), renameWords.test(text))
-  const byCount = onlyOne(statesCount(text, decision.deleted.length), statesCount(text, decision.renamed.length))
+  const byAction = onlyOne(deletionWords.test(text), renameVerbs.test(text) || listRenameWords.test(text))
+  const byCount = countHalf(text, decision)
   return byAction && byCount && byAction !== byCount ? null : byAction ?? byCount
+}
+
+// The half a yesNo question proposes its action for. A yes agrees to what the verb proposes, so the verb decides the half
+// and a count only confirms it. Null when no one verb proposes one action, or when the count points at the other half.
+// Leave, stay, ficar and each other verb of no change are in no action list, so a prompt of no change names no half.
+function proposedHalf(prompt, decision) {
+  const text = normalize(prompt)
+  const byAction = noProposalWords.test(text) ? null : onlyOne(deletionWords.test(text), renameVerbs.test(text))
+  const byCount = countHalf(text, decision)
+  return byAction && byCount && byAction !== byCount ? null : byAction
 }
 
 // The selection that states one half of the decision on one list, or null when the list cannot hold that half.
@@ -76,12 +91,12 @@ function selectionFor(list, targets, decision) {
   return { chosen: halves[half] ?? null, half }
 }
 
-// Each question read: a choice list's selection and its half, the half a yesNo question names, or the grader's limit.
-// The grader answers no scale or slider question, and never guesses what a yesNo question that names no half confirms.
+// Each question read: a choice list's selection and its half, the half a yesNo question proposes its action for, or the
+// grader's limit. The grader answers no scale or slider question, and never guesses what a yesNo question proposes.
 function readList(list, targets, decision) {
   if (choiceTypes.includes(list.type)) return selectionFor(list, targets, decision)
   if (list.type !== 'yesNo') return { limit: `answer a ${list.type} card question` }
-  const names = askedHalf(list.prompt, decision)
+  const names = proposedHalf(list.prompt, decision)
   return names ? { names } : { limit: cannotTell }
 }
 
@@ -98,7 +113,7 @@ function questionAnswer(card, readings, locale) {
 
 // A card holds the answer when each stored child is selectable as a record or through a set option, every record an
 // option stands for is a stored child, and one selection the card allows states the whole decision. The choice lists
-// state one half; a yesNo question beside them that names the other half is answered yes.
+// state one half; a yesNo question beside them whose verb proposes the action of the other half is answered yes.
 export function sameTitleCard(output, vars) {
   const children = vars.sameTitleBaseline?.children?.map((child) => child.id) ?? []
   const answer = vars.sameTitleSet?.answer
