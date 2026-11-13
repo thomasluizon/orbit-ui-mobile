@@ -59,14 +59,14 @@ describe.each(environments)('$name desktop', ({ config, origin, identifier }) =>
     expect(entrypoint).toContain('.setup(setup)')
     expect(entrypoint).toMatch(/fn construct_window[\s\S]*WebviewWindowBuilder::from_config[\s\S]*\.on_new_window\([\s\S]*open_new_window\([\s\S]*tauri_plugin_opener::open_url[\s\S]*\.build\(\)/)
     expect(entrypoint).toContain('.on_navigation(')
-    expect(entrypoint).toMatch(/\.invoke_handler\(tauri::generate_handler!\[\s*desktop_login::commit_desktop_login,\s*push::desktop_push,\s*updates::desktop_update,\s*launch::desktop_launch,\s*#\[cfg\(feature = "bench-loopback"\)\]\s*bench_viewport::fit_bench_viewport\s*\]\)/)
+    expect(entrypoint).toMatch(/\.invoke_handler\(tauri::generate_handler!\[\s*desktop_login::commit_desktop_login,\s*push::desktop_push,\s*updates::desktop_update,\s*launch::desktop_launch,\s*window_bar::desktop_window,\s*#\[cfg\(feature = "bench-loopback"\)\]\s*bench_viewport::fit_bench_viewport\s*\]\)/)
   })
 
   it('grants only session completion to its own origin and registers its callback scheme', () => {
     expect(config.app.withGlobalTauri).toBe(false)
     expect(config.app.security.capabilities).toEqual([{
       identifier: 'desktop-auth', local: false, remote: { urls: [`${origin}/*`] },
-      windows: ['main'], permissions: ['allow-commit-desktop-login', 'allow-desktop-push', 'allow-desktop-update', 'allow-desktop-launch'],
+      windows: ['main'], permissions: ['allow-commit-desktop-login', 'allow-desktop-push', 'allow-desktop-update', 'allow-desktop-launch', 'allow-desktop-window'],
     }])
     expect(config.plugins['deep-link']).toEqual({ desktop: { schemes: [identifier] } })
     expect(existsSync(new URL('../src-tauri/capabilities', import.meta.url))).toBe(false)
@@ -89,7 +89,7 @@ describe.each(environments)('$name desktop', ({ config, origin, identifier }) =>
     expect(entrypoint).toContain('.on_window_event(lifecycle::on_window_event)')
     expect(entrypoint.indexOf('tauri_plugin_single_instance::init')).toBeLessThan(entrypoint.indexOf('tauri_plugin_deep_link::init'))
     const permissions = config.app.security.capabilities.flatMap((capability) => capability.permissions)
-    expect(permissions).toEqual(['allow-commit-desktop-login', 'allow-desktop-push', 'allow-desktop-update', 'allow-desktop-launch'])
+    expect(permissions).toEqual(['allow-commit-desktop-login', 'allow-desktop-push', 'allow-desktop-update', 'allow-desktop-launch', 'allow-desktop-window'])
   })
 
   it('signs macOS with the hardened runtime and the Developer ID push entitlements of its own provisioning profile', () => {
@@ -137,9 +137,18 @@ describe.each(environments)('$name release', ({ name, origin }) => {
       expect(capability.local).toBe(false)
       expect(capability.remote.urls).toEqual([`${origin}/*`])
       expect(capability.windows).toEqual(['main'])
-      expect(capability.permissions).toEqual([...commands.map((command) => `allow-${command.replaceAll('_', '-')}`), 'allow-desktop-launch'])
+      expect(capability.permissions).toEqual([...commands.map((command) => `allow-${command.replaceAll('_', '-')}`), 'allow-desktop-launch', 'allow-desktop-window'])
     },
   )
+})
+
+it('draws no native window frame on Windows and hands the frame to the Orbit bar', () => {
+  const frame = readFileSync(new URL('../src-tauri/src/window_bar.rs', import.meta.url), 'utf8').split('#[cfg(test)]')[0]!
+  expect(frame).toMatch(/Platform::Windows => \{\s*config\.decorations = false;[\s\S]*config\.shadow = false;/)
+  const lifecycle = readFileSync(new URL('../src-tauri/src/lifecycle.rs', import.meta.url), 'utf8').split('#[cfg(test)]')[0]!
+  expect(lifecycle).toContain('crate::window_bar::configure_frame(&mut config, crate::window_bar::Platform::current());')
+  for (const config of [base, production, windows]) expect(JSON.stringify(config)).not.toContain('"decorations"')
+  expect(readFileSync(new URL('../src-tauri/src/main.rs', import.meta.url), 'utf8')).toMatch(/#\[cfg\(windows\)\]\s*window\.hide_menu\(\)\?;/)
 })
 
 it('gives staging and production separate persistent webview identities', () => {

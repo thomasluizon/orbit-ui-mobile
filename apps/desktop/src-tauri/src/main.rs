@@ -26,6 +26,7 @@ mod update_resume;
 mod update_state;
 mod updates;
 mod web_release;
+mod window_bar;
 
 fn main() {
     let context = context();
@@ -52,6 +53,7 @@ fn desktop_builder(identifier: String) -> tauri::Builder<tauri::Wry> {
             push::desktop_push,
             updates::desktop_update,
             launch::desktop_launch,
+            window_bar::desktop_window,
             #[cfg(feature = "bench-loopback")]
             bench_viewport::fit_bench_viewport
         ])
@@ -160,6 +162,10 @@ fn construct_window(
             origin,
             &app.package_info().version.to_string(),
         ))
+        .initialization_script(window_bar::initialization_script(
+            origin,
+            window_bar::Platform::current(),
+        ))
         .on_navigation(move |url| {
             navigate_main(
                 &navigation_origin,
@@ -182,6 +188,9 @@ fn construct_window(
     {
         window.remove_menu()?;
     }
+    // WHY: the native menu bar would draw under the Orbit bar; hide_menu keeps the menu registered for the window (muda `hide_for_hwnd`).
+    #[cfg(windows)]
+    window.hide_menu()?;
     launch::install(&window, window_config)?;
     drop(window);
     Ok(())

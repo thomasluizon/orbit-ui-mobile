@@ -24,6 +24,7 @@ fn main() {
             "desktop_push",
             "desktop_update",
             "desktop_launch",
+            "desktop_window",
             #[cfg(feature = "bench-loopback")]
             "fit_bench_viewport",
         ]),
