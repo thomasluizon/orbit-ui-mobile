@@ -50,6 +50,27 @@ describe('mobile OtpInput', () => {
     for (const cell of cells) expect(cell.props.pointerEvents).toBe('none')
   })
 
+  it.each(['android', 'ios'] as const)('draws no text, caret, selection or handle of the hidden %s input outside the cells and keeps its long-press paste', async (platform) => {
+    const previous = Platform.OS
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: platform })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    try {
+      await TestRenderer.act(async () => {
+        tree = TestRenderer.create(<OtpInput label="Code" value="12" onChange={vi.fn()} />)
+        await Promise.resolve()
+      })
+      TestRenderer.act(() => tree.root.findByType('TextInput').props.onFocus())
+      const input = tree.root.findByType('TextInput')
+      expect(StyleSheet.flatten(input.props.style).color).toBe('transparent')
+      expect(input.props).toMatchObject({ selectionColor: 'transparent', cursorColor: 'transparent', selectionHandleColor: 'transparent' })
+      expect(input.props.caretHidden).toBeFalsy()
+      expect(input.props.contextMenuHidden).toBeFalsy()
+    } finally {
+      await TestRenderer.act(() => tree.unmount())
+      Object.defineProperty(Platform, 'OS', { configurable: true, value: previous })
+    }
+  })
+
   it('keeps one inset ring on the focused cell', async () => {
     let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(async () => {

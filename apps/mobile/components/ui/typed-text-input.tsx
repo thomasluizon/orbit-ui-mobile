@@ -5,10 +5,16 @@ import { TextInput } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-type TypedTextInputProps = ComponentProps<typeof TextInput> & { proposed?: boolean }
+type TypedTextInputProps = ComponentProps<typeof TextInput> & {
+  proposed?: boolean
+  /** The caller draws the value itself (the code cells), so the native text, caret, selection and handles draw nothing. */
+  mirrored?: boolean
+}
+
+const MIRRORED_INK = { selectionColor: 'transparent', cursorColor: 'transparent', selectionHandleColor: 'transparent' } as const
 
 export const TypedTextInput = forwardRef<TextInput, TypedTextInputProps>(
-  function TypedTextInput({ style, placeholderTextColor, proposed = false, onFocus, onBlur, onLayout, onContentSizeChange, ...props }, ref) {
+  function TypedTextInput({ style, placeholderTextColor, proposed = false, mirrored = false, onFocus, onBlur, onLayout, onContentSizeChange, ...props }, ref) {
     const inputRef = useRef<TextInput>(null)
     const focusedRef = useRef(false)
     const keyboardAware = useKeyboardAwareInputReveal()
@@ -32,6 +38,7 @@ export const TypedTextInput = forwardRef<TextInput, TypedTextInputProps>(
     return (
       <TextInput
         {...props}
+        {...(mirrored ? MIRRORED_INK : {})}
         ref={assignRef}
         onFocus={(event) => {
           focusedRef.current = true
@@ -52,7 +59,7 @@ export const TypedTextInput = forwardRef<TextInput, TypedTextInputProps>(
           onContentSizeChange?.(event)
         }}
         placeholderTextColor={placeholderTextColor ?? tokens.fg3}
-        style={[style, { color: proposed ? tokens.fg3 : tokens.fg1 }]}
+        style={[style, { color: mirrored ? 'transparent' : proposed ? tokens.fg3 : tokens.fg1 }]}
       />
     )
   },

@@ -60,6 +60,7 @@ export function OtpInput({
           accessibilityLabel={label}
           accessibilityHint={error ?? hint}
           accessibilityState={{ disabled }}
+          mirrored
           style={styles.realInput}
         />
         {Array.from({ length }, (_, index) => (
