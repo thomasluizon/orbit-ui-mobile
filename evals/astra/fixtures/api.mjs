@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { apiOrigin } from '../credentials.mjs'
+import { apiOrigin, safeFailureMessage } from '../credentials.mjs'
 
 // Every orbit-api route parameter is constrained to a GUID ({id:guid}), so a GUID segment is the only identifier.
 const guidSegment = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu
@@ -98,7 +98,7 @@ export async function requireEvalAccess(credentialKey) {
     const enabled = payload?.features?.astra_eval_unmetered?.enabled
     if (enabled !== expected) throw new Error('Eval allowance policy is unavailable.')
     return enabled
-  } catch {
-    throw new Error(`Eval preflight failed: turn ${expected ? 'on' : 'off'} astra_eval_unmetered for ${credentialKey} through /flag on staging, then verify /api/config and retry.`)
+  } catch (error) {
+    throw new Error(`Eval preflight failed: turn ${expected ? 'on' : 'off'} astra_eval_unmetered for ${credentialKey} through /flag on staging, then verify /api/config and retry. ${safeFailureMessage(error)}`)
   }
 }

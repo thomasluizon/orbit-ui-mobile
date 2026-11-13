@@ -208,6 +208,17 @@ it.each(['ignored', 'lost-reminder'])('fails persisted approval grading after a 
   expect(restartReadback(output, policy).pass).toBe(false)
 })
 
+it('keeps the cause when the approval fails through the HTTP provider', async () => {
+  const { policy, requests } = boundary('approve', 'transport')
+  const { publicApi } = await import('../fixtures/api.mjs')
+  policy.restartBaseline = await readRestartSnapshot(publicApi(policy.credentialKey))
+  const provider = new AstraHttpProvider({ config: {} })
+  provider.provider = Promise.resolve({ callApi: async () => ({ output: proposal() }) })
+  const response = await provider.callApi('Help me restart', { vars: policy })
+  expect(response.error).toBe('Restart approval or independent persisted readback failed: Fixture API POST ai/pending-operations/{id}/confirm failed: HTTP 503 (errorCode: none).')
+  expect(requests.filter(({ path }) => path.startsWith('/api/ai/')).map(({ path }) => path.split('/').at(-1))).toEqual(['confirm'])
+})
+
 it('refuses a rejection that leaves the proposal confirmable', async () => {
   const { policy } = boundary('reject', 'ignored')
   const { publicApi } = await import('../fixtures/api.mjs')

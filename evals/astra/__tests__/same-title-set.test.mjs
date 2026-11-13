@@ -303,6 +303,29 @@ it('answers a card that can hold the decision with the message and selection the
     .toEqual(expect.objectContaining({ pass: true, message: 'Delete the last 2 and rename the first 4' }))
 })
 
+const choiceCard = (options) => ({ type: 'block', kind: 'choice', block: { blockId: '88888888-8888-4888-8888-888888888888',
+  question: 'Which two do you want to delete?', options: options.map(({ id, label }) => ({ id, label, description: null })),
+  multiSelect: false, allowFreeText: false } })
+
+// Producer: AiChoiceSelection.TargetsOf (orbit-api 2f49ed78f) reads an option's target_ids first, and the option's own id
+// only when the option declares none; so declared targets win over an id that is a stored child or another GUID.
+it.each([
+  ['a stored child', ids[4]],
+  ['a GUID that is not a stored child', unstored],
+])('resolves a set option whose id is %s by its declared target_ids, as the API does', async (_name, id) => {
+  const card = choiceCard([{ id, label: 'Last two' }, { id: 'firstFour', label: 'First four' }])
+  const answer = sameTitleCard(shown(card, askTrace({ [id]: ids.slice(4), firstFour: ids.slice(0, 4) })), cardVars(ids, 'en'))
+  expect(answer).toMatchObject({ pass: true, reason: 'The card can hold the whole decision.' })
+  expect(sentBy(answer)).toEqual(await clientAnswer(card, [id], 'en'))
+})
+
+it('gives an option whose id is the empty GUID and that declares no targets no record, as the API does', () => {
+  const card = choiceCard([{ id: 'lastTwo', label: 'Last two' }, { id: 'firstFour', label: 'First four' },
+    { id: '00000000-0000-0000-0000-000000000000', label: 'Other' }])
+  expect(sameTitleCard(shown(card, askTrace({ lastTwo: ids.slice(4), firstFour: ids.slice(0, 4) })), cardVars(ids, 'en')))
+    .toMatchObject({ pass: true, blockAnswer: { blockId: card.block.blockId, selectedIds: ['lastTwo'] } })
+})
+
 const questionCard = (children, prompt) => ({ type: 'block', kind: 'question', block: { blockId: '77777777-7777-4777-8777-777777777777',
   expiresAtUtc: '2026-11-14T04:33:04Z', questions: [{ id: 'pick', type: 'multipleChoice', prompt, allowFreeText: false,
     options: children.map((id, index) => ({ id, label: `${index + 1}st` })) }] } })
@@ -399,7 +422,7 @@ it('never executes a confirmation bound to another pending operation', async () 
   const provider = new AstraHttpProvider({ config: {} })
   provider.provider = Promise.resolve({ callApi: async () => ({ output: held({ deleted: children.slice(4), renamed: children.slice(0, 4) }) }) })
   const response = await provider.callApi('split', { vars: policy })
-  expect(response.error).toBe('Same-title approval or independent persisted readback failed.')
+  expect(response.error).toBe('Same-title approval or independent persisted readback failed: Approval confirmation lacks its bound token.')
   expect(aiWrites()).toEqual(['confirm'])
   expect(habits.filter((habit) => habit.deleted || habit.title === 'Water - 1.18L')).toHaveLength(0)
 })

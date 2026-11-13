@@ -610,9 +610,10 @@ reads it back again. The persisted children must show the deleted ones gone, the
 rest unchanged. A preview case forbids `ask`, so a question before the preview fails it.
 
 A card case adds `sameTitleSet.answer` (the decided `deleted` and `renamed` positions and a typed `text`) and
-`composition.allowQuestion`. When the first turn asks, the card must name only stored children by id, make each
-child selectable as a record or through a set option whose `ask` call declares `target_ids`, and offer one
-selection that states the whole decision. The provider sends that selection as `blockAnswer`, with the message and
+`composition.allowQuestion`. When the first turn asks, each option stands for the records its `ask` call declares
+in `target_ids`. An option that declares none stands for its own id when that id is a nonempty GUID, in the order of
+the API's `AiChoiceSelection.TargetsOf`. Every such record must be a stored child, each child must be selectable,
+and one selection the card allows must state the whole decision. The provider sends that selection as `blockAnswer`, with the message and
 the history the web client sends. As the client does, the answer turn, confirm and execute send the first response's
 `conversationId` in `clientContext`, so the API reads the stored conversation. The shared client functions build the
 message: the selected labels for a choice card, and each question prompt with its selected labels for a question

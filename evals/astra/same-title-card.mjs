@@ -6,6 +6,7 @@ const { questionAnswerLabels } = await tsImport('../../packages/shared/src/chat/
 
 const result = (pass, reason) => ({ pass, score: pass ? 1 : 0, reason })
 const guid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu
+const emptyGuid = /^[0-]+$/u
 const normalize = (value) => String(value ?? '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
 const sameSet = (left, right) => left.length === right.length && left.every((id) => right.includes(id))
 const cardKinds = ['choice', 'question']
@@ -17,6 +18,13 @@ function declaredTargets(trace) {
     .flatMap((call) => call.arguments?.input?.options ?? [])
     .filter((option) => typeof option?.id === 'string' && Array.isArray(option.target_ids))
     .map((option) => [option.id, option.target_ids]))
+}
+
+// Producer: AiChoiceSelection.TargetsOf takes an option's declared target_ids first, and its own id only when the option
+// declares none and that id is a nonempty GUID. A question option has no target_ids, so its own id is what the model reads.
+function targetsOf(option, declared) {
+  if (declared.get(option.id)?.length) return declared.get(option.id)
+  return guid.test(option.id) && !emptyGuid.test(option.id) ? [option.id] : []
 }
 
 // One selectable list per question: a choice block is one list; a question block has one list per choice question.
@@ -43,8 +51,8 @@ function selectionFor(list, targets, decision) {
   return null
 }
 
-// A card holds the answer when each stored child is selectable as a record or through a set option, every option id
-// that names a record is a stored child, and one selection the card allows states the whole decision.
+// A card holds the answer when each stored child is selectable as a record or through a set option, every record an
+// option stands for is a stored child, and one selection the card allows states the whole decision.
 export function sameTitleCard(output, vars) {
   const children = vars.sameTitleBaseline?.children?.map((child) => child.id) ?? []
   const answer = vars.sameTitleSet?.answer
@@ -56,9 +64,8 @@ export function sameTitleCard(output, vars) {
   const declared = declaredTargets(output.trace)
   const lists = selectionLists(card)
   const options = lists.flatMap((list) => list.options)
-  const targets = new Map(options.map((option) => [option.id, children.includes(option.id) ? [option.id] : declared.get(option.id) ?? []]))
-  if (options.some((option) => guid.test(option.id) && !children.includes(option.id))
-    || [...targets.values()].flat().some((id) => !children.includes(id))) {
+  const targets = new Map(options.map((option) => [option.id, targetsOf(option, declared)]))
+  if ([...targets.values()].flat().some((id) => !children.includes(id))) {
     return result(false, 'A card option names a record that is not a stored same-title child.')
   }
   const covered = new Set([...targets.values()].flat())

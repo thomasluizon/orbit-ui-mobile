@@ -69,8 +69,8 @@ export default class AstraHttpProvider {
     if (context.vars.sameTitleSet) {
       const response = await this.chat(prompt, context, options)
       if (!response.output?.composition || response.error) return response
-      try { response.output = await completeSameTitleSet(response.output, context.vars, (input, next) => this.chat(input, next, options)) } catch {
-        return { ...response, error: 'Same-title approval or independent persisted readback failed.' }
+      try { response.output = await completeSameTitleSet(response.output, context.vars, (input, next) => this.chat(input, next, options)) } catch (error) {
+        return { ...response, error: `Same-title approval or independent persisted readback failed: ${safeFailureMessage(error)}` }
       }
       return response
     }
@@ -107,7 +107,7 @@ export default class AstraHttpProvider {
       response = await (await (context.vars.blockAnswerJson ? this.answerProvider : this.provider)).callApi(prompt, context, options)
     } catch (error) {
       const status = error.name === 'HttpRateLimitError' && error.status === 429 ? 429 : null
-      return { error: status ? 'Astra returned HTTP 429.' : 'Astra HTTP request failed.',
+      return { error: status ? 'Astra returned HTTP 429.' : `Astra HTTP request failed: ${safeFailureMessage(error)}`,
         metadata: { astraHttpStatus: status, rateLimitRetryable: false } }
     }
     if (response.metadata?.http) {
@@ -127,8 +127,8 @@ export default class AstraHttpProvider {
       }
     }
     if (context.vars.restart && response.output?.composition && !response.error) {
-      try { response.output = await completeRestart(response.output, context.vars) } catch {
-        return { ...response, error: 'Restart approval or independent persisted readback failed.' }
+      try { response.output = await completeRestart(response.output, context.vars) } catch (error) {
+        return { ...response, error: `Restart approval or independent persisted readback failed: ${safeFailureMessage(error)}` }
       }
     }
     if (['saveTask', 'saveChecklistItem'].includes(context.vars.startingStepAction)
