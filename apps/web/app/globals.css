@@ -925,7 +925,7 @@ select[aria-hidden="true"] {
   opacity: 0.5;
 }
 
-@media (hover: hover) {
+@media (hover: hover) and (pointer: fine) {
   .orbit-option-card:not(:disabled):hover {
     background: var(--bg-hover);
   }

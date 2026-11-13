@@ -3,8 +3,8 @@
 import { useAstraAllowanceCopy } from '@/hooks/use-astra-allowance-copy'
 import { useFlag } from '@/hooks/use-flag'
 import { captureGuidedFlowCompleted } from '@/lib/posthog'
-import { GuidedHabitFlow } from './guided/guided-habit-flow'
-import { HabitResultDialog } from './guided/habit-result-dialog'
+import { GuidedHabitFlow } from '@/components/habits/guided/guided-habit-flow'
+import { HabitResultDialog } from '@/components/habits/guided/habit-result-dialog'
 
 import { useState, useCallback, useEffect, useId, useLayoutEffect, useRef } from 'react'
 import { useLocale, useTranslations } from 'next-intl'

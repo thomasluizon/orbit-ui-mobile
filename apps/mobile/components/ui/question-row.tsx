@@ -27,7 +27,7 @@ export function QuestionRow({ question, value, onPress }: Readonly<QuestionRowPr
 }
 
 const styles = StyleSheet.create({
-  row: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12 },
+  row: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 12, overflow: 'hidden', paddingHorizontal: 16, paddingVertical: 12 },
   text: { flex: 1, minWidth: 0 },
   question: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24 },
   value: { maxWidth: '40%', fontFamily: 'Geist_400Regular', fontSize: 14 },
