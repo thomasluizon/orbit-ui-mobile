@@ -71,11 +71,24 @@ function useChallengeVisibility() {
   return { containerRef, challengeVisible }
 }
 
+function useReportedHeight(onHeightChange: ((height: number) => void) | undefined) {
+  const boxRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const box = boxRef.current
+    if (!box || !onHeightChange) return
+    const observer = new ResizeObserver(() => onHeightChange(box.getBoundingClientRect().height))
+    observer.observe(box)
+    return () => observer.disconnect()
+  }, [onHeightChange])
+  return boxRef
+}
+
 export function TurnstileWidget({
   siteKey,
   resetKey,
   onToken,
   onStateChange,
+  onHeightChange,
   theme,
   language,
   quiet = false,
@@ -84,6 +97,7 @@ export function TurnstileWidget({
   resetKey: number
   onToken: (token: string | null) => void
   onStateChange?: (state: WidgetState) => void
+  onHeightChange?: (height: number) => void
   theme?: 'light' | 'dark'
   language?: string
   quiet?: boolean
@@ -95,6 +109,7 @@ export function TurnstileWidget({
   const currentTheme = useCurrentTheme()
   const challengeTheme = theme ?? currentTheme
   const { containerRef, challengeVisible } = useChallengeVisibility()
+  const boxRef = useReportedHeight(onHeightChange)
   const widgetIdRef = useRef<unknown>(null)
   const callbacksRef = useRef({ onToken, onStateChange })
   const [state, setState] = useState<WidgetState>('idle')
@@ -177,7 +192,7 @@ export function TurnstileWidget({
   if (quiet) return <div ref={containerRef} style={{ position, ...challengeStyle }} />
 
   return (
-    <div className="flex flex-col items-center text-center text-sm text-[var(--fg-2)]" style={{ gap: 8, position }}>
+    <div ref={boxRef} className="flex flex-col items-center text-center text-sm text-[var(--fg-2)]" style={{ gap: 8, position }}>
       <div ref={containerRef} className="w-full" style={challengeStyle} />
       <p role="status" className={state === 'loading' ? '' : 'sr-only'}>
         {state === 'loading' ? t('auth.turnstileLoading') : ''}

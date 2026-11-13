@@ -1,10 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { View, type StyleProp, type ViewStyle } from 'react-native'
+import { steadyColumnInset } from '@orbit/shared/utils'
 import { useKeyboardAwareInputReveal } from '@/components/ui/keyboard-aware-scroll-view'
-
-export function steadyColumnInset({ viewport, column, block }: Readonly<{ viewport: number; column: number; block: number }>) {
-  return Math.min(block, Math.max(0, (viewport - column + block) / 2))
-}
 
 export function SteadyColumn({ viewportHeight, blockSpace, style, children }: Readonly<{
   viewportHeight: number

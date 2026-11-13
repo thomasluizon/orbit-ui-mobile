@@ -1,10 +1,12 @@
 'use client'
 
 import { getPendingAuthProvider, getAuthCallbackErrorKey } from '@orbit/shared/utils'
+import { SPACING } from '@orbit/shared/theme'
 
 import { useState } from 'react'
 import { LazyMotion, domMin } from 'motion/react'
 import { AuthPagePanel } from '@/components/auth/auth-page-panel'
+import { SteadyColumn } from '@/components/auth/steady-column'
 import { Lockup } from '@/components/ui/lockup'
 import { PillButton } from '@/components/ui/pill-button'
 import { TurnstileWidget } from '@/components/auth/turnstile-widget'
@@ -24,17 +26,18 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
   const flow = useLoginFlow(Boolean(callback))
   const { t } = flow
   const [callbackDismissed, setCallbackDismissed] = useState(false)
+  const check = useMeasuredCheck(flow)
   function continueAccount() {
     if (callback?.state === 'account') callback.onContinue()
     else void flow.continueAccount()
   }
   const account = Boolean(flow.accountBack) || callback?.state === 'account'
   const canSubmitTurnstile = !flow.turnstileSiteKey || Boolean(flow.turnstileToken)
-  const turnstileWidget = flow.turnstileSiteKey && flow.isOnline
-    ? <TurnstileWidget key={flow.turnstileResetKey} siteKey={flow.turnstileSiteKey} resetKey={flow.turnstileResetKey} onToken={flow.onTurnstileToken} />
-    : null
+  const turnstileWidget = check.widget
+  const checkSpace = !account && check.height > 0 ? check.height + SPACING.s24 : 0
   return (
     <LazyMotion features={domMin}>
+    <SteadyColumn blockSpace={checkSpace}>
     <AuthPagePanel>
       {flow.referralCode && !account && <ReferralBanner t={t} />}
       <Lockup />
@@ -54,8 +57,18 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
       </LoginStepStage>}
       <LoginValidationMessage message={flow.validationGeneralError} isOnline={flow.isOnline} />
     </AuthPagePanel>
+    </SteadyColumn>
     </LazyMotion>
   )
+}
+
+function useMeasuredCheck(flow: ReturnType<typeof useLoginFlow>) {
+  const [height, setHeight] = useState(0)
+  const widget = flow.turnstileSiteKey && flow.isOnline
+    ? <TurnstileWidget key={flow.turnstileResetKey} siteKey={flow.turnstileSiteKey} resetKey={flow.turnstileResetKey} onToken={flow.onTurnstileToken}
+      onHeightChange={setHeight} />
+    : null
+  return { widget, height: widget ? height : 0 }
 }
 
 function LoginEmailStep({ flow, callback, callbackDismissed, onDismissCallback, canSubmitTurnstile, turnstileWidget }: Readonly<{
