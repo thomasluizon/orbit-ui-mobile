@@ -352,6 +352,10 @@ export {
 export type { CalendarRangeChunk, CalendarRangeModel } from './calendar-range'
 export { calendarSlideMotion, resolveCalendarSlide } from './calendar-slide-motion'
 export type { CalendarSlideDirection } from './calendar-slide-motion'
+export { buildCalendarOrbitRequest, formatCalendarOrbitLine, nextCalendarPageTurn, resolveCalendarOrbitLine } from './calendar-orbit-line'
+export type { CalendarOrbitLine, CalendarOrbitLineInput, CalendarOrbitSentence, CalendarPageTurn } from './calendar-orbit-line'
+export { resolveCalendarJumpPhrase } from './calendar-jump-phrase'
+export type { CalendarJumpContext } from './calendar-jump-phrase'
 export { fetchAllPaginatedItems } from './pagination'
 export { habitListQueryFilters, shouldFetchAllHabitPages, habitViewQueryOptions } from './habit-list-pagination-core'
 export {
