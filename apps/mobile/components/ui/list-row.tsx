@@ -1,7 +1,7 @@
 import { nestedControlFill, surfaceHighlighted, useRowFeedback } from '@/hooks/use-row-feedback'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { PersonalText } from '@/components/ui/personal-text'
-import { INTERACTION_FILL_CLEARANCE, PADDING, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, orbitalMotion, PADDING, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { PRESS_SCALE_TRANSITION } from '@/components/motion/press-scale'
 import * as SwitchPrimitive from '@rn-primitives/switch'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
@@ -176,7 +176,7 @@ function RowAction({ action, hasDescription, reducedMotion, tokens, feedback }: 
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={action.label} onPress={action.onPress} {...feedback.handlers} style={[styles.action, { marginVertical: hasDescription ? SPACING.s8 : SPACING.s4, marginEnd: SPACING.s16 }, { backgroundColor: nestedControlFill(feedback, tokens) }]}>
       {({ pressed }) => (
-        <AnimatedContent style={[reducedMotion ? null : PRESS_TRANSITION, styles.control, pressed && !reducedMotion ? { transform: [{ scale: 0.96 }] } : null]}>
+        <AnimatedContent style={[reducedMotion ? null : PRESS_TRANSITION, styles.control, pressed && !reducedMotion ? { transform: [{ scale: orbitalMotion.press.scale }] } : null]}>
           <Icon name={action.icon} size={20} color={action.danger ? tokens.statusBad : tokens.fg2} />
         </AnimatedContent>
       )}
@@ -216,7 +216,7 @@ export function ListRow({ ref, ...original }: Readonly<ListRowProps & { ref?: Re
   const rowTrailing = rowAccessory(props)
   const switchLine = accessoryLineStyle(props, labelWrapped, titleLayout.height)
   const body: ReactNode = (
-    <AnimatedContent data-slot="list-row-content" style={[reducedMotion ? null : PRESS_TRANSITION, styles.bodyContent, rowContentStyle(props, rowTrailing, labelWrapped), interaction.pressed && !reducedMotion ? { transform: [{ scale: 0.96 }] } : null]}>
+    <AnimatedContent data-slot="list-row-content" style={[reducedMotion ? null : PRESS_TRANSITION, styles.bodyContent, rowContentStyle(props, rowTrailing, labelWrapped), interaction.pressed && !reducedMotion ? { transform: [{ scale: orbitalMotion.press.scale }] } : null]}>
       {icon ? (
         <View data-slot="list-row-icon" importantForAccessibility="no-hide-descendants" style={[styles.iconSlot, switchLine]}>
           {renderLeadingIcon(icon, rowColors.iconColor)}

@@ -36,7 +36,7 @@ export function Portal({ children }: Readonly<{ children: ReactNode }>) {
 }
 
 export function Content({ children, ...props }: ComponentProps<typeof Primitive.Content>) {
-  return <Primitive.Content {...props} position="popper" onEscapeKeyDown={(event) => { event.stopPropagation(); props.onEscapeKeyDown?.(event) }} sideOffset={8} className="z-dropdown min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-[20px] bg-[var(--bg-sheet)] p-2 text-[var(--fg-1)] shadow-[var(--sh-2)]">
+  return <Primitive.Content {...props} position="popper" onEscapeKeyDown={(event) => { event.stopPropagation(); props.onEscapeKeyDown?.(event) }} sideOffset={8} className="orbit-select-panel z-dropdown min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-[20px] bg-[var(--bg-sheet)] p-2 text-[var(--fg-1)] shadow-[var(--sh-2)]">
     <Primitive.Viewport style={{ maxHeight: 'min(240px, var(--radix-select-content-available-height))' }}>{children}</Primitive.Viewport>
   </Primitive.Content>
 }
@@ -46,7 +46,7 @@ export function SelectCheck() {
 }
 
 export function Item({ value, label, disabled }: Readonly<SelectOption>) {
-  return <Primitive.Item value={value} textValue={label} disabled={disabled} className="flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-[12px] px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)] data-[highlighted]:bg-[var(--bg-hover)] data-[disabled]:opacity-50">
+  return <Primitive.Item value={value} textValue={label} disabled={disabled} className="orbit-press-content flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-[12px] px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)] data-[highlighted]:bg-[var(--bg-hover)] data-[disabled]:opacity-50">
     <Primitive.ItemText>{label}</Primitive.ItemText><SelectCheck />
   </Primitive.Item>
 }

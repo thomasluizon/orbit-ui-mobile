@@ -3,6 +3,7 @@ import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import type { CheckboxProps } from '@orbit/shared/contracts/forms'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
 import * as Primitive from '@rn-primitives/checkbox'
+import { PressScale } from '@/components/motion/press-scale'
 import Svg, { Rect } from 'react-native-svg'
 import { Check } from '@/components/ui/icons'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -18,6 +19,7 @@ export function Checkbox({
   as = 'button',
 }: Readonly<CheckboxProps>) {
   const [focused, setFocused] = useState(false)
+  const [pressed, setPressed] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const box = (
@@ -45,6 +47,8 @@ export function Checkbox({
       checked={checked}
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
+      onPressIn={() => setPressed(true)}
+      onPressOut={() => setPressed(false)}
       focusable={!disabled && !loading}
       onCheckedChange={(next) => onChange(next === true)}
       disabled={disabled || loading}
@@ -56,7 +60,7 @@ export function Checkbox({
       data-error={error ? '' : undefined}
       style={[styles.control, focused ? { outlineWidth: 2, outlineColor: tokens.fg1, outlineOffset: -2, outlineStyle: 'solid' } : null]}
     >
-      {box}
+      <PressScale pressed={pressed} disabled={disabled || loading}>{box}</PressScale>
     </Primitive.Root>
   )
 }

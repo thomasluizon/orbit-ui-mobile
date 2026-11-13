@@ -46,7 +46,7 @@ export function CheckRow({
       data-checked={checked ? '' : undefined}
       data-loading={loading ? '' : undefined}
       data-error={error ? '' : undefined}
-      className="group/check-row orbit-hover-text flex w-full items-center rounded-[12px] border-0 bg-transparent text-left transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] disabled:opacity-60"
+      className="group/check-row orbit-hover-text orbit-press-content flex w-full items-center rounded-[12px] border-0 bg-transparent text-left transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] disabled:opacity-60"
     >
       <span aria-hidden="true" className="flex shrink-0 items-center" style={wrapStyles.control}>
         <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />
@@ -118,7 +118,7 @@ function PersonalCheckRow({ leading, label, selection = false, placement, varian
         {value !== undefined ? <span className={`font-mono ${calendarDay ? 'text-xs' : 'text-sm'} tabular-nums text-[var(--fg-2)]`}>{value}</span> : null}
         </span>
       </button>} />
-      <button type="button" role="checkbox" style={personalControlStyle(selection)} data-variant={variant} aria-label={label} aria-checked={checked} aria-busy={calendarDay ? loading : undefined} disabled={disabled || loading} onClick={() => onChange(!checked)} data-loading={loading ? '' : undefined} className={`orbit-check-row-control relative grid ${calendarDay ? 'size-6' : 'size-[56px]'} shrink-0 place-items-center rounded-[12px] border-0 bg-transparent transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:opacity-60`}>
+      <button type="button" role="checkbox" style={personalControlStyle(selection)} data-variant={variant} aria-label={label} aria-checked={checked} aria-busy={calendarDay ? loading : undefined} disabled={disabled || loading} onClick={() => onChange(!checked)} data-loading={loading ? '' : undefined} className={`orbit-check-row-control orbit-press-content relative grid ${calendarDay ? 'size-6' : 'size-[56px]'} shrink-0 place-items-center rounded-[12px] border-0 bg-transparent transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:opacity-60`}>
         <span aria-hidden="true" data-press-fill="" className="orbit-check-row-fill grid place-items-center p-2">
           {calendarDay ? <CircleIcon data-slot="calendar-day-circle" size={24} stroke={1.5} aria-hidden="true" focusable="false" className="text-[var(--fg-1)]" /> : <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />}
         </span>

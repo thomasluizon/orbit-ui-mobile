@@ -58,7 +58,7 @@ const STYLESHEET_TRANSITIONS = [
   ['.habit-control-motion', `background-color var(--dur-hover-control) var(--ease-standard), color var(--dur-hover-control) var(--ease-standard), ${SCALE_PRESS}`],
   ['.orbit-sheet-close', COLOR_AND_PRESS],
   ['.icon-btn', COLOR_AND_PRESS],
-  ['.chip', COLOR_AND_PRESS],
+  ['.chip', `${COLOR_AND_PRESS}, box-shadow var(--motion-selection-exit) var(--motion-ease-exit)`],
   ['.habit-form-disclosure', 'opacity var(--dur-enter) var(--ease-out), transform var(--dur-enter) var(--ease-out)'],
 ] as const
 

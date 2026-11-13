@@ -66,6 +66,14 @@ describe('DateField', () => {
     expect(screen.getByLabelText('common.nextMonth')).toBeInTheDocument()
   })
 
+  it('scales the month and year controls on press only when motion is allowed', () => {
+    render(<DateField value="2025-06-15" onChange={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button'))
+    for (const label of ['common.previousMonth', 'common.nextMonth', 'common.selectYear']) {
+      expect(screen.getByLabelText(label)).toHaveClass('motion-safe:active:scale-[0.96]', 'active:bg-[var(--bg-hover)]')
+    }
+  })
+
   it('calls onChange when a day is clicked', () => {
     const onChange = vi.fn()
     render(<DateField value="2025-06-15" onChange={onChange} />)

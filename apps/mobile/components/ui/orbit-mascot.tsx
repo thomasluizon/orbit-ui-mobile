@@ -22,8 +22,9 @@ import {
   mayOrbitRunLoop,
   subscribeOrbitLoop,
 } from '@orbit/shared/utils'
-import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { use, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { AppState, useWindowDimensions } from 'react-native'
+import { IsFocusedContext } from 'expo-router/build/react-navigation/core/useIsFocused'
 import { useReducedMotion } from 'react-native-reanimated'
 import Svg, { Circle, ClipPath, Defs, G, Path } from 'react-native-svg'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
@@ -39,13 +40,16 @@ function isSmallSize(size: number): size is OrbitMascotSmallSize {
 }
 
 /** The idle loop clock in milliseconds. It runs only while this mascot holds the one live slot, the
- *  person has not paused Orbit, no overlay covers its layer and the app is in the foreground. It never
- *  runs under reduced motion. */
+ *  person has not paused Orbit, no overlay covers its layer, its screen is focused and the app is in the
+ *  foreground. A mascot on a screen that is not focused gives the live slot to the next Orbit in view. It
+ *  never runs under reduced motion. The focus comes from `IsFocusedContext`, the context `useIsFocused`
+ *  reads: it is undefined outside a navigator, where `useIsFocused` throws and the root error screen draws Orbit. */
 function useOrbitLoopClock(wantsLoop: boolean, lead: boolean) {
   const [claim] = useState(() => Symbol('orbit-mascot'))
   const layer = useOrbitOverlayLayer()
   const reducedMotion = useReducedMotion()
-  const candidate = wantsLoop && !reducedMotion
+  const screenFocused = use(IsFocusedContext) ?? true
+  const candidate = wantsLoop && !reducedMotion && screenFocused
   const [foreground, setForeground] = useState(AppState.currentState === 'active')
   const [clock, setClock] = useState(0)
   const elapsed = useRef(0)

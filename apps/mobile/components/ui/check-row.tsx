@@ -5,6 +5,7 @@ import type { CheckRowProps } from '@orbit/shared/contracts/forms'
 import { ActivityIndicator, Pressable as NativePressable, StyleSheet, Text, View, useWindowDimensions, type PressableProps, type ViewStyle } from 'react-native'
 import { InsetFocusPressable as Pressable } from './inset-focus-pressable'
 import { Checkbox } from './checkbox'
+import { PressScale } from '@/components/motion/press-scale'
 import { Check, CheckCircle, Circle } from './icons'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
@@ -60,9 +61,9 @@ export function CheckRow({
       ]}
     >
       <View data-slot="check-row-control" style={{ justifyContent: 'center', minHeight: wrapLabel ? 22.4 * fontScale : undefined }}>
-        <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />
+        <PressScale pressed={pressed} disabled={disabled || loading}><Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" /></PressScale>
       </View>
-      <View style={styles.copy}>
+      <PressScale pressed={pressed} disabled={disabled || loading} style={styles.copy}>
         <CheckRowLabel personal={textMode === 'personal'}
           style={[
             styles.label,
@@ -77,9 +78,9 @@ export function CheckRow({
             {error ?? description}
           </Text>
         ) : null}
-      </View>
+      </PressScale>
       {value !== undefined ? (
-        <Text style={[styles.value, { color: tokens.fg2 }]}>{value}</Text>
+        <PressScale pressed={pressed} disabled={disabled || loading}><Text style={[styles.value, { color: tokens.fg2 }]}>{value}</Text></PressScale>
       ) : null}
     </Pressable>
   )
@@ -112,14 +113,16 @@ const styles = StyleSheet.create({
 function ColumnCheckRow({ label, checked, onChange, description, error, value, disabled, loading, tokens }: Readonly<CheckRowProps & { tokens: ReturnType<typeof createTokensV2> }>) {
   const { fontScale } = useWindowDimensions()
   return <PersonalControl tokens={tokens} fillStyle={styles.columnFill} hitSlop={{ left: 16, right: 16 }} onPress={() => onChange(!checked)} disabled={disabled || loading} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityHint={error ?? description} accessibilityState={{ checked, disabled: disabled || loading, busy: loading }} style={[styles.columnRow, { minHeight: error || description ? 68 : 52 }, disabled || loading ? styles.disabled : null]}>
-    <View style={[styles.copy, { minHeight: Math.max(28, 23.8 * fontScale), justifyContent: 'center' }]}>
-      <Text style={[styles.columnLabel, { color: tokens.fg1 }]}>{label}</Text>
-      {error || description ? <Text style={[styles.description, { color: error ? tokens.statusBadText : tokens.fg2 }]}>{error ?? description}</Text> : null}
-    </View>
-    {value !== undefined ? <Text style={[styles.value, { color: tokens.fg2 }]}>{value}</Text> : null}
-    <View data-slot="check-row-tick" importantForAccessibility="no-hide-descendants" style={{ width: 16, minHeight: Math.max(28, 23.8 * fontScale), alignItems: 'center', justifyContent: 'center' }}>
-      {loading ? <ActivityIndicator size="small" color={tokens.fg1} /> : checked ? <Check size={16} color={tokens.fg1} strokeWidth={1.5} /> : null}
-    </View>
+    {({ pressed }) => <>
+      <PressScale pressed={pressed} disabled={Boolean(disabled || loading)} style={[styles.copy, { minHeight: Math.max(28, 23.8 * fontScale), justifyContent: 'center' }]}>
+        <Text style={[styles.columnLabel, { color: tokens.fg1 }]}>{label}</Text>
+        {error || description ? <Text style={[styles.description, { color: error ? tokens.statusBadText : tokens.fg2 }]}>{error ?? description}</Text> : null}
+      </PressScale>
+      {value !== undefined ? <PressScale pressed={pressed} disabled={Boolean(disabled || loading)}><Text style={[styles.value, { color: tokens.fg2 }]}>{value}</Text></PressScale> : null}
+      <View data-slot="check-row-tick" importantForAccessibility="no-hide-descendants" style={{ width: 16, minHeight: Math.max(28, 23.8 * fontScale), alignItems: 'center', justifyContent: 'center' }}>
+        <PressScale pressed={pressed} disabled={Boolean(disabled || loading)}>{loading ? <ActivityIndicator size="small" color={tokens.fg1} /> : checked ? <Check size={16} color={tokens.fg1} strokeWidth={1.5} /> : null}</PressScale>
+      </View>
+    </>}
   </PersonalControl>
 }
 
@@ -187,7 +190,7 @@ function PersonalControl({ tokens, fillStyle, containContent = false, children, 
   const [pressed, setPressed] = useState(false)
   return <NativePressable {...props} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)} onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)}>
     {(state) => <>
-      <View pointerEvents="none" accessible={false} data-press-fill="" style={[fillStyle, { backgroundColor: !props.disabled && (state.pressed || pressed || focused || hovered) ? tokens.bgHover : 'transparent', outlineWidth: !props.disabled && focused ? 2 : 0, outlineOffset: -2, outlineStyle: 'solid', outlineColor: tokens.fg1 }]}>{containContent ? (typeof children === 'function' ? children(state) : children) : null}</View>
+      <View pointerEvents="none" accessible={false} data-press-fill="" style={[fillStyle, { backgroundColor: !props.disabled && (state.pressed || pressed || focused || hovered) ? tokens.bgHover : 'transparent', outlineWidth: !props.disabled && focused ? 2 : 0, outlineOffset: -2, outlineStyle: 'solid', outlineColor: tokens.fg1 }]}>{containContent ? <PressScale pressed={state.pressed || pressed} disabled={Boolean(props.disabled)}>{typeof children === 'function' ? children(state) : children}</PressScale> : null}</View>
       {containContent ? null : typeof children === 'function' ? children(state) : children}
     </>}
   </NativePressable>

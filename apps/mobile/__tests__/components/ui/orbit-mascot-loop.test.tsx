@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react'
 import { AppState, View } from 'react-native'
+import { IsFocusedContext } from 'expo-router/build/react-navigation/core/useIsFocused'
 import { setOrbitMotionEnabled } from '@orbit/shared/utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
@@ -103,6 +104,24 @@ describe('Orbit idle loop on Android', () => {
     TestRenderer.act(() => tree.update(<View><OrbitMascot size={96} /><OrbitOverlayLayer active><OrbitMascot size={48} /></OrbitOverlayLayer></View>))
     expect(loops(tree)).toEqual(['still', 'running'])
     TestRenderer.act(() => tree.update(<View><OrbitMascot size={96} /><OrbitOverlayLayer active={false}>{null}</OrbitOverlayLayer></View>))
+    expect(loops(tree)).toEqual(['running'])
+    tree.unmount()
+  })
+
+  it('pauses on a screen that is not focused, gives the live slot to the focused screen, and resumes on focus', () => {
+    const screens = (firstFocused: boolean) => <View>
+      <IsFocusedContext value={firstFocused}><OrbitMascot size={96} /></IsFocusedContext>
+      <IsFocusedContext value={!firstFocused}><OrbitMascot size={96} /></IsFocusedContext>
+    </View>
+    const tree = render(screens(false))
+    expect(loops(tree)).toEqual(['still', 'running'])
+    TestRenderer.act(() => tree.update(screens(true)))
+    expect(loops(tree)).toEqual(['running', 'still'])
+    tree.unmount()
+  })
+
+  it('runs outside a navigator, where no screen focus exists', () => {
+    const tree = render(<OrbitMascot size={96} />)
     expect(loops(tree)).toEqual(['running'])
     tree.unmount()
   })
