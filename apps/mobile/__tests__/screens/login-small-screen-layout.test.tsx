@@ -1,19 +1,23 @@
-import React from 'react'
+import React, { useLayoutEffect } from 'react'
 import { View, type LayoutChangeEvent } from 'react-native'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createLoginScreenFixture } from '@orbit/shared/__tests__/auth-screen-fixtures'
 import { resolveMotionPreset, type MotionScenario } from '@orbit/shared/theme'
 import { LoginContent } from '@/components/auth/login-content'
 import { measureSafeArea, type GeometryHost } from '@/__tests__/support/safe-area-geometry'
-import { __setWindowDimensions } from '../../test-mocks/react-native'
+import { __resetTestHostConfig, __setMeasureInWindowImpl, __setWindowDimensions } from '../../test-mocks/react-native'
 
 const { act, create } = require('react-test-renderer')
 
 type CheckState = 'none' | 'loading' | 'challenge'
+const MEASURED_LOADING_MOVE = 20.5
+const STEP_GAP = 24
+const FLEXIBLE_CHALLENGE_HEIGHT = 65
+const CHECK_HEIGHTS: Record<CheckState, number> = { none: 0, loading: 2 * MEASURED_LOADING_MOVE - STEP_GAP, challenge: FLEXIBLE_CHALLENGE_HEIGHT }
 const CHECK_STYLES: Record<CheckState, object> = {
   none: { position: 'absolute', left: 0, right: 0, height: 0 },
-  loading: { height: 21 },
-  challenge: { height: 65 },
+  loading: { height: CHECK_HEIGHTS.loading },
+  challenge: { height: CHECK_HEIGHTS.challenge },
 }
 const SE = { width: 375, height: 667, statusBar: 20, keyboardTop: 432 }
 const REVEAL_MARGIN = 24
@@ -25,16 +29,23 @@ vi.mock('react-i18next', async (importActual) => ({
 }))
 vi.mock('@/app/use-login-flow', () => ({ useLoginFlow: () => mocks.flow }))
 vi.mock('@/components/auth/turnstile-widget', () => ({
-  TurnstileWidget: ({ onLayout }: { onLayout: (event: LayoutChangeEvent) => void }) =>
-    React.createElement(View, { testID: 'check', onLayout, style: CHECK_STYLES[mocks.check] }),
+  TurnstileWidget: ({ onLayout, onSpaceChange }: { onLayout?: (event: LayoutChangeEvent) => void; onSpaceChange?: (height: number) => void }) => {
+    useLayoutEffect(() => onSpaceChange?.(CHECK_HEIGHTS[mocks.check]))
+    return React.createElement(View, { testID: 'check', onLayout, style: CHECK_STYLES[mocks.check] })
+  },
 }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }) }))
 vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => true, toAnimatedEasing: (value: unknown) => value, useResolvedMotionPreset: (scenario: MotionScenario) => resolveMotionPreset(scenario, true) }))
 vi.mock('@/components/ui/keyboard-aware-scroll-view', async () => {
   const { View: HostView } = await import('react-native')
-  return { useKeyboardAwareInputReveal: () => null, KeyboardAwareScrollView: ({ children, contentContainerStyle, onLayout }: {
-    children: React.ReactNode; contentContainerStyle: unknown; onLayout: (event: LayoutChangeEvent) => void
-  }) => <HostView testID="login-scroll-content" onLayout={onLayout} style={contentContainerStyle as React.ComponentProps<typeof View>['style']}>{children}</HostView> }
+  const { useImperativeHandle, useRef } = await import('react')
+  return { useKeyboardAwareInputReveal: () => null, KeyboardAwareScrollView: ({ children, contentContainerStyle, onLayout, ref }: {
+    children: React.ReactNode; contentContainerStyle: unknown; onLayout: (event: LayoutChangeEvent) => void; ref?: React.Ref<{ getNativeScrollRef: () => View | null }>
+  }) => {
+    const viewport = useRef<View>(null)
+    useImperativeHandle(ref, () => ({ getNativeScrollRef: () => viewport.current }))
+    return <HostView ref={viewport} testID="login-scroll-content" onLayout={onLayout} style={contentContainerStyle as React.ComponentProps<typeof View>['style']}>{children}</HostView>
+  } }
 })
 
 interface Node { type: unknown; props: Record<string, unknown>; findAll: (predicate: (node: Node) => boolean) => Node[] }
@@ -53,10 +64,13 @@ function hostWith(tree: Tree, testID: string) {
   return tree.root.findAll((node) => node.type === 'View' && node.props.testID === testID)[0]
 }
 
+const MEASURED_IDS = new Set(['login-column', 'check', 'login-field-action', 'login-scroll-content'])
+const rendered: { tree: Tree | null } = { tree: null }
+
 function layoutOnce(tree: Tree) {
   return measureSafeArea(tree.toJSON(), (host) => {
     const testID = host.props.testID
-    return testID === 'login-column' || testID === 'check' || testID === 'login-field-action' ? testID : undefined
+    return testID && MEASURED_IDS.has(testID) ? testID : undefined
   }, { width: SE.width, height: SE.height - SE.statusBar })
 }
 
@@ -78,15 +92,42 @@ function settle(tree: Tree) {
 function render(step: 'email' | 'code') {
   mocks.flow = { ...createLoginScreenFixture(step, 'pt-BR'), turnstileSiteKey: 'site-key', turnstileResetKey: 0, onTurnstileToken: vi.fn(),
     setEmail: vi.fn(), sendCode: vi.fn(), verifyCode: vi.fn(), resendCode: vi.fn(), backToEmail: vi.fn(), onCodeChange: vi.fn() }
-  let tree!: Tree
-  act(() => { tree = create(screen()) })
-  return tree
+  act(() => { rendered.tree = create(screen()) })
+  return rendered.tree!
 }
 
 describe('mobile sign-in at 375 x 667', () => {
+  beforeEach(() => {
+    __setMeasureInWindowImpl((callback, props) => {
+      const box = rendered.tree ? layoutOnce(rendered.tree).get(props.testID as string) : undefined
+      if (box) callback(box.left, box.top, box.width, box.bottom - box.top)
+      else callback(0, 0, 0, 0)
+    })
+  })
+
   afterEach(() => {
     mocks.check = 'loading'
+    rendered.tree = null
+    __resetTestHostConfig()
     __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 })
+  })
+
+  it.each(['email', 'code'] as const)('keeps the %s column still in the first frame of the screen and of each check change', (step) => {
+    __setWindowDimensions({ width: SE.width, height: SE.height, scale: 2, fontScale: 1 })
+    mocks.check = 'none'
+    const resting = render(step)
+    const restingTop = settle(resting).get('login-column')!.top
+    act(() => resting.unmount())
+    mocks.check = 'loading'
+    const tree = render(step)
+    const firstFrameTops = [layoutOnce(tree).get('login-column')!.top]
+    for (const check of ['none', 'loading', 'challenge', 'loading', 'none'] as const) {
+      mocks.check = check
+      act(() => tree.update(screen()))
+      firstFrameTops.push(layoutOnce(tree).get('login-column')!.top)
+    }
+    expect(firstFrameTops).toEqual(firstFrameTops.map(() => restingTop))
+    act(() => tree.unmount())
   })
 
   it.each(['email', 'code'] as const)('keeps the %s column still while the check appears, changes and leaves', (step) => {

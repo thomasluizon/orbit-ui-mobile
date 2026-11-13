@@ -40,6 +40,7 @@ interface KeyboardAwareViewProps {
 }
 
 interface KeyboardAwareScrollViewProps extends ComponentProps<typeof ScrollView> {
+  ref?: Ref<ScrollView>
   children: ReactNode
   containerStyle?: StyleProp<ViewStyle>
   keyboardVerticalOffset?: number
@@ -353,6 +354,7 @@ export function KeyboardAwareView({
 
 export function KeyboardAwareScrollView({
   children,
+  ref,
   containerStyle,
   keyboardVerticalOffset = 0,
   behavior,
@@ -366,6 +368,14 @@ export function KeyboardAwareScrollView({
     scrollRef,
     keyboardVerticalOffset,
   )
+  const assignRef = useCallback((node: ScrollView | null) => {
+    scrollRef.current = node
+    if (typeof ref === 'function') {
+      ref(node)
+    } else if (ref) {
+      ref.current = node
+    }
+  }, [ref])
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       keyboardAwareContext.handleScroll(event)
@@ -377,7 +387,7 @@ export function KeyboardAwareScrollView({
   const scrollContent = (
     <ScrollView
       {...props}
-      ref={scrollRef}
+      ref={assignRef}
       keyboardShouldPersistTaps={keyboardShouldPersistTaps}
       contentInsetAdjustmentBehavior={contentInsetAdjustmentBehavior}
       onScroll={handleScroll}

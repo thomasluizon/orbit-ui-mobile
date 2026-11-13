@@ -221,15 +221,33 @@ it('names the challenge without making it one element, so screen readers reach t
   }
 })
 
-it('reports its own layout so the sign-in column can keep still around it', async () => {
-  const onLayout = vi.fn()
+it('reports the space it takes in the commit of each state change, without waiting for a layout event', async () => {
+  const LOADING_LINE_HEIGHT = 17
+  const { __setMeasureInWindowImpl, __resetTestHostConfig } = await import('../../test-mocks/react-native')
+  onTestFinished(() => __resetTestHostConfig())
+  const onSpaceChange = vi.fn()
   let renderer!: ReturnType<typeof TestRenderer.create>
+  const flowHeight = () => {
+    const root = StyleSheet.flatten(renderer.toJSON().props.style)
+    if (root.position === 'absolute') return 0
+    const challenge = StyleSheet.flatten(renderer.root.findByProps({ testID: 'turnstile-challenge' }).props.style).height as number
+    return challenge + (renderer.root.findAllByType('Text').length > 0 ? LOADING_LINE_HEIGHT : 0)
+  }
+  __setMeasureInWindowImpl((callback) => callback(0, 0, 343, flowHeight()))
   await TestRenderer.act(async () => {
-    renderer = TestRenderer.create(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} onLayout={onLayout} />)
+    renderer = TestRenderer.create(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} onSpaceChange={onSpaceChange} />)
     await Promise.resolve()
   })
   onTestFinished(() => TestRenderer.act(() => renderer.unmount()))
-  expect(renderer.toJSON().props.onLayout).toBe(onLayout)
+  expect(renderer.toJSON().props.onLayout).toBeUndefined()
+  expect(onSpaceChange).toHaveBeenLastCalledWith(LOADING_LINE_HEIGHT)
+  const send = (state: string) => TestRenderer.act(() => {
+    renderer.root.findByType('WebView').props.onMessage({ nativeEvent: { data: JSON.stringify({ state }) } })
+  })
+  await send('interactive')
+  expect(onSpaceChange).toHaveBeenLastCalledWith(65)
+  await send('solved')
+  expect(onSpaceChange).toHaveBeenLastCalledWith(0)
 })
 
 it('shows the loading sentence only while no challenge waits for the person and takes no space otherwise', async () => {

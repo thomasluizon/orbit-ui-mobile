@@ -1,7 +1,7 @@
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
-import { useEffect, useMemo, useState } from 'react'
-import { Text, View, type LayoutChangeEvent } from 'react-native'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { WebView, type WebViewMessageEvent } from 'react-native-webview'
 import { createTokensV2 } from '@/lib/theme'
@@ -18,12 +18,12 @@ export function TurnstileWidget({
   siteKey,
   resetKey,
   onToken,
-  onLayout,
+  onSpaceChange,
 }: Readonly<{
   siteKey: string
   resetKey: number
   onToken: (token: string | null) => void
-  onLayout?: (event: LayoutChangeEvent) => void
+  onSpaceChange?: (height: number) => void
 }>) {
   const { t, i18n } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -32,6 +32,7 @@ export function TurnstileWidget({
   const [attempt, setAttempt] = useState(0)
   const challengeHostHeight = state === 'interactive' ? FLEXIBLE_CHALLENGE_HEIGHT : 0
   const takesNoSpace = state === 'idle' || state === 'solved'
+  const rootRef = useRef<View>(null)
   const bridgeUrl = `${APP_LINK_ORIGIN}/turnstile-bridge?siteKey=${encodeURIComponent(siteKey)}&theme=${currentTheme}&language=${encodeURIComponent(i18n.language)}`
 
   useEffect(() => {
@@ -39,6 +40,13 @@ export function TurnstileWidget({
     queueMicrotask(() => { if (active) setState('loading') })
     return () => { active = false }
   }, [resetKey])
+
+  // WHY: a layout read in a layout effect lands in the commit that changed the check, an onLayout state update paints a frame late. https://reactnative.dev/architecture/landing-page#synchronous-layout-and-effects
+  useLayoutEffect(() => {
+    if (!onSpaceChange) return
+    if (takesNoSpace) onSpaceChange(0)
+    else rootRef.current?.measureInWindow((_x, _y, _width, height) => onSpaceChange(height))
+  })
 
   function onMessage(event: WebViewMessageEvent) {
     let message: unknown
@@ -68,7 +76,7 @@ export function TurnstileWidget({
   }
 
   return (
-    <View onLayout={onLayout} style={{ alignItems: 'center', alignSelf: 'stretch',
+    <View ref={rootRef} style={{ alignItems: 'center', alignSelf: 'stretch',
       ...(takesNoSpace ? { position: 'absolute', left: 0, right: 0, height: 0, overflow: 'hidden' } as const : {}) }}>
       <View testID="turnstile-challenge" style={{ alignSelf: 'stretch', height: challengeHostHeight, overflow: 'hidden' }}>
         <WebView

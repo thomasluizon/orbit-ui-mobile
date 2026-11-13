@@ -1,8 +1,8 @@
 import { ShellContent } from '@/components/shell/shell-content'
 import { getPendingAuthProvider, getAuthCallbackErrorKey } from '@orbit/shared/utils'
 import { SPACING } from '@orbit/shared/theme'
-import { useState } from 'react'
-import { Platform, Text, View, useWindowDimensions } from 'react-native'
+import { useLayoutEffect, useRef, useState } from 'react'
+import { Platform, Text, View, useWindowDimensions, type ScrollView } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -34,7 +34,11 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
   const flow = useLoginFlow(Boolean(callback))
   const { t } = flow
   const [callbackDismissed, setCallbackDismissed] = useState(false)
+  const scrollRef = useRef<ScrollView>(null)
   const [viewportHeight, setViewportHeight] = useState(0)
+  useLayoutEffect(() => {
+    scrollRef.current?.getNativeScrollRef()?.measureInWindow((_x, _y, _width, height) => setViewportHeight(height))
+  })
   const check = useMeasuredCheck(flow)
   function continueAccount() {
     if (callback?.state === 'account') callback.onContinue()
@@ -51,7 +55,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
   const turnstileWidget = check.widget
   const checkSpace = !account && check.height > 0 ? check.height + styles.step.gap : 0
   return <View style={styles.root}>
-    <ShellContent style={{ flex: 1 }}><KeyboardAwareScrollView containerStyle={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
+    <ShellContent style={{ flex: 1 }}><KeyboardAwareScrollView ref={scrollRef} containerStyle={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
       contentContainerStyle={[styles.scrollContent, wide && styles.scrollWide]} keyboardShouldPersistTaps="always"
       showsVerticalScrollIndicator={false} onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)}>
       <SteadyColumn viewportHeight={viewportHeight - (wide ? 2 * styles.scrollWide.padding : 0)} blockSpace={checkSpace}
@@ -93,7 +97,7 @@ function useMeasuredCheck(flow: ReturnType<typeof useLoginFlow>) {
   const [height, setHeight] = useState(0)
   const widget = flow.turnstileSiteKey && flow.isOnline
     ? <TurnstileWidget key={flow.turnstileResetKey} siteKey={flow.turnstileSiteKey} resetKey={flow.turnstileResetKey} onToken={flow.onTurnstileToken}
-      onLayout={(event) => setHeight(event.nativeEvent.layout.height)} />
+      onSpaceChange={setHeight} />
     : null
   return { widget, height: widget ? height : 0 }
 }
