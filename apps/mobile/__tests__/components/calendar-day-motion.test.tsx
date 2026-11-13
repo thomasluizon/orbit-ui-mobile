@@ -1,5 +1,5 @@
 import type { ReactElement, ReactNode } from 'react'
-import { Animated, View } from 'react-native'
+import { Animated, Pressable, View } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { motionDurations, motionSprings } from '@orbit/shared/theme'
 import type { DayCellWords } from '@orbit/shared/contracts/dates'
@@ -16,7 +16,7 @@ vi.mock('@/hooks/use-flag', () => ({ useFlag: () => state.guided }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }) }))
 vi.mock('@/app/(tabs)/calendar/_components/calendar-grid', () => ({ CalendarGrid: () => <View testID="grid" /> }))
 vi.mock('@/app/(tabs)/calendar/_components/calendar-day-detail', () => ({ CalendarDayDetail: ({ selectedDate }: { selectedDate: string }) => <View testID={`day-card-${selectedDate}`} /> }))
-vi.mock('@/components/ui/pill-button', () => ({ PillButton: ({ onClick }: { children: ReactNode; onClick: () => void }) => <View testID="pill" onPress={onClick} /> }))
+vi.mock('@/components/ui/pill-button', () => ({ PillButton: ({ onClick }: { children: ReactNode; onClick: () => void }) => <Pressable testID="pill" onPress={onClick} /> }))
 
 
 const TestRenderer = require('react-test-renderer')
