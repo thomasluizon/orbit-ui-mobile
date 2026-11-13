@@ -947,10 +947,13 @@ select[aria-hidden="true"] {
 
 /* A press target that scales whole keeps its full hit area. This layer has no paint and covers the box.
    It takes the inverse of the 0.96 press scale, so a press that starts at the edge also ends on the target. */
-@utility press-hit-layer {
-  position: relative;
+@layer components {
+  .press-hit-layer {
+    position: relative;
+  }
 
-  &::before {
+  .press-hit-layer::before,
+  .chip::before {
     content: '';
     position: absolute;
     inset: 0;
@@ -958,7 +961,8 @@ select[aria-hidden="true"] {
   }
 
   @media (prefers-reduced-motion: no-preference) {
-    &:active::before {
+    .press-hit-layer:active::before,
+    .chip:active::before {
       scale: calc(1 / 0.96);
     }
   }
@@ -1854,7 +1858,6 @@ button[data-variant="primary"]:enabled:not([data-loading]):active,
     background-color var(--dur-hover-control) var(--ease-standard),
     color var(--dur-hover-control) var(--ease-standard),
     scale var(--dur-press) var(--ease-out);
-  @apply press-hit-layer;
 }
 @media (prefers-reduced-motion: no-preference) {
   .chip:active { scale: 0.96; }
