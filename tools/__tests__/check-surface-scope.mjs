@@ -635,9 +635,12 @@ export function CanvasIcon(){return <View style={styles.canvas}><X color={tokens
   ]
   const deadlineViolation = { path: deadlineField, before: "<X size={16} color={tokens.fg3} strokeWidth={1.8} />", after: "<X size={16} color={tokens.fg4} strokeWidth={1.8} />" }
   const badDeadline = stageProducerRepository("producer-deadline-fg4", deadlinePaths, deadlineViolation)
+  const deadlineParts = readFileSync(join(badDeadline, deadlineField), "utf8").split(deadlineViolation.after)
+  if (deadlineParts.length !== 2) throw new Error("deadline field fixture must contain exactly one changed dismiss icon")
+  const deadlineLine = deadlineParts[0].split("\n").length
   check("check-surface-scope.mjs", "rejects the deadline dismiss icon on its caller sheet", ["--root", badDeadline], {
     status: 1,
-    stderr: /apps\/mobile\/components\/habits\/create-goal-from-habit\/goal-deadline-field\.tsx:49: --fg-4 on overlay, dark ratio 2\.593, GRAPHIC floor 3\.00/,
+    stderr: new RegExp(`${deadlineField.replaceAll(".", "\\.")}:${deadlineLine}: --fg-4 on overlay, dark ratio 2\\.593, GRAPHIC floor 3\\.00`),
   })
   const goodDeadline = stageProducerRepository("producer-deadline-fg3", deadlinePaths)
   check("check-surface-scope.mjs", "accepts the deadline dismiss icon in both modes", ["--root", goodDeadline], {

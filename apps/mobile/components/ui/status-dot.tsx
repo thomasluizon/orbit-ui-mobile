@@ -1,6 +1,6 @@
-import { usePrefersReducedMotion } from '@/lib/motion'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
-import { Pressable, View } from 'react-native'
+import { View } from 'react-native'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { resolveStatusDotFill } from '@/components/ui/status-dot-fill'
@@ -33,7 +33,6 @@ export function StatusDot({
   accessibilityLabel,
   disabled = false,
 }: Readonly<StatusDotProps>) {
-  const prefersReducedMotion = usePrefersReducedMotion()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const isFilled = state === 'done' || state === 'skip' || state === 'frozen'
@@ -71,7 +70,7 @@ export function StatusDot({
   }
 
   return (
-    <Pressable
+    <MotionPressable
       onPress={onToggle}
       disabled={disabled}
       accessibilityRole="button"
@@ -86,12 +85,11 @@ export function StatusDot({
           backgroundColor: pressed && !disabled ? tokens.bgHover : 'transparent',
           alignItems: 'center',
           justifyContent: 'center',
-          transform: [{ scale: pressed && !disabled && !prefersReducedMotion ? 0.96 : 1 }],
           opacity: disabled ? 0.4 : 1,
         }
       }}
     >
       {dot}
-    </Pressable>
+    </MotionPressable>
   )
 }

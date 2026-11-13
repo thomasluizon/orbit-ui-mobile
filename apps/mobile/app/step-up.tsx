@@ -1,7 +1,7 @@
-import { usePrefersReducedMotion } from '@/lib/motion'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useEffect, useMemo, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
+import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
@@ -450,7 +450,6 @@ function MobileStepUpResend({ cooldownSeconds, onResend, requesting, t, tokens }
 }
 
 function QuietAction({ label, onPress }: Readonly<{ label: string; onPress: () => void }>) {
-  const prefersReducedMotion = usePrefersReducedMotion()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   return (
@@ -458,7 +457,7 @@ function QuietAction({ label, onPress }: Readonly<{ label: string; onPress: () =
       onPress={onPress}
       accessibilityRole="link"
       accessibilityLabel={label}
-      style={({ pressed }) => [styles.quietAction, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] } : null]}
+      style={({ pressed }) => [styles.quietAction, pressed ? { backgroundColor: tokens.bgHover } : null]}
     >
       <Text style={[styles.quietLabel, { color: tokens.fg2 }]}>{label}</Text>
     </Pressable>
