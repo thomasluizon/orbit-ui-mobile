@@ -717,6 +717,16 @@ select[aria-hidden="true"] {
   animation: orbit-menu-exit var(--motion-menu-exit) var(--motion-ease-exit);
 }
 
+.orbit-select-panel {
+  transform-origin: var(--radix-select-content-transform-origin);
+  animation: orbit-menu-enter var(--motion-menu-enter) var(--motion-ease-enter);
+}
+
+.orbit-select-panel[data-state="closed"] {
+  pointer-events: none;
+  animation: orbit-menu-exit var(--motion-menu-exit) var(--motion-ease-exit);
+}
+
 .orbit-menu-items {
   display: flex;
   flex-direction: column;
@@ -2984,9 +2994,11 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   .orbit-sheet-panel,
   .orbit-sheet-panel[data-starting-style],
   .orbit-sheet-panel[data-ending-style] { transform: none; }
-  .orbit-menu-panel { animation: none; }
+  .orbit-menu-panel,
+  .orbit-select-panel { animation: none; }
   .orbit-menu-panel[data-state="closed"],
-  .orbit-menu-panel[data-ending-style] {
+  .orbit-menu-panel[data-ending-style],
+  .orbit-select-panel[data-state="closed"] {
     animation: orbit-menu-fade-out var(--motion-menu-exit) linear;
   }
 }

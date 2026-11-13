@@ -36,7 +36,7 @@ export function Portal({ children }: Readonly<{ children: ReactNode }>) {
 }
 
 export function Content({ children, ...props }: ComponentProps<typeof Primitive.Content>) {
-  return <Primitive.Content {...props} position="popper" onEscapeKeyDown={(event) => { event.stopPropagation(); props.onEscapeKeyDown?.(event) }} sideOffset={8} className="z-dropdown min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-[20px] bg-[var(--bg-sheet)] p-2 text-[var(--fg-1)] shadow-[var(--sh-2)]">
+  return <Primitive.Content {...props} position="popper" onEscapeKeyDown={(event) => { event.stopPropagation(); props.onEscapeKeyDown?.(event) }} sideOffset={8} className="orbit-select-panel z-dropdown min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-[20px] bg-[var(--bg-sheet)] p-2 text-[var(--fg-1)] shadow-[var(--sh-2)]">
     <Primitive.Viewport style={{ maxHeight: 'min(240px, var(--radix-select-content-available-height))' }}>{children}</Primitive.Viewport>
   </Primitive.Content>
 }
