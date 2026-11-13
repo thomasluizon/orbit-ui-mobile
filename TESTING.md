@@ -189,11 +189,12 @@ The guided flow has shared logic and three primitives, and each one has a Vitest
 
 ### Progresso guided surfaces
 
-The Progresso rework behind `orbit_guided_flows` has shared unit suites and one behavior suite per platform. Each scenario runs in English and Portuguese, with and without reduced motion, and one case per surface proves the current form with the flag off.
+The Progresso rework behind `orbit_guided_flows` has shared unit suites and one behavior suite per platform. The copy cases run in English and Portuguese. Each animated interaction has a reduced-motion case, and the overview, Sequência and Conquistas each have one case with the flag off.
 
 - `packages/shared/src/__tests__/progress-orbit-line.test.ts` covers the line cases (active days, the quiet window, a selected day, an unscheduled day, the return after a gap, the empty window and the absent line), the shared gap rule, the window status and the Sequência line.
 - `packages/shared/src/__tests__/progress-figures.test.ts` covers the seen figures: a first visit, a changed figure and a stored value read back.
 - `apps/web/__tests__/app/progress-guided.test.tsx` and `apps/mobile/__tests__/components/progress/progress-guided.test.tsx` cover the root states, the bar selection, the figure roll, the rows, Sequência, the repair flow with each result and error, the lock cards and Conquistas.
+- `apps/mobile/__tests__/components/progress/progress-guided-label-fit.test.ts` measures the question headings, the repair question and its answers with the bundled fonts at 320, 360, 384 and 412 in both locales.
 - `apps/mobile/__tests__/components/progress/progress-guided-centre-geometry.test.tsx` measures the empty window, the sub-screen error, the repair question and the result dialog at 320, 360, 384 and 412. The Chromium `apps/web/__tests__/app/progress-guided-geometry.test.tsx` measures the same blocks and the one-line question headings in both locales.
 
 ### Compact label and interaction fill guard

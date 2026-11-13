@@ -131,10 +131,11 @@ figures, and a first visit rolls nothing. Reduced motion keeps each of these sti
 Sequência draws Orbit at 48 beside one fact: the streak and the days to the next freeze, only the
 streak at a full bank, or the gap sentence in a gap. The repair action and the unavailable,
 partial and capped cases stay on the screen. The Freezes sheet keeps every figure, the legend and
-the bank-full notice. The repair is a one-question flow with the `streak_repair` flow id. It sends
+the bank-full notice, and it opens on one sentence about what a freeze does. The repair is a one-question flow with the `streak_repair` flow id. It sends
 the same request as the confirm, keeps each error inside the flow, and closes with the result
 dialog that states the count the server returned.
 
 Verification owners are the web `progress-guided.test.tsx` and `progress-guided-geometry.test.tsx`,
-the Android `progress-guided.test.tsx` and `progress-guided-centre-geometry.test.tsx`, and the
-shared `progress-orbit-line.test.ts` and `progress-figures.test.ts`.
+the Android `progress-guided.test.tsx`, `progress-guided-centre-geometry.test.tsx` and
+`progress-guided-label-fit.test.ts`, and the shared `progress-orbit-line.test.ts` and
+`progress-figures.test.ts`.
