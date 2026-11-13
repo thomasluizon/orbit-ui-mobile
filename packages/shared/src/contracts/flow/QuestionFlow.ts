@@ -1,4 +1,3 @@
-import type { OrbitLookTarget } from '../brand/OrbitMascot'
 import type { GuidedFlowId } from '../../utils/guided-flow-events'
 
 /** The one-question flow frame: header row, centred block, free path and the pinned primary action. It holds no habit-specific code. */
