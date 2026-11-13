@@ -18,7 +18,7 @@ UI `main` `59f355525`; API `main` `2f49ed78f`; landing `main` `381b253fa`. Produ
 
 | Item | Disposition |
 | --- | --- |
-| `api#1110` (`#2129`) at `212b6a9f3` | Both work orders are in it; copy verdict posted. In CI, review not requested yet. `chain-review.sh api 1110`; fix threads (the first round adds `Ask.cs:288`, see the order bullet), merge at the bar (`merge-gate.sh api 1110`, `MSUBJ` with `fix(chat):`, `MBODY` `Tracks thomasluizon/orbit-tickets#2129`), `record-merge.mjs`, API release to staging then production, then the 5 captures and the measurement of the order bullet. |
+| `api#1110` (`#2129`) at `212b6a9f3` | Both work orders are in it; copy verdict posted. Its review has two open P1 threads (`review-api-1110-r2.md`): fix round (add `Ask.cs:288`, see the order bullet), `chain-review.sh api 1110`, merge at the bar (`merge-gate.sh api 1110`, `MSUBJ` with `fix(chat):`, `MBODY` `Tracks thomasluizon/orbit-tickets#2129`), `record-merge.mjs`, API release to staging then production, then the 5 captures and the measurement of the order bullet. |
 | `#2127` | Open. Close with the passing 5 capture table, then remove api worktree `ticket-2127-answered-choice-guard`. |
 | `ui#2444` (`#2119`) at `93846aae0` | 58 checks green. Review round 1 has five open threads (ids in `review-ui-2444-r1.md`). The round 1 subagent ended before this relay: its report is scratchpad `report-ui-2444-r1.md`, and its commit, if the report names one, is local and not pushed (`git log origin/chore/ticket-2119-file-ledger-hygiene..HEAD` in the worktree). Read the diff, confirm `ORBIT TOOLS GATE OK` in the report, get `/second-opinion` on the changed guide counts, then `deliver-fix.sh`. |
 | `ui#2442` (`#2096`) at `f6a1fc148` | Round 1 pushed, three threads resolved. In CI. Its next round takes the other self-scaling controls (order bullet). Then the web release and the 1.3.155 pair, Android first. |
@@ -30,7 +30,7 @@ UI `main` `59f355525`; API `main` `2f49ed78f`; landing `main` `381b253fa`. Produ
 | Intake | Mailbox and reviews empty; Sentry holds Q and R (`#1561`) and `ORBIT-WEB-1F` (`#2130`). |
 | `ui#2388` | This relay's docs branch. Never request a review for it. |
 
-Inventory: open pull requests ui `#2442`, `#2444`, `#2445`, `#2388`; api `#1110`; landing none. Unpushed commits: only a possible round 1 commit in the `ui#2444` worktree (row above). Dirty worktrees: none. Stashes: none. Running workers: none. Detached worktrees with unpushed commits (leave them): `combined-2065`, api `scratch-1090-merge`, api `scratch-877-timing`. Waiters to arm: one `chain-review.sh <key> <pr>` for `api#1110`, `ui#2442` and `ui#2445` (and `ui#2444` after its push), `wait-release.mjs` for each release run, and `wait-auto-work.mjs` when nothing is launchable.
+Inventory: open pull requests ui `#2442`, `#2444`, `#2445`, `#2388`; api `#1110`; landing none. Unpushed commits: only a possible round 1 commit in the `ui#2444` worktree (row above). Dirty worktrees: none. Stashes: none. Running workers: none. Detached worktrees with unpushed commits (leave them): `combined-2065`, api `scratch-1090-merge`, api `scratch-877-timing`. Waiters to arm: one `chain-review.sh <key> <pr>` for `ui#2442` and `ui#2445` (and `api#1110`, `ui#2444` after each push), `wait-release.mjs` for each release run, and `wait-auto-work.mjs` when nothing is launchable.
 
 ## Then, in this order
 
