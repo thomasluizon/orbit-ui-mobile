@@ -67,6 +67,7 @@ import { DayStrip } from '@/components/dates/day-strip'
 import { ErrorState } from '@/components/ui/error-state'
 import { ListRow } from '@/components/ui/list-row'
 import { HabitDetailOrbitLine, HabitDetailReviewRow } from '@/components/habits/habit-detail-orbit-line'
+import { HabitDetailResultDialog, useHabitDetailResult } from '@/components/habits/habit-detail-result'
 import { MonthGrid } from '@/components/dates/month-grid'
 import { PillButton, PillLink } from '@/components/ui/pill-button'
 import { Proposed } from '@/components/ui/proposed'
@@ -348,7 +349,7 @@ function renderRescueProposalValues(suggestion: RescheduleSuggestion, labels: Re
   </>
 }
 
-function RescheduleBlock({ habit, rescue: { query, open }, hasProAccess, locale, today, scheduleEditing, returnFocus }: Readonly<{ habit: NormalizedHabit; rescue: ReturnType<typeof useHabitRescue>; hasProAccess: boolean; locale: string; today: Date; scheduleEditing: boolean; returnFocus: () => void }>) {
+function RescheduleBlock({ habit, rescue: { query, open }, hasProAccess, locale, today, scheduleEditing, returnFocus, onAccepted }: Readonly<{ habit: NormalizedHabit; rescue: ReturnType<typeof useHabitRescue>; hasProAccess: boolean; locale: string; today: Date; scheduleEditing: boolean; returnFocus: () => void; onAccepted: (dateLabel: string) => void }>) {
   const t = useTranslations()
   const { showError } = useAppToast()
   const { displayTime } = useTimeFormat()
@@ -387,6 +388,7 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasProAccess, locale,
   const accept = async (suggestion: RescheduleSuggestion) => {
     try {
       await updateHabit.mutateAsync({ habitId: habit.id, data: buildRescheduleUpdateRequest(habit, suggestion) })
+      onAccepted(buildRescheduleProposalLabels(suggestion, { locale, today, translate: t, formatTime: displayTime }).dateLabel)
       close()
     } catch {
       if (isCurrentVisit()) showError(t('habits.detail.rescheduleWriteError'))
@@ -493,6 +495,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   const [createOpen, setCreateOpen] = useAccountScopedState(false)
   const { showCreateRefusal, refuseSubHabitCreation } = useSubHabitRefusal(isOnline)
   const [confirm, setConfirm] = useAccountScopedState<ConfirmAction>(null)
+  const resultHost = useHabitDetailResult()
   const [pendingDateLog, setPendingDateLog] = useAccountScopedState<{ habitId: string; intent: 'log' | 'unlog'; date: string; name: string; permanent: boolean } | null>(null)
   const [invalidLogDate, setInvalidLogDate] = useAccountScopedState<{ date: string; habitId: string } | null>(null)
   const [childToDelete, setChildToDelete] = useAccountScopedState<string | null>(null)
@@ -587,7 +590,17 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   const confirmDelete = async () => {
     if (!await runWrite(() => deleteHabit.mutateAsync(habitId), t('habits.detail.deleteError'))) return
     setConfirm(null)
+    if (resultHost.guided) resultHost.setResult({ kind: 'deleted' })
+    else router.push(`/?date=${dateStr}`)
+  }
+  const seeTodayFromResult = () => {
+    resultHost.setResult(null)
     router.push(`/?date=${dateStr}`)
+  }
+  /** The deleted habit has no screen to return to, so dismissing its dialog leaves for Hoje as well. */
+  const closeResult = () => {
+    if (resultHost.result?.kind === 'deleted') seeTodayFromResult()
+    else resultHost.setResult(null)
   }
   const confirmChildDelete = async () => {
     if (!childToDelete) return
@@ -656,7 +669,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
         {subHabitCreation}
       </Surface> : subHabitCreation}
       {strip ? <section ref={stripRef} tabIndex={-1} className="habit-detail-strip flex flex-col gap-2" style={{ containerType: 'inline-size' }}><p className="text-xs text-[var(--fg-3)]">{t('habits.detail.lastThirtyDays')}</p><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={16} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /><SlippingLine visible={rescue.open} /></section> : null}
-      <RescheduleBlock key={habit.id} habit={habit} rescue={rescue} hasProAccess={hasProAccess} locale={language} today={today} scheduleEditing={editOpen} returnFocus={() => stripRef.current?.focus()} />
+      <RescheduleBlock key={habit.id} habit={habit} rescue={rescue} hasProAccess={hasProAccess} locale={language} today={today} scheduleEditing={editOpen} returnFocus={() => stripRef.current?.focus()} onAccepted={(date) => { if (resultHost.guided) resultHost.setResult({ kind: 'rescheduled', date }) }} />
       <HabitDetailReviewRow habit={habit} />
       <section className="flex flex-col gap-3"><ListRow placement="column" icon={detailsOpen ? 'chevron-down' : 'chevron-right'} title={t('habits.detail.moreDetails')} expanded={detailsOpen} controls="habit-detail-fields" chevron={false} onClick={() => setDetailsOpen((value) => !value)} /><div hidden={!detailsOpen} id="habit-detail-fields" className="flex flex-col gap-6">
       <MetricsSection visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} error={metricsQuery.isError} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} />
@@ -676,6 +689,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       }} />
       <ConfirmSheet open={confirm === 'delete'} title={t('habits.deleteConfirmTitle')} message={t('habits.deleteConfirmMessage')} confirmLabel={t('habits.deleteHabit')} destructive onCancel={() => setConfirm(null)} onConfirm={() => { void confirmDelete() }} />
       <ConfirmSheet open={confirm === 'delete-child'} title={t('habits.deleteConfirmTitle')} message={t('habits.deleteConfirmMessage')} confirmLabel={t('habits.deleteHabit')} destructive onCancel={() => { setConfirm(null); setChildToDelete(null) }} onConfirm={() => { void confirmChildDelete() }} />
+      <HabitDetailResultDialog result={resultHost.result} onSeeToday={seeTodayFromResult} onClose={closeResult} />
     </HabitDetailFrame>
   )
 }

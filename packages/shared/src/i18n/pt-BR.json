@@ -3131,7 +3131,9 @@
     "habit": {
       "repeat": "O hábito começa {start} e se repete {cadence}.",
       "repeatTimed": "O hábito começa {start} e se repete {cadence} às {time}.",
-      "updated": "As mudanças foram salvas."
+      "updated": "As mudanças foram salvas.",
+      "rescheduled": "O hábito foi para {date}.",
+      "deleted": "O hábito foi apagado."
     },
     "cadence": {
       "day": "{count, plural, =0 {a cada # dias} one {todo dia} other {a cada # dias}}",
