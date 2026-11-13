@@ -183,6 +183,19 @@ describe('mobile sign-in on the iPhone SE inside the flow viewport', () => {
     closeKeyboard(tree)
     expect(screenBox('login-column').top).toBe(expected)
   })
+
+  it('ends the last line of the code step above the keyboard while the check shows, with no strip between the scroller and the keyboard', () => {
+    const tree = render('code', 'challenge')
+    act(() => (textInput(tree, 0).props.onFocus as (event: object) => void)({ nativeEvent: {} }))
+    openKeyboard(tree)
+    const scroller = screenBox('login-scroll')
+    expect(scroller.bottom).toBe(SE.keyboardTop)
+    const lastLine = screenBox('last-line')
+    expect(lastLine.top).toBeGreaterThanOrEqual(scroller.top)
+    expect(lastLine.bottom).toBeLessThanOrEqual(SE.keyboardTop)
+    const field = screenBox('login-field-action')
+    expect(field.top).toBeGreaterThanOrEqual(scroller.top)
+  })
 })
 
 function measureFromLayout(callback: (x: number, y: number, width: number, height: number) => void, props: Record<string, unknown>, name: string) {

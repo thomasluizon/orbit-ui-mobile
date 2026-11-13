@@ -79,14 +79,14 @@ export function CodeStep({ email, codeDigits, onCodeChange, isSubmitting, isRese
       {!isOnline && <LoginOfflineNotice t={t} styles={styles} tokens={tokens} />}
       {!waiting && !expired && <PillButton onClick={onVerifyCode} disabled={isSubmitting || !isOnline || codeDigits.join('').length !== 6 || !canSubmitTurnstile}
         loading={isSubmitting && !isResending}>{t('auth.verify')}</PillButton>}
+      {!waiting && <View style={styles.titleBlock}>
+        {canResend || expired ? <View style={styles.quietAction}>
+          <PillButton variant="ghost" size="sm" onClick={onResendCode} disabled={!isOnline || isSubmitting || !canSubmitTurnstile} loading={isResending}>{t('auth.resendCode')}</PillButton>
+        </View> : <Text style={styles.mono}>{t('auth.resendIn', { time: formatLoginCountdown(resendCountdown) })}</Text>}
+      </View>}
+      {locked && <View style={styles.titleBlock}>
+        <View accessibilityLiveRegion="polite"><CapacityNotice message={t('auth.errors.tooManyAttempts')} /></View>
+      </View>}
     </KeyboardRevealGroup>
-    {!waiting && <View style={styles.titleBlock}>
-      {canResend || expired ? <View style={styles.quietAction}>
-        <PillButton variant="ghost" size="sm" onClick={onResendCode} disabled={!isOnline || isSubmitting || !canSubmitTurnstile} loading={isResending}>{t('auth.resendCode')}</PillButton>
-      </View> : <Text style={styles.mono}>{t('auth.resendIn', { time: formatLoginCountdown(resendCountdown) })}</Text>}
-    </View>}
-    {locked && <View style={styles.titleBlock}>
-      <View accessibilityLiveRegion="polite"><CapacityNotice message={t('auth.errors.tooManyAttempts')} /></View>
-    </View>}
   </View>
 }
