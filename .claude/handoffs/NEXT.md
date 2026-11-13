@@ -14,11 +14,11 @@ Finish the spec: an empty board except `#33` and the `#2074` measurement, verifi
 
 ## In flight
 
-UI `main` `89d35525f`; API `main` `2f49ed78f`; landing `main` `381b253fa`. Production web `10cb968e5`; production API `5fc345d20`; staging API `2f49ed78f`; landing `381b253fa`; Android Open 1.3.154 (215); TestFlight 1.3.154 (4).
+UI `main` `89d35525f`; API `main` `2f49ed78f`; landing `main` `381b253fa`. Production web `10cb968e5`; production and staging API `2f49ed78f`; landing `381b253fa`; Android Open 1.3.154 (215); TestFlight 1.3.154 (4).
 
 | Item | Disposition |
 | --- | --- |
-| API release of `2f49ed78f` (`#2127`) | Staging deploy is live. Release run `43363396165` reran its failed staging smoke: read its conclusion. On success run `release-run.sh api production 2f49ed78fcea2963a80cac7e6510490454f7bbb0 https://api.useorbit.org` (no export). A second smoke timeout gets a root diagnosis of `tools/release-smoke.mjs`. Then the staging transcript of the `#2127` order bullet, then close. |
+| `#2127` | `api#1109` is live on staging and production at `2f49ed78f` (`/health` read on both). Run the staging transcript of its order bullet (`asc-pro.sh on`, the capture, `asc-pro.sh off`), post it on the ticket, close, and remove its worktree. The staging smoke timed out once and passed on a rerun: a second timeout gets a root diagnosis of `tools/release-smoke.mjs`. |
 | `api#1110` (`#2129`) at `35ed0f5ca` | In CI, no review yet. `chain-read.sh api 1110`; review, fix threads, merge at the bar (`merge-gate.sh api 1110`, `MSUBJ` with `fix(chat):`, `MBODY` `Tracks thomasluizon/orbit-tickets#2129`), `record-merge.mjs`, API release, then the measurement of its order bullet. |
 | `ui#2442` (`#2096`) at `c1769f770` | In CI, no review yet. Its next round also takes the two leads of its order bullet. Then the web release and the 1.3.155 pair, Android first. |
 | `ui#2443` (`#2130`) at `07363bca3` | In CI; two review rounds are resolved. Review, merge (`fix(web):`), web release, then resolve `ORBIT-WEB-1F` when it shows no new event. |
@@ -35,7 +35,7 @@ Inventory: open pull requests ui `#2442`, `#2443`, `#2444`, `#2445`, `#2388`; ap
 ## Then, in this order
 
 1. Answer any owner message first, in his language, before any other work and before a relay step. He wrote his last report in English.
-2. The production API release of `2f49ed78f` and the `#2127` staging transcript; then `api#1110` to merged and released. The assistant is the owner's live defect and outranks the queue.
+2. The `#2127` staging transcript; then `api#1110` to merged and released. The assistant is the owner's live defect and outranks the queue.
 3. `ui#2443`, `ui#2442`, `ui#2445` and `ui#2444` to merged, one at a time (`behind_by=0`), then one web release (never with an API release), then Batch M in its order and the auto-work intake cycle.
 
 ## Crank
@@ -48,8 +48,8 @@ Unattended: never ask the owner; decide with the best option and log it. Keep a 
 
 ## Previous prompt, disposition
 
-- Done: `api#1109` merged as `2f49ed78f` and on staging; the `#2129` and `#2128` workers delivered `api#1110` and `ui#2445`; the `#2119` relaunch delivered `ui#2444`; the `ui#2442` subagent commit pushed with five more root fixes.
+- Done: `api#1109` merged as `2f49ed78f` and released to staging and production; the `#2129` and `#2128` workers delivered `api#1110` and `ui#2445`; the `#2119` relaunch delivered `ui#2444`; the `ui#2442` subagent commit pushed with five more root fixes.
 - Changed: intake filed `#2130` for Sentry `ORBIT-WEB-1F` (`ui#2443`).
-- Carried: the production API release and the `#2127` transcript; `#2096`; `#2119`; Batch M; `#1561`, `#1563`, `#315`, `#33`; the `#2074` measurement on or after 16 November 2026.
+- Carried: the `#2127` transcript; `#2096`; `#2119`; Batch M; `#1561`, `#1563`, `#315`, `#33`; the `#2074` measurement on or after 16 November 2026.
 
 Every identifier here came from a previous session: treat each as a lead to verify.
