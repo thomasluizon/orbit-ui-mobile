@@ -277,7 +277,7 @@ describe('RescheduleSheet (mobile)', () => {
     const date = tree.root.findAll((node) => node.type === 'Text' && node.props.testID === 'reschedule-proposed-schedule')[0]!
     expect(date.props.children).toEqual(['qui., 20 de ago.', ' · 07:30:00'])
     expect(tree.root.findAll((node) => node.type === 'Svg' && node.props.testID === 'astra-mark')).toHaveLength(0)
-    const name = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Astra')[0]!
+    const name = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Orbit')[0]!
     expect(JSON.stringify(name.props.style)).not.toContain('uppercase')
   })
 

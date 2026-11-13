@@ -179,7 +179,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     >
       <View style={styles.scrollContent}>
         <View style={styles.headerRow}>
-          <Text style={styles.astraName}>Astra</Text>
+          <Text style={styles.astraName}>Orbit</Text>
           <Badge>{t('aiDisclosure.isAiLabel')}</Badge>
         </View>
         {renderBody()}

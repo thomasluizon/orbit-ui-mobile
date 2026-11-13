@@ -160,8 +160,8 @@ describe('RescheduleSheet', () => {
     expect(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).toBeInTheDocument()
     expect(screen.queryByText('habits.reschedule.proposedScheduleLabel')).not.toBeInTheDocument()
     expect(screen.getByTestId('reschedule-proposed-schedule')).toHaveTextContent(/^qui\., 20 de ago\. · 07:30:00$/)
-    expect(screen.getByText('Astra')).toHaveAttribute('translate', 'no')
-    expect(screen.getByText('Astra')).not.toHaveStyle({ textTransform: 'uppercase' })
+    expect(screen.getByText('Orbit')).toHaveAttribute('translate', 'no')
+    expect(screen.getByText('Orbit')).not.toHaveStyle({ textTransform: 'uppercase' })
     expect(screen.getByTestId('sheet').querySelector('[data-asset="astra-mark"]')).not.toBeInTheDocument()
   })
 

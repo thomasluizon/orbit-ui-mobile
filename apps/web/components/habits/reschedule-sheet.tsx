@@ -200,7 +200,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
               fontWeight: 500,
             }}
           >
-            Astra
+            Orbit
           </span>
           <Badge>{t('aiDisclosure.isAiLabel')}</Badge>
         </div>

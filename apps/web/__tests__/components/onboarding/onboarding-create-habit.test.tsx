@@ -94,7 +94,8 @@ describe('OnboardingCreateHabit', () => {
     const mark = container.querySelector('[data-asset="astra-mark"]')
     if (proposed) {
       expect(mark).toHaveAttribute('width', '24')
-      expect(screen.getByRole('img', { name: 'Astra' })).toContainElement(mark as HTMLElement)
+      expect(screen.queryByRole('img', { name: /^(Astra|Orbit)$/ })).toBeNull()
+      expect((mark as HTMLElement).closest('[aria-hidden="true"]')).not.toBeNull()
     } else expect(mark).toBeNull()
   })
 
