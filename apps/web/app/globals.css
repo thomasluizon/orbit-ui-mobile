@@ -3034,3 +3034,28 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 @media (prefers-reduced-motion: reduce) {
   [data-motion-disclosure][aria-hidden="true"] { display: none !important; }
 }
+
+/* Desktop shell without a native title bar: the shell marks the root, the bar is fixed over the reserved strip, and full-height shells give the strip back. */
+html[data-desktop-window-bar] {
+  --desktop-window-bar-height: 48px;
+  padding-block-start: var(--desktop-window-bar-height);
+  background-color: var(--bg);
+}
+
+html[data-desktop-window-bar] .h-dvh:not(.fixed) {
+  height: calc(100dvh - var(--desktop-window-bar-height));
+}
+
+html[data-desktop-window-bar] .min-h-dvh:not(.fixed) {
+  min-height: calc(100dvh - var(--desktop-window-bar-height));
+}
+
+.orbit-window-bar [data-window-action='maximize'][data-native-hover] {
+  background-color: var(--bg-hover);
+}
+
+.orbit-window-bar [data-window-action='close']:enabled:hover,
+.orbit-window-bar [data-window-action='close']:enabled:active {
+  background-color: var(--status-bad);
+  color: var(--fg-on-bad);
+}

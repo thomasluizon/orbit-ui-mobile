@@ -49,18 +49,22 @@ pub fn configure_frame(config: &mut WindowConfig, platform: Platform) {
         Platform::MacOs => {
             config.title_bar_style = tauri::utils::TitleBarStyle::Overlay;
             config.hidden_title = true;
+            // tao `inset_traffic_lights` (view.rs) sets the button row height to the button height plus `y`, so 17 centres the 14px buttons in the 48px bar.
+            config.traffic_light_position =
+                Some(tauri::utils::config::LogicalPosition { x: 16.0, y: 17.0 });
         }
         Platform::Other => {}
     }
 }
 
-// The web app draws the bar only when the shell defines this value, so an older shell with a native title bar never gets a second bar.
+// The page draws the bar only when this attribute exists, so an older shell with a native title bar never gets a second bar.
+// The script marks the root element at document creation, so the page reserves the bar's space from the first painted frame.
 pub fn initialization_script(origin: &tauri::Url, platform: Platform) -> String {
     let Some(name) = platform.name() else {
         return String::new();
     };
     format!(
-        "if (window.top === window && window.location.origin === {}) {{ Object.defineProperty(window, '__ORBIT_DESKTOP_WINDOW_BAR__', {{ value: {} }}); }}",
+        "if (window.top === window && window.location.origin === {}) {{ const mark = () => document.documentElement.setAttribute('data-desktop-window-bar', {}); if (document.documentElement) mark(); else new MutationObserver((_, observer) => {{ if (document.documentElement) {{ mark(); observer.disconnect(); }} }}).observe(document, {{ childList: true }}); }}",
         serde_json::to_string(&origin.origin().ascii_serialization()).unwrap(),
         serde_json::to_string(name).unwrap(),
     )
@@ -126,6 +130,50 @@ fn apply(window: &impl BarWindow, action: Action) -> tauri::Result<bool> {
     window.is_maximized()
 }
 
+#[cfg(windows)]
+extern "C" {
+    fn orbit_caption_install(window: *mut std::ffi::c_void, hover: extern "C" fn(bool)) -> bool;
+}
+
+#[cfg(windows)]
+static HOVER_TARGET: std::sync::OnceLock<tauri::AppHandle> = std::sync::OnceLock::new();
+
+const MAXIMIZE_HOVER_EVENT: &str = "orbit-window-maximize-hover";
+
+fn hover_script(hovered: bool) -> String {
+    format!(
+        "window.dispatchEvent(new CustomEvent('{MAXIMIZE_HOVER_EVENT}', {{ detail: {hovered} }}));"
+    )
+}
+
+// The native snap region takes the pointer from the page, so the page cannot paint the hover fill of the maximize action itself.
+#[cfg(windows)]
+extern "C" fn maximize_hover(hovered: bool) {
+    let Some(window) = HOVER_TARGET
+        .get()
+        .and_then(|app| app.get_webview_window("main"))
+    else {
+        return;
+    };
+    if let Err(error) = window.eval(hover_script(hovered)) {
+        eprintln!("Cannot report maximize hover: {error}");
+    }
+}
+
+#[cfg(windows)]
+pub fn install_snap_region(window: &WebviewWindow) -> tauri::Result<()> {
+    let _ = HOVER_TARGET.set(window.app_handle().clone());
+    let (sent, received) = std::sync::mpsc::sync_channel(1);
+    crate::launch::with_native(window, move |pointer| {
+        let installed = unsafe { orbit_caption_install(pointer, maximize_hover) };
+        let _ = sent.send(installed);
+    })?;
+    if !received.recv().map_err(std::io::Error::other)? {
+        return Err(std::io::Error::other("Cannot create the window snap region").into());
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -148,6 +196,8 @@ mod tests {
         assert!(config.decorations);
         assert_eq!(config.title_bar_style, tauri::utils::TitleBarStyle::Overlay);
         assert!(config.hidden_title);
+        let position = config.traffic_light_position.unwrap();
+        assert_eq!((position.x, position.y), (16.0, 17.0));
     }
 
     #[test]
@@ -176,14 +226,23 @@ mod tests {
     }
 
     #[test]
-    fn the_page_flag_exists_only_on_the_environment_origin_and_a_custom_frame() {
+    fn the_root_attribute_exists_only_on_the_environment_origin_and_a_custom_frame() {
         let origin: tauri::Url = "https://app.useorbit.org/".parse().unwrap();
         let windows = initialization_script(&origin, Platform::Windows);
         assert!(windows.contains("window.top === window"));
         assert!(windows.contains("window.location.origin === \"https://app.useorbit.org\""));
-        assert!(windows.contains("'__ORBIT_DESKTOP_WINDOW_BAR__', { value: \"windows\" }"));
-        assert!(initialization_script(&origin, Platform::MacOs).contains("value: \"macos\""));
+        assert!(windows.contains("setAttribute('data-desktop-window-bar', \"windows\")"));
+        assert!(initialization_script(&origin, Platform::MacOs).contains("\"macos\")"));
         assert_eq!(initialization_script(&origin, Platform::Other), "");
+    }
+
+    #[test]
+    fn the_hover_script_fires_the_event_the_page_listens_for() {
+        assert_eq!(
+            hover_script(true),
+            "window.dispatchEvent(new CustomEvent('orbit-window-maximize-hover', { detail: true }));"
+        );
+        assert!(hover_script(false).contains("detail: false"));
     }
 
     #[test]

@@ -102,7 +102,7 @@ fn set_visible(window: &WebviewWindow, visible: bool) -> tauri::Result<()> {
     })
 }
 
-fn with_native(
+pub fn with_native(
     window: &WebviewWindow,
     callback: impl FnOnce(*mut std::ffi::c_void) + Send + 'static,
 ) -> tauri::Result<()> {
@@ -134,7 +134,7 @@ fn system_is_dark() -> bool {
     unsafe { orbit_launch_is_dark() }
 }
 
-// The native caption, menu bar and webview colour scheme follow the page's mode, not the system's (#2084).
+// The webview colour scheme follows the page's mode, not the system's (#2084).
 fn theme(dark: bool) -> Theme {
     if dark {
         Theme::Dark

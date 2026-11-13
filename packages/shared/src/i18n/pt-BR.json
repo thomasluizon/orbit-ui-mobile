@@ -4125,6 +4125,13 @@
     "required": "Esta versão do Orbit precisa ser atualizada. No menu do app, escolha Buscar atualizações e depois Reiniciar para atualizar.",
     "signInRequired": "Atualize o Orbit para entrar. No menu do app, escolha Buscar atualizações e depois Reiniciar para atualizar."
   },
+  "desktopWindow": {
+    "controls": "Controles da janela",
+    "minimize": "Minimizar",
+    "maximize": "Maximizar",
+    "restore": "Restaurar",
+    "close": "Fechar"
+  },
   "forceUpdate": {
     "title": "Esta versão do Orbit parou de funcionar",
     "description": "Atualize na loja para voltar a usar.",
