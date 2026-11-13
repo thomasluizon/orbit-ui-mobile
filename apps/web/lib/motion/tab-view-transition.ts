@@ -8,29 +8,24 @@ import { resolveTabSwitchDirection } from '@orbit/shared/utils'
 
 export const TAB_VIEW_TRANSITION_NAME = 'orbit-tab-page'
 
-const TAB_VIEW_TRANSITION_TYPES = {
-  forward: 'orbit-tab-forward',
-  back: 'orbit-tab-back',
-} as const
+export const TAB_VIEW_TRANSITION_CLASS = 'orbit-tab-switch'
 
-export const TAB_VIEW_TRANSITION_CLASS = {
-  [TAB_VIEW_TRANSITION_TYPES.forward]: 'orbit-tab-switch',
-  [TAB_VIEW_TRANSITION_TYPES.back]: 'orbit-tab-switch',
-  default: 'none',
-} as const
-
-export function getTabTransitionTypes(
+export function shouldAnimateTabSwitch(
   from: string,
   to: string,
   intent: MotionNavigationIntent,
   reducedMotion: boolean,
-): string[] | undefined {
-  const direction = resolveTabSwitchDirection(from, to)
-  if (intent === 'instant' || reducedMotion || direction === null) {
-    return undefined
-  }
+): boolean {
+  return intent !== 'instant' && !reducedMotion && resolveTabSwitchDirection(from, to) !== null
+}
 
-  return [direction > 0 ? TAB_VIEW_TRANSITION_TYPES.forward : TAB_VIEW_TRANSITION_TYPES.back]
+export function resolveTabViewTransitionDirection(
+  previousPathname: string,
+  pathname: string,
+  intent: MotionNavigationIntent,
+): -1 | 1 | null {
+  if (intent !== 'tab' || previousPathname === pathname) return null
+  return resolveTabSwitchDirection(previousPathname, pathname)
 }
 
 function toCssEasing(easing: MotionBezier): string {
@@ -39,11 +34,10 @@ function toCssEasing(easing: MotionBezier): string {
 
 export function animateTabViewTransition(
   instance: ViewTransitionInstance,
-  types: readonly string[],
+  direction: -1 | 1,
   reducedMotion: boolean,
 ): () => void {
   const preset = resolveMotionPreset('tab-switch', reducedMotion)
-  const direction = types.includes(TAB_VIEW_TRANSITION_TYPES.back) ? -1 : 1
   const exit = instance.old.animate(
     { opacity: [1, 0] },
     {

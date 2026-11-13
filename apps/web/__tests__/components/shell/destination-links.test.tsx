@@ -56,7 +56,7 @@ it.each([600, 1100, 1352])('renders routed links in the real shell at %ipx', asy
   expect(links.filter((link) => link.hasAttribute('aria-current'))).toEqual([links[1]])
   if (width >= 1024) expect(screen.getByRole('button', { name: 'nav.astra' })).not.toHaveAttribute('href')
   await userEvent.click(links[2]!)
-  expect(navigation.push).toHaveBeenCalledExactlyOnceWith('/progress', { transitionTypes: ['orbit-tab-forward'] })
+  expect(navigation.push).toHaveBeenCalledExactlyOnceWith('/progress')
 })
 
 it.each([1100, 1352])('holds destination changes until the draft guard approves at %ipx', async (width) => {
