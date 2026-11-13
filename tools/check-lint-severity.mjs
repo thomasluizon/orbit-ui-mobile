@@ -130,7 +130,7 @@ const webRules = [
   "local/no-decorative-glow", "local/no-raw-gradient", "local/animate-presence-exit",
   "local/no-dynamic-tailwind-class", "local/no-scroll-listener-motion", "local/no-space-x-y",
   "local/react19-api", "local/require-focus-replacement", "local/no-sparkle-ai-marker",
-  "local/icon-size-grid", "local/no-pill-radius-on-static", "local/max-button-words",
+  "local/no-spinner", "local/icon-size-grid", "local/no-pill-radius-on-static", "local/max-button-words",
   "local/spacing-scale", "local/hover-transition",
 ]
 const mobileRules = [
@@ -139,7 +139,7 @@ const mobileRules = [
   "local/no-arbitrary-zindex", "local/no-double-assertion", "local/no-draggable-onscroll",
   "local/no-jsx-logical-and", "local/no-dynamic-tailwind-class", "local/no-space-x-y",
   "local/require-focus-replacement", "local/will-change-discipline", "local/no-sparkle-ai-marker",
-  "local/icon-size-grid", "local/no-pill-radius-on-static", "local/no-oklch-outside-web-tokens",
+  "local/no-spinner", "local/icon-size-grid", "local/no-pill-radius-on-static", "local/no-oklch-outside-web-tokens",
   "local/no-overshoot-easing", "local/no-raw-font-feature-tag", "local/no-scroll-listener-motion",
   "local/no-side-stripe-border", "local/no-unjustified-disable", "local/no-decorative-glow",
   "local/no-raw-gradient", "local/max-button-words",
