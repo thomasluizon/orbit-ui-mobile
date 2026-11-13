@@ -184,7 +184,13 @@ export function composition(output, context) {
       && context.vars.clientContext?.supportsParts !== true && shortLines(response.aiMessage, 3, false)
       ? result(true, 'Verified concise legacy moderation refusal.') : result(false, 'Unexpected moderation refusal.')
   }
-  const client = context.vars.clientContext
+  return partsComposition(parsed, expected, context.vars)
+}
+
+// The ordered parts of an answer: their blocks, their prose, and the layout that the scenario's mode expects.
+function partsComposition(parsed, expected, vars) {
+  const response = parsed.composition
+  const client = vars.clientContext
   const parts = response.parts
   if (client?.supportsParts === true && !Array.isArray(parts)) return result(false, 'Missing ordered response parts.', { unavailable: true })
   if (parts != null && (!Array.isArray(parts) || parts.some((part) => !object(part)
@@ -209,41 +215,56 @@ export function composition(output, context) {
       && (!external || shortLines(external, 1, false))
       ? result(true, 'Verified API-key step-up surface.') : result(false, 'Missing or invalid API-key step-up surface.')
   }
-  if (expected.correction && !unchangedPreview(pending, context.vars.baselinePreview, expected.correction)) {
+  if (expected.correction && !unchangedPreview(pending, vars.baselinePreview, expected.correction)) {
     return result(false, 'Correction changed fields outside the requested time or lacks its baseline preview.')
   }
   const outcome = (response.actions?.length ?? 0) > 0 || (response.policyDenials?.length ?? 0) > 0
     || (response.operations ?? []).some((operation) => ['Failed', 'Denied', 'UnsupportedByPolicy'].includes(operation.status))
-  if (expected.mode === 'fallback') {
-    if (blocks.length || !text(response.aiMessage)) return result(false, 'Missing readable capability fallback or unsupported block.')
-  } else if (expected.mode === 'text' || (expected.mode === 'clarification' && !blocks.length)) {
-    if (blocks.length || pending.length || !shortLines(response.aiMessage, 3, expected.allowLists === true)) {
-      return result(false, 'No-data answer must contain one to three short lines without headings, lists or paragraphs.')
-    }
-  } else {
-    if (expected.mode === 'clarification' && (blocks.length !== 1 || blocks[0].kind !== 'choice' || pending.length || outcome)) {
-      return result(false, 'Clarification requires plain text without a block or exactly one choice block without a write.')
-    }
-    if (expected.mode === 'preview' && external) return result(false, 'Preview must be the entire answer.')
-    if (expected.mode === 'preview' && pending.length !== (expected.previews ?? 1)) return result(false, 'Missing batch preview.')
-    if (expected.mode === 'outcome' && !outcome) return result(false, 'Missing typed operation outcome.')
-    const leadingText = expected.mode === 'data' && parts?.[0]?.type === 'text'
-    if (leadingText && (!shortLines(external, 1, false) || /\d/u.test(external) || parts[1]?.type !== 'block')) {
-      return result(false, 'Data answer leads with prose.')
-    }
-    if (expected.mode === 'data' && !blocks.length) return result(false, 'Missing typed data block.')
-    if (!pending.length && !outcome && !leadingText && parts?.[0]?.type !== 'block') return result(false, 'Data answer leads with prose.')
-    if (external && !shortLines(external, 1, false)) return result(false, 'Data answer has excessive external text.')
-    for (const required of expected.blocks ?? (expected.kinds ?? []).map((kind) => ({ kind }))) {
-      if (!blocks.some((part) => part.kind === required.kind && (!required.subtype || part.block.kind === required.subtype)
-        && (!required.completeness || part.block.read?.completeness === required.completeness)
-        && (!required.recovery || part.block.read?.recovery === required.recovery))) {
-        return result(false, 'Missing required block family, subtype, completeness or recovery.')
-      }
-    }
+  // A preview case may allow one question first; the HTTP provider answers it and grades the answer turn's preview.
+  if (expected.mode === 'preview' && expected.allowQuestion === true && !pending.length && !outcome) {
+    const question = blocks.length ? blocks.length === 1 && ['choice', 'question'].includes(blocks[0].kind) && (!external || shortLines(external, 1, false))
+      : shortLines(response.aiMessage, 3, false)
+    return question ? result(true, 'Verified one question before the preview.')
+      : result(false, 'A question before the preview must be one choice or question card, or one to three short lines.')
   }
+  const layout = modeLayout(expected, { response, parts, blocks, pending, outcome, external })
+  if (layout) return layout
   const routed = getRelatedSurfaces(response.relatedSurfaces).filter((surface) => text(surface.webRoute) && text(surface.mobileRoute))
   if (expected.actionSurfaces?.length && !expected.actionSurfaces.some((surface) => routed.some((action) => action.id === surface)
     || (surface === 'calendar' && blocks.some((part) => part.kind === 'calendar')))) return result(false, 'Missing available relevant screen action.')
   return result(true, 'Composition structure and negotiated capabilities matched.')
+}
+
+// The layout that the scenario's mode requires of the blocks and the prose: a failed result, or null when it matches.
+function modeLayout(expected, { response, parts, blocks, pending, outcome, external }) {
+  if (expected.mode === 'fallback') {
+    return blocks.length || !text(response.aiMessage) ? result(false, 'Missing readable capability fallback or unsupported block.') : null
+  }
+  if (expected.mode === 'text' || (expected.mode === 'clarification' && !blocks.length)) {
+    return blocks.length || pending.length || !shortLines(response.aiMessage, 3, expected.allowLists === true)
+      ? result(false, 'No-data answer must contain one to three short lines without headings, lists or paragraphs.') : null
+  }
+  // The API sends a question card for a clarification too: AskBlockNegotiation folds only one short singleChoice
+  // question into a choice, and CompleteRecordCard sends a record card over more than four records as a question.
+  if (expected.mode === 'clarification' && (blocks.length !== 1 || !['choice', 'question'].includes(blocks[0].kind) || pending.length || outcome)) {
+    return result(false, 'Clarification requires plain text without a block or exactly one choice or question card without a write.')
+  }
+  if (expected.mode === 'preview' && external && expected.allowPreviewNote !== true) return result(false, 'Preview must be the entire answer.')
+  if (expected.mode === 'preview' && pending.length !== (expected.previews ?? 1)) return result(false, 'Missing batch preview.')
+  if (expected.mode === 'outcome' && !outcome) return result(false, 'Missing typed operation outcome.')
+  const leadingText = expected.mode === 'data' && parts?.[0]?.type === 'text'
+  if (leadingText && (!shortLines(external, 1, false) || /\d/u.test(external) || parts[1]?.type !== 'block')) {
+    return result(false, 'Data answer leads with prose.')
+  }
+  if (expected.mode === 'data' && !blocks.length) return result(false, 'Missing typed data block.')
+  if (!pending.length && !outcome && !leadingText && parts?.[0]?.type !== 'block') return result(false, 'Data answer leads with prose.')
+  if (external && !shortLines(external, 1, false)) return result(false, 'Data answer has excessive external text.')
+  for (const required of expected.blocks ?? (expected.kinds ?? []).map((kind) => ({ kind }))) {
+    if (!blocks.some((part) => part.kind === required.kind && (!required.subtype || part.block.kind === required.subtype)
+      && (!required.completeness || part.block.read?.completeness === required.completeness)
+      && (!required.recovery || part.block.read?.recovery === required.recovery))) {
+      return result(false, 'Missing required block family, subtype, completeness or recovery.')
+    }
+  }
+  return null
 }
