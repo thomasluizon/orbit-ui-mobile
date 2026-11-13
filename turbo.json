@@ -53,8 +53,8 @@
         "$TURBO_ROOT$/apps/web/proxy.ts",
         "$TURBO_ROOT$/apps/web/test-support/hermetic/mock-api/fixtures/chat-stream.ts",
         "$TURBO_ROOT$/apps/web/web-compatibility.json",
-        "$TURBO_ROOT$/design/brand/orbit-mark-16.svg",
-        "$TURBO_ROOT$/design/brand/orbit-mark-accent.svg",
+        "$TURBO_ROOT$/design/brand/orbit-mascot-small.svg",
+        "$TURBO_ROOT$/design/brand/orbit-mascot.svg",
         "$TURBO_ROOT$/packages/shared/src/**",
         "$TURBO_ROOT$/tools/desktop-bench/probe.js"
       ]

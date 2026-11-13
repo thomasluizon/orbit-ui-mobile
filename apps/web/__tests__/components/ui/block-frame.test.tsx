@@ -154,11 +154,11 @@ describe('BlockFrame on web', () => {
             { id: 'plain', label: 'Plain' },
             { id: 'suggested', label: 'Suggested', proposed: true },
           ],
-          proposedLabel: 'Proposed by Astra',
+          proposedLabel: 'Proposed by Orbit',
         })}
       />,
     )
-    expect(screen.getByRole('group', { name: 'Proposed by Astra' })).toHaveAttribute('data-proposed')
+    expect(screen.getByRole('group', { name: 'Proposed by Orbit' })).toHaveAttribute('data-proposed')
     expect(container.querySelectorAll('[role="group"]')).toHaveLength(1)
   })
 

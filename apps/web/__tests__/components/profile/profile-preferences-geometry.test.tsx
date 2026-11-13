@@ -25,7 +25,7 @@ vi.mock('@/app/(app)/preferences/_components/use-preference-controls', () => ({ 
     activePicker: null, setActivePicker: preferences.open, handleThemeModeChange: vi.fn(),
     showGeneralOnToday: preferences.checked, toggleShowGeneral: preferences.toggle,
     handleShowGeneralToggle: preferences.toggle, handleLanguageChange: vi.fn(),
-    timeZoneMutation: { mutate: vi.fn() }, weekStartMutation: { mutate: vi.fn() }, clockFormatMutation: { mutate: vi.fn() },
+    timeZoneMutation: { mutate: vi.fn() }, mascotMotion: { enabled: true, pending: false, toggle: vi.fn() }, weekStartMutation: { mutate: vi.fn() }, clockFormatMutation: { mutate: vi.fn() },
   }) }))
 vi.mock('@/app/(app)/preferences/_components/preference-picker-sheet', () => ({ PreferencePickerSheet: () => null }))
 
@@ -77,7 +77,7 @@ describe('Profile preferences label geometry', () => {
           return { description: element.dataset.slot === 'list-row-description', label: element.textContent, lines: new Set(fragments.map((rect) => Math.round(rect.top))).size, clipped: fragments.some((rect) => rect.left < bounds.left - 1 || rect.right > bounds.right + 1 || rect.top < bounds.top - 1 || rect.bottom > bounds.bottom + 1), outside: bounds.left < 0 || bounds.right > window.innerWidth, ellipsis: getComputedStyle(element).textOverflow === 'ellipsis' || Number.parseInt(getComputedStyle(element).webkitLineClamp) > 0 }
         })
       })
-      expect(measured).toHaveLength(10)
+      expect(measured).toHaveLength(11)
       for (const label of measured) {
         expect.soft(label, JSON.stringify(label)).toMatchObject({ clipped: false, outside: false, ellipsis: false })
         if (scale === 1) {

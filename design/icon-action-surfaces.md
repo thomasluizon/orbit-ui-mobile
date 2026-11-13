@@ -33,7 +33,7 @@ Text remains for the primary consequence ending a form or confirmation, required
 
 `local/no-text-icon-action` permits only the exact drawn labels in their named owner components: sheet footer Cancel, sharing footer Share and web Download, notification detail Delete, Pager Back, and Wrapped Download and Share, including their existing translations. Refresh and other universal actions remain rejected within those owners. Create goal and Continue retain their contextual labels under the ordinary rule.
 
-Drawn references: [Astra conversation](canvas/Orbit%20Astra%20Conversation.dc.html), [Habit create](canvas/Orbit%20Habit%20Create.dc.html), [Habit detail](canvas/Orbit%20Habit%20Detail.dc.html), [overlays](canvas/Orbit%20Sobreposicoes.dc.html), [Wrapped](canvas/Orbit%20Wrapped.dc.html), [sign-in](canvas/Orbit%20Entrar.dc.html) and the shared shape tokens. The universal icon-action order applies to their action controls while preserving the primary consequence and contextual text boundaries above.
+Drawn references: [Orbit conversation](canvas/Orbit%20Astra%20Conversation.dc.html), [Habit create](canvas/Orbit%20Habit%20Create.dc.html), [Habit detail](canvas/Orbit%20Habit%20Detail.dc.html), [overlays](canvas/Orbit%20Sobreposicoes.dc.html), [Wrapped](canvas/Orbit%20Wrapped.dc.html), [sign-in](canvas/Orbit%20Entrar.dc.html) and the shared shape tokens. The universal icon-action order applies to their action controls while preserving the primary consequence and contextual text boundaries above.
 
 | Platform and source | Localized name expression | Treatment |
 |---|---|---|
@@ -238,7 +238,7 @@ Drawn references: [Astra conversation](canvas/Orbit%20Astra%20Conversation.dc.ht
 | [apps/web/components/upgrade/plan-selection.tsx:153](../apps/web/components/upgrade/plan-selection.tsx#L153) | `{t('upgrade.plans.retry')}` | RefreshCw |
 | [apps/web/components/upgrade/provider-handoff.tsx:38](../apps/web/components/upgrade/provider-handoff.tsx#L38) | `{t('upgrade.billing.retry')}` | RefreshCw |
 
-The common `ui/block-frame` stale footer and `chat/read-block-frame` query footer cover every registered Astra read family. `PendingOperationButtonSpec.icon` carries preview edit, rejection and retry intent into both `PreviewButton` renderers, keeping approval text. `ToastProps.actionIcon` and `HabitListEmptyState.actionIcon` carry failed-deletion and list-load retry intent without guessing from translated text.
+The common `ui/block-frame` stale footer and `chat/read-block-frame` query footer cover every registered Orbit read family. `PendingOperationButtonSpec.icon` carries preview edit, rejection and retry intent into both `PreviewButton` renderers, keeping approval text. `ToastProps.actionIcon` and `HabitListEmptyState.actionIcon` carry failed-deletion and list-load retry intent without guessing from translated text.
 
 The ESLint rule resolves literal text, both locale catalogs, local label bindings, translated conditional keys and pill import aliases. It ignores accessible labels on icon-only controls and preserves mixed contextual flow labels. Primitive tests cover bilingual names, target dimensions, hover, disabled and busy behavior. Stale-frame regression tests prove refresh has no visible label and invokes its existing callback. Consumer tests query accessible names rather than removed visible strings. Native target styles are unit evidence; device rendering remains a platform boundary.
 
@@ -253,7 +253,7 @@ its disabled or busy state. Add all retains its explicitly requested primary tex
 The 8px clearance amendment updates the paired pill, list-row, check-row, segmented-control,
 weekday-picker, composer, calendar header, profile preference and bar-chart owners listed in
 `interaction-fill-surfaces.md`, plus web `ui/pill-action-style` and `shell/shell-wide`.
-Pill focus stays inside its paint. Collapsed sidebar search, navigation and Astra glyphs share
+Pill focus stays inside its paint. Collapsed sidebar search, navigation and small static faces share
 the centre of their feedback. Badges belong to their own control and do not move its fill centre.
 
 The paired `ui/segmented-control.tsx` owners keep 8px gaps between full-segment fills and 8px
@@ -323,9 +323,9 @@ are the owners:
 | Ideas library miss | `components/chat/prompt-library.tsx` | `components/chat/prompt-library.tsx` | 16px miss inset |
 | MCP API keys load error | `components/profile/profile-api-keys.tsx` | `components/profile/profile-api-keys.tsx` | 16px content frame |
 | Goal detail load error | `components/goals/goal-detail-drawer.tsx` | `components/goals/goal-detail-drawer.tsx` | sheet body or 16px Progresso gutter |
-| Astra habit suggestion row error | `components/chat/habit-suggestions-card.tsx` | `components/chat/habit-suggestions-card.tsx` | 16px BlockFrame inset |
-| Astra habit suggestion card error | `components/chat/habit-suggestions-card.tsx` | `components/chat/habit-suggestions-card.tsx` | 16px BlockFrame inset |
-| Astra habit suggestion current schedule error | `components/chat/habit-suggestions-card.tsx` | `components/chat/habit-suggestions-card.tsx` | 16px BlockFrame inset |
+| Orbit habit suggestion row error | `components/chat/habit-suggestions-card.tsx` | `components/chat/habit-suggestions-card.tsx` | 16px BlockFrame inset |
+| Orbit habit suggestion card error | `components/chat/habit-suggestions-card.tsx` | `components/chat/habit-suggestions-card.tsx` | 16px BlockFrame inset |
+| Orbit habit suggestion current schedule error | `components/chat/habit-suggestions-card.tsx` | `components/chat/habit-suggestions-card.tsx` | 16px BlockFrame inset |
 | Linked habits load error | `components/goals/goal-habits-field.tsx` | `components/goals/goal-habits-field.tsx` | sheet body |
 | Habit description link retry | none: web opens description links as plain anchors | `components/habits/habit-detail-screen.tsx` | 16px `FlowShell` content padding |
 
@@ -349,7 +349,7 @@ make TalkBack speak. The Android primitive also sets a polite live region on the
 suite checks the live region prop. A TalkBack pass on a device confirms that the message is
 announced when it mounts. No device result is recorded here.
 
-The Astra habit suggestion errors do not use the primitive. Each is a polite status region with a
+The Orbit habit suggestion errors do not use the primitive. Each is a polite status region with a
 disabled retry, not an alert load error. Each puts its message and its retry in one column inside
 that region, with the retry below the message. The habit suggestion suites check the retry below
 the message and the polite region on both platforms.

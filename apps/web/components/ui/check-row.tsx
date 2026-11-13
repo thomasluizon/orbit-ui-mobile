@@ -8,7 +8,8 @@ import { PersonalText } from '@/components/ui/personal-text'
 
 import type { CheckRowProps } from '@orbit/shared/contracts/forms'
 import { Checkbox } from './checkbox'
-import { Check, CheckCircle, Circle, Loader2 } from './icons'
+import { Check, CheckCircle, Circle } from './icons'
+import { SkeletonFace } from './skeleton'
 
 export function CheckRow({
   leading,
@@ -41,12 +42,13 @@ export function CheckRow({
       role="checkbox"
       aria-checked={checked}
       aria-label={label}
+      aria-busy={loading || undefined}
       disabled={disabled || loading}
       onClick={() => onChange(!checked)}
       data-checked={checked ? '' : undefined}
       data-loading={loading ? '' : undefined}
       data-error={error ? '' : undefined}
-      className="group/check-row orbit-hover-text flex w-full items-center rounded-[12px] border-0 bg-transparent text-left transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] disabled:opacity-60"
+      className={`group/check-row orbit-hover-text orbit-press-content flex w-full items-center rounded-[12px] border-0 bg-transparent text-left transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] ${dimWhenDisabled(loading)}`}
     >
       <span aria-hidden="true" className="flex shrink-0 items-center" style={wrapStyles.control}>
         <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />
@@ -73,7 +75,7 @@ export function CheckRow({
 
 function ColumnCheckRow({ label, checked, onChange, description, error, value, disabled, loading }: Readonly<CheckRowProps>) {
   return <div className="orbit-list-row-column">
-    <button type="button" role="checkbox" aria-label={label} aria-checked={checked} aria-busy={loading || undefined} disabled={disabled || loading} onClick={() => onChange(!checked)} data-loading={loading ? '' : undefined} data-error={error ? '' : undefined} className="orbit-list-row-body orbit-hover-text relative flex w-full items-center rounded-[12px] border-0 bg-transparent text-left disabled:opacity-60" style={{ minHeight: error || description ? 68 : 52, paddingInline: SPACING.s0, paddingBlock: SPACING.s12, gap: 8 }}>
+    <button type="button" role="checkbox" aria-label={label} aria-checked={checked} aria-busy={loading || undefined} disabled={disabled || loading} onClick={() => onChange(!checked)} data-loading={loading ? '' : undefined} data-error={error ? '' : undefined} className={`orbit-list-row-body orbit-hover-text relative flex w-full items-center rounded-[12px] border-0 bg-transparent text-left ${dimWhenDisabled(loading)}`} style={{ minHeight: error || description ? 68 : 52, paddingInline: SPACING.s0, paddingBlock: SPACING.s12, gap: 8 }}>
       <span aria-hidden="true" data-slot="list-row-body" data-press-fill="" className="orbit-list-row-outset" />
       <span data-slot="list-row-content" className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
         <span className="text-[var(--fg-1)]" style={{ fontSize: '1.0625rem', fontWeight: 400, lineHeight: 1.4 }}>{label}</span>
@@ -81,7 +83,10 @@ function ColumnCheckRow({ label, checked, onChange, description, error, value, d
       </span>
       {value !== undefined ? <span className="relative shrink-0 font-mono text-sm tabular-nums text-[var(--fg-2)]">{value}</span> : null}
       <span aria-hidden="true" style={{ minHeight: 'max(28px, 1.4875rem)', alignSelf: 'flex-start' }} className="relative flex w-4 shrink-0 items-center justify-center text-[var(--fg-1)]">
-        {loading ? <Loader2 size={16} className="animate-spin" /> : checked ? <Check size={16} strokeWidth={1.5} /> : null}
+        <span data-slot="check-row-indicator" className="relative isolate grid size-4 place-items-center rounded-[var(--r-well)]">
+          {loading ? <SkeletonFace /> : null}
+          {checked ? <Check size={16} strokeWidth={1.5} /> : null}
+        </span>
       </span>
     </button>
   </div>
@@ -107,7 +112,6 @@ function personalContentClassName(leading: CheckRowProps['leading']) {
 
 function PersonalCheckRow({ leading, label, selection = false, placement, variant, onOpenLabel, labelExpanded, labelControls, checked, onChange, description, error, value, disabled, loading }: Readonly<CheckRowProps>) {
   const calendarDay = variant === 'calendar-day'
-  const CircleIcon = checked ? CheckCircle : Circle
   return (
     <div data-slot="list-row-body" className="flex min-w-0 items-center" style={personalRowStyle(calendarDay, Boolean(error || description || value !== undefined), placement, selection)}>
       <PersonalTextAction label={label} className="flex-1" contentClassName={personalContentClassName(leading)} contentStyle={personalLabelContentStyle(calendarDay)} controlDecoration={<span aria-hidden="true" data-press-fill="" className="orbit-check-row-fill" />} control={<button type="button" disabled={disabled} data-variant={variant} onClick={onOpenLabel} aria-label={label} aria-expanded={labelExpanded} aria-controls={labelControls} style={{ gap: 4 }} className="orbit-check-row-label orbit-hover-text flex min-w-0 flex-1 flex-col justify-center rounded-[12px] border-0 bg-transparent text-start transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)]">
@@ -118,13 +122,26 @@ function PersonalCheckRow({ leading, label, selection = false, placement, varian
         {value !== undefined ? <span className={`font-mono ${calendarDay ? 'text-xs' : 'text-sm'} tabular-nums text-[var(--fg-2)]`}>{value}</span> : null}
         </span>
       </button>} />
-      <button type="button" role="checkbox" style={personalControlStyle(selection)} data-variant={variant} aria-label={label} aria-checked={checked} aria-busy={calendarDay ? loading : undefined} disabled={disabled || loading} onClick={() => onChange(!checked)} data-loading={loading ? '' : undefined} className={`orbit-check-row-control relative grid ${calendarDay ? 'size-6' : 'size-[56px]'} shrink-0 place-items-center rounded-[12px] border-0 bg-transparent transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:opacity-60`}>
+      <button type="button" role="checkbox" style={personalControlStyle(selection)} data-variant={variant} aria-label={label} aria-checked={checked} aria-busy={loading || undefined} disabled={disabled || loading} onClick={() => onChange(!checked)} data-loading={loading ? '' : undefined} className={`orbit-check-row-control orbit-press-content relative grid ${calendarDay ? 'size-6' : 'size-[56px]'} shrink-0 place-items-center rounded-[12px] border-0 bg-transparent transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${dimWhenDisabled(loading)}`}>
         <span aria-hidden="true" data-press-fill="" className="orbit-check-row-fill grid place-items-center p-2">
-          {calendarDay ? <CircleIcon data-slot="calendar-day-circle" size={24} stroke={1.5} aria-hidden="true" focusable="false" className="text-[var(--fg-1)]" /> : <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />}
+          {calendarDay ? <CalendarDayCircle checked={checked} loading={Boolean(loading)} /> : <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />}
         </span>
       </button>
     </div>
   )
+}
+
+function CalendarDayCircle({ checked, loading }: Readonly<{ checked: boolean; loading: boolean }>) {
+  const CircleIcon = checked ? CheckCircle : Circle
+  return <span className="relative isolate grid size-6 place-items-center rounded-full">
+    {loading ? <SkeletonFace /> : null}
+    <CircleIcon data-slot="calendar-day-circle" size={24} stroke={1.5} aria-hidden="true" focusable="false" className="text-[var(--fg-1)]" />
+  </span>
+}
+
+/** A waiting row keeps its full tone, because its control shows the skeleton; only a disabled row dims. */
+function dimWhenDisabled(loading: boolean | undefined): string {
+  return loading ? '' : 'disabled:opacity-60'
 }
 
 function checkRowWrapStyles(wrapLabel: boolean) {

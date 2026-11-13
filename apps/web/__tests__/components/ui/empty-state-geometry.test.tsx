@@ -36,16 +36,16 @@ describe('EmptyState title geometry', () => {
   afterEach(cleanup)
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each(['orbit', 'astra'] as const)('uses the shared 48px %s mark with one title and action', async mark => {
-    const { container } = render(<EmptyState mark={mark} title="Invitation" action={<button>Continue</button>} />)
+  it('draws the 96px mascot with one title and action at 412', async () => {
+    const { container } = render(<EmptyState title="Invitation" action={<button>Continue</button>} />)
     const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       expect(await page.locator('[data-empty-state-mark] svg').evaluate(element => {
         const bounds = element.getBoundingClientRect()
         return { width: bounds.width, height: bounds.height }
-      })).toEqual({ width: 48, height: 48 })
-      expect(await page.locator('[data-mark] > p').textContent()).toBe('Invitation')
+      })).toEqual({ width: 96, height: 96 * 300 / 420 })
+      expect(await page.locator('[data-empty-state] > p').textContent()).toBe('Invitation')
       expect(await page.getByRole('button').count()).toBe(1)
     } finally { await page.close() }
   })
@@ -56,7 +56,7 @@ describe('EmptyState title geometry', () => {
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
-      const geometry = await page.locator('[data-mark] > p').evaluate((element) => {
+      const geometry = await page.locator('[data-empty-state] > p').evaluate((element) => {
         const style = getComputedStyle(element)
         const bounds = element.getBoundingClientRect()
         const range = document.createRange()

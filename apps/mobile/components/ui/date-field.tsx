@@ -1,4 +1,5 @@
 import { PressScale, PressScalePressable } from '@/components/motion/press-scale'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 import { PressFill } from '@/components/ui/press-fill'
 import { selectedBorderStyle } from '@/components/ui/selected-focus-indicator'
 import { SPACING, TOUCH_TARGET_MIN, MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
@@ -69,7 +70,7 @@ function DatePickerMonthNav({
 
   return (
     <View style={styles.monthNav}>
-      <Pressable
+      <MotionPressable
         onPress={onPrevMonth}
         accessibilityRole="button"
         accessibilityLabel={t('common.previousMonth')}
@@ -81,13 +82,13 @@ function DatePickerMonthNav({
         ]}
       >
         <ChevronLeft size={20} strokeWidth={1.8} color={tokens.fg3} />
-      </Pressable>
+      </MotionPressable>
 
       <View style={styles.monthLabelGroup}>
         {monthLead ? (
           <Text style={styles.monthLabel}>{monthLead}</Text>
         ) : null}
-        <Pressable
+        <MotionPressable
           onPress={onToggleMode}
           accessibilityRole="button"
           accessibilityLabel={t('common.selectYear')}
@@ -102,10 +103,10 @@ function DatePickerMonthNav({
           >
             {yearLabel}
           </Text>
-        </Pressable>
+        </MotionPressable>
       </View>
 
-      <Pressable
+      <MotionPressable
         onPress={onNextMonth}
         accessibilityRole="button"
         accessibilityLabel={t('common.nextMonth')}
@@ -117,7 +118,7 @@ function DatePickerMonthNav({
         ]}
       >
         <ChevronRight size={20} strokeWidth={1.8} color={tokens.fg3} />
-      </Pressable>
+      </MotionPressable>
     </View>
   )
 }

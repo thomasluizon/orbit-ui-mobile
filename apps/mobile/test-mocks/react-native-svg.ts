@@ -34,6 +34,7 @@ function MockCircle(
 export const Svg = createSvgComponent('Svg')
 
 export const Circle = React.forwardRef(MockCircle)
+export const ClipPath = createSvgComponent('ClipPath')
 export const Defs = createSvgComponent('Defs')
 export const G = createSvgComponent('G')
 export const Line = createSvgComponent('Line')

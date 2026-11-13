@@ -1,7 +1,7 @@
 import React from 'react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { FollowUpChips } from '@/components/chat/follow-up-chips'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { Button } from '@/components/ui/pill-button'
 
 const TestRenderer = require('react-test-renderer')
@@ -35,7 +35,7 @@ it('uses the existing small pills and sends the full contextual question once', 
   trees.push(tree)
   const chip = tree.root.findAll(node => node.type === Button)[0]!
   expect(chip.props).toMatchObject({ size: 'sm', variant: 'ghost', children: 'Compare', accessibleName: 'Compare' })
-  expect(chip.findAll(node => node.type === AstraGlyph)).toHaveLength(1)
+  expect(chip.findAll(node => node.type === OrbitMascot)).toHaveLength(1)
   expect(chip.findAll(node => node.type === 'Text' && String(node.props.children).includes('Astra'))).toHaveLength(0)
   const select = chip.props.onClick as () => void
   TestRenderer.act(() => { select(); select() })

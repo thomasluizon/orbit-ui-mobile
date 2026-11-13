@@ -44,6 +44,9 @@
       "deniedNative": "Notifications are blocked. Enable them in your device settings.",
       "openSettings": "Open settings"
     },
+    "orbitMotion": {
+      "title": "Animate Orbit"
+    },
     "homeScreen": {
       "showGeneral": "Show undated tasks",
       "showGeneralDesc": "Undated tasks also appear in Today."
@@ -216,7 +219,7 @@
     "calendar": "Calendar",
     "createHabit": "Create habit",
     "profile": "Profile",
-    "astra": "Astra",
+    "astra": "Orbit",
     "search": "Search",
     "today": "Today",
     "progress": "Progress",
@@ -224,7 +227,7 @@
   },
   "shell": {
     "astraButton": {
-      "open": "Open Astra"
+      "open": "Talk to Orbit"
     },
     "collapseSidebar": "Collapse sidebar",
     "expandSidebar": "Expand sidebar",
@@ -264,19 +267,19 @@
         "renewal": "Messages return at midnight, your time.",
         "renewalWeeklyUnknown": "Reset date unavailable.",
         "renewalWeekly": "Resets {day}.",
-        "exhausted": "Today's Astra messages are used.",
-        "exhaustedWeekly": "This week's Astra messages are used.",
+        "exhausted": "Today's AI messages are used.",
+        "exhaustedWeekly": "This week's AI messages are used.",
         "placeholder": "No messages today",
         "placeholderWeekly": "No messages left this week",
-        "reason": "{allowance, plural, one {Today's allowance of # Astra message is used.} other {Today's allowance of # Astra messages is used.}}",
-        "reasonWeekly": "{allowance, plural, one {This week's allowance of # Astra message is used.} other {This week's allowance of # Astra messages is used.}}"
+        "reason": "{allowance, plural, one {Today's allowance of # AI message is used.} other {Today's allowance of # AI messages is used.}}",
+        "reasonWeekly": "{allowance, plural, one {This week's allowance of # AI message is used.} other {This week's allowance of # AI messages is used.}}"
       },
       "busy": {
-        "reason": "Astra is still answering. Wait for this response before sending another message."
+        "reason": "Orbit is still answering. Wait for this response before sending another message."
       },
       "offline": {
         "placeholder": "No connection",
-        "reason": "No connection. Astra comes back when the connection does."
+        "reason": "No connection. Orbit comes back when the connection does."
       },
       "chips": {
         "today": {
@@ -345,7 +348,7 @@
     "returningElapsed": "{days, plural, one {You last completed a habit # day ago.} other {You last completed a habit # days ago.}}",
     "returningBounded": "You last completed a habit over 30 days ago.",
     "viewProgress": "See it on Progress",
-    "offline": "Astra needs a connection. Habit logging still works offline.",
+    "offline": "Orbit needs a connection. Habit logging still works offline.",
     "offlineLog": "Saved on this device. Orbit will sync it when you reconnect."
   },
   "command": {
@@ -377,11 +380,11 @@
     "viewDetails": "View details"
   },
   "astraRail": {
-    "title": "Astra copilot",
+    "title": "Orbit copilot",
     "subtitle": "Your habit copilot"
   },
   "reviewMoment": {
-    "eyebrow": "A word from Astra",
+    "eyebrow": "A word from Orbit",
     "streakTitle": "{count, plural, one {# day straight} other {# days straight}}",
     "levelTitle": "Level {level}",
     "streakBody": "{count, plural, one {You showed up # day in a row. That's real momentum. Mind rating Orbit on Google Play? It helps more people find their orbit.} other {You showed up # days in a row. That's real momentum. Mind rating Orbit on Google Play? It helps more people find their orbit.}}",
@@ -489,7 +492,7 @@
     "sessionExpiring": "{minutes, plural, one {Your session expires in # minute. Save your work.} other {Your session expires in # minutes. Save your work.}}",
     "sessionExpired": "Your session timed out.",
     "sessionSignedOut": "You were signed out. Sign in to pick up where you left off.",
-    "sessionRefreshFailed": "Orbit couldn't refresh your session. Try again.",
+    "sessionRefreshFailed": "I couldn't refresh your session. Try again.",
     "refresh": "Refresh",
     "login": "Log in",
     "codeDigit": "Digit {n} of 6",
@@ -597,7 +600,7 @@
     "collapseAll": "Collapse all",
     "expandAll": "Expand all",
     "refresh": "Refresh",
-    "noHabitsBody": "Start with one small habit or ask Astra for a routine.",
+    "noHabitsBody": "Start with one small habit or ask Orbit for a routine.",
     "reorderFailed": "Couldn't save the new order. Please try again.",
     "loadError": "Couldn't load your habits.",
     "allDoneToday": "You did it",
@@ -646,7 +649,7 @@
       "error": "No plan could be suggested.",
       "accept": "Use this plan",
       "dismiss": "Not now",
-      "freePrompt": "With Pro, Astra turns a missed habit into a realistic plan.",
+      "freePrompt": "With Pro, Orbit turns a missed habit into a realistic plan.",
       "upgrade": "See Pro"
     },
     "backToHabits": "All habits",
@@ -729,8 +732,8 @@
       "aiSuggestApplied": "AI suggestion applied",
       "aiSuggestError": "Couldn't generate a suggestion. Please try again.",
       "aiSuggestEmpty": "No suggestion for this one. Add the details yourself.",
-      "aiSuggestLimitReached": "You've used today's Astra messages. More arrive at midnight, your time.",
-      "aiSuggestLimitReachedWeekly": "You've used this week's Astra messages.",
+      "aiSuggestLimitReached": "You've used today's AI messages. More arrive at midnight, your time.",
+      "aiSuggestLimitReachedWeekly": "You've used this week's AI messages.",
       "title": "Title",
       "newHabit": "New habit",
       "repeatSummary": "every {interval}",
@@ -745,7 +748,7 @@
       "taskDescribePlaceholder": "Take my medicine",
       "taskDescribe": "What do you need to do?",
       "newTask": "New task",
-      "fromConversation": "Came from your conversation with Astra.",
+      "fromConversation": "Came from your conversation with Orbit.",
       "createWhy": "Write what you want to keep up.",
       "describe": "What do you want to keep up?",
       "describePlaceholder": "Run 3 times a week",
@@ -754,9 +757,9 @@
       "askAstra": "Suggest frequency",
       "askAstraCost": "{allowance, plural, one {Uses today's only message.} other {Uses 1 of today's # messages.}}",
       "askAstraCostWeekly": "{allowance, plural, one {Uses this week's only message.} other {Uses 1 of this week's # messages.}}",
-      "astraReading": "Astra is reading the phrase",
-      "localReadLimit": "{allowance, plural, one {Today's # Astra message is used. Orbit reads the phrase on this device, and creating a habit uses no message. Pick the days or a number of times a week.} other {Today's # Astra messages are used. Orbit reads the phrase on this device, and creating a habit uses no message. Pick the days or a number of times a week.}}",
-      "localReadLimitWeekly": "{allowance, plural, one {This week's # Astra message is used. Orbit reads the phrase on this device, and creating a habit uses no message. Pick the days or a number of times a week.} other {This week's # Astra messages are used. Orbit reads the phrase on this device, and creating a habit uses no message. Pick the days or a number of times a week.}}",
+      "astraReading": "Orbit is reading the phrase",
+      "localReadLimit": "{allowance, plural, one {Today's # AI message is used. I read the phrase on this device, and creating a habit uses no message. Pick the days or a number of times a week.} other {Today's # AI messages are used. I read the phrase on this device, and creating a habit uses no message. Pick the days or a number of times a week.}}",
+      "localReadLimitWeekly": "{allowance, plural, one {This week's # AI message is used. I read the phrase on this device, and creating a habit uses no message. Pick the days or a number of times a week.} other {This week's # AI messages are used. I read the phrase on this device, and creating a habit uses no message. Pick the days or a number of times a week.}}",
       "understoodIntervalDays": "{count, plural, one {every {days}, every # week} other {every {days}, every # weeks}}",
       "understoodIntervalDaysAt": "{count, plural, one {every {days} at {time}, every # week} other {every {days} at {time}, every # weeks}}",
       "understoodRepeatWeeks": "{count, plural, one {{schedule}, every # week} other {{schedule}, every # weeks}}",
@@ -791,7 +794,7 @@
       "repeatWeeks": "{count, plural, one {Every week} other {Every # weeks}}",
       "repeatLess": "Repeat less often",
       "repeatMore": "Repeat more often",
-      "proposedByAstra": "Proposed by Astra",
+      "proposedByAstra": "Proposed by Orbit",
       "moreDetails": "More details",
       "exactTime": "At what time?",
       "reminders": "Reminders",
@@ -804,18 +807,18 @@
       "taskDate": "Do on",
       "habitStartDate": "When do you start?",
       "datePhrasePlaceholder": "Tomorrow, Monday, or in your own words",
-      "dateInterpreting": "Astra is interpreting the date.",
-      "dateInterpreted": "Date interpreted by Astra.",
+      "dateInterpreting": "Orbit is interpreting the date.",
+      "dateInterpreted": "Date interpreted by Orbit.",
       "datePhrase": "When will you do it?",
       "recurrenceRequiresHabit": "To repeat, choose Habit.",
       "datePhraseUnresolved": "I couldn't identify the date. Choose it on the calendar.",
       "dateInvalid": "That date doesn't exist. Choose another.",
-      "dateBudgetReached": "Astra has reached today's limit. Choose the date on the calendar.",
+      "dateBudgetReached": "I've reached today's limit. Choose the date on the calendar.",
       "dateStale": "Choose the date on the calendar.",
-      "suggestEmoji": "Suggest an emoji with Astra",
-      "suggestDate": "Suggest a date with Astra",
+      "suggestEmoji": "Suggest an emoji with Orbit",
+      "suggestDate": "Suggest a date with Orbit",
       "acceptDate": "Use date",
-      "dateProposed": "Astra suggested this date.",
+      "dateProposed": "Orbit suggested this date.",
       "dateConfirmationRequired": "Use the suggested date or choose another in the calendar.",
       "noSchedule": "No date",
       "startDate": "Start",
@@ -935,7 +938,7 @@
       "tagNameRequired": "Give the tag a name",
       "tagNameTooLong": "Shorten the tag name to 50 characters or fewer.",
       "tagColorInvalid": "Choose a color from the swatches",
-      "suggestTags": "Suggest tags with Astra",
+      "suggestTags": "Suggest tags with Orbit",
       "suggestingTags": "Suggesting…",
       "suggestedTagsLabel": "Suggested",
       "noTagSuggestions": "No suggestions found",
@@ -1060,7 +1063,7 @@
       "slipAlertDescription": "A heads-up when this habit starts to slip.",
       "rescheduleAccept": "Use plan",
       "rescheduleLoading": "Finding a realistic plan...",
-      "rescheduleError": "Astra could not suggest a plan.",
+      "rescheduleError": "I could not suggest a plan.",
       "updateError": "We could not save this change. Try again.",
       "logError": "We could not update this log. Try again.",
       "logDateUnavailable": "You can't use this date. Choose today or a recent day.",
@@ -1073,7 +1076,7 @@
       "checklistError": "We could not update this checklist. Try again.",
       "deleteError": "We could not delete this habit. Try again.",
       "rescheduleWriteError": "We could not apply this plan. Try again.",
-      "rescheduleFinePrint": "Astra can be wrong. Review the plan before using it.",
+      "rescheduleFinePrint": "Orbit can be wrong. Review the plan before using it.",
       "proposed": "Proposed",
       "doneWord": "done",
       "missedWord": "not done",
@@ -1236,7 +1239,7 @@
     "importedCount": "{count, plural, one {# event imported as a habit} other {# events imported as habits}}",
     "importPartialFailure": "{count, plural, one {# event could not be imported} other {# events could not be imported}}",
     "importIssue": {
-      "utcUntilOffsetShift": "Orbit cannot place the final occurrence after a clock change. Remove the event's end date, then import it again."
+      "utcUntilOffsetShift": "I can't place the final occurrence after a clock change. Remove the event's end date, then import it again."
     },
     "goToHabits": "Open habits",
     "errorTitle": "Something went wrong",
@@ -1339,7 +1342,7 @@
         "new_parent": "New parent habit"
       },
       "recommended": "Recommended",
-      "recommendation": "Astra suggests: {placement}.",
+      "recommendation": "Orbit suggests: {placement}.",
       "checklistNote": "This item follows its parent habit’s settings. Your draft settings are kept if you pick a habit option again."
     },
     "operationUpdated": "See the updated result above.",
@@ -1403,7 +1406,7 @@
       "limitWeekly": "{allowance, plural, one {You've used your # message for this week.} other {You've used your # messages for this week.}}",
       "acting": "Sending your answer",
       "reviewing": "Preparing the preview",
-      "proposed": "Suggested by Astra",
+      "proposed": "Suggested by Orbit",
       "position": "{position} of {total}"
     },
     "liveBlock": {
@@ -1583,7 +1586,7 @@
       "dismiss": "Dismiss suggestion",
       "failed": "Couldn't update this suggestion. Try again."
     },
-    "title": "Astra",
+    "title": "Orbit",
     "offline": {
       "title": "You’re offline"
     },
@@ -1593,9 +1596,9 @@
         "goals-write": "Goals",
         "tags-write": "Tags",
         "profile-preferences-write": "Profile settings",
-        "profile-ai-memory-write": "Astra memory",
+        "profile-ai-memory-write": "Orbit memory",
         "profile-ai-summary-write": "Daily summary",
-        "profile-proactive-astra-write": "Astra notifications",
+        "profile-proactive-astra-write": "Orbit notifications",
         "notifications-write": "Notifications",
         "checklist-templates-write": "Checklist templates",
         "referrals-write": "Referral details",
@@ -1650,13 +1653,13 @@
     "fileAttached": "Attached file \"{name}\":",
     "sendError": "Failed to send message. Please try again.",
     "timeoutError": "The request timed out. Please try again.",
-    "dailyBudgetReached": "Astra has reached today's limit. You can use Astra again tomorrow.",
-    "limitReachedError": "You've used today's Astra messages. More arrive at midnight, your time.",
-    "limitReachedErrorWeekly": "You've used this week's Astra messages.",
+    "dailyBudgetReached": "I've reached today's limit. You can talk to me again tomorrow.",
+    "limitReachedError": "You've used today's AI messages. More arrive at midnight, your time.",
+    "limitReachedErrorWeekly": "You've used this week's AI messages.",
     "operationFailed": "That didn't work. Try again.",
     "action": {
       "changes": "Changes",
-      "completed": "Astra updated Orbit",
+      "completed": "Change saved",
       "failed": "The action could not be completed",
       "failedNamed": "Could not complete {name}",
       "open": "Open",
@@ -1729,7 +1732,7 @@
     "messagesUsed": "messages used today",
     "messagesUsedWeekly": "messages used this week",
     "senderYou": "You",
-    "senderOrbit": "Astra",
+    "senderOrbit": "Orbit",
     "unknownEntity": "Unknown",
     "habitList": {
       "title": "Today's habits",
@@ -1850,7 +1853,7 @@
         "name": "Name", "email": "Email", "language": "Language", "timeZone": "Time zone",
         "weekStartDay": "Week starts", "themePreference": "Theme", "aiSummary": "Daily summary",
         "plan": "Plan", "trialEnd": "Trial ends", "planExpiry": "Plan ends", "interval": "Interval",
-        "source": "Provider", "lifetime": "Lifetime access", "astraAllowance": "Astra messages used",
+        "source": "Provider", "lifetime": "Lifetime access", "astraAllowance": "AI messages used",
         "successfulReferrals": "Successful referrals", "pendingReferrals": "Pending referrals",
         "maxReferrals": "Referral limit", "rewardType": "Reward", "discountPercent": "Discount"
       },
@@ -1869,7 +1872,7 @@
       "open": "Open Profile"
     },
     "trace": {
-      "working": "Astra is working",
+      "working": "Orbit is working",
       "steps": "{count, plural, one {# step} other {# steps}}",
       "unknown": "Working on your request",
       "account": {
@@ -1964,7 +1967,7 @@
         "Habit": "Habits",
         "General": "Undated tasks"
       },
-      "proposed": "Proposed by Astra",
+      "proposed": "Proposed by Orbit",
       "notSet": "Not set",
       "atTime": "at {time}",
       "diff": "{field}: from {old} to {new}",
@@ -2070,10 +2073,10 @@
     },
     "operation": {
       "parentChoiceRequired": "Choose where each item goes before approving.",
-      "batchFailed": "Some items could not be saved. Ask Astra to try only the failed items.",
-      "unavailableRecovery": "That didn't work. Ask Astra for a new preview.",
-      "partialApplied": "{total, plural, one {Only {applied} of # change was saved.} other {Only {applied} of # changes were saved.}} Ask Astra to try the rest.",
-      "unknown": "Astra operation",
+      "batchFailed": "Some items could not be saved. Ask Orbit to try only the failed items.",
+      "unavailableRecovery": "That didn't work. Ask Orbit for a new preview.",
+      "partialApplied": "{total, plural, one {Only {applied} of # change was saved.} other {Only {applied} of # changes were saved.}} Ask Orbit to try the rest.",
+      "unknown": "Orbit operation",
       "changeHabits": "{count, plural, one {Change # habit} other {Change # habits}}",
       "newHabits": "{count, plural, one {New habit} other {# new habits}}",
       "newHabitsWithExisting": "{count, plural, one {New parent habit} other {# new parent habits}}",
@@ -2089,11 +2092,11 @@
       "remove": "Remove",
       "rejected": "{count, plural, one {The change was rejected. Nothing was saved.} other {The # changes were rejected. Nothing was saved.}}",
       "invalid": "Check the edited values and try again.",
-      "stale": "Your habits changed since Astra prepared this preview.",
+      "stale": "Your habits changed since Orbit prepared this preview.",
       "refresh": "Refresh preview",
       "empty": "There are no changes to approve.",
       "refreshFailed": "Couldn't refresh. Try again.",
-      "staleUnavailable": "You can't refresh this preview anymore. Ask Astra to prepare it again.",
+      "staleUnavailable": "You can't refresh this preview anymore. Ask Orbit to prepare it again.",
       "list": {
         "add": "Add item",
         "checklistLimit": "50 items max. Remove one to add another.",
@@ -2161,7 +2164,7 @@
         "Failed": "Some items did not save"
       },
       "status": {
-        "changeNotMade": "Astra couldn't make that change.",
+        "changeNotMade": "I couldn't make that change.",
         "PendingConfirmation": "Nothing has changed yet",
         "Denied": "This account cannot do that",
         "UnsupportedByPolicy": "Manage this in Profile",
@@ -2185,16 +2188,16 @@
       },
       "toggleSource": {
         "setProactiveAstra": {
-          "turnOn": "Turn on Astra notifications",
-          "turnOff": "Turn off Astra notifications"
+          "turnOn": "Turn on Orbit notifications",
+          "turnOff": "Turn off Orbit notifications"
         },
         "setAiSummary": {
           "turnOn": "Turn on the daily recap",
           "turnOff": "Turn off the daily recap"
         },
         "setAiMemory": {
-          "turnOn": "Turn on Astra memory",
-          "turnOff": "Turn off Astra memory"
+          "turnOn": "Turn on Orbit memory",
+          "turnOff": "Turn off Orbit memory"
         }
       },
       "approveCount": {
@@ -2280,9 +2283,9 @@
         "createChecklistTemplate": "Create checklist template",
         "deleteChecklistTemplate": "Delete checklist template",
         "updateProfilePreferences": "Change preferences",
-        "setAiMemory": "Change Astra memory",
-        "setAiSummary": "Change Astra summary",
-        "setProactiveAstra": "Change Astra notifications",
+        "setAiMemory": "Change Orbit memory",
+        "setAiSummary": "Change Orbit summary",
+        "setProactiveAstra": "Change Orbit notifications",
         "markNotificationRead": "Mark alert as read",
         "markAllNotificationsRead": "Mark all alerts as read",
         "subscribePush": "Enable device alerts",
@@ -2429,8 +2432,8 @@
       "onboardingCompleted": "Setup completed",
       "policyDenied": "I cannot do that from here.",
       "proactiveAstra": {
-        "disabled": "Proactive Astra turned off",
-        "enabled": "Proactive Astra turned on"
+        "disabled": "Orbit notifications turned off",
+        "enabled": "Orbit notifications turned on"
       },
       "pushCredentialsRequired": "Allow notifications on this device and try again.",
       "pushSubscribed": "Notifications enabled on this device",
@@ -2518,8 +2521,8 @@
       "choosePages": "Choose pages",
       "disconnect": "Disconnect",
       "disconnectTitle": "Disconnect Notion?",
-      "description": "Astra reads only the pages you choose in Notion.",
-      "disconnectBody": "Astra stops reading your pages and Orbit deletes everything it stored from Notion.",
+      "description": "Orbit reads only the pages you choose in Notion.",
+      "disconnectBody": "Orbit stops reading your pages and deletes everything it stored from Notion.",
       "error": "The connection did not work. Try again.",
       "offline": "You are offline. Connect to the internet to manage Notion.",
       "lastSync": "Last sync: {time}",
@@ -2535,7 +2538,7 @@
       "saveError": "Change not saved. Try again."
     },
     "groups": {
-      "astra": "Astra",
+      "astra": "Orbit",
       "notifications": "Notifications",
       "more": "More of Orbit"
     },
@@ -2560,8 +2563,8 @@
       "title": "Today's messages",
       "titleWeekly": "This week's messages",
       "usage": "{used, plural, one {# of {limit} used} other {# of {limit} used}}",
-      "spent": "Today's messages are used. They return at midnight, your time.",
-      "spentWeekly": "This week's messages are used.",
+      "spent": "Today's AI messages are used. They return at midnight, your time.",
+      "spentWeekly": "This week's AI messages are used.",
       "plan": "Plan",
       "free": "Free",
       "pro": "Pro",
@@ -2615,7 +2618,7 @@
       "title": "Daily recap"
     },
     "proactiveAstra": {
-      "title": "Astra notifications"
+      "title": "Orbit notifications"
     },
     "marketingEmails": {
       "title": "Product email",
@@ -2907,7 +2910,7 @@
       "notifications": "To send push notifications and habit reminders you have configured"
     },
     "thirdParty": {
-      "notion": "Notion: read-only access to titles, dates and status of the pages you share, so Astra can suggest tasks and habits. Orbit stores these records in its database hosted by Render in Ohio, United States. Disconnecting deletes the connection and all stored Notion records.",
+      "notion": "Notion: read-only access to titles, dates and status of the pages you share, so Orbit can suggest tasks and habits. Orbit stores these records in its database hosted by Render in Ohio, United States. Disconnecting deletes the connection and all stored Notion records.",
       "title": "Third-Party Services",
       "intro": "We use the following services to operate Orbit:",
       "google": "Google OAuth: for sign-in directly with Google",
@@ -2945,7 +2948,7 @@
       "intro": "We retain your data only as long as needed to provide the service:",
       "account": "Account data: kept for as long as your account is active.",
       "sessions": "Authentication sessions and push tokens: kept while active and removed on logout, token expiry, or device unsubscribe.",
-      "ai": "We keep your Astra conversations, including the images you send, until you delete the conversation, use Fresh Start, or delete your account. Images are never public.",
+      "ai": "We keep your conversations with Orbit, including the images you send, until you delete the conversation, use Fresh Start, or delete your account. Images are never public.",
       "reminderHistory": "Sent reminder, slip alert, and streak freeze records: kept for 90 days from the record date.",
       "syncRecords": "Records deleted for offline sync: kept for 31 days before permanent removal.",
       "calendarSuggestions": "Google Calendar import suggestions that you do not import: kept for 14 days.",
@@ -2965,7 +2968,7 @@
     },
     "automatedProcessing": {
       "title": "AI & Automated Processing",
-      "body": "Orbit's AI assistant, Astra, processes your habit and chat data to generate summaries, retrospectives, and suggestions. This is assistive only and does not make legally significant decisions about you. You can disable AI summaries at any time in Profile, and you may object to automated processing by contacting us."
+      "body": "Orbit's AI processes your habit and chat data to generate summaries, retrospectives, and suggestions. This is assistive only and does not make legally significant decisions about you. You can disable AI summaries at any time in Profile, and you may object to automated processing by contacting us."
     },
     "minors": {
       "title": "Age Requirement",
@@ -2973,7 +2976,7 @@
     },
     "export": {
       "title": "Your Right to Export Your Data",
-      "body": "You can download a copy of your Orbit data as a JSON file from Profile, in line with your data-portability rights under LGPD Art. 18. It includes your habits, logs, goals, tags, settings, and saved Astra conversations: your messages, Astra's replies, what Astra checked or changed, and what you decided on each suggestion. Images you sent are listed by file name only."
+      "body": "You can download a copy of your Orbit data as a JSON file from Profile, in line with your data-portability rights under LGPD Art. 18. It includes your habits, logs, goals, tags, settings, and saved conversations with Orbit: your messages, Orbit's replies, what Orbit checked or changed, and what you decided on each suggestion. Images you sent are listed by file name only."
     },
     "deletion": {
       "title": "Data Deletion",
@@ -2995,10 +2998,10 @@
       "heading": "Your Pro trial ended",
       "paused": "Paused",
       "subtitleQuiet": "These Pro features will pause unless you subscribe.",
-      "astraCeiling": "250 Astra messages a week",
+      "astraCeiling": "250 AI messages a week",
       "calendarSync": "Calendar sync",
       "retrospective": "Periodic retrospective",
-      "proactiveAstra": "Proactive Astra",
+      "proactiveAstra": "Orbit check-ins",
       "savings": "Annual saves {percent}%",
       "subscribe": "View plans",
       "continueFree": "Stay free"
@@ -3032,7 +3035,7 @@
       "createFailed": "The habit was not created. Check the connection and try again.",
       "what": {
         "title": "What do you want to keep doing?",
-        "label": "How would you tell Astra?",
+        "label": "How would you tell Orbit?",
         "placeholder": "Walk every Monday and Thursday at 18:00",
         "marksLabel": "Words Orbit understood",
         "startersTitle": "If you want a start",
@@ -3048,8 +3051,8 @@
       "when": {
         "astraRead": "This is how I read it. Correct anything that is wrong.",
         "direct": "When do you want to do it?",
-        "proposedBy": "Proposed by Astra",
-        "emojiLabel": "Emoji proposed by Astra",
+        "proposedBy": "Proposed by Orbit",
+        "emojiLabel": "Emoji proposed by Orbit",
         "correctSchedule": "Correct schedule",
         "scheduleDetails": "{title}. {cadence}. Time: {time}",
         "anyTime": "Any time",
@@ -3078,8 +3081,8 @@
         "daysLabel": "On which days?",
         "timeLabel": "At what time?",
         "timeHint": "Leave empty for any time of day",
-        "limit": "{allowance, plural, one {Today''s # message has been used. Reading the phrase draws on the same allowance.} other {Today''s # messages have been used. Reading the phrase draws on the same allowance.}}",
-        "limitWeekly": "{allowance, plural, one {This week's # message has been used. Reading the phrase draws on the same allowance.} other {This week's # messages have been used. Reading the phrase draws on the same allowance.}}",
+        "limit": "{allowance, plural, one {Today''s # AI message has been used. Reading the phrase draws on the same allowance.} other {Today''s # AI messages have been used. Reading the phrase draws on the same allowance.}}",
+        "limitWeekly": "{allowance, plural, one {This week's # AI message has been used. Reading the phrase draws on the same allowance.} other {This week's # AI messages have been used. Reading the phrase draws on the same allowance.}}",
         "days": {
           "sunday": "Sun", "monday": "Mon", "tuesday": "Tue", "wednesday": "Wed", "thursday": "Thu", "friday": "Fri", "saturday": "Sat"
         },
@@ -3150,7 +3153,7 @@
         "continue": "Continue"
       },
       "done": {
-        "tellAstra": "Next time, tell Astra what you want to do from Today.",
+        "tellAstra": "Next time, tell Orbit what you want to do from Today.",
         "title": "Done. It is in your day.",
         "body": "When you do it, mark its ring on Today to log it.",
         "remindersOffBody": "When you do it, mark its ring on Today to log it. You can turn reminders on from the habit.",
@@ -3180,7 +3183,7 @@
       "calendarDescription": "Already have events in Google Calendar? Import them as habits in Orbit with one tap.",
       "calendarButton": "Import calendar",
       "importTitle": "Import from another app?",
-      "importDescription": "Coming from another habit tracker? Astra can recreate your habits. Attach a file or paste your list.",
+      "importDescription": "Coming from another habit tracker? Orbit can recreate your habits. Attach a file or paste your list.",
       "importButton": "Import habits",
       "importNotNow": "Not now"
     },
@@ -3188,7 +3191,7 @@
       "title": "Orbit guide",
       "habits": "Habits",
       "calendar": "Calendar",
-      "astra": "Astra",
+      "astra": "Orbit",
       "connect": "Connect",
       "rewards": "Rewards",
       "progress": "Goals",
@@ -3236,7 +3239,7 @@
       },
       "progressSection": {
         "goalsTitle": "Goals in Progress",
-        "goalsDesc": "Create a goal from a habit or ask Astra, then find it in Progress with your streak, figures, and achievements.",
+        "goalsDesc": "Create a goal from a habit or ask Orbit, then find it in Progress with your streak, figures, and achievements.",
         "trackingTitle": "Tracking Progress",
         "trackingDesc": "Open a goal to see notes and progress history. Update standard goals manually; streak goals follow linked habit logs.",
         "linkingTitle": "Linking Habits",
@@ -3248,23 +3251,23 @@
       },
       "astraSection": {
         "canDoTitle": "Create & Log",
-        "canDoDesc": "Tell Astra what habits you want and it creates them. Say 'I ran today' to log one. You can also ask for a habit on a single day, like 'buy eggs tomorrow'.",
+        "canDoDesc": "Tell Orbit what habits you want and it creates them. Say 'I ran today' to log one. You can also ask for a habit on a single day, like 'buy eggs tomorrow'.",
         "toolsBreadthTitle": "71 Built-In Tools",
-        "toolsBreadthDesc": "Astra does more than chat. It can act. It has 71 tools spanning habits, sub-habits, goals, tags, checklists, logging, reminders, calendar, and your account, so almost anything you can do by tapping, you can do by asking. The free plan includes 5 AI messages a day; Pro includes 250 a week.",
+        "toolsBreadthDesc": "Orbit does more than chat. It can act. It has 71 tools spanning habits, sub-habits, goals, tags, checklists, logging, reminders, calendar, and your account, so almost anything you can do by tapping, you can do by asking. The free plan includes 5 AI messages a day; Pro includes 250 a week.",
         "manageTitle": "Update & Delete",
-        "manageDesc": "Ask Astra to modify habits: 'move my gym to tomorrow', 'rename running to jogging', 'change meditation to weekly', or 'delete my reading habit'. It can handle bulk operations too.",
+        "manageDesc": "Ask Orbit to modify habits: 'move my gym to tomorrow', 'rename running to jogging', 'change meditation to weekly', or 'delete my reading habit'. It can handle bulk operations too.",
         "insightsTitle": "Progress & Analysis",
-        "insightsDesc": "Ask 'how am I doing?' and Astra analyzes your real streaks, completion rates, and trends. It can give weekly reviews, suggest improvements, and celebrate your progress.",
+        "insightsDesc": "Ask 'how am I doing?' and Orbit analyzes your real streaks, completion rates, and trends. It can give weekly reviews, suggest improvements, and celebrate your progress.",
         "reschedulingTitle": "Smart Rescheduling",
-        "reschedulingDesc": "Ask Astra to analyze your schedule and suggest better times or days for your habits. It considers your existing routine to find optimal slots. Pro feature.",
+        "reschedulingDesc": "Ask Orbit to analyze your schedule and suggest better times or days for your habits. It considers your existing routine to find optimal slots. Pro feature.",
         "imageTitle": "Image Analysis",
-        "imageDesc": "Send a photo of a schedule, to-do list, or calendar and Astra extracts habits from it. It suggests them for your review before creating anything.",
+        "imageDesc": "Send a photo of a schedule, to-do list, or calendar and Orbit extracts habits from it. It suggests them for your review before creating anything.",
         "voiceTitle": "Voice Input",
         "voiceDesc": "Tap the microphone icon to speak instead of type. Choose your language from the flag picker next to the mic. Supports multiple languages.",
         "cannotDoTitle": "Limitations",
-        "cannotDoDesc": "Astra is focused on habits and routines. It can't answer general knowledge questions, help with homework, or do things unrelated to your habits.",
+        "cannotDoDesc": "Orbit is focused on habits and routines. It can't answer general knowledge questions, help with homework, or do things unrelated to your habits.",
         "tipsTitle": "Tips",
-        "tipsDesc": "Astra remembers your conversation, so you can say 'modify the previous suggestion' or 'change TestA to weekly'. It also knows your streaks and stats, so ask for honest feedback."
+        "tipsDesc": "Orbit remembers your conversation, so you can say 'modify the previous suggestion' or 'change TestA to weekly'. It also knows your streaks and stats, so ask for honest feedback."
       },
       "connectSection": {
         "mcpTitle": "Outside assistants",
@@ -3346,18 +3349,18 @@
       }
     },
     "convert": {
-      "promise": "The plan changes what Astra can do, never your habits and logs.",
+      "promise": "The plan changes what Orbit can do, never your habits and logs.",
       "trialEyebrow": "Your Pro trial is active",
       "trialDaysLeft": "{days, plural, one {# trial day left} other {# trial days left}}",
       "trialLastDay": "Last day of the trial",
       "trialHeading": "250 a week.",
       "freeEyebrow": "You are on the free plan",
-      "freeHeading": "7 times more Astra.",
+      "freeHeading": "7x more AI messages.",
       "trustLine": "No lock-in, and no card is ever stored in Orbit.",
       "cancelAnytime": "Cancel whenever you like.",
       "handOff": "Payment happens with our provider. Orbit never holds your card details.",
       "stayFree": "Stay on the free plan",
-      "allowanceLabel": "Astra allowance",
+      "allowanceLabel": "AI allowance",
       "freeAllowance": "5",
       "proAllowance": "250",
       "perDay": "messages/day",
@@ -3366,10 +3369,10 @@
     },
     "outcomes": {
       "label": "What changes with Pro",
-      "astra": "Rearrange your routine with 250 Astra messages a week",
+      "astra": "Rearrange your routine with 250 AI messages a week",
       "calendar": "See Google Calendar commitments beside your habits",
       "retrospective": "See what happened and what to change each week and month",
-      "noticing": "Astra notices, without you asking, when something slips"
+      "noticing": "Orbit notices, without you asking, when something slips"
     },
     "plans": {
       "intervalLabel": "How to pay",
@@ -3384,7 +3387,7 @@
       "yearly": {
         "name": "Annual",
         "period": " a year",
-        "heroLine": "The cheapest way to have Astra all year.",
+        "heroLine": "The cheapest way to have Orbit all year.",
         "equivalent": "That is {price} a month, {percent}% less than monthly."
       },
       "recommended": "Recommended",
@@ -3417,8 +3420,8 @@
         "monthlyCharge": "{price}/month",
         "yearlyCharge": "{price}/year",
         "planReference": "Plan: {price}",
-        "proBody": "{limit, plural, one {The # message a day is on, along with the calendar, the retrospective and Astra noticing things.} other {The # messages a day are on, along with the calendar, the retrospective and Astra noticing things.}}",
-        "proBodyWeekly": "{limit, plural, one {Your # message a week is on, along with the calendar, the retrospective and Astra noticing things.} other {Your # messages a week are on, along with the calendar, the retrospective and Astra noticing things.}}",
+        "proBody": "{limit, plural, one {The # message a day is on, along with the calendar, the retrospective and Orbit noticing things.} other {The # messages a day are on, along with the calendar, the retrospective and Orbit noticing things.}}",
+        "proBodyWeekly": "{limit, plural, one {Your # message a week is on, along with the calendar, the retrospective and Orbit noticing things.} other {Your # messages a week are on, along with the calendar, the retrospective and Orbit noticing things.}}",
         "canceledBody": "The subscription is canceled and will not renew. Everything in Pro stays on until the period ends.",
         "pastDueBody": "The last charge did not go through. Everything in Pro stays on while the provider retries; updating the card in the portal fixes it.",
         "lifetimeBadge": "Lifetime"
@@ -3430,12 +3433,12 @@
         "change": "Change"
       },
       "usage": {
-        "title": "Astra messages",
+        "title": "AI messages",
         "aiMessages": "Today",
         "aiMessagesWeekly": "This week",
         "aiMessagesOf": "{used} of {limit}",
-        "nearLimit": "You are close to today's Astra limit",
-        "nearLimitWeekly": "You are close to this week's Astra limit"
+        "nearLimit": "You are close to today's AI limit",
+        "nearLimitWeekly": "You are close to this week's AI limit"
       },
       "invoices": {
         "title": "Invoice history",
@@ -3464,7 +3467,7 @@
       "lapsed": {
         "title": "Your Pro has ended",
         "payment_failed": "Your subscription ended after a payment problem on {date}.",
-        "lostMessages": "{limit, plural, one {Astra messages went back to # a day.} other {Astra messages went back to # a day.}}",
+        "lostMessages": "{limit, plural, one {AI messages went back to # a day.} other {AI messages went back to # a day.}}",
         "lostCalendar": "Google Calendar no longer syncs.",
         "lostRetrospective": "The periodic retrospective stopped.",
         "paymentFix": "Update your payment method with the provider.",
@@ -3505,8 +3508,8 @@
       "edgeBlockedRetry": "This request was blocked before it reached Orbit. Try again in a few minutes. If it keeps happening, contact support.",
       "habitLimit": "{limit, plural, one {You can have up to # active habit. Sub-habits don't count. Delete a habit to add another.} other {You can have up to # active habits. Sub-habits don't count. Delete a habit to add another.}}",
       "calendarPro": "Calendar sync needs Orbit Pro. Open Upgrade to turn it on.",
-      "astraLimit": "You've used today's Astra messages. More arrive at midnight, your time.",
-      "astraLimitWeekly": "You've used this week's Astra messages.",
+      "astraLimit": "You've used today's AI messages. More arrive at midnight, your time.",
+      "astraLimitWeekly": "You've used this week's AI messages.",
       "payGate": "This feature needs Orbit Pro. Open Upgrade to see your options.",
       "reload": "Reload",
       "noPermission": "You don't have permission to do that.",
@@ -3531,7 +3534,7 @@
       "calendarNotConnected": "Connect Google Calendar first.",
       "calendarReconnect": "Your Google Calendar connection expired. Reconnect to continue.",
       "calendarFetchFailed": "Couldn't load your calendar events. Please try again.",
-      "aiUnavailable": "Astra is unavailable right now. Try again in a moment.",
+      "aiUnavailable": "I can't answer right now. Try again in a moment.",
       "referralInvalid": "That referral code isn't valid.",
       "referralSelf": "You can't refer yourself.",
       "referralAlready": "This account was already referred.",
@@ -4180,7 +4183,7 @@
     },
     "ai": {
       "title": "AI Features",
-      "body": "Orbit includes an AI assistant (Astra) powered by third-party providers such as OpenAI. AI output is generated automatically, may be inaccurate or incomplete, and is provided for assistance only. You are responsible for how you act on AI suggestions."
+      "body": "Orbit includes an AI assistant powered by third-party providers such as OpenAI. AI output is generated automatically, may be inaccurate or incomplete, and is provided for assistance only. You are responsible for how you act on AI suggestions."
     },
     "noMedicalAdvice": {
       "title": "Not Medical or Professional Advice",
@@ -4248,7 +4251,7 @@
   },
   "aiDisclosure": {
     "isAiLabel": "AI",
-    "notMedicalAdvice": "Astra is AI and can be wrong. This is not medical or professional advice."
+    "notMedicalAdvice": "Orbit is AI and can be wrong. This is not medical or professional advice."
   },
   "milestoneShare": {
     "title": "Share milestone",

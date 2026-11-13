@@ -1,4 +1,4 @@
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascotIcon } from '@/components/ui/orbit-mascot'
 import { SPACING } from '@orbit/shared/theme'
 import { ProBenefits } from './pro-benefits'
 import { Text, View, useWindowDimensions } from 'react-native'
@@ -35,7 +35,7 @@ export function SubscriptionNotice({ status, locale, onResubscribe, t, tokens }:
         <Text style={[styles.billingBody, { color: tokens.fg2 }]}>{t('upgrade.billing.lapsed.body')}</Text>
         <View style={{ gap: 8 }}>
           {[
-            { label: t('upgrade.billing.lapsed.lostMessages', { limit: status.aiMessagesLimit }), Icon: AstraGlyph },
+            { label: t('upgrade.billing.lapsed.lostMessages', { limit: status.aiMessagesLimit }), Icon: OrbitMascotIcon },
             { label: t('upgrade.billing.lapsed.lostCalendar'), Icon: Calendar },
             { label: t('upgrade.billing.lapsed.lostRetrospective'), Icon: FileText },
           ].map(({ label, Icon }) => <View key={label} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>

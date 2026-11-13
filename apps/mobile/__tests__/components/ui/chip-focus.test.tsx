@@ -15,6 +15,8 @@ describe('feature guide chip focus', () => {
     const chips = () => scroller.findAllByType('Pressable')
     expect(chips()).toHaveLength(8)
     const readStyle = (index: number) => StyleSheet.flatten(chips()[index].props.style({ pressed: false }))
+    const ringOf = (index: number) => StyleSheet.flatten(chips()[index].findByProps({ testID: 'selection-ring' }).props.style)
+    const restingRing = ringOf(chips().findIndex((chip: { props: { accessibilityState: { selected: boolean } } }) => !chip.props.accessibilityState.selected)).borderColor
     for (let index = 0; index < chips().length; index += 1) {
       const resting = readStyle(index)
       const target = {}
@@ -24,8 +26,10 @@ describe('feature guide chip focus', () => {
       expect(focused.outlineWidth).toBe(2)
       expect(focused.outlineStyle).toBe('solid')
       expect(focused.outlineOffset + focused.outlineWidth).toBeLessThanOrEqual(0)
-      expect(readStyle(index)).toEqual({ ...resting, borderColor: chips()[index].props.accessibilityState.selected ? 'transparent' : resting.borderColor })
-      expect(scroller.findAllByType('View').filter((view: { props: { pointerEvents?: string } }) => view.props.pointerEvents === 'none')).toHaveLength(1)
+      expect(readStyle(index)).toEqual(resting)
+      const ring = StyleSheet.flatten(chips()[index].findByProps({ testID: 'selection-ring' }).props.style)
+      expect(ring.borderColor).toBe(restingRing)
+      expect(scroller.findAllByType('View').filter((view: { props: { pointerEvents?: string; testID?: string } }) => view.props.pointerEvents === 'none' && view.props.testID !== 'selection-ring')).toHaveLength(1)
       TestRenderer.act(() => chips()[index].props.onBlur?.(event))
       expect(readStyle(index).outlineWidth ?? 0).toBe(0)
     }

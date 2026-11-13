@@ -609,7 +609,7 @@ describe('ProfilePage', () => {
         expect(icons[0]!.getAttribute('width')).toBe('24')
         expect(icons[0]!.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
         if (index === 3) {
-          expect(icons[0]).toHaveAttribute('data-asset', 'astra-mark')
+          expect(icons[0]).toHaveAttribute('data-asset', 'orbit-mascot')
           expect(row.querySelector('a')).toHaveAttribute('href', '/profile/astra')
         }
         if (navigates) {
@@ -976,10 +976,10 @@ describe('ProfilePage', () => {
   })
 
   it.each([
-    ['pt-BR', false, 'Notificações da Astra', 'Resumo diário'],
-    ['pt-BR', true, 'Notificações da Astra', 'Resumo diário'],
-    ['en', false, 'Astra notifications', 'Daily recap'],
-    ['en', true, 'Astra notifications', 'Daily recap'],
+    ['pt-BR', false, 'Notificações do Orbit', 'Resumo diário'],
+    ['pt-BR', true, 'Notificações do Orbit', 'Resumo diário'],
+    ['en', false, 'Orbit notifications', 'Daily recap'],
+    ['en', true, 'Orbit notifications', 'Daily recap'],
   ] as const)('renders the %s Astra labels for Pro access %s', (locale, hasProAccess, proactive, summary) => {
     mockLocale.current = locale
     const messages = locale === 'pt-BR' ? ptBR : en

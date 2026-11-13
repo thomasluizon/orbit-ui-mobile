@@ -36,7 +36,7 @@ Web cookie is httpOnly + sameSite strict + secure; mobile tokens live in SecureS
 
 ## Brand & design
 
-"Orbit" and "Astra" are never translated. Read `BRAND.md` before brand, copy, positioning or design-direction work. Read `DESIGN.md` before any frontend work, and the `design/canvas/` drawing for your surface (the granted export). Precedence is the `DESIGN.md` D42 ladder: `## Information architecture` and `## Bans` outrank every drawing, and a drawing outranks `DESIGN.md` prose. **No decorative glow and no gradient wash.** `--primary` is fill/graphic only, `--primary-soft` accent text.
+"Orbit" is never translated. Read `BRAND.md` before brand, copy, positioning or design-direction work. Read `DESIGN.md` before any frontend work, and the `design/canvas/` drawing for your surface (the granted export). Precedence is the `DESIGN.md` D42 ladder: `## Information architecture` and `## Bans` outrank every drawing, and a drawing outranks `DESIGN.md` prose. **No decorative glow and no gradient wash.** `--primary` is fill/graphic only, `--primary-soft` accent text.
 
 ## Git workflow
 

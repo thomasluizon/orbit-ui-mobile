@@ -9,6 +9,7 @@ import { __resetTestHostConfig, __setWindowDimensions } from '@/test-mocks/react
 import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { pressableStyle } from '@/__tests__/support/press-feedback'
 
 vi.unmock('@/components/ui/icons')
 const TestRenderer = require('react-test-renderer')
@@ -231,8 +232,8 @@ describe('habit row standard on Android', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
-  it.each([false, true])('gives the structural selection checkbox independent hover and cancellation feedback, selected=%s', (isSelected) => {
-    motion.reduced = false
+  it.each([false, true].flatMap((isSelected) => [false, true].map((reduced) => ({ isSelected, reduced }))))('gives the structural selection checkbox independent hover and cancellation feedback, selected=$isSelected, reduced motion=$reduced', ({ isSelected, reduced }) => {
+    motion.reduced = reduced
     const actions = { onToggleSelection: vi.fn(), onDetail: vi.fn(), onToggleExpand: vi.fn(), onLog: vi.fn() }
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Read' })}
@@ -242,12 +243,7 @@ describe('habit row standard on Android', () => {
     const body = tree!.root.findAllByType('Pressable').find((node: { props: Record<string, unknown> }) => node.props.accessibilityRole === 'button' && String(node.props.accessibilityLabel).startsWith('Read'))!
     const rowStyle = () => StyleSheet.flatten(tree!.root.findByProps({ testID: 'habit-row' }).props.style)
     const outline = () => StyleSheet.flatten(tree!.root.findByProps({ testID: 'habit-row-outline' }).props.style).borderColor
-    const controlStyle = (pressed = false) => StyleSheet.flatten(selection.props.style({ pressed }))
-    const selectionScale = () => {
-      let layer = selection.parent
-      while (layer && layer.props['data-slot'] !== 'press-scale') layer = layer.parent
-      return StyleSheet.flatten(layer!.props.style)
-    }
+    const controlStyle = (pressed = false) => pressableStyle(selection, pressed)
     expect(selection.props.onHoverIn).toBeTypeOf('function')
     expect(selection.props.onHoverOut).toBeTypeOf('function')
     expect(controlStyle()).toMatchObject({ width: 48, minHeight: 48, borderRadius: 999, overflow: 'hidden' })
@@ -264,10 +260,9 @@ describe('habit row standard on Android', () => {
       TestRenderer.act(() => selection.props.onPressIn())
       expect(controlStyle().backgroundColor).toBe(tokens.bgHover)
       TestRenderer.act(() => selection.props.onHoverOut())
-      expect(controlStyle(true)).toMatchObject({ backgroundColor: tokens.bgHover })
-      expect(selectionScale()).toMatchObject({ transform: [{ scale: 0.96 }], transition: PRESS_SCALE_TRANSITION })
+      expect(controlStyle(true)).toMatchObject({ backgroundColor: tokens.bgHover, transform: [{ scale: reduced ? 1 : 0.96 }], transition: reduced ? 'none' : PRESS_SCALE_TRANSITION })
       TestRenderer.act(() => selection.props.onPressOut())
-      expect(selectionScale().transform).toEqual([{ scale: 1 }])
+      expect(controlStyle().transform).toEqual([{ scale: 1 }])
       expect(controlStyle().backgroundColor).toBeUndefined()
       expect(rowStyle().backgroundColor).toBe(restingFill)
       for (const action of Object.values(actions)) expect(action).not.toHaveBeenCalled()

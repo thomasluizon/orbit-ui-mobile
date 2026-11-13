@@ -33,7 +33,7 @@ it.each([en, ptBR])('opens Astra with its localized name and no move description
   expect(useUIStore.getState().astraConversationOpen).toBe(true)
 })
 
-it('opens Astra from the keyboard', async () => {
+it('opens the conversation from the keyboard', async () => {
   const user = userEvent.setup()
   mount()
   openButton().focus()
@@ -52,7 +52,7 @@ it('renders in the create button column, directly before the create button', () 
   expect(document.querySelectorAll('[data-astra-button]')).toHaveLength(1)
 })
 
-it('keeps the column when the create button is absent, so the Astra button takes its place', () => {
+it('keeps the column when the create button is absent, so the conversation entry takes its place', () => {
   mount({ fab: false })
   expect(document.querySelector('[data-shell-fab]')).toBeNull()
   expect(document.querySelector('[data-shell-fab-content] [data-astra-button]')).toBe(openButton())
@@ -103,4 +103,25 @@ it('holds the pending create button slot with a hidden spacer that takes no focu
   await user.tab()
   expect(document.activeElement).not.toBe(slot)
   expect(screen.getAllByRole('button').filter(button => slot.contains(button))).toEqual([])
+})
+
+it('is the live Orbit at 48 with no circle, fill or border, in a 60 press target', () => {
+  mount()
+  const button = openButton()
+  const mascot = button.querySelector('svg')!
+  expect(mascot).toHaveAttribute('data-orbit-face', 'rig')
+  expect(mascot).toHaveAttribute('width', '48')
+  expect(mascot).toHaveAttribute('aria-hidden', 'true')
+  expect(button).toHaveStyle({ width: '60px', height: '60px' })
+  expect(button).toHaveClass('bg-transparent', 'border-0', 'motion-safe:active:scale-[0.96]')
+  expect(button).not.toHaveAttribute('data-fab')
+  expect(button.querySelector('[data-press-fill]')).toBeNull()
+})
+
+it('scales the conversation entry to 0.96 on the press tokens only when motion is allowed', () => {
+  mount()
+  const button = openButton()
+  expect(button.className).toContain('[transition-duration:var(--dur-press)]')
+  expect(button.className).toContain('transition-[scale]')
+  expect(button.className.split(' ').filter(name => name.includes('scale-[0.96]'))).toEqual(['motion-safe:active:scale-[0.96]'])
 })

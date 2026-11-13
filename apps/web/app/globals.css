@@ -314,9 +314,9 @@ select[aria-hidden="true"] {
   transition: scale var(--dur-press) var(--ease-out);
 }
 
-/* WHY: a list row presses its content and never its fill, so the fill keeps its clearance from the content, as the mobile row does (thomasluizon/orbit-tickets#2096). */
+/* WHY: a list row presses its content and never its fill, so the fill keeps its clearance from the content, as the mobile row does (thomasluizon/orbit-tickets#2096).
+   The press content layers below scale a row whose content sits inside its body; this rule scales a personal row whose content sits beside it. */
 @media (prefers-reduced-motion: no-preference) {
-  .orbit-list-row-shell > .orbit-list-row-body:active:not(:disabled, [aria-disabled="true"]) > [data-slot="list-row-content"],
   .orbit-list-row-shell > [data-personal-text-action] > .orbit-list-row-body:active:not(:disabled, [aria-disabled="true"]) + [data-personal-text-content] > [data-slot="list-row-content"] {
     scale: 0.96;
   }
@@ -642,6 +642,30 @@ select[aria-hidden="true"] {
   .orbit-sheet-close:active > svg { scale: 0.96; }
 }
 
+/* Press feedback that keeps the press target: a row, an item or a small control scales its content
+   (never its hit box or its press fill), so a press near the edge stays on the control. */
+@layer components {
+  .orbit-list-row-body > [data-slot="list-row-content"],
+  .orbit-menu-content,
+  .orbit-press-content > :not([data-press-fill]),
+  .orbit-press-content > [data-press-fill] > *,
+  .orbit-tab > [data-tab-indicator] > :not([data-selection-motion]),
+  .orbit-tab > :not([data-tab-indicator]) {
+    transition: scale var(--dur-press) var(--ease-out);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .orbit-list-row-body:active:not(:disabled, [aria-disabled="true"]):not(:has(:is(button, a, [role="button"]):active)) > [data-slot="list-row-content"],
+  .orbit-menu-item:active:not(:disabled) > .orbit-menu-content,
+  .orbit-press-content:active:not(:disabled, [data-disabled]) > :not([data-press-fill]),
+  .orbit-press-content:active:not(:disabled, [data-disabled]) > [data-press-fill] > *,
+  .orbit-tab:active > [data-tab-indicator] > :not([data-selection-motion]),
+  .orbit-tab:active > :not([data-tab-indicator]) {
+    scale: 0.96;
+  }
+}
+
 [data-menu-trigger][data-state="open"]:not(:disabled) {
   background-color: var(--bg-hover);
 }
@@ -730,6 +754,16 @@ select[aria-hidden="true"] {
 
 .orbit-menu-panel[data-state="closed"],
 .orbit-menu-panel[data-ending-style] {
+  pointer-events: none;
+  animation: orbit-menu-exit var(--motion-menu-exit) var(--motion-ease-exit);
+}
+
+.orbit-select-panel {
+  transform-origin: var(--radix-select-content-transform-origin);
+  animation: orbit-menu-enter var(--motion-menu-enter) var(--motion-ease-enter);
+}
+
+.orbit-select-panel[data-state="closed"] {
   pointer-events: none;
   animation: orbit-menu-exit var(--motion-menu-exit) var(--motion-ease-exit);
 }
@@ -1805,7 +1839,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
 
   button[data-variant="primary"]:enabled:hover,
-  [data-fab]:not([data-fab="neutral"]):hover {
+  [data-fab]:hover {
     background: var(--primary-hover);
   }
 
@@ -1829,7 +1863,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 /* Press fill: after the primary hover rule above, with at least its specificity, so it wins under a mouse. It is outside the hover query, so it also shows on touch. */
 button[data-variant="primary"]:enabled:not([data-loading]):active,
-[data-fab]:not([data-fab="neutral"]):active {
+[data-fab]:active {
   background: var(--primary-pressed);
 }
 
@@ -1857,7 +1891,8 @@ button[data-variant="primary"]:enabled:not([data-loading]):active,
   transition:
     background-color var(--dur-hover-control) var(--ease-standard),
     color var(--dur-hover-control) var(--ease-standard),
-    scale var(--dur-press) var(--ease-out);
+    scale var(--dur-press) var(--ease-out),
+    box-shadow var(--motion-selection-exit) var(--motion-ease-exit);
 }
 @media (prefers-reduced-motion: no-preference) {
   .chip:active { scale: 0.96; }
@@ -1919,7 +1954,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 }
 }
 
-/* Reduced motion: keep essential loading feedback while suppressing other motion. */
+/* Reduced motion: every animation and transition settles at once; a skeleton holds its still tone. */
 @media (prefers-reduced-motion: reduce) {
   .habit-form-disclosure[data-open] {
     transform: none;
@@ -1937,10 +1972,6 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
     transition-duration: 0s !important;
   }
 
-  .orbit-essential-loading {
-    animation-duration: 3s !important;
-    animation-iteration-count: infinite !important;
-  }
   .collapsible {
     transition: none !important;
   }
@@ -2576,6 +2607,28 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   }
 }
 
+/* Selection settle: the ring and the fill of a selected option, day, segment or chip ease in on the
+   selection preset and ease out on its shorter exit. The press scale and the hover fill keep their timing. */
+.orbit-selection-ring {
+  transition-property: box-shadow, background-color, color, scale;
+  transition-duration: var(--motion-selection-exit), var(--dur-hover-control), var(--dur-hover-control), var(--dur-press);
+  transition-timing-function: var(--motion-ease-exit), var(--ease-standard), var(--ease-standard), var(--ease-out);
+}
+:is(.orbit-selection-ring[data-selected], .orbit-selection-ring[aria-checked="true"], .orbit-selection-ring[aria-pressed="true"], .orbit-selection-ring[aria-selected="true"]) {
+  transition-duration: var(--motion-selection-enter), var(--dur-hover-control), var(--dur-hover-control), var(--dur-press);
+  transition-timing-function: var(--motion-ease-standard), var(--ease-standard), var(--ease-standard), var(--ease-out);
+}
+.chip-active {
+  transition-duration: var(--dur-hover-control), var(--dur-hover-control), var(--dur-press), var(--motion-selection-enter);
+  transition-timing-function: var(--ease-standard), var(--ease-standard), var(--ease-out), var(--motion-ease-standard);
+}
+.orbit-checkbox-box {
+  transition: background-color var(--motion-selection-exit) var(--motion-ease-exit);
+}
+.orbit-checkbox-box[data-filled] {
+  transition-duration: var(--motion-selection-enter);
+  transition-timing-function: var(--motion-ease-standard);
+}
 .orbit-selection-ring-thin { --selection-ring-width: 1.5px; }
 .orbit-selection-ring-hairline { --selection-ring-width: 1px; }
 :is(.orbit-selection-ring[data-selected], .orbit-selection-ring[aria-checked="true"], .orbit-selection-ring[aria-pressed="true"], .orbit-selection-ring[aria-selected="true"], .chip-active):not(:focus-visible):not(:has(:focus-visible)):not(:focus-visible *) {
@@ -3023,9 +3076,11 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   .orbit-sheet-panel,
   .orbit-sheet-panel[data-starting-style],
   .orbit-sheet-panel[data-ending-style] { transform: none; }
-  .orbit-menu-panel { animation: none; }
+  .orbit-menu-panel,
+  .orbit-select-panel { animation: none; }
   .orbit-menu-panel[data-state="closed"],
-  .orbit-menu-panel[data-ending-style] {
+  .orbit-menu-panel[data-ending-style],
+  .orbit-select-panel[data-state="closed"] {
     animation: orbit-menu-fade-out var(--motion-menu-exit) linear;
   }
 }

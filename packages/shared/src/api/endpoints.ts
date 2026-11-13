@@ -45,6 +45,7 @@ export const API = {
     importPromptDismiss: '/api/profile/import-prompt/dismiss',
     language: '/api/profile/language',
     themePreference: '/api/profile/theme-preference',
+    mascotMotion: '/api/profile/mascot-motion',
     reset: '/api/profile/reset',
     export: '/api/profile/export',
     marketingConsent: '/api/profile/marketing-consent',

@@ -16,7 +16,7 @@ function Surfaces({ profile, locale }: { profile: Profile; locale: string }) {
     <ProPitch profile={profile} trialDaysLeft={5} t={t} /></>
 }
 
-describe('weekly Astra allowance surfaces', () => {
+describe('weekly AI allowance surfaces', () => {
   it.each(['en', 'pt-BR'])('shows the count and server reset in %s', (locale) => {
     const profile = createMockProfile({ hasProAccess: true, aiMessagesUsed: 200, aiMessagesLimit: 250,
       aiMessagesPeriod: 'week', aiMessagesResetsAt: '2026-11-09T02:00:00Z', timeZone: 'America/Sao_Paulo' })
@@ -24,7 +24,7 @@ describe('weekly Astra allowance surfaces', () => {
       <Surfaces profile={profile} locale={locale} />
     </NextIntlClientProvider>)
     expect(screen.getByText(locale === 'en' ? '200 of 250' : '200 de 250')).toBeInTheDocument()
-    expect(screen.getByRole('region', { name: locale === 'en' ? 'Astra allowance' : 'Cota da Astra' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: locale === 'en' ? 'AI allowance' : 'Cota de IA' })).toBeInTheDocument()
     expect(screen.getAllByText(locale === 'en' ? 'Resets Sunday.' : 'Próxima renovação: domingo.')).toHaveLength(3)
     expect(screen.getByText(locale === 'en' ? "This week's messages" : 'Mensagens da semana')).toBeInTheDocument()
     expect(screen.getByText(locale === 'en' ? 'messages/week' : 'por semana')).toBeInTheDocument()

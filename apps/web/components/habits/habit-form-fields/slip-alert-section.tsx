@@ -19,7 +19,7 @@ export function SlipAlertSection({
 
   return (
     <div className={inline ? "flex flex-col gap-3" : "flex flex-col gap-3 rounded-[14px] bg-[var(--bg-field)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]"}>
-      {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Habit Create fSlip controls this label under D42. */}
+      {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Criar fSlip controls this label under D42. */}
       <ListRow textMode="label" placement={inline ? "field" : undefined} icon="shield-alert" title={t('habits.form.slipAlert')} description={t('habits.form.slipAlertDescription')}
         toggle={hasProAccess ? { checked: slipAlertEnabled, onChange: onToggle } : undefined}
         trailing={!hasProAccess ? <Badge>{t('common.proBadge')}</Badge> : undefined} chevron={!hasProAccess}

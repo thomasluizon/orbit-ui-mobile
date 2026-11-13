@@ -1,7 +1,7 @@
 import { PADDING, SPACING } from '@orbit/shared/theme'
 import { useState } from 'react'
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -42,7 +42,7 @@ export function TodayAstraLine({ text, destination, role = 'button', onPress, di
       >
         {!disabled && (pressed || hovered) ? <View accessible={false} pointerEvents="none" style={[StyleSheet.absoluteFill, styles.feedback, { backgroundColor: tokens.bgHoverOpaque }]} /> : null}
         <View accessible={false} style={{ width: 48, flexShrink: 0, alignItems: 'center' }}>
-          <AstraGlyph size={20} color={tokens.fg3} />
+          <OrbitMascot size={20} color={tokens.fg3} />
         </View>
         {loading ? <View testID="summary-skeleton" accessible={false} importantForAccessibility="no-hide-descendants" style={styles.skeleton}>
           <View style={[styles.placeholder, { backgroundColor: tokens.hairlineStrong }]} />

@@ -285,6 +285,9 @@ vi.mock('react-native-svg', () => {
     default: createSvg('Svg'),
     Defs: createSvg('Defs'),
     Path: createSvg('Path'),
+    ClipPath: createSvg('ClipPath'),
+    G: createSvg('G'),
+    Circle: createSvg('Circle'),
     Rect: createSvg('Rect'),
     Stop: createSvg('Stop'),
   }

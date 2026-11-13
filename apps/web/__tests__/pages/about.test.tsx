@@ -70,7 +70,7 @@ describe('AboutPage', () => {
   it('renders the About identity, real facts, and four destinations in order', () => {
     const { container } = render(<AboutPage />)
 
-    expect(container.querySelector('[data-asset="orbit-mark-accent"]')).toBeInTheDocument()
+    expect(container.querySelector('[data-asset="orbit-mascot"]')).toBeInTheDocument()
     expect(screen.getByText('Orbit')).toBeInTheDocument()
     expect(screen.getByText(ptBR.about.tagline)).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Sobre' })).toBeInTheDocument()

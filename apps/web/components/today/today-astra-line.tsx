@@ -2,7 +2,7 @@
 
 import { useId } from 'react'
 import Link from 'next/link'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 
 interface TodayAstraLineProps {
   text: string
@@ -19,7 +19,7 @@ export function TodayAstraLine({ text, destination, href, onPress, disabled = fa
   const destinationId = useId()
   const content = <>
     <span aria-hidden="true" className="relative flex w-[48px] shrink-0 items-center justify-center">
-      <AstraGlyph size={20} color="var(--fg-3)" />
+      <OrbitMascot size={20} color="var(--fg-3)" />
     </span>
     <span className="today-astra-sentence" aria-live={announce ? 'polite' : undefined}>
       {loading ? <><span className="sr-only">{text}</span><span data-summary-skeleton aria-hidden="true" className="flex min-h-[2lh] flex-col justify-center gap-2"><span className="h-[14px] w-full rounded-[8px] bg-[var(--hairline-strong)]" /><span className="h-[14px] w-2/3 rounded-[8px] bg-[var(--hairline-strong)]" /></span></> : text}

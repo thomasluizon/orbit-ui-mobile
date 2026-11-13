@@ -1,4 +1,3 @@
-import { ORBIT_MARK_PATHS } from '@orbit/shared/contracts/brand'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { render } from '@testing-library/react'
@@ -48,7 +47,7 @@ describe('daily streak static and numeral geometry in Chromium', () => {
             const final = await page.locator('[data-daily-streak-moment]').evaluate((panel) => {
               const previous = panel.querySelector('.daily-streak-previous')!
               const current = panel.querySelector('[data-current-streak]')!
-              const mark = panel.querySelector('[data-asset="orbit-mark"]')!
+              const mark = panel.querySelector('[data-asset="orbit-mascot"]')!
               const paths = [...mark.querySelectorAll('path')]
               const button = panel.querySelector('button')!
               const clip = current.parentElement!
@@ -72,7 +71,7 @@ describe('daily streak static and numeral geometry in Chromium', () => {
               }
             })
             expect(final, JSON.stringify({ mode, width, scale, final })).toMatchObject({ previousOpacity: '0', currentOpacity: '1',
-              currentText: new Intl.NumberFormat(locale).format(streak), neutral: true, circles: 0, paths: ORBIT_MARK_PATHS.map(path => path.d), numberFits: true,
+              currentText: new Intl.NumberFormat(locale).format(streak), neutral: true, circles: 0, numberFits: true,
               markCentred: true, noCloseOverlap: true, withinViewport: true, markSize: [44, 44], clipWidth })
             expect(final.closeSize.every((size) => size >= 48)).toBe(true)
             await page.emulateMedia({ reducedMotion: 'reduce' })

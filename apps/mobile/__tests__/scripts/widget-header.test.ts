@@ -601,7 +601,7 @@ describe('Android widget header', () => {
     const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
 
     expect(provider).toMatch(
-      /private fun applyRefreshingState\(views: RemoteViews, refreshing: Boolean\)[\s\S]*?setViewVisibility\(R\.id\.widget_refresh, if \(refreshing\) View\.GONE else View\.VISIBLE\)[\s\S]*?setViewVisibility\(\s*R\.id\.widget_refresh_loading, if \(refreshing\) View\.VISIBLE else View\.GONE\s*\)[\s\S]*?setFloat\(R\.id\.widget_list, "setAlpha", if \(refreshing\) 0\.6f else 1f\)/,
+      /private fun applyRefreshingState\(views: RemoteViews, refreshing: Boolean\)[\s\S]*?setViewVisibility\(R\.id\.widget_refresh, View\.VISIBLE\)\s*views\.setBoolean\(R\.id\.widget_refresh, "setEnabled", !refreshing\)[\s\S]*?setViewVisibility\(\s*R\.id\.widget_refresh_loading, if \(refreshing\) View\.VISIBLE else View\.GONE\s*\)[\s\S]*?setFloat\(R\.id\.widget_list, "setAlpha", if \(refreshing\) 0\.6f else 1f\)/,
     )
     expect(provider).toContain('applyRefreshingState(views, refreshing)')
     expect(provider).not.toContain('setFloat(R.id.widget_content, "setAlpha"')
@@ -1183,29 +1183,33 @@ describe('Android widget header', () => {
       'android:accessibilityLiveRegion': 'polite',
     })
     expect(provider).toMatch(
-      /val refreshDescription = OrbitWidgetFactory\.tr\(\s*context,\s*lang,\s*WidgetString\.REFRESH\s*\)/,
+      /val refreshDescription = OrbitWidgetFactory\.tr\(\s*context,\s*lang,\s*if \(refreshing\) WidgetString\.REFRESHING else WidgetString\.REFRESH\s*\)/,
     )
     expect(provider).toContain(
       'views.setContentDescription(R.id.widget_refresh, refreshDescription)',
     )
   })
 
-  it('names every visible refresh spinner through the widget language path', () => {
-    expect(layoutViews().get('widget_refresh_loading')).toMatchObject({
-      'android:accessibilityLiveRegion': 'polite',
-    })
+  it('keeps the refresh in place on a decorative skeleton face and names the waiting control through the widget language path', () => {
+    for (const layout of ['layout/widget_header.xml', 'layout/widget_header_stacked.xml']) {
+      const views = layoutViews(layout)
+      expect(views.get('widget_refresh_loading'), layout).toMatchObject({
+        'android:background': '@drawable/widget_skeleton_mark',
+        'android:importantForAccessibility': 'no',
+        'android:contentDescription': '@null',
+        'android:visibility': 'gone',
+      })
+      expect(views.get('widget_refresh'), layout).toMatchObject({ 'android:accessibilityLiveRegion': 'polite' })
+      const source = readFileSync(resolve(widgetRoot, layout), 'utf8')
+      expect(source.indexOf('@+id/widget_refresh_loading'), layout).toBeLessThan(source.indexOf('@+id/widget_refresh"'))
+      expect(source, layout).not.toContain('<ProgressBar')
+    }
+    expect(readFileSync(resolve(widgetRoot, 'drawable/widget_skeleton_mark.xml'), 'utf8')).toContain('@color/widget_well')
 
-    const makesSpinnerVisible =
-      /setViewVisibility\(\s*R\.id\.widget_refresh_loading,[\s\S]{0,80}?(?:android\.view\.)?View\.VISIBLE/
-    const namesSpinner =
-      /setContentDescription\(\s*R\.id\.widget_refresh_loading,[\s\S]{0,160}?WidgetString\.REFRESHING/
-
-    const namingSources = widgetKotlinSources().filter(({ source }) =>
-      makesSpinnerVisible.test(source),
-    )
-    expect(namingSources.length).toBeGreaterThan(0)
-    for (const { name, source } of namingSources) {
-      expect(source, name).toMatch(namesSpinner)
+    const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
+    expect(provider).toMatch(/OrbitWidgetFactory\.tr\(\s*context,\s*lang,\s*if \(refreshing\) WidgetString\.REFRESHING else WidgetString\.REFRESH\s*\)/)
+    for (const { name, source } of widgetKotlinSources()) {
+      expect(source, name).not.toMatch(/setContentDescription\(\s*R\.id\.widget_refresh_loading/)
     }
 
     expect(resourceStrings('values/widget_strings.xml').get('widget_refreshing')).toBe(

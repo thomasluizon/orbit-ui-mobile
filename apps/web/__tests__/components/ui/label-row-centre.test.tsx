@@ -18,7 +18,7 @@ describe('inline label row centres in preferences', () => {
     const source = resolve('app/globals.css')
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
     const boundaries: Record<string, string> = {
-      '@/app/(app)/preferences/_components/use-preference-controls': `import { useLocale } from 'next-intl'; export const usePreferenceControls = () => ({ selectedLanguage: useLocale(), currentTheme: 'dark', activePicker: null, setActivePicker: () => {}, handleThemeModeChange: () => {}, showGeneralOnToday: true, toggleShowGeneral: () => {}, timeZoneMutation: { mutate: () => {} }, weekStartMutation: { mutate: () => {} }, clockFormatMutation: { mutate: () => {} } });`,
+      '@/app/(app)/preferences/_components/use-preference-controls': `import { useLocale } from 'next-intl'; export const usePreferenceControls = () => ({ mascotMotion: { enabled: true, pending: false, toggle: () => {} }, selectedLanguage: useLocale(), currentTheme: 'dark', activePicker: null, setActivePicker: () => {}, handleThemeModeChange: () => {}, showGeneralOnToday: true, toggleShowGeneral: () => {}, timeZoneMutation: { mutate: () => {} }, weekStartMutation: { mutate: () => {} }, clockFormatMutation: { mutate: () => {} } });`,
       '@/app/(app)/preferences/_components/preference-picker-sheet': 'export const PreferencePickerSheet = () => null;',
     }
     const result = await build({

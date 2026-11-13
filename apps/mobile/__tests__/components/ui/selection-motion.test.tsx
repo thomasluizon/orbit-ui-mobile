@@ -3,7 +3,14 @@ import { StyleSheet, Text } from 'react-native'
 import { MonthGrid } from '@/components/dates/month-grid'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { SelectionIndicator } from '@/components/ui/selection-indicator'
-import { motionDurations } from '@orbit/shared/theme'
+import { MotionPressable } from '@/components/ui/motion-pressable'
+import { SwitchTrack } from '@/components/ui/switch'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Chip } from '@/components/ui/chip'
+import { RadioRow } from '@/components/ui/select-check'
+import { createTokensV2 } from '@/lib/theme'
+import { PRESS_SCALE_TRANSITION } from '@/components/motion/press-scale'
+import { motionDurations, motionPresets } from '@orbit/shared/theme'
 
 const preference = vi.hoisted(() => ({ reduced: false }))
 vi.mock('@/lib/motion', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => preference.reduced }))
@@ -51,5 +58,88 @@ describe('selection motion', () => {
     TestRenderer.act(() => tree!.update(<SelectionIndicator {...props} />))
     expect(StyleSheet.flatten(tree!.root.findByProps({ testID: 'selection-motion-indicator' }).props.style).transition).toContain('transform 0ms')
     TestRenderer.act(() => tree!.unmount())
+  })
+
+  it('settles a ringed control ring on the selection preset as it is selected and on its shorter exit as it is cleared', () => {
+    preference.reduced = false
+    const { enterDuration, exitDuration, enterEasing, exitEasing } = motionPresets.selection
+    let tree: ReturnType<typeof TestRenderer.create>
+    const render = (selected: boolean) => <MotionPressable accessibilityRole="checkbox" accessibilityState={{ checked: selected }} selectionRingWidth={1.5} selectionRingColor="#C4530F" />
+    const host = () => StyleSheet.flatten(tree!.root.findAll((node: { type: unknown }) => typeof node.type === 'string')[0]!.props.style)
+    TestRenderer.act(() => { tree = TestRenderer.create(render(false)) })
+    expect(host()).toMatchObject({ borderColor: 'transparent', transition: `${PRESS_SCALE_TRANSITION}, border-color ${exitDuration}ms cubic-bezier(${exitEasing.join(',')})` })
+    TestRenderer.act(() => tree!.update(render(true)))
+    expect(host()).toMatchObject({ borderWidth: 1.5, borderColor: '#C4530F', transition: `${PRESS_SCALE_TRANSITION}, border-color ${enterDuration}ms cubic-bezier(${enterEasing.join(',')})` })
+    preference.reduced = true
+    TestRenderer.act(() => tree!.update(render(true)))
+    expect(host().transition).toBe('none')
+    TestRenderer.act(() => tree!.unmount())
+    preference.reduced = false
+  })
+
+  it.each([false, true])('settles the checkbox fill on the selection preset, and at once under reduced motion %s', (reduced) => {
+    preference.reduced = reduced
+    const { enterDuration, exitDuration, enterEasing, exitEasing } = motionPresets.selection
+    const tokens = createTokensV2('orange', 'dark')
+    let tree: ReturnType<typeof TestRenderer.create>
+    const box = () => StyleSheet.flatten(tree!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props['data-slot'] === 'checkbox-box')[0]!.props.style)
+    TestRenderer.act(() => { tree = TestRenderer.create(<Checkbox checked={false} onChange={vi.fn()} label="Done" />) })
+    expect(box()).toMatchObject({ backgroundColor: 'transparent', transition: reduced ? 'none' : `background-color ${exitDuration}ms cubic-bezier(${exitEasing.join(',')})` })
+    TestRenderer.act(() => tree!.update(<Checkbox checked onChange={vi.fn()} label="Done" />))
+    expect(box()).toMatchObject({ backgroundColor: tokens.statusDone, transition: reduced ? 'none' : `background-color ${enterDuration}ms cubic-bezier(${enterEasing.join(',')})` })
+    TestRenderer.act(() => tree!.unmount())
+    preference.reduced = false
+  })
+
+  it.each([
+    ['chip', (selected: boolean) => <Chip active={selected}>Chip</Chip>, 1, 1, 'hairline'],
+    ['period chip', (selected: boolean) => <Chip variant="period" active={selected}>Chip</Chip>, 1, 1.5, 'hairline'],
+    ['radio row', (selected: boolean) => <RadioRow label="Radio" selected={selected} onSelect={vi.fn()} />, 1.5, 1.5, null],
+  ] as const)('settles the %s inset ring at its own edge on the selection preset, and at once under reduced motion', (_name, render, restWidth, width, rest) => {
+    const { enterDuration, exitDuration, enterEasing, exitEasing } = motionPresets.selection
+    const restColor = rest === null ? 'transparent' : createTokensV2('orange', 'dark')[rest]
+    for (const reduced of [false, true]) {
+      preference.reduced = reduced
+      let tree: ReturnType<typeof TestRenderer.create>
+      const ring = () => StyleSheet.flatten(tree!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.testID === 'selection-ring')[0]!.props.style)
+      TestRenderer.act(() => { tree = TestRenderer.create(render(false)) })
+      expect(ring()).toMatchObject({ borderWidth: restWidth, borderColor: restColor, transition: reduced ? 'none' : `border-color ${exitDuration}ms cubic-bezier(${exitEasing.join(',')})` })
+      TestRenderer.act(() => tree!.update(render(true)))
+      expect(ring()).toMatchObject({ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderWidth: width, transition: reduced ? 'none' : `border-color ${enterDuration}ms cubic-bezier(${enterEasing.join(',')})` })
+      expect([restColor, 'transparent']).not.toContain(ring().borderColor)
+      TestRenderer.act(() => tree!.unmount())
+    }
+    preference.reduced = false
+  })
+
+  it('keeps the caller resting border under a ringed control until it is selected', () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    const render = (selected: boolean) => <MotionPressable accessibilityRole="button" accessibilityState={{ selected }} selectionRingWidth={1.5} selectionRingColor="#C4530F" style={{ borderWidth: 1, borderColor: '#2A2A2E' }} />
+    const host = () => StyleSheet.flatten(tree!.root.findAll((node: { type: unknown }) => typeof node.type === 'string')[0]!.props.style)
+    TestRenderer.act(() => { tree = TestRenderer.create(render(false)) })
+    expect(host()).toMatchObject({ borderWidth: 1, borderColor: '#2A2A2E' })
+    TestRenderer.act(() => tree!.update(render(true)))
+    expect(host()).toMatchObject({ borderWidth: 1.5, borderColor: '#C4530F' })
+    TestRenderer.act(() => tree!.unmount())
+  })
+
+  it('keeps an unringed control on the press transition alone', () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<MotionPressable accessibilityRole="button" accessibilityState={{ selected: true }} />) })
+    expect(StyleSheet.flatten(tree!.root.findAll((node: { type: unknown }) => typeof node.type === 'string')[0]!.props.style).transition).toBe(PRESS_SCALE_TRANSITION)
+    TestRenderer.act(() => tree!.unmount())
+  })
+
+  it.each([false, true])('slides the switch thumb on the selection preset, and at once under reduced motion %s', (reduced) => {
+    preference.reduced = reduced
+    const { enterDuration, enterEasing } = motionPresets.selection
+    let tree: ReturnType<typeof TestRenderer.create>
+    const thumb = () => StyleSheet.flatten(tree!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props['data-slot'] === 'switch-thumb')[0]!.props.style)
+    TestRenderer.act(() => { tree = TestRenderer.create(<SwitchTrack checked={false} />) })
+    expect(thumb()).toMatchObject({ transform: [{ translateX: 3 }], transition: `transform ${reduced ? 0 : enterDuration}ms cubic-bezier(${enterEasing.join(',')})` })
+    TestRenderer.act(() => tree!.update(<SwitchTrack checked />))
+    expect(thumb().transform).toEqual([{ translateX: 23 }])
+    TestRenderer.act(() => tree!.unmount())
+    preference.reduced = false
   })
 })

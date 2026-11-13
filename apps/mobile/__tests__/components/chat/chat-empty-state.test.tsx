@@ -47,6 +47,7 @@ function makeTopLevelItem(overrides: Partial<HabitScheduleItem>): HabitScheduleI
 
 function renderEmptyState(
   items: HabitScheduleItem[] | null,
+  mascotState?: 'parado' | 'descansando',
 ) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   if (items !== null) {
@@ -59,7 +60,7 @@ function renderEmptyState(
   TestRenderer.act(() => {
     tree = TestRenderer.create(
       <QueryClientProvider client={queryClient}>
-        <ChatEmptyState styles={styles} />
+        <ChatEmptyState styles={styles} mascotState={mascotState} />
       </QueryClientProvider>,
     )
   })
@@ -73,6 +74,12 @@ function suggestionLabels(tree: any): string[] {
 }
 
 describe('ChatEmptyState (mobile)', () => {
+  it.each([[undefined, 'parado'], ['descansando', 'descansando']] as const)('shows Orbit resting only while the AI is unavailable (%s)', (mascotState, expected) => {
+    const { tree } = renderEmptyState(null, mascotState)
+    const mascot = tree.root.findAll((node: any) => typeof node.type === 'string' && node.props?.testID === 'orbit-mascot')[0]
+    expect(mascot.props['data-orbit-state']).toBe(expected)
+  })
+
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     vi.setSystemTime(new Date(`${TODAY}T12:00:00Z`))
@@ -92,14 +99,14 @@ describe('ChatEmptyState (mobile)', () => {
     expect(scroll.props.children).toBeTruthy()
   })
 
-  it('heads the empty thread with the Astra mark, on no disc and with no accent', () => {
+  it('heads the empty thread with the mascot, on no disc', () => {
     const { tree } = renderEmptyState([])
 
     expect(tree.root.findAll((node: any) =>
-      typeof node.type === 'string' && node.props?.testID === 'empty-state-mark-astra',
+      typeof node.type === 'string' && node.props?.testID === 'empty-state-mark',
     )).toHaveLength(1)
     const rendered = JSON.stringify(tree.toJSON())
-    expect(rendered).not.toContain(tokens.primary)
+    expect(rendered.split(tokens.primary)).toHaveLength(2)
     expect(rendered).not.toContain(tokens.primaryRgb)
   })
 

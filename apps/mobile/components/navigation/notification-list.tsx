@@ -6,7 +6,7 @@ import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { View, Text, StyleSheet } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { NotificationItem } from '@orbit/shared/types/notification'
-import { OrbitMark } from '@/components/ui/orbit-mark'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { NotificationRow } from './notification-row'
@@ -41,7 +41,7 @@ export function NotificationList({ items, isLoading, isError, onRetry, onOpen, o
               <Text style={[styles.copy, { color: tokens.fg3 }]}>{t('notifications.loadError')}</Text>
               <IconButton label={t('common.retry')} onPress={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
             </> : <>
-              <OrbitMark size={96} />
+              <OrbitMascot size={96} />
               <Text style={[styles.copy, { color: tokens.fg3 }]}>{t('notifications.empty')}</Text>
             </>}
           </View></ShellCentredRegion>

@@ -11,6 +11,7 @@ import { Chip } from '@/components/ui/chip'
 import { PillButton } from '@/components/ui/pill-button'
 import { MotionPressable } from '@/components/ui/motion-pressable'
 import { ListRow } from '@/components/ui/list-row'
+import { expectPressScaleLayer } from '@/__tests__/support/press-feedback'
 import { createTokensV2, radius } from '@/lib/theme'
 
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
@@ -190,6 +191,20 @@ describe('pressed hit area shapes', () => {
     withTree(<Chip onPress={() => {}} accessibilityLabel="Selected" active>Selected</Chip>, (tree) => {
       expect(pressedFill(findPressable(tree, 'Selected'), false).backgroundColor).toBe(tokens.selectionBg)
     })
+  })
+
+  it.each([false, true])('scales the pressed chip to 0.96 only when motion is allowed (reduced: %s)', (reduced) => {
+    motion.reduced = reduced
+    try {
+      withTree(<Chip onPress={() => {}} accessibilityLabel="Filter">Filter</Chip>, (tree) => {
+        const control = findPressable(tree, 'Filter')
+        const pressed = pressedFill(control, true)
+        expect(pressed.transform, 'the chip eases its press scale on its press scale layer, never on itself').toBeUndefined()
+        expect(pressed.backgroundColor).toBe(tokens.bgHover)
+        pressedFill(control, false)
+        expectPressScaleLayer(control as unknown as { parent: unknown; props: Record<string, unknown> }, reduced)
+      })
+    } finally { motion.reduced = false }
   })
 
   it('fills the pressed check row at the row radius and clears it on release', () => {

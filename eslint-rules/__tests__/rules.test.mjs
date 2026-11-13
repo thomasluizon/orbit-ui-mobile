@@ -665,14 +665,38 @@ ruleTester.run('no-oklch-outside-web-tokens', rule('no-oklch-outside-web-tokens'
 
 ruleTester.run('no-sparkle-ai-marker', rule('no-sparkle-ai-marker'), {
   valid: [
-    "import { AstraGlyph } from '@/components/ui/astra-glyph'",
-    '<AstraGlyph size={16} />',
-    '<span>Ask Astra</span>',
+    "import { OrbitMascot } from '@/components/ui/orbit-mascot'",
+    '<OrbitMascot size={16} />',
+    '<span>Talk to Orbit</span>',
   ],
   invalid: [
     { code: "import { Sparkles } from '@/components/ui/icons'", errors: [{ messageId: 'noSparkle' }] },
     { code: '<Sparkles size={16} />', errors: [{ messageId: 'noSparkle' }] },
-    { code: '<span>✨ Astra</span>', errors: [{ messageId: 'noSparkle' }] },
+    { code: '<span>✨ Orbit</span>', errors: [{ messageId: 'noSparkle' }] },
+  ],
+})
+
+ruleTester.run('no-spinner', rule('no-spinner'), {
+  valid: [
+    "import { Skeleton, SkeletonFace } from '@/components/ui/skeleton'",
+    '<Skeleton variant="fill" grouped />',
+    '<span className="skeleton-pulse rounded-full" />',
+    "document.querySelector('.animate-spin')",
+    '<div className="animate-spinner-free" />',
+    "const status = 'spinning'",
+  ],
+  invalid: [
+    { code: "import { ActivityIndicator, View } from 'react-native'", errors: [{ messageId: 'noSpinner' }] },
+    { code: '<ActivityIndicator size="small" />', errors: [{ messageId: 'noSpinner' }] },
+    { code: '<RN.ActivityIndicator />', errors: [{ messageId: 'noSpinner' }] },
+    { code: 'const Indicator = ReactNative.ActivityIndicator', errors: [{ messageId: 'noSpinner' }] },
+    { code: "import { Loader2 } from '@/components/ui/icons'", errors: [{ messageId: 'noSpinner' }] },
+    { code: "import { IconLoader2 as Loader2 } from '@tabler/icons-react'", errors: [{ messageId: 'noSpinner' }] },
+    { code: "import { LoaderCircle } from 'lucide-react'", errors: [{ messageId: 'noSpinner' }] },
+    { code: '<Loader2 className="size-4" />', errors: [{ messageId: 'noSpinner' }] },
+    { code: '<svg className="size-6 animate-spin text-[var(--fg-3)]" />', errors: [{ messageId: 'noSpinner' }] },
+    { code: '<svg className={`motion-safe:animate-spin ${tone}`} />', errors: [{ messageId: 'noSpinner' }] },
+    { code: '<span className="animate-[spin_1s_linear_infinite]" />', errors: [{ messageId: 'noSpinner' }] },
   ],
 })
 
@@ -710,7 +734,7 @@ typedTester.run('icon-size-grid', rule('icon-size-grid'), {
     'import { Check } from \'./icons\'; export const a = <Check className="[&_path]:w-[22px]" />',
     '<div className="size-[22px] w-[18px] h-[18px]" />',
     'declare const Card: (props: { className?: string }) => unknown; export const a = <Card className="size-[22px]" />',
-    ...['OrbitMark', 'AstraGlyph'].map((name) =>
+    ...['OrbitMascot'].map((name) =>
       `declare const ${name}: (props: { className?: string }) => unknown; export const a = <${name} className="size-[96px] w-[48px] h-[48px]" />`,
     ),
     "import { Check } from './icons'; export const a = <Check size={16} />",
@@ -726,7 +750,7 @@ typedTester.run('icon-size-grid', rule('icon-size-grid'), {
     "import { Check } from './icons'; declare const iconSize: number; export const a = <Check size={iconSize} />",
     // the marks answer to neither the type scale nor the icon grid, and they are excluded
     // because their props are declared locally, not because they were named in a list
-    "import { OrbitMark } from './icons'; export const a = <OrbitMark size={96} />",
+    "import { OrbitMascot } from './icons'; export const a = <OrbitMascot size={96} />",
     // a local component that merely has a size prop is not an icon
     'declare const Card: (props: { size?: number }) => unknown; export const a = <Card size={13} />',
     // no import at all, so the checker has no icon to attribute it to

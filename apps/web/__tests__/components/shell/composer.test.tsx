@@ -210,7 +210,7 @@ describe('Composer', () => {
     render(<Composer {...props({ state, value: 'Draft', suggestions: [], ...(withOpener ? { onOpenConversation: vi.fn(), conversationLabel: 'Open conversation' } : {}) })} />)
     const send = screen.getByRole('button', { name: words.send })
     expect(send.textContent).toBe('')
-    expect(send.querySelector('[data-asset^="astra-mark"]')).toBeNull()
+    expect(send.querySelector('[data-asset^="orbit-mascot"]')).toBeNull()
     expect(send.querySelectorAll('svg')).toHaveLength(1)
     expect(send.querySelector('svg')).toHaveClass('tabler-icon-arrow-up')
   })
@@ -335,7 +335,7 @@ describe('Composer', () => {
         expect(control).toHaveAccessibleName(chips[index]!.label)
         expect(within(control).queryByText(messages.nav.astra, { exact: true })).not.toBeInTheDocument()
         expect(control.querySelectorAll('svg')).toHaveLength(1)
-        expect(control.querySelector('svg')).toHaveAttribute('data-asset', 'astra-mark')
+        expect(control.querySelector('svg')).toHaveAttribute('data-asset', 'orbit-mascot')
         expect(control.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
       }
       fireEvent.click(controls[1]!)
@@ -349,10 +349,10 @@ describe('Composer', () => {
     'keeps the upward send arrow while composing: %s', state => {
       const view = render(<Composer {...props({ state, value: 'Draft', limitReason: 'reason', onVoice: vi.fn(), voiceWords })} />)
       const send = screen.getByRole('button', { name: words.send })
-      expect(send.querySelector('[data-asset="astra-mark"]')).toBeNull()
+      expect(send.querySelector('[data-asset="orbit-mascot"]')).toBeNull()
       expect(send.querySelectorAll('svg')).toHaveLength(1)
       expect(send.lastElementChild).toHaveAttribute('aria-hidden', 'true')
-      expect(send.querySelectorAll('.orbit-essential-loading')).toHaveLength(0)
+      expect(send.querySelectorAll('[data-slot="skeleton-face"]')).toHaveLength(0)
       expect(send).not.toHaveAttribute('aria-busy')
       view.unmount()
     },
@@ -678,8 +678,8 @@ describe('Composer', () => {
       expect(send).toHaveClass('enabled:hover:bg-[var(--primary-hover)]')
     }
     expect(send.querySelectorAll('svg')).toHaveLength(1)
-    expect(send.querySelectorAll('.orbit-essential-loading')).toHaveLength(0)
-    expect(send.querySelector('[data-asset^="astra-mark"]')).toBeNull()
+    expect(send.querySelectorAll('[data-slot="skeleton-face"]')).toHaveLength(0)
+    expect(send.querySelector('[data-asset^="orbit-mascot"]')).toBeNull()
     if (_case === 'sending') expect(send).not.toHaveClass('disabled:opacity-40')
     else if (disabled) expect(send).toHaveClass('disabled:opacity-40')
     if (disabled) expect(send).toBeDisabled()
@@ -728,7 +728,7 @@ describe('Composer', () => {
     const send = screen.getByRole('button', { name: words.send })
     expect(send).toBeEnabled()
     expect(send).not.toHaveAttribute('aria-busy')
-    expect(send.querySelector('.orbit-essential-loading')).toBeNull()
+    expect(send.querySelector('[data-slot="skeleton-face"]')).toBeNull()
     expect(screen.queryByRole('group', { name: words.suggestionsLabel })).not.toBeInTheDocument()
   })
 
@@ -910,7 +910,7 @@ describe('Composer', () => {
     expect(pill.contains(retry)).toBe(true)
     expect(retry).toHaveAttribute('title', retryWords.retry)
     expect(retry.querySelector('svg.tabler-icon-refresh')).toBeInTheDocument()
-    expect(retry.querySelector('[data-asset="astra-mark"]')).not.toBeInTheDocument()
+    expect(retry.querySelector('[data-asset="orbit-mascot"]')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: words.send })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: voiceWords.start })).not.toBeInTheDocument()
     fireEvent.click(retry)
@@ -983,8 +983,8 @@ describe('Composer', () => {
   })
 
   it.each([
-    ['pt-BR', ptBR.shell.composer.offline, 'Sem conexão', 'Sem conexão. A Astra volta quando a conexão voltar.'],
-    ['en', en.shell.composer.offline, 'No connection', 'No connection. Astra comes back when the connection does.'],
+    ['pt-BR', ptBR.shell.composer.offline, 'Sem conexão', 'Sem conexão. O Orbit volta quando a conexão voltar.'],
+    ['en', en.shell.composer.offline, 'No connection', 'No connection. Orbit comes back when the connection does.'],
   ])('shows the %s offline composer copy', (_locale, offline, placeholder, reason) => {
     render(<Composer {...props({ state: 'offline', words: { ...words, placeholder: offline.placeholder, inputLabel: 'Ask Astra for something' }, limitReason: offline.reason })} />)
     expect(screen.getByRole('textbox', { name: 'Ask Astra for something' })).toHaveAttribute('placeholder', placeholder)

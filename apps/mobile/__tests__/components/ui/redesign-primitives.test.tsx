@@ -1,14 +1,12 @@
-import { ASTRA_GLYPH_PATHS, ORBIT_MARK_PATHS, ORBIT_MARK_VIEW_BOX } from '@orbit/shared/contracts/brand'
 import type { ReactElement } from 'react'
 import { act, create } from 'react-test-renderer'
 import { Animated } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { Columns } from '@/components/ui/columns'
 import { Fab } from '@/components/ui/fab'
 import { Icon } from '@/components/ui/icon'
 import { Lockup } from '@/components/ui/lockup'
-import { OrbitMark } from '@/components/ui/orbit-mark'
 import { ProgressRing } from '@/components/ui/progress-ring'
 import { createTokensV2 } from '@/lib/theme'
 
@@ -175,32 +173,13 @@ describe('redesign primitives on mobile', () => {
       return { tree, style }
     }
 
-    it('scales the Astra button to 0.96 and fills it on press', () => {
-      const { tree, style } = pressedFab(<Fab neutral label="Astra">+</Fab>)
+    it('scales the FAB to 0.96 with the pressed fill and clips it to the circle', () => {
+      const { tree, style } = pressedFab(<Fab label="Create">+</Fab>)
       expect(style.transform).toEqual([{ scale: 0.96 }])
-      expect(prop<{ backgroundColor: string }[]>(tree.root.findByProps({ testID: 'fab-press-fill' }), 'style').at(-1)?.backgroundColor).toBe(tokens.bgHoverOpaque)
-    })
-
-    it('draws the neutral hairline on the press fill so the pressed fill never covers it', () => {
-      const { tree, style } = pressedFab(<Fab neutral label="Astra">+</Fab>)
-      const fillStyle = flattenStyle(prop<unknown>(tree.root.findByProps({ testID: 'fab-press-fill' }), 'style'))
-      expect(fillStyle.boxShadow).toBe(`inset 0 0 0 1px ${tokens.hairlineStrong}`)
-      expect(String(style.boxShadow)).not.toContain('inset')
-    })
-
-    it('clips the pressed fill of both FAB variants to the circular shape', () => {
-      for (const neutral of [true, false]) {
-        const { style } = pressedFab(<Fab neutral={neutral} label="Astra">+</Fab>)
-        expect(style.borderRadius).toBe(999)
-        expect(style.overflow).toBe('hidden')
-      }
-    })
-
-    it('keeps the fill and drops the scale under reduced motion', () => {
-      motionState.reduced = true
-      const { tree, style } = pressedFab(<Fab neutral label="Astra">+</Fab>)
-      expect(style.transform).toEqual([{ scale: 1 }])
-      expect(prop<{ backgroundColor: string }[]>(tree.root.findByProps({ testID: 'fab-press-fill' }), 'style').at(-1)?.backgroundColor).toBe(tokens.bgHoverOpaque)
+      expect(style.backgroundColor).toBe(tokens.primaryPressed)
+      expect(style.borderRadius).toBe(999)
+      expect(style.overflow).toBe('hidden')
+      expect(tree.root.findAll(node => node.props.testID === 'fab-press-fill')).toHaveLength(0)
     })
 
     it('presses the primary FAB to the pressed fill without a scale under reduced motion', () => {
@@ -211,29 +190,33 @@ describe('redesign primitives on mobile', () => {
     })
   })
 
-  it.each([16, 20, 24, 28, 40, 44, 48, 96, 128, 512])('uses the normal Orbit drawing at %ipx and limits accent to its moon', (size) => {
-    const tree = render(<OrbitMark size={size} />)
-    expect(tree.root.findByProps({ testID: 'orbit-mark' }).props).toMatchObject({ width: size, height: size, viewBox: ORBIT_MARK_VIEW_BOX, color: tokens.fg1 })
-    expect(byType(tree.root, 'Path').map(path => prop(path, 'd'))).toEqual(ORBIT_MARK_PATHS.map(path => path.d))
-    expect(prop(byType(tree.root, 'Path').at(-1)!, 'fill')).toBe('currentColor')
-
-    void act(() => {
-      tree.update(<OrbitMark size={size} accent />)
-    })
-    expect(tree.root.findByProps({ testID: 'orbit-mark-accent' })).toBeDefined()
+  it.each([16, 20, 24] as const)('draws the small static face at %ipx with the moon as the only accent', (size) => {
+    const tree = render(<OrbitMascot size={size} />)
+    const mascot = tree.root.findByProps({ testID: 'orbit-mascot' })
+    expect(mascot.props).toMatchObject({ width: size, height: size * 0.75, accessible: false, color: tokens.fg1, 'data-orbit-face': 'small', 'data-orbit-loop': 'still' })
     const paths = byType(tree.root, 'Path')
-    expect(prop(paths[0]!, 'fill')).toBe('currentColor')
-    expect(prop(paths.at(-1)!, 'fill')).toBe(tokens.primary)
+    expect(paths.filter(path => prop(path, 'fill') === tokens.primary)).toHaveLength(1)
+    expect(paths.filter(path => prop(path, 'fill') === tokens.bg).length).toBeGreaterThanOrEqual(3)
   })
 
-  it.each([14, 16, 20, 24])('renders the normal Astra paths at %ipx and honours color', (size) => {
-    const tree = render(<AstraGlyph size={size} />)
-    const glyph = tree.root.findByProps({ testID: 'astra-mark' })
-    expect(glyph.props).toMatchObject({ width: size, height: size, accessible: false, color: tokens.fg1 })
-    expect(byType(tree.root, 'Path').map(path => prop(path, 'd'))).toEqual(ASTRA_GLYPH_PATHS.map(path => path.d))
+  it.each([48, 96, 128] as const)('draws the live rig at %ipx in the 7 by 5 box', (size) => {
+    const tree = render(<OrbitMascot size={size} still />)
+    expect(tree.root.findByProps({ testID: 'orbit-mascot' }).props).toMatchObject({ width: size, height: (size * 300) / 420, viewBox: '-210 -150 420 300', 'data-orbit-face': 'rig', 'data-orbit-state': 'parado' })
+    expect((22 / 420) * size).toBeGreaterThanOrEqual(2)
+    const accent = [...byType(tree.root, 'Path'), ...byType(tree.root, 'Circle')].filter(node => prop(node, 'fill') === tokens.primary)
+    expect(accent).toHaveLength(1)
+  })
 
-    void act(() => { tree.update(<AstraGlyph size={size} color="#123456" />) })
-    expect(prop(tree.root.findByProps({ testID: 'astra-mark' }), 'color')).toBe('#123456')
+  it.each(['parado', 'pensando', 'feliz', 'descansando'] as const)('exposes the %s state', (state) => {
+    const tree = render(<OrbitMascot size={96} state={state} still />)
+    expect(tree.root.findByProps({ testID: 'orbit-mascot' }).props['data-orbit-state']).toBe(state)
+    const arcs = byType(tree.root, 'Path').filter(path => prop(path, 'strokeWidth') === 17)
+    expect(arcs).toHaveLength(state === 'feliz' ? 2 : 0)
+  })
+
+  it('honours the color of the planet and the ring', () => {
+    const tree = render(<OrbitMascot size={16} color="#123456" />)
+    expect(prop(tree.root.findByProps({ testID: 'orbit-mascot' }), 'color')).toBe('#123456')
   })
 
   it('centres icons at the default size and makes accessibility deliberate', () => {
@@ -251,8 +234,8 @@ describe('redesign primitives on mobile', () => {
   it('renders the outlined lockup with fixed geometry and no text node', () => {
     const tree = render(<Lockup />)
     const lockup = tree.root.findByProps({ testID: 'orbit-lockup' })
-    expect(prop(lockup, 'viewBox')).toBe('-0.000000087 0 89.395502773 17.882739221')
-    expect(byType(tree.root, 'Path')).toHaveLength(3)
+    expect(prop(lockup, 'viewBox')).toBe('-0.000400046 0.000000000 89.395902732 17.742772815')
+    expect(byType(tree.root, 'Path')).toHaveLength(5)
     expect(byType(tree.root, 'Text')).toHaveLength(0)
   })
 })

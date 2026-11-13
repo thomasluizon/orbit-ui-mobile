@@ -57,7 +57,7 @@ const understandingLabels = {
   repeat: (count: number) => `Every ${count} weeks`,
   repeatLess: 'Repeat less often',
   repeatMore: 'Repeat more often',
-  proposed: 'Proposed by Astra',
+  proposed: 'Proposed by Orbit',
 }
 
 function collectComponentFiles(directory: string): string[] {

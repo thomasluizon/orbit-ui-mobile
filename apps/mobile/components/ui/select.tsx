@@ -63,7 +63,7 @@ export function Item({ value, label, disabled }: Readonly<SelectOption>) {
   const [hovered, setHovered] = useState(false)
   const close = useContext(CloseContext)
   return <Primitive.Item value={value} label={label} disabled={disabled} closeOnPress={false} onPress={() => close?.()} focusable={!disabled} accessibilityLabel={label} asChild><InsetFocusPressable onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)} focusColor={tokens.fg1} style={({ pressed }) => [styles.item, { backgroundColor: !disabled && (pressed || hovered) ? tokens.bgHover : 'transparent', opacity: disabled ? 0.5 : 1 }]}>
-    <Primitive.ItemText style={[styles.label, { color: tokens.fg1 }]} /><SelectCheck />
+    {({ pressed }) => <PressScale pressed={pressed} disabled={Boolean(disabled)} style={styles.itemContent}><Primitive.ItemText style={[styles.label, { color: tokens.fg1 }]} /><SelectCheck /></PressScale>}
   </InsetFocusPressable></Primitive.Item>
 }
 
@@ -78,5 +78,6 @@ const styles = StyleSheet.create({
   trigger: { overflow: 'hidden', minHeight: 54, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderRadius: 12, borderWidth: 1, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s12 },
   value: { fontFamily: 'Geist_400Regular', fontSize: 16, flexShrink: 1 },
   item: { overflow: 'hidden', minHeight: TOUCH_TARGET_MIN, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: SPACING.s12, paddingVertical: SPACING.s8, borderRadius: 12 },
+  itemContent: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   label: { fontFamily: 'Geist_400Regular', fontSize: 14, flexShrink: 1 },
 })

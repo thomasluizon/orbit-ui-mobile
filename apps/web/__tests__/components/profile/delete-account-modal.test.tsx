@@ -375,7 +375,7 @@ describe('DeleteAccountModal', () => {
     expect(getHeldAccountId()).toBe('user-1')
   })
 
-  it('stops the send spinner when another account replaces the tab mid request', async () => {
+  it('stops the send busy state when another account replaces the tab mid request', async () => {
     mocks.requestDeletion.mockReturnValue(new Promise(() => {}))
     render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
 

@@ -119,7 +119,7 @@ it.each([320, 480, 800].flatMap(width => [en, ptBR].flatMap(messages =>
 
 
 it.each([en, ptBR].flatMap(messages => [false, true].map(pending => ({ messages, pending }))))(
-  'shows one form suggestion mark at rest or one spinner while pending=$pending in 48px targets', async ({ messages, pending }) => {
+  'keeps one form suggestion mark at rest and on the skeleton face while pending=$pending in 48px targets', async ({ messages, pending }) => {
     const onSuggest = vi.fn()
     const translator = createTranslator({ locale: messages === en ? 'en' : 'pt-BR', messages })
     const t = (key: string, values?: Record<string, string | number | Date>) => translator(key as Parameters<typeof translator>[0], values)
@@ -134,8 +134,8 @@ it.each([en, ptBR].flatMap(messages => [false, true].map(pending => ({ messages,
       for (const name of [messages.habits.form.suggestEmoji, messages.habits.form.suggestTags]) {
         const action = page.getByRole('button', { name, exact: true })
         expect(await action.innerText()).toBe('')
-        expect(await action.locator('[data-asset="astra-mark"]').count()).toBe(pending ? 0 : 1)
-        expect(await action.locator('svg[class~="orbit-essential-loading"]').count()).toBe(pending ? 1 : 0)
+        expect(await action.locator('[data-asset="astra-mark"]').count()).toBe(1)
+        expect(await action.locator('[data-slot="skeleton-face"]').count()).toBe(pending ? 1 : 0)
         expect(await action.locator('svg').count()).toBe(1)
         const bounds = (await action.boundingBox())!
         expect(bounds.width).toBe(48)

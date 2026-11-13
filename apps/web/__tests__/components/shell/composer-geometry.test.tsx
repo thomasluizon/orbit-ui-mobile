@@ -228,7 +228,7 @@ describe('Composer compact geometry in Chromium', () => {
       expect(bounds.height).toBeGreaterThanOrEqual(48)
       expect(await target.getAttribute('aria-label')).toBe(en.todayAstra.openConversation)
       expect(await target.locator('[translate="no"]').allTextContents()).toEqual([])
-      expect(await target.locator('[data-asset="astra-mark"][aria-hidden="true"]').count()).toBe(1)
+      expect(await target.locator('[data-asset="orbit-mascot"][aria-hidden="true"]').count()).toBe(1)
       expect((await target.locator('svg').boundingBox())!.width).toBe(20)
       await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
       await page.mouse.down()

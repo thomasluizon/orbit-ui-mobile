@@ -136,7 +136,7 @@ export function applyThemeTokensToDOM(scheme: ColorScheme, theme: ThemeMode) {
 
 export function resolveWebMotionVariables(): Record<`--${string}`, string> {
   const variables: Record<`--${string}`, string> = {}
-  for (const scenario of ['sheet', 'dialog', 'menu', 'toast'] as const) {
+  for (const scenario of ['sheet', 'dialog', 'menu', 'toast', 'selection'] as const) {
     const preset = resolveMotionPreset(scenario)
     variables[`--motion-${scenario}-enter`] = `${preset.enterDuration}ms`
     variables[`--motion-${scenario}-exit`] = `${preset.exitDuration}ms`
@@ -147,5 +147,6 @@ export function resolveWebMotionVariables(): Record<`--${string}`, string> {
   variables['--dur-theme'] = `${motionDurations.theme}ms`
   variables['--motion-ease-enter'] = `cubic-bezier(${motionEasings.enter.join(',')})`
   variables['--motion-ease-exit'] = `cubic-bezier(${motionEasings.exit.join(',')})`
+  variables['--motion-ease-standard'] = `cubic-bezier(${motionEasings.standard.join(',')})`
   return variables
 }

@@ -592,7 +592,7 @@ it.each([1100, 1352, 1440])('opens from the first sidebar row at %ipx and restor
   expect(row).toHaveAttribute('aria-expanded', 'false')
   expect(row).toHaveTextContent(/^Astra$/)
   expect(within(row).getByText('Astra')).toBeVisible()
-  expect(row.querySelector('[data-asset="astra-mark"]')).toHaveAttribute('aria-hidden', 'true')
+  expect(row.querySelector('[data-asset="orbit-mascot"]')).toHaveAttribute('aria-hidden', 'true')
   fireEvent.click(row)
   expect(row).toHaveAttribute('aria-expanded', 'true')
   expect(screen.getByRole('textbox', { name: 'Message' })).toHaveFocus()

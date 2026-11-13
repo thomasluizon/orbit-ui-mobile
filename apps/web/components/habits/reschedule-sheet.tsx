@@ -1,6 +1,6 @@
 'use client'
 
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 
 import { useCallback } from 'react'
 import { useRouter } from 'next/navigation'
@@ -106,7 +106,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
           <PillButton variant="ghost" size="sm" onClick={() => closeSheet()}>
             {t('habits.reschedule.dismiss')}
           </PillButton>
-          <PillButton leadingIcon={<AstraGlyph size={16} />} variant={filledVariant} size="sm" onClick={() => void refetch()}>
+          <PillButton leadingIcon={<OrbitMascot size={16} />} variant={filledVariant} size="sm" onClick={() => void refetch()}>
             {t('habits.reschedule.suggestDate')}
           </PillButton>
         </>
@@ -193,6 +193,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     >
       <div className="flex flex-col pb-2" style={{ gap: 16 }}>
         <div className="flex items-center" style={{ gap: 8 }}>
+          <OrbitMascot size={48} state={hasProAccess && isLoading ? 'pensando' : 'parado'} />
           <span
             translate="no"
             style={{
@@ -200,7 +201,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
               fontWeight: 500,
             }}
           >
-            Astra
+            Orbit
           </span>
           <Badge>{t('aiDisclosure.isAiLabel')}</Badge>
         </div>

@@ -497,6 +497,9 @@ vi.mock('react-native-svg', () => ({
   __esModule: true,
   default: (props: Record<string, unknown>) => React.createElement('Svg', props),
   Path: () => null,
+  ClipPath: () => null,
+  G: () => null,
+  Circle: () => null,
   Defs: () => null,
   Stop: () => null,
   Rect: () => null,
@@ -592,7 +595,7 @@ function expectProfileRowIcons(row: ReactTestInstance, index: number, isLifetime
   expect(contents[0]!.type).toBe(leadingIcons[index])
   expect(contents[1]!.type).toBe('Text')
   expect(icons[0]!.props.size ?? icons[0]!.props.width).toBe(24)
-  if (index === 3) expect(icons[0]!.props).toMatchObject({ testID: 'astra-mark', color: createTokensV2('orange', 'dark').fg1, accessible: false })
+  if (index === 3) expect(icons[0]!.props).toMatchObject({ testID: 'orbit-mascot', color: createTokensV2('orange', 'dark').fg1, accessible: false })
   if (navigates) {
     expect(contents.at(-1)!.type).toBe('ChevronRight')
   }
@@ -1016,16 +1019,16 @@ describe('ProfileScreen', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
-  it.each(['en', 'pt-BR'] as const)('keeps the Android Astra settings entry named in %s', async (locale) => {
+  it.each(['en', 'pt-BR'] as const)('keeps the Android Orbit settings entry named in %s', async (locale) => {
     translateProMessages(locale)
     mockRealListRow.current = true
     const tree = await renderProfileScreen()
     try {
-      const row = tree.root.findAllByType(ListRow).find((entry: { props: React.ComponentProps<typeof ListRow> }) => entry.props.title === 'Astra')!
+      const row = tree.root.findAllByType(ListRow).find((entry: { props: React.ComponentProps<typeof ListRow> }) => entry.props.title === 'Orbit')!
       expect(row).toBeDefined()
-      expect(nodeText(row)).toContain('Astra')
+      expect(nodeText(row)).toContain('Orbit')
       const target = row.find((node: { type: unknown; props: { accessibilityRole?: string } }) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')
-      expect(target.props.accessibilityLabel).toBe('Astra')
+      expect(target.props.accessibilityLabel).toBe('Orbit')
       TestRenderer.act(() => target.props.onPress())
       expect(mockRouterPush).toHaveBeenLastCalledWith('/profile/astra')
     } finally { TestRenderer.act(() => tree.unmount()) }
@@ -1232,10 +1235,10 @@ describe('ProfileScreen', () => {
   })
 
   it.each([
-    ['pt-BR', false, 'Notificações da Astra', 'Resumo diário'],
-    ['pt-BR', true, 'Notificações da Astra', 'Resumo diário'],
-    ['en', false, 'Astra notifications', 'Daily recap'],
-    ['en', true, 'Astra notifications', 'Daily recap'],
+    ['pt-BR', false, 'Notificações do Orbit', 'Resumo diário'],
+    ['pt-BR', true, 'Notificações do Orbit', 'Resumo diário'],
+    ['en', false, 'Orbit notifications', 'Daily recap'],
+    ['en', true, 'Orbit notifications', 'Daily recap'],
   ] as const)('renders the %s Astra labels for Pro access %s', async (locale, hasProAccess, proactive, summary) => {
     mockLocale.current = locale
     const messages = locale === 'pt-BR' ? ptBR : en

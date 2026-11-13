@@ -1,20 +1,29 @@
+import { FAB_SIZE } from '@orbit/shared/theme'
+import { StyleSheet } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { Fab } from '@/components/ui/fab'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { MotionPressable } from '@/components/ui/motion-pressable'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { useUIStore } from '@/stores/ui-store'
-import { useAppTheme } from '@/lib/use-app-theme'
-import { createTokensV2 } from '@/lib/theme'
 
 export function useAstraButtonBlocked(enabled: boolean) {
   return useUIStore(state => enabled && (state.showCreateModal || state.isSelectMode || state.openOverlayIds.length > 0 || state.astraConversationOpen))
 }
 
+/** The conversation entry: the live Orbit at 48 with no background, in a 60 press target. */
 export function AstraButton() {
   const { t } = useTranslation()
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
   const openConversation = useUIStore(state => state.setAstraConversationOpen)
-  return <Fab neutral testID="astra-button" label={t('shell.astraButton.open')} onClick={() => openConversation(true)}>
-    <AstraGlyph size={24} color={tokens.fg1} />
-  </Fab>
+  return <MotionPressable
+    testID="astra-button"
+    accessibilityRole="button"
+    accessibilityLabel={t('shell.astraButton.open')}
+    onPress={() => openConversation(true)}
+    style={styles.target}
+  >
+    <OrbitMascot size={48} lead />
+  </MotionPressable>
 }
+
+const styles = StyleSheet.create({
+  target: { alignItems: 'center', height: FAB_SIZE, justifyContent: 'center', width: FAB_SIZE },
+})

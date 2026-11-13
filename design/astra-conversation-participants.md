@@ -1,4 +1,4 @@
-# Astra conversation participants
+# Orbit conversation participants
 
 **At a glance:** participant avatar owners, content alignment, state coverage and the pending
 reply replacement on web and Android.
@@ -7,7 +7,7 @@ reply replacement on web and Android.
 
 | Surface | Web owner | Android owner | Coverage |
 |---|---|---|---|
-| Conversation feed | `apps/web/components/chat/conversation.tsx` | `apps/mobile/components/chat/conversation.tsx`, `conversation.styles.ts` | First Astra message, consecutive Astra messages, user messages and a new Astra run after a user message |
+| Conversation feed | `apps/web/components/chat/conversation.tsx` | `apps/mobile/components/chat/conversation.tsx`, `conversation.styles.ts` | First Orbit message, consecutive Orbit messages, user messages and a new Orbit run after a user message |
 | Reply content column | `apps/web/components/chat/message-bubble.tsx` within the feed | `apps/mobile/components/message-bubble.tsx` within the feed | Multi-paragraph prose, streaming prose, block-only replies, previews, clarification, breakdown, outcomes, actions, read lists and metrics |
 | Reply adjuncts | Conversation feed | Conversation feed | Running and completed tool traces and follow-up actions share the reply content edge |
 | Turn plan | `apps/web/components/chat/plan-block.tsx` | `apps/mobile/components/chat/plan-block.tsx` | Live and restored plans, all step states, approval transitions, localized counts and reduced motion |
@@ -20,15 +20,15 @@ attachment bubbles remain right aligned without an avatar column.
 
 ## Geometry
 
-The thread inset is 16. A run's first message shows a 24px `AstraGlyph` in `fg-1` on its own
+The thread inset is 16. A run's first message shows a 24px `OrbitMascot` in `fg-1` on its own
 row, followed by an 8px gap above the first content. Each continuation has no mark or reserved
 avatar space. Prose and blocks share the composer's leading edge; blocks fill its trailing edge.
 The content can shrink and wrap, and its blocks keep the existing 16 gaps. Web prose retains
 its 65ch cap. The mark is decorative for assistive technology because each message already
 identifies its sender. A running tool trace uses the same mark row and full content column as a completed
-reply. It shows the mark after a user message or in an empty thread, and omits the mark row after an Astra message.
+reply. It shows the mark after a user message or in an empty thread, and omits the mark row after an Orbit message.
 
-The pending reply shares this geometry: mark row at the thread inset when starting an Astra
+The pending reply shares this geometry: mark row at the thread inset when starting an Orbit
 run, then an 8px gap before the indicator at the same content edge as the first reply. Pending,
 running tool activity and completed content use the same run boundary. The pending indicator is
 replaced immediately. New replies and their blocks rise and fade with the shared conversation
@@ -40,7 +40,7 @@ announcement remains outside the busy feed.
 Both platforms' `__tests__/components/chat/message-block-layout.test.tsx` mount the conversation
 with representative message and block fixtures. Cases at 412 and 1352 verify run boundaries,
 the absence of user avatars, the avatar dimensions and the shared text and block edge. Active tool
-cases cover empty threads and user or Astra predecessors, then complete the reply and compare
+cases cover empty threads and user or Orbit predecessors, then complete the reply and compare
 the trace and prose edges. Web
 measures compiled styles in hermetic Chromium through Vitest; Android measures its rendered
 native styles through Yoga. The wider block matrix also covers both locales, block-only replies,

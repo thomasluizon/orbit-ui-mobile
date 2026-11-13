@@ -84,7 +84,7 @@ vi.mock('@/hooks/use-notifications', () => ({
 vi.mock('@/hooks/use-proactive-item', () => ({
   useProactiveItem: () => ({ item: mocks.proactiveItem, openItem: vi.fn() }),
 }))
-vi.mock('@/components/ui/astra-glyph', () => ({ AstraGlyph: () => null }))
+vi.mock('@/components/ui/orbit-mascot', () => ({ OrbitMascot: () => null }))
 vi.mock('@/components/today/today-astra', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/components/today/today-astra')>()
   return {

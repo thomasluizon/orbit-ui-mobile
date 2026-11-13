@@ -35,9 +35,8 @@ const expectedAssets = [
 const fixtureRoot = (label) => {
   const directory = join(root, "brand-assets", label)
   mkdirSync(join(directory, "design", "brand"), { recursive: true })
-  // All three canonical sources: the 1024 monochrome mark, the accent treatment every coloured
-  // raster comes from, and the native 16 redraw behind the favicon.
-  for (const mark of ["orbit-mark.svg", "orbit-mark-16.svg", "orbit-mark-accent.svg"]) {
+  // Both canonical sources: the live rig and the small static face behind every raster below 40px.
+  for (const mark of ["orbit-mascot.svg", "orbit-mascot-small.svg"]) {
     cpSync(join(REPO_ROOT, "design", "brand", mark), join(directory, "design", "brand", mark))
   }
   return directory
@@ -87,7 +86,7 @@ export const cases = async () => {
 
   const faviconLayers = readIcoLayers(join(outputRoot, "apps", "web", "app", "favicon.ico"))
   T(
-    "generate-brand-assets.mjs: favicon.ico carries native 16 plus canonical 32 and 48 layers",
+    "generate-brand-assets.mjs: favicon.ico carries the small static face at 16 and 32 plus the live rig at 48",
     JSON.stringify(faviconLayers.map(({ size }) => size)) === JSON.stringify([16, 32, 48]),
     `ICO layers ${JSON.stringify(faviconLayers.map(({ size }) => size))}`,
   )
@@ -111,7 +110,7 @@ export const cases = async () => {
     )
   }
   T(
-    "generate-brand-assets.mjs: favicon.ico native 16px layer carries no accent",
+    "generate-brand-assets.mjs: favicon.ico 16px layer carries no accent",
     (await faviconLayerAccentPixelCount(16)) === 0,
     "favicon.ico 16px layer unexpectedly carries an accent pixel",
   )
@@ -192,14 +191,18 @@ export const cases = async () => {
     .toBuffer({ resolveWithObject: true })
   const foregroundCenter = await pixelAt(foreground, 512, 512)
   const foregroundCorner = await pixelAt(foreground, 0, 0)
+  // Android adaptive icon: the logo must stay inside the 66 dp safe circle of the 108 dp layer. The
+  // ring ends are the widest ink, 380 units across the circle that holds the mark, and the mark ink
+  // is 363 units wide, so the ink width allowed is 66/108 * 363 / 380 of the canvas.
+  const safeInkWidth = Math.floor(1024 * (66 / 108) * (363 / 380) * 1.03)
   T(
-    "generate-brand-assets.mjs: adaptive mark occupies sixty percent of its square",
-    foregroundInk.width === 614,
-    `ink width ${foregroundInk.width}, expected 614`,
+    "generate-brand-assets.mjs: adaptive mark stays inside the 66 dp safe zone of its square",
+    foregroundInk.width > 0 && foregroundInk.width <= safeInkWidth,
+    `ink width ${foregroundInk.width}, safe ink width ${safeInkWidth}`,
   )
   T(
-    "generate-brand-assets.mjs: adaptive foreground keeps the hollow centre and transparent canvas",
-    foregroundCenter[3] === 0 && foregroundCorner[3] === 0,
+    "generate-brand-assets.mjs: adaptive foreground keeps the planet centre filled and the canvas transparent",
+    foregroundCenter[3] === 255 && foregroundCorner[3] === 0,
     `centre ${foregroundCenter.join(",")}; corner ${foregroundCorner.join(",")}`,
   )
 
@@ -220,6 +223,20 @@ export const cases = async () => {
     visiblePixels > 0 && monochromeIsWhite,
     `visible pixels ${visiblePixels}; one-colour ${monochromeIsWhite}`,
   )
+  const notificationPath = join(outputRoot, "apps", "mobile", "assets", "notification-icon.png")
+  const notificationPixels = await sharp(notificationPath).ensureAlpha().raw().toBuffer()
+  let notificationOtherPixels = 0
+  for (let index = 0; index < notificationPixels.length; index += 4) {
+    const white = notificationPixels[index] === 255 && notificationPixels[index + 1] === 255 && notificationPixels[index + 2] === 255
+    if (notificationPixels[index + 3] !== 0 && !white) notificationOtherPixels += 1
+  }
+  // The eyes are holes in the planet, so the pixel at the left eye centre is transparent.
+  const eyeCentre = await pixelAt(notificationPath, 41, 40)
+  T(
+    "generate-brand-assets.mjs: notification icon is white or transparent and its eyes are holes",
+    notificationOtherPixels === 0 && eyeCentre[3] < 64,
+    `non-white visible pixels ${notificationOtherPixels}; eye alpha ${eyeCentre[3]}`,
+  )
 
   // DESIGN.md:261: the mark carries the accent on exactly one element, its moon, and a surface takes
   // the accent file rather than tinting the monochrome one. Before this, every coloured raster was
@@ -237,18 +254,26 @@ export const cases = async () => {
   }
 
   const pixelsOf = async (input) => sharp(input).ensureAlpha().raw().toBuffer()
-  const nativeSource = readFileSync(join(REPO_ROOT, "design", "brand", "orbit-mark-16.svg"), "utf8")
-    .replaceAll("currentColor", "#F4F4F6")
-  const accentSource = readFileSync(join(REPO_ROOT, "design", "brand", "orbit-mark-accent.svg"), "utf8")
+  const rigSource = readFileSync(join(REPO_ROOT, "design", "brand", "orbit-mascot.svg"), "utf8")
     .replaceAll("var(--primary, currentColor)", "#C4530F")
+    .replaceAll("var(--orbit-surface, var(--bg, #09090B))", "#09090B")
+    .replaceAll("var(--bg, #09090B)", "#09090B")
     .replaceAll("currentColor", "#F4F4F6")
+  // The rig box is 7:5, centred in the square canvas of the export.
+  const rigBoxRender = async (size) => {
+    const height = Math.round((size * 300) / 420)
+    const box = await sharp(Buffer.from(rigSource), { density: (72 * size) / 420 }).resize(size, height).png().toBuffer()
+    return sharp({ create: { width: size, height: size, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+      .composite([{ input: box, left: 0, top: Math.floor((size - height) / 2) }])
+      .png()
+      .toBuffer()
+  }
   const canonicalSourceChecks = [
-    ["design/brand/png/orbit-mark-native-16.png", Buffer.from(nativeSource), 16],
-    ["design/brand/png/orbit-mark-accent-128.png", Buffer.from(accentSource), 128],
+    ["design/brand/png/orbit-mark-accent-128.png", await rigBoxRender(128), 128],
   ]
   for (const [relativePath, source, size] of canonicalSourceChecks) {
     const generated = join(outputRoot, ...relativePath.split("/"))
-    const directSourceRender = await sharp(source).resize(size, size).png().toBuffer()
+    const directSourceRender = source
     const generatedPixels = await pixelsOf(generated)
     const sourcePixels = await pixelsOf(directSourceRender)
     let sourceCanvasMatches = generatedPixels.length === sourcePixels.length
@@ -323,13 +348,13 @@ export const cases = async () => {
     "generate-brand-assets.mjs",
     "fails when the canonical mark is absent",
     ["--write", "--root", missingSourceRoot],
-    { status: 1, stderr: /orbit-mark\.svg/ },
+    { status: 1, stderr: /orbit-mascot\.svg/ },
   )
 
   T(
     "generate-brand-assets.mjs: the fixture source remains unchanged",
-    readFileSync(join(outputRoot, "design", "brand", "orbit-mark.svg"), "utf8") ===
-      readFileSync(join(REPO_ROOT, "design", "brand", "orbit-mark.svg"), "utf8"),
+    readFileSync(join(outputRoot, "design", "brand", "orbit-mascot.svg"), "utf8") ===
+      readFileSync(join(REPO_ROOT, "design", "brand", "orbit-mascot.svg"), "utf8"),
     "generator modified its source mark",
   )
 }

@@ -334,7 +334,7 @@ describe('i18n locale parity', () => {
     expect([ptBR.habits.deleteHabit, ptBR.habits.detail.delete, ptBR.undo.habitDeleted]).toEqual(['Apagar hábito', 'Apagar hábito', 'Hábito apagado'])
   })
 
-  it('describes the Astra daily limit without promising an upgrade removes it', () => {
+  it('describes the AI daily limit without promising an upgrade removes it', () => {
     expect(en.chat.limitReachedError).toContain('midnight, your time')
     expect(ptBR.chat.limitReachedError).toContain('meia-noite, no seu fuso horário')
     for (const locale of [en, ptBR]) {
@@ -356,16 +356,16 @@ describe('i18n locale parity', () => {
     for (const [key, message] of renewals) expect(message, key).toContain('no seu fuso horário')
   })
 
-  it('uses feminine agreement for Astra throughout the Portuguese catalog', () => {
+  it('uses masculine agreement for Orbit throughout the Portuguese catalog', () => {
     for (const [key, value] of ptFlat) {
-      if (!value.includes('Astra')) continue
-      expect(value, key).not.toMatch(/\b(?:o|ao|do|no|pelo) Astra\b/i)
+      if (!value.includes('Orbit')) continue
+      expect(value, key).not.toMatch(/(?<![\p{L}])(?:a|à|da|na|pela|uma) Orbit\b/u)
     }
-    expect(ptBR.astraRail.title).toBe('Copilota Astra')
-    expect(ptBR.astraRail.subtitle).toBe('Sua copilota de hábitos')
-    expect(ptBR.upgrade.outcomes.noticing).toMatch(/^A Astra percebe\b/)
-    expect(ptBR.terms.ai.body).toContain('uma assistente de IA (Astra)')
-    expect(ptBR.privacy.dataCollected.chat).toContain('com a assistente de IA do Orbit')
+    expect(ptBR.astraRail.title).toBe('Copiloto Orbit')
+    expect(ptBR.astraRail.subtitle).toBe('Seu copiloto de hábitos')
+    expect(ptBR.upgrade.outcomes.noticing).toMatch(/^O Orbit percebe\b/)
+    expect(ptBR.terms.ai.body).toContain('um assistente de IA que usa')
+    expect(ptBR.privacy.dataCollected.chat).toContain('com o Orbit')
   })
 
   it('separates timed-out mobile copy from confirmed web sign-out copy', () => {
@@ -378,10 +378,10 @@ describe('i18n locale parity', () => {
       'Você saiu da conta. Entre para continuar de onde parou.',
     )
     expect(en.auth.sessionRefreshFailed).toBe(
-      "Orbit couldn't refresh your session. Try again.",
+      "I couldn't refresh your session. Try again.",
     )
     expect(ptBR.auth.sessionRefreshFailed).toBe(
-      'O Orbit não conseguiu atualizar sua sessão. Tente novamente.',
+      'Não consegui atualizar sua sessão. Tente novamente.',
     )
   })
 

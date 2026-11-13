@@ -32,6 +32,7 @@ import react19Api from "../../eslint-rules/react19-api.cjs"
 import requireDialogTitle from "../../eslint-rules/require-dialog-title.cjs"
 import requireFocusReplacement from "../../eslint-rules/require-focus-replacement.cjs"
 import noSparkleAiMarker from "../../eslint-rules/no-sparkle-ai-marker.cjs"
+import noSpinner from "../../eslint-rules/no-spinner.cjs"
 import iconSizeGrid from "../../eslint-rules/icon-size-grid.cjs"
 import noPillRadiusOnStatic from "../../eslint-rules/no-pill-radius-on-static.cjs"
 import hoverTransition from "../../eslint-rules/hover-transition.cjs"
@@ -120,6 +121,7 @@ export default [
           "require-dialog-title": requireDialogTitle,
           "require-focus-replacement": requireFocusReplacement,
           "no-sparkle-ai-marker": noSparkleAiMarker,
+          "no-spinner": noSpinner,
           "icon-size-grid": iconSizeGrid,
           "no-pill-radius-on-static": noPillRadiusOnStatic,
           "hover-transition": hoverTransition,
@@ -188,6 +190,7 @@ export default [
       "local/react19-api": "error",
       "local/require-focus-replacement": "error",
       "local/no-sparkle-ai-marker": "error",
+      "local/no-spinner": "error",
       "local/icon-size-grid": "error",
       "local/no-pill-radius-on-static": "error",
       "local/hover-transition": "error",

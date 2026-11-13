@@ -352,7 +352,7 @@ describe('BlockFrame on mobile', () => {
             { id: 'plain', label: 'Plain' },
             { id: 'suggested', label: 'Suggested', proposed: true },
           ],
-          proposedLabel: 'Proposed by Astra',
+          proposedLabel: 'Proposed by Orbit',
         })}
       />,
     )
@@ -360,7 +360,7 @@ describe('BlockFrame on mobile', () => {
       node.type === 'View' && prop(node, 'testID') === 'proposed-row')
     expect(wrappers).toHaveLength(1)
     expect(prop(wrappers[0]!, 'accessible')).toBe(false)
-    expect(prop(tree.root.findByProps({ testID: 'proposed-row-label' }), 'accessibilityLabel')).toBe('Proposed by Astra')
+    expect(prop(tree.root.findByProps({ testID: 'proposed-row-label' }), 'accessibilityLabel')).toBe('Proposed by Orbit')
   })
 
   it('keeps a proposed row control and edit action independently operable', () => {
@@ -379,7 +379,7 @@ describe('BlockFrame on mobile', () => {
               </Pressable>
             ),
           }],
-          proposedLabel: 'Proposed by Astra',
+          proposedLabel: 'Proposed by Orbit',
           onEditItem,
           editLabel: 'Edit item',
         })}

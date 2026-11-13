@@ -1,12 +1,12 @@
 import { ListRow } from '@/components/ui/list-row'
 import { Text, View } from 'react-native'
-import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { X } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { DateField } from '@/components/ui/date-field'
 import { formatAPIDate } from '@orbit/shared/utils/dates'
 import { isGoalDeadlinePast } from '@orbit/shared/utils/goal-form'
 import type { CreateGoalStyles, CreateGoalTokens } from './styles'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 
 interface GoalDeadlineFieldProps {
   tokens: CreateGoalTokens
@@ -36,7 +36,7 @@ export function GoalDeadlineField({
             <View style={styles.deadlinePicker}>
               <DateField value={deadline} onChange={onChangeDeadline} />
             </View>
-            <Pressable
+            <MotionPressable
               style={({ pressed }) => [
                 styles.removeDeadlineButton,
                 pressed && { backgroundColor: tokens.bgHover },
@@ -46,7 +46,7 @@ export function GoalDeadlineField({
               accessibilityLabel={t('goals.form.removeDeadline')}
             >
               <X size={16} color={tokens.fg3} strokeWidth={1.8} />
-            </Pressable>
+            </MotionPressable>
           </View>
           {isGoalDeadlinePast(deadline) ? (
             <Text style={styles.warningText}>

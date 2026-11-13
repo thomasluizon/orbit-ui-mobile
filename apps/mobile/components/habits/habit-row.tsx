@@ -1,6 +1,5 @@
 import { SPACING } from '@orbit/shared/theme'
 import { InsetFocusPressable as Pressable, type InsetFocusPressableProps } from '@/components/ui/inset-focus-pressable'
-import { PressScalePressable } from '@/components/motion/press-scale'
 import { memo, useCallback, useMemo, useState, type ReactNode } from 'react'
 import { StyleSheet, View, useWindowDimensions, type StyleProp, type ViewStyle, type LayoutChangeEvent } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -36,6 +35,7 @@ import {
 } from './habit-row-model'
 import { styles } from './habit-row-styles'
 import { useHabitRowActivation } from './use-habit-row-activation'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 
 /**
  * Action callbacks consumed by HabitRow.
@@ -148,7 +148,7 @@ function HabitRowStructuralColumn({
   const [hovered, setHovered] = useState(false)
   if (!hasChildren) return null
   return (
-    <PressScalePressable
+    <MotionPressable focusInset
       onPress={actions.onToggleExpand}
       onHoverIn={() => setHovered(true)}
       onHoverOut={() => setHovered(false)}
@@ -164,7 +164,7 @@ function HabitRowStructuralColumn({
       <View style={{ transform: [{ rotate: expanded ? '0deg' : '-90deg' }] }}>
         <ChevronDown size={20} color={tokens.fg3} strokeWidth={1.8} />
       </View>
-    </PressScalePressable>
+    </MotionPressable>
   )
 }
 
@@ -176,13 +176,13 @@ function HabitRowSelection({ title, selected, onToggleSelection, tokens }: Reado
 }>) {
   const [hovered, setHovered] = useState(false)
   return (
-    <PressScalePressable onPress={onToggleSelection}
+    <MotionPressable focusInset onPress={onToggleSelection}
       onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}
       accessibilityRole="checkbox" accessibilityLabel={title} accessibilityState={{ checked: selected }}
       style={({ pressed }) => [styles.structuralColumn,
         hovered || pressed ? { backgroundColor: tokens.bgHover } : null]}>
       <Checkbox checked={selected} onChange={() => onToggleSelection?.()} as="span" />
-    </PressScalePressable>
+    </MotionPressable>
   )
 }
 

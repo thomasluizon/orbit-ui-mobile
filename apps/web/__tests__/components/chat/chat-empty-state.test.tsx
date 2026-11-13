@@ -22,12 +22,12 @@ describe('ChatEmptyState', () => {
     cleanup()
   })
 
-  it('heads the empty thread with the Astra mark, on no disc and with no accent', () => {
+  it('heads the empty thread with the mascot, on no disc and with no accent', () => {
     const { container } = render(<ChatEmptyState />)
 
-    const mark = container.querySelector('[data-mark="astra"]')
+    const mark = container.querySelector('[data-empty-state]')
     expect(mark).not.toBeNull()
-    expect(mark?.querySelector('[data-asset="astra-mark"]')).not.toBeNull()
+    expect(mark?.querySelector('[data-asset="orbit-mascot"]')).not.toBeNull()
     for (const element of [mark, ...(mark?.querySelectorAll<HTMLElement>('*') ?? [])]) {
       expect((element as HTMLElement).style.background).toBe('')
       expect((element as HTMLElement).style.backgroundColor).toBe('')
@@ -36,6 +36,13 @@ describe('ChatEmptyState', () => {
       expect(element.getAttribute('style') ?? '').not.toContain('--primary')
       expect(element.className.toString()).not.toContain('--primary')
     }
+  })
+
+  it('shows Orbit resting only while the AI is unavailable', () => {
+    const { container, rerender } = render(<ChatEmptyState />)
+    expect(container.querySelector('[data-asset="orbit-mascot"]')).toHaveAttribute('data-orbit-state', 'parado')
+    rerender(<ChatEmptyState mascotState="descansando" />)
+    expect(container.querySelector('[data-asset="orbit-mascot"]')).toHaveAttribute('data-orbit-state', 'descansando')
   })
 
   it('keeps the empty introduction out of the conversation live log', () => {

@@ -13,7 +13,7 @@ import {
 } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { OrbitMark } from '@/components/ui/orbit-mark'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 
 interface ShareCardProps {
   recap: Recap
@@ -36,7 +36,7 @@ export const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard({ r
       style={[styles.card, variant === 'progress' ? styles.progressCard : null]}
     >
       <View style={styles.brandRow}>
-        <OrbitMark size={28} accent />
+        <OrbitMascot size={24} />
         <Text style={styles.wordmark}>Orbit</Text>
         <View style={styles.brandSpacer} />
         <Text style={styles.period}>{t(recapPeriodLabelKey(recap.period))}</Text>

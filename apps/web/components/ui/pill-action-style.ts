@@ -27,6 +27,16 @@ const linkInteractionClasses: Record<ButtonVariant, string> = {
 
 const baseClasses = 'focus-visible:-outline-offset-2 orbit-pill-action press-hit-layer inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-full border-0 font-medium disabled:cursor-not-allowed'
 
+/** A waiting action's face is the skeleton (`SkeletonFace`), so its label reads `--fg-1` on the skeleton tone in every variant. */
+const waitingFaceClasses = 'relative isolate bg-transparent text-[var(--fg-1)]'
+
+function faceClasses(variant: ButtonVariant, loading: boolean, elevated: boolean, borderless: boolean): string[] {
+  if (loading) return [waitingFaceClasses]
+  const fill = variant === 'ghost' && borderless ? 'text-[var(--fg-1)] outline-0 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-[var(--fg-1)] focus-visible:-outline-offset-2' : variantClasses[variant]
+  if (variant !== 'ghost') return [fill]
+  return [fill, elevated ? 'bg-[var(--bg-elev)]' : 'bg-transparent']
+}
+
 export function actionClasses(variant: ButtonVariant, size: ButtonSize, element: 'button' | 'link', loading = false, quiet = false, elevated = false, borderless = false) {
   const variantInteractions = element === 'button'
     ? buttonInteractionClasses[variant]
@@ -36,7 +46,7 @@ export function actionClasses(variant: ButtonVariant, size: ButtonSize, element:
     : quiet && variant === 'ghost'
     ? 'enabled:hover:bg-[var(--bg-hover-opaque)] enabled:active:bg-[var(--bg-hover-opaque)] motion-safe:enabled:active:scale-[0.96]'
     : variantInteractions
-  return [baseClasses, variant === 'ghost' && borderless ? 'text-[var(--fg-1)] outline-0 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-[var(--fg-1)] focus-visible:-outline-offset-2' : variantClasses[variant], variant === 'ghost' ? elevated ? 'bg-[var(--bg-elev)]' : 'bg-transparent' : undefined, loading ? undefined : interactionClasses,
+  return [baseClasses, ...faceClasses(variant, loading, elevated, borderless), loading ? undefined : interactionClasses,
     element === 'button' && !loading ? 'disabled:opacity-40' : undefined,
     size === 'sm' ? 'touch-target' : undefined]
     .filter(Boolean)

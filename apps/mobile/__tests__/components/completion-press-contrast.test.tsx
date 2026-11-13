@@ -1,6 +1,6 @@
 import React from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
-import { StyleSheet, type PressableProps, type StyleProp, type ViewStyle } from 'react-native'
+import { StyleSheet, type GestureResponderEvent, type PressableProps, type StyleProp, type ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import { controlContrast } from '@orbit/shared/__tests__/contrast'
 import { CheckCircle } from '@/components/habits/habit-row-check-circle'
@@ -12,13 +12,13 @@ vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => theme }))
 vi.mock('react-native', async (importOriginal) => {
   const native = await importOriginal<typeof import('react-native')>()
   const { createElement, useState } = await import('react')
-  return { ...native, Pressable: ({ style, children, disabled, onPress, ...props }: PressableProps) => {
+  return { ...native, Pressable: ({ style, children, disabled, onPress, onPressIn, onPressOut, ...props }: PressableProps) => {
     const [pressed, setPressed] = useState(false)
     return createElement('Pressable', {
       ...props, disabled,
       style: typeof style === 'function' ? style({ pressed }) : style,
-      onPressIn: (event: unknown) => { if (!disabled) setPressed(true); props.onPressIn?.(event as never) },
-      onPressOut: (event: unknown) => { setPressed(false); props.onPressOut?.(event as never) },
+      onPressIn: (event: GestureResponderEvent) => { if (!disabled) setPressed(true); onPressIn?.(event) },
+      onPressOut: (event: GestureResponderEvent) => { setPressed(false); onPressOut?.(event) },
       onPress: disabled ? undefined : onPress,
     }, typeof children === 'function' ? children({ pressed }) : children)
   } }

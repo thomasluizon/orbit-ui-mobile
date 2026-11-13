@@ -7,12 +7,12 @@ module.exports = {
   meta: {
     type: 'problem',
     docs: {
-      description: 'Ban the sparkle icon as an AI marker (DESIGN.md: the Astra glyph replaces it).',
+      description: 'Ban the sparkle icon as an AI marker (DESIGN.md: the AI is Orbit, and its marker is the mascot).',
     },
     schema: [],
     messages: {
       noSparkle:
-        'The sparkle is banned as an AI marker (DESIGN.md "Bans"). Astra is marked by `AstraGlyph`, which replaces the sparkle icon; identity comes from the mark, the glyph and ring indicators and from nothing else.',
+        'The sparkle is banned as an AI marker (DESIGN.md "Bans"). The AI is Orbit, and `OrbitMascot` marks it; identity comes from the mascot and ring indicators and from nothing else.',
     },
   },
   create(context) {

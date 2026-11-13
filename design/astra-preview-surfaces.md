@@ -1,7 +1,7 @@
-# Astra preview surfaces
+# Orbit preview surfaces
 
 The conversation lets a person inspect each proposed item before approving a write.
-The granted Astra conversation canvas defines the item rows, action order and outcomes.
+The granted Orbit conversation canvas defines the item rows, action order and outcomes.
 
 | Surface | Web and Android behavior |
 | --- | --- |
@@ -339,7 +339,7 @@ show:
 - the partial failure frame state,
 - no outcome glyph and no Open on a row, because the result does not name the skipped habits,
 - the notice `chat.operation.partialApplied`, for example "Only 2 of 3 changes were saved. Ask
-  Astra to try the rest." ("Só 2 de 3 alterações foram salvas. Peça à Astra para tentar as que
+  Orbit to try the rest." ("Só 2 de 3 alterações foram salvas. Peça ao Orbit para tentar as que
   faltam."). The first count is `applied_count + unchanged_count`, because a habit that already
   had the requested state needs no new attempt. "The rest" is then only the habits that failed.
 

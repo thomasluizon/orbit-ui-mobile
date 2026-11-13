@@ -5,7 +5,7 @@ import { RefreshCw } from '@/components/ui/icons'
 import { ShellCentredRegion } from '@/components/shell/shell-centred-region'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { useTranslations } from 'next-intl'
-import { OrbitMark } from '@/components/ui/orbit-mark'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { NotificationRow } from './notification-row'
 
 export function NotificationList({ items, isLoading, isError, onRetry, onOpen, onDelete }: Readonly<{
@@ -36,7 +36,7 @@ export function NotificationList({ items, isLoading, isError, onRetry, onOpen, o
               <p className="text-sm text-[var(--fg-3)]">{t('notifications.loadError')}</p>
               <IconButton label={t('common.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
             </> : <>
-              <OrbitMark size={96} />
+              <OrbitMascot size={96} />
               <p className="text-sm text-[var(--fg-3)]">{t('notifications.empty')}</p>
             </>}
           </div></ShellCentredRegion></li>

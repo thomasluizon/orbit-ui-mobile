@@ -1,14 +1,32 @@
-export type { OrbitMarkProps } from './OrbitMark'
-export type { AstraGlyphProps } from './AstraGlyph'
+export type { OrbitMascotProps, OrbitMascotSize, OrbitMascotLiveSize, OrbitMascotSmallSize } from './OrbitMascot'
+export { ORBIT_MASCOT_LIVE_SIZES, ORBIT_MASCOT_SMALL_SIZES } from './OrbitMascot'
 export type { IconProps } from './Icon'
 export type { LockupProps } from './Lockup'
 export {
-  ASTRA_GLYPH_VIEW_BOX,
-  ASTRA_GLYPH_PATHS,
+  ORBIT_MASCOT_VIEW_BOX,
+  ORBIT_MASCOT_BOX_WIDTH,
+  ORBIT_MASCOT_BOX_HEIGHT,
+  ORBIT_MASCOT_PLANET_RADIUS,
+  ORBIT_MASCOT_FACES,
+  ORBIT_SMALL_FACES,
+  orbitBlinkMatrix,
+  orbitMascotFrame,
+  orbitMascotSizeFor,
+  type OrbitEyeShape,
+  type OrbitFace,
+  type OrbitMascotFrame,
+  type OrbitMascotState,
+  type OrbitMascotTimings,
+  type OrbitSmallFace,
+} from './OrbitMascotGeometry'
+export {
+  LOCKUP_HEIGHT,
   LOCKUP_MARK_PATHS,
+  LOCKUP_MARK_TRANSFORM,
+  LOCKUP_VIEW_BOX,
+  LOCKUP_WIDTH,
   LOCKUP_WORD_PATH,
-  ORBIT_MARK_VIEW_BOX,
-  ORBIT_MARK_PATHS,
+  LOCKUP_WORD_TRANSFORM,
   type BrandPath,
 } from './BrandPaths'
 export { GOOGLE_MARK_SIZE, GOOGLE_MARK_PATHS } from './GoogleMark'

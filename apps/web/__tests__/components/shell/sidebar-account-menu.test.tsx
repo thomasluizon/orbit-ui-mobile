@@ -8,7 +8,6 @@ import { RouteContext } from '@/components/navigation/route-context'
 import SearchPage from '@/app/(app)/search/page'
 import { useShellStore } from '@/stores/shell-store'
 import { useAuthStore } from '@/stores/auth-store'
-import { ASTRA_GLYPH_PATHS } from '@orbit/shared/contracts/brand'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
@@ -165,10 +164,9 @@ it.each([false, true].flatMap(collapsed => ['dark', 'light'].flatMap(theme => [f
       const row = screen.getByRole('button', { name: 'Astra' })
       expect(row.querySelectorAll('svg')).toHaveLength(1)
       const glyph = row.querySelector('svg')!
-      expect(glyph).toHaveAttribute('data-asset', 'astra-mark')
+      expect(glyph).toHaveAttribute('data-asset', 'orbit-mascot')
       expect(glyph).toHaveAttribute('width', '20')
-      expect(glyph).toHaveAttribute('height', '20')
+      expect(glyph).toHaveAttribute('height', '15')
       expect(glyph).toHaveAttribute('color', open ? 'var(--primary)' : 'var(--fg-3)')
-      expect(Array.from(glyph.querySelectorAll('path'), path => path.getAttribute('d'))).toEqual(ASTRA_GLYPH_PATHS.map(path => path.d))
     } finally { document.documentElement.classList.remove('light') }
   })

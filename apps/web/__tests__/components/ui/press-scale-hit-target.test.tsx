@@ -58,7 +58,7 @@ function markupOf(node: ReactElement) {
 const controls: [string, () => ReactElement, (page: Page) => Locator][] = [
   ['the onboarding proposal card', () => <OnboardingCreateHabit title="Walk outside" emoji="🚶" schedule={schedule} proposed correcting={false} canSaveRepeatWeeks atLimit={false} allowance={5}
     onCorrect={vi.fn()} onToggleDay={vi.fn()} onTimeChange={vi.fn()} onModeChange={vi.fn()} onFrequencyUnitChange={vi.fn()} onQuantityChange={vi.fn()} onIntervalWeeksChange={vi.fn()} />,
-  (page) => page.getByRole('button', { name: 'Correct schedule. Emoji proposed by Astra', exact: true })],
+  (page) => page.getByRole('button', { name: 'Correct schedule. Emoji proposed by Orbit', exact: true })],
   ['QuietLink', () => <QuietLink onClick={vi.fn()}>Back</QuietLink>, (page) => page.getByRole('button', { name: 'Back', exact: true })],
   ['the pricing stay-free link', () => <PricingSection profile={null} plans={null} isLoadingPlans isPlansError={false} isOnline trialDaysLeft={null}
     checkoutLoading={null} checkoutError="" discountedAmount={(amount) => amount} onCheckout={vi.fn()} onStayFree={vi.fn()} onRetryPlans={vi.fn()}

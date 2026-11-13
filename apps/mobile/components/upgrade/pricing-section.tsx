@@ -2,13 +2,14 @@ import type { AstraAllowance } from '@orbit/shared/utils'
 import { useRouter } from 'expo-router'
 import { SPACING } from '@orbit/shared/theme'
 import { ProPitch } from './pro-pitch'
-import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native'
-import { MotionPressable } from '@/components/ui/motion-pressable'
+import { Platform, Pressable, Text, View } from 'react-native'
+import { SkeletonFace } from '@/components/ui/skeleton'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import type { StoreOffer } from '@/hooks/use-play-billing'
 import { PlanSelection } from './plan-selection'
 import { styles } from './styles'
 import type { SubscriptionInterval, Tokens, UpgradeTextFn } from './types'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 
 function RestoreAction({ disabled, isRestoring, onRestore, t, tokens }: Readonly<{
   disabled: boolean
@@ -27,12 +28,10 @@ function RestoreAction({ disabled, isRestoring, onRestore, t, tokens }: Readonly
       style={[
         styles.restoreAction,
         { flexDirection: 'row', alignItems: 'center', gap: 8 },
-        disabled ? styles.disabledAction : null,
+        disabled && !isRestoring ? styles.disabledAction : null,
       ]}
     >
-      {isRestoring ? (
-        <ActivityIndicator size="small" color={tokens.fg3} />
-      ) : null}
+      {isRestoring ? <SkeletonFace /> : null}
       <Text style={[styles.restoreLink, { color: tokens.fg3 }]}>{t('upgrade.restorePurchase')}</Text>
     </MotionPressable>
   )

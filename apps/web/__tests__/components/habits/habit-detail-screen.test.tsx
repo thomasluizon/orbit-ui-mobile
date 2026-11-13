@@ -206,7 +206,7 @@ vi.mock('@/hooks/use-reschedule-suggestion', () => ({
 vi.mock('@/components/shell/flow-shell', () => ({
   FlowShell: ({ children, header }: { children: React.ReactNode; header?: React.ReactNode }) => <main>{header}{children}</main>,
 }))
-vi.mock('@/components/ui/astra-glyph', () => ({ AstraGlyph: ({ size }: { size: number }) => <svg data-testid="astra-glyph" data-size={size} aria-hidden="true" /> }))
+vi.mock('@/components/ui/orbit-mascot', () => ({ OrbitMascot: ({ size }: { size: number }) => <svg data-testid="orbit-mascot" data-size={size} aria-hidden="true" /> }))
 vi.mock('@/components/ui/badge', () => ({ Badge: ({ children }: { children: React.ReactNode }) => <span data-testid="badge">{children}</span> }))
 vi.mock('@/components/ui/confirm-sheet', () => ({
   ConfirmSheet: ({ open, title, message, confirmLabel, onConfirm, onCancel }: { open: boolean; title: string; message: string; confirmLabel: string; onConfirm: () => void; onCancel: () => void }) => open
@@ -826,7 +826,7 @@ describe('HabitDetailScreen', () => {
     render(<HabitDetailScreen habitId="habit-1" />)
     const card = screen.getByText('habits.reschedule.freePrompt').parentElement!
     expect(screen.queryByRole('group', { name: 'habits.form.proposedByAstra' })).not.toBeInTheDocument()
-    expect(within(card).queryByTestId('astra-glyph')).not.toBeInTheDocument()
+    expect(within(card).queryByTestId('orbit-mascot')).not.toBeInTheDocument()
     expect(within(card).getByTestId('badge')).toHaveTextContent('habits.detail.proGate')
     expect(Array.from(card.querySelectorAll<HTMLElement>('a, button')).map((button) => [button.textContent, button.dataset.variant, button.dataset.size])).toEqual([
       ['habits.reschedule.dismiss', 'ghost', 'sm'],

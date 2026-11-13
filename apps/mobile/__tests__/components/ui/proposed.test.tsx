@@ -53,20 +53,20 @@ function UnstyledCompositeValue({ testID }: Readonly<{ testID: string }>) {
 describe('Proposed on mobile', () => {
   it('renders the labelled dashed treatment at the scope radius', () => {
     const tree = render(
-      <Proposed proposed scope="field" label="Proposed by Astra">
+      <Proposed proposed scope="field" label="Proposed by Orbit">
         <Text testID="suggested-value">Suggested value</Text>
       </Proposed>,
     )
     const wrapper = tree.root.findByProps({ testID: 'proposed-field' })
     expect(prop(wrapper, 'accessible')).toBe(false)
-    expect(prop(tree.root.findByProps({ testID: 'proposed-field-label' }), 'accessibilityLabel')).toBe('Proposed by Astra')
+    expect(prop(tree.root.findByProps({ testID: 'proposed-field-label' }), 'accessibilityLabel')).toBe('Proposed by Orbit')
     expect(prop(wrapper, 'style')).toMatchObject({ borderRadius: 12, borderStyle: 'dashed' })
     expect(flattenedStyle(tree.root.findByProps({ testID: 'suggested-value' }))).toMatchObject({ color: createTokensV2('purple', 'dark').fg3 })
   })
 
   it('returns the child untouched when the state is off', () => {
     const tree = render(
-      <Proposed proposed={false} scope="block" label="Proposed by Astra">
+      <Proposed proposed={false} scope="block" label="Proposed by Orbit">
         <Text testID="child">Value</Text>
       </Proposed>,
     )
@@ -77,7 +77,7 @@ describe('Proposed on mobile', () => {
 
   it('preserves the explicit token colors rendered by a design-system child', () => {
     const tree = render(
-      <Proposed proposed scope="row" label="Proposed by Astra">
+      <Proposed proposed scope="row" label="Proposed by Orbit">
         <ListRow description="Supporting words" readOnly title="Design-system value" value="Daily" />
       </Proposed>,
     )
@@ -99,7 +99,7 @@ describe('Proposed on mobile', () => {
 
   it('leaves the explicit token colors owned by a composite child unaltered', () => {
     const tree = render(
-      <Proposed proposed scope="row" label="Proposed by Astra">
+      <Proposed proposed scope="row" label="Proposed by Orbit">
         <CompositeValue />
       </Proposed>,
     )
@@ -114,7 +114,7 @@ describe('Proposed on mobile', () => {
     const tree = render(
       <>
         <UnstyledCompositeValue testID="outside-composite" />
-        <Proposed proposed scope="row" label="Proposed by Astra">
+        <Proposed proposed scope="row" label="Proposed by Orbit">
           <UnstyledCompositeValue testID="inside-composite" />
         </Proposed>
       </>,
@@ -131,7 +131,7 @@ describe('Proposed on mobile', () => {
 
   it('tints unstyled nested text and text input through arrays and fragments', () => {
     const tree = render(
-      <Proposed proposed scope="row" label="Proposed by Astra">
+      <Proposed proposed scope="row" label="Proposed by Orbit">
         <>
           {[
             <View key="nested">
@@ -155,7 +155,7 @@ describe('Proposed on mobile', () => {
   it('keeps an explicit native text color and stops the walk there', () => {
     const explicitForeground = createTokensV2('purple', 'dark').fg1
     const tree = render(
-      <Proposed proposed scope="row" label="Proposed by Astra">
+      <Proposed proposed scope="row" label="Proposed by Orbit">
         <Text style={{ color: explicitForeground }} testID="explicit-text">
           <Text testID="explicit-text-child">Explicit value</Text>
         </Text>
@@ -168,7 +168,7 @@ describe('Proposed on mobile', () => {
 
   it('wraps bare string and number children in fg3 native Text', () => {
     const tree = render(
-      <Proposed proposed scope="block" label="Proposed by Astra">
+      <Proposed proposed scope="block" label="Proposed by Orbit">
         Bare value
         {42}
       </Proposed>,
@@ -187,7 +187,7 @@ describe('Proposed on mobile', () => {
 
   it('keeps the hairline and status announcement full-strength', () => {
     const tree = render(
-      <Proposed proposed scope="row" label="Proposed by Astra">
+      <Proposed proposed scope="row" label="Proposed by Orbit">
         <Text testID="full-strength-value">Value</Text>
       </Proposed>,
     )
@@ -203,7 +203,7 @@ describe('Proposed on mobile', () => {
 
   it('announces the treatment separately from interactive descendants', () => {
     const tree = render(
-      <Proposed proposed scope="row" label="Proposed by Astra">
+      <Proposed proposed scope="row" label="Proposed by Orbit">
         <Pressable accessibilityLabel="Row control" accessibilityRole="button" onPress={() => undefined}>
           <Text>Control</Text>
         </Pressable>
@@ -214,7 +214,7 @@ describe('Proposed on mobile', () => {
     )
 
     expect(prop(tree.root.findByProps({ testID: 'proposed-row' }), 'accessible')).toBe(false)
-    expect(prop(tree.root.findByProps({ testID: 'proposed-row-label' }), 'accessibilityLabel')).toBe('Proposed by Astra')
+    expect(prop(tree.root.findByProps({ testID: 'proposed-row-label' }), 'accessibilityLabel')).toBe('Proposed by Orbit')
     expect(tree.root.findByProps({ accessibilityLabel: 'Row control' })).toBeDefined()
     expect(tree.root.findByProps({ accessibilityLabel: 'Edit row' })).toBeDefined()
   })
@@ -231,7 +231,7 @@ describe('Proposed on mobile', () => {
 })
 
 it('paints the inset proposal marker above an opaque child without consuming layout', () => {
-  const tree = render(<Proposed proposed inset scope="block" label="Proposed by Astra">
+  const tree = render(<Proposed proposed inset scope="block" label="Proposed by Orbit">
     <View testID="opaque-child" style={{ backgroundColor: createTokensV2('orange', 'light').bgCard }} />
   </Proposed>)
   const wrapper = tree.root.findByProps({ testID: 'proposed-block' })

@@ -1,7 +1,6 @@
 import { SPACING } from '@orbit/shared/theme'
 import { useState } from 'react'
-import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
-import { selectedBorderStyle } from '@/components/ui/selected-focus-indicator'
+import { InsetFocusPressable, SelectionRing } from '@/components/ui/inset-focus-pressable'
 import { ChevronDown } from '@/components/ui/icons'
 import { PersonalText } from '@/components/ui/personal-text'
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
@@ -86,7 +85,6 @@ export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, desc
       alignItems: 'center' as const,
       paddingLeft: ROW_INDENTS[Math.min(5, Math.max(0, Math.trunc(depth)))],
       backgroundColor: selected ? tokens.selectionBg : 'transparent',
-      borderColor: 'transparent',
       opacity: blocked ? 0.5 : 1,
     },
   ]
@@ -94,7 +92,7 @@ export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, desc
     .filter(Boolean).join(', ')
 
   return disabled ? (
-    <View style={{ flexDirection: 'row', minWidth: 0, alignItems: 'center' }}><View data-slot="list-row-body" focusable={false} accessibilityRole="radio" accessibilityLabel={accessibilityLabel} accessibilityState={{ checked: selected, disabled: true }} style={[rowStyle, selectedBorderStyle(selected, false, 1.5, tokens.primary), { flex: 1, minWidth: 0 }]}>{content()}</View>{textMode === 'personal' ? <InsetFocusPressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ expanded: disclosed }} onPress={() => setDisclosed(!disclosed)} style={({ pressed }) => ({ minHeight: 48, minWidth: 48, ...(supportingReason && { alignSelf: 'flex-start' as const }), padding: SPACING.s8, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}><ChevronDown accessible={false} color={tokens.fg2} size={20} strokeWidth={2} style={disclosed ? { transform: [{ rotate: '180deg' }] } : undefined} /></InsetFocusPressable> : null}</View>
+    <View style={{ flexDirection: 'row', minWidth: 0, alignItems: 'center' }}><View data-slot="list-row-body" focusable={false} accessibilityRole="radio" accessibilityLabel={accessibilityLabel} accessibilityState={{ checked: selected, disabled: true }} style={[rowStyle, { flex: 1, minWidth: 0 }]}><SelectionRing shape={styles.row} width={1.5} color={tokens.primary} shown={selected} reducedMotion />{content()}</View>{textMode === 'personal' ? <InsetFocusPressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ expanded: disclosed }} onPress={() => setDisclosed(!disclosed)} style={({ pressed }) => ({ minHeight: 48, minWidth: 48, ...(supportingReason && { alignSelf: 'flex-start' as const }), padding: SPACING.s8, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}><ChevronDown accessible={false} color={tokens.fg2} size={20} strokeWidth={2} style={disclosed ? { transform: [{ rotate: '180deg' }] } : undefined} /></InsetFocusPressable> : null}</View>
   ) : (
     <PressScale pressed={rowPressed} disabled={blocked}><RadioItem selected={selected} onSelect={onSelect} disabled={disabled} busy={busy}><InsetFocusPressable selectionRingWidth={1.5} selectionRingColor={tokens.primary}
       data-slot="list-row-body"
@@ -131,7 +129,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 0,
   },
-  row: { minHeight: 52, paddingRight: SPACING.s16, paddingVertical: SPACING.s8, borderWidth: 1.5, borderRadius: 12, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 12 },
+  row: { minHeight: 52, paddingRight: SPACING.s16, paddingVertical: SPACING.s8, borderRadius: 12, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 12 },
   leading: { width: 30, height: 30, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   textBlock: { flex: 1, minWidth: 0, gap: 4 },
   wrappedContent: { width: '100%', minWidth: 0, flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.s12 },

@@ -1,6 +1,6 @@
 # Empty-state surfaces
 
-> **At a glance** - shared empty-state consumers, Astra thread composition and completed-day action spacing on web and Android.
+> **At a glance** - shared empty-state consumers, Orbit thread composition and completed-day action spacing on web and Android.
 
 The shared `EmptyState` uses one 48px identity carrier, a required title and at most one
 caller-supplied action. The mark, title, action and optional disclosure share a 24px stack,
@@ -10,7 +10,7 @@ Paths below are relative to each platform's `components/` directory unless state
 
 | Surface | Web owner | Android owner | Retained content |
 |---|---|---|---|
-| Empty Astra thread | `chat/chat-empty-state.tsx` | `chat/chat-empty-state.tsx` | Astra mark, title, one ghost browse action and disclosure |
+| Empty Orbit thread | `chat/chat-empty-state.tsx` | `chat/chat-empty-state.tsx` | Orbit mascot, title, one ghost browse action and disclosure |
 | Empty calendar import and review | `calendar-sync/calendar-import-content.tsx` | `calendar-sync/calendar-import-content.tsx` | Orbit mark, mode-specific title and back action |
 | Empty goal list | `app/(app)/progress/_components/progress-content.tsx` | `progress/progress-content.tsx` | Orbit mark, title and create action |
 | Empty progress window | Same progress owner | Same progress owner | Orbit mark, title and habit entry |
@@ -33,7 +33,7 @@ the share card sheet, and Hoje. Web `notification-empty-centre-geometry.test.tsx
 area centre at compact widths in both themes. The Android tests of the same names measure the same
 centre in Shell412.
 
-Astra centres the visible mark-to-disclosure group within the thread above the complete
+Orbit centres the visible mark-to-disclosure group within the thread above the complete
 composer block, including its live chips and any notices. The web empty owner itself carries
 the 708px inner-column cap and full thread minimum height. Android's existing ShellContent
 keeps its growing allocation and its ScrollView keeps symmetric 16px thread insets. The
@@ -49,7 +49,7 @@ line paired with 8px. The mark, text group and optional See tomorrow ghost pill 
 entrance animation, including under reduced motion. Web owns it in
 `habits/habit-list/empty-state.tsx`; Android owns it in `habit-list/empty-state.tsx`.
 Both retain the same navigation callback and the existing completed-day eligibility.
-The Hoje screen owner suppresses its Astra slot while this completion state applies,
+The Hoje screen owner suppresses its Orbit slot while this completion state applies,
 so a proactive item or summary cannot repeat the completion message. Undo restores the
 normal line and list in the next render, without a dismissal delay.
 

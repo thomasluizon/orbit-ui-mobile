@@ -26,6 +26,7 @@ import { ReferralPrompt } from '@/components/referral/referral-prompt'
 import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-share-prompt'
 import { MarketingConsentPrompt } from '@/components/marketing-consent/marketing-consent-prompt'
 import { useProfile } from '@/hooks/use-profile'
+import { useOrbitMotionSync } from '@/hooks/use-mascot-motion'
 import { useOffline } from '@/hooks/use-offline'
 import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
 import { getHeldAccountId, useAuthStore, useHeldAccountId } from '@/stores/auth-store'
@@ -160,6 +161,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const t = useTranslations()
   const { showPersistentError } = useAppToast()
   const { profile, patchProfile } = useProfile()
+  useOrbitMotionSync(profile)
   const today = useToday(profile?.timeZone)
   const [composerDate, setComposerDate] = useState<string | undefined>()
   const includeGeneral = useSyncExternalStore(subscribeToGeneralPreference, readShowGeneralOnToday, readServerGeneralPreference)

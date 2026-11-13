@@ -7,7 +7,7 @@
 | Surface | Web owner | Android owner |
 |---|---|---|
 | Goal detail opened from Metas, `/progress/goals` | `apps/web/app/(app)/progress/goals/page.tsx` through `GoalDetailDrawer` inline | `apps/mobile/app/progress/goals.tsx` through `GoalDetailDrawer` inline |
-| Goal detail opened from an Astra goal card | `apps/web/components/chat/conversation.tsx` through `GoalDetailDrawer` in a sheet | `apps/mobile/components/chat/conversation.tsx` through `GoalDetailDrawer` in a sheet |
+| Goal detail opened from an Orbit goal card | `apps/web/components/chat/conversation.tsx` through `GoalDetailDrawer` in a sheet | `apps/mobile/components/chat/conversation.tsx` through `GoalDetailDrawer` in a sheet |
 | Forecast figures | `apps/web/components/goals/goal-detail-drawer/goal-forecast.tsx` | `apps/mobile/components/goals/goal-detail-drawer/goal-forecast.tsx` |
 
 Both detail presentations share the goal detail forecast rows. The progress heading and ring remain the focal element;

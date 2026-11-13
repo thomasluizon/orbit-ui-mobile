@@ -1,6 +1,6 @@
 'use client'
 
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 
 import { useTranslations } from 'next-intl'
 import { tagSuggestionStatusKey } from '@orbit/shared/hooks'
@@ -23,7 +23,7 @@ export function TagSuggestions({ suggestions, atLimit, disabled, translateError 
   const failure = suggestions.error
   const statusKey = tagSuggestionStatusKey(suggestions, atLimit, suggestions.needsTitle)
   return <div className="flex flex-col gap-4 pt-4">
-    <div className="self-start"><PillButton minimumHeight={48} borderless hint={suggestions.pending === 'suggest' ? t('habits.form.suggestingTags') : suggestions.needsTitle ? t('habits.form.titleRequired') : atLimit ? t('habits.form.tagLimit') : undefined} iconOnly label={t('habits.form.suggestTags')} variant="ghost" disabled={!suggestions.canSuggest} loading={suggestions.pending === 'suggest'} onClick={() => void suggestions.suggest()}><AstraGlyph size={20} /></PillButton></div>
+    <div className="self-start"><PillButton minimumHeight={48} borderless hint={suggestions.pending === 'suggest' ? t('habits.form.suggestingTags') : suggestions.needsTitle ? t('habits.form.titleRequired') : atLimit ? t('habits.form.tagLimit') : undefined} iconOnly label={t('habits.form.suggestTags')} variant="ghost" disabled={!suggestions.canSuggest} loading={suggestions.pending === 'suggest'} onClick={() => void suggestions.suggest()}><OrbitMascot size={20} /></PillButton></div>
     <div role="status" aria-label={t('habits.form.suggestTags')} className="empty:absolute text-sm text-[var(--fg-3)]">{statusKey ? t(statusKey) : null}</div>
     {failure ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{getFriendlyErrorMessage(failure.cause, translateError, failure.operation === 'suggest' ? 'habits.form.suggestTagsError' : 'toast.errors.validation', failure.operation === 'suggest' ? 'generic' : 'tag')}</p> : null}
     {suggestions.suggestions.length > 0 ? <Proposed proposed scope="field" label={t('habits.form.suggestedTagsLabel')}><div aria-busy={suggestions.pending === 'accept'} className="flex flex-col gap-2 p-2">

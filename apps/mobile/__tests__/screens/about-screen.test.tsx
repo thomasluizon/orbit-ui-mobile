@@ -220,7 +220,7 @@ describe('AboutScreen', () => {
 
     expect(
       tree.root.findAll(
-        (node) => node.type === 'Svg' && node.props.testID === 'orbit-mark-accent',
+        (node) => node.type === 'Svg' && node.props.testID === 'orbit-mascot',
       ),
     ).toHaveLength(1)
     expect(textContent(tree.root)).toContain('Orbit')

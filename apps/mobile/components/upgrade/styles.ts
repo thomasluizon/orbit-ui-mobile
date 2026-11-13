@@ -1,5 +1,6 @@
 import { SPACING, TOUCH_TARGET_MIN, SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 import { StyleSheet } from 'react-native'
+import { radius } from '@/lib/theme'
 
 export const styles = StyleSheet.create({
   billingStack: { width: '100%', gap: 24 },
@@ -196,6 +197,9 @@ export const styles = StyleSheet.create({
     alignSelf: 'center',
     justifyContent: 'center',
     minHeight: TOUCH_TARGET_MIN,
+    paddingHorizontal: SPACING.s12,
+    borderRadius: radius.md,
+    overflow: 'hidden',
   },
   disabledAction: {
     opacity: 0.4,

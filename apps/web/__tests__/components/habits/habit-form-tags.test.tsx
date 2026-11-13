@@ -224,13 +224,13 @@ describe('habit tag suggestions', () => {
     formLocale.language = 'pt-BR'
     renderTagForm('Run', '   ')
     const action = screen.getByRole('button', { name: 'habits.form.suggestTags' })
-    expect(screen.getByRole('dialog', { name: 'habits.form.tags' }).querySelector('[data-asset^="astra-mark"]')).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByRole('dialog', { name: 'habits.form.tags' }).querySelector('[data-asset^="orbit-mascot"]')).toHaveAttribute('aria-hidden', 'true')
     fireEvent.click(action)
     expect(action).toBeDisabled()
     expect(action).toHaveAttribute('aria-busy', 'true')
     expect(action).toHaveAttribute('data-borderless', 'true')
-    expect(action.querySelector('[data-asset^="astra-mark"]')).toBeNull()
-    expect(action.querySelectorAll('svg')).toHaveLength(1)
+    expect(action.querySelector('[data-asset^="orbit-mascot"]')).toBeInTheDocument()
+    expect(action.querySelector('[data-slot="skeleton-face"] .skeleton-pulse')).toBeInTheDocument()
     expect(action).toHaveAccessibleDescription('habits.form.suggestingTags')
     expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('habits.form.suggestingTags')
     fireEvent.click(action)
@@ -239,7 +239,7 @@ describe('habit tag suggestions', () => {
     await act(async () => resolve({ tags: [] }))
     expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('habits.form.noTagSuggestions')
     expect(action).toBeEnabled()
-    expect(screen.getByRole('dialog', { name: 'habits.form.tags' }).querySelector('[data-asset^="astra-mark"]')).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByRole('dialog', { name: 'habits.form.tags' }).querySelector('[data-asset^="orbit-mascot"]')).toHaveAttribute('aria-hidden', 'true')
   })
 
   it('shows request failure inline and permits a successful retry', async () => {

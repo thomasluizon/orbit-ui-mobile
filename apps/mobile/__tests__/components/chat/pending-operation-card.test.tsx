@@ -226,7 +226,7 @@ describe('PendingOperationCard (mobile)', () => {
     visibleLocale.actual = true
     const { tree } = renderRestored('partialLog')
     expect(Object.values(rowStatuses(tree))).not.toContain('done')
-    expect(renderedText(tree.toJSON())).toContain('Only 1 of 2 changes were saved. Ask Astra to try the rest.')
+    expect(renderedText(tree.toJSON())).toContain('Only 1 of 2 changes were saved. Ask Orbit to try the rest.')
     TestRenderer.act(() => tree.unmount())
   })
 
@@ -250,11 +250,11 @@ describe('PendingOperationCard (mobile)', () => {
     expect(Object.values(rowStatuses(tree))).not.toContain('done')
     const text = renderedText(tree.toJSON())
     expect(text).not.toContain(en.blockFrame.status.done)
-    expect(text).toContain('Only 2 of 3 changes were saved. Ask Astra to try the rest.')
+    expect(text).toContain('Only 2 of 3 changes were saved. Ask Orbit to try the rest.')
     TestRenderer.act(() => tree.unmount())
   })
 
-  it.each([['en', 'Update 3 habits', 'Only 2 of 3 changes were saved. Ask Astra to try the rest.'], ['pt-BR', 'Alterar 3 hábitos', 'Só 2 de 3 alterações foram salvas. Peça à Astra para tentar as que faltam.']])('does not show a live partial bulk update as done in %s', async (locale, approve, notice) => {
+  it.each([['en', 'Update 3 habits', 'Only 2 of 3 changes were saved. Ask Orbit to try the rest.'], ['pt-BR', 'Alterar 3 hábitos', 'Só 2 de 3 alterações foram salvas. Peça ao Orbit para tentar as que faltam.']])('does not show a live partial bulk update as done in %s', async (locale, approve, notice) => {
     visibleLocale.actual = true
     visibleLocale.language = locale
     const messages = locale === 'en' ? en : ptBR

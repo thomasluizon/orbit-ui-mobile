@@ -1,16 +1,16 @@
 # Orbit tool and compatibility references
 
-> **At a glance** - counts for deployed Astra and MCP tools, and retained social compatibility references.
+> **At a glance** - counts for deployed Orbit AI and MCP tools, and retained social compatibility references.
 > Counts are pinned to `thomasluizon/orbit-api` commit
 > `2f49ed78fcea2963a80cac7e6510490454f7bbb0`; recount after API changes.
 
-## Astra AI
+## Orbit AI
 
 `orbit-api/src/Orbit.Api/Extensions/ServiceCollectionExtensions.AiServices.cs` registers
 **72 `IAiTool` implementations**.
 
 The guide counts **71**: `AiToolRegistry.GetAll()` leaves out each `IMcpOnlyAiTool`, and the one such
-tool, the administrator-only `ManageFeatureFlagsTool`, never reaches Astra.
+tool, the administrator-only `ManageFeatureFlagsTool`, never reaches Orbit's AI.
 
 Synchronization trigger: after an `IAiTool` registration reaches deployed `orbit-api` `main`,
 recount that source and update this total plus both guide locales in a paired UI pull request.

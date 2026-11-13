@@ -9,7 +9,7 @@ import { motionDurations, motionEasings, TOUCH_TARGET_MIN } from '@orbit/shared/
 import { isStreakCelebrationMilestone, type CelebrationQueueItem } from '@orbit/shared/stores'
 import { X } from '@/components/ui/icons'
 import { Button } from '@/components/ui/pill-button'
-import { OrbitMark } from '@/components/ui/orbit-mark'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { plural } from '@/lib/plural'
 import { useAccountGeneration } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
@@ -166,7 +166,7 @@ function CelebrationItem({ active, reduced, closeRef, complete, beforeDismiss }:
         ? 'celebration-notice flex flex-wrap items-center gap-[12px] rounded-[20px] bg-[var(--bg-elev)] p-4 shadow-[var(--sh-2),inset_0_0_0_1px_var(--hairline)]'
         : 'celebration-notice flex flex-wrap items-center gap-4 rounded-[20px] bg-[var(--bg-elev)] p-6 shadow-[var(--sh-2),inset_0_0_0_1px_var(--hairline)]'}>
       <span role="status" aria-atomic="true" className="sr-only">{announcement}</span>
-      <span aria-hidden="true" className="flex size-[44px] shrink-0 items-center justify-center"><OrbitMark size={44} accent={false} /></span>
+      <span aria-hidden="true" className="flex size-[44px] shrink-0 items-center justify-center"><OrbitMascot size={48} state="feliz" still /></span>
       {daily ? <DailyStreakMoment streak={active.payload.streak} entering={entering} /> : (
         <div className="celebration-copy min-w-0 flex-1" aria-hidden="true">
           <p className="font-mono text-xs uppercase tracking-[0.06em] text-[var(--fg-3)]">{t(eyebrowKey)}</p>

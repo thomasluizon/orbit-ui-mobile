@@ -23,15 +23,15 @@ import { useAuthStore } from '@/stores/auth-store'
 import { getAccountGeneration, subscribeToAccountGeneration } from '@/lib/session-epoch'
 import { useUIStore } from '@/stores/ui-store'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
-import { PressScalePressable } from '@/components/motion/press-scale'
 import { ArrowUp, Clipboard as ClipboardIcon, FileText, Image, Mic, Plus, RefreshCw, Square, X } from '@/components/ui/icons'
 import { ThemedIconButton } from '@/components/ui/icon-button'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { mobileMotion, toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import * as Menu from '@/components/ui/dropdown-menu'
 import { Sheet } from '@/components/ui/sheet'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 
 function AttachmentIcon({ kind, color }: Readonly<Pick<ComposerAttachment, 'kind'> & { color: string }>) {
   return kind === 'image' ? (
@@ -131,7 +131,7 @@ function SuggestionStrip({
               style={styles.suggestionContent}
             >
               {suggestion.icon ? <View style={[styles.suggestionIcon, { height: 20 * fontScale }]}>{suggestion.icon}</View> : null}
-              <View style={[styles.suggestionIcon, { height: 20 * fontScale }]}><AstraGlyph size={16} color={tokens.fg2} /></View><Text style={[styles.suggestionText, { color: tokens.fg2 }]}>{suggestion.label}</Text>
+              <View style={[styles.suggestionIcon, { height: 20 * fontScale }]}><OrbitMascot size={16} color={tokens.fg2} /></View><Text style={[styles.suggestionText, { color: tokens.fg2 }]}>{suggestion.label}</Text>
             </View>
           </InsetFocusPressable>
         ))}
@@ -398,7 +398,7 @@ function OpenConversationControl({ props, tokens, onLayout }: Readonly<{ props: 
       onPress={() => { returnFocusPending.current = true; props.onOpenConversation?.() }}
       onPressIn={() => animate(mobileMotion.orbital.press.scale)} onPressOut={() => animate(1)}
       style={({ pressed }) => [styles.openConversation, pressed ? { backgroundColor: tokens.bgHover } : null]}>
-      <Animated.View style={{ transform: [{ scale }] }}><AstraGlyph size={20} color={tokens.fg3} /></Animated.View>
+      <Animated.View style={{ transform: [{ scale }] }}><OrbitMascot size={20} color={tokens.fg3} /></Animated.View>
     </InsetFocusPressable>
 }
 
@@ -537,10 +537,10 @@ function ComposerError({ props, tokens }: Readonly<{ props: ComposerProps; token
   return <View style={styles.limitStatus}>
     {props.errorMessage ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive"
       style={[styles.limitReason, { color: tokens.statusBadText }]}>{props.errorMessage}</Text> : null}
-    {props.errorRecovery ? <PressScalePressable layerStyle={styles.retryLayer} accessibilityRole="button" accessibilityLabel={props.errorRecovery.label} onPress={props.errorRecovery.onSelect}
+    {props.errorRecovery ? <MotionPressable focusInset accessibilityRole="button" accessibilityLabel={props.errorRecovery.label} onPress={props.errorRecovery.onSelect}
       style={({ pressed }) => [styles.retry, pressed ? { backgroundColor: tokens.bgHover } : null]}>
       <Text style={[styles.retryText, { color: tokens.fg2 }]}>{props.errorRecovery.label}</Text>
-    </PressScalePressable> : null}
+    </MotionPressable> : null}
   </View>
 }
 
@@ -874,9 +874,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-  },
-  retryLayer: {
-    alignSelf: 'flex-start',
   },
   retryText: {
     fontFamily: 'Geist_500Medium',

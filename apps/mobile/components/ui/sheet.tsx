@@ -19,6 +19,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { getModalError } from '@orbit/shared/stores'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { AppToast } from '@/components/ui/app-toast'
+import { OrbitOverlayLayer } from '@/components/ui/orbit-overlay-layer'
 
 const MAX_HEIGHT_RATIO = 0.85
 const SCROLL_EDGE_PEEK = 24
@@ -215,6 +216,7 @@ export function Sheet({
   const maxScrollHeight = Math.max(0, maxBodyHeight - reservedFooterHeight)
 
   return (
+    <OrbitOverlayLayer>
     <TrueSheet
       ref={sheetRef}
       backgroundStyle={{ backgroundColor: tokens.bgSheet }}
@@ -275,6 +277,7 @@ export function Sheet({
         </>
       )}
     </TrueSheet>
+    </OrbitOverlayLayer>
   )
 }
 

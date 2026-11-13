@@ -7,8 +7,14 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { PRESS_SCALE_TRANSITION } from '@/components/motion/press-scale'
+import { selectionSettleTransition } from '@/components/motion/selection-settle'
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
+
+function pressTransition(reducedMotion: boolean, ringed: boolean, selected: boolean): string {
+  if (reducedMotion) return 'none'
+  return ringed ? `${PRESS_SCALE_TRANSITION}, ${selectionSettleTransition('border-color', selected, false)}` : PRESS_SCALE_TRANSITION
+}
 
 interface MotionPressableProps extends PressableProps {
   active?: boolean
@@ -27,6 +33,8 @@ function useMotionPressableElement(
   const [pressed, setPressed] = useState(false)
   const [focused, setFocused] = useState(false)
   const prefersReducedMotion = usePrefersReducedMotion()
+  const selected = Boolean(props.accessibilityState?.selected || props.accessibilityState?.checked)
+  const ringed = selectionRingWidth !== undefined
 
   return (
     <AnimatedPressable
@@ -37,12 +45,13 @@ function useMotionPressableElement(
       onPressIn={(event) => { setPressed(true); onPressIn?.(event) }}
       onPressOut={(event) => { setPressed(false); onPressOut?.(event) }}
       style={[
+        ringed ? { borderColor: 'transparent' } : null,
         typeof style === 'function' ? style({ pressed }) : style,
-        selectedBorderStyle(Boolean(props.accessibilityState?.selected || props.accessibilityState?.checked), focused, selectionRingWidth, selectionRingColor ?? tokens.primary),
+        selectedBorderStyle(selected, focused, selectionRingWidth, selectionRingColor ?? tokens.primary),
         focused && focusInset && !props.disabled ? { outlineWidth: 2, outlineOffset: -4, outlineStyle: 'solid', outlineColor: tokens.fg1 } : null,
         {
           transform: [{ scale: !props.disabled && !isStatic && !prefersReducedMotion && (pressed || active) ? orbitalMotion.press.scale : 1 }],
-          transition: prefersReducedMotion ? 'none' : PRESS_SCALE_TRANSITION,
+          transition: pressTransition(prefersReducedMotion, ringed, selected),
         },
       ]}
     >

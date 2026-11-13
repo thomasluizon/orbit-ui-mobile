@@ -15,7 +15,7 @@ vi.mock('next-intl', () => ({
 }))
 
 
-vi.mock('@/components/ui/orbit-mark', () => ({ OrbitMark: () => <span data-testid="orbit-mark" /> }))
+vi.mock('@/components/ui/orbit-mascot', () => ({ OrbitMascot: () => <span data-testid="orbit-mascot" /> }))
 vi.mock('@/components/ui/icon', () => ({
   Icon: ({ name }: { name: string }) => <span data-icon={name} />,
 }))

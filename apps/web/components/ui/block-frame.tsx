@@ -4,7 +4,7 @@ import { motion } from 'motion/react'
 import { ConversationChange } from '@/components/chat/conversation-motion'
 import { useConversationMotion } from '@/hooks/use-conversation-motion'
 import { IconButton } from '@/components/ui/icon-button'
-import { OrbitMark } from '@/components/ui/orbit-mark'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 
 import { SPACING } from '@orbit/shared/theme'
 
@@ -211,7 +211,7 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
       }}
     >
       <header className={`flex shrink-0 gap-3 ${props.titleMode === 'typed' ? 'min-w-0 flex-col' : 'items-center'}`}>
-        <OrbitMark size={20} />
+        <OrbitMascot size={20} />
         <h3 ref={titleRef} tabIndex={props.focusTitleOnMount ? -1 : undefined} className={props.titleMode === 'typed' ? 'min-w-0 text-base font-medium' : props.wrapTitle ? 'min-w-0 flex-1 break-words text-base font-medium' : 'min-w-0 flex-1 truncate text-base font-medium'}>{props.titleContent ?? (props.titleMode === 'typed' ? <PersonalText onClampedChange={setClamped}>{props.title}</PersonalText> : props.title)}</h3>
         <div className="flex shrink-0 items-center justify-end gap-3">
           {props.count !== null && (props.count !== undefined || props.items.length > 0) ? (

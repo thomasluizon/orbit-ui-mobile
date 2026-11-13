@@ -8,7 +8,7 @@ import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
 import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ArrowUp, RefreshCw, Square } from '@/components/ui/icons'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epoch'
@@ -20,7 +20,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { __getFocusedInputSelection, __getFocusedNativeTag, __setFocusImpl, __setWindowDimensions } from '@/test-mocks/react-native'
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
-import { expectPressPaint, expectPressScaleLayer } from '@/__tests__/support/press-feedback'
+import { expectMotionPress, expectPressPaint } from '@/__tests__/support/press-feedback'
 import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 
@@ -139,7 +139,7 @@ it.each([en, ptBR])('shows each suggestion action with only the decorative mark'
       expect(control.props.accessibilityLabel).toBe(chips[index]!.label)
       expect(textValues(control)).toEqual([chips[index]!.label])
       const marks = control.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
-        typeof node.type === 'string' && node.props.testID === 'astra-mark')
+        typeof node.type === 'string' && node.props.testID === 'orbit-mascot')
       expect(marks).toHaveLength(1)
       expect(marks[0]!.props.accessible).toBe(false)
     }
@@ -576,7 +576,7 @@ describe('Composer (mobile)', () => {
     const send = tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === words.send)[0]!
     expect(send.findAllByType(ArrowUp)).toHaveLength(1)
     expect(send.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'ActivityIndicator')).toHaveLength(0)
-    expect(send.findAllByType(AstraGlyph)).toHaveLength(0)
+    expect(send.findAllByType(OrbitMascot)).toHaveLength(0)
     expect(send.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Text')).toHaveLength(0)
     expect(StyleSheet.flatten(send.props.style).width).toBe(48)
     TestRenderer.act(() => tree.unmount())
@@ -609,8 +609,8 @@ describe('Composer (mobile)', () => {
     const onRetry = vi.fn()
     const recovery = renderComposer(props({ errorRecovery: { label: 'Recover', onSelect } }))
     const recoveryControl = byLabel(recovery.root, 'Recover')[0]
-    expectPressPaint(recoveryControl, { fill: tokens.bgHover, borderRadius: 999, scale: null })
-    expectPressScaleLayer(recoveryControl, reducedMotion)
+    expectPressPaint(recoveryControl, { fill: tokens.bgHover, borderRadius: 999, scale: reducedMotion ? 1 : 0.96 })
+    expectMotionPress(recoveryControl, reducedMotion)
     pressControl(recoveryControl)
     expect(onSelect).toHaveBeenCalledOnce()
 
@@ -623,22 +623,21 @@ describe('Composer (mobile)', () => {
     motionState.reducedMotion = false
   })
 
-  it('lays the recovery press layer on the pill box, so a press shrinks the pill in place in the stretching status column', () => {
+  it('scales the recovery pill on its own box, so a press shrinks the pill in place in the stretching status column', () => {
     type Host = Parameters<typeof measureProfileRow>[0]
-    const holds = (host: Host, label: string): boolean => host.props.accessibilityLabel === label
-      || (host.children ?? []).some((child) => typeof child !== 'string' && holds(child, label))
-    const statusOf = (host: Host): Host | undefined => (host.children ?? []).some((child) => typeof child !== 'string' && child.props['data-slot'] === 'press-scale' && holds(child, 'Recover'))
+    const isRecovery = (child: Host | string): child is Host => typeof child !== 'string' && child.props.accessibilityLabel === 'Recover'
+    const statusOf = (host: Host): Host | undefined => (host.children ?? []).some(isRecovery)
       ? host
       : (host.children ?? []).flatMap((child) => typeof child === 'string' ? [] : [statusOf(child)]).find(Boolean)
     const recovery = renderComposer(props({ errorRecovery: { label: 'Recover', onSelect: vi.fn() } }))
     try {
       const status = statusOf(recovery.toJSON() as Host)
       expect(status, 'the recovery pill sits in the composer status column').toBeDefined()
+      const pillHost = (status!.children ?? []).find(isRecovery)!
+      expect(StyleSheet.flatten(pillHost.props.style as StyleProp<ViewStyle>).transform, 'the pill itself carries the press scale, so it scales about the pill centre').toEqual([{ scale: 1 }])
       const measured = measureProfileRow({ type: 'View', props: {}, children: [status!] }, 360, 1)
-      const layer = measured.parts.find((part) => part.slot === 'press-scale')!
       const pill = measured.controls.find((control) => control.accessibilityLabel === 'Recover')!
       expect(pill.width).toBeLessThan(360)
-      expect({ left: layer.left, width: layer.width }, 'the layer scales about the pill centre, not the column centre').toEqual({ left: pill.left, width: pill.width })
     } finally { TestRenderer.act(() => recovery.unmount()) }
   })
   it.each(['idle', 'offline', 'atLimit'] as const)('aligns the %s placeholder with the padded caret', state => {
@@ -844,7 +843,7 @@ describe('Composer (mobile)', () => {
           const contentStyle = StyleSheet.flatten(chip.findByProps({ testID: 'composer-suggestion-content' }).props.style)
           const style = StyleSheet.flatten(chip.props.style)
           const inset = 2 * (style.paddingHorizontal + style.borderWidth)
-          const naturalWidth = labelWidth + chip.findByType(AstraGlyph).props.size + contentStyle.gap + inset
+          const naturalWidth = labelWidth + chip.findByType(OrbitMascot).props.size + contentStyle.gap + inset
           const contentWidth = Math.min(naturalWidth, style.maxWidth ?? naturalWidth) - inset
           TestRenderer.act(() => chip.findByProps({ testID: 'composer-suggestion-content' }).props.onLayout({
             nativeEvent: { layout: { x: 0, y: 0, width: contentWidth, height: 20 } },
@@ -1437,7 +1436,7 @@ describe('Composer (mobile)', () => {
       const trailingControls = trailing.findAll((node: { type?: unknown; props?: Record<string, unknown> }) => node.type === 'Pressable')
       expect(trailingControls.at(-1)).toBe(retry)
       expect(retry.findAllByType(RefreshCw)).toHaveLength(1)
-      expect(retry.findAllByType(AstraGlyph)).toHaveLength(0)
+      expect(retry.findAllByType(OrbitMascot)).toHaveLength(0)
       expect(byLabel(tree.root, words.send)).toHaveLength(0)
       expect(byLabel(tree.root, voiceWords.start)).toHaveLength(0)
       pressControl(retry)
@@ -1525,8 +1524,8 @@ describe('Composer (mobile)', () => {
   })
 
   it.each([
-    ['pt-BR', ptBR.shell.composer.offline, 'Sem conexão', 'Sem conexão. A Astra volta quando a conexão voltar.'],
-    ['en', en.shell.composer.offline, 'No connection', 'No connection. Astra comes back when the connection does.'],
+    ['pt-BR', ptBR.shell.composer.offline, 'Sem conexão', 'Sem conexão. O Orbit volta quando a conexão voltar.'],
+    ['en', en.shell.composer.offline, 'No connection', 'No connection. Orbit comes back when the connection does.'],
   ])('shows the %s offline composer copy', async (_locale, offline, placeholder, reason) => {
     const tree = await renderComposer(props({ state: 'offline', words: { ...words, placeholder: offline.placeholder, inputLabel: 'Ask Astra for something' }, limitReason: offline.reason }))
     expect(byLabel(tree.root, 'Ask Astra for something')[0]).toBeDefined()

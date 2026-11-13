@@ -2,6 +2,7 @@ import React from 'react'
 import { Pressable } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import { DateField } from '@/components/ui/date-field'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 import { __getFocusedNativeTag } from '@/test-mocks/react-native'
 import { Calendar } from '@/components/ui/icons'
 import { createTokensV2, radius } from '@/lib/theme'
@@ -105,11 +106,8 @@ describe('DateField (mobile)', () => {
     const tokens = createTokensV2('purple', mode)
     const tree = render(<DateField value="2025-06-15" onChange={vi.fn()} />)
     TestRenderer.act(() => tree.root.findByType(Pressable).props.onPress())
-    const navigation = tree.root.findAllByType(Pressable).filter(
-      (node: { props: { accessibilityState?: { selected?: boolean } } }) =>
-        node.props.accessibilityState?.selected === undefined,
-    ).slice(1)
-    expect(navigation).toHaveLength(3)
+    const navigation = tree.root.findAllByType(MotionPressable)
+    expect(navigation.map((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel)).toEqual(['common.previousMonth', 'common.selectYear', 'common.nextMonth'])
     for (const control of navigation) {
       expect(flatten(control.props.style({ pressed: false })).backgroundColor).toBeUndefined()
       expect(flatten(control.props.style({ pressed: true }))).toMatchObject({
@@ -175,7 +173,7 @@ describe('DateField (mobile)', () => {
     const tree = render(<DateField value="2025-06-15" onChange={vi.fn()} />)
     const tokens = createTokensV2('purple', 'dark')
     TestRenderer.act(() => tree.root.findByType(Pressable).props.onPress())
-    const control = (label: string) => tree.root.findAllByType(Pressable).find(
+    const control = (label: string) => tree.root.findAllByType(MotionPressable).find(
       (node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === label,
     )!
     if (mode === 'years') TestRenderer.act(() => control('common.selectYear').props.onPress())

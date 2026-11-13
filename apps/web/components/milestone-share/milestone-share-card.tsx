@@ -7,7 +7,7 @@ import type { CSSProperties, Ref } from 'react'
 import { useTranslations } from 'next-intl'
 import { achievementEmoji } from '@orbit/shared/utils'
 import { ShareCardQr, type ShareCardQrHandle } from '@/components/share/share-card-qr'
-import { OrbitMark } from '@/components/ui/orbit-mark'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 
 const rarityBadgeStyle: CSSProperties = {
   display: 'inline-block',
@@ -66,7 +66,7 @@ export function MilestoneShareCard({
       >
         <div style={{ position: 'relative', padding: SPACING.s24, background: 'var(--bg-card)' }}>
           <div className="flex items-center" style={{ gap: 8 }}>
-            <OrbitMark size={24} accent />
+            <OrbitMascot size={24} />
             <span style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 600, letterSpacing: '-0.01em' }}>
               Orbit
             </span>

@@ -212,7 +212,7 @@ function assertSubscriptionContent(container: HTMLElement, { locale, state }: Su
   const resources = screen.getAllByRole('list', { name: pitch ? messages.upgrade.outcomes.label : messages.upgrade.included })
   for (const resourcesList of resources) {
     expect(resourcesList.children).toHaveLength(4)
-    expect(resourcesList.querySelectorAll('[data-asset="astra-mark"]')).toHaveLength(1)
+    expect(resourcesList.querySelectorAll('[data-asset="orbit-mascot"]')).toHaveLength(1)
   }
   const action = pitch ? messages.upgrade.plans.cta : expired ? messages.upgrade.billing.lapsed.action
     : play ? messages.upgrade.billing.actions.managePlay : messages.upgrade.billing.actions.manage

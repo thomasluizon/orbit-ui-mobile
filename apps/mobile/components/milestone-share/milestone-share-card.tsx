@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { achievementEmoji } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { OrbitMark } from '@/components/ui/orbit-mark'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 
 export type MilestoneShareVariant =
   | { kind: 'streak'; streak: number }
@@ -35,7 +35,7 @@ export const MilestoneShareCard = forwardRef<View, MilestoneShareCardProps>(
       <View ref={ref} testID="milestone-share-card" style={styles.card}>
         <View style={styles.band}>
           <View style={styles.brandRow}>
-            <OrbitMark size={24} accent />
+            <OrbitMascot size={24} />
             <Text style={styles.wordmark}>Orbit</Text>
           </View>
 

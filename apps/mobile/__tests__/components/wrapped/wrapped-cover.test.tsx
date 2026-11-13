@@ -47,8 +47,8 @@ vi.mock('@/components/ui/pill-button', () => ({
     size?: string
   }) => React.createElement('Button', { disabled, onPress: onClick, label, accessibilityLabel: label, size }, children),
 }))
-vi.mock('@/components/ui/orbit-mark', () => ({
-  OrbitMark: () => React.createElement('OrbitMark'),
+vi.mock('@/components/ui/orbit-mascot', () => ({
+  OrbitMascot: () => React.createElement('OrbitMascot'),
 }))
 vi.mock('@/components/ui/icon', () => ({
   Icon: ({ name }: { name: string }) => React.createElement('Icon', { name }),
@@ -139,9 +139,9 @@ describe('mobile WrappedCover', () => {
         expect(StyleSheet.flatten(resolveStyle({ pressed: false }))).toMatchObject({
           minHeight: 48,
           backgroundColor: selected ? palette.primaryDim : palette.bgWell,
-          borderColor: selected ? palette.primary : palette.hairline,
-          borderWidth: selected ? 1.5 : 1,
         })
+        const ring = StyleSheet.flatten(chip.findAll((node: { props: { testID?: string } }) => node.props.testID === 'selection-ring')[0]!.props.style as never) as { borderColor: string; borderWidth: number }
+        expect(ring).toMatchObject({ borderColor: selected ? palette.primary : palette.hairline, borderWidth: selected ? 1.5 : 1 })
         expect(chip.props.accessibilityState).toEqual({ selected })
         const label = nodesByType(chip, 'Text')[0]!
         expect(StyleSheet.flatten(label.props.style)).toMatchObject({

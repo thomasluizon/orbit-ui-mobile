@@ -66,7 +66,7 @@ describe('standalone global error screen', () => {
   })
 
   it.each(['light', 'dark'] as const)('uses system %s tokens when no cookie exists', (mode) => {
-    vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: mode === 'light' } as MediaQueryList)
+    vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: mode === 'light', addEventListener: vi.fn(), removeEventListener: vi.fn() } as unknown as MediaQueryList)
     render(<GlobalError error={new Error('startup failure')} reset={vi.fn()} />)
     const root = screen.getByRole('heading', { name: en.errorScreen.title }).closest('html')!
     expect(root.style.getPropertyValue('--bg')).toBe(resolveWebThemeVariables('orange', mode)['--bg'])
@@ -78,7 +78,7 @@ describe('standalone global error screen', () => {
     ['%', true], ['%6cight', false],
   ] as const)('handles theme cookie %s with the same decoding rule as the app', (value, systemLight) => {
     document.cookie = `orbit_theme_mode=${value};path=/`
-    vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: systemLight } as MediaQueryList)
+    vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: systemLight, addEventListener: vi.fn(), removeEventListener: vi.fn() } as unknown as MediaQueryList)
     render(<GlobalError error={new Error('startup failure')} reset={vi.fn()} />)
     const root = screen.getByRole('heading', { name: en.errorScreen.title }).closest('html')!
     expect(root.style.colorScheme).toBe('light')

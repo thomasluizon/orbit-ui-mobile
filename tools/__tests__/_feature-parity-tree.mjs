@@ -120,7 +120,7 @@ function dateOwners(platform, files, observations) {
   const editor = files['packages/shared/src/utils/habit-date-editor.ts']
   return {
     automatic: source.includes('editor.setPhrase(value)') && source.includes('interpretation.mutateAsync({ ...input, signal })') && editor.includes('void this.interpret()'),
-    glyph: /trailing=\{snapshot.pending \|\| snapshot.astra \? .*<AstraGlyph /.test(source) && ['dateInterpreting', 'dateInterpreted'].every((key) => observations.some((entry) => entry.key === `habits.form.${key}` && entry.consumers?.some((item) => item.file === owner))),
+    glyph: /trailing=\{snapshot.pending \|\| snapshot.astra \? .*<OrbitMascot /.test(source) && ['dateInterpreting', 'dateInterpreted'].every((key) => observations.some((entry) => entry.key === `habits.form.${key}` && entry.consumers?.some((item) => item.file === owner))),
     resolved: /<DateField\b[^>]* value=\{date\}/.test(source) && editor.includes("if (result === 'proposed') this.applyInterpretation()"),
   }
 }
@@ -158,7 +158,7 @@ function invocationRuleRegressions(platform, current, files, inventory, rules, o
   const prefix = `apps/${platform}/components/habits/`
   const mutations = [
     ['tag generation', `${prefix}habit-form-fields/tag-suggestions.tsx`, /<PillButton minimumHeight=\{48\}[\s\S]*?<\/PillButton>/g, [`${platform}:control:habits.form.suggestTags`]],
-    ['reschedule retry', `${prefix}reschedule-sheet.tsx`, /<PillButton leadingIcon=\{<AstraGlyph size=\{16\} \/>\} variant=\{filledVariant\} size="sm" onClick=\{\(\) => void refetch\(\)\}>\s*\{t\('habits.reschedule.suggestDate'\)\}\s*<\/PillButton>/g, [`${platform}:control:habits.reschedule.retry`]],
+    ['reschedule retry', `${prefix}reschedule-sheet.tsx`, /<PillButton leadingIcon=\{<OrbitMascot size=\{16\} \/>\} variant=\{filledVariant\} size="sm" onClick=\{\(\) => void refetch\(\)\}>\s*\{t\('habits.reschedule.suggestDate'\)\}\s*<\/PillButton>/g, [`${platform}:control:habits.reschedule.retry`]],
     ['reschedule menu', `${prefix}habit-row.tsx`, /^.*items\.push\(\{ id: 'reschedule',.*\n/gm, [`${platform}:control:habits.actions.reschedule`]],
   ]
   for (const [name, path, pattern, missingIds] of mutations) {

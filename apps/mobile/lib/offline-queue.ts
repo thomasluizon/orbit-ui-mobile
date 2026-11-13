@@ -233,6 +233,7 @@ const LAST_WRITE_WINS_TYPES = new Set<string>([
   'setTimeZone',
   'setAiSummary',
   'setProactiveAstra',
+  'setMascotMotion',
   'completeOnboarding',
   'dismissCalendarPrompt',
   'reorderHabits',

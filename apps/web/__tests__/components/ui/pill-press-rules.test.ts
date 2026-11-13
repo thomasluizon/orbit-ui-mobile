@@ -59,11 +59,19 @@ describe('web pill press feedback', () => {
     expect(pressFillClasses(actionClasses('ghost', 'sm', 'button', false, false, true))).toEqual(['enabled:active:bg-[var(--bg-elev-hover)]'])
   })
 
+  it('scales a pressed chip only when the person allows motion', () => {
+    const pressed = ruleWith('.chip:active')
+    expect(value(pressed, 'scale')).toEqual(['0.96'])
+    expect(value(pressed, 'transform')).toEqual([])
+    expect(pressed.parent?.type).toBe('atrule')
+    expect((pressed.parent as { params?: string }).params).toBe('(prefers-reduced-motion: no-preference)')
+  })
+
   it('lets the primary button and FAB press fill win over their pointer hover, also on touch', () => {
     const hover = ruleWith('button[data-variant="primary"]:enabled:hover')
     const pressed = ruleWith('button[data-variant="primary"]:enabled:not([data-loading]):active')
-    expect(hover.selectors).toEqual(['button[data-variant="primary"]:enabled:hover', '[data-fab]:not([data-fab="neutral"]):hover'])
-    expect(pressed.selectors).toEqual(['button[data-variant="primary"]:enabled:not([data-loading]):active', '[data-fab]:not([data-fab="neutral"]):active'])
+    expect(hover.selectors).toEqual(['button[data-variant="primary"]:enabled:hover', '[data-fab]:hover'])
+    expect(pressed.selectors).toEqual(['button[data-variant="primary"]:enabled:not([data-loading]):active', '[data-fab]:active'])
     expect(value(hover, 'background')).toEqual(['var(--primary-hover)'])
     expect(value(pressed, 'background')).toEqual(['var(--primary-pressed)'])
     expect(pressed.parent?.type, 'unlayered and outside the hover query').toBe('root')

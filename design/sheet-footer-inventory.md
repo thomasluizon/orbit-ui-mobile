@@ -26,7 +26,7 @@ extension. Sharing and notification deletion keep their drawn labelled consequen
 | Marketing consent | `components/marketing-consent/marketing-consent-prompt.tsx` | `components/marketing-consent/marketing-consent-prompt.tsx` | Decline, accept |
 | Referral prompt | `components/referral/referral-prompt.tsx` | `components/referral/referral-prompt.tsx` | Later, invite |
 | Referral drawer | `components/referral/referral-drawer.tsx` | `components/referral/referral-drawer.tsx` | Cancel, share, error; loading and unavailable have no actions |
-| Astra import prompt | `app/(app)/layout.tsx` | `components/onboarding/astra-import-prompt.tsx` | Not now, import |
+| Orbit import prompt | `app/(app)/layout.tsx` | `components/onboarding/astra-import-prompt.tsx` | Not now, import |
 | Calendar import prompt | `app/(app)/layout.tsx` | `components/onboarding/calendar-import-prompt.tsx` | Later, import |
 | Store review prompt | No web store adapter | `components/review-moment/review-moment-sheet.tsx` | Not now, rate |
 | Trial expired | `components/ui/trial-expired-modal.tsx` | `components/ui/trial-expired-modal.tsx` | Continue free, subscribe |

@@ -61,7 +61,7 @@ const STYLESHEET_TRANSITIONS = [
   /** The close presses its glyph, so the control transitions its colours only. */
   ['.orbit-sheet-close', COLOR_HOVER],
   ['.icon-btn', COLOR_AND_PRESS],
-  ['.chip', COLOR_AND_SCALE_PRESS],
+  ['.chip', `${COLOR_AND_SCALE_PRESS}, box-shadow var(--motion-selection-exit) var(--motion-ease-exit)`],
   ['.habit-form-disclosure', 'opacity var(--dur-enter) var(--ease-out), transform var(--dur-enter) var(--ease-out)'],
 ] as const
 
