@@ -139,11 +139,9 @@ describe('mobile WrappedCover', () => {
         expect(StyleSheet.flatten(resolveStyle({ pressed: false }))).toMatchObject({
           minHeight: 48,
           backgroundColor: selected ? palette.primaryDim : palette.bgWell,
-          borderColor: palette.hairline,
-          borderWidth: selected ? 1.5 : 1,
         })
         const ring = StyleSheet.flatten(chip.findAll((node: { props: { testID?: string } }) => node.props.testID === 'selection-ring')[0]!.props.style as never) as { borderColor: string; borderWidth: number }
-        expect(ring).toMatchObject({ borderColor: selected ? palette.primary : 'transparent', borderWidth: 1.5 })
+        expect(ring).toMatchObject({ borderColor: selected ? palette.primary : palette.hairline, borderWidth: selected ? 1.5 : 1 })
         expect(chip.props.accessibilityState).toEqual({ selected })
         const label = nodesByType(chip, 'Text')[0]!
         expect(StyleSheet.flatten(label.props.style)).toMatchObject({

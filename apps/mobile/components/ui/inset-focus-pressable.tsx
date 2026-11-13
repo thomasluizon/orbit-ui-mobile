@@ -17,6 +17,8 @@ export interface InsetFocusPressableProps extends Omit<PressableProps, 'children
   focusContrastColor?: ColorValue
   selectionRingWidth?: number
   selectionRingColor?: ColorValue
+  /** The ring colour at rest, such as a chip's hairline; transparent by default. */
+  selectionRingRestColor?: ColorValue
 }
 
 function cornerRadii(shape: ViewStyle | undefined) {
@@ -30,12 +32,10 @@ function cornerRadii(shape: ViewStyle | undefined) {
 }
 
 /**
- * The selection ring of a ringed control. It paints over the border band the control reserves, so the ring takes the
- * place of that border without moving the content, and it settles on the selection preset. A ringed control does not
- * clip its children, because Android clips them to the padding box, inside that band.
+ * The selection ring of a ringed control: an inset ring at the edge of the control's own shape, inside its clip, as the
+ * web inset ring is. It takes the layout of no border, and its colour settles on the selection preset.
  */
-function SelectionRing({ shape, width, color, shown, reducedMotion }: Readonly<{ shape: ViewStyle | undefined; width: number; color: ColorValue; shown: boolean; reducedMotion: boolean }>) {
-  const band = -(Number(shape?.borderWidth) || 0)
+export function SelectionRing({ shape, width, color, restColor = 'transparent', shown, reducedMotion }: Readonly<{ shape: ViewStyle | undefined; width: number; color: ColorValue; restColor?: ColorValue; shown: boolean; reducedMotion: boolean }>) {
   return (
     <AnimatedRing
       testID="selection-ring"
@@ -45,7 +45,7 @@ function SelectionRing({ shape, width, color, shown, reducedMotion }: Readonly<{
       style={[
         StyleSheet.absoluteFill,
         cornerRadii(shape),
-        { top: band, right: band, bottom: band, left: band, borderWidth: width, borderColor: shown ? color : 'transparent', transition: selectionSettleTransition('border-color', shown, reducedMotion) },
+        { borderWidth: width, borderColor: shown ? color : restColor, transition: selectionSettleTransition('border-color', shown, reducedMotion) },
       ]}
     />
   )
@@ -62,6 +62,7 @@ export function InsetFocusPressable({
   focusContrastColor,
   selectionRingWidth,
   selectionRingColor,
+  selectionRingRestColor,
   ...props
 }: Readonly<InsetFocusPressableProps>) {
   const [focused, setFocused] = useState(false)
@@ -79,7 +80,7 @@ export function InsetFocusPressable({
       {(state) => {
         const shape = StyleSheet.flatten<ViewStyle | undefined>(typeof style === 'function' ? style(state) : style)
         return <>
-          {selectionRingWidth === undefined ? null : <SelectionRing shape={shape} width={selectionRingWidth} color={selectionRingColor ?? tokens.primary} shown={selected && !focused} reducedMotion={reducedMotion} />}
+          {selectionRingWidth === undefined ? null : <SelectionRing shape={shape} width={selectionRingWidth} color={selectionRingColor ?? tokens.primary} restColor={selectionRingRestColor} shown={selected && !focused} reducedMotion={reducedMotion} />}
           {typeof children === 'function' ? children({ ...state, focused }) : children}
           {focused && !props.disabled ? <View
             pointerEvents="none"

@@ -92,20 +92,21 @@ describe('selection motion', () => {
   })
 
   it.each([
-    ['chip', (selected: boolean) => <Chip active={selected}>Chip</Chip>, 1],
-    ['period chip', (selected: boolean) => <Chip variant="period" active={selected}>Chip</Chip>, 1.5],
-    ['radio row', (selected: boolean) => <RadioRow label="Radio" selected={selected} onSelect={vi.fn()} />, 1.5],
-  ] as const)('settles the %s ring over its own border band on the selection preset, and at once under reduced motion', (_name, render, width) => {
+    ['chip', (selected: boolean) => <Chip active={selected}>Chip</Chip>, 1, 1, 'hairline'],
+    ['period chip', (selected: boolean) => <Chip variant="period" active={selected}>Chip</Chip>, 1, 1.5, 'hairline'],
+    ['radio row', (selected: boolean) => <RadioRow label="Radio" selected={selected} onSelect={vi.fn()} />, 1.5, 1.5, null],
+  ] as const)('settles the %s inset ring at its own edge on the selection preset, and at once under reduced motion', (_name, render, restWidth, width, rest) => {
     const { enterDuration, exitDuration, enterEasing, exitEasing } = motionPresets.selection
+    const restColor = rest === null ? 'transparent' : createTokensV2('orange', 'dark')[rest]
     for (const reduced of [false, true]) {
       preference.reduced = reduced
       let tree: ReturnType<typeof TestRenderer.create>
       const ring = () => StyleSheet.flatten(tree!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.testID === 'selection-ring')[0]!.props.style)
       TestRenderer.act(() => { tree = TestRenderer.create(render(false)) })
-      expect(ring()).toMatchObject({ borderColor: 'transparent', transition: reduced ? 'none' : `border-color ${exitDuration}ms cubic-bezier(${exitEasing.join(',')})` })
+      expect(ring()).toMatchObject({ borderWidth: restWidth, borderColor: restColor, transition: reduced ? 'none' : `border-color ${exitDuration}ms cubic-bezier(${exitEasing.join(',')})` })
       TestRenderer.act(() => tree!.update(render(true)))
-      expect(ring()).toMatchObject({ position: 'absolute', top: -width, left: -width, borderWidth: width, transition: reduced ? 'none' : `border-color ${enterDuration}ms cubic-bezier(${enterEasing.join(',')})` })
-      expect(ring().borderColor).not.toBe('transparent')
+      expect(ring()).toMatchObject({ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderWidth: width, transition: reduced ? 'none' : `border-color ${enterDuration}ms cubic-bezier(${enterEasing.join(',')})` })
+      expect([restColor, 'transparent']).not.toContain(ring().borderColor)
       TestRenderer.act(() => tree!.unmount())
     }
     preference.reduced = false

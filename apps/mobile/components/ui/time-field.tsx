@@ -462,10 +462,9 @@ const styles = StyleSheet.create({
   columnScroll: { flex: 1 },
   columnContent: { paddingVertical: SPACING.s4, gap: INTERACTION_FILL_CLEARANCE },
   option: {
-    borderWidth: 2,
-    borderColor: 'transparent',
     alignItems: 'center',
     borderRadius: 12,
+    overflow: 'hidden',
     height: ROW_HEIGHT,
     justifyContent: 'center',
   },

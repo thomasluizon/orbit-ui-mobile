@@ -180,11 +180,11 @@ describe('select-check RadioRow group', () => {
 
     const tokens = createTokensV2('purple', 'dark')
     expect(StyleSheet.flatten(selected.props.style({ pressed: false }))).toMatchObject({
-      backgroundColor: tokens.selectionBg, borderColor: 'transparent', borderWidth: 1.5,
+      backgroundColor: tokens.selectionBg, borderRadius: 12, overflow: 'hidden',
     })
-    expect(StyleSheet.flatten(selected.props.style({ pressed: false })).overflow).toBeUndefined()
+    expect(StyleSheet.flatten(selected.props.style({ pressed: false })).borderWidth ?? 0).toBe(0)
     expect(StyleSheet.flatten(selected.findByProps({ testID: 'selection-ring' }).props.style)).toMatchObject({
-      position: 'absolute', top: -1.5, right: -1.5, bottom: -1.5, left: -1.5, borderWidth: 1.5, borderColor: tokens.primary, borderRadius: 12,
+      position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderWidth: 1.5, borderColor: tokens.primary, borderRadius: 12,
     })
     const unselectedGlyph = tree.root.findAllByType(RadioGlyph)[1].findByType(View)
     expect(unselectedGlyph.props.style).toEqual(expect.arrayContaining([

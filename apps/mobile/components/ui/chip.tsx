@@ -33,8 +33,9 @@ export function Chip({
 
   return (
     <Pressable
-      selectionRingWidth={isPeriod ? 1.5 : 1}
+      selectionRingWidth={active && isPeriod ? 1.5 : 1}
       selectionRingColor={isPeriod ? tokens.primary : tintFromPrimary(tokens, 0.45)}
+      selectionRingRestColor={tokens.hairline}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
@@ -47,8 +48,6 @@ export function Chip({
           styles.chip,
           {
             backgroundColor: active ? pressed ? tokens.bgHover : selectedBackground : pressedBackground,
-            borderColor: tokens.hairline,
-            borderWidth: active && isPeriod ? 1.5 : 1,
           },
           pressed && !active && !reducedMotion ? styles.chipPressed : null,
         ]
@@ -72,7 +71,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.s8,
     paddingHorizontal: SPACING.s16,
     borderRadius: radius.full,
-    borderWidth: 1,
+    overflow: 'hidden',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
