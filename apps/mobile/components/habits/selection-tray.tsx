@@ -4,11 +4,11 @@ import { SPACING, TOUCH_TARGET_MIN, typeRoles } from '@orbit/shared/theme'
 import { MAX_BULK_OPERATION_SIZE } from '@orbit/shared/api'
 import { useTranslation } from 'react-i18next'
 import { StyleSheet, Text, View } from 'react-native'
-import { Pressable } from 'react-native-gesture-handler'
+import { Pressable, type PressableProps } from 'react-native-gesture-handler'
+import { PressScale } from '@/components/motion/press-scale'
 import { CheckCircle2, FastForward, ArrowsMove, Trash2, X } from '@/components/ui/icons'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { usePrefersReducedMotion } from '@/lib/motion'
 
 interface SelectionTrayProps {
   count: number
@@ -33,22 +33,36 @@ interface SelectionTrayProps {
   completionReason?: string
 }
 
+/** A gesture-handler `Pressable` whose press scale eases through `PressScale`, so the tray controls keep the shared press transition. */
+function TrayPressable({ disabled = false, onPressIn, onPressOut, ...props }: Readonly<PressableProps>) {
+  const [pressed, setPressed] = useState(false)
+  return (
+    <PressScale pressed={pressed} disabled={Boolean(disabled)}>
+      <Pressable
+        {...props}
+        disabled={disabled}
+        onPressIn={(event) => { setPressed(true); onPressIn?.(event) }}
+        onPressOut={(event) => { setPressed(false); onPressOut?.(event) }}
+      />
+    </PressScale>
+  )
+}
+
 function SelectionAction({
-  label, hint, disabled, onPress, pressedFill, prefersReducedMotion, children,
+  label, hint, disabled, onPress, pressedFill, children,
 }: Readonly<{
   label: string
   hint?: string
   disabled: boolean
   onPress: () => void
   pressedFill: string
-  prefersReducedMotion: boolean
   children: ReactNode
 }>) {
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
 
   return (
-    <Pressable
+    <TrayPressable
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={hint}
@@ -62,12 +76,11 @@ function SelectionAction({
       style={({ pressed }) => [
         styles.actionBtn,
         { backgroundColor: (pressed || hovered || focused) && !disabled ? pressedFill : 'transparent' },
-        pressed && !disabled && !prefersReducedMotion ? styles.pressedScale : null,
         disabled ? styles.disabled : null,
       ]}
     >
       {children}
-    </Pressable>
+    </TrayPressable>
   )
 }
 
@@ -100,7 +113,6 @@ export function SelectionTray({
   const { currentScheme, currentTheme } = useAppTheme()
   const { t } = useTranslation()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const prefersReducedMotion = usePrefersReducedMotion()
   const disabled = count === 0
   const completionDisabled = disabled || completionReadOnly
   const moveLimitReason = count > MAX_BULK_OPERATION_SIZE
@@ -127,13 +139,10 @@ export function SelectionTray({
           {' '}
           {countSuffixLabel}
         </Text>
-        <Pressable
+        <TrayPressable
           accessibilityRole="button"
           onPress={allSelected ? onDeselectAll : onSelectAll}
-          style={({ pressed }) => [
-            styles.selectAllBtn,
-            pressed && !prefersReducedMotion ? styles.pressedScale : null,
-          ]}
+          style={styles.selectAllBtn}
         >
           {({ pressed }) => (
             <>
@@ -148,7 +157,7 @@ export function SelectionTray({
               </Text>
             </>
           )}
-        </Pressable>
+        </TrayPressable>
       </View>
       <View style={styles.actions}>
         <SelectionAction
@@ -157,7 +166,6 @@ export function SelectionTray({
           hint={completionReadOnly ? completionReason : undefined}
           onPress={onLog}
           pressedFill={tokens.bgHoverOpaque}
-          prefersReducedMotion={prefersReducedMotion}
         >
           <CheckCircle2 size={20} color={tokens.fg1} strokeWidth={1.8} />
         </SelectionAction>
@@ -167,7 +175,6 @@ export function SelectionTray({
           hint={completionReadOnly ? completionReason : undefined}
           onPress={onSkip}
           pressedFill={tokens.bgHoverOpaque}
-          prefersReducedMotion={prefersReducedMotion}
         >
           <FastForward size={20} color={tokens.fg3} strokeWidth={1.8} />
         </SelectionAction> : null}
@@ -177,7 +184,6 @@ export function SelectionTray({
           hint={moveLimitReason}
           onPress={onMove}
           pressedFill={tokens.bgHoverOpaque}
-          prefersReducedMotion={prefersReducedMotion}
         >
           <ArrowsMove size={20} color={tokens.fg2} strokeWidth={1.8} />
         </SelectionAction>
@@ -186,23 +192,21 @@ export function SelectionTray({
           disabled={disabled}
           onPress={onDelete}
           pressedFill={tokens.bgHoverOpaque}
-          prefersReducedMotion={prefersReducedMotion}
         >
           <Trash2 size={20} color={tokens.statusBad} strokeWidth={1.8} />
         </SelectionAction>
         <View style={styles.spacer} />
-        <Pressable
+        <TrayPressable
           accessibilityRole="button"
           accessibilityLabel={closeLabel}
           onPress={onClose}
           style={({ pressed }) => [
             styles.actionBtn,
             { backgroundColor: pressed ? tokens.bgHoverOpaque : 'transparent' },
-            pressed && !prefersReducedMotion ? styles.pressedScale : null,
           ]}
         >
           <X size={20} color={tokens.fg2} strokeWidth={1.8} />
-        </Pressable>
+        </TrayPressable>
       </View>
       {skippableCount > 0 && skippableCount < count ? <Text style={[styles.moveLimit, { color: tokens.fg2 }]}>{t('habits.bulkBar.skipEligible', { count: skippableCount })}</Text> : null}
       {moveLimitReason ? <Text style={[styles.moveLimit, { color: tokens.fg2 }]}>{moveLimitReason}</Text> : null}
@@ -264,9 +268,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  pressedScale: {
-    transform: [{ scale: 0.96 }],
   },
   disabled: {
     opacity: 0.45,

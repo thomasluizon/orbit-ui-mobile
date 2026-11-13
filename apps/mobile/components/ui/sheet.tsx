@@ -1,12 +1,13 @@
 import { PersonalText } from '@/components/ui/personal-text'
 import { ActionRow } from './action-row'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
+import { PressScale } from '@/components/motion/press-scale'
 import { useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, useState, type ReactNode, type Ref, type RefObject } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { PADDING, SPACING, SHEET_BODY_INSETS, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import { getPrefersReducedMotion, usePrefersReducedMotion } from '@/lib/motion'
 import { TrueSheet, type DidPresentEvent } from '@lodev09/react-native-true-sheet'
-import { AccessibilityInfo, StyleSheet, Text, View, useWindowDimensions, type LayoutChangeEvent, type ScrollView, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native'
+import { AccessibilityInfo, Pressable as NativePressable, StyleSheet, Text, View, useWindowDimensions, type LayoutChangeEvent, type ScrollView, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native'
 import { useOverlayFocus } from './focus-provenance-view'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -188,7 +189,7 @@ export function Sheet({
   }, [onAttemptDismiss, onBackPress])
 
   const closeButton = onClose || onAttemptDismiss ? (
-    <Pressable
+    <NativePressable
       accessibilityLabel={t('common.close')}
       accessibilityRole="button"
       onPress={() => {
@@ -197,8 +198,8 @@ export function Sheet({
       }}
       style={({ pressed }) => [styles.close, pressed ? styles.pressed : null]}
     >
-      <X color={tokens.fg2} size={24} strokeWidth={1.8} />
-    </Pressable>
+      {({ pressed }) => <PressScale pressed={pressed} disabled={false}><X color={tokens.fg2} size={24} strokeWidth={1.8} /></PressScale>}
+    </NativePressable>
   ) : null
   const header = renderSheetHeader({ title, titleMode, accessibleTitle, headerAccessory, onClose, onAttemptDismiss,
     styles, titleClamped, titleExpanded, titleFocused, onTitleFocusChange, onClampedChange, t, closeButton, onToggleTitle: toggleTitle,

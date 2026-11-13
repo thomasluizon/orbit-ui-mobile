@@ -24,7 +24,7 @@ export function QuietLink({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className="inline-flex appearance-none items-center justify-center border-0 bg-transparent cursor-pointer disabled:opacity-50 transition-[color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-1)] enabled:active:scale-[0.96]"
+      className="group/quiet-link inline-flex appearance-none items-center justify-center border-0 bg-transparent cursor-pointer disabled:opacity-50 transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-1)]"
       style={{
         minHeight: TOUCH_TARGET_MIN,
         padding: "var(--orbit-space-4) var(--orbit-space-12)",
@@ -34,7 +34,7 @@ export function QuietLink({
         color: emphasized ? 'var(--fg-2)' : 'var(--fg-3)',
       }}
     >
-      {children}
+      <span data-slot="press-surface" className="transition-[scale] duration-[var(--dur-press)] ease-[var(--ease-out)] motion-safe:group-enabled/quiet-link:group-active/quiet-link:scale-[0.96]">{children}</span>
     </button>
   )
 }

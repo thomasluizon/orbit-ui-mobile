@@ -1,6 +1,6 @@
 import { ListRow } from '@/components/ui/list-row'
-import { usePrefersReducedMotion } from '@/lib/motion'
-import { Pressable, Text, View } from 'react-native'
+import { Text, View } from 'react-native'
+import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { X } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { DateField } from '@/components/ui/date-field'
@@ -21,7 +21,6 @@ export function EditGoalDeadlineField({
   deadline,
   onChangeDeadline,
 }: Readonly<EditGoalDeadlineFieldProps>) {
-  const prefersReducedMotion = usePrefersReducedMotion()
   const { t } = useTranslation()
   return (
     <View>
@@ -40,7 +39,7 @@ export function EditGoalDeadlineField({
             <Pressable
               style={({ pressed }) => [
                 styles.removeDeadlineButton,
-                pressed && { backgroundColor: tokens.bgHover, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] },
+                pressed && { backgroundColor: tokens.bgHover },
               ]}
               onPress={() => onChangeDeadline('')}
               accessibilityRole="button"

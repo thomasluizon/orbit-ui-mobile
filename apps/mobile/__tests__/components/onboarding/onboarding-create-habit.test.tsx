@@ -1,5 +1,5 @@
 import React from 'react'
-import { Text } from 'react-native'
+import { StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   getOnboardingReminderPreviewTime,
@@ -131,6 +131,25 @@ describe('OnboardingCreateHabit data', () => {
 
     expect(onModeChange).toHaveBeenCalledWith('fixed')
     expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'More times' && typeof node.props.onPress === 'function').length).toBeGreaterThan(0)
+  })
+
+  it('presses the proposal surface inside a correction target that keeps its full size', async () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(<OnboardingCreateHabit {...base} />) })
+    const target = () => tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'Correct schedule. Emoji proposed by Astra')[0]!
+    const surface = () => {
+      const layers = target().findAll((node) => typeof node.type === 'string' && node.props['data-slot'] === 'press-scale')
+      expect(layers, 'one press scale layer holds the proposal inside the correction target').toHaveLength(1)
+      expect(layers[0]!.findAll((node) => (node.type as unknown) === Text).map((node) => flattenText(node.props.children)).join('')).toContain('Walk outside')
+      return StyleSheet.flatten(layers[0]!.props.style as StyleProp<ViewStyle>)
+    }
+    const targetScale = () => StyleSheet.flatten([target().props.style as StyleProp<ViewStyle>]).transform
+    expect(surface().transform).toEqual([{ scale: 1 }])
+    await TestRenderer.act(() => prop<() => void>(target(), 'onPressIn')())
+    expect(surface().transform).toEqual([{ scale: 0.96 }])
+    expect(targetScale(), 'a press never shrinks the correction target under the finger').toBeUndefined()
+    await TestRenderer.act(() => prop<() => void>(target(), 'onPressOut')())
+    expect(surface().transform).toEqual([{ scale: 1 }])
   })
 
   it('announces the proposal emoji through the correction button', async () => {

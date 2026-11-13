@@ -311,6 +311,15 @@ select[aria-hidden="true"] {
 .orbit-list-row-shell [data-slot="list-row-content"] {
   position: relative;
   z-index: 1;
+  transition: scale var(--dur-press) var(--ease-out);
+}
+
+/* WHY: a list row presses its content and never its fill, so the fill keeps its clearance from the content, as the mobile row does (thomasluizon/orbit-tickets#2096). */
+@media (prefers-reduced-motion: no-preference) {
+  .orbit-list-row-shell > .orbit-list-row-body:active:not(:disabled, [aria-disabled="true"]) > [data-slot="list-row-content"],
+  .orbit-list-row-shell > [data-personal-text-action] > .orbit-list-row-body:active:not(:disabled, [aria-disabled="true"]) + [data-personal-text-content] > [data-slot="list-row-content"] {
+    scale: 0.96;
+  }
 }
 
 .orbit-list-row-outset {
@@ -610,7 +619,11 @@ select[aria-hidden="true"] {
   border-radius: 999px;
   background: transparent;
   color: var(--fg-2);
-  transition: background-color var(--dur-hover-control) var(--ease-standard), color var(--dur-hover-control) var(--ease-standard), transform var(--dur-press) var(--ease-out);
+  transition: background-color var(--dur-hover-control) var(--ease-standard), color var(--dur-hover-control) var(--ease-standard);
+}
+
+.orbit-sheet-close > svg {
+  transition: scale var(--dur-press) var(--ease-out);
 }
 
 .orbit-sheet-close:focus-visible {
@@ -624,6 +637,10 @@ select[aria-hidden="true"] {
 }
 
 .orbit-sheet-close:active { background: var(--bg-hover); }
+/* WHY: the close presses its glyph and never the control, so its fill and its 48px target stay whole while pressed (thomasluizon/orbit-tickets#2096). */
+@media (prefers-reduced-motion: no-preference) {
+  .orbit-sheet-close:active > svg { scale: 0.96; }
+}
 
 [data-menu-trigger][data-state="open"]:not(:disabled) {
   background-color: var(--bg-hover);
@@ -926,6 +943,29 @@ select[aria-hidden="true"] {
 }
 @utility wrap-anywhere {
   overflow-wrap: anywhere;
+}
+
+/* A press target that scales whole keeps its full hit area. This layer has no paint and covers the box.
+   It takes the inverse of the 0.96 press scale, so a press that starts at the edge also ends on the target. */
+@layer components {
+  .press-hit-layer {
+    position: relative;
+  }
+
+  .press-hit-layer::before,
+  .chip::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .press-hit-layer:active::before,
+    .chip:active::before {
+      scale: calc(1 / 0.96);
+    }
+  }
 }
 
 :root {
@@ -1817,9 +1857,11 @@ button[data-variant="primary"]:enabled:not([data-loading]):active,
   transition:
     background-color var(--dur-hover-control) var(--ease-standard),
     color var(--dur-hover-control) var(--ease-standard),
-    transform var(--dur-press) var(--ease-out);
+    scale var(--dur-press) var(--ease-out);
 }
-.chip:active { transform: scale(0.96); }
+@media (prefers-reduced-motion: no-preference) {
+  .chip:active { scale: 0.96; }
+}
 .chip:focus-visible { outline-offset: -2px; }
 .chip-period:focus-visible { outline-color: var(--fg-1); }
 .chip:disabled {
@@ -2051,7 +2093,6 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   --pill-hit-padding: calc((var(--touch-min) - var(--pill-visible-min)) / 2);
   min-width: var(--pill-visible-min);
   min-height: var(--pill-visible-min);
-  overflow: visible;
 }
 
 .orbit-pill-action.touch-target::after {
