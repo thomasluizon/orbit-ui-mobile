@@ -22,12 +22,13 @@ import AuthCallbackScreen from '@/app/auth-callback';
 import { clearPendingGoogleAuthSession } from '@/lib/google-auth-callback';
 import { PillButton } from '@/components/ui/pill-button';
 import { useTranslation } from 'react-i18next';
+const importHandoff = vi.hoisted((): { onImported: ((count: number) => void) | undefined } => ({ onImported: undefined }));
 function CalendarSyncScreen({ inSheet = false }: Readonly<{ inSheet?: boolean }>) {
   const [action, setAction] = React.useState<CalendarImportActionState | null>(null);
   const actionRef = React.useRef<CalendarImportActionHandle>(null);
   const { t } = useTranslation();
   const content = <>
-    <CalendarImportContent reviewMode={'mode' in mocks.searchParams && mocks.searchParams.mode === "review"} initialEventId={mocks.initialEventId} onClose={(afterClose) => afterClose?.()} onGoToHabits={mocks.goToHabits} actionRef={actionRef} onActionStateChange={setAction} />
+    <CalendarImportContent reviewMode={'mode' in mocks.searchParams && mocks.searchParams.mode === "review"} initialEventId={mocks.initialEventId} onClose={(afterClose) => afterClose?.()} onGoToHabits={mocks.goToHabits} actionRef={actionRef} onActionStateChange={setAction} onImported={importHandoff.onImported} />
     {action ? <PillButton disabled={action.disabled} onClick={() => actionRef.current?.importSelected()}>{t('calendar.importButton', { count: action.count })}</PillButton> : null}
   </>;
   return inSheet ? <Sheet title={t(calendarImportTitleKey(false))} onClose={() => {}}>{content}</Sheet> : content;
@@ -1228,6 +1229,29 @@ describe("CalendarSyncScreen", () => {
     expect(mocks.bulkMutateAsync).toHaveBeenCalledWith(expect.objectContaining({
       habits: [expect.objectContaining({ frequencyUnit: 'Month', frequencyQuantity: 1, dueDate: startDate, days: null, endDate })],
     }));
+  });
+
+  it.each([
+    ["hands a full success to the result dialog with the server count", [{ status: "Success", habitId: "h1", title: "Event 0", error: null }, { status: "Success", habitId: "h2", title: "Event 1", error: null }], 2],
+    ["keeps a partial failure in the sheet", [{ status: "Success", habitId: "h1", title: "Event 0", error: null }, { status: "Failed", habitId: null, title: "Event 1", error: "boom" }], null],
+  ] as const)("%s when the guided flows are on", async (_case, results, handedCount) => {
+    const onImported = vi.fn();
+    importHandoff.onImported = onImported;
+    mocks.eventsQuery.data = { status: "connected", events: buildEvents(2) };
+    mocks.bulkMutateAsync.mockResolvedValue({ results });
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen />); await Promise.resolve(); await Promise.resolve(); });
+    const importPill = tree.root.find((node) => typeof node.props.onClick === "function" && typeof node.props.children === "string" && node.props.children.includes("calendar.importButton"));
+    await TestRenderer.act(async () => { (importPill.props.onClick as () => void)(); await Promise.resolve(); await Promise.resolve(); });
+    const done = tree.root.findAll((node) => node.props.children === "calendar.importDone").length;
+    if (handedCount === null) {
+      expect(onImported).not.toHaveBeenCalled();
+      expect(done).toBeGreaterThan(0);
+    } else {
+      expect(onImported).toHaveBeenCalledWith(handedCount);
+      expect(done).toBe(0);
+    }
+    importHandoff.onImported = undefined;
   });
 
   it("lists imported habits and keeps partial failures visible", async () => {

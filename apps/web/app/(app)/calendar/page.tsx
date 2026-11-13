@@ -3,7 +3,7 @@
 import { useCalendarScreenState, type CalendarPageContentProps } from './_components/use-calendar-screen-state'
 import { CalendarViewRouter } from './_components/calendar-view-router'
 import { calendarImportInitialEventId } from '@orbit/shared/utils/calendar-sync'
-import { useMemo, Suspense, type ReactNode } from 'react'
+import { useMemo, useState, Suspense, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 import { calendarMonthForDay, calendarImportTitleKey } from '@orbit/shared/utils'
 import { useCalendarData } from '@/hooks/use-calendar-data'
@@ -16,6 +16,7 @@ import { Sheet } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { plural } from '@/lib/plural'
 import { CalendarOptions } from './_components/calendar-options'
+import { CalendarImportResult } from './_components/calendar-import-result'
 import { useCalendarNavigation } from '@/hooks/use-calendar-navigation'
 import { useFlag } from '@/hooks/use-flag'
 
@@ -72,6 +73,8 @@ function CalendarBody({ profileReady, profileError, onRetryProfile, error, onRet
 function CalendarPageContent(props: Readonly<CalendarPageContentProps>) {
   const state = useCalendarScreenState(props)
   const guided = useFlag('orbit_guided_flows')
+  const [importedCount, setImportedCount] = useState<number | null>(null)
+  const finishImport = (count: number) => closeImportSheet(() => { closeImport(); setImportedCount(count) })
   const { profile, profileError, onRetryProfile, selectedDay, view, setIsDayDetailOpen, router, todayKey, t, openGoogleCalendar, openImport, isDayDetailOpen, sheetRef, openDayDisclosure, setIsEventsOpen, openHabit, disclosedWeekDay, isEventsOpen, showImportSheet, importSheetRef, closeImport, reviewRequested, importActionState, commitCalendarImport, importRequested, searchParams, initialImportEventId, importActionRef, setImportActionState, closeImportSheet, setIsImportOpen, showRecurring, showEventSource, calendarEventsState, refetchCalendarEvents, openOrbitPro, rangeLoadingLabel, activeError, activeRefresh, selectedCalendarEvents, selectedDayLoggable, pendingEntryStates, changeSelectedEntry, selectedEntries, dayDetailTitle, pageLayout } = state
 
   return (
@@ -131,8 +134,10 @@ function CalendarPageContent(props: Readonly<CalendarPageContentProps>) {
             setIsImportOpen(false)
             router.push('/')
           })}
+          onImported={guided ? finishImport : undefined}
         />
       </Sheet> : null}
+      <CalendarImportResult count={importedCount} onClose={() => setImportedCount(null)} />
     </div>
   )
 }
