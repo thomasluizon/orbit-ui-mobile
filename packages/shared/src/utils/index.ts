@@ -906,6 +906,8 @@ export type {
   HabitFlowStepKey,
 } from './habit-flow-navigation'
 export { answerHabitReminder, answerHabitTime, answerHabitWhen, shiftCalendarDate, HABIT_TIME_OPTIONS } from './habit-flow-answers'
+export { habitFlowFieldStep, habitFlowOptionalQuestions, readHabitWhenWords, summaryValueStep } from './habit-flow-details'
+export type { HabitFlowOptionalInput, HabitWhenWords, HabitWhenWordsContext } from './habit-flow-details'
 export type { HabitFlowFormPort, HabitWhenChoice } from './habit-flow-answers'
 
 export {

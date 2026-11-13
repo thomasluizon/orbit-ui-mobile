@@ -552,7 +552,8 @@
         "freeLabel": "Ou diga com as suas palavras",
         "freePlaceholder": "Sexta, dia 20, toda segunda",
         "calendar": "Escolher no calendário",
-        "unresolved": "Não entendi essa data. Tente \"sexta\" ou \"dia 20\"."
+        "unresolved": "Não entendi essa data. Tente \"sexta\" ou \"dia 20\".",
+        "past": "Esse dia já passou. Escolha hoje ou um dia depois."
       },
       "time": {
         "question": "Tem hora certa?",
@@ -580,7 +581,10 @@
         "reminder": "Lembrete",
         "type": "O que é isso",
         "emoji": "Emoji",
-        "title": "O que você quer fazer"
+        "title": "O que você quer fazer",
+        "duration": "Duração",
+        "until": "até {time}",
+        "noDuration": "sem duração"
       },
       "type": {
         "question": "É uma tarefa ou um hábito?",
@@ -595,7 +599,8 @@
         "timesIn": "Vezes por"
       },
       "duration": {
-        "question": "Tem duração?"
+        "question": "Tem duração?",
+        "none": "Sem duração"
       },
       "reminderKind": {
         "question": "Quando você quer um lembrete?",

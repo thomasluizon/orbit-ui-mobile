@@ -552,7 +552,8 @@
         "freeLabel": "Or say it in your words",
         "freePlaceholder": "Friday, the 20th, every Monday",
         "calendar": "Pick on the calendar",
-        "unresolved": "I could not read that date. Try \"Friday\" or \"the 20th\"."
+        "unresolved": "I could not read that date. Try \"Friday\" or \"the 20th\".",
+        "past": "That day has passed. Pick today or a later day."
       },
       "time": {
         "question": "Is there a set time?",
@@ -580,7 +581,10 @@
         "reminder": "Reminder",
         "type": "What this is",
         "emoji": "Emoji",
-        "title": "What you want to do"
+        "title": "What you want to do",
+        "duration": "Length",
+        "until": "until {time}",
+        "noDuration": "no end time"
       },
       "type": {
         "question": "Is it a task or a habit?",
@@ -595,7 +599,8 @@
         "timesIn": "Times per"
       },
       "duration": {
-        "question": "Does it have a length?"
+        "question": "Does it have a length?",
+        "none": "No end time"
       },
       "reminderKind": {
         "question": "When do you want a reminder?",
