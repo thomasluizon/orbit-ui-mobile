@@ -538,6 +538,7 @@ describe('counted message grammar', () => {
       'progressScreen.goals.position', 'progressScreen.goals.reorderMoved',
       'progressScreen.goals.reorderBoundary', 'progressScreen.achievements.xp',
       'progressScreen.achievements.progress', 'progressScreen.achievements.progressLabel',
+      'progressScreen.orbit.day',
     ],
     formattedWeekdayNames: [
       'habits.form.understoodDay', 'habits.form.understoodDayAt',

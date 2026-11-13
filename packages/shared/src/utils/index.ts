@@ -486,7 +486,7 @@ export {
   snapshotNotificationList,
 } from './notification-cache'
 export { formatNotificationRelativeTime } from './notification-time'
-export { getReturningInterval, type ReturningInterval } from './returning-interval'
+export { getReturningInterval, getReturningIntervalBetween, type ReturningInterval } from './returning-interval'
 export {
   getNotificationDetailActionVisibility,
   getNotificationDestination,
@@ -765,6 +765,23 @@ export type {
   ProgressGoalFilter,
   StreakRepairState,
 } from './progress'
+export {
+  hasReturnedAfterGap,
+  resolveProgressOrbitLine,
+  resolveProgressWindowStatus,
+  resolveStreakOrbitLine,
+  type ProgressOrbitLine,
+  type ProgressWindowStatus,
+  type StreakOrbitLine,
+} from './progress-orbit-line'
+export {
+  changedProgressFigures,
+  parseProgressFigures,
+  PROGRESS_FIGURE_KEYS,
+  readProgressFigures,
+  type ProgressFigureKey,
+  type ProgressFigureValues,
+} from './progress-figures'
 export {
   PROFILE_NAV_ITEMS,
   shouldRedirectProfileNavItem,

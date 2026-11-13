@@ -293,7 +293,17 @@ describe("shared ui store", () => {
       allDoneCelebratedDate: "",
       dailyStreakMomentDate: "",
       setupChecklistDismissed: false,
+      progressFiguresSeen: null,
     });
+  });
+
+  it("keeps the Progresso figures the person last saw and drops a malformed value", () => {
+    const figures = { completionRate: 75, activeDays: 12, bestWeekday: "thursday" };
+    expect(migratePersistedUIState({ progressFiguresSeen: figures }).progressFiguresSeen).toEqual(figures);
+    expect(migratePersistedUIState({ progressFiguresSeen: { completionRate: 75 } }).progressFiguresSeen).toBeNull();
+    const store = createStoreHarness();
+    store.getState().setProgressFiguresSeen(figures);
+    expect(getPersistedUIState(store.getState()).progressFiguresSeen).toEqual(figures);
   });
 
   it("ignores a retired composer collapse choice and stops persisting it", () => {

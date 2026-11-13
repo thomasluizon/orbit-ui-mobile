@@ -3119,6 +3119,10 @@
   },
   "result": {
     "title": "Pronto!",
+    "streak": {
+      "repaired": "Sua sequência voltou para {count, plural, =0 {# dias} one {# dia} other {# dias}}.",
+      "see": "Ver a sequência"
+    },
     "task": {
       "dated": "A tarefa foi criada para {date}.",
       "datedTimed": "A tarefa foi criada para {date} às {time}.",
@@ -3825,7 +3829,19 @@
       "streak": "Sequência",
       "goals": "Metas",
       "window": "Últimos 30 dias",
+      "windowQuestion": "Como foram seus 30 dias?",
       "achievements": "Conquistas"
+    },
+    "sectionsQuestion": "O que você quer ver?",
+    "orbit": {
+      "activeDays": "{days, plural, =0 {Você apareceu em # dos últimos 30 dias.} one {Você apareceu em # dos últimos 30 dias.} other {Você apareceu em # dos últimos 30 dias.}}",
+      "quietWindow": "Ainda não tem registro nos últimos 30 dias.",
+      "day": "{weekday}, {date}: {done} de {total}.",
+      "dayUnscheduled": "{weekday}, {date}: nada estava agendado.",
+      "returned": "Você voltou. Daqui a gente continua.",
+      "empty": "Ainda não tem nada para medir.",
+      "streak": "{count, plural, =0 {# dias seguidos} one {# dia seguido} other {# dias seguidos}}. {days, plural, =0 {Faltam # dias} one {Falta # dia} other {Faltam # dias}} para o próximo congelamento.",
+      "streakOnly": "{count, plural, =0 {# dias seguidos.} one {# dia seguido.} other {# dias seguidos.}}"
     },
     "streak": {
       "currentLabel": "{count, plural, =0 {dias seguidos} one {dia seguido} other {dias seguidos}}",
@@ -3865,7 +3881,14 @@
       "repairCapped": "Esta lacuna precisa de {needed, plural, =0 {# congelamentos} one {# congelamento} other {# congelamentos}} e {banked} é o máximo que dá para guardar, então ela não pode ser reparada.",
       "repairError": "Não foi possível reparar a sequência. Tente novamente.",
       "repairRateLimited": "Foram muitas tentativas de reparo. Tente de novo daqui a pouco.",
-      "bankFull": "{count, plural, =0 {# congelamentos é o limite. O próximo chega depois que você usar um.} one {# congelamento é o limite. O próximo chega depois que você usar um.} other {# congelamentos é o limite. O próximo chega depois que você usar um.}}"
+      "bankFull": "{count, plural, =0 {# congelamentos é o limite. O próximo chega depois que você usar um.} one {# congelamento é o limite. O próximo chega depois que você usar um.} other {# congelamentos é o limite. O próximo chega depois que você usar um.}}",
+      "repairFlow": {
+        "question": "Salvar a sequência com {count, plural, =0 {# congelamentos} one {# congelamento} other {# congelamentos}}?",
+        "line": "Vou cobrir {dates}, e não dá para desfazer depois.",
+        "repair": "Sim, salvar",
+        "notNow": "Agora não",
+        "saving": "Salvando sua sequência"
+      }
     },
     "goals": {
       "views": "Filtro de metas",
