@@ -1,4 +1,5 @@
 import { redactCredentials } from './credentials.mjs'
+import { guid } from './fixtures/api.mjs'
 import { tools, legacyTools, postReadTools, habitSetupTools, offerTools, offerPostReadTools, offerHabitSetupTools, normalizeField } from './trace-policy.mjs'
 import { schemaVariants } from './tool-schema.mjs'
 
@@ -159,6 +160,12 @@ export function attemptEvidence(entry, attempt) {
       }))),
       ...output.restartReadback,
     } } : {}),
+    ...(output?.sameTitleReadback || output?.sameTitleAnswer ? { sameTitleSet: {
+      proposed: (output.sameTitleAnswer?.composition ?? output.composition).pendingOperations?.map((pending) => ({ actionKey: pending.actionKey, items: pending.items.length })) ?? [],
+      ...(output.sameTitleAnswer ? { answer: { card: output.sameTitleAnswer.card, message: output.sameTitleAnswer.message ?? null,
+        checks: output.sameTitleAnswer.checks ?? [] } } : {}),
+      ...output.sameTitleReadback,
+    } } : {}),
     timing: timingEvidence(output?.trace?.timing),
     savedStep: entry.gradingResult?.componentResults?.find((assertion) => assertion.assertion?.metric === 'savedStep')?.metadata?.savedStep ?? null,
     ...(output?.brainDumpReadback ? { brainDumpReadback: output.brainDumpReadback } : {}),
@@ -167,30 +174,25 @@ export function attemptEvidence(entry, attempt) {
     graderRationale: attempt.assertions.filter((assertion) => assertion.metric === 'finalAnswer')
       .map((assertion) => assertion.reason).join('\n') || entry.gradingResult?.reason || null,
   }, withheld)
+  // A request id reaches the evidence only as a GUID that is no credential and no withheld value.
+  const isPublicRequestId = (value) => typeof value === 'string' && guid.test(value) && redactCredentials(value) === value
+    && !withheld.has(value)
   for (const field of ['requestId', 'responseRequestId']) {
     const value = output?.trace?.[field]
-    if (typeof value === 'string' && /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/iu.test(value)
-      && redactCredentials(value) === value && !withheld.has(value)) evidence.trace[field] = value
+    if (isPublicRequestId(value)) evidence.trace[field] = value
   }
   for (const [index, turn] of (output?.offerReadback?.turns ?? []).entries()) {
     const recorded = evidence.offerReadback.turns[index]
     for (const [source, target] of [[turn, recorded], [turn.trace, recorded.trace], [turn.httpError, recorded.httpError]]) {
       for (const field of ['requestId', 'responseRequestId']) {
         const value = source?.[field]
-        if (typeof value === 'string' && /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/iu.test(value)
-          && redactCredentials(value) === value && !withheld.has(value)) target[field] = value
+        if (isPublicRequestId(value)) target[field] = value
       }
     }
   }
   const requestId = output?.httpError?.responseRequestId
-  if (typeof requestId === 'string' && /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/iu.test(requestId)
-    && redactCredentials(requestId) === requestId && !withheld.has(requestId)) {
-    evidence.httpError.responseRequestId = requestId
-  }
+  if (isPublicRequestId(requestId)) evidence.httpError.responseRequestId = requestId
   const setupRequestId = entry.testCase.vars?.setupEvidence?.requestId
-  if (typeof setupRequestId === 'string' && /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/iu.test(setupRequestId)
-    && redactCredentials(setupRequestId) === setupRequestId && !withheld.has(setupRequestId)) {
-    evidence.setup.requestId = setupRequestId
-  }
+  if (isPublicRequestId(setupRequestId)) evidence.setup.requestId = setupRequestId
   return evidence
 }
