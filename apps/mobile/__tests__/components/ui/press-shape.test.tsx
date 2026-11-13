@@ -4,7 +4,6 @@ import type { DayCellWords } from '@orbit/shared/contracts/dates'
 import { buildDayCellAccessibleName } from '@orbit/shared/utils'
 import { CalendarSyncEventRow } from '@/components/calendar-sync/calendar-sync-event-row'
 import { createStyles as createCalendarSyncStyles } from '@/components/calendar-sync/calendar-import-styles'
-import { StreakBadge } from '@/components/gamification/streak-badge'
 import { DayCell } from '@/components/dates/day-cell'
 import { CheckRow } from '@/components/ui/check-row'
 import { Chip } from '@/components/ui/chip'
@@ -287,16 +286,6 @@ describe('pressed hit area shapes', () => {
       expect(control.props.hitSlop).toBeUndefined()
       expect(pressedFill(control, true)).toMatchObject({ width: 48, height: 48, backgroundColor: dismissPending ? 'transparent' : tokens.bgHover, borderRadius: 999, ...(dismissPending ? { opacity: 0.6 } : {}) })
       expect(pressedFill(control, false).backgroundColor).toBe('transparent')
-    })
-  })
-
-  it('layers the neutral press fill over the whole opaque streak target', () => {
-    withTree(<StreakBadge streak={3} />, (tree) => {
-      const control = tree.root.findAllByType(Pressable)[0]!
-      expect(control.props.hitSlop).toBeUndefined()
-      expect(pressedFill(control, true)).toMatchObject({ minWidth: 48, minHeight: 48, borderRadius: 999, overflow: 'hidden', backgroundColor: tokens.bgElev })
-      expect(pressedFill(control, false).backgroundColor).toBe(tokens.bgElev)
-      expect(pressedFill(control, true).borderWidth ?? 0).toBe(0)
     })
   })
 

@@ -194,10 +194,6 @@ vi.mock('@/components/ui/theme-toggle', () => ({
   ThemeToggle: () => null,
 }))
 
-vi.mock('@/components/gamification/streak-badge', () => ({
-  StreakBadge: () => null,
-}))
-
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 
 vi.mock('@/app/(app)/profile/_components/fresh-start-modal', () => ({
