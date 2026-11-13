@@ -101,7 +101,7 @@ describe('press hit target in Chromium', () => {
       await page.evaluate(() => document.querySelectorAll<HTMLElement>('[data-testid="bulk-action-bar"]').forEach((bar) => { bar.style.transform = 'none'; bar.style.opacity = '1' }))
       const card = locate(page)
       await card.scrollIntoViewIfNeeded()
-      await card.evaluate((element) => { element.addEventListener('click', () => { element.dataset.clicks = String(Number(element.dataset.clicks ?? 0) + 1) }) })
+      await card.evaluate((element) => { element.addEventListener('click', (event) => { event.preventDefault(); element.dataset.clicks = String(Number(element.dataset.clicks ?? 0) + 1) }) })
       const box = (await card.boundingBox())!
       const insideBandThatPressScaleRemoves = Math.min(2, box.width / 100)
       const edge = { x: box.x + insideBandThatPressScaleRemoves, y: box.y + box.height / 2 }
