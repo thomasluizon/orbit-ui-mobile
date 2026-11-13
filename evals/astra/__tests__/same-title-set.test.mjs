@@ -1,6 +1,8 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { parse } from 'yaml'
+import { loadApiProvider } from 'promptfoo'
 import { tsImport } from 'tsx/esm/api'
 import { behavior, composition } from '../assertions.mjs'
 import { sameTitleProposal, sameTitleReadback } from '../same-title-set.mjs'
@@ -60,15 +62,18 @@ function operations({ deleted, renamed, title, separate, renameFirst }) {
   })
 }
 
-const respond = (calls, fields, requestId = 'same-title') => parseResponse({ ...chatResponse(requestId, calls), aiMessage: '', parts: [], ...fields }, '',
-  { response: { status: 200, headers: { 'x-orbit-request-id': requestId } } })
+// chatBody is the /api/chat response body; respond and held are what response.mjs makes of it.
+const chatBody = (calls, fields, requestId = 'same-title') => ({ ...chatResponse(requestId, calls), aiMessage: '', parts: [], ...fields })
+const parsed = (body, requestId) => parseResponse(body, '', { response: { status: 200, headers: { 'x-orbit-request-id': requestId } } })
+const respond = (calls, fields, requestId = 'same-title') => parsed(chatBody(calls, fields, requestId), requestId)
 
-function held({ deleted = [], renamed = [], title = 'Water - 1.18L', requestId = 'same-title', separate = false, renameFirst = false } = {}) {
+function heldBody({ deleted = [], renamed = [], title = 'Water - 1.18L', requestId = 'same-title', separate = false, renameFirst = false } = {}) {
   const calls = []
   if (deleted.length) calls.push(toolCall('bulk_delete_habits', { habit_ids: deleted }, 'PendingConfirmation', 'delete', { supportsParts: true }, true))
   if (renamed.length) calls.push(toolCall('bulk_update_habits', { filter: { habit_ids: renamed }, updates: { title } }, 'PendingConfirmation', 'rename', { supportsParts: true }, true))
-  return respond(calls, { pendingOperations: operations({ deleted, renamed, title, separate, renameFirst }) }, requestId)
+  return chatBody(calls, { pendingOperations: operations({ deleted, renamed, title, separate, renameFirst }) }, requestId)
 }
+const held = (targets = {}) => parsed(heldBody(targets), targets.requestId ?? 'same-title')
 
 const persisted = (deleted, renamed, title = 'Water - 1.18L', source = baseline) => ({
   parent,
@@ -485,6 +490,51 @@ it.each(['card', 'preview'])('sends the conversation id the first response retur
     .toEqual(shape === 'card' ? [[continued, JSON.stringify(continued)]] : [])
   if (shape === 'card') expect(JSON.parse(answered[0].vars.historyJson)).toEqual([{ role: 'user', content: policy.input },
     { role: 'assistant', content: expect.stringContaining('"kind":"question"') }])
+  expect(requests.filter(({ path }) => path.startsWith('/api/ai/')).map(({ path, clientContext }) => [path.split('/').at(-1), clientContext]))
+    .toEqual([['confirm', continued], ['execute', continued]])
+})
+
+const root = fileURLToPath(new URL('..', import.meta.url))
+const providerConfig = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8')).providers[0].config
+
+// Contract: orbit-api ChatController.ProcessChat binds [FromForm] string? blockAnswer and deserializes it to
+// AiBlockAnswer(BlockId, SelectedIds, FreeText, Answers); a request without the field is a typed message. The web client
+// appends that field only for a card answer (use-chat-send-stream.ts), so the first turn and a typed answer carry none.
+it.each(['card', 'typed'])('posts every field of the %s answer turn through the real promptfoo HTTP provider', async (shape) => {
+  boundary()
+  const policy = await seeded('same-title-card-en')
+  const children = policy.sameTitleBaseline.children.map((child) => child.id)
+  pendingTargets = { deleted: children.slice(4), renamed: children.slice(0, 4) }
+  requests.length = 0
+  const { conversationId } = streams.run3
+  const card = questionCard(children, 'Which two do you want to delete?')
+  const text = 'Which two should I delete?'
+  const question = shape === 'card' ? { parts: [card] } : { aiMessage: text, parts: [{ type: 'text', text }] }
+  const forms = []
+  const publicApiFetch = globalThis.fetch
+  vi.stubGlobal('fetch', async (url, options) => {
+    if (new URL(url).pathname !== '/api/chat') return publicApiFetch(url, options)
+    const request = new Request(url, options)
+    const requestId = request.headers.get('x-orbit-request-id')
+    forms.push(Object.fromEntries(await request.formData()))
+    const body = forms.length === 1 ? chatBody([], question, requestId) : heldBody({ ...pendingTargets, requestId })
+    return Response.json({ ...body, conversationId }, { headers: { 'X-Orbit-Request-Id': requestId } })
+  })
+  const provider = await loadApiProvider(`file://${root}/http-provider.mjs`, { options: { config: {
+    ...providerConfig, url: 'https://astra.invalid/api/chat', transformResponse: `file://${root}/response.mjs` } } })
+  // The beforeEach hook renders these two vars for every case (hooks.mjs).
+  const response = await provider.callApi(policy.input, { vars: { ...policy,
+    clientContextJson: JSON.stringify(policy.clientContext), historyJson: JSON.stringify(policy.history ?? []) } })
+  expect(response.error).toBeUndefined()
+  const sent = shape === 'card' ? await clientAnswer(card, { pick: children.slice(4) }, 'en') : { message: policy.sameTitleSet.answer.text }
+  const continued = { ...policy.clientContext, conversationId }
+  expect(forms).toEqual([
+    { message: policy.input, history: '[]', clientContext: JSON.stringify(policy.clientContext) },
+    { message: sent.message, history: JSON.stringify([{ role: 'user', content: policy.input },
+      { role: 'assistant', content: shape === 'card' ? JSON.stringify([{ kind: card.kind, block: card.block }]) : text }]),
+    clientContext: JSON.stringify(continued), ...(shape === 'card' ? { blockAnswer: expect.any(String) } : {}) },
+  ])
+  if (shape === 'card') expect(JSON.parse(forms[1].blockAnswer)).toEqual(sent.blockAnswer)
   expect(requests.filter(({ path }) => path.startsWith('/api/ai/')).map(({ path, clientContext }) => [path.split('/').at(-1), clientContext]))
     .toEqual([['confirm', continued], ['execute', continued]])
 })
