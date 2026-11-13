@@ -2,6 +2,8 @@ import { z } from 'zod'
 
 const ENVELOPE_HEADER_END = 0x0a
 const SENTRY_RESPONSE_HEADERS = ['content-type', 'retry-after', 'x-sentry-rate-limits']
+// WHY: 2000 ms matches the socket timeout in transports/http.ts of https://github.com/getsentry/sentry-javascript/tree/master/packages/node-core (the browser transport sets none); the route never reports its own upstream failure to Sentry, because the report would go to the endpoint that just failed.
+const SENTRY_UPSTREAM_TIME_LIMIT_MS = 2000
 const envelopeHeaderSchema = z.object({ dsn: z.string() })
 
 function sentryEnvelopeEndpoint(dsn: string | null | undefined): string | null {
@@ -30,19 +32,25 @@ async function forwardSentryEnvelope(request: Request): Promise<Response> {
   if (!destination) return new Response(null, { status: 404 })
   const envelope = new Uint8Array(await request.arrayBuffer())
   if (sentryEnvelopeEndpoint(envelopeDsn(envelope)) !== destination) return new Response(null, { status: 403 })
-  const upstream = await fetch(destination, {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-sentry-envelope' },
-    body: envelope,
-    redirect: 'manual',
-    cache: 'no-store',
-  })
-  const headers = new Headers()
-  for (const name of SENTRY_RESPONSE_HEADERS) {
-    const value = upstream.headers.get(name)
-    if (value) headers.set(name, value)
+  try {
+    const upstream = await fetch(destination, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-sentry-envelope' },
+      body: envelope,
+      redirect: 'manual',
+      cache: 'no-store',
+      signal: AbortSignal.timeout(SENTRY_UPSTREAM_TIME_LIMIT_MS),
+    })
+    const body = upstream.body ? await upstream.arrayBuffer() : null
+    const headers = new Headers()
+    for (const name of SENTRY_RESPONSE_HEADERS) {
+      const value = upstream.headers.get(name)
+      if (value) headers.set(name, value)
+    }
+    return new Response(body, { status: upstream.status, statusText: upstream.statusText, headers })
+  } catch {
+    return new Response(null, { status: 502 })
   }
-  return new Response(upstream.body, { status: upstream.status, statusText: upstream.statusText, headers })
 }
 
 export { forwardSentryEnvelope as POST }
