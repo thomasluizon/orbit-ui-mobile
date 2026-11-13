@@ -104,7 +104,7 @@ export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
               <OrbitMascot size={wide ? 128 : 96} state={orbitState} lookAt={shownLook} />
             </View>
             {line ? <Text style={[styles.line, { color: tokens.fg2 }]}>{line}</Text> : null}
-            <Text ref={headingRef} accessibilityRole="header" accessibilityHint={line ?? undefined} style={[styles.question, { color: tokens.fg1 }]} textBreakStrategy="balanced">{question}</Text>
+            <Text ref={headingRef} accessibilityRole="header" accessibilityHint={line ?? undefined} style={[styles.question, wide ? styles.questionWide : null, { color: tokens.fg1 }]} textBreakStrategy="balanced">{question}</Text>
             {options ? <View style={styles.options}>{options}</View> : null}
             {children ? <View style={styles.freePath}>{children}</View> : null}
             {wide ? primaryAction : null}
@@ -125,8 +125,9 @@ const styles = StyleSheet.create({
   progress: { flex: 1, minWidth: 0 },
   scrollContent: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 16 },
   block: { width: '100%', maxWidth: 592, alignItems: 'center', gap: 24 },
-  line: { fontFamily: 'Geist_400Regular', fontSize: 15, lineHeight: 24, textAlign: 'center' },
-  question: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 28, lineHeight: 36, textAlign: 'center' },
+  line: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24, textAlign: 'center' },
+  question: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 28, lineHeight: 33, textAlign: 'center' },
+  questionWide: { fontSize: 34, lineHeight: 39 },
   options: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12 },
   freePath: { width: '100%', gap: 12 },
   status: { position: 'absolute', width: 1, height: 1, opacity: 0 },

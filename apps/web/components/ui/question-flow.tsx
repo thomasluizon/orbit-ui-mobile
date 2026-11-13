@@ -88,8 +88,8 @@ export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
           className="my-auto flex w-full max-w-[592px] flex-col items-center gap-6 py-4 text-center"
         >
           <span ref={mascotRef} aria-hidden="true"><OrbitMascot size={wide ? 128 : 96} state={orbitState} lookAt={orbitState === 'parado' ? lookAt : null} /></span>
-          {line ? <p id={lineId} className="text-[15px] leading-6 text-[var(--fg-2)]">{line}</p> : null}
-          <h1 ref={headingRef} tabIndex={-1} aria-describedby={line ? lineId : undefined} className="orbit-flow-question text-balance font-display text-[28px] leading-9 text-[var(--fg-1)] lg:text-[32px] lg:leading-10">{question}</h1>
+          {line ? <p id={lineId} className="text-base leading-6 text-[var(--fg-2)]">{line}</p> : null}
+          <h1 ref={headingRef} tabIndex={-1} aria-describedby={line ? lineId : undefined} className="orbit-flow-question text-balance font-display text-[28px] leading-[1.18] text-[var(--fg-1)] lg:text-[34px] lg:leading-[1.15]">{question}</h1>
           {options ? <div role="group" aria-label={question} data-option-group="" className="grid w-full grid-cols-2 gap-3">{options}</div> : null}
           {children ? <div className="flex w-full flex-col gap-3 text-start">{children}</div> : null}
           {wide ? primaryAction : null}

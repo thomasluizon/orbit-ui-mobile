@@ -73,7 +73,7 @@ export function ResultDialog({ title, sentence, primaryLabel, onPrimary, seconda
 const styles = StyleSheet.create({
   centre: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16 },
   panel: { width: '100%', maxWidth: PANEL_MAX_WIDTH, alignItems: 'center', gap: 24, borderRadius: 20, padding: PADDING.cardInset, elevation: 8 },
-  title: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 28, lineHeight: 36, textAlign: 'center' },
+  title: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 28, lineHeight: 33, textAlign: 'center' },
   sentence: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 26, textAlign: 'center' },
   fullWidth: { width: '100%' },
 })

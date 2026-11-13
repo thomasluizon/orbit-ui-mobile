@@ -26,7 +26,7 @@ export function ResultDialog({ title, sentence, primaryLabel, onPrimary, seconda
           <OrbitMascot size={128} state={orbitState} />
         </motion.span>
         <div aria-hidden="true" className="flex flex-col gap-3">
-          <p className="font-display text-[28px] leading-9 text-[var(--fg-1)]">{title}</p>
+          <p className="font-display text-[28px] leading-[1.18] text-[var(--fg-1)]">{title}</p>
           <p className="text-[17px] leading-[26px] text-[var(--fg-2)]">{sentence}</p>
         </div>
         <ActionRow align="center">
