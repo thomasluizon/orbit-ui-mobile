@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, TextInput, View, type ViewStyle } from 'react-na
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { formatLocaleTime } from '@orbit/shared/utils'
-import { INTERACTION_FILL_CLEARANCE, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, SPACING, TOUCH_TARGET_MIN, motionPresets } from '@orbit/shared/theme'
 import {
   __resetTestHostConfig,
   __setScrollToImpl,
@@ -214,7 +214,8 @@ describe('TimeField', () => {
     const tokens = createTokensV2('purple', 'dark')
 
     for (const option of [...selectedOptions, unselected]) {
-      expect(StyleSheet.flatten(option.props.style({ pressed: false }))).toMatchObject({ borderRadius: 12, overflow: 'hidden' })
+      expect(StyleSheet.flatten(option.props.style({ pressed: false }))).toMatchObject({ borderRadius: 12, borderWidth: 2 })
+      expect(StyleSheet.flatten(option.props.style({ pressed: false })).overflow).toBeUndefined()
     }
     expect(StyleSheet.flatten(unselected.props.style({ pressed: true })).backgroundColor).toBe(tokens.bgHover)
     for (const selected of selectedOptions) {
@@ -224,7 +225,8 @@ describe('TimeField', () => {
       const label = selected.findAll((node: any) => node.type === 'Text')[0]
       expect(StyleSheet.flatten(label.props.style).color).toBe(tokens.fg1)
       const host = selected.findByType(Pressable)
-      expect(StyleSheet.flatten(host.props.style({ pressed: false }))).toMatchObject({ borderWidth: 2, borderColor: tokens.primary, borderRadius: 12 })
+      expect(StyleSheet.flatten(host.props.style({ pressed: false }))).toMatchObject({ borderWidth: 2, borderColor: 'transparent', borderRadius: 12 })
+      expect(StyleSheet.flatten(host.findByProps({ testID: 'selection-ring' }).props.style)).toMatchObject({ top: -2, right: -2, bottom: -2, left: -2, borderWidth: 2, borderColor: tokens.primary, borderRadius: 12, transition: `border-color ${motionPresets.selection.enterDuration}ms cubic-bezier(${motionPresets.selection.enterEasing.join(',')})` })
       expect(selected.props.focusColor).toBe(tokens.fg1)
     }
   })

@@ -72,7 +72,6 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.s8,
     paddingHorizontal: SPACING.s16,
     borderRadius: radius.full,
-    overflow: 'hidden',
     borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',

@@ -466,7 +466,6 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
     alignItems: 'center',
     borderRadius: 12,
-    overflow: 'hidden',
     height: ROW_HEIGHT,
     justifyContent: 'center',
   },

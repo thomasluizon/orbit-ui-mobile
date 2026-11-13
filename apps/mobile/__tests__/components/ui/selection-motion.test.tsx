@@ -6,6 +6,8 @@ import { SelectionIndicator } from '@/components/ui/selection-indicator'
 import { MotionPressable } from '@/components/ui/motion-pressable'
 import { SwitchTrack } from '@/components/ui/switch'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Chip } from '@/components/ui/chip'
+import { RadioRow } from '@/components/ui/select-check'
 import { createTokensV2 } from '@/lib/theme'
 import { PRESS_SCALE_TRANSITION } from '@/components/motion/press-scale'
 import { motionDurations, motionPresets } from '@orbit/shared/theme'
@@ -86,6 +88,26 @@ describe('selection motion', () => {
     TestRenderer.act(() => tree!.update(<Checkbox checked onChange={vi.fn()} label="Done" />))
     expect(box()).toMatchObject({ backgroundColor: tokens.statusDone, transition: reduced ? 'none' : `background-color ${enterDuration}ms cubic-bezier(${enterEasing.join(',')})` })
     TestRenderer.act(() => tree!.unmount())
+    preference.reduced = false
+  })
+
+  it.each([
+    ['chip', (selected: boolean) => <Chip active={selected}>Chip</Chip>, 1],
+    ['period chip', (selected: boolean) => <Chip variant="period" active={selected}>Chip</Chip>, 1.5],
+    ['radio row', (selected: boolean) => <RadioRow label="Radio" selected={selected} onSelect={vi.fn()} />, 1.5],
+  ] as const)('settles the %s ring over its own border band on the selection preset, and at once under reduced motion', (_name, render, width) => {
+    const { enterDuration, exitDuration, enterEasing, exitEasing } = motionPresets.selection
+    for (const reduced of [false, true]) {
+      preference.reduced = reduced
+      let tree: ReturnType<typeof TestRenderer.create>
+      const ring = () => StyleSheet.flatten(tree!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.testID === 'selection-ring')[0]!.props.style)
+      TestRenderer.act(() => { tree = TestRenderer.create(render(false)) })
+      expect(ring()).toMatchObject({ borderColor: 'transparent', transition: reduced ? 'none' : `border-color ${exitDuration}ms cubic-bezier(${exitEasing.join(',')})` })
+      TestRenderer.act(() => tree!.update(render(true)))
+      expect(ring()).toMatchObject({ position: 'absolute', top: -width, left: -width, borderWidth: width, transition: reduced ? 'none' : `border-color ${enterDuration}ms cubic-bezier(${enterEasing.join(',')})` })
+      expect(ring().borderColor).not.toBe('transparent')
+      TestRenderer.act(() => tree!.unmount())
+    }
     preference.reduced = false
   })
 

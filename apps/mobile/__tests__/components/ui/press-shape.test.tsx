@@ -185,8 +185,9 @@ describe('pressed hit area shapes', () => {
   })
 
   it('clips the chip press fill to its pill hit area', () => {
-    expect(pressedStyle(<Chip onPress={() => {}} accessibilityLabel="Active">Active</Chip>, 'Active')).toMatchObject({ borderRadius: radius.full, overflow: 'hidden', backgroundColor: tokens.bgHover })
-    expect(pressedStyle(<Chip onPress={() => {}} accessibilityLabel="Selected" active>Selected</Chip>, 'Selected')).toMatchObject({ borderRadius: radius.full, overflow: 'hidden', backgroundColor: tokens.bgHover })
+    expect(pressedStyle(<Chip onPress={() => {}} accessibilityLabel="Active">Active</Chip>, 'Active')).toMatchObject({ borderRadius: radius.full, backgroundColor: tokens.bgHover })
+    expect(pressedStyle(<Chip onPress={() => {}} accessibilityLabel="Selected" active>Selected</Chip>, 'Selected')).toMatchObject({ borderRadius: radius.full, backgroundColor: tokens.bgHover })
+    expect(pressedStyle(<Chip onPress={() => {}} accessibilityLabel="Selected" active>Selected</Chip>, 'Selected').overflow).toBeUndefined()
     withTree(<Chip onPress={() => {}} accessibilityLabel="Selected" active>Selected</Chip>, (tree) => {
       expect(pressedFill(findPressable(tree, 'Selected'), false).backgroundColor).toBe(tokens.selectionBg)
     })
