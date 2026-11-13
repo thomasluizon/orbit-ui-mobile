@@ -186,6 +186,9 @@ The guided flow has shared logic and three primitives, and each one has a Vitest
 - `packages/shared/src/__tests__/orbit-look.test.ts` covers the mascot look vector, the Olhando state and the reduced motion rule.
 - `apps/web/__tests__/components/ui/question-flow.test.tsx` and `apps/mobile/__tests__/components/ui/question-flow.test.tsx` cover `OptionCard` and `QuestionFlow`: the progress name, focus on the question, the Orbit line as the description, Pensando, Olhando and the pinned primary action.
 - `apps/web/__tests__/components/ui/result-dialog.test.tsx` and the `ResultDialog` cases in `apps/mobile/__tests__/components/ui/question-flow.test.tsx` cover the dialog: name, description, focus, Escape and the scrim, Android back, and the Feliz and Parado states.
+- `packages/shared/src/__tests__/guided-flow-events.test.ts` covers the `guided_flow_*` tracker: one view for each step, one abandon at the step the person left, no abandon before the first step, and the completed flag that keeps a finished flow from reading as abandoned. The `QuestionFlow` cases in the two `question-flow` suites cover the events the shell sends.
+- `packages/shared/src/__tests__/orbit-ring-turn.test.ts` covers the ring turn: the eased progress, the rest frame after one full turn and the eyes widening through the middle.
+- `apps/web/__tests__/components/habits/guided-habit-flow.test.tsx` and `apps/mobile/__tests__/components/habits/guided-habit-flow.test.tsx` mount the real guided create flow over the real form hook: the progress name, the three steps of one phrase that holds the repeat and the time, a task with a date and a time and one create press, an undated task in General, a double press that advances one step, the empty phrase hint, the save error kept on the summary and a summary value that opens its step and returns.
 
 ### Compact label and interaction fill guard
 
