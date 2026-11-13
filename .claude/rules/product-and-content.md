@@ -12,7 +12,7 @@ paths:
 
 `DESIGN.md` is authoritative for all UI and wins over anything here. These are the constraints that sit alongside it and that no gate can see.
 
-The landing is a live SEO surface and Vercel Analytics keys off its slugs, anchor ids, nav labels, and form field names. `core.md` rule 4 (always loaded) governs changing them.
+The landing is a live SEO surface and PostHog analytics keys off its slugs, anchor ids, nav labels, and form field names. `core.md` rule 5 (always loaded) governs changing them.
 
 ## The design system
 

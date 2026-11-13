@@ -37,6 +37,15 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `design/mcp-web-guide-surfaces.md` | Claude Web connection guide client selector, settings entry, OAuth steps, confirmed endpoint copy states and platform verification owners. |
 | `design/progress-surfaces.md` | Progresso overview and sub-screen owners, retained figures and actions, states and verification coverage. |
 | `design/subscription-surfaces.md` | Assinatura presentation inventory, shared frame start edge and wide shell ownership, shared purchase consumers, retained billing transitions and platform verification owners. |
+| `design/calendar-header-inventory.md` | Calendar header owners for the month, week, agenda and range views on web and Android, with their shared selector clearance. |
+| `design/compact-list-row-inventory.md` | ListRow density contract, its direct consumers and the first Perfil rows, with platform owners and geometry coverage. |
+| `design/content-centering-surfaces.md` | Page-column alignment owners, responsive sweep results and floating-add clearance coverage. |
+| `design/headless-control-surfaces.md` | Paired selection, picker, toast and form-control owners, primitive boundaries, retained behavior and verification coverage. |
+| `design/headless-menu-surfaces.md` | Menu owners, retained presentations, behavior coverage and platform adapters. |
+| `design/hoje-row-edges-inventory.md` | Hoje proactive line, date navigation and habit content owners, with shared list inset and text edges. |
+| `design/packaging-surfaces.md` | Habit capacity, free sub-habit creation and daily allowance owners, with web and Android verification boundaries. |
+| `design/padding-surfaces.md` | Shared screen, card, section, row and sheet padding owners, drawn variants and geometry evidence. |
+| `design/profile-pro-entry-inventory.md` | Orbit Pro row owners in Perfil, with its states on web and Android. |
 | `.claude/manifests/feature-parity.json` | Generated web and Android capability inventory, removal citations and restoration tracking; NOT committed. Run `git fetch origin main && node tools/check-feature-parity.mjs --write` to create it locally; CI regenerates and uploads the evidence artifact. |
 | `tools/feature-parity-rules.json` | Exact capability relocations, owner removal citations and restoration tickets; the checker derives completion from source. |
 | `.claude/specs/orbit-prod-release.md` | Production release rules, capability restoration scope and release verification. |

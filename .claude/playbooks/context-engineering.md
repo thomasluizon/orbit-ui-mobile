@@ -65,7 +65,7 @@ Say what the repo is in a couple of lines, then spend the tokens on what the age
 reading the file system: the invariant that is not visible locally, the analyzer that is silent
 until CI, the field that is append-only because the Play fleet lags.
 
-Do not restate what a gate enforces. `core.md` rule 3 already forbids re-flagging a gate's finding
+Do not restate what a gate enforces. `core.md` rule 4 already forbids re-flagging a gate's finding
 by hand; restating the gate's rule in prose is the same waste one layer earlier.
 
 ## 6. References beat descriptions, and code beats prose

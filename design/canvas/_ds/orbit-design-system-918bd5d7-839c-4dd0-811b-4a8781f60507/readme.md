@@ -21,7 +21,7 @@ One product surface matters today: the app, designed mobile-first at a 412px she
 
 ## Sources
 
-- Local codebase folder `design/` from `orbit-ui-mobile` on branch `redesign/main`: the granted
+- Local codebase folder `design/` from `orbit-ui-mobile`: the granted
   export under `design/canvas/` (subject to the D42 ladder in `DESIGN.md`) and `design/brand/`
   (marks, lockups, fonts, README.md, SETUP.md).
 - Uploaded brand files (same assets): fonts, mark/lockup SVGs and PNGs, now in `assets/`.

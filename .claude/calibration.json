@@ -1,5 +1,5 @@
 {
-  "calibratedAt": "2026-11-09",
+  "calibratedAt": "2026-11-13",
   "classifier": {
     "model": "claude-sonnet-5-5",
     "promptDigest": "780092b4659dfd6e",
@@ -116,8 +116,8 @@
     ".claude/agents/design-specialist.md": {
       "model": "inherit",
       "effort": "high",
-      "digest": "44477415e3c52901",
-      "calibratedAt": "2026-11-09",
+      "digest": "2fa91a40e59b4598",
+      "calibratedAt": "2026-11-13",
       "verdict": "current: shapes the UI half of a ticket and must refuse to improvise where the design system cannot meet a need, so it inherits the session model at high effort deliberately."
     },
     ".claude/agents/product-manager.md": {
@@ -137,15 +137,15 @@
     ".claude/skills/android-generate/SKILL.md": {
       "model": null,
       "effort": "low",
-      "digest": "a408fef9eb26c142",
-      "calibratedAt": "2026-11-09",
+      "digest": "39829b9383910c2d",
+      "calibratedAt": "2026-11-13",
       "verdict": "current: a mechanical gradle build and emulator install, so low effort is right."
     },
     ".claude/skills/android-release/SKILL.md": {
       "model": null,
       "effort": "low",
-      "digest": "58e6ee76a46f324d",
-      "calibratedAt": "2026-11-09",
+      "digest": "fb87f04b9dccf820",
+      "calibratedAt": "2026-11-13",
       "verdict": "current: derives version and track from workflow runs, verifies the exact remote ref, and dispatches only after owner confirmation; its checks are procedural, so low effort remains right."
     },
     ".claude/skills/astra-eval/SKILL.md": {
@@ -158,22 +158,22 @@
     ".claude/skills/audit-code-quality/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "a1b5f498b1615574",
-      "calibratedAt": "2026-11-09",
+      "digest": "3468f4351f3ae736",
+      "calibratedAt": "2026-11-13",
       "verdict": "undeclared, inherits the session: the debt audit makes judgment calls and opens tickets; an explicit high effort would change cost."
     },
     ".claude/skills/audit-performance/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "3ae78a189616c343",
-      "calibratedAt": "2026-11-09",
+      "digest": "326333f0ccf5f0a6",
+      "calibratedAt": "2026-11-13",
       "verdict": "undeclared, inherits the session: the performance audit makes judgment calls and opens tickets."
     },
     ".claude/skills/audit-security/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "1456594d19ab0bf1",
-      "calibratedAt": "2026-11-09",
+      "digest": "f0d2cc50c7a0cfff",
+      "calibratedAt": "2026-11-13",
       "verdict": "undeclared, inherits the session: security findings need judgment because missed authorization gaps may be invisible in output."
     },
     ".claude/skills/audit-tests/SKILL.md": {
@@ -186,22 +186,22 @@
     ".claude/skills/auto-work/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "8c89dd508fbb8b19",
-      "calibratedAt": "2026-11-09",
+      "digest": "b8f91323846bd18c",
+      "calibratedAt": "2026-11-13",
       "verdict": "undeclared, inherits the session: runs continuous source intake through the existing sleep lifecycle, classifies feedback and preserves independent crank and relay state without changing model or effort routing."
     },
     ".claude/skills/crank/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "8c3903e2c16783b4",
-      "calibratedAt": "2026-11-09",
+      "digest": "ce68f3978587e5b3",
+      "calibratedAt": "2026-11-13",
       "verdict": "undeclared, inherits the session: toggles durable orchestrator scheduling within existing caps and quality gates, without changing model or effort routing."
     },
     ".claude/skills/deep-research/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "913e39fb190ad7a7",
-      "calibratedAt": "2026-11-09",
+      "digest": "385a041a5606b0fb",
+      "calibratedAt": "2026-11-13",
       "verdict": "undeclared, inherits the session: it fans out web-researcher subagents that carry their own sonnet/medium tuning, so the orchestrating half inheriting the session is defensible today."
     },
     ".claude/skills/dev-server/SKILL.md": {
@@ -249,8 +249,8 @@
     ".claude/skills/ios-release/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "9a6a31fab17d64ed",
-      "calibratedAt": "2026-11-09",
+      "digest": "45186804d6b40c9d",
+      "calibratedAt": "2026-11-13",
       "verdict": "undeclared, inherits the session: verifies iOS signing prerequisites, release parameters and internal TestFlight processing through the manual workflow; it declares no model or effort override."
     },
     ".claude/skills/lesson/SKILL.md": {
@@ -270,15 +270,15 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "a53756644b66f5dc",
-      "calibratedAt": "2026-11-09",
+      "digest": "b61299d3903b5991",
+      "calibratedAt": "2026-11-13",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },
     ".claude/skills/prod-readiness/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "a9e844cea426f513",
-      "calibratedAt": "2026-11-09",
+      "digest": "dbbe3e0a4cae8518",
+      "calibratedAt": "2026-11-13",
       "verdict": "undeclared, inherits the session: it judges four child audits before producing a launch verdict."
     },
     ".claude/skills/progress/SKILL.md": {
@@ -298,8 +298,8 @@
     ".claude/skills/release/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "565f9cf15fbcd202",
-      "calibratedAt": "2026-11-09",
+      "digest": "e53a0fac95c1eb4e",
+      "calibratedAt": "2026-11-13",
       "verdict": "current: sequences production and staging releases across services, checks live deployment evidence, and stops on ambiguous runs; high effort is right for decisions that control outward dispatch."
     },
     ".claude/skills/second-opinion/SKILL.md": {
@@ -312,8 +312,8 @@
     ".claude/skills/sleep/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "fa136d35469355a9",
-      "calibratedAt": "2026-11-09",
+      "digest": "abd9f72f466fe7d6",
+      "calibratedAt": "2026-11-13",
       "verdict": "undeclared, inherits the session: it makes overnight queue decisions, including whether configured lanes are available."
     },
     ".claude/skills/ticket/SKILL.md": {
@@ -336,27 +336,6 @@
       "digest": "20cffc414b05f2f3",
       "calibratedAt": "2026-11-09",
       "verdict": "current: medium effort; the skill invokes three steps in order and waits for the owner between handovers, including under --sleep."
-    },
-    ".agents/skills/merge-prs/SKILL.md": {
-      "model": null,
-      "effort": null,
-      "digest": "fa4a10a59a391992",
-      "calibratedAt": "2026-11-09",
-      "verdict": "current: a pointer with no behaviour, so it declares no model and no effort and inherits whatever the Codex host runs. Its digest is the whole verdict: the frontmatter name and description decide whether Codex finds this skill at all, and the body names the one canonical definition both hosts read."
-    },
-    ".agents/skills/orchestrate/SKILL.md": {
-      "model": null,
-      "effort": null,
-      "digest": "d55e8bc268758fcb",
-      "calibratedAt": "2026-11-09",
-      "verdict": "current: a pointer with no behaviour, so it declares no model and no effort and inherits whatever the Codex host runs. Its digest is the whole verdict, and it matters most here: orchestrate is the entry point every other piece of work passes through, so a pointer that stops resolving takes the whole queue with it."
-    },
-    ".agents/skills/ticket/SKILL.md": {
-      "model": null,
-      "effort": null,
-      "digest": "e1f13a268ec17004",
-      "calibratedAt": "2026-11-09",
-      "verdict": "current: a pointer with no behaviour, so it declares no model and no effort and inherits whatever the Codex host runs. Its digest is the whole verdict, because a ticket is the prompt (D2) and a host that reads a forked definition writes a forked ticket."
     }
   }
 }

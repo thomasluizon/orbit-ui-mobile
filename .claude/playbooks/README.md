@@ -41,7 +41,7 @@ A playbook **never overrides** a gate, `CLAUDE.md`, or `DESIGN.md` - those are t
 standards and they win. These are the floor where nothing is documented, plus the reasoning a gate
 cannot carry.
 
-The inverse also holds, and it is rule 1 of `review-and-audit.md` and rule 3 of the always-loaded
+The inverse also holds, and it is rule 1 of `review-and-audit.md` and rule 4 of the always-loaded
 core: **if a gate already enforces it, do not re-flag it by hand.** Duplicating a gate in prose is
 how a reviewer generates noise and how a rule file starts to rot.
 

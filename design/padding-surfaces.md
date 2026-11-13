@@ -26,7 +26,7 @@ styles and the generated aliases for CSS and Tailwind utilities, including numer
 | Wrapped and sharing | `app/(app)/wrapped/`, `components/share/`, `components/milestone-share/` | `components/wrapped/`, `components/share/`, `components/milestone-share/` | Player, slide and sharing owners read the scale; system safe areas are added separately |
 | Sobre, privacy and terms | `app/(app)/about/`, `components/legal-document-layout.tsx` | `app/about.tsx`, `components/legal-document-layout.tsx` | Shared content frame and on-scale prose spacing |
 | Support, offline, errors and empty states | `app/(app)/support/`, `components/ui/`, `components/ui/offline-refusal.tsx` | `app/support.tsx`, `components/ui/`, `components/offline-notice.tsx` | State and frame owners read the shared scale |
-| Sheets, menus and confirmations | `components/ui/sheet.tsx`, `app/globals.css` | `components/ui/sheet.tsx`, `components/ui/menu.tsx` | Primitive owns 8 top, 24 inline and 24 bottom; header and footer use the shared aliases; callers add group spacing only |
+| Sheets, menus and confirmations | `components/ui/sheet.tsx`, `app/globals.css` | `components/ui/sheet.tsx`, `components/ui/dropdown-menu.tsx` | Primitive owns 8 top, 24 inline and 24 bottom; header and footer use the shared aliases; callers add group spacing only |
 
 The widget and header-control gap have separate owners under #1404 and #1405. This contract does
 not change their geometry. Header-related substitutions only name existing scale values.
