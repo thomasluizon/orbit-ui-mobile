@@ -75,7 +75,7 @@ describe('CelebrationPanel', () => {
         activeId="hoje"
         navLabel="Main navigation"
         notice={<CelebrationPanel />}
-        composer={<button type="button">Open Astra</button>}
+        composer={<button type="button">Talk to Orbit</button>}
         tabBar={<div>Tabs</div>}
       >
         <button type="button">Log habit</button>
@@ -92,7 +92,7 @@ describe('CelebrationPanel', () => {
     expect(panel).not.toHaveAttribute('aria-modal')
     expect(container.querySelector('[data-shell-background]')).not.toHaveAttribute('inert')
     expect(screen.getByRole('button', { name: 'Log habit' })).toBeEnabled()
-    expect(screen.getByRole('button', { name: 'Open Astra' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Talk to Orbit' })).toBeEnabled()
 
     const closeButton = screen.getByRole('button', { name: 'celebration.close:{}' })
     closeButton.focus()

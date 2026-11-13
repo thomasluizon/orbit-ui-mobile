@@ -451,7 +451,7 @@ function ComposerConversationHarness() {
   const open = useUIStore((state) => state.astraConversationOpen)
   return <ConversationShell
     tabBar={null}
-    composer={<ShellComposer {...chat.composerProps} onOpenConversation={() => useUIStore.getState().setAstraConversationOpen(true)} conversationLabel="Open Astra" />}
+    composer={<ShellComposer {...chat.composerProps} onOpenConversation={() => useUIStore.getState().setAstraConversationOpen(true)} conversationLabel="Talk to Orbit" />}
     conversation={<Conversation chat={chat} />}
     conversationOpen={open}
     conversationLabel="Astra"

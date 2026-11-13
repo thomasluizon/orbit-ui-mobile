@@ -30,7 +30,7 @@ function noticeText(nextStatus: SubscriptionStatus) {
 }
 
 describe('lapsed subscription notice (mobile)', () => {
-  it('marks the Astra allowance and Pro benefit at their existing sizes', () => {
+  it('marks the AI allowance and Pro benefit at their existing sizes', () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
       tree = TestRenderer.create(<SubscriptionNotice status={status} locale="en" t={t} tokens={tokens} />)

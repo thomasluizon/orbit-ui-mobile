@@ -14,7 +14,7 @@ const t = ((key: string, params?: Record<string, unknown>) =>
   params ? `${key}:${JSON.stringify(params)}` : key) as ReturnType<typeof useTranslations>
 
 describe('lapsed subscription notice', () => {
-  it('marks the Astra allowance and Pro benefit at their existing sizes', () => {
+  it('marks the AI allowance and Pro benefit at their existing sizes', () => {
     const { container } = render(<SubscriptionNotice status={status} locale="en" t={t} />)
     const allowance = screen.getByText('upgrade.billing.lapsed.lostMessages:{"limit":7}').closest('li')!
     expect(allowance.querySelector('[data-asset="astra-mark"]')).toHaveAttribute('width', '16')

@@ -51,7 +51,7 @@ const labels = {
   repeat: (count: number) => count === 1 ? "Every week" : `Every ${count} weeks`,
   repeatLess: "Repeat less often",
   repeatMore: "Repeat more often",
-  proposed: "Proposed by Astra",
+  proposed: "Proposed by Orbit",
 };
 
 function renderUnderstanding(

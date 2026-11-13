@@ -1016,16 +1016,16 @@ describe('ProfileScreen', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
-  it.each(['en', 'pt-BR'] as const)('keeps the Android Astra settings entry named in %s', async (locale) => {
+  it.each(['en', 'pt-BR'] as const)('keeps the Android Orbit settings entry named in %s', async (locale) => {
     translateProMessages(locale)
     mockRealListRow.current = true
     const tree = await renderProfileScreen()
     try {
-      const row = tree.root.findAllByType(ListRow).find((entry: { props: React.ComponentProps<typeof ListRow> }) => entry.props.title === 'Astra')!
+      const row = tree.root.findAllByType(ListRow).find((entry: { props: React.ComponentProps<typeof ListRow> }) => entry.props.title === 'Orbit')!
       expect(row).toBeDefined()
-      expect(nodeText(row)).toContain('Astra')
+      expect(nodeText(row)).toContain('Orbit')
       const target = row.find((node: { type: unknown; props: { accessibilityRole?: string } }) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')
-      expect(target.props.accessibilityLabel).toBe('Astra')
+      expect(target.props.accessibilityLabel).toBe('Orbit')
       TestRenderer.act(() => target.props.onPress())
       expect(mockRouterPush).toHaveBeenLastCalledWith('/profile/astra')
     } finally { TestRenderer.act(() => tree.unmount()) }
@@ -1232,10 +1232,10 @@ describe('ProfileScreen', () => {
   })
 
   it.each([
-    ['pt-BR', false, 'Notificações da Astra', 'Resumo diário'],
-    ['pt-BR', true, 'Notificações da Astra', 'Resumo diário'],
-    ['en', false, 'Astra notifications', 'Daily recap'],
-    ['en', true, 'Astra notifications', 'Daily recap'],
+    ['pt-BR', false, 'Notificações do Orbit', 'Resumo diário'],
+    ['pt-BR', true, 'Notificações do Orbit', 'Resumo diário'],
+    ['en', false, 'Orbit notifications', 'Daily recap'],
+    ['en', true, 'Orbit notifications', 'Daily recap'],
   ] as const)('renders the %s Astra labels for Pro access %s', async (locale, hasProAccess, proactive, summary) => {
     mockLocale.current = locale
     const messages = locale === 'pt-BR' ? ptBR : en

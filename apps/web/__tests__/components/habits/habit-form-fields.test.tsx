@@ -575,7 +575,7 @@ describe('HabitFormFields', () => {
     expect(formHelpers.form.getValues('dueEndTime')).toBe('09:00')
   })
 
-  it('keeps every local control live when the Astra allowance is exhausted', () => {
+  it('keeps every local control live when the AI allowance is exhausted', () => {
     mockProfileState.aiMessagesUsed = 5
     const onSuggestSetup = vi.fn(() => SETUP_PROPOSAL)
     const formHelpers = createFormHelpers({ title: 'Run', frequencyQuantity: 3 })

@@ -120,7 +120,7 @@ describe('OnboardingCreateHabit data', () => {
     expect(renderedText).toContain('3 times a week, any day')
     expect(renderedText).toContain('Walk outside')
     expect(renderedText).toContain('Leave empty for any time of day')
-    const proposal = tree.root.findAll((node) => node.props.accessibilityLabel === 'Correct schedule. Emoji proposed by Astra' && typeof node.props.onPress === 'function').at(0)
+    const proposal = tree.root.findAll((node) => node.props.accessibilityLabel === 'Correct schedule. Emoji proposed by Orbit' && typeof node.props.onPress === 'function').at(0)
     expect(proposal).toBeDefined()
     expect(prop<string>(proposal!, 'accessibilityHint')).toContain('Walk outside. 3 times a week, any day. Time: Any time')
     await TestRenderer.act(() => prop<() => void>(proposal!, 'onPress')())
@@ -138,10 +138,10 @@ describe('OnboardingCreateHabit data', () => {
     await TestRenderer.act(() => {
       tree = TestRenderer.create(<OnboardingCreateHabit {...base} />)
     })
-    const buttons = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'Correct schedule. Emoji proposed by Astra')
+    const buttons = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'Correct schedule. Emoji proposed by Orbit')
     expect(buttons).toHaveLength(1)
     expect(prop<string>(buttons[0]!, 'accessibilityHint')).toContain('Walk outside. 3 times a week, any day. Time: Any time')
-    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'image' && node.props.accessibilityLabel === 'Emoji proposed by Astra')).toHaveLength(0)
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'image' && node.props.accessibilityLabel === 'Emoji proposed by Orbit')).toHaveLength(0)
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.importantForAccessibility === 'no-hide-descendants' && flattenText(node.props.children) === '🚶')).toHaveLength(1)
   })
 
@@ -150,7 +150,7 @@ describe('OnboardingCreateHabit data', () => {
     await TestRenderer.act(() => {
       tree = TestRenderer.create(<OnboardingCreateHabit {...base} emoji="" />)
     })
-    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'image' && node.props.accessibilityLabel === 'Emoji proposed by Astra')).toHaveLength(0)
+    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'image' && node.props.accessibilityLabel === 'Emoji proposed by Orbit')).toHaveLength(0)
     expect(tree.root.findAll((node) => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'Correct schedule').length).toBeGreaterThan(0)
   })
 
@@ -161,8 +161,8 @@ describe('OnboardingCreateHabit data', () => {
       await TestRenderer.act(() => {
         tree = TestRenderer.create(<OnboardingCreateHabit {...base} />)
       })
-      expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'image' && node.props.accessibilityLabel === 'Emoji proposto pela Astra')).toHaveLength(0)
-      expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'Corrigir frequência. Emoji proposto pela Astra')).toHaveLength(1)
+      expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'image' && node.props.accessibilityLabel === 'Emoji proposto pelo Orbit')).toHaveLength(0)
+      expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'Corrigir frequência. Emoji proposto pelo Orbit')).toHaveLength(1)
     } finally {
       await i18n.changeLanguage('en')
     }

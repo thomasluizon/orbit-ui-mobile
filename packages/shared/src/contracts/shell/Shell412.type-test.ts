@@ -71,7 +71,7 @@ export type Shell412TypeContract = [
   Assert<IsExact<{ nav: false }, Shell412Props>>,
   Assert<
     IsExact<
-      { tabBar: React.ReactNode; conversation: React.ReactNode; conversationLabel: 'Conversa com o Astra' },
+      { tabBar: React.ReactNode; conversation: React.ReactNode; conversationLabel: 'Falar com o Orbit' },
       Shell412Props
     >
   >,
@@ -80,7 +80,7 @@ export type Shell412TypeContract = [
       {
         tabBar: React.ReactNode
         conversation: React.ReactNode
-        conversationLabel: 'Conversation with Astra'
+        conversationLabel: 'Talk to Orbit'
         conversationOpen: true
       },
       Shell412Props
@@ -92,7 +92,7 @@ export type Shell412TypeContract = [
   Assert<IsExact<{ tabBar: React.ReactNode; action: React.ReactNode }, Shell412Props>>,
   // @ts-expect-error a flow cannot carry a tab bar
   Assert<IsExact<{ nav: false; tabBar: React.ReactNode }, Shell412Props>>,
-  // @ts-expect-error a flow cannot pin Astra's front door
+  // @ts-expect-error a flow cannot pin the conversation entry
   Assert<IsExact<{ nav: false; composer: React.ReactNode }, Shell412Props>>,
   // @ts-expect-error conversation content requires its accessible name
   Assert<IsExact<{ tabBar: React.ReactNode; conversation: React.ReactNode }, Shell412Props>>,

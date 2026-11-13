@@ -102,7 +102,7 @@ describe('OnboardingCreateHabit', () => {
     render(<OnboardingCreateHabit {...base} />)
     expect(screen.getByRole('heading', { name: en.onboarding.flow.when.direct })).toBeInTheDocument()
     expect(screen.getByTestId('time-field')).toBeInTheDocument()
-    expect(screen.queryByText('Proposed by Astra')).not.toBeInTheDocument()
+    expect(screen.queryByText('Proposed by Orbit')).not.toBeInTheDocument()
   })
 
   it.each([
@@ -121,7 +121,7 @@ describe('OnboardingCreateHabit', () => {
     render(<OnboardingCreateHabit {...base} proposed correcting={false} onCorrect={onCorrect} />)
     expect(screen.getByText('Walk outside')).toBeInTheDocument()
     expect(screen.getByText('Leave empty for any time of day')).toBeInTheDocument()
-    const proposal = screen.getByRole('button', { name: 'Correct schedule. Emoji proposed by Astra' })
+    const proposal = screen.getByRole('button', { name: 'Correct schedule. Emoji proposed by Orbit' })
     expect(proposal).toHaveAccessibleDescription(/Walk outside.*3 times a week, any day.*Any time/)
     fireEvent.click(proposal)
     expect(onCorrect).toHaveBeenCalledOnce()
@@ -129,13 +129,13 @@ describe('OnboardingCreateHabit', () => {
 
   it('announces the proposal emoji through the correction button', () => {
     render(<OnboardingCreateHabit {...base} proposed correcting={false} />)
-    expect(screen.getByRole('img', { name: 'Emoji proposed by Astra' })).toHaveTextContent('🚶')
-    expect(screen.getByRole('button', { name: 'Correct schedule. Emoji proposed by Astra' })).toHaveAccessibleDescription(/Walk outside.*3 times a week, any day.*Any time/)
+    expect(screen.getByRole('img', { name: 'Emoji proposed by Orbit' })).toHaveTextContent('🚶')
+    expect(screen.getByRole('button', { name: 'Correct schedule. Emoji proposed by Orbit' })).toHaveAccessibleDescription(/Walk outside.*3 times a week, any day.*Any time/)
   })
 
   it('omits the proposal emoji well when no emoji was proposed', () => {
     render(<OnboardingCreateHabit {...base} emoji="" proposed correcting={false} />)
-    expect(screen.queryByRole('img', { name: 'Emoji proposed by Astra' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: 'Emoji proposed by Orbit' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Correct schedule' })).toBeInTheDocument()
   })
 
@@ -146,8 +146,8 @@ describe('OnboardingCreateHabit', () => {
     translations.current = translate
     try {
       render(<OnboardingCreateHabit {...base} proposed correcting={false} />)
-      expect(screen.getByRole('img', { name: 'Emoji proposto pela Astra' })).toHaveTextContent('🚶')
-      expect(screen.getByRole('button', { name: 'Corrigir frequência. Emoji proposto pela Astra' })).toBeInTheDocument()
+      expect(screen.getByRole('img', { name: 'Emoji proposto pelo Orbit' })).toHaveTextContent('🚶')
+      expect(screen.getByRole('button', { name: 'Corrigir frequência. Emoji proposto pelo Orbit' })).toBeInTheDocument()
     } finally {
       translations.locale = 'en'
       translations.current = previous
@@ -164,7 +164,7 @@ describe('OnboardingCreateHabit', () => {
     const { rerender } = render(<OnboardingCreateHabit {...base} proposed correcting={false} onModeChange={onModeChange} />)
 
     expect(screen.getByText((_content, element) => element?.tagName === 'P' && element.textContent === '3 times a week, any day')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Correct schedule. Emoji proposed by Astra' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Correct schedule. Emoji proposed by Orbit' }))
     rerender(<OnboardingCreateHabit {...base} proposed correcting onModeChange={onModeChange} />)
     fireEvent.click(screen.getByRole('radio', { name: 'Fixed' }))
 

@@ -21,11 +21,11 @@ const proposedForegroundClass = 'text-[var(--fg-3)]'
 describe('Proposed on web', () => {
   it('renders the labelled dashed treatment at the scope radius', () => {
     render(
-      <Proposed proposed scope="field" label="Proposed by Astra">
+      <Proposed proposed scope="field" label="Proposed by Orbit">
         <span>Suggested value</span>
       </Proposed>,
     )
-    const wrapper = screen.getByRole('group', { name: 'Proposed by Astra' })
+    const wrapper = screen.getByRole('group', { name: 'Proposed by Orbit' })
     expect(wrapper).toHaveAttribute('data-proposed')
     expect(wrapper).toHaveStyle({ borderRadius: '12px' })
     expect(wrapper.className).toContain('border-dashed')
@@ -40,7 +40,7 @@ describe('Proposed on web', () => {
     plain.unmount()
 
     const off = render(
-      <Proposed proposed={false} scope="block" label="Proposed by Astra">
+      <Proposed proposed={false} scope="block" label="Proposed by Orbit">
         <span data-child="">Value</span>
       </Proposed>,
     )
@@ -52,7 +52,7 @@ describe('Proposed on web', () => {
     const { container } = render(
       <div style={{ color: ambientForeground }}>
         <UnstyledCompositeValue marker="outside" />
-        <Proposed proposed scope="row" label="Proposed by Astra">
+        <Proposed proposed scope="row" label="Proposed by Orbit">
           <UnstyledCompositeValue marker="inside" />
         </Proposed>
       </div>,
@@ -74,7 +74,7 @@ describe('Proposed on web', () => {
 
   it('tints nested unstyled text through containers, fragments, and arrays', () => {
     const { container } = render(
-      <Proposed proposed scope="row" label="Proposed by Astra">
+      <Proposed proposed scope="row" label="Proposed by Orbit">
         <>
           <section>
             <div><span data-nested-value="">Nested value</span></div>
@@ -95,7 +95,7 @@ describe('Proposed on web', () => {
   it('keeps an explicit intrinsic color and stops the walk there', () => {
     const explicitForeground = 'rgb(1, 2, 3)'
     const { container } = render(
-      <Proposed proposed scope="row" label="Proposed by Astra">
+      <Proposed proposed scope="row" label="Proposed by Orbit">
         <div data-explicit-value="" style={{ color: explicitForeground }}>
           <span data-explicit-child="">Explicit value</span>
         </div>
@@ -111,7 +111,7 @@ describe('Proposed on web', () => {
     const { container } = render(
       <>
         <style>{`.text-\\[var\\(--status-bad-text\\)\\] { color: ${statusForeground}; }`}</style>
-        <Proposed proposed scope="row" label="Proposed by Astra">
+        <Proposed proposed scope="row" label="Proposed by Orbit">
           <span className="text-[var(--status-bad-text)]" data-status-value="">Status value</span>
         </Proposed>
       </>,
@@ -125,7 +125,7 @@ describe('Proposed on web', () => {
 
   it('leaves the explicit token colors owned by a composite child unaltered', () => {
     const { container } = render(
-      <Proposed proposed scope="row" label="Proposed by Astra">
+      <Proposed proposed scope="row" label="Proposed by Orbit">
         <CompositeValue />
       </Proposed>,
     )
@@ -136,7 +136,7 @@ describe('Proposed on web', () => {
 
   it('wraps raw string and number children in class-tinted fg3 spans', () => {
     const { container } = render(
-      <Proposed proposed scope="block" label="Proposed by Astra">
+      <Proposed proposed scope="block" label="Proposed by Orbit">
         {'Bare value'}
         {42}
       </Proposed>,
@@ -156,7 +156,7 @@ describe('Proposed on web', () => {
   it('tints an intrinsic text child without tinting its composite sibling', () => {
     const { container } = render(
       <div style={{ color: ambientForeground }}>
-        <Proposed proposed scope="row" label="Proposed by Astra">
+        <Proposed proposed scope="row" label="Proposed by Orbit">
           <div>
             <span data-intrinsic-value="">Intrinsic value</span>
             <UnstyledCompositeValue marker="inside" />
@@ -181,7 +181,7 @@ describe('Proposed on web', () => {
           .text-\\[var\\(--fg-3\\)\\] { color: ${proposedForeground}; }
           .hover\\:text-\\[var\\(--fg-1\\)\\]:hover { color: ${hoverForeground}; }
         `}</style>
-        <Proposed proposed scope="row" label="Proposed by Astra">
+        <Proposed proposed scope="row" label="Proposed by Orbit">
           <span className="hover:text-[var(--fg-1)]" data-conditional-value="">
             Conditional value
           </span>

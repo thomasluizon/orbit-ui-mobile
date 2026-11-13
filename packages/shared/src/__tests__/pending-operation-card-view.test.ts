@@ -363,18 +363,18 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     expect(summarize([change('reminder_enabled', 'false')])).toBe(messages.chat.preview.summary.stopReminders)
   })
 
-  it('names the Astra notifications action when no field summary is available', () => {
+  it('names the Orbit notifications action when no field summary is available', () => {
     const operation = makePendingAgentOperation({ actionKey: 'setProactiveAstra' })
     const localized = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
-    const expected = locale === 'en' ? 'Change Astra notifications' : 'Alterar notificações da Astra'
+    const expected = locale === 'en' ? 'Change Orbit notifications' : 'Alterar notificações do Orbit'
     expect(localized.summarize([])).toBe(expected)
     expect(localized.confirm).toBe(expected)
   })
 
   describe.each([
-    { actionKey: 'setProactiveAstra', capabilityId: 'profile.proactive-astra.write', english: 'Astra notifications', portuguese: 'notificações da Astra', title: messages.profile.proactiveAstra.title },
+    { actionKey: 'setProactiveAstra', capabilityId: 'profile.proactive-astra.write', english: 'Orbit notifications', portuguese: 'notificações do Orbit', title: messages.profile.proactiveAstra.title },
     { actionKey: 'setAiSummary', capabilityId: 'profile.ai-summary.write', english: 'the daily recap', portuguese: 'o resumo diário', title: messages.chat.pendingOp.capability['profile-ai-summary-write'] },
-    { actionKey: 'setAiMemory', capabilityId: 'profile.ai-memory.write', english: 'Astra memory', portuguese: 'a memória da Astra', title: messages.chat.pendingOp.capability['profile-ai-memory-write'] },
+    { actionKey: 'setAiMemory', capabilityId: 'profile.ai-memory.write', english: 'Orbit memory', portuguese: 'a memória do Orbit', title: messages.chat.pendingOp.capability['profile-ai-memory-write'] },
   ])('$actionKey toggle preview', ({ actionKey, capabilityId, english, portuguese, title }) => {
     it.each([
       { enabled: true, typed: true }, { enabled: false, typed: true },
@@ -598,7 +598,7 @@ const labels: PendingOperationCardLabels = {
   addListRow: 'Add', checklistLimit: '50 items max.', scheduledLimit: '5 reminders max.', checked: 'Done', reminderWhen: 'When', reminderSameDay: 'Same day', reminderDayBefore: 'Day before', reminderTime: 'Time',
   confirmBody: () => 'Confirm the action', confirmNote: 'Review it', confirmTitle: () => 'Confirm',
   irreversible: 'Irreversible', name: 'Delete habit', pending: 'Pending',
-  pendingTitle: 'Pending operation', open: 'Open', openNamed: (name) => `Open details: ${name}`, failed: 'Failed', retry: 'Try again', batchFailed: 'Ask Astra for failed items', unavailableRecovery: 'Ask Astra for a new preview', denied: () => 'Denied', unsupported: 'Profile only',
+  pendingTitle: 'Pending operation', open: 'Open', openNamed: (name) => `Open details: ${name}`, failed: 'Failed', retry: 'Try again', batchFailed: 'Ask Orbit for failed items', unavailableRecovery: 'Ask Astra for a new preview', denied: () => 'Denied', unsupported: 'Profile only',
   stepUpAction: 'Verify', stepUpMessage: 'Verification required',
   more: (count) => `and ${count} more`,
 }
@@ -1349,7 +1349,7 @@ describe('partial bulk update outcome', () => {
     renderPendingOperationCard({ pendingOperation: operation, card: { ...createCard(), status: patch.status, completedOperation: patch.completedOperation, canRetry: patch.canRetry, openableCapability: true, onOpenTarget: vi.fn() }, labels: localized, render, onVerifyStepUp: vi.fn() })
     expect(record.frame?.state).toBe('partiallyFailed')
     expect(record.frame?.items.map(item => item.status)).toEqual([undefined, undefined, undefined])
-    expect(record.frame?.body).toBe(locale === 'en' ? 'Only 2 of 3 changes were saved. Ask Astra to try the rest.' : 'Só 2 de 3 alterações foram salvas. Peça à Astra para tentar as que faltam.')
+    expect(record.frame?.body).toBe(locale === 'en' ? 'Only 2 of 3 changes were saved. Ask Orbit to try the rest.' : 'Só 2 de 3 alterações foram salvas. Peça ao Orbit para tentar as que faltam.')
     expect(record.frame?.actions).toBeUndefined()
     expect(record.buttons).toEqual([])
   })
@@ -1364,7 +1364,7 @@ describe('partial bulk update outcome', () => {
     expect(record.frame?.body).toBe('')
   })
 
-  it.each([['en', 'Only 1 of 2 changes were saved. Ask Astra to try the rest.'], ['pt-BR', 'Só 1 de 2 alterações foram salvas. Peça à Astra para tentar as que faltam.']] as const)(
+  it.each([['en', 'Only 1 of 2 changes were saved. Ask Orbit to try the rest.'], ['pt-BR', 'Só 1 de 2 alterações foram salvas. Peça ao Orbit para tentar as que faltam.']] as const)(
     'counts a habit already in the requested state as saved in the partial notice in %s', (locale, notice) => {
       const operation = makeBulkUpdateHabitsPreview(2)
       const execution = agentOperationResultSchema.parse({ ...JSON.parse(UNCHANGED_BULK_LOG_EXECUTION), payload: JSON.parse(PARTIAL_BULK_LOG_PAYLOAD) })
@@ -1444,11 +1444,11 @@ it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('
     rejected: localized.rejected(2), more: localized.more(3), open: localized.openNamed('Water'),
   }).toEqual(locale === 'en' ? {
     group: 'Placement for Water', option: 'Checklist item in Morning routine',
-    recommendation: 'Astra suggests: Checklist item in Morning routine. You already keep 4 checklist items here.',
+    recommendation: 'Orbit suggests: Checklist item in Morning routine. You already keep 4 checklist items here.',
     rejected: 'The 2 changes were rejected. Nothing was saved.', more: 'and 3 more', open: 'Open details: Water',
   } : {
     group: 'Onde colocar Water', option: 'Item do checklist de Morning routine',
-    recommendation: 'Astra sugere: Item do checklist de Morning routine. Você já tem 4 itens no checklist aqui.',
+    recommendation: 'Orbit sugere: Item do checklist de Morning routine. Você já tem 4 itens no checklist aqui.',
     rejected: 'As 2 mudanças foram rejeitadas. Nada foi salvo.', more: 'e mais 3', open: 'Abrir detalhes: Water',
   })
   expect(formatPreviewMeta('Every day · at 08:00')).toBe('Every day · at\u00a008:00')
