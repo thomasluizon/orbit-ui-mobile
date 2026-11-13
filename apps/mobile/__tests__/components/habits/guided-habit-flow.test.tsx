@@ -5,7 +5,7 @@ import { useHabitForm } from '@/hooks/use-habit-form'
 import { i18n } from '@/lib/i18n'
 import { press, renderNavigation } from '../ui/navigation-render'
 
-const state = vi.hoisted(() => ({ helpers: null, read: vi.fn() }))
+const state = vi.hoisted(() => ({ helpers: null as ReturnType<typeof useHabitForm> | null, read: vi.fn() }))
 
 vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: () => {} },
