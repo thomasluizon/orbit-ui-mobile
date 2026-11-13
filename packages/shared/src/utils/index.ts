@@ -427,6 +427,17 @@ export {
 } from './onboarding'
 export type { OnboardingCompleteCopy, OnboardingCompleteState, OnboardingRemindCopy, OnboardingRemindState, OnboardingSchedule, OnboardingScheduleMode } from './onboarding'
 export {
+  describeOnboardingCadence,
+  describeOnboardingResult,
+  ONBOARDING_INTRO_SCREENS,
+  ONBOARDING_MODE_OPTIONS,
+  onboardingGuidedPosition,
+  onboardingModeDetailStep,
+  onboardingModeKey,
+  onboardingNeedsCadence,
+} from './onboarding-guided'
+export type { OnboardingCadenceText, OnboardingIntroScreen, OnboardingQuestionStep, OnboardingResultSentence } from './onboarding-guided'
+export {
   isMissingBillingError,
   isMissingBillingStatus,
 } from './billing'

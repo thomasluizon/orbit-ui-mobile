@@ -3178,6 +3178,12 @@
           "read": "Read before bed",
           "tidy": "Tidy the house on Saturday"
         },
+        "starterLabels": {
+          "water": "Drink water",
+          "walk": "Walk",
+          "read": "Read",
+          "tidy": "Tidy up"
+        },
         "haveAccount": "I already have an account",
         "continueReason": "Write what you want to keep up."
       },
@@ -3307,12 +3313,74 @@
         "generalPending": "Undated task",
         "pending": "pending"
       },
+      "guided": {
+        "screenLabel": "First steps in Orbit",
+        "progress": "Step {position} of {total}",
+        "intro": {
+          "talk": {
+            "title": "I am Orbit",
+            "body": "You tell me what you want to do, in your own words, and I understand it."
+          },
+          "routine": {
+            "title": "I set it up",
+            "body": "I set the days and the time, and I remind you when it is time."
+          },
+          "restart": {
+            "title": "Missed a day?",
+            "body": "No problem, I help you start again the next day."
+          },
+          "skip": "Skip intro"
+        },
+        "mode": {
+          "fixed": "Set days",
+          "flexible": "When I can",
+          "interval": "At intervals",
+          "oneTime": "Just once"
+        },
+        "days": {
+          "everyDay": "Every day",
+          "weekdays": "Weekdays"
+        },
+        "quantity": {
+          "question": "How many times?"
+        },
+        "interval": {
+          "question": "How often?"
+        },
+        "time": {
+          "question": "Is there a set time?",
+          "line": "With a time, I can remind you.",
+          "none": "No set time",
+          "freeLabel": "Another time"
+        },
+        "summary": {
+          "question": "Is this right?",
+          "what": "What you will do",
+          "mode": "How it repeats",
+          "days": "Which days",
+          "quantity": "How many times",
+          "interval": "How often",
+          "time": "What time"
+        },
+        "remind": {
+          "question": "Want me to remind you at {time}?",
+          "line": "I let you know 15 minutes before, only if it is not logged yet.",
+          "allow": "Yes, remind me",
+          "pending": "Waiting for the device to answer."
+        },
+        "creating": "I am creating your habit.",
+        "cadence": {
+          "noDays": "with no set day",
+          "noDaysAt": "with no set day, at {time}"
+        }
+      },
       "meetAstra": {
         "importPrompt": "Help me import my habits from another app. I'll attach a file or paste my list, and you create the habits."
       }
     },
     "wizard": {
       "calendarTitle": "Import from Google Calendar",
+      "calendarQuestion": "Import from Google Calendar?",
       "calendarDescription": "Already have events in Google Calendar? Import them as habits in Orbit with one tap.",
       "calendarButton": "Import calendar",
       "importTitle": "Import from another app?",

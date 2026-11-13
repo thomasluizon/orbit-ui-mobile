@@ -3178,6 +3178,12 @@
           "read": "Ler antes de dormir",
           "tidy": "Arrumar a casa no sábado"
         },
+        "starterLabels": {
+          "water": "Beber água",
+          "walk": "Caminhar",
+          "read": "Ler",
+          "tidy": "Arrumar casa"
+        },
         "haveAccount": "Já tenho uma conta",
         "continueReason": "Escreva o que você quer acompanhar."
       },
@@ -3307,12 +3313,74 @@
         "generalPending": "Tarefa sem data",
         "pending": "pendente"
       },
+      "guided": {
+        "screenLabel": "Primeiros passos no Orbit",
+        "progress": "Passo {position} de {total}",
+        "intro": {
+          "talk": {
+            "title": "Eu sou o Orbit",
+            "body": "Você me conta o que quer fazer, do seu jeito, e eu entendo."
+          },
+          "routine": {
+            "title": "Vira rotina",
+            "body": "Eu marco os dias e a hora, e te aviso no momento certo."
+          },
+          "restart": {
+            "title": "Perdeu um dia?",
+            "body": "Sem problema, eu te ajudo a recomeçar no dia seguinte."
+          },
+          "skip": "Pular introdução"
+        },
+        "mode": {
+          "fixed": "Dias certos",
+          "flexible": "Quando der",
+          "interval": "Com intervalo",
+          "oneTime": "Uma vez só"
+        },
+        "days": {
+          "everyDay": "Todo dia",
+          "weekdays": "Dias úteis"
+        },
+        "quantity": {
+          "question": "Quantas vezes?"
+        },
+        "interval": {
+          "question": "De quanto em quanto tempo?"
+        },
+        "time": {
+          "question": "Tem hora certa?",
+          "line": "Se tiver hora, eu consigo te lembrar.",
+          "none": "Sem hora certa",
+          "freeLabel": "Outra hora"
+        },
+        "summary": {
+          "question": "É isso?",
+          "what": "O que você vai fazer",
+          "mode": "Como se repete",
+          "days": "Em quais dias",
+          "quantity": "Quantas vezes",
+          "interval": "De quanto em quanto",
+          "time": "Que horas"
+        },
+        "remind": {
+          "question": "Quer que eu te lembre às {time}?",
+          "line": "Eu aviso 15 minutos antes, e só se você ainda não tiver marcado.",
+          "allow": "Sim, me lembra",
+          "pending": "Esperando a resposta do aparelho."
+        },
+        "creating": "Estou criando o seu hábito.",
+        "cadence": {
+          "noDays": "sem dia certo",
+          "noDaysAt": "sem dia certo, às {time}"
+        }
+      },
       "meetAstra": {
         "importPrompt": "Me ajude a importar meus hábitos de outro app. Vou anexar um arquivo ou colar minha lista, e você cria os hábitos."
       }
     },
     "wizard": {
       "calendarTitle": "Importar do Google Agenda",
+      "calendarQuestion": "Importar do Google Agenda?",
       "calendarDescription": "Já tem eventos no Google Agenda? Importe como hábitos no Orbit de uma vez só.",
       "calendarButton": "Importar calendário",
       "importTitle": "Importar de outro app?",
