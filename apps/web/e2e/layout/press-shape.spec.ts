@@ -88,7 +88,7 @@ for (const width of [412, 1280] as const) {
       }
       await expectFullTouchTarget(page.getByTestId('compact-target-fixture').getByRole('button', { name: ptBr.common.retry, exact: true }), 'pill', '--bg-hover')
       await expectHoverOnHitArea(page.locator('header button[aria-label]').first(), 'pill')
-      await page.goto('/profile/astra')
+      await page.goto('/profile/ai')
       await expectFullTouchTarget(page.locator('a[href^="/upgrade"]').filter({ hasText: ptBr.profile.allowance.seePro }).first(), 'pill')
       await expectHoverOnHitArea(page.locator('.orbit-list-row-body').first(), 12)
       await page.goto('/upgrade')

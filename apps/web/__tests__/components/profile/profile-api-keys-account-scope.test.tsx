@@ -507,7 +507,7 @@ it.each([
   fireEvent.change(input, { target: { value: '123456' } })
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: en.stepUp.confirm })) })
   expect(confirmApiKeyCreationChallenge).toHaveBeenCalledWith('123456', 'user-1')
-  expect(management.replace).toHaveBeenCalledWith('/profile/astra')
+  expect(management.replace).toHaveBeenCalledWith('/profile/ai')
   expect(hasApiKeyCreationGrant()).toBe(true)
   challenge.unmount()
 

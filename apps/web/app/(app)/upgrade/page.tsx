@@ -44,6 +44,9 @@ import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useHeldAccountId } from '@/stores/auth-store'
 
 const PORTAL_RETURN_KEY = 'orbit.subscription.portal-return'
+const AI_SETTINGS_ROUTE = '/profile/ai'
+/** The old slug of the AI settings page. Stored links still send it as `from`. */
+const LEGACY_AI_SETTINGS_ROUTE = '/profile/astra'
 
 function upgradeContentCap(state: SubscriptionScreenState, content: SubscriptionScreenContent, hasLapsedNotice: boolean) {
   const isPitch = state !== 'loading' && state !== 'load-failed' && !hasLapsedNotice && content === 'pitch'
@@ -54,7 +57,7 @@ export default function UpgradePage() {
   const t = useTranslations()
   const locale = useLocale()
   const from = useSearchParams().get('from')
-  const fallbackRoute = from === '/profile/astra' ? from : '/profile'
+  const fallbackRoute = from === AI_SETTINGS_ROUTE || from === LEGACY_AI_SETTINGS_ROUTE ? AI_SETTINGS_ROUTE : '/profile'
   const goBackOrFallback = useGoBackOrFallback()
   const backLabel = useBackLabel(fallbackRoute)
   const { showSuccess, showPersistentError } = useAppToast()

@@ -219,7 +219,7 @@ for (const width of [412, 1352]) for (const locale of ['en', 'pt-BR'] as const) 
       })
       expect(Math.max(...edges) - Math.min(...edges)).toBeLessThanOrEqual(2)
 
-      for (const route of ['/profile', '/profile/account', '/profile/preferences', '/profile/astra', '/profile/notifications']) {
+      for (const route of ['/profile', '/profile/account', '/profile/preferences', '/profile/ai', '/profile/notifications']) {
         await page.goto(route)
         await assertRows(page.locator('#orbit-main'))
       }

@@ -231,6 +231,7 @@
       "m-overlay-profile-profile-api-keys",
       "m-overlay-profile-profile-mcp-guide",
       "m-route-profile-account",
+      "m-route-profile-ai",
       "m-route-profile-astra",
       "m-route-profile-notifications",
       "m-route-profile-preferences",
@@ -247,7 +248,7 @@
       "route-delete-account",
       "route-profile",
       "route-profile-account",
-      "route-profile-astra",
+      "route-profile-ai",
       "route-profile-notifications",
       "route-profile-preferences"
     ],

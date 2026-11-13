@@ -527,7 +527,7 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
         error={stepUp.error}
         hasProAccess={hasProAccess}
         onStartStepUp={stepUp.start}
-        onUpgrade={() => router.push(buildUpgradeHref('/profile/astra'))}
+        onUpgrade={() => router.push(buildUpgradeHref('/profile/ai'))}
         unlocked={unlocked}
       >
         <>

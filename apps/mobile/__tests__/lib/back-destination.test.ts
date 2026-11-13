@@ -3,7 +3,7 @@ import { stackFixture as StackRouter, tabFixture as TabRouter } from '@/test-sup
 import { StackActions } from 'expo-router/build/react-navigation/routers/index'
 import { getBackDestination } from '@/lib/back-destination'
 
-const options = { routeNames: ['(tabs)', 'profile/astra', 'upgrade', 'about'], routeGetIdList: {} }
+const options = { routeNames: ['(tabs)', 'profile/ai', 'upgrade', 'about'], routeGetIdList: {} }
 
 function createStack(initialRouteName: string, next: string) {
   const router = StackRouter({ initialRouteName })
@@ -20,8 +20,8 @@ describe('mobile back destination', () => {
 
   it('uses the innermost stack that handles the pop', () => {
     const outer = createStack('(tabs)', 'about')
-    outer.routes[outer.index] = { ...outer.routes[outer.index]!, state: createStack('profile/astra', 'upgrade') }
-    expect(getBackDestination(outer)).toBe('/profile/astra')
+    outer.routes[outer.index] = { ...outer.routes[outer.index]!, state: createStack('profile/ai', 'upgrade') }
+    expect(getBackDestination(outer)).toBe('/profile/ai')
   })
 
   it('does not use tab history as a stack pop destination', () => {

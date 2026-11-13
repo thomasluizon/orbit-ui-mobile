@@ -238,14 +238,14 @@ describe('UpgradePage', () => {
   describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }] as const)('back destination in $locale', ({ locale, messages }) => {
     it.each([
       { source: '/profile', from: '', destination: messages.nav.profile },
-      { source: '/profile/astra', from: '/profile/astra', destination: messages.profile.groups.astra },
+      { source: '/profile/ai', from: '/profile/ai', destination: messages.profile.groups.astra },
       { source: '/calendar?view=month', from: '', destination: messages.nav.calendar },
       { source: '/habits/new?draft=retained', from: '', destination: messages.habits.form.newHabit },
       { source: '/', from: '', destination: messages.nav.today },
-      { source: '/calendar', from: '/profile/astra', destination: messages.nav.calendar },
+      { source: '/calendar', from: '/profile/ai', destination: messages.nav.calendar },
       { source: '/chat', from: '', destination: messages.chat.title },
       { source: null, from: '', destination: messages.nav.profile },
-      { source: null, from: '/profile/astra', destination: messages.profile.groups.astra },
+      { source: null, from: '/profile/ai', destination: messages.profile.groups.astra },
     ])('names and returns to $source with from=$from', ({ source, from, destination }) => {
       navigation.real = true
       mockLocale.value = locale
@@ -429,15 +429,15 @@ describe('UpgradePage', () => {
     { locale: 'en', messages: en, trialHeading: '250 a week.' },
     { locale: 'pt-BR', messages: ptBR, trialHeading: '250 por semana.' },
   ] as const)('paywall composition in $locale', ({ locale, messages, trialHeading }) => {
-    it('returns a directly linked Astra upgrade to its originating sub-screen', () => {
+    it.each(['%2Fprofile%2Fai', '%2Fprofile%2Fastra'])('returns a directly linked AI settings upgrade (from=%s) to the AI settings page', (from) => {
       mockLocale.value = locale
-      history.replaceState({}, '', '/upgrade?from=%2Fprofile%2Fastra')
+      history.replaceState({}, '', `/upgrade?from=${from}`)
       try {
         render(<UpgradePage />)
         const backLabel = messages.common.backToDestination.replace('{destination}', messages.profile.groups.astra)
         fireEvent.click(screen.getByRole('button', { name: backLabel }))
-        expect(mockGoBackOrFallback).toHaveBeenCalledWith('/profile/astra')
-        expect(screen.getByRole('link', { name: messages.upgrade.convert.stayFree })).toHaveAttribute('href', '/profile/astra')
+        expect(mockGoBackOrFallback).toHaveBeenCalledWith('/profile/ai')
+        expect(screen.getByRole('link', { name: messages.upgrade.convert.stayFree })).toHaveAttribute('href', '/profile/ai')
       } finally {
         history.replaceState({}, '', '/')
       }
@@ -634,7 +634,7 @@ describe('UpgradePage', () => {
     expect(label.className).not.toContain('@media')
   })
 
-  describe.each(['/profile', '/profile/astra'])('decline destination %s', (destination) => {
+  describe.each(['/profile', '/profile/ai'])('decline destination %s', (destination) => {
   it.each([
     { metaKey: true },
     { ctrlKey: true },
@@ -650,7 +650,7 @@ describe('UpgradePage', () => {
       savingsPercent: 58,
       couponPercentOff: null,
     }
-    history.replaceState({}, '', destination === '/profile/astra' ? '/upgrade?from=%2Fprofile%2Fastra' : '/upgrade')
+    history.replaceState({}, '', destination === '/profile/ai' ? '/upgrade?from=%2Fprofile%2Fai' : '/upgrade')
     render(<UpgradePage />)
     const decline = screen.getByRole('link', { name: 'upgrade.convert.stayFree' })
     const event = new MouseEvent('click', { bubbles: true, cancelable: true, ...modifiers })

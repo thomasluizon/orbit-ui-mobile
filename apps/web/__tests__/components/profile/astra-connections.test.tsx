@@ -51,7 +51,7 @@ it('opens the existing calendar sheet route and hides Notion when disabled', () 
 it('locks Notion for a free account without loading its connection', () => {
   mount(false)
   fireEvent.click(screen.getByRole('button', { name: /Notion/ }))
-  expect(mocks.push).toHaveBeenCalledWith('/upgrade?from=%2Fprofile%2Fastra')
+  expect(mocks.push).toHaveBeenCalledWith('/upgrade?from=%2Fprofile%2Fai')
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(mocks.fetch).not.toHaveBeenCalled()
 })

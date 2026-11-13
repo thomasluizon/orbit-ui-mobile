@@ -365,7 +365,7 @@ describe('web step up screen', () => {
     expect(mocks.serverAuthMutate).not.toHaveBeenCalled()
     const destination = operation === 'keys' ? 'profile.groups.astra' : 'profile.submenus.account'
     fireEvent.click(screen.getByText(`common.backToDestination:${JSON.stringify({ destination })}`))
-    expect(mocks.router.replace).toHaveBeenCalledWith(operation === 'keys' ? '/profile/astra' : '/profile/account')
+    expect(mocks.router.replace).toHaveBeenCalledWith(operation === 'keys' ? '/profile/ai' : '/profile/account')
   })
 
   it('shows a cooldown on arrival and a ghost resend only after it is ready', async () => {
@@ -445,6 +445,6 @@ describe('web step up screen', () => {
     ))
     expect(mocks.clearTiming).toHaveBeenCalledWith('keys', 'account-a')
     expect(mocks.markVerified).toHaveBeenCalledWith('keys')
-    expect(mocks.replace).toHaveBeenCalledWith('/profile/astra')
+    expect(mocks.replace).toHaveBeenCalledWith('/profile/ai')
   })
 })

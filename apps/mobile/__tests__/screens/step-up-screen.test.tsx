@@ -569,7 +569,7 @@ describe('mobile step up screen', () => {
     const destination = operation === 'keys' ? 'profile.groups.astra' : 'profile.submenus.account'
     const back = findButton(tree.root, `common.backToDestination:${JSON.stringify({ destination })}`)
     await TestRenderer.act(() => { (back.props.onPress as () => void)() })
-    expect(mocks.router.replace).toHaveBeenCalledWith(operation === 'keys' ? '/profile/astra' : '/profile/account')
+    expect(mocks.router.replace).toHaveBeenCalledWith(operation === 'keys' ? '/profile/ai' : '/profile/account')
   })
 
   it('shows the arrival cooldown with no resend control', async () => {
@@ -648,6 +648,6 @@ describe('mobile step up screen', () => {
     )
     expect(mocks.clearTiming).toHaveBeenCalledWith('keys', 'user-1')
     expect(mocks.markVerified).toHaveBeenCalledWith('keys')
-    expect(mocks.router.replace).toHaveBeenCalledWith('/profile/astra')
+    expect(mocks.router.replace).toHaveBeenCalledWith('/profile/ai')
   })
 })

@@ -32,7 +32,7 @@ function buildAstraRows(
   settings: AstraSettingsController,
   apiKeysUnlocked: boolean,
 ) {
-  const onUpgrade = () => router.push(buildUpgradeHref('/profile/astra'))
+  const onUpgrade = () => router.push(buildUpgradeHref('/profile/ai'))
   const astraFeatures = deriveProfileAstraFeatures(Boolean(profile?.hasProAccess), settings)
   return (
     <View style={{ gap: 32 }}>
@@ -40,7 +40,7 @@ function buildAstraRows(
         {profile ? (
           <AstraAllowancePanel
             profile={profile}
-            onPlanAction={() => router.push(buildUpgradeHref('/profile/astra'))}
+            onPlanAction={() => router.push(buildUpgradeHref('/profile/ai'))}
           />
         ) : null}
         {profile ? (

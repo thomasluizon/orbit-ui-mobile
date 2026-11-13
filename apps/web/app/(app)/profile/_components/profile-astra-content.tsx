@@ -38,7 +38,7 @@ function buildAstraRows(
   settings: AstraSettingsController,
   apiKeysUnlocked: boolean,
 ) {
-  const onUpgrade = () => router.push('/upgrade?from=%2Fprofile%2Fastra')
+  const onUpgrade = () => router.push('/upgrade?from=%2Fprofile%2Fai')
   const astraFeatures = deriveProfileAstraFeatures(Boolean(profile?.hasProAccess), settings)
   return (
     <div className="flex flex-col" style={{ gap: 32 }}>

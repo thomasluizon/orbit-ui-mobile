@@ -767,52 +767,52 @@
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "route-profile-astra",
+      "surfaceId": "route-profile-ai",
       "platform": "web",
       "kind": "route",
-      "sourceFile": "apps/web/app/(app)/profile/astra/page.tsx",
-      "href": "/profile/astra",
+      "sourceFile": "apps/web/app/(app)/profile/ai/page.tsx",
+      "href": "/profile/ai",
       "ownedFiles": [
-        "apps/web/app/(app)/profile/astra/page.tsx"
+        "apps/web/app/(app)/profile/ai/page.tsx"
       ],
       "state": "default",
       "theme": "light",
       "locale": "en"
     },
     {
-      "surfaceId": "route-profile-astra",
+      "surfaceId": "route-profile-ai",
       "platform": "web",
       "kind": "route",
-      "sourceFile": "apps/web/app/(app)/profile/astra/page.tsx",
-      "href": "/profile/astra",
+      "sourceFile": "apps/web/app/(app)/profile/ai/page.tsx",
+      "href": "/profile/ai",
       "ownedFiles": [
-        "apps/web/app/(app)/profile/astra/page.tsx"
+        "apps/web/app/(app)/profile/ai/page.tsx"
       ],
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "route-profile-astra",
+      "surfaceId": "route-profile-ai",
       "platform": "web",
       "kind": "route",
-      "sourceFile": "apps/web/app/(app)/profile/astra/page.tsx",
-      "href": "/profile/astra",
+      "sourceFile": "apps/web/app/(app)/profile/ai/page.tsx",
+      "href": "/profile/ai",
       "ownedFiles": [
-        "apps/web/app/(app)/profile/astra/page.tsx"
+        "apps/web/app/(app)/profile/ai/page.tsx"
       ],
       "state": "default",
       "theme": "dark",
       "locale": "en"
     },
     {
-      "surfaceId": "route-profile-astra",
+      "surfaceId": "route-profile-ai",
       "platform": "web",
       "kind": "route",
-      "sourceFile": "apps/web/app/(app)/profile/astra/page.tsx",
-      "href": "/profile/astra",
+      "sourceFile": "apps/web/app/(app)/profile/ai/page.tsx",
+      "href": "/profile/ai",
       "ownedFiles": [
-        "apps/web/app/(app)/profile/astra/page.tsx"
+        "apps/web/app/(app)/profile/ai/page.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -11241,6 +11241,58 @@
       "href": "/profile/account",
       "ownedFiles": [
         "apps/mobile/app/profile/account.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-profile-ai",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/profile/ai.tsx",
+      "href": "/profile/ai",
+      "ownedFiles": [
+        "apps/mobile/app/profile/ai.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-profile-ai",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/profile/ai.tsx",
+      "href": "/profile/ai",
+      "ownedFiles": [
+        "apps/mobile/app/profile/ai.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-profile-ai",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/profile/ai.tsx",
+      "href": "/profile/ai",
+      "ownedFiles": [
+        "apps/mobile/app/profile/ai.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-profile-ai",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/profile/ai.tsx",
+      "href": "/profile/ai",
+      "ownedFiles": [
+        "apps/mobile/app/profile/ai.tsx"
       ],
       "state": "default",
       "theme": "dark",

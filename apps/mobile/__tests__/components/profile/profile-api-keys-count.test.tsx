@@ -345,7 +345,7 @@ it.each([
   TestRenderer.act(() => challenge.root.findByType(OtpInput).props.onChange('123456'))
   await TestRenderer.act(async () => { await buttonByLabel(challenge, 'stepUp.confirm').props.onClick() })
   expect(mocks.apiClient).toHaveBeenCalledWith(API.apiKeys.confirmCreationChallenge, { method: 'POST', body: JSON.stringify({ code: '123456' }) }, expect.anything())
-  expect(mocks.replace).toHaveBeenCalledWith('/profile/astra')
+  expect(mocks.replace).toHaveBeenCalledWith('/profile/ai')
   expect(hasApiKeyCreationGrant()).toBe(true)
   TestRenderer.act(() => challenge.unmount())
 
