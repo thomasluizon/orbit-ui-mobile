@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import postcss, { type AtRule } from 'postcss'
+import postcss, { type AtRule, type Node } from 'postcss'
 import { useState } from 'react'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -81,7 +81,7 @@ describe('select popup motion', () => {
     postcss.parse(readFileSync('app/globals.css', 'utf8')).walkRules((rule) => {
       if (!rule.selectors.includes(selector)) return
       const media: string[] = []
-      for (let parent = rule.parent; parent; parent = parent.parent) if (parent.type === 'atrule') media.push((parent as AtRule).params)
+      for (let parent: Node | undefined = rule.parent; parent; parent = parent.parent) if (parent.type === 'atrule') media.push((parent as AtRule).params)
       rule.walkDecls((declaration) => { found.push([declaration.prop, declaration.value, media]) })
     })
     return found

@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import postcss, { type AtRule, type Rule } from 'postcss'
+import postcss, { type AtRule, type Node, type Rule } from 'postcss'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
@@ -18,7 +18,7 @@ const stylesheet = postcss.parse(readFileSync('app/globals.css', 'utf8'))
 
 function media(rule: Rule): string[] {
   const conditions: string[] = []
-  for (let parent = rule.parent; parent; parent = parent.parent) if (parent.type === 'atrule') conditions.push(`${(parent as AtRule).name} ${(parent as AtRule).params}`)
+  for (let parent: Node | undefined = rule.parent; parent; parent = parent.parent) if (parent.type === 'atrule') conditions.push(`${(parent as AtRule).name} ${(parent as AtRule).params}`)
   return conditions
 }
 
@@ -69,7 +69,7 @@ describe('press feedback that keeps the press target on web', () => {
       <ListRow title="Frequency" onClick={vi.fn()} />
       <CheckRow label="Water" checked={false} onChange={vi.fn()} />
       <Checkbox label="Done" checked={false} onChange={vi.fn()} />
-      <Slider label="Mood" value={2} min={1} max={5} step={1} onChange={vi.fn()} />
+      <Slider label="Mood" value={2} valueText="2" min={1} max={5} step={1} onChange={vi.fn()} />
     </>)
     const row = screen.getByRole('button', { name: 'Frequency' })
     expect(row).toHaveClass('orbit-list-row-body')
