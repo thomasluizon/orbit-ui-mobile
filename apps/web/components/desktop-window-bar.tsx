@@ -11,6 +11,7 @@ import {
   DESKTOP_WINDOW_BAR_HEIGHT,
   DESKTOP_WINDOW_TRAFFIC_LIGHT_INSET,
   desktopWindowPlatform,
+  holdDesktopWindowBar,
   invokeDesktopWindow,
   type DesktopWindowAction,
   type DesktopWindowPlatform,
@@ -47,6 +48,7 @@ function WindowBar({ platform }: Readonly<{ platform: DesktopWindowPlatform }>) 
   const t = useTranslations('desktopWindow')
   const { maximized, run } = useWindowCommands()
   const maximizeHovered = useNativeMaximizeHover()
+  useEffect(() => holdDesktopWindowBar(captureException), [])
   const onDragAreaMouseDown = (event: MouseEvent<HTMLDivElement>) => {
     if (event.button !== 0 || event.target !== event.currentTarget || event.detail > 2) return
     event.preventDefault()

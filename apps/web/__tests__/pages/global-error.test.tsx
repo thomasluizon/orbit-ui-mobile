@@ -1,6 +1,9 @@
+import { Component, type ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { NextIntlClientProvider } from 'next-intl'
 import GlobalError from '@/app/global-error'
+import { DesktopWindowBar } from '@/components/desktop-window-bar'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
@@ -17,6 +20,8 @@ afterEach(() => {
   vi.restoreAllMocks()
   vi.useRealTimers()
   cleanup()
+  vi.unstubAllGlobals()
+  document.documentElement.removeAttribute('data-desktop-window-bar')
   document.cookie = 'orbit_theme_mode=;max-age=0;path=/'
   document.cookie = 'i18n_locale=;max-age=0;path=/'
 })
@@ -93,4 +98,36 @@ describe('standalone global error screen', () => {
     expect(heading.closest('html')?.style.getPropertyValue('--bg')).toBe(resolveWebThemeVariables('orange', 'dark')['--bg'])
     expect(screen.getByRole('button', { name: en.errorScreen.retry })).toBeEnabled()
   })
+
+  it('lets the desktop shell restore its native window frame when it replaces the root layout and its Orbit bar', () => {
+    document.documentElement.setAttribute('data-desktop-window-bar', 'windows')
+    const invoke = vi.fn<(command: string, payload: { action: string; drawn?: boolean }) => Promise<boolean>>(async () => false)
+    vi.stubGlobal('__TAURI_INTERNALS__', { invoke })
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const root = (crash: boolean) => <RootBoundary><NextIntlClientProvider locale="en" messages={en}><DesktopWindowBar /><RootCrash crash={crash} /></NextIntlClientProvider></RootBoundary>
+    const view = render(root(false))
+    expect(screen.getByRole('group', { name: en.desktopWindow.controls })).toBeInTheDocument()
+    view.rerender(root(true))
+    expect(screen.getByRole('heading', { name: en.errorScreen.title })).toBeInTheDocument()
+    expect(document.documentElement).not.toHaveAttribute('data-desktop-window-bar')
+    expect(screen.queryByRole('group', { name: en.desktopWindow.controls })).toBeNull()
+    expect(invoke.mock.calls.filter(([, payload]) => payload.action === 'bar').map(([, payload]) => payload.drawn)).toEqual([true, false])
+  })
 })
+
+class RootBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null }
+
+  static getDerivedStateFromError(error: Error) {
+    return { error }
+  }
+
+  render() {
+    return this.state.error ? <GlobalError error={this.state.error} reset={vi.fn()} /> : this.props.children
+  }
+}
+
+function RootCrash({ crash }: Readonly<{ crash: boolean }>) {
+  if (crash) throw new Error('root layout failure')
+  return null
+}

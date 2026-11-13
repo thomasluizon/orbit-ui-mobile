@@ -1,3 +1,4 @@
+use crate::locks::RecoverLock;
 use tauri::utils::config::WindowConfig;
 use tauri::{Manager, WebviewWindow};
 
@@ -10,6 +11,7 @@ pub enum Action {
     ToggleMaximize,
     Close,
     Menu,
+    Bar,
 }
 
 // CSS pixels of the bar, matching apps/web/lib/desktop-window.ts: the menu action starts at the end inset, so its popup opens
@@ -76,8 +78,141 @@ pub fn initialization_script(origin: &tauri::Url, platform: Platform) -> String 
     )
 }
 
+// The Windows window has no native frame only while the page draws the bar over it. A document that never draws one (the
+// WebView2 error page of a failed or offline load, a web build that predates the bar) gets the native frame back after the
+// same 15 seconds that the launch cover gives a page to paint (native/windows/launch.cpp `SetTimer`, src/launch.js). wry
+// reports a failed main-frame load as `Finished` too (wry webview2 `add_NavigationCompleted` drops `IsSuccess`), so the
+// deadline covers it.
+const BAR_DEADLINE: std::time::Duration = std::time::Duration::from_millis(15000);
+
+#[derive(Default)]
+pub struct FrameState(std::sync::Mutex<Frame>);
+
+#[derive(Debug, Default, PartialEq, Eq)]
+struct Frame {
+    load: u64,
+    bar: bool,
+    native: bool,
+}
+
+// What one frame event changes on the window: the native frame, and whether the snap region over the maximize action answers.
+#[derive(Debug, Default, PartialEq, Eq)]
+struct FrameChange {
+    native: Option<bool>,
+    snap_region: Option<bool>,
+}
+
+impl Frame {
+    // A new main-frame document starts with no bar, so the snap region stops answering until that document reports one.
+    fn load_started(&mut self) -> FrameChange {
+        self.load = self.load.wrapping_add(1);
+        self.bar = false;
+        FrameChange {
+            native: None,
+            snap_region: Some(false),
+        }
+    }
+
+    fn bar_reported(&mut self, drawn: bool) -> FrameChange {
+        self.bar = drawn;
+        FrameChange {
+            native: self.native_frame(!drawn),
+            snap_region: Some(drawn),
+        }
+    }
+
+    fn deadline_passed(&mut self, load: u64) -> FrameChange {
+        if load != self.load || self.bar {
+            return FrameChange::default();
+        }
+        FrameChange {
+            native: self.native_frame(true),
+            snap_region: None,
+        }
+    }
+
+    fn native_frame(&mut self, native: bool) -> Option<bool> {
+        (self.native != native).then(|| {
+            self.native = native;
+            native
+        })
+    }
+}
+
+pub fn page_loading(window: &WebviewWindow, event: tauri::webview::PageLoadEvent) {
+    if Platform::current() != Platform::Windows {
+        return;
+    }
+    let state = window.state::<FrameState>();
+    match event {
+        tauri::webview::PageLoadEvent::Started => {
+            let change = state.0.recover_lock().load_started();
+            if let Err(error) = change_frame(window, change) {
+                eprintln!("Cannot stop the window snap region: {error}");
+            }
+        }
+        tauri::webview::PageLoadEvent::Finished => {
+            let load = state.0.recover_lock().load;
+            let window = window.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(BAR_DEADLINE);
+                let change = window
+                    .state::<FrameState>()
+                    .0
+                    .recover_lock()
+                    .deadline_passed(load);
+                if let Err(error) = change_frame(&window, change) {
+                    eprintln!("Cannot restore the native window frame: {error}");
+                }
+            });
+        }
+    }
+}
+
+fn report_bar(window: &WebviewWindow, drawn: bool) -> tauri::Result<()> {
+    if Platform::current() != Platform::Windows {
+        return Ok(());
+    }
+    let change = window
+        .state::<FrameState>()
+        .0
+        .recover_lock()
+        .bar_reported(drawn);
+    change_frame(window, change)
+}
+
+fn change_frame(window: &WebviewWindow, change: FrameChange) -> tauri::Result<()> {
+    // Each shadow change happens while the frame is native: tauri-runtime-wry attaches its undecorated resize handler with the
+    // shadow the window has when decorations turn off (`WindowMessage::SetDecorations`), and `shadow: true` draws a border on
+    // an undecorated window.
+    match change.native {
+        Some(true) => {
+            window.set_decorations(true)?;
+            window.set_shadow(true)?;
+        }
+        Some(false) => {
+            window.set_shadow(false)?;
+            window.set_decorations(false)?;
+        }
+        None => {}
+    }
+    #[cfg(windows)]
+    if let Some(active) = change.snap_region {
+        crate::launch::with_native(window, move |pointer| unsafe {
+            orbit_caption_set_active(pointer, active)
+        })?;
+    }
+    #[cfg(not(windows))]
+    let _ = change.snap_region;
+    Ok(())
+}
+
 #[tauri::command]
-pub fn desktop_window(window: WebviewWindow, action: Action) -> Result<bool, String> {
+pub fn desktop_window(
+    window: WebviewWindow,
+    action: Action,
+    drawn: Option<bool>,
+) -> Result<bool, String> {
     let tauri::utils::config::WebviewUrl::External(origin) = &window.config().app.windows[0].url
     else {
         return Err("Desktop requires a deployed origin".into());
@@ -85,6 +220,10 @@ pub fn desktop_window(window: WebviewWindow, action: Action) -> Result<bool, Str
     let current = window.url().map_err(|error| error.to_string())?;
     if !crate::command_origin::allows(window.label(), &current, origin) {
         return Err("Desktop window origin rejected".into());
+    }
+    if action == Action::Bar {
+        let drawn = drawn.ok_or("The bar action requires drawn")?;
+        report_bar(&window, drawn).map_err(|error| error.to_string())?;
     }
     apply(&window, action).map_err(|error| error.to_string())
 }
@@ -134,7 +273,7 @@ impl BarWindow for WebviewWindow {
 
 fn apply(window: &impl BarWindow, action: Action) -> tauri::Result<bool> {
     match action {
-        Action::State => {}
+        Action::State | Action::Bar => {}
         Action::Drag => window.start_dragging()?,
         Action::Minimize => window.minimize()?,
         Action::Close => window.close()?,
@@ -153,6 +292,7 @@ fn apply(window: &impl BarWindow, action: Action) -> tauri::Result<bool> {
 #[cfg(windows)]
 extern "C" {
     fn orbit_caption_install(window: *mut std::ffi::c_void, hover: extern "C" fn(bool)) -> bool;
+    fn orbit_caption_set_active(window: *mut std::ffi::c_void, active: bool);
 }
 
 #[cfg(windows)]
@@ -276,6 +416,7 @@ mod tests {
             ("toggle_maximize", Action::ToggleMaximize),
             ("close", Action::Close),
             ("menu", Action::Menu),
+            ("bar", Action::Bar),
         ] {
             let parsed: Action = serde_json::from_str(&format!("\"{name}\"")).unwrap();
             assert_eq!(parsed, action);
@@ -339,10 +480,82 @@ mod tests {
             (Action::ToggleMaximize, true, Some("unmaximize"), false),
             (Action::Menu, false, Some("popup_menu"), false),
             (Action::Menu, true, Some("popup_menu"), true),
+            (Action::Bar, false, None, false),
+            (Action::Bar, true, None, true),
         ] {
             let window = Recorder::new(maximized);
             assert_eq!(apply(&window, action).unwrap(), after);
             assert_eq!(window.calls.borrow().as_slice(), call.as_slice());
         }
+    }
+
+    fn change(native: Option<bool>, snap_region: Option<bool>) -> FrameChange {
+        FrameChange {
+            native,
+            snap_region,
+        }
+    }
+
+    #[test]
+    fn a_launch_that_draws_the_bar_never_changes_the_frame() {
+        let mut frame = Frame::default();
+        assert_eq!(frame.load_started(), change(None, Some(false)));
+        assert_eq!(frame.bar_reported(true), change(None, Some(true)));
+        assert_eq!(frame.deadline_passed(frame.load), change(None, None));
+        assert!(!frame.native);
+    }
+
+    #[test]
+    fn a_document_without_the_bar_gets_the_native_frame_once_the_deadline_passes() {
+        let mut frame = Frame::default();
+        frame.load_started();
+        let load = frame.load;
+        assert_eq!(frame.deadline_passed(load), change(Some(true), None));
+        assert!(frame.native);
+        assert_eq!(frame.deadline_passed(load), change(None, None));
+    }
+
+    #[test]
+    fn a_bar_that_reports_late_removes_the_restored_frame_and_starts_the_snap_region() {
+        let mut frame = Frame::default();
+        frame.load_started();
+        frame.deadline_passed(frame.load);
+        assert_eq!(frame.bar_reported(true), change(Some(false), Some(true)));
+        assert!(!frame.native);
+    }
+
+    #[test]
+    fn a_bar_that_goes_away_restores_the_frame_and_stops_the_snap_region_at_once() {
+        let mut frame = Frame::default();
+        frame.load_started();
+        frame.bar_reported(true);
+        assert_eq!(frame.bar_reported(false), change(Some(true), Some(false)));
+        assert_eq!(frame.deadline_passed(frame.load), change(None, None));
+    }
+
+    #[test]
+    fn a_new_document_stops_the_snap_region_and_the_deadline_of_the_previous_load() {
+        let mut frame = Frame::default();
+        frame.load_started();
+        let previous = frame.load;
+        frame.bar_reported(true);
+        assert_eq!(frame.load_started(), change(None, Some(false)));
+        assert!(!frame.bar);
+        assert_eq!(frame.deadline_passed(previous), change(None, None));
+        assert!(!frame.native);
+        assert_eq!(frame.bar_reported(true), change(None, Some(true)));
+    }
+
+    #[test]
+    fn the_bar_deadline_is_the_launch_cover_deadline() {
+        let cover = include_str!("../native/windows/launch.cpp");
+        assert!(cover.contains(&format!(
+            "SetTimer(launch.window, launch.timer, {}, nullptr)",
+            BAR_DEADLINE.as_millis()
+        )));
+        assert!(include_str!("launch.js").contains(&format!(
+            "setTimeout(() => observer.disconnect(), {})",
+            BAR_DEADLINE.as_millis()
+        )));
     }
 }

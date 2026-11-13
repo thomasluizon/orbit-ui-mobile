@@ -85,11 +85,26 @@ extern "C" bool orbit_caption_install(void *parent, void (*hover)(bool)) {
     if (!RegisterClassW(&definition)) return false;
     auto window = static_cast<HWND>(parent);
     caption.hover = hover;
-    // Windows 8 and later accept WS_EX_LAYERED on a child window; the shell manifest declares those versions.
-    caption.overlay = CreateWindowExW(WS_EX_LAYERED, definition.lpszClassName, L"", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS,
+    // Windows 8 and later accept WS_EX_LAYERED on a child window; the shell manifest declares those versions. The region starts
+    // hidden, because a hidden window takes no hit test: it answers only once the page reports the bar under it.
+    caption.overlay = CreateWindowExW(WS_EX_LAYERED, definition.lpszClassName, L"", WS_CHILD | WS_CLIPSIBLINGS,
         0, 0, 0, 0, window, nullptr, definition.hInstance, nullptr);
     if (!caption.overlay || !SetLayeredWindowAttributes(caption.overlay, 0, kRegionAlpha, LWA_ALPHA)) return false;
     if (!SetWindowSubclass(window, parent_events, kParentSubclass, 0)) return false;
     place(window);
     return true;
+}
+
+// The shell shows the region while the page reports the bar and hides it when the bar goes away or a new document loads. Neither
+// case leaves a bar that shows the hover fill, so hiding resets the pointer state without a report to the page.
+extern "C" void orbit_caption_set_active(void *parent, bool active) {
+    if (!caption.overlay) return;
+    if (active) {
+        place(static_cast<HWND>(parent));
+        ShowWindow(caption.overlay, SW_SHOWNOACTIVATE);
+        return;
+    }
+    ShowWindow(caption.overlay, SW_HIDE);
+    caption.pressed = false;
+    caption.hovered = false;
 }

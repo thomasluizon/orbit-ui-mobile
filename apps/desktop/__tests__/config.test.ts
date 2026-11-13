@@ -181,6 +181,18 @@ it('keeps the native snap region, the page bar and the stylesheet on one geometr
   expect(read('../src-tauri/native/windows/launch.cpp')).not.toMatch(/DWMWA_CAPTION_COLOR|dwmapi/)
 })
 
+it('gives the native frame back to a document without the bar, and answers in the snap region only under a drawn bar', () => {
+  const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
+  const entrypoint = read('../src-tauri/src/main.rs')
+  expect(entrypoint).toContain('app.manage(window_bar::FrameState::default());')
+  expect(entrypoint).toMatch(/\.on_page_load\(\|window, payload\| \{[^}]*window_bar::page_loading\(&window, payload\.event\(\)\);/)
+  const caption = read('../src-tauri/native/windows/caption.cpp')
+  expect(caption).toContain('CreateWindowExW(WS_EX_LAYERED, definition.lpszClassName, L"", WS_CHILD | WS_CLIPSIBLINGS,')
+  expect(caption).toContain('extern "C" void orbit_caption_set_active(void *parent, bool active)')
+  expect(read('../src-tauri/src/window_bar.rs')).toContain('fn orbit_caption_set_active(window: *mut std::ffi::c_void, active: bool);')
+  expect(read('../../web/lib/desktop-window.ts')).toContain("invoke('desktop_window', { action: 'bar', drawn })")
+})
+
 it('embeds a Windows manifest that keeps Common Controls 6 and declares Windows 8 and later for the layered snap region', () => {
   const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
   const build = read('../src-tauri/build.rs')

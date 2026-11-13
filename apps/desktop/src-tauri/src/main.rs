@@ -154,6 +154,7 @@ fn construct_window(
     flow: desktop_login::SharedAuth,
 ) -> tauri::Result<()> {
     app.manage(launch::LaunchState::default());
+    app.manage(window_bar::FrameState::default());
     let navigation_origin = origin.clone();
     let handle = app.handle().clone();
     let window = tauri::WebviewWindowBuilder::from_config(app, window_config)?
@@ -178,6 +179,7 @@ fn construct_window(
         })
         .on_page_load(|window, payload| {
             launch::page_loading(&window, payload.event());
+            window_bar::page_loading(&window, payload.event());
             push::page_loaded(&window, payload);
         })
         .on_new_window(|url, _features| {

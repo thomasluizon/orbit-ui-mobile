@@ -160,6 +160,30 @@ it('keeps the macOS traffic lights clear and draws no window actions and no menu
   expect(bar.style.paddingInlineStart).toBe('80px')
 })
 
+const barReports = () => invoke.mock.calls.filter(([, payload]) => payload.action === 'bar').map(([, payload]) => payload.drawn)
+
+it('tells the shell when the first bar is drawn and when the last bar is gone, so the shell keeps or restores its native frame', () => {
+  markShell('windows')
+  const first = renderBar()
+  expect(barReports()).toEqual([true])
+  const second = renderBar()
+  expect(screen.getAllByRole('group', { name: 'Window controls' })).toHaveLength(2)
+  second.unmount()
+  expect(barReports()).toEqual([true])
+  first.unmount()
+  expect(barReports()).toEqual([true, false])
+})
+
+it('reports a failed bar report instead of swallowing it', async () => {
+  markShell('windows')
+  invoke.mockImplementation(async (_command: string, payload: { action: string }) => {
+    if (payload.action === 'bar') throw new Error('bar refused')
+    return false
+  })
+  renderBar()
+  await waitFor(() => expect(captureException).toHaveBeenCalledWith(new Error('bar refused')))
+})
+
 it('reports a failed window command instead of swallowing it', async () => {
   markShell('windows')
   invoke.mockRejectedValue(new Error('window refused'))

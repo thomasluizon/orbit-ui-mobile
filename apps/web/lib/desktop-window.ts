@@ -31,3 +31,23 @@ export async function invokeDesktopWindow(action: DesktopWindowAction): Promise<
   if (!runtime) return false
   return (await runtime.invoke('desktop_window', { action })) === true
 }
+
+let mountedBars = 0
+
+/**
+ * Tells the shell when the first bar mounts and when the last one unmounts. The Windows shell keeps the window without its
+ * native frame only while a bar is drawn (`apps/desktop/src-tauri/src/window_bar.rs`), so a second bar drawn over the
+ * first changes nothing.
+ */
+export function holdDesktopWindowBar(onError: (error: unknown) => void): () => void {
+  mountedBars += 1
+  if (mountedBars === 1) reportDesktopWindowBar(true, onError)
+  return () => {
+    mountedBars -= 1
+    if (mountedBars === 0) reportDesktopWindowBar(false, onError)
+  }
+}
+
+function reportDesktopWindowBar(drawn: boolean, onError: (error: unknown) => void) {
+  desktopRuntime()?.invoke('desktop_window', { action: 'bar', drawn }).catch(onError)
+}
