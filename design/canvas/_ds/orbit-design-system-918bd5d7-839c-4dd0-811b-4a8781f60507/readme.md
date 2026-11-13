@@ -17,14 +17,12 @@ One product surface matters today: the app, designed mobile-first at a 412px she
 
 **The accent is warm orange `#C4530F`, the only accent.** Rose is retired; there is no hue switch. Light `--primary-text` uses `#A63A00`, overdue uses `#7D5700` and bad text uses `#C00000`. Lower only source OKLCH lightness before gamut-clamping and byte-rounding; the worst well-hover stack measures 4.522:1, 4.510:1 and 4.502:1 respectively. Light overdue measures 6.219:1 on the canvas and carries white at 6.491:1. Accent and status text retain their colour under light hover and press; only `fg-3` promotes to `fg-2`.
 
-**The mark shipped**: `orbit-mark.svg` and `astra-mark.svg` replaced the draft tilted-ellipse mark and the circle-with-core Astra glyph on 2026-08-16; the old draft assets were deleted.
-
 ## Sources
 
 - Local codebase folder `design/` from `orbit-ui-mobile`: the granted
   export under `design/canvas/` (subject to the D42 ladder in `DESIGN.md`) and `design/brand/`
   (marks, lockups, fonts, README.md, SETUP.md).
-- Uploaded brand files (same assets): fonts, mark/lockup SVGs and PNGs, now in `assets/`.
+- Uploaded brand files (same assets): fonts, mark/lockup SVGs and PNGs, tracked in `design/brand/`.
 - GitHub repository `github.com/thomasluizon/orbit-ui-mobile` uses the near-black canvas `#09090B`, one warm orange accent `#C4530F`, and light and dark modes. Fonts are Geist Sans for UI, Space Grotesk for display, and Geist Mono for metadata; `DESIGN.md` defines the authority of this export.
 - No Figma source exists.
 
@@ -68,15 +66,15 @@ One product surface matters today: the app, designed mobile-first at a 412px she
 ## Identity and iconography
 
 - **Identity carriers, exactly three**: the orbital mark, the Astra glyph, ring-shaped indicators. Never background decoration. Warmth has one source: the mark.
-- **The mark**: a planet drawn as a ring with an open centre, an orbital band crossing in front across the lower left and passing behind at the upper right, and a small solid moon above right (`assets/orbit-mark.svg`, 1024 grid). One asset at every size. The moon carries the accent; the monochrome treatment is for the neutral lockup.
-- **Astra**: a letter A carrying the same orbital band and the same solid dot (`assets/astra-mark.svg`). The Astra glyph is the AI marker - never a sparkle. They differ by SILHOUETTE: Orbit is a hollow ring, Astra is a solid letterform, and that reads at 16 pixels.
+- **The mark**: a planet drawn as a ring with an open centre, an orbital band crossing in front across the lower left and passing behind at the upper right, and a small solid moon above right (1024 grid). One asset at every size. The moon carries the accent; the monochrome treatment is for the neutral lockup.
+- **Astra**: a letter A carrying the same orbital band and the same solid dot. The Astra glyph is the AI marker - never a sparkle. They differ by SILHOUETTE: Orbit is a hollow ring, Astra is a solid letterform, and that reads at 16 pixels.
 - **ProgressRing** is a true circle with a sweep over a track - deliberately not the mark's shape.
-- **UI icons: Tabler only.** Sizes 16/20/24, default 24. Outline default; filled marks active state. Legible at 16. Loaded from CDN webfont (`@tabler/icons-webfont`) in cards and kits - see `components/brand/Icon`. SVGs from Tabler are also fine inline. The product code migrated to Tabler behind a per-platform barrel on 2026-08-16.
-- **Assets** (`assets/`): `orbit-mark.svg` and `astra-mark.svg` (the shipped marks; fills resolve `var(--fg-1, #F4F4F6)` so they follow the page mode inline and fall back to dark values standalone), variable TTFs in `assets/fonts/`. Lockups and platform icons are composed live from the mark (see `guidelines/brand-lockup.html`, `guidelines/brand-platform-icons.html`); no baked lockup or icon rasters exist yet for the new mark. The near-white mark looks invisible on white previews - that is correct.
+- **UI icons: Tabler only.** Sizes 16/20/24, default 24. Outline default; filled marks active state. Legible at 16. Loaded from CDN webfont (`@tabler/icons-webfont`) in cards and kits. SVGs from Tabler are also fine inline. The product code migrated to Tabler behind a per-platform barrel on 2026-08-16.
+- **Assets**: the shipped marks and fonts are in the exported archive. The tracked brand sources are in `design/brand/`.
 
 ## Component inventory
 
-Groups under `components/`:
+Component groups in the exported archive:
 
 - `actions/`: Button (primary/ghost/secondary/destructive/caution, sm, disabled, loading), Fab
 - `forms/`: Input (label, error, disabled), OtpInput, Switch
@@ -88,9 +86,7 @@ Groups under `components/`:
 - `shell/`: Shell412 (the mobile shell: one scroller, pinned tab bar + FAB, safe-area aware), ShellWide (sidebar with its Astra row + 740 column; habit detail's own composer or Hoje's active selection tray pins to the bottom; sidebar create is the one filled action), **Composer** (habit detail and the conversation: one bar plus 3 to 6 live-state chips; its head Astra glyph on habit detail is a 48px `Abrir conversa` button; resting/focused/composing/sending/offline/atLimit, and `atLimit` carries no upgrade call to action)
 - `canvas/`: CanvasControls (the review bar: mode / width / state / locale; canvas chrome, not product UI)
 
-**Wave 0 landed 2026-08-16**: Composer, Proposed and BlockFrame are built, with `components/shell/composer.card.html` and `components/display/generative.card.html` as their specimen cards.
-
-**Shell state:** `ShellWide` has the Astra row above its four destinations and no Hoje shell composer. Its destination bottom slot, named `composer`, retains Hoje's active selection tray with exit, select-all, delete, log and skip controls. Resting Hoje passes no bottom content. Its full-screen conversation keeps the sidebar and replaces the destination column from every Astra entry, including proactive and no-habits actions; closing restores the underlying view. `Shell412` has four tabs and the draggable Astra button in the content viewport; the conversation covers the whole compact shell, including the tabs. Habit detail keeps its own composer at every width. `components/shell/shell.card.html` documents both shells structurally as labelled slots.
+**Shell state:** `ShellWide` has the Astra row above its four destinations and no Hoje shell composer. Its destination bottom slot, named `composer`, retains Hoje's active selection tray with exit, select-all, delete, log and skip controls. Resting Hoje passes no bottom content. Its full-screen conversation keeps the sidebar and replaces the destination column from every Astra entry, including proactive and no-habits actions; closing restores the underlying view. `Shell412` has four tabs and the draggable Astra button in the content viewport; the conversation covers the whole compact shell, including the tabs. Habit detail keeps its own composer at every width.
 
 ## Measured and open contrast limits
 
@@ -102,11 +98,10 @@ These pairs miss their WCAG floor. They are recorded here with their numbers bec
 
 ## Index
 
-- `styles.css` - global entry; imports everything in `tokens/`
-- `tokens/` - fonts, colors, typography, spacing, shape+motion, base
-- `assets/` - marks, lockups, platform icons, PNG set, fonts
-- `guidelines/` - foundation specimen cards (Design System tab) + `screen-contract.md` (the ten rules every screen document follows)
-- `components/<group>/` - React primitives, one card per group
-- `SKILL.md` - agent skill entry point
+The repository keeps only these files of the design system export:
 
-`ui_kits/app/` was **deleted on 2026-08-16**. It held Today / Metas / Astra / Perfil at 412px, which is the pre-D69 shell: Astra as a destination and Metas as a tab, both of which no longer exist. The replacement is built in the rewritten waves.
+- `styles.css`: global entry; imports everything in `tokens/`.
+- `tokens/`: fonts, colors, typography, spacing, shape and motion, base.
+- `_ds_manifest.json`: the token and component manifest that `design/canvas/tools/build-ds-bundle.mjs` regenerates.
+
+The component sources, the `assets/` marks and fonts, the `guidelines/` cards and the compiled `_ds_bundle.js` live in the exported project archive. The repository does not track them. `DESIGN.md` is the authority for every rule above.
