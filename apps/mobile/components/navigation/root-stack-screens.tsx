@@ -7,7 +7,7 @@ import { useGoogleErrorLogin } from '@/lib/google-auth-callback'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { mobileMotion, usePrefersReducedMotion } from '@/lib/motion'
 import { captureBuildEnabled, shouldExposeOnboardingRoute } from '@/lib/capture-mode'
-import { orbitScreenLayout } from '@/components/ui/orbit-screen-focus'
+import { orbitScreenLayout } from '@/components/navigation/orbit-screen-layout'
 
 const SLIDE_FROM_RIGHT_SCREENS = [
   'support',

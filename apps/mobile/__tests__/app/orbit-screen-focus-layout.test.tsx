@@ -2,7 +2,7 @@ import React from 'react'
 import { act, create } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
 import { RootStackScreens } from '@/components/navigation/root-stack-screens'
-import { orbitScreenLayout } from '@/components/ui/orbit-screen-focus'
+import { orbitScreenLayout } from '@/components/navigation/orbit-screen-layout'
 import TabLayout from '@/app/(tabs)/_layout'
 import OnboardingLayout from '@/app/(onboarding)/_layout'
 

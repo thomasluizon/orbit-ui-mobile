@@ -4,7 +4,7 @@ import { setOrbitMotionEnabled } from '@orbit/shared/utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { OrbitOverlayLayer } from '@/components/ui/orbit-overlay-layer'
-import { orbitScreenLayout } from '@/components/ui/orbit-screen-focus'
+import { orbitScreenLayout } from '@/components/navigation/orbit-screen-layout'
 import { createTokensV2 } from '@/lib/theme'
 import { reanimatedTestState } from '@/test-mocks/react-native-reanimated'
 

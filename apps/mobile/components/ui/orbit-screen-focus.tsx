@@ -1,5 +1,4 @@
-import { createContext, useContext, type ReactElement, type ReactNode } from 'react'
-import { useIsFocused } from 'expo-router'
+import { createContext, useContext, type ReactNode } from 'react'
 
 const OrbitScreenFocusContext = createContext(true)
 
@@ -8,14 +7,7 @@ export function useOrbitScreenFocused(): boolean {
   return useContext(OrbitScreenFocusContext)
 }
 
-function OrbitScreenFocus({ children }: Readonly<{ children: ReactNode }>) {
-  return <OrbitScreenFocusContext.Provider value={useIsFocused()}>{children}</OrbitScreenFocusContext.Provider>
-}
-
-/**
- * The `screenLayout` of every navigator. The navigator renders it inside each screen's route, where `useIsFocused`
- * also reads the focus of the parent screens, so an Orbit on a screen that is not focused gives up its live slot.
- */
-export function orbitScreenLayout({ children }: Readonly<{ children: ReactNode }>): ReactElement {
-  return <OrbitScreenFocus>{children}</OrbitScreenFocus>
+/** Gives the screen under it its focus; `orbitScreenLayout` feeds it from the navigator. */
+export function OrbitScreenFocus({ focused, children }: Readonly<{ focused: boolean; children: ReactNode }>) {
+  return <OrbitScreenFocusContext.Provider value={focused}>{children}</OrbitScreenFocusContext.Provider>
 }
