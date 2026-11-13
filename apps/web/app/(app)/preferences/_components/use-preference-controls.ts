@@ -9,6 +9,7 @@ import { readShowGeneralOnToday, writeShowGeneralOnToday } from '@/lib/show-gene
 import { useAccountId } from '@/lib/account-scope'
 import type { SupportedLocale } from '@orbit/shared/types/profile'
 import { useProfile } from '@/hooks/use-profile'
+import { useMascotMotionSwitch } from '@/hooks/use-mascot-motion'
 import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import {
@@ -34,6 +35,7 @@ export function usePreferenceControls() {
   const { showPersistentError } = useAppToast()
   const queryClient = useQueryClient()
   const { profile, patchProfile } = useProfile()
+  const mascotMotion = useMascotMotionSwitch(profile, patchProfile)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
 
   const [activePicker, setActivePicker] = useAccountScopedState<PreferencePicker | null>(null)
@@ -150,5 +152,6 @@ export function usePreferenceControls() {
     timeZoneMutation,
     weekStartMutation,
     clockFormatMutation,
+    mascotMotion,
   }
 }

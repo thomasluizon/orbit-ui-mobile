@@ -85,6 +85,7 @@ export const profileSchema = z.object({
   longestStreak: z.number(),
   streakFreezesAvailable: z.number(),
   themePreference: z.string().nullable(),
+  mascotMotionEnabled: z.boolean().optional(),
   colorScheme: z.string().nullable(),
   googleCalendarAutoSyncEnabled: z.boolean(),
   googleCalendarAutoSyncStatus: calendarAutoSyncStatusSchema,
@@ -126,6 +127,12 @@ export const setAiSummaryRequestSchema = z.object({
 })
 
 export type SetAiSummaryRequest = z.infer<typeof setAiSummaryRequestSchema>
+
+export const setMascotMotionRequestSchema = z.object({
+  enabled: z.boolean(),
+})
+
+export type SetMascotMotionRequest = z.infer<typeof setMascotMotionRequestSchema>
 
 export const setProactiveAstraRequestSchema = z.object({
   enabled: z.boolean(),

@@ -15,7 +15,7 @@ vi.mock('@/app/use-preference-controls', () => ({ usePreferenceControls: () => (
     activePicker: null, setActivePicker: preferences.open, handleThemeModeChange: vi.fn(),
     showGeneralOnToday: preferences.checked, toggleShowGeneral: preferences.toggle,
     handleShowGeneralToggle: preferences.toggle, handleLanguageChange: vi.fn(),
-    timeZoneMutation: { mutate: vi.fn() }, weekStartMutation: { mutate: vi.fn() }, clockFormatMutation: { mutate: vi.fn() },
+    timeZoneMutation: { mutate: vi.fn() }, mascotMotion: { enabled: true, pending: false, toggle: vi.fn() }, weekStartMutation: { mutate: vi.fn() }, clockFormatMutation: { mutate: vi.fn() },
   }) }))
 vi.mock('@/components/profile/preferences-sections', () => ({ PreferencePickerSheet: () => null }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
@@ -29,10 +29,10 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 375, 384, 412, 480].flatM
   TestRenderer.act(() => { tree = TestRenderer.create(<ProfilePreferencesContent profile={createMockProfile({ timeZone: 'America/Sao_Paulo', weekStartDay: 1, uses24HourClock: true })} patchProfile={vi.fn()} />) })
   try {
     const labels = tree.root.findAllByType(Text)
-    expect(labels).toHaveLength(10)
+    expect(labels).toHaveLength(11)
     for (const text of labels) expect(text.props.numberOfLines, text.props.children).toBeUndefined()
     const measured = measureProfileRow(tree.toJSON(), width - 32, scale)
-    expect(measured.texts).toHaveLength(10)
+    expect(measured.texts).toHaveLength(11)
     for (const text of measured.texts) {
       expect(text.clipped, text.label).toBe(false)
       expect(text.left, text.label).toBeGreaterThanOrEqual(0)

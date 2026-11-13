@@ -44,6 +44,9 @@
       "deniedNative": "Notifications are blocked. Enable them in your device settings.",
       "openSettings": "Open settings"
     },
+    "orbitMotion": {
+      "title": "Animate Orbit"
+    },
     "homeScreen": {
       "showGeneral": "Show undated tasks",
       "showGeneralDesc": "Undated tasks also appear in Today."

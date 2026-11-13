@@ -48,6 +48,7 @@ vi.mock('@/app/actions/profile', () => ({
   updateWeekStartDay: vi.fn(),
   updateClockFormat: vi.fn(),
   updateThemePreference: vi.fn(),
+  updateMascotMotion: vi.fn(),
   completeOnboarding: vi.fn(),
   exportUserData: vi.fn(),
   authorizeNotion: vi.fn(),

@@ -44,6 +44,9 @@
       "deniedNative": "As notificações estão bloqueadas. Ative nas configurações do aparelho.",
       "openSettings": "Abrir configurações"
     },
+    "orbitMotion": {
+      "title": "Orbit em movimento"
+    },
     "homeScreen": {
       "showGeneral": "Ver tarefas sem data",
       "showGeneralDesc": "Tarefas sem data também aparecem no Hoje."

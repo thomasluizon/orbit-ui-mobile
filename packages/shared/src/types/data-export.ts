@@ -16,6 +16,7 @@ const exportedSettingsSchema = z.object({
   colorScheme: z.string().nullable(),
   aiSummaryEnabled: z.boolean(),
   proactiveAstraEnabled: z.boolean(),
+  mascotMotionEnabled: z.boolean().optional(),
 })
 
 const exportedHabitLogSchema = z.object({
