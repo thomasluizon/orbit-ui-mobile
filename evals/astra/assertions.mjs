@@ -1,5 +1,6 @@
 import { refineResult } from './suggestions.mjs'
 import { restartProposal, restartReadback } from './restart.mjs'
+import { sameTitleProposal, sameTitleReadback } from './same-title-set.mjs'
 import { composition } from './composition.mjs'
 export { composition }
 export { proactiveOffers } from './proactive-offers.mjs'
@@ -166,9 +167,16 @@ export function behavior(output, context) {
   const trace = traceBoundary(output, context)
   if ('pass' in trace) return trace
   const verdict = toolBehavior(trace.calls, context.vars.expectations)
-  if (!verdict.pass || !context.vars.restart) return verdict
-  const proposal = restartProposal(decode(output), context.vars)
-  return proposal.pass ? restartReadback(decode(output), context.vars) : proposal
+  if (!verdict.pass) return verdict
+  if (context.vars.restart) {
+    const proposal = restartProposal(decode(output), context.vars)
+    return proposal.pass ? restartReadback(decode(output), context.vars) : proposal
+  }
+  if (context.vars.sameTitleSet) {
+    const proposal = sameTitleProposal(decode(output), context.vars)
+    return proposal.pass ? sameTitleReadback(decode(output), context.vars) : proposal
+  }
+  return verdict
 }
 
 export function toolBehavior(traceCalls, expectations) {

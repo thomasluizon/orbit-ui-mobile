@@ -65,6 +65,39 @@ it.each([false, true])('verifies the real setup turn before a correction; wrongR
   }
 })
 
+it('sends the conversation id the setup response returned on the correction turn, with the setup history', async () => {
+  offlineCredentials()
+  vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline-token')
+  const conversationId = 'd1b7c7c0-73ad-49a0-875f-05215639d44a'
+  const sent = []
+  vi.stubGlobal('fetch', async (url, options) => {
+    if (new URL(url).pathname === '/health') return Response.json({ status: 'Healthy', commit: null, checks: [] })
+    if (new URL(url).pathname === '/api/auth/refresh') return refreshResponse()
+    const request = new Request(url, options)
+    const requestId = request.headers.get('x-orbit-request-id')
+    const form = await request.formData()
+    sent.push({ message: form.get('message'), history: JSON.parse(form.get('history')), clientContext: JSON.parse(form.get('clientContext')) })
+    const response = { ...chatResponse(requestId, [toolCall('create_habit', { title: 'Cholesterol exam' }, 'PendingConfirmation')]),
+      parts: [], aiMessage: null, pendingOperations: [preview()], conversationId }
+    return Response.json(response, { headers: { 'x-orbit-request-id': requestId } })
+  })
+  const test = { metadata: { id: 'correction' }, vars: { credentialKey: 'ORBIT_EVAL_TOKEN',
+    clientContext: { supportsParts: true, partKinds: [] }, setup: { caseId: 'composition-medical-batch-en', input: 'Original exam request',
+      composition: { mode: 'preview' }, expectations: { required: [{ name: 'create_habit', arguments: { title: 'Cholesterol exam' } }] } },
+  } }
+  const prepared = (await beforeEach({ test })).test
+  expect(prepared.vars.preconditionFailure).toBeUndefined()
+  const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8'))
+  const response = await new AstraHttpProvider({ config: { ...configuration.providers[0].config,
+    transformResponse: new URL('../response.mjs', import.meta.url).href } }).callApi('Change the exam time.', { vars: prepared.vars })
+  expect(response.error).toBeUndefined()
+  expect(sent.map(({ message }) => message)).toEqual(['Original exam request', 'Change the exam time.'])
+  expect(sent[0].clientContext).not.toHaveProperty('conversationId')
+  expect(sent[1].clientContext).toEqual({ ...sent[0].clientContext, conversationId })
+  expect(sent[1].history).toEqual([{ role: 'user', content: 'Original exam request' },
+    { role: 'assistant', content: expect.stringContaining('Cholesterol exam') }])
+})
+
 it.each(['valid', 'no-reminder', 'malformed-removal'])(
   'B prepares any removable reminder group for rejection and retains failed setup evidence: %s', async (fault) => {
     offlineCredentials()

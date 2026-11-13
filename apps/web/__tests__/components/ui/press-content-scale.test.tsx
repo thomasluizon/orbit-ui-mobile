@@ -59,10 +59,11 @@ describe('press feedback that keeps the press target on web', () => {
     expect(transition?.value).toBe('scale var(--dur-press) var(--ease-out)')
   })
 
-  it('scales the pressed sheet close the way the kit icon button does', () => {
-    expect(rulesSetting('transform', '.orbit-sheet-close:active')).toEqual([
-      { selectors: ['.orbit-sheet-close:active'], value: 'scale(0.96)', conditions: ['media (prefers-reduced-motion: no-preference)'] },
+  it('scales the glyph of the pressed sheet close by the shared press scale, and never the close control that owns its fill and its target', () => {
+    expect(rulesSetting('scale', '.orbit-sheet-close:active')).toEqual([
+      { selectors: ['.orbit-sheet-close:active > svg'], value: String(orbitalMotion.press.scale), conditions: ['media (prefers-reduced-motion: no-preference)'] },
     ])
+    expect(rulesSetting('transform', '.orbit-sheet-close')).toEqual([])
   })
 
   it('gives the row, check row, checkbox, slider thumb and select option a content layer under their unscaled press target', async () => {

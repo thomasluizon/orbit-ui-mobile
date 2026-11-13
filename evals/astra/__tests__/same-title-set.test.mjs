@@ -1,0 +1,779 @@
+import { afterEach, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { parse } from 'yaml'
+import { loadApiProvider } from 'promptfoo'
+import { tsImport } from 'tsx/esm/api'
+import { behavior, composition } from '../assertions.mjs'
+import { sameTitleProposal, sameTitleReadback } from '../same-title-set.mjs'
+import { sameTitleCard } from '../same-title-card.mjs'
+import { completeSameTitleSet } from '../same-title-set-lifecycle.mjs'
+import { readSameTitleSet } from '../fixtures/same-title-set.mjs'
+import { publicApi } from '../fixtures/api.mjs'
+import { resetFixture } from '../fixtures/reset.mjs'
+import { sameTitleSet } from '../fixtures/names.mjs'
+import AstraHttpProvider from '../http-provider.mjs'
+import parseResponse from '../response.mjs'
+import { chatResponse, preview, toolCall } from './fixtures/producer.mjs'
+import { fixtureFetch } from './fixtures/public-api.mjs'
+import { offlineCredentials } from './fixtures/credentials.mjs'
+import { streams } from './fixtures/same-title-streams.mjs'
+
+const { AnswerBlockController } = await tsImport('../../../packages/shared/src/chat/answer-block-controller.ts', import.meta.url)
+const { QuestionBlockController } = await tsImport('../../../packages/shared/src/chat/question-block-core.ts', import.meta.url)
+const { BlockAnswerSubmission } = await tsImport('../../../packages/shared/src/chat/block-answer-submission.ts', import.meta.url)
+
+const corpus = parse(readFileSync(new URL('../scenarios.yaml', import.meta.url), 'utf8'), { merge: true })
+const family = corpus.filter((entry) => entry.metadata.family === 'same-title-set')
+const controls = corpus.filter((entry) => entry.metadata.family === 'same-title-control')
+const ids = Array.from({ length: 6 }, (_, index) => `22222222-2222-4222-8222-22222222222${index}`)
+const parent = { id: '33333333-3333-4333-8333-333333333333', title: 'Water' }
+const baselineOf = (children) => ({ parent, children: children.map((id, position) => ({ id, title: 'Water - 710ml', position })) })
+const baseline = baselineOf(ids)
+// Producer: orbit-api PendingOperationActionKeys maps apply_account_changes to this wire action key.
+const combinedActionKey = 'applyAccountChanges'
+const operationIds = { deleteHabits: '44444444-4444-4444-8444-444444444441', updateHabits: '44444444-4444-4444-8444-444444444442',
+  [combinedActionKey]: '44444444-4444-4444-8444-444444444443' }
+const policyFor = (id) => structuredClone(corpus.find((entry) => entry.metadata.id === id).vars)
+const client = { supportsParts: true, partKinds: ['choice', 'question'], locale: 'en' }
+
+// Producer shapes (orbit-api 2f49ed78f): a lone bulk tool holds its own operation; a bulk delete and a bulk rename in one
+// turn become one applyAccountChanges operation whose item ids carry the member index in tool-call order.
+function item(entityId, action, title, member) {
+  const field = action === 'deleted'
+    ? { entityId, entityName: 'Water - 710ml', field: 'delete', oldValue: null, newValue: null, valueType: 'action', proposedValue: null, isEditable: false }
+    : { entityId, entityName: 'Water - 710ml', field: 'title', oldValue: 'Water - 710ml', newValue: title, valueType: 'text', proposedValue: title, isEditable: true }
+  return { itemId: member === undefined ? entityId : `${member}/${entityId}`, entityId, entityName: 'Water - 710ml',
+    stateFingerprint: 'state', removesData: action === 'deleted', fields: [field] }
+}
+
+function operations({ deleted, renamed, title, separate, renameFirst }) {
+  const members = [['deleted', deleted], ['renamed', renamed]].filter(([, targets]) => targets.length)
+  if (renameFirst) members.reverse()
+  if (members.length === 2 && !separate) {
+    return [{ ...preview(), id: operationIds[combinedActionKey], capabilityId: 'chat.changes', actionKey: combinedActionKey,
+      displayName: 'Account changes', summary: 'Review account changes',
+      items: members.flatMap(([action, targets], member) => targets.map((id) => item(id, action, title, member))) }]
+  }
+  return members.map(([action, targets]) => {
+    const actionKey = action === 'deleted' ? 'deleteHabits' : 'updateHabits'
+    return { ...preview(), id: operationIds[actionKey], actionKey, displayName: action === 'deleted' ? 'bulk_delete_habits' : 'bulk_update_habits',
+      items: targets.map((id) => item(id, action, title)) }
+  })
+}
+
+// chatBody is the /api/chat response body; respond and held are what response.mjs makes of it.
+const chatBody = (calls, fields, requestId = 'same-title') => ({ ...chatResponse(requestId, calls), aiMessage: '', parts: [], ...fields })
+const parsed = (body, requestId) => parseResponse(body, '', { response: { status: 200, headers: { 'x-orbit-request-id': requestId } } })
+const respond = (calls, fields, requestId = 'same-title') => parsed(chatBody(calls, fields, requestId), requestId)
+
+function heldBody({ deleted = [], renamed = [], title = 'Water - 1.18L', requestId = 'same-title', separate = false, renameFirst = false } = {}) {
+  const calls = []
+  if (deleted.length) calls.push(toolCall('bulk_delete_habits', { habit_ids: deleted }, 'PendingConfirmation', 'delete', { supportsParts: true }, true))
+  if (renamed.length) calls.push(toolCall('bulk_update_habits', { filter: { habit_ids: renamed }, updates: { title } }, 'PendingConfirmation', 'rename', { supportsParts: true }, true))
+  return chatBody(calls, { pendingOperations: operations({ deleted, renamed, title, separate, renameFirst }) }, requestId)
+}
+const held = (targets = {}) => parsed(heldBody(targets), targets.requestId ?? 'same-title')
+
+const persisted = (deleted, renamed, title = 'Water - 1.18L', source = baseline) => ({
+  parent,
+  children: source.children.filter((child) => !deleted.includes(child.id))
+    .map((child) => ({ ...child, title: renamed.includes(child.id) ? title : child.title })),
+})
+const withReadback = (output, deleted, renamed, title, source = baseline) => ({ ...output,
+  sameTitleReadback: { held: structuredClone(source), after: persisted(deleted, renamed, title, source) } })
+
+afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
+
+const classes = ['split', 'subset', 'whole', 'parent-match', 'choice-answer', 'typed-answer', 'typed-repeat', 'count-differs', 'singular',
+  'delete-all', 'rename-last', 'conversation', 'card']
+it.each(['en', 'pt'])('covers every #2127 and #2129 request class in %s with one fixture', (suffix) => {
+  expect(classes.map((name) => family.find((entry) => entry.metadata.id === `same-title-${name}-${suffix}`)?.metadata.fixture))
+    .toEqual(classes.map(() => 'same-title-children'))
+  const localeControls = controls.filter((entry) => entry.metadata.id.endsWith(`-${suffix}`))
+  expect(localeControls.map((entry) => entry.metadata.id)).toEqual([`same-title-control-thanks-${suffix}`, `same-title-control-order-${suffix}`])
+  // Selection.cs GroupIsSettled returns early for a title group of one record, so a control needs the same-titled set.
+  expect(localeControls.map((entry) => [entry.metadata.fixture, entry.vars.sameTitleSet])).toEqual(Array(2).fill(['same-title-children', {}]))
+})
+
+it('keeps the production requests word for word and states each locale once', () => {
+  const production = 'eu tenho 7 habitos chamados Water - 710ml deleta dois desses, e os outros 4 coloca Water - 1.18L'
+  expect(['same-title-split-pt', 'same-title-card-pt'].map((id) => policyFor(id).input)).toEqual([production, production])
+  const conversation = policyFor('same-title-conversation-pt')
+  expect(conversation.history[0].content).toBe(production)
+  expect(conversation.input).toBe('???? caralho cara, eu pedi uma coisa muito simples 2 ultimos habitos vc deleta 4 primeiros habitos chamados water 710ml vc muda pra Water - 1.18L qual a dificuldade?')
+  expect(['same-title-delete-all-en', 'same-title-rename-last-en', 'same-title-delete-all-pt', 'same-title-rename-last-pt'].map((id) => policyFor(id).input))
+    .toEqual(['Delete all my Water - 710ml habits.', 'Rename the last 2 Water - 710ml habits to Water - 1L.',
+      'Apaga todos os meus hábitos Water - 710ml.', 'Renomeia os 2 últimos Water - 710ml para Water - 1L.'])
+  for (const entry of [...family, ...controls]) {
+    expect(entry.metadata.locale).toBe(entry.metadata.id.endsWith('-pt') ? 'pt-BR' : 'en')
+    expect(entry.vars.rubric).toContain(entry.metadata.locale === 'pt-BR' ? 'Brazilian Portuguese' : 'English')
+  }
+})
+
+it('expects one preview, asks no question before it unless an answer is declared, and asks once for singular requests', () => {
+  for (const entry of family.filter((item) => item.vars.composition.mode === 'preview')) {
+    expect(entry.vars.composition.previews, entry.metadata.id).toBe(1)
+    if (entry.vars.composition.allowQuestion) {
+      const { answer } = entry.vars.sameTitleSet
+      expect(entry.vars.expectations.allowed).toContain('ask')
+      expect([...answer.deleted, ...answer.renamed].toSorted()).toEqual([0, 1, 2, 3, 4, 5])
+      expect([answer.deleted.length, answer.renamed.length]).toEqual([entry.vars.sameTitleSet.deleted.count, entry.vars.sameTitleSet.renamed.count])
+      continue
+    }
+    expect(entry.vars.expectations.forbidden).toContain('ask')
+    expect(entry.vars.expectations.allowed).not.toContain('ask')
+  }
+  for (const entry of [...family.filter((item) => item.vars.composition.mode === 'clarification'), ...controls]) {
+    expect(entry.vars.expectations.allowed).toEqual(['query_habits', 'ask'])
+    expect(entry.vars.rubric).toContain('exactly once')
+  }
+  expect(family.filter((entry) => entry.vars.history).map((entry) => entry.vars.history.at(-1).role)).toEqual(Array(8).fill('assistant'))
+})
+
+it('lets only the count and card cases carry one preview note', () => {
+  expect(family.filter((entry) => entry.vars.composition.allowPreviewNote).map((entry) => entry.metadata.id))
+    .toEqual(['same-title-split-en', 'same-title-count-differs-en', 'same-title-card-en', 'same-title-split-pt', 'same-title-count-differs-pt', 'same-title-card-pt'])
+})
+
+it('grades the one combined preview the API held for the real split request', () => {
+  const output = respond([], { pendingOperations: streams.run3.answer.pendingOperations })
+  const vars = { ...policyFor('same-title-split-pt'), sameTitleBaseline: baselineOf(streams.run3.children) }
+  expect(sameTitleProposal(output, vars)).toMatchObject({ pass: true })
+  const [deleted, renamed] = [streams.run3.children.slice(0, 2), streams.run3.children.slice(2)]
+  expect(sameTitleReadback(withReadback(output, deleted, renamed, 'Water - 1.18L', vars.sameTitleBaseline), vars)).toMatchObject({ pass: true })
+  expect(sameTitleReadback(withReadback(output, [], renamed, 'Water - 1.18L', vars.sameTitleBaseline), vars)).toMatchObject({ pass: false })
+  // Run 3 answered "Últimos quatro", so the preview deletes the first two; the ordered answer case expects the last two.
+  expect(sameTitleProposal(output, { ...policyFor('same-title-choice-answer-pt'), sameTitleBaseline: vars.sameTitleBaseline }))
+    .toMatchObject({ pass: false, reason: 'The held preview does not delete exactly the requested habits.' })
+})
+
+it('fails the real preview that held the renames and lost the deletion', () => {
+  const output = respond([], { pendingOperations: streams.run5.answer.pendingOperations })
+  const vars = { ...policyFor('same-title-split-pt'), sameTitleBaseline: baselineOf(streams.run5.children) }
+  expect(sameTitleProposal(output, vars)).toMatchObject({ pass: false, reason: 'Expected one held applyAccountChanges preview, found updateHabits.' })
+})
+
+it('accepts a split preview over any two and four children and the ordered split by position', () => {
+  const split = policyFor('same-title-split-en')
+  const output = held({ deleted: [ids[1], ids[3]], renamed: [ids[0], ids[2], ids[4], ids[5]] })
+  expect(sameTitleProposal(output, { ...split, sameTitleBaseline: baseline })).toMatchObject({ pass: true })
+  const ordered = { ...policyFor('same-title-choice-answer-en'), sameTitleBaseline: baseline }
+  expect(sameTitleProposal(output, ordered).pass).toBe(false)
+  expect(sameTitleProposal(held({ deleted: ids.slice(4), renamed: ids.slice(0, 4) }), ordered).pass).toBe(true)
+  expect(sameTitleProposal(held({ deleted: ids.slice(4), renamed: ids.slice(0, 4), renameFirst: true }), ordered).pass).toBe(true)
+})
+
+it.each([
+  ['two separate held operations', held({ deleted: ids.slice(4), renamed: ids.slice(0, 4), separate: true }), 'Expected one held preview, found 2.'],
+  ['a missing rename', held({ deleted: ids.slice(4) }), 'Expected one held applyAccountChanges preview, found deleteHabits.'],
+  ['a missing deletion', held({ renamed: ids.slice(0, 4) }), 'Expected one held applyAccountChanges preview, found updateHabits.'],
+  ['too few deletions', held({ deleted: ids.slice(5), renamed: ids.slice(0, 4) }), 'The held preview does not delete exactly the requested habits.'],
+  ['a habit in both actions', held({ deleted: ids.slice(3, 5), renamed: ids.slice(0, 4) }), 'A held item repeats a habit or targets something other than a stored same-title child.'],
+  ['the parent as a target', held({ deleted: [ids[4], parent.id], renamed: ids.slice(0, 4) }), 'A held item repeats a habit or targets something other than a stored same-title child.'],
+  ['an unknown habit', held({ deleted: ids.slice(4), renamed: [...ids.slice(0, 3), '55555555-5555-4555-8555-555555555555'] }), 'A held item repeats a habit or targets something other than a stored same-title child.'],
+  ['another title', held({ deleted: ids.slice(4), renamed: ids.slice(0, 4), title: 'Water - 1L' }), 'A held item is neither a deletion nor a rename to the requested title.'],
+  ['no preview', held(), 'Expected one held preview, found 0.'],
+])('rejects the split when it has %s', (_name, output, reason) => {
+  expect(sameTitleProposal(output, { ...policyFor('same-title-split-en'), sameTitleBaseline: baseline })).toMatchObject({ pass: false, reason })
+})
+
+it('rejects a combined preview whose member mixes a deletion and a rename', () => {
+  const output = held({ deleted: ids.slice(4), renamed: ids.slice(0, 4) })
+  output.composition.pendingOperations[0].items[0].itemId = `1/${ids[4]}`
+  expect(sameTitleProposal(output, { ...policyFor('same-title-split-en'), sameTitleBaseline: baseline }))
+    .toMatchObject({ pass: false, reason: 'Each requested action must be one member of the held preview.' })
+})
+
+it.each(['same-title-singular-en', 'same-title-control-thanks-en', 'same-title-control-order-pt'])('accepts %s only without a held operation', (id) => {
+  const policy = { ...policyFor(id), sameTitleBaseline: baseline }
+  expect(sameTitleProposal(held(), policy).pass).toBe(true)
+  expect(sameTitleProposal(held({ renamed: ids.slice(0, 1) }), policy).pass).toBe(false)
+  expect(sameTitleReadback(withReadback(held(), [], []), policy).pass).toBe(true)
+  expect(sameTitleReadback(withReadback(held(), [], ids.slice(0, 1)), policy).pass).toBe(false)
+})
+
+it('requires persisted evidence that matches the approved deletions and renames', () => {
+  const policy = { ...policyFor('same-title-split-en'), sameTitleBaseline: baseline }
+  const deleted = ids.slice(4)
+  const renamed = ids.slice(0, 4)
+  const output = held({ deleted, renamed })
+  expect(sameTitleReadback(output, policy).pass).toBe(false)
+  expect(sameTitleReadback(withReadback(output, deleted, renamed), policy).pass).toBe(true)
+  const broken = [
+    ['a held preview that changed a habit', (copy) => { copy.sameTitleReadback.held.children[0].title = 'Changed' }],
+    ['a renamed parent', (copy) => { copy.sameTitleReadback.after.parent.title = 'Water - 1.18L' }],
+    ['a deleted child that remains', (copy) => { copy.sameTitleReadback.after.children.push(baseline.children[5]) }],
+    ['a rename that never landed', (copy) => { copy.sameTitleReadback.after.children[0].title = 'Water - 710ml' }],
+    ['a child lost without approval', (copy) => { copy.sameTitleReadback.after.children.shift() }],
+  ]
+  for (const [name, change] of broken) {
+    const copy = structuredClone(withReadback(output, deleted, renamed))
+    change(copy)
+    expect(sameTitleReadback(copy, policy).pass, name).toBe(false)
+  }
+})
+
+const positionsOf = (action, fromEnd) => action.positions ?? Array.from({ length: action.count }, (_, index) => fromEnd ? 6 - action.count + index : index)
+it('connects both graders to the production behavior assertion for every preview case', () => {
+  for (const entry of family.filter((item) => item.vars.composition.mode === 'preview')) {
+    const { deleted, renamed } = entry.vars.sameTitleSet
+    const deletedIds = deleted ? positionsOf(deleted, true).map((position) => ids[position]) : []
+    const renamedIds = renamed ? positionsOf(renamed, false).map((position) => ids[position]) : []
+    const output = held({ deleted: deletedIds, renamed: renamedIds, title: renamed?.title })
+    const context = { vars: { ...entry.vars, evalRequestId: 'same-title', sameTitleBaseline: baseline } }
+    expect(behavior(output, context).pass, entry.metadata.id).toBe(false)
+    expect(behavior(withReadback(output, deletedIds, renamedIds, renamed?.title), context).pass, entry.metadata.id).toBe(true)
+  }
+})
+
+// Real first-turn cards of the 13 November 2026 staging runs. A set option covers only the ids its ask call declares.
+const cardVars = (children, locale = 'pt-BR') => ({ ...policyFor(locale === 'en' ? 'same-title-card-en' : 'same-title-card-pt'),
+  sameTitleBaseline: baselineOf(children), clientContext: { ...client, locale } })
+const askTrace = (targets) => ({ calls: [{ id: 'ask', name: 'ask', resultStatus: 'Succeeded',
+  arguments: { input: { form: 'choice', options: Object.entries(targets).map(([id, target_ids]) => ({ id, label: id, description: null, target_ids })) } } }] })
+const shown = (card, trace = { calls: [] }) => ({ composition: { parts: [card] }, trace })
+const run2Options = streams.run2.card.block.questions[0].options.map((option) => option.id)
+const unstored = '9b610c68-0080-417a-80b1-a3f9c3fbc810'
+const syntheticChildren = Array.from({ length: 6 }, (_, index) => `66666666-6666-4666-8666-66666666666${index}`)
+
+it.each([
+  ['run 2 names a record that is not a stored child', shown(streams.run2.card), [...run2Options.filter((id) => id !== unstored), syntheticChildren[5]],
+    'A card option names a record that is not a stored same-title child.'],
+  ['run 2 takes one record for a question about two', shown(streams.run2.card), run2Options, 'No selection the card allows states the whole decision.'],
+  ['run 4 offers four of six records', shown(streams.run4.card, askTrace(Object.fromEntries(['habit1', 'habit2', 'habit3', 'habit4']
+    .map((id, index) => [id, [syntheticChildren[index]]])))), syntheticChildren, 'The card lets the person select 4 of the 6 same-title children.'],
+  ['run 4 without declared targets', shown(streams.run4.card), syntheticChildren, 'The card lets the person select 0 of the 6 same-title children.'],
+  ['run 5 leaves the middle two unselectable', shown(streams.run5.card, askTrace({ first: streams.run5.children.slice(0, 2), last: streams.run5.children.slice(4) })),
+    streams.run5.children, 'The card lets the person select 4 of the 6 same-title children.'],
+  ['run 3 without declared targets', shown(streams.run3.card), streams.run3.children, 'The card lets the person select 0 of the 6 same-title children.'],
+])('fails a card that cannot hold the answer: %s', (_name, output, children, reason) => {
+  expect(sameTitleCard(output, cardVars(children))).toMatchObject({ pass: false, reason })
+})
+
+// Producer: the web and mobile question blocks pass t('common.yes') and t('common.no') of the shared catalog as the words.
+const appWords = (locale) => {
+  const { common } = JSON.parse(readFileSync(new URL(`../../../packages/shared/src/i18n/${locale}.json`, import.meta.url), 'utf8'))
+  return { yes: common.yes, no: common.no, answered: String }
+}
+
+// The real client submission: the card's controller hands its labels and answer to BlockAnswerSubmission.send, whose
+// request is the message and blockAnswer the chat endpoint receives. A yesNo question takes a boolean, as the
+// question-controls row does with setAnswer; a choice question takes the ids it selects.
+async function clientAnswer(part, selected, locale) {
+  let posted
+  const chat = { isTyping: false, streamingMessageId: null, messages: [] }
+  const submission = new BlockAnswerSubmission()
+  const context = { isOnline: true, atMessageLimit: false, locale, getChat: () => chat, createMessageId: () => 'answer', beginSend() {},
+    conversation: { astraConversationOpen: true }, refreshProfile: async () => {}, words: { answered: String },
+    run: async (request) => { posted = request; return { kind: 'final' } } }
+  const interaction = { isOnline: true, isSending: false, atMessageLimit: false, allowance: 1, send: (request) => submission.send(request, context) }
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date('2026-11-13T05:00:00Z'))
+  try {
+    if (part.kind === 'choice') {
+      const controller = new AnswerBlockController({ definition: part })
+      for (const id of selected) controller.check(id, true)
+      await controller.submit({ definition: part, interaction }, String, locale)
+    } else {
+      const controller = new QuestionBlockController()
+      for (const question of part.block.questions) {
+        if (question.type === 'yesNo') controller.setAnswer(question, { boolean: selected[question.id] })
+        else for (const id of selected[question.id] ?? []) controller.select(question, id)
+      }
+      await controller.submit({ block: part.block, interaction }, appWords(locale), locale)
+    }
+  } finally { vi.useRealTimers() }
+  return { message: posted.content, blockAnswer: posted.blockAnswer }
+}
+const sentBy = ({ message, blockAnswer }) => ({ message, blockAnswer })
+
+it('answers a card that can hold the decision with the message and selection the client sends', async () => {
+  const children = streams.run3.children
+  const run3 = sameTitleCard(shown(streams.run3.card, askTrace({ setA: children.slice(0, 4), setB: children.slice(2), all6: children })), cardVars(children))
+  const run3Sent = await clientAnswer(streams.run3.card, ['setA'], 'pt-BR')
+  expect(run3Sent.message).toBe('Primeiros quatro')
+  expect(run3.pass).toBe(true)
+  expect(sentBy(run3)).toEqual(run3Sent)
+  const records = (prompt) => ({ type: 'block', kind: 'question', block: { blockId: '77777777-7777-4777-8777-777777777777', questions: [{ id: 'pick',
+    type: 'multipleChoice', prompt, allowFreeText: false, options: ids.map((id, index) => ({ id, label: `${index + 1}º` })) }] } })
+  const deleteCard = records('Quais dois você quer excluir?')
+  const deleteSent = await clientAnswer(deleteCard, { pick: ids.slice(4) }, 'pt-BR')
+  expect(deleteSent.message).toBe('Quais dois você quer excluir?: 5º e 6º')
+  const deletion = sameTitleCard(shown(deleteCard), cardVars(ids))
+  expect(deletion.pass).toBe(true)
+  expect(sentBy(deletion)).toEqual(deleteSent)
+  const keepCard = records('Which four do you want to keep?')
+  const keepSent = await clientAnswer(keepCard, { pick: ids.slice(0, 4) }, 'en')
+  expect(keepSent.message).toBe('Which four do you want to keep?: 1º, 2º, 3º, and 4º')
+  const keep = sameTitleCard(shown(keepCard), cardVars(ids, 'en'))
+  expect(keep.pass).toBe(true)
+  expect(sentBy(keep)).toEqual(keepSent)
+  expect(sameTitleCard({ composition: { parts: [{ type: 'text', text: 'Which two should I delete?' }] }, trace: { calls: [] } }, cardVars(ids, 'en')))
+    .toEqual(expect.objectContaining({ pass: true, message: 'Delete the last 2 and rename the first 4' }))
+})
+
+const choiceCard = (options, question = 'Which two do you want to delete?') => ({ type: 'block', kind: 'choice',
+  block: { blockId: '88888888-8888-4888-8888-888888888888', question, options: options.map(({ id, label }) => ({ id, label, description: null })),
+    multiSelect: false, allowFreeText: false, expiresAtUtc: '2026-11-14T04:33:04Z' } })
+
+// Producer: AiChoiceSelection.TargetsOf (orbit-api 2f49ed78f) reads an option's target_ids first, and the option's own id
+// only when the option declares none; so declared targets win over an id that is a stored child or another GUID.
+it.each([
+  ['a stored child', ids[4]],
+  ['a GUID that is not a stored child', unstored],
+])('resolves a set option whose id is %s by its declared target_ids, as the API does', async (_name, id) => {
+  const card = choiceCard([{ id, label: 'Last two' }, { id: 'firstFour', label: 'First four' }])
+  const answer = sameTitleCard(shown(card, askTrace({ [id]: ids.slice(4), firstFour: ids.slice(0, 4) })), cardVars(ids, 'en'))
+  expect(answer).toMatchObject({ pass: true, reason: 'The card can hold the whole decision.' })
+  expect(sentBy(answer)).toEqual(await clientAnswer(card, [id], 'en'))
+})
+
+it('gives an option whose id is the empty GUID and that declares no targets no record, as the API does', () => {
+  const card = choiceCard([{ id: 'lastTwo', label: 'Last two' }, { id: 'firstFour', label: 'First four' },
+    { id: '00000000-0000-0000-0000-000000000000', label: 'Other' }])
+  expect(sameTitleCard(shown(card, askTrace({ lastTwo: ids.slice(4), firstFour: ids.slice(0, 4) })), cardVars(ids, 'en')))
+    .toMatchObject({ pass: true, blockAnswer: { blockId: card.block.blockId, selectedIds: ['lastTwo'] } })
+})
+
+const questionCard = (children, prompt, type = 'multipleChoice') => ({ type: 'block', kind: 'question', block: { blockId: '77777777-7777-4777-8777-777777777777',
+  expiresAtUtc: '2026-11-14T04:33:04Z', questions: [{ id: 'pick', type, prompt, allowFreeText: false,
+    options: children.map((id, index) => ({ id, label: `${index + 1}st` })) }] } })
+// A record card with a second question that is not a choice: orbit-api AskTool accepts yesNo, scale and slider questions.
+const withQuestion = (card, question) => ({ ...card, block: { ...card.block,
+  questions: [...card.block.questions, { id: 'second', allowFreeText: false, ...question }] } })
+
+// A record card lets the person select either half of the decision, so the grader answers the half its question asks
+// about: the action the question names, else the count it states. The production request's verb is "coloca".
+it.each([
+  ['an English rename verb and count', 'Which four should I change to Water - 1.18L?', 'en'],
+  ['a Portuguese rename verb and count', 'Quais quatro eu coloco como Water - 1.18L?', 'pt-BR'],
+  ['an English rename verb alone', 'Which ones should become Water - 1.18L?', 'en'],
+  ['a Portuguese rename verb alone', 'Quais você quer trocar para Water - 1.18L?', 'pt-BR'],
+  ['an English count alone', 'Which four of them?', 'en'],
+  ['a Portuguese count alone', 'Quais quatro deles?', 'pt-BR'],
+])('answers a record card whose question carries %s with the renamed half', async (_name, prompt, locale) => {
+  const card = questionCard(ids, prompt)
+  const answer = sameTitleCard(shown(card), cardVars(ids, locale))
+  expect(answer).toMatchObject({ pass: true, reason: 'The card can hold the whole decision.' })
+  expect(sentBy(answer)).toEqual(await clientAnswer(card, { pick: ids.slice(0, 4) }, locale))
+})
+
+it.each([
+  ['names no action and no count', 'Which ones do you mean?', 'en'],
+  ['names no action and no count', 'Quais deles?', 'pt-BR'],
+  ['names an action that its count contradicts', 'Which four should I delete?', 'en'],
+  ['asks about both halves, as the real run 3 card did', streams.run3.card.block.question, 'pt-BR'],
+])('reports a grader limit, not a model fault, for a record card whose question %s', (_name, prompt, locale) => {
+  expect(sameTitleCard(shown(questionCard(ids, prompt)), cardVars(ids, locale))).toEqual({ pass: false, score: 0,
+    reason: `The grader cannot tell which action the card question asks about (delete or rename): ${prompt}` })
+})
+
+// The record list states one half and a yesNo question proposes the rename of the other half, so the card holds the whole
+// decision. IsValidAnswer (orbit-api AiQuestions) needs one answer per question, so the yesNo question is answered too.
+// A keep word beside a real rename verb still proposes the rename.
+it.each([
+  ['en', 'a rename verb', 'Which two should I delete?', 'Rename the other four to Water - 1.18L?',
+    'Which two should I delete?: 5st and 6st and Rename the other four to Water - 1.18L?: Yes'],
+  ['pt-BR', 'a rename verb', 'Quais dois eu excluo?', 'Renomeio os outros quatro para Water - 1.18L?',
+    'Quais dois eu excluo?: 5st e 6st e Renomeio os outros quatro para Water - 1.18L?: Sim'],
+  ['en', 'keep and a rename verb', 'Which two should I delete?', 'Keep the other four and rename them to Water - 1.18L?',
+    'Which two should I delete?: 5st and 6st and Keep the other four and rename them to Water - 1.18L?: Yes'],
+  ['pt-BR', 'manter and a rename verb', 'Quais dois eu excluo?', 'Mantenho os outros quatro e renomeio para Water - 1.18L?',
+    'Quais dois eu excluo?: 5st e 6st e Mantenho os outros quatro e renomeio para Water - 1.18L?: Sim'],
+])('answers a %s record card whose yes or no question proposes the other half with %s with yes, as the client sends it', async (locale, _name, prompt, confirm, message) => {
+  const card = withQuestion(questionCard(ids, prompt), { type: 'yesNo', prompt: confirm })
+  const sent = await clientAnswer(card, { pick: ids.slice(4), second: true }, locale)
+  expect(sent.message).toBe(message)
+  expect(sent.blockAnswer.answers).toEqual([{ questionId: 'pick', selectedIds: ids.slice(4) }, { questionId: 'second', boolean: true }])
+  const answer = sameTitleCard(shown(card), cardVars(ids, locale))
+  expect(answer).toMatchObject({ pass: true, reason: 'The card can hold the whole decision.' })
+  expect(sentBy(answer)).toEqual(sent)
+})
+
+const cannotTell = 'The grader cannot tell which action the card question asks about (delete or rename)'
+it.each([
+  ['a yes or no question that names no action', { type: 'yesNo', prompt: 'Is that right?' }, 'en', cannotTell],
+  ['a yes or no question that names no action', { type: 'yesNo', prompt: 'Está certo?' }, 'pt-BR', cannotTell],
+  ['a yes or no question that names both actions', { type: 'yesNo', prompt: 'Delete those and rename the rest?' }, 'en', cannotTell],
+  ['a yes or no question about the half the records state', { type: 'yesNo', prompt: 'Delete those two?' }, 'en',
+    'The grader cannot answer a yes or no card question about the half the selection states'],
+  // A count names the half, never the action: yes to a prompt of no change would tell the assistant not to rename the four.
+  ['a yes or no question that leaves the other half as it is', { type: 'yesNo', prompt: 'Leave the other four as they are?' }, 'en', cannotTell],
+  ['a yes or no question that keeps the other half unchanged', { type: 'yesNo', prompt: 'Should the other four stay unchanged?' }, 'en', cannotTell],
+  ['a yes or no question that keeps the other half as it is', { type: 'yesNo', prompt: 'Os outros quatro ficam como estão?' }, 'pt-BR', cannotTell],
+  ['a yes or no question whose only verb is keep', { type: 'yesNo', prompt: 'Keep the other four as they are?' }, 'en', cannotTell],
+  ['a yes or no question whose only verb is manter', { type: 'yesNo', prompt: 'Mantenho os outros quatro como estão?' }, 'pt-BR', cannotTell],
+  ['a yes or no question that names the title and no rename verb', { type: 'yesNo', prompt: 'Keep the title of the other four?' }, 'en', cannotTell],
+  ['a yes or no question that negates the rename', { type: 'yesNo', prompt: "Don't rename the other four?" }, 'en', cannotTell],
+  ['a yes or no question that negates the rename', { type: 'yesNo', prompt: 'Deixo os outros quatro sem renomear?' }, 'pt-BR', cannotTell],
+  ['a yes or no question that offers the rename as one alternative', { type: 'yesNo', prompt: 'Rename the other four or leave them?' }, 'en', cannotTell],
+  ['a yes or no question that offers the rename as one alternative', { type: 'yesNo', prompt: 'Renomeio os outros quatro ou deixo como estão?' }, 'pt-BR', cannotTell],
+  ['a yes or no question whose count contradicts its verb', { type: 'yesNo', prompt: 'Rename the other two?' }, 'en', cannotTell],
+  ['a scale question', { type: 'scale', prompt: 'How sure are you?', lowLabel: 'Unsure', highLabel: 'Sure' }, 'en',
+    'The grader cannot answer a scale card question'],
+  ['a slider question', { type: 'slider', prompt: 'Quantos ml?', min: 0, max: 2000, step: 10, unit: 'ml' }, 'pt-BR',
+    'The grader cannot answer a slider card question'],
+])('reports a grader limit, not a model fault, for a record card with %s', (_name, question, locale, limit) => {
+  const card = withQuestion(questionCard(ids, 'Which two should I delete?'), question)
+  expect(sameTitleCard(shown(card), cardVars(ids, locale))).toEqual({ pass: false, score: 0, reason: `${limit}: ${question.prompt}` })
+})
+
+// The model-fault wording stays for a card the grader reads in full: a single-choice record list cannot select two.
+it.each([
+  ['a readable yes or no question', { type: 'yesNo', prompt: 'Rename the other five?' }, 'No selection the card allows states the whole decision.'],
+  ['a scale question', { type: 'scale', prompt: 'How sure are you?', lowLabel: 'Unsure', highLabel: 'Sure' },
+    'The grader cannot answer a scale card question: How sure are you?'],
+])('fails a single-choice record list beside %s by what the grader can read', (_name, question, reason) => {
+  const card = withQuestion(questionCard(ids, 'Which one should I delete?', 'singleChoice'), question)
+  expect(sameTitleCard(shown(card), cardVars(ids, 'en'))).toEqual({ pass: false, score: 0, reason })
+})
+
+it('answers a set-option card whose question names no action and no count with the one half its options state', async () => {
+  const card = choiceCard([{ id: 'firstTwo', label: 'Delete the first two' }, { id: 'middleTwo', label: 'Delete the middle two' },
+    { id: 'lastTwo', label: 'Delete the last two' }], 'What should I do?')
+  const targets = { firstTwo: ids.slice(0, 2), middleTwo: ids.slice(2, 4), lastTwo: ids.slice(4) }
+  const answer = sameTitleCard(shown(card, askTrace(targets)), cardVars(ids, 'en'))
+  expect(answer).toMatchObject({ pass: true, reason: 'The card can hold the whole decision.' })
+  expect(sentBy(answer)).toEqual(await clientAnswer(card, ['lastTwo'], 'en'))
+})
+
+it('lets a card case show one question and keeps every other preview case strict', () => {
+  const card = questionCard(ids, 'Which two do you want to delete?')
+  const context = (id) => ({ vars: { ...policyFor(id), clientContext: client } })
+  expect(composition(respond([], { parts: [card] }), context('same-title-card-en'))).toMatchObject({ pass: true })
+  expect(composition(respond([], { parts: [card] }), context('same-title-split-en'))).toMatchObject({ pass: false, reason: 'Missing batch preview.' })
+  expect(composition(respond([], { parts: [card, card] }), context('same-title-card-en')).pass).toBe(false)
+  const text = 'Which two of the six should I delete?'
+  expect(composition(respond([], { aiMessage: text, parts: [{ type: 'text', text }] }), context('same-title-card-en')).pass).toBe(true)
+  expect(composition(held({ deleted: ids.slice(4), renamed: ids.slice(0, 4) }), context('same-title-card-en')).pass).toBe(true)
+})
+
+// Producer: orbit-api ProcessUserChatCommand.SelectionCard.cs (1cf3559). HoldTheAnswer completes a record_selection card
+// that does not name every member of the same-titled group, and CompleteRecordCard sends it over more than 4 records (a
+// choice holds 4 options at most, AskTool.cs) as one question block with one `records` question: singleChoice when the
+// request names one habit, one option per record in read order, its id the record id and its label "<title> (<n> of
+// <count>)", or "<title> (<n>º de <count>)" in Portuguese. AiQuestionBlock omits the empty title, and AiQuestionOption
+// omits recommended=false.
+const recordsCard = (group, offered = group, locale = 'en') => ({ type: 'block', kind: 'question', block: {
+  blockId: '99999999-9999-4999-8999-999999999999', expiresAtUtc: '2026-11-14T04:33:04Z', questions: [{ id: 'records',
+    type: 'singleChoice', prompt: locale === 'en' ? 'Which Water - 710ml habit do you want to rename?' : 'Qual hábito Water - 710ml você quer renomear?',
+    allowFreeText: false, options: offered.map((id) => ({ id, label: `Water - 710ml (${locale === 'en'
+      ? `${group.indexOf(id) + 1} of ${group.length}` : `${group.indexOf(id) + 1}º de ${group.length}`})` })) }] } })
+const clarifications = ['singular', 'control-thanks', 'control-order'].flatMap((name) => ['en', 'pt'].map((suffix) => `same-title-${name}-${suffix}`))
+
+const clarificationContext = (id) => ({ vars: { ...policyFor(id), evalRequestId: 'same-title',
+  clientContext: { ...client, locale: id.endsWith('-pt') ? 'pt-BR' : 'en' }, sameTitleBaseline: baseline } })
+
+it.each(clarifications)('accepts %s when it asks once with the records card the API sends, or in plain text', (id) => {
+  const context = clarificationContext(id)
+  const { locale } = context.vars.clientContext
+  expect(policyFor(id).composition).toEqual({ mode: 'clarification' })
+  expect(policyFor(id).rubric).toContain('either in plain text with no block or in exactly one question card that offers each of the six children as a separate option.')
+  const text = locale === 'en' ? 'Which of the six Water - 710ml habits do you mean?' : 'Qual dos seis hábitos Water - 710ml você quer dizer?'
+  for (const output of [respond([], { parts: [recordsCard(ids, ids, locale)] }), respond([], { aiMessage: text, parts: [{ type: 'text', text }] })]) {
+    expect(composition(output, context)).toMatchObject({ pass: true })
+    expect(behavior(withReadback(output, [], []), context)).toMatchObject({ pass: true })
+  }
+})
+
+// composition keeps the generic card rule: one choice or question card and no write. behavior grades whether the one card
+// offers each of the six children, because a choice holds 4 options at most: it offers some of them, or all only in sets.
+it.each(clarifications)('fails %s for a card that writes or a second card in composition, and for a card that does not offer each of the six in behavior', (id) => {
+  const context = clarificationContext(id)
+  const { locale } = context.vars.clientContext
+  const oneCard = 'Clarification requires plain text without a block or exactly one choice or question card without a write.'
+  const offers = (count) => `The card offers ${count} of the 6 same-title children as separate options.`
+  const card = recordsCard(ids, ids, locale)
+  const writes = held({ renamed: ids.slice(0, 1) })
+  writes.composition.parts = [card]
+  expect(composition(writes, context)).toMatchObject({ pass: false, reason: oneCard })
+  expect(behavior(writes, context)).toMatchObject({ pass: false })
+  expect(sameTitleProposal(writes, context.vars)).toMatchObject({ pass: false, reason: 'The singular request held a change before its answer.' })
+  expect(composition(respond([], { parts: [card, choiceCard(ids.slice(0, 2).map((option) => ({ id: option, label: option.slice(0, 8) })))] }), context))
+    .toMatchObject({ pass: false, reason: oneCard })
+  const pairs = choiceCard([{ id: 'firstTwo', label: 'First two' }, { id: 'middleTwo', label: 'Middle two' }, { id: 'lastTwo', label: 'Last two' }])
+  const pairTargets = { firstTwo: ids.slice(0, 2), middleTwo: ids.slice(2, 4), lastTwo: ids.slice(4) }
+  const askPairs = toolCall('ask', { input: { form: 'choice', question: pairs.block.question, options: Object.entries(pairTargets)
+    .map(([option, target_ids]) => ({ id: option, label: option, description: null, target_ids })) } }, 'Succeeded', 'ask', client)
+  const yesNo = { ...card, block: { ...card.block, questions: [{ id: 'confirm', type: 'yesNo', prompt: 'Rename one of them?', allowFreeText: false }] } }
+  const partial = [
+    [respond([], { parts: [recordsCard(ids, ids.slice(0, 4), locale)] }), 4],
+    [respond([], { parts: [choiceCard(ids.slice(0, 4).map((option, index) => ({ id: option, label: `${index + 1}st` })))] }), 4],
+    [respond([askPairs], { parts: [pairs] }), 0],
+    [respond([], { parts: [yesNo] }), 0],
+  ]
+  for (const [output, count] of partial) {
+    expect(composition(output, context)).toMatchObject({ pass: true })
+    expect(behavior(withReadback(output, [], []), context)).toEqual({ pass: false, score: 0, reason: offers(count) })
+  }
+})
+
+let habits, requests, pendingTargets
+function boundary(failure) {
+  offlineCredentials()
+  vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://orbit-api-staging-uqu2.onrender.com')
+  vi.stubEnv('ORBIT_EVAL_TOKEN', 'pro-access')
+  habits = []
+  requests = []
+  const fixture = fixtureFetch(() => ({ habits, goals: [], tags: [], templates: [], requests, pro: true, exhausted: false, capacity: 100,
+    email: 'thomaslrgregorio+orbit-eval-pro@gmail.com', unmetered: true }))
+  vi.stubGlobal('fetch', async (url, options) => {
+    const path = new URL(url).pathname
+    if (!path.startsWith('/api/ai/')) return fixture(url, options)
+    const body = options.body ? JSON.parse(options.body) : undefined
+    // Producer: confirm reads clientContext from the query, execute from the body (AiController).
+    const clientContext = path.endsWith('/confirm') ? JSON.parse(new URL(url).searchParams.get('clientContext')) : body?.clientContext
+    requests.push({ path, body, clientContext })
+    if (path.endsWith('/confirm')) return Response.json({ pendingOperationId: failure === 'unbound' ? operationIds.deleteHabits : path.split('/')[4],
+      confirmationToken: 'private-confirmation-token' })
+    if (failure !== 'ignored') {
+      for (const habit of habits) {
+        if (pendingTargets.deleted.includes(habit.id)) habit.deleted = true
+        if (pendingTargets.renamed.includes(habit.id)) habit.title = 'Water - 1.18L'
+      }
+    }
+    return Response.json({ operation: {}, pendingOperation: null, policyDenial: null })
+  })
+}
+
+async function seeded(entryId) {
+  const test = { metadata: { locale: 'en', fixture: 'same-title-children' }, vars: { credentialKey: 'ORBIT_EVAL_TOKEN' } }
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date('2026-10-24T12:00:00Z'))
+  await resetFixture(test)
+  vi.useRealTimers()
+  return { ...policyFor(entryId), ...test.vars, evalRequestId: 'same-title', clientContext: client }
+}
+
+it('seeds one parent with six ordered same-title children and keeps both registered roots', async () => {
+  boundary()
+  const policy = await seeded('same-title-split-en')
+  const active = habits.filter((habit) => !habit.deleted)
+  expect(active).toHaveLength(8)
+  expect(active.filter((habit) => !habit.parentHabitId).map((habit) => habit.title).toSorted()).toEqual(['Walk', 'Water'])
+  expect(policy.sameTitleBaseline.parent.title).toBe(sameTitleSet.parent)
+  expect(policy.sameTitleBaseline.children.map(({ title, position }) => ({ title, position })))
+    .toEqual(Array.from({ length: 6 }, (_, position) => ({ title: sameTitleSet.child, position })))
+  expect(active.filter((habit) => habit.parentHabitId === policy.sameTitleBaseline.parent.id)).toHaveLength(6)
+  expect(policy.fixtureEvidence.habits).toHaveLength(8)
+  expect(requests.filter(({ method, path }) => method === 'DELETE' && path.startsWith('habits/'))).toEqual([])
+  expect(requests.some(({ path }) => path.startsWith('chat') || path.startsWith('/api/ai/'))).toBe(false)
+})
+
+const aiWrites = () => requests.filter(({ path }) => path.startsWith('/api/ai/')).map(({ path }) => path.split('/').at(-1))
+
+it.each(['approve', 'ignored'])('runs the split preview through the HTTP provider with %s', async (failure) => {
+  boundary(failure)
+  const policy = await seeded('same-title-split-en')
+  const children = policy.sameTitleBaseline.children.map((child) => child.id)
+  pendingTargets = { deleted: children.slice(4), renamed: children.slice(0, 4) }
+  requests.length = 0
+  const provider = new AstraHttpProvider({ config: {} })
+  provider.provider = Promise.resolve({ callApi: async () => ({ output: held({ deleted: children.slice(4), renamed: children.slice(0, 4) }) }) })
+  const response = await provider.callApi('split', { vars: policy })
+  expect(response.error).toBeUndefined()
+  expect(sameTitleReadback(response.output, policy).pass).toBe(failure === 'approve')
+  expect(aiWrites()).toEqual(['confirm', 'execute'])
+  expect(requests.find(({ path }) => path.endsWith('/execute')).path).toContain(operationIds[combinedActionKey])
+  expect(JSON.stringify(response)).not.toContain('private-confirmation-token')
+  if (failure === 'approve') expect(await readSameTitleSet(publicApi('ORBIT_EVAL_TOKEN'), policy.sameTitleBaseline.parent.id))
+    .toEqual({ parent: policy.sameTitleBaseline.parent, children: expect.arrayContaining([expect.objectContaining({ title: 'Water - 1.18L' })]) })
+})
+
+it('never executes a confirmation bound to another pending operation', async () => {
+  boundary('unbound')
+  const policy = await seeded('same-title-split-en')
+  const children = policy.sameTitleBaseline.children.map((child) => child.id)
+  pendingTargets = { deleted: children.slice(4), renamed: children.slice(0, 4) }
+  requests.length = 0
+  const provider = new AstraHttpProvider({ config: {} })
+  provider.provider = Promise.resolve({ callApi: async () => ({ output: held({ deleted: children.slice(4), renamed: children.slice(0, 4) }) }) })
+  const response = await provider.callApi('split', { vars: policy })
+  expect(response.error).toBe('Same-title approval or independent persisted readback failed: Approval confirmation lacks its bound token.')
+  expect(aiWrites()).toEqual(['confirm'])
+  expect(habits.filter((habit) => habit.deleted || habit.title === 'Water - 1.18L')).toHaveLength(0)
+})
+
+it('keeps chat() to one request that approves nothing, so an answer turn cannot start the same-title lifecycle', async () => {
+  boundary()
+  const policy = await seeded('same-title-split-en')
+  const children = policy.sameTitleBaseline.children.map((child) => child.id)
+  pendingTargets = { deleted: children.slice(4), renamed: children.slice(0, 4) }
+  requests.length = 0
+  let calls = 0
+  const provider = new AstraHttpProvider({ config: {} })
+  provider.provider = Promise.resolve({ callApi: async () => {
+    calls++
+    return { output: held({ deleted: children.slice(4), renamed: children.slice(0, 4) }) }
+  } })
+  const response = await provider.chat('split', { vars: policy })
+  expect(response.error).toBeUndefined()
+  expect(calls).toBe(1)
+  expect(response.output.sameTitleReadback).toBeUndefined()
+  expect(aiWrites()).toEqual([])
+})
+
+it('never approves malformed tool evidence or a preview with the wrong targets', async () => {
+  boundary()
+  const policy = await seeded('same-title-split-en')
+  const children = policy.sameTitleBaseline.children.map((child) => child.id)
+  requests.length = 0
+  const malformed = held({ deleted: children.slice(4), renamed: children.slice(0, 4) })
+  malformed.trace.responseRequestId = 'other-request'
+  await completeSameTitleSet(malformed, policy)
+  await completeSameTitleSet(held({ deleted: children.slice(5), renamed: children.slice(0, 4) }), policy)
+  expect(requests).toHaveLength(0)
+})
+
+async function cardAttempt(firstTurn, answerTurn) {
+  const policy = await seeded('same-title-card-en')
+  const children = policy.sameTitleBaseline.children.map((child) => child.id)
+  pendingTargets = { deleted: children.slice(4), renamed: children.slice(0, 4) }
+  requests.length = 0
+  const answered = []
+  const provider = new AstraHttpProvider({ config: {} })
+  provider.provider = Promise.resolve({ callApi: async () => ({ output: firstTurn(children) }) })
+  provider.answerProvider = Promise.resolve({ callApi: async (prompt, { vars }) => {
+    answered.push({ prompt, vars })
+    return { output: answerTurn(children, vars.evalRequestId) }
+  } })
+  return { policy, children, answered, response: await provider.callApi(policy.input, { vars: policy }) }
+}
+
+it('answers a card that holds the decision, then approves the one preview of the answer turn', async () => {
+  boundary()
+  const { policy, children, answered, response } = await cardAttempt((children) => respond([], { parts: [questionCard(children, 'Which two do you want to delete?')] }),
+    (children, requestId) => held({ deleted: children.slice(4), renamed: children.slice(0, 4), requestId }))
+  expect(response.error).toBeUndefined()
+  expect(answered).toHaveLength(1)
+  const sent = await clientAnswer(questionCard(children, 'Which two do you want to delete?'), { pick: children.slice(4) }, 'en')
+  expect(sent.message).toBe('Which two do you want to delete?: 5st and 6st')
+  expect(answered[0].prompt).toBe(sent.message)
+  expect(JSON.parse(answered[0].vars.blockAnswerJson)).toEqual(sent.blockAnswer)
+  // The answer turn keeps the case's vars: chat() is one request, so no var stops it from starting the lifecycle again.
+  expect(answered[0].vars.sameTitleSet).toEqual(policy.sameTitleSet)
+  expect(answered[0].vars.evalRequestId).not.toBe(policy.evalRequestId)
+  expect(JSON.parse(answered[0].vars.historyJson)).toEqual([{ role: 'user', content: policy.input },
+    { role: 'assistant', content: expect.stringContaining('"kind":"question"') }])
+  expect(response.output.sameTitleAnswer.checks.map(({ metric, pass }) => [metric, pass]))
+    .toEqual([['structural', true], ['behavior', true], ['composition', true]])
+  expect(aiWrites()).toEqual(['confirm', 'execute'])
+  expect(behavior(response.output, { vars: policy })).toMatchObject({ pass: true })
+})
+
+// The client takes conversationId from each response (settleComposerResponse) and sends it in clientContext on the next turn,
+// confirm and execute; with conversation recording on, the API then answers from the stored conversation, not the history.
+it.each(['card', 'preview'])('sends the conversation id the first response returned on every later %s call', async (shape) => {
+  boundary()
+  const { conversationId } = streams.run3
+  const answer = (children, requestId) => {
+    const output = held({ deleted: children.slice(4), renamed: children.slice(0, 4), requestId })
+    return { ...output, composition: { ...output.composition, conversationId } }
+  }
+  const { policy, answered, response } = shape === 'card'
+    ? await cardAttempt((children) => respond([], { parts: [questionCard(children, 'Which two do you want to delete?')], conversationId }), answer)
+    : await cardAttempt((children) => answer(children, 'same-title'), answer)
+  expect(response.error).toBeUndefined()
+  expect(policy.clientContext).not.toHaveProperty('conversationId')
+  const continued = { ...policy.clientContext, conversationId }
+  expect(answered.map(({ vars }) => [vars.clientContext, vars.clientContextJson]))
+    .toEqual(shape === 'card' ? [[continued, JSON.stringify(continued)]] : [])
+  if (shape === 'card') expect(JSON.parse(answered[0].vars.historyJson)).toEqual([{ role: 'user', content: policy.input },
+    { role: 'assistant', content: expect.stringContaining('"kind":"question"') }])
+  expect(requests.filter(({ path }) => path.startsWith('/api/ai/')).map(({ path, clientContext }) => [path.split('/').at(-1), clientContext]))
+    .toEqual([['confirm', continued], ['execute', continued]])
+})
+
+const root = fileURLToPath(new URL('..', import.meta.url))
+const providerConfig = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8')).providers[0].config
+
+// Contract: orbit-api ChatController.ProcessChat binds [FromForm] string? blockAnswer and deserializes it to
+// AiBlockAnswer(BlockId, SelectedIds, FreeText, Answers); a request without the field is a typed message. The web client
+// appends that field only for a card answer (use-chat-send-stream.ts), so the first turn and a typed answer carry none.
+it.each(['card', 'typed'])('posts every field of the %s answer turn through the real promptfoo HTTP provider', async (shape) => {
+  boundary()
+  const policy = await seeded('same-title-card-en')
+  const children = policy.sameTitleBaseline.children.map((child) => child.id)
+  pendingTargets = { deleted: children.slice(4), renamed: children.slice(0, 4) }
+  requests.length = 0
+  const { conversationId } = streams.run3
+  const card = questionCard(children, 'Which two do you want to delete?')
+  const text = 'Which two should I delete?'
+  const question = shape === 'card' ? { parts: [card] } : { aiMessage: text, parts: [{ type: 'text', text }] }
+  const forms = []
+  const publicApiFetch = globalThis.fetch
+  vi.stubGlobal('fetch', async (url, options) => {
+    if (new URL(url).pathname !== '/api/chat') return publicApiFetch(url, options)
+    const request = new Request(url, options)
+    const requestId = request.headers.get('x-orbit-request-id')
+    forms.push(Object.fromEntries(await request.formData()))
+    const body = forms.length === 1 ? chatBody([], question, requestId) : heldBody({ ...pendingTargets, requestId })
+    return Response.json({ ...body, conversationId }, { headers: { 'X-Orbit-Request-Id': requestId } })
+  })
+  const provider = await loadApiProvider(`file://${root}/http-provider.mjs`, { options: { config: {
+    ...providerConfig, url: 'https://astra.invalid/api/chat', transformResponse: `file://${root}/response.mjs` } } })
+  // The beforeEach hook renders these two vars for every case (hooks.mjs).
+  const response = await provider.callApi(policy.input, { vars: { ...policy,
+    clientContextJson: JSON.stringify(policy.clientContext), historyJson: JSON.stringify(policy.history ?? []) } })
+  expect(response.error).toBeUndefined()
+  const sent = shape === 'card' ? await clientAnswer(card, { pick: children.slice(4) }, 'en') : { message: policy.sameTitleSet.answer.text }
+  const continued = { ...policy.clientContext, conversationId }
+  expect(forms).toEqual([
+    { message: policy.input, history: '[]', clientContext: JSON.stringify(policy.clientContext) },
+    { message: sent.message, history: JSON.stringify([{ role: 'user', content: policy.input },
+      { role: 'assistant', content: shape === 'card' ? JSON.stringify([{ kind: card.kind, block: card.block }]) : text }]),
+    clientContext: JSON.stringify(continued), ...(shape === 'card' ? { blockAnswer: expect.any(String) } : {}) },
+  ])
+  if (shape === 'card') expect(JSON.parse(forms[1].blockAnswer)).toEqual(sent.blockAnswer)
+  expect(requests.filter(({ path }) => path.startsWith('/api/ai/')).map(({ path, clientContext }) => [path.split('/').at(-1), clientContext]))
+    .toEqual([['confirm', continued], ['execute', continued]])
+})
+
+it.each([
+  ['a card that cannot hold the answer', () => respond([], { parts: [{ ...streams.run5.card, block: { ...streams.run5.card.block, expiresAtUtc: '2026-11-14T04:43:10Z' } }] }),
+    0, 'The card lets the person select 0 of the 6 same-title children.'],
+  ['an answer turn that loses the deletion', (children) => respond([], { parts: [questionCard(children, 'Which two do you want to delete?')] }),
+    1, 'The answer turn failed behavior: Missing tool or incorrect arguments/result: bulk_delete_habits'],
+])('never approves %s', async (_name, firstTurn, answers, reason) => {
+  boundary()
+  const { policy, answered, response } = await cardAttempt(firstTurn, (children, requestId) => held({ renamed: children.slice(0, 4), requestId }))
+  expect(response.error).toBeUndefined()
+  expect(answered).toHaveLength(answers)
+  expect(aiWrites()).toEqual([])
+  expect(behavior(response.output, { vars: policy })).toMatchObject({ pass: false, reason })
+})
+
+// A card that does not offer each of the six passes the generic composition gate, then fails behavior before any readback.
+it.each(clarifications.filter((id) => id.endsWith('-en')))('reads back %s after the records card, and stops before the readback for a card over 4 of 6', async (id) => {
+  boundary()
+  const policy = await seeded(id)
+  const children = policy.sameTitleBaseline.children.map((child) => child.id)
+  requests.length = 0
+  const first = (offered) => completeSameTitleSet(respond([], { parts: [recordsCard(children, offered)] }), policy)
+  expect(behavior(await first(children), { vars: policy })).toMatchObject({ pass: true })
+  const partial = await first(children.slice(0, 4))
+  expect(partial.sameTitleReadback).toBeUndefined()
+  expect(behavior(partial, { vars: policy })).toEqual({ pass: false, score: 0,
+    reason: 'The card offers 4 of the 6 same-title children as separate options.' })
+  expect(aiWrites()).toEqual([])
+})
+
+// A first turn that fails a gate stops the lifecycle before its answer turn and its readback; behavior then names that
+// gate and its reason, never a lost answer turn or a change to the stored children.
+it.each([
+  ['same-title-singular-en', 'readback ran', 'Clarification requires plain text without a block or exactly one choice or question card without a write.'],
+  ['same-title-control-order-pt', 'readback ran', 'Clarification requires plain text without a block or exactly one choice or question card without a write.'],
+  ['same-title-card-en', 'question was answered', 'A question before the preview must be one choice or question card, or one to three short lines.'],
+  ['same-title-card-pt', 'question was answered', 'A question before the preview must be one choice or question card, or one to three short lines.'],
+])('names the failed first-turn gate of %s when the lifecycle stops', async (id, missing, reason) => {
+  boundary()
+  const policy = await seeded(id)
+  const children = policy.sameTitleBaseline.children.map((child) => child.id)
+  requests.length = 0
+  const twoCards = respond([], { parts: [recordsCard(children), choiceCard(children.slice(0, 2).map((option) => ({ id: option, label: option.slice(0, 8) })))] })
+  const stopped = await completeSameTitleSet(twoCards, policy, () => { throw new Error('A stopped lifecycle sent an answer turn.') })
+  expect(stopped.sameTitleReadback).toEqual({ stopped: { metric: 'composition', reason } })
+  expect(behavior(stopped, { vars: policy })).toEqual({ pass: false, score: 0, reason: `The first turn failed composition, so no ${missing}: ${reason}` })
+  expect(aiWrites()).toEqual([])
+})

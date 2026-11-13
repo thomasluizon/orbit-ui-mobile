@@ -1,5 +1,5 @@
 import { isDeepStrictEqual } from 'node:util'
-import { publicApi } from './fixtures/api.mjs'
+import { approvePendingOperation, publicApi } from './fixtures/api.mjs'
 import { requireEvalOrigin } from './fixtures/reset.mjs'
 import { refreshCredential } from './credentials.mjs'
 
@@ -53,12 +53,7 @@ export async function approveStartingStep(parsed, vars) {
   const before = await readStartingHabits(vars.credentialKey)
   if (!isDeepStrictEqual(before, ordered(baseline))) return result(false, 'Habits changed before approval.')
   const api = publicApi(vars.credentialKey)
-  const path = `ai/pending-operations/${pending.id}`
-  const clientContext = vars.clientContext
-  const confirmation = await api('POST', `${path}/confirm?clientContext=${encodeURIComponent(JSON.stringify(clientContext))}`)
-  if (confirmation.payload?.pendingOperationId !== pending.id || typeof confirmation.payload.confirmationToken !== 'string'
-    || !confirmation.payload.confirmationToken) return result(false, 'Approval did not return a matching confirmation.')
-  await api('POST', `${path}/execute`, { confirmationToken: confirmation.payload.confirmationToken, clientContext })
+  await approvePendingOperation(api, pending.id, vars.clientContext)
   const habit = savedHabit(await readStartingHabits(vars.credentialKey), baseline, vars)
   if (!habit) return result(false, 'Independent saved-step readback did not match the requested change.')
   return result(true, 'Approval and independent saved-step readback matched.', { savedStep: {

@@ -352,7 +352,7 @@ describe('ProgressContent', () => {
         } else if (destination === 'goals') {
           const card = page.getByRole('button', { name: /Read 12 Books/ }).first()
           expect(await card.evaluate((element) => {
-            const style = getComputedStyle(element)
+            const style = getComputedStyle(element.querySelector('[data-slot="goal-card-surface"]')!)
             return { inline: Number.parseFloat(style.paddingLeft), block: Number.parseFloat(style.paddingTop) }
           })).toEqual({ inline: 16, block: 16 })
         } else if (destination === 'achievements') {
@@ -441,7 +441,7 @@ describe('ProgressContent', () => {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         await loadAppFonts(page)
         const geometry = await page.locator('[data-goal-id]').evaluateAll((cards) => cards.map((card) => {
-          const title = card.querySelector('span')!.firstElementChild! as HTMLElement
+          const title = card.querySelector('[data-slot="goal-card-surface"] > span')!.firstElementChild! as HTMLElement
           const metadata = title.nextElementSibling! as HTMLElement
           const style = getComputedStyle(title)
           return { height: title.getBoundingClientRect().height, lineHeight: Number.parseFloat(style.lineHeight),

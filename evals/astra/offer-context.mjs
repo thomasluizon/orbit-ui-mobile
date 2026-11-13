@@ -19,6 +19,15 @@ export function freshConversation(vars) {
   Object.assign(vars, replace(vars))
 }
 
+// Producer: orbit-api ProcessUserChatCommand returns the turn's conversation as ChatResponse.conversationId and, with
+// conversation recording on, answers a turn whose clientContext.conversationId names a stored conversation from that
+// stored history. The client takes the id from each response (settleComposerResponse) and sends it on the next turn,
+// confirm and execute; a response without one leaves the client's id as it was.
+export function followConversation(clientContext, output) {
+  const conversationId = output?.composition?.conversationId
+  return conversationId ? { ...clientContext, conversationId } : clientContext
+}
+
 export function configureOffers(test) {
   if (!test.metadata.family?.startsWith('offers-')) return
   const vars = test.vars

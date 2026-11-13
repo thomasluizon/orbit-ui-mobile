@@ -276,6 +276,50 @@ it.each(['en', 'pt-BR'].flatMap((locale) => ['smaller', 'smaller-legacy', 'save-
   },
 )
 
+// The legacy action runs on a client without oneSmallStep, which predates the client's conversationId, so it starts afresh.
+it.each(['smaller', 'save-task', 'smaller-legacy'])('sends the setup conversation id on the %s follow-up and its approval', async (family) => {
+  offlineCredentials()
+  vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline-token')
+  const test = structuredClone(corpus.find((entry) => entry.metadata.id === `composition-one-small-step-${family}-en`))
+  test.vars.clientContext = { ...buildChatClientContext({ platform: 'web', locale: 'en' }), ...test.vars.clientContext }
+  test.vars.clientContextJson = JSON.stringify(test.vars.clientContext)
+  const conversationId = 'd1b7c7c0-73ad-49a0-875f-05215639d44a'
+  const sent = []
+  vi.stubGlobal('fetch', async (url, options) => {
+    const path = new URL(url).pathname
+    if (path === '/health') return Response.json({ status: 'Healthy', commit: null, checks: [] })
+    if (path === '/api/auth/refresh') return refreshResponse()
+    if (path === '/api/eval/snapshot') return Response.json(evalSnapshot({ habits: [] }))
+    if (path.endsWith('/confirm')) {
+      sent.push(['confirm', JSON.parse(new URL(url).searchParams.get('clientContext'))])
+      return Response.json({ pendingOperationId: preview().id, confirmationToken: 'offline-confirmation' })
+    }
+    if (path.endsWith('/execute')) {
+      sent.push(['execute', JSON.parse(options.body).clientContext])
+      return Response.json({})
+    }
+    const request = new Request(url, options)
+    const requestId = request.headers.get('x-orbit-request-id')
+    sent.push(['chat', JSON.parse((await request.formData()).get('clientContext'))])
+    const response = sent.length === 1 ? startingResponse('en', requestId)
+      : { ...chatResponse(requestId), parts: [{ type: 'text', text: 'Water is ready.' }] }
+    return Response.json({ ...response, conversationId }, { headers: { 'x-orbit-request-id': requestId } })
+  })
+  await prepareCorrection(test)
+  const provider = new AstraHttpProvider({ config: { ...configuration.providers[0].config,
+    transformResponse: new URL('../response.mjs', import.meta.url).href } })
+  await provider.callApi(test.vars.input, { vars: { ...test.vars, evalRequestId: 'follow-up' } })
+  const saved = { composition: { pendingOperations: [preview(test.vars.previousStartingStep.step)] } }
+  if (family === 'save-task') await approveStartingStep(saved, test.vars)
+  const [[, setup], ...later] = sent
+  expect(setup).not.toHaveProperty('conversationId')
+  const followUp = JSON.parse(test.vars.clientContextJson)
+  expect(later.map(([call]) => call)).toEqual(family === 'save-task' ? ['chat', 'confirm', 'execute'] : ['chat'])
+  for (const [, clientContext] of later) expect(clientContext).toEqual(followUp)
+  if (family === 'smaller-legacy') expect(followUp).not.toHaveProperty('conversationId')
+  else expect(followUp.conversationId).toBe(conversationId)
+})
+
 it('registers bilingual starting-step cases and the independent persistence assertion in the gate', () => {
   for (const family of ['one-small-step', 'one-small-step-smaller', 'one-small-step-smaller-legacy', 'one-small-step-save-task', 'one-small-step-save-checklist', 'one-small-step-legacy']) {
     expect(corpus.filter((entry) => entry.metadata.family === family).map((entry) => entry.metadata.locale).sort()).toEqual(['en', 'pt-BR'])

@@ -1,8 +1,9 @@
 import { isDeepStrictEqual } from 'node:util'
+import { guid } from './fixtures/api.mjs'
 
 const object = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
 const text = (value) => typeof value === 'string' && value.trim().length > 0
-const uuid = (value) => typeof value === 'string' && /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value)
+const uuid = (value) => typeof value === 'string' && guid.test(value)
   && value !== '00000000-0000-0000-0000-000000000000'
 const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const normalize = (value) => value.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/\s+/g, ' ').trim()

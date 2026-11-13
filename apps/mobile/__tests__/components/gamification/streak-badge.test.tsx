@@ -116,6 +116,7 @@ describe('StreakBadge pressed paint', () => {
     expect(rest).toMatchObject({ minWidth: 48, minHeight: 48 })
     expect(rest.borderWidth ?? 0).toBe(0)
     expect(pressed.backgroundColor).toBe(rest.backgroundColor)
+    expectMotionPress(tree.root.findAll((node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')[0], false)
     expect(typeof button.props.children).toBe('function')
     const restingContents = button.props.children({ pressed: false })
     const [restingRing, restingLayer, restingGlyph, restingCount] = restingContents.props.children

@@ -7,6 +7,7 @@ import { MessageBubble } from '@/components/message-bubble'
 import { useChatStore } from '@/stores/chat-store'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 import { BlockFrame } from '@/components/ui/block-frame'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 import { renderedText } from '../support/react-test-renderer'
 import { deniedBulkCreateReplyFixture, makeActionResult, makeAgentOperationResult, makeClarificationPreviewMessage, makeHeldGoalMessage, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import { pressableStyle } from '@/__tests__/support/press-feedback'
@@ -560,6 +561,7 @@ describe('MessageBubble related-surfaces footer (mobile)', () => {
 
     const links = findSurfaceLinks(tree.root, 'chat.related.surface.gamification')
     expect(links).toHaveLength(1)
+    expect(tree.root.findAll((node) => node.type === MotionPressable && node.props.accessibilityLabel === 'chat.related.surface.gamification')).toHaveLength(1)
     expect(findSurfaceLinks(tree.root, 'chat.related.surface.mystery')).toHaveLength(0)
     expect(pressableStyle(links[0]!, true)).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgHover })
     expect(pressableStyle(links[0]!, false).backgroundColor).not.toBe(createTokensV2('purple', 'dark').bgHover)

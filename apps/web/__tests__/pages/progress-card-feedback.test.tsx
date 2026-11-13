@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react'
-import { act, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen } from '@testing-library/react'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { MOTION_SAFE } from '@/__tests__/support/compiled-class-rules'
+import { compilePressScaleRules, scaledWhilePressed, type PressScaleRule } from '@/__tests__/support/press-scale-rules'
 
 vi.mock('@dnd-kit/core', () => ({
   DndContext: ({ children }: { children: ReactNode }) => children,
@@ -88,28 +90,48 @@ vi.mock('@/hooks/use-is-desktop', () => ({ useIsDesktop: () => false, useIsWideD
 
 import { ProgressContent } from '@/app/(app)/progress/_components/progress-content'
 
+async function renderGoalCard() {
+  await act(async () => {
+    render(<ProgressContent screen="goals" />)
+    await Promise.resolve()
+  })
+  return screen.getByRole('button', { name: (accessibleName) => accessibleName.includes('Read 12 Books') })
+}
+
 describe('goal card interaction feedback', () => {
+  afterEach(cleanup)
+
   it('keeps sortable translation exact while applying drag scale', async () => {
-    await act(async () => {
-      render(<ProgressContent screen="goals" />)
-      await Promise.resolve()
-    })
-    const card = screen.getByRole('button', { name: (accessibleName) => accessibleName.includes('Read 12 Books') })
+    const card = await renderGoalCard()
+    const surface = card.querySelector(':scope > [data-slot="goal-card-surface"]')
 
     expect(card.style.translate).toBe('100px 40px')
     expect(card.style.transform).toBe('scaleX(0.8) scaleY(1.4)')
     expect(card.style.transform).not.toContain('translate')
-    expect(card.style.transition).toBe(
-      'background-color var(--dur-hover) var(--ease-standard), box-shadow var(--dur-hover) var(--ease-standard), scale var(--dur-press) var(--ease-out)',
-    )
+    expect(card.style.transition, 'the press target neither paints nor scales, so it transitions nothing').toBe('')
     expect(card).toHaveAttribute('data-dragging', 'true')
-    expect(card).toHaveClass(
-      'hover:shadow-[inset_0_0_0_1px_var(--hairline-strong)]',
-      'active:scale-[0.96]',
-      'data-[dragging=true]:scale-[0.96]',
-      'data-[dragging=true]:opacity-50',
-      'data-[dragging=true]:z-[2]',
+    expect(card).toHaveClass('group/goal-card', 'data-[dragging=true]:opacity-50', 'data-[dragging=true]:z-[2]')
+    expect(surface).toHaveClass(
+      '[transition-property:background-color,box-shadow,scale]',
+      '[transition-duration:var(--dur-hover),var(--dur-hover),var(--dur-press)]',
+      '[transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-out)]',
+      'group-hover/goal-card:shadow-[inset_0_0_0_1px_var(--hairline-strong)]',
+      'motion-safe:group-active/goal-card:scale-[0.96]',
+      'motion-safe:group-data-[dragging=true]/goal-card:scale-[0.96]',
     )
     expect(card.className).not.toContain('animate-')
+  })
+})
+
+describe('goal card press scale', () => {
+  let rules: PressScaleRule[]
+  beforeAll(async () => { rules = await compilePressScaleRules() })
+  afterEach(cleanup)
+
+  it('scales the card surface on press and never the press target, so a press at its edge keeps its click', async () => {
+    const card = await renderGoalCard()
+    const scaled = scaledWhilePressed(rules, card)
+    expect(scaled.map(({ element }) => element), 'the pressed card scales only its surface').toEqual([card.querySelector(':scope > [data-slot="goal-card-surface"]')])
+    expect(scaled.map(({ media }) => media), 'reduced motion removes the press scale').toEqual([[MOTION_SAFE]])
   })
 })

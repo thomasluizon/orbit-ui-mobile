@@ -89,6 +89,7 @@ function equalSnapshot(actual, baseline, dates = new Map()) {
 export function restartReadback(output, vars) {
   const baseline = vars.restartBaseline
   const evidence = output.restartReadback
+  if (evidence?.stopped) return result(false, `The first turn failed ${evidence.stopped.metric}, so no readback ran: ${evidence.stopped.reason}`)
   if (!baseline?.length || !evidence || !equalSnapshot(evidence.held, baseline)) {
     return result(false, 'Independent readback must prove the held preview changed nothing.')
   }

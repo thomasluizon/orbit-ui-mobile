@@ -50,15 +50,18 @@ function stylesheetTransition(css: string, selector: string) {
 const COLOR_AND_PRESS = 'background-color var(--dur-hover-control) var(--ease-standard), color var(--dur-hover-control) var(--ease-standard), transform var(--dur-press) var(--ease-out)'
 /** Tailwind 4 `active:scale-[0.96]` sets the CSS `scale` property, so a rule whose consumers press with it transitions `scale`. */
 const SCALE_PRESS = 'scale var(--dur-press) var(--ease-out)'
+const COLOR_HOVER = 'background-color var(--dur-hover-control) var(--ease-standard), color var(--dur-hover-control) var(--ease-standard)'
+const COLOR_AND_SCALE_PRESS = `${COLOR_HOVER}, ${SCALE_PRESS}`
 
 const STYLESHEET_TRANSITIONS = [
   ['.orbit-list-row', 'background-color var(--dur-hover) var(--ease-standard), box-shadow var(--dur-hover) var(--ease-standard), transform var(--dur-press) var(--ease-out)'],
   ['.orbit-list-row-body', `background-color var(--dur-hover) var(--ease-standard), ${SCALE_PRESS}`],
   ['.orbit-list-row-action', `background-color var(--dur-hover-control) var(--ease-standard), ${SCALE_PRESS}`],
   ['.habit-control-motion', `background-color var(--dur-hover-control) var(--ease-standard), color var(--dur-hover-control) var(--ease-standard), ${SCALE_PRESS}`],
-  ['.orbit-sheet-close', COLOR_AND_PRESS],
+  /** The close presses its glyph, so the control transitions its colours only. */
+  ['.orbit-sheet-close', COLOR_HOVER],
   ['.icon-btn', COLOR_AND_PRESS],
-  ['.chip', `${COLOR_AND_PRESS}, box-shadow var(--motion-selection-exit) var(--motion-ease-exit)`],
+  ['.chip', `${COLOR_AND_SCALE_PRESS}, box-shadow var(--motion-selection-exit) var(--motion-ease-exit)`],
   ['.habit-form-disclosure', 'opacity var(--dur-enter) var(--ease-out), transform var(--dur-enter) var(--ease-out)'],
 ] as const
 
@@ -87,6 +90,7 @@ const PRESS_FILL_FILES = [
   'components/habits/habit-form-fields/tag-suggestions.tsx',
   'components/habits/goal-linking-field.tsx',
   'components/ui/weekday-picker.tsx',
+  'components/onboarding/onboarding-create-habit.tsx',
 ] as const
 
 const PICKER_ROW_CALLERS = [

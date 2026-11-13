@@ -1,5 +1,6 @@
 import { isDeepStrictEqual } from 'node:util'
 import { readOfferState } from './fixtures/offers.mjs'
+import { approvePendingOperation } from './fixtures/api.mjs'
 
 function withoutRemovedChildren(value, itemId, field, removed) {
   const normalized = structuredClone(value)
@@ -150,10 +151,7 @@ export async function approveOfferTask(api, pending, vars, step) {
   if (pending.items.length !== 1 || pending.items[0].entityName !== step) throw new Error('Offered task differs from the selected step.')
   requireReadbackFields(pending.items[0].fields)
   if (!isDeepStrictEqual(await readOfferState(api), vars.offerBaseline)) throw new Error('Offer wrote before approval.')
-  const path = `ai/pending-operations/${pending.id}`
-  const { payload } = await api('POST', `${path}/confirm?clientContext=${encodeURIComponent(JSON.stringify(vars.clientContext))}`)
-  if (payload?.pendingOperationId !== pending.id || typeof payload.confirmationToken !== 'string' || !payload.confirmationToken) throw new Error('Offer confirmation lacks its bound token.')
-  await api('POST', `${path}/execute`, { confirmationToken: payload.confirmationToken, clientContext: vars.clientContext })
+  await approvePendingOperation(api, pending.id, vars.clientContext)
   const after = await readOfferState(api)
   const additions = after.habits.filter((habit) => !vars.offerBaseline.habits.some((original) => original.id === habit.id))
   if (additions.length !== 1 || additions[0].title !== step || additions[0].frequencyUnit !== null
