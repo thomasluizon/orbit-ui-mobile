@@ -76,17 +76,18 @@ it.each(credentialKeys.slice(1))('starts a metered-only selection for %s', async
   ])
 })
 
+const policyUnavailable = 'Eval allowance policy is unavailable.'
 it.each([
-  ['missing flag', () => Response.json({ features: {} })],
-  ['null flag', () => preflightResponse(null)],
-  ['missing features', () => Response.json({})],
-  ['string enabled', () => preflightResponse({ enabled: 'true', planRequirement: null })],
-  ['rejected config', () => Response.json({ error: 'PRIVATE_SERVER_BODY' }, { status: 403 })],
-  ['malformed config', () => new Response('PRIVATE_SERVER_BODY')],
-  ['transport failure', () => { throw new Error('PRIVATE_TRANSPORT') }],
-])('stops without exposing response contents for %s', async (_name, response) => {
+  ['missing flag', () => Response.json({ features: {} }), policyUnavailable],
+  ['null flag', () => preflightResponse(null), policyUnavailable],
+  ['missing features', () => Response.json({}), policyUnavailable],
+  ['string enabled', () => preflightResponse({ enabled: 'true', planRequirement: null }), policyUnavailable],
+  ['rejected config', () => Response.json({ error: 'PRIVATE_SERVER_BODY' }, { status: 403 }), 'Fixture API GET config failed: HTTP 403 (errorCode: none).'],
+  ['malformed config', () => new Response('PRIVATE_SERVER_BODY'), 'Fixture API GET config failed: non-JSON body (HTTP 200).'],
+  ['transport failure', () => { throw new Error('PRIVATE_TRANSPORT') }, 'Fixture API GET config failed: network.'],
+])('stops with its cause and without exposing response contents for %s', async (_name, response, cause) => {
   requestsFor(response)
   const pending = Promise.resolve().then(() => beforeAll(suiteFor([credentialKeys[1]])))
-  await expect(pending).rejects.toThrow(`turn off astra_eval_unmetered for ${credentialKeys[1]} through /flag`)
+  await expect(pending).rejects.toThrow(`turn off astra_eval_unmetered for ${credentialKeys[1]} through /flag on staging, then verify /api/config and retry. ${cause}`)
   await expect(pending).rejects.not.toThrow('PRIVATE')
 })

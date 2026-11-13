@@ -163,6 +163,33 @@ describe.each(['ambiguity-pt', 'ambiguity-en'])('%s clarification alternatives',
   it('accepts a plain-text clarification without any block', async () => {
     expect(await gate(response([{ type: 'text', text: question }], question), vars)).toMatchObject({ pass: true })
   })
+  // Producer: orbit-api AskBlockNegotiation.Definition (1cf3559) folds a question form into a choice only when it holds one
+  // singleChoice question with 2 to 4 options, labels of at most 20 characters, no recommended option and a prompt of at
+  // most 120 characters. HoldTheAnswer (ProcessUserChatCommand.SelectionCard.cs) keeps a card over distinct titles and a
+  // card whose options name every same-titled record, so this card reaches the client, which shows question blocks, as
+  // one question block. AiQuestionOption omits recommended=false; the strict ask schema sends it as null.
+  const labels = scenario.metadata.locale === 'pt-BR' ? ['Caminhada da manhã (07:00)', 'Caminhada da noite (19:00)'] : ['Water every day at 08:00', 'Walk every day at 18:00']
+  const card = { type: 'block', kind: 'question', block: { blockId: '22222222-2222-4222-8222-222222222222', expiresAtUtc: '2026-10-26T20:00:00Z',
+    questions: [{ id: 'habit', type: 'singleChoice', prompt: question, allowFreeText: true, options: [
+      { id: '33333333-3333-4333-8333-333333333331', label: labels[0] }, { id: '33333333-3333-4333-8333-333333333332', label: labels[1] }] }] } }
+  function questionClarification() {
+    const produced = response([card], '')
+    const call = toolCall('ask', { input: { form: 'question', missing_input: 'record_selection', title: null, intro: null, progress: null,
+      questions: card.block.questions.map((entry) => ({ ...entry, options: entry.options.map((option) => ({ ...option, recommended: null })) })) } },
+    'Succeeded', 'call-1', vars.clientContext)
+    call.result.entityId = card.block.blockId
+    produced.evalTrace.toolCalls = [habitAccountRead(true, 'read', vars.clientContext), call]
+    return produced
+  }
+  it('accepts one source-shaped question card through the provider and configured assertions', async () => {
+    expect(await gate(questionClarification(), vars)).toMatchObject({ pass: true })
+  })
+  it.each(['choice plus question card', 'question card with a pending write'])('rejects a %s', async (failure) => {
+    const produced = questionClarification()
+    if (failure === 'choice plus question card') produced.parts.push(structuredClone(choice))
+    if (failure === 'question card with a pending write') produced.pendingOperations = [preview()]
+    expect(await gate(produced, vars)).toMatchObject({ pass: false })
+  })
   it.each(['unrelated block', 'choice plus unrelated block', 'two choices', 'pending write', 'write tool', 'no parts', 'malformed choice'])('rejects %s', async (failure) => {
     const produced = clarification()
     if (failure === 'unrelated block') produced.parts = [block]

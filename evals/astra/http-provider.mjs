@@ -4,6 +4,7 @@ import { suggestionAnswer } from './suggestions.mjs'
 import { loadApiProvider } from 'promptfoo'
 import { visibleAnswer } from './visible-answer.mjs'
 import { completeRestart } from './restart-lifecycle.mjs'
+import { completeSameTitleSet } from './same-title-set-lifecycle.mjs'
 import { structural, behavior, composition } from './assertions.mjs'
 import { brainDumpPreview } from './brain-dumps.mjs'
 import { approveBrainDump, brainDumpBaseline } from './brain-dump-approval.mjs'
@@ -15,6 +16,7 @@ export default class AstraHttpProvider {
   constructor(options) {
     this.config = { ...options.config, validateStatus: '() => true' }
     this.provider = null
+    this.answerProvider = null
   }
 
   id() { return 'astra-http' }
@@ -64,6 +66,14 @@ export default class AstraHttpProvider {
       }
       return response
     }
+    if (context.vars.sameTitleSet) {
+      const response = await this.chat(prompt, context, options)
+      if (!response.output?.composition || response.error) return response
+      try { response.output = await completeSameTitleSet(response.output, context.vars, (input, next) => this.chat(input, next, options)) } catch (error) {
+        return { ...response, error: `Same-title approval or independent persisted readback failed: ${safeFailureMessage(error)}` }
+      }
+      return response
+    }
     if (!context.vars.brainDump || context.vars.preconditionFailure) return this.chat(prompt, context, options)
     const baseline = await brainDumpBaseline(context.vars)
     const response = await this.chat(prompt, context, options)
@@ -88,11 +98,16 @@ export default class AstraHttpProvider {
     let response
     try {
       if (context.vars.refine) return await this.refine(prompt, context, options)
-      this.provider ??= loadApiProvider('http', { options: { config: this.config } })
-      response = await (await this.provider).callApi(prompt, context, options)
+      // Contract: orbit-api ChatController.Chat binds an optional blockAnswer form field (AiBlockAnswer JSON); only an
+      // answer turn sends it, so every other turn keeps the request shape it always had.
+      if (context.vars.blockAnswerJson) {
+        this.answerProvider ??= loadApiProvider('http', { options: { config: { ...this.config, multipart: { ...this.config.multipart,
+          parts: [...this.config.multipart.parts, { kind: 'field', name: 'blockAnswer', value: '{{blockAnswerJson}}' }] } } } })
+      } else this.provider ??= loadApiProvider('http', { options: { config: this.config } })
+      response = await (await (context.vars.blockAnswerJson ? this.answerProvider : this.provider)).callApi(prompt, context, options)
     } catch (error) {
       const status = error.name === 'HttpRateLimitError' && error.status === 429 ? 429 : null
-      return { error: status ? 'Astra returned HTTP 429.' : 'Astra HTTP request failed.',
+      return { error: status ? 'Astra returned HTTP 429.' : `Astra HTTP request failed: ${safeFailureMessage(error)}`,
         metadata: { astraHttpStatus: status, rateLimitRetryable: false } }
     }
     if (response.metadata?.http) {
@@ -112,8 +127,8 @@ export default class AstraHttpProvider {
       }
     }
     if (context.vars.restart && response.output?.composition && !response.error) {
-      try { response.output = await completeRestart(response.output, context.vars) } catch {
-        return { ...response, error: 'Restart approval or independent persisted readback failed.' }
+      try { response.output = await completeRestart(response.output, context.vars) } catch (error) {
+        return { ...response, error: `Restart approval or independent persisted readback failed: ${safeFailureMessage(error)}` }
       }
     }
     if (['saveTask', 'saveChecklistItem'].includes(context.vars.startingStepAction)

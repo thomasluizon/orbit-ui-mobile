@@ -172,7 +172,7 @@ describe('other clipped control containers in Chromium', () => {
             const contentClearance = await control.evaluate((element) => {
               const style = getComputedStyle(element)
               return {
-                textInset: element.querySelector('span')!.getBoundingClientRect().left - element.getBoundingClientRect().left,
+                textInset: element.querySelector('[data-testid="time-grid-event-name"]')!.getBoundingClientRect().left - element.getBoundingClientRect().left,
                 outlineInset: -Number.parseFloat(style.outlineOffset),
               }
             })

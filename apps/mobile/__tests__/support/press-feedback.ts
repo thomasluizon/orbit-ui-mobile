@@ -37,6 +37,25 @@ export function expectMotionPress(host: { props: Record<string, unknown> }, redu
   expect(pressableStyle(host, false)).toMatchObject({ transform: [{ scale: 1 }], transition })
 }
 
+/**
+ * Asserts the press scale of a control that eases through a `PressScale` layer: unit scale at rest, the press scale while
+ * pressed (unit under reduced motion), eased over the shared press duration, or no transition under reduced motion.
+ */
+export function expectPressScaleLayer(host: { parent: unknown; props: Record<string, unknown> }, reducedMotion: boolean) {
+  const layer = () => {
+    let node = host.parent as { parent: unknown; props: Record<string, any> } | null
+    while (node && node.props['data-slot'] !== 'press-scale') node = node.parent as typeof node
+    expect(node, 'a press scale layer wraps the press target').toBeTruthy()
+    return StyleSheet.flatten(node!.props.style as StyleProp<ViewStyle>)
+  }
+  const transition = reducedMotion ? 'none' : `transform ${motionDurations.press}ms cubic-bezier(${motionEasings.enter.join(',')})`
+  expect(layer()).toMatchObject({ transform: [{ scale: 1 }], transition })
+  void renderer.act(() => { (host.props.onPressIn as (() => void) | undefined)?.() })
+  expect(layer()).toMatchObject({ transform: [{ scale: reducedMotion ? 1 : 0.96 }], transition })
+  void renderer.act(() => { (host.props.onPressOut as (() => void) | undefined)?.() })
+  expect(layer()).toMatchObject({ transform: [{ scale: 1 }], transition })
+}
+
 export function expectPressPaint(control: PressControl, expected: {
   fill: string
   borderRadius: number

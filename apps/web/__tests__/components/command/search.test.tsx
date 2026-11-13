@@ -427,7 +427,7 @@ describe('habit search', () => {
   it('sizes the palette habit glyph slot and emoji as drawn', () => {
     mocks.query.mockReturnValue(result([createMockHabit({ id: 'walk', title: 'Walk', emoji: '🚶' })]))
     mount()
-    const well = screen.getByRole('option', { name: 'Walk' }).firstElementChild
+    const well = screen.getByRole('option', { name: 'Walk' }).querySelector('[data-slot="press-surface"]')?.firstElementChild
     expect(well).toHaveClass('size-6')
     expect(well?.firstElementChild).toHaveClass('text-[18px]')
   })

@@ -61,7 +61,8 @@ describe('web pill press feedback', () => {
 
   it('scales a pressed chip only when the person allows motion', () => {
     const pressed = ruleWith('.chip:active')
-    expect(value(pressed, 'transform')).toEqual(['scale(0.96)'])
+    expect(value(pressed, 'scale')).toEqual(['0.96'])
+    expect(value(pressed, 'transform')).toEqual([])
     expect(pressed.parent?.type).toBe('atrule')
     expect((pressed.parent as { params?: string }).params).toBe('(prefers-reduced-motion: no-preference)')
   })

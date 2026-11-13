@@ -36,6 +36,12 @@ function renderedButtons(element: React.ReactElement) {
   return renderedTree(element).root.findAll((node) => node.type === Pressable || node.type === GesturePressable)
 }
 
+function pressScaleLayer(button: import('react-test-renderer').ReactTestInstance) {
+  let layer = button.parent
+  while (layer && layer.props['data-slot'] !== 'press-scale') layer = layer.parent
+  return layer ? StyleSheet.flatten(layer.props.style as StyleProp<ViewStyle>) : undefined
+}
+
 function resolvedStyle(button: import('react-test-renderer').ReactTestInstance, pressed: boolean) {
   const resolved = pressableStyle(button, pressed)
   if (typeof button.props.children !== 'function') return resolved
@@ -74,7 +80,7 @@ describe('neutral press feedback on Android', () => {
     state.mode = mode
     const tokens = createTokensV2('orange', mode)
     for (const allSelected of [false, true]) {
-      const button = renderedTree(selectionTray(allSelected, false)).root.findAll((node) => typeof node.props.children === 'function' && typeof node.props.style === 'function')[0]!
+      const button = renderedTree(selectionTray(allSelected, false)).root.findAll((node) => node.type === GesturePressable && typeof node.props.children === 'function')[0]!
       const child = button.props.children as (state: { pressed: boolean }) => ReactElement<{ children: [ReactElement, ReactElement<{ style: StyleProp<TextStyle>; children: string }>] }>
       expect(child({ pressed: false }).props.children[1].props.children).toBe(allSelected ? 'Deselect all' : 'Select all')
       const rest = StyleSheet.flatten(child({ pressed: false }).props.children[1].props.style)
@@ -90,7 +96,14 @@ describe('neutral press feedback on Android', () => {
   it.each([false, true])('retains fills beside scale when motion is enabled (allSelected: %s)', (allSelected) => {
     state.reducedMotion = false
     for (const button of renderedButtons(<>{selectionTray(allSelected, false)}<PillButton variant="ghost" accessibleName="Ghost">Ghost</PillButton></>)) {
-      expect(resolvedStyle(button, true)).toMatchObject({ backgroundColor: button.props.accessibilityLabel === 'Ghost' ? createTokensV2('orange', state.mode).bgHover : createTokensV2('orange', state.mode).bgHoverOpaque, transform: [{ scale: 0.96 }] })
+      const pressed = resolvedStyle(button, true)
+      expect(pressed).toMatchObject({ backgroundColor: button.props.accessibilityLabel === 'Ghost' ? createTokensV2('orange', state.mode).bgHover : createTokensV2('orange', state.mode).bgHoverOpaque })
+      if (button.type === GesturePressable) {
+        void renderer.act(() => { (button.props.onPressIn as () => void)() })
+        expect(pressScaleLayer(button)?.transform).toEqual([{ scale: 0.96 }])
+        void renderer.act(() => { (button.props.onPressOut as () => void)() })
+        expect(pressScaleLayer(button)?.transform).toEqual([{ scale: 1 }])
+      } else expect(pressed.transform).toEqual([{ scale: 0.96 }])
       expect(resolvedStyle(button, false).transform ?? [{ scale: 1 }]).toEqual([{ scale: 1 }])
     }
   })

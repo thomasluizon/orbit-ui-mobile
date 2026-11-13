@@ -147,7 +147,7 @@ function TimedBlock({
       data-hour={block.hour}
       onClick={onSelect}
       aria-label={t('calendar.entryLabel', { title: block.entry.title, time: displayTime(block.entry.dueTime!), status: t(outcome.labelKey) })}
-      className={`group absolute flex flex-col items-start justify-between gap-1 overflow-hidden text-left cursor-pointer hover:bg-[var(--bg-hover-opaque)] active:bg-[var(--bg-hover-opaque)] transition-[background-color,scale] [transition-duration:var(--dur-hover-control),var(--dur-fast)] [transition-timing-function:var(--ease-standard),var(--ease-out)] motion-safe:active:scale-[0.96] ${isFuture ? 'bg-transparent' : 'bg-[var(--bg-well)]'}`}
+      className="group group/time-block absolute flex overflow-hidden border-0 bg-transparent p-0 text-left cursor-pointer"
       style={{
         top: `${block.top / 16}rem`,
         minHeight: 48,
@@ -155,20 +155,24 @@ function TimedBlock({
         left: `calc(${(block.lane / block.laneCount) * 100}% + ${BLOCK_HORIZONTAL_INSET / 2}px)`,
         width: `calc(${100 / block.laneCount}% - ${BLOCK_HORIZONTAL_INSET}px)`,
         minWidth: BLOCK_MIN_WIDTH,
-        padding: SPACING.s4,
         borderRadius: 8,
-        border: 0,
         appearance: 'none',
-        boxShadow: `inset 0 0 0 1px var(${isFuture ? '--hairline-ghost' : '--hairline'})`,
       }}
     >
-      <PersonalText data-testid="time-grid-event-name" style={{ width: '100%', fontFamily: 'var(--font-sans)', fontSize: '0.75rem', lineHeight: 1.4, color: 'var(--fg-1)' }}>{block.entry.title}</PersonalText>
-      <span className="flex w-full min-w-0 items-center gap-1">
-      <span aria-hidden="true" className="relative inline-flex shrink-0">
-        <StatusRing status={outcome.status} size={24} label={t(outcome.labelKey)} />
-        {outcome.status === 'bad' ? <span className="absolute inset-0 flex items-center justify-center"><X size={16} color="var(--status-bad)" strokeWidth={1.5} /></span> : null}
-      </span>
-      <span className="truncate text-[var(--fg-3)] group-hover:text-[var(--fg-2)] group-active:text-[var(--fg-2)]" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', lineHeight: 1.4 }}>{displayTime(block.entry.dueTime!)}</span>
+      <span
+        data-slot="press-surface"
+        data-press-fill=""
+        className={`flex min-w-0 flex-1 flex-col items-start justify-between gap-1 overflow-hidden rounded-[inherit] group-hover/time-block:bg-[var(--bg-hover-opaque)] group-active/time-block:bg-[var(--bg-hover-opaque)] transition-[background-color,scale] [transition-duration:var(--dur-hover-control),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-out)] motion-safe:group-active/time-block:scale-[0.96] ${isFuture ? 'bg-transparent' : 'bg-[var(--bg-well)]'}`}
+        style={{ padding: SPACING.s4, boxShadow: `inset 0 0 0 1px var(${isFuture ? '--hairline-ghost' : '--hairline'})` }}
+      >
+        <PersonalText data-testid="time-grid-event-name" style={{ width: '100%', fontFamily: 'var(--font-sans)', fontSize: '0.75rem', lineHeight: 1.4, color: 'var(--fg-1)' }}>{block.entry.title}</PersonalText>
+        <span className="flex w-full min-w-0 items-center gap-1">
+        <span aria-hidden="true" className="relative inline-flex shrink-0">
+          <StatusRing status={outcome.status} size={24} label={t(outcome.labelKey)} />
+          {outcome.status === 'bad' ? <span className="absolute inset-0 flex items-center justify-center"><X size={16} color="var(--status-bad)" strokeWidth={1.5} /></span> : null}
+        </span>
+        <span className="truncate text-[var(--fg-3)] group-hover:text-[var(--fg-2)] group-active:text-[var(--fg-2)]" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', lineHeight: 1.4 }}>{displayTime(block.entry.dueTime!)}</span>
+        </span>
       </span>
     </button>
   )
@@ -364,48 +368,49 @@ export function CalendarTimeGrid({
                     data-interaction-fill-cell=""
                     data-focus-inset="panel"
                     onClick={() => onSelectDay(column.dateStr)}
-                    className="orbit-calendar-week-header group relative flex w-full flex-col items-center justify-center rounded-sm bg-transparent transition-[scale] duration-[var(--dur-fast)] ease-[var(--ease-out)] motion-safe:active:scale-[0.96]"
+                    className="orbit-calendar-week-header group group/week-header relative flex w-full flex-col items-center justify-center rounded-sm bg-transparent"
                     style={{
                       appearance: 'none',
                       border: 0,
                       minHeight: HEADER_HEIGHT,
                       cursor: 'pointer',
                       padding: "var(--orbit-space-8) var(--orbit-space-4)",
-                      gap: 4,
                     }}
                   >
-                    <span aria-hidden="true" data-press-fill="" className="orbit-calendar-week-header-fill pointer-events-none absolute rounded-[inherit] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover:bg-[var(--bg-hover)] group-active:bg-[var(--bg-hover)]"
+                    <span aria-hidden="true" data-press-fill="" className="orbit-calendar-week-header-fill pointer-events-none absolute rounded-[inherit] transition-[background-color,scale] [transition-duration:var(--dur-hover-control),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-out)] group-hover:bg-[var(--bg-hover)] group-active:bg-[var(--bg-hover)] motion-safe:group-active/week-header:scale-[0.96]"
                       style={{ inset: INTERACTION_FILL_CLEARANCE }} />
-                    <span
-                      className="relative"
-                      style={{
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: '0.75rem',
-                        fontWeight: 500,
-                        color: 'var(--fg-2)',
-                      }}
-                    >
-                      {formatCalendarWeekday(column.dateStr, dateFnsLocale.code)}
-                    </span>
-                    <span
-                      data-testid="time-grid-col-date"
-                      className="relative inline-flex items-center justify-center rounded-full"
-                      style={{
-                        minWidth: '1.5rem',
-                        minHeight: '1.5rem',
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: '0.75rem',
-                        fontWeight: 500,
-                        fontVariantNumeric: 'tabular-nums',
-                        color: column.isToday
-                          ? 'var(--fg-on-primary)'
-                          : column.isFuture
-                            ? 'var(--fg-2)'
-                            : 'var(--fg-1)',
-                        background: column.isToday ? 'var(--primary)' : 'transparent',
-                      }}
-                    >
-                      {format(column.date, 'd', { locale: dateFnsLocale })}
+                    <span data-slot="press-surface" className="relative flex flex-col items-center justify-center transition-[scale] duration-[var(--dur-press)] ease-[var(--ease-out)] motion-safe:group-active/week-header:scale-[0.96]" style={{ gap: 4 }}>
+                      <span
+                        className="relative"
+                        style={{
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: '0.75rem',
+                          fontWeight: 500,
+                          color: 'var(--fg-2)',
+                        }}
+                      >
+                        {formatCalendarWeekday(column.dateStr, dateFnsLocale.code)}
+                      </span>
+                      <span
+                        data-testid="time-grid-col-date"
+                        className="relative inline-flex items-center justify-center rounded-full"
+                        style={{
+                          minWidth: '1.5rem',
+                          minHeight: '1.5rem',
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: '0.75rem',
+                          fontWeight: 500,
+                          fontVariantNumeric: 'tabular-nums',
+                          color: column.isToday
+                            ? 'var(--fg-on-primary)'
+                            : column.isFuture
+                              ? 'var(--fg-2)'
+                              : 'var(--fg-1)',
+                          background: column.isToday ? 'var(--primary)' : 'transparent',
+                        }}
+                      >
+                        {format(column.date, 'd', { locale: dateFnsLocale })}
+                      </span>
                     </span>
                   </button>
                 </div>

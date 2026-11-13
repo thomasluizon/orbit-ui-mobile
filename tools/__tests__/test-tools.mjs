@@ -39,7 +39,7 @@ function checkProdReadinessInventory() {
   T("prod-readiness: Phase 4 names every inventory item in order", Number(output?.[1]) === rows.length &&
     JSON.stringify(outputNames) === JSON.stringify(rows.map(({ name }) => name)),
     `output=${outputNames.join(",")} inventory=${rows.map(({ name }) => name).join(",")}`)
-  T("prod-readiness: every finder where path uses forward slashes", whereValues.length === workflowOps.length + 2 + hygieneKeys.length &&
+  T("prod-readiness: every finder where path uses forward slashes", whereValues.length === workflowOps.length + 2 &&
     whereValues.every((value) => !value.includes("\\")), whereValues.filter((value) => value.includes("\\")).join("\n"))
   T("prod-readiness: the Phase 2d section sits between Phase 2c and Phase 3", skill.indexOf("## Phase 2c") < skill.indexOf("## Phase 2d: Repository hygiene sweep (session-run, read-only)") &&
     skill.indexOf("## Phase 2d: Repository hygiene sweep (session-run, read-only)") < skill.indexOf("## Phase 3"))

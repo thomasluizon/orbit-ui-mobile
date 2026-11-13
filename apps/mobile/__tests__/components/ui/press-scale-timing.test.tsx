@@ -10,6 +10,8 @@ import { YearPicker } from '@/components/ui/year-picker'
 import { Select } from '@/components/ui/select'
 import { TimeField } from '@/components/ui/time-field'
 import { HabitChecklist } from '@/components/habits/habit-checklist'
+import { Chip } from '@/components/ui/chip'
+import { StatusDot } from '@/components/ui/status-dot'
 import { createTokensV2 } from '@/lib/theme'
 
 const motionOverride = vi.hoisted(() => ({ pressDuration: 151, enter: [0.11, 0.22, 0.33, 0.44] as const, pressScale: 0.91, reducedMotion: false }))
@@ -71,6 +73,7 @@ const pressTargets = [
   { name: 'Select trigger', render: (disabled: boolean) => <Select label="Units" value="a" options={[{ value: 'a', label: 'Alpha' }]} disabled={disabled} onChange={vi.fn()} />, find: (tree: ReactTestRenderer) => Promise.resolve(pressTarget(tree, 'combobox')) },
   { name: 'TimeField picker button', render: (disabled: boolean) => <TimeField label="Start" value="14:30" disabled={disabled} onChange={vi.fn()} onClear={vi.fn()} />, find: (tree: ReactTestRenderer) => Promise.resolve(pressTarget(tree, 'button', 'Start: common.selectTime')) },
   { name: 'TimeField clear button', render: (disabled: boolean) => <TimeField label="Start" value="14:30" disabled={disabled} onChange={vi.fn()} onClear={vi.fn()} />, find: (tree: ReactTestRenderer) => Promise.resolve(pressTarget(tree, 'button', 'common.clear')) },
+  { name: 'Chip', render: () => <Chip accessibilityLabel="Daily" onPress={vi.fn()}>Daily</Chip>, find: (tree: ReactTestRenderer) => Promise.resolve(pressTarget(tree, 'button', 'Daily')) },
   { name: 'HabitChecklist move', render: () => <HabitChecklist items={CHECKLIST} editable onItemsChange={vi.fn()} />, find: (tree: ReactTestRenderer) => Promise.resolve(pressTarget(tree, 'button', 'habits.form.moveChecklistItemDown')) },
   { name: 'HabitChecklist duplicate', render: () => <HabitChecklist items={CHECKLIST} editable onItemsChange={vi.fn()} />, find: (tree: ReactTestRenderer) => Promise.resolve(pressTarget(tree, 'button', 'habits.form.duplicateChecklistItem')) },
   { name: 'HabitChecklist remove', render: () => <HabitChecklist items={CHECKLIST} editable onItemsChange={vi.fn()} />, find: (tree: ReactTestRenderer) => Promise.resolve(pressTarget(tree, 'button', 'habits.form.removeChecklistItem')) },
@@ -125,4 +128,31 @@ it('keeps the first checklist row move up control, which is disabled, at unit sc
     await pressIn(moveUp)
     expect(scaleLayer(moveUp).transform).toEqual([{ scale: 1 }])
   } finally { await act(() => tree.unmount()) }
+})
+
+describe('StatusDot press timing', () => {
+  afterEach(() => { motionOverride.reducedMotion = false })
+
+  const hostStyle = (target: ReactTestInstance) => StyleSheet.flatten(target.props.style as StyleProp<ViewStyle>)
+
+  it('eases the press scale over the press duration on the enter curve and back', async () => {
+    const tree = await mount(<StatusDot state="empty" onToggle={vi.fn()} accessibilityLabel="Log habit" />)
+    try {
+      const target = pressTarget(tree, 'button', 'Log habit')
+      expect(hostStyle(target)).toMatchObject({ transform: [{ scale: 1 }], transition: EASED })
+      await pressIn(target)
+      expect(hostStyle(pressTarget(tree, 'button', 'Log habit'))).toMatchObject({ transform: [{ scale: 0.91 }], transition: EASED })
+      await pressOut(target)
+      expect(hostStyle(pressTarget(tree, 'button', 'Log habit'))).toMatchObject({ transform: [{ scale: 1 }], transition: EASED })
+    } finally { await act(() => tree.unmount()) }
+  })
+
+  it('keeps unit scale and no transition under reduced motion', async () => {
+    motionOverride.reducedMotion = true
+    const tree = await mount(<StatusDot state="empty" onToggle={vi.fn()} accessibilityLabel="Log habit" />)
+    try {
+      await pressIn(pressTarget(tree, 'button', 'Log habit'))
+      expect(hostStyle(pressTarget(tree, 'button', 'Log habit'))).toMatchObject({ transform: [{ scale: 1 }], transition: 'none' })
+    } finally { await act(() => tree.unmount()) }
+  })
 })

@@ -1,5 +1,5 @@
 import { isDeepStrictEqual } from 'node:util'
-import { publicApi } from './fixtures/api.mjs'
+import { approvePendingOperation, publicApi } from './fixtures/api.mjs'
 import { clearPendingOperations, requireEvalOrigin } from './fixtures/reset.mjs'
 import { safeFailureMessage } from './credentials.mjs'
 import { outcomeCalls } from './operation-matcher.mjs'
@@ -59,12 +59,7 @@ async function approveAndRead(output, vars, baseline, api) {
   const { payload: held } = await api('GET', 'eval/pending-operations')
   if (held?.pendingCount !== 1) throw new Error('Brain dump did not hold exactly one pending operation.')
   const pending = output.composition.pendingOperations[0]
-  const path = `ai/pending-operations/${encodeURIComponent(pending.id)}`
-  const { payload: confirmation } = await api('POST', `${path}/confirm?clientContext=${encodeURIComponent(JSON.stringify(vars.clientContext))}`)
-  if (typeof confirmation?.confirmationToken !== 'string' || !confirmation.confirmationToken.trim()) {
-    throw new Error('Brain dump confirmation did not return an approval token.')
-  }
-  await api('POST', `${path}/execute`, { confirmationToken: confirmation.confirmationToken, clientContext: vars.clientContext })
+  await approvePendingOperation(api, pending.id, vars.clientContext)
   const saved = await brainDumpSnapshot(vars)
   const habits = outcomeCalls(output.trace.calls, vars.expectations)
     .find((call) => call.name === 'bulk_create_habits').arguments.habits

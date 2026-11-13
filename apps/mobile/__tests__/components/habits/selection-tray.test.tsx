@@ -98,10 +98,17 @@ function actionStyle(tree: RenderedTree, label: string, pressed = false) {
   return StyleSheet.flatten(style({ pressed }))
 }
 
+function pressLayerScale(tree: RenderedTree, label: string) {
+  const control = findButtonByLabel(tree, label) as unknown as { findAll: (predicate: (node: RenderedNode) => boolean) => RenderedNode[] }
+  const layer = control.findAll((node) => node.props['data-slot'] === 'press-scale')[0]
+  if (!layer) throw new Error(`No press scale layer around ${label}`)
+  return (StyleSheet.flatten(layer.props.style) as { transform: [{ scale: number }] }).transform[0].scale
+}
+
 async function actionEvent(
-  tree: RenderedTree, label: string, event: 'onHoverIn' | 'onHoverOut' | 'onFocus' | 'onBlur',
+  tree: RenderedTree, label: string, event: 'onHoverIn' | 'onHoverOut' | 'onFocus' | 'onBlur' | 'onPressIn' | 'onPressOut',
 ) {
-  const handler = findButtonByLabel(tree, label).props[event] as (() => void) | undefined
+  const handler = tree.root.findAll((node) => node.props.accessibilityLabel === label && typeof node.props[event] === 'function').at(-1)?.props[event] as (() => void) | undefined
   await TestRenderer.act(() => { handler?.() })
 }
 
@@ -157,7 +164,10 @@ describe('SelectionTray', () => {
       await actionEvent(tree, label, 'onHoverIn')
       await actionEvent(tree, label, 'onBlur')
       expect(actionStyle(tree, label).backgroundColor).toBe(fill)
-      expect(actionStyle(tree, label, true).transform).toEqual(reducedMotion ? undefined : [{ scale: 0.96 }])
+      await actionEvent(tree, label, 'onPressIn')
+      expect(pressLayerScale(tree, label)).toBe(reducedMotion ? 1 : 0.96)
+      await actionEvent(tree, label, 'onPressOut')
+      expect(pressLayerScale(tree, label)).toBe(1)
       expect(actionStyle(tree, label, true).backgroundColor).toBe(fill)
       expect(actionStyle(tree, label).backgroundColor).toBe(fill)
       await actionEvent(tree, label, 'onFocus')
@@ -246,9 +256,9 @@ describe('SelectionTray', () => {
     const { tree } = await renderBar({ allSelected })
     const control = tree.root.findAll((node) => typeof node.props.children === 'function'
       && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === undefined)[0]!
-    const style = control.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
+    const style = control.props.style as StyleProp<ViewStyle>
     expect(control.props.hitSlop).toBeUndefined()
-    expect(StyleSheet.flatten(style({ pressed: true }))).toMatchObject({
+    expect(StyleSheet.flatten(style)).toMatchObject({
       minHeight: 48, minWidth: 48,
       borderRadius: 999, overflow: 'hidden',
     })
@@ -261,7 +271,30 @@ describe('SelectionTray', () => {
         backgroundColor: createTokensV2('purple', 'dark').bgHoverOpaque, opacity: pressed ? 1 : 0,
       })
     }
-    expect(StyleSheet.flatten(style({ pressed: false })).backgroundColor).toBeUndefined()
+    expect(StyleSheet.flatten(style).backgroundColor).toBeUndefined()
+  })
+
+  it.each([false, true])('scales the select-all fill with its label in one press layer, as the web select-all does, with reduced motion %s', async (reducedMotion) => {
+    interactionState.reducedMotion = reducedMotion
+    const { tree, props } = await renderBar()
+    type LayerNode = RenderedNode & { parent: LayerNode | null }
+    const pressLayer = (node: LayerNode) => {
+      let layer = node.parent
+      while (layer && layer.props['data-slot'] !== 'press-scale') layer = layer.parent
+      return layer
+    }
+    const host = (predicate: (node: RenderedNode) => boolean) => tree.root.findAll((node) => typeof node.type === 'string' && predicate(node))[0] as LayerNode
+    const layer = pressLayer(host((node) => node.props.testID === 'selection-all-fill'))
+    expect(layer, 'a press scale layer holds the select-all fill').toBeTruthy()
+    expect(pressLayer(host((node) => node.props.children === props.selectAllLabel)), 'the fill and the label share one press scale layer').toBe(layer)
+    const control = tree.root.findAll((node) => typeof node.props.children === 'function' && typeof node.props.onPressIn === 'function'
+      && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === undefined)[0]!
+    const scale = () => (StyleSheet.flatten(layer!.props.style as StyleProp<ViewStyle>) as { transform: [{ scale: number }] }).transform[0].scale
+    expect(scale()).toBe(1)
+    await TestRenderer.act(() => { (control.props.onPressIn as () => void)() })
+    expect(scale()).toBe(reducedMotion ? 1 : 0.96)
+    await TestRenderer.act(() => { (control.props.onPressOut as () => void)() })
+    expect(scale()).toBe(1)
   })
 
   it('renders the tabular count beside the digit-free suffix', async () => {

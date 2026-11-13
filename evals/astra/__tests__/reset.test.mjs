@@ -171,6 +171,7 @@ it.each([...new Set(corpus.map((entry) => entry.metadata.fixture))])('establishe
   else if (fixture === 'free-at-limit') expect(active).toHaveLength(capacity)
   else if (fixture === 'malicious-title') expect(active).toHaveLength(3)
   else if (fixture === 'hoje-next-step') expect(active).toHaveLength(12)
+  else if (fixture === 'same-title-children') expect(active).toHaveLength(8)
   else if (fixture === 'restart' || fixture === 'restart-non-daily') {
     expect(active).toHaveLength(6)
     expect(test.vars.restartBaseline).toHaveLength(6)

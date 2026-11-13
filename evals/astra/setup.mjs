@@ -8,6 +8,7 @@ import { publicApi } from './fixtures/api.mjs'
 import { offerActions, proactiveOfferSetup } from './proactive-offers.mjs'
 import { readStartingHabits } from './step-persistence.mjs'
 import { attemptEvidence } from './evidence.mjs'
+import { followConversation } from './offer-context.mjs'
 
 function prepareStartingAction(test, block) {
   const vars = test.vars
@@ -53,6 +54,12 @@ export async function prepareCorrection(test) {
   const failures = checks.filter((check) => check.pass !== true || check.metadata?.skipped || check.metadata?.unavailable)
   if (failures.length) {
     throw new Error(`Correction setup failed${setup.caseId ? ` dependency ${setup.caseId}` : ''}: ${failures.map((check) => check.reason).join('; ')}`)
+  }
+  // A follow-up on the setup's own client continues its conversation. A setup with a client of its own keeps the
+  // follow-up's context: an offer case already shares one id, and the legacy step client predates conversationId.
+  if (!setup.clientContext) {
+    test.vars.clientContext = followConversation(test.vars.clientContext, response.output)
+    test.vars.clientContextJson = JSON.stringify(test.vars.clientContext)
   }
   if (test.vars.offerFamily) {
     const previewFamily = test.vars.offerFamily === 'preview-rejection' ? 'preview-rejection' : 'repeat'

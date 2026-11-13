@@ -1,12 +1,13 @@
 import { randomUUID } from 'node:crypto'
-import { apiOrigin } from '../credentials.mjs'
+import { apiOrigin, safeFailureMessage } from '../credentials.mjs'
 
-// Every orbit-api route parameter is constrained to a GUID ({id:guid}), so a GUID segment is the only identifier.
-const guidSegment = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu
+// The eval's one GUID rule. orbit-api constrains every route parameter to a GUID ({id:guid}), so a GUID segment is the
+// only identifier in a route, and the graders and the report evidence read record and request ids in the same dashed form.
+export const guid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu
 
 function isFixtureLog(method, path) {
   const [resource, id, action, ...remaining] = path.split('/')
-  return method === 'POST' && resource === 'habits' && guidSegment.test(id ?? '')
+  return method === 'POST' && resource === 'habits' && guid.test(id ?? '')
     && action === 'log' && remaining.length === 0
 }
 
@@ -17,13 +18,13 @@ function canRetryTransport(method, path) {
   // #1822: profile setters increment a reminder version, so only verified replacement routes may retry.
   if (['calendar/selected-calendars', 'calendar/auto-sync'].includes(path)) return true
   const [resource, id, action, ...remaining] = path.split('/')
-  if (!guidSegment.test(id ?? '') || remaining.length) return false
+  if (!guid.test(id ?? '') || remaining.length) return false
   return (resource === 'habits' && (action === undefined || action === 'checklist'))
     || (resource === 'tags' && action === 'assign')
 }
 
 function fixtureFailure(method, path, cause) {
-  const route = path.split(/[?#]/u)[0].split('/').map((segment) => guidSegment.test(segment) ? '{id}' : segment).join('/')
+  const route = path.split(/[?#]/u)[0].split('/').map((segment) => guid.test(segment) ? '{id}' : segment).join('/')
   return new Error(`Fixture API ${method} ${route} failed: ${cause}.`)
 }
 
@@ -79,6 +80,18 @@ export function publicApi(credentialKey) {
   }
 }
 
+// Contract: orbit-api AiController.ConfirmPendingOperation returns ConfirmPendingOperationResponse
+// (pendingOperationId, confirmationToken); execute takes that token with the same clientContext.
+export async function approvePendingOperation(api, pendingId, clientContext) {
+  const path = `ai/pending-operations/${pendingId}`
+  const { payload } = await api('POST', `${path}/confirm?clientContext=${encodeURIComponent(JSON.stringify(clientContext))}`)
+  if (payload?.pendingOperationId !== pendingId || typeof payload.confirmationToken !== 'string' || !payload.confirmationToken.trim()) {
+    throw new Error('Approval confirmation lacks its bound token.')
+  }
+  // The token stays in memory and never enters the graded output or evidence reports.
+  return api('POST', `${path}/execute`, { confirmationToken: payload.confirmationToken, clientContext })
+}
+
 export async function requireEvalAccess(credentialKey) {
   const expected = credentialKey === 'ORBIT_EVAL_TOKEN'
   try {
@@ -86,7 +99,7 @@ export async function requireEvalAccess(credentialKey) {
     const enabled = payload?.features?.astra_eval_unmetered?.enabled
     if (enabled !== expected) throw new Error('Eval allowance policy is unavailable.')
     return enabled
-  } catch {
-    throw new Error(`Eval preflight failed: turn ${expected ? 'on' : 'off'} astra_eval_unmetered for ${credentialKey} through /flag on staging, then verify /api/config and retry.`)
+  } catch (error) {
+    throw new Error(`Eval preflight failed: turn ${expected ? 'on' : 'off'} astra_eval_unmetered for ${credentialKey} through /flag on staging, then verify /api/config and retry. ${safeFailureMessage(error)}`)
   }
 }

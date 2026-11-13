@@ -75,7 +75,7 @@ export const cases = async () => {
   }
 
   const readinessSource = readFileSync(new URL("../../.claude/workflows/prod-readiness.mjs", import.meta.url), "utf8").replace(/^export const meta = [\s\S]*?\n}\n/, "")
-  const runReadiness = async ({ hygiene, refute = true, verdict = { refuted: refute, note: "checked" }, scope = "both", finderFindings = {} }) => {
+  const runReadiness = async ({ hygiene, refute = true, verdict = { refuted: refute, note: "checked" }, scope = "both", finderFindings = {}, finderResults = {} }) => {
     const prompts = {}
     const labels = []
     const context = {
@@ -87,6 +87,7 @@ export const cases = async () => {
       agent: async (prompt, options) => {
         prompts[options.label] = prompt
         labels.push(options.label)
+        if (finderResults[options.label]) return finderResults[options.label]
         if (finderFindings[options.label]) return { findings: finderFindings[options.label], deferred: [] }
         if (options.label === "hygiene:ui") {
           return {
@@ -174,6 +175,33 @@ export const cases = async () => {
   const absent = await runReadiness({})
   T(`${NAME}: a run with no hygiene argument defers all five repositories and never reads as clean`,
     absent.result.hygieneDeferred.length === 5 && absent.result.hygieneChecksRun.length === 0 && absent.result.hygieneChecksFailed.length === 0, JSON.stringify(absent.result.hygieneDeferred))
+  const unreadableRefusal = (path) => ({ check: "hygiene-unreadable", path, reason: "Read was refused outside the working directories" })
+  const unreadable = await runReadiness({
+    hygiene: { repositories: {
+      ui: { root: "/checkout/ui", candidates: [{ path: "x.md", kind: "old" }, { path: "w.md", kind: "old" }] },
+      api: { root: "/checkout/api", candidates: [{ path: "y.md", kind: "outdated" }] },
+      landing: { root: "/checkout/landing", candidates: [{ path: "l.md", kind: "old" }] },
+      workshop: { root: "/checkout/workshop", candidates: [{ path: "notes/a.md", kind: "outdated" }] },
+    } },
+    finderResults: {
+      "hygiene:ui": { findings: [], deferred: [unreadableRefusal("w.md")] },
+      "hygiene:api": { findings: [], deferred: [] },
+      "hygiene:landing": { findings: [], deferred: [unreadableRefusal("/checkout/landing/l.md")] },
+      "hygiene:workshop": {
+        findings: [{ severity: "Medium", check: "hygiene-outdated", title: "Stale note", location: "thomas-brain notes/a.md", risk: "an agent reads it", evidence: "no file was read", fix: "update notes/a.md" }],
+        deferred: [unreadableRefusal("/checkout/workshop/")],
+      },
+    },
+  })
+  T(`${NAME}: a finder that cannot open its root or any candidate is not run, so its repository never reads as swept`,
+    JSON.stringify(unreadable.result.hygieneChecksRun) === JSON.stringify(["ui", "api"]) && JSON.stringify(unreadable.result.hygieneChecksFailed) === JSON.stringify(["landing", "workshop"]),
+    JSON.stringify([unreadable.result.hygieneChecksRun, unreadable.result.hygieneChecksFailed]))
+  T(`${NAME}: a finder that read nothing adds no finding, and each unreadable path stays in the deferred ledger`,
+    unreadable.result.hygieneFindings.length === 0 &&
+      ["w.md", "/checkout/landing/l.md", "/checkout/workshop/"].every((path) => unreadable.result.hygieneDeferred.some((item) => item.check === "hygiene-unreadable" && item.path === path)),
+    JSON.stringify([unreadable.result.hygieneFindings, unreadable.result.hygieneDeferred]))
+  T(`${NAME}: the finder prompt says an unopened root or candidate is a hygiene-unreadable entry, never an empty result`,
+    /cannot open the root[^\n]*"hygiene-unreadable"[^\n]*the path \/checkout\/workshop [^\n]*Never return an empty result/.test(unreadable.prompts["hygiene:workshop"] ?? ""), unreadable.prompts["hygiene:workshop"])
   const rowsOf = (kind, count) => Array.from({ length: count }, (_, index) => ({ path: `${kind}-${index}.md`, kind }))
   const mixed = await runReadiness({ hygiene: { repositories: { ui: { root: "/checkout/ui", candidates: [...rowsOf("old", 400), ...rowsOf("duplicate", 10), ...rowsOf("outdated", 29), ...rowsOf("temporary", 5)] } } } })
   const judgedRows = (mixed.prompts["hygiene:ui"] ?? "").split("\n").map((line) => line.slice(Math.max(0, line.indexOf('{"path"'))))

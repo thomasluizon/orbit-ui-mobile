@@ -320,6 +320,13 @@ function findGoalCard(root: TestNode, title: string): TestNode {
     && String(node.props.accessibilityLabel).includes(`\"title\":\"${title}\"`))[0]!
 }
 
+/** The painted goal card surface: the press scale layer inside the card's press target. */
+function goalSurface(card: TestNode): ViewStyle & { transition?: string } {
+  const layers = card.findAll((node) => typeof node.type === 'string' && node.props['data-slot'] === 'press-scale')
+  expect(layers, 'one press scale layer paints the card inside its press target').toHaveLength(1)
+  return StyleSheet.flatten(layers[0]!.props.style as ViewStyle)
+}
+
 function findGoalsSection(root: TestNode) {
   return root.findAll((node) =>
     typeof node.props.onRegisterGoal === 'function',
@@ -528,44 +535,48 @@ describe('mobile ProgressContent', () => {
     const metadata = card.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && typeof node.props.children === 'string' && node.props.children.startsWith('progressScreen.goals.progress'))[0]!
     const foreground = StyleSheet.flatten(metadata.props.style as TextStyle).color as string
     const tokens = createTokensV2('purple', mode)
-    const restingSurface = StyleSheet.flatten(card.props.style as ViewStyle).backgroundColor as string
+    const restingSurface = goalSurface(card).backgroundColor as string
     expect(contrastOnSurface(foreground, [tokens.bg, restingSurface]), 'resting').toBeGreaterThanOrEqual(4.5)
     await TestRenderer.act(() => (card.props.onPressIn as (event: unknown) => void)({}))
     card = findCard()
-    const pressedSurface = StyleSheet.flatten(card.props.style as ViewStyle).backgroundColor as string
+    const pressedSurface = goalSurface(card).backgroundColor as string
     expect(contrastOnSurface(foreground, [tokens.bg, pressedSurface]), 'pressed').toBeGreaterThanOrEqual(4.5)
   })
 
-  it('shows canonical press feedback and the granted lifted drag state', async () => {
+  it('shows canonical press feedback and the granted lifted drag state on the surface inside a full-size press target', async () => {
     const goal = createMockGoal()
     mocks.goals.data.allGoals = [goal]
     const tree = await renderProgress(undefined, 'goals')
     const findCard = () => findGoalCard(tree.root, goal.title)
+    const target = () => StyleSheet.flatten([findCard().props.style as ViewStyle])
     const tokens = createTokensV2('purple', theme.mode)
 
     let card = findCard()
-    const resting = StyleSheet.flatten(card.props.style as ViewStyle) as ViewStyle & { transition?: string }
+    const resting = goalSurface(card)
     expect(resting).toMatchObject({ backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost, transform: [{ scale: 1 }] })
     expect(resting.transition).toBe(PRESS_SCALE_TRANSITION)
     expect(Object.keys(resting).filter((key) => key.startsWith('transition'))).toEqual(['transition'])
+    expect(target().transform, 'the press target keeps its full size').toBeUndefined()
     await TestRenderer.act(() => (card.props.onPressIn as (event: unknown) => void)({}))
     card = findCard()
-    expect(StyleSheet.flatten(card.props.style as ViewStyle)).toMatchObject({ backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] })
+    expect(goalSurface(card)).toMatchObject({ backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] })
+    expect(target().transform, 'a press never shrinks the press target under the finger').toBeUndefined()
 
     mocks.dragActive = true
     await TestRenderer.act(async () => { tree.update(<GoalsPage />); await Promise.resolve() })
     card = findCard()
-    expect(StyleSheet.flatten(card.props.style as ViewStyle)).toMatchObject({
+    expect(goalSurface(card)).toMatchObject({
       borderColor: tokens.hairlineStrong,
       elevation: 4,
       opacity: 0.5,
       transform: [{ scale: 0.96 }],
-      zIndex: 2,
     })
+    expect(target()).toEqual({ zIndex: 2 })
 
     mocks.dragActive = false
     await TestRenderer.act(async () => { tree.update(<GoalsPage />); await Promise.resolve() })
-    expect(StyleSheet.flatten(findCard().props.style as ViewStyle)).not.toMatchObject({ opacity: 0.5, zIndex: 2 })
+    expect(goalSurface(findCard())).not.toMatchObject({ opacity: 0.5 })
+    expect(target()).not.toMatchObject({ zIndex: 2 })
   })
 
   it.each(['on_track', 'at_risk', 'behind', 'no_deadline'])('renders one neutral tracking badge for %s without status or deadline', async (trackingStatus) => {
