@@ -277,15 +277,15 @@
     ".claude/skills/prod-readiness/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "3ffb62e8c73c993b",
+      "digest": "c8d2bedf7e4261fb",
       "calibratedAt": "2026-11-13",
       "verdict": "undeclared, inherits the session: it judges four child audits before producing a launch verdict."
     },
     ".claude/skills/progress/SKILL.md": {
       "model": null,
       "effort": "medium",
-      "digest": "643c781d0c659dbe",
-      "calibratedAt": "2026-11-09",
+      "digest": "89e6a2d3ccd0236c",
+      "calibratedAt": "2026-11-13",
       "verdict": "current: medium effort; it reads live git and ticket state, resolves integration per repository, and distinguishes ancestry from stacked squash boundaries."
     },
     ".claude/skills/questions/SKILL.md": {

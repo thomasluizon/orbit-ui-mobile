@@ -191,9 +191,10 @@ ops or a11y finding (default-refuted), and returns:
   audits: [ { kind, findings, counts, coverage, deferred, rounds }, … ×4 ],
   opsFindings: [ { severity, check, title, location, risk, evidence, fix } ],
   a11yFindings: [ same shape, check "a11y-web" | "a11y-mobile" ],
-  hygieneFindings: [ same shape, check "hygiene-old" | "hygiene-outdated" | "hygiene-duplicate" | "hygiene-temporary" ],
+  hygieneFindings: [ same shape plus root, check "hygiene-old" | "hygiene-outdated" | "hygiene-duplicate" | "hygiene-temporary" ],
   opsChecksRun, opsChecksFailed, a11yChecksRun, a11yChecksFailed, a11yNotApplicable,
   hygieneChecksRun, hygieneChecksFailed, hygieneDeferred,
+  hygieneCandidates: { <repository key>: { outdated | temporary | duplicate | old: { judged, deferred } } },
   opsDeferred, failedAudits, unconvergedAudits,
   performanceMeasurement }
 ```
@@ -202,11 +203,14 @@ The workflow fails closed on its own machinery. A check whose finder died lands 
 `opsChecksFailed` / `a11yChecksFailed`, never in `*ChecksRun`: its inventory item is
 **coverage UNKNOWN** (forces at most CONDITIONAL), never clean. A serious finding whose
 skeptic died is kept, carrying `unverified` — treat it as real until re-verified, and say so
-in the ticket. The a11y checks run only when the resolved scope contains a UI surface; an
+in the ticket. Each skeptic gets the root of the repository, the evidence and the fix. A file the
+skeptic cannot open is never a refutation: an ops or a11y finding is then kept with `unverified`,
+and a hygiene finding goes to `hygieneDeferred`. The a11y checks run only when the resolved scope contains a UI surface; an
 `api`-only scope returns `a11yNotApplicable` with the reason, and inventory item 11 then reads
 **N/A (scope has no UI surface)** — that is a verdict, not a skipped item.
 
-`opsDeferred` always includes **backups** ("verify in the DB console: PITR plus a tested
+`opsDeferred` always includes **alert-routing** ("verify in the Sentry console: the alert rules of
+all three runtimes route to a sink someone watches"), **backups** ("verify in the DB console: PITR plus a tested
 restore path"), **paid-api-cost-caps** ("verify in each provider console: a hard monthly cap
 plus a spend alert"), and **a11y-runtime-matrix** (the axe A/AA tag set, a keyboard pass, and
 a screen-reader pass over the route x state x viewport x input-mode matrix need the running
@@ -420,17 +424,17 @@ The ledger rule, word for word, which each finder and each fix ticket applies:
 
 1. **Resolve the roots.** Read `repos.ui`, `repos.api` and `repos.landing`, and `hygieneRoots.workshop` and `hygieneRoots.vault`, through `readOrchestratorConfig()` in `tools/lib/orchestrator-config.mjs`. The two new roots are not in `repos`: about 20 tools read `repos` as the set of ticket-routed code repositories.
 2. **Collect.** For each root, run `node tools/file-ledger.mjs --repo <root>` with the four other roots as `--also-search`. Keep each ledger in the scratchpad. Do not write a ledger to a repository.
-3. **Select the candidates by kind.** A row is a candidate when a mechanical signal fires:
-   - old: `inboundByPath`, `inboundByBasename` and `crossRepositoryInbound` are all zero. Order by the oldest `lastCommit` first.
+3. **Select the candidates by kind.** A row is a candidate when a mechanical signal fires. Give each candidate a `kind` field: the first kind in this list whose signal fires.
    - outdated: `unresolvedReferences` is not empty; or `agentInstruction` is true and a second instruction file in the same folder has different content.
-   - duplicate: `duplicateOf` or `crossRepositoryDuplicateOf` is not empty.
    - temporary: `temporaryPattern` is not null. Add each untracked file that the tool summary lists.
+   - duplicate: `duplicateOf` or `crossRepositoryDuplicateOf` is not empty.
+   - old: `inboundByPath`, `inboundByBasename` and `crossRepositoryInbound` are all zero. Order by the oldest `lastCommit` first.
 4. **Exclude the records** before the workflow sees them: each file under `src/Orbit.Infrastructure/Migrations/` in `orbit-api`; each file under a `Decisions/` folder, `5 Journal/` or `0 Inbox/raw/` in the vault; each text file of a published post in `thomas-brain`; each file of a skill that `skills-lock.json` or `.claude/skills/VENDOR.md` pins in `thomas-brain`.
-5. **Pass the candidates** to the workflow in the `hygiene` argument, as the skill passes `performanceMeasurement` today: `hygiene: { repositories: { ui: { root, candidates }, api: { root, candidates }, landing: { root, candidates }, workshop: { root, candidates }, vault: { root, candidates } } }`.
-6. **Read the result.** A finder that died puts its repository in `hygieneChecksFailed`: the coverage is unknown, and the item is never clean.
+5. **Pass the candidates** to the workflow in the `hygiene` argument, as the skill passes `performanceMeasurement` today: `hygiene: { repositories: { ui: { root, candidates }, api: { root, candidates }, landing: { root, candidates }, workshop: { root, candidates }, vault: { root, candidates } } }`. Each candidate is its ledger row plus `kind`; the workflow refuses a candidate without one.
+6. **Read the result.** A finder that died puts its repository in `hygieneChecksFailed`: the coverage is unknown, and the item is never clean. The workflow judges at most 300 candidates for each repository. Each kind gets an equal share of that cap, and a share that one kind leaves unused goes to the other kinds, so the `outdated`, `temporary` and `duplicate` candidates are judged before the `old` rows use up the cap. `hygieneCandidates` gives the judged and deferred count of each kind, and a `hygieneDeferred` entry names each kind with candidates that were not judged.
 7. **Before a finding becomes a ticket,** search the open tickets in `thomasluizon/orbit-tickets` for its path. If an open ticket covers it, name that ticket in the gate. Do not create a second one.
 
-The workflow runs one finder for each repository with the agent type `audit-readonly`. A finder has no shell: it reads with Read, Grep and Glob, so the tool runs in this session. A file under a public web folder, an app asset folder or a store asset folder can have a deployed reader, so a finder never returns a delete finding for it. It returns the file as deferred with the check `hygiene-deployed-readers`. A skeptic argues that each finding is false, for each finding that orders a delete and for each High finding. The default is refuted.
+The workflow runs one finder for each repository with the agent type `audit-readonly`. A finder has no shell: it reads with Read, Grep and Glob, so the tool runs in this session. A file under a public web folder, an app asset folder or a store asset folder can have a deployed reader, so a finder never returns a delete finding for it. It returns the file as deferred with the check `hygiene-deployed-readers`. A skeptic argues that each finding is false, for each finding that orders a delete and for each High finding. The default is refuted. The skeptic gets the root of the repository, the evidence and the fix. A file that the skeptic cannot open is deferred, never refuted: the finding goes to `hygieneDeferred`.
 
 A finding carries `severity`, `check` (`hygiene-old`, `hygiene-outdated`, `hygiene-duplicate` or `hygiene-temporary`), `title`, `location` (the repository name, then the path), `risk`, `evidence` (the ledger row and the reader search) and `fix`. A record is never a finding: an `orbit-api` migration, a vault decision, a journal note, a raw inbox file, a published post, or a vendored file with a lock entry.
 
@@ -494,9 +498,9 @@ Present ONE message and get ONE approval (mirror /ticket phase D). The headline 
 - **Architecture sweep**: the verdict, the `chore(arch)` PR link, the before/after count per
   signal (unpaired mobile routes, unused endpoints, unowned keys), and the holdback table
   (item, signal, reason).
-- **Hygiene sweep**: for each of the five repositories, the file count, the candidates by kind (old, outdated, duplicate, temporary), the findings and the deferred files, and the verdict. Name an open ticket that already covers a path.
+- **Hygiene sweep**: for each of the five repositories, the file count, the candidates by kind (outdated, temporary, duplicate, old) with the judged and deferred count of each from `hygieneCandidates`, the findings and the deferred files, and the verdict. Name an open ticket that already covers a path.
 - **Deferred ledger**: merge every child's `deferred` (attributed, e.g. "from security:
-  verify-cap overflow") plus `opsDeferred` (backups, paid-API cost caps, the a11y runtime
+  verify-cap overflow") plus `opsDeferred` (alert routing, backups, paid-API cost caps, the a11y runtime
   matrix) plus `hygieneDeferred` plus enterprise-only ops.
 - **What's solid**: the genuine production strengths, so the gate is decision-ready, not a
   fear list.
@@ -545,7 +549,7 @@ re-validate each with `--issue`.
 **Measured performance**: {MEASURED with top finding and top-ten table | CODE_ONLY with reason}
 **Dependency sweep**: {the chore(deps) PR links + holdback count, or "FAILED: reason"}
 **Architecture sweep**: {the chore(arch) PR link + per-signal before/after counts + holdback count, or "FAILED: reason"}
-**Hygiene sweep**: {per repository: files, candidates by kind, findings, deferred; or "FAILED: reason"}
+**Hygiene sweep**: {per repository: files, candidates by kind (judged and deferred), findings, deferred; or "FAILED: reason"}
 **Tickets**: {the final ORB-N table, identifier · title · repo · tier · blockedBy, or "clean: nothing to ticket"}
 **Top blocker**: {the single highest-priority ticket standing between here and launch, or "none"}
 ```

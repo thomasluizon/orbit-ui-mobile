@@ -177,7 +177,7 @@ For the default time window:
    establishes what landed.
 
 The standing orchestrator practice retargets a stacked child onto the integration branch before merging
-its parent. `.claude/specs/orbit-redesign.md` and `/merge-prs` own that rule.
+its parent. `/orchestrate` and `/merge-prs` own that rule.
 4. Run `git status --short` in the current checkout so work before its first commit or pull request is
    visible there. This does not create a session baseline. It also cannot see uncommitted work in
    linked worktrees from the orchestrating checkout. When no ledger row names that work yet, say the

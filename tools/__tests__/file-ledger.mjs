@@ -263,12 +263,15 @@ const caseUnresolvedReferences = () => {
       "Noise: `https://example.com/a.md`, `src/*.ts`, `<name>/file.md`, `--flag`, `feature/`, `.dc.html`, `Next.js`, `1.2.3`.",
       "Bare `present.md` resolves, bare `nowhere.md` does not. A [link](docs/gone-link.md#anchor) and a [web](https://example.com/x.md).",
       "Command `node tools/missing-tool.mjs --help` and a relative `./present.md`.",
+      "Dot folders: missing `.claude/specs/gone.md` and [a workflow](.github/workflows/gone.yml), present `.claude/rules/core.md` and `.github/workflows/test.yml`, hidden `.env.example`.",
       "```",
       "`fenced/ignored.md`",
       "```",
     ].join("\n"),
     "docs/present.md": "text\n",
-    "tools/root-allowlist.json": `${JSON.stringify({ files: ["generated.json"], directories: [] })}\n`,
+    ".claude/rules/core.md": "rules\n",
+    ".github/workflows/test.yml": "name: test\n",
+    "tools/root-allowlist.json":`${JSON.stringify({ files: ["generated.json"], directories: [] })}\n`,
     ".gitignore": "ignored/\n",
     "src/code.ts": "// `src/not-a-doc.md` in a source file\n",
     "design/page.html": "<p>`design/not-scanned.md`</p>\n",
@@ -277,8 +280,11 @@ const caseUnresolvedReferences = () => {
   const sibling = makeRepository("references-sibling", { "sibling-only/notes.md": "notes\n" })
   const { row } = emit(repository, [sibling])
   const found = row("docs/guide.md").unresolvedReferences
-  const expected = ["docs/gone-link.md", "docs/gone.md", "nowhere.md", "tools/missing-tool.mjs"]
+  const expected = [".claude/specs/gone.md", ".github/workflows/gone.yml", "docs/gone-link.md", "docs/gone.md", "nowhere.md", "tools/missing-tool.mjs"]
   T(`${TOOL}: unresolvedReferences holds each missing path and only those`, found.join() === expected.join(), found.join())
+  T(`${TOOL}: a missing path under a dot folder is reported and a tracked one resolves`,
+    found.includes(".claude/specs/gone.md") && found.includes(".github/workflows/gone.yml") && !found.some((path) => /core\.md|test\.yml/.test(path)), found.join())
+  T(`${TOOL}: a bare name that starts with a dot is never a reference`, !found.some((path) => /^\.(?:env|dc)\./.test(path)), found.join())
   T(`${TOOL}: a tracked path, an ignored file on disk, an allowlisted path and an --also-search path resolve`, !found.some((path) => /present|local\.json|generated|sibling-only/.test(path)))
   T(`${TOOL}: a URL, a glob, a placeholder, a flag and a branch prefix are never references`, !found.some((path) => /example|\*|<|--flag|feature|dc\.html|Next|1\.2\.3/.test(path)))
   T(`${TOOL}: a fenced code block is skipped`, !found.includes("fenced/ignored.md"))

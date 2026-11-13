@@ -2,12 +2,15 @@
 
 > **At a glance** - counts for deployed Astra and MCP tools, and retained social compatibility references.
 > Counts are pinned to `thomasluizon/orbit-api` commit
-> `5fc345d2011174ddf36e56e4e08511ced08f5ef9`; recount after API changes.
+> `2f49ed78fcea2963a80cac7e6510490454f7bbb0`; recount after API changes.
 
 ## Astra AI
 
 `orbit-api/src/Orbit.Api/Extensions/ServiceCollectionExtensions.AiServices.cs` registers
 **72 `IAiTool` implementations**.
+
+The guide counts **71**: `AiToolRegistry.GetAll()` leaves out each `IMcpOnlyAiTool`, and the one such
+tool, the administrator-only `ManageFeatureFlagsTool`, never reaches Astra.
 
 Synchronization trigger: after an `IAiTool` registration reaches deployed `orbit-api` `main`,
 recount that source and update this total plus both guide locales in a paired UI pull request.
@@ -15,27 +18,31 @@ recount that source and update this total plus both guide locales in a paired UI
 ## MCP
 
 `orbit-api/src/Orbit.Api/Mcp/Tools/*.cs` contains
-**111 `[McpServerTool]` methods across 17 tool classes**.
+**94 `[McpServerTool]` methods across 17 tool classes**. Count the method attribute only, never the
+`[McpServerToolType]` attribute on each class.
 
 | Tool class | `[McpServerTool]` methods |
 |---|---:|
-| `AccountTools.cs` | 2 |
-| `AgentTools.cs` | 9 |
-| `ApiKeyTools.cs` | 3 |
-| `CalendarTools.cs` | 5 |
-| `ChecklistTemplateTools.cs` | 5 |
-| `FeatureFlagTools.cs` | 2 |
-| `FeatureTools.cs` | 2 |
-| `GamificationTools.cs` | 4 |
-| `GoalTools.cs` | 12 |
-| `HabitTools.cs` | 30 |
-| `NotificationTools.cs` | 8 |
-| `NotionTools.cs` | 2 |
-| `ProfileTools.cs` | 9 |
-| `RecordPageTools.cs` | 5 |
-| `SubscriptionTools.cs` | 5 |
-| `SupportTools.cs` | 2 |
-| `TagTools.cs` | 6 |
+| `AccountTools.cs` | 1 |
+| `AgentTools.cs` | 8 |
+| `ApiKeyTools.cs` | 2 |
+| `CalendarTools.cs` | 4 |
+| `ChecklistTemplateTools.cs` | 4 |
+| `FeatureFlagTools.cs` | 1 |
+| `FeatureTools.cs` | 1 |
+| `GamificationTools.cs` | 3 |
+| `GoalTools.cs` | 11 |
+| `HabitTools.cs` | 29 |
+| `NotificationTools.cs` | 7 |
+| `NotionTools.cs` | 1 |
+| `ProfileTools.cs` | 8 |
+| `RecordPageTools.cs` | 4 |
+| `SubscriptionTools.cs` | 4 |
+| `SupportTools.cs` | 1 |
+| `TagTools.cs` | 5 |
+
+The guide counts **93 tools across 16 areas**: `orbit-api/src/Orbit.Api/Mcp/FeatureFlagToolAccess.cs`
+hides the administrator-only `FeatureFlagTools.cs` tool from the tool list of every other account.
 
 Synchronization trigger: after an `[McpServerTool]` method reaches deployed `orbit-api` `main`,
 recount every tool class and update this table, its total, and both guide locales in a paired UI pull request.

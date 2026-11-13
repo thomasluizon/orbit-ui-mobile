@@ -75,7 +75,7 @@ export const cases = async () => {
   }
 
   const readinessSource = readFileSync(new URL("../../.claude/workflows/prod-readiness.mjs", import.meta.url), "utf8").replace(/^export const meta = [\s\S]*?\n}\n/, "")
-  const runReadiness = async ({ hygiene, refute = true, scope = "both" }) => {
+  const runReadiness = async ({ hygiene, refute = true, verdict = { refuted: refute, note: "checked" }, scope = "both" }) => {
     const prompts = {}
     const context = {
       args: { roots: { ui: "/checkout/ui", api: "/checkout/api" }, scope, hygiene },
@@ -91,15 +91,24 @@ export const cases = async () => {
             deferred: [{ check: "hygiene-deployed-readers", path: "apps/web/public/a.png", reason: "a public URL can serve it" }],
           }
         }
+        if (options.label === "hygiene:workshop") {
+          return {
+            findings: [{ severity: "Medium", check: "hygiene-temporary", title: "Draft file", location: "thomas-brain drafts/z.md", risk: "a script reads it", evidence: "temporaryPattern segment:drafts; searched drafts/z.md: no reader", fix: "delete drafts/z.md" }],
+            deferred: [],
+          }
+        }
+        if (options.label === "ops:staging") {
+          return { findings: [{ severity: "High", check: "staging", title: "No gate", location: "orbit-api .github/workflows/release.yml:1", risk: "an unadmitted commit ships", evidence: "release.yml:1 has no admission step", fix: "add the admission step" }] }
+        }
         if (options.label === "hygiene:api") return null
-        if (options.label.startsWith("verify:")) return { refuted: refute, note: "checked" }
+        if (options.label.startsWith("verify:")) return verdict
         return { findings: [] }
       },
     }
     const result = await runInNewContext(`(async () => {\n${readinessSource}\n})()`, context)
     return { result, prompts }
   }
-  const hygieneArgument = { repositories: { ui: { root: "/checkout/ui", candidates: [{ path: "x.md" }] }, api: { root: "/checkout/api", candidates: [{ path: "y.md" }] }, landing: { root: null, reason: "scope" }, workshop: { root: "/checkout/workshop", candidates: [] }, vault: { root: null } } }
+  const hygieneArgument = { repositories: { ui: { root: "/checkout/ui", candidates: [{ path: "x.md", kind: "old" }] }, api: { root: "/checkout/api", candidates: [{ path: "y.md", kind: "outdated" }] }, landing: { root: null, reason: "scope" }, workshop: { root: "/checkout/workshop", candidates: [{ path: "drafts/z.md", kind: "temporary" }] }, vault: { root: null } } }
   const refuted = await runReadiness({ hygiene: hygieneArgument })
   T(`${NAME}: the hygiene phase runs one finder for each repository that has a root`,
     JSON.stringify(refuted.result.hygieneChecksRun) === JSON.stringify(["ui", "workshop"]) && JSON.stringify(refuted.result.hygieneChecksFailed) === JSON.stringify(["api"]),
@@ -112,12 +121,52 @@ export const cases = async () => {
   T(`${NAME}: the finder prompt carries the ledger rule and the four kinds`,
     /Every tracked file starts as a suspect/.test(refuted.prompts["hygiene:ui"]) && ["hygiene-old", "hygiene-outdated", "hygiene-duplicate", "hygiene-temporary"].every((kind) => refuted.prompts["hygiene:ui"].includes(kind)))
   const kept = await runReadiness({ hygiene: hygieneArgument, refute: false })
-  T(`${NAME}: a surviving hygiene finding is never a Blocker`, kept.result.hygieneFindings.length === 1 && kept.result.hygieneFindings[0].severity === "High", JSON.stringify(kept.result.hygieneFindings))
+  const keptOld = kept.result.hygieneFindings.find((finding) => finding.check === "hygiene-old")
+  T(`${NAME}: a surviving hygiene finding is never a Blocker`, kept.result.hygieneFindings.length === 2 && keptOld?.severity === "High", JSON.stringify(kept.result.hygieneFindings))
+  T(`${NAME}: a surviving hygiene finding carries the root of its repository`,
+    keptOld?.root === "/checkout/ui" && kept.result.hygieneFindings.find((finding) => finding.check === "hygiene-temporary")?.root === "/checkout/workshop", JSON.stringify(kept.result.hygieneFindings))
+  const skepticPrompt = refuted.prompts["verify:hygiene-temporary"] ?? ""
+  T(`${NAME}: the skeptic prompt of a hygiene finding outside orbit-ui-mobile names the root of its repository`,
+    skepticPrompt.includes("rooted at /checkout/workshop") && !skepticPrompt.includes("/checkout/ui"), skepticPrompt)
+  T(`${NAME}: the skeptic prompt of a hygiene finding carries its evidence and its fix`,
+    skepticPrompt.includes("searched drafts/z.md: no reader") && skepticPrompt.includes("fix=delete drafts/z.md"), skepticPrompt)
+  for (const label of ["verify:hygiene-temporary", "verify:staging"]) {
+    T(`${NAME}: the ${label} prompt says a file the skeptic cannot open is deferred, never refuted`,
+      /cannot open the cited file[^\n]*deferred=true and refuted=false/.test(refuted.prompts[label] ?? ""), refuted.prompts[label])
+  }
+  const opsPrompt = refuted.prompts["verify:staging"] ?? ""
+  T(`${NAME}: the skeptic prompt of an ops finding names both repository roots, the evidence and the fix`,
+    opsPrompt.includes("/checkout/ui") && opsPrompt.includes("/checkout/api") && opsPrompt.includes("release.yml:1 has no admission step") && opsPrompt.includes("fix=add the admission step"), opsPrompt)
+  T(`${NAME}: the observability finder is told the workflow defers the console-only alert routing, and opsDeferred carries it`,
+    /deferred check alert-routing/.test(refuted.prompts["ops:observability"] ?? "") && !/no alert sink is a finding/.test(refuted.prompts["ops:observability"] ?? "") &&
+      refuted.result.opsDeferred.some((item) => item.check === "alert-routing"), refuted.prompts["ops:observability"])
+  const unopened = await runReadiness({ hygiene: hygieneArgument, verdict: { refuted: true, deferred: true, note: "could not open /checkout/workshop/drafts/z.md" } })
+  T(`${NAME}: a hygiene finding whose skeptic cannot open the file is deferred, never refuted`,
+    unopened.result.hygieneFindings.length === 0 &&
+      unopened.result.hygieneDeferred.some((item) => item.check === "hygiene-temporary" && item.path === "thomas-brain drafts/z.md" && item.reason.includes("/checkout/workshop")),
+    JSON.stringify(unopened.result.hygieneDeferred))
+  T(`${NAME}: an ops finding whose skeptic cannot open the file is kept as unverified`,
+    unopened.result.opsFindings.length === 1 && /could not open the cited file/.test(unopened.result.opsFindings[0].unverified ?? ""), JSON.stringify(unopened.result.opsFindings))
   const absent = await runReadiness({})
   T(`${NAME}: a run with no hygiene argument defers all five repositories and never reads as clean`,
     absent.result.hygieneDeferred.length === 5 && absent.result.hygieneChecksRun.length === 0 && absent.result.hygieneChecksFailed.length === 0, JSON.stringify(absent.result.hygieneDeferred))
-  const capped = await runReadiness({ hygiene: { repositories: { ui: { root: "/checkout/ui", candidates: Array.from({ length: 301 }, (_, index) => ({ path: `f${index}.md` })) } } } })
-  T(`${NAME}: candidates beyond the cap are reported as not judged`, capped.result.hygieneDeferred.some((item) => /1 candidates beyond the cap of 300/.test(item.reason)), JSON.stringify(capped.result.hygieneDeferred))
+  const rowsOf = (kind, count) => Array.from({ length: count }, (_, index) => ({ path: `${kind}-${index}.md`, kind }))
+  const mixed = await runReadiness({ hygiene: { repositories: { ui: { root: "/checkout/ui", candidates: [...rowsOf("old", 400), ...rowsOf("duplicate", 10), ...rowsOf("outdated", 29), ...rowsOf("temporary", 5)] } } } })
+  const judgedRows = (mixed.prompts["hygiene:ui"] ?? "").split("\n").map((line) => line.slice(Math.max(0, line.indexOf('{"path"'))))
+    .filter((line) => line.startsWith('{"path"')).map((line) => JSON.parse(line))
+  T(`${NAME}: the cap judges every outdated, temporary and duplicate candidate before old rows use up the cap`,
+    JSON.stringify(mixed.result.hygieneCandidates?.ui) === JSON.stringify({ outdated: { judged: 29, deferred: 0 }, temporary: { judged: 5, deferred: 0 }, duplicate: { judged: 10, deferred: 0 }, old: { judged: 256, deferred: 144 } }),
+    JSON.stringify(mixed.result.hygieneCandidates))
+  T(`${NAME}: the finder sees the outdated candidates first and exactly the judged candidates`,
+    judgedRows.length === 300 && judgedRows[0].kind === "outdated" && judgedRows.filter((row) => row.kind === "old").length === 256, `${judgedRows.length} ${judgedRows[0]?.kind}`)
+  T(`${NAME}: the deferred entry names each kind that went unjudged`,
+    mixed.result.hygieneDeferred.some((item) => item.check === "hygiene-ui" && /old 144 of 400/.test(item.reason) && !/outdated|duplicate|temporary/.test(item.reason)), JSON.stringify(mixed.result.hygieneDeferred))
+  const crowded = await runReadiness({ hygiene: { repositories: { ui: { root: "/checkout/ui", candidates: ["old", "duplicate", "outdated", "temporary"].flatMap((kind) => rowsOf(kind, 400)) } } } })
+  T(`${NAME}: each kind gets an equal share of the cap when every kind exceeds it`,
+    Object.keys(crowded.result.hygieneCandidates?.ui ?? {}).length === 4 &&
+      Object.values(crowded.result.hygieneCandidates.ui).every((count) => count.judged === 75 && count.deferred === 325), JSON.stringify(crowded.result.hygieneCandidates))
+  const unkinded = thrown(() => runInNewContext(`${readinessSource.slice(readinessSource.indexOf("const parsedArgs ="), readinessSource.indexOf("const OPS_SCHEMA"))}`, { args: { roots: { ui: "/a", api: "/b" }, hygiene: { repositories: { api: { root: "/b", candidates: [{ path: "y.md" }] } } } } }))
+  T(`${NAME}: a hygiene candidate without a kind is refused naming the repository`, /kind .* each hygiene candidate of api/.test(unkinded ?? ""), unkinded ?? "accepted")
   const relativeRoot = thrown(() => runInNewContext(`${readinessSource.slice(readinessSource.indexOf("const parsedArgs ="), readinessSource.indexOf("const OPS_SCHEMA"))}`, { args: { roots: { ui: "/a", api: "/b" }, hygiene: { repositories: { vault: { root: "../brain" } } } } }))
   T(`${NAME}: a relative hygiene root is refused naming the repository`, /absolute hygiene root for vault/.test(relativeRoot ?? ""), relativeRoot ?? "accepted")
 

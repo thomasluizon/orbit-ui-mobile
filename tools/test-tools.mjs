@@ -173,6 +173,7 @@ const CASE_MODULES = [
 const REPOSITORY_CASE_MODULES = [
   [".github/workflows/release.yml", "check-release-workflow"],
   [".maestro/protected-route-redirect.yaml", "protected-route-redirect"],
+  ["design/canvas/tools/build-ds-bundle.mjs", "build-ds-bundle"],
 ]
 
 const TIMINGS_PATH = join(TOOLS_DIR, "test-tools-timings.json")

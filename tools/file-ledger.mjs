@@ -362,7 +362,9 @@ const cleanToken = (raw) =>
 
 const looksLikePath = (token) => {
   if (!token || NON_PATH_CHARACTERS.test(token) || token.includes("://") || token.startsWith("mailto:")) return false
-  if (/^[-/~@#%.]/.test(token) && !token.startsWith("./") && !token.startsWith("../")) return false
+  if (/^[-/~@#%]/.test(token)) return false
+  // A dot folder such as .claude/ or .github/ is a real path; a bare dotted name such as .dc.html is an extension.
+  if (token.startsWith(".") && !/^(?:\.{1,2}|\.[\w-]+)\//.test(token)) return false
   const segments = token.split("/").filter(Boolean)
   if (segments.some((segment) => /^\.{3,}$/.test(segment))) return false
   if (token.endsWith("/")) return segments.length >= 2

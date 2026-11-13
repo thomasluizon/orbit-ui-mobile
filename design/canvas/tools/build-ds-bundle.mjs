@@ -23,7 +23,8 @@ function walk(dir, out = []) {
   return out;
 }
 
-const files = walk(join(root, 'components'))
+// The tracked folder holds no component sources, and the tokens-only refresh never reads them.
+const files = (tokensOnly ? [] : walk(join(root, 'components')))
   .filter((f) => f.endsWith('.jsx'))
   .map((f) => relative(root, f).split('\\').join(posix.sep))
   .sort();

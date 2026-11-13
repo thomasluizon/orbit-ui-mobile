@@ -3249,8 +3249,8 @@
       "astraSection": {
         "canDoTitle": "Criar e registrar",
         "canDoDesc": "Diga à Astra quais hábitos você quer e ela cria. Diga 'corri hoje' para registrar um. Você também pode pedir um hábito para um dia só, como 'comprar ovos amanhã'.",
-        "toolsBreadthTitle": "63 ferramentas integradas",
-        "toolsBreadthDesc": "A Astra não só conversa, ela também age. São 63 ferramentas que cobrem hábitos, sub-hábitos, metas, tags, checklists, registros, lembretes, calendário e sua conta. Quase tudo o que você faz na tela também dá para fazer pedindo. O plano grátis inclui 5 mensagens de IA por dia; o Pro inclui 250 por semana.",
+        "toolsBreadthTitle": "71 ferramentas integradas",
+        "toolsBreadthDesc": "A Astra não só conversa, ela também age. São 71 ferramentas que cobrem hábitos, sub-hábitos, metas, tags, checklists, registros, lembretes, calendário e sua conta. Quase tudo o que você faz na tela também dá para fazer pedindo. O plano grátis inclui 5 mensagens de IA por dia; o Pro inclui 250 por semana.",
         "manageTitle": "Atualizar e apagar",
         "manageDesc": "Peça à Astra para mudar hábitos: 'passar minha academia para amanhã', 'renomear corrida para caminhada', 'mudar meditação para semanal' ou 'apagar meu hábito de leitura'. Ela também faz ações em massa.",
         "insightsTitle": "Progresso e análise",
@@ -3269,8 +3269,8 @@
       "connectSection": {
         "mcpTitle": "Assistentes externos",
         "mcpDesc": "Conecte um assistente compatível com MCP ao Orbit e use-o onde você já trabalha.",
-        "assistantCanDoTitle": "81 ferramentas",
-        "assistantCanDoDesc": "A conexão tem 81 ferramentas em 15 áreas, incluindo hábitos, metas, tags, checklists, lembretes e progresso.",
+        "assistantCanDoTitle": "93 ferramentas",
+        "assistantCanDoDesc": "A conexão tem 93 ferramentas em 16 áreas, incluindo hábitos, metas, tags, checklists, lembretes e progresso.",
         "apiKeysTitle": "Chaves no Perfil",
         "apiKeysDesc": "Crie uma chave de API com escopo no Perfil depois de entrar de novo. Escolha somente leitura ou acesso total e revogue quando precisar.",
         "setupTitle": "Conectar o cliente",
