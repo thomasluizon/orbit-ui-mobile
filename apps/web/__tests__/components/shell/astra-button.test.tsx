@@ -104,3 +104,16 @@ it('holds the pending create button slot with a hidden spacer that takes no focu
   expect(document.activeElement).not.toBe(slot)
   expect(screen.getAllByRole('button').filter(button => slot.contains(button))).toEqual([])
 })
+
+it('is the live Orbit at 48 with no circle, fill or border, in a 60 press target', () => {
+  mount()
+  const button = openButton()
+  const mascot = button.querySelector('svg')!
+  expect(mascot).toHaveAttribute('data-orbit-face', 'rig')
+  expect(mascot).toHaveAttribute('width', '48')
+  expect(mascot).toHaveAttribute('aria-hidden', 'true')
+  expect(button).toHaveStyle({ width: '60px', height: '60px' })
+  expect(button).toHaveClass('bg-transparent', 'border-0', 'motion-safe:active:scale-[0.96]')
+  expect(button).not.toHaveAttribute('data-fab')
+  expect(button.querySelector('[data-press-fill]')).toBeNull()
+})

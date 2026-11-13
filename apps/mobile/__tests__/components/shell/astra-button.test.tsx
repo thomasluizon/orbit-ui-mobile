@@ -1,5 +1,5 @@
 import React from 'react'
-import { View, type LayoutChangeEvent } from 'react-native'
+import { StyleSheet, View, type LayoutChangeEvent } from 'react-native'
 import { act, create, type ReactTestInstance } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ASTRA_BUTTON_GAP } from '@orbit/shared/utils'
@@ -149,4 +149,15 @@ it('hides while selection mode owns the bottom of Hoje and returns to the stack 
   await act(() => { useUIStore.setState({ isSelectMode: false }) })
   const boxes = measure(412)
   expect(boxes.get('create-fab')!.top - boxes.get('astra-button')!.bottom).toBe(ASTRA_BUTTON_GAP)
+})
+
+it('is the live Orbit at 48 with no background, in a 60 press target', async () => {
+  await mountShell(412)
+  const mascot = host('astra-button').findAll(node => node.props['data-orbit-face'] === 'rig')[0]!
+  expect(mascot.props).toMatchObject({ width: 48, accessible: false })
+  const flattened = StyleSheet.flatten(host('astra-button').props.style)
+  expect(flattened).toMatchObject({ width: 60, height: 60 })
+  expect(flattened.backgroundColor).toBeUndefined()
+  expect(flattened.boxShadow).toBeUndefined()
+  expect(hosts('fab-press-fill')).toHaveLength(0)
 })
