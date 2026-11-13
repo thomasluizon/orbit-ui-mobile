@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useCurrentTheme } from '@/stores/theme-store'
 
-type WidgetState = 'idle' | 'loading' | 'solved' | 'failed' | 'expired'
+type WidgetState = 'idle' | 'loading' | 'interactive' | 'solved' | 'failed' | 'expired'
 
 interface TurnstileApi {
   render: (container: HTMLElement, options: {
@@ -18,6 +18,8 @@ interface TurnstileApi {
     callback: (token: string) => void
     'error-callback': () => boolean
     'expired-callback': () => void
+    'before-interactive-callback': () => void
+    'after-interactive-callback': () => void
   }) => unknown
   reset: (widgetId: unknown) => void
   remove: (widgetId: unknown) => void
@@ -135,6 +137,8 @@ export function TurnstileWidget({
           return true
         },
         'expired-callback': () => update('expired'),
+        'before-interactive-callback': () => update('interactive'),
+        'after-interactive-callback': () => update('loading'),
       })
     }
 

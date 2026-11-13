@@ -9,7 +9,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { APP_LINK_ORIGIN } from '@/lib/app-link-origin'
 import { shouldLoadTurnstileFrame, TURNSTILE_ORIGIN_ALLOWLIST } from '@/lib/turnstile-frames'
 
-type WidgetState = 'idle' | 'loading' | 'solved' | 'failed' | 'expired'
+type WidgetState = 'idle' | 'loading' | 'interactive' | 'solved' | 'failed' | 'expired'
 
 // WHY: Cloudflare sizes the flexible widget at 100% width and 65px height https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/widget-configurations/
 const FLEXIBLE_CHALLENGE_HEIGHT = 65
@@ -28,7 +28,8 @@ export function TurnstileWidget({
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
   const [state, setState] = useState<WidgetState>('idle')
   const [attempt, setAttempt] = useState(0)
-  const challengeHeight = state === 'solved' ? 0 : FLEXIBLE_CHALLENGE_HEIGHT
+  const challengeHostHeight = state === 'interactive' ? FLEXIBLE_CHALLENGE_HEIGHT : 0
+  const takesNoSpace = state === 'idle' || state === 'solved'
   const bridgeUrl = `${APP_LINK_ORIGIN}/turnstile-bridge?siteKey=${encodeURIComponent(siteKey)}&theme=${currentTheme}&language=${encodeURIComponent(i18n.language)}`
 
   useEffect(() => {
@@ -51,7 +52,7 @@ export function TurnstileWidget({
       onToken(message.token)
     }
     if ('state' in message && (
-      message.state === 'loading' || message.state === 'solved' ||
+      message.state === 'loading' || message.state === 'interactive' || message.state === 'solved' ||
       message.state === 'failed' || message.state === 'expired'
     )) {
       setState(message.state)
@@ -65,32 +66,36 @@ export function TurnstileWidget({
   }
 
   return (
-    <View style={{ alignItems: 'center', alignSelf: 'stretch', gap: 8,
-      ...(state === 'solved' ? { position: 'absolute', height: 0, overflow: 'hidden' } as const : {}) }}>
-      <WebView
-        key={`${resetKey}-${attempt}`}
-        source={{ uri: bridgeUrl }}
-        originWhitelist={TURNSTILE_ORIGIN_ALLOWLIST}
-        onShouldStartLoadWithRequest={(request) => shouldLoadTurnstileFrame(request, APP_LINK_ORIGIN)}
-        accessibilityLabel={t('auth.turnstileLabel')}
-        containerStyle={{ width: '100%', height: challengeHeight, flex: 0, backgroundColor: tokens.bg }}
-        style={{ width: '100%', height: challengeHeight, flex: 0, backgroundColor: tokens.bg }}
-        javaScriptEnabled
-        domStorageEnabled
-        thirdPartyCookiesEnabled
-        onMessage={onMessage}
-        onError={() => { setState('failed'); onToken(null) }}
-        onHttpError={() => { setState('failed'); onToken(null) }}
-      />
-      <View accessibilityLiveRegion="polite" style={{ alignItems: 'center' }}>
-        {state === 'loading' && <Text style={{ color: tokens.fg2 }}>{t('auth.turnstileLoading')}</Text>}
-        {(state === 'failed' || state === 'expired') &&
-          <Text style={{ color: tokens.statusBadText }} accessibilityRole="alert">
-            {t(state === 'failed' ? 'auth.turnstileFailed' : 'auth.turnstileExpired')}
-          </Text>}
+    <View style={{ alignItems: 'center', alignSelf: 'stretch',
+      ...(takesNoSpace ? { position: 'absolute', left: 0, right: 0, height: 0, overflow: 'hidden' } as const : {}) }}>
+      <View testID="turnstile-challenge" style={{ alignSelf: 'stretch', height: challengeHostHeight, overflow: 'hidden' }}>
+        <WebView
+          key={`${resetKey}-${attempt}`}
+          source={{ uri: bridgeUrl }}
+          originWhitelist={TURNSTILE_ORIGIN_ALLOWLIST}
+          onShouldStartLoadWithRequest={(request) => shouldLoadTurnstileFrame(request, APP_LINK_ORIGIN)}
+          accessibilityLabel={t('auth.turnstileLabel')}
+          containerStyle={{ width: '100%', height: FLEXIBLE_CHALLENGE_HEIGHT, flex: 0, backgroundColor: tokens.bg }}
+          style={{ width: '100%', height: FLEXIBLE_CHALLENGE_HEIGHT, flex: 0, backgroundColor: tokens.bg }}
+          javaScriptEnabled
+          domStorageEnabled
+          thirdPartyCookiesEnabled
+          onMessage={onMessage}
+          onError={() => { setState('failed'); onToken(null) }}
+          onHttpError={() => { setState('failed'); onToken(null) }}
+        />
       </View>
-      {(state === 'failed' || state === 'expired') &&
-        <IconButton label={t('auth.turnstileRetry')} onClick={retry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>}
+      <View style={{ alignItems: 'center', gap: 8 }}>
+        <View accessibilityLiveRegion="polite" style={{ alignItems: 'center' }}>
+          {state === 'loading' && <Text style={{ color: tokens.fg2 }}>{t('auth.turnstileLoading')}</Text>}
+          {(state === 'failed' || state === 'expired') &&
+            <Text style={{ color: tokens.statusBadText }} accessibilityRole="alert">
+              {t(state === 'failed' ? 'auth.turnstileFailed' : 'auth.turnstileExpired')}
+            </Text>}
+        </View>
+        {(state === 'failed' || state === 'expired') &&
+          <IconButton label={t('auth.turnstileRetry')} onClick={retry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>}
+      </View>
     </View>
   )
 }

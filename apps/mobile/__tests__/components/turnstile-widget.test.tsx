@@ -81,7 +81,6 @@ it('passes WebView tokens to the login flow and reloads after consumption', asyn
     first.props.onMessage({ nativeEvent: { data: JSON.stringify({ state: 'solved' }) } })
     await Promise.resolve()
   })
-  expect(renderer!.root.findByType('WebView').props.containerStyle.height).toBe(0)
   const solvedHost = renderer!.toJSON()
   expect(StyleSheet.flatten(solvedHost.props.style)).toMatchObject({ position: 'absolute', height: 0 })
   expect(renderer!.root.findByType('WebView')).toBe(first)
@@ -93,7 +92,6 @@ it('passes WebView tokens to the login flow and reloads after consumption', asyn
     await Promise.resolve()
   })
   expect(renderer!.root.findByType('WebView')).not.toBe(first)
-  expect(renderer!.root.findByType('WebView').props.containerStyle.height).toBe(65)
   expect(StyleSheet.flatten(renderer!.toJSON().props.style).position).not.toBe('absolute')
   expect(renderer!.root.findAllByType('Text').some((node: { props: { children: unknown } }) =>
     node.props.children === 'auth.turnstileLoading')).toBe(true)
@@ -104,7 +102,6 @@ it('passes WebView tokens to the login flow and reloads after consumption', asyn
     await Promise.resolve()
   })
   expect(onToken).toHaveBeenLastCalledWith(null)
-  expect(renderer!.root.findByType('WebView').props.containerStyle.height).toBe(65)
   expect(renderer!.root.findAllByProps({ accessibilityRole: 'alert' }).length).toBeGreaterThan(0)
   await TestRenderer.act(async () => {
     renderer!.root.findAllByProps({ accessibilityRole: 'button' })[0]!.props.onPress()
@@ -191,4 +188,36 @@ it('loads the iOS challenge frames and keeps the top frame on the bridge without
   ])
   expect(linking.canOpenURL).not.toHaveBeenCalled()
   expect(linking.openURL).not.toHaveBeenCalled()
+})
+
+it('shows the loading sentence only while no challenge waits for the person and takes no space otherwise', async () => {
+  let renderer!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(async () => {
+    renderer = TestRenderer.create(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />)
+    await Promise.resolve()
+  })
+  onTestFinished(() => TestRenderer.act(() => renderer.unmount()))
+  const webView = renderer.root.findByType('WebView')
+  const loadingSentence = () => renderer.root.findAllByType('Text').some((node: { props: { children: unknown } }) =>
+    node.props.children === 'auth.turnstileLoading')
+  const challengeHostHeight = () => StyleSheet.flatten(renderer.root.findByProps({ testID: 'turnstile-challenge' }).props.style).height
+  const send = (message: object) => TestRenderer.act(async () => {
+    webView.props.onMessage({ nativeEvent: { data: JSON.stringify(message) } })
+    await Promise.resolve()
+  })
+
+  expect(loadingSentence()).toBe(true)
+  expect(challengeHostHeight()).toBe(0)
+
+  await send({ state: 'interactive' })
+  expect(loadingSentence()).toBe(false)
+  expect(challengeHostHeight()).toBe(65)
+
+  await send({ state: 'loading' })
+  expect(loadingSentence()).toBe(true)
+  expect(challengeHostHeight()).toBe(0)
+
+  await send({ state: 'solved' })
+  expect(loadingSentence()).toBe(false)
+  expect(StyleSheet.flatten(renderer.toJSON().props.style)).toMatchObject({ position: 'absolute' })
 })

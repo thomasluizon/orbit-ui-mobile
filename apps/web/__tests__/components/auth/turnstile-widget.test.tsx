@@ -182,3 +182,18 @@ it.each([false, true])('hides the challenge after it passes and shows it again w
   act(() => callbacks['expired-callback']())
   expect(getComputedStyle(challenge).display).not.toBe('none')
 })
+
+it('shows the loading sentence only while no challenge waits for the person', async () => {
+  const renderWidget = vi.fn((..._args: unknown[]) => 'interactive-widget')
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
+  render(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />)
+  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('auth.turnstileLoading'))
+  const callbacks = renderWidget.mock.calls[0]![1] as {
+    'before-interactive-callback': () => void
+    'after-interactive-callback': () => void
+  }
+  act(() => callbacks['before-interactive-callback']())
+  expect(screen.getByRole('status')).toHaveTextContent('')
+  act(() => callbacks['after-interactive-callback']())
+  expect(screen.getByRole('status')).toHaveTextContent('auth.turnstileLoading')
+})
