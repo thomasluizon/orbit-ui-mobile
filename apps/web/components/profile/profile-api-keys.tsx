@@ -3,7 +3,6 @@
 import * as Menu from '@/components/ui/dropdown-menu'
 import { IconButton } from '@/components/ui/icon-button'
 
-import { PADDING, SPACING } from '@orbit/shared/theme'
 
 import { ActionRow } from '@/components/ui/action-row'
 
@@ -11,19 +10,20 @@ import { useEffect, useId, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
-import type { ApiKey, ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types'
+import type { ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types'
 import { getFriendlyErrorMessage, openApiKeyScopeOrStartStepUp, submitApiKeyCreation } from '@orbit/shared/utils'
 import type { Profile } from '@orbit/shared/types/profile'
 import { API_KEY_EXPIRY_DEFAULT, apiKeyFormSchema, getApiKeyNameError, validateApiKeyExpiry } from '@orbit/shared/validation'
 import { getMcpEndpointUrl } from '@orbit/shared/utils/advanced-settings'
 import { McpCodeClient } from '@/components/profile/mcp-code-client'
+import { ApiKeyList } from '@/components/profile/api-key-list'
+import { ApiKeyCreateFlow, ApiKeyReveal } from '@/components/profile/api-key-create-flow'
 import { requestApiKeyCreationChallenge } from '@/lib/actions/api-keys'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { Input } from '@/components/ui/input'
-import { InlineLoadError } from '@/components/ui/inline-load-error'
-import { Key, Copy, Plus } from '@/components/ui/icons'
+import { Key, Plus } from '@/components/ui/icons'
 import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { ProBadge } from '@/components/ui/pro-badge'
@@ -31,7 +31,6 @@ import { RowList } from '@/components/ui/row-list'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { StepUp } from '@/components/ui/step-up'
 import { Switch } from '@/components/ui/switch'
-import { useDateFormat } from '@/hooks/use-date-format'
 import { useApiKeyManagement } from '@/hooks/use-api-key-management'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
@@ -42,78 +41,8 @@ import { getHeldAccountId, useHeldAccountId } from '@/stores/auth-store'
 interface ProfileApiKeysProps {
   profile: Profile | undefined
   unlocked: boolean
-}
-
-function ApiKeyDetails({ apiKey }: Readonly<{ apiKey: ApiKey }>) {
-  const t = useTranslations()
-  const { displayDateMedium } = useDateFormat()
-  return (
-    <div className="flex min-w-0 flex-col font-mono text-[12px] leading-[1.4] tracking-[0.02em] tabular-nums text-[var(--fg-3)]" style={{ gap: 8, paddingInline: PADDING.rowInline, paddingBottom: SPACING.s16 }}>
-      <p className="[overflow-wrap:anywhere]" translate={apiKey.scopes.length > 0 ? 'no' : undefined}>{apiKey.scopes.length > 0 ? apiKey.scopes.join(', ') : t('orbitMcp.noScopes')}</p>
-      <p>{apiKey.isReadOnly ? t('orbitMcp.permReadOnly') : t('orbitMcp.permReadWrite')}</p>
-      <dl className="flex flex-col tabular-nums" style={{ gap: 4 }}>
-        <div className="flex flex-wrap" style={{ gap: 8 }}>
-          <dt>{t('orbitMcp.created')}</dt>
-          <dd><time dateTime={apiKey.createdAtUtc}>{displayDateMedium(apiKey.createdAtUtc)}</time></dd>
-        </div>
-        <div className="flex flex-wrap" style={{ gap: 8 }}>
-          <dt>{t('orbitMcp.lastUsed')}</dt>
-          <dd>{apiKey.lastUsedAtUtc
-            ? <time dateTime={apiKey.lastUsedAtUtc}>{displayDateMedium(apiKey.lastUsedAtUtc)}</time>
-            : t('orbitMcp.never')}</dd>
-        </div>
-      </dl>
-      <p>{apiKey.expiresAtUtc
-        ? t('orbitMcp.expiresOn', { date: displayDateMedium(apiKey.expiresAtUtc) })
-        : t('common.never')}</p>
-    </div>
-  )
-}
-
-interface ApiKeyListProps {
-  apiKeys: ApiKey[]
-  isLoading: boolean
-  loadError: Error | null
-  onRevoke: (id: string) => void
-  onRetry: () => void
-}
-
-function ApiKeyList({ apiKeys, isLoading, loadError, onRevoke, onRetry }: Readonly<ApiKeyListProps>) {
-  const t = useTranslations()
-  if (isLoading) {
-    return <output className="block text-sm text-[var(--fg-3)]">{t('common.loading')}</output>
-  }
-  if (loadError) {
-    return <InlineLoadError message={t('orbitMcp.apiKeysError')} onRetry={onRetry} />
-  }
-  if (apiKeys.length === 0) {
-    return <p className="text-sm text-[var(--fg-3)]">{t('orbitMcp.noKeys')}</p>
-  }
-
-  return (
-    <RowList>
-      {apiKeys.map((apiKey) => (
-        <div key={apiKey.id}>
-          <ListRow
-            compact
-            icon={<Key size={24} strokeWidth={1.8} color="var(--fg-1)" aria-hidden="true" />}
-            title={apiKey.name}
-            textMode="personal"
-            wrapTitle
-            value={`${apiKey.keyPrefix}…`}
-            chevron={false}
-            action={{
-              icon: 'trash',
-              label: t('profile.apiKeys.revokeNamed', { name: apiKey.name }),
-              danger: true,
-              onPress: () => onRevoke(apiKey.id),
-            }}
-          />
-          <ApiKeyDetails apiKey={apiKey} />
-        </div>
-      ))}
-    </RowList>
-  )
+  /** The flag `orbit_guided_flows`: key creation runs as a one-question flow that ends on the reveal step. */
+  guided?: boolean
 }
 
 interface CreateKeySheetProps {
@@ -252,18 +181,6 @@ interface RevealSheetProps {
 function RevealSheet({ createdKey, onClose }: Readonly<RevealSheetProps>) {
   const t = useTranslations()
   const { sheetRef, closeSheet } = useSheetHost()
-  const [copied, setCopied] = useAccountScopedState(false)
-  const key = createdKey.key
-
-  async function copyKey() {
-    try {
-      await navigator.clipboard.writeText(key)
-      setCopied(true)
-    } catch {
-      setCopied(false)
-    }
-  }
-
   return (
     <Sheet
       ref={sheetRef}
@@ -271,15 +188,7 @@ function RevealSheet({ createdKey, onClose }: Readonly<RevealSheetProps>) {
       onClose={onClose}
       actions={<PillButton size="sm" onClick={() => closeSheet()}>{t('orbitMcp.done')}</PillButton>}
     >
-      <div className="flex flex-col" style={{ gap: 12 }}>
-        <p className="text-sm font-medium text-[var(--status-overdue-text)]">
-          {t('orbitMcp.keyCreatedWarning')}
-        </p>
-        <div className="flex items-center rounded-[12px] bg-[var(--bg-field)]" style={{ gap: 8, padding: SPACING.s16, boxShadow: 'inset 0 0 0 1px var(--border-control)' }}>
-          <code className="min-w-0 flex-1 break-all font-mono text-[12px] text-[var(--fg-2)]">{key}</code>
-          <IconButton label={copied ? t('orbitMcp.copied') : t('orbitMcp.copy')} onClick={() => void copyKey()}><Copy size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
-        </div>
-      </div>
+      <ApiKeyReveal createdKey={createdKey} />
     </Sheet>
   )
 }
@@ -458,7 +367,7 @@ function useApiKeyStepUp(isReadOnly: boolean, expiresAt: string) {
   return { busy, error, start, accountReady: accountId !== null }
 }
 
-export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysProps>) {
+export function ProfileApiKeys({ profile, unlocked, guided = false }: Readonly<ProfileApiKeysProps>) {
   const t = useTranslations()
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -558,7 +467,23 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
         </>
       </ApiKeyAccessContent>
 
-      {creationMode ? (
+      {guided && (creationMode || createdKey) ? (
+        <ApiKeyCreateFlow
+          scoped={creationMode === 'scoped'}
+          busy={creating}
+          error={management.createKeyError}
+          isReadOnly={isReadOnly}
+          onReadOnlyChange={setIsReadOnly}
+          expiresAt={expiresAt}
+          onExpiryChange={setExpiresAt}
+          createdKey={createdKey}
+          onCreate={(request, onCreateGrantRequired) => createKey({ ...request, isReadOnly }, onCreateGrantRequired)}
+          onCreateGrantRequired={() => { setCreationMode(null); void stepUp.start() }}
+          onCreated={(result) => { setCreationMode(null); setCreatedKey(result) }}
+          onClose={() => { setCreationMode(null); setCreatedKey(null); setExpiresAt(API_KEY_EXPIRY_DEFAULT); retainApiKeyExpiryDraft(API_KEY_EXPIRY_DEFAULT) }}
+        />
+      ) : null}
+      {creationMode && !guided ? (
         <CreateKeySheet
           scoped={creationMode === 'scoped'}
           busy={creating}
@@ -577,7 +502,7 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
           }}
         />
       ) : null}
-      {createdKey ? (
+      {createdKey && !guided ? (
         <RevealSheet createdKey={createdKey} onClose={() => setCreatedKey(null)} />
       ) : null}
       <ConfirmSheet

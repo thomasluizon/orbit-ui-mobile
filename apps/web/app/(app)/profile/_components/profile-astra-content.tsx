@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation'
 import { deriveProfileAstraFeatures } from '@orbit/shared/utils'
 import { AstraConnections } from '@/components/profile/astra-connections'
 import { ProfileApiKeys } from '@/components/profile/profile-api-keys'
+import { useFlag } from '@/hooks/use-flag'
 import { AstraAllowancePanel } from '@/components/profile/astra-allowance-panel'
 import {
   type AstraSettingsController,
@@ -37,6 +38,7 @@ function buildAstraRows(
   { profile, router, t }: RowContext,
   settings: AstraSettingsController,
   apiKeysUnlocked: boolean,
+  guided: boolean,
 ) {
   const onUpgrade = () => router.push('/upgrade?from=%2Fprofile%2Fai')
   const astraFeatures = deriveProfileAstraFeatures(Boolean(profile?.hasProAccess), settings)
@@ -64,12 +66,13 @@ function buildAstraRows(
         ) : null}
       </div>
       <AstraConnections hasProAccess={Boolean(profile?.hasProAccess)} />
-      <ProfileApiKeys profile={profile} unlocked={apiKeysUnlocked} />
+      <ProfileApiKeys profile={profile} unlocked={apiKeysUnlocked} guided={guided} />
     </div>
   )
 }
 
 export function ProfileAstraContent({ profile, patchProfile }: Readonly<ProfileContentProps>) {
+  const guided = useFlag('orbit_guided_flows')
   const t = useTranslations()
   const { hasReturnError, isSettling, retryReturn } = useStripeCheckoutReturn()
   const router = useRouter()
@@ -77,5 +80,5 @@ export function ProfileAstraContent({ profile, patchProfile }: Readonly<ProfileC
   const astraSettings = useAstraSettingsController(profile, patchProfile)
   if (isSettling) return <Skeleton variant="settings" rows={8} label={t('profile.loading')} />
   if (hasReturnError) return <ErrorState message={t('upgrade.billing.error')} action={<IconButton label={t('upgrade.billing.retry')} onClick={retryReturn}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} />
-  return buildAstraRows({ profile, router, t }, astraSettings, apiKeysUnlocked)
+  return buildAstraRows({ profile, router, t }, astraSettings, apiKeysUnlocked, guided)
 }

@@ -2681,6 +2681,7 @@
       "scopeLabel": "O que ela pode acessar?",
       "setExpiry": "Definir validade?",
       "expiryQuestion": "Ela expira?",
+      "accessQuestion": "O que ela pode fazer?",
       "scopeAction": "Criar",
       "mcpTitle": "Conectar por MCP",
       "stepUpBody": "Para mexer em chaves ou apagar a conta, entre de novo. O Orbit nunca pede a sua senha dentro de uma conversa.",

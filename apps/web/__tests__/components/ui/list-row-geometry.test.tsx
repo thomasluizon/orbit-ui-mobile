@@ -21,6 +21,7 @@ import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-shell-notice-slot', () => ({ useShellNoticeSlot: vi.fn() }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => false }))
 vi.mock('@/lib/posthog', () => ({ getAnalyticsOptOut: () => null, subscribeAnalyticsOptOut: () => () => {}, setAnalyticsOptOut: vi.fn() }))
 vi.mock('@/app/(app)/profile/_components/use-data-export', () => ({ useDataExport: () => ({ isExporting: false, exportDone: false, exportError: null, exportData: vi.fn(), clearExportDone: vi.fn() }) }))
 vi.mock('@/app/(app)/profile/_components/edit-name-sheet', () => ({ EditNameSheet: () => null }))

@@ -17,6 +17,7 @@ vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/s
 import { MarketingConsentSection } from '@/app/(app)/preferences/_components/marketing-consent-section'
 import { EditNameSheet } from '@/app/(app)/profile/_components/edit-name-sheet'
 import { PushDevicesRow } from '@/components/profile/push-devices-row'
+import { ApiKeyList } from '@/components/profile/api-key-list'
 
 const locales = [{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }] as const
 
@@ -55,11 +56,19 @@ describe.each(locales)('Perfil settings with orbit_guided_flows in $locale', ({ 
   })
 
   it('draws a skeleton and no spinner while the push devices load', () => {
-    mount(locale, messages, <PushDevicesRow count={undefined} max={undefined} currentDeviceRegistered={false} supported loading error={false} permission="default" status="idle" onToggle={vi.fn()} onRetry={vi.fn()} />)
+    mount(locale, messages, <PushDevicesRow count={undefined} max={undefined} currentDeviceRegistered={false} supported loading error={false} permission="default" status="not-registered" onToggle={vi.fn()} onRetry={vi.fn()} />)
     const skeleton = screen.getByRole('progressbar', { name: messages.profile.loading })
     expect(skeleton).toHaveAttribute('data-variant', 'settings')
     expect(document.querySelector(SPINNER_SELECTOR)).toBeNull()
     expect(screen.queryByText(messages.profile.loading)).toBeNull()
+  })
+})
+
+describe.each(locales)('API key list loading in $locale', ({ locale, messages }) => {
+  it('draws a skeleton and no spinner while the keys load', () => {
+    mount(locale, messages, <ApiKeyList apiKeys={[]} isLoading loadError={null} onRevoke={vi.fn()} onRetry={vi.fn()} />)
+    expect(screen.getByRole('progressbar', { name: messages.common.loading })).toHaveAttribute('data-variant', 'settings')
+    expect(document.querySelector(SPINNER_SELECTOR)).toBeNull()
   })
 })
 

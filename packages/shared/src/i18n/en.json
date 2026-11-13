@@ -2681,6 +2681,7 @@
       "scopeLabel": "What can it access?",
       "setExpiry": "Set expiry?",
       "expiryQuestion": "Does it expire?",
+      "accessQuestion": "What can it do?",
       "scopeAction": "Create",
       "mcpTitle": "Connect over MCP",
       "stepUpBody": "To change keys or delete the account, sign in again. Orbit never asks for your password inside a conversation.",
