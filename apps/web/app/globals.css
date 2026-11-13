@@ -1855,7 +1855,8 @@ button[data-variant="primary"]:enabled:not([data-loading]):active,
   transition:
     background-color var(--dur-hover-control) var(--ease-standard),
     color var(--dur-hover-control) var(--ease-standard),
-    transform var(--dur-press) var(--ease-out);
+    transform var(--dur-press) var(--ease-out),
+    box-shadow var(--motion-selection-exit) var(--motion-ease-exit);
 }
 @media (prefers-reduced-motion: no-preference) {
   .chip:active { transform: scale(0.96); }
@@ -2575,6 +2576,21 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   }
 }
 
+/* Selection settle: the ring and the fill of a selected option, day, segment or chip ease in on the
+   selection preset and ease out on its shorter exit. The press scale and the hover fill keep their timing. */
+.orbit-selection-ring {
+  transition-property: box-shadow, background-color, color, scale;
+  transition-duration: var(--motion-selection-exit), var(--dur-hover-control), var(--dur-hover-control), var(--dur-press);
+  transition-timing-function: var(--motion-ease-exit), var(--ease-standard), var(--ease-standard), var(--ease-out);
+}
+:is(.orbit-selection-ring[data-selected], .orbit-selection-ring[aria-checked="true"], .orbit-selection-ring[aria-pressed="true"], .orbit-selection-ring[aria-selected="true"]) {
+  transition-duration: var(--motion-selection-enter), var(--dur-hover-control), var(--dur-hover-control), var(--dur-press);
+  transition-timing-function: var(--motion-ease-standard), var(--ease-standard), var(--ease-standard), var(--ease-out);
+}
+.chip-active {
+  transition-duration: var(--dur-hover-control), var(--dur-hover-control), var(--dur-press), var(--motion-selection-enter);
+  transition-timing-function: var(--ease-standard), var(--ease-standard), var(--ease-out), var(--motion-ease-standard);
+}
 .orbit-selection-ring-thin { --selection-ring-width: 1.5px; }
 .orbit-selection-ring-hairline { --selection-ring-width: 1px; }
 :is(.orbit-selection-ring[data-selected], .orbit-selection-ring[aria-checked="true"], .orbit-selection-ring[aria-pressed="true"], .orbit-selection-ring[aria-selected="true"], .chip-active):not(:focus-visible):not(:has(:focus-visible)):not(:focus-visible *) {

@@ -244,8 +244,9 @@ describe('habit form press scale', () => {
     rules = await compileClassRules(names)
   }, 60_000)
 
+  /** The rules that scale the pressed control itself; a rule with a child combinator scales its content instead. */
   function pressScaleRules(control: Element) {
-    return rules.rulesFor(control).filter((rule) => rule.declarations.has('scale') && rule.state.includes(':active'))
+    return rules.rulesFor(control).filter((rule) => rule.declarations.has('scale') && rule.state.includes(':active') && !rule.state.includes('>'))
   }
 
   it.each(DISABLED_PRESS_CONTROLS)('scales %s on press only while enabled, as the mobile press scale does', (_, renderControls) => {

@@ -2,13 +2,26 @@ import { forwardRef, useMemo, useState, type ForwardedRef, type ReactElement } f
 import { selectedBorderStyle } from './selected-focus-indicator'
 import { Pressable, type ColorValue, type PressableProps, type View } from 'react-native'
 import Animated from 'react-native-reanimated'
-import { orbitalMotion } from '@orbit/shared/theme'
+import { motionPresets, orbitalMotion } from '@orbit/shared/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { PRESS_SCALE_TRANSITION } from '@/components/motion/press-scale'
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
+
+/** The selection settle of a ringed control: its ring eases in on the selection preset and out on its shorter exit. */
+function selectionRingTransition(selected: boolean): string {
+  const { enterDuration, exitDuration, enterEasing, exitEasing } = motionPresets.selection
+  return selected
+    ? `border-color ${enterDuration}ms cubic-bezier(${enterEasing.join(',')})`
+    : `border-color ${exitDuration}ms cubic-bezier(${exitEasing.join(',')})`
+}
+
+function pressTransition(reducedMotion: boolean, ringed: boolean, selected: boolean): string {
+  if (reducedMotion) return 'none'
+  return ringed ? `${PRESS_SCALE_TRANSITION}, ${selectionRingTransition(selected)}` : PRESS_SCALE_TRANSITION
+}
 
 interface MotionPressableProps extends PressableProps {
   active?: boolean
@@ -27,6 +40,8 @@ function useMotionPressableElement(
   const [pressed, setPressed] = useState(false)
   const [focused, setFocused] = useState(false)
   const prefersReducedMotion = usePrefersReducedMotion()
+  const selected = Boolean(props.accessibilityState?.selected || props.accessibilityState?.checked)
+  const ringed = selectionRingWidth !== undefined
 
   return (
     <AnimatedPressable
@@ -38,11 +53,12 @@ function useMotionPressableElement(
       onPressOut={(event) => { setPressed(false); onPressOut?.(event) }}
       style={[
         typeof style === 'function' ? style({ pressed }) : style,
-        selectedBorderStyle(Boolean(props.accessibilityState?.selected || props.accessibilityState?.checked), focused, selectionRingWidth, selectionRingColor ?? tokens.primary),
+        ringed && !selected ? { borderColor: 'transparent' } : null,
+        selectedBorderStyle(selected, focused, selectionRingWidth, selectionRingColor ?? tokens.primary),
         focused && focusInset && !props.disabled ? { outlineWidth: 2, outlineOffset: -4, outlineStyle: 'solid', outlineColor: tokens.fg1 } : null,
         {
           transform: [{ scale: !props.disabled && !isStatic && !prefersReducedMotion && (pressed || active) ? orbitalMotion.press.scale : 1 }],
-          transition: prefersReducedMotion ? 'none' : PRESS_SCALE_TRANSITION,
+          transition: pressTransition(prefersReducedMotion, ringed, selected),
         },
       ]}
     >
