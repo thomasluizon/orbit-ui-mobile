@@ -603,13 +603,17 @@ The two singular cases and the four control cases use `composition.mode: clarifi
 the card must offer each of the six children as a separate option, because a singular request means one child. The
 API completes a record card that offers more than four records as one `question` block with one `records` question,
 because a choice holds four options at most. Its options are the record ids in read order, labelled
-`Water - 710ml (1 of 6)` or `Water - 710ml (1º de 6)`. A choice card for these cases fails `composition`, because it
-offers some of the children or offers them only in sets. A question card that offers fewer children also fails. The
-rubric of each of these cases states this rule in the same words.
+`Water - 710ml (1 of 6)` or `Water - 710ml (1º de 6)`.
 
-When the first turn fails `structural`, `behavior` or `composition`, the lifecycle stops before the readback. The
-readback grade then names that gate and its reason, so `behavior` never reads as a change to the stored children.
-The restart lifecycle reports a stopped first turn in the same way.
+`composition` grades only the generic rule of the mode: one choice or question card and no write. `behavior`
+grades the options of the card through `sameTitleProposal`, as `sameTitleCard` does for the card cases. A choice
+card for these cases fails `behavior`, because it offers some of the children or offers them only in sets. A
+question card that offers fewer children also fails `behavior`, and the reason names how many children it offers.
+The lifecycle then stops before the readback. The rubric of each of these cases states this rule in the same words.
+
+When the first turn fails `structural`, `behavior` or `composition`, the lifecycle stops before the answer turn and
+the readback. `behavior` then names that gate and its reason, so it never reads as a lost answer turn or as a
+change to the stored children. The restart lifecycle reports a stopped first turn in the same way.
 
 A `sameTitleSet` policy declares `deleted` and `renamed`, each with a `count` and optional `positions`, and
 `renamed.title`. `behavior` grades the one held preview. The API combines a bulk deletion and a bulk rename of one
@@ -1197,8 +1201,9 @@ rendered consumers; this harness change does not unblock broad rollout by itself
    to accept either one to three short plain-text lines without a block or exactly one `choice` or
    `question` card. The API sends a `question` card for the same intent: it folds only one short
    `singleChoice` question into a choice, and it sends a record card over more than four records as a
-   question. Other block kinds, multiple blocks and pending writes fail this policy. Over the
-   `same-title-children` fixture, the card must also offer each stored child as a separate option.
+   question. Other block kinds, multiple blocks and pending writes fail this policy. A case that
+   declares `sameTitleSet` also needs its card to offer each stored child as a separate option, and
+   `behavior` grades that rule.
 3. Regenerate `catalog.yaml` from a settled API checkout with
    `node evals/astra/generate-catalog.mjs <orbit-api checkout>`. This requires the API's .NET SDK
    and restored package access. The exporter builds into a private temporary artifacts directory,

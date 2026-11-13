@@ -1,4 +1,5 @@
 import { isDeepStrictEqual } from 'node:util'
+import { sameTitleClarification, shownCards } from './same-title-card.mjs'
 
 const result = (pass, reason) => ({ pass, score: pass ? 1 : 0, reason })
 const actionKeys = { deleted: 'deleteHabits', renamed: 'updateHabits' }
@@ -36,7 +37,9 @@ function heldPreview(output, vars) {
   const first = output.composition?.pendingOperations ?? []
   if (first.length || !vars.sameTitleSet?.answer) return { pending: first, answered: false }
   const answer = output.sameTitleAnswer
-  if (!answer) return { failure: 'The question turn lacks its answered preview.' }
+  const stopped = output.sameTitleReadback?.stopped
+  if (!answer) return { failure: stopped ? `The first turn failed ${stopped.metric}, so no question was answered: ${stopped.reason}`
+    : 'The question turn lacks its answered preview.' }
   if (answer.card?.pass !== true) return { failure: answer.card?.reason ?? 'The question card could not hold the answer.' }
   const failed = (answer.checks ?? []).find((check) => check.pass !== true)
   if (failed || !answer.checks?.length) return { failure: `The answer turn failed ${failed?.metric ?? 'its checks'}: ${failed?.reason ?? 'missing'}` }
@@ -56,15 +59,20 @@ export function sameTitleProposal(output, vars) {
   if (!baseline?.children?.length || !policy) return result(false, 'The same-title scenario lacks its fixture baseline or policy.')
   const held = heldPreview(output, vars)
   if (held.failure) return result(false, held.failure)
+  const known = baseline.children.map((child) => child.id)
   const actions = expectedActions(policy, baseline, held.answered)
-  if (!actions.length) return held.pending.length ? result(false, 'The singular request held a change before its answer.')
-    : result(true, 'The singular request held no change.')
+  // A singular request asks which child it means. composition grades the card's layout; this grades whether its options
+  // hold the answer, as sameTitleCard does for the card cases.
+  if (!actions.length) {
+    if (held.pending.length) return result(false, 'The singular request held a change before its answer.')
+    const cards = shownCards(output)
+    return cards.length === 1 ? sameTitleClarification(cards[0], output.trace, known) : result(true, 'The singular request held no change.')
+  }
   if (held.pending.length !== 1) return result(false, `Expected one held preview, found ${held.pending.length}.`)
   const expectedKey = actions.length > 1 ? combinedActionKey : actionKeys[actions[0].name]
   if (held.pending[0].actionKey !== expectedKey) return result(false, `Expected one held ${expectedKey} preview, found ${held.pending[0].actionKey}.`)
   const changes = heldChanges(held.pending, policy)
   if (changes.unknown) return result(false, 'A held item is neither a deletion nor a rename to the requested title.')
-  const known = baseline.children.map((child) => child.id)
   const claimed = [...changes.deleted, ...changes.renamed]
   if (claimed.length !== new Set(claimed).size || claimed.some((id) => !known.includes(id))) {
     return result(false, 'A held item repeats a habit or targets something other than a stored same-title child.')

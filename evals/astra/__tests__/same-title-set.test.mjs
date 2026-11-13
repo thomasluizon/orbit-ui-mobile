@@ -462,36 +462,51 @@ const recordsCard = (group, offered = group, locale = 'en') => ({ type: 'block',
       ? `${group.indexOf(id) + 1} of ${group.length}` : `${group.indexOf(id) + 1}º de ${group.length}`})` })) }] } })
 const clarifications = ['singular', 'control-thanks', 'control-order'].flatMap((name) => ['en', 'pt'].map((suffix) => `same-title-${name}-${suffix}`))
 
+const clarificationContext = (id) => ({ vars: { ...policyFor(id), evalRequestId: 'same-title',
+  clientContext: { ...client, locale: id.endsWith('-pt') ? 'pt-BR' : 'en' }, sameTitleBaseline: baseline } })
+
 it.each(clarifications)('accepts %s when it asks once with the records card the API sends, or in plain text', (id) => {
-  const locale = id.endsWith('-pt') ? 'pt-BR' : 'en'
-  const grade = (output) => composition(output, { vars: { ...policyFor(id), clientContext: { ...client, locale }, sameTitleBaseline: baseline } })
+  const context = clarificationContext(id)
+  const { locale } = context.vars.clientContext
   expect(policyFor(id).composition).toEqual({ mode: 'clarification' })
   expect(policyFor(id).rubric).toContain('either in plain text with no block or in exactly one question card that offers each of the six children as a separate option.')
-  expect(grade(respond([], { parts: [recordsCard(ids, ids, locale)] }))).toMatchObject({ pass: true })
   const text = locale === 'en' ? 'Which of the six Water - 710ml habits do you mean?' : 'Qual dos seis hábitos Water - 710ml você quer dizer?'
-  expect(grade(respond([], { aiMessage: text, parts: [{ type: 'text', text }] }))).toMatchObject({ pass: true })
+  for (const output of [respond([], { parts: [recordsCard(ids, ids, locale)] }), respond([], { aiMessage: text, parts: [{ type: 'text', text }] })]) {
+    expect(composition(output, context)).toMatchObject({ pass: true })
+    expect(behavior(withReadback(output, [], []), context)).toMatchObject({ pass: true })
+  }
 })
 
-// A choice holds 4 options at most, so for a singular request over six children it offers some of them, or all only in sets.
-it.each(clarifications)('fails %s for a card that writes, a second card, or a card that does not offer each of the six', (id) => {
-  const locale = id.endsWith('-pt') ? 'pt-BR' : 'en'
-  const grade = (output) => composition(output, { vars: { ...policyFor(id), clientContext: { ...client, locale }, sameTitleBaseline: baseline } })
+// composition keeps the generic card rule: one choice or question card and no write. behavior grades whether the one card
+// offers each of the six children, because a choice holds 4 options at most: it offers some of them, or all only in sets.
+it.each(clarifications)('fails %s for a card that writes or a second card in composition, and for a card that does not offer each of the six in behavior', (id) => {
+  const context = clarificationContext(id)
+  const { locale } = context.vars.clientContext
   const oneCard = 'Clarification requires plain text without a block or exactly one choice or question card without a write.'
   const offers = (count) => `The card offers ${count} of the 6 same-title children as separate options.`
   const card = recordsCard(ids, ids, locale)
   const writes = held({ renamed: ids.slice(0, 1) })
   writes.composition.parts = [card]
-  expect(grade(writes)).toMatchObject({ pass: false, reason: oneCard })
-  expect(grade(respond([], { parts: [card, choiceCard(ids.slice(0, 2).map((option) => ({ id: option, label: option.slice(0, 8) })))] })))
+  expect(composition(writes, context)).toMatchObject({ pass: false, reason: oneCard })
+  expect(behavior(writes, context)).toMatchObject({ pass: false })
+  expect(sameTitleProposal(writes, context.vars)).toMatchObject({ pass: false, reason: 'The singular request held a change before its answer.' })
+  expect(composition(respond([], { parts: [card, choiceCard(ids.slice(0, 2).map((option) => ({ id: option, label: option.slice(0, 8) })))] }), context))
     .toMatchObject({ pass: false, reason: oneCard })
-  expect(grade(respond([], { parts: [recordsCard(ids, ids.slice(0, 4), locale)] }))).toMatchObject({ pass: false, reason: offers(4) })
-  expect(grade(respond([], { parts: [choiceCard(ids.slice(0, 4).map((option, index) => ({ id: option, label: `${index + 1}st` })))] })))
-    .toMatchObject({ pass: false, reason: offers(4) })
   const pairs = choiceCard([{ id: 'firstTwo', label: 'First two' }, { id: 'middleTwo', label: 'Middle two' }, { id: 'lastTwo', label: 'Last two' }])
-  expect(grade({ ...respond([], { parts: [pairs] }), trace: askTrace({ firstTwo: ids.slice(0, 2), middleTwo: ids.slice(2, 4), lastTwo: ids.slice(4) }) }))
-    .toMatchObject({ pass: false, reason: offers(0) })
+  const pairTargets = { firstTwo: ids.slice(0, 2), middleTwo: ids.slice(2, 4), lastTwo: ids.slice(4) }
+  const askPairs = toolCall('ask', { input: { form: 'choice', question: pairs.block.question, options: Object.entries(pairTargets)
+    .map(([option, target_ids]) => ({ id: option, label: option, description: null, target_ids })) } }, 'Succeeded', 'ask', client)
   const yesNo = { ...card, block: { ...card.block, questions: [{ id: 'confirm', type: 'yesNo', prompt: 'Rename one of them?', allowFreeText: false }] } }
-  expect(grade(respond([], { parts: [yesNo] }))).toMatchObject({ pass: false, reason: offers(0) })
+  const partial = [
+    [respond([], { parts: [recordsCard(ids, ids.slice(0, 4), locale)] }), 4],
+    [respond([], { parts: [choiceCard(ids.slice(0, 4).map((option, index) => ({ id: option, label: `${index + 1}st` })))] }), 4],
+    [respond([askPairs], { parts: [pairs] }), 0],
+    [respond([], { parts: [yesNo] }), 0],
+  ]
+  for (const [output, count] of partial) {
+    expect(composition(output, context)).toMatchObject({ pass: true })
+    expect(behavior(withReadback(output, [], []), context)).toEqual({ pass: false, score: 0, reason: offers(count) })
+  }
 })
 
 let habits, requests, pendingTargets
@@ -729,15 +744,36 @@ it.each([
   expect(behavior(response.output, { vars: policy })).toMatchObject({ pass: false, reason })
 })
 
-// A first turn that fails a gate stops the lifecycle before its readback; behavior then names that gate and its reason.
-it.each(clarifications.filter((id) => id.endsWith('-en')))('reads back %s after the records card, and names the failed gate when it stops', async (id) => {
+// A card that does not offer each of the six passes the generic composition gate, then fails behavior before any readback.
+it.each(clarifications.filter((id) => id.endsWith('-en')))('reads back %s after the records card, and stops before the readback for a card over 4 of 6', async (id) => {
   boundary()
   const policy = await seeded(id)
   const children = policy.sameTitleBaseline.children.map((child) => child.id)
   requests.length = 0
   const first = (offered) => completeSameTitleSet(respond([], { parts: [recordsCard(children, offered)] }), policy)
   expect(behavior(await first(children), { vars: policy })).toMatchObject({ pass: true })
-  expect(behavior(await first(children.slice(0, 4)), { vars: policy })).toEqual({ pass: false, score: 0,
-    reason: 'The first turn failed composition, so no readback ran: The card offers 4 of the 6 same-title children as separate options.' })
+  const partial = await first(children.slice(0, 4))
+  expect(partial.sameTitleReadback).toBeUndefined()
+  expect(behavior(partial, { vars: policy })).toEqual({ pass: false, score: 0,
+    reason: 'The card offers 4 of the 6 same-title children as separate options.' })
+  expect(aiWrites()).toEqual([])
+})
+
+// A first turn that fails a gate stops the lifecycle before its answer turn and its readback; behavior then names that
+// gate and its reason, never a lost answer turn or a change to the stored children.
+it.each([
+  ['same-title-singular-en', 'readback ran', 'Clarification requires plain text without a block or exactly one choice or question card without a write.'],
+  ['same-title-control-order-pt', 'readback ran', 'Clarification requires plain text without a block or exactly one choice or question card without a write.'],
+  ['same-title-card-en', 'question was answered', 'A question before the preview must be one choice or question card, or one to three short lines.'],
+  ['same-title-card-pt', 'question was answered', 'A question before the preview must be one choice or question card, or one to three short lines.'],
+])('names the failed first-turn gate of %s when the lifecycle stops', async (id, missing, reason) => {
+  boundary()
+  const policy = await seeded(id)
+  const children = policy.sameTitleBaseline.children.map((child) => child.id)
+  requests.length = 0
+  const twoCards = respond([], { parts: [recordsCard(children), choiceCard(children.slice(0, 2).map((option) => ({ id: option, label: option.slice(0, 8) })))] })
+  const stopped = await completeSameTitleSet(twoCards, policy, () => { throw new Error('A stopped lifecycle sent an answer turn.') })
+  expect(stopped.sameTitleReadback).toEqual({ stopped: { metric: 'composition', reason } })
+  expect(behavior(stopped, { vars: policy })).toEqual({ pass: false, score: 0, reason: `The first turn failed composition, so no ${missing}: ${reason}` })
   expect(aiWrites()).toEqual([])
 })

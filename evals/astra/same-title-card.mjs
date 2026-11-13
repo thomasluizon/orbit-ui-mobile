@@ -45,6 +45,9 @@ function optionTargets(lists, trace) {
   return new Map(lists.flatMap((list) => list.options).map((option) => [option.id, targetsOf(option, declared)]))
 }
 
+// The choice and question cards of a turn, in the order the response shows them.
+export const shownCards = (output) => (output.composition?.parts ?? []).filter((part) => part?.type === 'block' && cardKinds.includes(part.kind))
+
 // A singular request means one child, so a card that asks which child it means offers each stored child as an option of
 // its own. Over more than four records orbit-api CompleteRecordCard sends that card as one question block with one
 // `records` question, because a choice holds four options at most: a choice can offer six children only in sets.
@@ -134,7 +137,7 @@ export function sameTitleCard(output, vars) {
   const children = vars.sameTitleBaseline?.children?.map((child) => child.id) ?? []
   const answer = vars.sameTitleSet?.answer
   if (!children.length || !answer) return result(false, 'The same-title card lacks its baseline or decision.')
-  const cards = (output.composition?.parts ?? []).filter((part) => part?.type === 'block' && cardKinds.includes(part.kind))
+  const cards = shownCards(output)
   if (!cards.length) return { ...result(true, 'The question has no card; the person types the answer.'), message: answer.text }
   if (cards.length !== 1) return result(false, 'The question turn shows more than one card.')
   const card = cards[0]
