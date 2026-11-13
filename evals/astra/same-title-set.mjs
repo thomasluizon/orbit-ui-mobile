@@ -87,6 +87,7 @@ export function sameTitleReadback(output, vars) {
   const policy = vars.sameTitleSet
   const baseline = vars.sameTitleBaseline
   const evidence = output.sameTitleReadback
+  if (evidence?.stopped) return result(false, `The first turn failed ${evidence.stopped.metric}, so no readback ran: ${evidence.stopped.reason}`)
   if (!baseline || !evidence || !isDeepStrictEqual(evidence.held, baseline)) {
     return result(false, 'Independent readback must prove the held preview changed nothing.')
   }

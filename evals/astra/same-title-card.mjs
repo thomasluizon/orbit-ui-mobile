@@ -39,6 +39,22 @@ function selectionLists(part) {
     many: question.type === 'multipleChoice', options: choiceTypes.includes(question.type) ? question.options ?? [] : [] }))
 }
 
+// The records each option of the lists stands for, as the API resolves them.
+function optionTargets(lists, trace) {
+  const declared = declaredTargets(trace)
+  return new Map(lists.flatMap((list) => list.options).map((option) => [option.id, targetsOf(option, declared)]))
+}
+
+// A singular request means one child, so a card that asks which child it means offers each stored child as an option of
+// its own. Over more than four records orbit-api CompleteRecordCard sends that card as one question block with one
+// `records` question, because a choice holds four options at most: a choice can offer six children only in sets.
+export function sameTitleClarification(card, trace, children) {
+  const single = new Set([...optionTargets(selectionLists(card), trace).values()].filter((targets) => targets.length === 1).flat())
+  const offered = children.filter((id) => single.has(id)).length
+  return offered === children.length ? result(true, 'The card offers each same-title child as a separate option.')
+    : result(false, `The card offers ${offered} of the ${children.length} same-title children as separate options.`)
+}
+
 // Action words of both locales, matched on the normalized question at a word start. The production request renames with
 // "coloca"; the recorded cards and the corpus histories use excluir, apagar, renomear, manter, change, delete and keep.
 const deletionWords = /\b(?:delet|remov|exclu|apag|elimin|descart|drop|eras|discard)/u
@@ -122,10 +138,8 @@ export function sameTitleCard(output, vars) {
   if (!cards.length) return { ...result(true, 'The question has no card; the person types the answer.'), message: answer.text }
   if (cards.length !== 1) return result(false, 'The question turn shows more than one card.')
   const card = cards[0]
-  const declared = declaredTargets(output.trace)
   const lists = selectionLists(card)
-  const options = lists.flatMap((list) => list.options)
-  const targets = new Map(options.map((option) => [option.id, targetsOf(option, declared)]))
+  const targets = optionTargets(lists, output.trace)
   if ([...targets.values()].flat().some((id) => !children.includes(id))) {
     return result(false, 'A card option names a record that is not a stored same-title child.')
   }

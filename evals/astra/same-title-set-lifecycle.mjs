@@ -50,7 +50,9 @@ async function answerQuestion(output, vars, chat) {
 
 export async function completeSameTitleSet(output, vars, chat) {
   requireEvalOrigin()
-  if (!(await gates(output, vars)).every((check) => check.pass)) return output
+  // A failed gate stops the lifecycle before any readback; the readback grade then names that gate, not a missing readback.
+  const failed = (await gates(output, vars)).find((check) => !check.pass)
+  if (failed) return { ...output, sameTitleReadback: { stopped: { metric: failed.metric, reason: failed.reason } } }
   const asked = Boolean(vars.sameTitleSet.answer) && !(output.composition.pendingOperations ?? []).length
   if (!asked && !sameTitleProposal(output, vars).pass) return output
   const api = publicApi(vars.credentialKey)

@@ -7,8 +7,11 @@ import { requireEvalOrigin } from './fixtures/reset.mjs'
 export async function completeRestart(output, vars) {
   requireEvalOrigin()
   const context = { vars: { ...vars, restart: undefined }, test: { vars } }
-  const checks = [await structural(output, context), behavior(output, context), composition(output, context), restartProposal(output, vars)]
-  if (checks.some((check) => check.pass !== true || check.metadata?.skipped || check.metadata?.unavailable)) return output
+  const checks = [['structural', await structural(output, context)], ['behavior', behavior(output, context)],
+    ['composition', composition(output, context)], ['restartProposal', restartProposal(output, vars)]]
+  // A failed gate stops the lifecycle before any readback; the readback grade then names that gate, not a missing readback.
+  const failed = checks.find(([, check]) => check.pass !== true || check.metadata?.skipped || check.metadata?.unavailable)
+  if (failed) return { ...output, restartReadback: { stopped: { metric: failed[0], reason: failed[1].reason } } }
   const api = publicApi(vars.credentialKey)
   const held = await readRestartSnapshot(api)
   if (!restartReadback({ ...output, restartReadback: { held, after: held } },

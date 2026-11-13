@@ -236,6 +236,19 @@ it('prevents approval when the held preview already changed persisted habits', a
   expect(requests.some(({ path }) => path.startsWith('/api/ai/'))).toBe(false)
 })
 
+it('names the failed first-turn gate, not a missing readback, when the lifecycle stops before its readback', async () => {
+  const { policy, requests } = boundary('approve')
+  const { publicApi } = await import('../fixtures/api.mjs')
+  policy.restartBaseline = await readRestartSnapshot(publicApi(policy.credentialKey))
+  requests.length = 0
+  const output = proposal()
+  output.composition.aiMessage = 'Here is the plan.'
+  output.composition.parts = [{ type: 'text', text: 'Here is the plan.' }]
+  expect(restartReadback(await completeRestart(output, policy), policy)).toEqual({ pass: false, score: 0,
+    reason: 'The first turn failed composition, so no readback ran: Preview must be the entire answer.' })
+  expect(requests).toHaveLength(0)
+})
+
 it('never approves malformed tool evidence', async () => {
   const { policy, requests } = boundary('approve')
   const output = proposal()

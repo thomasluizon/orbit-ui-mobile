@@ -315,7 +315,7 @@ it('answers a card that can hold the decision with the message and selection the
 
 const choiceCard = (options, question = 'Which two do you want to delete?') => ({ type: 'block', kind: 'choice',
   block: { blockId: '88888888-8888-4888-8888-888888888888', question, options: options.map(({ id, label }) => ({ id, label, description: null })),
-    multiSelect: false, allowFreeText: false } })
+    multiSelect: false, allowFreeText: false, expiresAtUtc: '2026-11-14T04:33:04Z' } })
 
 // Producer: AiChoiceSelection.TargetsOf (orbit-api 2f49ed78f) reads an option's target_ids first, and the option's own id
 // only when the option declares none; so declared targets win over an id that is a stored child or another GUID.
@@ -447,6 +447,51 @@ it('lets a card case show one question and keeps every other preview case strict
   const text = 'Which two of the six should I delete?'
   expect(composition(respond([], { aiMessage: text, parts: [{ type: 'text', text }] }), context('same-title-card-en')).pass).toBe(true)
   expect(composition(held({ deleted: ids.slice(4), renamed: ids.slice(0, 4) }), context('same-title-card-en')).pass).toBe(true)
+})
+
+// Producer: orbit-api ProcessUserChatCommand.SelectionCard.cs (1cf3559). HoldTheAnswer completes a record_selection card
+// that does not name every member of the same-titled group, and CompleteRecordCard sends it over more than 4 records (a
+// choice holds 4 options at most, AskTool.cs) as one question block with one `records` question: singleChoice when the
+// request names one habit, one option per record in read order, its id the record id and its label "<title> (<n> of
+// <count>)", or "<title> (<n>º de <count>)" in Portuguese. AiQuestionBlock omits the empty title, and AiQuestionOption
+// omits recommended=false.
+const recordsCard = (group, offered = group, locale = 'en') => ({ type: 'block', kind: 'question', block: {
+  blockId: '99999999-9999-4999-8999-999999999999', expiresAtUtc: '2026-11-14T04:33:04Z', questions: [{ id: 'records',
+    type: 'singleChoice', prompt: locale === 'en' ? 'Which Water - 710ml habit do you want to rename?' : 'Qual hábito Water - 710ml você quer renomear?',
+    allowFreeText: false, options: offered.map((id) => ({ id, label: `Water - 710ml (${locale === 'en'
+      ? `${group.indexOf(id) + 1} of ${group.length}` : `${group.indexOf(id) + 1}º de ${group.length}`})` })) }] } })
+const clarifications = ['singular', 'control-thanks', 'control-order'].flatMap((name) => ['en', 'pt'].map((suffix) => `same-title-${name}-${suffix}`))
+
+it.each(clarifications)('accepts %s when it asks once with the records card the API sends, or in plain text', (id) => {
+  const locale = id.endsWith('-pt') ? 'pt-BR' : 'en'
+  const grade = (output) => composition(output, { vars: { ...policyFor(id), clientContext: { ...client, locale }, sameTitleBaseline: baseline } })
+  expect(policyFor(id).composition).toEqual({ mode: 'clarification' })
+  expect(policyFor(id).rubric).toContain('either in plain text with no block or in exactly one question card that offers each of the six children as a separate option.')
+  expect(grade(respond([], { parts: [recordsCard(ids, ids, locale)] }))).toMatchObject({ pass: true })
+  const text = locale === 'en' ? 'Which of the six Water - 710ml habits do you mean?' : 'Qual dos seis hábitos Water - 710ml você quer dizer?'
+  expect(grade(respond([], { aiMessage: text, parts: [{ type: 'text', text }] }))).toMatchObject({ pass: true })
+})
+
+// A choice holds 4 options at most, so for a singular request over six children it offers some of them, or all only in sets.
+it.each(clarifications)('fails %s for a card that writes, a second card, or a card that does not offer each of the six', (id) => {
+  const locale = id.endsWith('-pt') ? 'pt-BR' : 'en'
+  const grade = (output) => composition(output, { vars: { ...policyFor(id), clientContext: { ...client, locale }, sameTitleBaseline: baseline } })
+  const oneCard = 'Clarification requires plain text without a block or exactly one choice or question card without a write.'
+  const offers = (count) => `The card offers ${count} of the 6 same-title children as separate options.`
+  const card = recordsCard(ids, ids, locale)
+  const writes = held({ renamed: ids.slice(0, 1) })
+  writes.composition.parts = [card]
+  expect(grade(writes)).toMatchObject({ pass: false, reason: oneCard })
+  expect(grade(respond([], { parts: [card, choiceCard(ids.slice(0, 2).map((option) => ({ id: option, label: option.slice(0, 8) })))] })))
+    .toMatchObject({ pass: false, reason: oneCard })
+  expect(grade(respond([], { parts: [recordsCard(ids, ids.slice(0, 4), locale)] }))).toMatchObject({ pass: false, reason: offers(4) })
+  expect(grade(respond([], { parts: [choiceCard(ids.slice(0, 4).map((option, index) => ({ id: option, label: `${index + 1}st` })))] })))
+    .toMatchObject({ pass: false, reason: offers(4) })
+  const pairs = choiceCard([{ id: 'firstTwo', label: 'First two' }, { id: 'middleTwo', label: 'Middle two' }, { id: 'lastTwo', label: 'Last two' }])
+  expect(grade({ ...respond([], { parts: [pairs] }), trace: askTrace({ firstTwo: ids.slice(0, 2), middleTwo: ids.slice(2, 4), lastTwo: ids.slice(4) }) }))
+    .toMatchObject({ pass: false, reason: offers(0) })
+  const yesNo = { ...card, block: { ...card.block, questions: [{ id: 'confirm', type: 'yesNo', prompt: 'Rename one of them?', allowFreeText: false }] } }
+  expect(grade(respond([], { parts: [yesNo] }))).toMatchObject({ pass: false, reason: offers(0) })
 })
 
 let habits, requests, pendingTargets
@@ -682,4 +727,17 @@ it.each([
   expect(answered).toHaveLength(answers)
   expect(aiWrites()).toEqual([])
   expect(behavior(response.output, { vars: policy })).toMatchObject({ pass: false, reason })
+})
+
+// A first turn that fails a gate stops the lifecycle before its readback; behavior then names that gate and its reason.
+it.each(clarifications.filter((id) => id.endsWith('-en')))('reads back %s after the records card, and names the failed gate when it stops', async (id) => {
+  boundary()
+  const policy = await seeded(id)
+  const children = policy.sameTitleBaseline.children.map((child) => child.id)
+  requests.length = 0
+  const first = (offered) => completeSameTitleSet(respond([], { parts: [recordsCard(children, offered)] }), policy)
+  expect(behavior(await first(children), { vars: policy })).toMatchObject({ pass: true })
+  expect(behavior(await first(children.slice(0, 4)), { vars: policy })).toEqual({ pass: false, score: 0,
+    reason: 'The first turn failed composition, so no readback ran: The card offers 4 of the 6 same-title children as separate options.' })
+  expect(aiWrites()).toEqual([])
 })

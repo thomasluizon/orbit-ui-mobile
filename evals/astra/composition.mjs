@@ -8,6 +8,7 @@ import { tsImport } from 'tsx/esm/api'
 import { visibleBlock } from './visible-blocks.mjs'
 import { catalogTranslator } from './catalog-translator.mjs'
 import { hasCrisisSurfaces } from './crisis-surfaces.mjs'
+import { sameTitleClarification } from './same-title-card.mjs'
 
 const { habitMonthCardSchema } = await tsImport('../../packages/shared/src/types/chat.ts', import.meta.url)
 const { questionBlockSchema } = await tsImport('../../packages/shared/src/types/question-block.ts', import.meta.url)
@@ -228,8 +229,14 @@ export function composition(output, context) {
       return result(false, 'No-data answer must contain one to three short lines without headings, lists or paragraphs.')
     }
   } else {
-    if (expected.mode === 'clarification' && (blocks.length !== 1 || blocks[0].kind !== 'choice' || pending.length || outcome)) {
-      return result(false, 'Clarification requires plain text without a block or exactly one choice block without a write.')
+    // The API sends a question card for a clarification too: AskBlockNegotiation folds only one short singleChoice
+    // question into a choice, and CompleteRecordCard sends a record card over more than four records as a question.
+    if (expected.mode === 'clarification' && (blocks.length !== 1 || !['choice', 'question'].includes(blocks[0].kind) || pending.length || outcome)) {
+      return result(false, 'Clarification requires plain text without a block or exactly one choice or question card without a write.')
+    }
+    if (expected.mode === 'clarification' && context.vars.sameTitleBaseline) {
+      const card = sameTitleClarification(blocks[0], parsed.trace, context.vars.sameTitleBaseline.children.map((child) => child.id))
+      if (!card.pass) return card
     }
     if (expected.mode === 'preview' && external && expected.allowPreviewNote !== true) return result(false, 'Preview must be the entire answer.')
     if (expected.mode === 'preview' && pending.length !== (expected.previews ?? 1)) return result(false, 'Missing batch preview.')
