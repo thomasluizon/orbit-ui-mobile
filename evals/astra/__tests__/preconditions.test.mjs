@@ -41,6 +41,14 @@ it('redacts credential values while retaining the fixture cause', async () => {
   expect(consoleLine.mock.calls.flat().join('')).not.toContain('offline-token')
   expect(consoleLine.mock.calls.flat().join('')).not.toContain('offline-refresh')
 })
+it('records a chat transport failure with its redacted cause', async () => {
+  offlineCredentials()
+  const provider = new AstraHttpProvider({ config: { url: 'https://astra.invalid/api/chat' } })
+  provider.provider = Promise.resolve({ callApi: async () => { throw new Error('Request failed after 4 retries: TypeError: fetch failed (offline-refresh)') } })
+  const response = await provider.callApi('Create Stretch', { vars: { credentialKey: 'ORBIT_EVAL_TOKEN' } })
+  expect(response).toEqual({ error: 'Astra HTTP request failed: Request failed after 4 retries: TypeError: fetch failed ([redacted])',
+    metadata: { astraHttpStatus: null, rateLimitRetryable: false } })
+})
 it('the reset executable reports the original cause and a failing exit code', () => {
   const run = spawnSync(process.execPath, [fileURLToPath(new URL('../fixtures/reset.mjs', import.meta.url)), 'unknown-case'], { encoding: 'utf8', timeout: 10000 })
   expect(run.status).toBe(1)
