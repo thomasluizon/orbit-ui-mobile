@@ -7,6 +7,7 @@ import { MessageBubble } from '@/components/message-bubble'
 import { useChatStore } from '@/stores/chat-store'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 import { BlockFrame } from '@/components/ui/block-frame'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 import { renderedText } from '../support/react-test-renderer'
 import { deniedBulkCreateReplyFixture, makeActionResult, makeAgentOperationResult, makeClarificationPreviewMessage, makeHeldGoalMessage, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 
@@ -532,7 +533,7 @@ describe('MessageBubble thread treatment (mobile)', () => {
 function findSurfaceLinks(root: TestTreeRoot, label: string): TestNode[] {
   return root.findAll(
     (node) =>
-      typeof node.type !== 'string' &&
+      node.type === MotionPressable &&
       typeof node.props.onPress === 'function' &&
       node.props.accessibilityLabel === label,
   )

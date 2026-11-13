@@ -1,5 +1,6 @@
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
-import { type GestureResponderEvent, Pressable, StyleSheet, Text, View } from 'react-native'
+import { type GestureResponderEvent, StyleSheet, Text, View } from 'react-native'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 import Svg, { Line } from 'react-native-svg'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -30,19 +31,18 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
   }
 
   return (
-    <Pressable
+    <MotionPressable
       accessibilityRole="button"
       accessibilityLabel={plural(
         t('streakDisplay.badge.tooltip', { count: streak }),
         streak,
       )}
       onPress={handlePress}
-      style={({ pressed }) => [
+      style={[
         styles.badge,
         {
           backgroundColor: tokens.bgElev,
         },
-        pressed ? styles.pressed : null,
       ]}
     >
       {({ pressed }) => (
@@ -72,7 +72,7 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
           </Text>
         </>
       )}
-    </Pressable>
+    </MotionPressable>
   )
 }
 
@@ -95,9 +95,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     borderRadius: 999,
-  },
-  pressed: {
-    transform: [{ scale: 0.96 }],
   },
   flame: {
     fontSize: 16,
