@@ -59,7 +59,7 @@ interface WebSheetProps extends SheetProps {
 }
 
 /** The sole modal surface. Callers mount it to open and unmount it to close. */
-export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTitle, headerAccessory, actions, minimumBodyWidth, boundedBody, virtualizedBody, initialFocus, finalFocus, onClose, onAttemptDismiss, children, ref }: Readonly<WebSheetProps>) {
+export function Sheet({ title, centred = false, titleMode = 'label', titleTranslate, accessibleTitle, accessibleDescription, headerAccessory, actions, minimumBodyWidth, boundedBody, virtualizedBody, initialFocus, finalFocus, onClose, onAttemptDismiss, children, ref }: Readonly<WebSheetProps>) {
   const t = useTranslations()
   const { titleClamped, titleExpanded, onClampedChange, bodyRef, toggleTitle } = useSheetTitleDisclosure(title)
   const viewportRef = useSheetKeyboardViewport(bodyRef, virtualizedBody)
@@ -81,7 +81,7 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
     setPresented(false)
   }, [])
 
-  const drag = useSheetDrag({ onClose, requestClose, onAttemptDismiss })
+  const drag = useSheetDrag({ onClose, requestClose, onAttemptDismiss, centred })
 
   const handle = useMemo<SheetHandle>(() => ({ requestClose }), [requestClose])
 
@@ -145,9 +145,9 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
     >
       <Dialog.Portal className="orbit-sheet-portal">
         <Dialog.Backdrop className="orbit-sheet-backdrop" {...pointerDismissalHandlers} />
-        <Dialog.Viewport ref={viewportRef} className="orbit-sheet-viewport" {...pointerDismissalHandlers}>
+        <Dialog.Viewport ref={viewportRef} className="orbit-sheet-viewport" data-centred={String(centred)} {...pointerDismissalHandlers}>
           <motion.div className="orbit-sheet-drag-frame" {...drag.frameProps}>
-          <Dialog.Popup className="orbit-sheet-panel" initialFocus={initialFocus} finalFocus={finalFocus}>
+          <Dialog.Popup className="orbit-sheet-panel" data-centred={String(centred)} initialFocus={initialFocus} finalFocus={finalFocus}>
             <div className="orbit-sheet-grabber-target" aria-hidden="true" onPointerDown={drag.start}><div className="orbit-sheet-grabber" /></div>
             <header className="orbit-sheet-header">
               <Dialog.Title aria-label={accessibleTitle} translate={titleTranslate} className={title ? 'orbit-sheet-title' : 'sr-only'} data-title-mode={titleMode}>
@@ -163,6 +163,7 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
                 </Dialog.Close>
               ) : null}
             </header>
+            <SheetDescription text={accessibleDescription} />
             {children == null && !(title && titleMode === 'typed') ? null : (
               <div className="orbit-sheet-body-viewport" style={minimumBodyWidth == null ? undefined : { containerType: 'inline-size', containerName: 'sheet-panel' }}>
                 {minimumBodyWidth == null ? null : <style>{`
@@ -311,8 +312,13 @@ function useSheetBodyFocusVisibility(virtualizedBody: boolean | undefined) {
   }
 }
 
-function useSheetDrag({ onClose, requestClose, onAttemptDismiss }: Pick<WebSheetProps, 'onClose' | 'onAttemptDismiss'> & { requestClose: () => void }) {
-  const dismiss = onClose ? requestClose : onAttemptDismiss
+function SheetDescription({ text }: Readonly<{ text: string | undefined }>) {
+  if (!text) return null
+  return <Dialog.Description className="sr-only">{text}</Dialog.Description>
+}
+
+function useSheetDrag({ onClose, requestClose, onAttemptDismiss, centred }: Pick<WebSheetProps, 'onClose' | 'onAttemptDismiss' | 'centred'> & { requestClose: () => void }) {
+  const dismiss = centred ? undefined : onClose ? requestClose : onAttemptDismiss
   const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
   const y = useMotionValue(0)
   const controls = useDragControls()

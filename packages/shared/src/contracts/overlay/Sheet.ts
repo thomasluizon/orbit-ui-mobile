@@ -3,8 +3,12 @@
 export interface SheetProps {
   open?: true
   title?: string
+  /** Centres the panel at every width, with no grabber and no drag. The default is the bottom sheet below the `sm` boundary. */
+  centred?: boolean
   titleMode?: 'label' | 'typed'
   accessibleTitle?: string
+  /** The description of the dialog for assistive technology, when the visible text is not the title. */
+  accessibleDescription?: string
   headerAccessory?: React.ReactNode
   actions?: React.ReactNode
   /** Reduces the body's horizontal inset when fixed-size controls need more room. */

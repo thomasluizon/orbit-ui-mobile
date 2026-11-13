@@ -1694,8 +1694,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
-        "apps/web/components/ui/columns.tsx",
-        "apps/web/components/ui/pager.tsx"
+        "apps/web/components/ui/columns.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -1713,8 +1712,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
-        "apps/web/components/ui/columns.tsx",
-        "apps/web/components/ui/pager.tsx"
+        "apps/web/components/ui/columns.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -1732,8 +1730,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
-        "apps/web/components/ui/columns.tsx",
-        "apps/web/components/ui/pager.tsx"
+        "apps/web/components/ui/columns.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -1751,8 +1748,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
-        "apps/web/components/ui/columns.tsx",
-        "apps/web/components/ui/pager.tsx"
+        "apps/web/components/ui/columns.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -7527,6 +7523,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-guided-guided-habit-flow",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/guided/guided-habit-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/guided/guided-habit-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-guided-guided-habit-flow",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/guided/guided-habit-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/guided/guided-habit-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-guided-guided-habit-flow",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/guided/guided-habit-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/guided/guided-habit-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-guided-guided-habit-flow",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/guided/guided-habit-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/guided/guided-habit-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-habits-habit-create-frame",
       "platform": "web",
       "kind": "overlay",
@@ -9445,6 +9493,58 @@
       "href": null,
       "ownedFiles": [
         "apps/web/components/ui/personal-text-details.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-ui-result-dialog",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/result-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/result-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-ui-result-dialog",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/result-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/result-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-ui-result-dialog",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/result-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/result-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-ui-result-dialog",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/result-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/result-dialog.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -12028,7 +12128,6 @@
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
         "apps/mobile/components/ui/columns.tsx",
-        "apps/mobile/components/ui/pager.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx"
@@ -12047,7 +12146,6 @@
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
         "apps/mobile/components/ui/columns.tsx",
-        "apps/mobile/components/ui/pager.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx"
@@ -12066,7 +12164,6 @@
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
         "apps/mobile/components/ui/columns.tsx",
-        "apps/mobile/components/ui/pager.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx"
@@ -12085,7 +12182,6 @@
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
         "apps/mobile/components/ui/columns.tsx",
-        "apps/mobile/components/ui/pager.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx"
@@ -16991,6 +17087,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-overlay-guided-guided-habit-flow",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/guided/guided-habit-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/guided/guided-habit-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-guided-guided-habit-flow",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/guided/guided-habit-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/guided/guided-habit-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-guided-guided-habit-flow",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/guided/guided-habit-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/guided/guided-habit-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-guided-guided-habit-flow",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/guided/guided-habit-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/guided/guided-habit-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-overlay-habits-habit-create-frame",
       "platform": "mobile",
       "kind": "overlay",
@@ -19541,6 +19689,58 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/components/ui/personal-text-details.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-ui-result-dialog",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/result-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/result-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-ui-result-dialog",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/result-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/result-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-ui-result-dialog",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/result-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/result-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-ui-result-dialog",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/result-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/result-dialog.tsx"
       ],
       "state": "default",
       "theme": "dark",

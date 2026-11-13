@@ -872,3 +872,52 @@ export { AuthRefreshNetworkError, isNetworkUnavailableError } from './network-er
 export { buildBulkCompletionChunks, getBulkCompletionReplay, normalizeBulkCompletionInput, isBulkGatewayFailure } from './bulk-completion'
 export type { BulkCompletionInput, BulkRetryChunk } from './bulk-completion'
 export { subscribeOrbitLoop, getOrbitLoopVersion, setOrbitMotionEnabled, pauseOrbitLoopForOverlay, claimOrbitLiveSlot, mayOrbitRunLoop } from './orbit-mascot-loop'
+export {
+  remainingHabitFlowSteps,
+  readPhraseCoverage,
+  resetCoveredAnswers,
+  phraseLeavesWordsUnread,
+  describeHabitResult,
+  optimisticHabitResult,
+  resolveResultDestination,
+} from './habit-flow'
+export type {
+  HabitFlowStepId,
+  HabitFlowAnswers,
+  PhraseCoverage,
+  RemainingHabitFlowStepsInput,
+  HabitResultItem,
+  HabitResultSentence,
+  HabitResultSentenceKey,
+} from './habit-flow'
+export {
+  advanceHabitFlow,
+  habitFlowPosition,
+  openHabitFlowStep,
+  retreatHabitFlow,
+  settleHabitFlow,
+  startHabitFlow,
+} from './habit-flow-navigation'
+export type {
+  HabitFlowDetailStep,
+  HabitFlowNavigation,
+  HabitFlowOptionalId,
+  HabitFlowPosition,
+  HabitFlowStepKey,
+} from './habit-flow-navigation'
+export { answerHabitReminder, answerHabitTime, answerHabitWhen, shiftCalendarDate, HABIT_TIME_OPTIONS } from './habit-flow-answers'
+export type { HabitFlowFormPort, HabitWhenChoice } from './habit-flow-answers'
+
+export {
+  GUIDED_FLOW_IDS,
+  createGuidedFlowTracker,
+  markGuidedFlowCompleted,
+  resetGuidedFlowCompleted,
+  takeGuidedFlowCompleted,
+  type GuidedFlowEvent,
+  type GuidedFlowId,
+  type GuidedFlowSink,
+  type GuidedFlowTracker,
+} from './guided-flow-events'
+
+export { parseDatePhrase, type DatePhraseContext, type DatePhraseResult } from './date-phrase-parser'

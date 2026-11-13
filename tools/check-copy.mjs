@@ -41,6 +41,9 @@ const BANNED_COPY = [
 // euphoria." No key-name heuristic: it is every locale string, because any heuristic leaves
 // the register unenforced on the keys it did not think of.
 
+// The one title that keeps its exclamation mark: the result dialog opens with "Pronto!" / "Done!".
+const EXCLAMATION_ALLOWED_KEYS = new Set(["result.title"])
+
 // Entry 19: "Are you sure?" as a confirmation body. microcopy scope.
 const ARE_YOU_SURE = /\bare you sure\b/i
 const TEM_CERTEZA = /\btem certeza\b/i
@@ -73,7 +76,7 @@ const localeFindings = () => {
         const hit = pattern.exec(prose)
         if (hit) findings.push({ file, key, kind, detail: `entry ${entry}: "${hit[0]}" in ${JSON.stringify(value)}` })
       }
-      if (prose.includes("!")) {
+      if (prose.includes("!") && !EXCLAMATION_ALLOWED_KEYS.has(key)) {
         findings.push({ file, key, kind: "exclamation", detail: `entry 1: ${JSON.stringify(value)}` })
       }
       if (ARE_YOU_SURE.test(prose) || TEM_CERTEZA.test(prose)) {

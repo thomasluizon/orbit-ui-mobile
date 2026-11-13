@@ -385,6 +385,20 @@ export const habitSetupSuggestionSchema = z.object({
 
 export type HabitSetupSuggestion = z.infer<typeof habitSetupSuggestionSchema>
 
+/** The free phrase reader. The server holds a hidden cap, so every miss is `read: false`. */
+export const habitPhraseReadRequestSchema = z.object({
+  phrase: z.string(),
+  language: z.string().optional(),
+})
+
+export type HabitPhraseReadRequest = z.infer<typeof habitPhraseReadRequestSchema>
+
+export const habitPhraseReadSchema = habitSetupSuggestionSchema.extend({
+  read: z.boolean(),
+})
+
+export type HabitPhraseReadResponse = z.infer<typeof habitPhraseReadSchema>
+
 export const updateHabitRequestSchema = z.object({
   parentId: z.uuid().nullish(),
   clearParent: z.boolean().nullish(),

@@ -531,6 +531,103 @@
     }
   },
   "habits": {
+    "flow": {
+      "what": {
+        "question": "What do you want to do?",
+        "lineEmpty": "Say it your way. You can include the day and the time.",
+        "lineTyped": "Got it. Only the details are left.",
+        "lineUnderstood": "Got it: {parts}.",
+        "label": "What do you want to do?",
+        "placeholder": "Take my pills every day at 8",
+        "hint": "Write what you want to do.",
+        "reading": "Orbit is reading what you wrote."
+      },
+      "when": {
+        "question": "When?",
+        "line": "Any day works, or a repeat.",
+        "today": "Today",
+        "tomorrow": "Tomorrow",
+        "everyDay": "Every day",
+        "noDate": "No date",
+        "freeLabel": "Or say it in your words",
+        "freePlaceholder": "Friday, the 20th, every Monday",
+        "calendar": "Pick on the calendar",
+        "unresolved": "I could not read that date. Try \"Friday\" or \"the 20th\"."
+      },
+      "time": {
+        "question": "Is there a set time?",
+        "line": "If there is a time, I can remind you.",
+        "none": "No set time",
+        "freeLabel": "Another time"
+      },
+      "reminder": {
+        "question": "Want a reminder at {time}?",
+        "line": "I can tell you at that time.",
+        "yes": "Yes, remind me",
+        "no": "Not now"
+      },
+      "confirm": {
+        "question": "Is this right?",
+        "line": "Check it with me. Tap an item to change it."
+      },
+      "summary": {
+        "noDate": "no date",
+        "noTime": "no set time",
+        "withReminder": "with a reminder",
+        "noReminder": "no reminder",
+        "when": "When",
+        "time": "Time",
+        "reminder": "Reminder",
+        "type": "What this is",
+        "emoji": "Emoji",
+        "title": "What you want to do"
+      },
+      "type": {
+        "question": "Is it a task or a habit?",
+        "line": "A repeat makes a habit. A date, or none, makes a task.",
+        "taskHint": "Happens once, on a day or with no date",
+        "habitHint": "Repeats, and you follow the streak"
+      },
+      "repeat": {
+        "question": "How often?",
+        "line": "Pick the repeat. The habit starts on the day you set.",
+        "everyN": "Every",
+        "timesIn": "Times per"
+      },
+      "duration": {
+        "question": "Does it have a length?"
+      },
+      "reminderKind": {
+        "question": "When do you want a reminder?",
+        "scheduled": "At set times",
+        "repeat": "Repeat every"
+      },
+      "more": "Want to adjust anything else?",
+      "progress": "Step {position} of {total}",
+      "back": "Back",
+      "close": "Close",
+      "continue": "Continue",
+      "saved": "Saving",
+      "optional": {
+        "description": "Want to note something?",
+        "checklist": "Are there steps inside this?",
+        "subHabits": "Want to split it into smaller parts?",
+        "avoid": "Is this something you want to quit?",
+        "slipAlert": "Want a heads-up before a slip?",
+        "tags": "Want to group it with similar things?",
+        "goals": "Does this help a goal?",
+        "endDate": "Does it have an end date?",
+        "parent": "Is this part of another item?",
+        "none": "Nothing for now",
+        "yes": "Yes",
+        "no": "No",
+        "removeEndDate": "Remove the end date"
+      },
+      "orbit": {
+        "offline": "No connection. I read on the device and you can go on the same way.",
+        "fromConversation": "It came from your conversation with Orbit."
+      }
+    },
     "nextReminder": "Next at {time}",
     "takenAt": "Done at {time}",
     "changeTakenAt": "Change time",
@@ -3018,6 +3115,28 @@
     "askAstra": "Review summary",
     "upgrade": "Upgrade",
     "freePrompt": "Pro gets a daily summary of your habits."
+  },
+  "result": {
+    "title": "Done!",
+    "task": {
+      "dated": "The task is set for {date}.",
+      "datedTimed": "The task is set for {date} at {time}.",
+      "undated": "The task has no date. It is in General."
+    },
+    "habit": {
+      "repeat": "The habit starts {start} and repeats {cadence}.",
+      "repeatTimed": "The habit starts {start} and repeats {cadence} at {time}.",
+      "updated": "The changes are saved."
+    },
+    "cadence": {
+      "day": "{count, plural, one {every day} other {every # days}}",
+      "week": "{count, plural, one {every week} other {every # weeks}}",
+      "month": "{count, plural, one {every month} other {every # months}}",
+      "year": "{count, plural, one {every year} other {every # years}}"
+    },
+    "seeToday": "View in Today",
+    "seeCalendar": "View in Calendar",
+    "createAnother": "Create another"
   },
   "onboarding": {
     "flow": {
