@@ -2,7 +2,7 @@ import * as ReactNative from 'react-native'
 import React from "react";
 import { createRequire } from 'node:module';
 import type { LegacyHoverGesture as HoverGesture, GestureStateChangeEvent } from 'react-native-gesture-handler';
-import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable';
+import { PressScalePressable } from '@/components/motion/press-scale';
 import { afterEach, describe, it, expect, vi } from "vitest";
 import { StyleSheet } from "react-native";
 import { INTERACTION_FILL_CLEARANCE } from "@orbit/shared/theme";
@@ -42,10 +42,10 @@ const { onGestureHandlerEvent } = await vi.importActual<{ onGestureHandlerEvent:
 
 function attachedHeaderHover(header: TestNode): HoverGesture {
   let detector = header.parent;
-  while (detector && typeof detector.type !== 'string') detector = detector.parent;
+  while (detector && detector.type !== 'GestureDetector') detector = detector.parent;
   expect(detector?.type, 'the native hover detector must wrap this header control').toBe('GestureDetector');
   const child = React.Children.only(detector!.props.children) as React.ReactElement<{ testID?: string; collapsable?: boolean }>;
-  expect(child.type, 'hover must attach to the full header control').toBe(InsetFocusPressable);
+  expect(child.type, 'hover must attach to the full header control').toBe(PressScalePressable);
   expect(child.props.testID).toBe('time-grid-col-header');
   expect(header.props.collapsable).toBe(false);
   const gesture = detector!.props.gesture as HoverGesture;
@@ -73,6 +73,13 @@ type Tree = {
   update: (element: React.ReactNode) => void;
   root: { findAll: (predicate: (node: TestNode) => boolean) => TestNode[] };
 };
+
+function pressLayerStyle(host: TestNode) {
+  let layer: TestNode | null | undefined = host.parent;
+  while (layer && layer.props['data-slot'] !== 'press-scale') layer = layer.parent;
+  expect(layer, 'a timed block eases its press scale on a press layer').toBeTruthy();
+  return StyleSheet.flatten(layer!.props.style);
+}
 
 function makeEntry(overrides: Partial<CalendarDayEntry> = {}): CalendarDayEntry {
   return {
@@ -263,7 +270,7 @@ describe("CalendarTimeGrid (mobile)", () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="64"><text y="32" font-family="Geist" font-size="${12 * fontScale}">${title}</text></svg>`;
       const bounds = new Resvg(svg, { font: { fontFiles: [font], loadSystemFonts: false } }).getBBox()!;
       for (const block of hostsByTestID(tree, 'time-grid-event')) {
-        const style = resolveStyle(block.props.style);
+        const style: Record<string, unknown> = { ...resolveStyle(block.props.style), width: pressLayerStyle(block).width };
         expect(bounds.x + bounds.width).toBeLessThanOrEqual(Number(style.width) - 2 * Number(style.paddingHorizontal) - 2 * Number(style.borderWidth));
       }
       const cellStyle = resolveStyle(hostsByTestID(tree, 'time-grid-all-day')[0]!.props.style);
@@ -370,7 +377,7 @@ describe("CalendarTimeGrid (mobile)", () => {
     const tree = renderGrid([col], dayMap);
 
     expect(hostsByTestID(tree, "time-grid-event")).toHaveLength(1);
-    expect(resolveStyle(hostsByTestID(tree, "time-grid-event")[0]!.props.style)).toMatchObject({
+    expect(pressLayerStyle(hostsByTestID(tree, "time-grid-event")[0]!)).toMatchObject({
       top: 384,
       width: 188,
       minHeight: 48,
@@ -404,7 +411,7 @@ describe("CalendarTimeGrid (mobile)", () => {
     const tree = renderGrid([col], dayMap);
 
     const widths = hostsByTestID(tree, "time-grid-event").map(
-      (event) => resolveStyle(event.props.style).width,
+      (event) => pressLayerStyle(event).width,
     );
     expect(widths).toEqual([92, 92]);
   });
@@ -978,6 +985,7 @@ function headerInteractions(mode: 'dark' | 'light', language: 'en' | 'pt-BR') {
   const otherHover = attachedHeaderHover(headers()[1]!);
   expect(otherHover).not.toBe(hover);
   const style = (pressed = false) => resolveStyle(header().props.style({ pressed }));
+  const scale = () => (pressLayerStyle(header()).transform as [{ scale: number }])[0].scale;
   const fill = (index = 0) => hostsByTestID(tree, 'time-grid-col-header-fill').find((candidate) => {
     for (let parent = candidate.parent; parent; parent = parent.parent) if (parent === headers()[index]) return true;
     return false;
@@ -1010,7 +1018,7 @@ function headerInteractions(mode: 'dark' | 'light', language: 'en' | 'pt-BR') {
     for (let parent = node.parent; parent; parent = parent.parent) if (parent === header()) return true;
     return false;
   });
-  return { tree, columns, onSelectDay, palette, headers, header, hover, otherHover, style, paint, run, focus, outlines };
+  return { tree, columns, onSelectDay, palette, headers, header, hover, otherHover, style, scale, paint, run, focus, outlines };
 }
 
 function headerGeometry(style: Record<string, unknown>) {
@@ -1027,7 +1035,7 @@ describe.each(['dark', 'light'] as const)('Calendar column-header interactions i
       view.run('hoverBegin');
       view.run('hoverBegin');
       expect(view.paint()).toBe(view.palette.bgHover);
-      expect(view.style().transform).toBeUndefined();
+      expect(view.scale()).toBe(1);
       expect(view.outlines()).toHaveLength(0);
       expect(__getFocusedNativeTag()).toBe(initialFocus);
       expect(headerGeometry(view.style())).toEqual(initialGeometry);
@@ -1044,10 +1052,10 @@ describe.each(['dark', 'light'] as const)('Calendar column-header interactions i
     view.run('hoverBegin');
     view.run('onPressIn');
     expect(view.paint()).toBe(view.palette.bgHover);
-    expect(view.style(true).transform).toEqual([{ scale: 0.96 }]);
+    expect(view.scale()).toBeCloseTo(0.96, 5);
     view.run('onPressOut');
     expect(view.paint()).toBe(view.palette.bgHover);
-    expect(view.style().transform).toBeUndefined();
+    expect(view.scale()).toBe(1);
     view.run('onPressIn');
     view.run('hoverFinalize');
     expect(view.paint()).toBe(view.palette.bgHover);
@@ -1066,7 +1074,7 @@ describe.each(['dark', 'light'] as const)('Calendar column-header interactions i
     view.run('onPressIn');
     view.run('onPressOut');
     expect(view.paint()).toBe(view.palette.bgHover);
-    expect(view.style().transform).toBeUndefined();
+    expect(view.scale()).toBe(1);
     expect(view.outlines()).toHaveLength(1);
     expect(resolveStyle(view.outlines()[0]!.props.style).outlineOffset).toBe(-INTERACTION_FILL_CLEARANCE - 2);
     expect(headerGeometry(view.style())).toEqual(initialGeometry);
@@ -1099,7 +1107,7 @@ describe.each(['dark', 'light'] as const)('Calendar column-header interactions i
     const initial = view.style();
     expect(initial).toMatchObject({ width: 192, paddingVertical: 8, borderRadius: radius.sm });
     let frame = view.header().parent;
-    while (frame && frame.type !== 'View') frame = frame.parent;
+    while (frame && (frame.type !== 'View' || frame.props['data-slot'] === 'press-scale')) frame = frame.parent;
     expect(resolveStyle(frame!.props.style).width).toBe(initial.width);
     const gridLines = view.tree.root.findAll((node) => {
       if (node.type !== 'View' || node.props.pointerEvents !== 'none') return false;
@@ -1179,20 +1187,20 @@ describe.each(['dark', 'light'] as const)('Calendar column-header interactions i
     const view = headerInteractions(mode, language);
     view.run('onPressIn');
     expect(view.paint()).toBe(view.palette.bgHover);
-    expect(view.style(true).transform).toBeUndefined();
+    expect(view.scale()).toBe(1);
     view.run('onPressOut');
     view.run('hoverBegin');
     expect(view.paint()).toBe(view.palette.bgHover);
     view.run('onPressIn');
     expect(view.paint()).toBe(view.palette.bgHover);
-    expect(view.style(true).transform).toBeUndefined();
+    expect(view.scale()).toBe(1);
     view.run('hoverFinalize');
     expect(view.paint()).toBe(view.palette.bgHover);
     view.run('onPressOut');
     expect(view.paint()).toBe('transparent');
     view.focus(0);
     expect(view.paint()).toBe(view.palette.bgHover);
-    expect(view.style().transform).toBeUndefined();
+    expect(view.scale()).toBe(1);
     expect(view.onSelectDay).not.toHaveBeenCalled();
   });
 });

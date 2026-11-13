@@ -20,7 +20,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { __getFocusedInputSelection, __getFocusedNativeTag, __setFocusImpl, __setWindowDimensions } from '@/test-mocks/react-native'
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
-import { expectPressPaint } from '@/__tests__/support/press-feedback'
+import { expectPressPaint, expectPressScaleLayer } from '@/__tests__/support/press-feedback'
 import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 
@@ -609,7 +609,8 @@ describe('Composer (mobile)', () => {
     const onRetry = vi.fn()
     const recovery = renderComposer(props({ errorRecovery: { label: 'Recover', onSelect } }))
     const recoveryControl = byLabel(recovery.root, 'Recover')[0]
-    expectPressPaint(recoveryControl, { fill: tokens.bgHover, borderRadius: 999, scale: reducedMotion ? 1 : 0.96 })
+    expectPressPaint(recoveryControl, { fill: tokens.bgHover, borderRadius: 999, scale: null })
+    expectPressScaleLayer(recoveryControl, reducedMotion)
     pressControl(recoveryControl)
     expect(onSelect).toHaveBeenCalledOnce()
 

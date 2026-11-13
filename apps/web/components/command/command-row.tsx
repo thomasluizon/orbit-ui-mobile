@@ -29,7 +29,7 @@ export function CommandRow({ leading, label, value, onSelect, description, acces
       disabled={disabled}
       onSelect={onSelect}
       aria-label={accessibleLabel ?? (textMode === 'personal' ? label : undefined)}
-      className="group/habit-result flex-1 min-w-0 flex min-h-[var(--touch-min)] cursor-pointer select-none items-center gap-3 rounded-[var(--r-well)] p-3 text-[17px] text-[var(--fg-1)] transition-[background-color,box-shadow,transform] duration-150 ease-[var(--ease-standard)] [&_svg]:text-[var(--fg-3)] data-[selected=true]:bg-[var(--primary-dim)] data-[selected=true]:shadow-[inset_0_0_0_1.5px_var(--primary)] active:scale-[0.96]"
+      className="group/habit-result flex-1 min-w-0 flex min-h-[var(--touch-min)] cursor-pointer select-none items-center gap-3 rounded-[var(--r-well)] p-3 text-[17px] text-[var(--fg-1)] transition-[background-color,box-shadow,scale] [transition-duration:var(--dur-fast),var(--dur-fast),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-out)] [&_svg]:text-[var(--fg-3)] data-[selected=true]:bg-[var(--primary-dim)] data-[selected=true]:shadow-[inset_0_0_0_1.5px_var(--primary)] motion-safe:active:scale-[0.96]"
     >
       <span className="grid size-6 shrink-0 place-items-center">{leading}</span>
       <span className="min-w-0 flex-1">{textMode === 'personal' ? <PersonalText onClampedChange={setClamped} className="leading-[1.4]">{label}</PersonalText> : <span className="block truncate leading-tight">{label}</span>}{description}</span>

@@ -2,10 +2,10 @@
 
 import { createAstraAllowanceTranslator } from '@orbit/shared/utils'
 
-import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import type { Profile } from '@orbit/shared/types/profile'
-import { SPACING, TOUCH_TARGET_MIN, BUTTON_SIZES } from '@orbit/shared/theme'
+import { SPACING } from '@orbit/shared/theme'
+import { PillLink } from '@/components/ui/pill-button'
 import { ProgressBar } from '@/components/ui/progress-bar'
 
 interface AstraAllowancePanelProps {
@@ -73,18 +73,7 @@ export function AstraAllowancePanel({
       </div>
       {!profile.isLifetimePro ? (
         <div className="flex">
-          <Link
-            href="/upgrade?from=%2Fprofile%2Fastra"
-            className="touch-target inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-full overflow-hidden border-0 bg-transparent font-medium text-[var(--fg-1)] shadow-[inset_0_0_0_1.5px_var(--hairline-strong)] transition-[background-color,opacity,box-shadow,scale] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96]"
-            style={{
-              fontFamily: 'var(--font-sans)',
-              minHeight: TOUCH_TARGET_MIN,
-              paddingInline: BUTTON_SIZES.sm.paddingX,
-              fontSize: BUTTON_SIZES.sm.fontSize,
-            }}
-          >
-            {actionLabel}
-          </Link>
+          <PillLink href="/upgrade?from=%2Fprofile%2Fastra" variant="ghost" size="sm">{actionLabel}</PillLink>
         </div>
       ) : null}
     </div>

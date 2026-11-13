@@ -107,8 +107,8 @@ describe('StreakBadge pressed paint', () => {
     const tokens = createTokensV2('orange', mode)
     const tree = renderBadge({ streak, isFrozen })
     const [button] = findButton(tree.root)
-    const rest = StyleSheet.flatten(button.props.style({ pressed: false }))
-    const pressed = StyleSheet.flatten(button.props.style({ pressed: true }))
+    const rest = StyleSheet.flatten(button.props.style)
+    const pressed = rest
     expect(button.props.hitSlop).toBeUndefined()
     expect(rest).toMatchObject({ minWidth: 48, minHeight: 48 })
     expect(rest.borderWidth ?? 0).toBe(0)

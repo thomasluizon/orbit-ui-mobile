@@ -17,8 +17,8 @@ vi.mock('react-native', async (importOriginal) => {
     return createElement('Pressable', {
       ...props, disabled,
       style: typeof style === 'function' ? style({ pressed }) : style,
-      onPressIn: () => { if (!disabled) setPressed(true) },
-      onPressOut: () => setPressed(false),
+      onPressIn: (event: unknown) => { if (!disabled) setPressed(true); props.onPressIn?.(event as never) },
+      onPressOut: (event: unknown) => { setPressed(false); props.onPressOut?.(event as never) },
       onPress: disabled ? undefined : onPress,
     }, typeof children === 'function' ? children({ pressed }) : children)
   } }

@@ -610,7 +610,7 @@ select[aria-hidden="true"] {
   border-radius: 999px;
   background: transparent;
   color: var(--fg-2);
-  transition: background-color var(--dur-hover-control) var(--ease-standard), color var(--dur-hover-control) var(--ease-standard), transform var(--dur-press) var(--ease-out);
+  transition: background-color var(--dur-hover-control) var(--ease-standard), color var(--dur-hover-control) var(--ease-standard), scale var(--dur-press) var(--ease-out);
 }
 
 .orbit-sheet-close:focus-visible {
@@ -624,6 +624,9 @@ select[aria-hidden="true"] {
 }
 
 .orbit-sheet-close:active { background: var(--bg-hover); }
+@media (prefers-reduced-motion: no-preference) {
+  .orbit-sheet-close:active { scale: 0.96; }
+}
 
 [data-menu-trigger][data-state="open"]:not(:disabled) {
   background-color: var(--bg-hover);
@@ -1817,9 +1820,11 @@ button[data-variant="primary"]:enabled:not([data-loading]):active,
   transition:
     background-color var(--dur-hover-control) var(--ease-standard),
     color var(--dur-hover-control) var(--ease-standard),
-    transform var(--dur-press) var(--ease-out);
+    scale var(--dur-press) var(--ease-out);
 }
-.chip:active { transform: scale(0.96); }
+@media (prefers-reduced-motion: no-preference) {
+  .chip:active { scale: 0.96; }
+}
 .chip:focus-visible { outline-offset: -2px; }
 .chip-period:focus-visible { outline-color: var(--fg-1); }
 .chip:disabled {
