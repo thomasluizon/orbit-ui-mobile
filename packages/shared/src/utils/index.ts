@@ -872,3 +872,20 @@ export { AuthRefreshNetworkError, isNetworkUnavailableError } from './network-er
 export { buildBulkCompletionChunks, getBulkCompletionReplay, normalizeBulkCompletionInput, isBulkGatewayFailure } from './bulk-completion'
 export type { BulkCompletionInput, BulkRetryChunk } from './bulk-completion'
 export { subscribeOrbitLoop, getOrbitLoopVersion, setOrbitMotionEnabled, pauseOrbitLoopForOverlay, claimOrbitLiveSlot, mayOrbitRunLoop } from './orbit-mascot-loop'
+export {
+  remainingHabitFlowSteps,
+  readPhraseCoverage,
+  resetCoveredAnswers,
+  phraseLeavesWordsUnread,
+  describeHabitResult,
+  resolveResultDestination,
+} from './habit-flow'
+export type {
+  HabitFlowStepId,
+  HabitFlowAnswers,
+  PhraseCoverage,
+  RemainingHabitFlowStepsInput,
+  HabitResultItem,
+  HabitResultSentence,
+  HabitResultSentenceKey,
+} from './habit-flow'

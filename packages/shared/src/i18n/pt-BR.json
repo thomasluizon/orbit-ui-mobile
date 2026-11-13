@@ -531,6 +531,104 @@
     }
   },
   "habits": {
+    "flow": {
+      "what": {
+        "question": "O que você quer fazer?",
+        "lineEmpty": "Diga do seu jeito. Pode incluir o dia e a hora.",
+        "lineTyped": "Entendi. Só faltam os detalhes.",
+        "lineUnderstood": "Entendi: {parts}.",
+        "label": "O que você quer fazer?",
+        "placeholder": "Tomar remédio todo dia às 8",
+        "hint": "Escreva o que você quer fazer.",
+        "reading": "Orbit está lendo o que você escreveu."
+      },
+      "when": {
+        "question": "Quando?",
+        "line": "Pode ser qualquer dia, ou uma repetição.",
+        "today": "Hoje",
+        "tomorrow": "Amanhã",
+        "everyDay": "Todo dia",
+        "noDate": "Sem data",
+        "freeLabel": "Ou diga com as suas palavras",
+        "freePlaceholder": "Sexta, dia 20, toda segunda",
+        "calendar": "Escolher no calendário",
+        "unresolved": "Não entendi essa data. Tente \"sexta\" ou \"dia 20\".",
+        "submit": "Usar essa data"
+      },
+      "time": {
+        "question": "Tem hora certa?",
+        "line": "Se tiver hora, eu aviso você.",
+        "none": "Sem hora",
+        "freeLabel": "Outra hora"
+      },
+      "reminder": {
+        "question": "Quer que eu te lembre às {time}?",
+        "line": "Eu posso avisar na hora.",
+        "yes": "Sim, me lembre",
+        "no": "Agora não"
+      },
+      "confirm": {
+        "question": "É isso?",
+        "line": "Confere comigo. Toque num item para mudar."
+      },
+      "summary": {
+        "noDate": "sem data",
+        "noTime": "sem hora",
+        "withReminder": "com lembrete",
+        "noReminder": "sem lembrete",
+        "when": "Quando",
+        "time": "Hora",
+        "reminder": "Lembrete",
+        "type": "O que é isso",
+        "emoji": "Emoji",
+        "title": "O que você quer fazer"
+      },
+      "type": {
+        "question": "É uma tarefa ou um hábito?",
+        "line": "Uma repetição faz um hábito. Uma data, ou nenhuma, faz uma tarefa.",
+        "taskHint": "Acontece uma vez, em um dia ou sem data",
+        "habitHint": "Se repete, e você acompanha a sequência"
+      },
+      "repeat": {
+        "question": "Com que frequência?",
+        "line": "Escolha a repetição. Eu mostro o hábito começando no dia que você marcou.",
+        "everyN": "A cada",
+        "timesIn": "Vezes por"
+      },
+      "duration": {
+        "question": "Tem duração?"
+      },
+      "reminderKind": {
+        "question": "Quando você quer um lembrete?",
+        "scheduled": "Em horários definidos",
+        "repeat": "Repetir a cada"
+      },
+      "more": "Quer ajustar mais alguma coisa?",
+      "progress": "Passo {position} de {total}",
+      "back": "Voltar",
+      "close": "Fechar",
+      "continue": "Continuar",
+      "saved": "Salvando",
+      "optional": {
+        "description": "Quer anotar algo?",
+        "checklist": "Tem passos dentro disso?",
+        "subHabits": "Quer dividir em partes menores?",
+        "avoid": "É algo que você quer largar?",
+        "slipAlert": "Quer um aviso antes de um deslize?",
+        "tags": "Quer juntar com coisas parecidas?",
+        "goals": "Isso ajuda em alguma meta?",
+        "endDate": "Tem data para acabar?",
+        "parent": "Isso faz parte de outro item?",
+        "none": "Nada por enquanto",
+        "yes": "Sim",
+        "no": "Não",
+        "removeEndDate": "Tirar a data final"
+      },
+      "orbit": {
+        "offline": "Sem conexão. Eu leio no aparelho e você segue do mesmo jeito.",
+        "fromConversation": "Veio da sua conversa com o Orbit."
+      }
+    },
     "nextReminder": "Próximo às {time}",
     "takenAt": "Feito às {time}",
     "changeTakenAt": "Alterar horário",
@@ -3018,6 +3116,28 @@
     "askAstra": "Analisar resumo",
     "upgrade": "Fazer upgrade",
     "freePrompt": "No Pro, você recebe um resumo diário dos seus hábitos."
+  },
+  "result": {
+    "title": "Pronto!",
+    "task": {
+      "dated": "A tarefa foi criada para {date}.",
+      "datedTimed": "A tarefa foi criada para {date} às {time}.",
+      "undated": "A tarefa foi criada sem data. Ela fica em Geral."
+    },
+    "habit": {
+      "repeat": "O hábito começa {start} e se repete {cadence}.",
+      "repeatTimed": "O hábito começa {start} e se repete {cadence} às {time}.",
+      "updated": "As mudanças foram salvas."
+    },
+    "cadence": {
+      "day": "{count, plural, =0 {a cada # dias} one {todo dia} other {a cada # dias}}",
+      "week": "{count, plural, =0 {a cada # semanas} one {toda semana} other {a cada # semanas}}",
+      "month": "{count, plural, =0 {a cada # meses} one {todo mês} other {a cada # meses}}",
+      "year": "{count, plural, =0 {a cada # anos} one {todo ano} other {a cada # anos}}"
+    },
+    "seeToday": "Ver no Hoje",
+    "seeCalendar": "Ver no Calendário",
+    "createAnother": "Criar outro"
   },
   "onboarding": {
     "flow": {
