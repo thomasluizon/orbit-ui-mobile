@@ -267,6 +267,17 @@ describe('Progresso root figures since the last visit (Android)', () => {
     expect(rolling[0]!.findAll((node) => String(node.type) === 'Text').map((node) => renderedText(node.props.children)).join(' ')).toContain('12')
   })
 
+  it('compares once the stored preferences are ready, and keeps the last visit until then', async () => {
+    useUIPreferencesReadiness.setState({ ready: false })
+    useUIStore.setState({ progressFiguresSeen: { completionRate: 75, activeDays: 11, bestWeekday: 'thursday' } })
+    const root = await renderIn('en')
+    expect(byTestId(root, 'stat-tile-value-roll')).toHaveLength(0)
+    expect(useUIStore.getState().progressFiguresSeen).toEqual({ completionRate: 75, activeDays: 11, bestWeekday: 'thursday' })
+    await renderer.act(() => { useUIPreferencesReadiness.setState({ ready: true }) })
+    expect(byTestId(root, 'stat-tile-value-roll')).toHaveLength(1)
+    expect(useUIStore.getState().progressFiguresSeen).toEqual({ completionRate: 75, activeDays: 12, bestWeekday: 'thursday' })
+  })
+
   it('keeps a changed figure still under reduced motion', async () => {
     mocks.reducedMotion = true
     useUIStore.setState({ progressFiguresSeen: { completionRate: 70, activeDays: 12, bestWeekday: 'thursday' } })
@@ -282,6 +293,32 @@ describe('Sequência with orbit_guided_flows on (Android)', () => {
     expect(mascots(root)).toHaveLength(1)
     expect(mascots(root)[0]!.props.width).toBe(48)
     expect(renderedText(byTestId(root, 'streak-orbit-line')[0]!.props.children)).toBe(locale === 'en' ? '4 days in a row. 3 more days for the next freeze.' : '4 dias seguidos. Faltam 3 dias para o próximo congelamento.')
+  })
+
+  it.each(['en', 'pt-BR'] as const)('opens the freeze details on one sentence about what a freeze does, in %s', async (locale) => {
+    const root = await renderIn(locale, 'streak')
+    await press(pressable(root, new RegExp(catalogs[locale].progressScreen.streak.freezes)))
+    expect(renderedText(byTestId(root, 'freeze-summary')[0]!.props.children)).toBe(locale === 'en'
+      ? 'Each freeze covers a day with nothing logged, and you can bank up to 3 freezes.'
+      : 'Cada congelamento cobre um dia sem registro, e você guarda até 3 congelamentos.')
+  })
+
+  it('renders the current Sequência and Conquistas with the flag off', async () => {
+    mocks.flag = false
+    const streak = await renderIn('en', 'streak')
+    expect(mascots(streak)).toHaveLength(0)
+    expect(byTestId(streak, 'streak-orbit')).toHaveLength(0)
+    await renderer.act(() => { streak.unmount() })
+    tree = null
+    mocks.achievements = [createMockAchievement({ id: 'first_habit', category: 'GettingStarted', isEarned: true })]
+    const achievements = await renderIn('en', 'achievements')
+    expect(byTestId(achievements, 'achievement-tile-first_habit')).toHaveLength(1)
+  })
+
+  it('keeps the Orbit at 48 still under reduced motion', async () => {
+    reanimatedTestState.reducedMotion = true
+    const root = await renderIn('en', 'streak')
+    expect(mascots(root)[0]!.props['data-orbit-loop']).toBe('still')
   })
 
   it('keeps the Freezes row and the freeze details, frozen today included', async () => {
@@ -349,7 +386,7 @@ describe('Sequência repair flow (Android)', () => {
   it.each(['en', 'pt-BR'] as const)('asks one question that states what the repair does and what it costs, in %s', async (locale) => {
     const root = await openRepair(locale)
     expect(byTestId(root, 'streak-repair-flow')).toHaveLength(1)
-    expect(texts(root)).toContain(locale === 'en' ? 'Save your streak with 2 freezes?' : 'Salvar a sequência com 2 congelamentos?')
+    expect(texts(root)).toContain(locale === 'en' ? 'Save your streak with 2 freezes?' : 'Recuperar com 2 congelamentos?')
     pressable(root, catalogs[locale].progressScreen.streak.repairFlow.repair)
     pressable(root, catalogs[locale].progressScreen.streak.repairFlow.notNow)
     expect(mocks.captureEvent).toHaveBeenCalledWith({ name: 'guided_flow_step_viewed', properties: { flow: 'streak_repair', step: 'repair', step_count: 1 } })
@@ -366,6 +403,8 @@ describe('Sequência repair flow (Android)', () => {
     expect(dialog.findAll((node) => node.props['data-orbit-state'] === 'feliz').length).toBeGreaterThan(0)
     expect(mocks.captureCompleted).toHaveBeenCalledWith('streak_repair', 1, false)
     expect(byTestId(root, 'streak-repair-flow')).toHaveLength(0)
+    expect(byTestId(root, 'orbit-mascot').filter((node) => node.props['data-orbit-loop'] === 'running').length).toBeLessThanOrEqual(1)
+    expect(byTestId(root, 'streak-orbit')[0]!.findAll((node) => node.props.testID === 'orbit-mascot')[0]!.props['data-orbit-loop']).toBe('still')
   })
 
   it('closes on Not now and on Android back with no request', async () => {
@@ -378,11 +417,10 @@ describe('Sequência repair flow (Android)', () => {
     expect(mocks.repairMutate).not.toHaveBeenCalled()
   })
 
-  it.each([
-    [500, en.progressScreen.streak.repairError],
-    [429, en.progressScreen.streak.repairRateLimited],
-  ])('keeps the flow open with the %s message and opens no dialog', async (status, message) => {
-    const root = await openRepair()
+  it.each((['en', 'pt-BR'] as const).flatMap((locale) => [500, 429].map((status) => ({ locale, status }))))('keeps the flow open with the $status message in $locale and opens no dialog', async ({ locale, status }) => {
+    const copy = catalogs[locale].progressScreen.streak
+    const message = status === 429 ? copy.repairRateLimited : copy.repairError
+    const root = await openRepair(locale)
     mocks.repair = { isPending: false, isError: true, error: createApiClientError(status, { errorCode: 'X' }, 'Error') }
     await renderer.act(() => { root.update(<ProgressContent screen="streak" />) })
     const flow = byTestId(root, 'streak-repair-flow')[0]!
@@ -417,9 +455,9 @@ describe('Conquistas with orbit_guided_flows on (Android)', () => {
     expect(texts(root).join(' ')).toContain('Level 2')
   })
 
-  it('keeps the empty state with its action and the lock card with no Feliz state', async () => {
-    const root = await renderIn('en', 'achievements')
-    await press(pressable(root, en.progressScreen.achievements.emptyAction))
+  it.each(['en', 'pt-BR'] as const)('keeps the empty state with its action and the lock card with no Feliz state, in %s', async (locale) => {
+    const root = await renderIn(locale, 'achievements')
+    await press(pressable(root, catalogs[locale].progressScreen.achievements.emptyAction))
     expect(mocks.push).toHaveBeenCalledWith('/')
     await renderer.act(() => { root.unmount() })
     tree = null

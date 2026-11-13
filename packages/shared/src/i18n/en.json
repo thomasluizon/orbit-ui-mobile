@@ -3882,10 +3882,11 @@
       "repairError": "The gap could not be repaired. Try again.",
       "repairRateLimited": "There were too many repair attempts. Try again shortly.",
       "bankFull": "{count, plural, one {# freeze is the limit. The next one arrives after you spend one.} other {# freezes is the limit. The next one arrives after you spend one.}}",
+      "freezeSummary": "Each freeze covers a day with nothing logged, and you can bank up to {ceiling, plural, one {# freeze} other {# freezes}}.",
       "repairFlow": {
         "question": "Save your streak with {count, plural, one {# freeze} other {# freezes}}?",
         "line": "I will cover {dates}, and it cannot be undone.",
-        "repair": "Yes, save it",
+        "repair": "Save it",
         "notNow": "Not now",
         "saving": "Saving your streak"
       }

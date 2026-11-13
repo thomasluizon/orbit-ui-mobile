@@ -3882,10 +3882,11 @@
       "repairError": "Não foi possível reparar a sequência. Tente novamente.",
       "repairRateLimited": "Foram muitas tentativas de reparo. Tente de novo daqui a pouco.",
       "bankFull": "{count, plural, =0 {# congelamentos é o limite. O próximo chega depois que você usar um.} one {# congelamento é o limite. O próximo chega depois que você usar um.} other {# congelamentos é o limite. O próximo chega depois que você usar um.}}",
+      "freezeSummary": "Cada congelamento cobre um dia sem registro, e você guarda até {ceiling, plural, =0 {# congelamentos} one {# congelamento} other {# congelamentos}}.",
       "repairFlow": {
-        "question": "Salvar a sequência com {count, plural, =0 {# congelamentos} one {# congelamento} other {# congelamentos}}?",
+        "question": "Recuperar com {count, plural, =0 {# congelamentos} one {# congelamento} other {# congelamentos}}?",
         "line": "Vou cobrir {dates}, e não dá para desfazer depois.",
-        "repair": "Sim, salvar",
+        "repair": "Recuperar",
         "notNow": "Agora não",
         "saving": "Salvando sua sequência"
       }

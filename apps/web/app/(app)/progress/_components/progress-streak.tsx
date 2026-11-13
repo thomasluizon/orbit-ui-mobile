@@ -158,6 +158,7 @@ function StreakFreezeDetails({ freeze, repair, timeZone, longestStreak, currentS
   }
   return (
     <>
+      {repairOnScreen ? <p data-freeze-summary="" className="text-[16px] leading-6 text-[var(--fg-2)]">{t('progressScreen.streak.freezeSummary', { ceiling: freeze.maxStreakFreezesAccumulated })}</p> : null}
       <FrozenTodayStatus isFrozenToday={freeze.isFrozenToday} />
       {freeze.streakInfo?.lastFreezeCoveredDate && freeze.streakInfo.freezeBankRemaining != null ? (
         <FreezeCoveredStatus
@@ -266,7 +267,7 @@ export function StreakStrip({ streak }: Readonly<{ streak: StreakScreen }>) {
   )
 }
 
-/** The Freezes row and the sheet it opens. With `repairOnScreen`, the gap and its repair stay on the screen and the sheet keeps the bank-full notice. */
+/** The Freezes row and the sheet it opens. With `repairOnScreen`, the sheet opens on one sentence about what a freeze does, the gap and its repair stay on the screen, and the sheet keeps the bank-full notice. */
 export function StreakDetails({ streak, repairOnScreen = false }: Readonly<{ streak: StreakScreen; repairOnScreen?: boolean }>) {
   const t = useTranslations()
   const [detailsOpen, setDetailsOpen] = useAccountScopedState(false)

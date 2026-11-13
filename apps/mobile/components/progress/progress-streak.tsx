@@ -153,6 +153,7 @@ function StreakFreezeDetails({ freeze, repair, timeZone, longestStreak, currentS
   const dayWords = { active: t('progressScreen.streak.active'), frozen: t('progressScreen.streak.frozen'), missed: t('progressScreen.streak.missed'), today: t('progressScreen.streak.today') }
   return (
     <>
+      {repairOnScreen ? <Text testID="freeze-summary" style={[styles.summary, { color: tokens.fg2 }]}>{t('progressScreen.streak.freezeSummary', { ceiling: freeze.maxStreakFreezesAccumulated })}</Text> : null}
       <FrozenTodayStatus isFrozenToday={freeze.isFrozenToday} tokens={tokens} />
       {freeze.streakInfo?.lastFreezeCoveredDate && freeze.streakInfo.freezeBankRemaining != null ? <FreezeCoveredStatus date={freeze.streakInfo.lastFreezeCoveredDate} remaining={freeze.streakInfo.freezeBankRemaining} origin={freeze.streakInfo.lastFreezeCoveredOrigin} locale={i18n.language} tokens={tokens} /> : null}
       <FreezeBank inSheet loadingLabel={!freeze.streakInfo ? t('progressScreen.loading') : undefined} banked={freeze.streakFreezesAccumulated} ceiling={freeze.maxStreakFreezesAccumulated} usedThisMonth={freeze.freezesUsedThisMonth} longestValue={longestStreak} longestLabel={t('progressScreen.streak.longest')} daysTowardNext={Math.max(0, 7 - freeze.daysUntilNextFreeze)} earnRateDays={7} tierValue={tier} tierLabel={t('streakDisplay.detail.tierTileLabel')} protectedDays={buildProtectedDayLabels(freeze.streakInfo?.recentFreezeDates ?? [], i18n.language, freeze.isFrozenToday, timeZone ?? undefined)} words={{ ...dayWords, legendLabel: t('progressScreen.streak.legend'), bankedLabel: t('progressScreen.streak.banked'), usedLabel: t('progressScreen.streak.used'), nextLabel: t('progressScreen.streak.next'), nextProgressLabel: t('progressScreen.streak.nextProgress'), nextFreezeProgress: t('progressScreen.streak.nextOf', { current: Math.max(0, 7 - freeze.daysUntilNextFreeze), total: 7 }), protectedLabel: t('progressScreen.streak.protectedDays'), protectedEmpty: t('progressScreen.streak.protectedEmpty'), protectedDay: t('progressScreen.streak.protected'), protectedToday: t('progressScreen.streak.protectedToday') }} />
@@ -221,7 +222,7 @@ export function StreakStrip({ streak, tokens }: Readonly<{ streak: StreakScreen;
   )
 }
 
-/** The Freezes row and the sheet it opens. With `repairOnScreen`, the gap and its repair stay on the screen and the sheet keeps the bank-full notice. */
+/** The Freezes row and the sheet it opens. With `repairOnScreen`, the sheet opens on one sentence about what a freeze does, the gap and its repair stay on the screen, and the sheet keeps the bank-full notice. */
 export function StreakDetails({ streak, tokens, repairOnScreen = false }: Readonly<{ streak: StreakScreen; tokens: AppTokensV2; repairOnScreen?: boolean }>) {
   const { t } = useTranslation()
   const [detailsOpen, setDetailsOpen] = useAccountScopedState(false)
@@ -268,4 +269,5 @@ const styles = StyleSheet.create({
   gapWell: { borderRadius: 12, gap: 12, padding: PADDING.recordInset },
   hidden: { opacity: 0 },
   streakSection: { width: '100%', gap: 16 },
+  summary: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24 },
 })

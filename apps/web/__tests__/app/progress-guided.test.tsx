@@ -251,6 +251,17 @@ describe('Progresso root figures since the last visit', () => {
     expect(rolling[0]).toHaveTextContent('12')
   })
 
+  it('compares once the stored preferences are ready, and keeps the last visit until then', () => {
+    useUIPreferencesReadiness.setState({ ready: false })
+    useUIStore.setState({ progressFiguresSeen: { completionRate: 75, activeDays: 11, bestWeekday: 'thursday' } })
+    const { container } = renderIn('en', <ProgressContent />)
+    expect(container.querySelector('[data-figure-motion]')).toBeNull()
+    expect(useUIStore.getState().progressFiguresSeen).toEqual({ completionRate: 75, activeDays: 11, bestWeekday: 'thursday' })
+    act(() => { useUIPreferencesReadiness.setState({ ready: true }) })
+    expect([...container.querySelectorAll('[data-figure-motion="roll"]')].map((figure) => figure.textContent)).toEqual(['12'])
+    expect(useUIStore.getState().progressFiguresSeen).toEqual({ completionRate: 75, activeDays: 12, bestWeekday: 'thursday' })
+  })
+
   it('keeps a changed figure still under reduced motion', () => {
     stubMedia(['prefers-reduced-motion: reduce'])
     useUIStore.setState({ progressFiguresSeen: { completionRate: 70, activeDays: 12, bestWeekday: 'thursday' } })
@@ -278,6 +289,32 @@ describe('Sequência with orbit_guided_flows on', () => {
     expect(mascots[0]).toHaveAttribute('width', '48')
     expect(container.querySelector('[data-streak-orbit-line]')).toHaveTextContent(locale === 'en' ? '4 days in a row. 3 more days for the next freeze.' : '4 dias seguidos. Faltam 3 dias para o próximo congelamento.')
     expect(screen.getByTestId('progress-streak-figure')).toBeInTheDocument()
+  })
+
+  it.each(['en', 'pt-BR'] as const)('opens the freeze details on one sentence about what a freeze does, in %s', async (locale) => {
+    renderIn(locale, <ProgressContent screen="streak" />)
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(catalogs[locale].progressScreen.streak.freezes) }))
+    const sheet = await screen.findByRole('dialog', { name: catalogs[locale].progressScreen.streak.freezes })
+    expect(sheet.querySelector('[data-freeze-summary]')).toHaveTextContent(locale === 'en'
+      ? 'Each freeze covers a day with nothing logged, and you can bank up to 3 freezes.'
+      : 'Cada congelamento cobre um dia sem registro, e você guarda até 3 congelamentos.')
+  })
+
+  it('renders the current Sequência and Conquistas with the flag off', () => {
+    mocks.flag = false
+    const streak = renderIn('en', <ProgressContent screen="streak" />)
+    expect(streak.container.querySelector('[data-progress-guided]')).toBeNull()
+    expect(streak.container.querySelector('[data-asset="orbit-mascot"]')).toBeNull()
+    streak.unmount()
+    mocks.achievements = [createMockAchievement({ id: 'first_habit', category: 'GettingStarted', isEarned: true })]
+    const achievements = renderIn('en', <ProgressContent screen="achievements" />)
+    expect(achievements.container.querySelector('[data-achievement-id="first_habit"]')).not.toBeNull()
+  })
+
+  it('keeps the Orbit at 48 still under reduced motion', () => {
+    stubMedia(['prefers-reduced-motion: reduce'])
+    const { container } = renderIn('en', <ProgressContent screen="streak" />)
+    expect(rootMascots(container)[0]).toHaveAttribute('data-orbit-loop', 'still')
   })
 
   it('keeps the strip, the legend, the Freezes row and the freeze details in the sheet', async () => {
@@ -366,7 +403,7 @@ describe('Sequência repair flow', () => {
   it.each(['en', 'pt-BR'] as const)('asks one question that states what the repair does and what it costs, in %s', (locale) => {
     const { container } = openRepair(locale)
     const flow = container.querySelector('[data-question-flow]')!
-    expect(within(flow as HTMLElement).getByRole('heading', { level: 1 })).toHaveTextContent(locale === 'en' ? 'Save your streak with 2 freezes?' : 'Salvar a sequência com 2 congelamentos?')
+    expect(within(flow as HTMLElement).getByRole('heading', { level: 1 })).toHaveTextContent(locale === 'en' ? 'Save your streak with 2 freezes?' : 'Recuperar com 2 congelamentos?')
     expect(within(flow as HTMLElement).getAllByRole('button', { pressed: false }).map((option) => option.textContent)).toEqual(
       [catalogs[locale].progressScreen.streak.repairFlow.repair, catalogs[locale].progressScreen.streak.repairFlow.notNow],
     )
@@ -385,6 +422,8 @@ describe('Sequência repair flow', () => {
     expect(dialog.querySelector('[data-orbit-state="feliz"]')).not.toBeNull()
     expect(mocks.captureCompleted).toHaveBeenCalledWith('streak_repair', 1, false)
     expect(document.querySelector('[data-question-flow]')).toBeNull()
+    expect(document.querySelectorAll('[data-orbit-loop="running"]').length).toBeLessThanOrEqual(1)
+    expect(document.querySelector('[data-streak-orbit] [data-asset="orbit-mascot"]')).toHaveAttribute('data-orbit-loop', 'still')
   })
 
   it('closes on Not now with no request', () => {
@@ -395,14 +434,12 @@ describe('Sequência repair flow', () => {
     expect(mocks.captureEvent).toHaveBeenCalledWith({ name: 'guided_flow_abandoned', properties: { flow: 'streak_repair', step: 'repair' } })
   })
 
-  it.each([
-    [500, en.progressScreen.streak.repairError],
-    [429, en.progressScreen.streak.repairRateLimited],
-  ])('keeps the flow open with the %s message and opens no dialog', (status, message) => {
-    const { container, rerender } = openRepair()
+  it.each((['en', 'pt-BR'] as const).flatMap((locale) => [500, 429].map((status) => ({ locale, status }))))('keeps the flow open with the $status message in $locale and opens no dialog', ({ locale, status }) => {
+    const { container, rerender } = openRepair(locale)
     mocks.repair = { isPending: false, isError: true, error: createApiClientError(status, { errorCode: 'X' }, 'Error') }
-    rerender(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC"><ProgressContent screen="streak" /></NextIntlClientProvider>)
-    expect(within(container.querySelector('[data-question-flow]') as HTMLElement).getByRole('alert')).toHaveTextContent(message)
+    rerender(<NextIntlClientProvider locale={locale} messages={catalogs[locale]} timeZone="UTC"><ProgressContent screen="streak" /></NextIntlClientProvider>)
+    const copy = catalogs[locale].progressScreen.streak
+    expect(within(container.querySelector('[data-question-flow]') as HTMLElement).getByRole('alert')).toHaveTextContent(status === 429 ? copy.repairRateLimited : copy.repairError)
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
@@ -444,10 +481,10 @@ describe('Conquistas with orbit_guided_flows on', () => {
     expect(container.querySelector('[data-achievement-id="first_habit"]')).toBe(tile)
   })
 
-  it('keeps the empty state with its action', () => {
-    renderIn('en', <ProgressContent screen="achievements" />)
-    expect(screen.getByText(en.progressScreen.achievements.empty)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: en.progressScreen.achievements.emptyAction })).toHaveAttribute('href', '/')
+  it.each(['en', 'pt-BR'] as const)('keeps the empty state with its action, in %s', (locale) => {
+    renderIn(locale, <ProgressContent screen="achievements" />)
+    expect(screen.getByText(catalogs[locale].progressScreen.achievements.empty)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: catalogs[locale].progressScreen.achievements.emptyAction })).toHaveAttribute('href', '/')
   })
 
   it('keeps the lock card with no Feliz state', () => {
