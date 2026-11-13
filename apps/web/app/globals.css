@@ -1767,6 +1767,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   outline-offset: -4px;
 }
 
+@keyframes today-astra-sentence-in {
+  from { opacity: 0; }
+}
+
 .today-astra-line:not(:disabled):active::before {
   opacity: 1;
   transition-duration: 0s;
