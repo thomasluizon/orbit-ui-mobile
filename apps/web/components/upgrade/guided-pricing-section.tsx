@@ -191,7 +191,7 @@ export function GuidedPricingSection({
       <section
         data-upgrade-block=""
         data-orbit-state="parado"
-        onFocusCapture={(event) => lookTowards(event.target)}
+        onFocusCapture={(event) => { if (!(event.target instanceof HTMLHeadingElement)) lookTowards(event.target) }}
         onBlurCapture={lookAway}
         className="mx-auto flex w-full max-w-[592px] flex-col items-center gap-6 text-center"
       >

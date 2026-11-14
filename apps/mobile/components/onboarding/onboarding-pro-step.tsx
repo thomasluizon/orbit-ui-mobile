@@ -1,16 +1,18 @@
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
 import { SPACING } from '@orbit/shared/theme'
-import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react'
+import { useEffect, useImperativeHandle, useRef, useState, type ComponentProps, type Ref } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTranslation } from 'react-i18next'
 import { buildAccountScopedStorageKey, getTrialDaysLeft, TRIAL_EXPIRED_SEEN_KEY } from '@orbit/shared/utils'
 import { ErrorState } from '@/components/ui/error-state'
 import { PillButton } from '@/components/ui/pill-button'
+import { GuidedPricingSection } from '@/components/upgrade/guided-pricing-section'
 import { PricingSection } from '@/components/upgrade/pricing-section'
 import { ProPitch } from '@/components/upgrade/pro-pitch'
 import type { SubscriptionInterval } from '@/components/upgrade/types'
+import { useFlag } from '@/hooks/use-flag'
 import { useOnboardingPlan } from '@/hooks/use-onboarding-plan'
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
 import { useStoreBilling } from '@/hooks/store-billing-provider'
@@ -29,6 +31,7 @@ export function OnboardingProStep({ onFinish, ref }: Readonly<{ onFinish: (desti
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { plan, profile, retry } = useOnboardingPlan()
   const { isOnline } = useOffline()
+  const guided = useFlag('orbit_guided_flows')
   const { showSuccess } = useAppToast()
   const plans = useSubscriptionPlans({ enabled: plan === 'Free', handlesError: true })
   const [finishing, setFinishing] = useState(false)
@@ -76,13 +79,39 @@ export function OnboardingProStep({ onFinish, ref }: Readonly<{ onFinish: (desti
     if (!started) setCheckoutInterval(null)
   }
 
+  const pricing: Omit<ComponentProps<typeof PricingSection>, 'inset'> = {
+    profile: null,
+    plans: plans.plans,
+    isLoadingPlans: plans.isLoading,
+    isPlansError: plans.isError,
+    isLoadingProducts: billing.isLoadingProducts,
+    isProductsError: billing.isProductsError,
+    isOnline,
+    trialDaysLeft: null,
+    selectedInterval,
+    onSelectInterval: setSelectedInterval,
+    monthlyOffer: billing.monthlyOffer,
+    yearlyOffer: billing.yearlyOffer,
+    checkoutLoading: checkoutLoading ?? (finishing ? 'yearly' : null),
+    checkoutError: billing.errorKey ? t(billing.errorKey) : '',
+    checkoutDisabled: !isOnline || billing.isRestoring,
+    onCheckout: (interval) => { void checkout(interval) },
+    onStayFree: () => exit(),
+    isRestoring: billing.isRestoring,
+    onRestore: () => void billing.restorePurchases(),
+    onRetryPlans: () => { if (isOnline) { billing.retryProducts(); void plans.refetch() } },
+    t,
+    tokens,
+  }
   const title = <Text nativeID="onboarding-title" accessibilityRole="header" style={{ fontFamily: 'Geist_500Medium', fontSize: 20, color: tokens.fg1 }}>{t('upgrade.pitchTitle')}</Text>
   const exitAction = <PillButton variant="ghost" loading={finishing} onClick={() => exit()}>{t('onboarding.flow.done.seeDay')}</PillButton>
   let content
   if (plan === 'loading' || plan === 'Pro') content = <View accessibilityState={{ busy: true }} accessibilityLabel={t('common.loading')} style={styles.stack}>{title}<ProSkeleton color={tokens.bgWell} />{exitAction}</View>
   else if (plan === null) content = <View style={styles.stack}>{title}<ErrorState message={t('upgrade.billing.error')} action={<IconButton label={t('upgrade.billing.retry')} onClick={retry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>} />{exitAction}</View>
   else if (plan === 'Trial') content = <View testID="onboarding-step-trial" style={styles.pitch}><ProPitch inset={false} focusOnMount headingId="onboarding-title" profile={profile ?? null} trialDaysLeft={getTrialDaysLeft(profile)} titleKey="onboarding.flow.trial.title" bodyKey="onboarding.flow.trial.body" dateHint={profile?.trialEndsAt ? t('upgrade.billing.plan.trialHint', { date: new Intl.DateTimeFormat(i18n.language, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(profile.trialEndsAt)) }) : undefined} t={t} tokens={tokens} /><PillButton loading={finishing} onClick={() => exit()}>{t('onboarding.flow.done.seeDay')}</PillButton></View>
-  else content = <View testID="onboarding-step-paywall" style={styles.stack}>{title}{!isOnline ? <ErrorState message={t('upgrade.billing.offline')} /> : null}<PricingSection inset={false} profile={null} plans={plans.plans} isLoadingPlans={plans.isLoading} isPlansError={plans.isError} isLoadingProducts={billing.isLoadingProducts} isProductsError={billing.isProductsError} isOnline={isOnline} trialDaysLeft={null} selectedInterval={selectedInterval} onSelectInterval={setSelectedInterval} monthlyOffer={billing.monthlyOffer} yearlyOffer={billing.yearlyOffer} checkoutLoading={checkoutLoading ?? (finishing ? 'yearly' : null)} checkoutError={billing.errorKey ? t(billing.errorKey) : ''} checkoutDisabled={!isOnline || billing.isRestoring} onCheckout={(interval) => { void checkout(interval) }} onStayFree={() => exit()} isRestoring={billing.isRestoring} onRestore={() => void billing.restorePurchases()} onRetryPlans={() => { if (isOnline) { billing.retryProducts(); void plans.refetch() } }} t={t} tokens={tokens} /></View>
+  else content = <View testID="onboarding-step-paywall" style={styles.stack}>{guided
+    ? <GuidedPricingSection headingId="onboarding-title" focusOnMount usage={profile ?? null} {...pricing} />
+    : <>{title}{!isOnline ? <ErrorState message={t('upgrade.billing.offline')} /> : null}<PricingSection inset={false} {...pricing} /></>}</View>
   return <View style={styles.root}>{content}<Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={{ color: tokens.fg2 }}>{finishFailed ? t('onboarding.flow.completionFailed') : ''}</Text></View>
 }
 
