@@ -435,6 +435,7 @@ export {
   onboardingModeDetailStep,
   onboardingModeKey,
   onboardingNeedsCadence,
+  phraseLineKey,
 } from './onboarding-guided'
 export type { OnboardingCadenceText, OnboardingIntroScreen, OnboardingQuestionStep, OnboardingResultSentence } from './onboarding-guided'
 export {

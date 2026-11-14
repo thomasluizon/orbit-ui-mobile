@@ -91,3 +91,9 @@ export function describeOnboardingResult(schedule: OnboardingSchedule, today: st
 export function onboardingModeKey(schedule: OnboardingSchedule): string {
   return `onboarding.flow.guided.mode.${getOnboardingScheduleMode(schedule)}`
 }
+
+/** The Orbit line of the first step of a guided create flow: what to write while it is empty, what the device read once it read a part, and the rest after that. */
+export function phraseLineKey(value: string, understood: boolean): 'habits.flow.what.lineEmpty' | 'habits.flow.what.lineUnderstood' | 'habits.flow.what.lineTyped' {
+  if (value.trim().length === 0) return 'habits.flow.what.lineEmpty'
+  return understood ? 'habits.flow.what.lineUnderstood' : 'habits.flow.what.lineTyped'
+}
