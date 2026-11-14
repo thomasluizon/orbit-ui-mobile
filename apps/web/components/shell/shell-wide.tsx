@@ -93,7 +93,7 @@ function SidebarItem({
       data-habit-create-navigation={onSelect ? '' : undefined}
       className={[
         'flex min-h-[var(--touch-min)] w-full items-center gap-3 overflow-hidden rounded-[12px] px-3 text-left text-[14px] font-medium',
-        'transition-[background-color,color,scale] duration-[var(--dur-hover-control),var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-standard),var(--ease-out)] active:scale-[0.96]',
+        'transition-[background-color,color,scale] duration-[var(--dur-hover-control),var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-standard),var(--ease-out)] motion-safe:active:scale-[0.96]',
         active
           ? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)] active:text-[var(--primary-text)]'
           : 'text-[var(--fg-3)]',
@@ -128,7 +128,7 @@ function SidebarAstraRow({ row, open, conversationId, collapsed }: Readonly<{
             onClick={row.onOpen}
             className={[
               'flex min-h-[var(--touch-min)] w-full items-center gap-3 overflow-hidden rounded-[12px] px-3 text-left text-[14px] font-medium',
-              'transition-[background-color,color,scale] duration-[var(--dur-hover-control),var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-standard),var(--ease-out)] active:scale-[0.96]',
+              'transition-[background-color,color,scale] duration-[var(--dur-hover-control),var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-standard),var(--ease-out)] motion-safe:active:scale-[0.96]',
               open
                 ? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)] active:text-[var(--primary-text)]'
                 : 'text-[var(--fg-3)]',
@@ -136,7 +136,7 @@ function SidebarAstraRow({ row, open, conversationId, collapsed }: Readonly<{
               collapsed ? 'justify-center' : undefined,
             ].join(' ')}
           >
-            <OrbitMascot size={20} color={open ? 'var(--primary)' : 'var(--fg-3)'} />
+            <OrbitMascot size={20} />
             <span translate="no" className={collapsed ? 'sr-only' : 'min-w-0 truncate'}>{row.label}</span>
           </button>
 }

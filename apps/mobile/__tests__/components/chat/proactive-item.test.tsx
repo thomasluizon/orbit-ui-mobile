@@ -11,6 +11,7 @@ import { TodayAstra } from '@/components/today/today-astra'
 import { openCurrentProactiveItem } from '@/lib/proactive-item'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
+import { createTokensV2 } from '@/lib/theme'
 
 type ReactTestRenderer = NativeTestRenderer & { unmount: () => void }
 
@@ -123,6 +124,7 @@ describe('proactive conversation', () => {
     const send = vi.fn()
     useChatStore.getState().openProactiveItem(item)
     const tree = await render(<ProactiveAction isOnline={mocks.online} item={item} acted={false} onSend={send} />)
+    expect(button(tree, item.actionLabel).findAll((node) => typeof node.type === 'string' && node.props.testID === 'orbit-mascot')[0]?.props.color).toBe(createTokensV2('orange', 'dark').fg1)
     const explanation = tree.root.findAll((node) => String(node.type) === 'Text' && node.props.accessibilityLiveRegion === 'polite')[0]!
     expect(explanation.props.children).toBeUndefined()
     mocks.ended = true

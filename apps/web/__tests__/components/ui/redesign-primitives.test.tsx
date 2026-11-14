@@ -5,6 +5,7 @@ import { Columns } from '@/components/ui/columns'
 import { Fab } from '@/components/ui/fab'
 import { Icon } from '@/components/ui/icon'
 import { Lockup } from '@/components/ui/lockup'
+import { LOCKUP_MARK_PATHS } from '@orbit/shared/contracts/brand'
 import { ProgressRing } from '@/components/ui/progress-ring'
 
 describe('redesign primitives on web', () => {
@@ -140,5 +141,12 @@ describe('redesign primitives on web', () => {
     expect(svg).toHaveAttribute('data-asset', 'orbit-lockup')
     expect(svg).toHaveAttribute('viewBox', '-0.000400046 0.000000000 89.395902732 17.742772815')
     expect(container.querySelector('text')).toBeNull()
+  })
+
+  it('paints the lockup moon with the accent and the rest of the mark with the foreground', () => {
+    const { container } = render(<Lockup />)
+    const accent = [...container.querySelectorAll('path')].filter((path) => path.getAttribute('fill') === 'var(--primary)')
+    expect(accent.map((path) => path.getAttribute('d'))).toEqual([LOCKUP_MARK_PATHS.find((path) => path.part === 'moon')?.d])
+    expect(container.querySelector('svg')).toHaveAttribute('color', 'var(--fg-1)')
   })
 })
