@@ -1,6 +1,7 @@
 import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { expect } from 'vitest'
 import { motionDurations, motionEasings } from '@orbit/shared/theme'
+import { PressScale } from '@/components/motion/press-scale'
 
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
 
@@ -12,16 +13,36 @@ type PressControl = {
   findAll(predicate: (node: PressHost) => boolean): PressHost[]
 }
 
+type StyledHost = { type?: unknown; props: Record<string, unknown>; children?: readonly unknown[]; findAll?: (predicate: (node: StyledHost) => boolean) => StyledHost[] }
+
+/** The scaled face that a `MotionPressable` target renders as its first child: it carries the paint and the press scale. */
+export function pressFace(host: StyledHost): StyledHost | undefined {
+  let node: StyledHost | undefined = host
+  for (let depth = 0; node && depth < 3; depth += 1) {
+    const child = node.children?.[0] as StyledHost | undefined
+    if (child?.type === PressScale) return child.findAll?.((layer) => typeof layer.type === 'string' && layer.props['data-slot'] === 'press-scale')[0]
+    node = child
+  }
+  return undefined
+}
+
+/** A control's whole style: the target's box and, for a `MotionPressable`, the paint and the scale of its face. */
+export function controlStyle(host: StyledHost, pressed = false): Record<string, any> {
+  const style = host.props.style as StyleProp<ViewStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle>)
+  const face = pressFace(host)
+  return StyleSheet.flatten([typeof style === 'function' ? style({ pressed }) : style, face?.props.style as StyleProp<ViewStyle>])
+}
+
 /**
  * Flattens a pressable host's style at rest or pressed. A function style resolves directly. A resolved style,
- * as a `MotionPressable` host renders, presses in, reads and presses out.
+ * as a `MotionPressable` target renders, presses in, reads the target with its face and presses out.
  */
-export function pressableStyle(host: { props: Record<string, unknown> }, pressed: boolean): Record<string, any> {
+export function pressableStyle(host: StyledHost, pressed: boolean): Record<string, any> {
   const style = host.props.style as StyleProp<ViewStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle>)
   if (typeof style === 'function') return StyleSheet.flatten(style({ pressed }))
-  if (!pressed) return StyleSheet.flatten(style)
+  if (!pressed) return controlStyle(host)
   void renderer.act(() => { (host.props.onPressIn as (() => void) | undefined)?.() })
-  const pressedStyle = StyleSheet.flatten(host.props.style as StyleProp<ViewStyle>)
+  const pressedStyle = controlStyle(host)
   void renderer.act(() => { (host.props.onPressOut as (() => void) | undefined)?.() })
   return pressedStyle
 }
@@ -30,7 +51,7 @@ export function pressableStyle(host: { props: Record<string, unknown> }, pressed
  * Asserts the `MotionPressable` press of `DESIGN.md` Press feedback: unit scale at rest, 0.96 while pressed,
  * eased over the shared press duration on the enter curve, and unit scale with no transition under reduced motion.
  */
-export function expectMotionPress(host: { props: Record<string, unknown> }, reducedMotion: boolean) {
+export function expectMotionPress(host: StyledHost, reducedMotion: boolean) {
   const transition = reducedMotion ? 'none' : `transform ${motionDurations.press}ms cubic-bezier(${motionEasings.enter.join(',')})`
   expect(pressableStyle(host, false)).toMatchObject({ transform: [{ scale: 1 }], transition })
   expect(pressableStyle(host, true)).toMatchObject({ transform: [{ scale: reducedMotion ? 1 : 0.96 }], transition })
@@ -41,11 +62,11 @@ export function expectMotionPress(host: { props: Record<string, unknown> }, redu
  * Asserts the press scale of a control that eases through a `PressScale` layer: unit scale at rest, the press scale while
  * pressed (unit under reduced motion), eased over the shared press duration, or no transition under reduced motion.
  */
-export function expectPressScaleLayer(host: { parent: unknown; props: Record<string, unknown> }, reducedMotion: boolean) {
+export function expectPressScaleLayer(host: StyledHost & { parent: unknown }, reducedMotion: boolean) {
   const layer = () => {
-    let node = host.parent as { parent: unknown; props: Record<string, any> } | null
+    let node = (pressFace(host) ?? host.parent) as { parent: unknown; props: Record<string, any> } | null
     while (node && node.props['data-slot'] !== 'press-scale') node = node.parent as typeof node
-    expect(node, 'a press scale layer wraps the press target').toBeTruthy()
+    expect(node, 'a press scale layer scales the press target or its face').toBeTruthy()
     return StyleSheet.flatten(node!.props.style as StyleProp<ViewStyle>)
   }
   const transition = reducedMotion ? 'none' : `transform ${motionDurations.press}ms cubic-bezier(${motionEasings.enter.join(',')})`
@@ -66,10 +87,7 @@ export function expectPressPaint(control: PressControl, expected: {
   const hosts = control.findAll((node) => node.type === 'Pressable')
   expect(hosts).toHaveLength(1)
   const host = hosts[0]!
-  const resolved = (pressed: boolean) => {
-    const style = host.props.style as StyleProp<ViewStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle>)
-    return StyleSheet.flatten(typeof style === 'function' ? style({ pressed }) : style)
-  }
+  const resolved = (pressed: boolean) => controlStyle(host, pressed)
   const overlayStyle = () => {
     const fills = control.findAll((node) => node.type === 'View' && node.props.pointerEvents === 'none' && node.props.accessible === false)
     expect(fills).toHaveLength(1)
@@ -102,10 +120,7 @@ export function expectPressFill(tree: PressTree, label: string, backgroundColor:
     expect(matches).toHaveLength(1)
     return matches[0]!
   }
-  const resolved = (pressed: boolean) => {
-    const style = host().props.style as StyleProp<ViewStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle>)
-    return StyleSheet.flatten(typeof style === 'function' ? style({ pressed }) : style)
-  }
+  const resolved = (pressed: boolean) => controlStyle(host(), pressed)
   const paint = (pressed: boolean) => {
     const control = host() as unknown as PressControl
     const fill = control.findAll((node) => node.type === 'View' && node.props['data-press-fill'] !== undefined)[0]

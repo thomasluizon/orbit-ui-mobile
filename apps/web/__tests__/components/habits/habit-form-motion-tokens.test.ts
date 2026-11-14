@@ -212,8 +212,8 @@ describe('habit form and frequency picker motion tokens', () => {
     const text = source('components/habits/checklist-templates.tsx')
     expect(text).toMatch(/orbit-list-row-body [^"]*active:scale-\[0\.96\]/)
     expect(text).toMatch(/orbit-list-row-action [^"]*active:scale-\[0\.96\]/)
-    expect(text).toContain('enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)] enabled:active:scale-[0.96]')
-    expect(text).toContain('enabled:hover:bg-[var(--bg-hover)] enabled:hover:text-[var(--fg-1)] enabled:active:bg-[var(--bg-hover)] enabled:active:scale-[0.96]')
+    expect(text).toContain('enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)] motion-safe:enabled:active:scale-[0.96]')
+    expect(text).toContain('enabled:hover:bg-[var(--bg-hover)] enabled:hover:text-[var(--fg-1)] enabled:active:bg-[var(--bg-hover)] motion-safe:enabled:active:scale-[0.96]')
   })
 
   it('fills the time field picker and clear buttons on hover and press with the neutral hover role and eases their scale', () => {
@@ -239,7 +239,7 @@ describe('habit form and frequency picker motion tokens', () => {
   })
 
   it('lets the picker row own its press scale, eased through the list row body rule, so no caller repeats it', () => {
-    expect(source('components/ui/picker-row.tsx')).toContain('orbit-list-row-body group/picker enabled:active:scale-[0.96]')
+    expect(source('components/ui/picker-row.tsx')).toContain('orbit-list-row-body group/picker motion-safe:enabled:active:scale-[0.96]')
     for (const path of PICKER_ROW_CALLERS) expect(source(path)).not.toMatch(/controlClassName="[^"]*scale-/)
     expect(stylesheetTransition(source('app/globals.css'), '.orbit-list-row-body')).toContain(SCALE_PRESS)
   })

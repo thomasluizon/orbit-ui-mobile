@@ -13,6 +13,7 @@ import { HabitChecklist } from '@/components/habits/habit-checklist'
 import { Chip } from '@/components/ui/chip'
 import { StatusDot } from '@/components/ui/status-dot'
 import { createTokensV2 } from '@/lib/theme'
+import { controlStyle, pressFace } from '@/__tests__/support/press-feedback'
 
 const motionOverride = vi.hoisted(() => ({ pressDuration: 151, enter: [0.11, 0.22, 0.33, 0.44] as const, pressScale: 0.91, reducedMotion: false }))
 
@@ -46,11 +47,11 @@ async function openDatePicker(tree: ReactTestRenderer) {
   await act(() => (pressTarget(tree, 'button', 'common.selectedDate').props.onPress as () => void)())
 }
 
+/** The layer a press scales: the face inside a `MotionPressable` target, which itself keeps its box. */
 function scaleLayer(target: ReactTestInstance) {
-  let node: ReactTestInstance | null = target.parent
-  while (node && node.props['data-slot'] !== 'press-scale') node = node.parent
-  if (!node) throw new Error('no press scale layer wraps the press target')
-  return StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>)
+  const face = pressFace(target)
+  if (!face) throw new Error('no press scale face inside the press target')
+  return StyleSheet.flatten(face.props.style as StyleProp<ViewStyle>)
 }
 
 async function pressIn(target: ReactTestInstance) {
@@ -83,13 +84,14 @@ const pressTargets = [
 describe.each(pressTargets)('$name press timing', ({ render, find }) => {
   afterEach(() => { motionOverride.reducedMotion = false })
 
-  it('eases the whole target to the press scale token over the press duration on the enter curve and back', async () => {
+  it('eases the face to the press scale token over the press duration on the enter curve and back, and keeps the target whole', async () => {
     const tree = await mount(render(false))
     try {
       const target = await find(tree)
       expect(scaleLayer(target)).toMatchObject({ transform: [{ scale: 1 }], transition: EASED })
       await pressIn(target)
       expect(scaleLayer(target)).toMatchObject({ transform: [{ scale: 0.91 }], transition: EASED })
+      expect(StyleSheet.flatten(target.props.style as StyleProp<ViewStyle>).transform, 'the hit area and the focus ring stay whole').toBeUndefined()
       await pressOut(target)
       expect(scaleLayer(target)).toMatchObject({ transform: [{ scale: 1 }], transition: EASED })
     } finally { await act(() => tree.unmount()) }
@@ -133,7 +135,7 @@ it('keeps the first checklist row move up control, which is disabled, at unit sc
 describe('StatusDot press timing', () => {
   afterEach(() => { motionOverride.reducedMotion = false })
 
-  const hostStyle = (target: ReactTestInstance) => StyleSheet.flatten(target.props.style as StyleProp<ViewStyle>)
+  const hostStyle = (target: ReactTestInstance) => controlStyle(target)
 
   it('eases the press scale over the press duration on the enter curve and back', async () => {
     const tree = await mount(<StatusDot state="empty" onToggle={vi.fn()} accessibilityLabel="Log habit" />)

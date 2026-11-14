@@ -1,3 +1,4 @@
+import { controlStyle } from '@/__tests__/support/press-feedback'
 import React from "react";
 import { RepeatReminderSection } from "@/components/habits/habit-form-fields/repeat-reminder-section";
 import { StyleSheet, type ViewStyle } from "react-native";
@@ -202,7 +203,7 @@ describe("ScheduledReminderSection", () => {
     const labels = ['habits.form.scheduledReminderDayBefore', 'habits.form.scheduledReminderSameDay']
     for (const label of labels) {
       const selected = (option(label).props.accessibilityState as { checked: boolean }).checked
-      const paint = () => StyleSheet.flatten(option(label).props.style as ViewStyle[])
+      const paint = () => controlStyle(option(label))
       const text = () => StyleSheet.flatten(option(label).findAll((node) => node.type === 'Text')[0]!.props.style as ViewStyle[]) as { color?: string }
       expect(paint().backgroundColor).not.toBe(tokens.bgHover)
       TestRenderer.act(() => (option(label).props.onPressIn as () => void)())

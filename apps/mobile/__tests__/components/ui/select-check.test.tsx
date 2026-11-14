@@ -13,6 +13,7 @@ import { FocusProvenanceView } from '@/components/ui/focus-provenance-view'
 import { createTokensV2 } from '@/lib/theme'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { focusHost } from '../../support/focus-provenance'
+import { controlStyle, pressableStyle } from '@/__tests__/support/press-feedback'
 import {
   __resetTestHostConfig,
   __focusHost,
@@ -179,10 +180,10 @@ describe('select-check RadioRow group', () => {
     )[0]
 
     const tokens = createTokensV2('purple', 'dark')
-    expect(StyleSheet.flatten(selected.props.style({ pressed: false }))).toMatchObject({
+    expect(controlStyle(selected)).toMatchObject({
       backgroundColor: tokens.selectionBg, borderRadius: 12, overflow: 'hidden',
     })
-    expect(StyleSheet.flatten(selected.props.style({ pressed: false })).borderWidth ?? 0).toBe(0)
+    expect(controlStyle(selected).borderWidth ?? 0).toBe(0)
     expect(StyleSheet.flatten(selected.findByProps({ testID: 'selection-ring' }).props.style)).toMatchObject({
       position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderWidth: 1.5, borderColor: tokens.primary, borderRadius: 12,
     })
@@ -416,13 +417,12 @@ describe('RadioRow press feedback', () => {
       </RadioGroup>)
     })
     const row = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio')[0]!
-    const pressStyle = row.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
     const accessibilityState = row.props.accessibilityState as { checked: boolean }
     const onPress = row.props.onPress as () => void
-    const style = (pressed: boolean) => StyleSheet.flatten(pressStyle({ pressed }))
+    const style = (pressed: boolean) => pressableStyle(row, pressed)
     const tokens = createTokensV2('orange', 'dark')
 
-    expect(style(true).transform).toBeUndefined()
+    expect(StyleSheet.flatten(row.props.style as StyleProp<ViewStyle>).transform, 'the press target keeps its box').toBeUndefined()
     expect(pressScale(tree)).toEqual([{ scale: 1 }])
     void act(() => (row.props.onPressIn as () => void)())
     expect(pressScale(tree)).toEqual([{ scale: reducedMotion ? 1 : 0.96 }])
@@ -445,9 +445,8 @@ describe('RadioRow press feedback', () => {
       </RadioGroup>)
     })
     const row = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio')[0]!
-    const style = (pressed: boolean) => StyleSheet.flatten((row.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>)({ pressed }))
     void act(() => (row.props.onPressIn as () => void)())
-    expect(style(true).backgroundColor).toBe('transparent')
+    expect(controlStyle(row).backgroundColor).toBe('transparent')
     expect(pressScale(tree)).toEqual([{ scale: 1 }])
     void act(() => (row.props.onPressOut as () => void)())
     void act(() => tree.update(<View />))
@@ -460,7 +459,7 @@ describe('RadioRow press feedback', () => {
     </RadioGroup>
     void act(() => { tree = create(renderRow()) })
     const row = () => tree.root.findAll((node) => node.type === Pressable)[0]!
-    const pressedFill = () => StyleSheet.flatten((row().props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>)({ pressed: true })).backgroundColor
+    const pressedFill = () => controlStyle(row()).backgroundColor
     void act(() => (row().props.onPressIn as () => void)())
     expect(pressScale(tree)).toEqual([{ scale: 0.96 }])
     motionState.prefersReducedMotion = true
@@ -505,9 +504,8 @@ describe('RadioRow secondary text contrast', () => {
     const foregrounds = [descriptionStyle.color, metaStyle.color, tagStyle.color]
     expect(metaStyle.fontSize).toBe(12)
     expect(tagStyle.fontSize).toBe(12)
-    const pressStyle = row.props.style as (state: { pressed: boolean }) => unknown
     const accessibilityState = row.props.accessibilityState as { checked: boolean; disabled?: boolean }
-    const rowStyle = StyleSheet.flatten(disabled ? row.props.style : pressStyle({ pressed: false })) as { backgroundColor: string; opacity: number }
+    const rowStyle = (disabled ? StyleSheet.flatten(row.props.style as StyleProp<ViewStyle>) : controlStyle(row)) as { backgroundColor: string; opacity: number }
     expect(descriptionStyle.fontSize).toBe(14)
     expect(rowStyle.backgroundColor).toBe(selected ? tokens.selectionBg : 'transparent')
     expect(rowStyle.opacity).toBe(disabled ? 0.5 : 1)
@@ -529,12 +527,8 @@ describe('RadioRow secondary text contrast', () => {
             .toBeGreaterThanOrEqual(4.5)
         })
       }
-      const pressed = StyleSheet.flatten(pressStyle({ pressed: true })) as { backgroundColor: string; opacity: number }
-      const pressable = tree.root.findAll((node) => node.type === Pressable)[0]!
-      const content = pressable.props.children as ReactNode | ((state: { pressed: boolean }) => ReactNode)
-      void act(() => {
-        tree.update(<View>{typeof content === 'function' ? content({ pressed: true }) : content}</View>)
-      })
+      void act(() => (row.props.onPressIn as () => void)())
+      const pressed = controlStyle(row) as { backgroundColor: string; opacity: number }
       const pressedForegrounds = ['Details', '3', 'Current'].map((text) => {
         const label = tree.root.findAll((node) => typeof node.type === 'string' && node.props.children === text)[0]!
         return (StyleSheet.flatten(label.props.style) as { color: string }).color

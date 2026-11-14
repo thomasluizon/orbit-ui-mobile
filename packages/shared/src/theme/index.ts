@@ -21,6 +21,6 @@ export { GOOGLE_SIGN_IN_BUTTON, ICON_ACTION_START_HANG, BUTTON_SIZES, FAB_SIZE, 
 export { zLayers, type ZLayer } from './z-layers'
 export { WIDE_DESKTOP_BREAKPOINT, SHELL_CONTENT_MAX_WIDTH, TAB_BAR_MIN_HEIGHT, TOUCH_TARGET_MIN, MONTH_GRID_TARGET_MIN, SMALL_PILL_VISIBLE_MIN } from './breakpoints'
 export { SHEET_BODY_INSETS } from './sheet'
-export { INTERACTION_FILL_CLEARANCE } from './interaction'
+export { INTERACTION_FILL_CLEARANCE, SELECTION_RING_WIDTH } from './interaction'
 export { SPACING, PADDING } from './spacing'
 export * from './motion'

@@ -16,7 +16,7 @@ function ReminderWhenOption({ label, selected, onSelect }: Readonly<{ label: str
       type="button"
       role="radio"
       aria-checked={selected}
-      className={`chip flex-1 justify-center focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)] ${selected ? 'chip-active' : ''}`}
+      className={`chip flex-1 justify-center focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)] ${selected ? 'chip-active' : ''}`}
     >{label}</button></RadioItem>
   )
 }
@@ -88,7 +88,7 @@ export function ScheduledReminderSection({
                   style={{ fontFamily: 'var(--font-sans)', fontSize: '0.75rem', fontWeight: 500 }}
                 >
                   <span className="min-w-0 break-words">{scheduledReminderLabel(sr)}</span>
-                  <button type="button" aria-label={t('habits.form.removeScheduledReminder')} className="habit-control-motion grid shrink-0 rounded-full enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] enabled:active:scale-[0.96] place-items-center min-h-[var(--touch-min)] min-w-[var(--touch-min)] enabled:hover:text-[var(--fg-2)]" onClick={() => removeScheduledReminder(idx)}>
+                  <button type="button" aria-label={t('habits.form.removeScheduledReminder')} className="habit-control-motion grid shrink-0 rounded-full enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] motion-safe:enabled:active:scale-[0.96] place-items-center min-h-[var(--touch-min)] min-w-[var(--touch-min)] enabled:hover:text-[var(--fg-2)]" onClick={() => removeScheduledReminder(idx)}>
                     <X size={16} strokeWidth={2.2} aria-hidden="true" />
                   </button>
                 </span>

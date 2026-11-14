@@ -11,6 +11,9 @@ import { completeInstallOnboarding } from './install-onboarding'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 
+/** A focused selected control draws its focus ring and keeps its selection ring directly inside it. */
+const FOCUSED_SELECTED_RINGS = 2
+
 async function expectRings(control: Locator, count: number) {
   await expect(control).toBeVisible()
   await expect.poll(async () => (await inspectControlAccentRings(control)).length).toBe(count)
@@ -43,7 +46,7 @@ async function checkChoice(page: Page, control: Locator, alternative: Locator) {
   await control.hover()
   await expectRings(control, 1)
   await keyboardFocus(page, control)
-  await expectRings(control, 1)
+  await expectRings(control, FOCUSED_SELECTED_RINGS)
 }
 
 async function checkToggle(page: Page, control: Locator) {
@@ -56,13 +59,13 @@ async function checkToggle(page: Page, control: Locator) {
   await expectRings(control, 1)
   await page.keyboard.press('Space')
   await expect(control).toHaveAttribute('aria-pressed', 'true')
-  await expectRings(control, 1)
+  await expectRings(control, FOCUSED_SELECTED_RINGS)
   await page.keyboard.press('Tab')
   await expectRings(control, 1)
   await control.hover()
   await expectRings(control, 1)
   await keyboardFocus(page, control)
-  await expectRings(control, 1)
+  await expectRings(control, FOCUSED_SELECTED_RINGS)
 }
 
 async function checkEmoji(page: Page, words: typeof en) {
@@ -86,7 +89,7 @@ async function checkEmoji(page: Page, words: typeof en) {
   await selected.hover()
   await expectRings(selected, 1)
   await keyboardFocus(page, selected)
-  await expectRings(selected, 1)
+  await expectRings(selected, FOCUSED_SELECTED_RINGS)
   await page.keyboard.press('Escape')
 }
 
@@ -114,11 +117,11 @@ for (const width of [412, 1352]) {
             const segment = page.getByRole('radio', { name: label, exact: true })
             await expect(segment).toBeFocused()
             await expect(segment).toHaveAttribute('aria-checked', 'true')
-            await expectRings(segment, 1)
+            await expectRings(segment, FOCUSED_SELECTED_RINGS)
           }
         })
 
-        test('timezone radios yield selection to focus', async ({ page }) => {
+        test('timezone radios keep their selection ring inside focus', async ({ page }) => {
           await completeInstallOnboarding(page)
           await page.goto('/profile/preferences')
           await page.getByRole('button', { name: words.profile.settingsRows.timezone, exact: false }).click()
@@ -132,16 +135,16 @@ for (const width of [412, 1352]) {
           await expectRings(radios.first(), 1)
           await sheet.getByRole('textbox').click()
           await keyboardFocus(page, radios.first())
-          await expectRings(radios.first(), 1)
+          await expectRings(radios.first(), FOCUSED_SELECTED_RINGS)
           await page.keyboard.press('ArrowDown')
           await expect(radios.nth(1)).toBeFocused()
           await expect(radios.nth(1)).toHaveAttribute('aria-checked', 'true')
-          await expectRings(radios.nth(1), 1)
+          await expectRings(radios.nth(1), FOCUSED_SELECTED_RINGS)
           await page.keyboard.press('Shift+Tab')
           await expectRings(radios.nth(1), 1)
         })
 
-        test('upgrade interval switch yields its selected ring', async ({ page }) => {
+        test('upgrade interval switch keeps its selected ring under focus', async ({ page }) => {
           await completeInstallOnboarding(page)
           await page.goto('/upgrade')
           const radios = page.getByRole('radiogroup').getByRole('radio')
@@ -187,7 +190,7 @@ for (const width of [412, 1352]) {
           await monday.hover()
           await expectRings(monday, 1)
           await keyboardFocus(page, monday)
-          await expectRings(monday, 1)
+          await expectRings(monday, FOCUSED_SELECTED_RINGS)
           await expectRings(tuesday, 0)
           await tuesday.hover()
           await expectRings(tuesday, 0)

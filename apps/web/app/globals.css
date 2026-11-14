@@ -1002,6 +1002,20 @@ select[aria-hidden="true"] {
   }
 }
 
+/* A focused press target keeps its focus ring whole while it is pressed: the ring moves to the hit layer, which the
+   press does not scale. Unlayered, so it outranks the focus utilities of each variant. */
+@media (prefers-reduced-motion: no-preference) {
+  :is(.press-hit-layer, .chip):focus-visible:active {
+    outline-style: none;
+  }
+
+  :is(.press-hit-layer, .chip):focus-visible:active::before {
+    outline: 2px solid;
+    outline-color: inherit;
+    outline-offset: inherit;
+  }
+}
+
 :root {
   --row-h-compact: 52px;
   --row-h: 68px;
@@ -1086,6 +1100,7 @@ select[aria-hidden="true"] {
   --fw-bold: 600;
 
   --touch-min: 48px;
+  --selection-ring-width: 1.5px;
   --hit-min: var(--touch-min);
   --month-grid-touch-min: 44px;
   --pill-visible-min: 44px;
@@ -1906,7 +1921,6 @@ button[data-variant="primary"]:enabled:not([data-loading]):active,
 .chip-active {
   background: var(--selection-bg);
   color: var(--fg-1);
-  --selection-ring-width: 1px;
   --selection-ring-color: rgba(var(--primary-rgb), 0.45);
 }
 .chip-period {
@@ -1915,7 +1929,6 @@ button[data-variant="primary"]:enabled:not([data-loading]):active,
 }
 .chip-period.chip-active {
   background: var(--primary-dim);
-  --selection-ring-width: 1.5px;
 }
 .chip-filled {
   background: var(--primary);
@@ -2625,13 +2638,16 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   transition-duration: var(--motion-selection-enter);
   transition-timing-function: var(--motion-ease-standard);
 }
-.orbit-selection-ring-thin { --selection-ring-width: 1.5px; }
-.orbit-selection-ring-hairline { --selection-ring-width: 1px; }
+/* The one selection ring: an inset ring of the shared width that takes no layout. While focus shows, the ring moves
+   directly inside the 2px focus ring, so a focused option keeps its selected cue; an unselected option shows focus alone. */
 :is(.orbit-selection-ring[data-selected], .orbit-selection-ring[aria-checked="true"], .orbit-selection-ring[aria-pressed="true"], .orbit-selection-ring[aria-selected="true"], .chip-active):not(:focus-visible):not(:has(:focus-visible)):not(:focus-visible *) {
-  box-shadow: inset 0 0 0 var(--selection-ring-width, 2px) var(--selection-ring-color, var(--primary));
+  box-shadow: inset 0 0 0 var(--selection-ring-width) var(--selection-ring-color, var(--primary));
 }
 :is(.orbit-selection-ring, .chip-active):is(:focus-visible, :has(:focus-visible)) {
   box-shadow: none;
+}
+:is(.orbit-selection-ring[data-selected], .orbit-selection-ring[aria-checked="true"], .orbit-selection-ring[aria-pressed="true"], .orbit-selection-ring[aria-selected="true"], .chip-active):is(:focus-visible, :has(:focus-visible), :focus-visible *) {
+  box-shadow: inset 0 0 0 calc(2px + var(--selection-ring-width)) var(--selection-ring-color, var(--primary));
 }
 .chip-period.chip-active { --selection-ring-color: var(--primary); }
 .orbit-check-row-label::before,

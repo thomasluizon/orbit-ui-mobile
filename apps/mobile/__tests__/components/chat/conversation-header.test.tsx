@@ -1,3 +1,4 @@
+import { controlStyle } from '@/__tests__/support/press-feedback'
 import { __setScrollToImpl, __resetTestHostConfig } from '../../../test-mocks/react-native'
 import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import { useChatStore } from '@/stores/chat-store'
@@ -104,7 +105,7 @@ describe('AstraConversation header (mobile)', () => {
     expect(close).toHaveLength(1)
 
     void TestRenderer.act(() => (close[0]!.props.onPressIn as () => void)())
-    expect(StyleSheet.flatten(close[0]!.props.style as StyleProp<ViewStyle>)).toMatchObject({
+    expect(controlStyle(close[0]! as never)).toMatchObject({
       width: 48,
       height: 48,
       borderRadius: 999,
@@ -112,7 +113,7 @@ describe('AstraConversation header (mobile)', () => {
       backgroundColor: createTokensV2('orange', 'dark').bgHover,
     })
     void TestRenderer.act(() => (close[0]!.props.onPressOut as () => void)())
-    expect(StyleSheet.flatten(close[0]!.props.style as StyleProp<ViewStyle>).backgroundColor).toBe('transparent')
+    expect(controlStyle(close[0]! as never).backgroundColor).toBe('transparent')
 
     void TestRenderer.act(() => {
       (close[0]!.props.onPress as () => void)()

@@ -277,7 +277,6 @@ export function DateField({
                           onClick={() => selectDay(day)}
                         >
                           <span
-                            data-selected={isToday || undefined}
                             className={`flex size-8 items-center justify-center rounded-full text-xs transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${
                               isCurrentMonth
                                 ? 'text-[var(--fg-1)]'
@@ -288,7 +287,7 @@ export function DateField({
                                 : ''
                             } ${
                               isToday && !isSelected
-                                ? 'orbit-selection-ring orbit-selection-ring-hairline'
+                                ? '[box-shadow:inset_0_0_0_var(--selection-ring-width)_var(--primary)] group-focus-visible:[box-shadow:none]'
                                 : ''
                             }`}
                           >

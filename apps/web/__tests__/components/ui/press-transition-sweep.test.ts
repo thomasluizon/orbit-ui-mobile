@@ -23,6 +23,12 @@ const sources = ['app', 'components'].flatMap((directory) => sourceFiles(join(ro
  */
 const PRESS_SCALE_CLASS = /(?:^|[\s"'`])(?:motion-safe:)?(?:(?:group-)?enabled(?:\/[\w-]+)?:)?(?:group-)?active(?:\/[\w-]+)?:scale-\[(?:0\.96|0\.99)\]/
 
+/** Every press scale class token, with its variants: `DESIGN.md` Motion has reduced motion remove the scale, so each one starts with `motion-safe:`. */
+const PRESS_SCALE_TOKEN = /[^\s"'`]*active(?:\/[\w-]+)?:scale-\[[^\]]*\]/g
+
+// WHY: the mascot slice of the same ticket owns this file and gates its own press scale; drop this entry when the slices merge. https://github.com/thomasluizon/orbit-tickets/issues/2120
+const OTHER_SLICE_FILES = ['components/shell/shell-wide.tsx']
+
 /** Classes whose CSS rule owns the press transition. The rules are checked in the stylesheet test below. */
 const PRESS_TRANSITION_CLASSES = ['habit-control-motion', 'orbit-pill-action', 'orbit-list-row-body', 'orbit-list-row-action', 'icon-btn']
 
@@ -103,6 +109,12 @@ describe('web press scale transitions', () => {
     expect(pressTransitionOf(classes)).toEqual({ duration: 'var(--dur-press)', easing: 'var(--ease-out)' })
   })
 
+  it('gates every press scale class on motion-safe, so reduced motion keeps the control still', () => {
+    const ungated = sources.filter(({ path }) => !OTHER_SLICE_FILES.includes(path)).flatMap(({ path, lines }) => lines.flatMap((line, index) =>
+      (line.match(PRESS_SCALE_TOKEN) ?? []).filter((token) => !token.startsWith('motion-safe:')).map((token) => `${path}:${index + 1} ${token}`)))
+    expect(ungated).toEqual([])
+  })
+
   it.each([
     ['.orbit-list-row-body', 'scale'],
     ['.orbit-list-row-shell [data-slot="list-row-content"]', 'scale'],
@@ -116,6 +128,23 @@ describe('web press scale transitions', () => {
     const rules = rulesWith(selector).filter((rule) => rule.parent?.type === 'root' || (rule.parent as AtRule).name === 'layer')
     expect(rules.length, selector).toBeGreaterThan(0)
     expect(rules.flatMap((rule) => declarations(rule, 'transition')).join(' | ')).toContain(`${property} var(--dur-press) var(--ease-out)`)
+  })
+
+  it('keeps the focus ring of a pressed hit-layer target whole by drawing it on the unscaled hit layer', () => {
+    const declarationsOf = (selector: string) => {
+      const found: { media: string | undefined; layered: boolean; values: Record<string, string> }[] = []
+      stylesheet.walkRules((rule) => {
+        if (rule.selector !== selector) return
+        const values: Record<string, string> = {}
+        rule.walkDecls((declaration) => { values[declaration.prop] = declaration.value })
+        const media = rule.parent?.type === 'atrule' ? (rule.parent as AtRule) : undefined
+        found.push({ media: media?.params, layered: media?.parent?.type === 'atrule' && (media.parent as AtRule).name === 'layer', values })
+      })
+      return found
+    }
+    expect(declarationsOf(':is(.press-hit-layer, .chip):focus-visible:active')).toEqual([{ media: '(prefers-reduced-motion: no-preference)', layered: false, values: { 'outline-style': 'none' } }])
+    expect(declarationsOf(':is(.press-hit-layer, .chip):focus-visible:active::before')).toEqual([{ media: '(prefers-reduced-motion: no-preference)', layered: false,
+      values: { outline: '2px solid', 'outline-color': 'inherit', 'outline-offset': 'inherit' } }])
   })
 
   it('applies every pressed scale rule only when motion is allowed', () => {

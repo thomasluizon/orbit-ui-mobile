@@ -256,7 +256,7 @@ describe('PillButton (mobile)', () => {
     const visibleHeight = Math.max(geometry.height, geometry.minHeight)
     expect(visibleHeight).toBe(44)
     expect(visibleHeight + (button.props.hitSlop ?? 0) * 2).toBe(48)
-    expect(tree.root.findAllByType('View')).toHaveLength(0)
+    expect(tree.root.findAllByType('View').map((view: { props: Record<string, unknown> }) => view.props['data-slot']), 'the scaled face is the only view; the hit area stays on the unscaled target').toEqual(['press-scale'])
   })
 
   it('drives the pill height from the two-size scale', () => {

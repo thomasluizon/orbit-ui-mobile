@@ -10,6 +10,7 @@ import { RadioRow } from '@/components/ui/select-check'
 import { RowList } from '@/components/ui/row-list'
 import { SettingsGroup } from '@/components/ui/settings-group'
 import { createTokensV2 } from '@/lib/theme'
+import { controlStyle } from '@/__tests__/support/press-feedback'
 
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
@@ -44,7 +45,7 @@ function press(node: TestNode) {
 
 function resolvePressedStyle(node: TestNode) {
   const style = node.props.style
-  if (typeof style !== 'function') return style
+  if (typeof style !== 'function') return controlStyle(node)
   style({ pressed: false })
   return style({ pressed: true })
 }
