@@ -22,7 +22,10 @@ const USAGE = `usage: list-bot-threads.mjs --pr <number|url> (--repo <ui|api|lan
                       the head never arrives inside the budget, it exits 2 and posts no request.
                       When a later push moves the head away, it exits 4 with no verdict: after a
                       read showed the head, or as soon as the branch activity lists the push
-                      that replaced it, also when no read showed the head.
+                      that replaced it, also when no read showed the head. The pull request is
+                      the authority: while it reports this head, the tool never exits 4. If the
+                      activity still lists the push that replaced this head, the tool reads again
+                      until the activity lists the push back, and exits 2 at the end of the budget.
   --repo <key>        required for a bare number; a full PR URL selects its repository
   --wait-seconds <n>  how long to wait for the review (default 900, 0 polls once and asks nothing)
   --poll-seconds <n>  gap between polls (default 30)
@@ -320,9 +323,15 @@ let expectedHeadSeen = false
 const readExpectedHead = async () => {
   const payload = await readPullRequest()
   if (!expectedHead) return payload
-  if (payload.headRefOid === expectedHead) expectedHeadSeen = true
-  /** Two quick pushes can replace --head before a read shows it; then only the branch activity proves the move. */
-  const movedTo = payload.expectedHeadReplacement ?? (expectedHeadSeen && payload.headRefOid !== expectedHead ? payload.headRefOid : null)
+  if (payload.headRefOid === expectedHead) {
+    expectedHeadSeen = true
+    return payload
+  }
+  /**
+   * The pull request is the authority on its head, so a read that shows --head never exits here. Two
+   * quick pushes can replace --head before a read shows it; then only the branch activity proves the move.
+   */
+  const movedTo = payload.expectedHeadReplacement ?? (expectedHeadSeen ? payload.headRefOid : null)
   if (movedTo) {
     progress("HEAD_MOVED", payload, startedAt, deadline)
     fail(HEAD_MOVED_EXIT, `pull request ${pullRequest} head moved from the expected ${expectedHead} to ${movedTo}; no verdict is reported. Run again with the new head`)
@@ -340,9 +349,14 @@ progress("REVIEW_STATE_READ", node, startedAt, deadline)
  * for it cannot be seen. The verdict and the request wait for a read that shows both.
  */
 const headIsExpected = (payload) => !expectedHead || payload.headRefOid === expectedHead
+/**
+ * The pull request shows --head, but the newest listed move of --head still leaves it: a force push back
+ * is not listed yet. That activity would date the review boundary from the older push, so read again.
+ */
+const pushBackIsUnread = (payload) => Boolean(expectedHead) && payload.headRefOid === expectedHead && Boolean(payload.expectedHeadReplacement)
 const pushIsUnread = (payload) => requestReview && waitSeconds > 0 && !Number.isFinite(payload.headActivityBoundary?.time) &&
   payload.headRepository?.nameWithOwner === payload.repositoryName
-while ((!headIsExpected(node) || pushIsUnread(node)) && Date.now() < deadline) {
+while ((!headIsExpected(node) || pushBackIsUnread(node) || pushIsUnread(node)) && Date.now() < deadline) {
   await sleep(Math.min(SETTLE_POLL_SECONDS, pollSeconds, Math.max(1, Math.ceil((deadline - Date.now()) / 1000))))
   await awaitGraphqlBudget(deadline)
   if (Date.now() >= deadline) break
@@ -350,6 +364,7 @@ while ((!headIsExpected(node) || pushIsUnread(node)) && Date.now() < deadline) {
   progress("HEAD_WAITING", node, startedAt, deadline)
 }
 if (!headIsExpected(node)) fail(2, `pull request ${pullRequest} reports head ${node.headRefOid}, not the expected ${expectedHead}, after ${waitSeconds}s; nothing was decided and no review was requested`)
+if (pushBackIsUnread(node)) fail(2, `pull request ${pullRequest} reports head ${expectedHead}, but the branch activity still lists the push that replaced it with ${node.expectedHeadReplacement} after ${waitSeconds}s; nothing was decided and no review was requested`)
 
 /** GitHub can repoint reviews onto a later commit, so submission must follow the branch push. */
 const COMPLETED_REVIEW_STATES = new Set(["APPROVED", "CHANGES_REQUESTED", "COMMENTED"])

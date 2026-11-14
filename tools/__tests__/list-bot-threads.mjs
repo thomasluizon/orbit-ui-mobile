@@ -615,6 +615,27 @@ export const cases = async () => {
     pushedBack.result.status === 0 && pushedBack.plan?.verdict === "REVIEWED" && pushedBack.plan.reviewedCommit === HEAD && pushedBack.requests === 1,
     pushedBack.result.stdout || pushedBack.result.stderr,
   )
+  /**
+   * The pull request is the authority on its head. When it shows --head but the activity does not list
+   * the force push back yet, the newest listed move of --head still leaves it: read again, decide nothing.
+   */
+  const pushBackUnlisted = JSON.stringify([...activity(REPOINTED_HEAD, "2026-08-05T09:00:00Z", "push", HEAD), ...activity()])
+  const pushedBackLate = requestRun("head-pushed-back-late", sequence("head-pushed-back-late", [payload({ checks: [] }), payload({ checks: [] }), reviewLands([])]),
+    { argv: ["--head", HEAD], activities: sequence("head-pushed-back-late-activity", [pushBackUnlisted, pushedBackActivity]) })
+  T(
+    `${TOOL}: --head shown by the pull request is not moved by an activity that does not list the force push back yet`,
+    pushedBackLate.result.status === 0 && pushedBackLate.plan?.verdict === "REVIEWED" && pushedBackLate.plan.reviewedCommit === HEAD &&
+      pushedBackLate.requests === 1 && requestedOnSecondRead(pushedBackLate) && !/"event":"HEAD_MOVED"/.test(pushedBackLate.result.stderr),
+    pushedBackLate.result.stdout || pushedBackLate.result.stderr,
+  )
+  const pushBackNeverListed = requestRun("head-pushed-back-never-listed", { stdout: payload({ checks: [] }) },
+    { waitSeconds: "2", argv: ["--head", HEAD], activities: { stdout: pushBackUnlisted } })
+  T(
+    `${TOOL}: --head exits 2 and posts nothing when the activity never lists the force push back inside the budget`,
+    pushBackNeverListed.result.status === 2 && pushBackNeverListed.plan === null && pushBackNeverListed.requestArgv === null &&
+      pushBackNeverListed.result.stderr.includes(`the branch activity still lists the push that replaced it with ${REPOINTED_HEAD}`),
+    pushBackNeverListed.result.stdout || pushBackNeverListed.result.stderr,
+  )
   const withoutHead = requestRun("head-moved-no-flag", sequence("head-moved-no-flag", [payload({ checks: [] }), laterHeadReviewed]),
     { activities: sequence("head-moved-no-flag-activity", [JSON.stringify(activity()), laterHeadActivity]) })
   T(
