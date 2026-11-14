@@ -340,7 +340,7 @@ describe('retained onboarding', () => {
     )
   }
 
-  it.each([[true, 'mounts the guided flow'], [false, 'keeps the current flow']] as const)('with orbit_guided_flows %s it %s for the signed-in account', async (flag) => {
+  it.each([{ flag: true, outcome: 'mounts the guided flow' }, { flag: false, outcome: 'keeps the current flow' }])('with orbit_guided_flows $flag it $outcome for the signed-in account', async ({ flag }) => {
     mocks.flag = flag
     mountRetained(false)
     expect(await screen.findByRole('heading', { level: 1, name: flag ? en.onboarding.flow.guided.intro.talk.title : en.onboarding.flow.what.title })).toBeInTheDocument()

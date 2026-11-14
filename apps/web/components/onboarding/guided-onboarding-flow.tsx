@@ -131,7 +131,7 @@ function introView(screen: OnboardingIntroScreen, t: Translate, onNext: () => vo
     line: null,
     free: <IntroSentence>{t(`onboarding.flow.guided.intro.${screen}.body`)}</IntroSentence>,
     primary: { label: t('onboarding.flow.continue'), onPress: onNext },
-    footer: <PillButton variant="ghost" size="sm" onClick={onSkipIntro}>{t('onboarding.flow.guided.intro.skip')}</PillButton>,
+    footer: <PillButton variant="ghost" size="sm" minimumHeight={48} onClick={onSkipIntro}>{t('onboarding.flow.guided.intro.skip')}</PillButton>,
   }
 }
 
@@ -157,7 +157,7 @@ function usePhraseView(props: GuidedOnboardingProps, cadenceOfPhrase: string | n
     primary: { label: t('onboarding.flow.continue'), onPress: submit, loading: props.suggestionPending },
     footer: props.isLive ? null : <>
       {/* eslint-disable-next-line local/max-button-words -- The granted onboarding drawing uses this account action label. */}
-      <PillButton variant="ghost" size="sm" onClick={props.onAccount}>{t('onboarding.flow.what.haveAccount')}</PillButton>
+      <PillButton variant="ghost" size="sm" minimumHeight={48} onClick={props.onAccount}>{t('onboarding.flow.what.haveAccount')}</PillButton>
     </>,
   }
 }
