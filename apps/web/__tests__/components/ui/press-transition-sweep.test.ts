@@ -130,6 +130,23 @@ describe('web press scale transitions', () => {
     expect(rules.flatMap((rule) => declarations(rule, 'transition')).join(' | ')).toContain(`${property} var(--dur-press) var(--ease-out)`)
   })
 
+  it('keeps the focus ring of a pressed hit-layer target whole by drawing it on the unscaled hit layer', () => {
+    const declarationsOf = (selector: string) => {
+      const found: { media: string | undefined; layered: boolean; values: Record<string, string> }[] = []
+      stylesheet.walkRules((rule) => {
+        if (rule.selector !== selector) return
+        const values: Record<string, string> = {}
+        rule.walkDecls((declaration) => { values[declaration.prop] = declaration.value })
+        const media = rule.parent?.type === 'atrule' ? (rule.parent as AtRule) : undefined
+        found.push({ media: media?.params, layered: media?.parent?.type === 'atrule' && (media.parent as AtRule).name === 'layer', values })
+      })
+      return found
+    }
+    expect(declarationsOf(':is(.press-hit-layer, .chip):focus-visible:active')).toEqual([{ media: '(prefers-reduced-motion: no-preference)', layered: false, values: { 'outline-style': 'none' } }])
+    expect(declarationsOf(':is(.press-hit-layer, .chip):focus-visible:active::before')).toEqual([{ media: '(prefers-reduced-motion: no-preference)', layered: false,
+      values: { outline: '2px solid', 'outline-color': 'inherit', 'outline-offset': 'inherit' } }])
+  })
+
   it('applies every pressed scale rule only when motion is allowed', () => {
     const pressed: string[] = []
     stylesheet.walkRules((rule) => {

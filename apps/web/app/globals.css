@@ -1002,6 +1002,20 @@ select[aria-hidden="true"] {
   }
 }
 
+/* A focused press target keeps its focus ring whole while it is pressed: the ring moves to the hit layer, which the
+   press does not scale. Unlayered, so it outranks the focus utilities of each variant. */
+@media (prefers-reduced-motion: no-preference) {
+  :is(.press-hit-layer, .chip):focus-visible:active {
+    outline-style: none;
+  }
+
+  :is(.press-hit-layer, .chip):focus-visible:active::before {
+    outline: 2px solid;
+    outline-color: inherit;
+    outline-offset: inherit;
+  }
+}
+
 :root {
   --row-h-compact: 52px;
   --row-h: 68px;

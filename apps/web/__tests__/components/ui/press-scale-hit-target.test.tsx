@@ -128,4 +128,28 @@ describe('press hit target in Chromium', () => {
       expect(await card.getAttribute('data-clicks'), 'the press keeps its click').toBe('1')
     } finally { await page.close() }
   })
+
+  it.each([
+    ['a pill button', () => <PillButton size="md" onClick={vi.fn()}>Continue to checkout</PillButton>],
+    ['a selected chip', () => <Chip active onClick={vi.fn()}>Continue to checkout</Chip>],
+  ] as const)('keeps the focus ring of %s whole on its unscaled hit layer while a key presses it', async (_name, control) => {
+    const page = await browser.newPage({ viewport: { width: 412, height: 915 }, reducedMotion: 'no-preference' })
+    try {
+      await page.setContent(`<style>${stylesheet} body{padding:16px} *,*::before,*::after{transition:none !important}</style><main>${markupOf(control())}</main>`)
+      const button = page.getByRole('button', { name: 'Continue to checkout', exact: true })
+      await page.keyboard.press('Tab')
+      expect(await button.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
+      await page.keyboard.down('Space')
+      const pressed = await button.evaluate((element) => {
+        const own = getComputedStyle(element)
+        const layer = getComputedStyle(element, '::before')
+        return { scale: Number(own.scale), outline: own.outlineStyle, ring: layer.outlineStyle, ringWidth: layer.outlineWidth, layerScale: Number(layer.scale) }
+      })
+      await page.keyboard.up('Space')
+      expect(pressed.scale, 'the key press scales the control').toBeCloseTo(0.96, 5)
+      expect(pressed.outline, 'the scaled control draws no ring of its own').toBe('none')
+      expect({ ring: pressed.ring, width: pressed.ringWidth }, 'the hit layer draws the focus ring').toEqual({ ring: 'solid', width: '2px' })
+      expect(pressed.scale * pressed.layerScale, 'the hit layer and its ring keep the whole box').toBeCloseTo(1, 5)
+    } finally { await page.close() }
+  })
 })
