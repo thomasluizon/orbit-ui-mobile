@@ -11,6 +11,8 @@ import { ActionRow } from '@/components/ui/action-row'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useUpdateGoal } from '@/hooks/use-goals'
+import { useFlag } from '@/hooks/use-flag'
+import { GuidedGoalEditFlow } from './guided/guided-goal-flow'
 import {
   getFriendlyErrorMessage,
   translateErrorKey,
@@ -47,7 +49,17 @@ interface UpdateGoalRequest {
   deadline?: string | null
 }
 
-export function EditGoalModal({
+/** With `orbit_guided_flows` on, an open edit is the guided goal flow on its summary. Off, or closed, it is the current modal. */
+export function EditGoalModal(props: Readonly<EditGoalModalProps>) {
+  return props.open ? <OpenEditGoalModal {...props} /> : <CurrentEditGoalModal {...props} />
+}
+
+function OpenEditGoalModal(props: Readonly<EditGoalModalProps>) {
+  const guided = useFlag('orbit_guided_flows')
+  return guided ? <GuidedGoalEditFlow goal={props.goal} onClose={() => props.onOpenChange(false)} /> : <CurrentEditGoalModal {...props} />
+}
+
+function CurrentEditGoalModal({
   open,
   onOpenChange,
   goal,

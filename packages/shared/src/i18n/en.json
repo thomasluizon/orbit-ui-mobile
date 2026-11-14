@@ -3824,8 +3824,8 @@
         "question": "Which habits count toward this goal?"
       },
       "summary": {
-        "what": "What you want",
-        "track": "How to track",
+        "what": "Your goal",
+        "track": "Tracking",
         "amount": "How much",
         "deadline": "By when"
       }
