@@ -2,7 +2,7 @@ import { Resvg } from '@resvg/resvg-js'
 import { describe, expect, it } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { BUTTON_SIZES, PADDING, SPACING } from '@orbit/shared/theme'
+import { BUTTON_SIZES, PADDING, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { RECAP_SHARE_PERIODS } from '@orbit/shared/utils'
 
 const WIDTHS = [320, 360, 384, 412] as const
@@ -12,6 +12,7 @@ const FONTS = {
   question: { family: 'Geist', size: 17, file: '@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf' },
   line: { family: 'Geist', size: 16, file: '@expo-google-fonts/geist/400Regular/Geist_400Regular.ttf' },
   option: { family: 'Geist', size: 17, file: '@expo-google-fonts/geist/400Regular/Geist_400Regular.ttf' },
+  sheetTitle: { family: 'Geist', size: 22, file: '@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf' },
   action: { family: 'Geist', size: BUTTON_SIZES.sm.fontSize, file: '@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf' },
 } as const
 const BLOCK_MAX = 592
@@ -20,6 +21,7 @@ const OPTION_SHARE = 0.48
 const OPTION_INSET = 16
 const OPTION_BORDER = 2
 const DIALOG_MAX = 420
+const SHEET_HEADER_GAP = 16
 
 type Font = (typeof FONTS)[keyof typeof FONTS]
 
@@ -60,9 +62,10 @@ describe('the guided Wrapped and share labels on Android', () => {
     }
   })
 
-  it.each(cases)('keeps each share period on one line in the sheet at $width in $locale', ({ width, locale }) => {
+  it.each(cases)('keeps the share question within two lines as the sheet heading and each share period on one line at $width in $locale', ({ width, locale }) => {
     const copy = CATALOGS[locale].shareCard
     const column = width - PADDING.sheetInline * 2
+    expect(lineCount(copy.periodQuestion, column - SHEET_HEADER_GAP - TOUCH_TARGET_MIN, FONTS.sheetTitle), copy.periodQuestion).toBeLessThanOrEqual(2)
     for (const period of RECAP_SHARE_PERIODS) {
       expect(textWidth(copy.periods[period], FONTS.option), copy.periods[period]).toBeLessThanOrEqual(optionWidth(column))
     }
