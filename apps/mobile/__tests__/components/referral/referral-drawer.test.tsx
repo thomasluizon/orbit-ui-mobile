@@ -1,4 +1,5 @@
 import { referralCopyCases } from '@orbit/shared/__tests__/referral-copy-fixtures'
+import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import React from 'react'
 import { Platform, StyleSheet } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -110,6 +111,15 @@ describe('ReferralDrawer (mobile)', () => {
     await pressButton(slot(tree, 'SheetBody'), 'referral.drawer.copyLink')
     expect(mocks.setStringAsync).toHaveBeenCalledWith('https://useorbit.org/r/ORBIT1')
     expectCopyStateIcon(slot(tree, 'SheetBody'), { copied: true, ...glyph })
+    TestRenderer.act(() => { tree.unmount() })
+  })
+
+  it('holds no Orbit line and no live mascot with the guided flows on', () => {
+    enableTestFlags('orbit_guided_flows')
+    const tree = renderDrawer()
+    const root = tree.root as import('react-test-renderer').ReactTestInstance
+    expect(root.findAll((node) => node.props['data-orbit-face'] === 'rig')).toHaveLength(0)
+    expect(root.findAll((node) => typeof node.props.testID === 'string' && node.props.testID.endsWith('orbit-line'))).toHaveLength(0)
     TestRenderer.act(() => { tree.unmount() })
   })
 
