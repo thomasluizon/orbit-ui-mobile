@@ -60,7 +60,8 @@ jobs:
     # A push to main always analyzes. A failed selection analyzes instead of skipping.
     if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.javascript == 'true') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # A push to main analyzes the whole tree: 1072 s at worst in 12 measured runs. The limit is 1.5 times that.
+    timeout-minutes: 27
     permissions:
       security-events: write
       actions: read

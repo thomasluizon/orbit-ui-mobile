@@ -171,16 +171,16 @@ test("CodeQL reports both required names and analyzes a language only when its i
     "cancel-in-progress": "${{ github.event_name == 'pull_request' }}",
   })
   assert.equal(codeql.jobs.changes.if, "github.event_name == 'pull_request'")
-  for (const [output, jobId, name] of [
-    ["javascript", "analyze-javascript-typescript", "Analyze (javascript-typescript)"],
-    ["actions", "analyze-actions", "Analyze (actions)"],
+  for (const [output, jobId, name, limit] of [
+    ["javascript", "analyze-javascript-typescript", "Analyze (javascript-typescript)", 27],
+    ["actions", "analyze-actions", "Analyze (actions)", 5],
   ]) {
     const job = codeql.jobs[jobId]
     assert.equal(job.name, name)
     assert.equal(job.strategy, undefined, "a skipped matrix job reports its unexpanded name")
     assert.equal(job.needs, "changes")
     assert.equal(job.if, `\${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.${output} == 'true') }}`)
-    assert.ok(job["timeout-minutes"] <= 10)
+    assert.equal(job["timeout-minutes"], limit, `${name} keeps the limit that covers its slowest measured run on main`)
   }
   const selection = codeql.jobs.changes.steps.find((step) => step.id === "languages")
   const select = (change) => {
