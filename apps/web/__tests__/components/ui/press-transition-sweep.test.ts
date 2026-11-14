@@ -83,6 +83,30 @@ const pressScaleElements = sources.flatMap(({ path, lines }) => lines.flatMap((l
   ? [{ path, line: index + 1, classes: FRAGMENT_FILES.includes(path) ? lines.join(' ') : elementClasses(lines, index), tag: openingTag(lines, index) }]
   : []))
 
+/** A press scale on the element's own box, not on a surface inside a target (`group-active`). */
+const OWN_BOX_PRESS_SCALE = /(?:^|[\s"'`])motion-safe:(?:enabled:)?active:scale-\[0\.96\]/
+/** The unscaled hit layer: `.press-hit-layer`, or the pill base and the chip, which carry it. */
+const HIT_LAYER_CLASS = /(?:^|[\s"'`])(?:press-hit-layer|chip|orbit-pill-action)(?:[\s"'`]|$)/
+
+/** Control families that still scale their own target; each later commit of this change moves one family onto the hit layer. */
+const PENDING_HIT_LAYER = new Set([
+  'components/habits/habit-form-fields/habit-emoji-selector.tsx',
+  'components/habits/habit-row-check-circle.tsx', 'components/habits/habit-row.tsx', 'components/habits/habit-row-trailing.tsx',
+  'components/habits/habit-list/habit-drill.tsx', 'components/habits/selection-tray.tsx', 'components/habits/habit-checklist.tsx',
+  'components/habits/checklist-templates.tsx', 'components/ui/picker-row.tsx',
+  'components/ui/fab.tsx', 'components/ui/page-header.tsx', 'components/shell/shell-wide.tsx', 'components/shell/sidebar-account.tsx',
+  'components/gamification/streak-badge.tsx',
+  'components/ui/segmented-control.tsx', 'components/ui/select.tsx', 'components/ui/select-check.tsx', 'components/chat/answer-block.tsx',
+  'components/ui/list-row.tsx',
+  'components/habits/habit-form-fields/reminder-section.tsx', 'components/habits/habit-form-fields/scheduled-reminder-section.tsx',
+  'components/habits/habit-form-fields/tag-editor-row.tsx', 'components/habits/habit-form-fields/tag-picker-field.tsx',
+  'components/habits/habit-form-fields/habit-understanding.tsx', 'components/habits/create-habit-modal/sub-habit-editor.tsx',
+  'components/onboarding/onboarding-create-habit.tsx',
+])
+
+const ownBoxPressElements = pressScaleElements.filter(({ path, line }) => !FRAGMENT_FILES.includes(path) && !PENDING_HIT_LAYER.has(path)
+  && OWN_BOX_PRESS_SCALE.test(sources.find((source) => source.path === path)!.lines[line - 1]!))
+
 function rulesWith(selector: string): Rule[] {
   const rules: Rule[] = []
   stylesheet.walkRules((rule) => { if (rule.selectors.includes(selector)) rules.push(rule) })
@@ -104,6 +128,10 @@ describe('web press scale transitions', () => {
     expect(tag, 'an inline transition voids the transition classes this test reads').not.toMatch(INLINE_TRANSITION)
     if (PRESS_TRANSITION_CLASSES.some((name) => new RegExp(`(?:^|[\\s"'\`])${name}(?:[\\s"'\`]|$)`).test(classes))) return
     expect(pressTransitionOf(classes)).toEqual({ duration: 'var(--dur-press)', easing: 'var(--ease-out)' })
+  })
+
+  it.each(ownBoxPressElements.map((element) => [`${element.path}:${element.line}`, element] as const))('%s scales its face over the unscaled press hit layer, so its hit area and focus ring stay whole', (_name, { classes }) => {
+    expect(classes).toMatch(HIT_LAYER_CLASS)
   })
 
   it('gates every press scale class on motion-safe, so reduced motion keeps the control still', () => {
