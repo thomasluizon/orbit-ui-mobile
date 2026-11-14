@@ -3,6 +3,7 @@ import { Animated, Easing, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { motionDurations, motionEasings, motionLayerTiming } from '@orbit/shared/theme'
 import { MAX_HABIT_INTERVAL_WEEKS } from '@orbit/shared/types/habit'
+import type { FlowStepView, QuestionFlowProps } from '@orbit/shared/contracts/flow'
 import {
   buildOnboardingScheduleFromPhrase,
   canRepeatOnboardingScheduleWeeks,
@@ -71,14 +72,8 @@ type FlowView = OnboardingIntroScreen | OnboardingQuestionStep
 type Translate = ReturnType<typeof useTranslation>['t']
 type Tokens = ReturnType<typeof createTokensV2>
 
-interface StepView {
-  question: string
-  line: string | null
-  options?: ReactNode
-  free?: ReactNode
-  primary?: { label: string; onPress: () => void; loading?: boolean }
-  footer?: ReactNode
-}
+/** An onboarding step adds one quiet control under the block, such as the skip of the intro. */
+type StepView = FlowStepView & Pick<QuestionFlowProps, 'footer'>
 
 interface Navigation {
   view: FlowView
@@ -166,7 +161,7 @@ function usePhraseView(props: GuidedOnboardingProps, cadenceOfPhrase: string | n
       <OptionCard key={key} label={t(`onboarding.flow.what.starterLabels.${key}`)} selected={props.sentence === t(`onboarding.flow.what.starters.${key}`)}
         onSelect={() => props.onStarter(t(`onboarding.flow.what.starters.${key}`))} />
     )),
-    free: <PhraseField label={t('onboarding.flow.what.title')} value={props.sentence} placeholder={t('onboarding.flow.what.placeholder')} hint={hint}
+    free: <PhraseField label={t('onboarding.flow.what.title')} value={props.sentence} placeholder={t('onboarding.flow.what.placeholder')} maxLength={100} hint={hint}
       marks={props.marks} marksLabel={t('onboarding.flow.what.marksLabel')} focusRequest={focusRequest}
       onChange={(value) => { setHint(undefined); props.onSentence(value) }} />,
     primary: { label: t('onboarding.flow.continue'), onPress: submit, loading: props.suggestionPending },

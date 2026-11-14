@@ -41,7 +41,12 @@ vi.mock('@/hooks/use-tags', () => ({
   useDeleteTag: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
 vi.mock('@/components/habits/checklist-templates', () => ({ ChecklistTemplates: () => null }))
-vi.mock('@/components/habits/goal-linking-field', () => ({ GoalLinkingField: () => null }))
+vi.mock('@/components/habits/goal-linking-field', () => ({ GoalLinkingField: () => null, useLinkableGoals: () => ({ data: [], isSuccess: true, isLoading: false, isError: false, refetch: vi.fn() }) }))
+vi.mock('@/hooks/use-checklist-templates', () => ({
+  useChecklistTemplates: () => ({ data: [], isLoading: false, isError: false, refetch: vi.fn() }),
+  useCreateChecklistTemplate: () => ({ mutate: vi.fn(), isPending: false }),
+  useDeleteChecklistTemplate: () => ({ mutate: vi.fn() }),
+}))
 vi.mock('@/lib/posthog', () => ({ captureGuidedFlowEvent: vi.fn(), captureGuidedFlowCompleted: state.completed }))
 
 type Tree = ReturnType<typeof renderNavigation>

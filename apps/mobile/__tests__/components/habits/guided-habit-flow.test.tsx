@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Pressable, Text } from 'react-native'
+import { Text } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act } from 'react-test-renderer'
 import en from '@orbit/shared/i18n/en.json'
@@ -29,9 +29,25 @@ vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: state.onl
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn(), showSuccess: vi.fn(), showInfo: vi.fn() }) }))
 vi.mock('@/hooks/use-reminder-permission', () => ({ useReminderPermission: (_enabled: boolean, onToggle: () => void) => ({ toggleReminder: onToggle, showNotice: true }) }))
 vi.mock('@/lib/posthog', () => ({ captureGuidedFlowEvent: vi.fn(), captureGuidedFlowCompleted: vi.fn() }))
-vi.mock('@/components/habits/checklist-templates', () => ({ ChecklistTemplates: ({ onLoad }: { onLoad: (items: { text: string; isChecked: boolean }[]) => void }) => <Pressable accessibilityLabel="use-template" onPress={() => onLoad([{ text: 'Separar roupa', isChecked: false }])} /> }))
-vi.mock('@/components/habits/goal-linking-field', () => ({ GoalLinkingField: ({ onToggleGoal }: { onToggleGoal: (id: string) => void }) => <Pressable accessibilityLabel="link-goal" onPress={() => onToggleGoal('goal-1')} /> }))
-vi.mock('@/components/habits/habit-form-fields/habit-tags-field', () => ({ HabitTagsField: ({ tags }: { tags: { toggleTag: (id: string) => void } }) => <Pressable accessibilityLabel="pick-tag" onPress={() => tags.toggleTag('tag-1')} /> }))
+vi.mock('@/hooks/use-checklist-templates', () => ({
+  useChecklistTemplates: () => ({ data: [{ id: 'template-1', name: 'Manhã', items: ['Separar roupa'] }], isLoading: false, isError: false, refetch: vi.fn() }),
+  useCreateChecklistTemplate: () => ({ mutate: vi.fn(), isPending: false }),
+  useDeleteChecklistTemplate: () => ({ mutate: vi.fn() }),
+}))
+vi.mock('@/components/habits/goal-linking-field', async () => {
+  const { createMockGoal } = await import('@orbit/shared/__tests__/factories')
+  return { useLinkableGoals: () => ({ data: [createMockGoal({ id: 'goal-1', title: 'Correr 5 km', progressPercentage: 40 })], isSuccess: true, isLoading: false, isError: false, refetch: vi.fn() }) }
+})
+vi.mock('@/components/goals/create-goal-sheet', () => ({ CreateGoalSheet: () => null }))
+vi.mock('@/hooks/use-tags', () => ({
+  useTags: () => ({ tags: [{ id: 'tag-1', name: 'Saúde', color: '#7c3aed' }] }),
+  useCreateTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
+  useUpdateTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
+  useDeleteTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
+  useSuggestTags: () => ({ isPending: false, mutateAsync: vi.fn() }),
+}))
+vi.mock('@/hooks/use-habit-queries', () => ({ useHabits: () => ({ data: undefined }) }))
+vi.mock('@/hooks/use-astra-allowance-copy', () => ({ useAstraAllowanceCopy: () => (key: string) => key }))
 
 const submit = vi.fn()
 const close = vi.fn()
@@ -301,24 +317,30 @@ describe.each(['pt-BR', 'en'] as const)('the detail questions on Android in %s',
     tree.unmount()
   })
 
-  it('scenario 17: writes the description, loads a template, and hosts the sub-items, tags and goals', async () => {
+  it('scenario 17: writes the description, loads a template through the checklist step, hosts the sub-items and mounts the tag and goal steps', async () => {
     const tree = await toSummary()
     await openOptional(tree, 'description')
     await type(tree, flowCopy().optional.description, 'Antes do café')
     await primary(tree)
     expect(helpers().form.getValues('description')).toBe('Antes do café')
     await tap(tree, new RegExp(`^${flowCopy().optional.checklist.replace('?', '\\?')}`))
-    await tap(tree, 'use-template')
+    await tap(tree, flowCopy().checklist.useTemplate)
+    expect(heading(tree)).toBe(flowCopy().templates.question)
+    await tap(tree, /^Manhã/)
     expect(helpers().form.getValues('checklistItems')).toEqual([{ text: 'Separar roupa', isChecked: false }])
+    expect(heading(tree)).toBe(flowCopy().optional.checklist)
     await primary(tree)
     await tap(tree, new RegExp(`^${flowCopy().optional.subHabits.replace('?', '\\?')}`))
     expect(hasText(tree, 'sub-habit-editor')).toBe(true)
     await primary(tree)
     await tap(tree, new RegExp(`^${flowCopy().optional.tags.replace('?', '\\?')}`))
-    await tap(tree, 'pick-tag')
+    expect(heading(tree)).toBe(flowCopy().optional.tags)
+    await tap(tree, 'Saúde')
+    expect(tree.hosts().some((node) => node.props.testID === 'option-card' && node.props.accessibilityLabel === 'Saúde' && node.props.accessibilityState?.selected === true)).toBe(true)
     await primary(tree)
     await tap(tree, new RegExp(`^${flowCopy().optional.goals.replace('?', '\\?')}`))
-    await tap(tree, 'link-goal')
+    expect(heading(tree)).toBe(flowCopy().optional.goals)
+    await tap(tree, 'Correr 5 km, 40%')
     expect(state.goalToggle).toHaveBeenCalledWith('goal-1')
     tree.unmount()
   })

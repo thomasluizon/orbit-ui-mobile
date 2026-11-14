@@ -22,9 +22,18 @@ vi.mock('@/hooks/use-habit-phrase-read', () => ({ useHabitPhraseRead: () => ({ m
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
 vi.mock('@/hooks/use-reminder-permission', () => ({ useReminderPermission: (_enabled: boolean, onToggle: () => void) => ({ toggleReminder: onToggle, showNotice: false }) }))
-vi.mock('@/components/habits/checklist-templates', () => ({ ChecklistTemplates: () => null }))
-vi.mock('@/components/habits/goal-linking-field', () => ({ GoalLinkingField: () => null }))
-vi.mock('@/components/habits/habit-form-fields/habit-tags-field', () => ({ HabitTagsField: () => null }))
+vi.mock('@/components/habits/goal-linking-field', () => ({ useLinkableGoals: () => ({ data: [], isSuccess: true, isLoading: false, isError: false, refetch: vi.fn() }) }))
+vi.mock('@/hooks/use-checklist-templates', () => ({
+  useChecklistTemplates: () => ({ data: [], isLoading: false, isError: false, refetch: vi.fn() }),
+  useCreateChecklistTemplate: () => ({ mutate: vi.fn(), isPending: false }),
+  useDeleteChecklistTemplate: () => ({ mutate: vi.fn() }),
+}))
+vi.mock('@/hooks/use-tags', () => ({
+  useTags: () => ({ tags: [] }), useSuggestTags: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useCreateTag: () => ({ mutateAsync: vi.fn(), isPending: false }), useUpdateTag: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDeleteTag: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}))
+vi.mock('@/hooks/use-habit-queries', () => ({ useHabits: () => ({ data: undefined }) }))
 
 const HEIGHT = 780
 let tree: GeometryTree | null = null

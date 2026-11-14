@@ -2,8 +2,10 @@
 
 import { useState, type ReactNode } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
+import type { FlowStepView } from '@orbit/shared/contracts/flow'
 import { backendFormFieldFocusRequest, resolveBackendFormFieldMessage } from '@orbit/shared/hooks'
-import { formatLocaleDate, summaryValueStep, toTime24, HABIT_TIME_OPTIONS, type HabitFormCommonProps } from '@orbit/shared/utils'
+import { buildHabitUnderstandingSentence, formatLocaleDate, phraseLineKey, summaryValueStep, toTime24, HABIT_TIME_OPTIONS, type HabitFormCommonProps } from '@orbit/shared/utils'
+import { MAX_HABIT_TITLE_LENGTH } from '@orbit/shared/validation'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 import { useTimeFormat } from '@/hooks/use-time-format'
@@ -17,16 +19,8 @@ import { QuestionRow } from '@/components/ui/question-row'
 import { TimeField } from '@/components/ui/time-field'
 import { HabitEmojiSelector } from '../habit-form-fields/habit-emoji-selector'
 import { HabitTypeField } from '../habit-form-fields/habit-type-field'
+import { PhraseField } from './phrase-field'
 import type { useGuidedHabitFlow } from './use-guided-habit-flow'
-
-/** What one step shows. Every step supplies the question and the Orbit line, then its quick options, its free path and its primary action. */
-export interface StepView {
-  question: string
-  line: string | null
-  options?: ReactNode
-  free?: ReactNode
-  primary?: { label: string; onPress: () => void; loading?: boolean; hint?: string }
-}
 
 export type GuidedFlow = ReturnType<typeof useGuidedHabitFlow>
 
@@ -61,29 +55,45 @@ interface ViewInput {
   formHelpers: HabitFormHelpers
 }
 
-export function usePhraseView({ flow, formHelpers }: Readonly<ViewInput>): StepView {
+/**
+ * What the device read in the phrase of a create, as the `{parts}` of the Orbit line, or null when it read nothing. An edit only renames, so it reads nothing.
+ * The form shows the same sentence on a line of its own, so a few open with a capital; after the colon of the Orbit line it opens in lower case.
+ */
+function usePhraseParts({ flow, formHelpers }: Readonly<ViewInput>): string | null {
+  const t = useTranslations()
+  const locale = useLocale()
+  const { form, daysList } = formHelpers
+  if (flow.mode !== 'create' || flow.localRead.consumed.length === 0) return null
+  const translate = (key: string, values?: Record<string, string | number | Date>) => t(key, values)
+  const parts = buildHabitUnderstandingSentence(form.watch('days') ?? [], daysList, form.watch('isFlexible') ?? false, form.watch('frequencyUnit'), form.watch('frequencyQuantity') ?? 1,
+    form.watch('dueTime') ?? '', locale, translate, form.watch('intervalWeeks') ?? 1, form.watch('monthDays') ?? [])
+  return parts ? `${parts.charAt(0).toLocaleLowerCase(locale)}${parts.slice(1)}` : null
+}
+
+export function usePhraseView({ flow, formHelpers }: Readonly<ViewInput>): FlowStepView {
   const t = useTranslations()
   const { form } = formHelpers
   const title = form.watch('title')
   const [hint, setHint] = useState<string | undefined>()
   const [focusRequest, setFocusRequest] = useState(0)
+  const parts = usePhraseParts({ flow, formHelpers })
   const serverError = resolveBackendFormFieldMessage(formHelpers.backendFieldErrors.title, form.formState.errors.title?.message, t)
   const submit = () => {
     if (title.trim().length === 0) { setHint(t('habits.flow.what.hint')); setFocusRequest((request) => request + 1); return }
     void flow.leavePhrase()
   }
-  const typedLine = title.trim().length === 0 ? t('habits.flow.what.lineEmpty') : t('habits.flow.what.lineTyped')
   return {
     question: t('habits.flow.what.question'),
-    line: flow.offline ? t('habits.flow.orbit.offline') : typedLine,
-    free: <Input autoFocus label={t('habits.flow.what.label')} hideLabel name="title" value={title} placeholder={t('habits.flow.what.placeholder')} error={hint ?? serverError}
+    line: flow.offline ? t('habits.flow.orbit.offline') : t(phraseLineKey(title, parts !== null), { parts: parts ?? '' }),
+    free: <PhraseField label={t('habits.flow.what.label')} value={title} placeholder={t('habits.flow.what.placeholder')} maxLength={MAX_HABIT_TITLE_LENGTH} hint={hint ?? serverError}
+      marks={flow.mode === 'create' ? flow.localRead.consumed : []} marksLabel={t('habits.form.understood')}
       focusRequest={focusRequest || backendFormFieldFocusRequest('title', formHelpers.backendFocusField, formHelpers.backendFocusRequest)}
-      onChange={(value) => { setHint(undefined); flow.changeTitle(value) }} onSubmit={submit} />,
+      onChange={(value) => { setHint(undefined); flow.changeTitle(value) }} />,
     primary: { label: t('habits.flow.continue'), onPress: submit },
   }
 }
 
-export function useWhenView({ flow, formHelpers }: Readonly<ViewInput>): StepView {
+export function useWhenView({ flow, formHelpers }: Readonly<ViewInput>): FlowStepView {
   const t = useTranslations()
   const [text, setText] = useState('')
   const [issue, setIssue] = useState<string | undefined>()
@@ -109,7 +119,7 @@ export function useWhenView({ flow, formHelpers }: Readonly<ViewInput>): StepVie
   }
 }
 
-export function useTimeView({ flow, formHelpers }: Readonly<ViewInput>): StepView {
+export function useTimeView({ flow, formHelpers }: Readonly<ViewInput>): FlowStepView {
   const t = useTranslations()
   const { displayTime } = useTimeFormat()
   const dueTime = formHelpers.form.watch('dueTime') ?? ''
@@ -124,7 +134,7 @@ export function useTimeView({ flow, formHelpers }: Readonly<ViewInput>): StepVie
   }
 }
 
-export function useReminderView({ flow, formHelpers }: Readonly<ViewInput>): StepView {
+export function useReminderView({ flow, formHelpers }: Readonly<ViewInput>): FlowStepView {
   const t = useTranslations()
   const { displayTime } = useTimeFormat()
   return {
@@ -137,7 +147,7 @@ export function useReminderView({ flow, formHelpers }: Readonly<ViewInput>): Ste
   }
 }
 
-export function useTypeView({ flow, formHelpers, lockedGeneral }: Readonly<ViewInput & { lockedGeneral: boolean | null }>): StepView {
+export function useTypeView({ flow, formHelpers, lockedGeneral }: Readonly<ViewInput & { lockedGeneral: boolean | null }>): FlowStepView {
   const t = useTranslations()
   return {
     question: t('habits.flow.type.question'),
@@ -183,7 +193,7 @@ function useSummaryValues(formHelpers: HabitFormHelpers) {
   }
 }
 
-export function useSummaryView({ flow, formHelpers, props }: Readonly<ViewInput & { props: GuidedHabitFlowProps }>): StepView {
+export function useSummaryView({ flow, formHelpers, props }: Readonly<ViewInput & { props: GuidedHabitFlowProps }>): FlowStepView {
   const t = useTranslations()
   const { form } = formHelpers
   const values = useSummaryValues(formHelpers)

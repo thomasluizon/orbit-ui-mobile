@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import type { FlowStepView } from '@orbit/shared/contracts/flow'
 import { QuestionFlow } from '@/components/ui/question-flow'
 import { useDetailViews } from './guided-detail-views'
 import {
@@ -9,7 +10,6 @@ import {
   useTypeView,
   useWhenView,
   type GuidedHabitFlowProps,
-  type StepView,
 } from './guided-step-views'
 import { useGuidedHabitFlow } from './use-guided-habit-flow'
 
@@ -21,7 +21,7 @@ export function GuidedHabitFlow(props: Readonly<GuidedHabitFlowProps>) {
   const { t } = useTranslation()
   const flow = useGuidedHabitFlow({ formHelpers, lockedGeneral: props.lockedGeneral, mode, onReminderEnabledChange: fields.onReminderEnabledChange, onSlipAlertEnabledChange: fields.onSlipAlertEnabledChange })
   const input = { flow, formHelpers }
-  const views: Partial<Record<string, StepView>> = {
+  const views: Partial<Record<string, FlowStepView>> = {
     what: usePhraseView(input),
     when: useWhenView(input),
     time: useTimeView(input),
@@ -33,22 +33,24 @@ export function GuidedHabitFlow(props: Readonly<GuidedHabitFlowProps>) {
   const step = flow.current.step
   const view = views[step] ?? views.summary!
   const firstStep = mode === 'create' ? 'what' : 'summary'
+  const hostBack = step === firstStep ? undefined : () => { flow.back() }
   return (
     <QuestionFlow
       flow={mode === 'create' ? 'habit_create' : 'habit_edit'}
-      stepKey={step}
+      stepKey={view.stepKey ?? step}
       direction={flow.current.direction}
       question={view.question}
       line={view.line}
+      lineKey={view.lineKey}
       position={flow.position.position}
       total={flow.position.total}
       progressLabel={t('habits.flow.progress', { position: flow.position.position, total: flow.position.total })}
       backLabel={t('habits.flow.back')}
       closeLabel={t('habits.flow.close')}
-      onBack={step === firstStep ? undefined : () => { flow.back() }}
+      onBack={view.onBack ?? hostBack}
       onClose={props.onClose}
-      orbitState={flow.reading ? 'pensando' : 'parado'}
-      statusText={flow.reading ? t('habits.flow.what.reading') : undefined}
+      orbitState={view.orbitState ?? (flow.reading ? 'pensando' : 'parado')}
+      statusText={view.statusText ?? (flow.reading ? t('habits.flow.what.reading') : undefined)}
       options={view.options}
       primary={view.primary}
     >

@@ -32,9 +32,25 @@ vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: state.onl
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn(), showSuccess: vi.fn(), showInfo: vi.fn() }) }))
 vi.mock('@/hooks/use-reminder-permission', () => ({ useReminderPermission: (_enabled: boolean, onToggle: () => void) => ({ toggleReminder: onToggle, showNotice: true }) }))
 vi.mock('@/lib/posthog', () => ({ captureGuidedFlowEvent: vi.fn(), captureGuidedFlowCompleted: vi.fn() }))
-vi.mock('@/components/habits/checklist-templates', () => ({ ChecklistTemplates: ({ onLoad }: { onLoad: (items: { text: string; isChecked: boolean }[]) => void }) => <button type="button" onClick={() => onLoad([{ text: 'Separar roupa', isChecked: false }])}>use-template</button> }))
-vi.mock('@/components/habits/goal-linking-field', () => ({ GoalLinkingField: ({ onToggleGoal }: { onToggleGoal: (id: string) => void }) => <button type="button" onClick={() => onToggleGoal('goal-1')}>link-goal</button> }))
-vi.mock('@/components/habits/habit-form-fields/habit-tags-field', () => ({ HabitTagsField: ({ tags }: { tags: { toggleTag: (id: string) => void } }) => <button type="button" onClick={() => tags.toggleTag('tag-1')}>pick-tag</button> }))
+vi.mock('@/hooks/use-checklist-templates', () => ({
+  useChecklistTemplates: () => ({ data: [{ id: 'template-1', name: 'Manhã', items: ['Separar roupa'] }], isLoading: false, isError: false, refetch: vi.fn() }),
+  useCreateChecklistTemplate: () => ({ mutate: vi.fn(), isPending: false }),
+  useDeleteChecklistTemplate: () => ({ mutate: vi.fn() }),
+}))
+vi.mock('@/components/habits/goal-linking-field', async () => {
+  const { createMockGoal } = await import('@orbit/shared/__tests__/factories')
+  return { useLinkableGoals: () => ({ data: [createMockGoal({ id: 'goal-1', title: 'Correr 5 km', progressPercentage: 40 })], isSuccess: true, isLoading: false, isError: false, refetch: vi.fn() }) }
+})
+vi.mock('@/components/goals/create-goal-sheet', () => ({ CreateGoalSheet: () => null }))
+vi.mock('@/hooks/use-tags', () => ({
+  useTags: () => ({ tags: [{ id: 'tag-1', name: 'Saúde', color: '#7c3aed' }] }),
+  useCreateTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
+  useUpdateTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
+  useDeleteTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
+  useSuggestTags: () => ({ isPending: false, mutateAsync: vi.fn() }),
+}))
+vi.mock('@/hooks/use-habit-queries', () => ({ useHabits: () => ({ data: undefined }) }))
+vi.mock('@/hooks/use-astra-allowance-copy', () => ({ useAstraAllowanceCopy: () => (key: string) => key }))
 
 const submit = vi.fn()
 const close = vi.fn()
@@ -322,23 +338,29 @@ describe.each(['pt-BR', 'en'] as const)('the detail questions in %s', (locale) =
     expect(heading()).toHaveTextContent(messages().more)
   })
 
-  it('scenario 17: loads a checklist template inside the steps question', async () => {
+  it('scenario 17: loads a checklist template through the template question of the checklist step', async () => {
     await toSummary()
     await openOptional(messages().optional.checklist)
-    await press('use-template')
+    await press(messages().checklist.useTemplate)
+    expect(heading()).toHaveTextContent(messages().templates.question)
+    await press(/^Manhã/)
     expect(helpers().form.getValues('checklistItems')).toEqual([{ text: 'Separar roupa', isChecked: false }])
+    expect(heading()).toHaveTextContent(messages().optional.checklist)
   })
 
-  it('scenario 17: hosts the sub-item editor, the tag picker and the goal link', async () => {
+  it('scenario 17: hosts the sub-item editor, then mounts the tag step and the goal step', async () => {
     await toSummary()
     await openOptional(messages().optional.subHabits)
     expect(screen.getByText('sub-habit-editor')).toBeInTheDocument()
     await press(messages().continue)
     await press(new RegExp(messages().optional.tags.replace('?', '\\?')))
-    await press('pick-tag')
+    expect(heading()).toHaveTextContent(messages().optional.tags)
+    await press('Saúde')
+    expect(screen.getByRole('button', { name: 'Saúde' })).toHaveAttribute('aria-pressed', 'true')
     await press(messages().continue)
     await press(new RegExp(messages().optional.goals.replace('?', '\\?')))
-    await press('link-goal')
+    expect(heading()).toHaveTextContent(messages().optional.goals)
+    await press('Correr 5 km, 40%')
     expect(state.goalToggle).toHaveBeenCalledWith('goal-1')
   })
 

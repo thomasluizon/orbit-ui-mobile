@@ -2,6 +2,7 @@
 
 import { useCallback } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
+import type { FlowStepView } from '@orbit/shared/contracts/flow'
 import { backendFormFieldFocusRequest } from '@orbit/shared/hooks'
 import {
   buildHabitUnderstandingLabels,
@@ -13,7 +14,7 @@ import {
   type HabitFlowOptionalId,
   type HabitFlowStepKey,
 } from '@orbit/shared/utils'
-import { hasHabitMonthDaySchedule, validateEndTime } from '@orbit/shared/validation'
+import { hasHabitMonthDaySchedule, MAX_HABIT_DESCRIPTION_LENGTH, validateEndTime } from '@orbit/shared/validation'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useHasProAccess } from '@/hooks/use-profile'
@@ -24,16 +25,15 @@ import { OptionCard } from '@/components/ui/option-card'
 import { PillButton } from '@/components/ui/pill-button'
 import { QuestionRow } from '@/components/ui/question-row'
 import { TimeField } from '@/components/ui/time-field'
-import { ChecklistTemplates } from '../checklist-templates'
-import { GoalLinkingField } from '../goal-linking-field'
-import { HabitChecklist } from '../habit-checklist'
+import { useChecklistStepView } from '../flow-steps/checklist-step'
+import { useGoalLinkStepView } from '../flow-steps/goal-link-step'
+import { useTagStepView } from '../flow-steps/tag-step'
 import { HabitMonthDaysField } from '../habit-form-fields/habit-month-days-field'
 import { HabitScheduleFields } from '../habit-form-fields/habit-schedule-fields'
-import { HabitTagsField } from '../habit-form-fields/habit-tags-field'
 import { HabitReminderEditors } from '../habit-form-fields/habit-timing-field'
 import { HabitRepeatInterval, ScheduleCorrections } from '../habit-form-fields/habit-understanding'
 import { SlipAlertSection } from '../habit-form-fields/slip-alert-section'
-import type { GuidedFlow, GuidedHabitFields, StepView } from './guided-step-views'
+import type { GuidedFlow, GuidedHabitFields } from './guided-step-views'
 
 interface DetailInput {
   flow: GuidedFlow
@@ -71,7 +71,7 @@ function RepeatFree({ flow, formHelpers, fields }: Readonly<DetailInput>) {
   </>
 }
 
-function useRepeatView(input: DetailInput): StepView {
+function useRepeatView(input: DetailInput): FlowStepView {
   const t = useTranslations()
   const flexible = input.formHelpers.form.watch('isFlexible') ?? false
   return {
@@ -86,7 +86,7 @@ function useRepeatView(input: DetailInput): StepView {
   }
 }
 
-function useDurationView({ flow, formHelpers }: Readonly<DetailInput>): StepView {
+function useDurationView({ flow, formHelpers }: Readonly<DetailInput>): FlowStepView {
   const t = useTranslations()
   const { form } = formHelpers
   const dueTime = form.watch('dueTime') ?? ''
@@ -102,7 +102,7 @@ function useDurationView({ flow, formHelpers }: Readonly<DetailInput>): StepView
   }
 }
 
-function useReminderKindView({ flow, formHelpers, fields }: Readonly<DetailInput>): StepView {
+function useReminderKindView({ flow, formHelpers, fields }: Readonly<DetailInput>): FlowStepView {
   const t = useTranslations()
   const { showError } = useAppToast()
   return {
@@ -129,7 +129,7 @@ function useOptionalValues({ formHelpers, fields }: Readonly<Omit<DetailInput, '
   }
 }
 
-function useMoreView({ flow, formHelpers, fields }: Readonly<DetailInput>): StepView {
+function useMoreView({ flow, formHelpers, fields }: Readonly<DetailInput>): FlowStepView {
   const t = useTranslations()
   const values = useOptionalValues({ formHelpers, fields })
   const rows = habitFlowOptionalQuestions({
@@ -146,7 +146,7 @@ function useMoreView({ flow, formHelpers, fields }: Readonly<DetailInput>): Step
   }
 }
 
-function useAvoidView({ flow, formHelpers }: Readonly<DetailInput>): StepView {
+function useAvoidView({ flow, formHelpers }: Readonly<DetailInput>): FlowStepView {
   const t = useTranslations()
   const { form } = formHelpers
   const avoid = form.watch('isBadHabit') ?? false
@@ -160,7 +160,7 @@ function useAvoidView({ flow, formHelpers }: Readonly<DetailInput>): StepView {
   }
 }
 
-function useSlipAlertView({ flow, formHelpers }: Readonly<DetailInput>): StepView {
+function useSlipAlertView({ flow, formHelpers }: Readonly<DetailInput>): FlowStepView {
   const t = useTranslations()
   const hasProAccess = useHasProAccess()
   const enabled = formHelpers.form.watch('slipAlertEnabled') ?? false
@@ -172,7 +172,7 @@ function useSlipAlertView({ flow, formHelpers }: Readonly<DetailInput>): StepVie
   }
 }
 
-function useEndDateView({ flow, formHelpers }: Readonly<DetailInput>): StepView {
+function useEndDateView({ flow, formHelpers }: Readonly<DetailInput>): FlowStepView {
   const t = useTranslations()
   const { form } = formHelpers
   const endDate = form.watch('endDate') ?? ''
@@ -190,29 +190,36 @@ function useEndDateView({ flow, formHelpers }: Readonly<DetailInput>): StepView 
 }
 
 /** The hosted questions: each one keeps the current component of its field, unchanged, inside its own step. */
-function useHostedViews({ flow, formHelpers, fields }: Readonly<DetailInput>): Partial<Record<HabitFlowStepKey, StepView>> {
+function useHostedViews({ flow, formHelpers, fields }: Readonly<DetailInput>): Partial<Record<HabitFlowStepKey, FlowStepView>> {
   const t = useTranslations()
   const { form } = formHelpers
   const primary = useContinue(flow)
-  const checklistItems = form.watch('checklistItems') ?? []
-  const view = (id: HabitFlowOptionalId, free: React.ReactNode): StepView => ({ question: t(`habits.flow.optional.${id}`), line: null, free, primary })
+  const view = (id: HabitFlowOptionalId, free: React.ReactNode): FlowStepView => ({ question: t(`habits.flow.optional.${id}`), line: null, free, primary })
   return {
     'optional:description': view('description', <Input label={t('habits.flow.optional.description')} hideLabel error={formHelpers.backendFieldErrors.description}
       focusRequest={backendFormFieldFocusRequest('description', formHelpers.backendFocusField, formHelpers.backendFocusRequest)}
-      value={form.watch('description') ?? ''} onChange={(value) => form.setValue('description', value, { shouldDirty: true })} multiline rows={3} maxLength={10000} />),
-    'optional:checklist': view('checklist', <>
-      <HabitChecklist pendingItemText={fields.pendingChecklistItem} onPendingItemChange={fields.onPendingChecklistItemChange} items={checklistItems} editable onItemsChange={flow.controller.setChecklistItems} />
-      <ChecklistTemplates items={checklistItems} onLoad={flow.controller.setChecklistItems} />
-    </>),
+      value={form.watch('description') ?? ''} onChange={(value) => form.setValue('description', value, { shouldDirty: true })} multiline rows={3} maxLength={MAX_HABIT_DESCRIPTION_LENGTH} />),
     'optional:subHabits': view('subHabits', typeof fields.children === 'function' ? fields.children(0) : fields.children),
-    'optional:tags': view('tags', <HabitTagsField tags={fields.tags} title={form.watch('title')} description={form.watch('description') ?? ''} />),
-    'optional:goals': view('goals', <GoalLinkingField habitId={fields.habitId} onGoalCreated={fields.onGoalCreated ?? fields.onToggleGoal} selectedGoalIds={fields.selectedGoalIds} atGoalLimit={fields.atGoalLimit} onToggleGoal={fields.onToggleGoal} />),
     'optional:parent': view('parent', fields.parentField),
   }
 }
 
+/** The checklist, tag and goal questions: each step owns its quick options, its free path and its continue. The host mounts them on every render. */
+function useRelationViews({ flow, formHelpers, fields }: Readonly<DetailInput>): Partial<Record<HabitFlowStepKey, FlowStepView>> {
+  const { form } = formHelpers
+  const title = form.watch('title')
+  const next = () => flow.advance()
+  return {
+    'optional:checklist': useChecklistStepView({ items: form.watch('checklistItems') ?? [], onItemsChange: flow.controller.setChecklistItems,
+      pendingItemText: fields.pendingChecklistItem, onPendingItemChange: fields.onPendingChecklistItemChange, onContinue: next }),
+    'optional:tags': useTagStepView({ tags: fields.tags, title, description: form.watch('description') ?? '', onContinue: next }),
+    'optional:goals': useGoalLinkStepView({ habitId: fields.habitId, habitTitle: title, selectedGoalIds: fields.selectedGoalIds, atGoalLimit: fields.atGoalLimit,
+      onToggleGoal: fields.onToggleGoal, onGoalCreated: fields.onGoalCreated, onContinue: next }),
+  }
+}
+
 /** Every step the summary or the optional list opens. Each one asks one question and returns to where it came from. */
-export function useDetailViews(input: DetailInput): Partial<Record<HabitFlowStepKey, StepView>> {
+export function useDetailViews(input: DetailInput): Partial<Record<HabitFlowStepKey, FlowStepView>> {
   return {
     repeat: useRepeatView(input),
     duration: useDurationView(input),
@@ -222,5 +229,6 @@ export function useDetailViews(input: DetailInput): Partial<Record<HabitFlowStep
     slipAlert: useSlipAlertView(input),
     'optional:endDate': useEndDateView(input),
     ...useHostedViews(input),
+    ...useRelationViews(input),
   }
 }
