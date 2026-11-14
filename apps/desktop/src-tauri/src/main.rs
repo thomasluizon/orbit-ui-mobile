@@ -193,6 +193,7 @@ fn construct_window(
     launch::install(&window, window_config)?;
     #[cfg(windows)]
     window_bar::install_snap_region(&window)?;
+    window_bar::window_created(&window);
     drop(window);
     Ok(())
 }

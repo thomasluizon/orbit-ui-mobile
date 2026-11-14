@@ -186,6 +186,7 @@ it('gives the native frame back to a document without the bar, and answers in th
   const entrypoint = read('../src-tauri/src/main.rs')
   expect(entrypoint).toContain('app.manage(window_bar::FrameState::default());')
   expect(entrypoint).toMatch(/\.on_page_load\(\|window, payload\| \{[^}]*window_bar::page_loading\(&window, payload\.event\(\)\);/)
+  expect(entrypoint).toMatch(/\.build\(\)\?;[\s\S]*window_bar::window_created\(&window\);\s*drop\(window\);/)
   const caption = read('../src-tauri/native/windows/caption.cpp')
   expect(caption).toContain('CreateWindowExW(WS_EX_LAYERED, definition.lpszClassName, L"", WS_CHILD | WS_CLIPSIBLINGS,')
   expect(caption).toContain('extern "C" void orbit_caption_set_active(void *parent, bool active)')

@@ -35,9 +35,9 @@ export async function invokeDesktopWindow(action: DesktopWindowAction): Promise<
 let mountedBars = 0
 
 /**
- * Tells the shell when the first bar mounts and when the last one unmounts. The Windows shell keeps the window without its
- * native frame only while a bar is drawn (`apps/desktop/src-tauri/src/window_bar.rs`), so a second bar drawn over the
- * first changes nothing.
+ * Tells the shell when the first bar mounts and when the last one unmounts. The shell keeps the window without its native
+ * frame on Windows, and with the overlay title bar on macOS, only while a bar is drawn
+ * (`apps/desktop/src-tauri/src/window_bar.rs`), so a second bar drawn over the first changes nothing.
  */
 export function holdDesktopWindowBar(onError: (error: unknown) => void): () => void {
   mountedBars += 1

@@ -60,6 +60,9 @@ pub fn configure_frame(config: &mut WindowConfig, platform: Platform) {
             // tao `inset_traffic_lights` (view.rs) sets the button row height to the button height plus `y`, so 17 centres the 14px buttons in the 48px bar.
             config.traffic_light_position =
                 Some(tauri::utils::config::LogicalPosition { x: 16.0, y: 17.0 });
+            // wry `acceptsFirstMouse:` (wkwebview/class/wry_web_view.rs) returns this. So the first press on an inactive
+            // window reaches the drag area of the bar and drags the window, as the native title bar does.
+            config.accept_first_mouse = true;
         }
         Platform::Other => {}
     }
@@ -78,11 +81,13 @@ pub fn initialization_script(origin: &tauri::Url, platform: Platform) -> String 
     )
 }
 
-// The Windows window has no native frame only while the page draws the bar over it. A document that never draws one (the
-// WebView2 error page of a failed or offline load, a web build that predates the bar) gets the native frame back after the
-// same 15 seconds that the launch cover gives a page to paint (native/windows/launch.cpp `SetTimer`, src/launch.js). wry
-// reports a failed main-frame load as `Finished` too (wry webview2 `add_NavigationCompleted` drops `IsSuccess`), so the
-// deadline covers it.
+// The window keeps its own frame (no native frame on Windows, the overlay title bar on macOS) only while the page draws the
+// bar over it. A document that never draws one (the error page of a failed or offline load, a web build that predates the
+// bar) gets the native frame back after the same 15 seconds that the launch cover gives a page to paint
+// (native/windows/launch.cpp `SetTimer`, native/macos/launch.m `deadline`, src/launch.js). On Windows wry reports a failed
+// main-frame load as `Finished` too (wry webview2 `add_NavigationCompleted` drops `IsSuccess`), so the deadline of that load
+// covers it. On macOS wry reports no event for a load that fails before it commits (the wkwebview `WryNavigationDelegate`
+// has no `didFailProvisionalNavigation:`), so there the deadline also starts with the window.
 const BAR_DEADLINE: std::time::Duration = std::time::Duration::from_millis(15000);
 
 #[derive(Default)]
@@ -139,8 +144,17 @@ impl Frame {
     }
 }
 
+// An offline macOS launch commits no document, so no load reports `Finished` (see `BAR_DEADLINE`). Load 0 is the window
+// before its first document commits, and its deadline starts here.
+pub fn window_created(window: &WebviewWindow) {
+    if Platform::current() == Platform::MacOs {
+        start_deadline(window, 0);
+    }
+}
+
+// The frame follows the bar only on a platform whose page draws one.
 pub fn page_loading(window: &WebviewWindow, event: tauri::webview::PageLoadEvent) {
-    if Platform::current() != Platform::Windows {
+    if Platform::current().name().is_none() {
         return;
     }
     let state = window.state::<FrameState>();
@@ -153,24 +167,28 @@ pub fn page_loading(window: &WebviewWindow, event: tauri::webview::PageLoadEvent
         }
         tauri::webview::PageLoadEvent::Finished => {
             let load = state.0.recover_lock().load;
-            let window = window.clone();
-            std::thread::spawn(move || {
-                std::thread::sleep(BAR_DEADLINE);
-                let change = window
-                    .state::<FrameState>()
-                    .0
-                    .recover_lock()
-                    .deadline_passed(load);
-                if let Err(error) = change_frame(&window, change) {
-                    eprintln!("Cannot restore the native window frame: {error}");
-                }
-            });
+            start_deadline(window, load);
         }
     }
 }
 
+fn start_deadline(window: &WebviewWindow, load: u64) {
+    let window = window.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(BAR_DEADLINE);
+        let change = window
+            .state::<FrameState>()
+            .0
+            .recover_lock()
+            .deadline_passed(load);
+        if let Err(error) = change_frame(&window, change) {
+            eprintln!("Cannot restore the native window frame: {error}");
+        }
+    });
+}
+
 fn report_bar(window: &WebviewWindow, drawn: bool) -> tauri::Result<()> {
-    if Platform::current() != Platform::Windows {
+    if Platform::current().name().is_none() {
         return Ok(());
     }
     let change = window
@@ -182,19 +200,8 @@ fn report_bar(window: &WebviewWindow, drawn: bool) -> tauri::Result<()> {
 }
 
 fn change_frame(window: &WebviewWindow, change: FrameChange) -> tauri::Result<()> {
-    // Each shadow change happens while the frame is native: tauri-runtime-wry attaches its undecorated resize handler with the
-    // shadow the window has when decorations turn off (`WindowMessage::SetDecorations`), and `shadow: true` draws a border on
-    // an undecorated window.
-    match change.native {
-        Some(true) => {
-            window.set_decorations(true)?;
-            window.set_shadow(true)?;
-        }
-        Some(false) => {
-            window.set_shadow(false)?;
-            window.set_decorations(false)?;
-        }
-        None => {}
+    if let Some(native) = change.native {
+        show_native_frame(window, Platform::current(), native)?;
     }
     #[cfg(windows)]
     if let Some(active) = change.snap_region {
@@ -205,6 +212,34 @@ fn change_frame(window: &WebviewWindow, change: FrameChange) -> tauri::Result<()
     #[cfg(not(windows))]
     let _ = change.snap_region;
     Ok(())
+}
+
+fn show_native_frame(
+    window: &impl BarWindow,
+    platform: Platform,
+    native: bool,
+) -> tauri::Result<()> {
+    match platform {
+        // Each shadow change happens while the frame is native: tauri-runtime-wry attaches its undecorated resize handler with
+        // the shadow the window has when decorations turn off (`WindowMessage::SetDecorations`), and `shadow: true` draws a
+        // border on an undecorated window.
+        Platform::Windows if native => {
+            window.set_decorations(true)?;
+            window.set_shadow(true)
+        }
+        Platform::Windows => {
+            window.set_shadow(false)?;
+            window.set_decorations(false)
+        }
+        // tauri-runtime-wry `WindowMessage::SetTitleBarStyle` runs on the main thread. `Visible` makes the title bar opaque
+        // again, with the same style mask as a window created with it, so the native title bar drags the window.
+        Platform::MacOs => window.set_title_bar_style(if native {
+            tauri::utils::TitleBarStyle::Visible
+        } else {
+            tauri::utils::TitleBarStyle::Overlay
+        }),
+        Platform::Other => Ok(()),
+    }
 }
 
 #[tauri::command]
@@ -236,6 +271,9 @@ trait BarWindow {
     fn start_dragging(&self) -> tauri::Result<()>;
     fn close(&self) -> tauri::Result<()>;
     fn popup_menu(&self) -> tauri::Result<()>;
+    fn set_decorations(&self, decorations: bool) -> tauri::Result<()>;
+    fn set_shadow(&self, shadow: bool) -> tauri::Result<()>;
+    fn set_title_bar_style(&self, style: tauri::utils::TitleBarStyle) -> tauri::Result<()>;
 }
 
 impl BarWindow for WebviewWindow {
@@ -268,6 +306,15 @@ impl BarWindow for WebviewWindow {
             &menu,
             tauri::LogicalPosition::new(BAR_END_INSET, BAR_HEIGHT),
         )
+    }
+    fn set_decorations(&self, decorations: bool) -> tauri::Result<()> {
+        WebviewWindow::set_decorations(self, decorations)
+    }
+    fn set_shadow(&self, shadow: bool) -> tauri::Result<()> {
+        WebviewWindow::set_shadow(self, shadow)
+    }
+    fn set_title_bar_style(&self, style: tauri::utils::TitleBarStyle) -> tauri::Result<()> {
+        WebviewWindow::set_title_bar_style(self, style)
     }
 }
 
@@ -349,17 +396,20 @@ mod tests {
         assert!(!config.decorations);
         assert!(!config.shadow);
         assert!(config.resizable);
+        assert!(!config.accept_first_mouse);
     }
 
     #[test]
-    fn macos_hides_the_title_strip_and_keeps_the_traffic_lights() {
+    fn macos_hides_the_title_strip_keeps_the_traffic_lights_and_drags_an_inactive_window() {
         let mut config = crate::context().config().app.windows[0].clone();
+        assert!(!config.accept_first_mouse);
         configure_frame(&mut config, Platform::MacOs);
         assert!(config.decorations);
         assert_eq!(config.title_bar_style, tauri::utils::TitleBarStyle::Overlay);
         assert!(config.hidden_title);
         let position = config.traffic_light_position.unwrap();
         assert_eq!((position.x, position.y), (16.0, 17.0));
+        assert!(config.accept_first_mouse);
     }
 
     #[test]
@@ -380,6 +430,7 @@ mod tests {
             |config| {
                 assert_eq!(config.decorations, !cfg!(windows));
                 assert_eq!(config.hidden_title, cfg!(target_os = "macos"));
+                assert_eq!(config.accept_first_mouse, cfg!(target_os = "macos"));
                 Ok(())
             },
             || Ok(()),
@@ -426,7 +477,7 @@ mod tests {
 
     struct Recorder {
         maximized: Cell<bool>,
-        calls: RefCell<Vec<&'static str>>,
+        calls: RefCell<Vec<String>>,
     }
 
     impl Recorder {
@@ -436,8 +487,8 @@ mod tests {
                 calls: RefCell::new(Vec::new()),
             }
         }
-        fn record(&self, call: &'static str) -> tauri::Result<()> {
-            self.calls.borrow_mut().push(call);
+        fn record(&self, call: impl Into<String>) -> tauri::Result<()> {
+            self.calls.borrow_mut().push(call.into());
             Ok(())
         }
     }
@@ -465,6 +516,15 @@ mod tests {
         }
         fn popup_menu(&self) -> tauri::Result<()> {
             self.record("popup_menu")
+        }
+        fn set_decorations(&self, decorations: bool) -> tauri::Result<()> {
+            self.record(format!("set_decorations({decorations})"))
+        }
+        fn set_shadow(&self, shadow: bool) -> tauri::Result<()> {
+            self.record(format!("set_shadow({shadow})"))
+        }
+        fn set_title_bar_style(&self, style: tauri::utils::TitleBarStyle) -> tauri::Result<()> {
+            self.record(format!("set_title_bar_style({style:?})"))
         }
     }
 
@@ -494,6 +554,49 @@ mod tests {
             native,
             snap_region,
         }
+    }
+
+    #[test]
+    fn each_platform_shows_and_removes_its_native_frame_with_its_own_window_calls() {
+        for (platform, native, calls) in [
+            (
+                Platform::Windows,
+                true,
+                &["set_decorations(true)", "set_shadow(true)"][..],
+            ),
+            (
+                Platform::Windows,
+                false,
+                &["set_shadow(false)", "set_decorations(false)"][..],
+            ),
+            (Platform::MacOs, true, &["set_title_bar_style(Visible)"][..]),
+            (
+                Platform::MacOs,
+                false,
+                &["set_title_bar_style(Overlay)"][..],
+            ),
+            (Platform::Other, true, &[][..]),
+            (Platform::Other, false, &[][..]),
+        ] {
+            let window = Recorder::new(false);
+            show_native_frame(&window, platform, native).unwrap();
+            assert_eq!(window.calls.borrow().as_slice(), calls);
+        }
+    }
+
+    #[test]
+    fn a_first_document_that_never_commits_gets_the_native_frame_after_the_deadline() {
+        let mut frame = Frame::default();
+        assert_eq!(frame.deadline_passed(0), change(Some(true), None));
+        assert_eq!(frame.bar_reported(true), change(Some(false), Some(true)));
+    }
+
+    #[test]
+    fn a_first_document_that_commits_cancels_the_deadline_of_the_window() {
+        let mut frame = Frame::default();
+        frame.load_started();
+        assert_eq!(frame.deadline_passed(0), change(None, None));
+        assert!(!frame.native);
     }
 
     #[test]
@@ -556,6 +659,10 @@ mod tests {
         assert!(include_str!("launch.js").contains(&format!(
             "setTimeout(() => observer.disconnect(), {})",
             BAR_DEADLINE.as_millis()
+        )));
+        assert!(include_str!("../native/macos/launch.m").contains(&format!(
+            "timerWithTimeInterval:{} repeats:NO",
+            BAR_DEADLINE.as_secs()
         )));
     }
 }
