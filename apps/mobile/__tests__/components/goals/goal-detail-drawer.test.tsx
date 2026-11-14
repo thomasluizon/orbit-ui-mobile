@@ -130,6 +130,8 @@ vi.mock('@/components/ui/confirm-dialog', () => ({
       : null,
 }))
 
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => false }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile({ timeZone: 'UTC' }) }) }))
 vi.mock('@/components/goals/edit-goal-modal', () => ({
   EditGoalModal: () => null,
 }))

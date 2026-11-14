@@ -38,7 +38,7 @@ vi.mock('react-native-draggable-flatlist', () => ({
 }))
 vi.mock('@/hooks/use-goals', () => ({ useCreateGoal: vi.fn(), useGoals: () => mocks.goals, useReorderGoals: () => mocks.reorder }))
 vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: (props: { goalId: string }) => React.createElement('GoalDetail', props) }))
-vi.mock('@/components/goals/create-goal-sheet', () => ({ CreateGoalSheet: () => React.createElement('CreateGoal') }))
+vi.mock('@/components/goals/create-goal-sheet', () => ({ CreateGoalSheet: (props: { onOpenGoal?: (goalId: string) => void; onClose: () => void }) => React.createElement('CreateGoal', props) }))
 
 
 const read = createMockGoal({ id: 'read', title: 'Read 12 books', currentValue: 6, targetValue: 12, unit: 'books', progressPercentage: 50 })
@@ -89,6 +89,15 @@ describe('goals list on the Orbit logic', () => {
     expect(ringValue('read')).toBe(50)
     expect(ring('read').props['data-ring-sweep']).toBe('rest')
     expect(JSON.parse(mocks.storage.get(seenKey())!)).toEqual({ read: 50, run: 25 })
+  })
+
+  it('opens the created goal from the filled action of the result dialog', async () => {
+    await renderGoals()
+    await act(() => { tree.root.findAll((node) => node.props.accessibilityLabel === 'goals.create' && typeof node.props.onPress === 'function')[0]!.props.onPress() })
+    const sheet = tree.root.findAll((node) => node.type === 'CreateGoal')[0]!
+    await act(() => { sheet.props.onClose(); sheet.props.onOpenGoal?.('read') })
+    expect(tree.root.findAll((node) => node.type === 'CreateGoal')).toHaveLength(0)
+    expect(tree.root.findAll((node) => node.type === 'GoalDetail')[0]!.props.goalId).toBe('read')
   })
 
   it('does not sweep on a first visit', async () => {

@@ -88,7 +88,7 @@ export function ProgressGoalsContent() {
   }, [focus.openingGoalIdRef])
   return (
     <ProgressSubscreen screen="goals" hideHeader={detailGoalId !== null}>
-      {creating ? <CreateGoalSheet open onCreated={(goalId) => { setGoalFilter('all'); setCreatedGoalId(goalId) }} onClose={() => setCreating(false)} /> : null}
+      {creating ? <CreateGoalSheet open onCreated={(goalId) => { setGoalFilter('all'); setCreatedGoalId(goalId) }} onOpenGoal={(goalId) => { setCreatedGoalId(null); openGoal(goalId) }} onClose={() => setCreating(false)} /> : null}
       {detailGoalId ? <ScrollView style={[styles.root, { backgroundColor: tokens.bg }]} contentContainerStyle={[styles.sections, { paddingBottom: clearance }]}><GoalDetailDrawer key={detailGoalId} inline open onClose={() => setDetailGoalId(null)} goalId={detailGoalId} /></ScrollView> : null}
     <NestableScrollContainer ref={scrollRef} testID="progress-goals-scroller" style={[styles.root, { backgroundColor: tokens.bg }, detailGoalId ? { display: 'none' } : undefined]} contentContainerStyle={[styles.content, styles.fill, { paddingBottom: clearance }]} showsVerticalScrollIndicator={false}>
       <View testID="progress-sections" style={[styles.sections, styles.fill]}>
