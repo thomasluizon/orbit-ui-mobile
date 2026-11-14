@@ -1,7 +1,10 @@
+import { spawn } from "node:child_process"
 import { existsSync, readFileSync, rmSync } from "node:fs"
+import { join } from "node:path"
 
 import { readObservedIdentifiers } from "../lib/identifier-ledger.mjs"
-import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
+import { gitDirectoryOf } from "../lib/run-state.mjs"
+import { REPO_ROOT, processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
 
 const TOOL = "list-bot-threads.mjs"
 const BOT = "pullfrog"
@@ -91,7 +94,7 @@ const parsed = (result) => {
 
 const readPr = (stdout, exit = 0, argv = [], activities) => run(TOOL, ["--pr", "https://github.com/thomasluizon/orbit-ui-mobile/pull/681", "--wait-seconds", "0", ...argv], { path: testedToolPath, env: ghPlan(stdout, exit, activities) })
 
-export const cases = () => {
+export const cases = async () => {
   check(TOOL, "refuses a missing pull request", ["--wait-seconds", "0"], { status: 2, stderr: /--pr must be a pull request number or full GitHub/ })
   check(TOOL, "refuses a non-numeric pull request number", ["--pr", "abc"], { status: 2, stderr: /--pr must be a pull request number or full GitHub/ })
   check(TOOL, "a bare pull request number requires an explicit repository", ["--pr", "681"], { status: 2, stderr: /bare pull request number requires --repo/ })
@@ -374,21 +377,28 @@ export const cases = () => {
     rmSync(path)
     return path
   }
-  const requestRun = (name, graphql, { waitSeconds = "3", argv = [], activities = { stdout: JSON.stringify(activity()) } } = {}) => {
+  const requestEnv = (name, graphql, activities, comment = {}) => {
     const requestArgv = argvFile(`request-argv-${name}`)
     const protectionArgv = argvFile(`protection-argv-${name}`)
-    const result = run(TOOL, ["--pr", "681", "--repo", "ui", "--wait-seconds", waitSeconds, "--poll-seconds", "1", ...argv], { path: testedToolPath, env: {
+    return { requestArgv, protectionArgv, env: {
       ...orcaEnv([
         { match: "auth token --user thomasluizon", stdout: "test-github-token" },
         { match: "/activity?", ...activities },
         // Answers a branch protection read only to record it; no request case may make one.
         { match: "/protection/", stdout: "{}", argvFile: protectionArgv },
-        { match: "pr comment", stdout: REQUEST_URL, argvFile: requestArgv },
+        { match: "pr comment", stdout: REQUEST_URL, argvFile: requestArgv, ...comment },
         { match: "api graphql", ...graphql },
       ]),
       CLAUDE_CODE_SESSION_ID: RUN_IDENTIFIER,
       CODEX_THREAD_ID: "",
-    } })
+    } }
+  }
+  /** The tool keeps each posted request in the git directory of the repository, so each case starts without one. */
+  const requestLedger = join(gitDirectoryOf(uiContext.path), "orbit-review-requests.json")
+  const requestRun = (name, graphql, { waitSeconds = "3", argv = [], activities = { stdout: JSON.stringify(activity()) }, keepLedger = false } = {}) => {
+    if (!keepLedger) rmSync(requestLedger, { force: true })
+    const { requestArgv, protectionArgv, env } = requestEnv(name, graphql, activities)
+    const result = run(TOOL, ["--pr", "681", "--repo", "ui", "--wait-seconds", waitSeconds, "--poll-seconds", "1", ...argv], { path: testedToolPath, env })
     return {
       result,
       plan: parsed(result),
@@ -593,8 +603,42 @@ export const cases = () => {
     `${waitCiUsage}\n${ownUsage}`,
   )
 
+  /**
+   * Two runs for one head at the same time both read before GitHub can show the request of the other
+   * run. The slow comment stub keeps the first post open while the second run decides.
+   */
+  const spawnTool = (argv, env) => new Promise((resolve) => {
+    const child = spawn(process.execPath, [testedToolPath, ...argv], { cwd: REPO_ROOT, env: { ...process.env, ...env } })
+    const output = { stdout: "", stderr: "" }
+    child.stdout.on("data", (chunk) => { output.stdout += chunk })
+    child.stderr.on("data", (chunk) => { output.stderr += chunk })
+    child.once("close", (status) => resolve({ status, ...output }))
+  })
+  const concurrentRun = async (name) => {
+    const { requestArgv, env } = requestEnv(name, { stdout: payload({ checks: [] }) }, { stdout: JSON.stringify(activity()) }, { delayMs: 1500 })
+    const result = await spawnTool(["--pr", "681", "--repo", "ui", "--wait-seconds", "8", "--poll-seconds", "1"], env)
+    return { result, plan: parsed(result), posted: existsSync(requestArgv) }
+  }
+  rmSync(requestLedger, { force: true })
+  const concurrentRuns = await Promise.all([concurrentRun("concurrent-first"), concurrentRun("concurrent-second")])
+  const posters = concurrentRuns.filter((entry) => entry.posted)
+  const followers = concurrentRuns.filter((entry) => !entry.posted)
+  T(
+    `${TOOL}: two runs for one head at the same time post exactly one request, and the other run names that request`,
+    posters.length === 1 && followers.length === 1 && concurrentRuns.every((entry) => entry.result.status === 1 && entry.plan?.verdict === "NO_REVIEW") &&
+      posters[0].plan.reviewRequested === true && followers[0].plan.reviewRequested === false &&
+      followers[0].plan.existingRequestUrl === REQUEST_URL && /no second request/.test(followers[0].plan.note ?? ""),
+    concurrentRuns.map((entry) => `posted=${entry.posted} exit=${entry.result.status} ${entry.result.stdout || entry.result.stderr}`).join("\n"),
+  )
+  const pushedAgain = requestRun("pushed-again", { stdout: payload({ checks: [] }) },
+    { waitSeconds: "2", keepLedger: true, activities: { stdout: JSON.stringify(activity(HEAD, "2026-08-04T23:00:00Z")) } })
+  T(
+    `${TOOL}: a later push of the same commit is a new request, because the recorded request belongs to the earlier push`,
+    pushedAgain.result.status === 1 && pushedAgain.plan?.reviewRequested === true && pushedAgain.requests === 1,
+    pushedAgain.result.stdout || pushedAgain.result.stderr,
+  )
   const requestCases = [greenHead, runningHead, justPushed, failingHead, unanswered, reviewedHead, fixPush, alreadyAsked, askedByStranger, askedForOldHead, zeroWait,
-    headLag, headAbsent, headAbsentZeroWait, askedBeforeActivity, pushListedLate, pushNeverListed, forkRequest, headMoved, headMovedUnasked, withoutHead]
+    headLag, headAbsent, headAbsentZeroWait, askedBeforeActivity, pushListedLate, pushNeverListed, forkRequest, headMoved, headMovedUnasked, withoutHead, pushedAgain]
   T(
     `${TOOL}: no request case reads branch protection`,
     requestCases.every((entry) => !entry.protectionRead),

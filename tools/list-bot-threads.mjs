@@ -1,11 +1,16 @@
 #!/usr/bin/env node
 
+import { randomUUID } from "node:crypto"
+import { readFileSync, renameSync, writeFileSync } from "node:fs"
+import { join } from "node:path"
+
 import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-auth.mjs"
 import { graphqlBudgetDecision } from "./lib/github-rate-limit.mjs"
 import { currentRunIdentifier, recordObservedIdentifiers } from "./lib/identifier-ledger.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { REVIEW_APP_ID, headActivityArgv, headActivityBoundary } from "./lib/readiness-receipt.mjs"
+import { acquireRelayLock, gitDirectoryOf } from "./lib/run-state.mjs"
 
 const BOT_LOGIN = "pullfrog"
 
@@ -43,6 +48,8 @@ Prints ONE JSON object on stdout: pr, isDraft, verdict, reviewedAt, reviewState,
 checkConclusion, checkStatus, progressMarkers, threads[]. Errors go to stderr. A request
 comment of the repository owner posted after the current head's push counts as that head's request,
 so a second run posts no second one and names it in existingRequestUrl; only --re-review asks again.
+Two runs at the same time cannot see the request of each other on GitHub. They share one lock and one
+record of each posted request in the git directory of the repository, so only one of them posts.
 
   verdict  REVIEWED      a Pullfrog verdict OF THE CURRENT HEAD exists; threads[] may be empty,
                          and a non-null reviewBody can still carry a finding
@@ -408,10 +415,74 @@ const openRequestOf = (payload) => {
   if (!Number.isFinite(boundary)) return null
   return (payload.comments?.nodes ?? []).find((comment) => comment.author?.login?.toLowerCase() === owner.toLowerCase() && comment.body?.trim() === REQUEST_BODY && Date.parse(comment.createdAt ?? "") > boundary) ?? null
 }
-const openRequest = reReview ? null : openRequestOf(node)
+let openRequest = reReview ? null : openRequestOf(node)
 
 let requested = false
 let requestUrl = null
+const postRequest = async () => {
+  const posted = await gh(["pr", "comment", pullRequest, "--repo", repository, "--body", REQUEST_BODY], `gh pr comment ${pullRequest}`)
+  requestUrl = posted.trim().split("\n").at(-1)?.trim() || null
+  requested = true
+  progress(reReview ? "RE_REVIEW_REQUESTED" : "REVIEW_REQUESTED", node, startedAt, deadline)
+}
+
+/**
+ * Two runs at the same time both read before GitHub can show the request of the other run. The post
+ * and its record sit under one lock in the git directory of the repository, which every worktree of
+ * the checkout shares. The record is keyed by the push, so a later push of the same commit asks again.
+ */
+const REQUEST_LEDGER_PATH = join(gitDirectoryOf(githubCwd), "orbit-review-requests.json")
+const REQUEST_LOCK_NAME = "orbit-review-request-lock"
+/** An entry matters only while its head waits for a review. The bound keeps the file small and is a choice, not a measured value. */
+const REQUEST_LEDGER_ENTRIES = 200
+const LOCK_POLL_SECONDS = 0.2
+
+const acquireRequestLock = async () => {
+  while (Date.now() < deadline) {
+    try {
+      return acquireRelayLock(githubCwd, REQUEST_LOCK_NAME)
+    } catch (error) {
+      if (!error.message.startsWith("EEXIST:")) fail(2, `the review request lock failed: ${error.message}`)
+      await sleep(LOCK_POLL_SECONDS)
+    }
+  }
+  return null
+}
+
+const readRequestLedger = () => {
+  try {
+    return JSON.parse(readFileSync(REQUEST_LEDGER_PATH, "utf8")).requests
+  } catch (error) {
+    if (error.code === "ENOENT") return []
+    throw error
+  }
+}
+
+const writeRequestLedger = (requests) => {
+  const unpublished = `${REQUEST_LEDGER_PATH}.${randomUUID()}.unpublished`
+  writeFileSync(unpublished, `${JSON.stringify({ requests: requests.slice(-REQUEST_LEDGER_ENTRIES) }, null, 2)}\n`)
+  renameSync(unpublished, REQUEST_LEDGER_PATH)
+}
+
+const requestOncePerPush = async () => {
+  const release = await acquireRequestLock()
+  if (!release) return
+  try {
+    const push = { repository: repository.toLowerCase(), pr: Number(pullRequest), head: node.headRefOid, pushedAt: node.headActivityBoundary.time }
+    const requests = readRequestLedger()
+    const recorded = requests.find((entry) => Object.keys(push).every((key) => entry[key] === push[key]))
+    if (recorded) {
+      openRequest = { url: recorded.url, createdAt: recorded.requestedAt }
+      return
+    }
+    await postRequest()
+    writeRequestLedger([...requests, { ...push, url: requestUrl, requestedAt: new Date().toISOString() }])
+  } catch (error) {
+    fail(2, `the review request record ${REQUEST_LEDGER_PATH} failed${requested ? ` after the request ${requestUrl} was posted` : ""}: ${error.message}`)
+  } finally {
+    release()
+  }
+}
 /**
  * The request reads no check. The review runs beside CI, so a round costs the slower of the two, not
  * their sum. The local review before the push is what keeps a head that fails CI from costing a review.
@@ -419,10 +490,8 @@ let requestUrl = null
  * proven current, so a request then would start a paid run twice or for nothing.
  */
 if (requestReview && !review && waitSeconds > 0 && !openRequest && Number.isFinite(node.headActivityBoundary?.time)) {
-  const posted = await gh(["pr", "comment", pullRequest, "--repo", repository, "--body", REQUEST_BODY], `gh pr comment ${pullRequest}`)
-  requestUrl = posted.trim().split("\n").at(-1)?.trim() || null
-  requested = true
-  progress(reReview ? "RE_REVIEW_REQUESTED" : "REVIEW_REQUESTED", node, startedAt, deadline)
+  if (reReview) await postRequest()
+  else await requestOncePerPush()
 }
 
 /**
