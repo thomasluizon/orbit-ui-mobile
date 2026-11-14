@@ -20,6 +20,8 @@ import {
 import { ShareCard } from '@/components/share/share-card'
 import { Columns } from '@/components/ui/columns'
 import { useProfile } from '@/hooks/use-profile'
+import { useFlag } from '@/hooks/use-flag'
+import { useViewportMatch } from '@/hooks/use-viewport-match'
 import { ErrorState } from '@/components/ui/error-state'
 
 import { Skeleton } from '@/components/ui/skeleton'
@@ -388,6 +390,9 @@ interface WrappedShareSlideProps {
 
 function WrappedShareSlide({ recap, captureRef, hasError, savedFileName, reducedMotion }: Readonly<WrappedShareSlideProps>) {
   const t = useTranslations()
+  const guided = useFlag('orbit_guided_flows')
+  const wide = useViewportMatch('(min-width: 1024px)')
+  const firstStep = guided ? 1 : 0
 
   return (
     <div
@@ -395,13 +400,18 @@ function WrappedShareSlide({ recap, captureRef, hasError, savedFileName, reduced
       className="flex flex-1 flex-col items-start justify-center px-4 py-6 text-start lg:px-16 lg:py-12"
       style={{ gap: 16 }}
     >
-      <motion.h2 data-testid="wrapped-motion-part" {...motionProps(0, reducedMotion)} style={titleStyle}>
+      {guided ? (
+        <motion.div data-testid="wrapped-motion-part" aria-hidden="true" {...motionProps(0, reducedMotion)} style={{ lineHeight: 0 }}>
+          <OrbitMascot size={wide ? 128 : 96} state="feliz" />
+        </motion.div>
+      ) : null}
+      <motion.h2 data-testid="wrapped-motion-part" {...motionProps(firstStep, reducedMotion)} style={titleStyle}>
         {t('wrapped.slides.share.title')}
       </motion.h2>
       <motion.div
         data-testid="wrapped-motion-part"
         data-wrapped-figure="primary"
-        {...motionProps(1, reducedMotion)}
+        {...motionProps(firstStep + 1, reducedMotion)}
         style={{ width: 216, height: 384, overflow: 'hidden' }}
       >
         <div style={{ transform: 'scale(0.6)', transformOrigin: 'top left' }}>
@@ -412,7 +422,7 @@ function WrappedShareSlide({ recap, captureRef, hasError, savedFileName, reduced
       {hasError && (
         <motion.p
           data-testid="wrapped-motion-part"
-          {...motionProps(2, reducedMotion)}
+          {...motionProps(firstStep + 2, reducedMotion)}
           role="alert"
           style={{ fontSize: 14 }}
         >
@@ -422,7 +432,7 @@ function WrappedShareSlide({ recap, captureRef, hasError, savedFileName, reduced
 
       <motion.p
         data-testid="wrapped-motion-part"
-        {...motionProps(2, reducedMotion)}
+        {...motionProps(firstStep + 2, reducedMotion)}
         role="status"
         style={{
           fontFamily: 'var(--font-mono)',

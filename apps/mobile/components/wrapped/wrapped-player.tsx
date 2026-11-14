@@ -1,8 +1,8 @@
 import { ShellContent } from '@/components/shell/shell-content'
-import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
-import { useEffect, useMemo } from 'react'
+import { SPACING, TOUCH_TARGET_MIN, motionDurations, motionEasings, motionLayerTiming } from '@orbit/shared/theme'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
-import { BackHandler, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native'
+import { Animated, BackHandler, Easing, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import { scheduleOnRN } from 'react-native-worklets'
@@ -14,6 +14,8 @@ import { useWrappedStory, type WrappedSlide as WrappedSlideModel } from '@/hooks
 import { useShareCard } from '@/hooks/use-share-card'
 import { useReferralInvitation } from '@/hooks/use-referral-invitation'
 import { useProfile } from '@/hooks/use-profile'
+import { useFlag } from '@/hooks/use-flag'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { Pager } from '@/components/ui/pager'
 import { PillButton } from '@/components/ui/pill-button'
 import { MotionPressable } from '@/components/ui/motion-pressable'
@@ -51,8 +53,11 @@ export function WrappedPlayer({
   const { profile } = useProfile()
   const current = slides[index]
   const canTapToPage = current?.id !== 'consistency' || period !== 'week' || !!profile
+  const guided = useFlag('orbit_guided_flows')
+  const [direction, setDirection] = useState<PageDirection | null>(null)
 
   function page(direction: PageDirection) {
+    setDirection(direction)
     if (direction === 'forward') next()
     else prev()
   }
@@ -81,6 +86,21 @@ export function WrappedPlayer({
 
   if (!current) return null
 
+  const slidePage = (
+    <>
+      <WrappedSlide
+        slide={current}
+        recap={recap}
+        period={period}
+        tokens={tokens}
+        shareRef={shareRef}
+        shareError={hasError}
+        savedFileName={savedFileName}
+      />
+      {!isLast && canTapToPage ? <TapZones isFirst={isFirst} onPage={page} /> : null}
+    </>
+  )
+
   return (
     <GestureDetector gesture={swipeDown}>
       <View style={[styles.player, { backgroundColor: tokens.bg }]}><ShellContent style={{ flex: 1 }}>
@@ -106,19 +126,7 @@ export function WrappedPlayer({
           contentContainerStyle={[styles.slideScrollContent, { paddingBottom: clearance }]}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.page}>
-            <WrappedSlide
-              slide={current}
-              recap={recap}
-              period={period}
-              tokens={tokens}
-              shareRef={shareRef}
-              shareError={hasError}
-              savedFileName={savedFileName}
-            />
-
-            {!isLast && canTapToPage ? <TapZones isFirst={isFirst} onPage={page} /> : null}
-          </View>
+          {guided ? <SlideTravel direction={direction}>{slidePage}</SlideTravel> : <View style={styles.page}>{slidePage}</View>}
         </ScrollView>
         <PlayerPager
           count={slides.length}
@@ -144,6 +152,25 @@ export function WrappedPlayer({
       </ShellContent></View>
     </GestureDetector>
   )
+}
+
+/** A slide change shifts the new slide 12 px in the page direction and fades it in. The first slide and reduced motion are still. */
+function SlideTravel({ direction, children }: Readonly<{ direction: PageDirection | null; children: ReactNode }>) {
+  const reducedMotion = usePrefersReducedMotion()
+  const still = reducedMotion || direction === null
+  const [progress] = useState(() => new Animated.Value(still ? 1 : 0))
+  useEffect(() => {
+    if (still) {
+      progress.setValue(1)
+      return undefined
+    }
+    const travel = Animated.timing(progress, { toValue: 1, duration: motionDurations.route, useNativeDriver: true, easing: Easing.bezier(...motionEasings.enter) })
+    travel.start()
+    return () => travel.stop()
+  }, [progress, still])
+  const shift = direction === 'back' ? -motionLayerTiming.routeShift : motionLayerTiming.routeShift
+  const translateX = progress.interpolate({ inputRange: [0, 1], outputRange: [shift, 0] })
+  return <Animated.View testID="wrapped-slide-travel" style={[styles.page, { opacity: progress, transform: [{ translateX }] }]}>{children}</Animated.View>
 }
 
 function TapZones({ isFirst, onPage }: Readonly<{ isFirst: boolean; onPage: (direction: PageDirection) => void }>) {

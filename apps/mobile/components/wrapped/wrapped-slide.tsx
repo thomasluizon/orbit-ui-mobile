@@ -28,6 +28,7 @@ import {
 import { ShareCard } from '@/components/share/share-card'
 import { Columns } from '@/components/ui/columns'
 import { useProfile } from '@/hooks/use-profile'
+import { useFlag } from '@/hooks/use-flag'
 import { ErrorState } from '@/components/ui/error-state'
 
 import { Skeleton } from '@/components/ui/skeleton'
@@ -364,11 +365,19 @@ interface WrappedShareSlideProps {
 
 function WrappedShareSlide({ recap, tokens, shareRef, hasError, savedFileName, reducedMotion }: Readonly<WrappedShareSlideProps>) {
   const { t } = useTranslation()
+  const guided = useFlag('orbit_guided_flows')
+  const { width } = useWindowDimensions()
+  const firstStep = guided ? 1 : 0
 
   return (
     <View style={styles.shareSlide} testID="wrapped-slide-share">
-      <Animated.Text nativeID="wrapped-motion-part-0" entering={enter(0, reducedMotion)} accessibilityRole="header" style={[styles.title, motionFinalStyle, { color: tokens.fg1 }]}>{t('wrapped.slides.share.title')}</Animated.Text>
-      <Animated.View testID="wrapped-figure" nativeID="wrapped-motion-part-1" entering={enter(1, reducedMotion)} style={[styles.sharePreview, motionFinalStyle]}>
+      {guided ? (
+        <Animated.View nativeID="wrapped-motion-part-0" entering={enter(0, reducedMotion)} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden style={motionFinalStyle}>
+          <OrbitMascot size={width >= 1024 ? 128 : 96} state="feliz" />
+        </Animated.View>
+      ) : null}
+      <Animated.Text nativeID={`wrapped-motion-part-${firstStep}`} entering={enter(firstStep, reducedMotion)} accessibilityRole="header" style={[styles.title, motionFinalStyle, { color: tokens.fg1 }]}>{t('wrapped.slides.share.title')}</Animated.Text>
+      <Animated.View testID="wrapped-figure" nativeID={`wrapped-motion-part-${firstStep + 1}`} entering={enter(firstStep + 1, reducedMotion)} style={[styles.sharePreview, motionFinalStyle]}>
         <View style={styles.sharePreviewCard}>
           <ShareCard ref={shareRef} recap={recap} />
         </View>
@@ -376,8 +385,8 @@ function WrappedShareSlide({ recap, tokens, shareRef, hasError, savedFileName, r
 
       {hasError ? (
         <Animated.Text
-          nativeID="wrapped-motion-part-2"
-          entering={enter(2, reducedMotion)}
+          nativeID={`wrapped-motion-part-${firstStep + 2}`}
+          entering={enter(firstStep + 2, reducedMotion)}
           accessibilityRole="alert"
           style={[styles.shareError, motionFinalStyle, { color: tokens.statusBadText }]}
         >
@@ -386,8 +395,8 @@ function WrappedShareSlide({ recap, tokens, shareRef, hasError, savedFileName, r
       ) : null}
 
       <Animated.Text
-        nativeID="wrapped-motion-part-2"
-        entering={enter(2, reducedMotion)}
+        nativeID={`wrapped-motion-part-${firstStep + 2}`}
+        entering={enter(firstStep + 2, reducedMotion)}
         accessibilityLiveRegion="polite"
         style={[styles.shareStatus, motionFinalStyle, { color: tokens.fg2 }]}
       >
