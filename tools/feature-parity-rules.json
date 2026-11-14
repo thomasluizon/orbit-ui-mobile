@@ -1466,6 +1466,18 @@
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
     },
+    "mobile:display:habits.detail.rescheduleError": {
+      "targets": [
+        "mobile:content:habits.detail.rescheduleError"
+      ],
+      "reason": "The rescue card still states the failure; it now renders on its own branch beside the wait skeleton, so the scanner reads it as content."
+    },
+    "mobile:display:habits.detail.rescheduleLoading": {
+      "targets": [
+        "mobile:content:habits.reschedule.loading"
+      ],
+      "reason": "The rescue card wait is now Orbit in Pensando over the reschedule sheet skeleton rows, named by the sheet wait label."
+    },
     "mobile:display:habits.form.dueTime": {
       "targets": [
         "mobile:control:habits.form.exactTime"
@@ -3486,6 +3498,18 @@
         "web:control:habits.detail.monthlyRate"
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:habits.detail.rescheduleError": {
+      "targets": [
+        "web:content:habits.detail.rescheduleError"
+      ],
+      "reason": "The rescue card still states the failure; it now renders on its own branch beside the wait skeleton, so the scanner reads it as content."
+    },
+    "web:display:habits.detail.rescheduleLoading": {
+      "targets": [
+        "web:content:habits.reschedule.loading"
+      ],
+      "reason": "The rescue card wait is now Orbit in Pensando over the reschedule sheet skeleton rows, named by the sheet wait label."
     },
     "web:display:habits.form.dueTime": {
       "targets": [
