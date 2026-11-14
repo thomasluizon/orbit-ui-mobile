@@ -28,7 +28,7 @@ function renderDrill() {
   }
   return <HabitDrill drill={drill} styles={createStyles(createTokensV2(undefined, 'light'))} t={(key) => key}
     listHeaderComponent={null} drillListRef={createRef<FlatList<NormalizedHabit>>()}
-    refreshControl={<RefreshControl refreshing={false} />} onListScroll={vi.fn()} bulkBarStyle={{}}
+    refreshControl={<RefreshControl refreshing={false} colors={['transparent']} progressBackgroundColor="transparent" tintColor="transparent" progressViewOffset={-192} />} refreshing={false} onListScroll={vi.fn()} bulkBarStyle={{}}
     renderHabitCard={() => null} onAddSubHabit={vi.fn()} />
 }
 
