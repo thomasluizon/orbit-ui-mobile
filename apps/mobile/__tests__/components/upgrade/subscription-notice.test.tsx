@@ -64,7 +64,7 @@ describe('lapsed subscription notice (mobile)', () => {
       tree = TestRenderer.create(<SubscriptionNotice status={status} locale="en" onResubscribe={onResubscribe} t={t} tokens={tokens} />)
     })
     const hosts = tree!.root.findAll((node) => typeof node.type === 'string')
-    const text = hosts.filter((node) => node.type === 'Text').map((node) => renderedText(node)).join(' ')
+    const text = hosts.filter((node) => (node.type as string) === 'Text').map((node) => renderedText(node)).join(' ')
     expect(text).toContain('upgrade.billing.lapsed.title')
     expect(text).toContain('upgrade.billing.lapsed.paymentFix')
     const rigs = hosts.filter((node) => node.props['data-orbit-face'] === 'rig')
