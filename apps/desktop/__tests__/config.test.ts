@@ -268,6 +268,61 @@ it('keeps exactly the Turnstile challenge documents the iOS app loads in subfram
   expect(quoted(desktopDocuments!)).toEqual(['about:blank', 'about:srcdoc'])
 })
 
+const MODULE_CALLS = new Set(['require', 'require.resolve', 'import.meta.resolve', 'vi.mock', 'vi.doMock', 'vi.importActual', 'vi.importMock'])
+
+function importedPackages(path: string, source: string): string[] {
+  const file = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true)
+  const specifiers: string[] = []
+  const visit = (node: ts.Node): void => {
+    if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+      specifiers.push(node.moduleSpecifier.text)
+    }
+    if (ts.isCallExpression(node)) {
+      const [argument] = node.arguments
+      const loads = node.expression.kind === ts.SyntaxKind.ImportKeyword || MODULE_CALLS.has(node.expression.getText(file))
+      if (loads && argument && ts.isStringLiteralLike(argument)) specifiers.push(argument.text)
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(file)
+  const packages = specifiers
+    .filter((specifier) => !specifier.startsWith('.') && !isBuiltin(specifier))
+    .map((specifier) => specifier.split('/').slice(0, specifier.startsWith('@') ? 2 : 1).join('/'))
+  return [...new Set(packages)].sort((left, right) => left.localeCompare(right))
+}
+
+it('reads the package of every form that loads a module, and nothing from a string that only names one', () => {
+  const fixture = [
+    "import { readFileSync } from 'node:fs'",
+    "import local from './local'",
+    "import named from 'static-import'",
+    "import type {} from '@scope/type-import/entry'",
+    "export * from 're-export'",
+    "const dynamic = await import('dynamic-import')",
+    "const required = require('require-call')",
+    "const schema = require.resolve('require-resolve/config.schema.json')",
+    "const resolved = import.meta.resolve('meta-resolve')",
+    "vi.mock('vi-mock')",
+    "vi.doMock('@scope/vi-do-mock')",
+    "const actual = await vi.importActual('vi-import-actual')",
+    "const mocked = await vi.importMock('vi-import-mock')",
+    "it('names a package in a title, import', () => {})",
+  ].join('\n')
+  expect(importedPackages('fixture.ts', fixture)).toEqual([
+    '@scope/type-import',
+    '@scope/vi-do-mock',
+    'dynamic-import',
+    'meta-resolve',
+    're-export',
+    'require-call',
+    'require-resolve',
+    'static-import',
+    'vi-import-actual',
+    'vi-import-mock',
+    'vi-mock',
+  ])
+})
+
 it('declares in its own manifest or the root manifest every package its scripts and tests import', () => {
   const workspace = new URL('../', import.meta.url)
   const declared = new Set(
@@ -284,15 +339,7 @@ it('declares in its own manifest or the root manifest every package its scripts 
         .map((name) => `${directory}/${name}`),
     ),
   ]
-  const imported = new Set(
-    sources.flatMap((path) =>
-      ts
-        .preProcessFile(readFileSync(new URL(path, workspace), 'utf8'), true, true)
-        .importedFiles.map(({ fileName }) => fileName)
-        .filter((specifier) => !specifier.startsWith('.') && !isBuiltin(specifier))
-        .map((specifier) => specifier.split('/').slice(0, specifier.startsWith('@') ? 2 : 1).join('/')),
-    ),
-  )
+  const imported = new Set(sources.flatMap((path) => importedPackages(path, readFileSync(new URL(path, workspace), 'utf8'))))
   expect(imported).toContain('@orbit/shared')
   expect([...imported].filter((name) => !declared.has(name)).sort((left, right) => left.localeCompare(right))).toEqual([])
 })
