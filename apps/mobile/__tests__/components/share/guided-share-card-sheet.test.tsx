@@ -9,6 +9,7 @@ import { motionPresets } from '@orbit/shared/theme'
 import type { RecapSharePeriod } from '@orbit/shared/utils'
 import { testI18n } from '@/__tests__/support/i18n'
 import { renderedText } from '@/__tests__/support/react-test-renderer'
+import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
 import { ShareCardSheet } from '@/components/share/share-card-sheet'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
 
@@ -178,6 +179,19 @@ describe('the guided share card sheet on Android', () => {
     Object.assign(mocks, { isLoading: false, isSharing: true })
     const root = await renderSheet()
     for (const option of options(root)) expect(option.props.accessibilityState).toMatchObject({ disabled: true })
+  })
+
+  it.each(['row', 'button'] as const)('opens the guided sheet from the share entry %s', async (variant) => {
+    enableTestFlags('orbit_guided_flows')
+    await testI18n.changeLanguage('pt-BR')
+    await renderer.act(() => { tree = renderer.create(<ShareCardEntryButton variant={variant} />) })
+    const root = tree!
+
+    expect(options(root)).toHaveLength(0)
+    await press(control(root, ptBR.shareCard.entry))
+    expect(sheetTitle(root)).toBe(ptBR.shareCard.periodQuestion)
+    expect(options(root)).toHaveLength(3)
+    expect(byTestId(root, 'share-card')).toHaveLength(1)
   })
 
   it('renders the current sheet with the flag off', async () => {

@@ -21,6 +21,7 @@ vi.mock('@/hooks/use-wrapped', () => ({ useWrapped: (period: RecapSharePeriod) =
 vi.mock('@/hooks/use-share-card', () => ({ useShareCard: () => ({ captureRef: { current: null }, ...mocks }) }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
+import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
 import { ShareCardSheet } from '@/components/share/share-card-sheet'
 
 const LOCALES = [{ locale: 'pt-BR', messages: ptBR }, { locale: 'en', messages: en }] as const
@@ -154,6 +155,17 @@ describe('the guided share card sheet on web', () => {
     Object.assign(mocks, { isLoading: false, isSharing: true })
     const { copy } = renderSheet()
     for (const option of options(copy.periodQuestion)) expect(option).toBeDisabled()
+  })
+
+  it.each(['row', 'button'] as const)('opens the guided sheet from the share entry %s', (variant) => {
+    enableTestFlags('orbit_guided_flows')
+    const copy = ptBR.shareCard
+    render(<NextIntlClientProvider locale="pt-BR" messages={ptBR}><ShareCardEntryButton variant={variant} /></NextIntlClientProvider>)
+
+    expect(screen.queryByRole('group', { name: copy.periodQuestion })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: copy.entry }))
+    expect(options(copy.periodQuestion)).toHaveLength(3)
+    expect(screen.getByTestId('share-card')).toBeInTheDocument()
   })
 
   it('renders the current sheet with the flag off', () => {
