@@ -1,30 +1,45 @@
 import React from 'react'
-import { Platform, StyleSheet } from 'react-native'
+import * as ReactNative from 'react-native'
+import { Platform, StyleSheet, View } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { GOOGLE_SIGN_IN_BUTTON, SMALL_PILL_VISIBLE_MIN, SPACING } from '@orbit/shared/theme'
 import { AppleSignInButton } from '@/components/auth/apple-sign-in-button'
 import { PillButton } from '@/components/ui/pill-button'
 import { GoogleMark } from '@/components/auth/google-mark'
 import { pressableStyle } from '@/__tests__/support/press-feedback'
+import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 
 const TestRenderer = require('react-test-renderer')
+/** Layout engines round positions to 1/64 of a pixel. */
+const LAYOUT_UNIT = 1 / 64
 const theme = vi.hoisted((): { mode: 'dark' | 'light' } => ({ mode: 'dark' }))
+const copy = vi.hoisted((): { words: Record<string, string> } => ({ words: {} }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: theme.mode }) }))
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => copy.words[key] ?? key }) }))
 vi.mock('expo-apple-authentication', () => ({
   AppleAuthenticationButtonType: { SIGN_IN: 0, CONTINUE: 1, SIGN_UP: 2 },
   AppleAuthenticationButtonStyle: { WHITE: 0, WHITE_OUTLINE: 1, BLACK: 2 },
   AppleAuthenticationButton: (props: Record<string, unknown>) => React.createElement('NativeAppleButton', props),
 }))
-beforeEach(() => { Platform.OS = 'ios'; theme.mode = 'dark' })
-afterEach(() => { vi.unstubAllEnvs(); Platform.OS = 'android' })
+beforeEach(() => { Platform.OS = 'ios'; theme.mode = 'dark'; copy.words = {} })
+afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); Platform.OS = 'android' })
 
-function renderBesideGoogle(props: { disabled: boolean; onPress: () => void }) {
+function renderBesideGoogle(props: { disabled: boolean; loading?: boolean; onPress: () => void }, googleLabel = 'auth.signInWithGoogle') {
   let tree!: ReturnType<typeof TestRenderer.create>
-  TestRenderer.act(() => { tree = TestRenderer.create(<>
-    <PillButton brand="google" leadingIcon={<GoogleMark />} variant="ghost" onClick={vi.fn()}>auth.signInWithGoogle</PillButton>
-    <AppleSignInButton disabled={props.disabled} loading={false} onPress={props.onPress} />
-  </>) })
+  TestRenderer.act(() => { tree = TestRenderer.create(<View style={{ gap: 12 }}>
+    <PillButton brand="google" leadingIcon={<GoogleMark />} variant="ghost" onClick={vi.fn()}>{googleLabel}</PillButton>
+    <AppleSignInButton disabled={props.disabled} loading={props.loading ?? false} onPress={props.onPress} />
+  </View>) })
   return tree
+}
+
+/** The accessibility state of the view that wraps Apple's iPhone control. */
+function iPhoneControlState(tree: ReturnType<typeof TestRenderer.create>) {
+  const wrappers = tree.root.findAll((node: { props: { accessibilityState?: unknown }; findAllByType: (type: string) => unknown[] }) =>
+    node.props.accessibilityState !== undefined && node.findAllByType('NativeAppleButton').length === 1)
+  return wrappers[0]?.props.accessibilityState
 }
 
 describe('Apple sign-in controls', () => {
@@ -41,9 +56,10 @@ describe('Apple sign-in controls', () => {
     vi.stubEnv('EXPO_PUBLIC_APPLE_CLIENT_ID', 'client-id')
     const onPress = vi.fn()
     const tree = renderBesideGoogle({ disabled: false, onPress })
-    const googleHeight = pressableStyle(tree.root.findByType('Pressable'), false).height as number
+    const googleStyle = pressableStyle(tree.root.findByType('Pressable'), false)
+    expect(googleStyle).toMatchObject({ minHeight: SMALL_PILL_VISIBLE_MIN, borderRadius: SMALL_PILL_VISIBLE_MIN / 2 })
     const control = tree.root.findByType('NativeAppleButton')
-    expect(control.props).toMatchObject({ buttonType: 1, buttonStyle, cornerRadius: googleHeight / 2, style: { width: '100%', height: googleHeight } })
+    expect(control.props).toMatchObject({ buttonType: 1, buttonStyle, cornerRadius: googleStyle.borderRadius, style: { width: '100%', height: googleStyle.minHeight } })
     expect(tree.root.findAll((node: { type: unknown; props: { children: unknown } }) => node.type === 'Text' && node.props.children === 'auth.signInWithApple')).toHaveLength(0)
     TestRenderer.act(() => control.props.onPress())
     expect(onPress).toHaveBeenCalledOnce()
@@ -56,6 +72,14 @@ describe('Apple sign-in controls', () => {
     const tree = renderBesideGoogle({ disabled: true, onPress })
     TestRenderer.act(() => tree.root.findByType('NativeAppleButton').props.onPress())
     expect(onPress).not.toHaveBeenCalled()
+    expect(iPhoneControlState(tree)).toEqual({ disabled: true, busy: false })
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('reports a starting iPhone sign-in as busy to assistive technology', () => {
+    vi.stubEnv('EXPO_PUBLIC_APPLE_CLIENT_ID', 'client-id')
+    const tree = renderBesideGoogle({ disabled: true, loading: true, onPress: vi.fn() })
+    expect(iPhoneControlState(tree)).toEqual({ disabled: true, busy: true })
     TestRenderer.act(() => tree.unmount())
   })
 
@@ -68,14 +92,40 @@ describe('Apple sign-in controls', () => {
     const [google, apple] = tree.root.findAllByType('Pressable') as { props: Record<string, unknown> & { onPress: () => void } }[]
     const googleStyle = pressableStyle(google!, false)
     const appleStyle = pressableStyle(apple!, false)
-    expect(appleStyle).toMatchObject({ height: googleStyle.height, borderRadius: googleStyle.borderRadius, backgroundColor: fill })
+    expect(googleStyle).toMatchObject({ minHeight: SMALL_PILL_VISIBLE_MIN, borderRadius: SMALL_PILL_VISIBLE_MIN / 2 })
+    expect(appleStyle).toMatchObject({ minHeight: googleStyle.minHeight, borderRadius: googleStyle.borderRadius, paddingVertical: 0, backgroundColor: fill })
     expect(appleStyle.borderWidth ?? 0).toBe(0)
     const title = StyleSheet.flatten(tree.root.find((node: { type: unknown; props: { children: unknown } }) =>
       node.type === 'Text' && node.props.children === 'auth.signInWithApple').props.style)
-    expect(title).toMatchObject({ color: ink, fontSize: Math.round(googleStyle.height * 0.43) })
-    expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'apple-sign-in-logo' }).props.style)).toMatchObject({ height: googleStyle.height })
+    expect(title).toMatchObject({ color: ink, fontSize: Math.round(SMALL_PILL_VISIBLE_MIN * 0.43) })
+    expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'apple-sign-in-logo' }).props.style)).toMatchObject({ height: SMALL_PILL_VISIBLE_MIN })
     TestRenderer.act(() => apple!.props.onPress())
     expect(onPress).toHaveBeenCalledOnce()
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  const largeTextCases = [320, 360, 412].flatMap((width) => ([['pt-BR', ptBR], ['en', en]] as const)
+    .flatMap(([locale, words]) => [1, 1.3, 2].map((fontScale) => ({ width, locale, words, fontScale }))))
+  it.each(largeTextCases)('keeps the Android Apple and Google titles whole at $width dp in $locale at font scale $fontScale', ({ width, words, fontScale }) => {
+    Platform.OS = 'android'
+    vi.stubEnv('EXPO_PUBLIC_APPLE_CLIENT_ID', 'client-id')
+    vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale })
+    copy.words = { 'auth.signInWithApple': words.auth.signInWithApple }
+    const tree = renderBesideGoogle({ disabled: false, onPress: vi.fn() }, words.auth.signInWithGoogle)
+    const column = width - 2 * (width < 336 ? SPACING.s8 : SPACING.s16)
+    const measured = measureProfileRow(tree.toJSON(), column, fontScale)
+    for (const label of [words.auth.signInWithGoogle, words.auth.signInWithApple]) {
+      const pill = measured.controls.find((control) => control.labels.includes(label))!
+      const title = measured.texts.find((text) => text.label === label)!
+      expect(title.clipped, `${label} is not truncated`).toBe(false)
+      expect(pill.inlineClearance, `${label} keeps its inline padding`).toBeGreaterThanOrEqual(GOOGLE_SIGN_IN_BUTTON.paddingX)
+      expect(title.left).toBeGreaterThanOrEqual(pill.left)
+      expect(title.right).toBeLessThanOrEqual(pill.right)
+      expect(title.top).toBeGreaterThanOrEqual(pill.top)
+      expect(title.bottom).toBeLessThanOrEqual(pill.bottom)
+      if (label === words.auth.signInWithApple) expect(pill.right - title.right, 'Apple title keeps 8% of the width before the trailing edge').toBeGreaterThanOrEqual(pill.width * 0.08 - LAYOUT_UNIT)
+      if (fontScale === 1) expect({ height: pill.height, lines: title.lines }, `${label} rests on one line`).toEqual({ height: SMALL_PILL_VISIBLE_MIN, lines: 1 })
+    }
     TestRenderer.act(() => tree.unmount())
   })
 })

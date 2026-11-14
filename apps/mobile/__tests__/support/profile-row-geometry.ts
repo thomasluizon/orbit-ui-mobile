@@ -18,7 +18,8 @@ function textWidth(label: string, style: TextStyle, scale: number): number {
   if (cached !== undefined) return cached
   const mono = style.fontFamily?.startsWith('GeistMono_')
   const family = mono ? 'Geist Mono' : 'Geist'
-  const file = mono ? require.resolve('@expo-google-fonts/geist-mono/400Regular/GeistMono_400Regular.ttf') : require.resolve('@expo-google-fonts/geist/400Regular/Geist_400Regular.ttf')
+  const file = mono ? require.resolve('@expo-google-fonts/geist-mono/400Regular/GeistMono_400Regular.ttf')
+    : style.fontFamily === 'Geist_500Medium' ? require.resolve('@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf') : require.resolve('@expo-google-fonts/geist/400Regular/Geist_400Regular.ttf')
   const escaped = label.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="4000" height="100"><text y="60" font-family="${family}" font-size="${size}" letter-spacing="${Number(style.letterSpacing ?? 0) * scale}">${escaped}</text></svg>`
   const bounds = new Resvg(svg, { font: { fontFiles: [file], loadSystemFonts: false } }).getBBox()
@@ -96,7 +97,7 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
     ['paddingRight', Yoga.EDGE_RIGHT],
   ] as const) {
     const padding = style[property]
-    if (typeof padding === 'number') node.setPadding(edge, padding)
+    if (typeof padding === 'number' || (typeof padding === 'string' && /^\d+(\.\d+)?%$/.test(padding))) node.setPadding(edge, padding as number | `${number}%`)
   }
   for (const [property, edge] of [
     ['margin', Yoga.EDGE_ALL], ['marginHorizontal', Yoga.EDGE_HORIZONTAL],

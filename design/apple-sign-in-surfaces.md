@@ -16,24 +16,37 @@
 All authored copy uses the paired English and Brazilian Portuguese locales.
 
 Every Apple sign-in button follows Apple's Human Interface Guidelines for Sign in with Apple. It is
-as tall as the Google pill and has the same capsule corner radius. It is white with a black logo
-and title on the dark theme, and black with a white logo and title on the light theme. The title
-is 43% of the button height, so it is larger than the Google title. Each platform uses artwork
-that Apple permits there:
+as tall as the Google pill (`SIGN_IN_BUTTON_HEIGHT`, 44) and has the same capsule corner radius. It
+is white with a black logo and title on the dark theme, and black with a white logo and title on
+the light theme. The title is 43% of the button height, so it is larger than the Google title. Each
+platform uses artwork that Apple permits there:
 
 | Platform | Button | Apple artwork |
 | --- | --- | --- |
 | iOS | `ASAuthorizationAppleIDButton` through `expo-apple-authentication`, 44 pt, corner radius 22 | The system control draws its own logo and localized title |
 | Android | `PillButton brand="apple"`, 44 pt, title 19 | `apps/mobile/assets/auth/apple-sign-in-logo-on-*.png`, from `https://appleid.cdn-apple.com/appleid/button/logo` (size 44, no border, scales 1 to 4) |
-| Web | `PillButton brand="apple"`, 40 px, title 17 | The left-aligned medium logo file from Apple Design Resources (`Logo-Sign-in-with-Apple`), in `apps/web/components/auth/apple-sign-in-logo.tsx` |
+| Web | `PillButton brand="apple"`, 44 px, title 19 | The left-aligned medium logo file from Apple Design Resources (`Logo-Sign-in-with-Apple`), in `apps/web/components/auth/apple-sign-in-logo.tsx` |
 
-App Review evaluates every custom Sign in with Apple button. A custom button uses only Apple's
-logo artwork, a logo file as tall as the button, a black or white logo and title, and the system's
-title-to-height proportion. The Apple Design Resources license covers Apple operating systems, and
-the guidelines add the web. Android therefore uses the logo images that Apple provides for apps
-without its JavaScript framework. `APPLE_SIGN_IN_BUTTON` in `packages/shared/src/theme/button.ts`
-holds the proportion and the two colour pairs. The busy state replaces the logo with the spinner,
+The [Human Interface Guidelines](https://developer.apple.com/design/human-interface-guidelines/sign-in-with-apple#Creating-a-custom-Sign-in-with-Apple-button)
+say: "App Review evaluates all custom Sign in with Apple buttons." A custom button uses only Apple's
+logo artwork, a logo file as tall as the button, a black or white logo and title, the system's
+title-to-height proportion, and a margin of "at least 8% of the button's width" between the title
+and the trailing edge. `APPLE_SIGN_IN_BUTTON` in `packages/shared/src/theme/button.ts` holds the
+proportion, the margin and the two colour pairs. The busy state replaces the logo with the spinner,
 as it does for Google.
+
+The web uses the Design Resources file. Section 2A of the license in Apple's
+`Logo-Sign-in-with-Apple.dmg` permits the artwork in apps that "run on Apple's iOS, macOS, watchOS,
+or tvOS operating system software (and corresponding web-based or other versions of your software
+applications that have the same title and substantially equivalent features and functionality as
+your software applications for Apple's iOS, macOS, watchOS, or tvOS)". Android uses the logo
+images from the button endpoint that
+[Incorporating Sign in with Apple into other platforms](https://developer.apple.com/documentation/signinwithapple/incorporating-sign-in-with-apple-into-other-platforms)
+documents for apps "that don't have access to the Sign in with Apple JS framework".
+
+At large text, the Google pill and the Apple pills on Android and web follow the large-text rule of `DESIGN.md`. The title wraps
+inside a taller pill, and the pill keeps the 22 corner radius. The logo or mark stays at the top,
+on the first line of the title.
 
 `EXPO_PUBLIC_APPLE_CLIENT_ID` and `NEXT_PUBLIC_APPLE_CLIENT_ID` are required build variables for the
 mobile and web buttons. The web, Android and iOS release workflows stop before the build when the

@@ -12,7 +12,7 @@ import {
   useWindowDimensions,
 } from 'react-native'
 import type { ThemeMode } from '@orbit/shared/types/profile'
-import { SPACING, APPLE_SIGN_IN_BUTTON, appleSignInTitleSize, GOOGLE_SIGN_IN_BUTTON, ICON_ACTION_START_HANG, BUTTON_SIZES, MATCHED_PILL_WIDTH, TOUCH_TARGET_MIN, SMALL_PILL_VISIBLE_MIN, type ButtonVariant } from '@orbit/shared/theme'
+import { SPACING, APPLE_SIGN_IN_BUTTON, APPLE_SIGN_IN_TITLE_SIZE, ICON_ACTION_START_HANG, BUTTON_SIZES, MATCHED_PILL_WIDTH, TOUCH_TARGET_MIN, SIGN_IN_BUTTON_HEIGHT, SMALL_PILL_VISIBLE_MIN, signInButtonSpec, type ButtonVariant, type SignInButtonSpec } from '@orbit/shared/theme'
 import { createTokensV2, mixHex, radius, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ThemedMotionPressable } from './motion-pressable'
@@ -89,6 +89,7 @@ export function ThemedButton({
   const [focused, setFocused] = useState(false)
 
   const visibleHeight = Math.max(sizeSpec.height, SMALL_PILL_VISIBLE_MIN)
+  const signIn = signInButtonSpec(brand)
   const appleColors = brand === 'apple' ? APPLE_SIGN_IN_BUTTON.colors[themeMode] : null
   const textColor = appleColors?.ink ?? buttonTextColors(tokens, quiet)[variant]
   const leadingGlyph = buttonLeadingGlyph(leadingIcon, textColor)
@@ -147,16 +148,15 @@ export function ThemedButton({
         retainLeadingIcon ? { maxWidth: '100%' } : null,
         iconOnly
           ? iconOnlyStyle(Math.max(minimumHeight ?? sizeSpec.height, SMALL_PILL_VISIBLE_MIN), edge)
-          : { height: minimumHeight === undefined ? visibleHeight : undefined, minHeight: Math.max(minimumHeight ?? 0, SMALL_PILL_VISIBLE_MIN), width: matchedWidth ? MATCHED_PILL_WIDTH : undefined, paddingVertical: SPACING.s4, paddingHorizontal: sizeSpec.paddingX, paddingStart: leadingIcon ? sizeSpec.paddingX - 2 : sizeSpec.paddingX, gap: sizeSpec.gap },
-        brand === 'google' ? { paddingHorizontal: GOOGLE_SIGN_IN_BUTTON.paddingX, paddingStart: GOOGLE_SIGN_IN_BUTTON.paddingX, gap: GOOGLE_SIGN_IN_BUTTON.gap } : null,
-        brand === 'apple' ? { paddingHorizontal: APPLE_SIGN_IN_BUTTON.paddingX, paddingStart: APPLE_SIGN_IN_BUTTON.paddingX, gap: APPLE_SIGN_IN_BUTTON.gap } : null,
+          : { height: minimumHeight === undefined && !signIn ? visibleHeight : undefined, minHeight: Math.max(minimumHeight ?? 0, SMALL_PILL_VISIBLE_MIN), width: matchedWidth ? MATCHED_PILL_WIDTH : undefined, paddingVertical: SPACING.s4, paddingHorizontal: sizeSpec.paddingX, paddingStart: leadingIcon ? sizeSpec.paddingX - 2 : sizeSpec.paddingX, gap: sizeSpec.gap },
+        signIn ? signInPillStyle(signIn) : null,
         variantStyle(pressed && !disabled && !loading),
         focused ? buttonFocusStyle(variant, appleColors?.ink ?? tokens.fg1) : null,
         disabled && !loading ? styles.disabled : null,
       ]}
     >
       <ButtonContents loading={loading} retainLeadingIcon={retainLeadingIcon} iconOnly={iconOnly} leadingGlyph={leadingGlyph} textColor={textColor} sizeSpec={sizeSpec}
-        labelSize={appleColors ? appleSignInTitleSize(visibleHeight) : sizeSpec.fontSize}>{children}</ButtonContents>
+        signIn={signIn} labelSize={appleColors ? APPLE_SIGN_IN_TITLE_SIZE : sizeSpec.fontSize}>{children}</ButtonContents>
     </ThemedMotionPressable>
   )
 }
@@ -166,25 +166,44 @@ export function PillLink({ onPress, children }: Readonly<{ onPress: () => void; 
   return <Button accessibilityRole="link" onClick={onPress}>{children}</Button>
 }
 
+/** A provider pill grows around a title that large text wraps and keeps its resting capsule radius, so no corner cuts the title. */
+function signInPillStyle(signIn: SignInButtonSpec): ViewStyle {
+  const { paddingX, paddingY, gap } = signIn
+  return { minHeight: SIGN_IN_BUTTON_HEIGHT, borderRadius: SIGN_IN_BUTTON_HEIGHT / 2, paddingVertical: paddingY, paddingHorizontal: paddingX, paddingStart: paddingX, paddingEnd: 'paddingEnd' in signIn ? signIn.paddingEnd : paddingX, gap }
+}
+
+/** A provider pill holds its mark in a slot of the resting content height at the top, so a wrapped title keeps the mark on its first line. */
+function ButtonLead({ signIn, children }: Readonly<{ signIn: SignInButtonSpec | null; children: React.ReactNode }>) {
+  if (!signIn || !children) return children
+  return <View style={{ height: SIGN_IN_BUTTON_HEIGHT - signIn.paddingY * 2, alignSelf: 'flex-start', justifyContent: 'center' }}>{children}</View>
+}
+
+/** A provider title wraps whenever it does not fit; another label with a retained icon wraps above font scale 1.3. */
+function labelWrapping(signIn: SignInButtonSpec | null, retainLeadingIcon: boolean, fontScale: number) {
+  if (signIn) return { numberOfLines: undefined, shrink: styles.labelShrink }
+  return { numberOfLines: retainLeadingIcon && fontScale > 1.3 ? undefined : 1, shrink: retainLeadingIcon ? styles.labelShrink : null }
+}
+
 function iconOnlyStyle(side: number, edge: 'start' | undefined): ViewStyle {
   return { height: side, width: side, paddingHorizontal: SPACING.s0, gap: 0, marginStart: edge === 'start' ? ICON_ACTION_START_HANG : undefined }
 }
 
-function ButtonContents({ loading, retainLeadingIcon, iconOnly, leadingGlyph, children, textColor, sizeSpec, labelSize }: Readonly<Pick<ButtonProps, 'children' | 'iconOnly'> & {
-  loading: boolean; retainLeadingIcon: boolean; leadingGlyph: React.ReactNode; textColor: string; sizeSpec: typeof BUTTON_SIZES.sm; labelSize: number
+function ButtonContents({ loading, retainLeadingIcon, iconOnly, leadingGlyph, children, textColor, sizeSpec, signIn, labelSize }: Readonly<Pick<ButtonProps, 'children' | 'iconOnly'> & {
+  loading: boolean; retainLeadingIcon: boolean; leadingGlyph: React.ReactNode; textColor: string; sizeSpec: typeof BUTTON_SIZES.sm; signIn: SignInButtonSpec | null; labelSize: number
 }>) {
   const { fontScale } = useWindowDimensions()
   const iconColor = isValidElement<{ color?: string }>(children) ? children.props.color : undefined
+  const wrapping = labelWrapping(signIn, retainLeadingIcon, fontScale)
   return <>
-      {loading && !retainLeadingIcon ? (
+      <ButtonLead signIn={signIn}>{loading && !retainLeadingIcon ? (
         <ActivityIndicator size="small" color={textColor} />
-      ) : iconOnly ? buttonLeadingGlyph(children, iconColor ?? textColor) : leadingGlyph}
+      ) : iconOnly ? buttonLeadingGlyph(children, iconColor ?? textColor) : leadingGlyph}</ButtonLead>
       {iconOnly ? null : (
         <Text
-          numberOfLines={retainLeadingIcon && fontScale > 1.3 ? undefined : 1}
+          numberOfLines={wrapping.numberOfLines}
           style={[
             styles.label,
-            retainLeadingIcon ? { flexShrink: 1 } : null,
+            wrapping.shrink,
             { color: textColor, fontSize: labelSize },
           ]}
         >
@@ -210,6 +229,9 @@ const styles = StyleSheet.create({
   },
   label: {
     fontFamily: 'Geist_500Medium',
+  },
+  labelShrink: {
+    flexShrink: 1,
   },
 })
 

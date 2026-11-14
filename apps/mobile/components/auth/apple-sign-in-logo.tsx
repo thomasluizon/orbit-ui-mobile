@@ -5,8 +5,7 @@ import logoOnWhite from '@/assets/auth/apple-sign-in-logo-on-white.png'
 
 /**
  * Apple's logo from https://appleid.cdn-apple.com/appleid/button/logo (size 44, no border, scales 1 to 4),
- * the artwork Apple provides for apps without its JavaScript framework. Apple Design Resources files are
- * licensed only for Apple operating systems, so Android uses these. The file is as tall as the button.
+ * the button endpoint Apple documents for apps without its JavaScript framework. The file is as tall as the button.
  */
 const LOGO_BY_THEME: Record<ThemeMode, number> = { dark: logoOnWhite, light: logoOnBlack }
 

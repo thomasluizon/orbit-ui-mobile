@@ -2,6 +2,7 @@
  *  (StyleSheet) mirrors. Colors resolve per-scheme at each primitive; only the
  *  scheme-independent geometry lives here so the two mirrors cannot drift.
  *  See DESIGN.md "Buttons" for the rule. */
+import { SMALL_PILL_VISIBLE_MIN } from './breakpoints'
 import { SPACING } from './spacing'
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'destructive' | 'caution'
@@ -37,22 +38,37 @@ export const FAB_SIZE = 60
 /** A start-edge icon action moves its 44px paint back by the 20px glyph's side inset, so the glyph starts on the text column. */
 export const ICON_ACTION_START_HANG = -SPACING.s12
 
-export const GOOGLE_SIGN_IN_BUTTON = { paddingX: 12, gap: 10 } as const
+/**
+ * A sign-in provider pill rests at the small pill's visible height. Large text wraps its title inside a
+ * taller pill, which keeps this height's capsule radius, so a corner never cuts the title.
+ */
+export const SIGN_IN_BUTTON_HEIGHT = Math.max(BUTTON_SIZES.sm.height, SMALL_PILL_VISIBLE_MIN)
+
+export const GOOGLE_SIGN_IN_BUTTON = { paddingX: 12, paddingY: SPACING.s4, gap: 10 } as const
 
 /**
  * Apple's rules for a custom Sign in with Apple button (Human Interface Guidelines, Sign in with Apple):
- * the title is 43% of the button height, the logo file is as tall as the button and holds the margin
- * before the title, and the button, logo and title are only black or white: a white button on a dark
- * background and a black button on a light one.
+ * the title is 43% of the button height, the logo file is as tall as the button (no vertical padding)
+ * and holds the margin before the title, and the button, logo and title are only black or white: a
+ * white button on a dark background and a black button on a light one.
  */
 export const APPLE_SIGN_IN_BUTTON = {
   paddingX: GOOGLE_SIGN_IN_BUTTON.paddingX,
+  paddingY: 0,
+  /** Apple's minimum margin between the title and the button's trailing edge: 8% of the button width. */
+  paddingEnd: '8%',
   gap: 0,
   titleToHeight: 0.43,
   colors: { dark: { fill: '#FFFFFF', ink: '#000000' }, light: { fill: '#000000', ink: '#FFFFFF' } },
 } as const
 
-/** The title size in px for an Apple sign-in button of this height. */
-export function appleSignInTitleSize(buttonHeight: number): number {
-  return Math.round(buttonHeight * APPLE_SIGN_IN_BUTTON.titleToHeight)
+export type SignInButtonSpec = typeof GOOGLE_SIGN_IN_BUTTON | typeof APPLE_SIGN_IN_BUTTON
+
+/** The provider pill geometry of a `brand` pill, or null for any other pill. */
+export function signInButtonSpec(brand: 'google' | 'apple' | undefined): SignInButtonSpec | null {
+  if (brand === 'google') return GOOGLE_SIGN_IN_BUTTON
+  return brand === 'apple' ? APPLE_SIGN_IN_BUTTON : null
 }
+
+/** The resting title size in px of an Apple sign-in pill: 43% of its height. */
+export const APPLE_SIGN_IN_TITLE_SIZE = Math.round(SIGN_IN_BUTTON_HEIGHT * APPLE_SIGN_IN_BUTTON.titleToHeight)

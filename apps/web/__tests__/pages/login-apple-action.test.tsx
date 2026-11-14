@@ -2,7 +2,9 @@ import { render, screen } from '@testing-library/react'
 import { NextIntlClientProvider, createTranslator } from 'next-intl'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
+import { SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 import { EmailStep } from '@/app/(auth)/login/email-step'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 
 vi.mock('motion/react-m', async () => {
   const React = await import('react')
@@ -27,15 +29,21 @@ function renderEmailStep(isAppleLoading: boolean) {
 describe('web Apple sign-in action', () => {
   it('draws Apple\'s custom button rules at the Google pill height and shape', () => {
     const { apple, google } = renderEmailStep(false)
-    expect(apple.style.height).toBe(google.style.height)
-    expect(apple.className).toContain('rounded-full')
-    expect(apple.style.fontSize).toBe(`${Math.round(Number.parseFloat(google.style.height) * 0.43)}px`)
-    expect(apple.style.backgroundColor).toBe('light-dark(rgb(0, 0, 0), rgb(255, 255, 255))')
-    expect(apple.style.color).toBe('light-dark(rgb(255, 255, 255), rgb(0, 0, 0))')
+    for (const action of [apple, google]) {
+      expect(action.style).toMatchObject({ height: '', minHeight: `${SMALL_PILL_VISIBLE_MIN}px`, borderRadius: `${SMALL_PILL_VISIBLE_MIN / 2}px`, whiteSpace: 'normal' })
+    }
+    expect(apple.style.fontSize).toBe(`${Math.round(SMALL_PILL_VISIBLE_MIN * 0.43) / 16}rem`)
+    expect(apple.style.paddingBlock).toBe('0px')
+    expect(apple.style.backgroundColor).toBe('var(--apple-sign-in-fill)')
+    expect(apple.style.color).toBe('var(--apple-sign-in-ink)')
     expect(apple.style.boxShadow).toBe('none')
     const logo = apple.querySelector('svg[data-asset="apple-sign-in-logo"]')
-    expect(logo?.getAttribute('height')).toBe(Number.parseFloat(google.style.height).toString())
+    expect(logo?.getAttribute('height')).toBe(String(SMALL_PILL_VISIBLE_MIN))
     expect(logo?.querySelector('path')?.getAttribute('fill')).toBe('currentColor')
+  })
+
+  it.each([['dark', '#FFFFFF', '#000000'], ['light', '#000000', '#FFFFFF']] as const)('gives the %s theme Apple\'s button and title colours in every browser', (theme, fill, ink) => {
+    expect(resolveWebThemeVariables('orange', theme)).toMatchObject({ '--apple-sign-in-fill': fill, '--apple-sign-in-ink': ink })
   })
 
   it('shows Apple sign-in as busy while it starts, as the Google action and the mobile Apple action do', () => {
