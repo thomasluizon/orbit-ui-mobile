@@ -158,8 +158,8 @@
     ".claude/skills/audit-code-quality/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "0ca093b4ce75b592",
-      "calibratedAt": "2026-11-13",
+      "digest": "6c43ce232670f705",
+      "calibratedAt": "2026-11-14",
       "verdict": "undeclared, inherits the session: the debt audit makes judgment calls and opens tickets; an explicit high effort would change cost."
     },
     ".claude/skills/audit-performance/SKILL.md": {
