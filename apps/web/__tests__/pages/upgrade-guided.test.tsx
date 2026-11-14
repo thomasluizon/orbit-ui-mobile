@@ -24,6 +24,8 @@ const mocks = vi.hoisted(() => ({
   checkoutLoading: null as 'monthly' | 'yearly' | null,
   checkoutError: '',
   purchaseConfirmed: false,
+  statusError: false,
+  refetchStatus: vi.fn(),
   toastOnSuccess: undefined as boolean | undefined,
   reducedMotion: false,
   wide: false,
@@ -50,7 +52,7 @@ vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showSuccess: vi.
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.online }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: mocks.timeZone } }) }))
 vi.mock('@/hooks/use-subscription-status', () => ({
-  useSubscriptionStatus: () => ({ status: mocks.status, isLoading: false, isError: false, refetch: vi.fn() }),
+  useSubscriptionStatus: () => ({ status: mocks.status, isLoading: false, isError: mocks.statusError, refetch: mocks.refetchStatus }),
 }))
 vi.mock('@/hooks/use-subscription-plans', () => ({
   useSubscriptionPlans: () => ({ plans: mocks.plans, isLoading: mocks.plansLoading, isError: mocks.plansError, refetch: mocks.refetchPlans, discountedAmount: (amount: number) => amount }),
@@ -100,7 +102,7 @@ beforeEach(() => {
   globalThis.sessionStorage.clear()
   Object.assign(mocks, {
     locale: 'en', search: '', status: freeStatus, timeZone: 'America/Sao_Paulo', plans, billing: null, plansLoading: false, plansError: false,
-    online: true, checkoutLoading: null, checkoutError: '', purchaseConfirmed: false, reducedMotion: false, wide: false,
+    online: true, checkoutLoading: null, checkoutError: '', purchaseConfirmed: false, statusError: false, reducedMotion: false, wide: false,
   })
   enableTestFlags('orbit_guided_flows')
 })
@@ -264,6 +266,26 @@ describe('the plan question of the upgrade route', () => {
   })
 })
 
+describe('the billing error of the upgrade route', () => {
+  it.each([
+    ['en', 'I could not load your billing details.'],
+    ['pt-BR', 'Não consegui carregar os detalhes de cobrança.'],
+  ] as const)('names the billing error with Orbit in Parado and reads the subscription again on retry in %s', (locale, line) => {
+    mocks.locale = locale
+    mocks.statusError = true
+    mocks.status = null
+    render(<UpgradePage />)
+    const state = document.querySelector<HTMLElement>('[data-upgrade-load-failed]')!
+    expect(state.querySelector('[data-orbit-face="rig"]')).toHaveAttribute('data-orbit-state', 'parado')
+    expect(document.querySelector('[data-orbit-state="feliz"]')).toBeNull()
+    expect(within(state).getByRole('alert')).toHaveTextContent(line)
+    expect(document.querySelector('[data-upgrade-block]')).toBeNull()
+    fireEvent.click(within(state).getByRole('button', { name: locale === 'en' ? en.upgrade.billing.retry : ptBR.upgrade.billing.retry }))
+    expect(mocks.refetchStatus).toHaveBeenCalledTimes(1)
+    expect(mocks.refetchPlans).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('the result of a purchase', () => {
   it('opens no dialog for a return that the subscription read does not confirm', () => {
     mocks.purchaseConfirmed = true
@@ -390,6 +412,16 @@ describe('the dashboards and the notices with the guided flows on', () => {
 })
 
 describe('the upgrade route with the guided flows off', () => {
+  it('keeps the current billing error with no Orbit', () => {
+    resetTestFlags()
+    mocks.statusError = true
+    mocks.status = null
+    render(<UpgradePage />)
+    expect(screen.getByRole('alert')).toHaveTextContent(en.upgrade.billing.error)
+    expect(document.querySelector('[data-upgrade-load-failed]')).toBeNull()
+    expect(document.querySelector('[data-orbit-face="rig"]')).toBeNull()
+  })
+
   it('keeps the current pitch, the title of the header as a heading and the done toast of the Stripe return', () => {
     resetTestFlags()
     render(<UpgradePage />)

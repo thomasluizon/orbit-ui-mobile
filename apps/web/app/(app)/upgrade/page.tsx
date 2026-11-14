@@ -21,6 +21,7 @@ import {
 import type { SubscriptionPortalState, SubscriptionScreenContent, SubscriptionScreenState } from '@orbit/shared/utils'
 import { PageHeader } from '@/components/ui/page-header'
 import { ErrorState } from '@/components/ui/error-state'
+import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 
 import { Skeleton } from '@/components/ui/skeleton'
 import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
@@ -59,6 +60,19 @@ function knownOrigin(from: string | null): string | null {
 /** The plan question with the guided flows on, and the current pitch with them off. Both send the same checkout. */
 function UpgradePitchSection({ guided, usage, ...props }: ComponentProps<typeof PricingSection> & Pick<GuidedPricingSectionProps, 'usage'> & { guided: boolean }) {
   return guided ? <GuidedPricingSection {...props} usage={usage} /> : <PricingSection {...props} />
+}
+
+/** The billing read failed. With the guided flows on, Orbit names the state in the first person above the retry. */
+function UpgradeLoadFailed({ guided, retrying, onRetry, t }: Readonly<{ guided: boolean; retrying: boolean; onRetry: () => void; t: ReturnType<typeof useTranslations> }>) {
+  const mascotSize = useStateMascotSize()
+  const retry = <IconButton label={t('upgrade.billing.retry')} loading={retrying} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
+  if (!guided) return <ErrorState message={t('upgrade.billing.error')} action={retry} />
+  return (
+    <div data-upgrade-load-failed="" className="flex flex-col items-center">
+      <span aria-hidden="true"><OrbitMascot size={mascotSize} state="parado" /></span>
+      <ErrorState message={t('upgrade.orbitLine.billingError')} action={retry} />
+    </div>
+  )
 }
 
 /** The subscription read that the result of a purchase trusts: null while the screen loads or after it failed. */
@@ -219,14 +233,7 @@ export default function UpgradePage() {
       </div>
     )
   } else if (screenState === 'load-failed') {
-    content = (
-      <ErrorState
-        message={t('upgrade.billing.error')}
-        action={
-          <IconButton label={t('upgrade.billing.retry')} loading={isSettling} onClick={retryLoad}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
-        }
-      />
-    )
+    content = <UpgradeLoadFailed guided={guided} retrying={isSettling} onRetry={retryLoad} t={t} />
   } else if (lapsedNoticeStatus) {
     content = <SubscriptionNotice status={lapsedNoticeStatus} locale={locale} onResubscribe={() => setShowPitch(true)} t={t} />
   } else if (model.content === 'pitch') {

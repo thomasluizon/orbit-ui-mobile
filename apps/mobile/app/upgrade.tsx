@@ -37,6 +37,7 @@ import { useShellScrollerClearance } from '@/components/shell/shell-scroller-cle
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useOffline } from '@/hooks/use-offline'
 import { ErrorState } from '@/components/ui/error-state'
+import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 import { Skeleton } from '@/components/ui/skeleton'
 
 import { useBackLabel } from '@/hooks/use-back-label'
@@ -52,6 +53,19 @@ import { SubscriptionNotice } from '@/components/upgrade/subscription-notice'
 import type { SubscriptionInterval, UpgradeTextFn } from '@/components/upgrade/types'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useFlag } from '@/hooks/use-flag'
+
+/** The billing read failed. With the guided flows on, Orbit names the state in the first person above the retry. */
+function UpgradeLoadFailed({ guided, onRetry, t }: Readonly<{ guided: boolean; onRetry: () => void; t: UpgradeTextFn }>) {
+  const mascotSize = useStateMascotSize()
+  const retry = <IconButton label={t('upgrade.billing.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
+  if (!guided) return <View style={styles.padBlock}><ErrorState message={t('upgrade.billing.error')} action={retry} /></View>
+  return (
+    <View testID="upgrade-load-failed" style={[styles.padBlock, styles.centred]}>
+      <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden><OrbitMascot size={mascotSize} state="parado" /></View>
+      <ErrorState message={t('upgrade.orbitLine.billingError')} action={retry} />
+    </View>
+  )
+}
 
 function UpgradeContent({
   state,
@@ -80,9 +94,7 @@ function UpgradeContent({
       </View>
     )
   } else if (state === 'load-failed') {
-    body = <View style={styles.padBlock}><ErrorState message={t('upgrade.billing.error')} action={
-      <IconButton label={t('upgrade.billing.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
-    } /></View>
+    body = <UpgradeLoadFailed guided={guided} onRetry={onRetry} t={t} />
   } else {
     body = content === 'pitch' ? pitchContent : billingContent
   }
@@ -407,4 +419,5 @@ const styles = StyleSheet.create({
     gap: 8,
     alignItems: 'stretch',
   },
+  centred: { alignItems: 'center' },
 })

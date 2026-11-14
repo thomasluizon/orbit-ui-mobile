@@ -26,6 +26,8 @@ interface UpgradeMocks {
   online: boolean
   reducedMotion: boolean
   refetchPlans: ReturnType<typeof vi.fn>
+  statusError: boolean
+  refetchStatus: ReturnType<typeof vi.fn>
   onPurchased: (() => void) | undefined
   playBilling: Record<string, unknown> & { purchase: ReturnType<typeof vi.fn>; yearlyOffer: StoreOfferDouble; monthlyOffer: StoreOfferDouble }
 }
@@ -45,6 +47,8 @@ const mocks = vi.hoisted((): UpgradeMocks => ({
   online: true,
   reducedMotion: false,
   refetchPlans: vi.fn(() => Promise.resolve()),
+  statusError: false,
+  refetchStatus: vi.fn(() => Promise.resolve()),
   onPurchased: undefined,
   playBilling: {
     isLoadingProducts: false, isProductsError: false, retryProducts: vi.fn(), isProcessing: false, errorKey: '', clearError: vi.fn(),
@@ -83,7 +87,7 @@ vi.mock('@/hooks/use-subscription-plans', async (importOriginal) => ({
   useSubscriptionPlans: () => ({ plans: mocks.plans, isLoading: mocks.plansLoading, isError: mocks.plansError, refetch: mocks.refetchPlans }),
 }))
 vi.mock('@/hooks/use-subscription-status', () => ({
-  useSubscriptionStatus: () => ({ status: mocks.status, isLoading: false, isError: false, refetch: vi.fn(() => Promise.resolve()) }),
+  useSubscriptionStatus: () => ({ status: mocks.status, isLoading: false, isError: mocks.statusError, refetch: mocks.refetchStatus }),
 }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: mocks.timeZone } }) }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showSuccess: mocks.showSuccess }) }))
@@ -121,7 +125,7 @@ function confirmPurchase() {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  Object.assign(mocks, { locale: 'en', from: undefined, status: freeStatus, timeZone: 'America/Sao_Paulo', plans, billing: undefined, plansLoading: false, plansError: false, online: true, reducedMotion: false })
+  Object.assign(mocks, { statusError: false, locale: 'en', from: undefined, status: freeStatus, timeZone: 'America/Sao_Paulo', plans, billing: undefined, plansLoading: false, plansError: false, online: true, reducedMotion: false })
   Object.assign(mocks.playBilling, { isProcessing: false, isRestoring: false, errorKey: '', isLoadingProducts: false, isProductsError: false })
   enableTestFlags('orbit_guided_flows')
   __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 })
@@ -274,6 +278,25 @@ describe('the plan question of the Android upgrade route', () => {
   })
 })
 
+describe('the billing error of the Android upgrade route', () => {
+  it.each([
+    ['en', 'I could not load your billing details.'],
+    ['pt-BR', 'Não consegui carregar os detalhes de cobrança.'],
+  ] as const)('names the billing error with Orbit in Parado and reads the subscription again on retry in %s', (locale, line) => {
+    mocks.locale = locale
+    mocks.statusError = true
+    mocks.status = null
+    const tree = renderNavigation(<UpgradeScreen />)
+    expect(byTestId(tree, 'upgrade-load-failed')).toBeDefined()
+    expect(orbitStates(tree)).toEqual(['parado'])
+    expect(screenText(tree)).toContain(line)
+    expect(byTestId(tree, 'upgrade-block')).toBeUndefined()
+    press(byLabel(tree, locale === 'en' ? 'Try again' : 'Tentar novamente')!)
+    expect(mocks.refetchStatus).toHaveBeenCalledTimes(1)
+    tree.unmount()
+  })
+})
+
 describe('the result of an Android purchase', () => {
   it('opens no dialog before the store confirms, and no dialog for a confirmation that the subscription read does not report', () => {
     const tree = renderNavigation(<UpgradeScreen />)
@@ -407,6 +430,17 @@ describe('the dashboards and the notices of the Android route with the guided fl
 })
 
 describe('the Android upgrade route with the guided flows off', () => {
+  it('keeps the current billing error with no Orbit', () => {
+    resetTestFlags()
+    mocks.statusError = true
+    mocks.status = null
+    const tree = renderNavigation(<UpgradeScreen />)
+    expect(screenText(tree)).toContain("Couldn't load billing details")
+    expect(byTestId(tree, 'upgrade-load-failed')).toBeUndefined()
+    expect(orbitStates(tree)).toEqual([])
+    tree.unmount()
+  })
+
   it('keeps the current pitch, the title of the header as a header and the done toast of a verified purchase', () => {
     resetTestFlags()
     const tree = renderNavigation(<UpgradeScreen />)
