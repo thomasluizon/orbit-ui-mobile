@@ -66,6 +66,11 @@ vi.mock('@/hooks/use-goals', () => ({
   useDeleteGoal: () => ({ mutateAsync: deleteMutateAsync, isPending: false, error: null }),
 }))
 
+const guidedFlag = vi.hoisted(() => ({ on: false, router: { push: vi.fn() } }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => guidedFlag.on }))
+vi.mock('next/navigation', () => ({ useRouter: () => guidedFlag.router }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile({ timeZone: 'UTC' }) }) }))
+
 vi.mock('@/components/goals/edit-goal-modal', () => ({
   EditGoalModal: () => null,
 }))

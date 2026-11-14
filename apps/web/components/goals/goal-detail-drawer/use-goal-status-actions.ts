@@ -12,6 +12,8 @@ interface GoalStatusActionsInput {
   goalCount: number | undefined
   goalUnit: string | undefined
   refetchDetail: () => void | Promise<unknown>
+  /** Runs after an abandon or a reactivate is saved, so the detail can state the fact. */
+  onStatusSaved?: (status: 'Abandoned' | 'Active') => void
 }
 
 /** Owns the drawer's goal-status mutations — mark completed, mark abandoned,
@@ -23,6 +25,7 @@ export function useGoalStatusActions({
   goalCount,
   goalUnit,
   refetchDetail,
+  onStatusSaved,
 }: GoalStatusActionsInput) {
   const t = useTranslations()
   const translate = useCallback(
@@ -59,10 +62,11 @@ export function useGoalStatusActions({
         goalName,
       })
       void refetchDetail()
+      onStatusSaved?.('Abandoned')
     } catch (error: unknown) {
       showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
     }
-  }, [goalId, goalName, refetchDetail, showError, translate, updateStatus])
+  }, [goalId, goalName, onStatusSaved, refetchDetail, showError, translate, updateStatus])
 
   const reactivate = useCallback(async () => {
     if (updateStatus.isPending) return
@@ -73,10 +77,11 @@ export function useGoalStatusActions({
         goalName,
       })
       void refetchDetail()
+      onStatusSaved?.('Active')
     } catch (error: unknown) {
       showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
     }
-  }, [goalId, goalName, refetchDetail, showError, translate, updateStatus])
+  }, [goalId, goalName, onStatusSaved, refetchDetail, showError, translate, updateStatus])
 
   return { markCompleted, markAbandoned, reactivate, isUpdatingStatus }
 }
