@@ -628,6 +628,39 @@
         "no": "No",
         "removeEndDate": "Remove the end date"
       },
+      "tags": {
+        "lineIntro": "A tag groups similar items. Tap one to see what is already in it.",
+        "lineHas": "{tag} already has {items}.",
+        "lineEmpty": "{tag} is still empty.",
+        "more": "{count, plural, one {# more item} other {# more items}}",
+        "none": "No tag",
+        "searchMiss": "No tag with that name.",
+        "manage": "Want to rename or delete a tag?"
+      },
+      "checklist": {
+        "line": "The steps become a list you check off as you go.",
+        "useTemplate": "Use a template",
+        "noWithItems": "Clear the list to go on with no steps."
+      },
+      "templates": {
+        "question": "Which template do you want to use?",
+        "line": "A template is a list of steps you saved to use again.",
+        "lineEmpty": "You have no saved templates yet. Write the steps and I keep them for next time.",
+        "option": "{name}, {count, plural, one {# item} other {# items}}",
+        "write": "Write steps",
+        "saveQuestion": "What do you want to call this template?",
+        "saveLine": "I keep these steps so you can use them on another habit.",
+        "loadError": "Could not load your templates. Try again.",
+        "nameHint": "Write a name for the template."
+      },
+      "goals": {
+        "line": "A goal adds up the progress of the habits linked to it.",
+        "lineEmpty": "You have no goals yet. A goal adds up the progress of the habits linked to it.",
+        "limit": "Choose up to 10 goals",
+        "searchMiss": "No goal with that name.",
+        "option": "{title}, {percent}%",
+        "loadError": "Could not load your goals. Try again."
+      },
       "orbit": {
         "offline": "No connection. I read on the device and you can go on the same way.",
         "fromConversation": "It came from your conversation with Orbit."
@@ -3155,7 +3188,19 @@
       "sent": "Your message arrived. The reply goes to {email}."
     },
     "seeCalendar": "View in Calendar",
-    "createAnother": "Create another"
+    "createAnother": "Create another",
+    "goal": {
+      "created": "The goal \"{title}\" runs until {date}.",
+      "createdNoDeadline": "The goal \"{title}\" is set with no deadline.",
+      "updated": "The goal \"{title}\" is saved and runs until {date}.",
+      "updatedNoDeadline": "The goal \"{title}\" is saved with no deadline.",
+      "reactivated": "The goal \"{title}\" is active again.",
+      "abandoned": "The goal \"{title}\" is marked as abandoned.",
+      "deleted": "The goal \"{title}\" was deleted.",
+      "open": "View the goal",
+      "openList": "View goals",
+      "another": "Create another"
+    }
   },
   "onboarding": {
     "flow": {
@@ -3766,6 +3811,33 @@
       "unitQuestion": "Of what?",
       "deadlineQuestion": "By when?"
     },
+    "flow": {
+      "what": {
+        "line": "Say it your way. Then I ask how much and by when."
+      },
+      "track": {
+        "line": "Progress adds up a number. A streak counts days in a row."
+      },
+      "amount": {
+        "line": "With a number I can show how much is left.",
+        "streakLine": "I count each day in a row until you get there."
+      },
+      "deadline": {
+        "line": "With a deadline I work out how much to do each day.",
+        "none": "No deadline",
+        "monthEnd": "End of the month",
+        "yearEnd": "End of the year"
+      },
+      "habits": {
+        "question": "Which habits count toward this goal?"
+      },
+      "summary": {
+        "what": "Your goal",
+        "track": "Tracking",
+        "amount": "How much",
+        "deadline": "By when"
+      }
+    },
     "streak": {
       "ofTarget": "Day {current} of {target}"
     },
@@ -3806,7 +3878,12 @@
       "askAstraEyebrow": "Review goal",
       "askAstraDefault": "Want a weekly check-in plan for this?",
       "askAstraSeedDefault": "Help me set up a weekly check-in plan for my goal \"{title}\".",
-      "statusLabel": "Status"
+      "statusLabel": "Status",
+      "line": {
+        "daysLeft": "{days, plural, one {# day left until the deadline.} other {# days left until the deadline.}}",
+        "dueToday": "The deadline is today.",
+        "passed": "The deadline was {date}."
+      }
     },
     "deadline": {
       "daysLeft": "{n, plural, one {# day left} other {# days left}}"

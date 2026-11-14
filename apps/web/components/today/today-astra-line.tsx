@@ -13,9 +13,11 @@ interface TodayAstraLineProps {
   busy?: boolean
   announce?: boolean
   loading?: boolean
+  /** False inside a surface that already holds the screen gutter, such as the goal detail. Default true. */
+  gutter?: boolean
 }
 
-export function TodayAstraLine({ text, destination, href, onPress, disabled = false, busy = false, announce = false, loading = false }: Readonly<TodayAstraLineProps>) {
+export function TodayAstraLine({ text, destination, href, onPress, disabled = false, busy = false, announce = false, loading = false, gutter = true }: Readonly<TodayAstraLineProps>) {
   const destinationId = useId()
   const content = <>
     <span aria-hidden="true" className="relative flex w-[48px] shrink-0 items-center justify-center">
@@ -25,7 +27,7 @@ export function TodayAstraLine({ text, destination, href, onPress, disabled = fa
       {loading ? <><span className="sr-only">{text}</span><span data-summary-skeleton aria-hidden="true" className="flex min-h-[2lh] flex-col justify-center gap-2"><span className="h-[14px] w-full rounded-[8px] bg-[var(--hairline-strong)]" /><span className="h-[14px] w-2/3 rounded-[8px] bg-[var(--hairline-strong)]" /></span></> : text}
     </span>
   </>
-  return <div className="px-screen-gutter" data-today-astra-slot aria-busy={busy}>
+  return <div className={gutter ? 'px-screen-gutter' : undefined} data-today-astra-slot aria-busy={busy}>
     {href ? <Link className="today-astra-line" href={href} aria-describedby={destinationId}>{content}</Link>
       : <button type="button" className="today-astra-line" aria-describedby={destinationId} disabled={disabled} onClick={onPress}>{content}</button>}
     <span id={destinationId} className="sr-only">{destination}</span>

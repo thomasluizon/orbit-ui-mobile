@@ -233,6 +233,20 @@ across design bundles so testing configuration does not change the pinned native
 
 Workers compile these specs and run the repository's Vitest suites, including their permitted isolated Chromium cases. They do not run Playwright or start app servers for this work order. The PR layout workflow is the only runner for the new guard and the source of its observed red or green geometry evidence. Expected failures on an unfixed tree must not be described as observed failures before that workflow runs.
 
+### Goal, tag and checklist guided flows
+
+With the flag `orbit_guided_flows` on, goals, tags and checklist templates run on the guided flow primitives. Each suite also proves the current surface with the flag off. Copy scenarios run in `en` and `pt-BR`, and each motion has a case with reduced motion off and on. On Android the suites mock at the hook level.
+
+- `packages/shared/src/__tests__/tag-flow-line.test.ts` covers the tag line: three names through `Intl.ListFormat`, the count of the rest, an empty tag and no cache.
+- `packages/shared/src/__tests__/goal-deadline-options.test.ts` covers Fim do mês and Fim do ano around a month end, a year end, a leap day and a time zone boundary.
+- `packages/shared/src/__tests__/goal-flow.test.ts`, `goal-edit-core.test.ts` and `goal-detail-sweep.test.ts` cover the goal steps and their hints, the edit draft and its update request, the days to the deadline, the last seen value of each goal and the one sweep of a changed ring.
+- `apps/web/__tests__/components/habits/flow-steps/tag-step.test.tsx` and `apps/mobile/__tests__/components/habits/flow-steps/tag-step.test.tsx` mount the tag step in the real frame: no tags, the line after a press with no request, five tags and the limit, Sem tag, search with a match and a miss, create, rename and delete with the server messages and the 409, the discard sheet for a dirty tag editor, rows that stay still when they show and for a search while a created tag enters, the suggestion with Pensando, and the bar that no title or label is a bare noun. `question-flow-line-fade.test.tsx` on both platforms covers the line fade of `lineKey`.
+- `checklist-step.test.tsx` and `goal-link-step.test.tsx` in the same folders cover the checklist step, the template and save questions, and the goal step with its limit, its search and Criar meta returning the new goal selected. Both steps show a skeleton while they load and a retry after a failed load.
+- `apps/web/__tests__/components/goals/guided-goal-flow.test.tsx` and `apps/mobile/__tests__/components/goals/guided-goal-flow.test.tsx` cover a standard and a streak goal through every step with the request of the current sheet, a goal from a habit, By when, Which habits, the save error on the summary, the discard guard, the result dialog, and edit on the summary.
+- `goals-list-orbit.test.tsx` and `goal-detail-orbit.test.tsx` in the same folders cover Orbit in the empty goals list, the ring sweep from the last visit (once in a visit, and at rest when device storage is refused), the Orbit line of the goal detail, the progress question, and the result dialogs of reactivate, mark abandoned and delete, with no mascot in the delete confirmation.
+- `apps/mobile/__tests__/components/ui/option-card-selection.test.tsx` covers the primary selection ring of a quick option on Android and its still version.
+- The `*-centre-geometry.test.tsx` suites of the tag step, the checklist and goal steps, the goal flow, the goal status dialogs and the empty goals list measure each block centre within 1 px of the free area centre at 320, 360, 384 and 412. On web they run in the Chromium project.
+
 ### Perfil guided flows
 
 With the flag `orbit_guided_flows` on, the multi-field Perfil surfaces run on the guided flow primitives with no mascot, and each suite also proves the current surface with the flag off. Every scenario runs in `en` and `pt-BR`, and the flow scenarios run with reduced motion off and on.

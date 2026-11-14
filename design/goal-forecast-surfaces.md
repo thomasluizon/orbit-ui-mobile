@@ -13,6 +13,15 @@
 Both detail presentations share the goal detail forecast rows. The progress heading and ring remain the focal element;
 forecast figures use plain label and value rows, with no card chrome or additional actions.
 
+## The Orbit line of the goal detail (#2121)
+
+With `orbit_guided_flows` on, the goal detail shows one Orbit line row with one date fact from the
+same deadline: `Faltam {days} dias para o prazo.`, `O prazo é hoje.` on the deadline day, or
+`O prazo era {date}.` after it. With no deadline, or for a goal that is no longer active, the row is
+absent. `packages/shared/src/utils/goal-detail-line.ts` counts the days in the account time zone. The
+row opens the conversation with the seeded question that the ask action sends. No request starts
+when the sentence changes.
+
 ## Producer boundary
 
 The existing goal detail query owns the metrics request. Both clients read its deadline days, daily

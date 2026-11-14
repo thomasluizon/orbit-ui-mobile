@@ -8,6 +8,8 @@ export interface QuestionFlowProps {
   question: string
   /** The Orbit line. Absent when no job applies, and the block closes up. */
   line?: string | null
+  /** Changes when the line changes with no step change, such as after a press on a tag. A new key fades the line in with `motionDurations.micro`, at once under reduced motion. Absent, the line swaps with no motion. */
+  lineKey?: string
   /** Changes on each step. A change moves focus to the question and slides the step. */
   stepKey: string
   position: number
@@ -39,4 +41,15 @@ export interface QuestionFlowProps {
   }
   /** One quiet control under the block, such as a link. */
   footer?: React.ReactNode
+}
+
+/** What one step shows. A step owner returns it and the flow host passes it to the frame: `free` becomes the children. */
+export type FlowStepView = Pick<QuestionFlowProps, 'question' | 'line' | 'options' | 'primary' | 'orbitState' | 'statusText'> & {
+  free?: React.ReactNode
+  /** Changes when the Orbit line changes with no step change, such as after a press on a tag. The host passes it to the frame, which cross-fades the line. */
+  lineKey?: string
+  /** A question inside the step, such as the template question of the checklist step. The host passes it as the frame `stepKey`, so the question slides and takes focus. */
+  stepKey?: string
+  /** Back inside the step. When present, the host calls it instead of its own back. */
+  onBack?: () => void
 }

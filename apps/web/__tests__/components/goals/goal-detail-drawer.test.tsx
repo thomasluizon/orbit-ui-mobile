@@ -66,6 +66,11 @@ vi.mock('@/hooks/use-goals', () => ({
   useDeleteGoal: () => ({ mutateAsync: deleteMutateAsync, isPending: false, error: null }),
 }))
 
+const guidedFlag = vi.hoisted(() => ({ on: false, router: { push: vi.fn() } }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => guidedFlag.on }))
+vi.mock('next/navigation', () => ({ useRouter: () => guidedFlag.router }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile({ timeZone: 'UTC' }) }) }))
+
 vi.mock('@/components/goals/edit-goal-modal', () => ({
   EditGoalModal: () => null,
 }))
@@ -381,7 +386,7 @@ describe('GoalDetailDrawer', () => {
     expect(updateProgressMutateAsync).not.toHaveBeenCalled()
   })
 
-  it('opens Astra with the selected goal while retaining inline detail for return', () => {
+  it('opens the conversation with the selected goal while retaining inline detail for return', () => {
     const onOpenChange = vi.fn()
     detailGoal = { ...detailGoal, title: 'Synced goal' }
     render(<GoalDetailDrawer inline open onOpenChange={onOpenChange} goalId="1" />)
@@ -395,7 +400,7 @@ describe('GoalDetailDrawer', () => {
     expect(screen.getByRole('heading', { name: 'Synced goal' })).toBeTruthy()
   })
 
-  it('waits for the goal sheet exit before opening Astra', async () => {
+  it('waits for the goal sheet exit before opening the conversation', async () => {
     let finishExit!: () => void
     const exitFinished = new Promise<void>(resolve => { finishExit = resolve })
     const onOpenChange = vi.fn()

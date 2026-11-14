@@ -477,6 +477,18 @@ export {
 } from './goal-form'
 export type { GoalDraftFieldError, GoalDraftFieldErrorKeys } from './goal-form'
 export {
+  advanceGoalFlow,
+  getGoalFlowStepError,
+  goalFlowPosition,
+  goalFlowSteps,
+  openGoalFlowStep,
+  retreatGoalFlow,
+  startGoalFlow,
+} from './goal-flow'
+export type { GoalFlowNavigation, GoalFlowOptions, GoalFlowStep, GoalFlowStepDraft, GoalFlowStepError } from './goal-flow'
+export { resolveGoalDeadlineChoice, resolveMonthEndDeadline, resolveYearEndDeadline, type GoalDeadlineChoice } from './goal-deadline-options'
+export { buildTagLineItems, type TagLineHabit, type TagLineItems } from './tag-flow-line'
+export {
   createEmptyNotificationsResponse,
   deleteNotificationFromList,
   invalidateNotificationList,

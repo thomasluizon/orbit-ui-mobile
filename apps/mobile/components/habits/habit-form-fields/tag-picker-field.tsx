@@ -40,6 +40,23 @@ function TagPreview({ tags, moreLabel, styles }: Readonly<{ tags: HabitTag[]; mo
   return <View style={styles.chips}>{tags.slice(0, 3).map((tag) => <View key={tag.id} style={styles.chip}><PersonalTextDetails lines={1} textStyle={styles.chipText}>{tag.name}</PersonalTextDetails></View>)}{tags.length > 3 ? <View style={[styles.chip, { paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s8 }]}><Text style={styles.chipText}>{moreLabel}</Text></View> : null}</View>
 }
 
+/** One tag: a press toggles it, and its own controls rename and delete it. */
+export function TagPickerRow({ tag, selected, atLimit, disabled, onToggle, onEdit, onDelete, editLabel, deleteLabel }: Readonly<{
+  tag: HabitTag
+  selected: boolean
+  atLimit: boolean
+  disabled: boolean
+  onToggle: (id: string) => void
+  onEdit: (tag: HabitTag) => void
+  onDelete: (id: string) => void
+  editLabel: string
+  deleteLabel: string
+}>) {
+  const tokens = useThemeTokens()
+  const styles = useMemo(() => createStyles(tokens), [tokens])
+  return <PickerRow name={tag.name} selected={selected} disabled={disabled || (!selected && atLimit)} onToggle={() => onToggle(tag.id)} value={selected ? '✓' : ''} valueStyle={styles.rowValue} valueHidden><Pressable accessibilityRole="button" accessibilityLabel={`${editLabel}: ${tag.name}`} disabled={disabled} style={({ pressed }) => [styles.iconButton, disabled ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onEdit(tag)}><Pencil size={16} color={tokens.fg3} strokeWidth={1.8} /></Pressable><Pressable accessibilityRole="button" accessibilityLabel={`${deleteLabel}: ${tag.name}`} disabled={disabled} style={({ pressed }) => [styles.iconButton, disabled ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onDelete(tag.id)}><Trash2 size={16} color={tokens.fg3} strokeWidth={1.8} /></Pressable></PickerRow>
+}
+
 export function TagPickerField({ editorDirty = false, onDiscardEditor, tags, selectedIds, atLimit, disabled, editor, suggestions, onToggle, onCreate, onEdit, onDelete, editLabel, deleteLabel }: Readonly<TagPickerFieldProps>) {
   const { disabled: formDisabled, guard, isDisabled } = useHabitFormInteraction()
   disabled = disabled || formDisabled
@@ -56,10 +73,7 @@ export function TagPickerField({ editorDirty = false, onDiscardEditor, tags, sel
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds])
   const selectedTags = tags.filter((tag) => selectedSet.has(tag.id))
   const filtered = tags.filter((tag) => tag.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
-  const renderTag = ({ item: tag }: { item: HabitTag }) => {
-    const selected = selectedSet.has(tag.id)
-    return <PickerRow name={tag.name} selected={selected} disabled={disabled || (!selected && atLimit)} onToggle={() => onToggle(tag.id)} value={selected ? '✓' : ''} valueStyle={styles.rowValue} valueHidden><Pressable accessibilityRole="button" accessibilityLabel={`${editLabel}: ${tag.name}`} disabled={disabled} style={({ pressed }) => [styles.iconButton, disabled ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onEdit(tag)}><Pencil size={16} color={tokens.fg3} strokeWidth={1.8} /></Pressable><Pressable accessibilityRole="button" accessibilityLabel={`${deleteLabel}: ${tag.name}`} disabled={disabled} style={({ pressed }) => [styles.iconButton, disabled ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onDelete(tag.id)}><Trash2 size={16} color={tokens.fg3} strokeWidth={1.8} /></Pressable></PickerRow>
-  }
+  const renderTag = ({ item: tag }: { item: HabitTag }) => <TagPickerRow tag={tag} selected={selectedSet.has(tag.id)} atLimit={atLimit} disabled={disabled} onToggle={onToggle} onEdit={onEdit} onDelete={onDelete} editLabel={editLabel} deleteLabel={deleteLabel} />
   const trailingControls = <>
     {tags.length > 0 && !editor ? <IconButton label={t('habits.form.newTag')} disabled={disabled} onPress={guard(onCreate)}><Plus size={20} strokeWidth={1.5} accessible={false} /></IconButton> : null}
     {editor}
@@ -83,5 +97,5 @@ function createStyles(tokens: Tokens) { return StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingTop: SPACING.s8 }, chip: { backgroundColor: tokens.bgWell, borderRadius: 8, minWidth: 0, maxWidth: '100%' }, chipText: { color: tokens.fg2, flexShrink: 1, fontFamily: 'Geist_500Medium', fontSize: 14 },
   list: { flexShrink: 1, gap: 4 }, count: { color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 12, padding: SPACING.s8 }, search: { marginBottom: SPACING.s8 }, virtualList: { maxHeight: 320 },
   rowValue: { flex: 1, color: tokens.fg2, fontSize: 14 }, iconButton: { alignItems: 'center', borderRadius: 999, overflow: 'hidden', height: TOUCH_TARGET_MIN, justifyContent: 'center', width: TOUCH_TARGET_MIN }, disabled: { opacity: 0.4 }, pressed: { backgroundColor: tokens.bgHover },
-  empty: { alignItems: 'center', gap: 16, padding: SPACING.s32 }, emptyTitle: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 20, textAlign: 'center' }, action: { alignSelf: 'flex-start', backgroundColor: tokens.bgWell, borderRadius: 999, overflow: 'hidden', justifyContent: 'center', minHeight: TOUCH_TARGET_MIN, paddingHorizontal: SPACING.s16 }, actionText: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 },
+  empty: { alignItems: 'center', gap: 16, padding: SPACING.s32 }, emptyTitle: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 20, textAlign: 'center' },
 }) }

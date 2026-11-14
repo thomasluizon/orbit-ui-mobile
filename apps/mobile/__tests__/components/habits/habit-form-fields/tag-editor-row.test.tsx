@@ -10,11 +10,14 @@ const renderer = require('react-test-renderer') as typeof import('react-test-ren
 vi.mock('@/components/ui/bottom-sheet-app-text-input', () => ({ BottomSheetAppTextInput: (props: Record<string, unknown>) => React.createElement('TextInput', props) }))
 
 describe('tag editor press fills', () => {
-  it('fills the primary commit and neutral cancel controls', () => {
+  it('draws the commit as the shared primary pill and fills the neutral cancel control', () => {
     const tokens = createTokensV2()
+    const onCommit = vi.fn()
     let tree!: import('react-test-renderer').ReactTestRenderer
-    void renderer.act(() => { tree = renderer.create(<TagEditorRow value="Health" inputAriaLabel="Tag" actionLabel="Save" cancelAriaLabel="Cancel" disabled={false} onChange={vi.fn()} onCommit={vi.fn()} onCancel={vi.fn()} styles={createStyles(tokens)} tokens={tokens} />) })
-    expectPressFill(tree, 'Save', tokens.primaryPressed, radius.full)
+    void renderer.act(() => { tree = renderer.create(<TagEditorRow value="Health" inputAriaLabel="Tag" actionLabel="Save" cancelAriaLabel="Cancel" disabled={false} onChange={vi.fn()} onCommit={onCommit} onCancel={vi.fn()} styles={createStyles(tokens)} tokens={tokens} />) })
+    const save = tree.root.findAll((node) => node.props.testID === 'button-primary-sm' && typeof node.props.onPress === 'function')[0]!
+    void renderer.act(() => { (save.props.onPress as () => void)() })
+    expect(onCommit).toHaveBeenCalledTimes(1)
     expectPressFill(tree, 'Cancel', tokens.bgHover, radius.full)
     void renderer.act(() => tree.update(<></>))
   })

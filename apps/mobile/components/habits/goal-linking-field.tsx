@@ -31,6 +31,11 @@ async function fetchGoals(): Promise<Goal[]> {
   return Array.isArray(response) ? response : response.items
 }
 
+/** Every goal of the account, the list a habit links its goals from. */
+export function useLinkableGoals() {
+  return useQuery({ queryKey: goalKeys.lists(), queryFn: fetchGoals, staleTime: QUERY_STALE_TIMES.goals })
+}
+
 function GoalPickerList({ goals, selectedIds, atLimit, onToggle }: Readonly<{ goals: Goal[]; selectedIds: string[]; atLimit: boolean; onToggle: (id: string) => void }>) {
   const { t } = useTranslation()
   const tokens = useThemeTokens()
@@ -56,7 +61,7 @@ export function GoalLinkingField(props: Readonly<GoalLinkingFieldProps>) {
   const tokens = useThemeTokens()
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const { sheetRef, closeSheet } = useSheetHost()
-  const { data: goals } = useQuery({ queryKey: goalKeys.lists(), queryFn: fetchGoals, staleTime: QUERY_STALE_TIMES.goals })
+  const { data: goals } = useLinkableGoals()
   const { open, setOpen, creating, setCreating, activeGoals, selectedGoals,
     openCreateGoal, handleCreated, initialHabitIds } = useGoalLinking(props, goals, closeSheet)
 

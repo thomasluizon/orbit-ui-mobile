@@ -1,0 +1,125 @@
+import { useRef, useState } from 'react'
+import { StyleSheet, Text, View } from 'react-native'
+import { useTranslation } from 'react-i18next'
+import type { FlowStepView } from '@orbit/shared/contracts/flow'
+import { hasTagDraftChanges } from '@orbit/shared/hooks'
+import type { HabitTag, NormalizedHabit } from '@orbit/shared/types/habit'
+import { buildTagLineItems } from '@orbit/shared/utils'
+import { MAX_TAG_NAME_LENGTH } from '@orbit/shared/validation'
+import { TagSuggestions } from '@/components/habits/habit-form-fields/tag-suggestions'
+import { IconButton } from '@/components/ui/icon-button'
+import { Plus } from '@/components/ui/icons'
+import { Input } from '@/components/ui/input'
+import { OptionCard } from '@/components/ui/option-card'
+import { QuestionRow } from '@/components/ui/question-row'
+import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
+import { useAstraAllowanceCopy } from '@/hooks/use-astra-allowance-copy'
+import { useDismissGuard } from '@/hooks/use-dismiss-guard'
+import { useHabits } from '@/hooks/use-habit-queries'
+import type { TagSelectionState } from '@/hooks/use-tag-selection'
+import { useTagStepActions, type TagStepActions } from '@/hooks/use-tag-step-actions'
+import { useThemeTokens } from '@/hooks/use-theme-tokens'
+import { TagStepRows } from './tag-step-list'
+
+/** Three tags and `Sem tag` keep the step at four quick options, the 2 by 2 grid. More tags than this put every tag behind the search. */
+const QUICK_TAGS = 3
+
+export interface TagStepProps {
+  /** The tag selection the habit form owns. The step is a view over it. */
+  tags: TagSelectionState
+  /** The habit title and description: the context of the tag suggestion. */
+  title: string
+  description: string
+  /** The step's own continue, and the answer `Sem tag`. */
+  onContinue: () => void
+}
+
+/** The tags selected when the step opened lead, then the order the list has today. The order stays while the person presses. */
+function quickTags(available: readonly HabitTag[], leading: ReadonlySet<string>): HabitTag[] {
+  return [...available.filter((tag) => leading.has(tag.id)), ...available.filter((tag) => !leading.has(tag.id))].slice(0, QUICK_TAGS)
+}
+
+/** The line reads the cache that holds every habit and never fetches it: with no cached list the intro line stays. */
+const CACHE_ONLY = { enabled: false }
+
+/** The Orbit line after a press: the tag's own items, read on the device from the cache that holds every habit. */
+function useTagLine(pressedTagId: string | null, available: readonly HabitTag[]): string {
+  const { t, i18n } = useTranslation()
+  const { data } = useHabits({}, CACHE_ONLY)
+  const tag = available.find((candidate) => candidate.id === pressedTagId)
+  if (!tag) return t('habits.flow.tags.lineIntro')
+  const habits: NormalizedHabit[] | undefined = data ? [...data.habitsById.values()] : undefined
+  const items = buildTagLineItems(tag.id, habits, i18n.language, (count) => t('habits.flow.tags.more', { count }))
+  if (items === null) return t('habits.flow.tags.lineIntro')
+  return items.kind === 'empty' ? t('habits.flow.tags.lineEmpty', { tag: tag.name }) : t('habits.flow.tags.lineHas', { tag: tag.name, items: items.items })
+}
+
+function TagStepFree({ tags, actions, onPressTag }: Readonly<{ tags: TagSelectionState; actions: TagStepActions; onPressTag: (tagId: string) => void }>) {
+  const { t } = useTranslation()
+  const tokens = useThemeTokens()
+  const allowanceText = useAstraAllowanceCopy()
+  const [query, setQuery] = useState('')
+  const [managing, setManaging] = useState(false)
+  const create = () => void actions.createNewTag()
+  return (
+    <>
+      {tags.atTagLimit ? <Text testID="tag-limit" style={[styles.note, { color: tokens.fg3 }]}>{t('habits.form.tagLimit')}</Text> : null}
+      <Input label={t('habits.form.newTag')} value={tags.newTagName} maxLength={MAX_TAG_NAME_LENGTH} placeholder={t('habits.form.tagName')}
+        error={actions.newTagError} focusRequest={actions.newTagFocusRequest} disabled={actions.creating || tags.atTagLimit} onChange={actions.changeNewTagName} onSubmit={create} />
+      <View style={styles.add}>
+        <IconButton label={t('common.add')} loading={actions.creating} disabled={tags.atTagLimit} onPress={create}><Plus size={20} color={tokens.fg1} strokeWidth={1.5} /></IconButton>
+      </View>
+      {actions.availableTags.length > QUICK_TAGS ? <Input kind="search" label={t('habits.form.searchTags')} value={query} onChange={setQuery} /> : null}
+      {actions.availableTags.length > 0 ? <QuestionRow question={t('habits.flow.tags.manage')} onPress={() => setManaging((open) => !open)} /> : null}
+      <TagStepRows tags={tags} actions={actions} query={query} managing={managing} onPressTag={onPressTag} />
+      {actions.deleteError ? <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.error, { color: tokens.statusBadText }]}>{actions.deleteError}</Text> : null}
+      <TagSuggestions translateError={allowanceText} suggestions={actions.suggestions} atLimit={tags.atTagLimit} disabled={actions.pending} />
+    </>
+  )
+}
+
+/** A typed tag name or a changed rename is a draft: leaving the step with one asks first, as the tag sheet does. */
+function useTagEditorGuard(tags: TagSelectionState, actions: TagStepActions) {
+  const next = useRef<() => void>(() => {})
+  const initialName = actions.availableTags.find((tag) => tag.id === tags.editingTagId)?.name ?? ''
+  const dirty = tags.newTagName.length > 0 || hasTagDraftChanges({ ...tags, showNewTag: false }, initialName)
+  const guard = useDismissGuard({ isDirty: dirty, onDismiss: () => { actions.discardEditor(); tags.setNewTagName(''); next.current() } })
+  return {
+    leave: (then: () => void) => { next.current = then; guard.requestDismiss() },
+    sheet: <DiscardChangesSheet open={guard.showDiscardDialog} onKeepEditing={guard.cancelDismiss} onDiscard={guard.confirmDismiss} />,
+  }
+}
+
+/** The tag step: "Quer juntar com coisas parecidas?". A press on a tag toggles it and shows what is already in it. The step continues on its own action. */
+export function useTagStepView({ tags, title, description, onContinue }: Readonly<TagStepProps>): FlowStepView {
+  const { t } = useTranslation()
+  const actions = useTagStepActions(tags, { title, description })
+  const [pressedTagId, setPressedTagId] = useState<string | null>(null)
+  const [leading] = useState(() => new Set(tags.selectedTagIds))
+  const line = useTagLine(pressedTagId, actions.availableTags)
+  const pressTag = (tagId: string) => { tags.toggleTag(tagId); setPressedTagId(tagId) }
+  const selected = new Set(tags.selectedTagIds)
+  const thinking = actions.suggestions.pending === 'suggest'
+  const editor = useTagEditorGuard(tags, actions)
+  return {
+    question: t('habits.flow.optional.tags'),
+    line,
+    lineKey: pressedTagId ?? 'intro',
+    orbitState: thinking ? 'pensando' : 'parado',
+    statusText: thinking ? t('habits.form.suggestingTags') : undefined,
+    options: <>
+      {quickTags(actions.availableTags, leading).map((tag) => (
+        <OptionCard key={tag.id} label={tag.name} selected={selected.has(tag.id)} disabled={!selected.has(tag.id) && tags.atTagLimit} disabledReason={t('habits.form.tagLimit')} onSelect={() => pressTag(tag.id)} />
+      ))}
+      <OptionCard label={t('habits.flow.tags.none')} onSelect={() => editor.leave(() => { tags.resetTags([]); onContinue() })} />
+    </>,
+    free: <><TagStepFree tags={tags} actions={actions} onPressTag={pressTag} />{editor.sheet}</>,
+    primary: { label: t('habits.flow.continue'), onPress: () => editor.leave(onContinue) },
+  }
+}
+
+const styles = StyleSheet.create({
+  note: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21, textAlign: 'center' },
+  error: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },
+  add: { alignItems: 'flex-end' },
+})

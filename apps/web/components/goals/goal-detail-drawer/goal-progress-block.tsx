@@ -15,11 +15,13 @@ import { ProgressRing } from '@/components/ui/progress-ring'
 import { StatusRing } from '@/components/ui/status-ring'
 import { Minus, Plus } from '@/components/ui/icons'
 import { useUpdateGoalProgress } from '@/hooks/use-goals'
+import { useRingSweep } from './use-ring-sweep'
 
-function GoalDetailIndicator({ goal, label }: Readonly<{ goal: Goal; label: string }>) {
+function GoalDetailIndicator({ goal, label, sweepFrom }: Readonly<{ goal: Goal; label: string; sweepFrom: number | null }>) {
+  const shown = useRingSweep(goal.progressPercentage, sweepFrom)
   if (goal.status === 'Abandoned') return null
   if (goal.status === 'Completed' || goal.progressPercentage >= 100) return <StatusRing status="done" size={44} label={label} />
-  return <ProgressRing value={goal.progressPercentage} size={60} label={label} />
+  return <span data-ring-sweep={shown === goal.progressPercentage ? 'rest' : 'sweeping'} className="flex"><ProgressRing value={shown} size={60} label={label} sweepDuration={sweepFrom === null ? 'base' : 'slow'} /></span>
 }
 
 function GoalDerivedProgress({ goal }: Readonly<{ goal: Goal }>) {
@@ -36,9 +38,11 @@ interface GoalProgressBlockProps {
   onEditProgress: () => void
   onComplete: () => void
   refetchDetail: () => Promise<unknown>
+  /** One ring sweep after the progress sheet closes: the value before it opened, and a key that starts the sweep. */
+  sweep?: { from: number; key: number } | null
 }
 
-export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, onEditProgress, refetchDetail }: Readonly<GoalProgressBlockProps>) {
+export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, onEditProgress, refetchDetail, sweep = null }: Readonly<GoalProgressBlockProps>) {
   const t = useTranslations()
   const locale = useLocale()
   const update = useUpdateGoalProgress()
@@ -93,7 +97,7 @@ export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, onEditPr
             {!abandoned ? <p className="font-[var(--font-mono)] text-[12px] tabular-nums text-[var(--fg-3)]">{t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit })}</p> : null}
           </div>
         </div>
-        <GoalDetailIndicator goal={goal} label={ringLabel} />
+        <GoalDetailIndicator key={sweep?.key ?? 0} goal={goal} label={ringLabel} sweepFrom={sweep?.from ?? null} />
       </div>
       <GoalDerivedProgress goal={goal} />
       {active && !derived ? <div className="flex flex-col gap-2" aria-busy={busy}>

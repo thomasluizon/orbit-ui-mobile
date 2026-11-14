@@ -33,6 +33,7 @@ const mocks = vi.hoisted(() => ({
   habitFormReady: Promise.resolve(),
   habits: { data: { habitsById: new Map<string, ReturnType<typeof createMockHabit>>() }, isLoading: false, isError: false, refetch: vi.fn() },
 }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => false }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
 vi.mock('@/components/habits/create-habit-modal', async () => {
   await mocks.habitFormReady

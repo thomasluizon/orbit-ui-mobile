@@ -107,6 +107,28 @@ carries a selected end date through the same request owner. Optimistic native cr
 edit caches preserve the edited start anchor, including queued native saves. Mode drafts retain date, cadence,
 times, reminders and avoidance independently of shared title, description and checklist text.
 
+## Guided optional steps: tags, checklist, templates and goals (#2121)
+
+With `orbit_guided_flows` on, the optional questions of the guided create and edit flow host three
+step views. Each one is a hook in `components/habits/flow-steps/` on web and Android that returns a
+`FlowStepView` (`packages/shared/src/contracts/flow/QuestionFlow.ts`) over the state the current
+owners keep. No noun stands alone as a title, a heading, a row label or a list title.
+
+| Step | Hook and owner on both platforms | Question, quick options and free path |
+|---|---|---|
+| Tags | `useTagStepView`, `flow-steps/tag-step.tsx` over `use-tag-selection`, `use-tags`, `use-tag-suggestions` | Quer juntar com coisas parecidas?; up to 3 of the person's tags (those selected when the step opens first) and Sem tag, so the step keeps four quick options; Nova tag, a search over every tag above 3, rename and delete behind Quer mudar o nome ou apagar uma tag?, and the AI suggestion in the `proposed` state |
+| Checklist and templates | `useChecklistStepView`, `flow-steps/checklist-step.tsx` and `flow-steps/template-step.tsx` over `HabitChecklist` (edit mode) and `use-checklist-templates` | Tem passos dentro disso?; Não and Usar um modelo; the item editor. Não never drops typed steps: with steps it waits for a clear and says why. The template question (each template with its item count, a load, a delete) and the save question (one name field) are questions inside the step |
+| Goals | `useGoalLinkStepView`, `flow-steps/goal-link-step.tsx` over `createUseGoalLinking` | Isso ajuda em alguma meta?; up to 3 active goals with their progress and Criar meta; a search over every active goal above 3. Criar meta opens the goal create flow with the habit, and the new goal returns selected |
+
+The tag line after a press reads the cache that holds every habit, `useHabits({})` with `enabled: false`, the same query
+the linked-habit picker uses. `buildTagLineItems` (`packages/shared/src/utils/tag-flow-line.ts`)
+names up to three items through `Intl.ListFormat` and counts the rest. The step starts no request for the line.
+With no cached list, the first line stays. The tag and goal steps take several answers: a press
+toggles, and the step continues on its own action. The limits come from
+`packages/shared/src/validation/constants.ts`: 5 tags and 10 goals for one habit, 50 checklist items.
+With the flag off, `habit-form-fields.tsx` keeps the current tag picker, goal picker, checklist and
+template sheet.
+
 ## Habit form capability reconciliation (#1709)
 
 [The title-row change](https://github.com/thomasluizon/orbit-ui-mobile/pull/2040)

@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   habits: { data: { habitsById: new Map<string, ReturnType<typeof createMockHabit>>() }, isLoading: false, isError: false, refetch: vi.fn() },
 }))
 
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => false }))
 vi.mock('next-intl', async (importOriginal) => ({
   ...(await importOriginal<typeof import('next-intl')>()),
   useTranslations: () => createTranslator({ locale: mocks.locale, messages: mocks.locale === 'en' ? en : ptBR }),

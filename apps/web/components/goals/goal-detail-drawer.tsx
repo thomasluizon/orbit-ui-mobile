@@ -1,11 +1,10 @@
 'use client'
 
-import { ListRow } from '@/components/ui/list-row'
 
-import { OrbitMascot } from '@/components/ui/orbit-mascot'
 
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
+import { useRouter } from 'next/navigation'
 import { formatLocaleDateTime, getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { prepareChatRequest } from '@orbit/shared/stores'
 import { createUseRetainedGoal } from '@orbit/shared/hooks'
@@ -16,6 +15,8 @@ import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { useFlag } from '@/hooks/use-flag'
+import { useViewportMatch } from '@/hooks/use-viewport-match'
 import { useGoals, useGoalDetail, useDeleteGoal } from '@/hooks/use-goals'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { EditGoalModal } from './edit-goal-modal'
@@ -26,6 +27,9 @@ import { InlineLoadError } from '@/components/ui/inline-load-error'
 import { GoalProgressForm } from './goal-detail-drawer/goal-progress-form'
 import { GoalProgressBlock } from './goal-detail-drawer/goal-progress-block'
 import { useGoalStatusActions } from './goal-detail-drawer/use-goal-status-actions'
+import { GoalAskEntry, useGoalOrbitLine } from './goal-detail-drawer/goal-orbit-line'
+import { GoalStatusResultDialog } from './goal-detail-drawer/goal-status-result-dialog'
+import { useGoalDetailOutcomes } from './goal-detail-drawer/use-goal-detail-outcomes'
 import { useGoalDrawerInitialAction, type GoalDrawerInitialAction } from './goal-detail-drawer/use-goal-drawer-initial-action'
 export type { GoalDrawerInitialAction } from './goal-detail-drawer/use-goal-drawer-initial-action'
 
@@ -51,7 +55,12 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
   const goal = detailData?.goal ?? goalsData?.goalsById.get(goalId) ?? null
   const sheetGoal = useRetainedGoal(goal, goalId)
   const draftHydrated = useChatStore(state => state.draftHydrated)
-  const deleteGoal = useDeleteGoal()
+  const router = useRouter()
+  const guided = useFlag('orbit_guided_flows')
+  const outcomes = useGoalDetailOutcomes(goal, guided, useViewportMatch('(prefers-reduced-motion: reduce)'))
+  const orbitLine = useGoalOrbitLine(goal, guided)
+  const { progressFormOpened } = outcomes
+  const deleteGoal = useDeleteGoal({ onDeleted: outcomes.onDeleted })
   const [editing, setEditing] = useAccountScopedState(false)
   const [editingProgress, setEditingProgress] = useAccountScopedState(false)
   const [deleting, setDeleting] = useAccountScopedState(false)
@@ -67,9 +76,10 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
   }, [inline, closeSheet, onClose])
   const openProgressForm = useCallback(() => {
     if (!goal || goal.status !== 'Active' || goal.isProgressDerived) return
+    progressFormOpened()
     if (inline) setEditingProgress(true)
     else closeSheet(() => setEditingProgress(true))
-  }, [goal, inline, closeSheet, setEditingProgress])
+  }, [goal, inline, closeSheet, progressFormOpened, setEditingProgress])
   const openLinkedHabit = useCallback((habitId: string, event: MouseEvent<HTMLElement>) => {
     if (!onLinkedHabitNavigate || event.defaultPrevented || event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
 
@@ -84,6 +94,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
     goalCount: goal?.targetValue,
     goalUnit: goal?.unit,
     refetchDetail: refetch,
+    onStatusSaved: outcomes.onStatusSaved,
   })
   const formatDate = (date: string) => formatLocaleDateTime(date, locale, { month: 'short', day: 'numeric' })
 
@@ -102,10 +113,16 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
     else close(openConversation)
   }
 
+  const openGoalsList = () => {
+    outcomes.clearResult()
+    close(inline ? undefined : () => router.push('/progress/goals'))
+  }
+
   async function confirmDelete() {
+    outcomes.rememberDeletedTitle()
     try {
       await deleteGoal.mutateAsync(goalId)
-      close()
+      if (!guided) close()
     } catch (error: unknown) {
       showError(getFriendlyErrorMessage(error, t, 'goals.errors.delete', 'goal'))
     }
@@ -135,10 +152,11 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
   const body = (
     <div ref={contentRef} tabIndex={inline ? -1 : undefined} data-goal-detail className="flex flex-col gap-6">
       {goal ? <>
-        <GoalProgressBlock key={`progress-${goalId}`} goal={{ ...goal, trackingStatus: detailData?.metrics.trackingStatus ?? goal.trackingStatus }} isUpdatingStatus={actions.isUpdatingStatus} onEditProgress={openProgressForm} onComplete={() => void actions.markCompleted()} refetchDetail={refetch} />
+        <GoalProgressBlock key={`progress-${goalId}`} goal={{ ...goal, trackingStatus: detailData?.metrics.trackingStatus ?? goal.trackingStatus }} isUpdatingStatus={actions.isUpdatingStatus} onEditProgress={openProgressForm} onComplete={() => void actions.markCompleted()} refetchDetail={refetch} sweep={outcomes.progressSweep} />
+        <GoalAskEntry line={orbitLine} at="top" disabled={!draftHydrated} onPress={openAstra} />
         <GoalForecast metrics={detailData?.metrics ?? null} unit={goal.unit} isLoading={isLoading} />
         <GoalDetailCollections key={`collections-${goalId}`} linkedHabits={goal.linkedHabits} habitAdherence={detailData?.metrics.habitAdherence ?? []} entries={detailData?.goal.progressHistory ?? []} target={goal.targetValue} unit={goal.unit} formatDate={formatDate} onLinkedHabitNavigate={openLinkedHabit} />
-        <ListRow placement="column" wrapTitle icon={<OrbitMascot size={24} />} title={t('goals.detail.askAstraEyebrow')} accessibilityLabel={`${t('goals.detail.askAstraEyebrow')}: ${t('goals.detail.askAstraDefault')}`} disabled={!draftHydrated} onClick={openAstra} />
+        <GoalAskEntry line={orbitLine} at="bottom" disabled={!draftHydrated} onPress={openAstra} />
         <GoalActionFooter isActive={goal.status === 'Active'} isAbandoned={goal.status === 'Abandoned'} isUpdatingStatus={actions.isUpdatingStatus} onMarkAbandoned={() => void actions.markAbandoned()} onReactivate={() => void actions.reactivate()} onEdit={() => setEditing(true)} onDelete={() => setDeleting(true)} />
       </> : isLoading ? <Skeleton variant="settings" label={t('progressScreen.loading')} /> : null}
       {isError ? <InlineLoadError message={t('goals.detail.loadError')} onRetry={() => void refetch()} /> : null}
@@ -148,8 +166,9 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
   return (
     <>
       {open && (inline || !editingProgress) ? inline ? <><AppBar title={t('progressScreen.sections.goals')} titleIsHeading={!goal} titleRef={barHeadingRef} onBack={() => close()} backLabel={t('common.back')} />{body}</> : <Sheet ref={sheetRef} open onClose={onClose} title={t('progressScreen.sections.goals')}>{body}</Sheet> : null}
-      {open && editingProgress && sheetGoal ? <GoalProgressForm key={goalId} goal={sheetGoal} refetchDetail={refetch} onClose={() => setEditingProgress(false)} /> : null}
+      {open && editingProgress && sheetGoal ? <GoalProgressForm key={goalId} goal={sheetGoal} refetchDetail={refetch} asQuestion={guided} onClose={() => { setEditingProgress(false); outcomes.progressFormClosed() }} /> : null}
       {sheetGoal ? <EditGoalModal open={editing} onOpenChange={setEditing} goal={sheetGoal} /> : null}
+      <GoalStatusResultDialog result={outcomes.result} onClose={outcomes.clearResult} onOpenList={openGoalsList} />
       <ConfirmSheet open={deleting} title={t('goals.detail.delete')} message={t('goals.detail.deleteNamed', { title: goal?.title ?? '' })} confirmLabel={t('goals.detail.delete')} destructive onCancel={() => setDeleting(false)} onConfirm={() => { setDeleting(false); void confirmDelete() }} />
     </>
   )

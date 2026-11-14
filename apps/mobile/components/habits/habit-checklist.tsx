@@ -22,6 +22,8 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
 import { Proposed } from '@/components/ui/proposed'
+import Animated from 'react-native-reanimated'
+import { useListRowMotion } from './flow-steps/list-row-motion'
 
 interface HabitChecklistProps {
   pendingItemText?: string
@@ -247,6 +249,7 @@ export function HabitChecklist({
   }, [onPendingItemChange, setItemDraft])
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const editableItemKeys = useChecklistItemKeys(items)
+  const rowMotion = useListRowMotion(editableItemKeys)
 
   const checkedCount = items.filter((i) => i.isChecked).length
   const atItemLimit = items.length >= MAX_CHECKLIST_ITEMS
@@ -344,9 +347,8 @@ export function HabitChecklist({
 
       {editable ? (
         <View style={styles.itemsList}>
-          {items.map((item, index) => (
+          {items.map((item, index) => (<Animated.View key={editableItemKeys[index]} entering={rowMotion.enteringFor(editableItemKeys[index] ?? '')} exiting={rowMotion.exiting} layout={rowMotion.layout}>
             <Proposed
-              key={editableItemKeys[index]}
               proposed={index >= items.length - proposedItemCount}
               scope="row"
               label={t('habits.detail.proposed')}
@@ -365,7 +367,7 @@ export function HabitChecklist({
                 styles={styles}
                 tokens={tokens}
               />
-            </Proposed>
+            </Proposed></Animated.View>
           ))}
         </View>
       ) : (
