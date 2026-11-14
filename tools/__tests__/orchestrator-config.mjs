@@ -207,7 +207,7 @@ export const cases = async () => {
   T(`${NAME}: a Medium update hygiene finding needs no skeptic and is kept`,
     updateOnly.result.hygieneFindings.some((finding) => finding.location === "orbit-ui-mobile docs/a.md") && !updateOnly.labels.includes("verify:hygiene-outdated"),
     JSON.stringify(updateOnly.result.hygieneFindings))
-  const verifyPhaseDetail =/title: 'Verify', detail: '([^']*)'/.exec(readFileSync(new URL("../../.claude/workflows/prod-readiness.mjs", import.meta.url), "utf8"))?.[1] ?? ""
+  const verifyPhaseDetail = /title: 'Verify', detail: '([^']*)'/.exec(readFileSync(new URL("../../.claude/workflows/prod-readiness.mjs", import.meta.url), "utf8"))?.[1] ?? ""
   T(`${NAME}: the Verify phase detail names the hygiene findings and the cap`, /hygiene/.test(verifyPhaseDetail) && /60/.test(verifyPhaseDetail), verifyPhaseDetail)
   const absent = await runReadiness({})
   T(`${NAME}: a run with no hygiene argument defers all five repositories and never reads as clean`,
