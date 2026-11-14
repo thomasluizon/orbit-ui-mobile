@@ -11,14 +11,24 @@ import { buildSearchHabitStatus, habitInitial, type SearchSection } from '@orbit
 import { ChevronRight, X, Plus } from '@/components/ui/icons'
 
 import { OfflineRefusal } from '@/components/ui/offline-refusal'
+import { Skeleton } from '@/components/ui/skeleton'
 import { HabitMatchLine } from './habit-match-line'
 import { SearchHabitStatusLine } from './search-habit-status'
 
+const SEARCH_SKELETON_ROWS = ['first', 'second', 'third'] as const
+
+/** A search that waits holds the place of its results with skeleton rows shaped like `SearchResultRow`. */
 export function Searching() {
   const t = useTranslations()
-  return <output aria-live="polite" aria-label={t('habits.search.searching')} className="flex items-center gap-3 p-3 text-[length:var(--fs-sm)] text-[var(--fg-3)]">
-    <span aria-hidden className="flex gap-1">{[0, 1, 2].map((index) => <span key={index} className="search-dot size-1 rounded-full bg-[var(--fg-3)]" style={{ animationDelay: `${index * 0.15}s` }} />)}</span>
-    {t('habits.search.searching')}
+  return <output aria-live="polite" aria-busy="true" aria-label={t('habits.search.searching')} data-search-skeleton="" className="flex flex-col gap-2">
+    {SEARCH_SKELETON_ROWS.map((row) => <span key={row} data-search-skeleton-row="" className="flex min-h-[var(--touch-min)] items-center gap-3 rounded-[var(--r-well)] bg-[var(--bg-card)] p-3 shadow-[inset_0_0_0_1px_var(--hairline-ghost)]">
+      <span className="size-10 shrink-0"><Skeleton variant="fill" grouped /></span>
+      <span className="flex min-w-0 flex-1 flex-col gap-2">
+        <span className="block h-4 w-2/3"><Skeleton variant="fill" grouped /></span>
+        <span className="block h-3 w-1/3"><Skeleton variant="fill" grouped /></span>
+      </span>
+      <span className="size-5 shrink-0" />
+    </span>)}
   </output>
 }
 

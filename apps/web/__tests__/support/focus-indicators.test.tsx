@@ -111,15 +111,17 @@ describe('field indicator readers in Chromium', () => {
       <h1 tabIndex={-1}>New habit</h1>
       <button type="button">Previous control</button>
       <Input label="Description" value="" onChange={() => {}} />
-      <span className="search-dot" aria-hidden="true" />
+      <span className="unrelated-loop" aria-hidden="true" />
     </>)
     const page = await browser.newPage()
     try {
       await page.setContent(`<style>${stylesheet}
         :root { ${Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([property, value]) => `${property}: ${value};`).join(' ')} }
+        @keyframes unrelated-loop { 50% { opacity: 0.35; } }
+        .unrelated-loop { animation: unrelated-loop 1.1s var(--ease-standard) infinite; }
       </style>${container.innerHTML}`)
       await loadAppFonts(page)
-      const loader = page.locator('.search-dot')
+      const loader = page.locator('.unrelated-loop')
       await page.evaluate(() => document.fonts.ready)
       expect(await loader.evaluate(element => element.getAnimations().map(animation => animation.effect!.getComputedTiming().endTime))).toEqual([Infinity])
       const field = page.getByRole('textbox', { name: 'Description', exact: true })

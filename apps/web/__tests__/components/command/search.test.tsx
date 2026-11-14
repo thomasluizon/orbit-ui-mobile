@@ -215,12 +215,13 @@ describe('habit search', () => {
       const palette = mount()
       if (query) fireEvent.change(screen.getByRole('combobox'), { target: { value: query } })
       act(() => { vi.advanceTimersByTime(301) })
-      expect(palette.container.querySelectorAll('.skeleton-pulse').length > 0).toBe(skeleton)
+      expect(palette.container.querySelectorAll('.skeleton-pulse').length).toBeGreaterThan(0)
+      expect(palette.container.querySelectorAll('[data-search-skeleton-row]')).toHaveLength(skeleton ? 0 : 3)
       expect(screen.queryByRole('status')).toBe(skeleton ? null : screen.getByRole('status'))
     } finally { vi.useRealTimers() }
   })
 
-  it.each([false, true])('shows only searching feedback for a pending query with wide=%s', (wide) => {
+  it.each([false, true])('shows only the result row skeleton for a pending query with wide=%s', (wide) => {
     vi.useFakeTimers()
     try {
       mocks.wide = wide
@@ -228,8 +229,18 @@ describe('habit search', () => {
       const page = render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
       fireEvent.change(screen.getByRole('combobox', { name: en.habits.search.question }), { target: { value: 'walk' } })
       act(() => { vi.advanceTimersByTime(301) })
-      expect(screen.getByRole('status')).toHaveTextContent('Searching')
-      expect(page.container.querySelector('.skeleton-pulse')).toBeNull()
+      const status = screen.getByRole('status', { name: 'Searching' })
+      expect(status).toHaveAttribute('aria-busy', 'true')
+      expect(status).toHaveTextContent(/^$/)
+      const rows = [...status.querySelectorAll('[data-search-skeleton-row]')]
+      expect(rows).toHaveLength(3)
+      for (const row of rows) {
+        expect(row).toHaveClass('min-h-[var(--touch-min)]', 'rounded-[var(--r-well)]', 'bg-[var(--bg-card)]', 'p-3')
+        expect(row.querySelectorAll('.skeleton-pulse')).toHaveLength(3)
+        expect(row.firstElementChild).toHaveClass('size-10')
+      }
+      expect(page.container.querySelectorAll('.skeleton-pulse')).toHaveLength(9)
+      expect(page.container.querySelector('.search-dot, .animate-spin, [role="progressbar"] svg')).toBeNull()
     } finally { vi.useRealTimers() }
   })
 
@@ -540,8 +551,8 @@ describe('habit search', () => {
     mount()
     expect(screen.queryByRole('status')).toBeNull()
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'walk' } })
-    expect(await screen.findByRole('status')).toHaveTextContent('Searching')
-    expect(screen.getByRole('status')).toHaveAccessibleName('Searching')
+    expect(await screen.findByRole('status')).toHaveAccessibleName('Searching')
+    expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true')
     expect(screen.getByRole('combobox')).toHaveValue('walk')
     expect(screen.queryByText('Nothing by that name.')).toBeNull()
     expect(screen.getByRole('listbox')).toHaveAttribute('aria-busy', 'true')
