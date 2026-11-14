@@ -607,16 +607,21 @@ describe('Sheet (mobile)', () => {
         nativeSheet.props.footer.props.onLayout({ nativeEvent: { layout: { height: FOOTER } } })
       })
       TestRenderer.act(() => tree.root.findByType(TrueSheet).props.onDidPresent({ nativeEvent: { index: 0, position: SHEET_TOP, detent: 1 } }))
+      const bodyPadding = () => StyleSheet.flatten(tree.root.findByType(KeyboardAwareSheetScrollView).findByType('ScrollView').props.contentContainerStyle).paddingBottom ?? 0
+      const restingPadding = bodyPadding()
       TestRenderer.act(() => {
         tree.root.findAllByType('TextInput').find((node: { props: { testID?: string } }) => node.props.testID === 'note-input')!.props.onFocus({})
-        __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: KEYBOARD_TOP } })
+        __emitKeyboardEvent(platform === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', { endCoordinates: { screenY: KEYBOARD_TOP } })
         vi.advanceTimersByTime(60)
       })
       const keyboardEdgeInSheet = KEYBOARD_TOP - FOOTER - safeArea.bottom - (platform === 'android' ? SHEET_TOP : 0)
-      const lift = Math.max(0, field.y + field.height - (keyboardEdgeInSheet - 24))
-      if (lift) expect(scrollTo).toHaveBeenLastCalledWith({ y: lift, animated: true })
-      else expect(scrollTo).not.toHaveBeenCalled()
-      expect(platform === 'android' ? lift : 0).toBe(platform === 'android' ? 148 : 0)
+      expect(bodyPadding() - restingPadding).toBe(HEADER + 580 - keyboardEdgeInSheet + 24)
+      if (platform === 'android') {
+        expect(scrollTo).toHaveBeenLastCalledWith({ y: 148, animated: true })
+      } else {
+        expect(field.y + field.height).toBeLessThanOrEqual(keyboardEdgeInSheet - 24)
+        expect(scrollTo).not.toHaveBeenCalled()
+      }
     } finally {
       TestRenderer.act(() => tree.unmount())
       Object.defineProperty(Platform, 'OS', { configurable: true, value: previous })
