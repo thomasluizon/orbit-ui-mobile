@@ -69,7 +69,7 @@ export function ProgressGoalsContent() {
   const retry = () => { void goals.refetch() }
   return (
     <div ref={contentRef} className="mx-auto flex w-full min-w-0 max-w-[740px] flex-1 flex-col">
-      {creating ? <CreateGoalSheet open restoreFocusOnCreate={false} onCreated={(goalId) => { setGoalFilter('all'); setCreatedGoalId(goalId) }} onClose={() => setCreating(false)} /> : null}
+      {creating ? <CreateGoalSheet open restoreFocusOnCreate={false} onCreated={(goalId) => { setGoalFilter('all'); setCreatedGoalId(goalId) }} onOpenGoal={(goalId) => { setCreatedGoalId(null); setDetailGoalId(goalId) }} onClose={() => setCreating(false)} /> : null}
       {detailGoalId ? <div className="px-screen-gutter pt-4"><GoalDetailDrawer key={detailGoalId} inline open onOpenChange={(open) => { if (!open) setDetailGoalId(null) }} goalId={detailGoalId} /></div> : null}
       <div hidden={detailGoalId !== null} className="flex w-full flex-1 flex-col">
         <ProgressSubscreen screen="goals" hideHeader={detailGoalId !== null}>

@@ -28,7 +28,10 @@ vi.mock('@/hooks/use-goals', () => ({
 vi.mock('@/components/goals/goal-detail-drawer', () => ({
   GoalDetailDrawer: ({ goalId }: { goalId: string }) => { mocks.openedGoal = goalId; return <div data-testid="goal-detail">{goalId}</div> },
 }))
-vi.mock('@/components/goals/create-goal-sheet', () => ({ CreateGoalSheet: () => <div data-testid="create-goal" /> }))
+vi.mock('@/components/goals/create-goal-sheet', () => ({
+  CreateGoalSheet: ({ onOpenGoal, onClose }: { onOpenGoal?: (goalId: string) => void; onClose: () => void }) =>
+    <div data-testid="create-goal"><button type="button" onClick={() => { onClose(); onOpenGoal?.('read') }}>View the created goal</button></div>,
+}))
 
 import { ProgressContent } from '@/app/(app)/progress/_components/progress-content'
 
@@ -88,6 +91,14 @@ describe('goals list on the Orbit logic', () => {
     expect(ring('Read 12 books')).toHaveAttribute('aria-valuenow', '50')
     expect(ring('Read 12 books').parentElement).toHaveAttribute('data-ring-sweep', 'rest')
     expect(JSON.parse(localStorage.getItem(seenKey())!)).toEqual({ read: 50, run: 25 })
+  })
+
+  it('opens the created goal from the filled action of the result dialog', () => {
+    renderGoals()
+    fireEvent.click(screen.getByRole('button', { name: en.goals.create }))
+    fireEvent.click(screen.getByRole('button', { name: 'View the created goal' }))
+    expect(screen.queryByTestId('create-goal')).not.toBeInTheDocument()
+    expect(screen.getByTestId('goal-detail')).toHaveTextContent('read')
   })
 
   it('does not sweep on a first visit', () => {
