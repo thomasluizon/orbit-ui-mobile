@@ -18,6 +18,7 @@ import {
   resolveUpgradeHeader,
   playManageSubscriptionUrl,
 } from '@orbit/shared/utils'
+import { isSafeAuthReturnUrl } from '@orbit/shared/utils/login-attempt'
 import type { SubscriptionPortalState, SubscriptionScreenContent, SubscriptionScreenState } from '@orbit/shared/utils'
 import { PageHeader } from '@/components/ui/page-header'
 import { ErrorState } from '@/components/ui/error-state'
@@ -55,6 +56,11 @@ const LEGACY_AI_SETTINGS_ROUTE = '/profile/astra'
 /** The route a `from` value names. Only the AI settings page sends one. */
 function knownOrigin(from: string | null): string | null {
   return from === AI_SETTINGS_ROUTE || from === LEGACY_AI_SETTINGS_ROUTE ? AI_SETTINGS_ROUTE : null
+}
+
+/** The place the result of a purchase returns to: the AI settings page under either address, or another place of the app that `from` names. */
+function purchaseOrigin(from: string | null): string | null {
+  return knownOrigin(from) ?? (isSafeAuthReturnUrl(from) ? from : null)
 }
 
 /** The plan question with the guided flows on, and the current pitch with them off. Both send the same checkout. */
@@ -306,7 +312,7 @@ export default function UpgradePage() {
         {content}
       </div>
       <PurchaseResult purchaseConfirmed={confirmedPurchase} status={settledStatus(screenState, status)} billing={billing}
-        accountId={heldAccountId} from={from} timeZone={accountProfile?.timeZone} knownOrigin={knownOrigin} />
+        accountId={heldAccountId} from={from} timeZone={accountProfile?.timeZone} knownOrigin={purchaseOrigin} />
     </div>
   )
 }

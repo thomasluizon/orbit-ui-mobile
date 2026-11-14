@@ -93,7 +93,7 @@ export function TrialExpiredModal() {
   const seePlans = () =>
     closeSheet(() => {
       hide()
-      router.push('/upgrade')
+      router.push(guided ? `/upgrade?from=${encodeURIComponent(pathname)}` : '/upgrade')
     })
 
   if (guided) {

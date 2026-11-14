@@ -337,6 +337,18 @@ describe('the result of a purchase', () => {
     expect(mocks.push).toHaveBeenCalledWith('/profile/ai')
   })
 
+  it.each([
+    ['/calendar', 'Go back', '/calendar'],
+    ['//elsewhere.example', 'Open Today', '/'],
+  ] as const)('returns the person to %s only when it is a place of the app', (from, label, destination) => {
+    mocks.search = `from=${encodeURIComponent(from)}`
+    mocks.status = proStatus
+    mocks.purchaseConfirmed = true
+    render(<UpgradePage />)
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: label }))
+    expect(mocks.push).toHaveBeenCalledExactlyOnceWith(destination)
+  })
+
   it('keeps the from of the visit across the Stripe redirect', async () => {
     mocks.search = 'from=/profile/ai'
     const { unmount } = render(<UpgradePage />)

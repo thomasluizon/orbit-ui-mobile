@@ -67,10 +67,10 @@ describe('the trial expired dialog', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'View plans' })).toHaveFocus())
   })
 
-  it('opens the upgrade route and records the notice as seen on View plans', async () => {
+  it('opens the upgrade route with the place of the person and records the notice as seen on View plans', async () => {
     render(<TrialExpiredModal />)
     fireEvent.click(screen.getByRole('button', { name: 'View plans' }))
-    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith('/upgrade'))
+    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith('/upgrade?from=%2F'))
     expect(localStorage.getItem(SEEN_KEY)).toBe('1')
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   })
