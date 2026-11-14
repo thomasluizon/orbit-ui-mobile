@@ -131,7 +131,7 @@ function SuggestionStrip({
               style={styles.suggestionContent}
             >
               {suggestion.icon ? <View style={[styles.suggestionIcon, { height: 20 * fontScale }]}>{suggestion.icon}</View> : null}
-              <View style={[styles.suggestionIcon, { height: 20 * fontScale }]}><OrbitMascot size={16} color={tokens.fg2} /></View><Text style={[styles.suggestionText, { color: tokens.fg2 }]}>{suggestion.label}</Text>
+              <View style={[styles.suggestionIcon, { height: 20 * fontScale }]}><OrbitMascot size={16} /></View><Text style={[styles.suggestionText, { color: tokens.fg2 }]}>{suggestion.label}</Text>
             </View>
           </InsetFocusPressable>
         ))}
@@ -398,7 +398,7 @@ function OpenConversationControl({ props, tokens, onLayout }: Readonly<{ props: 
       onPress={() => { returnFocusPending.current = true; props.onOpenConversation?.() }}
       onPressIn={() => animate(mobileMotion.orbital.press.scale)} onPressOut={() => animate(1)}
       style={({ pressed }) => [styles.openConversation, pressed ? { backgroundColor: tokens.bgHover } : null]}>
-      <Animated.View style={{ transform: [{ scale }] }}><OrbitMascot size={20} color={tokens.fg3} /></Animated.View>
+      <Animated.View style={{ transform: [{ scale }] }}><OrbitMascot size={20} /></Animated.View>
     </InsetFocusPressable>
 }
 

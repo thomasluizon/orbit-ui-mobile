@@ -1,11 +1,14 @@
 import type { Context, ReactElement } from 'react'
 import { AppState, View } from 'react-native'
+import { ORBIT_MASCOT_FACES, ORBIT_MASCOT_VIEW_BOX, ORBIT_SMALL_FACES, orbitMascotFrame, orbitOutlineCutout } from '@orbit/shared/contracts/brand'
+import { mascotMotion } from '@orbit/shared/theme'
 import { setOrbitMotionEnabled } from '@orbit/shared/utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { OrbitOverlayLayer } from '@/components/ui/orbit-overlay-layer'
 import { orbitScreenLayout } from '@/components/navigation/orbit-screen-layout'
 import { createTokensV2 } from '@/lib/theme'
+import { __resetTestHostConfig, __setMeasureInWindowImpl } from '@/test-mocks/react-native'
 import { reanimatedTestState } from '@/test-mocks/react-native-reanimated'
 
 /** The route focus a navigator gives each screen; `useIsFocused` reads it as the real hook reads its route. */
@@ -63,6 +66,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  __resetTestHostConfig()
   setOrbitMotionEnabled(undefined)
   reanimatedTestState.reducedMotion = false
   vi.useRealTimers()
@@ -154,5 +158,57 @@ describe('Orbit idle loop on Android', () => {
     expect(vi.getTimerCount()).toBeGreaterThan(0)
     TestRenderer.act(() => tree.unmount())
     expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('pauses off screen, gives the live slot to the next Orbit in view, and resumes on screen', () => {
+    const offScreen = new Set(['parado'])
+    __setMeasureInWindowImpl((callback, props) => callback(0, offScreen.has(String(props['data-orbit-state'])) ? 2000 : 100, 96, 69))
+    const tree = render(<View><OrbitMascot size={96} /><OrbitMascot size={96} state="feliz" /></View>)
+    advance(100)
+    expect(loops(tree)).toEqual(['still', 'running'])
+    offScreen.add('feliz')
+    advance(100)
+    expect(loops(tree)).toEqual(['still', 'still'])
+    offScreen.delete('parado')
+    advance(100)
+    expect(loops(tree)).toEqual(['running', 'still'])
+    tree.unmount()
+  })
+
+  it('holds the pose while off screen and stops measuring in the background', () => {
+    let measured = 0
+    let onScreen = true
+    __setMeasureInWindowImpl((callback) => { measured += 1; callback(0, onScreen ? 100 : -500, 96, 69) })
+    const tree = render(<OrbitMascot size={96} />)
+    advance(400)
+    onScreen = false
+    advance(100)
+    const held = moonOf(tree)
+    advance(400)
+    expect(loops(tree)).toEqual(['still'])
+    expect(moonOf(tree)).toBe(held)
+    expect(held).not.toBe(moonOf(render(<OrbitMascot size={96} still />)))
+    TestRenderer.act(() => { for (const listener of appStateListeners) listener('background') })
+    const before = measured
+    advance(400)
+    expect(measured).toBe(before)
+    tree.unmount()
+  })
+})
+
+describe('Orbit ring outline on Android', () => {
+  it('cuts the outline out of the planet, so the surface behind shows through on any fill', () => {
+    const tree = render(<View><OrbitMascot size={96} /><OrbitMascot size={16} /></View>)
+    const cutouts = tree.root.findAll((node) => node.type === 'ClipPath').map((clip) => clip.findAll((node) => node.type === 'Path')[0]?.props)
+    expect(cutouts.map((props) => props?.clipRule)).toEqual(['evenodd', 'evenodd'])
+    expect(String(cutouts[0]?.d)).toBe(orbitOutlineCutout(ORBIT_MASCOT_VIEW_BOX, orbitMascotFrame(0, mascotMotion).ringOutline))
+    expect(String(cutouts[1]?.d)).toBe(orbitOutlineCutout(ORBIT_SMALL_FACES[16].viewBox, ORBIT_SMALL_FACES[16].ringOutline))
+    const clipped = tree.root.findAll((node) => node.type === 'G' && typeof node.props.clipPath === 'string')
+    expect(clipped.map((group) => group.props.clipRule)).toEqual(['evenodd', 'evenodd'])
+    const eyes = new Set([...ORBIT_MASCOT_FACES.parado.eyes.map((eye) => eye.d), ...ORBIT_SMALL_FACES[16].eyes])
+    const canvasPaints = tree.root.findAll((node) => typeof node.type === 'string' && node.props.fill === createTokensV2('purple', 'dark').bg)
+    expect(canvasPaints).toHaveLength(4)
+    expect(canvasPaints.every((node) => eyes.has(String(node.props.d)))).toBe(true)
+    tree.unmount()
   })
 })

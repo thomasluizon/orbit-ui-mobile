@@ -383,6 +383,26 @@ describe('ShellWide', () => {
     }
   })
 
+  it('drops the destination and conversation row press scale under reduced motion', () => {
+    media.width = 1352
+    render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={items} activeId="hoje" navLabel="Main navigation" onPalette={() => {}} paletteLabel="Search" />)
+    for (const control of [screen.getByRole('link', { name: 'Hoje' }), screen.getByRole('link', { name: 'Calendário' }), screen.getByRole('button', { name: 'Astra' }), screen.getByRole('button', { name: 'Search' })]) {
+      expect([...control.classList], control.textContent).toContain('motion-safe:active:scale-[0.96]')
+      expect([...control.classList], control.textContent).not.toContain('active:scale-[0.96]')
+    }
+  })
+
+  it.each([false, true])('keeps the conversation row planet in the foreground with the conversation open=%s, so the moon stays the only accent', (open) => {
+    media.width = 1352
+    render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={items} activeId="hoje" navLabel="Main navigation" conversation={<div />} conversationLabel="Astra conversation" conversationOpen={open} />)
+    const row = screen.getAllByRole('button', { name: 'Astra', hidden: true }).find((button) => button.hasAttribute('data-shell-astra-row'))!
+    expect(row).toHaveAttribute('aria-expanded', String(open))
+    expect(row.classList.contains('text-[var(--primary-soft)]')).toBe(open)
+    const face = row.querySelector('svg')!
+    expect(face).toHaveAttribute('color', 'var(--fg-1)')
+    expect([...face.querySelectorAll('[fill="var(--primary)"]')].map((part) => part.getAttribute('data-part'))).toEqual(['moon'])
+  })
+
   it('reserves the account row while its profile loads', () => {
     const props = { items, activeId: 'hoje', navLabel: 'Main navigation', onCreate: vi.fn(), createLabel: 'Create' }
     const { container, rerender } = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} {...props} />)
@@ -597,7 +617,8 @@ it.each([1100, 1352, 1440])('opens from the first sidebar row at %ipx and restor
   expect(row).toHaveAttribute('aria-expanded', 'true')
   expect(screen.getByRole('textbox', { name: 'Message' })).toHaveFocus()
   expect(screen.getByRole('link', { name: 'Hoje' })).toHaveAttribute('aria-current', 'page')
-  expect(row.querySelector('svg')).toHaveAttribute('color', 'var(--primary)')
+  expect(row).toHaveClass('text-[var(--primary-soft)]')
+  expect(row.querySelector('svg')).toHaveAttribute('color', 'var(--fg-1)')
   fireEvent.click(screen.getByRole('button', { name: 'Close' }))
   expect(row).toHaveFocus()
   expect(container.querySelector('[data-shell-scroller]')).toBeVisible()

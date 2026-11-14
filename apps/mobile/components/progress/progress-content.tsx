@@ -707,7 +707,7 @@ function ProgressGamificationContent({ screen }: Readonly<{ screen: 'streak' | '
   const retry = () => { void account.refetch(); void gamification.refetch() }
   return <ProgressSubscreen screen={screen}>
     <ScrollView style={styles.root} contentContainerStyle={[styles.sections, { paddingBottom: clearance }]}>
-      {error ? <ErrorState message={t('progressScreen.error')} action={<IconButton label={t('progressScreen.retry')} onClick={retry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>} />
+      {error ? <ErrorState fullSurface message={t('progressScreen.error')} action={<IconButton label={t('progressScreen.retry')} onClick={retry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>} />
         : loading ? <ProgressLoading label={t('progressScreen.loading')} screen={screen} />
         : screen === 'streak' ? <StreakSection accountProfile={account.profile} canView={available} gamificationProfile={gamification.profile} tokens={tokens} />
         : <AchievementsSection gamificationAvailable={available} profile={gamification.profile} xpProgress={gamification.xpProgress} tokens={tokens} />}

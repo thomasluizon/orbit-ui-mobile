@@ -15,6 +15,7 @@ import { createTokensV2, mixHex, radius, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ThemedMotionPressable } from './motion-pressable'
 import { SkeletonFace } from './skeleton'
+import { OrbitMascot } from './orbit-mascot'
 
 const SMALL_PILL_HIT_PADDING = (TOUCH_TARGET_MIN - SMALL_PILL_VISIBLE_MIN) / 2
 
@@ -217,6 +218,8 @@ const styles = StyleSheet.create({
 
 export { Button as PillButton }
 
+/** The pill paints its glyph in its label colour. Orbit owns its inks (the planet in the foreground, the moon in the accent), so the mascot keeps them on every variant, as on web. */
 function buttonLeadingGlyph(icon: React.ReactNode, color: string) {
-  return isValidElement<{ color?: string }>(icon) ? cloneElement(icon, { color }) : icon
+  if (!isValidElement<{ color?: string }>(icon) || icon.type === OrbitMascot) return icon
+  return cloneElement(icon, { color })
 }

@@ -142,6 +142,7 @@ it.each([en, ptBR])('shows each suggestion action with only the decorative mark'
         typeof node.type === 'string' && node.props.testID === 'orbit-mascot')
       expect(marks).toHaveLength(1)
       expect(marks[0]!.props.accessible).toBe(false)
+      expect(marks[0]!.props.color).toBe(createTokensV2('purple', 'dark').fg1)
     }
     pressControl(controls[1])
     expect(chips[1]!.onSelect).toHaveBeenCalledOnce()
@@ -1076,6 +1077,7 @@ describe('Composer (mobile)', () => {
     const conversationLabel = 'open conversation sentinel'
     const tree = await renderComposer(props({ onOpenConversation, conversationLabel }))
     const control = byLabel(tree.root, conversationLabel)[0]
+    expect(control.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.testID === 'orbit-mascot')[0]?.props.color).toBe(createTokensV2('purple', 'dark').fg1)
 
     TestRenderer.act(() => control.props.onPressIn())
     expect(timing).toHaveBeenLastCalledWith(

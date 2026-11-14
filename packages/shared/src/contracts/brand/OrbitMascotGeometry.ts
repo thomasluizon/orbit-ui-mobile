@@ -143,6 +143,14 @@ export function orbitMascotFrame(milliseconds: number, timings: OrbitMascotTimin
   }
 }
 
+/** The clip of the planet and the eyes: the whole drawing box with the ring outline cut out, read with the
+ *  even-odd rule. The outline is a hole, not a paint, so it always shows the real surface behind the mascot:
+ *  the canvas, a card, a sheet, a hover fill or a pill. */
+export function orbitOutlineCutout(viewBox: string, outline: string): string {
+  const [x = 0, y = 0, width = 0, height = 0] = viewBox.split(' ').map(Number)
+  return `M${x} ${y}H${x + width}V${y + height}H${x}Z${outline}`
+}
+
 /** The SVG matrix that closes one eye about its centre line by `scale`. */
 export function orbitBlinkMatrix(scale: number, centreY: number): string {
   return `matrix(1 0 0 ${scale.toFixed(3)} 0 ${(centreY * (1 - scale)).toFixed(3)})`

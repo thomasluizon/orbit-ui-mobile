@@ -231,6 +231,7 @@ it('disables approval and editing after removing every Android proposal', async 
     await act(() => openConfirmation(tree).onConfirm())
   }
   expect(renderedText(tree.root)).toContain('chat.breakdown.empty')
+  expect(tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'orbit-mascot' && node.props['data-orbit-face'] === 'rig').map(node => [node.props.width, node.props['data-orbit-loop']])).toEqual([[96, 'still']])
   expect(press(tree, 'habits.breakdown.addHabit').props.testID).toBe('button-ghost-sm')
   expect(press(tree, 'chat.preview.approve').props.testID).toBe('button-secondary-sm')
   expect(press(tree, 'chat.preview.approve').props.accessibilityState.disabled).toBe(true)

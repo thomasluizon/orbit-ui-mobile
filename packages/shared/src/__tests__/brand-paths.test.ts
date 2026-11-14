@@ -11,6 +11,7 @@ import {
   ORBIT_SMALL_FACES,
   orbitMascotFrame,
   orbitMascotSizeFor,
+  orbitOutlineCutout,
 } from '../contracts/brand'
 import { mascotMotion } from '../theme'
 import { repositoryRoot } from '../test-support/repository-root'
@@ -89,5 +90,18 @@ describe('lockup geometry matches orbit-lockup.svg', () => {
     expect(source).toContain(`<g transform="${LOCKUP_WORD_TRANSFORM}"`)
     for (const path of LOCKUP_MARK_PATHS) expect(source).toContain(`d="${path.d}"`)
     expect(source).toContain(`d="${LOCKUP_WORD_PATH}"`)
+  })
+})
+
+describe('the ring outline cut-out', () => {
+  it('keeps the whole drawing box and cuts the outline out of it under the even-odd rule', () => {
+    const outline = orbitMascotFrame(0, mascotMotion).ringOutline
+    expect(orbitOutlineCutout('-210 -150 420 300', outline)).toBe(`M-210 -150H210V150H-210Z${outline}`)
+    expect(orbitOutlineCutout(ORBIT_SMALL_FACES[24].viewBox, ORBIT_SMALL_FACES[24].ringOutline)).toBe(`M0 0H24V18H0Z${ORBIT_SMALL_FACES[24].ringOutline}`)
+  })
+
+  it('marks the lockup moon as the one accent path, as the small static face paints it', () => {
+    const moons = LOCKUP_MARK_PATHS.filter((path) => path.part === 'moon')
+    expect(moons.map((path) => path.d)).toEqual([ORBIT_SMALL_FACES[24].moon])
   })
 })

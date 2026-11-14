@@ -8,6 +8,7 @@ import {
   orbitBlinkMatrix,
   orbitMascotFrame,
   orbitMascotSizeFor,
+  orbitOutlineCutout,
   type OrbitEyeShape,
   type OrbitMascotFrame,
   type OrbitMascotProps,
@@ -20,7 +21,7 @@ import {
   mayOrbitRunLoop,
   subscribeOrbitLoop,
 } from '@orbit/shared/utils'
-import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from 'react'
 import { AppState, useWindowDimensions } from 'react-native'
 import { useReducedMotion } from 'react-native-reanimated'
 import Svg, { Circle, ClipPath, Defs, G, Path } from 'react-native-svg'
@@ -37,23 +38,52 @@ function isSmallSize(size: number): size is OrbitMascotSmallSize {
   return size < LIVE_MIN_SIZE
 }
 
+interface WindowMeasurable {
+  measureInWindow(callback: (x: number, y: number, width: number, height: number) => void): void
+}
+
+/** Whether the mascot is inside the window. React Native has no public IntersectionObserver, so while the
+ *  mascot may run its loop it measures itself in the window once per frame interval of the loop. */
+function useOnScreen(target: RefObject<WindowMeasurable | null>, active: boolean): boolean {
+  const [onScreen, setOnScreen] = useState(true)
+  const { width, height } = useWindowDimensions()
+  useEffect(() => {
+    if (!active) return undefined
+    let frame = 0
+    let lastProbe = Number.NEGATIVE_INFINITY
+    const probe = (now: number) => {
+      frame = requestAnimationFrame(probe)
+      if (now - lastProbe < mascotMotion.frameInterval) return
+      lastProbe = now
+      target.current?.measureInWindow((x, y, boxWidth, boxHeight) => {
+        setOnScreen(boxWidth > 0 && boxHeight > 0 && x < width && y < height && x + boxWidth > 0 && y + boxHeight > 0)
+      })
+    }
+    frame = requestAnimationFrame(probe)
+    return () => cancelAnimationFrame(frame)
+  }, [active, target, width, height])
+  return onScreen
+}
+
 /** The idle loop clock in milliseconds. It runs only while this mascot holds the one live slot, the
- *  person has not paused Orbit, no overlay covers its layer, its screen is focused and the app is in the
- *  foreground. A mascot on a screen that is not focused gives the live slot to the next Orbit in view. It
- *  never runs under reduced motion. The focus comes from `orbitScreenLayout`, which each navigator renders around
- *  its screens; outside a navigator, such as on the root error screen, the screen counts as focused. */
-function useOrbitLoopClock(wantsLoop: boolean, lead: boolean) {
+ *  person has not paused Orbit, no overlay covers its layer, the mascot is on screen, its screen is focused
+ *  and the app is in the foreground. A mascot off screen or on a screen that is not focused gives the live
+ *  slot to the next Orbit in view. It never runs under reduced motion. The focus comes from `orbitScreenLayout`,
+ *  which each navigator renders around its screens; outside a navigator, such as on the root error screen,
+ *  the screen counts as focused. */
+function useOrbitLoopClock(wantsLoop: boolean, lead: boolean, target: RefObject<WindowMeasurable | null>) {
   const [claim] = useState(() => Symbol('orbit-mascot'))
   const layer = useOrbitOverlayLayer()
   const reducedMotion = useReducedMotion()
   const screenFocused = useOrbitScreenFocused()
   const candidate = wantsLoop && !reducedMotion && screenFocused
   const [foreground, setForeground] = useState(AppState.currentState === 'active')
+  const onScreen = useOnScreen(target, candidate && foreground)
   const [clock, setClock] = useState(0)
   const elapsed = useRef(0)
   useSyncExternalStore(subscribeOrbitLoop, getOrbitLoopVersion, getOrbitLoopVersion)
 
-  useEffect(() => (candidate ? claimOrbitLiveSlot(claim, layer, lead) : undefined), [candidate, claim, layer, lead])
+  useEffect(() => (candidate && onScreen ? claimOrbitLiveSlot(claim, layer, lead) : undefined), [candidate, onScreen, claim, layer, lead])
 
   useEffect(() => {
     if (!candidate) return undefined
@@ -61,7 +91,7 @@ function useOrbitLoopClock(wantsLoop: boolean, lead: boolean) {
     return () => subscription.remove()
   }, [candidate, claim])
 
-  const running = candidate && foreground && mayOrbitRunLoop(claim)
+  const running = candidate && onScreen && foreground && mayOrbitRunLoop(claim)
 
   useEffect(() => {
     if (!running) return undefined
@@ -85,7 +115,6 @@ function useOrbitLoopClock(wantsLoop: boolean, lead: boolean) {
 
 interface Palette {
   readonly eye: string
-  readonly surface: string
   readonly moon: string
 }
 
@@ -98,25 +127,36 @@ function Moon({ frame, palette }: Readonly<{ frame: OrbitMascotFrame; palette: P
   return <Circle cx={frame.moon.x} cy={frame.moon.y} r={frame.moon.radius} fill={palette.moon} />
 }
 
+/** The planet and its eyes, clipped by the ring outline cut-out, so the outline shows whatever surface is behind the mascot.
+ *  react-native-svg reads the clip rule from the clipped group on Android, and the web reads it from the clip path, so both carry it. */
+function Planet({ viewBox, outline, clipId, children }: Readonly<{ viewBox: string; outline: string; clipId: string; children: ReactNode }>) {
+  return (
+    <>
+      <Defs>
+        <ClipPath id={clipId}>
+          <Path d={orbitOutlineCutout(viewBox, outline)} clipRule="evenodd" />
+        </ClipPath>
+      </Defs>
+      <G clipPath={`url(#${clipId})`} clipRule="evenodd">
+        {children}
+      </G>
+    </>
+  )
+}
+
 function Rig({ state, frame, palette, clipId }: Readonly<{ state: NonNullable<OrbitMascotProps['state']>; frame: OrbitMascotFrame; palette: Palette; clipId: string }>) {
   const face = ORBIT_MASCOT_FACES[state]
   const blink = face.blinkCentreY === null ? undefined : orbitBlinkMatrix(frame.blinkScale, face.blinkCentreY)
   return (
     <>
-      <Defs>
-        <ClipPath id={clipId}>
-          <Circle cx="0" cy="0" r={ORBIT_MASCOT_PLANET_RADIUS} />
-        </ClipPath>
-      </Defs>
       <Path d={frame.ringBack} fill="currentColor" />
       {frame.moon.front ? null : <Moon frame={frame} palette={palette} />}
-      <Circle cx="0" cy="0" r={ORBIT_MASCOT_PLANET_RADIUS} fill="currentColor" />
-      {face.eyes.map((shape) => (
-        <Eye key={shape.d} shape={shape} palette={palette} blink={blink} />
-      ))}
-      <G clipPath={`url(#${clipId})`}>
-        <Path d={frame.ringOutline} fill={palette.surface} />
-      </G>
+      <Planet viewBox={ORBIT_MASCOT_VIEW_BOX} outline={frame.ringOutline} clipId={clipId}>
+        <Circle cx="0" cy="0" r={ORBIT_MASCOT_PLANET_RADIUS} fill="currentColor" />
+        {face.eyes.map((shape) => (
+          <Eye key={shape.d} shape={shape} palette={palette} blink={blink} />
+        ))}
+      </Planet>
       <Path d={frame.ringFront} fill="currentColor" />
       {frame.moon.front ? <Moon frame={frame} palette={palette} /> : null}
     </>
@@ -127,19 +167,13 @@ function SmallFace({ size, palette, clipId }: Readonly<{ size: OrbitMascotSmallS
   const face = ORBIT_SMALL_FACES[size]
   return (
     <>
-      <Defs>
-        <ClipPath id={clipId}>
-          <Path d={face.planet} />
-        </ClipPath>
-      </Defs>
       <Path d={face.ringBack} fill="currentColor" />
-      <Path d={face.planet} fill="currentColor" />
-      {face.eyes.map((eye) => (
-        <Path key={eye} d={eye} fill={palette.eye} />
-      ))}
-      <G clipPath={`url(#${clipId})`}>
-        <Path d={face.ringOutline} fill={palette.surface} />
-      </G>
+      <Planet viewBox={face.viewBox} outline={face.ringOutline} clipId={clipId}>
+        <Path d={face.planet} fill="currentColor" />
+        {face.eyes.map((eye) => (
+          <Path key={eye} d={eye} fill={palette.eye} />
+        ))}
+      </Planet>
       <Path d={face.ringFront} fill="currentColor" />
       <Path d={face.moon} fill={palette.moon} />
     </>
@@ -147,7 +181,7 @@ function SmallFace({ size, palette, clipId }: Readonly<{ size: OrbitMascotSmallS
 }
 
 function paletteFrom(tokens: AppTokensV2): Palette {
-  return { eye: tokens.bg, surface: tokens.bg, moon: tokens.primary }
+  return { eye: tokens.bg, moon: tokens.primary }
 }
 
 type MobileOrbitMascotProps = OrbitMascotProps & {
@@ -167,13 +201,15 @@ function ThemedOrbitMascot(props: Readonly<OrbitMascotProps>) {
 
 function OrbitMascotDrawing({ size, state = 'parado', still = false, color, lead = false, tokens }: Readonly<OrbitMascotProps & { tokens: AppTokensV2 }>) {
   const clipId = `orbit-planet-${useId().replaceAll(':', '')}`
+  const svgRef = useRef<Svg | null>(null)
   const small = isSmallSize(size)
-  const { clock, running } = useOrbitLoopClock(!small && !still, lead)
+  const { clock, running } = useOrbitLoopClock(!small && !still, lead, svgRef)
   const frame = orbitMascotFrame(clock, mascotMotion)
   const palette = paletteFrom(tokens)
 
   return (
     <Svg
+      ref={svgRef}
       width={size}
       height={small ? size * SMALL_BOX_RATIO : (size * ORBIT_MASCOT_BOX_HEIGHT) / ORBIT_MASCOT_BOX_WIDTH}
       viewBox={small ? ORBIT_SMALL_FACES[size].viewBox : ORBIT_MASCOT_VIEW_BOX}

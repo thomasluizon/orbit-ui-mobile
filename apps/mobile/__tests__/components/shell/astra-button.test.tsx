@@ -10,6 +10,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-area-geometry'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { expectMotionPress } from '@/__tests__/support/press-feedback'
+import { createTokensV2 } from '@/lib/theme'
 
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark' }) }))
 vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 24, bottom: 24, left: 0, right: 0 }) }))
@@ -167,4 +168,21 @@ it('keeps the conversation entry still on press under reduced motion, with no pr
   await mountShell(412)
   expectMotionPress(host('astra-button'), true)
   expect(hosts('fab-press-fill')).toHaveLength(0)
+})
+
+it('paints the neutral hover fill of its round target on pointer hover and draws the focus ring on keyboard focus, as web does', async () => {
+  await mountShell(412)
+  const tokens = createTokensV2('orange', 'dark')
+  const style = () => StyleSheet.flatten(host('astra-button').props.style) as Record<string, unknown>
+  expect(style()).toMatchObject({ borderRadius: 30 })
+  expect(style().backgroundColor).toBeUndefined()
+  expect(style().outlineWidth).toBeUndefined()
+  await act(() => { (host('astra-button').props.onHoverIn as () => void)() })
+  expect(style().backgroundColor).toBe(tokens.bgHover)
+  await act(() => { (host('astra-button').props.onHoverOut as () => void)() })
+  expect(style().backgroundColor).toBeUndefined()
+  await act(() => { (host('astra-button').props.onFocus as (event: unknown) => void)({ target: 1, currentTarget: 1 }) })
+  expect(style()).toMatchObject({ outlineColor: tokens.primary, outlineOffset: 2, outlineStyle: 'solid', outlineWidth: 2 })
+  await act(() => { (host('astra-button').props.onBlur as (event: unknown) => void)({ target: 1, currentTarget: 1 }) })
+  expect(style().outlineWidth).toBeUndefined()
 })
