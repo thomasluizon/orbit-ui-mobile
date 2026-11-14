@@ -31,8 +31,9 @@ describe('iOS widget loading state', () => {
 
   it('paints the skeleton in the colour Android calls widget_well, so no new colour enters the widget', () => {
     for (const night of [false, true]) {
-      const well = androidColours(night).match(/<color name="widget_well">(#[0-9A-F]{6})<\/color>/i)![1]
-      expect(swiftFallbacks).toContain(`"${night ? 'dark' : 'light'}_surface": "${well.toUpperCase()}"`)
+      const well = androidColours(night).match(/<color name="widget_well">(#[0-9A-F]{6})<\/color>/i)?.[1]
+      expect(well).toBeDefined()
+      expect(swiftFallbacks).toContain(`"${night ? 'dark' : 'light'}_surface": "${well!.toUpperCase()}"`)
     }
   })
 })

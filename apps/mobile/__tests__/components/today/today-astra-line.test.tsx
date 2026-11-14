@@ -1,5 +1,5 @@
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer'
-import { StyleSheet } from 'react-native'
+import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import { TodayAstraLine } from '@/components/today/today-astra-line'
 import { createTokensV2 } from '@/lib/theme'
@@ -23,10 +23,10 @@ describe('Hoje Orbit line on Android', () => {
     let tree: ReactTestRenderer | undefined
     await act(() => { tree = create(<TodayAstraLine text="summary.loading" destination="Abre a conversa" disabled loading />) })
     const line = tree!.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'today-astra-slot')[0]!
-    expect(StyleSheet.flatten(line.props.style).backgroundColor).toBe('transparent')
+    expect(StyleSheet.flatten(line.props.style as StyleProp<ViewStyle>).backgroundColor).toBe('transparent')
     const placeholder = line.findAll((node: ReactTestInstance) => typeof node.type === 'string' && node.props.testID === 'summary-skeleton')[0]!
     expect(placeholder.findAll((node: ReactTestInstance) => typeof node.type === 'string' && node.props.testID === 'skeleton-unit-fill')).toHaveLength(2)
-    const colours = placeholder.findAll((node: ReactTestInstance) => typeof node.type === 'string').map((node) => StyleSheet.flatten(node.props.style)?.backgroundColor).filter(Boolean)
+    const colours = placeholder.findAll((node: ReactTestInstance) => typeof node.type === 'string').map((node) => StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).backgroundColor).filter(Boolean)
     expect(colours).not.toContain(tokens.hairlineStrong)
     expect(colours).toContain(tokens.bgWell)
     await act(() => tree!.unmount())
