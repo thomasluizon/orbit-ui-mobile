@@ -184,7 +184,7 @@ the habit list ends at the top edge of the tab bar, with no empty band where the
 screen, including the tab bar. On wide web the sidebar stays visible and the conversation replaces
 the destination's header, scroller and bottom chrome in the centred column, capped at 740, from
 its top inset to the viewport bottom. Its header, thread, chips and composer have the same layout
-at every width. The header is NavHeader: minimum height 56, a start-aligned 24 small static face
+at every width. The header is NavHeader: minimum height 56, a start-aligned 16 small static face
 at the 16 header inset, centred vertically with a 48 close control carrying a 20 X. The glyph
 replaces the visible title; the header heading keeps the accessible name `Orbit` once.
 The composer has a top hairline and 16 padding,
