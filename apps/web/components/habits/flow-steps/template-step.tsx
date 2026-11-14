@@ -30,9 +30,9 @@ function TemplateRow({ template, label, loadable, onLoad, onDelete }: Readonly<{
   return (
     <div data-template-row="" className="orbit-list-action-surface flex min-h-12 min-w-0 items-center gap-2">
       {loadable
-        ? <button type="button" className="orbit-list-row-body min-h-12 min-w-0 flex-1 rounded-[12px] px-3 text-start text-base text-[var(--fg-1)] enabled:active:scale-[0.96]" onClick={onLoad}>{label}</button>
+        ? <button type="button" className="orbit-list-row-body min-h-12 min-w-0 flex-1 rounded-[12px] px-3 text-start text-base text-[var(--fg-1)] motion-safe:enabled:active:scale-[0.96]" onClick={onLoad}>{label}</button>
         : <span className="min-w-0 flex-1 px-3 text-base text-[var(--fg-1)]">{label}</span>}
-      <button type="button" aria-label={`${t('common.delete')}: ${template.name}`} className="orbit-list-row-action grid size-[var(--touch-min)] shrink-0 place-items-center rounded-full enabled:active:scale-[0.96]" onClick={onDelete}>
+      <button type="button" aria-label={`${t('common.delete')}: ${template.name}`} className="orbit-list-row-action grid size-[var(--touch-min)] shrink-0 place-items-center rounded-full motion-safe:enabled:active:scale-[0.96]" onClick={onDelete}>
         <Icon name="trash" size={20} color="var(--status-bad)" />
       </button>
     </div>
