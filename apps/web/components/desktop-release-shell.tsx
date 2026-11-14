@@ -67,7 +67,7 @@ async function restoreDesktopCheckpoint(accountId: string, isCurrent: () => bool
 
 function DesktopUpdateRequired({ signIn }: Readonly<{ signIn: boolean }>) {
   const t = useTranslations()
-  return <main className="flex min-h-dvh items-center justify-center bg-[var(--bg)] text-[var(--fg-1)]">
+  return <main className="flex min-h-dvh items-center justify-center bg-[var(--bg)] pt-[var(--safe-top)] text-[var(--fg-1)]">
     <div className="flex max-w-[440px] flex-col gap-4 p-4"><ErrorState message={t(signIn ? 'desktopUpdate.signInRequired' : 'desktopUpdate.required')} /><UpdateAvailableBanner inset={false} /></div>
   </main>
 }

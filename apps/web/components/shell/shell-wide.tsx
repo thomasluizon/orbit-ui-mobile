@@ -214,7 +214,7 @@ function ShellSidebar(props: Readonly<Extract<ResponsiveShellProps, { nav?: true
         if (control && !control.hasAttribute('data-shell-astra-row') && !control.hasAttribute('data-shell-sidebar-toggle') && !control.hasAttribute('data-theme-toggle')) props.onSidebarNavigate?.()
       }}
       inert={props.layerOpen && !props.wide || undefined}
-      className={`z-sticky hidden h-[var(--keyboard-viewport-height)] ${collapsed ? 'w-[96px]' : 'w-[232px]'} shrink-0 flex-col overflow-y-auto bg-[var(--bg)] py-6 shadow-[inset_-1px_0_0_var(--hairline)] lg:flex`}
+      className={`z-sticky hidden h-[var(--keyboard-viewport-height)] ${collapsed ? 'w-[96px]' : 'w-[232px]'} shrink-0 flex-col overflow-y-auto bg-[var(--bg)] pb-6 pt-[max(var(--orbit-space-24),var(--safe-top))] shadow-[inset_-1px_0_0_var(--hairline)] lg:flex`}
     >
       <div className="flex flex-col gap-6">
         <SidebarBrandRow collapsed={collapsed} navigationId={navigationId} notifications={props.notifications} themeAction={props.themeAction} />

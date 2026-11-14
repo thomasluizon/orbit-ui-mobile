@@ -96,13 +96,31 @@
       inputFocused: document.activeElement === input, selected, results: results.map((result) => result.getAttribute('aria-label') || result.textContent.trim()),
       inputName: accessibleName(input), listId: input?.getAttribute('aria-controls'), activeDescendantId: input?.getAttribute('aria-activedescendant') }
   }
-  // The shell reads only the root mode class, the class the theme switch writes, so the probe drives that same signal.
+  // The shell reads the root mode class, but the page paints from the inline tokens that only the theme switch writes with
+  // that class (apps/web/lib/theme-dom.ts applyThemeTokensToDOM), so the probe presses the real ThemeToggle.
+  // The shell then sets the window theme to that mode, which sets the WebView2 colour scheme (src-tauri/src/launch.rs
+  // set_theme). That happens after a command round trip, so the probe gives prefers-color-scheme 15 seconds to follow the
+  // mode and reports what it reads, and the runner requires the mode.
   async function appearance(mode) {
     const root = document.documentElement
-    root.classList.remove(mode === 'dark' ? 'light' : 'dark')
-    root.classList.add(mode)
+    const other = mode === 'dark' ? 'light' : 'dark'
+    if (!root.classList.contains(mode) || root.classList.contains(other)) {
+      const toggle = await until(() => document.querySelector('[data-theme-toggle]'), 'the theme toggle', 15000)
+      toggle.click()
+      await until(() => root.classList.contains(mode) && !root.classList.contains(other), `the ${mode} page mode after the theme toggle`, 15000)
+    }
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
-    await report(`appearance-${mode}`)
+    const prefersDark = () => matchMedia('(prefers-color-scheme: dark)').matches
+    const deadline = Date.now() + 15000
+    while (prefersDark() !== (mode === 'dark') && Date.now() < deadline) await delay(100)
+    await report(`appearance-${mode}`, { canvas: root.style.getPropertyValue('--bg'), prefersDark: prefersDark() })
+  }
+  // The menu action asks the shell to show its native menu, which stays open until the reader closes it, so the probe
+  // reports the press without waiting for the command to settle.
+  async function windowMenu() {
+    const action = await until(() => document.querySelector('[data-window-action="menu"]'), 'the window bar menu action', 15000)
+    action.click()
+    await report('window-menu')
   }
   async function update(expected) {
     const invoke = window.__TAURI_INTERNALS__?.invoke
@@ -158,6 +176,7 @@
       }
       if (command.startsWith('update-')) await update(command.slice(7))
       else if (command.startsWith('appearance-')) await appearance(command.slice('appearance-'.length))
+      else if (command === 'window-menu') await windowMenu()
       else if (command.startsWith('focus-')) {
         await until(() => paletteState().selected === Number(command.slice(6)), 'next keyboard-selected result')
         await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))

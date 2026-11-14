@@ -47,15 +47,18 @@
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/.github/workflows/*.yml",
         "$TURBO_ROOT$/apps/mobile/lib/turnstile-frames.ts",
+        "$TURBO_ROOT$/apps/web/app/globals.css",
         "$TURBO_ROOT$/apps/web/components/auth/desktop-auth-bridge.tsx",
         "$TURBO_ROOT$/apps/web/lib/desktop-push.ts",
         "$TURBO_ROOT$/apps/web/lib/desktop-updates.ts",
+        "$TURBO_ROOT$/apps/web/lib/desktop-window.ts",
         "$TURBO_ROOT$/apps/web/proxy.ts",
         "$TURBO_ROOT$/apps/web/test-support/hermetic/mock-api/fixtures/chat-stream.ts",
         "$TURBO_ROOT$/apps/web/web-compatibility.json",
         "$TURBO_ROOT$/design/brand/orbit-mark-16.svg",
         "$TURBO_ROOT$/design/brand/orbit-mark-accent.svg",
         "$TURBO_ROOT$/packages/shared/src/**",
+        "$TURBO_ROOT$/tools/desktop-bench/acceptance-window-bar.cs",
         "$TURBO_ROOT$/tools/desktop-bench/probe.js"
       ]
     },

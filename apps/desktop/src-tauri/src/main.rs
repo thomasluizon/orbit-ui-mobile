@@ -26,6 +26,7 @@ mod update_resume;
 mod update_state;
 mod updates;
 mod web_release;
+mod window_bar;
 
 fn main() {
     let context = context();
@@ -45,13 +46,16 @@ fn desktop_builder(identifier: String) -> tauri::Builder<tauri::Wry> {
     #[cfg(feature = "bench-loopback")]
     let window_state = window_state.skip_initial_state("main");
     #[cfg(target_os = "macos")]
-    let builder = builder.activate_ignoring_other_apps(false);
+    let builder = builder
+        .activate_ignoring_other_apps(false)
+        .on_web_content_process_terminate(window_bar::content_process_ended);
     builder
         .invoke_handler(tauri::generate_handler![
             desktop_login::commit_desktop_login,
             push::desktop_push,
             updates::desktop_update,
             launch::desktop_launch,
+            window_bar::desktop_window,
             #[cfg(feature = "bench-loopback")]
             bench_viewport::fit_bench_viewport
         ])
@@ -152,6 +156,7 @@ fn construct_window(
     flow: desktop_login::SharedAuth,
 ) -> tauri::Result<()> {
     app.manage(launch::LaunchState::default());
+    app.manage(window_bar::FrameState::default());
     let navigation_origin = origin.clone();
     let handle = app.handle().clone();
     let window = tauri::WebviewWindowBuilder::from_config(app, window_config)?
@@ -159,6 +164,10 @@ fn construct_window(
         .initialization_script(web_release::initialization_script(
             origin,
             &app.package_info().version.to_string(),
+        ))
+        .initialization_script(window_bar::initialization_script(
+            origin,
+            window_bar::Platform::current(),
         ))
         .on_navigation(move |url| {
             navigate_main(
@@ -172,6 +181,7 @@ fn construct_window(
         })
         .on_page_load(|window, payload| {
             launch::page_loading(&window, payload.event());
+            window_bar::page_loading(&window, payload.event());
             push::page_loaded(&window, payload);
         })
         .on_new_window(|url, _features| {
@@ -183,6 +193,14 @@ fn construct_window(
         window.remove_menu()?;
     }
     launch::install(&window, window_config)?;
+    #[cfg(windows)]
+    {
+        window_bar::install_snap_region(&window)?;
+        if let Err(error) = window_bar::watch_content_process(&window) {
+            eprintln!("Cannot watch the web content process: {error}");
+        }
+    }
+    window_bar::window_created(&window);
     drop(window);
     Ok(())
 }

@@ -20,11 +20,11 @@ const record = (path, value) => writeFile(path, `${JSON.stringify(value, null, 2
 async function nativeTool(output) {
   const executable = join(output, 'accessibility')
   if (!windows) await execute('clang', ['-fobjc-arc', '-framework', 'AppKit', '-framework', 'ApplicationServices', join(directory, 'acceptance-ax.m'), '-o', executable])
-  return async (pid, command, menuCommandId, { title, label, invoke = false, openCenter = false, executable: target, capture, bundle } = {}) => {
+  return async (pid, command, menuCommandId, { title, label, action, invoke = false, openCenter = false, executable: target, capture, bundle } = {}) => {
     const reply = windows
       ? await execute('powershell.exe', ['-NoProfile', '-NonInteractive', '-File', join(directory, 'acceptance-uia.ps1'), '-TargetProcessId', String(pid), '-Command', command,
         ...(menuCommandId === undefined ? [] : ['-MenuCommandId', String(menuCommandId)]),
-        ...(title === undefined ? [] : ['-Title', title, '-Label', label]), ...(invoke ? ['-Invoke'] : []), ...(openCenter ? ['-OpenCenter'] : []),
+        ...(title === undefined ? [] : ['-Title', title, '-Label', label]), ...(action === undefined ? [] : ['-Action', action, ...(label === undefined ? [] : ['-Label', label])]), ...(invoke ? ['-Invoke'] : []), ...(openCenter ? ['-OpenCenter'] : []),
         ...(target === undefined ? [] : ['-Executable', target]), ...(capture === undefined ? [] : ['-Capture', capture])])
       : await execute(executable, [String(pid), command, ...(title === undefined ? [] : [title, label, invoke ? '1' : '0', openCenter ? '1' : '0']),
         ...(bundle === undefined ? [] : [bundle])])
@@ -212,31 +212,106 @@ async function traversePalette(proxy, native, handle, dump, previous, report) {
   report.paletteFocus = focus
 }
 
-// The DESIGN.md canvas tokens, which the shell paints into the Windows 11 caption for each page mode (#2084).
-const captionCanvas = { light: [250, 250, 250], dark: [9, 9, 11] }
+// The DESIGN.md canvas tokens, which the Orbit window bar paints for each page mode (#2132).
+const barCanvas = { light: [250, 250, 250], dark: [9, 9, 11] }
+const barActions = ['menu', 'minimize', 'maximize', 'close']
 
-// DWMWA_CAPTION_COLOR paints the canvas whatever the window theme is, and the caption-button glyphs follow the caption colour,
-// so only the DWMWA_USE_IMMERSIVE_DARK_MODE flag that the reader reads back from the window proves the runtime window theme.
-const captionDarkMode = { light: 0, dark: 1 }
+// The least glyph extent of each 20px icon, as [width, height] in CSS pixels: the menu dots stand tall, the minimize line
+// lies wide, and the maximize square and the close cross take both directions.
+const glyphExtent = { menu: [0, 8], minimize: [8, 0], maximize: [8, 8], close: [8, 8] }
 
-async function inspectCaption(proxy, native, handle, output, report) {
-  report.caption = {}
+// An action area shows its glyph on the canvas, as the minimize and close areas do: most of its middle is canvas, and the
+// pixels that stand apart from the canvas have the extent of its icon. A blank area has no glyph, a window painted over the
+// area has little canvas, and a stray line has the wrong extent. The snap region over the maximize action blends 1/255 of
+// black, so a canvas pixel may differ by a few levels. The reader samples the middle half of the 44px action, 22px wide.
+function glyphVisible(area, canvas) {
+  const scale = area.width / 22
+  let flat = 0
+  const rows = []
+  const columns = []
+  area.pixels.forEach((pixel, index) => {
+    if (pixel < 0) return
+    const distance = Math.max(...[16, 8, 0].map((shift, channel) => Math.abs(((pixel >> shift) & 255) - canvas[channel])))
+    if (distance <= 4) flat++
+    if (distance >= 64) {
+      rows.push(Math.floor(index / area.width))
+      columns.push(index % area.width)
+    }
+  })
+  const [width, height] = glyphExtent[area.name]
+  const extent = (values) => values.length ? Math.max(...values) - Math.min(...values) + 1 : 0
+  return rows.length > 0 && flat >= area.pixels.length * 0.6 &&
+    extent(columns) >= width * scale && extent(rows) >= height * scale
+}
+
+const glyphsVisible = (bar, canvas) => bar.actions?.map(({ name }) => name).join() === barActions.join() &&
+  bar.actions.every((area) => glyphVisible(area, canvas))
+
+async function inspectWindowBar(proxy, native, handle, output, report) {
+  const names = await catalogValue('../../packages/shared/src/i18n', (catalogue) => catalogue.desktopWindow)
+  const named = (key) => names.map((catalogue) => catalogue[key])
+  // Only the two mode reads keep their screenshot, so the later reads write to a scratch capture.
+  const read = (action = 'read', label, capture = 'window-action') => native(handle.child.pid, 'windowbar', undefined, { action, label, capture: join(output, `${capture}.png`) })
+  // UI Automation reads the bar's buttons left to right: the menu action, then minimize, maximize or restore, and close.
+  const hasActions = (bar, middle) => bar.buttons.length === 4 && named('menu').includes(bar.buttons[0]) && named('minimize').includes(bar.buttons[1]) &&
+    named(middle).includes(bar.buttons[2]) && named('close').includes(bar.buttons[3])
+  report.windowBar = {}
   for (const mode of ['light', 'dark']) {
     proxy.send(`appearance-${mode}`)
-    await waitFor(() => proxy.read(`appearance-${mode}`), `${mode} page appearance`)
-    const expected = captionCanvas[mode]
-    let caption
+    // The probe reports the canvas token the page paints with, so a wrong bar colour tells a page that kept its mode from a shell
+    // fault. It also reports prefers-color-scheme, the WebView2 colour scheme that the shell sets with the window theme of the mode.
+    const page = await waitFor(() => proxy.read(`appearance-${mode}`), `${mode} page appearance`)
+    const expected = barCanvas[mode]
+    let bar
     try {
-      // The shell applies a reported mode asynchronously, so the reader polls until the caption shows its colour and window theme.
+      // The shell applies a reported mode asynchronously, so the reader polls until the bar shows the canvas of the page mode.
       await waitFor(async () => {
-        caption = await native(handle.child.pid, 'caption', undefined, { capture: join(output, `caption-${mode}.png`) })
-        const [dominant] = caption.colors
-        return dominant?.color.join() === expected.join() && dominant.count >= caption.sampled * 0.9 &&
-          caption.darkModeStatus === 0 && caption.darkMode === captionDarkMode[mode]
-      }, `${mode} caption in the Orbit canvas colour`, 30000)
+        bar = await read('read', undefined, `window-${mode}`)
+        const [dominant] = bar.bar.colors
+        return page.prefersDark === (mode === 'dark') && bar.bar.captionHeight === 0 && !bar.bar.menuBar && dominant?.color.join() === expected.join() &&
+          dominant.count >= bar.bar.sampled * 0.9 && glyphsVisible(bar.bar, expected)
+      }, `${mode} window bar in the Orbit canvas colour with no native caption, a glyph on every action and the ${mode} WebView2 colour scheme`, 30000)
     } finally {
-      report.caption[mode] = { expected, ...caption }
+      report.windowBar[mode] = { expected, pageCanvas: page.canvas, prefersDark: page.prefersDark, ...bar }
     }
+  }
+  const actions = report.windowBar.actions = {}
+  const settled = (description, ready) => waitFor(async () => { const bar = await read(); return ready(bar) ? bar : undefined }, description, 15000)
+  const initial = await settled('the menu, minimize, maximize and close actions of the window bar', (bar) => hasActions(bar, 'maximize'))
+  actions.buttons = initial.buttons
+  await inspectMenuAction(proxy, read, actions)
+  const dragged = await read('drag')
+  actions.drag = { before: initial.state.rect, after: dragged.state.rect }
+  if (dragged.state.rect[0] - initial.state.rect[0] < 100) throw new Error(`Dragging the window bar did not move the window: ${JSON.stringify(actions.drag)}`)
+  // A pointer on the maximize action lands on the native snap region (caption.cpp), not on the page button, so the reader
+  // presses it with the pointer. UI Automation Invoke would run the page button and never reach the snap region.
+  await read('click')
+  actions.maximize = (await settled('a pointer press on the maximize action maximizing the window, with the restore action', (bar) => bar.state.zoomed && hasActions(bar, 'restore'))).state
+  await read('click')
+  actions.restore = (await settled('a pointer press on the restore action restoring the window, with the maximize action', (bar) => !bar.state.zoomed && hasActions(bar, 'maximize'))).state
+  await read('doubleclick')
+  actions.doubleClickMaximize = (await settled('a double click on the bar maximizing the window', (bar) => bar.state.zoomed)).state
+  await read('doubleclick')
+  actions.doubleClickRestore = (await settled('a double click on the bar restoring the window', (bar) => !bar.state.zoomed)).state
+  await read('invoke', initial.buttons[1])
+  actions.minimize = (await settled('the minimized window', (bar) => bar.state.iconic)).state
+  await read('restore')
+  actions.restoreFromMinimize = (await settled('the window restored from minimize', (bar) => !bar.state.iconic && bar.state.visible)).state
+}
+
+// The probe presses the menu action as a person does; the shell then holds its native menu open as a popup until Escape.
+async function inspectMenuAction(proxy, read, actions) {
+  proxy.send('window-menu')
+  await waitFor(() => proxy.read('window-menu'), 'the probe pressing the menu action')
+  const { popup } = await read('popup')
+  actions.menu = popup
+  if (!popup.closed) throw new Error(`Escape did not close the native popup menu: ${JSON.stringify(popup.rect)}`)
+  if (!popup.items.length || JSON.stringify(popup.items) !== JSON.stringify(popup.windowMenu)) {
+    throw new Error(`The menu action did not open the window menu: ${JSON.stringify({ items: popup.items, windowMenu: popup.windowMenu })}`)
+  }
+  // TrackPopupMenu puts the top left corner of the menu at the anchor, here the start of the menu action under the bar.
+  if (Math.abs(popup.rect[0] - popup.anchor[0]) > 8 || Math.abs(popup.rect[1] - popup.anchor[1]) > 8) {
+    throw new Error(`The native popup menu did not open under the menu action: ${JSON.stringify({ rect: popup.rect, anchor: popup.anchor })}`)
   }
 }
 
@@ -440,8 +515,8 @@ export async function acceptance({ repository, output, credentials = {}, signing
       report.paletteFocus ??= proxy.events().filter((event) => event.kind === 'focus')
     }
     if (windows) {
-      checkpoint('caption')
-      await inspectCaption(proxy, native, handle, output, report)
+      checkpoint('window-bar')
+      await inspectWindowBar(proxy, native, handle, output, report)
     }
     const beforeReload = proxy.events().filter((event) => event.kind === 'hoje').length
     checkpoint('reload')

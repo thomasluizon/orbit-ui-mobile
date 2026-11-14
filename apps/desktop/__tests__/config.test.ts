@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { Ajv } from 'ajv'
 import { describe, expect, it } from 'vitest'
+import { BUTTON_SIZES, SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 import base from '../src-tauri/tauri.conf.json'
 import production from '../src-tauri/tauri.production.conf.json'
 import macos from '../src-tauri/tauri.macos.conf.json'
@@ -59,14 +60,14 @@ describe.each(environments)('$name desktop', ({ config, origin, identifier }) =>
     expect(entrypoint).toContain('.setup(setup)')
     expect(entrypoint).toMatch(/fn construct_window[\s\S]*WebviewWindowBuilder::from_config[\s\S]*\.on_new_window\([\s\S]*open_new_window\([\s\S]*tauri_plugin_opener::open_url[\s\S]*\.build\(\)/)
     expect(entrypoint).toContain('.on_navigation(')
-    expect(entrypoint).toMatch(/\.invoke_handler\(tauri::generate_handler!\[\s*desktop_login::commit_desktop_login,\s*push::desktop_push,\s*updates::desktop_update,\s*launch::desktop_launch,\s*#\[cfg\(feature = "bench-loopback"\)\]\s*bench_viewport::fit_bench_viewport\s*\]\)/)
+    expect(entrypoint).toMatch(/\.invoke_handler\(tauri::generate_handler!\[\s*desktop_login::commit_desktop_login,\s*push::desktop_push,\s*updates::desktop_update,\s*launch::desktop_launch,\s*window_bar::desktop_window,\s*#\[cfg\(feature = "bench-loopback"\)\]\s*bench_viewport::fit_bench_viewport\s*\]\)/)
   })
 
   it('grants only session completion to its own origin and registers its callback scheme', () => {
     expect(config.app.withGlobalTauri).toBe(false)
     expect(config.app.security.capabilities).toEqual([{
       identifier: 'desktop-auth', local: false, remote: { urls: [`${origin}/*`] },
-      windows: ['main'], permissions: ['allow-commit-desktop-login', 'allow-desktop-push', 'allow-desktop-update', 'allow-desktop-launch'],
+      windows: ['main'], permissions: ['allow-commit-desktop-login', 'allow-desktop-push', 'allow-desktop-update', 'allow-desktop-launch', 'allow-desktop-window'],
     }])
     expect(config.plugins['deep-link']).toEqual({ desktop: { schemes: [identifier] } })
     expect(existsSync(new URL('../src-tauri/capabilities', import.meta.url))).toBe(false)
@@ -89,7 +90,7 @@ describe.each(environments)('$name desktop', ({ config, origin, identifier }) =>
     expect(entrypoint).toContain('.on_window_event(lifecycle::on_window_event)')
     expect(entrypoint.indexOf('tauri_plugin_single_instance::init')).toBeLessThan(entrypoint.indexOf('tauri_plugin_deep_link::init'))
     const permissions = config.app.security.capabilities.flatMap((capability) => capability.permissions)
-    expect(permissions).toEqual(['allow-commit-desktop-login', 'allow-desktop-push', 'allow-desktop-update', 'allow-desktop-launch'])
+    expect(permissions).toEqual(['allow-commit-desktop-login', 'allow-desktop-push', 'allow-desktop-update', 'allow-desktop-launch', 'allow-desktop-window'])
   })
 
   it('signs macOS with the hardened runtime and the Developer ID push entitlements of its own provisioning profile', () => {
@@ -137,9 +138,92 @@ describe.each(environments)('$name release', ({ name, origin }) => {
       expect(capability.local).toBe(false)
       expect(capability.remote.urls).toEqual([`${origin}/*`])
       expect(capability.windows).toEqual(['main'])
-      expect(capability.permissions).toEqual([...commands.map((command) => `allow-${command.replaceAll('_', '-')}`), 'allow-desktop-launch'])
+      expect(capability.permissions).toEqual([...commands.map((command) => `allow-${command.replaceAll('_', '-')}`), 'allow-desktop-launch', 'allow-desktop-window'])
     },
   )
+})
+
+it('draws no native window frame on Windows and hands the frame to the Orbit bar', () => {
+  const frame = readFileSync(new URL('../src-tauri/src/window_bar.rs', import.meta.url), 'utf8').split('#[cfg(test)]')[0]!
+  expect(frame).toMatch(/Platform::Windows => \{\s*config\.decorations = false;[\s\S]*config\.shadow = false;/)
+  const lifecycle = readFileSync(new URL('../src-tauri/src/lifecycle.rs', import.meta.url), 'utf8').split('#[cfg(test)]')[0]!
+  expect(lifecycle).toContain('crate::window_bar::configure_frame(&mut config, crate::window_bar::Platform::current());')
+  for (const config of [base, production, windows]) expect(JSON.stringify(config)).not.toContain('"decorations"')
+})
+
+it('keeps the native snap region, the page bar and the stylesheet on one geometry and one command', () => {
+  const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
+  const page = read('../../web/lib/desktop-window.ts')
+  const constant = (source: string, pattern: RegExp) => Number(source.match(pattern)?.[1])
+  const native = read('../src-tauri/native/windows/caption.cpp')
+  const height = constant(page, /DESKTOP_WINDOW_BAR_HEIGHT = (\d+)/)
+  const inset = constant(page, /DESKTOP_WINDOW_BAR_END_INSET = (\d+)/)
+  const control = Math.max(SMALL_PILL_VISIBLE_MIN, BUTTON_SIZES.sm.height)
+  expect(page).toContain('export const DESKTOP_WINDOW_CONTROL_WIDTH = Math.max(SMALL_PILL_VISIBLE_MIN, BUTTON_SIZES.sm.height)')
+  for (const [nativeName, value] of [['kBarHeight', height], ['kControlWidth', control], ['kEndInset', inset]] as const) {
+    expect(value).toBeGreaterThan(0)
+    expect(constant(native, new RegExp(`${nativeName} = (\\d+)`))).toBe(value)
+  }
+  const menuAnchor = read('../src-tauri/src/window_bar.rs')
+  expect(menuAnchor).toContain(`const BAR_HEIGHT: f64 = ${height}.0;`)
+  expect(menuAnchor).toContain(`const BAR_END_INSET: f64 = ${inset}.0;`)
+  expect(menuAnchor).toContain('tauri::LogicalPosition::new(BAR_END_INSET, BAR_HEIGHT)')
+  const acceptanceReader = read('../../../tools/desktop-bench/acceptance-window-bar.cs')
+  for (const [name, value] of [['BarCssHeight', height], ['ControlCssWidth', control], ['EndCssInset', inset]] as const) {
+    expect(acceptanceReader).toContain(`private const int ${name} = ${value};`)
+  }
+  expect(read('../src-tauri/native/windows/caption.cpp')).toMatch(/CreateWindowExW\(WS_EX_LAYERED,[\s\S]*SetLayeredWindowAttributes\(caption\.overlay, 0, kRegionAlpha, LWA_ALPHA\)/)
+  expect(read('../src-tauri/native/windows/caption.cpp')).toContain('static constexpr BYTE kRegionAlpha = 1;')
+  expect(read('../../web/app/globals.css')).toContain(`--desktop-window-bar-height: ${height}px;`)
+  expect(page).toContain("runtime.invoke('desktop_window', { action })")
+  expect(read('../src-tauri/src/window_bar.rs')).toContain(`'${page.match(/DESKTOP_MAXIMIZE_HOVER_EVENT = '([^']+)'/)?.[1]}'`)
+  expect(read('../src-tauri/build.rs')).toContain('.file("native/windows/caption.cpp")')
+  expect(read('../src-tauri/native/windows/launch.cpp')).not.toMatch(/DWMWA_CAPTION_COLOR|dwmapi/)
+})
+
+it('centres the macOS traffic lights in the bar and keeps the bar content clear of them', () => {
+  const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
+  const page = read('../../web/lib/desktop-window.ts')
+  const frame = read('../src-tauri/src/window_bar.rs').split('#[cfg(test)]')[0]!
+  const light = (name: string) => Number(frame.match(new RegExp(`const TRAFFIC_LIGHT_${name}: f64 = (\\d+)\\.0;`))?.[1])
+  const appKitLightSpacingOnMacos27 = 23
+  for (const name of ['SIZE', 'BOTTOM', 'START']) expect(light(name)).toBeGreaterThan(0)
+  const inset = Number(page.match(/DESKTOP_WINDOW_TRAFFIC_LIGHT_INSET = (\d+)/)?.[1])
+  expect(light('START') + 2 * appKitLightSpacingOnMacos27 + light('SIZE')).toBeLessThanOrEqual(inset)
+  expect(frame).toMatch(/traffic_light_position = Some\(tauri::utils::config::LogicalPosition \{\s*x: TRAFFIC_LIGHT_START,\s*y: \(BAR_HEIGHT - TRAFFIC_LIGHT_SIZE\) \/ 2\.0 \+ TRAFFIC_LIGHT_BOTTOM,\s*\}\);/)
+})
+
+it('gives the native frame back to a document without the bar, and answers in the snap region only under a drawn bar', () => {
+  const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
+  const entrypoint = read('../src-tauri/src/main.rs')
+  expect(entrypoint).toContain('app.manage(window_bar::FrameState::default());')
+  expect(entrypoint).toMatch(/\.on_page_load\(\|window, payload\| \{[^}]*window_bar::page_loading\(&window, payload\.event\(\)\);/)
+  expect(entrypoint).toMatch(/\.build\(\)\?;[\s\S]*window_bar::window_created\(&window\);\s*drop\(window\);/)
+  expect(entrypoint).toMatch(/#\[cfg\(target_os = "macos"\)\]\s*let builder = builder[^;]*\.on_web_content_process_terminate\(window_bar::content_process_ended\);/)
+  const frame = read('../src-tauri/src/window_bar.rs').split('#[cfg(test)]')[0]!
+  expect(frame).toMatch(/pub fn content_process_ended\(webview: &tauri::Webview\) \{[\s\S]*page_loading\(&window, tauri::webview::PageLoadEvent::Started\);[\s\S]*webview\.reload\(\)/)
+  expect(frame).toMatch(/fn start_deadline\(window: &WebviewWindow, load: u64\) \{[^}]*std::thread::sleep\(BAR_DEADLINE\);[^}]*run_on_main_thread\(move \|\| \{[^}]*\.deadline_passed\(load\);\s*if let Err\(error\) = change_frame\(&window, change\)/)
+  expect(entrypoint).toMatch(/#\[cfg\(windows\)\]\s*\{\s*window_bar::install_snap_region\(&window\)\?;\s*if let Err\(error\) = window_bar::watch_content_process\(&window\)/)
+  expect(frame).toMatch(/#\[cfg\(windows\)\]\s*pub fn watch_content_process\(window: &WebviewWindow\)[\s\S]*if kind == COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_EXITED\s*\|\| kind == COREWEBVIEW2_PROCESS_FAILED_KIND_BROWSER_PROCESS_EXITED\s*\{\s*if let Err\(error\) = report_bar\(&target, false\)[\s\S]*\.add_ProcessFailed\(&handler, &mut token\)/)
+  expect(read('../src-tauri/Cargo.toml')).toMatch(/\[target\.'cfg\(windows\)'\.dependencies\]\s*webview2-com = "=0\.39\.1"/)
+  const caption = read('../src-tauri/native/windows/caption.cpp')
+  expect(caption).toContain('CreateWindowExW(WS_EX_LAYERED, definition.lpszClassName, L"", WS_CHILD | WS_CLIPSIBLINGS,')
+  expect(caption).toContain('extern "C" void orbit_caption_set_active(void *parent, bool active)')
+  expect(read('../src-tauri/src/window_bar.rs')).toContain('fn orbit_caption_set_active(window: *mut std::ffi::c_void, active: bool);')
+  expect(read('../../web/lib/desktop-window.ts')).toContain("invoke('desktop_window', { action: 'bar', drawn })")
+})
+
+it('embeds a Windows manifest that keeps Common Controls 6 and declares Windows 8 and later for the layered snap region', () => {
+  const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
+  const build = read('../src-tauri/build.rs')
+  expect(build).toMatch(/\.windows_attributes\(\s*tauri_build::WindowsAttributes::new\(\)\s*\.app_manifest\(include_str!\("windows-app-manifest\.xml"\)\),?\s*\)/)
+  expect(build).toContain('cargo:rerun-if-changed=windows-app-manifest.xml')
+  const manifest = read('../src-tauri/windows-app-manifest.xml')
+  expect(manifest).toContain('name="Microsoft.Windows.Common-Controls"')
+  expect(manifest).toContain('version="6.0.0.0"')
+  for (const id of ['8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a', '1f676c76-80e1-4239-95bb-83d0f6d0da78', '4a2f28e3-53b9-4441-ba9c-d69d4a4a6e38']) {
+    expect(manifest).toContain(`<supportedOS Id="{${id}}"/>`)
+  }
 })
 
 it('gives staging and production separate persistent webview identities', () => {

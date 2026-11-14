@@ -148,15 +148,36 @@ and an authenticated request. No deployed API or account is used.
 macOS installs from the mounted DMG into the Applications directory. Windows runs the built NSIS
 installer with its silent flag and explicit install directory. Only that installed executable is
 launched. The first launch checks Hoje, Astra, palette structure and native clean quit. On Windows it
-also sets the page's root mode class to light and then dark, the signal the shell reads, and the
-`caption` command of `acceptance-uia.ps1` captures the native caption with `acceptance-caption.cs`.
-The reader samples the middle of the caption above the menu bar and requires the `DESIGN.md` canvas
-(`#FAFAFA` light, `#09090B` dark) on at least 90% of the sampled pixels. `DWMWA_CAPTION_COLOR` paints the
-canvas whatever the window theme is, and the caption-button glyphs follow the caption colour. The reader therefore
-reads `DWMWA_USE_IMMERSIVE_DARK_MODE` (attribute 20, which `tao` writes on every Windows 11 build) back from the
-window with `DwmGetWindowAttribute`. The runner requires a successful read-back with flag 0 for the light mode and
-flag 1 for the dark mode, in the same poll as the canvas colour. `report.json` `caption` keeps the sampled colours,
-the flag and its HRESULT, and the `caption-light.png` and `caption-dark.png` captures upload with the job. Separate
+also presses the page's theme toggle for light and then dark. The toggle writes the root mode class
+that the shell reads and the canvas tokens that the page paints with, and the probe reports that canvas
+as `pageCanvas`. The shell sets the window theme to that mode, which sets the WebView2 colour scheme, so
+the probe gives `prefers-color-scheme` 15 seconds to follow the mode and reports it as `prefersDark`.
+The runner requires `prefersDark` to match the mode in the same poll as the canvas. The `windowbar` command of `acceptance-uia.ps1` reads the window with
+`acceptance-window-bar.cs`. The window has no native caption, so the reader requires the client area
+to start at the top of the visible frame, no menu bar above the client area, and the `DESIGN.md`
+canvas (`#FAFAFA` light, `#09090B` dark) on at least 90% of the sampled middle of the Orbit bar. The
+shell keeps its native menu attached, so the reader keeps the `GetMenuBarInfo` rectangle as `menuRect`
+and counts a menu bar only when part of it lies above the client area. The reader parks the pointer in
+the middle of the window before a reading, so no action shows its hover fill, and crops the middle half
+of the menu, minimize, maximize and close areas as `actions`. In each mode every area must be at least
+60% canvas, and its pixels at least 64 levels from the canvas must span the glyph of its icon (8 CSS
+pixels tall for the menu dots, wide for the minimize line, both for the maximize square and the close
+cross). That fails a window painted over the maximize action, as the snap region did before it was
+layered; `__fixtures__/window-bar-actions.json` keeps those areas from a light and a dark capture of
+that build. Then the runner reads the four bar actions through UI Automation and uses them. The probe
+presses the menu action, and the `popup` action of the reader finds the process's visible `#32768`
+popup menu, reads it through `MN_GETHMENU`, presses Escape and waits until it closes. UI Automation
+lists that open popup as a top-level window of the process in front of the app window, so each
+window command of the reader takes the process's `Tauri Window`, never its first window. The runner
+requires the popup to equal the window menu (ids, labels, enabled and checked states), to open at the
+start of the menu action under the bar, and to close. Then it drags the empty bar, presses the maximize
+action twice with the pointer (the `click` action: `SetCursorPos` and `mouse_event` at the middle of the
+action, where the snap region of `caption.cpp` takes the press) and requires the window to maximize and
+then to restore, double clicks the bar twice, and invokes minimize and restores the window. UI
+Automation Invoke would run the page button and never reach the snap region. `report.json`
+`windowBar` keeps each reading and the window state after each action. The `window-light.png` and
+`window-dark.png` captures of the whole window upload with the job. The Windows 11 snap layouts flyout
+has no automation reading, so only a person on Windows 11 can see it. Separate
 launches reject a cryptographically corrupted signature and download a correctly signed newer
 version. The update package is the built acceptance installer, signed with the newer advertised
 version to exercise the verifier. The job tests discovery and download verification; it does not
