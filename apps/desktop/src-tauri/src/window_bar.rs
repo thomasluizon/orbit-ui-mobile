@@ -94,11 +94,12 @@ pub fn initialization_script(origin: &tauri::Url, platform: Platform) -> String 
 // The window keeps its own frame (no native frame on Windows, the overlay title bar on macOS) only while the page draws the
 // bar over it. A document that never draws one (the error page of a failed or offline load, a web build that predates the
 // bar) gets the native frame back after the same 15 seconds that the launch cover gives a page to paint
-// (native/windows/launch.cpp `SetTimer`, native/macos/launch.m `deadline`, src/launch.js). On Windows the deadline of a
-// load starts when it finishes: wry reports a failed main-frame load as `Finished` too (wry webview2
-// `add_NavigationCompleted` drops `IsSuccess`). On macOS wry reports no event for a load that fails before or after it
-// commits (the wkwebview `WryNavigationDelegate` has no `didFailProvisionalNavigation:` and no `didFailNavigation:`). So
-// there the deadline starts where the launch cover starts its own: with the window, and when each document commits.
+// (native/windows/launch.cpp `SetTimer`, native/macos/launch.m `deadline`, src/launch.js). The deadline starts where the
+// launch cover starts its own: with the window, and when each document commits (wry `Started`: WebView2 `ContentLoading`,
+// which also comes for the WebView2 error page (`IsErrorPage`), and WKWebView `didCommitNavigation:`). So a first load that
+// never commits, a load that fails, and a document that commits and never finishes all get the native frame back. The end
+// of a load starts no deadline, because its commit came first. On macOS a failed load has no end event at all (the wkwebview
+// `WryNavigationDelegate` has no `didFailProvisionalNavigation:` and no `didFailNavigation:`).
 const BAR_DEADLINE: std::time::Duration = std::time::Duration::from_millis(15000);
 
 #[derive(Default)]
@@ -122,30 +123,22 @@ struct FrameChange {
 
 impl Frame {
     // Load 0 is the window before its first document commits.
-    fn window_created(&self, platform: Platform) -> FrameChange {
+    fn window_created(&self) -> FrameChange {
         FrameChange {
-            deadline: (platform == Platform::MacOs).then_some(0),
+            deadline: Some(0),
             ..FrameChange::default()
         }
     }
 
     // A new main-frame document starts with no bar, so the snap region stops answering until that document reports one. A
     // newer load makes the deadline of each older load change nothing (`deadline_passed`).
-    fn load_started(&mut self, platform: Platform) -> FrameChange {
+    fn load_started(&mut self) -> FrameChange {
         self.load = self.load.wrapping_add(1);
         self.bar = false;
         FrameChange {
             native: None,
             snap_region: Some(false),
-            deadline: (platform == Platform::MacOs).then_some(self.load),
-        }
-    }
-
-    // On macOS the deadline of this load started at its commit, which comes first, so this one can only repeat its change.
-    fn load_finished(&self) -> FrameChange {
-        FrameChange {
             deadline: Some(self.load),
-            ..FrameChange::default()
         }
     }
 
@@ -176,37 +169,30 @@ impl Frame {
     }
 }
 
+// The frame follows the bar only on a platform whose page draws one.
 pub fn window_created(window: &WebviewWindow) {
+    if Platform::current().name().is_none() {
+        return;
+    }
     let change = window
         .state::<FrameState>()
         .0
         .recover_lock()
-        .window_created(Platform::current());
+        .window_created();
     if let Err(error) = change_frame(window, change) {
         eprintln!("Cannot start the window bar deadline: {error}");
     }
 }
 
-// The frame follows the bar only on a platform whose page draws one.
 pub fn page_loading(window: &WebviewWindow, event: tauri::webview::PageLoadEvent) {
-    let platform = Platform::current();
-    if platform.name().is_none() {
+    if Platform::current().name().is_none()
+        || !matches!(event, tauri::webview::PageLoadEvent::Started)
+    {
         return;
     }
-    let state = window.state::<FrameState>();
-    match event {
-        tauri::webview::PageLoadEvent::Started => {
-            let change = state.0.recover_lock().load_started(platform);
-            if let Err(error) = change_frame(window, change) {
-                eprintln!("Cannot stop the window snap region: {error}");
-            }
-        }
-        tauri::webview::PageLoadEvent::Finished => {
-            let change = state.0.recover_lock().load_finished();
-            if let Err(error) = change_frame(window, change) {
-                eprintln!("Cannot start the window bar deadline: {error}");
-            }
-        }
+    let change = window.state::<FrameState>().0.recover_lock().load_started();
+    if let Err(error) = change_frame(window, change) {
+        eprintln!("Cannot stop the window snap region: {error}");
     }
 }
 
@@ -661,53 +647,32 @@ mod tests {
         }
     }
 
-    fn deadline(load: u64) -> FrameChange {
+    fn commit(load: u64) -> FrameChange {
         FrameChange {
             deadline: Some(load),
-            ..FrameChange::default()
+            ..change(None, Some(false))
         }
     }
 
     #[test]
-    fn the_deadline_of_a_windows_load_starts_only_when_the_load_finishes() {
+    fn the_deadline_starts_with_the_window_and_when_each_document_commits() {
         let mut frame = Frame::default();
-        assert_eq!(frame.window_created(Platform::Windows), change(None, None));
         assert_eq!(
-            frame.load_started(Platform::Windows),
-            change(None, Some(false))
-        );
-        assert_eq!(frame.load_finished(), deadline(frame.load));
-    }
-
-    #[test]
-    fn the_deadline_of_a_macos_load_starts_with_the_window_and_when_each_document_commits() {
-        let mut frame = Frame::default();
-        assert_eq!(frame.window_created(Platform::MacOs), deadline(0));
-        assert_eq!(
-            frame.load_started(Platform::MacOs),
+            frame.window_created(),
             FrameChange {
-                deadline: Some(1),
-                ..change(None, Some(false))
+                deadline: Some(0),
+                ..FrameChange::default()
             }
         );
-        assert_eq!(frame.load_finished(), deadline(1));
+        assert_eq!(frame.load_started(), commit(1));
+        assert_eq!(frame.load_started(), commit(2));
     }
 
     #[test]
-    fn a_macos_document_that_commits_and_never_finishes_gets_the_native_frame_after_the_deadline() {
+    fn a_newer_document_cancels_the_deadline_of_the_older_one() {
         let mut frame = Frame::default();
-        let load = frame.load_started(Platform::MacOs).deadline.unwrap();
-        assert_eq!(frame.deadline_passed(load), change(Some(true), None));
-        // A `Finished` deadline of the same load comes later and repeats nothing.
-        assert_eq!(frame.deadline_passed(load), change(None, None));
-        assert_eq!(frame.bar_reported(true), change(Some(false), Some(true)));
-    }
-
-    #[test]
-    fn a_newer_macos_document_cancels_the_commit_deadline_of_the_older_one() {
-        let mut frame = Frame::default();
-        let older = frame.load_started(Platform::MacOs).deadline.unwrap();
-        let newer = frame.load_started(Platform::MacOs).deadline.unwrap();
+        let older = frame.load_started().deadline.unwrap();
+        let newer = frame.load_started().deadline.unwrap();
         assert_eq!(frame.deadline_passed(older), change(None, None));
         assert!(!frame.native);
         assert_eq!(frame.deadline_passed(newer), change(Some(true), None));
@@ -744,35 +709,33 @@ mod tests {
     #[test]
     fn a_first_document_that_never_commits_gets_the_native_frame_after_the_deadline() {
         let mut frame = Frame::default();
-        assert_eq!(frame.deadline_passed(0), change(Some(true), None));
+        let load = frame.window_created().deadline.unwrap();
+        assert_eq!(frame.deadline_passed(load), change(Some(true), None));
         assert_eq!(frame.bar_reported(true), change(Some(false), Some(true)));
     }
 
     #[test]
     fn a_first_document_that_commits_cancels_the_deadline_of_the_window() {
         let mut frame = Frame::default();
-        frame.load_started(Platform::MacOs);
-        assert_eq!(frame.deadline_passed(0), change(None, None));
+        let first = frame.window_created().deadline.unwrap();
+        frame.load_started();
+        assert_eq!(frame.deadline_passed(first), change(None, None));
         assert!(!frame.native);
     }
 
     #[test]
     fn a_launch_that_draws_the_bar_never_changes_the_frame() {
         let mut frame = Frame::default();
-        assert_eq!(
-            frame.load_started(Platform::Windows),
-            change(None, Some(false))
-        );
+        let load = frame.load_started().deadline.unwrap();
         assert_eq!(frame.bar_reported(true), change(None, Some(true)));
-        assert_eq!(frame.deadline_passed(frame.load), change(None, None));
+        assert_eq!(frame.deadline_passed(load), change(None, None));
         assert!(!frame.native);
     }
 
     #[test]
-    fn a_document_without_the_bar_gets_the_native_frame_once_the_deadline_passes() {
+    fn a_document_that_commits_and_never_draws_the_bar_gets_the_native_frame_after_the_deadline() {
         let mut frame = Frame::default();
-        frame.load_started(Platform::Windows);
-        let load = frame.load;
+        let load = frame.load_started().deadline.unwrap();
         assert_eq!(frame.deadline_passed(load), change(Some(true), None));
         assert!(frame.native);
         assert_eq!(frame.deadline_passed(load), change(None, None));
@@ -781,8 +744,8 @@ mod tests {
     #[test]
     fn a_bar_that_reports_late_removes_the_restored_frame_and_starts_the_snap_region() {
         let mut frame = Frame::default();
-        frame.load_started(Platform::Windows);
-        frame.deadline_passed(frame.load);
+        let load = frame.load_started().deadline.unwrap();
+        frame.deadline_passed(load);
         assert_eq!(frame.bar_reported(true), change(Some(false), Some(true)));
         assert!(!frame.native);
     }
@@ -790,22 +753,18 @@ mod tests {
     #[test]
     fn a_bar_that_goes_away_restores_the_frame_and_stops_the_snap_region_at_once() {
         let mut frame = Frame::default();
-        frame.load_started(Platform::Windows);
+        let load = frame.load_started().deadline.unwrap();
         frame.bar_reported(true);
         assert_eq!(frame.bar_reported(false), change(Some(true), Some(false)));
-        assert_eq!(frame.deadline_passed(frame.load), change(None, None));
+        assert_eq!(frame.deadline_passed(load), change(None, None));
     }
 
     #[test]
     fn a_new_document_stops_the_snap_region_and_the_deadline_of_the_previous_load() {
         let mut frame = Frame::default();
-        frame.load_started(Platform::Windows);
-        let previous = frame.load;
+        let previous = frame.load_started().deadline.unwrap();
         frame.bar_reported(true);
-        assert_eq!(
-            frame.load_started(Platform::Windows),
-            change(None, Some(false))
-        );
+        assert_eq!(frame.load_started(), commit(previous + 1));
         assert!(!frame.bar);
         assert_eq!(frame.deadline_passed(previous), change(None, None));
         assert!(!frame.native);
