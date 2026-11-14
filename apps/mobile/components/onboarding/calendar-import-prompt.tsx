@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import { hasOpenPromptBlockingOverlay } from '@orbit/shared/stores'
 import { useProfile } from '@/hooks/use-profile'
+import { useFlag } from '@/hooks/use-flag'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { Sheet } from '@/components/ui/sheet'
 import { useSheetPresence } from '@/components/ui/sheet-presence'
@@ -25,6 +26,7 @@ export function CalendarImportPrompt({ suppressed }: Readonly<{ suppressed: bool
   const router = useRouter()
   const pathname = usePathname()
   const { profile, invalidate } = useProfile()
+  const guidedFlows = useFlag('orbit_guided_flows')
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -95,7 +97,7 @@ export function CalendarImportPrompt({ suppressed }: Readonly<{ suppressed: bool
         unregisterOpenOverlay(promptId)
         void dismissPrompt()
       }}
-      title={t('onboarding.wizard.calendarTitle')}
+      title={t(guidedFlows ? 'onboarding.wizard.calendarQuestion' : 'onboarding.wizard.calendarTitle')}
       actions={(
         <ActionRow>
           <PromptQuietAction

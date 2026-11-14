@@ -62,7 +62,8 @@ function CadenceSentence({ schedule, color, emphasis }: Readonly<{ schedule: Onb
 }
 
 interface StepperProps { value: number; minimum: number; maximum?: number; lessLabel: string; moreLabel: string; description: string; colors: { fg1: string; fg2: string; fg3: string; bgWell: string; bgHover: string; hairline: string }; onChange: (value: number) => void }
-function Stepper({ value, minimum, maximum, lessLabel, moreLabel, description, colors, onChange }: Readonly<StepperProps>) {
+/** A count control: minus, the value and plus, with what the count means beside it. */
+export function Stepper({ value, minimum, maximum, lessLabel, moreLabel, description, colors, onChange }: Readonly<StepperProps>) {
   return <View style={styles.stepper}>
     <MotionPressable accessibilityRole="button" accessibilityLabel={lessLabel} disabled={value <= minimum} style={({ pressed }) => [styles.stepButton, { backgroundColor: pressed ? colors.bgHover : colors.bgWell, borderColor: colors.hairline }, value <= minimum ? styles.disabled : null]} onPress={() => onChange(Math.max(minimum, value - 1))}><Minus size={20} strokeWidth={2} color={colors.fg2} /></MotionPressable>
     <Text style={[styles.quantity, { color: colors.fg1 }]}>{value}</Text>

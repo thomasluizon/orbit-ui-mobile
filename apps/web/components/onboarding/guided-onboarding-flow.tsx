@@ -67,7 +67,7 @@ export interface GuidedOnboardingProps extends OnboardingDecisionProps {
   onSkip?: () => void
 }
 
-type View = OnboardingIntroScreen | OnboardingQuestionStep
+type FlowView = OnboardingIntroScreen | OnboardingQuestionStep
 type Translate = ReturnType<typeof useTranslations>
 
 interface StepView {
@@ -80,7 +80,7 @@ interface StepView {
 }
 
 interface Navigation {
-  view: View
+  view: FlowView
   direction: 1 | -1
   /** The steps the read left open, asked after the phrase. Back walks them, and progress counts them. */
   cadencePath: OnboardingQuestionStep[]
@@ -90,7 +90,7 @@ interface Navigation {
   pendingEdit: OnboardingQuestionStep | null
 }
 
-function isIntro(view: View): view is OnboardingIntroScreen {
+function isIntro(view: FlowView): view is OnboardingIntroScreen {
   return (ONBOARDING_INTRO_SCREENS as readonly string[]).includes(view)
 }
 
@@ -300,7 +300,7 @@ function useRemindView(props: GuidedOnboardingProps, onEdit: (step: OnboardingQu
   return { ...base, primary: { label: t('onboarding.flow.remind.continue'), onPress: props.onContinueWithout, loading: props.reminderDecision === 'declining' } }
 }
 
-function initialView(step: number, introRun: boolean): View {
+function initialView(step: number, introRun: boolean): FlowView {
   if (introRun) return 'talk'
   if (step === ONBOARDING_REMIND_STEP) return 'remind'
   return step === ONBOARDING_WHEN_STEP ? 'summary' : 'what'
@@ -315,11 +315,11 @@ function useGuidedNavigation(props: GuidedOnboardingProps) {
     setNavigation((current) => viewAfterStep(current, trackedStep, props.step, onboardingNeedsCadence(props.schedule, props.proposed)))
   }
   useEffect(() => { if (introRun) useOnboardingDraftStore.getState().markIntroSeen() }, [introRun])
-  const go = (view: View, direction: 1 | -1, patch: Partial<Navigation> = {}) => setNavigation((current) => ({ ...current, ...patch, view, direction }))
+  const go = (view: FlowView, direction: 1 | -1, patch: Partial<Navigation> = {}) => setNavigation((current) => ({ ...current, ...patch, view, direction }))
   return { navigation, introRun, go }
 }
 
-function backTarget(navigation: Navigation, introRun: boolean): View | 'step' | null {
+function backTarget(navigation: Navigation, introRun: boolean): FlowView | 'step' | null {
   const { view, editing, cadencePath } = navigation
   if (view === 'talk') return null
   if (isIntro(view)) return ONBOARDING_INTRO_SCREENS[ONBOARDING_INTRO_SCREENS.indexOf(view) - 1]!
@@ -330,7 +330,7 @@ function backTarget(navigation: Navigation, introRun: boolean): View | 'step' | 
   return index > 0 ? cadencePath[index - 1]! : 'step'
 }
 
-function backAction(target: View | 'step' | null, onStepBack: (() => void) | undefined, go: (view: View, direction: 1 | -1, patch?: Partial<Navigation>) => void): (() => void) | undefined {
+function backAction(target: FlowView | 'step' | null, onStepBack: (() => void) | undefined, go: (view: FlowView, direction: 1 | -1, patch?: Partial<Navigation>) => void): (() => void) | undefined {
   if (target === null) return undefined
   if (target !== 'step') return () => go(target, -1, { editing: false })
   return onStepBack
