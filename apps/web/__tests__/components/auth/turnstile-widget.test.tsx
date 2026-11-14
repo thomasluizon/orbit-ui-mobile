@@ -281,3 +281,96 @@ it.each(['200100', '110200'])('reports at once the failure %s that Cloudflare ma
   expect(onStateChange).toHaveBeenLastCalledWith('failed')
   expect(screen.getByRole('alert')).toHaveTextContent('auth.turnstileFailed')
 })
+
+it('runs nothing more after the last allowed run fails before the wait for it ends', async () => {
+  const renderWidget = vi.fn((..._args: unknown[]) => 'limit-widget')
+  const reset = vi.fn()
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset, remove: vi.fn() }
+  const onStateChange = vi.fn()
+  render(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} onStateChange={onStateChange} />)
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
+  const callbacks = renderWidget.mock.calls[0]![1] as { 'error-callback': (code: string) => boolean }
+  vi.useFakeTimers()
+  onTestFinished(() => { vi.useRealTimers() })
+
+  act(() => { callbacks['error-callback']('600010') })
+  act(() => { vi.advanceTimersByTime(2000) })
+  act(() => { callbacks['error-callback']('600010') })
+  act(() => { callbacks['error-callback']('600010') })
+  expect(onStateChange).toHaveBeenLastCalledWith('failed')
+  act(() => { vi.runAllTimers() })
+  expect(reset).toHaveBeenCalledTimes(1)
+})
+
+it('runs nothing more after a failure that Cloudflare marks as not retried follows a retried failure', async () => {
+  const renderWidget = vi.fn((..._args: unknown[]) => 'final-after-retry-widget')
+  const reset = vi.fn()
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset, remove: vi.fn() }
+  const onStateChange = vi.fn()
+  render(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} onStateChange={onStateChange} />)
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
+  const callbacks = renderWidget.mock.calls[0]![1] as { 'error-callback': (code: string) => boolean }
+  vi.useFakeTimers()
+  onTestFinished(() => { vi.useRealTimers() })
+
+  act(() => { callbacks['error-callback']('600010') })
+  act(() => { callbacks['error-callback']('200100') })
+  expect(onStateChange).toHaveBeenLastCalledWith('failed')
+  act(() => { vi.runAllTimers() })
+  expect(reset).not.toHaveBeenCalled()
+})
+
+it('gives a failure after a pass two automatic runs again', async () => {
+  const renderWidget = vi.fn((..._args: unknown[]) => 'passed-widget')
+  const reset = vi.fn()
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset, remove: vi.fn() }
+  const onStateChange = vi.fn()
+  render(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} onStateChange={onStateChange} />)
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
+  const callbacks = renderWidget.mock.calls[0]![1] as {
+    callback: (token: string) => void
+    'error-callback': (code: string) => boolean
+  }
+  vi.useFakeTimers()
+  onTestFinished(() => { vi.useRealTimers() })
+
+  for (const run of [1, 2, 3, 4]) {
+    if (run === 3) act(() => callbacks.callback('fresh-token'))
+    act(() => { callbacks['error-callback']('600010') })
+    expect(onStateChange).toHaveBeenLastCalledWith('loading')
+    act(() => { vi.advanceTimersByTime(2000) })
+    expect(reset).toHaveBeenCalledTimes(run)
+  }
+  act(() => { callbacks['error-callback']('600010') })
+  expect(onStateChange).toHaveBeenLastCalledWith('failed')
+})
+
+it('stops a waiting automatic run and gives two runs again when the form asks for a new challenge', async () => {
+  const renderWidget = vi.fn((..._args: unknown[]) => 'reset-key-widget')
+  const reset = vi.fn()
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset, remove: vi.fn() }
+  const onToken = vi.fn()
+  const onStateChange = vi.fn()
+  const { rerender } = render(
+    <TurnstileWidget siteKey="site-key" resetKey={0} onToken={onToken} onStateChange={onStateChange} />,
+  )
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
+  const callbacks = renderWidget.mock.calls[0]![1] as { 'error-callback': (code: string) => boolean }
+  vi.useFakeTimers()
+  onTestFinished(() => { vi.useRealTimers() })
+
+  act(() => { callbacks['error-callback']('600010') })
+  rerender(<TurnstileWidget siteKey="site-key" resetKey={1} onToken={onToken} onStateChange={onStateChange} />)
+  expect(reset).toHaveBeenCalledTimes(1)
+  act(() => { vi.advanceTimersByTime(2000) })
+  expect(reset).toHaveBeenCalledTimes(1)
+
+  for (const run of [2, 3]) {
+    act(() => { callbacks['error-callback']('600010') })
+    expect(onStateChange).toHaveBeenLastCalledWith('loading')
+    act(() => { vi.advanceTimersByTime(2000) })
+    expect(reset).toHaveBeenCalledTimes(run)
+  }
+  act(() => { callbacks['error-callback']('600010') })
+  expect(onStateChange).toHaveBeenLastCalledWith('failed')
+})

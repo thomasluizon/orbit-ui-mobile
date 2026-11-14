@@ -133,6 +133,7 @@ export function TurnstileWidget({
 
     function update(next: WidgetState, token: string | null = null) {
       if (!active) return
+      window.clearTimeout(retryTimerRef.current)
       setState(next)
       callbacksRef.current.onStateChange?.(next)
       callbacksRef.current.onToken(token)
@@ -145,7 +146,6 @@ export function TurnstileWidget({
       }
       automaticRetriesRef.current += 1
       update('loading')
-      window.clearTimeout(retryTimerRef.current)
       retryTimerRef.current = window.setTimeout(() => {
         const widgetId = widgetIdRef.current
         if (active && widgetId != null) getTurnstile()?.reset(widgetId)
