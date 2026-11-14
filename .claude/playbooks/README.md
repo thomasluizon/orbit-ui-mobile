@@ -1,6 +1,6 @@
 # Playbooks: the on-demand judgement tier
 
-**At a glance:** 57 standing rules that no gate can check, split by activity and read **on demand**.
+**At a glance:** 55 standing rules that no gate can check, split by activity and read **on demand**.
 Nothing here loads automatically. The handful of rules that genuinely apply to every turn live in
 `.claude/rules/core.md`, which does load automatically and is deliberately ~50 lines.
 
@@ -21,7 +21,7 @@ which is strictly better than hoping an agent chooses to read them:
 | file | rules | auto-loads on |
 |---|---|---|
 | `../rules/visual-delivery.md` | 8 | `apps/web/**`, `apps/mobile/**`, `packages/shared/src/theme/**`. Surface inventory and the adversarial `completeness-critic` close gate; the owner inspects seeded surfaces once for the whole redesign during D90, per surface otherwise. |
-| `../rules/product-and-content.md` | 9 | the i18n JSON, `apps/web/app/globals.css`, the theme, the landing page |
+| `../rules/product-and-content.md` | 7 | the i18n JSON, `apps/web/app/globals.css`, the theme, the landing page |
 
 **Activity-scoped, here** - no path predicts "I am now reviewing" or "I am now debugging", so these
 are read on demand by the skill or agent that needs them:
