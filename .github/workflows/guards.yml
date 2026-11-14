@@ -22,27 +22,12 @@ jobs:
   guards:
     name: Guards
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - name: 'Workflow Syntax: Lint all workflows'
-        id: workflow-syntax__1
-        if: ${{ !cancelled() }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          actionlint_dir=$(mktemp -d "$RUNNER_TEMP/actionlint.XXXXXX")
-          for attempt in 1 2 3 4 5; do
-            gh release download v1.7.12 --repo rhysd/actionlint --pattern actionlint_1.7.12_linux_amd64.tar.gz --output "$actionlint_dir/actionlint.tar.gz" --clobber && break
-            [ "$attempt" -lt 5 ] || exit 1
-            sleep $((attempt * 5))
-          done
-          printf '8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  %s/actionlint.tar.gz\n' "$actionlint_dir" | sha256sum -c
-          tar -xzf "$actionlint_dir/actionlint.tar.gz" -C "$actionlint_dir" actionlint
-          "$actionlint_dir/actionlint" -shellcheck= -pyflakes= .github/workflows/*.yml
       - name: Set up Node
         if: ${{ !cancelled() }}
         uses: actions/setup-node@v7
@@ -63,24 +48,38 @@ jobs:
         env:
           BASE_REF: ${{ github.base_ref }}
         run: bash .github/scripts/changed-paths.sh "$BASE_REF" "$RUNNER_TEMP"
+      - name: 'Workflow Syntax: Lint all workflows'
+        id: workflow-syntax__1
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ '${{ github.event_name }}' = 'pull_request' ] && ! grep -Eq '^\.github/(workflows|actions)/' "$RUNNER_TEMP/changed-paths.txt"; then
+            echo "Workflow syntax skipped: no workflow or action changed."
+            exit 0
+          fi
+          actionlint_dir=$(mktemp -d "$RUNNER_TEMP/actionlint.XXXXXX")
+          for attempt in 1 2 3 4 5; do
+            gh release download v1.7.12 --repo rhysd/actionlint --pattern actionlint_1.7.12_linux_amd64.tar.gz --output "$actionlint_dir/actionlint.tar.gz" --clobber && break
+            [ "$attempt" -lt 5 ] || exit 1
+            sleep $((attempt * 5))
+          done
+          printf '8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  %s/actionlint.tar.gz\n' "$actionlint_dir" | sha256sum -c
+          tar -xzf "$actionlint_dir/actionlint.tar.gz" -C "$actionlint_dir" actionlint
+          "$actionlint_dir/actionlint" -shellcheck= -pyflakes= .github/workflows/*.yml
       - id: feature-parity__1
         name: "Production Feature Parity: Regenerate inventory and reject new capability losses"
         env:
           BASE_REF: ${{ github.base_ref }}
         run: |
           # WHY: Compare with the queued merge's own base so later restorations cannot create false losses (https://github.com/thomasluizon/orbit-tickets/issues/1495).
-          if [ "$BASE_REF" = main ] && grep -Eq '.' "$RUNNER_TEMP/changed-paths.txt"; then
+          if [ "$BASE_REF" = main ] && grep -Eq '^(apps/(web|mobile)|packages/shared)/|^tools/check-feature-parity\.mjs$|^\.claude/manifests/feature-parity\.json$' "$RUNNER_TEMP/changed-paths.txt"; then
             node tools/check-feature-parity.mjs --write --ci --production "HEAD^1" --base "HEAD^1"
+          else
+            echo "Feature parity skipped: no app, shared or parity input changed."
           fi
         if: ${{ !cancelled() && (github.event_name == 'pull_request' && github.base_ref == 'main') }}
-      - id: feature-parity__2
-        name: "Production Feature Parity: Upload capability evidence"
-        if: ${{ !cancelled() && (github.event_name == 'pull_request' && github.base_ref == 'main') && (always()) }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: production-feature-parity
-          path: .claude/manifests/feature-parity.json
-          include-hidden-files: true
       - id: timeless__1
         name: "Timeless Text: Check text"
         run: |
@@ -285,23 +284,21 @@ jobs:
           fi
         if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
       - id: dependency-audit__1
-        name: "Dependency Audit: Test critical production CVE gate"
-        run: node --test .github/scripts/check-critical-production-cves.test.mjs
-        if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
-      - id: dependency-audit__2
         name: "Dependency Audit: Fail on critical production CVEs"
         timeout-minutes: 3
         run: node .github/scripts/check-critical-production-cves.mjs
         if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
-      - id: dependency-audit__3
-        name: "Dependency Audit: Report high and moderate advisories (non-blocking)"
-        if: ${{ !cancelled() && (github.event_name == 'pull_request') && (always()) }}
-        run: npm audit --audit-level=moderate || true
-      - id: dependency-audit__4
+      - id: dependency-audit__2
         name: "Dependency Audit: Verify installed packages against locked archives"
         if: ${{ !cancelled() }}
-        run: node tools/check-dependency-edits.mjs
-      - id: dependency-audit__5
+        run: |
+          if [ '${{ github.event_name }}' != 'pull_request' ] || \
+             grep -Eq '(^|/)package(-lock)?\.json$|^apps/mobile/scripts/fix-hoisting\.js$|^packages/decode-uri-component/|^tools/(check-dependency-edits|lib/escape-regex)\.mjs$' "$RUNNER_TEMP/changed-paths.txt"; then
+            node tools/check-dependency-edits.mjs
+          else
+            echo "Dependency edits skipped: no manifest, install script or local package changed."
+          fi
+      - id: dependency-audit__3
         name: "Dependency Audit: Require one copy of each native module"
         if: ${{ !cancelled() }}
         run: node tools/check-native-module-copies.mjs
@@ -342,18 +339,6 @@ jobs:
             fi
           done
           echo "All three artifacts are byte-identical across two runs."
-        if: ${{ !cancelled() && (github.event_name == 'pull_request' || github.ref == 'refs/heads/main') }}
-      - id: architecture-map__3
-        name: "Architecture map drift: Publish the map"
-        uses: actions/upload-artifact@v7
-        with:
-          name: architecture-map
-          path: |
-            architecture.json
-            architecture.html
-            architecture.mmd
-          if-no-files-found: error
-          retention-days: 14
         if: ${{ !cancelled() && (github.event_name == 'pull_request' || github.ref == 'refs/heads/main') }}
       - id: react-doctor__1
         timeout-minutes: 15

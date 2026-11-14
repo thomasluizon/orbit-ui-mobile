@@ -16,6 +16,7 @@ const cases = [
   ["copy", "Changed copy stays inside the register", "apps/web/app/page.tsx"],
   ["i18n-usage", "Changed translation usage resolves", "apps/mobile/app/page.tsx"],
   ["surface-manifest", "Changed surface inputs match the committed inventory", "design/canvas/screen.svg"],
+  ["dependency-audit", "Verify installed packages against locked archives", "apps/mobile/scripts/fix-hoisting.js"],
 ]
 
 function git(directory, ...arguments_) {
@@ -95,6 +96,7 @@ for (const [jobId, stepName, path, options] of [
   ["design-guard", "Ban raw --slate-*, transition-all, h-screen in app code", "apps/web/app/page.tsx",
     { content: "transition-all\n", ownedStatus: 1, marker: "DESIGN.md ban" }],
   ["design-guard", "Ban decorative gradients in app code", "tools/check-gradients.mjs", {}],
+  ["workflow-syntax", "Lint all workflows", ".github/actions/setup/action.yml", { stubs: "gh() { echo GATE_RAN; exit 0; }" }],
 ]) {
   test(`${jobId}: ${stepName} resolves before consuming changed paths`, () => {
     for (const mode of ["missing", "unfetched", "owned", "unowned"]) {
@@ -229,7 +231,7 @@ test("pull requests run each source check through one owner", () => {
   }
   assert.ok(testWorkflow.jobs["tool-tests"].steps.some((step) => step.run?.startsWith("node tools/test-tools.mjs --shard ")))
   assert.ok(testWorkflow.jobs["web-tests"].steps.some((step) => step.name === "Run web shard with coverage"))
-  assert.ok(testWorkflow.jobs["workspace-tests"].steps.some((step) => step.run === 'npx turbo run test --filter="@orbit/${{ matrix.workspace }}" --concurrency=1 -- --coverage'))
+  assert.ok(testWorkflow.jobs["workspace-tests"].steps.some((step) => step.run === "npx turbo run test --filter=@orbit/desktop --filter=@orbit/shared --filter=@orbit/eslint-rules --concurrency=1 -- --coverage"))
   assert.equal(testWorkflow.jobs["unit-tests"].steps.some((step) => step.run?.includes("npx turbo run test")), false)
 })
 

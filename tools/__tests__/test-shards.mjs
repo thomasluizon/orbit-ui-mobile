@@ -65,8 +65,8 @@ export const cases = () => {
 
   const gate = workflow.jobs["tool-hook-tests"]
   const gateStep = gate?.steps?.find((step) => step.name === "Require every tool shard and the hook tests")
-  T(`${TOOL}: Tool and Hook Tests keeps its required name, runs always and needs the shards and the hook job`,
-    gate?.name === "Tool and Hook Tests" && gate.if === "${{ always() }}" && JSON.stringify(gate.needs) === JSON.stringify(["tool-tests", "hook-tests"]) &&
+  T(`${TOOL}: Tool and Hook Tests keeps its required name, runs unless cancelled and needs the shards and the hook job`,
+    gate?.name === "Tool and Hook Tests" && gate.if === "${{ !cancelled() }}" && JSON.stringify(gate.needs) === JSON.stringify(["tool-tests", "hook-tests"]) &&
       JSON.stringify(gateStep?.env) === JSON.stringify({ TOOL_RESULT: "${{ needs.tool-tests.result }}", HOOK_RESULT: "${{ needs.hook-tests.result }}" }),
     JSON.stringify(gate))
   if (BASH) {

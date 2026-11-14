@@ -19,7 +19,7 @@ linearly with data or traffic; a bounded one-off `O(n)` loop is not a finding.
 
 The D11 boundary in `.claude/skills/_shared/gate-owned-exclusions.md` applies, plus these
 performance-specific gate-owned exclusions, which are **never** findings: the web
-LCP / TBT / script-bundle-size budgets on the authed-Today surface (`perf.yml` owns those),
+LCP / TBT / script-bundle-size budgets on the authed-Today surface (the `test.yml` Lighthouse job owns those),
 an N+1 regression on the three query shapes already under
 `tests/Orbit.Infrastructure.Tests/Persistence/QueryRoundTripCountTests.cs`, and the
 render-thrash patterns react-doctor's perf rules already fail on.

@@ -151,7 +151,7 @@ export const cases = () => {
     `${TOOL}: the layout order permits only its directory and assigns execution to CI`,
     /may create or edit files under\s+`apps\/web\/e2e\/layout\/` only/.test(layoutPrompt) &&
       layoutPrompt.includes("Nothing else under `e2e/` may be created or edited") &&
-      /`\.github\/workflows\/layout\.yml`\s+on the pull request is the only runner and the only evidence/.test(layoutPrompt) &&
+      /The `Layout shard` jobs of\s+`\.github\/workflows\/test\.yml` on the pull request are the only runner and the only evidence/.test(layoutPrompt) &&
       /Never run the\s+layout guard or Playwright/.test(layoutPrompt) &&
       layoutPrompt.includes("NEVER open the app in a browser and never start a dev or production server") &&
       !layoutPrompt.includes("**Never create an end-to-end, visual-regression or Playwright file.**"),

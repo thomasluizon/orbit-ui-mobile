@@ -542,8 +542,8 @@ Cloud order keeps ticket, brief, finishing contract.
 For a ui ticket that requires the hermetic web layout guard, the orchestrator selects
 `--layout-guard` explicitly. Ticket text never selects it. The flag permits creating and editing
 files only under `apps/web/e2e/layout/` among end-to-end paths. It does not permit any browser,
-server, emulator or Playwright command. The worker never runs the guard; `.github/workflows/layout.yml`
-on the pull request is the only runner and evidence.
+server, emulator or Playwright command. The worker never runs the guard; the `Layout shard` jobs of
+`.github/workflows/test.yml` on the pull request are the only runner and evidence.
 
 1. The ticket body VERBATIM plus every chronological comment.
 2. **The orchestrator's brief:** target repo and its absolute path, the branch already checked out,
