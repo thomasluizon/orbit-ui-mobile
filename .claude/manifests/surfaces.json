@@ -1606,6 +1606,7 @@
         "apps/web/components/upgrade/billing-dashboard.tsx",
         "apps/web/components/upgrade/play-billing-dashboard.tsx",
         "apps/web/components/upgrade/provider-handoff.tsx",
+        "apps/web/components/upgrade/purchase-result.tsx",
         "apps/web/components/upgrade/styles.ts",
         "apps/web/components/upgrade/subscription-notice.tsx",
         "apps/web/components/upgrade/usage-stats.tsx",
@@ -1629,6 +1630,7 @@
         "apps/web/components/upgrade/billing-dashboard.tsx",
         "apps/web/components/upgrade/play-billing-dashboard.tsx",
         "apps/web/components/upgrade/provider-handoff.tsx",
+        "apps/web/components/upgrade/purchase-result.tsx",
         "apps/web/components/upgrade/styles.ts",
         "apps/web/components/upgrade/subscription-notice.tsx",
         "apps/web/components/upgrade/usage-stats.tsx",
@@ -1652,6 +1654,7 @@
         "apps/web/components/upgrade/billing-dashboard.tsx",
         "apps/web/components/upgrade/play-billing-dashboard.tsx",
         "apps/web/components/upgrade/provider-handoff.tsx",
+        "apps/web/components/upgrade/purchase-result.tsx",
         "apps/web/components/upgrade/styles.ts",
         "apps/web/components/upgrade/subscription-notice.tsx",
         "apps/web/components/upgrade/usage-stats.tsx",
@@ -1675,6 +1678,7 @@
         "apps/web/components/upgrade/billing-dashboard.tsx",
         "apps/web/components/upgrade/play-billing-dashboard.tsx",
         "apps/web/components/upgrade/provider-handoff.tsx",
+        "apps/web/components/upgrade/purchase-result.tsx",
         "apps/web/components/upgrade/styles.ts",
         "apps/web/components/upgrade/subscription-notice.tsx",
         "apps/web/components/upgrade/usage-stats.tsx",
@@ -9971,6 +9975,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-ui-trial-expired-dialog",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/trial-expired-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/trial-expired-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-ui-trial-expired-dialog",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/trial-expired-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/trial-expired-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-ui-trial-expired-dialog",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/trial-expired-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/trial-expired-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-ui-trial-expired-dialog",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/trial-expired-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/trial-expired-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-ui-trial-expired-modal",
       "platform": "web",
       "kind": "overlay",
@@ -12314,6 +12370,7 @@
         "apps/mobile/components/upgrade/plan-summary-card.tsx",
         "apps/mobile/components/upgrade/play-billing-dashboard.tsx",
         "apps/mobile/components/upgrade/provider-handoff.tsx",
+        "apps/mobile/components/upgrade/purchase-result.tsx",
         "apps/mobile/components/upgrade/subscription-notice.tsx",
         "apps/mobile/components/upgrade/usage-card.tsx",
         "apps/mobile/hooks/use-billing.ts",
@@ -12335,6 +12392,7 @@
         "apps/mobile/components/upgrade/plan-summary-card.tsx",
         "apps/mobile/components/upgrade/play-billing-dashboard.tsx",
         "apps/mobile/components/upgrade/provider-handoff.tsx",
+        "apps/mobile/components/upgrade/purchase-result.tsx",
         "apps/mobile/components/upgrade/subscription-notice.tsx",
         "apps/mobile/components/upgrade/usage-card.tsx",
         "apps/mobile/hooks/use-billing.ts",
@@ -12356,6 +12414,7 @@
         "apps/mobile/components/upgrade/plan-summary-card.tsx",
         "apps/mobile/components/upgrade/play-billing-dashboard.tsx",
         "apps/mobile/components/upgrade/provider-handoff.tsx",
+        "apps/mobile/components/upgrade/purchase-result.tsx",
         "apps/mobile/components/upgrade/subscription-notice.tsx",
         "apps/mobile/components/upgrade/usage-card.tsx",
         "apps/mobile/hooks/use-billing.ts",
@@ -12377,6 +12436,7 @@
         "apps/mobile/components/upgrade/plan-summary-card.tsx",
         "apps/mobile/components/upgrade/play-billing-dashboard.tsx",
         "apps/mobile/components/upgrade/provider-handoff.tsx",
+        "apps/mobile/components/upgrade/purchase-result.tsx",
         "apps/mobile/components/upgrade/subscription-notice.tsx",
         "apps/mobile/components/upgrade/usage-card.tsx",
         "apps/mobile/hooks/use-billing.ts",
@@ -20581,6 +20641,58 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/components/ui/time-field.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-ui-trial-expired-dialog",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/trial-expired-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/trial-expired-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-ui-trial-expired-dialog",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/trial-expired-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/trial-expired-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-ui-trial-expired-dialog",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/trial-expired-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/trial-expired-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-ui-trial-expired-dialog",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/trial-expired-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/trial-expired-dialog.tsx"
       ],
       "state": "default",
       "theme": "dark",
