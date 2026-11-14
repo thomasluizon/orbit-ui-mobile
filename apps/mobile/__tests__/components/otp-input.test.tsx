@@ -8,6 +8,10 @@ import { OtpInput } from '@/components/ui/otp-input'
 import { __setWindowDimensions } from '../../test-mocks/react-native'
 
 const TestRenderer = require('react-test-renderer')
+const reactNativeRequire = createRequire(createRequire(import.meta.url).resolve('react-native/package.json'))
+const normalizeColor: (color: unknown) => number = reactNativeRequire('@react-native/normalize-colors')
+/** Android Fabric's unset colour (HostPlatformColor.h), which text attributes replace with black. */
+const ANDROID_UNDEFINED_COLOR = 0
 
 describe('mobile OtpInput', () => {
   it.each(['android', 'ios'] as const)('lets %s code cells grow only above font scale 1.3', async (platform) => {
@@ -61,7 +65,9 @@ describe('mobile OtpInput', () => {
       })
       TestRenderer.act(() => tree.root.findByType('TextInput').props.onFocus())
       const input = tree.root.findByType('TextInput')
-      expect(StyleSheet.flatten(input.props.style).color).toBe('transparent')
+      const textColor = normalizeColor(StyleSheet.flatten(input.props.style).color)
+      expect(textColor & 0xff).toBe(0)
+      expect(((textColor << 24) | (textColor >>> 8)) >>> 0).not.toBe(ANDROID_UNDEFINED_COLOR)
       expect(input.props).toMatchObject({ selectionColor: 'transparent', cursorColor: 'transparent', selectionHandleColor: 'transparent' })
       expect(input.props.caretHidden).toBeFalsy()
       expect(input.props.contextMenuHidden).toBeFalsy()

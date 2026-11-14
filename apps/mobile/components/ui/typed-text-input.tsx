@@ -12,6 +12,9 @@ type TypedTextInputProps = ComponentProps<typeof TextInput> & {
 }
 
 const MIRRORED_INK = { selectionColor: 'transparent', cursorColor: 'transparent', selectionHandleColor: 'transparent' } as const
+/** Fully transparent, but not the Android colour integer 0. */
+// WHY: Android Fabric reads the colour 0 ('transparent') as no colour, so the typed text keeps the default black text colour. https://github.com/facebook/react-native/blob/v0.88.1/packages/react-native/ReactCommon/react/renderer/attributedstring/TextAttributes.cpp#L20-L24
+const MIRRORED_TEXT_COLOR = 'rgba(255, 255, 255, 0)'
 
 export const TypedTextInput = forwardRef<TextInput, TypedTextInputProps>(
   function TypedTextInput({ style, placeholderTextColor, proposed = false, mirrored = false, onFocus, onBlur, onLayout, onContentSizeChange, ...props }, ref) {
@@ -59,7 +62,7 @@ export const TypedTextInput = forwardRef<TextInput, TypedTextInputProps>(
           onContentSizeChange?.(event)
         }}
         placeholderTextColor={placeholderTextColor ?? tokens.fg3}
-        style={[style, { color: mirrored ? 'transparent' : proposed ? tokens.fg3 : tokens.fg1 }]}
+        style={[style, { color: mirrored ? MIRRORED_TEXT_COLOR : proposed ? tokens.fg3 : tokens.fg1 }]}
       />
     )
   },
