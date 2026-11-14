@@ -29,10 +29,9 @@ const FIELD_TRIGGERS = [
   { name: 'sidebar search', find: () => screen.getByRole('button', { name: 'Search' }), press: ':active' },
 ] as const
 
-// WHY: the two shell-wide rows belong to the mascot slice of the same ticket, which gates their press scale; they move to [MOTION_SAFE] when the slices merge. https://github.com/thomasluizon/orbit-tickets/issues/2120
 const SIDEBAR_ROWS = [
-  { name: 'destination link', find: () => screen.getByRole('link', { name: 'Hoje' }), pressMedia: [] as string[] },
-  { name: 'Astra row', find: () => screen.getByRole('button', { name: 'Astra' }), pressMedia: [] as string[] },
+  { name: 'destination link', find: () => screen.getByRole('link', { name: 'Hoje' }), pressMedia: [MOTION_SAFE] },
+  { name: 'Astra row', find: () => screen.getByRole('button', { name: 'Astra' }), pressMedia: [MOTION_SAFE] },
   { name: 'account row', find: () => screen.getByRole('button', { name: 'Ada Lovelace, ada@example.com' }), pressMedia: [MOTION_SAFE] },
 ] as const
 

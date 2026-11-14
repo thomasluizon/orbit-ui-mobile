@@ -26,9 +26,6 @@ const PRESS_SCALE_CLASS = /(?:^|[\s"'`])(?:motion-safe:)?(?:(?:group-)?enabled(?
 /** Every press scale class token, with its variants: `DESIGN.md` Motion has reduced motion remove the scale, so each one starts with `motion-safe:`. */
 const PRESS_SCALE_TOKEN = /[^\s"'`]*active(?:\/[\w-]+)?:scale-\[[^\]]*\]/g
 
-// WHY: the mascot slice of the same ticket owns this file and gates its own press scale; drop this entry when the slices merge. https://github.com/thomasluizon/orbit-tickets/issues/2120
-const OTHER_SLICE_FILES = ['components/shell/shell-wide.tsx']
-
 /** Classes whose CSS rule owns the press transition. The rules are checked in the stylesheet test below. */
 const PRESS_TRANSITION_CLASSES = ['habit-control-motion', 'orbit-pill-action', 'orbit-list-row-body', 'orbit-list-row-action', 'icon-btn']
 
@@ -110,7 +107,7 @@ describe('web press scale transitions', () => {
   })
 
   it('gates every press scale class on motion-safe, so reduced motion keeps the control still', () => {
-    const ungated = sources.filter(({ path }) => !OTHER_SLICE_FILES.includes(path)).flatMap(({ path, lines }) => lines.flatMap((line, index) =>
+    const ungated = sources.flatMap(({ path, lines }) => lines.flatMap((line, index) =>
       (line.match(PRESS_SCALE_TOKEN) ?? []).filter((token) => !token.startsWith('motion-safe:')).map((token) => `${path}:${index + 1} ${token}`)))
     expect(ungated).toEqual([])
   })
