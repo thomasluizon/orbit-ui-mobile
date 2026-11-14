@@ -7,6 +7,8 @@ import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { SETTLE_DELAY_MS } from '@orbit/shared/utils'
 import { testI18n } from '@/__tests__/support/i18n'
 import { renderedText } from '@/__tests__/support/react-test-renderer'
+import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-area-geometry'
+import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-share-prompt'
 import { MILESTONE_SHARE_CARD_WIDTH } from '@/components/milestone-share/milestone-share-card'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
@@ -111,6 +113,18 @@ describe('the guided milestone share prompt on Android', () => {
     const modal = hosts(reopened).find((node) => String(node.type) === 'Modal')!
     await renderer.act(() => { (modal.props.onRequestClose as () => void)() })
     expect(byTestId(reopened, 'milestone-share-dialog')).toHaveLength(0)
+  })
+
+  it.each([320, 360, 384, 412])('centres the dialog panel in the window at %i px', async (width) => {
+    enableTestFlags('orbit_guided_flows')
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+    const root = await openPrompt()
+
+    const boxes = measureSafeArea((root as GeometryTree).toJSON(), (host) => host.props.testID, { width, height: 915 })
+    const panel = boxes.get('milestone-share-dialog')!
+    expect(panel.width).toBe(Math.min(width - 32, 420))
+    expect(Math.abs(panel.left + panel.width / 2 - width / 2)).toBeLessThanOrEqual(1)
+    expect(Math.abs((panel.top + panel.bottom) / 2 - 915 / 2)).toBeLessThanOrEqual(1)
   })
 
   it('scales the card preview to the width of the dialog and keeps the logical width of the card', async () => {
