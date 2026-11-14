@@ -172,6 +172,37 @@ describe('Stripe webhook settlement window', () => {
     expect(fetch).toHaveBeenCalledTimes(5)
   })
 
+  it('confirms the purchase only after the read reports Pro, and leaves the feedback to the caller with the toast off', async () => {
+    const { fetch, wrapper } = mount()
+    fetch.mockResolvedValueOnce(free).mockResolvedValueOnce(pro)
+    const { result } = renderHook(() => useStripeCheckoutReturn({ toastOnSuccess: false }), { wrapper })
+    await advanceSettlement()
+    expect(result.current).toMatchObject({ isSettling: true, purchaseConfirmed: false })
+    await advanceSettlement(1000)
+    expect(result.current).toMatchObject({ hasReturnError: false, isSettling: false, purchaseConfirmed: true })
+    expect(showSuccess).not.toHaveBeenCalled()
+    expect(location.search).toBe('?keep=1')
+  })
+
+  it('never confirms a purchase that the read does not report', async () => {
+    const { fetch, wrapper } = mount()
+    fetch.mockResolvedValue(free)
+    const { result } = renderHook(() => useStripeCheckoutReturn({ toastOnSuccess: false }), { wrapper })
+    await advanceSettlement()
+    await advanceSettlement(15000)
+    expect(result.current).toMatchObject({ hasReturnError: true, isSettling: false, purchaseConfirmed: false })
+  })
+
+  it('never confirms a return that carries no success mark, such as a cancelled checkout', async () => {
+    history.replaceState({}, '', '/upgrade?keep=1')
+    const { fetch, wrapper } = mount()
+    const { result } = renderHook(() => useStripeCheckoutReturn({ toastOnSuccess: false }), { wrapper })
+    await advanceSettlement(15000)
+    expect(result.current).toMatchObject({ hasReturnError: false, isSettling: false, purchaseConfirmed: false })
+    expect(fetch).not.toHaveBeenCalled()
+    expect(location.search).toBe('?keep=1')
+  })
+
   it('starts a fresh settlement window and clears the error when Retry is pressed', async () => {
     const { fetch, wrapper } = mount()
     fetch.mockResolvedValue(free)

@@ -3,7 +3,7 @@ import { View } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
-import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
+import type { BillingDetails, SubscriptionPlans } from '@orbit/shared/types/subscription'
 import { renderedText } from '@/__tests__/support/react-test-renderer'
 import UpgradeScreen from '@/app/upgrade'
 import { press, renderNavigation } from '../components/ui/navigation-render'
@@ -19,6 +19,7 @@ interface UpgradeMocks {
   status: SubscriptionStatus | null
   timeZone: string | null
   plans: SubscriptionPlans | null
+  billing: BillingDetails | undefined
   plansLoading: boolean
   plansError: boolean
   online: boolean
@@ -37,6 +38,7 @@ const mocks = vi.hoisted((): UpgradeMocks => ({
   status: null,
   timeZone: 'America/Sao_Paulo',
   plans: null,
+  billing: undefined,
   plansLoading: false,
   plansError: false,
   online: true,
@@ -68,7 +70,7 @@ vi.mock('@/lib/motion', async (importOriginal) => ({ ...await importOriginal<typ
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.online }) }))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => mocks.goBack }))
 vi.mock('@/hooks/use-back-label', () => ({ useBackLabel: () => 'Back' }))
-vi.mock('@/hooks/use-billing', () => ({ useBilling: () => ({ billing: undefined, isLoading: false, isError: false, refetch: vi.fn(() => Promise.resolve()) }) }))
+vi.mock('@/hooks/use-billing', () => ({ useBilling: () => ({ billing: mocks.billing, isLoading: false, isError: false, refetch: vi.fn(() => Promise.resolve()) }) }))
 vi.mock('@/hooks/store-billing-provider', () => ({
   useStoreBilling: (options: { onPurchased?: () => void }) => {
     mocks.onPurchased = options.onPurchased
@@ -109,6 +111,7 @@ const byLabel = (tree: Tree, label: string) => tree.hosts().find((node) => node.
 const headers = (tree: Tree) => tree.hosts().filter((node) => node.props.accessibilityRole === 'header')
 /** The states of the live mascots on screen. The small static face of a list icon is not a live mascot. */
 const orbitStates = (tree: Tree) => tree.hosts().map((node) => node.props as Record<string, unknown>).filter((props) => props['data-orbit-face'] === 'rig').map((props) => props['data-orbit-state'])
+const screenText = (tree: Tree) => tree.hosts().filter((node) => node.type === 'Text').map((node) => renderedText(node)).join('\n')
 const hint = (node: Host) => (node.props as Record<string, unknown>).accessibilityHint
 
 function confirmPurchase() {
@@ -117,7 +120,7 @@ function confirmPurchase() {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  Object.assign(mocks, { locale: 'en', from: undefined, status: freeStatus, timeZone: 'America/Sao_Paulo', plans, plansLoading: false, plansError: false, online: true, reducedMotion: false })
+  Object.assign(mocks, { locale: 'en', from: undefined, status: freeStatus, timeZone: 'America/Sao_Paulo', plans, billing: undefined, plansLoading: false, plansError: false, online: true, reducedMotion: false })
   Object.assign(mocks.playBilling, { isProcessing: false, isRestoring: false, errorKey: '', isLoadingProducts: false, isProductsError: false })
   enableTestFlags('orbit_guided_flows')
 })
@@ -263,6 +266,15 @@ describe('the result of an Android purchase', () => {
     tree.unmount()
   })
 
+  it('keeps the plan question and the error of a purchase that fails, with no dialog', () => {
+    mocks.playBilling.errorKey = 'upgrade.appStore.error.unavailable'
+    const tree = renderNavigation(<UpgradeScreen />)
+    expect(screenText(tree)).toContain('App Store purchases are unavailable. Please try again.')
+    expect(byTestId(tree, 'upgrade-block')).toBeDefined()
+    expect(byTestId(tree, 'result-dialog')).toBeUndefined()
+    tree.unmount()
+  })
+
   it('opens no dialog when the read reports Pro and no purchase was confirmed', () => {
     mocks.status = proStatus
     const tree = renderNavigation(<UpgradeScreen />)
@@ -314,6 +326,64 @@ describe('the result of an Android purchase', () => {
     press(byTestId(tree, 'result-dialog-scrim')!)
     expect(byTestId(tree, 'result-dialog')).toBeUndefined()
     expect(mocks.router.replace).not.toHaveBeenCalled()
+    tree.unmount()
+  })
+})
+
+describe('the dashboards and the notices of the Android route with the guided flows on', () => {
+  const billing: BillingDetails = {
+    interval: 'yearly', cancelAtPeriodEnd: false, status: 'active', currentPeriodEnd: '2026-10-01T01:30:00Z', amountPerPeriod: 11880, currency: 'brl',
+    paymentMethod: { brand: 'visa', last4: '4242', expMonth: 12, expYear: 2028 },
+    recentInvoices: [{ id: 'invoice-1', date: '2026-09-01T12:00:00Z', amountPaid: 11880, currency: 'brl', status: 'paid', hostedInvoiceUrl: null, invoicePdf: 'https://invoices.example/invoice-1.pdf', billingReason: 'subscription_cycle' }],
+  }
+
+  it('keeps every read and every provider action of the Stripe dashboard, with the usage of the person and no plan question', () => {
+    mocks.status = { ...proStatus, source: 'stripe', aiMessagesUsed: 40 }
+    mocks.billing = billing
+    const tree = renderNavigation(<UpgradeScreen />)
+    const text = screenText(tree)
+    expect(text).toContain('Visa ending in 4242')
+    expect(text).toContain('Expires 12/2028')
+    expect(text).toContain('Renewal')
+    expect(text).toContain('40 of 250')
+    expect(text).toContain('Open the Stripe portal')
+    expect(tree.hosts().some((node) => typeof node.props.accessibilityLabel === 'string' && node.props.accessibilityLabel.startsWith('Download the invoice from') && node.props.onPress !== undefined)).toBe(true)
+    expect(byTestId(tree, 'upgrade-block')).toBeUndefined()
+    expect(orbitStates(tree)).not.toContain('feliz')
+    tree.unmount()
+  })
+
+  it('keeps the Google Play note and its provider action', () => {
+    mocks.status = { ...proStatus, billingProvider: 'play' }
+    const tree = renderNavigation(<UpgradeScreen />)
+    const text = screenText(tree)
+    expect(text).toContain('You subscribed through Google Play')
+    expect(text).toContain('Open Google Play')
+    expect(text).not.toContain('Open the Stripe portal')
+    expect(byTestId(tree, 'upgrade-block')).toBeUndefined()
+    tree.unmount()
+  })
+
+  it('keeps the App Store note with no purchase action on Android', () => {
+    mocks.status = { ...proStatus, source: null, billingProvider: 'app_store' }
+    const tree = renderNavigation(<UpgradeScreen />)
+    const text = screenText(tree)
+    expect(text).toContain('To change or cancel this App Store subscription, manage it on your iPhone.')
+    expect(text).not.toContain('Open the Stripe portal')
+    expect(byTestId(tree, 'upgrade-block')).toBeUndefined()
+    tree.unmount()
+  })
+
+  it('opens the plan question from the action of the lapsed notice', () => {
+    mocks.status = { ...freeStatus, lapseReason: 'payment_failed', subscriptionEndedAtUtc: '2026-09-01T12:00:00Z' }
+    const tree = renderNavigation(<UpgradeScreen />)
+    expect(byTestId(tree, 'subscription-notice')).toBeDefined()
+    expect(screenText(tree)).toContain('Your Pro has ended')
+    expect(screenText(tree)).toContain('Update your payment method with the provider.')
+    expect(orbitStates(tree)).toEqual(['parado'])
+    press(tree.hosts().find((node) => node.props.onPress !== undefined && renderedText(node) === 'Subscribe again')!)
+    expect(byTestId(tree, 'subscription-notice')).toBeUndefined()
+    expect(headers(tree).some((node) => renderedText(node) === 'Which plan?')).toBe(true)
     tree.unmount()
   })
 })

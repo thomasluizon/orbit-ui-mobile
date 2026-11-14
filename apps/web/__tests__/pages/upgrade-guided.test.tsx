@@ -4,6 +4,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
+import type { BillingDetails } from '@orbit/shared/types/subscription'
 
 const mocks = vi.hoisted(() => ({
   locale: 'en' as 'en' | 'pt-BR',
@@ -16,10 +17,12 @@ const mocks = vi.hoisted(() => ({
   status: null as SubscriptionStatus | null,
   timeZone: 'America/Sao_Paulo' as string | null,
   plans: null as Record<string, unknown> | null,
+  billing: null as BillingDetails | null,
   plansLoading: false,
   plansError: false,
   online: true,
   checkoutLoading: null as 'monthly' | 'yearly' | null,
+  checkoutError: '',
   purchaseConfirmed: false,
   toastOnSuccess: undefined as boolean | undefined,
   reducedMotion: false,
@@ -53,11 +56,11 @@ vi.mock('@/hooks/use-subscription-plans', () => ({
   formatPrice: (amount: number, currency: string) => `${currency} ${(amount / 100).toFixed(2)}`,
   monthlyEquivalent: (amount: number) => Math.round(amount / 12),
 }))
-vi.mock('@/hooks/use-billing', () => ({ useBilling: () => ({ billing: null, isLoading: false, isError: false, refetch: vi.fn() }) }))
+vi.mock('@/hooks/use-billing', () => ({ useBilling: () => ({ billing: mocks.billing, isLoading: false, isError: false, refetch: vi.fn() }) }))
 vi.mock('@/hooks/use-stripe-checkout', () => ({
   useStripeCheckout: (beforeRedirect?: () => Promise<void>) => {
     mocks.beforeRedirect = beforeRedirect
-    return { checkout: mocks.checkout, checkoutLoading: mocks.checkoutLoading, checkoutError: '' }
+    return { checkout: mocks.checkout, checkoutLoading: mocks.checkoutLoading, checkoutError: mocks.checkoutError }
   },
 }))
 vi.mock('@/hooks/use-stripe-checkout-return', () => ({
@@ -95,8 +98,8 @@ beforeEach(() => {
   vi.clearAllMocks()
   globalThis.sessionStorage.clear()
   Object.assign(mocks, {
-    locale: 'en', search: '', status: freeStatus, timeZone: 'America/Sao_Paulo', plans, plansLoading: false, plansError: false,
-    online: true, checkoutLoading: null, purchaseConfirmed: false, reducedMotion: false,
+    locale: 'en', search: '', status: freeStatus, timeZone: 'America/Sao_Paulo', plans, billing: null, plansLoading: false, plansError: false,
+    online: true, checkoutLoading: null, checkoutError: '', purchaseConfirmed: false, reducedMotion: false,
   })
   enableTestFlags('orbit_guided_flows')
 })
@@ -254,6 +257,14 @@ describe('the result of a purchase', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Which plan?')
   })
 
+  it('keeps the plan question and the error of a checkout that fails, with no dialog', () => {
+    mocks.checkoutError = 'The checkout did not start.'
+    render(<UpgradePage />)
+    expect(within(block()).getByRole('alert')).toHaveTextContent('The checkout did not start.')
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Which plan?')
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
   it('opens no dialog when the read reports Pro and no purchase was confirmed', () => {
     mocks.status = proStatus
     render(<UpgradePage />)
@@ -308,5 +319,57 @@ describe('the result of a purchase', () => {
     render(<UpgradePage />)
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
     expect(mocks.push).not.toHaveBeenCalled()
+  })
+})
+
+describe('the dashboards and the notices with the guided flows on', () => {
+  const billing: BillingDetails = {
+    interval: 'yearly', cancelAtPeriodEnd: false, status: 'active', currentPeriodEnd: '2026-10-01T01:30:00Z', amountPerPeriod: 11880, currency: 'brl',
+    paymentMethod: { brand: 'visa', last4: '4242', expMonth: 12, expYear: 2028 },
+    recentInvoices: [{ id: 'invoice-1', date: '2026-09-01T12:00:00Z', amountPaid: 11880, currency: 'brl', status: 'paid', hostedInvoiceUrl: null, invoicePdf: 'https://invoices.example/invoice-1.pdf', billingReason: 'subscription_cycle' }],
+  }
+
+  it('keeps every read and every provider link of the Stripe dashboard, with the usage of the person and no plan question', () => {
+    mocks.status = { ...proStatus, aiMessagesUsed: 40 }
+    mocks.billing = billing
+    render(<UpgradePage />)
+    expect(screen.getByText('Visa ending in 4242')).toBeInTheDocument()
+    expect(screen.getByText('Expires 12/2028')).toBeInTheDocument()
+    expect(screen.getByText('Renewal')).toBeInTheDocument()
+    const open = vi.spyOn(globalThis, 'open').mockReturnValue(null)
+    fireEvent.click(screen.getByRole('button', { name: /Download the invoice from/ }))
+    expect(open).toHaveBeenCalledWith('https://invoices.example/invoice-1.pdf', '_blank', 'noopener,noreferrer')
+    expect(screen.getByText('40 of 250')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: /Open the Stripe portal|Change/ }).length).toBeGreaterThanOrEqual(2)
+    expect(document.querySelector('[data-upgrade-block]')).toBeNull()
+    expect(document.querySelector('[data-orbit-state="feliz"]')).toBeNull()
+  })
+
+  it('keeps the Google Play note and its provider action', () => {
+    mocks.status = { ...proStatus, source: 'play', billingProvider: 'play' }
+    render(<UpgradePage />)
+    expect(screen.getByText(/You subscribed through Google Play/)).toBeInTheDocument()
+    expect(screen.getByText('Open Google Play')).toBeInTheDocument()
+    expect(screen.queryByText('Open the Stripe portal')).toBeNull()
+  })
+
+  it('keeps the App Store note with no provider action', () => {
+    mocks.status = { ...proStatus, source: null, billingProvider: 'app_store' }
+    render(<UpgradePage />)
+    expect(screen.getByText('To change or cancel this App Store subscription, manage it on your iPhone.')).toBeInTheDocument()
+    expect(screen.queryByText('Open the Stripe portal')).toBeNull()
+    expect(screen.queryByRole('button', { name: /Subscribe/ })).toBeNull()
+  })
+
+  it('opens the plan question from the action of the lapsed notice', () => {
+    mocks.status = { ...freeStatus, lapseReason: 'payment_failed', subscriptionEndedAtUtc: '2026-09-01T12:00:00Z' }
+    render(<UpgradePage />)
+    const notice = document.querySelector<HTMLElement>('[data-subscription-notice]')!
+    expect(within(notice).getByRole('heading', { name: 'Your Pro has ended' })).toBeInTheDocument()
+    expect(within(notice).getByText('Update your payment method with the provider.')).toBeInTheDocument()
+    expect(notice.querySelector('[data-orbit-face="rig"]')).toHaveAttribute('data-orbit-state', 'parado')
+    fireEvent.click(within(notice).getByRole('button', { name: 'Subscribe again' }))
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Which plan?')
+    expect(document.querySelector('[data-subscription-notice]')).toBeNull()
   })
 })
