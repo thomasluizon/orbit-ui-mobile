@@ -3,6 +3,7 @@ import { readTypedHabitPhrase, type HabitPhraseRead } from './habit-phrase-parse
 import type { SupportedLocale } from '../types/profile'
 import type { HabitFlowDetailStep, HabitFlowOptionalId } from './habit-flow-navigation'
 import type { HabitFlowStepId } from './habit-flow'
+import type { HabitFormSuggestionPatch } from './habit-form-helpers'
 
 export interface HabitFlowOptionalInput {
   mode: 'create' | 'edit'
@@ -89,4 +90,20 @@ const FIELD_STEPS: Readonly<Record<string, HabitFlowStepId | HabitFlowDetailStep
 export function habitFlowFieldStep(field: string | null | undefined): HabitFlowStepId | HabitFlowDetailStep {
   if (!field) return 'summary'
   return FIELD_STEPS[field] ?? 'summary'
+}
+
+/**
+ * The free read proposes; a deliberate choice of the person wins. A type the person set to task keeps
+ * the task with no repeat, and a time the person answered keeps that time.
+ */
+export function guardHabitReadPatch(patch: HabitFormSuggestionPatch, choices: { deliberateType: 'task' | 'habit' | null; timeAnswered: boolean }): HabitFormSuggestionPatch {
+  const keepsTask = choices.deliberateType === 'task'
+  return {
+    ...patch,
+    mode: keepsTask ? 'oneTime' : patch.mode,
+    frequencyUnit: keepsTask ? null : patch.frequencyUnit,
+    frequencyQuantity: keepsTask ? null : patch.frequencyQuantity,
+    days: keepsTask ? [] : patch.days,
+    dueTime: choices.timeAnswered ? null : patch.dueTime,
+  }
 }

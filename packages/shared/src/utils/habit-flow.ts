@@ -20,20 +20,23 @@ export interface RemainingHabitFlowStepsInput {
   phraseGaveTime: boolean
   /** The parent is General, so the item stays undated and the date question never shows. */
   whenLocked: boolean
+  /** The item has no date and lives in General. An undated item has no time, so the time question never shows. */
+  undated?: boolean
   answers: HabitFlowAnswers
 }
 
 /**
- * The steps that remain for this draft. Edit opens on the summary alone. A step whose value the
- * phrase or an earlier answer already gave does not show, so progress counts only what remains.
+ * The steps of this draft. Edit opens on the summary alone. A step whose value the phrase, the route or
+ * the draft already gave does not show. A step the person answered stays in the list, so the progress
+ * moves forward as the person answers and its total never shrinks under them.
  */
 export function remainingHabitFlowSteps(input: RemainingHabitFlowStepsInput): HabitFlowStepId[] {
   if (input.mode === 'edit') return ['summary']
   const steps: HabitFlowStepId[] = ['what']
-  const whenKnown = input.hasDateOrRepeat || input.answers.when || input.whenLocked
-  if (!whenKnown) steps.push('when')
-  const timeKnown = input.phraseGaveTime || input.answers.time
-  if (!timeKnown && !input.whenLocked) steps.push('time')
+  const whenGiven = (input.hasDateOrRepeat && !input.answers.when) || input.whenLocked
+  if (!whenGiven) steps.push('when')
+  const timeGiven = input.phraseGaveTime || input.whenLocked || (input.undated === true && !input.answers.time)
+  if (input.answers.time || !timeGiven) steps.push('time')
   if (input.hasTime) steps.push('reminder')
   steps.push('summary')
   return steps

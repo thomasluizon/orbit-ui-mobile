@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { habitFlowFieldStep, habitFlowOptionalQuestions, readHabitWhenWords, summaryValueStep } from '../utils/habit-flow-details'
+import { guardHabitReadPatch, habitFlowFieldStep, habitFlowOptionalQuestions, readHabitWhenWords, summaryValueStep } from '../utils/habit-flow-details'
 
 const base = { mode: 'create' as const, isGeneral: false, canSplit: true, hasParent: false, canEnd: true }
 const context = { referenceDate: '2026-11-13', locale: 'pt-BR', timeZone: 'UTC', language: 'pt-BR' as const, allowPast: false }
@@ -62,5 +62,19 @@ describe('habitFlowFieldStep', () => {
   it('stays on the summary for an unknown field', () => {
     expect(habitFlowFieldStep('somethingElse')).toBe('summary')
     expect(habitFlowFieldStep(undefined)).toBe('summary')
+  })
+})
+
+describe('guardHabitReadPatch', () => {
+  const patch = { mode: 'recurring' as const, emoji: '💊', frequencyUnit: 'Day' as const, frequencyQuantity: 1, days: ['Monday'], dueTime: '08:00', subHabitTitles: [], checklistItems: [] }
+
+  it('keeps every proposal when the person chose nothing yet', () => {
+    expect(guardHabitReadPatch(patch, { deliberateType: null, timeAnswered: false })).toEqual(patch)
+  })
+
+  it('keeps a deliberate task with no repeat and a time the person answered', () => {
+    expect(guardHabitReadPatch(patch, { deliberateType: 'task', timeAnswered: true })).toEqual({
+      ...patch, mode: 'oneTime', frequencyUnit: null, frequencyQuantity: null, days: [], dueTime: null,
+    })
   })
 })

@@ -30,6 +30,10 @@ describe('remainingHabitFlowSteps', () => {
     expect(steps()).toEqual(['what', 'when', 'time', 'summary'])
   })
 
+  it('asks no time for an undated item in General', () => {
+    expect(steps({ hasDateOrRepeat: true, undated: true })).toEqual(['what', 'summary'])
+  })
+
   it('reaches phrase, reminder and summary for a phrase with a repeat and a time', () => {
     const read = readHabitPhrase('tomar remédio todo dia às 8', 'pt-BR')
     const coverage = readPhraseCoverage(read, false)
@@ -41,8 +45,13 @@ describe('remainingHabitFlowSteps', () => {
   })
 
   it('shows the reminder step only when a time exists', () => {
-    expect(steps({ answers: { when: true, time: true }, hasTime: false })).toEqual(['what', 'summary'])
-    expect(steps({ answers: { when: true, time: true }, hasTime: true })).toEqual(['what', 'reminder', 'summary'])
+    expect(steps({ hasDateOrRepeat: true, phraseGaveTime: true, hasTime: false })).toEqual(['what', 'summary'])
+    expect(steps({ hasDateOrRepeat: true, phraseGaveTime: true, hasTime: true })).toEqual(['what', 'reminder', 'summary'])
+  })
+
+  it('keeps the steps the person answered, so the progress total never shrinks under them', () => {
+    expect(steps({ answers: { when: true, time: false }, hasDateOrRepeat: true })).toEqual(['what', 'when', 'time', 'summary'])
+    expect(steps({ answers: { when: true, time: true }, hasDateOrRepeat: true, hasTime: true })).toEqual(['what', 'when', 'time', 'reminder', 'summary'])
   })
 
   it('skips the date question under a General parent', () => {

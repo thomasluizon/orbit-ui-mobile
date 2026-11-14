@@ -3,7 +3,7 @@
 import { useAstraAllowanceCopy } from '@/hooks/use-astra-allowance-copy'
 import { useFlag } from '@/hooks/use-flag'
 import { captureGuidedFlowCompleted } from '@/lib/posthog'
-import { GuidedHabitFlow } from '@/components/habits/guided/guided-habit-flow'
+import { GuidedHabitFlow, type GuidedHabitCompletion, type GuidedHabitFields } from '@/components/habits/guided/guided-habit-flow'
 import { HabitResultDialog } from '@/components/habits/guided/habit-result-dialog'
 
 import { useState, useCallback, useEffect, useId, useLayoutEffect, useRef } from 'react'
@@ -13,6 +13,7 @@ import { completeHabitCreateNavigation } from '@/hooks/use-habit-create-navigati
 import { ActionRow } from '@/components/ui/action-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
+import { OfflineRefusal } from '@/components/ui/offline-refusal'
 import { HabitCreateActions } from './habit-create-actions'
 import { HabitCreateFrame } from './habit-create-frame'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
@@ -358,7 +359,7 @@ export function CreateHabitModal({
   }, [formHelpers, guided, showError, translate, createErrorKey, createErrorEntity])
 
   const submitForm = useCallback(
-    async () => {
+    async (completion?: GuidedHabitCompletion) => {
       const submittingAccount = getAccountGeneration()
 
       const subHabitValues = subHabits.map((entry) => entry.value)
@@ -387,7 +388,7 @@ export function CreateHabitModal({
           const request = buildCreateHabitRequest({ ...data, title }, reminderTimes, tags.selectedTagIds, selectedGoalIds, subHabitValues)
           const created = await createHabit.mutateAsync(request)
           if (guided && getAccountGeneration() === submittingAccount) {
-            captureGuidedFlowCompleted('habit_create', 0, false)
+            captureGuidedFlowCompleted('habit_create', completion?.stepCount ?? 0, completion?.usedAiRead ?? false)
             setSavedHabitId(created.id)
             return
           }
@@ -540,46 +541,45 @@ export function CreateHabitModal({
     resolveSubHabitProposalRef.current = resolve
   }, [])
 
+  const fieldProps: GuidedHabitFields = {
+    pendingChecklistItem,
+    onPendingChecklistItemChange: setPendingChecklistItem,
+    tags,
+    selectedGoalIds,
+    atGoalLimit,
+    onToggleGoal: toggleGoal,
+    reminderTimes,
+    onReminderTimesChange: setReminderTimes,
+    onResolveSubHabitProposalReady: handleResolveSubHabitProposalReady,
+    onReminderEnabledChange: handleReminderEnabledChange,
+    onSuggestionContextChange: suggestionRevision.advance,
+    onPhraseOwnershipChange: handlePhraseOwnershipChange,
+    expandAdvancedSignal,
+    onSuggestSetup: isSubHabitMode ? undefined : handleSuggest,
+    onSuggestEmoji: handleSuggestEmoji,
+    isEmojiSuggesting,
+    emojiSuggestionError: emojiFailure?.title === watchedTitle && !emojiFailure.atLimit ? emojiFailure.message : undefined,
+    emojiSuggestionLimitReached: emojiFailure?.title === watchedTitle && emojiFailure.atLimit,
+    isSuggesting: suggestion.isPending,
+    readPhraseLocally: true,
+    lockedGeneral: parentHabit?.isGeneral ?? null,
+    children: isSubHabitMode ? undefined : (proposedItemCount: number) => (
+      <SubHabitEditor
+        task={formHelpers.form.watch('itemType') === 'task'}
+        subHabits={subHabits}
+        proposedItemCount={proposedItemCount}
+        onUpdateSubHabit={updateSubHabitValue}
+        onRemoveSubHabit={removeSubHabit}
+        onAddSubHabit={addSubHabit}
+      />
+    ),
+  }
+
   function renderFormFields() {
     return (
-          <form id={formId} onSubmit={(event) => void handleSubmit(event)}>
-            <HabitFormFields
-                pendingChecklistItem={pendingChecklistItem}
-                onPendingChecklistItemChange={setPendingChecklistItem}
-              formHelpers={formHelpers}
-              titleInputRef={titleInputRef}
-              tags={tags}
-              selectedGoalIds={selectedGoalIds}
-              atGoalLimit={atGoalLimit}
-              onToggleGoal={toggleGoal}
-              reminderTimes={reminderTimes}
-              onReminderTimesChange={setReminderTimes}
-              onResolveSubHabitProposalReady={handleResolveSubHabitProposalReady}
-              onReminderEnabledChange={handleReminderEnabledChange}
-              onSuggestionContextChange={suggestionRevision.advance}
-              onPhraseOwnershipChange={handlePhraseOwnershipChange}
-              expandAdvancedSignal={expandAdvancedSignal}
-              onSuggestSetup={isSubHabitMode ? undefined : handleSuggest}
-              onSuggestEmoji={handleSuggestEmoji}
-              isEmojiSuggesting={isEmojiSuggesting}
-              emojiSuggestionError={emojiFailure?.title === watchedTitle && !emojiFailure.atLimit ? emojiFailure.message : undefined}
-              emojiSuggestionLimitReached={emojiFailure?.title === watchedTitle && emojiFailure.atLimit}
-              isSuggesting={suggestion.isPending}
-              readPhraseLocally
-              lockedGeneral={parentHabit?.isGeneral ?? null}
-            >
-              {(proposedItemCount) => !isSubHabitMode ? (
-                <SubHabitEditor
-                  task={formHelpers.form.watch('itemType') === 'task'}
-                  subHabits={subHabits}
-                  proposedItemCount={proposedItemCount}
-                  onUpdateSubHabit={updateSubHabitValue}
-                  onRemoveSubHabit={removeSubHabit}
-                  onAddSubHabit={addSubHabit}
-                />
-              ) : null}
-            </HabitFormFields>
-          </form>
+      <form id={formId} onSubmit={(event) => void handleSubmit(event)}>
+        <HabitFormFields formHelpers={formHelpers} titleInputRef={titleInputRef} {...fieldProps} />
+      </form>
     )
   }
 
@@ -596,21 +596,24 @@ export function CreateHabitModal({
     )
   }
 
-  function renderGuidedFlow(fields: React.ReactNode) {
+  function renderGuidedFlow() {
     const task = formHelpers.form.watch('itemType') === 'task'
     const createLabel = isSubHabitMode ? t('common.create') : t(task ? 'habits.createTask' : 'habits.createHabit')
     return (
       <GuidedHabitFlow
         key={flowRun}
         formHelpers={formHelpers}
+        fields={fieldProps}
         lockedGeneral={parentHabit?.isGeneral ?? null}
         fromConversation={fromConversation}
         pending={isPending}
         saveError={saveError}
-        notice={<CreateBoundaryNotice boundary={createBoundary} onUpgrade={navigateToUpgrade} />}
-        moreFields={fields}
+        notice={<>
+          {isOnline ? null : <div role="status"><OfflineRefusal icon="create" title={t('offline.create.title')} reason={t('offline.create.reason')} /></div>}
+          <CreateBoundaryNotice boundary={createBoundary} onUpgrade={navigateToUpgrade} />
+        </>}
         createLabel={createLabel}
-        onSubmit={() => void submitForm()}
+        onSubmit={(completion) => void submitForm(completion)}
         onClose={dismissGuard.requestDismiss}
       />
     )
@@ -618,7 +621,6 @@ export function CreateHabitModal({
 
   function renderCreateSheet() {
     if (!open || openedAccountGeneration !== accountGeneration) return null
-    const fields = renderFormFields()
     return (
       <HabitCreateFrame
         guided={guided}
@@ -639,7 +641,7 @@ export function CreateHabitModal({
         actions={guided ? undefined : renderCreateActions()}
 
       >
-        {guided ? renderGuidedFlow(fields) : fields}
+        {guided ? renderGuidedFlow() : renderFormFields()}
       </HabitCreateFrame>
     )
   }
