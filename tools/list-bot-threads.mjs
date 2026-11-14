@@ -12,6 +12,9 @@ const BOT_LOGIN = "pullfrog"
 const USAGE = `usage: list-bot-threads.mjs --pr <number|url> (--repo <ui|api|landing> | URL) [options]
 
   --pr <number|url>   the pull request to read (required)
+  --head <sha>        the full SHA of the head that was pushed. The tool reads again until the
+                      pull request reports this head, and decides nothing on an older one. When
+                      the head never arrives inside the budget, it exits 2 and posts no request.
   --repo <key>        required for a bare number; a full PR URL selects its repository
   --wait-seconds <n>  how long to wait for the review (default 900, 0 polls once and asks nothing)
   --poll-seconds <n>  gap between polls (default 30)
@@ -26,9 +29,14 @@ const USAGE = `usage: list-bot-threads.mjs --pr <number|url> (--repo <ui|api|lan
   --help, -h          print this usage and exit 0
 
 Pullfrog reviews only on request, so a push starts no review. The tool posts "@pullfrog review"
-at once when no review of the current head exists. It reads no check first: the review runs beside
-CI, and the merge still needs green checks. A review still counts only when its commit is the
+when no review of the current head exists. It reads no check first: the review runs beside CI,
+and the merge still needs green checks. A review still counts only when its commit is the
 current head. The 900-second default is a safety bound, not a guaranteed review time.
+
+Right after a push, GitHub can still report the previous head and can still lack the push in the
+branch activity. Pass --head after every push. The tool posts a request only when it read the
+push of the current head in the branch activity, because only then can it see an earlier request
+for that head. Until then it reads again every 5 seconds inside the budget.
 
 Prints ONE JSON object on stdout: pr, isDraft, verdict, reviewedAt, reviewState, reviewBody,
 checkConclusion, checkStatus, progressMarkers, threads[]. Errors go to stderr. A request
@@ -79,7 +87,7 @@ const argOf = (flag) => {
   return index === -1 ? null : process.argv[index + 1]
 }
 
-const VALUE_FLAGS = new Set(["--pr", "--repo", "--wait-seconds", "--poll-seconds", "--command-timeout-seconds", "--bot"])
+const VALUE_FLAGS = new Set(["--pr", "--repo", "--head", "--wait-seconds", "--poll-seconds", "--command-timeout-seconds", "--bot"])
 const KNOWN_FLAGS = new Set([...VALUE_FLAGS, "--no-request", "--re-review", "--help", "-h"])
 /**
  * A flag's VALUE is skipped before the unknown-option check, because `--wait-seconds -5` is a
@@ -103,6 +111,8 @@ const urlMatch = /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)\/?$/i.ex
 if (!pullRequestArg || (!/^\d+$/.test(pullRequestArg) && !urlMatch)) fail(2, `${USAGE}\n\n--pr must be a pull request number or full GitHub pull request URL`)
 if (!urlMatch && !repoKey) fail(2, `${USAGE}\n\na bare pull request number requires --repo`)
 const pullRequest = urlMatch?.[3] ?? pullRequestArg
+const expectedHead = argOf("--head")
+if (process.argv.includes("--head") && !/^[0-9a-f]{40}$/.test(expectedHead ?? "")) fail(2, `${USAGE}\n\n--head must be a full 40-character commit SHA`)
 const waitSeconds = numberFlag("--wait-seconds", 900)
 const pollSeconds = numberFlag("--poll-seconds", 30, { min: 1 })
 const commandTimeoutSeconds = numberFlag("--command-timeout-seconds", 45, { min: 1 })
@@ -256,6 +266,7 @@ const claimOf = (body) => {
 }
 
 const sleep = (seconds) => new Promise((resolve) => setTimeout(resolve, seconds * 1000))
+const SETTLE_POLL_SECONDS = 5
 
 const readGraphqlBudget = async () => {
   const result = await runBounded(GH, ["api", "rate_limit"], { cwd: githubCwd, env: githubAuth.environment, timeoutMs: commandTimeoutSeconds * 1000 })
@@ -294,6 +305,23 @@ const deadline = Date.now() + waitSeconds * 1000
 await awaitGraphqlBudget(deadline)
 let node = await readPullRequest()
 progress("REVIEW_STATE_READ", node, startedAt, deadline)
+
+/**
+ * GitHub publishes a pushed head and its branch activity a moment after the push. A read before that
+ * shows the previous head with its review, or the new head with no push, where an earlier request
+ * for it cannot be seen. The verdict and the request wait for a read that shows both.
+ */
+const headIsExpected = (payload) => !expectedHead || payload.headRefOid === expectedHead
+const pushIsUnread = (payload) => requestReview && waitSeconds > 0 && !Number.isFinite(payload.headActivityBoundary?.time) &&
+  payload.headRepository?.nameWithOwner === payload.repositoryName
+while ((!headIsExpected(node) || pushIsUnread(node)) && Date.now() < deadline) {
+  await sleep(Math.min(SETTLE_POLL_SECONDS, pollSeconds, Math.max(1, Math.ceil((deadline - Date.now()) / 1000))))
+  await awaitGraphqlBudget(deadline)
+  if (Date.now() >= deadline) break
+  node = await readPullRequest()
+  progress("HEAD_WAITING", node, startedAt, deadline)
+}
+if (!headIsExpected(node)) fail(2, `pull request ${pullRequest} reports head ${node.headRefOid}, not the expected ${expectedHead}, after ${waitSeconds}s; nothing was decided and no review was requested`)
 
 /** GitHub can repoint reviews onto a later commit, so submission must follow the branch push. */
 const COMPLETED_REVIEW_STATES = new Set(["APPROVED", "CHANGES_REQUESTED", "COMMENTED"])
@@ -371,8 +399,10 @@ let requestUrl = null
 /**
  * The request reads no check. The review runs beside CI, so a round costs the slower of the two, not
  * their sum. The local review before the push is what keeps a head that fails CI from costing a review.
+ * Without the push of this head no earlier request for it can be seen and no review of it can be
+ * proven current, so a request then would start a paid run twice or for nothing.
  */
-if (requestReview && !review && waitSeconds > 0 && !openRequest) {
+if (requestReview && !review && waitSeconds > 0 && !openRequest && Number.isFinite(node.headActivityBoundary?.time)) {
   const posted = await gh(["pr", "comment", pullRequest, "--repo", repository, "--body", REQUEST_BODY], `gh pr comment ${pullRequest}`)
   requestUrl = posted.trim().split("\n").at(-1)?.trim() || null
   requested = true

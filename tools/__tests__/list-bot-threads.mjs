@@ -374,13 +374,13 @@ export const cases = () => {
     rmSync(path)
     return path
   }
-  const requestRun = (name, graphql, { waitSeconds = "3" } = {}) => {
+  const requestRun = (name, graphql, { waitSeconds = "3", argv = [], activities = { stdout: JSON.stringify(activity()) } } = {}) => {
     const requestArgv = argvFile(`request-argv-${name}`)
     const protectionArgv = argvFile(`protection-argv-${name}`)
-    const result = run(TOOL, ["--pr", "681", "--repo", "ui", "--wait-seconds", waitSeconds, "--poll-seconds", "1"], { path: testedToolPath, env: {
+    const result = run(TOOL, ["--pr", "681", "--repo", "ui", "--wait-seconds", waitSeconds, "--poll-seconds", "1", ...argv], { path: testedToolPath, env: {
       ...orcaEnv([
         { match: "auth token --user thomasluizon", stdout: "test-github-token" },
-        { match: "/activity?", stdout: JSON.stringify(activity()) },
+        { match: "/activity?", ...activities },
         // Answers a branch protection read only to record it; no request case may make one.
         { match: "/protection/", stdout: "{}", argvFile: protectionArgv },
         { match: "pr comment", stdout: REQUEST_URL, argvFile: requestArgv },
@@ -491,7 +491,73 @@ export const cases = () => {
     zeroWait.result.status === 1 && zeroWait.plan?.verdict === "NO_REVIEW" && zeroWait.plan.reviewRequested === false && zeroWait.requestArgv === null,
     zeroWait.result.stdout || zeroWait.result.stderr,
   )
-  const requestCases = [greenHead, runningHead, justPushed, failingHead, unanswered, reviewedHead, fixPush, alreadyAsked, askedByStranger, askedForOldHead, zeroWait]
+  /** The request must follow the second read and come before the third, so the first read decided nothing. */
+  const requestedOnSecondRead = (entry) => {
+    const reads = [...entry.result.stderr.matchAll(/"event":"REVIEW_THREAD_PAGE_READ"/g)].map((match) => match.index)
+    const requestedAt = entry.result.stderr.indexOf('"event":"REVIEW_REQUESTED"')
+    return reads.length >= 2 && requestedAt > reads[1] && (reads.length === 2 || requestedAt < reads[2])
+  }
+  const oldHeadReview = botReview("CHANGES_REQUESTED", "2026-08-04T21:00:00Z", OLD_HEAD, "The old head has a finding.", "PRR_kwDOR5Siws8AAAABNo7Old")
+  const oldHeadActivity = JSON.stringify(activity(OLD_HEAD, "2026-08-04T20:00:00Z"))
+  const oldHeadRead = payload({ headRefOid: OLD_HEAD, checks: [ciCheck()], reviews: [oldHeadReview] })
+  const headLag = requestRun("head-lag", sequence("head-lag", [
+    oldHeadRead,
+    payload({ checks: [], reviews: [oldHeadReview] }),
+    payload({ checks: [approvalCheck("COMPLETED", "SUCCESS", "2026-08-05T10:01:00Z")], reviews: [oldHeadReview, botReview("APPROVED", "2026-08-05T10:00:00Z")] }),
+  ]), { argv: ["--head", HEAD], activities: sequence("head-lag-activity", [oldHeadActivity, JSON.stringify(activity())]) })
+  T(
+    `${TOOL}: --head reads again while GitHub still reports the reviewed previous head, then asks exactly once for the pushed head`,
+    headLag.result.status === 0 && headLag.plan?.verdict === "REVIEWED" && headLag.plan.reviewedCommit === HEAD && headLag.requests === 1 &&
+      requestedOnSecondRead(headLag) && /"event":"HEAD_WAITING"/.test(headLag.result.stderr),
+    headLag.result.stdout || headLag.result.stderr,
+  )
+  const headAbsent = requestRun("head-absent", { stdout: oldHeadRead }, { waitSeconds: "2", argv: ["--head", HEAD], activities: { stdout: oldHeadActivity } })
+  T(
+    `${TOOL}: --head exits 2 with both heads named and posts nothing when the pushed head never arrives inside the budget`,
+    headAbsent.result.status === 2 && headAbsent.plan === null && headAbsent.requestArgv === null &&
+      headAbsent.result.stderr.includes(`reports head ${OLD_HEAD}, not the expected ${HEAD}`),
+    headAbsent.result.stdout || headAbsent.result.stderr,
+  )
+  const headAbsentZeroWait = requestRun("head-absent-zero-wait", { stdout: oldHeadRead }, { waitSeconds: "0", argv: ["--head", HEAD], activities: { stdout: oldHeadActivity } })
+  T(
+    `${TOOL}: --head with a zero wait never reports the verdict of another head`,
+    headAbsentZeroWait.result.status === 2 && headAbsentZeroWait.plan === null && headAbsentZeroWait.requestArgv === null,
+    headAbsentZeroWait.result.stdout || headAbsentZeroWait.result.stderr,
+  )
+  check(TOOL, "refuses a --head that is not a full commit SHA", ["--pr", "681", "--repo", "ui", "--head", "0f4abca"], { status: 2, stderr: /--head must be a full 40-character commit SHA/ })
+
+  const lateActivity = (name) => sequence(name, [oldHeadActivity, JSON.stringify(activity())])
+  const askedBeforeActivity = requestRun("asked-before-activity", { stdout: payload({ checks: [ciCheck()], comments: [requestComment("2026-08-04T22:30:00Z")] }) },
+    { waitSeconds: "3", activities: lateActivity("asked-before-activity-list") })
+  T(
+    `${TOOL}: a request already posted for a head whose push the activity does not list yet is not posted twice`,
+    askedBeforeActivity.result.status === 1 && askedBeforeActivity.plan?.verdict === "NO_REVIEW" && askedBeforeActivity.requestArgv === null &&
+      askedBeforeActivity.plan.existingRequestUrl === REQUEST_URL,
+    askedBeforeActivity.result.stdout || askedBeforeActivity.result.stderr,
+  )
+  const pushListedLate = requestRun("push-listed-late", sequence("push-listed-late", [payload({ checks: [] }), payload({ checks: [] }), reviewLands([])]),
+    { activities: lateActivity("push-listed-late-list") })
+  T(
+    `${TOOL}: a head whose push the activity lists on the second read is requested once, on that read`,
+    pushListedLate.result.status === 0 && pushListedLate.plan?.verdict === "REVIEWED" && pushListedLate.requests === 1 && requestedOnSecondRead(pushListedLate),
+    pushListedLate.result.stdout || pushListedLate.result.stderr,
+  )
+  const pushNeverListed = requestRun("push-never-listed", { stdout: payload({ checks: [] }) }, { waitSeconds: "2", activities: { stdout: oldHeadActivity } })
+  T(
+    `${TOOL}: a head whose push the activity never lists gets no request, because no review of it can be proven current`,
+    pushNeverListed.result.status === 1 && pushNeverListed.plan?.verdict === "NO_REVIEW" && pushNeverListed.plan.reviewRequested === false &&
+      pushNeverListed.requestArgv === null && /no matching head activity/.test(pushNeverListed.plan.note ?? ""),
+    pushNeverListed.result.stdout || pushNeverListed.result.stderr,
+  )
+  const forkRequest = requestRun("fork-head", { stdout: payload({ checks: [], headRepositoryName: "fork/orbit-ui-mobile" }) }, { waitSeconds: "2" })
+  T(
+    `${TOOL}: a head from another repository gets no request, and the wait for its push does not start`,
+    forkRequest.result.status === 1 && forkRequest.plan?.verdict === "NO_REVIEW" && forkRequest.requestArgv === null &&
+      /different repository/.test(forkRequest.plan.note ?? "") && !/"event":"HEAD_WAITING"/.test(forkRequest.result.stderr),
+    forkRequest.result.stdout || forkRequest.result.stderr,
+  )
+  const requestCases = [greenHead, runningHead, justPushed, failingHead, unanswered, reviewedHead, fixPush, alreadyAsked, askedByStranger, askedForOldHead, zeroWait,
+    headLag, headAbsent, headAbsentZeroWait, askedBeforeActivity, pushListedLate, pushNeverListed, forkRequest]
   T(
     `${TOOL}: no request case reads branch protection`,
     requestCases.every((entry) => !entry.protectionRead),

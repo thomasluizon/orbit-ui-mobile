@@ -175,7 +175,7 @@ node tools/submit-cloud-worker.mjs --watch <receiptPath>
 node tools/submit-cloud-worker.mjs --clear-unknown <reservation-file> --assert-no-task-exists
 node tools/materialize-cloud-result.mjs --receipt <f> [--allow-abandoned]
 node tools/verify-delivery.mjs   --issue "<ticket-ref>" --worktree <p> --branch <b> --repo <key> [--base <ref>] [--wait-ci <s>]
-node tools/list-bot-threads.mjs  --pr <n-or-url> --repo <key> [--wait-seconds <s>]
+node tools/list-bot-threads.mjs  --pr <n-or-url> --repo <key> [--head <sha>] [--wait-seconds <s>]
 node tools/resolve-bot-thread.mjs --thread <PRRT_...> --repo <key> --pr <number>   # reply body on stdin
 node tools/salvage-worker.mjs    --issue "<ticket-ref>" --repo <key> [--pr <n>] --worktree <p> --branch <b> --run-root <p> --test-command <json> --test-receipt <json> --message <m> --path <path>...
 node tools/sync-issue-state.mjs  --issue "<ticket-ref>" --repo <key> --pr <n> --state <working|blocked|ready> --head-sha <sha> --base-sha <sha> --message-file <path|->
@@ -944,11 +944,16 @@ pull request head and before you ask for the review of a head that a worker push
 what keeps a head that fails CI, or that carries a finding the reviewer will open, from costing a
 review round.
 
-Right after the push, run `node tools/list-bot-threads.mjs --pr <n> --repo <key>`. It reads no
-check, and it posts `@pullfrog review` when both of these are true:
+Right after the push, run `node tools/list-bot-threads.mjs --pr <n> --repo <key> --head <sha>`.
+`<sha>` is the pushed head: copy it from `git rev-parse HEAD` in the worktree in this run. GitHub can
+report the previous head for a moment after a push, and that head can hold a review. With `--head`
+the tool reads again until the pull request reports the pushed head, and it exits 2 when that head
+does not arrive inside the budget. It reads no check, and it posts `@pullfrog review` when all of
+these are true:
 
-1. No review of the current head exists.
-2. No `@pullfrog review` comment of the repository owner exists after the push of the current head.
+1. The branch activity lists the push of the current head.
+2. No review of the current head exists.
+3. No `@pullfrog review` comment of the repository owner exists after the push of the current head.
 
 Do not wait for a `DELIVERED` verdict before you ask: a `CI_PENDING` head is ready for its request.
 Then start `node tools/wait-ci.mjs --repo <key> --pr <n> --require-check pullfrog-approval` in the
@@ -1046,7 +1051,7 @@ to separate files. Run `node tools/merge-review-batch-body.mjs --body-file <curr
 Then run `gh pr edit <n> --body-file <merged-body>`. Only then does
 the orchestrator reply to and resolve every identified thread on that commit, run the local review
 gate on it, then push once. A report that lacks the evidence the order required is a failed batch,
-never a push. Right after that push, run `list-bot-threads.mjs`: it asks Pullfrog for one review of
+never a push. Right after that push, run `list-bot-threads.mjs --head <sha>`: it asks Pullfrog for one review of
 the fixes and resolved threads together. A registered
 `pullfrog-approval` SUCCESS at the current head is the verdict. When that check is ABSENT from the
 rollup, a Pullfrog review with `reviewState` `APPROVED` and `reviewedCommit` equal to that head stands
@@ -1102,7 +1107,7 @@ write unless the node's own `repository.nameWithOwner` equals what `--repo` reso
 repository the node actually resolved to. Read that name before you retry anything.
 
 **For a fix the orchestrator writes, resolve FIRST, then run the local review gate, then push.**
-Right after the push, `list-bot-threads.mjs` asks for the incremental re-review, which reads the
+Right after the push, `list-bot-threads.mjs --head <sha>` asks for the incremental re-review, which reads the
 fixes and resolved threads together. Use the same order for a worker's `--review-batch` commit:
 resolve its threads, run the local review gate, then push.
 
