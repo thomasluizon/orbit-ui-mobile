@@ -2980,6 +2980,7 @@
       "year": "Close the year."
     },
     "periodGroup": "Period",
+    "periodQuestion": "Which period do you want to see?",
     "start": "Start",
     "close": "Close Wrapped",
     "next": "Continue",
