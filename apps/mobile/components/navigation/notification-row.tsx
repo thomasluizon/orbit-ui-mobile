@@ -3,12 +3,16 @@ import { PersonalText } from '@/components/ui/personal-text'
 import { DestinationIcon } from '@/components/navigation/destination-icon'
 import { nestedControlFill, surfaceHighlighted, useRowFeedback } from '@/hooks/use-row-feedback'
 import { View, Text, Pressable, StyleSheet } from 'react-native'
+import Animated from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
 import { CircleDot, Gift, Trash2 } from '@/components/ui/icons'
 import { formatNotificationRelativeTime, getNotificationTargetKey, getDestinationForLabel } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { selectionSettleTransition } from '@/components/motion/selection-settle'
+import { useFlag } from '@/hooks/use-flag'
+import { usePrefersReducedMotion } from '@/lib/motion'
 
 function NotificationTargetIcon({ targetKey, color }: Readonly<{
   targetKey: NonNullable<ReturnType<typeof getNotificationTargetKey>>
@@ -18,6 +22,25 @@ function NotificationTargetIcon({ targetKey, color }: Readonly<{
   if (destination) return <DestinationIcon destination={destination} size={16} color={color} />
   const Icon = targetKey === 'profile.wrappedTitle' ? Gift : CircleDot
   return <Icon size={16} color={color} accessible={false} />
+}
+
+type Tokens = ReturnType<typeof createTokensV2>
+
+/**
+ * The unread mark on the Orbit logic: the card fill with its ring, and the dot. Both stay mounted and settle with the
+ * selection motion as the row turns read, at once under reduced motion.
+ */
+function UnreadSurface({ unread, tokens }: Readonly<{ unread: boolean; tokens: Tokens }>) {
+  const reducedMotion = usePrefersReducedMotion()
+  return <Animated.View testID="notification-unread-surface" pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
+    style={[styles.fill, { backgroundColor: tokens.bgCard, boxShadow: `inset 0 0 0 1px ${tokens.hairline}`, opacity: unread ? 1 : 0, transition: selectionSettleTransition('opacity', unread, reducedMotion) }]} />
+}
+
+function UnreadDot({ unread, guided, tokens }: Readonly<{ unread: boolean; guided: boolean; tokens: Tokens }>) {
+  const reducedMotion = usePrefersReducedMotion()
+  if (guided) return <Animated.View testID="notification-unread-mark" data-unread={unread}
+    style={[styles.dot, { backgroundColor: tokens.fg1, opacity: unread ? 1 : 0, transition: selectionSettleTransition('opacity', unread, reducedMotion) }]} />
+  return unread ? <View testID="notification-unread-dot" style={[styles.dot, { backgroundColor: tokens.fg1 }]} /> : null
 }
 
 export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
@@ -31,9 +54,12 @@ export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const targetKey = getNotificationTargetKey(item.url, item.habitId)
+  const guided = useFlag('orbit_guided_flows')
+  const unread = !item.isRead
   return (
     <View testID={item.isRead ? 'notification-read' : 'notification-unread'}
-      style={[styles.wrapper, !item.isRead && { backgroundColor: tokens.bgCard, boxShadow: `inset 0 0 0 1px ${tokens.hairline}` }]}>
+      style={[styles.wrapper, unread && !guided && { backgroundColor: tokens.bgCard, boxShadow: `inset 0 0 0 1px ${tokens.hairline}` }]}>
+      {guided ? <UnreadSurface unread={unread} tokens={tokens} /> : null}
       <View testID="notification-row-feedback" pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
         style={[styles.fill, { backgroundColor: surfaceHighlighted(bodyFeedback.highlighted, [deleteFeedback]) ? tokens.bgHover : 'transparent' },
           bodyFeedback.focused && { outlineWidth: 2, outlineStyle: 'solid', outlineColor: tokens.primary, outlineOffset: -3,
@@ -44,7 +70,7 @@ export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
         {...bodyFeedback.handlers}
         style={styles.row}>
         <View testID="notification-dot-column" style={styles.dotColumn}>
-          {!item.isRead ? <View testID="notification-unread-dot" style={[styles.dot, { backgroundColor: tokens.fg1 }]} /> : null}
+          <UnreadDot unread={unread} guided={guided} tokens={tokens} />
         </View>
         <View style={styles.content}>
           <View style={styles.topRow}>

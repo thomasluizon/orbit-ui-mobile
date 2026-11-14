@@ -42,8 +42,10 @@ function useExitDeadline(duration: number) {
   return present
 }
 
-export function ListMotionItem({ children, className, style, ref, positionMotion = true, layoutMotion = true }: Readonly<{
+export function ListMotionItem({ children, className, style, ref, positionMotion = true, layoutMotion = true, as = 'div' }: Readonly<{
   ref?: Ref<HTMLDivElement>
+  /** The element of the row. A row of a `ul` passes `li`. Default `div`. */
+  as?: 'div' | 'li'
   children: ReactNode
   className?: string
   style?: CSSProperties
@@ -58,14 +60,15 @@ export function ListMotionItem({ children, className, style, ref, positionMotion
   const scopeContext = useContext(ListScopeContext)
   const presence = useContext(PresenceContext)
   const [mountedByScopeChange] = useState(() => scopeContext.committedScope.current !== scopeContext.scope)
-  return <PresenceContext.Provider value={null}><motion.div ref={ref} layout={reduced || !positionMotion || !layoutMotion ? false : 'position'}
+  const Item = (as === 'li' ? motion.li : motion.div) as typeof motion.div
+  return <PresenceContext.Provider value={null}><Item ref={ref} layout={reduced || !positionMotion || !layoutMotion ? false : 'position'}
     data-list-motion="" className={className} style={style} inert={!present} aria-hidden={!present || undefined}
     initial={presence?.initial === false || mountedByScopeChange ? false : reduced || !positionMotion ? { opacity: 0 } : { opacity: 0, y: enter.shift }}
     animate={present ? reduced || !positionMotion ? { opacity: 1 } : { opacity: 1, y: 0 } : { opacity: 0, ...(reduced || !positionMotion ? {} : { y: exit.shift }), transition: { duration: exit.exitDuration / 1000, ease: exit.exitEasing } }}
     transition={{ duration: enter.enterDuration / 1000, ease: enter.enterEasing,
       layout: reduced ? { duration: 0 } : { type: 'spring', ...motionSprings.soft } }}>
     {children}
-  </motion.div></PresenceContext.Provider>
+  </Item></PresenceContext.Provider>
 }
 
 export function MotionDisclosure({ expanded, id, children, positionMotion = true }: Readonly<{ expanded: boolean; id?: string; children: ReactNode; positionMotion?: boolean }>) {
