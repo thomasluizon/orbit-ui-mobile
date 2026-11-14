@@ -39,7 +39,10 @@ const TEMPORARY_SEGMENTS = new Set(["superseded", "unused", "backup", "backups",
 const VERDICTS = ["keep", "update", "delete", "other-ticket"]
 const CLASSES = ["config", "agent", "doc", "asset", "test", "source"]
 
-const isTestPath = (path) => ["__tests__", ".test.", ".spec."].some((part) => path.includes(part)) || `/${path}`.includes("/tests/")
+// A .test. or .spec. name marks a test only on a code file: api.spec.commit and api.spec.selection.json pin a contract.
+const isTestPath = (path) =>
+  path.includes("__tests__") || `/${path}`.includes("/tests/") ||
+  ([".test.", ".spec."].some((part) => path.includes(part)) && CODE_EXTENSIONS.has(extname(path).toLowerCase()))
 
 const classify = (path) => {
   if (path.startsWith(".claude/")) return "agent"
@@ -141,8 +144,8 @@ const usage = () => `usage: file-ledger.mjs [--repo <path>] [--also-search <path
   unresolvedReferences; empty; temporaryPattern.
 
   Class rule, first match wins:
-    a path under .claude/ is agent; .md, .mdx and .txt are doc; a path that contains __tests__, .test., .spec.
-    or a tests/ segment is test; a code extension is source (${[...CODE_EXTENSIONS].join(" ")});
+    a path under .claude/ is agent; .md, .mdx and .txt are doc; a path that contains __tests__ or a tests/
+    segment, or a code file whose path contains .test. or .spec., is test; a code extension is source (${[...CODE_EXTENSIONS].join(" ")});
     an image, font, video, PDF or HTML extension is asset (${[...ASSET_EXTENSIONS].join(" ")});
     each other file is config.
   agentInstruction is true for CLAUDE.md, AGENTS.md, GEMINI.md, opencode.json and each file under .agents/,
