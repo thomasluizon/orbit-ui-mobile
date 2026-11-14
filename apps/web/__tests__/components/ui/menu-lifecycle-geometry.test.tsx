@@ -91,7 +91,8 @@ describe('mounted headless menu lifecycle in Chromium', () => {
             const style = getComputedStyle(panel)
             frames.push({ y: new DOMMatrixReadOnly(style.transform).m42, top: panel.getBoundingClientRect().top,
               opacity: Number(style.opacity), backdrop: Number(getComputedStyle(backdrop).opacity) })
-            if (entrance.size === 0) settledFrames += 1
+            const runningTransitions = panel.getAnimations().length + backdrop.getAnimations().length
+            settledFrames = entrance.size === 0 && runningTransitions === 0 ? settledFrames + 1 : 0
           }
           if (settledFrames < 3) requestAnimationFrame(sample)
           else {
