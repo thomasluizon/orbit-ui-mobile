@@ -1,6 +1,7 @@
-import { existsSync, readFileSync } from 'node:fs'
-import { createRequire } from 'node:module'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { createRequire, isBuiltin } from 'node:module'
 import { Ajv } from 'ajv'
+import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 import { BUTTON_SIZES, SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 import base from '../src-tauri/tauri.conf.json'
@@ -265,4 +266,33 @@ it('keeps exactly the Turnstile challenge documents the iOS app loads in subfram
   const quoted = (list: string) => [...list.matchAll(/["']([^"']+)["']/g)].map((match) => match[1]!).sort((left, right) => left.localeCompare(right))
   expect(quoted(desktopDocuments!)).toEqual(quoted(iosDocuments!))
   expect(quoted(desktopDocuments!)).toEqual(['about:blank', 'about:srcdoc'])
+})
+
+it('declares in its own manifest or the root manifest every package its scripts and tests import', () => {
+  const workspace = new URL('../', import.meta.url)
+  const declared = new Set(
+    ['package.json', '../../package.json'].flatMap((path) => {
+      const manifest = JSON.parse(readFileSync(new URL(path, workspace), 'utf8')) as Record<string, Record<string, string> | undefined>
+      return [...Object.keys(manifest.dependencies ?? {}), ...Object.keys(manifest.devDependencies ?? {})]
+    }),
+  )
+  const sources = [
+    ...readdirSync(workspace).filter((name) => /\.[cm]?[jt]s$/.test(name)),
+    ...['__tests__', 'scripts', 'src-tauri/src'].flatMap((directory) =>
+      readdirSync(new URL(`${directory}/`, workspace), { recursive: true, encoding: 'utf8' })
+        .filter((name) => /\.[cm]?[jt]s$/.test(name))
+        .map((name) => `${directory}/${name}`),
+    ),
+  ]
+  const imported = new Set(
+    sources.flatMap((path) =>
+      ts
+        .preProcessFile(readFileSync(new URL(path, workspace), 'utf8'), true, true)
+        .importedFiles.map(({ fileName }) => fileName)
+        .filter((specifier) => !specifier.startsWith('.') && !isBuiltin(specifier))
+        .map((specifier) => specifier.split('/').slice(0, specifier.startsWith('@') ? 2 : 1).join('/')),
+    ),
+  )
+  expect(imported).toContain('@orbit/shared')
+  expect([...imported].filter((name) => !declared.has(name)).sort((left, right) => left.localeCompare(right))).toEqual([])
 })

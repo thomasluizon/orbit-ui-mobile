@@ -13,6 +13,8 @@
     "build:staging": "tauri build"
   },
   "devDependencies": {
+    "@orbit/shared": "*",
+    "@tanstack/query-core": "5.101.4",
     "@tauri-apps/cli": "2.12.4",
     "@vitest/coverage-v8": "^4.1.12",
     "ajv": "^8.20.0",
