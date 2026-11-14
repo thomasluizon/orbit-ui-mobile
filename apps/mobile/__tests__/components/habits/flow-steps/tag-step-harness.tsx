@@ -14,6 +14,7 @@ const tagStepState = vi.hoisted(() => ({
   tags: [] as HabitTag[],
   habits: undefined as { title: string; tags: { id: string }[] }[] | undefined,
   habitFilters: [] as unknown[],
+  habitOptions: [] as unknown[],
   create: vi.fn(),
   update: vi.fn(),
   remove: vi.fn(),
@@ -39,8 +40,9 @@ vi.mock('@/hooks/use-tags', () => ({
   useSuggestTags: () => ({ isPending: false, mutateAsync: tagStepState.suggest }),
 }))
 vi.mock('@/hooks/use-habit-queries', () => ({
-  useHabits: (filters: unknown) => {
+  useHabits: (filters: unknown, options?: unknown) => {
     tagStepState.habitFilters.push(filters)
+    tagStepState.habitOptions.push(options)
     const habits = tagStepState.habits
     return { data: habits ? { habitsById: new Map(habits.map((habit, index) => [`habit-${index}`, habit])) } : undefined }
   },
@@ -56,6 +58,7 @@ export function resetTagStepState() {
   tagStepState.tags = []
   tagStepState.habits = undefined
   tagStepState.habitFilters = []
+  tagStepState.habitOptions = []
   for (const mock of [tagStepState.create, tagStepState.update, tagStepState.remove, tagStepState.suggest, tagStepState.captureError]) mock.mockReset()
 }
 

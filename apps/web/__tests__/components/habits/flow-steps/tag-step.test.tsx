@@ -53,6 +53,7 @@ describe.each(['en', 'pt-BR'] as const)('the tag step in %s', (locale) => {
     expect(screen.getByText(text.habits.flow.tags.lineEmpty.replace('{tag}', 'Mind'))).toBeInTheDocument()
     expect(fetchSpy).not.toHaveBeenCalled()
     expect(new Set(tagStepState.habitFilters.map((filters) => JSON.stringify(filters)))).toEqual(new Set(['{}']))
+    expect(new Set(tagStepState.habitOptions.map((options) => JSON.stringify(options))), 'the line reads the cache and never fetches it').toEqual(new Set(['{"enabled":false}']))
   })
 })
 

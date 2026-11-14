@@ -94,6 +94,7 @@ describe.each(['en', 'pt-BR'] as const)('the tag step on Android in %s', (locale
     await press(option(root, 'Mind'))
     expect(textOf(line(root)!)).toBe(text.habits.flow.tags.lineEmpty.replace('{tag}', 'Mind'))
     expect(new Set(tagStepState.habitFilters.map((filters) => JSON.stringify(filters)))).toEqual(new Set(['{}']))
+    expect(new Set(tagStepState.habitOptions.map((options) => JSON.stringify(options))), 'the line reads the cache and never fetches it').toEqual(new Set(['{"enabled":false}']))
   })
 })
 

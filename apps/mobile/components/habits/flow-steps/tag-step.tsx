@@ -36,10 +36,13 @@ function quickTags(available: readonly HabitTag[], selectedIds: readonly string[
   return [...available.filter((tag) => selected.has(tag.id)), ...available.filter((tag) => !selected.has(tag.id))].slice(0, QUICK_TAGS)
 }
 
+/** The line reads the cache that holds every habit and never fetches it: with no cached list the intro line stays. */
+const CACHE_ONLY = { enabled: false }
+
 /** The Orbit line after a press: the tag's own items, read on the device from the cache that holds every habit. */
 function useTagLine(pressedTagId: string | null, available: readonly HabitTag[]): string {
   const { t, i18n } = useTranslation()
-  const { data } = useHabits({})
+  const { data } = useHabits({}, CACHE_ONLY)
   const tag = available.find((candidate) => candidate.id === pressedTagId)
   if (!tag) return t('habits.flow.tags.lineIntro')
   const habits: NormalizedHabit[] | undefined = data ? [...data.habitsById.values()] : undefined

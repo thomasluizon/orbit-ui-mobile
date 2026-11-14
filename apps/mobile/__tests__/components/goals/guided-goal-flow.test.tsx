@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act } from 'react-test-renderer'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { buildGoalCreationRequest, createGoalDraft } from '@orbit/shared/hooks'
+import { createApiClientError } from '@orbit/shared/utils'
 import { CreateGoalSheet } from '@/components/goals/create-goal-sheet'
 import { EditGoalModal } from '@/components/goals/edit-goal-modal'
 import { i18n } from '@/lib/i18n'
@@ -290,6 +291,7 @@ describe('the Which habits step on Android', () => {
     await answerUpToDeadline(empty, PT)
     await tap(empty, 'Sem prazo')
     expect(texts(empty)).toContain(i18n.t('goals.form.habitsInvitation'))
+    expect(empty.hosts().filter((node) => node.props.testID === 'orbit-mascot'), 'one live Orbit in the view').toHaveLength(1)
     await tap(empty, i18n.t('habits.createHabit'))
     await tap(empty, 'Finish habit creation')
     expect(heading(empty)).toBe('Quais hábitos contam para essa meta?')
@@ -333,6 +335,19 @@ describe('the guided goal edit flow on Android', () => {
     expect(heading(tree)).toBe('Is this right?')
     await tap(tree, 'Save')
     expect(mocks.update).toHaveBeenCalledWith({ goalId: 'g1', data: { title: '100 km', targetValue: 100, unit: 'km', deadline: '2026-12-31' } })
+    tree.unmount()
+  })
+
+  it('shows the field message the server sends for a refused edit, as the current modal does', async () => {
+    await i18n.changeLanguage('en')
+    mocks.update.mockRejectedValue(createApiClientError(400, { errors: { Title: ['Server title failure'] } }, 'Fallback'))
+    const tree = renderNavigation(<EditGoalModal open onClose={vi.fn()} goal={goal} />)
+    await tap(tree, /^How much/)
+    await type(tree, 'How much?', '120')
+    await tap(tree, 'Continue')
+    await tap(tree, 'Save')
+    expect(texts(tree)).toContain('Server title failure')
+    expect(resultSentence(tree)).toBeUndefined()
     tree.unmount()
   })
 

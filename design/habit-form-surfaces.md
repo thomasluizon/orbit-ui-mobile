@@ -120,9 +120,9 @@ owners keep. No noun stands alone as a title, a heading, a row label or a list t
 | Checklist and templates | `useChecklistStepView`, `flow-steps/checklist-step.tsx` and `flow-steps/template-step.tsx` over `HabitChecklist` (edit mode) and `use-checklist-templates` | Tem passos dentro disso?; Não and Usar um modelo; the item editor. Não never drops typed steps: with steps it waits for a clear and says why. The template question (each template with its item count, a load, a delete) and the save question (one name field) are questions inside the step |
 | Goals | `useGoalLinkStepView`, `flow-steps/goal-link-step.tsx` over `createUseGoalLinking` | Isso ajuda em alguma meta?; up to 4 active goals and Criar meta; a search over every active goal above 4. Criar meta opens the goal create flow with the habit, and the new goal returns selected |
 
-The tag line after a press reads the cache that holds every habit, `useHabits({})`, the same query
+The tag line after a press reads the cache that holds every habit, `useHabits({})` with `enabled: false`, the same query
 the linked-habit picker uses. `buildTagLineItems` (`packages/shared/src/utils/tag-flow-line.ts`)
-names up to three items through `Intl.ListFormat` and counts the rest. A press starts no request.
+names up to three items through `Intl.ListFormat` and counts the rest. The step starts no request for the line.
 With no cached list, the first line stays. The tag and goal steps take several answers: a press
 toggles, and the step continues on its own action. The limits come from
 `packages/shared/src/validation/constants.ts`: 5 tags and 10 goals for one habit, 50 checklist items.

@@ -1,5 +1,5 @@
 import { Suspense, useState } from 'react'
-import { StyleSheet, Text } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { FlowStepView } from '@orbit/shared/contracts/flow'
 import type { GoalType } from '@orbit/shared/types/goal'
@@ -7,7 +7,6 @@ import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { MAX_HABITS_PER_GOAL } from '@orbit/shared/validation'
 import { toggleSelectedId } from '@orbit/shared/utils'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
-import { EmptyState } from '@/components/ui/empty-state'
 import { IconButton } from '@/components/ui/icon-button'
 import { Plus } from '@/components/ui/icons'
 import { InlineLoadError } from '@/components/ui/inline-load-error'
@@ -64,7 +63,7 @@ export function useGoalHabitsView({ selectedIds, goalType, onChange, onContinue 
   const loaded = !habits.isLoading && !habits.isError
   return {
     question: t('goals.flow.habits.question'),
-    line: t('goals.form.habitsExplainer'),
+    line: loaded && items.length === 0 ? t('goals.form.habitsInvitation') : t('goals.form.habitsExplainer'),
     options: loaded && items.length > 0 ? <>
       {quickHabits(items, leading).map((habit) => {
         const selected = selectedIds.includes(habit.id)
@@ -74,7 +73,7 @@ export function useGoalHabitsView({ selectedIds, goalType, onChange, onContinue 
     free: <>
       {habits.isLoading ? <Skeleton variant="settings" rows={3} label={t('common.loading')} /> : null}
       {habits.isError ? <InlineLoadError message={t('goals.form.habitsError')} onRetry={() => void habits.refetch()} /> : null}
-      {loaded && items.length === 0 ? <EmptyState title={t('goals.form.habitsInvitation')} action={create} /> : null}
+      {loaded && items.length === 0 ? <View style={styles.create}>{create}</View> : null}
       {loaded && items.length > QUICK_OPTIONS ? <HabitSearch items={items} selectedIds={selectedIds} atLimit={atLimit} onToggle={toggle} /> : null}
       {habitFormState === 'error' ? <Text accessibilityRole="alert" style={[styles.note, { color: tokens.statusBadText }]}>{t('goals.form.habitFormError')}</Text> : null}
       <GoalHabitsSelectionNote selectedIds={selectedIds} goalType={goalType} />
@@ -96,5 +95,6 @@ export function useGoalHabitsSummary(selectedIds: string[], fromHabit: { title: 
 }
 
 const styles = StyleSheet.create({
+  create: { alignItems: 'center' },
   note: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20, textAlign: 'center' },
 })

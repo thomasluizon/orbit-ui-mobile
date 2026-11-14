@@ -5,6 +5,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { buildGoalCreationRequest, createGoalDraft } from '@orbit/shared/hooks'
+import { createApiClientError } from '@orbit/shared/utils'
 import { CreateGoalSheet } from '@/components/goals/create-goal-sheet'
 import { EditGoalModal } from '@/components/goals/edit-goal-modal'
 
@@ -353,6 +354,7 @@ describe('the Which habits step', () => {
   it('creates a habit from the step when the person has none', async () => {
     await reachHabits('pt-BR')
     expect(screen.getByText(ptBR.goals.form.habitsInvitation)).toBeInTheDocument()
+    expect(document.querySelectorAll('[data-orbit-face="rig"]'), 'one live Orbit in the view').toHaveLength(1)
     await press(ptBR.habits.createHabit)
     await press('Finish habit creation')
     expect(heading()).toHaveTextContent('Quais hábitos contam para essa meta?')
@@ -420,6 +422,17 @@ describe('the guided goal edit flow', () => {
     await press('Continue')
     await press('Save')
     expect(screen.getByRole('alert')).toHaveTextContent(en.goals.errors.update)
+    expect(resultDialog()).toBeNull()
+  })
+
+  it('shows the field message the server sends for a refused edit, as the current modal does', async () => {
+    mocks.update.mockRejectedValue(createApiClientError(400, { errors: { Title: ['Server title failure'] } }, 'Fallback'))
+    renderWith('en', <EditGoalModal open onOpenChange={vi.fn()} goal={goal} />)
+    await press(/^How much/)
+    await type('How much?', '120')
+    await press('Continue')
+    await press('Save')
+    expect(screen.getByRole('alert')).toHaveTextContent('Server title failure')
     expect(resultDialog()).toBeNull()
   })
 })

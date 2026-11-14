@@ -6,6 +6,7 @@ import type { FlowStepView } from '@orbit/shared/contracts/flow'
 import { buildGoalUpdateRequest, createGoalEditDraft, getGoalEditError, isGoalEditDirty, type GoalEditDraft, type GoalEditSource } from '@orbit/shared/hooks'
 import { getFriendlyErrorMessage, type GoalFlowStep } from '@orbit/shared/utils'
 import { isStreakGoal } from '@orbit/shared/utils/goal-form'
+import { useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useUpdateGoal } from '@/hooks/use-goals'
 import { captureGuidedFlowCompleted } from '@/lib/posthog'
@@ -38,6 +39,7 @@ function GoalEditRun({ goal, onClose, onSaved }: Readonly<GuidedGoalEditFlowProp
   const [formError, setFormError] = useState('')
   const [draft, setDraft] = useState(() => createGoalEditDraft(goal))
   const hints = useStepHints(draft, flow, 'edit')
+  const backendErrors = useBackendFieldErrors({ description: draft.description, targetValue: draft.targetValue, unit: draft.unit }, { description: 'Title', targetValue: 'TargetValue', unit: 'Unit' })
   const port = editPort(goal, draft, (change) => { hints.clear(); setDraft((current) => ({ ...current, ...change })) })
   const discard = useDismissGuard({ isDirty: isGoalEditDirty(draft, goal), onDismiss: onClose })
   const save = async () => {
@@ -50,7 +52,7 @@ function GoalEditRun({ goal, onClose, onSaved }: Readonly<GuidedGoalEditFlowProp
       captureGuidedFlowCompleted('goal_edit', flow.steps.length, false)
       onSaved({ goalId: goal.id, title: request.title, deadline: draft.deadline })
     } catch (failure: unknown) {
-      setFormError(getFriendlyErrorMessage(failure, translate, 'goals.errors.update', 'goal'))
+      if (!backendErrors.reportBackendErrors(failure).handled) setFormError(getFriendlyErrorMessage(failure, translate, 'goals.errors.update', 'goal'))
     }
   }
   const context = { draft: port, hint: hints.hint, submit: hints.submit, advance: flow.advance }
@@ -62,7 +64,7 @@ function GoalEditRun({ goal, onClose, onSaved }: Readonly<GuidedGoalEditFlowProp
   const summary: FlowStepView = {
     question: t('habits.flow.confirm.question'),
     line: t('habits.flow.confirm.line'),
-    free: <GoalSummary draft={port} mode="edit" error={formError} onOpen={flow.open} />,
+    free: <GoalSummary draft={port} mode="edit" error={formError || Object.values(backendErrors.fieldErrors)[0]} onOpen={flow.open} />,
     primary: { label: t('common.save'), onPress: () => void save(), loading: updateGoal.isPending },
   }
   const requestClose = () => { if (!updateGoal.isPending) discard.requestDismiss() }
