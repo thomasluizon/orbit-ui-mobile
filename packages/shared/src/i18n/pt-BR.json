@@ -3615,7 +3615,7 @@
     "restorePurchase": "Restaurar compra",
     "question": "Qual plano?",
     "orbitLine": {
-      "usage": "Você usou {used} de {limit} mensagens de IA.",
+      "usage": "Você usou {used} de {limit, plural, =0 {# mensagens de IA} one {# mensagem de IA} other {# mensagens de IA}}.",
       "loading": "Estou buscando os valores.",
       "plansError": "Não consegui buscar os valores.",
       "offline": "Estou sem conexão agora."

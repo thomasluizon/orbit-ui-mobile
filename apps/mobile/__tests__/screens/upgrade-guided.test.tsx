@@ -1,7 +1,7 @@
 import React from 'react'
 import { View } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
+import { enableTestFlags, resetTestFlags } from '@orbit/shared/test-support/flag-state'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
 import type { BillingDetails, SubscriptionPlans } from '@orbit/shared/types/subscription'
 import { renderedText } from '@/__tests__/support/react-test-renderer'
@@ -151,6 +151,14 @@ describe('the plan question of the Android upgrade route', () => {
     const tree = renderNavigation(<UpgradeScreen />)
     const rigs = tree.hosts().map((node) => node.props as Record<string, unknown>).filter((props) => props['data-orbit-face'] === 'rig')
     expect(rigs.map((props) => props.width)).toEqual([size])
+    tree.unmount()
+  })
+
+  it.each([['en', 'You used 1 of 1 AI message.'], ['pt-BR', 'Você usou 1 de 1 mensagem de IA.']] as const)('writes a limit of one message in the singular in %s', (locale, line) => {
+    mocks.locale = locale
+    mocks.status = { ...freeStatus, aiMessagesUsed: 1, aiMessagesLimit: 1 }
+    const tree = renderNavigation(<UpgradeScreen />)
+    expect(renderedText(byTestId(tree, 'upgrade-orbit-line'))).toBe(line)
     tree.unmount()
   })
 
@@ -394,6 +402,20 @@ describe('the dashboards and the notices of the Android route with the guided fl
     press(tree.hosts().find((node) => node.props.onPress !== undefined && renderedText(node) === 'Subscribe again')!)
     expect(byTestId(tree, 'subscription-notice')).toBeUndefined()
     expect(headers(tree).some((node) => renderedText(node) === 'Which plan?')).toBe(true)
+    tree.unmount()
+  })
+})
+
+describe('the Android upgrade route with the guided flows off', () => {
+  it('keeps the current pitch, the title of the header as a header and the done toast of a verified purchase', () => {
+    resetTestFlags()
+    const tree = renderNavigation(<UpgradeScreen />)
+    expect(headers(tree).some((node) => renderedText(node) === 'Orbit Pro')).toBe(true)
+    expect(byTestId(tree, 'upgrade-block')).toBeUndefined()
+    expect(byTestId(tree, 'upgrade-orbit-line')).toBeUndefined()
+    confirmPurchase()
+    expect(mocks.showSuccess).toHaveBeenCalledTimes(1)
+    expect(byTestId(tree, 'result-dialog')).toBeUndefined()
     tree.unmount()
   })
 })

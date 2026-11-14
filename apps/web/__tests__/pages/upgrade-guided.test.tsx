@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
+import { enableTestFlags, resetTestFlags } from '@orbit/shared/test-support/flag-state'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
 import type { BillingDetails } from '@orbit/shared/types/subscription'
 
@@ -127,6 +127,13 @@ describe('the plan question of the upgrade route', () => {
     render(<UpgradePage />)
     expect(block().querySelector('[data-orbit-face="rig"]')).toHaveAttribute('width', size)
     expect(document.querySelectorAll('[data-orbit-face="rig"]')).toHaveLength(1)
+  })
+
+  it.each([['en', 'You used 1 of 1 AI message.'], ['pt-BR', 'Você usou 1 de 1 mensagem de IA.']] as const)('writes a limit of one message in the singular in %s', (locale, line) => {
+    mocks.locale = locale
+    mocks.status = { ...freeStatus, aiMessagesUsed: 1, aiMessagesLimit: 1 }
+    render(<UpgradePage />)
+    expect(block().querySelector('[data-upgrade-orbit-line]')).toHaveTextContent(line)
   })
 
   it('follows the usage read when it changes', () => {
@@ -379,5 +386,17 @@ describe('the dashboards and the notices with the guided flows on', () => {
     fireEvent.click(within(notice).getByRole('button', { name: 'Subscribe again' }))
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Which plan?')
     expect(document.querySelector('[data-subscription-notice]')).toBeNull()
+  })
+})
+
+describe('the upgrade route with the guided flows off', () => {
+  it('keeps the current pitch, the title of the header as a heading and the done toast of the Stripe return', () => {
+    resetTestFlags()
+    render(<UpgradePage />)
+    expect(screen.getAllByRole('heading', { level: 1 }).map((heading) => heading.textContent)).toEqual(['Orbit Pro'])
+    expect(document.querySelector('[data-upgrade-block]')).toBeNull()
+    expect(document.querySelector('[data-upgrade-orbit-line]')).toBeNull()
+    expect(mocks.toastOnSuccess).toBe(true)
+    expect(mocks.beforeRedirect).toBeUndefined()
   })
 })

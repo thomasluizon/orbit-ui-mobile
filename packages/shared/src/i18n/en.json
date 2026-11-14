@@ -3615,7 +3615,7 @@
     "restorePurchase": "Restore purchase",
     "question": "Which plan?",
     "orbitLine": {
-      "usage": "You used {used} of {limit} AI messages.",
+      "usage": "You used {used} of {limit, plural, one {# AI message} other {# AI messages}}.",
       "loading": "I am fetching the amounts.",
       "plansError": "I could not fetch the amounts.",
       "offline": "I am offline right now."
