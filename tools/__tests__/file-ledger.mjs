@@ -366,7 +366,7 @@ const caseRepositoryIdentity = () => {
   if (existsSync(otherCase)) {
     check(TOOL, "a --repo in another letter case on a case-insensitive file system is the same root", ["--repo", otherCase], { status: 0, stderr: /1 tracked files/ })
   } else {
-    T(`${TOOL}: a --repo in another letter case names no folder on a case-sensitive file system`, true)
+    console.log(`SKIP ${TOOL}: a --repo in another letter case is the same root (this file system is case-sensitive, so no folder has that name)`)
   }
   const first = makeRepository("shared-name-a/same", { "a.md": "a\n" })
   const second = makeRepository("shared-name-b/same", { "b.md": "b\n" })
