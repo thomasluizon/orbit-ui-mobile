@@ -60,11 +60,9 @@ function GoalPickerList({ goals, selectedIds, atLimit, onToggle }: Readonly<Goal
   }} />
 }
 
-export function GoalLinkingField(props: Readonly<GoalLinkingFieldProps>) {
-  const { selectedGoalIds, atGoalLimit, onToggleGoal } = props
-  const t = useTranslations()
-  const { sheetRef, closeSheet } = useSheetHost()
-  const { data: goals } = useQuery({
+/** Every goal of the account, the list a habit links its goals from. */
+export function useLinkableGoals() {
+  return useQuery({
     queryKey: goalKeys.lists(),
     queryFn: async (): Promise<Goal[]> => {
       const response = await fetchJson<GoalsListResponse | Goal[]>(API.goals.list)
@@ -72,6 +70,13 @@ export function GoalLinkingField(props: Readonly<GoalLinkingFieldProps>) {
     },
     staleTime: QUERY_STALE_TIMES.goals,
   })
+}
+
+export function GoalLinkingField(props: Readonly<GoalLinkingFieldProps>) {
+  const { selectedGoalIds, atGoalLimit, onToggleGoal } = props
+  const t = useTranslations()
+  const { sheetRef, closeSheet } = useSheetHost()
+  const { data: goals } = useLinkableGoals()
   const { open, setOpen, creating, setCreating, activeGoals, selectedSet, selectedGoals,
     openCreateGoal, handleCreated, initialHabitIds } = useGoalLinking(props, goals, closeSheet)
 
