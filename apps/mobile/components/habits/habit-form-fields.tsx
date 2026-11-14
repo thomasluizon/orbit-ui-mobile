@@ -1,11 +1,8 @@
 import { useAstraAllowanceCopy } from '@/hooks/use-astra-allowance-copy'
-import { captureError } from '@/lib/sentry'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { useHabitFormInteraction } from './habit-form-fields/habit-form-interaction'
 import { motionDurations, motionEasings, SPACING } from '@orbit/shared/theme'
-import { X } from '@/components/ui/icons'
-import { backendFormFieldFocusRequest, hasTagDraftChanges, resolveBackendFormFieldMessage } from '@orbit/shared/hooks'
-import { useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
+import { backendFormFieldFocusRequest, resolveBackendFormFieldMessage } from '@orbit/shared/hooks'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import Animated, { Easing, Keyframe, ReduceMotion } from 'react-native-reanimated'
@@ -20,9 +17,6 @@ import {
   createHabitFormController,
   EMPTY_HABIT_FORM_PROPOSAL,
   coalesceFormText,
-  getFriendlyErrorMessage,
-  extractBackendStatus,
-  formatLocaleDate,
   isHabitDailySchedule,
   isHabitAstraLimitReached,
   parseAPIDate,
@@ -30,18 +24,16 @@ import {
   resolveSupportedLocale,
   shouldShowHabitAstraFallback,
 } from '@orbit/shared/utils'
-import { hasHabitMonthDaySchedule, MAX_HABIT_DESCRIPTION_LENGTH, validateTagForm } from '@orbit/shared/validation'
+import { hasHabitMonthDaySchedule, MAX_HABIT_DESCRIPTION_LENGTH } from '@orbit/shared/validation'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useHasProAccess, useProfile } from '@/hooks/use-profile'
-import { useCreateTag, useDeleteTag, useSuggestTags, useTags, useUpdateTag } from '@/hooks/use-tags'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { Input } from '@/components/ui/input'
 import { HabitTimingField } from './habit-form-fields/habit-timing-field'
 import { HabitTypeField } from './habit-form-fields/habit-type-field'
 import { HabitDateField } from './habit-form-fields/habit-date-field'
-import { DateField } from '@/components/ui/date-field'
 import { ListRow } from '@/components/ui/list-row'
 import { Proposed } from '@/components/ui/proposed'
 import { FormSectionLabel } from './habit-form-fields/form-section-label'
@@ -52,12 +44,9 @@ import { HabitChecklist } from './habit-checklist'
 import { HabitScheduleFields } from './habit-form-fields/habit-schedule-fields'
 import { HabitMonthDaysField } from './habit-form-fields/habit-month-days-field'
 import { HabitUnderstanding, HabitRepeatInterval } from './habit-form-fields/habit-understanding'
-import { SlipAlertSection } from './habit-form-fields/slip-alert-section'
-import { TagEditorRow } from './habit-form-fields/tag-editor-row'
-import { TagPickerField } from './habit-form-fields/tag-picker-field'
-import { TagSuggestions } from './habit-form-fields/tag-suggestions'
-import { useTagSuggestions } from '@/hooks/use-tag-suggestions'
-import { createStyles as createFormStyles } from './habit-form-fields/styles'
+import { HabitTagsField } from './habit-form-fields/habit-tags-field'
+import { EndDateEditor } from './habit-form-fields/end-date-editor'
+import { HabitAvoidanceFields } from './habit-form-fields/habit-avoidance-fields'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -127,67 +116,6 @@ interface SubHabitSectionProps {
   t: (key: string) => string
 }
 
-interface EndDateEditorProps {
-  visible: boolean
-  value: string
-  onChange: (value: string) => void
-  t: (key: string) => string
-}
-
-function EndDateEditor({ visible, value, onChange, t }: Readonly<EndDateEditorProps>) {
-  const { disabled, guard } = useHabitFormInteraction()
-  const { i18n } = useTranslation()
-  const [focusRequest, setFocusRequest] = useState(0)
-  const [endDateExpanded, setShowEndDate] = useState<boolean | null>(null)
-  const showEndDate = endDateExpanded ?? Boolean(value)
-  if (!visible) return null
-  return (
-    <View testID="end-date-levels" style={{ gap: 16 }}>
-      <FormSectionLabel>{t('habits.form.ending')}</FormSectionLabel>
-      <View><ListRow disabled={disabled} placement="field" title={t('habits.form.addEndDate')} value={value && !showEndDate ? formatLocaleDate(value, i18n.language) : undefined} expanded={showEndDate} onClick={guard(() => setShowEndDate(!showEndDate))} /></View>
-      {showEndDate ? <View style={{ gap: 8 }}>
-      <FormSectionLabel>{t('habits.form.endDateQuestion')}</FormSectionLabel>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}><View style={{ flex: 1, minWidth: 0 }}><DateField disabled={disabled} label={t('habits.form.endDateQuestion')} value={value} placeholder={t('habits.form.endDatePlaceholder')} onChange={guard((next: string) => { setShowEndDate(true); onChange(next) })} focusRequest={focusRequest} /></View>
-      {value ? <View style={{ alignItems: 'flex-end' }}>
-        <PillButton disabled={disabled} variant="ghost" iconOnly label={t('habits.form.removeEndDate')} onClick={() => {
-          setShowEndDate(true)
-          onChange('')
-          setFocusRequest((request) => request + 1)
-        }}><X size={20} /></PillButton>
-      </View> : null}</View>
-      </View> : null}
-    </View>
-  )
-}
-
-interface SlipAlertEditorProps {
-  visible: boolean
-  tokens: AppTokens
-  hasProAccess: boolean
-  slipAlertEnabled: boolean
-  onToggle: () => void
-  onUpgrade: () => void
-  t: (key: string) => string
-}
-
-function SlipAlertEditor({
-  visible,
-  tokens,
-  hasProAccess,
-  slipAlertEnabled,
-  onToggle,
-  onUpgrade,
-  t,
-}: Readonly<SlipAlertEditorProps>) {
-  if (!visible) return null
-  return (
-    <View style={{ gap: 8 }}>
-      <FormSectionLabel>{t('habits.form.slipAlertQuestion')}</FormSectionLabel>
-      <SlipAlertSection inline tokens={tokens} hasProAccess={hasProAccess} slipAlertEnabled={slipAlertEnabled} onToggle={onToggle} onUpgrade={onUpgrade} />
-    </View>
-  )
-}
-
 function SubHabitSection({
   proposed,
   task,
@@ -201,23 +129,6 @@ function SubHabitSection({
       <Proposed proposed={proposed} scope="field" label={t('habits.detail.proposed')}>
         {children}
       </Proposed>
-    </View>
-  )
-}
-
-function HabitAvoidanceFields({ formHelpers, controller, hasProAccess, tokens, onUpgrade }: Readonly<{ formHelpers: HabitFormHelpers; controller: ReturnType<typeof createHabitFormController>; hasProAccess: boolean; tokens: ReturnType<typeof createTokensV2>; onUpgrade: () => void }>) {
-  const { t } = useTranslation()
-  const { form } = formHelpers
-  const { disabled, guard } = useHabitFormInteraction()
-  const isBadHabit = useWatch({ control: form.control, name: 'isBadHabit' }) ?? false
-  const slipAlertEnabled = useWatch({ control: form.control, name: 'slipAlertEnabled' }) ?? false
-  if (formHelpers.isGeneral) return null
-  return (
-    <View style={{ gap: 16 }}>
-      <FormSectionLabel>{t('habits.form.avoidGroup')}</FormSectionLabel>
-            <View><ListRow disabled={disabled} placement="field" title={t('habits.form.habitTypeAvoid')} description={isBadHabit ? t('habits.form.habitTypeAvoidHint') : t('habits.form.habitTypeBuildHint')} toggle={{ checked: isBadHabit, onChange: guard((checked) => form.setValue('isBadHabit', checked, { shouldDirty: true })) }} /></View>
-
-            <SlipAlertEditor visible={isBadHabit} tokens={tokens} hasProAccess={hasProAccess} slipAlertEnabled={slipAlertEnabled} onToggle={() => controller.setSlipAlertEnabled(!slipAlertEnabled)} onUpgrade={onUpgrade} t={t} />
     </View>
   )
 }
@@ -262,7 +173,6 @@ export function HabitFormFields({
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
   const styles = useMemo(() => createStyles(tokens), [tokens])
-  const formStyles = useMemo(() => createFormStyles(tokens), [tokens])
   const { showError } = useAppToast()
   const hasProAccess = useHasProAccess()
   const { profile } = useProfile()
@@ -293,8 +203,6 @@ export function HabitFormFields({
   const subHabitChildren = renderSubHabitChildren(children, proposal.subHabitItems)
   const [phraseOwnership, setPhraseOwnership] = useState({ cadence: false, dueTime: false })
   const lastLocallyReadPhraseRef = useRef<{ title: string; itemType: typeof itemType; general: boolean } | null>(null)
-  const newTagErrors = useBackendFieldErrors({ name: tags.newTagName }, { name: 'Name' })
-  const editTagErrors = useBackendFieldErrors({ name: tags.editTagName }, { name: 'Name' })
   const descriptionFailure = formHelpers.backendFieldErrors.description
 
   const [previousExpandSignal, setPreviousExpandSignal] = useState(expandAdvancedSignal)
@@ -303,28 +211,6 @@ export function HabitFormFields({
     if (expandAdvancedSignal > 0) setDetailsOpen(true)
   }
 
-  const { tags: availableTags = [] } = useTags()
-  const initialTagName = availableTags.find(tag => tag.id === tags.editingTagId)?.name ?? ''
-  const tagEditorDirty = hasTagDraftChanges(tags, initialTagName)
-  const discardTagEditor = () => {
-    newTagErrors.clearBackendErrors()
-    editTagErrors.clearBackendErrors()
-    tags.setNewTagName('')
-    tags.setShowNewTag(false)
-    tags.cancelEditTag()
-  }
-
-  const createTag = useCreateTag()
-  const updateTag = useUpdateTag()
-  const deleteTag = useDeleteTag()
-  const tagMutationPending = createTag.isPending || updateTag.isPending || deleteTag.isPending
-  const suggestTags = useSuggestTags()
-  const tagSuggestions = useTagSuggestions({
-    availableTags,
-    title, description, language: i18n.language, disabled: disabled || tagMutationPending || tags.atTagLimit,
-    request: suggestTags.mutateAsync,
-    accept: (suggestion) => tags.acceptSuggestedTag(suggestion, async (name, color) => (await createTag.mutateAsync({ name, color })).id),
-  })
   const localRead = useMemo(
     () => readTypedHabitPhrase(title, locale, itemType, formHelpers.isGeneral),
     [formHelpers.isGeneral, itemType, locale, title],
@@ -410,38 +296,6 @@ export function HabitFormFields({
     onResolveSubHabitProposalReady(controller.resolveSubHabitProposal)
     return () => onResolveSubHabitProposalReady(() => {})
   }, [controller, onResolveSubHabitProposalReady])
-
-  async function createNewTag() {
-    if (isDisabled()) return
-    const validationError = validateTagForm(tags.newTagName, tags.newTagColor)
-    if (validationError) {
-      showError(translate(validationError))
-      return
-    }
-    try {
-      await tags.createAndSelectTag(async (name, color) => (await createTag.mutateAsync({ name, color })).id)
-    } catch (error: unknown) {
-      if (!newTagErrors.reportBackendErrors(error).handled) showError(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
-    }
-  }
-
-  async function deleteExistingTag(id: string) {
-    try {
-      await tags.deleteTag(id, async (tagId) => { await deleteTag.mutateAsync(tagId) })
-    } catch (error: unknown) {
-      showError(getFriendlyErrorMessage(error, translate, 'toast.errors.unknown', 'tag'))
-      if (extractBackendStatus(error) !== 409) captureError(error)
-    }
-  }
-
-  async function saveEditedTag() {
-    if (isDisabled()) return
-    try {
-      await tags.saveEditTag(async (id, name, color) => { await updateTag.mutateAsync({ tagId: id, name, color }) })
-    } catch (error: unknown) {
-      if (!editTagErrors.reportBackendErrors(error).handled) showError(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
-    }
-  }
 
   return (
     <View style={styles.container} accessibilityState={{ busy: disabled }}>
@@ -530,7 +384,7 @@ export function HabitFormFields({
             <View style={{ gap: 16 }}>
               <FormSectionLabel>{t('habits.form.organize')}</FormSectionLabel>
             {parentField}
-            <View><TagPickerField editorDirty={tagEditorDirty} onDiscardEditor={discardTagEditor} suggestions={<TagSuggestions translateError={allowanceText} suggestions={tagSuggestions} atLimit={tags.atTagLimit} disabled={disabled || tagMutationPending} />} tags={availableTags} selectedIds={tags.selectedTagIds} atLimit={tags.atTagLimit} disabled={disabled || tagMutationPending} onToggle={guard(tags.toggleTag)} onCreate={() => tags.setShowNewTag(true)} onEdit={tags.startEditTag} onDelete={(id) => void deleteExistingTag(id)} editLabel={t('habits.form.editTag')} deleteLabel={t('habits.form.deleteTag')} editor={tags.showNewTag ? <TagEditorRow error={newTagErrors.fieldErrors.name} focusRequest={newTagErrors.focusRequest} value={tags.newTagName} placeholder={t('habits.form.tagName')} disabled={disabled || createTag.isPending} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.add')} onChange={guard(tags.setNewTagName)} onCommit={() => void createNewTag()} onCancel={discardTagEditor} styles={formStyles} tokens={tokens} /> : tags.editingTagId ? <TagEditorRow error={editTagErrors.fieldErrors.name} focusRequest={editTagErrors.focusRequest} initialValue={initialTagName} value={tags.editTagName} disabled={disabled || updateTag.isPending} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.save')} onChange={guard(tags.setEditTagName)} onCommit={() => void saveEditedTag()} onCancel={discardTagEditor} styles={formStyles} tokens={tokens} /> : undefined} />{tags.atTagLimit ? <Text style={styles.hint}>{t('habits.form.tagLimit')}</Text> : null}</View>
+            <HabitTagsField tags={tags} title={title} description={description} />
             <View><GoalLinkingField habitId={habitId} onGoalCreated={guard(onGoalCreated ?? onToggleGoal)} selectedGoalIds={selectedGoalIds} atGoalLimit={atGoalLimit} onToggleGoal={guard(onToggleGoal)} /></View>
             </View>
             <EndDateEditor visible={showEndDate} value={endDate} onChange={guard((value) => setValue('endDate', value, { shouldDirty: true }))} t={t} />

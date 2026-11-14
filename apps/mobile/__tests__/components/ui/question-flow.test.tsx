@@ -1,4 +1,4 @@
-import { Modal } from 'react-native'
+import { Modal, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { markGuidedFlowCompleted } from '@orbit/shared/utils'
 import { act } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
@@ -52,7 +52,7 @@ describe('QuestionFlow on Android', () => {
   it('keeps the block centred, then aligns it under the header and scrolls while the keyboard is open', () => {
     const tree = renderNavigation(flow())
     const scroller = () => tree.hosts().find((node) => node.props.testID === 'question-flow-scroll')!
-    const content = () => [scroller().props.contentContainerStyle].flat(Infinity).filter(Boolean).reduce((style, entry) => ({ ...style, ...entry }), {})
+    const content = () => StyleSheet.flatten((scroller().props as { contentContainerStyle?: StyleProp<ViewStyle> }).contentContainerStyle)
     expect(content()).toMatchObject({ justifyContent: 'center', flexGrow: 1 })
     void act(() => __emitKeyboardEvent('keyboardDidShow'))
     expect(content()).toMatchObject({ justifyContent: 'flex-start' })
