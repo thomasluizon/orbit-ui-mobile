@@ -7,6 +7,7 @@ import ICUCommonJs from 'i18next-icu/cjs'
 import type { ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile, createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
+import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { buildWrappedSlides } from '@orbit/shared/utils'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -164,6 +165,7 @@ describe('mobile WrappedSlide', () => {
     profileState.isError = isError
     const tree = renderSlide({ id: 'consistency', weeklyConsistency: [100, 0, 0, 0, 0, 0, 0] }, 'week', recap, null)
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'image')).toHaveLength(0)
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'orbit-mascot')).toHaveLength(0)
     expect(tree.root.findAll((node) => node.props.children === 'wrapped.slides.consistency.thin')).toHaveLength(0)
     if (isError) {
       expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'alert').length).toBeGreaterThan(0)
@@ -175,6 +177,25 @@ describe('mobile WrappedSlide', () => {
       expect(loading.props.accessibilityLabel).toBe('wrapped.loading')
       expect(loading.props.accessibilityState).toMatchObject({ busy: true })
     }
+    void renderer.act(() => tree.update(<></>))
+  })
+
+  it('states the consistency error with Orbit in Parado under orbit_guided_flows, and retry reads the profile again', () => {
+    enableTestFlags('orbit_guided_flows')
+    profileState.isError = true
+    const tree = renderSlide({ id: 'consistency', weeklyConsistency: [100, 0, 0, 0, 0, 0, 0] }, 'week', recap, null)
+    const hosts = tree.root.findAll((node) => typeof node.type === 'string')
+
+    const orbit = hosts.filter((node) => node.props.testID === 'orbit-mascot')
+    expect(orbit).toHaveLength(1)
+    expect(orbit[0]!.props).toMatchObject({ 'data-orbit-state': 'parado', width: 96 })
+    const alert = hosts.filter((node) => node.props.accessibilityRole === 'alert')
+    expect(alert).toHaveLength(1)
+    expect(alert[0]!.props.accessibilityLabel).toBe('wrapped.error')
+    expect(hosts.filter((node) => node.props.accessibilityRole === 'image')).toHaveLength(0)
+    const retry = hosts.find((node) => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'wrapped.retry')!
+    void renderer.act(() => (retry.props.onPress as () => void)())
+    expect(profileState.refetch).toHaveBeenCalledOnce()
     void renderer.act(() => tree.update(<></>))
   })
 

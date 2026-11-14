@@ -3,7 +3,7 @@ import { RefreshCw } from '@/components/ui/icons'
 import { PersonalText } from '@/components/ui/personal-text'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { useEffect, useState, type Ref } from 'react'
-import { View, useWindowDimensions } from 'react-native'
+import { Text, View, useWindowDimensions } from 'react-native'
 import Animated, {
   Easing,
   Keyframe,
@@ -32,7 +32,7 @@ import { useFlag } from '@/hooks/use-flag'
 import { ErrorState } from '@/components/ui/error-state'
 
 import { Skeleton } from '@/components/ui/skeleton'
-import { OrbitMascot } from '@/components/ui/orbit-mascot'
+import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 import { styles, type Tokens } from '@/app/wrapped-styles'
 
 const motionFinalStyle = { opacity: 1, transform: [{ translateY: 0 }] }
@@ -117,11 +117,9 @@ export function WrappedSlide({ slide, recap, period, tokens, shareRef, shareErro
           </Animated.Text>
           {period === 'week' && !profile ? (
             <View testID="wrapped-figure" style={styles.figureWidth}>
-              {isProfileError ? (
-                <ErrorState message={t('wrapped.error')} action={
-                  <IconButton label={t('wrapped.retry')} onClick={() => void refetchProfile()}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
-                } />
-              ) : <Skeleton variant="bar-chart" label={t('wrapped.loading')} />}
+              {isProfileError
+                ? <SlideLoadError tokens={tokens} onRetry={() => void refetchProfile()} />
+                : <Skeleton variant="bar-chart" label={t('wrapped.loading')} />}
             </View>
           ) : (
             <>
@@ -186,6 +184,23 @@ export function WrappedSlide({ slide, recap, period, tokens, shareRef, shareErro
     case 'share':
       return <WrappedShareSlide recap={recap} tokens={tokens} shareRef={shareRef} hasError={shareError} savedFileName={savedFileName} reducedMotion={reducedMotion} />
   }
+}
+
+/** The consistency figure did not load. Under `orbit_guided_flows`, Orbit in Parado states it above the message. */
+function SlideLoadError({ tokens, onRetry }: Readonly<{ tokens: Tokens; onRetry: () => void }>) {
+  const { t } = useTranslation()
+  const guided = useFlag('orbit_guided_flows')
+  const mascotSize = useStateMascotSize()
+  const message = t('wrapped.error')
+  const retry = <IconButton label={t('wrapped.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
+  if (!guided) return <ErrorState message={message} action={retry} />
+  return (
+    <View testID="wrapped-slide-error" style={styles.slideError}>
+      <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden><OrbitMascot size={mascotSize} state="parado" /></View>
+      <Text accessible accessibilityLabel={message} accessibilityLiveRegion="polite" accessibilityRole="alert" style={[styles.slideErrorMessage, { color: tokens.fg1 }]}>{message}</Text>
+      {retry}
+    </View>
+  )
 }
 
 interface HeroStatSlideProps {
@@ -366,14 +381,14 @@ interface WrappedShareSlideProps {
 function WrappedShareSlide({ recap, tokens, shareRef, hasError, savedFileName, reducedMotion }: Readonly<WrappedShareSlideProps>) {
   const { t } = useTranslation()
   const guided = useFlag('orbit_guided_flows')
-  const { width } = useWindowDimensions()
+  const mascotSize = useStateMascotSize()
   const firstStep = guided ? 1 : 0
 
   return (
     <View style={styles.shareSlide} testID="wrapped-slide-share">
       {guided ? (
         <Animated.View nativeID="wrapped-motion-part-0" entering={enter(0, reducedMotion)} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden style={motionFinalStyle}>
-          <OrbitMascot size={width >= 1024 ? 128 : 96} state="feliz" />
+          <OrbitMascot size={mascotSize} state="feliz" />
         </Animated.View>
       ) : null}
       <Animated.Text nativeID={`wrapped-motion-part-${firstStep}`} entering={enter(firstStep, reducedMotion)} accessibilityRole="header" style={[styles.title, motionFinalStyle, { color: tokens.fg1 }]}>{t('wrapped.slides.share.title')}</Animated.Text>

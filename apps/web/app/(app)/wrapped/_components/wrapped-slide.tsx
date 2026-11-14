@@ -21,11 +21,10 @@ import { ShareCard } from '@/components/share/share-card'
 import { Columns } from '@/components/ui/columns'
 import { useProfile } from '@/hooks/use-profile'
 import { useFlag } from '@/hooks/use-flag'
-import { useViewportMatch } from '@/hooks/use-viewport-match'
 import { ErrorState } from '@/components/ui/error-state'
 
 import { Skeleton } from '@/components/ui/skeleton'
-import { OrbitMascot } from '@/components/ui/orbit-mascot'
+import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 import {
   captionStyle,
   heroNumeralStyle,
@@ -122,11 +121,9 @@ export function WrappedSlide({ slide, recap, period, captureRef, shareError, sav
           </motion.h2>
           {period === 'week' && !profile ? (
             <div data-wrapped-figure="primary" className="w-full">
-              {isProfileError ? (
-                <ErrorState message={t('wrapped.error')} action={
-                  <IconButton label={t('wrapped.retry')} onClick={() => void refetchProfile()}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
-                } />
-              ) : <Skeleton variant="bar-chart" label={t('wrapped.loading')} />}
+              {isProfileError
+                ? <SlideLoadError onRetry={() => void refetchProfile()} />
+                : <Skeleton variant="bar-chart" label={t('wrapped.loading')} />}
             </div>
           ) : (
             <>
@@ -226,6 +223,22 @@ function SlideShell({ children, testId, gap = 8 }: Readonly<SlideShellProps>) {
       style={{ gap }}
     >
       {children}
+    </div>
+  )
+}
+
+/** The consistency figure did not load. Under `orbit_guided_flows`, Orbit in Parado states it above the message. */
+function SlideLoadError({ onRetry }: Readonly<{ onRetry: () => void }>) {
+  const t = useTranslations()
+  const guided = useFlag('orbit_guided_flows')
+  const mascotSize = useStateMascotSize()
+  const retry = <IconButton label={t('wrapped.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
+  if (!guided) return <ErrorState message={t('wrapped.error')} action={retry} />
+  return (
+    <div role="alert" aria-live="polite" aria-atomic="true" data-wrapped-slide-error="" className="flex flex-col items-center gap-6 px-6 py-12 text-center">
+      <span aria-hidden="true"><OrbitMascot size={mascotSize} state="parado" /></span>
+      <p className="max-w-[65ch] text-base text-[var(--fg-1)]">{t('wrapped.error')}</p>
+      {retry}
     </div>
   )
 }
@@ -391,7 +404,7 @@ interface WrappedShareSlideProps {
 function WrappedShareSlide({ recap, captureRef, hasError, savedFileName, reducedMotion }: Readonly<WrappedShareSlideProps>) {
   const t = useTranslations()
   const guided = useFlag('orbit_guided_flows')
-  const wide = useViewportMatch('(min-width: 1024px)')
+  const mascotSize = useStateMascotSize()
   const firstStep = guided ? 1 : 0
 
   return (
@@ -402,7 +415,7 @@ function WrappedShareSlide({ recap, captureRef, hasError, savedFileName, reduced
     >
       {guided ? (
         <motion.div data-testid="wrapped-motion-part" aria-hidden="true" {...motionProps(0, reducedMotion)} style={{ lineHeight: 0 }}>
-          <OrbitMascot size={wide ? 128 : 96} state="feliz" />
+          <OrbitMascot size={mascotSize} state="feliz" />
         </motion.div>
       ) : null}
       <motion.h2 data-testid="wrapped-motion-part" {...motionProps(firstStep, reducedMotion)} style={titleStyle}>
