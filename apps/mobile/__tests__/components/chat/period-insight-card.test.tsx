@@ -17,6 +17,7 @@ vi.mock('react-i18next', () => ({
 interface TestNode {
   readonly props: Readonly<Record<string, unknown>>
   findByProps(props: Readonly<Record<string, unknown>>): TestNode
+  findAllByProps(props: Readonly<Record<string, unknown>>): TestNode[]
   findAllByType(type: string): TestNode[]
 }
 
@@ -87,7 +88,7 @@ describe('period insight card on mobile', () => {
 
   it('omits a missing chart with empty narrative defaults', () => {
     const root = render(<PeriodInsightCard periodInsight={{ ...insight, series: null, narrative: { highlights: '', trends: '', suggestion: '', missed: '' } }} />)
-    expect(root.findAllByType('Path')).toHaveLength(8)
+    expect(root.findAllByProps({ testID: 'bar-chart-control' })).toHaveLength(0)
     const more = root.findByProps({ accessibilityLabel: 'chat.habitList.more' })
     void act(() => { (more.props.onPress as () => void)() })
     expect(root.findAllByType('Text').some(node => node.props.children === 'chat.insight.highlights')).toBe(false)
