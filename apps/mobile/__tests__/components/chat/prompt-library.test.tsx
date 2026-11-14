@@ -347,7 +347,7 @@ it.each(['Limite diário atingido', 'Você está offline'])('disables template a
 it.each([['descansando', [[48, 'descansando']]], ['parado', []]] as const)('rests Orbit beside the reason only while the AI is the missing part, with the conversation in %s', (mascotState, faces) => {
   library({ disabledReason: 'Você está offline', mascotState })
   const notice = tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'capacity-notice')[0]!
-  expect(notice.findAll(node => typeof node.type === 'string' && node.props.testID === 'orbit-mascot').map(node => [node.props.width, node.props['data-orbit-state']])).toEqual(faces)
+  expect(notice.findAll(node => typeof node.type === 'string' && node.props.testID === 'orbit-mascot').map(node => { const props = node.props as Record<string, unknown>; return [props.width, props['data-orbit-state']] })).toEqual(faces)
 })
 
 it('uses the composer live rows and their activation, and omits an empty live section', () => {

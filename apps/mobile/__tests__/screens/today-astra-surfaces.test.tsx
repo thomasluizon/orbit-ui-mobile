@@ -177,7 +177,7 @@ describe('mobile Today Astra owned surfaces', () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     try {
       await TestRenderer.act(() => { tree = createTestTree(<TodayScreen />) })
-      expect(tree.root.findByType(ErrorState).props).toMatchObject({ fullSurface: true, message: 'common.error' })
+      expect(tree.root.findAllByType(ErrorState)[0]?.props).toMatchObject({ fullSurface: true, message: 'common.error' })
     } finally {
       mocks.profileReady = true
       mocks.profileError = false

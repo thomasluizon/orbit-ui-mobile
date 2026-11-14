@@ -12,7 +12,7 @@ describe('Hoje Orbit line on Android', () => {
     const face = line.findAll((node: ReactTestInstance) => typeof node.type === 'string' && node.props.testID === 'orbit-mascot')[0]!
     expect(face.props).toMatchObject({ width: 48, 'data-orbit-face': 'rig', 'data-orbit-loop': 'still', accessible: false, color: createTokensV2('purple', 'dark').fg1 })
     expect(line.props.accessibilityLabel).toBe('Sua rotina mudou. Vamos conversar?')
-    await act(() => line.props.onPress())
+    await act(() => (line.props.onPress as () => void)())
     expect(onPress).toHaveBeenCalledOnce()
     await act(() => tree!.unmount())
   })
