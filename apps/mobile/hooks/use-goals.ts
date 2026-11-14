@@ -28,6 +28,7 @@ import {
   cancelQueuedDeleteForUndo,
   createQueuedAck,
   createTempEntityId,
+  discardCompactedCreateForUndo,
   isQueuedResult,
   queueOrExecute,
   type QueuedMarker,
@@ -187,7 +188,12 @@ export function useRestoreGoal() {
   })
 }
 
-export function useDeleteGoal() {
+interface DeleteGoalOptions {
+  /** Takes the undo instead of the undo toast, so a result dialog can offer it. `release` is what the toast runs when it leaves without an undo. */
+  onDeleted?: (actions: { undo: () => void; release?: () => void }) => void
+}
+
+export function useDeleteGoal({ onDeleted }: DeleteGoalOptions = {}) {
   const queryClient = useQueryClient()
   const { t } = useTranslation()
   const restoreGoal = useRestoreGoal()
@@ -218,7 +224,7 @@ export function useDeleteGoal() {
     },
 
     onSuccess: (data, goalId, context) => {
-      showUndoToast(t('undo.goalDeleted'), () => {
+      const undo = () => {
         if (isQueuedResult(data)) {
           void cancelQueuedDeleteForUndo(data.queuedMutationId).then((outcome) => {
             if (outcome !== 'replayed') {
@@ -230,7 +236,13 @@ export function useDeleteGoal() {
           return
         }
         restoreGoal.mutate(goalId)
-      }, isQueuedResult(data) ? data.queuedMutationId : undefined)
+      }
+      const queuedMutationId = isQueuedResult(data) ? data.queuedMutationId : undefined
+      if (!onDeleted) {
+        showUndoToast(t('undo.goalDeleted'), undo, queuedMutationId)
+        return
+      }
+      onDeleted({ undo, release: queuedMutationId ? () => discardCompactedCreateForUndo(queuedMutationId) : undefined })
     },
 
     onMutate: (goalId) => removeGoalFromCache(queryClient, goalId),

@@ -43,6 +43,9 @@ const maxButtonWordControls = [
   { name: "SegmentedControl", collectionProps: ["options"] },
   { name: "BottomTabBar", collectionProps: ["items"] },
   { name: "ListRow", labelProps: ["title", "action.label"], iconAction: true },
+  // Ruling 7 of #2121: a quick option is an answer of at most 4 words, and the destination action of a result dialog takes 3.
+  { name: "OptionCard", labelProps: ["label"], maxWords: 4 },
+  { name: "ResultDialog", labelProps: ["primaryLabel"], maxWords: 3 },
 ]
 
 // https://github.com/expo/expo/issues/43758 — eslint-config-expo@56 bundles react-hooks v7 and

@@ -282,6 +282,14 @@ function ScheduleCorrections({ hidden = false, proposed = false, days, daily = f
   )
 }
 
+/** The weekday picker and the count stepper of a repeat, with the tokens of the current theme. The repeat step of the guided flow hosts them. */
+export function HabitScheduleCorrections(props: Readonly<Omit<ScheduleCorrectionProps, 'tokens' | 'styles'>>) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
+  const styles = useMemo(() => createStyles(tokens, 23), [tokens])
+  return <ScheduleCorrections {...props} tokens={tokens} styles={styles} />
+}
+
 export function HabitRepeatInterval({ visible, intervalWeeks, scheduleLocked = false, onIntervalWeeksChange, labels }: Readonly<HabitRepeatIntervalProps>) {
   const { disabled } = useHabitFormInteraction()
   scheduleLocked = scheduleLocked || disabled

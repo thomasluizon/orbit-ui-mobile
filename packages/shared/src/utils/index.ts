@@ -431,6 +431,18 @@ export {
 } from './onboarding'
 export type { OnboardingCompleteCopy, OnboardingCompleteState, OnboardingRemindCopy, OnboardingRemindState, OnboardingSchedule, OnboardingScheduleMode } from './onboarding'
 export {
+  describeOnboardingCadence,
+  describeOnboardingResult,
+  ONBOARDING_INTRO_SCREENS,
+  ONBOARDING_MODE_OPTIONS,
+  onboardingGuidedPosition,
+  onboardingModeDetailStep,
+  onboardingModeKey,
+  onboardingNeedsCadence,
+  phraseLineKey,
+} from './onboarding-guided'
+export type { OnboardingCadenceText, OnboardingIntroScreen, OnboardingQuestionStep, OnboardingResultSentence } from './onboarding-guided'
+export {
   isMissingBillingError,
   isMissingBillingStatus,
 } from './billing'
@@ -480,6 +492,18 @@ export {
   validateGoalProgressInput,
 } from './goal-form'
 export type { GoalDraftFieldError, GoalDraftFieldErrorKeys } from './goal-form'
+export {
+  advanceGoalFlow,
+  getGoalFlowStepError,
+  goalFlowPosition,
+  goalFlowSteps,
+  openGoalFlowStep,
+  retreatGoalFlow,
+  startGoalFlow,
+} from './goal-flow'
+export type { GoalFlowNavigation, GoalFlowOptions, GoalFlowStep, GoalFlowStepDraft, GoalFlowStepError } from './goal-flow'
+export { resolveGoalDeadlineChoice, resolveMonthEndDeadline, resolveYearEndDeadline, type GoalDeadlineChoice } from './goal-deadline-options'
+export { buildTagLineItems, joinNamedItems, type TagLineHabit, type TagLineItems } from './tag-flow-line'
 export {
   createEmptyNotificationsResponse,
   deleteNotificationFromList,
@@ -927,6 +951,8 @@ export type {
   HabitFlowStepKey,
 } from './habit-flow-navigation'
 export { answerHabitReminder, answerHabitTime, answerHabitWhen, shiftCalendarDate, HABIT_TIME_OPTIONS } from './habit-flow-answers'
+export { guardHabitReadPatch, habitFlowFieldStep, habitFlowOptionalQuestions, readHabitWhenWords, summaryValueStep } from './habit-flow-details'
+export type { HabitFlowOptionalInput, HabitWhenWords, HabitWhenWordsContext } from './habit-flow-details'
 export type { HabitFlowFormPort, HabitWhenChoice } from './habit-flow-answers'
 
 export {

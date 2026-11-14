@@ -17,6 +17,7 @@ export function OptionCard({ label, selected = false, disabled = false, disabled
       <MotionPressable
         ref={control}
         focusInset
+        selectionRingWidth={2}
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityState={{ selected, disabled }}
@@ -36,7 +37,7 @@ export function OptionCard({ label, selected = false, disabled = false, disabled
 
 const styles = StyleSheet.create({
   wrapper: { width: '48%', gap: 4, minWidth: 0 },
-  card: { minHeight: 72, alignItems: 'center', justifyContent: 'center', borderRadius: 20, overflow: 'hidden', paddingHorizontal: 16, paddingVertical: 12 },
+  card: { minHeight: 72, alignItems: 'center', justifyContent: 'center', borderRadius: 20, borderWidth: 2, overflow: 'hidden', paddingHorizontal: 16, paddingVertical: 12 },
   disabled: { opacity: 0.5 },
   label: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 24, textAlign: 'center' },
   reason: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 16, textAlign: 'center' },

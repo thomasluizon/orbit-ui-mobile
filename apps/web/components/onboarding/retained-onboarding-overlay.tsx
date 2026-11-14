@@ -5,6 +5,7 @@ import {
   useLiveOnboardingActions,
 } from './onboarding-actions-context'
 import { useAccountGeneration } from '@/hooks/use-session-reset'
+import { useFlag } from '@/hooks/use-flag'
 import dynamic from 'next/dynamic'
 
 const OnboardingFlow = dynamic(
@@ -21,10 +22,11 @@ export function RetainedOnboardingOverlay({ finalStepOnly = false, onExit }: Rea
    * resets that are nineteen chances to forget one. The remount is not a clean slate.
    */
   const accountGeneration = useAccountGeneration()
+  const guided = useFlag('orbit_guided_flows')
 
   return (
     <OnboardingActionsProvider actions={actions} isLive>
-      <OnboardingFlow finalStepOnly={finalStepOnly} onExit={onExit} key={accountGeneration} />
+      <OnboardingFlow finalStepOnly={finalStepOnly} onExit={onExit} guided={guided} key={accountGeneration} />
     </OnboardingActionsProvider>
   )
 }

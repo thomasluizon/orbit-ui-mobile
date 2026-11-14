@@ -16,6 +16,7 @@ export type HabitFlowDetailStep =
   | 'duration'
   | 'reminderKind'
   | 'emoji'
+  | 'slipAlert'
   | 'more'
   | `optional:${HabitFlowOptionalId}`
 

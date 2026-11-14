@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AccessibilityInfo, Animated, Easing, findNodeHandle, Keyboard, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
+import { AccessibilityInfo, Animated, Easing, findNodeHandle, Keyboard, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import type { QuestionFlowProps } from '@orbit/shared/contracts/flow'
 import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { ArrowLeft, X } from '@/components/ui/icons'
 import { FlowLookProvider, useFlowLookState } from '@/components/ui/flow-look'
+import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { PagerSegments } from '@/components/ui/pager'
 import { PillButton } from '@/components/ui/pill-button'
@@ -43,6 +44,11 @@ function useKeyboardOpen() {
   return open
 }
 
+/** The block is centred in the free space. While the keyboard is open it aligns under the header and scrolls. */
+function scrollContentStyle(keyboardOpen: boolean) {
+  return keyboardOpen ? [styles.scrollContent, styles.underHeader] : styles.scrollContent
+}
+
 function useStepTravel(stepKey: string, direction: 1 | -1) {
   const { width } = useWindowDimensions()
   const reducedMotion = usePrefersReducedMotion()
@@ -75,9 +81,27 @@ function useQuestionFocus(stepKey: string, onStepChange: () => void) {
   return headingRef
 }
 
+/** The Orbit line. A step remounts it, so only a new `lineKey` inside one step fades the new line in, at once under reduced motion. */
+function FlowLine({ line, lineKey, color }: Readonly<{ line: string; lineKey: string | undefined; color: string }>) {
+  const reducedMotion = usePrefersReducedMotion()
+  const [opacity] = useState(() => new Animated.Value(1))
+  const shownKey = useRef(lineKey)
+  useEffect(() => {
+    if (shownKey.current === lineKey) return
+    shownKey.current = lineKey
+    opacity.setValue(reducedMotion ? 1 : 0)
+    if (reducedMotion) return
+    const animation = Animated.timing(opacity, { toValue: 1, duration: motionDurations.micro, useNativeDriver: true, easing: Easing.bezier(...motionEasings.standard) })
+    animation.start()
+    return () => animation.stop()
+  }, [lineKey, opacity, reducedMotion])
+  if (lineKey === undefined) return <Text style={[styles.line, { color }]}>{line}</Text>
+  return <Animated.Text testID="question-flow-line" style={[styles.line, { color, opacity }]}>{line}</Animated.Text>
+}
+
 /** The one-question flow frame. It holds no habit-specific code: a second consumer mounts it with its own content. */
 export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
-  const { flow, question, line, stepKey, direction, orbitState = 'parado', showOrbit = true, statusText, options, children, primary, footer } = props
+  const { flow, question, line, lineKey, stepKey, direction, orbitState = 'parado', showOrbit = true, statusText, options, children, primary, footer } = props
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
   const { width } = useWindowDimensions()
@@ -100,21 +124,21 @@ export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
     <FlowLookProvider look={lookControls}>
       <View testID="question-flow" style={styles.root} accessibilityElementsHidden={false}>
         <FlowHeader props={props} />
-        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <KeyboardAwareScrollView testID="question-flow-scroll" keyboardShouldPersistTaps="handled" contentContainerStyle={scrollContentStyle(keyboardOpen)} showsVerticalScrollIndicator={false}>
           <Animated.View key={stepKey} testID={`question-flow-step-${stepKey}`} style={[styles.block, travel]}>
             {showOrbit ? (
               <View ref={mascotRef} collapsable={false} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
                 <OrbitMascot size={wide ? 128 : 96} state={orbitState} lookAt={shownLook} turnKey={stepKey} />
               </View>
             ) : null}
-            {line ? <Text style={[styles.line, { color: tokens.fg2 }]}>{line}</Text> : null}
+            {line ? <FlowLine line={line} lineKey={lineKey} color={tokens.fg2} /> : null}
             <Text ref={headingRef} accessibilityRole="header" accessibilityHint={line ?? undefined} style={[styles.question, wide ? styles.questionWide : null, { color: tokens.fg1 }]} textBreakStrategy="balanced">{question}</Text>
             {options ? <View style={styles.options}>{options}</View> : null}
             {children ? <View style={styles.freePath}>{children}</View> : null}
             {wide ? primaryAction : null}
             {footer}
           </Animated.View>
-        </ScrollView>
+        </KeyboardAwareScrollView>
         <Text accessibilityLiveRegion="polite" style={styles.status}>{announcement || statusText || ''}</Text>
         {wide ? null : primaryAction}
       </View>
@@ -128,6 +152,7 @@ const styles = StyleSheet.create({
   slot: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   progress: { flex: 1, minWidth: 0 },
   scrollContent: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 16 },
+  underHeader: { justifyContent: 'flex-start' },
   block: { width: '100%', maxWidth: 592, alignItems: 'center', gap: 24 },
   line: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24, textAlign: 'center' },
   question: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 28, lineHeight: 33, textAlign: 'center' },

@@ -14,8 +14,8 @@ extension. Sharing and notification deletion keep their drawn labelled consequen
 | Scoped API key | `components/profile/profile-api-keys.tsx` | `components/profile/profile-api-keys.tsx` | Editing, submitting |
 | API key revoke | `components/ui/confirm-sheet.tsx` | `components/ui/confirm-sheet.tsx` | Destructive confirmation |
 | API key revealed | `components/profile/profile-api-keys.tsx` | `components/profile/profile-api-keys.tsx` | Single acknowledgement |
-| Create habit | `components/habits/create-habit-modal.tsx` | `components/habits/create-habit-modal.tsx` | Habit, sub-habit, submitting |
-| Edit habit | `components/habits/edit-habit-modal.tsx` | `components/habits/edit-habit-modal.tsx` | Editing, submitting |
+| Create habit | `components/habits/create-habit-modal.tsx` | `components/habits/create-habit-modal.tsx` | Habit, sub-habit, submitting. With `orbit_guided_flows` on, the flow has no sheet footer: `FlowScreen` hosts it and the flow pins its one primary action |
+| Edit habit | `components/habits/edit-habit-modal.tsx` | `components/habits/edit-habit-modal.tsx` | Editing, submitting. With `orbit_guided_flows` on, the edit opens on the flow summary in `FlowScreen`, and Save is its primary action |
 | Habit time and reminder | `components/habits/habit-form-fields/habit-timing-field.tsx` | `components/habits/habit-form-fields/habit-timing-field.tsx` | Create and edit; one small trailing Done action; exact time, clock, offset and repeat editors |
 | Repeat reminder log time | `components/habits/repeat-reminder-detail.tsx` | `components/habits/repeat-reminder-detail.tsx` | Editing, validation error, saving, refused correction |
 | Create goal | `components/goals/create-goal-sheet.tsx` | `components/goals/create-goal-sheet.tsx` | Editing, submitting |

@@ -79,7 +79,12 @@ export function useRestoreGoal() {
   })
 }
 
-export function useDeleteGoal() {
+interface DeleteGoalOptions {
+  /** Takes the undo instead of the undo toast, so a result dialog can offer it. */
+  onDeleted?: (undo: () => void) => void
+}
+
+export function useDeleteGoal({ onDeleted }: DeleteGoalOptions = {}) {
   const queryClient = useQueryClient()
   const t = useTranslations()
   const restoreGoal = useRestoreGoal()
@@ -89,7 +94,9 @@ export function useDeleteGoal() {
     mutationFn: (goalId: string, intendedAccountId) => deleteGoalAction(goalId, intendedAccountId),
 
     onSuccess: (_data, goalId) => {
-      showUndoToast(t('undo.goalDeleted'), () => restoreGoal.mutate(goalId))
+      const undo = () => restoreGoal.mutate(goalId)
+      if (onDeleted) onDeleted(undo)
+      else showUndoToast(t('undo.goalDeleted'), undo)
     },
 
     onMutate: (goalId) => removeGoalFromCache(queryClient, goalId),

@@ -61,23 +61,23 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/mobile/components/chat/record-list-card.tsx` | 107 | `TextInput` | inline add | 12 |
 | `apps/mobile/components/goals/edit-goal-modal/edit-goal-target-fields.tsx` | 40 | `BottomSheetAppTextInput` | standard | 16 |
 | `apps/mobile/components/goals/edit-goal-modal/edit-goal-target-fields.tsx` | 62 | `BottomSheetAppTextInput` | standard | 16 |
-| `apps/mobile/components/goals/edit-goal-modal.tsx` | 192 | `BottomSheetAppTextInput` | standard | 16 |
+| `apps/mobile/components/goals/edit-goal-modal.tsx` | 211 | `BottomSheetAppTextInput` | standard | 16 |
 | `apps/mobile/components/habit-list/move-parent-dialog.tsx` | 158 | `Input` | standard | 16 |
 | `apps/mobile/components/habits/checklist-templates.tsx` | 131 | `BottomSheetAppTextInput` | inline add | 12 |
 | `apps/mobile/components/habits/create-goal-from-habit/goal-target-fields.tsx` | 37 | `BottomSheetAppTextInput` | standard | 16 |
 | `apps/mobile/components/habits/create-goal-from-habit/goal-target-fields.tsx` | 58 | `BottomSheetAppTextInput` | standard | 16 |
 | `apps/mobile/components/habits/create-habit-modal/sub-habit-editor.tsx` | 58 | `BottomSheetAppTextInput` | subhabit | 0; 8 after index |
-| `apps/mobile/components/habits/goal-linking-field.tsx` | 70 | `BottomSheetAppTextInput` | standard | 16 |
-| `apps/mobile/components/habits/habit-checklist.tsx` | 119 | `BottomSheetAppTextInput` | checklist edit | 8 with grip |
-| `apps/mobile/components/habits/habit-checklist.tsx` | 222 | `Input` | standard inline add | 16 |
+| `apps/mobile/components/habits/goal-linking-field.tsx` | 52 | `BottomSheetAppTextInput` | standard | 16 |
+| `apps/mobile/components/habits/habit-checklist.tsx` | 112 | `BottomSheetAppTextInput` | checklist edit | 8 with grip |
+| `apps/mobile/components/habits/habit-checklist.tsx` | 200 | `Input` | standard inline add | 16 |
 | `apps/mobile/components/habits/habit-detail-fields.tsx` | 78 | `TextInput` | inline add | 12 |
 | `apps/mobile/components/habits/habit-detail-fields.tsx` | 144 | `Input` | standard | 16 |
 | `apps/mobile/components/habits/habit-detail-screen.tsx` | 187 | `TextInput` | heading | 0; title alignment |
 | `apps/mobile/components/habits/habit-form-fields/habit-emoji-selector.tsx` | 108 | `BottomSheetAppTextInput` | standard | 16 |
 | `apps/mobile/components/habits/habit-form-fields/habit-understanding.tsx` | 69 | `TypedTextInput` | sentence | 16 |
 | `apps/mobile/components/habits/habit-form-fields/reminder-section.tsx` | 198 | `BottomSheetAppTextInput` | inline add | 12 |
-| `apps/mobile/components/habits/habit-form-fields/tag-editor-row.tsx` | 37 | `BottomSheetAppTextInput` | inline add | 12 |
-| `apps/mobile/components/habits/habit-form-fields/tag-picker-field.tsx` | 60 | `BottomSheetAppTextInput` | standard | 16 |
+| `apps/mobile/components/habits/habit-form-fields/tag-editor-row.tsx` | 55 | `BottomSheetAppTextInput` | inline add | 12 |
+| `apps/mobile/components/habits/habit-form-fields/tag-picker-field.tsx` | 87 | `BottomSheetAppTextInput` | standard | 16 |
 | `apps/mobile/components/habits/habit-form-fields.tsx` | 482 | `Input` | standard | 16 |
 | `apps/mobile/components/onboarding/onboarding-welcome.tsx` | 21 | `Input` | standard | 16 |
 | `apps/mobile/components/profile/preferences-sections.tsx` | 100 | `BottomSheetAppTextInput` | standard | 16 |
@@ -107,22 +107,22 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/web/components/command/command-menu-chrome.tsx` | 83 | `CommandInput` | search | 16 |
 | `apps/web/components/goals/edit-goal-modal/edit-goal-target-fields.tsx` | 32 | `FieldWell` | standard | 16 |
 | `apps/web/components/goals/edit-goal-modal/edit-goal-target-fields.tsx` | 44 | `FieldWell` | standard | 16 |
-| `apps/web/components/goals/edit-goal-modal.tsx` | 186 | `FieldWell` | standard | 16 |
+| `apps/web/components/goals/edit-goal-modal.tsx` | 205 | `FieldWell` | standard | 16 |
 | `apps/web/components/goals/field-well.tsx` | 46 | `input` | standard | 16 |
 | `apps/web/components/habits/checklist-templates.tsx` | 100 | `input` | inline add | 12 |
 | `apps/web/components/habits/create-goal-from-habit/goal-target-fields.tsx` | 27 | `FieldWell` | standard | 16 |
 | `apps/web/components/habits/create-goal-from-habit/goal-target-fields.tsx` | 38 | `FieldWell` | standard | 16 |
 | `apps/web/components/habits/create-habit-modal/sub-habit-editor.tsx` | 42 | `input` | subhabit | 0; 8 after index |
 | `apps/web/components/habits/goal-linking-field.tsx` | 64 | `input` | standard | 16 |
-| `apps/web/components/habits/habit-checklist.tsx` | 331 | `input` | checklist edit | 8 with grip |
-| `apps/web/components/habits/habit-checklist.tsx` | 423 | `Input` | standard inline add | 16 |
+| `apps/web/components/habits/habit-checklist.tsx` | 326 | `input` | checklist edit | 8 with grip |
+| `apps/web/components/habits/habit-checklist.tsx` | 404 | `Input` | standard inline add | 16 |
 | `apps/web/components/habits/habit-detail-fields.tsx` | 71 | `input` | inline add | 12 |
 | `apps/web/components/habits/habit-detail-fields.tsx` | 140 | `Input` | standard | 16 |
 | `apps/web/components/habits/habit-detail-screen.tsx` | 187 | `input` | heading | 0; title alignment |
 | `apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx` | 87 | `input` | standard | 16 |
 | `apps/web/components/habits/habit-form-fields/habit-understanding.tsx` | 60 | `textarea` | sentence | 16 |
 | `apps/web/components/habits/habit-form-fields/reminder-section.tsx` | 173 | `input` | inline add | 12 |
-| `apps/web/components/habits/habit-form-fields/tag-editor-row.tsx` | 29 | `input` | inline add | 12 |
+| `apps/web/components/habits/habit-form-fields/tag-editor-row.tsx` | 45 | `input` | inline add | 12 |
 | `apps/web/components/habits/habit-form-fields/tag-picker-field.tsx` | 78 | `input` | standard | 16 |
 | `apps/web/components/habits/habit-form-fields.tsx` | 533 | `Input` | standard | 16 |
 | `apps/web/components/habits/habit-list/move-parent-overlay.tsx` | 145 | `Input` | standard | 16 |

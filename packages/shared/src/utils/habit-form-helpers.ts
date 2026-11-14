@@ -263,6 +263,8 @@ export interface HabitScheduleFieldsProps {
   disabled: boolean
   onModeChange: (flexible: boolean) => void
   onChange: (unit: FrequencyUnit, quantity: number | null, flexible: boolean) => void
+  /** The repeat step of the guided flow asks the mode with its own quick options, so the field shows only the quantity and the unit. */
+  hideMode?: boolean
 }
 
 export interface HabitRepeatIntervalProps {

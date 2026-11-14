@@ -1489,7 +1489,7 @@
         "mobile:control:habits.form.habitTypeAvoidHint"
       ],
       "owners": [
-        "apps/mobile/components/habits/habit-form-fields.tsx"
+        "apps/mobile/components/habits/habit-form-fields/habit-avoidance-fields.tsx"
       ],
       "reason": "The Avoid control renders the active build or avoid description and retains slip logging and its alert editor."
     },
@@ -1498,7 +1498,7 @@
         "mobile:control:habits.form.habitTypeBuildHint"
       ],
       "owners": [
-        "apps/mobile/components/habits/habit-form-fields.tsx"
+        "apps/mobile/components/habits/habit-form-fields/habit-avoidance-fields.tsx"
       ],
       "reason": "The Avoid control renders the active build or avoid description and retains slip logging and its alert editor."
     },
@@ -3522,7 +3522,7 @@
         "web:control:habits.form.habitTypeAvoidHint"
       ],
       "owners": [
-        "apps/web/components/habits/habit-form-fields.tsx"
+        "apps/web/components/habits/habit-form-fields/habit-avoidance-fields.tsx"
       ],
       "reason": "The Avoid control renders the active build or avoid description and retains slip logging and its alert editor."
     },
@@ -3531,7 +3531,7 @@
         "web:control:habits.form.habitTypeBuildHint"
       ],
       "owners": [
-        "apps/web/components/habits/habit-form-fields.tsx"
+        "apps/web/components/habits/habit-form-fields/habit-avoidance-fields.tsx"
       ],
       "reason": "The Avoid control renders the active build or avoid description and retains slip logging and its alert editor."
     },

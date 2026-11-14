@@ -62,13 +62,20 @@ function CadenceSentence({ schedule, color, emphasis }: Readonly<{ schedule: Onb
 }
 
 interface StepperProps { value: number; minimum: number; maximum?: number; lessLabel: string; moreLabel: string; description: string; colors: { fg1: string; fg2: string; fg3: string; bgWell: string; bgHover: string; hairline: string }; onChange: (value: number) => void }
-function Stepper({ value, minimum, maximum, lessLabel, moreLabel, description, colors, onChange }: Readonly<StepperProps>) {
+/** A count control: minus, the value and plus, with what the count means beside it. */
+export function Stepper({ value, minimum, maximum, lessLabel, moreLabel, description, colors, onChange }: Readonly<StepperProps>) {
   return <View style={styles.stepper}>
     <MotionPressable accessibilityRole="button" accessibilityLabel={lessLabel} disabled={value <= minimum} style={({ pressed }) => [styles.stepButton, { backgroundColor: pressed ? colors.bgHover : colors.bgWell, borderColor: colors.hairline }, value <= minimum ? styles.disabled : null]} onPress={() => onChange(Math.max(minimum, value - 1))}><Minus size={20} strokeWidth={2} color={colors.fg2} /></MotionPressable>
     <Text style={[styles.quantity, { color: colors.fg1 }]}>{value}</Text>
     <MotionPressable accessibilityRole="button" accessibilityLabel={moreLabel} disabled={maximum !== undefined && value >= maximum} style={({ pressed }) => [styles.stepButton, { backgroundColor: pressed ? colors.bgHover : colors.bgWell, borderColor: colors.hairline }, maximum !== undefined && value >= maximum ? styles.disabled : null]} onPress={() => onChange(maximum === undefined ? value + 1 : Math.min(maximum, value + 1))}><Plus size={20} strokeWidth={2} color={colors.fg2} /></MotionPressable>
     <Text style={[styles.description, { color: colors.fg3 }]}>{description}</Text>
   </View>
+}
+
+/** The unit of a count or an interval: day, week, month or year. The current onboarding and the guided onboarding both render it. */
+export function FrequencyUnitControl({ value, onChange }: Readonly<{ value: FrequencyUnit; onChange: (unit: FrequencyUnit) => void }>) {
+  const { t } = useTranslation()
+  return <SegmentedControl fullWidth label={t('onboarding.flow.when.frequencyUnitLabel')} value={value} options={[{ value: 'Day', label: t('onboarding.flow.when.units.day') }, { value: 'Week', label: t('onboarding.flow.when.units.week') }, { value: 'Month', label: t('onboarding.flow.when.units.month') }, { value: 'Year', label: t('onboarding.flow.when.units.year') }]} onChange={onChange} />
 }
 
 export function OnboardingCreateHabit(props: Readonly<Props>) {
@@ -80,20 +87,14 @@ export function OnboardingCreateHabit(props: Readonly<Props>) {
   const [proposalPressed, setProposalPressed] = useState(false)
   const schedule = clampOnboardingRepeatWeeks(props.schedule, props.canSaveRepeatWeeks)
   const mode = getOnboardingScheduleMode(schedule)
-  const frequencyUnitOptions = [
-    { value: 'Day', label: t('onboarding.flow.when.units.day') },
-    { value: 'Week', label: t('onboarding.flow.when.units.week') },
-    { value: 'Month', label: t('onboarding.flow.when.units.month') },
-    { value: 'Year', label: t('onboarding.flow.when.units.year') },
-  ] as const
   const intervalCount = schedule.frequencyQuantity ?? 1
   const intervalUnit = (schedule.frequencyUnit ?? 'Week').toLowerCase()
   const proposalCadence = getCadencePresentation(schedule, t, i18n.language)
   const controls = <View testID="onboarding-questions" style={styles.controls}>
     <View style={styles.question}><Text style={[styles.label, { color: tokens.fg2 }]}>{t('onboarding.flow.when.scheduleMode')}</Text><SegmentedControl fullWidth label={t('onboarding.flow.when.scheduleMode')} value={mode} options={[{ value: 'fixed', label: t('onboarding.flow.when.fixedMode') }, { value: 'flexible', label: t('onboarding.flow.when.flexibleMode') }, { value: 'interval', label: t('onboarding.flow.when.intervalMode') }, { value: 'oneTime', label: t('onboarding.flow.when.oneTimeMode') }]} onChange={props.onModeChange} /></View>
-    {mode === 'flexible' ? <View style={styles.question}><Text style={[styles.label, { color: tokens.fg2 }]}>{t('onboarding.flow.when.frequencyUnitLabel')}</Text><SegmentedControl fullWidth label={t('onboarding.flow.when.frequencyUnitLabel')} value={schedule.frequencyUnit ?? 'Week'} options={frequencyUnitOptions} onChange={props.onFrequencyUnitChange} /><Stepper value={schedule.frequencyQuantity ?? 1} minimum={1} lessLabel={t('onboarding.flow.when.quantityLess')} moreLabel={t('onboarding.flow.when.quantityMore')} description={t(`onboarding.flow.when.quantityUnit.${intervalUnit}`, { count: schedule.frequencyQuantity ?? 1 })} colors={tokens} onChange={props.onQuantityChange} /></View> : null}
+    {mode === 'flexible' ? <View style={styles.question}><Text style={[styles.label, { color: tokens.fg2 }]}>{t('onboarding.flow.when.frequencyUnitLabel')}</Text><FrequencyUnitControl value={schedule.frequencyUnit ?? 'Week'} onChange={props.onFrequencyUnitChange} /><Stepper value={schedule.frequencyQuantity ?? 1} minimum={1} lessLabel={t('onboarding.flow.when.quantityLess')} moreLabel={t('onboarding.flow.when.quantityMore')} description={t(`onboarding.flow.when.quantityUnit.${intervalUnit}`, { count: schedule.frequencyQuantity ?? 1 })} colors={tokens} onChange={props.onQuantityChange} /></View> : null}
     {mode === 'fixed' ? <View style={styles.question}><Text style={[styles.label, { color: tokens.fg2 }]}>{t('onboarding.flow.when.daysLabel')}</Text><WeekdayPicker label={t('onboarding.flow.when.daysLabel')} days={schedule.days} dayOptions={DAYS.map(day => ({ value: day, label: t(`onboarding.flow.when.days.${day.toLowerCase()}`), accessibleLabel: t(`onboarding.flow.when.daysLong.${day.toLowerCase()}`) }))} onToggleDay={props.onToggleDay} /></View> : null}
-    {mode === 'interval' ? <View style={styles.question}><Text style={[styles.label, { color: tokens.fg2 }]}>{t('onboarding.flow.when.frequencyUnitLabel')}</Text><SegmentedControl fullWidth label={t('onboarding.flow.when.frequencyUnitLabel')} value={schedule.frequencyUnit ?? 'Week'} options={frequencyUnitOptions} onChange={props.onFrequencyUnitChange} /><Stepper value={schedule.frequencyQuantity ?? 1} minimum={1} lessLabel={t('onboarding.flow.when.frequencyLess')} moreLabel={t('onboarding.flow.when.frequencyMore')} description={t(`onboarding.flow.when.cadence.intervalUnit.${intervalUnit}`, { count: intervalCount })} colors={tokens} onChange={props.onQuantityChange} /></View> : null}
+    {mode === 'interval' ? <View style={styles.question}><Text style={[styles.label, { color: tokens.fg2 }]}>{t('onboarding.flow.when.frequencyUnitLabel')}</Text><FrequencyUnitControl value={schedule.frequencyUnit ?? 'Week'} onChange={props.onFrequencyUnitChange} /><Stepper value={schedule.frequencyQuantity ?? 1} minimum={1} lessLabel={t('onboarding.flow.when.frequencyLess')} moreLabel={t('onboarding.flow.when.frequencyMore')} description={t(`onboarding.flow.when.cadence.intervalUnit.${intervalUnit}`, { count: intervalCount })} colors={tokens} onChange={props.onQuantityChange} /></View> : null}
     {canRepeatOnboardingScheduleWeeks(schedule, props.canSaveRepeatWeeks) ? <Stepper value={schedule.intervalWeeks} minimum={1} maximum={MAX_HABIT_INTERVAL_WEEKS} lessLabel={t('onboarding.flow.when.intervalLess')} moreLabel={t('onboarding.flow.when.intervalMore')} description={t('onboarding.flow.when.interval', { count: schedule.intervalWeeks })} colors={tokens} onChange={props.onIntervalWeeksChange} /> : null}
     <TimeField label={t('onboarding.flow.when.timeLabel')} value={toTime24(schedule.dueTime)} onChange={props.onTimeChange} onClear={() => props.onTimeChange('')} hint={t('onboarding.flow.when.timeHint')} />
   </View>

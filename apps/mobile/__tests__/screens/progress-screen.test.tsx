@@ -206,6 +206,7 @@ vi.mock('react-native-draggable-flatlist', () => ({
   }) => React.createElement('DraggableFlatList', props, data.map((item, index) => <React.Fragment key={item.id}>{renderItem({ item, getIndex: () => index, drag: mocks.drag, isActive: mocks.dragActive })}</React.Fragment>)),
 }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => mocks.account }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => false }))
 vi.mock('@/hooks/use-goals', () => ({
   useCreateGoal: () => mocks.create,
   useGoals: () => mocks.goals,

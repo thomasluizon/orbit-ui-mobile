@@ -2,16 +2,11 @@
 
 import { useAstraAllowanceCopy } from '@/hooks/use-astra-allowance-copy'
 
-import * as Sentry from '@sentry/nextjs'
-
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 
-import { X } from '@/components/ui/icons'
+import { backendFormFieldFocusRequest, resolveBackendFormFieldMessage } from '@orbit/shared/hooks'
 
-import { backendFormFieldFocusRequest, hasTagDraftChanges, resolveBackendFormFieldMessage } from '@orbit/shared/hooks'
-import { useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
-
-import { useCallback, useEffect, useState, useId, useMemo, useRef, type ReactNode, type RefObject } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, type ReactNode, type RefObject } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useController } from 'react-hook-form'
 import type { HabitFormCommonProps } from '@orbit/shared/utils'
@@ -25,9 +20,6 @@ import {
   createHabitFormController,
   EMPTY_HABIT_FORM_PROPOSAL,
   coalesceFormText,
-  getFriendlyErrorMessage,
-  extractBackendStatus,
-  formatLocaleDate,
   isHabitDailySchedule,
   isHabitAstraLimitReached,
   parseAPIDate,
@@ -35,15 +27,13 @@ import {
   resolveSupportedLocale,
   shouldShowHabitAstraFallback,
 } from '@orbit/shared/utils'
-import { hasHabitMonthDaySchedule, validateTagForm } from '@orbit/shared/validation'
+import { hasHabitMonthDaySchedule } from '@orbit/shared/validation'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useHasProAccess, useProfile } from '@/hooks/use-profile'
-import { useCreateTag, useDeleteTag, useSuggestTags, useTags, useUpdateTag } from '@/hooks/use-tags'
 import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { HabitTimingField } from './habit-form-fields/habit-timing-field'
 import { HabitTypeField } from './habit-form-fields/habit-type-field'
 import { HabitDateField } from './habit-form-fields/habit-date-field'
-import { DateField } from '@/components/ui/date-field'
 import { Input } from '@/components/ui/input'
 import { ListRow } from '@/components/ui/list-row'
 import { FormSectionLabel } from './habit-form-fields/form-section-label'
@@ -56,11 +46,9 @@ import { HabitChecklist } from './habit-checklist'
 import { HabitScheduleFields } from './habit-form-fields/habit-schedule-fields'
 import { HabitMonthDaysField } from './habit-form-fields/habit-month-days-field'
 import { HabitUnderstanding, HabitRepeatInterval } from './habit-form-fields/habit-understanding'
-import { SlipAlertSection } from './habit-form-fields/slip-alert-section'
-import { TagEditorRow } from './habit-form-fields/tag-editor-row'
-import { TagPickerField } from './habit-form-fields/tag-picker-field'
-import { TagSuggestions } from './habit-form-fields/tag-suggestions'
-import { useTagSuggestions } from '@/hooks/use-tag-suggestions'
+import { HabitTagsField } from './habit-form-fields/habit-tags-field'
+import { EndDateEditor } from './habit-form-fields/end-date-editor'
+import { HabitAvoidanceFields } from './habit-form-fields/habit-avoidance-fields'
 import { useExpandAdvancedSignal } from './habit-form-fields/use-expand-advanced-signal'
 
 
@@ -116,63 +104,6 @@ interface SubHabitSectionProps {
   t: ReturnType<typeof useTranslations>
 }
 
-interface EndDateEditorProps {
-  visible: boolean
-  disabled: boolean
-  value: string
-  onChange: (value: string) => void
-  t: (key: string) => string
-}
-
-function EndDateEditor({ visible, disabled, value, onChange, t }: Readonly<EndDateEditorProps>) {
-  const locale = useLocale()
-  const [focusRequest, setFocusRequest] = useState(0)
-  const [endDateExpanded, setShowEndDate] = useState<boolean | null>(null)
-  const showEndDate = endDateExpanded ?? Boolean(value)
-  if (!visible) return null
-  return (
-    <section data-end-date-levels="" className="flex flex-col gap-4">
-      <FormSectionLabel>{t('habits.form.ending')}</FormSectionLabel>
-      <div><ListRow disabled={disabled} placement="field" title={t('habits.form.addEndDate')} value={value && !showEndDate ? formatLocaleDate(value, locale) : undefined} expanded={showEndDate} onClick={() => { if (!disabled) setShowEndDate(!showEndDate) }} /></div>
-      {showEndDate ? <div className="flex flex-col gap-2">
-      <FormSectionLabel>{t('habits.form.endDateQuestion')}</FormSectionLabel>
-      <div className="flex min-w-0 items-end gap-2"><div className="min-w-0 flex-1"><DateField disabled={disabled} label={t('habits.form.endDateQuestion')} value={value} placeholder={t('habits.form.endDatePlaceholder')} onChange={(next) => { setShowEndDate(true); onChange(next) }} focusRequest={focusRequest} /></div>
-      {value ? <div className="shrink-0">
-        <PillButton disabled={disabled} variant="ghost" iconOnly label={t('habits.form.removeEndDate')} onClick={() => {
-          setShowEndDate(true)
-          onChange('')
-          setFocusRequest((request) => request + 1)
-        }}><X size={20} aria-hidden="true" /></PillButton>
-      </div> : null}</div>
-      </div> : null}
-    </section>
-  )
-}
-
-interface SlipAlertEditorProps {
-  visible: boolean
-  hasProAccess: boolean
-  slipAlertEnabled: boolean
-  onToggle: () => void
-  t: ReturnType<typeof useTranslations>
-}
-
-function SlipAlertEditor({
-  visible,
-  hasProAccess,
-  slipAlertEnabled,
-  onToggle,
-  t,
-}: Readonly<SlipAlertEditorProps>) {
-  if (!visible) return null
-  return (
-    <section className="flex flex-col gap-2">
-      <FormSectionLabel>{t('habits.form.slipAlertQuestion')}</FormSectionLabel>
-      <SlipAlertSection inline hasProAccess={hasProAccess} slipAlertEnabled={slipAlertEnabled} onToggle={onToggle} t={t} />
-    </section>
-  )
-}
-
 function SubHabitSection({
   proposed,
   task,
@@ -186,24 +117,6 @@ function SubHabitSection({
       <Proposed proposed={proposed} scope="field" label={t('habits.detail.proposed')}>
         {children}
       </Proposed>
-    </section>
-  )
-}
-
-function HabitAvoidanceFields({ formHelpers, controller, hasProAccess }: Readonly<{ formHelpers: HabitFormHelpers; controller: ReturnType<typeof createHabitFormController>; hasProAccess: boolean }>) {
-  const t = useTranslations()
-  const { form } = formHelpers
-  const isBadHabit = form.watch('isBadHabit') ?? false
-  const slipAlertEnabled = form.watch('slipAlertEnabled') ?? false
-  if (formHelpers.isGeneral) return null
-  return (
-    <section className="flex flex-col gap-4">
-      <FormSectionLabel>{t('habits.form.avoidGroup')}</FormSectionLabel>
-            <div><ListRow placement="field" title={t('habits.form.habitTypeAvoid')} description={isBadHabit ? t('habits.form.habitTypeAvoidHint') : t('habits.form.habitTypeBuildHint')} toggle={{ checked: isBadHabit, onChange: (checked) => form.setValue('isBadHabit', checked, { shouldDirty: true }) }} /></div>
-
-
-            <SlipAlertEditor visible={isBadHabit} hasProAccess={hasProAccess} slipAlertEnabled={slipAlertEnabled} onToggle={() => controller.setSlipAlertEnabled(!slipAlertEnabled)} t={t} />
-
     </section>
   )
 }
@@ -272,8 +185,6 @@ export function HabitFormFields({
   const detailsId = useId()
   const [detailsOpen, setDetailsOpen] = useAccountScopedState(defaultExpanded)
   const [detailsPresented, setDetailsPresented] = useAccountScopedState(defaultExpanded)
-  const newTagErrors = useBackendFieldErrors({ name: tags.newTagName }, { name: 'Name' })
-  const editTagErrors = useBackendFieldErrors({ name: tags.editTagName }, { name: 'Name' })
   const descriptionFailure = formHelpers.backendFieldErrors.description
   const [proposal, setProposal] = useAccountScopedState(EMPTY_HABIT_FORM_PROPOSAL)
   const rendersGranularSubHabits = typeof children === 'function'
@@ -288,28 +199,6 @@ export function HabitFormFields({
     setDetailsOpen(true)
   })
 
-  const { tags: availableTags = [] } = useTags()
-  const initialTagName = availableTags.find(tag => tag.id === tags.editingTagId)?.name ?? ''
-  const tagEditorDirty = hasTagDraftChanges(tags, initialTagName)
-  const discardTagEditor = () => {
-    newTagErrors.clearBackendErrors()
-    editTagErrors.clearBackendErrors()
-    tags.setNewTagName('')
-    tags.setShowNewTag(false)
-    tags.cancelEditTag()
-  }
-
-  const createTag = useCreateTag()
-  const updateTag = useUpdateTag()
-  const deleteTag = useDeleteTag()
-  const tagMutationPending = createTag.isPending || updateTag.isPending || deleteTag.isPending
-  const suggestTags = useSuggestTags()
-  const tagSuggestions = useTagSuggestions({
-    availableTags,
-    title, description, language, disabled: tagMutationPending || tags.atTagLimit,
-    request: suggestTags.mutateAsync,
-    accept: (suggestion) => tags.acceptSuggestedTag(suggestion, async (name, color) => (await createTag.mutateAsync({ name, color })).id),
-  })
   const localRead = useMemo(() => readTypedHabitPhrase(title, locale, itemType, formHelpers.isGeneral), [formHelpers.isGeneral, itemType, locale, title])
 
   useEffect(() => {
@@ -383,36 +272,6 @@ export function HabitFormFields({
     onResolveSubHabitProposalReady(controller.resolveSubHabitProposal)
     return () => onResolveSubHabitProposalReady(() => {})
   }, [controller, onResolveSubHabitProposalReady])
-
-  async function createNewTag() {
-    const validationError = validateTagForm(tags.newTagName, tags.newTagColor)
-    if (validationError) {
-      showError(translate(validationError))
-      return
-    }
-    try {
-      await tags.createAndSelectTag(async (name, color) => (await createTag.mutateAsync({ name, color })).id)
-    } catch (error: unknown) {
-      if (!newTagErrors.reportBackendErrors(error).handled) showError(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
-    }
-  }
-
-  async function deleteExistingTag(id: string) {
-    try {
-      await tags.deleteTag(id, async (tagId) => { await deleteTag.mutateAsync(tagId) })
-    } catch (error: unknown) {
-      showError(getFriendlyErrorMessage(error, translate, 'toast.errors.unknown', 'tag'))
-      if (extractBackendStatus(error) !== 409) Sentry.captureException(error)
-    }
-  }
-
-  async function saveEditedTag() {
-    try {
-      await tags.saveEditTag(async (id, name, color) => { await updateTag.mutateAsync({ tagId: id, name, color }) })
-    } catch (error: unknown) {
-      if (!editTagErrors.reportBackendErrors(error).handled) showError(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
-    }
-  }
 
   return (
     <div className="flex flex-col" style={{ gap: 24 }}>
@@ -547,37 +406,7 @@ export function HabitFormFields({
             <section className="flex flex-col gap-4">
               <FormSectionLabel>{t('habits.form.organize')}</FormSectionLabel>
             {parentField}
-            <section>
-              <TagPickerField editorDirty={tagEditorDirty} onDiscardEditor={discardTagEditor} suggestions={<TagSuggestions translateError={allowanceText} suggestions={tagSuggestions} atLimit={tags.atTagLimit} disabled={tagMutationPending} />} tags={availableTags} selectedIds={tags.selectedTagIds} atLimit={tags.atTagLimit} disabled={tagMutationPending} onToggle={tags.toggleTag} onCreate={() => tags.setShowNewTag(true)} onEdit={tags.startEditTag} onDelete={(id) => void deleteExistingTag(id)} editLabel={t('habits.form.editTag')} deleteLabel={t('habits.form.deleteTag')} editor={tags.showNewTag ? (
-                <TagEditorRow
-                  error={newTagErrors.fieldErrors.name}
-                  focusRequest={newTagErrors.focusRequest}
-                  value={tags.newTagName}
-                  placeholder={t('habits.form.tagName')}
-                  disabled={createTag.isPending}
-                  inputAriaLabel={t('habits.form.tagName')}
-                  cancelAriaLabel={t('common.cancel')}
-                  actionLabel={t('common.add')}
-                  onChange={tags.setNewTagName}
-                  onCommit={() => void createNewTag()}
-                  onCancel={discardTagEditor}
-                />
-              ) : tags.editingTagId ? (
-                <TagEditorRow
-                  error={editTagErrors.fieldErrors.name}
-                  focusRequest={editTagErrors.focusRequest}
-                  initialValue={initialTagName} value={tags.editTagName}
-                  disabled={updateTag.isPending}
-                  inputAriaLabel={t('habits.form.tagName')}
-                  cancelAriaLabel={t('common.cancel')}
-                  actionLabel={t('common.save')}
-                  onChange={tags.setEditTagName}
-                  onCommit={() => void saveEditedTag()}
-                  onCancel={discardTagEditor}
-                />
-              ) : undefined} />
-              {tags.atTagLimit ? <p className="text-sm text-[var(--fg-3)]">{t('habits.form.tagLimit')}</p> : null}
-            </section>
+            <HabitTagsField tags={tags} title={title} description={description} />
 
             <section>
               <GoalLinkingField

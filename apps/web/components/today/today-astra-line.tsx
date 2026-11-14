@@ -19,7 +19,7 @@ interface TodayAstraLineProps {
   loading?: boolean
   /** Descansando when the AI is absent: offline or at the message limit. The row never shows another state. */
   mascotState?: 'parado' | 'descansando'
-  /** The Hoje slot keeps the screen gutter. A destination that already insets its content turns it off. */
+  /** The Hoje slot keeps the screen gutter. A surface that already insets its content, such as the goal detail, turns it off. Default true. */
   gutter?: boolean
   /** The control Orbit looks toward, measured from `mascotRef`. */
   lookAt?: OrbitLookTarget | null

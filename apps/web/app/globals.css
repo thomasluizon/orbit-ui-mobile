@@ -918,7 +918,7 @@ select[aria-hidden="true"] {
   line-height: 24px;
   text-align: center;
   outline: none;
-  transition: background-color var(--dur-fast) var(--ease-standard), box-shadow var(--dur-fast) var(--ease-standard), transform var(--dur-fast) var(--ease-standard);
+  transition: background-color var(--dur-fast) var(--ease-standard), box-shadow var(--dur-fast) var(--ease-standard), transform var(--dur-press) var(--ease-out);
 }
 
 .orbit-option-card[data-selected] {
@@ -931,7 +931,12 @@ select[aria-hidden="true"] {
 
 .orbit-option-card:active {
   background: var(--bg-hover);
-  transform: scale(0.96);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .orbit-option-card:active {
+    transform: scale(0.96);
+  }
 }
 
 .orbit-option-card:disabled {
@@ -947,10 +952,6 @@ select[aria-hidden="true"] {
 @media (prefers-reduced-motion: reduce) {
   .orbit-option-card {
     transition: none;
-  }
-
-  .orbit-option-card:active {
-    transform: none;
   }
 }
 

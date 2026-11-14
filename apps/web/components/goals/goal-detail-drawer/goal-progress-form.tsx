@@ -18,9 +18,11 @@ interface GoalProgressFormProps {
   goal: Goal
   refetchDetail: () => Promise<unknown>
   onClose: () => void
+  /** One question in the sheet: the question is the title and the label of the value, and the note is the second, optional question. */
+  asQuestion?: boolean
 }
 
-export function GoalProgressForm({ goal, refetchDetail, onClose }: Readonly<GoalProgressFormProps>) {
+export function GoalProgressForm({ goal, refetchDetail, onClose, asQuestion = false }: Readonly<GoalProgressFormProps>) {
   const t = useTranslations()
   const formId = useId()
   const update = useUpdateGoalProgress()
@@ -39,14 +41,14 @@ export function GoalProgressForm({ goal, refetchDetail, onClose }: Readonly<Goal
   }
 
   return <>
-    <Sheet ref={sheetRef} open title={t('goals.updateProgress')} onClose={!busy && dismiss.canDismiss ? onClose : undefined} onAttemptDismiss={requestDismiss} actions={
+    <Sheet ref={sheetRef} open title={t(asQuestion ? 'goals.form.progressQuestion' : 'goals.updateProgress')} onClose={!busy && dismiss.canDismiss ? onClose : undefined} onAttemptDismiss={requestDismiss} actions={
       <ActionRow>
         <PillButton size="sm" variant="ghost" disabled={busy} onClick={requestDismiss}>{t('common.cancel')}</PillButton>
         <PillButton accessibleName={t('common.save')} disabled={busy} loading={busy} formId={formId} leadingIcon={<Check size={16} aria-hidden="true" />}>{t('common.save')}</PillButton>
       </ActionRow>
     }>
       <form id={formId} noValidate onSubmit={event => { event.preventDefault(); void submit() }} className="flex flex-col gap-6" aria-busy={busy}>
-        <Input label={t('goals.form.progressQuestion')} name="currentValue" value={entry.value} onChange={entry.setValue} required inputMode="decimal" autoComplete="off" disabled={busy} focusRequest={entry.focusRequest} error={entry.errorKey ? t(entry.errorKey) : undefined} hint={entry.exceedsTarget ? t('goals.form.progressExceedsTarget') : undefined} />
+        <Input label={t('goals.form.progressQuestion')} hideLabel={asQuestion} name="currentValue" value={entry.value} onChange={entry.setValue} required inputMode="decimal" autoComplete="off" disabled={busy} focusRequest={entry.focusRequest} error={entry.errorKey ? t(entry.errorKey) : undefined} hint={entry.exceedsTarget ? t('goals.form.progressExceedsTarget') : undefined} />
         <Input label={t('goals.form.progressNoteQuestion')} name="progressNote" value={entry.note} onChange={entry.setNote} autoComplete="off" disabled={busy} focusRequest={entry.noteFocusRequest} error={entry.noteErrorKey ? t(entry.noteErrorKey) : undefined} multiline rows={3} />
         <p role="alert" className={error ? 'text-sm text-[var(--fg-2)]' : 'sr-only'}>{error}</p>
       </form>

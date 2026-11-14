@@ -27,6 +27,7 @@ platforms. The habit and goal flows have their own inventory in `design/habit-fo
 | Share card | `components/share/share-card-sheet.tsx` | `components/share/share-card-sheet.tsx` | The period control has a visible question 8 above it |
 | Hoje search and the search screen | `app/(app)/today-page-view.tsx`, `app/(app)/search/page.tsx` through `components/command/command-menu-chrome.tsx` | `app/(tabs)/index.tsx`, `app/search.tsx` | Each field is named by the question what the person is looking for. The placeholder stays visible. The Android search screen hides its repeated label, as web does, because the page header names the screen |
 | Move parent | `components/habits/habit-list/move-parent-overlay.tsx` | `components/habit-list/move-parent-dialog.tsx` | The search asks which habit. The destination list asks where the habit goes, in place of the Destinations eyebrow. The groups sit 16 apart on both platforms, and the question sits 8 above the list |
+| Habit create and edit (flag `orbit_guided_flows`) | `components/habits/guided/` | `components/habits/guided/` | One question in each step. Every summary value and every optional row is a question that opens its own step. Quick options are answers of at most 4 words. The full map is in `design/habit-form-surfaces.md` |
 
 ## Retained without change
 

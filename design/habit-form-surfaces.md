@@ -107,6 +107,28 @@ carries a selected end date through the same request owner. Optimistic native cr
 edit caches preserve the edited start anchor, including queued native saves. Mode drafts retain date, cadence,
 times, reminders and avoidance independently of shared title, description and checklist text.
 
+## Guided optional steps: tags, checklist, templates and goals (#2121)
+
+With `orbit_guided_flows` on, the optional questions of the guided create and edit flow host three
+step views. Each one is a hook in `components/habits/flow-steps/` on web and Android that returns a
+`FlowStepView` (`packages/shared/src/contracts/flow/QuestionFlow.ts`) over the state the current
+owners keep. No noun stands alone as a title, a heading, a row label or a list title.
+
+| Step | Hook and owner on both platforms | Question, quick options and free path |
+|---|---|---|
+| Tags | `useTagStepView`, `flow-steps/tag-step.tsx` over `use-tag-selection`, `use-tags`, `use-tag-suggestions` | Quer juntar com coisas parecidas?; up to 3 of the person's tags (those selected when the step opens first) and Sem tag, so the step keeps four quick options; Nova tag, a search over every tag above 3, rename and delete behind Quer mudar o nome ou apagar uma tag?, and the AI suggestion in the `proposed` state |
+| Checklist and templates | `useChecklistStepView`, `flow-steps/checklist-step.tsx` and `flow-steps/template-step.tsx` over `HabitChecklist` (edit mode) and `use-checklist-templates` | Tem passos dentro disso?; Não and Usar um modelo; the item editor. Não never drops typed steps: with steps it waits for a clear and says why. The template question (each template with its item count, a load, a delete) and the save question (one name field) are questions inside the step |
+| Goals | `useGoalLinkStepView`, `flow-steps/goal-link-step.tsx` over `createUseGoalLinking` | Isso ajuda em alguma meta?; up to 3 active goals with their progress and Criar meta; a search over every active goal above 3. Criar meta opens the goal create flow with the habit, and the new goal returns selected |
+
+The tag line after a press reads the cache that holds every habit, `useHabits({})` with `enabled: false`, the same query
+the linked-habit picker uses. `buildTagLineItems` (`packages/shared/src/utils/tag-flow-line.ts`)
+names up to three items through `Intl.ListFormat` and counts the rest. The step starts no request for the line.
+With no cached list, the first line stays. The tag and goal steps take several answers: a press
+toggles, and the step continues on its own action. The limits come from
+`packages/shared/src/validation/constants.ts`: 5 tags and 10 goals for one habit, 50 checklist items.
+With the flag off, `habit-form-fields.tsx` keeps the current tag picker, goal picker, checklist and
+template sheet.
+
 ## Habit form capability reconciliation (#1709)
 
 [The title-row change](https://github.com/thomasluizon/orbit-ui-mobile/pull/2040)
@@ -360,3 +382,32 @@ and retain date-context cancellation and schedule draft restoration. The hermeti
 cover No date and returning to a date in both locales and themes at compact and desktop widths.
 The layout workflow owns execution. API #1940 must reach production before consumer publication;
 Android Open delivery and Play acceptance remain coordinator-owned acceptance steps.
+
+## Guided create and edit flow (#2121)
+
+With the flag `orbit_guided_flows` on, the create route, the create overlay and the edit overlay show the one-question flow over the same form state. With the flag off, the form above shows unchanged. `FlowScreen` is the one flow host on each platform: `overlay` for an overlay, `route` for `/habits/new`, where the sidebar stays.
+
+| Step | Web and Android owner | Behavior |
+|---|---|---|
+| State | `components/habits/guided/use-guided-habit-flow.ts`; shared `habit-flow.ts`, `habit-flow-navigation.ts`, `habit-flow-answers.ts`, `habit-flow-details.ts` | One view over `use-habit-form.ts`. The steps the phrase gave are skipped. A step the person answered stays in the progress. Edit opens on the summary and reads no phrase |
+| Phrase, when, time, reminder, type, summary | `components/habits/guided/guided-step-views.tsx` | The local read runs first. The free read runs once on leaving step 1, online and only for unread words. A past day typed in words is refused for a new task. The summary shows the title with the emoji well, the type, when, time, length when a time exists, and reminder |
+| Repeat, length, reminder kinds, the optional list and each optional question | `components/habits/guided/guided-detail-views.tsx` | Each question hosts the current field component unchanged: the schedule fields, corrections, month days and interval; the end time; `HabitReminderEditors`; description; checklist with templates; sub-items; avoid, then slip alert; tags; goals; end date; parent in edit |
+| Moved form owners | `habit-form-fields/habit-tags-field.tsx`, `end-date-editor.tsx`, `habit-avoidance-fields.tsx`, `HabitReminderEditors` in `habit-timing-field.tsx` | The current form and the guided flow render the same components |
+| Result | `components/habits/guided/habit-result-dialog.tsx` | A create opens the dialog from the saved record. A queued Android create uses the optimistic record. An edit closes with `result.habit.updated`. A sub-item create closes as before, because its request returns no id |
+
+| Current field or action | Place in the guided flow |
+|---|---|
+| Type | The summary value opens the type question. A deliberate choice locks the type for every later read |
+| Title phrase | Step 1. Server and validation errors show under the field, and a server error opens this step |
+| Emoji | The well beside the title on the summary. The picker and remove stay. The suggestion uses the free read and spends no message |
+| Description | The optional question "Quer anotar algo?" |
+| When, date phrase and calendar | Step 2, or the summary value. A habit's value opens the repeat question with its start date |
+| Schedule mode, quantity, unit, weekdays, count, month days, interval | The repeat question: the mode as two quick options, the rest as the free path |
+| Paid setup read | Not shown. The free read runs after step 1 |
+| Time, end time, reminder and every reminder kind | Step 3, step 4, the length value and the reminder value with `HabitReminderEditors` and its permission notice |
+| Checklist and templates, sub-items, avoid and slip alert, tags, goals, end date, parent | One optional question each. Avoid leads to the slip alert question. Parent shows in edit only |
+| Create actions, cancel, offline refusal | The summary primary keeps the label by type. Close replaces cancel. The web offline refusal shows on the summary |
+| Unsaved-change guard | The discard sheet, on close and on Escape |
+| From-conversation notice and route parameters | The Orbit line of the summary. A given title prefills step 1 and a given date answers step 2 |
+| Android offline queue | Kept. The result dialog opens from the optimistic record |
+| Edit save, cancel, late details | The summary holds save and close. The save waits while the stored details load |

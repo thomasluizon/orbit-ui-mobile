@@ -46,9 +46,9 @@ const webMaxButtonWordsOptions = maxButtonWordsOptionsFrom(webEslintConfig, 'web
 const mobileMaxButtonWordsOptions = maxButtonWordsOptionsFrom(mobileEslintConfig, 'mobile')
 const maxButtonWordsOptions = webMaxButtonWordsOptions
 
-const maxWordsError = (control, label, locale, count) => ({
+const maxWordsError = (control, label, locale, count, limit = 2) => ({
   messageId: 'tooManyWords',
-  data: { control, label, locale, count: String(count), limit: '2' },
+  data: { control, label, locale, count: String(count), limit: String(limit) },
 })
 
 ruleTester.run('no-decorative-glow', rule('no-decorative-glow'), {
@@ -937,6 +937,9 @@ ruleTester.run('max-button-words', rule('max-button-words'), {
     { code: '<button aria-label="Open menu" />', options: maxButtonWordsOptions },
     { code: '<Pressable accessibilityRole="button" accessibilityLabel="Open menu" />', options: maxButtonWordsOptions },
     { code: '<PillButton label="Open navigation menu" iconOnly />', options: webMaxButtonWordsOptions },
+    { code: '<OptionCard label="Yes, remind me" onSelect={select} />', options: webMaxButtonWordsOptions },
+    { code: '<OptionCard label="Sim, me lembre agora" onSelect={select} />', options: mobileMaxButtonWordsOptions },
+    { code: '<ResultDialog title="Done!" sentence="The task is set." primaryLabel="View in Calendar" onPrimary={open} onClose={close} />', options: webMaxButtonWordsOptions },
     { code: '<Button label="Open navigation menu" iconOnly={true} />', options: mobileMaxButtonWordsOptions },
     { code: '<ListRow title="Settings" action={{ icon: "trash", label: "Remove this account", onPress }} />', options: webMaxButtonWordsOptions },
     { code: '<ListRow key="mobile" title="Settings" action={{ icon: "trash", label: "Remove this account", onPress }} />', options: mobileMaxButtonWordsOptions },
@@ -986,6 +989,16 @@ ruleTester.run('max-button-words', rule('max-button-words'), {
     },
   ],
   invalid: [
+    {
+      code: '<OptionCard label="Yes please remind me later" onSelect={select} />',
+      options: webMaxButtonWordsOptions,
+      errors: [maxWordsError('OptionCard', 'Yes please remind me later', 'source', 5, 4)],
+    },
+    {
+      code: '<ResultDialog title="Done!" sentence="Saved." primaryLabel="View it now in Calendar" onPrimary={open} onClose={close} />',
+      options: mobileMaxButtonWordsOptions,
+      errors: [maxWordsError('ResultDialog', 'View it now in Calendar', 'source', 5, 3)],
+    },
     {
       code: '<PillButton>Open all insights</PillButton>',
       options: maxButtonWordsOptions,

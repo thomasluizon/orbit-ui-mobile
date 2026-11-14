@@ -10,9 +10,13 @@ and Android. The Progresso amendment in `DESIGN.md` and `design/canvas/README.md
 | Metas, `/progress/goals` | `apps/web/app/(app)/progress/goals/page.tsx` | `apps/mobile/app/progress/goals.tsx` | Create sheet, status filter, clear filter, drag and accessible reordering, goal status and progress, inline detail, linked habits, history, editing, manual progress, completion, reopening, abandonment and deletion |
 | Conquistas, `/progress/achievements` | `apps/web/app/(app)/progress/achievements/page.tsx` | `apps/mobile/app/progress/achievements.tsx` | Level, title, XP and next-level bar, visible achievement categories, earned states and individual progress; social categories remain hidden |
 
-Each platform's `progress-content.tsx` routes the four screens and owns Metas. The overview lives in
+Each platform's `progress-content.tsx` routes the four screens. The overview lives in
 `progress-overview.tsx` and `progress-window.tsx`, Sequência in `progress-streak.tsx`, Conquistas in
-`progress-achievements.tsx`, and `progress-subscreen.tsx` frames the pushed details. The shared `progress-navigation.ts` defines the three entries.
+`progress-achievements.tsx`, and `progress-subscreen.tsx` frames the pushed details. The Metas
+functions live in the `goals/` folder beside it (web `app/(app)/progress/_components/goals/`,
+Android `components/progress/goals/`). With `orbit_guided_flows` on, the empty Metas list shows
+Orbit at rest, and a goal whose value changed since the last visit sweeps its ring once. The shared
+`progress-navigation.ts` defines the three entries.
 Each entry is one tap from the overview, including while its summary is unavailable. The
 Conquistas row names level and XP in its supporting line. No additional settings or explanatory
 controls live on the overview.

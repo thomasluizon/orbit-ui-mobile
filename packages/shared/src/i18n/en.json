@@ -553,7 +553,8 @@
         "freeLabel": "Or say it in your words",
         "freePlaceholder": "Friday, the 20th, every Monday",
         "calendar": "Pick on the calendar",
-        "unresolved": "I could not read that date. Try \"Friday\" or \"the 20th\"."
+        "unresolved": "I could not read that date. Try \"Friday\" or \"the 20th\".",
+        "past": "That day has passed. Pick today or a later day."
       },
       "time": {
         "question": "Is there a set time?",
@@ -581,7 +582,10 @@
         "reminder": "Reminder",
         "type": "What this is",
         "emoji": "Emoji",
-        "title": "What you want to do"
+        "title": "What you want to do",
+        "duration": "Length",
+        "until": "until {time}",
+        "noDuration": "no end time"
       },
       "type": {
         "question": "Is it a task or a habit?",
@@ -596,7 +600,8 @@
         "timesIn": "Times per"
       },
       "duration": {
-        "question": "Does it have a length?"
+        "question": "Does it have a length?",
+        "none": "No end time"
       },
       "reminderKind": {
         "question": "When do you want a reminder?",
@@ -623,6 +628,39 @@
         "yes": "Yes",
         "no": "No",
         "removeEndDate": "Remove the end date"
+      },
+      "tags": {
+        "lineIntro": "A tag groups similar items. Tap one to see what is already in it.",
+        "lineHas": "{tag} already has {items}.",
+        "lineEmpty": "{tag} is still empty.",
+        "more": "{count, plural, one {# more item} other {# more items}}",
+        "none": "No tag",
+        "searchMiss": "No tag with that name.",
+        "manage": "Want to rename or delete a tag?"
+      },
+      "checklist": {
+        "line": "The steps become a list you check off as you go.",
+        "useTemplate": "Use a template",
+        "noWithItems": "Clear the list to go on with no steps."
+      },
+      "templates": {
+        "question": "Which template do you want to use?",
+        "line": "A template is a list of steps you saved to use again.",
+        "lineEmpty": "You have no saved templates yet. Write the steps and I keep them for next time.",
+        "option": "{name}, {count, plural, one {# item} other {# items}}",
+        "write": "Write steps",
+        "saveQuestion": "What do you want to call this template?",
+        "saveLine": "I keep these steps so you can use them on another habit.",
+        "loadError": "Could not load your templates. Try again.",
+        "nameHint": "Write a name for the template."
+      },
+      "goals": {
+        "line": "A goal adds up the progress of the habits linked to it.",
+        "lineEmpty": "You have no goals yet. A goal adds up the progress of the habits linked to it.",
+        "limit": "Choose up to 10 goals",
+        "searchMiss": "No goal with that name.",
+        "option": "{title}, {percent}%",
+        "loadError": "Could not load your goals. Try again."
       },
       "orbit": {
         "offline": "No connection. I read on the device and you can go on the same way.",
@@ -3181,7 +3219,19 @@
       "sent": "Your message arrived. The reply goes to {email}."
     },
     "seeCalendar": "View in Calendar",
-    "createAnother": "Create another"
+    "createAnother": "Create another",
+    "goal": {
+      "created": "The goal \"{title}\" runs until {date}.",
+      "createdNoDeadline": "The goal \"{title}\" is set with no deadline.",
+      "updated": "The goal \"{title}\" is saved and runs until {date}.",
+      "updatedNoDeadline": "The goal \"{title}\" is saved with no deadline.",
+      "reactivated": "The goal \"{title}\" is active again.",
+      "abandoned": "The goal \"{title}\" is marked as abandoned.",
+      "deleted": "The goal \"{title}\" was deleted.",
+      "open": "View the goal",
+      "openList": "View goals",
+      "another": "Create another"
+    }
   },
   "onboarding": {
     "flow": {
@@ -3208,6 +3258,12 @@
           "walk": "Walk 3 times a week",
           "read": "Read before bed",
           "tidy": "Tidy the house on Saturday"
+        },
+        "starterLabels": {
+          "water": "Drink water",
+          "walk": "Walk",
+          "read": "Read",
+          "tidy": "Tidy up"
         },
         "haveAccount": "I already have an account",
         "continueReason": "Write what you want to keep up."
@@ -3338,12 +3394,73 @@
         "generalPending": "Undated task",
         "pending": "pending"
       },
+      "guided": {
+        "screenLabel": "First steps in Orbit",
+        "intro": {
+          "talk": {
+            "title": "I am Orbit",
+            "body": "You tell me what you want to do, in your own words, and I understand it."
+          },
+          "routine": {
+            "title": "I set it up",
+            "body": "I set the days and the time, and I remind you when it is time."
+          },
+          "restart": {
+            "title": "Missed a day?",
+            "body": "No problem, I help you start again the next day."
+          },
+          "skip": "Skip intro"
+        },
+        "mode": {
+          "fixed": "Set days",
+          "flexible": "When I can",
+          "interval": "At intervals",
+          "oneTime": "Just once"
+        },
+        "days": {
+          "everyDay": "Every day",
+          "weekdays": "Weekdays"
+        },
+        "quantity": {
+          "question": "How many times?"
+        },
+        "interval": {
+          "question": "How often?"
+        },
+        "time": {
+          "question": "Is there a set time?",
+          "line": "With a time, I can remind you.",
+          "none": "No set time",
+          "freeLabel": "Another time"
+        },
+        "summary": {
+          "question": "Is this right?",
+          "what": "What you will do",
+          "mode": "How it repeats",
+          "days": "Which days",
+          "quantity": "How many times",
+          "interval": "How often",
+          "time": "What time"
+        },
+        "remind": {
+          "question": "Want me to remind you at {time}?",
+          "line": "I let you know 15 minutes before, only if it is not logged yet.",
+          "allow": "Yes, remind me",
+          "pending": "Waiting for the device to answer."
+        },
+        "creating": "I am creating your habit.",
+        "cadence": {
+          "noDate": "no date",
+          "noDateAt": "no date, at {time}"
+        }
+      },
       "meetAstra": {
         "importPrompt": "Help me import my habits from another app. I'll attach a file or paste my list, and you create the habits."
       }
     },
     "wizard": {
       "calendarTitle": "Import from Google Calendar",
+      "calendarQuestion": "Import from Google Calendar?",
       "calendarDescription": "Already have events in Google Calendar? Import them as habits in Orbit with one tap.",
       "calendarButton": "Import calendar",
       "importTitle": "Import from another app?",
@@ -3792,6 +3909,33 @@
       "unitQuestion": "Of what?",
       "deadlineQuestion": "By when?"
     },
+    "flow": {
+      "what": {
+        "line": "Say it your way. Then I ask how much and by when."
+      },
+      "track": {
+        "line": "Progress adds up a number. A streak counts days in a row."
+      },
+      "amount": {
+        "line": "With a number I can show how much is left.",
+        "streakLine": "I count each day in a row until you get there."
+      },
+      "deadline": {
+        "line": "With a deadline I work out how much to do each day.",
+        "none": "No deadline",
+        "monthEnd": "End of the month",
+        "yearEnd": "End of the year"
+      },
+      "habits": {
+        "question": "Which habits count toward this goal?"
+      },
+      "summary": {
+        "what": "Your goal",
+        "track": "Tracking",
+        "amount": "How much",
+        "deadline": "By when"
+      }
+    },
     "streak": {
       "ofTarget": "Day {current} of {target}"
     },
@@ -3832,7 +3976,12 @@
       "askAstraEyebrow": "Review goal",
       "askAstraDefault": "Want a weekly check-in plan for this?",
       "askAstraSeedDefault": "Help me set up a weekly check-in plan for my goal \"{title}\".",
-      "statusLabel": "Status"
+      "statusLabel": "Status",
+      "line": {
+        "daysLeft": "{days, plural, one {# day left until the deadline.} other {# days left until the deadline.}}",
+        "dueToday": "The deadline is today.",
+        "passed": "The deadline was {date}."
+      }
     },
     "deadline": {
       "daysLeft": "{n, plural, one {# day left} other {# days left}}"

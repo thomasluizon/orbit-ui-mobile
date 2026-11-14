@@ -124,6 +124,7 @@ describe('onboarding draft store', () => {
       onboardingLocallyDone: false,
       pushPermissionGranted: false,
       pushRegistrationFailed: false,
+      introSeen: false,
     })
 
     const partial = migrateOnboardingDraft({ onboardingLocallyDone: true })

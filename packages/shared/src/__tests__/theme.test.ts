@@ -61,7 +61,7 @@ const BAD_TEXT_SOURCE_SITES = [
   },
   {
     name: 'web API-key list load error',
-    path: 'apps/web/components/profile/profile-api-keys.tsx',
+    path: 'apps/web/components/profile/api-key-list.tsx',
     pattern: /if \(loadError\)[\s\S]*?<InlineLoadError message=\{t\('orbitMcp\.apiKeysError'\)\}/,
   },
   {
@@ -136,7 +136,7 @@ const BAD_TEXT_SOURCE_SITES = [
   },
   {
     name: 'mobile API-key list load error',
-    path: 'apps/mobile/components/profile/profile-api-keys.tsx',
+    path: 'apps/mobile/components/profile/api-key-list.tsx',
     pattern: /if \(loadError\)[\s\S]*?<InlineLoadError message=\{t\('orbitMcp\.apiKeysError'\)\}/,
   },
   {

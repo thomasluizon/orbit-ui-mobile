@@ -1,7 +1,7 @@
 'use client'
 
 import { IconButton } from '@/components/ui/icon-button'
-
+import { ListMotionItem, ListPresence } from '@/components/motion/list-motion'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { PersonalTextAction } from '@/components/ui/personal-text-action'
@@ -188,10 +188,9 @@ export function HabitChecklist({
           onDragEnd={handleDragEnd}
         >
           <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
-            <div className="flex flex-col gap-1">
-              {items.map((item, index) => (
+            <div className="flex flex-col gap-1"><ListPresence>
+              {items.map((item, index) => (<ListMotionItem key={sortableIds[index]} layoutMotion={false}>
                 <Proposed
-                  key={sortableIds[index]}
                   proposed={index >= items.length - proposedItemCount}
                   scope="row"
                   label={t('habits.detail.proposed')}
@@ -205,8 +204,8 @@ export function HabitChecklist({
                     onRemove={removeItem}
                     duplicateDisabled={atItemLimit}
                   />
-                </Proposed>
-              ))}
+                </Proposed></ListMotionItem>
+              ))}</ListPresence>
             </div>
           </SortableContext>
         </DndContext>

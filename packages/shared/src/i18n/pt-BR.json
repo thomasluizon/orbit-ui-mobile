@@ -553,7 +553,8 @@
         "freeLabel": "Ou diga com as suas palavras",
         "freePlaceholder": "Sexta, dia 20, toda segunda",
         "calendar": "Escolher no calendário",
-        "unresolved": "Não entendi essa data. Tente \"sexta\" ou \"dia 20\"."
+        "unresolved": "Não entendi essa data. Tente \"sexta\" ou \"dia 20\".",
+        "past": "Esse dia já passou. Escolha hoje ou um dia depois."
       },
       "time": {
         "question": "Tem hora certa?",
@@ -581,7 +582,10 @@
         "reminder": "Lembrete",
         "type": "O que é isso",
         "emoji": "Emoji",
-        "title": "O que você quer fazer"
+        "title": "O que você quer fazer",
+        "duration": "Duração",
+        "until": "até {time}",
+        "noDuration": "sem duração"
       },
       "type": {
         "question": "É uma tarefa ou um hábito?",
@@ -596,7 +600,8 @@
         "timesIn": "Vezes por"
       },
       "duration": {
-        "question": "Tem duração?"
+        "question": "Tem duração?",
+        "none": "Sem duração"
       },
       "reminderKind": {
         "question": "Quando você quer um lembrete?",
@@ -623,6 +628,39 @@
         "yes": "Sim",
         "no": "Não",
         "removeEndDate": "Tirar a data final"
+      },
+      "tags": {
+        "lineIntro": "Uma tag junta itens parecidos. Toque numa para ver o que já está nela.",
+        "lineHas": "{tag} já tem {items}.",
+        "lineEmpty": "{tag} ainda está vazia.",
+        "more": "{count, plural, =0 {mais # itens} one {mais # item} other {mais # itens}}",
+        "none": "Sem tag",
+        "searchMiss": "Nenhuma tag com esse nome.",
+        "manage": "Quer mudar o nome ou apagar uma tag?"
+      },
+      "checklist": {
+        "line": "Os passos viram uma lista que você marca enquanto faz.",
+        "useTemplate": "Usar um modelo",
+        "noWithItems": "Limpe a lista para seguir sem passos."
+      },
+      "templates": {
+        "question": "Qual modelo você quer usar?",
+        "line": "Um modelo é uma lista de passos que você guardou para usar de novo.",
+        "lineEmpty": "Você ainda não guardou nenhum modelo. Escreva os passos e eu guardo para a próxima.",
+        "option": "{name}, {count, plural, =0 {# itens} one {# item} other {# itens}}",
+        "write": "Escrever passos",
+        "saveQuestion": "Que nome vai ter esse modelo?",
+        "saveLine": "Eu guardo estes passos para você usar em outro hábito.",
+        "loadError": "Não foi possível carregar seus modelos. Tente de novo.",
+        "nameHint": "Escreva um nome para o modelo."
+      },
+      "goals": {
+        "line": "Uma meta soma o progresso dos hábitos ligados a ela.",
+        "lineEmpty": "Você ainda não tem metas. Uma meta soma o progresso dos hábitos ligados a ela.",
+        "limit": "Escolha até 10 metas",
+        "searchMiss": "Nenhuma meta com esse nome.",
+        "option": "{title}, {percent}%",
+        "loadError": "Não foi possível carregar suas metas. Tente de novo."
       },
       "orbit": {
         "offline": "Sem conexão. Eu leio no aparelho e você segue do mesmo jeito.",
@@ -3181,7 +3219,19 @@
       "sent": "Sua mensagem chegou. A resposta vai para {email}."
     },
     "seeCalendar": "Ver no Calendário",
-    "createAnother": "Criar outro"
+    "createAnother": "Criar outro",
+    "goal": {
+      "created": "A meta \"{title}\" vai até {date}.",
+      "createdNoDeadline": "A meta \"{title}\" foi criada sem prazo.",
+      "updated": "A meta \"{title}\" foi salva e vai até {date}.",
+      "updatedNoDeadline": "A meta \"{title}\" foi salva sem prazo.",
+      "reactivated": "A meta \"{title}\" voltou a ficar ativa.",
+      "abandoned": "A meta \"{title}\" foi marcada como abandonada.",
+      "deleted": "A meta \"{title}\" foi apagada.",
+      "open": "Ver a meta",
+      "openList": "Ver as metas",
+      "another": "Criar outra"
+    }
   },
   "onboarding": {
     "flow": {
@@ -3208,6 +3258,12 @@
           "walk": "Caminhar 3 vezes por semana",
           "read": "Ler antes de dormir",
           "tidy": "Arrumar a casa no sábado"
+        },
+        "starterLabels": {
+          "water": "Beber água",
+          "walk": "Caminhar",
+          "read": "Ler",
+          "tidy": "Arrumar casa"
         },
         "haveAccount": "Já tenho uma conta",
         "continueReason": "Escreva o que você quer acompanhar."
@@ -3338,12 +3394,73 @@
         "generalPending": "Tarefa sem data",
         "pending": "pendente"
       },
+      "guided": {
+        "screenLabel": "Primeiros passos no Orbit",
+        "intro": {
+          "talk": {
+            "title": "Eu sou o Orbit",
+            "body": "Você me conta o que quer fazer, do seu jeito, e eu entendo."
+          },
+          "routine": {
+            "title": "Vira rotina",
+            "body": "Eu marco os dias e a hora, e te aviso no momento certo."
+          },
+          "restart": {
+            "title": "Perdeu um dia?",
+            "body": "Sem problema, eu te ajudo a recomeçar no dia seguinte."
+          },
+          "skip": "Pular introdução"
+        },
+        "mode": {
+          "fixed": "Dias certos",
+          "flexible": "Quando der",
+          "interval": "Com intervalo",
+          "oneTime": "Uma vez só"
+        },
+        "days": {
+          "everyDay": "Todo dia",
+          "weekdays": "Dias úteis"
+        },
+        "quantity": {
+          "question": "Quantas vezes?"
+        },
+        "interval": {
+          "question": "De quanto em quanto tempo?"
+        },
+        "time": {
+          "question": "Tem hora certa?",
+          "line": "Se tiver hora, eu consigo te lembrar.",
+          "none": "Sem hora certa",
+          "freeLabel": "Outra hora"
+        },
+        "summary": {
+          "question": "É isso?",
+          "what": "O que você vai fazer",
+          "mode": "Como se repete",
+          "days": "Em quais dias",
+          "quantity": "Quantas vezes",
+          "interval": "De quanto em quanto",
+          "time": "Que horas"
+        },
+        "remind": {
+          "question": "Quer que eu te lembre às {time}?",
+          "line": "Eu aviso 15 minutos antes, e só se você ainda não tiver marcado.",
+          "allow": "Sim, me lembra",
+          "pending": "Esperando a resposta do aparelho."
+        },
+        "creating": "Estou criando o seu hábito.",
+        "cadence": {
+          "noDate": "sem data",
+          "noDateAt": "sem data, às {time}"
+        }
+      },
       "meetAstra": {
         "importPrompt": "Me ajude a importar meus hábitos de outro app. Vou anexar um arquivo ou colar minha lista, e você cria os hábitos."
       }
     },
     "wizard": {
       "calendarTitle": "Importar do Google Agenda",
+      "calendarQuestion": "Importar do Google Agenda?",
       "calendarDescription": "Já tem eventos no Google Agenda? Importe como hábitos no Orbit de uma vez só.",
       "calendarButton": "Importar calendário",
       "importTitle": "Importar de outro app?",
@@ -3792,6 +3909,33 @@
       "unitQuestion": "De quê?",
       "deadlineQuestion": "Até quando?"
     },
+    "flow": {
+      "what": {
+        "line": "Escreva do seu jeito. Depois eu pergunto quanto e até quando."
+      },
+      "track": {
+        "line": "Progresso soma um número. Sequência conta dias seguidos."
+      },
+      "amount": {
+        "line": "Com um número eu mostro quanto falta.",
+        "streakLine": "Eu conto cada dia seguido até você chegar lá."
+      },
+      "deadline": {
+        "line": "Com um prazo eu calculo quanto fazer por dia.",
+        "none": "Sem prazo",
+        "monthEnd": "Fim do mês",
+        "yearEnd": "Fim do ano"
+      },
+      "habits": {
+        "question": "Quais hábitos contam para essa meta?"
+      },
+      "summary": {
+        "what": "Sua meta",
+        "track": "Acompanhamento",
+        "amount": "Quanto",
+        "deadline": "Até quando"
+      }
+    },
     "streak": {
       "ofTarget": "Dia {current} de {target}"
     },
@@ -3832,7 +3976,12 @@
       "askAstraEyebrow": "Analisar meta",
       "askAstraDefault": "Quer um plano de acompanhamento semanal para isso?",
       "askAstraSeedDefault": "Me ajuda a montar um plano de acompanhamento semanal para a meta \"{title}\".",
-      "statusLabel": "Status"
+      "statusLabel": "Status",
+      "line": {
+        "daysLeft": "{days, plural, =0 {Faltam # dias para o prazo.} one {Falta # dia para o prazo.} other {Faltam # dias para o prazo.}}",
+        "dueToday": "O prazo é hoje.",
+        "passed": "O prazo era {date}."
+      }
     },
     "deadline": {
       "daysLeft": "{n, plural, =0 {# dias restantes} one {# dia restante} other {# dias restantes}}"

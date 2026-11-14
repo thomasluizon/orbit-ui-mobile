@@ -88,13 +88,20 @@ interface StepperProps {
   onChange: (value: number) => void
 }
 
-function Stepper({ value, minimum, maximum, lessLabel, moreLabel, description, onChange }: Readonly<StepperProps>) {
+/** A count control: minus, the value and plus, with what the count means beside it. */
+export function Stepper({ value, minimum, maximum, lessLabel, moreLabel, description, onChange }: Readonly<StepperProps>) {
   return <div className="flex flex-wrap items-center gap-2">
     <button type="button" aria-label={lessLabel} disabled={value <= minimum} className="habit-control-motion grid size-[var(--touch-min)] place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] enabled:hover:bg-[var(--bg-hover)] enabled:hover:text-[var(--fg-1)] enabled:active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40" onClick={() => onChange(Math.max(minimum, value - 1))}><Minus size={20} strokeWidth={2} aria-hidden="true" /></button>
     <span className="min-w-7 text-center font-mono text-xl tabular-nums">{value}</span>
     <button type="button" aria-label={moreLabel} disabled={maximum !== undefined && value >= maximum} className="habit-control-motion grid size-[var(--touch-min)] place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] enabled:hover:bg-[var(--bg-hover)] enabled:hover:text-[var(--fg-1)] enabled:active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40" onClick={() => onChange(maximum === undefined ? value + 1 : Math.min(maximum, value + 1))}><Plus size={20} strokeWidth={2} aria-hidden="true" /></button>
     <span className="text-sm text-[var(--fg-3)]">{description}</span>
   </div>
+}
+
+/** The unit of a count or an interval: day, week, month or year. The current onboarding and the guided onboarding both render it. */
+export function FrequencyUnitControl({ value, onChange }: Readonly<{ value: FrequencyUnit; onChange: (unit: FrequencyUnit) => void }>) {
+  const t = useTranslations('onboarding.flow')
+  return <SegmentedControl fullWidth label={t('when.frequencyUnitLabel')} value={value} options={[{ value: 'Day', label: t('when.units.day') }, { value: 'Week', label: t('when.units.week') }, { value: 'Month', label: t('when.units.month') }, { value: 'Year', label: t('when.units.year') }]} onChange={onChange} />
 }
 
 export function OnboardingCreateHabit(props: Readonly<OnboardingCreateHabitProps>) {
@@ -104,12 +111,6 @@ export function OnboardingCreateHabit(props: Readonly<OnboardingCreateHabitProps
   const translate = createAstraAllowanceTranslator(translateDays, { aiMessagesPeriod: props.allowancePeriod }, locale)
   const schedule = clampOnboardingRepeatWeeks(props.schedule, props.canSaveRepeatWeeks)
   const mode = getOnboardingScheduleMode(schedule)
-  const frequencyUnitOptions = [
-    { value: 'Day', label: t('when.units.day') },
-    { value: 'Week', label: t('when.units.week') },
-    { value: 'Month', label: t('when.units.month') },
-    { value: 'Year', label: t('when.units.year') },
-  ] as const
   const intervalCount = schedule.frequencyQuantity ?? 1
   const intervalUnit = (schedule.frequencyUnit ?? 'Week').toLowerCase()
   const proposalCadence = getCadencePresentation(schedule, useTranslations('onboarding.flow.when'), locale, translateDays)
@@ -117,7 +118,7 @@ export function OnboardingCreateHabit(props: Readonly<OnboardingCreateHabitProps
     <div data-onboarding-questions="" className="flex flex-col gap-6">
       <div className="flex min-w-0 flex-col gap-3"><span className="text-sm font-medium text-[var(--fg-2)]">{t('when.scheduleMode')}</span><SegmentedControl fullWidth label={t('when.scheduleMode')} value={mode} options={[{ value: 'fixed', label: t('when.fixedMode') }, { value: 'flexible', label: t('when.flexibleMode') }, { value: 'interval', label: t('when.intervalMode') }, { value: 'oneTime', label: t('when.oneTimeMode') }]} onChange={props.onModeChange} /></div>
       {mode === 'flexible' ? (
-        <div className="flex min-w-0 flex-col gap-3"><span className="text-sm font-medium text-[var(--fg-2)]">{t('when.frequencyUnitLabel')}</span><SegmentedControl fullWidth label={t('when.frequencyUnitLabel')} value={schedule.frequencyUnit ?? 'Week'} options={frequencyUnitOptions} onChange={props.onFrequencyUnitChange} /><Stepper value={schedule.frequencyQuantity ?? 1} minimum={1} lessLabel={t('when.quantityLess')} moreLabel={t('when.quantityMore')} description={t(`when.quantityUnit.${intervalUnit}`, { count: schedule.frequencyQuantity ?? 1 })} onChange={props.onQuantityChange} /></div>
+        <div className="flex min-w-0 flex-col gap-3"><span className="text-sm font-medium text-[var(--fg-2)]">{t('when.frequencyUnitLabel')}</span><FrequencyUnitControl value={schedule.frequencyUnit ?? 'Week'} onChange={props.onFrequencyUnitChange} /><Stepper value={schedule.frequencyQuantity ?? 1} minimum={1} lessLabel={t('when.quantityLess')} moreLabel={t('when.quantityMore')} description={t(`when.quantityUnit.${intervalUnit}`, { count: schedule.frequencyQuantity ?? 1 })} onChange={props.onQuantityChange} /></div>
       ) : null}
       {mode === 'fixed' ? (
         <div className="flex min-w-0 flex-col gap-3">
@@ -125,7 +126,7 @@ export function OnboardingCreateHabit(props: Readonly<OnboardingCreateHabitProps
           <WeekdayPicker label={t('when.daysLabel')} days={schedule.days} dayOptions={DAYS.map(day => ({ value: day, label: t(`when.days.${day.toLowerCase()}`), accessibleLabel: t(`when.daysLong.${day.toLowerCase()}`) }))} onToggleDay={props.onToggleDay} />
         </div>
       ) : null}
-      {mode === 'interval' ? <div className="flex min-w-0 flex-col gap-3"><span className="text-sm font-medium text-[var(--fg-2)]">{t('when.frequencyUnitLabel')}</span><SegmentedControl fullWidth label={t('when.frequencyUnitLabel')} value={schedule.frequencyUnit ?? 'Week'} options={frequencyUnitOptions} onChange={props.onFrequencyUnitChange} /><Stepper value={schedule.frequencyQuantity ?? 1} minimum={1} lessLabel={t('when.frequencyLess')} moreLabel={t('when.frequencyMore')} description={t(`when.cadence.intervalUnit.${intervalUnit}`, { count: intervalCount })} onChange={props.onQuantityChange} /></div> : null}
+      {mode === 'interval' ? <div className="flex min-w-0 flex-col gap-3"><span className="text-sm font-medium text-[var(--fg-2)]">{t('when.frequencyUnitLabel')}</span><FrequencyUnitControl value={schedule.frequencyUnit ?? 'Week'} onChange={props.onFrequencyUnitChange} /><Stepper value={schedule.frequencyQuantity ?? 1} minimum={1} lessLabel={t('when.frequencyLess')} moreLabel={t('when.frequencyMore')} description={t(`when.cadence.intervalUnit.${intervalUnit}`, { count: intervalCount })} onChange={props.onQuantityChange} /></div> : null}
       {canRepeatOnboardingScheduleWeeks(schedule, props.canSaveRepeatWeeks) ? <Stepper value={schedule.intervalWeeks} minimum={1} maximum={MAX_HABIT_INTERVAL_WEEKS} lessLabel={t('when.intervalLess')} moreLabel={t('when.intervalMore')} description={t('when.interval', { count: schedule.intervalWeeks })} onChange={props.onIntervalWeeksChange} /> : null}
       <TimeField label={t('when.timeLabel')} value={toTime24(schedule.dueTime)} onChange={props.onTimeChange} onClear={() => props.onTimeChange('')} hint={t('when.timeHint')} />
     </div>

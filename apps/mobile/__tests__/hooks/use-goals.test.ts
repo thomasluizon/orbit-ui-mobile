@@ -118,6 +118,7 @@ const mocks = vi.hoisted(() => {
     )),
     queueOrExecute: vi.fn(),
     cancelQueuedDeleteForUndo: vi.fn(() => Promise.resolve<'cancelled' | 'replayed' | 'dropped' | 'uncertain'>('cancelled')),
+    discardCompactedCreateForUndo: vi.fn(),
     withQueuedMarker: vi.fn((value: Record<string, unknown>, mutationId: string) => ({
       ...value,
       queued: true as const,
@@ -148,6 +149,7 @@ vi.mock('@/lib/offline-mutations', () => ({
   isQueuedResult: mocks.isQueuedResult,
   queueOrExecute: mocks.queueOrExecute,
   cancelQueuedDeleteForUndo: mocks.cancelQueuedDeleteForUndo,
+  discardCompactedCreateForUndo: mocks.discardCompactedCreateForUndo,
   withQueuedMarker: mocks.withQueuedMarker,
 }))
 
@@ -499,6 +501,21 @@ describe('mobile goal hooks', () => {
     performUndo()
     await vi.waitFor(() => expect(mocks.cancelQueuedDeleteForUndo).toHaveBeenCalledWith('mutation-1'))
     expect(mocks.restoreGoalMutate).not.toHaveBeenCalled()
+  })
+
+  it('hands the same offline-aware undo and its release to the result dialog instead of the snackbar', async () => {
+    const onDeleted = vi.fn()
+    const mutation = useDeleteGoal({ onDeleted }) as unknown as MutationConfig<
+      { queued: true; queuedMutationId: string }, string, { previousLists: [] }
+    >
+    mocks.showUndoToast.mockClear()
+    mutation.onSuccess?.({ queued: true, queuedMutationId: 'mutation-1' }, 'goal-1', { previousLists: [] })
+    expect(mocks.showUndoToast).not.toHaveBeenCalled()
+    const { undo, release } = onDeleted.mock.calls[0]![0] as { undo: () => void; release: () => void }
+    release()
+    expect(mocks.discardCompactedCreateForUndo).toHaveBeenCalledWith('mutation-1')
+    undo()
+    await vi.waitFor(() => expect(mocks.cancelQueuedDeleteForUndo).toHaveBeenCalledWith('mutation-1'))
   })
 
   it('reconciles an ambiguous goal delete after restoring its cached list', async () => {

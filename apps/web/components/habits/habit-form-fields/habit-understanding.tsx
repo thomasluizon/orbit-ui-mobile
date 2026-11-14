@@ -156,7 +156,7 @@ export function HabitUnderstanding({
 
 type ScheduleCorrectionProps = Pick<HabitUnderstandingProps, 'days' | 'daily' | 'dayOptions' | 'quantity' | 'scheduleLocked' | 'onToggleDay' | 'onQuantityChange' | 'labels' | 'proposed'> & { showCount: boolean; hidden?: boolean }
 
-function ScheduleCorrections({ hidden = false, proposed = false, days, daily = false, dayOptions, quantity, showCount, scheduleLocked = false, onToggleDay, onQuantityChange, labels }: Readonly<ScheduleCorrectionProps>) {
+export function ScheduleCorrections({ hidden = false, proposed = false, days, daily = false, dayOptions, quantity, showCount, scheduleLocked = false, onToggleDay, onQuantityChange, labels }: Readonly<ScheduleCorrectionProps>) {
   if (hidden) return null
   return (
     <>

@@ -16,7 +16,7 @@ function scheduleAvailability(locked: boolean | undefined, pending: boolean, rea
   return locked ? { disabled: true as const, reason } : { disabled: false as const }
 }
 
-export function HabitScheduleFields({ unit, quantity, flexible, disabled, onChange, onModeChange, proposed = false, hidden = false }: Readonly<HabitScheduleFieldsProps>) {
+export function HabitScheduleFields({ unit, quantity, flexible, disabled, onChange, onModeChange, proposed = false, hidden = false, hideMode = false }: Readonly<HabitScheduleFieldsProps>) {
   const { disabled: formDisabled, guard } = useHabitFormInteraction()
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -30,7 +30,7 @@ export function HabitScheduleFields({ unit, quantity, flexible, disabled, onChan
   if (hidden) return null
   return (
     <View testID="schedule-questions" style={styles.container}>
-      <View style={styles.group}>
+      {hideMode ? null : <View style={styles.group}>
       <FormSectionLabel>{t('habits.form.frequency')}</FormSectionLabel>
       <RadioGroup accessibilityLabel={t('habits.form.frequency')}>
         <Proposed keepMounted inset proposed={proposed && (Boolean(unit) && !flexible)} scope="row" label={t('habits.detail.proposed')}>
@@ -40,7 +40,7 @@ export function HabitScheduleFields({ unit, quantity, flexible, disabled, onChan
           <RadioRow proposed={proposed && flexible} label={t('habits.form.timesPerUnit')} selected={flexible} {...availability} onSelect={() => { if (!locked) onModeChange(true) }} />
         </Proposed>
       </RadioGroup>
-      </View>
+      </View>}
       <Proposed keepMounted inset proposed={proposed} scope="field" label={t('habits.detail.proposed')}>
         <Input
           proposed={proposed}

@@ -20,6 +20,8 @@ import { Text, View } from 'react-native'
 import type { CreateGoalSheetProps } from '@orbit/shared/hooks'
 import { MAX_GOAL_TITLE_LENGTH } from '@orbit/shared/validation'
 import { useGoalCreation } from '@/hooks/use-goal-creation'
+import { useFlag } from '@/hooks/use-flag'
+import { GuidedGoalCreateFlow } from './guided/guided-goal-create-flow'
 
 type GoalCreation = ReturnType<typeof useGoalCreation>
 type SheetStyles = ReturnType<typeof createStyles>
@@ -43,7 +45,17 @@ function GoalTitleQuestion({ styles, tokens, inputRef, value, onChange, isStreak
   </View>
 }
 
+/** With `orbit_guided_flows` on, an open sheet is the guided goal flow. Off, or closed, it is the current sheet. */
 export function CreateGoalSheet(props: Readonly<CreateGoalSheetProps>) {
+  return props.open ? <OpenCreateGoalSheet {...props} /> : <CurrentCreateGoalSheet {...props} />
+}
+
+function OpenCreateGoalSheet(props: Readonly<CreateGoalSheetProps>) {
+  const guided = useFlag('orbit_guided_flows')
+  return guided ? <GuidedGoalCreateFlow {...props} /> : <CurrentCreateGoalSheet {...props} />
+}
+
+function CurrentCreateGoalSheet(props: Readonly<CreateGoalSheetProps>) {
   const { open, onClose } = props
   const { t } = useTranslation()
   const { sheetRef, closeSheet } = useSheetHost()

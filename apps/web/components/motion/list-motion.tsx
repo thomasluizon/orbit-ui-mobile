@@ -42,12 +42,14 @@ function useExitDeadline(duration: number) {
   return present
 }
 
-export function ListMotionItem({ children, className, style, ref, positionMotion = true }: Readonly<{
+export function ListMotionItem({ children, className, style, ref, positionMotion = true, layoutMotion = true }: Readonly<{
   ref?: Ref<HTMLDivElement>
   children: ReactNode
   className?: string
   style?: CSSProperties
   positionMotion?: boolean
+  /** False keeps the preset shift of the entry and the exit but lets the gap close at once, with no glide of the other rows. */
+  layoutMotion?: boolean
 }>) {
   const reduced = useViewportMatch('(prefers-reduced-motion: reduce)')
   const enter = resolveMotionPreset('list-enter', reduced)
@@ -56,7 +58,7 @@ export function ListMotionItem({ children, className, style, ref, positionMotion
   const scopeContext = useContext(ListScopeContext)
   const presence = useContext(PresenceContext)
   const [mountedByScopeChange] = useState(() => scopeContext.committedScope.current !== scopeContext.scope)
-  return <PresenceContext.Provider value={null}><motion.div ref={ref} layout={reduced || !positionMotion ? false : 'position'}
+  return <PresenceContext.Provider value={null}><motion.div ref={ref} layout={reduced || !positionMotion || !layoutMotion ? false : 'position'}
     data-list-motion="" className={className} style={style} inert={!present} aria-hidden={!present || undefined}
     initial={presence?.initial === false || mountedByScopeChange ? false : reduced || !positionMotion ? { opacity: 0 } : { opacity: 0, y: enter.shift }}
     animate={present ? reduced || !positionMotion ? { opacity: 1 } : { opacity: 1, y: 0 } : { opacity: 0, ...(reduced || !positionMotion ? {} : { y: exit.shift }), transition: { duration: exit.exitDuration / 1000, ease: exit.exitEasing } }}

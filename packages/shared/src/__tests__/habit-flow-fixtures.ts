@@ -1,5 +1,8 @@
-import { PostApiHabitsReadPhraseResponse } from '../types/__generated__/api.generated'
+import { vi } from 'vitest'
+import type { z } from 'zod'
 import { habitPhraseReadSchema } from '../types/habit'
+
+const { PostApiHabitsReadPhraseResponse } = await vi.importActual<{ PostApiHabitsReadPhraseResponse: z.ZodObject }>('../types/__generated__/api.generated')
 
 /** A sample that the generated read-phrase response schema accepts, so the fixture follows the API contract. */
 export const PostApiHabitsReadPhraseResponseShape = PostApiHabitsReadPhraseResponse.parse({

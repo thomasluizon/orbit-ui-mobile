@@ -3,7 +3,7 @@ import { createTagSuggestionActions, createTagSuggestionState, reconcileTagSugge
 import { useAccountGeneration } from '@/hooks/use-session-reset'
 import type { SuggestedTag } from '@orbit/shared/types/habit'
 
-interface TagSuggestions extends TagSuggestionState {
+export interface TagSuggestions extends TagSuggestionState {
   needsTitle: boolean
   canSuggest: boolean
   suggest: () => Promise<void>
