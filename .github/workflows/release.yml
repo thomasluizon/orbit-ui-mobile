@@ -283,7 +283,7 @@ jobs:
           fi
           echo "Staging served $SOURCE_SHA with status ok" >> "$GITHUB_STEP_SUMMARY"
 
-  # Test PR and Guards on this SHA already prove the desktop types and unit tests, and desktop-release.yml compiles
+  # PR Tests and Guards on this SHA already prove the desktop types and unit tests, and desktop-release.yml compiles
   # and verifies every target whenever the shell inputs changed, so no separate desktop build runs here.
   desktop-release:
     needs: [select, admission]
