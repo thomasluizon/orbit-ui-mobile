@@ -371,6 +371,37 @@ describe.each(['pt-BR', 'en'] as const)('the detail questions on Android in %s',
   })
 })
 
+describe.each(['pt-BR', 'en'] as const)('the monthly repeat and the conversation draft on Android in %s', (locale) => {
+  beforeEach(async () => { await i18n.changeLanguage(locale) })
+
+  it('scenario 5: picks days 1 and 15 of the month and notes the short months for day 31', async () => {
+    const tree = renderNavigation(<Harness mode="edit" subHabits={false} initial={{ title: 'Pagar contas', itemType: 'habit', frequencyUnit: 'Month', frequencyQuantity: 1, isFlexible: false, dueDate: '2026-11-13', monthDays: [] }} />)
+    await tap(tree, new RegExp(`^${flowCopy().summary.when},`))
+    expect(heading(tree)).toBe(flowCopy().repeat.question)
+    await tap(tree, '1')
+    await tap(tree, '15')
+    expect(helpers().form.getValues('monthDays')).toEqual(expect.arrayContaining([1, 15]))
+    await tap(tree, '31')
+    expect(hasText(tree, copy().habits.form.monthDaysShortMonth)).toBe(true)
+    tree.unmount()
+  })
+
+  it('scenario 10: opens a conversation draft on the summary with the notice as the hint of the question', () => {
+    const tree = renderNavigation(<GuidedFromConversation />)
+    const question = tree.hosts().find((node) => node.props.accessibilityRole === 'header')
+    expect(question?.props.children).toBe(flowCopy().confirm.question)
+    expect((question?.props as { accessibilityHint?: string } | undefined)?.accessibilityHint).toBe(flowCopy().orbit.fromConversation)
+    tree.unmount()
+  })
+})
+
+function GuidedFromConversation() {
+  const formHelpers = useHabitForm({ initialData: { title: 'Ler 10 páginas', itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-11-13' } })
+  const tags = useTagSelection()
+  return <GuidedHabitFlow mode="edit" formHelpers={formHelpers} lockedGeneral={null} fromConversation pending={false} saveError={null} createLabel="Salvar" onSubmit={submit} onClose={close}
+    fields={{ tags, selectedGoalIds: [], atGoalLimit: false, onToggleGoal: vi.fn(), reminderTimes: [], onReminderTimesChange: vi.fn(), onUpgrade: vi.fn() }} />
+}
+
 describe('the guided edit flow on Android', () => {
   beforeEach(async () => { await i18n.changeLanguage('pt-BR') })
 

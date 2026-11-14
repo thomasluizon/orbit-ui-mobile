@@ -395,6 +395,35 @@ describe.each(['pt-BR', 'en'] as const)('the detail questions in %s', (locale) =
   })
 })
 
+describe.each(['pt-BR', 'en'] as const)('the monthly repeat and the conversation draft in %s', (locale) => {
+  beforeEach(() => { state.locale = locale; state.reducedMotion = false })
+
+  it('scenario 5: picks days 1 and 15 of the month and notes the short months for day 31', async () => {
+    render(<Harness mode="edit" subHabits={false} initial={{ title: 'Pagar contas', itemType: 'habit', frequencyUnit: 'Month', frequencyQuantity: 1, isFlexible: false, dueDate: '2026-11-13', monthDays: [] }} />)
+    await press(new RegExp(`^${messages().summary.when}`))
+    expect(heading()).toHaveTextContent(messages().repeat.question)
+    const days = within(screen.getByRole('group', { name: (locale === 'en' ? en : ptBR).habits.form.monthDaysQuestion }))
+    await act(async () => { fireEvent.click(days.getByRole('button', { name: '1' })) })
+    await act(async () => { fireEvent.click(days.getByRole('button', { name: '15' })) })
+    expect(helpers().form.getValues('monthDays')).toEqual(expect.arrayContaining([1, 15]))
+    await act(async () => { fireEvent.click(days.getByRole('button', { name: '31' })) })
+    expect(screen.getByText((locale === 'en' ? en : ptBR).habits.form.monthDaysShortMonth)).toBeInTheDocument()
+  })
+
+  it('scenario 10: opens a conversation draft on the summary with the notice', () => {
+    render(<GuidedFromConversation />)
+    expect(heading()).toHaveTextContent(messages().confirm.question)
+    expect(heading()).toHaveAccessibleDescription(messages().orbit.fromConversation)
+  })
+})
+
+function GuidedFromConversation() {
+  const formHelpers = useHabitForm({ initialData: { title: 'Ler 10 páginas', itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-11-13' } })
+  const tags = useTagSelection()
+  return <GuidedHabitFlow mode="edit" formHelpers={formHelpers} lockedGeneral={null} fromConversation pending={false} saveError={null} createLabel="Salvar" onSubmit={submit} onClose={close}
+    fields={{ tags, selectedGoalIds: [], atGoalLimit: false, onToggleGoal: vi.fn(), reminderTimes: [], onReminderTimesChange: vi.fn() }} />
+}
+
 describe('the guided edit flow', () => {
   beforeEach(() => { state.locale = 'pt-BR'; state.reducedMotion = false })
 
