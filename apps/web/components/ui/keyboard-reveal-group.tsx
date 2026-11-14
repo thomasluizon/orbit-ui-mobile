@@ -1,13 +1,14 @@
 'use client'
 
 import { useEffect, useRef, type ReactNode } from 'react'
+import { isKeyboardViewportOpen } from '@/hooks/use-keyboard-viewport'
 import { mediaQueryMatches } from '@/lib/media-query'
 
 /**
  * Brings a field, its check and its main action above an on-screen keyboard together, as the mobile
- * group does. The browser reveals only the focused field, so the group scrolls itself into view after
- * the visual viewport resizes, after a field in it takes focus, and when it grows while a field in it
- * has focus.
+ * group does. The browser reveals only the focused field, so while an element in the group has focus
+ * and the keyboard is open, the group scrolls itself into view when the visual viewport resizes, when
+ * an element in it takes focus, and when it changes size, which includes its first layout.
  */
 export function KeyboardRevealGroup({ children, className, testID }: Readonly<{
   children: ReactNode
@@ -19,29 +20,23 @@ export function KeyboardRevealGroup({ children, className, testID }: Readonly<{
     const group = groupRef.current
     const viewport = globalThis.visualViewport
     if (!group || !viewport) return
-    let fullHeight = viewport.height
     let frame = 0
     const reveal = () => {
       cancelAnimationFrame(frame)
       // WHY: the resize steps run before the animation frame callbacks, so a shell that fits its scroller to the visual viewport in its own resize listener has done so when the group scrolls. https://html.spec.whatwg.org/multipage/webappapis.html#update-the-rendering
       frame = requestAnimationFrame(() => {
-        const keyboardOpen = viewport.scale === 1 && viewport.height < Math.max(fullHeight, document.documentElement.clientHeight)
-        if (!keyboardOpen || !group.contains(document.activeElement)) return
+        if (!isKeyboardViewportOpen(viewport) || !group.contains(document.activeElement)) return
         group.scrollIntoView({ block: 'nearest', behavior: mediaQueryMatches('(prefers-reduced-motion: reduce)', true) ? 'auto' : 'smooth' })
       })
     }
-    const resize = () => {
-      if (viewport.scale === 1) fullHeight = Math.max(fullHeight, viewport.height)
-      reveal()
-    }
     const observer = new ResizeObserver(reveal)
     observer.observe(group)
-    viewport.addEventListener('resize', resize)
+    viewport.addEventListener('resize', reveal)
     group.addEventListener('focusin', reveal)
     return () => {
       cancelAnimationFrame(frame)
       observer.disconnect()
-      viewport.removeEventListener('resize', resize)
+      viewport.removeEventListener('resize', reveal)
       group.removeEventListener('focusin', reveal)
     }
   }, [])

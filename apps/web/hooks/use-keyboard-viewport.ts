@@ -37,6 +37,20 @@ export function needsKeyboardViewportResize(viewport: VisualViewport) {
   return viewport.scale === 1 && viewport.height < document.documentElement.clientHeight
 }
 
+const fullViewportHeights = new WeakMap<VisualViewport, number>()
+
+/**
+ * Whether an on-screen keyboard covers part of the page at zoom 1: the visual viewport is shorter than the layout
+ * viewport (iOS) or than the tallest zoom-1 height any caller saw on this page (Android, where the keyboard shortens
+ * both). Every call records that height, so a caller that mounts while the Android keyboard is open still sees it open.
+ */
+export function isKeyboardViewportOpen(viewport: VisualViewport) {
+  if (viewport.scale !== 1) return false
+  const fullHeight = Math.max(fullViewportHeights.get(viewport) ?? 0, viewport.height)
+  fullViewportHeights.set(viewport, fullHeight)
+  return viewport.height < Math.max(fullHeight, document.documentElement.clientHeight)
+}
+
 function revealField(root: HTMLElement, viewport: VisualViewport) {
   const field = root.ownerDocument.activeElement
   if (!(field instanceof HTMLElement) || !root.contains(field)
@@ -62,10 +76,8 @@ export function useKeyboardViewport(rootRef: RefObject<HTMLDivElement | null>) {
     const root = rootRef.current
     const viewport = window.visualViewport
     if (!root || !viewport) return
-    let fullViewportHeight = viewport.height
     const update = () => {
       const resize = needsKeyboardViewportResize(viewport)
-      fullViewportHeight = Math.max(fullViewportHeight, viewport.height)
       root.style.height = resize ? `${viewport.height}px` : ''
       root.style.minHeight = resize ? `${viewport.height}px` : ''
       if (resize) {
@@ -73,9 +85,7 @@ export function useKeyboardViewport(rootRef: RefObject<HTMLDivElement | null>) {
       } else {
         root.style.removeProperty('--keyboard-viewport-height')
       }
-      if (viewport.scale === 1 && (resize || viewport.height < fullViewportHeight)) {
-        revealField(root, viewport)
-      }
+      if (isKeyboardViewportOpen(viewport)) revealField(root, viewport)
     }
     const observer = new ResizeObserver(update)
     const focus = (event: FocusEvent) => {

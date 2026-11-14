@@ -41,6 +41,11 @@ function focusField(name: string) {
   act(() => screen.getByRole('textbox', { name }).focus())
 }
 
+/** The size report a browser delivers after `observe()` and after every later size change. */
+function reportGroupSizes() {
+  act(() => resizeCallbacks.forEach((callback) => callback([], {} as ResizeObserver)))
+}
+
 describe('KeyboardRevealGroup (web)', () => {
   beforeEach(() => {
     viewport = new FakeVisualViewport()
@@ -95,8 +100,26 @@ describe('KeyboardRevealGroup (web)', () => {
     renderGroup()
     focusField('Email')
     act(() => viewport.resizeTo(KEYBOARD_OPEN_HEIGHT))
-    act(() => resizeCallbacks.forEach((callback) => callback([], {} as ResizeObserver)))
+    reportGroupSizes()
     expect(scrollIntoView).toHaveBeenCalledTimes(2)
+  })
+
+  it('brings a group into view that mounts while the Android keyboard already shortens both viewports, as the code step does after the e-mail step', () => {
+    const emailStep = renderGroup()
+    reportGroupSizes()
+    focusField('Email')
+    layoutViewportHeight(KEYBOARD_OPEN_HEIGHT)
+    act(() => viewport.resizeTo(KEYBOARD_OPEN_HEIGHT))
+    emailStep.unmount()
+    scrollIntoView.mockReset()
+    resizeCallbacks.length = 0
+    render(<KeyboardRevealGroup testID="login-field-action">
+      <input aria-label="Code" autoFocus />
+      <button type="submit">Verify</button>
+    </KeyboardRevealGroup>)
+    reportGroupSizes()
+    expect(scrollIntoView).toHaveBeenCalled()
+    expect(scrollIntoView.mock.contexts.at(-1)).toBe(screen.getByTestId('login-field-action'))
   })
 
   it('scrolls without animation under reduced motion', () => {
@@ -111,6 +134,7 @@ describe('KeyboardRevealGroup (web)', () => {
     renderGroup()
     focusField('Outside')
     act(() => viewport.resizeTo(KEYBOARD_OPEN_HEIGHT))
+    expect(scrollIntoView).not.toHaveBeenCalled()
     focusField('Email')
     scrollIntoView.mockReset()
     act(() => viewport.resizeTo(FULL_HEIGHT))
