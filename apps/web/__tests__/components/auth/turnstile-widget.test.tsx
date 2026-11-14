@@ -1,4 +1,4 @@
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, expect, it, onTestFinished, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { TurnstileWidget } from '@/components/auth/turnstile-widget'
 
@@ -198,7 +198,7 @@ it('shows the loading sentence only while no challenge waits for the person', as
   expect(screen.getByRole('status')).toHaveTextContent('auth.turnstileLoading')
 })
 
-it('keeps checking while Turnstile runs a failed challenge again and reports the failure when that run fails too', async () => {
+it('keeps checking while the widget runs a failed challenge again and reports the failure after two more runs fail', async () => {
   const renderWidget = vi.fn((..._args: unknown[]) => 'retried-widget')
   const reset = vi.fn()
   ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset, remove: vi.fn() }
@@ -232,7 +232,42 @@ it('keeps checking while Turnstile runs a failed challenge again and reports the
   expect(reset).toHaveBeenCalledWith('retried-widget')
   act(() => { callbacks['error-callback']('600010') })
   expect(onStateChange).toHaveBeenLastCalledWith('loading')
-  expect(renderWidget.mock.calls[0]![1]).toMatchObject({ retry: 'auto', 'retry-interval': 2000 })
+  expect(renderWidget.mock.calls[0]![1]).toMatchObject({ retry: 'never' })
+})
+
+it('runs a challenge frame that failed to load again itself, because Turnstile reports 200500 without a retry', async () => {
+  const renderWidget = vi.fn((..._args: unknown[]) => 'frame-widget')
+  const reset = vi.fn()
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset, remove: vi.fn() }
+  const onStateChange = vi.fn()
+  render(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} onStateChange={onStateChange} />)
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
+  const callbacks = renderWidget.mock.calls[0]![1] as { 'error-callback': (code: string) => boolean }
+  vi.useFakeTimers()
+  onTestFinished(() => { vi.useRealTimers() })
+
+  for (const run of [1, 2]) {
+    act(() => { callbacks['error-callback']('200500') })
+    expect(onStateChange).toHaveBeenLastCalledWith('loading')
+    act(() => { vi.advanceTimersByTime(1999) })
+    expect(reset).toHaveBeenCalledTimes(run - 1)
+    act(() => { vi.advanceTimersByTime(1) })
+    expect(reset).toHaveBeenLastCalledWith('frame-widget')
+    expect(reset).toHaveBeenCalledTimes(run)
+  }
+
+  act(() => { callbacks['error-callback']('200500') })
+  expect(onStateChange).toHaveBeenLastCalledWith('failed')
+  expect(screen.getByRole('alert')).toHaveTextContent('auth.turnstileFailed')
+  act(() => { vi.runAllTimers() })
+  expect(reset).toHaveBeenCalledTimes(2)
+
+  fireEvent.click(screen.getByRole('button', { name: 'auth.turnstileRetry' }))
+  expect(reset).toHaveBeenCalledTimes(3)
+  act(() => { callbacks['error-callback']('200500') })
+  expect(onStateChange).toHaveBeenLastCalledWith('loading')
+  act(() => { vi.advanceTimersByTime(2000) })
+  expect(reset).toHaveBeenCalledTimes(4)
 })
 
 it.each(['200100', '110200'])('reports at once the failure %s that Cloudflare marks as not retried', async (code) => {

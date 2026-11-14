@@ -302,3 +302,31 @@ it('shows the loading sentence only while no challenge waits for the person and 
   expect(loadingSentence()).toBe(false)
   expect(StyleSheet.flatten(renderer.toJSON().props.style)).toMatchObject({ position: 'absolute' })
 })
+
+it('offers Retry when the bridge stops its own retries with failed, and Retry loads a fresh bridge', async () => {
+  const onToken = vi.fn()
+  let renderer!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(async () => {
+    renderer = TestRenderer.create(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={onToken} />)
+    await Promise.resolve()
+  })
+  onTestFinished(() => TestRenderer.act(() => renderer.unmount()))
+  const failedBridge = renderer.root.findByType('WebView')
+  for (const message of [{ state: 'loading' }, { state: 'loading' }, { state: 'failed', token: null }]) {
+    await TestRenderer.act(async () => {
+      failedBridge.props.onMessage({ nativeEvent: { data: JSON.stringify(message) } })
+      await Promise.resolve()
+    })
+  }
+
+  expect(onToken).toHaveBeenLastCalledWith(null)
+  expect(renderer.root.findAllByProps({ accessibilityRole: 'alert' }).length).toBeGreaterThan(0)
+  const retryButton = renderer.root.findByProps({ label: 'auth.turnstileRetry' })
+  await TestRenderer.act(async () => {
+    retryButton.props.onClick()
+    await Promise.resolve()
+  })
+  expect(renderer.root.findByType('WebView')).not.toBe(failedBridge)
+  expect(renderer.root.findAllByType('Text').some((node: { props: { children: unknown } }) =>
+    node.props.children === 'auth.turnstileLoading')).toBe(true)
+})
