@@ -9,6 +9,7 @@ const USAGE = `usage: owner-questions.mjs --list | --record
   Reads session identity from CLAUDE_CODE_SESSION_ID.
   --list      print the candidates as a JSON array on stdout: one row per distinct question
               from the open session chain and the run state, as { id, question, sources, blocks }
+              plus every other field its rows carry, such as ticket or recommendation
   --record    read the dispositions as a JSON array on stdin, exactly one row per candidate id:
               { id, disposition, record?, of?, blocks? }
                 answered | decided   record names where the work reads the answer or the decision
@@ -17,7 +18,8 @@ const USAGE = `usage: owner-questions.mjs --list | --record
                 queued               the question stays for the owner's own /questions
               blocks adds blockers to a queued row, directly or through a duplicate.
               Writes the surviving rows to openOwnerQuestions with the filter record, and
-              prints them as a JSON array of { question, sources, blocks }.
+              prints them as a JSON array of { question, sources, blocks } with the other fields
+              of the queued row and its duplicates.
   --help, -h  print usage and exit 0
 
 exit codes: 0 done, 1 QUESTIONS_REFUSED (no session, no run state, or dispositions that do

@@ -11,11 +11,17 @@ const questionId = (question) =>
 
 const union = (...lists) => [...new Set(lists.flat())]
 
-/** A row is the legacy question string or `{ question, sources, blocks }`; a row with no sources belongs to its holder. */
+/** The fields of a row other than its identity, text, sources and blockers, such as `ticket` or `recommendation`. */
+const rowDetails = ({ id, question, sources, blocks, ...details }) => details
+
+/**
+ * A row is the legacy question string or `{ question, sources, blocks, ...details }`; a row with no sources
+ * belongs to its holder. A legacy row can hold its blockers as one string, so blocks always reads as a list.
+ */
 const questionRow = (row, holderSessionId) => {
-  const question = typeof row === "string" ? row : row?.question
+  const { question, sources, blocks, ...details } = typeof row === "string" ? { question: row } : row ?? {}
   if (typeof question !== "string" || !question.trim()) throw new Error(`owner question row in session ${holderSessionId} has no question text`)
-  return { id: questionId(question), question, sources: row.sources?.length ? row.sources : [holderSessionId], blocks: row.blocks ?? [] }
+  return { ...details, id: questionId(question), question, sources: sources?.length ? sources : [holderSessionId], blocks: [blocks ?? []].flat() }
 }
 
 /**
@@ -31,7 +37,7 @@ export const ownerQuestionCandidates = (sessionId, repoRoot = REPO_ROOT) => {
   for (const holder of holders) {
     for (const row of (holder.openOwnerQuestions ?? []).map((entry) => questionRow(entry, holder.sessionId))) {
       const known = candidates.get(row.id)
-      candidates.set(row.id, known ? { ...known, sources: union(known.sources, row.sources), blocks: union(known.blocks, row.blocks) } : row)
+      candidates.set(row.id, known ? { ...known, ...rowDetails(row), sources: union(known.sources, row.sources), blocks: union(known.blocks, row.blocks) } : row)
     }
   }
   return [...candidates.values()]
@@ -60,7 +66,7 @@ const dispositionFailures = (candidates, dispositions) => {
 const survivingRows = (candidates, dispositions) => dispositions.filter((row) => row.disposition === "queued").map((row) => {
   const joined = [row, ...dispositions.filter((other) => other.disposition === "duplicate" && other.of === row.id)]
   const asked = joined.map((entry) => candidates.find((candidate) => candidate.id === entry.id))
-  return { question: asked[0].question, sources: union(...asked.map((candidate) => candidate.sources)),
+  return { ...Object.assign({}, ...asked.toReversed().map(rowDetails)), question: asked[0].question, sources: union(...asked.map((candidate) => candidate.sources)),
     blocks: union(...asked.map((candidate) => candidate.blocks), ...joined.map((entry) => entry.blocks ?? [])) }
 })
 

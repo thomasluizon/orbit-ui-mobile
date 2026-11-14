@@ -87,7 +87,23 @@ const survivorCases = async () => {
   T("owner-questions: a carried survivor keeps the sessions that raised it", later[0].sources.join() === "s1,s2,s3,current" && later[1].sources.join() === "next")
 }
 
+const legacyCases = () => {
+  const paraphrase = "Yearly plan: below ten monthly payments?"
+  const checkout = stageQuestionChain("legacy", 2, (index) => index === 1
+    ? [{ id: "legacy-1", question: PRODUCT, blocks: "#2071 release", ticket: "#2071", recommendation: "yes" }]
+    : [{ question: PRODUCT, blocks: ["#2072"], ticket: "#2072", answerer: "owner" }, { question: paraphrase, blocks: "#2073", waitsOn: "the price review" }])
+  writeRunState({ sessionId: "current", sleep: true, openOwnerQuestions: [] }, checkout)
+  const [product, repeated] = ownerQuestionCandidates("current", checkout)
+  T("owner-questions: a legacy string of blockers reads as a list", Array.isArray(repeated.blocks) && repeated.blocks.join() === "#2073" && product.blocks.join() === "#2071 release,#2072", JSON.stringify([product.blocks, repeated.blocks]))
+  T("owner-questions: a candidate keeps the other fields of its rows, the newest value first", product.ticket === "#2072" && product.recommendation === "yes" && product.answerer === "owner" && product.id !== "legacy-1", JSON.stringify(product))
+  const queue = recordQuestionFilter("current", [{ id: product.id, disposition: "queued" }, { id: repeated.id, disposition: "duplicate", of: product.id }], checkout)
+  T("owner-questions: a queued question keeps its ticket, its recommendation and the fields of its duplicate", queue.length === 1 && queue[0].ticket === "#2072" && queue[0].recommendation === "yes" &&
+    queue[0].answerer === "owner" && queue[0].waitsOn === "the price review" && !("id" in queue[0]) && queue[0].blocks.join() === "#2071 release,#2072,#2073", JSON.stringify(queue[0]))
+  T("owner-questions: a queued question with other fields leaves no gap", questionFilterGaps("current", checkout).length === 0, questionFilterGaps("current", checkout).join())
+}
+
 export const cases = async () => {
   answerableCases()
   await survivorCases()
+  legacyCases()
 }
