@@ -1,4 +1,6 @@
 import { act, render } from '@testing-library/react'
+import { ORBIT_MASCOT_VIEW_BOX, ORBIT_SMALL_FACES, orbitMascotFrame, orbitOutlineCutout } from '@orbit/shared/contracts/brand'
+import { mascotMotion } from '@orbit/shared/theme'
 import { setOrbitMotionEnabled } from '@orbit/shared/utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
@@ -129,5 +131,19 @@ describe('Orbit idle loop on web', () => {
     const { unmount } = render(<OrbitMascot size={96} />)
     unmount()
     expect(cancel).toHaveBeenCalled()
+  })
+})
+
+describe('Orbit ring outline on web', () => {
+  it('cuts the outline out of the planet, so the surface behind shows through on any fill', () => {
+    const { container } = render(<div><OrbitMascot size={96} /><OrbitMascot size={16} /></div>)
+    const cutouts = [...container.querySelectorAll('[data-part="outline-cutout"]')]
+    expect(cutouts.map((path) => path.getAttribute('clip-rule'))).toEqual(['evenodd', 'evenodd'])
+    expect(cutouts[0]?.getAttribute('d')).toBe(orbitOutlineCutout(ORBIT_MASCOT_VIEW_BOX, orbitMascotFrame(0, mascotMotion).ringOutline))
+    expect(cutouts[1]?.getAttribute('d')).toBe(orbitOutlineCutout(ORBIT_SMALL_FACES[16].viewBox, ORBIT_SMALL_FACES[16].ringOutline))
+    const planets = [...container.querySelectorAll('[data-part="planet"]')]
+    expect(planets.map((group) => group.getAttribute('clip-path'))).toEqual(cutouts.map((path) => `url(#${path.parentElement?.id})`))
+    expect(container.innerHTML).not.toContain('orbit-surface')
+    expect([...container.querySelectorAll('[fill="var(--bg)"]')].every((node) => node.getAttribute('data-part') === 'eye')).toBe(true)
   })
 })

@@ -196,7 +196,8 @@ describe('redesign primitives on mobile', () => {
     expect(mascot.props).toMatchObject({ width: size, height: size * 0.75, accessible: false, color: tokens.fg1, 'data-orbit-face': 'small', 'data-orbit-loop': 'still' })
     const paths = byType(tree.root, 'Path')
     expect(paths.filter(path => prop(path, 'fill') === tokens.primary)).toHaveLength(1)
-    expect(paths.filter(path => prop(path, 'fill') === tokens.bg).length).toBeGreaterThanOrEqual(3)
+    expect(paths.filter(path => prop(path, 'fill') === tokens.bg)).toHaveLength(2)
+    expect(byType(tree.root, 'G').filter(group => prop(group, 'clipRule') === 'evenodd')).toHaveLength(1)
   })
 
   it.each([48, 96, 128] as const)('draws the live rig at %ipx in the 7 by 5 box', (size) => {

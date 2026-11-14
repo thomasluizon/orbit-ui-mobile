@@ -10,6 +10,7 @@ import {
   orbitBlinkMatrix,
   orbitMascotFrame,
   orbitMascotSizeFor,
+  orbitOutlineCutout,
   type OrbitEyeShape,
   type OrbitMascotFrame,
   type OrbitMascotProps,
@@ -107,25 +108,35 @@ function Moon({ frame }: Readonly<{ frame: OrbitMascotFrame }>) {
   return <circle cx={frame.moon.x} cy={frame.moon.y} r={frame.moon.radius} fill="var(--primary)" data-part="moon" />
 }
 
+/** The planet and its eyes, clipped by the ring outline cut-out, so the outline shows whatever surface is behind the mascot. */
+function Planet({ viewBox, outline, clipId, children }: Readonly<{ viewBox: string; outline: string; clipId: string; children: React.ReactNode }>) {
+  return (
+    <>
+      <defs>
+        <clipPath id={clipId}>
+          <path d={orbitOutlineCutout(viewBox, outline)} clipRule="evenodd" data-part="outline-cutout" />
+        </clipPath>
+      </defs>
+      <g clipPath={`url(#${clipId})`} clipRule="evenodd" data-part="planet">
+        {children}
+      </g>
+    </>
+  )
+}
+
 function Rig({ state, frame, clipId }: Readonly<{ state: NonNullable<OrbitMascotProps['state']>; frame: OrbitMascotFrame; clipId: string }>) {
   const face = ORBIT_MASCOT_FACES[state]
   const blink = face.blinkCentreY === null ? undefined : orbitBlinkMatrix(frame.blinkScale, face.blinkCentreY)
   return (
     <>
-      <defs>
-        <clipPath id={clipId}>
-          <circle cx="0" cy="0" r={ORBIT_MASCOT_PLANET_RADIUS} />
-        </clipPath>
-      </defs>
       <path d={frame.ringBack} fill="currentColor" />
       {frame.moon.front ? null : <Moon frame={frame} />}
-      <circle cx="0" cy="0" r={ORBIT_MASCOT_PLANET_RADIUS} fill="currentColor" />
-      {face.eyes.map((shape) => (
-        <Eye key={shape.d} shape={shape} blink={blink} />
-      ))}
-      <g clipPath={`url(#${clipId})`}>
-        <path d={frame.ringOutline} fill="var(--orbit-surface, var(--bg))" />
-      </g>
+      <Planet viewBox={ORBIT_MASCOT_VIEW_BOX} outline={frame.ringOutline} clipId={clipId}>
+        <circle cx="0" cy="0" r={ORBIT_MASCOT_PLANET_RADIUS} fill="currentColor" />
+        {face.eyes.map((shape) => (
+          <Eye key={shape.d} shape={shape} blink={blink} />
+        ))}
+      </Planet>
       <path d={frame.ringFront} fill="currentColor" />
       {frame.moon.front ? <Moon frame={frame} /> : null}
     </>
@@ -136,19 +147,13 @@ function SmallFace({ size, clipId }: Readonly<{ size: OrbitMascotSmallSize; clip
   const face = ORBIT_SMALL_FACES[size]
   return (
     <>
-      <defs>
-        <clipPath id={clipId}>
-          <path d={face.planet} />
-        </clipPath>
-      </defs>
       <path d={face.ringBack} fill="currentColor" />
-      <path d={face.planet} fill="currentColor" />
-      {face.eyes.map((eye) => (
-        <path key={eye} d={eye} fill="var(--bg)" data-part="eye" />
-      ))}
-      <g clipPath={`url(#${clipId})`}>
-        <path d={face.ringOutline} fill="var(--orbit-surface, var(--bg))" />
-      </g>
+      <Planet viewBox={face.viewBox} outline={face.ringOutline} clipId={clipId}>
+        <path d={face.planet} fill="currentColor" />
+        {face.eyes.map((eye) => (
+          <path key={eye} d={eye} fill="var(--bg)" data-part="eye" />
+        ))}
+      </Planet>
       <path d={face.ringFront} fill="currentColor" />
       <path d={face.moon} fill="var(--primary)" data-part="moon" />
     </>
