@@ -97,18 +97,23 @@ const generatedAssets = [
   { path: "design/brand/exports/play-icon-512.png", width: 512, height: 512, ink: FOREGROUND, background: CANVAS, scale: 0.7, face: "icon", accent: true },
   { path: "apps/mobile/assets/adaptive-icon-background.png", width: 1024, height: 1024, background: CANVAS },
   // The adaptive layers keep the ring and the moon inside the 66 dp safe circle.
+  // Eye ink of the foreground: CANVAS, the adaptive background layer and backgroundColor in apps/mobile/app.json.
   { path: "apps/mobile/assets/adaptive-icon-foreground.png", width: 1024, height: 1024, ink: FOREGROUND, scale: "adaptive", face: "icon", accent: true },
   // The monochrome layer and the notification icon are one white ink. The eyes and the ring gap are
   // holes in that ink.
   { path: "apps/mobile/assets/adaptive-icon-monochrome.png", width: 1024, height: 1024, ink: WHITE, scale: "adaptive", face: "icon", holes: true },
   { path: "apps/mobile/assets/favicon.png", width: 64, height: 64, ink: FOREGROUND, background: CANVAS, scale: 0.7, face: "rig", accent: true },
   { path: "apps/mobile/assets/icon.png", width: 1024, height: 1024, ink: FOREGROUND, background: CANVAS, scale: 0.7, face: "icon", accent: true },
+  // Eye ink: CANVAS. The planet is the dark-theme foreground, so this transparent logo reads on a dark
+  // ground only, and no file in this repository draws it on any other ground; on that ground the eyes and
+  // the ring outline take the canvas colour.
   { path: "apps/mobile/assets/logo-no-bg.png", width: 96, height: 96, ink: FOREGROUND, scale: 0.8, face: "rig", accent: true },
   // 96 because expo-notifications resizes this one input into every density bucket, and its largest
   // is xxxhdpi: BASELINE_PIXEL_SIZE 24 * scale 4 in
   // node_modules/expo-notifications/plugin/build/withNotificationsAndroid.js. A smaller source is
   // upscaled with resizeMode 'cover' and the silhouette softens on exactly the densest screens.
   { path: "apps/mobile/assets/notification-icon.png", width: 96, height: 96, ink: WHITE, scale: 0.8, face: "rig", holes: true },
+  // Eye ink: CANVAS, the splash background colour in apps/mobile/app.json (expo-splash-screen).
   { path: "apps/mobile/assets/splash-icon.png", width: 1024, height: 1024, ink: FOREGROUND, scale: 0.4, face: "rig", accent: true },
   // Google Play accepts this listing asset as 24-bit RGB PNG but rejects an alpha channel, even
   // when every alpha value is opaque. Other canvases retain alpha because their platform contracts
@@ -119,13 +124,15 @@ const generatedAssets = [
   { path: "apps/web/public/favicon-16.png", width: 16, height: 16, ink: FOREGROUND, face: "small", smallSize: 16, disc: true },
   { path: "apps/web/public/favicon-32.png", width: 32, height: 32, ink: FOREGROUND, face: "small", smallSize: 24, accent: true, disc: true },
   { path: "apps/web/app/apple-icon.png", width: 180, height: 180, ink: FOREGROUND, background: CANVAS, scale: 0.7, face: "icon", accent: true },
+  // Eye ink: CANVAS, for the same reason as apps/mobile/assets/logo-no-bg.png: a dark-ground logo.
   { path: "apps/web/public/logo-no-bg.png", width: 96, height: 96, ink: FOREGROUND, scale: 0.8, face: "rig", accent: true },
   { path: "apps/web/public/og-image.png", width: 1200, height: 630, ink: FOREGROUND, background: CANVAS, scale: 0.36, face: "rig", accent: true },
   { path: "apps/web/public/pwa-192x192.png", width: 192, height: 192, ink: FOREGROUND, background: CANVAS, scale: 0.7, face: "icon", accent: true },
   { path: "apps/web/public/pwa-512x512.png", width: 512, height: 512, ink: FOREGROUND, background: CANVAS, scale: 0.7, face: "icon", accent: true },
   // apps/web/__tests__/manifest.test.ts requires this maskable copy to equal the canonical platform
   // icon byte for byte, so it takes the same entry and a regeneration cannot leave it behind.
-  { path: "apps/web/public/pwa-maskable-512x512.png", width: 512, height: 512, ink: FOREGROUND, background: CANVAS, scale: 0.7, face: "icon", accent: true },
+  // It also keeps the ring and the moon inside the maskable safe circle; renderMarkLayer asserts it.
+  { path: "apps/web/public/pwa-maskable-512x512.png", width: 512, height: 512, ink: FOREGROUND, background: CANVAS, scale: 0.7, face: "icon", accent: true, maskable: true },
 ]
 
 function assertSource(source, name, required) {
@@ -179,6 +186,16 @@ async function measureInkUnits(source) {
 
 /** The width in pixels of one eye when the rig ink is `inkPixels` wide. */
 const eyePixels = (inkPixels, inkUnits) => (EYE_UNITS * inkPixels) / inkUnits
+
+/** The maskable PWA icon keeps the circle that holds the mark (its ring ends, MARK_CIRCLE_UNITS across)
+ *  inside the maskable safe circle, so a launcher mask never crops the ring or the moon. */
+function assertMaskableSafeZone(asset, inkPixels, inkUnits) {
+  const markCircle = (inkPixels * MARK_CIRCLE_UNITS) / inkUnits
+  const safeCircle = MASKABLE_SAFE_FRACTION * asset.width
+  if (markCircle > safeCircle) {
+    throw new Error(`${asset.path} holds its mark in a ${markCircle.toFixed(1)}px circle, wider than the ${safeCircle.toFixed(1)}px maskable safe circle`)
+  }
+}
 
 /** The mark scale (ink width over canvas width) the adaptive layers use: the ring and the moon fit
  *  the 66 dp safe circle, and the platform scale never exceeds it. */
@@ -296,6 +313,7 @@ async function renderMarkLayer(context, asset) {
   const targetWidth = Math.round(markFrameWidth * resolveScale(asset, iconVariant))
   const rendered = await renderTrimmedRig(baked, targetWidth)
   const { data: png, info } = asset.holes ? await punchHoles(rendered.data) : rendered
+  if (asset.maskable) assertMaskableSafeZone(asset, info.width, inkUnits)
   const measured = eyePixels(info.width, inkUnits)
   if (showEyes && measured < EYE_FLOOR_PIXELS) {
     throw new Error(`${asset.path ?? `the ${asset.width}px layer`} draws an eye ${measured.toFixed(2)}px wide, under the ${EYE_FLOOR_PIXELS}px floor`)
