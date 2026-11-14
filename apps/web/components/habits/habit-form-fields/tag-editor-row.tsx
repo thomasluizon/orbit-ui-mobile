@@ -2,6 +2,7 @@ import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { useEffect, useRef, useId } from 'react'
 import { X } from '@/components/ui/icons'
+import { PillButton } from '@/components/ui/pill-button'
 import { MAX_TAG_NAME_LENGTH } from '@orbit/shared/validation'
 
 interface TagEditorRowProps {
@@ -60,20 +61,7 @@ export function TagEditorRow({
           }
         }}
       />
-      <button
-        type="button"
-        className="habit-control-motion shrink-0 min-h-[var(--touch-min)] min-w-[var(--touch-min)] rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)] enabled:active:scale-[0.96] disabled:opacity-40"
-        style={{
-          padding: "var(--orbit-space-8) var(--orbit-space-12)",
-          fontFamily: 'var(--font-sans)',
-          fontSize: 14,
-          fontWeight: 500,
-        }}
-        disabled={disabled}
-        onClick={onCommit}
-      >
-        {actionLabel}
-      </button>
+      <PillButton size="sm" minimumHeight={48} disabled={disabled} onClick={onCommit}>{actionLabel}</PillButton>
       <button
         type="button"
         aria-label={cancelAriaLabel}

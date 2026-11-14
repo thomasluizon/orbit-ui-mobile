@@ -6,6 +6,7 @@ import type { TextInput } from 'react-native'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { View, Text, } from "react-native";
 import { X } from "@/components/ui/icons";
+import { PillButton } from "@/components/ui/pill-button";
 import { MAX_TAG_NAME_LENGTH } from "@orbit/shared/validation";
 import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-input";
 import { type AppTokens, createStyles } from "./styles";
@@ -65,20 +66,7 @@ export function TagEditorRow({
         onChangeText={onChange}
         onSubmitEditing={onCommit}
       />
-      <Pressable
-        style={({ pressed }) => [
-          styles.tagFormSave,
-          disabled && { opacity: 0.45 },
-          pressed && { backgroundColor: tokens.primaryPressed },
-        ]}
-
-        accessibilityRole="button"
-        accessibilityLabel={actionLabel}
-        disabled={disabled}
-        onPress={onCommit}
-      >
-        <Text style={styles.tagFormSaveText}>{actionLabel}</Text>
-      </Pressable>
+      <PillButton size="sm" minimumHeight={48} disabled={disabled} onClick={onCommit}>{actionLabel}</PillButton>
       <Pressable
         style={({ pressed }) => [
           styles.tagFormCancel,

@@ -606,21 +606,6 @@ export function createStyles(tokens: AppTokens) {
       alignItems: "center",
       gap: 8,
     },
-    tagFormSave: {
-      minWidth: TOUCH_TARGET_MIN,
-      minHeight: TOUCH_TARGET_MIN,
-      justifyContent: "center",
-      overflow: "hidden",
-      paddingHorizontal: SPACING.s12,
-      paddingVertical: SPACING.s8,
-      borderRadius: radius.full,
-      backgroundColor: tokens.primary,
-    },
-    tagFormSaveText: {
-      fontFamily: "Geist_500Medium",
-      fontSize: 14,
-      color: tokens.fgOnPrimary,
-    },
     tagFormCancel: {
       borderRadius: radius.full,
       overflow: "hidden",
