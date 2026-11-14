@@ -7,6 +7,13 @@ import { createAstraAllowanceTranslator, proactiveActionLabelKey } from '@orbit/
 import { useProactiveAction } from '@/hooks/use-proactive-action'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
+import { SkeletonFace } from '@/components/ui/skeleton'
+
+/** A waiting action clears its fill so its skeleton face shows; otherwise the well fill and the press fill. */
+function proactiveActionFill(waiting: boolean, pressed: boolean, tokens: ReturnType<typeof createTokensV2>): string {
+  if (waiting) return 'transparent'
+  return pressed ? tokens.bgHover : tokens.bgWell
+}
 
 export function ProactiveAction({ item, acted, isOnline, onSend }: Readonly<{
   item: ProactiveItem
@@ -20,9 +27,10 @@ export function ProactiveAction({ item, acted, isOnline, onSend }: Readonly<{
   const { reason, allowance, act, aiMessagesPeriod } = useProactiveAction(item, acted, isOnline, onSend)
   const allowanceText = createAstraAllowanceTranslator(t, { aiMessagesPeriod }, i18n.language)
   const label = item.actionLabel || t(proactiveActionLabelKey(item.trigger))
-  const explanation = reason ? allowanceText(reason, { allowance }) : undefined
+  const waiting = reason === 'common.loading'
+  const explanation = reason && !waiting ? allowanceText(reason, { allowance }) : undefined
   return <View style={{ alignItems: 'flex-start', gap: 8, paddingVertical: 8 }}>
-    <InsetFocusPressable accessibilityRole="button" accessibilityLabel={label} accessibilityHint={explanation} disabled={reason !== null} onPress={act} style={({ pressed }) => ({ minHeight: 48, maxWidth: '100%', gap: 8, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : tokens.bgWell, opacity: reason ? 0.5 : 1 })}><Text style={{ color: tokens.fg2, fontSize: 14, lineHeight: 20, fontFamily: 'Geist_400Regular' }}>{label}</Text><View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><OrbitMascot size={16} color={tokens.fg2} /></View></InsetFocusPressable>
+    <InsetFocusPressable accessibilityRole="button" accessibilityLabel={label} accessibilityHint={explanation} accessibilityState={{ disabled: reason !== null, busy: waiting }} disabled={reason !== null} onPress={act} style={({ pressed }) => ({ minHeight: 48, maxWidth: '100%', gap: 8, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, overflow: 'hidden', backgroundColor: proactiveActionFill(waiting, pressed, tokens), opacity: reason && !waiting ? 0.5 : 1 })}>{waiting ? <SkeletonFace /> : null}<Text style={{ color: tokens.fg2, fontSize: 14, lineHeight: 20, fontFamily: 'Geist_400Regular' }}>{label}</Text><View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><OrbitMascot size={16} color={tokens.fg2} /></View></InsetFocusPressable>
     <Text accessibilityLiveRegion="polite" style={[{ color: tokens.fg2, fontSize: 14, lineHeight: 14 * 1.55, fontFamily: 'Geist_400Regular' }, !explanation ? { position: 'absolute', width: 0, height: 0 } : null]}>{explanation}</Text>
   </View>
 }

@@ -30,6 +30,7 @@ import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { Proposed } from '@/components/ui/proposed'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { Skeleton } from '@/components/ui/skeleton'
 
 const actionHitPadding = (TOUCH_TARGET_MIN - SMALL_PILL_VISIBLE_MIN) / 2
 
@@ -143,9 +144,8 @@ function FrameRow(props: FrameRowProps) {
   </Proposed>
 }
 
-function LoadingBody({ rows, tokens, hasActions }: Readonly<{
+function LoadingBody({ rows, hasActions }: Readonly<{
   rows: number
-  tokens: AppTokensV2
   hasActions: boolean
 }>) {
   return (
@@ -153,12 +153,12 @@ function LoadingBody({ rows, tokens, hasActions }: Readonly<{
       <View style={styles.loadingBody} testID="block-frame-loading-skeleton">
         {Array.from({ length: rows }, (_, index) => (
           <View key={index} style={styles.row}>
-            <View style={[styles.rowSkeleton, { backgroundColor: tokens.bgElev2 }]} />
-            <View style={[styles.iconSkeleton, { backgroundColor: tokens.bgElev2 }]} />
+            <View style={styles.rowSkeleton}><Skeleton variant="fill" grouped /></View>
+            <View style={styles.iconSkeleton}><Skeleton variant="fill" grouped /></View>
           </View>
         ))}
       </View>
-      {hasActions ? <View style={[styles.actionSkeleton, { backgroundColor: tokens.bgElev2 }]} /> : null}
+      {hasActions ? <View style={styles.actionSkeleton}><Skeleton variant="fill" grouped /></View> : null}
     </>
   )
 }
@@ -289,7 +289,6 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
         <LoadingBody
           hasActions={canRenderActions && props.actions != null}
           rows={props.items.length}
-          tokens={tokens}
         />
       ) : (
         <>
@@ -346,9 +345,9 @@ const styles = StyleSheet.create({
   irreversibleMark: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   irreversibleLabel: { fontFamily: 'GeistMono_500Medium', fontSize: 12, textTransform: 'uppercase' },
   loadingBody: { flex: 1, minHeight: 0, gap: 8 },
-  rowSkeleton: { height: 16, flex: 1, borderRadius: 8 },
-  iconSkeleton: { height: 20, width: 20, borderRadius: 8 },
-  actionSkeleton: { height: TOUCH_TARGET_MIN, borderRadius: 8 },
+  rowSkeleton: { height: 16, flex: 1 },
+  iconSkeleton: { height: 20, width: 20 },
+  actionSkeleton: { height: TOUCH_TARGET_MIN },
   hiddenMessage: { position: 'absolute', width: 1, height: 1, overflow: 'hidden' },
   staleMessage: { fontFamily: 'Geist_400Regular', fontSize: 14 },
   actionRow: { gap: 12, padding: actionHitPadding, margin: -actionHitPadding },

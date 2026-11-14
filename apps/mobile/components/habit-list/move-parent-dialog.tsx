@@ -69,10 +69,10 @@ function MoveTargetRow({
   )
 }
 
-function MoveInventoryStatus({ state, onRetry, t, selectionOnly, styles }: Readonly<{
-  selectionOnly: boolean; styles: Styles; state: MoveParentPickerProps['inventoryState']; onRetry: MoveParentPickerProps['onRetryInventory']; t: MoveParentDialogProps['t']
+function MoveInventoryStatus({ state, onRetry, t, selectionOnly }: Readonly<{
+  selectionOnly: boolean; state: MoveParentPickerProps['inventoryState']; onRetry: MoveParentPickerProps['onRetryInventory']; t: MoveParentDialogProps['t']
 }>) {
-  if (state === 'loading' && selectionOnly) return <View accessibilityLiveRegion="polite"><Text style={styles.moveDialogEmpty}>{t('common.loading')}</Text></View>
+  if (state === 'loading' && selectionOnly) return <View accessibilityLiveRegion="polite"><Skeleton variant="settings" rows={3} label={t('common.loading')} /></View>
   if (state === 'loading') return <Skeleton variant="habit-row" label={t('common.loading')} />
   return <>
     {state ? <ErrorState message={t(selectionOnly ? 'habits.loadError' : 'errors.fetchHabits')}
@@ -163,7 +163,7 @@ export function MoveParentDialog({
       }
     >
       <View testID="move-parent-questions" style={{ flexShrink: 1, gap: 16 }}>
-        <MoveInventoryStatus styles={styles} selectionOnly={selectionOnly} state={inventoryState} onRetry={onRetryInventory} t={t} />
+        <MoveInventoryStatus selectionOnly={selectionOnly} state={inventoryState} onRetry={onRetryInventory} t={t} />
         {inventoryState !== 'loading' && inventoryState !== 'error' ? <>
 
         <MoveDialogDescription

@@ -37,6 +37,17 @@ function expectWaiting(control: HTMLElement, name: string, container: HTMLElemen
   expectNoSpinner(container)
 }
 
+/** A control that waits for its own request keeps keyboard focus, so it is `aria-disabled` and never natively disabled. */
+function expectFocusableWaiting(control: HTMLElement, name: string, container: HTMLElement) {
+  expect(control).toHaveAccessibleName(name)
+  expect(control).not.toBeDisabled()
+  expect(control).toHaveAttribute('aria-disabled', 'true')
+  expect(control).toHaveAttribute('aria-busy', 'true')
+  control.focus()
+  expect(control).toHaveFocus()
+  expectNoSpinner(container)
+}
+
 function renderedControl(element: ReactElement, role: 'button' | 'checkbox', name: string) {
   const view = render(element)
   return { view, control: screen.getByRole(role, { name }) }
@@ -74,9 +85,29 @@ describe('a control that waits for its own request', () => {
     expect(contrastOnSurface(tokens['--fg-1']!, [tokens['--bg']!])).toBeGreaterThanOrEqual(4.5)
   })
 
+  it('keeps keyboard focus on the checkbox when its own request starts and settles', () => {
+    const onChange = vi.fn()
+    const view = render(<Checkbox checked={false} onChange={onChange} label="Done" />)
+    const control = screen.getByRole('checkbox', { name: 'Done' })
+    control.focus()
+    view.rerender(<Checkbox checked onChange={onChange} label="Done" loading />)
+    expect(control).toHaveFocus()
+    expect(control).not.toBeDisabled()
+    view.rerender(<Checkbox checked onChange={onChange} label="Done" />)
+    expect(control).toHaveFocus()
+    expect(control).not.toHaveAttribute('aria-disabled')
+    view.rerender(<Checkbox checked onChange={onChange} label="Done" disabled loading />)
+    expect(control).toBeDisabled()
+    expect(control).not.toHaveAttribute('aria-disabled')
+  })
+
   it('shows the skeleton face in the checkbox and keeps a checked state visible on it', () => {
-    const { view, control } = renderedControl(<Checkbox checked onChange={vi.fn()} label="Done" loading />, 'checkbox', 'Done')
-    expectWaiting(control, 'Done', view.container)
+    const onChange = vi.fn()
+    const { view, control } = renderedControl(<Checkbox checked onChange={onChange} label="Done" loading />, 'checkbox', 'Done')
+    expectFocusableWaiting(control, 'Done', view.container)
+    expectSkeletonFace(control.querySelector('[data-slot="skeleton-face"]')!.parentElement!)
+    fireEvent.click(control)
+    expect(onChange).not.toHaveBeenCalled()
     const box = control.querySelector('[data-slot="checkbox-box"]')!
     expect(box).toHaveClass('relative', 'isolate', 'bg-transparent')
     expect(box).not.toHaveAttribute('data-filled')
@@ -89,11 +120,12 @@ describe('a control that waits for its own request', () => {
     ['column', <CheckRow key="column" placement="column" label="Water" checked onChange={vi.fn()} loading />],
     ['personal', <CheckRow key="personal" textMode="personal" onOpenLabel={vi.fn()} label="Water" checked={false} onChange={vi.fn()} loading />],
     ['calendar day', <CheckRow key="calendar" textMode="personal" variant="calendar-day" onOpenLabel={vi.fn()} label="Water" checked={false} onChange={vi.fn()} loading />],
-  ])('keeps the %s check row label and shows the skeleton face on its control', (_placement, element) => {
+  ])('keeps the %s check row label, its keyboard focus and the skeleton face on its control', (_placement, element) => {
     const view = render(element)
     const control = screen.getByRole('checkbox', { name: 'Water' })
-    expect(control).toBeDisabled()
-    expect(control).toHaveAttribute('aria-busy', 'true')
+    expectFocusableWaiting(control, 'Water', view.container)
+    fireEvent.click(control)
+    expect((element.props as { onChange: ReturnType<typeof vi.fn> }).onChange).not.toHaveBeenCalled()
     expect(control).not.toHaveClass('disabled:opacity-60')
     expectSkeletonFace(control.querySelector('[data-slot="skeleton-face"]')!.parentElement!)
     expect(screen.getAllByText('Water').length).toBeGreaterThan(0)
@@ -106,7 +138,10 @@ describe('a control that waits for its own request', () => {
     const view = render(<CalendarSyncBoundary isConnected hasProAccess locale="en" autoSyncState={undefined} onAutoSyncChange={vi.fn()} onSyncNow={onSyncNow} />)
     const control = screen.getByRole('button', { name: 'calendar.autoSync.syncNow' })
     await act(async () => { fireEvent.click(control) })
-    expectWaiting(control, 'calendar.autoSync.syncNow', view.container)
+    expectFocusableWaiting(control, 'calendar.autoSync.syncNow', view.container)
+    expectSkeletonFace(control)
+    await act(async () => { fireEvent.click(control) })
+    expect(onSyncNow).toHaveBeenCalledTimes(1)
     expect(control.querySelector('svg')).toBeInTheDocument()
     expect(control).not.toHaveClass('disabled:opacity-50')
     await act(async () => { finish() })

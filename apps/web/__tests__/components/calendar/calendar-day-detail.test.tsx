@@ -511,7 +511,8 @@ describe('CalendarDayDetail', () => {
     )
 
     const returnedRow = screen.getByRole('checkbox', { name: 'Read' })
-    expect(returnedRow).toBeDisabled()
+    expect(returnedRow).not.toBeDisabled()
+    expect(returnedRow).toHaveAttribute('aria-disabled', 'true')
     fireEvent.click(returnedRow)
     expect(onEntryChange).toHaveBeenCalledTimes(1)
 
@@ -521,7 +522,8 @@ describe('CalendarDayDetail', () => {
     })
 
     const settledReturnedRow = screen.getByRole('checkbox', { name: 'Read' })
-    expect(settledReturnedRow).toBeDisabled()
+    expect(settledReturnedRow).not.toBeDisabled()
+    expect(settledReturnedRow).toHaveAttribute('aria-disabled', 'true')
     fireEvent.click(settledReturnedRow)
     expect(onEntryChange).toHaveBeenCalledTimes(1)
 
@@ -643,7 +645,8 @@ describe('CalendarDayDetail', () => {
     expect(row).toHaveAttribute('aria-checked', 'true')
     expect(row).toHaveAttribute('aria-busy', 'true')
     expect(row.querySelector('[data-slot="calendar-day-circle"]')?.querySelectorAll('path')).toHaveLength(2)
-    expect(row).toBeDisabled()
+    expect(row).not.toBeDisabled()
+    expect(row).toHaveAttribute('aria-disabled', 'true')
     expect(screen.getByText('08:00')).toBeInTheDocument()
     fireEvent.click(row)
     expect(onEntryChange).toHaveBeenCalledTimes(1)

@@ -39,6 +39,10 @@ describe('BlockFrame on web', () => {
     const { container } = render(<BlockFrame {...resting({ state: 'loading', actions: <button>Save</button> })} />)
     expect(container.querySelector('[data-state="loading"]')).not.toHaveAttribute('aria-busy')
     expect(container.querySelector('[data-loading-skeleton]')).toBeInTheDocument()
+    const blocks = [...container.querySelectorAll('.skeleton-pulse')]
+    expect(blocks.length).toBeGreaterThan(0)
+    for (const block of blocks) expect(block).toHaveClass('rounded-[var(--r-well)]', 'bg-[var(--bg-well)]')
+    expect(container.querySelector('[class*="--bg-elev-2"]')).toBeNull()
     expect(screen.queryByText('First row')).not.toBeInTheDocument()
   })
 

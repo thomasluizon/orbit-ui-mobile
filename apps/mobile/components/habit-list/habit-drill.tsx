@@ -37,6 +37,8 @@ interface HabitDrillProps {
   listHeaderComponent: ReactNode
   drillListRef: RefObject<FlatList<NormalizedHabit> | null>
   refreshControl: ReactElement<RefreshControlProps>
+  /** True while a pull to refresh runs: the drill holds its place with its skeleton rows. */
+  refreshing: boolean
   onListScroll: (event: NativeSyntheticEvent<NativeScrollEvent>) => void
   onFocus?: (event: FocusEvent) => void
   onScrollBeginDrag?: () => void
@@ -80,6 +82,7 @@ export function HabitDrill({
   listHeaderComponent,
   drillListRef,
   refreshControl,
+  refreshing,
   onListScroll,
   onFocus,
   onScrollBeginDrag,
@@ -92,7 +95,8 @@ export function HabitDrill({
   const tokens = createTokensV2(currentScheme, currentTheme)
   const [clamped, setClamped] = useState(false)
   const reduced = usePrefersReducedMotion()
-  const source = useMemo(() => drill.drillLoading || drill.drillError ? [] : drill.drillChildren, [drill.drillLoading, drill.drillError, drill.drillChildren])
+  const waiting = drill.drillLoading || refreshing
+  const source = useMemo(() => waiting || drill.drillError ? [] : drill.drillChildren, [waiting, drill.drillError, drill.drillChildren])
   const presentation = useRetainedHabitList(source, drill.currentParentId ?? '', reduced)
   const reservation = useListScrollReservation()
   const renderItem: ListRenderItem<NormalizedHabit> = ({ item: child, index }) => {
@@ -157,7 +161,7 @@ export function HabitDrill({
     />
   ) : null
 
-  const empty = drill.drillLoading ? (
+  const empty = waiting ? (
     <View style={styles.drillSkeletons}>
       {[1, 2, 3].map((unit) => (
         <Skeleton key={unit} variant="habit-row" label={t('common.loading')} />

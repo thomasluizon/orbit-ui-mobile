@@ -55,7 +55,7 @@ function MoveTargetRow({
 function MoveInventoryStatus({ state, onRetry, t, selectionOnly }: Readonly<{
   selectionOnly: boolean; state: MoveParentPickerProps['inventoryState']; onRetry: MoveParentPickerProps['onRetryInventory']; t: MoveParentOverlayProps['t']
 }>) {
-  if (state === 'loading' && selectionOnly) return <div role="status"><p>{t('common.loading')}</p></div>
+  if (state === 'loading' && selectionOnly) return <Skeleton variant="settings" rows={3} label={t('common.loading')} />
   if (state === 'loading') return <Skeleton variant="habit-row" label={t('common.loading')} />
   return <>
     {state ? <ErrorState message={t(selectionOnly ? 'habits.loadError' : 'errors.fetchHabits')}

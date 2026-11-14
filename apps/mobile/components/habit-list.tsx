@@ -4,10 +4,9 @@ import { ContentFade } from '@/components/motion/content-fade'
 import { ListScope } from '@/components/motion/list-scope'
 import { TodayLaunchContent } from '@/components/today/today-launch-content'
 import { SPACING } from '@orbit/shared/theme'
-import { forwardRef,useCallback,useLayoutEffect,useMemo,useRef,type ReactElement,type RefObject } from 'react'
+import { forwardRef,useCallback,useLayoutEffect,useMemo,useRef,useState,type ReactElement,type RefObject } from 'react'
 import { View,Text,RefreshControl } from 'react-native'
 import DraggableFlatList,{ type RenderItemParams } from 'react-native-draggable-flatlist'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { canLogHabitOnDate,formatAPIDate,getAllDoneOnDate,type HabitResolution } from '@orbit/shared/utils'
 import type { NormalizedHabit,HabitsFilter,BulkMoveHabitParentResult } from '@orbit/shared/types/habit'
 import { useUIStore } from '@/stores/ui-store'
@@ -407,23 +406,32 @@ function useHabitListEmptyRendering({ styles, t }: Pick<HabitListEmptyRenderingI
   return { listHeaderComponent, renderEmptyState, keyExtractor }
 }
 
-type HabitListRefreshInputs = Pick<ReturnType<typeof useHabitListQueries>, 'isFetching' | 'isLoading' | 'refetch'> & Pick<ReturnType<typeof useHabitListAccount>, 'tokens'>
+type HabitListRefreshInputs = Pick<ReturnType<typeof useHabitListQueries>, 'refetch'>
 
-function useHabitListRefresh({ isFetching, isLoading, refetch }: Pick<HabitListRefreshInputs, 'isFetching' | 'isLoading' | 'refetch'>, { tokens }: Pick<HabitListRefreshInputs, 'tokens'>) {
-  const insets = useSafeAreaInsets()
+/**
+ * Pull to refresh keeps the native gesture, and the list's skeleton rows replace the native indicator (DESIGN.md Bans).
+ * Android's circle keeps a 4 dp shadow with a transparent fill, so it starts 192 dp above the list: it moves at most two
+ * 64 dp targets (androidx swiperefreshlayout 1.1.0 `moveSpinner`, `ReactSwipeRefreshLayout.setProgressViewOffset`).
+ */
+function useHabitListRefresh({ refetch }: HabitListRefreshInputs) {
+  const [refreshing, setRefreshing] = useState(false)
   const refreshControl = useMemo(
     () => (
       <RefreshControl
-        refreshing={isFetching && !isLoading}
-        onRefresh={() => void refetch()}
-        tintColor={tokens.primary}
-        progressViewOffset={insets.top}
+        refreshing={false}
+        onRefresh={() => {
+          setRefreshing(true)
+          void refetch().finally(() => setRefreshing(false))
+        }}
+        colors={['transparent']}
+        progressBackgroundColor="transparent"
+        tintColor="transparent"
+        progressViewOffset={-192}
       />
     ),
-    // react-doctor-disable-next-line exhaustive-deps -- isFetching/isLoading/refetch are extracted habitsQuery members already listed; the analyzer wants the qualified paths but the aliases track them https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    [tokens.primary, insets.top, isFetching, isLoading, refetch],
+    [refetch],
   )
-  return { refreshControl }
+  return { refreshControl, refreshing }
 }
 
 type getHabitListCompletionInputs = { view: NonNullable<HabitListProps['view']> } & Pick<HabitListProps, 'filters' | 'onSeeUpcoming'> & Pick<ReturnType<typeof useHabitListAccount>, 'accountHabitCount' | 'selectedDateStr' | 'todayStr' | 'styles'> & Pick<ReturnType<typeof useHabitListQueries>, 'habitsById' | 'childrenByParent'> & Pick<ReturnType<typeof useHabitListEmptyRendering>, 'listHeaderComponent'>
@@ -481,7 +489,7 @@ function useHabitListModel(parameters: HabitListModelInputs) {
   const habitListMoveActions = useHabitListMoveActions(habitListMoveState, habitListQueries, parameters, habitMoveParentSelection, habitListAccount)
   const habitListSubHabitActions = useHabitListSubHabitActions(habitListCollapseState, habitListCollapse, habitListModalState)
   const habitListEmptyRendering = useHabitListEmptyRendering(habitListAccount, parameters)
-  const habitListRefresh = useHabitListRefresh(habitListQueries, habitListAccount)
+  const habitListRefresh = useHabitListRefresh(habitListQueries)
   const habitListCompletion = getHabitListCompletion(parameters, habitListAccount, habitListQueries, habitListEmptyRendering)
   const habitListRendering = createHabitListRendering({ ...parameters, ...habitListEmptyRendering, ...habitListAccount, ...habitListCompletion })
   const parentPromptQueue = useParentPromptQueue({ additionalHabitsById: habitListDrill.drill.settlementHabitsById, additionalHabitsUpdatedAtById: habitListDrill.drill.settlementUpdatedAtById, ...habitListAccount, ...habitListQueries, ...habitListVisibility, ...parameters, ...habitRecentCompletions })
@@ -576,7 +584,7 @@ function renderHabitDrillState(state: Readonly<HabitListScreenState & { commonOv
   const { drill, commonOverlays } = state
   const { startAddSubHabit } = state.subHabits
   const { listHeaderComponent } = state.empty
-  const { refreshControl } = state.refresh
+  const { refreshControl, refreshing } = state.refresh
   const { renderHabitCard } = state.rows
   return ((
     <>
@@ -587,6 +595,7 @@ function renderHabitDrillState(state: Readonly<HabitListScreenState & { commonOv
         listHeaderComponent={listHeaderComponent}
         drillListRef={drillListRef}
         refreshControl={refreshControl}
+        refreshing={refreshing}
         onListScroll={handleListScroll}
         onFocus={revealListFocus}
         onScrollBeginDrag={onScrollBeginDrag}
@@ -604,14 +613,14 @@ type HabitListStatus = 'loading' | 'error' | 'ready'
 
 function getHabitListStatus(state: Readonly<HabitListScreenState>): HabitListStatus {
   const { habitsQuery, isLoading, isError } = state.queries
-  if (isLoading) return 'loading'
+  if (isLoading || state.refresh.refreshing) return 'loading'
   if (isError && !habitsQuery.data) return 'error'
   return 'ready'
 }
 
 function renderHabitListStatusBody(state: Readonly<HabitListScreenState>, status: Exclude<HabitListStatus, 'ready'>) {
   const { t, styles } = state.account
-  if (status === 'loading') return <ContentFade key="loading">{state.queries.habitsQuery.showLoading ? <View style={styles.skeletonContainer}>
+  if (status === 'loading') return <ContentFade key="loading">{state.queries.habitsQuery.showLoading || state.refresh.refreshing ? <View style={styles.skeletonContainer}>
     {SKELETON_KEYS.map((key) => <Skeleton key={key} variant="habit-row" label={t('common.loading')} />)}
   </View> : null}</ContentFade>
   return <ContentFade key="load-error"><HabitListEmptyState

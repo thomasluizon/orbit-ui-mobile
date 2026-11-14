@@ -45,7 +45,8 @@ describe('StatTile', () => {
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         await page.evaluate((iterations) => document.documentElement.style.setProperty('--skeleton-pulse-iterations', String(iterations)), skeletonPulseIterations)
-        const bars = page.locator('[aria-hidden="true"] > span:last-child, [data-state="loading"] > span > span:last-child[aria-hidden="true"]')
+        const bars = page.locator('[data-state="loading"] .skeleton-pulse')
+        expect(await bars.evaluateAll((elements) => elements.map((element) => element.className))).toEqual(Array.from({ length: 2 }, () => expect.stringContaining('bg-[var(--bg-well)]')))
         const normal = await bars.evaluateAll((elements) => elements.map((element) => getComputedStyle(element).animationIterationCount))
         expect(normal).toEqual([String(skeletonPulseIterations), String(skeletonPulseIterations)])
         await page.emulateMedia({ reducedMotion: 'reduce' })

@@ -125,7 +125,12 @@ describe('habit suggestion actions on web', () => {
     const message = makeHabitSuggestionMessage()
     message.parts = [{ type: 'block', kind: 'habitSuggestions', block: { language: 'en', drafts: [{ ...draft, existingHabitId: '33333333-3333-4333-8333-333333333333' }] } }]
     useChatStore.setState({ messages: [message] }); mount()
-    expect(screen.getByText(isError ? en.chat.habitSuggestions.scheduleError : en.common.loading)).toBeVisible()
+    if (isError) expect(screen.getByText(en.chat.habitSuggestions.scheduleError)).toBeVisible()
+    else {
+      expect(screen.getByRole('progressbar', { name: en.common.loading })).toHaveAttribute('aria-busy', 'true')
+      expect(document.querySelector('[data-current-schedule-skeleton] .skeleton-pulse')).toHaveClass('bg-[var(--bg-well)]')
+      expect(screen.queryByText(en.common.loading)).toBeNull()
+    }
     expect(screen.getByRole('button', { name: 'Edit' })).toBeDisabled()
     if (isError) { await click('Retry'); expect(mocks.refetch).toHaveBeenCalledOnce() }
   })

@@ -147,7 +147,8 @@ function LogDateError({ visible }: Readonly<{ visible: boolean }>) {
 function DayHabitsStatus({ reasonKey, onRetry }: Readonly<{ reasonKey: ReturnType<typeof getHabitDetailChildUnavailableReasonKey>; onRetry: () => void }>) {
   const t = useTranslations()
   if (reasonKey === 'calendar.dayCell.notScheduled') return null
-  return <div className="flex flex-wrap items-center gap-3 py-3"><p className="text-sm text-[var(--fg-2)]">{t(reasonKey)}</p>{reasonKey === 'habits.detail.dayHabitsLoadError' ? <IconButton label={t('habits.detail.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton> : null}</div>
+  if (reasonKey === 'habits.detail.dayHabitsLoading') return <div data-day-habits-skeleton="" className="py-3"><span className="block h-5 w-1/2"><Skeleton variant="fill" label={t(reasonKey)} /></span></div>
+  return <div className="flex flex-wrap items-center gap-3 py-3"><p className="text-sm text-[var(--fg-2)]">{t(reasonKey)}</p><IconButton label={t('habits.detail.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton></div>
 }
 
 function UnscheduledChildReason({ reason, notScheduledReason }: Readonly<{ reason?: string; notScheduledReason: string }>) {
@@ -325,16 +326,15 @@ function MetricsSection({ visible, loading, error, metrics, isBadHabit }: Readon
     { label: t('monthlyRate'), value: metrics ? `${Math.round(metrics.monthlyCompletionRate)}%` : '' },
   ]
   return (
-    <div data-habit-detail-stat-card="" role={loading ? 'status' : undefined} aria-busy={loading || undefined} className="rounded-[var(--r-card)] bg-[var(--bg-card)] p-6" style={{ boxShadow: 'inset 0 0 0 1px var(--hairline-ghost)' }}>
+    <div data-habit-detail-stat-card="" role={loading ? 'status' : undefined} aria-busy={loading || undefined} aria-label={loading ? common('loading') : undefined} className="rounded-[var(--r-card)] bg-[var(--bg-card)] p-6" style={{ boxShadow: 'inset 0 0 0 1px var(--hairline-ghost)' }}>
       {values.map((item) => (
         <div key={item.label} data-habit-detail-stat-row="" className="flex min-h-12 flex-wrap items-baseline gap-2 py-2">
           <span data-habit-detail-stat-label="" className="min-w-min flex-auto whitespace-normal text-sm leading-5 text-[var(--fg-2)]">{item.label}</span>
           <span className="ms-auto grid max-w-full shrink-0 text-end font-[family-name:var(--font-display)] text-[22px] font-semibold leading-[1.3] text-[var(--fg-1)] tabular-nums">
             <span className="col-start-1 row-start-1 inline-flex items-baseline justify-end">
               <span aria-hidden="true" className="invisible w-0">0</span>
-              <span data-habit-detail-stat-value="">{loading ? <span className="text-sm leading-[1.3]">{common('loading')}</span> : item.value}</span>
+              <span data-habit-detail-stat-value="">{loading ? <span data-habit-detail-stat-skeleton="" className="block h-[22px] w-12 self-center"><Skeleton variant="fill" grouped /></span> : item.value}</span>
             </span>
-            <span aria-hidden="true" className="invisible col-start-1 row-start-1 text-sm leading-[1.3]">{common('loading')}</span>
           </span>
         </div>
       ))}

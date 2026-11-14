@@ -1266,7 +1266,10 @@ describe('HabitDetailScreen', () => {
     expect(child().props.completionReadOnly).toBe(true)
     expect(child().props.completionReason).toBe('habits.detail.dayHabitsLoading')
     expect(child().props.completionStatusUnavailable).toBe(true)
-    expect(tree!.root.findAllByType('Text').some((node: { props: { children?: string } }) => node.props.children === 'habits.detail.dayHabitsLoading')).toBe(true)
+    expect(tree!.root.findAllByType('Text').some((node: { props: { children?: string } }) => node.props.children === 'habits.detail.dayHabitsLoading')).toBe(false)
+    const daySkeleton = tree!.root.findAll((node: { type: unknown; props: { testID?: string } }) => typeof node.type === 'string' && node.props.testID === 'day-habits-skeleton')
+    expect(daySkeleton).toHaveLength(1)
+    expect(daySkeleton[0]!.findAll((node: { type: unknown; props: { label?: string } }) => node.type === 'Skeleton').map((node: { props: { label?: string } }) => node.props.label)).toEqual(['habits.detail.dayHabitsLoading'])
     expect(tree!.root.findByProps({ testID: 'detail-children' }).props.accessibilityState).toEqual({ busy: true })
 
     mocks.scopedLoading = false

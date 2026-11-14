@@ -970,7 +970,7 @@ describe('HabitDetailScreen', () => {
     expect(child).toBeDisabled()
     expect(child).toHaveAttribute('data-completion-reason', 'habits.detail.dayHabitsLoading')
     expect(child).toHaveAttribute('data-completion-status-unavailable', 'true')
-    expect(screen.getByText('habits.detail.dayHabitsLoading')).toBeVisible()
+    expect(screen.getByText('habits.detail.dayHabitsLoading').closest('[data-day-habits-skeleton]')).not.toBeNull()
     expect(screen.getByTestId('detail-children')).toHaveAttribute('aria-busy', 'true')
     expect(screen.getByRole('button', { name: 'open-child-1' })).toBeEnabled()
 

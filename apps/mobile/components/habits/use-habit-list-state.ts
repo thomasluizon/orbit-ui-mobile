@@ -113,7 +113,6 @@ export function useHabitListQueries({ filters, view }: Pick<HabitListQueriesInpu
 
   const isLoading = habitsQuery.isLoading
   const isError = habitsQuery.isError
-  const isFetching = habitsQuery.isFetching
   const refetch = habitsQuery.refetch
   const getChildren = habitsQuery.getChildren
   const childrenByParent = useMemo(
@@ -134,7 +133,7 @@ export function useHabitListQueries({ filters, view }: Pick<HabitListQueriesInpu
   const moveParentMutation = useMoveHabitParent()
   const toggleSelectMode = useUIStore((s) => s.toggleSelectMode)
   const toggleSelectionCascade = useUIStore((s) => s.toggleSelectionCascade)
-  return { habitsById, habitsQuery, childrenByParent, topLevelHabits, getChildren, skipMutation, logMutateAsync, bulkLog, bulkSkip, showError, refetch, maxHabitDepth, moveParentMutation, duplicateMutation, deleteMutation, reorderHabitsMutation, toggleSelectMode, toggleSelectionCascade, launchFromCache, isFetching, isLoading, isError }
+  return { habitsById, habitsQuery, childrenByParent, topLevelHabits, getChildren, skipMutation, logMutateAsync, bulkLog, bulkSkip, showError, refetch, maxHabitDepth, moveParentMutation, duplicateMutation, deleteMutation, reorderHabitsMutation, toggleSelectMode, toggleSelectionCascade, launchFromCache, isLoading, isError }
 }
 
 export function useHabitListCollapseState() {

@@ -21,9 +21,9 @@ function RestoreAction({ disabled, isRestoring, onRestore, t, tokens }: Readonly
   return (
     <MotionPressable
       accessibilityRole="button"
-      onPress={onRestore}
-      disabled={disabled}
-      accessibilityState={{ disabled, busy: isRestoring }}
+      onPress={isRestoring ? undefined : onRestore}
+      disabled={disabled && !isRestoring}
+      accessibilityState={{ disabled: disabled && !isRestoring, busy: isRestoring }}
       hitSlop={{ top: 6, bottom: 6 }}
       style={[
         styles.restoreAction,

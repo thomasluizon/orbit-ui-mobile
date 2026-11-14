@@ -9,12 +9,18 @@ import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { PillButton } from '@/components/ui/pill-button'
 import { PickerRow } from '@/components/ui/picker-row'
 import { Proposed } from '@/components/ui/proposed'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface TagSuggestionsProps {
   translateError: Parameters<typeof getFriendlyErrorMessage>[1]
   suggestions: ReturnType<typeof useTagSuggestions>
   atLimit: boolean
   disabled: boolean
+}
+
+/** An accepted suggestion waits on its request with a skeleton line in the status slot, named for a screen reader. */
+function TagStatus({ accepting, label }: Readonly<{ accepting: boolean; label: string }>) {
+  return accepting ? <span data-tag-status-skeleton="" className="block h-5 w-1/3"><Skeleton variant="fill" label={label} /></span> : label
 }
 
 export function TagSuggestions({ suggestions, atLimit, disabled, translateError }: Readonly<TagSuggestionsProps>) {
@@ -24,7 +30,7 @@ export function TagSuggestions({ suggestions, atLimit, disabled, translateError 
   const statusKey = tagSuggestionStatusKey(suggestions, atLimit, suggestions.needsTitle)
   return <div className="flex flex-col gap-4 pt-4">
     <div className="self-start"><PillButton minimumHeight={48} borderless hint={suggestions.pending === 'suggest' ? t('habits.form.suggestingTags') : suggestions.needsTitle ? t('habits.form.titleRequired') : atLimit ? t('habits.form.tagLimit') : undefined} iconOnly label={t('habits.form.suggestTags')} variant="ghost" disabled={!suggestions.canSuggest} loading={suggestions.pending === 'suggest'} onClick={() => void suggestions.suggest()}><OrbitMascot size={20} /></PillButton></div>
-    <div role="status" aria-label={t('habits.form.suggestTags')} className="empty:absolute text-sm text-[var(--fg-3)]">{statusKey ? t(statusKey) : null}</div>
+    <div role="status" aria-label={t('habits.form.suggestTags')} className="empty:absolute text-sm text-[var(--fg-3)]">{statusKey ? <TagStatus accepting={suggestions.pending === 'accept'} label={t(statusKey)} /> : null}</div>
     {failure ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{getFriendlyErrorMessage(failure.cause, translateError, failure.operation === 'suggest' ? 'habits.form.suggestTagsError' : 'toast.errors.validation', failure.operation === 'suggest' ? 'generic' : 'tag')}</p> : null}
     {suggestions.suggestions.length > 0 ? <Proposed proposed scope="field" label={t('habits.form.suggestedTagsLabel')}><div aria-busy={suggestions.pending === 'accept'} className="flex flex-col gap-2 p-2">
       {suggestions.suggestions.map((suggestion) => <PickerRow proposed key={suggestion.name} name={suggestion.name} selected={false} disabled={disabled || atLimit || pending} onToggle={() => void suggestions.acceptSuggestion(suggestion)} value="" valueHidden valueClassName="flex-1" actionsClassName="flex items-center justify-end" controlClassName="habit-control-motion flex min-h-12 w-full min-w-0 items-center rounded-[12px] px-2 py-1 text-left enabled:hover:bg-[var(--bg-hover)] disabled:opacity-40" />)}

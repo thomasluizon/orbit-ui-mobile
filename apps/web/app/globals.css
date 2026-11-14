@@ -2442,10 +2442,6 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   }
 }
 
-@keyframes search-dot { 50% { opacity: 0.35; } }
-.search-dot { animation: search-dot 1.1s var(--ease-standard) infinite; }
-@media (prefers-reduced-motion: reduce) { .search-dot { animation: none; } }
-
 .error-surface {
   display: flex;
   flex: 1;
