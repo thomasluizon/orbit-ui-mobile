@@ -259,6 +259,15 @@ describe('tag step motion', () => {
     expect(line.style.opacity).toBe(reduced ? '1' : '0')
   })
 
+  it('moves no row for a search: a row the words hide leaves at once, with no exit', () => {
+    tagStepState.tags = buildTags(['Health', 'Mind', 'Body', 'Home'])
+    render(<TagStepHarness onContinue={vi.fn()} />)
+    fireEvent.change(screen.getByRole('searchbox', { name: en.habits.form.searchTags }), { target: { value: 'h' } })
+    expect(document.querySelectorAll('[data-tag-step-rows] [data-list-motion]')).toHaveLength(2)
+    fireEvent.change(screen.getByRole('searchbox', { name: en.habits.form.searchTags }), { target: { value: 'he' } })
+    expect(document.querySelectorAll('[data-tag-step-rows] [data-list-motion]'), 'no row lingers on its exit').toHaveLength(1)
+  })
+
   it('enters a created row with the list motion', async () => {
     tagStepState.tags = buildTags(['Health'])
     const view = render(<TagStepHarness onContinue={vi.fn()} />)

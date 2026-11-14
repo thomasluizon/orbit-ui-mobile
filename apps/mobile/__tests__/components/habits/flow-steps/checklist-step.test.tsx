@@ -137,18 +137,24 @@ describe('the checklist step on Android', () => {
     tree.unmount()
   })
 
-  it('lets each step row enter and leave on the list timings, a short fade with no travel under reduced motion', () => {
+  it('keeps the rows already there still, and lets an added step enter and a removed step leave on the list timings, with no travel under reduced motion', async () => {
+    type Motion = { durationMs: number; definitions: Record<number, { transform: { translateY: number }[] }> }
     for (const reduced of [false, true]) {
       state.reduced = reduced
       const tree = renderNavigation(<Harness initial={items('Alongar', 'Correr')} />)
-      const rows = tree.hosts().filter((node) => (node.props as { entering?: unknown }).entering !== undefined)
-      expect(rows).toHaveLength(2)
-      const { entering, exiting, layout } = rows[0]!.props as unknown as { layout?: unknown; entering: { durationMs: number; definitions: Record<number, { transform: { translateY: number }[] }> }; exiting: { durationMs: number; definitions: Record<number, { transform: { translateY: number }[] }> } }
+      const rows = () => tree.hosts().filter((node) => (node.props as { exiting?: unknown }).exiting !== undefined)
+      expect(rows()).toHaveLength(2)
+      expect(rows().map((row) => (row.props as { entering?: unknown }).entering), 'the rows already there stay still').toEqual([undefined, undefined])
+      await typeInto(tree, i18n.t('habits.form.checklistPlaceholder'), 'Beber água')
+      await tap(tree, i18n.t('common.add'))
+      const added = rows().find((row) => (row.props as { entering?: unknown }).entering !== undefined)!
+      const { entering, exiting, layout } = added.props as unknown as { layout?: unknown; entering: Motion; exiting: Motion }
       expect(entering.durationMs).toBe(resolveMotionPreset('list-enter', reduced).enterDuration)
       expect(exiting.durationMs).toBe(resolveMotionPreset('list-exit', reduced).exitDuration)
       expect(entering.definitions[0]!.transform[0]!.translateY).toBe(reduced ? 0 : 12)
       expect(exiting.definitions[100]!.transform[0]!.translateY).toBe(reduced ? 0 : 10)
       expect(layout === undefined).toBe(reduced)
+      expect(rows().filter((row) => (row.props as { entering?: unknown }).entering !== undefined)).toHaveLength(1)
       tree.unmount()
     }
   })
@@ -234,19 +240,17 @@ describe('the template question inside the checklist step on Android', () => {
     tree.unmount()
   })
 
-  it('lets template rows enter and leave on the list timings, a short fade with no travel under reduced motion', async () => {
+  it('keeps the template rows still when the question opens and lets a deleted template leave on the list timing, with no travel under reduced motion', async () => {
     for (const reduced of [false, true]) {
       state.reduced = reduced
       state.templates = [template('t1', 'Treino', 'Alongar')]
       const tree = renderNavigation(<Harness />)
       await tap(tree, 'Usar um modelo')
-      const row = tree.hosts().find((node) => (node.props as { entering?: unknown }).entering !== undefined)!
-      const { entering, exiting } = row.props as unknown as { entering: { durationMs: number; definitions: Record<number, { transform: { translateY: number }[] }> }; exiting: { durationMs: number; definitions: Record<number, { transform: { translateY: number }[] }> } }
-      const enter = resolveMotionPreset('list-enter', reduced)
+      const row = tree.hosts().find((node) => (node.props as { exiting?: unknown }).exiting !== undefined)!
+      const { entering, exiting } = row.props as unknown as { entering?: unknown; exiting: { durationMs: number; definitions: Record<number, { transform: { translateY: number }[] }> } }
       const exit = resolveMotionPreset('list-exit', reduced)
-      expect(entering.durationMs).toBe(enter.enterDuration)
+      expect(entering, 'a template already saved does not enter').toBeUndefined()
       expect(exiting.durationMs).toBe(exit.exitDuration)
-      expect(entering.definitions[0]!.transform[0]!.translateY).toBe(reduced ? 0 : enter.shift)
       expect(exiting.definitions[100]!.transform[0]!.translateY).toBe(reduced ? 0 : exit.shift)
       tree.unmount()
     }

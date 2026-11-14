@@ -282,17 +282,25 @@ describe('tag step motion on Android', () => {
     expect(opacity?.value).toBe(reduced ? 1 : 0)
   })
 
-  it.each([false, true])('enters and leaves a row with the list motion, still under reduced motion: %s', async (reduced) => {
+  it.each([false, true])('keeps the rows still when they show, lets a created tag enter and moves no row for a search, reduced motion: %s', async (reduced) => {
+    type Motion = { durationMs: number; definitions: Record<number, { transform: { translateY: number }[] }> }
     tagStepState.reducedMotion = reduced
-    tagStepState.tags = buildTags(['Health'])
+    tagStepState.tags = buildTags(['Health', 'Mind', 'Body', 'Home'])
+    tagStepState.create.mockImplementation(({ name }: { name: string }) => { tagStepState.tags = [...tagStepState.tags, { id: 'created', name, color: '#7c3aed' }]; return Promise.resolve({ id: 'created' }) })
     const root = mount(<TagStepHarness onContinue={vi.fn()} />)
     await press(pressable(root, en.habits.flow.tags.manage))
-    const row = hosts(root).find((node) => node.props.testID === 'tag-step-row')!
-    const { entering, exiting, layout } = row.props as unknown as { layout?: unknown; entering: { durationMs: number; definitions: Record<number, { transform: { translateY: number }[] }> }; exiting: { durationMs: number; definitions: Record<number, { transform: { translateY: number }[] }> } }
-    expect(entering.durationMs).toBe(resolveMotionPreset('list-enter', reduced).enterDuration)
+    const rows = () => hosts(root).filter((node) => node.props.testID === 'tag-step-row')
+    expect(rows()[0]!.props.entering, 'a tag already there does not enter').toBeUndefined()
+    const { exiting, layout } = rows()[0]!.props as unknown as { layout?: unknown; exiting: Motion }
     expect(exiting.durationMs).toBe(resolveMotionPreset('list-exit', reduced).exitDuration)
-    expect(entering.definitions[0]!.transform[0]!.translateY).toBe(reduced ? 0 : resolveMotionPreset('list-enter', false).shift)
     expect(exiting.definitions[100]!.transform[0]!.translateY).toBe(reduced ? 0 : resolveMotionPreset('list-exit', false).shift)
     expect(layout === undefined, 'the gap closes with the exit, at once under reduced motion').toBe(reduced)
+    type(field(root, en.habits.form.newTag), 'Work')
+    await press(pressable(root, en.common.add))
+    root.update(<TagStepHarness onContinue={vi.fn()} />)
+    const created = rows().find((node) => (node.props.entering as Motion | undefined) !== undefined)
+    expect((created?.props.entering as Motion | undefined)?.durationMs, 'a created tag enters').toBe(resolveMotionPreset('list-enter', reduced).enterDuration)
+    type(field(root, en.habits.form.searchTags), 'h')
+    expect(rows().map((node) => [node.props.entering, node.props.exiting, node.props.layout]).flat().every((value) => value === undefined), 'a keystroke moves no row').toBe(true)
   })
 })

@@ -54,8 +54,8 @@ function TemplateRow({ template, label, loadable, tokens, onLoad, onDelete }: Re
 export function useTemplateQuestionView({ onLoad, onWrite }: Readonly<{ onLoad: (items: ChecklistItem[]) => void; onWrite: () => void }>): FlowStepView {
   const { t } = useTranslation()
   const tokens = useThemeTokens()
-  const motion = useListRowMotion()
   const { data: templates = [], isLoading, isError, refetch } = useChecklistTemplates()
+  const motion = useListRowMotion(templates.map((template) => template.id), !isLoading)
   const deleteTemplate = useDeleteChecklistTemplate()
   const [deleteError, setDeleteError] = useState('')
   const label = (template: ChecklistTemplate) => t('habits.flow.templates.option', { name: template.name, count: template.items.length })
@@ -69,7 +69,7 @@ export function useTemplateQuestionView({ onLoad, onWrite }: Readonly<{ onLoad: 
   if (isLoading) free = <Skeleton variant="settings" rows={2} label={t('common.loading')} />
   else if (isError) free = <><InlineLoadError message={t('habits.flow.templates.loadError')} onRetry={() => void refetch()} />{free}</>
   else if (!empty) free = <View style={staticStyles.rows}>
-    {templates.map((template) => <Animated.View key={template.id} entering={motion.entering} exiting={motion.exiting} layout={motion.layout}>
+    {templates.map((template) => <Animated.View key={template.id} entering={motion.enteringFor(template.id)} exiting={motion.exiting} layout={motion.layout}>
       <TemplateRow template={template} label={label(template)} loadable={templates.length > QUICK_TEMPLATES} tokens={tokens} onLoad={() => load(template)} onDelete={() => remove(template.id)} />
     </Animated.View>)}
     {deleteError ? <Text accessibilityRole="alert" style={[staticStyles.error, { color: tokens.statusBadText }]}>{deleteError}</Text> : null}

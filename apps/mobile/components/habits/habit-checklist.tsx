@@ -248,8 +248,8 @@ export function HabitChecklist({
     onPendingItemChange?.(value)
   }, [onPendingItemChange, setItemDraft])
   const styles = useMemo(() => createStyles(tokens), [tokens])
-  const rowMotion = useListRowMotion()
   const editableItemKeys = useChecklistItemKeys(items)
+  const rowMotion = useListRowMotion(editableItemKeys)
 
   const checkedCount = items.filter((i) => i.isChecked).length
   const atItemLimit = items.length >= MAX_CHECKLIST_ITEMS
@@ -347,7 +347,7 @@ export function HabitChecklist({
 
       {editable ? (
         <View style={styles.itemsList}>
-          {items.map((item, index) => (<Animated.View key={editableItemKeys[index]} entering={rowMotion.entering} exiting={rowMotion.exiting} layout={rowMotion.layout}>
+          {items.map((item, index) => (<Animated.View key={editableItemKeys[index]} entering={rowMotion.enteringFor(editableItemKeys[index] ?? '')} exiting={rowMotion.exiting} layout={rowMotion.layout}>
             <Proposed
               proposed={index >= items.length - proposedItemCount}
               scope="row"

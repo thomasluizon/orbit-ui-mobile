@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl'
 import type { HabitTag } from '@orbit/shared/types/habit'
-import { ListMotionItem, ListPresence } from '@/components/motion/list-motion'
+import { ListMotionItem, ListPresence, ListScope } from '@/components/motion/list-motion'
 import { TagEditorRow } from '@/components/habits/habit-form-fields/tag-editor-row'
 import { TagPickerRow } from '@/components/habits/habit-form-fields/tag-picker-field'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
@@ -33,7 +33,7 @@ export function TagStepRows({ tags, actions, query, managing, onPressTag }: Read
   return (
     <div data-tag-step-rows="" className="flex flex-col gap-1">
       {searching && rows.length === 0 ? <p className="text-center text-sm text-[var(--fg-3)]">{t('habits.flow.tags.searchMiss')}</p> : null}
-      <ListPresence>
+      <ListScope scope={query.trim()}><ListPresence>
         {rows.map((tag) => (
           <ListMotionItem key={tag.id}>
             {tags.editingTagId === tag.id ? (
@@ -65,7 +65,7 @@ export function TagStepRows({ tags, actions, query, managing, onPressTag }: Read
             )}
           </ListMotionItem>
         ))}
-      </ListPresence>
+      </ListPresence></ListScope>
     </div>
   )
 }

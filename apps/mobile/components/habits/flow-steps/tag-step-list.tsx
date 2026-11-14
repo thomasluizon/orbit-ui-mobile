@@ -25,10 +25,11 @@ function matches(tag: HabitTag, query: string): boolean {
   return tag.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())
 }
 
-/** A row enters with `list-enter` and leaves with `list-exit`, and the gap closes. Under reduced motion it is a short fade with no travel. */
-function TagRowMotion({ children }: Readonly<{ children: ReactNode }>) {
-  const motion = useListRowMotion()
-  return <Animated.View testID="tag-step-row" entering={motion.entering} exiting={motion.exiting} layout={motion.layout}>{children}</Animated.View>
+type RowMotion = ReturnType<typeof useListRowMotion>
+
+/** A tag the person creates enters and a tag the person deletes leaves. A search moves no row: it shows and hides rows at once. */
+function TagRowMotion({ tagId, motion, searching, children }: Readonly<{ tagId: string; motion: RowMotion; searching: boolean; children: ReactNode }>) {
+  return <Animated.View testID="tag-step-row" entering={searching ? undefined : motion.enteringFor(tagId)} exiting={searching ? undefined : motion.exiting} layout={searching ? undefined : motion.layout}>{children}</Animated.View>
 }
 
 /** The rows of the free path: the search results, and every tag with its own rename and delete controls. */
@@ -37,6 +38,7 @@ export function TagStepRows({ tags, actions, query, managing, onPressTag }: Read
   const tokens = useThemeTokens()
   const formStyles = useMemo(() => createFormStyles(tokens), [tokens])
   const searching = query.trim().length > 0
+  const motion = useListRowMotion(actions.availableTags.map((tag) => tag.id), managing || searching)
   if (!managing && !searching) return null
   const rows = actions.availableTags.filter((tag) => matches(tag, query))
   const selected = new Set(tags.selectedTagIds)
@@ -45,7 +47,7 @@ export function TagStepRows({ tags, actions, query, managing, onPressTag }: Read
     <View testID="tag-step-rows" style={styles.rows}>
       {searching && rows.length === 0 ? <Text style={[styles.miss, { color: tokens.fg3 }]}>{t('habits.flow.tags.searchMiss')}</Text> : null}
       {rows.map((tag) => (
-        <TagRowMotion key={tag.id}>
+        <TagRowMotion key={tag.id} tagId={tag.id} motion={motion} searching={searching}>
           {tags.editingTagId === tag.id ? (
             <TagEditorRow
               error={actions.editTagError}
