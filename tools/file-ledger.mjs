@@ -73,6 +73,7 @@ const usage = () => `usage: file-ledger.mjs [--repo <path>] [--also-search <path
 
   The file ledger: one row for each tracked file of a repository, with the evidence a reviewer needs to
   decide whether the file keeps its current form. The default verdict for every file is delete or update.
+  A relative path in a flag resolves against the working directory.
 
   Mode 1, emit (default). Writes one JSON line for each tracked file, in path order, to stdout.
   Two runs on one commit give the same bytes.
@@ -793,16 +794,15 @@ const parseArguments = (argv) => {
 }
 
 const defaultRepository = resolve(dirname(fileURLToPath(import.meta.url)), "..")
-const fromDefaultRoot = (path) => resolve(defaultRepository, path)
 
 const main = () => {
   const { mode, options, maxChars } = parseArguments(process.argv.slice(2))
-  const repo = fromDefaultRoot(options["--repo"] ?? ".")
+  const repo = options["--repo"] === undefined ? defaultRepository : resolve(options["--repo"])
   if (mode === "verify") return verify({ repo, ledger: options["--verify"], base: options["--base"], otherTicket: options["--other-ticket"] })
   if (mode === "render") {
     return render({ repo, ledger: options["--render"], base: options["--base"], outDir: resolve(options["--out-dir"]), maxChars })
   }
-  return emit({ repo, alsoSearch: options.alsoSearch.map(fromDefaultRoot) })
+  return emit({ repo, alsoSearch: options.alsoSearch.map((path) => resolve(path)) })
 }
 
 try {

@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process"
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
-import { T, check, root, run } from "./_harness.mjs"
+import { T, check, root, run, toolPath } from "./_harness.mjs"
 
 const TOOL = "file-ledger.mjs"
 const FIXTURE_DATE = "2026-03-04"
@@ -42,14 +42,17 @@ const commitAll = (repository, message, date = FIXTURE_DATE) => {
   return gitIn(repository, ["rev-parse", "HEAD"], date).stdout.trim()
 }
 
-const emit = (repository, alsoSearch = []) => {
-  const result = run(TOOL, ["--repo", repository, ...alsoSearch.flatMap((path) => ["--also-search", path])])
+/** Runs the emit mode with `argv` and the `run` options (`cwd`, `path`), and parses each row. */
+const emitWith = (argv, options = {}) => {
+  const result = run(TOOL, argv, options)
   const rows = result.stdout
     .split("\n")
     .filter(Boolean)
     .map((line) => JSON.parse(line))
   return { ...result, rows, row: (path) => rows.find((candidate) => candidate.path === path) }
 }
+
+const emit = (repository, alsoSearch = []) => emitWith(["--repo", repository, ...alsoSearch.flatMap((path) => ["--also-search", path])])
 
 const writeLedger = (label, rows) => {
   const path = join(root, "file-ledger", `${label}.jsonl`)
@@ -151,6 +154,27 @@ const caseCrossRepository = () => {
   T(`${TOOL}: an unreferenced file has zero cross counts`, row("docs/lonely.md").crossRepositoryInbound["cross-sibling"].byPath === 0)
   T(`${TOOL}: a file with the same bytes in an --also-search root names that path`, row("docs/twin.png").crossRepositoryDuplicateOf.join() === "cross-sibling/twin.png")
   T(`${TOOL}: an empty file has no crossRepositoryDuplicateOf`, row("empty.txt").crossRepositoryDuplicateOf.length === 0)
+}
+
+const caseRelativePaths = () => {
+  // A copy of the tool in a small checkout one folder deeper, so its own root and the working directory differ.
+  const checkout = makeRepository("relative-tool/checkout", { [`tools/${TOOL}`]: readFileSync(toolPath(TOOL), "utf8") })
+  const fromCheckout = (argv, cwd) => emitWith(argv, { cwd, path: join(checkout, "tools", TOOL) })
+  const repository = makeRepository("relative-main", { "docs/shared.md": "shared text\n", "only-here.md": "here\n" })
+  makeRepository("relative-sibling", { "notes.md": "read docs/shared.md here\n" })
+
+  const relativeRepository = fromCheckout(["--repo", "."], repository)
+  const relativePaths = relativeRepository.rows.map((row) => row.path).join()
+  T(`${TOOL}: a relative --repo resolves against the working directory`, relativeRepository.status === 0 && relativePaths === "docs/shared.md,only-here.md", `exit ${relativeRepository.status}, rows ${relativePaths}`)
+
+  const relativeSibling = fromCheckout(["--repo", repository, "--also-search", "../relative-sibling"], repository)
+  const siblingCounts = relativeSibling.row("docs/shared.md")?.crossRepositoryInbound["relative-sibling"]
+  T(`${TOOL}: a relative --also-search resolves against the working directory`,
+    relativeSibling.status === 0 && siblingCounts?.byPath === 1, `exit ${relativeSibling.status}, ${JSON.stringify(siblingCounts)}, ${relativeSibling.stderr.trim().split("\n")[0]}`)
+
+  const defaultRoot = fromCheckout([], repository)
+  const defaultPaths = defaultRoot.rows.map((row) => row.path).join()
+  T(`${TOOL}: without --repo the rows are the files of the checkout that holds the tool`, defaultRoot.status === 0 && defaultPaths === `tools/${TOOL}`, `exit ${defaultRoot.status}, rows ${defaultPaths}`)
 }
 
 const caseDatesAndDeterminism = () => {
@@ -304,6 +328,7 @@ export const cases = () => {
   caseTemporaryPatterns()
   caseInboundCounts()
   caseCrossRepository()
+  caseRelativePaths()
   caseDatesAndDeterminism()
   caseVerify()
   caseRender()
