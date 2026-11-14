@@ -16,9 +16,8 @@ interface GoalStatusActionsInput {
   onStatusSaved?: (status: 'Abandoned' | 'Active') => void
 }
 
-/** Owns the drawer's goal-status mutations — mark completed, mark abandoned,
- *  reactivate — each guarded against double-submit and surfacing failures as
- *  toasts. */
+/** Owns the drawer's goal-status mutations: mark completed, mark abandoned and reactivate. Each one is guarded
+ *  against a double submit and shows its failure as a toast. */
 export function useGoalStatusActions({
   goalId,
   goalName,
