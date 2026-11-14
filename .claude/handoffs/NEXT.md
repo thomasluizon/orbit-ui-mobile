@@ -40,7 +40,7 @@ Inventory: open pull requests ui `#2444`, `#2447`, `#2448`, `#2450`, `#2451`, `#
 ## Then, in this order
 
 1. Answer any owner message first, before any other work and before a relay step. Give each order a ticket or a rescope before the turn ends.
-2. Read each chain (`gh pr checks`; `full-threads.sh` for a red review). A red review gets a fix agent, `ui#2448` first.
+2. OWNER ORDER, FIRST: run `/g-best-implementation` on the CI round time (`#2074`; the order text and its steps are in `handoff-notes.md`). Then each red review gets a local review agent, a fix and one push.
 3. Read the drain results in `handoff-notes.md`: the `ui#2447` fix first, then slice C and the `#2122` merge.
 4. Start the agents within the limit of 4: the `#2120` slice merge, the `#2121` part merge, the `ui#2447` device proof.
 5. Merge each approved pull request at once, then base-merge every other open branch in the same step, before another approval lands (`behind_by=0`). Then one web release (never with an API release). Then the intake cycle.
