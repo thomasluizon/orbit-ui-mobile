@@ -138,6 +138,25 @@ describe('the plan question of the upgrade route', () => {
     expect(block().querySelector('[data-upgrade-orbit-line]')).toHaveTextContent(line)
   })
 
+  it('pins the primary action to the bottom of the scroller in the compact shell, after the support content', () => {
+    render(<UpgradePage />)
+    const primary = screen.getByRole('button', { name: 'Subscribe Annual, recommended' })
+    const footer = document.querySelector<HTMLElement>('[data-flow-footer]')!
+    expect(footer).toContainElement(primary)
+    expect(block()).not.toContainElement(primary)
+    expect(footer).toHaveClass('sticky', 'bottom-0')
+    expect(footer.nextElementSibling).toBeNull()
+    expect(screen.getByRole('list', { name: 'Included with Pro' }).compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    for (const card of block().querySelectorAll<HTMLElement>('[data-option-card]')) expect(card.style.scrollMarginBottom).toBe('calc(var(--touch-min) + var(--orbit-space-24))')
+  })
+
+  it('keeps the primary action in the block in the wide shell, with no footer', () => {
+    mocks.wide = true
+    render(<UpgradePage />)
+    expect(document.querySelector('[data-flow-footer]')).toBeNull()
+    expect(block()).toContainElement(screen.getByRole('button', { name: 'Subscribe Annual, recommended' }))
+  })
+
   it('follows the usage read when it changes', () => {
     const { rerender } = render(<UpgradePage />)
     expect(screen.getByText('You used 3 of 5 AI messages.')).toBeInTheDocument()

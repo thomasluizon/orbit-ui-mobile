@@ -52,8 +52,8 @@ describe('the plan question and the trial expired dialog in Chromium', () => {
   afterEach(cleanup)
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  async function openPage(width: number) {
-    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: HEIGHT } })
+  async function openPage(width: number, height = HEIGHT) {
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height } })
     const theme = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
     await page.setContent(`<!DOCTYPE html><html class="dark" style="${theme}"><style>${stylesheet}</style><body>${document.body.innerHTML}</body></html>`)
     await loadAppFonts(page)
@@ -72,14 +72,25 @@ describe('the plan question and the trial expired dialog in Chromium', () => {
     try {
       const geometry = await page.evaluate(() => {
         const lines = (element: Element) => {
-          const range = document.createRange()
-          range.selectNodeContents(element)
-          return new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size
+          const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT)
+          const tops = new Set<number>()
+          for (let text = walker.nextNode(); text; text = walker.nextNode()) {
+            const range = document.createRange()
+            range.selectNodeContents(text)
+            for (const rect of range.getClientRects()) tops.add(Math.round(rect.top))
+          }
+          return tops.size
         }
         const box = (element: Element) => { const rect = element.getBoundingClientRect(); return { left: rect.left, right: rect.right, top: rect.top, height: rect.height } }
+        /** The press target: the box plus the hit area that a small pill draws past its edges with `::after`. */
+        const target = (element: Element) => {
+          const after = getComputedStyle(element, '::after')
+          const reach = after.content === 'none' ? 0 : Math.max(0, -parseFloat(after.top)) + Math.max(0, -parseFloat(after.bottom))
+          return { ...box(element), height: element.getBoundingClientRect().height + (Number.isNaN(reach) ? 0 : reach) }
+        }
         const block = document.querySelector('[data-upgrade-block]')!
         const cards = [...block.querySelectorAll('[data-option-card]')]
-        const primary = block.querySelector('[data-flow-primary] button')!
+        const primary = document.querySelector('[data-flow-footer] button')!
         const stayFree = block.querySelector('a[href]')!
         return {
           viewport: window.innerWidth,
@@ -88,8 +99,8 @@ describe('the plan question and the trial expired dialog in Chromium', () => {
           block: box(block),
           questionLines: lines(block.querySelector('h1')!),
           cards: cards.map((card) => ({ ...box(card), clipped: card.scrollWidth > card.clientWidth, nameLines: lines(card.querySelector('span > span')!) })),
-          primary: { ...box(primary), lines: lines(primary) },
-          stayFree: { ...box(stayFree), lines: lines(stayFree) },
+          primary: { ...target(primary), lines: lines(primary) },
+          stayFree: { ...target(stayFree), lines: lines(stayFree) },
         }
       })
       const evidence = JSON.stringify(geometry)
@@ -112,6 +123,36 @@ describe('the plan question and the trial expired dialog in Chromium', () => {
     } finally { await page.close(); view.unmount(); vi.unstubAllGlobals() }
   })
 
+  it.each(['pt-BR', 'en'] as const)('pins the primary action to the bottom while the block scrolls, and never covers the last plan card, at 375 x 667 in %s', async (locale) => {
+    stubViewport(375)
+    const view = render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR}><PlanQuestion /></NextIntlClientProvider>)
+    await screen.findByRole('heading', { level: 1 })
+    const page = await openPage(375, 667)
+    try {
+      const geometry = await page.evaluate(() => {
+        const footer = document.querySelector('[data-flow-footer]')!
+        const cards = [...document.querySelectorAll('[data-upgrade-block] [data-option-card]')]
+        const lastCard = cards.at(-1)!
+        const scroller = document.scrollingElement!
+        const read = (top: number) => {
+          window.scrollTo(0, top)
+          const footerBox = footer.getBoundingClientRect()
+          return { scrollTop: scroller.scrollTop, footerTop: footerBox.top, footerBottom: footerBox.bottom, lastCardBottom: lastCard.getBoundingClientRect().bottom }
+        }
+        const end = scroller.scrollHeight - window.innerHeight
+        return { viewport: window.innerHeight, end, start: read(0), middle: read(Math.round(end / 2)), last: read(end), inBlock: document.querySelector('[data-upgrade-block] [data-flow-primary]') !== null }
+      })
+      const evidence = JSON.stringify(geometry)
+      expect(geometry.inBlock, evidence).toBe(false)
+      expect(geometry.end, evidence).toBeGreaterThan(0)
+      expect(Math.abs(geometry.start.footerBottom - geometry.viewport), evidence).toBeLessThanOrEqual(1)
+      expect(Math.abs(geometry.middle.footerBottom - geometry.viewport), evidence).toBeLessThanOrEqual(1)
+      expect(geometry.middle.scrollTop, evidence).toBeGreaterThan(0)
+      expect(geometry.last.footerBottom, evidence).toBeLessThanOrEqual(geometry.viewport + 1)
+      expect(geometry.last.lastCardBottom, evidence).toBeLessThanOrEqual(geometry.last.footerTop)
+    } finally { await page.close(); view.unmount(); vi.unstubAllGlobals() }
+  })
+
   it.each(cases)('centres the trial expired dialog on both axes and fits each action on one line at $width px in $locale', async ({ width, locale }) => {
     stubViewport(width)
     const view = render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR}>
@@ -122,9 +163,14 @@ describe('the plan question and the trial expired dialog in Chromium', () => {
     try {
       const geometry = await page.evaluate(() => {
         const lines = (element: Element) => {
-          const range = document.createRange()
-          range.selectNodeContents(element)
-          return new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size
+          const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT)
+          const tops = new Set<number>()
+          for (let text = walker.nextNode(); text; text = walker.nextNode()) {
+            const range = document.createRange()
+            range.selectNodeContents(text)
+            for (const rect of range.getClientRects()) tops.add(Math.round(rect.top))
+          }
+          return tops.size
         }
         const panel = document.querySelector('.orbit-sheet-panel[data-centred="true"]')!.getBoundingClientRect()
         return {

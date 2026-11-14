@@ -23,6 +23,11 @@ import { ProBenefits } from './pro-benefits'
 import { AllowanceComparison, planFactLine } from './pro-pitch'
 
 type SubscriptionInterval = 'monthly' | 'yearly'
+
+/** In the compact shell the primary action is pinned to the bottom of the scroller. It is the last child of the section, so at the end of the scroll it rests under the content and never covers a plan card. */
+const PINNED_FOOTER_CLASS = 'sticky bottom-0 flex w-full justify-center bg-[var(--bg)] pb-[var(--orbit-space-16)] pt-[var(--orbit-space-8)]'
+/** A plan card that takes focus scrolls clear of the pinned footer: the footer padding plus the target height. */
+const PINNED_FOOTER_CLEARANCE = 'calc(var(--touch-min) + var(--orbit-space-24))'
 type UpgradeTranslations = ReturnType<typeof useTranslations>
 type Plans = ReturnType<typeof useSubscriptionPlans>['plans']
 
@@ -75,6 +80,7 @@ function PlanOption({ tier, recommended, selected, disabled, selectionDuration, 
         flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start', gap: 8, padding: 'var(--orbit-space-16)', textAlign: 'start',
         background: selected ? 'var(--primary-dim)' : undefined,
         transitionDuration: `${selectionDuration}ms`,
+        scrollMarginBottom: PINNED_FOOTER_CLEARANCE,
       }}
     >
       <span className="flex min-w-0 items-center gap-2">
@@ -185,6 +191,16 @@ export function GuidedPricingSection({
   const selectInterval = (interval: string) => {
     if (interval === 'monthly' || interval === 'yearly') setSelectedInterval(interval)
   }
+  const primary = (
+    <PillButton
+      loading={checkoutPending}
+      disabled={!plans || !isOnline}
+      accessibleName={t(selectedInterval === 'yearly' ? 'upgrade.plans.checkoutLabelRecommended' : 'upgrade.plans.checkoutLabel', { interval: selectedName })}
+      onClick={() => onCheckout(selectedInterval)}
+    >
+      {t('upgrade.plans.cta')}
+    </PillButton>
+  )
 
   return (
     <div className="flex flex-col gap-8">
@@ -216,23 +232,13 @@ export function GuidedPricingSection({
             disabled={checkoutPending} discountedAmount={discountedAmount} onSelect={setSelectedInterval} onRetry={onRetryPlans} t={t} />
         </div>
         <p role="alert" className="text-sm leading-[1.55] text-[var(--fg-2)] empty:hidden">{checkoutError}</p>
-        <div data-flow-primary="" className={wide ? 'flex w-full justify-center' : 'w-full'}>
-          <div className={wide ? 'w-full max-w-[360px]' : 'w-full'}>
-            <PillButton
-              loading={checkoutPending}
-              disabled={!plans || !isOnline}
-              accessibleName={t(selectedInterval === 'yearly' ? 'upgrade.plans.checkoutLabelRecommended' : 'upgrade.plans.checkoutLabel', { interval: selectedName })}
-              onClick={() => onCheckout(selectedInterval)}
-            >
-              {t('upgrade.plans.cta')}
-            </PillButton>
-          </div>
-        </div>
+        {wide ? <div data-flow-primary="" className="flex w-full justify-center"><div className="w-full max-w-[360px]">{primary}</div></div> : null}
         {!isOnline ? <p data-upgrade-offline-reason="" className="text-sm leading-[1.55] text-[var(--fg-2)]">{t('upgrade.billing.offline')}</p> : null}
         <StayFreeLink href={stayFreeHref} disabled={checkoutPending} onStayFree={onStayFree} t={t} />
         <span role="status" aria-live="polite" className="sr-only">{announcement}</span>
       </section>
       <UpgradeSupport profile={profile} trialDaysLeft={trialDaysLeft} dateHint={dateHint} showNotes={Boolean(plans)} t={t} />
+      {wide ? null : <div data-flow-primary="" data-flow-footer="" className={PINNED_FOOTER_CLASS}>{primary}</div>}
     </div>
   )
 }
