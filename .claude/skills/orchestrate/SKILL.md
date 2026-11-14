@@ -948,7 +948,8 @@ Right after the push, run `node tools/list-bot-threads.mjs --pr <n> --repo <key>
 `<sha>` is the pushed head: copy it from `git rev-parse HEAD` in the worktree in this run. GitHub can
 report the previous head for a moment after a push, and that head can hold a review. With `--head`
 the tool reads again until the pull request reports the pushed head, and it exits 2 when that head
-does not arrive inside the budget. It reads no check, and it posts `@pullfrog review` when all of
+does not arrive inside the budget. It exits 4 with no verdict when a later push moves the head away,
+the same code that `wait-ci.mjs` gives a moved head: run it again with the new head. It reads no check, and it posts `@pullfrog review` when all of
 these are true:
 
 1. The branch activity lists the push of the current head.

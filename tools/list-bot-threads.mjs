@@ -15,6 +15,7 @@ const USAGE = `usage: list-bot-threads.mjs --pr <number|url> (--repo <ui|api|lan
   --head <sha>        the full SHA of the head that was pushed. The tool reads again until the
                       pull request reports this head, and decides nothing on an older one. When
                       the head never arrives inside the budget, it exits 2 and posts no request.
+                      When a later push moves the head away after that, it exits 4 with no verdict.
   --repo <key>        required for a bare number; a full PR URL selects its repository
   --wait-seconds <n>  how long to wait for the review (default 900, 0 polls once and asks nothing)
   --poll-seconds <n>  gap between polls (default 30)
@@ -70,7 +71,7 @@ Pullfrog publishes no severity, so every thread reports P1. The caller treats ea
 blocking until the caller triages it.
 
 exit codes: 0 REVIEWED or CHANGES_REQUESTED, 1 NO_REVIEW, CHECK_FAILED or CHECK_PENDING, 2 usage or
-environment error`
+environment error, 4 the head moved away from --head (the same code as wait-ci.mjs)`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -302,8 +303,23 @@ const progress = (event, node, startedAt, deadline) => {
 
 const startedAt = Date.now()
 const deadline = Date.now() + waitSeconds * 1000
+
+/** wait-ci.mjs gives a moved head the same code. A verdict of a later head is not the one the caller asked for. */
+const HEAD_MOVED_EXIT = 4
+let expectedHeadSeen = false
+const readExpectedHead = async () => {
+  const payload = await readPullRequest()
+  if (!expectedHead) return payload
+  if (payload.headRefOid === expectedHead) expectedHeadSeen = true
+  else if (expectedHeadSeen) {
+    progress("HEAD_MOVED", payload, startedAt, deadline)
+    fail(HEAD_MOVED_EXIT, `pull request ${pullRequest} head moved from the expected ${expectedHead} to ${payload.headRefOid}; no verdict is reported. Run again with the new head`)
+  }
+  return payload
+}
+
 await awaitGraphqlBudget(deadline)
-let node = await readPullRequest()
+let node = await readExpectedHead()
 progress("REVIEW_STATE_READ", node, startedAt, deadline)
 
 /**
@@ -318,7 +334,7 @@ while ((!headIsExpected(node) || pushIsUnread(node)) && Date.now() < deadline) {
   await sleep(Math.min(SETTLE_POLL_SECONDS, pollSeconds, Math.max(1, Math.ceil((deadline - Date.now()) / 1000))))
   await awaitGraphqlBudget(deadline)
   if (Date.now() >= deadline) break
-  node = await readPullRequest()
+  node = await readExpectedHead()
   progress("HEAD_WAITING", node, startedAt, deadline)
 }
 if (!headIsExpected(node)) fail(2, `pull request ${pullRequest} reports head ${node.headRefOid}, not the expected ${expectedHead}, after ${waitSeconds}s; nothing was decided and no review was requested`)
@@ -430,7 +446,7 @@ while (!finished() && Date.now() < deadline) {
   await sleep(Math.min(pollSeconds, Math.max(1, Math.ceil((deadline - Date.now()) / 1000))))
   await awaitGraphqlBudget(deadline)
   if (Date.now() >= deadline) break
-  node = await readPullRequest()
+  node = await readExpectedHead()
   bindRequestBoundary(node)
   review = currentReviewOf(node)
   if (review && isProgressMarker(node, review)) review = null

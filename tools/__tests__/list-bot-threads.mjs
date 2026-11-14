@@ -556,8 +556,45 @@ export const cases = () => {
       /different repository/.test(forkRequest.plan.note ?? "") && !/"event":"HEAD_WAITING"/.test(forkRequest.result.stderr),
     forkRequest.result.stdout || forkRequest.result.stderr,
   )
+
+  /**
+   * A push after the pushed head ends the wait. The verdict of the newer head is not the verdict that
+   * the caller asked for, so the exit code is the one that wait-ci.mjs gives a moved head.
+   */
+  const laterHeadActivity = JSON.stringify(activity(REPOINTED_HEAD, "2026-08-05T09:00:00Z"))
+  const laterHeadReviewed = payload({ headRefOid: REPOINTED_HEAD, checks: [approvalCheck("COMPLETED", "SUCCESS", "2026-08-05T10:01:00Z")], reviews: [botReview("APPROVED", "2026-08-05T10:00:00Z", REPOINTED_HEAD)] })
+  const headMoved = requestRun("head-moved", sequence("head-moved", [payload({ checks: [] }), laterHeadReviewed]),
+    { argv: ["--head", HEAD], activities: sequence("head-moved-activity", [JSON.stringify(activity()), laterHeadActivity]) })
+  T(
+    `${TOOL}: --head ends the wait with exit 4 and no verdict when a later push moves the head, even when the later head is approved`,
+    headMoved.result.status === 4 && headMoved.plan === null && headMoved.requests === 1 && /"event":"HEAD_MOVED"/.test(headMoved.result.stderr) &&
+      headMoved.result.stderr.includes(`moved from the expected ${HEAD} to ${REPOINTED_HEAD}`),
+    headMoved.result.stdout || headMoved.result.stderr,
+  )
+  const headMovedUnasked = requestRun("head-moved-unasked", sequence("head-moved-unasked", [payload({ checks: [] }), laterHeadReviewed]),
+    { waitSeconds: "6", argv: ["--head", HEAD], activities: sequence("head-moved-unasked-activity", [oldHeadActivity, laterHeadActivity]) })
+  T(
+    `${TOOL}: --head exits 4 and asks nothing when the head moves before the push of the expected head is listed`,
+    headMovedUnasked.result.status === 4 && headMovedUnasked.plan === null && headMovedUnasked.requestArgv === null,
+    headMovedUnasked.result.stdout || headMovedUnasked.result.stderr,
+  )
+  const withoutHead = requestRun("head-moved-no-flag", sequence("head-moved-no-flag", [payload({ checks: [] }), laterHeadReviewed]),
+    { activities: sequence("head-moved-no-flag-activity", [JSON.stringify(activity()), laterHeadActivity]) })
+  T(
+    `${TOOL}: without --head the tool still reports the head that GitHub reports, with its commit named`,
+    withoutHead.result.status === 0 && withoutHead.plan?.verdict === "REVIEWED" && withoutHead.plan.reviewedCommit === REPOINTED_HEAD,
+    withoutHead.result.stdout || withoutHead.result.stderr,
+  )
+  const waitCiUsage = run("wait-ci.mjs", ["--help"]).stdout
+  const ownUsage = run(TOOL, ["--help"]).stdout
+  T(
+    `${TOOL}: the moved-head exit code is the one that wait-ci.mjs documents`,
+    /\b4 head moved/.test(waitCiUsage) && /\b4 the head moved/.test(ownUsage),
+    `${waitCiUsage}\n${ownUsage}`,
+  )
+
   const requestCases = [greenHead, runningHead, justPushed, failingHead, unanswered, reviewedHead, fixPush, alreadyAsked, askedByStranger, askedForOldHead, zeroWait,
-    headLag, headAbsent, headAbsentZeroWait, askedBeforeActivity, pushListedLate, pushNeverListed, forkRequest]
+    headLag, headAbsent, headAbsentZeroWait, askedBeforeActivity, pushListedLate, pushNeverListed, forkRequest, headMoved, headMovedUnasked, withoutHead]
   T(
     `${TOOL}: no request case reads branch protection`,
     requestCases.every((entry) => !entry.protectionRead),
