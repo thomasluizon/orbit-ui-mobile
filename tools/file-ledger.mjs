@@ -153,13 +153,15 @@ const usage = () => `usage: file-ledger.mjs [--repo <path>] [--also-search <path
 
   unresolvedReferences holds each path that a doc, an agent file or a text config file names and that
   resolves to nothing. A reference is a path inside backticks or the target of a Markdown link. Fenced code
-  blocks are skipped. A reference resolves when: it names a tracked path, the end of a tracked path or a
-  tracked folder; it exists on disk (an ignored file counts); tools/root-allowlist.json of the repository
-  lists it; or an --also-search root tracks it (a leading ../ and the repository name are ignored). A bare
-  file name resolves when one tracked file has that basename. A URL, a glob, a placeholder in angle brackets,
-  a flag, an absolute path (/x, ~/x or C:/x), a bare extension such as .dc.html, a branch prefix such as feature/ and a word
-  without a known file extension are never references. The tool prefers a miss over a false hit. A source
-  file, a test and an asset get an empty list.
+  blocks are skipped. A span with a space is one path when it resolves whole, or when its first word holds a /
+  and no single word of it resolves; otherwise each word is checked alone. A reference resolves when: it
+  names a tracked path, the end of a tracked path or a tracked folder; it exists on disk (an ignored file
+  counts); tools/root-allowlist.json of the repository lists it; or an --also-search root tracks it (a
+  leading ../ and the repository name are ignored). A bare file name resolves when one tracked file has that
+  basename. A URL, a glob, a placeholder in angle brackets, a flag, an absolute path (/x, ~/x or C:/x), a bare
+  extension such as .dc.html, a branch prefix such as feature/ and a word without a known file extension are
+  never references. The tool prefers a miss over a false hit. A source file, a test and an asset get an
+  empty list.
 
   Untracked files that git does not ignore are listed on stderr with the counts by class.
 
@@ -479,12 +481,16 @@ const unresolvedIn = (text, fromDirectory, resolves) => {
     const cleaned = cleanToken(token)
     if (looksLikePath(cleaned.replaceAll(/\s/g, "_")) && !resolves(cleaned, fromDirectory)) unresolved.add(cleaned)
   }
+  const resolvesAsPath = (token) => {
+    const cleaned = cleanToken(token)
+    return looksLikePath(cleaned) && resolves(cleaned, fromDirectory)
+  }
   for (const span of spans) {
     const tokens = span.split(/\s+/)
     const whole = cleanToken(span)
-    // One path with a space: it resolves whole, or its folders sit before the space and its last part has none.
+    // One path with a space: it resolves whole, or it starts with a folder and no single token of it resolves as a path.
     const spacedPath = tokens.length > 1 && looksLikePath(whole.replaceAll(/\s/g, "_")) &&
-      (resolves(whole, fromDirectory) || (!tokens.at(-1).includes("/") && tokens.slice(0, -1).some((token) => token.includes("/"))))
+      (resolves(whole, fromDirectory) || (tokens[0].includes("/") && !tokens.some(resolvesAsPath)))
     for (const token of spacedPath ? [span] : tokens) judge(token)
   }
   for (const link of links) judge(link.replace(/\?.*$/, ""))

@@ -290,6 +290,9 @@ const caseUsage = () => {
   check(TOOL, "a base that is not a commit exits 2", ["--verify", writeLedger("usage-bad-base", fixture.ledger), "--repo", fixture.repository, "--base", "no-such-commit"], { status: 2, stderr: /not a commit/ })
 }
 
+// A command, a copy and a prose span that name only tracked files: README.md, docs/a.md and tools/check.mjs.
+const RESOLVED_SPANS = ["node tools/check.mjs --files README.md", "cp docs/a.md README.md", "docs/a.md and README.md"]
+
 const caseUnresolvedReferences = () => {
   const repository = makeRepository("references", {
     "docs/guide.md": [
@@ -303,11 +306,15 @@ const caseUnresolvedReferences = () => {
       "Folder tail `nested/deep/`, sibling by name `../../references-sibling/sibling-only/notes.md`, relative `../top.md`, spaced `docs/Orbit Today.md`.",
       "Line `docs/present.md:3`, missing line `docs/gone-line.md:12`, a [query](docs/present.md?plain=1) and a [missing query](docs/gone-query.md?plain=1).",
       "Spaced: missing `design/old/Orbit Gone.dc.html`, command `cat docs/gone-cat.md`, a [link](Orbit%20Today.md) and a [missing link](Orbit%20Gone.md).",
+      `Each file tracked: ${RESOLVED_SPANS.map((span) => `\`${span}\``).join(", ")}.`,
       "```",
       "`fenced/ignored.md`",
       "```",
     ].join("\n"),
     "docs/present.md": "text\n",
+    "docs/a.md": "a\n",
+    "README.md": "readme\n",
+    "tools/check.mjs": "export {}\n",
     "docs/Orbit Today.md": "spaced\n",
     "other/nested/deep/file.md": "deep\n",
     "top.md": "top\n",
@@ -343,6 +350,9 @@ const caseUnresolvedReferences = () => {
   T(`${TOOL}: a link with an encoded space is checked: a tracked target resolves and a missing one is reported`,
     found.includes("Orbit Gone.md") && !found.includes("Orbit Today.md"), found.join())
   T(`${TOOL}: a command span still reports the missing path it names`, found.includes("docs/gone-cat.md"), found.join())
+  for (const span of RESOLVED_SPANS) {
+    T(`${TOOL}: a spaced span whose named files each resolve is never reported whole: ${span}`, !found.includes(span), found.join())
+  }
   T(`${TOOL}: a POSIX or a Windows absolute path is never a reference`, !found.some((path) => /notes\.md|plan\.md/.test(path)), found.join())
   T(`${TOOL}: a :line suffix and a ?query are stripped before the check`,
     found.includes("docs/gone-line.md") && found.includes("docs/gone-query.md") && !found.some((path) => path.includes("present")), found.join())
