@@ -1,0 +1,254 @@
+import React from 'react'
+import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { createApiClientError } from '@orbit/shared/utils'
+import { buildTags, resetTagStepState, tagStepState, TagStepHarness } from './tag-step-harness'
+
+const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
+const copy = { en, 'pt-BR': ptBR } as const
+let tree: ReactTestRenderer | null = null
+
+function mount(element: React.ReactElement): ReactTestRenderer {
+  void renderer.act(() => { tree = renderer.create(element) })
+  return tree!
+}
+const hosts = (root: ReactTestRenderer): ReactTestInstance[] => root.root.findAll((node) => typeof node.type === 'string')
+const textOf = (node: ReactTestInstance): string => node.children.map((child) => typeof child === 'string' ? child : textOf(child)).join('')
+const texts = (root: ReactTestRenderer) => hosts(root).filter((node) => node.type === 'Text' || node.type === 'AnimatedText').map(textOf)
+const pressable = (root: ReactTestRenderer, label: string, scope?: string) => {
+  const nodes = scope ? root.root.findAll((node) => node.props.testID === scope).flatMap((node) => node.findAll((child) => typeof child.type === 'string')) : hosts(root)
+  return nodes.find((node) => typeof node.props.onPress === 'function' && (node.props.accessibilityLabel ?? textOf(node)) === label)
+}
+const option = (root: ReactTestRenderer, label: string) => hosts(root).find((node) => node.props.testID === 'option-card' && node.props.accessibilityLabel === label)
+const field = (root: ReactTestRenderer, label: string) => hosts(root).find((node) => node.type === 'TextInput' && node.props.accessibilityLabel === label)
+const selected = (root: ReactTestRenderer) => textOf(root.root.find((node) => node.props.testID === 'selected-tags' && typeof node.type === 'string'))
+const quickOptions = (root: ReactTestRenderer) => hosts(root).filter((node) => node.props.testID === 'option-card').map((node) => node.props.accessibilityLabel as string)
+const line = (root: ReactTestRenderer) => hosts(root).find((node) => node.props.testID === 'question-flow-line')
+
+async function press(node: ReactTestInstance | undefined) {
+  expect(node).toBeDefined()
+  await renderer.act(async () => { if (!node!.props.disabled) await node!.props.onPress() })
+}
+function type(node: ReactTestInstance | undefined, value: string) {
+  expect(node).toBeDefined()
+  void renderer.act(() => { node!.props.onChangeText(value) })
+}
+
+beforeEach(() => resetTagStepState())
+afterEach(() => { if (tree) void renderer.act(() => tree!.unmount()); tree = null })
+
+describe.each(['en', 'pt-BR'] as const)('the tag step on Android in %s', (locale) => {
+  const text = copy[locale]
+  beforeEach(() => { tagStepState.locale = locale })
+
+  it('asks the question, explains a tag before a choice and offers the free path with no tags', () => {
+    const root = mount(<TagStepHarness onContinue={vi.fn()} />)
+    expect(hosts(root).find((node) => node.props.accessibilityRole === 'header')?.props.children).toBe(text.habits.flow.optional.tags)
+    expect(texts(root)).toContain(text.habits.flow.tags.lineIntro)
+    expect(field(root, text.habits.form.newTag)).toBeDefined()
+    expect(quickOptions(root)).toEqual([text.habits.flow.tags.none])
+    expect(texts(root)).not.toContain(text.habits.form.noTags)
+  })
+
+  it('creates the first tag from the free path and selects it', async () => {
+    tagStepState.create.mockResolvedValue({ id: 'created' })
+    const root = mount(<TagStepHarness onContinue={vi.fn()} />)
+    type(field(root, text.habits.form.newTag), 'Saúde')
+    await press(pressable(root, text.common.add))
+    expect(tagStepState.create).toHaveBeenCalledWith({ name: 'Saúde', color: expect.any(String) })
+    expect(selected(root)).toBe('created')
+  })
+
+  it('changes the Orbit line to the items of the pressed tag with no request', async () => {
+    tagStepState.tags = buildTags(['Health', 'Mind'])
+    tagStepState.habits = [{ title: 'Run', tags: [{ id: 'tag-0' }] }, { title: 'Swim', tags: [{ id: 'tag-0' }] }]
+    const root = mount(<TagStepHarness onContinue={vi.fn()} />)
+    await press(option(root, 'Health'))
+    const items = new Intl.ListFormat(locale, { style: 'long', type: 'conjunction' }).format(['Run', 'Swim'])
+    expect(textOf(line(root)!)).toBe(text.habits.flow.tags.lineHas.replace('{tag}', 'Health').replace('{items}', items))
+    await press(option(root, 'Mind'))
+    expect(textOf(line(root)!)).toBe(text.habits.flow.tags.lineEmpty.replace('{tag}', 'Mind'))
+    expect(new Set(tagStepState.habitFilters.map((filters) => JSON.stringify(filters)))).toEqual(new Set(['{}']))
+  })
+})
+
+describe('tag selection on Android', () => {
+  it('toggles without advancing, continues on its own action, and clears on "No tag"', async () => {
+    tagStepState.tags = buildTags(['Health', 'Mind'])
+    const onContinue = vi.fn()
+    const root = mount(<TagStepHarness onContinue={onContinue} />)
+    await press(option(root, 'Health'))
+    expect(selected(root)).toBe('tag-0')
+    expect(option(root, 'Health')?.props.accessibilityState.selected).toBe(true)
+    expect(onContinue).not.toHaveBeenCalled()
+    await press(hosts(root).find((node) => node.props.testID === 'button-primary-sm'))
+    expect(onContinue).toHaveBeenCalledOnce()
+    await press(option(root, 'No tag'))
+    expect(selected(root)).toBe('')
+    expect(onContinue).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps the intro line when no cache holds every habit', async () => {
+    tagStepState.tags = buildTags(['Health'])
+    const root = mount(<TagStepHarness onContinue={vi.fn()} />)
+    await press(option(root, 'Health'))
+    expect(textOf(line(root)!)).toBe(en.habits.flow.tags.lineIntro)
+  })
+
+  it('reaches the limit at five, dims the others and shows the neutral limit text once with no upgrade', async () => {
+    tagStepState.tags = buildTags(['A', 'B', 'C', 'D', 'E', 'F', 'G'])
+    const root = mount(<TagStepHarness initialIds={['tag-0', 'tag-1', 'tag-2', 'tag-3']} onContinue={vi.fn()} />)
+    type(field(root, en.habits.form.searchTags), 'E')
+    await press(pressable(root, 'E', 'tag-step-rows'))
+    expect(selected(root)).toBe('tag-0,tag-1,tag-2,tag-3,tag-4')
+    expect(texts(root).filter((value) => value === en.habits.form.tagLimit)).toHaveLength(1)
+    expect(hosts(root).some((node) => node.props.testID === 'tag-limit')).toBe(true)
+    type(field(root, en.habits.form.searchTags), 'F')
+    expect(pressable(root, 'F', 'tag-step-rows')?.props.accessibilityState.disabled).toBe(true)
+    expect(texts(root).some((value) => /pro|upgrade/i.test(value))).toBe(false)
+  })
+
+  it('shows four quick options, the selected first, and every tag behind the search', () => {
+    tagStepState.tags = buildTags(['A', 'B', 'C', 'D', 'E', 'F'])
+    const root = mount(<TagStepHarness initialIds={['tag-5']} onContinue={vi.fn()} />)
+    expect(quickOptions(root)).toEqual(['F', 'A', 'B', 'C', 'No tag'])
+    type(field(root, en.habits.form.searchTags), 'e')
+    expect(pressable(root, 'E', 'tag-step-rows')).toBeDefined()
+    type(field(root, en.habits.form.searchTags), 'zz')
+    expect(texts(root)).toContain(en.habits.flow.tags.searchMiss)
+  })
+})
+
+describe('tag create, rename and delete on Android', () => {
+  it('shows the hint beside the field for an empty name and the server name error beside it', async () => {
+    const root = mount(<TagStepHarness onContinue={vi.fn()} />)
+    await press(pressable(root, en.common.add))
+    expect(field(root, en.habits.form.newTag)?.props.accessibilityHint).toContain(en.habits.form.tagNameRequired)
+    expect(tagStepState.create).not.toHaveBeenCalled()
+    tagStepState.create.mockRejectedValue({ errors: { Name: ['Tag must have at most 50 characters'] } })
+    type(field(root, en.habits.form.newTag), 'Health')
+    await press(pressable(root, en.common.add))
+    expect(field(root, en.habits.form.newTag)?.props.accessibilityHint).toContain('Tag must have at most 50 characters')
+    expect(selected(root)).toBe('')
+  })
+
+  it('renames a tag, shows a server error beside it, and keeps the discard guard for a dirty rename', async () => {
+    tagStepState.tags = buildTags(['Health'])
+    const root = mount(<TagStepHarness onContinue={vi.fn()} />)
+    await press(pressable(root, en.habits.flow.tags.manage))
+    await press(pressable(root, `${en.habits.form.editTag}: Health`))
+    type(field(root, en.habits.form.tagName), 'Body')
+    await press(pressable(root, en.common.cancel, 'tag-step-rows'))
+    expect(texts(root)).toContain(en.common.discardChangesTitle)
+    await press(pressable(root, en.common.keepEditing))
+    tagStepState.update.mockRejectedValueOnce(createApiClientError(500, null, 'Failed'))
+    await press(pressable(root, en.common.save))
+    expect(texts(root)).toContain(en.toast.errors.server)
+    tagStepState.update.mockResolvedValueOnce(undefined)
+    await press(pressable(root, en.common.save))
+    expect(tagStepState.update).toHaveBeenLastCalledWith({ tagId: 'tag-0', name: 'Body', color: '#7c3aed' })
+    expect(field(root, en.habits.form.tagName)).toBeUndefined()
+  })
+
+  it.each([409, 500])('shows the server message of a refused delete %i and reports only the unexpected one', async (status) => {
+    tagStepState.tags = buildTags(['Health'])
+    tagStepState.remove.mockRejectedValue(createApiClientError(status, status === 409 ? { errorCode: 'CONCURRENT_UPDATE_CONFLICT' } : null, 'Failed'))
+    const root = mount(<TagStepHarness initialIds={['tag-0']} onContinue={vi.fn()} />)
+    await press(pressable(root, en.habits.flow.tags.manage))
+    await press(pressable(root, `${en.habits.form.deleteTag}: Health`))
+    const alert = hosts(root).find((node) => node.props.accessibilityRole === 'alert')
+    expect(textOf(alert!)).toBe(status === 409 ? en.toast.errors.conflict : en.toast.errors.server)
+    expect(selected(root)).toBe('tag-0')
+    expect(tagStepState.captureError).toHaveBeenCalledTimes(status === 500 ? 1 : 0)
+  })
+
+  it('deletes a tag and removes its row', async () => {
+    tagStepState.tags = buildTags(['Health', 'Mind'])
+    tagStepState.remove.mockResolvedValue(undefined)
+    const root = mount(<TagStepHarness onContinue={vi.fn()} />)
+    await press(pressable(root, en.habits.flow.tags.manage))
+    expect(hosts(root).filter((node) => node.props.testID === 'tag-step-row')).toHaveLength(2)
+    await press(pressable(root, `${en.habits.form.deleteTag}: Mind`))
+    expect(tagStepState.remove).toHaveBeenCalledWith('tag-1')
+    tagStepState.tags = buildTags(['Health'])
+    void renderer.act(() => root.update(<TagStepHarness onContinue={vi.fn()} />))
+    expect(hosts(root).filter((node) => node.props.testID === 'tag-step-row')).toHaveLength(1)
+  })
+})
+
+describe('tag suggestions in the step on Android', () => {
+  const flowState = (root: ReactTestRenderer) => hosts(root).find((node) => node.props.testID === 'question-flow-step-optional:tags')
+    ?.findAll((node) => node.props.state !== undefined && node.props.size === 96)[0]?.props.state as string | undefined
+
+  it('needs a title before it suggests and stops at the limit', () => {
+    const root = mount(<TagStepHarness title=" " onContinue={vi.fn()} />)
+    expect(pressable(root, en.habits.form.suggestTags)?.props.accessibilityState.disabled).toBe(true)
+    void renderer.act(() => root.unmount())
+    tagStepState.tags = buildTags(['A', 'B', 'C', 'D', 'E'])
+    const full = mount(<TagStepHarness initialIds={['tag-0', 'tag-1', 'tag-2', 'tag-3', 'tag-4']} onContinue={vi.fn()} />)
+    expect(pressable(full, en.habits.form.suggestTags)?.props.accessibilityState.disabled).toBe(true)
+  })
+
+  it('shows Orbit thinking while it runs, then the proposals, and a press creates and selects', async () => {
+    let complete!: (response: { tags: { name: string; color: string; isExisting: boolean; id: string | null }[] }) => void
+    tagStepState.suggest.mockImplementation(() => new Promise((resolve) => { complete = resolve }))
+    const root = mount(<TagStepHarness onContinue={vi.fn()} />)
+    void renderer.act(() => { pressable(root, en.habits.form.suggestTags)!.props.onPress() })
+    expect(flowState(root)).toBe('pensando')
+    expect(texts(root)).toContain(en.habits.form.suggestingTags)
+    await renderer.act(async () => { complete({ tags: [{ name: 'Reading', color: '#7c3aed', isExisting: false, id: null }] }); await Promise.resolve() })
+    expect(flowState(root)).toBe('parado')
+    tagStepState.create.mockResolvedValue({ id: 'created' })
+    await press(pressable(root, 'Reading'))
+    expect(tagStepState.create).toHaveBeenCalledWith({ name: 'Reading', color: '#7c3aed' })
+    expect(selected(root)).toBe('created')
+  })
+
+  it('shows the error of a failed suggestion and goes back to Parado', async () => {
+    tagStepState.suggest.mockRejectedValue(createApiClientError(500, null, 'Failed'))
+    const root = mount(<TagStepHarness onContinue={vi.fn()} />)
+    await press(pressable(root, en.habits.form.suggestTags))
+    expect(hosts(root).some((node) => node.props.accessibilityRole === 'alert')).toBe(true)
+    expect(flowState(root)).toBe('parado')
+  })
+})
+
+describe('the tag bar on Android', () => {
+  const BARE = ['tags', 'tag', 'metas', 'modelos', 'checklist']
+
+  it.each(['en', 'pt-BR'] as const)('never shows a bare system noun as a heading, a label or a row in %s', async (locale) => {
+    tagStepState.locale = locale
+    tagStepState.tags = buildTags(['A', 'B', 'C', 'D', 'E'])
+    const root = mount(<TagStepHarness onContinue={vi.fn()} />)
+    await press(pressable(root, copy[locale].habits.flow.tags.manage))
+    const names = hosts(root)
+      .filter((node) => node.props.accessibilityRole === 'header' || node.props.testID === 'option-card' || node.props.testID === 'question-row' || node.type === 'TextInput')
+      .map((node) => String(node.props.accessibilityLabel ?? node.props.children))
+    expect(names.length).toBeGreaterThan(5)
+    for (const name of names) expect(BARE).not.toContain(name.trim().toLocaleLowerCase())
+  })
+})
+
+describe('tag step motion on Android', () => {
+  it.each([false, true])('fades the line in on a press, still under reduced motion: %s', async (reduced) => {
+    tagStepState.reducedMotion = reduced
+    tagStepState.tags = buildTags(['Health'])
+    tagStepState.habits = []
+    const root = mount(<TagStepHarness onContinue={vi.fn()} />)
+    await press(option(root, 'Health'))
+    const opacity = (line(root)!.props.style as { opacity?: { value: number } }[]).find((style) => style.opacity)?.opacity
+    expect(opacity?.value).toBe(reduced ? 1 : 0)
+  })
+
+  it.each([false, true])('enters and leaves a row with the list motion, still under reduced motion: %s', async (reduced) => {
+    tagStepState.reducedMotion = reduced
+    tagStepState.tags = buildTags(['Health'])
+    const root = mount(<TagStepHarness onContinue={vi.fn()} />)
+    await press(pressable(root, en.habits.flow.tags.manage))
+    const row = hosts(root).find((node) => node.props.testID === 'tag-step-row')!
+    expect(row.props.entering === undefined).toBe(reduced)
+    expect(row.props.exiting === undefined).toBe(reduced)
+  })
+})
