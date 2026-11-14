@@ -9,6 +9,7 @@ import { act, render, renderHook, screen, fireEvent, waitFor } from '@testing-li
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 
 Element.prototype.scrollIntoView = vi.fn()
@@ -557,5 +558,41 @@ describe('CommandPalette', () => {
 
     expect(trigger).toHaveFocus()
     trigger.remove()
+  })
+})
+
+describe.each([{ guided: false }, { guided: true }])('the command palette with orbit_guided_flows $guided', ({ guided }) => {
+  beforeEach(() => { if (guided) enableTestFlags('orbit_guided_flows') })
+
+  it('opens and closes in the commit of the press, with no animation to wait for and no Orbit', async () => {
+    useShellStore.setState({ paletteOpen: false })
+    await renderPalette()
+    expect(screen.queryByRole('dialog')).toBeNull()
+
+    act(() => { useShellStore.setState({ paletteOpen: true }) })
+    const dialog = screen.getByRole('dialog', { name: 'command.title' })
+    const layers = [dialog.parentElement!, dialog, ...dialog.parentElement!.querySelectorAll<HTMLElement>('*')]
+    expect(layers.filter((layer) => layer.style.transition || layer.style.animation || layer.style.opacity || layer.style.transform)).toEqual([])
+    expect(document.querySelectorAll('[data-motion], [data-list-motion], [data-state="closed"]')).toHaveLength(0)
+    await screen.findByRole('combobox')
+    expect(document.querySelectorAll('[data-asset="orbit-mascot"], [data-orbit-state]')).toHaveLength(0)
+
+    act(() => { useShellStore.setState({ paletteOpen: false }) })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'common.close' })).toBeNull()
+  })
+
+  it('keeps the groups, the hints, and the log and skip requests of a habit row', async () => {
+    await renderPalette()
+    expect(Array.from(document.querySelectorAll<HTMLElement>('[data-command-group]'), (group) => group.dataset.commandGroup)).toEqual(['habits', 'create', 'actions', 'destinations'])
+    expect(screen.getByText('command.hints.navigate')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('command.logHabit'))
+    fireEvent.click(screen.getByText('Run'))
+    expect(mockLogHabitMutate).toHaveBeenCalledWith({ habitId: 'h1', intent: 'log' }, { onSuccess: expect.any(Function) })
+    fireEvent.click(screen.getByLabelText('common.back'))
+    fireEvent.click(screen.getByText('command.skipHabit'))
+    fireEvent.click(screen.getByText('Run'))
+    expect(mockSkipHabitMutate).toHaveBeenCalledWith({ habitId: 'h1' }, expect.any(Object))
+    expect(document.querySelectorAll('[data-asset="orbit-mascot"], [data-orbit-state]')).toHaveLength(0)
   })
 })

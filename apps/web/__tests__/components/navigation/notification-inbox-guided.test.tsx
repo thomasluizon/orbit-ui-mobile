@@ -11,6 +11,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { NotificationBell } from '@/components/navigation/notification-bell'
 import { NotificationInbox } from '@/components/navigation/notification-inbox'
 import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
+import { RootNotificationHeader } from '@/components/navigation/root-notification-header'
 import { fetchJson } from '@/lib/api-fetch'
 import { resetPendingNotificationDeletesForTests } from '@/lib/pending-notification-deletes'
 import { useAppToastStore } from '@/stores/app-toast-store'
@@ -25,15 +26,15 @@ const actionMocks = vi.hoisted(() => ({
   subscribePush: vi.fn(),
   unsubscribePush: vi.fn(),
 }))
-const view = vi.hoisted(() => ({ locale: 'en' as 'en' | 'pt-BR', reducedMotion: false, wide: false, push: vi.fn() }))
+const view = vi.hoisted(() => ({ locale: 'en' as 'en' | 'pt-BR', reducedMotion: false, wide: false, pathname: '/notifications', push: vi.fn(), goBack: vi.fn() }))
 
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: view.push }), usePathname: () => '/notifications' }))
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: view.push }), usePathname: () => view.pathname }))
 vi.mock('next-intl', async () => {
   const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl')
   const messages = { en: (await import('@orbit/shared/i18n/en.json')).default, 'pt-BR': (await import('@orbit/shared/i18n/pt-BR.json')).default }
   return { useTranslations: () => createTranslator({ locale: view.locale, messages: messages[view.locale] }) }
 })
-vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => vi.fn() }))
+vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => view.goBack }))
 vi.mock('@/lib/api-fetch', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/api-fetch')>()), fetchJson: vi.fn() }))
 vi.mock('@/app/actions/notifications', () => actionMocks)
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
@@ -83,6 +84,7 @@ beforeEach(() => {
   view.locale = 'en'
   view.reducedMotion = false
   view.wide = false
+  view.pathname = '/notifications'
   vi.stubGlobal('matchMedia', (query: string) => ({
     matches: query === '(prefers-reduced-motion: reduce)' ? view.reducedMotion : view.wide && /min-width/.test(query),
     media: query, onchange: null, addEventListener: vi.fn(), removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn(), dispatchEvent: vi.fn(),
@@ -331,6 +333,21 @@ describe('the Avisos inbox on the Orbit logic', () => {
     expect(count.querySelectorAll('[data-count-roll]')).toHaveLength(1)
     expect(count).toHaveTextContent('1')
     expect(count).toHaveAttribute('aria-hidden', 'true')
+  })
+
+  it('keeps the back control of the inbox header, and the bell of the root header as the control that opens the inbox', () => {
+    const inbox = mount()
+    fireEvent.click(screen.getByRole('button', { name: en.common.back }))
+    expect(view.goBack).toHaveBeenCalledWith('/')
+    expect(screen.getByRole('heading', { level: 1, name: en.notifications.title })).toBeInTheDocument()
+    inbox.unmount()
+
+    view.pathname = '/'
+    const { container } = render(<QueryClientProvider client={queryClient}><RootNotificationHeader /></QueryClientProvider>)
+    const header = container.querySelector<HTMLElement>('[data-root-notification-header]')!
+    fireEvent.click(within(header).getByRole('button', { name: 'Alerts, 2 unread' }))
+    expect(view.push).toHaveBeenCalledWith('/notifications')
+    expect(header.querySelector('[data-asset="orbit-mascot"]')).toBeNull()
   })
 
   it('swaps the count of the bell with no roll under reduced motion', async () => {

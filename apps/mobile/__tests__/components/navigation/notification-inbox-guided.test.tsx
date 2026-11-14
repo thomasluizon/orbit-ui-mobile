@@ -13,6 +13,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { NotificationBell } from '@/components/navigation/notification-bell'
 import { NotificationInbox } from '@/components/navigation/notification-inbox'
 import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
+import { RootNotificationHeader } from '@/components/navigation/root-notification-header'
 import { apiClient } from '@/lib/api-client'
 import { resetPendingNotificationDeletesForTests } from '@/lib/pending-notification-deletes'
 import { useAppToastStore } from '@/stores/app-toast-store'
@@ -23,13 +24,13 @@ import { renderedText } from '../../support/react-test-renderer'
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 type Node = import('react-test-renderer').ReactTestInstance
 const translation = vi.hoisted(() => ({ t: (key: string, _values?: Record<string, unknown>) => key }))
-const view = vi.hoisted(() => ({ reducedMotion: false, push: vi.fn() }))
+const view = vi.hoisted(() => ({ reducedMotion: false, pathname: '/notifications', push: vi.fn(), goBack: vi.fn() }))
 vi.mock('react-i18next', async () => {
   const actual = await vi.importActual<typeof import('react-i18next')>('react-i18next')
   return { ...actual, useTranslation: () => ({ t: translation.t }) }
 })
-vi.mock('expo-router', () => ({ useRouter: () => ({ push: view.push }), usePathname: () => '/notifications' }))
-vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => vi.fn() }))
+vi.mock('expo-router', () => ({ useRouter: () => ({ push: view.push, replace: vi.fn() }), usePathname: () => view.pathname }))
+vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => view.goBack }))
 vi.mock('react-native-safe-area-context', async (original) => {
   const { View } = await import('react-native')
   return { ...await original<typeof import('react-native-safe-area-context')>(), SafeAreaView: View }
@@ -100,6 +101,7 @@ beforeEach(async () => {
   vi.useFakeTimers()
   vi.clearAllMocks()
   view.reducedMotion = false
+  view.pathname = '/notifications'
   __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 })
   resetPendingNotificationDeletesForTests()
   useAppToastStore.setState({ currentToast: null, queue: [] })
@@ -348,6 +350,21 @@ describe('the Android Avisos inbox on the Orbit logic', () => {
     expect(byTestId('notification-count-roll')).toHaveLength(1)
     expect(renderedText(byTestId('notification-count')[0]!.props.children)).toBe('1')
     expect(motionDurations.slow).toBe(280)
+  })
+
+  it('keeps the back control of the inbox header, and the bell of the root header as the control that opens the inbox', () => {
+    mount()
+    press(en.common.back)
+    expect(view.goBack).toHaveBeenCalledWith('/')
+    expect(hosts((node) => node.props.accessibilityRole === 'header').map((node) => renderedText(node.props.children))).toEqual([en.notifications.title])
+    void TestRenderer.act(() => tree?.unmount())
+
+    view.pathname = '/'
+    void TestRenderer.act(() => { tree = TestRenderer.create(<QueryClientProvider client={queryClient}><RootNotificationHeader /></QueryClientProvider>) })
+    expect(byTestId('root-notification-header')).toHaveLength(1)
+    press('Alerts, 2 unread')
+    expect(view.push).toHaveBeenCalledWith('/notifications')
+    expect(mascots()).toHaveLength(0)
   })
 
   it('swaps the count of the bell with no roll under reduced motion', async () => {
