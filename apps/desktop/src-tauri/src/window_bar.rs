@@ -230,6 +230,42 @@ pub fn content_process_ended(webview: &tauri::Webview) {
     });
 }
 
+// When the render process of the main frame ends, WebView2 shows its own error page in a new render process. When the browser
+// process ends, the webview closes (`COREWEBVIEW2_PROCESS_FAILED_KIND`). Microsoft documents no load event for either case,
+// and wry registers no `ProcessFailed` handler. The bar ended with the document, so the window gets its native frame back at
+// once. WebView2 raises `ProcessFailed` on the main thread, as it raises the load events.
+#[cfg(windows)]
+pub fn watch_content_process(window: &WebviewWindow) -> tauri::Result<()> {
+    use webview2_com::Microsoft::Web::WebView2::Win32::{
+        COREWEBVIEW2_PROCESS_FAILED_KIND_BROWSER_PROCESS_EXITED,
+        COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_EXITED,
+    };
+    let target = window.clone();
+    window.with_webview(move |webview| {
+        let handler = webview2_com::ProcessFailedEventHandler::create(Box::new(move |_, args| {
+            let Some(args) = args else {
+                return Ok(());
+            };
+            let mut kind = Default::default();
+            unsafe { args.ProcessFailedKind(&mut kind)? };
+            if kind == COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_EXITED
+                || kind == COREWEBVIEW2_PROCESS_FAILED_KIND_BROWSER_PROCESS_EXITED
+            {
+                if let Err(error) = report_bar(&target, false) {
+                    eprintln!("Cannot restore the native window frame: {error}");
+                }
+            }
+            Ok(())
+        }));
+        let mut token = 0;
+        let watched = unsafe { webview.controller().CoreWebView2() }
+            .and_then(|core| unsafe { core.add_ProcessFailed(&handler, &mut token) });
+        if let Err(error) = watched {
+            eprintln!("Cannot watch the web content process: {error}");
+        }
+    })
+}
+
 fn start_deadline(window: &WebviewWindow, load: u64) {
     let window = window.clone();
     std::thread::spawn(move || {

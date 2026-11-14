@@ -203,6 +203,9 @@ it('gives the native frame back to a document without the bar, and answers in th
   const frame = read('../src-tauri/src/window_bar.rs').split('#[cfg(test)]')[0]!
   expect(frame).toMatch(/pub fn content_process_ended\(webview: &tauri::Webview\) \{[\s\S]*page_loading\(&window, tauri::webview::PageLoadEvent::Started\);[\s\S]*webview\.reload\(\)/)
   expect(frame).toMatch(/fn start_deadline\(window: &WebviewWindow, load: u64\) \{[^}]*std::thread::sleep\(BAR_DEADLINE\);[^}]*run_on_main_thread\(move \|\| \{[^}]*\.deadline_passed\(load\);\s*if let Err\(error\) = change_frame\(&window, change\)/)
+  expect(entrypoint).toMatch(/#\[cfg\(windows\)\]\s*\{\s*window_bar::install_snap_region\(&window\)\?;\s*if let Err\(error\) = window_bar::watch_content_process\(&window\)/)
+  expect(frame).toMatch(/#\[cfg\(windows\)\]\s*pub fn watch_content_process\(window: &WebviewWindow\)[\s\S]*if kind == COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_EXITED\s*\|\| kind == COREWEBVIEW2_PROCESS_FAILED_KIND_BROWSER_PROCESS_EXITED\s*\{\s*if let Err\(error\) = report_bar\(&target, false\)[\s\S]*\.add_ProcessFailed\(&handler, &mut token\)/)
+  expect(read('../src-tauri/Cargo.toml')).toMatch(/\[target\.'cfg\(windows\)'\.dependencies\]\s*webview2-com = "=0\.39\.1"/)
   const caption = read('../src-tauri/native/windows/caption.cpp')
   expect(caption).toContain('CreateWindowExW(WS_EX_LAYERED, definition.lpszClassName, L"", WS_CHILD | WS_CLIPSIBLINGS,')
   expect(caption).toContain('extern "C" void orbit_caption_set_active(void *parent, bool active)')

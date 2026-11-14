@@ -30,3 +30,6 @@ tauri-plugin-single-instance = { version = "=2.5.4", features = ["deep-link"] }
 tauri-plugin-updater = "=2.14.1"
 tauri-plugin-window-state = "=2.5.0"
 uuid = { version = "=1.29.0", features = ["v4", "serde"] }
+
+[target.'cfg(windows)'.dependencies]
+webview2-com = "=0.39.1"

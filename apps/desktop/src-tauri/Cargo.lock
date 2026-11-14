@@ -2691,6 +2691,7 @@ dependencies = [
  "tauri-plugin-window-state",
  "tempfile",
  "uuid",
+ "webview2-com",
 ]
 
 [[package]]

@@ -194,7 +194,12 @@ fn construct_window(
     }
     launch::install(&window, window_config)?;
     #[cfg(windows)]
-    window_bar::install_snap_region(&window)?;
+    {
+        window_bar::install_snap_region(&window)?;
+        if let Err(error) = window_bar::watch_content_process(&window) {
+            eprintln!("Cannot watch the web content process: {error}");
+        }
+    }
     window_bar::window_created(&window);
     drop(window);
     Ok(())
