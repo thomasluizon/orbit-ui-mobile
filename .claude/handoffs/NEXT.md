@@ -20,7 +20,7 @@ UI `main` `4afd790f0`; API `main` `d39bc7376`; landing `main` `5e6dbdbbd`. Scrat
 
 | Item | Disposition |
 | --- | --- |
-| Owner AI order (`#2129`) | Fable 5.2 AGREES at round 9 (`fable-ai-review-r9.md` on `best-impl-orbit-ai-v9.md`). An agent writes `best-impl-orbit-ai-final.md`, `orbit-ai-plan-for-owner.md` (plain words) and `orbit-ai-build-steps.md`. Next: send the owner the plain explanation, then build the steps in order. |
+| Owner AI order (`#2129`) | Fable 5.2 AGREES at round 9. Final plan `best-impl-orbit-ai-final.md`; the plain explanation `orbit-ai-plan-for-owner.md` was sent to the owner; build queue `orbit-ai-build-steps.md` (15 rows, 14 to 16 pull requests; migrations in 3a, 5-api, 9-api). Next: build step 1 (strict eval in both languages) through `/orchestrate`, then each step in order (step 7 can run beside 2 to 6). |
 | `api#1111` (`#2129`) | Pushed `6709d28f7` (round 14: earlier previews keep their state). CI green except `PR Text` run 43650936080, cancelled by a newer run: rerun it, then request the review (`list-bot-threads.mjs`) and wait for `pullfrog-approval`. At approval: merge, API staging, captures, production API, close `#2127`. |
 | `ui#2457` (`#2074` UI) | Pushed `e8631d4d3` (artifact layout fix); chain running. At approval: confirm the UI required set (P14), merge; then the `wait-ci` follow-up recorded on `#2074` (cancelled superseded runs; re-review lower bound). |
 | `ui#2444` (`#2119`) | Pushed `437db470a`; chain running. At approval: merge, retarget `ui#2450` to `main`. |
