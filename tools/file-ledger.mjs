@@ -95,7 +95,7 @@ const usage = () => `usage: file-ledger.mjs [--repo <path>] [--also-search <path
   Checks: rows with a verdict other than delete are exactly the tracked files at HEAD; rows with the verdict
   delete are exactly the files that base tracks and HEAD does not; a keep row has a reader and a checked value
   and unchanged content; an update row has a reader and a checked value and changed content or a new path; a
-  delete row has a note; a reader is never empty, none, unknown or n/a. Prints a summary on stdout (a table with
+  delete row has a note; an other-ticket row has unchanged content; a reader is never empty, none, unknown or n/a. Prints a summary on stdout (a table with
   one row for each class and a total row, the bytes that the deletes removed and the duplicate groups at base
   and at HEAD) and each defect with its path on stderr.
 
@@ -632,6 +632,8 @@ const checkRow = ({ row, headTree, baseTree, otherTicket }) => {
   if (row.verdict === "update" && headTree.has(row.path) && !changed) problems.push("update row, but the content equals base")
   if (row.verdict === "delete" && !hasText(row.note)) problems.push("delete row has no note with the search terms and the result")
   if (row.verdict === "other-ticket") {
+    // A file that this branch changes is this branch's to judge, with a reader and a check.
+    if (headTree.has(row.path) && changed) problems.push("other-ticket row, but this branch changed the file")
     if (!otherTicket) problems.push("other-ticket row, but --other-ticket was not given")
     else if (!hasText(row.note) || !row.note.includes(otherTicket)) problems.push(`other-ticket row note does not hold ${otherTicket}`)
   }

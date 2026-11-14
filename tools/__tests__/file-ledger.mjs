@@ -241,6 +241,8 @@ const caseVerify = () => {
   defect("a delete row with no note", withRow("removed.md", { note: "" }), ticket, /removed\.md: delete row has no note/)
   defect("an other-ticket row with no ID in the note", withRow("src/code.ts", { note: "later" }), ticket, /src\/code\.ts: other-ticket row note does not hold K2/)
   defect("an other-ticket row with no --other-ticket flag", (rows) => rows, [], /src\/code\.ts: other-ticket row, but --other-ticket was not given/)
+  defect("an other-ticket row for a file that this branch changed", withRow("changed.md", { verdict: "other-ticket", note: "K2" }), ticket, /changed\.md: other-ticket row, but this branch changed the file/)
+  defect("an other-ticket row for a file that this branch added", withRow("brand-new.md", { verdict: "other-ticket", note: "K2" }), ticket, /brand-new\.md: other-ticket row, but this branch changed the file/)
   defect("an unknown verdict", withRow("kept.md", { verdict: "maybe" }), ticket, /kept\.md: verdict must be one of/)
 }
 
