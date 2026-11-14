@@ -126,9 +126,11 @@ export const unresolvedIn = (text, fromDirectory, resolves) => {
   for (const span of spans) {
     const tokens = span.split(/\s+/)
     const whole = cleanToken(span)
-    // One path with a space: it resolves whole, or it starts with a folder and no single token of it resolves as a path.
+    // One path with a space: it resolves whole, or it starts with a folder, no single token of it resolves as a path
+    // and no token before the last is a path alone, which would make the span a list of paths.
     const spacedPath = tokens.length > 1 && looksLikePath(whole.replaceAll(/\s/g, "_")) &&
-      (resolves(whole, fromDirectory) || (tokens[0].includes("/") && !tokens.some(resolvesAsPath)))
+      (resolves(whole, fromDirectory) || (tokens[0].includes("/") && !tokens.some(resolvesAsPath) &&
+        tokens.slice(0, -1).every((token) => !looksLikePath(cleanToken(token)))))
     for (const token of spacedPath ? [span] : tokens) judge(token)
   }
   for (const link of links) judge(link.replace(/\?.*$/, ""))

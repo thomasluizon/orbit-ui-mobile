@@ -28,4 +28,9 @@ export const cases = () => {
   T(`${UNIT}: a tracked path with a space resolves whole`, same(unresolved("`2 Areas/Orbit Note.md`"), []))
   T(`${UNIT}: a command with flags reports only its missing path`,
     same(unresolved("`tools/check.mjs --fix` `tools/gone.mjs --files README.md`"), ["tools/gone.mjs"]))
+  T(`${UNIT}: two missing paths in one span are two entries`,
+    same(unresolved("`docs/gone-a.md docs/gone-b.md`"), ["docs/gone-a.md", "docs/gone-b.md"]), JSON.stringify(unresolved("`docs/gone-a.md docs/gone-b.md`")))
+  T(`${UNIT}: a missing command and a missing output path in one span are two entries`,
+    same(unresolved("`tools/gone.mjs --out docs/gone-out.md`"), ["docs/gone-out.md", "tools/gone.mjs"]),
+    JSON.stringify(unresolved("`tools/gone.mjs --out docs/gone-out.md`")))
 }
