@@ -11,6 +11,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { createTokensV2, radius } from '@/lib/theme'
 import { SMALL_PILL_VISIBLE_MIN, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { pressableStyle } from '@/__tests__/support/press-feedback'
+import { reanimatedTestState } from '@/test-mocks/react-native-reanimated'
 
 vi.unmock('react-i18next')
 
@@ -400,6 +401,18 @@ describe('ExpiryWarning', () => {
     expect(action(instance, i18n.t('auth.refresh'))).toBeDefined()
     const rigs = instance.root.findAll((node) => typeof node.type === 'string' && node.props['data-orbit-face'] === 'rig')
     expect(rigs.map((node) => node.props['data-orbit-state'] as string)).toEqual(guided ? ['parado'] : [])
+  })
+
+  it.each([[false, 'running'], [true, 'still']] as const)('draws Orbit with reduced motion %s as %s, with the guided flows on', async (reducedMotion, loop) => {
+    enableTestFlags('orbit_guided_flows')
+    reanimatedTestState.reducedMotion = reducedMotion
+    try {
+      const instance = await renderExpiredWarning()
+      const rigs = instance.root.findAll((node) => typeof node.type === 'string' && node.props['data-orbit-face'] === 'rig')
+      expect(rigs.map((node) => node.props['data-orbit-loop'] as string)).toEqual([loop])
+    } finally {
+      reanimatedTestState.reducedMotion = false
+    }
   })
 
   it('keeps recovery available when a server failure is retryable', async () => {

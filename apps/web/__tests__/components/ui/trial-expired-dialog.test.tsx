@@ -8,7 +8,7 @@ import { holdAccount } from '@/__tests__/support/account-change'
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { useUIStore } from '@/stores/ui-store'
 
-const mocks = vi.hoisted(() => ({ locale: 'en' as 'en' | 'pt-BR', push: vi.fn(), plans: { savingsPercent: 41 } as { savingsPercent: number } | null }))
+const mocks = vi.hoisted(() => ({ locale: 'en' as 'en' | 'pt-BR', push: vi.fn(), plans: { savingsPercent: 41 } as { savingsPercent: number } | null, reducedMotion: false }))
 
 vi.mock('next-intl', async (importOriginal) => {
   const actual = await importOriginal<typeof import('next-intl')>()
@@ -17,6 +17,9 @@ vi.mock('next-intl', async (importOriginal) => {
 vi.mock('next/navigation', () => ({ usePathname: () => '/', useRouter: () => ({ push: mocks.push }) }))
 vi.mock('@/hooks/use-profile', () => ({ useTrialExpired: () => true }))
 vi.mock('@/hooks/use-subscription-plans', () => ({ useSubscriptionPlans: () => ({ plans: mocks.plans }) }))
+vi.mock('@/hooks/use-viewport-match', () => ({
+  useViewportMatch: (query: string) => query.includes('prefers-reduced-motion') ? mocks.reducedMotion : false,
+}))
 
 const SEEN_KEY = buildAccountScopedStorageKey('orbit_trial_expired_seen', 'user-1')
 
@@ -24,6 +27,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   mocks.locale = 'en'
   mocks.plans = { savingsPercent: 41 }
+  mocks.reducedMotion = false
   localStorage.clear()
   vi.stubGlobal('fetch', vi.fn())
   holdAccount('user-1')
@@ -77,6 +81,12 @@ describe('the trial expired dialog', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(localStorage.getItem(SEEN_KEY)).toBe('1')
     expect(mocks.push).not.toHaveBeenCalled()
+  })
+
+  it.each([[false, 'running'], [true, 'still']] as const)('draws Orbit with reduced motion %s as %s', (reducedMotion, loop) => {
+    mocks.reducedMotion = reducedMotion
+    render(<TrialExpiredModal />)
+    expect(document.querySelector('[data-trial-expired-dialog] [data-orbit-face="rig"]')).toHaveAttribute('data-orbit-loop', loop)
   })
 
   it('shows no savings line before the plans read answers', () => {

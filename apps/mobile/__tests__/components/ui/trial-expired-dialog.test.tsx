@@ -9,6 +9,7 @@ import { renderedText } from '@/__tests__/support/react-test-renderer'
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { useAuthStore } from '@/stores/auth-store'
 import { useUIStore } from '@/stores/ui-store'
+import { reanimatedTestState } from '@/test-mocks/react-native-reanimated'
 
 interface TrialMocks {
   locale: 'en' | 'pt-BR'
@@ -57,7 +58,10 @@ beforeEach(() => {
   enableTestFlags('orbit_guided_flows')
 })
 
-afterEach(() => act(() => tree.unmount()))
+afterEach(() => {
+  reanimatedTestState.reducedMotion = false
+  return act(() => tree.unmount())
+})
 
 describe('the Android trial expired dialog', () => {
   it.each([
@@ -105,11 +109,14 @@ describe('the Android trial expired dialog', () => {
     expect(byTestId('trial-expired-dialog')).toBeUndefined()
   })
 
-  it.each([[false, 'fade'], [true, 'none']] as const)('opens with reduced motion %s through the %s presentation', async (reducedMotion, animationType) => {
+  it.each([[false, 'fade', 'running'], [true, 'none', 'still']] as const)('opens with reduced motion %s through the %s presentation, with a %s Orbit', async (reducedMotion, animationType, loop) => {
     mocks.reducedMotion = reducedMotion
+    reanimatedTestState.reducedMotion = reducedMotion
     await renderDialog()
     const modal = tree.root.findAll((node) => typeof node.props.onRequestClose === 'function')[0]!
     expect(modal.props.animationType).toBe(animationType)
+    const rig = tree.root.findAll((node) => typeof node.type === 'string' && node.props['data-orbit-face'] === 'rig')
+    expect(rig.map((node) => node.props['data-orbit-loop'] as string)).toEqual([loop])
   })
 
   it('shows no savings line before the plans read answers', async () => {
