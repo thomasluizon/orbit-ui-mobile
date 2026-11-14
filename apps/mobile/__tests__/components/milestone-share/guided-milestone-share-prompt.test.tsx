@@ -9,6 +9,7 @@ import { testI18n } from '@/__tests__/support/i18n'
 import { renderedText } from '@/__tests__/support/react-test-renderer'
 import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-area-geometry'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
+import { reanimatedTestState } from '@/test-mocks/react-native-reanimated'
 import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-share-prompt'
 import { MILESTONE_SHARE_CARD_WIDTH } from '@/components/milestone-share/milestone-share-card'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
@@ -16,13 +17,14 @@ import { useUIStore } from '@/stores/ui-store'
 
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
 
-const mocks = vi.hoisted(() => ({ hasError: false, share: vi.fn() }))
+const mocks = vi.hoisted(() => ({ hasError: false, reducedMotion: false, share: vi.fn() }))
 
 vi.mock('react-i18next', async (original) => ({
   ...await original<typeof import('react-i18next')>(),
   useTranslation: () => ({ t: testI18n.t.bind(testI18n), i18n: testI18n }),
 }))
 vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ getQueryData: () => undefined }) }))
+vi.mock('@/lib/motion', async (original) => ({ ...await original<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => mocks.reducedMotion }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark' }) }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 vi.mock('@/hooks/use-share-card', () => ({
@@ -62,6 +64,8 @@ const press = (node: ReactTestInstance) => renderer.act(() => { (node.props.onPr
 beforeEach(() => {
   vi.useFakeTimers()
   mocks.hasError = false
+  mocks.reducedMotion = false
+  reanimatedTestState.reducedMotion = false
   mocks.share.mockReset()
   useEngagementPromptStore.setState({ promptedMilestoneKeys: [], lastPromptedAtIso: null, homeEntryDismissed: false, armedPrompt: null })
   useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], openOverlayIds: [] })
@@ -98,6 +102,20 @@ describe('the guided milestone share prompt on Android', () => {
     await press(control(root, copy.later))
     expect(byTestId(root, 'milestone-share-dialog')).toHaveLength(0)
     expect(useEngagementPromptStore.getState().promptedMilestoneKeys).toContain('share-streak-7')
+  })
+
+  it.each([
+    { reduced: false, animationType: 'fade' },
+    { reduced: true, animationType: 'none' },
+  ])('opens with the $animationType window animation when reduced motion is $reduced, and keeps Orbit still under reduced motion', async ({ reduced, animationType }) => {
+    enableTestFlags('orbit_guided_flows')
+    mocks.reducedMotion = reduced
+    reanimatedTestState.reducedMotion = reduced
+    const root = await openPrompt()
+
+    expect(hosts(root).find((node) => String(node.type) === 'Modal')!.props.animationType).toBe(animationType)
+    expect(feliz(root)).toHaveLength(1)
+    if (reduced) expect(feliz(root)[0]!.props['data-orbit-loop']).toBe('still')
   })
 
   it('closes on a scrim press and on Android back', async () => {

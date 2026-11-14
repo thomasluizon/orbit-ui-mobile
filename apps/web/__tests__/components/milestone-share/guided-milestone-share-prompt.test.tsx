@@ -88,6 +88,19 @@ describe('the guided milestone share prompt on web', () => {
     expect(useEngagementPromptStore.getState().promptedMilestoneKeys).toContain('share-streak-7')
   })
 
+  it.each([
+    { reduced: false, loop: 'running' },
+    { reduced: true, loop: 'still' },
+  ])('draws the Orbit loop $loop in the dialog when reduced motion is $reduced, and keeps the mark of the card still', async ({ reduced, loop }) => {
+    enableTestFlags('orbit_guided_flows')
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: reduced && query.includes('prefers-reduced-motion'), media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    await openPrompt()
+
+    expect(feliz()).toHaveLength(1)
+    expect(feliz()[0]).toHaveAttribute('data-orbit-loop', loop)
+    expect(document.querySelector('[data-testid="milestone-share-card"] svg[data-asset="orbit-mascot"]')).toHaveAttribute('data-orbit-loop', 'still')
+  })
+
   it('closes on Escape', async () => {
     enableTestFlags('orbit_guided_flows')
     await openPrompt()

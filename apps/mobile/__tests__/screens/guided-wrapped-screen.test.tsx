@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockRecap } from '@orbit/shared/__tests__/factories'
 import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import WrappedScreen from '@/app/wrapped'
 import { testI18n } from '@/__tests__/support/i18n'
 import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-area-geometry'
@@ -50,6 +51,19 @@ async function mount(width = 360) {
 
 const hosts = () => tree.root.findAll((node) => typeof node.type === 'string')
 const byTestId = (testID: string) => hosts().filter((node) => node.props.testID === testID)
+/** The touch target height of every control with the button role below the app bar: the laid out height plus the hit slop. */
+function buttonTargets(width: number) {
+  const cover = tree.root.findAll((node) => typeof node.type === 'string' && typeof node.props.testID === 'string' && node.props.testID.startsWith('wrapped-cover-'))[0]!
+  const names = new Set(cover.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button').map((node) => node.props.accessibilityLabel as string | undefined))
+  const slops: number[] = []
+  const boxes = measureSafeArea(tree.toJSON(), (host) => {
+    if (host.props.accessibilityRole !== 'button' || !names.has(host.props.accessibilityLabel)) return undefined
+    slops.push((host.props as { hitSlop?: number }).hitSlop ?? 0)
+    return `button-${slops.length - 1}`
+  }, { width, height: HEIGHT })
+  return [...boxes.values()].map((box, index) => box.bottom - box.top + slops[index]! * 2)
+}
+
 const pressNamed = async (name: string) => {
   const target = hosts().find((node) => typeof node.props.onPress === 'function'
     && (node.props.accessibilityLabel === name || node.findAll((child) => String(child.type) === 'Text' && child.props.children === name).length > 0))!
@@ -81,6 +95,19 @@ describe('the guided Wrapped screen on Android', () => {
     expect(Math.abs((block.top + block.bottom) / 2 - (free.top + free.bottom) / 2)).toBeLessThanOrEqual(1)
     expect(Math.abs(block.left + block.width / 2 - width / 2)).toBeLessThanOrEqual(1)
     expect(primary.bottom).toBeLessThanOrEqual(HEIGHT - 24)
+  })
+
+  it.each(WIDTHS)('gives each period option, the start action and the retry action a target of at least 48 at %i px', async (width) => {
+    enableTestFlags('orbit_guided_flows')
+    await mount(width)
+    expect(buttonTargets(width)).toHaveLength(4)
+    for (const height of buttonTargets(width)) expect(height).toBeGreaterThanOrEqual(TOUCH_TARGET_MIN)
+
+    await act(() => tree.unmount())
+    mocks.wrapped = { recap: null, slides: [], isEmpty: false, isLoading: false, isError: true }
+    await mount(width)
+    expect(buttonTargets(width)).toHaveLength(4)
+    for (const height of buttonTargets(width)) expect(height).toBeGreaterThanOrEqual(TOUCH_TARGET_MIN)
   })
 
   it('loads the recap of the closed month from the route query, as the current screen does', async () => {
