@@ -103,6 +103,8 @@ export function useGuidedHabitFlow({ formHelpers, lockedGeneral, mode, onReminde
   /** The type is a result. It stays open until the person sets it on the summary, so the phrase can make a habit. */
   const [deliberateType, setDeliberateType] = useState<'task' | 'habit' | null>(null)
   const phraseRead = useHabitPhraseRead()
+  /** The phrase the free reader last saw. One phrase starts at most one read. */
+  const lastReadPhrase = useRef<string | null>(null)
   const controller = useFormController(formHelpers, { lockedGeneral, onReminderEnabledChange, onSlipAlertEnabledChange })
 
   const title = form.watch('title')
@@ -248,7 +250,8 @@ export function useGuidedHabitFlow({ formHelpers, lockedGeneral, mode, onReminde
   const leavePhrase = useCallback(async () => {
     const phrase = title.trim()
     let aiGaveTime = proposals.time
-    if (mode === 'create' && isOnline && phrase.length > 0 && phraseLeavesWordsUnread(phrase, localRead, Boolean(dueDate))) {
+    if (mode === 'create' && isOnline && phrase !== lastReadPhrase.current && phraseLeavesWordsUnread(phrase, localRead, Boolean(dueDate))) {
+      lastReadPhrase.current = phrase
       try {
         const response = await phraseRead.mutateAsync({ phrase, language: locale })
         if (response) aiGaveTime = applyFreeRead(response) || aiGaveTime

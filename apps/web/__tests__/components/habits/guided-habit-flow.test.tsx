@@ -204,7 +204,7 @@ describe.each([
     expect(heading()).toHaveTextContent(messages().what.question)
   })
 
-  it('scenario 14: asks the remaining questions with no error after a miss, a failed call and a read that contradicts a deliberate type', async () => {
+  it('scenario 14: asks the remaining questions with no error after a miss and a failed call, and reads one phrase once', async () => {
     state.read.mockResolvedValueOnce(null).mockRejectedValueOnce(new Error('offline'))
     render(<Harness />)
     await phrase(locale === 'en' ? 'water the plants' : 'regar as plantas')
@@ -212,7 +212,11 @@ describe.each([
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     await press(messages().back)
     await press(messages().continue)
+    expect(state.read).toHaveBeenCalledTimes(1)
+    await press(messages().back)
+    await phrase(locale === 'en' ? 'water the big plants' : 'regar as plantas grandes')
     expect(heading()).toHaveTextContent(messages().when.question)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(state.read).toHaveBeenCalledTimes(2)
   })
 

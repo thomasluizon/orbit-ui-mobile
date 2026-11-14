@@ -207,13 +207,16 @@ describe.each([
     tree.unmount()
   })
 
-  it('scenario 14: asks the remaining questions with no error after a miss and a failed call', async () => {
+  it('scenario 14: asks the remaining questions with no error after a miss and a failed call, and reads one phrase once', async () => {
     state.read.mockResolvedValueOnce(null).mockRejectedValueOnce(new Error('offline'))
     const tree = renderNavigation(<Harness />)
     await phrase(tree, locale === 'en' ? 'water the plants' : 'regar as plantas')
     expect(heading(tree)).toBe(flowCopy().when.question)
     await tap(tree, flowCopy().back)
     await primary(tree)
+    expect(state.read).toHaveBeenCalledTimes(1)
+    await tap(tree, flowCopy().back)
+    await phrase(tree, locale === 'en' ? 'water the big plants' : 'regar as plantas grandes')
     expect(heading(tree)).toBe(flowCopy().when.question)
     expect(state.read).toHaveBeenCalledTimes(2)
     tree.unmount()

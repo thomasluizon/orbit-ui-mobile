@@ -110,6 +110,12 @@ describe('the create surface behind orbit_guided_flows', () => {
     expect(heading()).toHaveTextContent(ptBR.habits.flow.what.question)
   })
 
+  it('renders the flow in the route host on the create route, where the shell and the sidebar stay', async () => {
+    render(<QueryClientProvider client={new QueryClient()}><CreateHabitModal open presentation="screen" onOpenChange={vi.fn()} /></QueryClientProvider>)
+    await waitFor(() => expect(document.querySelector('[data-flow-screen][data-presentation="route"] [data-question-flow]')).not.toBeNull())
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
   it.each(['pt-BR', 'en'] as const)('creates once on a double press and opens the result dialog from the saved record in %s', async (locale) => {
     state.locale = locale
     mountCreate()
