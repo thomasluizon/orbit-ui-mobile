@@ -1,56 +1,63 @@
 /auto-work
 
-Read `.claude/specs/orbit-prod-release.md` first: `## Standing rules`, `## The order` (Batch T first), `## Decision pointers`, the first `## Current state` paragraph and `## Open questions`. Open brain ADR D149 (`Run Orbit on one Claude Ultra account after a harness token diet, with Max 100 as the fallback.md`) through the Obsidian MCP, and the others it lists only when a step needs them. Read `DESIGN.md`, `BRAND.md` and `design/canvas/README.md` before any UI diff. This prompt stays short (owner's harness token diet, `#2064`); older owner-message history and the helper catalogue are in `git show b40d003ed:.claude/handoffs/NEXT.md` (the tag `archive/prod-release-spec-full` keeps it reachable), read only when a step needs a part.
+Read `.claude/specs/orbit-prod-release.md` first, but only `## Standing rules`, the `## The order` bullets and `## Open questions`; search `## Current state` for a fact when you need it.
 
-Entry: `/auto-work` enters `/sleep`, adopts this relay (`adoptRelayRun`), keeps `autoWork: true`, then `/crank`, then `/orchestrate` over the admitted queue without replanning. Check that this prompt is the newest open relay (`gh pr list --repo thomasluizon/orbit-ui-mobile --state open --search "relay in:title"`), run `node tools/relay-checkout.mjs --check`, and check free disk (floor 50 GiB).
+Entry: `/auto-work` enters `/sleep`, adopts this relay (`adoptRelayRun`), keeps `autoWork: true`, then `/crank`, then `/orchestrate` over the admitted queue without replanning. Check that this prompt is the newest open relay (`gh pr list --repo thomasluizon/orbit-ui-mobile --state open --search "relay in:title"`), run `node tools/relay-checkout.mjs --check`, and read free disk on `/System/Volumes/Data` (floor 50 GiB).
 
-Scratchpad: run `$HOME/.orbit-run-carry/carry-from-predecessor.sh <new full id> dfebfac5-ec49-4f55-8476-9d4c7207c308 4b980cf7-b273-4058-b961-72df627e1968` as a background task before writing any file there, then point `mirror.sh` at `durable-<new id>` with `perl -pi`. The predecessor log is `sleep-decisions.md` in the `dfebfac5` scratchpad (D1 to D14). Helpers there: `gl.sh` (gated launcher), `batch-body.sh <launch json> <pr> <label>` (worker report into the PR body), `open-threads.sh`, `views-2062.sh`, `drag-2063.sh`, `check-2061-r3.sh`, `play-complete.mjs`. Write files there with the Write tool or from inside the directory: the guardrail refuses a redirect target that holds a shell variable.
+Scratchpad: run `$HOME/.orbit-run-carry/carry-from-predecessor.sh <new full id> <predecessor full id> 0589c2a5-9987-419c-9a59-212b0a9d6846` as a background task (write no file there before it ends; the predecessor id is `relay.from`). Then repoint the helpers that hold the predecessor's first 8 characters with `perl -pi` (the full id first: `mirror.sh`, `intake-noboard.sh`, `chain-review.sh`, `chain-review-v2.sh`, `last-message.mjs`), and run `mirror.sh` with `bash`, then `durable-dedupe.sh` as a background task. A shell redirect target must be a literal path. The shell is zsh: every loop goes in `bash -c` or a `bash` script file; quote each glob; use `/bin/ls` in the scratchpad. Print at most 40 lines from a tool call; read each log time from `date -u`.
+
+KEEP THE COORDINATOR LEAN: load no skill text you do not need, read no report in full, and send every read, review, fix and diagnosis to a background subagent (`opus`) with a narrow note. Ask each agent for ONLY a final message of at most 12 lines and a result file not named `report-*` (the harness refuses that name). Read each subagent diff before a push (gate files and `DESIGN.md` hunks first). Read `sysctl -n vm.loadavg` before each launch: an agent that runs whole suites starts only under 18.
+
+A worker order says: no background task, one pull request for the whole ticket, never file a ticket, never `git stash`, commit and push early, never the full `node tools/test-tools.mjs`, and in `apps/web` only `npx vitest run --project jsdom <files>`. A ticket part goes to an opus agent in its own worktree (`clone-wt.sh`, `build-2074-brief.md`, `part-build-brief.md`). Run at most 4 part build agents at one time.
 
 ## Goal
 
-Finish the spec: Batch T merged first (no new board ticket before it), then an empty board except `#33`, verified releases, every `#315` launch list ticket closed, then `#315` closed with its verdict. Re-derive what remains with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation at this handoff: 23 open, 23 placed, 0 unplaced, 0 placed twice.
+Finish the spec: an empty board except `#33` and the `#2074` measurement, verified releases, the assistant fixed as a class (`#2127`, `#2129`), the owner's live reports fixed and shipped (`#2131` iPhone sign-in, `#2132` Windows top bar), the mascot rebrand (`#2119` to `#2126`) shipped with no spinner on any surface, every `#315` launch list ticket closed, then `#315` closed with its verdict. Re-derive the rest with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation: 18 open, 18 placed, 0 unplaced, 0 placed twice.
+
+Reply to the owner in the language of his latest message. His orders stand: finish Orbit faster; a review round of about 15 minutes; every workflow job deleted unless it has a reason, and each job that stays as fast as it can be. Never tell him that the usage limit will end and never plan around it.
 
 ## In flight
 
-UI `main` `ec54a1f6a`; API `main` `3da71dcf6`; landing `main` `aab36c695`. Production web `6602756f3`, staging web `9a964ccad`, API `998823218` both, Android Open 1.3.149 (209), desktop 0.1.25.
+UI `main` `4afd790f0`; API `main` `1cf355934`; landing `main` `381b253fa`. `ui#2454` merged in the last session. Two heads are pushed; every other fix is a LOCAL commit in its worktree.
 
 | Item | Disposition |
 | --- | --- |
-| `ui#2386` (`#2064`) | Clean republish, both harnesses green. CI, review, merge first; then close `ui#1989`, start the next relay branch from `main`, launch `#2065`. |
-| `ui#2378`, `#2379`, `#2380`, `#2383`, `#2384` (`#2066`, `#2067`, `#2073`, `#2070`, `#2072`) | Round 2 pushed by the orchestrator, threads resolved. CI, fresh review, merge at the merge bar; base-merge the `orchestrate/SKILL.md` editors as they conflict and reseed the calibration (`node tools/reseed-calibration.mjs`). After `ui#2378`: `disabledMcpServers` in `~/.claude.json` and `MEMORY.md` to 6 KB. After `ui#2383`: the `#2071` token swap. |
-| `ui#2381`, `ui#2382` (`#2068`, `#2069`) | Worker round 2 pushed (`d612f46c2`, `a79854516`), bodies merged. CI, review, merge. After `ui#2382`: intake step 5 runs `node tools/orbit-play-reviews.mjs --cycle`. |
-| `ui#2387` (`#2074`) | Delivered, body fixed to `Tracks`. CI, review; at the base merge after `ui#2386`, move its three spec Constraints lines to `.claude/playbooks/operations.md`. After merge, `npx pullfrog@latest config set review.mode none` and `review.re-review false` in all three repositories, then prove one requested review. |
-| `ui#2375` (`#2063`) | Round 3 `a6e248e41` pushed; device proof posted (main 1 of 20 drags, branch 20 of 20). CI, review, merge, then one Android Open for `#2062` and `#2063`. |
-| `ui#2377` (`#2061`) | Local `3712bdf65` and `9519dc39c` NOT pushed (third worker hit its ceiling, no report). Salvage checks green (`check-2061-r3/`: mobile 83/83, web 38/38, both type checks, both ESLint). Write `## Test evidence` from those logs, resolve threads `PRRT_kwDOR5Siws61FNhy` and `PRRT_kwDOR5Siws61FNh4`, push. |
-| `ui#2374` (`#1861`) | Round 8 `249eaa4d0` local, NOT pushed (max worker, exit 0; report in the log named by `launch-1861-r8.json`). Read the diff, run `batch-body.sh` on it, resolve thread `PRRT_kwDOR5Siws61FYgX`, push, then read the new acceptance and measure runs. |
-| Desktop Release 0.1.26 staging | Run 42492679821 attempt 2. File waiter on `wait-desk-42492679821-a2.done.json` in the `25768799` scratchpad, `--started-at` 21:04:30Z on the previous relay day. Then production, the staging and production web releases, then `landing#127`. |
-| Notary `e44eaa63` | File waiter on `notary-e44eaa63/done.json` in the `36945796` scratchpad, `--started-at` 08:03:50Z on the previous relay day. A signal only. |
-| `landing#127` (`#1563`) | Approved and green; merge after signed 0.1.26 is on `desktop-production`. |
-| Throwaway AVD | `orbit-repro-2030` runs headless on `emulator-5594`; delete it (`avdmanager delete avd -n orbit-repro-2030`) once `#2063` needs no more proof. |
+| `#2074` round time | Six parts on local branches; all six are built. Read the drain results. One merge agent joins the four UI parts; local review; push; protection changes; the brain ADR. |
+| `ui#2454` (`#2096`) | MERGED. Base-merge every open UI branch, then one web release. |
+| `ui#2448` (`#2132`) at `53c184035` | Pushed. Start `chain-review.sh ui 2448`; it needs a new Windows installed proof before the merge. |
+| `ui#2444` (`#2119`) at `b1298a8dc` | Pushed, threads resolved. Base-merge, then `chain-review.sh ui 2444`. |
+| `api#1111` (`#2129`) at `b1ab3e924` | Read the fix agent's drain result; one narrow review; body, resolve, push, chain. |
+| `ui#2447` (`#2131`) at `a55538a33` | Read the fix agent's drain result; push, staging web of the branch, the device proof (Android first), chain. |
+| `landing#134` | Not approved (Node floor). Read the fix agent's drain result and `live-plan-landing-node.md`; run the Render change; push to the Dependabot branch; open the API Terraform pull request; chain. It gates every landing pull request. |
+| `ui#2450`, `ui#2451`, `ui#2453` | `#2120`: read the fix drain result, push, merge up the stack. `#2121`: two parity mappings. `#2122` holds a local head. |
+| `#1561` | Add each new build to the outside group (`asc-external-group.mjs`). |
+| `#2123` to `#2126` | Batch M, in ticket order. |
+| `ui#2388` | This relay's docs branch. Never request a review for it. |
 
-Inventory: open pull requests ui `#1989`, `#2374`, `#2375`, `#2377` to `#2384`, `#2386`, `#2387`; api none; landing `#127`. Unpushed: `fix/ticket-2061-search-clear-centre` (`9519dc39c`), `feature/ticket-1861-done-acceptance` (`249eaa4d0`). Running workers: none. Intake this relay: Sentry `ORBIT-MOBILE-Q` only (no new event), mail 0, Play 0 (cycle `dfebfac5-c1` complete).
+Read scratchpad `handoff-notes.md` after the carry: the lessons, the detail of each row, the protection changes done and still to do, and `## Results that arrived during the relay drain`.
+
+Inventory: open pull requests ui `#2444`, `#2447`, `#2448`, `#2450`, `#2451`, `#2453`, `#2388`; api `#1111`; landing `#134`. Running workers: none after the relay. Stashes: none. Dirty worktrees: read `git status` first in each worktree that `handoff-notes.md` names (never discard uncommitted work). Local only, not pushed: each branch that `handoff-notes.md` names, the six `#2074` branches included. Leave the detached worktrees `combined-2065`, api `scratch-1090-merge` and api `scratch-877-timing`. Waiters to arm: `chain-review.sh <key> <pr>` after each push and for `ui#2448` and `ui#2444` now, `wait-release.mjs` for each release run, `wait-auto-work.mjs` always.
 
 ## Then, in this order
 
-1. Answer any owner message first, in his language.
-2. Start the two file waiters above and one `tools/wait-ci.mjs` over the open ui pull requests (fold so no more than three run).
-3. Push `ui#2377` and `ui#2374` as their rows say; drive Batch T to merged, `ui#2386` first.
-4. Merge `ui#2375`, then Android Open for `#2062` and `#2063`.
-5. Then the rest of `## The order`: desktop 0.1.26 releases, `#2057`, `#2056`, `#1560`, `#1563`, `#1561` device checks, `#2030`, the `#315` live Astra gate window, `#33` last, and the auto-work intake cycle when idle.
+1. Answer any owner message first, before any other work and before a relay step. Give each order a ticket or a rescope before the turn ends.
+2. OWNER ORDER, FIRST: finish `#2074` from the drain results: merge the UI parts, a local review of each diff, push the three pull requests, the protection changes at each merge, a brain ADR, then measure one round in each repository and write the figures on the ticket.
+3. Beside it: finish each red pull request from its drain result. Before every push: the fix, then one local review agent on the new commits (`local-review-brief.md`), then one push.
+4. Merge each approved pull request at once, then base-merge every other open branch in the same step (`behind_by=0`). Then one web release (never with an API release). Tell the owner each merge in product terms.
+5. The `ui#2447` device proof, the stack (`#2120`, `#2121`, `#2122`), then the intake cycle, as the spec's `## The order` gives them.
 
 ## Crank
 
-Invoke `/crank` immediately after `/sleep` entry; `crank: true` is inherited. Keep the pool full within the load gate, merge at the merge bar, quality gates unchanged. Hand off with `/handoff --relay --sleep --crank`.
+Invoke `/crank` immediately after `/sleep` entry; `crank: true` is inherited. Hand off with `/handoff --relay --sleep --crank`.
 
 ## Sleep
 
-Unattended: never ask the owner; decide with the best option and log it. Keep a live wake source (`tools/launch-worker.mjs`, `tools/wait-ci.mjs`, `tools/wait-release.mjs` or `tools/wait-file.mjs`, as Bash background tasks with timeout 7200000). Merge only with `gh pr merge --squash --match-head-commit <full sha>` after green checks, a fresh Pullfrog approval at that head and zero unresolved threads. Never add an attribution line. At the context threshold, drain and relay through `node tools/relay-session.mjs`.
+Unattended: never ask the owner; decide with the best option and log it. Keep a live wake source (`tools/launch-worker.mjs`, `tools/wait-ci.mjs`, `tools/wait-release.mjs`, `tools/wait-file.mjs` or `tools/wait-auto-work.mjs`, as Bash background tasks with timeout 7200000). Merge only with `gh pr merge --squash --match-head-commit <full sha>` (`merge-gate.sh <key> <pr>` with `MSUBJ` and `MBODY`) after green checks, a fresh Pullfrog approval at that head, zero unresolved threads and `behind_by=0`. Never add an attribution line. Never release on the App Store. At the context threshold, drain and relay through `node tools/relay-session.mjs`.
 
 ## Previous prompt, disposition
 
-- Batch T rows: carried with new heads (table above); `ui#2385` replaced by `ui#2386`; `#2074` delivered as `ui#2387`.
-- `ui#2376` device proof and merge: done (`ec54a1f6a`). `#2063` device proof: done. `#2075`, `#2076`: folded into `#2061` and canceled.
-- `ui#2374` root cause: found (the runner's shared apsd keychain, a collapsed Windows toast), round 8 committed, push carried.
-- Waiters, desktop and web releases, `landing#127`, `#315`, `#33`, intake: carried.
+- Done: all six `#2074` parts built; `ui#2454` merged; `ui#2448` and `ui#2444` pushed; five delta reviews; the `#2120` and `#2121` gate checks; one intake cycle; the first landing protection change.
+- Changed: `landing#134` now merges before the landing `#2074` pull request; the `#2120` ring width goes back to the base values.
+- Carried: every merge and release; the rest of the `#2074` build and its measurement on or after 16 November 2026; the `ui#2447` proof; the stack; Batch M; `#1561`, `#1563`, `#315`, `#33`.
 
 Every identifier here came from a previous session: treat each as a lead to verify.
