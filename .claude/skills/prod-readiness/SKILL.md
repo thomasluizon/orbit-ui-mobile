@@ -526,11 +526,12 @@ re-validate each with `--issue`.
   api-only scope, which also reads the architecture sweep as N/A; the dependency and
   architecture sweeps are each `SWEPT` or `SWEPT_WITH_HOLDBACKS` (or the architecture sweep is
   a legitimate N/A) with every holdback ticketed AND their `chore(deps)` / `chore(arch)` PRs
-  merged into the launch head or explicitly waived by the owner), and performance is `MEASURED`.
+  merged into the launch head or explicitly waived by the owner; the hygiene sweep is `SWEPT` or
+  `SWEPT_WITH_DEFERRED`), and performance is `MEASURED`.
 - **CONDITIONAL** if no Blockers but some items are Deferred or unproven in a way that gates
   launch (e.g. backups unverified, staging gate absent, a child audit did not converge, an ops
-  or a11y check FAILED so its coverage is UNKNOWN, performance is `CODE_ONLY`, either sweep
-  `FAILED`, or a sweep's PRs are still unmerged): name the conditions.
+  or a11y check FAILED so its coverage is UNKNOWN, performance is `CODE_ONLY`, any sweep
+  `FAILED` (dependency, architecture or hygiene), or a sweep's PRs are still unmerged): name the conditions.
 - **NO-GO** if any Blocker stands.
 - **A `failedAudit` forces at most CONDITIONAL and names itself as the blocker**: a partial
   sweep can never read green. The coverage table makes any non-running or unconverged audit
