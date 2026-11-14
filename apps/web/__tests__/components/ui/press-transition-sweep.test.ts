@@ -90,9 +90,7 @@ const HIT_LAYER_CLASS = /(?:^|[\s"'`])(?:press-hit-layer|chip|orbit-pill-action)
 
 /** Control families that still scale their own target; each later commit of this change moves one family onto the hit layer. */
 const PENDING_HIT_LAYER = new Set([
-              'components/ui/segmented-control.tsx', 'components/ui/select.tsx', 'components/ui/select-check.tsx', 'components/chat/answer-block.tsx',
-  'components/ui/list-row.tsx',
-  'components/habits/habit-form-fields/reminder-section.tsx', 'components/habits/habit-form-fields/scheduled-reminder-section.tsx',
+                  'components/habits/habit-form-fields/reminder-section.tsx', 'components/habits/habit-form-fields/scheduled-reminder-section.tsx',
   'components/habits/habit-form-fields/tag-editor-row.tsx', 'components/habits/habit-form-fields/tag-picker-field.tsx',
   'components/habits/habit-form-fields/habit-understanding.tsx', 'components/habits/create-habit-modal/sub-habit-editor.tsx',
   'components/onboarding/onboarding-create-habit.tsx',
