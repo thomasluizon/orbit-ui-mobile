@@ -180,6 +180,7 @@ describe('the guided goal create flow on Android', () => {
     mocks.timeZone = 'America/Sao_Paulo'
     const tree = renderNavigation(<CreateGoalSheet open onClose={vi.fn()} initialHabitIds={['h1']} />)
     await answerUpToDeadline(tree, PT)
+    expect(control(tree, 'Sem prazo').props.accessibilityState?.selected, 'a fresh draft has not answered the deadline yet').toBe(false)
     await tap(tree, 'Fim do mês')
     await tap(tree, /^Até quando/)
     expect(control(tree, 'Fim do mês').props.accessibilityState?.selected).toBe(true)

@@ -128,7 +128,7 @@ export function useDeadlineView({ draft, advance }: GoalStepContext): FlowStepVi
     options: <>
       {DEADLINE_CHOICES.map(({ choice, label }) => {
         const value = resolveGoalDeadlineChoice(choice, now, profile?.timeZone)
-        return <OptionCard key={choice} label={t(label)} selected={draft.deadline === value} onSelect={() => choose(value)} />
+        return <OptionCard key={choice} label={t(label)} selected={value !== '' && draft.deadline === value} onSelect={() => choose(value)} />
       })}
     </>,
     free: <>

@@ -651,7 +651,8 @@
         "line": "A goal adds up the progress of the habits linked to it.",
         "lineEmpty": "You have no goals yet. A goal adds up the progress of the habits linked to it.",
         "limit": "Choose up to 10 goals",
-        "searchMiss": "No goal with that name."
+        "searchMiss": "No goal with that name.",
+        "option": "{title}, {percent}%"
       },
       "orbit": {
         "offline": "No connection. I read on the device and you can go on the same way.",

@@ -66,7 +66,7 @@ export function useGoalLinkStepView(props: Readonly<GoalLinkStepProps>): FlowSte
     options: <>
       {quickGoals(activeGoals, selectedSet).map((goal) => {
         const selected = selectedSet.has(goal.id)
-        return <OptionCard key={goal.id} label={goal.title} selected={selected} disabled={!selected && atGoalLimit} disabledReason={limitReason} onSelect={() => onToggleGoal(goal.id)} />
+        return <OptionCard key={goal.id} label={t('habits.flow.goals.option', { title: goal.title, percent: Math.round(goal.progressPercentage) })} selected={selected} disabled={!selected && atGoalLimit} disabledReason={limitReason} onSelect={() => onToggleGoal(goal.id)} />
       })}
       <OptionCard label={t('habits.form.createGoal')} disabled={atGoalLimit} disabledReason={limitReason} onSelect={linking.openCreateGoal} />
     </>,

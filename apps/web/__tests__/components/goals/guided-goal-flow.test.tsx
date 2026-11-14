@@ -160,6 +160,7 @@ describe('the guided goal create flow', () => {
     await type('Quanto?', '50')
     await type('De quê?', 'km')
     await press('Continuar')
+    expect(screen.getByRole('button', { name: 'Sem prazo' }), 'a fresh draft has not answered the deadline yet').toHaveAttribute('aria-pressed', 'false')
     await press('Fim do mês')
     await press(/^Até quando/)
     expect(screen.getByRole('button', { name: 'Fim do mês' })).toHaveAttribute('aria-pressed', 'true')
