@@ -4,44 +4,42 @@ Read `.claude/specs/orbit-prod-release.md` first, but only `## Standing rules`, 
 
 Entry: `/auto-work` enters `/sleep`, adopts this relay (`adoptRelayRun`), keeps `autoWork: true`, then `/crank`, then `/orchestrate` over the admitted queue without replanning. Check that this prompt is the newest open relay (`gh pr list --repo thomasluizon/orbit-ui-mobile --state open --search "relay in:title"`), run `node tools/relay-checkout.mjs --check`, and read free disk on `/System/Volumes/Data` (floor 50 GiB).
 
-Scratchpad: run `$HOME/.orbit-run-carry/carry-from-predecessor.sh <new full id> <predecessor full id> 0589c2a5-9987-419c-9a59-212b0a9d6846` as a background task (write no file there before it ends; the predecessor id is `relay.from`). Then repoint the helpers that hold the predecessor's first 8 characters with `perl -pi` (the full id first: `mirror.sh`, `intake-noboard.sh`, `chain-review.sh`, `chain-review-v2.sh`, `gated-launch.sh`, `play-cycle-run.sh`, `last-message.mjs`, `resolve-per-thread.mjs`, `staging-web-branch.sh`, `release-run.sh`, `token-swap.py`, `ledger-2444-*.sh`), and run `mirror.sh` with `bash`, then `durable-dedupe.sh` as a background task. A shell redirect target must be a literal path (use the Write tool otherwise). The shell is zsh: every loop goes in `bash -c`; quote each glob; use `/bin/ls` in the scratchpad. Print at most 40 lines from a tool call; read each log time from `date -u`.
+Scratchpad: run `$HOME/.orbit-run-carry/carry-from-predecessor.sh <new full id> <predecessor full id> 0589c2a5-9987-419c-9a59-212b0a9d6846` as a background task (write no file there before it ends; the predecessor id is `relay.from`). Then repoint the helpers that hold the predecessor's first 8 characters with `perl -pi` (full id first), run `mirror.sh` with `bash`, then `durable-dedupe.sh` in the background. A shell redirect target must be a literal path. The shell is zsh: loops go in `bash -c`. Print at most 40 lines from a tool call.
 
-KEEP THE COORDINATOR LEAN: load no skill text you do not need, read no report in full, and send every read, review, fix and diagnosis to a background subagent (`opus`) or a worker with a narrow note. Ask each agent for ONLY a final message of at most 12 lines and a result file not named `report-*`. Read each diff before a push (gate files and `DESIGN.md` hunks first). Read `sysctl -n vm.loadavg` before each launch. A long worker build passes `--hard-ceiling-minutes 150`; a branch gets at most 2 worker launches, then an in-process agent.
+KEEP THE COORDINATOR LEAN: send every read, review, fix and diagnosis to a background subagent or a worker with a narrow note; ask each for a final message of at most 12 lines plus a result file. Read each diff before a push (gate files and `DESIGN.md` hunks first). A branch gets at most 2 worker launches, then an in-process agent. Tell a long agent to wrap up before a relay; never wait hours on one.
 
 ## Goal
 
-Finish the spec: an empty board except `#33` and the `#2074` measurement, verified releases, the assistant fixed as a class (`#2127`, `#2129`, including the owner's AI plan below), the owner's live reports fixed and shipped (`#2131`, `#2132`), the mascot rebrand (`#2119` to `#2126`) shipped with no spinner on any surface, `#2133` merged, every `#315` launch list ticket closed, then `#315` closed. Re-derive the rest with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation: 19 open, 19 placed, 0 unplaced, 0 placed twice.
+Finish the spec: an empty board except `#33` and the `#2074` measurement, verified releases, the assistant fixed as a class (`#2127`, `#2129` with the owner's AI plan), the owner's reports fixed and shipped (`#2131`, `#2132`), the mascot rebrand (`#2119` to `#2126`), `#2133` merged, every `#315` ticket closed, then `#315`. Re-derive with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation: 19 open, 19 placed, 0 unplaced, 0 placed twice.
 
-Reply to the owner in the language of his latest message (English). His orders: `#2074` is MAX priority; worker model rotation per the spec (on `usageLimitReached: true`, tell him at once); never mention ChatGPT Plus.
+Reply to the owner in English. His orders: `#2074` is MAX priority; worker model rotation per the spec (on `usageLimitReached: true`, tell him at once); never mention ChatGPT Plus.
 
 ## In flight
 
-UI `main` `4afd790f0`; API `main` `de4a8db30`; landing `main` `381b253fa`. Scratchpad `handoff-notes.md` holds each row's state, result file and next step; `sleep-decisions.md` holds D1 to D18.
+UI `main` `4afd790f0`; API `main` `d39bc7376`; landing `main` `5e6dbdbbd`. Scratchpad `handoff-notes.md` holds each row's result file; `sleep-decisions.md` holds D1 to D21. No agent or worker runs.
 
 | Item | Disposition |
 | --- | --- |
-| Owner AI order (`#2129`) | `/g-best-implementation` done: `best-impl-orbit-ai.md` picks "one typed change plan" (6 steps; detail in `handoff-notes.md`). Next: the second account on Fable 5.2 must AGREE (`CLAUDE_CONFIG_DIR="$ORBIT_WORKER_CLAUDE_CONFIG_DIR" claude -p --model claude-fable-5-2`); iterate until it does; then explain to the owner, in plain words, what changes. |
-| `api#1113` (`#2074` API) | Pushed `77d09d857`; all 14 checks pass (12 minute round); request the review now (`wait-ci` cannot settle while `main` still requires the 4 removed contexts). At approval: protection changes before and after the merge (`body-api-2074-final.md`), merge, D150 rows DONE. |
-| `#2074` UI | Local `f44469008`, suites green; fix review nits R2-1 and R2-2 first. Then push, open the PR (`body-ui-2074-final.md`), chain. |
-| `#2074` landing | `e5672b4`; after `landing#134` merges: base-merge, push, open, protection, merge. |
-| `landing#134` | Local `407c9203f` (import nit plus test loader): narrow review, resolve the thread, push, chain, merge, landing release. |
-| `ui#2447` (`#2131`) | Pushed `77206077f`, CI green; one App Review thread on the custom Apple button: verify Apple's HIG, fix at the root, push, device proof (Android first), merge, web release, mobile pair. |
-| `ui#2448` (`#2132`) | Pushed `f0c6384d1`, CI running: rewrite the body evidence for that head, then request the review. |
-| `ui#2444` (`#2119`) | Local `ab9bb1ff4` plus the import walk fix; add the `permissions.deny` rules (decided); push, chain, merge, retarget `ui#2450`. |
-| `api#1111` (`#2129`) | Local `6b9c84d0a`; review PUSH with 2 emoji nits to fix first (`narrow-review-api-1111-r10.md`). |
-| `ui#2450` (`#2120`) | Local `2f8937f96`, round 3 done; 51 Chromium tests in 7 files still red: fix those the branch causes first. |
-| `#2122` Parts 5, 6, 7 | Built (13, 4 and 13 commits); Part 5 needs its acceptance check; critic passes; then merge into `feature/ticket-2122-destinations`. |
-| `#2133` | `ui#2455` open at `405ca3eb4`: narrow review, then chain. |
+| Owner AI order (`#2129`) | Plan v4 (`best-impl-orbit-ai-v4.md`, `fable-r3-resolution.md`) after three Fable 5.2 rounds of AGREE WITH CHANGES. Write `fable-ai-review-r4-prompt.md` (r3 review, r3 resolution, v4), launch round 4 through `tools/launch-worker.mjs` in `review-2129-ai-plan` with `--relaunch-reason`. On plain AGREE: explain to the owner in plain words what changes, then build the steps. |
+| `ui#2457` (`#2074` UI) | Open at `c175c4445`; CI red: Unit Tests, Upgrade layout geometry, Layout shard 2, Web unit jsdom 2/4 and chromium 6/16. Diagnose main vs branch, fix what the branch causes, push, chain; at approval confirm the UI required set (P14) and merge. |
+| `#2074` landing | Merge commit `53a6c79` in worktree `ticket-2074-round-time`, not pushed: narrow review, push, open (Tracks #2074), protection P1 to P7 before, merge, P8 after. |
+| `api#1111` (`#2129`) | Pushed `54f776ddc`; Pullfrog thread: delete `IsOneCharacterOff` (use `FuzzyMatcher.LevenshteinDistance(...) == 1`). Fix, resolve, push, chain; at approval merge, API staging, captures, production API, close `#2127`. |
+| `ui#2444` (`#2119`) | Pushed `d92f43611`; 2 Pullfrog threads (`.env.local` deny breaks `/dev-server`; oversized toolFiles walker). Fix, ledger update, push, chain, merge, retarget `ui#2450`. |
+| `ui#2448` (`#2132`) | Pushed `56ec939de`; only Expo SDK Pin red (newer 58.0.x patches). Root fix: chore PR on `main` moving the Expo patch set, then base-merge and request review. |
+| `ui#2447` (`#2131`) | Local `e9caefddc` (Apple buttons round 2), not pushed. Read its `DESIGN.md` hunk, narrow review, publish `body-ui-2447-r2.md`, resolve the Apple thread, push, chain; device proof (Android first), merge, web release, mobile pair. |
+| `ui#2455` (`#2133`) | Local `b3480cf2f`, not pushed: narrow review, add the #2134 fold line, push, chain, merge. |
+| `ui#2450` (`#2120`) | Local `add892fbc` (14 commits; 162 Chromium failures fixed, all branch-caused; last full run cut at 70% with 0 failures). Read `fix-ui-2450-r4-result.md`, run the full Chromium suite once, add the "Talk to Orbit" sidebar label per `#2120` and `DESIGN.md:224`, push after `ui#2444` merges. |
+| `#2122` Parts 5 to 7 | Part 5 needs critic pass 2, the web footer sweep and copy approval for `upgrade.orbitLine.billingError`; then merge parts into `feature/ticket-2122-destinations`. |
 | `ui#2388` | This relay's docs branch. Never request a review for it. |
 
-Uncommitted on purpose in the main checkout: `.claude/orchestrator.json` and `tools/__tests__/launch-worker.mjs` (ride the `#2074` UI pull request). Stashes: none. Leave the detached worktrees `combined-2065`, api `scratch-1090-merge`, api `scratch-877-timing`, landing `dependabot-134-astro` (holds `407c9203f`). Waiters to arm: `chain-review.sh` after each push, `wait-release.mjs` for each release, `wait-auto-work.mjs` always. Sentry was listed at 16:00Z (4 issues, all carried).
+Uncommitted on purpose in the main checkout: `.claude/orchestrator.json` and `tools/__tests__/launch-worker.mjs` (already in `ui#2457`). Stashes: none in the three repositories. Waiters to arm: `chain-review.sh` after each push, `wait-release.mjs` per release, `wait-auto-work.mjs` always. Sentry was listed at 17:32Z (4 issues, all carried).
 
 ## Then, in this order
 
 1. Answer any owner message first. Give each order a ticket or a rescope before the turn ends.
-2. The owner AI order (he approved the direction; complete fixes only, never another one-off fix on the old assistant path): the Fable 5.2 review of `best-impl-orbit-ai.md`; on any disagreement, refine the plan with evidence and review again until Fable agrees; then the plain explanation; then build the 6 steps.
-3. `#2074`: push and merge the three pull requests with their protection changes, measure one round in each repository; `tools/review-rounds.mjs` on or after 16 November 2026.
-4. Finish each pull request from its result file; one local review of new commits before every push. Merge each approved one at once, base-merge the rest, then one web release (never with an API release).
+2. The AI order round 4, then its build.
+3. `#2074`: `ui#2457` and the landing pull request merged with their protection changes; `tools/review-rounds.mjs` on or after 16 November 2026.
+4. Finish each pull request from its row; one local review before every push. Merge each approved one at once, then one web release (never with an API release).
 5. The `ui#2447` device proof, the stack, then the intake cycle, as `## The order` gives them.
 
 ## Crank
@@ -54,8 +52,8 @@ Unattended: never ask the owner; decide with the best option and log it. Keep a 
 
 ## Previous prompt, disposition
 
-- Done: `api#1113` opened (`#2074` API pushed); `landing#134` dead spreads and Pullfrog suggestions; `ui#2447` narrow review and push; `ui#2448` flake fixes and push; Pullfrog token refreshed; Sentry listing; mail and Play intake.
-- Changed: `ui#2444`, `ui#2450`, `api#1111` and `#2074` UI each took one more fix round (D7 to D18); `#2133` and the AI order are new.
-- Carried: every merge and release; the `#2074` measurement; the `ui#2447` proof; the stack; Batch M; `#1561`, `#1563`, `#315`, `#33`.
+- Done: `api#1113` merged with protection changes; `landing#134` merged and released; Fable rounds 1 to 3; `#2074` UI pushed as `ui#2457`; `ui#2448` body and threads; `ui#2444` deny rules pushed; `api#1111` nits pushed; `ui#2450` Chromium fixes; `#2134` folded into `#2133`.
+- Changed: each pull request row above carries its new next step.
+- Carried: every merge and release; the `#2074` measurement; the `ui#2447` proof; the stack; `#1561`, `#1563`, `#315`, `#33`.
 
-Every identifier here came from a previous session: treat each as a lead to verify.
+Every identifier here came from a previous session; treat each as a lead to verify.
