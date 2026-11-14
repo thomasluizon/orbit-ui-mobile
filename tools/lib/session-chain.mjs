@@ -99,7 +99,8 @@ export const adoptRelayRun = (sessionId, repoRoot = REPO_ROOT) => {
   return updateRunState((current) => {
     if (current?.relay?.successorSessionId === sessionId && current.relay.canceledByOwner) throw new Error("owner canceled this relay nominee; do not enter sleep")
     if (!current?.relay?.pending || current.relay.successorSessionId !== sessionId) return undefined
-    return { ...current, sessionId, sleep: true, decisionLogPath: null, openOwnerQuestions: [],
+    // The predecessor's filter left only the owner's questions in the queue, so the successor inherits it.
+    return { ...current, sessionId, sleep: true, decisionLogPath: null, questionFilter: null,
       relay: { from: current.sessionId, pending: false, successorTerminal: current.relay.successorTerminal } }
   }, repoRoot, { sessionId }) !== undefined
 }
@@ -119,7 +120,8 @@ export const sessionChainEntry = async (state, transcriptPath) => {
     relayTurnCalls: trigger ? metrics.callTimestamps.filter((timestamp) => Date.parse(timestamp) >= Date.parse(trigger)).length : 0,
     assistantCalls: metrics.calls, compactions: metrics.compactions,
     shipped: (state.readinessLedger ?? []).filter((row) => row.merged).map((row) => ({ repository: row.repositoryKey, pullRequest: row.prNumber, mergeSha: row.merged })),
-    decisions, openOwnerQuestions: state.openOwnerQuestions ?? [], attempts: state.relay?.attempts ?? 0 }
+    decisions, openOwnerQuestions: state.openOwnerQuestions ?? [], questionFilter: state.questionFilter ?? null,
+    attempts: state.relay?.attempts ?? 0 }
 }
 
 export const refreshChainMetrics = async (sessionId, repoRoot = REPO_ROOT) => {
