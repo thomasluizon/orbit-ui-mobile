@@ -67,7 +67,7 @@ Then verify by **re-running the identical audit and diffing against the recorded
 ## Before every push of a pull request head
 
 ### 13. Review the whole diff locally before every push
-Pullfrog reviews a head as soon as it is asked, with no CI wait, so each push costs one review round. This gate makes the first review of a head able to approve, and it keeps a head that fails CI from costing a review. Do these steps before you push a pull request head, and before you ask for the review of a head that a worker pushed:
+Pullfrog reviews a head as soon as it is asked, with no CI wait, so each push costs one review round. This gate makes the first review of a head able to approve, and it keeps a head that fails CI from costing a review. Do these steps before you push a pull request head, and before you ask for the review of a head that a worker pushed. A worker does not run this gate, because it cannot start a review agent; the orchestrator runs it before it asks for the review of the worker's head. No hook and no receipt enforce this gate.
 
 1. Start one read-only review agent on Opus. Give it the brief below and the head SHA. It reads the whole diff of the pull request against its merge base.
 2. Fix every finding that the agent confirms. All the fixes go in the same push.
