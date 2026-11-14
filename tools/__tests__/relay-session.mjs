@@ -3,8 +3,9 @@ import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node
 import { join } from "node:path"
 import { setTimeout as wait } from "node:timers/promises"
 import { closeRelayTerminal, relaySession } from "../relay-session.mjs"
-import { adoptRelayRun, openSessionChain, readSessionChain, writeSessionChain } from "../lib/session-chain.mjs"
-import { processStartIdentity, readRunState, readWakeSourceStates, registerWakeSource, writeRunState } from "../lib/run-state.mjs"
+import { adoptRelayRun, appendChainEntry, confirmChainSuccessor, openSessionChain, readSessionChain, writeSessionChain } from "../lib/session-chain.mjs"
+import { ownerQuestionCandidates, recordQuestionFilter } from "../lib/owner-questions.mjs"
+import { processStartIdentity, readRunState, readWakeSourceStates, registerWakeSource, updateRunState, writeRunState } from "../lib/run-state.mjs"
 import { readHandoffRequest, recordHandoffRequest } from "../lib/handoff-prompt.mjs"
 import { T, realOrchestratorConfig, stageRepo, toolPath } from "./_harness.mjs"
 import { checkRelayStop } from "../../.claude/hooks/_lib/rules-relay.mjs"
@@ -17,7 +18,8 @@ const prompt = "/sleep\nRead .claude/specs/relay.md. Every identifier is a lead 
 /** The shipped crossing value, so every case follows the config instead of a copy of it. */
 const relayThreshold = realOrchestratorConfig().relay.softTokens
 
-const fixture = (label, { tokens = relayThreshold, calls = 20, crank = false, crankPrompt = crank, autoWork = false } = {}) => {
+/** `chain` earlier sessions each relayed with the same `questions`; `filter` records every candidate as queued. */
+const fixture = (label, { tokens = relayThreshold, calls = 20, crank = false, crankPrompt = crank, autoWork = false, questions = ["An owner question."], chain = 0, filter = true } = {}) => {
   const repo = stageRepo(`relay-${label}`)
   const checkout = repo.path
   repo.git(["checkout", "-qb", "relay-docs"])
@@ -34,8 +36,13 @@ const fixture = (label, { tokens = relayThreshold, calls = 20, crank = false, cr
   writeFileSync(decisionLogPath, "Decision and reasoning copied in full.\n")
   writeFileSync(transcriptPath, Array.from({ length: calls }, (_, index) => JSON.stringify({ type: "assistant", timestamp: new Date(Date.now() - (calls - index) * 1000).toISOString(),
     message: { id: `call-${index}`, model: "claude-opus-5-5", usage: { ...usage, cache_read_input_tokens: tokens - 670 } } })).join("\n") + "\n")
-  writeRunState({ sessionId: "predecessor", sleep: true, crank, autoWork, intake: { gmail: { completed: ["message-1"] } }, remaining: ["#1091"], decisionLogPath, openOwnerQuestions: ["An owner question."],
+  writeRunState({ sessionId: "predecessor", sleep: true, crank, autoWork, intake: { gmail: { completed: ["message-1"] } }, remaining: ["#1091"], decisionLogPath, openOwnerQuestions: questions,
     relay: { from: "predecessor", pending: true, measuredTokens: tokens, permissionMode: "bypassPermissions", transcriptPath, triggeredAt: new Date().toISOString() } }, checkout)
+  for (let index = 1; index <= chain; index++) {
+    appendChainEntry({ sessionId: `earlier-${index}`, openOwnerQuestions: questions }, checkout)
+    confirmChainSuccessor(`earlier-${index}`, index === chain ? "predecessor" : `earlier-${index + 1}`, `term_${index}`, 1, checkout)
+  }
+  if (filter) recordQuestionFilter("predecessor", ownerQuestionCandidates("predecessor", checkout).map((row) => ({ id: row.id, disposition: "queued" })), checkout)
   return { ...repo, checkout, transcriptPath }
 }
 
@@ -234,8 +241,39 @@ const fileWaiterCase = async () => {
   }
 }
 
+const questionFilterCases = async () => {
+  const relay = (staged, operations = []) => failure({ repoRoot: staged.checkout, sessionId: "predecessor", execute: executeFor(staged.checkout, { commands: operations }), wait: async () => {}, confirmMilliseconds: 10 })
+  const answerable = Array.from({ length: 16 }, (_, index) => `Which layer owns contract ${index + 1}?`)
+  const duplicated = fixture("questions-answerable", { questions: answerable, chain: 7, filter: false })
+  const unfilteredOperations = []
+  const unfiltered = await relay(duplicated, unfilteredOperations)
+  T("relay-session: a relay with no recorded question filter is refused before any launch", /relay question filter: no recorded filter/.test(unfiltered) && unfilteredOperations.length === 0 && readRunState(duplicated.checkout).sessionId === "predecessor", String(unfiltered))
+  recordQuestionFilter("predecessor", ownerQuestionCandidates("predecessor", duplicated.checkout).map((row) => ({ id: row.id, disposition: "answered", record: "the Decisions section of the spec" })), duplicated.checkout)
+  const settled = await relay(duplicated)
+  const emptied = readRunState(duplicated.checkout)
+  T("relay-session: a relay with 16 answerable duplicate questions queues 0", settled === null && emptied.sessionId !== "predecessor" && emptied.openOwnerQuestions.length === 0 && emptied.questionFilter === null, String(settled))
+  const settledEntry = openSessionChain(emptied.sessionId, duplicated.checkout).entries.at(-1)
+  T("relay-session: the chain keeps the 16 dispositions and the successor owes none of them again", settledEntry.questionFilter.dispositions.length === 16 && ownerQuestionCandidates(emptied.sessionId, duplicated.checkout).length === 0)
+
+  const product = { question: "Is the yearly plan priced below ten monthly payments?", blocks: ["#2101"] }
+  const surviving = fixture("questions-product", { questions: [...answerable, product], chain: 3, filter: false })
+  const filter = () => recordQuestionFilter("predecessor", ownerQuestionCandidates("predecessor", surviving.checkout).map((row) =>
+    row.question === product.question ? { id: row.id, disposition: "queued" } : { id: row.id, disposition: "decided", record: "decision log" }), surviving.checkout)
+  filter()
+  updateRunState((state) => ({ ...state, openOwnerQuestions: [...state.openOwnerQuestions, "Which file holds the mapper?"] }), surviving.checkout, { sessionId: "predecessor" })
+  const lateOperations = []
+  const late = await relay(surviving, lateOperations)
+  T("relay-session: a question that enters the queue after the filter refuses the relay", late === "relay question filter: no disposition for: Which file holds the mapper?" && lateOperations.length === 0, String(late))
+  filter()
+  const carried = await relay(surviving)
+  const inherited = readRunState(surviving.checkout)
+  T("relay-session: a real product question survives once in the successor queue", carried === null && inherited.sessionId !== "predecessor" && inherited.openOwnerQuestions.length === 1 && inherited.openOwnerQuestions[0].question === product.question, String(carried))
+  T("relay-session: the surviving question keeps every source and blocker", inherited.openOwnerQuestions[0].sources.join() === "earlier-1,earlier-2,earlier-3,predecessor" && inherited.openOwnerQuestions[0].blocks.join() === "#2101", JSON.stringify(inherited.openOwnerQuestions))
+}
+
 export const cases = async () => {
   await fileWaiterCase()
+  await questionFilterCases()
   for (const [label, options, message] of [["below", { tokens: relayThreshold - 1 }, /below the soft threshold/], ["young", { calls: 19 }, /at least 20/]]) {
     const staged = fixture(label, options)
     T(`relay-session: refuses ${label}`, message.test(await failure({ repoRoot: staged.checkout, sessionId: "predecessor" })))
@@ -288,7 +326,7 @@ export const cases = async () => {
   T("relay-session: all relay reporting and lock release precede predecessor close", closedAfterReport)
   T("relay-session: confirms only the nominated sleep successor", result.terminal === "term_successor" && readRunState(successful.checkout).relay.from === "predecessor")
   const entry = openSessionChain(result.successorSessionId, successful.checkout).entries[0]
-  T("relay-session: chain records measured metrics, complete decisions and questions", entry.measuredTokens === relayThreshold && entry.assistantCalls === 20 && entry.decisions === "Decision and reasoning copied in full.\n" && entry.openOwnerQuestions[0] === "An owner question." && entry.superseded === true)
+  T("relay-session: chain records measured metrics, complete decisions and questions", entry.measuredTokens === relayThreshold && entry.assistantCalls === 20 && entry.decisions === "Decision and reasoning copied in full.\n" && entry.openOwnerQuestions[0].question === "An owner question." && entry.questionFilter.dispositions[0].disposition === "queued" && entry.superseded === true)
   T("relay-session: no terminal operation uses an empty handle", commands.filter((args) => ["send", "wait", "close"].includes(args[1])).every((args) => ["term_successor", "term_predecessor"].includes(args[args.indexOf("--terminal") + 1])))
   const command = commands.find((args) => args[1] === "create").at(-2)
   T("relay-session: successor command contains no evaluated source", !/eval|node -e|Buffer.from/.test(command))

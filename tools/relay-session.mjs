@@ -9,12 +9,15 @@ import { redactSecrets } from "./lib/github-auth.mjs"
 import { readSessionContext, readSessionMetrics } from "./lib/session-context.mjs"
 import { readBackgroundRuns } from "./lib/background-runs.mjs"
 import { appendChainEntry, closeSessionChain, confirmChainSuccessor, openSessionChain, readSessionChain, refreshChainMetrics, sessionChainEntry, supersededSession, writeSessionChain } from "./lib/session-chain.mjs"
+import { questionFilterGaps } from "./lib/owner-questions.mjs"
 import { HANDOFF_PROMPT_PATH, checkoutSpecVersions, handoffAutoWork, handoffCrank, openingSpecPaths, prepareOwnerHandoffRun, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "./lib/handoff-prompt.mjs"
 import { REPO_ROOT, acquireRelayLock, clearWakeSource, isRelayWaiter, isWakeSourceAlive, readRunState, readWakeSourceStates, readWorkerLaunches, registerWakeSource, updateRunState } from "./lib/run-state.mjs"
 
 const USAGE = `usage: relay-session.mjs [--retry-wake | --close-chain | --close-terminal <payload>]
 
   Relays the current unattended orchestrator through a committed and pushed NEXT.md.
+  Refuses while a candidate owner question has no disposition recorded through
+  owner-questions.mjs --record; the successor inherits only the queued questions.
   Reads session identity from CLAUDE_CODE_SESSION_ID, context from its transcript,
   and model and permission mode from machine observations. Accepts no model claim.
   --retry-wake   background wake source until the failed relay's ten minute retry time
@@ -141,6 +144,8 @@ export const relaySession = async ({ repoRoot = REPO_ROOT, sessionId = process.e
   if (metrics.calls < 20) throw new Error(`session has ${metrics.calls} assistant calls; relay requires at least 20`)
   if (previous.relay.lastAttemptAt && Date.now() - Date.parse(previous.relay.lastAttemptAt) < 600_000) throw new Error("relay retry is not due for ten minutes")
   assertDrained(repoRoot, sessionId)
+  const questionGaps = questionFilterGaps(sessionId, repoRoot)
+  if (questionGaps.length) throw new Error(`relay question filter: ${questionGaps.join("; ")}`)
   let releaseLock
   let result
   try {
