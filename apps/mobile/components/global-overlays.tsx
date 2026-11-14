@@ -1,4 +1,5 @@
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
+import { useFlag } from '@/hooks/use-flag'
 import {
   OnboardingActionsProvider,
   type OnboardingActions,
@@ -27,6 +28,12 @@ export interface OverlayLayerProps {
  * takes `suppressed` into its open condition, so a presented sheet closes through its native dismissal
  * instead of an unmount, and the post-onboarding prompts stay closed until their gates allow them.
  */
+/** The retained onboarding of a signed-in account reads the flag `orbit_guided_flows` for that account. */
+function RetainedOnboarding({ finalStepOnly }: Readonly<{ finalStepOnly: boolean }>) {
+  const guided = useFlag('orbit_guided_flows')
+  return <OnboardingFlow finalStepOnly={finalStepOnly} guided={guided} />
+}
+
 export function OverlayLayer({
   signedIn,
   hasCompletedOnboarding,
@@ -47,7 +54,7 @@ export function OverlayLayer({
           actions={onboardingActions}
           isLive
         >
-          <OnboardingFlow finalStepOnly={showPendingPro} />
+          <RetainedOnboarding finalStepOnly={showPendingPro} />
         </OnboardingActionsProvider>
       ) : null}
       <MarketingConsentPrompt suppressed={promptsSuppressed} />

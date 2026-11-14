@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   showPersistentError: vi.fn(),
   router: { push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() },
   searchParams: new URLSearchParams(),
+  guidedFlows: false,
 }))
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
@@ -40,6 +41,7 @@ vi.mock('@/components/command/command-palette', () => ({ CommandPaletteBackgroun
 vi.mock('@/components/motion/route-transition-shell', () => ({ RouteTransitionShell: ({ children }: { children: ReactNode }) => children }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.profile, patchProfile: mocks.patchProfile }) }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => mocks.guidedFlows }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => false }))
 vi.mock('@/hooks/use-timezone-auto-sync', () => ({ useTimezoneAutoSync: () => {} }))
 vi.mock('@/hooks/use-onboarding-flush', () => ({ useOnboardingFlush: () => {} }))
@@ -116,6 +118,14 @@ describe('AppLayout import prompt dismissal', () => {
   afterEach(() => {
     cleanup()
     useAuthStore.setState(useAuthStore.getInitialState())
+  })
+
+  it.each([[false, 'onboarding.wizard.calendarTitle'], [true, 'onboarding.wizard.calendarQuestion']])('asks the calendar import as a question in the person\'s words with orbit_guided_flows %s', (guidedFlows, title) => {
+    mocks.guidedFlows = guidedFlows
+    mocks.profile = createMockProfile({ hasCompletedOnboarding: true, hasImportedCalendar: false, hasSeenImportPrompt: true })
+    render(<QueryClientProvider client={new QueryClient()}><AppLayout><p>Today content</p></AppLayout></QueryClientProvider>)
+    expect(screen.getByRole('dialog', { name: title })).toBeInTheDocument()
+    mocks.guidedFlows = false
   })
 
   describe.each(prompts)('$name prompt', (prompt) => {

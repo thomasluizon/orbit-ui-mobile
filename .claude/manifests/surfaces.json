@@ -8871,6 +8871,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-onboarding-guided-onboarding-flow",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/onboarding/guided-onboarding-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/onboarding/guided-onboarding-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-onboarding-guided-onboarding-flow",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/onboarding/guided-onboarding-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/onboarding/guided-onboarding-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-onboarding-guided-onboarding-flow",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/onboarding/guided-onboarding-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/onboarding/guided-onboarding-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-onboarding-guided-onboarding-flow",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/onboarding/guided-onboarding-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/onboarding/guided-onboarding-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-onboarding-onboarding-create-habit",
       "platform": "web",
       "kind": "overlay",
@@ -18689,6 +18741,58 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/components/onboarding/feature-guide-drawer.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-onboarding-guided-onboarding-flow",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/onboarding/guided-onboarding-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/onboarding/guided-onboarding-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-onboarding-guided-onboarding-flow",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/onboarding/guided-onboarding-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/onboarding/guided-onboarding-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-onboarding-guided-onboarding-flow",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/onboarding/guided-onboarding-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/onboarding/guided-onboarding-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-onboarding-guided-onboarding-flow",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/onboarding/guided-onboarding-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/onboarding/guided-onboarding-flow.tsx"
       ],
       "state": "default",
       "theme": "dark",

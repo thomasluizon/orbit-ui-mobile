@@ -1,6 +1,6 @@
 import { IconButton } from '@/components/ui/icon-button'
 import { SPACING } from '@orbit/shared/theme'
-import { useMemo, useRef, useState, type ReactNode } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode } from 'react'
 import { I18nManager, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -64,6 +64,10 @@ import { OnboardingCreateHabit } from './onboarding-create-habit'
 import { OnboardingRemind } from './onboarding-remind'
 import { OnboardingWelcome } from './onboarding-welcome'
 import { useOnboardingActions, useOnboardingIsLive } from './onboarding-actions-context'
+import { GuidedOnboardingFlow, type GuidedOnboardingProps } from './guided-onboarding-flow'
+import { GuidedOnboardingResult } from './guided-onboarding-result'
+import { useOffline } from '@/hooks/use-offline'
+import { captureGuidedFlowCompleted } from '@/lib/posthog'
 
 type ReminderDecision = 'idle' | 'allowing' | 'declining'
 
@@ -83,12 +87,14 @@ function DoneScroll({ children }: Readonly<{ children: ReactNode }>) {
   return <ScrollView style={styles.doneScroll} contentContainerStyle={[styles.done, { maxWidth: width >= 1024 ? 560 : 440 }, { paddingBottom: clearance }]}>{children}</ScrollView>
 }
 
-interface DecisionProps {
+export interface OnboardingDecisionProps {
   step: number; sentence: string; locale: 'en' | 'pt-BR'; marks: ReturnType<typeof readHabitPhrase>['consumed']; isLive: boolean
   emoji: string; schedule: OnboardingSchedule; dueTime: string; proposed: boolean; correcting: boolean
   atLimit: boolean; allowance: number; allowancePeriod?: AstraAllowance['aiMessagesPeriod']; createFailed: boolean; creating: boolean
   suggestionPending: boolean; reminderDecision: ReminderDecision; reminderState: OnboardingRemindState; createdTitle: string
   onAccount: () => void; onSentence: (value: string) => void; onContinueWhat: () => void
+  /** A starter fills the phrase and continues in one press. */
+  onStarter: (value: string) => void
   onCorrect: () => void; onToggleDay: (day: string) => void
   onTime: (value: string) => void; onMode: (mode: OnboardingScheduleMode) => void; onFrequencyUnit: (unit: FrequencyUnit) => void
   onQuantity: (quantity: number) => void; onIntervalWeeks: (intervalWeeks: number) => void
@@ -96,13 +102,13 @@ interface DecisionProps {
   onContinueWithout: () => void; onEditSchedule: () => void
 }
 
-function DecisionContent(props: Readonly<DecisionProps>) {
+function DecisionContent(props: Readonly<OnboardingDecisionProps>) {
   if (props.step === ONBOARDING_WHAT_STEP) return <OnboardingWelcome sentence={props.sentence} marks={props.marks} onChange={props.onSentence} />
   if (props.step === ONBOARDING_WHEN_STEP) return <OnboardingCreateHabit title={getHabitPhraseTitle(props.sentence, props.locale)} emoji={props.emoji} schedule={props.schedule} proposed={props.proposed} correcting={props.correcting} canSaveRepeatWeeks={props.isLive} atLimit={props.atLimit} allowance={props.allowance} allowancePeriod={props.allowancePeriod} onCorrect={props.onCorrect} onToggleDay={props.onToggleDay} onTimeChange={props.onTime} onModeChange={props.onMode} onFrequencyUnitChange={props.onFrequencyUnit} onQuantityChange={props.onQuantity} onIntervalWeeksChange={props.onIntervalWeeks} />
   return <OnboardingRemind state={props.reminderState} title={props.createdTitle} dueTime={props.dueTime} isLive={props.isLive} />
 }
 
-function DecisionAction(props: Readonly<DecisionProps>) {
+function DecisionAction(props: Readonly<OnboardingDecisionProps>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -146,7 +152,38 @@ function FlowHeader({ step, onBack, onSkip }: Readonly<{ step: number; onBack?: 
   </View>
 }
 
-export function OnboardingFlow({ finalStepOnly = false }: Readonly<{ finalStepOnly?: boolean }>) {
+/** Reports a guided run that saved its habit once, when every condition holds. */
+function useGuidedRunCompletion(conditions: readonly boolean[], usedAiRead: boolean) {
+  const completed = conditions.every(Boolean)
+  useLayoutEffect(() => {
+    // WHY: a layout effect runs before the passive cleanup of the QuestionFlow this step unmounts, so its tracker reads a completed run, not an abandoned one. https://react.dev/reference/react/useLayoutEffect
+    if (completed) captureGuidedFlowCompleted('onboarding', getOnboardingDisplayTotal(), usedAiRead)
+  }, [completed, usedAiRead])
+}
+
+interface StepsPhaseProps extends Omit<GuidedOnboardingProps, 'onBack' | 'onSkip'> {
+  guided: boolean
+  /** The current step shell, shown with the flag off. */
+  legacy: ReactNode
+  resolvingDeferredPush: boolean
+  habitCreated: boolean
+  onStepBack: () => void
+  onLeave: () => void
+}
+
+/** The steps before the done shell. Back is absent while a deferred push registration is recovered, and leaving is absent once the habit exists. */
+function StepsPhase({ guided, legacy, resolvingDeferredPush, habitCreated, onStepBack, onLeave, ...props }: Readonly<StepsPhaseProps>) {
+  if (!guided) return legacy
+  return <GuidedOnboardingFlow {...props} onBack={resolvingDeferredPush ? undefined : onStepBack} onSkip={habitCreated ? undefined : onLeave} />
+}
+
+/** The result dialog opens over the done shell once a guided run saved its habit, and closes for good on a dismissal. Every condition must hold. */
+function GuidedResultSlot({ open, ...props }: Readonly<ComponentProps<typeof GuidedOnboardingResult> & { open: readonly boolean[] }>) {
+  return open.every(Boolean) ? <GuidedOnboardingResult {...props} /> : null
+}
+
+/** `guided` is the flag `orbit_guided_flows`: the intro and the one-question flow replace the steps, and the result dialog opens over the done shell. */
+export function OnboardingFlow({ finalStepOnly = false, guided = false }: Readonly<{ finalStepOnly?: boolean; guided?: boolean }>) {
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const astraConversationOpen = useUIStore((state) => state.astraConversationOpen)
@@ -179,21 +216,24 @@ export function OnboardingFlow({ finalStepOnly = false }: Readonly<{ finalStepOn
   const [overlayOpen, setOverlayOpen] = useState(true)
   const [destinationAfterPro, setDestinationAfterPro] = useState<string | undefined>()
   const proStepRef = useRef<OnboardingProExit>(null)
+  const { isOnline } = useOffline()
+  const [resultDismissed, setResultDismissed] = useState(false)
   const suggestionRevision = useRef(0)
   const read = useMemo(() => readHabitPhrase(sentence, locale), [locale, sentence])
   const { dueTime } = schedule
   const allowance = profile?.aiMessagesLimit ?? 5
   const atLimit = isLive && (profile?.aiMessagesUsed ?? 0) >= allowance
+  useGuidedRunCompletion([guided, step === ONBOARDING_DONE_STEP, Boolean(createdTitle)], proposed)
 
-  async function continueFromWhat() {
-    if (!sentence.trim() || suggestionPending) return
-    setEmoji(''); setSchedule(clampOnboardingRepeatWeeks(buildOnboardingScheduleFromPhrase(sentence, locale), isLive)); setProposed(false); setCorrecting(false)
+  async function continueFromWhat(phrase: string) {
+    if (!phrase.trim() || suggestionPending) return
+    setEmoji(''); setSchedule(clampOnboardingRepeatWeeks(buildOnboardingScheduleFromPhrase(phrase, locale), isLive)); setProposed(false); setCorrecting(false)
     if (!shouldRequestOnboardingSuggestion({ isLive, atLimit, available: suggestion.available })) { setStep(ONBOARDING_WHEN_STEP); return }
     const revision = suggestionRevision.current + 1
     suggestionRevision.current = revision
     setSuggestionPending(true)
     try {
-      const result = await suggestion.mutateAsync({ title: sentence, language: locale })
+      const result = await suggestion.mutateAsync({ title: phrase, language: locale })
       if (suggestionRevision.current !== revision) return
       setEmoji(result.emoji ?? ''); setSchedule(clampOnboardingRepeatWeeks(buildOnboardingScheduleFromSuggestion(result), isLive)); setProposed(true)
     } catch {
@@ -202,6 +242,12 @@ export function OnboardingFlow({ finalStepOnly = false }: Readonly<{ finalStepOn
     } finally {
       if (suggestionRevision.current === revision) { setSuggestionPending(false); setStep(ONBOARDING_WHEN_STEP) }
     }
+  }
+
+  function chooseStarter(phrase: string) {
+    if (suggestionPending) return
+    setSentence(phrase)
+    void continueFromWhat(phrase)
   }
 
   function resolveReminderState(): OnboardingRemindState {
@@ -328,10 +374,11 @@ export function OnboardingFlow({ finalStepOnly = false }: Readonly<{ finalStepOn
 
   if (astraConversationOpen) return null
   if (step === ONBOARDING_PRO_STEP) return <NativeDialog open={overlayOpen} title={t('upgrade.pitchTitle')} onOpenChange={(open) => { if (!open) completeAndLeave() }}><Shell412 tabBar={<DoneTabBar onSelect={(id) => completeAndLeave(SHELL_DESTINATION_PATHS[id as ShellDestinationId])} />}><DoneScroll><OnboardingProStep ref={proStepRef} onFinish={finishAndLeave} /></DoneScroll></Shell412></NativeDialog>
-  if (step === ONBOARDING_DONE_STEP) return <NativeDialog open={overlayOpen} title={t(`onboarding.flow.done.${getOnboardingCompleteCopy({ skipped, signedOut: !isLive, remindersOff, dueToday: createdDueToday, general: createdGeneral }).titleKey}`)} onOpenChange={(open) => { if (!open) completeAndLeave() }}><Shell412 tabBar={<DoneTabBar onSelect={(id) => void completeAndLeave(isLive ? SHELL_DESTINATION_PATHS[id as ShellDestinationId] : undefined)} />}><DoneScroll><OnboardingComplete createdHabit={createdTitle} emoji={emoji || '◎'} remindersOff={remindersOff} skipped={skipped} signedOut={!isLive} continuesToPro={isLive && getCurrentPlan(profile) !== 'Pro'} dueToday={createdDueToday} general={createdGeneral} onFinish={() => void completeAndLeave()} /></DoneScroll></Shell412></NativeDialog>
+  if (step === ONBOARDING_DONE_STEP) return <NativeDialog open={overlayOpen} title={t(`onboarding.flow.done.${getOnboardingCompleteCopy({ skipped, signedOut: !isLive, remindersOff, dueToday: createdDueToday, general: createdGeneral }).titleKey}`)} onOpenChange={(open) => { if (!open) completeAndLeave() }}><Shell412 tabBar={<DoneTabBar onSelect={(id) => void completeAndLeave(isLive ? SHELL_DESTINATION_PATHS[id as ShellDestinationId] : undefined)} />}><DoneScroll><OnboardingComplete createdHabit={createdTitle} emoji={emoji || '◎'} remindersOff={remindersOff} skipped={skipped} signedOut={!isLive} continuesToPro={isLive && getCurrentPlan(profile) !== 'Pro'} dueToday={createdDueToday} general={createdGeneral} onFinish={() => void completeAndLeave()} /></DoneScroll></Shell412><GuidedResultSlot open={[guided, overlayOpen, Boolean(createdTitle), !skipped, !resultDismissed]} schedule={schedule} signedOut={!isLive} timeZone={profile?.timeZone} onPrimary={() => completeAndLeave(isLive ? SHELL_DESTINATION_PATHS.hoje : undefined)} onClose={() => setResultDismissed(true)} /></NativeDialog>
 
-  const decisionProps: DecisionProps = { step, sentence, locale, marks: read.consumed, isLive, emoji: emoji || '◎', schedule, dueTime, proposed, correcting, atLimit, allowance, allowancePeriod: profile?.aiMessagesPeriod, createFailed, creating, suggestionPending, reminderDecision, reminderState, createdTitle, onAccount: () => { useOnboardingDraftStore.getState().markOnboardingLocallyDone(); router.replace('/login') }, onSentence: (value) => { if (!suggestionPending) setSentence(value) }, onContinueWhat: () => void continueFromWhat(), onCorrect: () => setCorrecting(true), onToggleDay: (day) => setSchedule((current) => toggleOnboardingScheduleDay(current, day)), onTime: (value) => setSchedule((current) => ({ ...current, dueTime: value })), onMode: (mode) => setSchedule((current) => changeOnboardingScheduleMode(current, mode)), onFrequencyUnit: (frequencyUnit) => setSchedule((current) => ({ ...current, frequencyUnit, days: [], isGeneral: false })), onQuantity: (frequencyQuantity) => setSchedule((current) => ({ ...current, frequencyQuantity })), onIntervalWeeks: (intervalWeeks) => setSchedule((current) => ({ ...current, intervalWeeks })), onSave: () => void saveHabit(), onAllow: () => void allowReminders(), onContinueWithout: () => void continueWithoutReminders(), onEditSchedule: () => runStepTransition(() => setStep(ONBOARDING_WHEN_STEP)) }
-  return <NativeDialog open title={t('onboarding.flow.step', { current: getOnboardingDisplayStep(step), total: getOnboardingDisplayTotal() })} onOpenChange={(open) => { if (!open) runStepTransition(() => { if (resolvingDeferredPush) void finishDeferredPushRecovery(); else if (step > 0) setStep(step - 1) }) }}><FlowShell nav={false} header={<FlowHeader step={step} onBack={resolvingDeferredPush ? undefined : goBack} onSkip={createdId ? undefined : skip} />} action={<DecisionAction {...decisionProps} />} notice={createFailed ? <ErrorState message={t('onboarding.flow.createFailed')} /> : undefined}><View style={styles.content}><OnboardingStepStage step={step}><DecisionContent {...decisionProps} /></OnboardingStepStage>{suggestion.verification}</View></FlowShell></NativeDialog>
+  const decisionProps: OnboardingDecisionProps = { step, sentence, locale, marks: read.consumed, isLive, emoji: emoji || '◎', schedule, dueTime, proposed, correcting, atLimit, allowance, allowancePeriod: profile?.aiMessagesPeriod, createFailed, creating, suggestionPending, reminderDecision, reminderState, createdTitle, onAccount: () => { useOnboardingDraftStore.getState().markOnboardingLocallyDone(); router.replace('/login') }, onSentence: (value) => { if (!suggestionPending) setSentence(value) }, onContinueWhat: () => void continueFromWhat(sentence), onStarter: chooseStarter, onCorrect: () => setCorrecting(true), onToggleDay: (day) => setSchedule((current) => toggleOnboardingScheduleDay(current, day)), onTime: (value) => setSchedule((current) => ({ ...current, dueTime: value })), onMode: (mode) => setSchedule((current) => changeOnboardingScheduleMode(current, mode)), onFrequencyUnit: (frequencyUnit) => setSchedule((current) => ({ ...current, frequencyUnit, days: [], isGeneral: false })), onQuantity: (frequencyQuantity) => setSchedule((current) => ({ ...current, frequencyQuantity })), onIntervalWeeks: (intervalWeeks) => setSchedule((current) => ({ ...current, intervalWeeks })), onSave: () => void saveHabit(), onAllow: () => void allowReminders(), onContinueWithout: () => void continueWithoutReminders(), onEditSchedule: () => runStepTransition(() => setStep(ONBOARDING_WHEN_STEP)) }
+  return <StepsPhase guided={guided} legacy={<NativeDialog open title={t('onboarding.flow.step', { current: getOnboardingDisplayStep(step), total: getOnboardingDisplayTotal() })} onOpenChange={(open) => { if (!open) runStepTransition(() => { if (resolvingDeferredPush) void finishDeferredPushRecovery(); else if (step > 0) setStep(step - 1) }) }}><FlowShell nav={false} header={<FlowHeader step={step} onBack={resolvingDeferredPush ? undefined : goBack} onSkip={createdId ? undefined : skip} />} action={<DecisionAction {...decisionProps} />} notice={createFailed ? <ErrorState message={t('onboarding.flow.createFailed')} /> : undefined}><View style={styles.content}><OnboardingStepStage step={step}><DecisionContent {...decisionProps} /></OnboardingStepStage>{suggestion.verification}</View></FlowShell></NativeDialog>} {...decisionProps} proposedEmoji={emoji} completionPending={false} offline={!isOnline}
+    notices={suggestion.verification} resolvingDeferredPush={resolvingDeferredPush} habitCreated={createdId !== null} onStepBack={goBack} onLeave={skip} />
 }
 
 const styles = StyleSheet.create({ header: { alignItems: 'center', flexDirection: 'row', gap: 16, justifyContent: 'space-between', minHeight: 56, paddingHorizontal: SPACING.s12 }, headerStart: { alignItems: 'center', flexDirection: 'row', flexShrink: 0, gap: 8 }, back: { alignItems: 'center', borderRadius: 999, justifyContent: 'center', minHeight: 48, overflow: 'hidden', width: 48 }, counter: { fontFamily: 'GeistMono_500Medium', fontSize: 12, fontVariant: ['tabular-nums'], letterSpacing: 0.48 }, srOnly: { height: 1, opacity: 0, position: 'absolute', width: 1 }, content: { alignSelf: 'center', flexGrow: 1, justifyContent: 'center', maxWidth: 440, width: '100%' }, actions: { gap: 8 }, reason: { fontFamily: 'Geist_400Regular', fontSize: 14, textAlign: 'center' }, doneScroll: { flex: 1 }, done: { alignSelf: 'center', flexGrow: 1, justifyContent: 'center', maxWidth: 440, paddingHorizontal: SPACING.s16, width: '100%' } })

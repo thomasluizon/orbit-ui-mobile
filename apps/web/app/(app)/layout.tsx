@@ -74,6 +74,7 @@ import { resolveShellChrome, HABIT_CREATE_OVERLAY_ID, buildHabitCreateHref, reso
 import { AccountEventConnection } from '@/lib/account-event-connection'
 import { isPublicPath } from '@/lib/public-paths'
 import { useHasSessionCookie } from '@/lib/session-cookie-provider'
+import { useFlag } from '@/hooks/use-flag'
 
 const AstraConversation = dynamic(
   () => import('@/components/chat/conversation').then((module) => module.AstraConversation),
@@ -472,6 +473,7 @@ function GlobalOverlays({
   onDismissImportPrompt: () => void
 }>) {
   const t = useTranslations()
+  const guidedFlows = useFlag('orbit_guided_flows')
   const gamification = useGamificationProfile(canViewGamification)
   const { clearLevelUp, leveledUp, newLevel } = gamification
 
@@ -548,7 +550,7 @@ function GlobalOverlays({
         ref={calendarSheetRef}
         open
         onClose={() => (onCalendarPromptOpenChange)(false)}
-        title={t('onboarding.wizard.calendarTitle')}
+        title={t(guidedFlows ? 'onboarding.wizard.calendarQuestion' : 'onboarding.wizard.calendarTitle')}
         actions={(
           <ActionRow>
             <PromptQuietAction onClick={onDismissCalendarPrompt}>

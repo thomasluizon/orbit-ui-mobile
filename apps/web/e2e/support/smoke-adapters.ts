@@ -18,6 +18,7 @@ async function handleSmokePrompts(page: Page): Promise<void> {
     await localizedRole(dialog, 'button', en.trial.expired.continueFree, ptBR.trial.expired.continueFree).click()
   })
   const calendar = localizedRole(page, 'dialog', en.onboarding.wizard.calendarTitle, ptBR.onboarding.wizard.calendarTitle)
+    .or(localizedRole(page, 'dialog', en.onboarding.wizard.calendarQuestion, ptBR.onboarding.wizard.calendarQuestion))
   await page.addLocatorHandler(calendar, async (dialog) => {
     await localizedRole(dialog, 'button', en.common.later, ptBR.common.later).click()
   })
