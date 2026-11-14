@@ -21,11 +21,11 @@ interface NotionConnectionRowProps {
 function NotionConnectionRow({ controller, hasProAccess, onOpen, onUpgrade }: Readonly<NotionConnectionRowProps>) {
   const t = useTranslations()
   const { data, isLoading } = controller.connection
-  const title = t('profile.connections.notion')
   const value = isLoading
     ? <span data-notion-status-skeleton="" className="block h-5 w-20"><Skeleton variant="fill" grouped /></span>
     : t(notionConnectionLabel(data))
-  return <ListRow textMode="label" compact titleTranslate="no" title={title} accessibilityLabel={hasProAccess && isLoading ? `${title}, ${t('common.loading')}` : undefined}
+  return <ListRow textMode="label" compact titleTranslate="no" title={t('profile.connections.notion')}
+        accessibilityLabel={hasProAccess && isLoading ? `${t('profile.connections.notion')}, ${t('common.loading')}` : undefined}
         icon={hasProAccess ? <FileText size={24} strokeWidth={1.8} /> : <Lock size={24} strokeWidth={1.8} />}
         value={hasProAccess ? value : undefined} wrapValue
         trailing={hasProAccess ? undefined : <ProBadge alwaysVisible />} chevron={hasProAccess}
