@@ -847,7 +847,12 @@ const createRecordTest = (root, paths) => {
 
 /** The instruction files that share a folder with a second instruction file of different content. */
 const conflictingInstructions = (rows) => {
-  const byFolder = Map.groupBy(rows.filter((row) => row.agentInstruction), (row) => posix.dirname(row.path))
+  const byFolder = new Map()
+  for (const row of rows) {
+    if (!row.agentInstruction) continue
+    const folder = posix.dirname(row.path)
+    byFolder.set(folder, [...(byFolder.get(folder) ?? []), row])
+  }
   const sameContent = (row, other) => row.duplicateOf.includes(other.path) || (row.empty && other.empty)
   return new Set(
     [...byFolder.values()].flatMap((group) => group.filter((row) => group.some((other) => other !== row && !sameContent(row, other)))).map((row) => row.path),
