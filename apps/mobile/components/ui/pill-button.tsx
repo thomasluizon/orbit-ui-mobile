@@ -11,7 +11,8 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native'
-import { SPACING, GOOGLE_SIGN_IN_BUTTON, ICON_ACTION_START_HANG, BUTTON_SIZES, MATCHED_PILL_WIDTH, TOUCH_TARGET_MIN, SMALL_PILL_VISIBLE_MIN, type ButtonVariant } from '@orbit/shared/theme'
+import type { ThemeMode } from '@orbit/shared/types/profile'
+import { SPACING, APPLE_SIGN_IN_BUTTON, appleSignInTitleSize, GOOGLE_SIGN_IN_BUTTON, ICON_ACTION_START_HANG, BUTTON_SIZES, MATCHED_PILL_WIDTH, TOUCH_TARGET_MIN, SMALL_PILL_VISIBLE_MIN, type ButtonVariant } from '@orbit/shared/theme'
 import { createTokensV2, mixHex, radius, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ThemedMotionPressable } from './motion-pressable'
@@ -42,11 +43,12 @@ type NativeButtonProps = Readonly<ButtonProps & { retainLeadingIcon?: boolean } 
 
 export function Button(props: NativeButtonProps) {
   const { currentScheme, currentTheme } = useAppTheme()
-  return <ThemedButton {...props} tokens={createTokensV2(currentScheme, currentTheme)} />
+  return <ThemedButton {...props} tokens={createTokensV2(currentScheme, currentTheme)} themeMode={currentTheme} />
 }
 
 export function ThemedButton({
   tokens,
+  themeMode = 'dark',
   buttonRef,
   ref,
   onPress,
@@ -78,7 +80,7 @@ export function ThemedButton({
   formId: _formId,
   edge,
   ...pressableProps
-}: NativeButtonProps & { tokens: AppTokensV2 }) {
+}: NativeButtonProps & { tokens: AppTokensV2; themeMode?: ThemeMode }) {
   const composedRef = useComposedRefs(ref, buttonRef)
   const size = useContext(ActionRowContext) ? 'sm' : requestedSize
   const sizeSpec = BUTTON_SIZES[size]
@@ -86,8 +88,10 @@ export function ThemedButton({
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
 
-  const textColorByVariant = buttonTextColors(tokens, quiet)
-  const leadingGlyph = buttonLeadingGlyph(leadingIcon, textColorByVariant[variant])
+  const visibleHeight = Math.max(sizeSpec.height, SMALL_PILL_VISIBLE_MIN)
+  const appleColors = brand === 'apple' ? APPLE_SIGN_IN_BUTTON.colors[themeMode] : null
+  const textColor = appleColors?.ink ?? buttonTextColors(tokens, quiet)[variant]
+  const leadingGlyph = buttonLeadingGlyph(leadingIcon, textColor)
 
   const ghostPressedFill = elevated ? tokens.bgElevHover : quiet ? tokens.bgHoverOpaque : tokens.bgHover
   const ghostFill = elevated ? tokens.bgElev : 'transparent'
@@ -96,6 +100,7 @@ export function ThemedButton({
     if (variant === 'secondary') {
       return { backgroundColor: pressed ? mixHex(tokens.fg1, tokens.bg, 0.1) : tokens.fg1 }
     }
+    if (appleColors) return { backgroundColor: appleColors.fill }
     if (variant === 'ghost') {
       const active = pressed || (hovered && !disabled && !loading)
       return {
@@ -142,14 +147,16 @@ export function ThemedButton({
         retainLeadingIcon ? { maxWidth: '100%' } : null,
         iconOnly
           ? iconOnlyStyle(Math.max(minimumHeight ?? sizeSpec.height, SMALL_PILL_VISIBLE_MIN), edge)
-          : { height: minimumHeight === undefined ? Math.max(sizeSpec.height, SMALL_PILL_VISIBLE_MIN) : undefined, minHeight: Math.max(minimumHeight ?? 0, SMALL_PILL_VISIBLE_MIN), width: matchedWidth ? MATCHED_PILL_WIDTH : undefined, paddingVertical: SPACING.s4, paddingHorizontal: sizeSpec.paddingX, paddingStart: leadingIcon ? sizeSpec.paddingX - 2 : sizeSpec.paddingX, gap: sizeSpec.gap },
+          : { height: minimumHeight === undefined ? visibleHeight : undefined, minHeight: Math.max(minimumHeight ?? 0, SMALL_PILL_VISIBLE_MIN), width: matchedWidth ? MATCHED_PILL_WIDTH : undefined, paddingVertical: SPACING.s4, paddingHorizontal: sizeSpec.paddingX, paddingStart: leadingIcon ? sizeSpec.paddingX - 2 : sizeSpec.paddingX, gap: sizeSpec.gap },
         brand === 'google' ? { paddingHorizontal: GOOGLE_SIGN_IN_BUTTON.paddingX, paddingStart: GOOGLE_SIGN_IN_BUTTON.paddingX, gap: GOOGLE_SIGN_IN_BUTTON.gap } : null,
+        brand === 'apple' ? { paddingHorizontal: APPLE_SIGN_IN_BUTTON.paddingX, paddingStart: APPLE_SIGN_IN_BUTTON.paddingX, gap: APPLE_SIGN_IN_BUTTON.gap } : null,
         variantStyle(pressed && !disabled && !loading),
-        focused ? buttonFocusStyle(variant, tokens.fg1) : null,
+        focused ? buttonFocusStyle(variant, appleColors?.ink ?? tokens.fg1) : null,
         disabled && !loading ? styles.disabled : null,
       ]}
     >
-      <ButtonContents loading={loading} retainLeadingIcon={retainLeadingIcon} iconOnly={iconOnly} leadingGlyph={leadingGlyph} textColor={textColorByVariant[variant]} sizeSpec={sizeSpec}>{children}</ButtonContents>
+      <ButtonContents loading={loading} retainLeadingIcon={retainLeadingIcon} iconOnly={iconOnly} leadingGlyph={leadingGlyph} textColor={textColor} sizeSpec={sizeSpec}
+        labelSize={appleColors ? appleSignInTitleSize(visibleHeight) : sizeSpec.fontSize}>{children}</ButtonContents>
     </ThemedMotionPressable>
   )
 }
@@ -163,8 +170,8 @@ function iconOnlyStyle(side: number, edge: 'start' | undefined): ViewStyle {
   return { height: side, width: side, paddingHorizontal: SPACING.s0, gap: 0, marginStart: edge === 'start' ? ICON_ACTION_START_HANG : undefined }
 }
 
-function ButtonContents({ loading, retainLeadingIcon, iconOnly, leadingGlyph, children, textColor, sizeSpec }: Readonly<Pick<ButtonProps, 'children' | 'iconOnly'> & {
-  loading: boolean; retainLeadingIcon: boolean; leadingGlyph: React.ReactNode; textColor: string; sizeSpec: typeof BUTTON_SIZES.sm
+function ButtonContents({ loading, retainLeadingIcon, iconOnly, leadingGlyph, children, textColor, sizeSpec, labelSize }: Readonly<Pick<ButtonProps, 'children' | 'iconOnly'> & {
+  loading: boolean; retainLeadingIcon: boolean; leadingGlyph: React.ReactNode; textColor: string; sizeSpec: typeof BUTTON_SIZES.sm; labelSize: number
 }>) {
   const { fontScale } = useWindowDimensions()
   const iconColor = isValidElement<{ color?: string }>(children) ? children.props.color : undefined
@@ -178,7 +185,7 @@ function ButtonContents({ loading, retainLeadingIcon, iconOnly, leadingGlyph, ch
           style={[
             styles.label,
             retainLeadingIcon ? { flexShrink: 1 } : null,
-            { color: textColor, fontSize: sizeSpec.fontSize },
+            { color: textColor, fontSize: labelSize },
           ]}
         >
           {children}

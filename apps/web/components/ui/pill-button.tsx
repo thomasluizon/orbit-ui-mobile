@@ -8,7 +8,7 @@ import { actionClasses, actionStyle } from './pill-action-style'
 import { ActionRowContext } from './action-row'
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
 import { Loader2 } from '@/components/ui/icons'
-import { GOOGLE_SIGN_IN_BUTTON, ICON_ACTION_START_HANG, BUTTON_SIZES, type ButtonSize, type ButtonVariant } from '@orbit/shared/theme'
+import { APPLE_SIGN_IN_BUTTON, appleSignInTitleSize, GOOGLE_SIGN_IN_BUTTON, ICON_ACTION_START_HANG, BUTTON_SIZES, type ButtonSize, type ButtonVariant } from '@orbit/shared/theme'
 
 function buttonDescriptionIds(descriptionId: string | undefined, hintId: string, hint: string | undefined) {
   return [descriptionId, hint ? hintId : undefined].filter(Boolean).join(' ') || undefined
@@ -24,6 +24,22 @@ function buttonStyle(size: ButtonSize, withinRow: boolean, { minimumHeight, icon
     fontSize: minimumHeight === undefined ? sizeSpec.fontSize : `${sizeSpec.fontSize / 16}rem`,
     color: variant === 'ghost' && quiet ? 'var(--fg-2)' : undefined,
     marginInlineStart: iconOnly && edge === 'start' ? ICON_ACTION_START_HANG : undefined,
+    ...(brand === 'apple' ? appleSignInStyle(sizeSpec.height) : undefined),
+  }
+}
+
+/** `light-dark` follows the root `color-scheme`, so the server render already has the theme's black or white. */
+function appleSignInStyle(height: number): CSSProperties {
+  const { colors } = APPLE_SIGN_IN_BUTTON
+  return {
+    paddingInlineStart: APPLE_SIGN_IN_BUTTON.paddingX,
+    paddingInlineEnd: APPLE_SIGN_IN_BUTTON.paddingX,
+    gap: APPLE_SIGN_IN_BUTTON.gap,
+    fontSize: appleSignInTitleSize(height),
+    backgroundColor: `light-dark(${colors.light.fill}, ${colors.dark.fill})`,
+    color: `light-dark(${colors.light.ink}, ${colors.dark.ink})`,
+    boxShadow: 'none',
+    outlineColor: 'currentColor',
   }
 }
 

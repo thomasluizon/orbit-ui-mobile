@@ -1,4 +1,5 @@
-import { AppleMark } from '@/components/ui/icons'
+import { BUTTON_SIZES } from '@orbit/shared/theme'
+import { AppleSignInLogo } from '@/components/auth/apple-sign-in-logo'
 import { GoogleMark } from '@/components/auth/google-mark'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
@@ -62,7 +63,7 @@ export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmittin
         </div>
         {process.env.NEXT_PUBLIC_APPLE_CLIENT_ID ? <div className="flex flex-col">
           {/* eslint-disable-next-line local/max-button-words -- Apple's approved sign-in wording labels the browser action. */}
-          <PillButton variant="ghost" leadingIcon={<AppleMark size={20} aria-hidden />} disabled={isBusy || !isOnline}
+          <PillButton brand="apple" variant="ghost" leadingIcon={<AppleSignInLogo height={BUTTON_SIZES.sm.height} />} disabled={isBusy || !isOnline}
             loading={isAppleLoading} onClick={onSignInWithApple}>{t('auth.signInWithApple')}</PillButton>
         </div> : null}
         {!isOnline && <p className="text-sm text-[var(--fg-3)]">{t('auth.googleOffline')}</p>}

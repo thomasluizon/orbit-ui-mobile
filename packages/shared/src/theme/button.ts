@@ -38,3 +38,21 @@ export const FAB_SIZE = 60
 export const ICON_ACTION_START_HANG = -SPACING.s12
 
 export const GOOGLE_SIGN_IN_BUTTON = { paddingX: 12, gap: 10 } as const
+
+/**
+ * Apple's rules for a custom Sign in with Apple button (Human Interface Guidelines, Sign in with Apple):
+ * the title is 43% of the button height, the logo file is as tall as the button and holds the margin
+ * before the title, and the button, logo and title are only black or white: a white button on a dark
+ * background and a black button on a light one.
+ */
+export const APPLE_SIGN_IN_BUTTON = {
+  paddingX: GOOGLE_SIGN_IN_BUTTON.paddingX,
+  gap: 0,
+  titleToHeight: 0.43,
+  colors: { dark: { fill: '#FFFFFF', ink: '#000000' }, light: { fill: '#000000', ink: '#FFFFFF' } },
+} as const
+
+/** The title size in px for an Apple sign-in button of this height. */
+export function appleSignInTitleSize(buttonHeight: number): number {
+  return Math.round(buttonHeight * APPLE_SIGN_IN_BUTTON.titleToHeight)
+}

@@ -36,7 +36,7 @@ describe('Apple sign-in controls', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
-  it.each([['dark', 0], ['light', 1]] as const)('draws the iPhone action as Apple\'s own control at the Google pill height and shape in the %s theme', (mode, buttonStyle) => {
+  it.each([['dark', 0], ['light', 2]] as const)('draws the iPhone action as Apple\'s own control at the Google pill height and shape in the %s theme', (mode, buttonStyle) => {
     theme.mode = mode
     vi.stubEnv('EXPO_PUBLIC_APPLE_CLIENT_ID', 'client-id')
     const onPress = vi.fn()
@@ -59,16 +59,21 @@ describe('Apple sign-in controls', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
-  it('draws the Android action at the same text size and height as the Google action', () => {
+  it.each([['dark', '#FFFFFF', '#000000'], ['light', '#000000', '#FFFFFF']] as const)('draws the Android action by Apple\'s custom button rules at the Google pill height and shape in the %s theme', (mode, fill, ink) => {
     Platform.OS = 'android'
+    theme.mode = mode
     vi.stubEnv('EXPO_PUBLIC_APPLE_CLIENT_ID', 'client-id')
     const onPress = vi.fn()
     const tree = renderBesideGoogle({ disabled: false, onPress })
     const [google, apple] = tree.root.findAllByType('Pressable') as { props: Record<string, unknown> & { onPress: () => void } }[]
-    const label = (text: string) => StyleSheet.flatten(tree.root.find((node: { type: unknown; props: { children: unknown } }) =>
-      node.type === 'Text' && node.props.children === text).props.style)
-    expect(label('auth.signInWithApple')).toMatchObject({ fontSize: label('auth.signInWithGoogle').fontSize, fontFamily: label('auth.signInWithGoogle').fontFamily })
-    expect(pressableStyle(apple!, false).height).toBe(pressableStyle(google!, false).height)
+    const googleStyle = pressableStyle(google!, false)
+    const appleStyle = pressableStyle(apple!, false)
+    expect(appleStyle).toMatchObject({ height: googleStyle.height, borderRadius: googleStyle.borderRadius, backgroundColor: fill })
+    expect(appleStyle.borderWidth ?? 0).toBe(0)
+    const title = StyleSheet.flatten(tree.root.find((node: { type: unknown; props: { children: unknown } }) =>
+      node.type === 'Text' && node.props.children === 'auth.signInWithApple').props.style)
+    expect(title).toMatchObject({ color: ink, fontSize: Math.round(googleStyle.height * 0.43) })
+    expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'apple-sign-in-logo' }).props.style)).toMatchObject({ height: googleStyle.height })
     TestRenderer.act(() => apple!.props.onPress())
     expect(onPress).toHaveBeenCalledOnce()
     TestRenderer.act(() => tree.unmount())

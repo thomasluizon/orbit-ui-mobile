@@ -5,7 +5,7 @@
 | Surface | Owner | States |
 | --- | --- | --- |
 | Web login | `apps/web/app/(auth)/login/email-step.tsx` | Configured, hidden without public client, offline and busy |
-| Mobile login | `apps/mobile/components/auth/apple-sign-in-button.tsx` | Apple's system control at the Google pill height and capsule shape on iOS (native sign-in); pill button with the Apple mark on Android (browser session); hidden without public client |
+| Mobile login | `apps/mobile/components/auth/apple-sign-in-button.tsx` | Apple's system control on iOS (native sign-in); the Apple pill on Android (browser session); hidden without public client |
 | Web callback | `apps/web/app/(auth)/auth-callback/auth-callback-content.tsx` | State mismatch, expired handoff, session changed, reactivated account and signed in |
 | Mobile callback | `apps/mobile/components/auth/apple-auth-callback.tsx` | The same handoff outcomes, with SecureStore state and session ownership |
 | Native iOS sign-in | `apps/mobile/lib/apple-auth.ts` | Random state, SHA-256 nonce, silent cancellation and existing login completion |
@@ -13,14 +13,27 @@
 | Subscription | Both `/upgrade` routes | App Store plan and usage; native management on iOS; iPhone instruction without a link elsewhere |
 | Account deletion | Both delete-account modals | Apple cancellation warning before account deletion |
 
-All authored copy uses the paired English and Brazilian Portuguese locales. App Review evaluates
-every custom Sign in with Apple button. A custom button must use Apple's logo artwork, a black or
-white logo and title, and the system's title-to-height proportion (43% with the system font). The
-iOS button is therefore Apple's localized system control (`ASAuthorizationAppleIDButton`), in the
-Google pill's visible height and a capsule corner radius: white in the dark theme and white with
-an outline in the light theme. The system sets its title size from that height, so the Apple title
-is larger than the Google title by Apple's rule. Android and web keep the pill button with the
-Apple mark, in Google's height and text size.
+All authored copy uses the paired English and Brazilian Portuguese locales.
+
+Every Apple sign-in button follows Apple's Human Interface Guidelines for Sign in with Apple. It is
+as tall as the Google pill and has the same capsule corner radius. It is white with a black logo
+and title on the dark theme, and black with a white logo and title on the light theme. The title
+is 43% of the button height, so it is larger than the Google title. Each platform uses artwork
+that Apple permits there:
+
+| Platform | Button | Apple artwork |
+| --- | --- | --- |
+| iOS | `ASAuthorizationAppleIDButton` through `expo-apple-authentication`, 44 pt, corner radius 22 | The system control draws its own logo and localized title |
+| Android | `PillButton brand="apple"`, 44 pt, title 19 | `apps/mobile/assets/auth/apple-sign-in-logo-on-*.png`, from `https://appleid.cdn-apple.com/appleid/button/logo` (size 44, no border, scales 1 to 4) |
+| Web | `PillButton brand="apple"`, 40 px, title 17 | The left-aligned medium logo file from Apple Design Resources (`Logo-Sign-in-with-Apple`), in `apps/web/components/auth/apple-sign-in-logo.tsx` |
+
+App Review evaluates every custom Sign in with Apple button. A custom button uses only Apple's
+logo artwork, a logo file as tall as the button, a black or white logo and title, and the system's
+title-to-height proportion. The Apple Design Resources license covers Apple operating systems, and
+the guidelines add the web. Android therefore uses the logo images that Apple provides for apps
+without its JavaScript framework. `APPLE_SIGN_IN_BUTTON` in `packages/shared/src/theme/button.ts`
+holds the proportion and the two colour pairs. The busy state replaces the logo with the spinner,
+as it does for Google.
 
 `EXPO_PUBLIC_APPLE_CLIENT_ID` and `NEXT_PUBLIC_APPLE_CLIENT_ID` are required build variables for the
 mobile and web buttons. The web, Android and iOS release workflows stop before the build when the
