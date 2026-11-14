@@ -284,6 +284,16 @@ describe.each([
     tree.unmount()
   })
 
+  it('marks the words the device read in the shared phrase field and names them in the Orbit line', async () => {
+    const tree = renderNavigation(<Harness />)
+    await type(tree, flowCopy().what.label, i18n.language === 'en' ? 'take my pills every day at 8' : 'tomar remédio todo dia às 8')
+    const parts = i18n.language === 'en' ? 'every day at 08:00' : 'todo dia às 08:00'
+    expect(tree.hosts().some((node) => node.props.children === flowCopy().what.lineUnderstood.replace('{parts}', parts))).toBe(true)
+    expect(tree.hosts().some((node) => node.props.accessibilityLabel === (i18n.language === 'en' ? en : ptBR).habits.form.understood)).toBe(true)
+    expect(tree.hosts().find((node) => node.props.accessibilityLabel === flowCopy().what.label && 'maxLength' in node.props)?.props.maxLength).toBe(200)
+    tree.unmount()
+  })
+
   it('shows the hint on an empty submit and stays on step 1', async () => {
     const tree = renderNavigation(<Harness />)
     await primary(tree)

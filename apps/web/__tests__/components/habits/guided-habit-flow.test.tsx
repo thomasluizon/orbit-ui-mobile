@@ -298,6 +298,17 @@ describe.each([
     expect(heading()).toHaveTextContent(messages().what.question)
   })
 
+  it('marks the words the device read in the shared phrase field and names them in the Orbit line', async () => {
+    render(<Harness />)
+    expect(screen.getByText(messages().what.lineEmpty)).toBeInTheDocument()
+    await type(messages().what.label, locale === 'en' ? 'take my pills every day at 8' : 'tomar remédio todo dia às 8')
+    const parts = locale === 'en' ? 'every day at 08:00' : 'todo dia às 08:00'
+    expect(screen.getByText(messages().what.lineUnderstood.replace('{parts}', parts))).toBeInTheDocument()
+    const marks = screen.getByRole('list', { name: (locale === 'en' ? en : ptBR).habits.form.understood })
+    expect(within(marks).getAllByRole('listitem').length).toBeGreaterThan(0)
+    expect(screen.getByLabelText(messages().what.label)).toHaveAttribute('maxlength', '200')
+  })
+
   it('moves focus to the question after a step change and describes it with the Orbit line', async () => {
     render(<Harness />)
     await phrase(locale === 'en' ? 'call John' : 'ligar para o João')
