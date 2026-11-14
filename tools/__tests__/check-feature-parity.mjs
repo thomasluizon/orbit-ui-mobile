@@ -327,8 +327,8 @@ function workflowRegressions(workflow) {
   T('main production and debt comparisons use the immutable queued base', comparison.run.includes('--production "HEAD^1" --base "HEAD^1"') && comparison.run.includes('"$BASE_REF" = main'))
   const inputs = new RegExp(comparison.run.match(/grep -Eq '([^']+)'/)?.[1] ?? '$^')
   T('the comparison runs only when an app, shared or parity input changed',
-    ['apps/web/app/page.tsx', 'apps/mobile/app/index.tsx', 'packages/shared/src/index.ts', 'tools/check-feature-parity.mjs', '.claude/manifests/feature-parity.json']
-      .every((path) => inputs.test(path)) && !['TESTING.md', 'tools/README.md', '.github/workflows/test.yml'].some((path) => inputs.test(path)))
+    ['apps/web/app/page.tsx', 'apps/mobile/app/index.tsx', 'packages/shared/src/index.ts', 'tools/check-feature-parity.mjs', 'tools/feature-parity-rules.json', 'DESIGN.md', '.claude/specs/orbit-prod-release.md']
+      .every((path) => inputs.test(path)) && !['TESTING.md', 'tools/README.md', '.github/workflows/test.yml', 'docs/DESIGN.md'].some((path) => inputs.test(path)))
 }
 
 export const cases = () => {
