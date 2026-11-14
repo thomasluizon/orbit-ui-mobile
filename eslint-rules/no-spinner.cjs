@@ -19,6 +19,8 @@ const SPIN_CLASS_RE = /(?:^|[\s:])animate-(?:spin(?![\w-])|\[spin)/
 const SPIN_ANIMATION_RE = /(?:^|[\s,])spin\s+\d*\.?\d+m?s\b/
 /** A full turn, the rotation a busy wheel repeats. */
 const FULL_TURN_RE = /^-?(?:360deg|1turn)$/
+/** A list that builds its own `RefreshControl` from `onRefresh` and `refreshing` (VirtualizedList renders the native wheel). */
+const LIST_ELEMENT_RE = /(?:FlatList|SectionList|ScrollView|VirtualizedList|FlashList)$/
 const RING_ELEMENTS = new Set(['svg', 'Svg', 'circle', 'Circle'])
 const DETERMINATE_ATTRIBUTES = new Set(['aria-valuenow', 'accessibilityValue'])
 
@@ -108,7 +110,7 @@ module.exports = {
       noSpinner:
         'A spinner is banned (DESIGN.md "Bans"). Content that loads shows a `Skeleton` shaped like its final layout; a control that waits keeps its label, is disabled and busy, and shows `SkeletonFace`.',
       visibleRefreshIndicator:
-        "A `RefreshControl` draws the native refresh wheel (DESIGN.md \"Bans\": no spinner). Keep the pull gesture in the hidden form (`refreshing={false}`, `colors={['transparent']}`, `progressBackgroundColor=\"transparent\"`, `tintColor=\"transparent\"`, a negative `progressViewOffset`) and show the list's skeleton rows while the request runs.",
+        "A `RefreshControl`, or a list given `onRefresh` (which builds one), draws the native refresh wheel (DESIGN.md \"Bans\": no spinner). Keep the pull gesture in the hidden form (`refreshing={false}`, `colors={['transparent']}`, `progressBackgroundColor=\"transparent\"`, `tintColor=\"transparent\"`, a negative `progressViewOffset`) and show the list's skeleton rows while the request runs.",
     },
   },
   create(context) {
@@ -129,6 +131,7 @@ module.exports = {
         const name = getElementName(node)
         if (spinnerName(name)) context.report({ node, messageId: 'noSpinner' })
         if (name?.split('.').pop() === 'RefreshControl' && !isHiddenRefreshControl(node)) context.report({ node, messageId: 'visibleRefreshIndicator' })
+        if (name && LIST_ELEMENT_RE.test(name) && attributeNamed(node, 'onRefresh')) context.report({ node, messageId: 'visibleRefreshIndicator' })
       },
       JSXElement(node) {
         if (isIndeterminateProgressbar(node.openingElement) && node.children.some(rendersRing)) context.report({ node: node.openingElement, messageId: 'noSpinner' })
