@@ -77,7 +77,7 @@ export function ProgressGoalsContent() {
           {loading ? <ProgressLoading label={t('progressScreen.loading')} screen="goals" /> : null}
           {error ? <div className="w-full"><ErrorState message={t('progressScreen.error')} action={<IconButton label={t('progressScreen.retry')} onClick={retry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} /></div> : null}
           {empty ? <ShellCentredRegion><GoalsEmptyState onCreate={openCreateGoal} /></ShellCentredRegion> : null}
-          {!loading && !error && !empty ? <GoalsSection filter={goalFilter} setFilter={setGoalFilter} onCreate={openCreateGoal} onOpenGoal={setDetailGoalId} goals={allGoals} sweepFrom={seen.sweepFrom} /> : null}
+          {!loading && !error && !empty ? <GoalsSection key={guided ? 'guided' : 'current'} filter={goalFilter} setFilter={setGoalFilter} onCreate={openCreateGoal} onOpenGoal={setDetailGoalId} goals={allGoals} sweepFrom={seen.sweepFrom} /> : null}
         </ProgressSubscreen>
       </div>
     </div>

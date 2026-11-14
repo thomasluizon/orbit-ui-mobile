@@ -16,12 +16,14 @@ import { accountStorageKey } from '@/lib/account-storage-key'
  * what it shows now after each change, and only after the read, so it never overwrites the last visit first.
  */
 export function useGoalSeenProgress(goals: readonly Goal[], enabled: boolean, sweep: boolean) {
-  const [seen, setSeen] = useState<GoalSeenProgress | null | undefined>(enabled ? undefined : null)
+  const [read, setRead] = useState<{ enabled: boolean; seen: GoalSeenProgress | null | undefined }>(() => ({ enabled, seen: enabled ? undefined : null }))
+  if (read.enabled !== enabled) setRead({ enabled, seen: enabled ? undefined : null })
+  const seen = read.enabled === enabled ? read.seen : undefined
   useEffect(() => {
     if (!enabled) return
     let current = true
     void AsyncStorage.getItem(accountStorageKey(GOAL_SEEN_PROGRESS_STORAGE_KEY)).then((raw) => {
-      if (current) setSeen(parseGoalSeenProgress(raw))
+      if (current) setRead({ enabled: true, seen: parseGoalSeenProgress(raw) })
     })
     return () => { current = false }
   }, [enabled])

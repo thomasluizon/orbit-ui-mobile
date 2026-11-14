@@ -123,6 +123,19 @@ describe('goals list on the Orbit logic', () => {
     expect(JSON.parse(mocks.storage.get(seenKey())!)).toEqual({ read: 50, run: 25 })
   })
 
+  it('reads the last visit when the flag arrives after the first render, before it records the new values', async () => {
+    mocks.guided = false
+    mocks.storage.set(seenKey(), JSON.stringify({ read: 25, run: 25 }))
+    await renderGoals()
+    mocks.guided = true
+    await act(async () => { tree.update(<GoalsPage />); await Promise.resolve() })
+    await act(async () => { await Promise.resolve() })
+    expect(ring('read').props['data-ring-sweep']).toBe('sweeping')
+    await nextFrames()
+    expect(ringValue('read')).toBe(50)
+    expect(JSON.parse(mocks.storage.get(seenKey())!)).toEqual({ read: 50, run: 25 })
+  })
+
   it('keeps the current list with the flag off: no sweep and nothing stored', async () => {
     mocks.guided = false
     mocks.storage.set(seenKey(), JSON.stringify({ read: 25 }))

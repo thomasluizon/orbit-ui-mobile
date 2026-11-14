@@ -21,11 +21,14 @@ function writeSeen(goals: readonly Goal[]) {
 }
 
 /**
- * The progress each goal showed on the last visit, read once when the list mounts, for this account on this device.
+ * The progress each goal showed on the last visit, for this account on this device. It is read once when the list
+ * mounts, or when the flag arrives after the first render, and always before the list records what it shows now.
  * `sweepFrom` gives the value a card's ring sweeps from. The list records what it shows now after each change.
  */
 export function useGoalSeenProgress(goals: readonly Goal[], enabled: boolean, sweep: boolean) {
-  const [seen] = useState(() => (enabled ? readSeen() : null))
+  const [snapshot, setSnapshot] = useState(() => ({ enabled, seen: enabled ? readSeen() : null }))
+  if (snapshot.enabled !== enabled) setSnapshot({ enabled, seen: enabled ? readSeen() : null })
+  const seen = snapshot.enabled === enabled ? snapshot.seen : null
   const loaded = goals.length > 0
   useEffect(() => {
     if (enabled && loaded) writeSeen(goals)

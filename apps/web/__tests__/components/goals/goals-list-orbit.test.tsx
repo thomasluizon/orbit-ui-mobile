@@ -118,6 +118,18 @@ describe('goals list on the Orbit logic', () => {
     expect(JSON.parse(localStorage.getItem(seenKey())!)).toEqual({ read: 50, run: 25 })
   })
 
+  it('reads the last visit when the flag arrives after the first render, before it records the new values', async () => {
+    mocks.guided = false
+    localStorage.setItem(seenKey(), JSON.stringify({ read: 25, run: 25 }))
+    const view = renderGoals()
+    mocks.guided = true
+    view.rerender(<NextIntlClientProvider locale="en" messages={en}><ProgressContent screen="goals" /></NextIntlClientProvider>)
+    expect(ring('Read 12 books').parentElement).toHaveAttribute('data-ring-sweep', 'sweeping')
+    await nextFrames()
+    expect(ring('Read 12 books')).toHaveAttribute('aria-valuenow', '50')
+    expect(JSON.parse(localStorage.getItem(seenKey())!)).toEqual({ read: 50, run: 25 })
+  })
+
   it('keeps the current list with the flag off: no sweep and nothing stored', () => {
     mocks.guided = false
     localStorage.setItem(seenKey(), JSON.stringify({ read: 25 }))
