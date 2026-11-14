@@ -50,12 +50,15 @@ function TemplateRow({ template, label, loadable, tokens, onLoad, onDelete }: Re
   )
 }
 
-/** The question "Qual modelo você quer usar?": a press on a template loads its items. Delete stays on each template. */
-export function useTemplateQuestionView({ onLoad, onWrite }: Readonly<{ onLoad: (items: ChecklistItem[]) => void; onWrite: () => void }>): FlowStepView {
+/**
+ * The question "Qual modelo você quer usar?": a press on a template loads its items. Delete stays on each template.
+ * `showing` tells the rows when the question is on screen, so the templates there when it opens stay still, as on web.
+ */
+export function useTemplateQuestionView({ showing, onLoad, onWrite }: Readonly<{ showing: boolean; onLoad: (items: ChecklistItem[]) => void; onWrite: () => void }>): FlowStepView {
   const { t } = useTranslation()
   const tokens = useThemeTokens()
   const { data: templates = [], isLoading, isError, refetch } = useChecklistTemplates()
-  const motion = useListRowMotion(templates.map((template) => template.id), !isLoading)
+  const motion = useListRowMotion(templates.map((template) => template.id), showing && !isLoading)
   const deleteTemplate = useDeleteChecklistTemplate()
   const [deleteError, setDeleteError] = useState('')
   const label = (template: ChecklistTemplate) => t('habits.flow.templates.option', { name: template.name, count: template.items.length })

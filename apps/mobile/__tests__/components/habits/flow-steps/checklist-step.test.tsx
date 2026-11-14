@@ -240,6 +240,18 @@ describe('the template question inside the checklist step on Android', () => {
     tree.unmount()
   })
 
+  it('keeps a template saved while the question was hidden still when the question opens', async () => {
+    state.templates = [template('t1', 'Treino', 'Alongar')]
+    const tree = renderNavigation(<Harness />)
+    state.templates = [template('t1', 'Treino', 'Alongar'), template('t2', 'Casa', 'Varrer')]
+    tree.update(<Harness />)
+    await tap(tree, 'Usar um modelo')
+    const rows = tree.hosts().filter((node) => (node.props as { exiting?: unknown }).exiting !== undefined)
+    expect(rows).toHaveLength(2)
+    expect(rows.every((row) => (row.props as { entering?: unknown }).entering === undefined)).toBe(true)
+    tree.unmount()
+  })
+
   it('keeps the template rows still when the question opens and lets a deleted template leave on the list timing, with no travel under reduced motion', async () => {
     for (const reduced of [false, true]) {
       state.reduced = reduced

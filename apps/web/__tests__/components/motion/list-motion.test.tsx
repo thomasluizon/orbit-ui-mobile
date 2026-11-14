@@ -52,6 +52,13 @@ describe('list motion', () => {
     expect(screen.getByText('Run').closest<HTMLElement>('[data-list-motion]')!.style.opacity).toBe('0')
   })
 
+  it.each([[true, 'translateY(12px)'], [false, 'translateY(12px)']])('keeps the preset shift of a new row whether the other rows glide: %s', (layoutMotion, transform) => {
+    const rows = (names: string[]) => names.map((name) => <ListMotionItem key={name} layoutMotion={layoutMotion}><button>{name}</button></ListMotionItem>)
+    const view = render(<ListPresence>{rows(['Walk'])}</ListPresence>)
+    view.rerender(<ListPresence>{rows(['Walk', 'Run'])}</ListPresence>)
+    expect(screen.getByText('Run').closest<HTMLElement>('[data-list-motion]')!.style.transform).toBe(transform)
+  })
+
   it('keeps the enter motion for a row that appears one render after the list scope changed', () => {
     const rows = (names: string[]) => names.map((name) => <ListMotionItem key={name}><button>{name}</button></ListMotionItem>)
     const view = render(<ListScope scope="walk"><ListPresence>{rows(['Walk'])}</ListPresence></ListScope>)

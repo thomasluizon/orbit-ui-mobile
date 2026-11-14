@@ -189,7 +189,7 @@ export function HabitChecklist({
         >
           <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
             <div className="flex flex-col gap-1"><ListPresence>
-              {items.map((item, index) => (<ListMotionItem key={sortableIds[index]} positionMotion={false}>
+              {items.map((item, index) => (<ListMotionItem key={sortableIds[index]} layoutMotion={false}>
                 <Proposed
                   proposed={index >= items.length - proposedItemCount}
                   scope="row"

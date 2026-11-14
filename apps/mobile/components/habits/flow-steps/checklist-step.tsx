@@ -27,7 +27,7 @@ export function useChecklistStepView(props: Readonly<ChecklistStepProps>): FlowS
   const { t } = useTranslation()
   const [question, setQuestion] = useAccountScopedState<ChecklistQuestion>('items')
   const toItems = () => setQuestion('items')
-  const templates = useTemplateQuestionView({ onLoad: (loaded) => { onItemsChange(loaded); toItems() }, onWrite: toItems })
+  const templates = useTemplateQuestionView({ showing: question === 'templates', onLoad: (loaded) => { onItemsChange(loaded); toItems() }, onWrite: toItems })
   const save = useSaveTemplateView({ items, onSaved: toItems })
   if (question === 'templates') return { ...templates, stepKey: 'templates', onBack: toItems }
   if (question === 'save') return { ...save, stepKey: 'save', onBack: toItems }

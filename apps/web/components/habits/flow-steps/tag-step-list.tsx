@@ -35,7 +35,7 @@ export function TagStepRows({ tags, actions, query, managing, onPressTag }: Read
       {searching && rows.length === 0 ? <p className="text-center text-sm text-[var(--fg-3)]">{t('habits.flow.tags.searchMiss')}</p> : null}
       <ListScope scope={query.trim()}><ListPresence>
         {rows.map((tag) => (
-          <ListMotionItem key={tag.id} positionMotion={false}>
+          <ListMotionItem key={tag.id} layoutMotion={false}>
             {tags.editingTagId === tag.id ? (
               <TagEditorRow
                 error={actions.editTagError}
