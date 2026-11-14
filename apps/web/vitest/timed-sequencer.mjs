@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs'
-import { relative } from 'node:path'
+import { dirname, join, relative } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const { durationMsByFile } = JSON.parse(readFileSync(new URL('./shard-timings.json', import.meta.url), 'utf8'))
+const { durationMsByFile } = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'shard-timings.json'), 'utf8'))
 
 function median(values) {
   const sorted = values.toSorted((left, right) => left - right)
@@ -16,7 +17,7 @@ const fallbackMsByProject = Object.fromEntries(Object.entries(durationMsByFile)
  * lightest shard, and the shard with fewer files wins a tie. A file without a recorded duration counts as its
  * project's median. The result does not depend on the input order, so every shard computes the same split.
  */
-export function partitionByDuration(files, count, durationOf, keyOf) {
+function partitionByDuration(files, count, durationOf, keyOf) {
   const shards = Array.from({ length: count }, () => ({ milliseconds: 0, files: [] }))
   const ordered = files.map((file) => ({ file, key: keyOf(file), milliseconds: durationOf(file) }))
     .sort((left, right) => right.milliseconds - left.milliseconds || left.key.localeCompare(right.key))
