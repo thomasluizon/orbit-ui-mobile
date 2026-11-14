@@ -133,6 +133,22 @@ describe('the checklist step on Android', () => {
     tree.unmount()
   })
 
+  it('lets each step row enter and leave on the list timings, a short fade with no travel under reduced motion', () => {
+    for (const reduced of [false, true]) {
+      state.reduced = reduced
+      const tree = renderNavigation(<Harness initial={items('Alongar', 'Correr')} />)
+      const rows = tree.hosts().filter((node) => (node.props as { entering?: unknown }).entering !== undefined)
+      expect(rows).toHaveLength(2)
+      const { entering, exiting, layout } = rows[0]!.props as unknown as { layout?: unknown; entering: { durationMs: number; definitions: Record<number, { transform: { translateY: number }[] }> }; exiting: { durationMs: number; definitions: Record<number, { transform: { translateY: number }[] }> } }
+      expect(entering.durationMs).toBe(resolveMotionPreset('list-enter', reduced).enterDuration)
+      expect(exiting.durationMs).toBe(resolveMotionPreset('list-exit', reduced).exitDuration)
+      expect(entering.definitions[0]!.transform[0]!.translateY).toBe(reduced ? 0 : 12)
+      expect(exiting.definitions[100]!.transform[0]!.translateY).toBe(reduced ? 0 : 10)
+      expect(layout === undefined).toBe(reduced)
+      tree.unmount()
+    }
+  })
+
   it('stops at 50 steps and keeps the duplicate guard', () => {
     const tree = renderNavigation(<Harness initial={Array.from({ length: MAX_CHECKLIST_ITEMS }, (_, index) => ({ text: `Passo ${index + 1}`, isChecked: false }))} />)
     expect(textOf(tree)).toContain(i18n.t('habits.form.checklistItemLimit'))
@@ -215,7 +231,6 @@ describe('the template question inside the checklist step on Android', () => {
       expect(exiting.durationMs).toBe(exit.exitDuration)
       expect(entering.definitions[0]!.transform[0]!.translateY).toBe(reduced ? 0 : enter.shift)
       expect(exiting.definitions[100]!.transform[0]!.translateY).toBe(reduced ? 0 : exit.shift)
-      expect(enter.enterDuration).toBeLessThanOrEqual(reduced ? 120 : enter.enterDuration)
       tree.unmount()
     }
   })

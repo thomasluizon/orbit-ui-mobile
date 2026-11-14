@@ -252,6 +252,24 @@ describe('motion of the questions inside the step', () => {
     expect(block.style.transform === '' || block.style.transform === 'none').toBe(true)
   })
 
+  it('lets a removed step leave on the list exit timing, faster under reduced motion, while the others stay', async () => {
+    for (const [reduced, exit] of [[false, 160], [true, 70]] as const) {
+      stubMedia(reduced)
+      const view = render(<Harness initial={items('Alongar', 'Correr')} />)
+      expect(view.container.querySelectorAll('[data-list-motion]')).toHaveLength(2)
+      vi.useFakeTimers()
+      await act(async () => { fireEvent.click(screen.getAllByRole('button', { name: 'Remover item' })[0]!) })
+      expect(state.items).toEqual(items('Correr'))
+      expect(view.container.querySelectorAll('[data-list-motion][inert]')).toHaveLength(1)
+      await act(async () => { vi.advanceTimersByTime(71) })
+      expect(view.container.querySelectorAll('[data-list-motion]')).toHaveLength(reduced ? 1 : 2)
+      await act(async () => { vi.advanceTimersByTime(exit - 70) })
+      expect(view.container.querySelectorAll('[data-list-motion]')).toHaveLength(1)
+      vi.useRealTimers()
+      view.unmount()
+    }
+  })
+
   it('lets a deleted template leave on the list exit timing, faster and with no travel under reduced motion', async () => {
     for (const [reduced, exit] of [[false, 160], [true, 70]] as const) {
       stubMedia(reduced)
@@ -263,7 +281,9 @@ describe('motion of the questions inside the step', () => {
       view.rerender(<Harness />)
       const leaving = view.container.querySelector('[data-template-row] [aria-label="Apagar: Treino"]')!.closest('[data-list-motion]')!
       expect(leaving).toHaveAttribute('inert')
-      await act(async () => { vi.advanceTimersByTime(exit + 1) })
+      await act(async () => { vi.advanceTimersByTime(71) })
+      expect(view.container.querySelector('[aria-label="Apagar: Treino"]') === null).toBe(reduced)
+      await act(async () => { vi.advanceTimersByTime(exit - 70) })
       expect(view.container.querySelector('[aria-label="Apagar: Treino"]')).toBeNull()
       vi.useRealTimers()
       view.unmount()

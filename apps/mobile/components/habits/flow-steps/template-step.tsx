@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
-import Animated, { Easing, Keyframe, LinearTransition } from 'react-native-reanimated'
+import Animated from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
 import type { FlowStepView } from '@orbit/shared/contracts/flow'
-import { resolveMotionPreset } from '@orbit/shared/theme'
 import type { ChecklistTemplate } from '@orbit/shared/types/checklist-template'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { applyChecklistTemplate } from '@orbit/shared/utils'
@@ -16,32 +15,12 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useChecklistTemplates, useCreateChecklistTemplate, useDeleteChecklistTemplate } from '@/hooks/use-checklist-templates'
 import { nestedControlFill, useRowFeedback } from '@/hooks/use-row-feedback'
 import { useThemeTokens } from '@/hooks/use-theme-tokens'
-import { usePrefersReducedMotion } from '@/lib/motion'
+import { useListRowMotion } from './list-row-motion'
 
 /** The quick options show the first saved templates. Every template stays reachable in the list under them. */
 const QUICK_TEMPLATES = 4
 
 type Tokens = ReturnType<typeof useThemeTokens>
-
-/** A template row enters with `list-enter` and leaves with `list-exit`; under reduced motion both are a short fade with no travel. */
-function useRowMotion() {
-  const reduced = usePrefersReducedMotion()
-  return useMemo(() => {
-    const enter = resolveMotionPreset('list-enter', reduced)
-    const exit = resolveMotionPreset('list-exit', reduced)
-    return {
-      entering: new Keyframe({
-        0: { opacity: 0, transform: [{ translateY: enter.shift }] },
-        100: { opacity: 1, transform: [{ translateY: 0 }], easing: Easing.bezier(...enter.enterEasing) },
-      }).duration(enter.enterDuration),
-      exiting: new Keyframe({
-        0: { opacity: 1, transform: [{ translateY: 0 }] },
-        100: { opacity: 0, transform: [{ translateY: exit.shift }], easing: Easing.bezier(...exit.exitEasing) },
-      }).duration(exit.exitDuration),
-      layout: reduced ? undefined : LinearTransition.duration(exit.exitDuration),
-    }
-  }, [reduced])
-}
 
 function TemplateRow({ template, label, loadable, tokens, onLoad, onDelete }: Readonly<{
   template: ChecklistTemplate
@@ -73,7 +52,7 @@ function TemplateRow({ template, label, loadable, tokens, onLoad, onDelete }: Re
 export function useTemplateQuestionView({ onLoad, onWrite }: Readonly<{ onLoad: (items: ChecklistItem[]) => void; onWrite: () => void }>): FlowStepView {
   const { t } = useTranslation()
   const tokens = useThemeTokens()
-  const motion = useRowMotion()
+  const motion = useListRowMotion()
   const { data: templates = [], isLoading } = useChecklistTemplates()
   const deleteTemplate = useDeleteChecklistTemplate()
   const [deleteError, setDeleteError] = useState('')
