@@ -410,7 +410,7 @@ describe('OnboardingFlow state model', () => {
   it.each([
     { locale: 'en', sentence: 'Read every Monday at 18:00', title: 'Read' },
     { locale: 'pt-BR', sentence: 'Meditar dez minutos depois do café, menos aos domingos', title: 'Meditar dez minutos depois do café, menos aos domingos' },
-  ])('reads the signed-out sentence through Astra in $locale without adding a tour step', async ({ locale, sentence, title }) => {
+  ])('reads the signed-out sentence through Orbit in $locale without adding a tour step', async ({ locale, sentence, title }) => {
     mocks.locale = locale
     mocks.realProposal = true
     mocks.anonymousAvailable = true
@@ -418,7 +418,10 @@ describe('OnboardingFlow state model', () => {
     mount(false)
     fireEvent.change(screen.getByLabelText('sentence'), { target: { value: sentence } })
     fireEvent.click(screen.getByRole('button', { name: 'continue' }))
-    expect(await screen.findByRole('img', { name: 'Astra' })).toBeVisible()
+    const speaker = (await screen.findByText('when.astraRead')).parentElement!.querySelector('[data-asset="orbit-mascot"]')
+    expect(speaker).toBeVisible()
+    expect(speaker!.closest('[aria-hidden="true"]')).not.toBeNull()
+    expect(screen.queryByRole('img', { name: /^(Astra|Orbit)$/ })).toBeNull()
     expect(screen.getByText(title)).toBeVisible()
     expect(screen.getByText('when.astraRead')).toBeVisible()
     expect(mocks.anonymous).toHaveBeenCalledWith({ title: sentence, language: locale })
