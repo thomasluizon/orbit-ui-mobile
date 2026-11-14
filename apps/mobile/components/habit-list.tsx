@@ -409,14 +409,14 @@ function useHabitListEmptyRendering({ styles, t }: Pick<HabitListEmptyRenderingI
 
 type HabitListRefreshInputs = Pick<ReturnType<typeof useHabitListQueries>, 'refetch'>
 
+/** The skeleton rows replace the kept rows only once a pull outlasts the shared skeleton delay (DESIGN.md States). */
+const useDelayedLoading = createUseDelayedLoading({ useState, useEffect })
+
 /**
  * Pull to refresh keeps the native gesture, and the list's skeleton rows replace the native indicator (DESIGN.md Bans).
  * Android's circle keeps a 4 dp shadow with a transparent fill, so it starts 192 dp above the list: it moves at most two
  * 64 dp targets (androidx swiperefreshlayout 1.1.0 `moveSpinner`, `ReactSwipeRefreshLayout.setProgressViewOffset`).
  */
-/** The skeleton rows replace the kept rows only once a pull outlasts the shared skeleton delay (DESIGN.md States). */
-const useDelayedLoading = createUseDelayedLoading({ useState, useEffect })
-
 function useHabitListRefresh({ refetch }: HabitListRefreshInputs) {
   const [refreshing, setRefreshing] = useState(false)
   const refreshControl = useMemo(
