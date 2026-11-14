@@ -307,6 +307,8 @@ describe('web press scale transitions', () => {
     expect(declarationsOf(`${hosts}:focus-visible:active::before`)).toEqual([{ media: '(prefers-reduced-motion: no-preference)', layered: false,
       values: { outline: '2px solid', 'outline-color': 'inherit', 'outline-offset': 'inherit' } }])
     expect(declarationsOf('.orbit-list-action-surface .orbit-list-row-body.press-hit-layer:focus-visible:active::before')).toEqual([{ media: '(prefers-reduced-motion: no-preference)', layered: false, values: { outline: 'none' } }])
+    expect(declarationsOf('[data-habit-row-control="check"].press-hit-layer:focus-visible:active::before'), 'a habit check draws its ring on the inner check, so its hit layer draws none')
+      .toEqual([{ media: '(prefers-reduced-motion: no-preference)', layered: false, values: { outline: 'none' } }])
   })
 
   it('applies every pressed scale rule only when motion is allowed', () => {

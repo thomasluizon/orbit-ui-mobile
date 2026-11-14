@@ -31,6 +31,7 @@ import { QuietLink } from '@/components/ui/quiet-link'
 import { RadioGroup } from '@/components/ui/radio-group'
 import { RadioRow } from '@/components/ui/select-check'
 import { PricingSection } from '@/components/upgrade/pricing-section'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 vi.mock('next/navigation', async (importOriginal) => ({
@@ -140,6 +141,26 @@ describe('press hit target in Chromium', () => {
       expect(pressed.scaled, 'the press scales the control').toBe(true)
       expect(pressed.underPointer, 'the press target stays under the pointer while the control is scaled').toBe(true)
       expect(await card.getAttribute('data-clicks'), 'the press keeps its click').toBe('1')
+    } finally { await page.close() }
+  })
+
+  it('keeps one focus ring on a habit check while a key presses it: the inner check draws it and the hit layer draws none', async () => {
+    const page = await browser.newPage({ viewport: { width: 412, height: 915 }, reducedMotion: 'no-preference' })
+    try {
+      const theme = Object.entries(resolveWebThemeVariables('orange', 'light')).map(([key, value]) => `${key}:${value}`).join(';')
+      await page.setContent(`<style>${stylesheet} :root{${theme}} body{padding:16px} *,*::before,*::after{transition:none !important}</style><main>${markupOf(<CheckCircle state="empty" onToggle={vi.fn()} disabled={false} ariaLabel="Log" />)}</main>`)
+      const check = page.getByRole('button', { name: 'Log', exact: true })
+      await page.keyboard.press('Tab')
+      expect(await check.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
+      await page.keyboard.down('Space')
+      const rings = await check.evaluate((element) => ({
+        scale: getComputedStyle(element).scale,
+        control: getComputedStyle(element).outlineStyle,
+        hitLayer: getComputedStyle(element, '::before').outlineStyle,
+        check: getComputedStyle(element.querySelector('[data-habit-check]')!).outlineStyle,
+      }))
+      await page.keyboard.up('Space')
+      expect(rings, 'the inner check draws its ring in --fg-1, so the page carries the theme tokens').toEqual({ scale: '0.96', control: 'none', hitLayer: 'none', check: 'solid' })
     } finally { await page.close() }
   })
 

@@ -1021,6 +1021,11 @@ select[aria-hidden="true"] {
   .orbit-list-action-surface .orbit-list-row-body.press-hit-layer:focus-visible:active::before {
     outline: none;
   }
+
+  /* A habit check draws its focus ring on the inner check, so its hit layer draws no second ring. */
+  [data-habit-row-control="check"].press-hit-layer:focus-visible:active::before {
+    outline: none;
+  }
 }
 
 :root {
