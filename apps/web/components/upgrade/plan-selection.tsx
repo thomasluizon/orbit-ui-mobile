@@ -32,7 +32,7 @@ interface PlanSelectionProps {
   t: ReturnType<typeof useTranslations>
 }
 
-interface Tier {
+export interface Tier {
   interval: SubscriptionInterval
   name: string
   price: string
@@ -40,6 +40,39 @@ interface Tier {
   heroLine?: string
   secondLine?: string
   couponLine?: string
+}
+
+/** The two plan cards. Every price comes from the plans read. */
+export function buildPlanTiers(
+  plans: NonNullable<ReturnType<typeof useSubscriptionPlans>['plans']>,
+  discountedAmount: (amount: number) => number,
+  t: ReturnType<typeof useTranslations>,
+): { annualTier: Tier; monthlyTier: Tier } {
+  const yearlyAmount = discountedAmount(plans.yearly.unitAmount)
+  const couponLine = plans.couponPercentOff
+    ? t('upgrade.plans.coupon.line', { percent: plans.couponPercentOff })
+    : undefined
+  return {
+    annualTier: {
+      interval: 'yearly',
+      name: t('upgrade.plans.yearly.name'),
+      price: formatPrice(yearlyAmount, plans.currency),
+      period: t('upgrade.plans.yearly.period'),
+      heroLine: t('upgrade.plans.yearly.heroLine'),
+      secondLine: t('upgrade.plans.yearly.equivalent', {
+        price: formatPrice(monthlyEquivalent(yearlyAmount), plans.currency),
+        percent: plans.savingsPercent,
+      }),
+      couponLine,
+    },
+    monthlyTier: {
+      interval: 'monthly',
+      name: t('upgrade.plans.monthly.name'),
+      price: formatPrice(discountedAmount(plans.monthly.unitAmount), plans.currency),
+      period: t('upgrade.plans.monthly.period'),
+      couponLine,
+    },
+  }
 }
 
 function PlanLoadMotion({
@@ -161,30 +194,7 @@ export function PlanSelection({
 
   if (!plans) return null
 
-  const yearlyAmount = discountedAmount(plans.yearly.unitAmount)
-  const annualTier: Tier = {
-    interval: 'yearly',
-    name: t('upgrade.plans.yearly.name'),
-    price: formatPrice(yearlyAmount, plans.currency),
-    period: t('upgrade.plans.yearly.period'),
-    heroLine: t('upgrade.plans.yearly.heroLine'),
-    secondLine: t('upgrade.plans.yearly.equivalent', {
-      price: formatPrice(monthlyEquivalent(yearlyAmount), plans.currency),
-      percent: plans.savingsPercent,
-    }),
-    couponLine: plans.couponPercentOff
-      ? t('upgrade.plans.coupon.line', { percent: plans.couponPercentOff })
-      : undefined,
-  }
-  const monthlyTier: Tier = {
-    interval: 'monthly',
-    name: t('upgrade.plans.monthly.name'),
-    price: formatPrice(discountedAmount(plans.monthly.unitAmount), plans.currency),
-    period: t('upgrade.plans.monthly.period'),
-    couponLine: plans.couponPercentOff
-      ? t('upgrade.plans.coupon.line', { percent: plans.couponPercentOff })
-      : undefined,
-  }
+  const { annualTier, monthlyTier } = buildPlanTiers(plans, discountedAmount, t)
   const tiers = selectedInterval === 'yearly'
     ? [annualTier, monthlyTier]
     : [monthlyTier, annualTier]

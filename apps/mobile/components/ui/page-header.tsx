@@ -7,7 +7,7 @@ import { ShellContent } from '@/components/shell/shell-content'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-export function PageHeader({ title, backLabel, onBack, action, footer }: Readonly<PageHeaderProps>) {
+export function PageHeader({ title, titleRole = 'heading', backLabel, onBack, action, footer }: Readonly<PageHeaderProps>) {
   const { fontScale } = useWindowDimensions()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -17,7 +17,7 @@ export function PageHeader({ title, backLabel, onBack, action, footer }: Readonl
         style={({ pressed }) => [styles.back, pressed ? { backgroundColor: tokens.bgHover } : null]}>
         <ArrowLeft size={20} color={tokens.fg1} />
       </MotionPressable>
-      <Text accessibilityRole="header" numberOfLines={fontScale > 1.3 ? undefined : 1} style={[styles.title, { color: tokens.fg1 }]}>{title}</Text>
+      <Text accessibilityRole={titleRole === 'label' ? undefined : 'header'} numberOfLines={fontScale > 1.3 ? undefined : 1} style={[styles.title, { color: tokens.fg1 }]}>{title}</Text>
       {action}
     </View></ShellContent>
     <ShellContent>{footer}</ShellContent>

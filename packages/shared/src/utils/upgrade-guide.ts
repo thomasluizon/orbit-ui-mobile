@@ -1,5 +1,6 @@
 import type { SubscriptionStatus } from '../types/profile'
 import type { BillingDetails } from '../types/subscription'
+import { formatLocaleDate } from './locale-format'
 import { subscriptionSummary } from './subscription-summary'
 
 /** The Orbit line of the plan question. It names a state, or states the usage fact. It never sells. */
@@ -38,4 +39,15 @@ export function resolvePurchaseResult(status: SubscriptionStatus | null, billing
     key: summary.renewalKey === 'upgrade.billing.plan.canceledHint' ? 'upgrade.result.ends' : 'upgrade.result.renews',
     date: summary.renewal,
   }
+}
+
+/** The one sentence of the result dialog. The date reads in the account time zone, or in the zone of the device when the account has none. */
+export function formatPurchaseResult(
+  result: PurchaseResult,
+  locale: string,
+  timeZone: string | null | undefined,
+  t: (key: string, params?: Record<string, string>) => string,
+): string {
+  const date = formatLocaleDate(result.date, locale, { day: 'numeric', month: 'long', year: 'numeric', ...(timeZone ? { timeZone } : {}) })
+  return t(result.key, { date })
 }

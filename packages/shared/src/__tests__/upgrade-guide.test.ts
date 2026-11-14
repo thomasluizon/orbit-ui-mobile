@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { SubscriptionStatus } from '../types/profile'
 import type { BillingDetails } from '../types/subscription'
-import { resolvePurchaseResult, resolveUpgradeOrbitLine } from '../utils/upgrade-guide'
+import { formatPurchaseResult, resolvePurchaseResult, resolveUpgradeOrbitLine } from '../utils/upgrade-guide'
 
 const status: SubscriptionStatus = {
   plan: 'pro', hasProAccess: true, isTrialActive: false, trialEndsAt: null,
@@ -51,5 +51,16 @@ describe('resolvePurchaseResult', () => {
     expect(resolvePurchaseResult({ ...status, isTrialActive: true }, null)).toBeNull()
     expect(resolvePurchaseResult({ ...status, planExpiresAt: null }, null)).toBeNull()
     expect(resolvePurchaseResult({ ...status, isLifetimePro: true }, billing)).toBeNull()
+  })
+})
+
+describe('formatPurchaseResult', () => {
+  const t = (key: string, params?: Record<string, string>) => `${key}|${params?.date}`
+
+  it('writes the date of the record in the account time zone', () => {
+    const result = { key: 'upgrade.result.renews' as const, date: '2026-10-01T01:30:00Z' }
+    expect(formatPurchaseResult(result, 'en', 'America/Sao_Paulo', t)).toBe('upgrade.result.renews|September 30, 2026')
+    expect(formatPurchaseResult(result, 'en', 'Asia/Tokyo', t)).toBe('upgrade.result.renews|October 1, 2026')
+    expect(formatPurchaseResult({ ...result, key: 'upgrade.result.ends' }, 'pt-BR', 'America/Sao_Paulo', t)).toBe('upgrade.result.ends|30 de setembro de 2026')
   })
 })
