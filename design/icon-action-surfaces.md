@@ -24,7 +24,7 @@ Text remains for the primary consequence ending a form or confirmation, required
 
 | Retained text surface | Paired owners | Drawing and geometry |
 |---|---|---|
-| Metas empty invitation | Web `app/(app)/progress/_components/progress-content.tsx`, Android `components/progress/progress-content.tsx`, `GoalsEmptyState` | `Orbit Progresso.dc.html` empty invitation, with the retained direct-creation entries in `create-goal-sheet-inventory.md`; one labelled small Create goal pill, primary below 768px and secondary at wider widths, with the empty paragraph |
+| Metas empty invitation | Web `app/(app)/progress/_components/goals/progress-goals-content.tsx`, Android `components/progress/goals/progress-goals-content.tsx`, `GoalsEmptyState` | `Orbit Progresso.dc.html` empty invitation, with the retained direct-creation entries in `create-goal-sheet-inventory.md`; one labelled small Create goal pill, primary below 768px and secondary at wider widths, with the empty paragraph |
 | Wrapped paging | Both `components/ui/pager.tsx`, mounted by their `wrapped-player.tsx` | `Orbit Wrapped.dc.html` Pager; labelled Back and Continue pills, both small, with the trailing action row's 12px gap |
 | Wrapped final actions | Web `app/(app)/wrapped/_components/wrapped-player.tsx`, Android `components/wrapped/wrapped-player.tsx` | `Orbit Wrapped.dc.html` sharing; Back, Download and Share remain labelled, equal-height small pills in one trailing row when their intrinsic widths fit |
 | Sheet footer dismissal | The paired owners in `sheet-footer-inventory.md`, including `components/ui/confirm-sheet.tsx` | `Orbit Sobreposicoes.dc.html` and `Orbit Perfil.dc.html`; labelled ghost Cancel then the filled consequence, equal 44px visible heights and 18px inline padding |
