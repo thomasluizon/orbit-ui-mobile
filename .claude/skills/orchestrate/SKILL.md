@@ -949,7 +949,8 @@ Right after the push, run `node tools/list-bot-threads.mjs --pr <n> --repo <key>
 report the previous head for a moment after a push, and that head can hold a review. With `--head`
 the tool reads again until the pull request reports the pushed head, and it exits 2 when that head
 does not arrive inside the budget. It exits 4 with no verdict when a later push moves the head away,
-the same code that `wait-ci.mjs` gives a moved head: run it again with the new head. It reads no check, and it posts `@pullfrog review` when all of
+the same code that `wait-ci.mjs` gives a moved head: run it again with the new head after the local
+review gate passes on that head. It reads no check, and it posts `@pullfrog review` when all of
 these are true:
 
 1. The branch activity lists the push of the current head.
@@ -1053,7 +1054,7 @@ Then run `gh pr edit <n> --body-file <merged-body>`. Only then does
 the orchestrator reply to and resolve every identified thread on that commit, run the local review
 gate on it, then push once. A report that lacks the evidence the order required is a failed batch,
 never a push. Right after that push, run `list-bot-threads.mjs --head <sha>`: it asks Pullfrog for one review of
-the fixes and resolved threads together. A registered
+the fixes and resolved threads together. It exits 4 with no verdict when a later push moves the head away: run it again with the new head after the local review gate passes on that head. A registered
 `pullfrog-approval` SUCCESS at the current head is the verdict. When that check is ABSENT from the
 rollup, a Pullfrog review with `reviewState` `APPROVED` and `reviewedCommit` equal to that head stands
 in for it. When Pullfrog produced neither, nothing else may stand in on protected `main`, because a real check exists there and only Pullfrog can publish it.
@@ -1110,7 +1111,9 @@ repository the node actually resolved to. Read that name before you retry anythi
 **For a fix the orchestrator writes, resolve FIRST, then run the local review gate, then push.**
 Right after the push, `list-bot-threads.mjs --head <sha>` asks for the incremental re-review, which reads the
 fixes and resolved threads together. Use the same order for a worker's `--review-batch` commit:
-resolve its threads, run the local review gate, then push.
+resolve its threads, run the local review gate, then push. `list-bot-threads.mjs` exits 4 with no
+verdict when a later push moves the head away: run it again with the new head after the local review
+gate passes on that head.
 
 After the push, re-run `node tools/verify-delivery.mjs`. The fix moved the head, so the earlier
 `DELIVERED` is stale until this re-runs. `DELIVERED` continues; `STALE_PR` means the push did not
@@ -1541,8 +1544,8 @@ pull request closed, and 6 means settled failing checks. Re-read delivery on 4 o
 failures on 6; none is successful CI. Exit 3 is the ceiling; 1 or 2 is a read or usage error.
 When CI is the remaining work, start `node tools/wait-ci.mjs --repo <key> --pr <n>` in the
 background. When the review is the remaining work, first run the local review gate on a head that
-has no request. Then ask for the review with `list-bot-threads.mjs --head <sha>`, and start the
-waiter with `--require-check pullfrog-approval`. Without the request, that waiter reaches
+has no request. Then ask for the review with `list-bot-threads.mjs --head <sha>`. It exits 4 with no verdict when a later push moves the head away: run it again with the new head after the local review gate passes on that head.
+Then start the waiter with `--require-check pullfrog-approval`. Without the request, that waiter reaches
 its ceiling, because Pullfrog reviews only on request.
 The worker launcher, Cloud receipt watcher, CI waiter, release waiter, file waiter and relay tool
 each register a live wake source. For a detached local check, start
