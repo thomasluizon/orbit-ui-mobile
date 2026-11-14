@@ -63,10 +63,18 @@ function HabitTimeQuestions({ formHelpers, controller, showReminderQuestion, onT
         </div>
 }
 
-export function HabitTimingField({ disabled, formHelpers, controller, reminderTimes, onReminderTimesChange, showError }: Readonly<HabitTimingFieldProps>) {
+interface HabitReminderEditorsProps {
+  formHelpers: HabitFormHelpers
+  controller: ReturnType<typeof createHabitFormController>
+  reminderTimes: number[]
+  onReminderTimesChange: (times: number[]) => void
+  showError: (message: string) => void
+}
+
+/** The reminder switch with its permission notice, the two reminder kinds and the editor of each kind. */
+export function HabitReminderEditors({ formHelpers, controller, reminderTimes, onReminderTimesChange, showError }: Readonly<HabitReminderEditorsProps>) {
   const t = useTranslations()
   const { profile } = useProfile()
-  const { displayTime } = useTimeFormat()
   const { form, isGeneral } = formHelpers
   const dueTime = form.watch('dueTime') ?? ''
   const reminderEnabled = form.watch('reminderEnabled') ?? false
@@ -74,26 +82,34 @@ export function HabitTimingField({ disabled, formHelpers, controller, reminderTi
   const scheduledReminders = form.watch('scheduledReminders') ?? []
   const dueDate = form.watch('dueDate')
   const itemType = form.watch('itemType')
+  const clockReminders = <ScheduledReminderSection reminderEnabled={reminderEnabled} scheduledReminders={scheduledReminders} offsetReminderCount={dueTime ? reminderTimes.length : 0} hideDayBefore={itemType === 'task' && dueDate === getAccountDay(new Date(), profile?.timeZone)} onSetScheduledReminders={(items) => form.setValue('scheduledReminders', items, { shouldDirty: true })} onValidationError={showError} t={t} />
+  return <RepeatReminderSection value={repeatReminder} enabled={reminderEnabled} general={isGeneral} timeZone={profile?.timeZone} onToggle={() => controller.setReminderEnabled(!reminderEnabled)} onChange={(value) => {
+    form.setValue('repeatReminder', value, { shouldDirty: true })
+    onReminderTimesChange(value ? [] : [...DEFAULT_REMINDER_TIMES])
+    if (value) form.setValue('scheduledReminders', [], { shouldDirty: true })
+  }}>
+    <FixedReminderEditors general={isGeneral} dueTime={dueTime} enabled={reminderEnabled} offsets={reminderTimes} clockCount={scheduledReminders.length} onOffsetsChange={onReminderTimesChange} onError={showError}>{clockReminders}</FixedReminderEditors>
+  </RepeatReminderSection>
+}
+
+export function HabitTimingField({ disabled, formHelpers, controller, reminderTimes, onReminderTimesChange, showError }: Readonly<HabitTimingFieldProps>) {
+  const t = useTranslations()
+  const { displayTime } = useTimeFormat()
+  const { form, isGeneral } = formHelpers
+  const dueTime = form.watch('dueTime') ?? ''
+  const reminderEnabled = form.watch('reminderEnabled') ?? false
   const [open, setOpen] = useState(false)
   const [timeAnswered, setTimeAnswered] = useState(false)
   const showReminderQuestion = isGeneral || Boolean(dueTime) || timeAnswered || reminderEnabled
   const { sheetRef, closeSheet } = useSheetHost()
-  const toggle = () => controller.setReminderEnabled(!reminderEnabled)
   const summary = buildHabitTimingSummary({ ...form.getValues(), isGeneral }, reminderTimes, displayTime, t)
-  const clockReminders = <ScheduledReminderSection reminderEnabled={reminderEnabled} scheduledReminders={scheduledReminders} offsetReminderCount={dueTime ? reminderTimes.length : 0} hideDayBefore={itemType === 'task' && dueDate === getAccountDay(new Date(), profile?.timeZone)} onSetScheduledReminders={(items) => form.setValue('scheduledReminders', items, { shouldDirty: true })} onValidationError={showError} t={t} />
   return <>
     {/* eslint-disable-next-line local/max-button-words -- #1922 explicitly approves this timing-sheet entry label. */}
     <ListRow wrapTitle icon="bell" title={t('habits.form.timingAndReminder')} description={summary} placement="column" onClick={() => setOpen(true)} />
     {open ? <Sheet ref={sheetRef} open title={t('habits.form.timingAndReminder')} onClose={() => setOpen(false)} actions={<PillButton size="sm" onClick={() => closeSheet()}>{t('common.done')}</PillButton>}>
       <fieldset disabled={disabled} data-timing-levels className="m-0 flex min-w-0 flex-col gap-6 border-0 p-0 pb-2">
         {!isGeneral ? <HabitTimeQuestions formHelpers={formHelpers} controller={controller} showReminderQuestion={showReminderQuestion} onTimeAnswered={() => setTimeAnswered(true)} /> : null}
-        {showReminderQuestion ? <RepeatReminderSection value={repeatReminder} enabled={reminderEnabled} general={isGeneral} timeZone={profile?.timeZone} onToggle={toggle} onChange={(value) => {
-          form.setValue('repeatReminder', value, { shouldDirty: true })
-          onReminderTimesChange(value ? [] : [...DEFAULT_REMINDER_TIMES])
-          if (value) form.setValue('scheduledReminders', [], { shouldDirty: true })
-        }}>
-          <FixedReminderEditors general={isGeneral} dueTime={dueTime} enabled={reminderEnabled} offsets={reminderTimes} clockCount={scheduledReminders.length} onOffsetsChange={onReminderTimesChange} onError={showError}>{clockReminders}</FixedReminderEditors>
-        </RepeatReminderSection> : null}
+        {showReminderQuestion ? <HabitReminderEditors formHelpers={formHelpers} controller={controller} reminderTimes={reminderTimes} onReminderTimesChange={onReminderTimesChange} showError={showError} /> : null}
       </fieldset>
     </Sheet> : null}
   </>
