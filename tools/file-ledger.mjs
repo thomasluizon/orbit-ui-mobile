@@ -154,7 +154,7 @@ const usage = () => `usage: file-ledger.mjs [--repo <path>] [--also-search <path
   tracked folder; it exists on disk (an ignored file counts); tools/root-allowlist.json of the repository
   lists it; or an --also-search root tracks it (a leading ../ and the repository name are ignored). A bare
   file name resolves when one tracked file has that basename. A URL, a glob, a placeholder in angle brackets,
-  a flag, an absolute path, a bare extension such as .dc.html, a branch prefix such as feature/ and a word
+  a flag, an absolute path (/x, ~/x or C:/x), a bare extension such as .dc.html, a branch prefix such as feature/ and a word
   without a known file extension are never references. The tool prefers a miss over a false hit. A source
   file, a test and an asset get an empty list.
 
@@ -395,7 +395,8 @@ const cleanToken = (raw) =>
 
 const looksLikePath = (token) => {
   if (!token || NON_PATH_CHARACTERS.test(token) || token.includes("://") || token.startsWith("mailto:")) return false
-  if (/^[-/~@#%]/.test(token)) return false
+  // A POSIX root, a home folder or a Windows drive starts an absolute path, which names no file of a repository.
+  if (/^[-/~@#%]/.test(token) || /^[A-Za-z]:[\\/]/.test(token)) return false
   // A dot folder such as .claude/ or .github/ is a real path; a bare dotted name such as .dc.html is an extension.
   if (token.startsWith(".") && !/^(?:\.{1,2}|\.[\w-]+)\//.test(token)) return false
   const segments = token.split("/").filter(Boolean)

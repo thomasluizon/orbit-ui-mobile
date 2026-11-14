@@ -297,6 +297,7 @@ const caseUnresolvedReferences = () => {
       "Noise: `https://example.com/a.md`, `src/*.ts`, `<name>/file.md`, `--flag`, `feature/`, `.dc.html`, `Next.js`, `1.2.3`.",
       "Bare `present.md` resolves, bare `nowhere.md` does not. A [link](docs/gone-link.md#anchor) and a [web](https://example.com/x.md).",
       "Command `node tools/missing-tool.mjs --help` and a relative `./present.md`.",
+      "Absolute: `/srv/me/notes.md`, `C:/Work/me/notes.md` and [a drive link](D:/notes/plan.md).",
       "Dot folders: missing `.claude/specs/gone.md` and [a workflow](.github/workflows/gone.yml), present `.claude/rules/core.md` and `.github/workflows/test.yml`, hidden `.env.example`.",
       "Folder tail `nested/deep/`, sibling by name `../../references-sibling/sibling-only/notes.md`, relative `../top.md`, spaced `docs/Orbit Today.md`.",
       "Line `docs/present.md:3`, missing line `docs/gone-line.md:12`, a [query](docs/present.md?plain=1) and a [missing query](docs/gone-query.md?plain=1).",
@@ -341,6 +342,7 @@ const caseUnresolvedReferences = () => {
   T(`${TOOL}: a link with an encoded space is checked: a tracked target resolves and a missing one is reported`,
     found.includes("Orbit Gone.md") && !found.includes("Orbit Today.md"), found.join())
   T(`${TOOL}: a command span still reports the missing path it names`, found.includes("docs/gone-cat.md"), found.join())
+  T(`${TOOL}: a POSIX or a Windows absolute path is never a reference`, !found.some((path) => /notes\.md|plan\.md/.test(path)), found.join())
   T(`${TOOL}: a :line suffix and a ?query are stripped before the check`,
     found.includes("docs/gone-line.md") && found.includes("docs/gone-query.md") && !found.some((path) => path.includes("present")), found.join())
 }
