@@ -1,12 +1,13 @@
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
 import { SPACING } from '@orbit/shared/theme'
-import { useEffect, useImperativeHandle, useRef, useState, type ComponentProps, type Ref } from 'react'
+import { useEffect, useImperativeHandle, useRef, useState, type ComponentProps, type ReactNode, type Ref } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTranslation } from 'react-i18next'
 import { buildAccountScopedStorageKey, getTrialDaysLeft, TRIAL_EXPIRED_SEEN_KEY } from '@orbit/shared/utils'
 import { ErrorState } from '@/components/ui/error-state'
+import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 import { PillButton } from '@/components/ui/pill-button'
 import { GuidedPricingSection } from '@/components/upgrade/guided-pricing-section'
 import { PricingSection } from '@/components/upgrade/pricing-section'
@@ -106,16 +107,38 @@ export function OnboardingProStep({ onFinish, ref }: Readonly<{ onFinish: (desti
   const title = <Text nativeID="onboarding-title" accessibilityRole="header" style={{ fontFamily: 'Geist_500Medium', fontSize: 20, color: tokens.fg1 }}>{t('upgrade.pitchTitle')}</Text>
   const exitAction = <PillButton variant="ghost" loading={finishing} onClick={() => exit()}>{t('onboarding.flow.done.seeDay')}</PillButton>
   let content
-  if (plan === 'loading' || plan === 'Pro') content = <View accessibilityState={{ busy: true }} accessibilityLabel={t('common.loading')} style={styles.stack}>{title}<ProSkeleton color={tokens.bgWell} />{exitAction}</View>
-  else if (plan === null) content = <View style={styles.stack}>{title}<ErrorState message={t('upgrade.billing.error')} action={<IconButton label={t('upgrade.billing.retry')} onClick={retry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>} />{exitAction}</View>
-  else if (plan === 'Trial') content = <View testID="onboarding-step-trial" style={styles.pitch}><ProPitch inset={false} focusOnMount headingId="onboarding-title" profile={profile ?? null} trialDaysLeft={getTrialDaysLeft(profile)} titleKey="onboarding.flow.trial.title" bodyKey="onboarding.flow.trial.body" dateHint={profile?.trialEndsAt ? t('upgrade.billing.plan.trialHint', { date: new Intl.DateTimeFormat(i18n.language, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(profile.trialEndsAt)) }) : undefined} t={t} tokens={tokens} /><PillButton loading={finishing} onClick={() => exit()}>{t('onboarding.flow.done.seeDay')}</PillButton></View>
+  if (plan === 'loading' || plan === 'Pro' || plan === null) content = <PlanReadState guided={guided} failed={plan === null} title={title} exitAction={exitAction} skeletonColor={tokens.bgWell} onRetry={retry} t={t} />
+  else if (plan === 'Trial') content = <View testID="onboarding-step-trial" style={styles.pitch}><GuidedOrbit guided={guided} /><ProPitch inset={false} focusOnMount headingId="onboarding-title" profile={profile ?? null} trialDaysLeft={getTrialDaysLeft(profile)} titleKey="onboarding.flow.trial.title" bodyKey="onboarding.flow.trial.body" dateHint={profile?.trialEndsAt ? t('upgrade.billing.plan.trialHint', { date: new Intl.DateTimeFormat(i18n.language, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(profile.trialEndsAt)) }) : undefined} t={t} tokens={tokens} /><PillButton loading={finishing} onClick={() => exit()}>{t('onboarding.flow.done.seeDay')}</PillButton></View>
   else content = <View testID="onboarding-step-paywall" style={styles.stack}>{guided
     ? <GuidedPricingSection headingId="onboarding-title" focusOnMount usage={profile ?? null} {...pricing} />
     : <>{title}{!isOnline ? <ErrorState message={t('upgrade.billing.offline')} /> : null}<PricingSection inset={false} {...pricing} /></>}</View>
   return <View style={styles.root}>{content}<Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={{ color: tokens.fg2 }}>{finishFailed ? t('onboarding.flow.completionFailed') : ''}</Text></View>
 }
 
-const styles = StyleSheet.create({ root: { paddingVertical: SPACING.s32, width: '100%', gap: 16 }, stack: { gap: 24 }, pitch: { gap: 32 } })
+/** The plan read that loads or that failed. With the guided flows on, Orbit sits above it in place of the pitch heading and names the error. */
+function PlanReadState({ guided, failed, title, exitAction, skeletonColor, onRetry, t }: Readonly<{
+  guided: boolean
+  failed: boolean
+  title: ReactNode
+  exitAction: ReactNode
+  skeletonColor: string
+  onRetry: () => void
+  t: (key: string) => string
+}>) {
+  const heading = guided ? <GuidedOrbit guided /> : title
+  if (!failed) return <View accessibilityState={{ busy: true }} accessibilityLabel={t('common.loading')} style={styles.stack}>{heading}<ProSkeleton color={skeletonColor} />{exitAction}</View>
+  const retry = <IconButton label={t('upgrade.billing.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
+  return <View style={styles.stack}>{heading}<ErrorState message={t(guided ? 'upgrade.orbitLine.billingError' : 'upgrade.billing.error')} action={retry} />{exitAction}</View>
+}
+
+/** With the guided flows on, Orbit sits above each state of the step in Parado. It never sells, so it carries no line here. */
+function GuidedOrbit({ guided }: Readonly<{ guided: boolean }>) {
+  const mascotSize = useStateMascotSize()
+  if (!guided) return null
+  return <View testID="onboarding-orbit" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden style={styles.orbit}><OrbitMascot size={mascotSize} state="parado" /></View>
+}
+
+const styles = StyleSheet.create({ root: { paddingVertical: SPACING.s32, width: '100%', gap: 16 }, stack: { gap: 24 }, pitch: { gap: 32 }, orbit: { alignSelf: 'center' } })
 
 function ProSkeleton({ color }: Readonly<{ color: string }>) {
   const block = { backgroundColor: color, borderRadius: radius.md }

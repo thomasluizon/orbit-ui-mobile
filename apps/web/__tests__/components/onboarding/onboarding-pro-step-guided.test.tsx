@@ -6,7 +6,8 @@ import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { OnboardingProStep } from '@/components/onboarding/onboarding-pro-step'
 
 const mocks = vi.hoisted(() => ({
-  plan: 'Free' as 'Free' | 'Trial',
+  plan: 'Free' as 'Free' | 'Trial' | 'loading' | null,
+  retry: vi.fn(),
   profile: undefined as Record<string, unknown> | undefined,
   online: true,
   checkout: vi.fn(),
@@ -16,7 +17,7 @@ vi.mock('next-intl', async (importOriginal) => {
   const actual = await importOriginal<typeof import('next-intl')>()
   return { ...actual, useTranslations: () => actual.createTranslator({ locale: 'en', messages: en }), useLocale: () => 'en' }
 })
-vi.mock('@/hooks/use-onboarding-plan', () => ({ useOnboardingPlan: () => ({ plan: mocks.plan, profile: mocks.profile, retry: vi.fn() }) }))
+vi.mock('@/hooks/use-onboarding-plan', () => ({ useOnboardingPlan: () => ({ plan: mocks.plan, profile: mocks.profile, retry: mocks.retry }) }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.online }) }))
 vi.mock('@/hooks/use-subscription-plans', () => ({
   useSubscriptionPlans: () => ({
@@ -77,8 +78,42 @@ describe('the onboarding Pro step', () => {
     mocks.profile = createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: true, trialEndsAt: '2099-01-01T00:00:00Z' })
     const onFinish = vi.fn(async () => {})
     render(<OnboardingProStep onFinish={onFinish} />)
+    expect(document.querySelector('[data-onboarding-orbit] [data-orbit-face="rig"]')).toHaveAttribute('data-orbit-state', 'parado')
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(en.onboarding.flow.trial.title)
+    expect(document.querySelector('[data-onboarding-step="trial"]')).toHaveTextContent(/Your trial ends \w{3} \d{1,2}, \d{4}/)
     fireEvent.click(screen.getByRole('button', { name: en.onboarding.flow.done.seeDay }))
     await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1))
+  })
+
+  it('shows Orbit in Parado over the skeleton while the plan loads, with no pitch heading and the see my day exit, with the flag on', () => {
+    enableTestFlags('orbit_guided_flows')
+    mocks.plan = 'loading'
+    render(<OnboardingProStep onFinish={vi.fn(async () => {})} />)
+    const state = screen.getByRole('region', { name: en.common.loading })
+    expect(state).toHaveAttribute('aria-busy', 'true')
+    expect(state.querySelector('[data-onboarding-orbit] [data-orbit-face="rig"]')).toHaveAttribute('data-orbit-state', 'parado')
+    expect(screen.queryByRole('heading', { name: 'Orbit Pro' })).toBeNull()
+    expect(screen.getByRole('button', { name: en.onboarding.flow.done.seeDay })).toBeInTheDocument()
+  })
+
+  it('lets Orbit name the plan read error and reads the plan again on retry, with the flag on', () => {
+    enableTestFlags('orbit_guided_flows')
+    mocks.plan = null
+    render(<OnboardingProStep onFinish={vi.fn(async () => {})} />)
+    expect(document.querySelector('[data-onboarding-orbit] [data-orbit-face="rig"]')).toHaveAttribute('data-orbit-state', 'parado')
+    expect(screen.getByText(en.upgrade.orbitLine.billingError).closest('[role="alert"]')).not.toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Orbit Pro' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: en.upgrade.billing.retry }))
+    expect(mocks.retry).toHaveBeenCalledTimes(1)
+    expect(document.querySelector('[data-orbit-state="feliz"]')).toBeNull()
+  })
+
+  it.each(['loading', null, 'Trial'] as const)('keeps the current %s state with no Orbit with the flag off', (plan) => {
+    mocks.plan = plan
+    if (plan === 'Trial') mocks.profile = createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: true, trialEndsAt: '2099-01-01T00:00:00Z' })
+    render(<OnboardingProStep onFinish={vi.fn(async () => {})} />)
+    expect(document.querySelector('[data-onboarding-orbit]')).toBeNull()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(plan === 'Trial' ? en.onboarding.flow.trial.title : 'Orbit Pro')
   })
 
   it('renders the current paywall with the flag off', () => {
