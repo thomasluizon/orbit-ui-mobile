@@ -171,7 +171,7 @@ module.exports = {
       },
       Literal(node) {
         reportString(node, node.value)
-        if (Math.abs(node.value) === 360 && typeof node.value === 'number' && isNumericFullTurn(node)) drawsFullTurn = true
+        if (typeof node.value === 'number' && Math.abs(node.value) === 360 && isNumericFullTurn(node)) drawsFullTurn = true
       },
       TemplateElement(node) {
         reportString(node, node.value.cooked)

@@ -701,6 +701,8 @@ ruleTester.run('no-spinner', rule('no-spinner'), {
     "<motion.span animate={{ rotate: 360 }} transition={{ duration: 0.3 }} />",
     "<motion.span animate={{ opacity: [1, 0.55, 1] }} transition={{ repeat: Infinity }} />",
     "export { IconRefresh as RefreshCw } from '@tabler/icons-react'",
+    'const habitId = 10n',
+    'const turns = 360n',
   ],
   invalid: [
     { code: "import { ActivityIndicator, View } from 'react-native'", errors: [{ messageId: 'noSpinner' }] },
