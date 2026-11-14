@@ -56,9 +56,11 @@ jobs:
       - name: Point the Windows App SDK download cache
         if: runner.os == 'Windows'
         run: echo "ORBIT_WINDOWS_DOWNLOAD_CACHE=$RUNNER_TEMP/windows-app-sdk-downloads" >> "$GITHUB_ENV"
+      # About 200 MB per target: main saves it, and a pull request only reads it.
       - name: Cache Windows App SDK downloads
+        id: windows-downloads
         if: runner.os == 'Windows'
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: ${{ env.ORBIT_WINDOWS_DOWNLOAD_CACHE }}
           key: ${{ runner.os }}-windows-app-sdk-${{ matrix.target }}-${{ hashFiles('apps/desktop/src-tauri/native/windows/downloads.json') }}
@@ -89,6 +91,12 @@ jobs:
         env:
           DESKTOP_TARGET: ${{ matrix.target }}
         run: npm run build:staging -w @orbit/desktop -- --target "$DESKTOP_TARGET" --no-sign -- --locked
+      - name: Save Windows App SDK downloads
+        if: runner.os == 'Windows' && github.ref == 'refs/heads/main' && steps.windows-downloads.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.ORBIT_WINDOWS_DOWNLOAD_CACHE }}
+          key: ${{ steps.windows-downloads.outputs.cache-primary-key }}
       - name: Archive macOS app with executable permissions
         if: runner.os == 'macOS'
         env:
