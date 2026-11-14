@@ -2525,7 +2525,8 @@
       "error": "A conexão não funcionou. Tente de novo.",
       "offline": "Você está sem conexão. Conecte-se à internet para gerenciar o Notion.",
       "lastSync": "Última sincronização: {time}",
-      "awaitingSync": "Aguardando a primeira sincronização."
+      "awaitingSync": "Aguardando a primeira sincronização.",
+      "loadingStatus": "{name}, carregando..."
     },
     "submenus": {
       "accountLabel": "{name}, {email}, conta",

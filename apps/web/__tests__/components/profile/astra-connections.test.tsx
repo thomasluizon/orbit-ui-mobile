@@ -58,7 +58,7 @@ it('locks Notion for a free account without loading its connection', () => {
 it('holds the Notion status and the sheet details with skeletons while the connection loads', async () => {
   mocks.fetch.mockReturnValue(new Promise(() => {}))
   mount()
-  const row = await screen.findByRole('button', { name: `Notion, ${en.common.loading}` })
+  const row = await screen.findByRole('button', { name: en.profile.connections.loadingStatus.replace('{name}', 'Notion') })
   expect(row.querySelector('[data-notion-status-skeleton] .skeleton-pulse')).toHaveClass('bg-[var(--bg-well)]')
   expect(screen.queryByText(en.common.loading)).toBeNull()
   fireEvent.click(row)

@@ -20,7 +20,7 @@ vi.mock('expo-router', () => ({ useRouter: () => ({ push: mocks.push }), useLoca
 vi.mock('react-i18next', async (original) => ({ ...await original<typeof import('react-i18next')>(), useTranslation: () => ({ t: (key: string, values?: Record<string, string>) => {
   let value: unknown = en
   for (const segment of key.split('.')) value = (value as Record<string, unknown>)[segment]
-  return values ? String(value).replace('{time}', values.time ?? '') : String(value)
+  return String(value).replace(/\{(\w+)\}/g, (token, name: string) => values?.[name] ?? token)
 }, i18n: { language: 'en' } }) }))
 vi.mock('@/hooks/use-config', () => ({ useConfig: () => ({ config: { features: { notion_integration: { enabled: mocks.enabled } } } }) }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.online }) }))
@@ -63,7 +63,7 @@ it('uses the Pro lock without reading Notion for free accounts', () => {
 it('holds the Notion status and the sheet details with skeletons while the connection loads', async () => {
   mocks.api.mockImplementation(() => new Promise(() => {}))
   mount(); await settle()
-  expect(row('Notion').props.accessibilityLabel).toBe(`Notion, ${en.common.loading}`)
+  expect(row('Notion').props.accessibilityLabel).toBe(en.profile.connections.loadingStatus.replace('{name}', 'Notion'))
   const value = tree.root.findAll((node: { type: unknown; props: { testID?: string } }) => typeof node.type === 'string' && node.props.testID === 'notion-status-skeleton')
   expect(value).toHaveLength(1)
   expect(text()).not.toContain(en.common.loading)

@@ -28,7 +28,7 @@ function NotionConnectionRow({ controller, hasProAccess, onOpen, onUpgrade }: Re
     ? <View testID="notion-status-skeleton" style={{ width: 80, height: 20 }}><Skeleton variant="fill" grouped /></View>
     : t(notionConnectionLabel(data))
   return <ListRow textMode="label" compact title={t('profile.connections.notion')}
-        accessibilityLabel={hasProAccess && isLoading ? `${t('profile.connections.notion')}, ${t('common.loading')}` : undefined}
+        accessibilityLabel={hasProAccess && isLoading ? t('profile.connections.loadingStatus', { name: t('profile.connections.notion') }) : undefined}
         icon={hasProAccess ? <FileText size={24} strokeWidth={1.8} /> : <Lock size={24} strokeWidth={1.8} />}
         value={hasProAccess ? value : undefined} wrapValue
         trailing={hasProAccess ? undefined : <ProBadge alwaysVisible />} chevron={hasProAccess}
