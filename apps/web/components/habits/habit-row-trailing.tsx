@@ -78,7 +78,7 @@ function InteractiveParentRing({
       aria-disabled={disabled && completionReason ? true : undefined}
       aria-describedby={completionReasonId(disabled, completionReason, reasonId)}
       title={disabled ? completionReason : undefined}
-      className={`appearance-none border-0 bg-transparent flex min-h-[48px] w-[48px] items-center justify-center rounded-[20px] transition-transform duration-[var(--dur-press)] ease-[var(--ease-out)] ${disabled ? 'cursor-default opacity-40' : 'cursor-pointer press-hit-layer motion-safe:active:scale-[0.96]'}`}>
+      className={`appearance-none border-0 bg-transparent flex min-h-[48px] w-[48px] items-center justify-center rounded-[20px] transition-transform duration-[var(--dur-press)] ease-[var(--ease-out)] ${disabled ? 'cursor-default opacity-40' : 'press-hit-layer cursor-pointer motion-safe:active:scale-[0.96]'}`}>
       <HabitCheck status={state} progress={childProgress ?? { done: 0, total: 0 }} />
       <CompletionReason id={reasonId} disabled={disabled} reason={completionReason} />
     </button>
@@ -124,7 +124,7 @@ export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
               onClick={(event) => {
                 event.stopPropagation()
               }}
-              className="touch-target appearance-none border-0 bg-transparent flex items-center justify-center rounded-full text-[var(--fg-3)] transition-[background-color,color,scale] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-out)] cursor-pointer hover:text-[var(--fg-1)] press-hit-layer motion-safe:active:scale-[0.96]"
+              className="press-hit-layer touch-target appearance-none border-0 bg-transparent flex items-center justify-center rounded-full text-[var(--fg-3)] transition-[background-color,color,scale] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-out)] cursor-pointer hover:text-[var(--fg-1)] motion-safe:active:scale-[0.96]"
               style={{ width: 48, minHeight: 48 }}
             >
               <MoreVertical size={20} strokeWidth={1.8} />

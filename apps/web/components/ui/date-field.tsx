@@ -175,7 +175,7 @@ export function DateField({
         aria-haspopup="dialog"
         data-appearance={appearance}
         style={{ color: appearance === 'proposed' ? 'var(--fg-3)' : 'var(--fg-1)' }}
-        className={`${FIELD_TRIGGER_PERIMETER} w-full min-h-[54px] bg-[var(--bg-field)] rounded-md py-3 px-4 text-base text-left flex items-center justify-between transition-[scale] duration-[var(--dur-press)] ease-[var(--ease-out)] press-hit-layer motion-safe:enabled:active:scale-[0.96]`}
+        className={`press-hit-layer ${FIELD_TRIGGER_PERIMETER} w-full min-h-[54px] bg-[var(--bg-field)] rounded-md py-3 px-4 text-base text-left flex items-center justify-between transition-[scale] duration-[var(--dur-press)] ease-[var(--ease-out)] motion-safe:enabled:active:scale-[0.96]`}
         onClick={() => (isOpen ? closePicker() : setIsOpen(true))}
       >
         <span className={dateValueClassName(displayValue, appearance)}>{displayValue || placeholder || t('common.selectDate')}</span>
@@ -187,7 +187,7 @@ export function DateField({
         <div className="flex shrink-0 items-center justify-between mb-2">
           <button
             type="button"
-            className={`p-3 rounded-sm transition-[background-color,scale] duration-[var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-out)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] press-hit-layer motion-safe:active:scale-[0.96] ${pickerMode === 'years' ? 'invisible' : ''}`}
+            className={`press-hit-layer p-3 rounded-sm transition-[background-color,scale] duration-[var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-out)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96] ${pickerMode === 'years' ? 'invisible' : ''}`}
             aria-label={t('common.previousMonth')}
             onClick={prevMonth}
           >
@@ -202,7 +202,7 @@ export function DateField({
               aria-label={t('common.selectYear')}
               aria-expanded={pickerMode === 'years'}
               onClick={() => setPickerMode((mode) => (mode === 'years' ? 'days' : 'years'))}
-              className="inline-flex min-h-[var(--touch-min)] min-w-[var(--touch-min)] items-center justify-center text-xs font-medium rounded-sm px-1 py-1 hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] press-hit-layer motion-safe:active:scale-[0.96] transition-[background-color,color,scale] duration-[var(--dur-hover-control),var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-standard),var(--ease-out)]"
+              className="press-hit-layer inline-flex min-h-[var(--touch-min)] min-w-[var(--touch-min)] items-center justify-center text-xs font-medium rounded-sm px-1 py-1 hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96] transition-[background-color,color,scale] duration-[var(--dur-hover-control),var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-standard),var(--ease-out)]"
               style={{ color: 'var(--fg-1)' }}
             >
               {yearLabel}
@@ -210,7 +210,7 @@ export function DateField({
           </span>
           <button
             type="button"
-            className={`p-3 rounded-sm transition-[background-color,scale] duration-[var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-out)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] press-hit-layer motion-safe:active:scale-[0.96] ${pickerMode === 'years' ? 'invisible' : ''}`}
+            className={`press-hit-layer p-3 rounded-sm transition-[background-color,scale] duration-[var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-out)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96] ${pickerMode === 'years' ? 'invisible' : ''}`}
             aria-label={t('common.nextMonth')}
             onClick={nextMonth}
           >
@@ -273,7 +273,7 @@ export function DateField({
                           })}
                           aria-pressed={!!isSelected}
                           aria-current={isToday ? 'date' : undefined}
-                          className="group flex min-h-[var(--month-grid-touch-min)] items-center justify-center rounded-full transition-[background-color,scale] duration-[var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-out)] press-hit-layer motion-safe:active:scale-[0.96] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)]"
+                          className="press-hit-layer group flex min-h-[var(--month-grid-touch-min)] items-center justify-center rounded-full transition-[background-color,scale] duration-[var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-out)] motion-safe:active:scale-[0.96] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)]"
                           onClick={() => selectDay(day)}
                         >
                           <span
