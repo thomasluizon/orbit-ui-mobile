@@ -39,7 +39,7 @@ Uncommitted on purpose in the main checkout: `.claude/orchestrator.json` and `to
 ## Then, in this order
 
 1. Answer any owner message first. Give each order a ticket or a rescope before the turn ends.
-2. The owner AI order: second opinion, agreement, explanation.
+2. The owner AI order (he approved the direction; complete fixes only, never another one-off fix on the old assistant path): the Fable 5.2 review of `best-impl-orbit-ai.md`; on any disagreement, refine the plan with evidence and review again until Fable agrees; then the plain explanation; then build the 6 steps.
 3. `#2074`: push and merge the three pull requests with their protection changes, measure one round in each repository; `tools/review-rounds.mjs` on or after 16 November 2026.
 4. Finish each pull request from its result file; one local review of new commits before every push. Merge each approved one at once, base-merge the rest, then one web release (never with an API release).
 5. The `ui#2447` device proof, the stack, then the intake cycle, as `## The order` gives them.
