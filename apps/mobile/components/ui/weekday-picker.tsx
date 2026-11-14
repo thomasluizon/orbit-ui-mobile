@@ -13,12 +13,10 @@ export function WeekdayPicker({ days, daily = false, dayOptions, onToggleDay, pr
   return <View accessibilityLabel={label} style={styles.days}>
     {dayOptions.map((day) => {
       const selected = daily || days.includes(day.value)
-      return <Pressable key={day.value} focusInset selectionRingWidth={1.5} selectionRingColor={proposed ? tokens.fg3 : tokens.primary}
+      return <Pressable key={day.value} focusInset selectionRing selectionRingColor={proposed ? tokens.fg3 : tokens.primary} selectionRingRestColor={tokens.hairline}
         accessibilityRole="button" accessibilityLabel={day.accessibleLabel} accessibilityState={{ selected, ...(scheduleLocked ? { disabled: true } : {}) }} disabled={scheduleLocked}
         style={({ pressed }) => [styles.target, {
           backgroundColor: pressed && !scheduleLocked ? tokens.bgHover : selected && !proposed ? tokens.primaryDim : tokens.bgWell,
-          borderColor: tokens.hairline,
-          borderWidth: selected ? 0 : 1,
         }, scheduleLocked ? styles.disabled : null]} onPress={() => onToggleDay(day.value)}>
         <Text style={[styles.text, { color: selected && !proposed ? tokens.fg1 : tokens.fg2 }]}>{day.label.charAt(0)}</Text>
       </Pressable>

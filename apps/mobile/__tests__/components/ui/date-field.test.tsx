@@ -6,7 +6,7 @@ import { MotionPressable } from '@/components/ui/motion-pressable'
 import { __getFocusedNativeTag } from '@/test-mocks/react-native'
 import { Calendar } from '@/components/ui/icons'
 import { createTokensV2, radius } from '@/lib/theme'
-import { expectPressPaint } from '@/__tests__/support/press-feedback'
+import { controlStyle, expectPressPaint, pressFace } from '@/__tests__/support/press-feedback'
 
 /** The global setup stubs DateField away; this suite tests the real one. */
 vi.unmock('@/components/ui/date-field')
@@ -41,6 +41,8 @@ function render(element: React.ReactElement) {
 }
 
 function pressScaleLayer(target: any) {
+  const face = pressFace(target)
+  if (face) return face
   let node = target.parent
   while (node && node.props['data-slot'] !== 'press-scale') node = node.parent
   return node
@@ -60,6 +62,8 @@ function dayTargets(tree: any) {
     .filter((node: any) => typeof node.props.accessibilityState?.selected === 'boolean')
 }
 
+const NAVIGATION_LABELS = ['common.previousMonth', 'common.selectYear', 'common.nextMonth']
+
 describe('DateField (mobile)', () => {
   it.each(pressCases)('paints trigger and days in $mode (reduced motion: $reducedMotion, value: $value)', ({ mode, reducedMotion, value }) => {
     themeState.mode = mode
@@ -67,7 +71,7 @@ describe('DateField (mobile)', () => {
     const tokens = createTokensV2('purple', mode)
     const tree = render(<DateField value={value} onChange={vi.fn()} />)
     const trigger = tree.root.findByType('Pressable')
-    expectPressPaint(trigger, { fill: tokens.bgHoverOpaque, restFill: tokens.bgField, overlay: true, borderRadius: radius.md, scale: null })
+    expectPressPaint(trigger, { fill: tokens.bgHoverOpaque, restFill: tokens.bgField, overlay: true, borderRadius: radius.md, scale: reducedMotion ? 1 : 0.96 })
     expectPressScale(trigger, reducedMotion ? 1 : 0.96)
     const icon = () => trigger.findAll((node: { props: { size?: number; color?: unknown } }) => node.props.size === 20 && typeof node.props.color === 'string')[0].props.color
     expect(icon()).toBe(tokens.fg3)
@@ -89,9 +93,9 @@ describe('DateField (mobile)', () => {
     for (const day of days) {
       const text = day.findAllByType('Text')[0]
       const restingText = flatten(text.props.style)
-      expectPressPaint(day, { fill: tokens.bgHover, borderRadius: radius.full, scale: null })
+      expectPressPaint(day, { fill: tokens.bgHover, borderRadius: radius.full, scale: reducedMotion ? 1 : 0.96 })
       expectPressScale(day, reducedMotion ? 1 : 0.96)
-      expect(flatten(day.props.style({ pressed: false })).minHeight).toBe(44)
+      expect(flatten(day.props.style).minHeight).toBe(44)
       TestRenderer.act(() => day.props.onPressIn())
       expect(flatten(text.props.style).color).toBe(restingText.color === tokens.fg3 ? tokens.fg2 : restingText.color)
       TestRenderer.act(() => day.props.onPressOut())
@@ -106,7 +110,7 @@ describe('DateField (mobile)', () => {
     const tokens = createTokensV2('purple', mode)
     const tree = render(<DateField value="2025-06-15" onChange={vi.fn()} />)
     TestRenderer.act(() => tree.root.findByType(Pressable).props.onPress())
-    const navigation = tree.root.findAllByType(MotionPressable)
+    const navigation = tree.root.findAllByType(MotionPressable).filter((node: { props: { accessibilityLabel?: string } }) => NAVIGATION_LABELS.includes(String(node.props.accessibilityLabel)))
     expect(navigation.map((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel)).toEqual(['common.previousMonth', 'common.selectYear', 'common.nextMonth'])
     for (const control of navigation) {
       expect(flatten(control.props.style({ pressed: false })).backgroundColor).toBeUndefined()
@@ -135,7 +139,7 @@ describe('DateField (mobile)', () => {
     const tree = render(<DateField value="2025-06-15" onChange={vi.fn()} />)
     const tokens = createTokensV2('purple', 'dark')
     const trigger = tree.root.findByType(Pressable)
-    const triggerStyle = flatten(trigger.props.style)
+    const triggerStyle = controlStyle(trigger)
 
     expect(triggerStyle.backgroundColor).toBe(tokens.bgField)
     expect(tree.root.findByType(Calendar).props.color).toBe(tokens.fg3)
@@ -158,11 +162,11 @@ describe('DateField (mobile)', () => {
           ? target.props.style({ pressed: false })
           : target.props.style,
       )
-      expect(targetStyle.width).toBeUndefined()
-      expect(flatten(pressScaleLayer(target).props.style).width).toBe(`${100 / 7}%`)
+      expect(targetStyle.width, 'the target fills its grid column and never scales').toBe(`${100 / 7}%`)
+      expect(flatten(pressScaleLayer(target).props.style).width).toBeUndefined()
       expect(targetStyle.minHeight).toBe(44)
 
-      const circle = target.findAllByType('View')[0]
+      const circle = target.findAllByType('View').find((view: { props: { style: unknown } }) => flatten(view.props.style).width === 36)!
       const circleStyle = flatten(circle.props.style)
       expect(circleStyle.width).toBe(36)
       expect(circleStyle.height).toBe(36)

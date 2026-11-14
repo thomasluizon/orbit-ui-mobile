@@ -2,7 +2,8 @@ import { TypedTextInput } from '@/components/ui/typed-text-input'
 import { INTERACTION_FILL_CLEARANCE, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useEffect, useRef, useState } from 'react'
 import { InsetFocusPressable } from './inset-focus-pressable'
-import { PressScale, PressScalePressable } from '@/components/motion/press-scale'
+import { PressScale } from '@/components/motion/press-scale'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 import {
   ScrollView,
   StyleSheet,
@@ -88,7 +89,7 @@ function TimeOption({
   })
   return (
     <GestureDetector gesture={tapGesture}><RadioItem selected={selected} onSelect={onSelect}>
-      <InsetFocusPressable selectionRingWidth={2}
+      <InsetFocusPressable selectionRing
         focusColor={tokens.fg1}
         accessibilityLabel={formattedValue}
         accessibilityRole="radio"
@@ -244,28 +245,28 @@ function TimeEntry({
           onSubmitEditing={onSubmit}
           style={[styles.input, { color: tokens.fg1 }]}
         />
-        <PressScalePressable
+        <MotionPressable
           onPress={onOpenPicker}
           disabled={disabled}
           accessibilityRole="button"
           accessibilityLabel={`${label}: ${selectTimeLabel}`}
           accessibilityState={{ disabled }}
-          focusColor={tokens.fg1}
+          focusInset
           style={({ pressed }) => [styles.icon, pressed ? { backgroundColor: tokens.bgHover } : null]}
         >
           <Clock3 size={20} color={tokens.fg3} strokeWidth={1.8} />
-        </PressScalePressable>
+        </MotionPressable>
         {canClear ? (
-          <PressScalePressable
+          <MotionPressable
             onPress={onClear}
             disabled={disabled}
             accessibilityRole="button"
             accessibilityLabel={clearLabel}
-            focusColor={tokens.fg1}
+            focusInset
             style={({ pressed }) => [styles.icon, pressed ? { backgroundColor: tokens.bgHover } : null]}
           >
             <X size={20} color={tokens.fg3} strokeWidth={1.8} />
-          </PressScalePressable>
+          </MotionPressable>
         ) : null}
       </View>
       {error || hint ? (

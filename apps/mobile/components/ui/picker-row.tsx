@@ -31,9 +31,11 @@ export function PickerRow({ name, selected, proposed = false, disabled, onToggle
   return (
     <View style={styles.row}>
       <View pointerEvents="none" accessible={false} testID="picker-row-feedback" style={[StyleSheet.absoluteFill, { borderRadius: 12, backgroundColor: highlighted ? tokens.bgHover : 'transparent', outlineWidth: feedback.focused ? 2 : 0, outlineColor: tokens.fg1, outlineStyle: 'solid', outlineOffset: -2 }]} />
-      <PressScale pressed={feedback.pressed} disabled={disabled}><Primitive.Root {...feedback.handlers} focusable={!disabled} pressed={selected} onPressedChange={onToggle} role={undefined} aria-checked={undefined} accessibilityRole="button" accessibilityLabel={name} accessibilityState={{ selected, disabled }} disabled={disabled} style={[styles.rowMain, disabled ? styles.disabled : null]}>
-        {({ pressed }) => <PersonalText onClampedChange={setClamped} style={[styles.rowTitle, proposed ? styles.proposedTitle : null, proposed && (pressed || highlighted) ? styles.interactiveTitle : null]}>{name}</PersonalText>}
-      </Primitive.Root></PressScale>
+      <Primitive.Root {...feedback.handlers} focusable={!disabled} pressed={selected} onPressedChange={onToggle} role={undefined} aria-checked={undefined} accessibilityRole="button" accessibilityLabel={name} accessibilityState={{ selected, disabled }} disabled={disabled} style={[styles.rowMain, disabled ? styles.disabled : null]}>
+        {({ pressed }) => <PressScale pressed={feedback.pressed} disabled={disabled}>
+          <PersonalText onClampedChange={setClamped} style={[styles.rowTitle, proposed ? styles.proposedTitle : null, proposed && (pressed || highlighted) ? styles.interactiveTitle : null]}>{name}</PersonalText>
+        </PressScale>}
+      </Primitive.Root>
       <View style={styles.rowActions}>
         <Text accessible={valueHidden ? false : undefined} style={[valueStyle, highlighted && StyleSheet.flatten(valueStyle ?? {}).color === tokens.fg3 ? { color: tokens.fg2 } : null]}>{value}</Text>
         <View testID="picker-row-controls" {...slot.handlers} style={styles.rowControls}>

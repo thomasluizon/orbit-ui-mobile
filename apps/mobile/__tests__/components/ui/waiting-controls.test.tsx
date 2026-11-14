@@ -9,6 +9,7 @@ import { CalendarSyncBoundary } from '@/app/(tabs)/calendar/_components/calendar
 import { Check, RefreshCw } from '@/components/ui/icons'
 import { ThemedButton } from '@/components/ui/pill-button'
 import { createTokensV2 } from '@/lib/theme'
+import { controlStyle } from '@/__tests__/support/press-feedback'
 
 const motion = vi.hoisted(() => ({ reduced: false, themeBroken: false }))
 vi.mock('@/lib/motion', async (original) => ({ ...await original<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => motion.reduced }))
@@ -86,7 +87,7 @@ describe('a control that waits for its own request on Android', () => {
     expect(control().props).toMatchObject({ disabled: true, accessibilityState: { disabled: true, busy: true } })
     expectSkeletonFace(control())
     expect(control().findAllByType(RefreshCw)).toHaveLength(1)
-    expect(StyleSheet.flatten(control().props.style).opacity).toBe(1)
+    expect(controlStyle(control()).opacity).toBe(1)
     expectNoSpinner(tree.root)
     await TestRenderer.act(async () => { finish(); await Promise.resolve() })
     expect(hosts(control(), 'skeleton-face')).toHaveLength(0)

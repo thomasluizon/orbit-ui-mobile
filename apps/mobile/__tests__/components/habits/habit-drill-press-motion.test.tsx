@@ -1,3 +1,4 @@
+import { controlStyle } from '@/__tests__/support/press-feedback'
 import { describe, expect, it, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import React, { createRef } from 'react'
@@ -40,7 +41,7 @@ describe('drill back press feedback', () => {
     const back = () => tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'common.back')[0]!
     const onPressIn = back().props.onPressIn as () => void
     await act(() => onPressIn())
-    const pressed = StyleSheet.flatten(back().props.style as ViewStyle) as ViewStyle & { transition?: string }
+    const pressed = controlStyle(back()) as ViewStyle & { transition?: string }
     expect(pressed).toMatchObject({ transform: [{ scale: reduced ? 1 : orbitalMotion.press.scale }] })
     if (reduced) expect(pressed.transition).toBe('none')
     else expect(pressed.transition).toContain(`transform ${motionDurations.press}ms`)

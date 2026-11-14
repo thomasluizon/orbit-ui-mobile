@@ -7,6 +7,7 @@ import {
 } from '../../../test-mocks/react-native'
 import { YearPicker } from '@/components/ui/year-picker'
 import { createTokensV2 } from '@/lib/theme'
+import { controlStyle } from '@/__tests__/support/press-feedback'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -34,9 +35,9 @@ describe('YearPicker (mobile)', () => {
     expect(tree!.root.findByProps({ testID: 'year-picker-scroll' }).props.nestedScrollEnabled).toBe(true)
 
     const selectedCell = tree!.root.findByProps({ accessibilityLabel: '2026' })
-    const columnLayer = tree!.root.findAll((node: { props: Record<string, unknown>; findAll: (predicate: (child: { props: Record<string, unknown> }) => boolean) => unknown[] }) => node.props['data-slot'] === 'press-scale' && node.findAll((child) => child.props.accessibilityLabel === '2026').length > 0)[0]!
-    const targetStyle = StyleSheet.flatten(selectedCell.props.style({ pressed: false })) as { minHeight: number }
-    const columnStyle = StyleSheet.flatten(columnLayer.props.style) as { width: string; marginBottom: number }
+    const cellStyle = controlStyle(selectedCell) as { minHeight: number; width: string; marginBottom: number }
+    const targetStyle = cellStyle
+    const columnStyle = cellStyle
     const renderedRowHeight = targetStyle.minHeight + columnStyle.marginBottom
 
     expect(columnStyle.width).toBe(`${100 / 3}%`)

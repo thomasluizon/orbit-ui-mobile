@@ -11,7 +11,7 @@ import { Chip } from '@/components/ui/chip'
 import { PillButton } from '@/components/ui/pill-button'
 import { MotionPressable } from '@/components/ui/motion-pressable'
 import { ListRow } from '@/components/ui/list-row'
-import { expectPressScaleLayer } from '@/__tests__/support/press-feedback'
+import { expectPressScaleLayer, controlStyle } from '@/__tests__/support/press-feedback'
 import { createTokensV2, radius } from '@/lib/theme'
 
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
@@ -78,8 +78,7 @@ function findPressable(tree: TestTree, label: string) {
 
 function pressedFill(node: StyledNode, pressed: boolean) {
   renderer.act(() => { if (pressed) node.props.onPressIn?.(); else node.props.onPressOut?.() })
-  const style = node.props.style
-  return StyleSheet.flatten(typeof style === 'function' ? style({ pressed }) : style)
+  return controlStyle(node, pressed)
 }
 
 function pressedStyle(element: React.ReactElement, label: string) {
@@ -111,13 +110,13 @@ describe('pressed hit area shapes', () => {
       withTree(<MotionPressable accessibilityLabel="Retry" style={({ pressed }) => ({ backgroundColor: pressed ? tokens.bgHover : 'transparent' })}>Retry</MotionPressable>, (tree) => {
         renderer.act(() => findPressable(tree, 'Retry').props.onPressIn?.())
         const control = findPressable(tree, 'Retry')
-        expect(StyleSheet.flatten(control.props.style as StyleProp<ViewStyle>)).toMatchObject({
+        expect(controlStyle(control as never)).toMatchObject({
           backgroundColor: tokens.bgHover,
           transform: [{ scale: reduced ? 1 : 0.96 }],
           ...(reduced ? { transition: 'none' } : {}),
         })
         renderer.act(() => control.props.onPressOut?.())
-        expect(StyleSheet.flatten(findPressable(tree, 'Retry').props.style as StyleProp<ViewStyle>)).toMatchObject({ backgroundColor: 'transparent', transform: [{ scale: 1 }] })
+        expect(controlStyle(findPressable(tree, 'Retry') as never)).toMatchObject({ backgroundColor: 'transparent', transform: [{ scale: 1 }] })
       })
     } finally { motion.reduced = false }
   })
@@ -199,7 +198,7 @@ describe('pressed hit area shapes', () => {
       withTree(<Chip onPress={() => {}} accessibilityLabel="Filter">Filter</Chip>, (tree) => {
         const control = findPressable(tree, 'Filter')
         const pressed = pressedFill(control, true)
-        expect(pressed.transform, 'the chip eases its press scale on its press scale layer, never on itself').toBeUndefined()
+        expect(StyleSheet.flatten(control.props.style as StyleProp<ViewStyle>).transform, 'the chip target keeps its box; its face eases the press scale').toBeUndefined()
         expect(pressed.backgroundColor).toBe(tokens.bgHover)
         pressedFill(control, false)
         expectPressScaleLayer(control as unknown as { parent: unknown; props: Record<string, unknown> }, reduced)

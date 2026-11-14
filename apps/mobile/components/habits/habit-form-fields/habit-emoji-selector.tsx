@@ -174,7 +174,7 @@ export function HabitEmojiSelector({
               {HABIT_EMOJI_CATEGORIES.map((category) => {
                 const selected = selectedCategoryId === category.id;
                 return (
-                  <Pressable disabled={isDisabled} focusInset selectionRingWidth={1}
+                  <Pressable disabled={isDisabled} focusInset selectionRing
                     key={category.id}
                     style={({ pressed }) => [
                       styles.emojiCategoryTab,
@@ -205,7 +205,7 @@ export function HabitEmojiSelector({
                     {category.emojis.map((emoji) => {
                       const selected = selectedEmoji === emoji;
                       return (
-                        <Pressable focusInset selectionRingWidth={2}
+                        <Pressable focusInset selectionRing
                           key={`${category.id}-${emoji}`}
                           style={({ pressed }) => [
                             styles.emojiOption,

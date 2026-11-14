@@ -7,7 +7,7 @@ import { Resvg } from '@resvg/resvg-js'
 import { afterEach, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, SELECTION_RING_WIDTH } from '@orbit/shared/theme'
 import { getSegmentedControlLayout } from '@orbit/shared/utils'
 import { OnboardingCreateHabit } from '@/components/onboarding/onboarding-create-habit'
 import { FlowShell } from '@/components/shell/flow-shell'
@@ -24,6 +24,7 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { useUIStore } from '@/stores/ui-store'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { __resetTestHostConfig, __setWindowDimensions } from '../../../test-mocks/react-native'
+import { controlStyle } from '@/__tests__/support/press-feedback'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -212,7 +213,7 @@ it('leaves at least 8px spare for the four Portuguese calendar views in a 288px 
   try {
     const group = StyleSheet.flatten(tree.root.findAll((node) => String(node.type) === 'View' && node.props.accessibilityRole === 'radiogroup')[0]!.props.style as StyleProp<ViewStyle>)
     const radio = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityRole === 'radio')[0]!
-    const segment = StyleSheet.flatten(radio.props.style as StyleProp<ViewStyle>)
+    const segment = controlStyle(radio)
     const label = StyleSheet.flatten(tree.root.findAll((node) => String(node.type) === 'Text' && node.props.testID === 'segment-measure')[0]!.props.style as StyleProp<TextStyle>)
     const insets = { label: 2 * (Number(segment.paddingHorizontal ?? 0) + Number(segment.borderWidth ?? 0)),
       track: 2 * Number(group.paddingHorizontal ?? group.padding ?? 0), gap: Number(group.gap) }
@@ -223,7 +224,7 @@ it('leaves at least 8px spare for the four Portuguese calendar views in a 288px 
     expect(segment.paddingHorizontal).toBeGreaterThanOrEqual(8)
     expect(insets.gap).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
     const ring = radio.findAll((node) => String(node.type) === 'View' && Boolean(node.props.style) && StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).borderColor === createTokensV2('orange', 'dark').primary)[0]!
-    expect(StyleSheet.flatten(ring.props.style as StyleProp<ViewStyle>)).toMatchObject({ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderWidth: 2 })
+    expect(StyleSheet.flatten(ring.props.style as StyleProp<ViewStyle>)).toMatchObject({ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderWidth: SELECTION_RING_WIDTH })
     const measured = await measureSegments(tree, 320, 1)
     try { expect(measured.radios).toHaveLength(4) }
     finally { measured.layout.freeRecursive() }

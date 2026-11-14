@@ -9,6 +9,7 @@ import { Icon } from '@/components/ui/icon'
 import { Lockup } from '@/components/ui/lockup'
 import { ProgressRing } from '@/components/ui/progress-ring'
 import { createTokensV2 } from '@/lib/theme'
+import { controlStyle } from '@/__tests__/support/press-feedback'
 
 const tokens = createTokensV2('purple', 'dark')
 const motionState = vi.hoisted(() => ({ reduced: false }))
@@ -169,7 +170,7 @@ describe('redesign primitives on mobile', () => {
       const tree = render(element)
       const host = () => tree.root.findAll(node => node.type === 'Pressable' && node.props.testID === 'fab').at(-1)!
       void act(() => { prop<() => void>(host(), 'onPressIn')() })
-      const style = flattenStyle(prop<unknown>(host(), 'style'))
+      const style = controlStyle(host())
       return { tree, style }
     }
 

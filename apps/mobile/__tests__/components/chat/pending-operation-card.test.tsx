@@ -1,3 +1,4 @@
+import { controlStyle } from '@/__tests__/support/press-feedback'
 import { restoreConversationPage } from '@orbit/shared/chat/conversation-restore'
 import { COMPACT_FAILED_INDEXES, makeExecutedConversationPage, makeRevisedConversationPage, PROPOSED_HABIT_TITLE, REVISED_HABIT_ID, REVISED_HABIT_TITLE, storedOperationId, type StoredExecution } from '@orbit/shared/test-support/conversation-fixtures'
 import { makeOfferedPreview, makeOfferedTaskPreview, makeOfferedChildPreview } from '@orbit/shared/test-support/astra-offer-fixtures'
@@ -1123,11 +1124,14 @@ describe('PendingOperationCard (mobile)', () => {
     const chip = (label: string) => tree.root.findAllByType(Pressable).find((node: ReactTestInstance) => node.props.accessibilityLabel === label)
     const fill = (label: string, pressed: boolean) => {
       TestRenderer.act(() => pressed ? chip(label).props.onPressIn() : chip(label).props.onPressOut())
-      return StyleSheet.flatten(chip(label).props.style)
+      return controlStyle(chip(label))
     }
+    const ring = (label: string) => StyleSheet.flatten(chip(label).findAll((node: ReactTestInstance) => typeof node.type === 'string' && node.props.testID === 'selection-ring')[0]!.props.style)
 
-    expect(fill('dates.daysLong.monday', false)).toMatchObject({ borderRadius: radius.full, overflow: 'hidden', borderColor: tokens.primary, backgroundColor: tokens.primaryDim })
-    expect(fill('dates.daysLong.tuesday', false)).toMatchObject({ borderRadius: radius.full, overflow: 'hidden', borderColor: tokens.hairline, backgroundColor: tokens.bgWell })
+    expect(fill('dates.daysLong.monday', false)).toMatchObject({ borderRadius: radius.full, overflow: 'hidden', backgroundColor: tokens.primaryDim })
+    expect(ring('dates.daysLong.monday')).toMatchObject({ borderColor: tokens.primary, borderWidth: 1.5 })
+    expect(fill('dates.daysLong.tuesday', false)).toMatchObject({ borderRadius: radius.full, overflow: 'hidden', backgroundColor: tokens.bgWell })
+    expect(ring('dates.daysLong.tuesday')).toMatchObject({ borderColor: tokens.hairline, borderWidth: 1 })
     expect(fill('dates.daysLong.monday', true).backgroundColor).toBe(tokens.bgHover)
     expect(fill('dates.daysLong.tuesday', true).backgroundColor).toBe(tokens.bgHover)
 
