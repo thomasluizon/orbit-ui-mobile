@@ -8,6 +8,9 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 
+/** The logical width of the card and of its image. A preview scales the card and never changes this width. */
+export const MILESTONE_SHARE_CARD_WIDTH = 360
+
 export type MilestoneShareVariant =
   | { kind: 'streak'; streak: number }
   | { kind: 'achievement'; achievementId: string; iconKey: string; rarity: string }
@@ -88,7 +91,7 @@ export const MilestoneShareCard = forwardRef<View, MilestoneShareCardProps>(
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     card: {
-      width: 360,
+      width: MILESTONE_SHARE_CARD_WIDTH,
       borderRadius: 20,
       overflow: 'hidden',
       backgroundColor: tokens.bg,

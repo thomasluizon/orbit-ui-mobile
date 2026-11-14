@@ -20,11 +20,13 @@ import type { ShareCardQrHandle } from '@/components/share/share-card-qr'
 import { getPublicOrigin } from '@/lib/public-origin'
 import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
+import { useFlag } from '@/hooks/use-flag'
 import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
 import {
   MilestoneShareCard,
   type MilestoneShareVariant,
 } from '@/components/milestone-share/milestone-share-card'
+import { MilestoneShareDialog } from '@/components/milestone-share/milestone-share-dialog'
 
 import { SETTLE_DELAY_MS } from '@orbit/shared/utils'
 
@@ -46,9 +48,13 @@ function resolveVariant(
   }
 }
 
-/** Curated milestone share nudge: shows a branded card once no celebration is in flight and the shared re-prompt guard allows it, then hands off to native share/download. */
+/**
+ * Curated milestone share nudge: shows a branded card once no celebration is in flight and the shared re-prompt guard allows it, then hands off to native share/download.
+ * Under `orbit_guided_flows` it is a centred dialog. That dialog leaves the screen while a celebration shows and returns after it, so a view holds one live Orbit.
+ */
 export function MilestoneSharePrompt() {
   const t = useTranslations()
+  const guided = useFlag('orbit_guided_flows')
   const { sheetRef, closeSheet } = useSheetHost()
   const queryClient = useQueryClient()
   const armedPrompt = useEngagementPromptStore((s) => s.armedPrompt)
@@ -142,40 +148,47 @@ export function MilestoneSharePrompt() {
     })
   }
 
+  if (shown === null) return null
+
+  const card = <MilestoneShareCard key={referralUrl ? 'referral' : 'plain'} ref={captureRef} qrRef={referralUrl ? qrRef : undefined} onQrError={reportCaptureError} variant={shown} referralUrl={referralUrl} />
+  const actions = (
+    <>
+      {hasError && (
+        <p
+          role="alert"
+          className="m-0 w-full"
+          style={{
+            textAlign: 'center',
+            fontSize: 14, color: 'var(--status-bad-text)',
+          }}
+        >
+          {t('milestoneShare.shareError')}
+        </p>
+      )}
+      <ActionRow>
+        <PromptQuietAction onClick={dismiss}>
+          {t('milestoneShare.later')}
+        </PromptQuietAction>
+        <PillButton size="sm" variant={canShareFiles ? 'ghost' : 'primary'} loading={isSharing} disabled={isSharing} onClick={() => void download()}>{t('milestoneShare.download')}</PillButton>
+        {canShareFiles && (
+          <PillButton size="sm" loading={isSharing} disabled={isSharing} onClick={handleShare}>{t('milestoneShare.share')}</PillButton>
+        )}
+      </ActionRow>
+    </>
+  )
+
+  if (guided) return celebrationInFlight ? null : <MilestoneShareDialog ref={sheetRef} card={card} actions={actions} onDismiss={dismiss} />
+
   return (
-    shown !== null ? (<Sheet
+    <Sheet
       ref={sheetRef}
       open
       onAttemptDismiss={dismiss}
       title={t('milestoneShare.title')}
-      actions={(
-        <>
-          {hasError && (
-            <p
-              role="alert"
-              className="m-0 w-full"
-              style={{
-                textAlign: 'center',
-                fontSize: 14, color: 'var(--status-bad-text)',
-              }}
-            >
-              {t('milestoneShare.shareError')}
-            </p>
-          )}
-          <ActionRow>
-            <PromptQuietAction onClick={dismiss}>
-              {t('milestoneShare.later')}
-            </PromptQuietAction>
-            <PillButton size="sm" variant={canShareFiles ? 'ghost' : 'primary'} loading={isSharing} disabled={isSharing} onClick={() => void download()}>{t('milestoneShare.download')}</PillButton>
-            {canShareFiles && (
-              <PillButton size="sm" loading={isSharing} disabled={isSharing} onClick={handleShare}>{t('milestoneShare.share')}</PillButton>
-            )}
-          </ActionRow>
-        </>
-      )}
+      actions={actions}
     >
       <div className="flex flex-col items-center" style={{ gap: 16 }}>
-          <MilestoneShareCard key={referralUrl ? 'referral' : 'plain'} ref={captureRef} qrRef={referralUrl ? qrRef : undefined} onQrError={reportCaptureError} variant={shown} referralUrl={referralUrl} />
+          {card}
 
           <p
             style={{
@@ -190,6 +203,6 @@ export function MilestoneSharePrompt() {
             {t('milestoneShare.body')}
           </p>
       </div>
-    </Sheet>) : null
+    </Sheet>
   )
 }
