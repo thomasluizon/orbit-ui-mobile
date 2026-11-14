@@ -20,7 +20,7 @@ UI `main` `4afd790f0`; API `main` `de4a8db30`; landing `main` `381b253fa`. Scrat
 
 | Item | Disposition |
 | --- | --- |
-| Owner AI order (`#2129`) | Agent running `/g-best-implementation` → `best-impl-orbit-ai.md`. Then the second account on Fable 5.2 must AGREE (`CLAUDE_CONFIG_DIR="$ORBIT_WORKER_CLAUDE_CONFIG_DIR" claude -p --model claude-fable-5-2`); iterate until it does; then explain to the owner, in plain words, what changes. |
+| Owner AI order (`#2129`) | `/g-best-implementation` done: `best-impl-orbit-ai.md` picks "one typed change plan" (6 steps; detail in `handoff-notes.md`). Next: the second account on Fable 5.2 must AGREE (`CLAUDE_CONFIG_DIR="$ORBIT_WORKER_CLAUDE_CONFIG_DIR" claude -p --model claude-fable-5-2`); iterate until it does; then explain to the owner, in plain words, what changes. |
 | `api#1113` (`#2074` API) | Pushed `77d09d857`. At approval: protection changes before and after the merge (`body-api-2074-final.md`), merge, D150 rows DONE. |
 | `#2074` UI | Local `f44469008`; agents: N4 suites plus body, narrow review. Then push, open the PR (`body-ui-2074-final.md`), chain. |
 | `#2074` landing | `e5672b4`; after `landing#134` merges: base-merge, push, open, protection, merge. |
