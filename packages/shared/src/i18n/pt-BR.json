@@ -1062,7 +1062,6 @@
       "slipAlert": "Avisar deslize",
       "slipAlertDescription": "Um aviso quando você começar a ter deslizes neste hábito.",
       "rescheduleAccept": "Usar plano",
-      "rescheduleLoading": "Buscando um plano realista...",
       "rescheduleError": "Não consegui sugerir um plano.",
       "updateError": "Não foi possível salvar esta alteração. Tente novamente.",
       "logError": "Não foi possível atualizar este registro. Tente novamente.",

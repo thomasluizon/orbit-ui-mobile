@@ -363,7 +363,10 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasPro, locale, today
     <Proposed proposed scope="block" label={t('habits.form.proposedByAstra')}>
       <View style={card}>
         <View accessible accessibilityLiveRegion="polite" style={styles.rescueContent}>{suggestion ? renderRescueProposalValues(suggestion, buildRescheduleProposalLabels(suggestion, { locale, today, translate: t, formatTime: displayTime }), t('habits.detail.rescheduleFinePrint'), tokens) : <>
-          <Text style={[styles.muted, { color: tokens.fg3 }]}>{query.error ? t('habits.detail.rescheduleError') : t('habits.detail.rescheduleLoading')}</Text>
+          {query.error ? <Text style={[styles.muted, { color: tokens.fg3 }]}>{t('habits.detail.rescheduleError')}</Text> : <View testID="rescue-loading-skeleton" style={styles.rescueWait}>
+            <View style={styles.rescueWaitMascot}><OrbitMascot size={48} state="pensando" /></View>
+            <View style={styles.rescueWaitRows}><Skeleton variant="habit-row" label={t('habits.reschedule.loading')} /><Skeleton variant="habit-row" grouped /></View>
+          </View>}
         </>}</View>
         <View style={styles.rescueActions}><ActionRow>
           {notNow}
@@ -682,6 +685,9 @@ const styles = StyleSheet.create({
   tagText: { fontFamily: 'GeistMono_500Medium', fontSize: 12, letterSpacing: 0.7 },
   rescueCard: { gap: 12, padding: SPACING.s24, borderRadius: 20, borderWidth: 1 },
   rescueContent: { gap: 12 },
+  rescueWait: { gap: 12 },
+  rescueWaitMascot: { alignSelf: 'flex-start' },
+  rescueWaitRows: { gap: 8 },
   rescueValues: { gap: 4 },
   rescueDate: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 20, lineHeight: 26, fontVariant: ['tabular-nums'] },
   rescueSchedule: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },

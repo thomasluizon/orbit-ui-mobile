@@ -416,7 +416,10 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasProAccess, locale,
     <Proposed proposed scope="block" label={t('habits.form.proposedByAstra')}>
       <div ref={cardRef} className={rescueCardClass}>
         <div role="status" className="flex flex-col gap-3">{suggestion ? renderRescueProposalValues(suggestion, buildRescheduleProposalLabels(suggestion, { locale, today, translate: t, formatTime: displayTime }), t('habits.detail.rescheduleFinePrint')) : <>
-          <p className="text-sm text-[var(--fg-3)]">{query.error ? t('habits.detail.rescheduleError') : t('habits.detail.rescheduleLoading')}</p>
+          {query.error ? <p className="text-sm text-[var(--fg-3)]">{t('habits.detail.rescheduleError')}</p> : <div data-testid="rescue-loading-skeleton" className="flex flex-col gap-3">
+            <span className="flex self-start"><OrbitMascot size={48} state="pensando" /></span>
+            <div className="flex flex-col gap-2"><Skeleton variant="habit-row" label={t('habits.reschedule.loading')} /><Skeleton variant="habit-row" grouped /></div>
+          </div>}
         </>}</div>
         <div className="flex flex-wrap gap-2"><ActionRow>
           {notNow}

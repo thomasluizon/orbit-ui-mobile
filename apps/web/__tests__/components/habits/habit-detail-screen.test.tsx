@@ -206,7 +206,7 @@ vi.mock('@/hooks/use-reschedule-suggestion', () => ({
 vi.mock('@/components/shell/flow-shell', () => ({
   FlowShell: ({ children, header }: { children: React.ReactNode; header?: React.ReactNode }) => <main>{header}{children}</main>,
 }))
-vi.mock('@/components/ui/orbit-mascot', () => ({ OrbitMascot: ({ size }: { size: number }) => <svg data-testid="orbit-mascot" data-size={size} aria-hidden="true" /> }))
+vi.mock('@/components/ui/orbit-mascot', () => ({ OrbitMascot: ({ size, state }: { size: number; state?: string }) => <svg data-testid="orbit-mascot" data-size={size} data-state={state} aria-hidden="true" /> }))
 vi.mock('@/components/ui/badge', () => ({ Badge: ({ children }: { children: React.ReactNode }) => <span data-testid="badge">{children}</span> }))
 vi.mock('@/components/ui/confirm-sheet', () => ({
   ConfirmSheet: ({ open, title, message, confirmLabel, onConfirm, onCancel }: { open: boolean; title: string; message: string; confirmLabel: string; onConfirm: () => void; onCancel: () => void }) => open
@@ -219,7 +219,7 @@ vi.mock('@/components/ui/error-state', () => ({
 vi.mock('@/components/ui/proposed', () => ({ Proposed: ({ children, label }: { children: React.ReactNode; label: string }) => <div role="group" aria-label={label}>{children}</div> }))
 vi.mock('@/components/ui/skeleton', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components/ui/skeleton')>()
-  return { Skeleton: (props: React.ComponentProps<typeof actual.Skeleton>) => mocks.realHistory ? <actual.Skeleton {...props} /> : <div>{props.label}</div> }
+  return { Skeleton: (props: React.ComponentProps<typeof actual.Skeleton>) => mocks.realHistory ? <actual.Skeleton {...props} /> : <div data-variant={props.variant}>{props.label}</div> }
 })
 vi.mock('@/components/ui/switch', () => ({
   Switch: ({ checked, label, onChange }: { checked: boolean; label: string; onChange: (checked: boolean) => void }) => (
@@ -650,7 +650,11 @@ describe('HabitDetailScreen', () => {
   it('shows a rescue only for an older overdue habit and handles request states', () => {
     openRescueGate()
     const view = render(<HabitDetailScreen habitId="habit-1" />)
-    expect(within(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).getByRole('status')).toHaveTextContent('habits.detail.rescheduleLoading')
+    const wait = within(within(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).getByRole('status')).getByTestId('rescue-loading-skeleton')
+    expect(within(wait).getByTestId('orbit-mascot')).toHaveAttribute('data-state', 'pensando')
+    expect(within(wait).getByTestId('orbit-mascot')).toHaveAttribute('data-size', '48')
+    expect(Array.from(wait.querySelectorAll('[data-variant]')).map((block) => [block.getAttribute('data-variant'), block.textContent])).toEqual([['habit-row', 'habits.reschedule.loading'], ['habit-row', '']])
+    expect(screen.queryByText('habits.detail.rescheduleLoading')).not.toBeInTheDocument()
     expect(mocks.rescheduleOptions.some((options) => options.enabled)).toBe(true)
     expect(screen.queryByRole('button', { name: 'habits.detail.rescheduleAccept' })).not.toBeInTheDocument()
 
@@ -703,7 +707,7 @@ describe('HabitDetailScreen', () => {
       mocks.rescheduleError = null
       view.rerender(<HabitDetailScreen habitId="habit-1" />)
     }
-    expect(screen.getByText('habits.detail.rescheduleLoading')).toBeVisible()
+    expect(screen.getByTestId('rescue-loading-skeleton')).toBeVisible()
     const notNow = screen.getByRole('button', { name: 'habits.reschedule.dismiss' })
     expect(notNow).toBeEnabled()
     notNow.focus()

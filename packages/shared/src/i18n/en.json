@@ -1062,7 +1062,6 @@
       "slipAlert": "Slip alert",
       "slipAlertDescription": "A heads-up when this habit starts to slip.",
       "rescheduleAccept": "Use plan",
-      "rescheduleLoading": "Finding a realistic plan...",
       "rescheduleError": "I could not suggest a plan.",
       "updateError": "We could not save this change. Try again.",
       "logError": "We could not update this log. Try again.",
