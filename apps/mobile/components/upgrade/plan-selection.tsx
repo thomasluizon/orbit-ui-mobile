@@ -29,7 +29,7 @@ import {
   type UpgradeTextFn,
 } from './types'
 
-interface Tier {
+export interface Tier {
   interval: SubscriptionInterval
   name: string
   price: string
@@ -338,7 +338,8 @@ function appStoreEquivalent(monthlyOffer: StoreOffer | null, yearlyOffer: StoreO
     : undefined
 }
 
-function buildTiers({ plans, monthlyOffer, yearlyOffer, monthlyPrice, yearlyPrice, isApple }: {
+/** The two plan cards. A price comes from the store offer, or from the plans read. */
+export function buildTiers({ plans, monthlyOffer, yearlyOffer, monthlyPrice, yearlyPrice, isApple }: {
   plans: SubscriptionPlans | null; monthlyOffer: StoreOffer | null; yearlyOffer: StoreOffer | null
   monthlyPrice?: string; yearlyPrice?: string; isApple: boolean
 }, t: UpgradeTextFn) {

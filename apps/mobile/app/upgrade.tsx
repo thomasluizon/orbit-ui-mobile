@@ -5,9 +5,9 @@ import { RefreshCw } from '@/components/ui/icons'
 import { SPACING, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import { useContentFrameStyle } from '@/hooks/use-content-frame-style'
 import { getProfileTrialEndHint } from '@orbit/shared/utils/profile-navigation'
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { type ComponentProps, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { AppState, Linking, Platform, ScrollView, StyleSheet, View } from 'react-native'
-import { useLocalSearchParams } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import Constants from 'expo-constants'
 import { showManageSubscriptionsIOS } from 'expo-iap'
 import { useTranslation } from 'react-i18next'
@@ -45,10 +45,13 @@ import { getUpgradeFallbackRoute } from '@/lib/upgrade-route'
 import { PageHeader } from '@/components/ui/page-header'
 import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
 import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboard'
+import { GuidedPricingSection, type GuidedPricingSectionProps } from '@/components/upgrade/guided-pricing-section'
 import { PricingSection } from '@/components/upgrade/pricing-section'
+import { PurchaseResult } from '@/components/upgrade/purchase-result'
 import { SubscriptionNotice } from '@/components/upgrade/subscription-notice'
 import type { SubscriptionInterval, UpgradeTextFn } from '@/components/upgrade/types'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { useFlag } from '@/hooks/use-flag'
 
 function UpgradeContent({
   state,
@@ -56,8 +59,10 @@ function UpgradeContent({
   billingContent,
   pitchContent,
   onRetry,
+  guided,
   t,
 }: Readonly<{
+  guided: boolean
   state: SubscriptionScreenState
   content: SubscriptionScreenContent
   billingContent: ReactNode
@@ -84,10 +89,27 @@ function UpgradeContent({
 
   return (
     <>
-      {state === 'offline' && content === 'pitch' ? <View style={styles.padBlock}><ErrorState message={t('upgrade.billing.offline')} /></View> : null}
+      {state === 'offline' && content === 'pitch' && !guided ? <View style={styles.padBlock}><ErrorState message={t('upgrade.billing.offline')} /></View> : null}
       {body}
     </>
   )
+}
+
+/** The plan question with the guided flows on, and the current pitch with them off. Both start the same purchase. */
+function UpgradePitchSection({ guided, usage, monthlyDisplayPrice, yearlyDisplayPrice, inset, ...props }: ComponentProps<typeof PricingSection> & Pick<GuidedPricingSectionProps, 'usage'> & { guided: boolean }) {
+  return guided
+    ? <GuidedPricingSection {...props} usage={usage} />
+    : <PricingSection {...props} inset={inset} monthlyDisplayPrice={monthlyDisplayPrice} yearlyDisplayPrice={yearlyDisplayPrice} />
+}
+
+/** The subscription read that the result of a purchase trusts: null while the screen loads or after it failed. */
+function settledStatus(state: SubscriptionScreenState, status: SubscriptionStatus | null): SubscriptionStatus | null {
+  return state === 'loading' || state === 'load-failed' ? null : status
+}
+
+/** The plan question is the header of the guided pitch, so the screen title is a label there. */
+function headerTitleRole(guided: boolean, contentCap: 560 | 620): 'heading' | 'label' {
+  return guided && contentCap === 620 ? 'label' : 'heading'
 }
 
 function upgradeContentCap(state: SubscriptionScreenState, content: SubscriptionScreenContent, hasLapsedNotice: boolean): 560 | 620 {
@@ -119,6 +141,9 @@ export default function UpgradeScreen() {
   )
   const { isOnline } = useOffline()
   const { showSuccess } = useAppToast()
+  const guided = useFlag('orbit_guided_flows')
+  const router = useRouter()
+  const [purchaseConfirmed, setPurchaseConfirmed] = useState(false)
   const locale = i18n.language
   const {
     status: subscriptionStatus,
@@ -127,7 +152,7 @@ export default function UpgradeScreen() {
     refetch: refetchStatus,
   } = useSubscriptionStatus()
 
-  const { profile: accountProfile } = useProfile({ enabled: subscriptionStatus?.aiMessagesPeriod === 'week' })
+  const { profile: accountProfile } = useProfile({ enabled: subscriptionStatus?.aiMessagesPeriod === 'week' || purchaseConfirmed })
   const status = useMemo(() => subscriptionStatus ? { ...subscriptionStatus, timeZone: accountProfile?.timeZone } : null, [subscriptionStatus, accountProfile?.timeZone])
   const trialDaysLeft = getTrialDaysLeft(status)
   const {
@@ -138,7 +163,7 @@ export default function UpgradeScreen() {
   } = useSubscriptionPlans()
   const playBilling = useStoreBilling({
     preferReferralOffer: !!plans?.couponPercentOff,
-    onPurchased: () => showSuccess(t('upgrade.purchaseSuccess')),
+    onPurchased: () => { if (guided) setPurchaseConfirmed(true); else showSuccess(t('upgrade.purchaseSuccess')) },
   })
   const provider = getSubscriptionBillingProvider(status)
   const isApple = Platform.OS === 'ios'
@@ -184,7 +209,9 @@ export default function UpgradeScreen() {
     portalState,
   })
   const { lapsedNoticeStatus, titleKey } = resolveUpgradeHeader(status, model, showPitch)
-  const contentFrameStyle = useContentFrameStyle(upgradeContentCap(model.state, model.content, Boolean(lapsedNoticeStatus)))
+  const contentCap = upgradeContentCap(model.state, model.content, Boolean(lapsedNoticeStatus))
+  const contentFrameStyle = useContentFrameStyle(contentCap)
+  const resultOrigin = getUpgradeFallbackRoute(from, '/(tabs)')
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {
@@ -286,7 +313,9 @@ export default function UpgradeScreen() {
     <SubscriptionNotice status={lapsedNoticeStatus} locale={locale} onResubscribe={() => setShowPitch(true)} t={t} tokens={tokens} />
   ) : (
     <View style={{ gap: 24 }}>
-      <PricingSection
+      <UpgradePitchSection
+        guided={guided}
+        usage={status}
         inset={false}
         focusOnMount={showPitch}
         profile={status}
@@ -326,6 +355,7 @@ export default function UpgradeScreen() {
       <PageHeader
         onBack={() => goBackOrFallback(fallbackRoute)}
         title={titleKey ? t(titleKey) : ''}
+        titleRole={headerTitleRole(guided, contentCap)}
         backLabel={backLabel}
       />
 
@@ -341,10 +371,24 @@ export default function UpgradeScreen() {
             billingContent={billingDashboard}
             pitchContent={pitchContent}
             onRetry={() => { void Promise.all([refetchStatus(), refetchBilling(), refetchPlans()]) }}
+            guided={guided}
             t={t}
           />
         </View>
       </ScrollView></ShellContent>
+      <PurchaseResult
+        purchaseConfirmed={purchaseConfirmed}
+        status={settledStatus(model.state, status)}
+        billing={billing ?? null}
+        timeZone={accountProfile?.timeZone}
+        returnsToOrigin={resultOrigin !== '/(tabs)'}
+        onOpen={() => {
+          setPurchaseConfirmed(false)
+          if (resultOrigin === '/(tabs)') router.replace('/(tabs)')
+          else goBackOrFallback(resultOrigin)
+        }}
+        onClose={() => setPurchaseConfirmed(false)}
+      />
     </SafeAreaView>
   )
 }
