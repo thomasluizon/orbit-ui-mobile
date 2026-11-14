@@ -290,6 +290,9 @@ describe('the Android Avisos inbox on the Orbit logic', () => {
       const exiting = row.props.exiting as { durationMs: number; definitions: Record<number, { transform: { translateY: number }[] }> }
       expect(exiting.durationMs).toBe(resolveMotionPreset('list-exit', true).exitDuration)
       expect(exiting.definitions[100]!.transform).toEqual([{ translateY: 0 }])
+      const entering = row.props.entering as typeof exiting
+      expect(entering.durationMs).toBe(resolveMotionPreset('list-enter', true).enterDuration)
+      expect(entering.definitions[0]!.transform).toEqual([{ translateY: 0 }])
       expect(row.props.layout).toBeUndefined()
     }
     expect(byTestId('notification-unread-mark').map((mark) => flat(mark).transition)).toEqual(['none', 'none', 'none'])
