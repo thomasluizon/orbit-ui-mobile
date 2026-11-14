@@ -39,7 +39,7 @@ Inventory: open pull requests ui `#2444`, `#2447`, `#2448`, `#2450`, `#2451`, `#
 ## Then, in this order
 
 1. Answer any owner message first, before any other work and before a relay step. Give each order a ticket or a rescope before the turn ends.
-2. Arm the four chains (`ui#2448`, `ui#2444`, `ui#2454`, `api#1111`). Confirm the staging web commit for `ui#2447`.
+2. The four chains ended red and the `ui#2447` proof failed on Android (drain results): start their fix agents, `ui#2448` first.
 3. Read the drain results in `handoff-notes.md`. Start the ready agents within the limit of 4: the three `#2120` close-out slices first, then the `#2122` part merge.
 4. Read and push each agent result: the `#2121` parts, the `ui#2447` proof (a defect gets a fix agent and a new proof).
 5. Merge each approved pull request at once, then base-merge every other open branch in the same step, before another approval lands (`behind_by=0`). Then one web release (never with an API release). Then the intake cycle.
