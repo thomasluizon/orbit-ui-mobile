@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react'
+import { useState, useEffect, useMemo, type ReactNode } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import Animated from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
@@ -27,9 +27,26 @@ function matches(tag: HabitTag, query: string): boolean {
 
 type RowMotion = ReturnType<typeof useListRowMotion>
 
-/** A tag the person creates enters and a tag the person deletes leaves. A search moves no row: it shows and hides rows at once. */
-function TagRowMotion({ tagId, motion, searching, children }: Readonly<{ tagId: string; motion: RowMotion; searching: boolean; children: ReactNode }>) {
-  return <Animated.View testID="tag-step-row" entering={searching ? undefined : motion.enteringFor(tagId)} exiting={searching ? undefined : motion.exiting} layout={searching ? undefined : motion.layout}>{children}</Animated.View>
+/**
+ * The search words the rows show. A new query first commits the rows with no exit for one frame, then applies, so the
+ * rows it hides leave at once, as web's list scope does. A delete under the same words keeps its exit.
+ */
+function useAppliedQuery(query: string) {
+  const [applied, setApplied] = useState(query)
+  useEffect(() => {
+    if (applied === query) return
+    const frame = requestAnimationFrame(() => setApplied(query))
+    return () => cancelAnimationFrame(frame)
+  }, [applied, query])
+  return { applied, changing: applied !== query }
+}
+
+/**
+ * A tag the person creates enters and a tag the person deletes fades out; the gap then closes at once, as on web. A
+ * search moves no row.
+ */
+function TagRowMotion({ tagId, motion, changing, children }: Readonly<{ tagId: string; motion: RowMotion; changing: boolean; children: ReactNode }>) {
+  return <Animated.View testID="tag-step-row" entering={motion.enteringFor(tagId)} exiting={changing ? undefined : motion.exiting}>{children}</Animated.View>
 }
 
 /** The rows of the free path: the search results, and every tag with its own rename and delete controls. */
@@ -37,17 +54,18 @@ export function TagStepRows({ tags, actions, query, managing, onPressTag }: Read
   const { t } = useTranslation()
   const tokens = useThemeTokens()
   const formStyles = useMemo(() => createFormStyles(tokens), [tokens])
-  const searching = query.trim().length > 0
+  const { applied, changing } = useAppliedQuery(query.trim())
+  const searching = applied.length > 0
   const motion = useListRowMotion(actions.availableTags.map((tag) => tag.id), managing || searching)
   if (!managing && !searching) return null
-  const rows = actions.availableTags.filter((tag) => matches(tag, query))
+  const rows = actions.availableTags.filter((tag) => matches(tag, applied))
   const selected = new Set(tags.selectedTagIds)
   const initialName = actions.availableTags.find((tag) => tag.id === tags.editingTagId)?.name ?? ''
   return (
     <View testID="tag-step-rows" style={styles.rows}>
       {searching && rows.length === 0 ? <Text style={[styles.miss, { color: tokens.fg3 }]}>{t('habits.flow.tags.searchMiss')}</Text> : null}
       {rows.map((tag) => (
-        <TagRowMotion key={tag.id} tagId={tag.id} motion={motion} searching={searching}>
+        <TagRowMotion key={tag.id} tagId={tag.id} motion={motion} changing={changing}>
           {tags.editingTagId === tag.id ? (
             <TagEditorRow
               error={actions.editTagError}

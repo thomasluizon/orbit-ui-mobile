@@ -60,6 +60,12 @@ function type(node: Host | undefined, value: string) {
   void renderer.act(() => { node!.props.onChangeText!(value) })
 }
 
+/** Types the search words and waits the one still frame the rows take before the words apply. */
+async function search(root: Root, value: string) {
+  type(field(root, en.habits.form.searchTags), value)
+  await renderer.act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)) })
+}
+
 beforeEach(() => resetTagStepState())
 afterEach(() => { if (tree) void renderer.act(() => tree!.unmount()); tree = null })
 
@@ -136,13 +142,13 @@ describe('tag selection on Android', () => {
   it('reaches the limit at five, dims the others and shows the neutral limit text once with no upgrade', async () => {
     tagStepState.tags = buildTags(['A', 'B', 'C', 'D', 'E', 'F', 'G'])
     const root = mount(<TagStepHarness initialIds={['tag-0', 'tag-1', 'tag-2', 'tag-3']} onContinue={vi.fn()} />)
-    type(field(root, en.habits.form.searchTags), 'E')
+    await search(root, 'E')
     await press(pressable(root, 'E', 'tag-step-rows'))
     expect(selected(root)).toBe('tag-0,tag-1,tag-2,tag-3,tag-4')
     expect(texts(root).filter((value) => value === en.habits.form.tagLimit)).toHaveLength(1)
     expect(hosts(root).some((node) => node.props.testID === 'tag-limit')).toBe(true)
     expect(field(root, en.habits.form.newTag)?.props.editable, 'no new tag past the limit').toBe(false)
-    type(field(root, en.habits.form.searchTags), 'F')
+    await search(root, 'F')
     expect(pressable(root, 'F', 'tag-step-rows')?.props.accessibilityState?.disabled).toBe(true)
     expect(texts(root).some((value) => /pro|upgrade/i.test(value))).toBe(false)
   })
@@ -154,9 +160,9 @@ describe('tag selection on Android', () => {
     await press(pressable(root, 'B'))
     expect(quickOptions(root), 'a press never moves the other options').toEqual(['F', 'A', 'B', 'No tag'])
     await press(pressable(root, 'B'))
-    type(field(root, en.habits.form.searchTags), 'e')
+    await search(root, 'e')
     expect(pressable(root, 'E', 'tag-step-rows')).toBeDefined()
-    type(field(root, en.habits.form.searchTags), 'zz')
+    await search(root, 'zz')
     expect(texts(root)).toContain(en.habits.flow.tags.searchMiss)
   })
 })
@@ -294,13 +300,31 @@ describe('tag step motion on Android', () => {
     const { exiting, layout } = rows()[0]!.props as unknown as { layout?: unknown; exiting: Motion }
     expect(exiting.durationMs).toBe(resolveMotionPreset('list-exit', reduced).exitDuration)
     expect(exiting.definitions[100]!.transform[0]!.translateY).toBe(reduced ? 0 : resolveMotionPreset('list-exit', false).shift)
-    expect(layout === undefined, 'the gap closes with the exit, at once under reduced motion').toBe(reduced)
+    expect(layout, 'the gap closes at once after the exit, as on web').toBeUndefined()
     type(field(root, en.habits.form.newTag), 'Work')
     await press(pressable(root, en.common.add))
     root.update(<TagStepHarness onContinue={vi.fn()} />)
     const created = rows().find((node) => (node.props.entering as Motion | undefined) !== undefined)
     expect((created?.props.entering as Motion | undefined)?.durationMs, 'a created tag enters').toBe(resolveMotionPreset('list-enter', reduced).enterDuration)
     type(field(root, en.habits.form.searchTags), 'h')
-    expect(rows().map((node) => [node.props.entering, node.props.exiting, node.props.layout]).flat().every((value) => value === undefined), 'a keystroke moves no row').toBe(true)
+    expect(rows().map((node) => [node.props.exiting, node.props.layout]).flat().every((value) => value === undefined), 'a keystroke moves no row: the rows it hides leave at once').toBe(true)
+    await renderer.act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)) })
+    expect(rows().map((node) => node.props.children).length, 'the words apply after one still frame').toBe(2)
+    expect(rows().every((node) => node.props.exiting !== undefined), 'a delete under the same words still fades out').toBe(true)
+  })
+
+  it('takes a new snapshot when the rows show again, so a tag created while they were hidden does not enter', async () => {
+    tagStepState.tags = buildTags(['Health'])
+    tagStepState.create.mockImplementation(({ name }: { name: string }) => { tagStepState.tags = [...tagStepState.tags, { id: 'created', name, color: '#7c3aed' }]; return Promise.resolve({ id: 'created' }) })
+    const root = mount(<TagStepHarness onContinue={vi.fn()} />)
+    await press(pressable(root, en.habits.flow.tags.manage))
+    await press(pressable(root, en.habits.flow.tags.manage))
+    type(field(root, en.habits.form.newTag), 'Mind')
+    await press(pressable(root, en.common.add))
+    root.update(<TagStepHarness onContinue={vi.fn()} />)
+    await press(pressable(root, en.habits.flow.tags.manage))
+    const rows = hosts(root).filter((node) => node.props.testID === 'tag-step-row')
+    expect(rows).toHaveLength(2)
+    expect(rows.every((node) => node.props.entering === undefined)).toBe(true)
   })
 })

@@ -6,13 +6,14 @@ import { usePrefersReducedMotion } from '@/lib/motion'
 /**
  * A row the person adds enters with `list-enter`; a row the person removes leaves with `list-exit` and the gap closes.
  * The rows already there when the list shows (`ready`) stay still, as web's presence with no initial animation does:
- * `enteringFor` gives an entrance only to a key added after that. Under reduced motion both are a short fade with no
- * travel and the gap closes at once.
+ * `enteringFor` gives an entrance only to a key added after that. A list that hides and shows again takes a new
+ * snapshot. Under reduced motion both are a short fade with no travel and the gap closes at once.
  */
 export function useListRowMotion(keys: readonly string[], ready = true) {
   const reduced = usePrefersReducedMotion()
   const [shownKeys, setShownKeys] = useState<ReadonlySet<string> | null>(() => (ready ? new Set(keys) : null))
   if (shownKeys === null && ready) setShownKeys(new Set(keys))
+  if (shownKeys !== null && !ready) setShownKeys(null)
   const motion = useMemo(() => {
     const enter = resolveMotionPreset('list-enter', reduced)
     const exit = resolveMotionPreset('list-exit', reduced)
