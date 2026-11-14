@@ -451,6 +451,9 @@ export default function SupportScreen() {
   )
 }
 
+/** The form rows and the rows inside the field and action group keep one rhythm. */
+const FORM_GAP = SPACING.s24
+
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flex: 1 },
@@ -459,9 +462,9 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 520,
     alignSelf: 'flex-start',
-    gap: 24,
+    gap: FORM_GAP,
   },
-  fieldAction: { gap: 24 },
+  fieldAction: { gap: FORM_GAP },
   formDescription: {
     fontFamily: 'Geist_400Regular',
     fontSize: 16,

@@ -283,7 +283,7 @@ export function Sheet({
   )
 }
 
-/** The distance from where Fabric measures the sheet body to where Android draws it: the presented top plus the header. */
+/** The distance from where Fabric measures the sheet body to where Android draws it: the presented top plus the header, minus the measured body top. */
 // WHY: TrueSheet puts only the container size into the Fabric state, so a measured sheet field is off by the sheet's top on Android. https://github.com/lodev09/react-native-true-sheet/blob/v4.0.1/android/src/main/java/com/lodev09/truesheet/TrueSheetStateUpdater.kt#L23-L35
 function useSheetScreenShift(scrollBodyRef: RefObject<ScrollView | null>, headerHeight: number) {
   const presentedTopRef = useRef<number | null>(null)

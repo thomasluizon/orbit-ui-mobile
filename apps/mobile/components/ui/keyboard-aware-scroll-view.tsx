@@ -111,7 +111,7 @@ interface KeyboardAwareContextValue {
 const KeyboardAwareContext = createContext<KeyboardAwareContextValue | null>(null)
 
 /** How far below its measured position the enclosing surface draws its content, or null while unknown. */
-export type KeyboardAwareScreenShift = () => number | null
+type KeyboardAwareScreenShift = () => number | null
 const KeyboardAwareScreenShiftContext = createContext<KeyboardAwareScreenShift | null>(null)
 export const KeyboardAwareScreenShiftProvider = KeyboardAwareScreenShiftContext.Provider
 
