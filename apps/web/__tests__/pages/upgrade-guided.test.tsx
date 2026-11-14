@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => ({
   purchaseConfirmed: false,
   toastOnSuccess: undefined as boolean | undefined,
   reducedMotion: false,
+  wide: false,
 }))
 
 vi.mock('next/navigation', () => ({
@@ -72,7 +73,7 @@ vi.mock('@/hooks/use-stripe-checkout-return', () => ({
 vi.mock('@/lib/actions/subscription', () => ({ openCustomerPortal: vi.fn() }))
 vi.mock('@/stores/auth-store', () => ({ useHeldAccountId: () => 'account-1', getHeldAccountId: () => 'account-1' }))
 vi.mock('@/hooks/use-viewport-match', () => ({
-  useViewportMatch: (query: string) => query.includes('prefers-reduced-motion') ? mocks.reducedMotion : false,
+  useViewportMatch: (query: string) => query.includes('prefers-reduced-motion') ? mocks.reducedMotion : mocks.wide,
 }))
 
 import UpgradePage from '@/app/(app)/upgrade/page'
@@ -99,7 +100,7 @@ beforeEach(() => {
   globalThis.sessionStorage.clear()
   Object.assign(mocks, {
     locale: 'en', search: '', status: freeStatus, timeZone: 'America/Sao_Paulo', plans, billing: null, plansLoading: false, plansError: false,
-    online: true, checkoutLoading: null, checkoutError: '', purchaseConfirmed: false, reducedMotion: false,
+    online: true, checkoutLoading: null, checkoutError: '', purchaseConfirmed: false, reducedMotion: false, wide: false,
   })
   enableTestFlags('orbit_guided_flows')
 })
@@ -119,6 +120,13 @@ describe('the plan question of the upgrade route', () => {
     expect(within(block()).getAllByRole('button', { pressed: true })).toHaveLength(1)
     expect(block().querySelectorAll('[data-option-card]')).toHaveLength(2)
     expect(document.querySelector('[data-orbit-state="feliz"]')).toBeNull()
+  })
+
+  it.each([[false, '96'], [true, '128']] as const)('draws Orbit at the size of the shell (wide %s: %s)', (wide, size) => {
+    mocks.wide = wide
+    render(<UpgradePage />)
+    expect(block().querySelector('[data-orbit-face="rig"]')).toHaveAttribute('width', size)
+    expect(document.querySelectorAll('[data-orbit-face="rig"]')).toHaveLength(1)
   })
 
   it('follows the usage read when it changes', () => {

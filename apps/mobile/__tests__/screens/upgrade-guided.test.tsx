@@ -7,6 +7,7 @@ import type { BillingDetails, SubscriptionPlans } from '@orbit/shared/types/subs
 import { renderedText } from '@/__tests__/support/react-test-renderer'
 import UpgradeScreen from '@/app/upgrade'
 import { press, renderNavigation } from '../components/ui/navigation-render'
+import { __setWindowDimensions } from '@/test-mocks/react-native'
 
 type StoreOfferDouble = { displayPrice: string; isReferral: boolean }
 
@@ -123,6 +124,7 @@ beforeEach(() => {
   Object.assign(mocks, { locale: 'en', from: undefined, status: freeStatus, timeZone: 'America/Sao_Paulo', plans, billing: undefined, plansLoading: false, plansError: false, online: true, reducedMotion: false })
   Object.assign(mocks.playBilling, { isProcessing: false, isRestoring: false, errorKey: '', isLoadingProducts: false, isProductsError: false })
   enableTestFlags('orbit_guided_flows')
+  __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 })
 })
 
 describe('the plan question of the Android upgrade route', () => {
@@ -141,6 +143,14 @@ describe('the plan question of the Android upgrade route', () => {
     expect(orbitStates(tree)).toEqual(['parado'])
     expect(byTestId(tree, 'upgrade-plan-option-yearly')!.props.accessibilityState).toMatchObject({ selected: true })
     expect(byTestId(tree, 'upgrade-plan-option-monthly')!.props.accessibilityState).toMatchObject({ selected: false })
+    tree.unmount()
+  })
+
+  it.each([[412, 96], [1024, 128]] as const)('draws Orbit at the size of the shell (%i wide: %i)', (width, size) => {
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+    const tree = renderNavigation(<UpgradeScreen />)
+    const rigs = tree.hosts().map((node) => node.props as Record<string, unknown>).filter((props) => props['data-orbit-face'] === 'rig')
+    expect(rigs.map((props) => props.width)).toEqual([size])
     tree.unmount()
   })
 
