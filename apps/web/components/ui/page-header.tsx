@@ -4,14 +4,15 @@ import type { PageHeaderProps } from '@orbit/shared/contracts/navigation'
 import { ArrowLeft } from '@/components/ui/icons'
 import { ShellHeader } from '@/components/shell/shell-header'
 
-function PageHeaderContent({ title, titleTranslate, backLabel, onBack, action, footer }: Readonly<PageHeaderProps>) {
+function PageHeaderContent({ title, titleTranslate, titleHeading = true, backLabel, onBack, action, footer }: Readonly<PageHeaderProps>) {
+  const Title = titleHeading ? 'h1' : 'p'
   return <header data-page-header="" className="shadow-[inset_0_-1px_0_var(--hairline)]">
     <div className="flex min-h-[60px] items-center gap-[8px] py-2 ps-2 pe-4">
       <button type="button" aria-label={backLabel} onClick={onBack}
         className="grid min-h-[48px] w-[48px] shrink-0 place-items-center rounded-full text-[var(--fg-1)] transition-[background-color,scale] duration-[var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-out)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96] focus-visible:outline-2 focus-visible:-outline-offset-2">
         <ArrowLeft size={20} aria-hidden="true" />
       </button>
-      <h1 tabIndex={-1} translate={titleTranslate} className="min-w-0 flex-1 truncate text-start text-[length:var(--fs-lg)] font-medium text-[var(--fg-1)]">{title}</h1>
+      <Title tabIndex={titleHeading ? -1 : undefined} translate={titleTranslate} className="min-w-0 flex-1 truncate text-start text-[length:var(--fs-lg)] font-medium text-[var(--fg-1)]">{title}</Title>
       {action}
     </div>
     {footer}

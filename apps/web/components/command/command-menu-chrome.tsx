@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type FocusEvent } from 'react'
 import { useTranslations } from 'next-intl'
 import { CommandGroup, CommandInput } from 'cmdk'
 import { ArrowLeft, Search } from '@/components/ui/icons'
@@ -41,14 +41,20 @@ export function CommandKeyHint({ keys, label }: Readonly<{ keys: readonly string
   )
 }
 
-export function CommandSearchField({ search, setSearch, activePageLabel, onBack, searchMode = false }: Readonly<{ search: string; setSearch: (value: string) => void; activePageLabel: string | null; onBack: () => void; searchMode?: boolean }>) {
+export function CommandSearchField({ search, setSearch, activePageLabel, onBack, searchMode = false, plain = false, onFieldFocus, onFieldBlur }: Readonly<{
+  search: string; setSearch: (value: string) => void; activePageLabel: string | null; onBack: () => void; searchMode?: boolean
+  /** The field sits inside a question block: no inset and no rule under it. */
+  plain?: boolean
+  onFieldFocus?: (event: FocusEvent<HTMLInputElement>) => void
+  onFieldBlur?: () => void
+}>) {
   const t = useTranslations()
   const inputRef = useRef<HTMLInputElement>(null)
   useEffect(() => {
     if (activePageLabel !== null) inputRef.current?.focus()
   }, [activePageLabel])
   return (
-      <div className="flex items-center gap-2 p-4 shadow-[inset_0_-1px_0_var(--hairline)]">
+      <div className={plain ? 'flex items-center gap-2' : 'flex items-center gap-2 p-4 shadow-[inset_0_-1px_0_var(--hairline)]'}>
       {activePageLabel !== null && (
         <div className="flex shrink-0 items-center gap-1">
           <Button
@@ -78,6 +84,8 @@ export function CommandSearchField({ search, setSearch, activePageLabel, onBack,
             ref={inputRef}
             value={search}
             onValueChange={setSearch}
+            onFocus={onFieldFocus}
+            onBlur={onFieldBlur}
             placeholder={t(searchMode ? 'habits.moveParent.searchPlaceholder' : 'command.placeholder')}
             data-focus-perimeter=""
             className="orbit-field-hover h-[54px] w-full rounded-[12px] bg-[var(--bg-field)] px-4 pr-12 text-[16px] text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--border-control)] outline-none placeholder:text-[var(--fg-3)] focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:focus-visible:border-[Highlight]"

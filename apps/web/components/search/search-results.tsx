@@ -24,10 +24,14 @@ export function Searching() {
 
 function renderQueryText(chunks: ReactNode) { return <span>{chunks}</span> }
 
-export function SearchEmpty({ query, onCreate, onClearSearch, createRefusal = false }: Readonly<{ query: string; onCreate?: () => void; onClearSearch?: () => void; createRefusal?: boolean }>) {
+export function SearchEmpty({ query, onCreate, onClearSearch, createRefusal = false, showTitle = true }: Readonly<{
+  query: string; onCreate?: () => void; onClearSearch?: () => void; createRefusal?: boolean
+  /** False where the Orbit line already holds the miss sentence. */
+  showTitle?: boolean
+}>) {
   const t = useTranslations()
   return <div className="flex flex-col items-start gap-3 p-3">
-    <p className="text-[length:var(--fs-md)]">{t.rich('habits.search.emptyTitle', { query, queryText: renderQueryText })}</p>
+    {showTitle ? <p className="text-[length:var(--fs-md)]">{t.rich('habits.search.emptyTitle', { query, queryText: renderQueryText })}</p> : null}
     <p className="text-[length:var(--fs-sm)] text-[var(--fg-3)]">{t('habits.search.emptyBody')}</p>
     <IconButton edge="start" label={t(onClearSearch ? 'common.clear' : 'habits.search.create')} onClick={onClearSearch ?? onCreate}>{onClearSearch ? <X size={20} aria-hidden="true" /> : <Plus size={20} aria-hidden="true" />}</IconButton>
     <div aria-live="polite" aria-atomic="true" className="w-full">
@@ -36,10 +40,14 @@ export function SearchEmpty({ query, onCreate, onClearSearch, createRefusal = fa
   </div>
 }
 
-export function SearchResults({ sections, today, query, onOpen, totalCount }: Readonly<{ sections: readonly SearchSection[]; today: string; totalCount: number; query: string; onOpen: (id: string) => void }>) {
+export function SearchResults({ sections, today, query, onOpen, totalCount }: Readonly<{
+  sections: readonly SearchSection[]; today: string; query: string; onOpen: (id: string) => void
+  /** Absent where the Orbit line already states the count. */
+  totalCount?: number
+}>) {
   const t = useTranslations()
   return <div className="flex flex-col gap-4">
-    <p className="px-1 font-mono text-[length:var(--fs-xs)] text-[var(--fg-3)]">{t('habits.search.count', { count: totalCount })}</p>
+    {totalCount === undefined ? null : <p className="px-1 font-mono text-[length:var(--fs-xs)] text-[var(--fg-3)]">{t('habits.search.count', { count: totalCount })}</p>}
     {sections.map((section) => <CommandGroup key={section.id} heading={section.id === 'completed' ? t(section.headingKey) : undefined} className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pb-3 [&_[cmdk-group-heading]]:font-mono [&_[cmdk-group-heading]]:text-[length:var(--fs-xs)] [&_[cmdk-group-heading]]:text-[var(--fg-3)]">
       <div className="flex flex-col gap-2">{section.entries.map(({ habit }) => <SearchResultRow key={habit.id} habit={habit} today={today} query={query} onOpen={onOpen} />)}</div>
     </CommandGroup>)}
