@@ -65,17 +65,21 @@ describe('mounted headless menu lifecycle in Chromium', () => {
       page.evaluate((travels) => new Promise<{ y: number; top: number; opacity: number; backdrop: number }[]>((resolve, reject) => {
         const frames: { y: number; top: number; opacity: number; backdrop: number }[] = []
         const entrance = new Set(['panel opacity', 'backdrop opacity', ...travels ? ['panel transform'] : []])
-        const started = new Set<string>()
+        const expectedRuns = [...entrance]
+        const runs = new Map<string, number>()
         let settledFrames = 0
         const transitionOwner = (event: TransitionEvent) => {
           const target = event.target as Element
           const owner = target.matches('.orbit-sheet-panel') ? 'panel' : target.matches('.orbit-sheet-backdrop') ? 'backdrop' : null
           return owner ? `${owner} ${event.propertyName}` : ''
         }
-        const ran = (event: TransitionEvent) => { started.add(transitionOwner(event)) }
+        const ran = (event: TransitionEvent) => {
+          const transition = transitionOwner(event)
+          runs.set(transition, (runs.get(transition) ?? 0) + 1)
+        }
         const ended = (event: TransitionEvent) => {
           if (!entrance.delete(transitionOwner(event))) return
-          const missing = [...entrance].find(transition => !started.has(transition))
+          const missing = [...entrance].find(transition => !runs.has(transition))
           if (missing) reject(new Error(`The ${missing} entrance transition never ran`))
         }
         const cancelled = (event: TransitionEvent) => {
@@ -97,7 +101,9 @@ describe('mounted headless menu lifecycle in Chromium', () => {
           if (settledFrames < 3) requestAnimationFrame(sample)
           else {
             for (const [type, listener] of listeners) document.removeEventListener(type, listener)
-            resolve(frames)
+            const repeated = expectedRuns.find(transition => runs.get(transition) !== 1)
+            if (repeated) reject(new Error(`The ${repeated} entrance transition ran ${runs.get(repeated) ?? 0} times in one open`))
+            else resolve(frames)
           }
         }
         requestAnimationFrame(sample)
