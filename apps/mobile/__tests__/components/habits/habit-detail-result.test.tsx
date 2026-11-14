@@ -23,7 +23,7 @@ describe('Android habit detail result dialog', () => {
 
   it('shows Orbit in Parado after a delete and states the fact', () => {
     const tree = renderNavigation(<HabitDetailResultDialog result={{ kind: 'deleted' }} onSeeToday={vi.fn()} onClose={vi.fn()} />)
-    expect(tree.hosts().find((node) => node.props.testID === 'result-dialog')!.props.accessibilityHint).toBe('result.habit.deleted')
+    expect(tree.hosts().find((node) => node.props.testID === 'result-dialog')!.props).toMatchObject({ accessibilityHint: 'result.habit.deleted' })
     expect(orbit(tree)['data-orbit-state']).toBe('parado')
     tree.unmount()
   })
