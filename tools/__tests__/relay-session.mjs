@@ -4,7 +4,7 @@ import { join } from "node:path"
 import { setTimeout as wait } from "node:timers/promises"
 import { closeRelayTerminal, relaySession } from "../relay-session.mjs"
 import { adoptRelayRun, appendChainEntry, confirmChainSuccessor, openSessionChain, readSessionChain, writeSessionChain } from "../lib/session-chain.mjs"
-import { ownerQuestionCandidates, recordQuestionFilter } from "../lib/owner-questions.mjs"
+import { ownerQuestionCandidates, questionFilterGaps, recordQuestionFilter } from "../lib/owner-questions.mjs"
 import { processStartIdentity, readRunState, readWakeSourceStates, registerWakeSource, updateRunState, writeRunState } from "../lib/run-state.mjs"
 import { readHandoffRequest, recordHandoffRequest } from "../lib/handoff-prompt.mjs"
 import { T, realOrchestratorConfig, stageRepo, toolPath } from "./_harness.mjs"
@@ -251,7 +251,8 @@ const questionFilterCases = async () => {
   recordQuestionFilter("predecessor", ownerQuestionCandidates("predecessor", duplicated.checkout).map((row) => ({ id: row.id, disposition: "answered", record: "the Decisions section of the spec" })), duplicated.checkout)
   const settled = await relay(duplicated)
   const emptied = readRunState(duplicated.checkout)
-  T("relay-session: a relay with 16 answerable duplicate questions queues 0", settled === null && emptied.sessionId !== "predecessor" && emptied.openOwnerQuestions.length === 0 && emptied.questionFilter === null, String(settled))
+  T("relay-session: a relay with 16 answerable duplicate questions queues 0", settled === null && emptied.sessionId !== "predecessor" && emptied.openOwnerQuestions.length === 0, String(settled))
+  T("relay-session: the successor owes its own filter before the next relay", /no recorded filter/.test(questionFilterGaps(emptied.sessionId, duplicated.checkout).join()))
   const settledEntry = openSessionChain(emptied.sessionId, duplicated.checkout).entries.at(-1)
   T("relay-session: the chain keeps the 16 dispositions and the successor owes none of them again", settledEntry.questionFilter.dispositions.length === 16 && ownerQuestionCandidates(emptied.sessionId, duplicated.checkout).length === 0)
 

@@ -74,15 +74,18 @@ export const recordQuestionFilter = (sessionId, dispositions, repoRoot = REPO_RO
     ({ id, question: candidates.find((candidate) => candidate.id === id).question, disposition, ...(record ? { record } : {}), ...(of ? { of } : {}) }))
   updateRunState((state) => {
     if (state?.sessionId !== sessionId) throw new Error("no run state for this session")
-    return { ...state, openOwnerQuestions, questionFilter: { recordedAt: new Date().toISOString(), dispositions: recorded } }
+    return { ...state, openOwnerQuestions, questionFilter: { sessionId, recordedAt: new Date().toISOString(), dispositions: recorded } }
   }, repoRoot, { sessionId })
   return openOwnerQuestions
 }
 
-/** Why the recorded filter does not cover the queue a relay would carry; empty when it does. */
+/**
+ * Why the recorded filter does not cover the queue a relay would carry; empty when it does.
+ * A run state outlives its session, so only a filter this session recorded counts.
+ */
 export const questionFilterGaps = (sessionId, repoRoot = REPO_ROOT) => {
   const state = readRunState(repoRoot)
-  const recorded = state?.sessionId === sessionId ? state.questionFilter?.dispositions : null
+  const recorded = state?.sessionId === sessionId && state.questionFilter?.sessionId === sessionId ? state.questionFilter.dispositions : null
   if (!recorded) return ["no recorded filter; run /questions --relay"]
   const unfiltered = ownerQuestionCandidates(sessionId, repoRoot).filter((candidate) => !recorded.some((row) => row.id === candidate.id))
   if (unfiltered.length) return unfiltered.map((candidate) => `no disposition for: ${candidate.question}`)

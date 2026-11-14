@@ -114,11 +114,12 @@ In this mode `queued` replaces **asked**. Each row from `--list` leaves with exa
 | `queued` | the question passed the whole filter, so it is his |
 
 Write each answer and each decision first: a ticket comment, the spec, or the decision log, whichever
-the work reads. Then pipe one JSON row per candidate to `node tools/owner-questions.mjs --record`,
-as `{ id, disposition, record, of, blocks }`. `blocks` adds what a queued question blocks. The tool
-refuses a candidate with no disposition. It writes only the queued rows to the run state's
-`openOwnerQuestions`, each once, with every source and blocker. `node tools/relay-session.mjs`
-refuses the relay until that record covers the queue.
+the work reads. Add a question from another source to `openOwnerQuestions` first, so `--list`
+prints it. Then pipe one JSON row per candidate to `node tools/owner-questions.mjs --record`, as
+`{ id, disposition, record, of, blocks }`, or `[]` when there is no candidate. `blocks` adds what a
+queued question blocks. The tool refuses a candidate with no disposition. It writes only the queued
+rows to the run state's `openOwnerQuestions`, each once, with every source and blocker.
+`node tools/relay-session.mjs` refuses the relay until this session's record covers the queue.
 
 A queued question waits for the owner's own `/questions`. The successor inherits it and never asks it.
 
