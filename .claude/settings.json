@@ -104,7 +104,8 @@
       "Read(**/*.p8)",
       "Read(**/*.p12)",
       "Read(**/*.key)",
-      "Read(**/*.mobileprovision)"
+      "Read(**/*.mobileprovision)",
+      "Read(**/.foglamp/scan.lock.json)"
     ]
   }
 }
