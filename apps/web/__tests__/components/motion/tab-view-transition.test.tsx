@@ -89,12 +89,41 @@ function tabSwitchProps() {
   return props!
 }
 
+const NON_PRODUCT_DIRECTORIES = new Set(['node_modules', '__tests__', 'e2e', 'test-support', 'vitest'])
+const APP_ROOT = process.cwd()
+const WEB_BUNDLE_ROOTS = [APP_ROOT, resolve(APP_ROOT, '../../packages/shared/src')]
+
+function isProductPath(path: string) {
+  return path.split(/[\\/]/).every((segment) => !segment.startsWith('.') && !NON_PRODUCT_DIRECTORIES.has(segment))
+}
+
+function productFiles(root: string) {
+  return readdirSync(root, { withFileTypes: true })
+    .filter((entry) => isProductPath(entry.name))
+    .flatMap((entry) => entry.isDirectory()
+      ? readdirSync(resolve(root, entry.name), { recursive: true, encoding: 'utf8' }).filter(isProductPath).map((path) => resolve(root, entry.name, path))
+      : [resolve(root, entry.name)])
+}
+
+function webBundlePath(path: string) {
+  return relative(APP_ROOT, path).replaceAll('\\', '/')
+}
+
 function viewTransitionSources() {
-  return ['app', 'components', 'hooks', 'lib'].flatMap((root) => readdirSync(resolve(process.cwd(), root), { recursive: true, encoding: 'utf8' })
-    .filter((path) => /\.(ts|tsx)$/.test(path))
-    .map((path) => resolve(process.cwd(), root, path))
+  return WEB_BUNDLE_ROOTS.flatMap(productFiles)
+    .filter((path) => /\.[cm]?[jt]sx?$/.test(path))
     .filter((path) => /\bViewTransition\b|startViewTransition/.test(readFileSync(path, 'utf8')))
-    .map((path) => relative(process.cwd(), path)))
+    .map(webBundlePath)
+}
+
+function crossDocumentViewTransitionRules() {
+  return WEB_BUNDLE_ROOTS.flatMap(productFiles)
+    .filter((path) => path.endsWith('.css'))
+    .flatMap((path) => {
+      const rules: string[] = []
+      postcss.parse(readFileSync(path, 'utf8')).walkAtRules('view-transition', (rule) => { rules.push(`${webBundlePath(path)}: ${rule.toString()}`) })
+      return rules
+    })
 }
 
 function renderTodayShell() {
@@ -227,6 +256,7 @@ describe('globals.css tab view transition', () => {
 
   it('scopes the tab switch rules to any active view transition because the tab page is the only one', () => {
     expect(viewTransitionSources()).toEqual(['components/motion/tab-view-transition.tsx'])
+    expect(crossDocumentViewTransitionRules()).toEqual([])
   })
 
   it('hands both legs to the script so no browser default cross-fade runs', () => {
