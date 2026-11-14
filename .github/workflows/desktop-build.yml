@@ -36,6 +36,8 @@ jobs:
     name: Select desktop targets
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    # `Select native boot proof` in android-startup.yml has the same two steps (a checkout of two commits and one diff).
+    # It took 52 s at worst in 59 pull request runs, and the limit is 2.3 times that.
     timeout-minutes: 2
     outputs:
       matrix: ${{ steps.select.outputs.matrix }}
