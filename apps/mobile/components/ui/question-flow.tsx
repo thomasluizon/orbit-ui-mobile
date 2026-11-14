@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AccessibilityInfo, Animated, Easing, findNodeHandle, Keyboard, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
+import { AccessibilityInfo, Animated, Easing, findNodeHandle, Keyboard, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import type { QuestionFlowProps } from '@orbit/shared/contracts/flow'
 import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { ArrowLeft, X } from '@/components/ui/icons'
 import { FlowLookProvider, useFlowLookState } from '@/components/ui/flow-look'
+import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { PagerSegments } from '@/components/ui/pager'
 import { PillButton } from '@/components/ui/pill-button'
@@ -41,6 +42,11 @@ function useKeyboardOpen() {
     return () => { shown.remove(); hidden.remove() }
   }, [])
   return open
+}
+
+/** The block is centred in the free space. While the keyboard is open it aligns under the header and scrolls. */
+function scrollContentStyle(keyboardOpen: boolean) {
+  return keyboardOpen ? [styles.scrollContent, styles.underHeader] : styles.scrollContent
 }
 
 function useStepTravel(stepKey: string, direction: 1 | -1) {
@@ -100,7 +106,7 @@ export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
     <FlowLookProvider look={lookControls}>
       <View testID="question-flow" style={styles.root} accessibilityElementsHidden={false}>
         <FlowHeader props={props} />
-        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <KeyboardAwareScrollView testID="question-flow-scroll" keyboardShouldPersistTaps="handled" contentContainerStyle={scrollContentStyle(keyboardOpen)} showsVerticalScrollIndicator={false}>
           <Animated.View key={stepKey} testID={`question-flow-step-${stepKey}`} style={[styles.block, travel]}>
             {showOrbit ? (
               <View ref={mascotRef} collapsable={false} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
@@ -114,7 +120,7 @@ export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
             {wide ? primaryAction : null}
             {footer}
           </Animated.View>
-        </ScrollView>
+        </KeyboardAwareScrollView>
         <Text accessibilityLiveRegion="polite" style={styles.status}>{announcement || statusText || ''}</Text>
         {wide ? null : primaryAction}
       </View>
@@ -128,6 +134,7 @@ const styles = StyleSheet.create({
   slot: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   progress: { flex: 1, minWidth: 0 },
   scrollContent: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 16 },
+  underHeader: { justifyContent: 'flex-start' },
   block: { width: '100%', maxWidth: 592, alignItems: 'center', gap: 24 },
   line: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24, textAlign: 'center' },
   question: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 28, lineHeight: 33, textAlign: 'center' },

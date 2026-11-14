@@ -5,6 +5,7 @@ import { useLayoutEffect, type ComponentProps, type ComponentType } from 'react'
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { Sheet } from '@/components/ui/sheet'
+import { FlowScreen } from '@/components/ui/flow-screen'
 import { AppBar } from '@/components/ui/app-bar'
 import { Shell412 } from '@/components/shell/shell-412'
 import { KeyboardAwareScrollView, KeyboardAwareView } from '@/components/ui/keyboard-aware-scroll-view'
@@ -21,7 +22,7 @@ type HabitCreateFrameProps = ComponentProps<typeof Sheet> & {
 }
 
 export function HabitCreateFrame({ presentation, fromConversation, leaving, guided = false, leaveGuard, ...props }: Readonly<HabitCreateFrameProps>) {
-  if (guided) return <GuidedCreateFrame presentation={presentation} leaving={leaving} leaveGuard={leaveGuard} {...props} />
+  if (guided) return <GuidedCreateFrame presentation={presentation} leaving={leaving} leaveGuard={leaveGuard} title={props.title} onAttemptDismiss={props.onAttemptDismiss}>{props.children}</GuidedCreateFrame>
   if (presentation === 'sheet') return <Sheet {...props} />
   return <HabitCreateScreenFrame {...props} fromConversation={fromConversation} leaving={leaving} leaveGuard={leaveGuard} />
 }
@@ -46,17 +47,18 @@ function HabitCreateScreenFrame({ fromConversation, leaving, leaveGuard: LeaveGu
   </Shell412></KeyboardAwareView>
 }
 
-function GuidedCreateFrame({ presentation, leaving, leaveGuard: LeaveGuard, title, children, ...props }: Readonly<Pick<HabitCreateFrameProps, 'presentation' | 'leaving' | 'leaveGuard'> & ComponentProps<typeof Sheet>>) {
+function GuidedCreateFrame({ presentation, leaving, leaveGuard: LeaveGuard, title, children, onAttemptDismiss }: Readonly<Pick<HabitCreateFrameProps, 'presentation' | 'leaving' | 'leaveGuard' | 'title' | 'children' | 'onAttemptDismiss'>>) {
   useLayoutEffect(() => {
     if (presentation !== 'screen') return undefined
     useUIStore.getState().registerOpenOverlay(HABIT_CREATE_OVERLAY_ID)
     return () => useUIStore.getState().unregisterOpenOverlay(HABIT_CREATE_OVERLAY_ID)
   }, [presentation])
-  if (presentation === 'sheet') return <Sheet {...props} accessibleTitle={title}>{children}</Sheet>
-  return <KeyboardAwareView style={styles.root}><Shell412 nav={false} safeAreaTop>
-    {LeaveGuard ? <LeaveGuard leaving={leaving} requestLeave={() => props.onAttemptDismiss?.()} /> : null}
+  const dismiss = () => onAttemptDismiss?.()
+  if (presentation === 'sheet') return <FlowScreen label={title ?? ''} onDismiss={dismiss}>{children}</FlowScreen>
+  return <FlowScreen presentation="route" label={title ?? ''} onDismiss={dismiss}>
+    {LeaveGuard ? <LeaveGuard leaving={leaving} requestLeave={dismiss} /> : null}
     {children}
-  </Shell412></KeyboardAwareView>
+  </FlowScreen>
 }
 
 const styles = StyleSheet.create({

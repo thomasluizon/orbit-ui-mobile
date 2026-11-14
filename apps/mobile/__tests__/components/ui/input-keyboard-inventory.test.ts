@@ -4,7 +4,7 @@ import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
 const root = resolve(__dirname, '../../..')
-const containers = new Set(['Sheet', 'FlowShell', 'Shell412', 'HabitCreateFrame', 'HabitList', 'HabitDrill', 'KeyboardAwareScrollHost', 'ShellBottomViewport', 'FlowViewport', 'KeyboardAwareScrollView', 'KeyboardAwareSheetScrollView', 'KeyboardAwareFlatList'])
+const containers = new Set(['Sheet', 'FlowShell', 'Shell412', 'HabitCreateFrame', 'HabitList', 'HabitDrill', 'KeyboardAwareScrollHost', 'ShellBottomViewport', 'FlowViewport', 'QuestionFlow', 'KeyboardAwareScrollView', 'KeyboardAwareSheetScrollView', 'KeyboardAwareFlatList'])
 const fields = new Set(['TextInput', 'TypedTextInput', 'AppTextInput', 'BottomSheetAppTextInput', 'Input', 'OtpInput'])
 
 function sourceFiles(directory: string): string[] {

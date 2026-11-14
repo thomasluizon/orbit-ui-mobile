@@ -6,6 +6,7 @@ import { OptionCard } from '@/components/ui/option-card'
 import { QuestionFlow } from '@/components/ui/question-flow'
 import { ResultDialog } from '@/components/ui/result-dialog'
 import { press, renderNavigation } from './navigation-render'
+import { __emitKeyboardEvent } from '../../../test-mocks/react-native'
 
 const baseProps = {
   flow: 'habit_create' as const,
@@ -48,6 +49,18 @@ describe('QuestionFlow events on Android', () => {
 })
 
 describe('QuestionFlow on Android', () => {
+  it('keeps the block centred, then aligns it under the header and scrolls while the keyboard is open', () => {
+    const tree = renderNavigation(flow())
+    const scroller = () => tree.hosts().find((node) => node.props.testID === 'question-flow-scroll')!
+    const content = () => [scroller().props.contentContainerStyle].flat(Infinity).filter(Boolean).reduce((style, entry) => ({ ...style, ...entry }), {})
+    expect(content()).toMatchObject({ justifyContent: 'center', flexGrow: 1 })
+    void act(() => __emitKeyboardEvent('keyboardDidShow'))
+    expect(content()).toMatchObject({ justifyContent: 'flex-start' })
+    void act(() => __emitKeyboardEvent('keyboardDidHide'))
+    expect(content()).toMatchObject({ justifyContent: 'center' })
+    tree.unmount()
+  })
+
   it('names the progress and keeps the slot when there is no back step', () => {
     const tree = renderNavigation(flow())
     expect(tree.hosts().some((node) => node.props.accessibilityLabel === 'Passo 2 de 4')).toBe(true)
