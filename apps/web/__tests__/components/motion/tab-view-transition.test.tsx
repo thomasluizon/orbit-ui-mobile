@@ -1,12 +1,16 @@
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { readdirSync, readFileSync } from 'node:fs'
+import { relative, resolve } from 'node:path'
 import postcss, { type Rule } from 'postcss'
-import type { ReactElement, ReactNode, ViewTransitionInstance, ViewTransitionProps } from 'react'
+import { useLayoutEffect, type ReactElement, type ReactNode, type ViewTransitionInstance, type ViewTransitionProps } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import { motionPresets } from '@orbit/shared/theme'
 
-const captured = vi.hoisted(() => ({ props: null as null | (ViewTransitionProps & { children: ReactNode }) }))
+const captured = vi.hoisted(() => ({
+  props: null as null | (ViewTransitionProps & { children: ReactNode }),
+  renders: [] as (ViewTransitionProps & { children: ReactNode })[],
+}))
+const navigation = vi.hoisted(() => ({ pathname: '/calendar' }))
 
 vi.mock('react', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react')>()
@@ -14,19 +18,24 @@ vi.mock('react', async (importOriginal) => {
     ...actual,
     ViewTransition: (props: ViewTransitionProps & { children: ReactNode }) => {
       captured.props = props
+      captured.renders.push(props)
       return props.children
     },
   }
 })
 
+vi.mock('next/navigation', () => ({ usePathname: () => navigation.pathname }))
+
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('@/components/ui/lockup', () => ({ Lockup: () => <div>Orbit</div> }))
 
+import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
 import { TabViewTransition } from '@/components/motion/tab-view-transition'
 import { ShellWide } from '@/components/shell/shell-wide'
+import { getCurrentRouteTransitionIntent, resetRouteTransitionIntent, setRouteTransitionIntent } from '@/lib/motion/route-intent'
 
 const parsedStylesheet = postcss.parse(readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8'))
-const TAB_SWITCH = ':root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)'
+const TAB_SWITCH = ':root:active-view-transition'
 const originalMatchMedia = window.matchMedia
 
 function setReducedMotion(reduced: boolean) {
@@ -65,6 +74,61 @@ function tabSwitchViewTransitionNames() {
   return names
 }
 
+function switchTabs(from: string, to: string, intent: 'tab' | 'neutral' = 'tab') {
+  navigation.pathname = from
+  const view = render(<TabViewTransition><main>{from}</main></TabViewTransition>)
+  act(() => setRouteTransitionIntent(intent))
+  captured.renders = []
+  navigation.pathname = to
+  view.rerender(<TabViewTransition><main>{to}</main></TabViewTransition>)
+  return captured.renders.map((props) => props.update)
+}
+
+function tabSwitchProps() {
+  const props = captured.renders.find((rendered) => rendered.update !== 'none')
+  expect(props).toBeDefined()
+  return props!
+}
+
+const NON_PRODUCT_DIRECTORIES = new Set(['node_modules', '__tests__', 'e2e', 'test-support', 'vitest'])
+const APP_ROOT = process.cwd()
+const WEB_BUNDLE_ROOTS = [APP_ROOT, resolve(APP_ROOT, '../../packages/shared/src')]
+
+function isProductPath(path: string) {
+  return path.split(/[\\/]/).every((segment) => !segment.startsWith('.') && !NON_PRODUCT_DIRECTORIES.has(segment))
+}
+
+function productFiles(root: string) {
+  return readdirSync(root, { withFileTypes: true })
+    .filter((entry) => isProductPath(entry.name))
+    .flatMap((entry) => entry.isDirectory()
+      ? readdirSync(resolve(root, entry.name), { recursive: true, encoding: 'utf8' }).filter(isProductPath).map((path) => resolve(root, entry.name, path))
+      : [resolve(root, entry.name)])
+}
+
+function webBundlePath(path: string) {
+  return relative(APP_ROOT, path).replaceAll('\\', '/')
+}
+
+function viewTransitionSources() {
+  return WEB_BUNDLE_ROOTS.flatMap(productFiles)
+    .filter((path) => /\.[cm]?[jt]sx?$/.test(path))
+    .filter((path) => /\bViewTransition\b|startViewTransition|@view-transition/.test(readFileSync(path, 'utf8')))
+    .map(webBundlePath)
+}
+
+function webBundleStylesheets() {
+  return WEB_BUNDLE_ROOTS.flatMap(productFiles).filter((path) => path.endsWith('.css'))
+}
+
+function crossDocumentViewTransitionRules() {
+  return webBundleStylesheets().flatMap((path) => {
+    const rules: string[] = []
+    postcss.parse(readFileSync(path, 'utf8')).walkAtRules('view-transition', (rule) => { rules.push(`${webBundlePath(path)}: ${rule.toString()}`) })
+    return rules
+  })
+}
+
 function renderTodayShell() {
   render(
     <ShellWide
@@ -87,30 +151,115 @@ function renderTodayShell() {
 describe('TabViewTransition', () => {
   afterEach(() => {
     captured.props = null
+    captured.renders = []
+    navigation.pathname = '/calendar'
+    act(() => resetRouteTransitionIntent())
     window.matchMedia = originalMatchMedia
+    vi.useRealTimers()
   })
 
-  it('runs a view transition only for typed primary tab navigation', () => {
+  it('names the page boundary and runs no transition while the pathname stays', () => {
     render(<TabViewTransition><main>Today</main></TabViewTransition>)
 
     expect(screen.getByRole('main')).toHaveTextContent('Today')
-    expect(captured.props).toMatchObject({
-      name: 'orbit-tab-page',
-      default: 'none',
-      update: {
-        'orbit-tab-forward': 'orbit-tab-switch',
-        'orbit-tab-back': 'orbit-tab-switch',
-        default: 'none',
-      },
-    })
+    expect(captured.props).toMatchObject({ name: 'orbit-tab-page', default: 'none', update: 'none' })
+  })
+
+  it('binds no update handler on a commit that has no direction', () => {
+    render(<TabViewTransition><main>Today</main></TabViewTransition>)
+
+    expect(captured.props!.update).toBe('none')
+    expect(captured.props!.onUpdate).toBeUndefined()
+  })
+
+  it('runs the tab switch on the commit that changes the pathname after a tab press, then stands down', () => {
+    expect(switchTabs('/calendar', '/')).toEqual(['orbit-tab-switch', 'none'])
+    expect(screen.getByRole('main')).toHaveTextContent('/')
+  })
+
+  it('consumes the tab press at its commit and arms again for the next tab press', () => {
+    navigation.pathname = '/calendar'
+    const view = render(<TabViewTransition><main>Calendar</main></TabViewTransition>)
+    act(() => setRouteTransitionIntent('tab'))
+    navigation.pathname = '/'
+    view.rerender(<TabViewTransition><main>Today</main></TabViewTransition>)
+    expect(getCurrentRouteTransitionIntent()).toBe('neutral')
+
+    captured.renders = []
+    act(() => setRouteTransitionIntent('tab'))
+    expect(getCurrentRouteTransitionIntent()).toBe('tab')
+    expect(captured.renders.map((props) => props.update)).not.toContain('orbit-tab-switch')
+
+    navigation.pathname = '/calendar'
+    view.rerender(<TabViewTransition><main>Calendar</main></TabViewTransition>)
+    expect(captured.renders.map((props) => props.update)).toContain('orbit-tab-switch')
+    expect(captured.props!.update).toBe('none')
+  })
+
+  it('keeps a tab press made before the route shell clears the intent of the last commit', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const page = (path: string) => <TabViewTransition><RouteTransitionShell><main>{path}</main></RouteTransitionShell></TabViewTransition>
+    navigation.pathname = '/calendar'
+    const view = render(page('/calendar'))
+    act(() => setRouteTransitionIntent('tab'))
+    navigation.pathname = '/'
+    view.rerender(page('/'))
+
+    act(() => setRouteTransitionIntent('tab'))
+    act(() => { vi.runOnlyPendingTimers() })
+    expect(getCurrentRouteTransitionIntent()).toBe('tab')
+
+    captured.renders = []
+    navigation.pathname = '/calendar'
+    view.rerender(page('/calendar'))
+    expect(captured.renders.map((props) => props.update)).toContain('orbit-tab-switch')
+  })
+
+  it('clears a route intent that is not a tab press after the commit that used it', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const page = (path: string) => <TabViewTransition><RouteTransitionShell><main>{path}</main></RouteTransitionShell></TabViewTransition>
+    navigation.pathname = '/calendar'
+    const view = render(page('/calendar'))
+    act(() => setRouteTransitionIntent('forward'))
+    navigation.pathname = '/notifications'
+    view.rerender(page('/notifications'))
+    expect(getCurrentRouteTransitionIntent()).toBe('forward')
+
+    act(() => { vi.runOnlyPendingTimers() })
+    expect(getCurrentRouteTransitionIntent()).toBe('neutral')
+  })
+
+  it('keeps a newer tab press when the layout effect of the last tab switch runs after it', () => {
+    function TabPressBeforeLayoutEffect({ press }: Readonly<{ press: boolean }>) {
+      useLayoutEffect(() => {
+        if (press) setRouteTransitionIntent('tab')
+      }, [press])
+      return null
+    }
+    const page = (path: string, press: boolean) => <TabViewTransition><main>{path}</main><TabPressBeforeLayoutEffect press={press} /></TabViewTransition>
+    navigation.pathname = '/calendar'
+    const view = render(page('/calendar', false))
+    act(() => setRouteTransitionIntent('tab'))
+    navigation.pathname = '/'
+    view.rerender(page('/', true))
+    expect(getCurrentRouteTransitionIntent()).toBe('tab')
+
+    captured.renders = []
+    navigation.pathname = '/calendar'
+    view.rerender(page('/calendar', true))
+    expect(captured.renders.map((props) => props.update)).toContain('orbit-tab-switch')
+  })
+
+  it('runs no tab switch for a pathname change that no tab press started', () => {
+    expect(new Set(switchTabs('/calendar', '/', 'neutral'))).toEqual(new Set(['none']))
   })
 
   it('animates the old page out and the new page in from the shared tab preset', () => {
     setReducedMotion(false)
     const { instance, exit, enter } = createInstance()
-    render(<TabViewTransition><main>Today</main></TabViewTransition>)
+    switchTabs('/calendar', '/')
 
-    captured.props!.onUpdate!(instance, ['orbit-tab-back'])
+    tabSwitchProps().onUpdate!(instance, [])
 
     expect(exit).toHaveBeenCalledWith({ opacity: [1, 0] }, expect.objectContaining({
       duration: motionPresets['tab-switch'].exitDuration,
@@ -125,9 +274,9 @@ describe('TabViewTransition', () => {
   it('reads the live reduced-motion preference when the transition starts', () => {
     setReducedMotion(true)
     const { instance, exit, enter } = createInstance()
-    render(<TabViewTransition><main>Today</main></TabViewTransition>)
+    switchTabs('/', '/calendar')
 
-    captured.props!.onUpdate!(instance, ['orbit-tab-forward'])
+    tabSwitchProps().onUpdate!(instance, [])
 
     expect(exit).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ duration: 0 }))
     expect(enter).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ duration: 0 }))
@@ -161,6 +310,12 @@ describe('TabViewTransition', () => {
 describe('globals.css tab view transition', () => {
   afterEach(() => {
     captured.props = null
+  })
+
+  it('scopes the tab switch rules to any active view transition because every one starts from the tab page boundary', () => {
+    expect(viewTransitionSources()).toEqual(['components/motion/tab-view-transition.tsx'])
+    expect(webBundleStylesheets().map(webBundlePath)).toContain('app/globals.css')
+    expect(crossDocumentViewTransitionRules()).toEqual([])
   })
 
   it('hands both legs to the script so no browser default cross-fade runs', () => {
