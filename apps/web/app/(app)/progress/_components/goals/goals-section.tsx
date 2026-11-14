@@ -79,7 +79,7 @@ export function GoalsSection({ goals, onOpenGoal, onCreate, filter, setFilter, s
       <DndContext accessibility={dragAccessibility} sensors={drag.sensors} onDragEnd={drag.onDragEnd} collisionDetection={closestCenter}><SortableContext items={filtered.map((goal) => goal.id)} strategy={verticalListSortingStrategy}><div className="flex flex-col gap-3">
           <ListPresence>{filtered.map((goal) => {
             const index = goals.findIndex((item) => item.id === goal.id)
-            return <ListMotionItem key={goal.id}><GoalCard goal={goal} index={index} total={goals.length} canReorder={filter === 'all' && !reorder.isPending} sweepFrom={sweepFrom(goal)} onSwept={() => onSwept(goal.id)} onMove={move} onOpen={() => onOpenGoal(goal.id)} /></ListMotionItem>
+            return <ListMotionItem key={goal.id} layoutMotion={filter !== 'all'}><GoalCard goal={goal} index={index} total={goals.length} canReorder={filter === 'all' && !reorder.isPending} sweepFrom={sweepFrom(goal)} onSwept={() => onSwept(goal.id)} onMove={move} onOpen={() => onOpenGoal(goal.id)} /></ListMotionItem>
           })}</ListPresence>
         </div></SortableContext></DndContext>
       {announcements.map((message, index) => (
