@@ -224,13 +224,20 @@ fn start_deadline(window: &WebviewWindow, load: u64) {
     let window = window.clone();
     std::thread::spawn(move || {
         std::thread::sleep(BAR_DEADLINE);
-        let change = window
-            .state::<FrameState>()
-            .0
-            .recover_lock()
-            .deadline_passed(load);
-        if let Err(error) = change_frame(&window, change) {
-            eprintln!("Cannot restore the native window frame: {error}");
+        // A bar report changes the frame on the main thread, so the deadline decides and applies its change there too.
+        let app = window.app_handle().clone();
+        let scheduled = app.run_on_main_thread(move || {
+            let change = window
+                .state::<FrameState>()
+                .0
+                .recover_lock()
+                .deadline_passed(load);
+            if let Err(error) = change_frame(&window, change) {
+                eprintln!("Cannot restore the native window frame: {error}");
+            }
+        });
+        if let Err(error) = scheduled {
+            eprintln!("Cannot schedule the window bar deadline: {error}");
         }
     });
 }

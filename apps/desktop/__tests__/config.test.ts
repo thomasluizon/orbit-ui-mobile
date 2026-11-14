@@ -190,6 +190,7 @@ it('gives the native frame back to a document without the bar, and answers in th
   expect(entrypoint).toMatch(/#\[cfg\(target_os = "macos"\)\]\s*let builder = builder[^;]*\.on_web_content_process_terminate\(window_bar::content_process_ended\);/)
   const frame = read('../src-tauri/src/window_bar.rs').split('#[cfg(test)]')[0]!
   expect(frame).toMatch(/pub fn content_process_ended\(webview: &tauri::Webview\) \{[\s\S]*page_loading\(&window, tauri::webview::PageLoadEvent::Started\);[\s\S]*webview\.reload\(\)/)
+  expect(frame).toMatch(/fn start_deadline\(window: &WebviewWindow, load: u64\) \{[^}]*std::thread::sleep\(BAR_DEADLINE\);[^}]*run_on_main_thread\(move \|\| \{[^}]*\.deadline_passed\(load\);\s*if let Err\(error\) = change_frame\(&window, change\)/)
   const caption = read('../src-tauri/native/windows/caption.cpp')
   expect(caption).toContain('CreateWindowExW(WS_EX_LAYERED, definition.lpszClassName, L"", WS_CHILD | WS_CLIPSIBLINGS,')
   expect(caption).toContain('extern "C" void orbit_caption_set_active(void *parent, bool active)')
