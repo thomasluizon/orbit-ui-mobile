@@ -6,6 +6,7 @@ import {
   REVIEW_APP_AUTHOR_FILTER,
   headActivityArgv,
   headActivityBoundary,
+  headReplacement,
   REVIEW_APP_CONTEXT,
   newestChecks,
   outOfBandKey,
@@ -361,6 +362,18 @@ export const cases = async () => {
     headActivityBoundary(repointedActivity, repointedHead, "fix/example", "owner/repo", "fork/repo").time === null)
   T(`${TOOL}: an unparseable activity time cannot supply a boundary`,
     headActivityBoundary([{ ...repointedActivity[0], timestamp: "invalid" }], repointedHead, "fix/example", "owner/repo", "owner/repo").time === null)
+  /** GitHub lists the newest move first; the push of HEAD_A to repointedHead replaced HEAD_A. */
+  const pushedBack = { ...repointedActivity[0], activity_type: "force_push", before: repointedHead, after: HEAD_A }
+  T(`${TOOL}: a push whose before is the head names the commit that replaced it`,
+    headReplacement(repointedActivity, HEAD_A, "fix/example") === repointedHead && headReplacement(repointedActivity, repointedHead, "fix/example") === null)
+  T(`${TOOL}: a newer move that puts the head back proves no replacement`,
+    headReplacement([{ ...pushedBack, timestamp: "2026-09-26T02:50:00Z" }, ...repointedActivity], HEAD_A, "fix/example") === null)
+  T(`${TOOL}: a move back in the same second cannot be ordered and proves no replacement`,
+    headReplacement([pushedBack, ...repointedActivity], HEAD_A, "fix/example") === null)
+  T(`${TOOL}: another branch, an unparseable time or a missing response proves no replacement`,
+    headReplacement([{ ...repointedActivity[0], ref: "refs/heads/other" }], HEAD_A, "fix/example") === null &&
+    headReplacement([{ ...repointedActivity[0], timestamp: "invalid" }], HEAD_A, "fix/example") === null &&
+    headReplacement(null, HEAD_A, "fix/example") === null)
   T(`${TOOL}: the activity request reads one bounded branch page`,
     headActivityArgv("owner/repo", "fix/example")[1] === "repos/owner/repo/activity?ref=refs%2Fheads%2Ffix%2Fexample&per_page=100")
 

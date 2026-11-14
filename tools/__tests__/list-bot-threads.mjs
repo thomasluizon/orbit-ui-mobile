@@ -27,8 +27,8 @@ const OLD_HEAD = "b5cd7394a8a687126eaaec32c02978ad6575c01c"
 const BASE = "c5cd7394a8a687126eaaec32c02978ad6575c01d"
 const REPOINTED_HEAD = "4cc1f620dae30df23b09cdbfb7ceb69a45fe35cf"
 /** Keep the activity response shape for review freshness checks. */
-const activity = (after = HEAD, timestamp = "2026-08-04T22:01:00Z", activity_type = "push") => [{
-  activity_type, actor: { login: "<actor>" }, after, before: OLD_HEAD, id: 1,
+const activity = (after = HEAD, timestamp = "2026-08-04T22:01:00Z", activity_type = "push", before = OLD_HEAD) => [{
+  activity_type, actor: { login: "<actor>" }, after, before, id: 1,
   node_id: "<activity-id>", ref: "refs/heads/fix/example", timestamp,
 }]
 
@@ -587,6 +587,33 @@ export const cases = async () => {
     `${TOOL}: --head exits 4 and asks nothing when the head moves before the push of the expected head is listed`,
     headMovedUnasked.result.status === 4 && headMovedUnasked.plan === null && headMovedUnasked.requestArgv === null,
     headMovedUnasked.result.stdout || headMovedUnasked.result.stderr,
+  )
+  /**
+   * Two quick pushes can replace --head before any read shows it. The activity, newest entry first as
+   * GitHub lists it, then holds a push whose `before` is --head, and only that push proves the move.
+   */
+  const replacedActivity = JSON.stringify([...activity(REPOINTED_HEAD, "2026-08-05T09:00:00Z", "push", HEAD), ...activity()])
+  const laterHeadUnreviewed = payload({ headRefOid: REPOINTED_HEAD, checks: [] })
+  const headReplacedUnseen = requestRun("head-replaced-unseen", sequence("head-replaced-unseen", [oldHeadRead, laterHeadUnreviewed]),
+    { waitSeconds: "20", argv: ["--head", HEAD], activities: sequence("head-replaced-unseen-activity", [oldHeadActivity, replacedActivity]) })
+  T(
+    `${TOOL}: --head exits 4 at once when the activity lists a push that replaced it before any read showed it`,
+    headReplacedUnseen.result.status === 4 && headReplacedUnseen.plan === null && headReplacedUnseen.requestArgv === null &&
+      /"event":"HEAD_MOVED"/.test(headReplacedUnseen.result.stderr) &&
+      headReplacedUnseen.result.stderr.includes(`moved from the expected ${HEAD} to ${REPOINTED_HEAD}`),
+    headReplacedUnseen.result.stdout || headReplacedUnseen.result.stderr,
+  )
+  const pushedBackActivity = JSON.stringify([
+    ...activity(HEAD, "2026-08-05T09:30:00Z", "force_push", REPOINTED_HEAD),
+    ...activity(REPOINTED_HEAD, "2026-08-05T09:00:00Z", "push", HEAD),
+    ...activity(),
+  ])
+  const pushedBack = requestRun("head-pushed-back", sequence("head-pushed-back", [laterHeadUnreviewed, payload({ checks: [] }), reviewLands([])]),
+    { argv: ["--head", HEAD], activities: { stdout: pushedBackActivity } })
+  T(
+    `${TOOL}: --head keeps the wait when a later force push puts it back after the push that replaced it`,
+    pushedBack.result.status === 0 && pushedBack.plan?.verdict === "REVIEWED" && pushedBack.plan.reviewedCommit === HEAD && pushedBack.requests === 1,
+    pushedBack.result.stdout || pushedBack.result.stderr,
   )
   const withoutHead = requestRun("head-moved-no-flag", sequence("head-moved-no-flag", [payload({ checks: [] }), laterHeadReviewed]),
     { activities: sequence("head-moved-no-flag-activity", [JSON.stringify(activity()), laterHeadActivity]) })

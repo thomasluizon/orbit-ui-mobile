@@ -9,7 +9,7 @@ import { graphqlBudgetDecision } from "./lib/github-rate-limit.mjs"
 import { currentRunIdentifier, recordObservedIdentifiers } from "./lib/identifier-ledger.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { REVIEW_APP_ID, headActivityArgv, headActivityBoundary } from "./lib/readiness-receipt.mjs"
+import { REVIEW_APP_ID, headActivityArgv, headActivityBoundary, headReplacement } from "./lib/readiness-receipt.mjs"
 import { acquireRelayLock, gitDirectoryOf } from "./lib/run-state.mjs"
 
 const BOT_LOGIN = "pullfrog"
@@ -20,7 +20,9 @@ const USAGE = `usage: list-bot-threads.mjs --pr <number|url> (--repo <ui|api|lan
   --head <sha>        the full SHA of the head that was pushed. The tool reads again until the
                       pull request reports this head, and decides nothing on an older one. When
                       the head never arrives inside the budget, it exits 2 and posts no request.
-                      When a later push moves the head away after that, it exits 4 with no verdict.
+                      When a later push moves the head away, it exits 4 with no verdict: after a
+                      read showed the head, or as soon as the branch activity lists the push
+                      that replaced it, also when no read showed the head.
   --repo <key>        required for a bare number; a full PR URL selects its repository
   --wait-seconds <n>  how long to wait for the review (default 900, 0 polls once and asks nothing)
   --poll-seconds <n>  gap between polls (default 30)
@@ -257,6 +259,7 @@ const readPullRequest = async () => {
     try { activities = JSON.parse(activityResponse) } catch { /* An invalid page cannot prove a review current. */ }
   }
   first.headActivityBoundary = headActivityBoundary(activities, first.headRefOid, first.headRefName, first.repositoryName, first.headRepository?.nameWithOwner)
+  first.expectedHeadReplacement = expectedHead ? headReplacement(activities, expectedHead, first.headRefName) : null
   return first
 }
 
@@ -318,9 +321,11 @@ const readExpectedHead = async () => {
   const payload = await readPullRequest()
   if (!expectedHead) return payload
   if (payload.headRefOid === expectedHead) expectedHeadSeen = true
-  else if (expectedHeadSeen) {
+  /** Two quick pushes can replace --head before a read shows it; then only the branch activity proves the move. */
+  const movedTo = payload.expectedHeadReplacement ?? (expectedHeadSeen && payload.headRefOid !== expectedHead ? payload.headRefOid : null)
+  if (movedTo) {
     progress("HEAD_MOVED", payload, startedAt, deadline)
-    fail(HEAD_MOVED_EXIT, `pull request ${pullRequest} head moved from the expected ${expectedHead} to ${payload.headRefOid}; no verdict is reported. Run again with the new head`)
+    fail(HEAD_MOVED_EXIT, `pull request ${pullRequest} head moved from the expected ${expectedHead} to ${movedTo}; no verdict is reported. Run again with the new head`)
   }
   return payload
 }
