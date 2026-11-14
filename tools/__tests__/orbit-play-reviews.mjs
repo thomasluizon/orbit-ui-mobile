@@ -153,19 +153,30 @@ export const cases = async () => {
   T("play: workflow is manual and trusts only main", Object.keys(workflow.on).join(",") === "workflow_dispatch" &&
     Object.values(workflow.jobs).every((job) => job.if.startsWith("github.ref == 'refs/heads/main'")) &&
     workflow.jobs.reviews.if.includes("inputs.replies == ''") && workflow.jobs.replies.if.includes("inputs.replies != ''"))
-  const appStore = workflow.jobs["app-store-reviews"]
-  const appStoreGate = appStore.steps[0]
+  const reviews = workflow.jobs.reviews
+  const appStoreGate = reviews.steps[0]
+  const appStoreRead = reviews.steps.find((step) => step.env?.APP_STORE_CONNECT_API_PRIVATE_KEY)
+  const upload = (name) => reviews.steps.find((step) => step.uses?.startsWith("actions/upload-artifact@") && step.with.name === name)
   const readsProductionEnvironment = (job) => job.environment?.name === "ios-production" && job.environment.deployment === false
-  T("app store: reviews read the app id and key from the production iOS environment without a deployment record", readsProductionEnvironment(appStore) &&
-    appStore.if === "github.ref == 'refs/heads/main' && inputs.replies == ''" &&
+  T("intake: one job reads both stores, so an intake starts one runner", Object.keys(workflow.jobs).join(",") === "reviews,replies")
+  T("app store: reviews read the app id and key from the production iOS environment without a deployment record", readsProductionEnvironment(reviews) &&
     appStoreGate.env?.ORBIT_IOS_APP_STORE_ID === "${{ vars.ORBIT_IOS_APP_STORE_ID }}" &&
-    appStore.steps.slice(1).every((step) => step.if === `steps.${appStoreGate.id}.outputs.configured == 'true'`) &&
-    appStore.steps.at(-1).with.name === "orbit-app-store-reviews")
+    appStoreRead.env.ORBIT_IOS_APP_STORE_ID === "${{ vars.ORBIT_IOS_APP_STORE_ID }}")
+  T("app store: a Play failure does not hide App Store reviews, and only a successful read uploads", reviews.steps.indexOf(appStoreRead) > reviews.steps.indexOf(upload("orbit-play-reviews")) &&
+    appStoreRead.if === `\${{ !cancelled() && steps.${appStoreGate.id}.outputs.configured == 'true' }}` &&
+    upload("orbit-app-store-reviews").if === `\${{ !cancelled() && steps.${appStoreRead.id}.outcome == 'success' }}`)
   const replies = workflow.jobs.replies
   const replyStep = replies.steps.find((step) => step.env?.REVIEW_REPLIES)
   T("app store: replies read the app id and key from the production iOS environment without a deployment record", readsProductionEnvironment(replies) &&
     replyStep.env.ORBIT_IOS_APP_STORE_ID === "${{ vars.ORBIT_IOS_APP_STORE_ID }}" &&
     replyStep.env.APP_STORE_CONNECT_API_PRIVATE_KEY === "${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}")
-  T("play: key stays in the collection step and artifact expires", workflow.jobs.reviews.steps.filter((step) => step.env?.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON).length === 1 &&
-    workflow.jobs.reviews.steps.at(-1).with["retention-days"] === 1 && workflow.permissions.contents === "read")
+  T("intake: each job checks out only tools and restores no unused npm cache", [reviews, replies].every((job) => {
+    const checkout = job.steps.find((step) => step.uses?.startsWith("actions/checkout@"))
+    const node = job.steps.find((step) => step.uses?.startsWith("actions/setup-node@"))
+    return checkout.with["sparse-checkout"] === "tools" && checkout.with["persist-credentials"] === false &&
+      node.with["package-manager-cache"] === false && !job.steps.some((step) => /\bnpm (ci|install)\b/.test(step.run ?? ""))
+  }))
+  T("play: key stays in the collection step and artifact expires", reviews.steps.filter((step) => step.env?.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON).length === 1 &&
+    upload("orbit-play-reviews").if === "always()" && upload("orbit-play-reviews").with["retention-days"] === 1 &&
+    upload("orbit-app-store-reviews").with["retention-days"] === 1 && workflow.permissions.contents === "read")
 }
