@@ -188,6 +188,9 @@ describe('Android final Pro step', () => {
     const { tree, finish } = await mount()
     expect(finish).toHaveBeenCalledOnce()
     expect(tree.root.findAll((node) => String(node.props.testID).startsWith('onboarding-step-'))).toHaveLength(0)
+    const skeleton = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'pro-skeleton')
+    expect(skeleton).toHaveLength(1)
+    expect(skeleton[0]!.findAll((node) => typeof node.type === 'string' && node.props.testID === 'skeleton-unit-fill')).toHaveLength(7)
   })
 
   it('keeps a missing profile on the error surface with exit', async () => {
