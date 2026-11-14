@@ -110,7 +110,7 @@ test("each test group starts only without a cached result and the plan looks res
     for (const step of [lookup, restore, save]) assert.equal(step.with.path, variable, `${group}: the cache version includes the path, so every step names the same one`)
     assert.equal(restore.if, `needs.${job}.result == 'skipped'`)
     assert.equal(restore.with["fail-on-cache-miss"], true)
-    assert.equal(save.if, `github.event_name == 'push' && needs.${job}.result == 'success'`)
+    assert.equal(save.if, `github.event_name != 'pull_request' && needs.${job}.result == 'success'`)
   }
   const planStep = plan.steps.find((step) => step.id === "plan")
   assert.match(planStep.run, /node \.github\/scripts\/plan-test-jobs\.mjs --event "\$EVENT_NAME"/)
@@ -386,7 +386,7 @@ test("layout shards and the Lighthouse budget reuse the one hermetic Build", () 
   const save = build.steps.find((step) => step.uses?.startsWith("actions/cache/save@") && step.with.path === "~/.cache/ms-playwright")
   assert.equal(restore.with.path, "~/.cache/ms-playwright")
   assert.equal(restore.with.key, "${{ runner.os }}-playwright-chromium-${{ steps.playwright.outputs.version }}")
-  assert.match(save.if, /^github\.event_name == 'push'/)
+  assert.match(save.if, /^github\.event_name != 'pull_request'/)
   const gate = stepNamed(workflow.jobs.lighthouse.steps, "Run median TBT and script budget gates")
   assert.equal(gate["timeout-minutes"], 8)
   assert.equal(workflow.jobs.lighthouse["timeout-minutes"], 15)
@@ -395,8 +395,8 @@ test("layout shards and the Lighthouse budget reuse the one hermetic Build", () 
 test("pull request runs save no cache that a push to main saves", () => {
   for (const [id, job] of Object.entries(workflow.jobs)) {
     for (const step of job.steps ?? []) {
-      if (step.uses?.startsWith("actions/cache@")) assert.fail(`${id}: use actions/cache/restore with a save step limited to pushes`)
-      if (step.uses?.startsWith("actions/cache/save@")) assert.match(step.if ?? "", /^github\.event_name == 'push'/, `${id}: ${step.name}`)
+      if (step.uses?.startsWith("actions/cache@")) assert.fail(`${id}: use actions/cache/restore with a save step that pull requests skip`)
+      if (step.uses?.startsWith("actions/cache/save@")) assert.match(step.if ?? "", /^github\.event_name != 'pull_request'/, `${id}: ${step.name}`)
     }
   }
 })

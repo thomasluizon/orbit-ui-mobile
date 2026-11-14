@@ -515,7 +515,7 @@ function checkMirrorIndependence() {
   T("a Playwright install-deps command is rejected",
     systemDependencyInstalls("fixture.yml", "steps:\n  - run: npx playwright install-deps chromium\n").length === 1)
   T("a plain Playwright browser install is accepted", systemDependencyInstalls("fixture.yml", "  - run: npx playwright install chromium\n").length === 0)
-  for (const name of ["layout.yml", "release.yml"]) {
+  for (const name of ["test.yml", "release.yml"]) {
     T(`${name} calls no apt command`, !callsApt(read(name)))
   }
   for (const command of ["sudo apt-get install -y ccache", "sudo apt-get -y install libnss3", "sudo apt-get -qq update", "sudo apt -y install fonts-noto"]) {

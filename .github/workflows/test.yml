@@ -15,8 +15,8 @@ concurrency:
 permissions:
   contents: read
 
-# Unit test results cached by the Turbo hash of their inputs. A push to main saves them; a pull request
-# whose inputs match main restores them instead of starting the test jobs.
+# Unit test results cached by the Turbo hash of their inputs. A push or a dispatch saves them; a pull request
+# whose inputs match main restores them instead of starting the test jobs. Pull requests save no cache.
 env:
   WEB_UNIT_RESULTS: apps/web/coverage/lcov.info
   MOBILE_UNIT_RESULTS: apps/mobile/coverage/lcov.info
@@ -75,7 +75,7 @@ jobs:
             --workflow .github/workflows/test.yml --changed-files "$RUNNER_TEMP/changed-paths.txt" | tee -a "$GITHUB_OUTPUT"
 
       - name: Save the Turbo download
-        if: github.event_name == 'push' && steps.turbo-download.outputs.cache-hit != 'true'
+        if: github.event_name != 'pull_request' && steps.turbo-download.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
           path: ~/.npm/_cacache
@@ -143,8 +143,12 @@ jobs:
       - name: Build web
         run: npm run build:hermetic -w apps/web
 
+      # build:hermetic runs this check too; this step keeps the registered gate visible to the gate charter.
+      - name: Check hermetic client output
+        run: node tools/check-hermetic-web-build.mjs
+
       - name: Save the Next compiler cache
-        if: github.event_name == 'push' && steps.next-cache.outputs.cache-hit != 'true'
+        if: github.event_name != 'pull_request' && steps.next-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
           path: apps/web/.next/cache
@@ -166,12 +170,12 @@ jobs:
       # The layout shards run only on pull requests, so main fills their browser cache here.
       - name: Read the locked Playwright version
         id: playwright
-        if: github.event_name == 'push'
+        if: github.event_name != 'pull_request'
         run: echo "version=$(npx playwright --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
 
       - name: Look up the Playwright Chromium download
         id: playwright-cache
-        if: github.event_name == 'push'
+        if: github.event_name != 'pull_request'
         uses: actions/cache/restore@v6
         with:
           path: ~/.cache/ms-playwright
@@ -179,11 +183,11 @@ jobs:
           lookup-only: true
 
       - name: Download lockfile-pinned Playwright Chromium
-        if: github.event_name == 'push' && steps.playwright-cache.outputs.cache-hit != 'true'
+        if: github.event_name != 'pull_request' && steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install chromium
 
       - name: Save the Playwright Chromium download
-        if: github.event_name == 'push' && steps.playwright-cache.outputs.cache-hit != 'true'
+        if: github.event_name != 'pull_request' && steps.playwright-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
           path: ~/.cache/ms-playwright
@@ -440,21 +444,21 @@ jobs:
           test -s eslint-rules/coverage/lcov.info
 
       - name: Save web unit results
-        if: github.event_name == 'push' && needs.web-tests.result == 'success'
+        if: github.event_name != 'pull_request' && needs.web-tests.result == 'success'
         uses: actions/cache/save@v6
         with:
           path: ${{ env.WEB_UNIT_RESULTS }}
           key: ${{ needs.plan.outputs.web-unit-key }}
 
       - name: Save mobile unit results
-        if: github.event_name == 'push' && needs.mobile-tests.result == 'success'
+        if: github.event_name != 'pull_request' && needs.mobile-tests.result == 'success'
         uses: actions/cache/save@v6
         with:
           path: ${{ env.MOBILE_UNIT_RESULTS }}
           key: ${{ needs.plan.outputs.mobile-unit-key }}
 
       - name: Save workspace unit results
-        if: github.event_name == 'push' && needs.workspace-tests.result == 'success'
+        if: github.event_name != 'pull_request' && needs.workspace-tests.result == 'success'
         uses: actions/cache/save@v6
         with:
           path: ${{ env.WORKSPACE_UNIT_RESULTS }}
@@ -667,7 +671,7 @@ jobs:
       - run: npx turbo run type-check
 
       - name: Save turbo
-        if: github.event_name == 'push'
+        if: github.event_name != 'pull_request'
         uses: actions/cache/save@v6
         with:
           path: .turbo
