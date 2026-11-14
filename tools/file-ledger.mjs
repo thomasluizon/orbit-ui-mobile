@@ -464,16 +464,20 @@ const referenceSpans = (text) => {
 const unresolvedIn = (text, fromDirectory, resolves) => {
   const { spans, links } = referenceSpans(text)
   const unresolved = new Set()
-  const judge = (token, stripQuery) => {
-    const cleaned = cleanToken(stripQuery ? token.replace(/\?.*$/, "") : token)
-    if (looksLikePath(cleaned) && !resolves(cleaned, fromDirectory)) unresolved.add(cleaned)
+  // A space inside a span or a decoded link can belong to the path, so the shape test reads it as one character.
+  const judge = (token) => {
+    const cleaned = cleanToken(token)
+    if (looksLikePath(cleaned.replaceAll(/\s/g, "_")) && !resolves(cleaned, fromDirectory)) unresolved.add(cleaned)
   }
   for (const span of spans) {
+    const tokens = span.split(/\s+/)
     const whole = cleanToken(span)
-    if (/\s/.test(span) && looksLikePath(whole.replaceAll(" ", "_")) && resolves(whole, fromDirectory)) continue
-    for (const token of span.split(/\s+/)) judge(token, false)
+    // One path with a space: it resolves whole, or its folders sit before the space and its last part has none.
+    const spacedPath = tokens.length > 1 && looksLikePath(whole.replaceAll(/\s/g, "_")) &&
+      (resolves(whole, fromDirectory) || (!tokens.at(-1).includes("/") && tokens.slice(0, -1).some((token) => token.includes("/"))))
+    for (const token of spacedPath ? [span] : tokens) judge(token)
   }
-  for (const link of links) judge(link, true)
+  for (const link of links) judge(link.replace(/\?.*$/, ""))
   return [...unresolved].sort()
 }
 

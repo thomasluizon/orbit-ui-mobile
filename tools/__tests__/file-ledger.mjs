@@ -296,6 +296,7 @@ const caseUnresolvedReferences = () => {
       "Dot folders: missing `.claude/specs/gone.md` and [a workflow](.github/workflows/gone.yml), present `.claude/rules/core.md` and `.github/workflows/test.yml`, hidden `.env.example`.",
       "Folder tail `nested/deep/`, sibling by name `../../references-sibling/sibling-only/notes.md`, relative `../top.md`, spaced `docs/Orbit Today.md`.",
       "Line `docs/present.md:3`, missing line `docs/gone-line.md:12`, a [query](docs/present.md?plain=1) and a [missing query](docs/gone-query.md?plain=1).",
+      "Spaced: missing `design/old/Orbit Gone.dc.html`, command `cat docs/gone-cat.md`, a [link](Orbit%20Today.md) and a [missing link](Orbit%20Gone.md).",
       "```",
       "`fenced/ignored.md`",
       "```",
@@ -315,19 +316,27 @@ const caseUnresolvedReferences = () => {
   const sibling = makeRepository("references-sibling", { "sibling-only/notes.md": "notes\n" })
   const { row } = emit(repository, [sibling])
   const found = row("docs/guide.md").unresolvedReferences
-  const expected = [".claude/specs/gone.md", ".github/workflows/gone.yml", "docs/gone-line.md", "docs/gone-link.md", "docs/gone-query.md", "docs/gone.md", "nowhere.md", "tools/missing-tool.mjs"]
+  const expected = [
+    ".claude/specs/gone.md", ".github/workflows/gone.yml", "Orbit Gone.md", "design/old/Orbit Gone.dc.html", "docs/gone-cat.md", "docs/gone-line.md", "docs/gone-link.md",
+    "docs/gone-query.md", "docs/gone.md", "nowhere.md", "tools/missing-tool.mjs",
+  ]
   T(`${TOOL}: unresolvedReferences holds each missing path and only those`, found.join() === expected.join(), found.join())
   T(`${TOOL}: a missing path under a dot folder is reported and a tracked one resolves`,
     found.includes(".claude/specs/gone.md") && found.includes(".github/workflows/gone.yml") && !found.some((path) => /core\.md|test\.yml/.test(path)), found.join())
   T(`${TOOL}: a bare name that starts with a dot is never a reference`, !found.some((path) => /^\.(?:env|dc)\./.test(path)), found.join())
   T(`${TOOL}: a tracked path, an ignored file on disk, an allowlisted path and an --also-search path resolve`, !found.some((path) => /present|local\.json|generated|sibling-only/.test(path)))
-  T(`${TOOL}: a URL, a glob, a placeholder, a flag and a branch prefix are never references`, !found.some((path) => /example|\*|<|--flag|feature|dc\.html|Next|1\.2\.3/.test(path)))
+  T(`${TOOL}: a URL, a glob, a placeholder, a flag and a branch prefix are never references`, !found.some((path) => /example|\*|<|--flag|feature|^\.dc\.html$|Next|1\.2\.3/.test(path)), found.join())
   T(`${TOOL}: a fenced code block is skipped`, !found.includes("fenced/ignored.md"))
   T(`${TOOL}: a source file and an asset get an empty list`, row("src/code.ts").unresolvedReferences.length === 0 && row("design/page.html").unresolvedReferences.length === 0)
   T(`${TOOL}: a reference to the tail of a tracked folder resolves`, !found.some((path) => path.startsWith("nested/")), found.join())
   T(`${TOOL}: a ../ path into an --also-search root by its name resolves`, !found.some((path) => path.includes("references-sibling")), found.join())
   T(`${TOOL}: a path relative to the folder of the doc resolves`, !found.includes("../top.md"), found.join())
   T(`${TOOL}: a span with a space that names a tracked file resolves as one path`, !found.some((path) => path.includes("Today")), found.join())
+  T(`${TOOL}: a missing path with a space is reported whole, never as its last fragment`,
+    found.includes("design/old/Orbit Gone.dc.html") && !found.includes("Gone.dc.html"), found.join())
+  T(`${TOOL}: a link with an encoded space is checked: a tracked target resolves and a missing one is reported`,
+    found.includes("Orbit Gone.md") && !found.includes("Orbit Today.md"), found.join())
+  T(`${TOOL}: a command span still reports the missing path it names`, found.includes("docs/gone-cat.md"), found.join())
   T(`${TOOL}: a :line suffix and a ?query are stripped before the check`,
     found.includes("docs/gone-line.md") && found.includes("docs/gone-query.md") && !found.some((path) => path.includes("present")), found.join())
 }
