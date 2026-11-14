@@ -18,6 +18,7 @@ import { mascotMotion } from '@orbit/shared/theme'
 import {
   claimOrbitLiveSlot,
   getOrbitLoopVersion,
+  isOrbitMotionEnabled,
   mayOrbitRunLoop,
   subscribeOrbitLoop,
 } from '@orbit/shared/utils'
@@ -33,6 +34,9 @@ import { useOrbitScreenFocused } from '@/components/ui/orbit-screen-focus'
 const SMALL_BOX_RATIO = 3 / 4
 const LIVE_MIN_SIZE = 48
 const MAX_FRAME_STEP_MS = 100
+/** How often a mascot that may animate checks that it is still on screen. Being on screen only decides whether the
+ *  idle loop runs, so a quarter second of delay is not visible, and the probe costs four measures a second, not thirty. */
+const ON_SCREEN_PROBE_MS = 250
 
 function isSmallSize(size: number): size is OrbitMascotSmallSize {
   return size < LIVE_MIN_SIZE
@@ -43,24 +47,20 @@ interface WindowMeasurable {
 }
 
 /** Whether the mascot is inside the window. React Native has no public IntersectionObserver, so while the
- *  mascot may run its loop it measures itself in the window once per frame interval of the loop. */
+ *  mascot may run its loop it measures itself in the window at once and then every `ON_SCREEN_PROBE_MS`. */
 function useOnScreen(target: RefObject<WindowMeasurable | null>, active: boolean): boolean {
   const [onScreen, setOnScreen] = useState(true)
   const { width, height } = useWindowDimensions()
   useEffect(() => {
     if (!active) return undefined
-    let frame = 0
-    let lastProbe = Number.NEGATIVE_INFINITY
-    const probe = (now: number) => {
-      frame = requestAnimationFrame(probe)
-      if (now - lastProbe < mascotMotion.frameInterval) return
-      lastProbe = now
+    const probe = () => {
       target.current?.measureInWindow((x, y, boxWidth, boxHeight) => {
         setOnScreen(boxWidth > 0 && boxHeight > 0 && x < width && y < height && x + boxWidth > 0 && y + boxHeight > 0)
       })
     }
-    frame = requestAnimationFrame(probe)
-    return () => cancelAnimationFrame(frame)
+    probe()
+    const timer = setInterval(probe, ON_SCREEN_PROBE_MS)
+    return () => clearInterval(timer)
   }, [active, target, width, height])
   return onScreen
 }
@@ -78,7 +78,7 @@ function useOrbitLoopClock(wantsLoop: boolean, lead: boolean, target: RefObject<
   const screenFocused = useOrbitScreenFocused()
   const candidate = wantsLoop && !reducedMotion && screenFocused
   const [foreground, setForeground] = useState(AppState.currentState === 'active')
-  const onScreen = useOnScreen(target, candidate && foreground)
+  const onScreen = useOnScreen(target, candidate && foreground && isOrbitMotionEnabled())
   const [clock, setClock] = useState(0)
   const elapsed = useRef(0)
   useSyncExternalStore(subscribeOrbitLoop, getOrbitLoopVersion, getOrbitLoopVersion)

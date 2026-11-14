@@ -40,6 +40,11 @@ export function setOrbitMotionEnabled(enabled: boolean | undefined): void {
   notify()
 }
 
+/** Whether the person allows Orbit's idle loop (`Orbit em movimento`). */
+export function isOrbitMotionEnabled(): boolean {
+  return motionEnabled
+}
+
 /** An overlay that covers the view pauses the loop until the returned function runs. */
 export function pauseOrbitLoopForOverlay(): () => void {
   overlayCount += 1

@@ -164,13 +164,13 @@ describe('Orbit idle loop on Android', () => {
     const offScreen = new Set(['parado'])
     __setMeasureInWindowImpl((callback, props) => callback(0, offScreen.has(String(props['data-orbit-state'])) ? 2000 : 100, 96, 69))
     const tree = render(<View><OrbitMascot size={96} /><OrbitMascot size={96} state="feliz" /></View>)
-    advance(100)
+    advance(250)
     expect(loops(tree)).toEqual(['still', 'running'])
     offScreen.add('feliz')
-    advance(100)
+    advance(250)
     expect(loops(tree)).toEqual(['still', 'still'])
     offScreen.delete('parado')
-    advance(100)
+    advance(250)
     expect(loops(tree)).toEqual(['running', 'still'])
     tree.unmount()
   })
@@ -182,7 +182,7 @@ describe('Orbit idle loop on Android', () => {
     const tree = render(<OrbitMascot size={96} />)
     advance(400)
     onScreen = false
-    advance(100)
+    advance(250)
     const held = moonOf(tree)
     advance(400)
     expect(loops(tree)).toEqual(['still'])
@@ -192,6 +192,54 @@ describe('Orbit idle loop on Android', () => {
     const before = measured
     advance(400)
     expect(measured).toBe(before)
+    tree.unmount()
+  })
+})
+
+describe('Orbit on-screen probe on Android', () => {
+  function countMeasures() {
+    const counter = { measured: 0 }
+    __setMeasureInWindowImpl((callback) => { counter.measured += 1; callback(0, 100, 96, 69) })
+    return counter
+  }
+
+  it.each([
+    ['Orbit em movimento is off', () => setOrbitMotionEnabled(false)],
+    ['reduced motion is on', () => { reanimatedTestState.reducedMotion = true }],
+    ['the app is in the background', () => {}],
+  ] as const)('never measures its window position while %s', (name, arrange) => {
+    const counter = countMeasures()
+    arrange()
+    const tree = render(<OrbitMascot size={96} />)
+    if (name === 'the app is in the background') TestRenderer.act(() => { for (const listener of appStateListeners) listener('background') })
+    const before = counter.measured
+    advance(1000)
+    expect(counter.measured - before).toBe(0)
+    tree.unmount()
+  })
+
+  it('stops measuring when the switch turns off and starts again when it turns on', () => {
+    const counter = countMeasures()
+    const tree = render(<OrbitMascot size={96} />)
+    advance(1000)
+    expect(counter.measured).toBeGreaterThan(0)
+    TestRenderer.act(() => setOrbitMotionEnabled(false))
+    const before = counter.measured
+    advance(1000)
+    expect(counter.measured).toBe(before)
+    TestRenderer.act(() => setOrbitMotionEnabled(true))
+    advance(1000)
+    expect(counter.measured).toBeGreaterThan(before)
+    tree.unmount()
+  })
+
+  it('measures at most four times a second while it can animate, not once per drawn frame', () => {
+    const counter = countMeasures()
+    const tree = render(<OrbitMascot size={96} />)
+    advance(1000)
+    expect(counter.measured).toBeGreaterThan(0)
+    expect(counter.measured).toBeLessThanOrEqual(5)
+    expect(loops(tree)).toEqual(['running'])
     tree.unmount()
   })
 })
