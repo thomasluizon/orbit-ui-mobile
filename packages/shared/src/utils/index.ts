@@ -371,6 +371,8 @@ export {
 } from './subscription-pricing'
 export { resolveSubscriptionScreen, resolveUpgradeHeader, getSubscriptionBillingProvider, shouldFetchStripeBilling } from './subscription-screen'
 export { subscriptionSummary } from './subscription-summary'
+export { resolveUpgradeOrbitLine, resolvePurchaseResult } from './upgrade-guide'
+export type { UpgradeOrbitLine, UpgradeOrbitLineInput, PurchaseResult } from './upgrade-guide'
 export type {
   ResolveSubscriptionScreenInput,
   SubscriptionPortalState,

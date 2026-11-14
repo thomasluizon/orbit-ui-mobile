@@ -3613,6 +3613,17 @@
     "free": "Grátis",
     "plan": "Plano",
     "restorePurchase": "Restaurar compra",
+    "question": "Qual plano?",
+    "orbitLine": {
+      "usage": "Você usou {used} de {limit} mensagens de IA.",
+      "loading": "Estou buscando os valores.",
+      "plansError": "Não consegui buscar os valores.",
+      "offline": "Estou sem conexão agora."
+    },
+    "result": {
+      "renews": "O Pro está ativo e renova em {date}.",
+      "ends": "O Pro está ativo até {date}."
+    },
     "appStore": {
       "manage": "Gerenciar assinatura",
       "manageHint": "Sua assinatura é cobrada pela App Store. Gerencie seu plano nos ajustes da Apple.",
