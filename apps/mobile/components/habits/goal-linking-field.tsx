@@ -21,7 +21,7 @@ import { ListRow } from '@/components/ui/list-row'
 
 import { ActionRow } from '@/components/ui/action-row'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
-import { CreateGoalSheet } from '../goals/create-goal-sheet'
+import { CreateGoalSheet } from '@/components/goals/create-goal-sheet'
 import { createUseGoalLinking, type GoalLinkingFieldProps } from '@orbit/shared/hooks'
 
 const useGoalLinking = createUseGoalLinking(useAccountScopedState)
