@@ -3,7 +3,7 @@ import { openSessionChain } from "./session-chain.mjs"
 import { REPO_ROOT, readRunState, updateRunState } from "./run-state.mjs"
 
 /** `queued` is the only disposition that keeps a question for the owner's own /questions. */
-export const QUESTION_DISPOSITIONS = ["answered", "decided", "owner-step", "duplicate", "queued"]
+const QUESTION_DISPOSITIONS = ["answered", "decided", "owner-step", "duplicate", "queued"]
 const RECORDED_DISPOSITIONS = ["answered", "decided", "owner-step"]
 
 const questionId = (question) =>
