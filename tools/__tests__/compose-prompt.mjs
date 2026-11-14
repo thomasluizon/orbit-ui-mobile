@@ -366,7 +366,7 @@ export const cases = () => {
     `${TOOL}: orchestration resolves review batch threads before its single push`,
     /compose its order with `--review-batch`/.test(orchestrateSkill) &&
       /worker commits, runs the\s+broader suite, reports the commit SHA and stops without pushing/.test(orchestrateSkill) &&
-      /resolve every identified thread on that commit, then push once/.test(orchestrateSkill) &&
+      /resolve every identified thread on that commit, run the local review\s+gate on it, then push once/.test(orchestrateSkill) &&
       !/A worker cannot keep that order\s+under today's contract/.test(orchestrateSkill),
     orchestrateSkill,
   )
