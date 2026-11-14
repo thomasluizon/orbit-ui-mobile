@@ -73,6 +73,7 @@ vi.mock('@/hooks/use-profile', () => ({ useHasProAccess: () => true, useProfile:
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/hooks/use-dismiss-guard', () => ({ useDismissGuard: () => ({ canDismiss: true, requestDismiss: vi.fn(), showDiscardDialog: false }) }))
 vi.mock('@/components/ui/discard-changes-sheet', () => ({ DiscardChangesSheet: () => null }))
+vi.mock('@/components/habits/guided/guided-habit-flow', () => ({ GuidedHabitFlow: () => null }))
 vi.mock('@/components/habits/habit-form-fields', () => ({ HabitFormFields: ({ formHelpers }: { formHelpers: HabitFormHelpers }) => <>
   <Pressable accessibilityRole="radio" accessibilityLabel="habits.form.typeTask" accessibilityState={{ checked: formHelpers.form.watch('itemType') === 'task' }} onPress={() => formHelpers.chooseItemType('task')}><Text>habits.form.typeTask</Text></Pressable>
   <Text>Habit fields</Text>

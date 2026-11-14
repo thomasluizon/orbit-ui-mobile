@@ -207,6 +207,7 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => {
   }
 })
 
+vi.mock('@/components/habits/guided/guided-habit-flow', () => ({ GuidedHabitFlow: () => null }))
 vi.mock('@/components/habits/habit-form-fields', () => ({
   HabitFormFields: (props: { children?: React.ReactNode | ((proposedItems: number) => React.ReactNode); onPhraseOwnershipChange?: (ownership: { cadence: boolean; dueTime: boolean }) => void }) =>
     React.createElement(
