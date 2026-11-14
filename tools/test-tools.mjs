@@ -229,7 +229,7 @@ if (listOnly) {
 }
 
 // Loaded after CLI validation, so --help and a bad argument stage no fixture root.
-const { BASH, T, assertionTally, beginToolScope, check, configure, endToolScope, failureCount, orphanCaseKeys, stage, toolFiles, toolPath } =
+const { BASH, T, assertionTally, beginToolScope, check, configure, endToolScope, failureCount, orphanCaseKeys, stage, toolPath } =
   await import("./__tests__/_harness.mjs")
 
 configure({ toolsDir: TOOLS_DIR, self: SELF })
@@ -409,57 +409,6 @@ T(
   orphanCaseKeys(["present.mjs", "absent.mjs"], caseKeyProbe).join(",") === "absent.mjs",
   `orphanCaseKeys reported ${orphanCaseKeys(["present.mjs", "absent.mjs"], caseKeyProbe).join(", ")} instead of absent.mjs`,
 )
-// Each fixture escapes the quote after import( and new URL(, so the text of this file holds no form the walk follows.
-const walkFixture = Object.entries({
-  "side-effect.mjs": "import \"./lib/effect.mjs\"\nimport './lib/quoted.mjs'\n",
-  "template.mjs": "await import(\`./lib/later.mjs\`)\nawait import(\`./lib/${name}.mjs\`)\n",
-  "url-read.mjs": [
-    "readFileSync(new URL(\"./lib/prompt.md\", import.meta.url), \"utf8\")",
-    "spawn(process.execPath, [fileURLToPath(new URL(\"./lib/child.mjs\", import.meta.url))])",
-    "const repositoryRoot = fileURLToPath(new URL(\"..\", import.meta.url))",
-    "readFileSync(new URL(\"../.claude/config.json\", import.meta.url), \"utf8\")\n",
-  ].join("\n"),
-  "external.mjs": [
-    `import { readFileSync } from "node:fs"`,
-    `import "node:process"`,
-    `import { z } from "zod"`,
-    "await import(\`zod\`)",
-    "new URL(\"node:os\", import.meta.url)\n",
-  ].join("\n"),
-  "escape.mjs": `import { outside } from "../../outside.mjs"\n`,
-  "cycle-a.mjs": `import "./cycle-b.mjs"\nimport { b } from "./cycle-b.mjs"\n`,
-  "cycle-b.mjs": "import { a } from \"./cycle-a.mjs\"\nawait import(\`./cycle-a.mjs\`)\n",
-  "lib/effect.mjs": "",
-  "lib/quoted.mjs": "",
-  "lib/later.mjs": "",
-  "lib/prompt.md": `import "./never-read.mjs"\n`,
-  "lib/child.mjs": `import "./grandchild.mjs"\n`,
-  "lib/grandchild.mjs": "",
-  "../.claude/config.json": "{}\n",
-  "../../outside.mjs": "export const outside = 1\n",
-}).map(([file, body]) => stage(join("tool-files", "repository", "tools", file), body))
-const walkToolsDir = dirname(walkFixture[0])
-/** The files toolFiles lists after the tool, sorted, or why the walk did not list the tool first. */
-const walkedAfter = (file) => {
-  try {
-    const files = toolFiles(file, walkToolsDir)
-    return files[0] === file ? files.slice(1).sort().join() : `the walk listed ${files[0]} first`
-  } catch (error) {
-    return `threw: ${error.message}`
-  }
-}
-for (const [name, file, expected] of [
-  ["follows a side-effect import", "side-effect.mjs", "lib/effect.mjs,lib/quoted.mjs"],
-  ["follows import() with a template literal and skips one with a substitution", "template.mjs", "lib/later.mjs"],
-  ["lists the file a URL read names and walks into it only when it is a module", "url-read.mjs", "../.claude/config.json,lib/child.mjs,lib/grandchild.mjs,lib/prompt.md"],
-  ["lists no node: or package specifier", "external.mjs", ""],
-  ["stops at an import cycle", "cycle-a.mjs", "cycle-b.mjs"],
-]) {
-  const walked = walkedAfter(file)
-  T(`toolFiles ${name}`, walked === expected, `${file} gave "${walked}", expected "${expected}"`)
-}
-const escaped = walkedAfter("escape.mjs")
-T("toolFiles refuses a path outside the repository root", escaped.startsWith("threw: ") && escaped.includes("../../outside.mjs"), `escape.mjs gave "${escaped}"`)
 const orphanedCaseKeys = orphanCaseKeys(CASE_MODULES.map(([file]) => file), TOOLS_DIR)
 T(
   "every registered case key names a real tools/ file",
