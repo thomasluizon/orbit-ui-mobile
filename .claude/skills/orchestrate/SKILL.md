@@ -1342,12 +1342,11 @@ runs for merged tickets only, including those merged under D88/D90 standing auth
 | Implementer | the engine named by `worker` in `.claude/orchestrator.json`, at the order's `default`, `mechanical`, `deep` or `max` tier |
 | Reviewer | Pullfrog in GitHub Actions: `anthropic/claude-opus-5-5` at `xhigh` effort, pinned in `.github/workflows/pullfrog.yml` |
 
-The shipped worker is `claude`, and every tier runs `--effort high`. The `default` and `mechanical`
-tiers resolve to Sonnet 5.5, so their dry runs print `--effort high --model claude-sonnet-5-5`. The
-`deep` and `max` tiers resolve to Opus 5.5, so their dry runs print
-`--effort high --model claude-opus-5-5`. Use `default` for normal orders, `mechanical` for fully
-specified mechanical work, `deep` for a large ticket and `max` for a review round after one failed
-round, so that round always runs on Opus. Never use `ultra`, which delegates to its own agents;
+The shipped worker is `claude`, and every tier runs `--effort high`. The owner sets the model of
+each tier in `.claude/orchestrator.json` per account allowance. Every tier now resolves to
+Fable 5.2, so each dry run prints `--effort high --model claude-fable-5-2`. Use `default` for normal
+orders, `mechanical` for fully specified mechanical work, `deep` for a large ticket and `max` for a
+review round after one failed round. Never use `ultra`, which delegates to its own agents;
 worker orders forbid sub-agents. The installed
 `claude` CLI accepts exactly `low`, `medium`, `high`, `xhigh` and `max` for `--effort`, and it
 warns and runs the default effort on any other value.
