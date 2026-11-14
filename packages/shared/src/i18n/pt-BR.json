@@ -1131,7 +1131,7 @@
       "reminders": "Lembretes",
       "askAstraSeedDefault": "Como estou indo no hábito \"{title}\"? Me dá sua análise e uma dica para melhorar.",
       "orbit": {
-        "lastSevenDays": "Você fez isso em {done} dos últimos 7 dias."
+        "lastSevenDays": "{done, plural, =0 {Você fez isso em # dos últimos 7 dias.} one {Você fez isso em # dos últimos 7 dias.} other {Você fez isso em # dos últimos 7 dias.}}"
       },
       "copyDescription": "Copiar descrição",
       "descriptionCopied": "Descrição copiada",
@@ -1339,7 +1339,7 @@
       "dayFull": "Dia {day}: tudo feito.",
       "dayPartial": "Dia {day}: {done} de {total, plural, =0 {# feitos} one {# feito} other {# feitos}}.",
       "dayLoggable": "Ainda dá para registrar esse dia.",
-      "dayFuture": "{count, plural, =0 {{weekday} não tem nada marcado.} one {{weekday} tem # coisa marcada.} other {{weekday} tem # coisas marcadas.}}",
+      "dayFuture": "{count, plural, =0 {{weekday} tem # coisas marcadas.} one {{weekday} tem # coisa marcada.} other {{weekday} tem # coisas marcadas.}}",
       "dayNone": "Nada marcado nesse dia.",
       "monthEmpty": "Nada marcado em {month}.",
       "monthFuture": "Este mês ainda não chegou.",
@@ -3169,7 +3169,7 @@
       "year": "{count, plural, =0 {a cada # anos} one {todo ano} other {a cada # anos}}"
     },
     "calendar": {
-      "imported": "{count, plural, =0 {Nenhum hábito foi criado a partir da sua agenda.} one {# hábito foi criado a partir da sua agenda.} other {# hábitos foram criados a partir da sua agenda.}}"
+      "imported": "{count, plural, =0 {# hábitos foram criados a partir da sua agenda.} one {# hábito foi criado a partir da sua agenda.} other {# hábitos foram criados a partir da sua agenda.}}"
     },
     "seeToday": "Ver no Hoje",
     "account": {
