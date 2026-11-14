@@ -5,16 +5,22 @@ on:
     branches: [main]
     paths:
       - "apps/desktop/**"
+      - "!apps/desktop/**/*.md"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/desktop-build.yml"
+      - ".github/actions/desktop-nsis-tools/**"
+  # A main run compiles all four targets and saves the Rust compile caches that pull requests read.
+  push:
+    branches: [main]
+    paths:
+      - "apps/desktop/**"
+      - "!apps/desktop/**/*.md"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/desktop-build.yml"
       - ".github/actions/desktop-nsis-tools/**"
   workflow_dispatch:
-  workflow_call:
-    inputs:
-      source_sha:
-        required: true
-        type: string
 
 concurrency:
   group: desktop-build-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
@@ -26,27 +32,19 @@ permissions:
 jobs:
   build:
     name: Desktop ${{ matrix.target }}
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 35
+    # The two cross targets compile on the same host type as their native leg, so a pull request runs the native legs only.
+    runs-on: ${{ endsWith(matrix.target, '-apple-darwin') && 'macos-15' || 'windows-2025' }}
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - runner: macos-15
-            target: aarch64-apple-darwin
-          - runner: macos-15
-            target: x86_64-apple-darwin
-          - runner: windows-2025
-            target: x86_64-pc-windows-msvc
-          - runner: windows-2025
-            target: aarch64-pc-windows-msvc
+        target: ${{ fromJSON(github.event_name == 'pull_request' && '["aarch64-apple-darwin", "x86_64-pc-windows-msvc"]' || '["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]') }}
     defaults:
       run:
         shell: bash
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.source_sha || github.sha }}
           persist-credentials: false
       - uses: actions/setup-node@v7
         env:
@@ -55,10 +53,6 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --prefer-offline --no-audit --fund=false
-      - name: Report Windows PowerShell version
-        if: runner.os == 'Windows'
-        shell: powershell
-        run: $PSVersionTable
       - name: Point the Windows App SDK download cache
         if: runner.os == 'Windows'
         run: echo "ORBIT_WINDOWS_DOWNLOAD_CACHE=$RUNNER_TEMP/windows-app-sdk-downloads" >> "$GITHUB_ENV"
@@ -77,18 +71,20 @@ jobs:
         run: |
           rustup toolchain install stable --profile minimal --target "$DESKTOP_TARGET"
           rustup default stable
-      - name: Validate desktop configuration
-        run: |
-          npm run type-check -w @orbit/desktop
-          npm run test -w @orbit/desktop
-          npm run test -w @orbit/web -- --project jsdom __tests__/lib/desktop-web-release.test.ts __tests__/components/desktop-release-boundary.test.tsx __tests__/components/desktop-update-offer.test.tsx
-      - name: Check target and test native context on the runner host
-        env:
-          DESKTOP_TARGET: ${{ matrix.target }}
+      - name: Restore the Rust compile cache
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: apps/desktop/src-tauri -> target
+          # One key per target, shared with Desktop Installed Acceptance and Desktop Release.
+          shared-key: desktop-${{ matrix.target }}
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      # Type Check and the web jsdom shards of Unit Tests prove the desktop types and the web bridge on every pull request.
+      - name: Test the desktop shell
+        run: npm run test -w @orbit/desktop
+      - name: Test native context on the runner host
         working-directory: apps/desktop/src-tauri
-        run: |
-          cargo check --locked --target "$DESKTOP_TARGET"
-          cargo test --locked
+        run: cargo test --locked
+      # The package step compiles the target in full, so no separate cargo check runs.
       - name: Package unsigned staging shell
         env:
           DESKTOP_TARGET: ${{ matrix.target }}

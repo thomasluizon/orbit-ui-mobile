@@ -182,17 +182,17 @@ it('fails if the baseline tag is unavailable or checkout is not the selected com
   expect(() => planShellRelease('staging', source, '0.1.1', [], '1.0.0')).toThrow('minimum shell version')
 }, gitTestTimeout)
 
-it('tests the pinned source and gates both web deployments on the reusable publisher', () => {
+it('publishes the pinned source and gates both web deployments on the reusable publisher', () => {
   const require = createRequire(import.meta.url)
   const { load } = require('js-yaml') as { load: (source: string) => {
     jobs: Record<string, { needs?: string[]; uses?: string; with?: Record<string, string> }>
   } }
   const workflow = load(readFileSync(new URL('../../../.github/workflows/release.yml', import.meta.url), 'utf8'))
-  expect(workflow.jobs['desktop-test']!.uses).toBe('./.github/workflows/desktop-build.yml')
-  expect(workflow.jobs['desktop-test']!.with!.source_sha).toBe('${{ needs.build.outputs.source_sha }}')
+  expect(workflow.jobs['desktop-test']).toBeUndefined()
+  expect(Object.values(workflow.jobs).some(job => job.uses === './.github/workflows/desktop-build.yml')).toBe(false)
   expect(workflow.jobs['desktop-release']!.uses).toBe('./.github/workflows/desktop-release.yml')
-  expect(workflow.jobs['desktop-release']!.needs).toEqual(['build', 'desktop-test', 'admission'])
-  expect(workflow.jobs['desktop-release']!.with!.source_sha).toBe('${{ needs.build.outputs.source_sha }}')
+  expect(workflow.jobs['desktop-release']!.needs).toEqual(['select', 'admission'])
+  expect(workflow.jobs['desktop-release']!.with!.source_sha).toBe('${{ needs.select.outputs.sha }}')
   expect(workflow.jobs['desktop-release']!.with!.staging_admitted).toBe("${{ inputs.environment == 'production' }}")
   for (const environment of ['staging', 'production']) {
     expect(workflow.jobs[environment]!.needs).toContain('desktop-release')

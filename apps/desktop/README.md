@@ -69,7 +69,7 @@ npm run build:staging -w @orbit/desktop -- --no-sign --target aarch64-pc-windows
 
 Build on the target operating system with the matching Rust target installed. macOS produces an app bundle; Windows produces an NSIS installer that installs WebView2 if required. Build output lives under `src-tauri/target/<target>/release/bundle`. `--debug` selects the debug output directory. These development artifacts are unsigned and are not landing-page downloads.
 
-The `Desktop Build` workflow compiles and packages all four targets on native runners. It uploads macOS bundles as tar archives to preserve executable permissions and uploads Windows installers directly. It never opens the application, signs a release, publishes downloads or changes the web release pipeline.
+The `Desktop Build` workflow compiles and packages on native runners: a pull request builds `aarch64-apple-darwin` and `x86_64-pc-windows-msvc`, and a `main` push or a manual dispatch builds all four targets and saves the Rust compile cache that pull requests read. It uploads macOS bundles as tar archives to preserve executable permissions and uploads Windows installers directly. It never opens the application, signs a release, publishes downloads or changes the web release pipeline.
 
 ## Publish an updater release
 

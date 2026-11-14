@@ -24,14 +24,17 @@ it.each(['desktop-build', 'desktop-release'])('%s restores verified downloads be
   expect(cache.with?.['restore-keys']).toBeUndefined()
   const nativeStep = steps.findIndex(step => step.run?.includes('cargo '))
   expect(steps.indexOf(cache)).toBeLessThan(nativeStep)
-  const host = steps.find(step => step.name === 'Report Windows PowerShell version')!
+})
+
+it('reports the Windows PowerShell version before a release compiles', () => {
+  const host = workflow('desktop-release').jobs.build!.steps!.find(step => step.name === 'Report Windows PowerShell version')!
   expect(host.shell).toBe('powershell')
   expect(host.if).toBe("runner.os == 'Windows'")
   expect(host.run).toContain('$PSVersionTable')
 })
 
-it('keeps web releases on the reusable desktop test and publication paths', () => {
+it('keeps web releases on the reusable desktop publication path without a second desktop build', () => {
   const release = workflow('release')
-  expect(release.jobs['desktop-test']?.uses).toBe('./.github/workflows/desktop-build.yml')
+  expect(release.jobs['desktop-test']).toBeUndefined()
   expect(release.jobs['desktop-release']?.uses).toBe('./.github/workflows/desktop-release.yml')
 })
