@@ -184,8 +184,8 @@ collapsed navigation centre their glyphs, with 8px between row fills.
 Loading month and range grids use the paired `dates/day-column-content.tsx` allocation, matching
 the loaded disc size and centre without changing transparent columns. The paired notification
 bell owners use the shared IconButton for every interactive placement, with a centred glyph and
-an independent corner count. Web `interaction-surface-sweep.test.tsx` mounts all four destinations
-and discovers their controls and opened sheets from the rendered DOM; it rejects adjoining cells
+an independent corner count. Web `interaction-surface-sweep-<destination>-<locale>.test.tsx` mounts each of the four destinations in each locale
+through `support/interaction-surface-sweep.ts` and discovers their controls and opened sheets from the rendered DOM; it rejects adjoining cells
 that fail clearance instead of exempting contained paint. Native style cases discover glyphs in
 the mounted bell, icon primitive, calendar header, row actions and composer alongside the fill
 owners above. These checks prove rendered web geometry and resolved native styles, not device paint.

@@ -48,6 +48,14 @@ const nonEmptyString = (value, name) => {
   return value
 }
 
+const HYGIENE_ROOT_KEYS = ["workshop", "vault"]
+
+const validateHygieneRoots = (hygieneRoots) => {
+  if (hygieneRoots === undefined) return
+  if (!isRecord(hygieneRoots)) throw new Error(".claude/orchestrator.json hygieneRoots must be an object")
+  for (const key of HYGIENE_ROOT_KEYS) nonEmptyString(hygieneRoots[key], `hygieneRoots.${key}`)
+}
+
 const TICKET_STATUSES = ["Backlog", "Todo", "In Progress", "In Review", "Done", "Canceled", "Duplicate"]
 const TICKET_STATE_KEYS = ["working", "review", "done"]
 const TICKET_STATES = { working: "In Progress", review: "In Review", done: "Done" }
@@ -159,9 +167,13 @@ export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranc
   }
   nonEmptyString(config.repos[cloudRepositoryKey], `repos.${cloudRepositoryKey}`)
   validateTickets(config.tickets)
+  validateHygieneRoots(config.hygieneRoots)
   const commonDir = runGit(dirname(configPath), ["rev-parse", "--path-format=absolute", "--git-common-dir"])
   const primaryRoot = commonDir.ok ? dirname(commonDir.stdout) : resolve(dirname(configPath), "..")
   config.repos = Object.fromEntries(Object.entries(config.repos).map(([key, path]) => [key, typeof path === "string" ? resolve(primaryRoot, path) : path]))
+  if (config.hygieneRoots !== undefined) {
+    config.hygieneRoots = Object.fromEntries(HYGIENE_ROOT_KEYS.map((key) => [key, resolve(primaryRoot, config.hygieneRoots[key])]))
+  }
   return config
 }
 

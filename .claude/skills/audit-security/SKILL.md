@@ -133,12 +133,13 @@ re-invoke for any gap:
 
 1. **Every data query is user-scoped**, each orbit-api handler filters by the JWT `userId`,
    never a client field. An `id` loaded without an ownership check is a **Tier 1 IDOR**.
-   **Then check the second door.** Orbit's Postgres IS Supabase and the web bundle ships a
-   real publishable key, so PostgREST reaches the same rows without touching the API. That
-   state lives in the database, not the repo, so the finders structurally cannot see it and
-   YOU run the three checks in checklist section A's final bullet: RLS on every `public`
-   table, zero `public` grants to `anon`/`authenticated`, and a live 401 on a curl with the
-   real key. A code-only sweep would report a naked database as clean.
+   **Then check the database door.** Orbit's Postgres is a Render database with an operator IP
+   allow-list. That state lives in the Render console and the Terraform variables, not in a
+   handler, so the finders cannot judge it. YOU run the check in the final bullet of checklist
+   section A: the live allow-list holds no `0.0.0.0/0` entry. An empty list blocks every external
+   connection, so it is closed, not a finding. The tracked `[]` values in `variables.tf` and
+   `example.tfvars` are placeholders, not the live list. Without Render access, record it as
+   UNVERIFIED in the Deferred ledger.
 2. **AI / MCP tools cannot cross users**, the agent operations derive `userId` from the
    session; no tool accepts a target-user parameter. A raw-id mutator is **Tier 1**.
 3. **AI-abuse / prompt-injection**, the AI endpoint is rate-limited + size-capped; a crafted
@@ -173,7 +174,7 @@ re-invoke for any gap:
 Run the shared pipeline in **`.claude/skills/_shared/audit-to-tickets.md`**: one GitHub
 ticket per verified finding, drafted to the 6.2 template, validated by
 re-read against the 6.2 template, presented to the owner behind ONE approval gate, then
-created via `gh issue create` and re-validated from the created issue.
+created via `node tools/create-ticket.mjs` and re-validated from the created issue.
 
 Security-specific mapping into the 6.2 body:
 

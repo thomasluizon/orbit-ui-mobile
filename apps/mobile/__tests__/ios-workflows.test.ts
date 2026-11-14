@@ -12,7 +12,7 @@ interface Workflow<Job extends string> {
     'runs-on': string
     'timeout-minutes': number
     env: Record<string, string>
-    steps: { name?: string; run?: string; uses?: string; if?: string; env?: Record<string, string>; with?: Record<string, string> }[]
+    steps: { id?: string; name?: string; run?: string; uses?: string; if?: string; env?: Record<string, string>; with?: Record<string, string> }[]
   }>
 }
 
@@ -60,6 +60,7 @@ describe('iOS build and release boundaries', () => {
     const commands = workflow.jobs.compile.steps.map((step) => step.run ?? '').join('\n')
     expect(commands).toContain('expo prebuild --platform ios')
     expect(commands).toContain("-destination 'generic/platform=iOS Simulator'")
+    expect(commands).toContain(' ARCHS=arm64 ')
     expect(commands).toContain('CODE_SIGNING_ALLOWED=NO')
     expect(commands).not.toMatch(/simctl|expo start/)
     expect(commands).toContain('-workspace ios/OrbitStaging.xcworkspace -scheme OrbitStaging')
@@ -70,9 +71,10 @@ describe('iOS build and release boundaries', () => {
   it('reuses compiler outputs while regenerating and compiling every source revision', () => {
     const workflow = readWorkflow<'compile'>('ios-build')
     const { steps, env } = workflow.jobs.compile
-    const cacheIndex = steps.findIndex((step) => step.uses === 'actions/cache@v6')
+    const cacheIndex = steps.findIndex((step) => step.uses === 'actions/cache/restore@v6')
     expect(cacheIndex).toBeGreaterThanOrEqual(0)
     const cache = steps[cacheIndex]!
+    expect(cache.id).toBeTypeOf('string')
     expect(cache.with?.path).toBe('${{ env.CCACHE_DIR }}')
     expect(env.USE_CCACHE).toBe('1')
     expect(env.CCACHE_DIR).toBe('${{ github.workspace }}/.cache/ios-ccache')
@@ -90,6 +92,13 @@ describe('iOS build and release boundaries', () => {
     expect(prebuildIndex).toBeLessThan(compileIndex)
     expect(steps[prebuildIndex]?.if).toBeUndefined()
     expect(steps[compileIndex]?.if).toBeUndefined()
+    const compileId = steps[compileIndex]?.id
+    expect(compileId).toBeTypeOf('string')
+    const saveIndex = steps.findIndex((step) => step.uses === 'actions/cache/save@v6')
+    expect(saveIndex).toBeGreaterThan(compileIndex)
+    expect(steps[saveIndex]?.if).toBe(`\${{ always() && steps.${compileId}.outcome != 'skipped' }}`)
+    expect(steps[saveIndex]?.with).toEqual({ path: cache.with?.path, key: `\${{ steps.${cache.id}.outputs.cache-primary-key }}` })
+    expect(steps.some((step) => step.uses === 'actions/cache@v6')).toBe(false)
     expect(steps.some((step) => step.run?.includes('ccache --zero-stats'))).toBe(true)
     expect(steps.some((step) => step.run?.includes('ccache --show-stats'))).toBe(true)
     expect(workflow.on.push?.branches).toEqual(['main'])

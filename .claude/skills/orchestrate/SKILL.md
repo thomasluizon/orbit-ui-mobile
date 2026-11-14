@@ -354,7 +354,7 @@ The ticket is the prompt (D2): quoted verbatim into the worker prompt, never par
 | `AMBIGUOUS_REPO` | two `repo:*` labels. `repo:both` does not exist (D4) |
 | `CLOSED` | already Done, Canceled or Duplicate |
 | `NOT_REPRODUCED` | the body says NOT REPRODUCED, asks for a device or emulator repro, or makes obtaining one the first Scope item. ORB-128 and ORB-208 are both Android runtime bugs whose competing hypotheses only a device can tell apart |
-| `NOT_CODE_WORK` | the body says no code in any repo, Ops-only, or HUMAN-ONLY. ORB-27, ORB-28, ORB-83 |
+| `NOT_CODE_WORK` | the body says no code in any repo, Ops-only, or HUMAN-ONLY. ORB-27, ORB-28, ORB-83. A ticket whose Scope starts with the coordinator marker of `_shared/audit-to-tickets.md` §2 is yours: change its `thomas-brain` or vault file by hand |
 | `MULTI_PR` | the body scopes itself to several pull requests, which breaks D4 before the harness sees it. ORB-25, ORB-26 |
 | `NEEDS_CONVERSATION` | **`--sleep` only.** The ticket can be executed headlessly, but not CORRECTLY without asking first: a human grant in its acceptance criteria, a body that contradicts itself about which tool is current, a choice left to the implementer, or a product/brand/copy/price call the repository cannot supply. the owner is asleep, so it defers WITH its open questions printed. ORB-30 (#36) |
 

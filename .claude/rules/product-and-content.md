@@ -12,7 +12,7 @@ paths:
 
 `DESIGN.md` is authoritative for all UI and wins over anything here. These are the constraints that sit alongside it and that no gate can see.
 
-The landing is a live SEO surface and Vercel Analytics keys off its slugs, anchor ids, nav labels, and form field names. `core.md` rule 4 (always loaded) governs changing them.
+The landing is a live SEO surface and PostHog analytics keys off its slugs, anchor ids, nav labels, and form field names. `core.md` rule 5 (always loaded) governs changing them.
 
 ## The design system
 
@@ -48,7 +48,7 @@ Nothing else protects against a subtraction pass silently orphaning a feature. *
 ### 4. One term per concept, everywhere, in both locales
 Delete — not Delete/Remove/Trash. Settings — not Settings/Preferences/Options. **Keep a glossary; never vary for variety.**
 
-Cross-cutting standing rule for `en.json` + `pt-BR.json`, audited by the i18n dimension of `.claude/skills/pr-review/rubric.md`.
+Cross-cutting standing rule for `en.json` + `pt-BR.json`, audited by the i18n dimension of `.claude/skills/audit-code-quality/rubric.md`.
 
 ### 5. Keep interpolated numbers out of sentence structure
 `"New messages: {count}"` over `"You have {count} new messages"`. And **keep a full sentence as one string** — never concatenated fragments.

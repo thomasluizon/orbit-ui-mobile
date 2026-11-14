@@ -1,11 +1,11 @@
 import { spawnSync } from "node:child_process"
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
-import { dirname, join, relative, resolve } from "node:path"
+import { dirname, isAbsolute, join, relative, resolve } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import { runInNewContext } from "node:vm"
 
 import { AUTO_COMPACT_TOKENS } from "../lib/session-context.mjs"
-import { T, root, realOrchestratorConfig, stage, toolPath } from "./_harness.mjs"
+import { T, root, realOrchestratorConfig, run, stage, stageRepo, toolPath } from "./_harness.mjs"
 
 const NAME = "orchestrator-config.mjs"
 /** The shipped claude model for each worker tier, in escalation order. */
@@ -73,6 +73,259 @@ export const cases = async () => {
     T(`${NAME}: ${name} workflow accepts absolute roots`,
       absolute.UI === "/checkout/ui" && absolute.API === "/checkout/api")
   }
+
+  const readinessSource = readFileSync(new URL("../../.claude/workflows/prod-readiness.mjs", import.meta.url), "utf8").replace(/^export const meta = [\s\S]*?\n}\n/, "")
+  // A finder that the case does not script reads every candidate row of its repository.
+  const judgedCountOf = (hygiene, label) =>
+    Object.values(hygiene?.repositories?.[label.slice("hygiene:".length)]?.counts ?? {}).reduce((total, count) => total + count.judged, 0)
+  const finderAnswer = (hygiene, label, answer) =>
+    answer && label.startsWith("hygiene:") && answer.rowsRead === undefined ? { ...answer, rowsRead: judgedCountOf(hygiene, label) } : answer
+  const runReadiness = async ({ hygiene, refute = true, verdict = { refuted: refute, note: "checked" }, scope = "both", finderFindings = {}, finderResults = {}, throwing = () => false }) => {
+    const prompts = {}
+    const labels = []
+    const scripted = (label) => {
+      if (finderResults[label]) return finderResults[label]
+      if (finderFindings[label]) return { findings: finderFindings[label], deferred: [] }
+      if (label === "hygiene:ui") {
+        return {
+          findings: [{ severity: "Blocker", check: "hygiene-old", title: "Old file", location: "orbit-ui-mobile x.md", risk: "an agent reads it", evidence: "row and search", fix: "delete x.md" }],
+          deferred: [{ check: "hygiene-deployed-readers", path: "apps/web/public/a.png", reason: "a public URL can serve it" }],
+        }
+      }
+      if (label === "hygiene:workshop") {
+        return {
+          findings: [{ severity: "Medium", check: "hygiene-temporary", title: "Draft file", location: "thomas-brain drafts/z.md", risk: "a script reads it", evidence: "temporaryPattern segment:drafts; searched drafts/z.md: no reader", fix: "delete drafts/z.md" }],
+          deferred: [],
+        }
+      }
+      if (label === "ops:staging") {
+        return { findings: [{ severity: "High", check: "staging", title: "No gate", location: "orbit-api .github/workflows/release.yml:1", risk: "an unadmitted commit ships", evidence: "release.yml:1 has no admission step", fix: "add the admission step" }] }
+      }
+      if (label === "hygiene:api") return null
+      if (label.startsWith("verify:")) return verdict
+      return { findings: [], deferred: [] }
+    }
+    const context = {
+      args: { roots: { ui: "/checkout/ui", api: "/checkout/api" }, scope, hygiene },
+      phase() {},
+      log() {},
+      // The workflow runtime resolves a thunk that throws to null, and parallel itself never rejects.
+      parallel: (calls) => Promise.all(calls.map((call) => Promise.resolve().then(call).catch(() => null))),
+      workflow: async (_, input) => ({ kind: input.kind, findings: [], counts: {}, coverage: [], deferred: [], converged: true }),
+      agent: async (prompt, options) => {
+        prompts[options.label] = prompt
+        labels.push(options.label)
+        if (throwing(options.label)) throw new Error(`${options.label} failed`)
+        return finderAnswer(hygiene, options.label, scripted(options.label))
+      },
+    }
+    const result = await runInNewContext(`(async () => {\n${readinessSource}\n})()`, context)
+    return { result, prompts, labels }
+  }
+  // The kinds and the file folder of this fixture copy what tools/file-ledger.mjs --candidates prints; the handoff case below runs the tool itself.
+  const candidatesFileOf = (name) => `/checkout/ui/.claude/sweeps/hygiene/${name}.jsonl`
+  const hygieneEntry = (root, name, judged = {}, deferred = {}) => ({
+    root,
+    candidatesFile: candidatesFileOf(name),
+    counts: Object.fromEntries(["outdated", "temporary", "duplicate", "old"].map((kind) => [kind, { judged: judged[kind] ?? 0, deferred: deferred[kind] ?? 0 }])),
+  })
+  const hygieneArgument = { repositories: {
+    ui: hygieneEntry("/checkout/ui", "orbit-ui-mobile", { old: 1 }),
+    api: hygieneEntry("/checkout/api", "orbit-api", { outdated: 1 }),
+    landing: { root: null, reason: "scope" },
+    workshop: hygieneEntry("/checkout/workshop", "thomas-brain", { temporary: 1 }),
+    vault: { root: null },
+  } }
+  const refuted = await runReadiness({ hygiene: hygieneArgument })
+  T(`${NAME}: the hygiene phase runs one finder for each repository that has a root`,
+    JSON.stringify(refuted.result.hygieneChecksRun) === JSON.stringify(["ui", "workshop"]) && JSON.stringify(refuted.result.hygieneChecksFailed) === JSON.stringify(["api"]),
+    JSON.stringify([refuted.result.hygieneChecksRun, refuted.result.hygieneChecksFailed]))
+  T(`${NAME}: a delete finding that the skeptic refutes is dropped`, refuted.result.hygieneFindings.length === 0, JSON.stringify(refuted.result.hygieneFindings))
+  const deferredChecks = refuted.result.hygieneDeferred.map((item) => item.check)
+  T(`${NAME}: a missing root, a scope exclusion and a deployed reader land in the deferred ledger`,
+    deferredChecks.includes("hygiene-landing") && deferredChecks.includes("hygiene-vault") && deferredChecks.includes("hygiene-deployed-readers") &&
+      refuted.result.hygieneDeferred.find((item) => item.check === "hygiene-landing")?.reason === "scope", JSON.stringify(refuted.result.hygieneDeferred))
+  T(`${NAME}: the finder prompt carries the ledger rule and the four kinds`,
+    /Every tracked file starts as a suspect/.test(refuted.prompts["hygiene:ui"]) && ["hygiene-old", "hygiene-outdated", "hygiene-duplicate", "hygiene-temporary"].every((kind) => refuted.prompts["hygiene:ui"].includes(kind)))
+  const kept = await runReadiness({ hygiene: hygieneArgument, refute: false })
+  const keptOld = kept.result.hygieneFindings.find((finding) => finding.check === "hygiene-old")
+  T(`${NAME}: a surviving hygiene finding is never a Blocker`, kept.result.hygieneFindings.length === 2 && keptOld?.severity === "High", JSON.stringify(kept.result.hygieneFindings))
+  T(`${NAME}: a surviving hygiene finding carries the root of its repository`,
+    keptOld?.root === "/checkout/ui" && kept.result.hygieneFindings.find((finding) => finding.check === "hygiene-temporary")?.root === "/checkout/workshop", JSON.stringify(kept.result.hygieneFindings))
+  const skepticPrompt = refuted.prompts["verify:hygiene-temporary"] ?? ""
+  T(`${NAME}: the skeptic prompt of a hygiene finding outside orbit-ui-mobile names the root of its repository`,
+    skepticPrompt.includes("rooted at /checkout/workshop") && !skepticPrompt.includes("/checkout/ui"), skepticPrompt)
+  T(`${NAME}: the skeptic prompt of a hygiene finding carries its evidence and its fix`,
+    skepticPrompt.includes("searched drafts/z.md: no reader") && skepticPrompt.includes("fix=delete drafts/z.md"), skepticPrompt)
+  for (const label of ["verify:hygiene-temporary", "verify:staging"]) {
+    T(`${NAME}: the ${label} prompt says a file the skeptic cannot open is deferred, never refuted`,
+      /cannot open the cited file[^\n]*deferred=true and refuted=false/.test(refuted.prompts[label] ?? ""), refuted.prompts[label])
+  }
+  const opsPrompt = refuted.prompts["verify:staging"] ?? ""
+  T(`${NAME}: the skeptic prompt of an ops finding names both repository roots, the evidence and the fix`,
+    opsPrompt.includes("/checkout/ui") && opsPrompt.includes("/checkout/api") && opsPrompt.includes("release.yml:1 has no admission step") && opsPrompt.includes("fix=add the admission step"), opsPrompt)
+  T(`${NAME}: the observability finder is told the workflow defers the console-only alert routing, and opsDeferred carries it`,
+    /deferred check alert-routing/.test(refuted.prompts["ops:observability"] ?? "") && !/no alert sink is a finding/.test(refuted.prompts["ops:observability"] ?? "") &&
+      refuted.result.opsDeferred.some((item) => item.check === "alert-routing"), refuted.prompts["ops:observability"])
+  const unopened = await runReadiness({ hygiene: hygieneArgument, verdict: { refuted: true, deferred: true, note: "could not open /checkout/workshop/drafts/z.md" } })
+  T(`${NAME}: a hygiene finding whose skeptic cannot open the file is deferred, never refuted`,
+    unopened.result.hygieneFindings.length === 0 &&
+      unopened.result.hygieneDeferred.some((item) => item.check === "hygiene-temporary" && item.path === "thomas-brain drafts/z.md" && item.reason.includes("/checkout/workshop")),
+    JSON.stringify(unopened.result.hygieneDeferred))
+  T(`${NAME}: an ops finding whose skeptic cannot open the file is kept as unverified`,
+    unopened.result.opsFindings.length === 1 && /could not open the cited file/.test(unopened.result.opsFindings[0].unverified ?? ""), JSON.stringify(unopened.result.opsFindings))
+  const deleteFindings = Array.from({ length: 70 }, (_, index) => ({ severity: "Medium", check: "hygiene-old", title: `Old file ${index}`, location: `orbit-ui-mobile old-${index}.md`, risk: "an agent reads it", evidence: "row and search", fix: `delete old-${index}.md` }))
+  const overflow = await runReadiness({ hygiene: hygieneArgument, refute: false, finderFindings: { "hygiene:ui": deleteFindings } })
+  const overflowSkeptics = overflow.labels.filter((label) => label.startsWith("verify:"))
+  const capDeferred = overflow.result.hygieneDeferred.filter((item) => /adversarial-verify cap of 60/.test(item.reason))
+  T(`${NAME}: the Verify phase starts at most 60 skeptics when 72 findings qualify`, overflowSkeptics.length === 60, `${overflowSkeptics.length} skeptics`)
+  T(`${NAME}: an ops finding takes a skeptic slot before hygiene findings of a lower or equal severity`,
+    overflowSkeptics.includes("verify:staging") && overflow.result.opsFindings.length === 1 && overflow.result.opsFindings[0].unverified === undefined, JSON.stringify(overflow.result.opsFindings))
+  T(`${NAME}: hygiene delete findings beyond the cap go to hygieneDeferred with the reason and never into hygieneFindings`,
+    overflow.result.hygieneFindings.length === 59 && capDeferred.length === 12 &&
+      capDeferred.some((item) => item.path === "thomas-brain drafts/z.md") &&
+      capDeferred.every((item) => !overflow.result.hygieneFindings.some((finding) => finding.location === item.path)),
+    `${overflow.result.hygieneFindings.length} findings, ${capDeferred.length} deferred by the cap`)
+  const opsFlood = Array.from({ length: 61 }, (_, index) => ({ severity: "High", check: "staging", title: `Gap ${index}`, location: `orbit-api release.yml:${index + 1}`, risk: "an unadmitted commit ships", evidence: `release.yml:${index + 1}`, fix: "add the admission step" }))
+  const opsOverflow = await runReadiness({ hygiene: hygieneArgument, refute: false, finderFindings: { "ops:staging": opsFlood } })
+  const unchallengedOps = opsOverflow.result.opsFindings.filter((finding) => /adversarial-verify cap of 60/.test(finding.unverified ?? ""))
+  T(`${NAME}: an ops finding beyond the cap is kept with unverified, and no hygiene finding takes a skeptic slot first`,
+    opsOverflow.labels.filter((label) => label.startsWith("verify:")).length === 60 && opsOverflow.result.opsFindings.length === 61 && unchallengedOps.length === 1 &&
+      opsOverflow.result.hygieneDeferred.filter((item) => /adversarial-verify cap of 60/.test(item.reason)).length === 2,
+    `${opsOverflow.result.opsFindings.length} ops findings, ${unchallengedOps.length} unchallenged`)
+  for (const [label, options] of [["dies", { verdict: null }], ["throws", { throwing: (name) => name.startsWith("verify:") }]]) {
+    const unjudged = await runReadiness({ hygiene: hygieneArgument, ...options })
+    const deferredBySkeptic = unjudged.result.hygieneDeferred.filter((item) => /the skeptic died or failed/.test(item.reason)).map((item) => item.path)
+    T(`${NAME}: a hygiene finding whose skeptic ${label} is deferred, never filed unchecked`,
+      unjudged.result.hygieneFindings.length === 0 && JSON.stringify(deferredBySkeptic.sort()) === JSON.stringify(["orbit-ui-mobile x.md", "thomas-brain drafts/z.md"]),
+      JSON.stringify([unjudged.result.hygieneFindings, unjudged.result.hygieneDeferred]))
+    T(`${NAME}: an ops finding whose skeptic ${label} is kept with unverified`,
+      unjudged.result.opsFindings.length === 1 && /skeptic died or failed/.test(unjudged.result.opsFindings[0].unverified ?? ""), JSON.stringify(unjudged.result.opsFindings))
+  }
+  const updateFinding = { severity: "Medium", check: "hygiene-outdated", title: "Stale path", location: "orbit-ui-mobile docs/a.md", risk: "an agent follows it", evidence: "unresolvedReferences docs/gone.md", fix: "update docs/a.md to name docs/new.md" }
+  const updateOnly = await runReadiness({ hygiene: hygieneArgument, finderFindings: { "hygiene:ui": [updateFinding] } })
+  T(`${NAME}: a Medium update hygiene finding needs no skeptic and is kept`,
+    updateOnly.result.hygieneFindings.some((finding) => finding.location === "orbit-ui-mobile docs/a.md") && !updateOnly.labels.includes("verify:hygiene-outdated"),
+    JSON.stringify(updateOnly.result.hygieneFindings))
+  const verifyPhaseDetail = /title: 'Verify', detail: '([^']*)'/.exec(readFileSync(new URL("../../.claude/workflows/prod-readiness.mjs", import.meta.url), "utf8"))?.[1] ?? ""
+  T(`${NAME}: the Verify phase detail names the hygiene findings and the cap`, /hygiene/.test(verifyPhaseDetail) && /60/.test(verifyPhaseDetail), verifyPhaseDetail)
+  const absent = await runReadiness({})
+  T(`${NAME}: a run with no hygiene argument defers all five repositories and never reads as clean`,
+    absent.result.hygieneDeferred.length === 5 && absent.result.hygieneChecksRun.length === 0 && absent.result.hygieneChecksFailed.length === 0, JSON.stringify(absent.result.hygieneDeferred))
+  const unreadableRefusal = (path) => ({ check: "hygiene-unreadable", path, reason: "Read was refused outside the working directories" })
+  const unreadable = await runReadiness({
+    hygiene: { repositories: {
+      ui: hygieneEntry("/checkout/ui", "orbit-ui-mobile", { old: 2 }),
+      api: hygieneEntry("/checkout/api", "orbit-api", { outdated: 1 }),
+      landing: hygieneEntry("/checkout/landing", "orbit-landing-page", { old: 1 }),
+      workshop: hygieneEntry("/checkout/workshop", "thomas-brain", { outdated: 1 }),
+    } },
+    finderResults: {
+      "hygiene:ui": { findings: [], deferred: [unreadableRefusal("w.md")] },
+      "hygiene:api": { findings: [], deferred: [] },
+      "hygiene:landing": { findings: [], deferred: [unreadableRefusal("/checkout/landing/l.md")] },
+      "hygiene:workshop": {
+        findings: [{ severity: "Medium", check: "hygiene-outdated", title: "Stale note", location: "thomas-brain notes/a.md", risk: "an agent reads it", evidence: "no file was read", fix: "update notes/a.md" }],
+        deferred: [unreadableRefusal("/checkout/workshop/")],
+      },
+    },
+  })
+  T(`${NAME}: a finder that cannot open its root or any candidate is not run, so its repository never reads as swept`,
+    JSON.stringify(unreadable.result.hygieneChecksRun) === JSON.stringify(["ui", "api"]) && JSON.stringify(unreadable.result.hygieneChecksFailed) === JSON.stringify(["landing", "workshop"]),
+    JSON.stringify([unreadable.result.hygieneChecksRun, unreadable.result.hygieneChecksFailed]))
+  T(`${NAME}: a finder that read nothing adds no finding, and each unreadable path stays in the deferred ledger`,
+    unreadable.result.hygieneFindings.length === 0 &&
+      ["w.md", "/checkout/landing/l.md", "/checkout/workshop/"].every((path) => unreadable.result.hygieneDeferred.some((item) => item.check === "hygiene-unreadable" && item.path === path)),
+    JSON.stringify([unreadable.result.hygieneFindings, unreadable.result.hygieneDeferred]))
+  T(`${NAME}: the finder prompt says an unopened root or candidate is a hygiene-unreadable entry, never an empty result`,
+    /cannot open the root[^\n]*"hygiene-unreadable"[^\n]*the path \/checkout\/workshop [^\n]*Never return an empty result/.test(unreadable.prompts["hygiene:workshop"] ?? ""), unreadable.prompts["hygiene:workshop"])
+  const mixed = await runReadiness({ hygiene: { repositories: { ui: hygieneEntry("/checkout/ui", "orbit-ui-mobile", { outdated: 29, temporary: 5, duplicate: 10, old: 256 }, { old: 144 }) } } })
+  T(`${NAME}: hygieneCandidates is the counts that the ledger tool printed`,
+    JSON.stringify(mixed.result.hygieneCandidates?.ui) === JSON.stringify({ outdated: { judged: 29, deferred: 0 }, temporary: { judged: 5, deferred: 0 }, duplicate: { judged: 10, deferred: 0 }, old: { judged: 256, deferred: 144 } }),
+    JSON.stringify(mixed.result.hygieneCandidates))
+  T(`${NAME}: the deferred entry names each kind that went unjudged`,
+    mixed.result.hygieneDeferred.some((item) => item.check === "hygiene-ui" && /old 144 of 400/.test(item.reason) && !/outdated|duplicate|temporary/.test(item.reason)), JSON.stringify(mixed.result.hygieneDeferred))
+  const mixedPrompt = mixed.prompts["hygiene:ui"] ?? ""
+  T(`${NAME}: the finder reads the 300 judged rows from the candidates file in parts and returns rowsRead`,
+    mixedPrompt.includes(`the 300 lines of ${candidatesFileOf("orbit-ui-mobile")}`) && /at most 100 lines in one call with offset and limit/.test(mixedPrompt) && /Return rowsRead/.test(mixedPrompt) && !mixedPrompt.includes('{"path"'), mixedPrompt)
+  T(`${NAME}: the finder prompt takes the kinds and their order from the counts`,
+    mixedPrompt.includes("in the order outdated, temporary, duplicate, old") && mixedPrompt.includes('"hygiene-outdated", "hygiene-temporary", "hygiene-duplicate", "hygiene-old"'), mixedPrompt)
+  const oldFinding = { severity: "Medium", check: "hygiene-old", title: "Old file", location: "orbit-ui-mobile x.md", risk: "an agent reads it", evidence: "row and search", fix: "update x.md" }
+  const unopenedFile = await runReadiness({
+    hygiene: { repositories: { ui: hygieneEntry("/checkout/ui", "orbit-ui-mobile", { old: 2 }) } },
+    finderResults: { "hygiene:ui": { findings: [oldFinding], deferred: [unreadableRefusal(candidatesFileOf("orbit-ui-mobile"))], rowsRead: 0 } },
+  })
+  T(`${NAME}: a finder that cannot open the candidates file adds no finding and lands in hygieneChecksFailed`,
+    JSON.stringify(unopenedFile.result.hygieneChecksFailed) === JSON.stringify(["ui"]) && unopenedFile.result.hygieneChecksRun.length === 0 && unopenedFile.result.hygieneFindings.length === 0 &&
+      unopenedFile.result.hygieneDeferred.some((item) => item.check === "hygiene-unreadable" && item.path === candidatesFileOf("orbit-ui-mobile")),
+    JSON.stringify(unopenedFile.result))
+  const unread = await runReadiness({ hygiene: { repositories: { ui: hygieneEntry("/checkout/ui", "orbit-ui-mobile", { old: 2 }) } }, finderResults: { "hygiene:ui": { findings: [oldFinding], deferred: [] } } })
+  const noRowsRead = await runReadiness({ hygiene: { repositories: { ui: hygieneEntry("/checkout/ui", "orbit-ui-mobile", { old: 2 }) } }, finderResults: { "hygiene:ui": { findings: [oldFinding], deferred: [], rowsRead: 0 } } })
+  T(`${NAME}: a finder that read no row of its candidates file has not run`,
+    unread.result.hygieneChecksFailed.length === 0 && JSON.stringify(noRowsRead.result.hygieneChecksFailed) === JSON.stringify(["ui"]) && noRowsRead.result.hygieneFindings.length === 0,
+    JSON.stringify([unread.result.hygieneChecksFailed, noRowsRead.result.hygieneChecksFailed]))
+  const partial = await runReadiness({ hygiene: { repositories: { ui: hygieneEntry("/checkout/ui", "orbit-ui-mobile", { outdated: 100, old: 200 }) } }, finderResults: { "hygiene:ui": { findings: [oldFinding], deferred: [], rowsRead: 120 } } })
+  T(`${NAME}: a finder that read part of its candidates file runs, and the rows it did not read are deferred`,
+    JSON.stringify(partial.result.hygieneChecksRun) === JSON.stringify(["ui"]) && partial.result.hygieneFindings.length === 1 &&
+      partial.result.hygieneDeferred.some((item) => item.check === "hygiene-unreadable" && /read 120 of the 300 candidate rows/.test(item.reason)),
+    JSON.stringify(partial.result.hygieneDeferred))
+  const noCandidate = await runReadiness({ hygiene: { repositories: { ui: hygieneEntry("/checkout/ui", "orbit-ui-mobile") } } })
+  T(`${NAME}: a repository with no candidate starts no finder and counts as swept`,
+    !noCandidate.labels.includes("hygiene:ui") && JSON.stringify(noCandidate.result.hygieneChecksRun) === JSON.stringify(["ui"]) && noCandidate.result.hygieneChecksFailed.length === 0 &&
+      noCandidate.result.hygieneFindings.length === 0 && !noCandidate.result.hygieneDeferred.some((item) => item.check === "hygiene-unreadable" || item.check === "hygiene-ui"),
+    JSON.stringify([noCandidate.labels, noCandidate.result.hygieneChecksRun, noCandidate.result.hygieneDeferred]))
+
+  // The handoff at the size of orbit-ui-mobile at c53c4ed (outdated 43, duplicate 58, old 1,714): the ledger tool
+  // selects the candidates, and the Workflow call carries only the file and the counts of every candidate.
+  const handoff = stageRepo("hygiene-handoff")
+  const handoffFiles = [
+    ...Array.from({ length: 1714 }, (_, index) => [`old/note-${String(index).padStart(4, "0")}.md`, `old note ${index}\n`]),
+    ...Array.from({ length: 43 }, (_, index) => [`docs/stale-${index}.md`, `see \`docs/gone-${index}.md\`\n`]),
+    ...Array.from({ length: 29 }, (_, index) => [[`copies/twin-${index}-a.png`, `twin ${index}\n`], [`copies/twin-${index}-b.png`, `twin ${index}\n`]]).flat(),
+  ]
+  for (const [path, body] of handoffFiles) {
+    mkdirSync(dirname(join(handoff.path, path)), { recursive: true })
+    writeFileSync(join(handoff.path, path), body)
+  }
+  handoff.git(["add", "-A"])
+  handoff.git(["commit", "-q", "-m", "ledger rows"])
+  writeFileSync(join(handoff.path, "scratch.tmp"), "untracked\n")
+  const emitted = run("file-ledger.mjs", ["--repo", handoff.path])
+  // A copy of the tool in a staged checkout, so the candidates file lands under the suite root.
+  const handoffTool = stage("hygiene-handoff/checkout/tools/file-ledger.mjs", readFileSync(toolPath("file-ledger.mjs"), "utf8"))
+  const selected = run("file-ledger.mjs", ["--candidates", stage("hygiene-handoff/ledger.jsonl", emitted.stdout), "--repo", handoff.path], { path: handoffTool })
+  const entry = selected.status === 0 ? JSON.parse(selected.stdout) : { counts: {} }
+  const handoffArgument = { repositories: { ui: entry } }
+  const handed = await runReadiness({ hygiene: handoffArgument })
+  const handoffPrompt = handed.prompts["hygiene:ui"] ?? ""
+  const fileRows = selected.status === 0 ? readFileSync(entry.candidatesFile, "utf8").split("\n").filter(Boolean) : []
+  const totals = Object.values(entry.counts).reduce((sum, count) => ({ judged: sum.judged + count.judged, deferred: sum.deferred + count.deferred }), { judged: 0, deferred: 0 })
+  T(`${NAME}: at 1,816 candidates the Workflow args carry the candidates file and the counts, never a row`,
+    emitted.status === 0 && selected.status === 0 && JSON.stringify(handoffArgument).length < 1000 && handoffPrompt.includes(entry.candidatesFile) && !handoffPrompt.includes('{"path"') &&
+      entry.candidatesFile === join(dirname(dirname(handoffTool)), ".claude", "sweeps", "hygiene", "hygiene-handoff.jsonl"),
+    `exit ${emitted.status}/${selected.status}, ${JSON.stringify(handoffArgument).length} bytes, ${selected.stderr.trim()}`)
+  T(`${NAME}: at 1,816 candidates each candidate reads as judged or deferred, and the judged ones are the rows of the file`,
+    totals.judged + totals.deferred === 1816 && totals.judged === 300 && fileRows.length === 300 && JSON.stringify(handed.result.hygieneCandidates.ui) === JSON.stringify(entry.counts) &&
+      entry.counts.outdated?.judged === 43 && entry.counts.temporary?.judged === 1 && entry.counts.duplicate?.judged === 58 && entry.counts.old?.deferred === 1714 - entry.counts.old?.judged,
+    JSON.stringify(entry.counts))
+  T(`${NAME}: at 1,816 candidates the old rows beyond the cap stay in the deferred ledger with their count`,
+    handed.result.hygieneDeferred.some((item) => item.check === "hygiene-ui" && item.reason.includes(`old ${entry.counts.old?.deferred} of 1714`)) && JSON.stringify(handed.result.hygieneChecksRun) === JSON.stringify(["ui"]),
+    JSON.stringify(handed.result.hygieneDeferred))
+
+  const refusal = (hygiene) => thrown(() => runInNewContext(readinessSource.slice(readinessSource.indexOf("const parsedArgs ="), readinessSource.indexOf("const OPS_SCHEMA")), { args: { roots: { ui: "/a", api: "/b" }, hygiene } }))
+  const rows = refusal({ repositories: { ui: { root: "/a", candidates: [{ path: "x.md", kind: "old" }], candidatesFile: "/a/x.jsonl", counts: { old: { judged: 1, deferred: 0 } } } } })
+  T(`${NAME}: hygiene candidate rows in the args are refused naming the repository`, /takes no hygiene candidate rows for ui/.test(rows ?? ""), rows ?? "accepted")
+  for (const [label, repository] of [
+    ["no candidatesFile", { root: "/b", counts: { old: { judged: 1, deferred: 0 } } }],
+    ["a relative candidatesFile", { root: "/b", candidatesFile: "x.jsonl", counts: { old: { judged: 1, deferred: 0 } } }],
+    ["no counts", { root: "/b", candidatesFile: "/b/x.jsonl" }],
+    ["a count that is not a whole number", { root: "/b", candidatesFile: "/b/x.jsonl", counts: { old: { judged: 1.5, deferred: 0 } } }],
+  ]) {
+    const message = refusal({ repositories: { api: repository } })
+    T(`${NAME}: a hygiene entry with ${label} is refused naming the repository`, /requires the candidatesFile and counts .* for api/.test(message ?? ""), message ?? "accepted")
+  }
+  const relativeRoot = refusal({ repositories: { vault: { root: "../brain" } } })
+  T(`${NAME}: a relative hygiene root is refused naming the repository`, /absolute hygiene root for vault/.test(relativeRoot ?? ""), relativeRoot ?? "accepted")
 
   for (const [label, args] of [
     ["--model", ["exec", "--model", "gpt-5.6-sol"]],
@@ -185,6 +438,26 @@ export const cases = async () => {
       resolvedRepos.landing === resolve(fixtureRoot, "../orbit-landing-page"),
     JSON.stringify(resolvedRepos),
   )
+  const hygieneConfig = configUrl("hygiene-roots", JSON.stringify({ ...real, hygieneRoots: { workshop: "../thomas-brain", vault: "../brain" } }))
+  const hygieneRoots = readOrchestratorConfig(hygieneConfig)
+  const hygieneFixtureRoot = dirname(dirname(fileURLToPath(hygieneConfig)))
+  T(`${NAME}: hygieneRoots resolve to absolute paths from the repository root`,
+    hygieneRoots.hygieneRoots.workshop === resolve(hygieneFixtureRoot, "../thomas-brain") && hygieneRoots.hygieneRoots.vault === resolve(hygieneFixtureRoot, "../brain") &&
+      isAbsolute(hygieneRoots.hygieneRoots.workshop) && isAbsolute(hygieneRoots.hygieneRoots.vault),
+    JSON.stringify(hygieneRoots.hygieneRoots))
+  T(`${NAME}: the shipped config resolves both hygiene roots outside the repos block`,
+    typeof shipped.hygieneRoots?.workshop === "string" && isAbsolute(shipped.hygieneRoots.workshop) && isAbsolute(shipped.hygieneRoots.vault) &&
+      !("workshop" in shipped.repos) && !("vault" in shipped.repos), JSON.stringify(shipped.hygieneRoots))
+  for (const key of ["workshop", "vault"]) {
+    const invalid = { ...real, hygieneRoots: { workshop: "../thomas-brain", vault: "../brain", [key]: 7 } }
+    const message = thrown(() => readOrchestratorConfig(configUrl(`invalid-hygiene-${key}`, JSON.stringify(invalid))))
+    T(`${NAME}: a hygieneRoots value that is not a string is refused naming ${key}`, message?.includes(`hygieneRoots.${key} must be a non-empty string`), message ?? "config was accepted")
+  }
+  const { hygieneRoots: removedHygiene, ...withoutHygiene } = real
+  const loadedWithoutHygiene = readOrchestratorConfig(configUrl("no-hygiene-roots", JSON.stringify(withoutHygiene)))
+  T(`${NAME}: a config with no hygieneRoots block still loads and keeps the same repos keys`,
+    removedHygiene !== undefined && loadedWithoutHygiene.hygieneRoots === undefined &&
+      JSON.stringify(Object.keys(loadedWithoutHygiene.repos)) === JSON.stringify(Object.keys(real.repos)))
   for (const name of ["maxOpenPullRequests", "maxQueuedRuns"]) {
     const invalid = { ...real, caps: { ...real.caps, [name]: 0 } }
     const message = thrown(() => readOrchestratorConfig(configUrl(`invalid-${name}`, JSON.stringify(invalid))))

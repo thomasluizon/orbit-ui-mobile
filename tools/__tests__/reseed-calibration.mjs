@@ -8,7 +8,6 @@ const TOOL = "reseed-calibration.mjs"
 
 const AGENT = ["---", "name: design-reviewer", "model: sonnet", "effort: medium", "---", "", "body", ""].join("\n")
 const SKILL = ["---", "name: ticket", "effort: high", "---", "", "body", ""].join("\n")
-const POINTER = ["---", "name: ticket", "description: pointer", "---", "", "The canonical definition is .claude/skills/ticket/SKILL.md.", ""].join("\n")
 const CLASSIFIER_PROMPT = "Classify the ticket.\n"
 const digestOf = (body) => createHash("sha256").update(body.replace(/\r\n/g, "\n")).digest("hex").slice(0, 16)
 
@@ -25,13 +24,10 @@ const inventory = () => {
   for (const name of readdirSync(join(REPO_ROOT, ".claude", "agents")).sort()) {
     if (name.endsWith(".md")) found.push({ path: `.claude/agents/${name}`, body: AGENT })
   }
-  for (const relativeRoot of [".claude/skills", ".agents/skills"]) {
-    const absolute = join(REPO_ROOT, ...relativeRoot.split("/"))
-    if (!existsSync(absolute)) continue
-    for (const entry of readdirSync(absolute, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) {
-      if (entry.isDirectory() && existsSync(join(absolute, entry.name, "SKILL.md"))) {
-        found.push({ path: `${relativeRoot}/${entry.name}/SKILL.md`, body: relativeRoot === ".agents/skills" ? POINTER : SKILL })
-      }
+  const skillsDirectory = join(REPO_ROOT, ".claude", "skills")
+  for (const entry of readdirSync(skillsDirectory, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) {
+    if (entry.isDirectory() && existsSync(join(skillsDirectory, entry.name, "SKILL.md"))) {
+      found.push({ path: `.claude/skills/${entry.name}/SKILL.md`, body: SKILL })
     }
   }
   return found
@@ -42,7 +38,6 @@ const inventory = () => {
 let FILES = []
 let COUNT = 0
 let A_SKILL = ""
-let A_POINTER = null
 
 const stage = (label, stamp) => {
   const fixture = join(root, "reseed-calibration", label)
@@ -92,25 +87,20 @@ export const cases = () => {
   FILES = inventory()
   COUNT = FILES.length
   A_SKILL = FILES.find((file) => file.path.startsWith(".claude/skills/"))?.path ?? ""
-  A_POINTER = FILES.find((file) => file.path.startsWith(".agents/skills/"))?.path ?? null
 
-  T(`${TOOL}: the derived inventory found something to stamp`, COUNT > 0 && A_POINTER !== null, `found ${COUNT} file(s), pointer ${A_POINTER}`)
+  T(`${TOOL}: the derived inventory found something to stamp`, COUNT > 0, `found ${COUNT} file(s)`)
 
-  /**
-   * The denominator is a glob over BOTH skill roots, so the host entrypoint the Codex host discovers
-   * is stamped alongside the canonical definition it points at. A pass that wrote only `.claude` left
-   * the file that decides WHICH prompt runs outside the gate entirely.
-   */
+  // The denominator is a glob over `.claude/agents/*.md` and `.claude/skills/*/SKILL.md`, so no agent or skill runs outside the gate.
   const fresh = stage("fresh")
-  check(TOOL, "a first pass stamps every agent, skill and host entrypoint it finds", ["--root", fresh], {
+  check(TOOL, "a first pass stamps every agent and skill it finds", ["--root", fresh], {
     status: 0,
     stdout: new RegExp(`stamped ${COUNT} file\\(s\\)`),
   })
   const first = stampOf(fresh)
   T(`${TOOL}: a first pass stamps the classifier model and prompt`, first.classifier?.model === "gpt-6-luna" && first.classifier.promptDigest === createHash("sha256").update(CLASSIFIER_PROMPT).digest("hex").slice(0, 16) && typeof first.classifier.verdict === "string")
   T(
-    `${TOOL}: the first pass stamped the .agents host entrypoints, not only the .claude definitions`,
-    Object.keys(first.entries).includes(A_POINTER),
+    `${TOOL}: the first pass stamped every .claude agent and skill`,
+    FILES.every((file) => Object.keys(first.entries).includes(file.path)),
     `entries were ${Object.keys(first.entries).join(", ")}`,
   )
   T(
@@ -218,14 +208,6 @@ export const cases = () => {
   const edited = stage("edited", backdated(first, 200))
   write(join(edited, ...A_SKILL.split("/")), `${SKILL}a rewritten body\n`)
   check(TOOL, "only the file whose content moved is renewed", ["--root", edited], {
-    status: 0,
-    stdout: new RegExp(`1 verdict\\(s\\) renewed, ${COUNT - 1} carried forward`),
-  })
-
-  /** A changed HOST ENTRYPOINT is renewed too, which is the file the old denominator could not see. */
-  const pointerEdited = stage("pointer-edited", backdated(first, 200))
-  write(join(pointerEdited, ...A_POINTER.split("/")), `${POINTER}a changed pointer\n`)
-  check(TOOL, "a changed .agents host entrypoint is renewed, so its verdict cannot ride the old text", ["--root", pointerEdited], {
     status: 0,
     stdout: new RegExp(`1 verdict\\(s\\) renewed, ${COUNT - 1} carried forward`),
   })

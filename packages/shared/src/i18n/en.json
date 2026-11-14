@@ -3249,8 +3249,8 @@
       "astraSection": {
         "canDoTitle": "Create & Log",
         "canDoDesc": "Tell Astra what habits you want and it creates them. Say 'I ran today' to log one. You can also ask for a habit on a single day, like 'buy eggs tomorrow'.",
-        "toolsBreadthTitle": "63 Built-In Tools",
-        "toolsBreadthDesc": "Astra does more than chat. It can act. It has 63 tools spanning habits, sub-habits, goals, tags, checklists, logging, reminders, calendar, and your account, so almost anything you can do by tapping, you can do by asking. The free plan includes 5 AI messages a day; Pro includes 250 a week.",
+        "toolsBreadthTitle": "71 Built-In Tools",
+        "toolsBreadthDesc": "Astra does more than chat. It can act. It has 71 tools spanning habits, sub-habits, goals, tags, checklists, logging, reminders, calendar, and your account, so almost anything you can do by tapping, you can do by asking. The free plan includes 5 AI messages a day; Pro includes 250 a week.",
         "manageTitle": "Update & Delete",
         "manageDesc": "Ask Astra to modify habits: 'move my gym to tomorrow', 'rename running to jogging', 'change meditation to weekly', or 'delete my reading habit'. It can handle bulk operations too.",
         "insightsTitle": "Progress & Analysis",
@@ -3269,8 +3269,8 @@
       "connectSection": {
         "mcpTitle": "Outside assistants",
         "mcpDesc": "Connect an MCP-compatible assistant to Orbit and use it where you already work.",
-        "assistantCanDoTitle": "81 tools",
-        "assistantCanDoDesc": "The connection has 81 tools across 15 areas, including habits, goals, tags, checklists, reminders, and progress.",
+        "assistantCanDoTitle": "93 tools",
+        "assistantCanDoDesc": "The connection has 93 tools across 16 areas, including habits, goals, tags, checklists, reminders, and progress.",
         "apiKeysTitle": "Keys in Profile",
         "apiKeysDesc": "Create a scoped API key in Profile after a fresh sign-in. Choose read-only or full access, and revoke it whenever you need.",
         "setupTitle": "Connect the client",

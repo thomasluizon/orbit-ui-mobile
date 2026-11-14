@@ -18,7 +18,6 @@ extension. Sharing and notification deletion keep their drawn labelled consequen
 | Edit habit | `components/habits/edit-habit-modal.tsx` | `components/habits/edit-habit-modal.tsx` | Editing, submitting |
 | Habit time and reminder | `components/habits/habit-form-fields/habit-timing-field.tsx` | `components/habits/habit-form-fields/habit-timing-field.tsx` | Create and edit; one small trailing Done action; exact time, clock, offset and repeat editors |
 | Repeat reminder log time | `components/habits/repeat-reminder-detail.tsx` | `components/habits/repeat-reminder-detail.tsx` | Editing, validation error, saving, refused correction |
-| Create goal from habit | `components/habits/create-goal-from-habit-sheet.tsx` | `components/habits/create-goal-from-habit-sheet.tsx` | Editing, submitting |
 | Create goal | `components/goals/create-goal-sheet.tsx` | `components/goals/create-goal-sheet.tsx` | Editing, submitting |
 | Edit goal | `components/goals/edit-goal-modal.tsx` | `components/goals/edit-goal-modal.tsx` | Editing, submitting |
 | Goal progress | `components/goals/goal-detail-drawer/goal-progress-form.tsx` | `components/goals/goal-detail-drawer/goal-progress-form.tsx` | Editing, submitting |

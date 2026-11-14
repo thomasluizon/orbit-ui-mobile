@@ -1,6 +1,6 @@
 ---
 name: prod-readiness
-description: Pre-launch orchestrator that runs the four repo-wide audits (security, tests, performance, code-quality) in parallel via the audit workflow, adds an ops-layer audit (observability, multi-instance readiness, background durability, backups, staging), a static WCAG 2.2 AA accessibility sweep, a dependency sweep that updates every package in both repos, and an architecture-drift sweep that regenerates architecture.json and deletes the stale code it exposes (phantom mobile routes, endpoints no platform calls, dead i18n keys), then consolidates everything into ONE combined GitHub ticket set behind a single approval gate (D10), headlined by an honest launch verdict. It looks only at what no gate can check (D11); React correctness is owned by the react-doctor.yml gate, not this skill. Use before a release to know what's safe to ship. Orchestrates and consolidates; it does not re-derive the child audits' findings.
+description: Pre-launch orchestrator that runs the four repo-wide audits (security, tests, performance, code-quality) in parallel via the audit workflow, adds an ops-layer audit (observability, multi-instance readiness, background durability, backups, staging), a static WCAG 2.2 AA accessibility sweep, a dependency sweep that updates every package in both repos, an architecture-drift sweep that regenerates architecture.json and deletes the stale code it exposes (phantom mobile routes, endpoints no platform calls, dead i18n keys), and a read-only repository hygiene sweep over five repositories for old, outdated, duplicate and temporary files, then consolidates everything into ONE combined GitHub ticket set behind a single approval gate (D10), headlined by an honest launch verdict. It looks only at what no gate can check (D11); React correctness is owned by the guards.yml React Doctor step, not this skill. Use before a release to know what's safe to ship. Orchestrates and consolidates; it does not re-derive the child audits' findings.
 argument-hint: <both (default) | ui | api | path>
 ---
 
@@ -8,7 +8,7 @@ argument-hint: <both (default) | ui | api | path>
 
 **Input**: $ARGUMENTS
 
-Run a pre-launch readiness sweep across **both** Orbit repos and open ONE consolidated,
+Run a pre-launch readiness sweep across **both** Orbit code repos (and, for hygiene, the landing page, the workshop and the vault) and open ONE consolidated,
 severity-ranked GitHub ticket set (D10) behind a single approval gate, headlined by an honest
 launch verdict. This skill is an **orchestrator**: the **`prod-readiness` dynamic workflow**
 (`.claude/workflows/prod-readiness.mjs`) runs the four audit workflows in parallel (**Haiku
@@ -16,7 +16,8 @@ fan-out**), adds the ops-layer audit and the static-a11y sweep none of them cove
 own findings, and returns everything; **you (Opus) consolidate** the return into one combined
 ticket table and a launch verdict, and **you run the dependency sweep** (Phase 2b) **and the
 architecture-drift sweep** (Phase 2c), the two layers that edit code and therefore cannot run
-inside the read-only workflow.
+inside the read-only workflow, and **you collect the hygiene ledgers** (Phase 2d), because the
+finders have no shell.
 
 **Golden rule: orchestrate, don't re-derive.** Each audit workflow owns its own analysis, its
 own adversarial Verify, and its own loop; this skill's workflow **invokes** them and
@@ -36,10 +37,10 @@ The ops-layer checklist and this orchestration shape were adapted at authoring t
 **`scaling-past-vibe` workflow base** in the `vibe-coding-workflow-skills` collection on
 claudeskills.info (https://claudeskills.info), then specialized to Orbit's real operational
 surface (Sentry across the three runtimes, Hangfire + `IHostedService` background work, the
-`BackgroundServiceHealthCheck`, and the promote/smoke deploy workflows).
+`BackgroundServiceHealthCheck`, and the staged release workflows).
 
 Five further upstream skills were mined at authoring time and their judgement folded into this
-skill and into `.claude/skills/pr-review/rubric.md`, which is the **single consolidated
+skill and into `.claude/skills/audit-code-quality/rubric.md`, which is the **single consolidated
 standards document** (the code-quality audit reads it as its contract, so the standards flow
 into every sweep):
 
@@ -57,7 +58,7 @@ into every sweep):
 
 **Code-agent isolation**: the workflow's agents run against the project's own checkout and
 read repo config. Before they start, the calling session performs the performance audit's
-read-only Supabase measurement. The production connector is never exposed to a finder.
+read-only Render Postgres measurement. The production connector is never exposed to a finder.
 **CI / headless fallback**: if the `Workflow` tool is unavailable, run the four
 `/audit-*` skills' own fallbacks inline plus the ops and a11y fan-outs, then consolidate; the
 ticket set and the contract still hold.
@@ -75,13 +76,13 @@ Read **`.claude/skills/_shared/gate-owned-exclusions.md`**. The ops and a11y lay
 adds are exactly the judgement no gate can check: whether the RUNNING system survives
 production (observability, multi-instance safety, background durability, backups, a pre-prod
 gate) and whether a user can complete the core journeys by keyboard or with assistive
-technology. React correctness is NOT in this skill's inventory: `react-doctor.yml` is a
+technology. React correctness is NOT in this skill's inventory: the `guards.yml` React Doctor step is a
 required CI gate and owns it, including its a11y lint rules (D11); the standing full-repo
 react-doctor backlog is mechanical debt for the ORB-46 project, not a prod-readiness finding.
 `Dependency Review` and `dependabot-auto-merge` gate NEW dependency regressions per PR; neither
 sweeps the standing tree, so the Phase 2b sweep is not a re-flag.
 
-**The binding inventory (§1), fourteen items:**
+**The binding inventory (§1), fifteen items:**
 
 | # | Inventory item | Kind | Owner of the analysis |
 |---|---|---|---|
@@ -99,6 +100,7 @@ sweeps the standing tree, so the Phase 2b sweep is not a re-flag.
 | 12 | Dependency freshness | session sweep | you (Phase 2b — edits code) |
 | 13 | Concurrency | ops check | the workflow (own §2 challenge) |
 | 14 | Architecture drift | session sweep | you (Phase 2c — edits code) |
+| 15 | Repository hygiene | session sweep | you (Phase 2d) and the workflow (own challenge) |
 
 This list is **binding**: by the end every item is either **(a) covered with a verdict** or
 **(b) in the Deferred ledger with a one-line reason**.
@@ -150,6 +152,11 @@ Parse `$ARGUMENTS` into one `{scope}` token, forwarded to every child audit:
 |---|---|
 | `orbit-ui-mobile` | `.claude/orchestrator.json` `repos.ui` |
 | `orbit-api` | `.claude/orchestrator.json` `repos.api` |
+| `orbit-landing-page` | `.claude/orchestrator.json` `repos.landing` |
+| `thomas-brain` | `.claude/orchestrator.json` `hygieneRoots.workshop` |
+| brain vault | `.claude/orchestrator.json` `hygieneRoots.vault` |
+
+Only the hygiene sweep (Phase 2d) reads the last three roots. The other phases read `ui` and `api`.
 
 ---
 
@@ -162,11 +169,12 @@ performance inventory item is `CODE_ONLY`, never a pass.
 
 Invoke the `Workflow` tool (this skill's instructions are the opt-in):
 
-From the UI checkout, run `node --input-type=module -e 'import { readOrchestratorConfig } from "./tools/lib/orchestrator-config.mjs"; console.log(JSON.stringify(readOrchestratorConfig().repos))'`. Use its absolute `ui` and `api` values as `roots`.
+From the UI checkout, run `node --input-type=module -e 'import { readOrchestratorConfig } from "./tools/lib/orchestrator-config.mjs"; console.log(JSON.stringify(readOrchestratorConfig().repos))'`. Use its absolute `ui` and `api` values as `roots`. Run Phase 2d steps 1 to 3 first and pass the lines that step 3 printed as `hygiene` (step 5).
 
 ```
 Workflow({ scriptPath: '.claude/workflows/prod-readiness.mjs', args: {
-  scope: '<resolved {scope}>', roots: { ui: '<resolved ui>', api: '<resolved api>' }, performanceMeasurement: productionMeasurement
+  scope: '<resolved {scope}>', roots: { ui: '<resolved ui>', api: '<resolved api>' }, performanceMeasurement: productionMeasurement,
+  hygiene: <the Phase 2d argument>
 } })
 ```
 
@@ -175,28 +183,39 @@ Workflow({ scriptPath: '.claude/workflows/prod-readiness.mjs', args: {
 It runs the four `audit` workflows in parallel (each self-caps its own fan-out plus verify
 plus loop), then fans out the **ops-layer** checks (observability · multi-instance ·
 background durability · staging · concurrency) and the **static-a11y** checks (web · mobile, WCAG 2.2 AA
-floor, source-provable findings only) as Haiku finders, runs a Haiku skeptic per Blocker/High
-ops or a11y finding (default-refuted), and returns:
+floor, source-provable findings only) as Haiku finders, plus one hygiene finder per repository
+(Phase 2d). It then runs a Haiku skeptic (default-refuted) per Blocker/High ops or a11y finding
+and per High or delete hygiene finding, with at most 60 skeptics in all (`VERIFY_CAP`, the same
+cap as `audit.mjs`). Ops and a11y findings get the skeptic slots before hygiene findings of the
+same severity. The workflow returns:
 
 ```
 { scope,
   audits: [ { kind, findings, counts, coverage, deferred, rounds }, … ×4 ],
   opsFindings: [ { severity, check, title, location, risk, evidence, fix } ],
   a11yFindings: [ same shape, check "a11y-web" | "a11y-mobile" ],
+  hygieneFindings: [ same shape plus root, check "hygiene-<kind>" for a kind of tools/file-ledger.mjs --candidates ],
   opsChecksRun, opsChecksFailed, a11yChecksRun, a11yChecksFailed, a11yNotApplicable,
+  hygieneChecksRun, hygieneChecksFailed, hygieneDeferred,
+  hygieneCandidates: { <repository key>: { <kind>: { judged, deferred } } },  (the counts that the tool printed)
   opsDeferred, failedAudits, unconvergedAudits,
   performanceMeasurement }
 ```
 
 The workflow fails closed on its own machinery. A check whose finder died lands in
 `opsChecksFailed` / `a11yChecksFailed`, never in `*ChecksRun`: its inventory item is
-**coverage UNKNOWN** (forces at most CONDITIONAL), never clean. A serious finding whose
-skeptic died is kept, carrying `unverified` — treat it as real until re-verified, and say so
-in the ticket. The a11y checks run only when the resolved scope contains a UI surface; an
+**coverage UNKNOWN** (forces at most CONDITIONAL), never clean. A serious ops or a11y finding
+whose skeptic died or threw is kept, carrying `unverified` — treat it as real until re-verified, and say so
+in the ticket. A hygiene finding whose skeptic died or threw goes to `hygieneDeferred`, never to a ticket. Each skeptic gets the root of the repository, the evidence and the fix. A file the
+skeptic cannot open is never a refutation: an ops or a11y finding is then kept with `unverified`,
+and a hygiene finding goes to `hygieneDeferred`. A finding beyond the skeptic cap is never
+returned as verified: an ops or a11y finding is kept with `unverified`, and a hygiene finding goes
+to `hygieneDeferred` with the reason "beyond the adversarial-verify cap of 60". The a11y checks run only when the resolved scope contains a UI surface; an
 `api`-only scope returns `a11yNotApplicable` with the reason, and inventory item 11 then reads
 **N/A (scope has no UI surface)** — that is a verdict, not a skipped item.
 
-`opsDeferred` always includes **backups** ("verify in the DB console: PITR plus a tested
+`opsDeferred` always includes **alert-routing** ("verify in the Sentry console: the alert rules of
+all three runtimes route to a sink someone watches"), **backups** ("verify in the DB console: PITR plus a tested
 restore path"), **paid-api-cost-caps** ("verify in each provider console: a hard monthly cap
 plus a spend alert"), and **a11y-runtime-matrix** (the axe A/AA tag set, a keyboard pass, and
 a screen-reader pass over the route x state x viewport x input-mode matrix need the running
@@ -398,11 +417,43 @@ the gate.
 
 ---
 
+## Phase 2d: Repository hygiene sweep (session-run, read-only)
+
+The ledger is the finder: `tools/file-ledger.mjs` lists each tracked file of a repository with the signals that mark an old, outdated, duplicate or temporary file. This sweep covers five repositories: `orbit-ui-mobile`, `orbit-api`, `orbit-landing-page`, `thomas-brain` and the brain vault. It reads and deletes nothing. It sends one ticket for each verified finding through `.claude/skills/_shared/audit-to-tickets.md`, and the fix ticket does the delete or the update.
+
+The ledger rule, word for word, which each finder and each fix ticket applies:
+
+> Every tracked file starts as a suspect. The default verdict is delete or update. A file keeps its current form only with two written answers: (1) why it exists: the reader, consumer or need it serves today; (2) why it is correct exactly as it is: what was checked against the current code or the current decision. No answer to 1 means delete. An answer to 1 and none to 2 means update. "Nobody proved it is dead" is not an answer. A keep verdict without both answers is a defect. Before a delete, search for readers; a real reader is answer 1.
+
+**The fix proof.** Each hygiene fix ticket orders this proof in its acceptance criteria. The fix pull request fills `verdict`, `reader`, `checked` and `note` in each ledger row of its repository, and `node tools/file-ledger.mjs --verify <ledger> --repo <root> --base <commit> --other-ticket <ID>` exits 0. `--repo` is the root of the repository that the fix changes, because the default is `orbit-ui-mobile`. `--other-ticket <ID>` is the number of the fix ticket itself, copied from the ticket that the fix runs under (the `#N` that the pull request tracks): no other ticket owns the rows this fix does not judge, and each of those rows stays for the next hygiene sweep to judge. An untouched row takes the verdict `other-ticket` with that ID in its note instead of a `keep` with full evidence. The pull request body holds the summary that `--verify` prints. Each part that `--render <ledger> --repo <root> --out-dir <dir>` writes is one comment on the pull request. The ledger stays in the scratchpad and is never committed. A fix in `thomas-brain` or the vault has no pull request: the orchestrating session runs the same `--verify` against that root and posts the summary and the `--render` parts on the ticket.
+
+**Scope-aware.** A narrow scope (`ui`, `api` or a path) runs this sweep for the matching repository only. Pass each other repository to the workflow with a `null` root and the reason `scope`, so it lands in the Deferred ledger. A root that is not on this machine lands there too, with the reason. The run does not fail and does not read as clean.
+
+1. **Resolve the roots.** Read `repos.ui`, `repos.api` and `repos.landing`, and `hygieneRoots.workshop` and `hygieneRoots.vault`, through `readOrchestratorConfig()` in `tools/lib/orchestrator-config.mjs`. The two new roots are not in `repos`: about 20 tools read `repos` as the set of ticket-routed code repositories.
+   Then prove that this session can read each root. Before the workflow starts, Read the `CLAUDE.md` file at each root that the scope includes. The `permissions.additionalDirectories` list in `.claude/settings.json` holds only `../orbit-api` and `../orbit-landing-page`, so a read under the other roots can wait for an approval or fail.
+   - For a root that this session cannot read, name the grant for one run in the report: start the session with `claude --add-dir <root>`.
+   - Pass that repository to the workflow with a `null` root and the reason `unreadable: start the session with claude --add-dir <root>`. It lands in the Deferred ledger and does not count as swept.
+   - Do not add a hygiene root to `permissions` in `.claude/settings.json` or `.claude/settings.local.json`. The vault holds personal notes, and a shared grant lets each session and each worker in this repository read them.
+2. **Collect.** For each root that this session can read, run `node tools/file-ledger.mjs --repo <root>` with each other root that exists on this machine as `--also-search`: the tool exits 2 on a root that does not exist, and that root is already in the Deferred ledger. Keep each ledger in the scratchpad. Do not write a ledger to a repository.
+3. **Select the candidates.** For each ledger, run `node tools/file-ledger.mjs --candidates <ledger> --repo <root>` from this checkout. The tool owns the selection: the kinds and their signals, the untracked files, the record rules and the cap of judged rows (`node tools/file-ledger.mjs --help`, mode 4). It writes the judged rows to `.claude/sweeps/hygiene/<repository>.jsonl` in this checkout and prints one JSON line, `{ root, candidatesFile, counts }`. That folder is inside the working directory of this session, so a workflow agent reads it without an approval prompt, and git ignores it.
+4. **Never select by hand.** Do not trim, add or edit a candidate. The counts come from every candidate, so a row beyond the cap reads as deferred, never as judged or as absent.
+5. **Pass the candidates** to the workflow in the `hygiene` argument, as the skill passes `performanceMeasurement` today: `hygiene: { repositories: { ui: <the line the tool printed for ui>, api: …, landing: …, workshop: …, vault: … } }`. The workflow refuses candidate rows in `args`, and an entry without the `candidatesFile` and the `counts`, so the payload stays small for any repository size.
+6. **Read the result.** A finder that died puts its repository in `hygieneChecksFailed`: the coverage is unknown, and the item is never clean. A finder that cannot open its root, its candidates file or a candidate returns a `hygieneDeferred` entry with the check `hygiene-unreadable`, never an empty result. A finder that could open neither its root nor its candidates file, that read no row of the file, or that could open no candidate read nothing, so the workflow drops its findings and puts its repository in `hygieneChecksFailed` too. A finder that read fewer rows than the file holds adds a `hygiene-unreadable` entry for the rest. `hygieneCandidates` gives the judged and deferred count of each kind as the tool printed it, and a `hygieneDeferred` entry names each kind with candidates beyond the cap of the tool. A High or delete finding that the skeptic cap of 60 left without a skeptic is also a `hygieneDeferred` entry, never a finding.
+7. **Before a finding becomes a ticket,** search the open tickets in `thomasluizon/orbit-tickets` for its path. If an open ticket covers it, name that ticket in the gate. Do not create a second one.
+
+The workflow runs one finder for each repository that has a candidate, with the agent type `audit-readonly`. A repository with no candidate starts no finder and counts as swept. A finder has no shell: it reads with Read, Grep and Glob, so the tool runs in this session. A file under a public web folder, an app asset folder or a store asset folder can have a deployed reader, so a finder never returns a delete finding for it. It returns the file as deferred with the check `hygiene-deployed-readers`. A skeptic argues that each finding is false, for each finding that orders a delete and for each High finding. The default is refuted. The skeptic gets the root of the repository, the evidence and the fix. A file that the skeptic cannot open is deferred, never refuted: the finding goes to `hygieneDeferred`.
+
+A finding carries `severity`, `check` (`hygiene-` and a kind of the tool, for example `hygiene-old`), `title`, `location` (the repository name, then the path), `risk`, `evidence` (the ledger row and the reader search) and `fix`. A record is never a finding: an `orbit-api` migration, a vault decision, a journal note, a raw inbox file, a published post, or a vendored file with a lock entry.
+
+**Sweep verdict** for the repository hygiene item: `SWEPT` (five repositories read, each candidate judged), `SWEPT_WITH_DEFERRED` (the Deferred ledger names what was not judged) or `FAILED` (a repository is in `hygieneChecksFailed`). A `FAILED` verdict caps the launch verdict at CONDITIONAL, as a failed check does. A hygiene finding is never a Blocker, so it never makes the verdict NO-GO.
+
+---
+
 ## Phase 3: Consolidate and emit tickets (Opus, D10)
 
 ### Unified ladder (severity normalization for ranking)
 
-Consolidate the child + ops + a11y + dependency + architecture-drift findings into one severity
+Consolidate the child + ops + a11y + dependency + architecture-drift + hygiene findings into one severity
 spine, tagging each
 with its **source audit + native label** so nothing is silently relabeled. This ranking orders
 the ticket table and drives the verdict; it is not a report:
@@ -410,16 +461,16 @@ the ticket table and drives the verdict; it is not a report:
 | Consolidated tier | Maps from |
 |---|---|
 | **Blocker** | security Tier 1 · tests Critical · performance Critical · code-quality Critical · ops Blocker · a11y Blocker |
-| **High** | security Tier 2 · tests High · performance High · code-quality High · ops High · a11y High · a dependency holdback proven to withhold an advisory fix |
-| **Medium** | tests Medium · performance Medium · code-quality Medium · ops Medium · a11y Medium · every other dependency holdback · every architecture-drift holdback and missing-mirror finding |
-| **Low / Info** | performance Low/Info · code-quality Low/Info |
+| **High** | security Tier 2 · tests High · performance High · code-quality High · ops High · a11y High · a dependency holdback proven to withhold an advisory fix · a hygiene finding of an agent instruction file that contradicts `CLAUDE.md`, or of a runbook, release skill or playbook that orders a command, a path or a vendor that does not exist |
+| **Medium** | tests Medium · performance Medium · code-quality Medium · ops Medium · a11y Medium · every other dependency holdback · every architecture-drift holdback and missing-mirror finding · every other old, outdated or temporary hygiene finding |
+| **Low / Info** | performance Low/Info · code-quality Low/Info · a duplicate asset with a named generator |
 | **Out-of-scope / acknowledged** | security Tier 3 · enterprise-only ops |
 
 ### Emit the consolidated ticket set
 
 Run the shared pipeline in **`.claude/skills/_shared/audit-to-tickets.md`** over the **whole
-consolidated finding set** (all four children plus the ops, a11y, dependency-holdback, and
-architecture-drift findings), as ONE combined table behind ONE approval gate. Do not run each child skill's own
+consolidated finding set** (all four children plus the ops, a11y, dependency-holdback,
+architecture-drift and hygiene findings), as ONE combined table behind ONE approval gate. Do not run each child skill's own
 gate; prod-readiness invokes the audit workflows directly and owns the single consolidated
 emission.
 
@@ -427,7 +478,8 @@ emission.
   findings that share a fix and PR into one ticket (D4).
 - Map each to its `repo:*` from `location`; an ops finding is almost always `repo:api`, an
   a11y finding always `repo:ui`. A ui fix that depends on an api change is the ui ticket
-  blockedBy the api ticket.
+  blockedBy the api ticket. A hygiene finding in `thomas-brain` or the vault is coordinator
+  work: label and mark it as `_shared/audit-to-tickets.md` §2 says, so no worker receives it.
 - Draft each body to the 6.2 template and re-read it against that template before proposing it. An
   ops ticket's Problem carries the `risk` (what breaks in production and when); Technical
   details carry `evidence`; Acceptance criteria name the observable ready-state (the scheduler
@@ -443,7 +495,7 @@ Present ONE message and get ONE approval (mirror /ticket phase D). The headline 
 - **Verdict**: {GO | CONDITIONAL | NO-GO}, one calibrated line (why, and the single thing in
   the way).
 - **Ticket table**: title · repo · parity · consolidated tier · blockedBy, ordered by tier.
-- **Coverage (the binding 14-item inventory)**: for each of the 14 items, ran / did-not-run /
+- **Coverage (the binding 15-item inventory)**: for each of the 15 items, ran / did-not-run /
   deferred and the result. Backups is always `deferred` (verify in the DB console). Any
   `failedAudit` or `unconvergedAudits` entry is named here as `coverage UNKNOWN`.
 - **Measured performance**: show the top ten query shapes by rows with calls, rows per call,
@@ -454,30 +506,32 @@ Present ONE message and get ONE approval (mirror /ticket phase D). The headline 
 - **Architecture sweep**: the verdict, the `chore(arch)` PR link, the before/after count per
   signal (unpaired mobile routes, unused endpoints, unowned keys), and the holdback table
   (item, signal, reason).
+- **Hygiene sweep**: for each of the five repositories, the file count, the candidates of each kind with the judged and deferred count from `hygieneCandidates`, the findings and the deferred files, and the verdict. Name an open ticket that already covers a path.
 - **Deferred ledger**: merge every child's `deferred` (attributed, e.g. "from security:
-  verify-cap overflow") plus `opsDeferred` (backups, paid-API cost caps, the a11y runtime
-  matrix) plus enterprise-only ops.
+  verify-cap overflow") plus `opsDeferred` (alert routing, backups, paid-API cost caps, the a11y runtime
+  matrix) plus `hygieneDeferred` plus enterprise-only ops.
 - **What's solid**: the genuine production strengths, so the gate is decision-ready, not a
   fear list.
 
 Nothing is created in the ticket tracker until the owner approves, and none of the above is written to a
-report file (D10). On approval, create via `gh issue create`, wire blockedBy, and
+report file (D10). On approval, create via `node tools/create-ticket.mjs`, wire blockedBy, and
 re-validate each with `--issue`.
 
 ### Launch verdict (§5 honesty), computed, never hardcoded
 
-- **GO** only if **zero Blockers** AND all **14** inventory items produced a verdict (every
+- **GO** only if **zero Blockers** AND all **15** inventory items produced a verdict (every
   audit ran and converged; every ops and a11y check resolved with no `opsChecksFailed` /
   `a11yChecksFailed` entry, or is a legitimately Deferred un-verifiable like backups, the
   paid-API cost caps, and the a11y runtime matrix, or a legitimate N/A like a11y under an
   api-only scope, which also reads the architecture sweep as N/A; the dependency and
   architecture sweeps are each `SWEPT` or `SWEPT_WITH_HOLDBACKS` (or the architecture sweep is
   a legitimate N/A) with every holdback ticketed AND their `chore(deps)` / `chore(arch)` PRs
-  merged into the launch head or explicitly waived by the owner), and performance is `MEASURED`.
+  merged into the launch head or explicitly waived by the owner; the hygiene sweep is `SWEPT` or
+  `SWEPT_WITH_DEFERRED`), and performance is `MEASURED`.
 - **CONDITIONAL** if no Blockers but some items are Deferred or unproven in a way that gates
   launch (e.g. backups unverified, staging gate absent, a child audit did not converge, an ops
-  or a11y check FAILED so its coverage is UNKNOWN, performance is `CODE_ONLY`, either sweep
-  `FAILED`, or a sweep's PRs are still unmerged): name the conditions.
+  or a11y check FAILED so its coverage is UNKNOWN, performance is `CODE_ONLY`, any sweep
+  `FAILED` (dependency, architecture or hygiene), or a sweep's PRs are still unmerged): name the conditions.
 - **NO-GO** if any Blocker stands.
 - **A `failedAudit` forces at most CONDITIONAL and names itself as the blocker**: a partial
   sweep can never read green. The coverage table makes any non-running or unconverged audit
@@ -491,7 +545,7 @@ re-validate each with `--issue`.
 ## Prod-Readiness Complete
 
 **Scope**: {what was swept}
-**Verdict**: {GO | CONDITIONAL | NO-GO}, {the single top blocker, or "clean: all 14 verdicted, zero blockers"}
+**Verdict**: {GO | CONDITIONAL | NO-GO}, {the single top blocker, or "clean: all 15 verdicted, zero blockers"}
 
 | Consolidated tier | Findings | Tickets |
 |---|---|---|
@@ -500,10 +554,11 @@ re-validate each with `--issue`.
 | Medium | {N} | {…} |
 | Low / Info | {N} | {…} |
 
-**Inventory (14)**: security audit {ran/deferred} · tests audit {…} · performance audit {…} · code-quality audit {…} · Observability {…} · Multi-instance readiness {…} · Background durability {…} · Backups {deferred} · Staging {…} · Paid-API cost caps + spend alerts {deferred} · Accessibility (static WCAG 2.2 AA) {static ran; runtime matrix deferred} · Dependency freshness {SWEPT | SWEPT_WITH_HOLDBACKS | FAILED} · Concurrency {ran/deferred} · Architecture drift {SWEPT | SWEPT_WITH_HOLDBACKS | FAILED | N/A}
+**Inventory (15)**: security audit {ran/deferred} · tests audit {…} · performance audit {…} · code-quality audit {…} · Observability {…} · Multi-instance readiness {…} · Background durability {…} · Backups {deferred} · Staging {…} · Paid-API cost caps + spend alerts {deferred} · Accessibility (static WCAG 2.2 AA) {static ran; runtime matrix deferred} · Dependency freshness {SWEPT | SWEPT_WITH_HOLDBACKS | FAILED} · Concurrency {ran/deferred} · Architecture drift {SWEPT | SWEPT_WITH_HOLDBACKS | FAILED | N/A} · Repository hygiene {SWEPT | SWEPT_WITH_DEFERRED | FAILED}
 **Measured performance**: {MEASURED with top finding and top-ten table | CODE_ONLY with reason}
 **Dependency sweep**: {the chore(deps) PR links + holdback count, or "FAILED: reason"}
 **Architecture sweep**: {the chore(arch) PR link + per-signal before/after counts + holdback count, or "FAILED: reason"}
+**Hygiene sweep**: {per repository: files, candidates by kind (judged and deferred), findings, deferred; or "FAILED: reason"}
 **Tickets**: {the final ORB-N table, identifier · title · repo · tier · blockedBy, or "clean: nothing to ticket"}
 **Top blocker**: {the single highest-priority ticket standing between here and launch, or "none"}
 ```
@@ -530,5 +585,8 @@ re-validate each with `--issue`.
 - **Hardcode a verdict, the QA-env state, or the backup state.** The workflow discovers
   staging plus background topology at runtime per repo; the workflow set and the QA env drift
   (#211). What a repo read cannot verify goes to the Deferred ledger, never to "clean."
+- **Delete or edit in the hygiene sweep.** The sweep reads and reports. A fix ticket deletes or updates a file and applies the ledger rule: a worker does it in the three code repositories, and the orchestrating session does it by hand in `thomas-brain` or the vault.
+- **Write a hygiene ledger to a repository.** A committed ledger goes stale. Keep each ledger in the scratchpad, and let each ticket carry the rows of its own finding. The candidates files of Phase 2d step 3 stay in `.claude/sweeps/hygiene/`, which git ignores, and are never committed.
+- **Turn a record into a finding.** A migration, a vault decision, a journal note, a raw inbox file, a published post and a vendored file with a lock entry are records.
 - **Paste enterprise checklists.** SOC2 / SIEM / multi-region / DR drills get one acknowledging
   Deferred line, not a finding each; right-size to a solo, pre-scale app.

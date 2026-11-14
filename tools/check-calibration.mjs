@@ -17,9 +17,7 @@ const USAGE = `usage: check-calibration.mjs [--root <path>]
   Five assertions, all blocking. There is deliberately no --report-only flag and no way to make this
   tool pass on drift; the escape hatch is the calibration:reseed label on the guards.yml job.
 
-    1. every .claude/agents/*.md, .claude/skills/*/SKILL.md and .agents/skills/*/SKILL.md has a
-       stamp entry. Both skill roots, because .claude holds the canonical definitions and .agents
-       holds the entrypoints the Codex host discovers
+    1. every .claude/agents/*.md and .claude/skills/*/SKILL.md has a stamp entry
     2. no stamp entry names a file that no longer exists
     3. each entry's recorded model and effort match what the file declares today, AND its recorded
        digest matches the file's complete normalized content, so rewriting a prompt body invalidates
@@ -115,12 +113,11 @@ const calibratedFiles = () => {
       if (name.endsWith(".md")) found.push(`.claude/agents/${name}`)
     }
   }
-  for (const root of [join(repositoryRoot, ".claude", "skills"), join(repositoryRoot, ".agents", "skills")]) {
-    if (!existsSync(root)) continue
-    const relativeRoot = root === join(repositoryRoot, ".claude", "skills") ? ".claude/skills" : ".agents/skills"
-    for (const entry of readdirSync(root, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
+  const skillsDirectory = join(repositoryRoot, ".claude", "skills")
+  if (existsSync(skillsDirectory)) {
+    for (const entry of readdirSync(skillsDirectory, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
       if (!entry.isDirectory()) continue
-      if (existsSync(join(root, entry.name, "SKILL.md"))) found.push(`${relativeRoot}/${entry.name}/SKILL.md`)
+      if (existsSync(join(skillsDirectory, entry.name, "SKILL.md"))) found.push(`.claude/skills/${entry.name}/SKILL.md`)
     }
   }
   return found
@@ -148,7 +145,7 @@ const contentDigest = (relativePath) =>
 const problems = []
 
 const files = calibratedFiles()
-if (files.length === 0) fail(2, `check-calibration: ${repositoryRoot} holds no .claude/agents/*.md, no .claude/skills/*/SKILL.md and no .agents/skills/*/SKILL.md, so this gate would prove nothing`)
+if (files.length === 0) fail(2, `check-calibration: ${repositoryRoot} holds no .claude/agents/*.md and no .claude/skills/*/SKILL.md, so this gate would prove nothing`)
 
 for (const relativePath of files) {
   const entry = stamp.entries[relativePath]
