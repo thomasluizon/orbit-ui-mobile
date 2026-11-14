@@ -33,7 +33,7 @@ function FlowHeader({ props }: Readonly<{ props: QuestionFlowProps }>) {
 
 function FlowPrimaryAction({ primary, wide }: Readonly<{ primary: NonNullable<QuestionFlowProps['primary']>; wide: boolean }>) {
   return (
-    <div className={wide ? 'flex w-full justify-center pt-6' : 'w-full'}>
+    <div data-flow-primary="" className={wide ? 'flex w-full justify-center' : 'w-full'}>
       <div className={wide ? 'w-full max-w-[360px]' : 'w-full'}>
         <PillButton variant={primary.variant} loading={primary.loading} focusableWhenLoading hint={primary.hint} onClick={primary.onPress}>{primary.label}</PillButton>
       </div>
@@ -54,6 +54,11 @@ function useQuestionFocus(stepKey: string, onStepChange: () => void) {
 
 function mascotLook<Look>(orbitState: QuestionFlowProps['orbitState'], lookAt: Look): Look | null {
   return orbitState === 'parado' ? lookAt : null
+}
+
+/** A step change slides for the slow duration. Reduced motion keeps the still version. */
+function stepDuration(reducedMotion: boolean) {
+  return reducedMotion ? 0 : motionDurations.slow
 }
 
 function stepTravel(direction: 1 | -1, shift: number | undefined) {
@@ -85,9 +90,10 @@ export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
         <motion.div
           key={stepKey}
           role="presentation"
+          data-step-duration={stepDuration(reducedMotion)}
           initial={reducedMotion ? false : stepTravel(direction, sm ? WIDE_SHIFT : undefined)}
           animate={{ x: 0, opacity: 1 }}
-          transition={{ duration: reducedMotion ? 0 : motionDurations.slow / 1000, ease: [...motionEasings.standard] as [number, number, number, number] }}
+          transition={{ duration: stepDuration(reducedMotion) / 1000, ease: [...motionEasings.standard] as [number, number, number, number] }}
           onFocusCapture={(event) => lookTowards(event.target)}
           onBlurCapture={lookAway}
           onPointerOver={(event) => lookTowards(hoveredOption(event.target))}

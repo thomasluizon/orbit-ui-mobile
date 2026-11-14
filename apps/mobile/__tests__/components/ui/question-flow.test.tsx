@@ -1,4 +1,6 @@
-import { Modal, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
+import { Animated, Modal, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
+import { motionDurations } from '@orbit/shared/theme'
+import { reanimatedTestState } from '@/test-mocks/react-native-reanimated'
 import { markGuidedFlowCompleted } from '@orbit/shared/utils'
 import { act } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
@@ -24,6 +26,8 @@ const textOf = (tree: ReturnType<typeof renderNavigation>) => tree.hosts().filte
 
 const posthog = vi.hoisted(() => ({ captureGuidedFlowEvent: vi.fn() }))
 vi.mock('@/lib/posthog', () => posthog)
+const motion = vi.hoisted(() => ({ reduced: false }))
+vi.mock('@/lib/motion', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => motion.reduced }))
 
 describe('QuestionFlow events on Android', () => {
   it('reports each step view once and an abandon at the last step', () => {
@@ -49,6 +53,21 @@ describe('QuestionFlow events on Android', () => {
 })
 
 describe('QuestionFlow on Android', () => {
+  it.each([false, true])('slides a step change with the slow duration, and never under reduced motion %s', (reduced) => {
+    motion.reduced = reduced
+    reanimatedTestState.reducedMotion = reduced
+    const timing = vi.spyOn(Animated, 'timing')
+    const tree = renderNavigation(flow())
+    tree.update(flow({ stepKey: 'time' }))
+    const stepTimings = timing.mock.calls.filter(([, config]) => config.duration === motionDurations.slow)
+    expect(stepTimings.length > 0).toBe(!reduced)
+    if (reduced) expect(tree.hosts().find((node) => node.props.testID === 'orbit-mascot')?.props['data-orbit-loop' as never]).toBe('still')
+    timing.mockRestore()
+    motion.reduced = false
+    reanimatedTestState.reducedMotion = false
+    tree.unmount()
+  })
+
   it('keeps the block centred, then aligns it under the header and scrolls while the keyboard is open', () => {
     const tree = renderNavigation(flow())
     const scroller = () => tree.hosts().find((node) => node.props.testID === 'question-flow-scroll')!

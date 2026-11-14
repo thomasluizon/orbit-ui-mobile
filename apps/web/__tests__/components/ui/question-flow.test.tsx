@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
+import { motionDurations } from '@orbit/shared/theme'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { OptionCard } from '@/components/ui/option-card'
 import { markGuidedFlowCompleted } from '@orbit/shared/utils'
@@ -141,6 +142,17 @@ describe('QuestionFlow', () => {
       act(() => { vi.advanceTimersByTime(3000) })
       expect(screen.getByRole('status')).toBeEmptyDOMElement()
     } finally { vi.useRealTimers() }
+  })
+
+  it('slides a step change with the slow duration, and draws it still with a still mascot under reduced motion', () => {
+    stubMedia([])
+    const { unmount } = render(<Flow />)
+    expect(document.querySelector('[data-question-flow] main > div')).toHaveAttribute('data-step-duration', String(motionDurations.slow))
+    unmount()
+    stubMedia(['prefers-reduced-motion'])
+    render(<Flow />)
+    expect(document.querySelector('[data-question-flow] main > div')).toHaveAttribute('data-step-duration', '0')
+    expect(document.querySelector('[data-orbit-loop]')).toHaveAttribute('data-orbit-loop', 'still')
   })
 
   it('draws no eye travel under reduced motion', () => {
