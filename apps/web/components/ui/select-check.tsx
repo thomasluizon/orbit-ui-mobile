@@ -120,13 +120,14 @@ export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, desc
     aria-disabled={busy || undefined}
     onFocus={onFocus}
     onBlur={onBlur}
-    className={`orbit-selection-ring orbit-selection-ring-thin orbit-radio-row flex w-full cursor-pointer items-center border-0 text-left ${textMode === 'personal' ? 'transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)]' : `transition-[background-color,scale] duration-[var(--dur-hover),var(--dur-press)] ease-[var(--ease-standard),var(--ease-out)] ${busy ? '' : 'press-hit-layer motion-safe:enabled:active:scale-[0.96]'}`} ${busy ? '' : 'enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)]'} focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)] ${radioRowFill(selected, proposed)} ${textMode === 'personal' ? 'absolute inset-0' : ''}`}
+    className={`orbit-selection-ring orbit-selection-ring-thin orbit-radio-row flex w-full cursor-pointer items-center border-0 text-left transition-[background-color,scale] duration-[var(--dur-hover),var(--dur-press)] ease-[var(--ease-standard),var(--ease-out)] ${busy ? '' : 'press-hit-layer motion-safe:enabled:active:scale-[0.96] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)]'} focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)] ${radioRowFill(selected, proposed)} ${textMode === 'personal' ? 'peer absolute inset-0' : ''}`}
     style={style}
   >{textMode === 'personal' ? null : content}</button></RadioItem>
 
-  if (!disabled && textMode === 'personal') return <div className={`relative min-w-0 transition-[scale] duration-[var(--dur-press)] ease-[var(--ease-out)] ${busy ? '' : 'motion-safe:has-[>button:enabled:active]:scale-[0.96]'} has-[>button:enabled]:hover:[--radio-row-secondary:var(--fg-2)] has-[>button:enabled]:hover:[--radio-row-track:var(--fg-3)] has-[>button:enabled:active]:[--radio-row-secondary:var(--fg-2)] has-[>button:enabled:active]:[--radio-row-track:var(--fg-3)]`}>
+  /** The personal text sits beside its radio, so the radio presses its own box over its hit layer and the text presses beside it as a `peer`, as the list row's personal text does. */
+  if (!disabled && textMode === 'personal') return <div className="relative min-w-0 has-[>button:enabled]:hover:[--radio-row-secondary:var(--fg-2)] has-[>button:enabled]:hover:[--radio-row-track:var(--fg-3)] has-[>button:enabled:active]:[--radio-row-secondary:var(--fg-2)] has-[>button:enabled:active]:[--radio-row-track:var(--fg-3)]">
     {control}
-    <div ref={contentRef} className="pointer-events-none relative flex w-full min-w-0 items-center" style={{ ...style, background: undefined, boxShadow: undefined }}>{content}</div>
+    <div ref={contentRef} className={`pointer-events-none relative flex w-full min-w-0 items-center transition-[scale] duration-[var(--dur-press)] ease-[var(--ease-out)] ${busy ? '' : 'motion-safe:peer-enabled:peer-active:scale-[0.96]'}`} style={{ ...style, background: undefined, boxShadow: undefined }}>{content}</div>
   </div>
 
   return disabled ? <DisabledRadioRow label={label} textMode={textMode} accessibilityLabel={accessibilityLabel} contentId={contentId} selected={selected} disclosed={disclosed} supportingReason={Boolean(reason)} onToggle={() => setDisclosed(!disclosed)} style={style}>{content}</DisabledRadioRow> : control

@@ -135,13 +135,16 @@ describe('PillButton', () => {
           const style = getComputedStyle(button)
           return {
             width: bounds.width, height: bounds.height, fill: style.backgroundColor,
-            extensions: ['::before', '::after'].map((pseudo) => getComputedStyle(button, pseudo).content),
+            extensions: ['::before', '::after'].map((pseudo) => {
+              const layer = getComputedStyle(button, pseudo)
+              return { content: layer.content, inset: layer.inset, fill: layer.backgroundColor }
+            }),
           }
         })
         expect(geometry.width).toBe(48)
         expect(geometry.height).toBe(48)
         expect(geometry.fill).not.toBe('rgba(0, 0, 0, 0)')
-        expect(geometry.extensions).toEqual(['none', 'none'])
+        expect(geometry.extensions, 'the ::before is the unpainted hit layer over the box itself, so no pseudo-element grows the target').toEqual([{ content: '""', inset: '0px', fill: 'rgba(0, 0, 0, 0)' }, { content: 'none', inset: 'auto', fill: 'rgba(0, 0, 0, 0)' }])
       } finally {
         await page.close()
       }

@@ -13,6 +13,7 @@ import en from '@orbit/shared/i18n/en.json'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { pickListBlockFixture } from '@orbit/shared/test-support/chat-fixtures'
 import { AnswerBlock } from '@/components/chat/answer-block'
+import { SelectAllToggle } from '@/components/calendar-sync/select-all-toggle'
 import { CalendarTimeGrid } from '@/components/calendar/calendar-time-grid'
 import { CommandRow } from '@/components/command/command-row'
 import { StreakBadge } from '@/components/gamification/streak-badge'
@@ -22,10 +23,13 @@ import { HabitRowTrailing } from '@/components/habits/habit-row-trailing'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { OnboardingCreateHabit } from '@/components/onboarding/onboarding-create-habit'
 import { AstraButton } from '@/components/shell/astra-button'
+import { AppBar } from '@/components/ui/app-bar'
 import { Chip } from '@/components/ui/chip'
 import { PillAnchor } from '@/components/ui/pill-anchor'
 import { PillButton } from '@/components/ui/pill-button'
 import { QuietLink } from '@/components/ui/quiet-link'
+import { RadioGroup } from '@/components/ui/radio-group'
+import { RadioRow } from '@/components/ui/select-check'
 import { PricingSection } from '@/components/upgrade/pricing-section'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -76,7 +80,12 @@ const controls: [string, () => ReactElement, (page: Page) => Locator][] = [
   ['a resting chip', () => <Chip onClick={vi.fn()}>Morning routine</Chip>, (page) => page.getByRole('button', { name: 'Morning routine', exact: true })],
   ['a selected chip', () => <Chip active onClick={vi.fn()}>Morning routine</Chip>, (page) => page.getByRole('button', { name: 'Morning routine', exact: true })],
   ['the conversation entry', () => <AstraButton />, (page) => page.getByRole('button', { name: en.shell.astraButton.open, exact: true })],
-  // WHY: these eight scale their whole 48px target. The scale removes 0.96px at each edge, which is under 1px, so a press at the exact edge keeps its click. Each case guards that band. https://github.com/thomasluizon/orbit-tickets/issues/2096
+  ['a personal radio row', () => <RadioGroup aria-label="Item"><RadioRow label="Read before bed" textMode="personal" onSelect={vi.fn()} /></RadioGroup>,
+    (page) => page.getByRole('radio', { name: 'Read before bed', exact: true })],
+  // WHY: these ten scale their whole 48px target. The scale removes 0.96px at each edge, which is under 1px, so a press at the exact edge keeps its click. Each case guards that band. https://github.com/thomasluizon/orbit-tickets/issues/2096
+  ['an icon button', () => <SelectAllToggle allSelected={false} onToggle={vi.fn()} selectAllLabel="Select all" deselectAllLabel="Deselect all" />,
+    (page) => page.getByRole('button', { name: 'Select all', exact: true })],
+  ['the app bar back', () => <AppBar title="Chat" onBack={vi.fn()} backLabel="Back" />, (page) => page.getByRole('button', { name: 'Back', exact: true })],
   ['the answer block habit check', () => <AnswerBlock definition={{ kind: 'pickList', block: pickListBlockFixture }} />,
     (page) => page.locator('[data-habit-row-control="check"]').first()],
   ['the habit row disclosure', () => <HabitRow habit={createMockHabit({ title: 'Read' })} structuralColumn hasChildren actions={{ onDetail: vi.fn(), onToggleExpand: vi.fn() }} />,
@@ -121,7 +130,10 @@ describe('press hit target in Chromium', () => {
       await page.mouse.down()
       await page.evaluate(() => new Promise<void>((settle) => requestAnimationFrame(() => requestAnimationFrame(() => settle()))))
       const pressed = await card.evaluate((element, point) => ({
-        scaled: [element, ...element.querySelectorAll('*')].some((node) => getComputedStyle(node).scale === '0.96'),
+        scaled: [element, ...element.querySelectorAll('*')].some((node) => {
+          const style = getComputedStyle(node)
+          return style.scale === '0.96' || style.transform === 'matrix(0.96, 0, 0, 0.96, 0, 0)'
+        }),
         underPointer: element.contains(document.elementFromPoint(point.x, point.y)),
       }), edge)
       await page.mouse.up()
@@ -134,6 +146,7 @@ describe('press hit target in Chromium', () => {
   it.each([
     ['a pill button', () => <PillButton size="md" onClick={vi.fn()}>Continue to checkout</PillButton>],
     ['a selected chip', () => <Chip active onClick={vi.fn()}>Continue to checkout</Chip>],
+    ['an icon button', () => <SelectAllToggle allSelected={false} onToggle={vi.fn()} selectAllLabel="Continue to checkout" deselectAllLabel="Deselect all" />],
   ] as const)('keeps the focus ring of %s whole on its unscaled hit layer while a key presses it', async (_name, control) => {
     const page = await browser.newPage({ viewport: { width: 412, height: 915 }, reducedMotion: 'no-preference' })
     try {
@@ -145,7 +158,7 @@ describe('press hit target in Chromium', () => {
       const pressed = await button.evaluate((element) => {
         const own = getComputedStyle(element)
         const layer = getComputedStyle(element, '::before')
-        return { scale: Number(own.scale), outline: own.outlineStyle, ring: layer.outlineStyle, ringWidth: layer.outlineWidth, layerScale: Number(layer.scale) }
+        return { scale: own.scale === 'none' ? new DOMMatrix(own.transform).a : Number(own.scale), outline: own.outlineStyle, ring: layer.outlineStyle, ringWidth: layer.outlineWidth, layerScale: Number(layer.scale) }
       })
       await page.keyboard.up('Space')
       expect(pressed.scale, 'the key press scales the control').toBeCloseTo(0.96, 5)

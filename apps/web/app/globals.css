@@ -987,7 +987,8 @@ select[aria-hidden="true"] {
   }
 
   .press-hit-layer::before,
-  .chip::before {
+  .chip::before,
+  .icon-btn::before {
     content: '';
     position: absolute;
     inset: 0;
@@ -996,7 +997,8 @@ select[aria-hidden="true"] {
 
   @media (prefers-reduced-motion: no-preference) {
     .press-hit-layer:active::before,
-    .chip:active::before {
+    .chip:active::before,
+    .icon-btn:active::before {
       scale: calc(1 / 0.96);
     }
   }
@@ -1005,11 +1007,11 @@ select[aria-hidden="true"] {
 /* A focused press target keeps its focus ring whole while it is pressed: the ring moves to the hit layer, which the
    press does not scale. Unlayered, so it outranks the focus utilities of each variant. */
 @media (prefers-reduced-motion: no-preference) {
-  :is(.press-hit-layer, .chip):focus-visible:active {
+  :is(.press-hit-layer, .chip, .icon-btn):focus-visible:active {
     outline-style: none;
   }
 
-  :is(.press-hit-layer, .chip):focus-visible:active::before {
+  :is(.press-hit-layer, .chip, .icon-btn):focus-visible:active::before {
     outline: 2px solid;
     outline-color: inherit;
     outline-offset: inherit;

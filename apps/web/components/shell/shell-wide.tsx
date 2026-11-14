@@ -92,7 +92,7 @@ function SidebarItem({
       href={item.href}
       data-habit-create-navigation={onSelect ? '' : undefined}
       className={[
-        'flex min-h-[var(--touch-min)] w-full items-center gap-3 overflow-hidden rounded-[12px] px-3 text-left text-[14px] font-medium',
+        'flex min-h-[var(--touch-min)] w-full items-center gap-3 rounded-[12px] px-3 text-left text-[14px] font-medium',
         'press-hit-layer transition-[background-color,color,scale] duration-[var(--dur-hover-control),var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-standard),var(--ease-out)] motion-safe:active:scale-[0.96]',
         active
           ? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)] active:text-[var(--primary-text)]'
@@ -127,7 +127,7 @@ function SidebarAstraRow({ row, open, conversationId, collapsed }: Readonly<{
             title={collapsed ? row.label : undefined}
             onClick={row.onOpen}
             className={[
-              'flex min-h-[var(--touch-min)] w-full items-center gap-3 overflow-hidden rounded-[12px] px-3 text-left text-[14px] font-medium',
+              'flex min-h-[var(--touch-min)] w-full items-center gap-3 rounded-[12px] px-3 text-left text-[14px] font-medium',
               'press-hit-layer transition-[background-color,color,scale] duration-[var(--dur-hover-control),var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-standard),var(--ease-out)] motion-safe:active:scale-[0.96]',
               open
                 ? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)] active:text-[var(--primary-text)]'
