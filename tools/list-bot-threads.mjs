@@ -5,7 +5,7 @@ import { graphqlBudgetDecision } from "./lib/github-rate-limit.mjs"
 import { currentRunIdentifier, recordObservedIdentifiers } from "./lib/identifier-ledger.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { REVIEW_APP_ID, headActivityArgv, headActivityBoundary, requiredChecksFromResponse, reviewRequestGate, rollupFromGraphQlNodes } from "./lib/readiness-receipt.mjs"
+import { REVIEW_APP_ID, headActivityArgv, headActivityBoundary } from "./lib/readiness-receipt.mjs"
 
 const BOT_LOGIN = "pullfrog"
 
@@ -13,7 +13,7 @@ const USAGE = `usage: list-bot-threads.mjs --pr <number|url> (--repo <ui|api|lan
 
   --pr <number|url>   the pull request to read (required)
   --repo <key>        required for a bare number; a full PR URL selects its repository
-  --wait-seconds <n>  how long to wait for CI and then for the review (default 900, 0 polls once)
+  --wait-seconds <n>  how long to wait for the review (default 900, 0 polls once and asks nothing)
   --poll-seconds <n>  gap between polls (default 30)
   --command-timeout-seconds <n>  hard bound for each gh child (default 45)
   --bot <login>       reviewer login to filter on (default ${BOT_LOGIN}); a trailing [bot] is dropped
@@ -26,14 +26,12 @@ const USAGE = `usage: list-bot-threads.mjs --pr <number|url> (--repo <ui|api|lan
   --help, -h          print this usage and exit 0
 
 Pullfrog reviews only on request, so a push starts no review. The tool posts "@pullfrog review"
-only when no review of the current head exists AND every check of that head except Pullfrog's own
-passed: each required check of the base is registered, and no reported check is failing or still
-running. Until then it waits inside the same budget. A head that fails CI therefore never gets a
-review. A review still counts only when its commit is the current head. The 900-second default is a
-safety bound, not a guaranteed review time.
+at once when no review of the current head exists. It reads no check first: the review runs beside
+CI, and the merge still needs green checks. A review still counts only when its commit is the
+current head. The 900-second default is a safety bound, not a guaranteed review time.
 
 Prints ONE JSON object on stdout: pr, isDraft, verdict, reviewedAt, reviewState, reviewBody,
-checkConclusion, checkStatus, progressMarkers, ciGate, threads[]. Errors go to stderr. A request
+checkConclusion, checkStatus, progressMarkers, threads[]. Errors go to stderr. A request
 comment of the repository owner posted after the current head's push counts as that head's request,
 so a second run posts no second one and names it in existingRequestUrl; only --re-review asks again.
 
@@ -45,10 +43,6 @@ so a second run posts no second one and names it in existingRequestUrl; only --r
                          still running at the end of the budget; the review fields are kept
            NO_REVIEW     no review of this head inside the budget. staleReviewCommit names
                          the commit an older review WAS given on, when there is one
-           CI_FAILING    no review of this head, and the request was NOT posted because a check
-                         other than Pullfrog's own failed; ciGate.failing names each one
-           CI_PENDING    no review of this head, and the request was NOT posted because the CI
-                         of this head was still running at the end of the budget
 
 COMMENTED or CHANGES_REQUESTED with an empty body and no threads of its own is a progress marker.
 It increments progressMarkers and never supplies a review verdict. A completed pullfrog-approval
@@ -67,12 +61,8 @@ A draft pull request is read exactly like any other one, because Pullfrog review
 Pullfrog publishes no severity, so every thread reports P1. The caller treats each finding as
 blocking until the caller triages it.
 
-  ciGate     null when the gate never ran (a review of this head already existed, --no-request or
-             --wait-seconds 0); otherwise the last reading: state (PASSED, FAILING or PENDING),
-             failing[], pending[] and reported, the count of checks other than Pullfrog's own
-
-exit codes: 0 REVIEWED or CHANGES_REQUESTED, 1 NO_REVIEW, CHECK_FAILED, CHECK_PENDING, CI_FAILING or
-CI_PENDING, 2 usage or environment error`
+exit codes: 0 REVIEWED or CHANGES_REQUESTED, 1 NO_REVIEW, CHECK_FAILED or CHECK_PENDING, 2 usage or
+environment error`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -363,53 +353,6 @@ const completedCheck = () => check?.status === "COMPLETED" && (!reReview || (req
 const finished = () => completedCheck() || (review && review.state !== "APPROVED")
 
 /**
- * Branch protection is read once per base, because the required set changes with settings, not
- * with pushes. An unprotected base answers 404, which requiredChecksFromResponse reads as no
- * required checks.
- */
-const requiredChecksByBase = new Map()
-const requiredChecksOf = async (baseRefName) => {
-  if (!requiredChecksByBase.has(baseRefName)) {
-    const operation = `gh api required status checks for ${baseRefName}`
-    const result = await runBounded(GH, ["api", `repos/${repository}/branches/${encodeURIComponent(baseRefName)}/protection/required_status_checks`], { cwd: githubCwd, env: githubAuth.environment, timeoutMs: commandTimeoutSeconds * 1000 })
-    if (result.timedOut || result.overflowed || result.error) fail(2, `${operation} did not complete: ${redactSecrets(result.error?.message ?? "timed out or overflowed", githubAuth.secrets)}`)
-    let response = null
-    try { response = JSON.parse(result.stdout) } catch { /* An unreadable answer fails closed below. */ }
-    const required = requiredChecksFromResponse(response, result.status === 0)
-    if (required === null) fail(2, `${operation} returned no { context, app_id } checks array: ${redactSecrets((result.stderr || result.stdout).trim().slice(0, 240), githubAuth.secrets)}`)
-    requiredChecksByBase.set(baseRefName, required)
-  }
-  return requiredChecksByBase.get(baseRefName)
-}
-
-const ciGateOf = async (payload) => {
-  const gate = reviewRequestGate(rollupFromGraphQlNodes(payload.statusCheckRollup?.contexts?.nodes ?? []), await requiredChecksOf(payload.baseRefName))
-  if (gate === null) fail(2, "gh api graphql returned a check rollup the review request gate cannot read")
-  return gate
-}
-
-/**
- * A request for a head whose CI later fails buys a review that the CI fix push throws away, so the
- * request waits for the head's CI. A review that lands meanwhile, from any trigger, ends the wait
- * and is read like any other.
- */
-let ciGate = null
-if (requestReview && !review && waitSeconds > 0) {
-  ciGate = await ciGateOf(node)
-  while (ciGate.state === "PENDING" && Date.now() < deadline) {
-    progress("CI_WAITING", node, startedAt, deadline)
-    await sleep(Math.min(pollSeconds, Math.max(1, Math.ceil((deadline - Date.now()) / 1000))))
-    await awaitGraphqlBudget(deadline)
-    node = await readPullRequest()
-    review = currentReviewOf(node)
-    if (review && isProgressMarker(node, review)) review = null
-    check = approvalCheckOf(node)
-    if (review) break
-    ciGate = await ciGateOf(node)
-  }
-}
-
-/**
  * One request per head: a request comment posted after this head's push already asks for its review,
  * and a second one starts a second paid run. Only --re-review asks again on purpose. Only the
  * repository owner's comment counts, because this tool posts with the owner's token and Pullfrog
@@ -425,7 +368,11 @@ const openRequest = reReview ? null : openRequestOf(node)
 
 let requested = false
 let requestUrl = null
-if (requestReview && !review && waitSeconds > 0 && ciGate?.state === "PASSED" && !openRequest) {
+/**
+ * The request reads no check. The review runs beside CI, so a round costs the slower of the two, not
+ * their sum. The local review before the push is what keeps a head that fails CI from costing a review.
+ */
+if (requestReview && !review && waitSeconds > 0 && !openRequest) {
   const posted = await gh(["pr", "comment", pullRequest, "--repo", repository, "--body", REQUEST_BODY], `gh pr comment ${pullRequest}`)
   requestUrl = posted.trim().split("\n").at(-1)?.trim() || null
   requested = true
@@ -496,14 +443,8 @@ if (!review) {
     ? `"@pullfrog review" was already posted for this head at ${openRequest.createdAt}, so this run posted no second request and no review arrived inside the budget`
     : 'no "@pullfrog review" was posted on this run, so the reviewer may simply never have been triggered'
   const activityBoundary = node.headActivityBoundary
-  const ciBlocked = ciGate !== null && ciGate.state !== "PASSED"
-  const verdict = checkConclusion && checkConclusion !== "SUCCESS" ? "CHECK_FAILED"
-    : ciBlocked ? (ciGate.state === "FAILING" ? "CI_FAILING" : "CI_PENDING") : "NO_REVIEW"
-  const note = ciBlocked
-    ? ciGate.state === "FAILING"
-      ? `"@pullfrog review" was NOT posted, because head ${node.headRefOid} failed ${ciGate.failing.join(", ")}; fix CI, push, and run this again`
-      : `"@pullfrog review" was NOT posted, because the CI of head ${node.headRefOid} was still running at the end of the budget (${ciGate.pending.join(", ") || "no checks reported yet"}); run this again when it settles`
-    : activityBoundary.reason
+  const verdict = checkConclusion && checkConclusion !== "SUCCESS" ? "CHECK_FAILED" : "NO_REVIEW"
+  const note = activityBoundary.reason
     ? `${activityBoundary.reason}; no review can be proven current. ${asked}`
     : stale && stale.commit?.oid !== node.headRefOid
     ? `the newest ${botLogin} review is pinned to ${stale.commit?.oid ?? "an unknown commit"}, not to head ${node.headRefOid}; it never saw this code. ${asked}`
@@ -512,7 +453,7 @@ if (!review) {
     : `no completed ${botLogin} review of this head arrived; ${asked}; do not report this pull request as clean`
   console.log(
     JSON.stringify(
-      { pr: Number(pullRequest), isDraft: Boolean(node.isDraft), verdict, reviewedAt: null, reviewState: null, baseRefOid: node.baseRefOid, headRefOid: node.headRefOid, staleReviewCommit: stale?.commit?.oid ?? null, checkConclusion, checkStatus, progressMarkers, threadsComplete: node.reviewThreads.complete === true, threads, waitedSeconds: waitSeconds, reviewRequested: requested, existingRequestUrl: openRequest?.url ?? null, ciGate, note },
+      { pr: Number(pullRequest), isDraft: Boolean(node.isDraft), verdict, reviewedAt: null, reviewState: null, baseRefOid: node.baseRefOid, headRefOid: node.headRefOid, staleReviewCommit: stale?.commit?.oid ?? null, checkConclusion, checkStatus, progressMarkers, threadsComplete: node.reviewThreads.complete === true, threads, waitedSeconds: waitSeconds, reviewRequested: requested, existingRequestUrl: openRequest?.url ?? null, note },
       null,
       2,
     ),
@@ -541,7 +482,6 @@ console.log(
       checkConclusion,
       checkStatus,
       progressMarkers,
-      ciGate,
       threadsComplete: node.reviewThreads.complete === true,
       counts: { total: threads.length, unresolved: threads.filter((thread) => !thread.isResolved).length, pages: node.reviewThreads.pages },
       threads,
