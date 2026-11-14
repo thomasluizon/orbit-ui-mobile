@@ -6175,6 +6175,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-goals-goals-section",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/progress/_components/goals/goals-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/_components/goals/goals-section.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-goals-goals-section",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/progress/_components/goals/goals-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/_components/goals/goals-section.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-goals-goals-section",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/progress/_components/goals/goals-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/_components/goals/goals-section.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-goals-goals-section",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/progress/_components/goals/goals-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/_components/goals/goals-section.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-components-progress-content",
       "platform": "web",
       "kind": "overlay",
@@ -7055,6 +7107,58 @@
         "apps/web/components/goals/goal-habits-field.tsx"
       ],
       "state": "empty",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-guided-goal-flow-steps",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/guided/goal-flow-steps.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/goals/guided/goal-flow-steps.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-guided-goal-flow-steps",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/guided/goal-flow-steps.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/goals/guided/goal-flow-steps.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-guided-goal-flow-steps",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/guided/goal-flow-steps.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/goals/guided/goal-flow-steps.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-guided-goal-flow-steps",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/guided/goal-flow-steps.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/goals/guided/goal-flow-steps.tsx"
+      ],
+      "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
     },
@@ -10051,7 +10155,6 @@
         "apps/mobile/components/today/habit-view-switch.tsx",
         "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
-        "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/today/today-launch-content.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -10101,7 +10204,6 @@
         "apps/mobile/components/today/habit-view-switch.tsx",
         "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
-        "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/today/today-launch-content.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -10151,7 +10253,6 @@
         "apps/mobile/components/today/habit-view-switch.tsx",
         "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
-        "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/today/today-launch-content.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -10201,7 +10302,6 @@
         "apps/mobile/components/today/habit-view-switch.tsx",
         "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
-        "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/today/today-launch-content.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -10251,7 +10351,6 @@
         "apps/mobile/components/today/habit-view-switch.tsx",
         "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
-        "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/today/today-launch-content.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -10301,7 +10400,6 @@
         "apps/mobile/components/today/habit-view-switch.tsx",
         "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
-        "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/today/today-launch-content.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -10351,7 +10449,6 @@
         "apps/mobile/components/today/habit-view-switch.tsx",
         "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
-        "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/today/today-launch-content.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -10401,7 +10498,6 @@
         "apps/mobile/components/today/habit-view-switch.tsx",
         "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
-        "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/today/today-launch-content.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -16575,6 +16671,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-overlay-guided-goal-flow-steps",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/goals/guided/goal-flow-steps.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/goals/guided/goal-flow-steps.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-guided-goal-flow-steps",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/goals/guided/goal-flow-steps.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/goals/guided/goal-flow-steps.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-guided-goal-flow-steps",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/goals/guided/goal-flow-steps.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/goals/guided/goal-flow-steps.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-guided-goal-flow-steps",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/goals/guided/goal-flow-steps.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/goals/guided/goal-flow-steps.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-overlay-habit-list-confirm-dialogs",
       "platform": "mobile",
       "kind": "overlay",
@@ -18809,6 +18957,58 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/components/profile/profile-mcp-guide.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-goals-goals-section",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/progress/goals/goals-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/progress/goals/goals-section.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-goals-goals-section",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/progress/goals/goals-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/progress/goals/goals-section.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-goals-goals-section",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/progress/goals/goals-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/progress/goals/goals-section.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-goals-goals-section",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/progress/goals/goals-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/progress/goals/goals-section.tsx"
       ],
       "state": "default",
       "theme": "dark",

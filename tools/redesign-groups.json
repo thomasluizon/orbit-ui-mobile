@@ -272,6 +272,8 @@
       "m-overlay-goal-detail-drawer-goal-progress-form",
       "m-overlay-goals-goal-detail-drawer",
       "m-overlay-goals-goal-habits-field",
+      "m-overlay-goals-goals-section",
+      "m-overlay-guided-goal-flow-steps",
       "m-overlay-progress-progress-content",
       "m-overlay-ui-streak-legend",
       "m-route-tabs-progress",
@@ -282,6 +284,8 @@
       "overlay-goal-detail-drawer-goal-progress-form",
       "overlay-goals-goal-detail-drawer",
       "overlay-goals-goal-habits-field",
+      "overlay-goals-goals-section",
+      "overlay-guided-goal-flow-steps",
       "overlay-ui-streak-legend",
       "route-progress"
     ],
