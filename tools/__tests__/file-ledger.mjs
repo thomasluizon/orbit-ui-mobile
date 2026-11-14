@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process"
-import { mkdirSync, readFileSync, readdirSync, realpathSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
 import { REPO_ROOT, T, check, root, run, stage, toolPath } from "./_harness.mjs"
@@ -350,6 +350,13 @@ const caseUnresolvedReferences = () => {
 const caseRepositoryIdentity = () => {
   const repository = makeRepository("identity", { "docs/a.md": "a\n" })
   check(TOOL, "a --repo below the root of a git repository exits 2", ["--repo", join(repository, "docs")], { status: 2, stderr: /is not the root of a git repository/ })
+  // git prints the form on disk; a case-insensitive file system (macOS, Windows) also opens the root in another letter case.
+  const otherCase = join(dirname(repository), "IDENTITY")
+  if (existsSync(otherCase)) {
+    check(TOOL, "a --repo in another letter case on a case-insensitive file system is the same root", ["--repo", otherCase], { status: 0, stderr: /1 tracked files/ })
+  } else {
+    T(`${TOOL}: a --repo in another letter case names no folder on a case-sensitive file system`, true)
+  }
   const first = makeRepository("shared-name-a/same", { "a.md": "a\n" })
   const second = makeRepository("shared-name-b/same", { "b.md": "b\n" })
   check(TOOL, "two --also-search roots with one name exit 2", ["--repo", repository, "--also-search", first, "--also-search", second], { status: 2, stderr: /share a name: same, same/ })

@@ -185,10 +185,16 @@ const requireRepository = (repository) => {
   if (!existsSync(repository)) throw new UsageError(`${repository} does not exist`)
   const top = git(repository, ["rev-parse", "--show-toplevel"])
   if (top.status !== 0) throw new UsageError(`${repository} is not a git repository`)
-  if (realpathSync(top.stdout.toString("utf8").trim()) !== realpathSync(repository)) {
+  if (pathIdentity(top.stdout.toString("utf8").trim()) !== pathIdentity(repository)) {
     throw new UsageError(`${repository} is not the root of a git repository`)
   }
-  return realpathSync(repository)
+  return realpathSync.native(repository)
+}
+
+// The native realpath gives the form on disk (letter case, a Windows 8.3 name), as launch-worker.mjs reads git output.
+const pathIdentity = (path) => {
+  const real = realpathSync.native(path)
+  return process.platform === "win32" ? real.toLowerCase() : real
 }
 
 const byPath = (left, right) => (left.path < right.path ? -1 : left.path > right.path ? 1 : 0)
