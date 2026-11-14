@@ -217,11 +217,11 @@ describe('PillButton', () => {
 
     expect(screen.getByRole('link', { name: 'Primary' })).toHaveClass(
       'hover:bg-[var(--primary-hover)]',
-      'active:scale-[0.96]',
+      'motion-safe:active:scale-[0.96]',
     )
     expect(screen.getByRole('link', { name: 'Secondary' })).toHaveClass(
       'hover:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))]',
-      'active:scale-[0.96]',
+      'motion-safe:active:scale-[0.96]',
       'active:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))]',
     )
     expect(screen.getByRole('link', { name: 'Ghost' })).toHaveAttribute('href', '/ghost')
@@ -320,7 +320,7 @@ describe('PillButton', () => {
   it('transitions the scale property the press utility writes, apart from the hover colour', () => {
     render(<PillButton onClick={() => {}}>Continue</PillButton>)
     const button = screen.getByRole('button', { name: 'Continue' })
-    expect(button).toHaveClass('orbit-pill-action', 'enabled:active:scale-[0.96]')
+    expect(button).toHaveClass('orbit-pill-action', 'press-hit-layer', 'motion-safe:enabled:active:scale-[0.96]')
 
     const css = postcss.parse(readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8'))
     const transitions: string[] = []
