@@ -114,6 +114,7 @@ describe('the guided Wrapped player on web', () => {
     const current = renderPlayer()
     const currentTexts = slideTexts(current.copy)
     expect(currentTexts.completions).toContain(String(recap.metrics.totalCompletions))
+    for (const kind of SLIDE_KINDS) expect(currentTexts[kind]).not.toBe('')
     current.unmount()
 
     enableTestFlags('orbit_guided_flows')

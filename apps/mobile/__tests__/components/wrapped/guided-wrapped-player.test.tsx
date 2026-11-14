@@ -79,7 +79,7 @@ const press = (node: ReactTestInstance) => renderer.act(() => { (node.props.onPr
 const travelOpacity = (root: ReactTestRenderer) => JSON.stringify(byTestId(root, 'wrapped-slide-travel')[0]!.props.style)
 const progress = (catalog: typeof ptBR | typeof en, current: number) => catalog.wrapped.progressLabel.replace('{current}', String(current)).replace('{total}', String(slides.length))
 const slideText = (root: ReactTestRenderer, kind: string) => byTestId(root, `wrapped-slide-${kind}`)[0]!
-  .findAll((node) => String(node.type) === 'Text').map((node) => renderedText(node.props.children)).join('|')
+  .findAll((node) => typeof node.type === 'string' && node.type.endsWith('Text')).map((node) => renderedText(node.props.children)).join('|')
 
 async function slideTexts(root: ReactTestRenderer) {
   const texts: Record<string, string> = {}
@@ -154,6 +154,7 @@ describe('the guided Wrapped player on Android', () => {
     const current = await renderPlayer()
     const currentTexts = await slideTexts(current)
     expect(currentTexts.completions).toContain(String(recap.metrics.totalCompletions))
+    for (const kind of SLIDE_KINDS) expect(currentTexts[kind]).not.toBe('')
     await renderer.act(() => { current.unmount() })
     tree = null
 
