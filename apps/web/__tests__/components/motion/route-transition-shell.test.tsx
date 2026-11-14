@@ -38,7 +38,7 @@ vi.mock('@/lib/motion/route-intent', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/motion/route-intent')>()
   return {
     ...actual,
-    resetRouteTransitionIntent: vi.fn(),
+    resetRouteTransitionIntentIfCurrent: vi.fn(),
     useRouteTransitionIntent: () => ({ intent: mocks.intent, version: 0 }),
   }
 })
