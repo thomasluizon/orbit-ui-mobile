@@ -103,7 +103,6 @@ export {
   IconArrowsShuffle as Shuffle,
   IconDeviceMobile as Smartphone,
   IconSnowflake as Snowflake,
-  IconSparkles as Sparkles,
   IconSquare as Square,
   IconSquareX as SquareX,
   IconStar as Star,

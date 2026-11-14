@@ -671,6 +671,8 @@ ruleTester.run('no-sparkle-ai-marker', rule('no-sparkle-ai-marker'), {
   ],
   invalid: [
     { code: "import { Sparkles } from '@/components/ui/icons'", errors: [{ messageId: 'noSparkle' }] },
+    { code: "export { IconSparkles as Sparkles } from '@tabler/icons-react'", errors: [{ messageId: 'noSparkle' }] },
+    { code: "export { IconSparkles as Highlight } from '@tabler/icons-react'", errors: [{ messageId: 'noSparkle' }] },
     { code: '<Sparkles size={16} />', errors: [{ messageId: 'noSparkle' }] },
     { code: '<span>✨ Orbit</span>', errors: [{ messageId: 'noSparkle' }] },
   ],
