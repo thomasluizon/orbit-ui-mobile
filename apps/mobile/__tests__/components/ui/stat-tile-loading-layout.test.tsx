@@ -125,7 +125,7 @@ describe('StatTile loading layout (mobile)', () => {
           expect(value.getComputedHeight()).toBeCloseTo(22 * 1.4 * fontScale, 0)
           expect(tiles[index]!.props.accessibilityRole).toBe('progressbar')
           expect(tiles[index]!.props.accessibilityLabel).toBe(catalog.calendar.loading)
-          expect(tiles[index]!.findAll((child) => typeof child.type === 'string' && child.props.accessibilityElementsHidden === true && child.props.importantForAccessibility === 'no-hide-descendants')).toHaveLength(2)
+          expect(tiles[index]!.findAll((child) => typeof child.type === 'string' && child.props.accessibilityElementsHidden === true && child.props.importantForAccessibility === 'no-hide-descendants' && child.props.testID !== 'skeleton-unit-fill')).toHaveLength(2)
         }
       } finally {
         layout.freeRecursive()

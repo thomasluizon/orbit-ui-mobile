@@ -1,4 +1,5 @@
 import { SPACING } from '@orbit/shared/theme'
+import { Skeleton } from '@/components/ui/skeleton'
 export interface CalendarStat {
   key: string
   value: string | number
@@ -21,7 +22,7 @@ export function CalendarStats({ stats, state = 'default', loadingLabel, emptyLab
         {stats.map((stat) => (
           <div key={stat.key} data-state={state} className="flex min-w-0 flex-col items-start gap-2 text-start">
             {isLoading ? <div role="status" aria-label={loadingLabel} className="relative" style={{ minWidth: 64, fontSize: 22, lineHeight: '30.8px', fontFamily: 'var(--font-display)' }}>
-              <span aria-hidden="true" className="invisible">0</span><span aria-hidden="true" className="absolute inset-x-0 top-1/2 h-6 -translate-y-1/2 animate-pulse rounded-[8px] bg-[var(--bg-elev-2)]" />
+              <span aria-hidden="true" className="invisible">0</span><span aria-hidden="true" className="absolute inset-x-0 top-1/2 h-6 -translate-y-1/2"><Skeleton variant="fill" grouped /></span>
             </div>
               : <span className="tabular-nums" style={{ fontSize: state === 'empty' ? 12 : 22, fontFamily: state === 'empty' ? 'var(--font-mono)' : 'var(--font-display)', fontWeight: state === 'empty' ? 500 : 600, lineHeight: '30.8px', color: state === 'empty' ? 'var(--fg-3)' : 'var(--fg-1)' }}>{state === 'empty' ? emptyLabel : stat.value}</span>}
             <span className="orbit-calendar-figure-caption" style={{ fontSize: 'inherit', fontFamily: 'var(--font-sans)', fontWeight: 400, lineHeight: '20px', color: 'var(--fg-2)' }}>{stat.label}</span>

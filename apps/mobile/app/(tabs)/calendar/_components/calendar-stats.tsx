@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
+import { Skeleton } from '@/components/ui/skeleton'
 
 export interface CalendarStat {
   key: string;
@@ -32,7 +33,7 @@ export function CalendarStats({ stats, state = 'default', loadingLabel, emptyLab
       {stats.map((stat) => (
         <View key={stat.key} testID={`calendar-figure-${state}`} style={styles.figure}>
           {isLoading ? <View accessibilityRole="progressbar" accessibilityLabel={loadingLabel} style={styles.loadingValue}>
-            <Text accessibilityElementsHidden style={[styles.value, { opacity: 0 }]}>0</Text><View style={[styles.skeleton, { position: 'absolute', backgroundColor: tokens.bgElev2 }]} />
+            <Text accessibilityElementsHidden style={[styles.value, { opacity: 0 }]}>0</Text><View style={[styles.skeleton, { position: 'absolute' }]}><Skeleton variant="fill" grouped /></View>
           </View>
             : <Text style={[state === 'empty' ? styles.empty : styles.value, { color: state === 'empty' ? tokens.fg3 : tokens.fg1 }]}>{state === 'empty' ? emptyLabel : stat.value}</Text>}
           <Text style={[styles.label, { color: tokens.fg2 }]}>{stat.label}</Text>
@@ -44,7 +45,7 @@ export function CalendarStats({ stats, state = 'default', loadingLabel, emptyLab
 
 const styles = StyleSheet.create({
   loadingValue: { minWidth: 64, alignItems: 'flex-start', justifyContent: 'center' },
-  skeleton: { width: 64, height: 24, borderRadius: 8 },
+  skeleton: { width: 64, height: 24 },
   row: { flexDirection: 'row', gap: 16, paddingHorizontal: SPACING.s16 },
   stacked: { flexDirection: 'column' },
   figure: { flex: 1, minWidth: 0, gap: 8, alignItems: 'flex-start' },
