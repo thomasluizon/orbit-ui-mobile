@@ -140,7 +140,7 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 
 ## Typed foreground ownership
 
-Visible native text controls use `TypedTextInput`, which applies `fg1` after caller styles in both themes. `Input`, `AppTextInput` and `BottomSheetAppTextInput` compose it. The hidden OTP capture remains a native input; its visible digits use the foreground token.
+Visible native text controls use `TypedTextInput`, which applies `fg1` after caller styles in both themes. `Input`, `AppTextInput` and `BottomSheetAppTextInput` compose it. The hidden OTP capture is a `TypedTextInput` with `mirrored`: its own text, caret, selection and handles draw nothing (a transparent colour that is not the Android colour 0), and the visible digits in the cells use the foreground token.
 
 | Surface | Native owner | Web owner | Foreground path |
 | --- | --- | --- | --- |

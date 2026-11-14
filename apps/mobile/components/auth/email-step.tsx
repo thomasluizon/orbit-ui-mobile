@@ -6,6 +6,7 @@ import { Trans } from 'react-i18next'
 import { type AppTokensV2 } from '@/lib/theme'
 import { PillButton } from '@/components/ui/pill-button'
 import { Input } from '@/components/ui/input'
+import { KeyboardRevealGroup } from '@/components/ui/keyboard-reveal-group'
 import type { LoginStyles } from '@/app/login-styles'
 import { LoginOfflineNotice } from './login-sections'
 
@@ -41,17 +42,19 @@ export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmittin
   const googleError = isOnline && (errorKey === 'auth.errors.googleError' || errorKey === 'auth.errors.appleError') ? errorMessage : null
   const sendError = isOnline && errorMessage && !fieldError && !googleError ? errorMessage : null
   return <View style={styles.step}>
-    <Input label={t('auth.email')} value={email} onChange={onEmailChange} placeholder={t('auth.emailPlaceholder')}
-      kind="email" name="email" focusRequest={emailFocusRequest} autoComplete="email" disabled={isBusy}
-      onSubmit={onSendCode} error={fieldError ?? undefined} />
-    {turnstileWidget}
-    <View style={styles.actionGroup}>
-      {!isOnline && <LoginOfflineNotice t={t} styles={styles} tokens={tokens} />}
-      {sendError && <Text accessibilityRole="alert" style={styles.error}>{sendError}</Text>}
-      <PillButton onClick={onSendCode} disabled={isBusy || !email.trim() || !isOnline || !canSubmitTurnstile} loading={isSubmitting}>
-        {sendCodeLabel ?? t('auth.sendCode')}
-      </PillButton>
-    </View>
+    <KeyboardRevealGroup testID="login-field-action" style={styles.step}>
+      <Input label={t('auth.email')} value={email} onChange={onEmailChange} placeholder={t('auth.emailPlaceholder')}
+        kind="email" name="email" focusRequest={emailFocusRequest} autoComplete="email" disabled={isBusy}
+        onSubmit={onSendCode} error={fieldError ?? undefined} />
+      {turnstileWidget}
+      <View style={styles.actionGroup}>
+        {!isOnline && <LoginOfflineNotice t={t} styles={styles} tokens={tokens} />}
+        {sendError && <Text accessibilityRole="alert" style={styles.error}>{sendError}</Text>}
+        <PillButton onClick={onSendCode} disabled={isBusy || !email.trim() || !isOnline || !canSubmitTurnstile} loading={isSubmitting}>
+          {sendCodeLabel ?? t('auth.sendCode')}
+        </PillButton>
+      </View>
+    </KeyboardRevealGroup>
     <View style={styles.divider} importantForAccessibility="no-hide-descendants">
       <View style={styles.dividerLine} /><Text style={styles.dividerText}>{t('auth.orContinueWith')}</Text><View style={styles.dividerLine} />
     </View>

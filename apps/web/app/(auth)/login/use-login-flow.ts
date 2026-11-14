@@ -287,6 +287,8 @@ export function useLoginFlow(isAuthCallback = false) {
 
   function handleTurnstileToken(token: string | null) {
     if (!onTurnstileToken(token)) return
+    if (token && step === 'code' && codeFailure !== 'locked' && codeFailure !== 'expired'
+      && !isValidVerificationCode(entry.codeDigits.join(''))) setCodeFocusRequest((request) => request + 1)
     if (!token || !isOnline || !pendingAutoCode.current) return
     const pending = pendingAutoCode.current
     pendingAutoCode.current = null

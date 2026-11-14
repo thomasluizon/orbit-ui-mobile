@@ -8,6 +8,10 @@ import { OtpInput } from '@/components/ui/otp-input'
 import { __setWindowDimensions } from '../../test-mocks/react-native'
 
 const TestRenderer = require('react-test-renderer')
+const reactNativeRequire = createRequire(createRequire(import.meta.url).resolve('react-native/package.json'))
+const normalizeColor: (color: unknown) => number = reactNativeRequire('@react-native/normalize-colors')
+/** Android Fabric's unset colour (HostPlatformColor.h), which text attributes replace with black. */
+const ANDROID_UNDEFINED_COLOR = 0
 
 describe('mobile OtpInput', () => {
   it.each(['android', 'ios'] as const)('lets %s code cells grow only above font scale 1.3', async (platform) => {
@@ -34,6 +38,45 @@ describe('mobile OtpInput', () => {
       __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 })
     }
   })
+  it('keeps the real input above the UIKit hit-test floor so a tap reaches it on iPhone', async () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<OtpInput label="Code" value="" onChange={vi.fn()} />)
+      await Promise.resolve()
+    })
+    const style = StyleSheet.flatten(tree!.root.findByType('TextInput').props.style)
+    const UIKIT_HIT_TEST_ALPHA_FLOOR = 0.01
+    expect(Math.fround(style.opacity)).toBeGreaterThan(UIKIT_HIT_TEST_ALPHA_FLOOR)
+    expect(style).toMatchObject({ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, zIndex: 1 })
+    const cells = tree!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
+      typeof node.props.testID === 'string' && node.props.testID.startsWith('otp-cell-') && typeof node.type === 'string')
+    expect(cells).toHaveLength(6)
+    for (const cell of cells) expect(cell.props.pointerEvents).toBe('none')
+  })
+
+  it.each(['android', 'ios'] as const)('draws no text, caret, selection or handle of the hidden %s input outside the cells and keeps its long-press paste', async (platform) => {
+    const previous = Platform.OS
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: platform })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    try {
+      await TestRenderer.act(async () => {
+        tree = TestRenderer.create(<OtpInput label="Code" value="12" onChange={vi.fn()} />)
+        await Promise.resolve()
+      })
+      TestRenderer.act(() => tree.root.findByType('TextInput').props.onFocus())
+      const input = tree.root.findByType('TextInput')
+      const textColor = normalizeColor(StyleSheet.flatten(input.props.style).color)
+      expect(textColor & 0xff).toBe(0)
+      expect(((textColor << 24) | (textColor >>> 8)) >>> 0).not.toBe(ANDROID_UNDEFINED_COLOR)
+      expect(input.props).toMatchObject({ selectionColor: 'transparent', cursorColor: 'transparent', selectionHandleColor: 'transparent' })
+      expect(input.props.caretHidden).toBeFalsy()
+      expect(input.props.contextMenuHidden).toBeFalsy()
+    } finally {
+      await TestRenderer.act(() => tree.unmount())
+      Object.defineProperty(Platform, 'OS', { configurable: true, value: previous })
+    }
+  })
+
   it('keeps one inset ring on the focused cell', async () => {
     let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(async () => {

@@ -81,7 +81,6 @@ it('passes WebView tokens to the login flow and reloads after consumption', asyn
     first.props.onMessage({ nativeEvent: { data: JSON.stringify({ state: 'solved' }) } })
     await Promise.resolve()
   })
-  expect(renderer!.root.findByType('WebView').props.containerStyle.height).toBe(0)
   const solvedHost = renderer!.toJSON()
   expect(StyleSheet.flatten(solvedHost.props.style)).toMatchObject({ position: 'absolute', height: 0 })
   expect(renderer!.root.findByType('WebView')).toBe(first)
@@ -93,7 +92,6 @@ it('passes WebView tokens to the login flow and reloads after consumption', asyn
     await Promise.resolve()
   })
   expect(renderer!.root.findByType('WebView')).not.toBe(first)
-  expect(renderer!.root.findByType('WebView').props.containerStyle.height).toBe(65)
   expect(StyleSheet.flatten(renderer!.toJSON().props.style).position).not.toBe('absolute')
   expect(renderer!.root.findAllByType('Text').some((node: { props: { children: unknown } }) =>
     node.props.children === 'auth.turnstileLoading')).toBe(true)
@@ -104,7 +102,6 @@ it('passes WebView tokens to the login flow and reloads after consumption', asyn
     await Promise.resolve()
   })
   expect(onToken).toHaveBeenLastCalledWith(null)
-  expect(renderer!.root.findByType('WebView').props.containerStyle.height).toBe(65)
   expect(renderer!.root.findAllByProps({ accessibilityRole: 'alert' }).length).toBeGreaterThan(0)
   await TestRenderer.act(async () => {
     renderer!.root.findAllByProps({ accessibilityRole: 'button' })[0]!.props.onPress()
@@ -191,4 +188,117 @@ it('loads the iOS challenge frames and keeps the top frame on the bridge without
   ])
   expect(linking.canOpenURL).not.toHaveBeenCalled()
   expect(linking.openURL).not.toHaveBeenCalled()
+})
+
+it('never scrolls the bridge inside its frame', async () => {
+  let renderer!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(async () => {
+    renderer = TestRenderer.create(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />)
+    await Promise.resolve()
+  })
+  onTestFinished(() => TestRenderer.act(() => renderer.unmount()))
+  expect(renderer.root.findByType('WebView').props).toMatchObject({ scrollEnabled: false, bounces: false, overScrollMode: 'never' })
+})
+
+it('names the challenge without making it one element, so screen readers reach the web content', async () => {
+  let renderer!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(async () => {
+    renderer = TestRenderer.create(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />)
+    await Promise.resolve()
+  })
+  onTestFinished(() => TestRenderer.act(() => renderer.unmount()))
+  await TestRenderer.act(async () => {
+    renderer.root.findByType('WebView').props.onMessage({ nativeEvent: { data: JSON.stringify({ state: 'interactive' }) } })
+    await Promise.resolve()
+  })
+  type Node = { type: unknown; props: Record<string, unknown>; parent: Node | null }
+  const webView = renderer.root.findByType('WebView') as Node
+  expect(webView.props.accessibilityLabel).toBe('auth.turnstileLabel')
+  for (let node: Node | null = webView; node; node = node.parent) {
+    expect(node.props.accessible).not.toBe(true)
+    expect(node.props.importantForAccessibility).not.toBe('no-hide-descendants')
+    expect(node.props.accessibilityElementsHidden).not.toBe(true)
+  }
+})
+
+it('reports the space it takes in the commit of each state change, without waiting for a layout event', async () => {
+  const LOADING_LINE_HEIGHT = 17
+  const { __setMeasureInWindowImpl, __resetTestHostConfig } = await import('../../test-mocks/react-native')
+  onTestFinished(() => __resetTestHostConfig())
+  const onSpaceChange = vi.fn()
+  let renderer!: ReturnType<typeof TestRenderer.create>
+  const flowHeight = () => {
+    const root = StyleSheet.flatten(renderer.toJSON().props.style)
+    if (root.position === 'absolute') return 0
+    const challenge = StyleSheet.flatten(renderer.root.findByProps({ testID: 'turnstile-challenge' }).props.style).height as number
+    return challenge + (renderer.root.findAllByType('Text').length > 0 ? LOADING_LINE_HEIGHT : 0)
+  }
+  __setMeasureInWindowImpl((callback) => callback(0, 0, 343, flowHeight()))
+  await TestRenderer.act(async () => {
+    renderer = TestRenderer.create(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} onSpaceChange={onSpaceChange} />)
+    await Promise.resolve()
+  })
+  onTestFinished(() => TestRenderer.act(() => renderer.unmount()))
+  expect(renderer.toJSON().props.onLayout).toBeUndefined()
+  expect(onSpaceChange).toHaveBeenLastCalledWith(LOADING_LINE_HEIGHT)
+  const send = (state: string) => TestRenderer.act(() => {
+    renderer.root.findByType('WebView').props.onMessage({ nativeEvent: { data: JSON.stringify({ state }) } })
+  })
+  await send('interactive')
+  expect(onSpaceChange).toHaveBeenLastCalledWith(65)
+  await send('solved')
+  expect(onSpaceChange).toHaveBeenLastCalledWith(0)
+})
+
+it('keeps one native root in every state, so a pass never moves the check into a root Android creates in that commit', async () => {
+  let renderer!: ReturnType<typeof TestRenderer.create>
+  const rootStates: unknown[] = []
+  const record = () => rootStates.push(renderer.toJSON().props.collapsable)
+  TestRenderer.act(() => {
+    renderer = TestRenderer.create(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />)
+  })
+  onTestFinished(() => TestRenderer.act(() => renderer.unmount()))
+  record()
+  await TestRenderer.act(() => Promise.resolve())
+  record()
+  for (const state of ['interactive', 'solved', 'expired', 'loading', 'failed']) {
+    await TestRenderer.act(async () => {
+      renderer.root.findByType('WebView').props.onMessage({ nativeEvent: { data: JSON.stringify({ state }) } })
+      await Promise.resolve()
+    })
+    record()
+  }
+  expect(rootStates).toEqual(Array(7).fill(false))
+})
+
+it('shows the loading sentence only while no challenge waits for the person and takes no space otherwise', async () => {
+  let renderer!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(async () => {
+    renderer = TestRenderer.create(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />)
+    await Promise.resolve()
+  })
+  onTestFinished(() => TestRenderer.act(() => renderer.unmount()))
+  const webView = renderer.root.findByType('WebView')
+  const loadingSentence = () => renderer.root.findAllByType('Text').some((node: { props: { children: unknown } }) =>
+    node.props.children === 'auth.turnstileLoading')
+  const challengeHostHeight = () => StyleSheet.flatten(renderer.root.findByProps({ testID: 'turnstile-challenge' }).props.style).height
+  const send = (message: object) => TestRenderer.act(async () => {
+    webView.props.onMessage({ nativeEvent: { data: JSON.stringify(message) } })
+    await Promise.resolve()
+  })
+
+  expect(loadingSentence()).toBe(true)
+  expect(challengeHostHeight()).toBe(0)
+
+  await send({ state: 'interactive' })
+  expect(loadingSentence()).toBe(false)
+  expect(challengeHostHeight()).toBe(65)
+
+  await send({ state: 'loading' })
+  expect(loadingSentence()).toBe(true)
+  expect(challengeHostHeight()).toBe(0)
+
+  await send({ state: 'solved' })
+  expect(loadingSentence()).toBe(false)
+  expect(StyleSheet.flatten(renderer.toJSON().props.style)).toMatchObject({ position: 'absolute' })
 })

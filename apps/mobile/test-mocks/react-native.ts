@@ -141,35 +141,38 @@ function createHostComponent(name: string) {
       nativeHosts.delete(nativeTag)
       if (focusedNativeTag === nativeTag) focusedNativeTag = null
     }, [nativeTag])
-    React.useImperativeHandle(hostRefsNull ? null : ref, () => ({
-      __nativeTag: nativeTag,
-      measure: (callback?: (...args: number[]) => void) => callback?.(0, 0, 32, 32, 0, 0),
-      measureInWindow: (callback?: MeasureInWindowCallback) => {
-        if (callback) measureInWindowImpl(callback, props, name)
-      },
-      setNativeProps: (updates: HostProps) => {
-        const host = nativeHosts.get(nativeTag)
-        if (!host) return
-        host.props = { ...host.props, ...updates }
-        if (updates.hasTVPreferredFocus === true) {
-          host.focusableInTouchMode = true
-          __focusHost(nativeTag)
-        }
-      },
-      focus: () => __focusHost(nativeTag),
-      setSelection: (start: number, end: number) => {
-        const host = nativeHosts.get(nativeTag)
-        if (host) host.selection = { start, end }
-      },
-      blur: () => {
-        if (focusedNativeTag !== nativeTag) return
-        emitNativeFocusEvent(nativeTag, 'onBlur')
-        focusedNativeTag = null
-      },
-      scrollTo: scrollToImpl,
-      scrollToOffset: ({ offset, animated }: { offset: number; animated?: boolean }) => scrollToImpl({ y: offset, animated }),
-      scrollToEnd: () => {},
-    }), [nativeTag, props])
+    React.useImperativeHandle(hostRefsNull ? null : ref, () => {
+      const handle = {
+        __nativeTag: nativeTag,
+        measure: (callback?: (...args: number[]) => void) => callback?.(0, 0, 32, 32, 0, 0),
+        measureInWindow: (callback?: MeasureInWindowCallback) => {
+          if (callback) measureInWindowImpl(callback, props, name)
+        },
+        setNativeProps: (updates: HostProps) => {
+          const host = nativeHosts.get(nativeTag)
+          if (!host) return
+          host.props = { ...host.props, ...updates }
+          if (updates.hasTVPreferredFocus === true) {
+            host.focusableInTouchMode = true
+            __focusHost(nativeTag)
+          }
+        },
+        focus: () => __focusHost(nativeTag),
+        setSelection: (start: number, end: number) => {
+          const host = nativeHosts.get(nativeTag)
+          if (host) host.selection = { start, end }
+        },
+        blur: () => {
+          if (focusedNativeTag !== nativeTag) return
+          emitNativeFocusEvent(nativeTag, 'onBlur')
+          focusedNativeTag = null
+        },
+        scrollTo: scrollToImpl,
+        scrollToOffset: ({ offset, animated }: { offset: number; animated?: boolean }) => scrollToImpl({ y: offset, animated }),
+        scrollToEnd: () => {},
+      }
+      return name === 'ScrollView' ? { ...handle, getNativeScrollRef: () => handle } : handle
+    }, [nativeTag, props])
 
     return React.createElement(HostAncestors.Provider, { value: [...ancestors, nativeTag] },
       React.createElement(name, {

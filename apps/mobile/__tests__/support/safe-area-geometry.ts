@@ -68,10 +68,13 @@ function bounds(node: YogaNode) {
   return { left, width: node.getComputedWidth(), top, bottom: top + node.getComputedHeight(), contentTop: top + node.getComputedPadding(Yoga.EDGE_TOP) }
 }
 
-export function measureSafeArea(host: GeometryHost, select: (host: GeometryHost) => string | undefined, viewport = { width: 412, height: 915 }) {
+/** `pixelRatio` is the device pixels per point that Yoga snaps each edge to, as React Native does with the screen scale. */
+export function measureSafeArea(host: GeometryHost, select: (host: GeometryHost) => string | undefined, viewport = { width: 412, height: 915 }, pixelRatio = 1) {
   const selected = new Map<string, YogaNode>()
+  const config = Yoga.Config.create()
+  config.setPointScaleFactor(pixelRatio)
   function build(host: GeometryHost): YogaNode {
-    const node = Yoga.Node.create()
+    const node = Yoga.Node.create(config)
     if (host.type === 'ScrollView') {
       node.setFlexGrow(1)
       node.setFlexShrink(1)
@@ -89,7 +92,7 @@ export function measureSafeArea(host: GeometryHost, select: (host: GeometryHost)
     }
     let owner = node
     if (host.props.contentContainerStyle) {
-      owner = Yoga.Node.create()
+      owner = Yoga.Node.create(config)
       applyStyle(owner, StyleSheet.flatten(host.props.contentContainerStyle))
       node.insertChild(owner, 0)
     }
@@ -100,5 +103,8 @@ export function measureSafeArea(host: GeometryHost, select: (host: GeometryHost)
   try {
     layout.calculateLayout(viewport.width, viewport.height, Yoga.DIRECTION_LTR)
     return new Map([...selected].map(([key, node]) => [key, bounds(node)]))
-  } finally { layout.freeRecursive() }
+  } finally {
+    layout.freeRecursive()
+    config.free()
+  }
 }

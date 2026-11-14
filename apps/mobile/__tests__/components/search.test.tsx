@@ -355,6 +355,14 @@ describe('mobile search', () => {
     expect(mocks.query).toHaveBeenCalledWith({ search: 'walk', page: 1, pageSize: 20 })
   })
 
+  it('keeps the whole field when the keyboard shortens the page, because its scroller never shrinks', async () => {
+    mocks.query.mockReturnValue(result([createMockHabit({ title: 'Walk' })]))
+    await mount()
+    const fieldScroller = tree.root.findAll((node) => String(node.type) === 'ScrollView'
+      && node.findAll((child) => String(child.type) === 'TextInput').length > 0)[0]!
+    expect(StyleSheet.flatten(fieldScroller.props.style)).toMatchObject({ flexGrow: 0, flexShrink: 0 })
+  })
+
   it('exposes no static selection or keyboard hints on the phone', async () => {
     mocks.query.mockReturnValue(result([createMockHabit({ title: 'Walk' })]))
     await mount()

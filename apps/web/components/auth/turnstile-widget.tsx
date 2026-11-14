@@ -2,11 +2,11 @@
 
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type Ref } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useCurrentTheme } from '@/stores/theme-store'
 
-type WidgetState = 'idle' | 'loading' | 'solved' | 'failed' | 'expired'
+type WidgetState = 'idle' | 'loading' | 'interactive' | 'solved' | 'failed' | 'expired'
 
 interface TurnstileApi {
   render: (container: HTMLElement, options: {
@@ -15,12 +15,26 @@ interface TurnstileApi {
     size: 'flexible'
     theme: 'light' | 'dark'
     language: string
+    retry: 'auto'
+    'retry-interval': number
     callback: (token: string) => void
-    'error-callback': () => boolean
+    'error-callback': (code: string) => boolean
     'expired-callback': () => void
+    'before-interactive-callback': () => void
+    'after-interactive-callback': () => void
   }) => unknown
   reset: (widgetId: unknown) => void
   remove: (widgetId: unknown) => void
+}
+
+// WHY: with retry auto Turnstile runs a failed challenge again by itself, and Cloudflare marks these codes Retry: Yes https://developers.cloudflare.com/turnstile/troubleshooting/client-side-errors/error-codes/
+const RETRIED_ERROR_CODES = new Set(['110600', '110620', '200500'])
+const RETRIED_ERROR_FAMILIES = ['300', '600']
+// WHY: the first challenge of a fresh WebView fails once and Turnstile waits this long before the next run; its default is 8000 ms. https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/widget-configurations/
+const RETRY_INTERVAL_MS = 2000
+
+function isRetriedByTurnstile(code: string): boolean {
+  return RETRIED_ERROR_CODES.has(code) || RETRIED_ERROR_FAMILIES.some((family) => code.startsWith(family))
 }
 
 function getTurnstile(): TurnstileApi | undefined {
@@ -70,6 +84,7 @@ function useChallengeVisibility() {
 }
 
 export function TurnstileWidget({
+  ref,
   siteKey,
   resetKey,
   onToken,
@@ -78,6 +93,7 @@ export function TurnstileWidget({
   language,
   quiet = false,
 }: Readonly<{
+  ref?: Ref<HTMLDivElement>
   siteKey: string
   resetKey: number
   onToken: (token: string | null) => void
@@ -94,6 +110,7 @@ export function TurnstileWidget({
   const challengeTheme = theme ?? currentTheme
   const { containerRef, challengeVisible } = useChallengeVisibility()
   const widgetIdRef = useRef<unknown>(null)
+  const retryingFailureRef = useRef(false)
   const callbacksRef = useRef({ onToken, onStateChange })
   const [state, setState] = useState<WidgetState>('idle')
   const [attempt, setAttempt] = useState(0)
@@ -120,21 +137,35 @@ export function TurnstileWidget({
       callbacksRef.current.onToken(token)
     }
 
+    function progress(next: 'interactive' | 'solved', token: string | null = null) {
+      retryingFailureRef.current = false
+      update(next, token)
+    }
+
+    function fail(code: string) {
+      const retrying = !retryingFailureRef.current && isRetriedByTurnstile(code)
+      if (retrying) retryingFailureRef.current = true
+      update(retrying ? 'loading' : 'failed')
+      return true
+    }
+
     function renderWidget() {
       const turnstile = getTurnstile()
       if (!turnstile || !container || !active) return
+      retryingFailureRef.current = false
       widgetIdRef.current = turnstile.render(container, {
         sitekey: siteKey,
         appearance: 'interaction-only',
         size: 'flexible',
         theme: challengeTheme,
         language: challengeLanguage,
-        callback: (token) => update('solved', token),
-        'error-callback': () => {
-          update('failed')
-          return true
-        },
+        retry: 'auto',
+        'retry-interval': RETRY_INTERVAL_MS,
+        callback: (token) => progress('solved', token),
+        'error-callback': fail,
         'expired-callback': () => update('expired'),
+        'before-interactive-callback': () => progress('interactive'),
+        'after-interactive-callback': () => update('loading'),
       })
     }
 
@@ -150,6 +181,7 @@ export function TurnstileWidget({
 
   useEffect(() => {
     if (resetKey === 0) return
+    retryingFailureRef.current = false
     const widgetId = widgetIdRef.current
     if (widgetId != null) getTurnstile()?.reset(widgetId)
   }, [resetKey])
@@ -158,6 +190,7 @@ export function TurnstileWidget({
     onToken(null)
     setState('loading')
     onStateChange?.('loading')
+    retryingFailureRef.current = false
     const widgetId = widgetIdRef.current
     if (widgetId != null) {
       getTurnstile()?.reset(widgetId)
@@ -173,7 +206,7 @@ export function TurnstileWidget({
   if (quiet) return <div ref={containerRef} style={{ position, ...challengeStyle }} />
 
   return (
-    <div className="flex flex-col items-center text-center text-sm text-[var(--fg-2)]" style={{ gap: 8, position }}>
+    <div ref={ref} className="flex flex-col items-center text-center text-sm text-[var(--fg-2)]" style={{ gap: 8, position }}>
       <div ref={containerRef} className="w-full" style={challengeStyle} />
       <p role="status" className={state === 'loading' ? '' : 'sr-only'}>
         {state === 'loading' ? t('auth.turnstileLoading') : ''}
