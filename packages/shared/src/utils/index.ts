@@ -499,7 +499,7 @@ export {
 } from './goal-flow'
 export type { GoalFlowNavigation, GoalFlowOptions, GoalFlowStep, GoalFlowStepDraft, GoalFlowStepError } from './goal-flow'
 export { resolveGoalDeadlineChoice, resolveMonthEndDeadline, resolveYearEndDeadline, type GoalDeadlineChoice } from './goal-deadline-options'
-export { buildTagLineItems, type TagLineHabit, type TagLineItems } from './tag-flow-line'
+export { buildTagLineItems, joinNamedItems, type TagLineHabit, type TagLineItems } from './tag-flow-line'
 export {
   createEmptyNotificationsResponse,
   deleteNotificationFromList,

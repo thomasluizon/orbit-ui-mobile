@@ -142,13 +142,6 @@ export function useDeadlineView({ draft, advance, deadlineAnswered = false }: Go
   }
 }
 
-/** Joins up to three names through `Intl.ListFormat`, and counts the rest in one phrase at the end. */
-export function joinNames(names: readonly string[], locale: string, more: (count: number) => string): string {
-  const shown = names.slice(0, 3)
-  const parts = names.length > shown.length ? [...shown, more(names.length - shown.length)] : shown
-  return new Intl.ListFormat(locale, { style: 'long', type: 'conjunction' }).format(parts)
-}
-
 interface GoalSummaryProps {
   draft: GoalDraftPort
   /** Edit shows the type of the stored goal and no habits row. */

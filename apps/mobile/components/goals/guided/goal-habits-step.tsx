@@ -5,7 +5,7 @@ import type { FlowStepView } from '@orbit/shared/contracts/flow'
 import type { GoalType } from '@orbit/shared/types/goal'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { MAX_HABITS_PER_GOAL } from '@orbit/shared/validation'
-import { toggleSelectedId } from '@orbit/shared/utils'
+import { joinNamedItems, toggleSelectedId } from '@orbit/shared/utils'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { IconButton } from '@/components/ui/icon-button'
 import { Plus } from '@/components/ui/icons'
@@ -18,7 +18,6 @@ import { useHabits } from '@/hooks/use-habit-queries'
 import { useThemeTokens } from '@/hooks/use-theme-tokens'
 import { goalHabitPicker } from '../goal-habits-field'
 import { GoalHabitsSelectionNote } from '../goal-habits-selection-note'
-import { joinNames } from './goal-flow-steps'
 
 const QUICK_OPTIONS = 4
 const { CreateHabitModal, useGoalHabitCreation } = goalHabitPicker
@@ -91,7 +90,7 @@ export function useGoalHabitsSummary(selectedIds: string[], fromHabit: { title: 
   if (fromHabit) return fromHabit.title
   const names = selectedIds.map((id) => habits.data?.habitsById.get(id)?.title).filter((title): title is string => Boolean(title))
   if (names.length === 0) return t('goals.noLinkedHabits')
-  return joinNames(names, i18n.language, (count) => t('habits.flow.tags.more', { count }))
+  return joinNamedItems(names, i18n.language, (count) => t('habits.flow.tags.more', { count }))
 }
 
 const styles = StyleSheet.create({
