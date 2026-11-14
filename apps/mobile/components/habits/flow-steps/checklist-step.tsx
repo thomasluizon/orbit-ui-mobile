@@ -1,4 +1,4 @@
-import { useState } from 'react'
+
 import { StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { FlowStepView } from '@orbit/shared/contracts/flow'
@@ -7,6 +7,7 @@ import { HabitChecklist } from '@/components/habits/habit-checklist'
 import { OptionCard } from '@/components/ui/option-card'
 import { PillButton } from '@/components/ui/pill-button'
 import { useSaveTemplateView, useTemplateQuestionView } from './template-step'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 
 export interface ChecklistStepProps {
   items: ChecklistItem[]
@@ -24,7 +25,7 @@ type ChecklistQuestion = 'items' | 'templates' | 'save'
 export function useChecklistStepView(props: Readonly<ChecklistStepProps>): FlowStepView {
   const { items, onItemsChange, onContinue } = props
   const { t } = useTranslation()
-  const [question, setQuestion] = useState<ChecklistQuestion>('items')
+  const [question, setQuestion] = useAccountScopedState<ChecklistQuestion>('items')
   const toItems = () => setQuestion('items')
   const templates = useTemplateQuestionView({ onLoad: (loaded) => { onItemsChange(loaded); toItems() }, onWrite: toItems })
   const save = useSaveTemplateView({ items, onSaved: toItems })

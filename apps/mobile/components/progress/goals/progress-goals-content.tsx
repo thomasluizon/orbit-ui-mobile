@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useMemo, useRef, type RefObject } from 'react'
 import { AccessibilityInfo, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { NestableScrollContainer } from 'react-native-draggable-flatlist'
@@ -68,7 +68,7 @@ export function ProgressGoalsContent() {
   const [goalFilter, setGoalFilter] = useAccountScopedState<ProgressGoalFilter>('all')
   const [creating, setCreating] = useAccountScopedState(false)
   const [createdGoalId, setCreatedGoalId] = useAccountScopedState<string | null>(null)
-  const [detailGoalId, setDetailGoalId] = useState<string | null>(null)
+  const [detailGoalId, setDetailGoalId] = useAccountScopedState<string | null>(null)
   const openCreateGoal = () => { setCreatedGoalId(null); setCreating(true) }
   const scrollRef = useRef<GestureScrollView>(null)
   const clearance = useShellPageEnd().paddingBottom
@@ -85,7 +85,7 @@ export function ProgressGoalsContent() {
   const openGoal = useCallback((goalId: string) => {
     focus.openingGoalIdRef.current = goalId
     setDetailGoalId(goalId)
-  }, [focus.openingGoalIdRef])
+  }, [focus.openingGoalIdRef, setDetailGoalId])
   return (
     <ProgressSubscreen screen="goals" hideHeader={detailGoalId !== null}>
       {creating ? <CreateGoalSheet open onCreated={(goalId) => { setGoalFilter('all'); setCreatedGoalId(goalId) }} onOpenGoal={(goalId) => { setCreatedGoalId(null); openGoal(goalId) }} onClose={() => setCreating(false)} /> : null}

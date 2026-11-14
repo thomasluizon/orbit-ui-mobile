@@ -16,6 +16,7 @@ import { useChecklistTemplates, useCreateChecklistTemplate, useDeleteChecklistTe
 import { nestedControlFill, useRowFeedback } from '@/hooks/use-row-feedback'
 import { useThemeTokens } from '@/hooks/use-theme-tokens'
 import { useListRowMotion } from './list-row-motion'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 
 /** The quick options show the first saved templates. Every template stays reachable in the list under them. */
 const QUICK_TEMPLATES = 4
@@ -86,7 +87,7 @@ export function useSaveTemplateView({ items, onSaved }: Readonly<{ items: Checkl
   const { t } = useTranslation()
   const tokens = useThemeTokens()
   const createTemplate = useCreateChecklistTemplate()
-  const [name, setName] = useState('')
+  const [name, setName] = useAccountScopedState('')
   const [hint, setHint] = useState<string | undefined>()
   const [focusRequest, setFocusRequest] = useState(0)
   const [saveError, setSaveError] = useState('')

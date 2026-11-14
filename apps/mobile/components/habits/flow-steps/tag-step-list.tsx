@@ -1,8 +1,7 @@
 import { useMemo, type ReactNode } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
-import Animated, { Easing, FadeIn, FadeOut, ReduceMotion } from 'react-native-reanimated'
+import Animated from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
-import { resolveMotionPreset } from '@orbit/shared/theme'
 import type { HabitTag } from '@orbit/shared/types/habit'
 import { TagEditorRow } from '@/components/habits/habit-form-fields/tag-editor-row'
 import { TagPickerRow } from '@/components/habits/habit-form-fields/tag-picker-field'
@@ -10,7 +9,7 @@ import { createStyles as createFormStyles } from '@/components/habits/habit-form
 import { useThemeTokens } from '@/hooks/use-theme-tokens'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 import type { TagStepActions } from '@/hooks/use-tag-step-actions'
-import { usePrefersReducedMotion } from '@/lib/motion'
+import { useListRowMotion } from './list-row-motion'
 
 interface TagStepRowsProps {
   tags: TagSelectionState
@@ -26,18 +25,10 @@ function matches(tag: HabitTag, query: string): boolean {
   return tag.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())
 }
 
-/** A row enters with `list-enter` and leaves with `list-exit`. Under reduced motion it appears and goes at once. */
+/** A row enters with `list-enter` and leaves with `list-exit`, and the gap closes. Under reduced motion it is a short fade with no travel. */
 function TagRowMotion({ children }: Readonly<{ children: ReactNode }>) {
-  const reduced = usePrefersReducedMotion()
-  const enter = resolveMotionPreset('list-enter', reduced)
-  const exit = resolveMotionPreset('list-exit', reduced)
-  return (
-    <Animated.View testID="tag-step-row"
-      entering={reduced ? undefined : FadeIn.duration(enter.enterDuration).easing(Easing.bezier(...enter.enterEasing)).reduceMotion(ReduceMotion.System)}
-      exiting={reduced ? undefined : FadeOut.duration(exit.exitDuration).easing(Easing.bezier(...exit.exitEasing)).reduceMotion(ReduceMotion.System)}>
-      {children}
-    </Animated.View>
-  )
+  const motion = useListRowMotion()
+  return <Animated.View testID="tag-step-row" entering={motion.entering} exiting={motion.exiting} layout={motion.layout}>{children}</Animated.View>
 }
 
 /** The rows of the free path: the search results, and every tag with its own rename and delete controls. */

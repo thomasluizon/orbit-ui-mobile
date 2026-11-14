@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import { AccessibilityInfo, BackHandler, StyleSheet, View } from 'react-native'
@@ -28,6 +28,7 @@ import { GoalStatusResultDialog } from './goal-detail-drawer/goal-status-result-
 import { useGoalDetailOutcomes } from './goal-detail-drawer/use-goal-detail-outcomes'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 
 interface GoalDetailDrawerProps {
   open: boolean
@@ -56,9 +57,9 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
   const { progressFormOpened } = outcomes
   const orbitLine = useGoalOrbitLine(goal, guided)
   const deleteGoal = useDeleteGoal({ onDeleted: outcomes.onDeleted })
-  const [editing, setEditing] = useState(false)
-  const [editingProgress, setEditingProgress] = useState(false)
-  const [deleting, setDeleting] = useState(false)
+  const [editing, setEditing] = useAccountScopedState(false)
+  const [editingProgress, setEditingProgress] = useAccountScopedState(false)
+  const [deleting, setDeleting] = useAccountScopedState(false)
   const headingRef = useRef<View>(null)
   const focusedInlineGoalId = useRef<string | null>(null)
   const { sheetRef, closeSheet } = useSheetHost()

@@ -2,6 +2,7 @@ import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { resolveMotionPreset } from '@orbit/shared/theme'
 import { createApiClientError } from '@orbit/shared/utils'
 import { buildTags, resetTagStepState, tagStepState, TagStepHarness } from './tag-step-harness'
 
@@ -272,7 +273,11 @@ describe('tag step motion on Android', () => {
     const root = mount(<TagStepHarness onContinue={vi.fn()} />)
     await press(pressable(root, en.habits.flow.tags.manage))
     const row = hosts(root).find((node) => node.props.testID === 'tag-step-row')!
-    expect(row.props.entering === undefined).toBe(reduced)
-    expect(row.props.exiting === undefined).toBe(reduced)
+    const { entering, exiting, layout } = row.props as unknown as { layout?: unknown; entering: { durationMs: number; definitions: Record<number, { transform: { translateY: number }[] }> }; exiting: { durationMs: number; definitions: Record<number, { transform: { translateY: number }[] }> } }
+    expect(entering.durationMs).toBe(resolveMotionPreset('list-enter', reduced).enterDuration)
+    expect(exiting.durationMs).toBe(resolveMotionPreset('list-exit', reduced).exitDuration)
+    expect(entering.definitions[0]!.transform[0]!.translateY).toBe(reduced ? 0 : resolveMotionPreset('list-enter', false).shift)
+    expect(exiting.definitions[100]!.transform[0]!.translateY).toBe(reduced ? 0 : resolveMotionPreset('list-exit', false).shift)
+    expect(layout === undefined, 'the gap closes with the exit, at once under reduced motion').toBe(reduced)
   })
 })
