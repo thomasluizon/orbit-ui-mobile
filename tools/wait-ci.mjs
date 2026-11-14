@@ -186,7 +186,7 @@ try {
       ]
       const runsPending = (await runsForHead(entry.head)).some((run) => run.status !== "completed")
       const requiredArrived = required.every(({ context, appId }) => checks.some((check) => check.name === context && (appId === null || check.app.id === appId) && check.status === "completed" && check.conclusion !== null) || (appId === null && statuses.some((item) => item.context === context && item.state !== "pending")))
-      // A failed job can skip the job that feeds a required check (a failed Unit Tests skips SonarCloud Analysis), so that check never arrives. Only a passing head waits for every required context.
+      // A failed job can stop before the step that feeds a required check (a failed Unit Tests never reaches its SonarCloud scan), so that check never arrives. Only a passing head waits for every required context.
       const quiet = completedNames.size > 0 && !pending && !runsPending && (entry.failingChecks.length > 0 || requiredArrived)
       const observed = JSON.stringify({ checks: checks.map((check) => [check.name, check.app.id, check.status, check.conclusion]).sort(), statuses: statuses.map((item) => [item.context, item.state]).sort() })
       entry.settled = quiet && lastQuietSet.get(entry.number) === observed
