@@ -292,7 +292,8 @@ jobs:
     if: ${{ !cancelled() }}
     needs: [plan, web-tests, mobile-tests, workspace-tests]
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    # On main the old Unit Tests job (103 s at worst) and the old SonarCloud job (516 s at worst) sum to 619 s. The limit is 1.5 times that.
+    timeout-minutes: 16
 
     steps:
       - name: Require every test job or its cached result
