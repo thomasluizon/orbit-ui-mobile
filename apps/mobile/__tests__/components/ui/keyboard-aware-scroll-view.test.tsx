@@ -325,6 +325,15 @@ describe('KeyboardAwareScrollView (mobile)', () => {
         expect(lastLineBottomAtScrollEnd).toBeLessThanOrEqual(KEYBOARD_TOP - REVEAL_MARGIN)
       })
 
+    it('reserves no reveal space and keeps the focused field still in a scroller that ends more than the margin above the keyboard', () => {
+      const scrollTo = vi.fn()
+      __setScrollToImpl(scrollTo)
+      const { paddingBottom } = renderPaddedScroller(KEYBOARD_TOP - 20 - REVEAL_MARGIN - 100, true)
+      TestRenderer.act(() => __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: KEYBOARD_TOP } }))
+      expect(paddingBottom()).toBe(16)
+      expect(scrollTo).not.toHaveBeenCalled()
+    })
+
     it('reserves only the covered part in a scroller that holds no focused field, so a nested scroller reaches the keyboard edge', () => {
       const { paddingBottom } = renderPaddedScroller(SCREEN_HEIGHT - 20, false)
       TestRenderer.act(() => __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: KEYBOARD_TOP } }))

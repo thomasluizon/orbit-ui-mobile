@@ -207,18 +207,17 @@ function useKeyboardAwareContextValue(
     if (!scrollable || !frame) return
     const viewport = scrollable.getNativeScrollRef?.() ?? scrollable
     viewport.measureInWindow?.((_x, y, _width, viewportHeight) => {
-      const visibleBottom = Math.min(
-        y + viewportHeight,
-        frame.top - (screenShift?.() ?? 0) - keyboardVerticalOffset,
-      )
-      const revealSpace = focusedInputRef.current ? REVEAL_MARGIN : 0
+      const keyboardEdge = frame.top - (screenShift?.() ?? 0) - keyboardVerticalOffset
+      const visibleBottom = Math.min(y + viewportHeight, keyboardEdge)
+      const revealMargin = y + viewportHeight > keyboardEdge - REVEAL_MARGIN ? REVEAL_MARGIN : 0
+      const revealSpace = focusedInputRef.current ? revealMargin : 0
       setKeyboardSpace(Math.max(0, y + viewportHeight - visibleBottom) + revealSpace)
       scrollFocusedInputIntoView(
         scrollable,
         focusedInputRef.current,
         { top: visibleBottom, visibleTop: y },
         scrollOffsetYRef.current,
-        REVEAL_MARGIN,
+        revealMargin,
       )
     })
   }, [keyboardVerticalOffset, screenShift, scrollableRef])
