@@ -2,9 +2,12 @@ import {
   ORBIT_MASCOT_BOX_HEIGHT,
   ORBIT_MASCOT_BOX_WIDTH,
   ORBIT_MASCOT_FACES,
+  ORBIT_MASCOT_MAX_FRAME_STEP_MS,
   ORBIT_MASCOT_PLANET_RADIUS,
   ORBIT_MASCOT_VIEW_BOX,
+  ORBIT_SMALL_FACE_BOX_RATIO,
   ORBIT_SMALL_FACES,
+  isOrbitMascotSmallSize,
   orbitBlinkMatrix,
   orbitMascotFrame,
   orbitMascotSizeFor,
@@ -31,16 +34,9 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { useOrbitOverlayLayer } from '@/components/ui/orbit-overlay-layer'
 import { useOrbitScreenFocused } from '@/components/ui/orbit-screen-focus'
 
-const SMALL_BOX_RATIO = 3 / 4
-const LIVE_MIN_SIZE = 48
-const MAX_FRAME_STEP_MS = 100
 /** How often a mascot that may animate checks that it is still on screen. Being on screen only decides whether the
  *  idle loop runs, so a quarter second of delay is not visible, and the probe costs four measures a second, not thirty. */
 const ON_SCREEN_PROBE_MS = 250
-
-function isSmallSize(size: number): size is OrbitMascotSmallSize {
-  return size < LIVE_MIN_SIZE
-}
 
 interface WindowMeasurable {
   measureInWindow(callback: (x: number, y: number, width: number, height: number) => void): void
@@ -100,7 +96,7 @@ function useOrbitLoopClock(wantsLoop: boolean, lead: boolean, target: RefObject<
     let lastDraw = 0
     const step = (now: number) => {
       frame = requestAnimationFrame(step)
-      if (previous !== null) elapsed.current += Math.min(now - previous, MAX_FRAME_STEP_MS)
+      if (previous !== null) elapsed.current += Math.min(now - previous, ORBIT_MASCOT_MAX_FRAME_STEP_MS)
       previous = now
       if (now - lastDraw < mascotMotion.frameInterval) return
       lastDraw = now
@@ -202,7 +198,7 @@ function ThemedOrbitMascot(props: Readonly<OrbitMascotProps>) {
 function OrbitMascotDrawing({ size, state = 'parado', still = false, color, lead = false, tokens }: Readonly<OrbitMascotProps & { tokens: AppTokensV2 }>) {
   const clipId = `orbit-planet-${useId().replaceAll(':', '')}`
   const svgRef = useRef<Svg | null>(null)
-  const small = isSmallSize(size)
+  const small = isOrbitMascotSmallSize(size)
   const { clock, running } = useOrbitLoopClock(!small && !still, lead, svgRef)
   const frame = orbitMascotFrame(clock, mascotMotion)
   const palette = paletteFrom(tokens)
@@ -211,7 +207,7 @@ function OrbitMascotDrawing({ size, state = 'parado', still = false, color, lead
     <Svg
       ref={svgRef}
       width={size}
-      height={small ? size * SMALL_BOX_RATIO : (size * ORBIT_MASCOT_BOX_HEIGHT) / ORBIT_MASCOT_BOX_WIDTH}
+      height={small ? size * ORBIT_SMALL_FACE_BOX_RATIO : (size * ORBIT_MASCOT_BOX_HEIGHT) / ORBIT_MASCOT_BOX_WIDTH}
       viewBox={small ? ORBIT_SMALL_FACES[size].viewBox : ORBIT_MASCOT_VIEW_BOX}
       fill="none"
       color={color ?? tokens.fg1}

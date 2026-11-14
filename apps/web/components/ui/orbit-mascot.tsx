@@ -4,9 +4,12 @@ import {
   ORBIT_MASCOT_BOX_HEIGHT,
   ORBIT_MASCOT_BOX_WIDTH,
   ORBIT_MASCOT_FACES,
+  ORBIT_MASCOT_MAX_FRAME_STEP_MS,
   ORBIT_MASCOT_PLANET_RADIUS,
   ORBIT_MASCOT_VIEW_BOX,
+  ORBIT_SMALL_FACE_BOX_RATIO,
   ORBIT_SMALL_FACES,
+  isOrbitMascotSmallSize,
   orbitBlinkMatrix,
   orbitMascotFrame,
   orbitMascotSizeFor,
@@ -26,14 +29,6 @@ import {
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
 import { useOrbitOverlayLayer } from '@/components/ui/orbit-overlay-layer'
-
-const SMALL_BOX_RATIO = 3 / 4
-const LIVE_MIN_SIZE = 48
-const MAX_FRAME_STEP_MS = 100
-
-function isSmallSize(size: number): size is OrbitMascotSmallSize {
-  return size < LIVE_MIN_SIZE
-}
 
 /** The idle loop clock in milliseconds. It runs only while this mascot holds the one live slot, the
  *  person has not paused Orbit, no overlay covers its layer, the mascot is on screen and the tab is in
@@ -77,7 +72,7 @@ function useOrbitLoopClock(wantsLoop: boolean, lead: boolean, target: React.RefO
     let lastDraw = 0
     const step = (now: number) => {
       frame = requestAnimationFrame(step)
-      if (previous !== null) elapsed.current += Math.min(now - previous, MAX_FRAME_STEP_MS)
+      if (previous !== null) elapsed.current += Math.min(now - previous, ORBIT_MASCOT_MAX_FRAME_STEP_MS)
       previous = now
       if (now - lastDraw < mascotMotion.frameInterval) return
       lastDraw = now
@@ -163,7 +158,7 @@ function SmallFace({ size, clipId }: Readonly<{ size: OrbitMascotSmallSize; clip
 export function OrbitMascot({ size, state = 'parado', still = false, color, lead = false }: Readonly<OrbitMascotProps>) {
   const clipId = `orbit-planet-${useId().replaceAll(':', '')}`
   const svgRef = useRef<SVGSVGElement | null>(null)
-  const small = isSmallSize(size)
+  const small = isOrbitMascotSmallSize(size)
   const { clock, running } = useOrbitLoopClock(!small && !still, lead, svgRef)
   const frame = orbitMascotFrame(clock, mascotMotion)
 
@@ -171,7 +166,7 @@ export function OrbitMascot({ size, state = 'parado', still = false, color, lead
     <svg
       ref={svgRef}
       width={size}
-      height={small ? size * SMALL_BOX_RATIO : (size * ORBIT_MASCOT_BOX_HEIGHT) / ORBIT_MASCOT_BOX_WIDTH}
+      height={small ? size * ORBIT_SMALL_FACE_BOX_RATIO : (size * ORBIT_MASCOT_BOX_HEIGHT) / ORBIT_MASCOT_BOX_WIDTH}
       viewBox={small ? ORBIT_SMALL_FACES[size].viewBox : ORBIT_MASCOT_VIEW_BOX}
       fill="none"
       color={color ?? 'var(--fg-1)'}

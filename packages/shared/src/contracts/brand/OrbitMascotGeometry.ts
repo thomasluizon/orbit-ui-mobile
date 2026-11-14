@@ -1,4 +1,4 @@
-import type { OrbitMascotSize } from './OrbitMascot'
+import type { OrbitMascotLiveSize, OrbitMascotSize, OrbitMascotSmallSize } from './OrbitMascot'
 
 /** The Orbit mascot rig. The box, the planet, the eyes and the moon come from design/brand/orbit-mascot*.svg;
  *  a test compares them with those files. The ring is computed, because the live face tilts it.
@@ -64,6 +64,18 @@ export type OrbitMascotState = keyof typeof ORBIT_MASCOT_FACES
 export function orbitMascotSizeFor(size: number): OrbitMascotSize {
   const tiers: readonly OrbitMascotSize[] = [128, 96, 48, 24, 20, 16]
   return tiers.find((tier) => tier <= size) ?? 16
+}
+
+/** The smallest size that draws the live rig. Every size below it draws the small static face. */
+const ORBIT_MASCOT_LIVE_MIN_SIZE: OrbitMascotLiveSize = 48
+/** The small static face draws in a 4:3 box, so its height is three quarters of its width. */
+export const ORBIT_SMALL_FACE_BOX_RATIO = 3 / 4
+/** The longest step the idle loop clock takes in one frame, so a late frame never jumps the loop forward. */
+export const ORBIT_MASCOT_MAX_FRAME_STEP_MS = 100
+
+/** Whether a mascot of `size` px draws the small static face, not the live rig. */
+export function isOrbitMascotSmallSize(size: number): size is OrbitMascotSmallSize {
+  return size < ORBIT_MASCOT_LIVE_MIN_SIZE
 }
 
 /** Where the ring and the moon are at one moment of the idle loop. */

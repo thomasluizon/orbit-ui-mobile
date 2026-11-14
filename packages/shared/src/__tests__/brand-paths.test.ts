@@ -8,7 +8,11 @@ import {
   LOCKUP_WORD_PATH,
   LOCKUP_WORD_TRANSFORM,
   ORBIT_MASCOT_FACES,
+  ORBIT_MASCOT_LIVE_SIZES,
+  ORBIT_MASCOT_SMALL_SIZES,
+  ORBIT_SMALL_FACE_BOX_RATIO,
   ORBIT_SMALL_FACES,
+  isOrbitMascotSmallSize,
   orbitMascotFrame,
   orbitMascotSizeFor,
   orbitOutlineCutout,
@@ -79,6 +83,28 @@ describe('mascot sizes', () => {
   it.each([[16, 16], [20, 20], [24, 24], [32, 24], [48, 48], [60, 48], [96, 96], [128, 128], [200, 128], [12, 16]])(
     'a slot of %i px takes the %i tier',
     (slot, tier) => expect(orbitMascotSizeFor(slot)).toBe(tier),
+  )
+
+  it.each([...ORBIT_MASCOT_SMALL_SIZES])('draws the small static face at %i px', (size) => {
+    expect(isOrbitMascotSmallSize(size)).toBe(true)
+  })
+
+  it.each([...ORBIT_MASCOT_LIVE_SIZES])('draws the live rig at %i px', (size) => {
+    expect(isOrbitMascotSmallSize(size)).toBe(false)
+  })
+
+  it('draws every size below 48 as the small face and 48 or more as the live rig', () => {
+    expect(isOrbitMascotSmallSize(47)).toBe(true)
+    expect(isOrbitMascotSmallSize(48)).toBe(false)
+  })
+
+  it.each(ORBIT_MASCOT_SMALL_SIZES.map((size) => [size, ORBIT_SMALL_FACES[size].viewBox] as const))(
+    'gives the %i px small face the height of its view box %s',
+    (size, viewBox) => {
+      const [, , width = 0, height = 0] = viewBox.split(' ').map(Number)
+      expect(width).toBe(size)
+      expect(size * ORBIT_SMALL_FACE_BOX_RATIO).toBe(height)
+    },
   )
 })
 
