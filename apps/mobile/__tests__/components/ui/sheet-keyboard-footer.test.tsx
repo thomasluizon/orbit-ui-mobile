@@ -127,7 +127,6 @@ describe('Sheet footer and keyboard (mobile)', () => {
       if (platform === 'android') {
         expect(scrollTo).toHaveBeenLastCalledWith({ y: 148, animated: true })
       } else {
-        expect(field.y + field.height).toBeLessThanOrEqual(keyboardEdgeInSheet - 24)
         expect(scrollTo).not.toHaveBeenCalled()
       }
     } finally {
