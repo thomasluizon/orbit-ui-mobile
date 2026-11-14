@@ -144,8 +144,8 @@
     ".claude/skills/android-release/SKILL.md": {
       "model": null,
       "effort": "low",
-      "digest": "58e6ee76a46f324d",
-      "calibratedAt": "2026-11-09",
+      "digest": "fb87f04b9dccf820",
+      "calibratedAt": "2026-11-14",
       "verdict": "current: derives version and track from workflow runs, verifies the exact remote ref, and dispatches only after owner confirmation; its checks are procedural, so low effort remains right."
     },
     ".claude/skills/astra-eval/SKILL.md": {
@@ -186,15 +186,15 @@
     ".claude/skills/auto-work/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "8c89dd508fbb8b19",
-      "calibratedAt": "2026-11-09",
+      "digest": "b8f91323846bd18c",
+      "calibratedAt": "2026-11-14",
       "verdict": "undeclared, inherits the session: runs continuous source intake through the existing sleep lifecycle, classifies feedback and preserves independent crank and relay state without changing model or effort routing."
     },
     ".claude/skills/crank/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "8c3903e2c16783b4",
-      "calibratedAt": "2026-11-09",
+      "digest": "ce68f3978587e5b3",
+      "calibratedAt": "2026-11-14",
       "verdict": "undeclared, inherits the session: toggles durable orchestrator scheduling within existing caps and quality gates, without changing model or effort routing."
     },
     ".claude/skills/deep-research/SKILL.md": {
@@ -249,8 +249,8 @@
     ".claude/skills/ios-release/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "9a6a31fab17d64ed",
-      "calibratedAt": "2026-11-09",
+      "digest": "45186804d6b40c9d",
+      "calibratedAt": "2026-11-14",
       "verdict": "undeclared, inherits the session: verifies iOS signing prerequisites, release parameters and internal TestFlight processing through the manual workflow; it declares no model or effort override."
     },
     ".claude/skills/lesson/SKILL.md": {
@@ -298,8 +298,8 @@
     ".claude/skills/release/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "565f9cf15fbcd202",
-      "calibratedAt": "2026-11-09",
+      "digest": "e53a0fac95c1eb4e",
+      "calibratedAt": "2026-11-14",
       "verdict": "current: sequences production and staging releases across services, checks live deployment evidence, and stops on ambiguous runs; high effort is right for decisions that control outward dispatch."
     },
     ".claude/skills/second-opinion/SKILL.md": {
