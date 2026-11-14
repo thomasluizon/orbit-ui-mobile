@@ -159,3 +159,30 @@ describe('the view switch on Android', () => {
     expect(withTimingCalls).toHaveLength(0)
   })
 })
+
+describe('the Calendário motion with the guided flows off, on Android', () => {
+  beforeEach(() => { state.guided = false })
+
+  it('draws the new arc share at once', () => {
+    const timing = vi.spyOn(Animated, 'timing')
+    const tree = render(<DayCell day={13} label="November 13" words={words} scheduled={3} done={1} />)
+    TestRenderer.act(() => tree.update(<DayCell day={13} label="November 13" words={words} scheduled={3} done={2} />))
+    expect(timing).not.toHaveBeenCalled()
+    expect((byTestId(tree, 'day-arc')[0]!.props.strokeDashoffset as { value: number }).value).toBeCloseTo(circumference * (1 - 2 / 3))
+  })
+
+  it('keeps the check of the day card still on a log', () => {
+    const row = (checked: boolean) => <CheckRow variant="calendar-day" textMode="personal" label="Read" checked={checked} onChange={vi.fn()} onOpenLabel={vi.fn()} />
+    const tree = render(row(false))
+    TestRenderer.act(() => tree.update(row(true)))
+    expect(withSpringCalls).toHaveLength(0)
+  })
+
+  it('shows a new day card and a switched view at once', () => {
+    const tree = render(<CalendarViewRouter state={monthState({})} />)
+    TestRenderer.act(() => tree.update(<CalendarViewRouter state={monthState({ selectedDay: '2026-11-12' })} />))
+    TestRenderer.act(() => tree.update(<CalendarViewRouter state={monthState({ selectedDay: '2026-11-12', view: 'week' })} />))
+    expect(withTimingCalls).toHaveLength(0)
+    expect(byTestId(tree, 'week').length).toBeGreaterThan(0)
+  })
+})

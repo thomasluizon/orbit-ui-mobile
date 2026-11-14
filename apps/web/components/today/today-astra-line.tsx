@@ -30,7 +30,7 @@ interface TodayAstraLineProps {
 
 const SENTENCE_CHANGE = `today-astra-sentence-in ${motionDurations.micro}ms cubic-bezier(${motionEasings.standard.join(', ')})`
 
-/** True after the first change of the sentence, so the first render never fades in. */
+/** True after the first change of the sentence, so the first render never fades in. The fade belongs to the guided flows. */
 function useSentenceChanged(text: string): boolean {
   const [first] = useState(text)
   const [changed, setChanged] = useState(false)
@@ -42,7 +42,7 @@ export function TodayAstraLine({ text, destination, href, onPress, disabled = fa
   const guided = useFlag('orbit_guided_flows')
   const destinationId = useId()
   const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
-  const fade = useSentenceChanged(text) && !reducedMotion
+  const fade = useSentenceChanged(text) && guided && !reducedMotion
   const content = <>
     <span ref={mascotRef} aria-hidden="true" className="relative flex w-[48px] shrink-0 items-center justify-center">
       {guided ? <OrbitMascot size={48} state={mascotState} lookAt={lookAt} turnKey={turnKey} /> : <OrbitMascot size={20} color="var(--fg-3)" />}

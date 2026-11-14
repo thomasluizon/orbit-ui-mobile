@@ -10,6 +10,7 @@ import {
   Pressable, StyleSheet, Text, View, type AccessibilityState,
 } from 'react-native'
 import Svg, { Circle } from 'react-native-svg'
+import { useFlag } from '@/hooks/use-flag'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -18,9 +19,11 @@ type Tokens = ReturnType<typeof createTokensV2>
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle)
 
-/** The share of the day done. A log sweeps the arc from the old share to the new one on the slow duration; reduced motion draws the new share at once. */
+/** The share of the day done. With the guided flows on, a log sweeps the arc from the old share to the new one on the slow duration; the flag off and reduced motion draw the new share at once. */
 function PartialArc({ size, stroke, fraction, color }: Readonly<{ size: number; stroke: number; fraction: number; color: string }>) {
+  const guided = useFlag('orbit_guided_flows')
   const reducedMotion = usePrefersReducedMotion()
+  const still = !guided || reducedMotion
   const radius = (size - stroke) / 2
   const circumference = 2 * Math.PI * radius
   const target = circumference * (1 - fraction)
@@ -30,14 +33,14 @@ function PartialArc({ size, stroke, fraction, color }: Readonly<{ size: number; 
     if (shown.current === target) return undefined
     shown.current = target
     offset.stopAnimation()
-    if (reducedMotion) {
+    if (still) {
       offset.setValue(target)
       return undefined
     }
     const sweep = Animated.timing(offset, { toValue: target, duration: motionDurations.slow, easing: toAnimatedEasing(motionEasings.standard), useNativeDriver: false })
     sweep.start()
     return () => sweep.stop()
-  }, [offset, reducedMotion, target])
+  }, [offset, still, target])
   return <AnimatedCircle testID="day-arc" cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={color} strokeDasharray={[circumference, circumference]} strokeDashoffset={offset}
     strokeLinecap="round" strokeWidth={stroke} rotation={-90} origin={`${size / 2}, ${size / 2}`} />
 }

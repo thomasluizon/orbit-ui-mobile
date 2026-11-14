@@ -165,3 +165,31 @@ describe('the view switch', () => {
     expect(animate).not.toHaveBeenCalled()
   })
 })
+
+describe('the Calendário motion with the guided flows off', () => {
+  beforeEach(() => { state.guided = false })
+
+  it('draws the new arc share with no sweep', () => {
+    const { container, rerender } = render(<DayCell day={13} label="November 13" words={words} scheduled={3} done={1} />)
+    rerender(<DayCell day={13} label="November 13" words={words} scheduled={3} done={2} />)
+    const arc = container.querySelector<SVGCircleElement>('[data-day-arc]')!
+    expect(arc.style.transition).toBe('')
+    expect(Number(arc.getAttribute('stroke-dashoffset'))).toBeCloseTo(100 * (1 - 2 / 3))
+  })
+
+  it('keeps the check of the day card still on a log', () => {
+    const row = (checked: boolean) => <CheckRow variant="calendar-day" textMode="personal" label="Read" checked={checked} onChange={vi.fn()} onOpenLabel={vi.fn()} />
+    const { container, rerender } = render(row(false))
+    rerender(row(true))
+    expect(container.querySelector('[data-check-settle]')).toBeNull()
+    expect(screen.getByRole('checkbox', { name: 'Read' })).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('shows a new day card and a switched view at once', () => {
+    const { rerender } = render(<CalendarViewRouter state={monthState({})} />)
+    rerender(<CalendarViewRouter state={monthState({ selectedDay: '2026-11-12' })} />)
+    rerender(<CalendarViewRouter state={monthState({ selectedDay: '2026-11-12', view: 'week' })} />)
+    expect(animate).not.toHaveBeenCalled()
+    expect(screen.getByTestId('week')).toBeInTheDocument()
+  })
+})

@@ -3,6 +3,7 @@
 import { SPACING, motionSprings, resolveMotionPreset } from '@orbit/shared/theme'
 import { useEffect, useRef, useState } from 'react'
 import { animate } from 'motion/react'
+import { useFlag } from '@/hooks/use-flag'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
 
 
@@ -113,8 +114,9 @@ function personalContentClassName(leading: CheckRowProps['leading']) {
   return leading ? 'flex items-center gap-2' : 'flex flex-col justify-center'
 }
 
-/** A log pops the check: it settles from the success-feedback scale on the completion spring. The first render and reduced motion draw it still. */
+/** A log pops the check: it settles from the success-feedback scale on the completion spring. The first render, the guided flows off and reduced motion draw it still. */
 function useCheckSettle(checked: boolean): number | null {
+  const guided = useFlag('orbit_guided_flows')
   const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
   const [shown, setShown] = useState(checked)
   const [logged, setLogged] = useState(false)
@@ -122,7 +124,7 @@ function useCheckSettle(checked: boolean): number | null {
     setShown(checked)
     setLogged(checked)
   }
-  return logged && !reducedMotion ? resolveMotionPreset('success-feedback').scaleFrom : null
+  return logged && guided && !reducedMotion ? resolveMotionPreset('success-feedback').scaleFrom : null
 }
 
 function CalendarDayCheck({ checked, loading }: Readonly<{ checked: boolean; loading: boolean }>) {

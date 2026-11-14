@@ -51,21 +51,28 @@ function CalendarMonthFeedback({
   )
 }
 
+/** The Calendário motion belongs to the guided flows: with the flag off, or under reduced motion, a change shows at once. */
+function useCalendarMotionStill(): boolean {
+  const guided = useFlag('orbit_guided_flows')
+  const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
+  return !guided || reducedMotion
+}
+
 const DAY_CARD_FADE = { duration: motionDurations.base, easing: `cubic-bezier(${motionEasings.standard.join(', ')})` }
 
-/** A new selected day cross-fades the day card on the base duration. The first day and reduced motion show at once. */
+/** A new selected day cross-fades the day card on the base duration. The first day, the guided flows off and reduced motion show at once. */
 function CalendarDayCardSlot({ dayKey, children }: Readonly<{ dayKey: string; children: ReactNode }>) {
   const slotRef = useRef<HTMLDivElement>(null)
-  const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
+  const still = useCalendarMotionStill()
   const shownDay = useRef(dayKey)
   useEffect(() => {
     if (shownDay.current === dayKey) return undefined
     shownDay.current = dayKey
     const slot = slotRef.current
-    if (reducedMotion || !slot || typeof slot.animate !== 'function') return undefined
+    if (still || !slot || typeof slot.animate !== 'function') return undefined
     const fade = slot.animate([{ opacity: 0 }, { opacity: 1 }], DAY_CARD_FADE)
     return () => fade.cancel()
-  }, [dayKey, reducedMotion])
+  }, [dayKey, still])
   return <div ref={slotRef} data-testid="calendar-day-card-slot" style={{ paddingInline: PADDING.screenGutter, paddingBlockStart: PADDING.sectionGap }}>{children}</div>
 }
 
@@ -151,23 +158,23 @@ function CalendarMonthView({ state }: Readonly<{ state: CalendarScreenState }>) 
 
 const VIEW_ORDER: readonly CalendarScreenState['view'][] = ['month', 'week', 'range', 'agenda']
 
-/** A view switch enters on the tab-switch preset, shifted toward the side of the chosen segment. Reduced motion swaps the view at once. */
+/** A view switch enters on the tab-switch preset, shifted toward the side of the chosen segment. The guided flows off and reduced motion swap the view at once. */
 function CalendarViewSwitch({ view, children }: Readonly<{ view: CalendarScreenState['view']; children: ReactNode }>) {
   const viewRef = useRef<HTMLDivElement>(null)
-  const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
+  const still = useCalendarMotionStill()
   const shownView = useRef(view)
   useEffect(() => {
     const before = shownView.current
     if (before === view) return undefined
     shownView.current = view
     const element = viewRef.current
-    if (reducedMotion || !element || typeof element.animate !== 'function') return undefined
+    if (still || !element || typeof element.animate !== 'function') return undefined
     const preset = resolveMotionPreset('tab-switch')
     const shift = (VIEW_ORDER.indexOf(view) > VIEW_ORDER.indexOf(before) ? 1 : -1) * preset.shift
     const enter = element.animate([{ opacity: 0, transform: `translateX(${shift}px)` }, { opacity: 1, transform: 'translateX(0)' }],
       { duration: preset.enterDuration, easing: `cubic-bezier(${preset.enterEasing.join(', ')})` })
     return () => enter.cancel()
-  }, [view, reducedMotion])
+  }, [view, still])
   return <div ref={viewRef} data-calendar-view={view} className="flex min-h-0 flex-1 flex-col">{children}</div>
 }
 

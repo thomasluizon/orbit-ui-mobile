@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
+import { enableTestFlags, resetTestFlags } from '@orbit/shared/test-support/flag-state'
 import { motionDurations } from '@orbit/shared/theme'
 import { TodayAstraLine } from '@/components/today/today-astra-line'
 import { withTimingCalls } from '@/test-mocks/react-native-reanimated'
@@ -50,6 +50,17 @@ describe('the root Orbit line row on Android', () => {
     motion.reduced = true
     const tree = render(<TodayAstraLine text="Dia 2: tudo feito." destination="Abrir conversa" />)
     TestRenderer.act(() => tree.update(<TodayAstraLine text="Nada marcado nesse dia." destination="Abrir conversa" />))
+    expect(withTimingCalls).toHaveLength(0)
+    expect(hostByTestId(tree.root, 'today-astra-slot').props.accessibilityLabel).toBe('Nada marcado nesse dia.')
+  })
+
+  it('keeps the current 20 face and never fades the sentence with the guided flows off', () => {
+    resetTestFlags()
+    const tree = render(<TodayAstraLine text="Dia 2: tudo feito." destination="Abrir conversa" mascotState="descansando" />)
+    TestRenderer.act(() => tree.update(<TodayAstraLine text="Nada marcado nesse dia." destination="Abrir conversa" mascotState="descansando" />))
+    const mascot = hostByTestId(tree.root, 'orbit-mascot')
+    expect(mascot.props.width).toBe(20)
+    expect(mascot.props['data-orbit-face']).toBe('small')
     expect(withTimingCalls).toHaveLength(0)
     expect(hostByTestId(tree.root, 'today-astra-slot').props.accessibilityLabel).toBe('Nada marcado nesse dia.')
   })

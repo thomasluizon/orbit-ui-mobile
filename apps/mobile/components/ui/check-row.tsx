@@ -2,6 +2,7 @@ import { INTERACTION_FILL_CLEARANCE, SPACING, motionSprings, resolveMotionPreset
 import { PersonalText } from '@/components/ui/personal-text'
 import { useEffect, useState } from 'react'
 import Animated, { cancelAnimation, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated'
+import { useFlag } from '@/hooks/use-flag'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import type { CheckRowProps } from '@orbit/shared/contracts/forms'
 import { Pressable as NativePressable, StyleSheet, Text, View, useWindowDimensions, type PressableProps, type ViewStyle } from 'react-native'
@@ -146,8 +147,9 @@ function getPersonalControlFill(calendarDay: boolean) {
   return calendarDay ? { ...styles.controlFill, ...styles.calendarDayControlFill } : styles.controlFill
 }
 
-/** A log pops the check: it settles from the success-feedback scale on the completion spring. The first render and reduced motion draw it still. */
+/** A log pops the check: it settles from the success-feedback scale on the completion spring. The first render, the guided flows off and reduced motion draw it still. */
 function useCheckSettle(checked: boolean) {
+  const guided = useFlag('orbit_guided_flows')
   const reducedMotion = usePrefersReducedMotion()
   const [shown, setShown] = useState(checked)
   const [logged, setLogged] = useState(false)
@@ -158,14 +160,14 @@ function useCheckSettle(checked: boolean) {
   const scale = useSharedValue(1)
   const settleStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }))
   useEffect(() => {
-    if (!logged || reducedMotion) return undefined
+    if (!logged || !guided || reducedMotion) return undefined
     scale.value = resolveMotionPreset('success-feedback').scaleFrom
     scale.value = withSpring(1, { ...motionSprings.completion, overshootClamping: true })
     return () => {
       cancelAnimation(scale)
       scale.value = 1
     }
-  }, [logged, reducedMotion, scale])
+  }, [guided, logged, reducedMotion, scale])
   return settleStyle
 }
 

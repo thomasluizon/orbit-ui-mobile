@@ -27,28 +27,29 @@ interface TodayAstraLineProps {
   mascotRef?: RefObject<View | null>
 }
 
-/** A new sentence fades in on the micro duration. The first sentence and reduced motion show at once. */
-function useSentenceFade(text: string, reduced: boolean) {
+/** A new sentence fades in on the micro duration. The first sentence, the guided flows off and reduced motion show at once. */
+function useSentenceFade(text: string, still: boolean) {
   const opacity = useSharedValue(1)
   const shown = useRef(text)
   useEffect(() => {
     if (shown.current === text) return undefined
     shown.current = text
-    if (reduced) return undefined
+    if (still) return undefined
     opacity.value = 0
     opacity.value = withTiming(1, { duration: motionDurations.micro, easing: Easing.bezier(...motionEasings.standard) })
     return () => {
       cancelAnimation(opacity)
       opacity.value = 1
     }
-  }, [opacity, reduced, text])
+  }, [opacity, still, text])
   return useAnimatedStyle(() => ({ opacity: opacity.value }))
 }
 
 export function TodayAstraLine({ text, destination, role = 'button', onPress, disabled = false, busy = false, announce = false, loading = false, mascotState = 'parado', lookAt, turnKey, mascotRef }: Readonly<TodayAstraLineProps>) {
   const guided = useFlag('orbit_guided_flows')
   const { fontScale } = useWindowDimensions()
-  const sentenceStyle = useSentenceFade(text, usePrefersReducedMotion())
+  const reducedMotion = usePrefersReducedMotion()
+  const sentenceStyle = useSentenceFade(text, !guided || reducedMotion)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const [pressed, setPressed] = useState(false)
